@@ -73,9 +73,7 @@ static unsigned int nat64_tg_icmpv6(struct sk_buff *skb, const struct xt_action_
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	//struct nf_conn *ct;
 
-	nat64_tg6_cmp(iph, info);
-
-	return NF_DROP;
+	return nat64_tg6_cmp(iph, info) ? NF_ACCEPT : NF_DROP;
 }
 
 static int nat64_tg_check(const struct xt_tgchk_param *par)
