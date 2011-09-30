@@ -47,7 +47,7 @@ static bool nat64_tg6_cmp(struct ipv6hdr *iph, const struct xt_nat64_tginfo *inf
 static unsigned int nat64_tg_icmp(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	//const struct xt_nat64_tginfo *info = par->targinfo;
-	//const struct iphdr *iph = ip_hdr(skb);
+	struct iphdr *iph = ip_hdr(skb);
 	//struct nf_nat_range range = {};
 	//struct nf_conn *ct;
 
@@ -63,6 +63,14 @@ static unsigned int nat64_tg_icmp(struct sk_buff *skb, const struct xt_action_pa
 
 	pr_debug("\n* ICNOMING IPV4 PACKET *\n");
 	pr_debug("Drop it\n");
+	pr_debug("Protocol: ");
+
+	if (iph->protocol == IPPROTO_TCP)
+		pr_debug("TCP\n");
+	else if (iph->protocol == IPPROTO_UDP)
+		pr_debug("UDP\n");
+	else if (iph->protocol == IPPROTO_ICMP)
+		pr_debug("ICMP\n");
 
 	return NF_DROP;
 }
@@ -72,8 +80,25 @@ static unsigned int nat64_tg_icmpv6(struct sk_buff *skb, const struct xt_action_
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	//struct nf_conn *ct;
+	bool accept = nat64_tg6_cmp(iph, info);
 
-	return nat64_tg6_cmp(iph, info) ? NF_ACCEPT : NF_DROP;
+	if (!accept)
+		return NF_DROP;
+
+	pr_debug("Protocol: ");
+
+	if (iph->nexthdr == IPPROTO_TCP)
+		pr_debug("TCP\n");
+	else if (iph->nexthdr == IPPROTO_UDP)
+		pr_debug("UDP\n");
+	else if (iph->nexthdr == IPPROTO_ICMP)
+		pr_debug("ICMP\n");
+	else if (iph->nexthdr == IPPROTO_ICMPV6)
+		pr_debug("ICMPV6\n");
+	else
+		return NF_DROP;
+
+	return NF_ACCEPT;
 }
 
 static int nat64_tg_check(const struct xt_tgchk_param *par)
@@ -94,7 +119,6 @@ static struct xt_target nat64_tg_reg[] __read_mostly = {
 		.target = nat64_tg_icmp,
 		.checkentry = nat64_tg_check,
 		.family = NFPROTO_IPV4,
-		.proto = IPPROTO_ICMP,
 		.table = "mangle",
 		.hooks = (1 << NF_INET_PRE_ROUTING),
 		.targetsize = sizeof(struct xt_nat64_tginfo),
@@ -106,7 +130,6 @@ static struct xt_target nat64_tg_reg[] __read_mostly = {
 		.target = nat64_tg_icmpv6,
 		.checkentry = nat64_tg_check,
 		.family = NFPROTO_IPV6,
-		.proto = IPPROTO_ICMPV6,
 		.table = "mangle",
 		.hooks = (1 << NF_INET_PRE_ROUTING),
 		.targetsize = sizeof(struct xt_nat64_tginfo),
