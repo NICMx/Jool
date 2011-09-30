@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/skbuff.h>
 #include <net/ipv6.h>
@@ -22,8 +23,7 @@ MODULE_DESCRIPTION("Xtables: RFC 6146 \"NAT64\" implementation");
 MODULE_ALIAS("ipt_nat64");
 MODULE_ALIAS("ip6t_nat64");
 
-static bool nat64_tg6_cmp(const struct ipv6hdr *iph,
-		const struct xt_nat64_tginfo *info)
+static bool nat64_tg6_cmp(struct ipv6hdr *iph, const struct xt_nat64_tginfo *info)
 {
 	pr_debug("\n* ICNOMING IPV6 PACKET COMPARISON *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
@@ -43,12 +43,12 @@ static bool nat64_tg6_cmp(const struct ipv6hdr *iph,
 	return false;
 }
 
-static bool nat64_tg_icmp(const struct sk_buff *skb, struct xt_action_param *par)
+static unsigned int nat64_tg_icmp(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	const struct xt_nat64_tginfo *info = par->targinfo;
-	const struct iphdr *iph = ip_hdr(skb);
+	//const struct xt_nat64_tginfo *info = par->targinfo;
+	//const struct iphdr *iph = ip_hdr(skb);
 	//struct nf_nat_range range = {};
-	struct nf_conn *ct;
+	//struct nf_conn *ct;
 
 	/* for debugging */
 	//ct = nf_ct_get(skb, &ctinfo);
@@ -66,11 +66,11 @@ static bool nat64_tg_icmp(const struct sk_buff *skb, struct xt_action_param *par
 	return NF_DROP;
 }
 
-static bool nat64_tg_icmpv6(const struct sk_buff *skb, struct xt_action_param *par)
+static unsigned int nat64_tg_icmpv6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_nat64_tginfo *info = par->targinfo;
-	const struct ipv6hdr *iph = ip6_hdr(skb);
-	struct nf_conn *ct;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+	//struct nf_conn *ct;
 
 	nat64_tg6_cmp(iph, info);
 
@@ -120,7 +120,7 @@ static int __init nat64_init(void)
 	return xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 }
 
-static int __exit nat64_tg_exit(void)
+static void __exit nat64_exit(void)
 {
 	xt_unregister_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 }
