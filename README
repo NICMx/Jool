@@ -6,7 +6,7 @@ example of usage:
 	/* flush the mangle table */
 	ip6tables -t mangle --flush
 	/* add the new rule */
-	ip6tables -t mangle -A PREROUTING -p icmpv6 -j nat64 --ipdst ::1/64;
+	ip6tables -t mangle -A PREROUTING -j nat64 --ipdst ::1/64;
 	/* look at your new rule */
 	ip6tables -t mangle -n -L
 	/* test it... */
