@@ -5,6 +5,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
@@ -96,8 +97,7 @@ static struct xt_target nat64_tg_reg[] __read_mostly = {
 		.checkentry = nat64_tg_check,
 		.family = NFPROTO_IPV4,
 		.proto = IPPROTO_ICMP,
-		.hooks = (1 << NF_INET_PRE_ROUTING),
-		.table = "nat",
+		.hooks = (1 << NF_INET_LOCAL_IN),
 		.targetsize = sizeof(struct xt_nat64_tginfo),
 		.me = THIS_MODULE,
 	},
@@ -108,8 +108,7 @@ static struct xt_target nat64_tg_reg[] __read_mostly = {
 		.checkentry = nat64_tg_check,
 		.family = NFPROTO_IPV6,
 		.proto = IPPROTO_ICMPV6,
-		.hooks = (1 << NF_INET_PRE_ROUTING),
-		.table = "nat",
+		.hooks = (1 << NF_INET_LOCAL_IN),
 		.targetsize = sizeof(struct xt_nat64_tginfo),
 		.me = THIS_MODULE,
 	},
