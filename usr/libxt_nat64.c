@@ -21,7 +21,7 @@ static struct xtables_target nat64_tg4_reg = {
 	.revision = 0,
 	.family = NFPROTO_IPV4,
 	.size = XT_ALIGN(sizeof(struct xt_nat64_tginfo)),
-	.userspacesize = XT_ALIGN(sizeof(xt_nat64_tginfo)),
+	.userspacesize = XT_ALIGN(sizeof(struct xt_nat64_tginfo)),
 	.help = nat64_tg_help,
 	.parse = nat64_tg4_parse,
 	.final_check = nat64_tg_check,
@@ -51,11 +51,11 @@ static void nat64_tg4_save(const void *entry, const struct xt_entry_target *targ
 	const struct xt_nat64_tginfo *info = (const void *)target->data;
 
 	if (info ->flags & XT_NAT64_IP_SRC) {
-		printf("--ipsrc %s ", xtables_ipaddr_to_numeric(&info->src.in));
+		printf("--ipsrc %s ", xtables_ipaddr_to_numeric(&info->ipsrc.in));
 	}
 
 	if (info->flags & XT_NAT64_IP_DST) {
-		printf("--ipdst %s ", xtables_ipaddr_to_numeric(&info->dst.in));
+		printf("--ipdst %s ", xtables_ipaddr_to_numeric(&info->ipdst.in));
 	}
 }
 
@@ -63,19 +63,10 @@ static void nat64_tg6_save(const void *entry, const struct xt_entry_target *targ
 {
 	const struct xt_nat64_tginfo *info = (const void *)target->data;
 
-	if (info ->flags & XT_nat64_SRC) {
-		if (info->flags & XT_nat64_SRC_INV)
-			printf("! ");
-
-		printf("--ipsrc %s ", xtables_ip6addr_to_numeric(&info->src.in6));
-	}
-
-	if (info->flags & XT_nat64_DST) {
-		if (info->flags & XT_nat64_DST_INV)
-			printf("! ");
-
-		printf("--ipdst %s ",
-				xtables_ip6addr_to_numeric(&info->dst.in6));
+	if (info->flags & XT_NAT64_IPV6_DST) {
+		printf("--ipdst %s %s",
+				xtables_ip6addr_to_numeric(&info->ip6dst.in6),
+				xtables_ip6addr_to_numeric(&info->ip6dst_mask.in6));
 	}
 }
 
@@ -85,27 +76,21 @@ static void nat64_tg4_print(const void *entry,
 {
 	const struct xt_nat64_tginfo *info = (const void *)target->data;
 
-	if (info->flags & XT_nat64_SRC) {
+	if (info->flags & XT_NAT64_IP_SRC) {
 		printf("src IP ");
-
-		if (info->flags & XT_nat64_SRC_INV)
-			printf("! ");
 
 		if (numeric)
 			printf("%s ", numeric ?
-					xtables_ipaddr_to_numeric(&info->src.in) :
-					xtables_ipaddr_to_anyname(&info->src.in));
+					xtables_ipaddr_to_numeric(&info->ipsrc.in) :
+					xtables_ipaddr_to_anyname(&info->ipsrc.in));
 	}
 
-	if (info->flags & XT_nat64_DST) {
+	if (info->flags & XT_NAT64_IP_DST) {
 		printf("dst IP ");
 
-		if (info->flags & XT_nat64_DST_INV)
-			printf("! ");
-
 		printf("%s ", numeric ?
-				xtables_ipaddr_to_numeric(&info->dst.in):
-				xtables_ipaddr_to_anyname(&info->dst.in));
+				xtables_ipaddr_to_numeric(&info->ipdst.in):
+				xtables_ipaddr_to_anyname(&info->ipdst.in));
 	}
 }
 
@@ -119,8 +104,8 @@ static void nat64_tg6_print(const void *entry,
 		printf("dst IP ");
 
 		printf("%s ", numeric ?
-				xtables_ip6addr_to_numeric(&info->dst.in6):
-				xtables_ip6addr_to_anyname(&info->dst.in6));
+				xtables_ip6addr_to_numeric(&info->ip6dst.in6):
+				xtables_ip6addr_to_anyname(&info->ip6dst.in6));
 	}
 }
 
@@ -153,7 +138,7 @@ static int nat64_tg4_parse(int c, char **argv, int invert,
 						"one address", optarg);
 
 			/* Copy the single address */
-			memcpy(&info->src.in, addrs, sizeof(*addrs));
+			memcpy(&info->ipsrc.in, addrs, sizeof(*addrs));
 			return true;
 
 		case '2': /* --ipdst */
@@ -179,7 +164,7 @@ static int nat64_tg4_parse(int c, char **argv, int invert,
 				xtables_error(PARAMETER_PROBLEM,
 						"Parse error at %s\n", optarg);
 
-			memcpy(&info->dst.in, addrs, sizeof(*addrs));
+			memcpy(&info->ipdst.in, addrs, sizeof(*addrs));
 			return true;
 	}
 	return false;
@@ -191,7 +176,7 @@ static int nat64_tg6_parse(int c, char **argv, int invert,
 {
 	struct xt_nat64_tginfo *info = (void *)(*target)->data;
 	struct in6_addr *addrs, mask;
-	char str[INET6_ADDRSTRLEN];
+	unsigned int naddrs;
 
 	switch(c) {
 		case '1': /* --ipsrc */
@@ -224,7 +209,7 @@ static int nat64_tg6_parse(int c, char **argv, int invert,
 						"Parse error at %s\n", optarg);
 
 			memcpy(&info->ip6dst.in6, addrs, sizeof(*addrs));
-			memcpy(&info->ip6dst_mask.in6, mask, sizeof(*mask));
+			memcpy(&info->ip6dst_mask.in6, &mask, sizeof(mask));
 			return true;
 	}
 
