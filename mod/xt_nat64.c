@@ -44,7 +44,7 @@ static bool nat64_tg6_cmp(struct ipv6hdr *iph, const struct xt_nat64_tginfo *inf
 	return false;
 }
 
-static unsigned int nat64_tg_icmp(struct sk_buff *skb, const struct xt_action_param *par)
+static unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	//const struct xt_nat64_tginfo *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
@@ -75,7 +75,7 @@ static unsigned int nat64_tg_icmp(struct sk_buff *skb, const struct xt_action_pa
 	return NF_DROP;
 }
 
-static unsigned int nat64_tg_icmpv6(struct sk_buff *skb, const struct xt_action_param *par)
+static unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -101,6 +101,16 @@ static unsigned int nat64_tg_icmpv6(struct sk_buff *skb, const struct xt_action_
 	return NF_ACCEPT;
 }
 
+static unsigned int nat64_tg(struct sk_buff *skb, const struct xt_action_param *par)
+{
+	if (par->family == NFPROTO_IPV4)
+		return nat64_tg4(&sk, &par);
+	else if (par->family == NFPROTO_IPV6)
+		return nat64_tg6(&sk, &par);
+	else
+		return NF_DROP;
+}
+
 static int nat64_tg_check(const struct xt_tgchk_param *par)
 {
 	int ret;
@@ -112,29 +122,16 @@ static int nat64_tg_check(const struct xt_tgchk_param *par)
 	return ret;
 }
 
-static struct xt_target nat64_tg_reg[] __read_mostly = {
-	{
-		.name = "nat64",
-		.revision = 0,
-		.target = nat64_tg_icmp,
-		.checkentry = nat64_tg_check,
-		.family = NFPROTO_IPV4,
-		.table = "mangle",
-		.hooks = (1 << NF_INET_PRE_ROUTING),
-		.targetsize = sizeof(struct xt_nat64_tginfo),
-		.me = THIS_MODULE,
-	},
-	{
-		.name = "nat64",
-		.revision = 0,
-		.target = nat64_tg_icmpv6,
-		.checkentry = nat64_tg_check,
-		.family = NFPROTO_IPV6,
-		.table = "mangle",
-		.hooks = (1 << NF_INET_PRE_ROUTING),
-		.targetsize = sizeof(struct xt_nat64_tginfo),
-		.me = THIS_MODULE,
-	},
+static struct xt_target nat64_tg_reg __read_mostly = {
+	.name = "nat64",
+	.revision = 0,
+	.target = nat64_tg,
+	.checkentry = nat64_tg_check,
+	.family = NFPROTO_UNSPEC,
+	.table = "mangle",
+	.hooks = (1 << NF_INET_PRE_ROUTING),
+	.targetsize = sizeof(struct xt_nat64_tginfo),
+	.me = THIS_MODULE,
 };
 
 static int __init nat64_init(void)
