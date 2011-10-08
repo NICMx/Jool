@@ -17,4 +17,13 @@ struct xt_nat64_tginfo {
 	__u16 l4proto;
 	__u8 flags;
 };
+
+/*
+ * Constants that hold the allowed L4 protocols that are allowed by the NAT64
+ * implementation.
+ */
+enum {
+	NAT64_IP_ALLWD_PROTOS = IPPROTO_TCP | IPPROTO_UDP | IPPROTO_ICMP;
+	NAT64_IPV6_ALLWD_PROTOS = IPPROTO_TCP | IPPROTO_UDP | IPPROTO_ICMPV6; 
+}
 #endif /* _LINUX_NETFILTER_XT_NAT64_H */
