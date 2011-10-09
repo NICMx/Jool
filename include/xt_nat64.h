@@ -1,5 +1,7 @@
 #ifndef _LINUX_NETFILTER_XT_NAT64_H
 #define _LINUX_NETFILTER_XT_NAT64_H
+#include <linux/in.h>
+#include <linux/in6.h>
 
 /*
  * Flags that indicate the information needed for the NAT64 device.
@@ -22,8 +24,6 @@ struct xt_nat64_tginfo {
  * Constants that hold the allowed L4 protocols that are allowed by the NAT64
  * implementation.
  */
-enum {
-	NAT64_IP_ALLWD_PROTOS = IPPROTO_TCP | IPPROTO_UDP | IPPROTO_ICMP;
-	NAT64_IPV6_ALLWD_PROTOS = IPPROTO_TCP | IPPROTO_UDP | IPPROTO_ICMPV6; 
-}
+#define NAT64_IP_ALLWD_PROTOS (IPPROTO_TCP | IPPROTO_UDP | IPPROTO_ICMP)
+#define NAT64_IPV6_ALLWD_PROTOS (IPPROTO_TCP | IPPROTO_UDP | IPPROTO_ICMPV6) 
 #endif /* _LINUX_NETFILTER_XT_NAT64_H */
