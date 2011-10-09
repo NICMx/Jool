@@ -1,6 +1,6 @@
 This is an implementation of the NAT64 mechanism as described in the RFC6146.
 
-module dependencies: ipv6, ip_tables, nf_conntrack
+module dependencies: ipv6, ip_tables, nf_conntrack, nf_conntrack_ipv4
 
 example of usage:
 	/* flush the mangle table */
