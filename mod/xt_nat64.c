@@ -10,13 +10,27 @@
 #include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/skbuff.h>
+
 #include <net/ipv6.h>
+#include <net/ip.h>
+#include <net/icmp.h>
+#include <net/tcp.h>
+#include <linux/icmp.h>
+#include <linux/udp.h>
+
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/jhash.h>
+#include <linuc/rcupdate.h>
+
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_proto.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_nat.h>
+#include <net/netfilter/nf_nat_core.h>
+#include <net/netfilter/nf_nat_protocol.h>
 
 #include "nf_nat64_bib.h"
 #include "nf_nat64_tuple.h"
@@ -29,6 +43,8 @@ MODULE_ALIAS("ipt_nat64");
 MODULE_ALIAS("ip6t_nat64");
 
 #define IPV6_HDRLEN 40
+static DEFINE_SPINLOCK(nf_nat64_lock);
+
 static struct nf_conntrack_l3proto *l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto *l3proto_ipv6 __read_mostly;
 
@@ -52,11 +68,14 @@ static bool nat64_tg6_cmp(struct in6_addr * ip_a, struct in6_addr * ip_b,
 }
 
 static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, union nf_inet_ipaddr addr)
+		struct sk_buff *skb)
 {
 	const struct nf_conntrack_l4_proto *l4proto;
 	struct nf_conntrack_tuple inner, target;
-	int l3_hdrlen, l4_hdrlen;
+	int l3_hdrlen, l4_hdrlen, ret;
+	unsigned int protoff;
+	u_int8_t protonum;
+
 	if (l3protocol == NFPROTO_IPV4)
 		l3_hdrlen = ip_hdrlen(skb);
 	else
@@ -64,16 +83,49 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	inner =  memset(inner, 0, sizeof(*inner));
 
+	rcu_read_lock();
+
+	if (l4_protocol == IPPROTO_TCP) {
+		l3hdrlen +=  skb_network_offset(skb) + sizeof(struct tcphdr);
+	} else if (l4_protocol == IPPROTO_UDP)
+		l3hdrlen +=  skb_network_offset(skb) + sizeof(struct udphdr);
+	} else if (l4_protocol == IPPROTO_ICMP)
+		l3hdrlen +=  skb_network_offset(skb) + sizeof(struct icmphdr);
+	} else if (l4_protocol == IPPROTO_ICMPV6)
+		l3hdrlen +=  skb_network_offset(skb) + sizeof(struct icmpv6hdr);
+	} else {
+		rcu_read_unlock();
+		return false;
+	}
+
+	if (l3protocol == NFPROTO_IPV4)
+		l3proto_ip->get_l4proto(skb, nhoff, &protoff, &protonum);
+	else if (l3protocol == NFPROTO_IPV6)
+		l3proto_ip6->get_l4proto(skb, nhoff, &protoff, &protonum);
+	
+	if (ret != NF_ACCEPT) {
+		rcu_read_unlock();
+		return false;
+	} else if (protonum != l4protocol) {
+		rcu_read_unlock();
+		return false;
+	}
+
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
 
-	if (l4_protocol == IPPROTO_TCP)
 
-	if (!nf_ct_get_tuple(skb, hdrlen + sizeof(struct icmphdr),
-				(hdrlen +
-				 sizeof(struct icmphdr) + inside->ip.ihl * 4),
-				(u_int16_t)l3protocol, l4protocol,
-				&inner, l3proto, l4proto))
-		return 0;
+
+	if (!nf_ct_get_tuple(skb, ,
+				protoff, (u_int16_t)l3protocol, l4protocol,
+				&inner, l3proto, l4proto)) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	pr_debug("NAT64: Determining the tuple OK");
+
+	rcu_read_unlock();
+	return true;
 }
 
 /*
@@ -113,7 +165,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param 
 		return NF_DROP;
 
 	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS)
-		if(nat64_determine_tuple(NFPROTO_IPV6, l4_protocol, &skb, ))
+		if(nat64_determine_tuple(NFPROTO_IPV6, l4_protocol, &skb))
 			pr_debug("NAT64: Determining the tuple stage went OK.");
 		else
 			pr_debug("NAT64: Something went wrong in the determining the tuple"
@@ -166,8 +218,15 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 
 static int __init nat64_init(void)
 {
+	/*
+	 * IPv4 conntrack is needed in order to handle complete packets, and not
+	 * fragments.
+	 */
+	need_ipv4_conntrack();
+
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t)NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
+
 	return xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 }
 
