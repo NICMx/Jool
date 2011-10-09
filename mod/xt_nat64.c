@@ -74,52 +74,60 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_tuple inner;
 	int l3_hdrlen, ret;
-	unsigned int protoff;
-	u_int8_t protonum;
+	unsigned int protoff = 0;
+	u_int8_t protonum = 0;
 
+	pr_debug("NAT64: Getting the protocol and header length");
 	if (l3protocol == NFPROTO_IPV4) {
 		l3proto = l3proto_ip;
 		l3_hdrlen = ip_hdrlen(skb);
 	} else {
 		l3proto = l3proto_ipv6;
-		l3_hdrlen = IPV6_HDRLEN;
+		l3_hdrlen = skb_network_offset(skb) + sizeof(struct ipv6hdr) ;
 	}
+
+	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
 
 	rcu_read_lock();
 
 	if (l4protocol == IPPROTO_TCP) {
-		l3_hdrlen +=  skb_network_offset(skb) + sizeof(struct tcphdr);
+		l3_hdrlen +=  sizeof(struct tcphdr);
 	} else if (l4protocol == IPPROTO_UDP) {
-		l3_hdrlen +=  skb_network_offset(skb) + sizeof(struct udphdr);
+		l3_hdrlen +=  sizeof(struct udphdr);
 	} else if (l4protocol == IPPROTO_ICMP) {
-		l3_hdrlen +=  skb_network_offset(skb) + sizeof(struct icmphdr);
+		l3_hdrlen +=  sizeof(struct icmphdr);
 	} else if (l4protocol == IPPROTO_ICMPV6) {
-		l3_hdrlen +=  skb_network_offset(skb) + sizeof(struct icmp6hdr);
+		l3_hdrlen +=  sizeof(struct icmp6hdr);
 	} else {
+		pr_debug("NAT64: error getting the L3 offset");
 		rcu_read_unlock();
 		return false;
 	}
 
-	if (l3protocol == NFPROTO_IPV4)
-		ret = l3proto_ip->get_l4proto(skb, l3_hdrlen, &protoff, &protonum);
-	else if (l3protocol == NFPROTO_IPV6)
-		ret = l3proto_ipv6->get_l4proto(skb, l3_hdrlen, &protoff, &protonum);
+	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
+
+	ret = l3proto->get_l4proto(skb, l3_hdrlen, &protoff, &protonum);
 	
 	if (ret != NF_ACCEPT) {
+		pr_debug("NAT64: error getting the L4 offset");
+		pr_debug("NAT64: ret = %d", ret);
+		pr_debug("NAT64: protoff = %u", protoff);
 		rcu_read_unlock();
 		return false;
 	} else if (protonum != l4protocol) {
+		pr_debug("NAT64: protocols don't match");
+		pr_debug("NAT64: protonum = %u", protonum);
+		pr_debug("NAT64: l4protocol = %u", l4protocol);
 		rcu_read_unlock();
 		return false;
 	}
 
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
 
-
-
 	if (!nf_ct_get_tuple(skb, l3_hdrlen,
 				protoff, (u_int16_t)l3protocol, l4protocol,
 				&inner, l3proto, l4proto)) {
+		pr_debug("NAT64: couldn't get the tuple");
 		rcu_read_unlock();
 		return false;
 	}
