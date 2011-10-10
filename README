@@ -1,6 +1,10 @@
 This is an implementation of the NAT64 mechanism as described in the RFC6146.
 
-module dependencies: ipv6, ip_tables, nf_conntrack, nf_conntrack_ipv4
+module dependencies (modprobe): ipv6, ip_tables, nf_conntrack, nf_conntrack_ipv4
+
+Userspace library:
+	To compile: make libxt_nat64.so
+	copy library to: /usr/lib/iptables or /usr/lib/xtables
 
 example of usage:
 	/* flush the mangle table */
@@ -10,4 +14,5 @@ example of usage:
 	/* look at your new rule */
 	ip6tables -t mangle -n -L
 	/* test it... */
+	E.G. ping6 ::1
 	
