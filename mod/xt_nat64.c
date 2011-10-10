@@ -48,6 +48,27 @@ MODULE_ALIAS("ip6t_nat64");
 static struct nf_conntrack_l3proto *l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto *l3proto_ipv6 __read_mostly;
 
+static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
+{
+	pr_debug("NAT64: print_tuple -> l3 proto = %d", t->src.l3num);
+	switch(t->src.l3num) {
+		case NFPROTO_IPV4:
+			pr_debug("NAT64: tuple %p: %u %pI4:%hu -> %pI4:%hu",
+				t, t->dst.protonum,
+				&t->src.u3.ip, ntohs(t->src.u.all),
+				&t->src.u3.ip, ntohs(t->dst.u.all));
+		break;
+		case NFPROTO_IPV6:
+			pr_debug("NAT64: tuple %p: %u %pI6: %hu -> %pI6:%hu",
+				t, t->dst.protonum,
+				&t->src.u3.all, ntohs(t->src.u.all),
+				&t->src.u3.all, ntohs(t->dst.u.all));
+		break;
+		default:
+			pr_debug("NAT64: Not IPv4 or IPv6?");
+	}
+}
+
 /*
  * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
  * the incoming packet's ip with the rule's ip, and so when the module is in
@@ -73,9 +94,13 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_tuple inner;
-	int l3_hdrlen, ret;
+	int l3_hdrlen, l4_hdrlen, ret;
 	unsigned int protoff = 0;
 	u_int8_t protonum = 0;
+	//unsigned char pnum;
+	//int protoffs;
+	//const struct icmp6hdr *hp;
+	//struct icmp6hdr _hdr;
 
 	pr_debug("NAT64: Getting the protocol and header length");
 	if (l3protocol == NFPROTO_IPV4) {
@@ -86,18 +111,28 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		l3_hdrlen = skb_network_offset(skb) + sizeof(struct ipv6hdr) ;
 	}
 
+	/*
+	 * Debugging prints
+	pr_debug("NAT64: len = %u", skb->len);
 	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
-
+	pr_debug("NAT64: network offset = %d", skb_network_offset(skb));
+	pr_debug("NAT64: transport offset = %d", skb_transport_offset(skb));
+	pr_debug("NAT64: data = %s", skb->data);
+	*/
 	rcu_read_lock();
 
 	if (l4protocol == IPPROTO_TCP) {
-		l3_hdrlen +=  sizeof(struct tcphdr);
+		l4_hdrlen = sizeof(struct tcphdr);
+		pr_debug("NAT64: TCP");
 	} else if (l4protocol == IPPROTO_UDP) {
-		l3_hdrlen +=  sizeof(struct udphdr);
+		l4_hdrlen = sizeof(struct udphdr);
+		pr_debug("NAT64: UDP");
 	} else if (l4protocol == IPPROTO_ICMP) {
-		l3_hdrlen +=  sizeof(struct icmphdr);
+		l4_hdrlen = sizeof(struct icmphdr);
+		pr_debug("NAT64: ICMP");
 	} else if (l4protocol == IPPROTO_ICMPV6) {
-		l3_hdrlen +=  sizeof(struct icmp6hdr);
+		l4_hdrlen =  sizeof(struct icmp6hdr);
+		pr_debug("NAT64: ICMPV6");
 	} else {
 		pr_debug("NAT64: error getting the L3 offset");
 		rcu_read_unlock();
@@ -106,7 +141,8 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
 
-	ret = l3proto->get_l4proto(skb, l3_hdrlen, &protoff, &protonum);
+	ret = l3proto->get_l4proto(skb, skb_network_offset(skb), &protoff, &protonum);
+
 	
 	if (ret != NF_ACCEPT) {
 		pr_debug("NAT64: error getting the L4 offset");
@@ -124,16 +160,16 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
 
-	if (!nf_ct_get_tuple(skb, l3_hdrlen,
-				protoff, (u_int16_t)l3protocol, l4protocol,
+	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
+				l3_hdrlen,
+				(u_int16_t)l3protocol, l4protocol,
 				&inner, l3proto, l4proto)) {
 		pr_debug("NAT64: couldn't get the tuple");
 		rcu_read_unlock();
 		return false;
 	}
 
-	pr_debug("NAT64: Determining the tuple OK");
-
+	nat64_print_tuple(&inner);
 	rcu_read_unlock();
 	return true;
 }
