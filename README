@@ -1,4 +1,5 @@
 This is an implementation of the NAT64 mechanism as described in the RFC6146.
+It's being implemented as a Netfilter target module.
 
 module dependencies (modprobe): ipv6, ip_tables, nf_conntrack, nf_conntrack_ipv4
 
