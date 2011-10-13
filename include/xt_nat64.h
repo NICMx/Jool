@@ -1,7 +1,5 @@
 #ifndef _LINUX_NETFILTER_XT_NAT64_H
 #define _LINUX_NETFILTER_XT_NAT64_H
-#include <linux/in.h>
-#include <linux/in6.h>
 
 /*
  * Flags that indicate the information needed for the NAT64 device.

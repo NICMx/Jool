@@ -97,10 +97,6 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	int l3_hdrlen, l4_hdrlen, ret;
 	unsigned int protoff = 0;
 	u_int8_t protonum = 0;
-	//unsigned char pnum;
-	//int protoffs;
-	//const struct icmp6hdr *hp;
-	//struct icmp6hdr _hdr;
 
 	pr_debug("NAT64: Getting the protocol and header length");
 	if (l3protocol == NFPROTO_IPV4) {
