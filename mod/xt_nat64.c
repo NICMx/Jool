@@ -213,7 +213,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param 
 	pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
 	pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
 
-	if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, &iph->saddr, info->flags))
+	if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, &iph->daddr, info->flags))
 		return NF_DROP;
 
 	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {
