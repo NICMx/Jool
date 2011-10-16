@@ -45,8 +45,8 @@ MODULE_ALIAS("ip6t_nat64");
 #define IPV6_HDRLEN 40
 //static DEFINE_SPINLOCK(nf_nat64_lock);
 
-static struct nf_conntrack_l3proto *l3proto_ip __read_mostly;
-static struct nf_conntrack_l3proto *l3proto_ipv6 __read_mostly;
+static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
+static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /*
  * Function that receives a tuple and prints it.
@@ -72,7 +72,7 @@ static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 	}
 }
 
-static int nat64_get_l4_length(u_int8_t l4protocol)
+static int nat64_get_l4hdrlength(u_int8_t l4protocol)
 {
 	switch(l4protocol) {
 		case IPPROTO_TCP:
@@ -84,6 +84,23 @@ static int nat64_get_l4_length(u_int8_t l4protocol)
 		case IPPROTO_ICMPV6:
 			return sizeof(struct icmp6hdr);
 	}
+	return -1;
+}
+
+static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol, 
+		struct nf_conntrack_l3proto ** l3proto)
+{
+	if (l3protocol == NFPROTO_IPV4) {
+		pr_debug("NAT64: nat64_get_l3hdrlen is IPv4");
+		*l3proto = l3proto_ip;
+		return ip_hdrlen(skb);
+	} else if (l3protocol == NFPROTO_IPV6) {
+		pr_debug("NAT64: nat64_get_l3hdrlen is IPv6");
+		*l3proto = l3proto_ipv6;
+		return (skb_network_offset(skb) + sizeof(struct ipv6hdr));
+	}
+
+	l3proto = NULL;
 	return -1;
 }
 
@@ -115,17 +132,20 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_tuple inner;
-	int l3_hdrlen, l4_hdrlen, ret;
+	int l3_hdrlen, ret;
 	unsigned int protoff = 0;
 	u_int8_t protonum = 0;
 
 	pr_debug("NAT64: Getting the protocol and header length");
-	if (l3protocol == NFPROTO_IPV4) {
-		l3proto = l3proto_ip;
-		l3_hdrlen = ip_hdrlen(skb);
-	} else {
-		l3proto = l3proto_ipv6;
-		l3_hdrlen = skb_network_offset(skb) + sizeof(struct ipv6hdr) ;
+
+	l3_hdrlen = nat64_get_l3hdrlen(skb, l3protocol, &l3proto);
+
+	if (l3_hdrlen == -1) {
+		pr_debug("NAT64: Something went wrong getting the l3 header length");
+		return false;
+	} else if (l3proto == NULL) {
+		pr_debug("NAT64: the l3proto pointer is null");
+		return false;
 	}
 
 	/*
@@ -137,13 +157,6 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: data = %s", skb->data);
 	*/
 	rcu_read_lock();
-
-	l4_hdrlen = nat64_get_l4_length(l4protocol);
-	if (l4_hdrlen == -1) {
-		pr_debug("NAT64: error getting the L3 offset");
-		rcu_read_unlock();
-		return false;
-	}
 
 	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
 
@@ -284,6 +297,11 @@ static int __init nat64_init(void)
 
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t)NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
+
+	if (l3proto_ip == NULL)
+		pr_debug("NAT64: couldn't load IPv4 l3proto");
+	if (l3proto_ipv6 == NULL)
+		pr_debug("NAT64: couldn't load IPv6 l3proto");
 
 	return xt_register_target(&nat64_tg_reg);
 }
