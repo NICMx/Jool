@@ -48,6 +48,9 @@ MODULE_ALIAS("ip6t_nat64");
 static struct nf_conntrack_l3proto *l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto *l3proto_ipv6 __read_mostly;
 
+/*
+ * Function that receives a tuple and prints it.
+ */
 static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 {
 	pr_debug("NAT64: print_tuple -> l3 proto = %d", t->src.l3num);
@@ -69,6 +72,21 @@ static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 	}
 }
 
+static int nat64_get_l4_length(u_int8_t l4protocol)
+{
+	switch(l4protocol) {
+		case IPPROTO_TCP:
+			return sizeof(struct tcphdr);
+		case IPPROTO_UDP:
+			return sizeof(struct udphdr);
+		case IPPROTO_ICMP:
+			return sizeof(struct icmphdr);
+		case IPPROTO_ICMPV6:
+			return sizeof(struct icmp6hdr);
+	}
+	return -1;
+}
+
 /*
  * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
  * the incoming packet's ip with the rule's ip, and so when the module is in
@@ -88,6 +106,9 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a, const struct in6_addr * 
 	return false;
 }
 
+/*
+ * Function that gets the packet's information and returns a tuple out of it.
+ */
 static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb)
 {
@@ -117,19 +138,8 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	*/
 	rcu_read_lock();
 
-	if (l4protocol == IPPROTO_TCP) {
-		l4_hdrlen = sizeof(struct tcphdr);
-		pr_debug("NAT64: TCP");
-	} else if (l4protocol == IPPROTO_UDP) {
-		l4_hdrlen = sizeof(struct udphdr);
-		pr_debug("NAT64: UDP");
-	} else if (l4protocol == IPPROTO_ICMP) {
-		l4_hdrlen = sizeof(struct icmphdr);
-		pr_debug("NAT64: ICMP");
-	} else if (l4protocol == IPPROTO_ICMPV6) {
-		l4_hdrlen =  sizeof(struct icmp6hdr);
-		pr_debug("NAT64: ICMPV6");
-	} else {
+	l4_hdrlen = nat64_get_l4_length(l4protocol);
+	if (l4_hdrlen == -1) {
 		pr_debug("NAT64: error getting the L3 offset");
 		rcu_read_unlock();
 		return false;
@@ -262,6 +272,11 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 static int __init nat64_init(void)
 {
 	/*
+	 * Include nf_conntrack dependency
+	 */
+	need_conntrack();
+	/*
+	 * Include nf_conntrack_ipv4 dependency.
 	 * IPv4 conntrack is needed in order to handle complete packets, and not
 	 * fragments.
 	 */
