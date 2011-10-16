@@ -122,7 +122,10 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a, const struct in6_addr * 
 	pr_debug("NAT64: IPv6 comparison returned false\n");
 	return false;
 }
-
+nat64_update_bib(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb)
+{
+}
 /*
  * Function that gets the packet's information and returns a tuple out of it.
  */
@@ -190,6 +193,8 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	nat64_print_tuple(&inner);
 	rcu_read_unlock();
+
+	nat64_update_bib(l3protocol, l4protocol, skb);
 	return true;
 }
 
