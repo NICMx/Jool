@@ -82,24 +82,6 @@ static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 }
 
 /*
- * Function that gets the Layer 4 header length.
- */
-static int nat64_get_l4hdrlength(u_int8_t l4protocol)
-{
-	switch(l4protocol) {
-		case IPPROTO_TCP:
-			return sizeof(struct tcphdr);
-		case IPPROTO_UDP:
-			return sizeof(struct udphdr);
-		case IPPROTO_ICMP:
-			return sizeof(struct icmphdr);
-		case IPPROTO_ICMPV6:
-			return sizeof(struct icmp6hdr);
-	}
-	return -1;
-}
-
-/*
  * Function that assigns the pointer to a function to handle the outgoing tuple
  * from IPv6 to IPv4
  */
@@ -149,6 +131,29 @@ static bool nat64_get_outfunc(u_int8_t l3protocol, u_int8_t l4protocol,
 		
 }
 
+/*
+ * Function that gets the Layer 4 header length.
+ */
+static int nat64_get_l4hdrlength(u_int8_t l4protocol)
+{
+	switch(l4protocol) {
+		case IPPROTO_TCP:
+			return sizeof(struct tcphdr);
+		case IPPROTO_UDP:
+			return sizeof(struct udphdr);
+		case IPPROTO_ICMP:
+			return sizeof(struct icmphdr);
+		case IPPROTO_ICMPV6:
+			return sizeof(struct icmp6hdr);
+	}
+	return -1;
+}
+
+
+/*
+ * Function that gets the Layer 3 header length and assigns a pointer directed
+ * to it's nf_conntrack_l3proto structure.
+ */
 static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol, 
 		struct nf_conntrack_l3proto ** l3proto)
 {
@@ -166,6 +171,9 @@ static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol,
 	return -1;
 }
 
+/*
+ * Function to get the tuple out of a given struct_skbuff.
+ */
 static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
@@ -230,12 +238,74 @@ static bool nat64_getskb_from4to6()
 	struct ipv6hdr *ip6;
 }
 
+/*
+ * Function to get the SKB from IPv6 to IPv4.
+ * @paylen = transport header length + data length
+ * FIXME: use IPv4 pool instead of a fixed IP.
+ * FIXME: Get available ports instead of using a hardcoded one.
+ * IMPORTANT: We don't take into account the optional IPv6 header yet.
+ */
 static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		struct sk_buff * new_skb, u_int8_t l3protocol, 
-		u_int8_t l4protocol)
+		u_int8_t l4protocol, u_int8_t l4len, u_int8_t l3len, int pay_len)
 {
-	struct iphdr *ip4;
-	struct ipv6hdr *ip6;
+	union nat64_l4header_t {
+		struct udphdr * uh;
+		struct tcphdr *th;
+		struct icmphdr *icmph;
+	} l4header;
+
+	struct ipv6_opt_hdr * ip6_transp;
+	struct in_addr * ip4saddr;
+	struct iphdr * ip4;
+	struct ipv6hdr * ip6;
+	int ret = 0;
+
+	ret = in4_pton("192.168.1.3", -1, (__u8*)&(ip4saddr.s_addr),'\x0', NULL);
+
+	if (!ret) {
+		pr_debug("NAT64: getskb_from6to4... Something went wrong setting "
+				"the IPv4 source address");
+		return false;
+	}
+
+	ip6 = ipv6_hdr(old_skb);
+	ip4 = ip_hdr(new_skb);
+
+	ip4->version = 4;
+	ip4->ihl = 5;
+	ip4->tos = ip6->priority; 
+	ip4->tot_len = htons(sizeof(*ip4) + plen);
+	ip4->id = 0;
+	ip4->frag_off = htons(IP_DF);
+	ip4->ttl = ip6->hop_limit;
+	ip4->protocol = ip6->nexthdr;
+
+	/*
+	 * Translation of packet. The RFC6146 states that the embedded IPv4 address
+	 * lies within the last 32 bits of the IPv6 address
+	 */
+	ip4->daddr = htonl(ip6->daddr.ip6[3]);
+	ip4->saddr = *ip4saddr;
+
+	ip6e = (struct ipv6_opt_hdr *)((char *) ip6->data + l3len);
+
+	/*
+	 * TODO FIX this!! ports are needed in order to checksum... session
+	 * management is needed before this.
+	 */
+	switch (ip4->protocol) {
+		case IPPROTO_UDP:
+		case IPPROTO_TCP:
+			l4header = ip_data(ip4);
+			memcpy(l4header, ip6e, pay_len);
+			//&l4header->check, 
+			break;
+		case IPPROTO_ICMPV6:
+		break;
+	}
+
+	return true;
 }
 
 /*
@@ -244,17 +314,16 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
-	struct in6_addr *daddr;
-	struct nat64_session *s;
 	struct sk_buff *new_skb;
-	struct nf_conntrack_l3proto *l3proto;
-	
+
 	u_int8_t data_len = skb->len;
 	u_int8_t packet_len;
 	u_int8_t l4hdrlen, l3hdrlen;
-	
-	//It's assumed that if the l4 protocol is ICMP or ICMPv6,
-	//the size of the new header will be the other's.
+
+	/*
+	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, the size of the new
+	 * header will be the other's.
+	 */
 	switch (l4protocol) {
 		case IPPROTO_ICMP:
 			l4hdrlen = sizeof(struct icmp6hdr);
@@ -265,43 +334,44 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		default:
 			l4hdrlen = nat64_get_l4hdrlength(l4protocol);
 	}
-	
+
 	if (l4hdrlen == -1) {
 		pr_debug("NAT64: Unknown layer 4 protocol detected in nat64_get_skb");
 		return NULL;
 	}
-	
-	if (l3protocol == NFPROTO_IPV4) {
-		l3hdrlen = sizeof(struct iphdr);
-	} else if (l3protocol == NFPROTO_IPV6) {
-		l3hdrlen = sizeof(struct ipv6hdr);
-	} else {
-		pr_debug("NAT64: Unknown layer 3 protocol detected in nat64_get_skb");
+
+	switch (l3protocol) {
+		case NFPROTO_IPV4:	// From IPv4 to IPv6
+			l3hdrlen = sizeof(struct ipv6hdr); break;
+		case NFPROTO_IPV6:	// From IPv6 to IPv4
+			l3hdrlen = sizeof(struct iphdr); break;
+		default:
+			pr_debug("NAT64: Unknown layer 3 protocol detected in nat64_get_skb");
+			return NULL;
+	}
+
+	packet_len = l3hdrlen + l4hdrlen + data_len;
+
+	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
+	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
+
+	if (!new_skb) {
 		return NULL;
 	}
-	
-	packet_len = l3hdrlen + l4hdrlen + data_len;
-	
-	//LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
-	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
-	
-	if (!new_skb) {
-                return NULL;
-        }
 
-        skb_reserve(new_skb, LL_MAX_HEADER);
-        skb_reset_mac_header(new_skb);
-        skb_reset_network_header(new_skb);
+	skb_reserve(new_skb, LL_MAX_HEADER);
+	skb_reset_mac_header(new_skb);
+	skb_reset_network_header(new_skb);
 
-        skb_set_transport_header(new_skb, l3hdrlen);
+	skb_set_transport_header(new_skb, l3hdrlen);
 
-        skb_put(new_skb, packet_len);
-        	
+	skb_put(new_skb, packet_len);
+
 	if (!new_skb) {
 		if (printk_ratelimit()) {
 			pr_debug("NAT64: failed to alloc a new skb");
 		}
-		return NF_DROP;
+		return NULL;
 	}
 
 	if (l4protocol == NFPROTO_IPV4) {
