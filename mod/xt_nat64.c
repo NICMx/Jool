@@ -330,6 +330,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 
 	int ret = 0;
 
+	ip4saddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
 	ret = in4_pton("192.168.1.3", -1, (__u8*)&(ip4saddr->s_addr),'\x0', NULL);
 
 	if (!ret) {
@@ -389,7 +390,8 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 						l4header->icmph.type = ICMP_ECHOREPLY;
 						break;
 					default:
-						return NULL;
+						pr_debug("NAT64: ICMPv6 not echo or reply");
+						return false;
 				}
 			} else {
 				pr_debug("NAT64: no other ICMP Protocols are supported yet.");
@@ -460,6 +462,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
 
 	if (!new_skb) {
+		pr_debug("NAT64: Couldn't allocate space for new skb");
 		return NULL;
 	}
 
@@ -479,8 +482,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	if (l3protocol == NFPROTO_IPV4) {
-		// METODO IPV4
-	} else if (l4protocol == NFPROTO_IPV6) {
+		pr_debug("NAT64: IPv4 to 6 not implemented yet");
+		return NULL;
+	} else if (l3protocol == NFPROTO_IPV6) {
 		if (nat64_getskb_from6to4(skb, new_skb, l3protocol, l4protocol, l3hdrlen,
 					l4hdrlen, (l4hdrlen + data_len))) {
 			pr_debug("NAT64: Everything went OK populating the new sk_buff");
@@ -491,7 +495,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		}
 	}
 
-	pr_debug("NAT64: something went wrong populating the new sk_buff");
+	pr_debug("NAT64: Not IPv4 or 6");
 	return NULL;
 }
 
@@ -534,6 +538,11 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 	*/
 	struct sk_buff *new_skb;
 	new_skb = nat64_get_skb(l3protocol, l4protocol, skb, inner);
+
+	if (!new_skb) {
+		pr_debug("NAT64: Skb allocation failed -- returned NULL");
+		return false;
+	}
 	
 	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, skb, inner)) {
 		pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
