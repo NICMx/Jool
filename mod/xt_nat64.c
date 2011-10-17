@@ -49,6 +49,15 @@ static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /*
+ * This structure's purpose is getting the L4 layer respective function to get
+ * the outgoing tuple.
+ */
+struct nat64_outtuple_func {
+	struct nf_conntrack_tuple * (* get_outtuple)(union nf_inet_addr, u_int16_t,
+			union nf_inet_addr, u_int16_t, u_int8_t, u_int8_t);
+};
+
+/*
  * Function that receives a tuple and prints it.
  */
 static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
@@ -58,20 +67,23 @@ static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 		case NFPROTO_IPV4:
 			pr_debug("NAT64: tuple %p: %u %pI4:%hu -> %pI4:%hu",
 				t, t->dst.protonum,
-				&t->src.u3.ip, ntohs(t->src.u.all),
-				&t->src.u3.ip, ntohs(t->dst.u.all));
+				&t->src.u3.ip, t->src.u.all,
+				&t->src.u3.ip, t->dst.u.all);
 		break;
 		case NFPROTO_IPV6:
 			pr_debug("NAT64: tuple %p: %u %pI6: %hu -> %pI6:%hu",
 				t, t->dst.protonum,
-				&t->src.u3.all, ntohs(t->src.u.all),
-				&t->src.u3.all, ntohs(t->dst.u.all));
+				&t->src.u3.all, t->src.u.all,
+				&t->src.u3.all, t->dst.u.all);
 		break;
 		default:
 			pr_debug("NAT64: Not IPv4 or IPv6?");
 	}
 }
 
+/*
+ * Function that gets the Layer 4 header length.
+ */
 static int nat64_get_l4hdrlength(u_int8_t l4protocol)
 {
 	switch(l4protocol) {
@@ -85,6 +97,56 @@ static int nat64_get_l4hdrlength(u_int8_t l4protocol)
 			return sizeof(struct icmp6hdr);
 	}
 	return -1;
+}
+
+/*
+ * Function that assigns the pointer to a function to handle the outgoing tuple
+ * from IPv6 to IPv4
+ */
+static bool nat64_get_outfunc4(u_int8_t l4protocol,
+		struct nat64_outtuple_func ** outfunc)
+{
+	switch (l4protocol) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			return false;
+		case IPPROTO_ICMP:
+			(*outfunc)->get_outtuple = &nat64_outfunc4_icmpv6;
+		default:
+			return false;
+	}
+}
+
+/*
+ * Function that assigns the pointer to a function to handle the outgoing tuple
+ * from IPv4 to IPv6
+ */
+static bool nat64_get_outfunc6(u_int8_t l4protocol,
+		struct nat64_outtuple_func ** outfunc)
+{
+	switch (l4protocol) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			return false;
+		case IPPROTO_ICMPV6:
+			//*outfunc = &nat64_outfunc6_icmp;
+		default:
+			return false;
+	}
+}
+
+static bool nat64_get_outfunc(u_int8_t l3protocol, u_int8_t l4protocol,
+		struct nat64_outtuple_func * outfunc)
+{
+	switch (l3protocol) {
+		case NFPROTO_IPV4:
+			return nat64_get_outfunc4(l4protocol, &outfunc);
+		case NFPROTO_IPV6:
+			return nat64_get_outfunc6(l4protocol, &outfunc);
+		default:
+			return false;
+	}
+		
 }
 
 static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol, 
@@ -104,37 +166,11 @@ static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol,
 	return -1;
 }
 
-/*
- * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
- * the incoming packet's ip with the rule's ip, and so when the module is in
- * debugging mode it prints the rule's IP.
- */
-static bool nat64_tg6_cmp(const struct in6_addr * ip_a, const struct in6_addr * ip_b,
-		const struct in6_addr * ip_mask, __u8 flags)
-{
-
-	if (flags & XT_NAT64_IPV6_DST) {
-		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) != 0) 
-			pr_debug("NAT64: IPv6 comparison returned true\n");
-			return true;
-	}
-
-	pr_debug("NAT64: IPv6 comparison returned false\n");
-	return false;
-}
-nat64_update_bib(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb)
-{
-}
-/*
- * Function that gets the packet's information and returns a tuple out of it.
- */
-static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb)
+static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_tuple inner;
 	int l3_hdrlen, ret;
 	unsigned int protoff = 0;
 	u_int8_t protonum = 0;
@@ -151,14 +187,6 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		return false;
 	}
 
-	/*
-	 * Debugging prints
-	pr_debug("NAT64: len = %u", skb->len);
-	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
-	pr_debug("NAT64: network offset = %d", skb_network_offset(skb));
-	pr_debug("NAT64: transport offset = %d", skb_transport_offset(skb));
-	pr_debug("NAT64: data = %s", skb->data);
-	*/
 	rcu_read_lock();
 
 	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
@@ -185,24 +213,93 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 				l3_hdrlen,
 				(u_int16_t)l3protocol, l4protocol,
-				&inner, l3proto, l4proto)) {
+				inner, l3proto, l4proto)) {
 		pr_debug("NAT64: couldn't get the tuple");
 		rcu_read_unlock();
 		return false;
 	}
 
-	nat64_print_tuple(&inner);
+	nat64_print_tuple(inner);
 	rcu_read_unlock();
-
-	nat64_update_bib(l3protocol, l4protocol, skb);
 	return true;
+}
+
+/*
+ * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
+ * the incoming packet's ip with the rule's ip, and so when the module is in
+ * debugging mode it prints the rule's IP.
+ */
+static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
+		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, __u8 flags)
+{
+
+	if (flags & XT_NAT64_IPV6_DST) {
+		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) != 0) 
+			pr_debug("NAT64: IPv6 comparison returned true\n");
+			return true;
+	}
+
+	pr_debug("NAT64: IPv6 comparison returned false\n");
+	return false;
+}
+
+static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+{
+	return true;
+}
+
+static bool nat64_update_bib(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+{
+	/*
+	union nf_inet_addr dst;
+	struct nf_conntrack_tuple outgoing;
+	u_int16_t srcport, dstport;
+
+	// parche cochino
+	union nf_inet_addr local;
+	local.ip = 0xC0A80103;
+	*/
+
+	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, skb, inner)) {
+		pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
+		return true;
+	} else {
+		pr_debug("NAT64: Something went wrong in the Determining the outgoing tuple"
+				" stage.");
+		return false;
+	}
+}
+/*
+ * Function that gets the packet's information and returns a tuple out of it.
+ */
+static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb)
+{
+	struct nf_conntrack_tuple inner;
+
+	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, &inner))) {
+		pr_debug("NAT64: Something went wrong getting the tuple");
+		return false;
+	}
+
+	if (nat64_update_bib(l3protocol, l4protocol, skb, &inner)) {
+		pr_debug("NAT64: Updating and Filtering stage went OK.");
+		return true;
+	} else {
+		pr_debug("NAT64: Something went wrong in the Updating and Filtering "
+				"stage.");
+		return false;
+	}
 }
 
 /*
  * IPv4 entry function
  *
  */
-static unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
+static unsigned int nat64_tg4(struct sk_buff *skb, 
+		const struct xt_action_param *par)
 {
 	//union nf_inet_addr;
 	//struct iphdr *iph = ip_hdr(skb);
@@ -218,20 +315,21 @@ static unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param 
  * IPv6 entry function
  *
  */
-static unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
+static unsigned int nat64_tg6(struct sk_buff *skb, 
+		const struct xt_action_param *par)
 {
-	union nf_inet_addr;
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
 
-	pr_debug("\n* ICNOMING IPV6 PACKET *\n");
+	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
 	pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
 	pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
 
-	if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, &iph->daddr, info->flags))
+	if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, 
+				&iph->daddr, info->flags))
 		return NF_DROP;
 
 	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {

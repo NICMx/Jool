@@ -41,4 +41,8 @@ struct nf_nat64_3tuple {
  */
 #include <net/netfilter/nf_conntrack_tuple.h>
 
+struct nf_conntrack_tuple * nat64_outfunc4_icmpv6(union nf_inet_addr, 
+		u_int16_t,union nf_inet_addr, u_int16_t, 
+		u_int8_t, u_int8_t);
+
 #endif /* _NF_NAT64_TUPLE_H */

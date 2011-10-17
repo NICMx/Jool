@@ -3,7 +3,7 @@ KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -I$(src)/../include
 EXTRA_CFLAGS += -DDEBUG
 
-obj-m += xt_nat64.o
+obj-m += xt_nat64.o nf_nat64_tuple.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
