@@ -224,6 +224,93 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	return true;
 }
 
+static bool nat64_getskb_from4to6()
+{
+	struct iphdr *ip4;
+	struct ipv6hdr *ip6;
+}
+
+static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
+		struct sk_buff * new_skb, u_int8_t l3protocol, 
+		u_int8_t l4protocol)
+{
+	struct iphdr *ip4;
+	struct ipv6hdr *ip6;
+}
+
+/*
+ * Function nat64_get_skb is a generic entry function to get a new skb that will be sent.
+ */
+static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+{
+	struct in6_addr *daddr;
+	struct nat64_session *s;
+	struct sk_buff *new_skb;
+	struct nf_conntrack_l3proto *l3proto;
+	
+	u_int8_t data_len = skb->len;
+	u_int8_t packet_len;
+	u_int8_t l4hdrlen, l3hdrlen;
+	
+	//It's assumed that if the l4 protocol is ICMP or ICMPv6,
+	//the size of the new header will be the other's.
+	switch (l4protocol) {
+		case IPPROTO_ICMP:
+			l4hdrlen = sizeof(struct icmp6hdr);
+			break;
+		case IPPROTO_ICMPV6:
+			l4hdrlen = sizeof(struct icmphdr);
+			break;
+		default:
+			l4hdrlen = nat64_get_l4hdrlength(l4protocol);
+	}
+	
+	if (l4hdrlen == -1) {
+		pr_debug("NAT64: Unknown layer 4 protocol detected in nat64_get_skb");
+		return NULL;
+	}
+	
+	if (l3protocol == NFPROTO_IPV4) {
+		l3hdrlen = sizeof(struct iphdr);
+	} else if (l3protocol == NFPROTO_IPV6) {
+		l3hdrlen = sizeof(struct ipv6hdr);
+	} else {
+		pr_debug("NAT64: Unknown layer 3 protocol detected in nat64_get_skb");
+		return NULL;
+	}
+	
+	packet_len = l3hdrlen + l4hdrlen + data_len;
+	
+	//LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
+	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
+	
+	if (!new_skb) {
+                return NULL;
+        }
+
+        skb_reserve(new_skb, LL_MAX_HEADER);
+        skb_reset_mac_header(new_skb);
+        skb_reset_network_header(new_skb);
+
+        skb_set_transport_header(new_skb, l3hdrlen);
+
+        skb_put(new_skb, packet_len);
+        	
+	if (!new_skb) {
+		if (printk_ratelimit()) {
+			pr_debug("NAT64: failed to alloc a new skb");
+		}
+		return NF_DROP;
+	}
+
+	if (l4protocol == NFPROTO_IPV4) {
+		// METODO IPV4
+	} else if (l4protocol == NFPROTO_IPV6) {
+		// METODO IPV6
+	}
+}
+
 /*
  * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
  * the incoming packet's ip with the rule's ip, and so when the module is in
@@ -249,7 +336,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, u_int8_t l4proto
 	return true;
 }
 
-static bool nat64_update_bib(u_int8_t l3protocol, u_int8_t l4protocol, 
+static bool nat64_update_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	/*
@@ -261,7 +348,9 @@ static bool nat64_update_bib(u_int8_t l3protocol, u_int8_t l4protocol,
 	union nf_inet_addr local;
 	local.ip = 0xC0A80103;
 	*/
-
+	struct sk_buff *new_skb;
+	new_skb = nat64_get_skb(l3protocol, l4protocol, skb, inner);
+	
 	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, skb, inner)) {
 		pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
 		return true;
@@ -284,7 +373,7 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		return false;
 	}
 
-	if (nat64_update_bib(l3protocol, l4protocol, skb, &inner)) {
+	if (nat64_update_n_filter(l3protocol, l4protocol, skb, &inner)) {
 		pr_debug("NAT64: Updating and Filtering stage went OK.");
 		return true;
 	} else {
