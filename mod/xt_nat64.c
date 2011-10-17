@@ -354,9 +354,15 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * Translation of packet. The RFC6146 states that the embedded IPv4 address
 	 * lies within the last 32 bits of the IPv6 address
+	 * IMPORTANT: May need htonl function
 	 */
-	ip4->daddr = htonl((__be32)(ip6->daddr.in6_u.u6_addr32)[3]);
+	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 	ip4->saddr = (__be32) ip4saddr->s_addr;
+
+	/*
+	 * NAT64 Translation algorithm... bit magic!
+	 */
+	pr_debug("NAT64: translated packet %pI4", &ip4->daddr);
 
 	ip6_transp = (struct ipv6_opt_hdr *)((char *) old_skb->data + l3len);
 
@@ -369,7 +375,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:
 			l4header = ip_data(ip4);
-			memcpy(l4header, ip6_transp, pay_len);
+			memcpy(&l4header->uh, ip6_transp, pay_len);
 			
 			checksum_change(&(l4header->uh.check), &(l4header->uh.source), new_port,
 					(ip4->protocol == IPPROTO_UDP) ? true : false);
@@ -379,7 +385,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 			break;
 		case IPPROTO_ICMPV6:
 			l4header = ip_data(ip4);
-			memcpy(l4header, ip6_transp, pay_len);
+			memcpy(&l4header->icmph, ip6_transp, pay_len);
 
 			if (l4header->icmph.type & ICMPV6_INFOMSG_MASK) {
 				switch (l4header->icmph.type) {
@@ -395,6 +401,8 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 				}
 			} else {
 				pr_debug("NAT64: no other ICMP Protocols are supported yet.");
+				pr_debug("NAT64: detected protocol %u", l4header->icmph.type);
+				pr_debug("NAT64: detected protocol %u", l4header->icmph.code);
 				return false;
 			}
 
