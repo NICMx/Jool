@@ -394,10 +394,6 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 					(ip4->protocol == IPPROTO_UDP) ? true : false);
 			break;
 		case IPPROTO_ICMPV6:
-			pr_debug("NAT64: detected ICMPV6 type %u", 
-					((struct icmp6hdr *) ip6_transp)->icmp6_type);
-			pr_debug("NAT64: detected ICMPV6 code %u", 
-					((struct icmp6hdr *) ip6_transp)->icmp6_code);
 			l4header.icmph = ip_data(ip4);
 			memcpy(l4header.icmph, ip6_transp, pay_len);
 
@@ -449,7 +445,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: get_skb paylen = %u", pay_len);
 
 	/*
-	 ; It's assumed that if the l4 protocol is ICMP or ICMPv6, the size of the new
+	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, the size of the new
 	 * header will be the other's.
 	 */
 	switch (l4protocol) {
@@ -542,23 +538,21 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 }
 
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+		struct sk_buff *skb)
 {
+	struct nf_conntrack_tuple outgoing;
+
+	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, &outgoing))) {
+		pr_debug("NAT64: Something went wrong getting the tuple");
+		return false;
+	}
+	
 	return true;
 }
 
 static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
-	/*
-	union nf_inet_addr dst;
-	struct nf_conntrack_tuple outgoing;
-	u_int16_t srcport, dstport;
-
-	// parche cochino
-	union nf_inet_addr local;
-	local.ip = 0xC0A80103;
-	*/
 	struct sk_buff *new_skb;
 	new_skb = nat64_get_skb(l3protocol, l4protocol, skb, inner);
 
@@ -566,8 +560,32 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return false;
 	}
-	
-	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, skb, inner)) {
+
+	/*
+	 * Adjust the layer 3 protocol variable to be used int he outgoing tuple.
+	 */
+	if (l3protocol == NFPROTO_IPV4) {
+		l3protocol = NFPROTO_IPV6;
+	} else if (l3protocol == NFPROTO_IPV6) {
+		l3protocol = NFPROTO_IPV4;
+	} else {
+		pr_debug("NAT64: update n filter -> unkown L3 protocol");
+		return false;
+	}
+
+	/*
+	 * Adjust the layer 4 protocol variable to be used int he outgoing tuple.
+	 */
+	if (l4protocol == IPPROTO_ICMP) {
+		l4protocol = IPPROTO_ICMPV6;
+	} else if (l4protocol == IPPROTO_ICMPV6) {
+		l4protocol = IPPROTO_ICMPV6;
+	} else if (!(l4protocol & NAT64_IPV6_ALLWD_PROTOS)){
+		pr_debug("NAT64: update n filter -> unkown L4 protocol");
+		return false;
+	}
+
+	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, new_skb)) {
 		pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
 		return true;
 	} else {
