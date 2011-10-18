@@ -304,7 +304,11 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 /*
  * Function to get the SKB from IPv6 to IPv4.
+ * @l4protocol = The incoming L4 protocol
+ * @l3len = The outgoing L3 header length
+ * @l4len = The outgoing l4 header length
  * @paylen = transport header length + data length
+ *
  * FIXME: use IPv4 pool instead of a fixed IP.
  * FIXME: Get available ports instead of using a hardcoded one.
  * IMPORTANT: We don't take into account the optional IPv6 header yet.
@@ -375,7 +379,11 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	 */
 	switch (ip4->protocol) {
 		case IPPROTO_UDP:
-		case IPPROTO_TCP:
+		case IPPROTO_TCP:	 
+			/*
+			 * UDP and TCP have the same two first values in the struct. So udp
+			 * header values are used in order to save code.
+			 */
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, pay_len);
 			
