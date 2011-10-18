@@ -311,15 +311,15 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
  */
 static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		struct sk_buff * new_skb, u_int8_t l3protocol, 
-		u_int8_t l4protocol, u_int8_t l4len, u_int8_t l3len, int pay_len)
+		u_int8_t l4protocol, u_int8_t l3len, u_int8_t l4len, u_int8_t pay_len)
 {
 	union nat64_l4header_t {
-		struct udphdr uh;
-		struct tcphdr th;
-		struct icmphdr icmph;
-	} * l4header;
+		struct udphdr * uh;
+		struct tcphdr * th;
+		struct icmphdr * icmph;
+	} l4header;
 
-	struct ipv6_opt_hdr * ip6_transp;
+	void * ip6_transp;
 	struct in_addr * ip4saddr;
 	struct iphdr * ip4;
 	struct ipv6hdr * ip6;
@@ -363,9 +363,11 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	 * NAT64 Translation algorithm... bit magic!
 	 */
 	pr_debug("NAT64: translated packet %pI4", &ip4->daddr);
+	pr_debug("NAT64: l3len = %u", l3len);
+	pr_debug("NAT64: l4len = %u", l4len);
+	pr_debug("NAT64: paylen = %u", pay_len);
 
-	ip6_transp = (struct ipv6_opt_hdr *)((char *) old_skb->data + l3len);
-
+	ip6_transp = (void *)((char *) old_skb->data + (sizeof(struct ipv6hdr)));
 
 	/*
 	 * TODO Make this code more elegant.
@@ -374,26 +376,30 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	switch (ip4->protocol) {
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:
-			l4header = ip_data(ip4);
-			memcpy(&l4header->uh, ip6_transp, pay_len);
+			l4header.uh = ip_data(ip4);
+			memcpy(l4header.uh, ip6_transp, pay_len);
 			
-			checksum_change(&(l4header->uh.check), &(l4header->uh.source), new_port,
+			checksum_change(&(l4header.uh->check), &(l4header.uh->source), new_port,
 					(ip4->protocol == IPPROTO_UDP) ? true : false);
 
-			adjust_checksum_ipv6_to_ipv4(&(l4header->uh.check), ip6, ip4, 
-			(ip4->protocol == IPPROTO_UDP) ? true : false);
+			adjust_checksum_ipv6_to_ipv4(&(l4header.uh->check), ip6, ip4, 
+					(ip4->protocol == IPPROTO_UDP) ? true : false);
 			break;
 		case IPPROTO_ICMPV6:
-			l4header = ip_data(ip4);
-			memcpy(&l4header->icmph, ip6_transp, pay_len);
+			pr_debug("NAT64: detected ICMPV6 type %u", 
+					((struct icmp6hdr *) ip6_transp)->icmp6_type);
+			pr_debug("NAT64: detected ICMPV6 code %u", 
+					((struct icmp6hdr *) ip6_transp)->icmp6_code);
+			l4header.icmph = ip_data(ip4);
+			memcpy(l4header.icmph, ip6_transp, pay_len);
 
-			if (l4header->icmph.type & ICMPV6_INFOMSG_MASK) {
-				switch (l4header->icmph.type) {
+			if (l4header.icmph->type & ICMPV6_INFOMSG_MASK) {
+				switch (l4header.icmph->type) {
 					case ICMPV6_ECHO_REQUEST:
-						l4header->icmph.type = ICMP_ECHO;
+						l4header.icmph->type = ICMP_ECHO;
 						break;
 					case ICMPV6_ECHO_REPLY:
-						l4header->icmph.type = ICMP_ECHOREPLY;
+						l4header.icmph->type = ICMP_ECHOREPLY;
 						break;
 					default:
 						pr_debug("NAT64: ICMPv6 not echo or reply");
@@ -401,13 +407,13 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 				}
 			} else {
 				pr_debug("NAT64: no other ICMP Protocols are supported yet.");
-				pr_debug("NAT64: detected protocol %u", l4header->icmph.type);
-				pr_debug("NAT64: detected protocol %u", l4header->icmph.code);
+				pr_debug("NAT64: detected protocol %u", l4header.icmph->type);
+				pr_debug("NAT64: detected protocol %u", l4header.icmph->code);
 				return false;
 			}
 
-			l4header->icmph.checksum = 0;
-			l4header->icmph.checksum = ip_compute_csum(&l4header->icmph, pay_len);
+			l4header.icmph->checksum = 0;
+			l4header.icmph->checksum = ip_compute_csum(l4header.icmph, pay_len);
 			ip4->protocol = IPPROTO_ICMP;
 			break;
 		default:
@@ -430,9 +436,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 {
 	struct sk_buff *new_skb;
 
-	u_int8_t data_len = skb->len;
-	u_int8_t packet_len;
-	u_int8_t l4hdrlen, l3hdrlen;
+	u_int8_t pay_len = skb->data_len;
+	u_int8_t packet_len, l4hdrlen, l3hdrlen;
+	pr_debug("NAT64: get_skb paylen = %u", pay_len);
 
 	/*
 	 ; It's assumed that if the l4 protocol is ICMP or ICMPv6, the size of the new
@@ -457,14 +463,15 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	switch (l3protocol) {
 		case NFPROTO_IPV4:	// From IPv4 to IPv6
 			l3hdrlen = sizeof(struct ipv6hdr); break;
-		case NFPROTO_IPV6:	// From IPv6 to IPv4
+		case NFPROTO_IPV6:	// From IPv6 to IPv4... Default size is 20
 			l3hdrlen = sizeof(struct iphdr); break;
 		default:
 			pr_debug("NAT64: Unknown layer 3 protocol detected in nat64_get_skb");
 			return NULL;
 	}
+	pr_debug("NAT64: l3hdrlen %d", l3hdrlen);
 
-	packet_len = l3hdrlen + l4hdrlen + data_len;
+	packet_len = l3hdrlen + l4hdrlen + pay_len;
 
 	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
@@ -494,7 +501,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		return NULL;
 	} else if (l3protocol == NFPROTO_IPV6) {
 		if (nat64_getskb_from6to4(skb, new_skb, l3protocol, l4protocol, l3hdrlen,
-					l4hdrlen, (l4hdrlen + data_len))) {
+					l4hdrlen, (l4hdrlen + pay_len))) {
 			pr_debug("NAT64: Everything went OK populating the new sk_buff");
 			return new_skb;
 		} else {
