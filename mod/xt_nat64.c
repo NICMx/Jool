@@ -58,6 +58,10 @@ struct nat64_outtuple_func {
 };
 
 /*
+ * BEGIN: Generic Auxiliary Functions
+ */
+
+/*
  * Function that receives a tuple and prints it.
  */
 static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
@@ -81,9 +85,73 @@ static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 	}
 }
 
+
+/*
+ * END: Generic Auxiliary Functions
+ */
+
+/*
+ * BEGIN: Packet Auxiliary Functions
+ */
+
+/*
+ * Function that retrieves a pointer to the Layer 4 header.
+ */
 inline void * ip_data(struct iphdr *ip4)
 {
 	return (char *)ip4 + ip4->ihl*4;
+}
+
+/*
+ * Function that gets the Layer 4 header length.
+ */
+static int nat64_get_l4hdrlength(u_int8_t l4protocol)
+{
+	switch(l4protocol) {
+		case IPPROTO_TCP:
+			return sizeof(struct tcphdr);
+		case IPPROTO_UDP:
+			return sizeof(struct udphdr);
+		case IPPROTO_ICMP:
+			return sizeof(struct icmphdr);
+		case IPPROTO_ICMPV6:
+			return sizeof(struct icmp6hdr);
+	}
+	return -1;
+}
+
+
+/*
+ * Function that gets the pointer directed to it's nf_conntrack_l3proto structure.
+ */
+static int nat64_get_l3struct(struct sk_buff *skb, u_int8_t l3protocol, 
+		struct nf_conntrack_l3proto ** l3proto)
+{
+	switch (l3protocol) {
+		case NFPROTO_IPV4:
+			*l3proto = l3proto_ip;
+			return true;
+		case NFPROTO_IPV6:
+			*l3proto = l3proto_ipv6;
+			return true;
+		default:
+			return false;
+	}
+}
+
+/*
+ * Function to get the Layer 3 header length.
+ */
+static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol)
+{
+	switch (l3protocol) {
+		case NFPROTO_IPV4:
+			return ip_hdrlen(skb);
+		case NFPROTO_IPV6:
+			return (skb_network_offset(skb) + sizeof(struct ipv6hdr));
+		default:
+			return -1;
+	}
 }
 
 static void checksum_adjust(uint16_t *sum, uint16_t old, uint16_t new, bool udp)
@@ -132,8 +200,7 @@ static void adjust_checksum_ipv6_to_ipv4(uint16_t *sum, struct ipv6hdr *ip6,
 			(uint16_t *)(&ip4->saddr + 2), udp);
 }
 
-static void
-adjust_checksum_ipv4_to_ipv6(uint16_t *sum, struct iphdr *ip4, 
+static void adjust_checksum_ipv4_to_ipv6(uint16_t *sum, struct iphdr *ip4, 
 		struct ipv6hdr *ip6, int udp)
 {
 	WARN_ON_ONCE(udp && !*sum);
@@ -144,6 +211,33 @@ adjust_checksum_ipv4_to_ipv6(uint16_t *sum, struct iphdr *ip4,
 	checksum_add(sum, (uint16_t *)&ip6->saddr,
 			(uint16_t *)(&ip6->saddr + 2), udp);
 }
+
+/*
+ * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
+ * the incoming packet's ip with the rule's ip, and so when the module is in
+ * debugging mode it prints the rule's IP.
+ */
+static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
+		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, __u8 flags)
+{
+
+	if (flags & XT_NAT64_IPV6_DST) {
+		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) != 0) 
+			pr_debug("NAT64: IPv6 comparison returned true\n");
+			return true;
+	}
+
+	pr_debug("NAT64: IPv6 comparison returned false\n");
+	return false;
+}
+
+/*
+ * END: Packet Auxiliary Functions
+ */
+
+/*
+ * BEGIN: NAT64 shared functions.
+ */
 
 /*
  * Function that assigns the pointer to a function to handle the outgoing tuple
@@ -196,46 +290,6 @@ static bool nat64_get_outfunc(u_int8_t l3protocol, u_int8_t l4protocol,
 }
 
 /*
- * Function that gets the Layer 4 header length.
- */
-static int nat64_get_l4hdrlength(u_int8_t l4protocol)
-{
-	switch(l4protocol) {
-		case IPPROTO_TCP:
-			return sizeof(struct tcphdr);
-		case IPPROTO_UDP:
-			return sizeof(struct udphdr);
-		case IPPROTO_ICMP:
-			return sizeof(struct icmphdr);
-		case IPPROTO_ICMPV6:
-			return sizeof(struct icmp6hdr);
-	}
-	return -1;
-}
-
-
-/*
- * Function that gets the Layer 3 header length and assigns a pointer directed
- * to it's nf_conntrack_l3proto structure.
- */
-static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol, 
-		struct nf_conntrack_l3proto ** l3proto)
-{
-	if (l3protocol == NFPROTO_IPV4) {
-		pr_debug("NAT64: nat64_get_l3hdrlen is IPv4");
-		*l3proto = l3proto_ip;
-		return ip_hdrlen(skb);
-	} else if (l3protocol == NFPROTO_IPV6) {
-		pr_debug("NAT64: nat64_get_l3hdrlen is IPv6");
-		*l3proto = l3proto_ipv6;
-		return (skb_network_offset(skb) + sizeof(struct ipv6hdr));
-	}
-
-	l3proto = NULL;
-	return -1;
-}
-
-/*
  * Function to get the tuple out of a given struct_skbuff.
  */
 static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
@@ -249,12 +303,23 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	pr_debug("NAT64: Getting the protocol and header length");
 
-	l3_hdrlen = nat64_get_l3hdrlen(skb, l3protocol, &l3proto);
+	/*
+	 * Get L3 header length
+	 */
+	l3_hdrlen = nat64_get_l3hdrlen(skb, l3protocol);
 
 	if (l3_hdrlen == -1) {
 		pr_debug("NAT64: Something went wrong getting the l3 header length");
 		return false;
-	} else if (l3proto == NULL) {
+	}
+
+	/*
+	 * Get L3 struct to access it's functions.
+	 */
+	if (!(nat64_get_l3struct(skb, l3protocol, &l3proto)))
+		return false;
+
+	if (l3proto == NULL) {
 		pr_debug("NAT64: the l3proto pointer is null");
 		return false;
 	}
@@ -264,7 +329,6 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
 
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb), &protoff, &protonum);
-
 	
 	if (ret != NF_ACCEPT) {
 		pr_debug("NAT64: error getting the L4 offset");
@@ -282,6 +346,9 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
 
+	/*
+	 * Get the tuple out of the sk_buff.
+	 */
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 				l3_hdrlen,
 				(u_int16_t)l3protocol, l4protocol,
@@ -293,6 +360,7 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	nat64_print_tuple(inner);
 	rcu_read_unlock();
+
 	return true;
 }
 
@@ -464,15 +532,14 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		return NULL;
 	}
 
-	switch (l3protocol) {
-		case NFPROTO_IPV4:	// From IPv4 to IPv6
-			l3hdrlen = sizeof(struct ipv6hdr); break;
-		case NFPROTO_IPV6:	// From IPv6 to IPv4... Default size is 20
-			l3hdrlen = sizeof(struct iphdr); break;
-		default:
-			pr_debug("NAT64: Unknown layer 3 protocol detected in nat64_get_skb");
-			return NULL;
-	}
+	/*
+	 * We want to get the opposite Layer 3 protocol header length. We don't
+	 * validate here if the l3 protocol is other than IPV4 or IPV6 since we
+	 * already did that in the nat64_tg function.
+	 */
+	l3hdrlen = nat64_get_l3hdrlen(skb, (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 :
+			NFPROTO_IPV4);
+
 	pr_debug("NAT64: l3hdrlen %d", l3hdrlen);
 
 	packet_len = l3hdrlen + l4hdrlen + pay_len;
@@ -519,23 +586,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 }
 
 /*
- * IPv6 comparison function. It's use as a call from nat64_tg6 is to compare
- * the incoming packet's ip with the rule's ip, and so when the module is in
- * debugging mode it prints the rule's IP.
+ * END: NAT64 shared functions.
  */
-static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
-		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, __u8 flags)
-{
 
-	if (flags & XT_NAT64_IPV6_DST) {
-		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) != 0) 
-			pr_debug("NAT64: IPv6 comparison returned true\n");
-			return true;
-	}
-
-	pr_debug("NAT64: IPv6 comparison returned false\n");
-	return false;
-}
 
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb)
@@ -562,24 +615,18 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	/*
-	 * Adjust the layer 3 protocol variable to be used int he outgoing tuple.
+	 * Adjust the layer 3 protocol variable to be used in the outgoing tuple.
+	 * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function.
 	 */
-	if (l3protocol == NFPROTO_IPV4) {
-		l3protocol = NFPROTO_IPV6;
-	} else if (l3protocol == NFPROTO_IPV6) {
-		l3protocol = NFPROTO_IPV4;
-	} else {
-		pr_debug("NAT64: update n filter -> unkown L3 protocol");
-		return false;
-	}
+	l3protocol = (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 : NFPROTO_IPV4;
 
 	/*
-	 * Adjust the layer 4 protocol variable to be used int he outgoing tuple.
+	 * Adjust the layer 4 protocol variable to be used in the outgoing tuple.
 	 */
 	if (l4protocol == IPPROTO_ICMP) {
 		l4protocol = IPPROTO_ICMPV6;
 	} else if (l4protocol == IPPROTO_ICMPV6) {
-		l4protocol = IPPROTO_ICMPV6;
+		l4protocol = IPPROTO_ICMP;
 	} else if (!(l4protocol & NAT64_IPV6_ALLWD_PROTOS)){
 		pr_debug("NAT64: update n filter -> unkown L4 protocol");
 		return false;
@@ -651,9 +698,13 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
 	pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
 
+	/*
+	 * If the packet is not directed towards the NAT64 prefix, continue through
+	 * the Netfilter rules.
+	 */
 	if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, 
 				&iph->daddr, info->flags))
-		return NF_DROP;
+		return NF_ACCEPT;
 
 	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {
 		if(nat64_determine_tuple(NFPROTO_IPV6, l4_protocol, skb))
