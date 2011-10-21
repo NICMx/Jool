@@ -1,0 +1,10 @@
+example of usage:
+	/* flush the mangle table */
+	ip6tables -t mangle --flush
+	/* add the new rule */ 
+	/* this rule will fail if you haven't installed the userspace library */
+	ip6tables -t mangle -A PREROUTING -j nat64 --ipdst ::1/64;
+	/* look at your new rule */
+	ip6tables -t mangle -n -L
+	/* test it... */
+	E.G. ping6 ::1

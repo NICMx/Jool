@@ -1,34 +1,16 @@
+Authors:
+	Juan Antonio Osorio <jaosorior@gmail.com>
+	Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
+	David Valenzuela <david.valenzuela.88@gmail.com>
+	Jose Vicente Ramirez <jramirez@gmail.com>
+	Mario Gerardo Trevinho <TODO>
+
 This is an implementation of the NAT64 mechanism as described in the RFC6146.
 It's being implemented as a Netfilter target module.
 
 module dependencies (modprobe): ipv6, ip_tables, nf_conntrack, nf_conntrack_ipv4
 
-Userspace library:
-	To compile: make libxt_nat64.so
-	copy library to: /usr/lib/iptables or /usr/lib/xtables
-	In Ubuntu 11.04+: /lib/xtables
-
-example of usage:
-	/* flush the mangle table */
-	ip6tables -t mangle --flush
-	/* add the new rule */ 
-	/* this rule will fail if you haven't installed the userspace library */
-	ip6tables -t mangle -A PREROUTING -j nat64 --ipdst ::1/64;
-	/* look at your new rule */
-	ip6tables -t mangle -n -L
-	/* test it... */
-	E.G. ping6 ::1
-	
-to install:
-	compile the userspace library (make libxt_nat64.so)
-	compile the module library (make)
-	copy the userspace library to the appropiate directory (cp libxt_nat64.so ....)
-	*optional* ensure all the dependencies are up (modprobe ipv6, ip_tables, nf_conntrack, nf_conntrack_ipv4)
-	install the module (insmod libxt_nat64.ko)
-	*optional* check that the module is installed with lsmod
-
-to remove:
-	clean the ip6tables (ip6tables -t mangle --flush)
-	remove the module (rmmod libxt_nat64.ko)
-	
-
+Directories:
+	/mod : includes the kernel module' source code and respective Makefile.
+	/usr : include the iptables module (userspace interface).
+	/include : includes the header files used.
