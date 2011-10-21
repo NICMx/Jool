@@ -10,7 +10,9 @@
  *    Jose Vicente Ramirez <jramirez@gmail.com>
  *    Mario Gerardo Trevinho <TODO>
  *
- * Authors for the
+ * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
+ * checksum_change, adjust_checksum_ipv6_to_ipv4 and 
+ * adjust_checksum_ipv5_to_ipv6 functions:
  *    Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
  *    Simon Perreault <simon.perreault@viagenie.ca>
  *    Marc Blanchet <marc.blanchet@viagenie.ca>
