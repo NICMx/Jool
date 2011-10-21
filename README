@@ -4,8 +4,8 @@ Authors:
 	Juan Antonio Osorio <jaosorior@gmail.com>
 	Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
 	David Valenzuela <david.valenzuela.88@gmail.com>
-	Jose Vicente Ramirez <jramirez@gmail.com>
-	Mario Gerardo Trevinho <TODO>
+	Jose Vicente Ramirez <pepermz@gmail.com>
+	Mario Gerardo Trevinho <mario_tc88@hotmail.com>
 
 This is an implementation of the NAT64 mechanism as described in the RFC6146.
 It's being implemented as a Netfilter target module.
