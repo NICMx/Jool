@@ -385,6 +385,9 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		struct sk_buff * new_skb, u_int8_t l3protocol, 
 		u_int8_t l4protocol, u_int8_t l3len, u_int8_t l4len, u_int8_t pay_len)
 {
+	/*
+	 * Genric Layer 4 header structure.
+	 */
 	union nat64_l4header_t {
 		struct udphdr * uh;
 		struct tcphdr * th;
@@ -395,6 +398,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	struct in_addr * ip4saddr;
 	struct iphdr * ip4;
 	struct ipv6hdr * ip6;
+
 	/*
 	 * FIXME: hardcoded port.
 	 */
@@ -403,6 +407,10 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	int ret = 0;
 
 	ip4saddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
+
+	/*
+	 * FIXME: Hardcoded IPv4 Address.
+	 */
 	ret = in4_pton("192.168.1.3", -1, (__u8*)&(ip4saddr->s_addr),'\x0', NULL);
 
 	if (!ret) {
@@ -426,19 +434,15 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * Translation of packet. The RFC6146 states that the embedded IPv4 address
 	 * lies within the last 32 bits of the IPv6 address
+	 * NAT64 Translation algorithm... bit magic!
 	 * IMPORTANT: May need htonl function
 	 */
 	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 	ip4->saddr = (__be32) ip4saddr->s_addr;
 
 	/*
-	 * NAT64 Translation algorithm... bit magic!
+	 * Get pointer to Layer 4 header.
 	 */
-	pr_debug("NAT64: translated packet %pI4", &ip4->daddr);
-	pr_debug("NAT64: l3len = %u", l3len);
-	pr_debug("NAT64: l4len = %u", l4len);
-	pr_debug("NAT64: paylen = %u", pay_len);
-
 	ip6_transp = (void *)((char *) old_skb->data + (sizeof(struct ipv6hdr)));
 
 	/*
@@ -446,12 +450,12 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	 * POINTER MADNESS
 	 */
 	switch (ip4->protocol) {
+		/*
+		 * UDP and TCP have the same two first values in the struct. So udp
+		 * header values are used in order to save code.
+		 */
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:	 
-			/*
-			 * UDP and TCP have the same two first values in the struct. So udp
-			 * header values are used in order to save code.
-			 */
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, pay_len);
 			
