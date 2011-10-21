@@ -146,8 +146,10 @@ static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol)
 {
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
+			pr_debug("NAT64 get_l3hdrlen is IPV4");
 			return ip_hdrlen(skb);
 		case NFPROTO_IPV6:
+			pr_debug("NAT64 get_l3hdrlen is IPV6");
 			return (skb_network_offset(skb) + sizeof(struct ipv6hdr));
 		default:
 			return -1;
@@ -537,13 +539,16 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	/*
-	 * We want to get the opposite Layer 3 protocol header length. We don't
-	 * validate here if the l3 protocol is other than IPV4 or IPV6 since we
-	 * already did that in the nat64_tg function.
+	 * We want to get the opposite Layer 3 protocol header length.
 	 */
-	l3hdrlen = nat64_get_l3hdrlen(skb, (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 :
-			NFPROTO_IPV4);
-
+	switch (l3protocol) {
+		case NFPROTO_IPV4:
+			l3hdrlen = sizeof(struct ipv6hdr); break;
+		case NFPROTO_IPV6:
+			l3hdrlen = sizeof(struct iphdr); break;
+		default:
+			return NULL;
+	}
 	pr_debug("NAT64: l3hdrlen %d", l3hdrlen);
 
 	packet_len = l3hdrlen + l4hdrlen + pay_len;
