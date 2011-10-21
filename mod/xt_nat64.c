@@ -1,3 +1,30 @@
+/*
+ * NAT64 - Network Address Translator IPv6 to IPv4
+ *
+ * Copyright (C) 2010 Viagenie Inc. http://www.viagenie.ca
+ *
+ * Authors:
+ * 		Juan Antonio Osorio <jaosorior@gmail.com>
+ * 		Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
+ * 		David Valenzuela <david.valenzuela.88@gmail.com>
+ *		Jose Vicente Ramirez <jramirez@gmail.com>
+ * 		Mario Gerardo Trevinho <TODO>
+ *      Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
+ *      Simon Perreault <simon.perreault@viagenie.ca>
+ *      Marc Blanchet <marc.blanchet@viagenie.ca>
+ *
+ * NAT64 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * NAT64 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/in.h>
