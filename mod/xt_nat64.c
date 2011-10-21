@@ -4,14 +4,16 @@
  * Copyright (C) 2010 Viagenie Inc. http://www.viagenie.ca
  *
  * Authors:
- * 		Juan Antonio Osorio <jaosorior@gmail.com>
- * 		Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
- * 		David Valenzuela <david.valenzuela.88@gmail.com>
- *		Jose Vicente Ramirez <jramirez@gmail.com>
- * 		Mario Gerardo Trevinho <TODO>
- *      Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
- *      Simon Perreault <simon.perreault@viagenie.ca>
- *      Marc Blanchet <marc.blanchet@viagenie.ca>
+ *    Juan Antonio Osorio <jaosorior@gmail.com>
+ *    Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
+ *    David Valenzuela <david.valenzuela.88@gmail.com>
+ *    Jose Vicente Ramirez <jramirez@gmail.com>
+ *    Mario Gerardo Trevinho <TODO>
+ *
+ * Authors for the
+ *    Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
+ *    Simon Perreault <simon.perreault@viagenie.ca>
+ *    Marc Blanchet <marc.blanchet@viagenie.ca>
  *
  * NAT64 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
