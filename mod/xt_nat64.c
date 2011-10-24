@@ -74,6 +74,8 @@ MODULE_ALIAS("ip6t_nat64");
 /*
  * FIXME: Ensure all variables are 32 and 64-bits complaint. That is, no generic
  * data types akin to integer.
+ * FIXED: All the output messages of the stages are in the opposite order of execution
+ * in the logs.
  */
 
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
@@ -632,6 +634,12 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
  * END: NAT64 shared functions.
  */
 
+static bool nat64_translate_packet(struct sk_buff *skb, 
+			struct nf_conntrack_tuple * outgoing_t)
+{
+	pr_debug("NAT64: Translating the packet stage went OK.");
+	return true;
+}
 
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb)
@@ -643,10 +651,19 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, u_int8_t l4proto
 		return false;
 	}
 	
+	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
+	
 	/*
-	 * TODO: Implement call to transform_packet to get the new packet
+	 * TODO: Implement call to translate_packet to get the new packet
 	 * from the tuple.
 	 */
+	if (nat64_translate_packet(skb, &outgoing)) {
+		return true;
+	} else {
+		pr_debug("NAT64: Something went wrong in the Translating the packet"
+				" stage.");
+		return false;
+	}
 	
 	return true;
 }
@@ -655,8 +672,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	struct sk_buff *new_skb;
-	
-	
+
 	/*
 	 * TODO: Implement Update_n_Filter
 	 */
@@ -690,8 +706,9 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 		return false;
 	}
 
+	pr_debug("NAT64: Updating and Filtering stage went OK.");
+
 	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, new_skb)) {
-		pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
 		return true;
 	} else {
 		pr_debug("NAT64: Something went wrong in the Determining the outgoing tuple"
@@ -712,8 +729,9 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		return false;
 	}
 
+	pr_debug("NAT64: Determining the tuple stage went OK.");
+
 	if (nat64_update_n_filter(l3protocol, l4protocol, skb, &inner)) {
-		pr_debug("NAT64: Updating and Filtering stage went OK.");
 		return true;
 	} else {
 		pr_debug("NAT64: Something went wrong in the Updating and Filtering "
@@ -765,9 +783,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {
-		if(nat64_determine_tuple(NFPROTO_IPV6, l4_protocol, skb))
-			pr_debug("NAT64: Determining the tuple stage went OK.");
-		else
+		if(!nat64_determine_tuple(NFPROTO_IPV6, l4_protocol, skb))
 			pr_debug("NAT64: Something went wrong in the determining the tuple"
 					"stage.");
 	}
