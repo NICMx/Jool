@@ -241,18 +241,6 @@ static void adjust_checksum_ipv6_to_ipv4(uint16_t *sum, struct ipv6hdr *ip6,
 			(uint16_t *)(&ip4->saddr + 2), udp);
 }
 
-/*static void adjust_checksum_ipv4_to_ipv6(uint16_t *sum, struct iphdr *ip4, 
-		struct ipv6hdr *ip6, int udp)
-{
-	WARN_ON_ONCE(udp && !*sum);
-
-	checksum_remove(sum, (uint16_t *)&ip4->saddr,
-			(uint16_t *)(&ip4->saddr + 2), udp);
-
-	checksum_add(sum, (uint16_t *)&ip6->saddr,
-			(uint16_t *)(&ip6->saddr + 2), udp);
-}*/
-
 /*
  * IPv6 comparison function. It's used as a call from nat64_tg6 to compare
  * the incoming packet's IP with the rule's IP; therefore, when the module is 
@@ -280,59 +268,6 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 /*
  * BEGIN: NAT64 shared functions.
  */
-
-
-/*
- * Function that assigns the pointer to a function to handle the outgoing tuple
- * from IPv6 to IPv4
- */
-/*static bool nat64_get_outfunc4(u_int8_t l4protocol,
-		struct nat64_outtuple_func ** outfunc)
-{
-	switch (l4protocol) {
-		case IPPROTO_TCP:
-		case IPPROTO_UDP:
-			return false;
-		case IPPROTO_ICMP:
-			(*outfunc)->get_outtuple = &nat64_outfunc4_icmpv6;
-			return true; 
-			// FIXME: We added the missing return true value
-		default:
-			return false;
-	}
-}*/
-
-/*
- * Function that assigns the pointer to a function to handle the outgoing tuple
- * from IPv4 to IPv6
- */
-/*static bool nat64_get_outfunc6(u_int8_t l4protocol,
-		struct nat64_outtuple_func ** outfunc)
-{
-	switch (l4protocol) {
-		case IPPROTO_TCP:
-		case IPPROTO_UDP:
-			return false;
-		case IPPROTO_ICMPV6:
-			//*outfunc = &nat64_outfunc6_icmp;
-		default:
-			return false;
-	}
-}
-
-static bool nat64_get_outfunc(u_int8_t l3protocol, u_int8_t l4protocol,
-		struct nat64_outtuple_func * outfunc)
-{
-	switch (l3protocol) {
-		case NFPROTO_IPV4:
-			return nat64_get_outfunc4(l4protocol, &outfunc);
-		case NFPROTO_IPV6:
-			return nat64_get_outfunc6(l4protocol, &outfunc);
-		default:
-			return false;
-	}
-		
-}*/
 
 /*
  * Function to get the tuple out of a given struct_skbuff.
@@ -410,12 +345,6 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	return true;
 }
-
-//static bool nat64_getskb_from4to6()
-//{
-//	struct iphdr *ip4;
-//	struct ipv6hdr *ip6;
-//}
 
 /*
  * Function to get the SKB from IPv6 to IPv4.
