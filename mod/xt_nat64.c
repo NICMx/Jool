@@ -37,6 +37,10 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/skbuff.h>
 
+#include <linux/netdevice.h>
+#include <net/route.h>
+#include <net/ip6_route.h>
+
 #include <net/ipv6.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -505,7 +509,16 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	u_int8_t pay_len = skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
+	unsigned int addr_type;
+	
+	addr_type = RTN_LOCAL;
+ 
 	pr_debug("NAT64: get_skb paylen = %u", pay_len);
+
+	if (skb_linearize(skb) < 0)
+		return NULL;
+	
+	printk(KERN_INFO "dst_out=%p\n", skb_dst(skb)->output);
 	
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
@@ -574,8 +587,6 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		if (nat64_getskb_from6to4(skb, new_skb, l3protocol, l4protocol,
 					 l3hdrlen, l4hdrlen, 
 					 (l4hdrlen + pay_len))) { 
-// TODO: Specify why the l4hrdlen + pay_len 
-// became the new pay_len as the receiving parameter
 			pr_debug("NAT64: Everything went OK populating the "
 				 "new sk_buff");
 			return new_skb;
@@ -598,11 +609,37 @@ static bool nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol,
 			struct sk_buff *skb, 
 			struct nf_conntrack_tuple * outgoing_t) 
 {
-	struct iphdr * ip4;
-	pr_debug("\n* OUTGOING IPV4 PACKET *\n");
-	pr_debug("PKT SRC=%pI4 \n", &ip4->saddr);
-	pr_debug("PKT DST=%pI4 \n", &ip4->daddr);
-   	
+
+	struct iphdr *iph = ip_hdr(skb);
+	struct flowi fl;
+	struct rtable *rt;
+
+	skb->protocol = htons(ETH_P_IP);
+
+	memset(&fl, 0, sizeof(fl));
+	fl.fl4_dst = iph->daddr;
+	fl.fl4_tos = RT_TOS(iph->tos);
+	fl.proto = skb->protocol;
+	if (ip_route_output_key(&init_net, &rt, &fl))
+	{
+		printk("nf_nat64: ip_route_output_key failed\n");
+		return false;
+	}
+	
+	if (!rt)
+	{
+		printk("nf_nat64: rt null\n");
+		return false;
+	}
+
+	// FIXME: Kernel structure-wise.. rt->u.dst.dev got replaced by dst.dev
+	skb->dev = rt->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *)rt);
+	if(ip_local_out(skb)) {
+	       printk("nf_nat64: ip_local_out failed\n");
+	       return false;
+	}
+	
 	pr_debug("NAT64: Translating the packet stage went OK.");
 	return true;
 }
@@ -611,7 +648,6 @@ static bool nat64_translate_packet_ip6(u_int8_t l3protocol, u_int8_t l4protocol,
 			struct sk_buff *skb, 
 			struct nf_conntrack_tuple * outgoing_t)
 {
-	//struct ipv6hdr * ip6;
 	pr_debug("NAT64: Translating the packet stage went OK.");
 	return true;
 }
