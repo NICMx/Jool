@@ -506,10 +506,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	u_int8_t pay_len = skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
 	pr_debug("NAT64: get_skb paylen = %u", pay_len);
-
-	if (skb_linearize(skb) < 0)
-		return NULL;
-
+	
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
 	 * the size of the new header will be the other's.
@@ -602,13 +599,10 @@ static bool nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol,
 			struct nf_conntrack_tuple * outgoing_t) 
 {
 	struct iphdr * ip4;
-	
-	ip4 = ip_hdr(skb);
-
 	pr_debug("\n* OUTGOING IPV4 PACKET *\n");
 	pr_debug("PKT SRC=%pI4 \n", &ip4->saddr);
 	pr_debug("PKT DST=%pI4 \n", &ip4->daddr);
-	
+   	
 	pr_debug("NAT64: Translating the packet stage went OK.");
 	return true;
 }
@@ -640,41 +634,12 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 }
 
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
-		u_int8_t l4protocol, struct sk_buff *skb)
+		u_int8_t l4protocol, struct sk_buff *skb, 
+		struct nf_conntrack_tuple * inner)
 {
 	struct nf_conntrack_tuple outgoing;
-
-	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, &outgoing))) {
-		pr_debug("NAT64: Something went wrong getting the tuple");
-		return false;
-	}
-	
-	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
-	
-	/*
-	 * TODO: Implement call to translate_packet to get the new packet
-	 * from the tuple.
-	 */
-	if (nat64_translate_packet(l3protocol, l4protocol, skb, &outgoing)) {
-		return true;
-	} else {
-		pr_debug("NAT64: Something went wrong in the Translating the "
-				"packet stage.");
-		return false;
-	}
-	
-	return true;
-}
-
-static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
-{
 	struct sk_buff *new_skb;
 
-	/*
-	 * TODO: Implement Update_n_Filter
-	 */
-	
 	/*
 	 * The following changes the skb and the L3 and L4 layer protocols to 
 	 * the respective new values and calls determine_outgoing_tuple.
@@ -684,9 +649,6 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return false;
-	} else {
-//		nf_ct_attach(new_skb, skb);
-//		ip_local_out(new_skb);
 	}
 
 	/*
@@ -707,10 +669,39 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 		pr_debug("NAT64: update n filter -> unkown L4 protocol");
 		return false;
 	}
+	
+	if (!(nat64_get_tuple(l3protocol, l4protocol, new_skb, &outgoing))) {
+		pr_debug("NAT64: Something went wrong getting the tuple");
+		return false;
+	}
+	
+	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
+	
+	/*
+	 * TODO: Implement call to translate_packet to get the new packet
+	 * from the tuple.
+	 */
+	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
+		return true;
+	} else {
+		pr_debug("NAT64: Something went wrong in the Translating the "
+				"packet stage.");
+		return false;
+	}
+	
+	return true;
+}
+
+static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+{
+	/*
+	 * TODO: Implement Update_n_Filter
+	 */
 
 	pr_debug("NAT64: Updating and Filtering stage went OK.");
 
-	if (nat64_determine_outgoing_tuple(l3protocol, l4protocol, new_skb)) {
+	if(nat64_determine_outgoing_tuple(l3protocol, l4protocol, skb, inner)) {
 		return true;
 	} else {
 		pr_debug("NAT64: Something went wrong in the Determining the " 
