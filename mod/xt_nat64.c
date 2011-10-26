@@ -66,6 +66,7 @@
 #include "nf_nat64_tuple.h"
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
+#include "nf_nat64_auxiliary_functions.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
@@ -98,41 +99,14 @@ struct nat64_outtuple_func {
 };
 
 /*
- * BEGIN: Packet Auxiliary Functions
+ * BEGIN: NAT64 shared functions.
  */
-
-/*
- * Function that retrieves a pointer to the Layer 4 header.
- */
-inline void * ip_data(struct iphdr *ip4)
-{
-	return (char *)ip4 + ip4->ihl*4;
-}
-
-/*
- * Function that gets the Layer 4 header length.
- */
-static int nat64_get_l4hdrlength(u_int8_t l4protocol)
-{
-	switch(l4protocol) {
-		case IPPROTO_TCP:
-			return sizeof(struct tcphdr);
-		case IPPROTO_UDP:
-			return sizeof(struct udphdr);
-		case IPPROTO_ICMP:
-			return sizeof(struct icmphdr);
-		case IPPROTO_ICMPV6:
-			return sizeof(struct icmp6hdr);
-	}
-	return -1;
-}
-
 
 /*
  * Function that gets the pointer directed to it's 
  * nf_conntrack_l3proto structure.
  */
-static int nat64_get_l3struct(u_int8_t l3protocol, 
+int nat64_get_l3struct(u_int8_t l3protocol, 
 		struct nf_conntrack_l3proto ** l3proto)
 {
 	// FIXME We removed the skb as a parameter because it wasn't being used.
@@ -149,76 +123,11 @@ static int nat64_get_l3struct(u_int8_t l3protocol,
 }
 
 /*
- * Function to get the Layer 3 header length.
- */
-static int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol)
-{
-	switch (l3protocol) {
-		case NFPROTO_IPV4:
-			pr_debug("NAT64 get_l3hdrlen is IPV4");
-			return ip_hdrlen(skb);
-		case NFPROTO_IPV6:
-			pr_debug("NAT64 get_l3hdrlen is IPV6");
-			return (skb_network_offset(skb) + 
-					sizeof(struct ipv6hdr));
-		default:
-			return -1;
-	}
-}
-
-static void checksum_adjust(uint16_t *sum, uint16_t old, uint16_t new, bool udp)
-{
-	uint32_t s;
-
-	if (udp && !*sum)
-		return;
-
-	s = *sum + old - new;
-	*sum = (s & 0xffff) + (s >> 16);
-
-	if (udp && !*sum)
-		*sum = 0xffff;
-}
-
-static void checksum_remove(uint16_t *sum, uint16_t *begin, 
-				uint16_t *end, bool udp)
-{
-        while (begin < end)
-                checksum_adjust(sum, *begin++, 0, udp);
-}
-
-static void checksum_add(uint16_t *sum, uint16_t *begin, 
-				uint16_t *end, bool udp)
-{
-        while (begin < end)
-                checksum_adjust(sum, 0, *begin++, udp);
-}
-
-static void checksum_change(uint16_t *sum, uint16_t *x, 
-				uint16_t new, bool udp)
-{
-	checksum_adjust(sum, *x, new, udp);
-	*x = new;
-}
-
-static void adjust_checksum_ipv6_to_ipv4(uint16_t *sum, struct ipv6hdr *ip6, 
-		struct iphdr *ip4, bool udp)
-{
-	WARN_ON_ONCE(udp && !*sum);
-
-	checksum_remove(sum, (uint16_t *)&ip6->saddr,
-			(uint16_t *)(&ip6->saddr + 2), udp);
-
-	checksum_add(sum, (uint16_t *)&ip4->saddr,
-			(uint16_t *)(&ip4->saddr + 2), udp);
-}
-
-/*
  * IPv6 comparison function. It's used as a call from nat64_tg6 to compare
  * the incoming packet's IP with the rule's IP; therefore, when the module is 
  * in debugging mode it prints the rule's IP.
  */
-static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
+bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
 		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, 
 		__u8 flags)
 {
@@ -232,14 +141,6 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	pr_debug("NAT64: IPv6 comparison returned false\n");
 	return false;
 }
-
-/*
- * END: Packet Auxiliary Functions
- */
-
-/*
- * BEGIN: NAT64 shared functions.
- */
 
 /*
  * Function to get the tuple out of a given struct_skbuff.
