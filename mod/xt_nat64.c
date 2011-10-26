@@ -65,7 +65,6 @@
 #include "nf_nat64_bib.h"
 #include "nf_nat64_tuple.h"
 #include "xt_nat64.h"
-#include "add.h"
 #include "nf_nat64_generic_functions.h"
 
 MODULE_LICENSE("GPL");
@@ -817,8 +816,6 @@ static int __init nat64_init(void)
 
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t)NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
-
-	pr_debug("%d", add(1,2));
 
 	if (l3proto_ip == NULL)
 		pr_debug("NAT64: couldn't load IPv4 l3proto");
