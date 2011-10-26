@@ -63,7 +63,6 @@
 #include <net/netfilter/nf_nat_protocol.h>
 
 #include "nf_nat64_bib.h"
-#include "nf_nat64_tuple.h"
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
 #include "nf_nat64_auxiliary_functions.h"
@@ -87,16 +86,6 @@ MODULE_ALIAS("ip6t_nat64");
 
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
-
-/*
- * This structure's purpose is getting the L4 layer respective function to get
- * the outgoing tuple.
- */
-struct nat64_outtuple_func {
-	struct nf_conntrack_tuple * (* get_outtuple)(union nf_inet_addr, 
-			u_int16_t, union nf_inet_addr, u_int16_t, 
-			u_int8_t, u_int8_t);
-};
 
 /*
  * BEGIN: NAT64 shared functions.
