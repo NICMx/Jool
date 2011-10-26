@@ -6,11 +6,11 @@ if [ $1 = "ins" ] ; then
 	sudo modprobe nf_conntrack
 	sudo modprobe nf_conntrack_ipv4
 	sudo ip6tables -t mangle --flush
-	sudo insmod xt_nat64.ko
+	sudo insmod nat64.ko
 	echo "installed the NAT64 module"
 elif [ $1 = "rmv" ] ; then
 	sudo ip6tables -t mangle --flush
-	sudo rmmod xt_nat64.ko
+	sudo rmmod nat64.ko
 	echo "removed the NAT64 module"
 elif [ $1 = "debug" ] ; then
 	sudo dmesg | tail -30

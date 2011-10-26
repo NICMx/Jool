@@ -65,6 +65,8 @@
 #include "nf_nat64_bib.h"
 #include "nf_nat64_tuple.h"
 #include "xt_nat64.h"
+#include "add.h"
+#include "nf_nat64_generic_functions.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
@@ -95,39 +97,6 @@ struct nat64_outtuple_func {
 			u_int16_t, union nf_inet_addr, u_int16_t, 
 			u_int8_t, u_int8_t);
 };
-
-/*
- * BEGIN: Generic Auxiliary Functions
- */
-
-/*
- * Function that receives a tuple and prints it.
- */
-static void nat64_print_tuple(const struct nf_conntrack_tuple *t)
-{
-	pr_debug("NAT64: print_tuple -> l3 proto = %d", t->src.l3num);
-	switch(t->src.l3num) {
-		case NFPROTO_IPV4:
-			pr_debug("NAT64: tuple %p: %u %pI4:%hu -> %pI4:%hu",
-				t, t->dst.protonum,
-				&t->src.u3.ip, t->src.u.all,
-				&t->dst.u3.ip, t->dst.u.all);
-		break;
-		case NFPROTO_IPV6:
-			pr_debug("NAT64: tuple %p: %u %pI6: %hu -> %pI6:%hu",
-				t, t->dst.protonum,
-				&t->src.u3.all, t->src.u.all,
-				&t->dst.u3.all, t->dst.u.all);
-		break;
-		default:
-			pr_debug("NAT64: Not IPv4 or IPv6?");
-	}
-}
-
-
-/*
- * END: Generic Auxiliary Functions
- */
 
 /*
  * BEGIN: Packet Auxiliary Functions
@@ -608,38 +577,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 static bool nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol, 
 			struct sk_buff *skb, 
 			struct nf_conntrack_tuple * outgoing_t) 
-{
-
-	struct iphdr *iph = ip_hdr(skb);
-	struct flowi fl;
-	struct rtable *rt;
-
-	skb->protocol = htons(ETH_P_IP);
-
-	memset(&fl, 0, sizeof(fl));
-	fl.fl4_dst = iph->daddr;
-	fl.fl4_tos = RT_TOS(iph->tos);
-	fl.proto = skb->protocol;
-	if (ip_route_output_key(&init_net, &rt, &fl))
-	{
-		printk("nf_nat64: ip_route_output_key failed\n");
-		return false;
-	}
-	
-	if (!rt)
-	{
-		printk("nf_nat64: rt null\n");
-		return false;
-	}
-
-	// FIXME: Kernel structure-wise.. rt->u.dst.dev got replaced by dst.dev
-	skb->dev = rt->dst.dev;
-	skb_dst_set(skb, (struct dst_entry *)rt);
-	if(ip_local_out(skb)) {
-	       printk("nf_nat64: ip_local_out failed\n");
-	       return false;
-	}
-	
+{	
 	pr_debug("NAT64: Translating the packet stage went OK.");
 	return true;
 }
@@ -879,6 +817,8 @@ static int __init nat64_init(void)
 
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t)NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
+
+	pr_debug("%d", add(1,2));
 
 	if (l3proto_ip == NULL)
 		pr_debug("NAT64: couldn't load IPv4 l3proto");
