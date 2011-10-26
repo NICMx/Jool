@@ -106,7 +106,7 @@ struct nat64_outtuple_func {
  * Function that gets the pointer directed to it's 
  * nf_conntrack_l3proto structure.
  */
-int nat64_get_l3struct(u_int8_t l3protocol, 
+static int nat64_get_l3struct(u_int8_t l3protocol, 
 		struct nf_conntrack_l3proto ** l3proto)
 {
 	// FIXME We removed the skb as a parameter because it wasn't being used.
@@ -127,7 +127,7 @@ int nat64_get_l3struct(u_int8_t l3protocol,
  * the incoming packet's IP with the rule's IP; therefore, when the module is 
  * in debugging mode it prints the rule's IP.
  */
-bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
+static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
 		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, 
 		__u8 flags)
 {
@@ -311,7 +311,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		case IPPROTO_TCP:	 
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, pay_len);
-			
+
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), new_port,
 					(ip4->protocol == IPPROTO_UDP) ? 
@@ -366,7 +366,6 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 
 	return true;
 }
-
 /*
  * Function nat64_get_skb is a generic entry function to get a new skb 
  * that will be sent.
@@ -379,16 +378,16 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	u_int8_t pay_len = skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
 	unsigned int addr_type;
-	
+
 	addr_type = RTN_LOCAL;
  
 	pr_debug("NAT64: get_skb paylen = %u", pay_len);
 
 	if (skb_linearize(skb) < 0)
 		return NULL;
-	
+
 	printk(KERN_INFO "dst_out=%p\n", skb_dst(skb)->output);
-	
+
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
 	 * the size of the new header will be the other's.
@@ -469,7 +468,6 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: Not IPv4 or 6");
 	return NULL;
 }
-
 /*
  * END: NAT64 shared functions.
  */
@@ -477,7 +475,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 static bool nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol, 
 			struct sk_buff *skb, 
 			struct nf_conntrack_tuple * outgoing_t) 
-{	
+{
 	pr_debug("NAT64: Translating the packet stage went OK.");
 	return true;
 }
