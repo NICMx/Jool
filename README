@@ -18,3 +18,5 @@ Directories:
 	/include : includes the header files used.
 
 In ubuntu, you will require the following packages: iptables-dev, libssl-dev
+Also, it may sound obvious, but make sure you have both the image and the headers 
+of the kernel updated to the 2.6.38 version, at least.
