@@ -1,3 +1,8 @@
+Ubuntu requirements:
+	In ubuntu, you will require the following packages: iptables-dev, libssl-dev
+	Also, it may sound obvious, but make sure you have both the image and the headers 
+	of the kernel updated to the same 2.6.38-#-server version, at least.
+
 to install:
 	compile the userspace library (make libxt_nat64.so)
 	compile the module library (make)
