@@ -122,13 +122,14 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 {
 
 	if (flags & XT_NAT64_IPV6_DST) {
-		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) != 0) {
+		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) == 0) {
 			pr_debug("NAT64: IPv6 comparison returned true\n");
 			return true;
 		}
 	}
 
-	pr_debug("NAT64: IPv6 comparison returned false\n");
+	pr_debug("NAT64: IPv6 comparison returned false: %d\n",
+			ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b));
 	return false;
 }
 
