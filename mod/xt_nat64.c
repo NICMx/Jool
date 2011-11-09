@@ -651,7 +651,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 		}
 	}
 
-	return NF_DROP;
+	return NF_ACCEPT;
 }
 
 /*
