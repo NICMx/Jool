@@ -541,15 +541,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	/*
 	 * TODO: Implement call to translate_packet to get the new packet
 	 * from the tuple.
-	 */
-	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
-		return true;
-	} else {
-		pr_debug("NAT64: Something went wrong in the Translating the "
-				"packet stage.");
-		return false;
-	}
-	
+	 */	
 	return true;
 }
 
@@ -561,37 +553,23 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 	 */
 
 	pr_debug("NAT64: Updating and Filtering stage went OK.");
-
-	if(nat64_determine_outgoing_tuple(l3protocol, l4protocol, skb, inner)) {
-		return true;
-	} else {
-		pr_debug("NAT64: Something went wrong in the Determining the " 
-				"outgoing tuple stage.");
-		return false;
-	}
+	return true;
 }
+
 /*
  * Function that gets the packet's information and returns a tuple out of it.
  */
 static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb)
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
-	struct nf_conntrack_tuple inner;
-
-	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, &inner))) {
+	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, inner))) {
 		pr_debug("NAT64: Something went wrong getting the tuple");
 		return false;
 	}
 
 	pr_debug("NAT64: Determining the tuple stage went OK.");
-
-	if (nat64_update_n_filter(l3protocol, l4protocol, skb, &inner)) {
-		return true;
-	} else {
-		pr_debug("NAT64: Something went wrong in the Updating and "
-				"Filtering stage.");
-		return false;
-	}
+	
+	return true;
 }
 
 /*
@@ -612,6 +590,42 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
 }
 
 /*
+ * NAT64 IPv6 Core Functionality
+ *
+ */
+
+static unsigned int nat64_ipv6_core(struct sk_buff *skb, 
+		const struct xt_action_param *par, u_int8_t l3protocol,
+		u_int8_t l4protocol) {
+		
+	bool nf_ret = true;
+	struct nf_conntrack_tuple inner;
+	struct nf_conntrack_tuple outgoing;
+	struct sk_buff *new_skb;
+	
+	nf_ret = nat64_determine_tuple(l3protocol, l4protocol, skb, &inner);
+
+	if(nf_ret) {
+		nf_ret = nat64_update_n_filter(l3protocol, l4protocol, 
+			skb, &inner);
+	}
+	
+	if(nf_ret) {
+		nf_ret = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+			skb, &inner);
+	}
+	
+	if(nf_ret) {
+		nf_ret = nat64_translate_packet(l3protocol, l4protocol, 
+			new_skb, &outgoing);	
+	}
+	
+	/* TODO: Incluir llamada a HAIRPINNING aqui */
+	
+	return NF_DROP;
+}
+
+/*
  * IPv6 entry function
  *
  */
@@ -621,7 +635,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
-
+	
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
@@ -637,11 +651,8 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {
-		if(!nat64_determine_tuple(NFPROTO_IPV6, l4_protocol, skb)) {
-			pr_debug("NAT64: Something went wrong in the "
-				 "determining the tuple stage.");
-			return NF_DROP;
-		}
+		// CORE of NAT64 for TG6
+		return nat64_ipv6_core(skb, par, NFPROTO_IPV6, l4_protocol);
 	}
 
 	return NF_DROP;
