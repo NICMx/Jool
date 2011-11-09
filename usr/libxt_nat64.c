@@ -9,6 +9,9 @@
 #include "libxt_nat64.h"
 
 
+/*
+ * FIXME: Use XOPT_MAND as flag to specify mandatory options.
+ */
 static const struct option nat64_tg_opts[] = {
 	{.name = "ipsrc", .has_arg = true, .val = '1'},
 	{.name = "ipdst", .has_arg = true, .val = '2'},
@@ -49,6 +52,8 @@ static struct xtables_target nat64_tg6_reg = {
 static void nat64_tg4_save(const void *entry, const struct xt_entry_target *target)
 {
 	const struct xt_nat64_tginfo *info = (const void *)target->data;
+
+	printf("--ipsrc %s ", xtables_ipaddr_to_numeric(&info->ipsrc.in));
 
 	if (info ->flags & XT_NAT64_IP_SRC) {
 		printf("--ipsrc %s ", xtables_ipaddr_to_numeric(&info->ipsrc.in));
