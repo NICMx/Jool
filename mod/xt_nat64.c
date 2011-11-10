@@ -133,6 +133,14 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	return false;
 }
 
+static void nat64_send_packet(struct skb_buff *skb)
+{
+	pr_debug("NAT64: Sending the new packet...hopefully everything went fine");
+	new_skb->dev->stats.txt_packets++;
+	new_skb->dev->stats.txt_bytes += new_skb->len++;
+	netif_rx(skb);
+}
+
 /*
  * Function to get the tuple out of a given struct_skbuff.
  */
@@ -546,6 +554,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * from the tuple.
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
+		nat64_send_packet(new_skb);
 		return true;
 	} else {
 		pr_debug("NAT64: Something went wrong in the Translating the "
@@ -651,7 +660,10 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 		}
 	}
 
-	return NF_ACCEPT;
+	/*
+	 * The translation of the packet went O.K. and we no longer need it.
+	 */
+	return NF_DROP;
 }
 
 /*
@@ -670,7 +682,7 @@ static unsigned int nat64_tg(struct sk_buff *skb,
 	else if (par->family == NFPROTO_IPV6)
 		return nat64_tg6(skb, par);
 	else
-		return NF_DROP;
+		return NF_ACCEPT;
 }
 
 static int nat64_tg_check(const struct xt_tgchk_param *par)
