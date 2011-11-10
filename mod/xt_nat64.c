@@ -133,12 +133,21 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	return false;
 }
 
-static void nat64_send_packet(struct skb_buff *skb)
+static int nat64_send_packet(struct sk_buff *skb)
 {
-	pr_debug("NAT64: Sending the new packet...hopefully everything went fine");
-	new_skb->dev->stats.txt_packets++;
-	new_skb->dev->stats.txt_bytes += new_skb->len++;
-	netif_rx(skb);
+	int ret;
+
+	pr_debug("NAT64: Sending the new packet...");
+	skb->dev->stats.tx_packets++;
+	skb->dev->stats.tx_bytes += skb->len++;
+
+	ret = dev_queue_xmit(skb);
+
+	if (ret)
+		pr_debug("NAT64: an error occured while sending the packet");
+	pr_debug("NAT64: dev_queue_xmit return code: %d", ret);
+
+	return ret;
 }
 
 /*
@@ -370,7 +379,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
  * that will be sent.
  */
 static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, const struct net_device * net_out)
+		struct sk_buff *skb, struct net_device * net_out)
 {
 	struct sk_buff *new_skb;
 
@@ -384,8 +393,6 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	if (skb_linearize(skb) < 0)
 		return NULL;
-
-	printk(KERN_INFO "dst_out=%p\n", skb_dst(skb)->output);
 
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
@@ -507,7 +514,7 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * inner, 
-		const struct net_device * net_out)
+		struct net_device * net_out)
 {
 	struct nf_conntrack_tuple outgoing;
 	struct sk_buff *new_skb;
@@ -554,8 +561,15 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * from the tuple.
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
-		nat64_send_packet(new_skb);
-		return true;
+		new_skb->dev = net_out;
+
+		if (nat64_send_packet(new_skb) == 0) {
+			pr_debug("NAT64: Succesfully sent the packet");
+			return true;
+		}
+
+		pr_debug("NAT64: Error sending the packet");
+		return false;
 	} else {
 		pr_debug("NAT64: Something went wrong in the Translating the "
 				"packet stage.");
@@ -567,7 +581,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 
 static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner,
-		const struct net_device * net_out)
+		struct net_device * net_out)
 {
 	/*
 	 * TODO: Implement Update_n_Filter
@@ -588,7 +602,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
  * Function that gets the packet's information and returns a tuple out of it.
  */
 static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, const struct net_device * net_out)
+		struct sk_buff *skb, struct net_device * net_out)
 {
 	struct nf_conntrack_tuple inner;
 
@@ -634,7 +648,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 {
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
-	const struct net_device * net_out = skb->dev;
+	struct net_device * net_out = skb->dev;
 	__u8 l4_protocol = iph->nexthdr;
 
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
