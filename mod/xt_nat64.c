@@ -202,7 +202,9 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		return false;
 	}
 
+	pr_debug("\nPRINTED TUPLE");
 	nat64_print_tuple(inner);
+	pr_debug("\n");
 	rcu_read_unlock();
 
 	return true;
@@ -496,10 +498,11 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
-		struct nf_conntrack_tuple * inner)
+		struct nf_conntrack_tuple * inner, struct sk_buff *new_skb, 
+		struct nf_conntrack_tuple *outgoing)
 {
-	struct nf_conntrack_tuple outgoing;
-	struct sk_buff *new_skb;
+//	struct nf_conntrack_tuple outgoing;
+//	struct sk_buff *new_skb;
 
 	/*
 	 * The following changes the skb and the L3 and L4 layer protocols to 
@@ -531,7 +534,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 		return false;
 	}
 	
-	if (!(nat64_get_tuple(l3protocol, l4protocol, new_skb, &outgoing))) {
+	if (!(nat64_get_tuple(l3protocol, l4protocol, new_skb, outgoing))) {
 		pr_debug("NAT64: Something went wrong getting the tuple");
 		return false;
 	}
@@ -601,7 +604,7 @@ static unsigned int nat64_ipv6_core(struct sk_buff *skb,
 	bool nf_ret = true;
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple outgoing;
-	struct sk_buff *new_skb;
+	struct sk_buff new_skb;
 	
 	nf_ret = nat64_determine_tuple(l3protocol, l4protocol, skb, &inner);
 
@@ -612,12 +615,12 @@ static unsigned int nat64_ipv6_core(struct sk_buff *skb,
 	
 	if(nf_ret) {
 		nf_ret = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-			skb, &inner);
+			skb, &inner, &new_skb, &outgoing);
 	}
 	
 	if(nf_ret) {
 		nf_ret = nat64_translate_packet(l3protocol, l4protocol, 
-			new_skb, &outgoing);	
+			&new_skb, &outgoing);	
 	}
 	
 	/* TODO: Incluir llamada a HAIRPINNING aqui */
