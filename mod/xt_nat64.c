@@ -135,35 +135,34 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 
 static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 {
-	int ret;
+	int ret=0;
 
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
 
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
+			pr_debug("NAT64: eth type ipv6 to ipv4");
 			skb->protocol = htons(ETH_P_IP); break;
 		case ETH_P_IP:
+			pr_debug("NAT64: eth type ipv4 to ipv6");
 			skb->protocol = htons(ETH_P_IPV6); break;
 		default:
-			kfree_skb(old_skb);
 			kfree_skb(skb);
+			pr_debug("NAT64: before unlocking spinlock..no known eth type.");
 			spin_unlock_bh(&nf_nat64_lock);
 			return -1;
 	}
 
 	pr_debug("NAT64: Sending the new packet...");
-	skb->dev->stats.tx_packets++;
-	skb->dev->stats.tx_bytes += skb->len;
-
+	pr_debug("NAT64: out SK_BUFF\n %s\n %s", skb->data, skb->tail);
 	ret = dev_queue_xmit(skb);
 
 	if (ret)
 		pr_debug("NAT64: an error occured while sending the packet");
 	pr_debug("NAT64: dev_queue_xmit return code: %d", ret);
 
-	kfree_skb(old_skb);
-
+	pr_debug("NAT64: before unlocking spinlock...");
 	spin_unlock_bh(&nf_nat64_lock);
 
 	return ret;
@@ -400,7 +399,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
  * that will be sent.
  */
 static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, const struct net_device * net_out)
+		struct sk_buff *skb, struct net_device * net_out)
 {
 	struct sk_buff *new_skb;
 
@@ -415,6 +414,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	if (skb_linearize(skb) < 0)
 		return NULL;
 
+	pr_debug("NAT64: in SK_BUFF\n %s \n%s", skb->data, skb->tail);
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
 	 * the size of the new header will be the other's.
@@ -535,7 +535,7 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * inner, 
-		const struct net_device * net_out)
+		struct net_device * net_out)
 {
 	struct nf_conntrack_tuple outgoing;
 	struct sk_buff *new_skb;
@@ -586,6 +586,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 
 		if (nat64_send_packet(skb, new_skb) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");
+
 			return true;
 		}
 
@@ -603,7 +604,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 
 static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner,
-		const struct net_device * net_out)
+		struct net_device * net_out)
 {
 	/*
 	 * TODO: Implement Update_n_Filter
@@ -624,7 +625,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
  * Function that gets the packet's information and returns a tuple out of it.
  */
 static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, const struct net_device * net_out)
+		struct sk_buff *skb, struct net_device * net_out)
 {
 	struct nf_conntrack_tuple inner;
 
@@ -671,7 +672,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
-	const struct net_device * net_out = (par->out != NULL) ? par->out: skb->dev;
+	struct net_device * net_out = skb->dev;
 
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
