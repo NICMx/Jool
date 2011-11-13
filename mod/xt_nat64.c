@@ -136,6 +136,9 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 {
 	int ret=0;
+	int buff_cont;
+	unsigned char *buf = skb->data;
+	unsigned char cc;
 
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
@@ -155,7 +158,17 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	}
 
 	pr_debug("NAT64: Sending the new packet...");
-	pr_debug("NAT64: out SK_BUFF\n %s\n %s", skb->data, skb->tail);
+
+	/*
+	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+		cc = buf[buff_cont];
+		printk(KERN_DEBUG "%02x",cc);
+	}
+
+	printk(KERN_DEBUG "\n");
+	*/
+
+	pr_debug("NAT64: L2 length %u", skb->mac_len);
 	ret = dev_queue_xmit(skb);
 
 	if (ret)
@@ -287,7 +300,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.1.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -308,6 +321,8 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	ip4->frag_off = htons(IP_DF);
 	ip4->ttl = ip6->hop_limit;
 	ip4->protocol = ip6->nexthdr;
+
+	pr_debug("NAT64: l4 proto id = %u", ip6->nexthdr);
 
 	/*
 	 * Translation of packet. The RFC6146 states that the embedded IPv4 
@@ -403,9 +418,12 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 {
 	struct sk_buff *new_skb;
 
-	u_int8_t pay_len = skb->data_len;
+	u_int8_t pay_len = skb->len - skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
 	unsigned int addr_type;
+	int buff_cont;
+	unsigned char *buf = skb->data;
+	unsigned char cc;
 
 	addr_type = RTN_LOCAL;
 
@@ -414,7 +432,14 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	if (skb_linearize(skb) < 0)
 		return NULL;
 
-	pr_debug("NAT64: in SK_BUFF\n %s \n%s", skb->data, skb->tail);
+	/*
+	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+		cc = buf[buff_cont];
+		printk(KERN_DEBUG "%02x",cc);
+	}
+	printk(KERN_DEBUG "\n");
+	*/
+
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
 	 * the size of the new header will be the other's.
@@ -441,15 +466,22 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	 */
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
-			l3hdrlen = sizeof(struct ipv6hdr); break;
+			l3hdrlen = sizeof(struct ipv6hdr);
+			pay_len = pay_len - sizeof(struct iphdr);
+			break;
 		case NFPROTO_IPV6:
-			l3hdrlen = sizeof(struct iphdr); break;
+			l3hdrlen = sizeof(struct iphdr);
+			pay_len = pay_len - sizeof(struct ipv6hdr);
+			break;
 		default:
 			return NULL;
 	}
+	pr_debug("NAT64: paylen %d", pay_len);
 	pr_debug("NAT64: l3hdrlen %d", l3hdrlen);
+	pr_debug("NAT64: LL_MAX_HEADER %d", LL_MAX_HEADER);
 
-	packet_len = l3hdrlen + l4hdrlen + pay_len;
+	//packet_len = l3hdrlen + l4hdrlen + pay_len;
+	packet_len = l3hdrlen + pay_len;
 
 	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
@@ -465,7 +497,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	skb_set_transport_header(new_skb, l3hdrlen);
 
+	pr_debug("GUACAMOLE %d", new_skb->len);
 	skb_put(new_skb, packet_len);
+	pr_debug("GUACAMOLE %d", new_skb->len);
 
 	if (!new_skb) {
 		if (printk_ratelimit()) {
@@ -481,7 +515,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	} else if (l3protocol == NFPROTO_IPV6) {
 		if (nat64_getskb_from6to4(skb, new_skb, l3protocol, l4protocol,
 					l3hdrlen, l4hdrlen, 
-					(l4hdrlen + pay_len))) { 
+					(pay_len))) { 
 			pr_debug("NAT64: Everything went OK populating the "
 					"new sk_buff");
 			return new_skb;
@@ -655,9 +689,19 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
 	//union nf_inet_addr;
 	//struct iphdr *iph = ip_hdr(skb);
 	//__u8 l4_protocol = iph->protocol;
+	int buff_cont;
+	unsigned char *buf = skb->data;
+	unsigned char cc;
 
 	pr_debug("\n* ICNOMING IPV4 PACKET *\n");
 	pr_debug("Drop it\n");
+
+	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+		cc = buf[buff_cont];
+		printk(KERN_DEBUG "%02x",cc);
+	}
+
+	printk(KERN_DEBUG "\n");
 
 	return NF_DROP;
 }
