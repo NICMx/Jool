@@ -36,6 +36,7 @@
 #include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/skbuff.h>
+#include <linux/etherdevice.h>
 
 #include <linux/netdevice.h>
 #include <net/route.h>
@@ -143,6 +144,7 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
 
+	pr_debug("NAT64: skb->protocol = %u", ntohs(eth_type_trans(skb, skb->dev)));
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
 			pr_debug("NAT64: eth type ipv6 to ipv4");
