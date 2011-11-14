@@ -9,12 +9,10 @@
 #include "libxt_nat64.h"
 
 
-/*
- * FIXME: Use XOPT_MAND as flag to specify mandatory options.
- */
 static const struct option nat64_tg_opts[] = {
 	{.name = "ipsrc", .has_arg = true, .val = '1'},
 	{.name = "ipdst", .has_arg = true, .val = '2'},
+	{.name = "outdev", .has_arg = true, .val = '3'},
 	{NULL},
 };
 
@@ -120,6 +118,8 @@ static int nat64_tg4_parse(int c, char **argv, int invert,
 {
 	struct xt_nat64_tginfo *info = (void *)(*target)->data;
 	struct in_addr *addrs, mask;
+	char out_dev[IFNAMSIZ];
+	unsigned char out_dev_mask[IFNAMSIZ];
 	unsigned int naddrs;
 
 	switch (c) {
@@ -171,6 +171,28 @@ static int nat64_tg4_parse(int c, char **argv, int invert,
 
 			memcpy(&info->ipdst.in, addrs, sizeof(*addrs));
 			return true;
+		case '3': /* --oudev */
+			if (*flags & XT_NAT64_OUT_DEV)
+				xtables_error(PARAMETER_PROBLEM, "xt_nat64: "
+						"Only use \"--outdev\" once!");
+
+			*flags |= XT_NAT64_OUT_DEV;
+			info->flags |= XT_NAT64_OUT_DEV;
+
+			if (invert)
+				xtables_error(PARAMETER_PROBLEM, "xt_nat64: "
+						"I'm sorry, the invert flag isn't available yet");
+
+			xtables_parse_interface(optarg, out_dev, out_dev_mask);
+
+			if (out_dev == NULL)
+				xtables_error(PARAMETER_PROBLEM,
+						"Parse error at %s\n", optarg);
+
+			memcpy(&info->out_dev, out_dev, sizeof(char) * IFNAMSIZ);
+			memcpy(&info->out_dev_mask, out_dev_mask, sizeof(unsigned char) * IFNAMSIZ);
+			return true;
+
 	}
 	return false;
 }
@@ -181,6 +203,8 @@ static int nat64_tg6_parse(int c, char **argv, int invert,
 {
 	struct xt_nat64_tginfo *info = (void *)(*target)->data;
 	struct in6_addr *addrs, mask;
+	char out_dev[IFNAMSIZ];
+	unsigned char out_dev_mask[IFNAMSIZ];
 	unsigned int naddrs;
 
 	switch(c) {
@@ -216,6 +240,27 @@ static int nat64_tg6_parse(int c, char **argv, int invert,
 			memcpy(&info->ip6dst.in6, addrs, sizeof(*addrs));
 			memcpy(&info->ip6dst_mask.in6, &mask, sizeof(mask));
 			return true;
+		case '3': /* --oudev */
+			if (*flags & XT_NAT64_OUT_DEV)
+				xtables_error(PARAMETER_PROBLEM, "xt_nat64: "
+						"Only use \"--outdev\" once!");
+
+			*flags |= XT_NAT64_OUT_DEV;
+			info->flags |= XT_NAT64_OUT_DEV;
+
+			if (invert)
+				xtables_error(PARAMETER_PROBLEM, "xt_nat64: "
+						"I'm sorry, the invert flag isn't available yet");
+
+			xtables_parse_interface(optarg, out_dev, out_dev_mask);
+
+			if (out_dev == NULL)
+				xtables_error(PARAMETER_PROBLEM,
+						"Parse error at %s\n", optarg);
+
+			memcpy(&info->out_dev, out_dev, sizeof(char) * IFNAMSIZ);
+			memcpy(&info->out_dev_mask, out_dev_mask, sizeof(unsigned char) * IFNAMSIZ);
+			return true;
 	}
 
 	return false;
@@ -225,7 +270,12 @@ static void nat64_tg_check(unsigned int flags)
 {
 	if (flags == 0)
 		xtables_error(PARAMETER_PROBLEM, "xt_nat64: You need to "
-				"specify at least \"--ipsrc\" or \"--ipdst\".");
+				"specify at least \"--ipsrc\", \"--ipdst\""
+				"or \"--outdev\"");
+
+	if (!(flags | XT_NAT64_IP_DST | XT_NAT64_OUT_DEV))
+		xtables_error(PARAMETER_PROBLEM, "xt_nat64: You need to "
+				"specify at least \"--outdev\" and \"--ipdst\".");
 }
 
 
@@ -235,6 +285,7 @@ static void nat64_tg_help(void)
 			"nat64 target options:\n"
 			"[!] --ipsrc addr target source address of packet\n"
 			"[!] --ipdst addr target destination address of packet\n"
+			"[!] --outdev dev_name target output device of packet\n"
 		  );
 }
 

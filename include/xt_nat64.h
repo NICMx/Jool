@@ -8,6 +8,7 @@ enum {
 	XT_NAT64_IP_SRC = 1 << 0,
 	XT_NAT64_IP_DST = 1 << 1,
 	XT_NAT64_IPV6_DST = 1 << 2,
+	XT_NAT64_OUT_DEV = 1 << 3,
 };
 
 struct xt_nat64_tginfo {
@@ -15,6 +16,8 @@ struct xt_nat64_tginfo {
 	union nf_inet_addr ipsrc, ipsrc_mask;
 	union nf_inet_addr ip6dst, ip6dst_mask;
 	__u16 l4proto;
+	char out_dev[IFNAMSIZ];
+	char out_dev_mask[IFNAMSIZ];
 	__u8 flags;
 };
 

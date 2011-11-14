@@ -145,6 +145,7 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	pr_debug("NAT64: Sending the new packet...");
 
 	pr_debug("NAT64: skb->protocol = %u", ntohs(eth_type_trans(skb, skb->dev)));
+
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
 			pr_debug("NAT64: eth type ipv6 to ipv4");
@@ -158,6 +159,8 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 			spin_unlock_bh(&nf_nat64_lock);
 			return -1;
 	}
+
+	skb->pkt_type = PACKET_OUTGOING;
 
 	pr_debug("NAT64: Sending the new packet...");
 
@@ -449,12 +452,15 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	switch (l4protocol) {
 		case IPPROTO_ICMP:
 			l4hdrlen = sizeof(struct icmp6hdr);
+			pay_len = pay_len - sizeof(struct icmphdr);
 			break;
 		case IPPROTO_ICMPV6:
 			l4hdrlen = sizeof(struct icmphdr);
+			pay_len = pay_len - sizeof(struct icmp6hdr);
 			break;
 		default:
 			l4hdrlen = nat64_get_l4hdrlength(l4protocol);
+			pay_len = pay_len - nat64_get_l4hdrlength(l4protocol);
 	}
 
 	if (l4hdrlen == -1) {
@@ -483,7 +489,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: LL_MAX_HEADER %d", LL_MAX_HEADER);
 
 	//packet_len = l3hdrlen + l4hdrlen + pay_len;
-	packet_len = l3hdrlen + pay_len;
+	packet_len = l3hdrlen + l4hdrlen + pay_len;
 
 	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
@@ -495,9 +501,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
 	skb_reset_mac_header(new_skb);
-	skb_reset_network_header(new_skb);
+	skb_set_network_header(new_skb, l3hdrlen);
 
-	skb_set_transport_header(new_skb, l3hdrlen);
+	skb_set_transport_header(new_skb, l3hdrlen + l4hdrlen);
 
 	pr_debug("GUACAMOLE %d", new_skb->len);
 	skb_put(new_skb, packet_len);
@@ -718,14 +724,18 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
-	struct net_device * net_out = skb->dev;
+	struct net_device * net_out = dev_get_by_name(&init_net, info->out_dev);
 
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
 	pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
 	pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
-	pr_debug("NAT64: outgoing net_device is %s: ", net_out->name);
+	if (net_out != NULL) {
+		pr_debug("NAT64: outgoing net_device is %s ", net_out->name);
+	} else {
+		pr_debug("NAT64: error getting the net_device %s", info->out_dev);
+	}
 
 	/*
 	 * If the packet is not directed towards the NAT64 prefix, 
