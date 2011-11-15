@@ -493,6 +493,8 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
+	pr_debug("LL_MAX_HEADER [%d] | PACKET_LEN [%d] = l3hdrlen [%d] + l4hdrlen [%d] + pay_len [%d]", LL_MAX_HEADER, packet_len, l3hdrlen, l4hdrlen, pay_len);
+	pr_debug("SKB_ALLOC [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Couldn't allocate space for new skb");
@@ -500,15 +502,22 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
-	skb_reset_mac_header(new_skb);
-	skb_set_network_header(new_skb, l3hdrlen);
+//	skb_reset_mac_header(new_skb);
+//	pr_debug("RESET MAC HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+//	skb_set_network_header(new_skb, l3hdrlen);
+//	pr_debug("SET NETWORK HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+//	skb_set_transport_header(new_skb, l3hdrlen + l4hdrlen);
+//	pr_debug("SET TRANSPORT HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
-	skb_set_transport_header(new_skb, l3hdrlen + l4hdrlen);
-
-	pr_debug("GUACAMOLE %d", new_skb->len);
-	skb_put(new_skb, packet_len);
-	pr_debug("GUACAMOLE %d", new_skb->len);
-
+//	skb_put(new_skb, packet_len);
+//	pr_debug("PUT PACKET_LEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	
+	skb_push(new_skb, l4hdrlen);
+	pr_debug("PUSH L4HDRLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	
+	skb_push(new_skb, l3hdrlen);
+	pr_debug("PUSH L3HDRLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	
 	if (!new_skb) {
 		if (printk_ratelimit()) {
 			pr_debug("NAT64: failed to alloc a new sk_buff");
@@ -625,6 +634,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
 		new_skb->dev = net_out;
+			pr_debug("%d %d %d %d", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end);
 
 		if (nat64_send_packet(skb, new_skb) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");
