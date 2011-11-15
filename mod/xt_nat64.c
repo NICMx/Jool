@@ -66,6 +66,7 @@
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
 #include "nf_nat64_auxiliary_functions.h"
+#include "nat64_filtering_n_updating.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
@@ -86,6 +87,39 @@ MODULE_ALIAS("ip6t_nat64");
 
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
+
+/*
+ * BEGIN: NAT64 Filter and updating configuration variables and settings.
+ */
+
+int previousTime, currentTime;
+
+// Configuration variables
+int udp_min = 120;
+int udp_default = 300;
+int tcp_trans = 240;
+int tcp_est = 7200;
+int tcp_incoming_syn = 6;
+int fragment_mint = 2;
+int icmp_default = 60;
+
+int udp_period;
+struct nat64_bib *udp_bib;
+struct nat64_st *udp_st;
+
+/*
+ * This structure's purpose is getting the L4 layer respective function to get
+ * the outgoing tuple.
+ */
+struct nat64_outtuple_func {
+	struct nf_conntrack_tuple * (* get_outtuple)(union nf_inet_addr, 
+			u_int16_t, union nf_inet_addr, u_int16_t, 
+			u_int8_t, u_int8_t);
+};
+
+/*
+ * END: NAT64 Filter and updating configuration variables and settings.
+ */
 
 /*
  * BEGIN: NAT64 shared functions.
@@ -554,6 +588,8 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 	/*
 	 * TODO: Implement Update_n_Filter
 	 */
+
+
 
 	pr_debug("NAT64: Updating and Filtering stage went OK.");
 	return true;
