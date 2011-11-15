@@ -665,7 +665,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 					* 
 					* In case these records are missing, they should be created.
 					*/
-					currentTime = (int) clock() / CLOCKS_PER_SECOND;
+//					currentTime = (int) clock() / CLOCKS_PER_SECOND;
 					if (currentTime - previousTime > udp_period) {
 						nat64_st_delete(udp_st, udp_default, currentTime);
 						//Deletes any record whose "lifetime" has exceeded "udp_default"
@@ -697,7 +697,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 										&(ipv4_pool_ta->ip4a), 
 										ipv4_pool_ta->port);
 									//Insert entry into UDP BIB
-									nat64_insert_bib(udp_bib, bib_entry);
+									nat64_bib_insert(udp_bib, bib_entry);
 									//Initialize ST entry
 									nat64_initialize_st_entry(st_entry,
 										&(inner->src.u3.in6), inner->src.u.udp.port,
@@ -812,8 +812,8 @@ static unsigned int nat64_ipv6_core(struct sk_buff *skb,
 	nf_ret = nat64_determine_tuple(l3protocol, l4protocol, skb, &inner);
 
 	if(nf_ret) {
-		nf_ret = nat64_update_n_filter(l3protocol, l4protocol, 
-			skb, &inner);
+//		nf_ret = nat64_update_n_filter(l3protocol, l4protocol, 
+//			skb, &inner);
 	}
 	
 	if(nf_ret) {
