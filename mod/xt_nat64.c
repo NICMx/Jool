@@ -137,9 +137,9 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 {
 	int ret=0;
-	int buff_cont;
-	unsigned char *buf = skb->data;
-	unsigned char cc;
+//	int buff_cont;
+//	unsigned char *buf = skb->data;
+//	unsigned char cc;
 
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
@@ -426,9 +426,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	u_int8_t pay_len = skb->len - skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
 	unsigned int addr_type;
-	int buff_cont;
-	unsigned char *buf = skb->data;
-	unsigned char cc;
+//	int buff_cont;
+//	unsigned char *buf = skb->data;
+//	unsigned char cc;
 
 	addr_type = RTN_LOCAL;
 
@@ -494,7 +494,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
 	pr_debug("LL_MAX_HEADER [%d] | PACKET_LEN [%d] = l3hdrlen [%d] + l4hdrlen [%d] + pay_len [%d]", LL_MAX_HEADER, packet_len, l3hdrlen, l4hdrlen, pay_len);
-	pr_debug("SKB_ALLOC [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	pr_debug("SKB_ALLOC [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Couldn't allocate space for new skb");
@@ -510,13 +510,13 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 //	pr_debug("SET TRANSPORT HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
 	skb_put(new_skb, packet_len);
-	pr_debug("PUT PACKET_LEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	pr_debug("PUT PACKET_LEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
 	skb_push(new_skb, l4hdrlen);
-	pr_debug("PUSH L4HDRLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	pr_debug("PUSH L4HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
 	skb_push(new_skb, l3hdrlen);
-	pr_debug("PUSH L3HDRLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	pr_debug("PUSH L3HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
 	if (!new_skb) {
 		if (printk_ratelimit()) {
@@ -634,7 +634,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
 		new_skb->dev = net_out;
-			pr_debug("%d %d %d %d", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end);
+//		pr_debug("%d %d %d %d", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end);
 
 		if (nat64_send_packet(skb, new_skb) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");
