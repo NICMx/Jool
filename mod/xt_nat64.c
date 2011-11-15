@@ -665,7 +665,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 					* 
 					* In case these records are missing, they should be created.
 					*/
-//					currentTime = (int) clock() / CLOCKS_PER_SECOND;
+//	FIXME: CLOCKS no hay		currentTime = (int) clock() / CLOCKS_PER_SECOND;
 					if (currentTime - previousTime > udp_period) {
 						nat64_st_delete(udp_st, udp_default, currentTime);
 						//Deletes any record whose "lifetime" has exceeded "udp_default"
