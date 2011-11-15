@@ -509,16 +509,13 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 //	skb_set_transport_header(new_skb, l3hdrlen + l4hdrlen);
 //	pr_debug("SET TRANSPORT HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
-//	skb_put(new_skb, packet_len);
-//	pr_debug("PUT PACKET_LEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-	
-	skb_put(new_skb, pay_len);
-	pr_debug("PUT PAYLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	skb_put(new_skb, packet_len);
+	pr_debug("PUT PACKET_LEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
 	skb_push(new_skb, l4hdrlen);
 	pr_debug("PUSH L4HDRLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
-	skb->nh.raw = skb_push(new_skb, l3hdrlen);
+	skb_push(new_skb, l3hdrlen);
 	pr_debug("PUSH L3HDRLEN [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
 	if (!new_skb) {
@@ -637,6 +634,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
 		new_skb->dev = net_out;
+			pr_debug("%d %d %d %d", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end);
 
 		if (nat64_send_packet(skb, new_skb) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");

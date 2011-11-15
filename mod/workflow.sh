@@ -16,7 +16,7 @@ elif [ $1 = "debug" ] ; then
 	sudo dmesg | tail -30
 elif [ $1 = "test" ] ; then
 	sudo ip6tables -t mangle --flush
-	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst ::1/64;
+	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst fec0::/64 --outdev eth0
 	sudo ip6tables -t mangle -n -L
 	sudo ping6 ::1
 elif [ $1 = "setup" ] ; then
