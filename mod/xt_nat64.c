@@ -134,52 +134,80 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	return false;
 }
 
-static int nat64_send_ipv4_packet(struct sk_buff * skb)
+static int nat64_send_ipv4_packet(struct sk_buff * skb, struct net_device * dev)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
 	struct rtable * rt;
+	/*
 	int buff_cont;
-	unsigned char *buf = skb->data;
+	unsigned char *buf;
 	unsigned char cc;
+	*/
+
+	pr_debug("ALMOST END PACKET [head %ld] [data %ld] [tail %d] [end %d] [len %d]",
+			skb->head - skb->head, skb->data - skb->head, skb->tail, 
+			skb->end, skb->len);
 
 	skb->pkt_type = PACKET_OUTGOING;
 
 	memset(&fl, 0, sizeof(fl));
+
 	fl.u.ip4.daddr = iph->daddr;
+	fl.u.ip4.saddr = iph->saddr;
 	fl.flowi_tos = RT_TOS(iph->tos);
 	fl.flowi_proto = skb->protocol;
+	fl.flowi_oif = 0;
 
 	rt = ip_route_output_key(&init_net, &fl.u.ip4);
 
-	if (!rt) {
-		pr_info("NAT64: NAT64: nat64_send_packet - rt is null");
+	if (!rt || IS_ERR(rt)) {
+		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
 		return -1;
 	}
 
-	skb->dev = rt->dst.dev;
-	skb_dst_set(skb, (struct dst_entry *) rt);
+	if (rt->dst.dev == NULL) {
+		pr_info("NAT64: the route table couldn't get an appropriate device");
+	
+	} else {
+		skb->dev = rt->dst.dev;
+	}
 
-	//ether_setup(skb->dev);
+	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
+			NULL, NULL, skb->len);
 
+	skb_dst_set(skb, &(rt->dst));
+
+	if (rt->dst.dev->header_ops->rebuild(skb)) {
+		pr_debug("NAT64: error while rebuilding the frame");
+		return -1;
+	}
+
+	/*
+	buf = skb->data;
 	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
 		cc = buf[buff_cont];
 		printk(KERN_DEBUG "%02x",cc);
 	}
 	printk(KERN_DEBUG "\n");
+	*/
+	pr_debug("END PACKET [head %ld] [data %ld] [tail %d] [end %d] [len %d]",
+			skb->head - skb->head, skb->data - skb->head, skb->tail, 
+			skb->end, skb->len);
 
-	pr_debug("NAT64: L2 length %u", skb->mac_len);
+	netif_start_queue(skb->dev);
+
 	return dev_queue_xmit(skb);
-
 }
 
 /*
  * Sends the packet.
  * Right now, the skb->data should be pointing to the L3 layer header.
  */
-static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
+static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb,
+		struct net_device *dev)
 {
-	int ret=0;
+	int ret = -1;
 
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
@@ -189,12 +217,12 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
 			pr_debug("NAT64: eth type ipv6 to ipv4");
-			skb->protocol = htons(ETH_P_IP);
-			ret = nat64_send_ipv4_packet(skb);
+			skb->protocol = ETH_P_IP;
+			ret = nat64_send_ipv4_packet(skb, dev);
 			break;
 		case ETH_P_IP:
 			pr_debug("NAT64: eth type ipv4 to ipv6");
-			skb->protocol = htons(ETH_P_IPV6);
+			skb->protocol = ETH_P_IPV6;
 			break;
 		default:
 			kfree_skb(skb);
@@ -348,7 +376,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	ip4->version = 4;
 	ip4->ihl = 5;
 	ip4->tos = ip6->priority; 
-	ip4->tot_len = htons(sizeof(*ip4) + pay_len);
+	ip4->tot_len = htons(sizeof(*ip4) + l4len + pay_len);
 	ip4->id = 0;
 	ip4->frag_off = htons(IP_DF);
 	ip4->ttl = ip6->hop_limit;
@@ -379,7 +407,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:	 
 			l4header.uh = ip_data(ip4);
-			memcpy(l4header.uh, ip6_transp, pay_len);
+			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), new_port,
@@ -392,7 +420,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 			break;
 		case IPPROTO_ICMPV6:
 			l4header.icmph = ip_data(ip4);
-			memcpy(l4header.icmph, ip6_transp, pay_len);
+			memcpy(l4header.icmph, ip6_transp, l4len + pay_len);
 
 			if (l4header.icmph->type & ICMPV6_INFOMSG_MASK) {
 				switch (l4header.icmph->type) {
@@ -449,9 +477,11 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	u_int8_t pay_len = skb->len - skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
 	unsigned int addr_type;
+	/*
 	int buff_cont;
 	unsigned char *buf = skb->data;
 	unsigned char cc;
+	*/
 
 	addr_type = RTN_LOCAL;
 
@@ -537,7 +567,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	skb_set_transport_header(new_skb, l3hdrlen);
 
-	pr_debug("DATA - HEAD %d", new_skb->data - new_skb->head);
+	//pr_debug("DATA - HEAD %d", new_skb->data - new_skb->head);
 	pr_debug("GUACAMOLE %d", new_skb->len);
 
 	/*
@@ -662,9 +692,8 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * from the tuple.
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
-		// new_skb->dev = net_out;
 
-		if (nat64_send_packet(skb, new_skb) == 0) {
+		if (nat64_send_packet(skb, new_skb, net_out) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");
 
 			return true;
