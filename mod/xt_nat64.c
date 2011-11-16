@@ -137,7 +137,6 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 static int nat64_send_ipv4_packet(struct sk_buff * skb, struct net_device * dev)
 {
 	struct iphdr *iph = ip_hdr(skb);
-	struct flowi fl;
 	struct rtable * rt;
 	/*
 	int buff_cont;
@@ -151,15 +150,7 @@ static int nat64_send_ipv4_packet(struct sk_buff * skb, struct net_device * dev)
 
 	skb->pkt_type = PACKET_OUTGOING;
 
-	memset(&fl, 0, sizeof(fl));
-
-	fl.u.ip4.daddr = iph->daddr;
-	fl.u.ip4.saddr = iph->saddr;
-	fl.flowi_tos = RT_TOS(iph->tos);
-	fl.flowi_proto = skb->protocol;
-	fl.flowi_oif = 0;
-
-	rt = ip_route_output_key(&init_net, &fl.u.ip4);
+	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
 
 	if (!rt || IS_ERR(rt)) {
 		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
