@@ -134,47 +134,102 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	return false;
 }
 
-static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
+static int nat64_send_ipv4_packet(struct sk_buff * skb, struct net_device * dev)
 {
-	int ret=0;
-//	int buff_cont;
-//	unsigned char *buf = skb->data;
-//	unsigned char cc;
+	struct iphdr *iph = ip_hdr(skb);
+	struct flowi fl;
+	struct rtable * rt;
+	/*
+	int buff_cont;
+	unsigned char *buf;
+	unsigned char cc;
+	*/
+
+	pr_debug("ALMOST END PACKET [head %ld] [data %ld] [tail %d] [end %d] [len %d]",
+			skb->head - skb->head, skb->data - skb->head, skb->tail, 
+			skb->end, skb->len);
+
+	skb->pkt_type = PACKET_OUTGOING;
+
+	memset(&fl, 0, sizeof(fl));
+
+	fl.u.ip4.daddr = iph->daddr;
+	fl.u.ip4.saddr = iph->saddr;
+	fl.flowi_tos = RT_TOS(iph->tos);
+	fl.flowi_proto = skb->protocol;
+	fl.flowi_oif = 0;
+
+	rt = ip_route_output_key(&init_net, &fl.u.ip4);
+
+	if (!rt || IS_ERR(rt)) {
+		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
+		return -1;
+	}
+
+	if (rt->dst.dev == NULL) {
+		pr_info("NAT64: the route table couldn't get an appropriate device");
+	
+	} else {
+		skb->dev = rt->dst.dev;
+	}
+
+	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
+			NULL, NULL, skb->len);
+
+	skb_dst_set(skb, &(rt->dst));
+
+	if (rt->dst.dev->header_ops->rebuild(skb)) {
+		pr_debug("NAT64: error while rebuilding the frame");
+		return -1;
+	}
+
+	/*
+	buf = skb->data;
+	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+		cc = buf[buff_cont];
+		printk(KERN_DEBUG "%02x",cc);
+	}
+	printk(KERN_DEBUG "\n");
+	*/
+	pr_debug("END PACKET [head %ld] [data %ld] [tail %d] [end %d] [len %d]",
+			skb->head - skb->head, skb->data - skb->head, skb->tail, 
+			skb->end, skb->len);
+
+	netif_start_queue(skb->dev);
+
+	return dev_queue_xmit(skb);
+}
+
+/*
+ * Sends the packet.
+ * Right now, the skb->data should be pointing to the L3 layer header.
+ */
+static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb,
+		struct net_device *dev)
+{
+	int ret = -1;
 
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
 
-	pr_debug("NAT64: skb->protocol = %u", ntohs(eth_type_trans(skb, skb->dev)));
+	// pr_debug("NAT64: skb->protocol = %u", ntohs(eth_type_trans(skb, skb->dev)));
 
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
 			pr_debug("NAT64: eth type ipv6 to ipv4");
-			skb->protocol = htons(ETH_P_IP); break;
+			skb->protocol = ETH_P_IP;
+			ret = nat64_send_ipv4_packet(skb, dev);
+			break;
 		case ETH_P_IP:
 			pr_debug("NAT64: eth type ipv4 to ipv6");
-			skb->protocol = htons(ETH_P_IPV6); break;
+			skb->protocol = ETH_P_IPV6;
+			break;
 		default:
 			kfree_skb(skb);
 			pr_debug("NAT64: before unlocking spinlock..no known eth type.");
 			spin_unlock_bh(&nf_nat64_lock);
 			return -1;
 	}
-
-	skb->pkt_type = PACKET_OUTGOING;
-
-	pr_debug("NAT64: Sending the new packet...");
-
-	/*
-	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
-		cc = buf[buff_cont];
-		printk(KERN_DEBUG "%02x",cc);
-	}
-
-	printk(KERN_DEBUG "\n");
-	*/
-
-	pr_debug("NAT64: L2 length %u", skb->mac_len);
-	ret = dev_queue_xmit(skb);
 
 	if (ret)
 		pr_debug("NAT64: an error occured while sending the packet");
@@ -321,7 +376,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	ip4->version = 4;
 	ip4->ihl = 5;
 	ip4->tos = ip6->priority; 
-	ip4->tot_len = htons(sizeof(*ip4) + pay_len);
+	ip4->tot_len = htons(sizeof(*ip4) + l4len + pay_len);
 	ip4->id = 0;
 	ip4->frag_off = htons(IP_DF);
 	ip4->ttl = ip6->hop_limit;
@@ -340,14 +395,10 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 
 	/*
 	 * Get pointer to Layer 4 header.
+	 * FIXME: IPv6 option headers should also be considered.
 	 */
-	ip6_transp = (void *)((char *) old_skb->data + 
-			(sizeof(struct ipv6hdr)));
+	ip6_transp = skb_transport_header(old_skb);
 
-	/*
-	 * TODO Make this code more elegant.
-	 * POINTER MADNESS
-	 */
 	switch (ip4->protocol) {
 		/*
 		 * UDP and TCP have the same two first values in the struct. 
@@ -356,7 +407,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:	 
 			l4header.uh = ip_data(ip4);
-			memcpy(l4header.uh, ip6_transp, pay_len);
+			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), new_port,
@@ -369,7 +420,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 			break;
 		case IPPROTO_ICMPV6:
 			l4header.icmph = ip_data(ip4);
-			memcpy(l4header.icmph, ip6_transp, pay_len);
+			memcpy(l4header.icmph, ip6_transp, l4len + pay_len);
 
 			if (l4header.icmph->type & ICMPV6_INFOMSG_MASK) {
 				switch (l4header.icmph->type) {
@@ -424,11 +475,13 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	struct sk_buff *new_skb;
 
 	u_int8_t pay_len = skb->len - skb->data_len;
-	u_int8_t packet_len, l4hdrlen, l3hdrlen;
+	u_int8_t packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
 	unsigned int addr_type;
-//	int buff_cont;
-//	unsigned char *buf = skb->data;
-//	unsigned char cc;
+	/*
+	int buff_cont;
+	unsigned char *buf = skb->data;
+	unsigned char cc;
+	*/
 
 	addr_type = RTN_LOCAL;
 
@@ -486,38 +539,44 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 	pr_debug("NAT64: paylen %d", pay_len);
 	pr_debug("NAT64: l3hdrlen %d", l3hdrlen);
+	pr_debug("NAT64: l4hdrlen %d", l4hdrlen);
 	pr_debug("NAT64: LL_MAX_HEADER %d", LL_MAX_HEADER);
 
 	//packet_len = l3hdrlen + l4hdrlen + pay_len;
+	l2hdrlen = LL_MAX_HEADER;
 	packet_len = l3hdrlen + l4hdrlen + pay_len;
 
-	// LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
-	new_skb = alloc_skb(LL_MAX_HEADER + packet_len, GFP_ATOMIC);
-	pr_debug("LL_MAX_HEADER [%d] | PACKET_LEN [%d] = l3hdrlen [%d] + l4hdrlen [%d] + pay_len [%d]", LL_MAX_HEADER, packet_len, l3hdrlen, l4hdrlen, pay_len);
-	pr_debug("SKB_ALLOC [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	/*
+	 * LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
+	 */
+	new_skb = alloc_skb(l2hdrlen + packet_len, GFP_ATOMIC);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Couldn't allocate space for new skb");
 		return NULL;
 	}
 
-	skb_reserve(new_skb, LL_MAX_HEADER);
-//	skb_reset_mac_header(new_skb);
-//	pr_debug("RESET MAC HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-//	skb_set_network_header(new_skb, l3hdrlen);
-//	pr_debug("SET NETWORK HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-//	skb_set_transport_header(new_skb, l3hdrlen + l4hdrlen);
-//	pr_debug("SET TRANSPORT HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	/*
+	 * At this point skb->data and skb->head are at the same place.
+	 * They will be separated by the skb_reserve function.
+	 */
+	skb_reserve(new_skb, l2hdrlen);
+	skb_reset_mac_header(new_skb);
 
+	skb_reset_network_header(new_skb);
+
+	skb_set_transport_header(new_skb, l3hdrlen);
+
+	//pr_debug("DATA - HEAD %d", new_skb->data - new_skb->head);
+	pr_debug("GUACAMOLE %d", new_skb->len);
+
+	/*
+	 * The skb->data pointer is right on the l3 header.
+	 * We move skb->tail to the end of the packet data.
+	 */
 	skb_put(new_skb, packet_len);
-	pr_debug("PUT PACKET_LEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-	
-	skb_push(new_skb, l4hdrlen);
-	pr_debug("PUSH L4HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-	
-	skb_push(new_skb, l3hdrlen);
-	pr_debug("PUSH L3HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-	
+	pr_debug("GUACAMOLE %d", new_skb->len);
+
 	if (!new_skb) {
 		if (printk_ratelimit()) {
 			pr_debug("NAT64: failed to alloc a new sk_buff");
@@ -633,10 +692,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * from the tuple.
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
-		new_skb->dev = net_out;
-//		pr_debug("%d %d %d %d", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end);
-
-		if (nat64_send_packet(skb, new_skb) == 0) {
+		if (nat64_send_packet(skb, new_skb, net_out) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");
 
 			return true;
