@@ -478,7 +478,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.1.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -506,8 +506,19 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	 * NAT64 Translation algorithm... bit magic!
 	 * IMPORTANT: May need htonl function
 	 */
-	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
+
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+			'\x0', NULL);
+	if (!ret) {
+		pr_debug("NAT64: getskb_from6to4.. "
+			 "Something went wrong setting the "
+			 "IPv4 source address");
+		return false;
+	}
+	ip4->daddr = (__be32) ip4srcaddr->s_addr;
+
 
 	/*
 	 * Get pointer to Layer 4 header.
@@ -679,6 +690,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 			pr_debug("NAT64: Everything went OK populating the "
 				 "new sk_buff");
 			pr_debug("POPULATED SKB [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+			nat64_output_ipv4(new_skb);
 			return new_skb;
 		} else {
 			pr_debug("NAT64: something went wrong populating the "
@@ -873,6 +885,16 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
+
+	switch (l4_protocol) {
+		case IPPROTO_UDP: break;
+		case IPPROTO_TCP:
+		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
+			return NF_ACCEPT;
+		default:
+			return NF_ACCEPT;
+	}
 	
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
