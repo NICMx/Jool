@@ -54,6 +54,9 @@
 #include <linux/jhash.h>
 #include <linux/rcupdate.h>
 
+#include <linux/netfilter_ipv4.h>
+#include <linux/socket.h>
+
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
@@ -502,21 +505,21 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
-//	skb_reset_mac_header(new_skb);
-//	pr_debug("RESET MAC HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	skb_reset_mac_header(new_skb);
+//	pr_debug("RESET MAC HEADER [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 //	skb_set_network_header(new_skb, l3hdrlen);
-//	pr_debug("SET NETWORK HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+//	pr_debug("SET NETWORK HEADER [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 //	skb_set_transport_header(new_skb, l3hdrlen + l4hdrlen);
-//	pr_debug("SET TRANSPORT HEADER [head %d] [data %d] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+//	pr_debug("SET TRANSPORT HEADER [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
 	skb_put(new_skb, packet_len);
 	pr_debug("PUT PACKET_LEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
-	skb_push(new_skb, l4hdrlen);
-	pr_debug("PUSH L4HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+//	skb_push(new_skb, l4hdrlen);
+//	pr_debug("PUSH L4HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
-	skb_push(new_skb, l3hdrlen);
-	pr_debug("PUSH L3HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+//	skb_push(new_skb, l3hdrlen);
+//	pr_debug("PUSH L3HDRLEN [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 	
 	if (!new_skb) {
 		if (printk_ratelimit()) {
@@ -634,13 +637,16 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
 		new_skb->dev = net_out;
-//		pr_debug("%d %d %d %d", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end);
+		
+//		if(NF_HOOK(2, 3, new_skb, NULL, new_skb->dev, dst_output)) {
+		pr_debug("%d",dst_output(new_skb));		
+//		}
+	//	if (nat64_send_packet(skb, new_skb) == 0) {
+	//		pr_debug("NAT64: Succesfully sent the packet");
 
-		if (nat64_send_packet(skb, new_skb) == 0) {
-			pr_debug("NAT64: Succesfully sent the packet");
-
-			return true;
-		}
+	//		return true;
+	//	}
+		return true;
 
 		pr_debug("NAT64: Error sending the packet");
 		return false;
