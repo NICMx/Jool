@@ -288,6 +288,35 @@ static void nat64_netdev_uninit(void)
  * BEGIN: NAT64 shared functions.
  */
 
+static void
+nat64_output_ipv4(struct sk_buff *skb)
+{
+  struct iphdr *iph = ip_hdr(skb);
+  struct flowi fl;
+  struct rtable *rt;
+  skb->protocol = htons(ETH_P_IP);
+  memset(&fl, 0, sizeof(fl));
+  fl.fl4_dst = iph->daddr;
+  fl.fl4_tos = RT_TOS(iph->tos);
+  fl.proto = skb->protocol;
+  if (ip_route_output_key(&init_net, &rt, &fl))
+  {
+    printk("nf_nat64: ip_route_output_key failed\n");
+    return;
+  }
+  if (!rt)
+  {
+    printk("nf_nat64: rt null\n");
+    return;
+  }
+  skb->dev = rt->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *)rt);
+	if(ip_local_out(skb)) {
+		printk("nf_nat64: ip_local_out failed\n");
+		return;
+	}
+}
+
 /*
  * Function that gets the pointer directed to it's 
  * nf_conntrack_l3proto structure.
@@ -440,7 +469,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: hardcoded port.
 	 */
-	uint16_t new_port = htons(59152);
+	uint16_t new_port = htons(60000);
 
 	int ret = 0;
 
@@ -563,11 +592,8 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 {
 	struct sk_buff *new_skb;
 
-	u_int8_t pay_len = skb->data_len;
+	u_int8_t pay_len = skb->len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
-	unsigned int addr_type;
-
-	addr_type = RTN_LOCAL;
  
 	pr_debug("NAT64: get_skb paylen = %u", pay_len);
 
@@ -597,14 +623,20 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		return NULL;
 	}
 
+	pay_len = pay_len - l4hdrlen;
+
 	/*
 	 * We want to get the opposite Layer 3 protocol header length.
 	 */
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
-			l3hdrlen = sizeof(struct ipv6hdr); break;
+			l3hdrlen = sizeof(struct ipv6hdr); 
+			pay_len = pay_len - sizeof(struct iphdr);
+			break;
 		case NFPROTO_IPV6:
-			l3hdrlen = sizeof(struct iphdr); break;
+			l3hdrlen = sizeof(struct iphdr); 
+			pay_len = pay_len - sizeof(struct ipv6hdr);
+			break;
 		default:
 			return NULL;
 	}
@@ -623,11 +655,12 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	skb_reserve(new_skb, LL_MAX_HEADER);
 	skb_reset_mac_header(new_skb);
 	skb_reset_network_header(new_skb);
-
 	skb_set_transport_header(new_skb, l3hdrlen);
-
 	skb_put(new_skb, packet_len);
 
+	pr_debug("LL_MAX_HEADER [%d] | PACKET_LEN [%d] = l3hdrlen [%d] + l4hdrlen [%d] + pay_len [%d]", LL_MAX_HEADER, packet_len, l3hdrlen, l4hdrlen, pay_len);
+	pr_debug("SKB_ALLOC [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	
 	if (!new_skb) {
 		if (printk_ratelimit()) {
 			pr_debug("NAT64: failed to alloc a new sk_buff");
@@ -645,6 +678,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 					 (l4hdrlen + pay_len))) { 
 			pr_debug("NAT64: Everything went OK populating the "
 				 "new sk_buff");
+			pr_debug("POPULATED SKB [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 			return new_skb;
 		} else {
 			pr_debug("NAT64: something went wrong populating the "
@@ -702,6 +736,9 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * The following changes the skb and the L3 and L4 layer protocols to 
 	 * the respective new values and calls determine_outgoing_tuple.
 	 */
+	int buff_cont;
+	unsigned char *buf;
+	unsigned char cc;
 	new_skb = nat64_get_skb(l3protocol, l4protocol, skb, inner);
 
 	if (!new_skb) {
@@ -709,17 +746,22 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 		return false;
 	}
 
+	buf = new_skb->data;
+	for (buff_cont = 0; buff_cont < new_skb->len; buff_cont++) {
+		cc = buf[buff_cont];
+		printk(KERN_DEBUG "%02x",cc);
+	}
 	/*
 	 * Adjust the layer 3 protocol variable to be used in the outgoing tuple
 	 * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
 	 */
-	l3protocol = (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 : NFPROTO_IPV4;
-
+/*	l3protocol = (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 : NFPROTO_IPV4;
+*/
 	/*
 	 * Adjust the layer 4 protocol variable to be used 
 	 * in the outgoing tuple.
 	 */
-	if (l4protocol == IPPROTO_ICMP) {
+/*	if (l4protocol == IPPROTO_ICMP) {
 		l4protocol = IPPROTO_ICMPV6;
 	} else if (l4protocol == IPPROTO_ICMPV6) {
 		l4protocol = IPPROTO_ICMP;
@@ -734,7 +776,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	}
 	
 	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
-	
+*/	
 	/*
 	 * TODO: Implement call to translate_packet to get the new packet
 	 * from the tuple.
@@ -812,8 +854,8 @@ static unsigned int nat64_ipv6_core(struct sk_buff *skb,
 	}
 	
 	if(nf_ret) {
-		nf_ret = nat64_translate_packet(l3protocol, l4protocol, 
-			&new_skb, &outgoing);	
+//		nf_ret = nat64_translate_packet(l3protocol, l4protocol, 
+//			&new_skb, &outgoing);	
 	}
 	
 	/* TODO: Incluir llamada a HAIRPINNING aqui */
