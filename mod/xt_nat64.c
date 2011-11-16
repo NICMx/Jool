@@ -477,9 +477,19 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	 * NAT64 Translation algorithm... bit magic!
 	 * IMPORTANT: May need htonl function
 	 */
-	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
 
+	ret = in4_pton("74.125.224.176", -1, (__u8*)&(ip4srcaddr->s_addr),
+			'\x0', NULL); // Global ipv4 is the temporary hardcoded destination!
+	if (!ret) {
+		pr_debug("NAT64: getskb_from6to4.. "
+			 "Something went wrong setting the "
+			 "IPv4 source address");
+		return false;
+	}
+	ip4->daddr = (__be32)ip4srcaddr->s_addr;
+	
 	/*
 	 * Get pointer to Layer 4 header.
 	 */
@@ -565,9 +575,6 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	u_int8_t pay_len = skb->data_len;
 	u_int8_t packet_len, l4hdrlen, l3hdrlen;
-	unsigned int addr_type;
-
-	addr_type = RTN_LOCAL;
  
 	pr_debug("NAT64: get_skb paylen = %u", pay_len);
 
@@ -693,6 +700,39 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 }
 
+static void
+nat64_output_ipv4(struct sk_buff *skb)
+{
+	struct iphdr *iph = ip_hdr(skb);
+	struct flowi fl;
+	struct rtable *rt;
+
+	skb->protocol = htons(ETH_P_IP);
+
+	memset(&fl, 0, sizeof(fl));
+	fl.fl4_dst = iph->daddr;
+	fl.fl4_tos = RT_TOS(iph->tos);
+	fl.proto = skb->protocol;
+	if (ip_route_output_key(&init_net, &rt, &fl))
+	{
+		printk("nf_nat64: ip_route_output_key failed\n");
+		return;
+	}
+	
+	if (!rt)
+	{
+		printk("nf_nat64: rt null\n");
+		return;
+	}
+
+	skb->dev = rt->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *)rt);
+	if(ip_local_out(skb)) {
+	       printk("nf_nat64: ip_local_out failed\n");
+	       return;
+	}
+}
+
 static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * inner, struct sk_buff *new_skb, 
@@ -707,8 +747,12 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return false;
+	} else {
+		pr_debug("SKB ALLOCATED PROPERLY");
+		nat64_output_ipv4(new_skb);
+		return true;
 	}
-
+	
 	/*
 	 * Adjust the layer 3 protocol variable to be used in the outgoing tuple
 	 * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
@@ -811,10 +855,10 @@ static unsigned int nat64_ipv6_core(struct sk_buff *skb,
 			skb, &inner, &new_skb, &outgoing);
 	}
 	
-	if(nf_ret) {
-		nf_ret = nat64_translate_packet(l3protocol, l4protocol, 
-			&new_skb, &outgoing);	
-	}
+//	if(nf_ret) {
+//		nf_ret = nat64_translate_packet(l3protocol, l4protocol, 
+//			&new_skb, &outgoing);	
+//	}
 	
 	/* TODO: Incluir llamada a HAIRPINNING aqui */
 	
