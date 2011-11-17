@@ -680,7 +680,6 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * from the tuple.
 	 */
 	if (nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
-
 		if (nat64_send_packet(skb, new_skb, net_out) == 0) {
 			pr_debug("NAT64: Succesfully sent the packet");
 
