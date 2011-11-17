@@ -134,22 +134,21 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	return false;
 }
 
-static int nat64_send_ipv4_packet(struct sk_buff * skb, struct net_device * dev)
+/*
+ * Sends an ipv4 packet.
+ */
+static int nat64_send_ipv4_packet(struct sk_buff * skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct rtable * rt;
-	/*
-	int buff_cont;
-	unsigned char *buf;
-	unsigned char cc;
-	*/
 
-	pr_debug("ALMOST END PACKET [head %ld] [data %ld] [tail %d] [end %d] [len %d]",
-			skb->head - skb->head, skb->data - skb->head, skb->tail, 
-			skb->end, skb->len);
-
+	// Set the packet type
 	skb->pkt_type = PACKET_OUTGOING;
 
+	/*
+	 * Get the routing table in order to get the outgoing device and outgoing
+	 * address
+	 */
 	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
 
 	if (!rt || IS_ERR(rt)) {
@@ -161,33 +160,33 @@ static int nat64_send_ipv4_packet(struct sk_buff * skb, struct net_device * dev)
 		pr_info("NAT64: the route table couldn't get an appropriate device");
 	
 	} else {
+		/*
+		 * Insert the outgoing device in the skb.
+		 */
 		skb->dev = rt->dst.dev;
 	}
 
+	/*
+	 * insert the L2 header in the skb... Since we use a function within
+	 * the net_device, we don't need to know the type of L2 device... It
+	 * could be ethernet, it could be wlan.
+	 */
 	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
 			NULL, NULL, skb->len);
 
+	/*
+	 * Set the destination to the skb.
+	 */
 	skb_dst_set(skb, &(rt->dst));
 
-	if (rt->dst.dev->header_ops->rebuild(skb)) {
-		pr_debug("NAT64: error while rebuilding the frame");
-		return -1;
-	}
-
 	/*
-	buf = skb->data;
-	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
-		cc = buf[buff_cont];
-		printk(KERN_DEBUG "%02x",cc);
-	}
-	printk(KERN_DEBUG "\n");
-	*/
-	pr_debug("END PACKET [head %ld] [data %ld] [tail %d] [end %d] [len %d]",
-			skb->head - skb->head, skb->data - skb->head, skb->tail, 
-			skb->end, skb->len);
-
+	 * Makes sure the net_device can actually send packets.
+	 */
 	netif_start_queue(skb->dev);
 
+	/*
+	 * Sends the packet, independent of NAPI or the old API.
+	 */
 	return dev_queue_xmit(skb);
 }
 
@@ -203,13 +202,11 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb,
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
 
-	// pr_debug("NAT64: skb->protocol = %u", ntohs(eth_type_trans(skb, skb->dev)));
-
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
 			pr_debug("NAT64: eth type ipv6 to ipv4");
 			skb->protocol = ETH_P_IP;
-			ret = nat64_send_ipv4_packet(skb, dev);
+			ret = nat64_send_ipv4_packet(skb);
 			break;
 		case ETH_P_IP:
 			pr_debug("NAT64: eth type ipv4 to ipv6");
