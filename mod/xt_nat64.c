@@ -291,6 +291,7 @@ static void nat64_netdev_uninit(void)
 static void
 nat64_output_ipv4(struct sk_buff *skb)
 {
+  int ret;
   struct iphdr *iph = ip_hdr(skb);
   struct flowi fl;
   struct rtable *rt;
@@ -312,6 +313,8 @@ nat64_output_ipv4(struct sk_buff *skb)
   skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if(ip_local_out(skb)) {
+	//ret = dev_queue_xmit(skb);
+	//if(ret > 0 || ret < 0) {
 		printk("nf_nat64: ip_local_out failed\n");
 		return;
 	}
@@ -368,6 +371,9 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	int l3_hdrlen, ret;
 	unsigned int protoff = 0;
 	u_int8_t protonum = 0;
+	int buff_cont;
+	unsigned char *buf;
+	unsigned char cc;
 
 	pr_debug("NAT64: Getting the protocol and header length");
 
@@ -397,8 +403,17 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	pr_debug("NAT64: l3_hdrlen = %d", l3_hdrlen);
 
+	buf = skb->data;
+	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+		cc = buf[buff_cont];
+		printk(KERN_DEBUG "%02x",cc);
+	}
+
+	pr_debug("BASIC SKB [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", skb->head - skb->head, skb->data - skb->head, skb->tail, skb->end, skb->len);
+
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb), 
 					&protoff, &protonum);
+	
 	
 	if (ret != NF_ACCEPT) {
 		pr_debug("NAT64: error getting the L4 offset");
@@ -413,9 +428,8 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		rcu_read_unlock();
 		return false;
 	}
-
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
-
+	pr_debug("l4proto name = %s %d %d", l4proto->name, (u_int32_t)l4proto->l3proto, (u_int32_t)l4proto->l4proto);
 	/*
 	 * Get the tuple out of the sk_buff.
 	 */
@@ -478,7 +492,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -509,7 +523,7 @@ static bool nat64_getskb_from6to4(struct sk_buff * old_skb,
 //	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
 
-	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 	if (!ret) {
 		pr_debug("NAT64: getskb_from6to4.. "
@@ -611,7 +625,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	if (skb_linearize(skb) < 0)
 		return NULL;
 
-	printk(KERN_INFO "dst_out=%p\n", skb_dst(skb)->output);
+//	printk(KERN_INFO "dst_out=%p\n", skb_dst(skb)->output);
 
 	/*
 	 * It's assumed that if the l4 protocol is ICMP or ICMPv6, 
@@ -753,7 +767,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	unsigned char cc;
 	new_skb = nat64_get_skb(l3protocol, l4protocol, skb, inner);
 
-	if (!new_skb) {
+/*	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return false;
 	}
@@ -859,7 +873,7 @@ static unsigned int nat64_ipv6_core(struct sk_buff *skb,
 //		nf_ret = nat64_update_n_filter(l3protocol, l4protocol, 
 //			skb, &inner);
 	}
-	
+	pr_debug("ENTRANDO A OUTGOING");
 	if(nf_ret) {
 		nf_ret = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, &new_skb, &outgoing);
