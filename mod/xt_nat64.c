@@ -92,10 +92,11 @@ MODULE_ALIAS("ip6t_nat64");
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
-// Begin Ecdysis
+static DEFINE_SPINLOCK(nf_nat64_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-static int nat64_output_ipv4(struct sk_buff *skb) 
+// Begin Ecdysis (nat64_output_ipv4)
+static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
@@ -121,14 +122,14 @@ static int nat64_output_ipv4(struct sk_buff *skb)
 	}
 	return 0;	
 }
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
 
-static DEFINE_SPINLOCK(nf_nat64_lock);
+// End Ecdysis
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
 
 /*
  * Sends an ipv4 packet.
  */
-static int nat64_output_ipv4(struct sk_buff * skb)
+static int nat64_send_packet_ipv4(struct sk_buff * skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct rtable * rt;
@@ -180,7 +181,46 @@ static int nat64_output_ipv4(struct sk_buff * skb)
 	 */
 	return dev_queue_xmit(skb);
 }
+
 #endif
+
+/*
+ * Sends the packet.
+ * Right now, the skb->data should be pointing to the L3 layer header.
+ */
+static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
+{
+	int ret = -1;
+
+	spin_lock_bh(&nf_nat64_lock);
+	pr_debug("NAT64: Sending the new packet...");
+
+	switch (ntohs(old_skb->protocol)) {
+		case ETH_P_IPV6:
+			pr_debug("NAT64: eth type ipv6 to ipv4");
+			skb->protocol = ETH_P_IP;
+			ret = nat64_send_packet_ipv4(skb);
+			break;
+		case ETH_P_IP:
+			pr_debug("NAT64: eth type ipv4 to ipv6");
+			skb->protocol = ETH_P_IPV6;
+			break;
+		default:
+			kfree_skb(skb);
+			pr_debug("NAT64: before unlocking spinlock..no known eth type.");
+			spin_unlock_bh(&nf_nat64_lock);
+			return -1;
+	}
+
+	if (ret)
+		pr_debug("NAT64: an error occured while sending the packet");
+	pr_debug("NAT64: dev_queue_xmit return code: %d", ret);
+
+	pr_debug("NAT64: before unlocking spinlock...");
+	spin_unlock_bh(&nf_nat64_lock);
+
+	return ret;
+}
 
 /*
  * Function that gets the pointer directed to it's 
@@ -566,7 +606,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 			pr_debug("NAT64: Everything went OK populating the "
 				 "new sk_buff");
 			pr_debug("POPULATED SKB [head %ld] [data %ld] [tail %d] [end %d] | [len %d]", new_skb->head - new_skb->head, new_skb->data - new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-			nat64_output_ipv4(new_skb);
+			nat64_send_packet(skb, new_skb);
 			return new_skb;
 		} else {
 			pr_debug("NAT64: something went wrong populating the "
