@@ -62,11 +62,12 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_protocol.h>
 
+#include <linux/version.h>
+
 #include "nf_nat64_bib.h"
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
 #include "nf_nat64_auxiliary_functions.h"
-#include "nf_nat64_config.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
@@ -76,7 +77,9 @@ MODULE_ALIAS("ip6t_nat64");
 
 #define IPV6_HDRLEN 40
 
-//static DEFINE_SPINLOCK(nf_nat64_lock);
+#ifndef KERNEL_VERSION
+#define KERNEL_VERSION(a,b,c) ((a)*65536+(b)*256+(c))
+#endif
 
 /*
  * FIXME: Ensure all variables are 32 and 64-bits complaint. 
@@ -91,36 +94,93 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 // Begin Ecdysis
 
-static void
-nat64_output_ipv4(struct sk_buff *skb)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+static int nat64_output_ipv4(struct sk_buff *skb) 
 {
-  struct iphdr *iph = ip_hdr(skb);
-  struct flowi fl;
-  struct rtable *rt;
-  skb->protocol = htons(ETH_P_IP);
-  memset(&fl, 0, sizeof(fl));
-  fl.fl4_dst = iph->daddr;
-  fl.fl4_tos = RT_TOS(iph->tos);
-  fl.proto = skb->protocol;
-    if (ip_route_output_key(&init_net, &rt, &fl))
-  {
-    printk("nf_nat64: ip_route_output_key failed\n");
-    return;
-  }
-  if (!rt)
-  {
-    printk("nf_nat64: rt null\n");
-    return;
-  }
-  skb->dev = rt->dst.dev;
+	struct iphdr *iph = ip_hdr(skb);
+	struct flowi fl;
+	struct rtable *rt;
+	skb->protocol = htons(ETH_P_IP);
+	memset(&fl, 0, sizeof(fl));
+	fl.fl4_dst = iph->daddr;
+	fl.fl4_tos = RT_TOS(iph->tos);
+	fl.proto = skb->protocol;
+	if (ip_route_output_key(&init_net, &rt, &fl)) {
+		printk("nf_nat64: ip_route_output_key failed\n");
+		return -EINVAL;
+	}
+	if (!rt) {
+		printk("nf_nat64: rt null\n");
+		return -EINVAL;
+	}
+	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if(ip_local_out(skb)) {
-	//ret = dev_queue_xmit(skb);
-	//if(ret > 0 || ret < 0) {
 		printk("nf_nat64: ip_local_out failed\n");
-		return;
+		return -EINVAL;
 	}
+	return 0;	
 }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+
+static DEFINE_SPINLOCK(nf_nat64_lock);
+
+/*
+ * Sends an ipv4 packet.
+ */
+static int nat64_output_ipv4(struct sk_buff * skb)
+{
+	struct iphdr *iph = ip_hdr(skb);
+	struct rtable * rt;
+
+	// Set the packet type
+	skb->pkt_type = PACKET_OUTGOING;
+
+	/*
+	 * Get the routing table in order to get the outgoing device and outgoing
+	 * address
+	 */
+	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
+
+	if (!rt || IS_ERR(rt)) {
+		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
+		return -1;
+	}
+
+	if (rt->dst.dev == NULL) {
+		pr_info("NAT64: the route table couldn't get an appropriate device");
+	
+	} else {
+		/*
+		 * Insert the outgoing device in the skb.
+		 */
+		skb->dev = rt->dst.dev;
+	}
+
+/*
+	 * insert the L2 header in the skb... Since we use a function within
+	 * the net_device, we don't need to know the type of L2 device... It
+	 * could be ethernet, it could be wlan.
+	 */
+	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
+			NULL, NULL, skb->len);
+
+	/*
+	 * Set the destination to the skb.
+	 */
+	skb_dst_set(skb, &(rt->dst));
+
+	/*
+	 * Makes sure the net_device can actually send packets.
+	 */
+	netif_start_queue(skb->dev);
+
+	/*
+	 * Sends the packet, independent of NAPI or the old API.
+	 */
+	return dev_queue_xmit(skb);
+}
+#endif
 
 /*
  * Function that gets the pointer directed to it's 

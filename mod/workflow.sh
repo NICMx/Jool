@@ -13,6 +13,10 @@ if [ $1 = "ins" ] ; then
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
 
 	echo "installed the NAT64 module"
+elif [ $1 = "up" ] ; then
+	sudo ./workflow.sh "rmv"
+	sudo ./workflow.sh "ins"
+	sudo ./workflow.sh "test"
 elif [ $1 = "rmv" ] ; then
 	sudo ip6tables -t mangle --flush
 	sudo rmmod nat64.ko
