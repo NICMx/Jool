@@ -764,7 +764,11 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 	bool found_bib_entry;
 
 	struct in_addr * ip4srcaddr;
-	uint16_t new_port = htons(60000);
+	uint16_t new_port;
+	
+	rcu_read_lock();
+
+	new_port = htons(60000);
 	bib_entry = kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
 	ip4srcaddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
 	in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr), '\x0', NULL);
@@ -842,16 +846,17 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 					//Allocate memory
 					ipv6_ta = (struct nat64_ipv6_ta *) kmalloc(sizeof(struct nat64_ipv6_ta), GFP_KERNEL);
 					if (ipv6_ta != NULL) {
+						pr_debug("ipv6_ta != NULL");
 						//Initialize IPv6 t.a. structure
 						nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
-//						pr_debug("%pI6: ", (ipv6_ta->ip6a).in6_u.u6_addr32);
+						pr_debug("%pI6: %hu", (ipv6_ta->ip6a).in6_u.u6_addr32, ipv6_ta->port);
 						//Verify if there's an address available in the IPv4 pool
 						//ipv4_pool_ta = nat64_ipv4_pool_address_available(ipv6_ta);
 						//if (ipv4_pool_ta != NULL) {
 							//Allocate memory for BIB entry
-							bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry), GFP_KERNEL);
+			/*				bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
 							//Allocate memory for ST entry
-							st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry), GFP_KERNEL);
+							st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry *), GFP_KERNEL);
 							if (bib_entry != NULL && st_entry != NULL) {
 								//Initialize BIB entry
 								nat64_initialize_bib_entry(bib_entry, 
@@ -863,11 +868,12 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 									//pr_debug("%hu", htons((bib_entry->ta_6).port));
 									//pr_debug("%dI4: ", ((bib_entry->ta_4).ip4a).s_addr);
 									//pr_debug("%hu", htons((bib_entry->ta_4).port));
-									//Insert entry into UDP BIB
-									nat64_bib_insert(udp_bib, bib_entry);
-							} 
+			*/						//Insert entry into UDP BIB
+//									nat64_bib_insert(udp_bib, bib_entry);
+						//	} 
+							kfree(ip4srcaddr);
 							kfree(bib_entry);
-							kfree(st_entry);
+//							kfree(st_entry);
 							goto end;
 						//}
 					}
@@ -929,6 +935,7 @@ end:
 		pr_debug("NAT64: Updating and Filtering stage went OK.");
 	else 
 		pr_debug("NAT64: Updating and Filtering stage FAILED.");
+	rcu_read_unlock();
 	return res;
 }
 

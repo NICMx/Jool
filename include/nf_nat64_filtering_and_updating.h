@@ -81,8 +81,8 @@ static inline void nat64_initialize_ipv6_ta(struct nat64_ipv6_ta *ta_6, struct i
 {
 	memcpy(&(ta_6->ip6a), ip6a, sizeof(struct in6_addr));
 	ta_6->port = port;
-//	pr_debug("%pI6: ", (&ta_6->ip6a)->in6_u.u6_addr32);
-//	pr_debug("%hu", htons(port));
+	pr_debug("%pI6: ", (&ta_6->ip6a)->in6_u.u6_addr32);
+	pr_debug("%hu", ta_6->port);
 }
 
 /*
