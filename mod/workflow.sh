@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 if [ $1 = "ins" ] ; then
 	sudo modprobe ipv6
 	sudo modprobe ip_tables
@@ -12,6 +11,7 @@ if [ $1 = "ins" ] ; then
 	# Enable ipv6 and ipv4 forwarding
 	sudo sysctl -w net.ipv4.conf.all.forwarding=1
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
+
 	echo "installed the NAT64 module"
 elif [ $1 = "up" ] ; then
 	sudo ./workflow.sh "rmv"
@@ -19,8 +19,6 @@ elif [ $1 = "up" ] ; then
 	sudo ./workflow.sh "test"
 elif [ $1 = "rmv" ] ; then
 	sudo ip6tables -t mangle --flush
-	sudo ip -6 route del ${PREFIX_ADDR}/${PREFIX_LEN} dev nat64
-	sudo ifconfig nat64 down
 	sudo rmmod nat64.ko
 	echo "removed the NAT64 module"
 elif [ $1 = "debug" ] ; then

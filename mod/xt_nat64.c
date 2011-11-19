@@ -69,7 +69,6 @@
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
 #include "nf_nat64_auxiliary_functions.h"
-#include "nf_nat64_config.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
@@ -115,7 +114,6 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 		printk("nf_nat64: rt null\n");
 		return -EINVAL;
 	}
-
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if(ip_local_out(skb)) {
@@ -182,47 +180,6 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 }
 
 #endif
-
-/*
- * Function that gets the pointer directed to it's 
- * nf_conntrack_l3proto structure.
- */
-static int nat64_get_l3struct(u_int8_t l3protocol, 
-		struct nf_conntrack_l3proto ** l3proto)
-{
-	// FIXME We removed the skb as a parameter because it wasn't being used.
-	switch (l3protocol) {
-		case NFPROTO_IPV4:
-			*l3proto = l3proto_ip;
-			return true;
-		case NFPROTO_IPV6:
-			*l3proto = l3proto_ipv6;
-			return true;
-		default:
-			return false;
-	}
-}
-
-/*
- * IPv6 comparison function. It's used as a call from nat64_tg6 to compare
- * the incoming packet's IP with the rule's IP; therefore, when the module is 
- * in debugging mode it prints the rule's IP.
- */
-static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
-		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, 
-		__u8 flags)
-{
-	if (flags & XT_NAT64_IPV6_DST) {
-		if (ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b) == 0) {
-			pr_debug("NAT64: IPv6 comparison returned true\n");
-			return true;
-		}
-	}
-
-	pr_debug("NAT64: IPv6 comparison returned false: %d\n",
-			ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b));
-	return false;
-}
 
 /*
  * Sends the packet.
@@ -431,7 +388,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -460,6 +417,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	ip4->ttl = ip6->hop_limit;
 	ip4->protocol = ip6->nexthdr;
 
+	pr_debug("NAT64: l4 proto id = %u", ip6->nexthdr);
+
 	/*
 	 * Translation of packet. The RFC6146 states that the embedded IPv4 
 	 * address lies within the last 32 bits of the IPv6 address
@@ -468,20 +427,10 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 */
 //	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 
-	ip4->saddr = (__be32) ip4srcaddr->s_addr;
 	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
-	ip4->daddr = (__be32) ip4srcaddr->s_addr;
-
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
-			'\x0', NULL);
-	if (!ret) {
-		pr_debug("NAT64: getskb_from6to4.. "
-			 "Something went wrong setting the "
-			 "IPv4 source address");
-		return false;
-	}
+	ip4->saddr = (__be32) ip4srcaddr->s_addr;
 	ip4->daddr = (__be32) ip4srcaddr->s_addr;
 
 	/*
@@ -498,7 +447,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:	 
 			l4header.uh = ip_data(ip4);
-			memcpy(l4header.uh, ip6_transp, pay_len);
+			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), new_port,
@@ -511,7 +460,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			break;
 		case IPPROTO_ICMPV6:
 			l4header.icmph = ip_data(ip4);
-			memcpy(l4header.icmph, ip6_transp, pay_len);
+			memcpy(l4header.icmph, ip6_transp, l4len + pay_len);
 
 			if (l4header.icmph->type & ICMPV6_INFOMSG_MASK) {
 				switch (l4header.icmph->type) {
@@ -624,6 +573,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: paylen %d", pay_len);
 	pr_debug("NAT64: l3hdrlen %d", l3hdrlen);
 	pr_debug("NAT64: l4hdrlen %d", l4hdrlen);
+
 	packet_len = l3hdrlen + l4hdrlen + pay_len;
 
 	/*
@@ -642,6 +592,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	 */
 	skb_reserve(new_skb, l2hdrlen);
 	skb_reset_mac_header(new_skb);
+
 	skb_reset_network_header(new_skb);
 	skb_set_transport_header(new_skb, l3hdrlen);
 
@@ -771,7 +722,6 @@ static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
-	pr_debug("NAT64: Updating and Filtering stage went OK.");
 	return true;
 }
 
@@ -787,6 +737,7 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	pr_debug("NAT64: Determining the tuple stage went OK.");
+
 	return true;
 }
 
@@ -880,19 +831,6 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
 
-	/* ALLOWS only UDP traffic into NAT64 
-	 * TODO: Add break; to the protocols that are supported. 
-	 */
-	switch (l4_protocol) {
-		case IPPROTO_UDP: break;
-		case IPPROTO_TCP:
-		case IPPROTO_ICMP:
-		case IPPROTO_ICMPV6:
-			return NF_ACCEPT;
-		default:
-			return NF_ACCEPT;
-	}
-	
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
@@ -965,25 +903,6 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 
 static int __init nat64_init(void)
 {
-	/* BEGIN Ecdysis's net_dev initialization*/
-
-	int err = 0;
-
-	err = nat64_init_config();
-	if(err) {
-		return err;
-	} else {
-		printk(KERN_INFO "nf_nat64: nat64_prefix=%pI6c/%d\n", 
-			nat64_config_prefix(), nat64_config_prefix_len());
-	}
-
-	err = nat64_netdev_init();
-	if(err) {
-		return err;
-	}
-	
-	/* END Ecdysis's net_dev initialization*/
-	
 	/*
 	 * Include nf_conntrack dependency
 	 */
@@ -1010,7 +929,6 @@ static void __exit nat64_exit(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);
-	nat64_netdev_uninit(); // ECDYSIS
 	xt_unregister_target(&nat64_tg_reg);
 }
 
