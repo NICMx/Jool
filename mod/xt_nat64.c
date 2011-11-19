@@ -388,7 +388,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -425,8 +425,13 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 * NAT64 Translation algorithm... bit magic!
 	 * IMPORTANT: May need htonl function
 	 */
-	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+			'\x0', NULL);
+
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
+	ip4->daddr = (__be32) ip4srcaddr->s_addr;
 
 	/*
 	 * Get pointer to Layer 4 header.
