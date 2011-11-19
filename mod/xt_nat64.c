@@ -137,6 +137,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	 */
 	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
 
+	return 0;
 	if (!rt || IS_ERR(rt)) {
 		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
 		return -1;
@@ -258,101 +259,6 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	pr_debug("NAT64: IPv6 comparison returned false: %d\n",
 			ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b));
 	return false;
-}
-
-/*
- * Sends an ipv4 packet.
- */
-static int nat64_send_ipv4_packet(struct sk_buff * skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-	struct rtable * rt;
-
-	// Set the packet type
-	skb->pkt_type = PACKET_OUTGOING;
-
-	/*
-	 * Get the routing table in order to get the outgoing device and outgoing
-	 * address
-	 */
-	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
-
-	if (!rt || IS_ERR(rt)) {
-		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
-		return -1;
-	}
-
-	if (rt->dst.dev == NULL) {
-		pr_info("NAT64: the route table couldn't get an appropriate device");
-
-	} else {
-		/*
-		 * Insert the outgoing device in the skb.
-		 */
-		skb->dev = rt->dst.dev;
-	}
-
-	/*
-	 * insert the L2 header in the skb... Since we use a function within
-	 * the net_device, we don't need to know the type of L2 device... It
-	 * could be ethernet, it could be wlan.
-	 */
-	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
-			NULL, NULL, skb->len);
-
-	/*
-	 * Set the destination to the skb.
-	 */
-	skb_dst_set(skb, &(rt->dst));
-
-	/*
-	 * Makes sure the net_device can actually send packets.
-	 */
-	netif_start_queue(skb->dev);
-
-	/*
-	 * Sends the packet, independent of NAPI or the old API.
-	 */
-	return dev_queue_xmit(skb);
-}
-
-/*
- * Sends the packet.
- * Right now, the skb->data should be pointing to the L3 layer header.
- */
-static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb,
-		struct net_device *dev)
-{
-	int ret = -1;
-
-	spin_lock_bh(&nf_nat64_lock);
-	pr_debug("NAT64: Sending the new packet...");
-
-	switch (ntohs(old_skb->protocol)) {
-		case ETH_P_IPV6:
-			pr_debug("NAT64: eth type ipv6 to ipv4");
-			skb->protocol = ETH_P_IP;
-			ret = nat64_send_ipv4_packet(skb);
-			break;
-		case ETH_P_IP:
-			pr_debug("NAT64: eth type ipv4 to ipv6");
-			skb->protocol = ETH_P_IPV6;
-			break;
-		default:
-			kfree_skb(skb);
-			pr_debug("NAT64: before unlocking spinlock..no known eth type.");
-			spin_unlock_bh(&nf_nat64_lock);
-			return -1;
-	}
-
-	if (ret)
-		pr_debug("NAT64: an error occured while sending the packet");
-	pr_debug("NAT64: dev_queue_xmit return code: %d", ret);
-
-	pr_debug("NAT64: before unlocking spinlock...");
-	spin_unlock_bh(&nf_nat64_lock);
-
-	return ret;
 }
 
 /*
@@ -480,7 +386,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -806,8 +712,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
  * updates BIBs and STs.
  */
 static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, struct nf_conntrack_tuple * inner,
-		struct net_device * net_out)
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	return true;
 }
@@ -863,7 +768,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	/*
 	 * Checks whether the function returned true or false.
 	 */
-	bool nf_ret = true;
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple outgoing;
 	struct sk_buff new_skb;
@@ -892,7 +796,10 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-	if (!nat64_send_packet(skb, &new_skb)) {
+	/*
+	 * Returns zero if it works
+	 */
+	if (nat64_send_packet(skb, &new_skb)) {
 		pr_info("NAT64: There was an error in the packet transmission"
 				" module");
 		return NF_DROP;
