@@ -223,6 +223,39 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 }
 
 /*
+ * BEGIN: NAT64 Filter and updating configuration variables and settings.
+ */
+
+int previousTime = 0, currentTime = 0;
+
+// Configuration variables
+int udp_min = 120;
+int udp_default = 300;
+int tcp_trans = 240;
+int tcp_est = 7200;
+int tcp_incoming_syn = 6;
+int fragment_mint = 2;
+int icmp_default = 60;
+
+int udp_period = 0;
+struct nat64_bib *udp_bib;
+struct nat64_st *udp_st;
+
+/*
+ * This structure's purpose is getting the L4 layer respective function to get
+ * the outgoing tuple.
+ */
+struct nat64_outtuple_func {
+	struct nf_conntrack_tuple * (* get_outtuple)(union nf_inet_addr, 
+			u_int16_t, union nf_inet_addr, u_int16_t, 
+			u_int8_t, u_int8_t);
+};
+
+/*
+ * END: NAT64 Filter and updating configuration variables and settings.
+ */
+
+/*
  * Function that gets the pointer directed to it's 
  * nf_conntrack_l3proto structure.
  */
