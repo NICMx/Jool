@@ -69,6 +69,7 @@
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
 #include "nf_nat64_auxiliary_functions.h"
+#include "nf_nat64_filtering_and_updating.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
