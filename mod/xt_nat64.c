@@ -94,9 +94,9 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 // Begin Ecdysis (nat64_output_ipv4)
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
@@ -125,6 +125,8 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 
 // End Ecdysis
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+static int nat64_send_packet_ipv4(struct sk_buff *skb) 
+{
 	struct iphdr *iph = ip_hdr(skb);
 	struct rtable * rt;
 
@@ -137,7 +139,6 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	 */
 	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
 
-	return 0;
 	if (!rt || IS_ERR(rt)) {
 		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
 		return -1;
@@ -165,6 +166,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	 * Set the destination to the skb.
 	 */
 	skb_dst_set(skb, &(rt->dst));
+	pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len);
 
 	/*
 	 * Makes sure the net_device can actually send packets.
@@ -661,9 +663,9 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 }
 
-static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
+static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
-		struct nf_conntrack_tuple * inner, struct sk_buff *new_skb, 
+		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple *outgoing)
 {
 	/*
@@ -671,13 +673,13 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * The following changes the skb and the L3 and L4 layer protocols to 
 	 * the respective new values and calls determine_outgoing_tuple.
 	 */
-	new_skb = nat64_get_skb(l3protocol, l4protocol, skb);
+	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
-		return false;
+		return NULL;
 	}
-
+		
 	/*
 	 * Adjust the layer 3 protocol variable to be used in the outgoing tuple
 	 * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
@@ -694,17 +696,18 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 		l4protocol = IPPROTO_ICMP;
 	} else if (!(l4protocol & NAT64_IPV6_ALLWD_PROTOS)){
 		pr_debug("NAT64: update n filter -> unkown L4 protocol");
-		return false;
+		return NULL;
 	}
 
 	if (!(nat64_get_tuple(l3protocol, l4protocol, new_skb, outgoing))) {
 		pr_debug("NAT64: Something went wrong getting the tuple");
-		return false;
+		return NULL;
 	}
 
 	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
+	pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
-	return true;
+	return new_skb;
 }
 
 /*
@@ -770,7 +773,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	 */
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple outgoing;
-	struct sk_buff new_skb;
+	struct sk_buff * new_skb;
 
 	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error determining the Tuple");
@@ -783,14 +786,16 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-	if (!nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-				skb, &inner, &new_skb, &outgoing)) {
+	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+				skb, &inner, &outgoing);
+
+	if (!new_skb) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
 				" tuple module");
 		return NF_DROP;
 	}
 
-	if (!nat64_translate_packet(l3protocol, l4protocol, &new_skb, &outgoing)) {
+	if (!nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
 		pr_info("NAT64: There was an error in the packet translation"
 				" module");
 		return NF_DROP;
@@ -799,7 +804,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	/*
 	 * Returns zero if it works
 	 */
-	if (nat64_send_packet(skb, &new_skb)) {
+	if (nat64_send_packet(skb, new_skb)) {
 		pr_info("NAT64: There was an error in the packet transmission"
 				" module");
 		return NF_DROP;
