@@ -94,9 +94,9 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 // Begin Ecdysis (nat64_output_ipv4)
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
@@ -125,6 +125,8 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 
 // End Ecdysis
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+static int nat64_send_packet_ipv4(struct sk_buff *skb) 
+{
 	struct iphdr *iph = ip_hdr(skb);
 	struct rtable * rt;
 
@@ -258,101 +260,6 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
 	pr_debug("NAT64: IPv6 comparison returned false: %d\n",
 			ipv6_masked_addr_cmp(ip_a, ip_mask, ip_b));
 	return false;
-}
-
-/*
- * Sends an ipv4 packet.
- */
-static int nat64_send_ipv4_packet(struct sk_buff * skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-	struct rtable * rt;
-
-	// Set the packet type
-	skb->pkt_type = PACKET_OUTGOING;
-
-	/*
-	 * Get the routing table in order to get the outgoing device and outgoing
-	 * address
-	 */
-	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
-
-	if (!rt || IS_ERR(rt)) {
-		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
-		return -1;
-	}
-
-	if (rt->dst.dev == NULL) {
-		pr_info("NAT64: the route table couldn't get an appropriate device");
-
-	} else {
-		/*
-		 * Insert the outgoing device in the skb.
-		 */
-		skb->dev = rt->dst.dev;
-	}
-
-	/*
-	 * insert the L2 header in the skb... Since we use a function within
-	 * the net_device, we don't need to know the type of L2 device... It
-	 * could be ethernet, it could be wlan.
-	 */
-	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
-			NULL, NULL, skb->len);
-
-	/*
-	 * Set the destination to the skb.
-	 */
-	skb_dst_set(skb, &(rt->dst));
-
-	/*
-	 * Makes sure the net_device can actually send packets.
-	 */
-	netif_start_queue(skb->dev);
-
-	/*
-	 * Sends the packet, independent of NAPI or the old API.
-	 */
-	return dev_queue_xmit(skb);
-}
-
-/*
- * Sends the packet.
- * Right now, the skb->data should be pointing to the L3 layer header.
- */
-static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb,
-		struct net_device *dev)
-{
-	int ret = -1;
-
-	spin_lock_bh(&nf_nat64_lock);
-	pr_debug("NAT64: Sending the new packet...");
-
-	switch (ntohs(old_skb->protocol)) {
-		case ETH_P_IPV6:
-			pr_debug("NAT64: eth type ipv6 to ipv4");
-			skb->protocol = ETH_P_IP;
-			ret = nat64_send_ipv4_packet(skb);
-			break;
-		case ETH_P_IP:
-			pr_debug("NAT64: eth type ipv4 to ipv6");
-			skb->protocol = ETH_P_IPV6;
-			break;
-		default:
-			kfree_skb(skb);
-			pr_debug("NAT64: before unlocking spinlock..no known eth type.");
-			spin_unlock_bh(&nf_nat64_lock);
-			return -1;
-	}
-
-	if (ret)
-		pr_debug("NAT64: an error occured while sending the packet");
-	pr_debug("NAT64: dev_queue_xmit return code: %d", ret);
-
-	pr_debug("NAT64: before unlocking spinlock...");
-	spin_unlock_bh(&nf_nat64_lock);
-
-	return ret;
 }
 
 /*
@@ -517,8 +424,12 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 * NAT64 Translation algorithm... bit magic!
 	 * IMPORTANT: May need htonl function
 	 */
-	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+	
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+			'\x0', NULL);
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
+	ip4->daddr = (__be32) ip4srcaddr->s_addr;
 
 	/*
 	 * Get pointer to Layer 4 header.
@@ -755,9 +666,9 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 }
 
-static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
+static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
-		struct nf_conntrack_tuple * inner, struct sk_buff *new_skb, 
+		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple *outgoing)
 {
 	/*
@@ -765,13 +676,13 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	 * The following changes the skb and the L3 and L4 layer protocols to 
 	 * the respective new values and calls determine_outgoing_tuple.
 	 */
-	new_skb = nat64_get_skb(l3protocol, l4protocol, skb);
+	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
-		return false;
+		return NULL;
 	}
-
+		
 	/*
 	 * Adjust the layer 3 protocol variable to be used in the outgoing tuple
 	 * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
@@ -788,17 +699,18 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 		l4protocol = IPPROTO_ICMP;
 	} else if (!(l4protocol & NAT64_IPV6_ALLWD_PROTOS)){
 		pr_debug("NAT64: update n filter -> unkown L4 protocol");
-		return false;
+		return NULL;
 	}
 
 	if (!(nat64_get_tuple(l3protocol, l4protocol, new_skb, outgoing))) {
 		pr_debug("NAT64: Something went wrong getting the tuple");
-		return false;
+		return NULL;
 	}
 
 	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
+	pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
-	return true;
+	return new_skb;
 }
 
 /*
@@ -806,8 +718,7 @@ static bool nat64_determine_outgoing_tuple(u_int8_t l3protocol,
  * updates BIBs and STs.
  */
 static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, struct nf_conntrack_tuple * inner,
-		struct net_device * net_out)
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	return true;
 }
@@ -863,10 +774,9 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	/*
 	 * Checks whether the function returned true or false.
 	 */
-	bool nf_ret = true;
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple outgoing;
-	struct sk_buff new_skb;
+	struct sk_buff * new_skb;
 
 	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error determining the Tuple");
@@ -879,20 +789,24 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-	if (!nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-				skb, &inner, &new_skb, &outgoing)) {
+	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+				skb, &inner, &outgoing);
+
+	if (!new_skb) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
 				" tuple module");
 		return NF_DROP;
 	}
 
-	if (!nat64_translate_packet(l3protocol, l4protocol, &new_skb, &outgoing)) {
+	if (!nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
 		pr_info("NAT64: There was an error in the packet translation"
 				" module");
 		return NF_DROP;
 	}
 
-	if (!nat64_send_packet(skb, &new_skb)) {
+//	pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+
+	if (!nat64_send_packet(skb, new_skb)) {
 		pr_info("NAT64: There was an error in the packet transmission"
 				" module");
 		return NF_DROP;
