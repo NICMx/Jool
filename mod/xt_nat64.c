@@ -1091,6 +1091,15 @@ static int __init nat64_init(void)
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t)NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
 
+	/* INIT ST & BIB */
+
+	udp_bib = kmalloc(sizeof(struct nat64_bib *), GFP_KERNEL);
+	udp_bib->head = NULL;
+
+	udp_st = kmalloc(sizeof(struct nat64_st *), GFP_KERNEL);
+	
+	/* END ST & BIB */
+	
 	if (l3proto_ip == NULL)
 		pr_debug("NAT64: couldn't load IPv4 l3proto");
 	if (l3proto_ipv6 == NULL)
@@ -1103,6 +1112,8 @@ static void __exit nat64_exit(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);
+	kfree(udp_bib);
+	kfree(udp_st);
 	xt_unregister_target(&nat64_tg_reg);
 }
 
