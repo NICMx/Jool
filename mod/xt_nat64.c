@@ -240,10 +240,10 @@ int fragment_mint = 2;
 int icmp_default = 60;
 
 int udp_period = 0;
-struct nat64_bib *udp_bib __read_mostly;
-struct nat64_st *udp_st __read_mostly;
+struct nat64_bib *udp_bib;
+struct nat64_st *udp_st;
 
-struct nat64_pool_entry *ipv4_pool_head __read_mostly;
+struct nat64_pool_entry *ipv4_pool_head;
 
 /*
  * This structure's purpose is getting the L4 layer respective function to get
