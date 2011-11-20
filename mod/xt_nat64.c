@@ -888,7 +888,7 @@ static bool nat64_filtering_n_updating(u_int8_t l3protocol, u_int8_t l4protocol,
                              //pr_debug("%dI4: ", ((bib_entry->ta_4).ip4a).s_addr);
                              //pr_debug("%hu", htons((bib_entry->ta_4).port));
                                  //Insert entry into UDP BIB
-                                 nat64_insert_bib(udp_bib, bib_entry);
+                                 nat64_bib_insert(udp_bib, bib_entry);
                                  
                                  //Initialize ST entry
                                  nat64_initialize_st_entry(st_entry,

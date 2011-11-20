@@ -193,7 +193,7 @@ struct nat64_bib_entry *nat64_bib_select(struct nat64_bib *bib, struct in6_addr 
     current_node = bib->head;
     
     while (current_node != NULL) {
-        if (nat64_ipv6_cmp(ip6a, port, current_node->info->ta_6.ip6a, current_node->info->ta_6.port) == 0) {
+        if (nat64_ipv6_cmp(ip6a, port, &(current_node->info)->ta_6.ip6a, current_node->info->ta_6.port) == 0) {
             bib_entry = current_node->info;
             break;
         }
