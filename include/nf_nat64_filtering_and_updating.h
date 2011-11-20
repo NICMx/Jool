@@ -46,8 +46,8 @@ struct nat64_st_node {
 //ST (TCP/UDP): doubly linked list
 
 struct nat64_st {
-	struct nat64_st_node *newest;
-	struct nat64_st_node *oldest;
+	struct nat64_st_node *head;
+	struct nat64_st_node *tail;
 };
 
 //BIB entry (TCP/UDP)
@@ -183,9 +183,30 @@ static inline void nat64_bib_free_node(struct nat64_bib_node *bib_node)
 
 //BIB
 
+//Esta función regresa un registro de BIB, usando como parámetro la IPv6 t.a.
+struct nat64_bib_entry *nat64_bib_select(struct nat64_bib *bib, struct in6_addr *ip6a, __be16 port)
+{
+    struct nat64_bib_entry *bib_entry;
+    struct nat64_bib_node *current_node;
+    
+    bib_entry = NULL;
+    current_node = bib->head;
+    
+    while (current_node != NULL) {
+        if (nat64_ipv6_cmp(ip6a, port, current_node->info->ta_6.ip6a, current_node->info->ta_6.port) == 0) {
+            bib_entry = current_node->info;
+            break;
+        }
+        current_node = current_node->next;
+    }
+    
+    return bib_entry;
+}
+
 //Esta función regresa true si encuentra el BIB y false si no. Deja Null a la referencia de bib_entry si no encuentra la BIB.
-//Si encuentra la BIB, la modifica por referencia. 
-static inline bool nat64_bib_select(struct nat64_bib *bib, struct in6_addr *ip6a, __be16 port, struct nat64_bib_entry * bib_entry)
+//Si encuentra la BIB, la modifica por referencia.
+/*
+static inline struct nat64_bib_select(struct nat64_bib *bib, struct in6_addr *ip6a, __be16 port, struct nat64_bib_entry * bib_entry)
 {
 	struct nat64_bib_node * current_node;
 
@@ -201,6 +222,7 @@ static inline bool nat64_bib_select(struct nat64_bib *bib, struct in6_addr *ip6a
 	}
    	return false;
 }
+*/
 
 //Esta función inserta un registro en BIB, usando como parámetro el registro
 static inline void nat64_bib_insert(struct nat64_bib *bib, struct nat64_bib_entry *bib_entry)
@@ -252,7 +274,7 @@ static inline void nat64_bib_delete(struct nat64_bib *bib, struct in6_addr *ip6a
 			}
 			nat64_bib_free_node(current_node);
 			break;
-	        }
+        }
 		previous = current_node;
 		current_node = current_node->next;
 	}
@@ -269,11 +291,11 @@ static inline struct nat64_st_entry *nat64_st_select(struct nat64_st *st, struct
     
     st_entry = NULL;
     //FIXME NO HAY HEAD EN nat64_st por eso falla: current_node = st->head; Se usa la siguiente linea:
-    current_node = st->oldest; //FIXME ASUMO que OLDEST es la cabeza de la lista
+    current_node = st->head; //FIXME ASUMO que OLDEST es la cabeza de la lista
     
     while (current_node != NULL) {
-        if (nat64_ipv4_cmp(src_ip4a, src_port, &current_node->info->src_ta_4.ip4a, current_node->info->src_ta_4.port) == 0
-        		&& nat64_ipv4_cmp(dst_ip4a, dst_port, &current_node->info->dst_ta_4.ip4a, current_node->info->dst_ta_4.port) == 0)
+        if (nat64_ipv4_cmp(src_ip4a, src_port, &(current_node->info->src_ta_4.ip4a), current_node->info->src_ta_4.port) == 0
+        		&& nat64_ipv4_cmp(dst_ip4a, dst_port, &(current_node->info->dst_ta_4.ip4a), current_node->info->dst_ta_4.port) == 0)
         {
             st_entry = current_node->info;
             break;
@@ -295,20 +317,20 @@ static inline void nat64_st_insert(struct nat64_st *st, struct nat64_st_entry *s
 	
 	if (st_node != NULL) {
 		st_node->info = st_entry;
-		st_node->next = NULL;
+		st_node->prev = NULL;
 		//current_node = st->head;
 
-		if (st->newest == NULL) {
+		if (st->head == NULL) {
 			//ST is empty
-			st_node->prev = NULL;
-			st->oldest = st_node;
+			st_node->next = NULL;
+			st->tail = st_node;
 		} else {
 			//ST is not empty
-			st_node->prev = st->newest;
-			st->newest->next = st_node;
+			st_node->next = st->head;
+			(st->head)->prev = st_node;
 		}
 
-		st->newest = st_node;
+		st->head = st_node;
         /*
          BINARY TREE
          if (current_node == NULL) {
@@ -338,18 +360,23 @@ static inline void nat64_st_insert(struct nat64_st *st, struct nat64_st_entry *s
 //Se debe utilizar la estructura de lista encadenada, navegando desde el nodo más antiguo
 static inline void nat64_st_delete(struct nat64_st *st, int lapse, int current_nodeTime)
 {
-	if (st->oldest != NULL) {
-		if (st->oldest->next == NULL) {
-			if (st->oldest->info->timestamp < current_nodeTime - lapse) {
-				kfree(st->oldest);
-				st->oldest = NULL;
-			}
-		} else {
-			while (st->oldest != NULL && st->oldest->info->timestamp < current_nodeTime - lapse) {
-				//Close session
-				st->oldest = st->oldest->next;
-				kfree(st->oldest->prev);	//CHECK ME
-				st->oldest->prev = NULL;
+	if (st->tail != NULL) {
+		//List is not empty
+		while ((st->tail)->prev != NULL && ((st->tail)->info)->timestamp < current_nodeTime - lapse) {
+			//Closing the oldest sessions
+			st->tail = (st->tail)->prev;
+			((st->tail)->next)->prev = NULL;
+			kfree((st->tail)->next);
+			(st->tail)->next = NULL;
+		}
+		
+		if ((st->tail)->prev == NULL) {
+			//The list contains only one node
+			if (((st->tail)->info)->timestamp < current_nodeTime - lapse) {
+				//Closing the newest session
+				kfree(st->tail);
+				st->tail = NULL;
+				st->head = NULL;
 			}
 		}
 	}
@@ -361,26 +388,33 @@ static inline void nat64_st_delete(struct nat64_st *st, int lapse, int current_n
 static inline void nat64_st_update(struct nat64_st *st, struct in_addr *src_ip4a, __be16 src_port, struct in_addr *dst_ip4a, __be16 dst_port, int new_timestamp)
 {
 	struct nat64_st_node *current_node;
-	current_node = st->oldest;
+	
+	//Starting from the tail, assuming that the oldest sessions have a higher probability of being refreshed
+	current_node = st->tail;
 
 	while (current_node != NULL) {
-		if (nat64_ipv4_cmp(src_ip4a, src_port, &current_node->info->src_ta_4.ip4a, current_node->info->src_ta_4.port) == 0
-			&& nat64_ipv4_cmp(dst_ip4a, dst_port, &current_node->info->dst_ta_4.ip4a, current_node->info->dst_ta_4.port) == 0)
+		if (nat64_ipv4_cmp(src_ip4a, src_port, &(current_node->info->src_ta_4.ip4a), current_node->info->src_ta_4.port) == 0
+			&& nat64_ipv4_cmp(dst_ip4a, dst_port, &(current_node->info->dst_ta_4.ip4a), current_node->info->dst_ta_4.port) == 0)
 		{
-			//move
-			if (current_node->next != NULL) {
+			//Promote node to the head, in case it's not the head already
+			if (current_node != st->head) {
+				if (current_node == st->tail) {
+					st->tail = current_node->prev;
+				} else {
+					(current_node->next)->prev = current_node->prev;
+				}
+				
 				(current_node->prev)->next = current_node->next;
-				(current_node->next)->prev = current_node->prev;
-				(st->newest)->next = current_node;
-				current_node->prev = st->newest;
-				current_node->next = NULL;
-				st->newest = current_node;
+				current_node->prev = NULL;
+				current_node->next = st->head;
+				(st->head)->prev = current_node;
+				st->head = current_node;
 			}
-			//update timestamp
-			(st->newest)->info->timestamp = new_timestamp;
+			//Update timestamp
+			((st->head)->info)->timestamp = new_timestamp;
 			break;
 		}
-		current_node = current_node->next;
+		current_node = current_node->prev;
 	}
 }
 
@@ -476,4 +510,3 @@ static inline int gcd(int a, int b)
 	return f;
 }
 #endif
-
