@@ -238,8 +238,10 @@ int fragment_mint = 2;
 int icmp_default = 60;
 
 int udp_period = 0;
-struct nat64_bib *udp_bib;
-struct nat64_st *udp_st;
+struct nat64_bib *udp_bib __read_mostly;
+struct nat64_st *udp_st __read_mostly;
+
+struct nat64_pool_entry *ipv4_pool_head __read_mostly;
 
 /*
  * This structure's purpose is getting the L4 layer respective function to get
@@ -422,7 +424,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -461,7 +463,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 */
 //	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 
-	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
@@ -758,7 +760,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 {
 	struct nat64_bib_entry *bib_entry;
 	struct nat64_st_entry *st_entry;
-	//struct nat64_ipv4_ta *ipv4_pool_ta;
+	struct nat64_ipv4_ta *ipv4_pool_ta;
 	struct nat64_ipv6_ta *ipv6_ta;
 	bool res;
 	bool found_bib_entry;
@@ -848,11 +850,11 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 					if (ipv6_ta != NULL) {
 						pr_debug("ipv6_ta != NULL");
 						//Initialize IPv6 t.a. structure
-						nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
-						pr_debug("%pI6: %hu", (ipv6_ta->ip6a).in6_u.u6_addr32, ipv6_ta->port);
+			//			nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
+			//			pr_debug("%pI6: %hu", (ipv6_ta->ip6a).in6_u.u6_addr32, ipv6_ta->port);
 						//Verify if there's an address available in the IPv4 pool
-						//ipv4_pool_ta = nat64_ipv4_pool_address_available(ipv6_ta);
-						//if (ipv4_pool_ta != NULL) {
+						ipv4_pool_ta = nat64_ipv4_pool_address_available(ipv6_ta);
+						if (ipv4_pool_ta != NULL) {
 							//Allocate memory for BIB entry
 			/*				bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
 							//Allocate memory for ST entry
@@ -875,7 +877,7 @@ static bool nat64_update_n_filter(u_int8_t l3protocol, u_int8_t l4protocol,
 							kfree(bib_entry);
 //							kfree(st_entry);
 							goto end;
-						//}
+						}
 					}
 				} else {
 					pr_debug("SECOND O");
@@ -1115,6 +1117,43 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 	.me = THIS_MODULE,
 };
 
+static void nat64_pool_init(void) {
+	struct nat64_pool_entry *new;
+	struct nat64_pool_entry *temp;
+	int i;
+	u_int32_t j;
+	struct in_addr * base_ip_addr;
+	u_int8_t *base;
+	
+	base_ip_addr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
+	base = (u_int8_t *) &(base_ip_addr->s_addr);
+	in4_pton("10.0.0.0",-1, (u_int8_t *) &(base_ip_addr->s_addr), '\x0', NULL);
+	for (i = 1; i < 6; i++) {
+		new = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
+		memset(base + 3, i, 1);
+		(new->ta_4).ip4a = *base_ip_addr;
+		for (j = 61000; j < 61006; j++) {
+			(new->ta_4).port = j;
+			new->next = NULL;
+			//pr_debug("%pI4 %hu",  &((new->ta_4).ip4a), (new->ta_4).port);
+			if (&(ipv4_pool_head->ta_4) == 0) {
+				ipv4_pool_head = new;
+			} else {
+				temp = ipv4_pool_head;
+				new->next = temp;
+				ipv4_pool_head = new;
+			}
+		}
+		kfree(new);
+	}
+	
+	kfree(base_ip_addr);
+	
+	if (ipv4_pool_head == NULL) {
+		
+	}	
+}
+
 static int __init nat64_init(void)
 {
 	/*
@@ -1127,6 +1166,16 @@ static int __init nat64_init(void)
 	 * fragments.
 	 */
 	need_ipv4_conntrack();
+	
+	ipv4_pool_head = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
+	if (ipv4_pool_head == NULL) {
+		pr_debug("NAT64: couldn't load the IPv4 pool");
+	} else {
+		memset(&(ipv4_pool_head->ta_4), 0, sizeof(struct nat64_ipv4_ta));
+		ipv4_pool_head->next = NULL;
+		nat64_pool_init();
+	}
+	
 
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t)NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
@@ -1152,6 +1201,7 @@ static void __exit nat64_exit(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);
+	kfree(ipv4_pool_head);
 	kfree(udp_bib);
 	kfree(udp_st);
 	xt_unregister_target(&nat64_tg_reg);

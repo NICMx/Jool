@@ -71,6 +71,11 @@ struct nat64_bib {
 	struct nat64_bib_node *head;
 };
 
+struct nat64_pool_entry {
+	struct nat64_ipv4_ta ta_4;
+	struct nat64_pool_entry *next;
+};
+
 
 /*	Algorithms	*/
 
@@ -381,7 +386,64 @@ static inline void nat64_st_update(struct nat64_st *st, struct in_addr *src_ip4a
 
 //Other functions
 
-struct nat64_ipv4_ta *nat64_ipv4_pool_address_available(struct nat64_ipv6_ta *ta_6);
+static inline struct nat64_ipv4_ta *nat64_ipv4_pool_address_available(struct nat64_ipv6_ta *ta_6) {
+
+	/* Mask used to obtain some bits from the IPv6 to make the translation */
+	struct in6_addr *ip6_mask_addr;
+
+	/* Final IPv4 obtained from the incoming IPv6 */
+  	struct in_addr *ip_pool_addr;
+
+	/* Return struct */
+	struct nat64_ipv4_ta *outgoing_ipv4_from_pool;
+
+	int ret = 0;
+	pr_debug("INSIDE THE MODULE");
+	ip_pool_addr = (struct in_addr *) kmalloc (sizeof(struct in_addr), GFP_KERNEL);
+	ip6_mask_addr = (struct in6_addr *) kmalloc (sizeof(struct in6_addr), GFP_KERNEL);
+	
+	ret = in4_pton("10.0.0.0",-1, (u_int8_t *)ip_pool_addr, '\x0', NULL);
+	if (!ret) {
+		pr_debug("NAT64: Cannot set the base IPv4.");
+	}
+	//pr_debug("%pI4",&(ip_pool_addr->s_addr));
+
+	if (ip_pool_addr != NULL) {	
+		if (ip6_mask_addr != NULL) {
+			/* in6_pton sets IPv6 mask to 1's */
+			ret = in6_pton("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", -1, (u_int8_t *)ip6_mask_addr, '\x0', NULL);
+			if (!ret) {
+				pr_debug("NAT64: Cannot set the IPv6 mask to 1's.");
+				return NULL;
+			}
+			//pr_debug("%pI6", &(ip6_mask_addr->s6_addr16));
+				
+		}
+	} else {
+		pr_debug("NAT64: Not enough space to store the IPv4.");
+		return NULL;
+	}
+	pr_debug("EXIT MODULE");
+	return outgoing_ipv4_from_pool;	
+
+   	
+   	//ip_pool_addr.s_addr = NULL;
+   	//ta_6->ip6a.in6u.u6_addr32 & ip6_mask;
+/*
+* Single range specification.
+  32struct nf_nat_range {
+          //Set to OR of flags above.
+         unsigned int flags;
+  
+          //Inclusive: network order. 
+          __be32 min_ip, max_ip;
+  
+         //Inclusive: network order 
+          union nf_conntrack_man_proto min, max;
+  };
+
+*/
+}
 
 /*
  * Returns the Greatest Common Divisor
