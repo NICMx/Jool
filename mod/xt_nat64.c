@@ -866,62 +866,10 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
 						//Verify if there's an address available in the IPv4 pool
 						ipv4_pool_ta = nat64_ipv4_pool_address_available(ipv6_ta);
-						if (ipv4_pool_ta != NULL) {
-							//Allocate memory for BIB entry
-							bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
-							//Allocate memory for ST entry
-							st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry *), GFP_KERNEL);
-							if (bib_entry != NULL && st_entry != NULL) {
-								//Initialize BIB entry
-								nat64_initialize_bib_entry(bib_entry, 
-										&(inner->src.u3.in6), 
-										inner->src.u.udp.port, 
-										ip4srcaddr, //&(ipv4_pool_ta->ip4a), 
-										new_port);//ipv4_pool_ta->port);
-								//Insert entry into UDP BIB
-								nat64_bib_insert(udp_bib, bib_entry);
-								//Initialize ST entry
-								nat64_initialize_st_entry(st_entry,
-										&(inner->src.u3.in6), inner->src.u.udp.port,
-										&(inner->dst.u3.in6), inner->dst.u.udp.port,
-										&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-										&(inner->dst.u3.in), inner->dst.u.udp.port,
-										currentTime);
-								//Insert entry into UDP ST
-								nat64_st_insert(udp_st, st_entry);
-								res = true;
-							} else {
-								bib_entry = NULL;
-								st_entry = NULL;
-							}
-						}
 					}
+					kfree(ipv6_ta);
 				} else {
 					pr_debug("SECOND O");
-					//Querying the UDP ST
-					st_entry = nat64_st_select(udp_st, &(bib_entry->ta_4.ip4a),
-							bib_entry->ta_4.port, &(inner->dst.u3.in), inner->dst.u.udp.port);
-					if (st_entry != NULL) {
-						nat64_st_update(udp_st, &(bib_entry->ta_4.ip4a),
-								bib_entry->ta_4.port, &(inner->dst.u3.in),
-								inner->dst.u.udp.port, currentTime);
-						res = true;
-					} else {
-						//Allocate memory for ST entry
-						st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry), GFP_KERNEL);
-						if (st_entry != NULL) {
-							//Initialize ST entry
-							nat64_initialize_st_entry(st_entry,
-									&(inner->src.u3.in6), inner->src.u.udp.port,
-									&(inner->dst.u3.in6), inner->dst.u.udp.port,
-									&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-									&(inner->dst.u3.in), inner->dst.u.udp.port,
-									currentTime);
-							//Insert entry into UDP ST
-							nat64_st_insert(udp_st, st_entry);
-							res = true;
-						}
-					}
 				}
 				break;
 			case IPPROTO_ICMP:
