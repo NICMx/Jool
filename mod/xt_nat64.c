@@ -98,7 +98,7 @@ static DEFINE_SPINLOCK(nf_nat64_lock);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
-// Begin Ecdysis (nat64_output_ipv4)
+	// Begin Ecdysis (nat64_output_ipv4)
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
 	struct rtable *rt;
@@ -251,8 +251,8 @@ struct nat64_pool_entry *ipv4_pool_head __read_mostly;
  */
 struct nat64_outtuple_func {
 	struct nf_conntrack_tuple * (* get_outtuple)(union nf_inet_addr, 
-                                                 u_int16_t, union nf_inet_addr, u_int16_t, 
-                                                 u_int8_t, u_int8_t);
+			u_int16_t, union nf_inet_addr, u_int16_t, 
+			u_int8_t, u_int8_t);
 };
 
 /*
@@ -463,7 +463,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 * NAT64 Translation algorithm... bit magic!
 	 * IMPORTANT: May need htonl function
 	 */
-//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
+	//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 
 	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
@@ -722,7 +722,7 @@ static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return NULL;
 	}
-		
+
 	/*
 	 * Adjust the layer 3 protocol variable to be used in the outgoing tuple
 	 * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
@@ -757,8 +757,8 @@ static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol,
  * This procedure performs packet filtering and
  * updates BIBs and STs.
  */
-static bool nat64_filtering_n_updating(u_int8_t l3protocol, u_int8_t l4protocol, 
-                                  struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol, 
+		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	struct nat64_bib_entry *bib_entry;
 	struct nat64_st_entry *st_entry;
@@ -766,18 +766,17 @@ static bool nat64_filtering_n_updating(u_int8_t l3protocol, u_int8_t l4protocol,
 	struct nat64_ipv6_ta *ipv6_ta;
 	bool res;
 	//bool found_bib_entry;
-    
+
 	struct in_addr * ip4srcaddr;
 	uint16_t new_port;
-	
+
 	rcu_read_lock();
-    
+
 	new_port = htons(60000);
 	bib_entry = kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
 	ip4srcaddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
 	in4_pton("192.168.56.3", -1, (__u8*) &(ip4srcaddr->s_addr), '\x0', NULL);
-    
-	//found_bib_entry = false;
+
 	res = true;
 	if (l3protocol == NFPROTO_IPV4) {
 		pr_debug("NAT64: FNU - IPV4");
@@ -790,7 +789,7 @@ static bool nat64_filtering_n_updating(u_int8_t l3protocol, u_int8_t l4protocol,
 			case IPPROTO_TCP:
 				//Query TCP ST
 				pr_debug("NAT64: TCP protocol not currently supported.");
-                break;
+				break;
 			case IPPROTO_UDP:
 				//Query UDP ST
 				if (true) {
@@ -802,16 +801,16 @@ static bool nat64_filtering_n_updating(u_int8_t l3protocol, u_int8_t l4protocol,
 					pr_debug("NAT64: no currently active session found; packet should be dropped.");
 					res = false; 
 					goto end;
-                }
-                break;
+				}
+				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
 				pr_debug("NAT64: ICMP protocol not currently supported.");
-                break;
+				break;
 			case IPPROTO_ICMPV6:
 				//Query ICMPV6 ST
 				pr_debug("NAT64: ICMPv6 protocol not currently supported.");
-                break;
+				break;
 			default:
 				//Drop packet
 				pr_debug("NAT64: layer 4 protocol not currently supported.");
@@ -827,467 +826,432 @@ static bool nat64_filtering_n_updating(u_int8_t l3protocol, u_int8_t l4protocol,
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				/*
-                 * Verify if there's any binding for the src address by querying
-                 * the TCP BIB. If there's a binding, verify if there's a
-                 * connection to the specified destination by querying the TCP ST.
-                 * 
-                 * In case any of these records are missing, they should be created.
-                 */
+				 * Verify if there's any binding for the src address by querying
+				 * the TCP BIB. If there's a binding, verify if there's a
+				 * connection to the specified destination by querying the TCP ST.
+				 * 
+				 * In case any of these records are missing, they should be created.
+				 */
 				pr_debug("NAT64: TCP protocol not currently supported.");
-                break;
+				break;
 			case IPPROTO_UDP:
 				pr_debug("NAT64: FNU - UDP");
 				/*
-                 * Verify if there's any binding for the src address by querying
-                 * the UDP BIB. If there's a binding, verify if there's a
-                 * connection to the specified destination by querying the UDP ST.
-                 * 
-                 * In case these records are missing, they should be created.
-                 */
-                
-                /*
-                currentTime = (int) clock() / CLOCKS_PER_SECOND;
-                
-                if (currentTime - previousTime > udp_period) {
-                    nat64_st_delete(udp_st, udp_default, currentTime);	//Deletes any record whose "lifetime" has exceeded "udp_default"
-                    previousTime = currentTime;
-                }
-                 */
-                
-                //Querying the UDP BIB
-                bib_entry = nat64_bib_select(udp_bib, &(inner->src.u3.in6),
-                                             inner->src.u.udp.port);
+				 * Verify if there's any binding for the src address by querying
+				 * the UDP BIB. If there's a binding, verify if there's a
+				 * connection to the specified destination by querying the UDP ST.
+				 * 
+				 * In case these records are missing, they should be created.
+				 */
+
+				/*
+				   currentTime = (int) clock() / CLOCKS_PER_SECOND;
+
+				   if (currentTime - previousTime > udp_period) {
+				   nat64_st_delete(udp_st, udp_default, currentTime);	//Deletes any record whose "lifetime" has exceeded "udp_default"
+				   previousTime = currentTime;
+				   }
+				 */
+
+				//Querying the UDP BIB
+				bib_entry = nat64_bib_select(udp_bib, &(inner->src.u3.in6),
+						inner->src.u.udp.port);
 				//found_bib_entry = nat64_bib_select(udp_bib, &(inner->src.u3.in6), inner->src.u.udp.port, bib_entry);
-				
-                if (bib_entry == NULL) {
-                //if (!found_bib_entry) {
+
+				if (bib_entry == NULL) {
+					//if (!found_bib_entry) {
 					pr_debug("FIRST O");
 					//Allocate memory
 					ipv6_ta = (struct nat64_ipv6_ta *) kmalloc(sizeof(struct nat64_ipv6_ta *), GFP_KERNEL);
 					if (ipv6_ta != NULL) {
 						pr_debug("ipv6_ta != NULL");
 						//Initialize IPv6 t.a. structure
-                        nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
-                        //			pr_debug("%pI6: %hu", (ipv6_ta->ip6a).in6_u.u6_addr32, ipv6_ta->port);
+						nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
+						//			pr_debug("%pI6: %hu", (ipv6_ta->ip6a).in6_u.u6_addr32, ipv6_ta->port);
 						//Verify if there's an address available in the IPv4 pool
 						ipv4_pool_ta = nat64_ipv4_pool_address_available(ipv6_ta);
 						if (ipv4_pool_ta != NULL) {
 							//Allocate memory for BIB entry
-                            bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
-                            //Allocate memory for ST entry
-                            st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry *), GFP_KERNEL);
-                            if (bib_entry != NULL && st_entry != NULL) {
-                            	//Initialize BIB entry
-                            	nat64_initialize_bib_entry(bib_entry, 
-                             			&(inner->src.u3.in6), 
-                             			inner->src.u.udp.port, 
-                             			ip4srcaddr, //&(ipv4_pool_ta->ip4a), 
-                             			new_port);//ipv4_pool_ta->port);
-                             //pr_debug("%pI6: ", ((bib_entry->ta_6).ip6a).in6_u.u6_addr32);
-                             //pr_debug("%hu", htons((bib_entry->ta_6).port));
-                             //pr_debug("%dI4: ", ((bib_entry->ta_4).ip4a).s_addr);
-                             //pr_debug("%hu", htons((bib_entry->ta_4).port));
-                                 //Insert entry into UDP BIB
-                                 nat64_bib_insert(udp_bib, bib_entry);
-                                 
-                                 //Initialize ST entry
-                                 nat64_initialize_st_entry(st_entry,
-                                                           &(inner->src.u3.in6), inner->src.u.udp.port,
-                                                           &(inner->dst.u3.in6), inner->dst.u.udp.port,
-                                                           &(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-                                                           &(inner->dst.u3.in), inner->dst.u.udp.port,
-                                                           currentTime);
-                                 
-                                 //Insert entry into UDP ST
-                                 nat64_st_insert(udp_st, st_entry);
-                                 
-                                 res = true;
-                             } else {
-                                 kfree(bib_entry);
-                                 kfree(st_entry);
-                                 bib_entry = NULL;
-                                 st_entry = NULL;
-                             }
-                            /*
-							kfree(ip4srcaddr);
-							kfree(bib_entry);
-                            //							kfree(st_entry);
+							bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
+							//Allocate memory for ST entry
+							st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry *), GFP_KERNEL);
+							if (bib_entry != NULL && st_entry != NULL) {
+								//Initialize BIB entry
+								nat64_initialize_bib_entry(bib_entry, 
+										&(inner->src.u3.in6), 
+										inner->src.u.udp.port, 
+										ip4srcaddr, //&(ipv4_pool_ta->ip4a), 
+										new_port);//ipv4_pool_ta->port);
+								//pr_debug("%pI6: ", ((bib_entry->ta_6).ip6a).in6_u.u6_addr32);
+								//pr_debug("%hu", htons((bib_entry->ta_6).port));
+								//pr_debug("%dI4: ", ((bib_entry->ta_4).ip4a).s_addr);
+								//pr_debug("%hu", htons((bib_entry->ta_4).port));
+								//Insert entry into UDP BIB
+								nat64_bib_insert(udp_bib, bib_entry);
+
+								//Initialize ST entry
+								nat64_initialize_st_entry(st_entry,
+										&(inner->src.u3.in6), inner->src.u.udp.port,
+										&(inner->dst.u3.in6), inner->dst.u.udp.port,
+										&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
+										&(inner->dst.u3.in), inner->dst.u.udp.port,
+										currentTime);
+
+								//Insert entry into UDP ST
+								nat64_st_insert(udp_st, st_entry);
+
+								res = true;
+							} else {
+								kfree(bib_entry);
+								kfree(st_entry);
+								bib_entry = NULL;
+								st_entry = NULL;
+							}
+							/*
+							   kfree(ip4srcaddr);
+							   kfree(bib_entry);
+							//							kfree(st_entry);
 							goto end;
-                             */
+							 */
 						}
 					}
 				} else {
 					pr_debug("SECOND O");
-                    
-                    //Querying the UDP ST
-                    st_entry = nat64_st_select(udp_st, &(bib_entry->ta_4.ip4a),
-                                               bib_entry->ta_4.port, &(inner->dst.u3.in), inner->dst.u.udp.port);
-                    
-                    if (st_entry != NULL) {
-                        nat64_st_update(udp_st, &(bib_entry->ta_4.ip4a),
-                                        bib_entry->ta_4.port, &(inner->dst.u3.in),
-                                        inner->dst.u.udp.port, currentTime);
-                        res = true;
-                    } else {
-                        
-                        //Allocate memory for ST entry
-                        st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry), GFP_KERNEL);
-                        
-                        if (st_entry != NULL) {
-                            
-                            //Initialize ST entry
-                            nat64_initialize_st_entry(st_entry,
-                                                      &(inner->src.u3.in6), inner->src.u.udp.port,
-                                                      &(inner->dst.u3.in6), inner->dst.u.udp.port,
-                                                      &(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-                                                      &(inner->dst.u3.in), inner->dst.u.udp.port,
-                                                      currentTime);
-                            
-                            //Insert entry into UDP ST
-                            nat64_st_insert(udp_st, st_entry);
-                            
-                            res = true;
-                        }
-                    }
-                    //					st_entry = nat64_st_select(udp_st, &(bib_entry->ta_4.ip4a),
-                    //						bib_entry->ta_4.port, &(inner->dst.u3.in), inner->dst.u.udp.port);
-                    /*					if (st_entry != NULL) {
-                     nat64_st_update(udp_st, &(bib_entry->ta_4.ip4a),
-                     bib_entry->ta_4.port, &(inner->dst.u3.in),
-                     inner->dst.u.udp.port, currentTime);
-                     res = true;
-                     goto end;
-                     } *//*else {
-                          //Allocate memory for ST entry
-                          *///	st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry *), GFP_KERNEL);
-                    //						if (st_entry != NULL) {
-                    //Initialize ST entry
-                    /*							nat64_initialize_st_entry(st_entry,
-                     &(inner->src.u3.in6), inner->src.u.udp.port,
-                     &(inner->dst.u3.in6), inner->dst.u.udp.port,
-                     ip4srcaddr, new_port, //&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-                     &(inner->dst.u3.in), inner->dst.u.udp.port,
-                     currentTime);
-                     //Insert entry into UDP ST
-                     nat64_st_insert(udp_st, st_entry);
-                     
-                     //*/ //							kfree(st_entry);
-                    //						res = true;
-                    //						goto end;
-                    //					} else {
-                    //						res = false;
-                    //						goto end;
-                    //					}
-                    //					}
+
+					//Querying the UDP ST
+					st_entry = nat64_st_select(udp_st, &(bib_entry->ta_4.ip4a),
+							bib_entry->ta_4.port, &(inner->dst.u3.in), inner->dst.u.udp.port);
+
+					if (st_entry != NULL) {
+						nat64_st_update(udp_st, &(bib_entry->ta_4.ip4a),
+								bib_entry->ta_4.port, &(inner->dst.u3.in),
+								inner->dst.u.udp.port, currentTime);
+						res = true;
+					} else {
+
+						//Allocate memory for ST entry
+						st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry), GFP_KERNEL);
+
+						if (st_entry != NULL) {
+
+							//Initialize ST entry
+							nat64_initialize_st_entry(st_entry,
+									&(inner->src.u3.in6), inner->src.u.udp.port,
+									&(inner->dst.u3.in6), inner->dst.u.udp.port,
+									&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
+									&(inner->dst.u3.in), inner->dst.u.udp.port,
+									currentTime);
+
+							//Insert entry into UDP ST
+							nat64_st_insert(udp_st, st_entry);
+
+							res = true;
+						}
+					}
+					break;
+					case IPPROTO_ICMP:
+					//Query ICMP ST
+					pr_debug("NAT64: ICMP protocol not currently supported.");
+					break;
+					case IPPROTO_ICMPV6:
+					//Query ICMPV6 ST
+					pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+					break;
+					default:
+					//Drop packet
+					pr_debug("NAT64: layer 4 protocol not currently supported.");
+					break;
 				}
-                /*
-				res = true;
+				res = false;
 				goto end;
-                 */
-                break;
-			case IPPROTO_ICMP:
-				//Query ICMP ST
-				pr_debug("NAT64: ICMP protocol not currently supported.");
-                break;
-			case IPPROTO_ICMPV6:
-				//Query ICMPV6 ST
-				pr_debug("NAT64: ICMPv6 protocol not currently supported.");
-                break;
-			default:
-				//Drop packet
-				pr_debug("NAT64: layer 4 protocol not currently supported.");
-                break;
-		}
-		res = false;
-		goto end;
-	}
+				}
 end: 
-	kfree(ip4srcaddr);
-	if(res) 
-		pr_debug("NAT64: Updating and Filtering stage went OK.");
-	else 
-		pr_debug("NAT64: Updating and Filtering stage FAILED.");
-	rcu_read_unlock();
-	return res;
-}
-
-/*
- * Function that gets the packet's information and returns a tuple out of it.
- */
-static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
-{
-	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, inner))) {
-		pr_debug("NAT64: Something went wrong getting the tuple");
-		return false;
-	}
-
-	pr_debug("NAT64: Determining the tuple stage went OK.");
-
-	return true;
-}
-
-/*
- * IPv4 entry function
- *
- */
-static unsigned int nat64_tg4(struct sk_buff *skb, 
-		const struct xt_action_param *par)
-{
-	int buff_cont;
-	unsigned char *buf = skb->data;
-	unsigned char cc;
-
-	pr_debug("\n* ICNOMING IPV4 PACKET *\n");
-	pr_debug("Drop it\n");
-
-	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
-		cc = buf[buff_cont];
-		printk(KERN_DEBUG "%02x",cc);
-	}
-
-	printk(KERN_DEBUG "\n");
-
-	return NF_DROP;
-}
-
-/*
- * NAT64 Core Functionality
- *
- */
-static unsigned int nat64_core(struct sk_buff *skb, 
-		const struct xt_action_param *par, u_int8_t l3protocol,
-		u_int8_t l4protocol) {
-
-	/*
-	 * Checks whether the function returned true or false.
-	 */
-	struct nf_conntrack_tuple inner;
-	struct nf_conntrack_tuple outgoing;
-	struct sk_buff * new_skb;
-
-	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
-		pr_info("NAT64: There was an error determining the Tuple");
-		return NF_DROP;
-	} 
-
-/*	if (!nat64_update_n_filter(l3protocol, l4protocol, skb, &inner)) {
-		pr_info("NAT64: There was an error in the updating and"
-				" filtering module");
-		return NF_DROP;
-	}
-*/
-	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-				skb, &inner, &outgoing);
-
-	if (!new_skb) {
-		pr_info("NAT64: There was an error in the determining the outgoing"
-				" tuple module");
-		return NF_DROP;
-	}
-
-	if (!nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
-		pr_info("NAT64: There was an error in the packet translation"
-				" module");
-		return NF_DROP;
-	}
-
-	/*
-	 * Returns zero if it works
-	 */
-	if (nat64_send_packet(skb, new_skb)) {
-		pr_info("NAT64: There was an error in the packet transmission"
-				" module");
-		return NF_DROP;
-	}
-
-	/* TODO: Incluir llamada a HAIRPINNING aqui */
-
-	return NF_DROP;
-}
-
-/*
- * IPv6 entry function
- *
- */
-static unsigned int nat64_tg6(struct sk_buff *skb, 
-		const struct xt_action_param *par)
-{
-	const struct xt_nat64_tginfo *info = par->targinfo;
-	struct ipv6hdr *iph = ipv6_hdr(skb);
-	__u8 l4_protocol = iph->nexthdr;
-
-	pr_debug("\n* INCOMING IPV6 PACKET *\n");
-	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
-	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
-	pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
-	pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
-
-	/*
-	 * If the packet is not directed towards the NAT64 prefix, 
-	 * continue through the Netfilter rules.
-	 */
-	if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, 
-				&iph->daddr, info->flags))
-		return NF_ACCEPT;
-
-	if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {
-		/*
-		 * Core functions of the NAT64 implementation.
-		 */
-		return nat64_core(skb, par, NFPROTO_IPV6, l4_protocol);
-	}
-
-	/*
-	 * If the packet's protocol is not one of the ones defined for NAT64,
-	 * accept it.
-	 */
-	return NF_ACCEPT;
-}
-
-/*
- * General entry point. 
- *
- * Here the NAT64 implementation validates that the
- * incoming packet is IPv4 or IPv6. If it isn't, it silently drops the packet.
- * If it's one of those two, it calls it's respective function, since the IPv6
- * header is handled differently than an IPv4 header.
- */
-static unsigned int nat64_tg(struct sk_buff *skb, 
-		const struct xt_action_param *par)
-{
-	if (par->family == NFPROTO_IPV4)
-		return nat64_tg4(skb, par);
-	else if (par->family == NFPROTO_IPV6)
-		return nat64_tg6(skb, par);
-	else
-		return NF_ACCEPT;
-}
-
-static int nat64_tg_check(const struct xt_tgchk_param *par)
-{
-	int ret;
-
-	ret = nf_ct_l3proto_try_module_get(par->family);
-	if (ret < 0)
-		pr_info("cannot load support for proto=%u\n",
-				par->family);
-	return ret;
-}
-
-static struct xt_target nat64_tg_reg __read_mostly = {
-	.name = "nat64",
-	.revision = 0,
-	.target = nat64_tg,
-	.checkentry = nat64_tg_check,
-	.family = NFPROTO_UNSPEC,
-	.table = "mangle",
-	.hooks = (1 << NF_INET_PRE_ROUTING),
-	.targetsize = sizeof(struct xt_nat64_tginfo),
-	.me = THIS_MODULE,
-};
-
-static void nat64_pool_init(void) {
-	struct nat64_pool_entry *new;
-	struct nat64_pool_entry *temp;
-	int i;
-	u_int32_t j;
-	struct in_addr * base_ip_addr;
-	u_int8_t *base;
-	
-	base_ip_addr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
-	base = (u_int8_t *) &(base_ip_addr->s_addr);
-	in4_pton("10.0.0.0",-1, (u_int8_t *) &(base_ip_addr->s_addr), '\x0', NULL);
-	for (i = 1; i < 6; i++) {
-		new = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
-		memset(base + 3, i, 1);
-		(new->ta_4).ip4a = *base_ip_addr;
-		for (j = 61000; j < 61006; j++) {
-			(new->ta_4).port = j;
-			new->next = NULL;
-			//pr_debug("%pI4 %hu",  &((new->ta_4).ip4a), (new->ta_4).port);
-			if (&(ipv4_pool_head->ta_4) == 0) {
-				ipv4_pool_head = new;
-			} else {
-				temp = ipv4_pool_head;
-				new->next = temp;
-				ipv4_pool_head = new;
-			}
+				kfree(ip4srcaddr);
+				if(res) 
+					pr_debug("NAT64: Updating and Filtering stage went OK.");
+				else 
+					pr_debug("NAT64: Updating and Filtering stage FAILED.");
+				rcu_read_unlock();
+				return res;
 		}
-		kfree(new);
-	}
-	
-	kfree(base_ip_addr);
-	
-	if (ipv4_pool_head == NULL) {
-		
-	}	
-}
 
-static int __init nat64_init(void)
-{
-	/*
-	 * Include nf_conntrack dependency
-	 */
-	need_conntrack();
-	/*
-	 * Include nf_conntrack_ipv4 dependency.
-	 * IPv4 conntrack is needed in order to handle complete packets, and not
-	 * fragments.
-	 */
-	need_ipv4_conntrack();
-	
-	/*
-	 * Disables timestamps in sk_buff.
-	 * Timestamps are used in STs.
-	 */
-	net_disable_timestamp();
-	
-	ipv4_pool_head = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
-	if (ipv4_pool_head == NULL) {
-		pr_debug("NAT64: couldn't load the IPv4 pool");
-	} else {
-		memset(&(ipv4_pool_head->ta_4), 0, sizeof(struct nat64_ipv4_ta));
-		ipv4_pool_head->next = NULL;
-		nat64_pool_init();
-	}
-	
-	previousTime = 0;
-	currentTime = 0;
+		/*
+		 * Function that gets the packet's information and returns a tuple out of it.
+		 */
+		static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
+				struct sk_buff *skb, struct nf_conntrack_tuple * inner)
+		{
+			if (!(nat64_get_tuple(l3protocol, l4protocol, skb, inner))) {
+				pr_debug("NAT64: Something went wrong getting the tuple");
+				return false;
+			}
 
-	udp_period = gcd(udp_min, udp_default);
-	
-	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV4);
-	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
-    
-	/* INIT ST & BIB */
-    
-	udp_bib = kmalloc(sizeof(struct nat64_bib *), GFP_KERNEL);
-	udp_bib->head = NULL;
-    
-	udp_st = kmalloc(sizeof(struct nat64_st *), GFP_KERNEL);
-	udp_st->head = NULL;
-	udp_st->tail = NULL;
-	
-	/* END ST & BIB */
-	
-	if (l3proto_ip == NULL)
-		pr_debug("NAT64: couldn't load IPv4 l3proto");
-	if (l3proto_ipv6 == NULL)
-		pr_debug("NAT64: couldn't load IPv6 l3proto");
+			pr_debug("NAT64: Determining the tuple stage went OK.");
 
-	return xt_register_target(&nat64_tg_reg);
-}
+			return true;
+		}
 
-static void __exit nat64_exit(void)
-{
-	nf_ct_l3proto_put(l3proto_ip);
-	nf_ct_l3proto_put(l3proto_ipv6);
-//	kfree(ipv4_pool_head);
-//	kfree(udp_bib);
-//	kfree(udp_st);
-	xt_unregister_target(&nat64_tg_reg);
-}
+		/*
+		 * IPv4 entry function
+		 *
+		 */
+		static unsigned int nat64_tg4(struct sk_buff *skb, 
+				const struct xt_action_param *par)
+		{
+			int buff_cont;
+			unsigned char *buf = skb->data;
+			unsigned char cc;
 
-module_init(nat64_init);
-module_exit(nat64_exit);
+			pr_debug("\n* ICNOMING IPV4 PACKET *\n");
+			pr_debug("Drop it\n");
+
+			for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+				cc = buf[buff_cont];
+				printk(KERN_DEBUG "%02x",cc);
+			}
+
+			printk(KERN_DEBUG "\n");
+
+			return NF_DROP;
+		}
+
+		/*
+		 * NAT64 Core Functionality
+		 *
+		 */
+		static unsigned int nat64_core(struct sk_buff *skb, 
+				const struct xt_action_param *par, u_int8_t l3protocol,
+				u_int8_t l4protocol) {
+
+			/*
+			 * Checks whether the function returned true or false.
+			 */
+			struct nf_conntrack_tuple inner;
+			struct nf_conntrack_tuple outgoing;
+			struct sk_buff * new_skb;
+
+			if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
+				pr_info("NAT64: There was an error determining the Tuple");
+				return NF_DROP;
+			} 
+
+			if (!nat64_filtering_and_updating(l3protocol, l4protocol, skb, &inner)) {
+				pr_info("NAT64: There was an error in the updating and"
+						" filtering module");
+				return NF_DROP;
+			}
+
+			new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+					skb, &inner, &outgoing);
+
+			if (!new_skb) {
+				pr_info("NAT64: There was an error in the determining the outgoing"
+						" tuple module");
+				return NF_DROP;
+			}
+
+			if (!nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
+				pr_info("NAT64: There was an error in the packet translation"
+						" module");
+				return NF_DROP;
+			}
+
+			/*
+			 * Returns zero if it works
+			 */
+			if (nat64_send_packet(skb, new_skb)) {
+				pr_info("NAT64: There was an error in the packet transmission"
+						" module");
+				return NF_DROP;
+			}
+
+			/* TODO: Incluir llamada a HAIRPINNING aqui */
+
+			return NF_DROP;
+		}
+
+		/*
+		 * IPv6 entry function
+		 *
+		 */
+		static unsigned int nat64_tg6(struct sk_buff *skb, 
+				const struct xt_action_param *par)
+		{
+			const struct xt_nat64_tginfo *info = par->targinfo;
+			struct ipv6hdr *iph = ipv6_hdr(skb);
+			__u8 l4_protocol = iph->nexthdr;
+
+			pr_debug("\n* INCOMING IPV6 PACKET *\n");
+			pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
+			pr_debug("PKT DST=%pI6 \n", &iph->daddr);
+			pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
+			pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
+
+			/*
+			 * If the packet is not directed towards the NAT64 prefix, 
+			 * continue through the Netfilter rules.
+			 */
+			if (!nat64_tg6_cmp(&info->ip6dst.in6, &info->ip6dst_mask.in6, 
+						&iph->daddr, info->flags))
+				return NF_ACCEPT;
+
+			if (l4_protocol & NAT64_IPV6_ALLWD_PROTOS) {
+				/*
+				 * Core functions of the NAT64 implementation.
+				 */
+				return nat64_core(skb, par, NFPROTO_IPV6, l4_protocol);
+			}
+
+			/*
+			 * If the packet's protocol is not one of the ones defined for NAT64,
+			 * accept it.
+			 */
+			return NF_ACCEPT;
+		}
+
+		/*
+		 * General entry point. 
+		 *
+		 * Here the NAT64 implementation validates that the
+		 * incoming packet is IPv4 or IPv6. If it isn't, it silently drops the packet.
+		 * If it's one of those two, it calls it's respective function, since the IPv6
+		 * header is handled differently than an IPv4 header.
+		 */
+		static unsigned int nat64_tg(struct sk_buff *skb, 
+				const struct xt_action_param *par)
+		{
+			if (par->family == NFPROTO_IPV4)
+				return nat64_tg4(skb, par);
+			else if (par->family == NFPROTO_IPV6)
+				return nat64_tg6(skb, par);
+			else
+				return NF_ACCEPT;
+		}
+
+		static int nat64_tg_check(const struct xt_tgchk_param *par)
+		{
+			int ret;
+
+			ret = nf_ct_l3proto_try_module_get(par->family);
+			if (ret < 0)
+				pr_info("cannot load support for proto=%u\n",
+						par->family);
+			return ret;
+		}
+
+		static struct xt_target nat64_tg_reg __read_mostly = {
+			.name = "nat64",
+			.revision = 0,
+			.target = nat64_tg,
+			.checkentry = nat64_tg_check,
+			.family = NFPROTO_UNSPEC,
+			.table = "mangle",
+			.hooks = (1 << NF_INET_PRE_ROUTING),
+			.targetsize = sizeof(struct xt_nat64_tginfo),
+			.me = THIS_MODULE,
+		};
+
+		static void nat64_pool_init(void) {
+			struct nat64_pool_entry *new;
+			struct nat64_pool_entry *temp;
+			int i;
+			u_int32_t j;
+			struct in_addr * base_ip_addr;
+			u_int8_t *base;
+
+			base_ip_addr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
+			base = (u_int8_t *) &(base_ip_addr->s_addr);
+			in4_pton("10.0.0.0",-1, (u_int8_t *) &(base_ip_addr->s_addr), '\x0', NULL);
+			for (i = 1; i < 6; i++) {
+				new = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
+				memset(base + 3, i, 1);
+				(new->ta_4).ip4a = *base_ip_addr;
+				for (j = 61000; j < 61006; j++) {
+					(new->ta_4).port = j;
+					new->next = NULL;
+					//pr_debug("%pI4 %hu",  &((new->ta_4).ip4a), (new->ta_4).port);
+					if (&(ipv4_pool_head->ta_4) == 0) {
+						ipv4_pool_head = new;
+					} else {
+						temp = ipv4_pool_head;
+						new->next = temp;
+						ipv4_pool_head = new;
+					}
+				}
+				kfree(new);
+			}
+
+			kfree(base_ip_addr);
+
+			if (ipv4_pool_head == NULL) {
+
+			}	
+		}
+
+		static int __init nat64_init(void)
+		{
+			/*
+			 * Include nf_conntrack dependency
+			 */
+			need_conntrack();
+			/*
+			 * Include nf_conntrack_ipv4 dependency.
+			 * IPv4 conntrack is needed in order to handle complete packets, and not
+			 * fragments.
+			 */
+			need_ipv4_conntrack();
+
+			/*
+			 * Disables timestamps in sk_buff.
+			 * Timestamps are used in STs.
+			 */
+			net_disable_timestamp();
+
+			ipv4_pool_head = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
+			if (ipv4_pool_head == NULL) {
+				pr_debug("NAT64: couldn't load the IPv4 pool");
+			} else {
+				memset(&(ipv4_pool_head->ta_4), 0, sizeof(struct nat64_ipv4_ta));
+				ipv4_pool_head->next = NULL;
+				nat64_pool_init();
+			}
+
+			previousTime = 0;
+			currentTime = 0;
+
+			udp_period = gcd(udp_min, udp_default);
+
+			l3proto_ip = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV4);
+			l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
+
+			/* INIT ST & BIB */
+
+			udp_bib = kmalloc(sizeof(struct nat64_bib *), GFP_KERNEL);
+			udp_bib->head = NULL;
+
+			udp_st = kmalloc(sizeof(struct nat64_st *), GFP_KERNEL);
+			udp_st->head = NULL;
+			udp_st->tail = NULL;
+
+			/* END ST & BIB */
+
+			if (l3proto_ip == NULL)
+				pr_debug("NAT64: couldn't load IPv4 l3proto");
+			if (l3proto_ipv6 == NULL)
+				pr_debug("NAT64: couldn't load IPv6 l3proto");
+
+			return xt_register_target(&nat64_tg_reg);
+		}
+
+		static void __exit nat64_exit(void)
+		{
+			nf_ct_l3proto_put(l3proto_ip);
+			nf_ct_l3proto_put(l3proto_ipv6);
+			//	kfree(ipv4_pool_head);
+			//	kfree(udp_bib);
+			//	kfree(udp_st);
+			xt_unregister_target(&nat64_tg_reg);
+		}
+
+		module_init(nat64_init);
+		module_exit(nat64_exit);
