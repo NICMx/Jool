@@ -424,7 +424,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -463,7 +463,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 */
 //	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	ip4->saddr = (__be32) ip4srcaddr->s_addr;
@@ -1001,12 +1001,12 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	} 
 
-	if (!nat64_update_n_filter(l3protocol, l4protocol, skb, &inner)) {
+/*	if (!nat64_update_n_filter(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error in the updating and"
 				" filtering module");
 		return NF_DROP;
 	}
-
+*/
 	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 				skb, &inner, &outgoing);
 
@@ -1182,11 +1182,11 @@ static int __init nat64_init(void)
 
 	/* INIT ST & BIB */
 
-	udp_bib = kmalloc(sizeof(struct nat64_bib *), GFP_KERNEL);
+/*	udp_bib = kmalloc(sizeof(struct nat64_bib *), GFP_KERNEL);
 	udp_bib->head = NULL;
 
 	udp_st = kmalloc(sizeof(struct nat64_st *), GFP_KERNEL);
-	
+*/	
 	/* END ST & BIB */
 	
 	if (l3proto_ip == NULL)
@@ -1201,9 +1201,9 @@ static void __exit nat64_exit(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);
-	kfree(ipv4_pool_head);
-	kfree(udp_bib);
-	kfree(udp_st);
+//	kfree(ipv4_pool_head);
+//	kfree(udp_bib);
+//	kfree(udp_st);
 	xt_unregister_target(&nat64_tg_reg);
 }
 
