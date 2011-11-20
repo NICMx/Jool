@@ -940,16 +940,18 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		res = false;
 		goto end;
 	}
-}
+
+return res;
+
 end: 
-kfree(ip4srcaddr);
-if(res) 
-	pr_debug("NAT64: Updating and Filtering stage went OK.");
+	kfree(ip4srcaddr);
+	if(res) 
+		pr_debug("NAT64: Updating and Filtering stage went OK.");
 	else 
-	pr_debug("NAT64: Updating and Filtering stage FAILED.");
-	rcu_read_unlock();
+		pr_debug("NAT64: Updating and Filtering stage FAILED.");
+		rcu_read_unlock();
 	return res;
-	}
+}
 
 /*
  * Function that gets the packet's information and returns a tuple out of it.
