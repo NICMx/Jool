@@ -37,6 +37,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
+#include <linux/inetdevice.h>
 
 #include <linux/netdevice.h>
 #include <net/route.h>
@@ -1105,6 +1106,8 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 
 static int __init nat64_init(void)
 {
+	char *pos;
+	int ret;
 	/*
 	 * Include nf_conntrack dependency
 	 */
@@ -1130,6 +1133,28 @@ static int __init nat64_init(void)
 	if (l3proto_ipv6 == NULL)
 		pr_debug("NAT64: couldn't load IPv6 l3proto");
 
+	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '/', NULL);
+	if (!ret)
+	{
+		printk("nat64: ipv4 is malformed [%s] X(.\n", ipv4_address);
+		ret = -1;
+		goto error;
+	}
+	pos = strchr(ipv4_address, '/');
+	if(pos)
+	{
+		ipv4_prefixlen = simple_strtol(++pos, NULL, 10);
+		if(ipv4_prefixlen > 32 || ipv4_prefixlen < 1)
+		{
+			printk("nat64: ipv4 prefix is malformed [%s] X(.\n", ipv4_address);
+			ret = -1;
+			goto error;
+		}
+		ipv4_netmask = inet_make_mask(ipv4_prefixlen);
+		ipv4_addr = ipv4_addr & ipv4_netmask;
+		printk("nat64: using IPv4 subnet %pI4/%d (netmask %pI4).\n", &ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
+	}
+
 	if(nat64_allocate_hash(65536))
 	{
 		printk("NAT64: Unable to allocate memmory for hash table.\n");
@@ -1154,6 +1179,8 @@ static int __init nat64_init(void)
 
 	return xt_register_target(&nat64_tg_reg);
 
+error:
+	return -EINVAL;
 hash_error:
 	return -ENOMEM;
 st_cache_error:
