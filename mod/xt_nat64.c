@@ -816,7 +816,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				 * 
 				 * In case these records are missing, they should be created.
 				 */
-				ri
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
@@ -836,7 +835,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 	}
 
 return res;
-
 end: 
 	if(res) 
 		pr_debug("NAT64: Updating and Filtering stage went OK.");
