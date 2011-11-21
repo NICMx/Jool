@@ -95,15 +95,10 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 struct kmem_cache *st_cache;
 struct kmem_cache *bib_cache;
-
-/*
-#define	NUM_EXPIRY_QUEUES 5
-struct list_head exipry_queue = LIST_HEAD_INIT(exipry_queue);
-struct expiry_q
-{
-	struct list_head	queue;
-	int			timeout;
-};
+struct hlist_head *hash6;
+struct hlist_head *hash4;
+__be32 ipv4_addr = 0;
+unsigned int		hash_size;
 struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 {
 	{{NULL, NULL}, 5*60},
@@ -112,13 +107,10 @@ struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 	{{NULL, NULL}, 6},
 	{{NULL, NULL}, 60}
 };
-struct hlist_head *hash6;
-struct hlist_head *hash4;
-unsigned int hash_size;
-*/
+struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
-static DEFINE_SPINLOCK(nf_nat64_fnu_lock);
+//static DEFINE_SPINLOCK(nf_nat64_fnu_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
@@ -245,6 +237,46 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	spin_unlock_bh(&nf_nat64_lock);
 
 	return ret;
+}
+
+static int nat64_allocate_hash(unsigned int size)
+{
+	int			i;
+	//struct hlist_head	*hash;
+
+	size = roundup(size, PAGE_SIZE / sizeof(struct hlist_head));
+	hash_size = size;
+	//nat64_data.vmallocked = 0;
+
+	hash4 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
+			get_order(sizeof(struct hlist_head) * size));
+
+	if(!hash4) {
+		printk("nat64: Unable to allocate memory for hash4 via gfp X(.\n");
+		return -1;
+		//hash = vmalloc(sizeof(struct hlist_head) * size);
+		//nat64_data.vmallocked = 1;
+	}
+
+	hash6 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
+			get_order(sizeof(struct hlist_head) * size));
+	if(!hash6) {
+		printk("nat64: Unable to allocate memory for hash6 via gfp X(.\n");
+		free_pages((unsigned long)hash4,
+				get_order(sizeof(struct hlist_head) * hash_size));
+		return -1;
+	}
+
+	for (i = 0; i < size; i++)
+	{
+		INIT_HLIST_HEAD(&hash4[i]);
+		INIT_HLIST_HEAD(&hash6[i]);
+	}
+
+	for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
+		INIT_LIST_HEAD(&expiry_base[i].queue);
+
+	return 0;
 }
 
 /*
@@ -749,6 +781,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	bool res;
+	int i;
 	res = true;
 
 	if (l3protocol == NFPROTO_IPV4) {
@@ -796,6 +829,9 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		// FIXME: Return true if it is not H&H. A special return code 
 		// will have to be added as a param in the future to handle it.
 		res = true;
+		clean_expired_sessions(&expiry_queue);
+		for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
+			clean_expired_sessions(&expiry_base[i].queue);
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				/*
@@ -834,7 +870,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		goto end;
 	}
 
-return res;
+	return res;
 end: 
 	if(res) 
 		pr_debug("NAT64: Updating and Filtering stage went OK.");
@@ -1046,6 +1082,12 @@ static int __init nat64_init(void)
 	if (l3proto_ipv6 == NULL)
 		pr_debug("NAT64: couldn't load IPv6 l3proto");
 
+	if(nat64_allocate_hash(65536))
+	{
+		printk("NAT64: Unable to allocate memmory for hash table.\n");
+		goto hash_error;
+	}
+
 	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
 	if(!st_cache) {
 		printk(KERN_ERR "NAT64: Unable to create session table slab cache.\n");
@@ -1063,7 +1105,9 @@ static int __init nat64_init(void)
 	}
 
 	return xt_register_target(&nat64_tg_reg);
-	
+
+hash_error:
+	return -ENOMEM;
 st_cache_error:
 	kmem_cache_destroy(st_cache);
 	return -ENOMEM;
