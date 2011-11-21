@@ -109,13 +109,13 @@ struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 };
 struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 
-__be32 ipv4_addr = 0;
-int ipv4_prefixlen = 32;
-__be32 ipv4_netmask = 0xffffffff;
-static char *ipv4_address = NULL;
+__be32 ipv4_addr;
+int ipv4_prefixlen;
+__be32 ipv4_netmask;
+static char *ipv4_address;
 struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, .s6_addr32[2] = 0, .s6_addr32[3] = 0};
-static char *prefix_address = "fec0::";
-int prefix_len = 64;
+static char *prefix_address;
+int prefix_len;
 
 /*module_param(ipv4_address, charp, 0);
 MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p for a subnet.");
@@ -200,7 +200,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	 * Set the destination to the skb.
 	 */
 	skb_dst_set(skb, &(rt->dst));
-	pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len);
+	//pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len);
 
 	/*
 	 * Makes sure the net_device can actually send packets.
@@ -804,7 +804,7 @@ static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 	}
 
 	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
-	pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	//pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
 	return new_skb;
 }
@@ -1110,9 +1110,12 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 static int __init nat64_init(void)
 {
 	char *pos;
-	int ret;
+	int ret = 0;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.56.0";
+	ipv4_address = "192.168.56.0"; // Default IPv4
+	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
+	prefix_address = "fec0::"; // Default IPv6
+	prefix_len = 64; // Default IPv6 Prefix
 
 	/*
 	 * Include nf_conntrack dependency
