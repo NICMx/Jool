@@ -93,7 +93,32 @@ MODULE_ALIAS("ip6t_nat64");
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
+struct kmem_cache *st_cache;
+struct kmem_cache *bib_cache;
+
+/*
+#define	NUM_EXPIRY_QUEUES 5
+struct list_head exipry_queue = LIST_HEAD_INIT(exipry_queue);
+struct expiry_q
+{
+	struct list_head	queue;
+	int			timeout;
+};
+struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
+{
+	{{NULL, NULL}, 5*60},
+	{{NULL, NULL}, 4*60},
+	{{NULL, NULL}, 2*60*60},
+	{{NULL, NULL}, 6},
+	{{NULL, NULL}, 60}
+};
+struct hlist_head *hash6;
+struct hlist_head *hash4;
+unsigned int hash_size;
+*/
+
 static DEFINE_SPINLOCK(nf_nat64_lock);
+static DEFINE_SPINLOCK(nf_nat64_fnu_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
@@ -221,43 +246,6 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 
 	return ret;
 }
-
-/*
- * BEGIN: NAT64 Filter and updating configuration variables and settings.
- */
-
-/*	Variables for component 2	*/
-int previousTime = 0;
-int currentTime = 0;
-
-// Configuration variables
-int udp_min = 120;
-int udp_default = 300;
-int tcp_trans = 240;
-int tcp_est = 7200;
-int tcp_incoming_syn = 6;
-int fragment_mint = 2;
-int icmp_default = 60;
-
-int udp_period = 0;
-struct nat64_bib *udp_bib;
-struct nat64_st *udp_st;
-
-struct nat64_pool_entry *ipv4_pool_head;
-
-/*
- * This structure's purpose is getting the L4 layer respective function to get
- * the outgoing tuple.
- */
-struct nat64_outtuple_func {
-	struct nf_conntrack_tuple * (* get_outtuple)(union nf_inet_addr, 
-			u_int16_t, union nf_inet_addr, u_int16_t, 
-			u_int8_t, u_int8_t);
-};
-
-/*
- * END: NAT64 Filter and updating configuration variables and settings.
- */
 
 /*
  * Function that gets the pointer directed to it's 
@@ -760,23 +748,9 @@ static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
-	struct nat64_bib_entry *bib_entry;
-	struct nat64_st_entry *st_entry;
-	struct nat64_ipv4_ta *ipv4_pool_ta;
-	struct nat64_ipv6_ta *ipv6_ta;
 	bool res;
-
-	struct in_addr * ip4srcaddr;
-	uint16_t new_port;
-
-	rcu_read_lock();
-
-	new_port = htons(60000);
-	bib_entry = kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
-	ip4srcaddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
-	in4_pton("192.168.56.3", -1, (__u8*) &(ip4srcaddr->s_addr), '\x0', NULL);
-
 	res = true;
+
 	if (l3protocol == NFPROTO_IPV4) {
 		pr_debug("NAT64: FNU - IPV4");
 		/*
@@ -842,87 +816,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				 * 
 				 * In case these records are missing, they should be created.
 				 */
-
-				/*
-				   currentTime = (int) clock() / CLOCKS_PER_SECOND;
-
-				   if (currentTime - previousTime > udp_period) {
-				   nat64_st_delete(udp_st, udp_default, currentTime);	//Deletes any record whose "lifetime" has exceeded "udp_default"
-				   previousTime = currentTime;
-				   }
-				 */
-
-				//Querying the UDP BIB
-				bib_entry = nat64_bib_select(udp_bib, &(inner->src.u3.in6),
-						inner->src.u.udp.port);
-
-				if (bib_entry == NULL) {
-					pr_debug("FIRST O");
-					//Allocate memory
-					ipv6_ta = (struct nat64_ipv6_ta *) kmalloc(sizeof(struct nat64_ipv6_ta *), GFP_KERNEL);
-					if (ipv6_ta != NULL) {
-						pr_debug("ipv6_ta != NULL");
-						//Initialize IPv6 t.a. structure
-						nat64_initialize_ipv6_ta(ipv6_ta, &(inner->src.u3.in6), inner->src.u.udp.port);
-						//Verify if there's an address available in the IPv4 pool
-						ipv4_pool_ta = nat64_ipv4_pool_address_available(ipv6_ta);
-						if (ipv4_pool_ta != NULL) {
-							//Allocate memory for BIB entry
-							bib_entry = (struct nat64_bib_entry *) kmalloc(sizeof(struct nat64_bib_entry *), GFP_KERNEL);
-							//Allocate memory for ST entry
-							st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry *), GFP_KERNEL);
-							if (bib_entry != NULL && st_entry != NULL) {
-								//Initialize BIB entry
-								nat64_initialize_bib_entry(bib_entry, 
-										&(inner->src.u3.in6), 
-										inner->src.u.udp.port, 
-										ip4srcaddr, //&(ipv4_pool_ta->ip4a), 
-										new_port);//ipv4_pool_ta->port);
-								//Insert entry into UDP BIB
-								nat64_bib_insert(udp_bib, bib_entry);
-								//Initialize ST entry
-								nat64_initialize_st_entry(st_entry,
-										&(inner->src.u3.in6), inner->src.u.udp.port,
-										&(inner->dst.u3.in6), inner->dst.u.udp.port,
-										&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-										&(inner->dst.u3.in), inner->dst.u.udp.port,
-										currentTime);
-								//Insert entry into UDP ST
-								nat64_st_insert(udp_st, st_entry);
-								res = true;
-							} else {
-								bib_entry = NULL;
-								st_entry = NULL;
-							}
-						}
-					}
-				} else {
-					pr_debug("SECOND O");
-					//Querying the UDP ST
-					st_entry = nat64_st_select(udp_st, &(bib_entry->ta_4.ip4a),
-							bib_entry->ta_4.port, &(inner->dst.u3.in), inner->dst.u.udp.port);
-					if (st_entry != NULL) {
-						nat64_st_update(udp_st, &(bib_entry->ta_4.ip4a),
-								bib_entry->ta_4.port, &(inner->dst.u3.in),
-								inner->dst.u.udp.port, currentTime);
-						res = true;
-					} else {
-						//Allocate memory for ST entry
-						st_entry = (struct nat64_st_entry *) kmalloc(sizeof(struct nat64_st_entry), GFP_KERNEL);
-						if (st_entry != NULL) {
-							//Initialize ST entry
-							nat64_initialize_st_entry(st_entry,
-									&(inner->src.u3.in6), inner->src.u.udp.port,
-									&(inner->dst.u3.in6), inner->dst.u.udp.port,
-									&(ipv4_pool_ta->ip4a), ipv4_pool_ta->port,
-									&(inner->dst.u3.in), inner->dst.u.udp.port,
-									currentTime);
-							//Insert entry into UDP ST
-							nat64_st_insert(udp_st, st_entry);
-							res = true;
-						}
-					}
-				}
+				
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
@@ -944,12 +838,10 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 return res;
 
 end: 
-	kfree(ip4srcaddr);
 	if(res) 
 		pr_debug("NAT64: Updating and Filtering stage went OK.");
 	else 
 		pr_debug("NAT64: Updating and Filtering stage FAILED.");
-		rcu_read_unlock();
 	return res;
 }
 
@@ -1129,43 +1021,6 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 	.me = THIS_MODULE,
 };
 
-static void nat64_pool_init(void) {
-	struct nat64_pool_entry *new;
-	struct nat64_pool_entry *temp;
-	int i;
-	u_int32_t j;
-	struct in_addr * base_ip_addr;
-	u_int8_t *base;
-
-	base_ip_addr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
-	base = (u_int8_t *) &(base_ip_addr->s_addr);
-	in4_pton("10.0.0.0",-1, (u_int8_t *) &(base_ip_addr->s_addr), '\x0', NULL);
-	for (i = 1; i < 6; i++) {
-		new = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
-		memset(base + 3, i, 1);
-		(new->ta_4).ip4a = *base_ip_addr;
-		for (j = 61000; j < 61006; j++) {
-			(new->ta_4).port = j;
-			new->next = NULL;
-			//pr_debug("%pI4 %hu",  &((new->ta_4).ip4a), (new->ta_4).port);
-			if (&(ipv4_pool_head->ta_4) == 0) {
-				ipv4_pool_head = new;
-			} else {
-				temp = ipv4_pool_head;
-				new->next = temp;
-				ipv4_pool_head = new;
-			}
-		}
-		kfree(new);
-	}
-
-	kfree(base_ip_addr);
-
-	if (ipv4_pool_head == NULL) {
-
-	}	
-}
-
 static int __init nat64_init(void)
 {
 	/*
@@ -1183,51 +1038,49 @@ static int __init nat64_init(void)
 	 * Disables timestamps in sk_buff.
 	 * Timestamps are used in STs.
 	 */
-	net_disable_timestamp();
-
-	ipv4_pool_head = kmalloc(sizeof(struct nat64_pool_entry *), GFP_KERNEL);
-	if (ipv4_pool_head == NULL) {
-		pr_debug("NAT64: couldn't load the IPv4 pool");
-	} else {
-		memset(&(ipv4_pool_head->ta_4), 0, sizeof(struct nat64_ipv4_ta));
-		ipv4_pool_head->next = NULL;
-		nat64_pool_init();
-	}
-
-	previousTime = 0;
-	currentTime = 0;
-
-	udp_period = gcd(udp_min, udp_default);
+	//net_disable_timestamp();
 
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
-
-	/* INIT ST & BIB */
-
-	udp_bib = kmalloc(sizeof(struct nat64_bib *), GFP_KERNEL);
-	udp_bib->head = NULL;
-
-	udp_st = kmalloc(sizeof(struct nat64_st *), GFP_KERNEL);
-	udp_st->head = NULL;
-	udp_st->tail = NULL;
-
-	/* END ST & BIB */
 
 	if (l3proto_ip == NULL)
 		pr_debug("NAT64: couldn't load IPv4 l3proto");
 	if (l3proto_ipv6 == NULL)
 		pr_debug("NAT64: couldn't load IPv6 l3proto");
 
+	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
+	if(!st_cache) {
+		printk(KERN_ERR "NAT64: Unable to create session table slab cache.\n");
+		goto st_cache_error;
+	} else {
+		printk("NAT64: The session table slab cache was succesfully created.\n");
+	}
+
+	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 0,0, NULL);
+	if(!bib_cache) {
+		printk(KERN_ERR "NAT64: Unable to create bib table slab cache.\n");
+		goto bib_cache_error;
+	} else {
+		printk("NAT64: The bib table slab cache was succesfully created.\n");
+	}
+
 	return xt_register_target(&nat64_tg_reg);
+	
+st_cache_error:
+	kmem_cache_destroy(st_cache);
+	return -ENOMEM;
+bib_cache_error:
+	kmem_cache_destroy(st_cache);
+	kmem_cache_destroy(bib_cache);
+	return -ENOMEM;
 }
 
 static void __exit nat64_exit(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);
-	//	kfree(ipv4_pool_head);
-	//	kfree(udp_bib);
-	//	kfree(udp_st);
+	kmem_cache_destroy(st_cache);
+	kmem_cache_destroy(bib_cache);
 	xt_unregister_target(&nat64_tg_reg);
 }
 
