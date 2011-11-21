@@ -97,7 +97,6 @@ struct kmem_cache *st_cache;
 struct kmem_cache *bib_cache;
 struct hlist_head *hash6;
 struct hlist_head *hash4;
-__be32 ipv4_addr = 0;
 unsigned int		hash_size;
 struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 {
@@ -108,6 +107,22 @@ struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 	{{NULL, NULL}, 60}
 };
 struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
+
+__be32 ipv4_addr = 0;
+int ipv4_prefixlen = 32;
+__be32 ipv4_netmask = 0xffffffff;
+static char *ipv4_address = NULL;
+struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, .s6_addr32[2] = 0, .s6_addr32[3] = 0};
+static char *prefix_address = "fec0::";
+int prefix_len = 64;
+
+module_param(ipv4_address, charp, 0);
+MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p for a subnet.");
+module_param(prefix_address, charp, 0);
+MODULE_PARM_DESC(prefix_len, "NAT64: Prefix address (default fec0::)");
+module_param(prefix_len, int, 0);
+MODULE_PARM_DESC(prefix_len, "NAT64: Prefix length (default /64)");
+
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 //static DEFINE_SPINLOCK(nf_nat64_fnu_lock);
@@ -237,6 +252,26 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	spin_unlock_bh(&nf_nat64_lock);
 
 	return ret;
+}
+
+static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
+{
+	switch(prefix) {
+	case 32:
+		return addr.s6_addr32[1];
+	case 40:
+		return 0;	//FIXME
+	case 48:
+		return 0;	//FIXME
+	case 56:
+		return 0;	//FIXME
+	case 64:
+		return 0;	//FIXME
+	case 96:
+		return addr.s6_addr32[3];
+	default:
+		return 0;
+	}
 }
 
 static int nat64_allocate_hash(unsigned int size)
@@ -780,6 +815,8 @@ static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol,
 static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
+	struct nat64_bib_entry *bib;
+	struct nat64_st_entry *session;
 	bool res;
 	int i;
 	res = true;
@@ -852,6 +889,17 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				 * 
 				 * In case these records are missing, they should be created.
 				 */
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, IPPROTO_UDP);
+				if(bib) {
+					session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
+					if(session) {
+						session_renew(session, UDP_DEFAULT);
+					} else {
+						session = session_create(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port, UDP_DEFAULT);
+					}
+				} else {
+					bib = bib_session_create(&(inner->src.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->src.u.udp.port, inner->dst.u.udp.port, l4protocol, UDP_DEFAULT);
+				}
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
