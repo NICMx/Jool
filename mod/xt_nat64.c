@@ -117,13 +117,13 @@ struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, .s6_addr32[
 static char *prefix_address = "fec0::";
 int prefix_len = 64;
 
-module_param(ipv4_address, charp, 0);
+/*module_param(ipv4_address, charp, 0);
 MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p for a subnet.");
 module_param(prefix_address, charp, 0);
 MODULE_PARM_DESC(prefix_len, "NAT64: Prefix address (default fec0::)");
 module_param(prefix_len, int, 0);
 MODULE_PARM_DESC(prefix_len, "NAT64: Prefix length (default /64)");
-
+*/
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 //static DEFINE_SPINLOCK(nf_nat64_fnu_lock);
@@ -867,9 +867,9 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		// FIXME: Return true if it is not H&H. A special return code 
 		// will have to be added as a param in the future to handle it.
 		res = true;
-		clean_expired_sessions(&expiry_queue);
-		for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
-			clean_expired_sessions(&expiry_base[i].queue);
+//		clean_expired_sessions(&expiry_queue);
+//		for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
+//			clean_expired_sessions(&expiry_base[i].queue);
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				/*
@@ -987,12 +987,14 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		pr_info("NAT64: There was an error determining the Tuple");
 		return NF_DROP;
 	} 
-
+	
 	if (!nat64_filtering_and_updating(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error in the updating and"
 				" filtering module");
 		return NF_DROP;
 	}
+
+	return NF_DROP;
 
 	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, &outgoing);
@@ -1073,6 +1075,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 static unsigned int nat64_tg(struct sk_buff *skb, 
 		const struct xt_action_param *par)
 {
+	return NF_DROP;
 	if (par->family == NFPROTO_IPV4)
 		return nat64_tg4(skb, par);
 	else if (par->family == NFPROTO_IPV6)
@@ -1108,6 +1111,9 @@ static int __init nat64_init(void)
 {
 	char *pos;
 	int ret;
+	ipv4_addr = 0;
+	ipv4_address = "192.168.56.0";
+
 	/*
 	 * Include nf_conntrack dependency
 	 */
@@ -1133,8 +1139,9 @@ static int __init nat64_init(void)
 	if (l3proto_ipv6 == NULL)
 		pr_debug("NAT64: couldn't load IPv6 l3proto");
 
-	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '/', NULL);
-	if (!ret)
+	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
+
+/*	if (!ret)
 	{
 		printk("nat64: ipv4 is malformed [%s] X(.\n", ipv4_address);
 		ret = -1;
@@ -1161,7 +1168,7 @@ static int __init nat64_init(void)
 		goto hash_error;
 	}
 
-	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
+*/	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
 	if(!st_cache) {
 		printk(KERN_ERR "NAT64: Unable to create session table slab cache.\n");
 		goto st_cache_error;
