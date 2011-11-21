@@ -141,17 +141,17 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		printk("nf_nat64: ip_route_output_key failed\n");
+		printk("nf_NAT64: ip_route_output_key failed\n");
 		return -EINVAL;
 	}
 	if (!rt) {
-		printk("nf_nat64: rt null\n");
+		printk("nf_NAT64: rt null\n");
 		return -EINVAL;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if(ip_local_out(skb)) {
-		printk("nf_nat64: ip_local_out failed\n");
+		printk("nf_NAT64: ip_local_out failed\n");
 		return -EINVAL;
 	}
 	return 0;	
@@ -288,7 +288,7 @@ static int nat64_allocate_hash(unsigned int size)
 			get_order(sizeof(struct hlist_head) * size));
 
 	if(!hash4) {
-		printk("nat64: Unable to allocate memory for hash4 via gfp X(.\n");
+		printk("NAT64: Unable to allocate memory for hash4 via gfp X(.\n");
 		return -1;
 		//hash = vmalloc(sizeof(struct hlist_head) * size);
 		//nat64_data.vmallocked = 1;
@@ -297,7 +297,7 @@ static int nat64_allocate_hash(unsigned int size)
 	hash6 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
 			get_order(sizeof(struct hlist_head) * size));
 	if(!hash6) {
-		printk("nat64: Unable to allocate memory for hash6 via gfp X(.\n");
+		printk("NAT64: Unable to allocate memory for hash6 via gfp X(.\n");
 		free_pages((unsigned long)hash4,
 				get_order(sizeof(struct hlist_head) * hash_size));
 		return -1;
@@ -1075,7 +1075,6 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 static unsigned int nat64_tg(struct sk_buff *skb, 
 		const struct xt_action_param *par)
 {
-	return NF_DROP;
 	if (par->family == NFPROTO_IPV4)
 		return nat64_tg4(skb, par);
 	else if (par->family == NFPROTO_IPV6)
@@ -1109,13 +1108,13 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 
 static int __init nat64_init(void)
 {
-	char *pos;
 	int ret = 0;
+	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
 	ipv4_address = "192.168.56.0"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0::"; // Default IPv6
-	prefix_len = 64; // Default IPv6 Prefix
+	prefix_len = 32; // Default IPv6 Prefix
 
 	/*
 	 * Include nf_conntrack dependency
@@ -1144,25 +1143,25 @@ static int __init nat64_init(void)
 
 	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
 
-/*	if (!ret)
+	if (!ret)
 	{
-		printk("nat64: ipv4 is malformed [%s] X(.\n", ipv4_address);
+		printk("NAT64: ipv4 is malformed [%s].\n", ipv4_address);
 		ret = -1;
 		goto error;
 	}
-	pos = strchr(ipv4_address, '/');
-	if(pos)
+	
+	if(ret)
 	{
-		ipv4_prefixlen = simple_strtol(++pos, NULL, 10);
+		//ipv4_prefixlen = simple_strtol(++pos, NULL, 10);
 		if(ipv4_prefixlen > 32 || ipv4_prefixlen < 1)
 		{
-			printk("nat64: ipv4 prefix is malformed [%s] X(.\n", ipv4_address);
+			printk("NAT64: ipv4 prefix is malformed [%s].\n", ipv4_address);
 			ret = -1;
 			goto error;
 		}
 		ipv4_netmask = inet_make_mask(ipv4_prefixlen);
 		ipv4_addr = ipv4_addr & ipv4_netmask;
-		printk("nat64: using IPv4 subnet %pI4/%d (netmask %pI4).\n", &ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
+		printk("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).\n", &ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
 	}
 
 	if(nat64_allocate_hash(65536))
@@ -1171,7 +1170,7 @@ static int __init nat64_init(void)
 		goto hash_error;
 	}
 
-*/	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
+	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
 	if(!st_cache) {
 		printk(KERN_ERR "NAT64: Unable to create session table slab cache.\n");
 		goto st_cache_error;
