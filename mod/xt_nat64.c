@@ -899,6 +899,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						session = session_create(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port, UDP_DEFAULT);
 					}
 				} else {
+					printk("Create a new BIB and Session entry\n");
 					bib = bib_session_create(&(inner->src.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->src.u.udp.port, inner->dst.u.udp.port, l4protocol, UDP_DEFAULT);
 				}
 				break;
@@ -1111,7 +1112,7 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.56.0"; // Default IPv4
+	ipv4_address = "192.168.57.0"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix

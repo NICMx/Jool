@@ -261,7 +261,7 @@ struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, 
 	s->expires = jiffies + expiry_base[type].timeout*HZ;
 	list_add_tail(&s->byexpiry, &expiry_base[type].queue);
 
-	printk("NAT64: [session] New session %pI4:%hu (timeout %u sec).\n", &addr, ntohs(port), expiry_base[type].timeout);
+	printk("NAT64: [session] New session %pI4:%hu (timeout %u sec).\n", &s->remote4_addr, s->remote4_port, expiry_base[type].timeout);
 	
 	return s;	
 }
@@ -362,7 +362,7 @@ struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr, __be32 daddr,
 
 	hlist_add_head(&bib->byremote, &hash6[nat64_hash6(*saddr, sport)]);
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
-
+	
 	session = session_create(bib, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cache, bib);
