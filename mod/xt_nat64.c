@@ -782,17 +782,24 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
+	
+	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple *), GFP_ATOMIC);
+	memset(outgoing, 0, sizeof(*outgoing));
+
+	if(!outgoing) {
+		printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
+	}
+	/*
+	 * Get the tuple out of the BIB and ST entries.
+	 */
 	bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, IPPROTO_UDP);
 	if(bib) {
 		session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
 		if(session) {
 			rcu_read_lock();
 
-			/*
-			 * Get the tuple out of the BIB and ST entries.
-			 */
-			memset(outgoing, 0, sizeof(*outgoing));
-			
+			// Obtain the data of the tuple.
+			outgoing->src.l3num = (u_int16_t)l3protocol; //GUACAMOLE
 			if (l3protocol == NFPROTO_IPV4) {
 				switch (l4protocol) {
 					case IPPROTO_TCP:
@@ -816,7 +823,14 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						pr_debug("NAT64: TCP protocol not currently supported.");
 						break;
 					case IPPROTO_UDP:
-							memcpy(&(outgoing->src.u3.in.s_addr), &(session->remote4_addr), sizeof(struct in_addr));
+						outgoing->src.u.udp.port = bib->local4_port;
+						outgoing->dst.u.udp.port = session->remote4_port;
+						outgoing->src.u3.ip = bib->local4_addr;
+//						outgoing->src.u3.in = ;
+						pr_debug("%d %d", outgoing->src.u.udp.port, outgoing->dst.u.udp.port);
+//							memcpy(&(outgoing->src.u3.in.s_addr), &(session->remote4_addr), sizeof(struct in_addr));
+//							if(outgoing->src.u3.in.s_addr)
+//							printk("%pI4", &(outgoing->src.u3.in.s_addr));
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -831,7 +845,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 			}
 			
 			pr_debug("\nPRINTED OUTGOING TUPLE");
-			nat64_print_tuple(outgoing);
+			//nat64_print_tuple(outgoing);
 			pr_debug("\n");
 			rcu_read_unlock();
 			

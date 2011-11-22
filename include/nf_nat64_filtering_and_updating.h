@@ -250,7 +250,7 @@ struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, 
 
 	s = kmem_cache_zalloc(st_cache, GFP_ATOMIC);
 	if(!s) {
-		printk("NAT64: [session] Unable to allocate memory for new session entry X(.\n");
+		printk("NAT64: [session] Unable to allocate memory for new session entry.\n");
 		return NULL;
 	}
 	s->state = CLOSED;
