@@ -482,7 +482,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	/*
 	 * FIXME: Hardcoded IPv4 Address.
 	 */
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ret = in4_pton("192.168.56.26", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
 	if (!ret) {
@@ -521,10 +521,11 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 */
 	//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
 
-	ret = in4_pton("192.168.56.2", -1, (__u8*)&(ip4srcaddr->s_addr),
+	ip4->saddr = (__be32) ip4srcaddr->s_addr;
+
+	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
 			'\x0', NULL);
 
-	ip4->saddr = (__be32) ip4srcaddr->s_addr;
 	ip4->daddr = (__be32) ip4srcaddr->s_addr;
 
 	/*
@@ -866,7 +867,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		pr_debug("NAT64: FNU - IPV6");	
 		// FIXME: Return true if it is not H&H. A special return code 
 		// will have to be added as a param in the future to handle it.
-		res = true;
+		res = false;
 //		clean_expired_sessions(&expiry_queue);
 //		for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
 //			clean_expired_sessions(&expiry_base[i].queue);
@@ -902,6 +903,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 					printk("Create a new BIB and Session entry\n");
 					bib = bib_session_create(&(inner->src.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->src.u.udp.port, inner->dst.u.udp.port, l4protocol, UDP_DEFAULT);
 				}
+				res = true;
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
@@ -916,7 +918,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				pr_debug("NAT64: layer 4 protocol not currently supported.");
 				break;
 		}
-		res = false;
 		goto end;
 	}
 
@@ -994,8 +995,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 				" filtering module");
 		return NF_DROP;
 	}
-
-	return NF_DROP;
 
 	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, &outgoing);
