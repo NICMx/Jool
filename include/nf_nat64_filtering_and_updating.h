@@ -261,7 +261,7 @@ struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, 
 	s->expires = jiffies + expiry_base[type].timeout*HZ;
 	list_add_tail(&s->byexpiry, &expiry_base[type].queue);
 
-	printk("NAT64: [session] New session %pI4:%hu (timeout %u sec).\n", &s->remote4_addr, s->remote4_port, expiry_base[type].timeout);
+	printk("NAT64: [session] New session %pI4:%hu (timeout %u sec).\n", &s->remote4_addr, ntohs(s->remote4_port), expiry_base[type].timeout);
 	
 	return s;	
 }

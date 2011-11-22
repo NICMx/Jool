@@ -268,7 +268,7 @@ static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 	case 64:
 		return 0;	//FIXME
 	case 96:
-		return addr.s6_addr32[3];
+		return addr.s6_addr32[1];
 	default:
 		return 0;
 	}
@@ -464,34 +464,12 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 		struct icmphdr * icmph;
 	} l4header;
 
-	void * ip6_transp;
-	struct in_addr * ip4srcaddr;
-	struct iphdr * ip4;
 	struct ipv6hdr * ip6;
-
-	/*
-	 * FIXME: hardcoded port.
-	 */
-	uint16_t new_port = htons(60000);
-
-	int ret = 0;
+	struct iphdr * ip4;
+	void * ip6_transp;
 
 	pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", &(outgoing->src.u3.in), outgoing->src.u.udp.port, &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
-	ip4srcaddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
-
-	/*
-	 * FIXME: Hardcoded IPv4 Address.
-	 */
-	ret = in4_pton("192.168.56.26", -1, (__u8*)&(ip4srcaddr->s_addr),
-			'\x0', NULL);
-
-	if (!ret) {
-		pr_debug("NAT64: getskb_from6to4.. "
-				"Something went wrong setting the "
-				"IPv4 source address");
-		return false;
-	}
-
+	
 	ip6 = ipv6_hdr(old_skb);
 	ip4 = ip_hdr(new_skb);
 
@@ -513,20 +491,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 
 	pr_debug("NAT64: l4 proto id = %u", ip6->nexthdr);
 
-	/*
-	 * Translation of packet. The RFC6146 states that the embedded IPv4 
-	 * address lies within the last 32 bits of the IPv6 address
-	 * NAT64 Translation algorithm... bit magic!
-	 * IMPORTANT: May need htonl function
-	 */
-	//	ip4->daddr = (__be32)(ip6->daddr.in6_u.u6_addr32)[3];
-
-	ip4->saddr = (__be32) ip4srcaddr->s_addr;
-
-	ret = in4_pton("192.168.56.3", -1, (__u8*)&(ip4srcaddr->s_addr),
-			'\x0', NULL);
-
-	ip4->daddr = (__be32) ip4srcaddr->s_addr;
+	ip4->saddr = outgoing->src.u3.in.s_addr;
+	ip4->daddr = outgoing->dst.u3.in.s_addr;
 
 	/*
 	 * Get pointer to Layer 4 header.
@@ -545,7 +511,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
-					&(l4header.uh->source), new_port,
+					&(l4header.uh->source), htons(outgoing->src.u.udp.port),
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -1174,7 +1140,7 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.57.0"; // Default IPv4
+	ipv4_address = "192.168.56.3"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
@@ -1223,7 +1189,7 @@ static int __init nat64_init(void)
 			goto error;
 		}
 		ipv4_netmask = inet_make_mask(ipv4_prefixlen);
-		ipv4_addr = ipv4_addr & ipv4_netmask;
+//		ipv4_addr = ipv4_addr & ipv4_netmask;
 		printk("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).\n", &ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
 	}
 
