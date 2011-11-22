@@ -780,6 +780,22 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						pr_debug("NAT64: TCP protocol not currently supported.");
 						break;
 					case IPPROTO_UDP:
+						bib = bib_ipv4_lookup(inner->src.u3.in.s_addr, 
+								inner->dst.u.udp.port, IPPROTO_UDP);
+						if(!bib) {
+							printk(KERN_ERR "NAT64: The bib entry of the outgoing tuple wasn't found.\n");
+							return NULL;
+						}
+
+						session = session_ipv4_lookup(bib, inner->src.u3.in.s_addr, 
+								inner->src.u.udp.port);				
+						if(!session) {
+							printk(KERN_ERR "NAT64: The session table entry of the outgoing tuple wasn't found.\n");
+							return NULL;
+						}
+						
+						// asignar a outgoing los datos de bib y session...
+						
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -860,23 +876,25 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		 * If there's no active session for the specified 
 		 * connection, the packet should be dropped
 		 */
+		res = false; 
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				//Query TCP ST
 				pr_debug("NAT64: TCP protocol not currently supported.");
 				break;
 			case IPPROTO_UDP:
-				//Query UDP ST
-				if (true) {
-					//continue processing...
-					//FIXME: FIND the session and check if the lifetime is up. If it is, keep processing.
-					res = true; 
-					goto end;
-				} else {
-					pr_debug("NAT64: no currently active session found; packet should be dropped.");
-					res = false; 
-					goto end;
+				//Query UDP BIB and ST
+				
+				bib = bib_ipv4_lookup(inner->src.u3.in.s_addr, inner->dst.u.udp.port, IPPROTO_UDP);
+				if(!bib) {
+				    return res;
 				}
+
+				session = session_ipv4_lookup(bib, inner->src.u3.in.s_addr, inner->src.u.udp.port);				
+				if(!session) {
+				    return res;
+				}
+
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
@@ -891,7 +909,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				pr_debug("NAT64: layer 4 protocol not currently supported.");
 				break;
 		}
-		res = false; 
 		goto end;
 	} else if (l3protocol == NFPROTO_IPV6) {
 		pr_debug("NAT64: FNU - IPV6");	
@@ -977,30 +994,6 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 }
 
 /*
- * IPv4 entry function
- *
- */
-static unsigned int nat64_tg4(struct sk_buff *skb, 
-		const struct xt_action_param *par)
-{
-	int buff_cont;
-	unsigned char *buf = skb->data;
-	unsigned char cc;
-
-	pr_debug("\n* ICNOMING IPV4 PACKET *\n");
-	pr_debug("Drop it\n");
-
-	for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
-		cc = buf[buff_cont];
-		printk(KERN_DEBUG "%02x",cc);
-	}
-
-	printk(KERN_DEBUG "\n");
-
-	return NF_DROP;
-}
-
-/*
  * NAT64 Core Functionality
  *
  */
@@ -1052,6 +1045,38 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	/* TODO: Incluir llamada a HAIRPINNING aqui */
 
 	return NF_DROP;
+}
+
+/*
+ * IPv4 entry function
+ *
+ */
+static unsigned int nat64_tg4(struct sk_buff *skb, 
+		const struct xt_action_param *par)
+{
+	const struct xt_nat64_tginfo *info = par->targinfo;
+	struct iphdr *iph = ip_hdr(skb);
+	__u8 l4_protocol = iph->protocol;
+
+	pr_debug("\n* INCOMING IPV4 PACKET *\n");
+	pr_debug("PKT SRC=%pI4 \n", &iph->saddr);
+	pr_debug("PKT DST=%pI4 \n", &iph->daddr);
+	pr_debug("RULE DST=%pI4 \n", &info->ipdst.in);
+	pr_debug("RULE DST_MSK=%pI4 \n", &info->ipdst_mask);
+
+	//ip_masked_addr_cmp(ip_a, ip_mask, ip_b)
+
+	if (l4_protocol & NAT64_IP_ALLWD_PROTOS) {
+		/*
+		 * Core functions of the NAT64 implementation.
+		 */
+		return nat64_core(skb, par, NFPROTO_IPV4, l4_protocol);
+	}
+
+	/*
+	 * If the packet is not in the allowed protocol list, it should be returned to the stack.
+	 */
+	return NF_ACCEPT;
 }
 
 /*

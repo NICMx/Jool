@@ -74,7 +74,7 @@ static inline __be16 nat64_hash6(struct in6_addr addr6, __be16 port)
 	return (addr4 >> 16) ^ addr4 ^ port;
 }
 
-void session_renew(struct nat64_st_entry *session, enum expiry_type type)
+static inline void session_renew(struct nat64_st_entry *session, enum expiry_type type)
 {
 	list_del(&session->byexpiry);
 	session->expires = jiffies + expiry_base[type].timeout*HZ;
@@ -82,7 +82,7 @@ void session_renew(struct nat64_st_entry *session, enum expiry_type type)
 	printk("NAT64: [session] Renewing session %pI4:%hu (timeout %u sec).\n", &session->remote4_addr, ntohs(session->remote4_port), expiry_base[type].timeout);
 }
 
-int tcp_timeout_fsm(struct nat64_st_entry *session)
+static inline int tcp_timeout_fsm(struct nat64_st_entry *session)
 {
 	if(session->state == ESTABLISHED) {
 		session_renew(session, TCP_TRANS);
@@ -93,7 +93,7 @@ int tcp_timeout_fsm(struct nat64_st_entry *session)
 	return 0;
 }
 
-void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
+static inline void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 {
 //	printk("nat64: [fsm4] Got packet state %d.\n", session->state);
 
@@ -143,7 +143,7 @@ void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 	}
 }
 
-void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
+static inline void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 {
 //	printk("nat64: [fsm6] Got packet state %d.\n", session->state);
 
@@ -197,7 +197,7 @@ void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 	}
 }
 
-static void clean_expired_sessions(struct list_head *queue)
+static inline void clean_expired_sessions(struct list_head *queue)
 {
 	struct list_head *pos;
 	struct list_head *n;
@@ -230,7 +230,7 @@ static void clean_expired_sessions(struct list_head *queue)
 	}
 }
 
-struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 remote4_addr, __be16 remote4_port)
+static inline struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 remote4_addr, __be16 remote4_port)
 {
 	struct nat64_st_entry	*session;
 	struct list_head	*pos;
@@ -244,7 +244,7 @@ struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 r
 	return NULL;
 }
 
-struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, __be16 port, enum expiry_type type)
+static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
 
@@ -266,7 +266,25 @@ struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, 
 	return s;	
 }
 
-struct nat64_bib_entry *bib_ipv6_lookup(struct in6_addr *remote_addr, __be16 remote_port, int type)
+static inline struct nat64_bib_entry *bib_ipv4_lookup(__be32 local_addr, __be16 local_port, int type)
+{
+	struct hlist_node	*pos;
+	struct nat64_bib_entry	*bib;
+	__be16			h = nat64_hash4(local_addr, local_port);
+	struct hlist_head	*hlist = &hash4[h];
+
+
+	hlist_for_each(pos, hlist) {
+		bib = hlist_entry(pos, struct nat64_bib_entry, bylocal);
+		if(bib->type == type && bib->local4_addr == local_addr && bib->local4_port == local_port)
+			return bib;
+	}
+
+	//return (pos ? bib : NULL);
+	return NULL;
+}
+
+static inline struct nat64_bib_entry *bib_ipv6_lookup(struct in6_addr *remote_addr, __be16 remote_port, int type)
 {
 	struct hlist_node	*pos;
 	struct nat64_bib_entry	*bib;
@@ -322,7 +340,7 @@ static inline int bib_allocate_local4_port(__be16 port, int type)
 	return -1;
 }
 
-struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, __be16 remote6_port,
+static inline struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type)
 {
 	struct nat64_bib_entry *bib;
@@ -344,7 +362,7 @@ struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, __be16 remote6
 	return bib;
 }
 
-struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
+static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
