@@ -782,10 +782,14 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
+	struct in_addr * temp_addr;
 	
-	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple *), GFP_ATOMIC);
+	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple *), GFP_KERNEL);
 	memset(outgoing, 0, sizeof(*outgoing));
 
+	temp_addr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
+	memset(temp_addr, 0, sizeof(*temp_addr));
+	
 	if(!outgoing) {
 		printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
 	}
@@ -796,10 +800,8 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 	if(bib) {
 		session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
 		if(session) {
-			rcu_read_lock();
-
 			// Obtain the data of the tuple.
-			outgoing->src.l3num = (u_int16_t)l3protocol; //GUACAMOLE
+			outgoing->src.l3num = (u_int16_t)l3protocol;
 			if (l3protocol == NFPROTO_IPV4) {
 				switch (l4protocol) {
 					case IPPROTO_TCP:
@@ -823,14 +825,21 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						pr_debug("NAT64: TCP protocol not currently supported.");
 						break;
 					case IPPROTO_UDP:
+						// Ports
 						outgoing->src.u.udp.port = bib->local4_port;
 						outgoing->dst.u.udp.port = session->remote4_port;
+
+						// SRC IP
 						outgoing->src.u3.ip = bib->local4_addr;
-//						outgoing->src.u3.in = ;
-						pr_debug("%d %d", outgoing->src.u.udp.port, outgoing->dst.u.udp.port);
-//							memcpy(&(outgoing->src.u3.in.s_addr), &(session->remote4_addr), sizeof(struct in_addr));
-//							if(outgoing->src.u3.in.s_addr)
-//							printk("%pI4", &(outgoing->src.u3.in.s_addr));
+						temp_addr->s_addr = bib->local4_addr;
+						outgoing->src.u3.in = *(temp_addr);
+
+						// DST IP
+						outgoing->dst.u3.ip = session->remote4_addr;
+						temp_addr->s_addr = session->remote4_addr;
+						outgoing->dst.u3.in = *(temp_addr);
+						
+						pr_debug("%d %d %pI4 %pI4", outgoing->src.u.udp.port, outgoing->dst.u.udp.port, &(outgoing->src.u3.in), &(outgoing->dst.u3.in));
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -847,7 +856,6 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 			pr_debug("\nPRINTED OUTGOING TUPLE");
 			//nat64_print_tuple(outgoing);
 			pr_debug("\n");
-			rcu_read_unlock();
 			
 			return outgoing;
 		} else {
@@ -1046,6 +1054,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 				" filtering module");
 		return NF_DROP;
 	}
+	return NF_DROP;
 
 	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, outgoing);
