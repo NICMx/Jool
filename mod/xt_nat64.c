@@ -453,7 +453,7 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 		struct sk_buff * new_skb, u_int8_t l3protocol, 
 		u_int8_t l4protocol, u_int8_t l3len, u_int8_t l4len, 
-		u_int8_t pay_len)
+		u_int8_t pay_len, struct nf_conntrack_tuple * outgoing)
 {
 	/*
 	 * Genric Layer 4 header structure.
@@ -476,6 +476,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 
 	int ret = 0;
 
+	pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", &(outgoing->src.u3.in), outgoing->src.u.udp.port, &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
 	ip4srcaddr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
 
 	/*
@@ -605,7 +606,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
  * that will be sent.
  */
 static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb)
+		struct sk_buff *skb, struct nf_conntrack_tuple * outgoing)
 {
 	struct sk_buff *new_skb;
 
@@ -711,7 +712,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		case NFPROTO_IPV6:
 			if (nat64_get_skb_from6to4(skb, new_skb, l3protocol,
 						l4protocol, l3hdrlen, l4hdrlen, 
-						(pay_len))) { 
+						(pay_len), outgoing)) { 
 				pr_debug("NAT64: Everything went OK populating the "
 						"new sk_buff");
 				return new_skb;
@@ -738,7 +739,7 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4p
 	 * The following changes the skb and the L3 and L4 layer protocols to 
 	 * the respective new values and calls determine_outgoing_tuple.
 	 */
-	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb);
+	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb, outgoing);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
@@ -778,7 +779,7 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4p
 static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * inner,
-		struct nf_conntrack_tuple *outgoing)
+		struct nf_conntrack_tuple * outgoing)
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
@@ -844,7 +845,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						temp_addr->s_addr = session->remote4_addr;
 						outgoing->dst.u3.in = *(temp_addr);
 						
-						pr_debug("%d %d %pI4 %pI4", outgoing->src.u.udp.port, outgoing->dst.u.udp.port, &(outgoing->src.u3.in), &(outgoing->dst.u3.in));
+						pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", &(outgoing->src.u3.in), outgoing->src.u.udp.port, &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -857,13 +858,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						break;
 				}
 			}
-			
-			if(outgoing) {
-				pr_debug("\nPRINTED OUTGOING TUPLE");
-//				nat64_print_tuple(outgoing);
-				pr_debug("\n");
-			}
-			
+						
 			return outgoing;
 		} else {
 			printk(KERN_ERR "The session wasn't found.\n");
@@ -1064,8 +1059,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 
 	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, outgoing);
-
-	return NF_DROP;
 
 	if (!outgoing) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
