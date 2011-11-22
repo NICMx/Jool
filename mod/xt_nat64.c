@@ -126,7 +126,6 @@ MODULE_PARM_DESC(prefix_len, "NAT64: Prefix length (default /64)");
 */
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
-//static DEFINE_SPINLOCK(nf_nat64_fnu_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
@@ -781,6 +780,73 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple *outgoing)
 {
+	struct nat64_bib_entry *bib;
+	struct nat64_st_entry *session;
+	bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, IPPROTO_UDP);
+	if(bib) {
+		session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
+		if(session) {
+			rcu_read_lock();
+
+			/*
+			 * Get the tuple out of the BIB and ST entries.
+			 */
+			memset(outgoing, 0, sizeof(*outgoing));
+			
+			if (l3protocol == NFPROTO_IPV4) {
+				switch (l4protocol) {
+					case IPPROTO_TCP:
+						pr_debug("NAT64: TCP protocol not currently supported.");
+						break;
+					case IPPROTO_UDP:
+						break;
+					case IPPROTO_ICMP:
+						pr_debug("NAT64: ICMP protocol not currently supported.");
+						break;
+					case IPPROTO_ICMPV6:
+						pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+						break;
+					default:
+						pr_debug("NAT64: layer 4 protocol not currently supported.");
+						break;
+				}
+			} else if (l3protocol == NFPROTO_IPV6) {
+				switch (l4protocol) {
+					case IPPROTO_TCP:
+						pr_debug("NAT64: TCP protocol not currently supported.");
+						break;
+					case IPPROTO_UDP:
+							
+						break;
+					case IPPROTO_ICMP:
+						pr_debug("NAT64: ICMP protocol not currently supported.");
+						break;
+					case IPPROTO_ICMPV6:
+						pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+						break;
+					default:
+						pr_debug("NAT64: layer 4 protocol not currently supported.");
+						break;
+				}
+			}
+			
+			pr_debug("\nPRINTED OUTGOING TUPLE");
+			nat64_print_tuple(outgoing);
+			pr_debug("\n");
+			rcu_read_unlock();
+			
+			return outgoing;
+		} else {
+			printk(KERN_ERR "The session wasn't found.\n");
+			goto error;
+		}
+	} else {
+		printk(KERN_ERR "The BIB wasn't found.\n");
+		goto error;
+	}
+	
+	goto error;
+error:
 	return NULL;
 }
 
@@ -953,7 +1019,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		u_int8_t l4protocol) {
 
 	struct nf_conntrack_tuple inner;
-	struct nf_conntrack_tuple outgoing;
+	struct nf_conntrack_tuple * outgoing;
 	struct sk_buff * new_skb;
 
 	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
@@ -967,16 +1033,16 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-/*	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-			skb, &inner, &outgoing);
+	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+			skb, &inner, outgoing);
 
 	if (!outgoing) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
 				" tuple module");
 		return NF_DROP;
 	}
-*/
-	new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, &outgoing);
+
+	new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, outgoing);
 
 	if (!new_skb) {
 		pr_info("NAT64: There was an error in the packet translation"
