@@ -783,16 +783,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
 	struct in_addr * temp_addr;
-	
-	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple *), GFP_KERNEL);
-	memset(outgoing, 0, sizeof(*outgoing));
 
-	temp_addr = kmalloc(sizeof(struct in_addr *), GFP_KERNEL);
-	memset(temp_addr, 0, sizeof(*temp_addr));
-	
-	if(!outgoing) {
-		printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
-	}
 	/*
 	 * Get the tuple out of the BIB and ST entries.
 	 */
@@ -800,6 +791,20 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 	if(bib) {
 		session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
 		if(session) {
+			outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
+			memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
+
+			temp_addr = kmalloc(sizeof(struct in_addr), GFP_ATOMIC);
+			memset(temp_addr, 0, sizeof(struct in_addr));
+	
+			if(!outgoing) {
+				printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
+				return NULL;
+			}
+			if(!temp_addr) {
+				printk(KERN_ERR "NAT64: There's not enough memory to do a procedure to get the outgoing tuple.\n");
+				return NULL;
+			}
 			// Obtain the data of the tuple.
 			outgoing->src.l3num = (u_int16_t)l3protocol;
 			if (l3protocol == NFPROTO_IPV4) {
@@ -853,9 +858,11 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 				}
 			}
 			
-			pr_debug("\nPRINTED OUTGOING TUPLE");
-			//nat64_print_tuple(outgoing);
-			pr_debug("\n");
+			if(outgoing) {
+				pr_debug("\nPRINTED OUTGOING TUPLE");
+//				nat64_print_tuple(outgoing);
+				pr_debug("\n");
+			}
 			
 			return outgoing;
 		} else {
@@ -1054,10 +1061,11 @@ static unsigned int nat64_core(struct sk_buff *skb,
 				" filtering module");
 		return NF_DROP;
 	}
-	return NF_DROP;
 
 	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, outgoing);
+
+	return NF_DROP;
 
 	if (!outgoing) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
