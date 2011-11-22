@@ -816,7 +816,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						pr_debug("NAT64: TCP protocol not currently supported.");
 						break;
 					case IPPROTO_UDP:
-							
+							memcpy(&(outgoing->src.u3.in.s_addr), &(session->remote4_addr), sizeof(struct in_addr));
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
