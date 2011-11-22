@@ -730,23 +730,23 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
  * END: NAT64 shared functions.
  */
 
-static bool nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol, 
+static struct sk_buff * nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, 
 		struct nf_conntrack_tuple * outgoing_t) 
 {
 	pr_debug("NAT64: Translating the packet stage went OK.");
-	return true;
+	return skb;
 }
 
-static bool nat64_translate_packet_ip6(u_int8_t l3protocol, u_int8_t l4protocol, 
+static struct sk_buff * nat64_translate_packet_ip6(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, 
 		struct nf_conntrack_tuple * outgoing_t)
 {
 	pr_debug("NAT64: Translating the packet stage went OK.");
-	return true;
+	return skb;
 }
 
-static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol, 
+static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, 
 		struct nf_conntrack_tuple * outgoing_t)
 {
@@ -759,11 +759,11 @@ static bool nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol,
 			return nat64_translate_packet_ip6(l3protocol, 
 					l4protocol, skb, outgoing_t);
 		default:
-			return false;
+			return skb;
 	}
 }
 
-static struct sk_buff * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
+static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
 		u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple *outgoing)
@@ -996,16 +996,18 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-	new_skb = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, &outgoing);
 
-	if (!new_skb) {
+	if (!outgoing) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
 				" tuple module");
 		return NF_DROP;
 	}
 
-	if (!nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing)) {
+	new_skb = nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing);
+
+	if (!new_skb) {
 		pr_info("NAT64: There was an error in the packet translation"
 				" module");
 		return NF_DROP;
