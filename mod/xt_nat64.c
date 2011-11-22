@@ -730,43 +730,9 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
  * END: NAT64 shared functions.
  */
 
-static struct sk_buff * nat64_translate_packet_ip4(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, 
-		struct nf_conntrack_tuple * outgoing_t) 
-{
-	pr_debug("NAT64: Translating the packet stage went OK.");
-	return skb;
-}
-
-static struct sk_buff * nat64_translate_packet_ip6(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, 
-		struct nf_conntrack_tuple * outgoing_t)
-{
-	pr_debug("NAT64: Translating the packet stage went OK.");
-	return skb;
-}
-
 static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, 
-		struct nf_conntrack_tuple * outgoing_t)
-{
-	switch(l3protocol) {
-		case NFPROTO_IPV4:
-			return nat64_translate_packet_ip4(l3protocol, 
-					l4protocol, skb, outgoing_t);
-			break;
-		case NFPROTO_IPV6:
-			return nat64_translate_packet_ip6(l3protocol, 
-					l4protocol, skb, outgoing_t);
-		default:
-			return skb;
-	}
-}
-
-static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
-		u_int8_t l4protocol, struct sk_buff *skb, 
-		struct nf_conntrack_tuple * inner,
-		struct nf_conntrack_tuple *outgoing)
+		struct nf_conntrack_tuple * outgoing)
 {
 	/*
 	 * FIXME: Handle IPv6 options.
@@ -810,6 +776,14 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 	return new_skb;
 }
 
+static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
+		u_int8_t l4protocol, struct sk_buff *skb, 
+		struct nf_conntrack_tuple * inner,
+		struct nf_conntrack_tuple *outgoing)
+{
+	return NULL;
+}
+
 /*
  * This procedure performs packet filtering and
  * updates BIBs and STs.
@@ -820,7 +794,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
 	bool res;
-	int i;
+//	int i;
 	res = true;
 
 	if (l3protocol == NFPROTO_IPV4) {
@@ -978,9 +952,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		const struct xt_action_param *par, u_int8_t l3protocol,
 		u_int8_t l4protocol) {
 
-	/*
-	 * Checks whether the function returned true or false.
-	 */
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple outgoing;
 	struct sk_buff * new_skb;
@@ -996,7 +967,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+/*	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, &outgoing);
 
 	if (!outgoing) {
@@ -1004,8 +975,8 @@ static unsigned int nat64_core(struct sk_buff *skb,
 				" tuple module");
 		return NF_DROP;
 	}
-
-	new_skb = nat64_translate_packet(l3protocol, l4protocol, new_skb, &outgoing);
+*/
+	new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, &outgoing);
 
 	if (!new_skb) {
 		pr_info("NAT64: There was an error in the packet translation"
