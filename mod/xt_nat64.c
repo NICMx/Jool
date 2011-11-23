@@ -113,17 +113,20 @@ __be32 ipv4_addr;
 int ipv4_prefixlen;
 __be32 ipv4_netmask;
 static char *ipv4_address;
-struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, .s6_addr32[2] = 0, .s6_addr32[3] = 0};
+struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
+	.s6_addr32[2] = 0, .s6_addr32[3] = 0};
 static char *prefix_address;
 int prefix_len;
 
 /*module_param(ipv4_address, charp, 0);
-  MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p for a subnet.");
+  MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by 
+  translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p 
+  for a subnet.");
   module_param(prefix_address, charp, 0);
   MODULE_PARM_DESC(prefix_len, "NAT64: Prefix address (default fec0::)");
   module_param(prefix_len, int, 0);
   MODULE_PARM_DESC(prefix_len, "NAT64: Prefix length (default /64)");
- */
+  */
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 
@@ -140,17 +143,17 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		printk("nf_NAT64: ip_route_output_key failed\n");
+		pr_err("nf_NAT64: ip_route_output_key failed");
 		return -EINVAL;
 	}
 	if (!rt) {
-		printk("nf_NAT64: rt null\n");
+		pr_err("nf_NAT64: rt null");
 		return -EINVAL;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
-	if(ip_local_out(skb)) {
-		printk("nf_NAT64: ip_local_out failed\n");
+	if (ip_local_out(skb)) {
+		pr_err("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
 	return 0;	
@@ -199,7 +202,6 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	 * Set the destination to the skb.
 	 */
 	skb_dst_set(skb, &(rt->dst));
-	//pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len);
 
 	/*
 	 * Makes sure the net_device can actually send packets.
@@ -329,8 +331,8 @@ static int nat64_allocate_hash(unsigned int size)
 	hash4 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
 			get_order(sizeof(struct hlist_head) * size));
 
-	if(!hash4) {
-		printk("NAT64: Unable to allocate memory for hash4 via gfp X(.\n");
+	if (!hash4) {
+		pr_err("NAT64: Unable to allocate memory for hash4 via GFP.");
 		return -1;
 		//hash = vmalloc(sizeof(struct hlist_head) * size);
 		//nat64_data.vmallocked = 1;
@@ -338,8 +340,8 @@ static int nat64_allocate_hash(unsigned int size)
 
 	hash6 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
 			get_order(sizeof(struct hlist_head) * size));
-	if(!hash6) {
-		printk("NAT64: Unable to allocate memory for hash6 via gfp X(.\n");
+	if (!hash6) {
+		pr_err("NAT64: Unable to allocate memory for hash6 via gfp X(.");
 		free_pages((unsigned long)hash4,
 				get_order(sizeof(struct hlist_head) * hash_size));
 		return -1;
@@ -460,7 +462,8 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
-	pr_debug("l4proto name = %s %d %d", l4proto->name, (u_int32_t)l4proto->l3proto, (u_int32_t)l4proto->l4proto);
+	pr_debug("l4proto name = %s %d %d", l4proto->name, 
+			(u_int32_t)l4proto->l3proto, (u_int32_t)l4proto->l4proto);
 
 	/*
 	 * Get the tuple out of the sk_buff.
@@ -514,39 +517,40 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 	ip6->flow_lbl[0] = 0;
 	ip6->flow_lbl[1] = 0;
 	ip6->flow_lbl[2] = 0;
-	
+
 	ip6->payload_len = htons(pay_len);
 	ip6->nexthdr  = ip4->protocol;
 	ip6->hop_limit = ip4->ttl;
 
 	memcpy(&(ip6->saddr), &(outgoing->src.u3.in6), sizeof(struct in6_addr)); // Y'
 	memcpy(&(ip6->daddr), &(outgoing->dst.u3.in6), sizeof(struct in6_addr)); // X'
-	
+
 	/*
 	 * Get pointer to Layer 4 header.
 	 */
 	ip_transp = skb_transport_header(old_skb);
 
 	switch(ip6->nexthdr) {
-	case IPPROTO_UDP:
-		l4header.uh = (struct udphdr *)(ip6 + 1);
-		memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
-		checksum_change(&(l4header.uh->check), 
-				&(l4header.uh->source), htons(outgoing->src.u.udp.port),
-				(ip4->protocol == IPPROTO_UDP) ? 
-				true : false);
-					
-		adjust_checksum_ipv4_to_ipv6(&(l4header.uh->check), ip4, ip6, 
-				(ip4->protocol == IPPROTO_UDP) ? 
-				true : false);
-		break;
-	case IPPROTO_TCP:
-		break;
-	case IPPROTO_ICMP:
-		break;
-	default:
-		WARN_ON_ONCE(1);
-		return false;
+		case IPPROTO_UDP:
+			l4header.uh = (struct udphdr *)(ip6 + 1);
+			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
+			checksum_change(&(l4header.uh->check), 
+					&(l4header.uh->source), 
+					htons(outgoing->src.u.udp.port),
+					(ip4->protocol == IPPROTO_UDP) ? 
+					true : false);
+
+			adjust_checksum_ipv4_to_ipv6(&(l4header.uh->check), ip4, ip6, 
+					(ip4->protocol == IPPROTO_UDP) ? 
+					true : false);
+			break;
+		case IPPROTO_TCP:
+			break;
+		case IPPROTO_ICMP:
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			return false;
 	}
 
 	return true;
@@ -623,7 +627,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
-					&(l4header.uh->source), htons(outgoing->src.u.udp.port),
+					&(l4header.uh->source), 
+					htons(outgoing->src.u.udp.port),
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -748,7 +753,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: l4hdrlen %d", l4hdrlen);
 
 	packet_len = l3hdrlen + l4hdrlen + pay_len;
-	
+
 	/*
 	 * LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	 */
@@ -781,7 +786,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		}
 		return NULL;
 	}
-	
+
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
 			if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
@@ -816,8 +821,8 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
  * END: NAT64 shared functions.
  */
 
-static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4protocol, 
-		struct sk_buff *skb, 
+static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, 
+		u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * outgoing)
 {
 	/*
@@ -825,7 +830,8 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4p
 	 * The following changes the skb and the L3 and L4 layer protocols to 
 	 * the respective new values and calls determine_outgoing_tuple.
 	 */
-	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb, outgoing);
+	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb,
+			outgoing);
 
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
@@ -851,19 +857,20 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4p
 		return NULL;
 	}
 
-	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, new_skb, outgoing))) { //FIXME: No sirve para IPv6
+	//FIXME: No sirve para IPv6
+	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, 
+					new_skb, outgoing))) { 
 		pr_debug("NAT64: Something went wrong getting the tuple");
 		return NULL;
 	}
 
 	pr_debug("NAT64: Determining the translate the packet stage went OK.");
-	//pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-	
+
 	return new_skb;
 }
 
-static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3protocol, 
-		u_int8_t l4protocol, struct sk_buff *skb, 
+static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
+		u_int8_t l3protocol, u_int8_t l4protocol, struct sk_buff *skb, 
 		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple * outgoing)
 {
@@ -875,8 +882,8 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
 	memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
 
-	if(!outgoing) {
-		printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
+	if (!outgoing) {
+		pr_err("NAT64: There's not enough memory for the outgoing tuple.");
 		return NULL;
 	}
 
@@ -887,26 +894,33 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 		temp6_addr = kmalloc(sizeof(struct in6_addr), GFP_ATOMIC);
 		memset(temp6_addr, 0, sizeof(struct in6_addr));
 
-		if(!temp6_addr) {
-			printk(KERN_ERR "NAT64: There's not enough memory to do a procedure to get the outgoing tuple.\n");
+		if (!temp6_addr) {
+			pr_err("NAT64: There's not enough memory to do a procedure "
+					"to get the outgoing tuple.");
 			return NULL;
 		}
 		switch (l4protocol) {
 			case IPPROTO_TCP:
-				pr_debug("NAT64: TCP protocol not currently supported.");
+				pr_debug("NAT64: TCP protocol not"
+						" currently supported.");
 				break;
 			case IPPROTO_UDP:
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-					htons(inner->dst.u.udp.port), IPPROTO_UDP);
-				if(!bib) {
-					printk(KERN_ERR "NAT64: The bib entry of the outgoing tuple wasn't found.\n");
+						htons(inner->dst.u.udp.port), 
+						IPPROTO_UDP);
+				if (!bib) {
+					pr_err("NAT64: The bib entry of the outgoing"
+							" tuple wasn't found.");
 					return NULL;
 				}
 
-				session = session_ipv4_lookup(bib, inner->src.u3.in.s_addr, 
+				session = session_ipv4_lookup(bib, 
+						inner->src.u3.in.s_addr, 
 						inner->src.u.udp.port);				
-				if(!session) {
-					printk(KERN_ERR "NAT64: The session table entry of the outgoing tuple wasn't found.\n");
+				if (!session) {
+					pr_debug("NAT64: The session table entry of"
+							" the outgoing tuple wasn't"
+							" found.");
 					return NULL;
 				}
 
@@ -914,51 +928,65 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 				outgoing->src.l3num = (u_int16_t)l3protocol;
 
 				// Ports
-				outgoing->src.u.udp.port = session->embedded6_port; // y port
-				outgoing->dst.u.udp.port = session->remote6_port; // x port
+				outgoing->src.u.udp.port = 
+					session->embedded6_port; // y port
+				outgoing->dst.u.udp.port = 
+					session->remote6_port; // x port
 
 				// SRC IP
-				outgoing->src.u3.in6 = session->embedded6_addr; // Y' addr
+				outgoing->src.u3.in6 = 
+					session->embedded6_addr; // Y' addr
 
 				// DST IP
-				outgoing->dst.u3.in6 = session->remote6_addr; // X' addr
+				outgoing->dst.u3.in6 = 
+					session->remote6_addr; // X' addr
 
 				break;
 			case IPPROTO_ICMP:
-				pr_debug("NAT64: ICMP protocol not currently supported.");
+				pr_debug("NAT64: ICMP protocol not currently "
+						"supported.");
 				break;
 			case IPPROTO_ICMPV6:
-				pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+				pr_debug("NAT64: ICMPv6 protocol not currently "
+						"supported.");
 				break;
 			default:
-				pr_debug("NAT64: layer 4 protocol not currently supported.");
+				pr_debug("NAT64: layer 4 protocol not currently "
+						"supported.");
 				break;
 		}
 	} else if (l3protocol == NFPROTO_IPV6) {
 		temp_addr = kmalloc(sizeof(struct in_addr), GFP_ATOMIC);
 		memset(temp_addr, 0, sizeof(struct in_addr));
 
-		if(!temp_addr) {
-			printk(KERN_ERR "NAT64: There's not enough memory to do a procedure to get the outgoing tuple.\n");
+		if (!temp_addr) {
+			pr_err("NAT64: There's not enough memory to do a "
+					"procedure to get the outgoing tuple.");
 			return NULL;
 		}
 		/*
 		 * Get the tuple out of the BIB and ST entries.
 		 */
-		bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, IPPROTO_UDP);
-		if(bib) {
-			session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
-			if(session) {
+		bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, 
+				IPPROTO_UDP);
+		if (bib) {
+			session = session_ipv4_lookup(bib, 
+					nat64_extract_ipv4(inner->dst.u3.in6, 
+						prefix_len), inner->dst.u.udp.port);
+			if (session) {
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
 				switch (l4protocol) {
 					case IPPROTO_TCP:
-						pr_debug("NAT64: TCP protocol not currently supported.");
+						pr_debug("NAT64: TCP protocol not "
+								"currently supported.");
 						break;
 					case IPPROTO_UDP:
 						// Ports
-						outgoing->src.u.udp.port = bib->local4_port;
-						outgoing->dst.u.udp.port = session->remote4_port;
+						outgoing->src.u.udp.port = 
+							bib->local4_port;
+						outgoing->dst.u.udp.port = 
+							session->remote4_port;
 
 						// SRC IP
 						outgoing->src.u3.ip = bib->local4_addr;
@@ -971,8 +999,8 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						outgoing->dst.u3.in = *(temp_addr);
 
 						pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
-							&(outgoing->src.u3.in), outgoing->src.u.udp.port, 
-							&(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
+								&(outgoing->src.u3.in), outgoing->src.u.udp.port, 
+								&(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -985,18 +1013,17 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 						break;
 				}
 			} else {
-				printk(KERN_ERR "The session wasn't found.\n");
+				pr_err("The session wasn't found.");
 				goto error;
 			}
 		} else {
-			printk(KERN_ERR "The BIB wasn't found.\n");
+			pr_err("The BIB wasn't found.");
 			goto error;
 		}
 	}
 
 	return outgoing;
 
-	goto error;
 error:
 	return NULL;
 }
@@ -1029,32 +1056,41 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 			case IPPROTO_UDP:
 				//Query UDP BIB and ST
 
-				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, htons(inner->dst.u.udp.port), IPPROTO_UDP);
-				if(!bib) {
-					pr_debug("NAT64: IPv4 - BIB is missing.");
+				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+						htons(inner->dst.u.udp.port), 
+						IPPROTO_UDP);
+				if (!bib) {
+					pr_err("NAT64: IPv4 - BIB is missing.");
 					return res;
 				}
 
-				session = session_ipv4_lookup(bib, inner->src.u3.in.s_addr, inner->src.u.udp.port);				
-				if(!session) {
-					pr_debug("NAT64: IPv4 - session entry is missing.");
+				session = session_ipv4_lookup(bib, 
+						inner->src.u3.in.s_addr, 
+						inner->src.u.udp.port);				
+				if (!session) {
+					pr_err("NAT64: IPv4 - session entry is "
+							"missing.");
 					return res;
 				}
-				
-				pr_debug("NAT64: UDP protocol for IPv4 finished properly.");
+
+				pr_debug("NAT64: UDP protocol for IPv4 "
+						"finished properly.");
 				res = true;
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
-				pr_debug("NAT64: ICMP protocol not currently supported.");
+				pr_debug("NAT64: ICMP protocol not "
+						"currently supported.");
 				break;
 			case IPPROTO_ICMPV6:
 				//Query ICMPV6 ST
-				pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+				pr_debug("NAT64: ICMPv6 protocol not "
+						"currently supported.");
 				break;
 			default:
 				//Drop packet
-				pr_debug("NAT64: layer 4 protocol not currently supported.");
+				pr_debug("NAT64: layer 4 protocol not "
+						"currently supported.");
 				break;
 		}
 		goto end;
@@ -1069,48 +1105,69 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				/*
-				 * Verify if there's any binding for the src address by querying
-				 * the TCP BIB. If there's a binding, verify if there's a
-				 * connection to the specified destination by querying the TCP ST.
-				 * 
-				 * In case any of these records are missing, they should be created.
+				 * FIXME: Finish TCP session handling
 				 */
-				pr_debug("NAT64: TCP protocol not currently supported.");
+				pr_debug("NAT64: TCP protocol not currently "
+						"supported.");
 				break;
 			case IPPROTO_UDP:
 				pr_debug("NAT64: FNU - UDP");
 				/*
-				 * Verify if there's any binding for the src address by querying
-				 * the UDP BIB. If there's a binding, verify if there's a
-				 * connection to the specified destination by querying the UDP ST.
+				 * Verify if there's any binding for the src 
+				 * address by querying the UDP BIB. If there's a
+				 * binding, verify if there's a connection to the 
+				 * specified destination by querying the UDP ST.
 				 * 
-				 * In case these records are missing, they should be created.
+				 * In case these records are missing, they 
+				 * should be created.
 				 */
-				bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, IPPROTO_UDP);
-				if(bib) {
-					session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
-					if(session) {
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
+						inner->src.u.udp.port, IPPROTO_UDP);
+				if (bib) {
+					session = session_ipv4_lookup(bib, 
+							nat64_extract_ipv4(
+								inner->dst.u3.in6, 
+								prefix_len), 
+							inner->dst.u.udp.port);
+					if (session) {
 						session_renew(session, UDP_DEFAULT);
 					} else {
-						session = session_create(bib, &(inner->dst.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port, UDP_DEFAULT);
+						session = session_create(bib, 
+								&(inner->dst.u3.in6), 
+								nat64_extract_ipv4(
+									inner->dst.u3.in6, 
+									prefix_len), 
+								inner->dst.u.udp.port, 
+								UDP_DEFAULT);
 					}
 				} else {
-					printk("Create a new BIB and Session entry\n");
-					bib = bib_session_create(&(inner->src.u3.in6), &(inner->dst.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->src.u.udp.port, inner->dst.u.udp.port, l4protocol, UDP_DEFAULT);
+					pr_debug("Create a new BIB and Session entry");
+					bib = bib_session_create(
+							&(inner->src.u3.in6), 
+							&(inner->dst.u3.in6), 
+							nat64_extract_ipv4(
+								inner->dst.u3.in6, 
+								prefix_len), 
+							inner->src.u.udp.port, 
+							inner->dst.u.udp.port, 
+							l4protocol, UDP_DEFAULT);
 				}
 				res = true;
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
-				pr_debug("NAT64: ICMP protocol not currently supported.");
+				pr_debug("NAT64: ICMP protocol not currently "
+						"supported.");
 				break;
 			case IPPROTO_ICMPV6:
 				//Query ICMPV6 ST
-				pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+				pr_debug("NAT64: ICMPv6 protocol not currently "
+						"supported.");
 				break;
 			default:
 				//Drop packet
-				pr_debug("NAT64: layer 4 protocol not currently supported.");
+				pr_debug("NAT64: layer 4 protocol not currently "
+						"supported.");
 				break;
 		}
 		goto end;
@@ -1118,7 +1175,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 
 	return res;
 end: 
-	if(res) 
+	if (res) 
 		pr_debug("NAT64: Updating and Filtering stage went OK.");
 	else 
 		pr_debug("NAT64: Updating and Filtering stage FAILED.");
@@ -1152,7 +1209,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple * outgoing;
 	struct sk_buff * new_skb;
-		
+
 	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error determining the Tuple");
 		return NF_DROP;
@@ -1223,7 +1280,8 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
 	}
 
 	/*
-	 * If the packet is not in the allowed protocol list, it should be returned to the stack.
+	 * If the packet is not in the allowed protocol list, it should be 
+	 * returned to the stack.
 	 */
 	return NF_ACCEPT;
 }
@@ -1339,54 +1397,61 @@ static int __init nat64_init(void)
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
 
-	if (l3proto_ip == NULL)
-		pr_debug("NAT64: couldn't load IPv4 l3proto");
-	if (l3proto_ipv6 == NULL)
-		pr_debug("NAT64: couldn't load IPv6 l3proto");
+	if (l3proto_ip == NULL) {
+		pr_err("NAT64: couldn't load IPv4 l3proto");
+		goto error;
+	} if (l3proto_ipv6 == NULL) {
+		pr_err("NAT64: couldn't load IPv6 l3proto");
+		goto error;
+	}
 
 	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
 
-	if (!ret)
-	{
-		printk("NAT64: ipv4 is malformed [%s].\n", ipv4_address);
+	if (!ret) {
+		pr_err("NAT64: ipv4 is malformed [%s].", ipv4_address);
 		ret = -1;
 		goto error;
 	}
 
-	if(ret)
-	{
+	if (ret) {
 		//ipv4_prefixlen = simple_strtol(++pos, NULL, 10);
-		if(ipv4_prefixlen > 32 || ipv4_prefixlen < 1)
-		{
-			printk("NAT64: ipv4 prefix is malformed [%s].\n", ipv4_address);
+		if (ipv4_prefixlen > 32 || ipv4_prefixlen < 1) {
+			pr_warning("NAT64: ipv4 prefix is malformed [%s].", 
+					ipv4_address);
 			ret = -1;
 			goto error;
 		}
+
 		ipv4_netmask = inet_make_mask(ipv4_prefixlen);
 		//		ipv4_addr = ipv4_addr & ipv4_netmask;
-		printk("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).\n", &ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
+		pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
+				&ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
 	}
 
-	if(nat64_allocate_hash(65536))
-	{
-		printk("NAT64: Unable to allocate memmory for hash table.\n");
+	if (nat64_allocate_hash(65536)) {
+		pr_err("NAT64: Unable to allocate memmory for hash table.");
 		goto hash_error;
 	}
 
-	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0,0, NULL);
-	if(!st_cache) {
-		printk(KERN_ERR "NAT64: Unable to create session table slab cache.\n");
+	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
+			0,0, NULL);
+
+	if (!st_cache) {
+		pr_err("NAT64: Unable to create session table slab cache.");
 		goto st_cache_error;
 	} else {
-		printk("NAT64: The session table slab cache was succesfully created.\n");
+		pr_debug("NAT64: The session table slab cache was succesfully"
+				" created.\n");
 	}
 
-	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 0,0, NULL);
-	if(!bib_cache) {
-		printk(KERN_ERR "NAT64: Unable to create bib table slab cache.\n");
+	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 
+			0,0, NULL);
+
+	if (!bib_cache) {
+		pr_err("NAT64: Unable to create bib table slab cache.");
 		goto bib_cache_error;
 	} else {
-		printk("NAT64: The bib table slab cache was succesfully created.\n");
+		pr_debug("NAT64: The bib table slab cache was succesfully created.");
 	}
 
 	return xt_register_target(&nat64_tg_reg);
