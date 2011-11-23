@@ -468,7 +468,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	struct iphdr * ip4;
 	void * ip6_transp;
 
-	pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", &(outgoing->src.u3.in), outgoing->src.u.udp.port, &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
+	//pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
+	//&(outgoing->src.u3.in), outgoing->src.u.udp.port, &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
 
 	ip6 = ipv6_hdr(old_skb);
 	ip4 = ip_hdr(new_skb);
@@ -1051,11 +1052,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	if (!outgoing) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
 				" tuple module");
-		return NF_DROP;
-	}
-
-	if (l3protocol == NFPROTO_IPV4) {
-		pr_info("NAT64: IPV4");
 		return NF_DROP;
 	}
 
