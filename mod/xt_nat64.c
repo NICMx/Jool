@@ -160,6 +160,47 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 }
 
 // End Ecdysis
+static int nat64_send_packet_ipv6(struct sk_buff *skb) 
+{
+	// Based on Ecdysis' nat64_output_ipv4
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct flowi fl;
+	struct dst_entry *dst;
+
+	skb->protocol = htons(ETH_P_IPV6);
+
+	memset(&fl, 0, sizeof(fl));
+	
+//	pr_debug("%pI6 %pI6", &(iph->saddr), &(iph->daddr));
+	if(!&(fl.fl6_src)) {
+		return -EINVAL;
+	}
+	fl.fl6_src = iph->saddr;
+	fl.fl6_dst = iph->daddr;
+	fl.fl6_flowlabel = 0;
+	fl.proto = skb->protocol;
+//	pr_debug("-3 %pI6", &(fl.fl6_src));
+//	pr_debug("-3 %pI6", &(fl.fl6_dst));
+//	pr_debug("-3 %d %d", fl.fl6_flowlabel, fl.proto);
+
+	dst = ip6_route_output(&init_net, NULL, &fl);
+
+	if (!dst) {
+		pr_err("error: ip6_route_output failed");
+		return -EINVAL;
+	}
+
+	skb->dev = dst->dev;
+
+	skb_dst_set(skb, dst);
+
+	if(ip6_local_out(skb)) {
+		pr_err("nf_NAT64: ip6_local_out failed.");
+		return -EINVAL;
+	}
+
+	return 0;	
+}
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
@@ -211,10 +252,8 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	/*
 	 * Sends the packet, independent of NAPI or the old API.
 	 */
-	return dev_queue_xmit(skb);
+	return ip_local_out(skb);
 }
-
-#endif
 
 static int nat64_send_packet_ipv6(struct sk_buff *skb) 
 {
@@ -228,21 +267,21 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	memset(&fl, 0, sizeof(fl));
 	
 //	pr_debug("%pI6 %pI6", &(iph->saddr), &(iph->daddr));
-	if(!&(fl.fl6_src)) {
-		return -EINVAL;
-	}
-	fl.fl6_src = iph->saddr;
-	fl.fl6_dst = iph->daddr;
-	fl.fl6_flowlabel = 0;
-	fl.proto = skb->protocol;
+//	if(!&(fl.u.ip6.saddr)) {
+//		return -EINVAL;
+//	}
+	fl.u.ip6.saddr = iph->saddr;
+	fl.u.ip6.daddr = iph->daddr;
+	fl.u.ip6.flowlabel = 0;
+	fl.flowi_proto= skb->protocol;
 //	pr_debug("-3 %pI6", &(fl.fl6_src));
 //	pr_debug("-3 %pI6", &(fl.fl6_dst));
 //	pr_debug("-3 %d %d", fl.fl6_flowlabel, fl.proto);
 
-	dst = ip6_route_output(&init_net, NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 
 	if (!dst) {
-		printk("error: ip6_route_output failed\n");
+		pr_err("error: ip6_route_output failed.");
 		return -EINVAL;
 	}
 
@@ -250,13 +289,20 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	skb_dst_set(skb, dst);
 
+	/*
+	 * Makes sure the net_device can actually send packets.
+	 */
+	netif_start_queue(skb->dev);
+
 	if(ip6_local_out(skb)) {
-		printk("nf_NAT64: ip6_local_out failed\n");
+		pr_err("nf_NAT64: ip6_local_out failed");
 		return -EINVAL;
 	}
 
 	return 0;	
 }
+#endif
+
 
 /*
  * Sends the packet.
