@@ -37,11 +37,11 @@ struct nat64_bib_entry
 	struct hlist_node	bylocal;
 
 	int			type;
-	struct in6_addr		remote6_addr;
-	__be32			local4_addr;
+	struct in6_addr		remote6_addr; // X' addr
+	__be32			local4_addr; // T' addr
 
-	__be16			remote6_port;
-	__be16			local4_port;
+	__be16			remote6_port; // x port
+	__be16			local4_port; // t port
 
 	struct list_head	sessions;
 };
@@ -50,10 +50,16 @@ struct nat64_st_entry
 {
 	struct list_head	list;
 	struct list_head	byexpiry;
+	struct in6_addr		remote6_addr; // X' addr
+	struct in6_addr		embedded6_addr; // Y' addr
 	unsigned long		expires;
 	int			state;
-	__be32			remote4_addr;
-	__be16			remote4_port;
+	__be32			local4_addr; // T' addr
+	__be32			remote4_addr; // Z' addr
+	__be16			remote6_port; // x port
+	__be16			embedded6_port; // y port
+	__be16			remote4_port; // z port
+	__be16			local4_port; // t port
 };
 
 extern struct expiry_q expiry_base[NUM_EXPIRY_QUEUES];
@@ -244,7 +250,7 @@ static inline struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry 
 	return NULL;
 }
 
-static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, __be32 addr, __be16 port, enum expiry_type type)
+static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
 
@@ -254,14 +260,27 @@ static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib,
 		return NULL;
 	}
 	s->state = CLOSED;
-	s->remote4_addr = addr;
-	s->remote4_port = port;
+
+	s->remote6_addr = bib->remote6_addr; // X' addr
+	s->embedded6_addr = *(in6_daddr); // Y' addr
+	s->local4_addr = bib->local4_addr; // T' addr
+	s->remote4_addr = addr; // Z' addr
+
+	s->remote6_port = bib->remote6_port; // x port
+	s->embedded6_port = port; // y port
+	s->local4_port = bib->local4_port; // t port
+	s->remote4_port = port; // z port
+
 	list_add(&s->list, &bib->sessions);
 
 	s->expires = jiffies + expiry_base[type].timeout*HZ;
 	list_add_tail(&s->byexpiry, &expiry_base[type].queue);
 
-	printk("NAT64: [session] New session %pI4:%hu (timeout %u sec).\n", &s->remote4_addr, ntohs(s->remote4_port), expiry_base[type].timeout);
+	printk("NAT64: [session] New session (timeout %u sec).\n", expiry_base[type].timeout);
+	printk("NAT64: [session] x:%hu\tX':%pI6.\n", ntohs(s->remote6_port), &s->remote6_addr);
+	printk("NAT64: [session] y:%hu\tY':%pI6.\n", ntohs(s->embedded6_port), &s->embedded6_addr);
+	printk("NAT64: [session] t:%hu\tT':%pI4.\n", ntohs(s->local4_port), &s->local4_addr);
+	printk("NAT64: [session] z:%hu\tZ':%pI4.\n", ntohs(s->remote4_port), &s->remote4_addr);
 	
 	return s;	
 }
@@ -272,7 +291,6 @@ static inline struct nat64_bib_entry *bib_ipv4_lookup(__be32 local_addr, __be16 
 	struct nat64_bib_entry	*bib;
 	__be16			h = nat64_hash4(local_addr, local_port);
 	struct hlist_head	*hlist = &hash4[h];
-
 
 	hlist_for_each(pos, hlist) {
 		bib = hlist_entry(pos, struct nat64_bib_entry, bylocal);
@@ -301,12 +319,12 @@ static inline struct nat64_bib_entry *bib_ipv6_lookup(struct in6_addr *remote_ad
 	return NULL;
 }
 
-static inline int bib_allocate_local4_port(__be16 port, int type)
+static inline __be16 bib_allocate_local4_port(__be16 port, int type)
 {
-
+	// FIXME: This should give a different port than the one it originally came from.
 	struct hlist_node *node;
 	struct nat64_bib_entry *entry;
-	int min, max, i;
+	__be16 min, max, i;
 	int flag = 0;
 	port = ntohs(port);
 	min = port < 1024 ? 0 : 1024;
@@ -347,7 +365,7 @@ static inline struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, 
 
 	bib = kmem_cache_zalloc(bib_cache, GFP_ATOMIC);
 	if (!bib) {
-		printk("NAT64: [bib] Unable to allocate memory for new bib entry X(.\n");
+		printk("NAT64: [bib] Unable to allocate memory for new bib entry.\n");
 		return NULL;
 	}
 
@@ -355,20 +373,20 @@ static inline struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, 
 	memcpy(&bib->remote6_addr, remote6_addr, sizeof(struct in6_addr));
 	bib->local4_addr = local4_addr;
 	bib->remote6_port = remote6_port;
-	bib->local4_port = local4_port;
+	bib->local4_port = local4_port; // FIXME: Should be different than the remote6_port.
 	INIT_LIST_HEAD(&bib->sessions);
 	printk("NAT64: [bib] New bib %pI6c,%hu <--> %pI4:%hu.\n", remote6_addr, ntohs(remote6_port), &local4_addr, ntohs(local4_port));
 
 	return bib;
 }
 
-static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
+static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr, struct in6_addr *in6_daddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
-	int local4_port;
+	__be16 local4_port;
 
-	local4_port = bib_allocate_local4_port(sport, protocol);
+	local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
 	if (local4_port < 0) {
 		printk("NAT64: [bib] Unable to allocate new local IPv4 port. Dropping connection.\n");
 		return NULL;
@@ -381,7 +399,7 @@ static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr,
 	hlist_add_head(&bib->byremote, &hash6[nat64_hash6(*saddr, sport)]);
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
 	
-	session = session_create(bib, daddr, dport, type);
+	session = session_create(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cache, bib);
 		return NULL;

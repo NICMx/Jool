@@ -19,13 +19,15 @@ elif [ $1 = "up" ] ; then
 	sudo ./workflow.sh "test"
 elif [ $1 = "rmv" ] ; then
 	sudo ip6tables -t mangle --flush
+	sudo iptables -t mangle --flush
 	sudo rmmod nat64.ko
 	echo "removed the NAT64 module"
 elif [ $1 = "debug" ] ; then
 	sudo dmesg | tail -30
 elif [ $1 = "test" ] ; then
 	sudo ip6tables -t mangle --flush
-	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst fec0::/64;
+	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst fec0::/64
+	sudo iptables -t mangle -A PREROUTING -j nat64 --ipdst 192.168.56.0/24
 	sudo ip6tables -t mangle -n -L
 	sudo ping6 ::1
 elif [ $1 = "setup" ] ; then

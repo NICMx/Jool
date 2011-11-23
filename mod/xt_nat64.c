@@ -750,18 +750,34 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
 	struct in_addr * temp_addr;
+	struct in6_addr * temp6_addr;
+
+	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
+	memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
+
+	if(!outgoing) {
+		printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
+		return NULL;
+	}
 
 	/*
 	 * Get the tuple out of the BIB and ST entries.
 	 */
 	if (l3protocol == NFPROTO_IPV4) {
+		temp6_addr = kmalloc(sizeof(struct in6_addr), GFP_ATOMIC);
+		memset(temp6_addr, 0, sizeof(struct in6_addr));
+
+		if(!temp6_addr) {
+			printk(KERN_ERR "NAT64: There's not enough memory to do a procedure to get the outgoing tuple.\n");
+			return NULL;
+		}
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				pr_debug("NAT64: TCP protocol not currently supported.");
 				break;
 			case IPPROTO_UDP:
-				bib = bib_ipv4_lookup(inner->src.u3.in.s_addr, 
-						inner->dst.u.udp.port, IPPROTO_UDP);
+				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+					htons(inner->dst.u.udp.port), IPPROTO_UDP);
 				if(!bib) {
 					printk(KERN_ERR "NAT64: The bib entry of the outgoing tuple wasn't found.\n");
 					return NULL;
@@ -774,7 +790,18 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 					return NULL;
 				}
 
-				// asignar a outgoing los datos de bib y session...
+				// Obtain the data of the tuple.
+				outgoing->src.l3num = (u_int16_t)l3protocol;
+
+				// Ports
+				outgoing->src.u.udp.port = session->embedded6_port; // y port
+				outgoing->dst.u.udp.port = session->remote6_port; // x port
+
+				// SRC IP
+				outgoing->src.u3.in6 = session->embedded6_addr; // Y' addr
+
+				// DST IP
+				outgoing->dst.u3.in6 = session->remote6_addr; // X' addr
 
 				break;
 			case IPPROTO_ICMP:
@@ -788,6 +815,13 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 				break;
 		}
 	} else if (l3protocol == NFPROTO_IPV6) {
+		temp_addr = kmalloc(sizeof(struct in_addr), GFP_ATOMIC);
+		memset(temp_addr, 0, sizeof(struct in_addr));
+
+		if(!temp_addr) {
+			printk(KERN_ERR "NAT64: There's not enough memory to do a procedure to get the outgoing tuple.\n");
+			return NULL;
+		}
 		/*
 		 * Get the tuple out of the BIB and ST entries.
 		 */
@@ -795,20 +829,6 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(u_int8_t l3pro
 		if(bib) {
 			session = session_ipv4_lookup(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port);
 			if(session) {
-				outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
-				memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
-
-				temp_addr = kmalloc(sizeof(struct in_addr), GFP_ATOMIC);
-				memset(temp_addr, 0, sizeof(struct in_addr));
-	
-				if(!outgoing) {
-					printk(KERN_ERR "NAT64: There's not enough memory for the outgoing tuple.\n");
-					return NULL;
-				}
-				if(!temp_addr) {
-					printk(KERN_ERR "NAT64: There's not enough memory to do a procedure to get the outgoing tuple.\n");
-					return NULL;
-				}
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
 				switch (l4protocol) {
@@ -872,7 +892,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 	struct nat64_st_entry *session;
 	bool res;
 	//	int i;
-	res = true;
+	res = false;
 
 	if (l3protocol == NFPROTO_IPV4) {
 		pr_debug("NAT64: FNU - IPV4");
@@ -881,7 +901,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		 * If there's no active session for the specified 
 		 * connection, the packet should be dropped
 		 */
-		res = false; 
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				//Query TCP ST
@@ -890,16 +909,20 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 			case IPPROTO_UDP:
 				//Query UDP BIB and ST
 
-				bib = bib_ipv4_lookup(inner->src.u3.in.s_addr, inner->dst.u.udp.port, IPPROTO_UDP);
+				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, htons(inner->dst.u.udp.port), IPPROTO_UDP);
 				if(!bib) {
+					pr_debug("NAT64: IPv4 - BIB is missing.");
 					return res;
 				}
 
 				session = session_ipv4_lookup(bib, inner->src.u3.in.s_addr, inner->src.u.udp.port);				
 				if(!session) {
+					pr_debug("NAT64: IPv4 - session entry is missing.");
 					return res;
 				}
-
+				
+				pr_debug("NAT64: UDP protocol for IPv4 finished properly.");
+				res = true;
 				break;
 			case IPPROTO_ICMP:
 				//Query ICMP ST
@@ -949,11 +972,11 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 					if(session) {
 						session_renew(session, UDP_DEFAULT);
 					} else {
-						session = session_create(bib, nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port, UDP_DEFAULT);
+						session = session_create(bib, &(inner->dst.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->dst.u.udp.port, UDP_DEFAULT);
 					}
 				} else {
 					printk("Create a new BIB and Session entry\n");
-					bib = bib_session_create(&(inner->src.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->src.u.udp.port, inner->dst.u.udp.port, l4protocol, UDP_DEFAULT);
+					bib = bib_session_create(&(inner->src.u3.in6), &(inner->dst.u3.in6), nat64_extract_ipv4(inner->dst.u3.in6, prefix_len), inner->src.u.udp.port, inner->dst.u.udp.port, l4protocol, UDP_DEFAULT);
 				}
 				res = true;
 				break;
@@ -1021,12 +1044,18 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
+
 	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, outgoing);
 
 	if (!outgoing) {
 		pr_info("NAT64: There was an error in the determining the outgoing"
 				" tuple module");
+		return NF_DROP;
+	}
+
+	if (l3protocol == NFPROTO_IPV4) {
+		pr_info("NAT64: IPV4");
 		return NF_DROP;
 	}
 
@@ -1170,7 +1199,7 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.56.3"; // Default IPv4
+	ipv4_address = "192.168.56.114"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
