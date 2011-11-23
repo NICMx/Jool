@@ -234,6 +234,9 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 		case ETH_P_IP:
 			pr_debug("NAT64: eth type ipv4 to ipv6");
 			skb->protocol = ETH_P_IPV6;
+			//skb->dev->stats.tx_packets++;
+			//skb->dev->stats.tx_bytes += skb->len;
+			//netif_rx(skb);
 			break;
 		default:
 			kfree_skb(skb);
@@ -440,14 +443,82 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 }
 
 /*
+ * Function to get the SKB from IPv4 to IPv6.
+ * @l4protocol = The incoming L4 protocol
+ * @l3len = The outgoing L3 header length
+ * @l4len = The outgoing l4 header length
+ * @paylen = transport header length + data length
+ *
+ * IMPORTANT: We don't take into account the optional IPv6 header yet.
+ */
+static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
+		struct sk_buff * new_skb, u_int8_t l3protocol, 
+		u_int8_t l4protocol, u_int8_t l3len, u_int8_t l4len, 
+		u_int8_t pay_len, struct nf_conntrack_tuple * outgoing)
+{
+	union nat64_l4header_t {
+		struct udphdr * uh;
+		struct tcphdr * th;
+		struct icmp6hdr * icmph;
+	} l4header;
+
+	struct ipv6hdr * ip6;
+	struct iphdr * ip4;
+	void * ip_transp;
+
+	ip6 = ipv6_hdr(old_skb);
+	ip4 = ip_hdr(new_skb);
+
+	ip6->version = 6;
+	ip6->priority = 0;
+	ip6->flow_lbl[0] = 0;
+	ip6->flow_lbl[1] = 0;
+	ip6->flow_lbl[2] = 0;
+	
+	ip6->payload_len = htons(pay_len);
+	ip6->nexthdr  = ip4->protocol;
+	ip6->hop_limit = ip4->ttl;
+
+	memcpy(&(ip6->saddr), &(outgoing->src.u3.in6), sizeof(struct in6_addr)); // Y'
+	memcpy(&(ip6->daddr), &(outgoing->dst.u3.in6), sizeof(struct in6_addr)); // X'
+	
+	/*
+	 * Get pointer to Layer 4 header.
+	 */
+	ip_transp = skb_transport_header(old_skb);
+
+	switch(ip6->nexthdr) {
+	case IPPROTO_UDP:
+		l4header.uh = (struct udphdr *)(ip6 + 1);
+		memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
+		checksum_change(&(l4header.uh->check), 
+				&(l4header.uh->source), htons(outgoing->src.u.udp.port),
+				(ip4->protocol == IPPROTO_UDP) ? 
+				true : false);
+					
+		adjust_checksum_ipv4_to_ipv6(&(l4header.uh->check), ip4, ip6, 
+				(ip4->protocol == IPPROTO_UDP) ? 
+				true : false);
+		break;
+	case IPPROTO_TCP:
+		break;
+	case IPPROTO_ICMP:
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return false;
+	}
+
+	return true;
+}
+
+/*
  * Function to get the SKB from IPv6 to IPv4.
  * @l4protocol = The incoming L4 protocol
  * @l3len = The outgoing L3 header length
  * @l4len = The outgoing l4 header length
  * @paylen = transport header length + data length
  *
- * FIXME: use IPv4 pool instead of a fixed IP.
- * FIXME: Get available ports instead of using a hardcoded one.
  * IMPORTANT: We don't take into account the optional IPv6 header yet.
  */
 static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
@@ -637,7 +708,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 	pr_debug("NAT64: l4hdrlen %d", l4hdrlen);
 
 	packet_len = l3hdrlen + l4hdrlen + pay_len;
-
+	
 	/*
 	 * LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
 	 */
@@ -670,11 +741,19 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 		}
 		return NULL;
 	}
-
+	
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
-			pr_debug("NAT64: IPv4 to 6 not implemented yet");
-			// TODO: Implement IPv4 to IPv6 skb generation.
+			if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
+						l4protocol, l3hdrlen, l4hdrlen, 
+						(pay_len), outgoing)) { 
+				pr_debug("NAT64: Everything went OK populating the "
+						"new sk_buff");
+				return new_skb;
+			}
+
+			pr_debug("NAT64: something went wrong populating the "
+					"new sk_buff");
 			return NULL;
 		case NFPROTO_IPV6:
 			if (nat64_get_skb_from6to4(skb, new_skb, l3protocol,
@@ -732,13 +811,13 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4p
 		return NULL;
 	}
 
-	if (!(nat64_get_tuple(l3protocol, l4protocol, new_skb, outgoing))) {
+	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, new_skb, outgoing))) { //FIXME: No sirve para IPv6
 		pr_debug("NAT64: Something went wrong getting the tuple");
 		return NULL;
 	}
 
-	pr_debug("NAT64: Determining the outgoing tuple stage went OK.");
-	//pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	pr_debug("NAT64: Determining the translate the packet stage went OK.");
+//	pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
 
 	return new_skb;
 }
@@ -1033,7 +1112,10 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple * outgoing;
 	struct sk_buff * new_skb;
-
+	int buff_cont;
+	unsigned char *buf; 
+	unsigned char cc;
+		
 	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error determining the Tuple");
 		return NF_DROP;
@@ -1063,6 +1145,14 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
+	if(l3protocol == NFPROTO_IPV4) {
+		buf = new_skb->data;
+		for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+			cc = buf[buff_cont];
+			printk(KERN_DEBUG "%02x",cc);
+		}
+		return NF_DROP;
+	}
 	/*
 	 * Returns zero if it works
 	 */
