@@ -218,29 +218,29 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 {
 	// Based on Ecdysis' nat64_output_ipv4
 	struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct flowi *fl;
+	struct flowi fl;
 	struct dst_entry *dst;
 
-	skb->protocol = htons(ETH_P_IP);
+	skb->protocol = htons(ETH_P_IPV6);
 
-	fl = (struct flowi *)kmalloc(sizeof(struct flowi), GFP_ATOMIC);
-	memset(&fl, 0, sizeof(struct flowi));
+	memset(&fl, 0, sizeof(fl));
 	
-	pr_debug("1 %pI6 %pI6", &(iph->saddr), &(iph->daddr));
-	if(&(fl->nl_u.ip6_u.saddr)) {
-		return -2;
+//	pr_debug("%pI6 %pI6", &(iph->saddr), &(iph->daddr));
+	if(!&(fl.fl6_src)) {
+		return -EINVAL;
 	}
-	return -1;
-	fl->nl_u.ip6_u.daddr = iph->daddr;
-	fl->fl6_flowlabel = 0;
-	fl->proto = skb->protocol;
+	fl.fl6_src = iph->saddr;
+	fl.fl6_dst = iph->daddr;
+	fl.fl6_flowlabel = 0;
+	fl.proto = skb->protocol;
+//	pr_debug("-3 %pI6", &(fl.fl6_src));
+//	pr_debug("-3 %pI6", &(fl.fl6_dst));
+//	pr_debug("-3 %d %d", fl.fl6_flowlabel, fl.proto);
 
-	return -1;
-
-	dst = ip6_route_output(&init_net, NULL, fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 
 	if (!dst) {
-		printk("error: ip_route_output_key failed\n");
+		printk("error: ip6_route_output failed\n");
 		return -EINVAL;
 	}
 
@@ -249,7 +249,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, dst);
 
 	if(ip6_local_out(skb)) {
-		printk("nf_NAT64: ip_local_out failed\n");
+		printk("nf_NAT64: ip6_local_out failed\n");
 		return -EINVAL;
 	}
 
@@ -1152,9 +1152,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 	struct nf_conntrack_tuple inner;
 	struct nf_conntrack_tuple * outgoing;
 	struct sk_buff * new_skb;
-	int buff_cont;
-	unsigned char *buf; 
-	unsigned char cc;
 		
 	if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error determining the Tuple");
@@ -1183,14 +1180,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		pr_info("NAT64: There was an error in the packet translation"
 				" module");
 		return NF_DROP;
-	}
-
-	if(l3protocol == NFPROTO_IPV4) {
-		buf = new_skb->data;
-		for (buff_cont = 0; buff_cont < new_skb->len; buff_cont++) {
-			cc = buf[buff_cont];
-			printk(KERN_DEBUG "%02x",cc);
-		}
 	}
 
 	/*
