@@ -113,12 +113,15 @@ __be32 ipv4_addr;
 int ipv4_prefixlen;
 __be32 ipv4_netmask;
 static char *ipv4_address;
-struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, .s6_addr32[2] = 0, .s6_addr32[3] = 0};
+struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
+	.s6_addr32[2] = 0, .s6_addr32[3] = 0};
 static char *prefix_address;
 int prefix_len;
 
 /*module_param(ipv4_address, charp, 0);
-  MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p for a subnet.");
+  MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by 
+  translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p 
+  for a subnet.");
   module_param(prefix_address, charp, 0);
   MODULE_PARM_DESC(prefix_len, "NAT64: Prefix address (default fec0::)");
   module_param(prefix_len, int, 0);
@@ -199,7 +202,6 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	 * Set the destination to the skb.
 	 */
 	skb_dst_set(skb, &(rt->dst));
-	//pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len);
 
 	/*
 	 * Makes sure the net_device can actually send packets.
@@ -420,7 +422,8 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 	}
 
 	l4proto = __nf_ct_l4proto_find(l3protocol, l4protocol);
-	pr_debug("l4proto name = %s %d %d", l4proto->name, (u_int32_t)l4proto->l3proto, (u_int32_t)l4proto->l4proto);
+	pr_debug("l4proto name = %s %d %d", l4proto->name, 
+			(u_int32_t)l4proto->l3proto, (u_int32_t)l4proto->l4proto);
 
 	/*
 	 * Get the tuple out of the sk_buff.
@@ -492,7 +495,8 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			l4header.uh = (struct udphdr *)(ip6 + 1);
 			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.uh->check), 
-					&(l4header.uh->source), htons(outgoing->src.u.udp.port),
+					&(l4header.uh->source), 
+					htons(outgoing->src.u.udp.port),
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -583,7 +587,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
-					&(l4header.uh->source), htons(outgoing->src.u.udp.port),
+					&(l4header.uh->source), 
+					htons(outgoing->src.u.udp.port),
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -857,7 +862,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				pr_debug("NAT64: TCP protocol not"
-				" currently supported.");
+						" currently supported.");
 				break;
 			case IPPROTO_UDP:
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
@@ -927,7 +932,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 		if (bib) {
 			session = session_ipv4_lookup(bib, 
 					nat64_extract_ipv4(inner->dst.u3.in6, 
-					prefix_len), inner->dst.u.udp.port);
+						prefix_len), inner->dst.u.udp.port);
 			if (session) {
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
