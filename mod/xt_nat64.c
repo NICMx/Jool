@@ -214,6 +214,48 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 
 #endif
 
+static int nat64_send_packet_ipv6(struct sk_buff *skb) 
+{
+	// Based on Ecdysis' nat64_output_ipv4
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct flowi *fl;
+	struct dst_entry *dst;
+
+	skb->protocol = htons(ETH_P_IP);
+
+	fl = (struct flowi *)kmalloc(sizeof(struct flowi), GFP_ATOMIC);
+	memset(&fl, 0, sizeof(struct flowi));
+	
+	pr_debug("1 %pI6 %pI6", &(iph->saddr), &(iph->daddr));
+	if(&(fl->nl_u.ip6_u.saddr)) {
+		return -2;
+	}
+	return -1;
+	fl->nl_u.ip6_u.daddr = iph->daddr;
+	fl->fl6_flowlabel = 0;
+	fl->proto = skb->protocol;
+
+	return -1;
+
+	dst = ip6_route_output(&init_net, NULL, fl);
+
+	if (!dst) {
+		printk("error: ip_route_output_key failed\n");
+		return -EINVAL;
+	}
+
+	skb->dev = dst->dev;
+
+	skb_dst_set(skb, dst);
+
+	if(ip6_local_out(skb)) {
+		printk("nf_NAT64: ip_local_out failed\n");
+		return -EINVAL;
+	}
+
+	return 0;	
+}
+
 /*
  * Sends the packet.
  * Right now, the skb->data should be pointing to the L3 layer header.
@@ -221,10 +263,10 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 {
 	int ret = -1;
-
+	
 	spin_lock_bh(&nf_nat64_lock);
 	pr_debug("NAT64: Sending the new packet...");
-
+		
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
 			pr_debug("NAT64: eth type ipv6 to ipv4");
@@ -234,9 +276,7 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 		case ETH_P_IP:
 			pr_debug("NAT64: eth type ipv4 to ipv6");
 			skb->protocol = ETH_P_IPV6;
-			//skb->dev->stats.tx_packets++;
-			//skb->dev->stats.tx_bytes += skb->len;
-			//netif_rx(skb);
+			ret = nat64_send_packet_ipv6(skb);
 			break;
 		default:
 			kfree_skb(skb);
@@ -466,8 +506,8 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 	struct iphdr * ip4;
 	void * ip_transp;
 
-	ip6 = ipv6_hdr(old_skb);
-	ip4 = ip_hdr(new_skb);
+	ip6 = ipv6_hdr(new_skb);
+	ip4 = ip_hdr(old_skb);
 
 	ip6->version = 6;
 	ip6->priority = 0;
@@ -817,8 +857,8 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, u_int8_t l4p
 	}
 
 	pr_debug("NAT64: Determining the translate the packet stage went OK.");
-//	pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
-
+	//pr_debug("%ld %ld %d %d %d", new_skb->head-new_skb->head, new_skb->data-new_skb->head, new_skb->tail, new_skb->end, new_skb->len);
+	
 	return new_skb;
 }
 
@@ -1147,12 +1187,12 @@ static unsigned int nat64_core(struct sk_buff *skb,
 
 	if(l3protocol == NFPROTO_IPV4) {
 		buf = new_skb->data;
-		for (buff_cont = 0; buff_cont < skb->len; buff_cont++) {
+		for (buff_cont = 0; buff_cont < new_skb->len; buff_cont++) {
 			cc = buf[buff_cont];
 			printk(KERN_DEBUG "%02x",cc);
 		}
-		return NF_DROP;
 	}
+
 	/*
 	 * Returns zero if it works
 	 */
