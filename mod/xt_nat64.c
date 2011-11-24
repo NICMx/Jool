@@ -143,17 +143,17 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		pr_err("nf_NAT64: ip_route_output_key failed");
+		pr_warning("nf_NAT64: ip_route_output_key failed");
 		return -EINVAL;
 	}
 	if (!rt) {
-		pr_err("nf_NAT64: rt null");
+		pr_warning("nf_NAT64: rt null");
 		return -EINVAL;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if (ip_local_out(skb)) {
-		pr_err("nf_NAT64: ip_local_out failed");
+		pr_warning("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
 	return 0;	
@@ -186,7 +186,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	dst = ip6_route_output(&init_net, NULL, &fl);
 
 	if (!dst) {
-		pr_err("error: ip6_route_output failed");
+		pr_warning("error: ip6_route_output failed");
 		return -EINVAL;
 	}
 
@@ -195,7 +195,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, dst);
 
 	if(ip6_local_out(skb)) {
-		pr_err("nf_NAT64: ip6_local_out failed.");
+		pr_warning("nf_NAT64: ip6_local_out failed.");
 		return -EINVAL;
 	}
 
@@ -205,54 +205,34 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
 	struct iphdr *iph = ip_hdr(skb);
-	struct rtable * rt;
+	struct flowi fl;
+	struct rtable *rt;
 
-	// Set the packet type
-	skb->pkt_type = PACKET_OUTGOING;
+	skb->protocol = htons(ETH_P_IP);
 
-	/*
-	 * Get the routing table in order to get the outgoing device and outgoing
-	 * address
-	 */
-	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
+	memset(&fl, 0, sizeof(fl));
+
+	fl.u.ip4.daddr = iph->daddr;
+	fl.flowi_tos = RT_TOS(iph->tos);
+	fl.flowi_proto = skb->protocol;
+
+	rt = ip_route_output_key(&init_net, &fl.u.ip4);
 
 	if (!rt || IS_ERR(rt)) {
-		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
+		pr_warning("NAT64: nat64_send_packet - rt is null or an error");
+		if (IS_ERR(rt))
+			pr_warning("rt - %d", (int)rt);
 		return -1;
 	}
 
-	if (rt->dst.dev == NULL) {
-		pr_info("NAT64: the route table couldn't get an appropriate device");
+	skb->dev = rt->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *)rt);
 
-	} else {
-		/*
-		 * Insert the outgoing device in the skb.
-		 */
-		skb->dev = rt->dst.dev;
+	if (ip_local_out(skb)) {
+		pr_warning("nf_NAT64: ip_local_out failed");
+		return -EINVAL;
 	}
-
-	/*
-	 * insert the L2 header in the skb... Since we use a function within
-	 * the net_device, we don't need to know the type of L2 device... It
-	 * could be ethernet, it could be wlan.
-	 */
-	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
-			NULL, NULL, skb->len);
-
-	/*
-	 * Set the destination to the skb.
-	 */
-	skb_dst_set(skb, &(rt->dst));
-
-	/*
-	 * Makes sure the net_device can actually send packets.
-	 */
-	netif_start_queue(skb->dev);
-
-	/*
-	 * Sends the packet, independent of NAPI or the old API.
-	 */
-	return ip_local_out(skb);
+	return 0;	
 }
 
 static int nat64_send_packet_ipv6(struct sk_buff *skb) 
@@ -281,7 +261,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 
 	if (!dst) {
-		pr_err("error: ip6_route_output failed.");
+		pr_warning("error: ip6_route_output failed.");
 		return -EINVAL;
 	}
 
@@ -295,7 +275,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	netif_start_queue(skb->dev);
 
 	if(ip6_local_out(skb)) {
-		pr_err("nf_NAT64: ip6_local_out failed");
+		pr_warning("nf_NAT64: ip6_local_out failed");
 		return -EINVAL;
 	}
 
@@ -955,7 +935,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						htons(inner->dst.u.udp.port), 
 						IPPROTO_UDP);
 				if (!bib) {
-					pr_err("NAT64: The bib entry of the outgoing"
+					pr_warning("NAT64: The bib entry of the outgoing"
 							" tuple wasn't found.");
 					return NULL;
 				}
@@ -1059,11 +1039,11 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						break;
 				}
 			} else {
-				pr_err("The session wasn't found.");
+				pr_debug("The session wasn't found.");
 				goto error;
 			}
 		} else {
-			pr_err("The BIB wasn't found.");
+			pr_debug("The BIB wasn't found.");
 			goto error;
 		}
 	}
@@ -1106,7 +1086,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						htons(inner->dst.u.udp.port), 
 						IPPROTO_UDP);
 				if (!bib) {
-					pr_err("NAT64: IPv4 - BIB is missing.");
+					pr_warning("NAT64: IPv4 - BIB is missing.");
 					return res;
 				}
 
@@ -1114,7 +1094,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						inner->src.u3.in.s_addr, 
 						inner->src.u.udp.port);				
 				if (!session) {
-					pr_err("NAT64: IPv4 - session entry is "
+					pr_warning("NAT64: IPv4 - session entry is "
 							"missing.");
 					return res;
 				}
@@ -1454,7 +1434,7 @@ static int __init nat64_init(void)
 	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
 
 	if (!ret) {
-		pr_err("NAT64: ipv4 is malformed [%s].", ipv4_address);
+		pr_warning("NAT64: ipv4 is malformed [%s].", ipv4_address);
 		ret = -1;
 		goto error;
 	}
