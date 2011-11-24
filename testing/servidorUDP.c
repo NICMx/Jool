@@ -59,7 +59,7 @@ int main(void){
 						ntohs(cliente.sin_port), buffer);
 // Procesar string recibido, pasarlo a mayusculas
 		aMayusculas(buffer);
-		cliente.sin_port = htons(PUERTO_OTRO_SERV); 
+//		cliente.sin_port = htons(PUERTO_OTRO_SERV); 
 // Enviar al cliente el string modificado
 		if ((numbytes=sendto(sockfd, buffer, strlen(buffer), 0,
 			(struct sockaddr *)&cliente, sizeof(struct sockaddr))) == -1){

@@ -143,17 +143,17 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		pr_err("nf_NAT64: ip_route_output_key failed");
+		pr_warning("nf_NAT64: ip_route_output_key failed");
 		return -EINVAL;
 	}
 	if (!rt) {
-		pr_err("nf_NAT64: rt null");
+		pr_warning("nf_NAT64: rt null");
 		return -EINVAL;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if (ip_local_out(skb)) {
-		pr_err("nf_NAT64: ip_local_out failed");
+		pr_warning("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
 	return 0;	
@@ -222,22 +222,30 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
 	struct dst_entry *dst;
-
+	union nat64_l4header_t {
+		struct udphdr * uh;
+		struct tcphdr * th;
+		struct icmp6hdr * icmph;
+	} l4header;
+	int i = 0;
 	skb->protocol = htons(ETH_P_IPV6);
 
 	memset(&fl, 0, sizeof(fl));
 	
 //	pr_debug("%pI6 %pI6", &(iph->saddr), &(iph->daddr));
-	if(!&(fl.fl6_src)) {
-		return -EINVAL;
-	}
-	fl.fl6_src = iph->saddr;
+//	fl.fl6_src = iph->saddr;
 	fl.fl6_dst = iph->daddr;
 	fl.fl6_flowlabel = 0;
 	fl.proto = skb->protocol;
 //	pr_debug("-3 %pI6", &(fl.fl6_src));
 //	pr_debug("-3 %pI6", &(fl.fl6_dst));
 //	pr_debug("-3 %d %d", fl.fl6_flowlabel, fl.proto);
+
+	l4header.uh = (struct udphdr *)(iph + 1);
+	i = ntohs(l4header.uh->dest);
+	l4header.uh->dest = ntohs(l4header.uh->source);
+	l4header.uh->source = i;
+	pr_debug("%d %d AAAAAAHHHAOSASMOASM", l4header.uh->source, l4header.uh->dest);
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 
@@ -250,12 +258,17 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	skb_dst_set(skb, dst);
 
+	/*
+	 * Sends the packet, independent of NAPI or the old API.
+	 */
+//	return dev_queue_xmit(skb);
+
 	if(ip6_local_out(skb)) {
 		printk("nf_NAT64: ip6_local_out failed\n");
 		return -EINVAL;
 	}
 
-	return 0;	
+	return 0;
 }
 
 /*
@@ -332,7 +345,7 @@ static int nat64_allocate_hash(unsigned int size)
 			get_order(sizeof(struct hlist_head) * size));
 
 	if (!hash4) {
-		pr_err("NAT64: Unable to allocate memory for hash4 via GFP.");
+		pr_warning("NAT64: Unable to allocate memory for hash4 via GFP.");
 		return -1;
 		//hash = vmalloc(sizeof(struct hlist_head) * size);
 		//nat64_data.vmallocked = 1;
@@ -341,7 +354,7 @@ static int nat64_allocate_hash(unsigned int size)
 	hash6 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
 			get_order(sizeof(struct hlist_head) * size));
 	if (!hash6) {
-		pr_err("NAT64: Unable to allocate memory for hash6 via gfp X(.");
+		pr_warning("NAT64: Unable to allocate memory for hash6 via gfp X(.");
 		free_pages((unsigned long)hash4,
 				get_order(sizeof(struct hlist_head) * hash_size));
 		return -1;
@@ -534,6 +547,8 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 		case IPPROTO_UDP:
 			l4header.uh = (struct udphdr *)(ip6 + 1);
 			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
+//			l4header.uh->source = htons(outgoing->dst.u.udp.port);
+//			l4header.uh->dest = htons(outgoing->src.u.udp.port);
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
 					htons(outgoing->src.u.udp.port),
@@ -626,7 +641,14 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
-			checksum_change(&(l4header.uh->check), 
+//			l4header.uh->source = ntohs(l4header.uh->source);
+//			l4header.uh->dest = ntohs(l4header.uh->dest);
+
+//			pr_debug("%d %d", l4header.uh->source, l4header.uh->dest);
+/*			pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
+					&(outgoing->src.u3.in), outgoing->src.u.udp.port, 
+					&(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
+*/			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
 					htons(outgoing->src.u.udp.port),
 					(ip4->protocol == IPPROTO_UDP) ? 
@@ -858,12 +880,12 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
 	}
 
 	//FIXME: No sirve para IPv6
-	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, 
+/*	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, 
 					new_skb, outgoing))) { 
 		pr_debug("NAT64: Something went wrong getting the tuple");
 		return NULL;
 	}
-
+*/
 	pr_debug("NAT64: Determining the translate the packet stage went OK.");
 
 	return new_skb;
@@ -883,7 +905,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 	memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
 
 	if (!outgoing) {
-		pr_err("NAT64: There's not enough memory for the outgoing tuple.");
+		pr_warning("NAT64: There's not enough memory for the outgoing tuple.");
 		return NULL;
 	}
 
@@ -895,7 +917,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 		memset(temp6_addr, 0, sizeof(struct in6_addr));
 
 		if (!temp6_addr) {
-			pr_err("NAT64: There's not enough memory to do a procedure "
+			pr_warning("NAT64: There's not enough memory to do a procedure "
 					"to get the outgoing tuple.");
 			return NULL;
 		}
@@ -909,7 +931,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						htons(inner->dst.u.udp.port), 
 						IPPROTO_UDP);
 				if (!bib) {
-					pr_err("NAT64: The bib entry of the outgoing"
+					pr_warning("NAT64: The bib entry of the outgoing"
 							" tuple wasn't found.");
 					return NULL;
 				}
@@ -960,7 +982,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 		memset(temp_addr, 0, sizeof(struct in_addr));
 
 		if (!temp_addr) {
-			pr_err("NAT64: There's not enough memory to do a "
+			pr_warning("NAT64: There's not enough memory to do a "
 					"procedure to get the outgoing tuple.");
 			return NULL;
 		}
@@ -1013,11 +1035,11 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						break;
 				}
 			} else {
-				pr_err("The session wasn't found.");
+				pr_warning("The session wasn't found.");
 				goto error;
 			}
 		} else {
-			pr_err("The BIB wasn't found.");
+			pr_warning("The BIB wasn't found.");
 			goto error;
 		}
 	}
@@ -1060,7 +1082,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						htons(inner->dst.u.udp.port), 
 						IPPROTO_UDP);
 				if (!bib) {
-					pr_err("NAT64: IPv4 - BIB is missing.");
+					pr_warning("NAT64: IPv4 - BIB is missing.");
 					return res;
 				}
 
@@ -1068,7 +1090,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						inner->src.u3.in.s_addr, 
 						inner->src.u.udp.port);				
 				if (!session) {
-					pr_err("NAT64: IPv4 - session entry is "
+					pr_warning("NAT64: IPv4 - session entry is "
 							"missing.");
 					return res;
 				}
@@ -1141,7 +1163,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 								UDP_DEFAULT);
 					}
 				} else {
-					pr_debug("Create a new BIB and Session entry");
+					pr_debug("Create a new BIB and Session entry.");
 					bib = bib_session_create(
 							&(inner->src.u3.in6), 
 							&(inner->dst.u3.in6), 
@@ -1221,7 +1243,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
-
 	outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
 			skb, &inner, outgoing);
 
@@ -1264,6 +1285,12 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
 	struct iphdr *iph = ip_hdr(skb);
 	__u8 l4_protocol = iph->protocol;
 
+	switch(l4_protocol) {
+		case IPPROTO_TCP: return NF_ACCEPT;
+		case IPPROTO_ICMP: return NF_ACCEPT;
+		case IPPROTO_ICMPV6: return NF_ACCEPT;
+	}
+
 	pr_debug("\n* INCOMING IPV4 PACKET *\n");
 	pr_debug("PKT SRC=%pI4 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI4 \n", &iph->daddr);
@@ -1296,6 +1323,12 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
+
+	switch(l4_protocol) {
+		case IPPROTO_TCP: return NF_ACCEPT;
+		case IPPROTO_ICMP: return NF_ACCEPT;
+		case IPPROTO_ICMPV6: return NF_ACCEPT;
+	}
 
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
@@ -1398,17 +1431,17 @@ static int __init nat64_init(void)
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
 
 	if (l3proto_ip == NULL) {
-		pr_err("NAT64: couldn't load IPv4 l3proto");
+		pr_warning("NAT64: couldn't load IPv4 l3proto");
 		goto error;
 	} if (l3proto_ipv6 == NULL) {
-		pr_err("NAT64: couldn't load IPv6 l3proto");
+		pr_warning("NAT64: couldn't load IPv6 l3proto");
 		goto error;
 	}
 
 	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
 
 	if (!ret) {
-		pr_err("NAT64: ipv4 is malformed [%s].", ipv4_address);
+		pr_warning("NAT64: ipv4 is malformed [%s].", ipv4_address);
 		ret = -1;
 		goto error;
 	}
@@ -1429,7 +1462,7 @@ static int __init nat64_init(void)
 	}
 
 	if (nat64_allocate_hash(65536)) {
-		pr_err("NAT64: Unable to allocate memmory for hash table.");
+		pr_warning("NAT64: Unable to allocate memmory for hash table.");
 		goto hash_error;
 	}
 
@@ -1437,7 +1470,7 @@ static int __init nat64_init(void)
 			0,0, NULL);
 
 	if (!st_cache) {
-		pr_err("NAT64: Unable to create session table slab cache.");
+		pr_warning("NAT64: Unable to create session table slab cache.");
 		goto st_cache_error;
 	} else {
 		pr_debug("NAT64: The session table slab cache was succesfully"
@@ -1448,7 +1481,7 @@ static int __init nat64_init(void)
 			0,0, NULL);
 
 	if (!bib_cache) {
-		pr_err("NAT64: Unable to create bib table slab cache.");
+		pr_warning("NAT64: Unable to create bib table slab cache.");
 		goto bib_cache_error;
 	} else {
 		pr_debug("NAT64: The bib table slab cache was succesfully created.");
