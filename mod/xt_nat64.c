@@ -10,16 +10,25 @@
  *    Jose Vicente Ramirez <pepermz@gmail.com>
  *    Mario Gerardo Trevinho <mario_tc88@hotmail.com>
  *
- * Authors of the functions of ip_data, checksum_adjust, 
- * checksum_remove, checksum_add, checksum_change, nat64_output_ipv4, 
- * adjust_checksum_ipv5_to_ipv6 functions, adjust_checksum_ipv6_to_ipv4:
+ * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
+ * checksum_change, adjust_checksum_ipv6_to_ipv4, nat64_output_ipv4, 
+ * adjust_checksum_ipv5_to_ipv6, nat64_xlate_ipv6_to_ipv4, nat64_alloc_skb,
+ * nat64_xlate_ipv4_to_ipv6 functions:
  *    Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
  *    Simon Perreault <simon.perreault@viagenie.ca>
  *    Marc Blanchet <marc.blanchet@viagenie.ca>
  *
- * Please note: The Ecdysis function nat64_output_ipv4 was renamed 
- * as nat64_send_packet_ipv4 in this software.
- * 
+ * Please note: 
+ * The function nat64_output_ipv4 was renamed as nat64_send_packet_ipv4 
+ * under the kernel version that is inferior to 3.0 in this 
+ * implementation. The function nat64_send_packet_ipv6 for both
+ * kernel versions were based on this function.
+ *
+ * The functions nat64_xlate_ipv6_to_ipv4 and nat64_xlate_ipv4_to_ipv6 were
+ * used as a point of reference to implement nat64_get_skb_from6to4 and
+ * nat64_get_skb_from4to6, respectively. Furthermore, nat64_alloc_skb was
+ * also used as a point of reference to implement nat64_get_skb.
+ *
  * NAT64 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
