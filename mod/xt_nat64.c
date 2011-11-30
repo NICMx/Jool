@@ -1,8 +1,6 @@
 /*
  * NAT64 - Network Address Translator IPv6 to IPv4
  *
- * Copyright (C) 2010 Viagenie Inc. http://www.viagenie.ca
- *
  * Authors:
  *    Juan Antonio Osorio <jaosorior@gmail.com>
  *    Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
@@ -13,10 +11,12 @@
  * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
  * checksum_change, adjust_checksum_ipv6_to_ipv4, nat64_output_ipv4, 
  * adjust_checksum_ipv5_to_ipv6, nat64_xlate_ipv6_to_ipv4, nat64_alloc_skb,
- * nat64_xlate_ipv4_to_ipv6 functions:
- *    Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
- *    Simon Perreault <simon.perreault@viagenie.ca>
- *    Marc Blanchet <marc.blanchet@viagenie.ca>
+ * nat64_xlate_ipv4_to_ipv6 functions that belong to the Ecdysis project:
+ *	Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
+ *	Simon Perreault <simon.perreault@viagenie.ca>
+ *	Marc Blanchet <marc.blanchet@viagenie.ca>
+ *
+ *	Ecdysis <http://ecdysis.viagenie.ca/>
  *
  * Please note: 
  * The function nat64_output_ipv4 was renamed as nat64_send_packet_ipv4 
@@ -28,6 +28,9 @@
  * used as a point of reference to implement nat64_get_skb_from6to4 and
  * nat64_get_skb_from4to6, respectively. Furthermore, nat64_alloc_skb was
  * also used as a point of reference to implement nat64_get_skb.
+ * 
+ * Author of the nat64_extract_ipv4, nat64_allocate_hash functions:
+ *    Julius Kriukas <julius.kriukas@gmail.com>
  *
  * NAT64 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +44,7 @@
  * You should have received a copy of the GNU General Public License
  * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/in.h>
@@ -98,13 +102,15 @@ MODULE_ALIAS("ip6t_nat64");
 /*
  * FIXME: Ensure all variables are 32 and 64-bits complaint. 
  * That is, no generic data types akin to integer.
- * FIXED: All the output messages of the stages are in the opposite
- * order of execution
- * in the logs.
  */
 
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
+
+/*
+ * BEGIN: Global variables inherited from Julius Kriukas's 
+ * Linux NAT64 implementation.
+ */
 
 struct kmem_cache *st_cache;
 struct kmem_cache *bib_cache;
@@ -129,6 +135,11 @@ struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0,
 	.s6_addr32[2] = 0, .s6_addr32[3] = 0};
 static char *prefix_address;
 int prefix_len;
+
+/*
+ * END: Global variables inherited from Julius Kriukas's 
+ * Linux NAT64 implementation.
+ */
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 
@@ -158,13 +169,13 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 		pr_warning("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
-	return 0;	
+	return 0;
+	// End Ecdysis (nat64_output_ipv4)
 }
 
-// End Ecdysis
 static int nat64_send_packet_ipv6(struct sk_buff *skb) 
 {
-	// Based on Ecdysis' nat64_output_ipv4
+	// Function based on Ecdysis's nat64_output_ipv4
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
 	struct dst_entry *dst;
@@ -235,7 +246,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 
 static int nat64_send_packet_ipv6(struct sk_buff *skb) 
 {
-	// Based on Ecdysis' nat64_output_ipv4
+	// Function based on Ecdysis's nat64_output_ipv4
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
 	struct dst_entry *dst;
@@ -281,7 +292,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 
 
 /*
- * Sends the packet.
+ * Sends the packet. Checks the old skb' L3 type to select the course of action.
  * Right now, the skb->data should be pointing to the L3 layer header.
  */
 static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
@@ -321,6 +332,10 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 	return ret;
 }
 
+/*
+ * Julius Kriukas's code. Extracts an ipv4 from an ipv6 addr based on the prefix.
+ * A modification was made on the case 32.
+ */
 static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 {
 	switch(prefix) {
@@ -341,9 +356,12 @@ static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 	}
 }
 
+/*
+ * Julius Kriukas's code. Allocates the hash6 and has4 global variables.
+ */
 static int nat64_allocate_hash(unsigned int size)
 {
-	int			i;
+	int i;
 
 	size = roundup(size, PAGE_SIZE / sizeof(struct hlist_head));
 	hash_size = size;
@@ -384,7 +402,6 @@ static int nat64_allocate_hash(unsigned int size)
 static int nat64_get_l3struct(u_int8_t l3protocol, 
 		struct nf_conntrack_l3proto ** l3proto)
 {
-	// FIXME We removed the skb as a parameter because it wasn't being used.
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
 			*l3proto = l3proto_ip;
@@ -1389,6 +1406,7 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 
 static int __init nat64_init(void)
 {
+	/* Variables imported from Julius Kriukas's implementation */
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
@@ -1420,6 +1438,8 @@ static int __init nat64_init(void)
 		goto error;
 	}
 
+	// BEGIN: code imported from nat64_init of Julius Kriukas' implementation
+
 	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
 
 	if (!ret) {
@@ -1429,7 +1449,6 @@ static int __init nat64_init(void)
 	}
 
 	if (ret) {
-		//ipv4_prefixlen = simple_strtol(++pos, NULL, 10);
 		if (ipv4_prefixlen > 32 || ipv4_prefixlen < 1) {
 			pr_warning("NAT64: ipv4 prefix is malformed [%s].", 
 					ipv4_address);
@@ -1438,7 +1457,6 @@ static int __init nat64_init(void)
 		}
 
 		ipv4_netmask = inet_make_mask(ipv4_prefixlen);
-		//		ipv4_addr = ipv4_addr & ipv4_netmask;
 		pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
 				&ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
 	}
@@ -1468,9 +1486,11 @@ static int __init nat64_init(void)
 	} else {
 		pr_debug("NAT64: The bib table slab cache was succesfully created.");
 	}
+	// END: code imported from nat64_init of Julius Kriukas' implementation
 
 	return xt_register_target(&nat64_tg_reg);
 
+// The following goto were inspired by Julius Kriukas' nat64_init's goto
 error:
 	return -EINVAL;
 hash_error:
@@ -1488,8 +1508,8 @@ static void __exit nat64_exit(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);
-	kmem_cache_destroy(st_cache);
-	kmem_cache_destroy(bib_cache);
+	kmem_cache_destroy(st_cache); // Line inherited from Julius Kriukas's nat64_exit function.
+	kmem_cache_destroy(bib_cache); // Line inherited from Julius Kriukas's nat64_exit function.
 	xt_unregister_target(&nat64_tg_reg);
 }
 
