@@ -332,11 +332,9 @@ static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 static int nat64_allocate_hash(unsigned int size)
 {
 	int			i;
-	//struct hlist_head	*hash;
 
 	size = roundup(size, PAGE_SIZE / sizeof(struct hlist_head));
 	hash_size = size;
-	//nat64_data.vmallocked = 0;
 
 	hash4 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
 			get_order(sizeof(struct hlist_head) * size));
@@ -344,8 +342,6 @@ static int nat64_allocate_hash(unsigned int size)
 	if (!hash4) {
 		pr_warning("NAT64: Unable to allocate memory for hash4 via GFP.");
 		return -1;
-		//hash = vmalloc(sizeof(struct hlist_head) * size);
-		//nat64_data.vmallocked = 1;
 	}
 
 	hash6 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
@@ -691,6 +687,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 
 	return true;
 }
+
 /*
  * Function nat64_get_skb is a generic entry function to get a new skb 
  * that will be sent.
@@ -1392,18 +1389,13 @@ static int __init nat64_init(void)
 	 * Include nf_conntrack dependency
 	 */
 	need_conntrack();
+
 	/*
 	 * Include nf_conntrack_ipv4 dependency.
 	 * IPv4 conntrack is needed in order to handle complete packets, and not
 	 * fragments.
 	 */
 	need_ipv4_conntrack();
-
-	/*
-	 * Disables timestamps in sk_buff.
-	 * Timestamps are used in STs.
-	 */
-	//net_disable_timestamp();
 
 	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV4);
 	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
