@@ -118,16 +118,6 @@ struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0,
 static char *prefix_address;
 int prefix_len;
 
-/*module_param(ipv4_address, charp, 0);
-  MODULE_PARM_DESC(ipv4_address, "NAT64: An IPv4 address or a subnet used by 
-  translator. Can be specified as a.b.c.d for single address or as a.b.c.d/p 
-  for a subnet.");
-  module_param(prefix_address, charp, 0);
-  MODULE_PARM_DESC(prefix_len, "NAT64: Prefix address (default fec0::)");
-  module_param(prefix_len, int, 0);
-  MODULE_PARM_DESC(prefix_len, "NAT64: Prefix length (default /64)");
-  */
-
 static DEFINE_SPINLOCK(nf_nat64_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
@@ -160,61 +150,76 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 }
 
 // End Ecdysis
+static int nat64_send_packet_ipv6(struct sk_buff *skb) 
+{
+	// Based on Ecdysis' nat64_output_ipv4
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct flowi fl;
+	struct dst_entry *dst;
+
+	skb->protocol = htons(ETH_P_IPV6);
+
+	memset(&fl, 0, sizeof(fl));
+	
+	if(!&(fl.fl6_src)) {
+		return -EINVAL;
+	}
+	fl.fl6_src = iph->saddr;
+	fl.fl6_dst = iph->daddr;
+	fl.fl6_flowlabel = 0;
+	fl.proto = skb->protocol;
+
+	dst = ip6_route_output(&init_net, NULL, &fl);
+
+	if (!dst) {
+		pr_warning("error: ip6_route_output failed");
+		return -EINVAL;
+	}
+
+	skb->dev = dst->dev;
+
+	skb_dst_set(skb, dst);
+
+	if(ip6_local_out(skb)) {
+		pr_warning("nf_NAT64: ip6_local_out failed.");
+		return -EINVAL;
+	}
+
+	return 0;	
+}
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
 static int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
 	struct iphdr *iph = ip_hdr(skb);
-	struct rtable * rt;
+	struct flowi fl;
+	struct rtable *rt;
 
-	// Set the packet type
-	skb->pkt_type = PACKET_OUTGOING;
+	skb->protocol = htons(ETH_P_IP);
 
-	/*
-	 * Get the routing table in order to get the outgoing device and outgoing
-	 * address
-	 */
-	rt = ip_route_output(&init_net, iph->daddr, iph->saddr, RT_TOS(iph->tos), 0);
+	memset(&fl, 0, sizeof(fl));
+
+	fl.u.ip4.daddr = iph->daddr;
+	fl.flowi_tos = RT_TOS(iph->tos);
+	fl.flowi_proto = skb->protocol;
+
+	rt = ip_route_output_key(&init_net, &fl.u.ip4);
 
 	if (!rt || IS_ERR(rt)) {
-		pr_info("NAT64: NAT64: nat64_send_packet - rt is null or an error");
+		pr_warning("NAT64: nat64_send_packet - rt is null or an error");
+		if (IS_ERR(rt))
+			pr_warning("rt - %d", (int)rt);
 		return -1;
 	}
 
-	if (rt->dst.dev == NULL) {
-		pr_info("NAT64: the route table couldn't get an appropriate device");
+	skb->dev = rt->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *)rt);
 
-	} else {
-		/*
-		 * Insert the outgoing device in the skb.
-		 */
-		skb->dev = rt->dst.dev;
+	if (ip_local_out(skb)) {
+		pr_warning("nf_NAT64: ip_local_out failed");
+		return -EINVAL;
 	}
-
-	/*
-	 * insert the L2 header in the skb... Since we use a function within
-	 * the net_device, we don't need to know the type of L2 device... It
-	 * could be ethernet, it could be wlan.
-	 */
-	rt->dst.dev->header_ops->create(skb, rt->dst.dev, skb->protocol,
-			NULL, NULL, skb->len);
-
-	/*
-	 * Set the destination to the skb.
-	 */
-	skb_dst_set(skb, &(rt->dst));
-
-	/*
-	 * Makes sure the net_device can actually send packets.
-	 */
-	netif_start_queue(skb->dev);
-
-	/*
-	 * Sends the packet, independent of NAPI or the old API.
-	 */
-	return dev_queue_xmit(skb);
+	return 0;	
 }
-
-#endif
 
 static int nat64_send_packet_ipv6(struct sk_buff *skb) 
 {
@@ -232,25 +237,15 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	memset(&fl, 0, sizeof(fl));
 	
-//	pr_debug("%pI6 %pI6", &(iph->saddr), &(iph->daddr));
-//	fl.fl6_src = iph->saddr;
-	fl.fl6_dst = iph->daddr;
-	fl.fl6_flowlabel = 0;
-	fl.proto = skb->protocol;
-//	pr_debug("-3 %pI6", &(fl.fl6_src));
-//	pr_debug("-3 %pI6", &(fl.fl6_dst));
-//	pr_debug("-3 %d %d", fl.fl6_flowlabel, fl.proto);
+	fl.u.ip6.saddr = iph->saddr;
+	fl.u.ip6.daddr = iph->daddr;
+	fl.u.ip6.flowlabel = 0;
+	fl.flowi_proto= skb->protocol;
 
-	l4header.uh = (struct udphdr *)(iph + 1);
-	i = ntohs(l4header.uh->dest);
-	l4header.uh->dest = ntohs(l4header.uh->source);
-	l4header.uh->source = i;
-	pr_debug("%d %d AAAAAAHHHAOSASMOASM", l4header.uh->source, l4header.uh->dest);
-
-	dst = ip6_route_output(&init_net, NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 
 	if (!dst) {
-		printk("error: ip6_route_output failed\n");
+		pr_warning("error: ip6_route_output failed.");
 		return -EINVAL;
 	}
 
@@ -259,17 +254,19 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, dst);
 
 	/*
-	 * Sends the packet, independent of NAPI or the old API.
+	 * Makes sure the net_device can actually send packets.
 	 */
-//	return dev_queue_xmit(skb);
+	netif_start_queue(skb->dev);
 
 	if(ip6_local_out(skb)) {
-		printk("nf_NAT64: ip6_local_out failed\n");
+		pr_warning("nf_NAT64: ip6_local_out failed");
 		return -EINVAL;
 	}
 
 	return 0;
 }
+#endif
+
 
 /*
  * Sends the packet.
@@ -547,8 +544,6 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 		case IPPROTO_UDP:
 			l4header.uh = (struct udphdr *)(ip6 + 1);
 			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
-//			l4header.uh->source = htons(outgoing->dst.u.udp.port);
-//			l4header.uh->dest = htons(outgoing->src.u.udp.port);
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
 					htons(outgoing->src.u.udp.port),
@@ -598,9 +593,6 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	struct iphdr * ip4;
 	void * ip6_transp;
 
-	//pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
-	//&(outgoing->src.u3.in), outgoing->src.u.udp.port, &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
-
 	ip6 = ipv6_hdr(old_skb);
 	ip4 = ip_hdr(new_skb);
 
@@ -641,14 +633,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
-//			l4header.uh->source = ntohs(l4header.uh->source);
-//			l4header.uh->dest = ntohs(l4header.uh->dest);
-
-//			pr_debug("%d %d", l4header.uh->source, l4header.uh->dest);
-/*			pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
-					&(outgoing->src.u3.in), outgoing->src.u.udp.port, 
-					&(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
-*/			checksum_change(&(l4header.uh->check), 
+			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
 					htons(outgoing->src.u.udp.port),
 					(ip4->protocol == IPPROTO_UDP) ? 
@@ -879,13 +864,6 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
 		return NULL;
 	}
 
-	//FIXME: No sirve para IPv6
-/*	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, 
-					new_skb, outgoing))) { 
-		pr_debug("NAT64: Something went wrong getting the tuple");
-		return NULL;
-	}
-*/
 	pr_debug("NAT64: Determining the translate the packet stage went OK.");
 
 	return new_skb;
@@ -1035,11 +1013,11 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						break;
 				}
 			} else {
-				pr_warning("The session wasn't found.");
+				pr_debug("The session wasn't found.");
 				goto error;
 			}
 		} else {
-			pr_warning("The BIB wasn't found.");
+			pr_debug("The BIB wasn't found.");
 			goto error;
 		}
 	}

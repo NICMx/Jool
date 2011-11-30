@@ -29,12 +29,12 @@ int main(void){
 	char buffer[80];
 
 
-	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+	if ((sockfd = socket(AF_INET6, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
 		exit(1);
 	}
 
-	yo.sin_family = AF_INET;         
+	yo.sin_family = AF_INET6;         
 	yo.sin_port = htons(MIPUERTO);     
 	yo.sin_addr.s_addr = INADDR_ANY; 
 	memset(&(yo.sin_zero), '\0', 8); 
@@ -49,6 +49,7 @@ int main(void){
 
 	do{
 // Recibir string del cliente
+		printf("HAA");
 		if ((numbytes=recvfrom(sockfd, buffer, 80-1 , 0,
 				(struct sockaddr *) &cliente, &addr_len)) == -1) {
 			perror("Error en el recvfrom");
@@ -58,15 +59,15 @@ int main(void){
 		printf("Recibo de %s/%d: %s\n",inet_ntoa(cliente.sin_addr),
 						ntohs(cliente.sin_port), buffer);
 // Procesar string recibido, pasarlo a mayusculas
-		aMayusculas(buffer);
+//		aMayusculas(buffer);
 //		cliente.sin_port = htons(PUERTO_OTRO_SERV); 
 // Enviar al cliente el string modificado
-		if ((numbytes=sendto(sockfd, buffer, strlen(buffer), 0,
+/*		if ((numbytes=sendto(sockfd, buffer, strlen(buffer), 0,
 			(struct sockaddr *)&cliente, sizeof(struct sockaddr))) == -1){
 			perror("sendto");
 			exit(1);
 		}
-
+*/
 	}while(1);
 	close(sockfd);
 	return 0;
