@@ -10,13 +10,16 @@
  *    Jose Vicente Ramirez <pepermz@gmail.com>
  *    Mario Gerardo Trevinho <mario_tc88@hotmail.com>
  *
- * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
- * checksum_change, adjust_checksum_ipv6_to_ipv4 and 
- * adjust_checksum_ipv5_to_ipv6 functions:
+ * Authors of the functions of ip_data, checksum_adjust, 
+ * checksum_remove, checksum_add, checksum_change, nat64_output_ipv4, 
+ * adjust_checksum_ipv5_to_ipv6 functions, adjust_checksum_ipv6_to_ipv4:
  *    Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
  *    Simon Perreault <simon.perreault@viagenie.ca>
  *    Marc Blanchet <marc.blanchet@viagenie.ca>
  *
+ * Please note: The Ecdysis function nat64_output_ipv4 was renamed 
+ * as nat64_send_packet_ipv4 in this software.
+ * 
  * NAT64 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
