@@ -6,17 +6,20 @@
  *    Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
  *    David Valenzuela <david.valenzuela.88@gmail.com>
  *    Jose Vicente Ramirez <pepermz@gmail.com>
- *    Mario Gerardo Trevinho <mario_tc88@hotmail.com>
+ *    Mario Gerardo Trevino <mario_tc88@hotmail.com>
  *
  * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
  * checksum_change, adjust_checksum_ipv6_to_ipv4, nat64_output_ipv4, 
- * adjust_checksum_ipv5_to_ipv6, nat64_xlate_ipv6_to_ipv4, nat64_alloc_skb,
+ * adjust_checksum_ipv4_to_ipv6, nat64_xlate_ipv6_to_ipv4, nat64_alloc_skb,
  * nat64_xlate_ipv4_to_ipv6 functions that belong to the Ecdysis project:
  *	Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
  *	Simon Perreault <simon.perreault@viagenie.ca>
  *	Marc Blanchet <marc.blanchet@viagenie.ca>
  *
  *	Ecdysis <http://ecdysis.viagenie.ca/>
+ *
+ * The previous functions are found in the nf_nat64_main.c file of Ecdysis's 
+ * NAT64 implementation.
  *
  * Please note: 
  * The function nat64_output_ipv4 was renamed as nat64_send_packet_ipv4 
@@ -29,8 +32,24 @@
  * nat64_get_skb_from4to6, respectively. Furthermore, nat64_alloc_skb was
  * also used as a point of reference to implement nat64_get_skb.
  * 
- * Author of the nat64_extract_ipv4, nat64_allocate_hash functions:
- *    Julius Kriukas <julius.kriukas@gmail.com>
+ * Author of the nat64_extract_ipv4, nat64_allocate_hash, tcp_timeout_fsm,
+ * tcp4_fsm, tcp6_fsm, bib_allocate_local4_port, bib_ipv6_lookup, bib_ipv4_lookup,
+ * bib_create, bib_session_create, session_ipv4_lookup, session_renew,
+ * session_create, clean_expired_sessions functions, nat64_ipv6_input:
+ *	Julius Kriukas <julius.kriukas@gmail.com>
+ * 
+ * 	Linux NAT64 <http://ipv6.lt/nat64_en.php>
+ *
+ * The previous functions are found in the nat64_session.c and nat64_core.c
+ * files of Julius Kriukas's Linux NAT64 implementation. Furthermore, these
+ * functions used global variables which were added (with a comment indicating
+ * their origin) in our xt_nat64.c file. The majority of these functions can 
+ * be found in our nf_nat64_filtering_and_updating.h file. Not all of them are 
+ * being used in this release version but are planned to be used in the future.
+ * This is the case of the tcp4_fsm, tcp6_fsm, tcp_timeout_fsm and 
+ * clean_expired_sessions functions and some of the global variables they use.
+ * Part of our nat64_filtering_and_updating function was based on Julius's 
+ * implementation of his nat64_ipv6_input function.
  *
  * NAT64 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -334,7 +353,7 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 
 /*
  * Julius Kriukas's code. Extracts an ipv4 from an ipv6 addr based on the prefix.
- * A modification was made on the case 32.
+ * A modification was made in case 32.
  */
 static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 {
@@ -357,7 +376,7 @@ static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 }
 
 /*
- * Julius Kriukas's code. Allocates the hash6 and has4 global variables.
+ * Julius Kriukas's code. Allocates the hash6 and hash4 global variables.
  */
 static int nat64_allocate_hash(unsigned int size)
 {
