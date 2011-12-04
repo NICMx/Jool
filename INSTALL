@@ -19,3 +19,5 @@ Userspace library:
 	To compile: make libxt_nat64.so
 	copy library to: /usr/lib/iptables or /usr/lib/xtables
 	In Ubuntu 11.04+: /lib/xtables
+
+** Tested in Ubuntu and Archlinux.
