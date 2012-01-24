@@ -3,8 +3,9 @@ example of usage:
 	ip6tables -t mangle --flush
 	/* add the new rule */ 
 	/* this rule will fail if you haven't installed the userspace library */
-	ip6tables -t mangle -A PREROUTING -j nat64 --ipdst ::1/64;
+	ip6tables -t mangle -A PREROUTING -j nat64 --ipdst $(NAT64_PREFIX_AND_MASK);
 	/* look at your new rule */
 	ip6tables -t mangle -n -L
-	/* test it... */
-	E.G. ping6 ::1
+
+example prefix and mask:
+	64:ff9b::/96
