@@ -682,7 +682,6 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 		 * So UDP header values are used in order to save code.
 		 */
 		case IPPROTO_UDP:
-		case IPPROTO_TCP:	 
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
@@ -695,6 +694,16 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			adjust_checksum_ipv6_to_ipv4(&(l4header.uh->check), ip6, 
 					ip4, (ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
+		case IPPROTO_TCP:	 
+			l4header.th = ip_data(ip4);
+			memcpy(l4header.th, ip6_transp, l4len + pay_len);
+
+			checksum_change(&(l4header.th->check), 
+					&(l4header.th->source), 
+					htons(outgoing->src.u.tcp.port),
+					false);
+
+			adjust_checksum_ipv6_to_ipv4(&(l4header.th->check), ip6, ip4, false);
 			break;
 		case IPPROTO_ICMPV6:
 			l4header.icmph = ip_data(ip4);
