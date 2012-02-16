@@ -133,6 +133,8 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 struct kmem_cache *st_cache;
 struct kmem_cache *bib_cache;
+struct kmem_cache *st_cacheTCP;
+struct kmem_cache *bib_cacheTCP;
 struct hlist_head *hash6;
 struct hlist_head *hash4;
 unsigned int		hash_size;
@@ -175,17 +177,17 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		pr_warning("nf_NAT64: ip_route_output_key failed");
+		printk("nf_NAT64: ip_route_output_key failed");
 		return -EINVAL;
 	}
 	if (!rt) {
-		pr_warning("nf_NAT64: rt null");
+		printk("nf_NAT64: rt null");
 		return -EINVAL;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if (ip_local_out(skb)) {
-		pr_warning("nf_NAT64: ip_local_out failed");
+		printk("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
 	return 0;
@@ -269,12 +271,12 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
 	struct dst_entry *dst;
-	union nat64_l4header_t {
-		struct udphdr * uh;
-		struct tcphdr * th;
-		struct icmp6hdr * icmph;
-	} l4header;
-	int i = 0;
+	//union nat64_l4header_t {
+	//	struct udphdr * uh;
+	//	struct tcphdr * th;
+	//	struct icmp6hdr * icmph;
+	//} l4header;
+	//int i = 0;
 	skb->protocol = htons(ETH_P_IPV6);
 
 	memset(&fl, 0, sizeof(fl));
@@ -599,6 +601,13 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 					true : false);
 			break;
 		case IPPROTO_TCP:
+			l4header.th = (struct tcphdr *)(ip6 + 1);
+			memcpy(l4header.th, ip_data(ip4), l4len + pay_len);
+			checksum_change(&(l4header.th->check), 
+					&(l4header.th->source), 
+					htons(outgoing->src.u.tcp.port),
+					false);
+			adjust_checksum_ipv4_to_ipv6(&(l4header.th->check), ip4, ip6,false);
 			break;
 		case IPPROTO_ICMP:
 			break;
@@ -923,6 +932,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 	struct nat64_st_entry *session;
 	struct in_addr * temp_addr;
 	struct in6_addr * temp6_addr;
+	struct tcphdr *tcph;
 
 	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
 	memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
@@ -946,8 +956,44 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 		}
 		switch (l4protocol) {
 			case IPPROTO_TCP:
-				pr_debug("NAT64: TCP protocol not"
-						" currently supported.");
+
+				//pr_debug("NAT64: TCP protocol not"
+				//		" currently supported.");
+				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+						htons(inner->dst.u.tcp.port), 
+						IPPROTO_TCP);
+				if (!bib) {
+					pr_warning("NAT64: The bib entry of the outgoing"
+							" tuple wasn't found.");
+					return NULL;
+				}
+				session = session_ipv4_lookup(bib, 
+						inner->src.u3.in.s_addr, 
+						inner->src.u.tcp.port);				
+				if (!session) {
+					pr_debug("NAT64: The session table entry of"
+							" the outgoing tuple wasn't"
+							" found.");
+					return NULL;
+				}
+				tcp4_fsm(session, tcph);
+				
+				// Obtain the data of the tuple.
+				outgoing->src.l3num = (u_int16_t)l3protocol;
+
+				// Ports
+				outgoing->src.u.tcp.port = 
+					session->embedded6_port; // y port
+				outgoing->dst.u.tcp.port = 
+					session->remote6_port; // x port
+
+				// SRC IP
+				outgoing->src.u3.in6 = 
+					session->embedded6_addr; // Y' addr
+
+				// DST IP
+				outgoing->dst.u3.in6 = 
+					session->remote6_addr; // X' addr
 				break;
 			case IPPROTO_UDP:
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
@@ -1012,12 +1058,38 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 		/*
 		 * Get the tuple out of the BIB and ST entries.
 		 */
-		bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, 
-				IPPROTO_UDP);
+		
+		switch (l4protocol) {
+			case IPPROTO_TCP:
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.tcp.port, 
+						IPPROTO_TCP);
+				break;
+			case IPPROTO_UDP:
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, 
+						IPPROTO_UDP);
+				break;
+			default:
+				pr_debug("NAT64: no hay BIB, lol, jk?");
+				break;
+		}
+
 		if (bib) {
-			session = session_ipv4_lookup(bib, 
-					nat64_extract_ipv4(inner->dst.u3.in6, 
-						prefix_len), inner->dst.u.udp.port);
+			switch (l4protocol) {
+				case IPPROTO_TCP:
+					session = session_ipv4_lookup(bib, 
+							nat64_extract_ipv4(inner->dst.u3.in6, 
+								prefix_len), inner->dst.u.tcp.port);
+					break;
+				case IPPROTO_UDP:
+					session = session_ipv4_lookup(bib, 
+							nat64_extract_ipv4(inner->dst.u3.in6, 
+								prefix_len), inner->dst.u.udp.port);
+					break;
+				default:
+					pr_debug("NAT64: no hay sesion, lol, jk?");
+					break;
+			}
+
 			if (session) {
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
@@ -1025,6 +1097,25 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 					case IPPROTO_TCP:
 						pr_debug("NAT64: TCP protocol not "
 								"currently supported.");
+
+						// Ports
+						outgoing->src.u.tcp.port = bib->local4_port;
+						outgoing->dst.u.tcp.port = session->remote4_port;
+
+						// SRC IP
+						outgoing->src.u3.ip = bib->local4_addr;
+						temp_addr->s_addr = bib->local4_addr;
+						outgoing->src.u3.in = *(temp_addr);
+
+						// DST IP
+						outgoing->dst.u3.ip = session->remote4_addr;
+						temp_addr->s_addr = session->remote4_addr;
+						outgoing->dst.u3.in = *(temp_addr);
+
+						pr_debug("NAT64: TCP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
+								&(outgoing->src.u3.in), outgoing->src.u.tcp.port, 
+								&(outgoing->dst.u3.in), outgoing->dst.u.tcp.port);
+
 						break;
 					case IPPROTO_UDP:
 						// Ports
@@ -1082,6 +1173,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
+	struct tcphdr *tcph = tcp_hdr(skb);
 	bool res;
 	//	int i;
 	res = false;
@@ -1096,7 +1188,28 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 		switch (l4protocol) {
 			case IPPROTO_TCP:
 				//Query TCP ST
-				pr_debug("NAT64: TCP protocol not currently supported.");
+				//pr_debug("NAT64: TCP protocol not currently supported.");
+
+				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+						htons(inner->dst.u.tcp.port), 
+						IPPROTO_TCP);
+				if (!bib) {
+					pr_warning("NAT64: IPv4 - BIB is missing.");
+					return res;
+				}
+
+				session = session_ipv4_lookup(bib, 
+						inner->src.u3.in.s_addr, 
+						inner->src.u.tcp.port);				
+				if (!session) {
+					pr_warning("NAT64: IPv4 - session entry is "
+							"missing.");
+					return res;
+				}
+
+				pr_debug("NAT64: TCP protocol for IPv4 "
+						"finished properly.");
+				res = true;
 				break;
 			case IPPROTO_UDP:
 				//Query UDP BIB and ST
@@ -1152,8 +1265,44 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				/*
 				 * FIXME: Finish TCP session handling
 				 */
-				pr_debug("NAT64: TCP protocol not currently "
-						"supported.");
+				pr_debug("NAT64: FNU - TCP");
+
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
+						inner->src.u.tcp.port, IPPROTO_TCP);
+				if(bib) {
+					session = session_ipv4_lookup(bib, 
+							nat64_extract_ipv4(
+								inner->dst.u3.in6, 
+								prefix_len), 
+							inner->dst.u.tcp.port);
+					if(session) {
+						tcp6_fsm(session, tcph);
+					}else{
+						pr_debug("Create a session entry, no bib.");
+						session = session_create(bib, 
+									&(inner->dst.u3.in6), 
+									nat64_extract_ipv4(
+										inner->dst.u3.in6, 
+										prefix_len), 
+									inner->dst.u.tcp.port, 
+									TCP_TRANS);
+					}
+				} else if (tcph->syn) {
+					pr_debug("Create a new BIB and Session entry syn.");
+					bib = bib_session_create(
+							&(inner->src.u3.in6), 
+							&(inner->dst.u3.in6), 
+							nat64_extract_ipv4(
+								inner->dst.u3.in6, 
+								prefix_len), 
+							inner->src.u.tcp.port, 
+							inner->dst.u.tcp.port, 
+							l4protocol, TCP_TRANS);
+
+					session = list_entry(bib->sessions.next, struct nat64_st_entry, list);
+					session->state = V6_SYN_RCV;
+				}
+				res = true;
 				break;
 			case IPPROTO_UDP:
 				pr_debug("NAT64: FNU - UDP");
@@ -1291,7 +1440,6 @@ static unsigned int nat64_core(struct sk_buff *skb,
 				" module");
 		return NF_DROP;
 	}
-
 	/* TODO: Incluir llamada a HAIRPINNING aqui */
 
 	return NF_DROP;
@@ -1307,13 +1455,13 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
 	__u8 l4_protocol = iph->protocol;
-
+	/*
 	switch(l4_protocol) {
 		case IPPROTO_TCP: return NF_ACCEPT;
 		case IPPROTO_ICMP: return NF_ACCEPT;
 		case IPPROTO_ICMPV6: return NF_ACCEPT;
 	}
-
+	*/
 	pr_debug("\n* INCOMING IPV4 PACKET *\n");
 	pr_debug("PKT SRC=%pI4 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI4 \n", &iph->daddr);
@@ -1346,13 +1494,13 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	const struct xt_nat64_tginfo *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	__u8 l4_protocol = iph->nexthdr;
-
+	/*
 	switch(l4_protocol) {
 		case IPPROTO_TCP: return NF_ACCEPT;
 		case IPPROTO_ICMP: return NF_ACCEPT;
 		case IPPROTO_ICMPV6: return NF_ACCEPT;
 	}
-
+	*/
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
 	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
 	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
@@ -1429,9 +1577,9 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.56.114"; // Default IPv4
+	ipv4_address = "192.168.1.122"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
-	prefix_address = "fec0::"; // Default IPv6
+	prefix_address = "fec0:24::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
 
 	/*
