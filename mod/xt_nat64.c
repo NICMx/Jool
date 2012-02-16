@@ -177,17 +177,17 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		printk("nf_NAT64: ip_route_output_key failed");
+		pr_warning("nf_NAT64: ip_route_output_key failed");
 		return -EINVAL;
 	}
 	if (!rt) {
-		printk("nf_NAT64: rt null");
+		pr_warning("nf_NAT64: rt null");
 		return -EINVAL;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 	if (ip_local_out(skb)) {
-		printk("nf_NAT64: ip_local_out failed");
+		pr_warning("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
 	return 0;
@@ -1279,7 +1279,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 						tcp6_fsm(session, tcph);
 					}else{
 						pr_debug("Create a session entry, no bib.");
-						session = session_create(bib, 
+						session = session_create_tcp(bib, 
 									&(inner->dst.u3.in6), 
 									nat64_extract_ipv4(
 										inner->dst.u3.in6, 
@@ -1289,7 +1289,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 					}
 				} else if (tcph->syn) {
 					pr_debug("Create a new BIB and Session entry syn.");
-					bib = bib_session_create(
+					bib = bib_session_create_tcp(
 							&(inner->src.u3.in6), 
 							&(inner->dst.u3.in6), 
 							nat64_extract_ipv4(
@@ -1635,8 +1635,10 @@ static int __init nat64_init(void)
 
 	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
 			0,0, NULL);
+	st_cacheTCP = kmem_cache_create("nat64_stTCP", sizeof(struct nat64_st_entry),
+			0,0, NULL);
 
-	if (!st_cache) {
+	if (!st_cache || !st_cacheTCP) {
 		pr_warning("NAT64: Unable to create session table slab cache.");
 		goto st_cache_error;
 	} else {
@@ -1646,8 +1648,10 @@ static int __init nat64_init(void)
 
 	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 
 			0,0, NULL);
+	bib_cacheTCP = kmem_cache_create("nat64_bibTCP", sizeof(struct nat64_bib_entry), 
+			0,0, NULL);
 
-	if (!bib_cache) {
+	if (!bib_cache || !bib_cacheTCP) {
 		pr_warning("NAT64: Unable to create bib table slab cache.");
 		goto bib_cache_error;
 	} else {
@@ -1664,10 +1668,13 @@ hash_error:
 	return -ENOMEM;
 st_cache_error:
 	kmem_cache_destroy(st_cache);
+	kmem_cache_destroy(st_cacheTCP);
 	return -ENOMEM;
 bib_cache_error:
 	kmem_cache_destroy(st_cache);
+	kmem_cache_destroy(st_cacheTCP);
 	kmem_cache_destroy(bib_cache);
+	kmem_cache_destroy(bib_cacheTCP);
 	return -ENOMEM;
 }
 
@@ -1677,6 +1684,8 @@ static void __exit nat64_exit(void)
 	nf_ct_l3proto_put(l3proto_ipv6);
 	kmem_cache_destroy(st_cache); // Line inherited from Julius Kriukas's nat64_exit function.
 	kmem_cache_destroy(bib_cache); // Line inherited from Julius Kriukas's nat64_exit function.
+	kmem_cache_destroy(st_cacheTCP);
+	kmem_cache_destroy(bib_cacheTCP);
 	xt_unregister_target(&nat64_tg_reg);
 }
 
