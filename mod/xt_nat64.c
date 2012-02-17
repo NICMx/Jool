@@ -1590,7 +1590,7 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.1.122"; // Default IPv4
+	ipv4_address = "192.168.1.11"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0:24::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
