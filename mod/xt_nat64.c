@@ -186,10 +186,14 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
+
+//kernel panic ***
+/*
 	if (ip_local_out(skb)) {
 		pr_warning("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
 	}
+*/
 	return 0;
 	// End Ecdysis (nat64_output_ipv4)
 }
