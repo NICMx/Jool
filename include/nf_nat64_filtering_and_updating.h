@@ -514,14 +514,14 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 		return NULL;
 	}
 
-	bib = bib_create(saddr, sport, ipv4_addr, local4_port, protocol);
+	bib = bib_create_tcp(saddr, sport, ipv4_addr, local4_port, protocol);
 	if (!bib)
 		return NULL;
 
 	hlist_add_head(&bib->byremote, &hash6[nat64_hash6(*saddr, sport)]);
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
 	
-	session = session_create(bib, in6_daddr, daddr, dport, type);
+	session = session_create_tcp(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cacheTCP, bib);
 		return NULL;
