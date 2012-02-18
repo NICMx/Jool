@@ -486,6 +486,7 @@ static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr,
 		return NULL;
 	}
 
+
 	bib = bib_create(saddr, sport, ipv4_addr, local4_port, protocol);
 	if (!bib)
 		return NULL;
@@ -507,12 +508,13 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
 	__be16 local4_port;
-
+	pr_debug("NAT64: [bib1] source PORT %hu .\n", ntohs(sport));
 	local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
 	if (local4_port < 0) {
 		pr_debug("NAT64: [bib] Unable to allocate new local IPv4 port. Dropping connection.");
 		return NULL;
 	}
+	pr_debug("NAT64: [bib2] source PORT %hu .\n", ntohs(sport));
 
 	bib = bib_create_tcp(saddr, sport, ipv4_addr, local4_port, protocol);
 	if (!bib)
