@@ -187,8 +187,6 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 
-//kernel panic ***
-
 	if (ip_local_out(skb)) {
 		pr_warning("nf_NAT64: ip_local_out failed");
 		return -EINVAL;
@@ -991,7 +989,6 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				}
 				th=tcp_hdr(skb);
 				tcp4_fsm(session, th);
-				skb_pull(skb, th);
 				
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
