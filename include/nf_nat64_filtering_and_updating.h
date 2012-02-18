@@ -514,7 +514,7 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 		pr_debug("NAT64: [bib] Unable to allocate new local IPv4 port. Dropping connection.");
 		return NULL;
 	}
-	pr_debug("NAT64: [bib2] source PORT %hu .\n", ntohs(sport));
+	pr_debug("NAT64: [bib2] destination PORT %hu .\n", ntohs(dport));
 
 	bib = bib_create_tcp(saddr, sport, ipv4_addr, local4_port, protocol);
 	if (!bib)
