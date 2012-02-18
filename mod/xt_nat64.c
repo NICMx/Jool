@@ -945,7 +945,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 	struct nat64_st_entry *session;
 	struct in_addr * temp_addr;
 	struct in6_addr * temp6_addr;
-	struct tcphdr *tcph;
+	struct tcphdr *th;
 
 	outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
 	memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));
@@ -989,8 +989,9 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 							" found.");
 					return NULL;
 				}
-				tcph=tcp_hdr(skb);
-				tcp4_fsm(session, tcph);
+				th=tcp_hdr(skb);
+				tcp4_fsm(session, th);
+				skb_pull(skb, tcp_hdrlen(skb));
 				
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
@@ -1109,8 +1110,8 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				outgoing->src.l3num = (u_int16_t)l3protocol;
 				switch (l4protocol) {
 					case IPPROTO_TCP:
-						pr_debug("NAT64: TCP protocol not "
-								"currently supported.");
+						//pr_debug("NAT64: TCP protocol not "
+						//		"currently supported.");
 
 						// Ports
 						outgoing->src.u.tcp.port = bib->local4_port;
