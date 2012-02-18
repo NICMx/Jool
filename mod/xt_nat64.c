@@ -991,7 +991,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				}
 				th=tcp_hdr(skb);
 				tcp4_fsm(session, th);
-				skb_pull(skb, tcp_hdrlen(skb));
+				skb_pull(skb, th);
 				
 				// Obtain the data of the tuple.
 				outgoing->src.l3num = (u_int16_t)l3protocol;
