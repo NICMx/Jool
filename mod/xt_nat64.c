@@ -101,6 +101,9 @@
 
 #include <linux/version.h>
 
+#include <linux/fs.h>
+#include <asm/uaccess.h>
+
 #include "nf_nat64_bib.h"
 #include "xt_nat64.h"
 #include "nf_nat64_generic_functions.h"
@@ -113,10 +116,17 @@ MODULE_DESCRIPTION("Xtables: RFC 6146 \"NAT64\" implementation");
 MODULE_ALIAS("ipt_nat64");
 MODULE_ALIAS("ip6t_nat64");
 
+#define MY_MACIG 'G'
+#define READ_IOCTL _IOR(MY_MACIG, 0, int)
+#define WRITE_IOCTL _IOW(MY_MACIG, 1, int)
+
 #define IPV6_HDRLEN 40
 #ifndef KERNEL_VERSION
 #define KERNEL_VERSION(a,b,c) ((a)*65536+(b)*256+(c))
 #endif
+
+static int major; 
+static char msg[200];
 
 /*
  * FIXME: Ensure all variables are 32 and 64-bits complaint. 
@@ -1583,6 +1593,48 @@ static struct xt_target nat64_tg_reg __read_mostly = {
 	.me = THIS_MODULE,
 };
 
+
+static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
+{
+	return simple_read_from_buffer(buffer, length, offset, msg, 200);
+}
+
+
+static ssize_t device_write(struct file *filp, const char __user *buff, size_t len, loff_t *off)
+{
+	if (len > 199)
+		return -EINVAL;
+	copy_from_user(msg, buff, len);
+
+	msg[len] = '\0';
+	return len;
+}
+char buf[200];
+long device_ioctl(struct file *filep, unsigned int cmd, unsigned long arg) {
+
+	long len = 200;
+	switch(cmd) {
+	case READ_IOCTL:
+		copy_to_user((char *)arg, "Holakern\n", 10);
+		break;
+	
+	case WRITE_IOCTL:
+		copy_from_user(buf, (char *)arg, len);
+		print_bufu(buf);
+		break;
+
+	default:
+		return -ENOTTY;
+	}
+	return len;
+
+}
+static struct file_operations fops = {
+	.read = device_read, 
+	.write = device_write,
+	.unlocked_ioctl = device_ioctl
+};
+
 static int __init nat64_init(void)
 {
 	/* Variables imported from Julius Kriukas's implementation */
@@ -1671,6 +1723,14 @@ static int __init nat64_init(void)
 	}
 	// END: code imported from nat64_init of Julius Kriukas' implementation
 
+	major = register_chrdev(0, "my_device", &fops);
+	if (major < 0) {
+     		printk ("Registering the character device failed with %d\n", major);
+	     	return major;
+	}
+	printk("\ncdev example: assigned major: %d\n", major);
+	printk("create node with mknod /dev/cdev_example c %d 0\n", major);
+
 	return xt_register_target(&nat64_tg_reg);
 
 // The following goto were inspired by Julius Kriukas' nat64_init's goto
@@ -1699,6 +1759,7 @@ static void __exit nat64_exit(void)
 	kmem_cache_destroy(st_cacheTCP);
 	kmem_cache_destroy(bib_cacheTCP);
 	xt_unregister_target(&nat64_tg_reg);
+	unregister_chrdev(major, "my_device");
 }
 
 module_init(nat64_init);
