@@ -1,6 +1,8 @@
 #ifndef _nat64_filtering_n_updating_h
 #define _nat64_filtering_n_updating_h
 
+#include <linux/string.h>
+
 #define UDP_DEFAULT_ 5*60
 #define ICMP_DEFAULT_ 1*60
 #define BIB_ICMP 3
@@ -530,6 +532,99 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 	}
 
 	return bib;
+}
+
+/*
+ * strtok_r - extract tokens from strings
+ * @s:  The string to be searched
+ * @ct: The characters to deliminate the tokens
+ * @saveptr: The pointer to the next token
+ *
+ * It returns the next token found outside of the @ct delimiters.
+ * Multiple occurrences of @ct characters will be considered
+ * a single delimiter. In other words, the returned token will
+ * always have a size greater than 0 (or NULL if no token found).
+ *
+ * A '\0' is placed at the end of the found token, and
+ * @saveptr is updated to point to the location after that.
+ */
+static inline char *strtokr(char *s, const char *ct, char **saveptr){
+	char *ret;
+	int skip;
+
+	if (!s)
+		s = *saveptr;
+
+	/* Find start of first token */
+	skip = strspn(s, ct);
+	*saveptr = s + skip;
+
+	/* return NULL if we found no token */
+	if (!*saveptr[0])
+		return NULL;
+
+	/*
+	 * strsep is different than strtok, where as saveptr will be NULL
+	 * if token not found. strtok makes it point to the end of the string.
+	 */
+	ret = strsep(saveptr, ct);
+	if (!*saveptr)
+		*saveptr = &ret[strlen(ret)];
+	return ret;
+}
+static inline void print_bufu(char *b){
+	struct nat64_bib_entry *bib;
+	char *token, *subtoken, *str1, *str2;
+	char *saveptr1, *saveptr2;
+	int j, proto;
+	int cont = 0;
+	uint16_t p1; 
+	uint16_t p2;
+	for (j = 1, str1 = b; ; j++, str1 = NULL) {
+		token = strtokr(str1, "&", &saveptr1);
+		if (token == NULL)
+		    break;
+		printk("%d: %s\n", j, token);
+	    	if (strcmp (token,"tcp") == 0)
+	    		proto = 6;
+		else if (strcmp (token,"udp") == 0)
+	    		proto = 17;
+		else if (strcmp (token,"icmp") == 0)
+	    		proto = 1;
+		for (str2 = token; ; str2 = NULL) {
+			subtoken = strtokr(str2, "#", &saveptr2);
+		    	if (subtoken == NULL)
+		        	break;
+			if (str2 == NULL){
+				if (cont==0){
+					p1 = simple_strtoul(subtoken, &subtoken, 10);
+					cont++;
+				} else{
+					p2 = simple_strtoul(subtoken, &subtoken, 10);
+				}
+			} else {
+
+			}
+		    	printk(" --> %s\n", subtoken);
+		}
+	}
+
+	switch(proto) {
+		case 1:
+			break;
+		case 6:
+			printk("port %d\n", p1);
+			printk("port %d\n", p2);
+			//bib = bib_session_create_tcp(,,,p1,p2,proto,TCP_TRANS);
+			break;
+		case 17:
+			//bib = bib_session_create_tcp(,,,,, proto, UDP_DEFAULT);
+			break;
+		default:
+			break;
+
+	}
+
 }
 
 #endif
