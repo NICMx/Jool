@@ -1,9 +1,6 @@
 #ifndef _nat64_filtering_n_updating_h
 #define _nat64_filtering_n_updating_h
 
-#include <linux/string.h>
-#include <linux/inet.h>
-
 #define UDP_DEFAULT_ 5*60
 #define ICMP_DEFAULT_ 1*60
 #define BIB_ICMP 3
@@ -315,16 +312,14 @@ static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib,
 	s->expires = jiffies + expiry_base[type].timeout*HZ;
 	list_add_tail(&s->byexpiry, &expiry_base[type].queue);
 
-	pr_debug("NAT64: [session] New session (timeout %u sec).", expiry_base[type].timeout);
-	pr_debug("NAT64: [session] x:%hu\tX':%pI6.", ntohs(s->remote6_port), &s->remote6_addr);
-	pr_debug("NAT64: [session] y:%hu\tY':%pI6.", ntohs(s->embedded6_port), &s->embedded6_addr);
-	pr_debug("NAT64: [session] t:%hu\tT':%pI4.", ntohs(s->local4_port), &s->local4_addr);
-	pr_debug("NAT64: [session] z:%hu\tZ':%pI4.", ntohs(s->remote4_port), &s->remote4_addr);
+	printk("NAT64: [session] New session (timeout %u sec).\n", expiry_base[type].timeout);
+	printk("NAT64: [session] x:%hu \tX':%pI6.\n", 	ntohs(s->remote6_port),  &s->remote6_addr);
+	printk("NAT64: [session] y:%hu \tY':%pI6.\n", 	ntohs(s->embedded6_port),&s->embedded6_addr);
+	printk("NAT64: [session] t:%hu \tT:%pI4.\n",	ntohs(s->local4_port),   &s->local4_addr);
+	printk("NAT64: [session] z:%hu \tZ(Y'):%pI4.\n",ntohs(s->remote4_port),  &s->remote4_addr);
 	
 	return s;	
 }
-
-
 static inline struct nat64_st_entry *session_create_tcp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
@@ -450,10 +445,13 @@ static inline struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, 
 	bib->remote6_port = remote6_port;
 	bib->local4_port = local4_port; // FIXME: Should be different than the remote6_port.
 	INIT_LIST_HEAD(&bib->sessions);
-	pr_debug("NAT64: [bib] New bib %pI6c,%hu <--> %pI4:%hu.", remote6_addr, ntohs(remote6_port), &local4_addr, ntohs(local4_port));
+	pr_debug("NAT64: [bib] New bib %pI6c,%hu <--> %pI4:%hu.\n", 
+			remote6_addr, ntohs(remote6_port), 
+			&local4_addr, ntohs(local4_port));
 
 	return bib;
 }
+
 
 static inline struct nat64_bib_entry *bib_create_tcp(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type)
@@ -477,7 +475,10 @@ static inline struct nat64_bib_entry *bib_create_tcp(struct in6_addr *remote6_ad
 	return bib;
 }
 
-static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr, struct in6_addr *in6_daddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
+static inline struct nat64_bib_entry
+	*bib_session_create(struct in6_addr *saddr, struct in6_addr *in6_daddr,
+						__be32 daddr, __be16 sport, __be16 dport,
+						int protocol, enum expiry_type type)
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
@@ -485,7 +486,7 @@ static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr,
 
 	local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
 	if (local4_port < 0) {
-		pr_debug("NAT64: [bib] Unable to allocate new local IPv4 port. Dropping connection.");
+		pr_debug("NAT64: [bib] Unable to allocate new local IPv4 port. Dropping connection.\n");
 		return NULL;
 	}
 
@@ -496,7 +497,7 @@ static inline struct nat64_bib_entry *bib_session_create(struct in6_addr *saddr,
 
 	hlist_add_head(&bib->byremote, &hash6[nat64_hash6(*saddr, sport)]);
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
-	
+
 	session = session_create(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cache, bib);
@@ -533,109 +534,6 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 	}
 
 	return bib;
-}
-
-/*
- * strtok_r - extract tokens from strings
- * @s:  The string to be searched
- * @ct: The characters to deliminate the tokens
- * @saveptr: The pointer to the next token
- *
- * It returns the next token found outside of the @ct delimiters.
- * Multiple occurrences of @ct characters will be considered
- * a single delimiter. In other words, the returned token will
- * always have a size greater than 0 (or NULL if no token found).
- *
- * A '\0' is placed at the end of the found token, and
- * @saveptr is updated to point to the location after that.
- */
-static inline char *strtokr(char *s, const char *ct, char **saveptr){
-	char *ret;
-	int skip;
-
-	if (!s)
-		s = *saveptr;
-
-	/* Find start of first token */
-	skip = strspn(s, ct);
-	*saveptr = s + skip;
-
-	/* return NULL if we found no token */
-	if (!*saveptr[0])
-		return NULL;
-
-	/*
-	 * strsep is different than strtok, where as saveptr will be NULL
-	 * if token not found. strtok makes it point to the end of the string.
-	 */
-	ret = strsep(saveptr, ct);
-	if (!*saveptr)
-		*saveptr = &ret[strlen(ret)];
-	return ret;
-}
-static inline void print_bufu(char *b){
-	struct nat64_bib_entry *bib;
-	char *token, *subtoken, *str1, *str2;
-	char *saveptr1, *saveptr2;
-	int j, proto;
-	int cont, con, ret;
-	uint16_t p1=0; 
-	uint16_t p2=0;
-	long unsigned int res;
-	__be32 add4;
-	struct in6_addr addr1 = IN6ADDR_ANY_INIT;
-	struct in6_addr addr2 = IN6ADDR_ANY_INIT;
-	for (j = 1, str1 = b; ; j++, str1 = NULL) {
-		token = strtokr(str1, "&", &saveptr1);
-		if (token == NULL)
-		    break;
-		printk("%d: %s\n", j, token);
-	    	if (strcmp (token,"tcp") == 0)
-	    		proto = 6;
-		else if (strcmp (token,"udp") == 0)
-	    		proto = 17;
-		else if (strcmp (token,"icmp") == 0)
-	    		proto = 1;
-		cont =0;
-		con=0;
-		for (str2 = token; ; str2 = NULL) {
-			subtoken = strtokr(str2, "#", &saveptr2);
-		    	if (subtoken == NULL)
-		        	break;
-			if (str2 == NULL){
-				if (cont==0){
-					kstrtoul(subtoken, 10, &res);
-					p1 = res;
-					cont++;
-				} else{
-					kstrtoul(subtoken, 10, &res);
-					p2 = res;
-				}
-			} else {
-				ret = in6_pton(subtoken, -1, (u8 *)&token, '\x0', addr1);
-
-			}
-		    	printk(" --> %s\n", subtoken);
-		}
-	}
-
-	switch(proto) {
-		case 1:
-			break;
-		case 6:
-			printk("port %d\n", p1);
-			printk("port %d\n", p2);
-			printk("hola tcp\n ");
-			//bib = bib_session_create_tcp(,,,p1,p2,proto,TCP_TRANS);
-			break;
-		case 17:
-			//bib = bib_session_create_tcp(,,,,, proto, UDP_DEFAULT);
-			break;
-		default:
-			break;
-
-	}
-
 }
 
 #endif

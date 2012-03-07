@@ -131,7 +131,15 @@ static char msg[200];
 /*
  * FIXME: Ensure all variables are 32 and 64-bits complaint. 
  * That is, no generic data types akin to integer.
+ * FIXED: All the output messages of the stages are in the opposite
+ * order of execution
+ * in the logs.
  */
+// FIXME: Rob. Change all 'printk' function calls by 'pr_debug' function
+//
+//
+
+
 
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
@@ -604,13 +612,15 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
-					htons(outgoing->src.u.udp.port),
-					(ip4->protocol == IPPROTO_UDP) ? 
-					true : false);
+					//~ htons(outgoing->src.u.udp.port),
+					outgoing->src.u.udp.port, // Rob.
+					(ip4->protocol == IPPROTO_UDP) ? true : false );
 
-			adjust_checksum_ipv4_to_ipv6(&(l4header.uh->check), ip4, ip6, 
-					(ip4->protocol == IPPROTO_UDP) ? 
-					true : false);
+			adjust_checksum_ipv4_to_ipv6( &(l4header.uh->check), 
+					ip4, 
+					ip6, 
+					(ip4->protocol == IPPROTO_UDP) ? true : false );
+
 			break;
 		case IPPROTO_TCP:
 			l4header.th = (struct tcphdr *)(ip6 + 1);
@@ -699,7 +709,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
-					htons(outgoing->src.u.udp.port),
+					//~ htons(outgoing->src.u.udp.port),
+					(outgoing->src.u.udp.port), // Rob. This should not be changed here!
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -712,7 +723,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 
 			checksum_change(&(l4header.th->check), 
 					&(l4header.th->source), 
-					htons(outgoing->src.u.tcp.port),
+					outgoing->src.u.tcp.port,
 					false);
 
 			adjust_checksum_ipv6_to_ipv4(&(l4header.th->check), ip6, ip4, false);
@@ -939,6 +950,12 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
 		return NULL;
 	}
 
+//FIXME: No sirve para IPv6
+	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, 
+					new_skb, outgoing))) { 
+		pr_debug("NAT64: Something went wrong getting the tuple");
+		return NULL;
+	}
 	pr_debug("NAT64: Determining the translate the packet stage went OK.");
 
 	return new_skb;
@@ -981,7 +998,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				//pr_debug("NAT64: TCP protocol not"
 				//		" currently supported.");
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-						htons(inner->dst.u.tcp.port), 
+						inner->dst.u.tcp.port, 
 						IPPROTO_TCP);
 				if (!bib) {
 					pr_warning("NAT64: The bib entry of the outgoing"
@@ -1019,7 +1036,8 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				break;
 			case IPPROTO_UDP:
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-						htons(inner->dst.u.udp.port), 
+						//~ htons(inner->dst.u.udp.port), 
+						inner->dst.u.udp.port, // Rob. 
 						IPPROTO_UDP);
 				if (!bib) {
 					pr_warning("NAT64: The bib entry of the outgoing"
@@ -1053,6 +1071,10 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				// DST IP
 				outgoing->dst.u3.in6 = 
 					session->remote6_addr; // X' addr
+					
+				pr_debug("NAT64: UDP outgoing tuple: %pI6 : %d --> %pI6 : %d", 
+							&(outgoing->src.u3.in6), ntohs(outgoing->src.u.udp.port), 
+							&(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.udp.port) );  //Rob
 
 				break;
 			case IPPROTO_ICMP:
@@ -1135,9 +1157,9 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						outgoing->dst.u3.in = *(temp_addr);
 
 						pr_debug("NAT64: TCP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
-								&(outgoing->src.u3.in), outgoing->src.u.tcp.port, 
-								&(outgoing->dst.u3.in), outgoing->dst.u.tcp.port);
-
+								&(outgoing->src.u3.in), ntohs(outgoing->src.u.tcp.port), 
+								&(outgoing->dst.u3.in), ntohs(outgoing->dst.u.tcp.port));
+s
 						break;
 					case IPPROTO_UDP:
 						// Ports
@@ -1157,8 +1179,10 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						outgoing->dst.u3.in = *(temp_addr);
 
 						pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
-								&(outgoing->src.u3.in), outgoing->src.u.udp.port, 
-								&(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
+								//~ &(outgoing->src.u3.in), outgoing->src.u.udp.port, 
+								//~ &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
+								&(outgoing->src.u3.in), ntohs(outgoing->src.u.udp.port), 
+								&(outgoing->dst.u3.in), ntohs(outgoing->dst.u.udp.port) ); // Rob. Added ntohs for correct port representation
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -1213,7 +1237,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				//pr_debug("NAT64: TCP protocol not currently supported.");
 
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-						htons(inner->dst.u.tcp.port), 
+						inner->dst.u.tcp.port, 
 						IPPROTO_TCP);
 				if (!bib) {
 					pr_warning("NAT64: IPv4 - BIB is missing.");
@@ -1237,7 +1261,8 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				//Query UDP BIB and ST
 
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-						htons(inner->dst.u.udp.port), 
+						//~ htons(inner->dst.u.udp.port),
+						(inner->dst.u.udp.port), 	// Rob. I think htons should not be done.
 						IPPROTO_UDP);
 				if (!bib) {
 					pr_warning("NAT64: IPv4 - BIB is missing.");
@@ -1338,7 +1363,8 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				 * should be created.
 				 */
 				bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
-						inner->src.u.udp.port, IPPROTO_UDP);
+						inner->src.u.udp.port,
+						IPPROTO_UDP);
 				if (bib) {
 					session = session_ipv4_lookup(bib, 
 							nat64_extract_ipv4(
@@ -1462,6 +1488,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 				" module");
 		return NF_DROP;
 	}
+
 	/* TODO: Incluir llamada a HAIRPINNING aqui */
 
 	return NF_DROP;
@@ -1641,9 +1668,9 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.1.11"; // Default IPv4
+	ipv4_address = "192.168.56.114"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
-	prefix_address = "fec0:24::"; // Default IPv6
+	prefix_address = "fec0::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
 
 	/*

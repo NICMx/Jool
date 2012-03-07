@@ -100,9 +100,9 @@ static inline void adjust_checksum_ipv6_to_ipv4(uint16_t *sum, struct ipv6hdr *i
 			(uint16_t *)(&ip4->saddr + 2), udp);
 }
 
-static inline void
-adjust_checksum_ipv4_to_ipv6(uint16_t *sum, struct iphdr *ip4, 
-		struct ipv6hdr *ip6, int udp)
+static inline void adjust_checksum_ipv4_to_ipv6(uint16_t *sum, 
+												struct iphdr *ip4, 
+												struct ipv6hdr *ip6, int udp)
 {
 	WARN_ON_ONCE(udp && !*sum);
 
