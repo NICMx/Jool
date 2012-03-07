@@ -2,6 +2,7 @@
 #define _nat64_filtering_n_updating_h
 
 #include <linux/string.h>
+#include <linux/inet.h>
 
 #define UDP_DEFAULT_ 5*60
 #define ICMP_DEFAULT_ 1*60
@@ -577,9 +578,13 @@ static inline void print_bufu(char *b){
 	char *token, *subtoken, *str1, *str2;
 	char *saveptr1, *saveptr2;
 	int j, proto;
-	int cont = 0;
-	uint16_t p1; 
-	uint16_t p2;
+	int cont, con, ret;
+	uint16_t p1=0; 
+	uint16_t p2=0;
+	long unsigned int res;
+	__be32 add4;
+	struct in6_addr addr1 = IN6ADDR_ANY_INIT;
+	struct in6_addr addr2 = IN6ADDR_ANY_INIT;
 	for (j = 1, str1 = b; ; j++, str1 = NULL) {
 		token = strtokr(str1, "&", &saveptr1);
 		if (token == NULL)
@@ -591,18 +596,23 @@ static inline void print_bufu(char *b){
 	    		proto = 17;
 		else if (strcmp (token,"icmp") == 0)
 	    		proto = 1;
+		cont =0;
+		con=0;
 		for (str2 = token; ; str2 = NULL) {
 			subtoken = strtokr(str2, "#", &saveptr2);
 		    	if (subtoken == NULL)
 		        	break;
 			if (str2 == NULL){
 				if (cont==0){
-					p1 = simple_strtoul(subtoken, &subtoken, 10);
+					kstrtoul(subtoken, 10, &res);
+					p1 = res;
 					cont++;
 				} else{
-					p2 = simple_strtoul(subtoken, &subtoken, 10);
+					kstrtoul(subtoken, 10, &res);
+					p2 = res;
 				}
 			} else {
+				ret = in6_pton(subtoken, -1, (u8 *)&token, '\x0', addr1);
 
 			}
 		    	printk(" --> %s\n", subtoken);
@@ -615,6 +625,7 @@ static inline void print_bufu(char *b){
 		case 6:
 			printk("port %d\n", p1);
 			printk("port %d\n", p2);
+			printk("hola tcp\n ");
 			//bib = bib_session_create_tcp(,,,p1,p2,proto,TCP_TRANS);
 			break;
 		case 17:
