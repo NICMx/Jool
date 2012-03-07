@@ -1646,7 +1646,7 @@ long device_ioctl(struct file *filep, unsigned int cmd, unsigned long arg) {
 	
 	case WRITE_IOCTL:
 		copy_from_user(buf, (char *)arg, len);
-		print_bufu(buf);
+		//print_bufu(buf);
 		break;
 
 	default:
