@@ -1159,7 +1159,6 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						pr_debug("NAT64: TCP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
 								&(outgoing->src.u3.in), ntohs(outgoing->src.u.tcp.port), 
 								&(outgoing->dst.u3.in), ntohs(outgoing->dst.u.tcp.port));
-s
 						break;
 					case IPPROTO_UDP:
 						// Ports
@@ -1668,9 +1667,9 @@ static int __init nat64_init(void)
 	int ret = 0;
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
-	ipv4_address = "192.168.56.114"; // Default IPv4
+	ipv4_address = "192.168.1.11"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
-	prefix_address = "fec0::"; // Default IPv6
+	prefix_address = "fec0::24"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
 
 	/*
