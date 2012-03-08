@@ -1324,7 +1324,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 					if(session) {
 						tcp6_fsm(session, tcph);
 					}else{
-						pr_debug("Create a session entry, no bib.");
+						pr_debug("Create a session entry, no sesion.");
 						session = session_create_tcp(bib, 
 									&(inner->dst.u3.in6), 
 									nat64_extract_ipv4(
