@@ -627,7 +627,8 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			memcpy(l4header.th, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.th->check), 
 					&(l4header.th->source), 
-					htons(outgoing->src.u.tcp.port),
+					//htons(outgoing->src.u.tcp.port),
+					outgoing->src.u.tcp.port, // Rob.
 					false);
 			adjust_checksum_ipv4_to_ipv6(&(l4header.th->check), ip4, ip6,false);
 			break;
