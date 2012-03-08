@@ -1033,6 +1033,10 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				// DST IP
 				outgoing->dst.u3.in6 = 
 					session->remote6_addr; // X' addr
+
+				pr_debug("NAT64: TCP outgoing tuple: %pI6 : %d --> %pI6 : %d", 
+							&(outgoing->src.u3.in6), ntohs(outgoing->src.u.tcp.port), 
+							&(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.tcp.port) ); 
 				break;
 			case IPPROTO_UDP:
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
