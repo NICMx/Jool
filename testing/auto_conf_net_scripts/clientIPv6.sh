@@ -1,7 +1,12 @@
 #!/bin/bash
 
-# configuration:
+# CONFIGURATION:
 ipv6_mac="08:00:27:35:54:5d"    # IPv6 interface's mac address
+ipv6_int_addr="fec0::6/64"	# IPv6 interface's IP address
+ipv6_def_gw="fec0::1"		# IPv6 default gateway
+#
+
+if [ "`whoami`" != "root" ]; then echo "Must be run as superuser"; exit; fi
 
 echo "Removing existing configuration"
 dev_list=(`ifconfig -a | grep 'HWaddr' | sed -e 's/Link.*//' -e 's/ //g'`)
@@ -38,11 +43,10 @@ for addr in ${ipv6_addr[@]}; do
 	ip -6 addr del $addr dev $ipv6_dev
 done
 
-echo "Add ipv6 address"
-ip -6 addr add fec0::6/64 dev $ipv6_dev
-ip -6 addr add fec0::2/64 dev $ipv6_dev
-echo "Add default route"
-ip -6 route add default via fec0::1
+echo "Add ipv6 address: $ipv6_int_addr"
+ip -6 addr add $ipv6_int_addr dev $ipv6_dev
+echo "Add default route: $ipv6_def_gw"
+ip -6 route add default via $ipv6_def_gw
 echo "Delete fe80::/64 route"
 [ "`ip -6 route | grep fe80`" != ""  ] && ip -6 route del fe80::/64
 

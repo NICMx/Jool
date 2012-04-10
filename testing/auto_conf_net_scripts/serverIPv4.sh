@@ -2,6 +2,10 @@
 
 # configuration: 
 ipv4_mac="08:00:27:87:6a:38"    # IPv4 interface's mac address
+ipv4_int_addr="192.168.1.4"	# IPv4 interface's IP address
+ipv4_def_gw="192.168.1.1"	# IPv4 default gateway
+
+if [ "`whoami`" != "root" ]; then echo "Must be run as superuser"; exit; fi
 
 echo "Removing existing configuration"
 dev_list=(`ifconfig -a | grep 'HWaddr' | sed -e 's/Link.*//' -e 's/ //g'`)
@@ -40,11 +44,11 @@ done
 #done
 
 
-echo "Add ipv4 address"
+echo "Add ipv4 address: $ipv4_int_addr"
 #ip addr add 192.168.56.4/24 dev $ipv4_dev
-ifconfig $ipv4_dev 192.168.56.4 up
+ifconfig $ipv4_dev $ipv4_int_addr up
 echo "Add default route"
-ip route add default via 192.168.56.2
+ip route add default via $ipv4_def_gw
 
 #echo "ADD IPv6 ADDRESS TO THIS IPv4 MACHINE"
 #ip -6 addr add fec0::3/64 dev $ipv4_dev
