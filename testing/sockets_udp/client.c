@@ -78,14 +78,17 @@ main(int argc, char *argv[])
 		   fprintf(stderr, "partial/failed write\n");
 		   exit(EXIT_FAILURE);
 	   }
-
+	   else
+	   	printf("Message sent (%d bytes): %s\n", len, argv[j]);
+	   	
+	
 	   nread = read(sfd, buf, BUF_SIZE);
 	   if (nread == -1) {
 		   perror("read");
 		   exit(EXIT_FAILURE);
 	   }
 
-	   printf("Received %ld bytes: %s\n", (long) nread, buf);
+	   printf("Received from server (%ld bytes): %s\n", (long) nread, buf);
    }
 
    exit(EXIT_SUCCESS);
