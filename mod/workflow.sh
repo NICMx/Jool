@@ -27,9 +27,8 @@ elif [ $1 = "debug" ] ; then
 elif [ $1 = "test" ] ; then
 	sudo ip6tables -t mangle --flush
 	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst 64:ff9b::/96
-	sudo iptables  -t mangle -A PREROUTING -j nat64 --ipdst 192.168.2.0/24
+	sudo iptables -t mangle -A PREROUTING -j nat64 --ipdst 192.168.2.0/24
 	sudo ip6tables -t mangle -n -L
-#	sudo ping6 ::1
 elif [ $1 = "setup" ] ; then
 	sudo ./workflow.sh "ins"
 	sudo ./workflow.sh "test"

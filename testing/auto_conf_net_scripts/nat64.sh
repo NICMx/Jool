@@ -1,9 +1,18 @@
 #!/bin/bash
 
-# configuration:
+# CONFIGURATION:
 ipv6_mac="08:00:27:a5:e5:03"    # IPv6 interface's mac address
 ipv4_mac="08:00:27:15:ad:cd"	# IPv4 interface's mac address
-mod_dir="/home/robertoaceves/nat64/myrepo/mod"
+#
+ipv6_int_trans_addr="fec0::192.168.1.4/64"	# IPv6 address for the IPv4-mapped address; THIS MUST NOT BE USED ANYMORE
+ipv6_int_addr="fec0::1/64"			# IPv6 interface's IP address
+#
+ipv4_int_addr="192.168.1.1"			# IPv4 interface's IP address
+#ipv4_alias_int_addr="192.168.1.114"		# IPv4 alias interface's IP address; THIS MUST NOT BE USED ANYMORE
+#
+mod_dir="/home/robertoaceves/nat64/mod"
+
+if [ "`whoami`" != "root" ]; then echo "Must be run as superuser"; exit; fi
 
 echo "Removing existing configuration"
 dev_list=(`ifconfig -a | grep 'HWaddr' | sed -e 's/Link.*//' -e 's/ //g'`)
@@ -26,11 +35,10 @@ ipv4_mask="16"
 [ "$ipv4_addr" != "" ] &&
 ip addr del $ipv4_addr/$ipv4_mask dev $ipv6_dev
 
-echo "Add IPv6 address"
-ip -6 addr add fec0::1/64 dev $ipv6_dev
-echo "Add IPv6 IPv4-transalted address"
-#ifconfig $ipv6_dev inet6 add fec0::192.168.56.3/64
-ifconfig $ipv6_dev inet6 add fec0::192.168.56.4/64
+echo "Add IPv6 address: $ipv6_int_addr"
+ip -6 addr add $ipv6_int_addr dev $ipv6_dev
+echo "Add IPv6 IPv4-transalted address: $ipv6_int_trans  WARNING!, THIS SHOULD NOT BE USED ANYMORE"
+ifconfig $ipv6_dev inet6 add $ipv6_int_trans_addr
 echo "Remove 'fe80' existing IPv6 addresses"
 ipv6_fe80=(`ifconfig "$ipv6_dev" | grep 'fe80::' | sed -e 's/.*addr://' -e 's/Scope.*//' -e 's/ //g'`)
 [ "${#ipv6_fe80[@]}" -ne "0" ] &&
@@ -53,11 +61,11 @@ for addr in ${ipv6_addr[@]}; do
 	ip -6 addr del $addr dev $ipv4_dev
 done
 
-echo "Add ipv4 address"
+echo "Add ipv4 address: $ipv4_int_addr"
 #ip addr add 192.168.56.2/24 broadcast 192.168.56.255 dev $ipv4_dev
-ifconfig $ipv4_dev 192.168.56.2 up
-echo "Add ipv4 virtual interface"
-ifconfig $ipv4_dev:0 192.168.56.114 up
+ifconfig $ipv4_dev $ipv4_int_addr up
+#echo "Add ipv4 virtual interface: $ipv4_alias_int_addr  THIS MUST NOT BE USED ANYMORE"
+#ifconfig $ipv4_dev:0 $ipv4_alias_int_addr up
 
 
 #echo "Disable other interfaces \(internet access\)"
@@ -69,10 +77,13 @@ ifconfig $ipv4_dev:0 192.168.56.114 up
 
 
 
-echo "Inserting NAT64 module"
+
 pushd "$mod_dir" > /dev/null
+echo "Removing NAT64 module"
 ./workflow.sh "rmv"
+echo "Inserting NAT64 module"
 ./workflow.sh "ins"
+echo "Inserting iptables rule's"
 ./workflow.sh "test"
 popd  > /dev/null
 

@@ -7,6 +7,8 @@
  *    David Valenzuela <david.valenzuela.88@gmail.com>
  *    Jose Vicente Ramirez <pepermz@gmail.com>
  *    Mario Gerardo Trevino <mario_tc88@hotmail.com>
+ *	  
+ *	  The rest of us, I propose include our names and order all alphabetically.
  *
  * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
  * checksum_change, adjust_checksum_ipv6_to_ipv4, nat64_output_ipv4, 
@@ -100,6 +102,10 @@
 #include <net/netfilter/nf_nat_protocol.h>
 
 #include <linux/version.h>
+#include <linux/netlink.h> 	// Testing communication with the module using netlink. Rob
+#include <net/sock.h>		// Rob.
+#define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr . Rob
+
 
 #include "nf_nat64_bib.h"
 #include "xt_nat64.h"
@@ -137,37 +143,151 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /*
  * BEGIN: Global variables inherited from Julius Kriukas's 
- * Linux NAT64 implementation.
+ * 		  Linux NAT64 implementation.
  */
 
 struct kmem_cache *st_cache;
 struct kmem_cache *bib_cache;
 struct hlist_head *hash6;
 struct hlist_head *hash4;
-unsigned int		hash_size;
+unsigned int hash_size;
 struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 {
-	{{NULL, NULL}, 5*60},
-	{{NULL, NULL}, 4*60},
+	{{NULL, NULL}, 5*60},// FIXME: Use definitions in nat64_filtering_n_updating.h 
+	{{NULL, NULL}, 4*60},//		   instead of hardcoded values. Rob.		  
 	{{NULL, NULL}, 2*60*60},
 	{{NULL, NULL}, 6},
 	{{NULL, NULL}, 60}
 };
 struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 
-__be32 ipv4_addr;
-int ipv4_prefixlen;
-__be32 ipv4_netmask;
-static char *ipv4_address;
-struct in6_addr	prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
-	.s6_addr32[2] = 0, .s6_addr32[3] = 0};
-static char *prefix_address;
-int prefix_len;
+/* IPv4 */
+__be32 ipv4_addr;	// FIXME: Rob thinks this should be of 'u8 *' type, as expected by in4_pton function.
+static char *ipv4_addr_str;	// Var type verified  . Rob
+int ipv4_mask_bits;		// Var type verified  ;). Rob
+__be32 ipv4_netmask;	// Var type verified  ;). Rob
+/* IPv6 */
+//struct in6_addr	ipv6_prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
+//									.s6_addr32[2] = 0, .s6_addr32[3] = 0};
+static char *ipv6_pref_addr_str;
+int ipv6_pref_len;	// Var type verified ;). Rob
 
 /*
  * END: Global variables inherited from Julius Kriukas's 
- * Linux NAT64 implementation.
+ * 		Linux NAT64 implementation.
  */
+
+
+/* Testing communication with the module using netlink. Rob
+ * Example from: http://stackoverflow.com/questions/862964/who-can-give-me-the-latest-netlink-programming-samples
+ */
+// BEGIN
+#include <net/sock.h>
+#include <net/netlink.h>
+#include "xt_nat64_module_comm.h"
+
+#define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr
+/* Definition of default values for the IPv4 & IPv6 pools. */
+// 	IPv4
+#define IPV4_POOL_FIRST	"192.168.2.1"
+#define IPV4_POOL_LAST	"192.168.2.254"
+#define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
+#define IPV4_POOL_MASKBITS	24
+//	IPv6
+#define IPV6_PREF_DEF	"64:ff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
+#define IPV6_PREF_NET	"64:ff9b::"	// Default IPv6	(string)
+#define IPV6_PREF_MASKBITS	96 		// Default IPv6 Prefix	(int)
+
+    
+static struct sock *my_nl_sock;
+
+DEFINE_MUTEX(my_mutex);
+
+static int update_nat_config(const struct nat64_run_conf *nrc)
+{
+	int ret = 0;
+	char err = 0x00;
+
+	/* Validation: */
+	// IPv4 Pool - First address.
+	ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
+	if (!ret) 
+	{	err = 1;	// Error
+		pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
+					nrc->ipv4_addr_str);
+	}
+	// IPv4 Pool - Netmask 
+	if ((*nrc).ipv4_mask_bits > 32 || (*nrc).ipv4_mask_bits < 1) 
+	{	err = 1; 	// Error
+		pr_warning("NAT64: Updating config: ipv4 prefix is malformed: %d", 
+					(*nrc).ipv4_mask_bits);
+	}
+	// ...
+	// :(
+	if (err) return -EINVAL; // Error
+	
+	/* Alteration: */
+	// IPv4 Pool - First address.
+	ipv4_netmask = inet_make_mask((*nrc).ipv4_mask_bits);
+	pr_debug("NAT64: Updating config: using IPv4 subnet %pI4/%d (netmask %pI4).", 
+			  &ipv4_addr, (*nrc).ipv4_mask_bits, &ipv4_netmask);
+	// IPv4 Pool - Netmask
+	// ...
+	// :)
+	return 0; // Alles Klar!	
+}
+
+
+static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+{
+    int type;
+    //char *data;
+    //struct in_addr *ipaddr;
+    //char buf[INET_ADDRSTRLEN];
+    struct nat64_run_conf *nrc;
+
+    type = nlh->nlmsg_type;
+    if (type != MY_MSG_TYPE) {
+        pr_debug("NAT64:     netlink: %s: expect %#x got %#x\n", 
+        		 __func__, MY_MSG_TYPE, type);
+        return -EINVAL;
+    }
+
+    // data = NLMSG_DATA(nlh);
+    // pr_debug("NAT64: netlink: got message: %s\n", data);
+
+	//ipaddr = NLMSG_DATA(nlh);
+//	inet_ntop(AF_INET, &(ipaddr.s_addr), buf, INET_ADDRSTRLEN);
+    //pr_debug("NAT64: netlink: got message: %pI4\n", ipaddr );
+
+	nrc = NLMSG_DATA(nlh);
+//    pr_debug("NAT64:     netlink: got message: IPv4 addr=%s, mask bits=%d\n", 
+//    		 (*nrc).ipv4_addr_str, (*nrc).ipv4_mask_bits );
+    pr_debug("NAT64:     netlink: got message.\n" );
+    pr_debug("NAT64:     netlink: updating NAT64 configuration.\n" );
+	if (update_nat_config(nrc) != 0)
+	{
+		pr_debug("NAT64:     netlink: Error while updating NAT64 running configuration\n");
+		return -EINVAL;
+	}
+	
+	pr_debug("NAT64:     netlink: Running configuration successfully updated");
+
+    return 0;
+}
+
+static void my_nl_rcv_msg(struct sk_buff *skb)
+{
+    mutex_lock(&my_mutex);
+    netlink_rcv_skb(skb, &my_rcv_msg);
+    mutex_unlock(&my_mutex);
+}
+
+// END
+
+
+
+
 
 static DEFINE_SPINLOCK(nf_nat64_lock);
 
@@ -575,11 +695,6 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 	ip6 = ipv6_hdr(new_skb);
 	ip4 = ip_hdr(old_skb);
 
-
-//pr_debug("SAB: ip_transp -> port: %d", ntohs(l4header.uh->dest));
-//l4header.uh->dest = outgoing->dst.u.udp.port;
-//(struct udphdr *)(*ip_data(ip4)->dest) = outgoing->dst.u.udp.port;
-
 	ip6->version = 6;
 	ip6->priority = 0;
 	ip6->flow_lbl[0] = 0;
@@ -605,7 +720,6 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			checksum_change(&(l4header.uh->check), 
 					//&(l4header.uh->source), 
 					&(l4header.uh->dest), 
-					//~ htons(outgoing->src.u.udp.port), // Delete this
 					//outgoing->src.u.udp.port, // Rob.
 					outgoing->dst.u.udp.port, // Rob.
 					(ip4->protocol == IPPROTO_UDP) ? true : false );
@@ -696,8 +810,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 
 			checksum_change(&(l4header.uh->check), 
 					&(l4header.uh->source), 
-					//~ htons(outgoing->src.u.udp.port),
-					(outgoing->src.u.udp.port), // Rob. This should not be changed here!
+					(outgoing->src.u.udp.port), 
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -859,7 +972,6 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
-//aqui vamos
 			if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
 						l4protocol, l3hdrlen, l4hdrlen, 
 						(pay_len), outgoing)) { 
@@ -904,7 +1016,6 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
 	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb,
 			outgoing);
 
-//aqui vamos ahora
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return NULL;
@@ -978,8 +1089,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				break;
 			case IPPROTO_UDP:
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-						//~ htons(inner->dst.u.udp.port), 
-						inner->dst.u.udp.port, // Rob. 
+						inner->dst.u.udp.port,  
 						IPPROTO_UDP);
 				if (!bib) {
 					pr_warning("NAT64: The bib entry of the outgoing"
@@ -1049,7 +1159,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 								IPPROTO_UDP);
 		if (bib) {
 			session = session_ipv4_lookup(bib, 
-						nat64_extract_ipv4(inner->dst.u3.in6, prefix_len),
+						nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len),
 						inner->dst.u.udp.port);
 			if (session) {
 				// Obtain the data of the tuple.
@@ -1077,10 +1187,8 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						outgoing->dst.u3.in = *(temp_addr);
 
 						pr_debug("NAT64: UDP outgoing tuple: %pI4 : %d --> %pI4 : %d", 
-								//~ &(outgoing->src.u3.in), outgoing->src.u.udp.port, 
-								//~ &(outgoing->dst.u3.in), outgoing->dst.u.udp.port);
 								&(outgoing->src.u3.in), ntohs(outgoing->src.u.udp.port), 
-								&(outgoing->dst.u3.in), ntohs(outgoing->dst.u.udp.port) ); // Rob. Added ntohs for correct port representation
+								&(outgoing->dst.u3.in), ntohs(outgoing->dst.u.udp.port) );
 						break;
 					case IPPROTO_ICMP:
 						pr_debug("NAT64: ICMP protocol not currently supported.");
@@ -1137,8 +1245,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				//Query UDP BIB and ST
 
 				bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
-						//~ htons(inner->dst.u.udp.port),
-						(inner->dst.u.udp.port), 	// Rob. I think htons should not be done.
+						(inner->dst.u.udp.port),
 						IPPROTO_UDP);
 				if (!bib) {
 					pr_warning("NAT64: IPv4 - BIB is missing.");
@@ -1209,7 +1316,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 					session = session_ipv4_lookup(bib, 
 							nat64_extract_ipv4(
 								inner->dst.u3.in6, 
-								prefix_len), 
+								ipv6_pref_len), 
 							inner->dst.u.udp.port);
 					if (session) {
 						session_renew(session, UDP_DEFAULT);
@@ -1218,7 +1325,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 								&(inner->dst.u3.in6), 
 								nat64_extract_ipv4(
 									inner->dst.u3.in6, 
-									prefix_len), 
+									ipv6_pref_len), 
 								inner->dst.u.udp.port, 
 								UDP_DEFAULT);
 					}
@@ -1229,7 +1336,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 							&(inner->dst.u3.in6), 
 							nat64_extract_ipv4(
 								inner->dst.u3.in6, 
-								prefix_len), 
+								ipv6_pref_len), 
 							inner->src.u.udp.port, 
 							inner->dst.u.udp.port, 
 							l4protocol, UDP_DEFAULT);
@@ -1314,13 +1421,13 @@ static unsigned int nat64_core(struct sk_buff *skb,
 
 	new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, outgoing);
 
-//aqui vamos
 	if (!new_skb) {
 		pr_info("NAT64: There was an error in the packet translation"
 				" module");
 		return NF_DROP;
 	}
 
+//FIXME: The same value 'NF_DROP' is returned for both ERROR and CORRECT conditions.
 	/*
 	 * Returns zero if it works
 	 */
@@ -1465,17 +1572,32 @@ static int __init nat64_init(void)
 {
 	/* Variables imported from Julius Kriukas's implementation */
 	int ret = 0;
+	
+/*	Previous implementation:	
 	ipv4_prefixlen = 24;
 	ipv4_addr = 0;
 	ipv4_address = "192.168.56.114"; // Default IPv4
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0::"; // Default IPv6
-	prefix_len = 32; // Default IPv6 Prefix
-    
-    // init IPv4 addresses pool
-    init_pools();
-    
-    
+	prefix_len = 32; // Default IPv6 Prefix  
+*/    
+
+	// Rob : 
+	ipv4_mask_bits = IPV4_POOL_MASKBITS;	// Num. of bits 'on' in the net mask
+	ipv4_addr = 0;
+	/* Default configuration, until it's set up by the user space application. */
+	/* IPv4 */
+	ipv4_addr_str = IPV4_POOL_FIRST;	// Default IPv4 (string)
+	ipv4_netmask = IPV4_POOL_MASK; 		// Mask of 24-bits IPv4 (_be32)
+	/* IPv6 */
+	ipv6_pref_addr_str = IPV6_PREF_NET;	// Default IPv6	(string)
+	ipv6_pref_len = IPV6_PREF_MASKBITS; // Default IPv6 Prefix	(int)
+
+    	// init IPv4 addresses pool
+    	init_pools(); // Bernardo
+
+	pr_debug("\n\n\nNAT64 module inserted!");
+
 	/*
 	 * Include nf_conntrack dependency
 	 */
@@ -1494,60 +1616,67 @@ static int __init nat64_init(void)
 	if (l3proto_ip == NULL) {
 		pr_warning("NAT64: couldn't load IPv4 l3proto");
 		goto error;
-	} if (l3proto_ipv6 == NULL) {
+	} 
+	if (l3proto_ipv6 == NULL) {
 		pr_warning("NAT64: couldn't load IPv6 l3proto");
 		goto error;
 	}
 
 	// BEGIN: code imported from nat64_init of Julius Kriukas' implementation
 
-	ret = in4_pton(ipv4_address, -1, (u8 *)&ipv4_addr, '\x0', NULL);
-
+	ret = in4_pton(ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
 	if (!ret) {
-		pr_warning("NAT64: ipv4 is malformed [%s].", ipv4_address);
+		pr_warning("NAT64: ipv4 is malformed [%s].", ipv4_addr_str);
+		ret = -1;
+		goto error;
+	}
+//	if (ret) {
+	if (ipv4_mask_bits > 32 || ipv4_mask_bits < 1) {
+		pr_warning("NAT64: ipv4 netmask bits value is invalid [%s].", 
+				ipv4_addr_str);
 		ret = -1;
 		goto error;
 	}
 
-	if (ret) {
-		if (ipv4_prefixlen > 32 || ipv4_prefixlen < 1) {
-			pr_warning("NAT64: ipv4 prefix is malformed [%s].", 
-					ipv4_address);
-			ret = -1;
-			goto error;
-		}
+	ipv4_netmask = inet_make_mask(ipv4_mask_bits);
+	pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
+			&ipv4_addr, ipv4_mask_bits, &ipv4_netmask);
+//	}
 
-		ipv4_netmask = inet_make_mask(ipv4_prefixlen);
-		pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
-				&ipv4_addr, ipv4_prefixlen, &ipv4_netmask);
-	}
-
-	if (nat64_allocate_hash(65536)) {
+	if (nat64_allocate_hash(65536)) // FIXME: look in the kernel headers for the definition of this constant (size) and use it instead of this hardcoded value.
+	{
 		pr_warning("NAT64: Unable to allocate memmory for hash table.");
 		goto hash_error;
 	}
 
 	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
-			0,0, NULL);
-
+								 0,0, NULL);
 	if (!st_cache) {
 		pr_warning("NAT64: Unable to create session table slab cache.");
 		goto st_cache_error;
-	} else {
-		pr_debug("NAT64: The session table slab cache was succesfully"
-				" created.\n");
-	}
+	} 
+	pr_debug("NAT64: The session table slab cache was succesfully created.\n");
 
 	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 
 			0,0, NULL);
-
 	if (!bib_cache) {
 		pr_warning("NAT64: Unable to create bib table slab cache.");
 		goto bib_cache_error;
-	} else {
-		pr_debug("NAT64: The bib table slab cache was succesfully created.");
 	}
+	pr_debug("NAT64: The bib table slab cache was succesfully created.");
 	// END: code imported from nat64_init of Julius Kriukas' implementation
+
+	// Load netlink sockets. Rob
+	// BEGIN
+	// Create netlink socket, register 'my_nl_rcv_msg' as callback function. // Rob
+	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0,
+            my_nl_rcv_msg, NULL, THIS_MODULE);
+    if (!my_nl_sock) 
+    {
+        pr_warning("NAT64: %s: Creation of netlink socket failed.\n", __func__);
+        goto bib_cache_error;
+    } 
+    // END
 
 	return xt_register_target(&nat64_tg_reg);
 
@@ -1572,6 +1701,10 @@ static void __exit nat64_exit(void)
 	kmem_cache_destroy(st_cache); // Line inherited from Julius Kriukas's nat64_exit function.
 	kmem_cache_destroy(bib_cache); // Line inherited from Julius Kriukas's nat64_exit function.
 	xt_unregister_target(&nat64_tg_reg);
+	
+	if (my_nl_sock) netlink_kernel_release(my_nl_sock); // Unload netlink sockets. Rob
+	
+	pr_debug("NAT64 module removed!\n\n\n");
 }
 
 module_init(nat64_init);
