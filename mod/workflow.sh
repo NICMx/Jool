@@ -26,8 +26,9 @@ elif [ $1 = "debug" ] ; then
 	sudo dmesg | tail -30
 elif [ $1 = "test" ] ; then
 	sudo ip6tables -t mangle --flush
-	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst fec0::/64
-	sudo iptables -t mangle -A PREROUTING -j nat64 --ipdst 192.168.56.0/24
+	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst 64:ff9b::/96
+	sudo iptables -t mangle -A PREROUTING -j nat64 --ipdst 192.168.2.0/24	# Rob. Changed IPv4 net
+	sudo iptables  -t mangle -n -L
 	sudo ip6tables -t mangle -n -L
 #	sudo ping6 ::1
 elif [ $1 = "setup" ] ; then

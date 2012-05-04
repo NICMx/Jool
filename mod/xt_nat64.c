@@ -142,7 +142,7 @@ static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /*
  * BEGIN: Global variables inherited from Julius Kriukas's 
- * Linux NAT64 implementation.
+ * 		  Linux NAT64 implementation.
  */
 
 struct kmem_cache *st_cache;
@@ -152,8 +152,8 @@ struct hlist_head *hash4;
 unsigned int hash_size;
 struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 {
-	{{NULL, NULL}, 5*60},
-	{{NULL, NULL}, 4*60},
+	{{NULL, NULL}, 5*60},// FIXME: Use definitions in nat64_filtering_n_updating.h 
+	{{NULL, NULL}, 4*60},//		   instead of hardcoded values. Rob.		  
 	{{NULL, NULL}, 2*60*60},
 	{{NULL, NULL}, 6},
 	{{NULL, NULL}, 60}
@@ -162,18 +162,18 @@ struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 
 /* IPv4 */
 __be32 ipv4_addr;	// FIXME: Rob thinks this should be of 'u8 *' type, as expected by in4_pton function.
+static char *ipv4_addr_str;	// Var type verified  . Rob
 int ipv4_mask_bits;		// Var type verified  ;). Rob
 __be32 ipv4_netmask;	// Var type verified  ;). Rob
-static char *ipv4_addr_str;	// Var type verified  . Rob
 /* IPv6 */
-struct in6_addr	prefix_base = {	.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
-								.s6_addr32[2] = 0, .s6_addr32[3] = 0};
+//struct in6_addr	ipv6_prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
+//									.s6_addr32[2] = 0, .s6_addr32[3] = 0};
 static char *ipv6_pref_addr_str;
 int ipv6_pref_len;	// Var type verified ;). Rob
 
 /*
  * END: Global variables inherited from Julius Kriukas's 
- * Linux NAT64 implementation.
+ * 		Linux NAT64 implementation.
  */
 
 
@@ -188,14 +188,14 @@ int ipv6_pref_len;	// Var type verified ;). Rob
 #define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr
 /* Definition of default values for the IPv4 & IPv6 pools. */
 // 	IPv4
-#define IPV4_POOL_FIRST	"192.168.1.10"
-#define IPV4_POOL_LAST	"192.168.1.254"
+#define IPV4_POOL_FIRST	"192.168.2.1"
+#define IPV4_POOL_LAST	"192.168.2.254"
 #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
 #define IPV4_POOL_MASKBITS	24
 //	IPv6
-#define IPV6_PREF_DEF	"fec0::/64" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
-#define IPV6_PREF_NET	"fec0::"	// Default IPv6	(string)
-#define IPV6_PREF_MASKBITS	32 		// Default IPv6 Prefix	(int)
+#define IPV6_PREF_DEF	"64Ñff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
+#define IPV6_PREF_NET	"64Ñff9b::"	// Default IPv6	(string)
+#define IPV6_PREF_MASKBITS	96 		// Default IPv6 Prefix	(int)
 
     
 static struct sock *my_nl_sock;
@@ -205,35 +205,35 @@ DEFINE_MUTEX(my_mutex);
 static int update_nat_config(const struct nat64_run_conf *nrc)
 {
 	int ret = 0;
+	char err = 0x00;
 
-	// BEGIN: code imported from nat64_init of Julius Kriukas' implementation
+	/* Validation: */
+	// IPv4 Pool - First address.
 	ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
-	if (!ret) {
-		pr_warning("NAT64: Updating config: ipv4 is malformed [%s].", nrc->ipv4_addr_str);
-		ret = -1;
-		goto error;
-	}
-	if (ret) {
-		if ((*nrc).ipv4_mask_bits > 32 || (*nrc).ipv4_mask_bits < 1) {
-			pr_warning("NAT64: Updating config: ipv4 prefix is malformed [%s].", 
+	if (!ret) 
+	{	err = 1;	// Error
+		pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
 					nrc->ipv4_addr_str);
-			ret = -1;
-			goto error;
-		}
-
-		ipv4_netmask = inet_make_mask((*nrc).ipv4_mask_bits);
-		pr_debug("NAT64: Updating config: using IPv4 subnet %pI4/%d (netmask %pI4).", 
-				&ipv4_addr, (*nrc).ipv4_mask_bits, &ipv4_netmask);
-//		pr_debug("NAT64:\tusing IPv4 subnet %pI4/%d (netmask %pI4).", 
-//				&ipv4_addr, (*nrc).ipv4_mask_bits, &ipv4_netmask);
 	}
-	// END: code imported from nat64_init of Julius Kriukas' implementation
-
-	return 0;
-
-// The following goto were inspired by Julius Kriukas' nat64_init's goto
-error:
-	return -EINVAL;
+	// IPv4 Pool - Netmask 
+	if ((*nrc).ipv4_mask_bits > 32 || (*nrc).ipv4_mask_bits < 1) 
+	{	err = 1; 	// Error
+		pr_warning("NAT64: Updating config: ipv4 prefix is malformed: %d", 
+					(*nrc).ipv4_mask_bits);
+	}
+	// ...
+	// :(
+	if (err) return -EINVAL; // Error
+	
+	/* Alteration: */
+	// IPv4 Pool - First address.
+	ipv4_netmask = inet_make_mask((*nrc).ipv4_mask_bits);
+	pr_debug("NAT64: Updating config: using IPv4 subnet %pI4/%d (netmask %pI4).", 
+			  &ipv4_addr, (*nrc).ipv4_mask_bits, &ipv4_netmask);
+	// IPv4 Pool - Netmask
+	// ...
+	// :)
+	return 0; // Alles Klar!	
 }
 
 
@@ -247,7 +247,8 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
     type = nlh->nlmsg_type;
     if (type != MY_MSG_TYPE) {
-        pr_debug("NAT64:     netlink: %s: expect %#x got %#x\n", __func__, MY_MSG_TYPE, type);
+        pr_debug("NAT64:     netlink: %s: expect %#x got %#x\n", 
+        		 __func__, MY_MSG_TYPE, type);
         return -EINVAL;
     }
 
@@ -259,14 +260,17 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
     //pr_debug("NAT64: netlink: got message: %pI4\n", ipaddr );
 
 	nrc = NLMSG_DATA(nlh);
-    pr_debug("NAT64:     netlink: got message: IPv4 addr=%s, IPv4 mask bits=%d\n", (*nrc).ipv4_addr_str, (*nrc).ipv4_mask_bits );
+//    pr_debug("NAT64:     netlink: got message: IPv4 addr=%s, mask bits=%d\n", 
+//    		 (*nrc).ipv4_addr_str, (*nrc).ipv4_mask_bits );
+    pr_debug("NAT64:     netlink: got message.\n" );
+    pr_debug("NAT64:     netlink: updating NAT64 configuration.\n" );
 	if (update_nat_config(nrc) != 0)
 	{
 		pr_debug("NAT64:     netlink: Error while updating NAT64 running configuration\n");
 		return -EINVAL;
 	}
-	else
-		pr_debug("NAT64:     netlink: Running configuration successfully updated");
+	
+	pr_debug("NAT64:     netlink: Running configuration successfully updated");
 
     return 0;
 }
@@ -1427,6 +1431,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 		return NF_DROP;
 	}
 
+//FIXME: The same value 'NF_DROP' is returned for both ERROR and CORRECT conditions.
 	/*
 	 * Returns zero if it works
 	 */
@@ -1583,14 +1588,15 @@ static int __init nat64_init(void)
 	// Rob : 
 	ipv4_mask_bits = IPV4_POOL_MASKBITS;	// Num. of bits 'on' in the net mask
 	ipv4_addr = 0;
-	/* Default configurations, until they're set up by the user space 
-	 * application. */
+	/* Default configuration, until it's set up by the user space application. */
 	/* IPv4 */
 	ipv4_addr_str = IPV4_POOL_FIRST;	// Default IPv4 (string)
 	ipv4_netmask = IPV4_POOL_MASK; 		// Mask of 24-bits IPv4 (_be32)
 	/* IPv6 */
 	ipv6_pref_addr_str = IPV6_PREF_NET;	// Default IPv6	(string)
 	ipv6_pref_len = IPV6_PREF_MASKBITS; // Default IPv6 Prefix	(int)
+
+	pr_debug("\n\n\nNAT64 module inserted!");
 
 	/*
 	 * Include nf_conntrack dependency
@@ -1624,18 +1630,18 @@ static int __init nat64_init(void)
 		ret = -1;
 		goto error;
 	}
-	if (ret) {
-		if (ipv4_mask_bits > 32 || ipv4_mask_bits < 1) {
-			pr_warning("NAT64: ipv4 prefix is malformed [%s].", 
-					ipv4_addr_str);
-			ret = -1;
-			goto error;
-		}
-
-		ipv4_netmask = inet_make_mask(ipv4_mask_bits);
-		pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
-				&ipv4_addr, ipv4_mask_bits, &ipv4_netmask);
+//	if (ret) {
+	if (ipv4_mask_bits > 32 || ipv4_mask_bits < 1) {
+		pr_warning("NAT64: ipv4 netmask bits value is invalid [%s].", 
+				ipv4_addr_str);
+		ret = -1;
+		goto error;
 	}
+
+	ipv4_netmask = inet_make_mask(ipv4_mask_bits);
+	pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
+			&ipv4_addr, ipv4_mask_bits, &ipv4_netmask);
+//	}
 
 	if (nat64_allocate_hash(65536)) // FIXME: look in the kernel headers for the definition of this constant (size) and use it instead of this hardcoded value.
 	{
@@ -1644,23 +1650,24 @@ static int __init nat64_init(void)
 	}
 
 	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
-									0,0, NULL);
+								 0,0, NULL);
 	if (!st_cache) {
 		pr_warning("NAT64: Unable to create session table slab cache.");
 		goto st_cache_error;
-	} else {
-		pr_debug("NAT64: The session table slab cache was succesfully"
-				" created.\n");
-	}
+	} 
+//	else {
+	pr_debug("NAT64: The session table slab cache was succesfully created.\n");
+//	}
 
 	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 
 			0,0, NULL);
 	if (!bib_cache) {
 		pr_warning("NAT64: Unable to create bib table slab cache.");
 		goto bib_cache_error;
-	} else {
-		pr_debug("NAT64: The bib table slab cache was succesfully created.");
 	}
+//	else {
+	pr_debug("NAT64: The bib table slab cache was succesfully created.");
+//	}
 	// END: code imported from nat64_init of Julius Kriukas' implementation
 
 	// Load netlink sockets. Rob
@@ -1700,6 +1707,8 @@ static void __exit nat64_exit(void)
 	xt_unregister_target(&nat64_tg_reg);
 	
 	if (my_nl_sock) netlink_kernel_release(my_nl_sock); // Unload netlink sockets. Rob
+	
+	pr_debug("NAT64 module removed!\n\n\n");
 }
 
 module_init(nat64_init);
