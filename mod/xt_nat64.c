@@ -193,8 +193,8 @@ int ipv6_pref_len;	// Var type verified ;). Rob
 #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
 #define IPV4_POOL_MASKBITS	24
 //	IPv6
-#define IPV6_PREF_DEF	"64Ñff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
-#define IPV6_PREF_NET	"64Ñff9b::"	// Default IPv6	(string)
+#define IPV6_PREF_DEF	"64:ff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
+#define IPV6_PREF_NET	"64:ff9b::"	// Default IPv6	(string)
 #define IPV6_PREF_MASKBITS	96 		// Default IPv6 Prefix	(int)
 
     
