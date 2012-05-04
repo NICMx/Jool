@@ -106,6 +106,7 @@
 #include "nf_nat64_generic_functions.h"
 #include "nf_nat64_auxiliary_functions.h"
 #include "nf_nat64_filtering_and_updating.h"
+#include "nf_nat64_ipv4_pool.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
@@ -574,6 +575,11 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 	ip6 = ipv6_hdr(new_skb);
 	ip4 = ip_hdr(old_skb);
 
+
+//pr_debug("SAB: ip_transp -> port: %d", ntohs(l4header.uh->dest));
+//l4header.uh->dest = outgoing->dst.u.udp.port;
+//(struct udphdr *)(*ip_data(ip4)->dest) = outgoing->dst.u.udp.port;
+
 	ip6->version = 6;
 	ip6->priority = 0;
 	ip6->flow_lbl[0] = 0;
@@ -597,11 +603,12 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			l4header.uh = (struct udphdr *)(ip6 + 1);
 			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.uh->check), 
-					&(l4header.uh->source), 
-					//~ htons(outgoing->src.u.udp.port),
-					outgoing->src.u.udp.port, // Rob.
+					//&(l4header.uh->source), 
+					&(l4header.uh->dest), 
+					//~ htons(outgoing->src.u.udp.port), // Delete this
+					//outgoing->src.u.udp.port, // Rob.
+					outgoing->dst.u.udp.port, // Rob.
 					(ip4->protocol == IPPROTO_UDP) ? true : false );
-
 			adjust_checksum_ipv4_to_ipv6( &(l4header.uh->check), 
 					ip4, 
 					ip6, 
@@ -852,6 +859,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
+//aqui vamos
 			if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
 						l4protocol, l3hdrlen, l4hdrlen, 
 						(pay_len), outgoing)) { 
@@ -896,6 +904,7 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
 	struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb,
 			outgoing);
 
+//aqui vamos ahora
 	if (!new_skb) {
 		pr_debug("NAT64: Skb allocation failed -- returned NULL");
 		return NULL;
@@ -1305,6 +1314,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
 
 	new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, outgoing);
 
+//aqui vamos
 	if (!new_skb) {
 		pr_info("NAT64: There was an error in the packet translation"
 				" module");
@@ -1461,7 +1471,11 @@ static int __init nat64_init(void)
 	ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
 	prefix_address = "fec0::"; // Default IPv6
 	prefix_len = 32; // Default IPv6 Prefix
-
+    
+    // init IPv4 addresses pool
+    init_pools();
+    
+    
 	/*
 	 * Include nf_conntrack dependency
 	 */

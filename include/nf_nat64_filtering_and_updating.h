@@ -6,6 +6,10 @@
 #define BIB_ICMP 3
 #define	NUM_EXPIRY_QUEUES 5
 
+#ifndef _NF_NAT64_IPV4_POOL_H
+#include "nf_nat64_ipv4_pool.h"
+#endif
+
 enum expiry_type {
 	UDP_DEFAULT = 0,
 	TCP_TRANS,
@@ -68,6 +72,7 @@ extern struct kmem_cache *bib_cache;
 extern struct hlist_head *hash6;
 extern struct hlist_head *hash4;
 extern __be32 ipv4_addr;
+extern struct list_head free_transport_addr;
 
 static inline __be16 nat64_hash4(__be32 addr, __be16 port)
 {
@@ -390,19 +395,35 @@ static inline struct nat64_bib_entry
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
 	__be16 local4_port;
+	__be32 local4_addr;
 
-	local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
+  //local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
+  struct transport_addr_struct *transport_addr;
+  transport_addr = get_tranport_addr(&free_transport_addr);
+  
+  if(transport_addr == NULL){
+    printk("pool out of ipv4 address\n");
+    local4_port = -1;
+    local4_addr = -1;
+  }else{
+    INIT_LIST_HEAD(&transport_addr->list);
+    local4_port = ntohs(transport_addr->port);
+    in4_pton(transport_addr->address, -1, (u8 *)&local4_addr, '\x0', NULL);
+    pr_debug("NAT: IPv4 Pool: using address %s and port %u.\n", transport_addr->address, transport_addr->port);
+  }  
+  
 	if (local4_port < 0) {
 		pr_debug("NAT64: [bib] Unable to allocate new local IPv4 port. Dropping connection.\n");
 		return NULL;
 	}
 
-	bib = bib_create(saddr, sport, ipv4_addr, local4_port, protocol);
+	bib = bib_create(saddr, sport, local4_addr, local4_port, protocol);
 	if (!bib)
 		return NULL;
 
 	hlist_add_head(&bib->byremote, &hash6[nat64_hash6(*saddr, sport)]);
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
+//	hlist_add_head(&bib->bylocal, &hash4[sport]);
 
 	session = session_create(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
