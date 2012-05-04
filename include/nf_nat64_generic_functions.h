@@ -11,7 +11,6 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 
-
 /*
  * Function that receives a tuple and prints it.
  */
@@ -35,7 +34,6 @@ static inline void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 			pr_debug("NAT64: Not IPv4 or IPv6?");
 	}
 }
-
 /*
  * END: Generic Auxiliary Functions
  */
