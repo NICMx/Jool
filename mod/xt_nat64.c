@@ -180,7 +180,7 @@ int ipv4_mask_bits;		// Var type verified  ;). Rob
 __be32 ipv4_netmask;	// Var type verified  ;). Rob
 /* IPv6 */
 //struct in6_addr	ipv6_prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
-//									.s6_addr32[2] = 0, .s6_addr32[3] = 0};
+//						.s6_addr32[2] = 0, .s6_addr32[3] = 0};
 static char *ipv6_pref_addr_str;
 int ipv6_pref_len;	// Var type verified ;). Rob
 
