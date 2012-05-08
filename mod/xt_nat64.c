@@ -512,7 +512,8 @@ static __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 		case 64:
 			return 0;	//FIXME
 		case 96:
-			return addr.s6_addr32[1];
+			//return addr.s6_addr32[1];
+			return addr.s6_addr32[3];
 		default:
 			return 0;
 	}
@@ -747,9 +748,11 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			l4header.th = (struct tcphdr *)(ip6 + 1);
 			memcpy(l4header.th, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.th->check), 
-					&(l4header.th->source), 
+					//&(l4header.th->source), 
+					&(l4header.th->dest), 
 					//htons(outgoing->src.u.tcp.port),
-					outgoing->src.u.tcp.port, // Rob.
+					//outgoing->src.u.tcp.port, // Rob.
+					outgoing->dst.u.tcp.port, // Rob.
 					false);
 			adjust_checksum_ipv4_to_ipv6(&(l4header.th->check), ip4, ip6,false);
 			break;
@@ -830,14 +833,17 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
 			checksum_change(&(l4header.uh->check), 
-					&(l4header.uh->source), 
-					(outgoing->src.u.udp.port), 
+					//&(l4header.uh->source), 
+					&(l4header.uh->dest), 
+					//(outgoing->src.u.udp.port), 
+					(outgoing->dst.u.udp.port), 
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
 			adjust_checksum_ipv6_to_ipv4(&(l4header.uh->check), ip6, 
 					ip4, (ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
+			break;
 		case IPPROTO_TCP:	 
 			l4header.th = ip_data(ip4);
 			memcpy(l4header.th, ip6_transp, l4len + pay_len);
@@ -1250,12 +1256,14 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				case IPPROTO_TCP:
 					session = session_ipv4_lookup(bib, 
 							nat64_extract_ipv4(inner->dst.u3.in6, 
-								prefix_len), inner->dst.u.tcp.port);
+								//prefix_len), inner->dst.u.tcp.port);
+								ipv6_pref_len), inner->dst.u.tcp.port);
 					break;
 				case IPPROTO_UDP:
 					session = session_ipv4_lookup(bib, 
 							nat64_extract_ipv4(inner->dst.u3.in6, 
-								prefix_len), inner->dst.u.udp.port);
+								//prefix_len), inner->dst.u.udp.port);
+								ipv6_pref_len), inner->dst.u.udp.port);
 					break;
 				default:
 					pr_debug("NAT64: no hay sesion, lol, jk?");
@@ -1444,7 +1452,8 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 					session = session_ipv4_lookup(bib, 
 							nat64_extract_ipv4(
 								inner->dst.u3.in6, 
-								prefix_len), 
+								//prefix_len), 
+								ipv6_pref_len), 
 							inner->dst.u.tcp.port);
 					if(session) {
 						tcp6_fsm(session, tcph);
@@ -1454,7 +1463,8 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 									&(inner->dst.u3.in6), 
 									nat64_extract_ipv4(
 										inner->dst.u3.in6, 
-										prefix_len), 
+										//prefix_len), 
+										ipv6_pref_len), 
 									inner->dst.u.tcp.port, 
 									TCP_TRANS);
 					}
@@ -1465,7 +1475,8 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 							&(inner->dst.u3.in6), 
 							nat64_extract_ipv4(
 								inner->dst.u3.in6, 
-								prefix_len), 
+								//prefix_len), 
+								ipv6_pref_len), 
 							inner->src.u.tcp.port, 
 							inner->dst.u.tcp.port, 
 							l4protocol, TCP_TRANS);
