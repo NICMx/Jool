@@ -20,7 +20,9 @@ int next_tcp_port;
 int first_port;
 int last_port;
 
+
 struct list_head free_udp_transport_addr;
+struct list_head free_tcp_transport_addr;
 
 __be32 swap_endians(__be32 be)
 {
@@ -44,7 +46,7 @@ char *ip_address_to_string(__be32 ip)
     return result;
 }
 
-struct transport_addr_struct *get_tranport_addr(struct list_head *head, int *next_address, int *next_port)
+struct transport_addr_struct *get_transport_addr(struct list_head *head, int *next_address, int *next_port)
 {
     // if the list is empty
     if(list_empty(head) == 1){
@@ -61,11 +63,11 @@ struct transport_addr_struct *get_tranport_addr(struct list_head *head, int *nex
                 
                 new_transport_addr->address = ip_address_to_string(r);
                 
-                new_transport_addr->port = *next_port++;
+                new_transport_addr->port = (*next_port)++;
     
                 if(*next_port > last_port){
                     *next_port = first_port;
-                    *next_address++;
+                    (*next_address)++;
                 }
     
                 return new_transport_addr;
@@ -85,31 +87,31 @@ struct transport_addr_struct *get_tranport_addr(struct list_head *head, int *nex
     }
 }
 
-struct transport_addr_struct *get_udp_tranport_addr()
+struct transport_addr_struct *get_udp_transport_addr()
 {
-  return get_tranport_addr(&free_udp_transport_addr, &next_udp_address, &next_udp_port);
+  return get_transport_addr(&free_udp_transport_addr, &next_udp_address, &next_udp_port);
 }
 
-struct transport_addr_struct *get_tcp_tranport_addr()
+struct transport_addr_struct *get_tcp_transport_addr()
 {
-  return get_tranport_addr(&free_tcp_transport_addr, &next_tcp_address, &next_tcp_port);
+  return get_transport_addr(&free_tcp_transport_addr, &next_tcp_address, &next_tcp_port);
 }
 
 
-void return_tranpsort_addr(struct transport_addr_struct *transport_addr, struct list_head *head)
+void return_transport_addr(struct transport_addr_struct *transport_addr, struct list_head *head)
 {
     INIT_LIST_HEAD(&transport_addr->list);
     list_add(&transport_addr->list, head);
 }
 
-void return_tcp_tranpsort_addr(struct transport_addr_struct *transport_addr)
+void return_tcp_transport_addr(struct transport_addr_struct *transport_addr)
 {
-  return_tranpsort_addr(transport_addr, &free_tcp_transport_addr);
+  return_transport_addr(transport_addr, &free_tcp_transport_addr);
 }
 
-void return_udp_tranpsort_addr(struct transport_addr_struct *transport_addr)
+void return_udp_transpsort_addr(struct transport_addr_struct *transport_addr)
 {
-  return_tranpsort_addr(transport_addr, &free_udp_transport_addr);
+  return_transport_addr(transport_addr, &free_udp_transport_addr);
 }
 
 void init_pools(void)
@@ -139,6 +141,7 @@ void init_pools(void)
     add2 = ip_address_to_string(r2);
     
     INIT_LIST_HEAD(&free_udp_transport_addr);
+    INIT_LIST_HEAD(&free_tcp_transport_addr);
     
     printk(KERN_INFO "First address: %s - Last address: %s\n", add1, add2);
     printk(KERN_INFO "First port: %u - Last port: %u\n", first_port, last_port);

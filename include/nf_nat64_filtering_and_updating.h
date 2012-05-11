@@ -495,7 +495,7 @@ static inline struct nat64_bib_entry
 
   //local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
   struct transport_addr_struct *transport_addr;
-  transport_addr = get_udp_tranport_addr();
+  transport_addr = get_udp_transport_addr();
   
   if(transport_addr == NULL){
     printk("pool out of ipv4 address\n");
@@ -543,7 +543,7 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
   // local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
   
   struct transport_addr_struct *transport_addr;
-  transport_addr = get_tcp_tranport_addr();
+  transport_addr = get_tcp_transport_addr();
   
   if(transport_addr == NULL){
     printk("pool out of ipv4 address\n");
