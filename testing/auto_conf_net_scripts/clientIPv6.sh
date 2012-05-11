@@ -2,8 +2,8 @@
 
 # CONFIGURATION:
 ipv6_mac="08:00:27:35:54:5d"    # IPv6 interface's mac address
-ipv6_int_addr="fec0::6/64"	# IPv6 interface's IP address
-ipv6_def_gw="fec0::1"		# IPv6 default gateway
+ipv6_int_addr="2001:db8:c0ca:2::6/64"	# IPv6 interface's IP address
+ipv6_def_gw="2001:db8:c0ca:2::1"	# IPv6 default gateway
 #
 
 if [ "`whoami`" != "root" ]; then echo "Must be run as superuser"; exit; fi
