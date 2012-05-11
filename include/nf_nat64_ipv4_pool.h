@@ -102,6 +102,16 @@ void return_tranpsort_addr(struct transport_addr_struct *transport_addr, struct 
     list_add(&transport_addr->list, head);
 }
 
+void return_tcp_tranpsort_addr(struct transport_addr_struct *transport_addr)
+{
+  return_tranpsort_addr(transport_addr, &free_tcp_transport_addr);
+}
+
+void return_udp_tranpsort_addr(struct transport_addr_struct *transport_addr)
+{
+  return_tranpsort_addr(transport_addr, &free_udp_transport_addr);
+}
+
 void init_pools(void)
 {
     __be32 r1,r2;
