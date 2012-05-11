@@ -12,13 +12,13 @@ struct transport_addr_struct {
     struct list_head list;
 };
 
-__be32 next_address;
+__be32 next_udp_address;
 __be32 last_address;
-int next_port;
+int next_udp_port;
 int first_port;
 int last_port;
 
-struct list_head free_transport_addr;
+struct list_head free_udp_transport_addr;
 
 __be32 swap_endians(__be32 be)
 {
@@ -48,7 +48,7 @@ struct transport_addr_struct *get_tranport_addr(struct list_head *head)
     // if the list is empty
     if(list_empty(head) == 1){
         // and the next address is greater than the last address, return NULL
-        if(next_address > last_address){
+        if(next_udp_address > last_address){
             return NULL;
         }
         // get the next address
@@ -56,15 +56,15 @@ struct transport_addr_struct *get_tranport_addr(struct list_head *head)
             struct transport_addr_struct *new_transport_addr = (struct transport_addr_struct *)kmalloc(sizeof(struct transport_addr_struct), GFP_ATOMIC);
             
             if(new_transport_addr != NULL){
-                __be32 r = swap_endians(next_address);
+                __be32 r = swap_endians(next_udp_address);
                 
                 new_transport_addr->address = ip_address_to_string(r);
                 
-                new_transport_addr->port = next_port++;
+                new_transport_addr->port = next_udp_port++;
     
-                if(next_port > last_port){
-                    next_port = first_port;
-                    next_address++;
+                if(next_udp_port > last_port){
+                    next_udp_port = first_port;
+                    next_udp_address++;
                 }
     
                 return new_transport_addr;
@@ -96,24 +96,24 @@ void init_pools(void)
     char *add1;
     char *add2;
     
-    in4_pton(FIRST_ADDRESS, -1, (u8 *)&next_address, '\x0', NULL);
+    in4_pton(FIRST_ADDRESS, -1, (u8 *)&next_udp_address, '\x0', NULL);
 
-    next_address = swap_endians(next_address);
+    next_udp_address = swap_endians(next_udp_address);
     
     in4_pton(LAST_ADDRESS, -1, (u8 *)&last_address, '\x0', NULL);
     last_address = swap_endians(last_address);
         
     first_port = FIRST_PORT;
-    next_port = first_port;
+    next_udp_port = first_port;
     last_port = LAST_PORT;
     
-    r1 = swap_endians(next_address);
+    r1 = swap_endians(next_udp_address);
     r2 = swap_endians(last_address);
     
     add1 = ip_address_to_string(r1);
     add2 = ip_address_to_string(r2);
     
-    INIT_LIST_HEAD(&free_transport_addr);
+    INIT_LIST_HEAD(&free_udp_transport_addr);
     
     printk(KERN_INFO "First address: %s - Last address: %s\n", add1, add2);
     printk(KERN_INFO "First port: %u - Last port: %u\n", first_port, last_port);

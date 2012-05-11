@@ -78,7 +78,7 @@ extern struct kmem_cache *bib_cacheTCP;
 extern struct hlist_head *hash6;
 extern struct hlist_head *hash4;
 extern __be32 ipv4_addr;
-extern struct list_head free_transport_addr;
+extern struct list_head free_udp_transport_addr;
 
 static inline __be16 nat64_hash4(__be32 addr, __be16 port)
 {
@@ -496,7 +496,7 @@ static inline struct nat64_bib_entry
 
   //local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
   struct transport_addr_struct *transport_addr;
-  transport_addr = get_tranport_addr(&free_transport_addr);
+  transport_addr = get_tranport_addr(&free_udp_transport_addr);
   
   if(transport_addr == NULL){
     printk("pool out of ipv4 address\n");
@@ -544,7 +544,7 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
   // local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
   
   struct transport_addr_struct *transport_addr;
-  transport_addr = get_tranport_addr(&free_transport_addr);
+  transport_addr = get_tranport_addr(&free_udp_transport_addr);
   
   if(transport_addr == NULL){
     printk("pool out of ipv4 address\n");
