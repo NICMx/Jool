@@ -13,8 +13,10 @@ struct transport_addr_struct {
 };
 
 __be32 next_udp_address;
+__be32 next_tcp_address;
 __be32 last_address;
 int next_udp_port;
+int next_tcp_port;
 int first_port;
 int last_port;
 
@@ -42,13 +44,12 @@ char *ip_address_to_string(__be32 ip)
     return result;
 }
 
-
-struct transport_addr_struct *get_tranport_addr(struct list_head *head)
+struct transport_addr_struct *get_tranport_addr(struct list_head *head, int *next_address, int *next_port)
 {
     // if the list is empty
     if(list_empty(head) == 1){
         // and the next address is greater than the last address, return NULL
-        if(next_udp_address > last_address){
+        if(*next_address > last_address){
             return NULL;
         }
         // get the next address
@@ -56,15 +57,15 @@ struct transport_addr_struct *get_tranport_addr(struct list_head *head)
             struct transport_addr_struct *new_transport_addr = (struct transport_addr_struct *)kmalloc(sizeof(struct transport_addr_struct), GFP_ATOMIC);
             
             if(new_transport_addr != NULL){
-                __be32 r = swap_endians(next_udp_address);
+                __be32 r = swap_endians(*next_address);
                 
                 new_transport_addr->address = ip_address_to_string(r);
                 
-                new_transport_addr->port = next_udp_port++;
+                new_transport_addr->port = *next_port++;
     
-                if(next_udp_port > last_port){
-                    next_udp_port = first_port;
-                    next_udp_address++;
+                if(*next_port > last_port){
+                    *next_port = first_port;
+                    *next_address++;
                 }
     
                 return new_transport_addr;
@@ -84,6 +85,17 @@ struct transport_addr_struct *get_tranport_addr(struct list_head *head)
     }
 }
 
+struct transport_addr_struct *get_udp_tranport_addr()
+{
+  return get_tranport_addr(&free_udp_transport_addr, &next_udp_address, &next_udp_port);
+}
+
+struct transport_addr_struct *get_tcp_tranport_addr()
+{
+  return get_tranport_addr(&free_tcp_transport_addr, &next_tcp_address, &next_tcp_port);
+}
+
+
 void return_tranpsort_addr(struct transport_addr_struct *transport_addr, struct list_head *head)
 {
     INIT_LIST_HEAD(&transport_addr->list);
@@ -97,14 +109,17 @@ void init_pools(void)
     char *add2;
     
     in4_pton(FIRST_ADDRESS, -1, (u8 *)&next_udp_address, '\x0', NULL);
+    in4_pton(FIRST_ADDRESS, -1, (u8 *)&next_tcp_address, '\x0', NULL);
 
     next_udp_address = swap_endians(next_udp_address);
+    next_tcp_address = swap_endians(next_tcp_address);
     
     in4_pton(LAST_ADDRESS, -1, (u8 *)&last_address, '\x0', NULL);
     last_address = swap_endians(last_address);
         
     first_port = FIRST_PORT;
     next_udp_port = first_port;
+    next_tcp_port = first_port;
     last_port = LAST_PORT;
     
     r1 = swap_endians(next_udp_address);
