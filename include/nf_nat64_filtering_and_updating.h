@@ -322,8 +322,8 @@ static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib,
 	list_add_tail(&s->byexpiry, &expiry_base[type].queue);
 
 	printk("NAT64: [session] New session (timeout %u sec).\n", expiry_base[type].timeout);
-	printk("NAT64: [session] x:%hu \tX':%pI6.\n", 	ntohs(s->remote6_port),  &s->remote6_addr);
-	printk("NAT64: [session] y:%hu \tY':%pI6.\n", 	ntohs(s->embedded6_port),&s->embedded6_addr);
+	printk("NAT64: [session] x:%hu \tX':%pI6c.\n", 	ntohs(s->remote6_port),  &s->remote6_addr);
+	printk("NAT64: [session] y:%hu \tY':%pI6c.\n", 	ntohs(s->embedded6_port),&s->embedded6_addr);
 	printk("NAT64: [session] t:%hu \tT:%pI4.\n",	ntohs(s->local4_port),   &s->local4_addr);
 	printk("NAT64: [session] z:%hu \tZ(Y'):%pI4.\n",ntohs(s->remote4_port),  &s->remote4_addr);
 	
@@ -356,8 +356,8 @@ static inline struct nat64_st_entry *session_create_tcp(struct nat64_bib_entry *
 	list_add_tail(&s->byexpiry, &expiry_base[type].queue);
 
 	pr_debug("NAT64: [session] New session (timeout %u sec).", expiry_base[type].timeout);
-	pr_debug("NAT64: [session] x:%hu\tX':%pI6.", ntohs(s->remote6_port), &s->remote6_addr);
-	pr_debug("NAT64: [session] y:%hu\tY':%pI6.", ntohs(s->embedded6_port), &s->embedded6_addr);
+	pr_debug("NAT64: [session] x:%hu\tX':%pI6c.", ntohs(s->remote6_port), &s->remote6_addr);
+	pr_debug("NAT64: [session] y:%hu\tY':%pI6c.", ntohs(s->embedded6_port), &s->embedded6_addr);
 	pr_debug("NAT64: [session] t:%hu\tT':%pI4.", ntohs(s->local4_port), &s->local4_addr);
 	pr_debug("NAT64: [session] z:%hu\tZ':%pI4.", ntohs(s->remote4_port), &s->remote4_addr);
 	

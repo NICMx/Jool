@@ -832,11 +832,12 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 			l4header.uh = ip_data(ip4);
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
 
+pr_debug("NAT64: DEBUG: (outgoing->src.u.udp.port = %d), (outgoing->dst.u.udp.port = %d)", ntohs(outgoing->src.u.udp.port), ntohs(outgoing->dst.u.udp.port));
 			checksum_change(&(l4header.uh->check), 
-					//&(l4header.uh->source), 
-					&(l4header.uh->dest), 
-					//(outgoing->src.u.udp.port), 
-					(outgoing->dst.u.udp.port), 
+					&(l4header.uh->source), 
+					//&(l4header.uh->dest), 
+					(outgoing->src.u.udp.port), 
+					//(outgoing->dst.u.udp.port), 
 					(ip4->protocol == IPPROTO_UDP) ? 
 					true : false);
 
@@ -1078,6 +1079,7 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
 	}
 
 //FIXME: No sirve para IPv6
+pr_debug("NAT64: DEBUG: nat64_translate_packet()");
 	if (l3protocol == NFPROTO_IPV4 && !(nat64_get_tuple(l3protocol, l4protocol, 
 					new_skb, outgoing))) { 
 		pr_debug("NAT64: Something went wrong getting the tuple");
@@ -1161,7 +1163,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				outgoing->dst.u3.in6 = 
 					session->remote6_addr; // X' addr
 
-				pr_debug("NAT64: TCP outgoing tuple: %pI6 : %d --> %pI6 : %d", 
+				pr_debug("NAT64: TCP outgoing tuple: %pI6c : %d --> %pI6c : %d", 
 							&(outgoing->src.u3.in6), ntohs(outgoing->src.u.tcp.port), 
 							&(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.tcp.port) ); 
 				break;
@@ -1202,7 +1204,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				outgoing->dst.u3.in6 = 
 					session->remote6_addr; // X' addr
 					
-				pr_debug("NAT64: UDP outgoing tuple: %pI6 : %d --> %pI6 : %d", 
+				pr_debug("NAT64: UDP outgoing tuple: %pI6c : %d --> %pI6c : %d", 
 							&(outgoing->src.u3.in6), ntohs(outgoing->src.u.udp.port), 
 							&(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.udp.port) );  //Rob
 
@@ -1565,6 +1567,7 @@ end:
 static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol, 
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
+pr_debug("NAT64: DEBUG: nat64_determine_tuple()");
 	if (!(nat64_get_tuple(l3protocol, l4protocol, skb, inner))) {
 		pr_debug("NAT64: Something went wrong getting the tuple");
 		return false;
@@ -1687,10 +1690,10 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
 	}
 	*/
 	pr_debug("\n* INCOMING IPV6 PACKET *\n");
-	pr_debug("PKT SRC=%pI6 \n", &iph->saddr);
-	pr_debug("PKT DST=%pI6 \n", &iph->daddr);
-	pr_debug("RULE DST=%pI6 \n", &info->ip6dst.in6);
-	pr_debug("RULE DST_MSK=%pI6 \n", &info->ip6dst_mask);
+	pr_debug("PKT SRC=%pI6c \n", &iph->saddr);
+	pr_debug("PKT DST=%pI6c \n", &iph->daddr);
+	pr_debug("RULE DST=%pI6c \n", &info->ip6dst.in6);
+	pr_debug("RULE DST_MSK=%pI6c \n", &info->ip6dst_mask);
 
 	/*
 	 * If the packet is not directed towards the NAT64 prefix, 

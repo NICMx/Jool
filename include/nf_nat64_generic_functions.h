@@ -25,7 +25,7 @@ static inline void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 				&t->dst.u3.ip, ntohs(t->dst.u.all));
 		break;
 		case NFPROTO_IPV6:
-			pr_debug("NAT64: tuple %p: %u %pI6: %hu -> %pI6:%hu",
+			pr_debug("NAT64: tuple %p: %u %pI6c: %hu -> %pI6c:%hu",
 				t, t->dst.protonum,
 				&t->src.u3.all, ntohs(t->src.u.all),
 				&t->dst.u3.all, ntohs(t->dst.u.all) );
