@@ -72,14 +72,15 @@ ip -6 route add default via $ipv6_def_gw dev $ipv6_dev
 
 
 
-#pushd "$mod_dir" > /dev/null
-#echo "Removing NAT64 module"
-#./workflow.sh "rmv"
-#echo "Inserting NAT64 module"
-#./workflow.sh "ins"
-#echo "Inserting iptables rule's"
-#./workflow.sh "test"
-#popd  > /dev/null
+pushd "$mod_dir" > /dev/null
+echo "Removing NAT64 module"
+./workflow.sh "rmv"
+echo "Inserting NAT64 module"
+./workflow.sh "ins"
+echo "Inserting iptables rule's"
+./workflow.sh "test"
+popd  > /dev/null
+
 
 echo "Ready"
 
