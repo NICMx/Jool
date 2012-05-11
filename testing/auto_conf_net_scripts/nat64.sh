@@ -8,7 +8,7 @@ ipv6_int_trans_addr="fec0::192.168.1.4/64"	# IPv6 address for the IPv4-mapped ad
 ipv6_int_addr="fec0::1/64"			# IPv6 interface's IP address
 #
 ipv4_int_addr="192.168.1.1"			# IPv4 interface's IP address
-ipv4_alias_int_addr="192.168.1.114"		# IPv4 alias interface's IP address; THIS MUST NOT BE USED ANYMORE
+#ipv4_alias_int_addr="192.168.1.114"		# IPv4 alias interface's IP address; THIS MUST NOT BE USED ANYMORE
 #
 mod_dir="/home/robertoaceves/nat64/mod"
 
@@ -64,8 +64,8 @@ done
 echo "Add ipv4 address: $ipv4_int_addr"
 #ip addr add 192.168.56.2/24 broadcast 192.168.56.255 dev $ipv4_dev
 ifconfig $ipv4_dev $ipv4_int_addr up
-echo "Add ipv4 virtual interface: $ipv4_alias_int_addr  THIS MUST NOT BE USED ANYMORE"
-ifconfig $ipv4_dev:0 $ipv4_alias_int_addr up
+#echo "Add ipv4 virtual interface: $ipv4_alias_int_addr  THIS MUST NOT BE USED ANYMORE"
+#ifconfig $ipv4_dev:0 $ipv4_alias_int_addr up
 
 
 #echo "Disable other interfaces \(internet access\)"
