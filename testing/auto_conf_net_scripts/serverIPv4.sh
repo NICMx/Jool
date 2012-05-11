@@ -29,6 +29,13 @@ for addr in ${ipv4_addr[@]}; do
 	ip addr del $addr/$ipv4_mask dev $ipv4_dev
 done
 
+echo "Add ipv4 address: $ipv4_int_addr"
+#ip addr add 192.168.56.4/24 dev $ipv4_dev
+ifconfig $ipv4_dev $ipv4_int_addr up
+echo "Add default route"
+ip route add default via $ipv4_def_gw
+
+
 echo "Remove ipv6 existing addresses"
 ipv6_addr=(`ifconfig $ipv4_dev | grep "inet6 addr" | sed -e 's/.*inet6 addr://' -e 's/Scope.*//' -e 's/ //g'`)
 [ "${#ipv6_addr[@]}" -ne 0 ] &&
@@ -43,12 +50,6 @@ done
 #        ifconfig $dev down
 #done
 
-
-echo "Add ipv4 address: $ipv4_int_addr"
-#ip addr add 192.168.56.4/24 dev $ipv4_dev
-ifconfig $ipv4_dev $ipv4_int_addr up
-echo "Add default route"
-ip route add default via $ipv4_def_gw
 
 #echo "ADD IPv6 ADDRESS TO THIS IPv4 MACHINE"
 #ip -6 addr add fec0::3/64 dev $ipv4_dev
