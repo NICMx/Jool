@@ -793,6 +793,8 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	struct iphdr * ip4;
 	void * ip6_transp;
 
+	struct ipv6_opt_hdr *ip6e;
+
 	ip6 = ipv6_hdr(old_skb);
 	ip4 = ip_hdr(new_skb);
 
@@ -823,6 +825,15 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
 	 */
 	ip6_transp = skb_transport_header(old_skb);
 
+	/* Skip extension headers. */
+	ip6e = (struct ipv6_opt_hdr *)(ip6 + 1);
+	while (ip4->protocol == 0 
+		|| ip4->protocol == 43 
+		|| ip4->protocol == 60) {
+		ip4->protocol = ip6e->nexthdr;
+		ip6e = (struct ipv6_opt_hdr *)((char *)ip6e + ip6e->hdrlen * 8);
+	}
+    
 	switch (ip4->protocol) {
 		/*
 		 * UDP and TCP have the same two first values in the struct. 
@@ -858,7 +869,7 @@ pr_debug("NAT64: DEBUG: (outgoing->src.u.udp.port = %d), (outgoing->dst.u.udp.po
 			break;
 		case IPPROTO_ICMPV6:
 			l4header.icmph = ip_data(ip4);
-			memcpy(l4header.icmph, ip6_transp, l4len + pay_len);
+			memcpy(l4header.icmph, ip6e, l4len + pay_len);
 
 			if (l4header.icmph->type & ICMPV6_INFOMSG_MASK) {
 				switch (l4header.icmph->type) {
@@ -879,30 +890,70 @@ pr_debug("NAT64: DEBUG: (outgoing->src.u.udp.port = %d), (outgoing->dst.u.udp.po
 						return false;
 				}
 			} else {
-				pr_debug("NAT64: no other ICMP Protocols"
-						" are supported yet.");
-				pr_debug("NAT64: detected protocol %u", 
-						l4header.icmph->type);
-				pr_debug("NAT64: detected protocol %u", 
-						l4header.icmph->code);
-				return false;
-			}
+                switch (l4header.icmph->type) {
+                    case ICMPV6_DEST_UNREACH:
+                        l4header.icmph->type = ICMP_DEST_UNREACH;
+                        switch (l4header.icmph->code) {
+                            case ICMPV6_NOROUTE:
+                            case ICMPV6_NOT_NEIGHBOUR:
+                            case ICMPV6_ADDR_UNREACH:
+                                l4header.icmph->code = ICMP_HOST_UNREACH;
+                                break;
+                            case ICMPV6_ADM_PROHIBITED:
+                                l4header.icmph->code = ICMP_HOST_ANO;
+                                break;
+                            case ICMPV6_PORT_UNREACH:
+                                l4header.icmph->code = ICMP_PORT_UNREACH;
+                                break;
+                            default:
+                                return NULL;
+                        }
+                        break;
+                    case ICMPV6_PKT_TOOBIG:
+                        l4header.icmph->type = ICMP_DEST_UNREACH;
+                        l4header.icmph->code = ICMP_FRAG_NEEDED;
+                        l4header.icmph->un.frag.mtu -= 20;
+                        break;
+                    case ICMPV6_TIME_EXCEED:
+                        l4header.icmph->type = ICMP_TIME_EXCEEDED;
+                        break;
+                    case ICMPV6_PARAMPROB:
+                        if (l4header.icmph->code == ICMPV6_UNK_NEXTHDR)
+                        {
+                            l4header.icmph->type = ICMP_DEST_UNREACH;
+                            l4header.icmph->code = ICMP_PROT_UNREACH;
+                        } else {
+                            l4header.icmph->type = ICMP_PARAMETERPROB;
+                            l4header.icmph->code = 0;
+                        }
+                        /* TODO update pointer */
+                        break;
+                    default:
+                        return NULL;
+                }
+                /*nat64_xlate_ipv6_to_ipv4(*/
+                        /*(struct ipv6hdr *)((char *)ip6e + 8),*/
+                        /*(struct iphdr *)(l4header.icmph + 1), */
+                        /*plen - ((char *)ip6e + 8 - (char *)ip6), s,*/
+                        /*recur + 1);*/
 
-			l4header.icmph->checksum = 0;
-			l4header.icmph->checksum = 
-				ip_compute_csum(l4header.icmph, pay_len);
-			ip4->protocol = IPPROTO_ICMP;
-			break;
-		default:
-			pr_debug("NAT64: encountered incompatible protocol "
-					"while creating the outgoing skb");
-			return false;
-	}
+            }
 
-	ip4->check = 0;
-	ip4->check = ip_fast_csum(ip4, ip4->ihl);
+            l4header.icmph->checksum = 0;
+            l4header.icmph->checksum = 
+                ip_compute_csum(l4header.icmph, l4len + pay_len);
+            ip4->protocol = IPPROTO_ICMP;
+            break;
+        default:
+            pr_debug("NAT64: encountered incompatible protocol "
+                    "while creating the outgoing skb");
+            return false;
+    }
 
-	return true;
+    ip4->check = 0;
+    ip4->check = ip_fast_csum(ip4, ip4->ihl);
+
+    return true;
 }
 
 /*
@@ -1244,6 +1295,10 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 				bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, 
 						IPPROTO_UDP);
 				break;
+			case IPPROTO_ICMPV6:
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.icmp.id, 
+						IPPROTO_ICMPV6);
+				break;
 			default:
 				pr_debug("NAT64: no hay BIB, lol, jk?");
 				break;
@@ -1266,6 +1321,12 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 							nat64_extract_ipv4(inner->dst.u3.in6, 
 								//prefix_len), inner->dst.u.udp.port);
 								ipv6_pref_len), inner->dst.u.udp.port);
+					break;
+				case IPPROTO_ICMPV6:
+					session = session_ipv4_lookup(bib, 
+							nat64_extract_ipv4(inner->dst.u3.in6, 
+								//prefix_len), inner->dst.u.udp.port);
+								ipv6_pref_len), inner->src.u.icmp.id);
 					break;
 				default:
 					pr_debug("NAT64: no hay sesion, lol, jk?");
@@ -1323,7 +1384,20 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 						pr_debug("NAT64: ICMP protocol not currently supported.");
 						break;
 					case IPPROTO_ICMPV6:
-						pr_debug("NAT64: ICMPv6 protocol not currently supported.");
+						// Ports
+						outgoing->src.u.icmp.id = 
+							bib->local4_port;
+
+						// SRC IP
+						outgoing->src.u3.ip = bib->local4_addr;
+						temp_addr->s_addr = bib->local4_addr;
+						outgoing->src.u3.in = *(temp_addr);
+
+						// DST IP
+						outgoing->dst.u3.ip = session->remote4_addr;
+						temp_addr->s_addr = session->remote4_addr;
+						outgoing->dst.u3.in = *(temp_addr);
+
 						break;
 					default:
 						pr_debug("NAT64: layer 4 protocol not currently supported.");
