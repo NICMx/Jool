@@ -73,8 +73,10 @@ struct nat64_st_entry
 extern struct expiry_q expiry_base[NUM_EXPIRY_QUEUES];
 extern struct kmem_cache *st_cache;
 extern struct kmem_cache *st_cacheTCP;
+extern struct kmem_cache *st_cacheICMP;
 extern struct kmem_cache *bib_cache;
 extern struct kmem_cache *bib_cacheTCP;
+extern struct kmem_cache *bib_cacheICMP;
 extern struct hlist_head *hash6;
 extern struct hlist_head *hash4;
 extern __be32 ipv4_addr;
@@ -503,7 +505,11 @@ static inline struct nat64_bib_entry
     local4_addr = -1;
   }else{
     INIT_LIST_HEAD(&transport_addr->list);
-    local4_port = ntohs(transport_addr->port);
+    if(type == ICMP_DEFAULT) {
+        local4_port = sport;
+    } else{
+        local4_port = ntohs(transport_addr->port);
+    }
     in4_pton(transport_addr->address, -1, (u8 *)&local4_addr, '\x0', NULL);
     pr_debug("NAT: IPv4 Pool: using address %s and port %u.\n", transport_addr->address, transport_addr->port);
   }  
