@@ -1540,8 +1540,41 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
 				break;
 			case IPPROTO_ICMPV6:
 				//Query ICMPV6 ST
-				pr_debug("NAT64: ICMPv6 protocol not currently "
-						"supported.");
+				bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
+						inner->src.u.icmp.id, IPPROTO_ICMP);
+				if(bib) {
+					session = session_ipv4_lookup(bib, 
+							nat64_extract_ipv4(
+								inner->dst.u3.in6, 
+								//prefix_len), 
+								ipv6_pref_len), 
+							inner->src.u.icmp.id);
+					if(session) {
+						session_renew(session, ICMP_DEFAULT);
+                    }else {
+						session = session_create(bib, 
+								&(inner->dst.u3.in6), 
+								nat64_extract_ipv4(
+									inner->dst.u3.in6, 
+									ipv6_pref_len), 
+								inner->src.u.icmp.id, 
+								ICMP_DEFAULT);
+					}
+				} else {
+					pr_debug("Create a new BIB and Session entry.");
+					bib = bib_session_create(
+							&(inner->src.u3.in6), 
+							&(inner->dst.u3.in6), 
+							nat64_extract_ipv4(
+								inner->dst.u3.in6, 
+								ipv6_pref_len), 
+							inner->src.u.icmp.id, 
+							inner->src.u.icmp.id, 
+							l4protocol, ICMP_DEFAULT);
+				}
+				res = true;
+				/*pr_debug("NAT64: ICMPv6 protocol not currently "*/
+						/*"supported.");*/
 				break;
 			default:
 				//Drop packet
