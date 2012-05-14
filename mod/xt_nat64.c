@@ -821,7 +821,7 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
                             case ICMP_FRAG_NEEDED:
                                 l4header.icmph->icmp6_type = ICMPV6_PKT_TOOBIG;
                                 l4header.icmph->icmp6_code = 0;
-                                l4header.icmph->icmp6_mtu += 20;
+                                l4header.icmph->icmp6_mtu  = htonl(ntohs(l4header.icmph->icmp6_mtu)+20);
                                 /* TODO handle icmp_nextmtu == 0 */
                                 break;
                             default:
@@ -880,6 +880,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
         struct udphdr * uh;
         struct tcphdr * th;
         struct icmphdr * icmph;
+		struct icmp6hdr * icmph6;
     } l4header;
 
     struct ipv6hdr * ip6;
@@ -1003,9 +1004,15 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
                         }
                         break;
                     case ICMPV6_PKT_TOOBIG:
+						l4header.icmph6 = (struct icmp6hdr *)(ip6+1);
                         l4header.icmph->type = ICMP_DEST_UNREACH;
                         l4header.icmph->code = ICMP_FRAG_NEEDED;
-                        l4header.icmph->un.frag.mtu -= 20;
+						if (ntohl(l4header.icmph6->icmp6_mtu) >= 0xffff) {
+							l4header.icmph->un.frag.mtu  = 0xffff; //same in host and network order
+						} else {
+							// IPv4 has 2 bytes, IPv6 has 4 bytes.
+							l4header.icmph->un.frag.mtu  = htons(ntohl(l4header.icmph6->icmp6_mtu)-20);
+						}
                         break;
                     case ICMPV6_TIME_EXCEED:
                         l4header.icmph->type = ICMP_TIME_EXCEEDED;
