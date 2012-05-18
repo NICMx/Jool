@@ -21,6 +21,7 @@ Authors:
 	Adrian González <bernardogzzf@gmail.com>
 	Manuel Aude <dormam@gmail.com>
 	Gabriel Chavez <gabrielchavez02@gmail.com>
+	Alan Villela López <avillop@gmail.com>
 
 This is an implementation of the NAT64 mechanism as described in the RFC6146.
 It's being implemented as a Netfilter target module.
