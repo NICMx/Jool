@@ -2,11 +2,27 @@
  * NAT64 - Network Address Translator IPv6 to IPv4
  *
  * Authors:
- *    Juan Antonio Osorio <jaosorior@gmail.com>
- *    Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
- *    David Valenzuela <david.valenzuela.88@gmail.com>
- *    Jose Vicente Ramirez <pepermz@gmail.com>
- *    Mario Gerardo Trevino <mario_tc88@hotmail.com>
+ *	Representative NIC-Mx
+ *	Ing. Gustavo Lozano <glozano@nic.mx>
+ *	Ing. Jorge Cano
+ *
+ *	Representative ITESM
+ *	Dr. Juan Arturo Nolazco	<jnolazco@itesm.mx>
+ *	Ing. Martha Sordia <msordia@itesm.mx>
+ *
+ *	Students ITESM
+ *	Juan Antonio Osorio <jaosorior@gmail.com>
+ *	Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
+ *	David Valenzuela <david.valenzuela.88@gmail.com>
+ *	Jose Vicente Ramirez <pepermz@gmail.com>
+ *	Mario Gerardo Trevinho <mario_tc88@hotmail.com>
+ *	Roberto Aceves <roberto.aceves@gmail.com>
+ *	Miguel Alejandro González <maggonzz@gmail.com>
+ *	Ramiro Nava <ramironava@gmail.com>
+ *	Adrian González <bernardogzzf@gmail.com>
+ *	Manuel Aude <dormam@gmail.com>
+ *	Gabriel Chavez <gabrielchavez02@gmail.com>
+ *	Alan Villela López <avillop@gmail.com>
  *	  
  *	  The rest of us, I propose include our names and order all alphabetically.
  *
