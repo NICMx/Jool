@@ -423,7 +423,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	if (!rt || IS_ERR(rt)) {
 		pr_warning("NAT64: nat64_send_packet - rt is null or an error");
 		if (IS_ERR(rt))
-			pr_warning("rt - %d", (int)rt);
+			pr_warning("rt -1");
 		return -1;
 	}
 
@@ -1682,7 +1682,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
     struct nat64_bib_entry *bib;
     struct nat64_st_entry *session;
     struct tcphdr *tcph = tcp_hdr(skb);
-    struct icmphdr *icmph = icmp_hdr(skb);
+    //struct icmphdr *icmph = icmp_hdr(skb);
     bool res;
     //	int i;
     res = false;
@@ -2022,23 +2022,6 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 			}
 			return outgoing;
 }
-
-static bool got_hairy_testicles4(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
-	static bool res;
-	struct in_addr sa1;
-	struct in_addr sa2;
-
-	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
-	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
-	res = false;
-	if (l3protocol == NFPROTO_IPV6) { 
-	  if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
-		res = true;
-	  } 
-	} 
-	return res;
-}
-
 
 static bool got_hairy_testicles6(u_int8_t l3protocol, struct nf_conntrack_tuple * inner) {
 	static bool res;

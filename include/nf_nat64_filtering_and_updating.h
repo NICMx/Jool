@@ -794,13 +794,14 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
+  	struct transport_addr_struct *transport_addr;
 	__be16 local4_port;
 	__be32 local4_addr;
 	
 	pr_debug("NAT64: [bib1] source PORT %hu .\n", ntohs(sport));
   // local4_port = bib_allocate_local4_port(sport, protocol); // FIXME: Should be different than sport
   
-  struct transport_addr_struct *transport_addr;
+
   transport_addr = get_tcp_transport_addr();
   
   if(transport_addr == NULL){
