@@ -412,6 +412,20 @@ static inline struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry 
 	return NULL;
 }
 
+static inline struct nat64_st_entry *session_ipv4_hairpin_lookup(struct nat64_bib_entry *bib, __be32 local4_addr, __be16 local4_port)
+{
+	struct nat64_st_entry	*session;
+	struct list_head	*pos;
+
+	list_for_each(pos, &bib->sessions) {
+		session = list_entry(pos, struct nat64_st_entry, list);
+		if(session->local4_addr == local4_addr && session->local4_port == local4_port)
+			return session;
+	}
+
+	return NULL;
+}
+
 static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
