@@ -488,7 +488,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
  * Sends the packet. Checks the old skb' L3 type to select the course of action.
  * Right now, the skb->data should be pointing to the L3 layer header.
  */
-static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
+static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb, bool hairpin)
 {
 	int ret = -1;
 	
@@ -497,13 +497,19 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb)
 		
 	switch (ntohs(old_skb->protocol)) {
 		case ETH_P_IPV6:
-			pr_debug("NAT64: eth type ipv6 to ipv4");
-			skb->protocol = ETH_P_IP;
-			ret = nat64_send_packet_ipv4(skb);
+			if (hairpin) {
+				pr_debug("NAT64: eth type ipv6 to ipv6");
+				//skb->protocol = ETH_P_IPV6;
+				ret = nat64_send_packet_ipv6(skb);
+			} else {
+				pr_debug("NAT64: eth type ipv6 to ipv4");
+				//skb->protocol = ETH_P_IP;
+				ret = nat64_send_packet_ipv4(skb);
+			}
 			break;
 		case ETH_P_IP:
 			pr_debug("NAT64: eth type ipv4 to ipv6");
-			skb->protocol = ETH_P_IPV6;
+			//skb->protocol = ETH_P_IPV6;
 			ret = nat64_send_packet_ipv6(skb);
 			break;
 		default:
@@ -875,6 +881,74 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
     return true;
 }
 
+
+static bool nat64_get_skb_from6to6(struct sk_buff * old_skb,
+		struct sk_buff * new_skb, u_int8_t l3protocol, 
+		u_int8_t l4protocol, int l3len, int l4len, 
+		int pay_len, struct nf_conntrack_tuple * outgoing)
+{
+	union nat64_l4header_t {
+		struct udphdr * uh;
+		struct tcphdr * th;
+	} l4header;
+
+	struct ipv6hdr * ip6;
+	struct ipv6hdr * ip6_old;
+	void * ip6_transp;
+
+	ip6 = ipv6_hdr(new_skb);
+	ip6_old = ipv6_hdr(old_skb);
+
+	ip6->version = ip6_old->version;
+	ip6->priority = ip6_old->priority;
+	ip6->flow_lbl[0] = ip6_old->flow_lbl[0];
+	ip6->flow_lbl[1] = 0;
+	ip6->flow_lbl[2] = 0;
+
+	ip6->payload_len = htons(pay_len);
+	ip6->nexthdr  = ip6_old->nexthdr;
+	ip6->hop_limit = ip6_old->hop_limit;
+
+	ipv6_addr_copy(&ip6->saddr, &outgoing->src.u3.in6);
+	ipv6_addr_copy(&ip6->daddr, &outgoing->dst.u3.in6);
+
+	/*
+	 * Get pointer to Layer 4 header.
+	 */
+	ip6_transp = skb_transport_header(old_skb);
+
+	switch(ip6->nexthdr) {
+		case IPPROTO_UDP:
+			l4header.uh = (struct udphdr *)(ip6 + 1);
+			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
+           		//checksum_change(&l4header.uh->check,&l4header.uh->dest,outgoing->dst.u.udp.port, true);
+  			l4header.uh->dest = outgoing->dst.u.udp.port;
+  			l4header.uh->check = 0;
+                        l4header.uh->check = csum_ipv6_magic( &ip6->saddr, &ip6->daddr,
+                    				l4len + pay_len, IPPROTO_UDP,
+                    				csum_partial(l4header.uh, l4len + pay_len, 0));
+			pr_debug("checksum hairpin,%d ",l4header.uh->check );
+			break;
+		case IPPROTO_TCP:
+			l4header.th = (struct tcphdr *)(ip6 + 1);
+			memcpy(l4header.th, ip6_transp, l4len + pay_len);
+           		//checksum_change(&l4header.th->check,&l4header.th->dest,outgoing->dst.u.tcp.port, false);
+  			l4header.th->dest = outgoing->dst.u.tcp.port;
+  			l4header.th->check = 0;
+                        l4header.th->check = csum_ipv6_magic(&ip6->saddr,&ip6->daddr,
+                    				l4len + pay_len, IPPROTO_TCP,
+                    				csum_partial(l4header.th, l4len + pay_len, 0));
+			pr_debug("checksum hairpin,%d ",l4header.th->check );
+			break;
+     
+        default:
+            WARN_ON_ONCE(1);
+            return false;
+    }
+
+    return true;
+}
+
 /*
  * Function to get the SKB from IPv6 to IPv4.
  * @l4protocol = The incoming L4 protocol
@@ -1077,7 +1151,7 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
  * that will be sent.
  */
 static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol, 
-        struct sk_buff *skb, struct nf_conntrack_tuple * outgoing)
+        struct sk_buff *skb, struct nf_conntrack_tuple * outgoing, bool hairpin)
 {
     struct sk_buff *new_skb;
 
@@ -1085,7 +1159,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
     int packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
 
     l4hdrlen = -1;
-
+pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len); 
     /*
      * Layer 2 header length is assigned the maximum possible header length
      * possible.
@@ -1128,9 +1202,14 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
             pay_len = pay_len - sizeof(struct iphdr);
             break;
         case NFPROTO_IPV6:
-            l3hdrlen = sizeof(struct iphdr);
-            pay_len = pay_len - sizeof(struct ipv6hdr);
-            break;
+	    if (hairpin) {
+	    	l3hdrlen = sizeof(struct ipv6hdr);
+		pay_len = pay_len - sizeof(struct ipv6hdr);
+	    } else {
+            	l3hdrlen = sizeof(struct iphdr);
+            	pay_len = pay_len - sizeof(struct ipv6hdr);
+            }
+	    break;
         default:
             pr_debug("NAT64: nat64_get_skb - unidentified"
                     " layer 3 protocol");
@@ -1141,6 +1220,8 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
     pr_debug("NAT64: l4hdrlen %d", l4hdrlen);
 
     packet_len = l3hdrlen + l4hdrlen + pay_len;
+    pr_debug("NAT64: packet len %d", packet_len);
+
     pr_debug("NAT64: packet len %d", packet_len);
 
     /*
@@ -1176,6 +1257,8 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
         return NULL;
     }
 
+pr_debug("%ld %ld %d %d %d", new_skb->head- new_skb->head, new_skb->data- new_skb->head, new_skb->tail, new_skb->end, new_skb->len); 
+
     switch (l3protocol) {
         case NFPROTO_IPV4:
             if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
@@ -1190,17 +1273,34 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
                     "new sk_buff");
             return NULL;
         case NFPROTO_IPV6:
-            if (nat64_get_skb_from6to4(skb, new_skb, l3protocol,
-                        l4protocol, l3hdrlen, l4hdrlen, 
-                        (pay_len), outgoing)) { 
-                pr_debug("NAT64: Everything went OK populating the "
-                        "new sk_buff");
-                return new_skb;
-            }
+	    if (hairpin) {
+
+		    if (nat64_get_skb_from6to6(skb, new_skb, l3protocol,
+		                l4protocol, l3hdrlen, l4hdrlen, 
+		                (pay_len), outgoing)) { 
+		        pr_debug("NAT64 hairpin: Everything went OK populating the "
+		                "new sk_buff");
+		        return new_skb;
+		    }
 
             pr_debug("NAT64: something went wrong populating the "
                     "new sk_buff");
             return NULL;
+
+	    } else {
+
+		    if (nat64_get_skb_from6to4(skb, new_skb, l3protocol,
+		                l4protocol, l3hdrlen, l4hdrlen, 
+		                (pay_len), outgoing)) { 
+		        pr_debug("NAT64: Everything went OK populating the "
+		                "new sk_buff");
+		        return new_skb;
+		    }
+
+		    pr_debug("NAT64: something went wrong populating the "
+		            "new sk_buff");
+		    return NULL;
+	 }
     }
 
     pr_debug("NAT64: Not IPv4 or 6");
@@ -1212,7 +1312,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 
 static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol, 
         u_int8_t l4protocol, struct sk_buff *skb, 
-        struct nf_conntrack_tuple * outgoing)
+        struct nf_conntrack_tuple * outgoing, bool hairpin)
 {
     /*
      * FIXME: Handle IPv6 options.
@@ -1220,18 +1320,19 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
      * the respective new values and calls determine_outgoing_tuple.
      */
     struct sk_buff * new_skb = nat64_get_skb(l3protocol, l4protocol, skb,
-            outgoing);
+            outgoing, hairpin);
 
     if (!new_skb) {
         pr_debug("NAT64: Skb allocation failed -- returned NULL");
         return NULL;
     }
-
+pr_debug("%ld %ld %d %d %d", new_skb->head- new_skb->head, new_skb->data- new_skb->head, new_skb->tail, new_skb->end, new_skb->len); 
     /*
      * Adjust the layer 3 protocol variable to be used in the outgoing tuple
      * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
      */
-    l3protocol = (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 : NFPROTO_IPV4;
+    if(!hairpin)
+    	l3protocol = (l3protocol == NFPROTO_IPV4) ? NFPROTO_IPV6 : NFPROTO_IPV4;
 
     /*
      * Adjust the layer 4 protocol variable to be used 
@@ -1857,6 +1958,105 @@ static bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
     return true;
 }
 
+
+static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol, 
+		struct nf_conntrack_tuple * inner,
+		struct nf_conntrack_tuple * outgoing) {
+	struct nat64_bib_entry *bib;
+	struct nat64_st_entry *session;
+	
+			switch (l4protocol) {
+				case IPPROTO_TCP:
+					bib = bib_ipv4_lookup(
+						nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
+						inner->dst.u.tcp.port,
+						IPPROTO_TCP);
+					if (bib) {
+						session = session_ipv4_hairpin_lookup(bib, 
+							outgoing->dst.u3.in.s_addr, 
+							outgoing->dst.u.tcp.port);				
+						if (!session) {
+							pr_warning("NAT64 hairpin: IPv4 - session entry is "
+									"missing.");
+						} else {
+							outgoing->src.u3.in6 = inner->src.u3.in6; 
+							outgoing->src.u.tcp.port = inner->src.u.tcp.port; 
+							outgoing->dst.u.tcp.port = session->remote6_port; 
+							outgoing->dst.u3.in6 = session->remote6_addr; 
+							pr_debug("NAT64: TCP hairpin outgoing tuple: %pI6c : %d --> %pI6c : %d", 
+                       						 &(outgoing->src.u3.in6), ntohs(outgoing->src.u.tcp.port), 
+                        					 &(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.tcp.port) ); 
+						}
+					} else {
+						pr_warning("NAT64 hairpin: IPv4 - BIB is missing.");			
+					}
+					break;
+				case IPPROTO_UDP:
+					bib = bib_ipv4_lookup(
+						nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
+						inner->dst.u.udp.port,
+						IPPROTO_UDP);
+					if (bib) {
+						session = session_ipv4_hairpin_lookup(bib, 
+							nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
+							inner->dst.u.udp.port);				
+						if (!session) {
+							pr_warning("NAT64 hairpin: IPv4 - session entry is "
+									"missing.");
+						} else {
+							outgoing->src.u3.in6 = inner->src.u3.in6; 
+							outgoing->src.u.udp.port = inner->src.u.udp.port; 
+							outgoing->dst.u.udp.port = session->remote6_port; 
+							outgoing->dst.u3.in6 = session->remote6_addr; 
+
+							pr_debug("NAT64: UDP hairpin outgoing tuple: %pI6c : %d --> %pI6c : %d", 
+                        					&(outgoing->src.u3.in6), ntohs(outgoing->src.u.udp.port), 
+                        					&(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.udp.port) );  //Rob
+						}
+					} else {
+						pr_warning("NAT64 hairpin: IPv4 - BIB is missing.");			
+					}
+					break;
+				default:
+					break;
+			}
+			return outgoing;
+}
+
+static bool got_hairy_testicles4(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
+	static bool res;
+	struct in_addr sa1;
+	struct in_addr sa2;
+
+	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
+	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	res = false;
+	if (l3protocol == NFPROTO_IPV6) { 
+	  if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
+		res = true;
+	  } 
+	} 
+	return res;
+}
+
+
+static bool got_hairy_testicles6(u_int8_t l3protocol, struct nf_conntrack_tuple * inner) {
+	static bool res;
+	__be32 dirip4;
+	struct in_addr sa1;
+	struct in_addr sa2;
+	dirip4 = nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len);
+	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
+	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	res = false;
+	if (l3protocol == NFPROTO_IPV6) { 
+		if (ntohl(dirip4) >= ntohl(sa1.s_addr) && ntohl(dirip4) <= ntohl(sa2.s_addr)) {
+			res = true;
+		} 
+	} 
+	return res;
+}
+
 /*
  * NAT64 Core Functionality
  *
@@ -1868,28 +2068,39 @@ static unsigned int nat64_core(struct sk_buff *skb,
     struct nf_conntrack_tuple inner;
     struct nf_conntrack_tuple * outgoing;
     struct sk_buff * new_skb;
+    static bool hairpin = false;
 
     if (!nat64_determine_tuple(l3protocol, l4protocol, skb, &inner)) {
         pr_info("NAT64: There was an error determining the Tuple");
         return NF_DROP;
     } 
 
-    if (!nat64_filtering_and_updating(l3protocol, l4protocol, skb, &inner)) {
-        pr_info("NAT64: There was an error in the updating and"
-                " filtering module");
-        return NF_DROP;
-    }
+    if ( got_hairy_testicles6(l3protocol, &inner) ){
+		hairpin = true;
+    } else {
+	    if (!nat64_filtering_and_updating(l3protocol, l4protocol, skb, &inner)) {
+		pr_info("NAT64: There was an error in the updating and"
+		        " filtering module");
+		return NF_DROP;
+	    }
 
-    outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+    	    outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
             skb, &inner, outgoing);
 
-    if (!outgoing) {
-        pr_info("NAT64: There was an error in the determining the outgoing"
-                " tuple module");
-        return NF_DROP;
+    	    if (!outgoing) {
+        	pr_info("NAT64: There was an error in the determining the outgoing"
+                	" tuple module");
+        	return NF_DROP;
+    	    }		
     }
 
-    new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, outgoing);
+	if ( hairpin ){
+		pr_debug("NAT64: hairpin packet yo!");
+		outgoing = hairpinning_and_handling(l4protocol, &inner, outgoing);
+		l3protocol = NFPROTO_IPV6;
+	}
+
+    new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, outgoing, hairpin);
 
     if (!new_skb) {
         pr_info("NAT64: There was an error in the packet translation"
@@ -1901,7 +2112,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
     /*
      * Returns zero if it works
      */
-    if (nat64_send_packet(skb, new_skb)) {
+    if (nat64_send_packet(skb, new_skb, hairpin)) {
         pr_info("NAT64: There was an error in the packet transmission"
                 " module");
         return NF_DROP;
