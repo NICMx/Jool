@@ -725,8 +725,8 @@ static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
  */
 static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 		struct sk_buff * new_skb, u_int8_t l3protocol, 
-		u_int8_t l4protocol, u_int8_t l3len, u_int8_t l4len, 
-		u_int8_t pay_len, struct nf_conntrack_tuple * outgoing)
+		u_int8_t l4protocol, int l3len, int l4len, 
+		int pay_len, struct nf_conntrack_tuple * outgoing)
 {
 	union nat64_l4header_t {
 		struct udphdr * uh;
@@ -886,8 +886,8 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
  */
 static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
         struct sk_buff * new_skb, u_int8_t l3protocol, 
-        u_int8_t l4protocol, u_int8_t l3len, u_int8_t l4len, 
-        u_int8_t pay_len, struct nf_conntrack_tuple * outgoing)
+        u_int8_t l4protocol, int l3len, int l4len, 
+        int pay_len, struct nf_conntrack_tuple * outgoing)
 {
     /*
      * Genric Layer 4 header structure.
@@ -914,13 +914,13 @@ static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
     ip4->version = 4;
     ip4->ihl = 5;
     ip4->tos = ip6->priority; 
-    ip4->tot_len = htons(sizeof(*ip4) + l4len + pay_len);
+    ip4->tot_len = htons(new_skb->len);
 
     /*
      * According to the RFC6146 the ID should be zero.
      */
     ip4->id = 0;
-    ip4->frag_off = htons(IP_DF);
+    ip4->frag_off = pay_len > 1280 ? htons(IP_DF) : 0;
     ip4->ttl = ip6->hop_limit;
     ip4->protocol = ip6->nexthdr;
 
@@ -1081,8 +1081,8 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
 {
     struct sk_buff *new_skb;
 
-    u_int8_t pay_len = skb->len - skb->data_len;
-    u_int8_t packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
+    int pay_len = skb->len - skb->data_len;
+    int packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
 
     l4hdrlen = -1;
 
@@ -1141,6 +1141,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
     pr_debug("NAT64: l4hdrlen %d", l4hdrlen);
 
     packet_len = l3hdrlen + l4hdrlen + pay_len;
+    pr_debug("NAT64: packet len %d", packet_len);
 
     /*
      * LL_MAX_HEADER referes to the 'link layer' in the OSI stack.
