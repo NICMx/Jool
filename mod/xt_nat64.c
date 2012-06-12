@@ -923,6 +923,7 @@ static bool nat64_get_skb_from6to6(struct sk_buff * old_skb,
 			memcpy(l4header.uh, ip6_transp, l4len + pay_len);
            		//checksum_change(&l4header.uh->check,&l4header.uh->dest,outgoing->dst.u.udp.port, true);
   			l4header.uh->dest = outgoing->dst.u.udp.port;
+  			l4header.uh->source = outgoing->src.u.udp.port;
   			l4header.uh->check = 0;
                         l4header.uh->check = csum_ipv6_magic( &ip6->saddr, &ip6->daddr,
                     				l4len + pay_len, IPPROTO_UDP,
@@ -934,6 +935,7 @@ static bool nat64_get_skb_from6to6(struct sk_buff * old_skb,
 			memcpy(l4header.th, ip6_transp, l4len + pay_len);
            		//checksum_change(&l4header.th->check,&l4header.th->dest,outgoing->dst.u.tcp.port, false);
   			l4header.th->dest = outgoing->dst.u.tcp.port;
+  			l4header.th->source = outgoing->src.u.tcp.port;
   			l4header.th->check = 0;
                         l4header.th->check = csum_ipv6_magic(&ip6->saddr,&ip6->daddr,
                     				l4len + pay_len, IPPROTO_TCP,
@@ -1963,7 +1965,9 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple * outgoing) {
 	struct nat64_bib_entry *bib;
+	struct nat64_bib_entry *bib2;
 	struct nat64_st_entry *session;
+	struct nat64_st_entry *session2;
 	
 			switch (l4protocol) {
 				case IPPROTO_TCP:
@@ -1979,8 +1983,8 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 							pr_warning("NAT64 hairpin: IPv4 - session entry is "
 									"missing.");
 						} else {
-							outgoing->src.u3.in6 = inner->src.u3.in6; 
-							outgoing->src.u.tcp.port = inner->src.u.tcp.port; 
+							outgoing->src.u3.in6 = inner->dst.u3.in6; 
+							outgoing->src.u.tcp.port = inner->dst.u.tcp.port; 
 							outgoing->dst.u.tcp.port = session->remote6_port; 
 							outgoing->dst.u3.in6 = session->remote6_addr; 
 							pr_debug("NAT64: TCP hairpin outgoing tuple: %pI6c : %d --> %pI6c : %d", 
@@ -1996,16 +2000,20 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 						nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
 						inner->dst.u.udp.port,
 						IPPROTO_UDP);
-					if (bib) {
-						session = session_ipv4_hairpin_lookup(bib, 
+                			bib2 = bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.udp.port, IPPROTO_UDP);
+					if (bib && bib2) {
+						session = session_ipv4_lookup(bib, 
 							nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
-							inner->dst.u.udp.port);				
+							inner->dst.u.udp.port);	
+						session2 = session_ipv4_lookup(bib2, 
+							outgoing->src.u3.in.s_addr, 
+							outgoing->src.u.udp.port);					
 						if (!session) {
 							pr_warning("NAT64 hairpin: IPv4 - session entry is "
 									"missing.");
 						} else {
-							outgoing->src.u3.in6 = inner->src.u3.in6; 
-							outgoing->src.u.udp.port = inner->src.u.udp.port; 
+							outgoing->src.u3.in6 = session2->embedded6_addr; 
+							outgoing->src.u.udp.port = session2->embedded6_port; 
 							outgoing->dst.u.udp.port = session->remote6_port; 
 							outgoing->dst.u3.in6 = session->remote6_addr; 
 
@@ -2040,6 +2048,21 @@ static bool got_hairy_testicles6(u_int8_t l3protocol, struct nf_conntrack_tuple 
 	return res;
 }
 
+static bool got_hairy_testicles4(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
+	static bool res;	  	
+	struct in_addr sa1;
+	struct in_addr sa2;
+	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
+	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	res = false;
+	if (l3protocol == NFPROTO_IPV6) { 
+		if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
+			res = true;
+		} 
+ 	} 
+	return res;
+}
+
 /*
  * NAT64 Core Functionality
  *
@@ -2058,30 +2081,27 @@ static unsigned int nat64_core(struct sk_buff *skb,
         return NF_DROP;
     } 
 
-    if ( got_hairy_testicles6(l3protocol, &inner) ){
-		hairpin = true;
-    } else {
-	    if (!nat64_filtering_and_updating(l3protocol, l4protocol, skb, &inner)) {
+    if (!nat64_filtering_and_updating(l3protocol, l4protocol, skb, &inner)) {
 		pr_info("NAT64: There was an error in the updating and"
-		        " filtering module");
+			" filtering module");
 		return NF_DROP;
-	    }
-
-    	    outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-            skb, &inner, outgoing);
-
-    	    if (!outgoing) {
-        	pr_info("NAT64: There was an error in the determining the outgoing"
-                	" tuple module");
-        	return NF_DROP;
-    	    }		
     }
 
-	if ( hairpin ){
+    outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
+        skb, &inner, outgoing);
+
+    if (!outgoing) {
+    	pr_info("NAT64: There was an error in the determining the outgoing"
+                " tuple module");
+        return NF_DROP;
+    }		
+
+    if (  got_hairy_testicles4(l3protocol, outgoing) ){
 		pr_debug("NAT64: hairpin packet yo!");
 		outgoing = hairpinning_and_handling(l4protocol, &inner, outgoing);
 		l3protocol = NFPROTO_IPV6;
-	}
+		hairpin = true;
+    }
 
     new_skb = nat64_translate_packet(l3protocol, l4protocol, skb, outgoing, hairpin);
 
