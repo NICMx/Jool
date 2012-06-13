@@ -1972,8 +1972,8 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 			switch (l4protocol) {
 				case IPPROTO_TCP:
 					bib = bib_ipv4_lookup(
-						nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
-						inner->dst.u.tcp.port,
+						outgoing->dst.u3.in.s_addr,
+						outgoing->dst.u.tcp.port,
 						IPPROTO_TCP);
 					bib2 = bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.tcp.port, IPPROTO_TCP);
 					if (bib && bib2) {
@@ -1982,13 +1982,13 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 							outgoing->dst.u.tcp.port);	
 						session2 = session_ipv4_lookup(bib2, 
 							outgoing->dst.u3.in.s_addr, 
-							outgoing->dst.u.udp.port);			
+							outgoing->dst.u.tcp.port);			
 						if (!session || !session2) {
 							pr_warning("NAT64 hairpin: IPv4 - session entry is "
 									"missing.");
 						} else {
 							outgoing->src.u3.in6 =  session2->embedded6_addr;  
-							outgoing->src.u.tcp.port =  session2->embedded6_port; 
+							outgoing->src.u.tcp.port =  session2->local4_port; 
 							outgoing->dst.u.tcp.port = session->remote6_port; 
 							outgoing->dst.u3.in6 = session->remote6_addr; 
 							pr_debug("NAT64: TCP hairpin outgoing tuple: %pI6c : %d --> %pI6c : %d", 
@@ -2001,10 +2001,10 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 					break;
 				case IPPROTO_UDP:
 					bib = bib_ipv4_lookup(
-						nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
-						inner->dst.u.udp.port,
+						outgoing->dst.u3.in.s_addr,
+						outgoing->dst.u.udp.port,
 						IPPROTO_UDP);
-                	bib2 = bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.udp.port, IPPROTO_UDP);
+                			bib2 = bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.udp.port, IPPROTO_UDP);
 					if (bib && bib2) {
 						session = session_ipv4_hairpin_lookup(bib, 
 							nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
@@ -2017,7 +2017,7 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 									"missing.");
 						} else {
 							outgoing->src.u3.in6 = session2->embedded6_addr; 
-							outgoing->src.u.udp.port = session2->embedded6_port; 
+							outgoing->src.u.udp.port = session2->local4_port; 
 							outgoing->dst.u.udp.port = session->remote6_port; 
 							outgoing->dst.u3.in6 = session->remote6_addr; 
 
