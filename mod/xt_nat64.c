@@ -2154,6 +2154,9 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
     pr_debug("RULE DST_MSK=%pI4 \n", &info->ipdst_mask);
 
     //ip_masked_addr_cmp(ip_a, ip_mask, ip_b)
+	
+	if(skb->len < sizeof(struct iphdr) || iph->version != 4 || (iph->daddr & ipv4_netmask) != ipv4_addr)
+		return NF_ACCEPT;
 
     if (l4_protocol & NAT64_IP_ALLWD_PROTOS) {
         /*
@@ -2369,6 +2372,7 @@ static int __init nat64_init(void)
     }
 
     ipv4_netmask = inet_make_mask(ipv4_mask_bits);
+	ipv4_addr = ipv4_addr & ipv4_netmask;
     pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
             &ipv4_addr, ipv4_mask_bits, &ipv4_netmask);
     //	}
