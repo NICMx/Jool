@@ -312,8 +312,8 @@ static inline void clean_expired_sessions(struct list_head *queue)
 		++i;
 		session = list_entry(pos, struct nat64_st_entry, byexpiry);
 		if(time_after(jiffies, session->expires)) {
-			if(tcp_timeout_fsm(session))
-				continue;
+			//if(tcp_timeout_fsm(session))
+			//	continue;
 			printk("NAT64: [garbage-collector] removing session %pI4:%hu\n", &session->remote4_addr, ntohs(session->remote4_port));
 			list_del(pos);
 			next_session = session->list.next;
@@ -345,8 +345,8 @@ static inline void clean_expired_sessions_icmp(struct list_head *queue)
 		++i;
 		session = list_entry(pos, struct nat64_st_entry, byexpiry);
 		if(time_after(jiffies, session->expires)) {
-			if(tcp_timeout_fsm(session))
-				continue;
+			//if(tcp_timeout_fsm(session))
+			//	continue;
 			printk("NAT64: [garbage-collector] removing session %pI4:%hu\n", &session->remote4_addr, ntohs(session->remote4_port));
 			list_del(pos);
 			next_session = session->list.next;
