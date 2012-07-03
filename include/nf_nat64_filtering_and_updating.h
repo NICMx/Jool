@@ -299,7 +299,7 @@ static inline void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 	}
 }
 
-static inline void clean_expired_sessions(struct list_head *queue)
+static inline void clean_expired_sessions(struct list_head *queue, int j)
 {
 	struct list_head *pos;
 	struct list_head *n;
@@ -312,8 +312,10 @@ static inline void clean_expired_sessions(struct list_head *queue)
 		++i;
 		session = list_entry(pos, struct nat64_st_entry, byexpiry);
 		if(time_after(jiffies, session->expires)) {
-			//if(tcp_timeout_fsm(session))
-			//	continue;
+			if (j >= 1 && j <= 3) {
+				if(tcp_timeout_fsm(session))
+					continue;
+			}	
 			printk("NAT64: [garbage-collector] removing session %pI4:%hu\n", &session->remote4_addr, ntohs(session->remote4_port));
 			list_del(pos);
 			next_session = session->list.next;
@@ -323,15 +325,28 @@ static inline void clean_expired_sessions(struct list_head *queue)
 				printk("NAT64: [garbage-collector] removing bib %pI6c,%hu <--> %pI4:%hu\n", &bib->remote6_addr, ntohs(bib->remote6_port), &bib->local4_addr, ntohs(bib->local4_port));
 				hlist_del(&bib->byremote);
 				hlist_del(&bib->bylocal);
-				kmem_cache_free(bib_cache, bib);
+				if (j >= 1 && j <= 3) {
+					kmem_cache_free(bib_cacheTCP, bib);
+				} else if ( j == 0) {
+					kmem_cache_free(bib_cache, bib);
+				} else if ( j == 4) {
+					kmem_cache_free(bib_cacheICMP, bib);	
+				}
 			}
-			kmem_cache_free(st_cache, session);
-		}
-		else
+			if (j >= 1 && j <= 3) {
+				kmem_cache_free(st_cacheTCP, session);
+			} else if ( j == 0) {
+				kmem_cache_free(st_cache, session);
+			} else if ( j == 4) {
+				kmem_cache_free(st_cacheICMP, session);
+			}
+		} else {
 			break;
+		}
 	}
 }
 
+/*
 static inline void clean_expired_sessions_icmp(struct list_head *queue)
 {
 	struct list_head *pos;
@@ -397,6 +412,7 @@ static inline void clean_expired_sessions_tcp(struct list_head *queue)
 			break;
 	}
 }
+*/
 
 static inline struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 remote4_addr, __be16 remote4_port)
 {

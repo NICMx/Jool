@@ -1787,9 +1787,9 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
         // FIXME: Return true if it is not H&H. A special return code 
         // will have to be added as a param in the future to handle it.
         res = false;
-        		clean_expired_sessions(&expiry_queue);
+        		clean_expired_sessions(&expiry_queue,i);
         		for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
-        			clean_expired_sessions(&expiry_base[i].queue);
+        			clean_expired_sessions(&expiry_base[i].queue, i);
         switch (l4protocol) {
             case IPPROTO_TCP:
                 /*
