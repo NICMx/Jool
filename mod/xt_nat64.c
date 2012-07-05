@@ -2035,24 +2035,7 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 			return outgoing;
 }
 
-static bool got_hairy_testicles6(u_int8_t l3protocol, struct nf_conntrack_tuple * inner) {
-	static bool res;
-	__be32 dirip4;
-	struct in_addr sa1;
-	struct in_addr sa2;
-	dirip4 = nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len);
-	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
-	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
-	res = false;
-	if (l3protocol == NFPROTO_IPV6) { 
-		if (ntohl(dirip4) >= ntohl(sa1.s_addr) && ntohl(dirip4) <= ntohl(sa2.s_addr)) {
-			res = true;
-		} 
-	} 
-	return res;
-}
-
-static bool got_hairy_testicles4(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
+static bool got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
 	static bool res;	  	
 	struct in_addr sa1;
 	struct in_addr sa2;
@@ -2100,7 +2083,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
         return NF_DROP;
     }		
 
-    if (  got_hairy_testicles4(l3protocol, outgoing) ){
+    if (  got_hairpin(l3protocol, outgoing) ){
 		pr_debug("NAT64: hairpin packet yo!");
 		outgoing = hairpinning_and_handling(l4protocol, &inner, outgoing);
 		l3protocol = NFPROTO_IPV6;
