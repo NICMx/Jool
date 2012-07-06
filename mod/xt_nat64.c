@@ -1161,7 +1161,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
     int packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
 
     l4hdrlen = -1;
-pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len); 
+
     /*
      * Layer 2 header length is assigned the maximum possible header length
      * possible.
@@ -1259,8 +1259,6 @@ pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail
         return NULL;
     }
 
-pr_debug("%ld %ld %d %d %d", new_skb->head- new_skb->head, new_skb->data- new_skb->head, new_skb->tail, new_skb->end, new_skb->len); 
-
     switch (l3protocol) {
         case NFPROTO_IPV4:
             if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
@@ -1328,7 +1326,7 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
         pr_debug("NAT64: Skb allocation failed -- returned NULL");
         return NULL;
     }
-pr_debug("%ld %ld %d %d %d", new_skb->head- new_skb->head, new_skb->data- new_skb->head, new_skb->tail, new_skb->end, new_skb->len); 
+
     /*
      * Adjust the layer 3 protocol variable to be used in the outgoing tuple
      * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
