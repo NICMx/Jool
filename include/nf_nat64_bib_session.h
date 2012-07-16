@@ -79,6 +79,15 @@ extern struct hlist_head *hash6;
 extern struct hlist_head *hash4;
 extern __be32 ipv4_addr;
 
+struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
+{
+	{{NULL, NULL}, 5*60},// FIXME: Use definitions in nat64_filtering_n_updating.h 
+	{{NULL, NULL}, 4*60},//		   instead of hardcoded values. Rob.		  
+	{{NULL, NULL}, 2*60*60},
+	{{NULL, NULL}, 6},
+	{{NULL, NULL}, 60}
+};
+struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 
 __be16 nat64_hash4(__be32 addr, __be16 port);
 __be16 nat64_hash6(struct in6_addr addr6, __be16 port);
