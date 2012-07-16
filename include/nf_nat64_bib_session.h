@@ -68,17 +68,6 @@ struct nat64_st_entry
 	__be16			local4_port; // t port
 };
 
-extern struct expiry_q expiry_base[NUM_EXPIRY_QUEUES];
-extern struct kmem_cache *st_cache;
-extern struct kmem_cache *st_cacheTCP;
-extern struct kmem_cache *st_cacheICMP;
-extern struct kmem_cache *bib_cache;
-extern struct kmem_cache *bib_cacheTCP;
-extern struct kmem_cache *bib_cacheICMP;
-extern struct hlist_head *hash6;
-extern struct hlist_head *hash4;
-extern __be32 ipv4_addr;
-
 struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 {
 	{{NULL, NULL}, 5*60},// FIXME: Use definitions in nat64_filtering_n_updating.h 
@@ -87,7 +76,16 @@ struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 	{{NULL, NULL}, 6},
 	{{NULL, NULL}, 60}
 };
+
 struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
+extern struct kmem_cache *st_cache;
+extern struct kmem_cache *st_cacheTCP;
+extern struct kmem_cache *st_cacheICMP;
+extern struct kmem_cache *bib_cache;
+extern struct kmem_cache *bib_cacheTCP;
+extern struct kmem_cache *bib_cacheICMP;
+struct hlist_head *hash6;
+struct hlist_head *hash4;
 
 __be16 nat64_hash4(__be32 addr, __be16 port);
 __be16 nat64_hash6(struct in6_addr addr6, __be16 port);
