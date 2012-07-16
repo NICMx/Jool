@@ -1181,7 +1181,7 @@ static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
     int packet_len, l4hdrlen, l3hdrlen, l2hdrlen;
 
     l4hdrlen = -1;
-pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail, skb->end, skb->len); 
+
     /*
      * Layer 2 header length is assigned the maximum possible header length
      * possible.
@@ -1279,8 +1279,6 @@ pr_debug("%ld %ld %d %d %d", skb->head-skb->head, skb->data-skb->head, skb->tail
         return NULL;
     }
 
-pr_debug("%ld %ld %d %d %d", new_skb->head- new_skb->head, new_skb->data- new_skb->head, new_skb->tail, new_skb->end, new_skb->len); 
-
     switch (l3protocol) {
         case NFPROTO_IPV4:
             if (nat64_get_skb_from4to6(skb, new_skb, l3protocol,
@@ -1348,7 +1346,7 @@ static struct sk_buff * nat64_translate_packet(u_int8_t l3protocol,
         pr_debug("NAT64: Skb allocation failed -- returned NULL");
         return NULL;
     }
-pr_debug("%ld %ld %d %d %d", new_skb->head- new_skb->head, new_skb->data- new_skb->head, new_skb->tail, new_skb->end, new_skb->len); 
+
     /*
      * Adjust the layer 3 protocol variable to be used in the outgoing tuple
      * Wether it's IPV4 or IPV6 is already checked in the nat64_tg function
@@ -2055,24 +2053,7 @@ static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol,
 			return outgoing;
 }
 
-static bool got_hairy_testicles6(u_int8_t l3protocol, struct nf_conntrack_tuple * inner) {
-	static bool res;
-	__be32 dirip4;
-	struct in_addr sa1;
-	struct in_addr sa2;
-	dirip4 = nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len);
-	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
-	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
-	res = false;
-	if (l3protocol == NFPROTO_IPV6) { 
-		if (ntohl(dirip4) >= ntohl(sa1.s_addr) && ntohl(dirip4) <= ntohl(sa2.s_addr)) {
-			res = true;
-		} 
-	} 
-	return res;
-}
-
-static bool got_hairy_testicles4(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
+static bool got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
 	static bool res;	  	
 	struct in_addr sa1;
 	struct in_addr sa2;
@@ -2120,7 +2101,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
         return NF_DROP;
     }		
 
-    if (  got_hairy_testicles4(l3protocol, outgoing) ){
+    if (  got_hairpin(l3protocol, outgoing) ){
 		pr_debug("NAT64: hairpin packet yo!");
 		outgoing = hairpinning_and_handling(l4protocol, &inner, outgoing);
 		l3protocol = NFPROTO_IPV6;
