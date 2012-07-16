@@ -82,34 +82,94 @@
  * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _LINUX_NAT64_MODULE_COMMUNICATION_H
-#define _LINUX_NAT64_MODULE_COMMUNICATION_H
+#ifndef _LINUX_NAT64_MODULE_CONF_H
+#define _LINUX_NAT64_MODULE_CONF_H
 /*
  * Communication with the NAT64 module (using netlink sockets).
  */
 
-struct nat64_run_conf 
+//~ struct nat64_run_conf 
+//~ {
+	//~ /* IPv4 */
+	//~ char ipv4_addr_str[sizeof("255.255.255.255/32")];
+	//~ unsigned char ipv4_mask_bits;			//
+	//~ unsigned int ipv4_pool_range_first;		// Pool
+	//~ unsigned int ipv4_pool_range_last;		//
+	//~ unsigned int ipv4_tcp_port_range_first;	// TCP
+	//~ unsigned int ipv4_tcp_port_range_last;	//
+	//~ unsigned int ipv4_udp_port_range_first;	// UDP
+	//~ unsigned int ipv4_udp_port_range_last;	//
+	//~ 
+	//~ /* IPv6 */
+	//~ char ipv6_net_prefix[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128")];
+	//~ unsigned int  ipv6_net_addr[4];			// Address
+	//~ unsigned char ipv6_net_mask_bits;		//
+	//~ unsigned int ipv6_tcp_port_range_first;	// TCP
+	//~ unsigned int ipv6_tcp_port_range_last;	//
+	//~ unsigned int ipv6_udp_port_range_first;	// UDP
+	//~ unsigned int ipv6_udp_port_range_last;	//
+//~ };
+
+////////////////////////////////////////////////////////////////////////
+// DEFAULT VALUES (Communication)
+////////////////////////////////////////////////////////////////////////
+#define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary but is the same for kern/usr
+
+////////////////////////////////////////////////////////////////////////
+// DEFAULT VALUES (Configuration)
+////////////////////////////////////////////////////////////////////////
+
+// IPv6:
+#define IPV6_DEF_PREFIX     "64:ff9b::"
+#define IPV6_DEF_MASKBITS   96
+//
+#define IPV6_DEF_TCP_POOL_FIRST 1024
+#define IPV6_DEF_TCP_POOL_LAST  65535
+//
+#define IPV6_DEF_UDP_POOL_FIRST 1024
+#define IPV6_DEF_UDP_POOL_LAST  65535
+// IPv4:
+#define IPV4_DEF_NET        "192.168.2.0"
+#define IPV4_DEF_MASKBITS   24
+//
+#define IPV4_DEF_POOL_FIRST "192.168.2.1"
+#define IPV4_DEF_POOL_LAST  "192.168.2.254"
+//
+#define IPV4_DEF_TCP_POOL_FIRST 1024
+#define IPV4_DEF_TCP_POOL_LAST  65535
+//
+#define IPV4_DEF_UDP_POOL_FIRST 1024
+#define IPV4_DEF_UDP_POOL_LAST  65535
+
+
+////////////////////////////////////////////////////////////////////////
+// STRUCTURES
+////////////////////////////////////////////////////////////////////////
+
+struct config_struct
 {
-	/* IPv4 */
-	char ipv4_addr_str[sizeof("255.255.255.255/32")];
-	unsigned char ipv4_mask_bits;			//
-	unsigned int ipv4_pool_range_first;		// Pool
-	unsigned int ipv4_pool_range_last;		//
-	unsigned int ipv4_tcp_port_range_first;	// TCP
-	unsigned int ipv4_tcp_port_range_last;	//
-	unsigned int ipv4_udp_port_range_first;	// UDP
-	unsigned int ipv4_udp_port_range_last;	//
-	
-	/* IPv6 */
-	char ipv6_net_prefix[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128")];
-	unsigned int  ipv6_net_addr[4];			// Address
-	unsigned char ipv6_net_mask_bits;		//
-	unsigned int ipv6_tcp_port_range_first;	// TCP
-	unsigned int ipv6_tcp_port_range_last;	//
-	unsigned int ipv6_udp_port_range_first;	// UDP
-	unsigned int ipv6_udp_port_range_last;	//
+    //// IPv4:
+    struct in_addr ipv4_addr_net;
+	unsigned char  ipv4_addr_net_mask_bits;
+	struct in_addr ipv4_pool_range_first;
+	struct in_addr ipv4_pool_range_last;
+    //
+    unsigned short ipv4_tcp_port_first;
+    unsigned short ipv4_tcp_port_last;
+    //
+    unsigned short ipv4_udp_port_first;
+    unsigned short ipv4_udp_port_last;
+    
+    //// IPv6:
+    struct in6_addr ipv6_net_prefix;
+	unsigned char   ipv6_net_mask_bits;
+    //
+	unsigned short  ipv6_tcp_port_range_first;
+	unsigned short  ipv6_tcp_port_range_last;
+	//
+	unsigned short  ipv6_udp_port_range_first;
+    unsigned short  ipv6_udp_port_range_last;   
 };
 
 
-
-#endif /* _LINUX_NAT64_MODULE_COMMUNICATION_H */
+#endif /* _LINUX_NAT64_MODULE_CONF_H */

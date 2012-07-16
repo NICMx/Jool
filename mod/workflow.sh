@@ -26,7 +26,7 @@ elif [ $1 = "debug" ] ; then
 	sudo dmesg | tail -30
 elif [ $1 = "test" ] ; then
 	sudo ip6tables -t mangle --flush
-	sudo ip6tables -t mangle -A PREROUTING -s 64:ff9b::/96 -j DROP
+	#sudo ip6tables -t mangle -A PREROUTING -s 64:ff9b::/96 -j DROP
 	sudo ip6tables -t mangle -A PREROUTING -j nat64 --ipdst 64:ff9b::/96
 	sudo iptables -t mangle -A PREROUTING -j nat64 --ipdst 192.168.2.0/24
 	sudo ip6tables -t mangle -n -L

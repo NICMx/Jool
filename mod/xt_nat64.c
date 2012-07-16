@@ -120,7 +120,7 @@
 #include <linux/version.h>
 #include <linux/netlink.h> 	// Testing communication with the module using netlink. Rob
 #include <net/sock.h>		// Rob.
-#define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr . Rob
+//~ #define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr . Rob
 
 
 #include <linux/fs.h>
@@ -208,7 +208,8 @@ struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 __be32 ipv4_addr;	// FIXME: Rob thinks this should be of 'u8 *' type, as expected by in4_pton function.
 static char *ipv4_addr_str;	// Var type verified  . Rob
 int ipv4_mask_bits;		// Var type verified  ;). Rob
-__be32 ipv4_netmask;	// Var type verified  ;). Rob
+__be32 ipv4_netmask;	// Var type verified ;), but think of changing it
+						// 	to 'in_addr' type. Rob.
 /* IPv6 */
 //struct in6_addr	ipv6_prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
 //						.s6_addr32[2] = 0, .s6_addr32[3] = 0};
@@ -227,55 +228,70 @@ int ipv6_pref_len;	// Var type verified ;). Rob
 // BEGIN
 #include <net/sock.h>
 #include <net/netlink.h>
-#include "xt_nat64_module_comm.h"
+#include "xt_nat64_module_conf.h"
 
-#define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr
+//~ #define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr
 /* Definition of default values for the IPv4 & IPv6 pools. */
 // 	IPv4
-#define IPV4_POOL_FIRST	"192.168.2.1"
-#define IPV4_POOL_LAST	"192.168.2.254"
+//~ #define IPV4_DEF_POOL_FIRST	"192.168.2.1"
+//~ #define IPV4_DEF_POOL_LAST	"192.168.2.254"
 #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
-#define IPV4_POOL_MASKBITS	24
+//~ #define IPV4_DEF_MASKBITS	24
 //	IPv6
-#define IPV6_PREF_DEF	"64:ff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
-#define IPV6_PREF_NET	"64:ff9b::"	// Default IPv6	(string)
-#define IPV6_PREF_MASKBITS	96 		// Default IPv6 Prefix	(int)
+//~ #define IPV6_PREF_DEF	"64:ff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
+//~ #define IPV6_DEF_PREFIX	"64:ff9b::"	// Default IPv6	(string)
+//~ #define IPV6_DEF_MASKBITS	96 		// Default IPv6 Prefix	(int)
 
     
 static struct sock *my_nl_sock;
 
 DEFINE_MUTEX(my_mutex);
 
-static int update_nat_config(const struct nat64_run_conf *nrc)
+/*
+ * Update nat64 configuration with data received from the 'load_config'
+ * userspace app. It's assumed that this data were validated before
+ * being sent. 
+ */
+static int update_nat_config(const struct config_struct *cs)
 {
 	int ret = 0;
 	char err = 0x00;
 
-	/* Validation: */
-	// IPv4 Pool - First address.
-	ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
-	if (!ret) 
-	{	err = 1;	// Error
-		pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
-					nrc->ipv4_addr_str);
-	}
-	// IPv4 Pool - Netmask 
-	if ((*nrc).ipv4_mask_bits > 32 || (*nrc).ipv4_mask_bits < 1) 
-	{	err = 1; 	// Error
-		pr_warning("NAT64: Updating config: ipv4 prefix is malformed: %d", 
-					(*nrc).ipv4_mask_bits);
-	}
-	// ...
-	// :(
-	if (err) return -EINVAL; // Error
+	//~ /* Validation: */
+	//~ // IPv4 Pool - First address.
+	//~ ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
+	//~ if (!ret) 
+	//~ {	err = 1;	// Error
+		//~ pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
+					//~ nrc->ipv4_addr_str);
+	//~ }
+	//~ // IPv4 Pool - Netmask 
+	//~ if ((*nrc).ipv4_mask_bits > 32 || (*nrc).ipv4_mask_bits < 1) 
+	//~ {	err = 1; 	// Error
+		//~ pr_warning("NAT64: Updating config: ipv4 prefix is malformed: %d", 
+					//~ (*nrc).ipv4_mask_bits);
+	//~ }
+	//~ // ...
+	//~ // :(
+	//~ if (err) return -EINVAL; // Error
+	//~
 	
 	/* Alteration: */
 	// IPv4 Pool - First address.
-	ipv4_netmask = inet_make_mask((*nrc).ipv4_mask_bits);
-	pr_debug("NAT64: Updating config: using IPv4 subnet %pI4/%d (netmask %pI4).", 
-			  &ipv4_addr, (*nrc).ipv4_mask_bits, &ipv4_netmask);
+	//~ ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
+	//~ if (!ret) 
+	//~ {	err = 1;	// Error
+		//~ pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
+					//~ nrc->ipv4_addr_str);
+	//~ }
+	ipv4_addr = (*cs).ipv4_addr_net.s_addr;
+	//~ ipv4_addr = (*cs).ipv4_pool_range_first;
 	// IPv4 Pool - Netmask
-	// ...
+	//~ ipv4_netmask = inet_make_mask((*nrc).ipv4_mask_bits);
+	ipv4_netmask = inet_make_mask( (*cs).ipv4_addr_net_mask_bits );
+	pr_debug("NAT64: Updating config: using IPv4 subnet %pI4/%d (netmask %pI4).", 
+			  &ipv4_addr, (*cs).ipv4_addr_net_mask_bits, &ipv4_netmask);
+	//~ // ...
 	// :)
 	return 0; // Alles Klar!	
 }
@@ -287,7 +303,9 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
     //char *data;
     //struct in_addr *ipaddr;
     //char buf[INET_ADDRSTRLEN];
-    struct nat64_run_conf *nrc;
+    
+    //~ struct nat64_run_conf *nrc;
+    struct config_struct *cs;
 
     type = nlh->nlmsg_type;
     if (type != MY_MSG_TYPE) {
@@ -303,12 +321,14 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 //	inet_ntop(AF_INET, &(ipaddr.s_addr), buf, INET_ADDRSTRLEN);
     //pr_debug("NAT64: netlink: got message: %pI4\n", ipaddr );
 
-	nrc = NLMSG_DATA(nlh);
+	//~ nrc = NLMSG_DATA(nlh);
+	cs = NLMSG_DATA(nlh);
 //    pr_debug("NAT64:     netlink: got message: IPv4 addr=%s, mask bits=%d\n", 
 //    		 (*nrc).ipv4_addr_str, (*nrc).ipv4_mask_bits );
     pr_debug("NAT64:     netlink: got message.\n" );
     pr_debug("NAT64:     netlink: updating NAT64 configuration.\n" );
-	if (update_nat_config(nrc) != 0)
+	//~ if (update_nat_config(nrc) != 0)
+	if (update_nat_config(cs) != 0)
 	{
 		pr_debug("NAT64:     netlink: Error while updating NAT64 running configuration\n");
 		return -EINVAL;
@@ -2316,15 +2336,15 @@ static int __init nat64_init(void)
         */    
 
     // Rob : 
-    ipv4_mask_bits = IPV4_POOL_MASKBITS;	// Num. of bits 'on' in the net mask
-    ipv4_addr = 0;
+    ipv4_mask_bits = IPV4_DEF_MASKBITS;	// Num. of bits 'on' in the net mask
+    ipv4_addr = 0;	// Set below.
     /* Default configuration, until it's set up by the user space application. */
     /* IPv4 */
-    ipv4_addr_str = IPV4_POOL_FIRST;	// Default IPv4 (string)
+    ipv4_addr_str = IPV4_DEF_POOL_FIRST;	// Default IPv4 (string)
     ipv4_netmask = IPV4_POOL_MASK; 		// Mask of 24-bits IPv4 (_be32)
     /* IPv6 */
-    ipv6_pref_addr_str = IPV6_PREF_NET;	// Default IPv6	(string)
-    ipv6_pref_len = IPV6_PREF_MASKBITS; // Default IPv6 Prefix	(int)
+    ipv6_pref_addr_str = IPV6_DEF_PREFIX;	// Default IPv6	(string)
+    ipv6_pref_len = IPV6_DEF_MASKBITS; // Default IPv6 Prefix	(int)
 
     // init IPv4 addresses pool
     init_pools(); // Bernardo
@@ -2377,7 +2397,9 @@ static int __init nat64_init(void)
             &ipv4_addr, ipv4_mask_bits, &ipv4_netmask);
     //	}
 
-    if (nat64_allocate_hash(65536)) // FIXME: look in the kernel headers for the definition of this constant (size) and use it instead of this hardcoded value.
+	// FIXME: look in the kernel headers for the definition of this
+	//		  constant (size) and use it instead of this hardcoded value.
+    if (nat64_allocate_hash(65536)) 
     {
         pr_warning("NAT64: Unable to allocate memmory for hash table.");
         goto hash_error;
