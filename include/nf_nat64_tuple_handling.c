@@ -582,7 +582,7 @@ error:
     return NULL;
 }
 
-static bool got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
+static bool nat64_got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
 	static bool res;	  	
 	struct in_addr sa1;
 	struct in_addr sa2;
@@ -597,7 +597,7 @@ static bool got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoin
 	return res;
 }
 
-static struct nf_conntrack_tuple * hairpinning_and_handling(u_int8_t l4protocol, 
+static struct nf_conntrack_tuple * nat64_hairpinning_and_handling(u_int8_t l4protocol, 
 		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple * outgoing) {
 	struct nat64_bib_entry *bib;
