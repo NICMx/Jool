@@ -87,9 +87,6 @@ struct hlist_head *hash6;
 struct hlist_head *hash4;
 unsigned int hash_size;
 
-__be16 nat64_hash4(__be32 addr, __be16 port);
-__be16 nat64_hash6(struct in6_addr addr6, __be16 port);
-
 int nat64_tcp_timeout_fsm(struct session_entry *session);
 void nat64_tcp4_fsm(struct session_entry *session, struct tcphdr *tcph);
 void nat64_tcp6_fsm(struct session_entry *session, struct tcphdr *tcph);
@@ -114,3 +111,6 @@ struct session_entry *nat64_session_create_icmp(struct bib_entry *bib, __be32 ad
 void nat64_session_renew(struct session_entry *session, enum expiry_type type);
 
 int nat64_allocate_hash(unsigned int size);
+
+int nat64_create_bib_session_memory();
+int nat64_destroy_bib_session_memory();
