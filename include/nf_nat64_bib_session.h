@@ -77,15 +77,18 @@ struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 };
 
 struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
-extern struct kmem_cache *st_cache;
-extern struct kmem_cache *st_cacheTCP;
-extern struct kmem_cache *st_cacheICMP;
-extern struct kmem_cache *bib_cache;
-extern struct kmem_cache *bib_cacheTCP;
-extern struct kmem_cache *bib_cacheICMP;
+struct kmem_cache *st_cache;
+struct kmem_cache *st_cacheTCP;
+struct kmem_cache *st_cacheICMP;
+struct kmem_cache *bib_cache;
+struct kmem_cache *bib_cacheTCP;
+struct kmem_cache *bib_cacheICMP;
 struct hlist_head *hash6;
 struct hlist_head *hash4;
 unsigned int hash_size;
+
+int nat64_create_bib_session_memory(void);
+int nat64_destroy_bib_session_memory(void);
 
 int nat64_tcp_timeout_fsm(struct session_entry *session);
 void nat64_tcp4_fsm(struct session_entry *session, struct tcphdr *tcph);
@@ -111,6 +114,3 @@ struct session_entry *nat64_session_create_icmp(struct bib_entry *bib, __be32 ad
 void nat64_session_renew(struct session_entry *session, enum expiry_type type);
 
 int nat64_allocate_hash(unsigned int size);
-
-int nat64_create_bib_session_memory();
-int nat64_destroy_bib_session_memory();

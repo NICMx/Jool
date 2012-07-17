@@ -1,5 +1,62 @@
 #include "nf_nat64_bib_session.h"
 
+static int nat64_create_bib_session_memory(void)
+{
+	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
+            0,0, NULL);
+    st_cacheTCP = kmem_cache_create("nat64_stTCP", sizeof(struct nat64_st_entry),
+            0,0, NULL);
+
+    st_cacheICMP = kmem_cache_create("nat64_stICMP", sizeof(struct nat64_st_entry),
+            0,0, NULL);
+
+    if (!st_cache || !st_cacheTCP || !st_cacheICMP) {
+        pr_warning("NAT64: Unable to create session table slab cache.");
+        goto st_cache_error;
+    } 
+    pr_debug("NAT64: The session table slab cache was succesfully created.\n");
+
+    bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 
+            0,0, NULL);
+    bib_cacheTCP = kmem_cache_create("nat64_bibTCP", sizeof(struct nat64_bib_entry), 
+            0,0, NULL);
+
+    bib_cacheICMP = kmem_cache_create("nat64_bibICMP", sizeof(struct nat64_bib_entry), 
+            0,0, NULL);
+    if (!bib_cache || !bib_cacheTCP || !bib_cacheICMP) {
+        pr_warning("NAT64: Unable to create bib table slab cache.");
+        goto bib_cache_error;
+    }
+
+	return 0;
+	
+	st_cache_error:
+	    kmem_cache_destroy(st_cache);
+	    kmem_cache_destroy(st_cacheTCP);
+	    kmem_cache_destroy(st_cacheICMP);
+	    return -ENOMEM;
+	bib_cache_error:
+	    kmem_cache_destroy(st_cache);
+	    kmem_cache_destroy(st_cacheTCP);
+	    kmem_cache_destroy(st_cacheICMP);
+	    kmem_cache_destroy(bib_cache);
+	    kmem_cache_destroy(bib_cacheTCP);
+	    kmem_cache_destroy(bib_cacheICMP);
+	    return -ENOMEM;	
+}
+
+static int nat64_destroy_bib_session_memory(void)
+{
+
+	kmem_cache_destroy(st_cache); // Line inherited from Julius Kriukas's nat64_exit function.
+	kmem_cache_destroy(bib_cache); // Line inherited from Julius Kriukas's nat64_exit function.
+	kmem_cache_destroy(st_cacheTCP);
+	kmem_cache_destroy(bib_cacheTCP);
+	kmem_cache_destroy(st_cacheICMP);
+	kmem_cache_destroy(bib_cacheICMP);
+
+	return 0;
+}
 
 static inline __be16 nat64_hash4(__be32 addr, __be16 port)
 {
@@ -651,61 +708,3 @@ static int nat64_allocate_hash(unsigned int size)
 
 	return 0;
 }
-
-static int nat64_create_bib_session_memory()
-{
-	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
-            0,0, NULL);
-    st_cacheTCP = kmem_cache_create("nat64_stTCP", sizeof(struct nat64_st_entry),
-            0,0, NULL);
-
-    st_cacheICMP = kmem_cache_create("nat64_stICMP", sizeof(struct nat64_st_entry),
-            0,0, NULL);
-
-    if (!st_cache || !st_cacheTCP || !st_cacheICMP) {
-        pr_warning("NAT64: Unable to create session table slab cache.");
-        goto st_cache_error;
-    } 
-    pr_debug("NAT64: The session table slab cache was succesfully created.\n");
-
-    bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 
-            0,0, NULL);
-    bib_cacheTCP = kmem_cache_create("nat64_bibTCP", sizeof(struct nat64_bib_entry), 
-            0,0, NULL);
-
-    bib_cacheICMP = kmem_cache_create("nat64_bibICMP", sizeof(struct nat64_bib_entry), 
-            0,0, NULL);
-    if (!bib_cache || !bib_cacheTCP || !bib_cacheICMP) {
-        pr_warning("NAT64: Unable to create bib table slab cache.");
-        goto bib_cache_error;
-    }
-
-	return 0;
-	
-	st_cache_error:
-	    kmem_cache_destroy(st_cache);
-	    kmem_cache_destroy(st_cacheTCP);
-	    kmem_cache_destroy(st_cacheICMP);
-	    return -ENOMEM;
-	bib_cache_error:
-	    kmem_cache_destroy(st_cache);
-	    kmem_cache_destroy(st_cacheTCP);
-	    kmem_cache_destroy(st_cacheICMP);
-	    kmem_cache_destroy(bib_cache);
-	    kmem_cache_destroy(bib_cacheTCP);
-	    kmem_cache_destroy(bib_cacheICMP);
-	    return -ENOMEM;	
-}
-
-static int nat64_destroy_bib_session_memory()
-{
-
-	kmem_cache_destroy(st_cache); // Line inherited from Julius Kriukas's nat64_exit function.
-	kmem_cache_destroy(bib_cache); // Line inherited from Julius Kriukas's nat64_exit function.
-	kmem_cache_destroy(st_cacheTCP);
-	kmem_cache_destroy(bib_cacheTCP);
-	kmem_cache_destroy(st_cacheICMP);
-	kmem_cache_destroy(bib_cacheICMP);
-
-}
-
