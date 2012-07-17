@@ -2,15 +2,14 @@
 #include <linux/inet.h>
 #include <linux/in6.h>
 
+#ifndef _NF_NAT64_IPV4_POOL_H
+#include "nf_nat64_ipv4_pool.h"
+#endif
 
 #define UDP_DEFAULT_ 5*60
 #define ICMP_DEFAULT_ 1*60
 #define BIB_ICMP 3
 #define	NUM_EXPIRY_QUEUES 5
-
-#ifndef _NF_NAT64_IPV4_POOL_H
-#include "nf_nat64_ipv4_pool.h"
-#endif
 
 enum expiry_type {
 	UDP_DEFAULT = 0,
