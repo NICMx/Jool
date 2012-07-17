@@ -27,7 +27,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                 //Query TCP ST
                 //pr_debug("NAT64: TCP protocol not currently supported.");
 
-                bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         inner->dst.u.tcp.port, 
                         IPPROTO_TCP);
                 if (!bib) {
@@ -35,7 +35,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     return res;
                 }
 
-                session = session_ipv4_lookup(bib, 
+                session = nat64_session_ipv4_lookup(bib, 
                         inner->src.u3.in.s_addr, 
                         inner->src.u.tcp.port);				
                 if (!session) {
@@ -51,7 +51,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
             case IPPROTO_UDP:
                 //Query UDP BIB and ST
 
-                bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         (inner->dst.u.udp.port),
                         IPPROTO_UDP);
                 if (!bib) {
@@ -59,7 +59,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     return res;
                 }
 
-                session = session_ipv4_lookup(bib, 
+                session = nat64_session_ipv4_lookup(bib, 
                         inner->src.u3.in.s_addr, 
                         inner->src.u.udp.port);				
                 if (!session) {
@@ -74,7 +74,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                 break;
             case IPPROTO_ICMP:
                 //Query ICMP ST
-                bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         (inner->src.u.icmp.id),
                         IPPROTO_ICMPV6);
 
@@ -85,7 +85,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     return res;
                 }
 
-                session = session_ipv4_lookup(bib, 
+                session = nat64_session_ipv4_lookup(bib, 
                         inner->src.u3.in.s_addr, 
                         inner->src.u.icmp.id);				
 
@@ -113,9 +113,9 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
         // FIXME: Return true if it is not H&H. A special return code 
         // will have to be added as a param in the future to handle it.
         res = false;
-        clean_expired_sessions(&expiry_queue,i);
+        nat64_clean_expired_sessions(&expiry_queue,i);
         for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
-        	clean_expired_sessions(&expiry_base[i].queue, i);
+        	nat64_clean_expired_sessions(&expiry_base[i].queue, i);
 
         switch (l4protocol) {
             case IPPROTO_TCP:
@@ -124,20 +124,20 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                  */
                 pr_debug("NAT64: FNU - TCP");
 
-                bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
+                bib = nat64_bib_ipv6_lookup(&(inner->src.u3.in6), 
                         inner->src.u.tcp.port, IPPROTO_TCP);
                 if(bib) {
-                    session = session_ipv4_lookup(bib, 
+                    session = nat64_session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(
                                 inner->dst.u3.in6, 
                                 //prefix_len), 
                             ipv6_pref_len), 
                             inner->dst.u.tcp.port);
                     if(session) {
-                        tcp6_fsm(session, tcph);
+                        nat64_tcp6_fsm(session, tcph);
                     }else{
                         pr_debug("Create a session entry, no sesion.");
-                        session = session_create_tcp(bib, 
+                        session = nat64_session_create_tcp(bib, 
                                 &(inner->dst.u3.in6), 
                                 nat64_extract_ipv4(
                                     inner->dst.u3.in6, 
@@ -148,7 +148,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     }
                 } else if (tcph->syn) {
                     pr_debug("Create a new BIB and Session entry syn.");
-                    bib = bib_session_create_tcp(
+                    bib = nat64_bib_session_create_tcp(
                             &(inner->src.u3.in6), 
                             &(inner->dst.u3.in6), 
                             nat64_extract_ipv4(
@@ -175,19 +175,19 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                  * In case these records are missing, they 
                  * should be created.
                  */
-                bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
+                bib = nat64_bib_ipv6_lookup(&(inner->src.u3.in6), 
                         inner->src.u.udp.port,
                         IPPROTO_UDP);
                 if (bib) {
-                    session = session_ipv4_lookup(bib, 
+                    session = nat64_session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(
                                 inner->dst.u3.in6, 
                                 ipv6_pref_len), 
                             inner->dst.u.udp.port);
                     if (session) {
-                        session_renew(session, UDP_DEFAULT);
+                        nat64_session_renew(session, UDP_DEFAULT);
                     } else {
-                        session = session_create(bib, 
+                        session = nat64_session_create(bib, 
                                 &(inner->dst.u3.in6), 
                                 nat64_extract_ipv4(
                                     inner->dst.u3.in6, 
@@ -197,7 +197,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     }
                 } else {
                     pr_debug("Create a new BIB and Session entry.");
-                    bib = bib_session_create(
+                    bib = nat64_bib_session_create(
                             &(inner->src.u3.in6), 
                             &(inner->dst.u3.in6), 
                             nat64_extract_ipv4(
@@ -216,19 +216,19 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                 break;
             case IPPROTO_ICMPV6:
                 //Query ICMPV6 ST
-                bib = bib_ipv6_lookup(&(inner->src.u3.in6), 
+                bib = nat64_bib_ipv6_lookup(&(inner->src.u3.in6), 
                         inner->src.u.icmp.id, IPPROTO_ICMP);
                 if(bib) {
-                    session = session_ipv4_lookup(bib, 
+                    session = nat64_session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(
                                 inner->dst.u3.in6, 
                                 //prefix_len), 
                             ipv6_pref_len), 
                             inner->src.u.icmp.id);
                     if(session) {
-                        session_renew(session, ICMP_DEFAULT);
+                        nat64_session_renew(session, ICMP_DEFAULT);
                     }else {
-                        session = session_create_icmp(bib, 
+                        session = nat64_session_create_icmp(bib, 
                                 &(inner->dst.u3.in6), 
                                 nat64_extract_ipv4(
                                     inner->dst.u3.in6, 
@@ -238,7 +238,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     }
                 } else {
                     pr_debug("Create a new BIB and Session entry.");
-                    bib = bib_session_create_icmp(
+                    bib = nat64_bib_session_create_icmp(
                             &(inner->src.u3.in6), 
                             &(inner->dst.u3.in6), 
                             nat64_extract_ipv4(
@@ -306,7 +306,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 
                 //pr_debug("NAT64: TCP protocol not"
                 //		" currently supported.");
-                bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         inner->dst.u.tcp.port, 
                         IPPROTO_TCP);
                 if (!bib) {
@@ -314,7 +314,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
                             " tuple wasn't found.");
                     return NULL;
                 }
-                session = session_ipv4_lookup(bib, 
+                session = nat64_session_ipv4_lookup(bib, 
                         inner->src.u3.in.s_addr, 
                         inner->src.u.tcp.port);				
                 if (!session) {
@@ -324,7 +324,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
                     return NULL;
                 }
                 th=tcp_hdr(skb);
-                tcp4_fsm(session, th);
+                nat64_tcp4_fsm(session, th);
 
                 // Obtain the data of the tuple.
                 outgoing->src.l3num = (u_int16_t)l3protocol;
@@ -348,7 +348,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
                         &(outgoing->dst.u3.in6), ntohs(outgoing->dst.u.tcp.port) ); 
                 break;
             case IPPROTO_UDP:
-                bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         inner->dst.u.udp.port,  
                         IPPROTO_UDP);
                 if (!bib) {
@@ -357,7 +357,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
                     return NULL;
                 }
 
-                session = session_ipv4_lookup(bib, 
+                session = nat64_session_ipv4_lookup(bib, 
                         inner->src.u3.in.s_addr, 
                         inner->src.u.udp.port);				
                 if (!session) {
@@ -390,7 +390,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 
                 break;
             case IPPROTO_ICMP:
-                bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         inner->src.u.icmp.id,  
                         IPPROTO_ICMPV6);
 
@@ -400,7 +400,7 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
                     return NULL;
                 }
 
-                session = session_ipv4_lookup(bib, 
+                session = nat64_session_ipv4_lookup(bib, 
                         inner->src.u3.in.s_addr, 
                         inner->src.u.icmp.id);				
 
@@ -452,15 +452,15 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 
         switch (l4protocol) {
             case IPPROTO_TCP:
-                bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.tcp.port, 
+                bib = nat64_bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.tcp.port, 
                         IPPROTO_TCP);
                 break;
             case IPPROTO_UDP:
-                bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, 
+                bib = nat64_bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.udp.port, 
                         IPPROTO_UDP);
                 break;
             case IPPROTO_ICMPV6:
-                bib = bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.icmp.id, 
+                bib = nat64_bib_ipv6_lookup(&(inner->src.u3.in6), inner->src.u.icmp.id, 
                         IPPROTO_ICMPV6);
                 break;
             default:
@@ -475,19 +475,19 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
 
             switch (l4protocol) {
                 case IPPROTO_TCP:
-                    session = session_ipv4_lookup(bib, 
+                    session = nat64_session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(inner->dst.u3.in6, 
                                 //prefix_len), inner->dst.u.tcp.port);
                             ipv6_pref_len), inner->dst.u.tcp.port);
                     break;
                 case IPPROTO_UDP:
-                    session = session_ipv4_lookup(bib, 
+                    session = nat64_session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(inner->dst.u3.in6, 
                                 //prefix_len), inner->dst.u.udp.port);
                             ipv6_pref_len), inner->dst.u.udp.port);
                     break;
                 case IPPROTO_ICMPV6:
-                    session = session_ipv4_lookup(bib, 
+                    session = nat64_session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(inner->dst.u3.in6, 
                                 //prefix_len), inner->dst.u.udp.port);
                             ipv6_pref_len), inner->src.u.icmp.id);
@@ -608,16 +608,16 @@ static struct nf_conntrack_tuple * nat64_hairpinning_and_handling(u_int8_t l4pro
 	
 			switch (l4protocol) {
 				case IPPROTO_TCP:
-					bib = bib_ipv4_lookup(
+					bib = nat64_bib_ipv4_lookup(
 						outgoing->dst.u3.in.s_addr,
 						outgoing->dst.u.tcp.port,
 						IPPROTO_TCP);
-					bib2 = bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.tcp.port, IPPROTO_TCP);
+					bib2 = nat64_bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.tcp.port, IPPROTO_TCP);
 					if (bib && bib2) {
-						session = session_ipv4_hairpin_lookup(bib, 
+						session = nat64_session_ipv4_hairpin_lookup(bib, 
 							outgoing->dst.u3.in.s_addr, 
 							outgoing->dst.u.tcp.port);	
-						session2 = session_ipv4_lookup(bib2, 
+						session2 = nat64_session_ipv4_lookup(bib2, 
 							outgoing->dst.u3.in.s_addr, 
 							outgoing->dst.u.tcp.port);			
 						if (!session || !session2) {
@@ -637,16 +637,16 @@ static struct nf_conntrack_tuple * nat64_hairpinning_and_handling(u_int8_t l4pro
 					}
 					break;
 				case IPPROTO_UDP:
-					bib = bib_ipv4_lookup(
+					bib = nat64_bib_ipv4_lookup(
 						outgoing->dst.u3.in.s_addr,
 						outgoing->dst.u.udp.port,
 						IPPROTO_UDP);
-                			bib2 = bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.udp.port, IPPROTO_UDP);
+                	bib2 = nat64_bib_ipv6_lookup(&inner->src.u3.in6, inner->src.u.udp.port, IPPROTO_UDP);
 					if (bib && bib2) {
-						session = session_ipv4_hairpin_lookup(bib, 
+						session = nat64_session_ipv4_hairpin_lookup(bib, 
 							nat64_extract_ipv4(inner->dst.u3.in6, ipv6_pref_len), 
 							inner->dst.u.udp.port);	
-						session2 = session_ipv4_lookup(bib2, 
+						session2 = nat64_session_ipv4_lookup(bib2, 
 							outgoing->dst.u3.in.s_addr, 
 							outgoing->dst.u.udp.port);					
 						if (!session || !session2) {
