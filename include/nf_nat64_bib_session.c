@@ -12,7 +12,7 @@ static inline __be16 nat64_hash6(struct in6_addr addr6, __be16 port)
 	return (addr4 >> 16) ^ addr4 ^ port;
 }
 
-static inline void session_renew(struct nat64_st_entry *session, enum expiry_type type)
+static inline void nat64_session_renew(struct nat64_st_entry *session, enum expiry_type type)
 {
 	list_del(&session->byexpiry);
 	session->expires = jiffies + expiry_base[type].timeout*HZ;
@@ -20,10 +20,10 @@ static inline void session_renew(struct nat64_st_entry *session, enum expiry_typ
 	printk("NAT64: [session] Renewing session %pI4:%hu (timeout %u sec).\n", &session->remote4_addr, ntohs(session->remote4_port), expiry_base[type].timeout);
 }
 
-static inline int tcp_timeout_fsm(struct nat64_st_entry *session)
+static inline int nat64_tcp_timeout_fsm(struct nat64_st_entry *session)
 {
 	if(session->state == ESTABLISHED) {
-		session_renew(session, TCP_TRANS);
+		nat64_session_renew(session, TCP_TRANS);
 		session->state = FOUR_MIN;
 		return 1;
 	}
@@ -31,7 +31,7 @@ static inline int tcp_timeout_fsm(struct nat64_st_entry *session)
 	return 0;
 }
 
-static inline void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
+static inline void nat64_tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 {
 //	printk("nat64: [fsm4] Got packet state %d.\n", session->state);
 
@@ -40,7 +40,7 @@ static inline void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 		break;
 	case V6_SYN_RCV:
 		if(tcph->syn) {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 			session->state = ESTABLISHED;
 		}
 		break;
@@ -50,7 +50,7 @@ static inline void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 		break;
 	case FOUR_MIN:
 		if(!tcph->rst) {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 			session->state = ESTABLISHED;
 		}
 		break;
@@ -59,52 +59,52 @@ static inline void tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 			//session_renew(session, TCP_EST);
 			session->state = V4_FIN_RCV;
 		} else if(tcph->rst) {
-			session_renew(session, TCP_TRANS);
+			nat64_session_renew(session, TCP_TRANS);
 			session->state = FOUR_MIN;
 		} else {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 		}
 		break;
 	case V6_FIN_RCV:
 		if(tcph->fin) {
-			session_renew(session, TCP_TRANS);
+			nat64_session_renew(session, TCP_TRANS);
 			session->state = V6_FIN_V4_FIN;
 		} else {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 		}
 		break;
 	case V4_FIN_RCV:
-		session_renew(session, TCP_EST);
+		nat64_session_renew(session, TCP_EST);
 		break;
 	case V6_FIN_V4_FIN:
 		break;
 	}
 }
 
-static inline void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
+static inline void nat64_tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 {
 //	printk("nat64: [fsm6] Got packet state %d.\n", session->state);
 
 	switch(session->state) {
 	case CLOSED:
 		if(tcph->syn) {
-			session_renew(session, TCP_TRANS);
+			nat64_session_renew(session, TCP_TRANS);
 			session->state = V6_SYN_RCV;
 		}
 		break;
 	case V6_SYN_RCV:
 		if(tcph->syn)
-			session_renew(session, TCP_TRANS);
+			nat64_session_renew(session, TCP_TRANS);
 		break;
 	case V4_SYN_RCV:
 		if(tcph->syn) {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 			session->state = ESTABLISHED;
 		}
 		break;
 	case FOUR_MIN:
 		if(!tcph->rst) {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 			session->state = ESTABLISHED;
 		}
 		break;
@@ -113,21 +113,21 @@ static inline void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 			//session_renew(session, TCP_EST);
 			session->state = V6_FIN_RCV;
 		} else if(tcph->rst) {
-			session_renew(session, TCP_TRANS);
+			nat64_session_renew(session, TCP_TRANS);
 			session->state = FOUR_MIN;
 		} else {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 		}
 		break;
 	case V6_FIN_RCV:
-		session_renew(session, TCP_EST);
+		nat64_session_renew(session, TCP_EST);
 		break;
 	case V4_FIN_RCV:
 		if(tcph->fin) {
-			session_renew(session, TCP_TRANS);
+			nat64_session_renew(session, TCP_TRANS);
 			session->state = V6_FIN_V4_FIN;
 		} else {
-			session_renew(session, TCP_EST);
+			nat64_session_renew(session, TCP_EST);
 		}
 		break;
 	case V6_FIN_V4_FIN:
@@ -135,7 +135,7 @@ static inline void tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph)
 	}
 }
 
-static inline void clean_expired_sessions(struct list_head *queue, int j)
+static inline void nat64_clean_expired_sessions(struct list_head *queue, int j)
 {
 	struct list_head *pos;
 	struct list_head *n;
@@ -149,7 +149,7 @@ static inline void clean_expired_sessions(struct list_head *queue, int j)
 		session = list_entry(pos, struct nat64_st_entry, byexpiry);
 		if(time_after(jiffies, session->expires)) {
 			if (j >= 1 && j <= 3) {
-				if(tcp_timeout_fsm(session))
+				if(nat64_tcp_timeout_fsm(session))
 					continue;
 			}	
 			printk("NAT64: [garbage-collector] removing session %pI4:%hu\n", &session->remote4_addr, ntohs(session->remote4_port));
@@ -182,7 +182,7 @@ static inline void clean_expired_sessions(struct list_head *queue, int j)
 	}
 }
 
-static inline struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 remote4_addr, __be16 remote4_port)
+static inline struct nat64_st_entry *nat64_session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 remote4_addr, __be16 remote4_port)
 {
 	struct nat64_st_entry	*session;
 	struct list_head	*pos;
@@ -196,7 +196,7 @@ static inline struct nat64_st_entry *session_ipv4_lookup(struct nat64_bib_entry 
 	return NULL;
 }
 
-static inline struct nat64_st_entry *session_ipv4_hairpin_lookup(struct nat64_bib_entry *bib, __be32 local4_addr, __be16 local4_port)
+static inline struct nat64_st_entry *nat64_session_ipv4_hairpin_lookup(struct nat64_bib_entry *bib, __be32 local4_addr, __be16 local4_port)
 {
 	struct nat64_st_entry	*session;
 	struct list_head	*pos;
@@ -210,7 +210,7 @@ static inline struct nat64_st_entry *session_ipv4_hairpin_lookup(struct nat64_bi
 	return NULL;
 }
 
-static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
+static inline struct nat64_st_entry *nat64_session_create(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
 
@@ -245,7 +245,7 @@ static inline struct nat64_st_entry *session_create(struct nat64_bib_entry *bib,
 	return s;	
 }
 
-static inline struct nat64_st_entry *session_create_icmp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
+static inline struct nat64_st_entry *nat64_session_create_icmp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
 
@@ -280,7 +280,7 @@ static inline struct nat64_st_entry *session_create_icmp(struct nat64_bib_entry 
 	return s;	
 }
 
-static inline struct nat64_st_entry *session_create_tcp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
+static inline struct nat64_st_entry *nat64_session_create_tcp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type)
 {
 	struct nat64_st_entry *s;
 
@@ -315,7 +315,7 @@ static inline struct nat64_st_entry *session_create_tcp(struct nat64_bib_entry *
 	return s;	
 }
 
-static inline struct nat64_bib_entry *bib_ipv4_lookup(__be32 local_addr, __be16 local_port, int type)
+static inline struct nat64_bib_entry *nat64_bib_ipv4_lookup(__be32 local_addr, __be16 local_port, int type)
 {
 	struct hlist_node	*pos;
 	struct nat64_bib_entry	*bib;
@@ -332,7 +332,7 @@ static inline struct nat64_bib_entry *bib_ipv4_lookup(__be32 local_addr, __be16 
 	return NULL;
 }
 
-static inline struct nat64_bib_entry *bib_ipv6_lookup(struct in6_addr *remote_addr, __be16 remote_port, int type)
+static inline struct nat64_bib_entry *nat64_bib_ipv6_lookup(struct in6_addr *remote_addr, __be16 remote_port, int type)
 {
 	struct hlist_node	*pos;
 	struct nat64_bib_entry	*bib;
@@ -349,7 +349,7 @@ static inline struct nat64_bib_entry *bib_ipv6_lookup(struct in6_addr *remote_ad
 	return NULL;
 }
 
-static inline __be16 bib_allocate_local4_port(__be16 port, int type)
+static inline __be16 nat64_bib_allocate_local4_port(__be16 port, int type)
 {
 	// FIXME: This should give a different port than the one it originally came from.
 	struct hlist_node *node;
@@ -388,7 +388,7 @@ static inline __be16 bib_allocate_local4_port(__be16 port, int type)
 	return -1;
 }
 
-static inline struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, __be16 remote6_port,
+static inline struct nat64_bib_entry *nat64_bib_create(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type)
 {
 	struct nat64_bib_entry *bib;
@@ -412,7 +412,7 @@ static inline struct nat64_bib_entry *bib_create(struct in6_addr *remote6_addr, 
 	return bib;
 }
 
-static inline struct nat64_bib_entry *bib_create_icmp(struct in6_addr *remote6_addr, __be16 remote6_port,
+static inline struct nat64_bib_entry *nat64_bib_create_icmp(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type)
 {
 	struct nat64_bib_entry *bib;
@@ -436,7 +436,7 @@ static inline struct nat64_bib_entry *bib_create_icmp(struct in6_addr *remote6_a
 	return bib;
 }
 
-static inline struct nat64_bib_entry *bib_create_tcp(struct in6_addr *remote6_addr, __be16 remote6_port,
+static inline struct nat64_bib_entry *nat64_bib_create_tcp(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type)
 {
 	struct nat64_bib_entry *bib;
@@ -459,7 +459,7 @@ static inline struct nat64_bib_entry *bib_create_tcp(struct in6_addr *remote6_ad
 }
 
 static inline struct nat64_bib_entry
-	*bib_session_create(struct in6_addr *saddr, struct in6_addr *in6_daddr,
+	*nat64_bib_session_create(struct in6_addr *saddr, struct in6_addr *in6_daddr,
 						__be32 daddr, __be16 sport, __be16 dport,
 						int protocol, enum expiry_type type)
 {
@@ -494,7 +494,7 @@ static inline struct nat64_bib_entry
 	}
 
 	//bib = bib_create(saddr, sport, ipv4_addr, local4_port, protocol);
-	bib = bib_create(saddr, sport, local4_addr, local4_port, protocol);
+	bib = nat64_bib_create(saddr, sport, local4_addr, local4_port, protocol);
 
 	if (!bib)
 		return NULL;
@@ -503,7 +503,7 @@ static inline struct nat64_bib_entry
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
 //	hlist_add_head(&bib->bylocal, &hash4[sport]);
 
-	session = session_create(bib, in6_daddr, daddr, dport, type);
+	session = nat64_session_create(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cache, bib);
 		return NULL;
@@ -513,7 +513,7 @@ static inline struct nat64_bib_entry
 }
 
 static inline struct nat64_bib_entry
-	*bib_session_create_icmp(struct in6_addr *saddr, struct in6_addr *in6_daddr,
+	*nat64_bib_session_create_icmp(struct in6_addr *saddr, struct in6_addr *in6_daddr,
 						__be32 daddr, __be16 sport, __be16 dport,
 						int protocol, enum expiry_type type)
 {
@@ -548,7 +548,7 @@ static inline struct nat64_bib_entry
 	}
 
 	//bib = bib_create(saddr, sport, ipv4_addr, local4_port, protocol);
-	bib = bib_create_icmp(saddr, sport, local4_addr, local4_port, protocol);
+	bib = nat64_bib_create_icmp(saddr, sport, local4_addr, local4_port, protocol);
 
 	if (!bib)
 		return NULL;
@@ -557,7 +557,7 @@ static inline struct nat64_bib_entry
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
 //	hlist_add_head(&bib->bylocal, &hash4[sport]);
 
-	session = session_create(bib, in6_daddr, daddr, dport, type);
+	session = nat64_session_create(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cacheICMP, bib);
 		return NULL;
@@ -566,7 +566,7 @@ static inline struct nat64_bib_entry
 	return bib;
 }
 
-static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *saddr, struct in6_addr *in6_daddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
+static inline struct nat64_bib_entry *nat64_bib_session_create_tcp(struct in6_addr *saddr, struct in6_addr *in6_daddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type)
 {
 	struct nat64_bib_entry *bib;
 	struct nat64_st_entry *session;
@@ -597,18 +597,57 @@ static inline struct nat64_bib_entry *bib_session_create_tcp(struct in6_addr *sa
 	}
 	pr_debug("NAT64: [bib2] destination PORT %hu .\n", ntohs(dport));
 
-	bib = bib_create_tcp(saddr, sport, local4_addr, local4_port, protocol);
+	bib = nat64_bib_create_tcp(saddr, sport, local4_addr, local4_port, protocol);
 	if (!bib)
 		return NULL;
 
 	hlist_add_head(&bib->byremote, &hash6[nat64_hash6(*saddr, sport)]);
 	hlist_add_head(&bib->bylocal, &hash4[local4_port]);
 	
-	session = session_create_tcp(bib, in6_daddr, daddr, dport, type);
+	session = nat64_session_create_tcp(bib, in6_daddr, daddr, dport, type);
 	if(!session) {
 		kmem_cache_free(bib_cacheTCP, bib);
 		return NULL;
 	}
 
 	return bib;
+}
+
+/*
+ * Julius Kriukas's code. Allocates the hash6 and hash4 global variables.
+ */
+static int nat64_allocate_hash(unsigned int size)
+{
+	int i;
+
+	size = roundup(size, PAGE_SIZE / sizeof(struct hlist_head));
+	hash_size = size;
+
+	hash4 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
+			get_order(sizeof(struct hlist_head) * size));
+
+	if (!hash4) {
+		pr_warning("NAT64: Unable to allocate memory for hash4 via GFP.");
+		return -1;
+	}
+
+	hash6 = (void *)__get_free_pages(GFP_KERNEL|__GFP_NOWARN,
+			get_order(sizeof(struct hlist_head) * size));
+	if (!hash6) {
+		pr_warning("NAT64: Unable to allocate memory for hash6 via gfp X(.");
+		free_pages((unsigned long)hash4,
+				get_order(sizeof(struct hlist_head) * hash_size));
+		return -1;
+	}
+
+	for (i = 0; i < size; i++)
+	{
+		INIT_HLIST_HEAD(&hash4[i]);
+		INIT_HLIST_HEAD(&hash6[i]);
+	}
+
+	for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
+		INIT_LIST_HEAD(&expiry_base[i].queue);
+
+	return 0;
 }
