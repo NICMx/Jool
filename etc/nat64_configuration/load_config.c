@@ -1,38 +1,12 @@
-#include <stdio.h>
-#include <sys/stat.h> // To check if config file exist.
-#include <stdlib.h>
-#include <string.h>
-// Initial configuration
-#include <arpa/inet.h>
-//#include "include/load_config.h"
-#include "../../include/xt_nat64_module_conf.h" // config struct & defaults
-#include "include/confuse.h"
-// Communication with the module
-#include <netlink/netlink.h> 
-#include <netlink/socket.h>
-#include <netlink/version.h>
-
-
-// Assert we compile with libnl version >= 3.0
-#if !defined(LIBNL_VER_NUM) 
-	#error "You MUST install LIBNL library."
-#endif
-#if LIBNL_VER_NUM < LIBNL_VER(3,0)
-	#error "Unsopported LIBNL library version number (< 3.0)."
-#endif
-
-void exit_error_conf(cfg_t *cfg);
-int validateIP(const char *ipaddr, struct in_addr addr);
-
+#include "load_config.h"
 
 int main(int argc, char *argv[])
 {
 	struct stat sb; // To check if config file exist.
 	struct in_addr iaddrf, iaddrl;      // To validate IP addresses
-    struct in6_addr i6addrf, i6addrl;   // also
+    struct in6_addr i6addrf;   			// also
     cfg_t *cfg, *cfg_ipv4, *cfg_ipv6;
 	const char *sect_name;
-	int port;
 	char *addr_first, *addr_last;
     unsigned char addr_maskbits;
     int port_first, port_last;

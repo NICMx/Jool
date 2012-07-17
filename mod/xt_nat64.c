@@ -120,8 +120,6 @@
 #include <linux/version.h>
 #include <linux/netlink.h> 	// Testing communication with the module using netlink. Rob
 #include <net/sock.h>		// Rob.
-//~ #define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr . Rob
-
 
 #include <linux/fs.h>
 #include <asm/uaccess.h>
@@ -151,7 +149,6 @@ MODULE_ALIAS("ip6t_nat64");
 	 (type) == ICMP_ADDRESS || (type) == ICMP_ADDRESSREPLY)
 
 
-
 #define MY_MACIG 'G'
 #define READ_IOCTL _IOR(MY_MACIG, 0, int)
 #define WRITE_IOCTL _IOW(MY_MACIG, 1, int)
@@ -167,15 +164,10 @@ static char msg[200];
 /*
  * FIXME: Ensure all variables are 32 and 64-bits complaint. 
  * That is, no generic data types akin to integer.
- * FIXED: All the output messages of the stages are in the opposite
- * order of execution
- * in the logs.
+ * FIXME: Rob. Change all 'printk' function calls by 'pr_debug' function
+ * 
  */
-// FIXME: Rob. Change all 'printk' function calls by 'pr_debug' function
-//
-//
-
-
+ 
 
 static struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
 static struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
@@ -205,14 +197,18 @@ struct expiry_q	expiry_base[NUM_EXPIRY_QUEUES] =
 struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
 
 /* IPv4 */
-__be32 ipv4_addr;	// FIXME: Rob thinks this should be of 'u8 *' type, as expected by in4_pton function.
+__be32 ipv4_addr;	// FIXME: Rob thinks this should be of 'u8 *' type,
+					// as expected by in4_pton function. But think of 
+					// changing it to 'in_addr' type.
+struct in_addr ipv4_pool_net; // This is meant to substitute variable 'ipv4_addr'
+struct in_addr ipv4_pool_range_first;
+struct in_addr ipv4_pool_range_last;
 static char *ipv4_addr_str;	// Var type verified  . Rob
 int ipv4_mask_bits;		// Var type verified  ;). Rob
 __be32 ipv4_netmask;	// Var type verified ;), but think of changing it
 						// 	to 'in_addr' type. Rob.
+
 /* IPv6 */
-//struct in6_addr	ipv6_prefix_base = {.s6_addr32[0] = 0, .s6_addr32[1] = 0, 
-//						.s6_addr32[2] = 0, .s6_addr32[3] = 0};
 static char *ipv6_pref_addr_str;
 int ipv6_pref_len;	// Var type verified ;). Rob
 
@@ -230,18 +226,7 @@ int ipv6_pref_len;	// Var type verified ;). Rob
 #include <net/netlink.h>
 #include "xt_nat64_module_conf.h"
 
-//~ #define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary. same value for kern/usr
-/* Definition of default values for the IPv4 & IPv6 pools. */
-// 	IPv4
-//~ #define IPV4_DEF_POOL_FIRST	"192.168.2.1"
-//~ #define IPV4_DEF_POOL_LAST	"192.168.2.254"
 #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
-//~ #define IPV4_DEF_MASKBITS	24
-//	IPv6
-//~ #define IPV6_PREF_DEF	"64:ff9b::/96" // FIXME: Must be changed by prefix: 64:ff9b::/96   //Rob.
-//~ #define IPV6_DEF_PREFIX	"64:ff9b::"	// Default IPv6	(string)
-//~ #define IPV6_DEF_MASKBITS	96 		// Default IPv6 Prefix	(int)
-
     
 static struct sock *my_nl_sock;
 
@@ -254,44 +239,16 @@ DEFINE_MUTEX(my_mutex);
  */
 static int update_nat_config(const struct config_struct *cs)
 {
-	int ret = 0;
-	char err = 0x00;
-
-	//~ /* Validation: */
-	//~ // IPv4 Pool - First address.
-	//~ ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
-	//~ if (!ret) 
-	//~ {	err = 1;	// Error
-		//~ pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
-					//~ nrc->ipv4_addr_str);
-	//~ }
-	//~ // IPv4 Pool - Netmask 
-	//~ if ((*nrc).ipv4_mask_bits > 32 || (*nrc).ipv4_mask_bits < 1) 
-	//~ {	err = 1; 	// Error
-		//~ pr_warning("NAT64: Updating config: ipv4 prefix is malformed: %d", 
-					//~ (*nrc).ipv4_mask_bits);
-	//~ }
-	//~ // ...
-	//~ // :(
-	//~ if (err) return -EINVAL; // Error
-	//~
-	
+// ROB: Aqui actualizar los valores de ipv4_pool range_first, last, network
+		
 	/* Alteration: */
 	// IPv4 Pool - First address.
-	//~ ret = in4_pton(nrc->ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
-	//~ if (!ret) 
-	//~ {	err = 1;	// Error
-		//~ pr_warning("NAT64: Updating config: ipv4 is malformed: %s", 
-					//~ nrc->ipv4_addr_str);
-	//~ }
 	ipv4_addr = (*cs).ipv4_addr_net.s_addr;
-	//~ ipv4_addr = (*cs).ipv4_pool_range_first;
 	// IPv4 Pool - Netmask
-	//~ ipv4_netmask = inet_make_mask((*nrc).ipv4_mask_bits);
 	ipv4_netmask = inet_make_mask( (*cs).ipv4_addr_net_mask_bits );
+
 	pr_debug("NAT64: Updating config: using IPv4 subnet %pI4/%d (netmask %pI4).", 
 			  &ipv4_addr, (*cs).ipv4_addr_net_mask_bits, &ipv4_netmask);
-	//~ // ...
 	// :)
 	return 0; // Alles Klar!	
 }
@@ -300,11 +257,6 @@ static int update_nat_config(const struct config_struct *cs)
 static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
     int type;
-    //char *data;
-    //struct in_addr *ipaddr;
-    //char buf[INET_ADDRSTRLEN];
-    
-    //~ struct nat64_run_conf *nrc;
     struct config_struct *cs;
 
     type = nlh->nlmsg_type;
@@ -314,20 +266,10 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
         return -EINVAL;
     }
 
-    // data = NLMSG_DATA(nlh);
-    // pr_debug("NAT64: netlink: got message: %s\n", data);
-
-	//ipaddr = NLMSG_DATA(nlh);
-//	inet_ntop(AF_INET, &(ipaddr.s_addr), buf, INET_ADDRSTRLEN);
-    //pr_debug("NAT64: netlink: got message: %pI4\n", ipaddr );
-
-	//~ nrc = NLMSG_DATA(nlh);
 	cs = NLMSG_DATA(nlh);
-//    pr_debug("NAT64:     netlink: got message: IPv4 addr=%s, mask bits=%d\n", 
-//    		 (*nrc).ipv4_addr_str, (*nrc).ipv4_mask_bits );
     pr_debug("NAT64:     netlink: got message.\n" );
     pr_debug("NAT64:     netlink: updating NAT64 configuration.\n" );
-	//~ if (update_nat_config(nrc) != 0)
+
 	if (update_nat_config(cs) != 0)
 	{
 		pr_debug("NAT64:     netlink: Error while updating NAT64 running configuration\n");
@@ -469,6 +411,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	//	struct icmp6hdr * icmph;
 	//} l4header;
 	//int i = 0;
+
 	skb->protocol = htons(ETH_P_IPV6);
 
 	memset(&fl, 0, sizeof(fl));
@@ -790,9 +733,7 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			l4header.uh = (struct udphdr *)(ip6 + 1);
 			memcpy(l4header.uh, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.uh->check), 
-					//&(l4header.uh->source), 
 					&(l4header.uh->dest), 
-					//outgoing->src.u.udp.port, // Rob.
 					outgoing->dst.u.udp.port, // Rob.
 					(ip4->protocol == IPPROTO_UDP) ? true : false );
 			adjust_checksum_ipv4_to_ipv6( &(l4header.uh->check), 
@@ -805,10 +746,7 @@ static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 			l4header.th = (struct tcphdr *)(ip6 + 1);
 			memcpy(l4header.th, ip_data(ip4), l4len + pay_len);
 			checksum_change(&(l4header.th->check), 
-					//&(l4header.th->source), 
 					&(l4header.th->dest), 
-					//htons(outgoing->src.u.tcp.port),
-					//outgoing->src.u.tcp.port, // Rob.
 					outgoing->dst.u.tcp.port, // Rob.
 					false);
 			adjust_checksum_ipv4_to_ipv6(&(l4header.th->check), ip4, ip6,false);
@@ -1412,9 +1350,6 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
         }
         switch (l4protocol) {
             case IPPROTO_TCP:
-
-                //pr_debug("NAT64: TCP protocol not"
-                //		" currently supported.");
                 bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         inner->dst.u.tcp.port, 
                         IPPROTO_TCP);
@@ -1611,9 +1546,6 @@ static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
                 outgoing->src.l3num = (u_int16_t)l3protocol;
                 switch (l4protocol) {
                     case IPPROTO_TCP:
-                        //pr_debug("NAT64: TCP protocol not "
-                        //		"currently supported.");
-
                         // Ports
                         outgoing->src.u.tcp.port = bib->local4_port;
                         outgoing->dst.u.tcp.port = session->remote4_port;
@@ -1704,7 +1636,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
     struct tcphdr *tcph = tcp_hdr(skb);
     //struct icmphdr *icmph = icmp_hdr(skb);
     bool res;
-    	int i;
+    int i = 0;
     res = false;
 
     if (l3protocol == NFPROTO_IPV4) {
@@ -1717,8 +1649,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
         switch (l4protocol) {
             case IPPROTO_TCP:
                 //Query TCP ST
-                //pr_debug("NAT64: TCP protocol not currently supported.");
-
                 bib = bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
                         inner->dst.u.tcp.port, 
                         IPPROTO_TCP);
@@ -1821,7 +1751,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     session = session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(
                                 inner->dst.u3.in6, 
-                                //prefix_len), 
                             ipv6_pref_len), 
                             inner->dst.u.tcp.port);
                     if(session) {
@@ -1832,7 +1761,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                                 &(inner->dst.u3.in6), 
                                 nat64_extract_ipv4(
                                     inner->dst.u3.in6, 
-                                    //prefix_len), 
                                 ipv6_pref_len), 
                                 inner->dst.u.tcp.port, 
                                 TCP_TRANS);
@@ -1844,7 +1772,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                             &(inner->dst.u3.in6), 
                             nat64_extract_ipv4(
                                 inner->dst.u3.in6, 
-                                //prefix_len), 
                             ipv6_pref_len), 
                         inner->src.u.tcp.port, 
                         inner->dst.u.tcp.port, 
@@ -1913,7 +1840,6 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                     session = session_ipv4_lookup(bib, 
                             nat64_extract_ipv4(
                                 inner->dst.u3.in6, 
-                                //prefix_len), 
                             ipv6_pref_len), 
                             inner->src.u.icmp.id);
                     if(session) {
@@ -2057,8 +1983,11 @@ static bool got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoin
 	static bool res;	  	
 	struct in_addr sa1;
 	struct in_addr sa2;
-	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
-	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	//~ in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
+	//~ in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	//~ sa1.s_addr = ipv4_addr; // FIXME: Rob. Think changing 'ipv4_addr' datatype by: struct in_addr
+	sa1 = ipv4_pool_range_first;
+	sa2 = ipv4_pool_range_last;
 	res = false;
 	if (l3protocol == NFPROTO_IPV6) { 
 		if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
@@ -2156,8 +2085,13 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
 
     //ip_masked_addr_cmp(ip_a, ip_mask, ip_b)
 	
-	if(skb->len < sizeof(struct iphdr) || iph->version != 4 || (iph->daddr & ipv4_netmask) != ipv4_addr)
-		return NF_ACCEPT;
+	
+	// Do NOT process the packet if it is destined to an address not in
+	// the pool network. Rob.
+	//~ if(skb->len < sizeof(struct iphdr) || iph->version != 4 || (iph->daddr & ipv4_netmask) != ipv4_addr)
+	if(skb->len < sizeof(struct iphdr) || iph->version != 4
+	   || (iph->daddr & ipv4_netmask) != ipv4_pool_net.s_addr)
+			return NF_ACCEPT;
 
     if (l4_protocol & NAT64_IP_ALLWD_PROTOS) {
         /*
@@ -2304,21 +2238,13 @@ static struct file_operations fops = {
 
 static int __init nat64_init(void)
 {
-    /* Variables imported from Julius Kriukas's implementation */
     int ret = 0;
 
-    /*	Previous implementation:	
-        ipv4_prefixlen = 24;
-        ipv4_addr = 0;
-        ipv4_address = "192.168.2.1"; // Default IPv4
-        ipv4_netmask = 0xffffff00; // Mask of 24 IPv4
-        prefix_address = "64:ff9b::"; // Default IPv6
-        prefix_len = 96; // Default IPv6 Prefix  
-        */    
+// ROB: Aqui inicializar los valores de ipv4_pool range_first, last, network
 
-    // Rob : 
     ipv4_mask_bits = IPV4_DEF_MASKBITS;	// Num. of bits 'on' in the net mask
     ipv4_addr = 0;	// Set below.
+
     /* Default configuration, until it's set up by the user space application. */
     /* IPv4 */
     ipv4_addr_str = IPV4_DEF_POOL_FIRST;	// Default IPv4 (string)
@@ -2327,10 +2253,8 @@ static int __init nat64_init(void)
     ipv6_pref_addr_str = IPV6_DEF_PREFIX;	// Default IPv6	(string)
     ipv6_pref_len = IPV6_DEF_MASKBITS; // Default IPv6 Prefix	(int)
 
-    // init IPv4 addresses pool
-    init_pools(); // Bernardo
-
-    pr_debug("\n\n\nNAT64 module inserted!");
+	pr_debug("\n\n\n%s", banner);
+    pr_debug("\n\nNAT64 module inserted!");
 
     /*
      * Include nf_conntrack dependency
@@ -2358,13 +2282,14 @@ static int __init nat64_init(void)
 
     // BEGIN: code imported from nat64_init of Julius Kriukas' implementation
 
+	// Rob. Think this validations are needed only if no configuration
+	//		file is found.
     ret = in4_pton(ipv4_addr_str, -1, (u8 *)&ipv4_addr, '\x0', NULL);
     if (!ret) {
         pr_warning("NAT64: ipv4 is malformed [%s].", ipv4_addr_str);
         ret = -1;
         goto error;
     }
-    //	if (ret) {
     if (ipv4_mask_bits > 32 || ipv4_mask_bits < 1) {
         pr_warning("NAT64: ipv4 netmask bits value is invalid [%s].", 
                 ipv4_addr_str);
@@ -2376,7 +2301,9 @@ static int __init nat64_init(void)
 	ipv4_addr = ipv4_addr & ipv4_netmask;
     pr_debug("NAT64: using IPv4 subnet %pI4/%d (netmask %pI4).", 
             &ipv4_addr, ipv4_mask_bits, &ipv4_netmask);
-    //	}
+
+    // Init IPv4 addresses pool
+    init_pools(); // Bernardo
 
 	// FIXME: look in the kernel headers for the definition of this
 	//		  constant (size) and use it instead of this hardcoded value.
@@ -2425,14 +2352,15 @@ static int __init nat64_init(void)
         goto bib_cache_error;
     } 
     // END
+    
     // // Load char device used by Miguel
     major = register_chrdev(0, "my_device", &fops);
     if (major < 0) {
-        printk ("Registering the character device failed with %d\n", major);
+        pr_debug ("NAT64: Registering the character device failed with %d\n", major);
         return major;
     }
-    printk("\ncdev example: assigned major: %d\n", major);
-    printk("create node with mknod /dev/cdev_example c %d 0\n", major);
+    pr_debug("\nNAT64: cdev example: assigned major: %d\n", major);
+    pr_debug("NAT64: create node with mknod /dev/cdev_example c %d 0\n", major);
 
     return xt_register_target(&nat64_tg_reg);
 

@@ -1,19 +1,23 @@
 CC = gcc
-CCFLAGS = -Wall 
+INCDIRS = -Iinclude -I../../include
+CFLAGS += -Wall ${INCDIRS} 
 LD = ld 
-# para netlink library : libnl
+# For netlink sockets include library: libnl
 LDFLAGS += -lnl
 
+# Programs to compile:
 progs = load_config 
 
-# gcc -Wall  load_config.c include/confuse.c include/lexer.c -I./include/ -o load_config
 
-#all:load_config
+# To read one or more other makefiles before continuing
+#include filenames...
+# a typical `descend into a directory' recipe then looks like this:
+#${subdirs}:
+#	${MAKE} -C $@ all
 
-#load_config:load_config.c, include/confuse.c, include/lexer.c 
-#	$(CC) $(CCFLAGS) load_config.c include/confuse.c include/lexer.c -o load_config
 
-#~ all: load_config
+default: all
+
 all: $(progs)
 
 load_config:load_config.o include/confuse.o include/lexer.o
@@ -26,5 +30,5 @@ include/lexer.o:include/lexer.c
 
 clean:
 	rm -f *.o
+	rm -f include/*.o
 	rm -f $(progs)
-	#~ rm -f load_config
