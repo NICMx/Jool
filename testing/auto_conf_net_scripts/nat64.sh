@@ -70,7 +70,7 @@ ip route add default via $ipv4_def_gw dev $ipv4_dev
 echo "Add default route to IPv6 client, or IPv6 border router in real env."
 ip -6 route add default via $ipv6_def_gw dev $ipv6_dev
 
-
+exit
 
 pushd "$mod_dir" > /dev/null
 echo "Removing NAT64 module"

@@ -27,6 +27,7 @@ if [ $1 = "ins" ] ; then
 elif [ $1 = "up" ] ; then
 	sudo ./workflow.sh "rmv"
 	sudo ./workflow.sh "ins"
+	sudo ./workflow.sh "conf"
 	sudo ./workflow.sh "test"
 elif [ $1 = "rmv" ] ; then
 	sudo ip6tables -t mangle --flush
@@ -52,9 +53,15 @@ elif [ $1 = "test" ] ; then
 	sudo ip6tables -t mangle -n -L
 elif [ $1 = "setup" ] ; then
 	sudo ./workflow.sh "ins"
+	sudo ./workflow.sh "conf"
 	sudo ./workflow.sh "test"
 	sudo ./workflow.sh "rmv"
 	sudo ./workflow.sh "ins"
+elif [ $1 = "conf" ] ; then
+	echo "Sending configuration to the module"
+	pushd ../etc/nat64_configuration > /dev/null
+	./load_config nat64.conf
+	popd > /dev/null
 else
 	echo "no valid action selected" 
 fi

@@ -98,7 +98,7 @@ struct transport_addr_struct {
     struct list_head list;
 };
 
-__be32 next_udp_address; // FIXME: Rob. Think of change this datatype by: struct in_addr
+__be32 next_udp_address; // FIXME: Rob. Think of changing this datatype to: struct in_addr
 __be32 next_tcp_address;
 __be32 last_address;
 int next_udp_port;
@@ -206,45 +206,48 @@ void return_udp_transpsort_addr(struct transport_addr_struct *transport_addr)
 }
 
 //~ void init_pools(void)
-void init_pools(struct *in_addr first_pool_address)
+void init_pools(struct config_struct *cs)
 {
     __be32 r1,r2;
     char *add1;
     char *add2;
-// ROB: me quedé adaptando esta función para que tome los valores como
-// 		parámetros de entrada, en lugar de tomarlos de DEFINEs. Y así
-//		permitir el cambio en los valores de la pool mediante el archivo
-//		de configuración.   
+
     //~ in4_pton(IPV4_DEF_POOL_FIRST, -1, (u8 *)&next_udp_address, '\x0', NULL);
     //~ in4_pton(IPV4_DEF_POOL_FIRST, -1, (u8 *)&next_tcp_address, '\x0', NULL);
-	next_udp_address = (*first_pool_address).s_addr;
-	next_tcp_address = (*first_pool_address).s_addr;
+	next_udp_address = (*cs).ipv4_pool_range_first.s_addr;
+	next_tcp_address = (*cs).ipv4_pool_range_first.s_addr;
 
     next_udp_address = swap_endians(next_udp_address);
     next_tcp_address = swap_endians(next_tcp_address);
-    
-    in4_pton(IPV4_DEF_POOL_LAST, -1, (u8 *)&last_address, '\x0', NULL);
+
+    //~ in4_pton(IPV4_DEF_POOL_LAST, -1, (u8 *)&last_address, '\x0', NULL);
+    last_address = (*cs).ipv4_pool_range_last.s_addr;
     last_address = swap_endians(last_address);
-                  
-    first_tcp_port = IPV4_DEF_TCP_POOL_FIRST; // FIRST_PORT;
-    first_udp_port = IPV4_DEF_UDP_POOL_FIRST;
+
+    //~ first_tcp_port = IPV4_DEF_TCP_POOL_FIRST; // FIRST_PORT;
+    //~ first_udp_port = IPV4_DEF_UDP_POOL_FIRST;
+    //~ next_udp_port = first_udp_port;
+    //~ next_tcp_port = first_tcp_port;
+    //~ last_tcp_port = IPV4_DEF_TCP_POOL_LAST; // LAST_PORT;
+	//~ last_udp_port = IPV4_DEF_UDP_POOL_LAST;
+	first_tcp_port = (*cs).ipv4_tcp_port_first; // FIRST_PORT;
+    first_udp_port = (*cs).ipv4_tcp_port_first;
     next_udp_port = first_udp_port;
     next_tcp_port = first_tcp_port;
-    last_tcp_port = IPV4_DEF_TCP_POOL_LAST; // LAST_PORT;
-	last_udp_port = IPV4_DEF_UDP_POOL_LAST;
-    
+    last_tcp_port = (*cs).ipv4_tcp_port_last; // LAST_PORT;
+	last_udp_port = (*cs).ipv4_udp_port_last;
+       
     r1 = swap_endians(next_udp_address);
     r2 = swap_endians(last_address);
-    
     add1 = ip_address_to_string(r1);
     add2 = ip_address_to_string(r2);
-    
+    pr_debug("NAT64: Configuring IPv4 pool.");
+    pr_debug("NAT64:	First address: %s - Last address: %s\n", add1, add2);
+    pr_debug("NAT64:	First UDP port: %u - Last port: %u\n", first_udp_port, last_udp_port);
+    pr_debug("NAT64:	First TCP port: %u - Last port: %u\n", first_tcp_port, last_tcp_port);
+
     INIT_LIST_HEAD(&free_udp_transport_addr);
     INIT_LIST_HEAD(&free_tcp_transport_addr);
-    
-    pr_debug("NAT64: First address: %s - Last address: %s\n", add1, add2);
-    pr_debug("NAT64: First UDP port: %u - Last port: %u\n", first_udp_port, last_udp_port);
-    pr_debug("NAT64: First TCP port: %u - Last port: %u\n", first_tcp_port, last_tcp_port);
 }
 
  #endif

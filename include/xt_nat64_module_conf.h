@@ -91,6 +91,7 @@
 ////////////////////////////////////////////////////////////////////////
 // DEFAULT VALUES (Communication)
 ////////////////////////////////////////////////////////////////////////
+
 #define MY_MSG_TYPE (0x10 + 2)  // + 2 is arbitrary but is the same for kern/usr
 
 ////////////////////////////////////////////////////////////////////////
@@ -101,23 +102,23 @@
 #define IPV6_DEF_PREFIX     "64:ff9b::"
 #define IPV6_DEF_MASKBITS   96
 //
-#define IPV6_DEF_TCP_POOL_FIRST 1024
-#define IPV6_DEF_TCP_POOL_LAST  65535
+#define IPV6_DEF_TCP_POOL_FIRST 1024		// FIXME: Rename to IPV6_DEF_TCP_PORTS_FIRST
+#define IPV6_DEF_TCP_POOL_LAST  65535		// 		  Same thing
 //
-#define IPV6_DEF_UDP_POOL_FIRST 1024
-#define IPV6_DEF_UDP_POOL_LAST  65535
+#define IPV6_DEF_UDP_POOL_FIRST 1024		// FIXME: Rename to IPV6_DEF_UDP_PORTS_FIRST
+#define IPV6_DEF_UDP_POOL_LAST  65535		// 		  Same thing
 // IPv4:
-#define IPV4_DEF_NET        "192.168.2.0"
-#define IPV4_DEF_MASKBITS   24
+#define IPV4_DEF_NET        "192.168.2.0" 	// FIXME: Rename to IPV4_DEF_POOL_NET
+#define IPV4_DEF_MASKBITS   24				// FIXME: Rename to IPV4_DEF_POOL_NET_MASK_BITS
 //
 #define IPV4_DEF_POOL_FIRST "192.168.2.1"
 #define IPV4_DEF_POOL_LAST  "192.168.2.254"
 //
-#define IPV4_DEF_TCP_POOL_FIRST 1024
-#define IPV4_DEF_TCP_POOL_LAST  65535
+#define IPV4_DEF_TCP_POOL_FIRST 1024		// FIXME: Rename to IPV4_DEF_TCP_PORTS_FIRST
+#define IPV4_DEF_TCP_POOL_LAST  65535		// 		  Same thing
 //
-#define IPV4_DEF_UDP_POOL_FIRST 1024
-#define IPV4_DEF_UDP_POOL_LAST  65535
+#define IPV4_DEF_UDP_POOL_FIRST 1024		// FIXME: Rename to IPV4_DEF_UDP_PORTS_FIRST
+#define IPV4_DEF_UDP_POOL_LAST  65535		// 		  Same thing
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -127,8 +128,8 @@
 struct config_struct
 {
     //// IPv4:
-    struct in_addr ipv4_addr_net;
-	unsigned char  ipv4_addr_net_mask_bits;
+    struct in_addr ipv4_addr_net; 			// FIXME: Rename this to ipv4_pool_net
+	unsigned char  ipv4_addr_net_mask_bits; // FIXME: Rename this to ipv4_pool_net_mask_bits
 	struct in_addr ipv4_pool_range_first;
 	struct in_addr ipv4_pool_range_last;
     //
@@ -149,9 +150,9 @@ struct config_struct
     unsigned short  ipv6_udp_port_range_last;   
 };
 
-
+////////////////////////////////////////////////////////////////////////
 // VARIABLES
-//
+////////////////////////////////////////////////////////////////////////
 
 //~ char *banner=
 //~ "                                   ,----,                       \n"
@@ -186,6 +187,14 @@ char *banner=
 "'   :*|      |  |*,'           '---'   |   :##';##:     |  :#;  \n"
 ";   |.'      `--''                      \\   \\####/      '  ,/   \n"
 "'---'                                    `---`--`       '--'    \n";
+
+
+////////////////////////////////////////////////////////////////////////
+// FUNCTION PROTOTYPES
+////////////////////////////////////////////////////////////////////////
+
+int init_nat_config(struct config_struct *cs);
+
 
 
 #endif /* _LINUX_NAT64_MODULE_CONF_H */
