@@ -4,11 +4,11 @@
 ipv6_mac="08:00:27:a5:e5:03"    # IPv6 interface's mac address
 ipv4_mac="08:00:27:15:ad:cd"	# IPv4 interface's mac address
 #
-ipv6_int_trans_addr="fec0::192.168.1.4/64"	# IPv6 address for the IPv4-mapped address; THIS MUST NOT BE USED ANYMORE
-ipv6_int_addr="fec0::1/64"			# IPv6 interface's IP address
+ipv6_int_addr="2001:db8:c0ca:2::1/64"	# IPv6 interface's IP address
+ipv6_def_gw="2001:db8:c0ca:2::6"	# IPv6 default gateway
 #
-ipv4_int_addr="192.168.1.1"			# IPv4 interface's IP address
-ipv4_alias_int_addr="192.168.1.114"		# IPv4 alias interface's IP address; THIS MUST NOT BE USED ANYMORE
+ipv4_int_addr="192.168.1.1"	# IPv4 interface's IP address
+ipv4_def_gw="192.168.1.4"	# IPv4 default gateway		
 #
 mod_dir="/home/robertoaceves/nat64/mod"
 
@@ -37,8 +37,8 @@ ip addr del $ipv4_addr/$ipv4_mask dev $ipv6_dev
 
 echo "Add IPv6 address: $ipv6_int_addr"
 ip -6 addr add $ipv6_int_addr dev $ipv6_dev
-echo "Add IPv6 IPv4-transalted address: $ipv6_int_trans  WARNING!, THIS SHOULD NOT BE USED ANYMORE"
-ifconfig $ipv6_dev inet6 add $ipv6_int_trans_addr
+#echo "Add IPv6 IPv4-transalted address: $ipv6_int_trans  WARNING!, THIS SHOULD NOT BE USED ANYMORE"
+#ifconfig $ipv6_dev inet6 add $ipv6_int_trans_addr
 echo "Remove 'fe80' existing IPv6 addresses"
 ipv6_fe80=(`ifconfig "$ipv6_dev" | grep 'fe80::' | sed -e 's/.*addr://' -e 's/Scope.*//' -e 's/ //g'`)
 [ "${#ipv6_fe80[@]}" -ne "0" ] &&
@@ -54,6 +54,9 @@ ipv4_dev=`ifconfig -a | grep -i "$ipv4_mac" | sed -e 's/Link.*//'  -e 's/ //g'`
 echo "Enabling IPv4 interface"
 ifconfig $ipv4_dev up
 
+echo "Add ipv4 address: $ipv4_int_addr"
+ifconfig $ipv4_dev $ipv4_int_addr up
+
 echo "Remove ipv6 existing addresses"
 ipv6_addr=(`ifconfig $ipv4_dev | grep "inet6 addr" | sed -e 's/.*inet6 addr://' -e 's/Scope.*//' -e 's/ //g'`)
 [ "${#ipv6_addr[@]}" -ne 0 ] &&
@@ -61,20 +64,11 @@ for addr in ${ipv6_addr[@]}; do
 	ip -6 addr del $addr dev $ipv4_dev
 done
 
-echo "Add ipv4 address: $ipv4_int_addr"
-#ip addr add 192.168.56.2/24 broadcast 192.168.56.255 dev $ipv4_dev
-ifconfig $ipv4_dev $ipv4_int_addr up
-echo "Add ipv4 virtual interface: $ipv4_alias_int_addr  THIS MUST NOT BE USED ANYMORE"
-ifconfig $ipv4_dev:0 $ipv4_alias_int_addr up
+echo "Add default route to IPv4 server, or ISP router in real env."
+ip route add default via $ipv4_def_gw dev $ipv4_dev
 
-
-#echo "Disable other interfaces \(internet access\)"
-#other_dev=(`ifconfig | grep "HWaddr" | grep -v "$dev"  | sed -e 's/Link.*//'  -e 's/ //g'`)
-#[ "${#other_dev[@]}" -ne "0"  ] &&
-#for dev in ; do
-#	ifconfig $dev down
-#done
-
+echo "Add default route to IPv6 client, or IPv6 border router in real env."
+ip -6 route add default via $ipv6_def_gw dev $ipv6_dev
 
 
 
@@ -86,6 +80,7 @@ echo "Inserting NAT64 module"
 echo "Inserting iptables rule's"
 ./workflow.sh "test"
 popd  > /dev/null
+
 
 echo "Ready"
 

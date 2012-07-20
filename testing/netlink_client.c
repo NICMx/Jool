@@ -34,19 +34,17 @@ int main(int argc, char *argv[])
     //char *msg;
     int ret;
     //unsigned char ipv4_addr[sizeof(struct in6_addr)];
-    struct in_addr ipaddr;
-    int domain;
-    int s;
-    char ipstr[IPV4_LEN];
-    char buf[INET_ADDRSTRLEN];
-    
-    char *ipv4_pool_1st = "192.168.1.2";
-
+//    struct in_addr ipaddr;
+//    int domain;
+//    int s;
+//    char ipstr[IPV4_LEN];
+//    char buf[INET_ADDRSTRLEN];
+//    char *ipv4_pool_1st = "192.168.2.2";
 	struct nat64_run_conf nrc;
 
 
 	//if (argc != 2) { printf("Usage: %s [\"message\"]\n", argv[0]); return EXIT_FAILURE;}
-
+// Reserve memory for netlink socket
     nls = nl_socket_alloc();
     if (!nls) {
         printf("bad nl_socket_alloc\n");
@@ -97,12 +95,33 @@ int main(int argc, char *argv[])
     } else {
     	inet_ntop(AF_INET, &(ipaddr.s_addr), buf, INET_ADDRSTRLEN);
         printf("Message sent (%d bytes): %s\n", ret, buf);
-    }
+    } 
 	*/
 	
 	/* send a ip binary address * */
-	strcpy(nrc.ipv4_addr_str, ipv4_pool_1st);
+	//strcpy(nrc.ipv4_addr_str, ipv4_pool_1st);
+	/* IPv4 */
+	//strcpy(nrc.ipv4_addr_str, "192.168.1.2"); 
+	strcpy(nrc.ipv4_addr_str, "192.168.2.2"); // Just for testing
 	nrc.ipv4_mask_bits = 24;	 
+	nrc.ipv4_pool_range_first = 0xc0a80202;	// Pool	192.168.2.2
+	nrc.ipv4_pool_range_last = 0xc0a802fe;	// 		192.168.2.254
+	nrc.ipv4_tcp_port_range_first = 0x0;	// TCP	0
+	nrc.ipv4_tcp_port_range_last = 0xffff; 	// 		65535
+	nrc.ipv4_udp_port_range_first = 0x0;	// UDP	0
+	nrc.ipv4_udp_port_range_last = 0xffff;	// 		65535
+	
+	/* IPv6 */
+	strcpy(nrc.ipv6_net_prefix, "fec0::");
+	nrc.ipv6_net_addr[3] = 0xfec0;	// Address	fec0:/64
+	nrc.ipv6_net_addr[2] = 0x0;		// 
+	nrc.ipv6_net_addr[1] = 0x0;		// 
+	nrc.ipv6_net_addr[0] = 0x0;		// 
+	nrc.ipv6_net_mask_bits = 32;	//
+	nrc.ipv6_tcp_port_range_first = 0;		// TCP	0
+	nrc.ipv6_tcp_port_range_last = 0xffff;	//		65535
+	nrc.ipv6_udp_port_range_first = 0;		// UDP	0
+	nrc.ipv6_udp_port_range_last = 0xffff;	//		65535
 	
     ret = nl_send_simple(nls, MY_MSG_TYPE, 0, &(nrc), sizeof(nrc));
     if (ret < 0) {
