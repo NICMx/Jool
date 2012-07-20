@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # CONFIGURATION:
-ipv6_mac="08:00:27:35:54:5d"    # IPv6 interface's mac address
+ipv6_mac="08:00:27:35:54:5d"    	# IPv6 interface's mac address
 ipv6_int_addr="2001:db8:c0ca:2::6/64"	# IPv6 interface's IP address
 ipv6_def_gw="2001:db8:c0ca:2::1"	# IPv6 default gateway
 #
