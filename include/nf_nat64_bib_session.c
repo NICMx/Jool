@@ -2,6 +2,12 @@
 
 static int nat64_create_bib_session_memory(void)
 {
+	if (nat64_allocate_hash(65536)) // FIXME: look in the kernel headers for the definition of this constant (size) and use it instead of this hardcoded value.
+    {
+        pr_warning("NAT64: Unable to allocate memmory for hash table.");
+        goto hash_error;
+    }
+ 	
 	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry),
             0,0, NULL);
     st_cacheTCP = kmem_cache_create("nat64_stTCP", sizeof(struct nat64_st_entry),
@@ -29,7 +35,9 @@ static int nat64_create_bib_session_memory(void)
     }
 
 	return 0;
-	
+
+	hash_error:
+	    return -ENOMEM;	
 	st_cache_error:
 	    kmem_cache_destroy(st_cache);
 	    kmem_cache_destroy(st_cacheTCP);
