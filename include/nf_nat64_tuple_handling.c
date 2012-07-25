@@ -587,8 +587,11 @@ static bool nat64_got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * o
 	static bool res;	  	
 	struct in_addr sa1;
 	struct in_addr sa2;
-	in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
-	in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	//~ in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
+	//~ in4_pton(LAST_ADDRESS, -1, (u8 *)&sa2, '\x0', NULL);
+	//~ sa1.s_addr = ipv4_addr; // FIXME: Rob. Think changing 'ipv4_addr' datatype by: struct in_addr
+	sa1 = ipv4_pool_range_first;
+	sa2 = ipv4_pool_range_last;
 	res = false;
 	if (l3protocol == NFPROTO_IPV6) { 
 		if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
