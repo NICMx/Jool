@@ -1,4 +1,7 @@
+#include "nf_nat64_tuple_handling.h"
 #include "nf_nat64_bib_session.h"
+#include "nf_nat64_rfc6052.h"
+#include "xt_nat64_module_conf.h"
 
 /*
  * This procedure performs packet filtering and
@@ -27,7 +30,7 @@ static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protoco
                 //Query TCP ST
                 //pr_debug("NAT64: TCP protocol not currently supported.");
 
-                bib = nat64_bib_ipv4_lookup(inner->dst.u3.in.s_addr, 
+                bib = nat64_bib_ipv4_lookup((*inner).dst.u3.in.s_addr, 
                         inner->dst.u.tcp.port, 
                         IPPROTO_TCP);
                 if (!bib) {

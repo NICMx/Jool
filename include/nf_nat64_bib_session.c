@@ -53,7 +53,7 @@ static int nat64_create_bib_session_memory(void)
 	    return -ENOMEM;	
 }
 
-static int nat64_destroy_bib_session_memory(void)
+static inline int nat64_destroy_bib_session_memory(void)
 {
 
 	kmem_cache_destroy(st_cache); // Line inherited from Julius Kriukas's nat64_exit function.
