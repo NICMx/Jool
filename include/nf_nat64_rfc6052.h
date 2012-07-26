@@ -1,5 +1,5 @@
-#ifndef H_NF_NAT64_RFC6052
-#define H_NF_NAT64_RFC6052
+#ifndef _NF_NAT64_RFC6052_H
+#define _NF_NAT64_RFC6052_H
 
 #include <linux/udp.h>
 

@@ -1,5 +1,5 @@
-#ifndef H_NF_NAT64_DETERMINE_INCOMING_TUPLE
-#define H_NF_NAT64_DETERMINE_INCOMING_TUPLE
+#ifndef _NF_NAT64_DETERMINE_INCOMING_TUPLE_H
+#define _NF_NAT64_DETERMINE_INCOMING_TUPLE_H
 
 #include <net/netfilter/nf_conntrack_core.h>
 

@@ -45,3 +45,6 @@ Thumbs.db
 ######################
 *.swp
 
+# gedit temporal files
+*.c~
+*.h~

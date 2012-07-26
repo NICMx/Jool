@@ -1,10 +1,10 @@
+#ifndef _NF_NAT64_BIB_SESSION_H
+#define _NF_NAT64_BIB_SESSION_H
+
 #include <net/tcp.h>
 #include <linux/inet.h>
 #include <linux/in6.h>
-
-#ifndef _NF_NAT64_IPV4_POOL_H
 #include "nf_nat64_ipv4_pool.h"
-#endif
 
 #define UDP_DEFAULT_ 5*60
 #define ICMP_DEFAULT_ 1*60
@@ -121,3 +121,5 @@ static inline void nat64_session_renew(struct nat64_st_entry *session, enum expi
 static int nat64_allocate_hash(unsigned int size);
 static inline void nat64_clean_expired_sessions(struct list_head *queue, int j);
 static inline struct nat64_st_entry *nat64_session_ipv4_hairpin_lookup(struct nat64_bib_entry *bib, __be32 local4_addr, __be16 local4_port);
+
+#endif

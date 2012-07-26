@@ -82,8 +82,8 @@
  * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _LINUX_NETFILTER_LIBXT_NAT64_H
-#define _LINUX_NETFILTER_LIBXT_NAT64_H
+#ifndef _LIBXT_NAT64_H
+#define _LIBXT_NAT64_H
 
 /* Protocol independent functions */
 static void nat64_tg_check(unsigned int);

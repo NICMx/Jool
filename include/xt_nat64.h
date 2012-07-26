@@ -82,8 +82,8 @@
  * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _LINUX_NETFILTER_XT_NAT64_H
-#define _LINUX_NETFILTER_XT_NAT64_H
+#ifndef _XT_NAT64_H
+#define _XT_NAT64_H
 
 /*
  * Flags that indicate the information needed for the NAT64 device.
