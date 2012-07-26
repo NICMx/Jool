@@ -7,7 +7,7 @@
  * This procedure performs packet filtering and
  * updates BIBs and STs.
  */
-static bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol, 
+bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol, 
         struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
     struct nat64_bib_entry *bib;
@@ -273,7 +273,7 @@ end:
     return res;
 }
 
-static struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
+struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
         u_int8_t l3protocol, u_int8_t l4protocol, struct sk_buff *skb, 
         struct nf_conntrack_tuple * inner,
         struct nf_conntrack_tuple * outgoing)
@@ -586,8 +586,8 @@ error:
     return NULL;
 }
 
-static bool nat64_got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
-	static bool res;	  	
+bool nat64_got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing) {
+	bool res;	  	
 	struct in_addr sa1;
 	struct in_addr sa2;
 	//~ in4_pton(FIRST_ADDRESS, -1, (u8 *)&sa1, '\x0', NULL);
@@ -604,7 +604,7 @@ static bool nat64_got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * o
 	return res;
 }
 
-static struct nf_conntrack_tuple * nat64_hairpinning_and_handling(u_int8_t l4protocol, 
+struct nf_conntrack_tuple * nat64_hairpinning_and_handling(u_int8_t l4protocol, 
 		struct nf_conntrack_tuple * inner,
 		struct nf_conntrack_tuple * outgoing) {
 	struct nat64_bib_entry *bib;

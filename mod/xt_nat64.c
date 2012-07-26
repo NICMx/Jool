@@ -176,13 +176,13 @@ MODULE_ALIAS("ip6t_nat64");
 struct in_addr ipv4_pool_net; // This is meant to substitute variable 'ipv4_addr'
 struct in_addr ipv4_pool_range_first;
 struct in_addr ipv4_pool_range_last;
-//~ static char *ipv4_addr_str;	// Var type verified  . Rob // Get rid of this
+//~ char *ipv4_addr_str;	// Var type verified  . Rob // Get rid of this
 int ipv4_mask_bits;		// Var type verified  ;). Rob
 __be32 ipv4_netmask;	// Var type verified ;), but think of changing it
 						// 	to 'in_addr' type. Rob.
 
 /* IPv6 */
-static char *ipv6_pref_addr_str;
+char *ipv6_pref_addr_str;
 int ipv6_pref_len;	// Var type verified ;). Rob
 
 /*
@@ -201,9 +201,9 @@ int ipv6_pref_len;	// Var type verified ;). Rob
 
 //~ #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
 
-//~ static struct config_struct *cs;
-static struct config_struct cs;
-static struct sock *my_nl_sock;
+//~ struct config_struct *cs;
+struct config_struct cs;
+struct sock *my_nl_sock;
 
 DEFINE_MUTEX(my_mutex);
 
@@ -286,7 +286,7 @@ int init_nat_config(struct config_struct *cs)
  * userspace app. It's assumed that this data were validated before
  * being sent. 
  */
-static int update_nat_config(struct config_struct *cst)
+int update_nat_config(struct config_struct *cst)
 {
 	/* IPv4 */	
 	// IPv4 Pool Network
@@ -328,7 +328,7 @@ static int update_nat_config(struct config_struct *cst)
 }
 
 
-static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
     int type;
      struct config_struct *cst;
@@ -355,7 +355,7 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
     return 0;
 }
 
-static void my_nl_rcv_msg(struct sk_buff *skb)
+void my_nl_rcv_msg(struct sk_buff *skb)
 {
     mutex_lock(&my_mutex);
     netlink_rcv_skb(skb, &my_rcv_msg);
@@ -368,10 +368,10 @@ static void my_nl_rcv_msg(struct sk_buff *skb)
 
 
 
-static DEFINE_SPINLOCK(nf_nat64_lock);
+DEFINE_SPINLOCK(nf_nat64_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-static int nat64_send_packet_ipv4(struct sk_buff *skb) 
+int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
 	// Begin Ecdysis (nat64_output_ipv4)
 	struct iphdr *iph = ip_hdr(skb);
@@ -402,7 +402,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	// End Ecdysis (nat64_output_ipv4)
 }
 
-static int nat64_send_packet_ipv6(struct sk_buff *skb) 
+int nat64_send_packet_ipv6(struct sk_buff *skb) 
 {
 	// Function based on Ecdysis's nat64_output_ipv4
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -440,7 +440,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
 	return 0;	
 }
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
-static int nat64_send_packet_ipv4(struct sk_buff *skb) 
+int nat64_send_packet_ipv4(struct sk_buff *skb) 
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
@@ -473,7 +473,7 @@ static int nat64_send_packet_ipv4(struct sk_buff *skb)
 	return 0;	
 }
 
-static int nat64_send_packet_ipv6(struct sk_buff *skb) 
+int nat64_send_packet_ipv6(struct sk_buff *skb) 
 {
 	// Function based on Ecdysis's nat64_output_ipv4
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -525,7 +525,7 @@ static int nat64_send_packet_ipv6(struct sk_buff *skb)
  * Sends the packet. Checks the old skb' L3 type to select the course of action.
  * Right now, the skb->data should be pointing to the L3 layer header.
  */
-static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb, bool hairpin)
+int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb, bool hairpin)
 {
 	int ret = -1;
 	
@@ -573,7 +573,7 @@ static int nat64_send_packet(struct sk_buff * old_skb, struct sk_buff *skb, bool
  * the incoming packet's IP with the rule's IP; therefore, when the module is 
  * in debugging mode it prints the rule's IP.
  */
-static bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
+bool nat64_tg6_cmp(const struct in6_addr * ip_a, 
 		const struct in6_addr * ip_b, const struct in6_addr * ip_mask, 
 		__u8 flags)
 {
@@ -594,14 +594,14 @@ static bool nat64_tg6_cmp(const struct in6_addr * ip_a,
  * NAT64 Core Functionality
  *
  */
-static unsigned int nat64_core(struct sk_buff *skb, 
+unsigned int nat64_core(struct sk_buff *skb, 
         const struct xt_action_param *par, u_int8_t l3protocol,
         u_int8_t l4protocol) {
 
     struct nf_conntrack_tuple inner;
     struct nf_conntrack_tuple * outgoing;
     struct sk_buff * new_skb;
-    static bool hairpin = false;
+    bool hairpin = false;
 
     if (!nat64_determine_incoming_tuple(l3protocol, l4protocol, skb, &inner)) {
         pr_info("NAT64: There was an error determining the Tuple");
@@ -658,7 +658,7 @@ static unsigned int nat64_core(struct sk_buff *skb,
  * IPv4 entry function
  *
  */
-static unsigned int nat64_tg4(struct sk_buff *skb, 
+unsigned int nat64_tg4(struct sk_buff *skb, 
         const struct xt_action_param *par)
 {
     const struct xt_nat64_tginfo *info = par->targinfo;
@@ -705,7 +705,7 @@ static unsigned int nat64_tg4(struct sk_buff *skb,
  * IPv6 entry function
  *
  */
-static unsigned int nat64_tg6(struct sk_buff *skb, 
+unsigned int nat64_tg6(struct sk_buff *skb, 
         const struct xt_action_param *par)
 {
     const struct xt_nat64_tginfo *info = par->targinfo;
@@ -754,7 +754,7 @@ static unsigned int nat64_tg6(struct sk_buff *skb,
  * If it's one of those two, it calls it's respective function, since the IPv6
  * header is handled differently than an IPv4 header.
  */
-static unsigned int nat64_tg(struct sk_buff *skb, 
+unsigned int nat64_tg(struct sk_buff *skb, 
         const struct xt_action_param *par)
 {
     if (par->family == NFPROTO_IPV4)
@@ -765,7 +765,7 @@ static unsigned int nat64_tg(struct sk_buff *skb,
         return NF_ACCEPT;
 }
 
-static int nat64_tg_check(const struct xt_tgchk_param *par)
+int nat64_tg_check(const struct xt_tgchk_param *par)
 {
     int ret;
 
@@ -776,7 +776,7 @@ static int nat64_tg_check(const struct xt_tgchk_param *par)
     return ret;
 }
 
-static struct xt_target nat64_tg_reg __read_mostly = {
+struct xt_target nat64_tg_reg __read_mostly = {
     .name = "nat64",
     .revision = 0,
     .target = nat64_tg,
@@ -788,7 +788,7 @@ static struct xt_target nat64_tg_reg __read_mostly = {
     .me = THIS_MODULE,
 };
 
-static int __init nat64_init(void)
+int __init nat64_init(void)
 {
 	pr_debug("\n\n\n%s", banner);
     pr_debug("\n\nNAT64 module inserted!");
@@ -838,7 +838,7 @@ error:
 
 }
 
-static void __exit nat64_exit(void)
+void __exit nat64_exit(void)
 {
     nat64_determine_incoming_tuple_destroy();
     nat64_destroy_bib_session_memory();

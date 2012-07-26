@@ -87,39 +87,39 @@ struct hlist_head *hash6;
 struct hlist_head *hash4;
 unsigned int hash_size;
 
-static int nat64_create_bib_session_memory(void);
-static int nat64_destroy_bib_session_memory(void);
+ int nat64_create_bib_session_memory(void);
+ int nat64_destroy_bib_session_memory(void);
 
-static inline int nat64_tcp_timeout_fsm(struct nat64_st_entry *session);
-static inline void nat64_tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph);
-static inline void nat64_tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph);
+int nat64_tcp_timeout_fsm(struct nat64_st_entry *session);
+void nat64_tcp4_fsm(struct nat64_st_entry *session, struct tcphdr *tcph);
+void nat64_tcp6_fsm(struct nat64_st_entry *session, struct tcphdr *tcph);
 
-static inline struct nat64_bib_entry *nat64_bib_ipv6_lookup(struct in6_addr *remote_addr, __be16 remote_port, int type);
-static inline struct nat64_bib_entry *nat64_bib_ipv4_lookup(__be32 local_addr, __be16 local_port, int type);
-static inline struct nat64_bib_entry *nat64_bib_create(struct in6_addr *remote6_addr, __be16 remote6_port,
+struct nat64_bib_entry *nat64_bib_ipv6_lookup(struct in6_addr *remote_addr, __be16 remote_port, int type);
+struct nat64_bib_entry *nat64_bib_ipv4_lookup(__be32 local_addr, __be16 local_port, int type);
+struct nat64_bib_entry *nat64_bib_create(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type);
-/*static inline struct nat64_bib_entry *nat64_bib_session_create(struct in6_addr *saddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type);*/
-static inline struct nat64_bib_entry *nat64_bib_create_tcp(struct in6_addr *remote6_addr, __be16 remote6_port,
+/*struct nat64_bib_entry *nat64_bib_session_create(struct in6_addr *saddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type);*/
+struct nat64_bib_entry *nat64_bib_create_tcp(struct in6_addr *remote6_addr, __be16 remote6_port,
 			     __be32 local4_addr, __be16 local4_port, int type);
-static inline struct nat64_bib_entry *nat64_bib_session_create_tcp(struct in6_addr *saddr, struct in6_addr *in6_daddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type);
-static inline struct nat64_bib_entry
+struct nat64_bib_entry *nat64_bib_session_create_tcp(struct in6_addr *saddr, struct in6_addr *in6_daddr, __be32 daddr, __be16 sport, __be16 dport, int protocol, enum expiry_type type);
+struct nat64_bib_entry
 	*nat64_bib_session_create_icmp(struct in6_addr *saddr, struct in6_addr *in6_daddr,
 						__be32 daddr, __be16 sport, __be16 dport,
 						int protocol, enum expiry_type type);
-static inline struct nat64_bib_entry
+struct nat64_bib_entry
 	*nat64_bib_session_create(struct in6_addr *saddr, struct in6_addr *in6_daddr,
 						__be32 daddr, __be16 sport, __be16 dport,
 						int protocol, enum expiry_type type);
 
-static inline struct nat64_st_entry *nat64_session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 saddr, __be16 sport);
-static inline struct nat64_st_entry *nat64_session_create(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type);
-static inline struct nat64_st_entry *nat64_session_create_tcp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type);
-static inline struct nat64_st_entry *nat64_session_create_icmp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type);
+struct nat64_st_entry *nat64_session_ipv4_lookup(struct nat64_bib_entry *bib, __be32 saddr, __be16 sport);
+struct nat64_st_entry *nat64_session_create(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type);
+struct nat64_st_entry *nat64_session_create_tcp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type);
+struct nat64_st_entry *nat64_session_create_icmp(struct nat64_bib_entry *bib, struct in6_addr *in6_daddr, __be32 addr, __be16 port, enum expiry_type type);
 
-static inline void nat64_session_renew(struct nat64_st_entry *session, enum expiry_type type);
+void nat64_session_renew(struct nat64_st_entry *session, enum expiry_type type);
 
-static int nat64_allocate_hash(unsigned int size);
-static inline void nat64_clean_expired_sessions(struct list_head *queue, int j);
-static inline struct nat64_st_entry *nat64_session_ipv4_hairpin_lookup(struct nat64_bib_entry *bib, __be32 local4_addr, __be16 local4_port);
+ int nat64_allocate_hash(unsigned int size);
+void nat64_clean_expired_sessions(struct list_head *queue, int j);
+struct nat64_st_entry *nat64_session_ipv4_hairpin_lookup(struct nat64_bib_entry *bib, __be32 local4_addr, __be16 local4_port);
 
 #endif

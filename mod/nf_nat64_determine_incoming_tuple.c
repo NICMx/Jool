@@ -4,7 +4,7 @@
 /*
  * Function that receives a tuple and prints it.
  */
-static inline void nat64_print_tuple(const struct nf_conntrack_tuple *t)
+void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 {
 	pr_debug("NAT64: print_tuple -> l3 proto = %d", t->src.l3num);
 	switch(t->src.l3num) {
@@ -28,7 +28,7 @@ static inline void nat64_print_tuple(const struct nf_conntrack_tuple *t)
 /*
  * Returns the Layer 3 header length.
  */
-static inline int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol)
+int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol)
 {
 	switch (l3protocol) {
 		case NFPROTO_IPV4:
@@ -46,7 +46,7 @@ static inline int nat64_get_l3hdrlen(struct sk_buff *skb, u_int8_t l3protocol)
  * Function that gets the pointer directed to its
  * nf_conntrack_l3proto structure.
  */
-static int nat64_get_l3struct(u_int8_t l3protocol,
+int nat64_get_l3struct(u_int8_t l3protocol,
 		struct nf_conntrack_l3proto ** l3proto)
 {
 	switch (l3protocol) {
@@ -64,7 +64,7 @@ static int nat64_get_l3struct(u_int8_t l3protocol,
 /*
  * Function to get the tuple out of a given struct sk_buff.
  */
-static bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
+bool nat64_get_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
 	const struct nf_conntrack_l4proto *l4proto;
