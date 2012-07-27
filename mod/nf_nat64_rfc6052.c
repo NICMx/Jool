@@ -19,4 +19,3 @@ __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix)
 			return 0;
 	}
 }
-

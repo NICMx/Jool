@@ -9,5 +9,5 @@
  */
 __be32 nat64_extract_ipv4(struct in6_addr addr, int prefix);
 
-#endif
+#endif /* _NF_NAT64_RFC6052_H */
 

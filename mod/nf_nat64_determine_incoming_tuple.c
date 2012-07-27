@@ -1,6 +1,11 @@
 #include <net/ip.h>
 #include "nf_nat64_determine_incoming_tuple.h"
 
+/** The IPv4 protocol. */
+struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
+/** The IPv6 protocol. */
+struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
+
 /*
  * Function that receives a tuple and prints it.
  */
@@ -165,7 +170,7 @@ bool nat64_determine_incoming_tuple_init(void)
 /*
  * Function that gets the packet's information and returns a tuple out of it.
  */
-bool nat64_determine_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
+bool nat64_determine_incoming_tuple(u_int8_t l3protocol, u_int8_t l4protocol,
 		struct sk_buff *skb, struct nf_conntrack_tuple * inner)
 {
     //~ pr_debug("NAT64: DEBUG: nat64_determine_tuple()");

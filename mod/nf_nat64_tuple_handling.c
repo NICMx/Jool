@@ -3,6 +3,13 @@
 #include "nf_nat64_rfc6052.h"
 #include "xt_nat64_module_conf.h"
 
+struct list_head expiry_queue = LIST_HEAD_INIT(expiry_queue);
+extern struct expiry_q expiry_base[NUM_EXPIRY_QUEUES];
+
+extern struct in_addr ipv4_pool_range_first;
+extern struct in_addr ipv4_pool_range_last;
+extern int ipv6_pref_len;
+
 /*
  * This procedure performs packet filtering and
  * updates BIBs and STs.
@@ -115,7 +122,11 @@ bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol,
         pr_debug("NAT64: FNU - IPV6");	
         // FIXME: Return true if it is not H&H. A special return code 
         // will have to be added as a param in the future to handle it.
+        // FIXME ¿qué es H&H?
         res = false;
+
+        // FIXME ¿por qué no se inicializa esa i?
+        // ¿por qué la función es casi idéntica a la del for?
         nat64_clean_expired_sessions(&expiry_queue,i);
         for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
         	nat64_clean_expired_sessions(&expiry_base[i].queue, i);
@@ -275,14 +286,14 @@ end:
 
 struct nf_conntrack_tuple * nat64_determine_outgoing_tuple(
         u_int8_t l3protocol, u_int8_t l4protocol, struct sk_buff *skb, 
-        struct nf_conntrack_tuple * inner,
-        struct nf_conntrack_tuple * outgoing)
+        struct nf_conntrack_tuple * inner)
 {
-    struct nat64_bib_entry *bib;
-    struct nat64_st_entry *session;
+    struct nat64_bib_entry *bib = NULL;
+    struct nat64_st_entry *session = NULL;
     struct in_addr * temp_addr;
     struct in6_addr * temp6_addr;
     struct tcphdr *th;
+    struct nf_conntrack_tuple * outgoing;
 
     outgoing = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
     memset(outgoing, 0, sizeof(struct nf_conntrack_tuple));

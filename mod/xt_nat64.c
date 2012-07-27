@@ -1,125 +1,6 @@
-/*
- * NAT64 - Network Address Translator IPv6 to IPv4
- *
- * Authors:
- *	Representative NIC-Mx
- *	Ing. Gustavo Lozano <glozano@nic.mx>
- *	Ing. Jorge Cano
- *
- *	Representative ITESM
- *	Dr. Juan Arturo Nolazco	<jnolazco@itesm.mx>
- *	Ing. Martha Sordia <msordia@itesm.mx>
- *
- *	Students ITESM
- *	Juan Antonio Osorio <jaosorior@gmail.com>
- *	Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
- *	David Valenzuela <david.valenzuela.88@gmail.com>
- *	Jose Vicente Ramirez <pepermz@gmail.com>
- *	Mario Gerardo Trevinho <mario_tc88@hotmail.com>
- *	Roberto Aceves <roberto.aceves@gmail.com>
- *	Miguel Alejandro González <maggonzz@gmail.com>
- *	Ramiro Nava <ramironava@gmail.com>
- *	Adrian González <bernardogzzf@gmail.com>
- *	Manuel Aude <dormam@gmail.com>
- *	Gabriel Chavez <gabrielchavez02@gmail.com>
- *	Alan Villela López <avillop@gmail.com>
- *	  
- *	  The rest of us, I propose include our names and order all alphabetically.
- *
- * Authors of the ip_data, checksum_adjust, checksum_remove, checksum_add
- * checksum_change, adjust_checksum_ipv6_to_ipv4, nat64_output_ipv4, 
- * adjust_checksum_ipv4_to_ipv6, nat64_xlate_ipv6_to_ipv4, nat64_alloc_skb,
- * nat64_xlate_ipv4_to_ipv6 functions that belong to the Ecdysis project:
- *	Jean-Philippe Dionne <jean-philippe.dionne@viagenie.ca>
- *	Simon Perreault <simon.perreault@viagenie.ca>
- *	Marc Blanchet <marc.blanchet@viagenie.ca>
- *
- *	Ecdysis <http://ecdysis.viagenie.ca/>
- *
- * The previous functions are found in the nf_nat64_main.c file of Ecdysis's 
- * NAT64 implementation.
- *
- * Please note: 
- * The function nat64_output_ipv4 was renamed as nat64_send_packet_ipv4 
- * under the kernel version that is inferior to 3.0 in this 
- * implementation. The function nat64_send_packet_ipv6 for both
- * kernel versions were based on this function.
- *
- * The functions nat64_xlate_ipv6_to_ipv4 and nat64_xlate_ipv4_to_ipv6 were
- * used as a point of reference to implement nat64_get_skb_from6to4 and
- * nat64_get_skb_from4to6, respectively. Furthermore, nat64_alloc_skb was
- * also used as a point of reference to implement nat64_get_skb.
- * 
- * Author of the nat64_extract_ipv4, nat64_allocate_hash, tcp_timeout_fsm,
- * tcp4_fsm, tcp6_fsm, bib_allocate_local4_port, bib_ipv6_lookup, bib_ipv4_lookup,
- * bib_create, bib_session_create, session_ipv4_lookup, session_renew,
- * session_create, clean_expired_sessions functions, nat64_ipv6_input:
- *	Julius Kriukas <julius.kriukas@gmail.com>
- * 
- * 	Linux NAT64 <http://ipv6.lt/nat64_en.php>
- *
- * The previous functions are found in the nat64_session.c and nat64_core.c
- * files of Julius Kriukas's Linux NAT64 implementation. Furthermore, these
- * functions used global variables which were added (with a comment indicating
- * their origin) in our xt_nat64.c file. The majority of these functions can 
- * be found in our nf_nat64_filtering_and_updating.h file. Not all of them are 
- * being used in this release version but are planned to be used in the future.
- * This is the case of the tcp4_fsm, tcp6_fsm, tcp_timeout_fsm and 
- * clean_expired_sessions functions and some of the global variables they use.
- * Part of our nat64_filtering_and_updating function was based on Julius's 
- * implementation of his nat64_ipv6_input function.
- *
- * NAT64 is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * NAT64 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * You should have received a copy of the GNU General Public License
- * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/in.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/netfilter/x_tables.h>
-#include <linux/skbuff.h>
-#include <linux/etherdevice.h>
-#include <linux/inetdevice.h>
-
-#include <linux/netdevice.h>
 #include <net/route.h>
 #include <net/ip6_route.h>
-
-#include <net/ipv6.h>
-#include <net/ip.h>
-#include <net/icmp.h>
-#include <net/tcp.h>
-#include <linux/icmp.h>
-#include <linux/udp.h>
-
-#include <linux/timer.h>
-#include <linux/types.h>
-#include <linux/jhash.h>
-#include <linux/rcupdate.h>
-
-#include <net/netfilter/nf_conntrack.h>
-#include <net/netfilter/nf_conntrack_core.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
-#include <net/netfilter/nf_conntrack_l4proto.h>
-#include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
-#include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_protocol.h>
-
 #include <linux/version.h>
-#include <linux/netlink.h> 	// Testing communication with the module using netlink. Rob
-#include <net/sock.h>		// Rob.
 
 #include "xt_nat64.h"
 #include "nf_nat64_ipv4_pool.h"
@@ -130,15 +11,14 @@
 #include "nf_nat64_bib_session.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>");
+MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>"); // TODO poner a toda la raza
 MODULE_DESCRIPTION("Xtables: RFC 6146 \"NAT64\" implementation");
 MODULE_ALIAS("ipt_nat64");
 MODULE_ALIAS("ip6t_nat64");
 
 
-#define ICMP_MINLEN 8
-#define ICMP_ROUTERADVERT       9   
-#define ICMP_ROUTERSOLICIT      10 
+#define ICMP_ROUTERADVERT       9
+#define ICMP_ROUTERSOLICIT      10
 #define ICMP_INFOTYPE(type) \
 	((type) == ICMP_ECHOREPLY || (type) == ICMP_ECHO || \
 	 (type) == ICMP_ROUTERADVERT || (type) == ICMP_ROUTERSOLICIT || \
@@ -170,26 +50,24 @@ MODULE_ALIAS("ip6t_nat64");
 
 
 /* IPv4 */
-//~ __be32 ipv4_addr;	// FIXME: Rob thinks this should be of 'u8 *' type,
-					// as expected by in4_pton function. But think of 
-					// changing it to 'in_addr' type. // Get rid of this
-struct in_addr ipv4_pool_net; // This is meant to substitute variable 'ipv4_addr'
-struct in_addr ipv4_pool_range_first;
-struct in_addr ipv4_pool_range_last;
-//~ char *ipv4_addr_str;	// Var type verified  . Rob // Get rid of this
-int ipv4_mask_bits;		// Var type verified  ;). Rob
-__be32 ipv4_netmask;	// Var type verified ;), but think of changing it
-						// 	to 'in_addr' type. Rob.
+extern struct in_addr ipv4_pool_net;
+extern struct in_addr ipv4_pool_range_first;
+extern struct in_addr ipv4_pool_range_last;
+extern int ipv4_mask_bits;
+extern __be32 ipv4_netmask;	// TODO change data type -> 'in_addr' type. Rob.
 
 /* IPv6 */
-char *ipv6_pref_addr_str;
-int ipv6_pref_len;	// Var type verified ;). Rob
+extern char *ipv6_pref_addr_str;
+extern int ipv6_pref_len;	// Var type verified ;). Rob
+
+extern struct config_struct cs;
 
 /*
  * END: Global variables inherited from Julius Kriukas's 
  * 		Linux NAT64 implementation.
  */
 
+extern char *banner;
 
 /* Testing communication with the module using netlink. Rob
  * Example from: http://stackoverflow.com/questions/862964/who-can-give-me-the-latest-netlink-programming-samples
@@ -201,132 +79,9 @@ int ipv6_pref_len;	// Var type verified ;). Rob
 
 //~ #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
 
-//~ struct config_struct *cs;
-struct config_struct cs;
 struct sock *my_nl_sock;
 
 DEFINE_MUTEX(my_mutex);
-
-/*
- * Default configuration, until it's set up by the user space application.
- * */
-int init_nat_config(struct config_struct *cs)
-{
-	/* IPv4 */
-	// IPv4 Pool Network
-    if (! in4_pton(IPV4_DEF_NET, -1, (u8 *)&ipv4_pool_net.s_addr, '\x0', NULL)) {
-        pr_warning("NAT64: IPv4 pool net in Headers is malformed [%s].", IPV4_DEF_NET);
-        return -EINVAL;
-    }
-	// IPv4 Pool - Netmask
-	ipv4_mask_bits = IPV4_DEF_MASKBITS;	// Num. of bits 'on' in the net mask
-    if (ipv4_mask_bits > 32 || ipv4_mask_bits < 1) {
-        pr_warning("NAT64: IPv4 Pool netmask bits value is invalid [%d].", 
-                IPV4_DEF_MASKBITS);
-        return -EINVAL;
-    }
-	ipv4_netmask = inet_make_mask(ipv4_mask_bits);
-	ipv4_pool_net.s_addr = ipv4_pool_net.s_addr & ipv4_netmask; // For the sake of correctness
-
-	// IPv4 Pool - First and Last addresses .
-	if (! in4_pton(IPV4_DEF_POOL_FIRST, -1, (u8 *)&ipv4_pool_range_first.s_addr, '\x0', NULL)) {
-        pr_warning("NAT64: IPv4 pool net in Headers is malformed [%s].", IPV4_DEF_POOL_FIRST);
-        return -EINVAL;
-    }
-    if (! in4_pton(IPV4_DEF_POOL_LAST, -1, (u8 *)&ipv4_pool_range_last.s_addr, '\x0', NULL)) {
-        pr_warning("NAT64: IPv4 pool net in Headers is malformed [%s].", IPV4_DEF_POOL_LAST);
-        return -EINVAL;
-    }
-    
-	/* IPv6 */
-	ipv6_pref_addr_str = (char *)kmalloc(sizeof(char) * strlen(IPV6_DEF_PREFIX) + 1, GFP_USER);
-    strcpy(ipv6_pref_addr_str, IPV6_DEF_PREFIX);	// Default IPv6	(string)
-    ipv6_pref_len = IPV6_DEF_MASKBITS; // Default IPv6 Prefix	(int)
-
-	/* Initialize config struct for function 'init_pools' */
-	//~ cs = (struct config_struct *)kmalloc(sizeof(struct config_struct),GFP_USER);
-
-	//// IPv4:
-    (*cs).ipv4_addr_net = ipv4_pool_net; 
-	(*cs).ipv4_addr_net_mask_bits = ipv4_mask_bits; 
-	(*cs).ipv4_pool_range_first = ipv4_pool_range_first;
-	(*cs).ipv4_pool_range_last = ipv4_pool_range_last;
-    //
-    (*cs).ipv4_tcp_port_first = IPV4_DEF_TCP_POOL_FIRST;
-    (*cs).ipv4_tcp_port_last = IPV4_DEF_TCP_POOL_LAST;
-    //
-    (*cs).ipv4_udp_port_first = IPV4_DEF_UDP_POOL_FIRST;
-    (*cs).ipv4_udp_port_last = IPV4_DEF_UDP_POOL_LAST;
-    
-    //// IPv6:
-	if (! in6_pton(IPV6_DEF_PREFIX, -1, (u8 *)&((*cs).ipv6_net_prefix), '\0', NULL)) {
-        pr_warning("NAT64: IPv6 prefix in Headers is malformed [%s].", IPV6_DEF_PREFIX);
-        return -EINVAL;
-    }
-	(*cs).ipv6_net_mask_bits = IPV6_DEF_MASKBITS;
-    //
-	(*cs).ipv6_tcp_port_range_first = IPV6_DEF_TCP_POOL_FIRST;
-	(*cs).ipv6_tcp_port_range_last = IPV6_DEF_TCP_POOL_LAST;
-	//
-	(*cs).ipv6_udp_port_range_first = IPV6_DEF_UDP_POOL_FIRST;
-    (*cs).ipv6_udp_port_range_last = IPV6_DEF_UDP_POOL_LAST;   
-
-
-	pr_debug("NAT64: Initial (default) configuration loaded:");
-	pr_debug("NAT64:	using IPv4 pool subnet %pI4/%d (netmask %pI4),", 
-			  &((*cs).ipv4_addr_net), (*cs).ipv4_addr_net_mask_bits, &ipv4_netmask);
-	pr_debug("NAT64:	and IPv6 prefix %pI6c/%d.", 
-			  &((*cs).ipv6_net_prefix), (*cs).ipv6_net_mask_bits);
-
-	return 0; // Alles Klar!	
-}
-
-/*
- * Update nat64 configuration with data received from the 'load_config'
- * userspace app. It's assumed that this data were validated before
- * being sent. 
- */
-int update_nat_config(struct config_struct *cst)
-{
-	/* IPv4 */	
-	// IPv4 Pool Network
-	//~ ipv4_addr = (*cst).ipv4_addr_net.s_addr;
-
-	ipv4_pool_net = (*cst).ipv4_addr_net;
-	// IPv4 Pool - Netmask
-	ipv4_mask_bits = (*cst).ipv4_addr_net_mask_bits;
-	ipv4_netmask = inet_make_mask( (*cst).ipv4_addr_net_mask_bits );
-	//~ ipv4_addr = ipv4_addr & ipv4_netmask; // For the sake of correctness // Rob. Get rid of this variable
-	ipv4_pool_net.s_addr = ipv4_pool_net.s_addr & ipv4_netmask; // For the sake of correctness
-
-
-	// IPv4 Pool - First and Last addresses .
-	ipv4_pool_range_first = (*cst).ipv4_pool_range_first;
-	ipv4_pool_range_last = (*cst).ipv4_pool_range_last;
-
-	// TODO:
-	//~ /* IPv6 */
-	//~ ipv6_pref_addr_str;
-	//~ ipv6_pref_len;
-
-
-	cs = (*cst);
-
-	pr_debug("NAT64: Updating configuration:");
-	pr_debug("NAT64:	using IPv4 pool subnet %pI4/%d (netmask %pI4),", 
-			  &(cs.ipv4_addr_net), (cs).ipv4_addr_net_mask_bits, &ipv4_netmask);
-	pr_debug("NAT64:	and IPv6 prefix %pI6c/%d.", 
-			  &(cs.ipv6_net_prefix), cs.ipv6_net_mask_bits);
-
-
-
-	// Update IPv4 addresses pool
-    init_pools(&cs); // Bernardo
-	
-	// :)
-	return 0; // Alles Klar!	
-}
-
 
 int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
@@ -615,7 +370,7 @@ unsigned int nat64_core(struct sk_buff *skb,
     }
 
     outgoing = nat64_determine_outgoing_tuple(l3protocol, l4protocol, 
-        skb, &inner, outgoing);
+        skb, &inner);
 
     if (!outgoing) {
     	pr_info("NAT64: There was an error in the determining the outgoing"
@@ -656,7 +411,6 @@ unsigned int nat64_core(struct sk_buff *skb,
 
 /*
  * IPv4 entry function
- *
  */
 unsigned int nat64_tg4(struct sk_buff *skb, 
         const struct xt_action_param *par)

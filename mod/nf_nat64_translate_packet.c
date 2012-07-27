@@ -3,6 +3,7 @@
 #include <linux/icmp.h>
 
 #include "nf_nat64_translate_packet.h"
+#include "xt_nat64.h"
 
 /** TODO currently unused. We don't know what's supposed to represent either. */
 #define ICMP_MINLEN						8
@@ -22,7 +23,7 @@
  * BEGIN SUBSECTION: ECDYSIS FUNCTIONS
  */
 
-void nat64_checksum_adjust(uint16_t *sum, uint16_t old, uint16_t new,
+static void nat64_checksum_adjust(uint16_t *sum, uint16_t old, uint16_t new,
         bool udp) {
 	uint32_t s;
 
@@ -36,25 +37,25 @@ void nat64_checksum_adjust(uint16_t *sum, uint16_t old, uint16_t new,
 		*sum = 0xffff;
 }
 
-void nat64_checksum_remove(uint16_t *sum, uint16_t *begin,
+static void nat64_checksum_remove(uint16_t *sum, uint16_t *begin,
         uint16_t *end, bool udp) {
 	while (begin < end)
 		nat64_checksum_adjust(sum, *begin++, 0, udp);
 }
 
-void nat64_checksum_add(uint16_t *sum, uint16_t *begin, uint16_t *end,
+static void nat64_checksum_add(uint16_t *sum, uint16_t *begin, uint16_t *end,
         bool udp) {
 	while (begin < end)
 		nat64_checksum_adjust(sum, 0, *begin++, udp);
 }
 
-void nat64_checksum_change(uint16_t *sum, uint16_t *x, uint16_t new,
+static void nat64_checksum_change(uint16_t *sum, uint16_t *x, uint16_t new,
         bool udp) {
 	nat64_checksum_adjust(sum, *x, new, udp);
 	*x = new;
 }
 
-void nat64_adjust_checksum_ipv6_to_ipv4(uint16_t *sum,
+static void nat64_adjust_checksum_ipv6_to_ipv4(uint16_t *sum,
         struct ipv6hdr *ip6, struct iphdr *ip4, bool udp) {
 	WARN_ON_ONCE(udp && !*sum);
 
@@ -65,7 +66,7 @@ void nat64_adjust_checksum_ipv6_to_ipv4(uint16_t *sum,
 	        udp);
 }
 
-void nat64_adjust_checksum_ipv4_to_ipv6(uint16_t *sum,
+static void nat64_adjust_checksum_ipv4_to_ipv6(uint16_t *sum,
         struct iphdr *ip4, struct ipv6hdr *ip6, int udp) {
 	WARN_ON_ONCE(udp && !*sum);
 
@@ -83,11 +84,11 @@ void nat64_adjust_checksum_ipv4_to_ipv6(uint16_t *sum,
 /*
  * Returns a pointer to the Layer 4 header, contained within the "ip4" packet.
  */
-void * nat64_ip_data(struct iphdr *ip4) {
+static void * nat64_ip_data(struct iphdr *ip4) {
 	return (char *) ip4 + ip4->ihl * 4;
 }
 
-bool nat64_get_skb_from6to6(struct sk_buff * old_skb,
+static bool nat64_get_skb_from6to6(struct sk_buff * old_skb,
         struct sk_buff * new_skb, u_int8_t l3protocol, u_int8_t l4protocol,
         int l3len, int l4len, int pay_len, struct nf_conntrack_tuple * outgoing) {
 	union nat64_l4header_t {
@@ -163,7 +164,7 @@ bool nat64_get_skb_from6to6(struct sk_buff * old_skb,
  *
  * IMPORTANT: We don't take into account the optional IPv6 header yet.
  */
-bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
+static bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
         struct sk_buff * new_skb, u_int8_t l3protocol, u_int8_t l4protocol,
         int l3len, int l4len, int pay_len, struct nf_conntrack_tuple * outgoing) {
 	/*
@@ -353,7 +354,7 @@ bool nat64_get_skb_from6to4(struct sk_buff * old_skb,
  *
  * IMPORTANT: We don't take into account the optional IPv6 header yet.
  */
-bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
+static bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
         struct sk_buff * new_skb, u_int8_t l3protocol, u_int8_t l4protocol,
         int l3len, int l4len, int pay_len, struct nf_conntrack_tuple * outgoing) {
 	union nat64_l4header_t {
@@ -498,7 +499,7 @@ bool nat64_get_skb_from4to6(struct sk_buff * old_skb,
 /*
  * Function that gets the Layer 4 header length.
  */
-int nat64_get_l4hdrlength(u_int8_t l4protocol) {
+static int nat64_get_l4hdrlength(u_int8_t l4protocol) {
 	switch (l4protocol) {
 		case IPPROTO_TCP:
 			return sizeof(struct tcphdr);
@@ -516,7 +517,7 @@ int nat64_get_l4hdrlength(u_int8_t l4protocol) {
  * Function nat64_get_skb is a generic entry function to get a new skb 
  * that will be sent.
  */
-struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
+static struct sk_buff * nat64_get_skb(u_int8_t l3protocol, u_int8_t l4protocol,
         struct sk_buff *skb, struct nf_conntrack_tuple * outgoing, bool hairpin) {
 	struct sk_buff *new_skb;
 
