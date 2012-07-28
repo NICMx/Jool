@@ -2,9 +2,18 @@
 #include "nf_nat64_bib_session.h"
 #include "nf_nat64_rfc6052.h"
 
-static int major; 
+#define MY_MACIG 'G'
+#define READ_IOCTL _IOR(MY_MACIG, 0, int)
+#define WRITE_IOCTL _IOW(MY_MACIG, 1, int)
+
+static int major;
 static char msg[200];
 char buf[200];
+
+static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
+{
+    return simple_read_from_buffer(buffer, length, offset, msg, 200);
+}
 
 static ssize_t device_write(struct file *filp, const char __user *buff, size_t len, loff_t *off)
 {
@@ -43,7 +52,7 @@ static struct file_operations fops = {
     .unlocked_ioctl = device_ioctl
 };
 
-void nat64_create_character_device(void) {
+int nat64_create_character_device(void) {
 	// // Load char device used by Miguel
     major = register_chrdev(0, "my_device", &fops);
     if (major < 0) {
@@ -52,6 +61,7 @@ void nat64_create_character_device(void) {
     }
     pr_debug("\nNAT64: cdev example: assigned major: %d\n", major);
     pr_debug("NAT64: create node with mknod /dev/cdev_example c %d 0\n", major);
+    return 0;
 	
 }
 
