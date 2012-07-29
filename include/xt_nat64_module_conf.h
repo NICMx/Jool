@@ -82,8 +82,8 @@
  * along with NAT64.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _LINUX_NAT64_MODULE_CONF_H
-#define _LINUX_NAT64_MODULE_CONF_H
+#ifndef _LINUX_NAT64_MODULE_CONF_H_
+#define _LINUX_NAT64_MODULE_CONF_H_
 /*
  * Communication with the NAT64 module (using netlink sockets).
  */
@@ -189,6 +189,8 @@ char *banner=
 "'---'                                    `---`--`       '--'    \n";
 
 
+
+
 ////////////////////////////////////////////////////////////////////////
 // FUNCTION PROTOTYPES
 ////////////////////////////////////////////////////////////////////////
@@ -197,4 +199,4 @@ int init_nat_config(struct config_struct *cs);
 
 
 
-#endif /* _LINUX_NAT64_MODULE_CONF_H */
+#endif /* _LINUX_NAT64_MODULE_CONF_H_ */
