@@ -9,6 +9,7 @@
 #include "nf_nat64_translate_packet.h"
 #include "xt_nat64_module_conf.h"
 #include "nf_nat64_bib_session.h"
+#include "nf_nat64_static_routes.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Juan Antonio Osorio <jaosorior@gmail.com>"); // TODO poner a toda la raza
@@ -561,6 +562,8 @@ int __init nat64_init(void)
     pr_debug("NAT64: The bib table slab cache was succesfully created.");
     // END: code imported from nat64_init of Julius Kriukas' implementation
 
+	nat64_create_character_device();
+
     // Load netlink sockets. Rob
     // BEGIN
     // Create netlink socket, register 'my_nl_rcv_msg' as callback function. // Rob
@@ -586,7 +589,7 @@ void __exit nat64_exit(void)
     nat64_determine_incoming_tuple_destroy();
     nat64_destroy_bib_session_memory();
     xt_unregister_target(&nat64_tg_reg);
-
+	nat64_destroy_character_device();
     if (my_nl_sock) netlink_kernel_release(my_nl_sock); // Unload netlink sockets. Rob
     kfree(ipv6_pref_addr_str);
 	//~ kfree(cs);
