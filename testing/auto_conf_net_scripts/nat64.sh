@@ -64,6 +64,17 @@ for addr in ${ipv6_addr[@]}; do
 	ip -6 addr del $addr dev $ipv4_dev
 done
 
+echo "Remove 'fe80' from IPv4 interface"
+ipv4_fe80=(`ifconfig "$ipv4_dev" | grep 'fe80::' | sed -e 's/.*addr://' -e 's/Scope.*//' -e 's/ //g'`)
+[ "${#ipv4_fe80[@]}" -ne "0" ] &&
+for addr in "${ipv4_fe80[@]}"; do
+	ip -6 addr del $addr dev $ipv4_dev
+done
+echo "Delete fe80::/64 route"
+[ "`ip -6 route | grep fe80`" != ""  ] && ip -6 route del fe80::/64
+
+
+
 echo "Add default route to IPv4 server, or ISP router in real env."
 ip route add default via $ipv4_def_gw dev $ipv4_dev
 
