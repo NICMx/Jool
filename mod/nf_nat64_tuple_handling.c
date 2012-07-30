@@ -22,7 +22,7 @@ bool nat64_filtering_and_updating(u_int8_t l3protocol, u_int8_t l4protocol,
     struct tcphdr *tcph = tcp_hdr(skb);
     //struct icmphdr *icmph = icmp_hdr(skb);
     bool res;
-    int i;
+    int i = 0;
     res = false;
 
     if (l3protocol == NFPROTO_IPV4) {

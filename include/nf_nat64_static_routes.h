@@ -9,6 +9,6 @@
 
 int nat64_create_character_device(void);
 void nat64_destroy_character_device(void);
-static inline void nat64_add_static_route(char *b);
+void nat64_add_static_route(char *b);
 
 #endif

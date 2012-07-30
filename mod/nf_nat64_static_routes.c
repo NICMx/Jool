@@ -108,7 +108,7 @@ static inline char *strtokr(char *s, const char *ct, char **saveptr){
 	return ret;
 }
 
-static inline void nat64_add_static_route(char *b){
+void nat64_add_static_route(char *b){
 	struct nat64_bib_entry *bib;
 	char *token, *subtoken, *str1, *str2;
 	char *saveptr1, *saveptr2;
