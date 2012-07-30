@@ -26,11 +26,6 @@ MODULE_ALIAS("ip6t_nat64");
 	 (type) == ICMP_INFO_REQUEST || (type) == ICMP_INFO_REPLY || \
 	 (type) == ICMP_ADDRESS || (type) == ICMP_ADDRESSREPLY)
 
-
-#define MY_MACIG 'G'
-#define READ_IOCTL _IOR(MY_MACIG, 0, int)
-#define WRITE_IOCTL _IOW(MY_MACIG, 1, int)
-
 #define IPV6_HDRLEN 40
 #ifndef KERNEL_VERSION
 #define KERNEL_VERSION(a,b,c) ((a)*65536+(b)*256+(c))
