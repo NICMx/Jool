@@ -69,11 +69,11 @@ void nat64_destroy_character_device(void){
 	unregister_chrdev(major, "my_device");
 }
 
-/*
+/**
  * strtok_r - extract tokens from strings
- * @s:  The string to be searched
- * @ct: The characters to deliminate the tokens
- * @saveptr: The pointer to the next token
+ * @param  s  The string to be searched
+ * @param ct The characters to deliminate the tokens
+ * @param saveptr The pointer to the next token
  *
  * It returns the next token found outside of the @ct delimiters.
  * Multiple occurrences of @ct characters will be considered
@@ -81,7 +81,7 @@ void nat64_destroy_character_device(void){
  * always have a size greater than 0 (or NULL if no token found).
  *
  * A '\0' is placed at the end of the found token, and
- * @saveptr is updated to point to the location after that.
+ * saveptr is updated to point to the location after that.
  */
 static inline char *strtokr(char *s, const char *ct, char **saveptr){
 	char *ret;
@@ -173,10 +173,12 @@ void nat64_add_static_route(char *b){
 		case 6:
 			//printk("port %d\n", p1);
 			//printk("port %d\n", p2);
-			bib = nat64_bib_session_create_tcp(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,TCP_TRANS);
+			bib = nat64_bib_session_create_tcp(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,
+				TCP_TRANS);
 			break;
 		case 17:
-			bib = nat64_bib_session_create(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,UDP_DEFAULT);
+			bib = nat64_bib_session_create(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,
+				UDP_DEFAULT);
 			break;
 		default:
 			break;

@@ -608,7 +608,8 @@ bool nat64_got_hairpin(u_int8_t l3protocol, struct nf_conntrack_tuple * outgoing
 	sa2 = ipv4_pool_range_last;
 	res = false;
 	if (l3protocol == NFPROTO_IPV6) { 
-		if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
+		if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(sa1.s_addr) && 
+			ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(sa2.s_addr)) {
 			res = true;
 		} 
  	} 
