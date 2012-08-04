@@ -1,3 +1,11 @@
+/** 
+ * @file nf_nat64_static_routes.c 
+ *
+ * This module implements the feature mentioned in the RFC6146, 
+ * about managing static routes. It allows to add a new entry in
+ * the BIB and Session tables from Userspace.
+ *
+ */
 #include "nf_nat64_static_routes.h"
 #include "nf_nat64_bib_session.h"
 #include "nf_nat64_rfc6052.h"

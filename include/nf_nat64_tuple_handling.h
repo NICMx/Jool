@@ -1,3 +1,10 @@
+/** 
+ * @file nf_nat64_tuple_handling.h
+ *
+ * This header contains the function prototypes for the 
+ * nf_nat64_tuple_handling.c module
+ *
+ */
 #ifndef _NF_NAT64_TUPLE_HANDLING_H
 #define _NF_NAT64_TUPLE_HANDLING_H
 

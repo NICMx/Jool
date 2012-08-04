@@ -2,6 +2,13 @@
 #define _NAT64_STATIC_ROUTES_H
 
 #include <linux/string.h>
+/** 
+ * @file nf_nat64_static_routes.h
+ *
+ * This header contains the function prototypes for the
+ * nf_nat64_static_routes.c module
+ *
+ */
 #include <linux/inet.h>
 #include <linux/in6.h>
 #include <linux/fs.h>

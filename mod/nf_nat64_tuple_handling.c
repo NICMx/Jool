@@ -1,3 +1,17 @@
+/** 
+ * @file nf_nat64_tuple_handling.c 
+ *
+ * This module implements serveral steps mentioned in the RFC6146, 
+ * the module itself is in charge in handling tuples, that is searching,
+ * creating or updating tuples in the BIB and Session Bindings.
+ * The modules receive an incoming tuple or generate an outgoing tuple.
+ *
+ * The following steps are implemented here:
+ * Filtering and Updating 
+ * Determining the Outgoing tuple
+ * Hairpinning Handling 
+ *
+ */
 #include "nf_nat64_tuple_handling.h"
 #include "nf_nat64_bib_session.h"
 #include "nf_nat64_rfc6052.h"
