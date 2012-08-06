@@ -1,8 +1,17 @@
 #ifndef _XT_NAT64_H
 #define _XT_NAT64_H
 
+#include <linux/module.h>
+
+/**
+ * @file
+ * Module main. Both the entry point and the general structure can be found here.
+ */
+
 /*
  * Flags that indicate the information needed for the NAT64 device.
+ *
+ * TODO no debería estar en libxt_nat64.h?
  */
 enum
 {
@@ -12,6 +21,9 @@ enum
 	XT_NAT64_OUT_DEV = 1 << 3,
 };
 
+/**
+ * TODO no debería estar en libxt_nat64.h?
+ */
 struct xt_nat64_tginfo
 {
 	union nf_inet_addr ipdst, ipdst_mask;

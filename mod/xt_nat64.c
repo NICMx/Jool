@@ -3,6 +3,7 @@
 #include <linux/version.h>
 
 #include "xt_nat64.h"
+#include "nf_nat64_banner.h"
 #include "nf_nat64_ipv4_pool.h"
 #include "nf_nat64_tuple_handling.h"
 #include "nf_nat64_determine_incoming_tuple.h"
@@ -17,16 +18,6 @@ MODULE_DESCRIPTION("Xtables: RFC 6146 \"NAT64\" implementation");
 MODULE_ALIAS("ipt_nat64");
 MODULE_ALIAS("ip6t_nat64");
 
-
-#define ICMP_ROUTERADVERT       9
-#define ICMP_ROUTERSOLICIT      10
-#define ICMP_INFOTYPE(type) \
-	((type) == ICMP_ECHOREPLY || (type) == ICMP_ECHO || \
-	 (type) == ICMP_ROUTERADVERT || (type) == ICMP_ROUTERSOLICIT || \
-	 (type) == ICMP_TIMESTAMP || (type) == ICMP_TIMESTAMPREPLY || \
-	 (type) == ICMP_INFO_REQUEST || (type) == ICMP_INFO_REPLY || \
-	 (type) == ICMP_ADDRESS || (type) == ICMP_ADDRESSREPLY)
-
 #define IPV6_HDRLEN 40
 #ifndef KERNEL_VERSION
 #define KERNEL_VERSION(a,b,c) ((a)*65536+(b)*256+(c))
@@ -36,7 +27,6 @@ MODULE_ALIAS("ip6t_nat64");
  * FIXME: Ensure all variables are 32 and 64-bits complaint. 
  * That is, no generic data types akin to integer.
  * FIXME: Rob. Change all 'printk' function calls by 'pr_debug' function
- * 
  */
 
 /*
@@ -46,15 +36,16 @@ MODULE_ALIAS("ip6t_nat64");
 
 
 /* IPv4 */
-extern struct in_addr ipv4_pool_net;
-extern struct in_addr ipv4_pool_range_first;
-extern struct in_addr ipv4_pool_range_last;
-extern int ipv4_mask_bits;
+extern struct in_addr ipv4_pool_net; // Se puede mover a la estructura de config.
+extern struct in_addr ipv4_pool_range_first; // igual.
+extern struct in_addr ipv4_pool_range_last; // Igual.
+extern int ipv4_mask_bits; // puede hacerse local.
 extern __be32 ipv4_netmask;	// TODO change data type -> 'in_addr' type. Rob.
+							// Se puede mover a la estructura de config.
 
 /* IPv6 */
-extern char *ipv6_pref_addr_str;
-extern int ipv6_pref_len;	// Var type verified ;). Rob
+extern char *ipv6_pref_addr_str; // puede hacerse local.
+extern int ipv6_pref_len; // es lo mismos que config_struct.ipv6_net_mask_bits.
 
 extern struct config_struct cs;
 
@@ -63,12 +54,8 @@ extern struct config_struct cs;
  * 		Linux NAT64 implementation.
  */
 
-extern char *banner;
-
-
-
 //~ #define IPV4_POOL_MASK	0xffffff00	// FIXME: Think of use '/24' format instead.
-
+/** Apparently, socket to speak to the userspace application with. TODO Also apparently currently unused. */
 struct sock *my_nl_sock;
 
 DEFINE_MUTEX(my_mutex);

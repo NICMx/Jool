@@ -1,9 +1,9 @@
 #include <net/ip.h>
 #include "nf_nat64_determine_incoming_tuple.h"
 
-/** The IPv4 protocol. */
+/** A identifier of the IPv4 protocol. */
 struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
-/** The IPv6 protocol. */
+/** A identifier of the IPv6 protocol. */
 struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /*
