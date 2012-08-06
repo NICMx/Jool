@@ -37,11 +37,13 @@ void nat64_destroy_character_device(void);
 /**
  * nat64_add_static_route - adds a static route
  * @param  b  The char buffer where the route is contained.
+ * @param  buffer  The char buffer where the IPv4 addres from the pool 
+ * is contained.
  *
  * It splits the char buffer and detects each parameter needed
  * to add a static route to the BIB and Session Table of NAT64.
  *
  */
-void nat64_add_static_route(char *b);
+void nat64_add_static_route(char *b, char *buffer);
 
 #endif

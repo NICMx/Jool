@@ -17,6 +17,7 @@
 static int major;
 static char msg[200];
 char buf[200];
+static char buffer[22];
 
 static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
 {
@@ -39,12 +40,13 @@ long device_ioctl(struct file *filep, unsigned int cmd, unsigned long arg) {
     switch(cmd) {
         case READ_IOCTL:
 			//FIXME: falta regresar el valor de la pool asignado
-            copy_to_user((char *)arg, "Holakern\n", 10);
+	    buffer[21] = '\n';
+            copy_to_user((char *)arg, buffer, 22);
             break;
 
         case WRITE_IOCTL:
             copy_from_user(buf, (char *)arg, len);
-            nat64_add_static_route(buf);
+            nat64_add_static_route(buf, buffer);
             break;
 
         default:
@@ -116,7 +118,7 @@ static inline char *strtokr(char *s, const char *ct, char **saveptr){
 	return ret;
 }
 
-void nat64_add_static_route(char *b){
+void nat64_add_static_route(char *b, char *buffer){
 	struct nat64_bib_entry *bib;
 	char *token, *subtoken, *str1, *str2;
 	char *saveptr1, *saveptr2;
@@ -126,6 +128,7 @@ void nat64_add_static_route(char *b){
 	int con = -1;
 	uint16_t p1 =0; 
 	uint16_t p2=0;
+	int sprint = 0;
 	long unsigned int res;
 	struct in6_addr addr1 = IN6ADDR_ANY_INIT;
 	struct in6_addr addr2 = IN6ADDR_ANY_INIT;
@@ -183,10 +186,13 @@ void nat64_add_static_route(char *b){
 			//printk("port %d\n", p2);
 			bib = nat64_bib_session_create_tcp(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,
 				TCP_TRANS);
+			sprint = sprintf(buffer, "%pI4:%d", &(bib->local4_addr), ntohs( bib->local4_port) );
+
 			break;
 		case 17:
 			bib = nat64_bib_session_create(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,
 				UDP_DEFAULT);
+			sprint = sprintf(buffer, "%pI4:%d", &(bib->local4_addr),  ntohs(bib->local4_port) );
 			break;
 		default:
 			break;

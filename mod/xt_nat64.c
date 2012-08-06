@@ -1,6 +1,8 @@
 #include <net/route.h>
 #include <net/ip6_route.h>
 #include <linux/version.h>
+#include <linux/module.h>
+
 
 #include "xt_nat64.h"
 #include "nf_nat64_banner.h"
