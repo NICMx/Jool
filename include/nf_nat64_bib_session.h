@@ -3,7 +3,8 @@
 
 /**
  * @file
- * Low-level management of the Binding Information Base (BIB) and the Session Table (ST).
+ * Low-level management of the Binding Information Bases (BIB) and the Session Tables (ST).
+ * Most (if not everything) from this module was retrieved from the Lithuania project (by Julius Kriukas).
  */
 
 #include <net/tcp.h>
@@ -72,12 +73,14 @@ enum state_type
 	V6_FIN_V4_FIN
 };
 
-
+/**
+ * A list of session table rows and the time they're supposed to live.
+ */
 struct expiry_q
 {
-	/** TODO ? */
+	/** The ST rows whose expiration timeout is "timeout". */
 	struct list_head queue;
-	/** Time the entry is going to live. */
+	/** Time the entries from "queue" are going to live. */
 	int timeout;
 };
 
@@ -86,9 +89,9 @@ struct expiry_q
  */
 struct nat64_bib_entry
 {
-	/** Collection used to access the elements of this table by IPv6 address. */
+	/** Collection used to access the elements of the BIB by IPv6 address (See hash6). */
 	struct hlist_node byremote;
-	/** Collection used to access the elements of this table by IPv4 address. */
+	/** Collection used to access the elements of the BIB by IPv4 address (See hash4). */
 	struct hlist_node bylocal;
 
 	/** The layer 4 protocol this binding belongs to. Normally either IPPROTO_TCP, IPPROTO_UDP or IPPROTO_ICMP. */
@@ -109,7 +112,7 @@ struct nat64_bib_entry
 	 */
 	__be16 local4_port;
 
-	/** Rows from the session table related to this BIB. */
+	/** Rows from the ST related to this BIB. */
 	struct list_head sessions;
 };
 
@@ -118,9 +121,9 @@ struct nat64_bib_entry
  */
 struct nat64_st_entry
 {
-	/** Generic version of the table, in no particular order. */
+	/** Links this ST entry to the rest from the same BIB (see nat64_bib_entry.sessions). */
 	struct list_head list;
-	/** The table, sorted by expiration time. */
+	/** Links this ST entry to the rest from the same expiration type (see expiry_q.queue). */
 	struct list_head byexpiry;
 
 	/** X' address. Address of the IPv6 node. */

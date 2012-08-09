@@ -1,6 +1,6 @@
 #include "nf_nat64_bib_session.h"
 
-/** Session timeouts to be monitored, ordered by type. */
+/** Session timeouts to be monitored, grouped by type. */
 struct expiry_q expiry_base[NUM_EXPIRY_QUEUES] = {
 //
         { { NULL, NULL }, UDP_DEFAULT_ }, //
@@ -10,16 +10,27 @@ struct expiry_q expiry_base[NUM_EXPIRY_QUEUES] = {
         { { NULL, NULL }, ICMP_DEFAULT_ } //
 };
 
+// TODO st_cache, st_cacheTCP y st_cacheICMP son slabs que guardan/reservan objetos del mismo tipo.
+// Eso significa que hacen exactamente lo mismo; no tiene caso que sean tres variables separadas.
+// De hecho sería más eficiente si las juntáramos.
+// Pasa lo mismo con bib_cache, bib_cacheTCP y bib_cacheICMP.
+
+/** UDP session table entry slab pool. A factory of UDP-ST rows, if you will. */
 struct kmem_cache *st_cache;
+/** TCP session table entry slab pool. A factory of TCP-ST rows, if you will. */
 struct kmem_cache *st_cacheTCP;
+/** ICMP session table entry slab pool. A factory of ICMP-ST rows, if you will. */
 struct kmem_cache *st_cacheICMP;
+/** UDP BIB entry slab pool. A factory of UDP-BIB rows, if you will. */
 struct kmem_cache *bib_cache;
+/** TCP BIB entry slab pool. A factory of TCP-BIB rows, if you will. */
 struct kmem_cache *bib_cacheTCP;
+/** ICMP BIB entry slab pool. A factory of ICMP-BIB rows, if you will. */
 struct kmem_cache *bib_cacheICMP;
+/** The BIB tables. This pointer helps retrieving rows from the tables using IPv6 addresses. */
 struct hlist_head *hash6;
+/** The BIB tables. This pointer helps retrieving rows from the tables using IPv4 addresses. */
 struct hlist_head *hash4;
-/** Maximum reserved size of the tables. */
-unsigned int hash_size;
 
 /*
  * Julius Kriukas's code. Allocates the hash6 and hash4 global variables.
@@ -29,10 +40,8 @@ int nat64_allocate_hash(unsigned int size)
 	int i;
 
 	size = roundup(size, PAGE_SIZE / sizeof(struct hlist_head));
-	hash_size = size;
 
 	hash4 = (void *) __get_free_pages(GFP_KERNEL | __GFP_NOWARN, get_order(sizeof(struct hlist_head) * size));
-
 	if (!hash4) {
 		pr_warning("NAT64: Unable to allocate memory for hash4 via GFP.");
 		return -1;
@@ -41,7 +50,7 @@ int nat64_allocate_hash(unsigned int size)
 	hash6 = (void *) __get_free_pages(GFP_KERNEL | __GFP_NOWARN, get_order(sizeof(struct hlist_head) * size));
 	if (!hash6) {
 		pr_warning("NAT64: Unable to allocate memory for hash6 via gfp X(.");
-		free_pages((unsigned long) hash4, get_order(sizeof(struct hlist_head) * hash_size));
+		free_pages((unsigned long) hash4, get_order(sizeof(struct hlist_head) * size));
 		return -1;
 	}
 
@@ -50,25 +59,24 @@ int nat64_allocate_hash(unsigned int size)
 		INIT_HLIST_HEAD(&hash6[i]);
 	}
 
-	for (i = 0; i < NUM_EXPIRY_QUEUES; i++)
+	for (i = 0; i < NUM_EXPIRY_QUEUES; i++) {
 		INIT_LIST_HEAD(&expiry_base[i].queue);
+	}
 
 	return 0;
 }
 
 int nat64_create_bib_session_memory(void)
 {
-	if (nat64_allocate_hash(65536)) // FIXME: Look this value up in the kernel.
-	{
+	// FIXME: Look up 64k in the kernel.
+	if (nat64_allocate_hash(65536)) {
 		pr_warning("NAT64: Unable to allocate memmory for hash table.");
 		goto hash_error;
 	}
 
 	st_cache = kmem_cache_create("nat64_st", sizeof(struct nat64_st_entry), 0, 0, NULL);
 	st_cacheTCP = kmem_cache_create("nat64_stTCP", sizeof(struct nat64_st_entry), 0, 0, NULL);
-
 	st_cacheICMP = kmem_cache_create("nat64_stICMP", sizeof(struct nat64_st_entry), 0, 0, NULL);
-
 	if (!st_cache || !st_cacheTCP || !st_cacheICMP) {
 		pr_warning("NAT64: Unable to create session table slab cache.");
 		goto st_cache_error;
@@ -77,7 +85,6 @@ int nat64_create_bib_session_memory(void)
 
 	bib_cache = kmem_cache_create("nat64_bib", sizeof(struct nat64_bib_entry), 0, 0, NULL);
 	bib_cacheTCP = kmem_cache_create("nat64_bibTCP", sizeof(struct nat64_bib_entry), 0, 0, NULL);
-
 	bib_cacheICMP = kmem_cache_create("nat64_bibICMP", sizeof(struct nat64_bib_entry), 0, 0, NULL);
 	if (!bib_cache || !bib_cacheTCP || !bib_cacheICMP) {
 		pr_warning("NAT64: Unable to create bib table slab cache.");
