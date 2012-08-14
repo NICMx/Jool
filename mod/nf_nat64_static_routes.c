@@ -18,6 +18,7 @@ static int major;
 static char msg[200];
 char buf[200];
 static char buffer[22];
+extern int ipv6_pref_len;
 
 static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
 {
@@ -184,14 +185,14 @@ void nat64_add_static_route(char *b, char *buffer){
 		case 6:
 			//printk("port %d\n", p1);
 			//printk("port %d\n", p2);
-			bib = nat64_bib_session_create_tcp(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,
-				TCP_TRANS);
+			bib = nat64_bib_session_create_tcp(&addr1,&addr2,nat64_extract_ipv4(addr2,ipv6_pref_len),
+				ntohs(p1),ntohs(p2),proto,TCP_TRANS);
 			sprint = sprintf(buffer, "%pI4:%d", &(bib->local4_addr), ntohs( bib->local4_port) );
 
 			break;
 		case 17:
-			bib = nat64_bib_session_create(&addr1,&addr2,nat64_extract_ipv4(addr2,32),ntohs(p1),ntohs(p2),proto,
-				UDP_DEFAULT);
+			bib = nat64_bib_session_create(&addr1,&addr2,nat64_extract_ipv4(addr2,ipv6_pref_len),
+				ntohs(p1),ntohs(p2),proto,UDP_DEFAULT);
 			sprint = sprintf(buffer, "%pI4:%d", &(bib->local4_addr),  ntohs(bib->local4_port) );
 			break;
 		default:
