@@ -4,43 +4,50 @@
 #include "nf_nat64_session.h"
 
 /********************************************
- * Estructuras y variables privadas.
+ * Structures and private variables.
  ********************************************/
 
-// Tabla de hash cuya llave son dos direcciones de transporte
-// (este código genera la estructura "ipv4_table" que se usa abajo).
+// Hash table; indexes session entries by IPv4 address.
+// (this code generates the "ipv4_table" structure and related functions used below).
 #define HTABLE_NAME ipv4_table
 #define KEY_TYPE struct ipv4_pair
 #define VALUE_TYPE struct session_entry
 #include "nf_nat64_hash_table.c"
 
-// Tabla de hash cuya llave son dos direcciones de transporte
-// (este código genera la estructura "ipv4_table" que se usa abajo).
+// Hash table; indexes BIB entries by IPv6 address.
+// (this code generates the "ipv6_table" structure and related functions used below).
 #define HTABLE_NAME ipv6_table
 #define KEY_TYPE struct ipv6_pair
 #define VALUE_TYPE struct session_entry
 #include "nf_nat64_hash_table.c"
 
-// Definición de una Session Table.
+/**
+ * Session table definition.
+ * Holds two hash tables, one for each indexing need (IPv4 and IPv6).
+ */
 struct session_table
 {
-	/** Indexa los registros por direcciones de IPv4. */
+	/** Indexes entries by IPv4. */
 	struct ipv4_table ipv4;
-	/** Indexa los registros por direcciones de IPv6. */
+	/** Indexes entries by IPv6. */
 	struct ipv6_table ipv6;
 };
 
-// Las tres instancias de Session Tables.
+/** The session table for UDP connections. */
 static struct session_table session_table_udp;
+/** The session table for TCP connections. */
 static struct session_table session_table_tcp;
+/** The session table for ICMP connections. */
 static struct session_table session_table_icmp;
 
-// Lista que encadena a todos los registros de sesión.
-// Actualmente se usa para recorrerlos al eliminar los expirados.
+/**
+ * Chains all known session entries.
+ * Currently only used while looking en deleting expired ones.
+ */
 static LIST_HEAD(all_sessions);
 
 /********************************************
- * Funciones auxiliares, privadas.
+ * Private (helper) functions.
  ********************************************/
 
 static struct session_table *get_session_table(int l4protocol)
@@ -59,7 +66,7 @@ static struct session_table *get_session_table(int l4protocol)
 }
 
 /*******************************
- * Funciones Publicas.
+ * Public functions.
  *******************************/
 
 void nat64_session_init(void)
@@ -120,11 +127,6 @@ void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl
 	entry->dying_time = jiffies_to_msecs(jiffies) + ttl;
 }
 
-/**
- * Remueve a "entry" de la tabla "entry->protocol" (Nótese que solamente lo saca de la tabla; no lo kfreea).
- * Se asume que "entry" realmente existe dentro de "entry->protocol".
- * No se preocupa por averiguar si la entrada es estática o no.
- */
 bool nat64_remove_session_entry(struct session_entry *entry)
 {
 	struct session_table *table;
@@ -132,16 +134,16 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 
 	table = get_session_table(entry->l4protocol);
 
-	// Liberar la memoria de ambas tablas.
+	// Free from both tables.
 	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
 	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
 
 	if (removed_from_ipv4 && removed_from_ipv6) {
-		// Sacar la entrada de las listas encadenadas.
+		// Remove the entry from the linked lists.
 		list_del(&entry->entries_from_bib);
 		list_del(&entry->all_sessions);
 
-		// Borrar la BIB. Puede no ocurrir si tiene más sesiones.
+		// Erase the BIB. Might not happen if it has more sessions.
 		if (nat64_remove_bib_entry(entry->bib, entry->l4protocol)) {
 			kfree(entry->bib);
 			entry->bib = NULL;
@@ -153,7 +155,7 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 		return false;
 	}
 
-	// Por qué estaba indexada en una tabla pero no en la otra? Error de programación.
+	// Why was it not indexed by both tables? Programming error.
 	printk(KERN_CRIT "Programming error: Weird session removal: ipv4:%d; ipv6:%d.", removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
@@ -177,8 +179,8 @@ void nat64_session_destroy(void)
 {
 	printk(KERN_DEBUG "Emptying the session tables...");
 
-	// Las llaves no se necesitan liberar porque son parte de los valores.
-	// Los valores solo se necesitan liberar en una sola tabla porque es el mismo valor en ambas tablas.
+	// The keys needn't be released because they're part of the values.
+	// The values need to be released only in one of the tables because both tables point to the same value.
 
 	ipv4_table_empty(&session_table_udp.ipv4, false, false);
 	ipv6_table_empty(&session_table_udp.ipv6, false, true);

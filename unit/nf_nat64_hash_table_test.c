@@ -17,7 +17,7 @@ struct value {
 #define KEY_TYPE struct key
 #define VALUE_TYPE struct value
 #define HASH_TABLE_SIZE (10)
-#define TESTING
+#define GENERATE_PRINT
 #include "nf_nat64_hash_table.c"
 
 // Burocracia de modulos.
