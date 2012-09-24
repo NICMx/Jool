@@ -76,31 +76,15 @@ void nat64_session_init(void);
 bool nat64_add_session_entry(struct session_entry *entry);
 
 /**
- * Returns the session entry (from the table whose layer-4 protocol is
- * "l4protocol") whose IPv4 addresses are "remote" and "local".
+ * Returns the session entry you'd expect from the "tuple" tuple.
  *
- * @param remote address of the IPv4 network's remote machine.
- * @param local address from the IPv4 end of the NAT64.
- * @param l4protocol identifier of the table to retrieve "entry" from. Should
- * 		be either IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return entry (from the table whose layer-4 protocol is "l4protocol") whose
- *		IPv4 addresses are "remote" and "local".
- */
-struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_tuple_address *remote,
-		struct ipv4_tuple_address *local, int l4protocol);
-/**
- * Returns the session entry (from the table whose layer-4 protocol is
- * "l4protocol") whose IPv6 addresses are "remote" and "local".
+ * That is, looks ups the session entry by both source and destination
+ * addresses.
  *
- * @param local IPv6 version of the address of the IPv4 network's remote node.
- * @param remote address of the IPv6 network's remote machine.
- * @param l4protocol identifier of the table to retrieve "entry" from. Should
- * 		be either IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return entry (from the table whose layer-4 protocol is "l4protocol") whose
- *		IPv6 addresses are "remote" and "local".
+ * @param tuple summary of the packet. Describes the session you need.
+ * @return the session entry you'd expect from the "tuple" tuple.
  */
-struct session_entry* nat64_get_session_entry_by_ipv6(struct ipv6_tuple_address *local,
-		struct ipv6_tuple_address *remote, int l4protocol);
+struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
 
 /**
  * Set "entry"'s time to live as <current time> + "ttl".

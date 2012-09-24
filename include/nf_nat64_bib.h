@@ -58,7 +58,7 @@ bool nat64_add_bib_entry(struct bib_entry *entry, int l4protocol);
  * @param tuple summary of the packet. Describes the BIB you need.
  * @return the BIB entry you'd expect from the "tuple" tuple.
  */
-struct bib_entry* nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
+struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
 
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is

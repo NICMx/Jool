@@ -47,12 +47,12 @@ static struct bib_table bib_icmp;
 static struct bib_table *get_bib_table(int l4protocol)
 {
 	switch (l4protocol) {
-	case IPPROTO_UDP:
-		return &bib_udp;
-	case IPPROTO_TCP:
-		return &bib_tcp;
-	case IPPROTO_ICMP:
-		return &bib_icmp;
+		case IPPROTO_UDP:
+			return &bib_udp;
+		case IPPROTO_TCP:
+			return &bib_tcp;
+		case IPPROTO_ICMP:
+			return &bib_icmp;
 	}
 
 	printk(KERN_CRIT "Error: Unknown l4 protocol (%d); no BIB mapped to it.", l4protocol);
@@ -96,18 +96,22 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 {
 	struct bib_table *table = get_bib_table(tuple->l4_protocol);
 
-	if (tuple->l3_protocol == NFPROTO_IPV6) {
-		struct ipv6_tuple_address address = { tuple->ipv6_src_addr, { tuple->src_port } };
-		printk(KERN_DEBUG "Searching BIB entry for address %pI4#%d...", &address.address, address.pi.port);
-		return ipv6_table_get(&table->ipv6, &address);
-	} else if (tuple->l3_protocol == NFPROTO_IPV4) {
-		struct ipv4_tuple_address address = { tuple->ipv4_dst_addr, { tuple->dst_port } };
-		printk(KERN_DEBUG "Searching BIB entry for address %pI6#%d...", &address.address, address.pi.port);
-		return ipv4_table_get(&table->ipv4, &address);
+	switch (tuple->l3_protocol) {
+		case NFPROTO_IPV6: {
+			struct ipv6_tuple_address address_6 = { tuple->ipv6_src_addr, { tuple->src_port } };
+			printk(KERN_DEBUG "Searching BIB entry for address %pI4#%d...", &address_6.address, address_6.pi.port);
+			return ipv6_table_get(&table->ipv6, &address_6);
+		}
+		case NFPROTO_IPV4: {
+			struct ipv4_tuple_address address_4 = { tuple->ipv4_dst_addr, { tuple->dst_port } };
+			printk(KERN_DEBUG "Searching BIB entry for address %pI6#%d...", &address_4.address, address_4.pi.port);
+			return ipv4_table_get(&table->ipv4, &address_4);
+		}
+		default: {
+			printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
+			return NULL;
+		}
 	}
-
-	printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
-	return NULL;
 }
 
 bool nat64_remove_bib_entry(struct bib_entry *entry, int l4protocol)
@@ -138,7 +142,7 @@ void nat64_bib_destroy(void)
 	printk(KERN_DEBUG "Emptying the BIB tables...");
 
 	// The keys needn't be released because they're part of the values.
-	// The values need to be released only in one of the tables because both tables point to the same value.
+	// The values need to be released only in one of the tables because both tables point to the same values.
 
 	ipv4_table_empty(&bib_udp.ipv4, false, false);
 	ipv6_table_empty(&bib_udp.ipv6, false, true);
@@ -153,6 +157,9 @@ void nat64_bib_destroy(void)
 struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6)
 {
 	struct bib_entry *result = (struct bib_entry *) kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
+	if (!result)
+		return NULL;
+
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
 	return result;

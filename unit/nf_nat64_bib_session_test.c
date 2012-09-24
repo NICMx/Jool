@@ -65,6 +65,8 @@ void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index)
 struct bib_entry *init_bib_entry(int ipv4_index, int ipv6_index)
 {
 	struct bib_entry *entry = (struct bib_entry*) kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
+	if (!entry)
+		return NULL;
 
 	init_ipv4_tuple_address(&entry->ipv4, ipv4_index);
 	init_ipv6_tuple_address(&entry->ipv6, ipv6_index);
@@ -77,6 +79,8 @@ struct session_entry *init_session_entry(struct bib_entry* bib, int ipv4_remote_
 		int ipv6_remote_id, int l4protocol, unsigned int dying_time)
 {
 	struct session_entry* entry = (struct session_entry *) kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
+	if (!entry)
+		return NULL;
 
 	entry->l4protocol = l4protocol;
 	entry->bib = bib;
@@ -197,14 +201,24 @@ bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_t
 	struct session_entry *expected_entry;
 	struct session_entry *retrieved_entry;
 
+	struct nf_conntrack_tuple tuple;
+
 	for (i = 0; i < 3; i++) {
 		expected_entry = table_has_it[i] ? key_entry : NULL;
 
-		retrieved_entry = nat64_get_session_entry_by_ipv4(&key_entry->ipv4.remote, &key_entry->ipv4.local, l4protocols[i]);
+		init_tuple(&tuple, //
+				(union tuple_address *) &key_entry->ipv4.remote, //
+				(union tuple_address *) &key_entry->ipv4.local, //
+				l4protocols[i], NFPROTO_IPV4);
+		retrieved_entry = nat64_get_session_entry(&tuple);
 		if (!assert_session_entry_equals(expected_entry, retrieved_entry, test_name))
 			return false;
 
-		retrieved_entry = nat64_get_session_entry_by_ipv6(&key_entry->ipv6.local, &key_entry->ipv6.remote, l4protocols[i]);
+		init_tuple(&tuple, //
+				(union tuple_address *) &key_entry->ipv6.local, //
+				(union tuple_address *) &key_entry->ipv6.remote, //
+				l4protocols[i], NFPROTO_IPV6);
+		retrieved_entry = nat64_get_session_entry(&tuple);
 		if (!assert_session_entry_equals(expected_entry, retrieved_entry, test_name))
 			return false;
 	}
