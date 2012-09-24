@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['icmp_5fid',['icmp_id',['../unionport__or__id.html#aed6adff4a15bf90172e6212c40eb1d5b',1,'port_or_id::icmp_id()'],['../nf__nat64__types_8h.html#a6832094d6d482b2569352caffebdcf17',1,'icmp_id():&#160;nf_nat64_types.h']]],
+  ['ipv4',['ipv4',['../structbib__entry.html#a4726352619bb64aa04334217e9e4b690',1,'bib_entry::ipv4()'],['../structsession__entry.html#a257d9ccc547059216b51fef45679e4be',1,'session_entry::ipv4()'],['../unionaddress.html#aeea09674354de3c9242a599679035ab2',1,'address::ipv4()'],['../uniontuple__address.html#a4726352619bb64aa04334217e9e4b690',1,'tuple_address::ipv4()']]],
+  ['ipv4_5faddr_5fequals',['ipv4_addr_equals',['../nf__nat64__types_8h.html#afacb9c986cf805adb76457adb2c2f1d8',1,'nf_nat64_types.h']]],
+  ['ipv4_5fdst_5faddr',['ipv4_dst_addr',['../nf__nat64__types_8h.html#a57475299f2bf1271ec5d3e5e84610354',1,'nf_nat64_types.h']]],
+  ['ipv4_5fpair',['ipv4_pair',['../structipv4__pair.html',1,'']]],
+  ['ipv4_5fpair_5fequals',['ipv4_pair_equals',['../nf__nat64__types_8h.html#a6d6a104561f709aef6d902106825fe69',1,'nf_nat64_types.h']]],
+  ['ipv4_5fpair_5fhash_5fcode',['ipv4_pair_hash_code',['../nf__nat64__types_8h.html#a568286dc859401503aabf1d722699173',1,'nf_nat64_types.h']]],
+  ['ipv4_5fsrc_5faddr',['ipv4_src_addr',['../nf__nat64__types_8h.html#a013d983d92c2d2df8e2680ebf9b67546',1,'nf_nat64_types.h']]],
+  ['ipv4_5ftuple_5faddress',['ipv4_tuple_address',['../structipv4__tuple__address.html',1,'']]],
+  ['ipv4_5ftuple_5faddress_5fequals',['ipv4_tuple_address_equals',['../nf__nat64__types_8h.html#ac882bdf111d69fab0a3cdc8f5addd4ab',1,'nf_nat64_types.h']]],
+  ['ipv4_5ftuple_5faddress_5fhash_5fcode',['ipv4_tuple_address_hash_code',['../nf__nat64__types_8h.html#a18184ca0631fc1e17612ff4315422ea3',1,'nf_nat64_types.h']]],
+  ['ipv6',['ipv6',['../structbib__entry.html#a733288f5674b35c1457998b8a89ad4a4',1,'bib_entry::ipv6()'],['../structsession__entry.html#a198a11b25412ec8b092f68d3c5498c55',1,'session_entry::ipv6()'],['../unionaddress.html#af6733c79f2b1e3722bcc4496aeeb991f',1,'address::ipv6()'],['../uniontuple__address.html#a733288f5674b35c1457998b8a89ad4a4',1,'tuple_address::ipv6()']]],
+  ['ipv6_5faddr_5fequals',['ipv6_addr_equals',['../nf__nat64__types_8h.html#ac8e62bba6b43c9e0f0ea2322c288c31e',1,'nf_nat64_types.h']]],
+  ['ipv6_5fdst_5faddr',['ipv6_dst_addr',['../nf__nat64__types_8h.html#aab1d946aa5ce562def09e42bfafbcf5d',1,'nf_nat64_types.h']]],
+  ['ipv6_5fpair',['ipv6_pair',['../structipv6__pair.html',1,'']]],
+  ['ipv6_5fpair_5fequals',['ipv6_pair_equals',['../nf__nat64__types_8h.html#aa25a147dff9987924d1508dea2b34387',1,'nf_nat64_types.h']]],
+  ['ipv6_5fpair_5fhash_5fcode',['ipv6_pair_hash_code',['../nf__nat64__types_8h.html#a8db1d7489b181faa59d96025403de2a8',1,'nf_nat64_types.h']]],
+  ['ipv6_5fsrc_5faddr',['ipv6_src_addr',['../nf__nat64__types_8h.html#a6b5526a77b30e44350c7eca1e4717797',1,'nf_nat64_types.h']]],
+  ['ipv6_5ftuple_5faddress',['ipv6_tuple_address',['../structipv6__tuple__address.html',1,'']]],
+  ['ipv6_5ftuple_5faddress_5fequals',['ipv6_tuple_address_equals',['../nf__nat64__types_8h.html#a49b29ff98004d7839e2413922682d0a2',1,'nf_nat64_types.h']]],
+  ['ipv6_5ftuple_5faddress_5fhash_5fcode',['ipv6_tuple_address_hash_code',['../nf__nat64__types_8h.html#aedb0c9a5c39e6aba981e0cdb94ff8ac6',1,'nf_nat64_types.h']]],
+  ['is_5fstatic',['is_static',['../structsession__entry.html#a304fbadb59a0f16927a48adfff3dd25f',1,'session_entry']]]
+];
