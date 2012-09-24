@@ -74,14 +74,14 @@ __be16 ipv4_pair_hash_code(struct ipv4_pair *pair);
 __be16 ipv6_pair_hash_code(struct ipv6_pair *pair);
 
 /** Accesors for the nf_conntrack_tuple struct. */
-//#define ipv4_src_addr	src.u3.in
-//#define ipv6_src_addr	src.u3.in6
-//#define ipv4_dst_addr	dst.u3.in
-//#define ipv6_dst_addr	dst.u3.in6
-//#define icmp_id			src.icmp.id
-//#define src_port		src.u3.tcp.port
-//#define dst_port		dst.u3.tcp.port
-//#define l3_protocol		src.l3num
-//#define l4_protocol		dst.protonum
+#define ipv4_src_addr	src.u3.in
+#define ipv6_src_addr	src.u3.in6
+#define ipv4_dst_addr	dst.u3.in
+#define ipv6_dst_addr	dst.u3.in6
+#define icmp_id			src.icmp.id
+#define src_port		src.u.tcp.port
+#define dst_port		dst.u.tcp.port
+#define l3_protocol		src.l3num
+#define l4_protocol		dst.protonum
 
 #endif

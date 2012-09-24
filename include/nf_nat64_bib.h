@@ -7,6 +7,7 @@
  * Formally defined in RFC 6146 section 3.1.
  */
 
+#include <net/netfilter/nf_conntrack_tuple.h>
 #include "nf_nat64_types.h"
 
 /**
@@ -47,28 +48,17 @@ void nat64_bib_init(void);
 bool nat64_add_bib_entry(struct bib_entry *entry, int l4protocol);
 
 /**
- * Returns the BIB entry (from the table whose layer-4 protocol is
- * "l4protocol") whose IPv4 address is "addr".
+ * Returns the BIB entry you'd expect from the "tuple" tuple.
  *
- * @param addr IPv4 address and port of the BIB entry you want.
- * @param l4protocol identifier of the table to retrieve "entry" from. Should
- * 		be either IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return entry (from the table whose layer-4 protocol is "l4protocol") whose
- * 		IPv4 address is "addr".
- */
-struct bib_entry* nat64_get_bib_entry_by_ipv4_addr(struct ipv4_tuple_address *addr, int l4protocol);
-
-/**
- * Returns the BIB entry (from the table whose layer-4 protocol is
- * "l4protocol") whose IPv6 address is "addr".
+ * That is, when we're translating from IPv6 to IPv4, returns the BIB whose
+ * IPv6 address is "tuple"'s source address.
+ * When we're translating from IPv4 to IPv6, returns the BIB whose IPv4 address
+ * is "tuple"'s destination address.
  *
- * @param addr IPv6 address and port of the BIB entry you want.
- * @param l4protocol identifier of the table to retrieve "entry" from. Should
- * 		be either IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return entry (from the table whose layer-4 protocol is "l4protocol") whose
- * 		IPv6 address is "addr".
+ * @param tuple summary of the packet. Describes the BIB you need.
+ * @return the BIB entry you'd expect from the "tuple" tuple.
  */
-struct bib_entry* nat64_get_bib_entry_by_ipv6_addr(struct ipv6_tuple_address *addr, int l4protocol);
+struct bib_entry* nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
 
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is

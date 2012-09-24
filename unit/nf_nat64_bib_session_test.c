@@ -25,30 +25,36 @@ MODULE_DESCRIPTION("BIB-Session module test.");
 const char* IPV4_ADDRS[] = { "0.0.0.0", "255.1.2.3", "65.0.123.2", "0.1.0.3", //
 		"55.55.55.55", "10.11.12.13", "13.12.11.10", "255.255.255.255", //
 		"1.2.3.4", "4.3.2.1", "2.3.4.5", "5.4.3.2", //
-		"3.4.5.6", "6.5.4.3", "4.5.6.7", "7.6.5.4" };
+		"3.4.5.6", "6.5.4.3", "4.5.6.7", "7.6.5.4", //
+		"56.56.56.56" };
 const __be16 IPV4_PORTS[] = { 0, 456, 9556, 7523, //
 		65535, 536, 284, 231, //
 		1234, 4321, 2345, 5432, //
-		3456, 6543, 4567, 7654 };
+		3456, 6543, 4567, 7654, //
+		6384 };
 const char* IPV6_ADDRS[] = { "::1", "5:3::2", "4::", "44:55:66::", //
 		"FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF", "123::4", "::0", "44:1:1::2:9", //
 		"1:2:3:4::", "4:3:2:1::", "2:3:4:5::", "5:4:3:2::", //
-		"3:4:5:6::", "6:5:4:3::", "4:5:6:7::", "7:6:5:4::" };
+		"3:4:5:6::", "6:5:4:3::", "4:5:6:7::", "7:6:5:4::", //
+		"56:56:56:56::" };
 const __be16 IPV6_PORTS[] = { 334, 0, 9556, 65535, //
 		55555, 825, 1111, 99, //
 		1234, 4321, 2345, 5432, //
-		3456, 6543, 4567, 7654 };
+		3456, 6543, 4567, 7654 , //
+		6384 };
 
 /********************************************
  * Funciones auxiliares.
  ********************************************/
 
-void init_ipv4_tuple_address(struct ipv4_tuple_address* ta, int index) {
+void init_ipv4_tuple_address(struct ipv4_tuple_address* ta, int index)
+{
 	ta->address.s_addr = in_aton(IPV4_ADDRS[index]);
 	ta->pi.port = IPV4_PORTS[index];
 }
 
-void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index) {
+void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index)
+{
 	if (!in6_pton(IPV6_ADDRS[index], -1, (u8*) &ta->address, '\\', NULL)) {
 		printk(KERN_WARNING "No puedo convertir el texto '%s' a in6_addr. Esto va a tronar...", IPV6_ADDRS[index]);
 		return;
@@ -56,7 +62,8 @@ void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index) {
 	ta->pi.port = IPV6_PORTS[index];
 }
 
-struct bib_entry* init_bib_entry(int ipv4_index, int ipv6_index) {
+struct bib_entry *init_bib_entry(int ipv4_index, int ipv6_index)
+{
 	struct bib_entry *entry = (struct bib_entry*) kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 
 	init_ipv4_tuple_address(&entry->ipv4, ipv4_index);
@@ -66,8 +73,9 @@ struct bib_entry* init_bib_entry(int ipv4_index, int ipv6_index) {
 	return entry;
 }
 
-struct session_entry * init_session_entry(struct bib_entry* bib, int ipv4_remote_id, int ipv4_local_id, int ipv6_local_id,
-		int ipv6_remote_id, int l4protocol, unsigned int dying_time) {
+struct session_entry *init_session_entry(struct bib_entry* bib, int ipv4_remote_id, int ipv4_local_id, int ipv6_local_id,
+		int ipv6_remote_id, int l4protocol, unsigned int dying_time)
+{
 	struct session_entry* entry = (struct session_entry *) kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 
 	entry->l4protocol = l4protocol;
@@ -82,7 +90,28 @@ struct session_entry * init_session_entry(struct bib_entry* bib, int ipv4_remote
 	return entry;
 }
 
-bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual, char* test_name) {
+void init_tuple(struct nf_conntrack_tuple *tuple,
+		union tuple_address *src, union tuple_address *dst,
+		int l4protocol, int l3protocol)
+{
+	if (l3protocol == NFPROTO_IPV4) {
+		tuple->ipv4_src_addr = src->ipv4.address;
+		tuple->ipv4_dst_addr = dst->ipv4.address;
+		tuple->src_port = src->ipv4.pi.port;
+		tuple->dst_port = dst->ipv4.pi.port;
+	} else {
+		tuple->ipv6_src_addr = src->ipv6.address;
+		tuple->ipv6_dst_addr = dst->ipv6.address;
+		tuple->src_port = src->ipv6.pi.port;
+		tuple->dst_port = dst->ipv6.pi.port;
+	}
+
+	tuple->l4_protocol = l4protocol;
+	tuple->l3_protocol = l3protocol;
+}
+
+bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual, char* test_name)
+{
 	if (expected == actual)
 		return true;
 
@@ -105,7 +134,8 @@ bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actua
 	return true;
 }
 
-bool assert_session_entry_equals(struct session_entry* expected, struct session_entry* actual, char* test_name) {
+bool assert_session_entry_equals(struct session_entry* expected, struct session_entry* actual, char* test_name)
+{
 	if (expected == actual)
 		return true;
 
@@ -128,21 +158,30 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 	return true;
 }
 
-bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it) {
+bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
+{
 	int l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 	struct bib_entry *expected_bib_entry;
 	struct bib_entry *retrieved_bib_entry;
 
+	struct nf_conntrack_tuple tuple;
+	struct ipv4_tuple_address dummy_ipv4;
+	struct ipv6_tuple_address dummy_ipv6;
+	init_ipv4_tuple_address(&dummy_ipv4, 16);
+	init_ipv6_tuple_address(&dummy_ipv6, 16);
+
 	for (i = 0; i < 3; i++) {
 		expected_bib_entry = table_has_it[i] ? key_entry : NULL;
 
-		retrieved_bib_entry = nat64_get_bib_entry_by_ipv4_addr(&key_entry->ipv4, l4protocols[i]);
+		init_tuple(&tuple, (union tuple_address *) &dummy_ipv4, (union tuple_address *) &key_entry->ipv4, l4protocols[i], NFPROTO_IPV4);
+		retrieved_bib_entry = nat64_get_bib_entry(&tuple);
 		if (!assert_bib_entry_equals(expected_bib_entry, retrieved_bib_entry, test_name))
 			return false;
 
-		retrieved_bib_entry = nat64_get_bib_entry_by_ipv6_addr(&key_entry->ipv6, l4protocols[i]);
+		init_tuple(&tuple, (union tuple_address *) &key_entry->ipv6, (union tuple_address *) &dummy_ipv6, l4protocols[i], NFPROTO_IPV6);
+		retrieved_bib_entry = nat64_get_bib_entry(&tuple);
 		if (!assert_bib_entry_equals(expected_bib_entry, retrieved_bib_entry, test_name))
 			return false;
 	}
@@ -150,7 +189,8 @@ bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has
 	return true;
 }
 
-bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it) {
+bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
+{
 	int l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
@@ -180,8 +220,11 @@ bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_t
  * Inserta un solo registro, lo valida, lo remueve, valida de nuevo.
  * Solamente maneja la tabla BIB.
  */
-bool simple_bib(void) {
+bool simple_bib(void)
+{
 	struct bib_entry *inserted_bib = init_bib_entry(0, 0);
+
+	printk(KERN_DEBUG "asd 1");
 
 	// Prueba de agregar un solo registro en la tabla BIB.
 	if (!nat64_add_bib_entry(inserted_bib, IPPROTO_TCP)) {
@@ -190,6 +233,8 @@ bool simple_bib(void) {
 	}
 	if (!assert_bib("BIB insertion", inserted_bib, false, true, false))
 		return false;
+
+	printk(KERN_DEBUG "asd 2");
 
 	// Prueba de remover el registro.
 	if (!nat64_remove_bib_entry(inserted_bib, IPPROTO_TCP)) {
@@ -204,7 +249,8 @@ bool simple_bib(void) {
 	return true;
 }
 
-bool simple_bib_session(void) {
+bool simple_bib_session(void)
+{
 	struct bib_entry *inserted_bib;
 	struct session_entry *inserted_session;
 
@@ -268,7 +314,8 @@ bool simple_bib_session(void) {
 	if (!assert_session(test_name, sessions[bib_id][1], s2_is_alive, false, false)) return false; \
 	if (!assert_session(test_name, sessions[bib_id][2], s3_is_alive, false, false)) return false;
 
-bool test_clean_old_sessions(void) {
+bool test_clean_old_sessions(void)
+{
 	struct bib_entry *bibs[BIB_COUNT];
 	struct session_entry *sessions[BIB_COUNT][SESSIONS_PER_BIB];
 	// "Contador de BIBs, contador de sesiones".
@@ -367,7 +414,8 @@ bool test_clean_old_sessions(void) {
  * Main.
  ********************************************/
 
-int init_module(void) {
+int init_module(void)
+{
 	START_TESTS("BIB-Session");
 
 	nat64_bib_init();
@@ -380,6 +428,7 @@ int init_module(void) {
 	END_TESTS;
 }
 
-void cleanup_module(void) {
+void cleanup_module(void)
+{
 	// Sin codigo.
 }

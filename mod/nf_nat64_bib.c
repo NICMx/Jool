@@ -92,16 +92,22 @@ bool nat64_add_bib_entry(struct bib_entry *entry, int l4protocol)
 	return true;
 }
 
-struct bib_entry *nat64_get_bib_entry_by_ipv4_addr(struct ipv4_tuple_address *addr, int l4protocol)
+struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 {
-	printk(KERN_DEBUG "Searching BIB entry for address %pI4#%d...", &addr->address, addr->pi.port);
-	return ipv4_table_get(&get_bib_table(l4protocol)->ipv4, addr);
-}
+	struct bib_table *table = get_bib_table(tuple->l4_protocol);
 
-struct bib_entry *nat64_get_bib_entry_by_ipv6_addr(struct ipv6_tuple_address *addr, int l4protocol)
-{
-	printk(KERN_DEBUG "Searching BIB for address %pI6#%d...", &addr->address, addr->pi.port);
-	return ipv6_table_get(&get_bib_table(l4protocol)->ipv6, addr);
+	if (tuple->l3_protocol == NFPROTO_IPV6) {
+		struct ipv6_tuple_address address = { tuple->ipv6_src_addr, { tuple->src_port } };
+		printk(KERN_DEBUG "Searching BIB entry for address %pI4#%d...", &address.address, address.pi.port);
+		return ipv6_table_get(&table->ipv6, &address);
+	} else if (tuple->l3_protocol == NFPROTO_IPV4) {
+		struct ipv4_tuple_address address = { tuple->ipv4_dst_addr, { tuple->dst_port } };
+		printk(KERN_DEBUG "Searching BIB entry for address %pI6#%d...", &address.address, address.pi.port);
+		return ipv4_table_get(&table->ipv4, &address);
+	}
+
+	printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
+	return NULL;
 }
 
 bool nat64_remove_bib_entry(struct bib_entry *entry, int l4protocol)
