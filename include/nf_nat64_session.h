@@ -83,8 +83,31 @@ bool nat64_add_session_entry(struct session_entry *entry);
  *
  * @param tuple summary of the packet. Describes the session you need.
  * @return the session entry you'd expect from the "tuple" tuple.
+ *		returns null if no entry could be found.
  */
 struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
+
+/**
+ * Normally looks ups an entry, except it ignores "tuple"'s source port.
+ * As there may be more than one such entry, it returns any of them.
+ *
+ * The name comes from the fact that this functionality serves no purpose other
+ * than determining whether a packet should be allowed through or not.
+ * Also, it's somewhat abbreviated. The RFC calls it "address independent
+ * filtering".
+ *
+ * Only works while translating from IPv4 to IPv6. Behavior us undefined
+ * otherwise.
+ *
+ * TODO
+ *
+ * @param tuple summary of the packet. Describes the session(s) you need.
+ * @return a session entry with a source IPv4 transport address equal to the
+ *		tuple's IPv4 destination transport address, and destination IPv4
+ *		address equal to the tuple's source address. Returns null if no entry
+ *		could be found.
+ */
+bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple);
 
 /**
  * Set "entry"'s time to live as <current time> + "ttl".

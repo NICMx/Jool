@@ -4,6 +4,11 @@
 	if (expected == actual) return true; \
 	if (expected == NULL || actual == NULL) return false;
 
+/** A slightly more versatile in_addr. */
+union ipv4_addr_union {
+	__be32 by32;
+	__be16 by16[2];
+};
 
 bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 {
@@ -96,7 +101,25 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 
 __be16 ipv4_pair_hash_code(struct ipv4_pair *pair)
 {
-	return (pair != NULL) ? pair->remote.pi.port : 0;
+	// pair->remote.pi.port would perhaps be the logical hash code, since it's usually random,
+	// but during nat64_is_allowed_by_address_filtering() we need to ignore it during lookup
+	// so this needs to be a little more creative.
+
+	union ipv4_addr_union local, remote;
+	__be16 result = 1;
+
+	if (pair == NULL)
+		return 0;
+
+	local.by32 = pair->local.address.s_addr;
+	remote.by32 = pair->remote.address.s_addr;
+
+	result = 31 * result + local.by16[0];
+	result = 31 * result + remote.by16[0];
+	result = 31 * result + local.by16[1];
+	result = 31 * result + remote.by16[1];
+
+	return result;
 }
 
 __be16 ipv6_pair_hash_code(struct ipv6_pair *pair)

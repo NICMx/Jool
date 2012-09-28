@@ -40,7 +40,7 @@ const char* IPV6_ADDRS[] = { "::1", "5:3::2", "4::", "44:55:66::", //
 const __be16 IPV6_PORTS[] = { 334, 0, 9556, 65535, //
 		55555, 825, 1111, 99, //
 		1234, 4321, 2345, 5432, //
-		3456, 6543, 4567, 7654 , //
+		3456, 6543, 4567, 7654, //
 		6384 };
 
 /********************************************
@@ -215,8 +215,8 @@ bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_t
 			return false;
 
 		init_tuple(&tuple, //
-				(union tuple_address *) &key_entry->ipv6.local, //
 				(union tuple_address *) &key_entry->ipv6.remote, //
+				(union tuple_address *) &key_entry->ipv6.local, //
 				l4protocols[i], NFPROTO_IPV6);
 		retrieved_entry = nat64_get_session_entry(&tuple);
 		if (!assert_session_entry_equals(expected_entry, retrieved_entry, test_name))
@@ -424,6 +424,54 @@ bool test_clean_old_sessions(void)
 #undef FOR_EACH_SESSION
 #undef ASSERT_SINGLE_BIB
 
+bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id, int dst_port_id, bool expected)
+{
+	union tuple_address src, dst;
+	struct nf_conntrack_tuple tuple;
+
+	src.ipv4.address.s_addr = in_aton(IPV4_ADDRS[src_addr_id]);
+	src.ipv4.pi.port = IPV4_PORTS[src_port_id];
+	dst.ipv4.address.s_addr = in_aton(IPV4_ADDRS[dst_addr_id]);
+	dst.ipv4.pi.port = IPV4_PORTS[dst_port_id];
+
+	init_tuple(&tuple, &src, &dst, IPPROTO_UDP, NFPROTO_IPV4);
+
+	return (expected == nat64_is_allowed_by_address_filtering(&tuple));
+}
+
+bool test_address_filtering(void)
+{
+	struct bib_entry *bib;
+	struct session_entry *session;
+
+	bib = init_bib_entry(0, 0);
+	session = init_session_entry(bib, 0, 0, 0, 0, IPPROTO_UDP, 12345);
+	nat64_add_bib_entry(bib, IPPROTO_UDP);
+	nat64_add_session_entry(session);
+
+	// Test the packet is allowed when the tuple and the session match perfectly.
+	if (!test_address_filtering_aux(0, 0, 0, 0, true))
+		return false;
+
+	// Test a tuple that completely mismatches the session.
+	if (!test_address_filtering_aux(1, 1, 1, 1, false))
+		return false;
+
+	// Now test tuples that nearly match the session.
+	if (!test_address_filtering_aux(0, 0, 0, 1, false))
+		return false;
+	if (!test_address_filtering_aux(0, 0, 1, 0, false))
+		return false;
+	if (!test_address_filtering_aux(0, 1, 0, 0, true))
+		return false; // The remote port is the only one that doesn't matter.
+	if (!test_address_filtering_aux(1, 0, 0, 0, false))
+		return false;
+
+	nat64_session_destroy();
+	nat64_bib_destroy();
+	return true;
+}
+
 /********************************************
  * Main.
  ********************************************/
@@ -438,6 +486,7 @@ int init_module(void)
 	CALL_TEST(simple_bib(), "Single BIB");
 	CALL_TEST(simple_bib_session(), "Single BIB-Session");
 	CALL_TEST(test_clean_old_sessions(), "Session cleansing.");
+	CALL_TEST(test_address_filtering(), "Address-dependent filtering.");
 
 	END_TESTS;
 }

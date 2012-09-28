@@ -79,8 +79,8 @@ __be16 ipv6_pair_hash_code(struct ipv6_pair *pair);
 #define ipv4_dst_addr	dst.u3.in
 #define ipv6_dst_addr	dst.u3.in6
 #define icmp_id			src.icmp.id
-#define src_port		src.u.tcp.port
-#define dst_port		dst.u.tcp.port
+#define src_port		src.u.all
+#define dst_port		dst.u.all
 #define l3_protocol		src.l3num
 #define l4_protocol		dst.protonum
 

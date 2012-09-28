@@ -65,6 +65,22 @@ static struct session_table *get_session_table(int l4protocol)
 	return NULL;
 }
 
+static void tuple_to_ipv6_pair(struct nf_conntrack_tuple *tuple, struct ipv6_pair *pair)
+{
+	pair->remote.address = tuple->ipv6_src_addr;
+	pair->remote.pi.port = tuple->src_port;
+	pair->local.address = tuple->ipv6_dst_addr;
+	pair->local.pi.port = tuple->dst_port;
+}
+
+static void tuple_to_ipv4_pair(struct nf_conntrack_tuple *tuple, struct ipv4_pair *pair)
+{
+	pair->remote.address = tuple->ipv4_src_addr;
+	pair->remote.pi.port = tuple->src_port;
+	pair->local.address = tuple->ipv4_dst_addr;
+	pair->local.pi.port = tuple->dst_port;
+}
+
 /*******************************
  * Public functions.
  *******************************/
@@ -109,29 +125,50 @@ bool nat64_add_session_entry(struct session_entry *entry)
 struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 {
 	struct session_table *table = get_session_table(tuple->l4_protocol);
+	struct ipv6_pair pair_6;
+	struct ipv4_pair pair_4;
 
 	switch (tuple->l3_protocol) {
-		case NFPROTO_IPV6: {
-			struct ipv6_tuple_address remote_6 = { tuple->ipv6_src_addr, { tuple->src_port } };
-			struct ipv6_tuple_address local_6 = { tuple->ipv6_dst_addr, { tuple->dst_port } };
-			struct ipv6_pair pair_6 = { remote_6, local_6 };
+		case NFPROTO_IPV6:
+			tuple_to_ipv6_pair(tuple, &pair_6);
 			printk(KERN_DEBUG "Searching session entry: [%pI6#%d, %pI6#%d]...", //
-					&local_6.address, local_6.pi.port, &remote_6.address, remote_6.pi.port);
+					&pair_6.remote.address, pair_6.remote.pi.port, //
+					&pair_6.local.address, pair_6.local.pi.port);
 			return ipv6_table_get(&table->ipv6, &pair_6);
-		}
-		case NFPROTO_IPV4: {
-			struct ipv4_tuple_address remote_4 = { tuple->ipv4_src_addr, { tuple->src_port } };
-			struct ipv4_tuple_address local_4 = { tuple->ipv4_dst_addr, { tuple->dst_port } };
-			struct ipv4_pair pair_4 = { remote_4, local_4 };
+
+		case NFPROTO_IPV4:
+			tuple_to_ipv4_pair(tuple, &pair_4);
 			printk(KERN_DEBUG "Searching session entry: [%pI4#%d, %pI4#%d]...", //
-					&remote_4.address, remote_4.pi.port, &local_4.address, local_4.pi.port);
+					&pair_4.local.address, pair_4.local.pi.port, //
+					&pair_4.remote.address, pair_4.remote.pi.port);
 			return ipv4_table_get(&table->ipv4, &pair_4);
-		}
-		default: {
+
+		default:
 			printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
 			return NULL;
+	}
+}
+
+bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
+{
+	struct ipv4_table *table;
+	__be16 hash_code;
+	struct hlist_node *current_node;
+	struct ipv4_pair tuple_pair, *session_pair;
+
+	tuple_to_ipv4_pair(tuple, &tuple_pair);
+	table = &get_session_table(tuple->l4_protocol)->ipv4;
+	hash_code = table->hash_function(&tuple_pair) % (64 * 1024);
+
+	hlist_for_each(current_node, &table->table[hash_code]) {
+		session_pair = list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
+		if (ipv4_tuple_address_equals(&session_pair->local, &tuple_pair.local)
+				&& ipv4_addr_equals(&session_pair->remote.address, &tuple_pair.remote.address)) {
+			return true;
 		}
 	}
+
+	return false;
 }
 
 void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl)
