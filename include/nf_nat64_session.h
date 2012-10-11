@@ -75,6 +75,9 @@ void nat64_session_init(void);
  */
 bool nat64_add_session_entry(struct session_entry *entry);
 
+struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol);
+struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol);
+
 /**
  * Returns the session entry you'd expect from the "tuple" tuple.
  *
