@@ -152,13 +152,11 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 			tuple_to_ipv6_pair(tuple, &pair);
 			return nat64_get_session_entry_by_ipv6(&pair, tuple->l4_protocol);
 		}
-
 		case NFPROTO_IPV4: {
 			struct ipv4_pair pair;
 			tuple_to_ipv4_pair(tuple, &pair);
 			return nat64_get_session_entry_by_ipv4(&pair, tuple->l4_protocol);
 		}
-
 		default: {
 			printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
 			return NULL;
@@ -232,13 +230,13 @@ void nat64_clean_old_sessions(void)
 	struct session_entry *current_entry;
 	unsigned int current_time = jiffies_to_msecs(jiffies);
 
-list_for_each_safe(current_node, next_node, &all_sessions) {
-	current_entry = list_entry(current_node, struct session_entry, all_sessions);
-	if (!current_entry->is_static && current_entry->dying_time <= current_time) {
-		nat64_remove_session_entry(current_entry);
-		kfree(current_entry);
+	list_for_each_safe(current_node, next_node, &all_sessions) {
+		current_entry = list_entry(current_node, struct session_entry, all_sessions);
+		if (!current_entry->is_static && current_entry->dying_time <= current_time) {
+			nat64_remove_session_entry(current_entry);
+			kfree(current_entry);
+		}
 	}
-}
 }
 
 void nat64_session_destroy(void)

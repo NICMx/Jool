@@ -47,6 +47,9 @@ void nat64_bib_init(void);
  */
 bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
 
+struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol);
+struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol);
+
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.
  *
