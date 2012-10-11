@@ -45,7 +45,7 @@ void nat64_bib_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted
  *		if some dynamic memory allocation failed.
  */
-bool nat64_add_bib_entry(struct bib_entry *entry, int l4protocol);
+bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.
@@ -72,7 +72,7 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
  * 		if the entry is not on the table, or if it still has related session
  * 		entries.
  */
-bool nat64_remove_bib_entry(struct bib_entry *entry, int l4protocol);
+bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
 
 /**
  * Empties the BIB tables, freeing any memory being used by them.

@@ -50,7 +50,7 @@ static LIST_HEAD(all_sessions);
  * Private (helper) functions.
  ********************************************/
 
-static struct session_table *get_session_table(int l4protocol)
+static struct session_table *get_session_table(u_int8_t l4protocol)
 {
 	switch (l4protocol) {
 		case IPPROTO_UDP:
@@ -122,30 +122,47 @@ bool nat64_add_session_entry(struct session_entry *entry)
 	return true;
 }
 
+struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol)
+{
+	struct session_table *table = get_session_table(l4protocol);
+
+	printk(KERN_DEBUG "Searching session entry: [%pI4#%d, %pI4#%d]...", //
+			&pair->local.address, pair->local.pi.port, //
+			&pair->remote.address, pair->remote.pi.port);
+
+	return ipv4_table_get(&table->ipv4, pair);
+}
+
+struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol)
+{
+	struct session_table *table = get_session_table(l4protocol);
+
+	printk(KERN_DEBUG "Searching session entry: [%pI6#%d, %pI6#%d]...", //
+			&pair->remote.address, pair->remote.pi.port, //
+			&pair->local.address, pair->local.pi.port);
+
+	return ipv6_table_get(&table->ipv6, pair);
+}
+
 struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 {
-	struct session_table *table = get_session_table(tuple->l4_protocol);
-	struct ipv6_pair pair_6;
-	struct ipv4_pair pair_4;
-
 	switch (tuple->l3_protocol) {
-		case NFPROTO_IPV6:
-			tuple_to_ipv6_pair(tuple, &pair_6);
-			printk(KERN_DEBUG "Searching session entry: [%pI6#%d, %pI6#%d]...", //
-					&pair_6.remote.address, pair_6.remote.pi.port, //
-					&pair_6.local.address, pair_6.local.pi.port);
-			return ipv6_table_get(&table->ipv6, &pair_6);
+		case NFPROTO_IPV6: {
+			struct ipv6_pair pair;
+			tuple_to_ipv6_pair(tuple, &pair);
+			return nat64_get_session_entry_by_ipv6(&pair, tuple->l4_protocol);
+		}
 
-		case NFPROTO_IPV4:
-			tuple_to_ipv4_pair(tuple, &pair_4);
-			printk(KERN_DEBUG "Searching session entry: [%pI4#%d, %pI4#%d]...", //
-					&pair_4.local.address, pair_4.local.pi.port, //
-					&pair_4.remote.address, pair_4.remote.pi.port);
-			return ipv4_table_get(&table->ipv4, &pair_4);
+		case NFPROTO_IPV4: {
+			struct ipv4_pair pair;
+			tuple_to_ipv4_pair(tuple, &pair);
+			return nat64_get_session_entry_by_ipv4(&pair, tuple->l4_protocol);
+		}
 
-		default:
+		default: {
 			printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
 			return NULL;
+		}
 	}
 }
 
@@ -215,13 +232,13 @@ void nat64_clean_old_sessions(void)
 	struct session_entry *current_entry;
 	unsigned int current_time = jiffies_to_msecs(jiffies);
 
-	list_for_each_safe(current_node, next_node, &all_sessions) {
-		current_entry = list_entry(current_node, struct session_entry, all_sessions);
-		if (!current_entry->is_static && current_entry->dying_time <= current_time) {
-			nat64_remove_session_entry(current_entry);
-			kfree(current_entry);
-		}
+list_for_each_safe(current_node, next_node, &all_sessions) {
+	current_entry = list_entry(current_node, struct session_entry, all_sessions);
+	if (!current_entry->is_static && current_entry->dying_time <= current_time) {
+		nat64_remove_session_entry(current_entry);
+		kfree(current_entry);
 	}
+}
 }
 
 void nat64_session_destroy(void)

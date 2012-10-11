@@ -44,7 +44,7 @@ static struct bib_table bib_icmp;
  * Private (helper) functions.
  ********************************************/
 
-static struct bib_table *get_bib_table(int l4protocol)
+static struct bib_table *get_bib_table(u_int8_t l4protocol)
 {
 	switch (l4protocol) {
 		case IPPROTO_UDP:
@@ -75,7 +75,7 @@ void nat64_bib_init(void)
 	ipv6_table_init(&bib_icmp.ipv6, ipv6_tuple_address_equals, ipv6_tuple_address_hash_code);
 }
 
-bool nat64_add_bib_entry(struct bib_entry *entry, int l4protocol)
+bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 {
 	bool indexed_by_ipv4, indexed_by_ipv6;
 	struct bib_table *bib = get_bib_table(l4protocol);
@@ -114,7 +114,7 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 	}
 }
 
-bool nat64_remove_bib_entry(struct bib_entry *entry, int l4protocol)
+bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 {
 	bool removed_from_ipv4, removed_from_ipv6;
 	struct bib_table *table = get_bib_table(l4protocol);

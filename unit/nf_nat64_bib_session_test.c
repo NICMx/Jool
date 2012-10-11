@@ -76,7 +76,7 @@ struct bib_entry *init_bib_entry(int ipv4_index, int ipv6_index)
 }
 
 struct session_entry *init_session_entry(struct bib_entry* bib, int ipv4_remote_id, int ipv4_local_id, int ipv6_local_id,
-		int ipv6_remote_id, int l4protocol, unsigned int dying_time)
+		int ipv6_remote_id, u_int8_t l4protocol, unsigned int dying_time)
 {
 	struct session_entry* entry = (struct session_entry *) kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 	if (!entry)
@@ -96,7 +96,7 @@ struct session_entry *init_session_entry(struct bib_entry* bib, int ipv4_remote_
 
 void init_tuple(struct nf_conntrack_tuple *tuple,
 		union tuple_address *src, union tuple_address *dst,
-		int l4protocol, int l3protocol)
+		u_int8_t l4protocol, int l3protocol)
 {
 	if (l3protocol == NFPROTO_IPV4) {
 		tuple->ipv4_src_addr = src->ipv4.address;
@@ -164,7 +164,7 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 
 bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	int l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
+	u_int8_t l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 	struct bib_entry *expected_bib_entry;
@@ -195,7 +195,7 @@ bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has
 
 bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	int l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
+	u_int8_t l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 	struct session_entry *expected_entry;

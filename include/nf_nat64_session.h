@@ -52,7 +52,7 @@ struct session_entry
 	 * Used to know which table the session should be removed from when
 	 * expired.
 	 */
-	int l4protocol;
+	u_int8_t l4protocol;
 };
 
 /**
