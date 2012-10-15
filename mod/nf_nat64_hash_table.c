@@ -19,6 +19,8 @@
  *		64k.
  * @macro GENERATE_PRINT just define it if you want the print function;
  *		otherwise it will not be generated.
+ * @macro GENERATE_TO_ARRAY just define it if you want the to_array function;
+ *		otherwise it will not be generated.
  *
  * This module contains no header file; it needs to be #included directly.
  *
@@ -60,6 +62,8 @@
 #define GET_AUX			CONCAT(HTABLE_NAME, _get_aux)
 /** The name of the print function. */
 #define PRINT			CONCAT(HTABLE_NAME, _print)
+/** The name of the to_array function. */
+#define TO_ARRAY		CONCAT(HTABLE_NAME, _to_array)
 
 /********************************************
  * Structures.
@@ -73,6 +77,9 @@ struct HTABLE_NAME
 	 * Each of these contains the values mapped to its index's hash code.
 	 */
 	struct hlist_head table[HASH_TABLE_SIZE];
+	/** Number of key-value pairs currently stored by the table. */
+	int size;
+
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
 	/** Used locate the linked list (within the array) of a value. */
@@ -146,6 +153,7 @@ static void INIT(struct HTABLE_NAME *table,
 
 	table->equals_function = equals_function;
 	table->hash_function = hash_function;
+	table->size = 0;
 }
 
 /**
@@ -169,7 +177,7 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	// We're not going to insert the value alone, but a key-value structure.
 	// (Because we'll later need the key available during lookups.)
 	// We generate it here.
-	key_value = (struct KEY_VALUE_PAIR *) kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
+	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value)
 		return false;
 	key_value->key = key;
@@ -178,6 +186,7 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	// Insert the key-value to the table.
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
+	table->size++;
 
 	return true;
 }
@@ -217,6 +226,7 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, b
 		return false;
 
 	hlist_del(&key_value->nodes);
+	table->size--;
 
 	if (release_key)
 		kfree(key_value->key);
@@ -237,9 +247,9 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, b
  * @param release_values send "true" if the table's stored keys should be
  *		deallocated.
  *
- * Note that even if you want to release neither the keys nor the values, you
- * still need to call this function since you have no control over the
- * key-value pairs.
+ * Note that even if you want to release the keys and the values, you still
+ * need to call this function since you have no control over the key-value
+ * pairs.
  */
 static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_values)
 {
@@ -253,6 +263,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 			current_pair = container_of(current_node, struct KEY_VALUE_PAIR, nodes);
 
 			hlist_del(current_node);
+			table->size--;
 
 			if (release_keys)
 				kfree(current_pair->key);
@@ -291,6 +302,46 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 }
 #endif
 
+#ifdef GENERATE_TO_ARRAY
+/**
+ * Builds an array out of the current table contents, and then returns it.
+ * (It's a shallow copy).
+ *
+ * @param table the HTABLE_NAME instance you want to convert to an array.
+ * @param array the result will be stored here.
+ * @return the resulting length of "array". May be zero, if memory could not
+ * 		be allocated.
+ *
+ * You have to kfree "array" after you use it. Don't kfree its contents,
+ * as they are references to the real entries from the table.
+ */
+static int TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***array)
+{
+	struct hlist_node *current_node;
+	struct KEY_VALUE_PAIR *current_pair;
+	int row;
+
+	int array_counter = 0;
+	int array_size = table->size;
+	if (array_size == 0)
+		return 0;
+
+	*array = kmalloc(array_size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
+	if (!*array)
+		return -1;
+
+	for (row = 0; row < HASH_TABLE_SIZE; row++) {
+		hlist_for_each(current_node, &table->table[row]) {
+			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
+			(*array)[array_counter] = current_pair->value;
+			array_counter++;
+		}
+	}
+
+	return array_size;
+}
+#endif
+
 // Compiler cleanup. The macros are freed, just so you can define another kind
 // of hash table in the same file without compiler warnings.
 #undef HTABLE_NAME
@@ -298,3 +349,4 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 #undef VALUE_TYPE
 #undef HASH_TABLE_SIZE
 #undef GENERATE_PRINT
+#undef GENERATE_TO_ARRAY

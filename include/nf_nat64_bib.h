@@ -91,6 +91,26 @@ void nat64_bib_destroy(void);
 struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6);
 
 /**
+ * Creates an array out of the "l4protocol" BIB's data and places it in
+ * "*array".
+ *
+ * @param l4protocol identifier of the table to array-ize. Should be either
+ * 		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @param array the result will be stored here. Yes, this parameter is a
+ * 		horrible abomination. Think of it this way: It's an array (asterisk 2)
+ *		of pointers (asterisk 3). The remaining asterisk makes it a
+ *		by-reference argument. FML.
+ * @return the resulting length of "array". May be zero, if memory could not
+ * 		be allocated.
+ *
+ * TODO
+ *
+ * You have to kfree "array" after you use it. Don't kfree its contents,
+ * as they are references to the real entries from the table.
+ */
+int nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array);
+
+/**
  * Helper function, returns "true" if "bib_1" holds the same addresses and
  * ports as "bib_2".
  *

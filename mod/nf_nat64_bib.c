@@ -12,6 +12,7 @@
 #define HTABLE_NAME ipv4_table
 #define KEY_TYPE struct ipv4_tuple_address
 #define VALUE_TYPE struct bib_entry
+#define GENERATE_TO_ARRAY
 #include "nf_nat64_hash_table.c"
 
 // Hash table; indexes BIB entries by IPv6 address.
@@ -168,13 +169,18 @@ void nat64_bib_destroy(void)
 
 struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6)
 {
-	struct bib_entry *result = (struct bib_entry *) kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
+	struct bib_entry *result = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 	if (!result)
 		return NULL;
 
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
 	return result;
+}
+
+int nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array)
+{
+	return ipv4_table_to_array(&get_bib_table(l4protocol)->ipv4, array);
 }
 
 bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)

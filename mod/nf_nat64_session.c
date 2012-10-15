@@ -12,6 +12,7 @@
 #define HTABLE_NAME ipv4_table
 #define KEY_TYPE struct ipv4_pair
 #define VALUE_TYPE struct session_entry
+#define GENERATE_TO_ARRAY
 #include "nf_nat64_hash_table.c"
 
 // Hash table; indexes BIB entries by IPv6 address.
@@ -256,6 +257,11 @@ void nat64_session_destroy(void)
 	ipv6_table_empty(&session_table_icmp.ipv6, false, true);
 
 	INIT_LIST_HEAD(&all_sessions);
+}
+
+int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array)
+{
+	return ipv4_table_to_array(&get_session_table(l4protocol)->ipv4, array);
 }
 
 bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)
