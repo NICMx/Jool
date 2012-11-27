@@ -10,10 +10,10 @@
 #include "nf_nat64_types.h"
 #include "nf_nat64_bib.h"
 
+
 /**
  * A row, intended to be part of one of the session tables.
- * The mapping between the connections, as perceived by both sides (IPv4 vs
- * IPv6).
+ * The mapping between the connections, as perceived by both sides (IPv4 vs IPv6).
  */
 struct session_entry
 {
@@ -25,8 +25,7 @@ struct session_entry
 	/** Should the session never expire? */
 	bool is_static;
 	/**
-	 * Millisecond (from the epoch) this session should expire in,
-	 * if still inactive.
+	 * Millisecond (from the epoch) this session should expire in, if still inactive.
 	 */
 	unsigned int dying_time;
 
@@ -36,24 +35,22 @@ struct session_entry
 	 */
 	struct bib_entry *bib;
 	/**
-	 * Chains this session with the rest from the same BIB (see
-	 * bib_entry.session_entries).
+	 * Chains this session with the rest from the same BIB (see bib_entry.session_entries).
 	 * Used by the BIB to know whether it should commit suicide or not.
 	 */
 	struct list_head entries_from_bib;
 	/**
-	 * Chains this session with the rest (see all_sessions, defined in
-	 * nf_nat_session.h).
+	 * Chains this session with the rest (see all_sessions, defined in nf_nat_session.h).
 	 * Used for iterating while looking for expired sessions.
 	 */
 	struct list_head all_sessions;
 	/**
 	 * Transport protocol of the table this entry is in.
-	 * Used to know which table the session should be removed from when
-	 * expired.
+	 * Used to know which table the session should be removed from when expired.
 	 */
 	u_int8_t l4protocol;
 };
+
 
 /**
  * Initializes the three tables (UDP, TCP and ICMP).
@@ -62,12 +59,10 @@ struct session_entry
 void nat64_session_init(void);
 
 /**
- * Adds "entry" to the session table whose layer-4 protocol is
- * "entry->protocol".
+ * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
  * Expects all fields but the list_heads from "entry" to have been initialized.
  *
- * Because never in this project is required otherwise, assumes the entry
- * is not yet on the table.
+ * Because never in this project is required otherwise, assumes the entry is not yet on the table.
  *
  * @param entry row to be added to the table.
  * @return whether the entry could be inserted or not. It will not be inserted
@@ -81,8 +76,7 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
 /**
  * Returns the session entry you'd expect from the "tuple" tuple.
  *
- * That is, looks ups the session entry by both source and destination
- * addresses.
+ * That is, looks ups the session entry by both source and destination addresses.
  *
  * @param tuple summary of the packet. Describes the session you need.
  * @return the session entry you'd expect from the "tuple" tuple.
@@ -94,21 +88,16 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
  * Normally looks ups an entry, except it ignores "tuple"'s source port.
  * As there may be more than one such entry, it returns any of them.
  *
- * The name comes from the fact that this functionality serves no purpose other
- * than determining whether a packet should be allowed through or not.
- * Also, it's somewhat abbreviated. The RFC calls it "address independent
- * filtering".
+ * The name comes from the fact that this functionality serves no purpose other than determining
+ * whether a packet should be allowed through or not.
+ * Also, it's somewhat abbreviated. The RFC calls it "address independent filtering".
  *
- * Only works while translating from IPv4 to IPv6. Behavior us undefined
- * otherwise.
- *
- * TODO
+ * Only works while translating from IPv4 to IPv6. Behavior is undefined otherwise.
  *
  * @param tuple summary of the packet. Describes the session(s) you need.
- * @return a session entry with a source IPv4 transport address equal to the
- *		tuple's IPv4 destination transport address, and destination IPv4
- *		address equal to the tuple's source address. Returns null if no entry
- *		could be found.
+ * @return whether there's a session entry with a source IPv4 transport address equal to the tuple's
+ *		IPv4 destination transport address, and destination IPv4 address equal to the tuple's source
+ *		address.
  */
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple);
 
@@ -131,8 +120,8 @@ void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl
 bool nat64_remove_session_entry(struct session_entry *entry);
 
 /**
- * Removes from the tables the entries whose lifetime has expired. The entries
- * are also freed from memory.
+ * Removes from the tables the entries whose lifetime has expired. The entries are also freed from
+ * memory.
  */
 void nat64_clean_old_sessions(void);
 
@@ -143,31 +132,27 @@ void nat64_clean_old_sessions(void);
 void nat64_session_destroy(void);
 
 /**
- * Creates an array out of the "l4protocol" session table's data and places it
- * in "*array".
+ * Creates an array out of the "l4protocol" session table's data and places it in "*array".
  *
- * @param l4protocol identifier of the table to array-ize. Should be either
- * 		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @param array the result will be stored here. Yes, this parameter is a
- * 		horrible abomination. Think of it this way: It's an array (asterisk 2)
- *		of pointers (asterisk 3). The remaining asterisk makes it a
- *		by-reference argument. FML.
- * @return the resulting length of "array". May be zero, if memory could not
- * 		be allocated.
+ * @param l4protocol identifier of the table to array-ize. Should be either IPPROTO_UDP, IPPROTO_TCP
+ *		or IPPROTO_ICMP from linux/in.h.
+ * @param array the result will be stored here. Yes, this parameter is a horrible abomination. Think
+ *		of it this way: It's an array (asterisk 2) of pointers (asterisk 3). The remaining asterisk
+ *		makes it a by-reference argument. FML.
+ * @return the resulting length of "array". May be zero, if memory could not be allocated.
  *
- * You have to kfree "array" after you use it. Don't kfree its contents,
- * as they are references to the real entries from the table.
+ * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
+ * the real entries from the table.
  */
 int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array);
 
 /**
- * Helper function, returns "true" if "bib_1" holds the same protocol,
- * addresses and ports as "bib_2".
+ * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as
+ * "bib_2".
  *
  * @param bib_1 entry to compare to "bib_2".
  * @param bib_2 entry to compare to "bib_1".
- * @return whether "bib_1" and "bib_2" hold the same protocol, addresses and
- *		ports.
+ * @return whether "bib_1" and "bib_2" hold the same protocol, addresses and ports.
  */
 bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2);
 

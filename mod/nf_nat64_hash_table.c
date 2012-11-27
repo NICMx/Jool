@@ -1,30 +1,26 @@
 /**
  * @file
- * A generic hash table implementation. Its design is largely based off Java's
- * java.util.HashMap. One difference is that the internal array does not
- * resize.
+ * A generic hash table implementation. Its design is largely based off Java's java.util.HashMap.
+ * One difference is that the internal array does not resize.
  *
  * Uses the kernel's hlist internally.
- * We're not using hlist directly because it implies a lot of code rewriting
- * (eg. the entry retrieval function; "get") and we need at least four
- * different hash tables.
+ * We're not using hlist directly because it implies a lot of code rewriting (eg. the entry
+ * retrieval function; "get") and we need at least four different hash tables.
  *
- * Because C does not support templates or generics, you have to set a number
- * of macros and then include this file. These are the macros:
- * @macro HTABLE_NAME name of the hash table structure to generate. Optional;
- *		Default: hash_table.
+ * Because C does not support templates or generics, you have to set a number of macros and then
+ * include this file. These are the macros:
+ * @macro HTABLE_NAME name of the hash table structure to generate. Optional; Default: hash_table.
  * @macro KEY_TYPE data type of the table's keys.
  * @macro VALUE_TYPE data type of the table's values.
- * @macro HASH_TABLE_SIZE The size of the internal array. Optional; Default:
- *		64k.
- * @macro GENERATE_PRINT just define it if you want the print function;
- *		otherwise it will not be generated.
- * @macro GENERATE_TO_ARRAY just define it if you want the to_array function;
- *		otherwise it will not be generated.
+ * @macro HASH_TABLE_SIZE The size of the internal array. Optional; Default: 64k.
+ * @macro GENERATE_PRINT just define it if you want the print function; otherwise it will not be
+ *		generated.
+ * @macro GENERATE_TO_ARRAY just define it if you want the to_array function; otherwise it will not
+ *		be generated.
  *
  * This module contains no header file; it needs to be #included directly.
  *
- * TODO (Optimization) Use slab instead of kmalloc.
+ * TODO (optimization) Use slab instead of kmalloc.
  */
 
 #include <linux/slab.h>
@@ -83,7 +79,7 @@ struct HTABLE_NAME
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
 	/** Used locate the linked list (within the array) of a value. */
-	__be16 (*hash_function)(KEY_TYPE *);
+	__u16 (*hash_function)(KEY_TYPE *);
 };
 
 /** Every entry in the table; the key used to access the value and the value. */
@@ -108,14 +104,13 @@ struct KEY_VALUE_PAIR
  *
  * @param table hash table instance you want the key-value from.
  * @param key descriptor to which the associated key-value is to be returned.
- * @return the key-value to which "table" maps "key", "null" if there's no
- *		mapping for the key.
+ * @return the key-value to which "table" maps "key", "null" if there's no mapping for the key.
  */
 static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	__be16 hash_code;
+	__u16 hash_code;
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	printk(KERN_DEBUG "  -> Hash code: %d", hash_code);
@@ -145,7 +140,7 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
  */
 static void INIT(struct HTABLE_NAME *table,
 		bool (*equals_function)(KEY_TYPE *, KEY_TYPE *),
-		__be16 (*hash_function)(KEY_TYPE *))
+		__u16 (*hash_function)(KEY_TYPE *))
 {
 	int i;
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
@@ -159,10 +154,8 @@ static void INIT(struct HTABLE_NAME *table,
 /**
  * Inserts "value" to the "table" table in the slot described by the "key" key.
  *
- * Important: The table stores pointers to (as opposed to "copies of") both
- * key and value.
- * So please consider that neither must be released from memory after the call
- * to this function.
+ * Important: The table stores pointers to (as opposed to "copies of") both key and value.
+ * So please consider that neither must be released from memory after the call to this function.
  *
  * @param table the HTABLE_NAME instance you want to insert a value to.
  * @param key descriptor of the slot to place "value" in.
@@ -172,7 +165,7 @@ static void INIT(struct HTABLE_NAME *table,
 static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 {
 	struct KEY_VALUE_PAIR *key_value;
-	__be16 hash_code;
+	__u16 hash_code;
 
 	// We're not going to insert the value alone, but a key-value structure.
 	// (Because we'll later need the key available during lookups.)
@@ -194,13 +187,12 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 /**
  * Returns from "table" the value mapped to the "key" key, if available.
  *
- * You will receive the actual stored value. Please don't release it from
- * memory (use the REMOVE function instead).
+ * You will receive the actual stored value. Please don't release it from memory (use the REMOVE
+ * function instead).
  *
  * @param table the HTABLE_NAME instance you want the value from.
  * @param key descriptor to which the associated value is to be returned.
- * @return the value to which "table" maps "key", "null" if there's no mapping
- *		for the key.
+ * @return the value to which "table" maps "key", "null" if there's no mapping for the key.
  */
 static VALUE_TYPE *GET(struct HTABLE_NAME *table, KEY_TYPE *key)
 {
@@ -214,10 +206,8 @@ static VALUE_TYPE *GET(struct HTABLE_NAME *table, KEY_TYPE *key)
  *
  * @param table the HTABLE_NAME instance you want to stop mapping "key" from.
  * @param key descriptor whose associated value will be removed from "table".
- * @param release_key send "true" if the key stored in the table should be
- *		released from memory.
- * @param release_value send "true" if the value stored in the table should be
- *		released from memory.
+ * @param release_key send "true" if the key stored in the table should be released from memory.
+ * @param release_value send "true" if the value stored in the table should be released from memory.
  */
 static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, bool release_value)
 {
@@ -238,18 +228,15 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, b
 }
 
 /**
- * Clears all memory allocated by the table. You definitely want to call this
- * before your table goes into oblivion!!!
+ * Clears all memory allocated by the table. You definitely want to call this before your table goes
+ * into oblivion!!!
  *
  * @param table the HTABLE_NAME instance you want to clear.
- * @param release_keys send "true" if the table's stored keys should be
- *		deallocated.
- * @param release_values send "true" if the table's stored keys should be
- *		deallocated.
+ * @param release_keys send "true" if the table's stored keys should be deallocated.
+ * @param release_values send "true" if the table's stored keys should be deallocated.
  *
- * Note that even if you want to release the keys and the values, you still
- * need to call this function since you have no control over the key-value
- * pairs.
+ * Note that even if you want to release the keys and the values, you still need to call this
+ * function since you have no control over the key-value pairs.
  */
 static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_values)
 {
@@ -282,8 +269,8 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
  * Use for debugging purposes.
  *
  * @param the HTABLE_NAME instance you want to print.
- * @param header a header label for the table. Will precede the table so you
- *		can locate it in dmesg or something.
+ * @param header a header label for the table. Will precede the table so you can locate it in dmesg
+ *		or something.
  */
 static void PRINT(struct HTABLE_NAME *table, char *header)
 {
@@ -309,11 +296,10 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
  *
  * @param table the HTABLE_NAME instance you want to convert to an array.
  * @param array the result will be stored here.
- * @return the resulting length of "array". May be zero, if memory could not
- * 		be allocated.
+ * @return the resulting length of "array". May be zero, if memory could not be allocated.
  *
- * You have to kfree "array" after you use it. Don't kfree its contents,
- * as they are references to the real entries from the table.
+ * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
+ * the real entries from the table.
  */
 static int TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***array)
 {

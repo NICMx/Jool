@@ -4,6 +4,14 @@
 
 #include "unit_test.h"
 
+// TODO (test) refactoriza porque está bien mal.
+
+// Burocracia de modulos.
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
+MODULE_DESCRIPTION("Hash table module test.");
+
+// Generar la tabla de hash.
 struct key {
 	int key;
 };
@@ -12,20 +20,15 @@ struct value {
 	int value;
 };
 
-// Generar la tabla de hash.
 #define HTABLE_NAME test_table
 #define KEY_TYPE struct key
 #define VALUE_TYPE struct value
 #define HASH_TABLE_SIZE (10)
 #define GENERATE_PRINT
+#define GENERATE_TO_ARRAY
 #include "nf_nat64_hash_table.c"
 
-// Burocracia de modulos.
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
-MODULE_DESCRIPTION("Hash table module test.");
-
-bool equals_function(struct key *key1, struct key *key2)
+static bool equals_function(struct key *key1, struct key *key2)
 {
 	if (key1 == key2)
 		return true;
@@ -35,12 +38,12 @@ bool equals_function(struct key *key1, struct key *key2)
 	return (key1->key == key2->key);
 }
 
-__be16 hash_code_function(struct key *key1)
+static __u16 hash_code_function(struct key *key1)
 {
 	return (key1 != NULL) ? key1->key : 0;
 }
 
-int assert_table_content(struct test_table *table, struct key *keys, struct value *expected_values, char *test_name)
+static int assert_table_content(struct test_table *table, struct key *keys, struct value *expected_values, char *test_name)
 {
 	int i;
 	for (i = 0; i < 4; i++) {
@@ -60,7 +63,8 @@ int assert_table_content(struct test_table *table, struct key *keys, struct valu
 	return 0;
 }
 
-int init_module(void) {
+static bool test(void)
+{
 	struct test_table table;
 	// The second value is a normal, troubleless key-value pair.
 	// The first and third keys have the same hash code (tests the table knows how to differenciate them correctly).
@@ -107,6 +111,19 @@ int init_module(void) {
 	assert_table_content(&table, keys, values, "Hash table put/get.");
 	test_table_print(&table, "After puts");
 
+	// Probar to_array.
+	{
+		int i;
+		struct value **array = NULL;
+		int array_size = test_table_to_array(&table, &array);
+
+		printk(KERN_DEBUG "Array size: %d", array_size);
+		printk(KERN_DEBUG "=======================");
+		for (i = 0; i < array_size; ++i)
+			printk(KERN_DEBUG "Value: %d", array[i]->value);
+		printk(KERN_DEBUG "=======================");
+	}
+
 	// Limpiar memoria, probar de nuevo por si las moscas.
 	test_table_empty(&table, false, false);
 	values[0].value = -1;
@@ -115,11 +132,20 @@ int init_module(void) {
 	assert_table_content(&table, keys, values, "Needless extra test.");
 
 	// Salir.
-	printk(KERN_INFO "Todas las pruebas funcionaron.");
-	return 0;
+	return true;
 }
 
-void cleanup_module(void) {
+int init_module(void)
+{
+	START_TESTS("Hash table");
+
+	CALL_TEST(test(), "Everything");
+
+	END_TESTS;
+}
+
+void cleanup_module(void)
+{
 	// Sin codigo.
 }
 

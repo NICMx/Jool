@@ -62,7 +62,8 @@ static struct session_table *get_session_table(u_int8_t l4protocol)
 			return &session_table_icmp;
 	}
 
-	printk(KERN_CRIT "Error: Unknown l4 protocol (%d); no session table mapped to it.", l4protocol);
+	printk(KERN_CRIT "get_session_table: Unknown l4 protocol (%d); no session table mapped to it.",
+			l4protocol);
 	return NULL;
 }
 
@@ -127,9 +128,9 @@ struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_
 {
 	struct session_table *table = get_session_table(l4protocol);
 
-	printk(KERN_DEBUG "Searching session entry: [%pI4#%d, %pI4#%d]...", //
-			&pair->local.address, pair->local.pi.port, //
-			&pair->remote.address, pair->remote.pi.port);
+	printk(KERN_DEBUG "Searching session entry: [%pI4#%d, %pI4#%d]...",
+			&pair->local.address, be16_to_cpu(pair->local.pi.port),
+			&pair->remote.address, be16_to_cpu(pair->remote.pi.port));
 
 	return ipv4_table_get(&table->ipv4, pair);
 }
@@ -138,9 +139,9 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
 {
 	struct session_table *table = get_session_table(l4protocol);
 
-	printk(KERN_DEBUG "Searching session entry: [%pI6#%d, %pI6#%d]...", //
-			&pair->remote.address, pair->remote.pi.port, //
-			&pair->local.address, pair->local.pi.port);
+	printk(KERN_DEBUG "Searching session entry: [%pI6#%d, %pI6#%d]...",
+			&pair->remote.address, be16_to_cpu(pair->remote.pi.port),
+			&pair->local.address, be16_to_cpu(pair->local.pi.port));
 
 	return ipv6_table_get(&table->ipv6, pair);
 }
@@ -168,7 +169,7 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 {
 	struct ipv4_table *table;
-	__be16 hash_code;
+	__u16 hash_code;
 	struct hlist_node *current_node;
 	struct ipv4_pair tuple_pair, *session_pair;
 
@@ -221,7 +222,8 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 	}
 
 	// Why was it not indexed by both tables? Programming error.
-	printk(KERN_CRIT "Programming error: Weird session removal: ipv4:%d; ipv6:%d.", removed_from_ipv4, removed_from_ipv6);
+	printk(KERN_CRIT "Programming error: Weird session removal: ipv4:%d; ipv6:%d.",
+			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
 

@@ -8,26 +8,27 @@
 #include "nf_nat64_bib.h"
 #include "nf_nat64_session.h"
 
-#define BIB_PRINT_KEY "BIB [%pI4#%d, %pI6#%d]"
-#define SESSION_PRINT_KEY "session [%pI4#%d, %pI4#%d, %pI6#%d, %pI6#%d]"
-#define PRINT_BIB(bib) \
-	&bib->ipv4.address, bib->ipv4.pi.port, &bib->ipv6.address, bib->ipv6.pi.port
-#define PRINT_SESSION(session) \
-	&session->ipv4.remote.address, session->ipv4.remote.pi.port, \
-	&session->ipv4.local.address, session->ipv4.local.pi.port, \
-	&session->ipv6.local.address, session->ipv6.local.pi.port, \
-	&session->ipv6.remote.address, session->ipv6.remote.pi.port
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
 MODULE_DESCRIPTION("BIB-Session module test.");
+
+#define BIB_PRINT_KEY "BIB [%pI4#%d, %pI6#%d]"
+#define SESSION_PRINT_KEY "session [%pI4#%d, %pI4#%d, %pI6#%d, %pI6#%d]"
+#define PRINT_BIB(bib) \
+	&bib->ipv4.address, be16_to_cpu(bib->ipv4.pi.port), \
+	&bib->ipv6.address, be16_to_cpu(bib->ipv6.pi.port)
+#define PRINT_SESSION(session) \
+	&session->ipv4.remote.address, be16_to_cpu(session->ipv4.remote.pi.port), \
+	&session->ipv4.local.address, be16_to_cpu(session->ipv4.local.pi.port), \
+	&session->ipv6.local.address, be16_to_cpu(session->ipv6.local.pi.port), \
+	&session->ipv6.remote.address, be16_to_cpu(session->ipv6.remote.pi.port)
 
 const char* IPV4_ADDRS[] = { "0.0.0.0", "255.1.2.3", "65.0.123.2", "0.1.0.3", //
 		"55.55.55.55", "10.11.12.13", "13.12.11.10", "255.255.255.255", //
 		"1.2.3.4", "4.3.2.1", "2.3.4.5", "5.4.3.2", //
 		"3.4.5.6", "6.5.4.3", "4.5.6.7", "7.6.5.4", //
 		"56.56.56.56" };
-const __be16 IPV4_PORTS[] = { 0, 456, 9556, 7523, //
+const __u16 IPV4_PORTS[] = { 0, 456, 9556, 7523, //
 		65535, 536, 284, 231, //
 		1234, 4321, 2345, 5432, //
 		3456, 6543, 4567, 7654, //
@@ -37,7 +38,7 @@ const char* IPV6_ADDRS[] = { "::1", "5:3::2", "4::", "44:55:66::", //
 		"1:2:3:4::", "4:3:2:1::", "2:3:4:5::", "5:4:3:2::", //
 		"3:4:5:6::", "6:5:4:3::", "4:5:6:7::", "7:6:5:4::", //
 		"56:56:56:56::" };
-const __be16 IPV6_PORTS[] = { 334, 0, 9556, 65535, //
+const __u16 IPV6_PORTS[] = { 334, 0, 9556, 65535, //
 		55555, 825, 1111, 99, //
 		1234, 4321, 2345, 5432, //
 		3456, 6543, 4567, 7654, //
@@ -50,7 +51,7 @@ const __be16 IPV6_PORTS[] = { 334, 0, 9556, 65535, //
 void init_ipv4_tuple_address(struct ipv4_tuple_address* ta, int index)
 {
 	ta->address.s_addr = in_aton(IPV4_ADDRS[index]);
-	ta->pi.port = IPV4_PORTS[index];
+	ta->pi.port = cpu_to_be16(IPV4_PORTS[index]);
 }
 
 void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index)
@@ -59,12 +60,12 @@ void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index)
 		printk(KERN_WARNING "No puedo convertir el texto '%s' a in6_addr. Esto va a tronar...", IPV6_ADDRS[index]);
 		return;
 	}
-	ta->pi.port = IPV6_PORTS[index];
+	ta->pi.port = cpu_to_be16(IPV6_PORTS[index]);
 }
 
 struct bib_entry *init_bib_entry(int ipv4_index, int ipv6_index)
 {
-	struct bib_entry *entry = (struct bib_entry*) kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
+	struct bib_entry *entry = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 	if (!entry)
 		return NULL;
 
@@ -78,7 +79,7 @@ struct bib_entry *init_bib_entry(int ipv4_index, int ipv6_index)
 struct session_entry *init_session_entry(struct bib_entry* bib, int ipv4_remote_id, int ipv4_local_id, int ipv6_local_id,
 		int ipv6_remote_id, u_int8_t l4protocol, unsigned int dying_time)
 {
-	struct session_entry* entry = (struct session_entry *) kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
+	struct session_entry* entry = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 	if (!entry)
 		return NULL;
 
@@ -170,7 +171,6 @@ bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has
 	struct bib_entry *expected_bib_entry;
 	struct bib_entry *retrieved_bib_entry;
 
-	struct nf_conntrack_tuple tuple;
 	struct ipv4_tuple_address dummy_ipv4;
 	struct ipv6_tuple_address dummy_ipv6;
 	init_ipv4_tuple_address(&dummy_ipv4, 16);
@@ -179,13 +179,11 @@ bool assert_bib(char* test_name, struct bib_entry* key_entry, bool udp_table_has
 	for (i = 0; i < 3; i++) {
 		expected_bib_entry = table_has_it[i] ? key_entry : NULL;
 
-		init_tuple(&tuple, (union tuple_address *) &dummy_ipv4, (union tuple_address *) &key_entry->ipv4, l4protocols[i], NFPROTO_IPV4);
-		retrieved_bib_entry = nat64_get_bib_entry(&tuple);
+		retrieved_bib_entry = nat64_get_bib_entry_by_ipv4(&key_entry->ipv4, l4protocols[i]);
 		if (!assert_bib_entry_equals(expected_bib_entry, retrieved_bib_entry, test_name))
 			return false;
 
-		init_tuple(&tuple, (union tuple_address *) &key_entry->ipv6, (union tuple_address *) &dummy_ipv6, l4protocols[i], NFPROTO_IPV6);
-		retrieved_bib_entry = nat64_get_bib_entry(&tuple);
+		retrieved_bib_entry = nat64_get_bib_entry_by_ipv6(&key_entry->ipv6, l4protocols[i]);
 		if (!assert_bib_entry_equals(expected_bib_entry, retrieved_bib_entry, test_name))
 			return false;
 	}
@@ -201,24 +199,16 @@ bool assert_session(char* test_name, struct session_entry* key_entry, bool udp_t
 	struct session_entry *expected_entry;
 	struct session_entry *retrieved_entry;
 
-	struct nf_conntrack_tuple tuple;
-
 	for (i = 0; i < 3; i++) {
+		struct ipv4_pair pair_4 = { key_entry->ipv4.remote, key_entry->ipv4.local };
+		struct ipv6_pair pair_6 = { key_entry->ipv6.local, key_entry->ipv6.remote };
 		expected_entry = table_has_it[i] ? key_entry : NULL;
 
-		init_tuple(&tuple, //
-				(union tuple_address *) &key_entry->ipv4.remote, //
-				(union tuple_address *) &key_entry->ipv4.local, //
-				l4protocols[i], NFPROTO_IPV4);
-		retrieved_entry = nat64_get_session_entry(&tuple);
+		retrieved_entry = nat64_get_session_entry_by_ipv4(&pair_4, l4protocols[i]);
 		if (!assert_session_entry_equals(expected_entry, retrieved_entry, test_name))
 			return false;
 
-		init_tuple(&tuple, //
-				(union tuple_address *) &key_entry->ipv6.remote, //
-				(union tuple_address *) &key_entry->ipv6.local, //
-				l4protocols[i], NFPROTO_IPV6);
-		retrieved_entry = nat64_get_session_entry(&tuple);
+		retrieved_entry = nat64_get_session_entry_by_ipv6(&pair_6, l4protocols[i]);
 		if (!assert_session_entry_equals(expected_entry, retrieved_entry, test_name))
 			return false;
 	}
@@ -430,9 +420,9 @@ bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_i
 	struct nf_conntrack_tuple tuple;
 
 	src.ipv4.address.s_addr = in_aton(IPV4_ADDRS[src_addr_id]);
-	src.ipv4.pi.port = IPV4_PORTS[src_port_id];
+	src.ipv4.pi.port = cpu_to_be16(IPV4_PORTS[src_port_id]);
 	dst.ipv4.address.s_addr = in_aton(IPV4_ADDRS[dst_addr_id]);
-	dst.ipv4.pi.port = IPV4_PORTS[dst_port_id];
+	dst.ipv4.pi.port = cpu_to_be16(IPV4_PORTS[dst_port_id]);
 
 	init_tuple(&tuple, &src, &dst, IPPROTO_UDP, NFPROTO_IPV4);
 
@@ -472,6 +462,62 @@ bool test_address_filtering(void)
 	return true;
 }
 
+void send_to_userspace(struct bib_entry **bibs, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		printk(KERN_DEBUG BIB_PRINT_KEY, PRINT_BIB(bibs[i]));
+	}
+}
+
+// TODO (test) completar esto?
+//bool test_to_array(void)
+//{
+//	// Doble asterisco significa en este caso "arreglo de apuntadores".
+//	// No quise hacer copias de los registros porque la tabla es potencialmente grande
+//	// y más encima vas a acabar haciendo otra copia de ella al pasarla a userspace.
+//	struct bib_entry **bibs;
+//	int count;
+//
+//	{
+//		struct bib_entry *inserted_bib = init_bib_entry(0, 0);
+//
+//		printk(KERN_DEBUG "asd 1");
+//
+//		// Prueba de agregar un solo registro en la tabla BIB.
+//		if (!nat64_add_bib_entry(inserted_bib, IPPROTO_UDP)) {
+//			printk(KERN_WARNING "Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
+//			return false;
+//		}
+//		if (!assert_bib("BIB insertion", inserted_bib, true, false, false))
+//			return false;
+//	}
+//
+//
+//	count = nat64_bib_to_array(IPPROTO_UDP, &bibs);
+//	if (count == -1) {
+//		// Falló el kmalloc del arreglo.
+//		panic;
+//		return false;
+//	}
+//	if (count == 0) {
+//		// La tabla de BIB estaba vacía.
+//		printk("Tabla vacia.");
+//		return false;
+//	}
+//
+//	// --> En este punto sabemos que bib_entries contiene al arreglo. <--
+//
+//	send_to_userspace(bibs, count);
+//
+//	// Es necesario no kfreear cada elemento porque son los de la tabla de verdad.
+//	// Entonces solo libera el arreglo.
+//	kfree(bibs);
+//
+//	return true;
+//}
+
 /********************************************
  * Main.
  ********************************************/
@@ -487,6 +533,7 @@ int init_module(void)
 	CALL_TEST(simple_bib_session(), "Single BIB-Session");
 	CALL_TEST(test_clean_old_sessions(), "Session cleansing.");
 	CALL_TEST(test_address_filtering(), "Address-dependent filtering.");
+//	CALL_TEST(test_to_array(), "To array function.");
 
 	END_TESTS;
 }

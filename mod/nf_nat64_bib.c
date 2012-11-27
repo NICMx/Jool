@@ -93,19 +93,21 @@ bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 	return true;
 }
 
-struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol)
+struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address,
+		u_int8_t l4protocol)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
 	printk(KERN_DEBUG "Searching BIB entry for address %pI6#%d...", //
-			&address->address, address->pi.port);
+			&address->address, be16_to_cpu(address->pi.port));
 	return ipv4_table_get(&table->ipv4, address);
 }
 
-struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol)
+struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
+		u_int8_t l4protocol)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
 	printk(KERN_DEBUG "Searching BIB entry for address %pI4#%d...", //
-			&address->address, address->pi.port);
+			&address->address, be16_to_cpu(address->pi.port));
 	return ipv6_table_get(&table->ipv6, address);
 }
 
@@ -146,7 +148,8 @@ bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 		return false;
 
 	// Why was it not indexed by both tables? Programming error.
-	printk(KERN_CRIT "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.", removed_from_ipv4, removed_from_ipv6);
+	printk(KERN_CRIT "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
+			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
 
@@ -155,7 +158,8 @@ void nat64_bib_destroy(void)
 	printk(KERN_DEBUG "Emptying the BIB tables...");
 
 	// The keys needn't be released because they're part of the values.
-	// The values need to be released only in one of the tables because both tables point to the same values.
+	// The values need to be released only in one of the tables because both tables point to the
+	// same values.
 
 	ipv4_table_empty(&bib_udp.ipv4, false, false);
 	ipv6_table_empty(&bib_udp.ipv6, false, true);
@@ -167,7 +171,8 @@ void nat64_bib_destroy(void)
 	ipv6_table_empty(&bib_icmp.ipv6, false, true);
 }
 
-struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6)
+struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
+		struct ipv6_tuple_address *ipv6)
 {
 	struct bib_entry *result = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 	if (!result)

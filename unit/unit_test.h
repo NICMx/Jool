@@ -1,17 +1,22 @@
 /*
  * Macros to be used by test methods.
  */
-#define ASSERT_EQUALS(expected, actual, test_name) \
-	if (expected != actual) { \
-		printk(KERN_WARNING "Test failed: %s Expected: %d. Actual: %d.", test_name, expected, actual); \
-		return -EAGAIN; \
+
+#define ASSERT_AUX(expected, actual, printable_expected, printable_actual, specifier, test_name) \
+	if ((expected) != (actual)) { \
+		printk(KERN_WARNING "Test failed: %s Expected: " specifier ". Actual: " specifier ".", \
+				test_name, printable_expected, printable_actual); \
+		return false; \
 	}
 
+#define ASSERT_EQUALS(expected, actual, test_name) \
+	ASSERT_AUX(expected, actual, expected, actual, "%d", test_name)
+#define ASSERT_EQUALS_PTR(expected, actual, test_name) \
+	ASSERT_AUX(expected, actual, expected, actual, "%p", test_name)
+#define ASSERT_EQUALS_IPV4(expected, actual, test_name) \
+	ASSERT_AUX(expected.s_addr, actual.s_addr, &expected, &actual, "%pI4", test_name)
 #define ASSERT_NULL(actual, test_name) \
-	if (actual != NULL) { \
-		printk(KERN_WARNING "Test failed: %s Expected: NULL. Actual: %d.", test_name, (int) actual); \
-		return -EAGAIN; \
-	}
+	ASSERT_AUX(NULL, actual, NULL, actual, "%p", test_name)
 
 #define END_TEST \
 	return 0
@@ -37,4 +42,4 @@
 
 #define END_TESTS \
 	printk(KERN_INFO "Finished. Runs: %d; Errors: %d\n", test_counter, failure_counter); \
-	return 0
+	return (failure_counter > 0) ? -EINVAL : 0;
