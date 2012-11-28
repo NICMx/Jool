@@ -1,6 +1,8 @@
 #include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/icmp.h>
+#include <linux/icmpv6.h>
+#include <net/icmp.h>
 #include <net/netfilter/nf_conntrack.h>
 
 #include "nf_nat64_types.h"
@@ -61,14 +63,13 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	switch (tuple->l3_protocol) {
 	case NFPROTO_IPV4:
 		if (!is_l4_protocol_supported_ipv4(tuple->l4_protocol)) {
-			nat64_send_icmp_error(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH);
+			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
 			goto unsupported_l4_protocol;
 		}
 		break;
 	case NFPROTO_IPV6:
 		if (!is_l4_protocol_supported_ipv6(tuple->l4_protocol)) {
-			// TODO por qué se envía un paquete de ICMPv4 si la red objetivo es IPv6?
-			nat64_send_icmp_error(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH);
+			icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 			goto unsupported_l4_protocol;
 		}
 		break;

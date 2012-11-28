@@ -95,7 +95,7 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	if (!nf_nat64_ipv4_pool_contains_addr(ip4_header->daddr))
 	 	goto failure;
 
-	// TODO (fine) add header validations?
+	// TODO (warning) add header validations?
 
 	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP)
 		goto failure;
@@ -120,7 +120,7 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	if (nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr))
 		goto failure;
 
-	// TODO (fine) add header validations?
+	// TODO (warning) add header validations?
 
 	if (l4protocol != NEXTHDR_TCP && l4protocol != NEXTHDR_UDP && l4protocol != NEXTHDR_ICMP)
 		goto failure;

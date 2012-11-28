@@ -8,8 +8,7 @@
 #include <linux/skbuff.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-
-void nat64_send_icmp_error(struct sk_buff *packet, __u8 type, __u8 code);
+// TODO (severe) siento que no estás enviando todos los mensajes de ICMP.
 
 bool is_address_legal(struct in6_addr *address);
 bool nf_nat64_ipv4_pool_contains_addr(__be32 addr);

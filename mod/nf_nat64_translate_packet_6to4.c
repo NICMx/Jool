@@ -148,7 +148,8 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 
 	// if in->packet == NULL, we're translating a inner packet, so don't care.
 	if (has_nonzero_segments_left(ip6_hdr) && in->packet != NULL) {
-		nat64_send_icmp_error(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD);
+		// TODO (severe) ese cero está mal.
+		icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, 0);
 		return false;
 	}
 

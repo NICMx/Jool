@@ -33,7 +33,7 @@ bool ipv6_addr_equals(struct in6_addr *addr_1, struct in6_addr *addr_2);
 
 union port_or_id
 {
-	// TODO no se pueden cambiar a __u?
+	// TODO (optimization) no se pueden cambiar a __u?
 	__be16 port;
 	__be16 id;
 };

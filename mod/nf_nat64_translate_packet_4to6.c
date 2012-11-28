@@ -122,7 +122,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	}
 
 	if (has_unexpired_src_route(ip4_hdr) && in->packet != NULL) {
-		nat64_send_icmp_error(in->packet, ICMP_DEST_UNREACH, ICMP_SR_FAILED);
+		icmp_send(in->packet, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
 		return false;
 	}
 

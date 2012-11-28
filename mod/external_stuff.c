@@ -2,13 +2,9 @@
 #include "nf_nat64_types.h"
 
 
-void nat64_send_icmp_error(struct sk_buff *packet, __u8 type, __u8 code)
-{
-	// Sin código.
-}
-
 bool is_address_legal(struct in6_addr *address)
 {
+	// TODO (severe) nadie está haciendo esto.
 	return true;
 }
 
@@ -104,6 +100,7 @@ static void print_packet(struct sk_buff *skb)
 
 bool nat64_send_packet(struct sk_buff *skb_out)
 {
+	// TODO (severe) nadie está haciendo esto.
 	print_packet(skb_out);
 	return true;
 }

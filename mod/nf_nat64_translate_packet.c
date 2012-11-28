@@ -1,7 +1,9 @@
 #include <linux/kernel.h>
 #include <linux/printk.h>
+#include <linux/icmpv6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/icmp.h>
 #include <net/tcp.h>
 
 #include "nf_nat64_types.h"

@@ -11,7 +11,7 @@ const __u16 DEFAULT_MTU_PLATEAUS[] = { 65535, 32000, 17914, 8166,
 
 bool nat64_load_default_config(void)
 {
-	// TODO que el módulo no haga nada mientras esto no está overrideado.
+	// TODO (later) que el módulo no haga nada mientras esto no está overrideado.
 	config.ipv4_pool_range_first.s_addr = in_aton("12.12.12.12");
 	config.ipv4_pool_range_last.s_addr = in_aton("12.12.12.14");
 
