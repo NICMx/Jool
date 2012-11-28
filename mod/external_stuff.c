@@ -23,19 +23,6 @@ bool nf_nat64_ipv6_pool_contains_addr(struct in6_addr *addr)
 	return true;
 }
 
-bool nat64_determine_incoming_tuple(struct sk_buff* skb_in, struct nf_conntrack_tuple **tuple_in)
-{
-	struct iphdr *hdr = ip_hdr(skb_in);
-
-	*tuple_in = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
-	if (!tuple_in)
-		return false;
-
-	(*tuple_in)->src.l3num = (hdr->version == 4) ? IPPROTO_IP : IPPROTO_IPV6;
-
-	return true;
-}
-
 bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in)
 {
 	return true;

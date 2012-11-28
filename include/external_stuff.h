@@ -52,7 +52,6 @@ bool is_address_legal(struct in6_addr *address);
 bool nf_nat64_ipv4_pool_contains_addr(__be32 addr);
 bool nf_nat64_ipv6_pool_contains_addr(struct in6_addr *addr);
 
-bool nat64_determine_incoming_tuple(struct sk_buff* skb_in, struct nf_conntrack_tuple **tuple_in);
 bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in);
 bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
 		struct nf_conntrack_tuple **tuple_out);

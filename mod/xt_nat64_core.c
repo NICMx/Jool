@@ -10,6 +10,7 @@
 #include "libxt_NAT64.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 
+#include "nf_nat64_determine_incoming_tuple.h"
 #include "nf_nat64_outgoing.h"
 #include "nf_nat64_translate_packet.h"
 

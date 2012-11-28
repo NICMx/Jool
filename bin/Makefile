@@ -5,7 +5,6 @@ EXTRA_CFLAGS += -I$(src)/../mod
 EXTRA_CFLAGS += -I$(src)/../include
 
 
-#obj-m += outgoing.o
 obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o core.o
 
 rfc6052-objs += ../mod/nf_nat64_rfc6052.o
@@ -37,6 +36,7 @@ core-objs += ../mod/nf_nat64_rfc6052.o
 core-objs += ../mod/nf_nat64_bib.o
 core-objs += ../mod/nf_nat64_session.o
 core-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
+core-objs += ../mod/nf_nat64_determine_incoming_tuple.o
 core-objs += ../mod/nf_nat64_outgoing.o
 core-objs += ../mod/nf_nat64_translate_packet.o
 core-objs += ../mod/xt_nat64_core.o
@@ -45,6 +45,11 @@ core-objs += ../mod/xt_nat64_core.o
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 insert:
+	# insert the dependencies
+	sudo modprobe ipv6
+	sudo modprobe ip_tables
+	sudo modprobe nf_conntrack
+	sudo modprobe nf_conntrack_ipv4
 	# insert the module
 	sudo insmod core.ko
 	dmesg | tail -15
