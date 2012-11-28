@@ -9,11 +9,44 @@
 #include "external_stuff.h"
 #include "libxt_NAT64.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
+#include "nf_nat64_bib.h"
+#include "nf_nat64_session.h"
+#include "nf_nat64_config.h"
 
 #include "nf_nat64_determine_incoming_tuple.h"
 #include "nf_nat64_outgoing.h"
 #include "nf_nat64_translate_packet.h"
+#include "nf_nat64_handling_hairpinning.h"
 
+
+static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)
+{
+	struct sk_buff *skb_out = NULL;
+	struct nf_conntrack_tuple *tuple_out = NULL;
+
+	pr_debug("Step 5: Handling Hairpinning...");
+
+	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
+		goto failure;
+	if (!nat64_filtering_and_updating(tuple_in))
+		goto failure;
+	if (!nat64_determine_outgoing_tuple(tuple_in, &tuple_out))
+		goto failure;
+	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
+		goto failure;
+	if (!nat64_send_packet(skb_out))
+		goto failure;
+
+	kfree(tuple_out);
+	kfree_skb(skb_out);
+	pr_debug("Done step 5.");
+	return true;
+
+failure:
+	kfree(tuple_out);
+	kfree_skb(skb_out);
+	return false;
+}
 
 unsigned int nat64_core(struct sk_buff *skb_in)
 {
@@ -28,22 +61,23 @@ unsigned int nat64_core(struct sk_buff *skb_in)
 		goto failure;
 	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
 		goto failure;
-	if (!nat64_hairpinning_and_handling(tuple_out, skb_out))
-		goto failure;
-	if (!nat64_send_packet(skb_out))
-		goto failure;
+	if (nat64_got_hairpin(tuple_out)) {
+		if (!handle_hairpin(skb_out, tuple_out))
+			goto failure;
+	} else {
+		if (!nat64_send_packet(skb_out))
+			goto failure;
+	}
 
-	// TODO (warning) no hay qeu liberar skb_out o in?
 	printk(KERN_DEBUG "Success.");
-
 	kfree(tuple_out);
+	kfree_skb(skb_out);
 	return NF_DROP;
 
 failure:
-	printk(KERN_DEBUG "Failed.");
-
-	kfree_skb(skb_out);
+	printk(KERN_DEBUG "Failure.");
 	kfree(tuple_out);
+	kfree_skb(skb_out);
 	return NF_DROP;
 }
 
@@ -136,8 +170,13 @@ int __init nat64_init(void)
 	int result;
 
 	printk(KERN_DEBUG "Inserting NAT64 module...");
-	// need_conntrack();
-	// need_ipv4_conntrack();
+
+	need_conntrack();
+	need_ipv4_conntrack();
+
+	nat64_load_default_config();
+	nat64_bib_init();
+	nat64_session_init();
 
 	result = xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 

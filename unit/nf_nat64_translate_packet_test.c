@@ -1175,7 +1175,6 @@ int init_module(void)
 	config.improve_mtu_failure_rate = false;
 	config.ipv6_nexthop_mtu = 1300;
 	config.ipv4_nexthop_mtu = 1400;
-	config.out_mtu = 1500;
 	config.mtu_plateaus = plateaus;
 	config.mtu_plateau_count = 3;
 

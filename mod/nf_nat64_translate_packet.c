@@ -6,6 +6,7 @@
 
 #include "nf_nat64_types.h"
 #include "nf_nat64_constants.h"
+#include "nf_nat64_config.h"
 #include "nf_nat64_translate_packet.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 #include "external_stuff.h"
@@ -316,6 +317,8 @@ bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_bu
 	struct packet_out out = INIT_PACKET_OUT;
 	struct pipeline pipeline;
 
+	pr_debug("Step 4: Translating the Packet");
+
 	switch (ip_hdr(skb_in)->version) {
 	case 4: // 4 to 6.
 		if (!init_pipeline_ipv4(&pipeline, &in, tuple, skb_in))
@@ -345,6 +348,8 @@ bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_bu
 	*skb_out = out.packet;
 	out.packet = NULL;
 	kfree_packet_out(&out);
+
+	pr_debug("Done step 4.");
 	return true;
 
 failure:

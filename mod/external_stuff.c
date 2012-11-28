@@ -1,7 +1,6 @@
 #include "external_stuff.h"
 #include "nf_nat64_types.h"
 
-struct configuration config;
 
 void nat64_send_icmp_error(struct sk_buff *packet, __u8 type, __u8 code)
 {
@@ -25,6 +24,8 @@ bool nf_nat64_ipv6_pool_contains_addr(struct in6_addr *addr)
 
 bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in)
 {
+	pr_debug("Step 2: Filtering and Updating Binding and Session Information");
+	pr_debug("Done step 2.");
 	return true;
 }
 
@@ -34,6 +35,8 @@ bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
 	struct nf_conntrack_tuple *result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
 	if (!result)
 		return false;
+
+	pr_debug("Step 3: Computing the Outgoing Tuple");
 
 	switch (tuple_in->src.l3num) {
 	case IPPROTO_IP:
@@ -54,11 +57,7 @@ bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
 	}
 
 	*tuple_out = result;
-	return true;
-}
-
-bool nat64_hairpinning_and_handling(struct nf_conntrack_tuple *tuple_out, struct sk_buff *skb_out)
-{
+	pr_debug("Done step 3.");
 	return true;
 }
 

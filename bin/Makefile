@@ -28,6 +28,7 @@ outgoing-objs += ../unit/nf_nat64_outgoing_test.o
 translate-objs += ../mod/external_stuff.o
 translate-objs += ../mod/nf_nat64_types.o
 translate-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
+translate-objs += ../mod/nf_nat64_config.o
 translate-objs += ../unit/nf_nat64_translate_packet_test.o
 
 core-objs += ../mod/external_stuff.o
@@ -35,10 +36,12 @@ core-objs += ../mod/nf_nat64_types.o
 core-objs += ../mod/nf_nat64_rfc6052.o
 core-objs += ../mod/nf_nat64_bib.o
 core-objs += ../mod/nf_nat64_session.o
+core-objs += ../mod/nf_nat64_config.o
 core-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
 core-objs += ../mod/nf_nat64_determine_incoming_tuple.o
 core-objs += ../mod/nf_nat64_outgoing.o
 core-objs += ../mod/nf_nat64_translate_packet.o
+core-objs += ../mod/nf_nat64_handling_hairpinning.o
 core-objs += ../mod/xt_nat64_core.o
 
 

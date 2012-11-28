@@ -45,7 +45,7 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	enum ip_conntrack_dir dir;
 	struct nf_conntrack_tuple *tuple;
 
-	pr_debug("Determining the incoming tuple...");
+	pr_debug("Step 1: Determining the Incoming Tuple");
 
 	// Ask conntrack to do the work for us.
 	ct = nf_ct_get(skb, &ctinfo);
@@ -76,8 +76,8 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 		goto unsupported_l3_protocol;
 	}
 
-	pr_debug("Done determining the tuple.");
 	*result = tuple;
+	pr_debug("Done step 1.");
 	return true;
 
 unsupported_l3_protocol:
