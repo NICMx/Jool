@@ -431,7 +431,7 @@ static struct sk_buff *build_test_skb(bool (*l3_hdr_function)(void **, __u16 *),
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l3_payload_len, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_WARNING "Could not allocate a test packet.");
+		pr_warning("Could not allocate a test packet.\n");
 		goto error;
 	}
 
@@ -474,8 +474,7 @@ static bool translate(bool (*l3_hdr_function)(void **, __u16 *),
 
 	// Validate.
 	if (packet_out == NULL) {
-		printk(KERN_WARNING "nat64_translating_the_packet() returned success "
-				"but the resulting packet is NULL.");
+		pr_warning("nat64_translating_the_packet() returned success but its packet is NULL.\n");
 		goto error;
 	}
 
@@ -878,7 +877,7 @@ static bool test_function_has_unexpired_src_route(void)
 	struct iphdr *hdr = kmalloc(60, GFP_ATOMIC); // 60 is the max value allowed by hdr.ihl.
 	unsigned char *options;
 	if (!hdr) {
-		printk(KERN_WARNING "Can't allocate a test header.");
+		pr_warning("Can't allocate a test header.\n");
 		goto failure;
 	}
 	options = (unsigned char *) (hdr + 1);

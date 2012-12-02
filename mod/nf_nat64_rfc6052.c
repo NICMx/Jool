@@ -45,7 +45,7 @@ struct in_addr nat64_extract_ipv4(struct in6_addr *ipv6_original, int prefix_len
 		break;
 	default:
 		// TODO (later) haz algo para reportar esto hacia afuera (hay otro en append).
-		printk(KERN_ERR "nat64_extract_ipv4: Cannot translate prefix: %d.", prefix_length);
+		pr_err("nat64_extract_ipv4: Cannot translate prefix: %d.\n", prefix_length);
 		ipv4_result.s_addr = 0;
 		break;
 	}
@@ -108,7 +108,7 @@ struct in6_addr nat64_append_ipv4(struct in6_addr *prefix, struct in_addr *ipv4_
 		ipv6_result.s6_addr32[3] = ipv4_original->s_addr;
 		break;
 	default:
-		printk(KERN_ERR "nat64_append_ipv4: Cannot translate prefix length: %d.", prefix_len);
+		pr_err("nat64_append_ipv4: Cannot translate prefix length: %d.\n", prefix_len);
 		break;
 	}
 

@@ -81,17 +81,27 @@ static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
 }
 
 /**
- * Returns "true" if ip6_header's first routing header contains a Segments Field which is not zero.
+ * Returns "true" if ip6_hdr's first routing header contains a Segments Field which is not zero.
+ *
+ * @param ip6_hdr IPv6 header of the packet you want to test.
+ * @param field_location (out parameter) if the header contains a routing header, the offset of the
+ *		segments left field (from the start of ip6_hdr) will be stored here.
+ * @return whether ip6_hdr's first routing header contains a Segments Field which is not zero.
  */
-static bool has_nonzero_segments_left(struct ipv6hdr *ip6_header)
+static bool has_nonzero_segments_left(struct ipv6hdr *ip6_hdr, __u32 *field_location)
 {
 	// TODO (test) looks like you're not unit testing this.
 
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_header);
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 
 	while (hdr_iterator_next(&iterator)) {
 		if (iterator.hdr_type == NEXTHDR_ROUTING) {
 			struct ipv6_rt_hdr *rt_hdr = (struct ipv6_rt_hdr *) iterator.data;
+
+			__u32 rt_hdr_offset = iterator.data - (void *) ip6_hdr;
+			__u32 segments_left_offset = offsetof(struct ipv6_rt_hdr, segments_left);
+			*field_location = rt_hdr_offset + segments_left_offset;
+
 			return (rt_hdr->segments_left != 0);
 		}
 	}
@@ -128,7 +138,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct iphdr);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		printk(KERN_WARNING "create_ipv4_hdr - Header allocation failed.");
+		pr_warning("Allocation of the IPv4 header failed.\n");
 		return false;
 	}
 
@@ -147,10 +157,13 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	ip4_hdr->daddr = in->tuple->ipv4_dst_addr.s_addr;
 
 	// if in->packet == NULL, we're translating a inner packet, so don't care.
-	if (has_nonzero_segments_left(ip6_hdr) && in->packet != NULL) {
-		// TODO (severe) ese cero está mal.
-		icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, 0);
-		return false;
+	if (in->packet != NULL) {
+		__u32 nonzero_location;
+		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
+			pr_debug("Cannot translate: Packet's segments left field is nonzero.\n");
+			icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
+			return false;
+		}
 	}
 
 	ip6_frag_hdr = get_extension_header(ip6_hdr, NEXTHDR_FRAGMENT);
@@ -264,14 +277,14 @@ static bool icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr, struct ic
 		goto success;
 	}
 
-	printk(KERN_CRIT "icmp6_to_icmp4_param_prob_ptr - Programming error: Unknown pointer '%d'.",
-			icmp6_ptr);
+	pr_crit("Programming error: Unknown pointer '%u' for parameter problem messages.\n", icmp6_ptr);
 	goto failure;
 
 success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return true;
 failure:
+	pr_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.\n", icmp6_ptr);
 	return false;
 }
 
@@ -299,6 +312,8 @@ static bool icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr, struct icmp
 		break;
 
 	default:
+		pr_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.\n", icmpv6_hdr->icmp6_type,
+				icmpv6_hdr->icmp6_code);
 		return false;
 	}
 
@@ -326,6 +341,8 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
 
 	default:
 		// ICMPV6_UNK_OPTION is known to fall through here.
+		pr_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.\n", icmpv6_hdr->icmp6_type,
+				icmpv6_hdr->icmp6_code);
 		return false;
 	}
 
@@ -341,7 +358,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
-		printk(KERN_WARNING "create_icmp4_hdr - Allocation of the new header failed.");
+		pr_warning("Allocation of the ICMPv4 header failed.\n");
 		return false;
 	}
 
@@ -397,6 +414,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		// The following codes are known to fall through here:
 		// ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
 		// Neighbor Discover messages (133 - 137).
+		pr_info("ICMPv6 messages type %u do not exist in ICMPv4.\n", icmpv6_hdr->icmp6_type);
 		return false;
 	}
 

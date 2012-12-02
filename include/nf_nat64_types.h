@@ -30,6 +30,8 @@ union address
 
 bool ipv4_addr_equals(struct in_addr *addr_1, struct in_addr *addr_2);
 bool ipv6_addr_equals(struct in6_addr *addr_1, struct in6_addr *addr_2);
+__u16 ipv4_addr_hash_code(struct in_addr *addr);
+//__u16 ipv6_addr_hash_code(struct in6_addr *addr);
 
 union port_or_id
 {

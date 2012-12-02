@@ -5,6 +5,12 @@
 	if (expected == actual) return true; \
 	if (expected == NULL || actual == NULL) return false;
 
+/** This is a slightly more versatile in_addr. */
+union ipv4_addr_union {
+	__be32 by32;
+	__be16 by16[2];
+};
+
 bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 {
 	CHECK_NULLS(expected, actual);
@@ -26,6 +32,21 @@ bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
 			return false;
 
 	return true;
+}
+
+__u16 ipv4_addr_hash_code(struct in_addr *addr)
+{
+	union ipv4_addr_union addr_union;
+	__u16 result = 1;
+
+	if (addr == NULL)
+			return 0;
+	addr_union.by32 = addr->s_addr;
+
+	result = 31 * result + be16_to_cpu(addr_union.by16[0]);
+	result = 31 * result + be16_to_cpu(addr_union.by16[1]);
+
+	return result;
 }
 
 bool ipv4_tuple_address_equals(struct ipv4_tuple_address *expected, struct ipv4_tuple_address *actual)
@@ -99,12 +120,6 @@ __u16 ipv4_pair_hash_code(struct ipv4_pair *pair)
 	// pair->remote.pi.port would perhaps be the logical hash code, since it's usually random,
 	// but during nat64_is_allowed_by_address_filtering() we need to ignore it during lookup
 	// so this needs to be a little more creative.
-
-	/** This is a slightly more versatile in_addr. */
-	union ipv4_addr_union {
-		__be32 by32;
-		__be16 by16[2];
-	};
 
 	union ipv4_addr_union local, remote;
 	__u16 result = 1;

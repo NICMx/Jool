@@ -58,7 +58,7 @@ bool hdr_iterator_next(struct hdr_iterator *iterator)
 		return false;
 	}
 
-	printk(KERN_CRIT "hdr_iterator_next - Programming error: Unknown hdr: %d.", iterator->hdr_type);
+	pr_crit("hdr_iterator_next - Programming error: Unknown hdr: %d.\n", iterator->hdr_type);
 	return false;
 }
 

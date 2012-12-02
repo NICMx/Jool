@@ -20,8 +20,8 @@ bool nf_nat64_ipv6_pool_contains_addr(struct in6_addr *addr)
 
 bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in)
 {
-	pr_debug("Step 2: Filtering and Updating Binding and Session Information");
-	pr_debug("Done step 2.");
+	pr_debug("Step 2: Filtering and Updating Binding and Session Information\n");
+	pr_debug("Done step 2.\n");
 	return true;
 }
 
@@ -29,10 +29,12 @@ bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
 		struct nf_conntrack_tuple **tuple_out)
 {
 	struct nf_conntrack_tuple *result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
-	if (!result)
+	if (!result) {
+		pr_warning("Can't allocate a tuple.\n");
 		return false;
+	}
 
-	pr_debug("Step 3: Computing the Outgoing Tuple");
+	pr_debug("Step 3: Computing the Outgoing Tuple\n");
 
 	switch (tuple_in->src.l3num) {
 	case IPPROTO_IP:
@@ -53,11 +55,10 @@ bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
 	}
 
 	*tuple_out = result;
-	pr_debug("Done step 3.");
+	pr_debug("Done step 3.\n");
 	return true;
 }
 
-#define print(msg, param) printk(KERN_DEBUG msg, param)
 static void print_packet(struct sk_buff *skb)
 {
 	struct iphdr *hdr4 = ip_hdr(skb);
@@ -65,38 +66,36 @@ static void print_packet(struct sk_buff *skb)
 
 	switch (hdr4->version) {
 	case 4:
-		print("Version: %d", hdr4->version);
-		print("Header length: %d", hdr4->ihl);
-		print("Type of service: %d", hdr4->tos);
-		print("Total length: %d", be16_to_cpu(hdr4->tot_len));
-		print("Identification: %d", be16_to_cpu(hdr4->id));
-		print("Fragment Offset: %d", be16_to_cpu(hdr4->frag_off));
-		print("TTL: %d", hdr4->ttl);
-		print("Protocol: %d", hdr4->protocol);
-		print("Checksum: %d", be16_to_cpu(hdr4->check));
-		print("Source addr: %pI4", &hdr4->saddr);
-		print("Dest addr: %pI4", &hdr4->daddr);
+		pr_debug("  Version: %d\n", hdr4->version);
+		pr_debug("  Header length: %d\n", hdr4->ihl);
+		pr_debug("  Type of service: %d\n", hdr4->tos);
+		pr_debug("  Total length: %d\n", be16_to_cpu(hdr4->tot_len));
+		pr_debug("  Identification: %d\n", be16_to_cpu(hdr4->id));
+		pr_debug("  Fragment Offset: %d\n", be16_to_cpu(hdr4->frag_off));
+		pr_debug("  TTL: %d\n", hdr4->ttl);
+		pr_debug("  Protocol: %d\n", hdr4->protocol);
+		pr_debug("  Checksum: %d\n", be16_to_cpu(hdr4->check));
+		pr_debug("  Source addr: %pI4\n", &hdr4->saddr);
+		pr_debug("  Dest addr: %pI4\n", &hdr4->daddr);
 		break;
 
 	case 6:
-		print("Version: %d", hdr6->version);
-		print("Traffic class: %d", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
-		print("Flow lbl 1: %d", hdr6->flow_lbl[0] & 0xFF);
-		print("Flow lbl 2: %d", hdr6->flow_lbl[1]);
-		print("Flow lbl 3: %d", hdr6->flow_lbl[2]);
-		print("Payload length: %d", be16_to_cpu(hdr6->payload_len));
-		print("Next hdr: %d", hdr6->nexthdr);
-		print("Hop limit: %d", hdr6->hop_limit);
-		print("Source addr: %pI6c", &hdr6->saddr);
-		print("Dest addr: %pI6c", &hdr6->daddr);
+		pr_debug("  Version: %d\n", hdr6->version);
+		pr_debug("  Traffic class: %d\n", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
+		pr_debug("  Flow lbl: %d %d %d\n", hdr6->flow_lbl[0] & 0xFF, hdr6->flow_lbl[1],
+				hdr6->flow_lbl[2]);
+		pr_debug("  Payload length: %d\n", be16_to_cpu(hdr6->payload_len));
+		pr_debug("  Next hdr: %d\n", hdr6->nexthdr);
+		pr_debug("  Hop limit: %d\n", hdr6->hop_limit);
+		pr_debug("  Source addr: %pI6c\n", &hdr6->saddr);
+		pr_debug("  Dest addr: %pI6c\n", &hdr6->daddr);
 		break;
 
 	default:
-		printk(KERN_DEBUG "Unknown protocol.");
+		pr_debug("  Unknown protocol.\n");
 		break;
 	}
 }
-#undef print
 
 bool nat64_send_packet(struct sk_buff *skb_out)
 {

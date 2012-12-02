@@ -56,6 +56,9 @@ insert:
 	# insert the module
 	sudo insmod core.ko
 	dmesg | tail -15
+	# Enable ipv6 and ipv4 forwarding
+	sudo sysctl -w net.ipv4.conf.all.forwarding=1
+	sudo sysctl -w net.ipv6.conf.all.forwarding=1
 	# insert the rule
 	sudo iptables -t mangle --flush
 	sudo ip6tables -t mangle --flush

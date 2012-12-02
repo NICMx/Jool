@@ -1,8 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
-
 #include <linux/ip.h>
-
 #include <net/netfilter/nf_conntrack.h>
 
 #include "xt_nat64_core.h"
@@ -24,7 +22,7 @@ static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tu
 	struct sk_buff *skb_out = NULL;
 	struct nf_conntrack_tuple *tuple_out = NULL;
 
-	pr_debug("Step 5: Handling Hairpinning...");
+	pr_debug("Step 5: Handling Hairpinning...\n");
 
 	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
 		goto failure;
@@ -39,7 +37,7 @@ static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tu
 
 	kfree(tuple_out);
 	kfree_skb(skb_out);
-	pr_debug("Done step 5.");
+	pr_debug("Done step 5.\n");
 	return true;
 
 failure:
@@ -69,13 +67,13 @@ unsigned int nat64_core(struct sk_buff *skb_in)
 			goto failure;
 	}
 
-	printk(KERN_DEBUG "Success.");
+	pr_debug("Success.\n");
 	kfree(tuple_out);
 	kfree_skb(skb_out);
 	return NF_DROP;
 
 failure:
-	printk(KERN_DEBUG "Failure.");
+	pr_debug("Failure.\n");
 	kfree(tuple_out);
 	kfree_skb(skb_out);
 	return NF_DROP;
@@ -86,19 +84,26 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	struct iphdr *ip4_header = ip_hdr(skb);
 	__u8 l4protocol = ip4_header->protocol;
 
-	printk(KERN_DEBUG "Incoming IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
+	pr_debug("===============================================\n");
+	pr_debug("Incoming IPv4 packet: %pI4->%pI4\n", &ip4_header->saddr, &ip4_header->daddr);
 
 	// Validate.
-	if (skb->len < sizeof(struct iphdr) || ip4_header->version != 4)
-		goto failure;
-
-	if (!nf_nat64_ipv4_pool_contains_addr(ip4_header->daddr))
+	if (!nf_nat64_ipv4_pool_contains_addr(ip4_header->daddr)) {
+		pr_info("Packet is not destined to me.");
 	 	goto failure;
+	}
 
 	// TODO (warning) add header validations?
 
-	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP)
+	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
+		pr_info("Packet does not use TCP, UDP or ICMPv4.");
 		goto failure;
+	}
+
+	// Set the skb's transport header pointer.
+	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
+	// And despite that, we'll need it.
+	skb_set_transport_header(skb, 4 * ip_hdr(skb)->ihl);
 
 	return nat64_core(skb);
 
@@ -115,15 +120,26 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	hdr_iterator_last(&iterator);
 	l4protocol = iterator.hdr_type;
 
-	printk(KERN_DEBUG "Incoming IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
+	pr_debug("===============================================\n");
+	pr_debug("Incoming IPv6 packet: %pI6c->%pI6c\n", &ip6_header->saddr, &ip6_header->daddr);
 
-	if (nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr))
+	if (nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr)) {
+		pr_info("Packet is not destined to me.");
 		goto failure;
+	}
 
 	// TODO (warning) add header validations?
 
-	if (l4protocol != NEXTHDR_TCP && l4protocol != NEXTHDR_UDP && l4protocol != NEXTHDR_ICMP)
+
+	if (l4protocol != NEXTHDR_TCP && l4protocol != NEXTHDR_UDP && l4protocol != NEXTHDR_ICMP) {
+		pr_info("Packet does not use TCP, UDP or ICMPv6.");
 		goto failure;
+	}
+
+	// Set the skb's transport header pointer.
+	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
+	// And despite that, we'll need it.
+	skb_set_transport_header(skb, iterator.data - (void *) ip6_header);
 
 	return nat64_core(skb);
 
@@ -135,10 +151,10 @@ int nat64_tg_check(const struct xt_tgchk_param *par)
 {
 //	int ret = nf_ct_l3proto_try_module_get(par->family);
 //	if (ret < 0)
-//		pr_info("cannot load support for proto=%u\n", par->family);
+//		pr_info("cannot load support for proto=%u\n\n", par->family);
 //	return ret;
 
-	printk(KERN_INFO "Check function.");
+	pr_info("Check function.\n");
 	return 0;
 }
 
@@ -169,7 +185,7 @@ int __init nat64_init(void)
 {
 	int result;
 
-	printk(KERN_DEBUG "Inserting NAT64 module...");
+	pr_debug("%sInserting NAT64 module...\n", banner);
 
 	need_conntrack();
 	need_ipv4_conntrack();
@@ -179,16 +195,19 @@ int __init nat64_init(void)
 	nat64_session_init();
 
 	result = xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
-
 	if (result == 0)
-		printk(KERN_DEBUG "Ok, success.");
+		pr_debug("Ok, success.\n");
 	return result;
 }
 
 void __exit nat64_exit(void)
 {
 	xt_unregister_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
-	printk(KERN_DEBUG "NAT64 module removed.");
+
+	nat64_session_destroy();
+	nat64_bib_destroy();
+
+	pr_debug("NAT64 module removed.\n");
 }
 
 MODULE_LICENSE("GPL");

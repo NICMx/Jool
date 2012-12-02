@@ -113,17 +113,17 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	__u16 hash_code;
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
-	printk(KERN_DEBUG "  -> Hash code: %d", hash_code);
+	pr_debug("  -> Hash code: %d\n", hash_code);
 
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
 		if (table->equals_function(key, current_pair->key)) {
-			printk(KERN_DEBUG "  -> Found.");
+			pr_debug("  -> Found.\n");
 			return current_pair;
 		}
 	}
 
-	printk(KERN_DEBUG "  -> Not found.");
+	pr_debug("  -> Not found.\n");
 	return NULL;
 }
 
@@ -258,7 +258,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 				kfree(current_pair->value);
 			kfree(current_pair);
 
-			printk(KERN_DEBUG "Deleted a node whose hash code was %d.", row);
+			pr_debug("Deleted a node whose hash code was %d.\n", row);
 		}
 	}
 }
@@ -278,14 +278,15 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 	struct KEY_VALUE_PAIR *current_pair;
 	int row;
 
-	printk(KERN_DEBUG "** Printing table: %s **", header);
+	pr_debug("** Printing table: %s **\n", header);
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			printk(KERN_DEBUG "  hash:%d - key:%p - value:%p", row, &current_pair->key, &current_pair->value);
+			pr_debug("  hash:%d - key:%p - value:%p\n", row, &current_pair->key,
+					&current_pair->value);
 		}
 	}
-	printk(KERN_DEBUG "** End of table **");
+	pr_debug("** End of table **\n");
 }
 #endif
 
@@ -296,7 +297,7 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
  *
  * @param table the HTABLE_NAME instance you want to convert to an array.
  * @param array the result will be stored here.
- * @return the resulting length of "array". May be zero, if memory could not be allocated.
+ * @return the resulting length of "array". May be -1, if memory could not be allocated.
  *
  * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
  * the real entries from the table.

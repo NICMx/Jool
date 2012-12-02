@@ -16,7 +16,7 @@ static bool test_no_subheaders(void)
 
 	ip6_header = kmalloc(sizeof(struct ipv6hdr) + 4, GFP_ATOMIC);
 	if (!ip6_header) {
-		printk(KERN_WARNING "Unable to allocate a test header.");
+		pr_warning("Unable to allocate a test header.\n");
 		return false;
 	}
 	ip6_header->nexthdr = NEXTHDR_UDP;
@@ -86,7 +86,7 @@ static bool test_subheaders(void)
 				+ 4, // (payload.)
 				GFP_ATOMIC);
 	if (!ip6_header) {
-		printk(KERN_WARNING "Unable to allocate a test header.");
+		pr_warning("Unable to allocate a test header.\n");
 		return false;
 	}
 	ip6_header->nexthdr = NEXTHDR_FRAGMENT;

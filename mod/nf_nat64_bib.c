@@ -53,10 +53,11 @@ static struct bib_table *get_bib_table(u_int8_t l4protocol)
 		case IPPROTO_TCP:
 			return &bib_tcp;
 		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
 			return &bib_icmp;
 	}
 
-	printk(KERN_CRIT "Error: Unknown l4 protocol (%d); no BIB mapped to it.", l4protocol);
+	pr_crit("Error: Unknown l4 protocol (%d); no BIB mapped to it.\n", l4protocol);
 	return NULL;
 }
 
@@ -97,8 +98,8 @@ struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address
 		u_int8_t l4protocol)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
-	printk(KERN_DEBUG "Searching BIB entry for address %pI6#%d...", //
-			&address->address, be16_to_cpu(address->pi.port));
+	pr_debug("Searching BIB entry for address %pI4#%d...\n", &address->address,
+			be16_to_cpu(address->pi.port));
 	return ipv4_table_get(&table->ipv4, address);
 }
 
@@ -106,8 +107,8 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address
 		u_int8_t l4protocol)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
-	printk(KERN_DEBUG "Searching BIB entry for address %pI4#%d...", //
-			&address->address, be16_to_cpu(address->pi.port));
+	pr_debug("Searching BIB entry for address %pI6c#%d...\n", &address->address,
+			be16_to_cpu(address->pi.port));
 	return ipv6_table_get(&table->ipv6, address);
 }
 
@@ -123,7 +124,7 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 			return nat64_get_bib_entry_by_ipv4(&address, tuple->l4_protocol);
 		}
 		default: {
-			printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
+			pr_crit("Programming error; unknown l3 protocol: %d\n", tuple->l3_protocol);
 			return NULL;
 		}
 	}
@@ -148,14 +149,14 @@ bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 		return false;
 
 	// Why was it not indexed by both tables? Programming error.
-	printk(KERN_CRIT "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
+	pr_crit("Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.\n",
 			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
 
 void nat64_bib_destroy(void)
 {
-	printk(KERN_DEBUG "Emptying the BIB tables...");
+	pr_debug("Emptying the BIB tables...\n");
 
 	// The keys needn't be released because they're part of the values.
 	// The values need to be released only in one of the tables because both tables point to the

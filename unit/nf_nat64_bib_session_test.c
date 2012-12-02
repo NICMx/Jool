@@ -12,8 +12,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
 MODULE_DESCRIPTION("BIB-Session module test.");
 
-#define BIB_PRINT_KEY "BIB [%pI4#%d, %pI6#%d]"
-#define SESSION_PRINT_KEY "session [%pI4#%d, %pI4#%d, %pI6#%d, %pI6#%d]"
+#define BIB_PRINT_KEY "BIB [%pI4#%d, %pI6c#%d]"
+#define SESSION_PRINT_KEY "session [%pI4#%d, %pI4#%d, %pI6c#%d, %pI6c#%d]"
 #define PRINT_BIB(bib) \
 	&bib->ipv4.address, be16_to_cpu(bib->ipv4.pi.port), \
 	&bib->ipv6.address, be16_to_cpu(bib->ipv6.pi.port)
@@ -57,7 +57,7 @@ void init_ipv4_tuple_address(struct ipv4_tuple_address* ta, int index)
 void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index)
 {
 	if (!in6_pton(IPV6_ADDRS[index], -1, (u8*) &ta->address, '\\', NULL)) {
-		printk(KERN_WARNING "No puedo convertir el texto '%s' a in6_addr. Esto va a tronar...", IPV6_ADDRS[index]);
+		pr_warning("No puedo convertir el texto '%s' a in6_addr. Esto va a tronar...\n", IPV6_ADDRS[index]);
 		return;
 	}
 	ta->pi.port = cpu_to_be16(IPV6_PORTS[index]);
@@ -121,17 +121,17 @@ bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actua
 		return true;
 
 	if (expected == NULL) {
-		printk(KERN_WARNING "Test '%s' failed: Expected null, obtained " BIB_PRINT_KEY ".",
-				test_name, PRINT_BIB(actual));
+		pr_warning("Test '%s' failed: Expected null, obtained " BIB_PRINT_KEY ".\n", test_name,
+				PRINT_BIB(actual));
 		return false;
 	}
 	if (actual == NULL) {
-		printk(KERN_WARNING "Test '%s' failed: Expected " BIB_PRINT_KEY ", obtained null.",
-				test_name, PRINT_BIB(expected));
+		pr_warning("Test '%s' failed: Expected " BIB_PRINT_KEY ", obtained null.\n", test_name,
+				PRINT_BIB(expected));
 		return false;
 	}
 	if (!bib_entry_equals(expected, actual)) {
-		printk(KERN_WARNING "Test '%s' failed: Expected " BIB_PRINT_KEY " obtained " BIB_PRINT_KEY ".",
+		pr_warning("Test '%s' failed: Expected " BIB_PRINT_KEY " obtained " BIB_PRINT_KEY ".\n",
 				test_name, PRINT_BIB(expected), PRINT_BIB(actual));
 		return false;
 	}
@@ -145,17 +145,17 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 		return true;
 
 	if (expected == NULL) {
-		printk(KERN_WARNING "Test '%s' failed: Expected null, obtained " SESSION_PRINT_KEY ".",
+		pr_warning("Test '%s' failed: Expected null, obtained " SESSION_PRINT_KEY ".\n",
 				test_name, PRINT_SESSION(actual));
 		return false;
 	}
 	if (actual == NULL) {
-		printk(KERN_WARNING "Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained null.",
+		pr_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained null.\n",
 				test_name, PRINT_SESSION(expected));
 		return false;
 	}
 	if (!session_entry_equals(expected, actual)) {
-		printk(KERN_WARNING "Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained session " SESSION_PRINT_KEY ".",
+		pr_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained session " SESSION_PRINT_KEY ".\n",
 				test_name, PRINT_SESSION(expected), PRINT_SESSION(actual));
 		return false;
 	}
@@ -228,21 +228,17 @@ bool simple_bib(void)
 {
 	struct bib_entry *inserted_bib = init_bib_entry(0, 0);
 
-	printk(KERN_DEBUG "asd 1");
-
 	// Prueba de agregar un solo registro en la tabla BIB.
 	if (!nat64_add_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		printk(KERN_WARNING "Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
+		pr_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.\n");
 		return false;
 	}
 	if (!assert_bib("BIB insertion", inserted_bib, false, true, false))
 		return false;
 
-	printk(KERN_DEBUG "asd 2");
-
 	// Prueba de remover el registro.
 	if (!nat64_remove_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		printk(KERN_WARNING "Test 'BIB removal' failed: Removal of sessionless bib entry claimed to have failed.");
+		pr_warning("Test 'BIB removal' failed: Removal of sessionless bib entry claimed to have failed.\n");
 		return false;
 	}
 	if (!assert_bib("BIB removal", inserted_bib, false, false, false))
@@ -263,7 +259,7 @@ bool simple_bib_session(void)
 
 	// Insertar BIB.
 	if (!nat64_add_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		printk(KERN_WARNING "Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
+		pr_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.\n");
 		return false;
 	}
 	if (!assert_bib("BIB insertion", inserted_bib, false, true, false))
@@ -271,7 +267,7 @@ bool simple_bib_session(void)
 
 	// Insertar sesión.
 	if (!nat64_add_session_entry(inserted_session)) {
-		printk(KERN_WARNING "Test 'Session insertion' failed: Insertion of session entry claimed to have failed.");
+		pr_warning("Test 'Session insertion' failed: Insertion of session entry claimed to have failed.\n");
 		return false;
 	}
 	if (!assert_session("Session insertion", inserted_session, false, true, false))
@@ -279,7 +275,7 @@ bool simple_bib_session(void)
 
 	// Remover el registro BIB debe fallar porque tiene una sesión.
 	if (nat64_remove_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		printk(KERN_WARNING "Test 'Bib removal' failed: Removal of session-carrying BIB entry claimed to have succeeded.");
+		pr_warning("Test 'Bib removal' failed: Removal of session-carrying BIB entry claimed to have succeeded.\n");
 		return false;
 	}
 	if (!assert_bib("Bib removal (bib table)", inserted_bib, false, true, false))
@@ -289,7 +285,7 @@ bool simple_bib_session(void)
 
 	// Prueba de remover el registro de sesión.
 	if (!nat64_remove_session_entry(inserted_session)) {
-		printk(KERN_WARNING "Test 'Session removal' failed: Removal of session entry claimed to have failed.");
+		pr_warning("Test 'Session removal' failed: Removal of session entry claimed to have failed.\n");
 		return false;
 	}
 	if (!assert_bib("Session removal (bib table)", inserted_bib, false, false, false))
@@ -337,10 +333,18 @@ bool test_clean_old_sessions(void)
 	sessions[3][1]->is_static = true;
 
 	// Insertar a las tablas.
-	FOR_EACH_BIB
-		nat64_add_bib_entry(bibs[cbib], IPPROTO_UDP);
-	FOR_EACH_SESSION
-			nat64_add_session_entry(sessions[cbib][csession]);
+	FOR_EACH_BIB {
+		if (!nat64_add_bib_entry(bibs[cbib], IPPROTO_UDP)) {
+			pr_warning("Could not add BIB entry.\n");
+			return false;
+		}
+	}
+	FOR_EACH_SESSION {
+			if (!nat64_add_session_entry(sessions[cbib][csession])) {
+				pr_warning("Could not add session entry.\n");
+				return false;
+			}
+	}
 
 	// 1. Nada ha caducado:
 	// Probar que se borre nada.
@@ -436,8 +440,14 @@ bool test_address_filtering(void)
 
 	bib = init_bib_entry(0, 0);
 	session = init_session_entry(bib, 0, 0, 0, 0, IPPROTO_UDP, 12345);
-	nat64_add_bib_entry(bib, IPPROTO_UDP);
-	nat64_add_session_entry(session);
+	if (!nat64_add_bib_entry(bib, IPPROTO_UDP)) {
+		pr_warning("Could not add the BIB entry.\n");
+		return false;
+	}
+	if (!nat64_add_session_entry(session)) {
+		pr_warning("Could not add the session entry.\n");
+		return false;
+	}
 
 	// Test the packet is allowed when the tuple and the session match perfectly.
 	if (!test_address_filtering_aux(0, 0, 0, 0, true))
@@ -467,7 +477,7 @@ void send_to_userspace(struct bib_entry **bibs, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		printk(KERN_DEBUG BIB_PRINT_KEY, PRINT_BIB(bibs[i]));
+		pr_debug(BIB_PRINT_KEY, PRINT_BIB(bibs[i]));
 	}
 }
 
@@ -483,11 +493,9 @@ void send_to_userspace(struct bib_entry **bibs, int count)
 //	{
 //		struct bib_entry *inserted_bib = init_bib_entry(0, 0);
 //
-//		printk(KERN_DEBUG "asd 1");
-//
 //		// Prueba de agregar un solo registro en la tabla BIB.
 //		if (!nat64_add_bib_entry(inserted_bib, IPPROTO_UDP)) {
-//			printk(KERN_WARNING "Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
+//			pr_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.\n");
 //			return false;
 //		}
 //		if (!assert_bib("BIB insertion", inserted_bib, true, false, false))
@@ -503,7 +511,7 @@ void send_to_userspace(struct bib_entry **bibs, int count)
 //	}
 //	if (count == 0) {
 //		// La tabla de BIB estaba vacía.
-//		printk("Tabla vacia.");
+//		pr_warning("Tabla vacia.\n");
 //		return false;
 //	}
 //

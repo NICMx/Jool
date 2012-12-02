@@ -59,10 +59,11 @@ static struct session_table *get_session_table(u_int8_t l4protocol)
 		case IPPROTO_TCP:
 			return &session_table_tcp;
 		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
 			return &session_table_icmp;
 	}
 
-	printk(KERN_CRIT "get_session_table: Unknown l4 protocol (%d); no session table mapped to it.",
+	pr_crit("get_session_table: Unknown l4 protocol (%d); no session table mapped to it.\n",
 			l4protocol);
 	return NULL;
 }
@@ -128,7 +129,7 @@ struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_
 {
 	struct session_table *table = get_session_table(l4protocol);
 
-	printk(KERN_DEBUG "Searching session entry: [%pI4#%d, %pI4#%d]...",
+	pr_debug("Searching session entry: [%pI4#%d, %pI4#%d]...\n",
 			&pair->local.address, be16_to_cpu(pair->local.pi.port),
 			&pair->remote.address, be16_to_cpu(pair->remote.pi.port));
 
@@ -139,7 +140,7 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
 {
 	struct session_table *table = get_session_table(l4protocol);
 
-	printk(KERN_DEBUG "Searching session entry: [%pI6#%d, %pI6#%d]...",
+	pr_debug("Searching session entry: [%pI6c#%d, %pI6c#%d]...\n",
 			&pair->remote.address, be16_to_cpu(pair->remote.pi.port),
 			&pair->local.address, be16_to_cpu(pair->local.pi.port));
 
@@ -160,12 +161,13 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 			return nat64_get_session_entry_by_ipv4(&pair, tuple->l4_protocol);
 		}
 		default: {
-			printk(KERN_CRIT "Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
+			pr_crit("Programming error; unknown l3 protocol: %d\n", tuple->l3_protocol);
 			return NULL;
 		}
 	}
 }
 
+// TODO Nadie está usando esta función.
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 {
 	struct ipv4_table *table;
@@ -222,7 +224,7 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 	}
 
 	// Why was it not indexed by both tables? Programming error.
-	printk(KERN_CRIT "Programming error: Weird session removal: ipv4:%d; ipv6:%d.",
+	pr_crit("Programming error: Inconsistent session removal: ipv4:%d; ipv6:%d.\n",
 			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
@@ -244,7 +246,7 @@ void nat64_clean_old_sessions(void)
 
 void nat64_session_destroy(void)
 {
-	printk(KERN_DEBUG "Emptying the session tables...");
+	pr_debug("Emptying the session tables...\n");
 
 	// The keys needn't be released because they're part of the values.
 	// The values need to be released only in one of the tables because both tables point to the same values.

@@ -47,12 +47,14 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	enum ip_conntrack_dir dir;
 	struct nf_conntrack_tuple *tuple;
 
-	pr_debug("Step 1: Determining the Incoming Tuple");
+	pr_debug("Step 1: Determining the Incoming Tuple\n");
 
-	// Ask conntrack to do the work for us.
+	// Conntrack already built the tuple, so just ask.
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL)
+	if (ct == NULL) {
+		pr_warning("Packet does not contain a conntrack entry. Dropping...\n");
 		return false;
+	}
 	dir = CTINFO2DIR(ctinfo);
 	tuple = &ct->tuplehash[dir].tuple;
 
@@ -78,14 +80,14 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	}
 
 	*result = tuple;
-	pr_debug("Done step 1.");
+	pr_debug("Done step 1.\n");
 	return true;
 
 unsupported_l3_protocol:
-	printk(KERN_WARNING "Unsupported L3 protocol (%u). Dropping packet...", tuple->l3_protocol);
+	pr_warning("Unsupported L3 protocol (%u). Dropping packet...\n", tuple->l3_protocol);
 	return false;
 
 unsupported_l4_protocol:
-	printk(KERN_WARNING "Unsupported L4 protocol (%u). Dropping packet...", tuple->l4_protocol);
+	pr_warning("Unsupported L4 protocol (%u). Dropping packet...\n", tuple->l4_protocol);
 	return false;
 }

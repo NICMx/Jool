@@ -32,7 +32,7 @@ static bool create_skb(struct packet_out *out)
 			+ config.packet_tail_room, // user's reserved+.
 			GFP_ATOMIC);
 	if (!new_skb) {
-		printk(KERN_WARNING "create_skb: New packet allocation failed.");
+		pr_warning("New packet allocation failed.\n");
 		return false;
 	}
 	out->packet = new_skb;
@@ -106,8 +106,10 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	struct packet_in inner_packet_in;
 	struct packet_out inner_packet_out = INIT_PACKET_OUT;
 
+	pr_debug("Translating the inner packet...\n");
+
 	if (in_outer->payload_len < in_outer->l3_hdr_basic_len) {
-		printk(KERN_WARNING "translate_inner_packet - Packet is too small to contain a packet.");
+		pr_warning("translate_inner_packet - Packet is too small to contain a packet.\n");
 		goto failure;
 	}
 
@@ -122,7 +124,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	inner_packet_in.tuple = in_outer->tuple;
 	inner_packet_in.l3_hdr = in_inner.hdr.src;
 	if (!l3_function(&inner_packet_in, &inner_packet_out)) {
-		printk(KERN_WARNING "translate_inner_packet - Header translation failed.");
+		pr_warning("translate_inner_packet - Header translation failed.\n");
 		goto failure;
 	}
 
@@ -137,7 +139,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	out_outer->payload_len = out_inner.hdr.len + out_inner.payload.len;
 	out_outer->payload = kmalloc(out_outer->payload_len, GFP_ATOMIC);
 	if (!out_outer->payload) {
-		printk(KERN_WARNING "translate_inner_packet - New payload allocation failed.");
+		pr_warning("translate_inner_packet - New payload allocation failed.\n");
 		goto failure;
 	}
 	out_outer->payload_needs_kfreeing = true;
@@ -152,7 +154,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	return true;
 
 failure:
-	printk(KERN_WARNING "translate_inner_packet - Will leave the inner content as is.");
+	pr_warning("translate_inner_packet - Will leave the inner content as is.\n");
 	out_outer->payload = in_outer->payload;
 	out_outer->payload_len = in_outer->payload_len;
 	out_outer->payload_needs_kfreeing = false;
@@ -221,7 +223,7 @@ static bool init_pipeline_ipv4(struct pipeline *pipeline, struct packet_in *in,
 		pipeline->l4_post_function = post_icmp6;
 		break;
 	default:
-		printk(KERN_WARNING "init_pipeline_ipv4: Unsupported l4 protocol (%d). Cannot translate.",
+		pr_warning("init_pipeline_ipv4: Unsupported l4 protocol (%d). Cannot translate.\n",
 				in->l4_hdr_type);
 		return false;
 	}
@@ -260,8 +262,8 @@ static bool init_pipeline_ipv6(struct pipeline *pipeline, struct packet_in *in,
 	hdr_iterator_last(&iterator);
 	if (iterator.hdr_type == NEXTHDR_AUTH || iterator.hdr_type == NEXTHDR_ESP) {
 		// RFC 6146 section 5.1.
-		printk(KERN_WARNING "Incoming IPv6 packet has an Auth header or an ESP header. "
-				"Can't translate; will drop the packet.");
+		pr_warning("Incoming IPv6 packet has an Auth header or an ESP header. Cannot translate; "
+				"will drop the packet.\n");
 		return false;
 	}
 
@@ -283,7 +285,7 @@ static bool init_pipeline_ipv6(struct pipeline *pipeline, struct packet_in *in,
 		pipeline->l4_post_function = post_icmp4;
 		break;
 	default:
-		printk(KERN_WARNING "init_pipeline_ipv6: Unsupported l4 protocol (%d). Cannot translate.",
+		pr_warning("init_pipeline_ipv6: Unsupported l4 protocol (%d). Cannot translate.\n",
 				in->l4_hdr_type);
 		return false;
 	}
@@ -319,8 +321,9 @@ bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_bu
 	struct packet_out out = INIT_PACKET_OUT;
 	struct pipeline pipeline;
 
-	pr_debug("Step 4: Translating the Packet");
+	pr_debug("Step 4: Translating the Packet\n");
 
+	// TODO (info) alguien me la va a rayar por esto. Piénsalo más tiempo.
 	switch (ip_hdr(skb_in)->version) {
 	case 4: // 4 to 6.
 		if (!init_pipeline_ipv4(&pipeline, &in, tuple, skb_in))
@@ -331,7 +334,7 @@ bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_bu
 			goto failure;
 		break;
 	default:
-		printk(KERN_CRIT "nat64_translating_the_packet: Programming error; unknown l3 protocol: %d",
+		pr_crit("nat64_translating_the_packet: Programming error; unknown l3 protocol: %d\n",
 				ip_hdr(skb_in)->version);
 		return false;
 	}
@@ -351,7 +354,7 @@ bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_bu
 	out.packet = NULL;
 	kfree_packet_out(&out);
 
-	pr_debug("Done step 4.");
+	pr_debug("Done step 4.\n");
 	return true;
 
 failure:

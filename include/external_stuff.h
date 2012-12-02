@@ -8,7 +8,7 @@
 #include <linux/skbuff.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-// TODO (severe) siento que no estás enviando todos los mensajes de ICMP.
+// TODO (later) siento que no estás enviando todos los mensajes de ICMP.
 
 bool is_address_legal(struct in6_addr *address);
 bool nf_nat64_ipv4_pool_contains_addr(__be32 addr);
