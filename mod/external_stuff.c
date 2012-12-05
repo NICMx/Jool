@@ -1,3 +1,5 @@
+#include <linux/inet.h>
+
 #include "external_stuff.h"
 #include "nf_nat64_types.h"
 
@@ -25,81 +27,54 @@ bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in)
 	return true;
 }
 
-bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
+bool nat64_determine_outgoing_tuple_4to6(struct nf_conntrack_tuple *tuple_in,
 		struct nf_conntrack_tuple **tuple_out)
 {
-	struct nf_conntrack_tuple *result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
-	if (!result) {
-		pr_warning("Can't allocate a tuple.\n");
-		return false;
-	}
+	const char *ipv6_src = "fd68:ed5e:b31d:767d::25";
+	const char *ipv6_dst = "fd68:ed5e:b31d:767d::24";
+	struct nf_conntrack_tuple *result;
 
 	pr_debug("Step 3: Computing the Outgoing Tuple\n");
 
-	switch (tuple_in->src.l3num) {
-	case IPPROTO_IP:
-		result->ipv6_src_addr.s6_addr32[0] = cpu_to_be32(0x12345678);
-		result->ipv6_src_addr.s6_addr32[1] = cpu_to_be32(0x9ABCDEF0);
-		result->ipv6_src_addr.s6_addr32[2] = cpu_to_be32(0x12345678);
-		result->ipv6_src_addr.s6_addr32[3] = cpu_to_be32(0x9ABCDEF0);
-		result->ipv6_dst_addr.s6_addr32[0] = cpu_to_be32(0x9ABCDEF0);
-		result->ipv6_dst_addr.s6_addr32[1] = cpu_to_be32(0x12345678);
-		result->ipv6_dst_addr.s6_addr32[2] = cpu_to_be32(0x9ABCDEF0);
-		result->ipv6_dst_addr.s6_addr32[3] = cpu_to_be32(0x12345678);
-		break;
-
-	case IPPROTO_IPV6:
-		result->ipv4_src_addr.s_addr = cpu_to_be32(0xAAAAAAAA);
-		result->ipv4_dst_addr.s_addr = cpu_to_be32(0xDDDDDDDD);
-		break;
+	result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
+	if (!result) {
+		pr_warning("  Can't allocate a tuple.\n");
+		return false;
 	}
+	if (!in6_aton(ipv6_src, &result->ipv6_src_addr)) {
+		pr_debug("  (4 -> 6) No puedo traducir la dirección fuente.\n");
+		return false;
+	}
+	if (!in6_aton(ipv6_dst, &result->ipv6_dst_addr)) {
+		pr_debug("  (4 -> 6) No puedo traducir la dirección destino.\n");
+		return false;
+	}
+	pr_debug("  src: %pI6c, dst: %pI6c\n", &result->ipv6_src_addr, &result->ipv6_dst_addr);
 
 	*tuple_out = result;
 	pr_debug("Done step 3.\n");
 	return true;
 }
 
-static void print_packet(struct sk_buff *skb)
+bool nat64_determine_outgoing_tuple_6to4(struct nf_conntrack_tuple *tuple_in,
+		struct nf_conntrack_tuple **tuple_out)
 {
-	struct iphdr *hdr4 = ip_hdr(skb);
-	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
+	const char *ipv4_src = "192.168.0.1";
+	const char *ipv4_dst = "192.168.0.30";
+	struct nf_conntrack_tuple *result;
 
-	switch (hdr4->version) {
-	case 4:
-		pr_debug("  Version: %d\n", hdr4->version);
-		pr_debug("  Header length: %d\n", hdr4->ihl);
-		pr_debug("  Type of service: %d\n", hdr4->tos);
-		pr_debug("  Total length: %d\n", be16_to_cpu(hdr4->tot_len));
-		pr_debug("  Identification: %d\n", be16_to_cpu(hdr4->id));
-		pr_debug("  Fragment Offset: %d\n", be16_to_cpu(hdr4->frag_off));
-		pr_debug("  TTL: %d\n", hdr4->ttl);
-		pr_debug("  Protocol: %d\n", hdr4->protocol);
-		pr_debug("  Checksum: %d\n", be16_to_cpu(hdr4->check));
-		pr_debug("  Source addr: %pI4\n", &hdr4->saddr);
-		pr_debug("  Dest addr: %pI4\n", &hdr4->daddr);
-		break;
+	pr_debug("Step 3: Computing the Outgoing Tuple\n");
 
-	case 6:
-		pr_debug("  Version: %d\n", hdr6->version);
-		pr_debug("  Traffic class: %d\n", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
-		pr_debug("  Flow lbl: %d %d %d\n", hdr6->flow_lbl[0] & 0xFF, hdr6->flow_lbl[1],
-				hdr6->flow_lbl[2]);
-		pr_debug("  Payload length: %d\n", be16_to_cpu(hdr6->payload_len));
-		pr_debug("  Next hdr: %d\n", hdr6->nexthdr);
-		pr_debug("  Hop limit: %d\n", hdr6->hop_limit);
-		pr_debug("  Source addr: %pI6c\n", &hdr6->saddr);
-		pr_debug("  Dest addr: %pI6c\n", &hdr6->daddr);
-		break;
-
-	default:
-		pr_debug("  Unknown protocol.\n");
-		break;
+	result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
+	if (!result) {
+		pr_warning("  Can't allocate a tuple.\n");
+		return false;
 	}
-}
+	result->ipv4_src_addr.s_addr = in_aton(ipv4_src);
+	result->ipv4_dst_addr.s_addr = in_aton(ipv4_dst);
+	pr_debug("  src: %pI4, dst: %pI4\n", &result->ipv4_src_addr, &result->ipv4_dst_addr);
 
-bool nat64_send_packet(struct sk_buff *skb_out)
-{
-	// TODO (severe) nadie está haciendo esto.
-	print_packet(skb_out);
+	*tuple_out = result;
+	pr_debug("Done step 3.\n");
 	return true;
 }

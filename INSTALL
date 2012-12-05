@@ -31,7 +31,7 @@ Install the module:
 			NAT64/bin$ modprobe nf_conntrack_ipv4
 
 	Install the module.
-			NAT64/bin$ insmod core.ko     # TODO change core.ko's name...
+			NAT64/bin$ insmod nat64.ko
 
 	You might want to read the initialization output.
 			$ lsmod   # to check whether the module was actually inserted.
@@ -44,7 +44,7 @@ Install the module:
 	Prevent martian packets from reaching the module.
 			$ sysctl -w net.ipv4.conf.all.log_martians=1
 
-	Insert the iptables rules (so the packets actually reach the module).
+	Insert the iptables rules (so the packets actually reaches the module).
 			$ iptables -t mangle --flush
 			$ ip6tables -t mangle --flush
 			$ iptables -t mangle -A PREROUTING -j NAT64
@@ -62,5 +62,5 @@ Removing the module:
 			$ iptables -t mangle --flush
 			$ ip6tables -t mangle --flush
 	Remove the module
-			$ rmmod core       # TODO change core's name...
+			$ rmmod nat64
 

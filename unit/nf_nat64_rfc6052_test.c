@@ -3,6 +3,7 @@
 #include <linux/inet.h>
 
 #include "unit_test.h"
+#include "nf_nat64_types.h"
 #include "nf_nat64_rfc6052.h"
 
 MODULE_LICENSE("GPL");
@@ -42,11 +43,6 @@ char prefix[6][INET6_ADDRSTRLEN] = {
 };
 
 int pref[6] = { 32, 40, 48, 56, 64, 96 };
-
-int in6_aton(const char *str, struct in6_addr *result)
-{
-	return in6_pton(str, -1, (u8 *) result, '\\', NULL);
-}
 
 bool test_extract_ipv4(char* ipv6_as_string, int prefix)
 {

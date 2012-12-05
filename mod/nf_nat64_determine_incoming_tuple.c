@@ -4,11 +4,17 @@
 #include <linux/icmpv6.h>
 #include <net/icmp.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_l3proto.h>
 
 #include "nf_nat64_types.h"
 #include "external_stuff.h"
 #include "nf_nat64_determine_incoming_tuple.h"
 
+
+/** A identifier of the IPv4 protocol. */
+struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
+/** A identifier of the IPv6 protocol. */
+struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /**
  * Returns whether the NAT64 can handle packets using the "l4protocol" transport protocol when the
@@ -47,6 +53,8 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	enum ip_conntrack_dir dir;
 	struct nf_conntrack_tuple *tuple;
 
+	int templ3;
+
 	pr_debug("Step 1: Determining the Incoming Tuple\n");
 
 	// Conntrack already built the tuple, so just ask.
@@ -59,7 +67,10 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	tuple = &ct->tuplehash[dir].tuple;
 
 	// Just to debug...
+	templ3 = tuple->l3_protocol;
+	tuple->l3_protocol = AF_INET6; // TODO quita esto.
 	nf_ct_dump_tuple(tuple);
+	tuple->l3_protocol = templ3;
 
 	// Now perform the only validation defined in this step.
 	switch (tuple->l3_protocol) {
@@ -90,4 +101,27 @@ unsupported_l3_protocol:
 unsupported_l4_protocol:
 	pr_warning("Unsupported L4 protocol (%u). Dropping packet...\n", tuple->l4_protocol);
 	return false;
+}
+
+bool nat64_determine_incoming_tuple_init(void)
+{
+	l3proto_ip = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV4);
+	if (l3proto_ip == NULL) {
+		pr_warning("NAT64: couldn't load IPv4 l3proto");
+		return false;
+	}
+
+	l3proto_ipv6 = nf_ct_l3proto_find_get((u_int16_t) NFPROTO_IPV6);
+	if (l3proto_ipv6 == NULL) {
+		pr_warning("NAT64: couldn't load IPv6 l3proto");
+		return false;
+	}
+
+	return true;
+}
+
+void nat64_determine_incoming_tuple_destroy(void)
+{
+	nf_ct_l3proto_put(l3proto_ip);
+	nf_ct_l3proto_put(l3proto_ipv6);
 }

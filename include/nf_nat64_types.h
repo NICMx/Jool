@@ -79,6 +79,9 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2);
 __u16 ipv4_pair_hash_code(struct ipv4_pair *pair);
 __u16 ipv6_pair_hash_code(struct ipv6_pair *pair);
 
+void print_packet(struct sk_buff *skb);
+bool in6_aton(const char *str, struct in6_addr *result);
+
 /** Accesors for the nf_conntrack_tuple struct. */
 #define ipv4_src_addr 	src.u3.in
 #define ipv6_src_addr	src.u3.in6

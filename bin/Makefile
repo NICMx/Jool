@@ -1,12 +1,14 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -DDEBUG
-EXTRA_CFLAGS += -I$(src)/../mod
-EXTRA_CFLAGS += -I$(src)/../include
+
+ccflags-y := -I$(src)/../include
+ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o core.o
+obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o
 
+rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += ../mod/nf_nat64_rfc6052.o
 rfc6052-objs += ../unit/nf_nat64_rfc6052_test.o
 
@@ -31,18 +33,19 @@ translate-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
 translate-objs += ../mod/nf_nat64_config.o
 translate-objs += ../unit/nf_nat64_translate_packet_test.o
 
-core-objs += ../mod/external_stuff.o
-core-objs += ../mod/nf_nat64_types.o
-core-objs += ../mod/nf_nat64_rfc6052.o
-core-objs += ../mod/nf_nat64_bib.o
-core-objs += ../mod/nf_nat64_session.o
-core-objs += ../mod/nf_nat64_config.o
-core-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
-core-objs += ../mod/nf_nat64_determine_incoming_tuple.o
-core-objs += ../mod/nf_nat64_outgoing.o
-core-objs += ../mod/nf_nat64_translate_packet.o
-core-objs += ../mod/nf_nat64_handling_hairpinning.o
-core-objs += ../mod/xt_nat64_core.o
+nat64-objs += ../mod/external_stuff.o
+nat64-objs += ../mod/nf_nat64_types.o
+nat64-objs += ../mod/nf_nat64_rfc6052.o
+nat64-objs += ../mod/nf_nat64_bib.o
+nat64-objs += ../mod/nf_nat64_session.o
+nat64-objs += ../mod/nf_nat64_config.o
+nat64-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
+nat64-objs += ../mod/nf_nat64_determine_incoming_tuple.o
+nat64-objs += ../mod/nf_nat64_outgoing.o
+nat64-objs += ../mod/nf_nat64_translate_packet.o
+nat64-objs += ../mod/nf_nat64_handling_hairpinning.o
+nat64-objs += ../mod/nf_nat64_send_packet.o
+nat64-objs += ../mod/xt_nat64_core.o
 
 
 all:
@@ -53,23 +56,26 @@ insert:
 	sudo modprobe ip_tables
 	sudo modprobe nf_conntrack
 	sudo modprobe nf_conntrack_ipv4
-	# insert the module
-	sudo insmod core.ko
-	dmesg | tail -15
-	# Enable ipv6 and ipv4 forwarding
+	sudo modprobe nf_conntrack_ipv6
+	# enable ipv6 and ipv4 forwarding
 	sudo sysctl -w net.ipv4.conf.all.forwarding=1
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
-	# insert the rule
+	# prevent martian packets from reaching the module
+	sudo sysctl -w net.ipv4.conf.all.log_martians=1
+	# insert the module
+	sudo insmod nat64.ko
+	dmesg | tail -15
+	# insert the rules
 	sudo iptables -t mangle --flush
 	sudo ip6tables -t mangle --flush
 	sudo iptables -t mangle -A PREROUTING -j NAT64
 	sudo ip6tables -t mangle -A PREROUTING -j NAT64
 remove:
-	# remove the rule
+	# remove the rules
 	sudo iptables -t mangle --flush
 	sudo ip6tables -t mangle --flush
 	# remove the module
-	sudo rmmod core
+	sudo rmmod nat64
 	dmesg | tail -15
 test:
 	sudo insmod rfc6052.ko
@@ -84,11 +90,11 @@ test:
 	sudo rmmod outgoing
 	sudo insmod translate.ko
 	sudo rmmod translate
-	dmesg | grep 'Finished. Runs: '
+	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 modules_install:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm *.o *.ko *.mod.c modules.order ../mod/*.o ../unit/*.o
+	rm ../mod/*.o ../unit/*.o

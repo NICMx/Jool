@@ -15,7 +15,9 @@ bool nf_nat64_ipv4_pool_contains_addr(__be32 addr);
 bool nf_nat64_ipv6_pool_contains_addr(struct in6_addr *addr);
 
 bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in);
-bool nat64_determine_outgoing_tuple(struct nf_conntrack_tuple *tuple_in,
+bool nat64_determine_outgoing_tuple_4to6(struct nf_conntrack_tuple *tuple_in,
+		struct nf_conntrack_tuple **tuple_out);
+bool nat64_determine_outgoing_tuple_6to4(struct nf_conntrack_tuple *tuple_in,
 		struct nf_conntrack_tuple **tuple_out);
 bool nat64_send_packet(struct sk_buff *skb_out);
 

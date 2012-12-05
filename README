@@ -50,7 +50,7 @@ Module Dependencies (modprobe):
 Directories:
 	/bin : Makefile and the binaries it will generate.
 	/doc : Code documentation; Doxygen output.
-	/include : header files of the entire project (The kernel module, the iptables module and the configuration module).
+	/include : Header files.
 	/mod : The kernel module's implementation code.
 	/unit : Unit tests.
 	/usr : The iptables module's implementation code.

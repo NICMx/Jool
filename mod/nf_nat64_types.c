@@ -1,3 +1,5 @@
+#include <linux/inet.h>
+
 #include "nf_nat64_types.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 
@@ -142,3 +144,47 @@ __u16 ipv6_pair_hash_code(struct ipv6_pair *pair)
 {
 	return (pair != NULL) ? be16_to_cpu(pair->local.pi.port) : 0;
 }
+
+void print_packet(struct sk_buff *skb)
+{
+	struct iphdr *hdr4 = ip_hdr(skb);
+	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
+
+	switch (hdr4->version) {
+	case 4:
+		pr_debug("  Version: %d\n", hdr4->version);
+		pr_debug("  Header length: %d\n", hdr4->ihl);
+		pr_debug("  Type of service: %d\n", hdr4->tos);
+		pr_debug("  Total length: %d\n", be16_to_cpu(hdr4->tot_len));
+		pr_debug("  Identification: %d\n", be16_to_cpu(hdr4->id));
+		pr_debug("  Fragment Offset: %d\n", be16_to_cpu(hdr4->frag_off));
+		pr_debug("  TTL: %d\n", hdr4->ttl);
+		pr_debug("  Protocol: %d\n", hdr4->protocol);
+		pr_debug("  Checksum: %d\n", be16_to_cpu(hdr4->check));
+		pr_debug("  Source addr: %pI4\n", &hdr4->saddr);
+		pr_debug("  Dest addr: %pI4\n", &hdr4->daddr);
+		break;
+
+	case 6:
+		pr_debug("  Version: %d\n", hdr6->version);
+		pr_debug("  Traffic class: %d\n", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
+		pr_debug("  Flow lbl: %d %d %d\n", hdr6->flow_lbl[0] & 0xFF, hdr6->flow_lbl[1],
+				hdr6->flow_lbl[2]);
+		pr_debug("  Payload length: %d\n", be16_to_cpu(hdr6->payload_len));
+		pr_debug("  Next hdr: %d\n", hdr6->nexthdr);
+		pr_debug("  Hop limit: %d\n", hdr6->hop_limit);
+		pr_debug("  Source addr: %pI6c\n", &hdr6->saddr);
+		pr_debug("  Dest addr: %pI6c\n", &hdr6->daddr);
+		break;
+
+	default:
+		pr_debug("  Unknown protocol.\n");
+		break;
+	}
+}
+
+bool in6_aton(const char *str, struct in6_addr *result)
+{
+	return in6_pton(str, -1, (u8 *) result, '\0', NULL);
+}
+

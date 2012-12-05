@@ -10,6 +10,9 @@
  * The 3.4 section of RFC 6146 is encapsulated in this module.
  */
 
+bool nat64_determine_incoming_tuple_init(void);
+void nat64_determine_incoming_tuple_destroy(void);
+
 /**
  * Extracts the relevant data from "skb" and stores it in the "tuple" tuple.
  *

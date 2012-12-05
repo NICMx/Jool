@@ -15,9 +15,12 @@
 #include "nf_nat64_outgoing.h"
 #include "nf_nat64_translate_packet.h"
 #include "nf_nat64_handling_hairpinning.h"
+#include "nf_nat64_send_packet.h"
 
 
-static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)
+static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in,
+		bool (*determine_outgoing_tuple_fn)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple **),
+		bool (*send_packet_fn)(struct sk_buff *))
 {
 	struct sk_buff *skb_out = NULL;
 	struct nf_conntrack_tuple *tuple_out = NULL;
@@ -28,11 +31,11 @@ static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tu
 		goto failure;
 	if (!nat64_filtering_and_updating(tuple_in))
 		goto failure;
-	if (!nat64_determine_outgoing_tuple(tuple_in, &tuple_out))
+	if (!determine_outgoing_tuple_fn(tuple_in, &tuple_out)) // TODO esto también está mal.
 		goto failure;
 	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
 		goto failure;
-	if (!nat64_send_packet(skb_out))
+	if (!send_packet_fn(skb_out)) // TODO esto está mal.
 		goto failure;
 
 	kfree(tuple_out);
@@ -46,7 +49,9 @@ failure:
 	return false;
 }
 
-unsigned int nat64_core(struct sk_buff *skb_in)
+unsigned int nat64_core(struct sk_buff *skb_in,
+		bool (*determine_outgoing_tuple_fn)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple **),
+		bool (*send_packet_fn)(struct sk_buff *))
 {
 	struct sk_buff *skb_out = NULL;
 	struct nf_conntrack_tuple *tuple_in = NULL, *tuple_out = NULL;
@@ -55,15 +60,15 @@ unsigned int nat64_core(struct sk_buff *skb_in)
 		goto failure;
 	if (!nat64_filtering_and_updating(tuple_in))
 		goto failure;
-	if (!nat64_determine_outgoing_tuple(tuple_in, &tuple_out))
+	if (!determine_outgoing_tuple_fn(tuple_in, &tuple_out))
 		goto failure;
 	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
 		goto failure;
 	if (nat64_got_hairpin(tuple_out)) {
-		if (!handle_hairpin(skb_out, tuple_out))
+		if (!handle_hairpin(skb_out, tuple_out, determine_outgoing_tuple_fn, send_packet_fn))
 			goto failure;
 	} else {
-		if (!nat64_send_packet(skb_out))
+		if (!send_packet_fn(skb_out))
 			goto failure;
 	}
 
@@ -89,14 +94,14 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 	// Validate.
 	if (!nf_nat64_ipv4_pool_contains_addr(ip4_header->daddr)) {
-		pr_info("Packet is not destined to me.");
+		pr_info("Packet is not destined to me.\n");
 	 	goto failure;
 	}
 
 	// TODO (warning) add header validations?
 
 	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
-		pr_info("Packet does not use TCP, UDP or ICMPv4.");
+		pr_info("Packet does not use TCP, UDP or ICMPv4.\n");
 		goto failure;
 	}
 
@@ -105,7 +110,9 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	// And despite that, we'll need it.
 	skb_set_transport_header(skb, 4 * ip_hdr(skb)->ihl);
 
-	return nat64_core(skb);
+	return nat64_core(skb,
+			&nat64_determine_outgoing_tuple_4to6,
+			&nat64_send_packet_ipv6);
 
 failure:
 	return NF_ACCEPT;
@@ -123,16 +130,15 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	pr_debug("===============================================\n");
 	pr_debug("Incoming IPv6 packet: %pI6c->%pI6c\n", &ip6_header->saddr, &ip6_header->daddr);
 
-	if (nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr)) {
-		pr_info("Packet is not destined to me.");
+	if (!nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr)) {
+		pr_info("Packet is not destined to me.\n");
 		goto failure;
 	}
 
 	// TODO (warning) add header validations?
 
-
 	if (l4protocol != NEXTHDR_TCP && l4protocol != NEXTHDR_UDP && l4protocol != NEXTHDR_ICMP) {
-		pr_info("Packet does not use TCP, UDP or ICMPv6.");
+		pr_info("Packet does not use TCP, UDP or ICMPv6.\n");
 		goto failure;
 	}
 
@@ -141,7 +147,9 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	// And despite that, we'll need it.
 	skb_set_transport_header(skb, iterator.data - (void *) ip6_header);
 
-	return nat64_core(skb);
+	return nat64_core(skb,
+			&nat64_determine_outgoing_tuple_6to4,
+			&nat64_send_packet_ipv4);
 
 failure:
 	return NF_ACCEPT;
@@ -193,6 +201,7 @@ int __init nat64_init(void)
 	nat64_load_default_config();
 	nat64_bib_init();
 	nat64_session_init();
+	nat64_determine_incoming_tuple_init();
 
 	result = xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 	if (result == 0)
@@ -204,6 +213,7 @@ void __exit nat64_exit(void)
 {
 	xt_unregister_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 
+	nat64_determine_incoming_tuple_destroy();
 	nat64_session_destroy();
 	nat64_bib_destroy();
 
