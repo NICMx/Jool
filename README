@@ -1,2 +1,57 @@
-Just a development fork from https://github.com/NICMx/NAT64.
-It doesn't stand on its own so not much to see here... 
+	NAT64 - An implementation of RFC6146.
+	Copyright (C) 2012  NIC-Mx - ITESM
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+IMPORTANT:
+	Project still under construction.
+
+Authors:
+	NIC-Mx representatives
+		Ing. Gustavo Lozano <glozano@nic.mx>
+		Ing. Jorge Cano
+		Ing. Alberto Leiva <aleiva@nic.mx>
+
+	ITESM representatives
+		Dr. Juan Arturo Nolazco	<jnolazco@itesm.mx>
+		Ing. Martha Sordia <msordia@itesm.mx>
+
+	ITESM students
+		Juan Antonio Osorio <jaosorior@gmail.com>
+		Luis Fernando Hinojosa <lf.hinojosa@gmail.com>
+		David Valenzuela <david.valenzuela.88@gmail.com>
+		Jose Vicente Ramirez <pepermz@gmail.com>
+		Mario Gerardo Trevinho <mario_tc88@hotmail.com>
+		Roberto Aceves <roberto.aceves@gmail.com>
+		Miguel Alejandro González <maggonzz@gmail.com>
+		Ramiro Nava <ramironava@gmail.com>
+		Adrian González <bernardogzzf@gmail.com>
+		Manuel Aude <dormam@gmail.com>
+		Gabriel Chavez <gabrielchavez02@gmail.com>
+		Alan Villela López <avillop@gmail.com>
+
+Module Dependencies (modprobe):
+	ipv6
+	ip_tables
+	nf_conntrack
+	nf_conntrack_ipv4
+
+Directories:
+	/bin : Makefile and the binaries it will generate.
+	/doc : Code documentation; Doxygen output.
+	/include : header files of the entire project (The kernel module, the iptables module and the configuration module).
+	/mod : The kernel module's implementation code.
+	/unit : Unit tests.
+	/usr : The iptables module's implementation code.
+
