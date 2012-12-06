@@ -86,14 +86,16 @@ static bool test(void)
 	for (i = 0; i < 3; i++)
 		test_table_put(&table, &keys[i], &values[i]);
 
-	assert_table_content(&table, keys, values, "Hash table put/get.");
+	if (!assert_table_content(&table, keys, values, "Hash table put/get."))
+		goto failure;
 	test_table_print(&table, "After puts");
 
 	// Test remove.
 	test_table_remove(&table, &keys[1], false, false);
 	values[1].value = -1;
 
-	assert_table_content(&table, keys, values, "Hash table remove.");
+	if (!assert_table_content(&table, keys, values, "Hash table remove."))
+		goto failure;
 	test_table_print(&table, "After remove");
 
 	// Test empty.
@@ -101,7 +103,8 @@ static bool test(void)
 	values[0].value = -1;
 	values[2].value = -1;
 
-	assert_table_content(&table, keys, values, "Hash table empty.");
+	if (!assert_table_content(&table, keys, values, "Hash table empty."))
+		goto failure;
 	test_table_print(&table, "After empty");
 
 	// Test put after the cleanup.
@@ -112,7 +115,8 @@ static bool test(void)
 	for (i = 0; i < 3; i++)
 		test_table_put(&table, &keys[i], &values[i]);
 
-	assert_table_content(&table, keys, values, "Hash table put/get.");
+	if (!assert_table_content(&table, keys, values, "Hash table put/get."))
+		goto failure;
 	test_table_print(&table, "After puts");
 
 	// Clean up. Also do a final assert just in case.
@@ -120,9 +124,15 @@ static bool test(void)
 	values[0].value = -1;
 	values[1].value = -1;
 	values[2].value = -1;
-	assert_table_content(&table, keys, values, "Needless extra test.");
+	if (!assert_table_content(&table, keys, values, "Needless extra test."))
+		goto failure;
 
+	test_table_empty(&table, false, false);
 	return true;
+
+failure:
+	test_table_empty(&table, false, false);
+	return false;
 }
 
 static bool test_to_array_function(void)
@@ -132,10 +142,11 @@ static bool test_to_array_function(void)
 	int array_size;
 	int i;
 
-	// Init.
 	struct key keys[] = { { 2 }, { 3 }, { 12 } };
 	struct value values[] = { { 6623 }, { 784 }, { 736 } };
 
+	// Init.
+	test_table_init(&table, &equals_function, &hash_code_function);
 	for (i = 0; i < ARRAY_SIZE(values); i++)
 		test_table_put(&table, &keys[i], &values[i]);
 
@@ -159,10 +170,12 @@ static bool test_to_array_function(void)
 	}
 
 	kfree(array);
+	test_table_empty(&table, false, false);
 	return true;
 
 failure:
 	kfree(array);
+	test_table_empty(&table, false, false);
 	return false;
 }
 

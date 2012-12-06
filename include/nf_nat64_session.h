@@ -131,6 +131,10 @@ void nat64_clean_old_sessions(void);
  */
 void nat64_session_destroy(void);
 
+struct session_entry *nat64_create_static_session_entry(
+		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+		struct bib_entry *bib, u_int8_t l4protocol);
+
 /**
  * Creates an array out of the "l4protocol" session table's data and places it in "*array".
  *

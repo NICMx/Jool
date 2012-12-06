@@ -181,6 +181,8 @@ struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
 
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
+	INIT_LIST_HEAD(&result->session_entries);
+
 	return result;
 }
 

@@ -263,6 +263,26 @@ void nat64_session_destroy(void)
 	INIT_LIST_HEAD(&all_sessions);
 }
 
+struct session_entry *nat64_create_static_session_entry(
+		struct ipv4_pair *ipv4,struct ipv6_pair *ipv6,
+		struct bib_entry *bib, u_int8_t l4protocol)
+{
+	struct session_entry *result = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
+	if (!result)
+		return NULL;
+
+	result->ipv4 = *ipv4;
+	result->ipv6 = *ipv6;
+	result->is_static = true;
+	result->dying_time = 0;
+	result->bib = bib;
+	INIT_LIST_HEAD(&result->entries_from_bib);
+	INIT_LIST_HEAD(&result->all_sessions);
+	result->l4protocol = l4protocol;
+
+	return result;
+}
+
 int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array)
 {
 	return ipv4_table_to_array(&get_session_table(l4protocol)->ipv4, array);
