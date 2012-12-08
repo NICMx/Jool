@@ -365,6 +365,7 @@ bool test_clean_old_sessions(void)
 
 	nat64_clean_old_sessions();
 
+	// TODO (test) a veces me saca error aquí.
 	ASSERT_SINGLE_BIB("Whole BIB dies", 0, true, true, true, true);
 	ASSERT_SINGLE_BIB("Whole BIB dies", 1, false, false, false, false);
 	ASSERT_SINGLE_BIB("Whole BIB dies", 2, true, true, true, true);

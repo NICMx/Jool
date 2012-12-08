@@ -40,7 +40,7 @@ static bool create_skb(struct packet_out *out)
 	skb_reserve(new_skb, config.packet_head_room + LL_MAX_HEADER);
 	skb_put(new_skb, out->l3_hdr_len + out->l4_hdr_len + out->payload_len);
 
-	// skb_reset_mac_header(new_skb);
+	skb_reset_mac_header(new_skb);
 	skb_reset_network_header(new_skb);
 	skb_set_transport_header(new_skb, out->l3_hdr_len);
 

@@ -19,7 +19,6 @@ bool nat64_determine_outgoing_tuple_4to6(struct nf_conntrack_tuple *tuple_in,
 		struct nf_conntrack_tuple **tuple_out);
 bool nat64_determine_outgoing_tuple_6to4(struct nf_conntrack_tuple *tuple_in,
 		struct nf_conntrack_tuple **tuple_out);
-bool nat64_send_packet(struct sk_buff *skb_out);
 
 
 #endif

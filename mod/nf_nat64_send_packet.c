@@ -127,7 +127,7 @@
 //}
 
 
-DEFINE_SPINLOCK(send_packet_lock);
+static DEFINE_SPINLOCK(send_packet_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 
@@ -172,7 +172,7 @@ failure:
 }
 
 // Function based on Ecdysis's nat64_output_ipv4
-int nat64_send_packet_ipv6(struct sk_buff *skb)
+bool nat64_send_packet_ipv6(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
@@ -219,49 +219,46 @@ failure:
 
 bool nat64_send_packet_ipv4(struct sk_buff *skb)
 {
-	print_packet(skb);
+	struct iphdr *iph = ip_hdr(skb);
+	struct flowi fl;
+	struct rtable *rt;
+	int out_result;
+
+	spin_lock_bh(&send_packet_lock);
+
+	skb->protocol = htons(ETH_P_IP);
+
+	memset(&fl, 0, sizeof(fl));
+
+	fl.u.ip4.daddr = iph->daddr;
+	fl.flowi_tos = RT_TOS(iph->tos);
+	fl.flowi_proto = skb->protocol;
+
+	rt = ip_route_output_key(&init_net, &fl.u.ip4);
+	if (!rt) {
+		pr_warning("  Packet could not be routed - ip_route_output_key() returned NULL.\n");
+		goto failure;
+	}
+	if (IS_ERR(rt)) {
+		pr_warning("  Packet could not be routed - ip_route_output_key() returned %p.\n", rt);
+		goto failure;
+	}
+
+	skb->dev = rt->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *) rt);
+
+	out_result = ip_local_out(skb);
+	if (out_result) {
+		pr_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.\n", out_result);
+		goto failure;
+	}
+
+	spin_unlock_bh(&send_packet_lock);
 	return true;
 
-//	struct iphdr *iph = ip_hdr(skb);
-//	struct flowi fl;
-//	struct rtable *rt;
-//	int out_result;
-//
-//	spin_lock_bh(&send_packet_lock);
-//
-//	skb->protocol = htons(ETH_P_IP);
-//
-//	memset(&fl, 0, sizeof(fl));
-//
-//	fl.u.ip4.daddr = iph->daddr;
-//	fl.flowi_tos = RT_TOS(iph->tos);
-//	fl.flowi_proto = skb->protocol;
-//
-//	rt = ip_route_output_key(&init_net, &fl.u.ip4);
-//	if (!rt) {
-//		pr_warning("  Packet could not be routed - ip_route_output_key() returned NULL.\n");
-//		goto failure;
-//	}
-//	if (IS_ERR(rt)) {
-//		pr_warning("  Packet could not be routed - ip_route_output_key() returned %p.\n", rt);
-//		goto failure;
-//	}
-//
-//	skb->dev = rt->dst.dev;
-//	skb_dst_set(skb, (struct dst_entry *) rt);
-//
-//	out_result = ip_local_out(skb);
-//	if (out_result) {
-//		pr_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.\n", out_result);
-//		goto failure;
-//	}
-//
-//	spin_unlock_bh(&send_packet_lock);
-//	return true;
-//
-//failure:
-//	spin_unlock_bh(&send_packet_lock);
-//	return false;
+failure:
+	spin_unlock_bh(&send_packet_lock);
+	return false;
 }
 
 // Function based on Ecdysis's nat64_output_ipv4
@@ -296,16 +293,11 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	netif_start_queue(skb->dev); // Makes sure the net_device can actually send packets.
 
-	pr_debug("  Apuntador: %p\n", dst->output);
-	print_symbol("  Funcion es %s.\n", (long) dst->output);
-
-//	out_result = ip6_local_out(skb); // Send.
-//	if (out_result) {
-//		pr_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.\n", out_result);
-//		goto failure;
-//	}
-
-	print_packet(skb);
+	out_result = ip6_local_out(skb); // Send.
+	if (out_result) {
+		pr_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.\n", out_result);
+		goto failure;
+	}
 
 	spin_unlock_bh(&send_packet_lock);
 	return true;

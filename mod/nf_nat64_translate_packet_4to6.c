@@ -301,12 +301,15 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 
 		icmpv6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
 		icmpv6_hdr->icmp6_pointer = cpu_to_be32(pointers[icmp4_pointer]);
+		break;
 	}
 	default: // missingARequiredOption (1) is known to fall through here.
 		pr_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.\n", icmpv4_hdr->type,
 				icmpv4_hdr->code);
 		return false; // No ICMP error.
 	}
+
+	return true;
 }
 
 /**

@@ -167,7 +167,7 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 	}
 }
 
-// TODO Nadie está usando esta función.
+// TODO (later) nadie está usando esta función.
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 {
 	struct ipv4_table *table;
