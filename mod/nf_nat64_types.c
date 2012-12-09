@@ -152,33 +152,33 @@ void print_packet(struct sk_buff *skb)
 
 	switch (hdr4->version) {
 	case 4:
-		pr_debug("  Version: %d\n", hdr4->version);
-		pr_debug("  Header length: %d\n", hdr4->ihl);
-		pr_debug("  Type of service: %d\n", hdr4->tos);
-		pr_debug("  Total length: %d\n", be16_to_cpu(hdr4->tot_len));
-		pr_debug("  Identification: %d\n", be16_to_cpu(hdr4->id));
-		pr_debug("  Fragment Offset: %d\n", be16_to_cpu(hdr4->frag_off));
-		pr_debug("  TTL: %d\n", hdr4->ttl);
-		pr_debug("  Protocol: %d\n", hdr4->protocol);
-		pr_debug("  Checksum: %d\n", be16_to_cpu(hdr4->check));
-		pr_debug("  Source addr: %pI4\n", &hdr4->saddr);
-		pr_debug("  Dest addr: %pI4\n", &hdr4->daddr);
+		log_debug("  Version: %d", hdr4->version);
+		log_debug("  Header length: %d", hdr4->ihl);
+		log_debug("  Type of service: %d", hdr4->tos);
+		log_debug("  Total length: %d", be16_to_cpu(hdr4->tot_len));
+		log_debug("  Identification: %d", be16_to_cpu(hdr4->id));
+		log_debug("  Fragment Offset: %d", be16_to_cpu(hdr4->frag_off));
+		log_debug("  TTL: %d", hdr4->ttl);
+		log_debug("  Protocol: %d", hdr4->protocol);
+		log_debug("  Checksum: %d", be16_to_cpu(hdr4->check));
+		log_debug("  Source addr: %pI4", &hdr4->saddr);
+		log_debug("  Dest addr: %pI4", &hdr4->daddr);
 		break;
 
 	case 6:
-		pr_debug("  Version: %d\n", hdr6->version);
-		pr_debug("  Traffic class: %d\n", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
-		pr_debug("  Flow lbl: %d %d %d\n", hdr6->flow_lbl[0] & 0xFF, hdr6->flow_lbl[1],
+		log_debug("  Version: %d", hdr6->version);
+		log_debug("  Traffic class: %d", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
+		log_debug("  Flow lbl: %d %d %d", hdr6->flow_lbl[0] & 0xFF, hdr6->flow_lbl[1],
 				hdr6->flow_lbl[2]);
-		pr_debug("  Payload length: %d\n", be16_to_cpu(hdr6->payload_len));
-		pr_debug("  Next hdr: %d\n", hdr6->nexthdr);
-		pr_debug("  Hop limit: %d\n", hdr6->hop_limit);
-		pr_debug("  Source addr: %pI6c\n", &hdr6->saddr);
-		pr_debug("  Dest addr: %pI6c\n", &hdr6->daddr);
+		log_debug("  Payload length: %d", be16_to_cpu(hdr6->payload_len));
+		log_debug("  Next hdr: %d", hdr6->nexthdr);
+		log_debug("  Hop limit: %d", hdr6->hop_limit);
+		log_debug("  Source addr: %pI6c", &hdr6->saddr);
+		log_debug("  Dest addr: %pI6c", &hdr6->daddr);
 		break;
 
 	default:
-		pr_debug("  Unknown protocol.\n");
+		log_debug("  Unknown protocol.");
 		break;
 	}
 }

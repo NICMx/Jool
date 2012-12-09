@@ -2,6 +2,7 @@
 #include <linux/printk.h>
 
 #include "unit_test.h"
+#include "nf_nat64_types.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 
 MODULE_LICENSE("GPL");
@@ -16,7 +17,7 @@ static bool test_no_subheaders(void)
 
 	ip6_header = kmalloc(sizeof(struct ipv6hdr) + 4, GFP_ATOMIC);
 	if (!ip6_header) {
-		pr_warning("Unable to allocate a test header.\n");
+		log_warning("Unable to allocate a test header.");
 		return false;
 	}
 	ip6_header->nexthdr = NEXTHDR_UDP;
@@ -86,7 +87,7 @@ static bool test_subheaders(void)
 				+ 4, // (payload.)
 				GFP_ATOMIC);
 	if (!ip6_header) {
-		pr_warning("Unable to allocate a test header.\n");
+		log_warning("Unable to allocate a test header.");
 		return false;
 	}
 	ip6_header->nexthdr = NEXTHDR_FRAGMENT;

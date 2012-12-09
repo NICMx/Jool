@@ -138,7 +138,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct iphdr);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		pr_warning("Allocation of the IPv4 header failed.\n");
+		log_warning("Allocation of the IPv4 header failed.");
 		return false;
 	}
 
@@ -160,7 +160,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	if (in->packet != NULL) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
-			pr_debug("Cannot translate: Packet's segments left field is nonzero.\n");
+			log_debug("Cannot translate: Packet's segments left field is nonzero.");
 			icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
 			return false;
 		}
@@ -277,14 +277,14 @@ static bool icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr, struct ic
 		goto success;
 	}
 
-	pr_crit("Programming error: Unknown pointer '%u' for parameter problem messages.\n", icmp6_ptr);
+	log_crit("Programming error: Unknown pointer '%u' for parameter problem messages.", icmp6_ptr);
 	goto failure;
 
 success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return true;
 failure:
-	pr_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.\n", icmp6_ptr);
+	log_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
 	return false;
 }
 
@@ -312,7 +312,7 @@ static bool icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr, struct icmp
 		break;
 
 	default:
-		pr_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.\n", icmpv6_hdr->icmp6_type,
+		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
 				icmpv6_hdr->icmp6_code);
 		return false;
 	}
@@ -341,7 +341,7 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
 
 	default:
 		// ICMPV6_UNK_OPTION is known to fall through here.
-		pr_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.\n", icmpv6_hdr->icmp6_type,
+		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
 				icmpv6_hdr->icmp6_code);
 		return false;
 	}
@@ -358,7 +358,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
-		pr_warning("Allocation of the ICMPv4 header failed.\n");
+		log_warning("Allocation of the ICMPv4 header failed.");
 		return false;
 	}
 
@@ -414,7 +414,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		// The following codes are known to fall through here:
 		// ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
 		// Neighbor Discover messages (133 - 137).
-		pr_info("ICMPv6 messages type %u do not exist in ICMPv4.\n", icmpv6_hdr->icmp6_type);
+		log_info("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		return false;
 	}
 

@@ -57,7 +57,7 @@ void init_ipv4_tuple_address(struct ipv4_tuple_address* ta, int index)
 void init_ipv6_tuple_address(struct ipv6_tuple_address* ta, int index)
 {
 	if (!in6_pton(IPV6_ADDRS[index], -1, (u8*) &ta->address, '\\', NULL)) {
-		pr_warning("No puedo convertir el texto '%s' a in6_addr. Esto va a tronar...\n", IPV6_ADDRS[index]);
+		log_warning("No puedo convertir el texto '%s' a in6_addr. Esto va a tronar...", IPV6_ADDRS[index]);
 		return;
 	}
 	ta->pi.port = cpu_to_be16(IPV6_PORTS[index]);
@@ -121,17 +121,17 @@ bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actua
 		return true;
 
 	if (expected == NULL) {
-		pr_warning("Test '%s' failed: Expected null, obtained " BIB_PRINT_KEY ".\n", test_name,
+		log_warning("Test '%s' failed: Expected null, obtained " BIB_PRINT_KEY ".", test_name,
 				PRINT_BIB(actual));
 		return false;
 	}
 	if (actual == NULL) {
-		pr_warning("Test '%s' failed: Expected " BIB_PRINT_KEY ", obtained null.\n", test_name,
+		log_warning("Test '%s' failed: Expected " BIB_PRINT_KEY ", obtained null.", test_name,
 				PRINT_BIB(expected));
 		return false;
 	}
 	if (!bib_entry_equals(expected, actual)) {
-		pr_warning("Test '%s' failed: Expected " BIB_PRINT_KEY " obtained " BIB_PRINT_KEY ".\n",
+		log_warning("Test '%s' failed: Expected " BIB_PRINT_KEY " obtained " BIB_PRINT_KEY ".",
 				test_name, PRINT_BIB(expected), PRINT_BIB(actual));
 		return false;
 	}
@@ -145,17 +145,17 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 		return true;
 
 	if (expected == NULL) {
-		pr_warning("Test '%s' failed: Expected null, obtained " SESSION_PRINT_KEY ".\n",
+		log_warning("Test '%s' failed: Expected null, obtained " SESSION_PRINT_KEY ".",
 				test_name, PRINT_SESSION(actual));
 		return false;
 	}
 	if (actual == NULL) {
-		pr_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained null.\n",
+		log_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained null.",
 				test_name, PRINT_SESSION(expected));
 		return false;
 	}
 	if (!session_entry_equals(expected, actual)) {
-		pr_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained session " SESSION_PRINT_KEY ".\n",
+		log_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", obtained session " SESSION_PRINT_KEY ".",
 				test_name, PRINT_SESSION(expected), PRINT_SESSION(actual));
 		return false;
 	}
@@ -230,7 +230,7 @@ bool simple_bib(void)
 
 	// Prueba de agregar un solo registro en la tabla BIB.
 	if (!nat64_add_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		pr_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.\n");
+		log_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
 		return false;
 	}
 	if (!assert_bib("BIB insertion", inserted_bib, false, true, false))
@@ -238,7 +238,7 @@ bool simple_bib(void)
 
 	// Prueba de remover el registro.
 	if (!nat64_remove_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		pr_warning("Test 'BIB removal' failed: Removal of sessionless bib entry claimed to have failed.\n");
+		log_warning("Test 'BIB removal' failed: Removal of sessionless bib entry claimed to have failed.");
 		return false;
 	}
 	if (!assert_bib("BIB removal", inserted_bib, false, false, false))
@@ -259,7 +259,7 @@ bool simple_bib_session(void)
 
 	// Insertar BIB.
 	if (!nat64_add_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		pr_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.\n");
+		log_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
 		return false;
 	}
 	if (!assert_bib("BIB insertion", inserted_bib, false, true, false))
@@ -267,7 +267,7 @@ bool simple_bib_session(void)
 
 	// Insertar sesión.
 	if (!nat64_add_session_entry(inserted_session)) {
-		pr_warning("Test 'Session insertion' failed: Insertion of session entry claimed to have failed.\n");
+		log_warning("Test 'Session insertion' failed: Insertion of session entry claimed to have failed.");
 		return false;
 	}
 	if (!assert_session("Session insertion", inserted_session, false, true, false))
@@ -275,7 +275,7 @@ bool simple_bib_session(void)
 
 	// Remover el registro BIB debe fallar porque tiene una sesión.
 	if (nat64_remove_bib_entry(inserted_bib, IPPROTO_TCP)) {
-		pr_warning("Test 'Bib removal' failed: Removal of session-carrying BIB entry claimed to have succeeded.\n");
+		log_warning("Test 'Bib removal' failed: Removal of session-carrying BIB entry claimed to have succeeded.");
 		return false;
 	}
 	if (!assert_bib("Bib removal (bib table)", inserted_bib, false, true, false))
@@ -285,7 +285,7 @@ bool simple_bib_session(void)
 
 	// Prueba de remover el registro de sesión.
 	if (!nat64_remove_session_entry(inserted_session)) {
-		pr_warning("Test 'Session removal' failed: Removal of session entry claimed to have failed.\n");
+		log_warning("Test 'Session removal' failed: Removal of session entry claimed to have failed.");
 		return false;
 	}
 	if (!assert_bib("Session removal (bib table)", inserted_bib, false, false, false))
@@ -335,13 +335,13 @@ bool test_clean_old_sessions(void)
 	// Insertar a las tablas.
 	FOR_EACH_BIB {
 		if (!nat64_add_bib_entry(bibs[cbib], IPPROTO_UDP)) {
-			pr_warning("Could not add BIB entry.\n");
+			log_warning("Could not add BIB entry.");
 			return false;
 		}
 	}
 	FOR_EACH_SESSION {
 			if (!nat64_add_session_entry(sessions[cbib][csession])) {
-				pr_warning("Could not add session entry.\n");
+				log_warning("Could not add session entry.");
 				return false;
 			}
 	}
@@ -442,11 +442,11 @@ bool test_address_filtering(void)
 	bib = init_bib_entry(0, 0);
 	session = init_session_entry(bib, 0, 0, 0, 0, IPPROTO_UDP, 12345);
 	if (!nat64_add_bib_entry(bib, IPPROTO_UDP)) {
-		pr_warning("Could not add the BIB entry.\n");
+		log_warning("Could not add the BIB entry.");
 		return false;
 	}
 	if (!nat64_add_session_entry(session)) {
-		pr_warning("Could not add the session entry.\n");
+		log_warning("Could not add the session entry.");
 		return false;
 	}
 
@@ -478,7 +478,7 @@ void send_to_userspace(struct bib_entry **bibs, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		pr_debug(BIB_PRINT_KEY, PRINT_BIB(bibs[i]));
+		log_debug(BIB_PRINT_KEY, PRINT_BIB(bibs[i]));
 	}
 }
 
@@ -496,7 +496,7 @@ void send_to_userspace(struct bib_entry **bibs, int count)
 //
 //		// Prueba de agregar un solo registro en la tabla BIB.
 //		if (!nat64_add_bib_entry(inserted_bib, IPPROTO_UDP)) {
-//			pr_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.\n");
+//			log_warning("Test 'BIB insertion' failed: Insertion of bib entry claimed to have failed.");
 //			return false;
 //		}
 //		if (!assert_bib("BIB insertion", inserted_bib, true, false, false))
@@ -512,7 +512,7 @@ void send_to_userspace(struct bib_entry **bibs, int count)
 //	}
 //	if (count == 0) {
 //		// La tabla de BIB estaba vacía.
-//		pr_warning("Tabla vacia.\n");
+//		log_warning("Tabla vacia.");
 //		return false;
 //	}
 //

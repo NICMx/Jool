@@ -57,7 +57,7 @@ static struct bib_table *get_bib_table(u_int8_t l4protocol)
 			return &bib_icmp;
 	}
 
-	pr_crit("Error: Unknown l4 protocol (%d); no BIB mapped to it.\n", l4protocol);
+	log_crit("Error: Unknown l4 protocol (%d); no BIB mapped to it.", l4protocol);
 	return NULL;
 }
 
@@ -98,7 +98,7 @@ struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address
 		u_int8_t l4protocol)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
-	pr_debug("Searching BIB entry for address %pI4#%d...\n", &address->address,
+	log_debug("Searching BIB entry for address %pI4#%d...", &address->address,
 			be16_to_cpu(address->pi.port));
 	return ipv4_table_get(&table->ipv4, address);
 }
@@ -107,7 +107,7 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address
 		u_int8_t l4protocol)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
-	pr_debug("Searching BIB entry for address %pI6c#%d...\n", &address->address,
+	log_debug("Searching BIB entry for address %pI6c#%d...", &address->address,
 			be16_to_cpu(address->pi.port));
 	return ipv6_table_get(&table->ipv6, address);
 }
@@ -124,7 +124,7 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 			return nat64_get_bib_entry_by_ipv4(&address, tuple->l4_protocol);
 		}
 		default: {
-			pr_crit("Programming error; unknown l3 protocol: %d\n", tuple->l3_protocol);
+			log_crit("Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
 			return NULL;
 		}
 	}
@@ -149,14 +149,14 @@ bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 		return false;
 
 	// Why was it not indexed by both tables? Programming error.
-	pr_crit("Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.\n",
+	log_crit("Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
 			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
 
 void nat64_bib_destroy(void)
 {
-	pr_debug("Emptying the BIB tables...\n");
+	log_debug("Emptying the BIB tables...");
 
 	// The keys needn't be released because they're part of the values.
 	// The values need to be released only in one of the tables because both tables point to the

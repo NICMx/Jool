@@ -2,6 +2,7 @@
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
 
+#include "nf_nat64_types.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 
 bool is_extension_hdr(__u8 header_id)
@@ -58,7 +59,7 @@ bool hdr_iterator_next(struct hdr_iterator *iterator)
 		return false;
 	}
 
-	pr_crit("hdr_iterator_next - Programming error: Unknown hdr: %d.\n", iterator->hdr_type);
+	log_crit("hdr_iterator_next - Programming error: Unknown hdr: %d.", iterator->hdr_type);
 	return false;
 }
 

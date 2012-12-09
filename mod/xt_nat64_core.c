@@ -25,7 +25,7 @@
 //	struct sk_buff *skb_out = NULL;
 //	struct nf_conntrack_tuple *tuple_out = NULL;
 //
-//	pr_debug("Step 5: Handling Hairpinning...\n");
+//	log_debug("Step 5: Handling Hairpinning...");
 //
 //	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
 //		goto failure;
@@ -40,7 +40,7 @@
 //
 //	kfree(tuple_out);
 //	kfree_skb(skb_out);
-//	pr_debug("Done step 5.\n");
+//	log_debug("Done step 5.");
 //	return true;
 //
 //failure:
@@ -72,13 +72,13 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 			goto failure;
 //	}
 
-	pr_debug("Success.\n");
+	log_debug("Success.");
 	kfree(tuple_out);
 	// skb_out was or will be released by the kernel.
 	return NF_DROP;
 
 failure:
-	pr_debug("Failure.\n");
+	log_debug("Failure.");
 	kfree(tuple_out);
 //	kfree_skb(skb_out); // TODO en cierto camino esto está liberando de más.
 	return NF_DROP;
@@ -89,19 +89,19 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	struct iphdr *ip4_header = ip_hdr(skb);
 	__u8 l4protocol = ip4_header->protocol;
 
-	pr_debug("===============================================\n");
-	pr_debug("Incoming IPv4 packet: %pI4->%pI4\n", &ip4_header->saddr, &ip4_header->daddr);
+	log_debug("===============================================");
+	log_debug("Incoming IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
 
 	// Validate.
 	if (!nf_nat64_ipv4_pool_contains_addr(ip4_header->daddr)) {
-		pr_info("Packet is not destined to me.\n");
+		log_info("Packet is not destined to me.");
 	 	goto failure;
 	}
 
 	// TODO (warning) add header validations?
 
 	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
-		pr_info("Packet does not use TCP, UDP or ICMPv4.\n");
+		log_info("Packet does not use TCP, UDP or ICMPv4.");
 		goto failure;
 	}
 
@@ -127,18 +127,18 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	hdr_iterator_last(&iterator);
 	l4protocol = iterator.hdr_type;
 
-	pr_debug("===============================================\n");
-	pr_debug("Incoming IPv6 packet: %pI6c->%pI6c\n", &ip6_header->saddr, &ip6_header->daddr);
+	log_debug("===============================================");
+	log_debug("Incoming IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
 
 	if (!nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr)) {
-		pr_info("Packet is not destined to me.\n");
+		log_info("Packet is not destined to me.");
 		goto failure;
 	}
 
 	// TODO (warning) add header validations?
 
 	if (l4protocol != NEXTHDR_TCP && l4protocol != NEXTHDR_UDP && l4protocol != NEXTHDR_ICMP) {
-		pr_info("Packet does not use TCP, UDP or ICMPv6.\n");
+		log_info("Packet does not use TCP, UDP or ICMPv6.");
 		goto failure;
 	}
 
@@ -159,10 +159,10 @@ int nat64_tg_check(const struct xt_tgchk_param *par)
 {
 //	int ret = nf_ct_l3proto_try_module_get(par->family);
 //	if (ret < 0)
-//		pr_info("cannot load support for proto=%u\n\n", par->family);
+//		log_info("cannot load support for proto=%u", par->family);
 //	return ret;
 
-	pr_info("Check function.\n");
+	log_info("Check function.");
 	return 0;
 }
 
@@ -193,7 +193,8 @@ int __init nat64_init(void)
 {
 	int result;
 
-	pr_debug("%sInserting the module...\n", banner);
+	log_debug("%s", banner);
+	log_debug("Inserting the module...");
 
 	need_conntrack();
 	need_ipv4_conntrack();
@@ -205,7 +206,7 @@ int __init nat64_init(void)
 
 	result = xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 	if (result == 0)
-		pr_debug("Ok, success.\n");
+		log_debug("Ok, success.");
 	return result;
 }
 
@@ -217,7 +218,7 @@ void __exit nat64_exit(void)
 	nat64_session_destroy();
 	nat64_bib_destroy();
 
-	pr_debug("NAT64 module removed.\n");
+	log_debug("NAT64 module removed.");
 }
 
 MODULE_LICENSE("GPL");

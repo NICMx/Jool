@@ -47,7 +47,7 @@
 //		fl->fl6_icmp_code = tuple->dst.u.icmp.code;
 //		break;
 //	default:
-//		pr_warning("tuple_to_flowi6: Unknown l4 protocol: %d.\n", tuple->l4_protocol);
+//		log_warning("tuple_to_flowi6: Unknown l4 protocol: %d.", tuple->l4_protocol);
 //		return false;
 //	}
 //
@@ -73,7 +73,7 @@
 //
 //	if (skb->len > dst_mtu(skb_dst(skb))) { // "Never happens" (?)
 //		// TODO so I guess I should remove this if, since the packet should be fragmented.
-//		pr_warning("Packet length (%d) is higher than the MTU (%u).\n", skb->len,
+//		log_warning("Packet length (%d) is higher than the MTU (%u).", skb->len,
 //				dst_mtu(skb_dst(skb)));
 //		return false;
 //	}
@@ -98,11 +98,11 @@
 //	// security_skb_classify_flow((struct sk_buff *) poldskb, flowi6_to_flowi(&fl));
 //	dst = ip6_route_output(net, NULL, &fl);
 //	if (!dst) {
-//		pr_err("The kernel returned a null route for the packet.\n");
+//		log_err("The kernel returned a null route for the packet.");
 //		return false;
 //	}
 //	if (dst->error != 0) {
-//		pr_err("The kernel could not route the outgoing packet. Result code: %d.\n", dst->error);
+//		log_err("The kernel could not route the outgoing packet. Result code: %d.", dst->error);
 //		dst_release(dst);
 //		return false;
 //	}
@@ -114,7 +114,7 @@
 //
 //	if (skb->len > dst_mtu(skb_dst(skb))) { // "Never happens" (?)
 //		// TODO so I guess I should remove this if, since the packet should be fragmented.
-//		pr_warning("Packet length (%d) is higher than the MTU (%u).\n", skb->len,
+//		log_warning("Packet length (%d) is higher than the MTU (%u).", skb->len,
 //				dst_mtu(skb_dst(skb)));
 //		return false;
 //	}
@@ -147,18 +147,18 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb)
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		pr_warning("  nf_NAT64: ip_route_output_key failed\n");
+		log_warning("  ip_route_output_key failed");
 		goto failure;
 	}
 	if (!rt) {
-		pr_warning("  nf_NAT64: rt null\n");
+		log_warning("  rt null");
 		goto failure;
 	}
 	skb->dev = rt->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *)rt);
 
 	if (ip_local_out(skb)) {
-		pr_warning("  nf_NAT64: ip_local_out failed\n");
+		log_warning("  ip_local_out failed");
 		goto failure;
 	}
 
@@ -194,7 +194,7 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst) {
-		pr_warning("  error: ip6_route_output failed\n");
+		log_warning("  error: ip6_route_output failed");
 		goto failure;
 	}
 
@@ -203,7 +203,7 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, dst);
 
 	if (ip6_local_out(skb)) {
-		pr_warning("  nf_NAT64: ip6_local_out failed.\n");
+		log_warning("  ip6_local_out failed.");
 		goto failure;
 	}
 
@@ -236,11 +236,11 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb)
 
 	rt = ip_route_output_key(&init_net, &fl.u.ip4);
 	if (!rt) {
-		pr_warning("  Packet could not be routed - ip_route_output_key() returned NULL.\n");
+		log_warning("  Packet could not be routed - ip_route_output_key() returned NULL.");
 		goto failure;
 	}
 	if (IS_ERR(rt)) {
-		pr_warning("  Packet could not be routed - ip_route_output_key() returned %p.\n", rt);
+		log_warning("  Packet could not be routed - ip_route_output_key() returned %p.", rt);
 		goto failure;
 	}
 
@@ -249,7 +249,7 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb)
 
 	out_result = ip_local_out(skb);
 	if (out_result) {
-		pr_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.\n", out_result);
+		log_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.", out_result);
 		goto failure;
 	}
 
@@ -282,20 +282,20 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 	if (!dst) {
-		pr_warning("  Packet could not be routed - ip6_route_output() returned NULL.\n");
+		log_warning("  Packet could not be routed - ip6_route_output() returned NULL.");
 		goto failure;
 	}
 
 	skb->dev = dst->dev;
 	skb_dst_set(skb, dst);
 
-	pr_debug("  Sending packet via device '%s'...\n", skb->dev->name);
+	log_debug("  Sending packet via device '%s'...", skb->dev->name);
 
 	netif_start_queue(skb->dev); // Makes sure the net_device can actually send packets.
 
 	out_result = ip6_local_out(skb); // Send.
 	if (out_result) {
-		pr_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.\n", out_result);
+		log_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.", out_result);
 		goto failure;
 	}
 

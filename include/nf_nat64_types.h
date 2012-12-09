@@ -7,6 +7,13 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+
+#define log_debug(text, ...) pr_debug("NAT64: " text "\n", ##__VA_ARGS__)
+#define log_info(text, ...) pr_info("NAT64: " text "\n", ##__VA_ARGS__)
+#define log_warning(text, ...) pr_warning("NAT64: " text "\n", ##__VA_ARGS__)
+#define log_err(text, ...) pr_err("NAT64: " text "\n", ##__VA_ARGS__)
+#define log_crit(text, ...) pr_crit("NAT64: " text "\n", ##__VA_ARGS__)
+
 /** A tuple's type identifier. See RFC 6146 section 3.4. */
 enum tuple_type
 {

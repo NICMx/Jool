@@ -1,6 +1,7 @@
 #include <linux/slab.h>
 #include <linux/inet.h>
 
+#include "nf_nat64_types.h"
 #include "nf_nat64_config.h"
 
 
@@ -29,7 +30,7 @@ bool nat64_load_default_config(void)
 	config.mtu_plateau_count = ARRAY_SIZE(DEFAULT_MTU_PLATEAUS);
 	config.mtu_plateaus = kmalloc(sizeof(DEFAULT_MTU_PLATEAUS), GFP_ATOMIC);
 	if (!config.mtu_plateaus) {
-		pr_warning("Could not allocate memory to store the MTU plateaus.\n");
+		log_warning("Could not allocate memory to store the MTU plateaus.");
 		return false;
 	}
 	memcpy(config.mtu_plateaus, &DEFAULT_MTU_PLATEAUS, sizeof(DEFAULT_MTU_PLATEAUS));

@@ -63,7 +63,7 @@ static struct session_table *get_session_table(u_int8_t l4protocol)
 			return &session_table_icmp;
 	}
 
-	pr_crit("get_session_table: Unknown l4 protocol (%d); no session table mapped to it.\n",
+	log_crit("get_session_table: Unknown l4 protocol (%d); no session table mapped to it.",
 			l4protocol);
 	return NULL;
 }
@@ -129,7 +129,7 @@ struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_
 {
 	struct session_table *table = get_session_table(l4protocol);
 
-	pr_debug("Searching session entry: [%pI4#%d, %pI4#%d]...\n",
+	log_debug("Searching session entry: [%pI4#%d, %pI4#%d]...",
 			&pair->local.address, be16_to_cpu(pair->local.pi.port),
 			&pair->remote.address, be16_to_cpu(pair->remote.pi.port));
 
@@ -140,7 +140,7 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
 {
 	struct session_table *table = get_session_table(l4protocol);
 
-	pr_debug("Searching session entry: [%pI6c#%d, %pI6c#%d]...\n",
+	log_debug("Searching session entry: [%pI6c#%d, %pI6c#%d]...",
 			&pair->remote.address, be16_to_cpu(pair->remote.pi.port),
 			&pair->local.address, be16_to_cpu(pair->local.pi.port));
 
@@ -161,7 +161,7 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 			return nat64_get_session_entry_by_ipv4(&pair, tuple->l4_protocol);
 		}
 		default: {
-			pr_crit("Programming error; unknown l3 protocol: %d\n", tuple->l3_protocol);
+			log_crit("Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
 			return NULL;
 		}
 	}
@@ -224,7 +224,7 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 	}
 
 	// Why was it not indexed by both tables? Programming error.
-	pr_crit("Programming error: Inconsistent session removal: ipv4:%d; ipv6:%d.\n",
+	log_crit("Programming error: Inconsistent session removal: ipv4:%d; ipv6:%d.",
 			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
@@ -246,7 +246,7 @@ void nat64_clean_old_sessions(void)
 
 void nat64_session_destroy(void)
 {
-	pr_debug("Emptying the session tables...\n");
+	log_debug("Emptying the session tables...");
 
 	// The keys needn't be released because they're part of the values.
 	// The values need to be released only in one of the tables because both tables point to the same values.

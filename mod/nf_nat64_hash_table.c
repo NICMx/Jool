@@ -24,6 +24,7 @@
  */
 
 #include <linux/slab.h>
+#include "nf_nat64_types.h"
 
 /********************************************
  * Macros.
@@ -113,17 +114,17 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	__u16 hash_code;
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
-	pr_debug("  -> Hash code: %d\n", hash_code);
+	log_debug("  -> Hash code: %d", hash_code);
 
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
 		if (table->equals_function(key, current_pair->key)) {
-			pr_debug("  -> Found.\n");
+			log_debug("  -> Found.");
 			return current_pair;
 		}
 	}
 
-	pr_debug("  -> Not found.\n");
+	log_debug("  -> Not found.");
 	return NULL;
 }
 
@@ -258,7 +259,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 				kfree(current_pair->value);
 			kfree(current_pair);
 
-			pr_debug("Deleted a node whose hash code was %d.\n", row);
+			log_debug("Deleted a node whose hash code was %d.", row);
 		}
 	}
 }
@@ -278,15 +279,15 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 	struct KEY_VALUE_PAIR *current_pair;
 	int row;
 
-	pr_debug("** Printing table: %s **\n", header);
+	log_debug("** Printing table: %s **", header);
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			pr_debug("  hash:%d - key:%p - value:%p\n", row, &current_pair->key,
+			log_debug("  hash:%d - key:%p - value:%p", row, &current_pair->key,
 					&current_pair->value);
 		}
 	}
-	pr_debug("** End of table **\n");
+	log_debug("** End of table **");
 }
 #endif
 

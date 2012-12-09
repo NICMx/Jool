@@ -77,7 +77,7 @@ bool test_append_ipv4(char* expect_str, char* ipv6_as_string, int prefix)
 	// TODO (test) usa las funciones de types...
 	for (i = 0; i < 4; i++) {
 		if (expected.s6_addr32[i] != ipv6_append.s6_addr32[i]) {
-			pr_warning("Test failed: %s Expected: %pI6c. Actual: %pI6c.\n", "Append IPv4.\n", &expected,
+			log_warning("Test failed: %s Expected: %pI6c. Actual: %pI6c.", "Append IPv4.", &expected,
 					&ipv6_append);
 			return false;
 		}

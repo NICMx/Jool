@@ -22,8 +22,8 @@ bool nf_nat64_ipv6_pool_contains_addr(struct in6_addr *addr)
 
 bool nat64_filtering_and_updating(struct nf_conntrack_tuple *tuple_in)
 {
-	pr_debug("Step 2: Filtering and Updating Binding and Session Information\n");
-	pr_debug("Done step 2.\n");
+	log_debug("Step 2: Filtering and Updating Binding and Session Information");
+	log_debug("Done step 2.");
 	return true;
 }
 
@@ -34,25 +34,26 @@ bool nat64_determine_outgoing_tuple_4to6(struct nf_conntrack_tuple *tuple_in,
 	const char *ipv6_dst = "fd68:ed5e:b31d:767d::24";
 	struct nf_conntrack_tuple *result;
 
-	pr_debug("Step 3: Computing the Outgoing Tuple\n");
+	log_debug("Step 3: Computing the Outgoing Tuple");
 
 	result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
 	if (!result) {
-		pr_warning("  Can't allocate a tuple.\n");
+		log_warning("  Can't allocate a tuple.");
 		return false;
 	}
+
 	if (!in6_aton(ipv6_src, &result->ipv6_src_addr)) {
-		pr_debug("  (4 -> 6) No puedo traducir la dirección fuente.\n");
+		log_debug("  (4 -> 6) No puedo traducir la dirección fuente.");
 		return false;
 	}
 	if (!in6_aton(ipv6_dst, &result->ipv6_dst_addr)) {
-		pr_debug("  (4 -> 6) No puedo traducir la dirección destino.\n");
+		log_debug("  (4 -> 6) No puedo traducir la dirección destino.");
 		return false;
 	}
-	pr_debug("  src: %pI6c, dst: %pI6c\n", &result->ipv6_src_addr, &result->ipv6_dst_addr);
+	log_debug("  src: %pI6c, dst: %pI6c", &result->ipv6_src_addr, &result->ipv6_dst_addr);
 
 	*tuple_out = result;
-	pr_debug("Done step 3.\n");
+	log_debug("Done step 3.");
 	return true;
 }
 
@@ -63,18 +64,18 @@ bool nat64_determine_outgoing_tuple_6to4(struct nf_conntrack_tuple *tuple_in,
 	const char *ipv4_dst = "192.168.0.30";
 	struct nf_conntrack_tuple *result;
 
-	pr_debug("Step 3: Computing the Outgoing Tuple\n");
+	log_debug("Step 3: Computing the Outgoing Tuple");
 
 	result = kmalloc(sizeof(struct nf_conntrack_tuple), GFP_ATOMIC);
 	if (!result) {
-		pr_warning("  Can't allocate a tuple.\n");
+		log_warning("  Can't allocate a tuple.");
 		return false;
 	}
 	result->ipv4_src_addr.s_addr = in_aton(ipv4_src);
 	result->ipv4_dst_addr.s_addr = in_aton(ipv4_dst);
-	pr_debug("  src: %pI4, dst: %pI4\n", &result->ipv4_src_addr, &result->ipv4_dst_addr);
+	log_debug("  src: %pI4, dst: %pI4", &result->ipv4_src_addr, &result->ipv4_dst_addr);
 
 	*tuple_out = result;
-	pr_debug("Done step 3.\n");
+	log_debug("Done step 3.");
 	return true;
 }
