@@ -70,7 +70,27 @@ void nat64_session_init(void);
  */
 bool nat64_add_session_entry(struct session_entry *entry);
 
+/**
+ * Returns the Session entry from the "l4protocol" table whose IPv4 side (both addresses and ports)
+ * is "pair".
+ *
+ * @param pairt IPv4 data you want the Session entry for.
+ * @param l4protocol identifier of the table to retrieve the entry from. Should be either
+ *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
+ *		is "address". Returns NULL if there is no such an entry.
+ */
 struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol);
+/**
+ * Returns the Session entry from the "l4protocol" table whose IPv6 side (both addresses and ports)
+ * is "pair".
+ *
+ * @param pairt IPv6 data you want the Session entry for.
+ * @param l4protocol identifier of the table to retrieve the entry from. Should be either
+ *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
+ *		is "address". Returns NULL if there is no such an entry.
+ */
 struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol);
 
 /**
@@ -131,6 +151,15 @@ void nat64_clean_old_sessions(void);
  */
 void nat64_session_destroy(void);
 
+/**
+ * Helper function, intended to initialize a static Session entry (static as in doesn't expire after
+ * a while).
+ * We don't have a "create_dynamic_session_entry" function ATM, so if you want your entry to be
+ * dynamic, you can override its is_static and dying_time fields.
+ *
+ * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a Session table, you
+ * need to kfree it).
+ */
 struct session_entry *nat64_create_static_session_entry(
 		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);

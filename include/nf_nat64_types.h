@@ -7,12 +7,14 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+#include "libxt_NAT64.h"
 
-#define log_debug(text, ...) pr_debug("NAT64: " text "\n", ##__VA_ARGS__)
-#define log_info(text, ...) pr_info("NAT64: " text "\n", ##__VA_ARGS__)
-#define log_warning(text, ...) pr_warning("NAT64: " text "\n", ##__VA_ARGS__)
-#define log_err(text, ...) pr_err("NAT64: " text "\n", ##__VA_ARGS__)
-#define log_crit(text, ...) pr_crit("NAT64: " text "\n", ##__VA_ARGS__)
+
+#define log_debug(text, ...) pr_debug(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
+#define log_info(text, ...) pr_info(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
+#define log_warning(text, ...) pr_warning(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
+#define log_err(text, ...) pr_err(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
+#define log_crit(text, ...) pr_crit(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
 
 /** A tuple's type identifier. See RFC 6146 section 3.4. */
 enum tuple_type
@@ -87,7 +89,16 @@ __u16 ipv4_pair_hash_code(struct ipv4_pair *pair);
 __u16 ipv6_pair_hash_code(struct ipv6_pair *pair);
 
 void print_packet(struct sk_buff *skb);
-bool in6_aton(const char *str, struct in6_addr *result);
+/**
+ * Converts "str" to a IPv4 address. Stores the result in "result".
+ * It's just a simplified in4_pton(), stripping the parameters we don't want.
+ */
+bool str_to_addr4(const char *str, struct in_addr *result);
+/**
+ * Converts "str" to a IPv6 address. Stores the result in "result".
+ * It's just a simplified in6_pton(), stripping the parameters we don't want.
+ */
+bool str_to_addr6(const char *str, struct in6_addr *result);
 
 /** Accesors for the nf_conntrack_tuple struct. */
 #define ipv4_src_addr 	src.u3.in

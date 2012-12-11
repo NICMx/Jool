@@ -1,6 +1,11 @@
 #ifndef _NF_NAT64_CONSTANTS_H
 #define _NF_NAT64_CONSTANTS_H
 
+/**
+ * @file
+ * General purpose #defines, intended to minimize use of numerical constants elsewhere in the code.
+ */
+
 
 // -- ICMP constants missing from icmp.h and icmpv6.h. --
 

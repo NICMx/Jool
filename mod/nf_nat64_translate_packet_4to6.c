@@ -101,7 +101,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		log_warning("Allocation of the IPv6 header failed.");
+		log_warning("  Allocation of the IPv6 header failed.");
 		return false;
 	}
 
@@ -116,13 +116,16 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	ip6_hdr->hop_limit = ip4_hdr->ttl; // The TTL is decremented by the kernel.
 	ip6_hdr->saddr = in->tuple->ipv6_src_addr;
 	ip6_hdr->daddr = in->tuple->ipv6_dst_addr;
-	if (!is_address_legal(&ip6_hdr->saddr)) {
-		// This time there's no ICMP error.
-		return false;
-	}
+
+	// This is already covered by the kernel, by logging martians
+	// (see the installation instructions).
+	// if (!is_address_legal(&ip6_hdr->saddr)) {
+	// // This time there's no ICMP error.
+	// return false;
+	// }
 
 	if (has_unexpired_src_route(ip4_hdr) && in->packet != NULL) {
-		log_info("Cannot translate: Packet has an unexpired source route.");
+		log_info("  Cannot translate: Packet has an unexpired source route.");
 		icmp_send(in->packet, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
 		return false;
 	}
@@ -135,8 +138,8 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 		ip6_hdr->nexthdr = NEXTHDR_FRAGMENT;
 
 		// ...and set the fragment header ones.
-		frag_header->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) //
-				? NEXTHDR_ICMP //
+		frag_header->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP)
+				? NEXTHDR_ICMP
 				: ip4_hdr->protocol;
 		frag_header->reserved = 0;
 		frag_header->frag_off = build_ipv6_frag_off_field(ip4_hdr);
@@ -209,10 +212,10 @@ static __be16 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, _
  */
 static bool icmp4_has_inner_packet(__u8 icmp_type)
 {
-	return (icmp_type == ICMP_DEST_UNREACH) //
-			|| (icmp_type == ICMP_TIME_EXCEEDED) //
-			|| (icmp_type == ICMP_PARAMETERPROB) //
-			|| (icmp_type == ICMP_SOURCE_QUENCH) //
+	return (icmp_type == ICMP_DEST_UNREACH)
+			|| (icmp_type == ICMP_TIME_EXCEEDED)
+			|| (icmp_type == ICMP_PARAMETERPROB)
+			|| (icmp_type == ICMP_SOURCE_QUENCH)
 			|| (icmp_type == ICMP_REDIRECT);
 }
 
@@ -250,9 +253,9 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 	case ICMP_FRAG_NEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20, //
-				config.ipv6_nexthop_mtu, //
-				config.ipv4_nexthop_mtu + 20, //
+		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
+				config.ipv6_nexthop_mtu,
+				config.ipv4_nexthop_mtu + 20,
 				tot_len_field);
 		break;
 
@@ -264,7 +267,7 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 		break;
 
 	default: // hostPrecedenceViolation (14) is known to fall through here.
-		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
+		log_info("  ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
 		return false; // No ICMP error.
 	}
@@ -286,15 +289,15 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 	case ICMP_BAD_LENGTH: {
 		__u8 icmp4_pointer = be32_to_cpu(icmpv4_hdr->icmp4_unused) >> 24;
 		const __u8 DROP = 255;
-		__u8 pointers[] = { 0, 1, 4, 4, //
-				DROP, DROP, DROP, DROP, //
-				7, 6, DROP, DROP, //
-				8, 8, 8, 8, //
-				24, 24, 24, 24 //
+		__u8 pointers[] = { 0, 1, 4, 4,
+				DROP, DROP, DROP, DROP,
+				7, 6, DROP, DROP,
+				8, 8, 8, 8,
+				24, 24, 24, 24
 		};
 
 		if (icmp4_pointer < 0 || 19 < icmp4_pointer || pointers[icmp4_pointer] == DROP) {
-			log_info("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
+			log_info("  ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
 					icmpv4_hdr->type, icmpv4_hdr->code, icmp4_pointer);
 			return false;
 		}
@@ -304,7 +307,7 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		break;
 	}
 	default: // missingARequiredOption (1) is known to fall through here.
-		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
+		log_info("  ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
 		return false; // No ICMP error.
 	}
@@ -321,7 +324,7 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmphdr *icmpv4_hdr = icmp_hdr(in->packet);
 	struct icmp6hdr *icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
 	if (!icmpv6_hdr) {
-		log_warning("Allocation of the ICMPv6 header failed.");
+		log_warning("  Allocation of the ICMPv6 header failed.");
 		return false;
 	}
 
@@ -370,7 +373,7 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 		// Router Solicitation (10), Source Quench (4),
 		// Redirect (5), Alternative Host Address (6).
 		// This time there's no ICMP error.
-		log_info("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
+		log_info("  ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
 		return false;
 	}
 
@@ -397,7 +400,7 @@ static bool post_icmp6(struct packet_out *out)
 	unsigned int datagram_len = out->l4_hdr_len + out->payload_len;
 
 	icmpv6_hdr->icmp6_cksum = 0;
-	icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, //
+	icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, datagram_len, 0));
 
 	return true;
@@ -413,7 +416,7 @@ static bool post_tcp_ipv6(struct packet_out *out)
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
 
 	tcp_header->check = 0;
-	tcp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, //
+	tcp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
 
 	return true;

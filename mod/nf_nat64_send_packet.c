@@ -23,8 +23,7 @@
 // /home/aleiva/Desktop/Nat64/xtables-addons-1.47.1/extensions/xt_ECHO.c
 
 // TODO (send) estamos linearizando el paquete de entrada?
-// TODO (send) este wey define skb->protocol...
-// TODO (send) nota que si es exitoso no hay que liberar el skb.
+// TODO (monday) hay que probar la nueva cara de esto.
 
 //static bool tuple_to_flowi6(struct nf_conntrack_tuple *tuple, struct flowi6 *fl)
 //{
@@ -71,13 +70,6 @@
 //
 //	// newip->ttl = ip4_dst_hoplimit(skb_dst(newskb));
 //
-//	if (skb->len > dst_mtu(skb_dst(skb))) { // "Never happens" (?)
-//		// TODO so I guess I should remove this if, since the packet should be fragmented.
-//		log_warning("Packet length (%d) is higher than the MTU (%u).", skb->len,
-//				dst_mtu(skb_dst(skb)));
-//		return false;
-//	}
-//
 //	// nf_ct_attach(newskb, *poldskb);
 //	ip_local_out(skb);
 //
@@ -92,6 +84,8 @@
 //	struct net *net = dev_net((par->in != NULL) ? par->in : par->out);
 //
 //	spin_lock_bh(&send_packet_lock);
+//
+//	skb->protocol = htons(ETH_P_IPV6);
 //
 //	if (!tuple_to_flowi6(tuple, &fl))
 //		return false;
@@ -110,14 +104,6 @@
 //	skb_dst_set(skb, dst);
 //	// ip6_header->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
 //	skb->ip_summed = CHECKSUM_COMPLETE;
-//	skb->protocol = htons(ETH_P_IPV6);
-//
-//	if (skb->len > dst_mtu(skb_dst(skb))) { // "Never happens" (?)
-//		// TODO so I guess I should remove this if, since the packet should be fragmented.
-//		log_warning("Packet length (%d) is higher than the MTU (%u).", skb->len,
-//				dst_mtu(skb_dst(skb)));
-//		return false;
-//	}
 //
 //	// nf_ct_attach(newskb, *poldskb);
 //	ip6_local_out(skb);
@@ -131,62 +117,38 @@ static DEFINE_SPINLOCK(send_packet_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 
-// Begin Ecdysis (nat64_output_ipv4)
-// TODO refactoriza esos mensajes de error.
-bool nat64_send_packet_ipv4(struct sk_buff *skb)
+static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
-	struct rtable *rt;
+	struct rtable *table;
+	int error;
 
-	spin_lock_bh(&send_packet_lock);
-
-	skb->protocol = htons(ETH_P_IP);
 	memset(&fl, 0, sizeof(fl));
 	fl.fl4_dst = iph->daddr;
 	fl.fl4_tos = RT_TOS(iph->tos);
 	fl.proto = skb->protocol;
-	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		log_warning("  ip_route_output_key failed");
-		goto failure;
-	}
-	if (!rt) {
-		log_warning("  rt null");
-		goto failure;
-	}
-	skb->dev = rt->dst.dev;
-	skb_dst_set(skb, (struct dst_entry *)rt);
 
-	if (ip_local_out(skb)) {
-		log_warning("  ip_local_out failed");
-		goto failure;
+	error = ip_route_output_key(&init_net, &table, &fl);
+	if (error) {
+		log_warning("  Packet could not be routed; ip_route_output_key() failed. Code: %d.", error);
+		return NULL;
+	}
+	if (!table) {
+		log_warning("  Packet could not be routed - the routing table is NULL.");
+		return NULL;
 	}
 
-	spin_unlock_bh(&send_packet_lock);
-	return true;
-	// End Ecdysis (nat64_output_ipv4)
-
-failure:
-	spin_unlock_bh(&send_packet_lock);
-	return false;
+	return table;
 }
 
-// Function based on Ecdysis's nat64_output_ipv4
-bool nat64_send_packet_ipv6(struct sk_buff *skb)
+static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
 	struct dst_entry *dst;
 
-	spin_lock_bh(&send_packet_lock);
-
-	skb->protocol = htons(ETH_P_IPV6);
-
 	memset(&fl, 0, sizeof(fl));
-
-	if (!&(fl.fl6_src)) {
-		goto failure;
-	}
 	fl.fl6_src = iph->saddr;
 	fl.fl6_dst = iph->daddr;
 	fl.fl6_flowlabel = 0;
@@ -194,87 +156,46 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst) {
-		log_warning("  error: ip6_route_output failed");
-		goto failure;
+		log_warning("  Packet could not be routed - ip6_route_output() returned NULL.");
+		return NULL;
 	}
 
-	skb->dev = dst->dev;
-
-	skb_dst_set(skb, dst);
-
-	if (ip6_local_out(skb)) {
-		log_warning("  ip6_local_out failed.");
-		goto failure;
-	}
-
-	spin_unlock_bh(&send_packet_lock);
-	return true;
-
-failure:
-	spin_unlock_bh(&send_packet_lock);
-	return false;
+	return dst;
 }
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+#else
 
-bool nat64_send_packet_ipv4(struct sk_buff *skb)
+static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	struct iphdr *ip_header = ip_hdr(skb);
 	struct flowi fl;
-	struct rtable *rt;
-	int out_result;
-
-	spin_lock_bh(&send_packet_lock);
-
-	skb->protocol = htons(ETH_P_IP);
+	struct rtable *table;
 
 	memset(&fl, 0, sizeof(fl));
-
-	fl.u.ip4.daddr = iph->daddr;
-	fl.flowi_tos = RT_TOS(iph->tos);
+	fl.u.ip4.daddr = ip_header->daddr;
+	fl.flowi_tos = RT_TOS(ip_header->tos);
 	fl.flowi_proto = skb->protocol;
 
-	rt = ip_route_output_key(&init_net, &fl.u.ip4);
-	if (!rt) {
+	table = ip_route_output_key(&init_net, &fl.u.ip4);
+	if (!table) {
 		log_warning("  Packet could not be routed - ip_route_output_key() returned NULL.");
-		goto failure;
+		return NULL;
 	}
-	if (IS_ERR(rt)) {
-		log_warning("  Packet could not be routed - ip_route_output_key() returned %p.", rt);
-		goto failure;
-	}
-
-	skb->dev = rt->dst.dev;
-	skb_dst_set(skb, (struct dst_entry *) rt);
-
-	out_result = ip_local_out(skb);
-	if (out_result) {
-		log_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.", out_result);
-		goto failure;
+	if (IS_ERR(table)) {
+		log_warning("  Packet could not be routed - ip_route_output_key() returned %p.", table);
+		return NULL;
 	}
 
-	spin_unlock_bh(&send_packet_lock);
-	return true;
-
-failure:
-	spin_unlock_bh(&send_packet_lock);
-	return false;
+	return table;
 }
 
-// Function based on Ecdysis's nat64_output_ipv4
-bool nat64_send_packet_ipv6(struct sk_buff *skb)
+static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct flowi fl;
 	struct dst_entry *dst;
-	int out_result;
-
-	spin_lock_bh(&send_packet_lock);
-
-	skb->protocol = htons(ETH_P_IPV6);
 
 	memset(&fl, 0, sizeof(fl));
-
 	fl.u.ip6.saddr = iph->saddr;
 	fl.u.ip6.daddr = iph->daddr;
 	fl.u.ip6.flowlabel = 0;
@@ -283,19 +204,34 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 	if (!dst) {
 		log_warning("  Packet could not be routed - ip6_route_output() returned NULL.");
-		goto failure;
+		return NULL;
 	}
 
-	skb->dev = dst->dev;
-	skb_dst_set(skb, dst);
+	return dst;
+}
+
+#endif
+
+bool nat64_send_packet_ipv4(struct sk_buff *skb)
+{
+	struct rtable *routing_table;
+	int error;
+
+	spin_lock_bh(&send_packet_lock);
+
+	skb->protocol = htons(ETH_P_IP);
+
+	routing_table = route_packet_ipv4(skb);
+	if (!routing_table)
+		goto failure;
+
+	skb->dev = routing_table->dst.dev;
+	skb_dst_set(skb, (struct dst_entry *) routing_table);
 
 	log_debug("  Sending packet via device '%s'...", skb->dev->name);
-
-	netif_start_queue(skb->dev); // Makes sure the net_device can actually send packets.
-
-	out_result = ip6_local_out(skb); // Send.
-	if (out_result) {
-		log_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.", out_result);
+	error = ip_local_out(skb);
+	if (error) {
+		log_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.", error);
 		goto failure;
 	}
 
@@ -307,4 +243,38 @@ failure:
 	return false;
 }
 
+bool nat64_send_packet_ipv6(struct sk_buff *skb)
+{
+	struct dst_entry *dst;
+	int error;
+
+	spin_lock_bh(&send_packet_lock);
+
+	skb->protocol = htons(ETH_P_IPV6);
+
+	dst = route_packet_ipv6(skb);
+	if (!dst)
+		goto failure;
+
+	skb->dev = dst->dev;
+	skb_dst_set(skb, dst);
+
+	log_debug("  Sending packet via device '%s'...", skb->dev->name);
+	// TODO (luis) este #if realmente sirve de algo?
+	// TODO (luis) netif_start_queue realmente sirve de algo?
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+	netif_start_queue(skb->dev); // Makes sure the net_device can actually send packets.
 #endif
+	error = ip6_local_out(skb); // Send.
+	if (error) {
+		log_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.", error);
+		goto failure;
+	}
+
+	spin_unlock_bh(&send_packet_lock);
+	return true;
+
+failure:
+	spin_unlock_bh(&send_packet_lock);
+	return false;
+}

@@ -1,6 +1,11 @@
 #ifndef NF_NAT64_CORE_H_
 #define NF_NAT64_CORE_H_
 
+/**
+ * @file
+ * The core is both the kernel module's entry point and the packet handling's highest layer.
+ */
+
 
 //~ char *banner= "\n"
 //~ "                                   ,----,                       \n"

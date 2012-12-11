@@ -47,8 +47,28 @@ void nat64_bib_init(void);
  */
 bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
 
+/**
+ * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
+ * "address".
+ *
+ * @param address address and port you want the BIB entry for.
+ * @param l4protocol identifier of the table to retrieve the entry from. Should be either
+ *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
+ *		"address". Returns NULL if there is no such an entry.
+ */
 struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address,
 		u_int8_t l4protocol);
+/**
+ * Returns the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
+ * "address".
+ *
+ * @param address address and port you want the BIB entry for.
+ * @param l4protocol identifier of the table to retrieve the entry from. Should be either
+ *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMPV6 from linux/in.h.
+ * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
+ *		"address". Returns NULL if there is no such an entry.
+ */
 struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
 		u_int8_t l4protocol);
 

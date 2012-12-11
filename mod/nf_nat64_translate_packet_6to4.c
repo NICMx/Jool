@@ -20,18 +20,15 @@ static __u8 build_tos_field(struct ipv6hdr *ip6_hdr)
  */
 static __be16 generate_ipv4_id_nofrag(struct ipv6hdr *ip6_header)
 {
-	struct frag_hdr *fragment_header;
-	__u16 packet_len;
+	__u16 packet_len, random;
 
 	packet_len = sizeof(*ip6_header) + be16_to_cpu(ip6_header->payload_len);
-	if (!(88 < packet_len && packet_len <= 1280))
-		return 0;
+	if (88 < packet_len && packet_len <= 1280) {
+		get_random_bytes(&random, 2);
+		return random;
+	}
 
-	fragment_header = get_extension_header(ip6_header, NEXTHDR_FRAGMENT);
-	if (!fragment_header)
-		return 0;
-
-	return cpu_to_be16(be32_to_cpu(fragment_header->identification));
+	return 0; // Because the DF flag will be set.
 }
 
 /**
@@ -49,8 +46,8 @@ static __be16 generate_df_flag(struct ipv6hdr *ip6_header)
 static __be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragments,
 		__u16 fragment_offset)
 {
-	__u16 result = (dont_fragment << 14) //
-			| (more_fragments << 13) //
+	__u16 result = (dont_fragment << 14)
+			| (more_fragments << 13)
 			| (fragment_offset << 0);
 
 	return cpu_to_be16(result);
@@ -65,8 +62,8 @@ static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
 	hdr_iterator_next(&iterator);
 
 	// Skip stuff that does not exist in IPv4.
-	while (iterator.hdr_type == NEXTHDR_HOP //
-			|| iterator.hdr_type == NEXTHDR_ROUTING //
+	while (iterator.hdr_type == NEXTHDR_HOP
+			|| iterator.hdr_type == NEXTHDR_ROUTING
 			|| iterator.hdr_type == NEXTHDR_DEST)
 		hdr_iterator_next(&iterator);
 
@@ -90,23 +87,18 @@ static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
  */
 static bool has_nonzero_segments_left(struct ipv6hdr *ip6_hdr, __u32 *field_location)
 {
-	// TODO (test) looks like you're not unit testing this.
+	struct ipv6_rt_hdr *rt_hdr;
+	__u32 rt_hdr_offset, segments_left_offset;
 
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
+	rt_hdr = get_extension_header(ip6_hdr, NEXTHDR_ROUTING);
+	if (!rt_hdr)
+		return false;
 
-	while (hdr_iterator_next(&iterator)) {
-		if (iterator.hdr_type == NEXTHDR_ROUTING) {
-			struct ipv6_rt_hdr *rt_hdr = (struct ipv6_rt_hdr *) iterator.data;
+	rt_hdr_offset = ((void *) rt_hdr) - ((void *) ip6_hdr);
+	segments_left_offset = offsetof(struct ipv6_rt_hdr, segments_left);
+	*field_location = rt_hdr_offset + segments_left_offset;
 
-			__u32 rt_hdr_offset = iterator.data - (void *) ip6_hdr;
-			__u32 segments_left_offset = offsetof(struct ipv6_rt_hdr, segments_left);
-			*field_location = rt_hdr_offset + segments_left_offset;
-
-			return (rt_hdr->segments_left != 0);
-		}
-	}
-
-	return false;
+	return (rt_hdr->segments_left != 0);
 }
 
 /**
@@ -138,7 +130,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct iphdr);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		log_warning("Allocation of the IPv4 header failed.");
+		log_warning("  Allocation of the IPv4 header failed.");
 		return false;
 	}
 
@@ -160,7 +152,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	if (in->packet != NULL) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
-			log_debug("Cannot translate: Packet's segments left field is nonzero.");
+			log_debug("  Cannot translate: Packet's segments left field is nonzero.");
 			icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
 			return false;
 		}
@@ -277,14 +269,14 @@ static bool icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr, struct ic
 		goto success;
 	}
 
-	log_crit("Programming error: Unknown pointer '%u' for parameter problem messages.", icmp6_ptr);
+	log_crit("  Programming error: Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
 	goto failure;
 
 success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return true;
 failure:
-	log_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
+	log_info("  ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
 	return false;
 }
 
@@ -312,8 +304,8 @@ static bool icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr, struct icmp
 		break;
 
 	default:
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
-				icmpv6_hdr->icmp6_code);
+		log_info("  ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return false;
 	}
 
@@ -341,8 +333,8 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
 
 	default:
 		// ICMPV6_UNK_OPTION is known to fall through here.
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
-				icmpv6_hdr->icmp6_code);
+		log_info("  ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return false;
 	}
 
@@ -358,7 +350,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
-		log_warning("Allocation of the ICMPv4 header failed.");
+		log_warning("  Allocation of the ICMPv4 header failed.");
 		return false;
 	}
 
@@ -414,7 +406,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		// The following codes are known to fall through here:
 		// ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
 		// Neighbor Discover messages (133 - 137).
-		log_info("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
+		log_info("  ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		return false;
 	}
 

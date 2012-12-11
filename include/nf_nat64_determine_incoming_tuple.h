@@ -10,8 +10,13 @@
  * The 3.4 section of RFC 6146 is encapsulated in this module.
  */
 
+
+/**
+ * Initializes this module. Call during initialization for the remaining functions to work properly.
+ *
+ * @return whether the initialization was successful or not.
+ */
 bool nat64_determine_incoming_tuple_init(void);
-void nat64_determine_incoming_tuple_destroy(void);
 
 /**
  * Extracts the relevant data from "skb" and stores it in the "tuple" tuple.
@@ -24,6 +29,12 @@ void nat64_determine_incoming_tuple_destroy(void);
  * @return "true" if the tuple could be created, "false" otherwise.
  */
 bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **tuple);
+
+/**
+ * Terminates this module. Call during destruction to revert the effects of
+ * nat64_determine_incoming_tuple_init().
+ */
+void nat64_determine_incoming_tuple_destroy(void);
 
 
 #endif /* _NF_NAT64_DETERMINE_INCOMING_TUPLE_H */

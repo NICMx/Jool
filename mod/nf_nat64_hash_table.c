@@ -114,17 +114,17 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	__u16 hash_code;
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
-	log_debug("  -> Hash code: %d", hash_code);
+	// log_debug("  -> Hash code: %d", hash_code);
 
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
 		if (table->equals_function(key, current_pair->key)) {
-			log_debug("  -> Found.");
+			// log_debug("  -> Found.");
 			return current_pair;
 		}
 	}
 
-	log_debug("  -> Not found.");
+	// log_debug("  -> Not found.");
 	return NULL;
 }
 
@@ -259,7 +259,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 				kfree(current_pair->value);
 			kfree(current_pair);
 
-			log_debug("Deleted a node whose hash code was %d.", row);
+			// log_debug("Deleted a node whose hash code was %d.", row);
 		}
 	}
 }

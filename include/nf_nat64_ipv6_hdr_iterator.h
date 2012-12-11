@@ -1,10 +1,3 @@
-/*
- * nf_nat64_ipv6_hdr_iterator.h
- *
- *  Created on: Oct 12, 2012
- *      Author: aleiva
- */
-
 #ifndef NF_NAT64_IPV6_HDR_ITERATOR_H_
 #define NF_NAT64_IPV6_HDR_ITERATOR_H_
 
@@ -13,7 +6,7 @@
  * Routines and structures that help traverse the extension headers of IPv6 packets.
  *
  * Everything in this file assumes the main IPv6 header is glued in memory to the extension headers,
- * preceding them (such as in a sk_buff).
+ * preceding them (such as in a linearized sk_buff).
  */
 
 #include <linux/kernel.h>

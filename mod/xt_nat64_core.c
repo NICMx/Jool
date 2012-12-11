@@ -18,37 +18,6 @@
 #include "nf_nat64_send_packet.h"
 
 
-//static bool handle_hairpin(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in,
-//		bool (*determine_outgoing_tuple_fn)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple **),
-//		bool (*send_packet_fn)(struct sk_buff *))
-//{
-//	struct sk_buff *skb_out = NULL;
-//	struct nf_conntrack_tuple *tuple_out = NULL;
-//
-//	log_debug("Step 5: Handling Hairpinning...");
-//
-//	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
-//		goto failure;
-//	if (!nat64_filtering_and_updating(tuple_in))
-//		goto failure;
-//	if (!determine_outgoing_tuple_fn(tuple_in, &tuple_out)) // TODO esto también está mal.
-//		goto failure;
-//	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
-//		goto failure;
-//	if (!send_packet_fn(skb_out)) // TODO esto está mal.
-//		goto failure;
-//
-//	kfree(tuple_out);
-//	kfree_skb(skb_out);
-//	log_debug("Done step 5.");
-//	return true;
-//
-//failure:
-//	kfree(tuple_out);
-//	kfree_skb(skb_out);
-//	return false;
-//}
-
 unsigned int nat64_core(struct sk_buff *skb_in,
 		bool (*determine_outgoing_tuple_fn)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple **),
 		bool (*send_packet_fn)(struct sk_buff *))
@@ -57,30 +26,31 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 	struct nf_conntrack_tuple *tuple_in = NULL, *tuple_out = NULL;
 
 	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
-		goto failure;
+		goto free_and_fail;
 	if (!nat64_filtering_and_updating(tuple_in))
-		goto failure;
+		goto free_and_fail;
 	if (!determine_outgoing_tuple_fn(tuple_in, &tuple_out))
-		goto failure;
+		goto free_and_fail;
 	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
-		goto failure;
-//	if (nat64_got_hairpin(tuple_out)) {
-//		if (!handle_hairpin(skb_out, tuple_out, determine_outgoing_tuple_fn))
-//			goto failure;
-//	} else {
+		goto free_and_fail;
+	if (nat64_got_hairpin(tuple_out)) {
+		if (!nat64_handling_hairpinning(skb_out, tuple_out))
+			goto free_and_fail;
+	} else {
 		if (!send_packet_fn(skb_out))
-			goto failure;
-//	}
+			goto fail;
+	}
 
 	log_debug("Success.");
 	kfree(tuple_out);
-	// skb_out was or will be released by the kernel.
 	return NF_DROP;
 
-failure:
+free_and_fail:
+	kfree_skb(skb_out);
+
+fail:
 	log_debug("Failure.");
 	kfree(tuple_out);
-//	kfree_skb(skb_out); // TODO en cierto camino esto está liberando de más.
 	return NF_DROP;
 }
 

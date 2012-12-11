@@ -82,7 +82,7 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	// Conntrack already built the tuple, so just ask.
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct == NULL) {
-		log_warning("Packet does not contain a conntrack entry. Dropping...");
+		log_warning("  Packet does not contain a conntrack entry. Dropping...");
 		return false;
 	}
 	dir = CTINFO2DIR(ctinfo);
@@ -113,11 +113,11 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	return true;
 
 unsupported_l3_protocol:
-	log_warning("Unsupported L3 protocol (%u). Dropping packet...", tuple->l3_protocol);
+	log_warning("  Unsupported L3 protocol (%u). Dropping packet...", tuple->l3_protocol);
 	return false;
 
 unsupported_l4_protocol:
-	log_warning("Unsupported L4 protocol (%u). Dropping packet...", tuple->l4_protocol);
+	log_warning("  Unsupported L4 protocol (%u). Dropping packet...", tuple->l4_protocol);
 	return false;
 }
 

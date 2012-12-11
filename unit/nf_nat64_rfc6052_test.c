@@ -44,43 +44,53 @@ char prefix[6][INET6_ADDRSTRLEN] = {
 
 int pref[6] = { 32, 40, 48, 56, 64, 96 };
 
-bool test_extract_ipv4(char* ipv6_as_string, int prefix)
+bool test_extract_ipv4(char* ipv6_as_string, int prefix_len)
 {
+	const char expected_as_string[INET_ADDRSTRLEN] = "192.0.2.33";
 	struct in_addr expected;
 	struct in_addr actual;
 	struct in6_addr ipv6;
 
-	char expected_as_string[INET_ADDRSTRLEN] = "192.0.2.33";
-	expected.s_addr = in_aton(expected_as_string);
+	if (!str_to_addr4(expected_as_string, &expected)) {
+		log_warning("Can't parse expected IPv4 address '%s'. Failing test.", expected_as_string);
+		return false;
+	}
+	if (!str_to_addr6(ipv6_as_string, &ipv6)) {
+		log_warning("Can't parse IPv6 address being tested '%s'. Failing test.", ipv6_as_string);
+		return false;
+	}
 
-	in6_aton(ipv6_as_string, &ipv6);
-	actual = nat64_extract_ipv4(&ipv6, prefix);
+	actual = nat64_extract_ipv4(&ipv6, prefix_len);
 	ASSERT_EQUALS_IPV4(expected, actual, "Extract IPv4.")
 
 	return true;
 }
 
-bool test_append_ipv4(char* expect_str, char* ipv6_as_string, int prefix)
+bool test_append_ipv4(char* expected_as_string, char* prefix_as_string, int prefix_len)
 {
-	struct in_addr append;
-	struct in6_addr ipv6, ipv6_append, expected;
-	int i;
+	char ipv4_as_string[INET_ADDRSTRLEN] = "192.0.2.33";
+	struct in_addr ipv4;
+	struct in6_addr prefix, actual, expected;
 
-	char expected_as_string[INET_ADDRSTRLEN] = "192.0.2.33";
-	append.s_addr = in_aton(expected_as_string);
+	if (!str_to_addr4(ipv4_as_string, &ipv4)) {
+		log_warning("Can't parse IPv4 address '%s'. Failing test.", ipv4_as_string);
+		return false;
+	}
+	if (!str_to_addr6(prefix_as_string, &prefix)) {
+		log_warning("Can't parse prefix '%s'. Failing test.", prefix_as_string);
+		return false;
+	}
+	if (!str_to_addr6(expected_as_string, &expected)) {
+		log_warning("Can't parse expected address '%s'. Failing test.", expected_as_string);
+		return false;
+	}
 
-	in6_aton(expect_str, &expected);
+	actual = nat64_append_ipv4(&prefix, &ipv4, prefix_len);
 
-	in6_aton(ipv6_as_string, &ipv6);
-	ipv6_append = nat64_append_ipv4(&ipv6, &append, prefix);
-
-	// TODO (test) usa las funciones de types...
-	for (i = 0; i < 4; i++) {
-		if (expected.s6_addr32[i] != ipv6_append.s6_addr32[i]) {
-			log_warning("Test failed: %s Expected: %pI6c. Actual: %pI6c.", "Append IPv4.", &expected,
-					&ipv6_append);
-			return false;
-		}
+	if (!ipv6_addr_equals(&expected, &actual)) {
+		log_warning("Test failed: %s Expected: %pI6c. Actual: %pI6c.",
+				"Append IPv4.", &expected, &actual);
+		return false;
 	}
 
 	return true;

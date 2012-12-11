@@ -4,12 +4,6 @@
 #include "nf_nat64_types.h"
 
 
-bool is_address_legal(struct in6_addr *address)
-{
-	// TODO (severe) nadie está haciendo esto.
-	return true;
-}
-
 bool nf_nat64_ipv4_pool_contains_addr(__be32 addr)
 {
 	return true;
@@ -42,12 +36,12 @@ bool nat64_determine_outgoing_tuple_4to6(struct nf_conntrack_tuple *tuple_in,
 		return false;
 	}
 
-	if (!in6_aton(ipv6_src, &result->ipv6_src_addr)) {
-		log_debug("  (4 -> 6) No puedo traducir la dirección fuente.");
+	if (!str_to_addr6(ipv6_src, &result->ipv6_src_addr)) {
+		log_debug("  (4 -> 6) Can't translate the source address '%s'.", ipv6_src);
 		return false;
 	}
-	if (!in6_aton(ipv6_dst, &result->ipv6_dst_addr)) {
-		log_debug("  (4 -> 6) No puedo traducir la dirección destino.");
+	if (!str_to_addr6(ipv6_dst, &result->ipv6_dst_addr)) {
+		log_debug("  (4 -> 6) Can't translate the dest address '%s'.", ipv6_dst);
 		return false;
 	}
 	log_debug("  src: %pI6c, dst: %pI6c", &result->ipv6_src_addr, &result->ipv6_dst_addr);
@@ -71,8 +65,15 @@ bool nat64_determine_outgoing_tuple_6to4(struct nf_conntrack_tuple *tuple_in,
 		log_warning("  Can't allocate a tuple.");
 		return false;
 	}
-	result->ipv4_src_addr.s_addr = in_aton(ipv4_src);
-	result->ipv4_dst_addr.s_addr = in_aton(ipv4_dst);
+
+	if (!str_to_addr4(ipv4_src, &result->ipv4_src_addr)) {
+		log_warning("  (6 -> 4) Can't translate the source address '%s'.", ipv4_src);
+		return false;
+	}
+	if (!str_to_addr4(ipv4_dst, &result->ipv4_dst_addr)) {
+		log_warning("  (6 -> 4) Can't translate the dest address '%s'.", ipv4_dst);
+		return false;
+	}
 	log_debug("  src: %pI4, dst: %pI4", &result->ipv4_src_addr, &result->ipv4_dst_addr);
 
 	*tuple_out = result;

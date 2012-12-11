@@ -3,8 +3,8 @@
 
 /**
  * @file
- * Fourth and last step of the Nat64 translation algorithm: "Translating the Packet", as defined in
- * RFC6146 section 3.7.
+ * Fourth step of the Nat64 translation algorithm: "Translating the Packet", as defined in RFC6146
+ * section 3.7.
  *
  * Abbreviations seen in this submodule:
  * - hdr = header
@@ -14,7 +14,7 @@
  * - len = length
  * - ptr = pointer
  * - in = incoming (Note, not "inner")
- * - out = outgoing
+ * - out = outgoing (Not "outer")
  */
 
 #include <linux/ip.h>

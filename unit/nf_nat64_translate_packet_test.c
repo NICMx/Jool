@@ -46,8 +46,10 @@ static struct nf_conntrack_tuple get_ip6_tuple(void)
 static bool build_ip4_hdr_udp(void **l3_header, __u16 *l3_hdr_len)
 {
 	struct iphdr *ip_header = kmalloc(sizeof(struct iphdr), GFP_ATOMIC);
-	if (!ip_header)
+	if (!ip_header) {
+		log_warning("Could not allocate a IPv4 header. Gonna fail...");
 		return false;
+	}
 
 	ip_header->version = 4;
 	ip_header->ihl = sizeof(*ip_header) / 4;
@@ -121,8 +123,10 @@ static bool build_ip4_hdr_icmp4_embedded(void **l3_header, __u16 *l3_hdr_len)
 static bool build_ip6_hdr_udp(void **l3_header, __u16 *l3_hdr_len)
 {
 	struct ipv6hdr *hdr = kmalloc(sizeof(struct ipv6hdr), GFP_ATOMIC);
-	if (!hdr)
+	if (!hdr) {
+		log_warning("Could not allocate a IPv6 header. Gonna fail...");
 		return false;
+	}
 
 	hdr->version = 6;
 	hdr->priority = 0xA;
@@ -182,8 +186,10 @@ static bool build_ip6_hdr_fragment(void **l3_header, __u16 *l3_hdr_len)
 
 	// TODO (test) no estás printkeando error cuando no se puede reservar memoria.
 	fixed_hdr = kmalloc(sizeof(*fixed_hdr) + sizeof(*frag_hdr), GFP_ATOMIC);
-	if (!fixed_hdr)
+	if (!fixed_hdr) {
+		log_warning("Could not allocate a IPv6+Fragment header. Gonna fail...");
 		goto failure;
+	}
 	if (!build_ip6_hdr_udp(l3_header, l3_hdr_len))
 		goto failure;
 
@@ -239,8 +245,10 @@ static bool build_l3_payload_udp(void **l3_payload, __u16 *l3_payload_len)
 	*l3_payload_len = sizeof(struct udphdr) + 4;
 	*l3_payload = kmalloc(*l3_payload_len, GFP_ATOMIC);
 	udp_header = *l3_payload;
-	if (!udp_header)
+	if (!udp_header) {
+		log_warning("Could not allocate a UDP header + payload. Gonna fail...");
 		return false;
+	}
 
 	udp_header->source = cpu_to_be16(5883);
 	udp_header->dest = cpu_to_be16(9215);
@@ -258,8 +266,10 @@ static bool build_l3_payload_tcp(void **l3_payload, __u16 *l3_payload_len)
 	*l3_payload_len = sizeof(struct tcphdr) + 4;
 	*l3_payload = kmalloc(*l3_payload_len, GFP_ATOMIC);
 	tcp_header = *l3_payload;
-	if (!tcp_header)
+	if (!tcp_header) {
+		log_warning("Could not allocate a TCP header + payload. Gonna fail...");
 		return false;
+	}
 
 	tcp_header->source = cpu_to_be16(3885);
 	tcp_header->dest = cpu_to_be16(1592);
@@ -290,8 +300,10 @@ static bool build_l3_payload_icmp4(void **l3_payload, __u16 *l3_payload_len)
 	*l3_payload_len = sizeof(struct icmphdr) + 4;
 	*l3_payload = kmalloc(*l3_payload_len, GFP_ATOMIC);
 	icmp4_header = *l3_payload;
-	if (!icmp4_header)
+	if (!icmp4_header) {
+		log_warning("Could not allocate a ICMPv4 header + payload. Gonna fail...");
 		return false;
+	}
 
 	icmp4_header->type = ICMP_ECHOREPLY;
 	icmp4_header->code = 0;
@@ -310,8 +322,10 @@ static bool build_l3_payload_icmp6(void **l3_payload, __u16 *l3_payload_len)
 	*l3_payload_len = sizeof(struct icmphdr) + 4;
 	*l3_payload = kmalloc(*l3_payload_len, GFP_ATOMIC);
 	icmp6_header = *l3_payload;
-	if (!icmp6_header)
+	if (!icmp6_header) {
+		log_warning("Could not allocate a ICMPv6 header + payload. Gonna fail...");
 		return false;
+	}
 
 	icmp6_header->icmp6_type = ICMPV6_ECHO_REPLY;
 	icmp6_header->icmp6_code = 0;
@@ -332,8 +346,10 @@ static bool build_l3_payload_icmp4_embedded(void **l3_payload, __u16 *l3_payload
 
 	*l3_payload_len = sizeof(struct icmphdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + 4;
 	*l3_payload = kmalloc(*l3_payload_len, GFP_ATOMIC);
-	if (!(*l3_payload))
+	if (!(*l3_payload)) {
+		log_warning("Could not allocate a ICMP header + inner packet. Gonna fail...");
 		return false;
+	}
 
 	icmp_header = *l3_payload;
 	ip_header = (struct iphdr *) (icmp_header + 1);
@@ -1055,6 +1071,204 @@ static bool test_function_icmp6_minimum_mtu(void)
 }
 #undef min_mtu
 
+static bool test_function_build_tos_field(void)
+{
+	__u8 ipv6_header[4]; // We don't really need the rest of the bytes.
+
+	// version: 2 (Yes, it's not 6. Doesn't matter.)
+	// traffic class: ce
+	// flow label: 3c3e0
+	ipv6_header[0] = 0x2c;
+	ipv6_header[1] = 0xe3;
+	ipv6_header[2] = 0xc3;
+	ipv6_header[3] = 0xe0;
+	ASSERT_EQUALS(0xce, build_tos_field((struct ipv6hdr *) ipv6_header), "Simple.");
+
+	return true;
+}
+
+static bool test_function_generate_ipv4_id_nofrag(void)
+{
+	struct ipv6hdr hdr;
+	__be16 attempt_1, attempt_2, attempt_3;
+
+	hdr.payload_len = cpu_to_be16(4); // packet length is 44.
+	ASSERT_EQUALS(0, generate_ipv4_id_nofrag(&hdr), "Length < 88 bytes.");
+
+	hdr.payload_len = cpu_to_be16(48); // packet length is 88.
+	ASSERT_EQUALS(0, generate_ipv4_id_nofrag(&hdr), "Length = 88 bytes.");
+
+	hdr.payload_len = cpu_to_be16(500); // packet length is 540.
+	attempt_1 = generate_ipv4_id_nofrag(&hdr);
+	attempt_2 = generate_ipv4_id_nofrag(&hdr);
+	attempt_3 = generate_ipv4_id_nofrag(&hdr);
+	// At least one of the attempts should be nonzero,
+	// otherwise the random would be sucking major ****.
+	ASSERT_NOT_EQUALS(0, (attempt_1 | attempt_2 | attempt_3), "88 < Len < 1280.");
+
+	hdr.payload_len = cpu_to_be16(1240); // packet length is 1280.
+	attempt_1 = generate_ipv4_id_nofrag(&hdr);
+	attempt_2 = generate_ipv4_id_nofrag(&hdr);
+	attempt_3 = generate_ipv4_id_nofrag(&hdr);
+	ASSERT_NOT_EQUALS(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1280.");
+
+	hdr.payload_len = cpu_to_be16(4000); // packet length is 4040.
+	ASSERT_EQUALS(0, generate_ipv4_id_nofrag(&hdr), "Len > 1280.");
+
+	return true;
+}
+
+static bool test_function_generate_df_flag(void)
+{
+	struct ipv6hdr hdr;
+
+	hdr.payload_len = cpu_to_be16(4); // packet length is 44.
+	ASSERT_EQUALS(1, generate_df_flag(&hdr), "Length < 88 bytes.");
+
+	hdr.payload_len = cpu_to_be16(48); // packet length is 88.
+	ASSERT_EQUALS(1, generate_df_flag(&hdr), "Length = 88 bytes.");
+
+	hdr.payload_len = cpu_to_be16(500); // packet length is 540.
+	ASSERT_EQUALS(0, generate_df_flag(&hdr), "88 < Len < 1280.");
+
+	hdr.payload_len = cpu_to_be16(1240); // packet length is 1280.
+	ASSERT_EQUALS(0, generate_df_flag(&hdr), "Len = 1280.");
+
+	hdr.payload_len = cpu_to_be16(4000); // packet length is 4040.
+	ASSERT_EQUALS(1, generate_df_flag(&hdr), "Len > 1280.");
+
+	return true;
+}
+
+static bool test_function_build_ipv4_frag_off_field(void)
+{
+	ASSERT_EQUALS(0x407b, be16_to_cpu(build_ipv4_frag_off_field(1, 0, 123)), "Simple 1.");
+	ASSERT_EQUALS(0x2159, be16_to_cpu(build_ipv4_frag_off_field(0, 1, 345)), "Simple 2.");
+	return true;
+}
+
+/**
+ * By the way. This test kind of looks like it should test more combinations of headers.
+ * But that'd be testing the header iterator, not the build_protocol_field() function.
+ * Please look elsewhere for that.
+ */
+static bool test_function_build_protocol_field(void)
+{
+	struct ipv6hdr *ip6_hdr;
+	struct ipv6_opt_hdr *hop_by_hop_hdr;
+	struct ipv6_opt_hdr *routing_hdr;
+	struct ipv6_opt_hdr *dest_options_hdr;
+	struct icmp6hdr *icmp6_hdr;
+
+	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + 8 + 16 + 24 + sizeof(*icmp6_hdr), GFP_ATOMIC);
+	if (!ip6_hdr) {
+		log_warning("Could not allocate a test packet.");
+		goto failure;
+	}
+
+	// Just ICMP.
+	ip6_hdr->nexthdr = NEXTHDR_ICMP; // Leave everything else as trash. Don't need it.
+	ASSERT_EQUALS(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Just ICMP.");
+
+	// Skippable headers then ICMP.
+	ip6_hdr->nexthdr = NEXTHDR_HOP;
+
+	hop_by_hop_hdr = (struct ipv6_opt_hdr *) (ip6_hdr + 1);
+	hop_by_hop_hdr->nexthdr = NEXTHDR_ROUTING;
+	hop_by_hop_hdr->hdrlen = 0; // the hdrlen field does not include the first 8 octets.
+
+	routing_hdr = (struct ipv6_opt_hdr *) (((unsigned char *) hop_by_hop_hdr) + 8);
+	routing_hdr->nexthdr = NEXTHDR_DEST;
+	routing_hdr->hdrlen = 1;
+
+	dest_options_hdr = (struct ipv6_opt_hdr *) (((unsigned char *) routing_hdr) + 16);
+	dest_options_hdr->nexthdr = NEXTHDR_ICMP;
+	dest_options_hdr->hdrlen = 2;
+
+	ASSERT_EQUALS(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Skippable headers then ICMP.");
+
+	// Skippable headers then something else.
+	dest_options_hdr->nexthdr = NEXTHDR_TCP;
+	ASSERT_EQUALS(IPPROTO_TCP, build_protocol_field(ip6_hdr), "Skippable header then TCP.");
+
+	kfree(ip6_hdr);
+	return true;
+
+failure: // TODO (test) no se está usando...
+	kfree(ip6_hdr);
+	return false;
+}
+
+static bool test_function_has_nonzero_segments_left(void)
+{
+	struct ipv6hdr *ip6_hdr;
+	struct ipv6_rt_hdr *routing_hdr;
+	struct frag_hdr *fragment_hdr;
+	__u32 offset;
+
+	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + sizeof(*routing_hdr), GFP_ATOMIC);
+	if (!ip6_hdr) {
+		log_warning("Could not allocate a test packet.");
+		goto failure;
+	}
+
+	// No extension headers.
+	ip6_hdr->nexthdr = NEXTHDR_TCP;
+	ASSERT_EQUALS(false, has_nonzero_segments_left(ip6_hdr, &offset), "No extension headers.");
+
+	// Routing header with nonzero segments left.
+	ip6_hdr->nexthdr = NEXTHDR_ROUTING;
+	routing_hdr = (struct ipv6_rt_hdr *) (ip6_hdr + 1);
+	routing_hdr->segments_left = 12;
+	ASSERT_EQUALS(true, has_nonzero_segments_left(ip6_hdr, &offset), "Nonzero left - result.");
+	ASSERT_EQUALS(40 + 3, offset, "Nonzero left - offset.");
+
+	// Routing header with zero segments left.
+	routing_hdr->segments_left = 0;
+	ASSERT_EQUALS(false, has_nonzero_segments_left(ip6_hdr, &offset), "Zero left.");
+
+	// Fragment header, then routing header with nonzero segments left
+	// (further test the out parameter).
+	ip6_hdr->nexthdr = NEXTHDR_FRAGMENT;
+	fragment_hdr = (struct frag_hdr *) (ip6_hdr + 1);
+	fragment_hdr->nexthdr = NEXTHDR_ROUTING;
+	routing_hdr = (struct ipv6_rt_hdr *) (fragment_hdr + 1);
+	routing_hdr->segments_left = 24;
+	ASSERT_EQUALS(true, has_nonzero_segments_left(ip6_hdr, &offset), "Two headers - result.");
+	ASSERT_EQUALS(40 + 8 + 3, offset, "Two headers - offset.");
+
+	kfree(ip6_hdr);
+	return true;
+
+failure:
+	kfree(ip6_hdr);
+	return false;
+}
+
+static bool test_function_generate_ipv4_id_dofrag(void)
+{
+	struct frag_hdr fragment_hdr;
+
+	fragment_hdr.identification = 0;
+	ASSERT_EQUALS(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)), "Simplest id.");
+
+	fragment_hdr.identification = cpu_to_be32(0x0000abcd);
+	ASSERT_EQUALS(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)), "No overflow.");
+
+	fragment_hdr.identification = cpu_to_be32(0x12345678);
+	ASSERT_EQUALS(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)), "Overflow.");
+
+	return true;
+}
+
+static bool test_function_icmp4_minimum_mtu(void)
+{
+	ASSERT_EQUALS(2, be16_to_cpu(icmp4_minimum_mtu(2, 4, 6)), "First is min.");
+	ASSERT_EQUALS(8, be16_to_cpu(icmp4_minimum_mtu(10, 8, 12)), "Second is min.");
+	ASSERT_EQUALS(14, be16_to_cpu(icmp4_minimum_mtu(16, 18, 14)), "Third is min.");
+	return true;
+}
+
 static bool test_4to6_translation_simple_udp(void)
 {
 	return translate(build_ip4_hdr_udp,
@@ -1177,19 +1391,32 @@ int init_module(void)
 	config.mtu_plateaus = plateaus;
 	config.mtu_plateau_count = 3;
 
+	// 4 to 6 single function tests.
 	CALL_TEST(test_function_is_dont_fragment_set(), "Dont fragment getter");
 	CALL_TEST(test_function_is_more_fragments_set(), "More fragments getter");
 	CALL_TEST(test_function_has_unexpired_src_route(), "Unexpired source route querier");
 	CALL_TEST(test_function_build_ipv6_frag_off_field(), "Fragment offset builder");
 	CALL_TEST(test_function_build_id_field(), "Identification builder");
-	CALL_TEST(test_function_icmp6_minimum_mtu(), "Minimum MTU function");
+	CALL_TEST(test_function_icmp6_minimum_mtu(), "ICMP6 Minimum MTU function");
 
+	// 6 to 4 simple function tests.
+	CALL_TEST(test_function_build_tos_field(), "Build TOS function");
+	CALL_TEST(test_function_generate_ipv4_id_nofrag(), "Generate id function (no frag)");
+	CALL_TEST(test_function_generate_df_flag(), "Generate DF flag function");
+	CALL_TEST(test_function_build_ipv4_frag_off_field(), "Generate frag offset + flags function");
+	CALL_TEST(test_function_build_protocol_field(), "Build protocol function");
+	CALL_TEST(test_function_has_nonzero_segments_left(), "Segments left indicator function");
+	CALL_TEST(test_function_generate_ipv4_id_dofrag(), "Generate id function (frag)");
+	CALL_TEST(test_function_icmp4_minimum_mtu(), "ICMP4 Minimum MTU function");
+
+	// 4 to 6 full packet translation tests.
 	CALL_TEST(test_4to6_translation_simple_udp(), "Simple 4-to-6 UDP translation");
 	CALL_TEST(test_4to6_translation_simple_tcp(), "Simple 4-to-6 TCP translation");
 	CALL_TEST(test_4to6_translation_simple_icmp(), "Simple 4-to-6 ICMP translation");
 	CALL_TEST(test_4to6_translation_fragment(), "4-to-6 translation featuring fragment header");
 	CALL_TEST(test_4to6_translation_embedded(), "4-to-6 translation featuring embedded packet");
 
+	// 6 to 4 full packet translation tests.
 	CALL_TEST(test_6to4_translation_simple_udp(), "Simple 6-to-4 UDP translation");
 	CALL_TEST(test_6to4_translation_simple_tcp(), "Simple 6-to-4 TCP translation");
 	CALL_TEST(test_6to4_translation_simple_icmp(), "Simple 6-to-4 ICMP translation");

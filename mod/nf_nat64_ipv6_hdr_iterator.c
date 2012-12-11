@@ -15,6 +15,7 @@ bool is_extension_hdr(__u8 header_id)
 			|| (header_id == NEXTHDR_ESP);
 }
 
+// TODO creo que deberías recibir el tamaño del payload o del paquete, para que no te pases.
 void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr)
 {
 	struct hdr_iterator defaults = HDR_ITERATOR_INIT(main_hdr);

@@ -84,14 +84,20 @@ static bool test(void)
 
 	// Test put and get.
 	for (i = 0; i < 3; i++)
-		test_table_put(&table, &keys[i], &values[i]);
+		if (!test_table_put(&table, &keys[i], &values[i])) {
+			log_warning("Put operation (1) failed on value %d.", i);
+			goto failure;
+		}
 
 	if (!assert_table_content(&table, keys, values, "Hash table put/get."))
 		goto failure;
 	test_table_print(&table, "After puts");
 
 	// Test remove.
-	test_table_remove(&table, &keys[1], false, false);
+	if (!test_table_remove(&table, &keys[1], false, false)) {
+		log_warning("Remove operation failed on value 1.");
+		goto failure;
+	}
 	values[1].value = -1;
 
 	if (!assert_table_content(&table, keys, values, "Hash table remove."))
@@ -113,7 +119,10 @@ static bool test(void)
 	values[2].value = 736;
 
 	for (i = 0; i < 3; i++)
-		test_table_put(&table, &keys[i], &values[i]);
+		if (!test_table_put(&table, &keys[i], &values[i])) {
+			log_warning("Put operation (2) failed on value %d.", i);
+			goto failure;
+		}
 
 	if (!assert_table_content(&table, keys, values, "Hash table put/get."))
 		goto failure;
@@ -148,7 +157,10 @@ static bool test_to_array_function(void)
 	// Init.
 	test_table_init(&table, &equals_function, &hash_code_function);
 	for (i = 0; i < ARRAY_SIZE(values); i++)
-		test_table_put(&table, &keys[i], &values[i]);
+		if (!test_table_put(&table, &keys[i], &values[i])) {
+			log_warning("Put operation failed on value %d.", i);
+			goto failure;
+		}
 
 	// Call.
 	array_size = test_table_to_array(&table, &array);
