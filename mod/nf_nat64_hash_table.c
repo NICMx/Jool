@@ -12,7 +12,8 @@
  * @macro HTABLE_NAME name of the hash table structure to generate. Optional; Default: hash_table.
  * @macro KEY_TYPE data type of the table's keys.
  * @macro VALUE_TYPE data type of the table's values.
- * @macro HASH_TABLE_SIZE The size of the internal array. Optional; Default: 64k.
+ * @macro HASH_TABLE_SIZE The size of the internal array, in slots. Optional;
+ *		Default = Max = 64k - 1.
  * @macro GENERATE_PRINT just define it if you want the print function; otherwise it will not be
  *		generated.
  * @macro GENERATE_TO_ARRAY just define it if you want the to_array function; otherwise it will not
@@ -35,7 +36,7 @@
 #endif
 
 #ifndef HASH_TABLE_SIZE
-#define HASH_TABLE_SIZE (64 * 1024)
+#define HASH_TABLE_SIZE (64 * 1024 - 1)
 #endif
 
 /** Creates a token name by concatenating prefix and suffix. */
@@ -75,7 +76,7 @@ struct HTABLE_NAME
 	 */
 	struct hlist_head table[HASH_TABLE_SIZE];
 	/** Number of key-value pairs currently stored by the table. */
-	int size;
+	__u16 size;
 
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
@@ -143,7 +144,7 @@ static void INIT(struct HTABLE_NAME *table,
 		bool (*equals_function)(KEY_TYPE *, KEY_TYPE *),
 		__u16 (*hash_function)(KEY_TYPE *))
 {
-	int i;
+	__u16 i;
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&table->table[i]);
 
@@ -243,7 +244,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	int row;
+	__u16 row;
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		while (!hlist_empty(&table->table[row])) {
@@ -277,7 +278,7 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	int row;
+	__u16 row;
 
 	log_debug("** Printing table: %s **", header);
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
@@ -294,38 +295,42 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 #ifdef GENERATE_TO_ARRAY
 /**
  * Builds an array out of the current table contents, and then returns it.
- * (It's a shallow copy).
  *
  * @param table the HTABLE_NAME instance you want to convert to an array.
- * @param array the result will be stored here.
- * @return the resulting length of "array". May be -1, if memory could not be allocated.
+ * @param result makes this point to the resulting array.
+ * @return the length of "result" (in array slots). May be -1, if memory could not be allocated.
  *
- * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
- * the real entries from the table.
+ * You have to kfree "result" after you use it.
  */
-static int TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***array)
+static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE **result)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	int row;
+	__u16 row;
 
-	int array_counter = 0;
-	int array_size = table->size;
-	if (array_size == 0)
+	VALUE_TYPE *array;
+	__s32 array_counter = 0;
+	__s32 array_size = table->size;
+	if (array_size < 1)
 		return 0;
 
-	*array = kmalloc(array_size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
-	if (!*array)
+	array = kmalloc(array_size * sizeof(VALUE_TYPE), GFP_ATOMIC);
+	if (!array)
 		return -1;
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			(*array)[array_counter] = current_pair->value;
+			memcpy(&array[array_counter], current_pair->value, sizeof(VALUE_TYPE));
 			array_counter++;
 		}
 	}
 
+	if (array_counter != array_size)
+		log_crit("Programming error: The table's size field does not equal the seemingly "
+				"actual number of objects it contains.");
+
+	*result = array;
 	return array_size;
 }
 #endif

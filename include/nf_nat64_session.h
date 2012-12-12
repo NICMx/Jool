@@ -165,19 +165,17 @@ struct session_entry *nat64_create_static_session_entry(
 		struct bib_entry *bib, u_int8_t l4protocol);
 
 /**
- * Creates an array out of the "l4protocol" session table's data and places it in "*array".
+ * Creates an array out of the "l4protocol" session table's data and places it in *"array".
  *
  * @param l4protocol identifier of the table to array-ize. Should be either IPPROTO_UDP, IPPROTO_TCP
  *		or IPPROTO_ICMP from linux/in.h.
- * @param array the result will be stored here. Yes, this parameter is a horrible abomination. Think
- *		of it this way: It's an array (asterisk 2) of pointers (asterisk 3). The remaining asterisk
- *		makes it a by-reference argument. FML.
- * @return the resulting length of "array". May be zero, if memory could not be allocated.
+ * @param array the result will be stored here. The first asterisk makes it a by-reference argument,
+ *		the second one means it's an array.
+ * @return the resulting length of "array". May be -1, if memory could not be allocated.
  *
- * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
- * the real entries from the table.
+ * You have to kfree "array" after you use it.
  */
-int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array);
+int nat64_session_table_to_array(__u8 l4protocol, struct session_entry **array);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as

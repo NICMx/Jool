@@ -186,7 +186,7 @@ struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
 	return result;
 }
 
-int nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array)
+int nat64_bib_to_array(__u8 l4protocol, struct bib_entry **array)
 {
 	return ipv4_table_to_array(&get_bib_table(l4protocol)->ipv4, array);
 }

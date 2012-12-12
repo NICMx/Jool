@@ -512,7 +512,7 @@ bool test_address_filtering(void)
 bool test_to_array(void)
 {
 	struct bib_entry *first_bib, *second_bib;
-	struct bib_entry **array;
+	struct bib_entry *array;
 	int array_size;
 
 	// Create and insert BIBs.
@@ -542,19 +542,19 @@ bool test_to_array(void)
 	// Return value validations.
 	if (array_size == -1) {
 		log_warning("nat64_bib_to_array could not allocate the array.");
-		return false;
+		goto free;
 	}
 	if (array_size != 2) {
-		log_warning("Inserted 2 bibs, but the resulting array's length is %d.", array_size);
+		log_warning("Inserted 2 bibs, but the resulting array length is %d.", array_size);
 		goto free;
 	}
 
 	// Array content validations.
-	if (!bib_entry_equals(first_bib, array[0]) && !bib_entry_equals(first_bib, array[1])) {
+	if (!bib_entry_equals(first_bib, &array[0]) && !bib_entry_equals(first_bib, &array[1])) {
 		log_warning("The result array does not contain the first BIB entry.");
 		goto free;
 	}
-	if (!bib_entry_equals(second_bib, array[0]) && !bib_entry_equals(second_bib, array[1])) {
+	if (!bib_entry_equals(second_bib, &array[0]) && !bib_entry_equals(second_bib, &array[1])) {
 		log_warning("The result array does not contain the second BIB entry.");
 		goto free;
 	}
