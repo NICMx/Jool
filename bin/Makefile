@@ -6,7 +6,7 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o # pool.o
+obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o pool.o
 
 rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += ../mod/nf_nat64_rfc6052.o
@@ -17,6 +17,9 @@ hashtable-objs += ../unit/nf_nat64_hash_table_test.o
 pool-objs += ../mod/nf_nat64_types.o
 pool-objs += ../mod/nf_nat64_config.o
 pool-objs += ../mod/nf_nat64_ipv4_pool.o
+pool-objs += ../mod/nf_nat64_bib.o
+pool-objs += ../mod/nf_nat64_session.o
+pool-objs += ../mod/nf_nat64_static_routes.o
 pool-objs += ../unit/nf_nat64_pool_test.o
 
 bib_session-objs += ../mod/nf_nat64_types.o
@@ -92,8 +95,8 @@ test:
 	sudo rmmod rfc6052
 	sudo insmod hashtable.ko
 	sudo rmmod hashtable
-	#sudo insmod pool.ko
-	#sudo rmmod pool
+	sudo insmod pool.ko
+	sudo rmmod pool
 	sudo insmod bib_session.ko
 	sudo rmmod bib_session
 	sudo insmod iterator.ko
