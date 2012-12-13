@@ -62,7 +62,8 @@
 		failure_counter++;											\
 	}
 #define INIT_CALL_END(init_function, test_function, end_function, test_name)	\
-	init_function;																\
+	if (!init_function)															\
+		return -EINVAL;															\
 	CALL_TEST(test_function, test_name)											\
 	end_function
 

@@ -571,10 +571,11 @@ free:
  * Main.
  ********************************************/
 
-void init(void)
+bool init(void)
 {
 	nat64_bib_init();
 	nat64_session_init();
+	return true;
 }
 
 void end(void)

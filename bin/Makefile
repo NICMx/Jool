@@ -6,13 +6,18 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o
+obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o # pool.o
 
 rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += ../mod/nf_nat64_rfc6052.o
 rfc6052-objs += ../unit/nf_nat64_rfc6052_test.o
 
 hashtable-objs += ../unit/nf_nat64_hash_table_test.o
+
+pool-objs += ../mod/nf_nat64_types.o
+pool-objs += ../mod/nf_nat64_config.o
+pool-objs += ../mod/nf_nat64_ipv4_pool.o
+pool-objs += ../unit/nf_nat64_pool_test.o
 
 bib_session-objs += ../mod/nf_nat64_types.o
 bib_session-objs += ../mod/nf_nat64_bib.o
@@ -30,6 +35,9 @@ outgoing-objs += ../unit/nf_nat64_outgoing_test.o
 translate-objs += ../mod/external_stuff.o
 translate-objs += ../mod/nf_nat64_types.o
 translate-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
+translate-objs += ../mod/nf_nat64_bib.o
+translate-objs += ../mod/nf_nat64_session.o
+translate-objs += ../mod/nf_nat64_static_routes.o
 translate-objs += ../mod/nf_nat64_config.o
 translate-objs += ../unit/nf_nat64_translate_packet_test.o
 
@@ -38,8 +46,10 @@ nat64-objs += ../mod/nf_nat64_types.o
 nat64-objs += ../mod/nf_nat64_rfc6052.o
 nat64-objs += ../mod/nf_nat64_bib.o
 nat64-objs += ../mod/nf_nat64_session.o
-nat64-objs += ../mod/nf_nat64_config.o
 nat64-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
+nat64-objs += ../mod/nf_nat64_config.o
+nat64-objs += ../mod/xt_nat64_module_conf_validation.o
+nat64-objs += ../mod/nf_nat64_static_routes.o
 nat64-objs += ../mod/nf_nat64_determine_incoming_tuple.o
 nat64-objs += ../mod/nf_nat64_outgoing.o
 nat64-objs += ../mod/nf_nat64_translate_packet.o
@@ -82,6 +92,8 @@ test:
 	sudo rmmod rfc6052
 	sudo insmod hashtable.ko
 	sudo rmmod hashtable
+	#sudo insmod pool.ko
+	#sudo rmmod pool
 	sudo insmod bib_session.ko
 	sudo rmmod bib_session
 	sudo insmod iterator.ko

@@ -169,7 +169,7 @@ int __init nat64_init(void)
 	need_conntrack();
 	need_ipv4_conntrack();
 
-	nat64_load_default_config();
+	nat64_config_init();
 	nat64_bib_init();
 	nat64_session_init();
 	nat64_determine_incoming_tuple_init();
@@ -187,6 +187,7 @@ void __exit nat64_exit(void)
 	nat64_determine_incoming_tuple_destroy();
 	nat64_session_destroy();
 	nat64_bib_destroy();
+	nat64_config_destroy();
 
 	log_debug("NAT64 module removed.");
 }
