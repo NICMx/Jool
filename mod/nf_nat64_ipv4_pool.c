@@ -349,7 +349,7 @@ bool ipv4_pool_get_new_port(struct in_addr address, __be16 pi, struct ipv4_tuple
 
 void init_pools(struct config_struct *cs)
 {
-	port_table_init(&table, &ipv4_addr_equals, &ipv4_addr_hash_code);
+	port_table_init(&table, &ipv4_addr_equals, &ipv4_addr_hashcode);
 	
 	next_udp_address.s_addr = (*cs).ipv4_pool_range_first.s_addr;
 	next_tcp_address.s_addr = (*cs).ipv4_pool_range_first.s_addr;

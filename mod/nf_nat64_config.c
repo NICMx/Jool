@@ -220,7 +220,7 @@ int update_nat_config(struct manconf_struct *mst, struct answer_struct **as, __u
 	struct ipv6_prefixes ip6p;
 
 	switch (mst->mode) {
-	case 0:
+	case 0: // TODO (miguel) #define estas constantes.
 		switch (mst->operation) {
 		case 2:
 			log_debug("Sending BIB to userspace.");

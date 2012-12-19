@@ -29,6 +29,12 @@
 
 
 /**
+ * An accesor for the full unused portion of the ICMP header, which I feel is missing from
+ * linux/icmp.h.
+ */
+#define icmp4_unused un.gateway
+
+/**
  * A summary of an incoming packet. Contains some info that's not immediately obvious from the
  * sk_buff and then some. The point is to avoid having to recompute stuff whenever it's needed.
  * Most code should assume it is already and completely populated.

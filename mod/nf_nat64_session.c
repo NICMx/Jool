@@ -90,14 +90,14 @@ static void tuple_to_ipv4_pair(struct nf_conntrack_tuple *tuple, struct ipv4_pai
 
 void nat64_session_init(void)
 {
-	ipv4_table_init(&session_table_udp.ipv4, ipv4_pair_equals, ipv4_pair_hash_code);
-	ipv6_table_init(&session_table_udp.ipv6, ipv6_pair_equals, ipv6_pair_hash_code);
+	ipv4_table_init(&session_table_udp.ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
+	ipv6_table_init(&session_table_udp.ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
 
-	ipv4_table_init(&session_table_tcp.ipv4, ipv4_pair_equals, ipv4_pair_hash_code);
-	ipv6_table_init(&session_table_tcp.ipv6, ipv6_pair_equals, ipv6_pair_hash_code);
+	ipv4_table_init(&session_table_tcp.ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
+	ipv6_table_init(&session_table_tcp.ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
 
-	ipv4_table_init(&session_table_icmp.ipv4, ipv4_pair_equals, ipv4_pair_hash_code);
-	ipv6_table_init(&session_table_icmp.ipv6, ipv6_pair_equals, ipv6_pair_hash_code);
+	ipv4_table_init(&session_table_icmp.ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
+	ipv6_table_init(&session_table_icmp.ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
 }
 
 bool nat64_add_session_entry(struct session_entry *entry)
@@ -181,7 +181,7 @@ bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		session_pair = list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
-		if (ipv4_tuple_address_equals(&session_pair->local, &tuple_pair.local)
+		if (ipv4_tuple_addr_equals(&session_pair->local, &tuple_pair.local)
 				&& ipv4_addr_equals(&session_pair->remote.address, &tuple_pair.remote.address)) {
 			return true;
 		}
@@ -297,13 +297,13 @@ bool session_entry_equals(struct session_entry *session_1, struct session_entry 
 
 	if (session_1->l4protocol != session_2->l4protocol)
 		return false;
-	if (!ipv6_tuple_address_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
+	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
 		return false;
-	if (!ipv6_tuple_address_equals(&session_1->ipv6.local, &session_2->ipv6.local))
+	if (!ipv6_tuple_addr_equals(&session_1->ipv6.local, &session_2->ipv6.local))
 		return false;
-	if (!ipv4_tuple_address_equals(&session_1->ipv4.local, &session_2->ipv4.local))
+	if (!ipv4_tuple_addr_equals(&session_1->ipv4.local, &session_2->ipv4.local))
 		return false;
-	if (!ipv4_tuple_address_equals(&session_1->ipv4.remote, &session_2->ipv4.remote))
+	if (!ipv4_tuple_addr_equals(&session_1->ipv4.remote, &session_2->ipv4.remote))
 		return false;
 
 	return true;

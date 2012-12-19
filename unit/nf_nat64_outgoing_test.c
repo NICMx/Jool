@@ -97,7 +97,7 @@ bool test_tuple5_function(void)
 	incoming_tuple.l3_protocol = 10;
 	incoming_tuple.l4_protocol = IPPROTO_UDP;
 
-	mode = FROM_6_TO_4;
+	mode = IPV6_TO_IPV4;
 
 	test = nat64_compute_outgoing_tuple_tuple5(&outgoing_tuple, &incoming_tuple, mode);
 
@@ -115,7 +115,7 @@ bool test_tuple5_function(void)
 		log_warning("Incoming ip src: %pI4. puerto: %d  \n",
 				&incoming_tuple.ipv4_dst_addr, incoming_tuple.dst_port);
 
-		mode = FROM_4_TO_6;
+		mode = IPV4_TO_IPV6;
 		test = nat64_compute_outgoing_tuple_tuple5(&outgoing_tuple, &incoming_tuple, mode);
 
 		in6_pton(src_ipv6, -1, (u8 *) &(expected.ipv6_src_addr), '\\', NULL);
@@ -148,7 +148,7 @@ bool test_tuple3_function(void)
 	incoming_tuple.l3_protocol = 10;
 	incoming_tuple.l4_protocol = IPPROTO_ICMPV6;
 
-	mode = FROM_6_TO_4;
+	mode = IPV6_TO_IPV4;
 
 	test = nat64_compute_outgoing_tuple_tuple3(&outgoing_tuple, &incoming_tuple, mode);
 
@@ -168,7 +168,7 @@ bool test_tuple3_function(void)
 		log_warning("Incoming ip src: %pI4. puerto: %d  \n",
 				&incoming_tuple.ipv4_dst_addr, incoming_tuple.dst_port);
 		incoming_tuple.l4_protocol = IPPROTO_ICMP;
-		mode = FROM_4_TO_6;
+		mode = IPV4_TO_IPV6;
 		test = nat64_compute_outgoing_tuple_tuple3(&outgoing_tuple, &incoming_tuple, mode);
 
 		in6_pton(src_ipv6, -1, (u8 *) &(expected.ipv6_src_addr), '\\', NULL);

@@ -8,6 +8,11 @@
  */
 #include "nf_nat64_static_routes.h"
 
+// TODO (miguel) hay demasiado overkill aquí;
+// por un lado el código de los tres diferentes cases es exactamente igual. ¿Por qué está repetido?
+// y lo otro es que demasiado consiste en traducir de route_struct a pairs. Como los route_structs
+// no se usan más que en configuración, ¿No podemos deshacernos de ellos y traernos de una vez los
+// pairs desde userspace?
 bool nat64_add_static_route(struct route_struct *rst){
 
 	struct bib_entry *bib_entry_p;
@@ -90,6 +95,7 @@ bool nat64_add_static_route(struct route_struct *rst){
             if (session_entry_p == NULL) {
             	pr_warning("NAT64: Could NOT create a new SESSION entry for ICMP route.");
             	nat64_remove_bib_entry( bib_entry_p, proto);
+            	// TODO (miguel) me parece que hay que liberar a bib_entry_p también.
             	return false;
             }
 
@@ -99,6 +105,10 @@ bool nat64_add_static_route(struct route_struct *rst){
 				pr_warning("NAT64: Could NOT add a new session entry for ICMP route.");
 				kfree(session_entry_p);
 				nat64_remove_bib_entry( bib_entry_p, proto);
+				// TODO (miguel) me parece que hay que liberar a bib_entry_p también.
+				// Mejor inicialízalas ambas como NULL y en lugar de hacer esto siempre haz un goto
+				// failure que quite tanto la BIB como la sesión de la tabla y que también las
+				// libere.
 				return false ;
 			}
 
@@ -221,6 +231,7 @@ bool nat64_add_static_route(struct route_struct *rst){
 	return true;
 }
 
+// TODO (miguel) igual que la función anterior
 bool nat64_delete_static_route(struct route_struct *rst) {
 	struct session_entry *session_entry_p;
 	struct ipv4_pair pair_4;

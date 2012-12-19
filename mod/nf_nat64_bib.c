@@ -67,14 +67,14 @@ static struct bib_table *get_bib_table(u_int8_t l4protocol)
 
 void nat64_bib_init(void)
 {
-	ipv4_table_init(&bib_udp.ipv4, ipv4_tuple_address_equals, ipv4_tuple_address_hash_code);
-	ipv6_table_init(&bib_udp.ipv6, ipv6_tuple_address_equals, ipv6_tuple_address_hash_code);
+	ipv4_table_init(&bib_udp.ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode);
+	ipv6_table_init(&bib_udp.ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode);
 
-	ipv4_table_init(&bib_tcp.ipv4, ipv4_tuple_address_equals, ipv4_tuple_address_hash_code);
-	ipv6_table_init(&bib_tcp.ipv6, ipv6_tuple_address_equals, ipv6_tuple_address_hash_code);
+	ipv4_table_init(&bib_tcp.ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode);
+	ipv6_table_init(&bib_tcp.ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode);
 
-	ipv4_table_init(&bib_icmp.ipv4, ipv4_tuple_address_equals, ipv4_tuple_address_hash_code);
-	ipv6_table_init(&bib_icmp.ipv6, ipv6_tuple_address_equals, ipv6_tuple_address_hash_code);
+	ipv4_table_init(&bib_icmp.ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode);
+	ipv6_table_init(&bib_icmp.ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode);
 }
 
 bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
@@ -198,9 +198,9 @@ bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)
 	if (bib_1 == NULL || bib_2 == NULL)
 		return false;
 
-	if (!ipv4_tuple_address_equals(&bib_1->ipv4, &bib_2->ipv4))
+	if (!ipv4_tuple_addr_equals(&bib_1->ipv4, &bib_2->ipv4))
 		return false;
-	if (!ipv6_tuple_address_equals(&bib_1->ipv6, &bib_2->ipv6))
+	if (!ipv6_tuple_addr_equals(&bib_1->ipv6, &bib_2->ipv6))
 		return false;
 
 	return true;
