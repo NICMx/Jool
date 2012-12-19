@@ -6,7 +6,7 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o pool.o
+obj-m += rfc6052.o hashtable.o bib_session.o outgoing.o translate.o iterator.o nat64.o # pool.o
 
 rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += ../mod/nf_nat64_rfc6052.o

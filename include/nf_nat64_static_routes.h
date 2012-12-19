@@ -43,22 +43,22 @@ bool nat64_delete_static_route(struct route_struct *rst);
 
 
 /**
- * nat64_print_static_bib_table - prints static route table
+ * nat64_print_bib_table - prints route table
  * @param  rst  The struct where the route is contained.
  *
  * It obtains bib information from the table and sends it back
  * to userpsace
  */
-bool nat64_print_static_bib_table(struct route_struct *rst, __u32 *count, struct bib_entry **bibs);
+bool nat64_print_bib_table(struct route_struct *rst, __u32 *count, struct bib_entry **bibs);
 
 
 /**
- * nat64_print_static_session_table - prints static route table
+ * nat64_print_session_table - prints route table
  * @param  rst  The struct where the route is contained.
  *
  * It obtains session information from the table and sends it back
  * to userpsace
  */
-bool nat64_print_static_session_table(struct route_struct *rst, __u32 *count, struct session_entry **sessions);
+bool nat64_print_session_table(struct route_struct *rst, __u32 *count, struct session_entry **sessions);
 
 #endif

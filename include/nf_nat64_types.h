@@ -10,11 +10,11 @@
 #include "libxt_NAT64.h"
 
 
-#define log_debug(text, ...) pr_debug(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
-#define log_info(text, ...) pr_info(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
-#define log_warning(text, ...) pr_warning(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
-#define log_err(text, ...) pr_err(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
-#define log_crit(text, ...) pr_crit(MODULE_NAME ": " text "\n", ##__VA_ARGS__)
+#define log_debug(text, ...) pr_debug(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
+#define log_info(text, ...) pr_info(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
+#define log_warning(text, ...) pr_warning(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
+#define log_err(text, ...) pr_err(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
+#define log_crit(text, ...) pr_crit(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
 
 /** A tuple's type identifier. See RFC 6146 section 3.4. */
 enum tuple_type
