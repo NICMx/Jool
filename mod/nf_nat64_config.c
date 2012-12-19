@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
+#include <linux/netlink.h>
 #include "nf_nat64_config.h"
 #include "nf_nat64_static_routes.h"
 #include "xt_nat64_module_comm.h"
@@ -178,8 +179,10 @@ bool nat64_config_init(void)
 
 	/* Netlink sockets. */
 	// Create netlink socket, register 'my_nl_rcv_msg' as callback function.
-	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, my_nl_rcv_msg, NULL,
-			THIS_MODULE );
+	struct netlink_kernel_cfg cfg = {
+			.input = &my_nl_rcv_msg,
+	};
+	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
 	if (!my_nl_sock) {
 		log_warning("Creation of netlink socket failed.");
 		return false;
