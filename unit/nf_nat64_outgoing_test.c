@@ -94,8 +94,8 @@ bool test_tuple5_function(void)
 	log_warning("Incoming ip dst: %pI6c. puerto: %d  \n",
 			&incoming_tuple.ipv6_dst_addr, incoming_tuple.dst_port);
 
-	incoming_tuple.l3_protocol = 10;
-	incoming_tuple.l4_protocol = IPPROTO_UDP;
+	incoming_tuple.L3_PROTOCOL = 10;
+	incoming_tuple.L4_PROTOCOL = IPPROTO_UDP;
 
 	mode = IPV6_TO_IPV4;
 
@@ -145,8 +145,8 @@ bool test_tuple3_function(void)
 	incoming_tuple.icmp_id = cpu_to_be16(1500);
 	// incoming_tuple.dst_id = cpu_to_be16(80);
 
-	incoming_tuple.l3_protocol = 10;
-	incoming_tuple.l4_protocol = IPPROTO_ICMPV6;
+	incoming_tuple.L3_PROTOCOL = 10;
+	incoming_tuple.L4_PROTOCOL = IPPROTO_ICMPV6;
 
 	mode = IPV6_TO_IPV4;
 
@@ -167,7 +167,7 @@ bool test_tuple3_function(void)
 				&incoming_tuple.ipv4_src_addr, incoming_tuple.src_port);
 		log_warning("Incoming ip src: %pI4. puerto: %d  \n",
 				&incoming_tuple.ipv4_dst_addr, incoming_tuple.dst_port);
-		incoming_tuple.l4_protocol = IPPROTO_ICMP;
+		incoming_tuple.L4_PROTOCOL = IPPROTO_ICMP;
 		mode = IPV4_TO_IPV6;
 		test = nat64_compute_outgoing_tuple_tuple3(&outgoing_tuple, &incoming_tuple, mode);
 

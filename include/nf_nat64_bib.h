@@ -12,6 +12,23 @@
 
 
 /**
+ * A row, intended to be part of one of the BIB tables.
+ * A binding between a transport address from the IPv4 network to one from the IPv6 network.
+ *
+ * Please note that modifications to this structure may need to cascade to *_module_comm.h.
+ */
+struct bib_entry
+{
+	/** The address from the IPv4 network. */
+	struct ipv4_tuple_address ipv4;
+	/** The address from the IPv6 network. */
+	struct ipv6_tuple_address ipv6;
+
+	/** Session entries related to this BIB. */
+	struct list_head session_entries;
+};
+
+/**
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */

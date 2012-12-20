@@ -114,17 +114,17 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address
 
 struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 {
-	switch (tuple->l3_protocol) {
+	switch (tuple->L3_PROTOCOL) {
 		case NFPROTO_IPV6: {
 			struct ipv6_tuple_address address = { tuple->ipv6_src_addr, { tuple->src_port } };
-			return nat64_get_bib_entry_by_ipv6(&address, tuple->l4_protocol);
+			return nat64_get_bib_entry_by_ipv6(&address, tuple->L4_PROTOCOL);
 		}
 		case NFPROTO_IPV4: {
 			struct ipv4_tuple_address address = { tuple->ipv4_dst_addr, { tuple->dst_port } };
-			return nat64_get_bib_entry_by_ipv4(&address, tuple->l4_protocol);
+			return nat64_get_bib_entry_by_ipv4(&address, tuple->L4_PROTOCOL);
 		}
 		default: {
-			log_crit("Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
+			log_crit("Programming error; unknown l3 protocol: %d", tuple->L3_PROTOCOL);
 			return NULL;
 		}
 	}

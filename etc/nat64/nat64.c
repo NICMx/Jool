@@ -1,4 +1,13 @@
+#include <stdio.h>
+#include <argp.h>
+#include <arpa/inet.h>
+#include <linux/types.h>
+#include <string.h>
+
 #include "nat64.h"
+#include "xt_nat64_module_comm.h"
+#include "xt_nat64_module_conf_validation.h"
+
 
 const char *argp_program_version =
 "nat64 user space 0.1";
@@ -285,10 +294,10 @@ int kernel_response(struct nl_msg *msg, void *arg){
 		if (as->operation == 2 && as->array_quantity <= 0 ) {
 			printf("Result: %s\n", (unsigned char *) payload);
 		} else if (as->operation == 2 && as->array_quantity > 0)  {
-			struct bib_entry *entries = payload;
+			struct bib_entry_us *entries = payload;
 
 			for (i=0; i<as->array_quantity; i++){
-				struct bib_entry *current = &entries[i];
+				struct bib_entry_us *current = &entries[i];
 				inet_ntop(AF_INET6, &(current->ipv6.address), str, INET6_ADDRSTRLEN);
 				printf("BIB: %s:%d, %s#%d\n",
 						inet_ntoa(current->ipv4.address), ntohs(current->ipv4.pi.port),
@@ -305,10 +314,10 @@ int kernel_response(struct nl_msg *msg, void *arg){
 		if (as->operation == 2 && as->array_quantity <= 0 ) {
 			printf("Result: %s\n", (unsigned char *) payload);
 		} else if (as->operation == 2 && as->array_quantity > 0)  {
-			struct session_entry *entries = payload;
+			struct session_entry_us *entries = payload;
 
 			for (i=0; i<as->array_quantity; i++){
-				struct session_entry *current = &entries[i];
+				struct session_entry_us *current = &entries[i];
 				inet_ntop(AF_INET6, &(current->ipv6.local.address), str, INET6_ADDRSTRLEN);
 				printf("Session local: %s:%d, %s#%d\n",
 						inet_ntoa(current->ipv4.local.address), ntohs(current->ipv4.local.pi.port),
@@ -621,7 +630,7 @@ int main (int argc, char **argv)
 		    ipv6_check_maskbits = strtok(NULL, "/");
 
 		    // Validate IPv6 addr
-		    if ( convert_ipv6_addr(ipv6_check_addr, &i6addrf) != EXIT_FAILURE )	
+		    if ( !str_to_addr6(ipv6_check_addr, &i6addrf) )
 		    {
 		        printf("Error: Invalid IPv6 address net: %s\n", ipv6_check_addr);
 		        exit(-1);
@@ -664,12 +673,12 @@ int main (int argc, char **argv)
 	 		// Validate pool addresses range
 			ipv4_pool_addr_first_str = arguments.first;
 		    ipv4_pool_addr_last_str = arguments.last;
-			if ( convert_ipv4_addr(ipv4_pool_addr_first_str, &ipv4_pool_addr_first) != EXIT_FAILURE )	// Validate ipv4 addr
+			if ( !str_to_addr4(ipv4_pool_addr_first_str, &ipv4_pool_addr_first) )	// Validate ipv4 addr
 			{
 				printf("Error: Malformed ipv4_pool_range_first: %s\n", ipv4_pool_addr_first_str);
 				exit(-1);
 			}
-			if ( convert_ipv4_addr(ipv4_pool_addr_last_str, &ipv4_pool_addr_last) != EXIT_FAILURE  )	// Validate ipv4 addr
+			if ( !str_to_addr4(ipv4_pool_addr_last_str, &ipv4_pool_addr_last) )	// Validate ipv4 addr
 			{
 				printf("Error: Malformed ipv4_pool_range_last: %s\n", ipv4_pool_addr_last_str);
 				exit(-1);

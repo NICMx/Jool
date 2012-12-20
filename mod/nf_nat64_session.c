@@ -149,19 +149,19 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
 
 struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 {
-	switch (tuple->l3_protocol) {
+	switch (tuple->L3_PROTOCOL) {
 		case NFPROTO_IPV6: {
 			struct ipv6_pair pair;
 			tuple_to_ipv6_pair(tuple, &pair);
-			return nat64_get_session_entry_by_ipv6(&pair, tuple->l4_protocol);
+			return nat64_get_session_entry_by_ipv6(&pair, tuple->L4_PROTOCOL);
 		}
 		case NFPROTO_IPV4: {
 			struct ipv4_pair pair;
 			tuple_to_ipv4_pair(tuple, &pair);
-			return nat64_get_session_entry_by_ipv4(&pair, tuple->l4_protocol);
+			return nat64_get_session_entry_by_ipv4(&pair, tuple->L4_PROTOCOL);
 		}
 		default: {
-			log_crit("Programming error; unknown l3 protocol: %d", tuple->l3_protocol);
+			log_crit("Programming error; unknown l3 protocol: %d", tuple->L3_PROTOCOL);
 			return NULL;
 		}
 	}
@@ -176,7 +176,7 @@ bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 	struct ipv4_pair tuple_pair, *session_pair;
 
 	tuple_to_ipv4_pair(tuple, &tuple_pair);
-	table = &get_session_table(tuple->l4_protocol)->ipv4;
+	table = &get_session_table(tuple->L4_PROTOCOL)->ipv4;
 	hash_code = table->hash_function(&tuple_pair) % (64 * 1024);
 
 	hlist_for_each(current_node, &table->table[hash_code]) {

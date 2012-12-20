@@ -91,15 +91,15 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	log_tuple(tuple);
 
 	// Now perform the only validation defined in this step.
-	switch (tuple->l3_protocol) {
+	switch (tuple->L3_PROTOCOL) {
 	case NFPROTO_IPV4:
-		if (!is_l4_protocol_supported_ipv4(tuple->l4_protocol)) {
+		if (!is_l4_protocol_supported_ipv4(tuple->L4_PROTOCOL)) {
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
 			goto unsupported_l4_protocol;
 		}
 		break;
 	case NFPROTO_IPV6:
-		if (!is_l4_protocol_supported_ipv6(tuple->l4_protocol)) {
+		if (!is_l4_protocol_supported_ipv6(tuple->L4_PROTOCOL)) {
 			icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 			goto unsupported_l4_protocol;
 		}
@@ -113,11 +113,11 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	return true;
 
 unsupported_l3_protocol:
-	log_warning("  Unsupported L3 protocol (%u). Dropping packet...", tuple->l3_protocol);
+	log_warning("  Unsupported L3 protocol (%u). Dropping packet...", tuple->L3_PROTOCOL);
 	return false;
 
 unsupported_l4_protocol:
-	log_warning("  Unsupported L4 protocol (%u). Dropping packet...", tuple->l4_protocol);
+	log_warning("  Unsupported L4 protocol (%u). Dropping packet...", tuple->L4_PROTOCOL);
 	return false;
 }
 

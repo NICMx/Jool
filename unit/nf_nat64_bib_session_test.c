@@ -108,8 +108,8 @@ struct nf_conntrack_tuple create_tuple(union tuple_address *src, union tuple_add
 		tuple.dst_port = dst->ipv6.pi.port;
 	}
 
-	tuple.l4_protocol = l4protocol;
-	tuple.l3_protocol = l3protocol;
+	tuple.L4_PROTOCOL = l4protocol;
+	tuple.L3_PROTOCOL = l3protocol;
 
 	return tuple;
 }

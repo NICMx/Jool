@@ -1,53 +1,6 @@
-#include "nat64_config_validation.h"
+#include "xt_nat64_module_conf_validation.h"
 #include <stdbool.h>
 
-
-/** Convertion and validation of IPv6 addresses in the configuration file.
- *
- * @param[in] 	af			Address family: AF_INET[6].
- * @param[in] 	addr_str	Address in string format.
- * @param[out]	addr		Output address in binary format.
- * @return		true if OK, otherwise false.
- */
-int convert_IP_addr(int af, const char *addr_str, void *addr)
-{
-	switch(af)
-	{
-		case AF_INET:
-			if (inet_pton(af, addr_str, (struct in_addr*)addr) == 0)
-				return (false);
-			break;
-		case AF_INET6:
-			if (inet_pton(af, addr_str, (struct in6_addr*)addr) == 0)
-				return (false);
-			break;
-		default:
-			return (false);
-	}
-	return (true);
-}
-
-/** Convertion and validation of IPv4 addresses in the configuration file.
- *
- * @param[in] 	addr_str	Address in string format.
- * @param[out]	addr		Output address in binary format.
- * @return		true if OK, otherwise false.
- */
-int convert_ipv4_addr(const char *addr_str, struct in_addr *addr)
-{
-	return convert_IP_addr(AF_INET, addr_str, addr);
-}
-
-/** Convertion and validation of IPv6 addresses in the configuration file.
- *
- * @param[in] 	addr_str	Address in string format.
- * @param[out]	addr		Output address in binary format.
- * @return		true if OK, otherwise false.
- */
-int convert_ipv6_addr(const char *addr_str, struct in6_addr *addr)
-{
-	return convert_IP_addr(AF_INET6, addr_str, addr);
-}
 
 /** Validate the network mask in the format '/n'.
  *
@@ -184,71 +137,6 @@ int get_net_addr_from_netmask_bits(int af, void *addr, unsigned char netmask_bit
 }
 
 
-/** Checks if 2 IP address are equal.
- *  Works with !IPv6 and IPv4.
- * 
- * @param[in] 	af      Address family.
- * @param[in] 	addr_1  IP address.
- * @param[in] 	addr_2  Network mask.
- * @return		true if both are equal, or false if they are different.
- */
-int ip_addr_are_diff(int af, void *addr_1, void *addr_2) 
-{
-	switch (af)
-	{
-		case AF_INET: 
-			if ( 	(*(struct in_addr *)addr_1).s_addr != \
-				(*(struct in_addr *)addr_2).s_addr )
-			       return false;	       
-			break;
-		case AF_INET6:
-			// TODO: implement me!	
-			/*if ( 	(*(struct in_addr *)addr_1).s_addr != \
-			  	(*(struct in_addr *)addr_2).s_addr )
-			         return false;	       
-			 */
-			break;
-		default:
-			//~ printf("%s. Error, bad address family.\n", "ip_addr_are_equal");
-			return false;
-	}
-
-	return true;
-}
-
-/** Verify if two IP addresses are equal.
- *
- * @param[in] 	af			Address Family: AF_INET[6].
- * @param[in] 	addr_1		First IP address.
- * @param[in] 	addr_2		Second IP address.
- * @return		TRUE if they are equal, FALSE otherwise.
- */
-int ip_addrs_are_equal(int af, void *addr_1, void *addr_2) 
-{
-    int ii = 0;
-    
-	switch (af)
-	{
-		case AF_INET: 
-			if ( 	(*(struct in_addr *)addr_1).s_addr != \
-				(*(struct in_addr *)addr_2).s_addr )
-			       return false;	       
-			break;
-		case AF_INET6:
-            for (ii = 0; ii < IPV6_SIZE_UINT32; ii++)
-			{
-				if (    (*(struct in6_addr *)addr_1).s6_addr32[ii] != \
-                        (*(struct in6_addr *)addr_2).s6_addr32[ii] )
-                    return false;
-			}
-			break;
-		default:
-			return false;
-	}
-
-	return true;
-}
-
 /** Check if 2 IP addresses belong to the same network.
  *  Works with !IPv6 and IPv4.
  * 
@@ -274,15 +162,15 @@ int ip_addr_in_same_net(int af,
 			convert_bits_to_netmask(af, maskbits, &ipv4_netmask);
 
 			get_net_addr(af, (struct in_addr *)network, &ipv4_netmask, &ipv4_net);
-			if ( ip_addr_are_diff(af, (struct in_addr *)network, &ipv4_net)  )
+			if ( !ipv4_addr_equals( (struct in_addr *)network, &ipv4_net)  )
 				return false;
 
 			get_net_addr(af, (struct in_addr *)addr_first, &ipv4_netmask, &ipv4_first);
-			if ( ip_addr_are_diff(af, &ipv4_net, &ipv4_first)  )
+			if ( !ipv4_addr_equals(&ipv4_net, &ipv4_first)  )
 				return false;
 			
 			get_net_addr(af, (struct in_addr *)addr_last, &ipv4_netmask, &ipv4_last);
-			if ( ip_addr_are_diff(af, &ipv4_net, &ipv4_last)  )
+			if ( !ipv4_addr_equals(&ipv4_net, &ipv4_last)  )
 				return false;
 
 			break;
@@ -457,7 +345,7 @@ int calc_netmask (int first, int last){
 
 	sprintf (netmask, "%d.%d.%d.%d\n",subnetmask4, subnetmask3, subnetmask2,subnetmask1);
 
-	if ( convert_ipv4_addr(netmask, &mask) == EXIT_FAILURE )	// Validate ipv4 addr
+	if ( !str_to_addr4(netmask, &mask) )	// Validate ipv4 addr
 			{
 				printf("Error: Malformed netmask: %s\n", netmask);
 				exit(-1);

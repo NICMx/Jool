@@ -8,12 +8,15 @@
  * Both the kernel module and the userspace application can see this file.
  */
 
-#include <linux/kernel.h>
-#include <linux/in.h>
-#include <linux/in6.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
 
+#include <linux/types.h>
+#ifdef __KERNEL__
+	#include <linux/in.h>
+	#include <linux/in6.h>
+#else
+	#include <stdbool.h>
+	#include <arpa/inet.h>
+#endif
 #include "libxt_NAT64.h"
 
 
@@ -39,8 +42,8 @@
 #define icmp_id			src.u.icmp.id
 #define src_port		src.u.all
 #define dst_port		dst.u.all
-#define l3_protocol		src.l3num
-#define l4_protocol		dst.protonum
+#define L3_PROTOCOL		src.l3num
+#define L4_PROTOCOL		dst.protonum
 
 
 /** Direction of the translation. */
@@ -108,66 +111,6 @@ struct ipv6_pair {
 	/** The NAT64's address and port being used in the connection. */
 	struct ipv6_tuple_address remote;
 };
-
-/**
- * A row, intended to be part of one of the BIB tables.
- * A binding between a transport address from the IPv4 network to one from the IPv6 network.
- *
- * This'd normally be part of *_bib.h, but we need to be able to see it from userspace.
- */
-struct bib_entry
-{
-	/** The address from the IPv4 network. */
-	struct ipv4_tuple_address ipv4;
-	/** The address from the IPv6 network. */
-	struct ipv6_tuple_address ipv6;
-
-	/** Session entries related to this BIB. */
-	struct list_head session_entries;
-};
-
-/**
- * A row, intended to be part of one of the session tables.
- * The mapping between the connections, as perceived by both sides (IPv4 vs IPv6).
- *
- * This'd normally be part of *_session.h, but we need to be able to see it from userspace.
- */
-struct session_entry
-{
-	/** IPv6 version of the connection. */
-	struct ipv6_pair ipv6;
-	/** IPv4 version of the connection. */
-	struct ipv4_pair ipv4;
-
-	/** Should the session never expire? */
-	bool is_static;
-	/**
-	 * Millisecond (from the epoch) this session should expire in, if still inactive.
-	 */
-	unsigned int dying_time;
-
-	/**
-	 * Owner bib of this session. Used for quick access during removal.
-	 * (when the session dies, the BIB might have to die too.)
-	 */
-	struct bib_entry *bib;
-	/**
-	 * Chains this session with the rest from the same BIB (see bib_entry.session_entries).
-	 * Used by the BIB to know whether it should commit suicide or not.
-	 */
-	struct list_head entries_from_bib;
-	/**
-	 * Chains this session with the rest (see all_sessions, defined in nf_nat_session.h).
-	 * Used for iterating while looking for expired sessions.
-	 */
-	struct list_head all_sessions;
-	/**
-	 * Transport protocol of the table this entry is in.
-	 * Used to know which table the session should be removed from when expired.
-	 */
-	u_int8_t l4protocol;
-};
-
 
 /**
  * All of these functions return "true" if the first parameter is the same as the second one, even

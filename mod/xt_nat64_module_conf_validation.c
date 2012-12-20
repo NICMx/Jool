@@ -23,7 +23,7 @@ int addr_has_pref64( struct in6_addr *addr )
                                                 cs.ipv6_net_prefixes[i]->maskbits,
                                                 &pref6) )
             return false;
-        if ( ip_addrs_are_equal(AF_INET6, &cs.ipv6_net_prefixes[i]->addr, &pref6))
+        if ( ipv6_addr_equals(&cs.ipv6_net_prefixes[i]->addr, &pref6))
             return true;
     }
     
@@ -42,57 +42,10 @@ int addr_in_pool( struct in_addr *addr )
     if ( ! get_net_addr_from_netmask_bits(AF_INET, addr, cs.ipv4_pool_net_mask_bits, &net) )
             return false;
     
-    if ( ! ip_addrs_are_equal(AF_INET, &cs.ipv4_pool_net, &net) )
+    if ( ! ipv4_addr_equals(&cs.ipv4_pool_net, &net) )
         return false;
     
     return true;
-}
-
-/** Convertion and validation of IPv6 addresses in the configuration file.
- *
- * @param[in] 	af			Address family: AF_INET[6].
- * @param[in] 	addr_str	Address in string format.
- * @param[out]	addr		Output address in binary format.
- * @return		true if OK, otherwise false.
- */
-int convert_IP_addr(int af, const char *addr_str, void *addr)
-{
-	switch(af)
-	{
-		case AF_INET:
-			if (! in4_pton(addr_str, -1, (u8 *)addr, '\x0', NULL) )
-				return (false);
-			break;
-		case AF_INET6:
-			if (! in6_pton(addr_str, -1, (u8 *)addr, '\x0', NULL) )
-				return (false);
-			break;
-		default:
-			return (false);
-	}
-	return (true);
-}
-
-/** Convertion (from string to in_addr) and validation of IPv4 addresses in the configuration file.
- *
- * @param[in] 	addr_str	Address in string format.
- * @param[out]	addr		Output address in binary format.
- * @return		true if OK, otherwise false.
- */
-int convert_ipv4_addr(const char *addr_str, struct in_addr *addr)
-{
-	return convert_IP_addr(AF_INET, addr_str, addr);
-}
-
-/** Convertion and validation of IPv6 addresses in the configuration file.
- *
- * @param[in] 	addr_str	Address in string format.
- * @param[out]	addr		Output address in binary format.
- * @return		true if OK, otherwise false.
- */
-int convert_ipv6_addr(const char *addr_str, struct in6_addr *addr)
-{
-	return convert_IP_addr(AF_INET6, addr_str, addr);
 }
 
 /** Validate the network mask in the CIDR format '/n'.
@@ -201,7 +154,7 @@ pr_debug("[%d] ip_net:%pI6 = ip_addr:%pI6 & ip_netmask:%pI6", ii, ip_net, ip_add
  * @param[out] 	net	        Network address.
  * @return		TRUE if they are equal, FALSE otherwise.
  */
-int get_net_addr_from_netmask_bits(int af, void *addr, char netmask_bits, void *net) 
+int get_net_addr_from_netmask_bits(int af, void *addr, unsigned char netmask_bits, void *net)
 {
     struct in_addr mask;
     struct in6_addr mask6;
@@ -251,39 +204,6 @@ int ip_addr_are_diff(int af, void *addr_1, void *addr_2)
 			  	(*(struct in_addr *)addr_2).s_addr )
 			         return false;	       
 			 */
-			break;
-		default:
-			return false;
-	}
-
-	return true;
-}
-
-/** Verify if two IP addresses are equal.
- *
- * @param[in] 	af			Address Family: AF_INET[6].
- * @param[in] 	addr_1		First IP address.
- * @param[in] 	addr_2		Second IP address.
- * @return		TRUE if they are equal, FALSE otherwise.
- */
-int ip_addrs_are_equal(int af, void *addr_1, void *addr_2) 
-{
-    int ii = 0;
-    
-	switch (af)
-	{
-		case AF_INET: 
-			if ( 	(*(struct in_addr *)addr_1).s_addr != \
-				(*(struct in_addr *)addr_2).s_addr )
-			       return false;	       
-			break;
-		case AF_INET6:
-            for (ii = 0; ii < IPV6_SIZE_UINT32; ii++)
-			{
-				if (    (*(struct in6_addr *)addr_1).s6_addr32[ii] != \
-                        (*(struct in6_addr *)addr_2).s6_addr32[ii] )
-                    return false;
-			}
 			break;
 		default:
 			return false;

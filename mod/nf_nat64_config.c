@@ -38,12 +38,8 @@ int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	mst = NLMSG_DATA(nlh);
 	pid = nlh->nlmsg_pid;
-	log_debug("Got message; updating configuration.");
 
 	if (update_nat_config(mst, &as, &aslen) == 0) {
-
-		log_debug("Running configuration successfully updated.");
-
 		pid = nlh->nlmsg_pid;
 
 		skb_out = nlmsg_new(aslen, 0);

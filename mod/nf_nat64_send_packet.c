@@ -28,14 +28,14 @@
 //static bool tuple_to_flowi6(struct nf_conntrack_tuple *tuple, struct flowi6 *fl)
 //{
 //	memset(&fl->__fl_common, 0, sizeof(struct flowi_common));
-//	fl->flowi6_proto = tuple->l4_protocol;
+//	fl->flowi6_proto = tuple->L4_PROTOCOL;
 //
 //	memcpy(&fl->saddr, &tuple->ipv6_src_addr, sizeof(fl->saddr));
 //	memcpy(&fl->daddr, &tuple->ipv6_dst_addr, sizeof(fl->daddr));
 //
 //	fl->flowlabel = 0; // TODO (send) ?
 //
-//	switch (tuple->l4_protocol) {
+//	switch (tuple->L4_PROTOCOL) {
 //	case IPPROTO_TCP: // TODO (send) revisa que estas constantes sean las buenas.
 //	case IPPROTO_UDP:
 //		fl->fl6_sport = tuple->src_port;
@@ -46,7 +46,7 @@
 //		fl->fl6_icmp_code = tuple->dst.u.icmp.code;
 //		break;
 //	default:
-//		log_warning("tuple_to_flowi6: Unknown l4 protocol: %d.", tuple->l4_protocol);
+//		log_warning("tuple_to_flowi6: Unknown l4 protocol: %d.", tuple->L4_PROTOCOL);
 //		return false;
 //	}
 //

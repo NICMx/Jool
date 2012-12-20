@@ -2,14 +2,13 @@
 #define NF_NAT64_CONFIG_H_
 
 
-#ifdef _USER_SPACE_
+#ifdef __KERNEL__
+	#include <linux/in.h>
+	#include <linux/in6.h>
+#else
 	#include <netinet/in.h>
 	#include <stdbool.h>
 	#include <asm/types.h>
-#else
-	#include <linux/in.h>
-	#include <linux/in6.h>
-
 #endif
 
 ////////////////////////////////////////////////////////////////////////

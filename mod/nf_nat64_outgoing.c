@@ -15,8 +15,8 @@ bool nat64_compute_outgoing_tuple_tuple5(struct nf_conntrack_tuple *outgoing,
 {
 	struct bib_entry *bib;
 
-	outgoing->l3_protocol = incoming->l3_protocol;
-	outgoing->l4_protocol = incoming->l4_protocol;
+	outgoing->L3_PROTOCOL = incoming->L3_PROTOCOL;
+	outgoing->L4_PROTOCOL = incoming->L4_PROTOCOL;
 
 	switch (translationMode) {
 	case IPV6_TO_IPV4:
@@ -59,11 +59,11 @@ bool nat64_compute_outgoing_tuple_tuple3(struct nf_conntrack_tuple *outgoing,
 {
 	struct bib_entry *bib;
 
-	outgoing->l3_protocol = incoming->l3_protocol;
+	outgoing->L3_PROTOCOL = incoming->L3_PROTOCOL;
 
 	switch (translationMode) {
 	case IPV6_TO_IPV4:
-		outgoing->l4_protocol = IPPROTO_ICMP;
+		outgoing->L4_PROTOCOL = IPPROTO_ICMP;
 
 		bib = nat64_get_bib_entry(incoming);
 		if (!bib) {
@@ -77,7 +77,7 @@ bool nat64_compute_outgoing_tuple_tuple3(struct nf_conntrack_tuple *outgoing,
 		break;
 
 	case IPV4_TO_IPV6:
-		outgoing->l4_protocol = IPPROTO_ICMPV6;
+		outgoing->L4_PROTOCOL = IPPROTO_ICMPV6;
 
 		bib = nat64_get_bib_entry(incoming);
 		if (!bib) {

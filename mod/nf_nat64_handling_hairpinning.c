@@ -10,7 +10,7 @@
 
 
 bool nat64_got_hairpin(struct nf_conntrack_tuple *outgoing) {
-	if (outgoing->l3_protocol == NFPROTO_IPV6) {
+	if (outgoing->L3_PROTOCOL == NFPROTO_IPV6) {
 		// TODO (later) esto no debería ser un query a pool?
 		if (ntohl(outgoing->dst.u3.in.s_addr) >= ntohl(cs.ipv4_pool_range_first.s_addr) &&
 			ntohl(outgoing->dst.u3.in.s_addr) <= ntohl(cs.ipv4_pool_range_last.s_addr)) {

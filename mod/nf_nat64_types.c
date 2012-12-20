@@ -1,7 +1,4 @@
-#include <linux/inet.h>
-
 #include "nf_nat64_types.h"
-#include "nf_nat64_ipv6_hdr_iterator.h"
 
 
 /** This is a slightly more versatile in_addr. */
@@ -31,7 +28,7 @@ bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
 	if (expected == NULL || actual == NULL)
 		return false;
 	for (i = 0; i < 4; i++)
-		if (expected->in6_u.u6_addr32[i] != expected->in6_u.u6_addr32[i])
+		if (expected->s6_addr32[i] != expected->s6_addr32[i])
 			return false;
 
 	return true;
@@ -46,8 +43,8 @@ __u16 ipv4_addr_hashcode(struct in_addr *addr)
 			return 0;
 	addr_union.by32 = addr->s_addr;
 
-	result = 31 * result + be16_to_cpu(addr_union.by16[0]);
-	result = 31 * result + be16_to_cpu(addr_union.by16[1]);
+	result = 31 * result + ntohs(addr_union.by16[0]);
+	result = 31 * result + ntohs(addr_union.by16[1]);
 
 	return result;
 }
@@ -69,7 +66,7 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 /** Regresa el hash code correspondiente a la direcction "address". */
 __u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *address)
 {
-	return (address != NULL) ? be16_to_cpu(address->pi.port) : 0;
+	return (address != NULL) ? ntohs(address->pi.port) : 0;
 }
 
 bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tuple_address *actual)
@@ -89,7 +86,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 /** Regresa el hash code correspondiente a la direcction "address". */
 __u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
 {
-	return (address != NULL) ? be16_to_cpu(address->pi.port) : 0;
+	return (address != NULL) ? ntohs(address->pi.port) : 0;
 }
 
 bool ipv4_pair_equals(struct ipv4_pair *pair_1, struct ipv4_pair *pair_2)
@@ -135,18 +132,21 @@ __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 	local.by32 = pair->local.address.s_addr;
 	remote.by32 = pair->remote.address.s_addr;
 
-	result = 31 * result + be16_to_cpu(local.by16[0]);
-	result = 31 * result + be16_to_cpu(remote.by16[0]);
-	result = 31 * result + be16_to_cpu(local.by16[1]);
-	result = 31 * result + be16_to_cpu(remote.by16[1]);
+	result = 31 * result + ntohs(local.by16[0]);
+	result = 31 * result + ntohs(remote.by16[0]);
+	result = 31 * result + ntohs(local.by16[1]);
+	result = 31 * result + ntohs(remote.by16[1]);
 
 	return result;
 }
 
 __u16 ipv6_pair_hashcode(struct ipv6_pair *pair)
 {
-	return (pair != NULL) ? be16_to_cpu(pair->local.pi.port) : 0;
+	return (pair != NULL) ? ntohs(pair->local.pi.port) : 0;
 }
+
+#ifdef __KERNEL__
+#include <linux/inet.h>
 
 bool str_to_addr4(const char *str, struct in_addr *result)
 {
@@ -158,3 +158,17 @@ bool str_to_addr6(const char *str, struct in6_addr *result)
 	return in6_pton(str, -1, (u8 *) result, '\0', NULL);
 }
 
+#else
+#include <arpa/inet.h>
+
+bool str_to_addr4(const char *str, struct in_addr *result)
+{
+	return inet_pton(AF_INET, str, result);
+}
+
+bool str_to_addr6(const char *str, struct in6_addr *result)
+{
+	return inet_pton(AF_INET6, str, result);
+}
+
+#endif
