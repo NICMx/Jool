@@ -30,10 +30,10 @@ all: $(progs)
 #include/confuse.o:include/confuse.c
 #include/lexer.o:include/lexer.c
 
-nat64: nat64_config_validation.o ../../mod/nf_nat64_types.o nat64.o  
-nat64_config_validation.o: nat64_config_validation.c
-../../mod/nf_nat64_types.o: ../../mod/nf_nat64_types.c
-nat64.o: nat64.c
+nat64: ../../mod/xt_nat64_module_conf_validation.o ../../mod/nf_nat64_types.o nat64.o
+# ../../mod/xt_nat64_module_conf_validation.o: ../../mod/xt_nat64_module_conf_validation.c
+# ../../mod/nf_nat64_types.o: ../../mod/nf_nat64_types.c
+# nat64.o: nat64.c
 
 #static_route: static_route.o
 #static_route.o: static_route.c

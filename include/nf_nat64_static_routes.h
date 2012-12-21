@@ -4,7 +4,7 @@
 #include <linux/inet.h>
 #include <linux/in6.h>
 #include <linux/in.h>
-#include "nf_nat64_bib.h"
+#include "xt_nat64_module_comm.h"
 #include "nf_nat64_session.h"
 #include "nf_nat64_types.h"
 #include "nf_nat64_config.h"
@@ -49,7 +49,8 @@ bool nat64_delete_static_route(struct route_struct *rst);
  * It obtains bib information from the table and sends it back
  * to userpsace
  */
-bool nat64_print_bib_table(struct route_struct *rst, __u32 *count, struct bib_entry **bibs);
+bool nat64_print_bib_table(struct route_struct *rst, __u32 *count_out,
+		struct bib_entry_us **bibs_us_out);
 
 
 /**
@@ -59,6 +60,7 @@ bool nat64_print_bib_table(struct route_struct *rst, __u32 *count, struct bib_en
  * It obtains session information from the table and sends it back
  * to userpsace
  */
-bool nat64_print_session_table(struct route_struct *rst, __u32 *count, struct session_entry **sessions);
+bool nat64_print_session_table(struct route_struct *rst, __u32 *count_out,
+		struct session_entry_us **sessions_us_out);
 
 #endif

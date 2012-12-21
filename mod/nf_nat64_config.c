@@ -14,8 +14,10 @@ const __u16 DEFAULT_MTU_PLATEAUS[] = { 65535, 32000, 17914, 8166,
 		4352, 2002, 1492, 1006,
 		508, 296, 68 };
 
-/** Apparently, socket to speak to the userspace application with.
- * TODO Also apparently currently unused. */
+/**
+ * Socket the userspace application will speak to. We don't use it directly, but we need the
+ * reference anyway.
+ */
 struct sock *my_nl_sock;
 
 DEFINE_MUTEX(my_mutex);
@@ -210,8 +212,8 @@ int update_nat_config(struct manconf_struct *mst, struct answer_struct **as, __u
 {
 	unsigned char i = 0;
 	unsigned char qty = 0;
-	struct bib_entry *bibs = NULL;
-	struct session_entry *sessions = NULL;
+	struct bib_entry_us *bibs = NULL;
+	struct session_entry_us *sessions = NULL;
 	__u32 count = 0;
 	struct ipv6_prefixes ip6p;
 

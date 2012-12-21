@@ -49,11 +49,7 @@ int validate_ports_range(unsigned int first, unsigned int last);
 
 int validate_ipv6_netmask_bits(unsigned char netmask_bits);
 
-int addr_has_pref64( struct in6_addr *addr );
-
-int addr_in_pool( struct in_addr *addr );
-
-int roundup(int subnetmaskx);
+int round_mask_up(int subnetmaskx);
 
 int ip_masklen (int num);
 

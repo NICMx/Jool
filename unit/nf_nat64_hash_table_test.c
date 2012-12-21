@@ -147,7 +147,7 @@ failure:
 static bool test_to_array_function(void)
 {
 	struct test_table table;
-	struct table_value *array = NULL;
+	struct table_value **array = NULL;
 	int array_size;
 	int i;
 
@@ -172,9 +172,9 @@ static bool test_to_array_function(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
-		if (array[0].value != values[i].value
-				&& array[1].value != values[i].value
-				&& array[2].value != values[i].value) {
+		if (array[0]->value != values[i].value
+				&& array[1]->value != values[i].value
+				&& array[2]->value != values[i].value) {
 			log_warning("Test failed: To array function. Expected array to contain %d.",
 					values[i].value);
 			goto failure;

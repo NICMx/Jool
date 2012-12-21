@@ -7,6 +7,8 @@
  *
  */
 #include "nf_nat64_static_routes.h"
+#include "nf_nat64_bib.h"
+#include "nf_nat64_session.h"
 
 // TODO (miguel) hay demasiado overkill aquí;
 // por un lado el código de los tres diferentes cases es exactamente igual. ¿Por qué está repetido?
@@ -400,40 +402,65 @@ bool nat64_delete_static_route(struct route_struct *rst) {
 	return true;
 }
 
-bool nat64_print_bib_table(struct route_struct *rst, __u32 *count, struct bib_entry **bibs){
-	u_int8_t proto;
-	
-	proto = (*rst).protocol;
-	pr_debug("NAT64 protocol: %d\n", proto);
+bool nat64_print_bib_table(struct route_struct *rst, __u32 *count_out,
+		struct bib_entry_us **bibs_us_out)
+{
+	struct bib_entry **bibs_ks = NULL; // ks = kernelspace. Array of pointers to bib entries.
+	struct bib_entry_us *bibs_us = NULL; // us = userspace. Array of bib entries.
+	__u32 counter, count;
 
-	(*count) = nat64_bib_to_array(proto, bibs);
-	
-	if ( (*count) == -1) {
-		return false;
+	count = nat64_bib_to_array(rst->protocol, &bibs_ks);
+	if (count < 1)
+		goto failure;
+
+	bibs_us = kmalloc(count * sizeof(struct bib_entry_us), GFP_ATOMIC);
+	if (!bibs_us)
+		goto failure;
+
+	for (counter = 0; counter < count; counter++) {
+		bibs_us[counter].ipv4 = bibs_ks[counter]->ipv4;
+		bibs_us[counter].ipv6 = bibs_ks[counter]->ipv6;
 	}
-	
-	if ( (*count) == 0) {
-		return false;
-	}
-	
+
+	kfree(bibs_ks);
+	*count_out = count;
+	*bibs_us_out = bibs_us;
 	return true;
+
+failure:
+	kfree(bibs_ks);
+	return false;
 }
 
-bool nat64_print_session_table(struct route_struct *rst, __u32 *count, struct session_entry **sessions){
-	u_int8_t proto;
-	
-	proto = (*rst).protocol;
-	pr_debug("NAT64 protocol: %d\n", proto);
+bool nat64_print_session_table(struct route_struct *rst, __u32 *count_out,
+		struct session_entry_us **sessions_us_out)
+{
+	struct session_entry **sessions_ks = NULL;
+	struct session_entry_us *sessions_us = NULL;
+	__u32 counter, count;
 
-	(*count) = nat64_session_table_to_array(proto, sessions);
+	count = nat64_session_table_to_array(rst->protocol, &sessions_ks);
+	if (count < 1)
+		goto failure;
 	
-	if ( (*count) == -1) {
-		return false;
+	sessions_us = kmalloc(count * sizeof(struct session_entry_us), GFP_ATOMIC);
+	if (!sessions_us)
+		goto failure;
+
+	for (counter = 0; counter < count; counter++) {
+		sessions_us[counter].ipv6 = sessions_ks[counter]->ipv6;
+		sessions_us[counter].ipv4 = sessions_ks[counter]->ipv4;
+		sessions_us[counter].is_static = sessions_ks[counter]->is_static;
+		sessions_us[counter].dying_time = sessions_ks[counter]->dying_time;
+		sessions_us[counter].l4protocol = sessions_ks[counter]->l4protocol;
 	}
 	
-	if ( (*count) == 0) {
-		return false;
-	}
-	
+	kfree(sessions_ks);
+	*count_out = count;
+	*sessions_us_out = sessions_us;
 	return true;
+
+failure:
+	kfree(sessions_ks);
+	return false;
 }

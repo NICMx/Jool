@@ -22,6 +22,8 @@
  * This module contains no header file; it needs to be #included directly.
  *
  * TODO (optimization) Use slab instead of kmalloc.
+ * TODO (warning) we'll need locks; both the BIB and session tables are probably being called by
+ * different threads.
  */
 
 #include <linux/slab.h>
@@ -295,33 +297,36 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 #ifdef GENERATE_TO_ARRAY
 /**
  * Builds an array out of the current table contents, and then returns it.
+ * (It's a shallow copy).
  *
  * @param table the HTABLE_NAME instance you want to convert to an array.
- * @param result makes this point to the resulting array.
+ * @param result makes this point to the resulting array. "***" = "by-reference argument of an array
+ *			of pointers."
  * @return the length of "result" (in array slots). May be -1, if memory could not be allocated.
  *
- * You have to kfree "result" after you use it.
+ * You have to kfree "result" after you use it. Don't kfree the objects pointed by its slots, as
+ * they are the real entries from the hash table.
  */
-static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE **result)
+static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
 	__u16 row;
 
-	VALUE_TYPE *array;
+	VALUE_TYPE **array;
 	__s32 array_counter = 0;
 	__s32 array_size = table->size;
 	if (array_size < 1)
 		return 0;
 
-	array = kmalloc(array_size * sizeof(VALUE_TYPE), GFP_ATOMIC);
+	array = kmalloc(array_size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
 	if (!array)
 		return -1;
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			memcpy(&array[array_counter], current_pair->value, sizeof(VALUE_TYPE));
+			array[array_counter] = current_pair->value;
 			array_counter++;
 		}
 	}

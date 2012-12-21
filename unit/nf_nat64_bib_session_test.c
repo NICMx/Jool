@@ -512,7 +512,7 @@ bool test_address_filtering(void)
 bool test_to_array(void)
 {
 	struct bib_entry *first_bib, *second_bib;
-	struct bib_entry *array;
+	struct bib_entry **array;
 	int array_size;
 
 	// Create and insert BIBs.
@@ -550,11 +550,11 @@ bool test_to_array(void)
 	}
 
 	// Array content validations.
-	if (!bib_entry_equals(first_bib, &array[0]) && !bib_entry_equals(first_bib, &array[1])) {
+	if (!bib_entry_equals(first_bib, array[0]) && !bib_entry_equals(first_bib, array[1])) {
 		log_warning("The result array does not contain the first BIB entry.");
 		goto free;
 	}
-	if (!bib_entry_equals(second_bib, &array[0]) && !bib_entry_equals(second_bib, &array[1])) {
+	if (!bib_entry_equals(second_bib, array[0]) && !bib_entry_equals(second_bib, array[1])) {
 		log_warning("The result array does not contain the second BIB entry.");
 		goto free;
 	}

@@ -22,13 +22,18 @@
 
 /**
  * Logging utilities, meant for standarization of error messages.
- * Useful only in kernelspace.
  */
-#define log_debug(text, ...) pr_debug(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
-#define log_info(text, ...) pr_info(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
-#define log_warning(text, ...) pr_warning(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
-#define log_err(text, ...) pr_err(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
-#define log_crit(text, ...) pr_crit(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__)
+#ifdef __KERNEL__
+	#define log_nat64(func, text, ...) func(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__);
+#else
+	#define log_nat64(func, text, ...) printf("%s: " text "\n", __func__, ##__VA_ARGS__);
+#endif
+
+#define log_debug(text, ...)	log_nat64(pr_debug, text, ##__VA_ARGS__)
+#define log_info(text, ...)		log_nat64(pr_info, text, ##__VA_ARGS__)
+#define log_warning(text, ...)	log_nat64(pr_warning, text, ##__VA_ARGS__)
+#define log_err(text, ...)		log_nat64(pr_err, text, ##__VA_ARGS__)
+#define log_crit(text, ...)		log_nat64(pr_crit, text, ##__VA_ARGS__)
 
 /**
  * Accesors for somewhat more readability of nf_conntrack_tuples.

@@ -283,7 +283,7 @@ struct session_entry *nat64_create_static_session_entry(
 	return result;
 }
 
-int nat64_session_table_to_array(__u8 l4protocol, struct session_entry **array)
+int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array)
 {
 	return ipv4_table_to_array(&get_session_table(l4protocol)->ipv4, array);
 }

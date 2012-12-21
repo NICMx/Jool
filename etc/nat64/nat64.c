@@ -690,6 +690,9 @@ int main (int argc, char **argv)
 			printf("\t\t- network_addr: %s\n", str);
 
 			addr_maskbits = calc_netmask(ipv4_pool_addr_first.s_addr, ipv4_pool_addr_last.s_addr);
+			if (addr_maskbits < 0) {
+				exit(-1);
+			}
 
 
 			if (  validate_ipv4_pool_range(&network_addr, addr_maskbits, &ipv4_pool_addr_first, &ipv4_pool_addr_last) == EXIT_FAILURE )		//Validate that: first < last
