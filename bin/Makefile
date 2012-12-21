@@ -112,4 +112,4 @@ modules_install:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm ../mod/*.o ../unit/*.o
+	rm -f ../mod/*.o ../unit/*.o
