@@ -49,18 +49,27 @@ static bool assert_table_content(struct test_table *table,
 		char *test_name)
 {
 	int i;
+	bool success = true;
+
 	for (i = 0; i < 4; i++) {
-		struct table_value *current_value = test_table_get(table, &keys[i]);
+		struct table_value *current_val = test_table_get(table, &keys[i]);
+
+		pr_debug("%d %u %u %p\n", i, keys[i].key, expected_values[i].value, current_val);
 
 		if (expected_values[i].value == -1) {
-			ASSERT_NULL(current_value, test_name);
+			success &= assert_null(current_val, test_name);
 		} else {
-			ASSERT_NOT_NULL(current_value, test_name);
-			ASSERT_EQUALS(expected_values[i].value, current_value->value, test_name);
+			bool local = true;
+
+			local &= assert_not_null(current_val, test_name);
+			if (local)
+				local &= assert_equals_int(expected_values[i].value, current_val->value, test_name);
+
+			success &= local;
 		}
 	}
 
-	return true;
+	return success;
 }
 
 /**
@@ -89,7 +98,7 @@ static bool test(void)
 			goto failure;
 		}
 
-	if (!assert_table_content(&table, keys, values, "Hash table put/get."))
+	if (!assert_table_content(&table, keys, values, "Hash table put/get"))
 		goto failure;
 	test_table_print(&table, "After puts");
 
@@ -100,7 +109,7 @@ static bool test(void)
 	}
 	values[1].value = -1;
 
-	if (!assert_table_content(&table, keys, values, "Hash table remove."))
+	if (!assert_table_content(&table, keys, values, "Hash table remove"))
 		goto failure;
 	test_table_print(&table, "After remove");
 
@@ -109,7 +118,7 @@ static bool test(void)
 	values[0].value = -1;
 	values[2].value = -1;
 
-	if (!assert_table_content(&table, keys, values, "Hash table empty."))
+	if (!assert_table_content(&table, keys, values, "Hash table empty"))
 		goto failure;
 	test_table_print(&table, "After empty");
 
@@ -124,7 +133,7 @@ static bool test(void)
 			goto failure;
 		}
 
-	if (!assert_table_content(&table, keys, values, "Hash table put/get."))
+	if (!assert_table_content(&table, keys, values, "Hash table put/get"))
 		goto failure;
 	test_table_print(&table, "After puts");
 
@@ -133,7 +142,7 @@ static bool test(void)
 	values[0].value = -1;
 	values[1].value = -1;
 	values[2].value = -1;
-	if (!assert_table_content(&table, keys, values, "Needless extra test."))
+	if (!assert_table_content(&table, keys, values, "Needless extra test"))
 		goto failure;
 
 	test_table_empty(&table, false, false);

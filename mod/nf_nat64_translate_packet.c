@@ -164,142 +164,9 @@ failure:
 }
 
 /**
- * Assumes that "l3_hdr" points to a iphdr, and returns its size, options included.
- */
-static __u16 compute_ipv4_hdr_len(void *l3_hdr)
-{
-	return 4 * ((struct iphdr *) l3_hdr)->ihl;
-}
-
-/**
- * Assumes that "l3_hdr" points to a ipv6hdr, and returns its size, extension headers included.
- */
-static __u16 compute_ipv6_hdr_len(void *l3_hdr)
-{
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) l3_hdr);
-	hdr_iterator_last(&iterator);
-	return iterator.data - l3_hdr;
-}
-
-/**
- * Initializes both "pipeline" and "in" using the data from "tuple", "skb", and the assumption that
- * we're translating from 4 to 6.
- * "pipeline" defines the sequence of functions that will be executed later and "in" is basically a
- * summary of "skb".
- */
-static bool init_pipeline_ipv4(struct pipeline *pipeline, struct packet_in *in,
-		struct nf_conntrack_tuple *tuple, struct sk_buff *skb)
-{
-	struct iphdr *ip4_hdr = ip_hdr(skb);
-
-	pipeline->l3_hdr_function = create_ipv6_hdr;
-	pipeline->create_skb_function = create_skb;
-	pipeline->l3_post_function = post_ipv6;
-
-	in->packet = skb;
-	in->tuple = tuple;
-
-	in->l3_hdr = ip4_hdr;
-	in->l3_hdr_type = IPPROTO_IP;
-	in->l3_hdr_len = skb_transport_header(skb) - skb_network_header(skb);
-	in->l3_hdr_basic_len = sizeof(*ip4_hdr);
-	in->compute_l3_hdr_len = compute_ipv4_hdr_len;
-
-	in->l4_hdr_type = ip4_hdr->protocol;
-	switch (in->l4_hdr_type) {
-	case IPPROTO_TCP:
-		in->l4_hdr_len = tcp_hdrlen(skb);
-		pipeline->l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
-		pipeline->l4_post_function = post_tcp_ipv6;
-		break;
-	case IPPROTO_UDP:
-		in->l4_hdr_len = sizeof(struct udphdr);
-		pipeline->l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
-		pipeline->l4_post_function = post_udp_ipv6;
-		break;
-	case IPPROTO_ICMP:
-		in->l4_hdr_len = sizeof(struct icmphdr);
-		pipeline->l4_hdr_and_payload_function = create_icmp6_hdr_and_payload;
-		pipeline->l4_post_function = post_icmp6;
-		break;
-	default:
-		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
-		return false;
-	}
-
-	in->payload = skb_transport_header(skb) + in->l4_hdr_len;
-	in->payload_len = be16_to_cpu(ip4_hdr->tot_len) - in->l3_hdr_len - in->l4_hdr_len;
-
-	return true;
-}
-
-/**
- * Initializes both "pipeline" and "in" using the data from "tuple", "skb", and the assumption that
- * we're translating from 6 to 4.
- * "pipeline" defines the sequence of functions that will be executed later and "in" is basically a
- * summary of "skb".
- */
-static bool init_pipeline_ipv6(struct pipeline *pipeline, struct packet_in *in,
-		struct nf_conntrack_tuple *tuple, struct sk_buff *skb)
-{
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb);
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
-
-	pipeline->l3_hdr_function = create_ipv4_hdr;
-	pipeline->create_skb_function = create_skb;
-	pipeline->l3_post_function = post_ipv4;
-
-	in->packet = skb;
-	in->tuple = tuple;
-
-	in->l3_hdr = ip6_hdr;
-	in->l3_hdr_type = IPPROTO_IPV6;
-	in->l3_hdr_len = skb_transport_header(skb) - skb_network_header(skb);
-	in->l3_hdr_basic_len = sizeof(*ip6_hdr);
-	in->compute_l3_hdr_len = compute_ipv6_hdr_len;
-
-	hdr_iterator_last(&iterator);
-	if (iterator.hdr_type == NEXTHDR_AUTH || iterator.hdr_type == NEXTHDR_ESP) {
-		// RFC 6146 section 5.1.
-		log_warning("  Incoming IPv6 packet has an Auth header or an ESP header. Cannot translate; "
-				"will drop the packet.");
-		return false;
-	}
-
-	in->l4_hdr_type = iterator.hdr_type;
-	switch (in->l4_hdr_type) {
-	case NEXTHDR_TCP:
-		in->l4_hdr_len = tcp_hdrlen(skb);
-		pipeline->l4_post_function = post_tcp_ipv4;
-		pipeline->l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
-		break;
-	case NEXTHDR_UDP:
-		in->l4_hdr_len = sizeof(struct udphdr);
-		pipeline->l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
-		pipeline->l4_post_function = post_udp_ipv4;
-		break;
-	case NEXTHDR_ICMP:
-		in->l4_hdr_len = sizeof(struct icmp6hdr);
-		pipeline->l4_hdr_and_payload_function = create_icmp4_hdr_and_payload;
-		pipeline->l4_post_function = post_icmp4;
-		break;
-	default:
-		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
-		return false;
-	}
-
-	in->payload = iterator.data + in->l4_hdr_len;
-	in->payload_len = be16_to_cpu(ip6_hdr->payload_len) //
-			- (in->l3_hdr_len - sizeof(*ip6_hdr)) //
-			- in->l4_hdr_len;
-
-	return true;
-}
-
-/**
  * Freeds everything from "out" that might need to be released. Doesn't free "out".
  */
-void kfree_packet_out(struct packet_out *out)
+static void kfree_packet_out(struct packet_out *out)
 {
 	kfree(out->l3_hdr);
 
@@ -312,39 +179,47 @@ void kfree_packet_out(struct packet_out *out)
 	kfree_skb(out->packet);
 }
 
-bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_buff *skb_in,
-		struct sk_buff **skb_out)
+/**
+ * @param l3_hdr_function The function that will translate the layer-3 header.
+ *		Its purpose if to set the variables from "out" which are prefixed by "l3_", based on the
+ *		packet described by "in".
+ * @param l4_hdr_and_payload_function The function that will translate the layer-4 header and the
+ *		payload. Layer 4 and payload are combined in a single function due to their strong
+ *		interdependence.
+ *		Its purpose is to set the variables from "out" which are prefixed by "l4_" or "payload",
+ *		based on the packet described by "in".
+ * @param l3_post_function Post-processing involving the layer 3 header.
+ *		Currently, this function fixes the header's lengths and checksum, which cannot be done in
+ *		the functions above given that they generally require the packet to be assembled and ready.
+ *		Not all lengths and checksums have that requirement, but just to be consistent do it always
+ *		here, please.
+ *		Note, out.l3_hdr, out.l4_hdr and out.payload point to garbage given that the packet has
+ *		already been assembled. When you want to access the headers, use out.packet.
+ * @param l4_post_function Post-processing involving the layer 4 header. See l3_post_function.
+ */
+static bool translate_packet(struct nf_conntrack_tuple *tuple,
+		struct sk_buff *skb_in, struct sk_buff **skb_out,
+		bool (*init_packet_in_function)(struct nf_conntrack_tuple *, struct sk_buff *,
+				struct packet_in *in),
+		bool (*l3_hdr_function)(struct packet_in *in, struct packet_out *out),
+		bool (*l4_hdr_and_payload_function)(struct packet_in *in, struct packet_out *out),
+		bool (*l3_post_function)(struct packet_out *out),
+		bool (*l4_post_function)(struct packet_out *out))
 {
 	struct packet_in in;
 	struct packet_out out = INIT_PACKET_OUT;
-	struct pipeline pipeline;
 
-	log_debug("Step 4: Translating the Packet");
-
-	// TODO (info) alguien me la va a rayar por esto. Piénsalo más tiempo.
-	switch (ip_hdr(skb_in)->version) {
-	case 4: // 4 to 6.
-		if (!init_pipeline_ipv4(&pipeline, &in, tuple, skb_in))
-			goto failure;
-		break;
-	case 6: // 6 to 4.
-		if (!init_pipeline_ipv6(&pipeline, &in, tuple, skb_in))
-			goto failure;
-		break;
-	default:
-		log_crit("  Programming error; unknown l3 protocol: %d", ip_hdr(skb_in)->version);
-		return false;
-	}
-
-	if (!pipeline.l3_hdr_function(&in, &out))
+	if (!init_packet_in_function(tuple, skb_in, &in))
 		goto failure;
-	if (!pipeline.l4_hdr_and_payload_function(&in, &out))
+	if (!l3_hdr_function(&in, &out))
 		goto failure;
-	if (!pipeline.create_skb_function(&out))
+	if (!l4_hdr_and_payload_function(&in, &out))
 		goto failure;
-	if (!pipeline.l3_post_function(&out))
+	if (!create_skb(&out))
 		goto failure;
-	if (!pipeline.l4_post_function(&out))
+	if (!l3_post_function(&out))
+		goto failure;
+	if (!l4_post_function(&out))
 		goto failure;
 
 	*skb_out = out.packet;
@@ -357,4 +232,77 @@ bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_bu
 failure:
 	kfree_packet_out(&out);
 	return false;
+}
+
+bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
+		struct sk_buff *skb_in, struct sk_buff **skb_out)
+{
+	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
+	bool (*l4_post_function)(struct packet_out *);
+
+	log_debug("Step 4: Translating the Packet");
+
+	switch (ip_hdr(skb_in)->protocol) {
+	case IPPROTO_TCP:
+		l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
+		l4_post_function = post_tcp_ipv6;
+		break;
+	case IPPROTO_UDP:
+		l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
+		l4_post_function = post_udp_ipv6;
+		break;
+	case IPPROTO_ICMP:
+		l4_hdr_and_payload_function = create_icmp6_hdr_and_payload;
+		l4_post_function = post_icmp6;
+		break;
+	default:
+		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", ip_hdr(skb_in)->protocol);
+		return false;
+	}
+
+	return translate_packet(tuple, skb_in, skb_out,
+			init_packet_in_4to6,
+			create_ipv6_hdr, l4_hdr_and_payload_function,
+			post_ipv6, l4_post_function);
+}
+
+bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
+		struct sk_buff *skb_in, struct sk_buff **skb_out)
+{
+	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
+	bool (*l4_post_function)(struct packet_out *);
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ipv6_hdr(skb_in));
+
+	log_debug("Step 4: Translating the Packet");
+
+	hdr_iterator_last(&iterator);
+	if (iterator.hdr_type == NEXTHDR_AUTH || iterator.hdr_type == NEXTHDR_ESP) {
+		// RFC 6146 section 5.1.
+		log_warning("  Incoming IPv6 packet has an Auth header or an ESP header. Cannot translate; "
+				"will drop the packet.");
+		return false;
+	}
+
+	switch (iterator.hdr_type) {
+	case NEXTHDR_TCP:
+		l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
+		l4_post_function = post_tcp_ipv4;
+		break;
+	case NEXTHDR_UDP:
+		l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
+		l4_post_function = post_udp_ipv4;
+		break;
+	case NEXTHDR_ICMP:
+		l4_hdr_and_payload_function = create_icmp4_hdr_and_payload;
+		l4_post_function = post_icmp4;
+		break;
+	default:
+		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", iterator.hdr_type);
+		return false;
+	}
+
+	return translate_packet(tuple, skb_in, skb_out,
+			init_packet_in_6to4,
+			create_ipv4_hdr, l4_hdr_and_payload_function,
+			post_ipv4, l4_post_function);
 }

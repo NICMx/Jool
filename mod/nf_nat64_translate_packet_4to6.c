@@ -1,3 +1,51 @@
+/**
+ * Assumes that "l3_hdr" points to a iphdr, and returns its size, options included.
+ */
+static __u16 compute_ipv4_hdr_len(void *l3_hdr)
+{
+	return 4 * ((struct iphdr *) l3_hdr)->ihl;
+}
+
+/**
+ * Initializes "in" using the data from "tuple", "skb_in", and the assumption that we're translating
+ * from 4 to 6.
+ */
+static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff *skb_in,
+				struct packet_in *in)
+{
+	struct iphdr *ip4_hdr = ip_hdr(skb_in);
+
+	in->packet = skb_in;
+	in->tuple = tuple;
+
+	in->l3_hdr = ip4_hdr;
+	in->l3_hdr_type = IPPROTO_IP;
+	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
+	in->l3_hdr_basic_len = sizeof(*ip4_hdr);
+	in->compute_l3_hdr_len = compute_ipv4_hdr_len;
+
+	in->l4_hdr_type = ip4_hdr->protocol;
+	switch (in->l4_hdr_type) {
+	case IPPROTO_TCP:
+		in->l4_hdr_len = tcp_hdrlen(skb_in);
+		break;
+	case IPPROTO_UDP:
+		in->l4_hdr_len = sizeof(struct udphdr);
+		break;
+	case IPPROTO_ICMP:
+		in->l4_hdr_len = sizeof(struct icmphdr);
+		break;
+	default:
+		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
+		return false;
+	}
+
+	in->payload = skb_transport_header(skb_in) + in->l4_hdr_len;
+	in->payload_len = be16_to_cpu(ip4_hdr->tot_len) - in->l3_hdr_len - in->l4_hdr_len;
+
+	return true;
+}
+
 /*************************************************************************************************
  * -- Layer 3 --
  * (This is RFC 6145 section 4.1. Translates IPv4 headers to IPv6)

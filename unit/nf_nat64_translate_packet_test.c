@@ -184,7 +184,6 @@ static bool build_ip6_hdr_fragment(void **l3_header, __u16 *l3_hdr_len)
 	struct frag_hdr *frag_hdr = NULL;
 	*l3_header = NULL;
 
-	// TODO (test) no estás printkeando error cuando no se puede reservar memoria.
 	fixed_hdr = kmalloc(sizeof(*fixed_hdr) + sizeof(*frag_hdr), GFP_ATOMIC);
 	if (!fixed_hdr) {
 		log_warning("Could not allocate a IPv6+Fragment header. Gonna fail...");
@@ -392,8 +391,10 @@ static bool build_l3_payload_icmp6_embedded(void **l3_payload, __u16 *l3_payload
 
 	*l3_payload_len = sizeof(struct icmp6hdr) + sizeof(struct ipv6hdr) + sizeof(struct udphdr) + 4;
 	*l3_payload = kmalloc(*l3_payload_len, GFP_ATOMIC);
-	if (!(*l3_payload))
+	if (!(*l3_payload)) {
+		log_warning("Could not allocate a payload. Gonna fail...");
 		return false;
+	}
 
 	icmp6_header = *l3_payload;
 	ip6_header = (struct ipv6hdr *) (icmp6_header + 1);
@@ -472,6 +473,8 @@ error:
 static bool translate(bool (*l3_hdr_function)(void **, __u16 *),
 		bool (*l3_payload_function)(void **, __u16 *),
 		struct nf_conntrack_tuple (*tuple_function)(void),
+		bool (*translate_packet_function)(struct nf_conntrack_tuple *, struct sk_buff *,
+				struct sk_buff **),
 		bool (*fixed_hdr_validate_function)(void *),
 		bool (*frag_hdr_validate_function)(struct frag_hdr *),
 		bool (*l4_validate_function)(void *l4_hdr))
@@ -485,7 +488,7 @@ static bool translate(bool (*l3_hdr_function)(void **, __u16 *),
 		goto error;
 
 	// Execute.
-	if (!nat64_translating_the_packet(&tuple_in, packet_in, &packet_out))
+	if (!translate_packet_function(&tuple_in, packet_in, &packet_out))
 		goto error;
 
 	// Validate.
@@ -516,96 +519,90 @@ static bool validate_ip6_fixed_hdr_common(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
 	struct nf_conntrack_tuple dummy_tuple = get_ip6_tuple();
+	bool success = true;
 
-	ASSERT_EQUALS(6, hdr->version, "Version");
-	ASSERT_EQUALS(0, hdr->priority, "Traffic class");
-	ASSERT_EQUALS(0, hdr->flow_lbl[0], "Flow label (0)");
-	ASSERT_EQUALS(0, hdr->flow_lbl[1], "Flow label (1)");
-	ASSERT_EQUALS(0, hdr->flow_lbl[2], "Flow label (2)");
-	// ASSERT_EQUALS(, be16_to_cpu(hdr->payload_len), "Payload len");
-	// ASSERT_EQUALS(, hdr->nexthdr, "Next header");
-	// ASSERT_EQUALS(5, hdr->hop_limit, "Hop limit");
-	ASSERT_EQUALS(0, memcmp(&dummy_tuple.ipv6_src_addr, &hdr->saddr, sizeof(hdr->saddr)),
-			"Source address");
-	ASSERT_EQUALS(0, memcmp(&dummy_tuple.ipv6_dst_addr, &hdr->daddr, sizeof(hdr->saddr)),
-			"Dest address");
+	success &= assert_equals_u8(6, hdr->version, "Version");
+	success &= assert_equals_u8(0, hdr->priority, "Traffic class");
+	success &= assert_equals_u8(0, hdr->flow_lbl[0], "Flow label (0)");
+	success &= assert_equals_u8(0, hdr->flow_lbl[1], "Flow label (1)");
+	success &= assert_equals_u8(0, hdr->flow_lbl[2], "Flow label (2)");
+	// success &= assert_equals_u16(, be16_to_cpu(hdr->payload_len), "Payload len");
+	// success &= assert_equals_u8(, hdr->nexthdr, "Next header");
+	// success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
+	success &= assert_equals_ipv6(&dummy_tuple.ipv6_src_addr, &hdr->saddr, "Source address");
+	success &= assert_equals_ipv6(&dummy_tuple.ipv6_dst_addr, &hdr->daddr, "Dest address");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip6_fixed_hdr_udp_nofrag(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
+	bool success = true;
 
-	if (!validate_ip6_fixed_hdr_common(ip6_header))
-		return false;
-
+	success &= validate_ip6_fixed_hdr_common(ip6_header);
 	// udp hdr + payload.
-	ASSERT_EQUALS(8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
-	ASSERT_EQUALS(IPPROTO_UDP, hdr->nexthdr, "Next header");
-	ASSERT_EQUALS(5, hdr->hop_limit, "Hop limit");
+	success &= assert_equals_u16(8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
+	success &= assert_equals_u8(IPPROTO_UDP, hdr->nexthdr, "Next header");
+	success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip6_fixed_hdr_tcp_nofrag(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
+	bool success = true;
 
-	if (!validate_ip6_fixed_hdr_common(ip6_header))
-		return false;
-
+	success &= validate_ip6_fixed_hdr_common(ip6_header);
 	// tcp hdr + payload.
-	ASSERT_EQUALS(20 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
-	ASSERT_EQUALS(IPPROTO_TCP, hdr->nexthdr, "Next header");
-	ASSERT_EQUALS(5, hdr->hop_limit, "Hop limit");
+	success &= assert_equals_u16(20 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
+	success &= assert_equals_u8(IPPROTO_TCP, hdr->nexthdr, "Next header");
+	success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip6_fixed_hdr_icmp_nofrag(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
+	bool success = true;
 
-	if (!validate_ip6_fixed_hdr_common(ip6_header))
-		return false;
-
+	success &= validate_ip6_fixed_hdr_common(ip6_header);
 	// icmpv6 hdr + payload.
-	ASSERT_EQUALS(8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
-	ASSERT_EQUALS(NEXTHDR_ICMP, hdr->nexthdr, "Next header");
-	ASSERT_EQUALS(5, hdr->hop_limit, "Hop limit");
+	success &= assert_equals_u16(8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
+	success &= assert_equals_u8(NEXTHDR_ICMP, hdr->nexthdr, "Next header");
+	success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip6_fixed_hdr_icmp_embedded(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
+	bool success = true;
 
-	if (!validate_ip6_fixed_hdr_common(ip6_header))
-		return false;
-
+	success &= validate_ip6_fixed_hdr_common(ip6_header);
 	// icmp hdr + ipv6 hdr + udp hdr + payload.
-	ASSERT_EQUALS(8 + 40 + 8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
-	ASSERT_EQUALS(NEXTHDR_ICMP, hdr->nexthdr, "Next header");
-	ASSERT_EQUALS(5, hdr->hop_limit, "Hop limit");
+	success &= assert_equals_u16(8 + 40 + 8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
+	success &= assert_equals_u8(NEXTHDR_ICMP, hdr->nexthdr, "Next header");
+	success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip6_fixed_hdr_udp_dofrag(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
+	bool success = true;
 
-	if (!validate_ip6_fixed_hdr_common(ip6_header))
-		return false;
-
+	success &= validate_ip6_fixed_hdr_common(ip6_header);
 	// frag hdr + udp hdr + payload.
-	ASSERT_EQUALS(8 + 8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
-	ASSERT_EQUALS(NEXTHDR_FRAGMENT, hdr->nexthdr, "Next header");
-	ASSERT_EQUALS(5, hdr->hop_limit, "Hop limit");
+	success &= assert_equals_u16(8 + 8 + 4, be16_to_cpu(hdr->payload_len), "Payload len");
+	success &= assert_equals_u8(NEXTHDR_FRAGMENT, hdr->nexthdr, "Next header");
+	success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip6_frag_hdr_nofrag(struct frag_hdr *frag_header)
@@ -615,172 +612,186 @@ static bool validate_ip6_frag_hdr_nofrag(struct frag_hdr *frag_header)
 
 static bool validate_ip6_frag_hdr_dofrag(struct frag_hdr *frag_header)
 {
-	ASSERT_EQUALS(IPPROTO_UDP, frag_header->nexthdr, "Frag hdr's next header");
-	ASSERT_EQUALS(0, frag_header->reserved, "Frag hdr's reserved");
-	ASSERT_EQUALS(0x0675 << 3, be16_to_cpu(frag_header->frag_off), "Frag hdr's fragment offset");
-	ASSERT_EQUALS(1234, be32_to_cpu(frag_header->identification), "Frag hdr's identification");
+	bool success = true;
 
-	return true;
+	success &= assert_equals_u8(IPPROTO_UDP, frag_header->nexthdr, "Frag hdr's next header");
+	success &= assert_equals_u8(0, frag_header->reserved, "Frag hdr's reserved");
+	success &= assert_equals_u16(0x0675 << 3, be16_to_cpu(frag_header->frag_off),
+			"Frag hdr's fragment offset");
+	success &= assert_equals_u32(1234, be32_to_cpu(frag_header->identification),
+			"Frag hdr's identification");
+
+	return success;
 }
 
 static bool validate_ip4_hdr_common(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
 	struct nf_conntrack_tuple dummy_tuple = get_ip4_tuple();
+	bool success = true;
 
-	ASSERT_EQUALS(4, hdr->version, "Version");
-	ASSERT_EQUALS(5, hdr->ihl, "Internet Header Length");
-	ASSERT_EQUALS(0xA7, hdr->tos, "Type of Service");
-	// ASSERT_EQUALS(, be16_to_cpu(hdr->tot_len), "Total Length");
-	ASSERT_EQUALS(0, be16_to_cpu(hdr->id), "Identification");
-	ASSERT_EQUALS(IP_DF, be16_to_cpu(hdr->frag_off), "Flags & Fragment Offset");
-	ASSERT_EQUALS(5, hdr->ttl, "Time to Live");
-	// ASSERT_EQUALS(, hdr->protocol, "Protocol");
-	// ASSERT_EQUALS(, hdr->check, "Header Checksum");
-	ASSERT_EQUALS(dummy_tuple.ipv4_src_addr.s_addr, hdr->saddr, "Source address");
-	ASSERT_EQUALS(dummy_tuple.ipv4_dst_addr.s_addr, hdr->daddr, "Dest address");
+	struct in_addr src, dst;
+	src.s_addr = hdr->saddr;
+	dst.s_addr = hdr->daddr;
 
-	return true;
+	success &= assert_equals_u8(4, hdr->version, "Version");
+	success &= assert_equals_u8(5, hdr->ihl, "Internet Header Length");
+	success &= assert_equals_u8(0xA7, hdr->tos, "Type of Service");
+	// success &= assert_equals(, be16_to_cpu(hdr->tot_len), "Total Length");
+	success &= assert_equals_u16(0, be16_to_cpu(hdr->id), "Identification");
+	success &= assert_equals_u16(IP_DF, be16_to_cpu(hdr->frag_off), "Flags & Fragment Offset");
+	success &= assert_equals_u8(5, hdr->ttl, "Time to Live");
+	// success &= assert_equals(, hdr->protocol, "Protocol");
+	// success &= assert_equals(, hdr->check, "Header Checksum");
+	success &= assert_equals_ipv4(&dummy_tuple.ipv4_src_addr, &src, "Source address");
+	success &= assert_equals_ipv4(&dummy_tuple.ipv4_dst_addr, &dst, "Dest address");
+
+	return success;
 }
 
 static bool validate_ip4_hdr_udp(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
+	bool success = true;
 
-	if (!validate_ip4_hdr_common(l3_hdr))
-		return false;
-
+	success &= validate_ip4_hdr_common(l3_hdr);
 	// iphdr + udphdr + 4
-	ASSERT_EQUALS(20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
-	ASSERT_EQUALS(IPPROTO_UDP, hdr->protocol, "Protocol");
+	success &= assert_equals_u16(20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
+	success &= assert_equals_u8(IPPROTO_UDP, hdr->protocol, "Protocol");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip4_hdr_tcp(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
+	bool success = true;
 
-	if (!validate_ip4_hdr_common(l3_hdr))
-		return false;
-
+	success &= validate_ip4_hdr_common(l3_hdr);
 	// iphdr + tcphdr + 4
-	ASSERT_EQUALS(20 + 20 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
-	ASSERT_EQUALS(IPPROTO_TCP, hdr->protocol, "Protocol");
+	success &= assert_equals_u16(20 + 20 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
+	success &= assert_equals_u8(IPPROTO_TCP, hdr->protocol, "Protocol");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip4_hdr_icmp4(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
+	bool success = true;
 
-	if (!validate_ip4_hdr_common(l3_hdr))
-		return false;
-
+	success &= validate_ip4_hdr_common(l3_hdr);
 	// iphdr + icmphdr + 4
-	ASSERT_EQUALS(20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
-	ASSERT_EQUALS(IPPROTO_ICMP, hdr->protocol, "Protocol");
+	success &= assert_equals_u16(20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
+	success &= assert_equals_u8(IPPROTO_ICMP, hdr->protocol, "Protocol");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip4_hdr_fragment(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
 	struct nf_conntrack_tuple dummy_tuple = get_ip4_tuple();
+	bool success = true;
 
-	ASSERT_EQUALS(4, hdr->version, "Version");
-	ASSERT_EQUALS(5, hdr->ihl, "Internet Header Length");
-	ASSERT_EQUALS(0xA7, hdr->tos, "Type of Service");
+	struct in_addr src, dst;
+	src.s_addr = hdr->saddr;
+	dst.s_addr = hdr->daddr;
+
+	success &= assert_equals_u8(4, hdr->version, "Version");
+	success &= assert_equals_u8(5, hdr->ihl, "Internet Header Length");
+	success &= assert_equals_u8(0xA7, hdr->tos, "Type of Service");
 	// iphdr + udphdr + payload.
-	ASSERT_EQUALS(20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
-	ASSERT_EQUALS(385, be16_to_cpu(hdr->id), "Identification"); //
-	ASSERT_EQUALS(16, be16_to_cpu(hdr->frag_off), "Flags & Fragment Offset"); //
-	ASSERT_EQUALS(5, hdr->ttl, "Time to Live");
-	ASSERT_EQUALS(IPPROTO_UDP, hdr->protocol, "Protocol"); //
-	// ASSERT_EQUALS(, hdr->check, "Header Checksum");
-	ASSERT_EQUALS(dummy_tuple.ipv4_src_addr.s_addr, hdr->saddr, "Source address");
-	ASSERT_EQUALS(dummy_tuple.ipv4_dst_addr.s_addr, hdr->daddr, "Dest address");
+	success &= assert_equals_u16(20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
+	success &= assert_equals_u16(385, be16_to_cpu(hdr->id), "Identification"); //
+	success &= assert_equals_u16(16, be16_to_cpu(hdr->frag_off), "Flags & Fragment Offset"); //
+	success &= assert_equals_u8(5, hdr->ttl, "Time to Live");
+	success &= assert_equals_u8(IPPROTO_UDP, hdr->protocol, "Protocol"); //
+	// success &= assert_equals(, hdr->check, "Header Checksum");
+	success &= assert_equals_ipv4(&dummy_tuple.ipv4_src_addr, &src, "Source address");
+	success &= assert_equals_ipv4(&dummy_tuple.ipv4_dst_addr, &dst, "Dest address");
 
-	return true;
+	return success;
 }
 
 static bool validate_ip4_hdr_embedded(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
+	bool success = true;
 
-	if (!validate_ip4_hdr_common(l3_hdr))
-		return false;
-
+	success &= validate_ip4_hdr_common(l3_hdr);
 	// iphdr + icmphdr + iphdr + udphdr + 4
-	ASSERT_EQUALS(20 + 8 + 20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
-	ASSERT_EQUALS(IPPROTO_ICMP, hdr->protocol, "Protocol");
+	success &= assert_equals_u16(20 + 8 + 20 + 8 + 4, be16_to_cpu(hdr->tot_len), "Total Length");
+	success &= assert_equals_u8(IPPROTO_ICMP, hdr->protocol, "Protocol");
 
-	return true;
+	return success;
 }
 
 static bool validate_simple_payload(unsigned char *payload)
 {
-	ASSERT_EQUALS(0x54, payload[0], "Payload, first chara.");
-	ASSERT_EQUALS(0x45, payload[1], "Payload, second chara.");
-	ASSERT_EQUALS(0x53, payload[2], "Payload, third chara.");
-	ASSERT_EQUALS(0x54, payload[3], "Payload, fourth chara.");
+	bool success = true;
 
-	return true;
+	success &= assert_equals_u8(0x54, payload[0], "Payload, first chara");
+	success &= assert_equals_u8(0x45, payload[1], "Payload, second chara");
+	success &= assert_equals_u8(0x53, payload[2], "Payload, third chara");
+	success &= assert_equals_u8(0x54, payload[3], "Payload, fourth chara");
+
+	return success;
 }
 
 static bool validate_l3_payload_udp(void *l4_hdr)
 {
 	struct udphdr *udp_header = l4_hdr;
+	bool success = true;
 
-	ASSERT_EQUALS(5883, be16_to_cpu(udp_header->source), "UDP source port");
-	ASSERT_EQUALS(9215, be16_to_cpu(udp_header->dest), "UDP dest port");
-	ASSERT_EQUALS(8 + 4, be16_to_cpu(udp_header->len), "UDP length");
-	// ASSERT_EQUALS(0xAFAF, be16_to_cpu(udp_header->check), "UDP checksum");
+	success &= assert_equals_u16(5883, be16_to_cpu(udp_header->source), "UDP source port");
+	success &= assert_equals_u16(9215, be16_to_cpu(udp_header->dest), "UDP dest port");
+	success &= assert_equals_u16(8 + 4, be16_to_cpu(udp_header->len), "UDP length");
+	// success &= assert_equals_u16(0xAFAF, be16_to_cpu(udp_header->check), "UDP checksum");
 
-	if (!validate_simple_payload((unsigned char *) (udp_header + 1)))
-		return false;
+	success &= validate_simple_payload((unsigned char *) (udp_header + 1));
 
-	return true;
+	return success;
 }
 
 static bool validate_l3_payload_tcp(void *l4_hdr)
 {
 	struct tcphdr *tcp_header = l4_hdr;
+	bool success = true;
 
-	ASSERT_EQUALS(3885, be16_to_cpu(tcp_header->source), "Source port");
-	ASSERT_EQUALS(1592, be16_to_cpu(tcp_header->dest), "Dest port");
-	ASSERT_EQUALS(112233, be32_to_cpu(tcp_header->seq), "Seq number");
-	ASSERT_EQUALS(332211, be32_to_cpu(tcp_header->ack_seq), "ACK number");
-	ASSERT_EQUALS(5, tcp_header->doff, "Data offset");
-	ASSERT_EQUALS(0, tcp_header->res1, "Reserved & NS");
-	ASSERT_EQUALS(0, tcp_header->cwr, "CWR");
-	ASSERT_EQUALS(0, tcp_header->ece, "ECE");
-	ASSERT_EQUALS(0, tcp_header->urg, "URG");
-	ASSERT_EQUALS(1, tcp_header->ack, "ACK");
-	ASSERT_EQUALS(0, tcp_header->psh, "PSH");
-	ASSERT_EQUALS(0, tcp_header->rst, "RST");
-	ASSERT_EQUALS(0, tcp_header->syn, "SYN");
-	ASSERT_EQUALS(0, tcp_header->fin, "FIN");
-	ASSERT_EQUALS(300, be16_to_cpu(tcp_header->window), "Window size");
-	// ASSERT_EQUALS(, tcp_header->check, "Checksum");
-	ASSERT_EQUALS(0, be16_to_cpu(tcp_header->urg_ptr), "Urgent pointer");
+	success &= assert_equals_u16(3885, be16_to_cpu(tcp_header->source), "Source port");
+	success &= assert_equals_u16(1592, be16_to_cpu(tcp_header->dest), "Dest port");
+	success &= assert_equals_u32(112233, be32_to_cpu(tcp_header->seq), "Seq number");
+	success &= assert_equals_u32(332211, be32_to_cpu(tcp_header->ack_seq), "ACK number");
+	success &= assert_equals_u8(5, tcp_header->doff, "Data offset");
+	success &= assert_equals_u8(0, tcp_header->res1, "Reserved & NS");
+	success &= assert_equals_u8(0, tcp_header->cwr, "CWR");
+	success &= assert_equals_u8(0, tcp_header->ece, "ECE");
+	success &= assert_equals_u8(0, tcp_header->urg, "URG");
+	success &= assert_equals_u8(1, tcp_header->ack, "ACK");
+	success &= assert_equals_u8(0, tcp_header->psh, "PSH");
+	success &= assert_equals_u8(0, tcp_header->rst, "RST");
+	success &= assert_equals_u8(0, tcp_header->syn, "SYN");
+	success &= assert_equals_u8(0, tcp_header->fin, "FIN");
+	success &= assert_equals_u16(300, be16_to_cpu(tcp_header->window), "Window size");
+	// success &= assert_equals(, tcp_header->check, "Checksum");
+	success &= assert_equals_u16(0, be16_to_cpu(tcp_header->urg_ptr), "Urgent pointer");
 
-	return true;
+	return success;
 }
 
 static bool validate_l3_payload_icmp4_simple(void *l4_hdr)
 {
 	struct icmphdr *icmp4_header = l4_hdr;
+	bool success = true;
 
-	ASSERT_EQUALS(ICMP_ECHOREPLY, icmp4_header->type, "Type");
-	ASSERT_EQUALS(0, icmp4_header->code, "Code");
-	// ASSERT_EQUALS(, icmp4_header->checksum, "Checksum");
-	ASSERT_EQUALS(45, be16_to_cpu(icmp4_header->un.echo.id), "Echo ID");
-	ASSERT_EQUALS(54, be16_to_cpu(icmp4_header->un.echo.sequence), "Echo seq");
+	success &= assert_equals_u8(ICMP_ECHOREPLY, icmp4_header->type, "Type");
+	success &= assert_equals_u8(0, icmp4_header->code, "Code");
+	// success &= assert_equals(, icmp4_header->checksum, "Checksum");
+	success &= assert_equals_u16(45, be16_to_cpu(icmp4_header->un.echo.id), "Echo ID");
+	success &= assert_equals_u16(54, be16_to_cpu(icmp4_header->un.echo.sequence), "Echo seq");
 
-	return true;
+	return success;
 }
 
 static bool validate_l3_payload_icmp4_embedded(void *l4_hdr)
@@ -788,37 +799,41 @@ static bool validate_l3_payload_icmp4_embedded(void *l4_hdr)
 	struct icmphdr *icmp4_header = l4_hdr;
 	struct iphdr *ip4_header = (struct iphdr *) (icmp4_header + 1);
 	struct udphdr *udp_header = (struct udphdr *) (ip4_header + 1);
+	bool success = true;
 
-	ASSERT_EQUALS(ICMP_TIME_EXCEEDED, icmp4_header->type, "ICMP Type");
-	ASSERT_EQUALS(0, icmp4_header->code, "ICMP Code");
-	// ASSERT_EQUALS(, icmp4_header->checksum, "ICMP Checksum");
-	ASSERT_EQUALS(0, be32_to_cpu(icmp4_header->un.gateway), "ICMP Unused");
+	success &= assert_equals_u8(ICMP_TIME_EXCEEDED, icmp4_header->type, "ICMP Type");
+	success &= assert_equals_u8(0, icmp4_header->code, "ICMP Code");
+	// success &= assert_equals(, icmp4_header->checksum, "ICMP Checksum");
+	success &= assert_equals_u32(0, be32_to_cpu(icmp4_header->un.gateway), "ICMP Unused");
 
-	if (!validate_ip4_hdr_common(ip4_header))
-		return false;
+	success &= validate_ip4_hdr_common(ip4_header);
 	// That the code writes garbage in both the inner tot_len and the checksum is a known quirk.
 	// The inner packet is usually minced so nobody should trust those fields.
-	// ASSERT_EQUALS(iphdr + udphdr + 4, be16_to_cpu(ip4_header->tot_len), "Inner total Length");
-	ASSERT_EQUALS(IPPROTO_UDP, ip4_header->protocol, "Inner protocol");
-	// ASSERT_EQUALS(iphdr + udphdr + 4, be16_to_cpu(ip4_header->tot_len), "Inner checksum");
+	// success &= assert_equals_u16(iphdr + udphdr + 4, be16_to_cpu(ip4_header->tot_len),
+	// 		"Inner total Length");
+	success &= assert_equals_u8(IPPROTO_UDP, ip4_header->protocol, "Inner protocol");
+	// success &= assert_equals_u16(iphdr + udphdr + 4, be16_to_cpu(ip4_header->tot_len),
+	// 		"Inner checksum");
 
-	if (!validate_l3_payload_udp(udp_header))
-		return false;
+	success &= validate_l3_payload_udp(udp_header);
 
-	return true;
+	return success;
 }
 
 static bool validate_l3_payload_icmp6_simple(void *l4_hdr)
 {
 	struct icmp6hdr *hdr = l4_hdr;
+	bool success = true;
 
-	ASSERT_EQUALS(ICMPV6_ECHO_REPLY, hdr->icmp6_type, "ICMP type");
-	ASSERT_EQUALS(0, hdr->icmp6_code, "ICMP code");
-	// ASSERT_EQUALS(6, hdr->icmp6_cksum, "ICMP checksum");
-	ASSERT_EQUALS(45, be16_to_cpu(hdr->icmp6_dataun.u_echo.identifier), "ICMP echo reply id");
-	ASSERT_EQUALS(54, be16_to_cpu(hdr->icmp6_dataun.u_echo.sequence), "ICMP echo reply seq");
+	success &= assert_equals_u8(ICMPV6_ECHO_REPLY, hdr->icmp6_type, "ICMP type");
+	success &= assert_equals_u8(0, hdr->icmp6_code, "ICMP code");
+	// success &= assert_equals(6, hdr->icmp6_cksum, "ICMP checksum");
+	success &= assert_equals_u16(45, be16_to_cpu(hdr->icmp6_dataun.u_echo.identifier),
+			"ICMP echo reply id");
+	success &= assert_equals_u16(54, be16_to_cpu(hdr->icmp6_dataun.u_echo.sequence),
+			"ICMP echo reply seq");
 
-	return true;
+	return success;
 }
 
 static bool validate_l3_payload_icmp6_embedded(void *l4_hdr)
@@ -826,24 +841,24 @@ static bool validate_l3_payload_icmp6_embedded(void *l4_hdr)
 	struct icmp6hdr *icmp6_header = l4_hdr;
 	struct ipv6hdr *ip6_header = (struct ipv6hdr *) (icmp6_header + 1);
 	struct udphdr *udp_header = (struct udphdr *) (ip6_header + 1);
+	bool success = true;
 
-	ASSERT_EQUALS(ICMPV6_TIME_EXCEED, icmp6_header->icmp6_type, "ICMP type");
-	ASSERT_EQUALS(0, icmp6_header->icmp6_code, "ICMP code");
-	// ASSERT_EQUALS(6, icmp6_header->icmp6_cksum, "ICMP checksum");
-	ASSERT_EQUALS(0, be32_to_cpu(icmp6_header->icmp6_unused), "ICMP unused");
+	success &= assert_equals_u8(ICMPV6_TIME_EXCEED, icmp6_header->icmp6_type, "ICMP type");
+	success &= assert_equals_u8(0, icmp6_header->icmp6_code, "ICMP code");
+	// success &= assert_equals(6, icmp6_header->icmp6_cksum, "ICMP checksum");
+	success &= assert_equals_u32(0, be32_to_cpu(icmp6_header->icmp6_unused), "ICMP unused");
 
-	if (!validate_ip6_fixed_hdr_common(ip6_header))
-		return false;
+	success &= validate_ip6_fixed_hdr_common(ip6_header);
 	// That the code writes garbage in both the inner payload_len and the checksum is a known quirk.
 	// The inner packet is usually minced so nobody should trust those fields.
-	// ASSERT_EQUALS(udp hdr + payload, be16_to_cpu(ip6_header->payload_len), "Inner payload len");
-	ASSERT_EQUALS(IPPROTO_UDP, ip6_header->nexthdr, "Inner next header");
-	ASSERT_EQUALS(0, ip6_header->hop_limit, "Inner hop limit");
+	// success &= assert_equals(udp hdr + payload, be16_to_cpu(ip6_header->payload_len),
+	// 		"Inner payload len");
+	success &= assert_equals_u8(IPPROTO_UDP, ip6_header->nexthdr, "Inner next header");
+	success &= assert_equals_u8(0, ip6_header->hop_limit, "Inner hop limit");
 
-	if (!validate_l3_payload_udp(udp_header))
-		return false;
+	success &= validate_l3_payload_udp(udp_header);
 
-	return true;
+	return success;
 }
 
 /********************************************
@@ -853,60 +868,64 @@ static bool validate_l3_payload_icmp6_embedded(void *l4_hdr)
 static bool test_function_is_dont_fragment_set(void)
 {
 	struct iphdr hdr;
+	bool success = true;
 
 	hdr.frag_off = cpu_to_be16(0x0000);
-	ASSERT_EQUALS(0, is_dont_fragment_set(&hdr), "All zeroes.");
+	success &= assert_equals_u16(0, is_dont_fragment_set(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x4000);
-	ASSERT_EQUALS(1, is_dont_fragment_set(&hdr), "All zeroes except DF.");
+	success &= assert_equals_u16(1, is_dont_fragment_set(&hdr), "All zeroes except DF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	ASSERT_EQUALS(1, is_dont_fragment_set(&hdr), "All ones.");
+	success &= assert_equals_u16(1, is_dont_fragment_set(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xBFFF);
-	ASSERT_EQUALS(0, is_dont_fragment_set(&hdr), "All ones except DF.");
+	success &= assert_equals_u16(0, is_dont_fragment_set(&hdr), "All ones except DF");
 
-	return true;
+	return success;
 }
 
 static bool test_function_is_more_fragments_set(void)
 {
 	struct iphdr hdr;
+	bool success = true;
 
 	hdr.frag_off = cpu_to_be16(0x0000);
-	ASSERT_EQUALS(0, is_more_fragments_set(&hdr), "All zeroes.");
+	success &= assert_equals_u16(0, is_more_fragments_set(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x2000);
-	ASSERT_EQUALS(1, is_more_fragments_set(&hdr), "All zeroes except MF.");
+	success &= assert_equals_u16(1, is_more_fragments_set(&hdr), "All zeroes except MF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	ASSERT_EQUALS(1, is_more_fragments_set(&hdr), "All ones.");
+	success &= assert_equals_u16(1, is_more_fragments_set(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xDFFF);
-	ASSERT_EQUALS(0, is_more_fragments_set(&hdr), "All ones except MF.");
+	success &= assert_equals_u16(0, is_more_fragments_set(&hdr), "All ones except MF");
 
-	return true;
+	return success;
 }
 
 static bool test_function_has_unexpired_src_route(void)
 {
 	struct iphdr *hdr = kmalloc(60, GFP_ATOMIC); // 60 is the max value allowed by hdr.ihl.
 	unsigned char *options;
+	bool success = true;
+
 	if (!hdr) {
 		log_warning("Can't allocate a test header.");
-		goto failure;
+		return false;
 	}
 	options = (unsigned char *) (hdr + 1);
 
 	hdr->ihl = 5; // min legal value.
-	ASSERT_EQUALS(false, has_unexpired_src_route(hdr), "No options");
+	success &= assert_false(has_unexpired_src_route(hdr), "No options");
 
 	hdr->ihl = 6;
 	options[0] = IPOPT_SID;
 	options[1] = 4;
 	options[2] = 0xAB;
 	options[3] = 0xCD;
-	ASSERT_EQUALS(false, has_unexpired_src_route(hdr), "No source route option, simple.");
+	success = assert_false(has_unexpired_src_route(hdr), "No source route option, simple");
 
 	hdr->ihl = 9;
 	options[0] = IPOPT_RR; // Record route option
@@ -924,7 +943,7 @@ static bool test_function_has_unexpired_src_route(void)
 	options[12] = IPOPT_NOOP; // No operation option.
 	options[13] = IPOPT_END; // End of options list option.
 	// Leave the rest as garbage.
-	ASSERT_EQUALS(false, has_unexpired_src_route(hdr), "No source option, multiple options.");
+	success &= assert_false(has_unexpired_src_route(hdr), "No source option, multiple options");
 
 	hdr->ihl = 9;
 	options[0] = IPOPT_LSRR;
@@ -943,14 +962,14 @@ static bool test_function_has_unexpired_src_route(void)
 	options[13] = 0x33;
 	options[14] = 0x33;
 	options[15] = IPOPT_END;
-	ASSERT_EQUALS(false, has_unexpired_src_route(hdr), "Expired source route.");
+	success &= assert_false(has_unexpired_src_route(hdr), "Expired source route");
 
 	options[2] = 4;
-	ASSERT_EQUALS(true, has_unexpired_src_route(hdr), "Unexpired source route, first address.");
+	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired source route, first address");
 	options[2] = 8;
-	ASSERT_EQUALS(true, has_unexpired_src_route(hdr), "Unexpired source route, second address.");
+	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired source route, second address");
 	options[2] = 12;
-	ASSERT_EQUALS(true, has_unexpired_src_route(hdr), "Unexpired source route, third address.");
+	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired source route, third address");
 
 	hdr->ihl = 11;
 	options[0] = IPOPT_NOOP;
@@ -977,103 +996,114 @@ static bool test_function_has_unexpired_src_route(void)
 	options[21] = 4;
 	options[22] = 0xAB;
 	options[23] = 0xCD;
-	ASSERT_EQUALS(false, has_unexpired_src_route(hdr), "Expired source route, multiple options.");
+	success &= assert_false(has_unexpired_src_route(hdr), "Expired source route, multiple opts");
 
 	options[7] = 4;
-	ASSERT_EQUALS(true, has_unexpired_src_route(hdr), "Unexpired src route, multiple options (1).");
+	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (1)");
 	options[7] = 8;
-	ASSERT_EQUALS(true, has_unexpired_src_route(hdr), "Unexpired src route, multiple options (2).");
+	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (2)");
 	options[7] = 12;
-	ASSERT_EQUALS(true, has_unexpired_src_route(hdr), "Unexpired src route, multiple options (3).");
+	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (3)");
 
 	kfree(hdr);
-	return true;
-
-failure:
-	kfree(hdr);
-	return false;
+	return success;
 }
 
 static bool test_function_build_ipv6_frag_off_field(void)
 {
 	struct iphdr hdr;
+	bool success = true;
 
 	// 0x32E9 = 001 1001011101001
 	hdr.frag_off = cpu_to_be16(0x32E9);
 	// 0x9749 = 1001011101001 001
-	ASSERT_EQUALS(cpu_to_be16(0x9749), build_ipv6_frag_off_field(&hdr), "More fragments on.");
+	success &= assert_equals_u16(cpu_to_be16(0x9749), build_ipv6_frag_off_field(&hdr),
+			"More fragments on.");
 
 	// 0xD15A = 110 1000101011010
 	hdr.frag_off = cpu_to_be16(0xD15A);
 	// 0x8AD0 = 1000101011010 000
-	ASSERT_EQUALS(cpu_to_be16(0x8AD0), build_ipv6_frag_off_field(&hdr), "More fragments off.");
+	success &= assert_equals_u16(cpu_to_be16(0x8AD0), build_ipv6_frag_off_field(&hdr),
+			"More fragments off.");
 
-	return true;
+	return success;
 }
 
 static bool test_function_build_id_field(void)
 {
 	struct iphdr hdr;
+	bool success = true;
 
 	hdr.id = cpu_to_be16(1234);
-	ASSERT_EQUALS(cpu_to_be32(1234), build_id_field(&hdr), "Simple.");
+	success &= assert_equals_u32(cpu_to_be32(1234), build_id_field(&hdr), "Simple");
 
-	return true;
+	return success;
 }
 
 #define min_mtu(packet, in, out, len) be16_to_cpu(icmp6_minimum_mtu(packet, in, out, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
 	int i;
+	bool success = true;
 
 	// Test the bare minimum functionality.
-	ASSERT_EQUALS(1, min_mtu(1, 2, 2, 0), "No hacks, min is packet.");
-	ASSERT_EQUALS(1, min_mtu(2, 1, 2, 0), "No hacks, min is in.");
-	ASSERT_EQUALS(1, min_mtu(2, 2, 1, 0), "No hacks, min is out.");
+	success &= assert_equals_u16(1, min_mtu(1, 2, 2, 0), "No hacks, min is packet");
+	success &= assert_equals_u16(1, min_mtu(2, 1, 2, 0), "No hacks, min is in");
+	success &= assert_equals_u16(1, min_mtu(2, 2, 1, 0), "No hacks, min is out");
+
+	if (!success)
+		return false;
 
 	// Test hack 1: MTU is overriden if some router set is as zero.
 	for (i = 1500; i > 1400; --i)
-		ASSERT_EQUALS(1400, min_mtu(0, 1600, 1600, i), "Override packet MTU.");
+		success &= assert_equals_u16(1400, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 1400; i > 1200; --i)
-		ASSERT_EQUALS(1200, min_mtu(0, 1600, 1600, i), "Override packet MTU.");
+		success &= assert_equals_u16(1200, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 1200; i > 600; --i)
-		ASSERT_EQUALS(600, min_mtu(0, 1600, 1600, i), "Override packet MTU.");
+		success &= assert_equals_u16(600, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 600; i > 0; --i)
-		ASSERT_EQUALS(0, min_mtu(0, 1600, 1600, i), "Override packet MTU.");
+		success &= assert_equals_u16(0, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 
-	ASSERT_EQUALS(1, min_mtu(0, 1, 2, 1000), "Override packet MTU, min is in.");
-	ASSERT_EQUALS(1, min_mtu(0, 2, 1, 1000), "Override packet MTU, min is out.");
+	success &= assert_equals_u16(1, min_mtu(0, 1, 2, 1000), "Override packet MTU, min is in");
+	success &= assert_equals_u16(1, min_mtu(0, 2, 1, 1000), "Override packet MTU, min is out");
+
+	if (!success)
+		return false;
 
 	// Test hack 2: User wants us to try to improve the failure rate.
 	config.improve_mtu_failure_rate = true;
 
-	ASSERT_EQUALS(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet.");
-	ASSERT_EQUALS(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in.");
-	ASSERT_EQUALS(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out.");
+	success &= assert_equals_u16(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
+	success &= assert_equals_u16(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
+	success &= assert_equals_u16(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
 
-	ASSERT_EQUALS(1300, min_mtu(1300, 1400, 1400, 0), "Improve rate (not), min is packet.");
-	ASSERT_EQUALS(1300, min_mtu(1400, 1300, 1400, 0), "Improve rate (not), min is in.");
-	ASSERT_EQUALS(1300, min_mtu(1400, 1400, 1300, 0), "Improve rate (not), min is out.");
+	success &= assert_equals_u16(1300, min_mtu(1300, 1400, 1400, 0), "Fail improve rate, packet");
+	success &= assert_equals_u16(1300, min_mtu(1400, 1300, 1400, 0), "Fail improve rate, in");
+	success &= assert_equals_u16(1300, min_mtu(1400, 1400, 1300, 0), "Fail improve rate, out");
+
+	if (!success)
+		goto revert;
 
 	// Test both hacks at the same time.
-	ASSERT_EQUALS(1280, min_mtu(0, 700, 700, 1000), "2 hacks, min is packet/overriden.");
-	ASSERT_EQUALS(1280, min_mtu(0, 1, 2, 1000), "2 hacks, min is in/overriden.");
-	ASSERT_EQUALS(1280, min_mtu(0, 2, 1, 1000), "2 hacks, min is out/overriden.");
+	success &= assert_equals_u16(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
+	success &= assert_equals_u16(1280, min_mtu(0, 1, 2, 1000), "2 hacks, override in");
+	success &= assert_equals_u16(1280, min_mtu(0, 2, 1, 1000), "2 hacks, override out");
 
-	ASSERT_EQUALS(1400, min_mtu(0, 1500, 1500, 1401), "2 hacks, min is packet/not 1280.");
-	ASSERT_EQUALS(1400, min_mtu(0, 1400, 1500, 1501), "2 hacks, min is in/not 1280.");
-	ASSERT_EQUALS(1400, min_mtu(0, 1500, 1400, 1501), "2 hacks, min is out/not 1280.");
+	success &= assert_equals_u16(1400, min_mtu(0, 1500, 1500, 1401), "2 hacks, packet/not 1280");
+	success &= assert_equals_u16(1400, min_mtu(0, 1400, 1500, 1501), "2 hacks, in/not 1280");
+	success &= assert_equals_u16(1400, min_mtu(0, 1500, 1400, 1501), "2 hacks, out/not 1280");
 
-	// Revert the config, just in case.
+	// Fall through.
+revert:
 	config.improve_mtu_failure_rate = false;
-
-	return true;
+	return success;
 }
 #undef min_mtu
 
 static bool test_function_build_tos_field(void)
 {
 	__u8 ipv6_header[4]; // We don't really need the rest of the bytes.
+	bool success = true;
 
 	// version: 2 (Yes, it's not 6. Doesn't matter.)
 	// traffic class: ce
@@ -1082,21 +1112,22 @@ static bool test_function_build_tos_field(void)
 	ipv6_header[1] = 0xe3;
 	ipv6_header[2] = 0xc3;
 	ipv6_header[3] = 0xe0;
-	ASSERT_EQUALS(0xce, build_tos_field((struct ipv6hdr *) ipv6_header), "Simple.");
+	success &= assert_equals_u8(0xce, build_tos_field((struct ipv6hdr *) ipv6_header), "Simple");
 
-	return true;
+	return success;
 }
 
 static bool test_function_generate_ipv4_id_nofrag(void)
 {
 	struct ipv6hdr hdr;
 	__be16 attempt_1, attempt_2, attempt_3;
+	bool success = true;
 
 	hdr.payload_len = cpu_to_be16(4); // packet length is 44.
-	ASSERT_EQUALS(0, generate_ipv4_id_nofrag(&hdr), "Length < 88 bytes.");
+	success &= assert_equals_u16(0, generate_ipv4_id_nofrag(&hdr), "Length < 88 bytes");
 
 	hdr.payload_len = cpu_to_be16(48); // packet length is 88.
-	ASSERT_EQUALS(0, generate_ipv4_id_nofrag(&hdr), "Length = 88 bytes.");
+	success &= assert_equals_u16(0, generate_ipv4_id_nofrag(&hdr), "Length = 88 bytes");
 
 	hdr.payload_len = cpu_to_be16(500); // packet length is 540.
 	attempt_1 = generate_ipv4_id_nofrag(&hdr);
@@ -1104,47 +1135,53 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 	attempt_3 = generate_ipv4_id_nofrag(&hdr);
 	// At least one of the attempts should be nonzero,
 	// otherwise the random would be sucking major ****.
-	ASSERT_NOT_EQUALS(0, (attempt_1 | attempt_2 | attempt_3), "88 < Len < 1280.");
+	success &= assert_not_equals_u16(0, (attempt_1 | attempt_2 | attempt_3), "88 < Len < 1280");
 
 	hdr.payload_len = cpu_to_be16(1240); // packet length is 1280.
 	attempt_1 = generate_ipv4_id_nofrag(&hdr);
 	attempt_2 = generate_ipv4_id_nofrag(&hdr);
 	attempt_3 = generate_ipv4_id_nofrag(&hdr);
-	ASSERT_NOT_EQUALS(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1280.");
+	success &= assert_not_equals_u16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1280");
 
 	hdr.payload_len = cpu_to_be16(4000); // packet length is 4040.
-	ASSERT_EQUALS(0, generate_ipv4_id_nofrag(&hdr), "Len > 1280.");
+	success &= assert_equals_u16(0, generate_ipv4_id_nofrag(&hdr), "Len > 1280");
 
-	return true;
+	return success;
 }
 
 static bool test_function_generate_df_flag(void)
 {
 	struct ipv6hdr hdr;
+	bool success = true;
 
 	hdr.payload_len = cpu_to_be16(4); // packet length is 44.
-	ASSERT_EQUALS(1, generate_df_flag(&hdr), "Length < 88 bytes.");
+	success &= assert_equals_u16(1, generate_df_flag(&hdr), "Length < 88 bytes");
 
 	hdr.payload_len = cpu_to_be16(48); // packet length is 88.
-	ASSERT_EQUALS(1, generate_df_flag(&hdr), "Length = 88 bytes.");
+	success &= assert_equals_u16(1, generate_df_flag(&hdr), "Length = 88 bytes");
 
 	hdr.payload_len = cpu_to_be16(500); // packet length is 540.
-	ASSERT_EQUALS(0, generate_df_flag(&hdr), "88 < Len < 1280.");
+	success &= assert_equals_u16(0, generate_df_flag(&hdr), "88 < Len < 1280");
 
 	hdr.payload_len = cpu_to_be16(1240); // packet length is 1280.
-	ASSERT_EQUALS(0, generate_df_flag(&hdr), "Len = 1280.");
+	success &= assert_equals_u16(0, generate_df_flag(&hdr), "Len = 1280");
 
 	hdr.payload_len = cpu_to_be16(4000); // packet length is 4040.
-	ASSERT_EQUALS(1, generate_df_flag(&hdr), "Len > 1280.");
+	success &= assert_equals_u16(1, generate_df_flag(&hdr), "Len > 1280");
 
-	return true;
+	return success;
 }
 
 static bool test_function_build_ipv4_frag_off_field(void)
 {
-	ASSERT_EQUALS(0x407b, be16_to_cpu(build_ipv4_frag_off_field(1, 0, 123)), "Simple 1.");
-	ASSERT_EQUALS(0x2159, be16_to_cpu(build_ipv4_frag_off_field(0, 1, 345)), "Simple 2.");
-	return true;
+	bool success = true;
+
+	success &= assert_equals_u16(0x407b, be16_to_cpu(build_ipv4_frag_off_field(1, 0, 123)),
+			"Simple 1");
+	success &= assert_equals_u16(0x2159, be16_to_cpu(build_ipv4_frag_off_field(0, 1, 345)),
+			"Simple 2");
+
+	return success;
 }
 
 /**
@@ -1168,7 +1205,8 @@ static bool test_function_build_protocol_field(void)
 
 	// Just ICMP.
 	ip6_hdr->nexthdr = NEXTHDR_ICMP; // Leave everything else as trash. Don't need it.
-	ASSERT_EQUALS(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Just ICMP.");
+	if (!assert_equals_u8(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Just ICMP"))
+		goto failure;
 
 	// Skippable headers then ICMP.
 	ip6_hdr->nexthdr = NEXTHDR_HOP;
@@ -1185,16 +1223,18 @@ static bool test_function_build_protocol_field(void)
 	dest_options_hdr->nexthdr = NEXTHDR_ICMP;
 	dest_options_hdr->hdrlen = 2;
 
-	ASSERT_EQUALS(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Skippable headers then ICMP.");
+	if (!assert_equals_u8(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Skippable then ICMP"))
+		goto failure;
 
 	// Skippable headers then something else.
 	dest_options_hdr->nexthdr = NEXTHDR_TCP;
-	ASSERT_EQUALS(IPPROTO_TCP, build_protocol_field(ip6_hdr), "Skippable header then TCP.");
+	if (!assert_equals_u8(IPPROTO_TCP, build_protocol_field(ip6_hdr), "Skippable then TCP"))
+		goto failure;
 
 	kfree(ip6_hdr);
 	return true;
 
-failure: // TODO (test) no se está usando...
+failure:
 	kfree(ip6_hdr);
 	return false;
 }
@@ -1206,26 +1246,37 @@ static bool test_function_has_nonzero_segments_left(void)
 	struct frag_hdr *fragment_hdr;
 	__u32 offset;
 
+	bool success = true;
+
 	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + sizeof(*routing_hdr), GFP_ATOMIC);
 	if (!ip6_hdr) {
 		log_warning("Could not allocate a test packet.");
-		goto failure;
+		return false;
 	}
 
 	// No extension headers.
 	ip6_hdr->nexthdr = NEXTHDR_TCP;
-	ASSERT_EQUALS(false, has_nonzero_segments_left(ip6_hdr, &offset), "No extension headers.");
+	success &= assert_false(has_nonzero_segments_left(ip6_hdr, &offset), "No extension headers");
+
+	if (!success)
+		goto end;
 
 	// Routing header with nonzero segments left.
 	ip6_hdr->nexthdr = NEXTHDR_ROUTING;
 	routing_hdr = (struct ipv6_rt_hdr *) (ip6_hdr + 1);
 	routing_hdr->segments_left = 12;
-	ASSERT_EQUALS(true, has_nonzero_segments_left(ip6_hdr, &offset), "Nonzero left - result.");
-	ASSERT_EQUALS(40 + 3, offset, "Nonzero left - offset.");
+	success &= assert_true(has_nonzero_segments_left(ip6_hdr, &offset), "Nonzero left - result");
+	success &= assert_equals_u32(40 + 3, offset, "Nonzero left - offset");
+
+	if (!success)
+		goto end;
 
 	// Routing header with zero segments left.
 	routing_hdr->segments_left = 0;
-	ASSERT_EQUALS(false, has_nonzero_segments_left(ip6_hdr, &offset), "Zero left.");
+	success &= assert_false(has_nonzero_segments_left(ip6_hdr, &offset), "Zero left");
+
+	if (!success)
+		goto end;
 
 	// Fragment header, then routing header with nonzero segments left
 	// (further test the out parameter).
@@ -1234,39 +1285,44 @@ static bool test_function_has_nonzero_segments_left(void)
 	fragment_hdr->nexthdr = NEXTHDR_ROUTING;
 	routing_hdr = (struct ipv6_rt_hdr *) (fragment_hdr + 1);
 	routing_hdr->segments_left = 24;
-	ASSERT_EQUALS(true, has_nonzero_segments_left(ip6_hdr, &offset), "Two headers - result.");
-	ASSERT_EQUALS(40 + 8 + 3, offset, "Two headers - offset.");
+	success &= assert_true(has_nonzero_segments_left(ip6_hdr, &offset), "Two headers - result");
+	success &= assert_equals_u32(40 + 8 + 3, offset, "Two headers - offset");
 
+	// Fall through.
+end:
 	kfree(ip6_hdr);
-	return true;
-
-failure:
-	kfree(ip6_hdr);
-	return false;
+	return success;
 }
 
 static bool test_function_generate_ipv4_id_dofrag(void)
 {
 	struct frag_hdr fragment_hdr;
+	bool success = true;
 
 	fragment_hdr.identification = 0;
-	ASSERT_EQUALS(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)), "Simplest id.");
+	success &= assert_equals_u16(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
+			"Simplest id");
 
 	fragment_hdr.identification = cpu_to_be32(0x0000abcd);
-	ASSERT_EQUALS(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)), "No overflow.");
+	success &= assert_equals_u16(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
+			"No overflow");
 
 	fragment_hdr.identification = cpu_to_be32(0x12345678);
-	ASSERT_EQUALS(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)), "Overflow.");
+	success &= assert_equals_u16(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
+			"Overflow");
 
-	return true;
+	return success;
 }
 
 static bool test_function_icmp4_minimum_mtu(void)
 {
-	ASSERT_EQUALS(2, be16_to_cpu(icmp4_minimum_mtu(2, 4, 6)), "First is min.");
-	ASSERT_EQUALS(8, be16_to_cpu(icmp4_minimum_mtu(10, 8, 12)), "Second is min.");
-	ASSERT_EQUALS(14, be16_to_cpu(icmp4_minimum_mtu(16, 18, 14)), "Third is min.");
-	return true;
+	bool success = true;
+
+	success &= assert_equals_u16(2, be16_to_cpu(icmp4_minimum_mtu(2, 4, 6)), "First is min");
+	success &= assert_equals_u16(8, be16_to_cpu(icmp4_minimum_mtu(10, 8, 12)), "Second is min");
+	success &= assert_equals_u16(14, be16_to_cpu(icmp4_minimum_mtu(16, 18, 14)), "Third is min");
+
+	return success;
 }
 
 static bool test_4to6_translation_simple_udp(void)
@@ -1274,6 +1330,7 @@ static bool test_4to6_translation_simple_udp(void)
 	return translate(build_ip4_hdr_udp,
 			build_l3_payload_udp,
 			get_ip6_tuple,
+			nat64_translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_udp_nofrag,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_udp);
@@ -1284,6 +1341,7 @@ static bool test_4to6_translation_simple_tcp(void)
 	return translate(build_ip4_hdr_tcp,
 			build_l3_payload_tcp,
 			get_ip6_tuple,
+			nat64_translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_tcp_nofrag,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_tcp);
@@ -1294,6 +1352,7 @@ static bool test_4to6_translation_simple_icmp(void)
 	return translate(build_ip4_hdr_icmp4,
 			build_l3_payload_icmp4,
 			get_ip6_tuple,
+			nat64_translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_icmp_nofrag,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp6_simple);
@@ -1304,6 +1363,7 @@ static bool test_4to6_translation_fragment(void)
 	return translate(build_ip4_hdr_fragment,
 			build_l3_payload_udp,
 			get_ip6_tuple,
+			nat64_translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_udp_dofrag,
 			validate_ip6_frag_hdr_dofrag,
 			validate_l3_payload_udp);
@@ -1314,6 +1374,7 @@ static bool test_4to6_translation_embedded(void)
 	return translate(build_ip4_hdr_icmp4_embedded,
 			build_l3_payload_icmp4_embedded,
 			get_ip6_tuple,
+			nat64_translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_icmp_embedded,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp6_embedded);
@@ -1324,6 +1385,7 @@ static bool test_6to4_translation_simple_udp(void)
 	return translate(build_ip6_hdr_udp,
 			build_l3_payload_udp,
 			get_ip4_tuple,
+			nat64_translating_the_packet_6to4,
 			validate_ip4_hdr_udp,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_udp);
@@ -1334,6 +1396,7 @@ static bool test_6to4_translation_simple_tcp(void)
 	return translate(build_ip6_hdr_tcp,
 			build_l3_payload_tcp,
 			get_ip4_tuple,
+			nat64_translating_the_packet_6to4,
 			validate_ip4_hdr_tcp,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_tcp);
@@ -1344,6 +1407,7 @@ static bool test_6to4_translation_simple_icmp(void)
 	return translate(build_ip6_hdr_icmp,
 			build_l3_payload_icmp6,
 			get_ip4_tuple,
+			nat64_translating_the_packet_6to4,
 			validate_ip4_hdr_icmp4,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp4_simple);
@@ -1354,6 +1418,7 @@ static bool test_6to4_translation_fragment(void)
 	return translate(build_ip6_hdr_fragment,
 			build_l3_payload_udp,
 			get_ip4_tuple,
+			nat64_translating_the_packet_6to4,
 			validate_ip4_hdr_fragment,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_udp);
@@ -1364,6 +1429,7 @@ static bool test_6to4_translation_embedded(void)
 	return translate(build_ip6_hdr_embedded,
 			build_l3_payload_icmp6_embedded,
 			get_ip4_tuple,
+			nat64_translating_the_packet_6to4,
 			validate_ip4_hdr_embedded,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp4_embedded);

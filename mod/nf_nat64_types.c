@@ -19,6 +19,7 @@ bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 	return true;
 }
 
+// TODO (info) usar la del kernel?
 bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
 {
 	int i;

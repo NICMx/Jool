@@ -33,7 +33,7 @@ bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tupl
 		goto free_and_fail;
 	if (!nat64_determine_outgoing_tuple_4to6(tuple_in, &tuple_out))
 		goto free_and_fail;
-	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
+	if (!nat64_translating_the_packet_4to6(tuple_out, skb_in, &skb_out))
 		goto free_and_fail;
 	if (!nat64_send_packet_ipv6(skb_out))
 		goto fail;

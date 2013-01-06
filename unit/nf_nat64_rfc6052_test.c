@@ -61,9 +61,7 @@ bool test_extract_ipv4(char* ipv6_as_string, int prefix_len)
 	}
 
 	actual = nat64_extract_ipv4(&ipv6, prefix_len);
-	ASSERT_EQUALS_IPV4(expected, actual, "Extract IPv4.")
-
-	return true;
+	return assert_equals_ipv4(&expected, &actual, "Extract IPv4.");
 }
 
 bool test_append_ipv4(char* expected_as_string, char* prefix_as_string, int prefix_len)
@@ -86,14 +84,7 @@ bool test_append_ipv4(char* expected_as_string, char* prefix_as_string, int pref
 	}
 
 	actual = nat64_append_ipv4(&prefix, &ipv4, prefix_len);
-
-	if (!ipv6_addr_equals(&expected, &actual)) {
-		log_warning("Test failed: %s Expected: %pI6c. Actual: %pI6c.",
-				"Append IPv4.", &expected, &actual);
-		return false;
-	}
-
-	return true;
+	return assert_equals_ipv6(&expected, &actual, "Append IPv4.");
 }
 
 int init_module(void)
@@ -103,12 +94,12 @@ int init_module(void)
 
 	// test the extract function.
 	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_extract_ipv4(arr_ipv6[i], pref[i]), arr_ipv6[i]);
+		CALL_TEST(test_extract_ipv4(arr_ipv6[i], pref[i]), "Extract-%s", arr_ipv6[i]);
 	}
 
 	// Test the append function.
 	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_append_ipv4(arr_ipv6[i], prefix[i], pref[i]), arr_ipv6[i]);
+		CALL_TEST(test_append_ipv4(arr_ipv6[i], prefix[i], pref[i]), "Append-%s", arr_ipv6[i]);
 	}
 
 	END_TESTS;

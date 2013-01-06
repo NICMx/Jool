@@ -1,64 +1,40 @@
-/*
- * Macros to be used by test methods.
- */
+#ifndef UNIT_TEST_H_
+#define UNIT_TEST_H_
 
-#define ASSERT_AUX(expected, actual, printable_expected, printable_actual, specifier, test_name) \
-	if ((expected) != (actual)) { \
-		log_warning("Test failed: %s Expected: " specifier ". Actual: " specifier ".", \
-				test_name, printable_expected, printable_actual); \
-		return false; \
-	}
-#define ASSERT_NOT_AUX(expected, actual, print_expected, print_actual, specifier, test_name) \
-	if ((expected) == (actual)) { \
-		log_warning("Test failed: %s Expected: not " specifier ". Actual: " specifier ".", \
-				test_name, print_expected, print_actual); \
-		return false; \
-	}
-#define ASSERT_EQUALS_IPV6(expected, actual, test_name) \
-	if (!ipv6_addr_equals(&(expected), &(actual))) { \
-		log_warning("Test failed: %s Expected: %pI6c. Actual: %pI6c.", \
-				test_name, &(expected), &(actual)); \
-		return false; \
-	}
-
-#define ASSERT_EQUALS(expected, actual, test_name) \
-	ASSERT_AUX(expected, actual, expected, actual, "%d", test_name)
-#define ASSERT_EQUALS_PTR(expected, actual, test_name) \
-	ASSERT_AUX(expected, actual, expected, actual, "%p", test_name)
-#define ASSERT_EQUALS_IPV4(expected, actual, test_name) \
-	ASSERT_AUX(expected.s_addr, actual.s_addr, &expected, &actual, "%pI4", test_name)
-#define ASSERT_NULL(actual, test_name) \
-	ASSERT_AUX(NULL, actual, NULL, actual, "%p", test_name)
-
-#define ASSERT_NOT_NULL(actual, test_name) \
-	ASSERT_NOT_AUX(NULL, actual, NULL, actual, "%p", test_name)
-#define ASSERT_NOT_EQUALS(expected, actual, test_name) \
-	ASSERT_NOT_AUX(expected, actual, expected, actual, "%d", test_name)
-#define ASSERT_NOT_EQUALS_IPV4(expected, actual, test_name) \
-	ASSERT_AUX(expected.s_addr, actual.s_addr, &expected, &actual, "%pI4", test_name)
+#include "nf_nat64_types.h"
 
 
+bool assert_true(bool condition, char *test_name);
+bool assert_equals_int(int expected, int actual, char *test_name);
+bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name);
+bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name);
+bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name);
+bool assert_equals_ptr(void *expected, void *actual, char *test_name);
+bool assert_equals_ipv4(struct in_addr *expected, struct in_addr *actual, char *test_name);
+bool assert_equals_ipv6(struct in6_addr *expected, struct in6_addr *actual, char *test_name);
+bool assert_null(void *actual, char *test_name);
 
+bool assert_false(bool condition, char *test_name);
+bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name);
+bool assert_not_equals_ptr(void *expected, void *actual, char *test_name);
+bool assert_not_null(void *actual, char *test_name);
 
-#define END_TEST \
-	return 0
 
 /**
- * Macros to be used by the main function.
+ * Macros to be used by the main test function.
  */
-
 #define START_TESTS(module_name)	\
 	int test_counter = 0;			\
 	int failure_counter = 0;		\
 	log_info("Module '%s': Starting tests...", module_name)
 
-#define CALL_TEST(test, test_name)									\
-	log_info("Test '%s': Starting...", test_name);					\
+#define CALL_TEST(test, test_name, ...)								\
+	log_info("Test '" test_name "': Starting...", ##__VA_ARGS__);	\
 	test_counter++;													\
 	if (test) {														\
-		log_info("Test '%s': Success.", test_name);					\
+		log_info("Test '" test_name "': Success.", ##__VA_ARGS__);	\
 	} else {														\
-		log_info("Test '%s': Failure.", test_name);					\
+		log_info("Test '" test_name "': Failure.", ##__VA_ARGS__);	\
 		failure_counter++;											\
 	}
 #define INIT_CALL_END(init_function, test_function, end_function, test_name)	\
@@ -66,7 +42,9 @@
 		return -EINVAL;															\
 	CALL_TEST(test_function, test_name)											\
 	end_function
-
 #define END_TESTS \
 	log_info("Finished. Runs: %d; Errors: %d", test_counter, failure_counter); \
 	return (failure_counter > 0) ? -EINVAL : 0;
+
+
+#endif /* UNIT_TEST_H_ */

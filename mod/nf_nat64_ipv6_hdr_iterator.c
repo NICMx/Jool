@@ -7,49 +7,40 @@
 
 bool is_extension_hdr(__u8 header_id)
 {
-	return (header_id == NEXTHDR_HOP) //
-			|| (header_id == NEXTHDR_ROUTING) //
-			|| (header_id == NEXTHDR_FRAGMENT) //
-			|| (header_id == NEXTHDR_DEST) //
-			|| (header_id == NEXTHDR_AUTH) //
+	return (header_id == NEXTHDR_HOP)
+			|| (header_id == NEXTHDR_ROUTING)
+			|| (header_id == NEXTHDR_FRAGMENT)
+			|| (header_id == NEXTHDR_DEST)
+			|| (header_id == NEXTHDR_AUTH)
 			|| (header_id == NEXTHDR_ESP);
 }
 
-// TODO creo que deberías recibir el tamaño del payload o del paquete, para que no te pases.
 void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr)
 {
 	struct hdr_iterator defaults = HDR_ITERATOR_INIT(main_hdr);
-	iterator->hdr_type = defaults.hdr_type;
-	iterator->data = defaults.data;
+	memcpy(iterator, &defaults, sizeof(defaults));
 }
 
-bool hdr_iterator_next(struct hdr_iterator *iterator)
+enum hdr_iterator_result hdr_iterator_next(struct hdr_iterator *iterator)
 {
-	if (iterator->hdr_type != -1 && !is_extension_hdr(iterator->hdr_type))
-		return false;
+	__u8 original_hdr_type = iterator->hdr_type;
+	void *original_data = iterator->data;
 
 	switch (iterator->hdr_type) {
-	case -1: {
-		struct ipv6hdr *hdr = iterator->data;
-		iterator->hdr_type = hdr->nexthdr;
-		iterator->data += sizeof(*hdr);
-		return true;
-	}
-
 	case NEXTHDR_HOP:
 	case NEXTHDR_ROUTING:
 	case NEXTHDR_DEST: {
 		struct ipv6_opt_hdr *hdr = iterator->data;
 		iterator->hdr_type = hdr->nexthdr;
 		iterator->data += 8 + 8 * hdr->hdrlen;
-		return true;
+		break;
 	}
 
 	case NEXTHDR_FRAGMENT: {
 		struct frag_hdr *hdr = iterator->data;
 		iterator->hdr_type = hdr->nexthdr;
 		iterator->data += sizeof(*hdr);
-		return true;
+		break;
 	}
 
 	case NEXTHDR_AUTH:
@@ -57,17 +48,29 @@ bool hdr_iterator_next(struct hdr_iterator *iterator)
 		// I understand we're not supposed to support these (RFC 6146 section 5.1).
 		// If exthdrs_core.c is updated in kernel 3.5.0, the kernel doesn't support them either.
 		// I also don't understand how am I supposed to know the ESP header's length.
-		return false;
+		return HDR_ITERATOR_UNSUPPORTED;
+
+	default:
+		return HDR_ITERATOR_END;
 	}
 
-	log_crit("hdr_iterator_next - Programming error: Unknown hdr: %d.", iterator->hdr_type);
-	return false;
+	if (iterator->data >= iterator->limit) {
+		iterator->hdr_type = original_hdr_type;
+		iterator->data = original_data;
+		return HDR_ITERATOR_OVERFLOW;
+	}
+
+	return HDR_ITERATOR_SUCCESS;
 }
 
-void hdr_iterator_last(struct hdr_iterator *iterator)
+enum hdr_iterator_result hdr_iterator_last(struct hdr_iterator *iterator)
 {
-	while (hdr_iterator_next(iterator))
+	enum hdr_iterator_result result;
+
+	while ((result = hdr_iterator_next(iterator)) == HDR_ITERATOR_SUCCESS)
 		/* Void on purpose. */;
+
+	return result;
 }
 
 void *get_extension_header(struct ipv6hdr *ip6_hdr, __u8 hdr_id)
@@ -77,9 +80,10 @@ void *get_extension_header(struct ipv6hdr *ip6_hdr, __u8 hdr_id)
 	if (!is_extension_hdr(hdr_id))
 		return NULL;
 
-	while (hdr_iterator_next(&iterator))
+	do {
 		if (iterator.hdr_type == hdr_id)
 			return iterator.data;
+	} while (hdr_iterator_next(&iterator) == HDR_ITERATOR_SUCCESS);
 
 	return NULL;
 }

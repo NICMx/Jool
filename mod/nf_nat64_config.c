@@ -206,8 +206,6 @@ void write_message(char *msg, struct manconf_struct *mst, struct answer_struct *
 	memcpy((*as) + 1, msg, strlen(msg) + 1);
 }
 
-// TODO (miguel) esta función se pasa de larga y switch dentro de switch genera demasiado whitespace
-// a la izquierda; por favor fragmenta...
 int update_nat_config(struct manconf_struct *mst, struct answer_struct **as, __u32 *as_len)
 {
 	unsigned char i = 0;

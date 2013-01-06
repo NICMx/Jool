@@ -23,7 +23,7 @@
 // /home/aleiva/Desktop/Nat64/xtables-addons-1.47.1/extensions/xt_ECHO.c
 
 // TODO (send) estamos linearizando el paquete de entrada?
-// TODO (monday) hay que probar la nueva cara de esto.
+// TODO (test) hay que probar la nueva cara de esto.
 
 //static bool tuple_to_flowi6(struct nf_conntrack_tuple *tuple, struct flowi6 *fl)
 //{

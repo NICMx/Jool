@@ -20,6 +20,7 @@
 
 unsigned int nat64_core(struct sk_buff *skb_in,
 		bool (*determine_outgoing_tuple_fn)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple **),
+		bool (*translate_packet_fn)(struct nf_conntrack_tuple *, struct sk_buff *, struct sk_buff **),
 		bool (*send_packet_fn)(struct sk_buff *))
 {
 	struct sk_buff *skb_out = NULL;
@@ -31,7 +32,7 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 		goto free_and_fail;
 	if (!determine_outgoing_tuple_fn(tuple_in, &tuple_out))
 		goto free_and_fail;
-	if (!nat64_translating_the_packet(tuple_out, skb_in, &skb_out))
+	if (!translate_packet_fn(tuple_out, skb_in, &skb_out))
 		goto free_and_fail;
 	if (nat64_got_hairpin(tuple_out)) {
 		if (!nat64_handling_hairpinning(skb_out, tuple_out))
@@ -47,6 +48,7 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 
 free_and_fail:
 	kfree_skb(skb_out);
+	// Fall through.
 
 fail:
 	log_debug("Failure.");
@@ -77,12 +79,13 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 	// Set the skb's transport header pointer.
 	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
-	// And despite that, we'll need it.
+	// And despite that, its availability will be appreciated.
 	skb_set_transport_header(skb, 4 * ip_hdr(skb)->ihl);
 
 	return nat64_core(skb,
-			&nat64_determine_outgoing_tuple_4to6,
-			&nat64_send_packet_ipv6);
+			nat64_determine_outgoing_tuple_4to6,
+			nat64_translating_the_packet_4to6,
+			nat64_send_packet_ipv6);
 
 failure:
 	return NF_ACCEPT;
@@ -92,34 +95,82 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct ipv6hdr *ip6_header = ipv6_hdr(skb);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_header);
+	enum hdr_iterator_result iterator_result;
 	__u8 l4protocol;
-
-	hdr_iterator_last(&iterator);
-	l4protocol = iterator.hdr_type;
 
 	log_debug("===============================================");
 	log_debug("Incoming IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
 
+	// Validate.
 	if (!nf_nat64_ipv6_pool_contains_addr(&ip6_header->daddr)) {
 		log_info("Packet is not destined to me.");
 		goto failure;
 	}
 
-	// TODO (warning) add header validations?
+	iterator_result = hdr_iterator_last(&iterator);
+	switch (iterator_result) {
+	case HDR_ITERATOR_SUCCESS:
+		log_crit("Programming error: I was supposed to reach the packet's payload, "
+				"but iterator reports there are more headers left. o_o");
+		goto failure;
+	case HDR_ITERATOR_END:
+		l4protocol = iterator.hdr_type;
+		break;
+	case HDR_ITERATOR_UNSUPPORTED:
+		log_info("Packet contains an Authentication or ESP header, which I do not support.");
+		goto failure;
+	case HDR_ITERATOR_OVERFLOW:
+		log_warning("IPv6 extension header analysis ran past the end of the packet. "
+				"Packet seems corrupted; ignoring.");
+		goto failure;
+	default:
+		log_crit("Unknown header iterator result code: %d.", iterator_result);
+		goto failure;
+	}
 
-	if (l4protocol != NEXTHDR_TCP && l4protocol != NEXTHDR_UDP && l4protocol != NEXTHDR_ICMP) {
+	switch (l4protocol) {
+	case NEXTHDR_TCP:
+		if (iterator.data + tcp_hdrlen(skb) > iterator.limit) {
+			log_warning("TCP header does not fit in the packet. Packet seems corrupted; ignoring.");
+			goto failure;
+		}
+		break;
+
+	case NEXTHDR_UDP: {
+		struct udphdr *hdr = iterator.data;
+		if (iterator.data + sizeof(struct udphdr) > iterator.limit) {
+			log_warning("UDP header does not fit in the packet. Packet seems corrupted; ignoring.");
+			goto failure;
+		}
+		if (iterator.data + be16_to_cpu(hdr->len) > iterator.limit) {
+			log_warning("UDP header + payload do not fit in the packet. Packet seems corrupted; ignoring.");
+			goto failure;
+		}
+		break;
+	}
+
+	case NEXTHDR_ICMP: {
+		if (iterator.data + sizeof(struct icmp6hdr) > iterator.limit) {
+			log_warning("ICMP header does not fit in the packet. Packet seems corrupted; ignoring.");
+			goto failure;
+		}
+		break;
+	}
+
+	default:
 		log_info("Packet does not use TCP, UDP or ICMPv6.");
 		goto failure;
 	}
 
 	// Set the skb's transport header pointer.
 	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
-	// And despite that, we'll need it.
+	// And despite that, its availability will be appreciated.
 	skb_set_transport_header(skb, iterator.data - (void *) ip6_header);
 
 	return nat64_core(skb,
-			&nat64_determine_outgoing_tuple_6to4,
-			&nat64_send_packet_ipv4);
+			nat64_determine_outgoing_tuple_6to4,
+			nat64_translating_the_packet_6to4,
+			nat64_send_packet_ipv4);
 
 failure:
 	return NF_ACCEPT;

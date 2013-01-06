@@ -1,3 +1,57 @@
+/**
+ * Assumes that "l3_hdr" points to a ipv6hdr, and returns its size, extension headers included.
+ */
+static __u16 compute_ipv6_hdr_len(void *l3_hdr)
+{
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) l3_hdr);
+	hdr_iterator_last(&iterator);
+	return iterator.data - l3_hdr;
+}
+
+/**
+ * Initializes "in" using the data from "tuple", "skb_in", and the assumption that we're translating
+ * from 6 to 4.
+ */
+static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff *skb_in,
+				struct packet_in *in)
+{
+	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb_in);
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
+
+	in->packet = skb_in;
+	in->tuple = tuple;
+
+	in->l3_hdr = ip6_hdr;
+	in->l3_hdr_type = IPPROTO_IPV6;
+	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
+	in->l3_hdr_basic_len = sizeof(*ip6_hdr);
+	in->compute_l3_hdr_len = compute_ipv6_hdr_len;
+
+	hdr_iterator_last(&iterator);
+	in->l4_hdr_type = iterator.hdr_type;
+	switch (in->l4_hdr_type) {
+	case NEXTHDR_TCP:
+		in->l4_hdr_len = tcp_hdrlen(skb_in);
+		break;
+	case NEXTHDR_UDP:
+		in->l4_hdr_len = sizeof(struct udphdr);
+		break;
+	case NEXTHDR_ICMP:
+		in->l4_hdr_len = sizeof(struct icmp6hdr);
+		break;
+	default:
+		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
+		return false;
+	}
+
+	in->payload = iterator.data + in->l4_hdr_len;
+	in->payload_len = be16_to_cpu(ip6_hdr->payload_len) //
+			- (in->l3_hdr_len - sizeof(*ip6_hdr)) //
+			- in->l4_hdr_len;
+
+	return true;
+}
+
 /*************************************************************************************************
  * -- Layer 3 --
  * (This is RFC 6145 sections 5.1 and 5.1.1. Translates IPv6 headers to IPv4.)
@@ -59,7 +113,6 @@ static __be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragment
 static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_header);
-	hdr_iterator_next(&iterator);
 
 	// Skip stuff that does not exist in IPv4.
 	while (iterator.hdr_type == NEXTHDR_HOP

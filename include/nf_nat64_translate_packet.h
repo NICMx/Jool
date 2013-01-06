@@ -175,80 +175,23 @@ struct packet_out
 #define INIT_PACKET_OUT { 0, 0, NULL, 0, 0, NULL, 0, NULL, false, NULL }
 
 /**
- * The sequence of functions "Translating the Packet" will execute to do its job.
- * Which functions are set depend on whether we're going from 4 to 6 or 6 to 4 and whether the
- * datagram is a TCP, UDP or ICMP one.
- */
-struct pipeline
-{
-	/**
-	 * The function that will translate the layer-3 header.
-	 * Its purpose if to set the variables from "out" which are prefixed by "l3_", based on the
-	 * packet described by "in".
-	 *
-	 * @param in packet being translated.
-	 * @param out packet being created. When this function hits the scene, this structure is
-	 *			completely empty.
-	 * @return "true" on success, "false" on failure.
-	 */
-	bool (*l3_hdr_function)(struct packet_in *in, struct packet_out *out);
-	/**
-	 * The function that will translate the layer-4 header and the payload. Layer 4 and payload are
-	 * combined in a single function due to their strong interdependence.
-	 * Its purpose is to set the variables from "out" which are prefixed by "l4_" or "payload",
-	 * based on the packet described by "in".
-	 *
-	 * @param in packet being translated.
-	 * @param out packet being created. When this function hits the scene, "out"'s "l3_*" fields
-	 *			have already been set, in case you can benefit from using them.
-	 * @return "true" on success, "false" on failure.
-	 */
-	bool (*l4_hdr_and_payload_function)(struct packet_in *in, struct packet_out *out);
-	/**
-	 * The function that will merge "out.l3_hdr", "out.l4_hdr" and "out.payload" into a sk_buff.
-	 * Its purpose is to set the "out.packet" variable.
-	 *
-	 * @param in packet being translated.
-	 * @param out packet being created. When this function hits the scene, the only field from "out"
-	 *			that hasn't been set is "out.packet".
-	 * @return "true" on success, "false" on failure.
-	 */
-	bool (*create_skb_function)(struct packet_out *out);
-	/**
-	 * Post-processing involving the layer 3 header.
-	 *
-	 * Currently, this function fixes the header's lengths and checksum, which cannot be done in the
-	 * functions above given that they generally require the packet to be assembled and ready.
-	 * Not all lengths and checksums have that requirement, but just to be consistent do it always
-	 * here, please.
-	 *
-	 * @param out outgoing packet to do the post-processing on. Note, out.l3_hdr, out.l4_hdr and
-	 *			out.payload point to garbage given that the packet has already been assembled.
-	 *			When you want to access the headers, use out.packet.
-	 * @return "true" on success, "false" on failure.
-	 */
-	bool (*l3_post_function)(struct packet_out *out);
-	/**
-	 * Post-processing involving the layer 4 header. See pipeline.l3_post_function.
-	 *
-	 * @param out same as pipeline.l3_post_function.out.
-	 * @return "true" on success, "false" on failure.
-	 */
-	bool (*l4_post_function)(struct packet_out *out);
-};
-
-
-/**
- * The core function of this submodule.
- * If "skb_in" is a IPv4 packet, creates a IPv6 equivalent and stores it in "*skb_out".
- * If "skb_in" is a IPv6 packet, creates a IPv4 equivalent and stores it in "*skb_out".
+ * Assumes "skb_in" is a IPv4 packet, and stores a IPv6 equivalent in "skb_out".
  *
  * @param tuple translated addresses from "skb_in".
  * @param skb_in the incoming packet.
  * @param skb_out out parameter, where the outgoing packet will be placed.
  */
-bool nat64_translating_the_packet(struct nf_conntrack_tuple *tuple, struct sk_buff *skb_in,
-		struct sk_buff **skb_out);
+bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
+		struct sk_buff *skb_in, struct sk_buff **skb_out);
+/**
+ * Assumes "skb_in" is a IPv6 packet, and stores a IPv4 equivalent in "skb_out".
+ *
+ * @param tuple translated addresses from "skb_in".
+ * @param skb_in the incoming packet.
+ * @param skb_out out parameter, where the outgoing packet will be placed.
+ */
+bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
+		struct sk_buff *skb_in, struct sk_buff **skb_out);
 
 /**
  * Interprets in.payload as an independent packet, translates its layer 3 header (using

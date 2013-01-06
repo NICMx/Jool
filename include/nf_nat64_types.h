@@ -91,7 +91,7 @@ struct ipv6_tuple_address
 };
 
 /** A "tuple address" is the identifier of an endpoint of a connection. */
-// TODO me parece que la existencia de esto no está justificada.
+// TODO (info) me parece que la existencia de esto no está justificada.
 union tuple_address {
 	struct ipv4_tuple_address ipv4;
 	struct ipv6_tuple_address ipv6;
