@@ -16,6 +16,7 @@
 
 IMPORTANT:
 	Project still under construction.
+	Please send improvements, complaints and corrections to aleiva@nic.mx.
 
 Authors:
 	NIC-Mx representatives
@@ -48,8 +49,9 @@ Module Dependencies (modprobe):
 	nf_conntrack_ipv4
 
 Directories:
-	/bin : Makefile and the binaries it will generate.
+	/bin : The kernel module's makefile and the binaries it will generate.
 	/doc : Code documentation; Doxygen output.
+	/etc : The userspace application's implementation code.
 	/include : Header files.
 	/mod : The kernel module's implementation code.
 	/unit : Unit tests.

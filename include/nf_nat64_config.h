@@ -162,9 +162,15 @@ struct answer_struct {
 extern struct configuration config;
 extern struct config_struct cs;
 
+/**
+ * Initializes this module. Sets default values for the entire configuration.
+ *
+ * @return "true" if initialization was successful, "false" otherwise.
+ */
 bool nat64_config_init(void);
+/**
+ * Terminates this module. Deletes any memory left on the heap.
+ */
 void nat64_config_destroy(void);
-
-int update_nat_config(struct manconf_struct *mst, struct answer_struct **as, __u32 *as_len);
 
 #endif /* NF_NAT64_CONFIG_H_ */
