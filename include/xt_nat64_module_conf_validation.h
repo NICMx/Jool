@@ -34,6 +34,10 @@
 #define IPV6_SIZE_UINT32_BITS	32 // Each int is 32-bits long
 
 
+int addr_has_pref64( struct in6_addr *addr );
+
+int addr_in_pool( struct in_addr *addr );
+
 int get_net_addr_from_netmask_bits(int af, void *addr, unsigned char netmask_bits, void *net);
 
 int convert_bits_to_netmask(int af, unsigned char bits, void *net);

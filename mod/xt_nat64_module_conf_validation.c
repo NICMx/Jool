@@ -10,7 +10,6 @@
  * @param[in]  addr	IPv6 Address
  * @return	TRUE if it has a valid prefix, FALSE otherwise.
  * */
-/*
 int addr_has_pref64( struct in6_addr *addr )
 {
     struct in6_addr pref6;
@@ -28,14 +27,12 @@ int addr_has_pref64( struct in6_addr *addr )
     
     return false;
 }
-*/
 
 /**	Checks if an IPv4 address belongs to the IPv4 pool.
  *
  * @param[in]  addr	IPv4 Address
  * @return	TRUE if it is inside the pool network, FALSE otherwise.
  * */
-/*
 int addr_in_pool( struct in_addr *addr )
 {
     struct in_addr net;
@@ -48,7 +45,7 @@ int addr_in_pool( struct in_addr *addr )
     
     return true;
 }
-*/
+
 
 /** Validate the network mask in the CIDR format '/n'.
  *

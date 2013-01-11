@@ -118,6 +118,8 @@ bool nat64_add_session_entry(struct session_entry *entry)
 		return false;
 	}
 
+	/* FIXME:	Function tcp_closed_state_handle() requires the insertion of a session entry
+	 * 			without a bib entry	( entry->bib == NULL )	*/
 	// Insert into the linked lists.
 	list_add(&entry->entries_from_bib, &entry->bib->session_entries);
 	list_add(&entry->all_sessions, &all_sessions);
@@ -167,7 +169,6 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 	}
 }
 
-// TODO (later) nadie está usando esta función.
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 {
 	struct ipv4_table *table;

@@ -72,6 +72,8 @@ struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address
  */
 struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
 		u_int8_t l4protocol);
+// TODO (alberto) crea esta función.
+struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.

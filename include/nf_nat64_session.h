@@ -49,6 +49,11 @@ struct session_entry
 	 * Used to know which table the session should be removed from when expired.
 	 */
 	u_int8_t l4protocol;
+
+	/** Current TCP state.
+	 * 	Each STE represents a state machine
+	 */
+	u_int8_t current_state;
 };
 
 /**
@@ -105,11 +110,11 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
 
 /**
  * Normally looks ups an entry, except it ignores "tuple"'s source port.
- * As there may be more than one such entry, it returns any of them.
+ * Returns "true" if such an entry could be found, "false" otherwise.
  *
  * The name comes from the fact that this functionality serves no purpose other than determining
  * whether a packet should be allowed through or not.
- * Also, it's somewhat abbreviated. The RFC calls it "address independent filtering".
+ * Also, it's somewhat abbreviated. The RFC calls it "address independent filtering". TODO (warning) revisa ese término.
  *
  * Only works while translating from IPv4 to IPv6. Behavior is undefined otherwise.
  *
