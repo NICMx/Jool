@@ -1,67 +1,80 @@
 #ifndef _NF_NAT64_IPV4_POOL_H
 #define _NF_NAT64_IPV4_POOL_H
 
-#include <linux/slab.h>
-#include <linux/inet.h>
+/**
+ * @file
+ * The pool of IPv4 addresses (and their ports).
+ */
+
 #include "nf_nat64_types.h"
-#include "nf_nat64_config.h"
 
+// TODO recuerda revisar be's vs u's.
 
-// TODO (ramiro) quitar tipos dependientes de arquitectura.
-// TODO (ramiro) quitar globales que no se usan.
-// TODO (ramiro) poner 64k de puertos.
-
-struct transport_addr_struct
-{
-	struct in_addr address;
-	__u16 port;
-	struct list_head list;
-};
 
 /**
- * TODO (ramiro) tiene aritmética que incluye big endian.
+ * Readies the rest of this module for future use.
  *
+ * @param "true" if the initialization was successful, false otherwise.
  */
-struct transport_addr_struct *get_udp_transport_addr(void);
-struct transport_addr_struct *get_tcp_transport_addr(void);
-struct transport_addr_struct *get_icmp_transport_addr(void);
-
-void return_udp_transport_addr(struct transport_addr_struct *transport_addr);
-void return_tcp_transport_addr(struct transport_addr_struct *transport_addr);
-void return_icmp_transport_addr(struct transport_addr_struct *transport_addr);
-
-void display(int num);
-
+bool pool4_init(void);
 /**
- * Just like the gets above, except it stores the resulting address and port in "result" as a tuple
- * address, instead of returning it as a transport address.
- *
- * TODO (ramiro) el código está repetido 3 veces, y debería referenciar a los gets de arriba.
- * TODO (ramiro) pi no se usa.
- *
- * @param protocol Which protocol pool should we look the address in?
- * @param result will be filled with the new transport address obtained from the "protocol"'s pool.
- * @return true if an address could be extracted from the pool, false otherwise.
+ * Frees resources allocated by the pool.
  */
-bool ipv4_pool_get_new_transport_address(u_int8_t protocol, __be16 pi,
-		struct ipv4_tuple_address *result);
+void pool4_destroy(void);
 
 /**
- * Reserves the "new_ipv4_transport_address". It's like the gets above, except the caller decides
- * which address and port it wants.
- *
- * Returns whether the "new_ipv4_transport_address" could be reserved.
- *
- * TODO (ramiro) falta la parte de reservar; solamente está regresando si la dirección está ocupada
- * o no.
- * TODO (ramiro) si nunca se han sacado puertos para la dirección "address", va a tronar porque no
- * valida que su port list exista a pesar de que usa lazy init.
- * TODO (ramiro) el código está repetido 3 veces.
+ * Inserts the "address" address (along with its 64k ports) into the "l4protocol" pool.
+ * These elements will then become borrowable through the pool_get_* functions.
  */
-bool allocate_given_ipv4_transport_address(uint16_t protocol, struct ipv4_tuple_address * result);
+bool pool4_register(u_int8_t l4protocol, struct in_addr *address);
+/**
+ * Removes the "address" address (along with its 64k ports) from the "l4_protocol" pool.
+ * If something was borrowed (not in the pool at the moment) it will be erased later, when the pool
+ * retrieves it.
+ */
+bool pool4_remove(u_int8_t l4protocol, struct in_addr *address);
 
 /**
- * TODO (ramiro) está usando __be's que deberían ser u's.
+ * Reserves and returns some available IPv4 address from the "l4protocol" pool, along with one of
+ * its ports. This port will be 'compatible' with "port".
+ * 'Compatible' means same parity (mandatory) and range (only if available). See RFC 6146 section
+ * 3.5.1.1 for more details on this port hack.
+ *
+ * @return the address/port you want to borrow.
+ *		Will return NULL if there's nothing available (and compatible) in the pool.
+ *		This resulting object will be stored in the heap. If you never return it (by means of
+ *		pool4_return()), you're expected to kfree it once you're done with it.
+ */
+struct ipv4_tuple_address *pool4_get_any(u_int8_t l4protocol, __be16 port);
+/**
+ * Reserves and returns a transport address from the "l4protocol" pool.
+ * The address's IPv4 address will be "address.address" and its port will be 'compatible' with
+ * "address.pi.port".
+ * 'Compatible' means same parity (mandatory) and range (only if available). See RFC 6146 section
+ * 3.5.1.1 for more details on this port hack.
+ *
+ * @return the address/port you want to borrow.
+ *		Will return NULL if there's nothing available (and compatible) in the pool.
+ *		This resulting object will be stored in the heap. If you never return it (by means of
+ *		pool4_return()), you're expected to kfree it once you're done with it.
+ */
+struct ipv4_tuple_address *pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address);
+/**
+ * Puts the (previously borrowed) address "address" back into the "l4protocol" pool. Meant to revert
+ * the effect of the pool4_get_* functions.
+ *
+ * @paran address please note that, in order to maintain the symmetry with the pool4_get_*
+ *		functions, and since we're assuming "address" is the one we returned there, this function
+ *		will kfree "address" if successful. So don't use it after a successful call to this
+ *		function.
+ */
+bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
+
+
+#endif /* _NF_NAT64_IPV4_POOL_H */
+
+
+/**
  * TODO (ramiro) los contadores son de 16 bits, por lo que se arma un ciclo infinito.
  * TODO (ramiro) si nunca se han sacado puertos para la dirección "address", va a tronar porque no
  * valida que su port list exista a pesar de que usa lazy init.
@@ -69,10 +82,3 @@ bool allocate_given_ipv4_transport_address(uint16_t protocol, struct ipv4_tuple_
  * las entradas de la tabla apuntan a la misma lista de puertos.
  * TODO (ramiro) el código está repetido 4 veces.
  */
-bool ipv4_pool_get_new_port(struct in_addr address, __be16 pi, struct ipv4_tuple_address *result);
-
-void init_pools(struct config_struct *cs);
-void destroy_pools(void);
-
-
-#endif /* _NF_NAT64_IPV4_POOL_H */

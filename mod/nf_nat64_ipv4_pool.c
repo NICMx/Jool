@@ -1,381 +1,340 @@
-#include <linux/module.h>
-#include <linux/printk.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/printk.h>
+#include <linux/list.h>
+
 #include "nf_nat64_ipv4_pool.h"
 
-struct in_addr next_udp_address; 
-struct in_addr next_tcp_address;
-struct in_addr next_icmp_address;
-struct in_addr last_address;
 
-__u16 next_udp_port;
-__u16 next_tcp_port;
-__u16 next_icmp_port;
-__u16 first_udp_port;
-__u16 first_tcp_port;
-__u16 first_icmp_port;
-__u16 last_udp_port;
-__u16 last_tcp_port;
-__u16 last_icmp_port;
-
-struct list_head free_udp_transport_addr;
-struct list_head free_tcp_transport_addr;
-struct list_head free_icmp_transport_addr;
-struct list_head busy_udp_transport_addr;
-struct list_head busy_tcp_transport_addr;
-struct list_head busy_icmp_transport_addr;
-struct list_head transport_addr;
-
-/* IPv4. These are global. Reference using extern, please. */
-struct in_addr ipv4_pool_net;
-struct in_addr ipv4_pool_range_first;
-struct in_addr ipv4_pool_range_last;
-int ipv4_mask_bits;
-unsigned ip;
-
-struct in_addr ipv4_netmask;
-
-/* IPv6. These ones are also global. */
-char *ipv6_pref_addr_str;
-int ipv6_pref_len;	
-
-extern struct config_struct cs;
-
-struct port_list
-{
-	int puerto[2];
+/**
+ * A port which is known to be in the pool; available for borrowal.
+ */
+struct free_port {
+	/** The port number. */
+	__u16 port;
+	/** Next port within the list of free ones (see addr_section.free_ports).  */
+	struct list_head next;
 };
 
-// Hash table
-#define HTABLE_NAME port_table
-#define KEY_TYPE struct in_addr
-#define VALUE_TYPE struct port_list
-#define GENERATE_PRINT
-#include "nf_nat64_hash_table.c"
+/** Rename for the type of the port list below. */
+#define port_list list_head
 
-struct port_table table;
-struct port_list ports[] = {{0}, {0}, {0}};
+/**
+ * A range of ports within an address.
+ */
+struct addr_section {
+	/** Next available (and never before used) port. */
+	__u32 next_port;
+	/**
+	 * Maximum value "next_port" can hold. If this value has been reached and next_port needs to
+	 * be incremented, the section has been exhausted.
+	 */
+	__u32 max_port;
+	/**
+	 * List of available (and previously used) ports. Contains structs of type free_port.
+	 * It's a list because the FIFO behavior is ideal.
+	 */
+	struct port_list free_ports;
+};
 
-static void return_transport_addr(struct transport_addr_struct *transport_addr,
-        struct list_head *head)
+/**
+ * An address within the pool, along with its ports.
+ */
+struct pool_addr
 {
-	//INIT_LIST_HEAD(&transport_addr->list);
-	list_add(&transport_addr->list, head);
+	/** The address itself. */
+	struct in_addr address;
+
+	/** The address's odd ports from the range 0-1023. */
+	struct addr_section odd_low;
+	/** The address's even ports from the range 0-1023. */
+	struct addr_section even_low;
+	/** The address's odd ports from the range 1024-65535. */
+	struct addr_section odd_high;
+	/** The address's even ports from the range 1024-65535. */
+	struct addr_section even_high;
+
+	/** Next address within the pool (since they are linked listed; see pool.*). */
+	struct list_head next;
+};
+
+/** Rename for the type of the pool lists below. */
+#define address_list list_head
+
+/**
+ * The global container of the entire pools.
+ * Each pool can be a linked list because we're assuming we won't be holding too many addresses, and
+ * the first ones will be the ones seeing the most activity.
+ */
+struct {
+	/** Linked list of addresses for the UDP protocol. Contains structs of type pool_addr. */
+	struct address_list udp;
+	/** Linked list of addresses for the TCP protocol. Contains structs of type pool_addr. */
+	struct address_list tcp;
+	/** Linked list of addresses for the ICMP protocol. Contains structs of type pool_addr. */
+	struct address_list icmp;
+} pools;
+
+
+static struct address_list* get_pool(u_int8_t l4protocol)
+{
+	switch (l4protocol) {
+		case IPPROTO_UDP:
+			return &pools.udp;
+			break;
+		case IPPROTO_TCP:
+			return &pools.tcp;
+		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
+			return &pools.icmp;
+	}
+
+	log_crit("Error: Unknown l4 protocol (%d); no pool mapped to it.", l4protocol);
+	return NULL;
 }
 
-static struct transport_addr_struct *get_transport_addr(struct list_head *head, struct list_head *busy_head,
-        struct in_addr *next_address, __u16 *next_port, __u16 *first_port, __u16 *last_port)
+static struct pool_addr *get_pool_addr(u_int8_t l4protocol, struct in_addr *address)
 {
-	if (list_empty(head) == 1) { // if the list is empty
-		if (next_address->s_addr > last_address.s_addr) {
-			// and the next address is greater than the last address, return NULL
-			return NULL;
-		} else {
-			// get the next address
-			struct transport_addr_struct *new_transport_addr =
-			        (struct transport_addr_struct *) kmalloc(
-			                sizeof(struct transport_addr_struct), GFP_ATOMIC);
+	struct address_list *pool;
+	struct list_head *cursor;
 
-			if (new_transport_addr != NULL) {
+	pool = get_pool(l4protocol);
+	if (!pool)
+		return NULL;
+	if (list_empty(pool)) {
+		log_warning("The IPv4 pool is empty!");
+		return NULL;
+	}
 
-				new_transport_addr->address.s_addr = next_address->s_addr;
+	list_for_each(cursor, pool) {
+		struct pool_addr *pool_address = list_entry(cursor, struct pool_addr, next);
+		if (ipv4_addr_equals(&pool_address->address, address))
+			return pool_address;
+	}
 
-				new_transport_addr->port = (*next_port)++;
-				
-				if (*next_port > *last_port) {
-					*next_port = *first_port;
-					ip = be32_to_cpu(next_address->s_addr);
-					ip++;
-					next_address->s_addr = cpu_to_be32(ip);
-					
-					return_transport_addr(new_transport_addr,  &busy_udp_transport_addr);
-					
-					ports[0].puerto[new_transport_addr->port] = 1;
-					
-				}else{
-					ports[0].puerto[new_transport_addr->port] = 1;
-				}
-				port_table_put(&table, &new_transport_addr->address, &ports[new_transport_addr->port]);
-				return new_transport_addr;
+	return NULL;
+}
 
-			} else {
-				return NULL;
-			}
+static struct addr_section *get_section(u_int8_t l4protocol, struct ipv4_tuple_address *address)
+{
+	struct pool_addr *pool_address;
+	__u16 port;
+
+	pool_address = get_pool_addr(l4protocol, &address->address);
+	if (!pool_address)
+		return NULL;
+
+	port = be16_to_cpu(address->pi.port);
+	if (port < 1024)
+		return (port % 2 == 0) ? &pool_address->even_low : &pool_address->odd_low;
+	else
+		return (port % 2 == 0) ? &pool_address->even_high : &pool_address->odd_high;
+}
+
+static bool extract_any_port(struct addr_section *section, __be16 *port)
+{
+	if (!list_empty(&section->free_ports)) {
+		// Reuse it.
+		struct free_port *node = list_entry(section->free_ports.next, struct free_port, next);
+		*port = cpu_to_be16(node->port);
+
+		list_del(&node->next);
+		kfree(node);
+
+		return true;
+	}
+
+	if (section->next_port > section->max_port)
+		return false;
+
+	*port = cpu_to_be16(section->next_port);
+	section->next_port += 2;
+	return true;
+}
+
+bool pool4_init(void)
+{
+	INIT_LIST_HEAD(&pools.udp);
+	INIT_LIST_HEAD(&pools.tcp);
+	INIT_LIST_HEAD(&pools.icmp);
+	return true;
+}
+
+static void destroy_section(struct addr_section *section)
+{
+	struct list_head *current_node;
+	struct free_port *current_port;
+
+	while (!list_empty(&section->free_ports)) {
+		current_node = section->free_ports.next;
+		current_port = container_of(current_node, struct free_port, next);
+		list_del(current_node);
+		kfree(current_port);
+	}
+}
+
+static void destroy_pool_addr(struct pool_addr *pool_address)
+{
+	list_del(&pool_address->next);
+	destroy_section(&pool_address->odd_low);
+	destroy_section(&pool_address->even_low);
+	destroy_section(&pool_address->odd_high);
+	destroy_section(&pool_address->even_high);
+	kfree(pool_address);
+}
+
+void pool4_destroy(void)
+{
+	struct address_list *pool_lists[] = { &pools.udp, &pools.tcp, &pools.icmp };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pool_lists); i++) {
+		struct list_head *current_node;
+		struct pool_addr *current_address;
+
+		while (!list_empty(pool_lists[i])) {
+			current_node = pool_lists[i]->next;
+			current_address = container_of(current_node, struct pool_addr, next);
+			destroy_pool_addr(current_address);
 		}
-	} else { // is not empty
-		// get the last address of the list
-		struct list_head *prev = head->prev;
-		struct transport_addr_struct *transport_addr = list_entry(prev, struct transport_addr_struct, list);
-		display(0);
-		list_del(prev); 
-		display(0);
-		//~ INIT_LIST_HEAD(&transport_addr->list);
-		//~ list_add(&transport_addr->list, busy_head);
-		ports[0].puerto[transport_addr->port] = 1;
-		port_table_put(&table, &transport_addr->address, &ports[transport_addr->port]);
-		return transport_addr;
 	}
-	
 }
 
-//gets
+static void init_section(struct addr_section *section, __u32 next_port, __u32 max_port)
+{
+	section->next_port = next_port;
+	section->max_port = max_port;
+	INIT_LIST_HEAD(&section->free_ports);
+}
 
-void display(int num){
-	
-	struct list_head *iter, *aux;
-	if(num < 1){
-		printk("Display begin...  \n");
-		if (list_empty(&free_udp_transport_addr) == 1) {
-			printk("Display NULL...  \n");
-		}else{
-	struct transport_addr_struct *transport_addr;
-	list_for_each_safe(iter, aux, &free_udp_transport_addr) {
-							transport_addr = list_entry(iter, struct transport_addr_struct, list);
-							printk("Display:	%pI4  \n", &transport_addr->address.s_addr);
-						}
-					}
-		printk("Display ends...  \n");
-	}else{
-			printk("Display busy begin...  \n");
-		if (list_empty(&busy_udp_transport_addr) == 1) {
-			printk("Display busy NULL...  \n");
-		}else{
-	struct transport_addr_struct *transport_addr;
-	list_for_each_safe(iter, aux, &busy_udp_transport_addr) {
-							transport_addr = list_entry(iter, struct transport_addr_struct, list);
-							printk("Display busy:	%pI4  \n", &transport_addr->address.s_addr);
-						}
-					}
-		printk("Display busy ends...  \n");
+bool pool4_register(u_int8_t l4protocol, struct in_addr *address)
+{
+	struct address_list *pool;
+	struct pool_addr *pool_address;
 
+	pool = get_pool(l4protocol);
+	if (!pool)
+		return false;
+
+	pool_address = kmalloc(sizeof(*pool_address), GFP_ATOMIC);
+	if (!pool_address) {
+		log_warning("Could not allocate address %pI4 for the pool. Won't be able to include it...",
+				address);
+		return false;
 	}
-	
+
+	pool_address->address = *address;
+	init_section(&pool_address->odd_low, 1, 1023);
+	init_section(&pool_address->even_low, 0, 1022);
+	init_section(&pool_address->odd_high, 1025, 65535);
+	init_section(&pool_address->even_high, 1024, 65534);
+	// "add to head->prev" = "add to the end of the list".
+	list_add(&pool_address->next, pool->prev);
+
+	return true;
 }
 
-struct transport_addr_struct *get_udp_transport_addr(void)
+bool pool4_remove(u_int8_t l4protocol, struct in_addr *address)
 {
-			return get_transport_addr(&free_udp_transport_addr, &busy_udp_transport_addr, &next_udp_address,
-	        &next_udp_port, &first_udp_port, &last_udp_port);
+	struct pool_addr *pool_address = get_pool_addr(l4protocol, address);
+	if (!pool_address)
+		return false;
+
+	destroy_pool_addr(pool_address);
+	return true;
 }
 
-struct transport_addr_struct *get_tcp_transport_addr(void)
+struct ipv4_tuple_address *pool4_get_any(u_int8_t l4protocol, __be16 port)
 {
-	return get_transport_addr(&free_tcp_transport_addr, &busy_tcp_transport_addr, &next_tcp_address,
-	        &next_tcp_port, &first_tcp_port, &last_tcp_port);
-}
+	struct address_list *pool;
+	struct ipv4_tuple_address *result;
+	struct list_head *cursor;
 
-struct transport_addr_struct *get_icmp_transport_addr(void)
-{ //se dejo el nombre de puerto por convencion ya que icmp en realidad maneja identificadores
-	return get_transport_addr(&free_icmp_transport_addr, &busy_icmp_transport_addr, &next_icmp_address,
-	        &next_icmp_port, &first_icmp_port, &last_icmp_port);
-}
-//end gets
-
-//returns
-
-void return_udp_transport_addr(struct transport_addr_struct *transport_addr)
-{
-	//~ struct list_head *prev = &busy_udp_transport_addr.prev;
-	//~ list_del(prev); 
-	//display(1);
-	return_transport_addr(transport_addr, &free_udp_transport_addr);
-}
-
-void return_tcp_transport_addr(struct transport_addr_struct *transport_addr)
-{
-	return_transport_addr(transport_addr, &free_tcp_transport_addr);
-}
-
-void return_icmp_transport_addr(struct transport_addr_struct *transport_addr)
-{
-	return_transport_addr(transport_addr, &free_icmp_transport_addr);
-}
-//end returns 
-
-bool allocate_given_ipv4_transport_address(uint16_t protocol, struct ipv4_tuple_address * new_ipv4_transport_address)
-{
-	struct list_head *iter;
-	struct transport_addr_struct *transport_addr;
-	
-	switch(protocol){
-		case IPPROTO_UDP:		if (list_empty(&busy_udp_transport_addr) == 1) { 
-						return true;
-					}else{
-						list_for_each(iter, &busy_udp_transport_addr) {
-							transport_addr = list_entry(iter, struct transport_addr_struct, list);
-							if(new_ipv4_transport_address->address.s_addr == transport_addr->address.s_addr){
-								return false;
-							}else{
-								if(port_table_get(&table, &new_ipv4_transport_address->address)->puerto[new_ipv4_transport_address->pi.port] == 1)
-								return false;
-							}
-						}
-					}
-					return true;
-			
-		case IPPROTO_TCP:		if (list_empty(&busy_tcp_transport_addr) == 1) { 
-						return true;
-					}else{
-						list_for_each(iter, &busy_tcp_transport_addr) {
-							transport_addr = list_entry(iter, struct transport_addr_struct, list);
-							if(new_ipv4_transport_address->address.s_addr == transport_addr->address.s_addr){
-								return false;
-							}else{
-								if(port_table_get(&table, &new_ipv4_transport_address->address)->puerto[new_ipv4_transport_address->pi.port] == 1)
-								return false;
-							}
-						}
-					}
-					
-					return true;
-			
-		case IPPROTO_ICMP:	if (list_empty(&busy_icmp_transport_addr) == 1) { 
-								return true;
-							}else{
-								list_for_each(iter, &busy_icmp_transport_addr) {
-									transport_addr = list_entry(iter, struct transport_addr_struct, list);
-									if(new_ipv4_transport_address->address.s_addr == transport_addr->address.s_addr){
-										return false;
-									}else{
-										if(port_table_get(&table, &new_ipv4_transport_address->address)->puerto[new_ipv4_transport_address->pi.port] == 1)
-										return false;
-									}
-								}
-							}
-							return true;
-		default:
-			return false;
+	// Init
+	pool = get_pool(l4protocol);
+	if (!pool)
+		return NULL;
+	if (list_empty(pool)) {
+		log_warning("The IPv4 pool is empty! Won't be able to lend an address.");
+		return NULL;
 	}
-	
-}
 
-/** Retrieve a new transport address from IPv4 pool.
- * 
- * @param[in]	protocol	In what protocolo we should look at?
- * @param[in]	pi			Look for a port within the same range and parity.
- * @param[out]	new_ipv4_transport_address	New transport address obtained from the PROTOCOL's pool.
- * @return	true if everything went OK, false otherwise.
- * */
-bool ipv4_pool_get_new_transport_address( u_int8_t protocol, __be16 pi, struct ipv4_tuple_address * new_ipv4_transport_address)
-{
-	struct transport_addr_struct * new_transport_addr;
-	switch(protocol){
-		case IPPROTO_UDP:	new_transport_addr = get_transport_addr(&free_udp_transport_addr, &busy_udp_transport_addr, &next_udp_address,
-							&next_udp_port, &first_udp_port, &last_udp_port); 
-							new_ipv4_transport_address->address.s_addr = new_transport_addr->address.s_addr; 
-							new_ipv4_transport_address->pi.port = new_transport_addr->port;
-					return true;
-		case IPPROTO_TCP:	new_transport_addr = get_transport_addr(&free_tcp_transport_addr, &busy_tcp_transport_addr, &next_tcp_address,
-							&next_tcp_port, &first_tcp_port, &last_tcp_port);
-							new_ipv4_transport_address->address.s_addr = new_transport_addr->address.s_addr;
-							new_ipv4_transport_address->pi.port = new_transport_addr->port;
-					return true;
-		case IPPROTO_ICMP:	new_transport_addr = get_transport_addr(&free_icmp_transport_addr, &busy_icmp_transport_addr, &next_icmp_address,
-							&next_icmp_port, &first_icmp_port, &last_icmp_port);
-							new_ipv4_transport_address->address.s_addr = new_transport_addr->address.s_addr;
-							new_ipv4_transport_address->pi.port = new_transport_addr->port;
-					return true;
-		default:
-			return false;
+	result = kmalloc(sizeof(*result), GFP_ATOMIC);
+	if (!result) {
+		log_warning("Could not allocate a result. Won't be able to lend an address for port %u.",
+				be16_to_cpu(port));
+		return NULL;
 	}
-		
-}
 
-/** Retrieve a new port for the specified IPv4 pool address.
- * 
- * @param[in]	protocol	In what protocolo we should look at?
- * @param[in]	pi			Look for a port within the same range and parity.
- * @param[out]	new_ipv4_transport_address	New transport address obtained from the PROTOCOL's pool.
- * @return	true if everything went OK, false otherwise.
- * */
-bool ipv4_pool_get_new_port(struct in_addr address, __be16 pi, struct ipv4_tuple_address *new_ipv4_transport_address)
-{
-	__be16 pair, odd;
+	// Find an address with a compatible port
+	list_for_each(cursor, pool) {
+		struct pool_addr *current_address;
+		struct ipv4_tuple_address tuple_addr;
+		struct addr_section *section;
 
-	new_ipv4_transport_address->address.s_addr = address.s_addr;
+		current_address = list_entry(cursor, struct pool_addr, next);
+		tuple_addr.address = current_address->address;
+		tuple_addr.pi.port = port;
+		section = get_section(l4protocol, &tuple_addr);
 
-	if(pi < 1024){
-		pair = 0;
-		odd = 1;
-			if(pi%2==0){
-				while(pair<1024){
-					if(port_table_get(&table, &new_ipv4_transport_address->address.s_addr)->puerto[pair] == 1){
-						pair+=2; 
-					}else{
-						new_ipv4_transport_address->pi.port = pair;
-						ports[0].puerto[new_ipv4_transport_address->pi.port] = 1;
-						port_table_put(&table, &new_ipv4_transport_address->address.s_addr, &ports[new_ipv4_transport_address->pi.port]);
-						return true;
-					}
-				}
-			}else{	//impar
-				while(odd<1024){ 	
-				if(port_table_get(&table, &new_ipv4_transport_address->address.s_addr) == NULL)
-					return false;
-					if(port_table_get(&table, &new_ipv4_transport_address->address)->puerto[odd] == 1){
-					odd+=2; 	
-					}else{
-						new_ipv4_transport_address->pi.port = odd; 
-						return true;
-					}
-				}
-			}
-	}else{
-		pair = 1024;
-		odd = 1025;
-			if(pi%2==0){
-				while(pair<65535){
-					if(port_table_get(&table, &new_ipv4_transport_address->address)->puerto[pair] == 1){
-						pair+=2;
-					}else{
-						new_ipv4_transport_address->pi.port = pair;
-						return true;
-					}
-				}
-			}else{	//impar
-				while(odd<=65535){
-					if(port_table_get(&table, &new_ipv4_transport_address->address)->puerto[odd] == 1){
-					odd+=2;
-					}else{
-						new_ipv4_transport_address->pi.port = odd;
-						return true;
-					}
-				}
-			}
+		if (extract_any_port(section, &result->pi.port)) {
+			result->address = current_address->address;
+			return result;
+		}
 	}
-			
-	return false;
+
+	// All compatible ports are taken. Go to a corner and cry...
+	kfree(result);
+	return NULL;
 }
 
-void init_pools(struct config_struct *cs)
+struct ipv4_tuple_address *pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address)
 {
-	port_table_init(&table, &ipv4_addr_equals, &ipv4_addr_hashcode);
-	
-	next_udp_address.s_addr = (*cs).ipv4_pool_range_first.s_addr;
-	next_tcp_address.s_addr = (*cs).ipv4_pool_range_first.s_addr;
-	next_icmp_address.s_addr = (*cs).ipv4_pool_range_first.s_addr;
+	struct addr_section *section;
+	struct ipv4_tuple_address *result;
 
-	last_address.s_addr = (*cs).ipv4_pool_range_last.s_addr;
+	// Init
+	section = get_section(l4protocol, address);
+	if (!section)
+		return NULL;
 
-	first_tcp_port = 0; //(*cs).ipv4_tcp_port_first; // FIRST_PORT;
-	first_udp_port = 0; //(*cs).ipv4_tcp_port_first;
-	next_udp_port = first_udp_port;
-	next_tcp_port = first_tcp_port;
-	last_tcp_port = 1; //(*cs).ipv4_tcp_port_last; // LAST_PORT;
-	last_udp_port = 1; //(*cs).ipv4_udp_port_last;
+	result = kmalloc(sizeof(*result), GFP_ATOMIC);
+	if (!result) {
+		log_warning("Could not allocate a result. Won't be able to lend an address for %pI4#%u.",
+						&address->address, be16_to_cpu(address->pi.port));
+		return NULL;
+	}
+	result->address = address->address;
 
-	pr_debug("NAT64: Configuring IPv4 pool.");
-	
-	pr_debug("NAT64:	UDP First address: %pI4 - Last address: %pI4\n", &next_udp_address.s_addr, &last_address.s_addr);
-	pr_debug("NAT64:	TCP First address: %pI4 - Last address: %pI4\n", &next_tcp_address.s_addr, &last_address.s_addr);
-	pr_debug("NAT64:	First UDP port: %u - Last port: %u\n", first_udp_port, last_udp_port);
-	pr_debug("NAT64:	First TCP port: %u - Last port: %u\n", first_tcp_port, last_tcp_port);
+	// Find a compatible port
+	if (extract_any_port(section, &result->pi.port))
+		return result;
 
-	INIT_LIST_HEAD(&free_udp_transport_addr);
-	INIT_LIST_HEAD(&free_tcp_transport_addr);
-	INIT_LIST_HEAD(&free_icmp_transport_addr);
-	INIT_LIST_HEAD(&busy_udp_transport_addr);
-	INIT_LIST_HEAD(&busy_tcp_transport_addr);
-	INIT_LIST_HEAD(&busy_icmp_transport_addr);
-	INIT_LIST_HEAD(&transport_addr);
+	// None available; die
+	kfree(result);
+	return NULL;
+}
+
+bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address)
+{
+	struct addr_section *section;
+	struct free_port *new_port;
+
+	section = get_section(l4protocol, address);
+	if (!section)
+		return false;
+
+	new_port = kmalloc(sizeof(*new_port), GFP_ATOMIC);
+	if (!new_port) {
+		// Well, crap. I guess we won't be seeing this address/port anymore :/.
+		log_err("Cannot instantiate! I won't be able to remember that %pI4#%u can be reused.",
+				&address->address, address->pi.port);
+		return false;
+	}
+	new_port->port = be16_to_cpu(address->pi.port);
+	list_add(&new_port->next, section->free_ports.prev);
+
+	kfree(address);
+	return true;
 }

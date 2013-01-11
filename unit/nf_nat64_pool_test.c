@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "nf_nat64_config.h"
 #include "nf_nat64_ipv4_pool.h"
@@ -7,220 +8,260 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ramiro Nava");
-MODULE_DESCRIPTION("POOL module test");
+MODULE_AUTHOR("Alberto Leiva");
+MODULE_DESCRIPTION("IPv4 pool module test");
 
 
-#define ASSERT_TRANSPORT_ADDR(expected_ip, expected_port, actual, test_name) \
-		ASSERT_EQUALS_IPV4(expected_ips[expected_ip], actual->address, test_name ", address"); \
-		ASSERT_EQUALS(expected_port, actual->port, test_name ", port")
+// TODO (test) va a faltar testear situaciones de error.
 
-const char* expected_ips_as_str[] = { "192.168.2.1", "192.168.2.2", "192.168.2.3" };
-struct in_addr expected_ips[3];
+#define PORT_RANGE1_MAX 1023
+#define PORT_RANGE2_MAX 65535
 
-static bool test_gets(void)
+const char* expected_ips_as_str[] = { "192.168.2.1", "192.168.2.2" };
+struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
+
+/**
+ * These are used by a couple of tests.
+ * They're too big for the stack frame limit, and I don't feel like meddling with kmallocs,
+ * so here they are.
+ *
+ * They store the results of the functions being tested (since we need a lot of calls).
+ * Note that the array index is not related to the way the functions work.
+ * We're assigning the n port to the n index for convenience only.
+ */
+struct ipv4_tuple_address *results1[1024], *results2[1024];
+
+
+static bool assert_tuple_addr(struct in_addr *expected_address, __u16 expected_port,
+		struct ipv4_tuple_address *actual, char *test_name)
 {
-	int addr_ctr, port_ctr;
-	struct transport_addr_struct *result;
+	bool success = true;
+	success &= assert_equals_ipv4(expected_address, &actual->address, test_name);
+	success &= assert_equals_u16(expected_port, be16_to_cpu(actual->pi.port), test_name);
+	return success;
+}
 
-	for (addr_ctr = 0; addr_ctr < 3; addr_ctr++) {
-		for (port_ctr = 0; port_ctr < 2; port_ctr++) {
-			result = get_udp_transport_addr();
-			ASSERT_TRANSPORT_ADDR(addr_ctr, port_ctr, result, "Request addr");
+static bool test_range(__u32 port_range_min, __u32 port_range_max, char *test_name)
+{
+	__u32 addr_ctr, port_ctr;
+	struct ipv4_tuple_address *result;
+	bool success = true;
+
+	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
+		for (port_ctr = port_range_min; port_ctr <= port_range_max; port_ctr += 2) {
+			result = pool4_get_any(IPPROTO_UDP, cpu_to_be16(port_range_min));
+			success &= assert_tuple_addr(&expected_ips[addr_ctr], port_ctr, result, test_name);
+			kfree(result);
+
+//			if (port_ctr % 20 == 0 && !success)
+//				return false;
 		}
 	}
 
-	result = get_udp_transport_addr();
-	ASSERT_NULL(result, "Request addr, pool ran out 1.");
-	result = get_udp_transport_addr();
-	ASSERT_NULL(result, "Request addr, pool ran out 2.");
+	result = pool4_get_any(IPPROTO_UDP, cpu_to_be16(port_range_min));
+	success &= assert_null(result, test_name);
+	result = pool4_get_any(IPPROTO_UDP, cpu_to_be16(port_range_min));
+	success &= assert_null(result, test_name);
 
-	return true;
+	return success;
 }
 
-static bool test_returns(void)
+/**
+ * The get_any function cannot be fully tested on its own, so the basics are here and some more
+ * hacking is done in test_return_function().
+ *
+ * Tests to some extent that the different ranges do not interfere with each other during gets.
+ */
+static bool test_get_any_function(void)
 {
-	struct transport_addr_struct *result[6];
-
-	log_debug("First get.");
-	result[0] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 0, result[0], "First get");
-
-	log_debug("Second get.");
-	result[1] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 1, result[1], "Second get");
-
-	log_debug("Third get.");
-	result[2] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(1, 0, result[2], "Third get");
-
-	log_debug("Returning second one.");
-	return_udp_transport_addr(result[1]);
-
-	log_debug("Second get (again).");
-	result[1] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 1, result[1], "Second get (again)");
-
-	log_debug("Fourth get.");
-	result[3] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(1, 1, result[3], "Fourth get");
-
-	log_debug("Fifth get.");
-	result[4] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(2, 0, result[4], "Fifth get");
-
-	log_debug("Returning second, fourth and fifth ones.");
-	return_udp_transport_addr(result[1]);
-	return_udp_transport_addr(result[3]);
-	return_udp_transport_addr(result[4]);
-
-	log_debug("Second get (again again).");
-	result[1] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 1, result[1], "Second get (again again)");
-
-	log_debug("Fourth get (again).");
-	result[3] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(1, 1, result[3], "Fourth get (again)");
-
-	log_debug("Returning second one (again again again).");
-	return_udp_transport_addr(result[1]);
-
-	log_debug("Second get (again again again).");
-	result[1] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(2, 0, result[1], "Second get (again again again)");
-
-	log_debug("Fifth get (again).");
-	result[4] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 1, result[4], "Fifth get (again)");
-
-	return true;
-}
-
-static bool test_allocates(void)
-{
-	struct ipv4_tuple_address tuple_addr[4];
-	struct transport_addr_struct transport_addr[4];
-
-	const char *ip_not_in_pool_as_str = "192.168.2.7";
-	struct in_addr ip_not_in_pool;
-	struct transport_addr_struct *get_result[6];
-
-	int counter;
-
-	// Init test addresses.
-	if (!str_to_addr4(ip_not_in_pool_as_str, &ip_not_in_pool)) {
-		log_warning("Cannot parse test address '%s'. Failing...", ip_not_in_pool_as_str);
+	if (!test_range(0, PORT_RANGE1_MAX, "Even low ports"))
 		return false;
-	}
-
-	tuple_addr[0].address = expected_ips[0];
-	tuple_addr[0].pi.port = cpu_to_be16(0);
-	tuple_addr[1].address = expected_ips[0];
-	tuple_addr[1].pi.port = cpu_to_be16(1);
-	tuple_addr[2].address = expected_ips[1];
-	tuple_addr[2].pi.port = cpu_to_be16(0);
-	tuple_addr[3].address = ip_not_in_pool;
-	tuple_addr[3].pi.port = cpu_to_be16(0);
-
-	for (counter = 0; counter < 4; counter++) {
-		transport_addr[counter].address = tuple_addr[counter].address;
-		transport_addr[counter].port = tuple_addr[counter].pi.port;
-	}
-
-	// Test allocate alone, also in combination with returns.
-	for (counter = 0; counter < 2; counter++) {
-		ASSERT_EQUALS(true, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[1]),
-				"Alloc 1.");
-		ASSERT_EQUALS(true, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[0]),
-				"Alloc 2.");
-		ASSERT_EQUALS(true, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[2]),
-				"Alloc 3.");
-		ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[3]),
-				"Alloc something not in pool.");
-
-		ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[1]),
-				"Alloc 1 again.");
-		ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[0]),
-				"Alloc 2 again.");
-		ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[2]),
-				"Alloc 3 again.");
-		ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[3]),
-				"Alloc something not in pool again.");
-
-		return_udp_transport_addr(&transport_addr[0]);
-		return_udp_transport_addr(&transport_addr[1]);
-		return_udp_transport_addr(&transport_addr[2]);
-	}
-
-	// Test allocate after gets.
-	get_result[0] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 0, get_result[0], "Get after returning alloc 1.");
-	get_result[1] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 1, get_result[1], "Get after returning alloc 2.");
-
-	ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[0]),
-			"Alloc something already get'd 1.");
-	ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[1]),
-			"Alloc something already get'd 2.");
-	ASSERT_EQUALS(true, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[2]),
-			"Alloc something not get'd.");
-	ASSERT_EQUALS(false, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[2]),
-			"Alloc something already alloc'd.");
-
-	return_udp_transport_addr(&transport_addr[0]);
-	return_udp_transport_addr(&transport_addr[1]);
-	return_udp_transport_addr(&transport_addr[2]);
-
-	// Test gets after allocate.
-	ASSERT_EQUALS(true, allocate_given_ipv4_transport_address(IPPROTO_UDP, &tuple_addr[1]),
-			"Allocate to test gets.");
-	get_result[0] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(0, 0, get_result[0], "Get after alloc, unaffected.");
-	get_result[2] = get_udp_transport_addr();
-	ASSERT_TRANSPORT_ADDR(1, 0, get_result[2], "Get after alloc, should skip.");
-
-	return_udp_transport_addr(&transport_addr[0]);
-	return_udp_transport_addr(&transport_addr[1]);
-	return_udp_transport_addr(&transport_addr[2]);
+	if (!test_range(1, PORT_RANGE1_MAX, "Odd low ports"))
+		return false;
+	if (!test_range(1024, PORT_RANGE2_MAX, "Even high ports"))
+		return false;
+	if (!test_range(1025, PORT_RANGE2_MAX, "Odd high ports"))
+		return false;
 
 	return true;
 }
 
-static bool test_function_get_new_port(void)
+/**
+ * The return function cannot be tested on its own, so here's also the rest of the get_any test.
+ *
+ * Purpose is to test get returns address/ports in the expected order, given different combinations
+ * of return calls.
+ * We only use the lower even range of ports, since the rest was tested during
+ * test_get_any_function().
+ */
+static bool test_return_function(void)
 {
-	return true;
+	bool success = true;
+	int i;
+
+	memset(&results1, 0, 1024 * sizeof(struct ipv4_tuple_address *));
+	memset(&results2, 0, 1024 * sizeof(struct ipv4_tuple_address *));
+
+	// Borrow the entire first address.
+	for (i = 0; i < 1024; i += 2) {
+		results1[i] = pool4_get_any(IPPROTO_UDP, cpu_to_be16(i));
+		success &= assert_tuple_addr(&expected_ips[0], i, results1[i], "Borrow Addr1");
+	}
+
+	// Borrow the first port of the second address.
+	results2[0] = pool4_get_any(IPPROTO_UDP, cpu_to_be16(0));
+	success &= assert_tuple_addr(&expected_ips[1], 0, results2[0], "Borrow Addr2-port0");
+
+	// Return the last one.
+	success &= assert_true(pool4_return(IPPROTO_UDP, results2[0]), "Return Addr2-port0");
+	if (!success)
+		goto end;
+
+	// Reborrow it.
+	results2[0] = pool4_get_any(IPPROTO_UDP, cpu_to_be16(0));
+	success &= assert_tuple_addr(&expected_ips[1], 0, results2[0], "Reborrow Addr2-port0");
+	if (!success)
+		goto end;
+
+	// Return some more stuff.
+	success &= assert_true(pool4_return(IPPROTO_UDP, results1[46]), "Return Addr1-port46");
+	success &= assert_true(pool4_return(IPPROTO_UDP, results1[1000]), "Return Addr1-port1000");
+	success &= assert_true(pool4_return(IPPROTO_UDP, results2[0]), "ReReturn Addr2-port0");
+	if (!success)
+		goto end;
+
+	// Reborrow it.
+	results1[46] = pool4_get_any(IPPROTO_UDP, cpu_to_be16(24));
+	results1[1000] = pool4_get_any(IPPROTO_UDP, cpu_to_be16(1010));
+	results2[0] = pool4_get_any(IPPROTO_UDP, cpu_to_be16(56));
+	success &= assert_tuple_addr(&expected_ips[0], 46, results1[46], "Reborrow Addr1-port46");
+	success &= assert_tuple_addr(&expected_ips[0], 1000, results1[1000], "Reborrow Addr1-port1000");
+	success &= assert_tuple_addr(&expected_ips[1], 0, results2[0], "ReReborrow Addr2-port0");
+	// Fall through.
+
+end:
+	// Clean up the local leftovers.
+	for (i = 0; i < 1024; i++) {
+		kfree(results1[i]);
+		kfree(results2[i]);
+	}
+
+	return success;
+}
+
+static bool test_get_similar_function(void)
+{
+	struct ipv4_tuple_address query;
+	struct ipv4_tuple_address *null_result;
+	bool success = true;
+	int i;
+
+	memset(&results1, 0, 1024 * sizeof(struct ipv4_tuple_address *));
+	memset(&results2, 0, 1024 * sizeof(struct ipv4_tuple_address *));
+
+	// Borrow the entire first address.
+	query.address = expected_ips[0];
+	query.pi.port = cpu_to_be16(24);
+	for (i = 0; i < 1024; i += 2) {
+		results1[i] = pool4_get_similar(IPPROTO_UDP, &query);
+		success &= assert_tuple_addr(&expected_ips[0], i, results1[i], "Borrow Addr1");
+	}
+
+	null_result = pool4_get_similar(IPPROTO_UDP, &query);
+	success &= assert_null(null_result, "Borrow Addr1-Exhausted (1)");
+	null_result = pool4_get_similar(IPPROTO_UDP, &query);
+	success &= assert_null(null_result, "Borrow Addr1-Exhausted (2)");
+
+	if (!success)
+		goto end;
+
+	// Borrow some from the second address.
+	query.address = expected_ips[1];
+	query.pi.port = cpu_to_be16(888);
+	for (i = 0; i < 512; i += 2) {
+		results2[i] = pool4_get_similar(IPPROTO_UDP, &query);
+		success &= assert_tuple_addr(&expected_ips[1], i, results2[i], "Borrow Addr2");
+	}
+
+	if (!success)
+		goto end;
+
+	// Now return stuff in some disorganized manner.
+	success &= assert_true(pool4_return(IPPROTO_UDP, results2[64]), "Return Addr2-port64");
+	success &= assert_true(pool4_return(IPPROTO_UDP, results1[128]), "Return Addr1-port128");
+	success &= assert_true(pool4_return(IPPROTO_UDP, results1[32]), "Return Addr2-port32");
+	success &= assert_true(pool4_return(IPPROTO_UDP, results2[256]), "Return Addr1-port256");
+
+	// Reborrow it.
+	query.pi.port = cpu_to_be16(334);
+
+	query.address = expected_ips[0];
+	results1[128] = pool4_get_similar(IPPROTO_UDP, &query);
+	query.address = expected_ips[1];
+	results2[64] = pool4_get_similar(IPPROTO_UDP, &query);
+	query.address = expected_ips[0];
+	results1[32] = pool4_get_similar(IPPROTO_UDP, &query);
+	query.address = expected_ips[1];
+	results2[256] = pool4_get_similar(IPPROTO_UDP, &query);
+	query.address = expected_ips[0];
+	null_result = pool4_get_similar(IPPROTO_UDP, &query);
+
+	success &= assert_tuple_addr(&expected_ips[0], 128, results1[128], "Get-Return mix, 128");
+	success &= assert_tuple_addr(&expected_ips[1], 64, results2[64], "Get-Return mix, 64");
+	success &= assert_tuple_addr(&expected_ips[0], 32, results1[32], "Get-Return mix, 32");
+	success &= assert_tuple_addr(&expected_ips[1], 256, results2[256], "Get-Return mix, 256");
+	success &= assert_null(null_result, "Borrow Addr1-Exhausted (3)");
+	// Fall through.
+
+end:
+	// Clean up the local leftovers.
+	for (i = 0; i < 1024; i++) {
+		kfree(results1[i]);
+		kfree(results2[i]);
+	}
+
+	return success;
 }
 
 static bool init(void)
 {
-	int addr_ctr;
+	int i;
 
 	if (!nat64_config_init()) {
 		log_warning("Could not load the default config. Failing...");
 		return false;
 	}
-	init_pools(&cs);
+	if (!pool4_init()) {
+		log_warning("Could not init the pool. Failing...");
+		return false;
+	}
 
-	for (addr_ctr = 0; addr_ctr < 3; addr_ctr++)
-		if (!str_to_addr4(expected_ips_as_str[addr_ctr], &expected_ips[addr_ctr])) {
-			log_warning("Cannot parse test address '%s'. Failing.", expected_ips_as_str[addr_ctr]);
+	for (i = 0; i < ARRAY_SIZE(expected_ips); i++) {
+		if (!str_to_addr4(expected_ips_as_str[i], &expected_ips[i])) {
+			log_warning("Cannot parse test address '%s'. Failing.", expected_ips_as_str[i]);
 			return false;
 		}
+
+		if (!pool4_register(IPPROTO_UDP, &expected_ips[i])) {
+			log_warning("Could not register address %pI4. Failing...", &expected_ips[i]);
+			return false;
+		}
+	}
 
 	return true;
 }
 
 static void destroy(void)
 {
-//	destroy_pools();
+	pool4_destroy();
 }
 
 int init_module(void){
 	START_TESTS("Pool");
 
-//	INIT_CALL_END(init(), test_gets(), destroy(), "Get functions.");
-	INIT_CALL_END(init(), test_returns(), destroy(), "Return functions.");
-//	INIT_CALL_END(init(), test_allocates(), destroy(), "Allocate functions.");
-//	INIT_CALL_END(init(), test_function_get_new_port(), destroy(), "Allocate functions.");
+	INIT_CALL_END(init(), test_get_any_function(), destroy(), "Get simple");
+	INIT_CALL_END(init(), test_return_function(), destroy(), "Get and Return");
+	INIT_CALL_END(init(), test_get_similar_function(), destroy(), "Allocate functions");
 
 	END_TESTS;
 }
