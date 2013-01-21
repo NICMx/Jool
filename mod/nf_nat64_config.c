@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include "nf_nat64_config.h"
 #include "nf_nat64_static_routes.h"
 #include "xt_nat64_module_comm.h"
@@ -115,7 +115,7 @@ bool nat64_config_init(void)
 
 	// Netlink sockets.
 	// TODO find out what causes Osorio's compatibility issues and fix it.
-	struct netlink_kernel_cfg cfg = {
+/*	struct netlink_kernel_cfg cfg = {
 			.input = &my_nl_rcv_msg,
 	};
 	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
@@ -124,7 +124,7 @@ bool nat64_config_init(void)
 		return false;
 	}
 	log_debug("Netlink socket created.");
-
+*/
 	return true;
 	// TODO (miguel) hay kmallocs en esta función, y en caso de error no se están liberando.
 }
@@ -134,8 +134,8 @@ void nat64_config_destroy(void)
 	// TODO (miguel) hay elementos en la configuración que se encuentran en el heap. Liberarlos.
 
 	// Netlink sockets.
-	if (my_nl_sock)
-		netlink_kernel_release(my_nl_sock);
+//	if (my_nl_sock)
+//		netlink_kernel_release(my_nl_sock);
 }
 
 /**

@@ -2,7 +2,7 @@
 
 MODULE=`sed -n -e '/[#]/ d' -e '/obj-m/ { s/obj-m \++= \+// ; s/.o/.ko/ ; p ;} ' Makefile `
 
-sudo dmesg -c
+sudo dmesg -c > /dev/null 2>&1
 reset
 
 echo ">>> Clean module" && \

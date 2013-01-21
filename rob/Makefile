@@ -15,7 +15,8 @@ TESTfiltering-objs += nf_nat64_filtering_and_updating_test.o \
 		$(MOD_DIR)/nf_nat64_session.o \
 		$(MOD_DIR)/nf_nat64_types.o \
 		$(MOD_DIR)/nf_nat64_bib.o \
-		$(MOD_DIR)/nf_nat64_rfc6052.o
+		$(MOD_DIR)/nf_nat64_rfc6052.o \
+		$(MOD_DIR)/nf_nat64_static_routes.o
 #~ TESTfiltering2-objs += ${MOD_DIR}/nf_nat64_ipv4_pool.o
 #~ TESTfiltering2-objs += $(MOD_DIR)/xt_nat64_module_conf.o
 #~ TESTfiltering2-objs += $(MOD_DIR)/xt_nat64_module_conf_validation.o

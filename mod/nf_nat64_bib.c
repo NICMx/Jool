@@ -112,6 +112,14 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address
 	return ipv6_table_get(&table->ipv6, address);
 }
 
+struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol)		
+{
+	// TODO: Create me!
+	log_warning("Call to undefined function!");
+	
+	return NULL;
+}
+
 struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 {
 	switch (tuple->L3_PROTOCOL) {

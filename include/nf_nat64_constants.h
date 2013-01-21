@@ -6,6 +6,7 @@
  * General purpose #defines, intended to minimize use of numerical constants elsewhere in the code.
  */
 
+#include <linux/icmp.h>
 
 // -- Timeouts, defined by RFC 6146, section 4. --
 
@@ -37,6 +38,16 @@
 #define ICMP_PTR_INDICATES_ERROR 0
 /** Code 2 for ICMP messages of type ICMP_PARAMETERPROB. */
 #define ICMP_BAD_LENGTH 2
+
+
+/* ICMP error messaging */
+//      Types:
+#define DESTINATION_UNREACHABLE	ICMP_DEST_UNREACH 
+//      Codes:
+#define HOST_UNREACHABLE        ICMP_HOST_UNREACH
+#define ADDRESS_UNREACHABLE     ICMP_HOST_UNREACH
+#define COMMUNICATION_ADMINISTRATIVELY_PROHIBITED   ICMP_PKT_FILTERED
+
 
 
 #endif

@@ -1,4 +1,3 @@
-//~ #include "filtering_helper.h"
 #include "nf_nat64_filtering_and_updating.h"
 #include "nf_nat64_config.h"
 #include "xt_nat64_module_conf_validation.h"
@@ -29,8 +28,8 @@ extern struct config_struct cs; /**< This struct holds the entire valid and runn
  * @param[out] ta   Transport Address
  * */
 void transport_address_ipv4(struct in_addr addr, __be16 pi, struct ipv4_tuple_address *ta)
-{ // Put this function and the one in filtering_tcp.c in common header file.
-    ta->address = addr;
+{ 
+	ta->address = addr;
     ta->pi.port = pi; // Don't care if it's ICMP IP or PORT, they are of the same size.
 }
 
@@ -41,8 +40,8 @@ void transport_address_ipv4(struct in_addr addr, __be16 pi, struct ipv4_tuple_ad
  * @param[out] ta   Transport Address
  * */
 void transport_address_ipv6(struct in6_addr addr, __be16 pi, struct ipv6_tuple_address *ta)
-{ // Put this function and the one in filtering_tcp.c in common header file.
-    ta->address = addr;
+{ 
+	ta->address = addr;
     ta->pi.port = pi; // Don't care if it's ICMP IP or PORT, they are of the same size.
 }
 
@@ -89,7 +88,7 @@ int ipv4_pool_get_new_transport_address( u_int8_t protocol,
     }
 
     transport_address_ipv4( addr4, htons(ntohs(pi) + 2), new_ipv4_transport_address );
-
+pr_debug("ipv4_pool_get_new_transport_address(): recv=%d send=%d", (ntohs(pi) ), (ntohs(pi) + 2));
     return true;
 }
 
@@ -154,7 +153,6 @@ bool  allocate_ipv4_transport_address(struct nf_conntrack_tuple *tuple,
                                      struct ipv4_tuple_address *new_ipv4_transport_address)
 {
     struct bib_entry *bib_entry_t;
-    
     int ret = 0;
 
     // Check if the BIB has a previous entry from the same IPv6 source address (X’)
@@ -163,7 +161,6 @@ bool  allocate_ipv4_transport_address(struct nf_conntrack_tuple *tuple,
     // If true, use the same IPv4 address (T). 
     if ( bib_entry_t != NULL )
     {
-        // TODO: Should we include the protocol in this func.?
         // Obtain a new port (t) for the found IPv4 address (T).
         ret = ipv4_pool_get_new_port(bib_entry_t->ipv4.address, 
                                      tuple->src_port,
@@ -171,13 +168,14 @@ bool  allocate_ipv4_transport_address(struct nf_conntrack_tuple *tuple,
                                      new_ipv4_transport_address);
         if ( ret == false )
         {
-            /* If it is not possible to allocate an appropriate IPv4 transport
-             address or create a BIB entry, then the packet is discarded. The
-             NAT64 SHOULD send an ICMPv6 Destination Unreachable error message
-             with Code 3 (Address Unreachable). */
+            /* 	If it is not possible to allocate an appropriate IPv4 transport
+				address or create a BIB entry, then the packet is discarded. The
+				NAT64 SHOULD send an ICMPv6 Destination Unreachable error message
+				with Code 3 (Address Unreachable). */
             
+            // TODO: Where do we get the 'skb' from ?
+            // send_icmp_error_message( skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE );
             pr_warning("NAT64:  Could NOT get a new port, from the IPv4 pool, for the IPv4 address found.");
-            pr_warning("        Dropping packet.");
                         
             return false;
         }       
@@ -193,13 +191,15 @@ bool  allocate_ipv4_transport_address(struct nf_conntrack_tuple *tuple,
              NAT64 SHOULD send an ICMPv6 Destination Unreachable error message
              with Code 3 (Address Unreachable). */
             
+            // TODO: Where do we get the 'skb' from ?
+            // send_icmp_error_message( skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE );
+            
             pr_warning("NAT64:  Could NOT get a new IPv4 transport address from the IPv4 pool");
             pr_warning("        Dropping packet.");
                         
             return false;
         }
     }
-    // Everything went OK, 
     return true;
 }
 
@@ -246,32 +246,10 @@ pr_debug("-- %d --  ii=%d  -- proto=%d  --  We found one", jj++, ii, proto[ii]);
     }
 pr_debug("-- %d --", jj++);
     
-    // NOTE: this code was replaced by the following 'allocate_ipv4...' function:
-    //~ // If no previous communication from the source (S') exist ...
-    //~ if (bib_entry_p == NULL)
-    //~ {
-        //~ // Obtain a brand new BIB IPv4 transport address (T,t)
-        //~ ret = ipv4_pool_get_new_transport_address(protocol, tuple->src_port, 
-            //~ new_ipv4_transport_address);
-        //~ if ( ret == false )
-        //~ {
-            //~ /* If it is not possible to allocate an appropriate IPv4 transport
-             //~ address or create a BIB entry, then the packet is discarded. The
-             //~ NAT64 SHOULD send an ICMPv6 Destination Unreachable error message
-             //~ with Code 3 (Address Unreachable). */
-            //~ 
-            //~ pr_warning("NAT64:  Could NOT get a new IPv4 transport address from the IPv4 pool");
-            //~ pr_warning("        Dropping packet.");
-                        //~ 
-            //~ return false;
-        //~ }
-    //~ }
-
     // Define BIB IPv4 transport address. 
     /* Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address.
      * Use the protocol proto[] hint. */
     return allocate_ipv4_transport_address(tuple, proto[ii], new_ipv4_transport_address);
-
 }
 
 
@@ -314,6 +292,8 @@ int embed_ipv4_in_ipv6 (struct in_addr ipv4, struct in6_addr *ipv6)
 }
 
 
+#include <net/icmp.h> 
+#include <linux/icmpv6.h>
 /** Send an ICMP error message, with a specific Type & Code, to the original 
  *  sender of the packet (tuple->source).
  * 
@@ -321,21 +301,26 @@ int embed_ipv4_in_ipv6 (struct in_addr ipv4, struct in6_addr *ipv6)
  * @param[in]   type    Type of message.
  * @param[in]   code    Code of the message.
  */
-bool send_icmp_error_message(struct nf_conntrack_tuple *tuple, u_int8_t type, u_int8_t code);
-bool send_icmp_error_message(struct nf_conntrack_tuple *tuple, u_int8_t type, u_int8_t code)
+bool send_icmp_error_message(struct sk_buff *skb, u_int8_t type, u_int8_t code);
+bool send_icmp_error_message(struct sk_buff *skb, u_int8_t type, u_int8_t code)
 {
-    // TODO: Create me!!
-    
-    pr_debug("NAT64: UN-IMPLEMENTED FUNCTION: call to 'send_icmp_error_message()'");
-    if ( tuple->L3_PROTOCOL == NFPROTO_IPV4 )
-    {
-        pr_debug("NAT64: Sending ICMPv4 error message to: %pI4#%d  ", &tuple->ipv4_src_addr, ntohs( tuple->icmp_id) );
-    }
-    else
-    {
-        pr_debug("NAT64: Sending ICMPv6 error message to: %pI6c#%d ", &tuple->ipv6_src_addr, ntohs( tuple->icmp_id) );
-    }
-    pr_debug("NAT64: Use a network tool (i.e. tcpdump, wireshark) to catch this packet.");
+	
+    //~ pr_debug("NAT64: UN-IMPLEMENTED FUNCTION: call to 'send_icmp_error_message()'");
+    //~ if ( tuple->L3_PROTOCOL == NFPROTO_IPV4 )
+    //~ {
+        //~ pr_debug("NAT64: Sending ICMPv4 error message to: %pI4#%d  ", &tuple->ipv4_src_addr, ntohs( tuple->icmp_id) );
+        pr_debug("NAT64: Sending ICMPv4 error message to: XXX  ");
+        //~ icmp_send(struct sk_buff *skb_in,  int type, int code, __be32 info);
+
+        icmp_send(skb, type, code, 0x0);
+
+    //~ }
+    //~ else
+    //~ {
+        //~ pr_debug("NAT64: Sending ICMPv6 error message to: %pI6c#%d ", &tuple->ipv6_src_addr, ntohs( tuple->icmp_id) );
+		//~ 
+    //~ }
+    pr_debug("NAT64: Use a network tool (i.e. tcpdump or wireshark) to catch this packet.");
     
     return true;
 }
@@ -349,8 +334,8 @@ bool send_icmp_error_message(struct nf_conntrack_tuple *tuple, u_int8_t type, u_
  * @param[out]  pi      Free ICMPv4 Identifier.
  * @return  true if everything went OK, false otherwise.
  */ 
-int get_icmpv4_identifier(struct in_addr *address, __be16 *pi);
-int get_icmpv4_identifier(struct in_addr *address, __be16 *pi)
+bool get_icmpv4_identifier(struct in_addr *address, __be16 *pi);
+bool get_icmpv4_identifier(struct in_addr *address, __be16 *pi)
 {
     /* WARNING! ACHTUNG! VORSICHT! 
      *      This function have a hard-coded response.
@@ -375,23 +360,24 @@ int get_icmpv4_identifier(struct in_addr *address, __be16 *pi)
 bool packet_is_ipv4(struct sk_buff* skb)
 {
 pr_debug("  in packet_is_ipv4()");
-    if (skb == NULL) { pr_warning("  Error in packet_is_ipv4(): skb == NULL "); return false; }
-    else
-    {
-    	switch (ntohs(skb->protocol)) {
-    	case ETH_P_IP:
-    		pr_debug("	packet_is_ipv4 - Es IPv4");
-    		break;
-    	case ETH_P_IPV6:
-    		pr_debug("	packet_is_ipv4 - Es IPv6");
-    		break;
-    	default:
-    		pr_debug("	packet_is_ipv4 - Esta corrupto");
-    		break;
-    	}
-
-        return ( skb->protocol == htons(ETH_P_IP) );
-    }
+    if (skb == NULL) { 
+		pr_warning("  Error in packet_is_ipv4(): skb == NULL "); 
+		return false; 
+	} else
+{
+switch (ntohs(skb->protocol)) {
+case ETH_P_IP:
+pr_debug("	packet_is_ipv4 - Es IPv4");
+break;
+case ETH_P_IPV6:
+pr_debug("	packet_is_ipv4 - Es IPv6");
+break;
+default:
+pr_debug("	packet_is_ipv4 - Esta corrupto");
+break;
+}
+		return ( skb->protocol == htons(ETH_P_IP) );
+}
 }
 
 /** Determine if a packet is IPv6 .
@@ -416,7 +402,6 @@ bool packet_is_ipv6(struct sk_buff* skb)
  */
 bool packet_is_v4_syn(struct sk_buff* skb)
 {
-    // TODO: Look in kernel code if already exist a function that does this.
 	struct tcphdr *hdr = tcp_hdr(skb);
 	if (!hdr)
 		return false;
@@ -430,7 +415,6 @@ bool packet_is_v4_syn(struct sk_buff* skb)
  */
 bool packet_is_v6_syn(struct sk_buff* skb)
 {
-    // TODO: Look in kernel code if already exist a function that does this.
 	struct tcphdr *hdr = tcp_hdr(skb);
 	if (!hdr)
 		return false;
@@ -457,7 +441,6 @@ bool packet_is_v4_fin(struct sk_buff* skb)
  */
 bool packet_is_v6_fin(struct sk_buff* skb)
 {
-    // TODO: Look in kernel code if already exist a function that does this.
 	struct tcphdr *hdr = tcp_hdr(skb);
 	if (!hdr)
 		return false;
@@ -471,7 +454,6 @@ bool packet_is_v6_fin(struct sk_buff* skb)
  */
 bool packet_is_v4_rst(struct sk_buff* skb)
 {
-    // TODO: Look in kernel code if already exist a function that does this.
 	struct tcphdr *hdr = tcp_hdr(skb);
 	if (!hdr)
 		return false;
@@ -485,7 +467,6 @@ bool packet_is_v4_rst(struct sk_buff* skb)
  */
 bool packet_is_v6_rst(struct sk_buff* skb)
 {
-    // TODO: Look in kernel code if already exist a function that does this.
 	struct tcphdr *hdr = tcp_hdr(skb);
 	if (!hdr)
 		return false;
@@ -495,10 +476,12 @@ bool packet_is_v6_rst(struct sk_buff* skb)
 #include <net/route.h>
 #include <net/ip.h>
 #include <net/tcp.h>
-/* Send a packet to IPv4 destination
- * 
- * Codigo de Miguel */
-int nat64_send_packet_ipv4(struct sk_buff *skb)
+/** Send a packet to IPv4 destination.
+ * 	- Codigo de Miguel. 
+ *
+ * @param[in]	skb		Socket buffer to send. 
+ * @return		TRUE: if OK, FALSE: otherwise. */
+bool nat64_send_packet_ipv4(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct flowi fl;
@@ -518,7 +501,7 @@ int nat64_send_packet_ipv4(struct sk_buff *skb)
 		pr_warning("NAT64: nat64_send_packet - rt is null or an error");
 		if (IS_ERR(rt))
 			pr_warning("rt -1");
-		return -1;
+		return false;
 	}
 
 	skb->dev = rt->dst.dev;
@@ -526,9 +509,9 @@ int nat64_send_packet_ipv4(struct sk_buff *skb)
 
 	if (ip_local_out(skb)) {
 		pr_warning("nf_NAT64: ip_local_out failed");
-		return -EINVAL;
+		return false;
 	}
-    return 0;   
+    return true;   
 }
 
 /** Send a probe packet to at least one of the endpoints involved in the TCP connection.
@@ -538,18 +521,16 @@ int nat64_send_packet_ipv4(struct sk_buff *skb)
  */
 bool send_probe_packet(struct sk_buff* skb)
 {
-	// Init packet
 	int tcplen;
-	//~ struct sk_buff * skb;
 	struct tcphdr *th;
 	struct iphdr *iph;
 	struct in_addr	ipv4_addr1;
 	struct in_addr	ipv4_addr2;
 	
-	// TODO: From where are these values taken?
+	/* TODO: From where are these values taken?
+	 *			Take them from the 'skb'	*/
 	static char			*ipv4_address1 = "192.168.1.1";
 	static char			*ipv4_address2 = "192.168.2.1";
-	
 
     if (str_to_addr4(ipv4_address1, &ipv4_addr1)) {
     	log_warning("Invalid IP address: %s", ipv4_address1);
@@ -565,7 +546,7 @@ bool send_probe_packet(struct sk_buff* skb)
 
  	skb = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC); 
 	if (skb == NULL)
-		return -1; 
+		return false; 
 
     /* Reserve space for headers and set control bits. */
 	skb_reserve(skb, MAX_TCP_HEADER);
@@ -573,7 +554,8 @@ bool send_probe_packet(struct sk_buff* skb)
 	skb_reset_transport_header(skb);
 	th = (struct tcphdr *) skb_push(skb, sizeof(struct tcphdr));
 	
-	// TODO: From where are these values taken?
+	/* TODO: From where are these values taken?
+	 *			Take them from the 'skb'	*/
 	th->source = htons(20);  
 	th->dest = htons(5000);
 	
@@ -626,10 +608,6 @@ bool send_probe_packet(struct sk_buff* skb)
     return true;
 }
 
-
-
-
-
 /* Funciones de limpieza. */
 
 bool clean_function_simple(struct session_entry *session)
@@ -638,42 +616,20 @@ bool clean_function_simple(struct session_entry *session)
     return nat64_remove_session_entry(session);
 }
 
-//~ bool clean_function_return_icmp_packet(struct session_entry *session)
-//~ {
-    //~ struct nf_conntrack_tuple tuple;
-//~ 
-    //~ tuple.
-    //~ 
-    //~ // send ICMP type 3 code 3 containing the stored packet.
-    //~ send_icmp_error_message(&tuple, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
-    //~ pr_debug("NAT64:  Sending ICMPv6 message: DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE");
-//~ 
-    //~ // delete session entry
-    //~ return nat64_remove_session_entry(session);
-//~ }
-
-
-
-
-
-
 /** Global structure containing the actual valid configuration of the NAT. */
 extern struct config_struct cs;
 
 ///// END
-
             
 /*  Definición de niveles de debug:
-- debug: info para programadores.
-- info: info para admins que solo se consultaría raramente.
-- notice: info para admins que se consultaría para testear el funcionamiento del sistema.
-- warning: potenciales errores de configuración - el sistema nota, a través de validaciones, que lo que le pide el admin no tiene mucho sentido pero el sistema puede seguir funcionando.
-- error: fatales que no permitan que el sistema siga funcionando            */
+	- debug: info para programadores.
+	- info: info para admins que solo se consultaría raramente.
+	- notice: info para admins que se consultaría para testear el funcionamiento del sistema.
+	- warning: potenciales errores de configuración - el sistema nota, a través de validaciones, que lo que le pide el admin no tiene mucho sentido pero el sistema puede seguir funcionando.
+	- error: fatales que no permitan que el sistema siga funcionando            */
 
-
-/**
- * An IPv6 incoming packet with an incoming tuple with source transport
- * address (X’,x) and destination transport address (Y’,y).
+/**	An IPv6 incoming packet with an incoming tuple with source transport
+ * 	address (X’,x) and destination transport address (Y’,y).
  * 
  * The result is a BIB entry as follows: (X’,x) <--> (T,t)
  *              
@@ -690,7 +646,6 @@ int ipv6_udp(struct nf_conntrack_tuple *tuple)
     struct ipv6_tuple_address ipv6_ta_local; // Transport Address temporal var.
     struct ipv6_tuple_address ipv6_ta_remote; // Transport Address temporal var.
     u_int8_t protocol;
-    
     int ret = 0;
     
     protocol = IPPROTO_UDP;
@@ -716,7 +671,7 @@ int ipv6_udp(struct nf_conntrack_tuple *tuple)
             NAT64 SHOULD send an ICMPv6 Destination Unreachable error message
             with Code 3 (Address Unreachable). */
 
-            // TODO: Check in RFC6146 if we should send the ICMPv6 error message.
+            // TODO: Check if we should send the ICMPv6 error message.
             
             pr_warning("NAT64:  Could NOT create a new BIB entry for a incoming IPv6 UDP packet.");
             pr_warning("        Dropping packet.");
@@ -724,15 +679,10 @@ int ipv6_udp(struct nf_conntrack_tuple *tuple)
             return NF_DROP;
         }
 
-        // Pack source address into transport address
-        //~ transport_address_ipv6(&ipv6_ta, tuple->ipv6_src_addr, tuple->src_port);
-        
         // Set BIB IPv6 transport address (X',x).
         bib_entry_p->ipv6 = ipv6_ta;
     
-        // Define BIB IPv4 transport address. 
         // Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address.
-        //~ ret = allocate_ipv4_transport_address(&bib, tuple, protocol, &new_ipv4_transport_address);
         ret = allocate_ipv4_transport_address(tuple, protocol, &new_ipv4_transport_address);
         if ( ret == false )
         {
@@ -753,16 +703,10 @@ int ipv6_udp(struct nf_conntrack_tuple *tuple)
         
         // Set BIB IPv4 transport address (T,t).
         bib_entry_p->ipv4 = new_ipv4_transport_address;
-
-pr_debug("About to add an bib entry");
-pr_debug("bib_entry = (%pI6c , %d) -- (%pI4 , %d)",
-    &bib_entry_p->ipv6.address, ntohs(bib_entry_p->ipv6.pi.port),
-    &bib_entry_p->ipv4.address, ntohs(bib_entry_p->ipv4.pi.port) );
             
         // Add the new BIB entry
 		INIT_LIST_HEAD(&bib_entry_p->session_entries);
         ret = nat64_add_bib_entry( bib_entry_p, protocol);
-pr_debug("despues de add bib \n");        
         if (ret == false)
         {
             
@@ -779,10 +723,7 @@ pr_debug("despues de add bib \n");
     
     // PERSONAL NOTE: This should look for the IPv6 incoming 5-tuple
     // Searches for the Session Table Entry corresponding to the incoming 5-tuple->
-    //~ session_entry_p = get_session_entry_by_tuple( tuple, protocol );
-pr_debug("aqui se llama nat64_get_session_entry , tuple= %p \n", tuple );
     session_entry_p = nat64_get_session_entry( tuple );
-pr_debug("aqui se llamooo nat64_get_session_entry  \n");
 
     // If session was not found, then try to create a new one.
     if ( session_entry_p == NULL )
@@ -797,7 +738,7 @@ pr_debug("aqui se llamooo nat64_get_session_entry  \n");
             pr_warning("NAT64:  Could NOT create a new SESSION entry for a incoming IPv6 UDP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB entry ????
+            // TODO: Should we delete the previously created BIB entry ????
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
         }
@@ -809,7 +750,7 @@ pr_debug("aqui se llamooo nat64_get_session_entry  \n");
             pr_warning("NAT64:  Could NOT extract IPv4 from IPv6 destination address,");
             pr_warning("        while creating a SESSION entry. Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
@@ -831,17 +772,13 @@ pr_debug("aqui se llamooo nat64_get_session_entry  \n");
         session_entry_p->is_static = false;     // This is a dynamic entry.
 
         // Add the session entry
-pr_debug("  About to add an session_entry with: nat64_add_session_entry, ptr=%p \n", session_entry_p);
         ret = nat64_add_session_entry(session_entry_p);
-pr_debug("  se llamO nat64_add_session_entry\n");
         if (ret == false)
-        {
-pr_debug("  ret == false \n");
-            
+        {            
             pr_warning("NAT64:  Could NOT add a new session entry for a incoming IPv6 UDP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
@@ -849,20 +786,8 @@ pr_debug("  ret == false \n");
     }
     
     // Reset session entry's lifetime.
-    //~ ret =
     nat64_update_session_lifetime(session_entry_p, UDP_DEFAULT_); 
-    //~ if (ret == false)
-    //~ {
-            //~ pr_warning("NAT64:  Could NOT renew the session entry's lifetime for a incoming IPv6 UDP packet.");
-            //~ pr_warning("        Dropping packet.");
-            //~ 
-            //~ // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
-            //~ nat64_remove_session_entry(session_entry_p);
-            //~ nat64_remove_bib_entry( bib_entry_p, protocol);
-            //~ return NF_DROP;
-    //~ }
         
-    // WHAT IS THE CORRECT RETURN VALUE ????
     return NF_ACCEPT;
 }
 
@@ -875,7 +800,7 @@ private int ipv4_udp(tuple):
  * @param[in]   tuple   Tuple obtained from incoming packet
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int ipv4_udp(struct nf_conntrack_tuple *tuple)
+int ipv4_udp(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
 {
     struct bib_entry *bib_entry_p;
     struct session_entry *session_entry_p;
@@ -892,10 +817,6 @@ int ipv4_udp(struct nf_conntrack_tuple *tuple)
     // Pack source address into transport address
     transport_address_ipv4( tuple->ipv4_dst_addr,tuple->dst_port, &ipv4_ta );
 
-pr_debug("Transport address ipv4 = (%pI4 , %d) ", 
-&ipv4_ta.address, ntohs(ipv4_ta.pi.port) );
-
-
     // Check if a previous BIB entry exist, look for IPv4 destination transport address (T,t).
     bib_entry_p = nat64_get_bib_entry_by_ipv4( &ipv4_ta, protocol );
 
@@ -904,10 +825,11 @@ pr_debug("Transport address ipv4 = (%pI4 , %d) ",
     // If not found, try to create a new one.
     if ( bib_entry_p == NULL )
     {               
-        // TOCHECK: Does the policy allow us to send this packet?
+        // TODO: Does the policy allow us to send this packet?
+
+        // TODO: Which code ???? , HOST_UNREACHABLE?, RFC doesn't specify that.
         // There's NOT a previous communication from IPv6 towar this IPv4 destination, so...
-        send_icmp_error_message(tuple, DESTINATION_UNREACHABLE, HOST_UNREACHABLE); 
-        // TOCHECK: Which code ???? , HOST_UNREACHABLE?, RFC doesn't specify that.
+        send_icmp_error_message(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE); 
         
         pr_warning("NAT64:  A BIB entry does NOT exist for a incoming IPv4 UDP packet.");
         pr_warning("        Dropping packet.");
@@ -938,12 +860,12 @@ pr_debug("Transport address ipv4 = (%pI4 , %d) ",
 
         if (!nat64_is_allowed_by_address_filtering( tuple ))
     	{
-        // If NO session was found:
-            /* an ICMP error message MAY be sent to the original sender of 
-             * the packet, having Type 3 (Destination Unreachable) and Code 13
-             * (Communication Administratively Prohibited). */
-            // TOCHECK: Does the policy allow us to send this packet?
-            send_icmp_error_message(tuple, DESTINATION_UNREACHABLE, COMMUNICATION_ADMINISTRATIVELY_PROHIBITED );
+			/* If NO session was found:
+             * 		an ICMP error message MAY be sent to the original sender of 
+             * 		the packet, having Type 3 (Destination Unreachable) and Code 13
+             * 		(Communication Administratively Prohibited). */
+            // TODO: Does the policy allow us to send this packet?
+            send_icmp_error_message(skb, DESTINATION_UNREACHABLE, COMMUNICATION_ADMINISTRATIVELY_PROHIBITED );
 
             pr_warning("NAT64:  A previous Session entry does NOT exist for a incoming IPv4 UDP packet.");
             pr_warning("        Using address-dependent filtering.");
@@ -959,7 +881,6 @@ pr_debug("Transport address ipv4 = (%pI4 , %d) ",
         transport address equal to (T,t) and a destination IPv4 transport 
         address equal to (W,w). */
     // Searches for the Session Table Entry corresponding to the incoming tuple->
-    //~ session_entry_p = get_session_entry_by_tuple( tuple, protocol );
     session_entry_p = nat64_get_session_entry( tuple );
     
     // If NO session was found:
@@ -987,7 +908,7 @@ pr_debug("Transport address ipv4 = (%pI4 , %d) ",
             pr_warning("        while creating a SESSION entry for a IPv4 UDP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
@@ -1012,11 +933,11 @@ pr_debug("Transport address ipv4 = (%pI4 , %d) ",
             pr_warning("NAT64:  Could NOT add a new session entry for a incoming IPv4 UDP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created SESSION entry ????
+            // TODO: Should we delete the previously created SESSION entry ????
             kfree(session_entry_p);
 
             //~ tryToDeleteBib(bib) // Nota 1
-            // TOCHECK: Are you sure you want to do this ????
+            // TODO: Are you sure you want to do this ????
             // nat64_remove_bib_entry( bib_entry_p, protocol);
             
             // the packet is discarded.
@@ -1096,7 +1017,6 @@ int ipv6_icmp6(struct nf_conntrack_tuple *tuple)
         //~ // BTW, lo referente a IPv4 debe ocurrir dentro de bib_session.
     
         // Define BIB IPv4 transport address. 
-
 
         // TODO: Replace this IF by the new function: 
 
@@ -1180,10 +1100,8 @@ pr_debug("bib_entry = (%pI6c , %d) -- (%pI4 , %d)",
         // Add the new BIB entry
 		INIT_LIST_HEAD(&bib_entry_p->session_entries);
         ret = nat64_add_bib_entry(bib_entry_p, protocol);
-pr_debug("After nat64_add_bib_entry");
         if ( ret == false )
         {
-pr_debug("ret == false");            
             pr_warning("NAT64:  Could NOT add a new BIB entry for a incoming IPv6 ICMP packet.");
             pr_warning("        Dropping packet.");
             
@@ -1196,16 +1114,13 @@ pr_debug("ret == false");
 
     // OK, we have a BIB entry to work with...
 
-pr_debug("nat64_get_session_entry()");
     /* Searche for an ICMP Query Session Table Entry corresponding to the incoming 
        3-tuple (X’,Y’,i1).  */
     session_entry_p = nat64_get_session_entry( tuple );
-pr_debug("after nat64_get_session_entry()");
 
     // If NO session was found:
     if ( session_entry_p == NULL )
     {
-pr_debug("Doh! session_entry_p == NULL ");        
         // TODO:    Define the checks that evaluate if resources availability 
         //          and policy allows the creation of a new entry.
 
@@ -1216,7 +1131,7 @@ pr_debug("Doh! session_entry_p == NULL ");
             pr_warning("NAT64:  Could NOT create a new SESSION entry for a incoming IPv6 ICMP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB entry ????
+            // TODO: Should we delete the previously created BIB entry ????
             nat64_remove_bib_entry( bib_entry_p, protocol );
             return NF_DROP;
         }
@@ -1228,14 +1143,14 @@ pr_debug("Doh! session_entry_p == NULL ");
             pr_warning("NAT64:  Could NOT extract IPv4 from IPv6 destination address,");
             pr_warning("        while creating a SESSION entry. Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
             // Should we DROP the package ????
             return NF_DROP;
         }
 
-        // NOTICE:  We store the ICMP ID (i1) in the ipv6.remote part of the STE.
+        // TODO: 	We store the ICMP ID (i1) in the ipv6.remote part of the STE.
         //          We do it in ipv4.local for (i2).
         //          Is this fine?
 
@@ -1253,19 +1168,16 @@ pr_debug("Doh! session_entry_p == NULL ");
         session_entry_p->bib = bib_entry_p;     // Owner bib_entry of this session.
         session_entry_p->is_static = false;     // This is a dynamic entry.
 
-pr_debug("About to add a session_entry with nat64_add_session_entry() ");                
         // Add the session entry
         ret = nat64_add_session_entry( session_entry_p );
-pr_debug("After add a session_entry with nat64_add_session_entry() ");                
         if (ret == false)
         {
-pr_debug("Doh! ret == NULL ");        
             pr_warning("NAT64:  Could NOT add a new session entry for a incoming IPv6 ICMP packet.");
             pr_warning("        Dropping packet.");
 
             //~ tryToDeleteBib(bib) // Nota 1
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
 
@@ -1286,7 +1198,7 @@ pr_debug("Doh! ret == NULL ");
  * @param[in]   tuple   Tuple obtained from incoming packet
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int ipv4_icmp4(struct nf_conntrack_tuple *tuple)
+int ipv4_icmp4(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
 {
     struct bib_entry *bib_entry_p;
     struct session_entry *session_entry_p;
@@ -1304,11 +1216,6 @@ int ipv4_icmp4(struct nf_conntrack_tuple *tuple)
 
     // Pack source address into transport address
     transport_address_ipv4( tuple->ipv4_dst_addr, tuple->icmp_id, &ipv4_ta );
-
-pr_debug("call to: ipv4_icmp4()");
-pr_debug("tuple = src(%pI4 , %d) -- dst(%pI4 , %d)",
-    &tuple->ipv4_src_addr, ntohs( tuple->icmp_id ),
-    &tuple->ipv4_dst_addr, ntohs( tuple->dst_port ) );
     
     // Look for a previous BIB entry that contains (X) as the IPv4 address and (i2) as the ICMPv4 Identifier.
     bib_entry_p = nat64_get_bib_entry_by_ipv4( &ipv4_ta, protocol );
@@ -1316,12 +1223,12 @@ pr_debug("tuple = src(%pI4 , %d) -- dst(%pI4 , %d)",
     // If such an entry does not exist,
     if ( bib_entry_p == NULL )
     {   
-        // TOCHECK: Does the policy allow us to send this packet?
+        // TODO: Does the policy allow us to send this packet?
         
         // There's NOT a previous communication from IPv6 towar this IPv4 destination, so...
         // Send an ICMP error message to the original sender of the packet, 
         // with Type 3 (Destination Unreachable) & Code 1 (Host Unreachable)
-        send_icmp_error_message(tuple, DESTINATION_UNREACHABLE, HOST_UNREACHABLE);
+        send_icmp_error_message(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE);
         
         pr_warning("NAT64:  A BIB entry does NOT exist for a incoming IPv4 ICMP packet.");
         pr_warning("        Dropping packet.");
@@ -1355,8 +1262,8 @@ pr_debug("tuple = src(%pI4 , %d) -- dst(%pI4 , %d)",
                 MAY be sent to the original sender of the packet. The ICMP error
                 message, if sent, has Type 3 (Destination Unreachable) and Code 13
                 (Communication Administratively Prohibited).*/
-            // TOCHECK: Does the policy allow us to send this packet?
-            send_icmp_error_message(tuple, DESTINATION_UNREACHABLE, COMMUNICATION_ADMINISTRATIVELY_PROHIBITED );
+            // TODO: Does the policy allow us to send this packet?
+            send_icmp_error_message(skb, DESTINATION_UNREACHABLE, COMMUNICATION_ADMINISTRATIVELY_PROHIBITED );
             
             pr_warning("NAT64:  A previous Session entry does NOT exist for a incoming IPv4 UDP packet.");
             pr_warning("        Using address-dependent filtering.");
@@ -1371,15 +1278,11 @@ pr_debug("tuple = src(%pI4 , %d) -- dst(%pI4 , %d)",
     /*  Searches for a Session Table Entry (STE) with source IPv4 address (X), 
         ICMPv4 Identifier (i2), and destination IPv4 address (Y). */
     // Searches for the Session Table Entry corresponding to the incoming tuple
-    //~ session_entry_p = get_session_entry_by_tuple( tuple , protocol );
-pr_debug("call to nat64_get_session_entry()");
     session_entry_p = nat64_get_session_entry( tuple );
-pr_debug("after have called to nat64_get_session_entry()");
     
     // If NO session was found:
     if ( session_entry_p == NULL )
     {
-pr_debug("Doh! session_entry_p == NULL ");        
         // TODO:    Define the checks that evaluate if resources availability 
         //          and policy allows the creation of a new entry.
     
@@ -1402,7 +1305,7 @@ pr_debug("Doh! session_entry_p == NULL ");
             pr_warning("        while creating a SESSION entry for a IPv4 ICMP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
@@ -1425,19 +1328,16 @@ pr_debug("Doh! session_entry_p == NULL ");
         session_entry_p->ipv6.local = ipv6_ta_local;    // (Y'(Z), i1)
         session_entry_p->l4protocol = protocol; //
 
-pr_debug("Add a session_entry nat64_add_session_entry() ");
         // Add the session entry
         ret = nat64_add_session_entry(session_entry_p);
-pr_debug("After add a session_entry nat64_add_session_entry() ");
         if (ret == false)
         {
-pr_debug("Doh! ret == false ");                    
             pr_warning("NAT64:  Could NOT add a new session entry for a incoming IPv4 ICMP packet.");
             pr_warning("        Dropping packet.");
 
             //~ tryToDeleteBib(bib) // Nota 1
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
 
@@ -1446,18 +1346,7 @@ pr_debug("Doh! ret == false ");
     }
 
     // Reset session entry's lifetime.
-    //~ ret =
     nat64_update_session_lifetime(session_entry_p, ICMP_DEFAULT_);    
-    //~ if (ret == false)
-    //~ {
-            //~ pr_warning("NAT64:  Could NOT renew the session entry's lifetime for a incoming IPv4 ICMP packet.");
-            //~ pr_warning("        Dropping packet.");
-            //~ 
-            //~ // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
-            //~ nat64_remove_session_entry(session_entry_p);
-            //~ nat64_remove_bib_entry( bib_entry_p, protocol);
-            //~ return NF_DROP;
-    //~ }
 
     return NF_ACCEPT; 
 }
@@ -1505,7 +1394,6 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
     struct ipv6_tuple_address ipv6_local;
     struct ipv6_tuple_address ipv6_ta_local;
     struct ipv6_tuple_address ipv6_ta_remote;
-    //~ struct in6_addr ipv6_ta;
     u_int8_t protocol;
     int ret;
 
@@ -1534,7 +1422,6 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
     }
     
     //  V6 SYN packet: IPv6 -> IPv4
-    //~ if ( NFPROTO_IPV6 == packet.buffer->protocol )
     if ( packet_is_v6_syn(skb) )
     {
         // Pack source address into transport address
@@ -1557,16 +1444,14 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
                 NAT64 SHOULD send an ICMPv6 Destination Unreachable error message
                 with Code 3 (Address Unreachable). */
 
-                // TODO: Check in RFC6146 if we should send the ICMPv6 error message.
+                send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
+                log_warning("NAT64:  CLOSED State. Sending ICMPv6 message: DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE");
                 
-                pr_warning("NAT64:  CLOSED State. Could NOT create a new BIB entry for an incoming IPv6 TCP packet.");
-                pr_warning("        Dropping packet.");
+                log_warning("NAT64:  CLOSED State. Could NOT create a new BIB entry for an incoming IPv6 TCP packet.");
+                log_warning("        Dropping packet.");
                             
                 return NF_DROP;
             }
-
-            // Pack source address into transport address
-            //~ transport_address_ipv6(&ipv6_ta, tuple->ipv6_src_addr, tuple->src_port);
             
             // Set BIB IPv6 transport address (X',x).
             bib_entry_p->ipv6 = ipv6_ta;
@@ -1579,7 +1464,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
                 /* If it is not possible to allocate an appropriate IPv4 transport
                  address the packet is discarded. Send an ICMPv6 Destination Unreachable
                  error message with Code 3 (Address Unreachable). */
-                send_icmp_error_message(tuple, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
+                send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
                 pr_debug("NAT64:  CLOSED State. Sending ICMPv6 message: DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE");
                 
                 pr_warning("NAT64:  CLOSED State. Could NOT allocate a new IPv4 transport address for an incoming IPv6 packet.");
@@ -1596,7 +1481,8 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             ret = nat64_add_bib_entry( bib_entry_p, protocol);
             if (ret == false)
             {
-                
+				// TODO: Should we send a ICMP6 packet ?
+				
                 pr_warning("NAT64:  CLOSED State. Could NOT add a new BIB entry for an incoming IPv6 TCP packet.");
                 pr_warning("        Dropping packet.");
                 
@@ -1609,7 +1495,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
         // Now that we have a BIB entry...
 
         // Try to create a new Session Entry
-        // TOCHECK:     What about of checking Policy and Resources for the creation of a STE.
+        // TODO:     What about of checking Policy and Resources for the creation of a STE.
 
         // Allocate memory for a new Session entry
         session_entry_p = (struct session_entry *) kmalloc( sizeof(struct session_entry), GFP_KERNEL );
@@ -1618,7 +1504,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             pr_warning("NAT64:  CLOSED State. Could NOT create a new SESSION entry for an incoming IPv6 TCP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB entry ????
+            // TODO: Should we delete the previously created BIB entry ????
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
         }
@@ -1630,7 +1516,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             pr_warning("NAT64:  CLOSED State. Could NOT extract IPv4 from IPv6 destination address,");
             pr_warning("        while creating a SESSION entry. Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
             return NF_DROP;
@@ -1650,15 +1536,12 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
         session_entry_p->ipv4.remote = ipv4_remote; // Z, z; // (Z(Y’),y)
         session_entry_p->l4protocol = protocol; //  
 
-        // session.lifetime = TCP_TRANS
         nat64_update_session_lifetime(session_entry_p, TCP_TRANS);
 
-        // session.state = V6_INIT
         session_entry_p->current_state = V6_INIT;
 
         session_entry_p->bib = bib_entry_p;     // Owner bib_entry of this session.
         session_entry_p->is_static = false;     // This is a dynamic entry.
-
 
         ret = nat64_add_session_entry(session_entry_p);
         if (ret == false)
@@ -1666,7 +1549,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             pr_warning("NAT64:  CLOSED State. Could NOT add a new session entry for an incoming IPv6 UDP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             nat64_remove_bib_entry( bib_entry_p, protocol);
 
@@ -1675,8 +1558,8 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
     }
     else if ( packet_is_v4_syn(skb) )
     {
-        // TODO:    add this option to the user space app.
-        // Should we drop externally initiated TCP connections ?
+        // TODO:    Add this configuration option to the user space app.
+        // Evaluate if we should drop externally initiated TCP connections 
         if ( cs.drop_externally_initiated_tcp_connections )
         {
 			pr_debug("NAT64: Applying policy: Drop externally initiated TCP connections.");
@@ -1700,7 +1583,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             */
 
             // Try to create a new Session Entry
-            // TOCHECK:     What about of checking Policy and Resources for the creation of a STE.
+            // TODO:     What about of checking Policy and Resources for the creation of a STE.
 
             // Allocate memory for a new Session entry
             session_entry_p = (struct session_entry *) kmalloc( sizeof(struct session_entry), GFP_KERNEL );
@@ -1709,7 +1592,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
                 pr_warning("NAT64:  CLOSED State. Could NOT create a new SESSION entry for an incoming IPv4 TCP packet.");
                 pr_warning("        Dropping packet.");
                 
-                // TOCHECK: Should we delete the previously created BIB entry ????
+                // TODO: Should we delete the previously created BIB entry ????
                 nat64_remove_bib_entry( bib_entry_p, protocol);
                 return NF_DROP;
             }
@@ -1742,12 +1625,11 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
 
             session_entry_p->bib = bib_entry_p;     // Owner bib_entry of this session.
             session_entry_p->is_static = false;     // This is a dynamic entry.
-
-            
+           
             // session.lifetime = TCP_INCOMING_SYN
             nat64_update_session_lifetime(session_entry_p, TCP_INCOMING_SYN);
             
-            /* TODO:    The packet is stored.  
+            /* TODO:    The packet is stored !!!  
              *          The result is that the NAT64 will not drop the packet based on the filtering, 
              *          nor create a BIB entry.  Instead, the NAT64 will only create the Session 
              *          Table Entry and store the packet. The motivation for this is to support 
@@ -1758,7 +1640,8 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             // TODO:    Define the checks that evaluate if resources availability 
             //          and policy allows the creation of a new entry.
 
-            /* ATTENTION: 
+            /* TODO:
+             * ATTENTION: 
              *     Should we look for a previous session?
              *          Check the RFC6146
              * */
@@ -1771,7 +1654,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
                 pr_warning("NAT64:  CLOSED State. Could NOT create a new SESSION entry for an incoming IPv4 TCP packet.");
                 pr_warning("        Dropping packet.");
                 
-                // TOCHECK: Should we delete the previously created BIB entry ????
+                // TODO: Should we delete the previously created BIB entry ????
                 nat64_remove_bib_entry( bib_entry_p, protocol);
                 return NF_DROP;
             }
@@ -1803,8 +1686,6 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             session_entry_p->bib = bib_entry_p;     // Owner bib_entry of this session.
             session_entry_p->is_static = false;     // This is a dynamic entry.
 
-
-            // session.state = V4_INIT
             session_entry_p->current_state = V4_INIT;
 
             if ( cs.address_dependent_filtering )
@@ -1819,13 +1700,12 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             pr_warning("NAT64:  CLOSED State. Could NOT add a new session entry for an incoming IPv4 TCP packet.");
             pr_warning("        Dropping packet.");
             
-            // TOCHECK: Should we delete the previously created BIB & SESSION entries ????
+            // TODO: Should we delete the previously created BIB & SESSION entries ????
             kfree(session_entry_p);
             // nat64_remove_bib_entry( bib_entry_p, protocol);
 
             return NF_DROP;
         }
-
     }
     return NF_ACCEPT;
 }
@@ -1903,7 +1783,6 @@ int tcp_v6_init_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tup
 
     protocol = IPPROTO_TCP;
 
-
     // If a V4 SYN is received (with or without the ACK flag set)
     if (packet_is_v4_syn(skb))
     {
@@ -1963,21 +1842,9 @@ int tcp_v6_init_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tup
         }
     }
     
-    // TODO: If the lifetime expires, the Session Table Entry is deleted, and the state is moved to CLOSED.
-    /*
-    if (  )
-    {
-        if ( nat64_remove_session_entry(session_entry_p) == false )
-        {
-            pr_warning("NAT64:  V6 INIT state. Could NOT delete an existing SESSION entry for an expired lifetime.");
-            pr_warning("        Dropping packet.");
-        }
-        
-        // The state is moved to CLOSED.
-        session_entry_p->current_state = CLOSED;
-    }
-     * */
-    
+    /* TODO:  If the lifetime expires, the Session Table Entry is deleted, 
+     * 			and the state is moved to CLOSED. */
+     
     return NF_ACCEPT;
 }
 
@@ -2092,30 +1959,7 @@ int tcp_established_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple 
      *      with no data.  The sequence number and the acknowledgment number are
      *      set to zero.  All flags but the ACK flag are set to zero.  The state
      *      is moved to TRANS. */
-    /*
-    // If the lifetime has expired
-    if (  )
-    {
-        // Searches for the Session Table Entry corresponding to the incoming tuple
-        session_entry_p = get_session_entry_by_tuple( tuple, protocol );
-        
-        // If NO session was found:
-        if ( session_entry_p == NULL )
-        {
-            pr_warning("NAT64:  ESTABLISHED state. Could NOT find an existing SESSION entry for an expired lifetime.");
-            pr_warning("        Dropping packet.");
-            
-            return NF_DROP;
-        }
-
-        // TODO:    send a probe packet to at least one of the endpoints of the TCP connection.
-        send_probe_packet(packet);
-         
-        // The state is moved to TRANS.
-        session_entry_p->current_state = TRANS;
-    }
-    */
-
+    
     return NF_ACCEPT;
 }
 
@@ -2181,20 +2025,8 @@ int tcp_v4_fin_rcv_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *
         // The state remains unchanged as V4 FIN RCV.
     }
 
-    // TODO: If the lifetime expires, the Session Table Entry is deleted, and the state is moved to CLOSED.
-    /*
-    if (  )
-    {
-        if ( nat64_remove_session_entry(session_entry_p) == false )
-        {
-            pr_warning("NAT64:  V4 FIN RCV state. Could NOT delete an existing SESSION entry for an expired lifetime.");
-            pr_warning("        Dropping packet.");
-        }
-        
-        // The state is moved to CLOSED.
-        session_entry_p->current_state = CLOSED;
-    }
-     * */
+    /* TODO: 	If the lifetime expires, the Session Table Entry is deleted, 
+	 *			and the state is moved to CLOSED. */
 
     return NF_ACCEPT;    
 }
@@ -2261,20 +2093,8 @@ int tcp_v6_fin_rcv_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *
         // The state remains unchanged as V6 FIN RCV.
     }
 
-    // TODO: If the lifetime expires, the Session Table Entry is deleted, and the state is moved to CLOSED.
-    /*
-    if (  )
-    {
-        if ( nat64_remove_session_entry(session_entry_p) == false )
-        {
-            pr_warning("NAT64:  V6 FIN RCV state. Could NOT delete an existing SESSION entry for an expired lifetime.");
-            pr_warning("        Dropping packet.");
-        }
-        
-        // The state is moved to CLOSED.
-        session_entry_p->current_state = CLOSED;
-    }
-     * */
+    /* TODO: 	If the lifetime expires, the Session Table Entry is deleted, and 
+     * 			the state is moved to CLOSED. */
 
     return NF_ACCEPT;    
 }
@@ -2286,27 +2106,15 @@ int tcp_v6_fin_rcv_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *
  * @param[in]   tuple   Tuple of the incoming packet.
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int tcp_V4_FIN_V6_FIN_RCV_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
+int tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
 {
     // struct session_entry *session_entry_p;
     
     // TODO: Packet is translated. 
     // TODO: Packet is forwarded.  
 
-    // TODO: If the lifetime expires, the Session Table Entry is deleted, and the state is moved to CLOSED.
-    /*
-    if (  )
-    {
-        if ( nat64_remove_session_entry(session_entry_p) == false )
-        {
-            pr_warning("NAT64:  V6 FIN + V4 FIN RCV state. Could NOT delete an existing SESSION entry for an expired lifetime.");
-            pr_warning("        Dropping packet.");
-        }
-        
-        // The state is moved to CLOSED.
-        session_entry_p->current_state = CLOSED;
-    }
-     * */
+    /* TODO: 	If the lifetime expires, the Session Table Entry is deleted, and 
+     * 			the state is moved to CLOSED. */
 
     return NF_ACCEPT;    
 }
@@ -2320,7 +2128,7 @@ int tcp_V4_FIN_V6_FIN_RCV_state_handle(struct sk_buff* skb, struct nf_conntrack_
  */
 int tcp_trans_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
 {
-    struct session_entry *session_entry_p;
+    struct session_entry *session_entry_p = NULL;
     u_int8_t protocol;
 
     protocol = IPPROTO_TCP;
@@ -2351,13 +2159,7 @@ int tcp_trans_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
     {
         //~ if packet is a RST:
             //~ delete session entry
-    }
-
-    // TODO: If the lifetime expires, the Session Table Entry is deleted, and the state is moved to CLOSED.
-    /*
-    if (  )
-    {
-        if ( nat64_remove_session_entry(session_entry_p) == false )
+		if ( nat64_remove_session_entry(session_entry_p) == false )
         {
             pr_warning("NAT64:  TRANS state. Could NOT delete an existing SESSION entry for an expired lifetime.");
             pr_warning("        Dropping packet.");
@@ -2366,10 +2168,74 @@ int tcp_trans_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
         // The state is moved to CLOSED.
         session_entry_p->current_state = CLOSED;
     }
-     * */
+
+    /* TODO: 	If the lifetime expires, the Session Table Entry is deleted, 
+     * 			and the state is moved to CLOSED. */
 
     return NF_ACCEPT;    
 }
+
+/** 
+ * 
+ * 	
+ * @param[in]	session_entry	The entry whose lifetime just expired.
+ * @return TRUE: keep STE, FALSE: remove STE.
+ * */
+bool session_expired(struct session_entry *session_entry_p)
+{
+	// Act according the current state.
+	switch( session_entry_p->current_state )
+	{
+		case CLOSED:
+			return false;
+		case V4_INIT:
+    /* TODO: 
+     *      If the lifetime expires, an ICMP Port Unreachable error (Type 3, Code 3) containing the 
+     *      IPv4 SYN packet stored is sent back to the source of the v4 SYN, the Session Table Entry 
+     *      is deleted, and the state is moved to CLOSED. */
+			
+			// TODO: Where do we get the 'skb' from ???
+			// send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
+			session_entry_p->current_state = CLOSED;
+			return false;
+		case V6_INIT:
+			session_entry_p->current_state = CLOSED;
+			return false;
+		case ESTABLISHED:
+		    /* TODO:    
+			 *      If the lifetime expires, then the NAT64 SHOULD send a probe packet
+			 *      (as defined next) to at least one of the endpoints of the TCP connection.
+			 *      The probe packet is a TCP segment for the connection
+			 *      with no data.  The sequence number and the acknowledgment number are
+			 *      set to zero.  All flags but the ACK flag are set to zero.  The state
+			 *      is moved to TRANS. */
+
+			// TODO: Where do we get the 'skb' from ??? 
+			// send_probe_packet(skb);			 
+			session_entry_p->current_state = TRANS;
+			return true;
+		case V4_FIN_RCV:
+			session_entry_p->current_state = CLOSED;
+			return false;
+		case V6_FIN_RCV:
+			session_entry_p->current_state = CLOSED;
+    		return false;
+		case V4_FIN_V6_FIN_RCV:
+			session_entry_p->current_state = CLOSED;
+			return false;
+		case TRANS:
+			session_entry_p->current_state = CLOSED;
+			return false;
+		default:
+			// TODO: What should we do?
+			log_warning("TCP. Invalid state found, keeping STE.");
+	}
+	
+	return true;
+}
+
+
+
 
 /*********************************************
  **                                         **
@@ -2394,10 +2260,8 @@ int tcp(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
 
     protocol = IPPROTO_TCP;
     
-    //  SessionEntry session = locateSessionEntryByTuple(inTuple, TCP)
     session_entry_p = nat64_get_session_entry( tuple );
 
-//  return (session exists) ? session.main_function(tuple, session) : closed_state_function(tuple)
     // If NO session was found:
     if ( session_entry_p == NULL )
     {
@@ -2411,39 +2275,37 @@ int tcp(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
         // Act according the current state.
         switch( current_state )
         {
-                case CLOSED:
-                        return tcp_closed_state_handle(skb, tuple);
-                        break;
-                case V4_INIT:
-                        return tcp_v4_init_state_handle(skb, tuple);
-                        break;
-                case V6_INIT:
-                        return tcp_v6_init_state_handle(skb, tuple);
-                        break;
-                case ESTABLISHED:
-                        return tcp_established_state_handle(skb, tuple);
-                        break;
-                case V4_FIN_RCV:
-                        return tcp_v4_fin_rcv_state_handle(skb, tuple);
-                        break;
-                case V6_FIN_RCV:
-                        return tcp_v6_fin_rcv_state_handle(skb, tuple);
-                        break;
-                case V4_FIN_V6_FIN_RCV:
-                        return tcp_V4_FIN_V6_FIN_RCV_state_handle(skb, tuple);
-                        break;
-                case TRANS:
-                        return tcp_trans_state_handle(skb, tuple);
-                        break;
-                default:
-                        // TODO: What should we do?
-                        pr_warning("NAT64:  TCP. Invalid state found.");
-                        pr_warning("        Dropping packet.");
+			case CLOSED:
+					return tcp_closed_state_handle(skb, tuple);
+					break;
+			case V4_INIT:
+					return tcp_v4_init_state_handle(skb, tuple);
+					break;
+			case V6_INIT:
+					return tcp_v6_init_state_handle(skb, tuple);
+					break;
+			case ESTABLISHED:
+					return tcp_established_state_handle(skb, tuple);
+					break;
+			case V4_FIN_RCV:
+					return tcp_v4_fin_rcv_state_handle(skb, tuple);
+					break;
+			case V6_FIN_RCV:
+					return tcp_v6_fin_rcv_state_handle(skb, tuple);
+					break;
+			case V4_FIN_V6_FIN_RCV:
+					return tcp_v4_fin_v6_fin_rcv_state_handle(skb, tuple);
+					break;
+			case TRANS:
+					return tcp_trans_state_handle(skb, tuple);
+					break;
+			default:
+					// TODO: What should we do?
+					pr_warning("NAT64:  TCP. Invalid state found.");
+					pr_warning("        Dropping packet.");
 
-                        return NF_DROP;
+					return NF_DROP;
         }
-        
-        //~ return tcp_session_main_handle(tuple, session_entry_p); 
     }
 
     return NF_DROP;
@@ -2493,20 +2355,16 @@ pr_debug("f&u: Process packet, according to its protocol.");
             if ( NFPROTO_IPV6 == tuple->L3_PROTOCOL )
                 return ipv6_udp(tuple);
             if ( NFPROTO_IPV4 == tuple->L3_PROTOCOL )
-                return ipv4_udp(tuple);
+                return ipv4_udp(skb, tuple);
             break;
         case IPPROTO_TCP:
             return tcp(skb, tuple);
-            //~ if ( NFPROTO_IPV6 == packet.buffer->protocol )
-                //~ return ipv6_tcp(tuple);
-            //~ if ( NFPROTO_IPV4 == packet.buffer->protocol )     
-                //~ return ipv4_tcp(tuple);
             break;
         case IPPROTO_ICMP:  // FIXME: This packages are discarded in the first IF !!!!
             if ( NFPROTO_IPV6 == tuple->L3_PROTOCOL )
                 return ipv6_icmp6(tuple);
             if ( NFPROTO_IPV4 == tuple->L3_PROTOCOL )
-                return ipv4_icmp4(tuple);
+                return ipv4_icmp4(skb, tuple);
             break;    
         default:
             return NF_DROP;
