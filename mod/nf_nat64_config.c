@@ -3,19 +3,17 @@
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
 #include <linux/netlink.h>
+
+#include "nf_nat64_constants.h"
 #include "nf_nat64_config.h"
 #include "nf_nat64_static_routes.h"
+#include "nf_nat64_ipv4_pool.h"
+#include "nf_nat64_pool6.h"
 #include "xt_nat64_module_comm.h"
+#include "nf_nat64_translate_packet.h"
 
-struct configuration config;
-struct config_struct cs;
 
-/**
- * Default values for the config.mtu_plateaus field.
- */
-const __u16 DEFAULT_MTU_PLATEAUS[] = { 65535, 32000, 17914, 8166,
-		4352, 2002, 1492, 1006,
-		508, 296, 68 };
+struct filtering_config filtering_conf;
 
 /**
  * Socket the userspace application will speak to. We don't use it directly, but we need the
@@ -31,126 +29,262 @@ DEFINE_MUTEX(my_mutex);
 
 bool nat64_config_init(void)
 {
-	struct ipv6_prefixes ip6p;
-	struct in_addr ipv4_pool_net;
-	struct in_addr ipv4_pool_range_first;
-	struct in_addr ipv4_pool_range_last;
-	int ipv4_mask_bits;
-	__be32 ipv4_netmask;	// TODO change data type -> 'in_addr' type. Rob.
+	struct ipv6_prefix pool6_prefix;
 
-	// TODO: Define & Set values for operational parameters:
-	cs.address_dependent_filtering = 0;	//<<< TODO: Use a define for this value!
-	cs.filter_informational_icmpv6 = 0;	//<<< TODO: Use a define for this value!
-	cs.hairpinning_mode = 0;
+	unsigned char *pool4_addresses_str[] = POOL4_DEF;
+	int i;
 
 	// IPv4 pool config
-	if (!str_to_addr4(IPV4_DEF_POOL_NET, &ipv4_pool_net)) {
-		log_warning("IPv4 pool net in Headers is malformed [%s].", IPV4_DEF_POOL_NET);
-		return false;
-	}
-	ipv4_mask_bits = IPV4_DEF_POOL_NET_MASK_BITS;	// Num. of bits 'on' in the net mask
-	if (ipv4_mask_bits > 32 || ipv4_mask_bits < 1) {
-		log_warning("IPv4 Pool netmask bits value is invalid [%d].", IPV4_DEF_POOL_NET_MASK_BITS);
-		return false;
-	}
-	ipv4_netmask = inet_make_mask(ipv4_mask_bits);
-	ipv4_pool_net.s_addr = ipv4_pool_net.s_addr & ipv4_netmask; // For the sake of correctness
+	for (i = 0; i < ARRAY_SIZE(pool4_addresses_str); i++) {
+		struct in_addr current_addr;
 
-	if (!str_to_addr4(IPV4_DEF_POOL_FIRST, &ipv4_pool_range_first)) {
-		log_warning("IPv4 pool net in Headers is malformed [%s].", IPV4_DEF_POOL_FIRST);
-		return false;
-	}
-	if (!str_to_addr4(IPV4_DEF_POOL_LAST, &ipv4_pool_range_last)) {
-		log_warning("IPv4 pool net in Headers is malformed [%s].", IPV4_DEF_POOL_LAST);
-		return false;
-	}
+		if (!str_to_addr4(pool4_addresses_str[i], &current_addr)) {
+			log_warning("IPv4 pool net in Headers is malformed [%s].", pool4_addresses_str[i]);
+			return false;
+		}
 
-	cs.ipv4_pool_net = ipv4_pool_net;
-	cs.ipv4_pool_net_mask_bits = ipv4_mask_bits;
-	cs.ipv4_pool_range_first = ipv4_pool_range_first;
-	cs.ipv4_pool_range_last = ipv4_pool_range_last;
+		pool4_register(&current_addr);
+	}
 
 	// IPv6 pool config
-	if (!str_to_addr6(IPV6_DEF_PREFIX, &ip6p.addr)) {
-		log_warning("IPv6 prefix in Headers is malformed [%s].", IPV6_DEF_PREFIX);
+	if (!str_to_addr6(POOL6_DEF_ADDR, &pool6_prefix.address)) {
+		log_warning("IPv6 prefix in Headers is malformed [%s].", POOL6_DEF_ADDR);
 		return false;
 	}
-	if (IPV6_DEF_MASKBITS > IPV6_DEF_MASKBITS_MAX || IPV6_DEF_MASKBITS < IPV6_DEF_MASKBITS_MIN) {
-		log_warning("Bad IPv6 network mask bits value in Headers: %d", IPV6_DEF_MASKBITS);
-		return false;
-	}
-	ip6p.maskbits = IPV6_DEF_MASKBITS;
+	pool6_prefix.maskbits = POOL6_DEF_PREFIX;
 
-	// TODO (miguel) revisar el valor de retorno de estos kmallocs.
-	cs.ipv6_net_prefixes = kmalloc(1 * sizeof(struct ipv6_prefixes*), GFP_ATOMIC);
-	cs.ipv6_net_prefixes[0] = kmalloc(sizeof(struct ipv6_prefixes), GFP_ATOMIC);
-	(*cs.ipv6_net_prefixes[0]) = ip6p;
-	cs.ipv6_net_prefixes_qty = 1;
+	pool6_register(&pool6_prefix);
 
-	log_debug("Initial (default) configuration loaded:");
-	log_debug("  using IPv4 pool subnet %pI4/%d (netmask %pI4),", &(cs.ipv4_pool_net),
-			cs.ipv4_pool_net_mask_bits, &ipv4_netmask);
-	log_debug("  and IPv6 prefix %pI6c/%d.", &(cs.ipv6_net_prefixes[0]->addr),
-			cs.ipv6_net_prefixes[0]->maskbits);
-
-	// Translate the packet config
-	config.packet_head_room = 0;
-	config.packet_tail_room = 32;
-	config.override_ipv6_traffic_class = false;
-	config.override_ipv4_traffic_class = false;
-	config.ipv4_traffic_class = 0;
-	config.df_always_set = true;
-	config.generate_ipv4_id = false;
-	config.improve_mtu_failure_rate = true;
-	config.ipv6_nexthop_mtu = 1280;
-	config.ipv4_nexthop_mtu = 576;
-
-	config.mtu_plateau_count = ARRAY_SIZE(DEFAULT_MTU_PLATEAUS);
-	config.mtu_plateaus = kmalloc(sizeof(DEFAULT_MTU_PLATEAUS), GFP_ATOMIC);
-	if (!config.mtu_plateaus) {
-		log_warning("Could not allocate memory to store the MTU plateaus.");
-		return false;
-	}
-	memcpy(config.mtu_plateaus, &DEFAULT_MTU_PLATEAUS, sizeof(DEFAULT_MTU_PLATEAUS));
+	// Filtering and Updating config
+	filtering_conf.address_dependent_filtering = FILT_DEF_ADR_DEPENDENT_FILTERING;
+	filtering_conf.filter_informational_icmpv6 = FILT_DEF_FILTER_ICMPV6_INFO;
+	filtering_conf.drop_externally_initiated_tcp_connections = FILT_DEF_DROP_EXTERNALLY_INITIATED_CONNECTIONS;
 
 	// Netlink sockets.
-	// TODO find out what causes Osorio's compatibility issues and fix it.
+	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
 	struct netlink_kernel_cfg cfg = {
-			.input = &my_nl_rcv_msg,
+			.input = &receive_from_userspace,
 	};
 	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
 	if (!my_nl_sock) {
 		log_warning("Creation of netlink socket failed.");
-		return false;
+		goto failure;
 	}
 	log_debug("Netlink socket created.");
 
 	return true;
-	// TODO (miguel) hay kmallocs en esta función, y en caso de error no se están liberando.
 }
 
 void nat64_config_destroy(void)
 {
-	// TODO (miguel) hay elementos en la configuración que se encuentran en el heap. Liberarlos.
-
-	// Netlink sockets.
 	if (my_nl_sock)
 		netlink_kernel_release(my_nl_sock);
 }
 
-/**
- * Helper of update_nat_config().
- * Writes the "msg" message along with "mst"'s mode and operation on "as", and stores its length in
- * "as_len".
- */
-static void write_message(char *msg, struct manconf_struct *mst, struct answer_struct **as,
-		__u32 *as_len)
+static bool write_data(struct response_hdr **response, enum response_code code, void *payload,
+		__u32 payload_len)
 {
-	*as_len = sizeof(struct answer_struct) + strlen(msg) + 1;
-	*as = kmalloc(*as_len, GFP_ATOMIC); // TODO (miguel) revisar valor de retorno.
-	(*as)->mode = mst->mode;
-	(*as)->operation = mst->operation;
-	memcpy((*as) + 1, msg, strlen(msg) + 1);
+	__u32 length = sizeof(**response) + payload_len;
+
+	*response = kmalloc(length, GFP_ATOMIC);
+	if (!(*response)) {
+		log_warning("Could not allocate an answer for the user...");
+		return false;
+	}
+
+	(*response)->result_code = code;
+	(*response)->length = length;
+	memcpy((*response) + 1, payload, payload_len);
+
+	return true;
+}
+
+static bool write_code(struct response_hdr **response, enum response_code code)
+{
+	return write_data(response, code, NULL, 0);
+}
+
+static bool handle_pool6_config(__u32 operation, union request_pool6 *payload,
+		struct response_hdr **as)
+{
+	struct ipv6_prefix *prefixes;
+	__u32 prefix_count;
+	enum response_code code;
+	bool success;
+
+	switch (operation) {
+	case OP_DISPLAY:
+		log_debug("Sending IPv6 pool to userspace.");
+
+		code = pool6_to_array(&prefixes, &prefix_count);
+		if (code != RESPONSE_SUCCESS)
+			return write_code(as, code);
+
+		success = write_data(as, code, prefixes, prefix_count * sizeof(*prefixes));
+		kfree(prefixes);
+		return success;
+
+	case OP_ADD:
+		log_debug("Adding a prefix to the IPv6 pool.");
+		return write_code(as, pool6_register(&payload->update.prefix));
+
+	case OP_REMOVE:
+		log_debug("Removing a prefix from the IPv6 pool.");
+		return write_code(as, pool6_remove(&payload->update.prefix));
+
+	default:
+		return write_code(as, RESPONSE_UNKNOWN_OP);
+	}
+}
+
+static bool handle_pool4_config(__u32 operation, union request_pool4 *request,
+		struct response_hdr **response)
+{
+	struct in_addr *entries;
+	__u32 entry_count;
+	enum response_code code;
+	bool success;
+
+	switch (operation) {
+	case OP_DISPLAY:
+		log_debug("Sending IPv4 pool to userspace.");
+
+		code = pool4_to_array(&entries, &entry_count);
+		if (code != RESPONSE_SUCCESS)
+			return write_code(response, code);
+
+		success = write_data(response, code, entries, entry_count * sizeof(*entries));
+		kfree(entries);
+		return success;
+
+	case OP_ADD:
+		log_debug("Adding an address to the IPv4 pool.");
+		return write_code(response, pool4_register(&request->update.addr));
+
+	case OP_REMOVE:
+		log_debug("Removing an address from the IPv4 pool.");
+		return write_code(response, pool4_remove(&request->update.addr));
+
+	default:
+		return write_code(response, RESPONSE_UNKNOWN_OP);
+	}
+}
+
+static bool handle_bib_config(__u32 operation, union request_bib *request,
+		struct response_hdr **response)
+{
+	struct bib_entry_us *bibs;
+	__u16 bib_count;
+	enum response_code code;
+	bool success;
+
+	switch (operation) {
+	case OP_DISPLAY:
+		log_debug("Sending BIB to userspace.");
+
+		code = nat64_print_bib_table(request, &bib_count, &bibs);
+		if (code != RESPONSE_SUCCESS)
+			return write_code(response, code);
+
+		success = write_data(response, code, bibs, bib_count * sizeof(*bibs));
+		kfree(bibs);
+		return success;
+
+	default:
+		return write_code(response, RESPONSE_UNKNOWN_OP);
+	}
+}
+
+static bool handle_session_config(__u32 operation, struct request_session *request,
+		struct response_hdr **response)
+{
+	struct session_entry_us *sessions;
+	__u16 session_count;
+	enum response_code code;
+	bool success;
+
+	switch (operation) {
+	case OP_DISPLAY:
+		log_debug("Sending session table to userspace.");
+
+		code = nat64_print_session_table(request, &session_count, &sessions);
+		if (code != RESPONSE_SUCCESS)
+			return write_code(response, code);
+
+		success = write_data(response, code, sessions, session_count * sizeof(*sessions));
+		kfree(sessions);
+		return success;
+
+	case OP_ADD:
+		log_debug("Adding session.");
+		return write_code(response, nat64_add_static_route(request));
+
+	case OP_REMOVE:
+		log_debug("Removing session.");
+		return write_code(response, nat64_delete_static_route(request));
+
+	default:
+		return write_code(response, RESPONSE_UNKNOWN_OP);
+	}
+}
+
+static bool handle_filtering_config(__u32 operation, union request_filtering *request,
+		struct response_hdr **response)
+{
+	struct filtering_config *new_config = &request->update.config;
+
+	if (operation == 0) {
+		log_debug("Returning 'Filtering and Updating' options...");
+		return write_data(response, RESPONSE_SUCCESS, &filtering_conf, sizeof(filtering_conf));
+	}
+
+	log_debug("Updating 'Filtering and Updating' options:");
+
+	if (operation & ADDRESS_DEPENDENT_FILTER_MASK)
+		filtering_conf.address_dependent_filtering = new_config->address_dependent_filtering;
+	if (operation & FILTER_INFO_MASK)
+		filtering_conf.filter_informational_icmpv6 = new_config->filter_informational_icmpv6;
+	if (operation & DROP_TCP_MASK)
+		filtering_conf.drop_externally_initiated_tcp_connections =
+				new_config->drop_externally_initiated_tcp_connections; // Dude.
+
+	return write_code(response, RESPONSE_SUCCESS);
+}
+
+static bool handle_translate_config(struct request_hdr *hdr, union request_translate *request,
+		struct response_hdr **response)
+{
+	bool success;
+
+	if (hdr->operation == 0) {
+		struct translate_config clone;
+		unsigned char *config;
+		__u16 config_len;
+
+		log_debug("Returning 'Translate the Packet' options...");
+
+		if (!translate_clone_config(&clone))
+			return write_code(response, RESPONSE_ALLOC_FAILED);
+
+		if (!serialize_translate_config(&clone, &config, &config_len))
+			return write_code(response, RESPONSE_ALLOC_FAILED);
+
+		success = write_data(response, RESPONSE_SUCCESS, config, config_len);
+		kfree(config);
+		kfree(clone.mtu_plateaus);
+		return success;
+	} else {
+		struct translate_config new_config;
+
+		log_debug("Updating 'Translate the Packet' options:");
+
+		if (!deserialize_translate_config(request + 1, hdr->length - sizeof(*hdr), &new_config))
+			return write_code(response, RESPONSE_ALLOC_FAILED);
+
+		success = write_code(response, translate_packet_config(hdr->operation, &new_config));
+		kfree(new_config.mtu_plateaus);
+		return success;
+	}
 }
 
 /**
@@ -159,232 +293,26 @@ static void write_message(char *msg, struct manconf_struct *mst, struct answer_s
  *
  * @param mst configuration update petition from userspace.
  * @param as this function's response to userspace (out parameter).
- * @param as_len "as"'s length in bytes (out parameter).
  * @return "true" if successful.
  */
-bool update_nat_config(struct manconf_struct *mst, struct answer_struct **as, __u32 *as_len)
+bool update_nat_config(struct request_hdr *hdr, struct response_hdr **res)
 {
-	unsigned char i = 0;
-	unsigned char qty = 0;
-	struct bib_entry_us *bibs = NULL;
-	struct session_entry_us *sessions = NULL;
-	__u32 count = 0;
-	struct ipv6_prefixes ip6p;
-
-	switch (mst->mode) {
-	case 0: // TODO (miguel) #define estas constantes.
-		switch (mst->operation) {
-		case 2:
-			log_debug("Sending BIB to userspace.");
-			if (nat64_print_bib_table(&mst->us.rs, &count, &bibs)) {
-				__u32 payload_len = count * sizeof(struct bib_entry);
-
-				*as_len = sizeof(struct answer_struct) + payload_len;
-				*as = kmalloc(*as_len, GFP_ATOMIC);
-				if (!(*as)) {
-					// TODO (miguel) liberar bibs.
-					return false;
-				}
-				(*as)->mode = mst->mode;
-				(*as)->operation = mst->operation;
-				(*as)->array_quantity = count;
-
-				memcpy((*as) + 1, bibs, payload_len);
-
-				kfree(bibs);
-			} else {
-				if (count == 0)
-					write_message("The table is empty.", mst, as, as_len);
-				else if (count == -1)
-					write_message("Could not allocate the table to display.", mst, as, as_len);
-				(*as)->array_quantity = 0;
-			}
-			break;
-		default:
-			log_warning("Unknown operation while handling BIBs: %d", mst->operation);
-			write_message("Parameter error.", mst, as, as_len);
-		}
-		break;
-
-	case 1:
-		switch (mst->operation) {
-		case 0:
-			log_debug("Adding session.");
-			if (nat64_add_static_route(&mst->us.rs))
-				write_message("Insertion was successful.", mst, as, as_len);
-			else
-				write_message("Could NOT create a new Session entry.", mst, as, as_len);
-			break;
-		case 1:
-			log_debug("Removing session.");
-			if (nat64_delete_static_route(&mst->us.rs))
-				write_message("Deletion was successful.", mst, as, as_len);
-			else
-				write_message("Could NOT remove the Session entry.", mst, as, as_len);
-			break;
-		case 2:
-			log_debug("Sending session table to userspace.");
-			if (nat64_print_session_table(&mst->us.rs, &count, &sessions)) {
-				__u32 payload_len = count * sizeof(struct session_entry);
-
-				*as_len = sizeof(struct answer_struct) + payload_len;
-				*as = kmalloc(*as_len, GFP_ATOMIC);
-				if (!(*as)) {
-					// TODO (miguel) liberar sessions.
-					return false;
-				}
-				(*as)->mode = mst->mode;
-				(*as)->operation = mst->operation;
-				(*as)->array_quantity = count;
-
-				memcpy((*as) + 1, sessions, payload_len);
-
-				kfree(sessions);
-			} else {
-				if (count == 0)
-					write_message("The table is empty.", mst, as, as_len);
-				else if (count == -1)
-					write_message("Could not allocate the table to display.", mst, as, as_len);
-				(*as)->array_quantity = 0;
-			}
-			break;
-		default:
-			log_warning("Unknown operation while handling Sessions: %d", mst->operation);
-			write_message("Parameter error.", mst, as, as_len);
-		}
-		break;
-
-	case 2:
-		switch (mst->operation) {
-		case 0:
-			log_debug("Updating ipv6 pool.");
-
-			qty = (mst->us.cs).ipv6_net_prefixes_qty;
-			cs.ipv6_net_prefixes_qty = qty;
-			// TODO (miguel) no se están liberando los prefijos anteriores.
-			cs.ipv6_net_prefixes = kmalloc(qty * sizeof(struct ipv6_prefixes*), GFP_ATOMIC);
-			if (!cs.ipv6_net_prefixes) {
-				log_warning("Could not allocate memory to store the IPv6 Prefixes.");
-				return false;
-			}
-
-			for (i = 0; i < qty; i++) {
-				cs.ipv6_net_prefixes[i] = kmalloc(sizeof(struct ipv6_prefixes), GFP_ATOMIC);
-				ip6p.addr = mst->us.cs.ipv6_net_prefixes[i]->addr;
-				ip6p.maskbits = mst->us.cs.ipv6_net_prefixes[i]->maskbits;
-				(*cs.ipv6_net_prefixes[i]) = ip6p;
-				log_debug("NAT64:	and IPv6 prefix %pI6c/%d.",
-						&mst->us.cs.ipv6_net_prefixes[i]->addr,
-						mst->us.cs.ipv6_net_prefixes[i]->maskbits);
-			}
-
-			// TODO (miguel) llamar init pool6
-			write_message("IPv6 pool was updated.", mst, as, as_len);
-			break;
-		case 1:
-			// TODO (later) implementar múltiples pools de IPv6.
-			break;
-		case 2: {
-			char buffer[65];
-			log_debug("IPv6 prefix: %pI6c/%d.", &(cs.ipv6_net_prefixes[0]->addr),
-					cs.ipv6_net_prefixes[0]->maskbits);
-			sprintf(buffer, "IPv6 prefix: %pI6c/%d.", &(cs.ipv6_net_prefixes[0]->addr),
-					cs.ipv6_net_prefixes[0]->maskbits);
-			write_message(buffer, mst, as, as_len);
-			break;
-		}
-		default:
-			log_warning("Unknown operation while handling the IPv6 pool: %d", mst->operation);
-			write_message("Parameter error.", mst, as, as_len);
-		}
-		break;
-
-	case 3:
-		switch (mst->operation) {
-		case 0:
-			log_debug("Updating ipv4 pool.");
-			cs.ipv4_pool_net = mst->us.cs.ipv4_pool_net;
-			cs.ipv4_pool_net_mask_bits = mst->us.cs.ipv4_pool_net_mask_bits;
-			cs.ipv4_pool_range_first = mst->us.cs.ipv4_pool_range_first;
-			cs.ipv4_pool_range_last = mst->us.cs.ipv4_pool_range_last;
-			log_debug("	 using IPv4 pool subnet %pI4/%d", &(mst->us.cs.ipv4_pool_net),
-					mst->us.cs.ipv4_pool_net_mask_bits);
-			//init_pools(&ms.us.cs); // Bernardo
-			write_message("IPv4 pool was updated.", mst, as, as_len);
-			break;
-		case 1:
-			// TODO (later) implementar múltiples pools de IPv4.
-			break;
-		case 2: {
-			char buffer[30];
-			log_debug("IPv4 pool: %pI4/%d.", &(cs.ipv4_pool_net), cs.ipv4_pool_net_mask_bits);
-			sprintf(buffer, "IPv4 pool: %pI4/%d.", &(cs.ipv4_pool_net), cs.ipv4_pool_net_mask_bits);
-			write_message(buffer, mst, as, as_len);
-			break;
-		}
-		default:
-			log_warning("Unknown operation while handling the IPv4 pool: %d", mst->operation);
-			write_message("Parameter error.", mst, as, as_len);
-		}
-		break;
-
-	case 4:
-		log_debug("Updating hair:");
-		cs.hairpinning_mode = mst->us.cs.hairpinning_mode;
-		write_message("Hairpinning handling was updated.", mst, as, as_len);
-		break;
-
-	case 5:
-		log_debug("Updating translator options:");
-
-		if (mst->submode & PHR_MASK)
-			config.packet_head_room = mst->us.cc.packet_head_room;
-		if (mst->submode & PTR_MASK)
-			config.packet_tail_room = mst->us.cc.packet_tail_room;
-		if (mst->submode & IPV6_NEXTHOP_MASK)
-			config.ipv6_nexthop_mtu = mst->us.cc.ipv6_nexthop_mtu;
-		if (mst->submode & IPV4_NEXTHOP_MASK)
-			config.ipv4_nexthop_mtu = mst->us.cc.ipv4_nexthop_mtu;
-		if (mst->submode & IPV4_TRAFFIC_MASK)
-			config.ipv4_traffic_class = mst->us.cc.ipv4_traffic_class;
-		if (mst->submode & OIPV6_MASK)
-			config.override_ipv6_traffic_class = mst->us.cc.override_ipv6_traffic_class;
-		if (mst->submode & OIPV4_MASK)
-			config.override_ipv4_traffic_class = mst->us.cc.override_ipv4_traffic_class;
-		if (mst->submode & DF_ALWAYS_MASK)
-			config.df_always_set = mst->us.cc.df_always_set;
-		if (mst->submode & GEN_IPV4_MASK)
-			config.generate_ipv4_id = mst->us.cc.generate_ipv4_id;
-		if (mst->submode & IMP_MTU_FAIL_MASK)
-			config.improve_mtu_failure_rate = mst->us.cc.improve_mtu_failure_rate;
-		if (mst->submode & MTU_PLATEAUS_MASK) {
-			config.mtu_plateau_count = mst->us.cc.mtu_plateau_count;
-
-			config.mtu_plateaus = kmalloc(sizeof(mst->us.cc.mtu_plateaus), GFP_ATOMIC);
-			if (!config.mtu_plateaus) {
-				log_warning("Could not allocate memory to store the MTU plateaus.");
-				return false;
-			}
-			memcpy(config.mtu_plateaus, &mst->us.cc.mtu_plateaus, sizeof(mst->us.cc.mtu_plateaus));
-		}
-		if (mst->submode & ADDRESS_DEPENDENT_FILTER_MASK)
-			cs.address_dependent_filtering = mst->us.cs.address_dependent_filtering;
-		if (mst->submode & FILTER_INFO_MASK)
-			cs.filter_informational_icmpv6 = mst->us.cs.filter_informational_icmpv6;
-		if (mst->submode & DROP_TCP_MASK)
-			cs.drop_externally_initiated_tcp_connections =
-					mst->us.cs.drop_externally_initiated_tcp_connections;
-
-		write_message("Translator options were updated.", mst, as, as_len);
-		break;
-
+	switch (hdr->mode) {
+	case MODE_POOL6:
+		return handle_pool6_config(hdr->operation, (union request_pool6 *) (hdr + 1), res);
+	case MODE_POOL4:
+		return handle_pool4_config(hdr->operation, (union request_pool4 *) (hdr + 1), res);
+	case MODE_BIB:
+		return handle_bib_config(hdr->operation, (union request_bib *) (hdr + 1), res);
+	case MODE_SESSION:
+		return handle_session_config(hdr->operation, (struct request_session *) (hdr + 1), res);
+	case MODE_FILTERING:
+		return handle_filtering_config(hdr->operation, (union request_filtering *) (hdr + 1), res);
+	case MODE_TRANSLATE:
+		return handle_translate_config(hdr, (union request_translate *) (hdr + 1), res);
 	default:
-		log_warning("Unknown mode: %d", mst->mode);
-		write_message("Parameter error.", mst, as, as_len);
-
+		return write_code(res, RESPONSE_UNKNOWN_MODE);
 	}
-
-	return true;
 }
 
 /**
@@ -393,52 +321,47 @@ bool update_nat_config(struct manconf_struct *mst, struct answer_struct **as, __
  * @param skb packet received from userspace.
  * @param nlh message's metadata.
  * @return result status.
- *
- * TODO (miguel) Name sounds taken from a tutorial; fix it.
  */
-static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	int type;
 	int pid;
-	struct manconf_struct *mst;
-	struct answer_struct *as;
+	struct request_hdr *req;
+	struct response_hdr *as;
 	int res;
-	__u32 aslen;
 	struct sk_buff *skb_out;
 
-	type = nlh->nlmsg_type;
-	if (type != MSG_TYPE_NAT64) {
-		log_debug("Expecting %#x but got %#x.", MSG_TYPE_NAT64, type);
+	if (nlh->nlmsg_type != MSG_TYPE_NAT64) {
+		log_debug("Expecting %#x but got %#x.", MSG_TYPE_NAT64, nlh->nlmsg_type);
 		return -EINVAL;
 	}
 
-	mst = NLMSG_DATA(nlh);
+	req = NLMSG_DATA(nlh);
 	pid = nlh->nlmsg_pid;
 
-	if (!update_nat_config(mst, &as, &aslen) != 0) {
+	if (!update_nat_config(req, &as) != 0) {
 		log_warning("Error while updating NAT64 running configuration");
 		return -EINVAL;
 	}
 
-	skb_out = nlmsg_new(aslen, 0);
+	skb_out = nlmsg_new(as->length, 0);
 	if (!skb_out) {
 		log_warning("Failed to allocate a response skb to the user.");
 		return -EINVAL;
 	}
 
-	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, aslen, 0);
+	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, as->length, 0);
 	NETLINK_CB(skb_out).dst_group = 0;
 
-	memcpy(nlmsg_data(nlh), as, aslen);
+	memcpy(nlmsg_data(nlh), as, as->length);
 	kfree(as);
 
 	res = nlmsg_unicast(my_nl_sock, skb_out, pid);
 	if (res < 0) {
 		log_warning("Error code %d while returning response to the user.", res);
-		// TODO no debería haber un return -EINVAL aquí?
+		return -EINVAL;
 	}
 
-	// TODO (miguel) as y quizá skb_out no parecen estarse liberando en todos los caminos.
+	// TODO (info) as y quizá skb_out no parecen estarse liberando en todos los caminos.
 	return 0;
 }
 
@@ -446,13 +369,26 @@ static int my_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
  * Gets called by Netlink when the userspace application wants to interact with us.
  *
  * @param skb packet received from userspace.
- *
- * TODO (miguel) Name sounds taken from a tutorial; fix it.
  */
-static void my_nl_rcv_msg(struct sk_buff *skb)
+static void receive_from_userspace(struct sk_buff *skb)
 {
 	log_debug("Message arrived.");
 	mutex_lock(&my_mutex);
-	netlink_rcv_skb(skb, &my_rcv_msg);
+	netlink_rcv_skb(skb, &handle_netlink_message);
 	mutex_unlock(&my_mutex);
+}
+
+bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)
+{
+	if (expected == actual)
+		return true;
+	if (expected == NULL || actual == NULL)
+		return false;
+
+	if (!ipv6_addr_equals(&expected->address, &actual->address))
+		return false;
+	if (expected->maskbits != actual->maskbits)
+		return false;
+
+	return true;
 }

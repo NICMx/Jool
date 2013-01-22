@@ -60,6 +60,7 @@ struct packet_in
 	void *l3_hdr;
 	/**
 	 * "l3_hdr"'s type. Either IPPROTO_IP or IPPROTO_IPV6.
+	 * TODO (info) creo que debería ser NFPROTO_IPV6, NFPROTO_IPV4
 	 * You don't need to query this all the time. If we're translating from 4 to 6 this will always
 	 * be 4, else 6.
 	 */
@@ -173,6 +174,13 @@ struct packet_out
 	struct sk_buff *packet;
 };
 #define INIT_PACKET_OUT { 0, 0, NULL, 0, 0, NULL, 0, NULL, false, NULL }
+
+
+bool translate_packet_init(void);
+void translate_packet_destroy(void);
+
+bool translate_clone_config(struct translate_config *clone);
+enum response_code translate_packet_config(__u32 operation, struct translate_config *new_config);
 
 /**
  * Assumes "skb_in" is a IPv4 packet, and stores a IPv6 equivalent in "skb_out".

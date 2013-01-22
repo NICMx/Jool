@@ -4,49 +4,6 @@
 #include <linux/kernel.h>
 
 
-// TODO (ramiro) estas dos funciones (y quizá otras más) deberían estar en pool.
-/**	Checks if an IPv6 address has a valid prefix.
- *
- * @param[in]  addr	IPv6 Address
- * @return	TRUE if it has a valid prefix, FALSE otherwise.
- * */
-int addr_has_pref64( struct in6_addr *addr )
-{
-    struct in6_addr pref6;
-    int i = 0;
-
-    for(i = 0; i < cs.ipv6_net_prefixes_qty; i++)
-    {
-        if ( ! get_net_addr_from_netmask_bits(  AF_INET6, addr,
-                                                cs.ipv6_net_prefixes[i]->maskbits,
-                                                &pref6) )
-            return false;
-        if ( ipv6_addr_equals(&cs.ipv6_net_prefixes[i]->addr, &pref6))
-            return true;
-    }
-    
-    return false;
-}
-
-/**	Checks if an IPv4 address belongs to the IPv4 pool.
- *
- * @param[in]  addr	IPv4 Address
- * @return	TRUE if it is inside the pool network, FALSE otherwise.
- * */
-int addr_in_pool( struct in_addr *addr )
-{
-    struct in_addr net;
-
-    if ( ! get_net_addr_from_netmask_bits(AF_INET, addr, cs.ipv4_pool_net_mask_bits, &net) )
-            return false;
-    
-    if ( ! ipv4_addr_equals(&cs.ipv4_pool_net, &net) )
-        return false;
-    
-    return true;
-}
-
-
 /** Validate the network mask in the CIDR format '/n'.
  *
  * @param[in] 	netmask_bits	Network mask bits.
@@ -220,7 +177,7 @@ int ip_addr_in_same_net(int af,
 
 			break;
 		case AF_INET6:
-			// TODO?: implement  me
+			// TODO (info) implement  me
 			// Is thís necesary?
 			//convert_bits_to_netmask(af, ipv6_bits, &ipv6_netmask);
 			break;
@@ -274,21 +231,6 @@ int validate_ports_range(unsigned int first, unsigned int last)
 	return true;
 }
 
-/** Validate the network mask in the format '/n'.
- *
- * @param[in] 	netmask_bits	Network mask bits.
- * @return		true if OK, otherwise false.
- */
-int validate_ipv6_netmask_bits(unsigned char netmask_bits)
-{
-	if (netmask_bits > IPV6_DEF_MASKBITS_MAX || netmask_bits < IPV6_DEF_MASKBITS_MIN)
-		return (false);
-	
-	// TODO: Validate values defined on RFC6052
-	
-	return (true);
-}
-
 int round_mask_up(int subnetmaskx){ // We need to figure out the most significant bit, then set the subnetmaskx to that number.
 	if (subnetmaskx == 0) {
 		return 255;
@@ -331,82 +273,4 @@ int ip_masklen (int num) {
         i++;
     }
   return 0;
-}
-
-int calc_netmask (int first, int last){
-
-	// Set up result variables.
-	int subnetmask4 = 0;
-	int subnetmask3 = 0;
-	int subnetmask2 = 0;
-	int subnetmask1 = 0;
-	// TODO (miguel) creo que el newline y el caracter de terminación no caben en 15?
-	char netmask[15];
-	struct in_addr mask;
-	int res = 0;
-
-	unsigned char bytes[4], bytes2[4];
-
-    bytes[0] = first & 0xFF;
-    bytes[1] = (first >> 8) & 0xFF;
-    bytes[2] = (first >> 16) & 0xFF;
-    bytes[3] = (first >> 24) & 0xFF;
-
-    bytes2[0] = last & 0xFF;
-    bytes2[1] = (last >> 8) & 0xFF;
-    bytes2[2] = (last >> 16) & 0xFF;
-    bytes2[3] = (last >> 24) & 0xFF;
-
-    //log_debug("%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3]);
-
-
-	// Figure out the higest bit that changes.
-	// We do this by first doing a binary xor of the low and high numbers.
-	subnetmask4 = (bytes2[0] ^ bytes[0]);
-	subnetmask3 = (bytes2[1] ^ bytes[1]);
-	subnetmask2 = (bytes2[2] ^ bytes[2]);
-	subnetmask1 = (bytes2[3] ^ bytes[3]);
-
-	//Then we round it up to the next most significant digit.
-	subnetmask4 = round_mask_up(subnetmask4);
-	subnetmask3 = round_mask_up(subnetmask3);
-	subnetmask2 = round_mask_up(subnetmask2);
-	subnetmask1 = round_mask_up(subnetmask1);
-
-	// Figure out which set of numbers changes, then set the lower numbers from it to 0.
-	if (subnetmask4 < 255)
-	{
-	subnetmask3 = 0;
-	subnetmask2 = 0;
-	subnetmask1 = 0;
-	}
-	if (subnetmask3 < 255)
-	{
-	subnetmask2 = 0;
-	subnetmask1 = 0;
-	}
-	if (subnetmask2 < 255)
-	{
-	subnetmask1 = 0;
-	}
-
-	sprintf (netmask, "%d.%d.%d.%d\n",subnetmask4, subnetmask3, subnetmask2,subnetmask1);
-
-	if ( !str_to_addr4(netmask, &mask) )	// Validate ipv4 addr
-			{
-				log_crit("Error: Malformed netmask: %s", netmask);
-				return -1;
-			}
-
-
-	res+= ip_masklen(subnetmask4);
-	res+= ip_masklen(subnetmask3);
-	res+= ip_masklen(subnetmask2);
-	res+= ip_masklen(subnetmask1);
-
-	//log_debug("%d.%d.%d.%d mask: %d",subnetmask4, subnetmask3, subnetmask2,subnetmask1, res);
-
-	return res;
-
-
 }

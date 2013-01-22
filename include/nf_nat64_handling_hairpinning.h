@@ -10,6 +10,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 
 
+void set_hairpinning_active(bool is_active);
 /**
  * Checks whether a packet is a hairpin packet.
  *

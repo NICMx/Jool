@@ -11,10 +11,97 @@
 #include "nf_nat64_config.h"
 #include "nf_nat64_translate_packet.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
-#include "external_stuff.h"
+
+
+struct translate_config config;
 
 #include "nf_nat64_translate_packet_4to6.c"
 #include "nf_nat64_translate_packet_6to4.c"
+
+bool translate_packet_init(void)
+{
+	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
+
+	config.packet_head_room = TRAN_DEF_USR_HEAD_ROOM;
+	config.packet_tail_room = TRAN_DEF_USR_TAIL_ROOM;
+	config.override_ipv6_traffic_class = TRAN_DEF_OVERRIDE_IPV6_TRAFFIC_CLASS;
+	config.override_ipv4_traffic_class = TRAN_DEF_OVERRIDE_IPV4_TRAFFIC_CLASS;
+	config.ipv4_traffic_class = TRAN_DEF_TRAFFIC_CLASS;
+	config.df_always_set = TRAN_DEF_DF_ALWAYS_SET;
+	config.generate_ipv4_id = TRAN_DEF_GENERATE_IPV4_ID;
+	config.improve_mtu_failure_rate = TRAN_DEF_IMPROVE_MTU_FAILURE_RATE;
+	config.ipv6_nexthop_mtu = TRAN_DEF_IPV6_NEXTHOP_MTU;
+	config.ipv4_nexthop_mtu = TRAN_DEF_IPV4_NEXTHOP_MTU;
+
+	config.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
+	config.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
+	if (!config.mtu_plateaus) {
+		log_warning("Could not allocate memory to store the MTU plateaus.");
+		return false;
+	}
+	memcpy(config.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
+
+	return true;
+}
+
+void translate_packet_destroy(void)
+{
+	kfree(config.mtu_plateaus);
+}
+
+bool translate_clone_config(struct translate_config *clone)
+{
+	__u16 plateaus_len = config.mtu_plateau_count * sizeof(*config.mtu_plateaus);
+
+	memcpy(clone, &config, sizeof(*clone));
+
+	clone->mtu_plateaus = kmalloc(plateaus_len, GFP_ATOMIC);
+	if (!clone->mtu_plateaus)
+		return false;
+	memcpy(clone->mtu_plateaus, &config.mtu_plateaus, plateaus_len);
+
+	return true;
+}
+
+enum response_code translate_packet_config(__u32 operation, struct translate_config *new_config)
+{
+	if (operation & PHR_MASK)
+		config.packet_head_room = new_config->packet_head_room;
+	if (operation & PTR_MASK)
+		config.packet_tail_room = new_config->packet_tail_room;
+	if (operation & IPV6_NEXTHOP_MASK)
+		config.ipv6_nexthop_mtu = new_config->ipv6_nexthop_mtu;
+	if (operation & IPV4_NEXTHOP_MASK)
+		config.ipv4_nexthop_mtu = new_config->ipv4_nexthop_mtu;
+	if (operation & IPV4_TRAFFIC_MASK)
+		config.ipv4_traffic_class = new_config->ipv4_traffic_class;
+	if (operation & OIPV6_MASK)
+		config.override_ipv6_traffic_class = new_config->override_ipv6_traffic_class;
+	if (operation & OIPV4_MASK)
+		config.override_ipv4_traffic_class = new_config->override_ipv4_traffic_class;
+	if (operation & DF_ALWAYS_MASK)
+		config.df_always_set = new_config->df_always_set;
+	if (operation & GEN_IPV4_MASK)
+		config.generate_ipv4_id = new_config->generate_ipv4_id;
+	if (operation & IMP_MTU_FAIL_MASK)
+		config.improve_mtu_failure_rate = new_config->improve_mtu_failure_rate;
+	if (operation & MTU_PLATEAUS_MASK) {
+		__u16 *old_mtus = config.mtu_plateaus;
+		__u16 new_mtus_len = new_config->mtu_plateau_count * sizeof(*new_config->mtu_plateaus);
+
+		config.mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
+		if (!config.mtu_plateaus) {
+			config.mtu_plateaus = old_mtus;
+			return RESPONSE_ALLOC_FAILED;
+		}
+
+		kfree(old_mtus);
+		config.mtu_plateau_count = new_config->mtu_plateau_count;
+		memcpy(config.mtu_plateaus, new_config->mtu_plateaus, new_mtus_len);
+	}
+
+	return RESPONSE_SUCCESS;
+}
 
 /**
  * Joins out.l3_hdr, out.l4_hdr and out.payload into a single packet, placing the result in

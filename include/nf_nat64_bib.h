@@ -72,7 +72,6 @@ struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address
  */
 struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
 		u_int8_t l4protocol);
-// TODO (alberto) crea esta función.
 struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
 
 /**
@@ -127,7 +126,7 @@ struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
  * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
  * the real entries from the table.
  */
-int nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array);
+__s32 nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".

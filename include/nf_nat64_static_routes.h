@@ -27,7 +27,7 @@
  * to add a static route to the BIB and Session Table of NAT64.
  *
  */
-bool nat64_add_static_route(struct route_struct *rst);
+enum response_code nat64_add_static_route(struct request_session *req);
 
 /**
  * nat64_delete_static_route - deletes a static route
@@ -39,7 +39,7 @@ bool nat64_add_static_route(struct route_struct *rst);
  * to delete a static route to the BIB and Session Table of NAT64.
  *
  */
-bool nat64_delete_static_route(struct route_struct *rst);
+enum response_code nat64_delete_static_route(struct request_session *req);
 
 
 /**
@@ -49,7 +49,7 @@ bool nat64_delete_static_route(struct route_struct *rst);
  * It obtains bib information from the table and sends it back
  * to userpsace
  */
-bool nat64_print_bib_table(struct route_struct *rst, __u32 *count_out,
+enum response_code nat64_print_bib_table(union request_bib *request, __u16 *count_out,
 		struct bib_entry_us **bibs_us_out);
 
 
@@ -60,7 +60,7 @@ bool nat64_print_bib_table(struct route_struct *rst, __u32 *count_out,
  * It obtains session information from the table and sends it back
  * to userpsace
  */
-bool nat64_print_session_table(struct route_struct *rst, __u32 *count_out,
+enum response_code nat64_print_session_table(struct request_session *request, __u16 *count_out,
 		struct session_entry_us **sessions_us_out);
 
 #endif

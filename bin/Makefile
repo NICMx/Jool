@@ -6,54 +6,9 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o pool.o bib_session.o iterator.o outgoing.o translate.o nat64.o
+obj-m += nat64.o
 
-rfc6052-objs += ../mod/nf_nat64_types.o
-rfc6052-objs += ../mod/nf_nat64_rfc6052.o
-rfc6052-objs += ../unit/unit_test.o
-rfc6052-objs += ../unit/nf_nat64_rfc6052_test.o
-
-hashtable-objs += ../mod/nf_nat64_types.o
-hashtable-objs += ../unit/unit_test.o
-hashtable-objs += ../unit/nf_nat64_hash_table_test.o
-
-pool-objs += ../mod/nf_nat64_types.o
-pool-objs += ../mod/nf_nat64_config.o
-pool-objs += ../mod/nf_nat64_ipv4_pool.o
-pool-objs += ../mod/nf_nat64_bib.o
-pool-objs += ../mod/nf_nat64_session.o
-pool-objs += ../mod/nf_nat64_static_routes.o
-pool-objs += ../unit/unit_test.o
-pool-objs += ../unit/nf_nat64_pool_test.o
-
-bib_session-objs += ../mod/nf_nat64_types.o
-bib_session-objs += ../mod/nf_nat64_bib.o
-bib_session-objs += ../mod/nf_nat64_session.o
-bib_session-objs += ../unit/unit_test.o
-bib_session-objs += ../unit/nf_nat64_bib_session_test.o
-
-iterator-objs += ../mod/nf_nat64_types.o
-iterator-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
-iterator-objs += ../unit/unit_test.o
-iterator-objs += ../unit/nf_nat64_ipv6_hdr_iterator_test.o
-
-outgoing-objs += ../mod/nf_nat64_types.o
-outgoing-objs += ../mod/nf_nat64_rfc6052.o
-outgoing-objs += ../mod/nf_nat64_bib.o
-outgoing-objs += ../unit/unit_test.o
-outgoing-objs += ../unit/nf_nat64_outgoing_test.o
-
-translate-objs += ../mod/external_stuff.o
-translate-objs += ../mod/nf_nat64_types.o
-translate-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
-translate-objs += ../mod/nf_nat64_bib.o
-translate-objs += ../mod/nf_nat64_session.o
-translate-objs += ../mod/nf_nat64_static_routes.o
-translate-objs += ../mod/nf_nat64_config.o
-translate-objs += ../unit/unit_test.o
-translate-objs += ../unit/nf_nat64_translate_packet_test.o
-
-nat64-objs += ../mod/external_stuff.o
+#nat64-objs += ../unit/unit_test.o
 nat64-objs += ../mod/nf_nat64_types.o
 nat64-objs += ../mod/nf_nat64_rfc6052.o
 nat64-objs += ../mod/nf_nat64_bib.o
@@ -61,8 +16,12 @@ nat64-objs += ../mod/nf_nat64_session.o
 nat64-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
 nat64-objs += ../mod/nf_nat64_config.o
 nat64-objs += ../mod/xt_nat64_module_conf_validation.o
+nat64-objs += ../mod/xt_nat64_config_proto.o
+nat64-objs += ../mod/nf_nat64_pool6.o
+nat64-objs += ../mod/nf_nat64_ipv4_pool.o
 nat64-objs += ../mod/nf_nat64_static_routes.o
 nat64-objs += ../mod/nf_nat64_determine_incoming_tuple.o
+#nat64-objs += ../mod/nf_nat64_filtering_and_updating.o
 nat64-objs += ../mod/nf_nat64_outgoing.o
 nat64-objs += ../mod/nf_nat64_translate_packet.o
 nat64-objs += ../mod/nf_nat64_handling_hairpinning.o

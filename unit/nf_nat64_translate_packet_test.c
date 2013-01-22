@@ -1444,6 +1444,9 @@ int init_module(void)
 	__u16 plateaus[] = { 1400, 1200, 600 };
 	START_TESTS("Translating the Packet (IPv4 to IPv6)");
 
+	// TODO (test) configurar bien.
+	translate_packet_init();
+
 	config.packet_head_room = 5;
 	config.packet_tail_room = 5;
 	config.override_ipv6_traffic_class = true;
@@ -1488,6 +1491,8 @@ int init_module(void)
 	CALL_TEST(test_6to4_translation_simple_icmp(), "Simple 6-to-4 ICMP translation");
 	CALL_TEST(test_6to4_translation_fragment(), "6-to-4 translation featuring fragment header");
 	CALL_TEST(test_6to4_translation_embedded(), "6-to-4 translation featuring embedded packet");
+
+	translate_packet_destroy();
 
 	END_TESTS;
 }

@@ -7,7 +7,6 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 
 #include "nf_nat64_types.h"
-#include "external_stuff.h"
 #include "nf_nat64_determine_incoming_tuple.h"
 
 

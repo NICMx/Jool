@@ -112,6 +112,27 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address
 	return ipv6_table_get(&table->ipv6, address);
 }
 
+struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol)		
+{
+	struct ipv6_table *table;
+	__u16 hash_code;
+	struct hlist_node *current_node;
+	struct ipv6_tuple_address address_full;
+	struct ipv6_table_key_value *keyvalue;
+
+	address_full.address = *address; // Port doesn't matter; won't be used by the hash function.
+	table = &get_bib_table(l4protocol)->ipv6;
+	hash_code = table->hash_function(&address_full) % (64 * 1024);
+
+	hlist_for_each(current_node, &table->table[hash_code]) {
+		keyvalue = list_entry(current_node, struct ipv6_table_key_value, nodes);
+		if (ipv6_addr_equals(address, &keyvalue->key->address))
+			return keyvalue->value;
+	}
+
+	return NULL;
+}
+
 struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 {
 	switch (tuple->L3_PROTOCOL) {

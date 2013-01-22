@@ -260,8 +260,8 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, dst);
 
 	log_debug("  Sending packet via device '%s'...", skb->dev->name);
-	// TODO (luis) este #if realmente sirve de algo?
-	// TODO (luis) netif_start_queue realmente sirve de algo?
+	// TODO (test) este #if realmente sirve de algo?
+	// TODO (test) netif_start_queue realmente sirve de algo?
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
 	netif_start_queue(skb->dev); // Makes sure the net_device can actually send packets.
 #endif

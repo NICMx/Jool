@@ -118,6 +118,18 @@ struct ipv6_pair {
 };
 
 /**
+ * Struct to handle valid IPv6 prefixes specified as configuration parameters.
+ */
+struct ipv6_prefix
+{
+	/** IPv6 prefix. */
+	struct in6_addr address;
+	/** Number of bits from "addr" which represent the network. */
+	// TODO (info) cambiar nombre a len.
+	__u8 maskbits;
+};
+
+/**
  * All of these functions return "true" if the first parameter is the same as the second one, even
  * if they are pointers to different places in memory.
  *

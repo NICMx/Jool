@@ -1,3 +1,6 @@
+#ifndef __KERNEL__
+	#include <stddef.h>
+#endif
 #include "nf_nat64_types.h"
 
 
@@ -19,7 +22,6 @@ bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 	return true;
 }
 
-// TODO (info) usar la del kernel?
 bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
 {
 	int i;
@@ -41,7 +43,7 @@ __u16 ipv4_addr_hashcode(struct in_addr *addr)
 	__u16 result = 1;
 
 	if (addr == NULL)
-			return 0;
+		return 0;
 	addr_union.by32 = addr->s_addr;
 
 	result = 31 * result + ntohs(addr_union.by16[0]);
@@ -64,7 +66,6 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 	return true;
 }
 
-/** Regresa el hash code correspondiente a la direcction "address". */
 __u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *address)
 {
 	return (address != NULL) ? ntohs(address->pi.port) : 0;
@@ -84,10 +85,22 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 	return true;
 }
 
-/** Regresa el hash code correspondiente a la direcction "address". */
 __u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
 {
-	return (address != NULL) ? ntohs(address->pi.port) : 0;
+	// address->pi.port would perhaps be the logical hash code, since it's usually random,
+	// but during nat64_get_bib_entry_by_ipv6_only() we need to ignore it during lookup
+	// so this needs to be a little more creative.
+
+	__u16 i;
+	__u16 result = 1;
+
+	if (address == NULL)
+		return 0;
+
+	for (i = 0; i < 8; i++)
+		result = 31 * result + ntohs(address->address.s6_addr16[i]);
+
+	return result;
 }
 
 bool ipv4_pair_equals(struct ipv4_pair *pair_1, struct ipv4_pair *pair_2)

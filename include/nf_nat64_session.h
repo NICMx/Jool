@@ -181,7 +181,7 @@ struct session_entry *nat64_create_static_session_entry(
  * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
  * the real entries from the table.
  */
-int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array);
+__s32 nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as

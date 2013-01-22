@@ -7,9 +7,10 @@
  */
 
 #include "nf_nat64_types.h"
+#include "nf_nat64_config.h"
+#include "xt_nat64_module_comm.h"
 
-// TODO recuerda revisar be's vs u's.
-
+// TODO (info) recuerda revisar be's vs u's.
 
 /**
  * Readies the rest of this module for future use.
@@ -26,39 +27,38 @@ void pool4_destroy(void);
  * Inserts the "address" address (along with its 64k ports) into the "l4protocol" pool.
  * These elements will then become borrowable through the pool_get_* functions.
  */
-bool pool4_register(u_int8_t l4protocol, struct in_addr *address);
+enum response_code pool4_register(struct in_addr *address);
 /**
  * Removes the "address" address (along with its 64k ports) from the "l4_protocol" pool.
  * If something was borrowed (not in the pool at the moment) it will be erased later, when the pool
  * retrieves it.
  */
-bool pool4_remove(u_int8_t l4protocol, struct in_addr *address);
+enum response_code pool4_remove(struct in_addr *address);
 
 /**
  * Reserves and returns some available IPv4 address from the "l4protocol" pool, along with one of
  * its ports. This port will be 'compatible' with "port".
- * 'Compatible' means same parity (mandatory) and range (only if available). See RFC 6146 section
- * 3.5.1.1 for more details on this port hack.
+ * 'Compatible' means same parity and range. See RFC 6146 section 3.5.1.1 for more details on this
+ * port hack.
  *
- * @return the address/port you want to borrow.
- *		Will return NULL if there's nothing available (and compatible) in the pool.
- *		This resulting object will be stored in the heap. If you never return it (by means of
- *		pool4_return()), you're expected to kfree it once you're done with it.
+ * @return whether there was something available (and compatible) in the pool. if "false", "result"
+ *		will point to garbage.
  */
-struct ipv4_tuple_address *pool4_get_any(u_int8_t l4protocol, __be16 port);
+bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *result);
 /**
  * Reserves and returns a transport address from the "l4protocol" pool.
  * The address's IPv4 address will be "address.address" and its port will be 'compatible' with
  * "address.pi.port".
- * 'Compatible' means same parity (mandatory) and range (only if available). See RFC 6146 section
- * 3.5.1.1 for more details on this port hack.
+ * 'Compatible' means same parity and range. See RFC 6146 section 3.5.1.1 for more details on this
+ * port hack.
  *
  * @return the address/port you want to borrow.
  *		Will return NULL if there's nothing available (and compatible) in the pool.
  *		This resulting object will be stored in the heap. If you never return it (by means of
  *		pool4_return()), you're expected to kfree it once you're done with it.
  */
-struct ipv4_tuple_address *pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address);
+bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
+		struct ipv4_tuple_address *result);
 /**
  * Puts the (previously borrowed) address "address" back into the "l4protocol" pool. Meant to revert
  * the effect of the pool4_get_* functions.
@@ -70,15 +70,11 @@ struct ipv4_tuple_address *pool4_get_similar(u_int8_t l4protocol, struct ipv4_tu
  */
 bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 
+/**
+ * TODO (rob) necesitas saber si la dirección está dentro del rango de la pool o si
+ * está disponible para sacarle puertos?
+ */
+bool pool4_contains(u_int8_t l4protocol, struct in_addr *address);
+enum response_code pool4_to_array(struct in_addr **array_out, __u32 *size_out);
 
 #endif /* _NF_NAT64_IPV4_POOL_H */
-
-
-/**
- * TODO (ramiro) los contadores son de 16 bits, por lo que se arma un ciclo infinito.
- * TODO (ramiro) si nunca se han sacado puertos para la dirección "address", va a tronar porque no
- * valida que su port list exista a pesar de que usa lazy init.
- * TODO (ramiro) además no allocatea la lista de puertos que inserta a la tabla, por lo que todas
- * las entradas de la tabla apuntan a la misma lista de puertos.
- * TODO (ramiro) el código está repetido 4 veces.
- */
