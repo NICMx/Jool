@@ -8,6 +8,11 @@
 
 #include <linux/icmp.h>
 
+#define FILT_DEF_ADDR_DEPENDENT_FILTERING false
+#define FILT_DEF_FILTER_ICMPV6_INFO false
+#define FILT_DEF_DROP_EXTERNAL_CONNECTIONS true
+
+
 // -- Timeouts, defined by RFC 6146, section 4. --
 
 /** Minimum allowable session lifetime for UDP bindings, in seconds. TODO: we don't use it yet. */

@@ -6,7 +6,7 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o pool.o bib_session.o iterator.o outgoing.o translate.o nat64.o
+obj-m += rfc6052.o hashtable.o pool.o bib_session.o iterator.o outgoing.o translate.o filtering_and_updating.o nat64.o
 
 rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += ../mod/nf_nat64_rfc6052.o
@@ -53,16 +53,29 @@ translate-objs += ../mod/nf_nat64_config.o
 translate-objs += ../unit/unit_test.o
 translate-objs += ../unit/nf_nat64_translate_packet_test.o
 
+filtering_and_updating-objs += ../mod/nf_nat64_send_packet.o
+filtering_and_updating-objs += ../mod/nf_nat64_rfc6052.o
+filtering_and_updating-objs += ../mod/nf_nat64_static_routes.o
+filtering_and_updating-objs += ../mod/nf_nat64_ipv4_pool.o
+filtering_and_updating-objs += ../mod/nf_nat64_bib.o
+filtering_and_updating-objs += ../mod/nf_nat64_session.o
+filtering_and_updating-objs += ../mod/nf_nat64_types.o
+filtering_and_updating-objs += ../mod/nf_nat64_config.o
+filtering_and_updating-objs += ../mod/xt_nat64_module_conf_validation.o
+filtering_and_updating-objs += ../mod/nf_nat64_filtering_and_updating.o
+
 nat64-objs += ../mod/external_stuff.o
 nat64-objs += ../mod/nf_nat64_types.o
 nat64-objs += ../mod/nf_nat64_rfc6052.o
 nat64-objs += ../mod/nf_nat64_bib.o
 nat64-objs += ../mod/nf_nat64_session.o
+nat64-objs += ../mod/nf_nat64_ipv4_pool.o
 nat64-objs += ../mod/nf_nat64_ipv6_hdr_iterator.o
 nat64-objs += ../mod/nf_nat64_config.o
 nat64-objs += ../mod/xt_nat64_module_conf_validation.o
 nat64-objs += ../mod/nf_nat64_static_routes.o
 nat64-objs += ../mod/nf_nat64_determine_incoming_tuple.o
+nat64-objs += ../mod/nf_nat64_filtering_and_updating.o
 nat64-objs += ../mod/nf_nat64_outgoing.o
 nat64-objs += ../mod/nf_nat64_translate_packet.o
 nat64-objs += ../mod/nf_nat64_handling_hairpinning.o

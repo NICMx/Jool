@@ -17,6 +17,30 @@
 //#define MSG_TYPE_ROUTE (0x10 + 3)  ///< Netlink socket packet ID, static routes 
 #define MSG_TYPE_NAT64 (0x10 + 2)  ///< Netlink socket packet ID, configuration
 
+enum response_code {
+       RESPONSE_SUCCESS = 0,
+       RESPONSE_UNKNOWN_MODE,
+       RESPONSE_UNKNOWN_OP,
+       RESPONSE_UNKNOWN_L3PROTO,
+       RESPONSE_UNKNOWN_L4PROTO,
+       RESPONSE_NOT_FOUND,
+       RESPONSE_ALLOC_FAILED,
+       RESPONSE_CONNECT_FAILED,
+       RESPONSE_SEND_FAILED,
+       RESPONSE_PARSE_FAIL,
+};
+
+#define ADDRESS_DEPENDENT_FILTER_MASK (1 << 0)
+#define FILTER_INFO_MASK (1 << 1)
+#define DROP_TCP_MASK (1 << 2)
+
+#define UDP_DEFAULT_MASK		(1 << 3)
+#define ICMP_DEFAULT_MASK		(1 << 4)
+#define TCP_TRANS_MASK			(1 << 5)
+#define TCP_INCOMING_SYN_MASK	(1 << 6)
+#define TCP_EST_MASK 			(1 << 7)
+
+
 /**
  * A BIB entry, from the eyes of userspace ("us" stands for userspace).
  *

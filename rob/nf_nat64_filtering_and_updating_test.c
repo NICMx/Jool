@@ -10,16 +10,14 @@
 #include <linux/kernel.h>   /* Needed for KERN_INFO */
 #include <linux/init.h>     /* Needed for the macros */
 #include <linux/printk.h>   /* pr_* */
+#include <linux/ipv6.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Roberto <r.aceves@itesm.mx>"); 
 MODULE_DESCRIPTION("Unitary tests for the Filtering\'s part of NAT64");
 MODULE_ALIAS("nat64_test_filtering");
 
-
 #include "unit_test_rob.h"
-
-#include <linux/ipv6.h>
 
 // What are we testing?
 #include "nf_nat64_ipv4_pool.h"
@@ -33,14 +31,14 @@ extern struct config_struct cs;
  * BEGIN: filtering.c */
 
 #define INIT_TUPLE_IPV4_SRC_ADDR    "192.168.2.1"
-#define INIT_TUPLE_IPV6_SRC_ADDR    "2001:db8:c0ca::1"
+#define INIT_TUPLE_IPV6_SRC_ADDR    "2001:db8:c0ca:1::1"
 #define INIT_TUPLE_IPV4_DST_ADDR    "192.168.2.44"
 #define INIT_TUPLE_IPV6_DST_ADDR    "64:ff9b::192.168.2.44"
-#define INIT_TUPLE_IPV6_ICMP_ID     1080
+#define INIT_TUPLE_IPV6_ICMP_ID     1024
 #define INIT_TUPLE_IPV4_ICMP_ID     ( INIT_TUPLE_IPV6_ICMP_ID  )
 #define INIT_TUPLE_IPV6_SRC_PORT    1080
 #define INIT_TUPLE_IPV6_DST_PORT    1081
-#define INIT_TUPLE_IPV4_SRC_PORT    1082
+#define INIT_TUPLE_IPV4_SRC_PORT    1024
 #define INIT_TUPLE_IPV4_DST_PORT    1081
 void init_tuple_for_test_ipv6(struct nf_conntrack_tuple *tuple, u_int8_t l4protocol)
 {
@@ -92,9 +90,8 @@ void init_tuple_for_test_ipv4(struct nf_conntrack_tuple *tuple, u_int8_t l4proto
 }
 
 #define SKB_PAYLOAD 22
-//~ void init_skb_for_test( struct nf_conntrack_tuple *tuple, struct sk_buff *skb, u_int8_t protocol )
-struct sk_buff* init_skb_for_test( 	struct nf_conntrack_tuple *tuple, 
-									struct sk_buff *skb_old, u_int8_t protocol )
+struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple, 
+                                    struct sk_buff *skb_old, u_int8_t protocol )
 {
     __u32 l3_len;
     __u32 l4_len;
@@ -119,7 +116,6 @@ struct sk_buff* init_skb_for_test( 	struct nf_conntrack_tuple *tuple,
         default:
             log_warning("Invalid protocol 1.");
             skb = NULL;
-            //~ return;
             return NULL;
     }
 
@@ -128,7 +124,6 @@ struct sk_buff* init_skb_for_test( 	struct nf_conntrack_tuple *tuple,
     if (!skb) {
         log_warning("  New packet allocation failed.");
         skb = NULL;
-        //~ return;
         return NULL;
     }
 
@@ -139,7 +134,6 @@ struct sk_buff* init_skb_for_test( 	struct nf_conntrack_tuple *tuple,
     skb_reset_network_header(skb);
     skb_set_transport_header(skb, l3_len);
 
-    //~ ip_header = (struct iphdr *)kmalloc(sizeof(struct iphdr), GFP_KERNEL);
     ip_header = ip_hdr(skb);
 
     memset(ip_header, 0, sizeof(struct iphdr));
@@ -199,13 +193,19 @@ struct sk_buff* init_skb_for_test( 	struct nf_conntrack_tuple *tuple,
     return skb;
 }
 
+#define IPV4_FIRST_POOL_ADDRESS     "192.168.2.1"
+#define init_pool(protocol)     { struct in_addr addr4; \
+                                ASSERT_EQUALS(true, pool4_init(), "See if we can initialize the IPv4 pool." ); \
+                                str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4); \
+                                ASSERT_EQUALS(true, pool4_register(protocol, &addr4), "Try to create a new entry in the pool address"); }
 
-#define IPV6_INJECT_BIB_ENTRY_SRC_ADDR  "2001:db8:c0ca::1"
+
+
+#define IPV6_INJECT_BIB_ENTRY_SRC_ADDR  "2001:db8:c0ca:1::1"
 #define IPV6_INJECT_BIB_ENTRY_SRC_PORT  1080
 #define IPV4_INJECT_BIB_ENTRY_DST_ADDR  "192.168.2.1"
 #define IPV4_INJECT_BIB_ENTRY_DST_PORT  1082
 #define INIT_TUPLE_ICMP_ID              10
-// Inject a BIB entry for a protocol
 bool inject_bib_entry( struct bib_entry *bib_e, u_int8_t l4protocol )
 {
     struct ipv4_tuple_address ta_ipv4;
@@ -233,6 +233,8 @@ bool inject_bib_entry( struct bib_entry *bib_e, u_int8_t l4protocol )
     return nat64_add_bib_entry( bib_e, l4protocol );
 }
 
+
+
 #define IPV4_TRANSPORT_ADDR     "192.168.1.4"
 #define IPV4_TRANSPORT_PORT     1081
 bool test_transport_address_ipv4( void )
@@ -256,7 +258,7 @@ bool test_transport_address_ipv4( void )
 
 
 
-#define IPV6_TRANSPORT_ADDR     "2001:db8:c0ca::1"
+#define IPV6_TRANSPORT_ADDR     "2001:db8:c0ca:1::1"
 #define IPV6_TRANSPORT_PORT     1081
 bool test_transport_address_ipv6( void )
 {
@@ -279,7 +281,7 @@ bool test_transport_address_ipv6( void )
 }
 
 
-#define IPV6_EXTRACT_ADDR     "2001:db8:c0ca::192.168.2.3"
+#define IPV6_EXTRACT_ADDR     "2001:db8:c0ca:1::192.168.2.3"
 #define IPV4_EXTRACTED_ADDR     "192.168.2.3"
 bool test_extract_ipv4_from_ipv6( void )
 {
@@ -304,8 +306,8 @@ bool test_extract_ipv4_from_ipv6( void )
 }
 
 
-#define IPV6_EMBED_ADDR         "2001:db8:c0ca::1"
-#define IPV6_EMBEDDED_ADDR      "2001:db8:c0ca::192.168.2.3"
+//~ #define IPV6_EMBED_ADDR         "2001:db8:c0ca:1::1"
+#define IPV6_EMBEDDED_ADDR      "64:ff9b::192.168.2.3"
 #define IPV4_EMBEDDABLE_ADDR    "192.168.2.3"
 bool test_embed_ipv4_in_ipv6( void )
 {
@@ -322,49 +324,66 @@ bool test_embed_ipv4_in_ipv6( void )
         "Check that we can embed an IPv4 address inside of an IPv6 address correctly.");
 
     // Verify the output
-    str_to_addr6(IPV6_EMBED_ADDR, &embedded6);
+    //~ str_to_addr6(IPV6_EMBED_ADDR, &embedded6);
+    str_to_addr6(IPV6_EMBEDDED_ADDR, &embedded6);
     ASSERT_EQUALS(true, ipv6_addr_equals( &embed6 , &embedded6 ) , 
-        "Check that the port part of an IPv6 transport address is correct.");
+        "Verify that the IPv4 was embedded into a IPv6 address is correct.");
+pr_debug(" - expected: %pI6c , actual: %pI6c", &embedded6 , &embed6 );
     
     END_TEST;
 }
 
-#define IPV4_GET_ICMP_ID_ADDR   "192.168.2.3"
-#define IPV4_GET_ICMP_ID        0x004
+//~ #define IPV4_GET_ICMP_ID_ADDR   "192.168.2.3"
+#define IPV4_GET_ICMP_ID_ADDR   IPV4_FIRST_POOL_ADDRESS
+#define IPV4_GET_ICMP_ID        0
 bool test_get_icmpv4_identifier( void )
 {
     struct in_addr addr4;
     __be16 pi;
+   struct ipv4_tuple_address *new_ipv4_transport_address;
+    u_int8_t protocol;
     
     START_TEST;
 
+    protocol = IPPROTO_ICMP;
+
+    init_pool(protocol);
+
     // Convert to binary the IPv4 address to embed
     str_to_addr4(IPV4_GET_ICMP_ID_ADDR, &addr4);
+    pi = IPV4_GET_ICMP_ID;
     
-    ASSERT_EQUALS(true, get_icmpv4_identifier ( &addr4, &pi ) , 
-        "Check that we can embed an IPv4 address inside of an IPv6 address correctly.");
+    ASSERT_EQUALS(true, ( (new_ipv4_transport_address = get_icmpv4_identifier(addr4, pi)) != NULL) , 
+        "Check that we get a IPv4 transport address with a new ICMPv4 ID for an existing IPv4 address (Not NULL).");
+        
+    ASSERT_EQUALS(true, ipv4_addr_equals(&new_ipv4_transport_address->address, &addr4), 
+        "Check that we get a IPv4 transport address with a new ICMPv4 ID for an existing IPv4 address (Same IPv4 address).");
 
     // Verify the output
-    ASSERT_EQUALS(pi, IPV4_GET_ICMP_ID , 
+    ASSERT_EQUALS(IPV4_GET_ICMP_ID, new_ipv4_transport_address->pi.id,  
         "Check that the ICMPv4 identifier was the expected (hard-coded).");
+    
+    pool4_destroy();
     
     END_TEST;
 }
 
 
-#define IPV6_ALLOCATE_SRC_ADDR  "2001:db8:c0ca::1"
-#define IPV6_ALLOCATE_SRC_PORT  1080
+#define IPV6_ALLOCATE_SRC_ADDR  "2001:db8:c0ca:1::1"
+#define IPV6_ALLOCATE_SRC_PORT  1024
 #define IPV4_ALLOCATED_ADDR     "192.168.2.1"
-#define IPV4_ALLOCATED_PORT_ICMP     (IPV6_ALLOCATE_SRC_PORT + 2)  // <-- 1082
-#define IPV4_ALLOCATED_PORT     (IPV6_ALLOCATE_SRC_PORT +1 + 2)  // <-- 1082
+#define IPV4_ALLOCATED_PORT_ICMP     (IPV6_ALLOCATE_SRC_PORT )  // <-- 1024
+#define IPV4_ALLOCATED_PORT     (IPV6_ALLOCATE_SRC_PORT +1 )  // <-- 1025
 bool test_allocate_ipv4_transport_address( void )
 {
     struct in_addr expected_addr;
+    //~ struct in_addr addr4;
     bool ret;
     u_int8_t protocol;
     
     struct nf_conntrack_tuple tuple;
-    struct ipv4_tuple_address new_ipv4_transport_address;
+    //~ struct ipv4_tuple_address new_ipv4_transport_address;
+    struct ipv4_tuple_address *new_ipv4_transport_address;
 
     struct bib_entry bib_e;
 
@@ -373,6 +392,14 @@ bool test_allocate_ipv4_transport_address( void )
     nat64_bib_init();
 
     protocol = IPPROTO_ICMP;
+
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
+
     ret = inject_bib_entry( &bib_e, protocol );
     ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
 
@@ -380,61 +407,93 @@ bool test_allocate_ipv4_transport_address( void )
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
-    ASSERT_EQUALS(true,  ret, "Check that we can allocate a brand new IPv4 transport address for ICMP.");
+    //~ ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
+    new_ipv4_transport_address = allocate_ipv4_transport_address(&tuple, protocol);
+    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+        "Check that we can allocate a brand new IPv4 transport address for ICMP.");
    
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
         "Check that the allocated IPv4 address is correct for ICMP.");
 
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address.pi.port),  
+    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address.pi.port),  
+    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address->pi.port),  
         "Check that the allocated IPv4 port is correct for ICMP.");
 
     protocol = IPPROTO_TCP;
+    
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
+
     ret = inject_bib_entry( &bib_e, protocol );
     ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
     init_tuple_for_test_ipv4(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
-    ASSERT_EQUALS(true,  ret, "Check that we can allocate a brand new IPv4 transport address for TCP.");
+    //~ ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
+    new_ipv4_transport_address = allocate_ipv4_transport_address(&tuple, protocol);
+    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+        "Check that we can allocate a brand new IPv4 transport address for TCP.");
    
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
         "Check that the allocated IPv4 address is correct for TCP.");
 
-    pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.pi.port=%d", (__be16)(IPV4_ALLOCATED_PORT), ntohs(new_ipv4_transport_address.pi.port) );  
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
+pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.pi.port=%d", (__be16)(IPV4_ALLOCATED_PORT), ntohs(new_ipv4_transport_address->pi.port) );  
+    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
+    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address->pi.port),  
         "Check that the allocated IPv4 port is correct for TCP.");
     
     protocol = IPPROTO_UDP;
+
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
+
     ret = inject_bib_entry( &bib_e, protocol );
     ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
     init_tuple_for_test_ipv4(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
-    ASSERT_EQUALS(true,  ret, "Check that we can allocate a brand new IPv4 transport address for UDP.");
+    //~ ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
+    new_ipv4_transport_address = allocate_ipv4_transport_address(&tuple, protocol);
+    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+        "Check that we can allocate a brand new IPv4 transport address for UDP.");
    
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
         "Check that the allocated IPv4 address is correct for UDP.");
 
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
+    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
+    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address->pi.port),  
         "Check that the allocated IPv4 port is correct for UDP.");
 
     nat64_bib_destroy();
+    pool4_destroy();
     
     END_TEST;
 }
 
+#define IPV4_ALLOCATED_PORT_DIGGER  4
 bool test_allocate_ipv4_transport_address_digger( void )
 {
     struct in_addr expected_addr;
+    //~ struct in_addr addr4;
     bool ret;
     u_int8_t protocol;
     
     struct nf_conntrack_tuple tuple;
-    struct ipv4_tuple_address new_ipv4_transport_address;
+    //~ struct ipv4_tuple_address new_ipv4_transport_address;
+    struct ipv4_tuple_address *new_ipv4_transport_address;
 
     struct bib_entry bib_e1;
     struct bib_entry bib_e2;
@@ -443,30 +502,59 @@ bool test_allocate_ipv4_transport_address_digger( void )
 
     nat64_bib_init();
 
+pr_debug("IPPROTO_ICMP : %d", IPPROTO_ICMP);
     protocol = IPPROTO_ICMP;
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+
     ret = inject_bib_entry( &bib_e1, protocol );
     ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
 
+pr_debug("IPPROTO_TCP : %d", IPPROTO_TCP);
     protocol = IPPROTO_TCP;
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
+    
     ret = inject_bib_entry( &bib_e2, protocol );
     ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
     
+pr_debug("IPPROTO_UDP : %d", IPPROTO_UDP);
     protocol = IPPROTO_UDP;
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+
     init_tuple_for_test_ipv6(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    ret = allocate_ipv4_transport_address_digger(&tuple, protocol, &new_ipv4_transport_address);
-    ASSERT_EQUALS(true,  ret, "Check that we can allocate a brand new IPv4 transport address for UDP.");
+pr_debug("  allocate_ipv4_transport_address_digger ");
+    //~ ret = allocate_ipv4_transport_address_digger(&tuple, protocol, &new_ipv4_transport_address);
+    new_ipv4_transport_address = allocate_ipv4_transport_address_digger(&tuple, protocol);
+    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+        "Check that we can allocate a brand new IPv4 transport address for UDP.");
 
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+pr_debug("  ipv4_addr_equals ");
+    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
+    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
         "Check that the allocated IPv4 address is correct for UDP.");
 
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), new_ipv4_transport_address.pi.port,  
+    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), new_ipv4_transport_address.pi.port,  
+    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_DIGGER ), new_ipv4_transport_address->pi.port,  
         "Check that the allocated IPv4 port is correct for UDP.");
 
     nat64_bib_destroy();
-    
+    pool4_destroy();
+
     END_TEST;
 }
 
@@ -475,23 +563,32 @@ bool test_ipv6_udp( void )
     int ret;
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
+    //~ struct in_addr addr4;
+    struct sk_buff *skb = NULL;
     
     START_TEST;
 
+    protocol = IPPROTO_UDP;
+
+    init_pool(protocol);
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
 
-    protocol = IPPROTO_UDP;
-
     // Init tuple
     init_tuple_for_test_ipv6( &tuple, protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
+
 
     // Create Bib & Session:
-    ret = ipv6_udp( &tuple );
+    ret = ipv6_udp( skb, &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an IPv6 UDP packet.");
 
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
     
     END_TEST;
 }
@@ -502,11 +599,13 @@ bool test_ipv4_udp( void )
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
     struct sk_buff* skb = NULL;
-    
+    //~ struct in_addr addr4;
+
     START_TEST;
 
     nat64_bib_init();
     nat64_session_init();
+    filtering_init();
 
     protocol = IPPROTO_UDP;
 
@@ -525,15 +624,25 @@ pr_debug(" Process an expected packet ");
     // Process an expected packet
 
     // Create Bib & Session:
+pr_debug("  > create a new entry in the pool address");
+    //~ ASSERT_EQUALS(true, pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
+
+pr_debug("  > create a new entry in the BIB-Session Tables by processing an IPv6 UDP packet");
     init_tuple_for_test_ipv6( &tuple , protocol  );    
-    ret = ipv6_udp( &tuple );
+    //~ ret = ipv6_udp( &tuple );
+    ret = ipv6_udp( skb, &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an IPv6 UDP packet.");
     
     init_tuple_for_test_ipv4( &tuple , protocol  );
 
+pr_debug("  > process correctly an expected IPv4 UDP packet");
     ret = ipv4_udp( skb, &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an expected IPv4 UDP packet.");
 
+    pool4_destroy();
     nat64_session_destroy();
     nat64_bib_destroy();
     kfree_skb(skb);
@@ -546,13 +655,22 @@ bool test_ipv6_icmp6( void )
     int ret;
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
+    //~ struct in_addr addr4;
     
     START_TEST;
 
+    protocol = IPPROTO_ICMPV6;
+
     nat64_bib_init();
     nat64_session_init();
+    filtering_init();
 
-    protocol = IPPROTO_ICMPV6;
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
 
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
@@ -563,6 +681,7 @@ bool test_ipv6_icmp6( void )
 
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
       
     END_TEST;
 }
@@ -573,13 +692,22 @@ bool test_ipv4_icmp4( void )
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
     struct sk_buff* skb = NULL;
+    //~ struct in_addr addr4;
     
     START_TEST;
 
+    protocol = IPPROTO_ICMP;
+
     nat64_bib_init();
     nat64_session_init();
+    filtering_init();
 
-    protocol = IPPROTO_ICMP;
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
 
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
@@ -587,29 +715,33 @@ bool test_ipv4_icmp4( void )
     if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
         pr_debug("ERROR, SKB == NULL");
 
+pr_debug(" * Discard un-expected IPv4 packets");
     // Discard un-expected IPv4 packets.
     ret = ipv4_icmp4( skb, &tuple ); // Warning: 'skb' is an uninitialized pointer
     ASSERT_EQUALS(NF_DROP, ret, "See if we discard an IPv4 ICMP packet, which tries to start a communication.");
 
+pr_debug(" * Process an expected packet");
     // Process an expected packet
     
+pr_debug(" * Create Bib & Session");
     // Create Bib & Session:
     protocol = IPPROTO_ICMPV6;
     init_tuple_for_test_ipv6( &tuple , protocol );
     ret = ipv6_icmp6( &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an IPv6 ICMP packet.");
 
+pr_debug(" * Process an expected IPv4 packets.");
     // Process an expected IPv4 packets.
     protocol = IPPROTO_ICMP;
     init_tuple_for_test_ipv4( &tuple , protocol );
-	tuple.icmp_id = htons( ntohs( tuple.icmp_id ) +2 ); // Correct ICMP ID
-	tuple.dst_port = htons( ntohs( tuple.dst_port ) +2 ); // Correct ICMP ID
     ret = ipv4_icmp4( skb, &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an expected IPv4 ICMP packet.");
 
+pr_debug(" * Destroy everything X-| ");
     nat64_session_destroy();
     nat64_bib_destroy();
-    
+    pool4_destroy();
+
     kfree_skb(skb);
     
     END_TEST;
@@ -693,22 +825,22 @@ bool test_send_icmp_error_message( void )
     code = COMMUNICATION_ADMINISTRATIVELY_PROHIBITED;
     send_icmp_error_message( skb, type, code);
     
-	kfree_skb(skb);
+    kfree_skb(skb);
 
     
     END_TEST;
 }
 
 
-#define INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR    "2001:db8:c0ca::1"
+#define INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR    "2001:db8:c0ca:1::1"
 #define INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR    "64:ff9b::192.168.2.44"
 #define INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR     "192.168.100.44"
 bool test_filtering_and_updating( void )
 {
     int ret;
-    u_int8_t protocol;
+    u_int8_t protocol = IPPROTO_UDP;
     struct nf_conntrack_tuple tuple;
-    struct sk_buff skb;
+    struct sk_buff *skb = NULL;
     struct in_addr addr4;
     struct in6_addr addr6;
     
@@ -716,82 +848,123 @@ bool test_filtering_and_updating( void )
 
     nat64_bib_init();
     nat64_session_init();
+    
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
+    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
+    //~ ASSERT_EQUALS(true, 
+        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
+    init_pool(protocol);
+
 
     // >>> Errores de ICMP no deben afectar las tablas
+    pr_debug(" >>> Errores de ICMP no deben afectar las tablas ");
     // IPv4 incoming packet
     protocol = IPPROTO_ICMP;
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");    
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     ASSERT_EQUALS(NF_ACCEPT,  ret, "See if we can forward an IPv4 ICMP packet.");
+    kfree_skb(skb);
+
+    // Tests UDP
+    protocol = IPPROTO_UDP;
 
     // >>> Get rid of hairpinning loop 
+    pr_debug(" >>> Get rid of hairpinning loop ");
     // IPv6 incoming packet
-    protocol = IPPROTO_UDP;
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     // Add pref64
     str_to_addr6(INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR , &addr6);
     tuple.ipv6_src_addr = addr6; 
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     // 
     ASSERT_EQUALS(NF_DROP,  ret, "See if we can get rid of hairpinning loop in IPv6.");
+    kfree_skb(skb);
 
     // >>> Get rid of unwanted packets
+    pr_debug(" >>> Get rid of unwanted packets ");
     // IPv6 incoming packet
-    protocol = IPPROTO_UDP;
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");    
     // Unwanted packet
     str_to_addr6(INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR , &addr6);
     tuple.ipv6_dst_addr = addr6; 
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     ASSERT_EQUALS(NF_DROP,  ret, "See if we can get rid of unwanted packets in IPv6.");
+    kfree_skb(skb);
 
     // >>> Get rid of un-expected packets, destined to an address not in pool
+    pr_debug(" >>> Get rid of un-expected packets, destined to an address not in pool");
     // IPv4 incoming packet
-    protocol = IPPROTO_UDP;
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     // Packet destined to an address not in pool
     str_to_addr4(INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR , &addr4);
     tuple.ipv4_dst_addr = addr4; 
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     ASSERT_EQUALS(NF_DROP,  ret, "See if we can get rid of packet destined to an address not in pool.");
+    kfree_skb(skb);
 
     // >>> IPv4 incoming packet --> reject
+    pr_debug(" >>> IPv4 incoming packet --> reject");
     // IPv4 incoming packet
-    protocol = IPPROTO_UDP;
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     ASSERT_EQUALS(NF_DROP,  ret, "See if we can do reject an incoming IPv4 UDP packet.");
+    kfree_skb(skb);
 
     // >>> IPv6 incoming packet --> accept
+    pr_debug(" >>> IPv6 incoming packet --> accept");
     // IPv6 incoming packet
-    protocol = IPPROTO_UDP;
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     ASSERT_EQUALS(NF_ACCEPT,  ret, "See if we can do filtering and updating on an incoming IPv6 UDP packet.");
+    kfree_skb(skb);
 
     // >>> IPv4 incoming packet --> accept
+    pr_debug(" >>> IPv4 incoming packet --> accept");
     // IPv4 incoming packet
-    protocol = IPPROTO_UDP;
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     // Process a tuple generated from a incoming IPv6 packet:
-    ret = filtering_and_updating( &skb, &tuple);
+    ret = filtering_and_updating( skb, &tuple);
     ASSERT_EQUALS(NF_ACCEPT,  ret, "See if we can do filtering and updating on an incoming IPv4 UDP packet.");
 
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
+    kfree_skb(skb);
     
     END_TEST;
 }
@@ -1039,6 +1212,8 @@ bool test_tcp_closed_state_handle( void )
 
     nat64_bib_init();
     nat64_session_init();
+    filtering_init();
+    init_pool(IPPROTO_TCP);
 
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1060,6 +1235,8 @@ bool test_tcp_closed_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
+
 
     // TODO (alberto) revisar esto
     /* Input: 
@@ -1118,8 +1295,11 @@ bool test_tcp_v4_init_state_handle( void )
     
     START_TEST;
 
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
+
 
     // Init packet
     init_packet_type_for_test( &packet.buffer , PACKET_TYPE_V4_SYN );
@@ -1152,6 +1332,8 @@ pr_debug("V4_INIT = %d\n", V4_INIT );
 
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
+
     
     END_TEST;
 }
@@ -1171,8 +1353,10 @@ bool test_tcp_v6_init_state_handle( void )
      * */
     pr_debug(">>> State: V6 INIT\n  Packet seq: V6 SYN --> V4 SYN    \n");
 
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1203,7 +1387,9 @@ bool test_tcp_v6_init_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();
-        
+    pool4_destroy();
+
+    
     END_TEST;
 }
 
@@ -1221,8 +1407,10 @@ bool test_tcp_established_state_handle( void )
      * */
     pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V4 FIN    \n");
 
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1263,6 +1451,7 @@ bool test_tcp_established_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
     
     /* Input: 
      *          V6 SYN --> V4 SYN --> V6 FIN 
@@ -1271,6 +1460,7 @@ bool test_tcp_established_state_handle( void )
      
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1312,6 +1502,7 @@ bool test_tcp_established_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
     
     /* Input: 
      *          V6 SYN --> V4 SYN --> V6 RST 
@@ -1320,6 +1511,7 @@ bool test_tcp_established_state_handle( void )
      
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1361,6 +1553,7 @@ bool test_tcp_established_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();    
+    pool4_destroy();
     
     END_TEST;
 }
@@ -1379,8 +1572,10 @@ bool test_tcp_v4_fin_rcv_state_handle( void )
      * */
     pr_debug(">>> State: V4 FIN RCV\n   Packet seq: V6 SYN --> V4 SYN --> V4 FIN --> V6 FIN    \n");
 
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1431,6 +1626,7 @@ bool test_tcp_v4_fin_rcv_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
 
 
     END_TEST;
@@ -1450,8 +1646,10 @@ bool test_tcp_v6_fin_rcv_state_handle( void )
      * */
     pr_debug(">>> State: V6 FIN RCV\n   Packet seq: V6 SYN --> V4 SYN --> V6 FIN --> V4 FIN    \n");
 
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1503,6 +1701,7 @@ bool test_tcp_v6_fin_rcv_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();
+    pool4_destroy();
 
     
     END_TEST;
@@ -1534,8 +1733,10 @@ bool test_tcp_trans_state_handle( void )
      * */
     pr_debug(">>> State: TRANS\n    Packet seq: V6 SYN --> V4 SYN --> V6 RST --> V6 SYN   \n");
      
+    filtering_init();
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1587,6 +1788,7 @@ bool test_tcp_trans_state_handle( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();    
+    pool4_destroy();
         
     END_TEST;
 }
@@ -1607,6 +1809,7 @@ bool test_tcp( void )
      
     nat64_bib_init();
     nat64_session_init();
+    init_pool(IPPROTO_TCP);
     
     // Construct a V6 SYN packet
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
@@ -1658,6 +1861,7 @@ bool test_tcp( void )
     
     nat64_session_destroy();
     nat64_bib_destroy();    
+    pool4_destroy();
     
     END_TEST;
 }
@@ -1717,41 +1921,41 @@ int __init filtering_test_init(void)
     /*      UDP & ICMP      */
     CALL_TEST(test_icmp(), "test_icmp");
     
-    //~ CALL_TEST(test_transport_address_ipv4(), "test_transport_address_ipv4");
-    //~ CALL_TEST(test_transport_address_ipv6(), "test_transport_address_ipv6");
-    //~ CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
-    //~ CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
-    //~ CALL_TEST(test_get_icmpv4_identifier(), "test_get_icmpv4_identifier");
-    //~ CALL_TEST(test_allocate_ipv4_transport_address(), "test_allocate_ipv4_transport_address");
-    //~ CALL_TEST(test_allocate_ipv4_transport_address_digger(), "test_allocate_ipv4_transport_address_digger");
-    //~ CALL_TEST(test_ipv6_udp(), "test_ipv6_udp");
-    //~ CALL_TEST(test_ipv4_udp(), "test_ipv4_udp");
-    //~ CALL_TEST(test_ipv6_icmp6(), "test_ipv6_icmp6");
-    //~ CALL_TEST(test_ipv4_icmp4(), "test_ipv4_icmp4");
+    CALL_TEST(test_transport_address_ipv4(), "test_transport_address_ipv4");
+    CALL_TEST(test_transport_address_ipv6(), "test_transport_address_ipv6");
+    CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
+    CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
+    CALL_TEST(test_get_icmpv4_identifier(), "test_get_icmpv4_identifier");
+    CALL_TEST(test_allocate_ipv4_transport_address(), "test_allocate_ipv4_transport_address");
+    CALL_TEST(test_allocate_ipv4_transport_address_digger(), "test_allocate_ipv4_transport_address_digger");
+    CALL_TEST(test_ipv6_udp(), "test_ipv6_udp");
+    CALL_TEST(test_ipv4_udp(), "test_ipv4_udp");
+    CALL_TEST(test_ipv6_icmp6(), "test_ipv6_icmp6");
+    CALL_TEST(test_ipv4_icmp4(), "test_ipv4_icmp4");
     //~ CALL_TEST(test_send_icmp_error_message(), "test_send_icmp_error_message"); // Not implemented yet!
-    //~ CALL_TEST(test_filtering_and_updating(), "test_filtering_and_updating");
+    CALL_TEST(test_filtering_and_updating(), "test_filtering_and_updating");
     
     
     /*      TCP      */
-    //~ CALL_TEST(test_packet_is_ipv4(), "test_packet_is_ipv4");
-    //~ CALL_TEST(test_packet_is_ipv6(), "test_packet_is_ipv6");
-    //~ CALL_TEST(test_packet_is_v4_syn(), "test_packet_is_v4_syn");
-    //~ CALL_TEST(test_packet_is_v6_syn(), "test_packet_is_v6_syn");
-    //~ CALL_TEST(test_packet_is_v4_fin(), "test_packet_is_v4_fin");
-    //~ CALL_TEST(test_packet_is_v6_fin(), "test_packet_is_v6_fin");
-    //~ CALL_TEST(test_packet_is_v4_rst(), "test_packet_is_v4_rst");
-    //~ CALL_TEST(test_packet_is_v6_rst(), "test_packet_is_v6_rst");
+    CALL_TEST(test_packet_is_ipv4(), "test_packet_is_ipv4");
+    CALL_TEST(test_packet_is_ipv6(), "test_packet_is_ipv6");
+    CALL_TEST(test_packet_is_v4_syn(), "test_packet_is_v4_syn");
+    CALL_TEST(test_packet_is_v6_syn(), "test_packet_is_v6_syn");
+    CALL_TEST(test_packet_is_v4_fin(), "test_packet_is_v4_fin");
+    CALL_TEST(test_packet_is_v6_fin(), "test_packet_is_v6_fin");
+    CALL_TEST(test_packet_is_v4_rst(), "test_packet_is_v4_rst");
+    CALL_TEST(test_packet_is_v6_rst(), "test_packet_is_v6_rst");
     //~ CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
-    //~ CALL_TEST(test_tcp_closed_state_handle(), "test_tcp_closed_state_handle");
+    CALL_TEST(test_tcp_closed_state_handle(), "test_tcp_closed_state_handle");
     //~ CALL_TEST(test_tcp_v4_init_state_handle(), "test_tcp_v4_init_state_handle"); // Not implemented yet!
     //~ probar
-    //~ CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
-    //~ CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
-    //~ CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
-    //~ CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
+    CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
+    CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
+    CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
+    CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
     //~ CALL_TEST(test_tcp_v4_fin_v6_fin_rcv_state_handle(), "test_tcp_v4_fin_v6_fin_rcv_state_handle"); // Not implemented yet!
-    //~ CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
-    //~ CALL_TEST(test_tcp(), "test_tcp");
+    CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
+    CALL_TEST(test_tcp(), "test_tcp");
   
     /* A non 0 return means a test failed; module can't be loaded. */
     END_TESTS;

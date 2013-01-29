@@ -45,9 +45,6 @@
 #define IPV4_NEXTHOP_MASK (1<<14)
 #define MTU_PLATEAUS_MASK (1<<15)
 #define MTU_PLATEAU_COUNT_MASK (1<<16)
-#define ADDRESS_DEPENDENT_FILTER_MASK (1<<17)
-#define FILTER_INFO_MASK (1<<18)
-#define DROP_TCP_MASK (1<<19)
 
 /**
  * Struct to handle valid IPv6 prefixes specified as configuration parameters.
@@ -159,8 +156,6 @@ struct answer_struct {
 
 };
 
-extern struct configuration config;
-extern struct config_struct cs;
 
 /**
  * Initializes this module. Sets default values for the entire configuration.
