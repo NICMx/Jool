@@ -15,6 +15,7 @@
 
 
 struct translate_config config;
+static DEFINE_SPINLOCK(config_lock);
 
 #include "nf_nat64_translate_packet_4to6.c"
 #include "nf_nat64_translate_packet_6to4.c"
@@ -22,6 +23,8 @@ struct translate_config config;
 bool translate_packet_init(void)
 {
 	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
+
+	spin_lock_bh(&config_lock);
 
 	config.packet_head_room = TRAN_DEF_USR_HEAD_ROOM;
 	config.packet_tail_room = TRAN_DEF_USR_TAIL_ROOM;
@@ -33,39 +36,49 @@ bool translate_packet_init(void)
 	config.improve_mtu_failure_rate = TRAN_DEF_IMPROVE_MTU_FAILURE_RATE;
 	config.ipv6_nexthop_mtu = TRAN_DEF_IPV6_NEXTHOP_MTU;
 	config.ipv4_nexthop_mtu = TRAN_DEF_IPV4_NEXTHOP_MTU;
-
 	config.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
 	config.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
 	if (!config.mtu_plateaus) {
 		log_warning("Could not allocate memory to store the MTU plateaus.");
+		spin_unlock_bh(&config_lock);
 		return false;
 	}
 	memcpy(config.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
+	spin_unlock_bh(&config_lock);
 	return true;
 }
 
 void translate_packet_destroy(void)
 {
+	spin_lock_bh(&config_lock);
 	kfree(config.mtu_plateaus);
+	spin_unlock_bh(&config_lock);
 }
 
-bool translate_clone_config(struct translate_config *clone)
+bool clone_translate_config(struct translate_config *clone)
 {
-	__u16 plateaus_len = config.mtu_plateau_count * sizeof(*config.mtu_plateaus);
+	__u16 plateaus_len;
 
-	memcpy(clone, &config, sizeof(*clone));
+	spin_lock_bh(&config_lock);
 
+	memcpy(clone, &config, sizeof(config));
+	plateaus_len = config.mtu_plateau_count * sizeof(*config.mtu_plateaus);
 	clone->mtu_plateaus = kmalloc(plateaus_len, GFP_ATOMIC);
-	if (!clone->mtu_plateaus)
+	if (!clone->mtu_plateaus) {
+		spin_unlock_bh(&config_lock);
 		return false;
+	}
 	memcpy(clone->mtu_plateaus, &config.mtu_plateaus, plateaus_len);
 
+	spin_unlock_bh(&config_lock);
 	return true;
 }
 
-enum response_code translate_packet_config(__u32 operation, struct translate_config *new_config)
+enum response_code set_translate_config(__u32 operation, struct translate_config *new_config)
 {
+	spin_lock_bh(&config_lock);
+
 	if (operation & PHR_MASK)
 		config.packet_head_room = new_config->packet_head_room;
 	if (operation & PTR_MASK)
@@ -92,7 +105,8 @@ enum response_code translate_packet_config(__u32 operation, struct translate_con
 
 		config.mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
 		if (!config.mtu_plateaus) {
-			config.mtu_plateaus = old_mtus;
+			config.mtu_plateaus = old_mtus; // Should we revert the other fields?
+			spin_unlock_bh(&config_lock);
 			return RESPONSE_ALLOC_FAILED;
 		}
 
@@ -101,6 +115,7 @@ enum response_code translate_packet_config(__u32 operation, struct translate_con
 		memcpy(config.mtu_plateaus, new_config->mtu_plateaus, new_mtus_len);
 	}
 
+	spin_unlock_bh(&config_lock);
 	return RESPONSE_SUCCESS;
 }
 
@@ -111,13 +126,19 @@ enum response_code translate_packet_config(__u32 operation, struct translate_con
 static bool create_skb(struct packet_out *out)
 {
 	struct sk_buff *new_skb;
+	__u16 head_room, tail_room;
 
-	new_skb = alloc_skb(config.packet_head_room // user's reserved.
+	spin_lock_bh(&config_lock);
+	head_room = config.packet_head_room;
+	tail_room = config.packet_tail_room;
+	spin_unlock_bh(&config_lock);
+
+	new_skb = alloc_skb(head_room // user's reserved.
 			+ LL_MAX_HEADER // kernel's reserved + layer 2.
 			+ out->l3_hdr_len // layer 3.
 			+ out->l4_hdr_len // layer 4.
 			+ out->payload_len // packet data.
-			+ config.packet_tail_room, // user's reserved+.
+			+ tail_room, // user's reserved+.
 			GFP_ATOMIC);
 	if (!new_skb) {
 		log_warning("  New packet allocation failed.");
@@ -125,7 +146,7 @@ static bool create_skb(struct packet_out *out)
 	}
 	out->packet = new_skb;
 
-	skb_reserve(new_skb, config.packet_head_room + LL_MAX_HEADER);
+	skb_reserve(new_skb, head_room + LL_MAX_HEADER);
 	skb_put(new_skb, out->l3_hdr_len + out->l4_hdr_len + out->payload_len);
 
 	skb_reset_mac_header(new_skb);

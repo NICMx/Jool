@@ -1,4 +1,10 @@
 /**
+ * @file
+ * Functions from Translate the Packet which specifically target the IPv4 -> IPv6 direction.
+ * Would normally be part of nf_nat64_translate_packet.c; the constant scrolling was killing me.
+ */
+
+/**
  * Assumes that "l3_hdr" points to a iphdr, and returns its size, options included.
  */
 static __u16 compute_ipv4_hdr_len(void *l3_hdr)
@@ -142,6 +148,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 {
 	struct iphdr *ip4_hdr = in->l3_hdr;
 	struct ipv6hdr *ip6_hdr;
+	bool override_traffic_class;
 
 	bool has_frag_hdr = !is_dont_fragment_set(ip4_hdr);
 
@@ -153,9 +160,13 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 		return false;
 	}
 
+	spin_lock_bh(&config_lock);
+	override_traffic_class = config.override_ipv6_traffic_class;
+	spin_unlock_bh(&config_lock);
+
 	ip6_hdr = out->l3_hdr;
 	ip6_hdr->version = 6;
-	if (config.override_ipv6_traffic_class) {
+	if (override_traffic_class) {
 		ip6_hdr->priority = 0;
 		ip6_hdr->flow_lbl[0] = 0;
 	} else {
@@ -236,12 +247,14 @@ static __be16 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, _
 		// Got to determine a likely path MTU.
 		// See RFC 1191 sections 5, 7 and 7.1 to understand the logic here.
 		int plateau;
+		spin_lock_bh(&config_lock);
 		for (plateau = 0; plateau < config.mtu_plateau_count; plateau++) {
 			if (config.mtu_plateaus[plateau] < tot_len_field) {
 				packet_mtu = config.mtu_plateaus[plateau];
 				break;
 			}
 		}
+		spin_unlock_bh(&config_lock);
 	}
 
 	// Core comparison to find the minimum value.
@@ -250,12 +263,14 @@ static __be16 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, _
 	else
 		result = (packet_mtu < out_mtu) ? packet_mtu : out_mtu;
 
+	spin_lock_bh(&config_lock);
 	if (config.improve_mtu_failure_rate && result < 1280) {
 		// Probably some router does not implement RFC 4890, section 4.3.1.
 		// Gotta override and hope for the best.
 		// See RFC 6145 section 6, second approach, to understand the logic here.
 		result = 1280;
 	}
+	spin_unlock_bh(&config_lock);
 
 	return cpu_to_be16(result);
 }
@@ -278,6 +293,8 @@ static bool icmp4_has_inner_packet(__u8 icmp_type)
 static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr,
 		__u16 tot_len_field)
 {
+	__u16 ipv6_mtu, ipv4_mtu;
+
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmpv6_hdr->icmp6_unused = 0;
 
@@ -304,11 +321,16 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 		break;
 
 	case ICMP_FRAG_NEEDED:
+		spin_lock_bh(&config_lock);
+		ipv6_mtu = config.ipv6_nexthop_mtu;
+		ipv4_mtu = config.ipv4_nexthop_mtu;
+		spin_unlock_bh(&config_lock);
+
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
 		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				config.ipv6_nexthop_mtu,
-				config.ipv4_nexthop_mtu + 20,
+				ipv6_mtu,
+				ipv4_mtu + 20,
 				tot_len_field);
 		break;
 

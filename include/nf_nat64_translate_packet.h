@@ -177,8 +177,8 @@ struct packet_out
 bool translate_packet_init(void);
 void translate_packet_destroy(void);
 
-bool translate_clone_config(struct translate_config *clone);
-enum response_code translate_packet_config(__u32 operation, struct translate_config *new_config);
+bool clone_translate_config(struct translate_config *clone);
+enum response_code set_translate_config(__u32 operation, struct translate_config *new_config);
 
 /**
  * Assumes "skb_in" is a IPv4 packet, and stores a IPv6 equivalent in "skb_out".

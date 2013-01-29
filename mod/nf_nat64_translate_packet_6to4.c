@@ -1,4 +1,10 @@
 /**
+ * @file
+ * Functions from Translate the Packet which specifically target the IPv6 -> IPv4 direction.
+ * Would normally be part of nf_nat64_translate_packet.c; the constant scrolling was killing me.
+ */
+
+/**
  * Assumes that "l3_hdr" points to a ipv6hdr, and returns its size, extension headers included.
  */
 static __u16 compute_ipv6_hdr_len(void *l3_hdr)
@@ -173,11 +179,12 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
  */
 static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 {
-	__u8 dont_fragment;
-
 	struct ipv6hdr *ip6_hdr = in->l3_hdr;
 	struct frag_hdr *ip6_frag_hdr;
 	struct iphdr *ip4_hdr;
+
+	bool override_traffic_class, generate_ipv4_id, df_always_set;
+	__u8 dont_fragment;
 
 	out->l3_hdr_type = IPPROTO_IP;
 	out->l3_hdr_len = sizeof(struct iphdr);
@@ -187,14 +194,20 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 		return false;
 	}
 
+	spin_lock_bh(&config_lock);
+	override_traffic_class = config.override_ipv4_traffic_class;
+	generate_ipv4_id = config.generate_ipv4_id;
+	df_always_set = config.df_always_set;
+	spin_unlock_bh(&config_lock);
+
 	// TODO (warning) los primeros campos del header de IPv6 se están manejando correctamente?
 	ip4_hdr = out->l3_hdr;
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
-	ip4_hdr->tos = config.override_ipv4_traffic_class ? 0 : build_tos_field(ip6_hdr);
+	ip4_hdr->tos = override_traffic_class ? 0 : build_tos_field(ip6_hdr);
 	// ip4_hdr->tot_len is set during post-processing.
-	ip4_hdr->id = config.generate_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
-	dont_fragment = config.df_always_set ? 1 : generate_df_flag(ip6_hdr);
+	ip4_hdr->id = generate_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
+	dont_fragment = df_always_set ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	ip4_hdr->ttl = ip6_hdr->hop_limit; // The TTL is decremented by the kernel.
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
@@ -401,6 +414,8 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
  */
 static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out *out)
 {
+	__u16 ipv4_mtu, ipv6_mtu;
+
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
@@ -434,15 +449,20 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
+		spin_lock_bh(&config_lock);
+		ipv6_mtu = config.ipv6_nexthop_mtu;
+		ipv4_mtu = config.ipv4_nexthop_mtu;
+		spin_unlock_bh(&config_lock);
+
 		icmpv4_hdr->type = ICMP_DEST_UNREACH;
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
 		icmpv4_hdr->un.frag.__unused = 0;
 		// BTW, I have no idea what the RFC means by "taking into account whether or not
 		// the packet in error includes a Fragment Header"... What does the fragment header
 		// have to do with anything here?
-		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20, //
-				config.ipv4_nexthop_mtu, //
-				config.ipv6_nexthop_mtu - 20);
+		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
+				ipv4_mtu,
+				ipv6_mtu - 20);
 		break;
 
 	case ICMPV6_TIME_EXCEED:
