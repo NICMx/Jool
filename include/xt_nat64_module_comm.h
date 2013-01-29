@@ -53,9 +53,14 @@ enum config_operation {
 	#define IPV4_NEXTHOP_MASK (1 << 14)
 	#define MTU_PLATEAUS_MASK (1 << 15)
 
-	#define ADDRESS_DEPENDENT_FILTER_MASK (1 << 0)
-	#define FILTER_INFO_MASK (1 << 1)
-	#define DROP_TCP_MASK (1 << 2)
+	#define ADDRESS_DEPENDENT_FILTER_MASK	(1 << 0)
+	#define FILTER_INFO_MASK				(1 << 1)
+	#define DROP_TCP_MASK					(1 << 2)
+	#define UDP_DEFAULT_MASK				(1 << 3)
+	#define ICMP_DEFAULT_MASK				(1 << 4)
+	#define TCP_TRANS_MASK					(1 << 5)
+	#define TCP_INCOMING_SYN_MASK			(1 << 6)
+	#define TCP_EST_MASK 					(1 << 7)
 };
 
 enum response_code {
@@ -100,19 +105,6 @@ struct session_entry_us
 	bool is_static;
 	unsigned int dying_time;
 	u_int8_t l4protocol;
-};
-
-/**
- * Configuration for the "Filtering and Updating" module.
- */
-struct filtering_config
-{
-	/** Use Address-Dependent Filtering? */
-	bool address_dependent_filtering;
-	/** Filter ICMPv6 Informational packets */
-	bool filter_informational_icmpv6;
-	/** Drop externally initiated TCP connections? (IPv4 initiated) */
-	bool drop_externally_initiated_tcp_connections;
 };
 
 /**

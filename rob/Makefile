@@ -8,25 +8,16 @@ EXTRA_CFLAGS += -I$(src)/.
 MOD_DIR = ../mod
 
 obj-m += TESTfiltering.o
-TESTfiltering-objs += nf_nat64_filtering_and_updating_test.o \
-		${MOD_DIR}/nf_nat64_ipv4_pool.o \
-		$(MOD_DIR)/nf_nat64_config.o \
-		$(MOD_DIR)/xt_nat64_module_conf_validation.o \
-		$(MOD_DIR)/nf_nat64_session.o \
-		$(MOD_DIR)/nf_nat64_types.o \
-		$(MOD_DIR)/nf_nat64_bib.o \
-		$(MOD_DIR)/nf_nat64_rfc6052.o
-#~ TESTfiltering2-objs += ${MOD_DIR}/nf_nat64_ipv4_pool.o
-#~ TESTfiltering2-objs += $(MOD_DIR)/xt_nat64_module_conf.o
-#~ TESTfiltering2-objs += $(MOD_DIR)/xt_nat64_module_conf_validation.o
-#~ TESTfiltering2-objs += $(FILTERING_DIR)/nf_nat64_session.o
-#~ TESTfiltering2-objs += $(FILTERING_DIR)/nf_nat64_types.o
-#~ TESTfiltering2-objs += $(FILTERING_DIR)/nf_nat64_bib.o
-#~ TESTfiltering2-objs += $(FILTERING_DIR)/nf_nat64_rfc6052.o
-
-
-#~ TESTfiltering-objs += $(FILTERING_DIR)/filtering_tcp.o
-#~ TESTfiltering-objs += $(FILTERING_DIR)/filtering.o
+TESTfiltering-objs += nf_nat64_filtering_and_updating_test.o
+TESTfiltering-objs += ${MOD_DIR}/nf_nat64_ipv4_pool.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_config.o
+TESTfiltering-objs += $(MOD_DIR)/xt_nat64_module_conf_validation.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_session.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_types.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_bib.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_rfc6052.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_send_packet.o
+TESTfiltering-objs += $(MOD_DIR)/nf_nat64_static_routes.o
 
 
 all:

@@ -33,11 +33,6 @@ DEFINE_MUTEX(my_mutex);
 
 bool nat64_config_init(void)
 {
-	// Filtering and Updating config
-	filtering_conf.address_dependent_filtering = FILT_DEF_ADR_DEPENDENT_FILTERING;
-	filtering_conf.filter_informational_icmpv6 = FILT_DEF_FILTER_ICMPV6_INFO;
-	filtering_conf.drop_externally_initiated_tcp_connections = FILT_DEF_DROP_EXTERNALLY_INITIATED_CONNECTIONS;
-
 	// Netlink sockets.
 	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
 	struct netlink_kernel_cfg cfg = {
