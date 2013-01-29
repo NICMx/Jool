@@ -1,8 +1,9 @@
+#include "nf_nat64_rfc6052.h"
+
 #include <linux/module.h>
 #include <linux/printk.h>
 
 #include "nf_nat64_types.h"
-#include "nf_nat64_rfc6052.h"
 
 
 union ipv4_address {

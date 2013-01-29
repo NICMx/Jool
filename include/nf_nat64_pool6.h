@@ -1,8 +1,17 @@
 #ifndef _NF_NAT64_IPV6_POOL_H
 #define _NF_NAT64_IPV6_POOL_H
 
+/**
+ * @file
+ * The pool of IPv6 addresses.
+ *
+ * @author Alberto Leiva
+ */
+
+#include <linux/types.h>
+#include <linux/in6.h>
 #include "nf_nat64_types.h"
-#include "nf_nat64_config.h"
+#include "xt_nat64_module_comm.h"
 
 
 bool pool6_init(void);

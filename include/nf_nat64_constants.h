@@ -4,7 +4,14 @@
 /**
  * @file
  * General purpose #defines, intended to minimize use of numerical constants elsewhere in the code.
+ *
+ * @author Roberto Aceves
+ * @author Ramiro Nava
+ * @author Miguel Gonzalez
+ * @author Alberto Leiva
  */
+
+#include <linux/types.h>
 
 
 // -- Timeouts, defined by RFC 6146, section 4. --
@@ -37,8 +44,8 @@
 
 
 // -- Config defaults --
-#define POOL6_DEF_ADDR		"64:ff9b::"
-#define POOL6_DEF_PREFIX	96
+#define POOL6_DEF_PREFIX		"64:ff9b::"
+#define POOL6_DEF_PREFIX_LEN	96
 
 #define POOL4_DEF { "192.168.2.200", "192.168.2.201", "192.168.2.202", "192.168.2.203" }
 
@@ -56,7 +63,7 @@
 #define TRAN_DEF_IMPROVE_MTU_FAILURE_RATE true
 #define TRAN_DEF_IPV6_NEXTHOP_MTU 1280
 #define TRAN_DEF_IPV4_NEXTHOP_MTU 576
-#define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68	}
+#define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
 
 
 // -- ICMP constants missing from icmp.h and icmpv6.h. --

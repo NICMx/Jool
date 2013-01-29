@@ -1,8 +1,8 @@
 #include "xt_nat64_module_conf_validation.h"
-#include "nf_nat64_config.h"
 
 #include <linux/kernel.h>
 
+#include "nf_nat64_types.h"
 
 /** Validate the network mask in the CIDR format '/n'.
  *

@@ -1,9 +1,7 @@
-#include <linux/kernel.h>
-#include <linux/ipv6.h>
+#include "nf_nat64_ipv6_hdr_iterator.h"
+
 #include <net/ipv6.h>
 
-#include "nf_nat64_types.h"
-#include "nf_nat64_ipv6_hdr_iterator.h"
 
 bool is_extension_hdr(__u8 header_id)
 {

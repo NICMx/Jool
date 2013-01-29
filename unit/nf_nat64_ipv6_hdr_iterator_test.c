@@ -1,9 +1,10 @@
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <net/ipv6.h>
 
 #include "unit_test.h"
 #include "nf_nat64_types.h"
-#include "nf_nat64_ipv6_hdr_iterator.h"
+#include "nf_nat64_ipv6_hdr_iterator.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");

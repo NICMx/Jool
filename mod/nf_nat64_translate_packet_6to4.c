@@ -187,6 +187,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 		return false;
 	}
 
+	// TODO (warning) los primeros campos del header de IPv6 se están manejando correctamente?
 	ip4_hdr = out->l3_hdr;
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;

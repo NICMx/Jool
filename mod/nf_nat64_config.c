@@ -1,15 +1,19 @@
+#include "nf_nat64_config.h"
+
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/inet.h>
-#include <linux/inetdevice.h>
+#include <linux/mutex.h>
+#include <net/sock.h>
 #include <linux/netlink.h>
 
 #include "nf_nat64_constants.h"
-#include "nf_nat64_config.h"
-#include "nf_nat64_static_routes.h"
-#include "nf_nat64_ipv4_pool.h"
-#include "nf_nat64_pool6.h"
+#include "nf_nat64_types.h"
 #include "xt_nat64_module_comm.h"
+#include "nf_nat64_pool6.h"
+#include "nf_nat64_ipv4_pool.h"
+#include "nf_nat64_static_routes.h"
 #include "nf_nat64_translate_packet.h"
 
 
@@ -29,32 +33,6 @@ DEFINE_MUTEX(my_mutex);
 
 bool nat64_config_init(void)
 {
-	struct ipv6_prefix pool6_prefix;
-
-	unsigned char *pool4_addresses_str[] = POOL4_DEF;
-	int i;
-
-	// IPv4 pool config
-	for (i = 0; i < ARRAY_SIZE(pool4_addresses_str); i++) {
-		struct in_addr current_addr;
-
-		if (!str_to_addr4(pool4_addresses_str[i], &current_addr)) {
-			log_warning("IPv4 pool net in Headers is malformed [%s].", pool4_addresses_str[i]);
-			return false;
-		}
-
-		pool4_register(&current_addr);
-	}
-
-	// IPv6 pool config
-	if (!str_to_addr6(POOL6_DEF_ADDR, &pool6_prefix.address)) {
-		log_warning("IPv6 prefix in Headers is malformed [%s].", POOL6_DEF_ADDR);
-		return false;
-	}
-	pool6_prefix.maskbits = POOL6_DEF_PREFIX;
-
-	pool6_register(&pool6_prefix);
-
 	// Filtering and Updating config
 	filtering_conf.address_dependent_filtering = FILT_DEF_ADR_DEPENDENT_FILTERING;
 	filtering_conf.filter_informational_icmpv6 = FILT_DEF_FILTER_ICMPV6_INFO;
@@ -68,7 +46,7 @@ bool nat64_config_init(void)
 	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
 	if (!my_nl_sock) {
 		log_warning("Creation of netlink socket failed.");
-		goto failure;
+		return false;
 	}
 	log_debug("Netlink socket created.");
 
@@ -376,19 +354,4 @@ static void receive_from_userspace(struct sk_buff *skb)
 	mutex_lock(&my_mutex);
 	netlink_rcv_skb(skb, &handle_netlink_message);
 	mutex_unlock(&my_mutex);
-}
-
-bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)
-{
-	if (expected == actual)
-		return true;
-	if (expected == NULL || actual == NULL)
-		return false;
-
-	if (!ipv6_addr_equals(&expected->address, &actual->address))
-		return false;
-	if (expected->maskbits != actual->maskbits)
-		return false;
-
-	return true;
 }

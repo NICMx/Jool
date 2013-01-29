@@ -1,9 +1,8 @@
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-
 #include "nf_nat64_ipv4_pool.h"
+
+#include <linux/slab.h>
+#include "nf_nat64_constants.h"
+
 
 // TODO (info) revisa nulos en valores de retorno.
 
@@ -146,6 +145,24 @@ static bool extract_any_port(struct addr_section *section, __be16 *port)
 	return true;
 }
 
+static bool load_defaults(void)
+{
+	unsigned char *pool4_addresses_str[] = POOL4_DEF;
+	struct in_addr current_addr;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pool4_addresses_str); i++) {
+		if (!str_to_addr4(pool4_addresses_str[i], &current_addr)) {
+			log_warning("Address in headers is malformed: '%s'.", pool4_addresses_str[i]);
+			pool4_destroy();
+			return false;
+		}
+		pool4_register(&current_addr);
+	}
+
+	return true;
+}
+
 bool pool4_init(void)
 {
 	INIT_LIST_HEAD(&pools.udp.list);
@@ -156,7 +173,8 @@ bool pool4_init(void)
 
 	INIT_LIST_HEAD(&pools.icmp.list);
 	spin_lock_init(&pools.icmp.lock);
-	return true;
+
+	return load_defaults();
 }
 
 /**

@@ -4,6 +4,8 @@
 /**
  * @file
  * Common stuff, usable both by the kernel module and the iptables userspace library.
+ *
+ * @author Alberto Leiva
  */
 
 

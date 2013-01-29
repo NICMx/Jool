@@ -6,8 +6,9 @@
  * the BIB and Session tables from Userspace.
  */
 
-#include "nf_nat64_config.h"
 #include "nf_nat64_static_routes.h"
+
+#include "nf_nat64_config.h"
 #include "nf_nat64_bib.h"
 #include "nf_nat64_session.h"
 

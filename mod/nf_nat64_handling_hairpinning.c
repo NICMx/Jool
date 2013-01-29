@@ -1,10 +1,8 @@
-#include "nf_nat64_types.h"
-
+#include "nf_nat64_handling_hairpinning.h"
 #include "nf_nat64_ipv4_pool.h"
 #include "nf_nat64_filtering_and_updating.h"
 #include "nf_nat64_outgoing.h"
 #include "nf_nat64_translate_packet.h"
-#include "nf_nat64_handling_hairpinning.h"
 #include "nf_nat64_send_packet.h"
 
 
@@ -34,6 +32,7 @@ bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tupl
 
 free_and_fail:
 	kfree_skb(skb_out);
+	// Fall through.
 
 fail:
 	return false;

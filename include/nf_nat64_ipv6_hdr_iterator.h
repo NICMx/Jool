@@ -7,11 +7,12 @@
  *
  * Everything in this file assumes the main IPv6 header is glued in memory to the extension headers,
  * preceding them (such as in a linearized sk_buff).
+ *
+ * @author Alberto Leiva
  */
 
-#include <linux/kernel.h>
+#include <linux/types.h>
 #include <linux/ipv6.h>
-#include <net/ipv6.h>
 
 
 /**

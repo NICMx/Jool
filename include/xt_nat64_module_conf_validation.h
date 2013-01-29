@@ -1,24 +1,15 @@
 /**
- * @file 	xt_nat64_module_conf_validation.h
+ * @file
+ * Utils to validate configuration data.
  *
- * @brief 	Validates the information contained in configuration.
- *
+ * @author Roberto Aceves
  */
 
-#ifndef _XT_NAT64_MODULE_CONF_VALIDATION_H	
+#ifndef _XT_NAT64_MODULE_CONF_VALIDATION_H
 #define _XT_NAT64_MODULE_CONF_VALIDATION_H
 
 
-#include "nf_nat64_types.h"
-#ifdef __KERNEL__
-	#include <linux/in.h>
-	#include <linux/in6.h>
-#else
-	#include "nf_nat64_config.h"
-	#include <arpa/inet.h>
-	#include <stdio.h>
-	#include <stdlib.h>
-#endif
+#include <linux/in.h>
 
 
 #define IPV4_NETMASK_BITS_MAX	32
@@ -38,7 +29,7 @@ int validate_ipv4_netmask_bits(unsigned char netmask_bits);
 int validate_ipv4_pool_range(	const struct in_addr *network,
 								const unsigned char maskbits,
 								const struct in_addr *addr_first,
-								const struct in_addr *addr_last );
+								const struct in_addr *addr_last);
 
 int validate_ports_range(unsigned int first, unsigned int last);
 
@@ -46,6 +37,6 @@ int validate_ports_range(unsigned int first, unsigned int last);
 
 int round_mask_up(int subnetmaskx);
 
-int ip_masklen (int num);
+int ip_masklen(int num);
 
 #endif

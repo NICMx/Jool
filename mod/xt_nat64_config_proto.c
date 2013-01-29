@@ -1,5 +1,7 @@
-#include <linux/slab.h>
 #include "xt_nat64_module_comm.h"
+
+#include <linux/slab.h>
+
 
 bool serialize_translate_config(struct translate_config *config, unsigned char **buffer_out,
 		__u16 *buffer_len_out)

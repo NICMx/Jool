@@ -2,14 +2,16 @@
 #define _XT_NAT64_MODULE_COMM_H
 
 /**
- * @file 	xt_nat64_module_comm.h
+ * @file
+ * Elements usable both by the kernel module and the userspace application.
+ * Example from:
+ * http://stackoverflow.com/questions/862964/who-can-give-me-the-latest-netlink-programming-samples
  *
- * @brief 	Contains function used to handle the communication between module
- * 			and user space app.
- *
- * Example from: http://stackoverflow.com/questions/862964/who-can-give-me-the-latest-netlink-programming-samples
+ * @author Miguel Gonzalez
+ * @author Alberto Leiva  <- maintenance
  */
 
+#include <linux/types.h>
 #include "nf_nat64_types.h"
 
 

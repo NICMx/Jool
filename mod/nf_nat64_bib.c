@@ -1,7 +1,13 @@
+#include "nf_nat64_bib.h"
+
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <linux/slab.h>
+#include <linux/list.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 
-#include "nf_nat64_bib.h"
+#include "nf_nat64_types.h"
 
 /********************************************
  * Structures and private variables.

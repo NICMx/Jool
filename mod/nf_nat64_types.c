@@ -1,7 +1,8 @@
+#include "nf_nat64_types.h"
+
 #ifndef __KERNEL__
 	#include <stddef.h>
 #endif
-#include "nf_nat64_types.h"
 
 
 /** This is a slightly more versatile in_addr. */
@@ -157,6 +158,21 @@ __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 __u16 ipv6_pair_hashcode(struct ipv6_pair *pair)
 {
 	return (pair != NULL) ? ntohs(pair->local.pi.port) : 0;
+}
+
+bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)
+{
+	if (expected == actual)
+		return true;
+	if (expected == NULL || actual == NULL)
+		return false;
+
+	if (!ipv6_addr_equals(&expected->address, &actual->address))
+		return false;
+	if (expected->maskbits != actual->maskbits)
+		return false;
+
+	return true;
 }
 
 #ifdef __KERNEL__

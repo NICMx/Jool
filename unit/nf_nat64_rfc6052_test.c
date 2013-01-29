@@ -4,7 +4,7 @@
 
 #include "unit_test.h"
 #include "nf_nat64_types.h"
-#include "nf_nat64_rfc6052.h"
+#include "nf_nat64_rfc6052.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ramiro Nava <ramiro.nava@gmail.mx>");
@@ -24,7 +24,10 @@ MODULE_DESCRIPTION("RFC 6052 module test.");
  +-----------------------+------------+------------------------------+
  */
 
-char arr_ipv6[6][INET6_ADDRSTRLEN] = {
+char ipv4_addr_str[INET_ADDRSTRLEN] = "192.0.2.33";
+struct in_addr ipv4_addr;
+
+char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:c000:221::",
 		"2001:db8:1c0:2:21::",
 		"2001:db8:122:c000:2:2100::",
@@ -32,8 +35,9 @@ char arr_ipv6[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:122:344:c0:2:2100::",
 		"2001:db8:122:344::192.0.2.33"
 };
+struct in6_addr ipv6_addr[6];
 
-char prefix[6][INET6_ADDRSTRLEN] = {
+char prefixes_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8::",
 		"2001:db8:100::",
 		"2001:db8:122::",
@@ -41,50 +45,56 @@ char prefix[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:122:344::",
 		"2001:db8:122:344::"
 };
+__u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
+struct ipv6_prefix prefixes[6];
 
-int pref[6] = { 32, 40, 48, 56, 64, 96 };
-
-bool test_extract_ipv4(char* ipv6_as_string, int prefix_len)
+bool test_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
 {
-	const char expected_as_string[INET_ADDRSTRLEN] = "192.0.2.33";
-	struct in_addr expected;
 	struct in_addr actual;
-	struct in6_addr ipv6;
+	bool success = true;
 
-	if (!str_to_addr4(expected_as_string, &expected)) {
-		log_warning("Can't parse expected IPv4 address '%s'. Failing test.", expected_as_string);
-		return false;
-	}
-	if (!str_to_addr6(ipv6_as_string, &ipv6)) {
-		log_warning("Can't parse IPv6 address being tested '%s'. Failing test.", ipv6_as_string);
-		return false;
-	}
+	success &= assert_true(nat64_extract_ipv4(src, prefix, &actual), "Extract IPv4-result");
+	success &= assert_equals_ipv4(expected, &actual, "Extract IPv4-out");
 
-	actual = nat64_extract_ipv4(&ipv6, prefix_len);
-	return assert_equals_ipv4(&expected, &actual, "Extract IPv4.");
+	return success;
 }
 
-bool test_append_ipv4(char* expected_as_string, char* prefix_as_string, int prefix_len)
+bool test_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
 {
-	char ipv4_as_string[INET_ADDRSTRLEN] = "192.0.2.33";
-	struct in_addr ipv4;
-	struct in6_addr prefix, actual, expected;
+	struct in6_addr actual;
+	bool success = true;
 
-	if (!str_to_addr4(ipv4_as_string, &ipv4)) {
-		log_warning("Can't parse IPv4 address '%s'. Failing test.", ipv4_as_string);
-		return false;
-	}
-	if (!str_to_addr6(prefix_as_string, &prefix)) {
-		log_warning("Can't parse prefix '%s'. Failing test.", prefix_as_string);
-		return false;
-	}
-	if (!str_to_addr6(expected_as_string, &expected)) {
-		log_warning("Can't parse expected address '%s'. Failing test.", expected_as_string);
+	success &= assert_true(nat64_append_ipv4(src, prefix, &actual), "Append IPv4-result");
+	success &= assert_equals_ipv6(expected, &actual, "Append IPv4-out.");
+
+	return success;
+}
+
+static bool init(void)
+{
+	int i;
+
+	if (!str_to_addr4(ipv4_addr_str, &ipv4_addr)) {
+		log_warning("Could not convert '%s' to a IPv4 address. Failing...", ipv4_addr_str);
 		return false;
 	}
 
-	actual = nat64_append_ipv4(&prefix, &ipv4, prefix_len);
-	return assert_equals_ipv6(&expected, &actual, "Append IPv4.");
+	for (i = 0; i < 6; i++) {
+		if (!str_to_addr6(ipv6_addr_str[i], &ipv6_addr[i])) {
+			log_warning("Could not convert '%s' to a IPv6 address. Failing...", ipv6_addr_str[i]);
+			return false;
+		}
+	}
+
+	for (i = 0; i < 6; i++) {
+		if (!str_to_addr6(prefixes_str[i], &prefixes[i].address)) {
+			log_warning("Could not convert '%s' to a IPv6 address. Failing...", prefixes_str[i]);
+			return false;
+		}
+		prefixes[i].maskbits = prefixes_mask[i];
+	}
+
+	return true;
 }
 
 int init_module(void)
@@ -92,14 +102,19 @@ int init_module(void)
 	int i;
 	START_TESTS("nf_nat64_rfc6052.c");
 
+	if (!init())
+		return -EINVAL;
+
 	// test the extract function.
 	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_extract_ipv4(arr_ipv6[i], pref[i]), "Extract-%s", arr_ipv6[i]);
+		CALL_TEST(test_extract_ipv4(&ipv6_addr[i], &prefixes[i], &ipv4_addr), "Extract-%pI6c",
+				&ipv6_addr[i]);
 	}
 
 	// Test the append function.
 	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_append_ipv4(arr_ipv6[i], prefix[i], pref[i]), "Append-%s", arr_ipv6[i]);
+		CALL_TEST(test_append_ipv4(&ipv4_addr, &prefixes[i], &ipv6_addr[i]), "Append-%pI6c",
+				&ipv6_addr[i]);
 	}
 
 	END_TESTS;

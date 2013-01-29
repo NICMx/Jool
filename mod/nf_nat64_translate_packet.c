@@ -1,3 +1,5 @@
+#include "nf_nat64_translate_packet.h"
+
 #include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/icmpv6.h>
@@ -9,7 +11,6 @@
 #include "nf_nat64_types.h"
 #include "nf_nat64_constants.h"
 #include "nf_nat64_config.h"
-#include "nf_nat64_translate_packet.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 
 

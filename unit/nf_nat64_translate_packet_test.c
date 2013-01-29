@@ -522,8 +522,9 @@ static bool validate_ip6_fixed_hdr_common(void *ip6_header)
 	bool success = true;
 
 	success &= assert_equals_u8(6, hdr->version, "Version");
-	success &= assert_equals_u8(0, hdr->priority, "Traffic class");
-	success &= assert_equals_u8(0, hdr->flow_lbl[0], "Flow label (0)");
+	// 66 = 0x42.
+	success &= assert_equals_u8(4, hdr->priority, "Traffic class");
+	success &= assert_equals_u8(2 << 4, hdr->flow_lbl[0], "Flow label (0)");
 	success &= assert_equals_u8(0, hdr->flow_lbl[1], "Flow label (1)");
 	success &= assert_equals_u8(0, hdr->flow_lbl[2], "Flow label (2)");
 	// success &= assert_equals_u16(, be16_to_cpu(hdr->payload_len), "Payload len");
@@ -1046,13 +1047,23 @@ static bool test_function_icmp6_minimum_mtu(void)
 	int i;
 	bool success = true;
 
+	__u16 plateaus[] = { 1400, 1200, 600 };
+
+	bool old_improve_mtu_rate = config.improve_mtu_failure_rate;
+	__u16 *old_plateaus = config.mtu_plateaus;
+	__u16 old_plateaus_count = config.mtu_plateau_count;
+
+	config.improve_mtu_failure_rate = false;
+	config.mtu_plateaus = plateaus;
+	config.mtu_plateau_count = ARRAY_SIZE(plateaus);
+
 	// Test the bare minimum functionality.
 	success &= assert_equals_u16(1, min_mtu(1, 2, 2, 0), "No hacks, min is packet");
 	success &= assert_equals_u16(1, min_mtu(2, 1, 2, 0), "No hacks, min is in");
 	success &= assert_equals_u16(1, min_mtu(2, 2, 1, 0), "No hacks, min is out");
 
 	if (!success)
-		return false;
+		goto revert;
 
 	// Test hack 1: MTU is overriden if some router set is as zero.
 	for (i = 1500; i > 1400; --i)
@@ -1068,7 +1079,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 	success &= assert_equals_u16(1, min_mtu(0, 2, 1, 1000), "Override packet MTU, min is out");
 
 	if (!success)
-		return false;
+		goto revert;
 
 	// Test hack 2: User wants us to try to improve the failure rate.
 	config.improve_mtu_failure_rate = true;
@@ -1095,7 +1106,9 @@ static bool test_function_icmp6_minimum_mtu(void)
 
 	// Fall through.
 revert:
-	config.improve_mtu_failure_rate = false;
+	config.improve_mtu_failure_rate = old_improve_mtu_rate;
+	config.mtu_plateaus = old_plateaus;
+	config.mtu_plateau_count = old_plateaus_count;
 	return success;
 }
 #undef min_mtu
@@ -1441,24 +1454,9 @@ static bool test_6to4_translation_embedded(void)
 
 int init_module(void)
 {
-	__u16 plateaus[] = { 1400, 1200, 600 };
 	START_TESTS("Translating the Packet (IPv4 to IPv6)");
 
-	// TODO (test) configurar bien.
 	translate_packet_init();
-
-	config.packet_head_room = 5;
-	config.packet_tail_room = 5;
-	config.override_ipv6_traffic_class = true;
-	config.override_ipv4_traffic_class = false;
-	config.ipv4_traffic_class = 5;
-	config.df_always_set = true;
-	config.generate_ipv4_id = false;
-	config.improve_mtu_failure_rate = false;
-	config.ipv6_nexthop_mtu = 1300;
-	config.ipv4_nexthop_mtu = 1400;
-	config.mtu_plateaus = plateaus;
-	config.mtu_plateau_count = 3;
 
 	// 4 to 6 single function tests.
 	CALL_TEST(test_function_is_dont_fragment_set(), "Dont fragment getter");

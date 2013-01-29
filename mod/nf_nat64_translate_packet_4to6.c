@@ -155,8 +155,13 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 
 	ip6_hdr = out->l3_hdr;
 	ip6_hdr->version = 6;
-	ip6_hdr->priority = config.override_ipv6_traffic_class ? 0 : ip4_hdr->tos;
-	ip6_hdr->flow_lbl[0] = 0;
+	if (config.override_ipv6_traffic_class) {
+		ip6_hdr->priority = 0;
+		ip6_hdr->flow_lbl[0] = 0;
+	} else {
+		ip6_hdr->priority = ip4_hdr->tos >> 4;
+		ip6_hdr->flow_lbl[0] = ip4_hdr->tos << 4;
+	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
 	// ip6_hdr->payload_len is set during post-processing.

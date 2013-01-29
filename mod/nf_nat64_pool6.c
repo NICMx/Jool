@@ -1,10 +1,9 @@
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-#include <net/ipv6.h>
-
 #include "nf_nat64_pool6.h"
+
+//#include <linux/slab.h>
+#include <net/ipv6.h>
+#include "nf_nat64_constants.h"
+
 
 /** Rename for the type of the pool list below. */
 #define address_list list_head
@@ -29,10 +28,23 @@ struct address_list pool;
 
 static DEFINE_SPINLOCK(pool_lock);
 
+static bool load_defaults(void)
+{
+	struct ipv6_prefix pool6_prefix;
+	if (!str_to_addr6(POOL6_DEF_PREFIX, &pool6_prefix.address)) {
+		log_warning("IPv6 prefix in Headers is malformed [%s].", POOL6_DEF_PREFIX);
+		return false;
+	}
+	pool6_prefix.maskbits = POOL6_DEF_PREFIX_LEN;
+
+	pool6_register(&pool6_prefix);
+	return true;
+}
+
 bool pool6_init(void)
 {
 	INIT_LIST_HEAD(&pool);
-	return true;
+	return load_defaults();
 }
 
 void pool6_destroy(void)

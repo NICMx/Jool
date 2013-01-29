@@ -1,13 +1,11 @@
-#include <linux/kernel.h>
-#include <linux/printk.h>
+#include "nf_nat64_determine_incoming_tuple.h"
+
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <net/icmp.h>
-#include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 
 #include "nf_nat64_types.h"
-#include "nf_nat64_determine_incoming_tuple.h"
 
 
 /** A identifier of the IPv4 protocol. */

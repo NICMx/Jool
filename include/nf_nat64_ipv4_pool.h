@@ -4,18 +4,22 @@
 /**
  * @file
  * The pool of IPv4 addresses (and their ports).
+ *
+ * @author Alberto Leiva
  */
 
+#include <linux/types.h>
+#include <linux/in.h>
 #include "nf_nat64_types.h"
-#include "nf_nat64_config.h"
 #include "xt_nat64_module_comm.h"
+
 
 // TODO (info) recuerda revisar be's vs u's.
 
 /**
  * Readies the rest of this module for future use.
  *
- * @param "true" if the initialization was successful, false otherwise.
+ * @return "true" if the initialization was successful, false otherwise.
  */
 bool pool4_init(void);
 /**

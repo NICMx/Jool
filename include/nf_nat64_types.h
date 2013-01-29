@@ -6,8 +6,12 @@
  * The NAT64's core data types. Structures used all over the code.
  *
  * Both the kernel module and the userspace application can see this file.
+ *
+ * @author Miguel Gonzalez
+ * @author Ramiro Nava
+ * @author Robert Aceves
+ * @author Alberto Leiva
  */
-
 
 #include <linux/types.h>
 #ifdef __KERNEL__
@@ -143,6 +147,8 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *addr_1, struct ipv4_tuple
 bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *addr_1, struct ipv6_tuple_address *addr_2);
 bool ipv4_pair_equals(struct ipv4_pair *pair_1, struct ipv4_pair *pair_2);
 bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2);
+bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual);
+
 
 /**
  * All of these functions compute a 16-bit hash identifier out of the parameter and return it.

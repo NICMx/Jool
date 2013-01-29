@@ -64,6 +64,7 @@ static bool init(void)
 {
 	u_int8_t protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
 	int i;
+	struct ipv6_prefix prefix;
 
 	// Init test addresses
 	if (!str_to_addr6(remote_ipv6_str, &remote_ipv6)) {
@@ -83,6 +84,19 @@ static bool init(void)
 		return false;
 	}
 
+	// Init the IPv6 pool module
+	if (!pool6_init())
+		return false;
+	if (!str_to_addr6("64:ff9b::", &prefix.address)) {
+		log_warning("Cannot parse the IPv6 prefix. Failing...");
+		return false;
+	}
+	prefix.maskbits = 96;
+	if (pool6_register(&prefix) != RESPONSE_SUCCESS) {
+		log_warning("Could not add the IPv6 prefix. Failing...");
+		return false;
+	}
+
 	// Init the BIB module
 	nat64_bib_init();
 
@@ -99,12 +113,13 @@ static bool init(void)
 static void cleanup(void)
 {
 	nat64_bib_destroy();
+	pool6_destroy();
 }
 
 static bool test_6to4(
 		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *,
 				enum translation_mode),
-		u_int8_t in_l3_protocol, u_int8_t out_l3_protocol)
+		u_int8_t in_l4_protocol, u_int8_t out_l4_protocol)
 {
 	struct nf_conntrack_tuple incoming, outgoing;
 	bool success = true;
@@ -114,13 +129,13 @@ static bool test_6to4(
 	incoming.src_port = cpu_to_be16(1500); // Lookup will use this.
 	incoming.dst_port = cpu_to_be16(123); // Whatever
 	incoming.L3_PROTOCOL = NFPROTO_IPV6;
-	incoming.L4_PROTOCOL = in_l3_protocol;
+	incoming.L4_PROTOCOL = in_l4_protocol;
 
-	success &= assert_true(function(&outgoing, &incoming, IPV6_TO_IPV4), "Function call");
+	success &= assert_true(function(&incoming, &outgoing, IPV6_TO_IPV4), "Function call");
 	success &= assert_equals_ipv4(&local_ipv4, &outgoing.ipv4_src_addr, "Source address");
 	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.ipv4_dst_addr, "Destination address");
 	success &= assert_equals_u16(NFPROTO_IPV4, outgoing.L3_PROTOCOL, "Layer-3 protocol");
-	success &= assert_equals_u8(out_l3_protocol, outgoing.L4_PROTOCOL, "Layer-4 protocol");
+	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTOCOL, "Layer-4 protocol");
 	// TODO (test) need to test ports?
 
 	return success;
@@ -129,7 +144,7 @@ static bool test_6to4(
 static bool test_4to6(
 		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *,
 				enum translation_mode),
-		u_int8_t in_l3_protocol, u_int8_t out_l3_protocol)
+		u_int8_t in_l4_protocol, u_int8_t out_l4_protocol)
 {
 	struct nf_conntrack_tuple incoming, outgoing;
 	bool success = true;
@@ -139,13 +154,13 @@ static bool test_4to6(
 	incoming.src_port = cpu_to_be16(123); // Whatever
 	incoming.dst_port = cpu_to_be16(80); // Lookup will use this.
 	incoming.L3_PROTOCOL = NFPROTO_IPV4;
-	incoming.L4_PROTOCOL = in_l3_protocol;
+	incoming.L4_PROTOCOL = in_l4_protocol;
 
-	success &= assert_true(function(&outgoing, &incoming, IPV4_TO_IPV6), "Function call");
+	success &= assert_true(function(&incoming, &outgoing, IPV4_TO_IPV6), "Function call");
 	success &= assert_equals_ipv6(&local_ipv6, &outgoing.ipv6_src_addr, "Source address");
 	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.ipv6_dst_addr, "Destination address");
 	success &= assert_equals_u16(NFPROTO_IPV6, outgoing.L3_PROTOCOL, "Layer-3 protocol");
-	success &= assert_equals_u8(out_l3_protocol, outgoing.L4_PROTOCOL, "Layer-4 protocol");
+	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTOCOL, "Layer-4 protocol");
 	// TODO (test) need to test ports?
 
 	return success;
@@ -158,24 +173,15 @@ int init_module(void)
 	if (!init())
 		return -EINVAL;
 
-	// I don't want to throw this into loops because it gets kind of messy.
-	CALL_TEST(test_6to4(nat64_compute_outgoing_tuple_tuple5, IPPROTO_UDP, IPPROTO_UDP),
-			"Tuple-5, 6 to 4, UDP");
-	CALL_TEST(test_4to6(nat64_compute_outgoing_tuple_tuple5, IPPROTO_UDP, IPPROTO_UDP),
-			"Tuple-5, 4 to 6, UDP");
-	CALL_TEST(test_6to4(nat64_compute_outgoing_tuple_tuple5, IPPROTO_TCP, IPPROTO_TCP),
-			"Tuple-5, 6 to 4, TCP");
-	CALL_TEST(test_4to6(nat64_compute_outgoing_tuple_tuple5, IPPROTO_TCP, IPPROTO_TCP),
-			"Tuple-5, 4 to 6, TCP");
-	CALL_TEST(test_6to4(nat64_compute_outgoing_tuple_tuple5, NEXTHDR_ICMP, IPPROTO_ICMP),
-			"Tuple-5, 6 to 4, ICMP");
-	CALL_TEST(test_4to6(nat64_compute_outgoing_tuple_tuple5, IPPROTO_ICMP, NEXTHDR_ICMP),
-			"Tuple-5, 4 to 6, ICMP");
+	CALL_TEST(test_6to4(tuple5, IPPROTO_UDP, IPPROTO_UDP), "Tuple-5, 6 to 4, UDP");
+	CALL_TEST(test_4to6(tuple5, IPPROTO_UDP, IPPROTO_UDP), "Tuple-5, 4 to 6, UDP");
+	CALL_TEST(test_6to4(tuple5, IPPROTO_TCP, IPPROTO_TCP), "Tuple-5, 6 to 4, TCP");
+	CALL_TEST(test_4to6(tuple5, IPPROTO_TCP, IPPROTO_TCP), "Tuple-5, 4 to 6, TCP");
+	CALL_TEST(test_6to4(tuple5, NEXTHDR_ICMP, IPPROTO_ICMP), "Tuple-5, 6 to 4, ICMP");
+	CALL_TEST(test_4to6(tuple5, IPPROTO_ICMP, NEXTHDR_ICMP), "Tuple-5, 4 to 6, ICMP");
 
-	CALL_TEST(test_6to4(nat64_compute_outgoing_tuple_tuple3, NEXTHDR_ICMP, IPPROTO_ICMP),
-			"Tuple-3, 6 to 4, ICMP");
-	CALL_TEST(test_4to6(nat64_compute_outgoing_tuple_tuple3, IPPROTO_ICMP, NEXTHDR_ICMP),
-			"Tuple-3, 4 to 6, ICMP");
+	CALL_TEST(test_6to4(tuple3, NEXTHDR_ICMP, IPPROTO_ICMP), "Tuple-3, 6 to 4, ICMP");
+	CALL_TEST(test_4to6(tuple3, IPPROTO_ICMP, NEXTHDR_ICMP), "Tuple-3, 4 to 6, ICMP");
 
 	cleanup();
 

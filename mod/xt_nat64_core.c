@@ -1,9 +1,11 @@
+#include "xt_nat64_core.h"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ip.h>
+#include <net/ipv6.h>
 #include <net/netfilter/nf_conntrack.h>
 
-#include "xt_nat64_core.h"
 #include "libxt_NAT64.h"
 #include "nf_nat64_ipv6_hdr_iterator.h"
 #include "nf_nat64_ipv4_pool.h"

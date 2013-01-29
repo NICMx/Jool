@@ -4,6 +4,11 @@
 /**
  * @file
  * The core is both the kernel module's entry point and the packet handling's highest layer.
+ *
+ * @author Miguel Gonzalez
+ * @author Ramiro Nava
+ * @author Roberto Aceves
+ * @author Alberto Leiva
  */
 
 

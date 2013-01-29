@@ -14,6 +14,7 @@
  * These are based on Ecdysis's functions for the same purpose.
  */
 
+#include <linux/types.h>
 #include <linux/skbuff.h>
 
 

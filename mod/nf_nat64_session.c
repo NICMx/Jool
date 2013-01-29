@@ -1,7 +1,8 @@
+#include "nf_nat64_session.h"
+
 #include <linux/module.h>
 #include <linux/printk.h>
 
-#include "nf_nat64_session.h"
 
 /********************************************
  * Structures and private variables.

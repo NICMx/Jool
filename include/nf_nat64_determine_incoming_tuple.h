@@ -1,6 +1,7 @@
 #ifndef _NF_NAT64_DETERMINE_INCOMING_TUPLE_H
 #define _NF_NAT64_DETERMINE_INCOMING_TUPLE_H
 
+#include <linux/types.h>
 #include <linux/skbuff.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
@@ -8,6 +9,10 @@
  * @file
  * The first step in the packet processing algorithm defined in the RFC.
  * The 3.4 section of RFC 6146 is encapsulated in this module.
+ * Creates a tuple (summary) of the incoming packet.
+ *
+ * @author Miguel Gonzalez
+ * @author Alberto Leiva  <- maintenance
  */
 
 

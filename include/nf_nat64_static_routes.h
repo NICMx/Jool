@@ -1,20 +1,14 @@
 #ifndef _NAT64_STATIC_ROUTES_H
 #define _NAT64_STATIC_ROUTES_H
 
-#include <linux/inet.h>
-#include <linux/in6.h>
-#include <linux/in.h>
 #include "xt_nat64_module_comm.h"
-#include "nf_nat64_session.h"
-#include "nf_nat64_types.h"
-#include "nf_nat64_config.h"
 
 /** 
- * @file nf_nat64_static_routes.h
+ * @file
+ * A bridge between the configuration module and the BIB and session modules.
  *
- * This header contains the function prototypes for the
- * nf_nat64_static_routes.c module
- *
+ * @author Miguel Gonzalez
+ * @author Alberto Leiva
  */
 
 /**

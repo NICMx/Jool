@@ -15,17 +15,15 @@
  * - ptr = pointer
  * - in = incoming (Note, not "inner")
  * - out = outgoing (Not "outer")
+ *
+ * @author Alberto Leiva
  */
 
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
-
+#include <linux/types.h>
 #include <linux/skbuff.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+
+#include "xt_nat64_module_comm.h"
 
 
 /**

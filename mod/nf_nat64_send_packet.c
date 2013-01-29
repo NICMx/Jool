@@ -1,3 +1,5 @@
+#include "nf_nat64_send_packet.h"
+
 #include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/version.h>
@@ -17,7 +19,6 @@
 //#include "compat_xtables.h"
 
 #include "nf_nat64_types.h"
-#include "nf_nat64_send_packet.h"
 
 
 // /home/aleiva/Desktop/Nat64/xtables-addons-1.47.1/extensions/xt_ECHO.c
@@ -59,8 +60,6 @@
 //	struct dst_entry *dst = NULL;
 //	struct net *net = dev_net((par->in != NULL) ? par->in : par->out);
 //
-//	spin_lock_bh(&send_packet_lock);
-//
 //	skb->ip_summed = CHECKSUM_COMPLETE;
 //	skb->protocol = htons(ETH_P_IP);
 //
@@ -73,7 +72,6 @@
 //	// nf_ct_attach(newskb, *poldskb);
 //	ip_local_out(skb);
 //
-//	spin_unlock_bh(&send_packet_lock);
 //	return true;
 //}
 //
@@ -82,8 +80,6 @@
 //	struct flowi6 fl;
 //	struct dst_entry *dst = NULL;
 //	struct net *net = dev_net((par->in != NULL) ? par->in : par->out);
-//
-//	spin_lock_bh(&send_packet_lock);
 //
 //	skb->protocol = htons(ETH_P_IPV6);
 //
@@ -108,12 +104,9 @@
 //	// nf_ct_attach(newskb, *poldskb);
 //	ip6_local_out(skb);
 //
-//	spin_unlock_bh(&send_packet_lock);
 //	return true;
 //}
 
-
-static DEFINE_SPINLOCK(send_packet_lock);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 
@@ -217,13 +210,11 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb)
 	struct rtable *routing_table;
 	int error;
 
-	spin_lock_bh(&send_packet_lock);
-
 	skb->protocol = htons(ETH_P_IP);
 
 	routing_table = route_packet_ipv4(skb);
 	if (!routing_table)
-		goto failure;
+		return false;
 
 	skb->dev = routing_table->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *) routing_table);
@@ -232,15 +223,10 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb)
 	error = ip_local_out(skb);
 	if (error) {
 		log_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.", error);
-		goto failure;
+		return false;
 	}
 
-	spin_unlock_bh(&send_packet_lock);
 	return true;
-
-failure:
-	spin_unlock_bh(&send_packet_lock);
-	return false;
 }
 
 bool nat64_send_packet_ipv6(struct sk_buff *skb)
@@ -248,33 +234,21 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 	struct dst_entry *dst;
 	int error;
 
-	spin_lock_bh(&send_packet_lock);
-
 	skb->protocol = htons(ETH_P_IPV6);
 
 	dst = route_packet_ipv6(skb);
 	if (!dst)
-		goto failure;
+		return false;
 
 	skb->dev = dst->dev;
 	skb_dst_set(skb, dst);
 
 	log_debug("  Sending packet via device '%s'...", skb->dev->name);
-	// TODO (test) este #if realmente sirve de algo?
-	// TODO (test) netif_start_queue realmente sirve de algo?
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
-	netif_start_queue(skb->dev); // Makes sure the net_device can actually send packets.
-#endif
 	error = ip6_local_out(skb); // Send.
 	if (error) {
 		log_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.", error);
-		goto failure;
+		return false;
 	}
 
-	spin_unlock_bh(&send_packet_lock);
 	return true;
-
-failure:
-	spin_unlock_bh(&send_packet_lock);
-	return false;
 }

@@ -5,8 +5,11 @@
  * @file
  * The Binding Information Bases.
  * Formally defined in RFC 6146 section 3.1.
+ *
+ * @author Alberto Leiva
  */
 
+#include <linux/types.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include "nf_nat64_types.h"
 
