@@ -3,6 +3,8 @@
 #ifndef __KERNEL__
 	#include <stddef.h>
 #endif
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
 
 
 /** This is a slightly more versatile in_addr. */
@@ -173,6 +175,16 @@ bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual
 		return false;
 
 	return true;
+}
+
+bool is_icmp6_info(__u8 type)
+{
+	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);
+}
+
+bool is_icmp_info(__u8 type)
+{
+	return (type == ICMP_ECHO) || (type == ICMP_ECHOREPLY);
 }
 
 #ifdef __KERNEL__

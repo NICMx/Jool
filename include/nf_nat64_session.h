@@ -137,6 +137,8 @@ bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple);
  */
 void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl);
 
+void nat64_update_session_state(struct session_entry *entry, u_int8_t state);
+
 /**
  * Destroys the session table's reference to "entry". It does NOT kfree "entry".
  * Also, it removes "entry" regardless of whether it is static or not.
@@ -169,6 +171,10 @@ void nat64_session_destroy(void);
  * need to kfree it).
  */
 struct session_entry *nat64_create_static_session_entry(
+		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+		struct bib_entry *bib, u_int8_t l4protocol);
+
+struct session_entry *nat64_create_session_entry(
 		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);
 

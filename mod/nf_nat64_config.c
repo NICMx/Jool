@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <net/sock.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 
 #include "nf_nat64_constants.h"
 #include "nf_nat64_types.h"
@@ -33,25 +33,25 @@ DEFINE_MUTEX(my_mutex);
 
 bool nat64_config_init(void)
 {
-	// Netlink sockets.
-	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
-	struct netlink_kernel_cfg cfg = {
-			.input = &receive_from_userspace,
-	};
-	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
-	if (!my_nl_sock) {
-		log_warning("Creation of netlink socket failed.");
-		return false;
-	}
-	log_debug("Netlink socket created.");
-
-	return true;
+//	// Netlink sockets.
+//	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
+//	struct netlink_kernel_cfg cfg = {
+//			.input = &receive_from_userspace,
+//	};
+//	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
+//	if (!my_nl_sock) {
+//		log_warning("Creation of netlink socket failed.");
+//		return false;
+//	}
+//	log_debug("Netlink socket created.");
+//
+//	return true;
 }
 
 void nat64_config_destroy(void)
 {
-	if (my_nl_sock)
-		netlink_kernel_release(my_nl_sock);
+//	if (my_nl_sock)
+//		netlink_kernel_release(my_nl_sock);
 }
 
 static bool write_data(struct response_hdr **response, enum response_code code, void *payload,
@@ -236,7 +236,7 @@ static bool handle_translate_config(struct request_hdr *hdr, union request_trans
 
 		log_debug("Returning 'Translate the Packet' options...");
 
-		if (!translate_clone_config(&clone))
+		if (!clone_translate_config(&clone))
 			return write_code(response, RESPONSE_ALLOC_FAILED);
 
 		if (!serialize_translate_config(&clone, &config, &config_len))
@@ -254,7 +254,7 @@ static bool handle_translate_config(struct request_hdr *hdr, union request_trans
 		if (!deserialize_translate_config(request + 1, hdr->length - sizeof(*hdr), &new_config))
 			return write_code(response, RESPONSE_ALLOC_FAILED);
 
-		success = write_code(response, translate_packet_config(hdr->operation, &new_config));
+		success = write_code(response, set_translate_config(hdr->operation, &new_config));
 		kfree(new_config.mtu_plateaus);
 		return success;
 	}

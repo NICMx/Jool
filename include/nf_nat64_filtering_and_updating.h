@@ -10,30 +10,11 @@
 
 #include <linux/netfilter.h>
 #include "nf_nat64_types.h"
+#include "xt_nat64_module_comm.h"
 #include "nf_nat64_bib.h"
 #include "nf_nat64_session.h"
 #include "nf_nat64_constants.h"
 
-struct filtering_config
-{
-    /** Use Address-Dependent Filtering? */
-    bool address_dependent_filtering;
-    /** Filter ICMPv6 Informational packets */
-    bool filter_informational_icmpv6;
-    /** Drop externally initiated TCP connections? (IPv4 initiated) */
-    bool drop_externally_initiated_tcp_connections;
-    /** Current timeout values */
-    struct timeouts
-    {
-
-// TODO: UPDATE DATA TYPES:
-        unsigned int udp_default; 
-        unsigned int tcp_trans;
-        unsigned int icmp_default;
-        unsigned int tcp_incoming_syn;
-        unsigned int tcp_est;
-    } to;
-};
 
 int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple);
 

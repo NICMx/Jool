@@ -20,8 +20,8 @@ IMPORTANT:
 
 Authors:
 	NIC-Mx representatives
-		Ing. Gustavo Lozano <glozano@nic.mx>
-		Ing. Jorge Cano
+		Ing. Julio Cossío <jcossio@nic.mx>
+		Ing. Jorge Cano <jcano@nic.mx>
 		Ing. Alberto Leiva <aleiva@nic.mx>
 
 	ITESM representatives
@@ -49,10 +49,9 @@ Module Dependencies (modprobe):
 	nf_conntrack_ipv4
 
 Directories:
-	/bin : The kernel module's makefile and the binaries it will generate.
 	/doc : Code documentation; Doxygen output.
 	/etc : The userspace application's implementation code.
-	/include : Header files.
+	/include : The entire system's header files.
 	/mod : The kernel module's implementation code.
 	/unit : Unit tests.
 	/usr : The iptables module's implementation code.

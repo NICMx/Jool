@@ -74,11 +74,7 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
  */
 bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 
-/**
- * TODO (rob) necesitas saber si la dirección está dentro del rango de la pool o si
- * está disponible para sacarle puertos?
- */
-bool pool4_contains(u_int8_t l4protocol, struct in_addr *address);
+bool pool4_contains(struct in_addr *address);
 enum response_code pool4_to_array(struct in_addr **array_out, __u32 *size_out);
 
 #endif /* _NF_NAT64_IPV4_POOL_H */

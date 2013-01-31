@@ -197,6 +197,13 @@ void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl
 	entry->dying_time = jiffies_to_msecs(jiffies) + ttl;
 }
 
+void nat64_update_session_state(struct session_entry *entry, u_int8_t state)
+{
+	// lock
+	entry->current_state = state;
+	// unlock
+}
+
 bool nat64_remove_session_entry(struct session_entry *entry)
 {
 	struct session_table *table;
@@ -266,7 +273,7 @@ void nat64_session_destroy(void)
 }
 
 struct session_entry *nat64_create_static_session_entry(
-		struct ipv4_pair *ipv4,struct ipv6_pair *ipv6,
+		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol)
 {
 	struct session_entry *result = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
@@ -282,6 +289,18 @@ struct session_entry *nat64_create_static_session_entry(
 	INIT_LIST_HEAD(&result->all_sessions);
 	result->l4protocol = l4protocol;
 
+	return result;
+}
+
+struct session_entry *nat64_create_session_entry(
+		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+		struct bib_entry *bib, u_int8_t l4protocol)
+{
+	struct session_entry *result = nat64_create_static_session_entry(ipv4, ipv6, bib, l4protocol);
+	if (!result)
+		return NULL;
+
+	result->is_static = false;
 	return result;
 }
 

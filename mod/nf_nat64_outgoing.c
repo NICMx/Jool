@@ -125,16 +125,6 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 	return true;
 }
 
-static bool is_icmp6_info(__u8 type)
-{
-	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);
-}
-
-static bool is_icmp_info(__u8 type)
-{
-	return (type == ICMP_ECHO) || (type == ICMP_ECHOREPLY);
-}
-
 bool compute_outgoing_tuple_6to4(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
 		struct nf_conntrack_tuple *out)
 {

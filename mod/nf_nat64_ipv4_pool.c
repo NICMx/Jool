@@ -344,6 +344,7 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 	node = get_pool_node(pool, &address->address);
 	if (!node)
 		goto failure;
+	// TODO (later) el RFC permite usar puerto de diferente paridad/rango si aquí no se encuentra.
 	section = get_section(node, address);
 	if (!section)
 		goto failure;
@@ -400,18 +401,13 @@ failure:
 	return false;
 }
 
-bool pool4_contains(u_int8_t l4protocol, struct in_addr *address)
+bool pool4_contains(struct in_addr *address)
 {
-	struct address_list *pool;
 	bool result;
 
-	pool = get_pool(l4protocol);
-	if (!pool)
-		return false;
-
-	spin_lock_bh(&pool->lock);
-	result = (get_pool_node(pool, address) != NULL);
-	spin_unlock_bh(&pool->lock);
+	spin_lock_bh(&pools.udp.lock);
+	result = (get_pool_node(&pools.udp, address) != NULL);
+	spin_unlock_bh(&pools.udp.lock);
 
 	return result;
 }

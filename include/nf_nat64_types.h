@@ -28,7 +28,7 @@
  * Logging utilities, meant for standarization of error messages.
  */
 #ifdef __KERNEL__
-	#define log_nat64(func, text, ...) func(MODULE_NAME "-%s: " text "\n", __func__, ##__VA_ARGS__);
+	#define log_nat64(func, text, ...) func(MODULE_NAME ": %s: " text "\n", __func__, ##__VA_ARGS__);
 #else
 	#define log_nat64(func, text, ...) printf("%s: " text "\n", __func__, ##__VA_ARGS__);
 #endif
@@ -162,6 +162,9 @@ __u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *addr);
 __u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *addr);
 __u16 ipv4_pair_hashcode(struct ipv4_pair *pair);
 __u16 ipv6_pair_hashcode(struct ipv6_pair *pair);
+
+bool is_icmp6_info(__u8 type);
+bool is_icmp_info(__u8 type);
 
 /**
  * Converts "str" to a IPv4 address. Stores the result in "result".

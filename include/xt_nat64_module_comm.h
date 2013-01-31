@@ -108,6 +108,28 @@ struct session_entry_us
 };
 
 /**
+ * Configuration for the "Filtering and Updating" module.
+ */
+struct filtering_config
+{
+    /** Use Address-Dependent Filtering? */
+    bool address_dependent_filtering;
+    /** Filter ICMPv6 Informational packets */
+    bool filter_informational_icmpv6;
+    /** Drop externally initiated TCP connections? (IPv4 initiated) */
+    bool drop_externally_initiated_tcp_connections;
+    /** Current timeout values */
+    struct timeouts
+    {
+        unsigned int udp_default;
+        unsigned int tcp_trans;
+        unsigned int icmp_default;
+        unsigned int tcp_incoming_syn;
+        unsigned int tcp_est;
+    } to;
+};
+
+/**
  * Configuration for the "Translate the packet" module.
  */
 struct translate_config

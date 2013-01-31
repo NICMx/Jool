@@ -71,7 +71,7 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 	// Validate.
 	daddr_aux.s_addr = ip4_header->daddr;
-	if (!pool4_contains(l4protocol, &daddr_aux)) {
+	if (!pool4_contains(&daddr_aux)) {
 		log_info("Packet is not destined to me.");
 	 	goto failure;
 	}

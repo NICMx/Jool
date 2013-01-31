@@ -8,7 +8,7 @@
 
 bool nat64_got_hairpin(struct nf_conntrack_tuple *outgoing)
 {
-	return outgoing->L3_PROTOCOL && pool4_contains(outgoing->L4_PROTOCOL, &outgoing->dst.u3.in);
+	return outgoing->L3_PROTOCOL && pool4_contains(&outgoing->dst.u3.in);
 }
 
 bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)

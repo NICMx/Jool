@@ -6,7 +6,8 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o pool4.o bib_session.o iterator.o outgoing.o translate.o
+obj-m += rfc6052.o hashtable.o pool4.o bib_session.o iterator.o
+obj-m += filtering.o outgoing.o translate.o
 
 rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += unit_test.o
@@ -30,6 +31,18 @@ iterator-objs += ../mod/nf_nat64_types.o
 iterator-objs += unit_test.o
 iterator-objs += nf_nat64_ipv6_hdr_iterator_test.o
 
+filtering-objs += ../mod/nf_nat64_send_packet.o
+filtering-objs += ../mod/nf_nat64_rfc6052.o
+filtering-objs += ../mod/nf_nat64_static_routes.o
+filtering-objs += ../mod/nf_nat64_ipv4_pool.o
+filtering-objs += ../mod/nf_nat64_bib.o
+filtering-objs += ../mod/nf_nat64_session.o
+filtering-objs += ../mod/nf_nat64_types.o
+filtering-objs += ../mod/nf_nat64_config.o
+filtering-objs += ../mod/xt_nat64_module_conf_validation.o
+filtering-objs += ../mod/nf_nat64_filtering_and_updating.o
+filtering-objs += ../rob/nf_nat64_filtering_and_updating_test.o
+
 outgoing-objs += ../mod/nf_nat64_types.o
 outgoing-objs += ../mod/nf_nat64_rfc6052.o
 outgoing-objs += ../mod/nf_nat64_pool6.o
@@ -50,12 +63,14 @@ test:
 	sudo rmmod rfc6052
 	sudo insmod hashtable.ko
 	sudo rmmod hashtable
-	#sudo insmod pool.ko
-	#sudo rmmod pool
+	sudo insmod pool4.ko
+	sudo rmmod pool4
 	sudo insmod bib_session.ko
 	sudo rmmod bib_session
 	sudo insmod iterator.ko
 	sudo rmmod iterator
+	sudo insmod filtering.ko
+	sudo rmmod filtering
 	sudo insmod outgoing.ko
 	sudo rmmod outgoing
 	sudo insmod translate.ko

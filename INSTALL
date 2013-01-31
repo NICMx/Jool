@@ -3,10 +3,11 @@ TODO find out what's the deal about that "./configure" stuff everyone's using.
 
 
 Install the requirements:
-	They are iptables-dev, libssl-dev and your kernel's image and headers (at
-	least 2.6.38).
+	They are iptables-dev, libssl-dev, libnl-3-dev, libnl-genl-3-dev,
+	libmnl-dev and your kernel's image and headers (at least 2.6.38).
 			$ apt-get install iptables-dev libssl-dev
 			$ apt-get install linux-headers-$(uname -r) linux-image-$(uname -r)
+	TODO Netlink stuff needs to be downloaded manually...: packages.ubuntu.com
 
 Compile the project:
 	Compile the userspace library.

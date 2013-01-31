@@ -172,6 +172,7 @@ static struct argp_option options[] =
 	{ "adf",		ARGP_ADF,		"true/false", 0, "Use Address-Dependent Filtering." },
 	{ "finfo",		ARGP_FINFO,		"true/false", 0, "Filter ICMPv6 Informational packets." },
 	{ "droptcp",	ARGP_DROPTCP,	"true/false", 0, "Drop externally initiated TCP connections" },
+	// TODO agregar timeouts
 
 	{ 0, 0, 0, 0, "'Translate the Packet' step options:", 31 },
 	{ "head",		ARGP_HEAD,		"NUM", 0, "Packet head room." },
