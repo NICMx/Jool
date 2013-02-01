@@ -22,12 +22,12 @@
  * TODO (rob) we don't use it yet.
  * TODO (warning) not yet configurable.
  */
-#define UDP_MIN_ (2 * 60)
+#define UDP_MIN (2 * 60)
 /**
  * Defined in the RFC as the minimum allowable default value for the session lifetime of UDP bindings,
  * in seconds. We use it as the actual default value.
  */
-#define UDP_DEFAULT_ (5 * 60)
+#define UDP_DEFAULT (5 * 60)
 /** Transitory connection idle timeout.
  *  In other words, the timeout of several states in the TCP state machine. In seconds.
  */
@@ -39,16 +39,16 @@
 /** Timeout of several types of new STEs created during the CLOSED state of the TCP state machine. */
 #define TCP_INCOMING_SYN (6)
 /** Default time interval fragments are allowed to arrive in. In seconds. TODO (rob) we don't use it yet. */
-#define FRAGMENT_MIN_ (2)
+#define FRAGMENT_MIN (2)
 /** Default session lifetime for ICMP bindings, in seconds. */
-#define ICMP_DEFAULT_ (1 * 60)
+#define ICMP_DEFAULT (1 * 60)
 
 
 // -- Config defaults --
-#define POOL6_DEF_PREFIX		"64:ff9b::"
-#define POOL6_DEF_PREFIX_LEN	96
+#define POOL6_DEF_PREFIX        "64:ff9b::"
+#define POOL6_DEF_PREFIX_LEN    96
 
-#define POOL4_DEF { "192.168.2.200", "192.168.2.201", "192.168.2.202", "192.168.2.203" }
+#define POOL4_DEF { "192.168.2.1", "192.168.2.2", "192.168.2.3", "192.168.2.4" }
 
 #define FILT_DEF_ADDR_DEPENDENT_FILTERING false
 #define FILT_DEF_FILTER_ICMPV6_INFO false
@@ -77,7 +77,7 @@
 
 /* ICMP error messaging */
 //      Types:
-#define DESTINATION_UNREACHABLE	ICMP_DEST_UNREACH 
+#define DESTINATION_UNREACHABLE ICMP_DEST_UNREACH 
 //      Codes:
 #define HOST_UNREACHABLE        ICMP_HOST_UNREACH
 #define ADDRESS_UNREACHABLE     ICMP_HOST_UNREACH

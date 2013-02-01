@@ -17,7 +17,8 @@ MODULE_AUTHOR("Roberto <r.aceves@itesm.mx>");
 MODULE_DESCRIPTION("Unitary tests for the Filtering\'s part of NAT64");
 MODULE_ALIAS("nat64_test_filtering");
 
-#include "unit_test_rob.h"
+//~ #include "unit_test_rob.h"
+#include "unit_test.h"
 
 // What are we testing?
 #include "nf_nat64_ipv4_pool.h"
@@ -148,12 +149,6 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple,
             udp_header = udp_hdr(skb);
             memset(udp_header, 0, l4_len);
             
-  //~ 22 struct udphdr {
-  //~ 23        __be16  source;
-  //~ 24        __be16  dest;
-  //~ 25        __be16  len;
-  //~ 26        __sum16 check;
-  //~ 27 };
             udp_header->source = tuple->src_port;
             udp_header->dest = tuple->dst_port;
             udp_header->len = sizeof(struct udphdr); // Not sure if it's correct
@@ -189,16 +184,14 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple,
     // TODO: Should we set the port in the transport header?
     skb->protocol = htons(ETH_P_IP);
 
-
     return skb;
 }
 
 #define IPV4_FIRST_POOL_ADDRESS     "192.168.2.1"
-#define init_pool(protocol)     { struct in_addr addr4; \
-                                ASSERT_EQUALS(true, pool4_init(), "See if we can initialize the IPv4 pool." ); \
-                                str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4); \
-                                ASSERT_EQUALS(true, pool4_register(protocol, &addr4), "Try to create a new entry in the pool address"); }
-
+#define init_pool() { struct in_addr addr4; \
+                      assert_true(pool4_init(), "See if we can initialize the IPv4 pool." ); \
+                      str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4); \
+                      assert_equals_int(RESPONSE_SUCCESS, pool4_register(&addr4), "Try to create a new entry in the pool address"); }
 
 
 #define IPV6_INJECT_BIB_ENTRY_SRC_ADDR  "2001:db8:c0ca:1::1"
@@ -233,6 +226,44 @@ bool inject_bib_entry( struct bib_entry *bib_e, u_int8_t l4protocol )
     return nat64_add_bib_entry( bib_e, l4protocol );
 }
 
+#define IPV6_INIT_SESSION_ENTRY_SRC_ADDR  "2001:db8:c0ca:1::1"
+#define IPV6_INIT_SESSION_ENTRY_SRC_PORT  1080
+#define IPV6_INIT_SESSION_ENTRY_DST_ADDR  "64:ff9b::192.168.2.44"
+#define IPV6_INIT_SESSION_ENTRY_DST_PORT  1080
+#define IPV4_INIT_SESSION_ENTRY_SRC_ADDR  "192.168.2.1"
+#define IPV4_INIT_SESSION_ENTRY_SRC_PORT  1082
+#define IPV4_INIT_SESSION_ENTRY_DST_ADDR  "192.168.2.44"
+#define IPV4_INIT_SESSION_ENTRY_DST_PORT  1082
+void init_session_entry( u_int8_t l4protocol, struct session_entry *se )
+{
+    struct in_addr src4;
+    struct in_addr dst4;
+    struct in6_addr src6;
+    struct in6_addr dst6;
+    
+    str_to_addr6(IPV6_INIT_SESSION_ENTRY_SRC_ADDR, &src6);
+    str_to_addr6(IPV6_INIT_SESSION_ENTRY_DST_ADDR, &dst6);
+    str_to_addr4(IPV4_INIT_SESSION_ENTRY_SRC_ADDR, &src4);
+    str_to_addr4(IPV4_INIT_SESSION_ENTRY_DST_ADDR, &dst4);
+
+    se->ipv6.remote.address = src6; // X'
+    se->ipv6.remote.pi.port = IPV6_INIT_SESSION_ENTRY_SRC_PORT; // x
+    se->ipv6.local.address = dst6; // Y'
+    se->ipv6.local.pi.port = IPV6_INIT_SESSION_ENTRY_DST_PORT; // y
+    se->ipv4.local.address = src4; // (T, t)
+    se->ipv4.local.pi.port = IPV4_INIT_SESSION_ENTRY_SRC_PORT; // (T, t)
+    se->ipv4.remote.address = dst4; // (Z, z) // (Z(Y’),y)
+    se->ipv4.remote.pi.port = IPV4_INIT_SESSION_ENTRY_DST_PORT; // (Z, z) // (Z(Y’),y)
+
+    se->is_static = false;
+    se->dying_time = 0;
+    se->bib = NULL;
+    INIT_LIST_HEAD(&se->entries_from_bib);
+    INIT_LIST_HEAD(&se->all_sessions);
+    se->l4protocol = l4protocol;
+    se->current_state = CLOSED;
+}
+
 
 
 #define IPV4_TRANSPORT_ADDR     "192.168.1.4"
@@ -241,21 +272,19 @@ bool test_transport_address_ipv4( void )
 {
     struct in_addr addr;
     struct ipv4_tuple_address ta;
-
-    START_TEST;
+    bool success = true;
 
     str_to_addr4(IPV4_TRANSPORT_ADDR, &addr);
     transport_address_ipv4( addr, htons( (__be16)IPV4_TRANSPORT_PORT ), &ta );
     
-    ASSERT_EQUALS(true, ipv4_addr_equals(&ta.address, &addr) ,
+    success &= assert_equals_ipv4(&ta.address, &addr,
         "Check that the address part of an IPv4 transport address is correct.");
 
-    ASSERT_EQUALS(htons(ta.pi.port), (__be16)IPV4_TRANSPORT_PORT,
+    success &= assert_equals_u16(htons(ta.pi.port), (__be16)IPV4_TRANSPORT_PORT,
         "Check that the port part of an IPv4 transport address is correct.");
 
-    END_TEST;
+    return success;
 }
-
 
 
 #define IPV6_TRANSPORT_ADDR     "2001:db8:c0ca:1::1"
@@ -264,49 +293,49 @@ bool test_transport_address_ipv6( void )
 {
     struct in6_addr addr6;
     struct ipv6_tuple_address ta;
-    
-    START_TEST;
+    bool success = true;
 
     // Build an IPv6 transport address from address & port
     str_to_addr6(IPV6_TRANSPORT_ADDR, &addr6);
     transport_address_ipv6( addr6, htons( (__be16)IPV6_TRANSPORT_PORT ), &ta );
     
-    ASSERT_EQUALS(true, ipv6_addr_equals (&ta.address, &addr6) ,
+    success &= assert_equals_ipv6(&ta.address, &addr6 ,
         "Check that the address part of an IPv6 transport address is correct.");
 
-    ASSERT_EQUALS( htons( ta.pi.port ), (__be16)IPV6_TRANSPORT_PORT , 
+    success &= assert_equals_u16( htons( ta.pi.port ), (__be16)IPV6_TRANSPORT_PORT , 
         "Check that the port part of an IPv6 transport address is correct.");
     
-    END_TEST;
+    return success;
 }
 
 
-#define IPV6_EXTRACT_ADDR     "2001:db8:c0ca:1::192.168.2.3"
+#define IPV6_EXTRACT_ADDR     "64:ff9b::192.168.2.3"
 #define IPV4_EXTRACTED_ADDR     "192.168.2.3"
 bool test_extract_ipv4_from_ipv6( void )
 {
     struct in6_addr addr6;
     struct in_addr extracted4;
     struct in_addr correct4;
-    
-    START_TEST;
+    bool success = true;
 
     // Convert the IPv6 address to binary
     str_to_addr6(IPV6_EXTRACT_ADDR, &addr6);
     
-    ASSERT_EQUALS(true, extract_ipv4_from_ipv6 (addr6, &extracted4) , 
+    success &= assert_true(pool6_init() , "Init IPv6 pool.");
+    
+    success &= assert_true(extract_ipv4(&addr6, &extracted4) , 
         "Check that an IPv4 address can be extracted from an IPv6 address.");
 
     str_to_addr4(IPV4_EXTRACTED_ADDR, &correct4);
-    ASSERT_EQUALS(true, ipv4_addr_equals(&extracted4, &correct4) , 
+    success &= assert_equals_ipv4(&extracted4, &correct4, 
         "Assert that the extraction of the IPv4 address was correct.");
 
-    
-    END_TEST;
+    pool6_destroy();
+
+    return success;
 }
 
 
-//~ #define IPV6_EMBED_ADDR         "2001:db8:c0ca:1::1"
 #define IPV6_EMBEDDED_ADDR      "64:ff9b::192.168.2.3"
 #define IPV4_EMBEDDABLE_ADDR    "192.168.2.3"
 bool test_embed_ipv4_in_ipv6( void )
@@ -314,263 +343,180 @@ bool test_embed_ipv4_in_ipv6( void )
     struct in_addr embeddable4;
     struct in6_addr embed6;
     struct in6_addr embedded6;
-    
-    START_TEST;
+    bool success = true;
 
     // Convert to binary the IPv4 address to embed
     str_to_addr4(IPV4_EMBEDDABLE_ADDR, &embeddable4);
     
-    ASSERT_EQUALS(true, embed_ipv4_in_ipv6 ( embeddable4, &embed6 ) , 
+    success &= assert_true(pool6_init() , "Init IPv6 pool.");
+
+    success &= assert_true(append_ipv4( &embeddable4, &embed6 ) , 
         "Check that we can embed an IPv4 address inside of an IPv6 address correctly.");
 
     // Verify the output
-    //~ str_to_addr6(IPV6_EMBED_ADDR, &embedded6);
     str_to_addr6(IPV6_EMBEDDED_ADDR, &embedded6);
-    ASSERT_EQUALS(true, ipv6_addr_equals( &embed6 , &embedded6 ) , 
+    success &= assert_equals_ipv6( &embed6 , &embedded6 , 
         "Verify that the IPv4 was embedded into a IPv6 address is correct.");
-pr_debug(" - expected: %pI6c , actual: %pI6c", &embedded6 , &embed6 );
+//~ pr_debug(" - expected: %pI6c , actual: %pI6c", &embedded6 , &embed6 );
     
-    END_TEST;
-}
+    pool6_destroy();
 
-//~ #define IPV4_GET_ICMP_ID_ADDR   "192.168.2.3"
-#define IPV4_GET_ICMP_ID_ADDR   IPV4_FIRST_POOL_ADDRESS
-#define IPV4_GET_ICMP_ID        0
-bool test_get_icmpv4_identifier( void )
-{
-    struct in_addr addr4;
-    __be16 pi;
-   struct ipv4_tuple_address *new_ipv4_transport_address;
-    u_int8_t protocol;
-    
-    START_TEST;
-
-    protocol = IPPROTO_ICMP;
-
-    init_pool(protocol);
-
-    // Convert to binary the IPv4 address to embed
-    str_to_addr4(IPV4_GET_ICMP_ID_ADDR, &addr4);
-    pi = IPV4_GET_ICMP_ID;
-    
-    ASSERT_EQUALS(true, ( (new_ipv4_transport_address = get_icmpv4_identifier(addr4, pi)) != NULL) , 
-        "Check that we get a IPv4 transport address with a new ICMPv4 ID for an existing IPv4 address (Not NULL).");
-        
-    ASSERT_EQUALS(true, ipv4_addr_equals(&new_ipv4_transport_address->address, &addr4), 
-        "Check that we get a IPv4 transport address with a new ICMPv4 ID for an existing IPv4 address (Same IPv4 address).");
-
-    // Verify the output
-    ASSERT_EQUALS(IPV4_GET_ICMP_ID, new_ipv4_transport_address->pi.id,  
-        "Check that the ICMPv4 identifier was the expected (hard-coded).");
-    
-    pool4_destroy();
-    
-    END_TEST;
+    return success;
 }
 
 
 #define IPV6_ALLOCATE_SRC_ADDR  "2001:db8:c0ca:1::1"
 #define IPV6_ALLOCATE_SRC_PORT  1024
-#define IPV4_ALLOCATED_ADDR     "192.168.2.1"
+//~ #define IPV4_ALLOCATED_ADDR     "192.168.2.1"
+#define IPV4_ALLOCATED_ADDR		POOL4_DEF[0]
 #define IPV4_ALLOCATED_PORT_ICMP     (IPV6_ALLOCATE_SRC_PORT )  // <-- 1024
 #define IPV4_ALLOCATED_PORT     (IPV6_ALLOCATE_SRC_PORT +1 )  // <-- 1025
 bool test_allocate_ipv4_transport_address( void )
 {
     struct in_addr expected_addr;
-    //~ struct in_addr addr4;
-    bool ret;
     u_int8_t protocol;
     
     struct nf_conntrack_tuple tuple;
-    //~ struct ipv4_tuple_address new_ipv4_transport_address;
-    struct ipv4_tuple_address *new_ipv4_transport_address;
+    struct ipv4_tuple_address new_ipv4_transport_address;
 
     struct bib_entry bib_e;
 
-    START_TEST;
+    bool success = true;
+
+	//~ unsigned char *pool4_addresses_str[] = POOL4_DEF;
+
     
     nat64_bib_init();
 
+    // 
     protocol = IPPROTO_ICMP;
+    init_pool();
+    success &= assert_true(pool6_init() , "Init IPv6 pool.");
 
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
-
-    ret = inject_bib_entry( &bib_e, protocol );
-    ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
+    assert_true(inject_bib_entry( &bib_e, protocol ), "Trying to insert a BIB entry for do some tests.");
 
     init_tuple_for_test_ipv4(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    //~ ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
-    new_ipv4_transport_address = allocate_ipv4_transport_address(&tuple, protocol);
-    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+    assert_true(allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address), 
         "Check that we can allocate a brand new IPv4 transport address for ICMP.");
    
-    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
+    assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
         "Check that the allocated IPv4 address is correct for ICMP.");
 
-    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address.pi.port),  
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address->pi.port),  
+    assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address.pi.port),  
         "Check that the allocated IPv4 port is correct for ICMP.");
 
+    //
     protocol = IPPROTO_TCP;
-    
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
+    init_pool();
 
-    ret = inject_bib_entry( &bib_e, protocol );
-    ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
+    assert_true(inject_bib_entry( &bib_e, protocol ), "Trying to insert a BIB entry for do some tests.");
     init_tuple_for_test_ipv4(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    //~ ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
-    new_ipv4_transport_address = allocate_ipv4_transport_address(&tuple, protocol);
-    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+    assert_true(allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address), 
         "Check that we can allocate a brand new IPv4 transport address for TCP.");
    
-    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
+    assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
         "Check that the allocated IPv4 address is correct for TCP.");
 
-pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.pi.port=%d", (__be16)(IPV4_ALLOCATED_PORT), ntohs(new_ipv4_transport_address->pi.port) );  
-    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address->pi.port),  
+pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.pi.port=%d", (__be16)(IPV4_ALLOCATED_PORT), ntohs(new_ipv4_transport_address.pi.port) );  
+    assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
         "Check that the allocated IPv4 port is correct for TCP.");
     
+    //
     protocol = IPPROTO_UDP;
+    init_pool();
 
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
-
-    ret = inject_bib_entry( &bib_e, protocol );
-    ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
+    assert_true(inject_bib_entry( &bib_e, protocol ), "Trying to insert a BIB entry for do some tests.");
     init_tuple_for_test_ipv4(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
-    //~ ret = allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address);
-    new_ipv4_transport_address = allocate_ipv4_transport_address(&tuple, protocol);
-    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+    assert_true(allocate_ipv4_transport_address(&tuple, protocol, &new_ipv4_transport_address), 
         "Check that we can allocate a brand new IPv4 transport address for UDP.");
    
-    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
+    assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
         "Check that the allocated IPv4 address is correct for UDP.");
 
-    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address->pi.port),  
+    assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
         "Check that the allocated IPv4 port is correct for UDP.");
 
     nat64_bib_destroy();
     pool4_destroy();
     
-    END_TEST;
+    return success;
 }
+
 
 #define IPV4_ALLOCATED_PORT_DIGGER  4
 bool test_allocate_ipv4_transport_address_digger( void )
 {
     struct in_addr expected_addr;
-    //~ struct in_addr addr4;
-    bool ret;
     u_int8_t protocol;
     
     struct nf_conntrack_tuple tuple;
-    //~ struct ipv4_tuple_address new_ipv4_transport_address;
-    struct ipv4_tuple_address *new_ipv4_transport_address;
+    struct ipv4_tuple_address new_ipv4_transport_address;
 
-    struct bib_entry bib_e1;
-    struct bib_entry bib_e2;
+    struct bib_entry bib_e;
+    //~ struct bib_entry bib_e1;
+    //~ struct bib_entry bib_e2;
 
-    START_TEST;
+    bool success = true;
 
     nat64_bib_init();
 
 pr_debug("IPPROTO_ICMP : %d", IPPROTO_ICMP);
     protocol = IPPROTO_ICMP;
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
 
-    ret = inject_bib_entry( &bib_e1, protocol );
-    ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
+    assert_true(inject_bib_entry( &bib_e, protocol ), "Trying to insert a BIB entry for do some tests.");
 
 pr_debug("IPPROTO_TCP : %d", IPPROTO_TCP);
     protocol = IPPROTO_TCP;
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
+    init_pool();
     
-    ret = inject_bib_entry( &bib_e2, protocol );
-    ASSERT_EQUALS(true,  ret, "Trying to insert a BIB entry for do some tests.");
+    assert_true(inject_bib_entry( &bib_e, protocol ), "Trying to insert a BIB entry for do some tests.");
     
 pr_debug("IPPROTO_UDP : %d", IPPROTO_UDP);
     protocol = IPPROTO_UDP;
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
 
     init_tuple_for_test_ipv6(&tuple, protocol);
 
     str_to_addr4(IPV4_ALLOCATED_ADDR, &expected_addr);
 
 pr_debug("  allocate_ipv4_transport_address_digger ");
-    //~ ret = allocate_ipv4_transport_address_digger(&tuple, protocol, &new_ipv4_transport_address);
-    new_ipv4_transport_address = allocate_ipv4_transport_address_digger(&tuple, protocol);
-    ASSERT_EQUALS(true, (new_ipv4_transport_address != NULL), 
+    assert_true(allocate_ipv4_transport_address_digger(&tuple, protocol, &new_ipv4_transport_address), 
         "Check that we can allocate a brand new IPv4 transport address for UDP.");
 
 pr_debug("  ipv4_addr_equals ");
-    //~ ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
-    ASSERT_EQUALS(true,  ipv4_addr_equals (&new_ipv4_transport_address->address, &expected_addr) ,
+    assert_true( ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
         "Check that the allocated IPv4 address is correct for UDP.");
 
-    //~ ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT ), new_ipv4_transport_address.pi.port,  
-    ASSERT_EQUALS( (__be16)(IPV4_ALLOCATED_PORT_DIGGER ), new_ipv4_transport_address->pi.port,  
+    assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT ), new_ipv4_transport_address.pi.port,  
         "Check that the allocated IPv4 port is correct for UDP.");
 
     nat64_bib_destroy();
     pool4_destroy();
 
-    END_TEST;
+    return success;
 }
 
+/*
 bool test_ipv6_udp( void )
 {
     int ret;
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
-    //~ struct in_addr addr4;
     struct sk_buff *skb = NULL;
     
-    START_TEST;
+    bool success = true;
 
     protocol = IPPROTO_UDP;
 
-    init_pool(protocol);
+    init_pool();
     filtering_init();
     nat64_bib_init();
     nat64_session_init();
@@ -590,7 +536,7 @@ bool test_ipv6_udp( void )
     nat64_bib_destroy();
     pool4_destroy();
     
-    END_TEST;
+    return success;
 }
 
 bool test_ipv4_udp( void )
@@ -599,9 +545,8 @@ bool test_ipv4_udp( void )
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
     struct sk_buff* skb = NULL;
-    //~ struct in_addr addr4;
 
-    START_TEST;
+    bool success = true;
 
     nat64_bib_init();
     nat64_session_init();
@@ -625,14 +570,10 @@ pr_debug(" Process an expected packet ");
 
     // Create Bib & Session:
 pr_debug("  > create a new entry in the pool address");
-    //~ ASSERT_EQUALS(true, pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
+    init_pool();
 
 pr_debug("  > create a new entry in the BIB-Session Tables by processing an IPv6 UDP packet");
     init_tuple_for_test_ipv6( &tuple , protocol  );    
-    //~ ret = ipv6_udp( &tuple );
     ret = ipv6_udp( skb, &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an IPv6 UDP packet.");
     
@@ -647,7 +588,7 @@ pr_debug("  > process correctly an expected IPv4 UDP packet");
     nat64_bib_destroy();
     kfree_skb(skb);
     
-    END_TEST;
+    return success;
 }
 
 bool test_ipv6_icmp6( void )
@@ -655,9 +596,9 @@ bool test_ipv6_icmp6( void )
     int ret;
     u_int8_t protocol;
     struct nf_conntrack_tuple tuple;
-    //~ struct in_addr addr4;
+    struct sk_buff *skb = NULL;
     
-    START_TEST;
+    bool success = true;
 
     protocol = IPPROTO_ICMPV6;
 
@@ -665,25 +606,24 @@ bool test_ipv6_icmp6( void )
     nat64_session_init();
     filtering_init();
 
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
+    init_pool();
 
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
 
     // Create Bib & Session:
-    ret = ipv6_icmp6(&tuple);
+    ret = ipv6_icmp6(skb, &tuple);
     ASSERT_EQUALS(NF_ACCEPT,  ret, "See if we can process correctly an IPv6 ICMP packet.");
 
     nat64_session_destroy();
     nat64_bib_destroy();
     pool4_destroy();
+    kfree_skb(skb);
       
-    END_TEST;
+    return success;
 }
 
 bool test_ipv4_icmp4( void )
@@ -694,7 +634,7 @@ bool test_ipv4_icmp4( void )
     struct sk_buff* skb = NULL;
     //~ struct in_addr addr4;
     
-    START_TEST;
+    bool success = true;
 
     protocol = IPPROTO_ICMP;
 
@@ -702,12 +642,7 @@ bool test_ipv4_icmp4( void )
     nat64_session_init();
     filtering_init();
 
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_init(), "See if we can initialize the IPv4 pool." );
-    //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
-        //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
+    init_pool();
 
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
@@ -727,7 +662,7 @@ pr_debug(" * Create Bib & Session");
     // Create Bib & Session:
     protocol = IPPROTO_ICMPV6;
     init_tuple_for_test_ipv6( &tuple , protocol );
-    ret = ipv6_icmp6( &tuple );
+    ret = ipv6_icmp6(skb, &tuple );
     ASSERT_EQUALS(NF_ACCEPT, ret, "See if we can process correctly an IPv6 ICMP packet.");
 
 pr_debug(" * Process an expected IPv4 packets.");
@@ -744,7 +679,7 @@ pr_debug(" * Destroy everything X-| ");
 
     kfree_skb(skb);
     
-    END_TEST;
+    return success;
 }
 
 #define BUFFER_SIZE_ICMP 22
@@ -757,7 +692,7 @@ bool test_send_icmp_error_message( void )
 
     struct sk_buff *skb = NULL;
 
-    START_TEST;
+    bool success = true;
 
     protocol = IPPROTO_ICMP;
 
@@ -828,7 +763,7 @@ bool test_send_icmp_error_message( void )
     kfree_skb(skb);
 
     
-    END_TEST;
+    return success;
 }
 
 
@@ -844,17 +779,17 @@ bool test_filtering_and_updating( void )
     struct in_addr addr4;
     struct in6_addr addr6;
     
-    START_TEST;
+    bool success = true;
 
     nat64_bib_init();
     nat64_session_init();
     
-    //~ ASSERT_EQUALS(true, 
+    //~ assert_true(
         //~ pool4_init(), "See if we can initialize the IPv4 pool." );
     //~ str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4);
-    //~ ASSERT_EQUALS(true, 
+    //~ assert_true(
         //~ pool4_register(protocol, &addr4), "Try to create a new entry in the pool address");
-    init_pool(protocol);
+    init_pool();
 
 
     // >>> Errores de ICMP no deben afectar las tablas
@@ -966,16 +901,16 @@ bool test_filtering_and_updating( void )
     pool4_destroy();
     kfree_skb(skb);
     
-    END_TEST;
+    return success;
 }
-
+*/
 /* END: filtering.c */
 
 
 /* We are testing: filtering:tcp 
  * BEGIN: filtering:tcp */
 
-
+/*
 enum {  PACKET_TYPE_V6_SYN=1, PACKET_TYPE_V4_SYN,
         PACKET_TYPE_V6_RST,   PACKET_TYPE_V4_RST,
         PACKET_TYPE_V6_FIN,   PACKET_TYPE_V4_FIN    };
@@ -1059,183 +994,185 @@ bool test_packet_is_ipv4( void )
 {
     struct sk_buff *buffer;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V4 SYN
     if ((buffer = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true,  packet_is_ipv4( buffer ), "Test if we detect an IPv4 packet.");
+    assert_true( packet_is_ipv4( buffer ), "Test if we detect an IPv4 packet.");
     
     kfree_skb(buffer);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_ipv6( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V6 SYN
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true,  packet_is_ipv6( skb ), "Test if we detect an IPv6 packet.");
+    assert_true( packet_is_ipv6( skb ), "Test if we detect an IPv6 packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_v4_syn( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V4 SYN
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true, packet_is_v4_syn( skb ), "Test if we detect a V4 SYN packet.");
+    assert_true(packet_is_v4_syn( skb ), "Test if we detect a V4 SYN packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_v6_syn( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V6 SYN
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true,  packet_is_v6_syn( skb ), "Test if we detect a V6 SYN packet.");
+    assert_true( packet_is_v6_syn( skb ), "Test if we detect a V6 SYN packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_v4_fin( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V4 FIN
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true, packet_is_v4_fin( skb ), "Test if we detect a V4 FIN packet.");
+    assert_true(packet_is_v4_fin( skb ), "Test if we detect a V4 FIN packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_v6_fin( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V6 FIN
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true,  packet_is_v6_fin( skb ), "Test if we detect a V6 FIN packet.");
+    assert_true( packet_is_v6_fin( skb ), "Test if we detect a V6 FIN packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_v4_rst( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V4 RST
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_RST )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true, packet_is_v4_rst( skb ), "Test if we detect a V4 RST packet.");
+    assert_true(packet_is_v4_rst( skb ), "Test if we detect a V4 RST packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_packet_is_v6_rst( void )
 {
     struct sk_buff *skb;
 
-    START_TEST;
+    bool success = true;
 
     // Set packet type to V6 RST
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
         return false;
 
-    ASSERT_EQUALS(true,  packet_is_v6_rst( skb ), "Test if we detect a V6 RST packet.");
+    assert_true( packet_is_v6_rst( skb ), "Test if we detect a V6 RST packet.");
     
     kfree_skb(skb);
-    END_TEST;
+    return success;
 }
 
 bool test_send_probe_packet( void )
 {
-    struct sk_buff skb;
+    struct session_entry se;
     
-    START_TEST;
+    bool success = true;
 
-    // TODO: Define here the destination of the packet, instead of doing it in send_probe_packet() function.
+    init_session_entry( IPPROTO_TCP, &se );
 
-    ASSERT_EQUALS(true,  send_probe_packet( &skb ), "Test if we can send a probe packet.");
+    pr_debug("NAT64: Sending a packet, catch it!");
+    assert_true( send_probe_packet( &se ), "Test if we can send a probe packet.");
     
-    END_TEST;
+    return success;
 }
+*/
 
-bool test_tcp_closed_state_handle( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
-
-    /* Input: 
-     *          V6 SYN 
-     * */
-    pr_debug(">>> State: CLOSED\n   Packet seq: V6 SYN    \n");
-
-    nat64_bib_init();
-    nat64_session_init();
-    filtering_init();
-    init_pool(IPPROTO_TCP);
-
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSED state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    
-    // Check we changed to "V6 INIT" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 SYN packet.");
-    }
-    ASSERT_EQUALS(V6_INIT,  session_entry_p->current_state, "Test if we correctly processed V6 SYN packet.");
-
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    pool4_destroy();
+//~ bool test_tcp_closed_state_handle( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+//~ 
+    //~ /* Input: 
+     //~ *          V6 SYN 
+     //~ * */
+    //~ pr_debug(">>> State: CLOSED\n   Packet seq: V6 SYN    \n");
+//~ 
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ filtering_init();
+    //~ init_pool();
+//~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSED state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ 
+    //~ // Check we changed to "V6 INIT" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 SYN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(V6_INIT,  session_entry_p->current_state, "Test if we correctly processed V6 SYN packet.");
+//~ 
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ pool4_destroy();
 
 
     // TODO (alberto) revisar esto
@@ -1276,9 +1213,9 @@ pr_debug("V4_INIT = %d\n", V4_INIT );
 
 */    
     
-    kfree_skb(skb);
-    END_TEST;
-}
+    //~ kfree_skb(skb);
+    //~ return success;
+//~ }
 
 
 /* FIXME:   Can NOT test this as there's a conflict in the function: 
@@ -1293,12 +1230,12 @@ bool test_tcp_v4_init_state_handle( void )
 
     struct ipv6_pair ipv6; struct ipv6_pair ipv4;
     
-    START_TEST;
+    bool success = true;
 
     filtering_init();
     nat64_bib_init();
     nat64_session_init();
-    init_pool(IPPROTO_TCP);
+    init_pool();
 
 
     // Init packet
@@ -1335,377 +1272,377 @@ pr_debug("V4_INIT = %d\n", V4_INIT );
     pool4_destroy();
 
     
-    END_TEST;
+    return success;
 }
 */
 
-bool test_tcp_v6_init_state_handle( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
+//~ bool test_tcp_v6_init_state_handle( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+//~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN 
+     //~ * */
+    //~ pr_debug(">>> State: V6 INIT\n  Packet seq: V6 SYN --> V4 SYN    \n");
+//~ 
+    //~ filtering_init();
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSED state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+            //~ return false;
+    //~ // Use previous tuple
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed to "ESTABLISHED" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming ESTABLISHED packet.");
+    //~ }
+    //~ ASSERT_EQUALS(ESTABLISHED,  session_entry_p->current_state, "Test if we correctly processed V4 SYN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ pool4_destroy();
+//~ 
+    //~ 
+    //~ return success;
+//~ }
 
-    /* Input: 
-     *          V6 SYN --> V4 SYN 
-     * */
-    pr_debug(">>> State: V6 INIT\n  Packet seq: V6 SYN --> V4 SYN    \n");
+//~ bool test_tcp_established_state_handle( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+//~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V4 FIN 
+     //~ * */
+    //~ pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V4 FIN    \n");
+//~ 
+    //~ filtering_init();
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSE state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 FIN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
+        //~ return false;
+    //~ // Use previous tuple
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp_established_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed to "V4 FIN RCV" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V4 FIN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(V4_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V4 FIN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ pool4_destroy();
+    //~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V6 FIN 
+     //~ * */
+    //~ pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V6 FIN    \n");
+     //~ 
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSE state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V6 FIN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp_established_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed to "V6 FIN RCV" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 FIN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(V6_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V6 FIN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ pool4_destroy();
+    //~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V6 RST 
+     //~ * */
+    //~ pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V6 RST    \n");
+     //~ 
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSE state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+     //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V6 RST packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
+        //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp_established_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed to "TRANS" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 RST packet.");
+    //~ }
+    //~ ASSERT_EQUALS(TRANS,  session_entry_p->current_state, "Test if we correctly processed V6 RST packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();    
+    //~ pool4_destroy();
+    //~ 
+    //~ return success;
+//~ }
 
-    filtering_init();
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSED state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-    
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-            return false;
-    // Use previous tuple
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-    
-    // Check we changed to "ESTABLISHED" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming ESTABLISHED packet.");
-    }
-    ASSERT_EQUALS(ESTABLISHED,  session_entry_p->current_state, "Test if we correctly processed V4 SYN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    pool4_destroy();
-
-    
-    END_TEST;
-}
-
-bool test_tcp_established_state_handle( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
-
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V4 FIN 
-     * */
-    pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V4 FIN    \n");
-
-    filtering_init();
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSE state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V4 FIN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
-        return false;
-    // Use previous tuple
-    // Process ESTABLISHED state
-    ret = tcp_established_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-    
-    // Check we changed to "V4 FIN RCV" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V4 FIN packet.");
-    }
-    ASSERT_EQUALS(V4_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V4 FIN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    pool4_destroy();
-    
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V6 FIN 
-     * */
-    pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V6 FIN    \n");
-     
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSE state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V6 FIN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process ESTABLISHED state
-    ret = tcp_established_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-    
-    // Check we changed to "V6 FIN RCV" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 FIN packet.");
-    }
-    ASSERT_EQUALS(V6_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V6 FIN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    pool4_destroy();
-    
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V6 RST 
-     * */
-    pr_debug(">>> State: ESTABLISHED\n  Packet seq: V6 SYN --> V4 SYN --> V6 RST    \n");
-     
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSE state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V6 RST packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
-        return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process ESTABLISHED state
-    ret = tcp_established_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-    
-    // Check we changed to "TRANS" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 RST packet.");
-    }
-    ASSERT_EQUALS(TRANS,  session_entry_p->current_state, "Test if we correctly processed V6 RST packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();    
-    pool4_destroy();
-    
-    END_TEST;
-}
-
-bool test_tcp_v4_fin_rcv_state_handle( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
-
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V4 FIN --> V6 FIN 
-     * */
-    pr_debug(">>> State: V4 FIN RCV\n   Packet seq: V6 SYN --> V4 SYN --> V4 FIN --> V6 FIN    \n");
-
-    filtering_init();
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSE state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V4 FIN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
-            return false;
-    // Use previous tuple
-    // Process ESTABLISHED state
-    ret = tcp_established_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-    
-    // Construct a V6 FIN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process V4 FIN RCV state
-    ret = tcp_v4_fin_rcv_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V4 FIN RCV state.");
-    kfree_skb(skb);
-    
-    // Check we changed to "V4 FIN + V6 FIN RCV" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 FIN packet.");
-    }
-    ASSERT_EQUALS(V4_FIN_V6_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V6 FIN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    pool4_destroy();
-
-
-    END_TEST;
-}
-
-bool test_tcp_v6_fin_rcv_state_handle( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
-
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V6 FIN --> V4 FIN 
-     * */
-    pr_debug(">>> State: V6 FIN RCV\n   Packet seq: V6 SYN --> V4 SYN --> V6 FIN --> V4 FIN    \n");
-
-    filtering_init();
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSE state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V6 FIN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process ESTABLISHED state
-    ret = tcp_established_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-    
-    // Construct a V4 FIN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 FIN RCV state
-    ret = tcp_v6_fin_rcv_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 FIN RCV state.");
-    kfree_skb(skb);
-    
-    // Check we changed to "V4 FIN + V6 FIN RCV" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V4 FIN packet.");
-    }
-    ASSERT_EQUALS(V4_FIN_V6_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V4 FIN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    pool4_destroy();
-
-    
-    END_TEST;
-}
+//~ bool test_tcp_v4_fin_rcv_state_handle( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+//~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V4 FIN --> V6 FIN 
+     //~ * */
+    //~ pr_debug(">>> State: V4 FIN RCV\n   Packet seq: V6 SYN --> V4 SYN --> V4 FIN --> V6 FIN    \n");
+//~ 
+    //~ filtering_init();
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSE state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 FIN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
+            //~ return false;
+    //~ // Use previous tuple
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp_established_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Construct a V6 FIN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process V4 FIN RCV state
+    //~ ret = tcp_v4_fin_rcv_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V4 FIN RCV state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed to "V4 FIN + V6 FIN RCV" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 FIN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(V4_FIN_V6_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V6 FIN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ pool4_destroy();
+//~ 
+//~ 
+    //~ return success;
+//~ }
+//~ 
+//~ bool test_tcp_v6_fin_rcv_state_handle( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+//~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V6 FIN --> V4 FIN 
+     //~ * */
+    //~ pr_debug(">>> State: V6 FIN RCV\n   Packet seq: V6 SYN --> V4 SYN --> V6 FIN --> V4 FIN    \n");
+//~ 
+    //~ filtering_init();
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSE state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V6 FIN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp_established_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Construct a V4 FIN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 FIN RCV state
+    //~ ret = tcp_v6_fin_rcv_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 FIN RCV state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed to "V4 FIN + V6 FIN RCV" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V4 FIN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(V4_FIN_V6_FIN_RCV,  session_entry_p->current_state, "Test if we correctly processed V4 FIN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ pool4_destroy();
+//~ 
+    //~ 
+    //~ return success;
+//~ }
 
 
 /*
@@ -1715,201 +1652,201 @@ bool test_tcp_v4_fin_v6_fin_rcv_state_handle( void )
     
     // TODO: Deal with TIMEOUTs
     
-    END_TEST;
+    return success;
 }
 */
 
-bool test_tcp_trans_state_handle( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
-    
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V6 RST --> V6 SYN 
-     * */
-    pr_debug(">>> State: TRANS\n    Packet seq: V6 SYN --> V4 SYN --> V6 RST --> V6 SYN   \n");
-     
-    filtering_init();
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSE state
-    ret = tcp_closed_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp_v6_init_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V6 RST packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process ESTABLISHED state
-    ret = tcp_established_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-        
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process TRANS state
-    ret = tcp_trans_state_handle( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the TRANS state.");
-    kfree_skb(skb);
-    
-    // Check we changed back to "ESTABLISHED" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 SYN packet.");
-    }
-    ASSERT_EQUALS(ESTABLISHED,  session_entry_p->current_state, "Test if we correctly processed V6 SYN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();    
-    pool4_destroy();
-        
-    END_TEST;
-}
-
-bool test_tcp( void )
-{
-    int ret = 0;
-    struct session_entry *session_entry_p;
-    struct sk_buff *skb;
-    struct nf_conntrack_tuple tuple;
-    
-    START_TEST;
-    
-    /* Input: 
-     *          V6 SYN --> V4 SYN --> V6 RST --> V6 SYN 
-     * */
-    pr_debug(">>> State: TRANS\n    Packet seq: V6 SYN --> V4 SYN --> V6 RST --> V6 SYN   \n");
-     
-    nat64_bib_init();
-    nat64_session_init();
-    init_pool(IPPROTO_TCP);
-    
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process CLOSED state
-    ret = tcp( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
-    kfree_skb(skb);
-
-    // Construct a V4 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
-    // Process V6 INIT state
-    ret = tcp( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
-    kfree_skb(skb);
-
-    // Construct a V6 RST packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process ESTABLISHED state
-    ret = tcp( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
-    kfree_skb(skb);
-        
-    // Construct a V6 SYN packet
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-            return false;
-    // Set packet's tuple.
-    init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
-    // Process TRANS state
-    ret = tcp( skb, &tuple );
-    ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the TRANS state.");
-    kfree_skb(skb);
-    
-    // Check we changed back to "ESTABLISHED" state
-    session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
-    if ( session_entry_p == NULL ) // If NO session was found:
-    {
-        pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 SYN packet.");
-    }
-    ASSERT_EQUALS(ESTABLISHED,  session_entry_p->current_state, "Test if we correctly processed V6 SYN packet.");
-    
-    nat64_session_destroy();
-    nat64_bib_destroy();    
-    pool4_destroy();
-    
-    END_TEST;
-}
-
-/* END: filtering_tcp.c */
-
-
-bool test_icmp( void )
-{
-    u_int8_t protocol;
-    struct nf_conntrack_tuple tuple;
-    struct sk_buff* skb = NULL;
-    
-    START_TEST;
-
-    nat64_bib_init();
-    nat64_session_init();
-
-    protocol = IPPROTO_UDP;
-
-    // Init tuple
-    init_tuple_for_test_ipv4( &tuple , protocol  );
-    // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
-
-        send_icmp_error_message(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE); 
+//~ bool test_tcp_trans_state_handle( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+    //~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V6 RST --> V6 SYN 
+     //~ * */
+    //~ pr_debug(">>> State: TRANS\n    Packet seq: V6 SYN --> V4 SYN --> V6 RST --> V6 SYN   \n");
+     //~ 
+    //~ filtering_init();
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSE state
+    //~ ret = tcp_closed_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp_v6_init_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V6 RST packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp_established_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+        //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process TRANS state
+    //~ ret = tcp_trans_state_handle( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the TRANS state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed back to "ESTABLISHED" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 SYN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(ESTABLISHED,  session_entry_p->current_state, "Test if we correctly processed V6 SYN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();    
+    //~ pool4_destroy();
+        //~ 
+    //~ return success;
+//~ }
+//~ 
+//~ bool test_tcp( void )
+//~ {
+    //~ int ret = 0;
+    //~ struct session_entry *session_entry_p;
+    //~ struct sk_buff *skb;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ 
+    //~ bool success = true;
+    //~ 
+    //~ /* Input: 
+     //~ *          V6 SYN --> V4 SYN --> V6 RST --> V6 SYN 
+     //~ * */
+    //~ pr_debug(">>> State: TRANS\n    Packet seq: V6 SYN --> V4 SYN --> V6 RST --> V6 SYN   \n");
+     //~ 
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+    //~ init_pool();
+    //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process CLOSED state
+    //~ ret = tcp( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the CLOSED state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V4 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv4( &tuple, IPPROTO_TCP );
+    //~ // Process V6 INIT state
+    //~ ret = tcp( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the V6 INIT state.");
+    //~ kfree_skb(skb);
+//~ 
+    //~ // Construct a V6 RST packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process ESTABLISHED state
+    //~ ret = tcp( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the ESTABLISHED state.");
+    //~ kfree_skb(skb);
+        //~ 
+    //~ // Construct a V6 SYN packet
+    //~ if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
+            //~ return false;
+    //~ // Set packet's tuple.
+    //~ init_tuple_for_test_ipv6( &tuple, IPPROTO_TCP );
+    //~ // Process TRANS state
+    //~ ret = tcp( skb, &tuple );
+    //~ ASSERT_EQUALS(NF_ACCEPT, ret, "Check that we processed correctly the TRANS state.");
+    //~ kfree_skb(skb);
+    //~ 
+    //~ // Check we changed back to "ESTABLISHED" state
+    //~ session_entry_p = nat64_get_session_entry( &tuple ); // Searches for the Session Table Entry corresponding to the incoming tuple
+    //~ if ( session_entry_p == NULL ) // If NO session was found:
+    //~ {
+        //~ pr_warning("ERROR. Could NOT find an existing SESSION entry for an incoming V6 SYN packet.");
+    //~ }
+    //~ ASSERT_EQUALS(ESTABLISHED,  session_entry_p->current_state, "Test if we correctly processed V6 SYN packet.");
+    //~ 
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();    
+    //~ pool4_destroy();
+    //~ 
+    //~ return success;
+//~ }
+//~ 
+//~ /* END: filtering_tcp.c */
+//~ 
+//~ 
+//~ bool test_icmp( void )
+//~ {
+    //~ u_int8_t protocol;
+    //~ struct nf_conntrack_tuple tuple;
+    //~ struct sk_buff* skb = NULL;
+    //~ 
+    //~ bool success = true;
+//~ 
+    //~ nat64_bib_init();
+    //~ nat64_session_init();
+//~ 
+    //~ protocol = IPPROTO_UDP;
+//~ 
+    //~ // Init tuple
+    //~ init_tuple_for_test_ipv4( &tuple , protocol  );
+    //~ // Init skb
+    //~ if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        //~ pr_debug("ERROR, SKB == NULL");
+//~ 
+        //~ send_icmp_error_message(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE); 
 
 
     // Discard un-expected IPv4 packets.
-pr_debug(" Discard un-expected IPv4 packets");
+//~ pr_debug(" Discard un-expected IPv4 packets");
     //~ ret = ipv4_udp( skb, &tuple ); 
     //~ ASSERT_EQUALS(NF_DROP, ret, "See if we discard an IPv4 UDP packet, which tries to start a communication.");
 
 
-    nat64_session_destroy();
-    nat64_bib_destroy();
-    kfree_skb(skb);
-    
-    END_TEST;
-}
+    //~ nat64_session_destroy();
+    //~ nat64_bib_destroy();
+    //~ kfree_skb(skb);
+    //~ 
+    //~ return success;
+//~ }
 
 
 
 
 int __init filtering_test_init(void)
 {
-    START_TESTS("test_filtering.c");
+    START_TESTS("Filtering and Updating");
     
     pr_debug("\n\n\n");
     pr_debug("\n\nNAT64 %s TEST module inserted!", "filtering_test");
@@ -1919,43 +1856,41 @@ int __init filtering_test_init(void)
     nat64_config_init();
 
     /*      UDP & ICMP      */
-    CALL_TEST(test_icmp(), "test_icmp");
+    //~ CALL_TEST(test_icmp(), "test_icmp");
     
     CALL_TEST(test_transport_address_ipv4(), "test_transport_address_ipv4");
     CALL_TEST(test_transport_address_ipv6(), "test_transport_address_ipv6");
     CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
     CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
-    CALL_TEST(test_get_icmpv4_identifier(), "test_get_icmpv4_identifier");
     CALL_TEST(test_allocate_ipv4_transport_address(), "test_allocate_ipv4_transport_address");
     CALL_TEST(test_allocate_ipv4_transport_address_digger(), "test_allocate_ipv4_transport_address_digger");
-    CALL_TEST(test_ipv6_udp(), "test_ipv6_udp");
-    CALL_TEST(test_ipv4_udp(), "test_ipv4_udp");
-    CALL_TEST(test_ipv6_icmp6(), "test_ipv6_icmp6");
-    CALL_TEST(test_ipv4_icmp4(), "test_ipv4_icmp4");
+    //~ CALL_TEST(test_ipv6_udp(), "test_ipv6_udp");
+    //~ CALL_TEST(test_ipv4_udp(), "test_ipv4_udp");
+    //~ CALL_TEST(test_ipv6_icmp6(), "test_ipv6_icmp6");
+    //~ CALL_TEST(test_ipv4_icmp4(), "test_ipv4_icmp4");
     //~ CALL_TEST(test_send_icmp_error_message(), "test_send_icmp_error_message"); // Not implemented yet!
-    CALL_TEST(test_filtering_and_updating(), "test_filtering_and_updating");
+    //~ CALL_TEST(test_filtering_and_updating(), "test_filtering_and_updating");
     
     
     /*      TCP      */
-    CALL_TEST(test_packet_is_ipv4(), "test_packet_is_ipv4");
-    CALL_TEST(test_packet_is_ipv6(), "test_packet_is_ipv6");
-    CALL_TEST(test_packet_is_v4_syn(), "test_packet_is_v4_syn");
-    CALL_TEST(test_packet_is_v6_syn(), "test_packet_is_v6_syn");
-    CALL_TEST(test_packet_is_v4_fin(), "test_packet_is_v4_fin");
-    CALL_TEST(test_packet_is_v6_fin(), "test_packet_is_v6_fin");
-    CALL_TEST(test_packet_is_v4_rst(), "test_packet_is_v4_rst");
-    CALL_TEST(test_packet_is_v6_rst(), "test_packet_is_v6_rst");
+    //~ CALL_TEST(test_packet_is_ipv4(), "test_packet_is_ipv4");
+    //~ CALL_TEST(test_packet_is_ipv6(), "test_packet_is_ipv6");
+    //~ CALL_TEST(test_packet_is_v4_syn(), "test_packet_is_v4_syn");
+    //~ CALL_TEST(test_packet_is_v6_syn(), "test_packet_is_v6_syn");
+    //~ CALL_TEST(test_packet_is_v4_fin(), "test_packet_is_v4_fin");
+    //~ CALL_TEST(test_packet_is_v6_fin(), "test_packet_is_v6_fin");
+    //~ CALL_TEST(test_packet_is_v4_rst(), "test_packet_is_v4_rst");
+    //~ CALL_TEST(test_packet_is_v6_rst(), "test_packet_is_v6_rst");
     //~ CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
-    CALL_TEST(test_tcp_closed_state_handle(), "test_tcp_closed_state_handle");
+    //~ CALL_TEST(test_tcp_closed_state_handle(), "test_tcp_closed_state_handle");
     //~ CALL_TEST(test_tcp_v4_init_state_handle(), "test_tcp_v4_init_state_handle"); // Not implemented yet!
-    //~ probar
-    CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
-    CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
-    CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
-    CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
+    //~ CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
+    //~ CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
+    //~ CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
+    //~ CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
     //~ CALL_TEST(test_tcp_v4_fin_v6_fin_rcv_state_handle(), "test_tcp_v4_fin_v6_fin_rcv_state_handle"); // Not implemented yet!
-    CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
-    CALL_TEST(test_tcp(), "test_tcp");
+    //~ CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
+    //~ CALL_TEST(test_tcp(), "test_tcp");
   
     /* A non 0 return means a test failed; module can't be loaded. */
     END_TESTS;

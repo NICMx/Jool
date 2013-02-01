@@ -45,7 +45,7 @@ bool nat64_config_init(void)
 //	}
 //	log_debug("Netlink socket created.");
 //
-//	return true;
+	return true;
 }
 
 void nat64_config_destroy(void)

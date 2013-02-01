@@ -23,41 +23,41 @@
  */
 struct session_entry
 {
-	/** IPv6 version of the connection. */
-	struct ipv6_pair ipv6;
-	/** IPv4 version of the connection. */
-	struct ipv4_pair ipv4;
+    /** IPv6 version of the connection. */
+    struct ipv6_pair ipv6;
+    /** IPv4 version of the connection. */
+    struct ipv4_pair ipv4;
 
-	/** Should the session never expire? */
-	bool is_static;
-	/** Millisecond (from the epoch) this session should expire in, if still inactive. */
-	unsigned int dying_time;
+    /** Should the session never expire? */
+    bool is_static;
+    /** Millisecond (from the epoch) this session should expire in, if still inactive. */
+    unsigned int dying_time;
 
-	/**
-	 * Owner bib of this session. Used for quick access during removal.
-	 * (when the session dies, the BIB might have to die too.)
-	 */
-	struct bib_entry *bib;
-	/**
-	 * Chains this session with the rest from the same BIB (see bib_entry.session_entries).
-	 * Used by the BIB to know whether it should commit suicide or not.
-	 */
-	struct list_head entries_from_bib;
-	/**
-	 * Chains this session with the rest (see all_sessions, defined in nf_nat_session.h).
-	 * Used for iterating while looking for expired sessions.
-	 */
-	struct list_head all_sessions;
-	/**
-	 * Transport protocol of the table this entry is in.
-	 * Used to know which table the session should be removed from when expired.
-	 */
-	u_int8_t l4protocol;
+    /**
+     * Owner bib of this session. Used for quick access during removal.
+     * (when the session dies, the BIB might have to die too.)
+     */
+    struct bib_entry *bib;
+    /**
+     * Chains this session with the rest from the same BIB (see bib_entry.session_entries).
+     * Used by the BIB to know whether it should commit suicide or not.
+     */
+    struct list_head entries_from_bib;
+    /**
+     * Chains this session with the rest (see all_sessions, defined in nf_nat_session.h).
+     * Used for iterating while looking for expired sessions.
+     */
+    struct list_head all_sessions;
+    /**
+     * Transport protocol of the table this entry is in.
+     * Used to know which table the session should be removed from when expired.
+     */
+    u_int8_t l4protocol;
 
-	/** Current TCP state.
-	 * 	Each STE represents a state machine
-	 */
-	u_int8_t current_state;
+    /** Current TCP state.
+     *  Each Session Table Entry represents a state machine
+     */
+    u_int8_t current_state;
 };
 
 /**
@@ -74,7 +74,7 @@ void nat64_session_init(void);
  *
  * @param entry row to be added to the table.
  * @return whether the entry could be inserted or not. It will not be inserted
- *		if some dynamic memory allocation failed.
+ *      if some dynamic memory allocation failed.
  */
 bool nat64_add_session_entry(struct session_entry *entry);
 
@@ -84,9 +84,9 @@ bool nat64_add_session_entry(struct session_entry *entry);
  *
  * @param pairt IPv4 data you want the Session entry for.
  * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ *      IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
  * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
- *		is "address". Returns NULL if there is no such an entry.
+ *      is "address". Returns NULL if there is no such an entry.
  */
 struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol);
 /**
@@ -95,9 +95,9 @@ struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_
  *
  * @param pairt IPv6 data you want the Session entry for.
  * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ *      IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
  * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
- *		is "address". Returns NULL if there is no such an entry.
+ *      is "address". Returns NULL if there is no such an entry.
  */
 struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol);
 
@@ -108,7 +108,7 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
  *
  * @param tuple summary of the packet. Describes the session you need.
  * @return the session entry you'd expect from the "tuple" tuple.
- *		returns null if no entry could be found.
+ *      returns null if no entry could be found.
  */
 struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
 
@@ -124,8 +124,8 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
  *
  * @param tuple summary of the packet. Describes the session(s) you need.
  * @return whether there's a session entry with a source IPv4 transport address equal to the tuple's
- *		IPv4 destination transport address, and destination IPv4 address equal to the tuple's source
- *		address.
+ *      IPv4 destination transport address, and destination IPv4 address equal to the tuple's source
+ *      address.
  */
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple);
 
@@ -145,7 +145,7 @@ void nat64_update_session_state(struct session_entry *entry, u_int8_t state);
  *
  * @param entry entry to be removed from its table.
  * @return "true" if "entry" was in fact in the table. "false" if it wasn't,
- *		and hence it wasn't removed from anywhere.
+ *      and hence it wasn't removed from anywhere.
  */
 bool nat64_remove_session_entry(struct session_entry *entry);
 
@@ -171,21 +171,21 @@ void nat64_session_destroy(void);
  * need to kfree it).
  */
 struct session_entry *nat64_create_static_session_entry(
-		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		struct bib_entry *bib, u_int8_t l4protocol);
+        struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+        struct bib_entry *bib, u_int8_t l4protocol);
 
 struct session_entry *nat64_create_session_entry(
-		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		struct bib_entry *bib, u_int8_t l4protocol);
+        struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+        struct bib_entry *bib, u_int8_t l4protocol);
 
 /**
  * Creates an array out of the "l4protocol" session table's data and places it in *"array".
  *
  * @param l4protocol identifier of the table to array-ize. Should be either IPPROTO_UDP, IPPROTO_TCP
- *		or IPPROTO_ICMP from linux/in.h.
+ *      or IPPROTO_ICMP from linux/in.h.
  * @param array the result will be stored here. Yes, this parameter is a horrible abomination. Think
- *		of it this way: It's an array (asterisk 2) of pointers (asterisk 3). The remaining asterisk
- *		makes it a by-reference argument. FML.
+ *      of it this way: It's an array (asterisk 2) of pointers (asterisk 3). The remaining asterisk
+ *      makes it a by-reference argument. FML.
  * @return the resulting length of "array". May be -1, if memory could not be allocated.
  *
  * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
