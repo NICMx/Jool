@@ -56,11 +56,10 @@ enum config_operation {
 	#define ADDRESS_DEPENDENT_FILTER_MASK	(1 << 0)
 	#define FILTER_INFO_MASK				(1 << 1)
 	#define DROP_TCP_MASK					(1 << 2)
-	#define UDP_DEFAULT_MASK				(1 << 3)
-	#define ICMP_DEFAULT_MASK				(1 << 4)
-	#define TCP_TRANS_MASK					(1 << 5)
-	#define TCP_INCOMING_SYN_MASK			(1 << 6)
-	#define TCP_EST_MASK 					(1 << 7)
+	#define UDP_TIMEOUT_MASK				(1 << 3)
+	#define ICMP_TIMEOUT_MASK				(1 << 4)
+	#define TCP_TIMEOUT_MASK				(1 << 5)
+	#define TCP_TRANS_TIMEOUT_MASK 			(1 << 7)
 };
 
 enum response_code {
@@ -74,6 +73,8 @@ enum response_code {
 	RESPONSE_CONNECT_FAILED,
 	RESPONSE_SEND_FAILED,
 	RESPONSE_PARSE_FAIL,
+	RESPONSE_INVALID_VALUE,
+	RESPONSE_MISSING_PARAM,
 };
 
 /**
@@ -121,11 +122,10 @@ struct filtering_config
     /** Current timeout values */
     struct timeouts
     {
-        unsigned int udp_default;
+        unsigned int udp;
+        unsigned int icmp;
+        unsigned int tcp;
         unsigned int tcp_trans;
-        unsigned int icmp_default;
-        unsigned int tcp_incoming_syn;
-        unsigned int tcp_est;
     } to;
 };
 

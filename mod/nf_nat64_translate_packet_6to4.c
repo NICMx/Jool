@@ -28,7 +28,7 @@ static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff
 	in->tuple = tuple;
 
 	in->l3_hdr = ip6_hdr;
-	in->l3_hdr_type = IPPROTO_IPV6;
+	in->l3_hdr_type = NFPROTO_IPV6;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
 	in->l3_hdr_basic_len = sizeof(*ip6_hdr);
 	in->compute_l3_hdr_len = compute_ipv6_hdr_len;
@@ -200,7 +200,6 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	df_always_set = config.df_always_set;
 	spin_unlock_bh(&config_lock);
 
-	// TODO (warning) los primeros campos del header de IPv6 se están manejando correctamente?
 	ip4_hdr = out->l3_hdr;
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;

@@ -30,14 +30,13 @@ static bool switch_l4_proto(u_int8_t proto_in, u_int8_t *proto_out)
 static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out,
 		enum translation_mode mode)
 {
-	struct bib_entry *bib;
+	struct bib_entry bib;
 	struct ipv6_prefix prefix;
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	bib = nat64_get_bib_entry(in);
-	if (!bib) {
-		log_err("Could not find the BIB entry we just created!");
+	if (!nat64_get_bib_entry(in, &bib)) {
+		log_err("Could not find the BIB entry we just created/updated!");
 		return false;
 	}
 
@@ -51,8 +50,8 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		out->L3_PROTOCOL = PF_INET;
 		if (!switch_l4_proto(in->L4_PROTOCOL, &out->L4_PROTOCOL))
 			return false;
-		out->ipv4_src_addr = bib->ipv4.address;
-		out->src_port = bib->ipv4.pi.port;
+		out->ipv4_src_addr = bib.ipv4.address;
+		out->src_port = cpu_to_be16(bib.ipv4.l4_id);
 		if (!nat64_extract_ipv4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
 			return false;
 		out->dst_port = in->dst_port;
@@ -64,9 +63,9 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 			return false;
 		if (!nat64_append_ipv4(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
 			return false;
-		out->src_port = bib->ipv6.pi.port;
-		out->ipv6_src_addr = bib->ipv6.address;
-		out->src_port = bib->ipv6.pi.port;
+		out->src_port = cpu_to_be16(bib.ipv6.l4_id);
+		out->ipv6_src_addr = bib.ipv6.address;
+		out->src_port = cpu_to_be16(bib.ipv6.l4_id);
 		break;
 
 	default:
@@ -81,14 +80,13 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out,
 		enum translation_mode mode)
 {
-	struct bib_entry *bib;
+	struct bib_entry bib;
 	struct ipv6_prefix prefix;
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	bib = nat64_get_bib_entry(in);
-	if (!bib) {
-		log_err("Could not find the BIB entry we just created!");
+	if (!nat64_get_bib_entry(in, &bib)) {
+		log_err("Could not find the BIB entry we just created/updated!");
 		return false;
 	}
 
@@ -101,10 +99,10 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 	case IPV6_TO_IPV4:
 		out->L3_PROTOCOL = PF_INET;
 		out->L4_PROTOCOL = IPPROTO_ICMP;
-		out->ipv4_src_addr = bib->ipv4.address;
+		out->ipv4_src_addr = bib.ipv4.address;
 		if (!nat64_extract_ipv4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
 			return false;
-		out->icmp_id = bib->ipv4.pi.id;
+		out->icmp_id = cpu_to_be16(bib.ipv4.l4_id);
 		break;
 
 	case IPV4_TO_IPV6:
@@ -112,8 +110,8 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		out->L4_PROTOCOL = IPPROTO_ICMPV6;
 		if (!nat64_append_ipv4(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
 			return false;
-		out->ipv6_dst_addr = bib->ipv6.address;
-		out->icmp_id = bib->ipv6.pi.id;
+		out->ipv6_dst_addr = bib.ipv6.address;
+		out->icmp_id = cpu_to_be16(bib.ipv6.l4_id);
 		break;
 
 	default:

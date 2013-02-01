@@ -43,7 +43,7 @@
  * Accesors for somewhat more readability of nf_conntrack_tuples.
  * Useful only in kernelspace (I think).
  */
-// TODO (info) capitalize.
+// TODO (later) capitalize.
 #define ipv4_src_addr 	src.u3.in
 #define ipv6_src_addr	src.u3.in6
 #define ipv4_dst_addr	dst.u3.in
@@ -64,14 +64,6 @@ enum translation_mode
 	IPV6_TO_IPV4,
 };
 
-/** TODO (warning) realmente queda alguna razón para tener esto? */
-union port_or_id
-{
-	// TODO (optimization) no se pueden cambiar a __u?
-	__be16 port;
-	__be16 id;
-};
-
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
  * Because they're paired all the time in this project.
@@ -80,8 +72,8 @@ struct ipv4_tuple_address
 {
 	/** The layer-3 identifier. */
 	struct in_addr address;
-	/** The layer-4 identifier. */
-	union port_or_id pi;
+	/** The layer-4 identifier (Either the port (TCP or UDP) or the ICMP id). */
+	__u16 l4_id;
 };
 
 /**
@@ -91,14 +83,7 @@ struct ipv4_tuple_address
 struct ipv6_tuple_address
 {
 	struct in6_addr address;
-	union port_or_id pi;
-};
-
-/** A "tuple address" is the identifier of an endpoint of a connection. */
-// TODO (info) me parece que la existencia de esto no está justificada.
-union tuple_address {
-	struct ipv4_tuple_address ipv4;
-	struct ipv6_tuple_address ipv6;
+	__u16 l4_id;
 };
 
 /**
@@ -129,8 +114,7 @@ struct ipv6_prefix
 	/** IPv6 prefix. */
 	struct in6_addr address;
 	/** Number of bits from "addr" which represent the network. */
-	// TODO (info) cambiar nombre a len.
-	__u8 maskbits;
+	__u8 len;
 };
 
 /**

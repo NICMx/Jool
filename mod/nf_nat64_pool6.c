@@ -28,14 +28,24 @@ struct address_list pool;
 
 static DEFINE_SPINLOCK(pool_lock);
 
+static bool is_prefix_len_valid(__u8 prefix_len)
+{
+	return (prefix_len == 32) || (prefix_len == 40) || (prefix_len == 48) || (prefix_len == 56)
+			|| (prefix_len == 64) || (prefix_len == 96);
+}
+
 static bool load_defaults(void)
 {
 	struct ipv6_prefix pool6_prefix;
 	if (!str_to_addr6(POOL6_DEF_PREFIX, &pool6_prefix.address)) {
-		log_warning("IPv6 prefix in Headers is malformed [%s].", POOL6_DEF_PREFIX);
+		log_warning("IPv6 prefix in headers is malformed [%s].", POOL6_DEF_PREFIX);
 		return false;
 	}
-	pool6_prefix.maskbits = POOL6_DEF_PREFIX_LEN;
+	if (!is_prefix_len_valid(POOL6_DEF_PREFIX_LEN)) {
+		log_warning("IPv6 prefix length in headers is invalid: %d.", POOL6_DEF_PREFIX_LEN);
+		return false;
+	}
+	pool6_prefix.len = POOL6_DEF_PREFIX_LEN;
 
 	pool6_register(&pool6_prefix);
 	return true;
@@ -61,6 +71,9 @@ void pool6_destroy(void)
 enum response_code pool6_register(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
+
+	if (!is_prefix_len_valid(prefix->len))
+		return RESPONSE_INVALID_VALUE;
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node)
@@ -98,7 +111,7 @@ bool pool6_contains(struct in6_addr *address)
 
 	spin_lock_bh(&pool_lock);
 	list_for_each_entry(node, &pool, next) {
-		if (ipv6_prefix_equal(&node->prefix.address, address, node->prefix.maskbits)) {
+		if (ipv6_prefix_equal(&node->prefix.address, address, node->prefix.len)) {
 			spin_unlock_bh(&pool_lock);
 			return true;
 		}
@@ -107,7 +120,6 @@ bool pool6_contains(struct in6_addr *address)
 	return false;
 }
 
-// TODO revisa valor de retorno.
 bool pool6_peek(struct ipv6_prefix *out)
 {
 	struct pool_node *node;

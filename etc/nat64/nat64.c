@@ -8,6 +8,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <argp.h>
 #include <arpa/inet.h>
 #include <linux/types.h>
@@ -32,15 +33,24 @@ struct arguments {
 
 	// Pools
 	struct in_addr pool4_addr;
+	bool pool4_addr_set;
+
 	struct ipv6_prefix pool6_prefix;
+	bool pool6_prefix_set;
 
 	// BIB, session
 	bool tcp, udp, icmp;
 	bool static_entries, dynamic_entries;
+
 	struct ipv6_tuple_address bib_addr6;
+	bool bib_addr6_set;
 	struct ipv4_tuple_address bib_addr4;
+	bool bib_addr4_set;
+
 	struct ipv6_pair session_pair6;
+	bool session_pair6_remote_set, session_pair6_local_set;
 	struct ipv4_pair session_pair4;
+	bool session_pair4_remote_set, session_pair4_local_set;
 
 	// Filtering, translate
 	struct filtering_config filtering;
@@ -56,8 +66,8 @@ enum argp_flags {
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
-	ARGP_TRANSLATE = 'y',
-	ARGP_FILTERING = 'z',
+	ARGP_FILTERING = 'y',
+	ARGP_TRANSLATE = 'z',
 
 	// Operations
 	ARGP_DISPLAY = 'd',
@@ -65,40 +75,52 @@ enum argp_flags {
 	ARGP_REMOVE = 'r',
 
 	// Pools
-	ARGP_PREFIX = 603,
-	ARGP_ADDRESS = 601,
+	ARGP_PREFIX = 1000,
+	ARGP_ADDRESS = 1001,
 
 	// BIB, session
 	ARGP_TCP = 't',
 	ARGP_UDP = 'u',
 	ARGP_ICMP = 'i',
-	ARGP_STATIC = 669,
-	ARGP_DYNAMIC = 668,
-	ARGP_IPV6 = 660,
-	ARGP_IPV4 = 440,
-	ARGP_REMOTE6 = 666,
-	ARGP_LOCAL6 = 6666,
-	ARGP_LOCAL4 = 4444,
-	ARGP_REMOTE4 = 444,
+	ARGP_STATIC = 2000,
+	ARGP_DYNAMIC = 2001,
+	ARGP_IPV6 = 2010,
+	ARGP_IPV4 = 2011,
+	ARGP_REMOTE6 = 2020,
+	ARGP_LOCAL6 = 2021,
+	ARGP_LOCAL4 = 2022,
+	ARGP_REMOTE4 = 2023,
 
 	// Filtering
-	ARGP_ADF = 1212,
-	ARGP_FINFO = 1213,
-	ARGP_DROPTCP = 1214,
+	ARGP_ADF = 3000,
+	ARGP_FINFO = 3001,
+	ARGP_DROPTCP = 3002,
+	ARGP_UDP_TO = 3010,
+	ARGP_ICMP_TO = 3011,
+	ARGP_TCP_TO = 3012,
+	ARGP_TCP_TRANS_TO = 3013,
 
 	// Translate
-	ARGP_HEAD = 1201,
-	ARGP_TAIL = 1202,
-	ARGP_O6TCLASS = 1203,
-	ARGP_O4TCLASS = 1204,
-	ARGP_4TCLASS = 1205,
-	ARGP_DF = 1206,
-	ARGP_GENID = 1207,
-	ARGP_IMP_MTU = 1208,
-	ARGP_MIN_MTU6 = 1209,
-	ARGP_MIN_MTU4 = 1210,
-	ARGP_PLATEAU = 1211,
+	ARGP_HEAD = 4000,
+	ARGP_TAIL = 4001,
+	ARGP_O6TCLASS = 4002,
+	ARGP_O4TCLASS = 4003,
+	ARGP_4TCLASS = 4004,
+	ARGP_DF = 4005,
+	ARGP_GENID = 4006,
+	ARGP_IMP_MTU = 4007,
+	ARGP_MIN_MTU6 = 4008,
+	ARGP_MIN_MTU4 = 4009,
+	ARGP_PLATEAU = 4010,
 };
+
+#define NUM_FORMAT "<int>"
+#define PREFIX_FORMAT "<ipv6>/<num>"
+#define IPV6_TRANSPORT_FORMAT "<ipv6>#<num>"
+#define IPV4_TRANSPORT_FORMAT "<ipv4>#<num>"
+#define IPV4_ADDR_FORMAT "<ipv4>"
+#define BOOL_FORMAT "<bool>"
+
 
 /*
  * OPTIONS. Field 1 in ARGP.
@@ -111,7 +133,7 @@ static struct argp_option options[] =
 	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the IPv6 pool as output (default)." },
 	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add a prefix to the pool." },
 	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove a prefix from the pool." },
-	{ "prefix",		ARGP_PREFIX,	"IP/mask", 0,
+	{ "prefix",		ARGP_PREFIX,	PREFIX_FORMAT, 0,
 			"The prefix to be added or removed. Available on add and remove operations only." },
 
 	{ 0, 0, 0, 0, "IPv4 Pool options:", 11 },
@@ -119,7 +141,7 @@ static struct argp_option options[] =
 	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the IPv4 pool as output (default)." },
 	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add an address to the pool." },
 	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove an address from the pool." },
-	{ "address",	ARGP_ADDRESS,	"IP", 0,
+	{ "address",	ARGP_ADDRESS,	IPV4_ADDR_FORMAT, 0,
 			"Address to be added or removed. Available on add and remove operations only." },
 
 	{ 0, 0, 0, 0, "BIB options:", 20 },
@@ -134,9 +156,9 @@ static struct argp_option options[] =
 	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
 			"Filter out entries created statically (by the user). "
 			"-- TO BE IMPLEMENTED" },
-	{ "ipv4",		ARGP_IPV4,		"IP#port", 0,
+	{ "ipv4",		ARGP_IPV4,		IPV4_TRANSPORT_FORMAT, 0,
 			"Filter out entries unrelated to the following IPv4 address and/or port." },
-	{ "ipv6",		ARGP_IPV6,		"IP#port", 0,
+	{ "ipv6",		ARGP_IPV6,		IPV6_TRANSPORT_FORMAT, 0,
 			"Filter out entries unrelated to the following IPv4 address and/or port." },
 
 	{ 0, 0, 0, 0, "Session options:", 21 },
@@ -155,37 +177,48 @@ static struct argp_option options[] =
 			"Filter out entries created statically (by the user). "
 			"Available on display operation only. "
 			"-- TO BE IMPLEMENTED" },
-	{ "remote6",	ARGP_REMOTE6,	"IP#port", 0,
+	{ "remote6",	ARGP_REMOTE6,	IPV6_TRANSPORT_FORMAT, 0,
 			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
 			"Available on add and remove operations only." },
-	{ "local6",		ARGP_LOCAL6,	"IP#port", 0,
+	{ "local6",		ARGP_LOCAL6,	IPV6_TRANSPORT_FORMAT, 0,
 			"This is the local IPv6 addres#port of the entry to be added or removed. "
 			"Available on add and remove operations only." },
-	{ "local4",		ARGP_LOCAL4,	"IP#port", 0,
+	{ "local4",		ARGP_LOCAL4,	IPV6_TRANSPORT_FORMAT, 0,
 			"This is the local IPv4 addres#port of the entry to be added or removed. "
 			"Available on add and remove operations only." },
-	{ "remote4",	ARGP_REMOTE4,	"IP#port", 0,
+	{ "remote4",	ARGP_REMOTE4,	IPV6_TRANSPORT_FORMAT, 0,
 			"This is the addres#port of the remote IPv4 node of the entry to be added or removed. "
 			"Available on add and remove operations only." },
 
 	{ 0, 0, 0, 0, "'Filtering and Updating' step options:", 30 },
-	{ "adf",		ARGP_ADF,		"true/false", 0, "Use Address-Dependent Filtering." },
-	{ "finfo",		ARGP_FINFO,		"true/false", 0, "Filter ICMPv6 Informational packets." },
-	{ "droptcp",	ARGP_DROPTCP,	"true/false", 0, "Drop externally initiated TCP connections" },
-	// TODO agregar timeouts
+	{ "filtering",	ARGP_FILTERING,	0, 0,
+			"Command is filtering related. Use alone to display configuration. "
+			"Will be implicit if any other filtering command is entered." },
+	{ "adf",		ARGP_ADF,		BOOL_FORMAT, 0, "Use Address-Dependent Filtering." },
+	{ "finfo",		ARGP_FINFO,		BOOL_FORMAT, 0, "Filter ICMPv6 Informational packets." },
+	{ "droptcp",	ARGP_DROPTCP,	BOOL_FORMAT, 0, "Drop externally initiated TCP connections" },
+	{ "udpto",		ARGP_UDP_TO,	NUM_FORMAT, 0, "Set the timeout for new UDP sessions." },
+	{ "icmpto",		ARGP_ICMP_TO,	NUM_FORMAT, 0, "Set the timeout for new ICMP sessions." },
+	{ "tcpto",		ARGP_TCP_TO,	NUM_FORMAT, 0,
+			"Set the established connection idle-timeout for new TCP sessions." },
+	{ "tcptransto",	ARGP_TCP_TRANS_TO,NUM_FORMAT, 0,
+			"Set the transitory connection idle-timeout for new TCP sessions." },
 
 	{ 0, 0, 0, 0, "'Translate the Packet' step options:", 31 },
-	{ "head",		ARGP_HEAD,		"NUM", 0, "Packet head room." },
-	{ "tail",		ARGP_TAIL,		"NUM", 0, "Packet tail room." },
-	{ "o6tclass",	ARGP_O6TCLASS,	"true/false", 0, "Override IPv6 Traffic class." },
-	{ "o4tclass",	ARGP_O4TCLASS,	"true/false", 0, "Override IPv4 Traffic class." },
-	{ "4tclass",	ARGP_4TCLASS,	"NUM", 0, "IPv4 Traffic class." },
-	{ "df",			ARGP_DF,		"true/false", 0, "Always set Don't Fragment." },
-	{ "genid",		ARGP_GENID,		"true/false", 0, "Generate IPv4 ID." },
-	{ "imp_mtu_rate",ARGP_IMP_MTU,	"true/false", 0, "Improve MTU failure rate." },
-	{ "min_ipv6_mtu",ARGP_MIN_MTU6,	"NUM", 0, "Specifies minimal MTU value used in IPv6 network." },
-	{ "min_ipv4_mtu",ARGP_MIN_MTU4,	"NUM", 0, "Specifies minimal MTU value used in IPv4 network." },
-	{ "mtu_plateau",ARGP_PLATEAU,	"NUM", 0, "MTU plateaus." },
+	{ "translate",	ARGP_TRANSLATE,	0, 0,
+				"Command is translate related. Use alone to display configuration. "
+				"Will be implicit if any other translate command is entered." },
+	{ "head",		ARGP_HEAD,		NUM_FORMAT, 0, "Packet head room." },
+	{ "tail",		ARGP_TAIL,		NUM_FORMAT, 0, "Packet tail room." },
+	{ "o6tclass",	ARGP_O6TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
+	{ "o4tclass",	ARGP_O4TCLASS,	BOOL_FORMAT, 0, "Override IPv4 Traffic class." },
+	{ "4tclass",	ARGP_4TCLASS,	NUM_FORMAT, 0, "IPv4 Traffic class." },
+	{ "df",			ARGP_DF,		BOOL_FORMAT, 0, "Always set Don't Fragment." },
+	{ "genid",		ARGP_GENID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
+	{ "imp_mtu_rate",ARGP_IMP_MTU,	BOOL_FORMAT, 0, "Improve MTU failure rate." },
+	{ "min_ipv6_mtu",ARGP_MIN_MTU6,	NUM_FORMAT, 0, "Minimal MTU value used in IPv6 network." },
+	{ "min_ipv4_mtu",ARGP_MIN_MTU4,	NUM_FORMAT, 0, "Minimal MTU value used in IPv4 network." },
+	{ "mtu_plateau",ARGP_PLATEAU,	NUM_FORMAT, 0, "MTU plateaus." },
 
 	{ 0 },
 };
@@ -196,6 +229,7 @@ static struct argp_option options[] =
 static error_t parse_opt(int key, char *arg, struct argp_state *state)
 {
 	struct arguments *arguments = state->input;
+	__u16 temp;
 
 	switch (key) {
 	case ARGP_POOL6:
@@ -238,9 +272,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 
 	case ARGP_ADDRESS:
-		// TODO (warning) test this terminates the parse.
 		if (!str_to_addr4(arg, &arguments->pool4_addr)) {
-			printf("Cannot parse '%s' as a IPv4 address.", arg);
+			printf("Cannot parse '%s' as a IPv4 address.\n", arg);
 			return RESPONSE_PARSE_FAIL;
 		}
 		break;
@@ -258,26 +291,32 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 	case ARGP_IPV6:
 		if (!str_to_addr6_port(arg, &arguments->bib_addr6))
 			return RESPONSE_PARSE_FAIL;
+		arguments->bib_addr6_set = true;
 		break;
 	case ARGP_IPV4:
 		if (!str_to_addr4_port(arg, &arguments->bib_addr4))
 			return RESPONSE_PARSE_FAIL;
+		arguments->bib_addr4_set = true;
 		break;
 	case ARGP_REMOTE6:
 		if (!str_to_addr6_port(arg, &arguments->session_pair6.remote))
 			return RESPONSE_PARSE_FAIL;
+		arguments->session_pair6_remote_set = true;
 		break;
 	case ARGP_LOCAL6:
 		if (!str_to_addr6_port(arg, &arguments->session_pair6.local))
 			return RESPONSE_PARSE_FAIL;
+		arguments->session_pair6_local_set = true;
 		break;
 	case ARGP_LOCAL4:
 		if (!str_to_addr4_port(arg, &arguments->session_pair4.local))
 			return RESPONSE_PARSE_FAIL;
+		arguments->session_pair4_local_set = true;
 		break;
 	case ARGP_REMOTE4:
 		if (!str_to_addr4_port(arg, &arguments->session_pair4.remote))
 			return RESPONSE_PARSE_FAIL;
+		arguments->session_pair4_remote_set = true;
 		break;
 
 	case ARGP_ADF:
@@ -297,6 +336,34 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->operation |= DROP_TCP_MASK;
 		if (!str_to_bool(arg, &arguments->filtering.drop_externally_initiated_tcp_connections))
 			return RESPONSE_PARSE_FAIL;
+		break;
+	case ARGP_UDP_TO:
+		arguments->mode = MODE_FILTERING;
+		arguments->operation |= UDP_TIMEOUT_MASK;
+		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+			return RESPONSE_PARSE_FAIL;
+		arguments->filtering.to.udp = temp;
+		break;
+	case ARGP_ICMP_TO:
+		arguments->mode = MODE_FILTERING;
+		arguments->operation |= ICMP_TIMEOUT_MASK;
+		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+			return RESPONSE_PARSE_FAIL;
+		arguments->filtering.to.icmp = temp;
+		break;
+	case ARGP_TCP_TO:
+		arguments->mode = MODE_FILTERING;
+		arguments->operation |= TCP_TIMEOUT_MASK;
+		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+			return RESPONSE_PARSE_FAIL;
+		arguments->filtering.to.tcp = temp;
+		break;
+	case ARGP_TCP_TRANS_TO:
+		arguments->mode = MODE_FILTERING;
+		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
+		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+			return RESPONSE_PARSE_FAIL;
+		arguments->filtering.to.tcp_trans = temp;
 		break;
 
 	case ARGP_HEAD:
@@ -382,9 +449,9 @@ static char args_doc[] = "";
 
 /*
  * DOC.  Field 4 in ARGP.
- * Program documentation. TODO (info) falta.
+ * Program documentation.
  */
-static char doc[] = "nat64 -- User space program to configure NAT64.\vFrom the GNU C Tutorial.";
+static char doc[] = "nat64 -- The NAT64 kernel module's configuration interface.\v";
 
 
 /**
@@ -429,71 +496,99 @@ int main(int argc, char **argv)
 		return result;
 
 	switch (args.mode) {
-	case ARGP_POOL6:
+	case MODE_POOL6:
 		switch (args.operation) {
-		case ARGP_DISPLAY:
+		case OP_DISPLAY:
 			return pool6_display();
-		case ARGP_ADD:
+		case OP_ADD:
 			return pool6_add(&args.pool6_prefix);
-		case ARGP_REMOVE:
+		case OP_REMOVE:
 			return pool6_remove(&args.pool6_prefix);
 		default:
-			printf("Unknown operation for IPv6 pool mode: %d.", args.operation);
+			printf("Unknown operation for IPv6 pool mode: %d.\n", args.operation);
 			return RESPONSE_UNKNOWN_OP;
 		}
 		break;
 
-	case ARGP_POOL4:
+	case MODE_POOL4:
 		switch (args.operation) {
-		case ARGP_DISPLAY:
+		case OP_DISPLAY:
 			return pool4_display();
-		case ARGP_ADD:
+		case OP_ADD:
 			return pool4_add(&args.pool4_addr);
-		case ARGP_REMOVE:
+		case OP_REMOVE:
 			return pool4_remove(&args.pool4_addr);
 		default:
-			printf("Unknown operation for IPv4 pool mode: %d.", args.operation);
+			printf("Unknown operation for IPv4 pool mode: %d.\n", args.operation);
 			return RESPONSE_UNKNOWN_OP;
 		}
-	case ARGP_BIB:
+	case MODE_BIB:
 		switch (args.operation) {
-		case ARGP_DISPLAY:
+		case OP_DISPLAY:
 			return bib_display(args.tcp, args.udp, args.icmp);
 		default:
-			printf("Unknown operation for BIB mode: %d.", args.operation);
+			printf("Unknown operation for BIB mode: %d.\n", args.operation);
 			return RESPONSE_UNKNOWN_OP;
 		}
 		break;
 
-	case ARGP_SESSION:
+	case MODE_SESSION:
 		switch (args.operation) {
-		case ARGP_DISPLAY:
+		case OP_DISPLAY:
 			return session_display(args.tcp, args.udp, args.icmp);
-		case ARGP_ADD:
+
+		case OP_ADD:
+			result = RESPONSE_SUCCESS;
+			if (!args.session_pair6_remote_set) {
+				printf("Missing remote IPv6 address#port.\n");
+				result = RESPONSE_MISSING_PARAM;
+			}
+			if (!args.session_pair6_local_set) {
+				printf("Missing local IPv6 address#port.\n");
+				result = RESPONSE_MISSING_PARAM;
+			}
+			if (!args.session_pair4_local_set) {
+				printf("Missing local IPv4 address#port.\n");
+				result = RESPONSE_MISSING_PARAM;
+			}
+			if (!args.session_pair4_remote_set) {
+				printf("Missing remote IPv4 address#port.\n");
+				result = RESPONSE_MISSING_PARAM;
+			}
+			if (result != RESPONSE_SUCCESS)
+				return result;
+
 			return session_add(args.tcp, args.udp, args.icmp, &args.session_pair6,
 					&args.session_pair4);
-		case ARGP_REMOVE:
-			// TODO (warning) This one is starting to annoy me.
-//			return session_remove(args.tcp, args.udp, args.icmp, &args.session_pair6,
-//					&args.session_pair4);
+
+		case OP_REMOVE:
+			if (args.session_pair6_remote_set && args.session_pair6_local_set)
+				return session_remove_ipv6(args.tcp, args.udp, args.icmp, &args.session_pair6);
+
+			if (args.session_pair4_remote_set && args.session_pair4_local_set)
+				return session_remove_ipv4(args.tcp, args.udp, args.icmp, &args.session_pair4);
+
+			printf("You need to provide both the local and remote nodes' address#port, "
+					"either from the IPv6 or the IPv4 side.\n");
+			return RESPONSE_MISSING_PARAM;
+
 		default:
-			printf("Unknown operation for session mode: %d.", args.operation);
+			printf("Unknown operation for session mode: %d.\n", args.operation);
 			return RESPONSE_UNKNOWN_OP;
 		}
 		break;
 
-	case ARGP_FILTERING:
+	case MODE_FILTERING:
 		return filtering_request(args.operation, &args.filtering);
 
-	case ARGP_TRANSLATE:
+	case MODE_TRANSLATE:
 		result = translate_request(args.operation, &args.translate);
 		if (args.translate.mtu_plateaus)
 			free(args.translate.mtu_plateaus);
 		return result;
 
 	default:
-		printf("Could not understand the command at all; Use --help or --usage to see the "
-				"command list.\n");
+		printf("Command seems empty; --help or --usage for info.\n");
 		return RESPONSE_UNKNOWN_MODE;
 	}
 }

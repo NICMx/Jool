@@ -25,7 +25,7 @@ static int pool6_display_response(struct nl_msg *msg, void *arg)
 		printf("The pool is empty.\n");
 	for (i = 0; i < prefix_count; i++) {
 		inet_ntop(AF_INET6, &prefixes[i].address, addr_str, INET6_ADDRSTRLEN);
-		printf("%s/%u\n", addr_str, ntohs(prefixes[i].maskbits));
+		printf("%s/%u\n", addr_str, prefixes[i].len);
 	}
 
 	return 0;
@@ -55,7 +55,7 @@ error_t pool6_add(struct ipv6_prefix *prefix)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request); // TODO (warning-test) revisa esto.
+	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL6;
 	hdr->operation = OP_ADD;
 	payload->update.prefix = *prefix;

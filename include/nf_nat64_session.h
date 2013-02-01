@@ -118,7 +118,7 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
  *
  * The name comes from the fact that this functionality serves no purpose other than determining
  * whether a packet should be allowed through or not.
- * Also, it's somewhat abbreviated. The RFC calls it "address independent filtering". TODO (warning) revisa ese término.
+ * Also, it's somewhat abbreviated. The RFC calls it "address dependent filtering".
  *
  * Only works while translating from IPv4 to IPv6. Behavior is undefined otherwise.
  *
@@ -174,6 +174,9 @@ struct session_entry *nat64_create_static_session_entry(
 		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);
 
+/**
+ * Note, you still need to set the timeout.
+ */
 struct session_entry *nat64_create_session_entry(
 		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);

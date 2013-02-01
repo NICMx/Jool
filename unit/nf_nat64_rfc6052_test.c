@@ -91,7 +91,7 @@ static bool init(void)
 			log_warning("Could not convert '%s' to a IPv6 address. Failing...", prefixes_str[i]);
 			return false;
 		}
-		prefixes[i].maskbits = prefixes_mask[i];
+		prefixes[i].len = prefixes_mask[i];
 	}
 
 	return true;

@@ -20,7 +20,6 @@
 /**
  * Minimum allowable session lifetime for UDP bindings, in seconds.
  * TODO (rob) we don't use it yet.
- * TODO (warning) not yet configurable.
  */
 #define UDP_MIN_ (2 * 60)
 /**

@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <net/sock.h>
-#include <net/netlink.h>
+#include <linux/netlink.h>
 
 #include "nf_nat64_constants.h"
 #include "nf_nat64_types.h"
@@ -23,13 +23,12 @@ struct filtering_config filtering_conf;
  * Socket the userspace application will speak to. We don't use it directly, but we need the
  * reference anyway.
  */
-struct sock *my_nl_sock;
+struct sock *netlink_socket;
 
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
  */
 DEFINE_MUTEX(my_mutex);
-
 
 bool nat64_config_init(void)
 {
@@ -53,6 +52,7 @@ void nat64_config_destroy(void)
 //	if (my_nl_sock)
 //		netlink_kernel_release(my_nl_sock);
 }
+
 
 static bool write_data(struct response_hdr **response, enum response_code code, void *payload,
 		__u32 payload_len)
@@ -295,47 +295,48 @@ bool update_nat_config(struct request_hdr *hdr, struct response_hdr **res)
  * @param nlh message's metadata.
  * @return result status.
  */
-static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nlh)
 {
-	int pid;
-	struct request_hdr *req;
-	struct response_hdr *as;
-	int res;
+	struct request_hdr *request;
+	struct response_hdr *response = NULL;
+	int pid, res;
 	struct sk_buff *skb_out;
 
 	if (nlh->nlmsg_type != MSG_TYPE_NAT64) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_NAT64, nlh->nlmsg_type);
-		return -EINVAL;
+		goto failure;
 	}
 
-	req = NLMSG_DATA(nlh);
+	request = NLMSG_DATA(nlh);
 	pid = nlh->nlmsg_pid;
 
-	if (!update_nat_config(req, &as) != 0) {
+	if (!update_nat_config(request, &response) != 0) {
 		log_warning("Error while updating NAT64 running configuration");
-		return -EINVAL;
+		goto failure;
 	}
 
-	skb_out = nlmsg_new(as->length, 0);
+	skb_out = nlmsg_new(response->length, 0);
 	if (!skb_out) {
 		log_warning("Failed to allocate a response skb to the user.");
-		return -EINVAL;
+		goto failure;
 	}
 
-	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, as->length, 0);
+	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, response->length, 0);
 	NETLINK_CB(skb_out).dst_group = 0;
+	memcpy(nlmsg_data(nlh), response, response->length);
 
-	memcpy(nlmsg_data(nlh), as, as->length);
-	kfree(as);
-
-	res = nlmsg_unicast(my_nl_sock, skb_out, pid);
+	res = nlmsg_unicast(netlink_socket, skb_out, pid);
 	if (res < 0) {
 		log_warning("Error code %d while returning response to the user.", res);
-		return -EINVAL;
+		goto failure;
 	}
 
-	// TODO (info) as y quizá skb_out no parecen estarse liberando en todos los caminos.
+	kfree(response);
 	return 0;
+
+failure:
+	kfree(response);
+	return -EINVAL;
 }
 
 /**

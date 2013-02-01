@@ -15,13 +15,13 @@ MODULE_DESCRIPTION("BIB-Session module test.");
 #define BIB_PRINT_KEY "BIB [%pI4#%d, %pI6c#%d]"
 #define SESSION_PRINT_KEY "session [%pI4#%d, %pI4#%d, %pI6c#%d, %pI6c#%d]"
 #define PRINT_BIB(bib) \
-	&bib->ipv4.address, be16_to_cpu(bib->ipv4.pi.port), \
-	&bib->ipv6.address, be16_to_cpu(bib->ipv6.pi.port)
+	&bib->ipv4.address, bib->ipv4.l4_id, \
+	&bib->ipv6.address, bib->ipv6.l4_id
 #define PRINT_SESSION(session) \
-	&session->ipv4.remote.address, be16_to_cpu(session->ipv4.remote.pi.port), \
-	&session->ipv4.local.address, be16_to_cpu(session->ipv4.local.pi.port), \
-	&session->ipv6.local.address, be16_to_cpu(session->ipv6.local.pi.port), \
-	&session->ipv6.remote.address, be16_to_cpu(session->ipv6.remote.pi.port)
+	&session->ipv4.remote.address, session->ipv4.remote.l4_id, \
+	&session->ipv4.local.address, session->ipv4.local.l4_id, \
+	&session->ipv6.local.address, session->ipv6.local.l4_id, \
+	&session->ipv6.remote.address, session->ipv6.remote.l4_id
 
 const char* IPV4_ADDRS[] = { "0.0.0.0", "255.1.2.3", "65.0.123.2", "0.1.0.3", //
 		"55.55.55.55", "10.11.12.13", "13.12.11.10", "255.255.255.255", //
@@ -53,7 +53,7 @@ struct ipv4_tuple_address create_tuple_addr_4(int index)
 	struct ipv4_tuple_address result;
 	if (!str_to_addr4(IPV4_ADDRS[index], &result.address))
 		log_warning("Can't convert '%s' to a in_addr. Test is going to fail.", IPV4_ADDRS[index]);
-	result.pi.port = cpu_to_be16(IPV4_PORTS[index]);
+	result.l4_id = IPV4_PORTS[index];
 	return result;
 }
 
@@ -62,7 +62,7 @@ struct ipv6_tuple_address create_tuple_addr_6(int index)
 	struct ipv6_tuple_address result;
 	if (!str_to_addr6(IPV6_ADDRS[index], &result.address))
 		log_warning("Can't convert '%s' to a in6_addr. Test is going to fail.", IPV6_ADDRS[index]);
-	result.pi.port = cpu_to_be16(IPV6_PORTS[index]);
+	result.l4_id = IPV6_PORTS[index];
 	return result;
 }
 
@@ -89,29 +89,6 @@ struct session_entry *create_session_entry(
 	entry->dying_time = dying_time;
 
 	return entry;
-}
-
-struct nf_conntrack_tuple create_tuple(union tuple_address *src, union tuple_address *dst,
-		u_int8_t l4protocol, int l3protocol)
-{
-	struct nf_conntrack_tuple tuple;
-
-	if (l3protocol == NFPROTO_IPV4) {
-		tuple.ipv4_src_addr = src->ipv4.address;
-		tuple.ipv4_dst_addr = dst->ipv4.address;
-		tuple.src_port = src->ipv4.pi.port;
-		tuple.dst_port = dst->ipv4.pi.port;
-	} else {
-		tuple.ipv6_src_addr = src->ipv6.address;
-		tuple.ipv6_dst_addr = dst->ipv6.address;
-		tuple.src_port = src->ipv6.pi.port;
-		tuple.dst_port = dst->ipv6.pi.port;
-	}
-
-	tuple.L4_PROTOCOL = l4protocol;
-	tuple.L3_PROTOCOL = l3protocol;
-
-	return tuple;
 }
 
 bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual, char* test_name)
@@ -443,21 +420,20 @@ bool test_clean_old_sessions(void)
 bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id, int dst_port_id,
 		bool expected)
 {
-	union tuple_address src, dst;
 	struct nf_conntrack_tuple tuple;
 
-	if (!str_to_addr4(IPV4_ADDRS[src_addr_id], &src.ipv4.address)) {
+	if (!str_to_addr4(IPV4_ADDRS[src_addr_id], &tuple.ipv4_src_addr)) {
 		log_warning("Can't parse the '%s' source address. Failing test.", IPV4_ADDRS[src_addr_id]);
 		return false;
 	}
-	if (!str_to_addr4(IPV4_ADDRS[dst_addr_id], &dst.ipv4.address)) {
+	if (!str_to_addr4(IPV4_ADDRS[dst_addr_id], &tuple.ipv4_dst_addr)) {
 		log_warning("Can't parse the '%s' dest address. Failing test.", IPV4_ADDRS[dst_addr_id]);
 		return false;
 	}
-	src.ipv4.pi.port = cpu_to_be16(IPV4_PORTS[src_port_id]);
-	dst.ipv4.pi.port = cpu_to_be16(IPV4_PORTS[dst_port_id]);
-
-	tuple = create_tuple(&src, &dst, IPPROTO_UDP, NFPROTO_IPV4);
+	tuple.src_port = cpu_to_be16(IPV4_PORTS[src_port_id]);
+	tuple.dst_port = cpu_to_be16(IPV4_PORTS[dst_port_id]);
+	tuple.L4_PROTOCOL = IPPROTO_UDP;
+	tuple.L3_PROTOCOL = NFPROTO_IPV4;
 
 	return (expected == nat64_is_allowed_by_address_filtering(&tuple));
 }

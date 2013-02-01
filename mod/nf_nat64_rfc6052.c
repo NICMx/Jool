@@ -11,13 +11,11 @@ union ipv4_address {
 	__u8 as8[4];
 };
 
-// TODO (warning) por lo visto la longitud del prefijo no puede ser cualquier valor...
-
 bool nat64_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
 
-	switch (prefix->maskbits) {
+	switch (prefix->len) {
 	case 32:
 		dst_aux.as32 = src->s6_addr32[1];
 		break;
@@ -49,7 +47,7 @@ bool nat64_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct
 		dst_aux.as32 = src->s6_addr32[3];
 		break;
 	default:
-		log_err("Prefix is malformed: %d.", prefix->maskbits);
+		log_err("Prefix has an invalid length: %d.", prefix->len);
 		return false;
 	}
 
@@ -64,7 +62,7 @@ bool nat64_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct i
 	src_aux.as32 = src->s_addr;
 	memset(dst, 0, sizeof(*dst));
 
-	switch (prefix->maskbits) {
+	switch (prefix->len) {
 	case 32:
 		dst->s6_addr32[0] = prefix->address.s6_addr32[0];
 		dst->s6_addr32[1] = src_aux.as32;
@@ -111,7 +109,7 @@ bool nat64_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct i
 		dst->s6_addr32[3] = src_aux.as32;
 		break;
 	default:
-		log_err("Prefix is malformed: %d.", prefix->maskbits);
+		log_err("Prefix has an invalid length: %d.", prefix->len);
 		return false;
 	}
 

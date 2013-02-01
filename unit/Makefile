@@ -7,7 +7,7 @@ ccflags-y += -I$(src)/../mod
 
 
 obj-m += rfc6052.o hashtable.o pool4.o bib_session.o iterator.o
-obj-m += filtering.o outgoing.o translate.o
+obj-m += outgoing.o translate.o
 
 rfc6052-objs += ../mod/nf_nat64_types.o
 rfc6052-objs += unit_test.o

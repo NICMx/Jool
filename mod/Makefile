@@ -20,7 +20,7 @@ nat64-objs += nf_nat64_config.o
 nat64-objs += xt_nat64_module_conf_validation.o
 nat64-objs += xt_nat64_config_proto.o
 nat64-objs += nf_nat64_determine_incoming_tuple.o
-nat64-objs += nf_nat64_filtering_and_updating.o
+#nat64-objs += nf_nat64_filtering_and_updating.o
 nat64-objs += nf_nat64_outgoing.o
 nat64-objs += nf_nat64_translate_packet.o
 nat64-objs += nf_nat64_handling_hairpinning.o
@@ -46,10 +46,10 @@ insert:
 	sudo insmod nat64.ko
 	dmesg | tail -15
 	# insert the rules
-	sudo iptables -t mangle --flush
-	sudo ip6tables -t mangle --flush
-	sudo iptables -t mangle -A PREROUTING -j NAT64
-	sudo ip6tables -t mangle -A PREROUTING -j NAT64
+	#sudo iptables -t mangle --flush
+	#sudo ip6tables -t mangle --flush
+	#sudo iptables -t mangle -A PREROUTING -j NAT64
+	#sudo ip6tables -t mangle -A PREROUTING -j NAT64
 remove:
 	# remove the rules
 	sudo iptables -t mangle --flush

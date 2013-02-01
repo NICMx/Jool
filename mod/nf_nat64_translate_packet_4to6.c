@@ -25,7 +25,7 @@ static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff
 	in->tuple = tuple;
 
 	in->l3_hdr = ip4_hdr;
-	in->l3_hdr_type = IPPROTO_IP;
+	in->l3_hdr_type = NFPROTO_IPV4;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
 	in->l3_hdr_basic_len = sizeof(*ip4_hdr);
 	in->compute_l3_hdr_len = compute_ipv4_hdr_len;

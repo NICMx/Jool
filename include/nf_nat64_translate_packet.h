@@ -57,10 +57,9 @@ struct packet_in
 	 */
 	void *l3_hdr;
 	/**
-	 * "l3_hdr"'s type. Either IPPROTO_IP or IPPROTO_IPV6.
-	 * TODO (info) creo que debería ser NFPROTO_IPV6, NFPROTO_IPV4
-	 * You don't need to query this all the time. If we're translating from 4 to 6 this will always
-	 * be 4, else 6.
+	 * "l3_hdr"'s type. Either NFPROTO_IPV6, NFPROTO_IPV4
+	 * You don't need to query this all the time. If we're translating from 6 to 4 this will always
+	 * be the former, else the latter.
 	 */
 	int l3_hdr_type;
 	/**
