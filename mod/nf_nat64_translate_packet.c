@@ -141,7 +141,7 @@ static bool create_skb(struct packet_out *out)
 			+ tail_room, // user's reserved+.
 			GFP_ATOMIC);
 	if (!new_skb) {
-		log_warning("  New packet allocation failed.");
+		log_warning("New packet allocation failed.");
 		return false;
 	}
 	out->packet = new_skb;
@@ -215,10 +215,10 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	struct packet_in inner_packet_in;
 	struct packet_out inner_packet_out = INIT_PACKET_OUT;
 
-	log_debug("  Translating the inner packet...");
+	log_debug("Translating the inner packet...");
 
 	if (in_outer->payload_len < in_outer->l3_hdr_basic_len) {
-		log_warning("  Packet is too small to contain a packet.");
+		log_warning("Packet is too small to contain a packet.");
 		goto failure;
 	}
 
@@ -233,7 +233,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	inner_packet_in.tuple = in_outer->tuple;
 	inner_packet_in.l3_hdr = in_inner.hdr.src;
 	if (!l3_function(&inner_packet_in, &inner_packet_out)) {
-		log_warning("  Header translation failed.");
+		log_warning("Header translation failed.");
 		goto failure;
 	}
 
@@ -248,7 +248,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	out_outer->payload_len = out_inner.hdr.len + out_inner.payload.len;
 	out_outer->payload = kmalloc(out_outer->payload_len, GFP_ATOMIC);
 	if (!out_outer->payload) {
-		log_warning("  New payload allocation failed.");
+		log_warning("New payload allocation failed.");
 		goto failure;
 	}
 	out_outer->payload_needs_kfreeing = true;
@@ -263,7 +263,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	return true;
 
 failure:
-	log_warning("  Will leave the inner content as is.");
+	log_warning("Will leave the inner content as is.");
 	out_outer->payload = in_outer->payload;
 	out_outer->payload_len = in_outer->payload_len;
 	out_outer->payload_needs_kfreeing = false;
@@ -365,7 +365,7 @@ bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 		l4_post_function = post_icmp6;
 		break;
 	default:
-		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", ip_hdr(skb_in)->protocol);
+		log_warning("Unsupported l4 protocol (%d). Cannot translate.", ip_hdr(skb_in)->protocol);
 		return false;
 	}
 
@@ -387,7 +387,7 @@ bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 	hdr_iterator_last(&iterator);
 	if (iterator.hdr_type == NEXTHDR_AUTH || iterator.hdr_type == NEXTHDR_ESP) {
 		// RFC 6146 section 5.1.
-		log_warning("  Incoming IPv6 packet has an Auth header or an ESP header. Cannot translate; "
+		log_warning("Incoming IPv6 packet has an Auth header or an ESP header. Cannot translate; "
 				"will drop the packet.");
 		return false;
 	}
@@ -406,7 +406,7 @@ bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 		l4_post_function = post_icmp4;
 		break;
 	default:
-		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", iterator.hdr_type);
+		log_warning("Unsupported l4 protocol (%d). Cannot translate.", iterator.hdr_type);
 		return false;
 	}
 

@@ -46,7 +46,7 @@ static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff
 		in->l4_hdr_len = sizeof(struct icmp6hdr);
 		break;
 	default:
-		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
+		log_warning("Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
 		return false;
 	}
 
@@ -190,7 +190,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct iphdr);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		log_warning("  Allocation of the IPv4 header failed.");
+		log_warning("Allocation of the IPv4 header failed.");
 		return false;
 	}
 
@@ -218,7 +218,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	if (in->packet != NULL) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
-			log_debug("  Cannot translate: Packet's segments left field is nonzero.");
+			log_debug("Cannot translate: Packet's segments left field is nonzero.");
 			icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
 			return false;
 		}
@@ -335,14 +335,14 @@ static bool icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr, struct ic
 		goto success;
 	}
 
-	log_crit("  Programming error: Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
+	log_crit("Programming error: Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
 	goto failure;
 
 success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return true;
 failure:
-	log_info("  ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
+	log_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
 	return false;
 }
 
@@ -370,7 +370,7 @@ static bool icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr, struct icmp
 		break;
 
 	default:
-		log_info("  ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
 				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return false;
 	}
@@ -399,7 +399,7 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
 
 	default:
 		// ICMPV6_UNK_OPTION is known to fall through here.
-		log_info("  ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
 				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return false;
 	}
@@ -418,7 +418,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
-		log_warning("  Allocation of the ICMPv4 header failed.");
+		log_warning("Allocation of the ICMPv4 header failed.");
 		return false;
 	}
 
@@ -479,7 +479,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		// The following codes are known to fall through here:
 		// ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
 		// Neighbor Discover messages (133 - 137).
-		log_info("  ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
+		log_info("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		return false;
 	}
 
@@ -519,7 +519,7 @@ static bool post_tcp_ipv4(struct packet_out *out)
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
 
 	tcp_header->check = 0;
-	tcp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr, //
+	tcp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,
 			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
 
 	return true;
@@ -536,7 +536,7 @@ static bool post_udp_ipv4(struct packet_out *out)
 
 	udp_header->len = cpu_to_be16(datagram_len);
 	udp_header->check = 0;
-	udp_header->check =  csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr, //
+	udp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,
 			datagram_len, IPPROTO_UDP, csum_partial(udp_header, datagram_len, 0));
 
 	return true;

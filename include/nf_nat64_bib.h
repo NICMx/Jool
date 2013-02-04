@@ -31,6 +31,19 @@ struct bib_entry
 	struct list_head session_entries;
 };
 
+
+/**
+ * Synchronizes the use of both BIB and Session.
+ * This is global because:
+ * - Locking of BIB and session needs to be performed outside of both of them (because we sometimes
+ * decide whether or not to insert based on whether it's already on the table).
+ * - The BIB and Session databases are inter-dependent (bib entries point to session entries and
+ * vice-versa), which really makes a mess out of filtering if each has its own lock and the entries
+ * are private.
+ */
+extern spinlock_t bib_session_lock;
+
+
 /**
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
@@ -54,9 +67,6 @@ bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
  * "address".
- * To avoid synchronization issues, rather than returning a pointer to an entry that could change
- * or die as you handle it, you will get a copy of the entry in "result".
- * Caution: The sessions pointed by result will be the real thing, so be careful with their sync.
  *
  * @param address address and port you want the BIB entry for.
  * @param l4protocol identifier of the table to retrieve the entry from. Should be either
@@ -64,14 +74,11 @@ bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
  * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
-bool nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol,
-		struct bib_entry *result);
+struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address,
+		u_int8_t l4protocol);
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  * "address".
- * To avoid synchronization issues, rather than returning a pointer to an entry that could change
- * or die as you handle it, you will get a copy of the entry in "result".
- * Caution: The sessions pointed by result will be the real thing, so be careful with their sync.
  *
  * @param address address and port you want the BIB entry for.
  * @param l4protocol identifier of the table to retrieve the entry from. Should be either
@@ -79,10 +86,9 @@ bool nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4
  * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
-bool nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol,
-		struct bib_entry *result);
-bool nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol,
-		struct bib_entry *result);
+struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
+		u_int8_t l4protocol);
+struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.
@@ -95,7 +101,7 @@ bool nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4proto
  * @param tuple summary of the packet. Describes the BIB you need.
  * @return the BIB entry you'd expect from the "tuple" tuple.
  */
-bool nat64_get_bib_entry(struct nf_conntrack_tuple *tuple, struct bib_entry *result);
+struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
 
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4protocol".

@@ -97,10 +97,10 @@ bool nat64_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct i
 	case 64:
 		dst->s6_addr32[0] = prefix->address.s6_addr32[0];
 		dst->s6_addr32[1] = prefix->address.s6_addr32[1];
-		dst->s6_addr[9]   = src_aux.as8[0];
-		dst->s6_addr[10]  = src_aux.as8[1];
-		dst->s6_addr[11]  = src_aux.as8[2];
-		dst->s6_addr[12]  = src_aux.as8[3];
+		dst->s6_addr[9] = src_aux.as8[0];
+		dst->s6_addr[10] = src_aux.as8[1];
+		dst->s6_addr[11] = src_aux.as8[2];
+		dst->s6_addr[12] = src_aux.as8[3];
 		break;
 	case 96:
 		dst->s6_addr32[0] = prefix->address.s6_addr32[0];

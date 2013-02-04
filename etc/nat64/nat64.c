@@ -448,7 +448,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 static char args_doc[] = "";
 
 /*
- * DOC.  Field 4 in ARGP.
+ * DOC. Field 4 in ARGP.
  * Program documentation.
  */
 static char doc[] = "nat64 -- The NAT64 kernel module's configuration interface.\v";

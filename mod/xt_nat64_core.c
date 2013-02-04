@@ -237,6 +237,8 @@ int __init nat64_init(void)
 	nat64_session_init();
 	if (!nat64_determine_incoming_tuple_init())
 		return false;
+	if (!filtering_init())
+		return false;
 	if (!translate_packet_init())
 		return false;
 
@@ -251,6 +253,7 @@ void __exit nat64_exit(void)
 	xt_unregister_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
 
 	translate_packet_destroy();
+	filtering_destroy();
 	nat64_determine_incoming_tuple_destroy();
 	nat64_session_destroy();
 	nat64_bib_destroy();

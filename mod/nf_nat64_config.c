@@ -14,10 +14,9 @@
 #include "nf_nat64_pool6.h"
 #include "nf_nat64_ipv4_pool.h"
 #include "nf_nat64_static_routes.h"
+#include "nf_nat64_filtering_and_updating.h"
 #include "nf_nat64_translate_packet.h"
 
-
-struct filtering_config filtering_conf;
 
 /**
  * Socket the userspace application will speak to. We don't use it directly, but we need the
@@ -44,7 +43,7 @@ bool nat64_config_init(void)
 //	}
 //	log_debug("Netlink socket created.");
 //
-//	return true;
+	return true;
 }
 
 void nat64_config_destroy(void)
@@ -204,24 +203,19 @@ static bool handle_session_config(__u32 operation, struct request_session *reque
 static bool handle_filtering_config(__u32 operation, union request_filtering *request,
 		struct response_hdr **response)
 {
-	struct filtering_config *new_config = &request->update.config;
+	struct filtering_config clone;
 
 	if (operation == 0) {
 		log_debug("Returning 'Filtering and Updating' options...");
-		return write_data(response, RESPONSE_SUCCESS, &filtering_conf, sizeof(filtering_conf));
+
+		if (!clone_filtering_config(&clone))
+			return write_code(response, RESPONSE_ALLOC_FAILED);
+
+		return write_data(response, RESPONSE_SUCCESS, &clone, sizeof(clone));
+	} else {
+		log_debug("Updating 'Filtering and Updating' options:");
+		return write_code(response, set_filtering_config(operation, &request->update.config));
 	}
-
-	log_debug("Updating 'Filtering and Updating' options:");
-
-	if (operation & ADDRESS_DEPENDENT_FILTER_MASK)
-		filtering_conf.address_dependent_filtering = new_config->address_dependent_filtering;
-	if (operation & FILTER_INFO_MASK)
-		filtering_conf.filter_informational_icmpv6 = new_config->filter_informational_icmpv6;
-	if (operation & DROP_TCP_MASK)
-		filtering_conf.drop_externally_initiated_tcp_connections =
-				new_config->drop_externally_initiated_tcp_connections; // Dude.
-
-	return write_code(response, RESPONSE_SUCCESS);
 }
 
 static bool handle_translate_config(struct request_hdr *hdr, union request_translate *request,

@@ -20,9 +20,10 @@ enum response_code nat64_add_static_route(struct request_session *req)
 	bib = nat64_create_bib_entry(&req->add.pair4.local, &req->add.pair6.remote);
 	if (!bib) {
 		log_warning("Could NOT allocate a BIB entry.");
-		goto failure;
+		return RESPONSE_ALLOC_FAILED;
 	}
 
+	spin_lock_bh(&bib_session_lock);
 	if (!nat64_add_bib_entry(bib, req->l4_proto)) {
 		log_warning("Could NOT add the BIB entry to the table.");
 		goto failure;
@@ -40,6 +41,7 @@ enum response_code nat64_add_static_route(struct request_session *req)
 		goto failure;
 	}
 
+	spin_unlock_bh(&bib_session_lock);
 	return RESPONSE_SUCCESS;
 
 failure:
@@ -49,13 +51,16 @@ failure:
 		nat64_remove_bib_entry(bib, req->l4_proto);
 		kfree(bib);
 	}
+	spin_unlock_bh(&bib_session_lock);
 	return RESPONSE_ALLOC_FAILED;
 }
 
 enum response_code nat64_delete_static_route(struct request_session *req)
 {
 	struct session_entry *session = NULL;
+	enum response_code result = RESPONSE_SUCCESS;
 
+	spin_lock_bh(&bib_session_lock);
 	switch (req->remove.l3_proto) {
 	case NFPROTO_IPV6:
 		session = nat64_get_session_entry_by_ipv6(&req->remove.pair6, req->l4_proto);
@@ -64,19 +69,28 @@ enum response_code nat64_delete_static_route(struct request_session *req)
 		session = nat64_get_session_entry_by_ipv4(&req->remove.pair4, req->l4_proto);
 		break;
 	default:
-		return RESPONSE_UNKNOWN_L3PROTO;
+		result = RESPONSE_UNKNOWN_L3PROTO;
+		goto failure;
 	}
 
-	if (!session)
-		return RESPONSE_NOT_FOUND;
+	if (!session) {
+		result = RESPONSE_NOT_FOUND;
+		goto failure;
+	}
 
 	if (!nat64_remove_session_entry(session)) {
 		log_err("Bug: Remove session call ended in failure, despite previous validations.");
-		return RESPONSE_NOT_FOUND;
+		result = RESPONSE_UNKNOWN_ERROR;
+		goto failure;
 	}
 
 	kfree(session);
-	return RESPONSE_SUCCESS;
+	spin_unlock_bh(&bib_session_lock);
+	return result;
+
+failure:
+	spin_unlock_bh(&bib_session_lock);
+	return result;
 }
 
 enum response_code nat64_print_bib_table(union request_bib *request, __u16 *count_out,
@@ -86,7 +100,9 @@ enum response_code nat64_print_bib_table(union request_bib *request, __u16 *coun
 	struct bib_entry_us *bibs_us = NULL; // us = userspace. Array of bib entries.
 	__s32 counter, count;
 
+	spin_lock_bh(&bib_session_lock);
 	count = nat64_bib_to_array(request->display.l4_proto, &bibs_ks);
+	spin_unlock_bh(&bib_session_lock);
 	if (count == 0) {
 		*count_out = 0;
 		*bibs_us_out = NULL;
@@ -121,7 +137,9 @@ enum response_code nat64_print_session_table(struct request_session *request, __
 	struct session_entry_us *sessions_us = NULL;
 	__s32 counter, count;
 
+	spin_lock_bh(&bib_session_lock);
 	count = nat64_session_table_to_array(request->l4_proto, &sessions_ks);
+	spin_unlock_bh(&bib_session_lock);
 	if (count == 0) {
 		*count_out = 0;
 		*sessions_us_out = NULL;

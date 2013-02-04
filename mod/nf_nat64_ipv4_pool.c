@@ -12,7 +12,7 @@
 struct free_port {
 	/** The port number. */
 	__u16 port;
-	/** Next port within the list of free ones (see addr_section.free_ports).  */
+	/** Next port within the list of free ones (see addr_section.free_ports). */
 	struct list_head next;
 };
 
@@ -164,14 +164,13 @@ static bool load_defaults(void)
 
 bool pool4_init(void)
 {
-	INIT_LIST_HEAD(&pools.udp.list);
-	spin_lock_init(&pools.udp.lock);
+	struct address_list *pools_array[] = { &pools.udp, &pools.tcp, &pools.icmp };
+	int i;
 
-	INIT_LIST_HEAD(&pools.tcp.list);
-	spin_lock_init(&pools.tcp.lock);
-
-	INIT_LIST_HEAD(&pools.icmp.list);
-	spin_lock_init(&pools.icmp.lock);
+	for (i = 0; i < ARRAY_SIZE(pools_array); i++) {
+		INIT_LIST_HEAD(&pools_array[i]->list);
+		spin_lock_init(&pools_array[i]->lock);
+	}
 
 	return load_defaults();
 }
@@ -207,20 +206,20 @@ static void destroy_pool_node(struct pool_node *node)
 
 void pool4_destroy(void)
 {
-	struct address_list *pool_lists[] = { &pools.udp, &pools.tcp, &pools.icmp };
+	struct address_list *pools_array[] = { &pools.udp, &pools.tcp, &pools.icmp };
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pool_lists); i++) {
+	for (i = 0; i < ARRAY_SIZE(pools_array); i++) {
 		struct list_head *head;
 		struct pool_node *node;
 
-		spin_lock_bh(&pool_lists[i]->lock);
-		while (!list_empty(&pool_lists[i]->list)) {
-			head = pool_lists[i]->list.next;
+		spin_lock_bh(&pools_array[i]->lock);
+		while (!list_empty(&pools_array[i]->list)) {
+			head = pools_array[i]->list.next;
 			node = container_of(head, struct pool_node, next);
 			destroy_pool_node(node);
 		}
-		spin_unlock_bh(&pool_lists[i]->lock);
+		spin_unlock_bh(&pools_array[i]->lock);
 	}
 }
 
@@ -241,7 +240,7 @@ enum response_code pool4_register(struct in_addr *address)
 	for (i = 0; i < pool_count; i++) {
 		node[i] = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 		if (!node[i]) {
-			for (; i >= 0; i--)
+			for (i = i - 1; i >= 0; i--)
 				kfree(node[i]);
 			return RESPONSE_ALLOC_FAILED;
 		}

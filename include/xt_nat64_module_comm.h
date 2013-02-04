@@ -58,8 +58,8 @@ enum config_operation {
 	#define DROP_TCP_MASK					(1 << 2)
 	#define UDP_TIMEOUT_MASK				(1 << 3)
 	#define ICMP_TIMEOUT_MASK				(1 << 4)
-	#define TCP_TIMEOUT_MASK				(1 << 5)
-	#define TCP_TRANS_TIMEOUT_MASK 			(1 << 7)
+	#define TCP_EST_TIMEOUT_MASK			(1 << 5)
+	#define TCP_TRANS_TIMEOUT_MASK 			(1 << 6)
 };
 
 enum response_code {
@@ -75,6 +75,7 @@ enum response_code {
 	RESPONSE_PARSE_FAIL,
 	RESPONSE_INVALID_VALUE,
 	RESPONSE_MISSING_PARAM,
+	RESPONSE_UNKNOWN_ERROR,
 };
 
 /**
@@ -113,20 +114,20 @@ struct session_entry_us
  */
 struct filtering_config
 {
-    /** Use Address-Dependent Filtering? */
-    bool address_dependent_filtering;
-    /** Filter ICMPv6 Informational packets */
-    bool filter_informational_icmpv6;
-    /** Drop externally initiated TCP connections? (IPv4 initiated) */
-    bool drop_externally_initiated_tcp_connections;
-    /** Current timeout values */
-    struct timeouts
-    {
-        unsigned int udp;
-        unsigned int icmp;
-        unsigned int tcp;
-        unsigned int tcp_trans;
-    } to;
+	/** Use Address-Dependent Filtering? */
+	bool address_dependent_filtering;
+	/** Filter ICMPv6 Informational packets */
+	bool filter_informational_icmpv6;
+	/** Drop externally initiated TCP connections? (IPv4 initiated) */
+	bool drop_externally_initiated_tcp_connections;
+	/** Current timeout values */
+	struct timeouts
+	{
+		unsigned int udp;
+		unsigned int icmp;
+		unsigned int tcp_est;
+		unsigned int tcp_trans;
+	} to;
 };
 
 /**

@@ -60,6 +60,7 @@ struct session_entry
 	u_int8_t current_state;
 };
 
+
 /**
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
@@ -148,12 +149,6 @@ void nat64_update_session_state(struct session_entry *entry, u_int8_t state);
  *		and hence it wasn't removed from anywhere.
  */
 bool nat64_remove_session_entry(struct session_entry *entry);
-
-/**
- * Removes from the tables the entries whose lifetime has expired. The entries are also freed from
- * memory.
- */
-void nat64_clean_old_sessions(void);
 
 /**
  * Empties the session tables, freeing any memory being used by them.
