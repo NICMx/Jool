@@ -17,7 +17,6 @@ MODULE_AUTHOR("Roberto <r.aceves@itesm.mx>");
 MODULE_DESCRIPTION("Unitary tests for the Filtering\'s part of NAT64");
 MODULE_ALIAS("nat64_test_filtering");
 
-//~ #include "unit_test_rob.h"
 #include "unit_test.h"
 
 // What are we testing?
@@ -193,7 +192,7 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple,
 
 #define IPV4_FIRST_POOL_ADDRESS     "192.168.2.1"
 #define init_pool() { struct in_addr addr4; \
-                      assert_true(pool4_init(), "See if we can initialize the IPv4 pool." ); \
+                      assert_true(pool4_init(true), "See if we can initialize the IPv4 pool." ); \
                       str_to_addr4(IPV4_FIRST_POOL_ADDRESS, &addr4); \
                       assert_equals_int(RESPONSE_SUCCESS, pool4_register(&addr4), "Try to create a new entry in the pool address"); }
 
@@ -251,13 +250,13 @@ void init_session_entry( u_int8_t l4protocol, struct session_entry *se )
     str_to_addr4(IPV4_INIT_SESSION_ENTRY_DST_ADDR, &dst4);
 
     se->ipv6.remote.address = src6; // X'
-    se->ipv6.remote.pi.port = IPV6_INIT_SESSION_ENTRY_SRC_PORT; // x
+    se->ipv6.remote.l4_id = IPV6_INIT_SESSION_ENTRY_SRC_PORT; // x
     se->ipv6.local.address = dst6; // Y'
-    se->ipv6.local.pi.port = IPV6_INIT_SESSION_ENTRY_DST_PORT; // y
+    se->ipv6.local.l4_id = IPV6_INIT_SESSION_ENTRY_DST_PORT; // y
     se->ipv4.local.address = src4; // (T, t)
-    se->ipv4.local.pi.port = IPV4_INIT_SESSION_ENTRY_SRC_PORT; // (T, t)
+    se->ipv4.local.l4_id = IPV4_INIT_SESSION_ENTRY_SRC_PORT; // (T, t)
     se->ipv4.remote.address = dst4; // (Z, z) // (Z(Y’),y)
-    se->ipv4.remote.pi.port = IPV4_INIT_SESSION_ENTRY_DST_PORT; // (Z, z) // (Z(Y’),y)
+    se->ipv4.remote.l4_id = IPV4_INIT_SESSION_ENTRY_DST_PORT; // (Z, z) // (Z(Y’),y)
 
     se->is_static = false;
     se->dying_time = 0;
@@ -284,7 +283,7 @@ bool test_transport_address_ipv4( void )
     success &= assert_equals_ipv4(&ta.address, &addr,
         "Check that the address part of an IPv4 transport address is correct.");
 
-    success &= assert_equals_u16(htons(ta.pi.port), (__be16)IPV4_TRANSPORT_PORT,
+    success &= assert_equals_u16(ta.l4_id, IPV4_TRANSPORT_PORT,
         "Check that the port part of an IPv4 transport address is correct.");
 
     return success;
@@ -306,7 +305,7 @@ bool test_transport_address_ipv6( void )
     success &= assert_equals_ipv6(&ta.address, &addr6 ,
         "Check that the address part of an IPv6 transport address is correct.");
 
-    success &= assert_equals_u16( htons( ta.pi.port ), (__be16)IPV6_TRANSPORT_PORT , 
+    success &= assert_equals_u16( ta.l4_id, IPV6_TRANSPORT_PORT ,
         "Check that the port part of an IPv6 transport address is correct.");
     
     return success;
@@ -409,7 +408,7 @@ bool test_allocate_ipv4_transport_address( void )
     success &= assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
         "Check that the allocated IPv4 address is correct for ICMP.");
 
-    success &= assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT_ICMP), ntohs(new_ipv4_transport_address.pi.port),  
+    success &= assert_equals_u16( IPV4_ALLOCATED_PORT_ICMP, new_ipv4_transport_address.l4_id,
         "Check that the allocated IPv4 port is correct for ICMP.");
 
     //
@@ -427,8 +426,8 @@ bool test_allocate_ipv4_transport_address( void )
     success &= assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
         "Check that the allocated IPv4 address is correct for TCP.");
 
-pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.pi.port=%d", (__be16)(IPV4_ALLOCATED_PORT), ntohs(new_ipv4_transport_address.pi.port) );  
-    success &= assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
+pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.l4_id=%d", IPV4_ALLOCATED_PORT, new_ipv4_transport_address.l4_id );
+    success &= assert_equals_u16( IPV4_ALLOCATED_PORT, new_ipv4_transport_address.l4_id,
         "Check that the allocated IPv4 port is correct for TCP.");
     
     //
@@ -446,7 +445,7 @@ pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.pi.port=%d", (__
     success &= assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
         "Check that the allocated IPv4 address is correct for UDP.");
 
-    success &= assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT ), ntohs(new_ipv4_transport_address.pi.port),  
+    success &= assert_equals_u16( IPV4_ALLOCATED_PORT, new_ipv4_transport_address.l4_id,
         "Check that the allocated IPv4 port is correct for UDP.");
 
     nat64_bib_destroy();
@@ -496,7 +495,7 @@ pr_debug("  ipv4_addr_equals ");
     success &= assert_true( ipv4_addr_equals (&new_ipv4_transport_address.address, &expected_addr) ,
         "Check that the allocated IPv4 address is correct for UDP.");
 
-    success &= assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT_DIGGER ), new_ipv4_transport_address.pi.port,  
+    success &= assert_equals_u16( (__be16)(IPV4_ALLOCATED_PORT_DIGGER ), new_ipv4_transport_address.l4_id,
         "Check that the allocated IPv4 port is correct for UDP.");
 
     nat64_bib_destroy();

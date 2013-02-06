@@ -6,7 +6,7 @@
 
 #include "unit_test.h"
 #include "nf_nat64_bib.h"
-#include "nf_nat64_session.h"
+#include "nf_nat64_session.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
@@ -353,7 +353,7 @@ bool test_clean_old_sessions(void)
 
 	// 1. Nothing has expired:
 	// Test nothing gets deleted.
-	nat64_clean_old_sessions();
+	clean_expired_sessions();
 
 	ASSERT_SINGLE_BIB("Clean deletes nothing", 0, true, true, true, true);
 	ASSERT_SINGLE_BIB("Clean deletes nothing", 1, true, true, true, true);
@@ -366,7 +366,7 @@ bool test_clean_old_sessions(void)
 	sessions[1][1]->dying_time = time_before;
 	sessions[1][2]->dying_time = time_before;
 
-	nat64_clean_old_sessions();
+	clean_expired_sessions();
 
 	ASSERT_SINGLE_BIB("Whole BIB dies", 0, true, true, true, true);
 	ASSERT_SINGLE_BIB("Whole BIB dies", 1, false, false, false, false);
@@ -378,7 +378,7 @@ bool test_clean_old_sessions(void)
 	sessions[2][0]->dying_time = time_before;
 	sessions[2][1]->dying_time = time_before;
 
-	nat64_clean_old_sessions();
+	clean_expired_sessions();
 
 	ASSERT_SINGLE_BIB("Some sessions die", 0, true, true, true, true);
 	ASSERT_SINGLE_BIB("Some sessions die", 1, false, false, false, false);
@@ -389,7 +389,7 @@ bool test_clean_old_sessions(void)
 	// Test the BIB keeps keeps behaving as expected. Perhaps unnecesary.
 	sessions[2][2]->dying_time = time_before;
 
-	nat64_clean_old_sessions();
+	clean_expired_sessions();
 
 	ASSERT_SINGLE_BIB("Last session dies", 0, true, true, true, true);
 	ASSERT_SINGLE_BIB("Last session dies", 1, false, false, false, false);
@@ -402,7 +402,7 @@ bool test_clean_old_sessions(void)
 	sessions[3][1]->dying_time = time_before;
 	sessions[3][2]->dying_time = time_before;
 
-	nat64_clean_old_sessions();
+	clean_expired_sessions();
 
 	ASSERT_SINGLE_BIB("Static session doesn't die", 0, true, true, true, true);
 	ASSERT_SINGLE_BIB("Static session doesn't die", 1, false, false, false, false);

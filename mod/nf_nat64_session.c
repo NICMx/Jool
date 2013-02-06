@@ -97,7 +97,7 @@ static void tuple_to_ipv4_pair(struct nf_conntrack_tuple *tuple, struct ipv4_pai
  * Removes from the tables the entries whose lifetime has expired. The entries are also freed from
  * memory.
  */
-static void clean_expired_sessions(unsigned long param)
+static void clean_expired_sessions(void)
 {
 	struct list_head *current_node, *next_node;
 	struct session_entry *current_entry;
@@ -118,14 +118,19 @@ static void clean_expired_sessions(unsigned long param)
 	}
 	spin_unlock_bh(&bib_session_lock);
 
+	log_debug("Deleting %d sessions.", removed);
+}
+
+static void cleaner_timer(unsigned long param)
+{
+	clean_expired_sessions();
+
 	spin_lock_bh(&expire_timer_lock);
 	if (expire_timer_active) {
 		expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
 		add_timer(&expire_timer);
 	}
 	spin_unlock_bh(&expire_timer_lock);
-
-	log_debug("Done deleting expired sessions.");
 }
 
 /*******************************
@@ -148,7 +153,7 @@ bool nat64_session_init(void)
 	INIT_LIST_HEAD(&all_sessions);
 
 	init_timer(&expire_timer);
-	expire_timer.function = clean_expired_sessions;
+	expire_timer.function = cleaner_timer;
 	expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
 	expire_timer.data = 0;
 	add_timer(&expire_timer);

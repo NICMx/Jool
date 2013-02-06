@@ -376,6 +376,7 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		}
 
 		icmpv6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
+		log_warning("%u", icmp4_pointer);
 		icmpv6_hdr->icmp6_pointer = cpu_to_be32(pointers[icmp4_pointer]);
 		break;
 	}

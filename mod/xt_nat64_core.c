@@ -228,7 +228,7 @@ int __init nat64_init(void)
 	need_ipv4_conntrack();
 
 	if (!(nat64_config_init()
-			&& pool6_init() && pool4_init()
+			&& pool6_init() && pool4_init(true)
 			&& nat64_bib_init() && nat64_session_init()
 			&& nat64_determine_incoming_tuple_init()
 			&& filtering_init()

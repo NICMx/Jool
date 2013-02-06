@@ -19,7 +19,7 @@
  *
  * @return "true" if the initialization was successful, false otherwise.
  */
-bool pool4_init(void);
+bool pool4_init(bool defaults);
 /**
  * Frees resources allocated by the pool.
  */

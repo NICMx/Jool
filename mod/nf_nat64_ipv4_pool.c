@@ -154,13 +154,14 @@ static bool load_defaults(void)
 			pool4_destroy();
 			return false;
 		}
-		pool4_register(&current_addr);
+		if (pool4_register(&current_addr) != RESPONSE_SUCCESS)
+			return false;
 	}
 
 	return true;
 }
 
-bool pool4_init(void)
+bool pool4_init(bool defaults)
 {
 	struct address_list *pools_array[] = { &pools.udp, &pools.tcp, &pools.icmp };
 	int i;
@@ -170,7 +171,10 @@ bool pool4_init(void)
 		spin_lock_init(&pools_array[i]->lock);
 	}
 
-	return load_defaults();
+	if (defaults && !load_defaults())
+		return false;
+
+	return true;
 }
 
 /**

@@ -18,9 +18,7 @@
 
 
 static struct filtering_config config; ///< Hold the current valid configuration for the filtering and updating module.
-
 static DEFINE_SPINLOCK(config_lock);
-static DEFINE_SPINLOCK(bib_session_lock);
 
 /** Esto se llama al insertar el módulo y se encarga de poner los valores por defecto
  *  
@@ -169,8 +167,8 @@ void print_bib_entry( struct bib_entry *bib_entry_p )
         pr_debug("  > bib_entry = NULL   :'( ");
     else
         pr_debug("  > bib_entry = (%pI6c , %d) -- (%pI4 , %d)",
-            &bib_entry_p->ipv6.address, ntohs(bib_entry_p->ipv6.pi.id),
-            &(bib_entry_p->ipv4.address), ntohs(bib_entry_p->ipv4.pi.id) );
+            &bib_entry_p->ipv6.address, bib_entry_p->ipv6.l4_id,
+            &(bib_entry_p->ipv4.address), bib_entry_p->ipv4.l4_id );
 }
 
 
@@ -190,7 +188,7 @@ void print_bib_entry( struct bib_entry *bib_entry_p )
 void transport_address_ipv4(struct in_addr addr, __be16 pi, struct ipv4_tuple_address *ta)
 { 
     ta->address = addr;
-    ta->pi.port = pi; // Don't care if it's ICMP IP or PORT, they are of the same size.
+    ta->l4_id = be16_to_cpu(pi);
 }
 
 /** Join a IPv6 address and a port (or ICMP ID) to create a Transport Address.
@@ -202,17 +200,7 @@ void transport_address_ipv4(struct in_addr addr, __be16 pi, struct ipv4_tuple_ad
 void transport_address_ipv6(struct in6_addr addr, __be16 pi, struct ipv6_tuple_address *ta)
 { 
     ta->address = addr;
-    ta->pi.port = pi; // Don't care if it's ICMP IP or PORT, they are of the same size.
-}
-
-void pair_ipv6(struct in6_addr *remote_addr, __be16 remote_port,
-        struct in6_addr *local_addr, __be16 local_port,
-        struct ipv6_pair *result)
-{
-    result->remote.address = *remote_addr;
-    result->remote.pi.port = remote_port;
-    result->local.address = *local_addr;
-    result->local.pi.port = local_port;
+    ta->l4_id = be16_to_cpu(pi);
 }
 
 /** Retrieve a new port for the specified IPv4 pool address.
@@ -539,8 +527,8 @@ bool send_probe_packet(struct session_entry *entry)
     iph->daddr = entry->ipv6.remote.address;
 
     th = tcp_hdr(skb);
-    th->source = entry->ipv6.local.pi.port;
-    th->dest = entry->ipv6.remote.pi.port;
+    th->source = cpu_to_be16(entry->ipv6.local.l4_id);
+    th->dest = cpu_to_be16(entry->ipv6.remote.l4_id);
     th->seq = htonl(0);
     th->ack_seq = htonl(0);
     th->res1 = 0;
@@ -675,13 +663,13 @@ int ipv6_udp(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
             log_warning("Could NOT extract IPv4 from IPv6 destination address while creating a SESSION entry.");
             goto failure;
         }
-        ipv4_remote.pi.port = tuple->dst_port; // y
+        ipv4_remote.l4_id = be16_to_cpu(tuple->dst_port); // y
 
         // Create the session entry
         pair6.remote.address = tuple->ipv6_src_addr; // X'
-        pair6.remote.pi.port = tuple->src_port; // x
+        pair6.remote.l4_id = be16_to_cpu(tuple->src_port); // x
         pair6.local.address = tuple->ipv6_dst_addr; // Y'
-        pair6.local.pi.port = tuple->dst_port; // y
+        pair6.local.l4_id = be16_to_cpu(tuple->dst_port); // y
         pair4.local = bib_entry_p->ipv4; // (T, t)
         pair4.remote = ipv4_remote; // (Z, z) // (Z(Y’),y)
         session_entry_p = nat64_create_session_entry(&pair4, &pair6, bib_entry_p, protocol);
@@ -774,15 +762,15 @@ int ipv4_udp(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
             log_warning("Address translation failed.");
             goto icmp_and_fail;
         }
-        ipv6_local.pi.port = tuple->src_port; // w
+        ipv6_local.l4_id = be16_to_cpu(tuple->src_port); // w
 
         // Create the session entry
         pair6.remote = bib_entry_p->ipv6;   // (X', x)
         pair6.local = ipv6_local;           // (Y’(W), w)
         pair4.local.address = tuple->ipv4_dst_addr; // T
-        pair4.local.pi.port = tuple->dst_port; // t
+        pair4.local.l4_id = be16_to_cpu(tuple->dst_port); // t
         pair4.remote.address = tuple->ipv4_src_addr; // W
-        pair4.remote.pi.port = tuple->src_port; // w
+        pair4.remote.l4_id = be16_to_cpu(tuple->src_port); // w
         session_entry_p = nat64_create_session_entry(&pair4, &pair6, bib_entry_p, protocol);
         if ( session_entry_p == NULL )
         {
@@ -901,13 +889,13 @@ int ipv6_icmp6(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
         }
 
         // Create the session entry
-        pair6.remote.address = tuple->ipv6_src_addr;    // (X')
-        pair6.remote.pi.id = tuple->icmp_id;            // (i1)
-        pair6.local.address = tuple->ipv6_dst_addr;     // (Y')
-        pair6.local.pi.id = tuple->icmp_id;             // (i1)
-        pair4.local = bib_entry_p->ipv4;                // (T, i2)
-        pair4.remote.address = ipv4_remote_address;     // (Z(Y’))
-        pair4.remote.pi.id = bib_entry_p->ipv4.pi.id;   // (i2)
+        pair6.remote.address = tuple->ipv6_src_addr;      // (X')
+        pair6.remote.l4_id = be16_to_cpu(tuple->icmp_id); // (i1)
+        pair6.local.address = tuple->ipv6_dst_addr;       // (Y')
+        pair6.local.l4_id = be16_to_cpu(tuple->icmp_id);  // (i1)
+        pair4.local = bib_entry_p->ipv4;                  // (T, i2)
+        pair4.remote.address = ipv4_remote_address;       // (Z(Y’))
+        pair4.remote.l4_id = bib_entry_p->ipv4.l4_id;     // (i2)
         session_entry_p = nat64_create_session_entry(&pair4, &pair6, bib_entry_p, protocol);
         if ( session_entry_p == NULL )
         {
@@ -1004,13 +992,13 @@ int ipv4_icmp4(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
         // Create the session entry.
         // TODO revisar estos valores; por ahí habían cosas locales mezcladas con remotas.
         pair6.remote.address = bib_entry_p->ipv6.address; // X'
-        pair6.remote.pi.id = bib_entry_p->ipv6.pi.id; // i1
+        pair6.remote.l4_id = bib_entry_p->ipv6.l4_id; // i1
         pair6.local.address = ipv6_remote; // Y'(Z)
-        pair6.local.pi.id = bib_entry_p->ipv6.pi.id; // i1
+        pair6.local.l4_id = bib_entry_p->ipv6.l4_id; // i1
         pair4.local.address = tuple->ipv4_dst_addr; // T
-        pair4.local.pi.id = tuple->icmp_id; // i2
+        pair4.local.l4_id = be16_to_cpu(tuple->icmp_id); // i2
         pair4.remote.address = tuple->ipv4_src_addr; // Z
-        pair4.remote.pi.id = tuple->icmp_id; // i2
+        pair4.remote.l4_id = be16_to_cpu(tuple->icmp_id); // i2
         session_entry_p = nat64_create_session_entry(&pair4, &pair6, bib_entry_p, protocol);
         if ( session_entry_p == NULL )
         {
@@ -1153,14 +1141,14 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
             log_warning("CLOSED State. Could NOT extract IPv4 from IPv6 destination address.");
             goto icmp_and_fail;
         }
-        ipv4_remote.pi.port = tuple->dst_port; // y
+        ipv4_remote.l4_id = be16_to_cpu(tuple->dst_port); // y
 
         // Create the session entry.
         // TODO:     What about of checking Policy and Resources for the creation of a STE.
         pair6.remote.address = tuple->ipv6_src_addr; // X'
-        pair6.remote.pi.port = tuple->src_port; // x
+        pair6.remote.l4_id = be16_to_cpu(tuple->src_port); // x
         pair6.local.address = tuple->ipv6_dst_addr; // Y'
-        pair6.local.pi.port = tuple->dst_port; // y
+        pair6.local.l4_id = be16_to_cpu(tuple->dst_port); // y
         pair4.local = bib_entry_p->ipv4; // (T, t)
         pair4.remote = ipv4_remote; // (Z, z) // (Z(Y’),y)
         session_entry_p = nat64_create_session_entry(&pair4, &pair6, bib_entry_p, protocol);
@@ -1228,7 +1216,7 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
 //
 //                return NF_DROP;
 //            }
-//            ipv6_local.pi.port = tuple->src_port; // y
+//            ipv6_local.l4_id = be16_to_cpu(tuple->src_port); // y
 //
 //            // Pack addresses and ports into transport address
 //            transport_address_ipv4( tuple->ipv4_dst_addr, tuple->dst_port, &ipv4_ta_local );
@@ -1267,15 +1255,15 @@ int tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tupl
                 log_warning("CLOSED State. Could NOT embed IPv4 in IPv6 destination address.");
                 return NF_DROP;
             }
-            ipv6_local.pi.port = tuple->src_port; // y
+            ipv6_local.l4_id = be16_to_cpu(tuple->src_port); // y
 
             // Create the session entry
             pair6.remote = bib_entry_p->ipv6; // (X', x)
             pair6.local = ipv6_local; // (Y', y)
             pair4.local.address = tuple->ipv4_dst_addr; // (X, x)  (T, t)
-            pair4.local.pi.port = tuple->dst_port;
+            pair4.local.l4_id = be16_to_cpu(tuple->dst_port);
             pair4.remote.address = tuple->ipv4_src_addr; // (Z(Y’),y) ; // (Z, z)
-            pair4.remote.pi.port = tuple->src_port;
+            pair4.remote.l4_id = be16_to_cpu(tuple->src_port);
             session_entry_p = nat64_create_session_entry(&pair4, &pair6, bib_entry_p, protocol);
             if ( session_entry_p == NULL )
             {

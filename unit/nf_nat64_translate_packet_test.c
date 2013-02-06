@@ -1121,13 +1121,13 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 	hdr4.type = ICMP_PARAMETERPROB;
 	hdr4.code = ICMP_PTR_INDICATES_ERROR;
-	hdr4.icmp4_unused = cpu_to_be16(0x08000000);
-	success &= icmp4_to_icmp6_param_prob(&hdr4, &hdr6, "func result 1");
+	hdr4.icmp4_unused = cpu_to_be32(0x08000000);
+	success &= assert_true(icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 1");
 	success &= assert_equals_u8(ICMPV6_HDR_FIELD, hdr6.icmp6_code, "code");
 	success &= assert_equals_u8(7, be32_to_cpu(hdr6.icmp6_pointer), "pointer");
 
-	hdr4.icmp4_unused = cpu_to_be16(0x05000000);
-	success &= !icmp4_to_icmp6_param_prob(&hdr4, &hdr6, "func result 2");
+	hdr4.icmp4_unused = cpu_to_be32(0x05000000);
+	success &= assert_false(icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 2");
 
 	return success;
 }
