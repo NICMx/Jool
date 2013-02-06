@@ -35,47 +35,53 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	bib = nat64_get_bib_entry(in);
-	if (!bib) {
-		log_err("Could not find the BIB entry we just created!");
-		return false;
-	}
-
 	if (!pool6_peek(&prefix)) {
 		log_warning("The IPv6 pool is empty. Cannot translate.");
 		return false;
+	}
+
+	spin_lock_bh(&bib_session_lock);
+	bib = nat64_get_bib_entry(in);
+	if (!bib) {
+		log_err("Could not find the BIB entry we just created/updated!");
+		goto lock_fail;
 	}
 
 	switch (mode) {
 	case IPV6_TO_IPV4:
 		out->L3_PROTOCOL = PF_INET;
 		if (!switch_l4_proto(in->L4_PROTOCOL, &out->L4_PROTOCOL))
-			return false;
+			goto lock_fail;
 		out->ipv4_src_addr = bib->ipv4.address;
-		out->src_port = bib->ipv4.pi.port;
+		out->src_port = cpu_to_be16(bib->ipv4.l4_id);
 		if (!nat64_extract_ipv4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
-			return false;
+			goto lock_fail;
 		out->dst_port = in->dst_port;
 		break;
 
 	case IPV4_TO_IPV6:
 		out->L3_PROTOCOL = PF_INET6;
 		if (!switch_l4_proto(in->L4_PROTOCOL, &out->L4_PROTOCOL))
-			return false;
+			goto lock_fail;
 		if (!nat64_append_ipv4(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
-			return false;
-		out->src_port = bib->ipv6.pi.port;
+			goto lock_fail;
+		out->src_port = cpu_to_be16(bib->ipv6.l4_id);
 		out->ipv6_src_addr = bib->ipv6.address;
-		out->src_port = bib->ipv6.pi.port;
+		out->src_port = cpu_to_be16(bib->ipv6.l4_id);
 		break;
 
 	default:
 		log_crit("Programming error: Unknown translation mode: %d.", mode);
-		return false;
+		goto lock_fail;
 	}
 
+	spin_unlock_bh(&bib_session_lock);
 	log_debug("Done step 3.");
 	return true;
+
+lock_fail:
+	spin_unlock_bh(&bib_session_lock);
+	return false;
 }
 
 static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out,
@@ -86,15 +92,16 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	bib = nat64_get_bib_entry(in);
-	if (!bib) {
-		log_err("Could not find the BIB entry we just created!");
-		return false;
-	}
-
 	if (!pool6_peek(&prefix)) {
 		log_warning("The IPv6 pool is empty. Cannot translate.");
 		return false;
+	}
+
+	spin_lock_bh(&bib_session_lock);
+	bib = nat64_get_bib_entry(in);
+	if (!bib) {
+		log_err("Could not find the BIB entry we just created/updated!");
+		goto lock_fail;
 	}
 
 	switch (mode) {
@@ -103,26 +110,31 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		out->L4_PROTOCOL = IPPROTO_ICMP;
 		out->ipv4_src_addr = bib->ipv4.address;
 		if (!nat64_extract_ipv4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
-			return false;
-		out->icmp_id = bib->ipv4.pi.id;
+			goto lock_fail;
+		out->icmp_id = cpu_to_be16(bib->ipv4.l4_id);
 		break;
 
 	case IPV4_TO_IPV6:
 		out->L3_PROTOCOL = PF_INET6;
 		out->L4_PROTOCOL = IPPROTO_ICMPV6;
 		if (!nat64_append_ipv4(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
-			return false;
+			goto lock_fail;
 		out->ipv6_dst_addr = bib->ipv6.address;
-		out->icmp_id = bib->ipv6.pi.id;
+		out->icmp_id = cpu_to_be16(bib->ipv6.l4_id);
 		break;
 
 	default:
 		log_crit("Programming error: Unknown translation mode: %d.", mode);
-		return false;
+		goto lock_fail;
 	}
 
+	spin_unlock_bh(&bib_session_lock);
 	log_debug("Done step 3.");
 	return true;
+
+lock_fail:
+	spin_unlock_bh(&bib_session_lock);
+	return false;
 }
 
 bool compute_outgoing_tuple_6to4(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,

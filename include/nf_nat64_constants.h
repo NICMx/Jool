@@ -20,7 +20,6 @@
 /**
  * Minimum allowable session lifetime for UDP bindings, in seconds.
  * TODO (rob) we don't use it yet.
- * TODO (warning) not yet configurable.
  */
 #define UDP_MIN (2 * 60)
 /**
@@ -45,8 +44,8 @@
 
 
 // -- Config defaults --
-#define POOL6_DEF_PREFIX        "64:ff9b::"
-#define POOL6_DEF_PREFIX_LEN    96
+#define POOL6_DEF_PREFIX		"64:ff9b::"
+#define POOL6_DEF_PREFIX_LEN	96
 
 #define POOL4_DEF { "192.168.2.1", "192.168.2.2", "192.168.2.3", "192.168.2.4" }
 

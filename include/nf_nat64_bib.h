@@ -31,6 +31,19 @@ struct bib_entry
 	struct list_head session_entries;
 };
 
+
+/**
+ * Synchronizes the use of both BIB and Session.
+ * This is global because:
+ * - Locking of BIB and session needs to be performed outside of both of them (because we sometimes
+ * decide whether or not to insert based on whether it's already on the table).
+ * - The BIB and Session databases are inter-dependent (bib entries point to session entries and
+ * vice-versa), which really makes a mess out of filtering if each has its own lock and the entries
+ * are private.
+ */
+extern spinlock_t bib_session_lock;
+
+
 /**
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.

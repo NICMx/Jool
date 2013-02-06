@@ -52,7 +52,7 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 /**
  * Reserves and returns a transport address from the "l4protocol" pool.
  * The address's IPv4 address will be "address.address" and its port will be 'compatible' with
- * "address.pi.port".
+ * "address.l4_id".
  * 'Compatible' means same parity and range. See RFC 6146 section 3.5.1.1 for more details on this
  * port hack.
  *

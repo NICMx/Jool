@@ -16,96 +16,7 @@
 #include <net/route.h>
 #include <linux/kallsyms.h>
 
-//#include "compat_xtables.h"
-
 #include "nf_nat64_types.h"
-
-
-// /home/aleiva/Desktop/Nat64/xtables-addons-1.47.1/extensions/xt_ECHO.c
-
-// TODO (send) estamos linearizando el paquete de entrada?
-// TODO (test) hay que probar la nueva cara de esto.
-
-//static bool tuple_to_flowi6(struct nf_conntrack_tuple *tuple, struct flowi6 *fl)
-//{
-//	memset(&fl->__fl_common, 0, sizeof(struct flowi_common));
-//	fl->flowi6_proto = tuple->L4_PROTOCOL;
-//
-//	memcpy(&fl->saddr, &tuple->ipv6_src_addr, sizeof(fl->saddr));
-//	memcpy(&fl->daddr, &tuple->ipv6_dst_addr, sizeof(fl->daddr));
-//
-//	fl->flowlabel = 0; // TODO (send) ?
-//
-//	switch (tuple->L4_PROTOCOL) {
-//	case IPPROTO_TCP: // TODO (send) revisa que estas constantes sean las buenas.
-//	case IPPROTO_UDP:
-//		fl->fl6_sport = tuple->src_port;
-//		fl->fl6_dport = tuple->dst_port;
-//		break;
-//	case IPPROTO_ICMPV6:
-//		fl->fl6_icmp_type = tuple->dst.u.icmp.type;
-//		fl->fl6_icmp_code = tuple->dst.u.icmp.code;
-//		break;
-//	default:
-//		log_warning("tuple_to_flowi6: Unknown l4 protocol: %d.", tuple->L4_PROTOCOL);
-//		return false;
-//	}
-//
-//	return true;
-//}
-//
-//bool send_packet_ipv4(struct sk_buff *skb, struct nf_conntrack_tuple *tuple, struct xt_action_param *par)
-//{
-//	struct flowi fl;
-//	struct dst_entry *dst = NULL;
-//	struct net *net = dev_net((par->in != NULL) ? par->in : par->out);
-//
-//	skb->ip_summed = CHECKSUM_COMPLETE;
-//	skb->protocol = htons(ETH_P_IP);
-//
-//	rt = ip_route_output_key(&init_net, &fl.u.ip4);
-//
-//	skb_dst_set(skb, dst);
-//
-//	// newip->ttl = ip4_dst_hoplimit(skb_dst(newskb));
-//
-//	// nf_ct_attach(newskb, *poldskb);
-//	ip_local_out(skb);
-//
-//	return true;
-//}
-//
-//bool send_packet_ipv6(struct sk_buff *skb, struct nf_conntrack_tuple *tuple, struct xt_action_param *par)
-//{
-//	struct flowi6 fl;
-//	struct dst_entry *dst = NULL;
-//	struct net *net = dev_net((par->in != NULL) ? par->in : par->out);
-//
-//	skb->protocol = htons(ETH_P_IPV6);
-//
-//	if (!tuple_to_flowi6(tuple, &fl))
-//		return false;
-//	// security_skb_classify_flow((struct sk_buff *) poldskb, flowi6_to_flowi(&fl));
-//	dst = ip6_route_output(net, NULL, &fl);
-//	if (!dst) {
-//		log_err("The kernel returned a null route for the packet.");
-//		return false;
-//	}
-//	if (dst->error != 0) {
-//		log_err("The kernel could not route the outgoing packet. Result code: %d.", dst->error);
-//		dst_release(dst);
-//		return false;
-//	}
-//
-//	skb_dst_set(skb, dst);
-//	// ip6_header->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
-//	skb->ip_summed = CHECKSUM_COMPLETE;
-//
-//	// nf_ct_attach(newskb, *poldskb);
-//	ip6_local_out(skb);
-//
-//	return true;
-//}
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
@@ -124,11 +35,11 @@ static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 
 	error = ip_route_output_key(&init_net, &table, &fl);
 	if (error) {
-		log_warning("  Packet could not be routed; ip_route_output_key() failed. Code: %d.", error);
+		log_warning("Packet could not be routed; ip_route_output_key() failed. Code: %d.", error);
 		return NULL;
 	}
 	if (!table) {
-		log_warning("  Packet could not be routed - the routing table is NULL.");
+		log_warning("Packet could not be routed - the routing table is NULL.");
 		return NULL;
 	}
 
@@ -149,7 +60,7 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst) {
-		log_warning("  Packet could not be routed - ip6_route_output() returned NULL.");
+		log_warning("Packet could not be routed - ip6_route_output() returned NULL.");
 		return NULL;
 	}
 
@@ -171,11 +82,11 @@ static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 
 	table = ip_route_output_key(&init_net, &fl.u.ip4);
 	if (!table) {
-		log_warning("  Packet could not be routed - ip_route_output_key() returned NULL.");
+		log_warning("Packet could not be routed - ip_route_output_key() returned NULL.");
 		return NULL;
 	}
 	if (IS_ERR(table)) {
-		log_warning("  Packet could not be routed - ip_route_output_key() returned %p.", table);
+		log_warning("Packet could not be routed - ip_route_output_key() returned %p.", table);
 		return NULL;
 	}
 
@@ -196,7 +107,7 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 	if (!dst) {
-		log_warning("  Packet could not be routed - ip6_route_output() returned NULL.");
+		log_warning("Packet could not be routed - ip6_route_output() returned NULL.");
 		return NULL;
 	}
 
@@ -219,10 +130,10 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb)
 	skb->dev = routing_table->dst.dev;
 	skb_dst_set(skb, (struct dst_entry *) routing_table);
 
-	log_debug("  Sending packet via device '%s'...", skb->dev->name);
-	error = ip_local_out(skb);
+	log_debug("Sending packet via device '%s'...", skb->dev->name);
+	error = ip_local_out(skb); // Send.
 	if (error) {
-		log_warning("  Packet could not be sent - ip_local_out() failed. Code: %d.", error);
+		log_warning("Packet could not be sent - ip_local_out() failed. Code: %d.", error);
 		return false;
 	}
 
@@ -243,10 +154,10 @@ bool nat64_send_packet_ipv6(struct sk_buff *skb)
 	skb->dev = dst->dev;
 	skb_dst_set(skb, dst);
 
-	log_debug("  Sending packet via device '%s'...", skb->dev->name);
+	log_debug("Sending packet via device '%s'...", skb->dev->name);
 	error = ip6_local_out(skb); // Send.
 	if (error) {
-		log_warning("  Packet could not be sent - ip6_local_out() failed. Code: %d.", error);
+		log_warning("Packet could not be sent - ip6_local_out() failed. Code: %d.", error);
 		return false;
 	}
 

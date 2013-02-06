@@ -12,7 +12,7 @@
 struct free_port {
 	/** The port number. */
 	__u16 port;
-	/** Next port within the list of free ones (see addr_section.free_ports).  */
+	/** Next port within the list of free ones (see addr_section.free_ports). */
 	struct list_head next;
 };
 
@@ -114,22 +114,21 @@ static struct pool_node *get_pool_node(struct address_list *pool, struct in_addr
  */
 static struct addr_section *get_section(struct pool_node *node, struct ipv4_tuple_address *address)
 {
-	__u16 port = be16_to_cpu(address->pi.port);
-	if (port < 1024)
-		return (port % 2 == 0) ? &node->even_low : &node->odd_low;
+	if (address->l4_id < 1024)
+		return (address->l4_id % 2 == 0) ? &node->even_low : &node->odd_low;
 	else
-		return (port % 2 == 0) ? &node->even_high : &node->odd_high;
+		return (address->l4_id % 2 == 0) ? &node->even_high : &node->odd_high;
 }
 
 /**
  * Assumes that section's pool has already been locked (pool->lock).
  */
-static bool extract_any_port(struct addr_section *section, __be16 *port)
+static bool extract_any_port(struct addr_section *section, __u16 *port)
 {
 	if (!list_empty(&section->free_ports)) {
 		// Reuse it.
 		struct free_port *node = list_entry(section->free_ports.next, struct free_port, next);
-		*port = cpu_to_be16(node->port);
+		*port = node->port;
 
 		list_del(&node->next);
 		kfree(node);
@@ -140,7 +139,7 @@ static bool extract_any_port(struct addr_section *section, __be16 *port)
 	if (section->next_port > section->max_port)
 		return false;
 
-	*port = cpu_to_be16(section->next_port);
+	*port = section->next_port;
 	section->next_port += 2;
 	return true;
 }
@@ -165,14 +164,13 @@ static bool load_defaults(void)
 
 bool pool4_init(void)
 {
-	INIT_LIST_HEAD(&pools.udp.list);
-	spin_lock_init(&pools.udp.lock);
+	struct address_list *pools_array[] = { &pools.udp, &pools.tcp, &pools.icmp };
+	int i;
 
-	INIT_LIST_HEAD(&pools.tcp.list);
-	spin_lock_init(&pools.tcp.lock);
-
-	INIT_LIST_HEAD(&pools.icmp.list);
-	spin_lock_init(&pools.icmp.lock);
+	for (i = 0; i < ARRAY_SIZE(pools_array); i++) {
+		INIT_LIST_HEAD(&pools_array[i]->list);
+		spin_lock_init(&pools_array[i]->lock);
+	}
 
 	return load_defaults();
 }
@@ -208,20 +206,20 @@ static void destroy_pool_node(struct pool_node *node)
 
 void pool4_destroy(void)
 {
-	struct address_list *pool_lists[] = { &pools.udp, &pools.tcp, &pools.icmp };
+	struct address_list *pools_array[] = { &pools.udp, &pools.tcp, &pools.icmp };
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pool_lists); i++) {
+	for (i = 0; i < ARRAY_SIZE(pools_array); i++) {
 		struct list_head *head;
 		struct pool_node *node;
 
-		spin_lock_bh(&pool_lists[i]->lock);
-		while (!list_empty(&pool_lists[i]->list)) {
-			head = pool_lists[i]->list.next;
+		spin_lock_bh(&pools_array[i]->lock);
+		while (!list_empty(&pools_array[i]->list)) {
+			head = pools_array[i]->list.next;
 			node = container_of(head, struct pool_node, next);
 			destroy_pool_node(node);
 		}
-		spin_unlock_bh(&pool_lists[i]->lock);
+		spin_unlock_bh(&pools_array[i]->lock);
 	}
 }
 
@@ -235,19 +233,20 @@ static void init_section(struct addr_section *section, __u32 next_port, __u32 ma
 enum response_code pool4_register(struct in_addr *address)
 {
 	struct address_list *pool[] = { &pools.tcp, &pools.udp, &pools.icmp };
-	struct pool_node *node[3]; // TODO (info) array_size()...
+	const int pool_count = ARRAY_SIZE(pool);
+	struct pool_node *node[pool_count];
 	int i;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < pool_count; i++) {
 		node[i] = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 		if (!node[i]) {
-			for (; i >= 0; i--)
+			for (i = i - 1; i >= 0; i--)
 				kfree(node[i]);
 			return RESPONSE_ALLOC_FAILED;
 		}
 	}
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < pool_count; i++) {
 		node[i]->address = *address;
 		init_section(&node[i]->odd_low, 1, 1023);
 		init_section(&node[i]->even_low, 0, 1022);
@@ -266,11 +265,12 @@ enum response_code pool4_register(struct in_addr *address)
 enum response_code pool4_remove(struct in_addr *address)
 {
 	struct address_list *pool[] = { &pools.tcp, &pools.udp, &pools.icmp };
+	const int pool_count = ARRAY_SIZE(pool);
 	struct pool_node *node;
 	int proto;
 	int deleted = 0;
 
-	for (proto = 0; proto < 3; proto++) { // TODO ARRAY_SIZE
+	for (proto = 0; proto < pool_count; proto++) {
 		spin_lock_bh(&pool[proto]->lock);
 
 		node = get_pool_node(pool[proto], address);
@@ -284,7 +284,7 @@ enum response_code pool4_remove(struct in_addr *address)
 		deleted++;
 	}
 
-	if (deleted != 0 && deleted != 3) { // TODO ARRAY_SIZE
+	if (deleted != 0 && deleted != pool_count) {
 		log_crit("Programming error: Address was in %u table(s).", deleted);
 		return RESPONSE_NOT_FOUND;
 	}
@@ -313,10 +313,10 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 		struct addr_section *section;
 
 		tuple_addr.address = node->address;
-		tuple_addr.pi.port = port;
+		tuple_addr.l4_id = port;
 		section = get_section(node, &tuple_addr);
 
-		if (section != NULL && extract_any_port(section, &result->pi.port)) {
+		if (section != NULL && extract_any_port(section, &result->l4_id)) {
 			result->address = node->address;
 			spin_unlock_bh(&pool->lock);
 			return true;
@@ -350,7 +350,7 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 		goto failure;
 
 	result->address = address->address;
-	if (extract_any_port(section, &result->pi.port)) {
+	if (extract_any_port(section, &result->l4_id)) {
 		spin_unlock_bh(&pool->lock);
 		return true;
 	}
@@ -386,11 +386,11 @@ bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address)
 	if (!new_port) {
 		// Well, crap. I guess we won't be seeing this address/port anymore :/.
 		log_err("Cannot instantiate! I won't be able to remember that %pI4#%u can be reused.",
-				&address->address, address->pi.port);
+				&address->address, address->l4_id);
 		goto failure;
 	}
 
-	new_port->port = be16_to_cpu(address->pi.port);
+	new_port->port = address->l4_id;
 	list_add(&new_port->next, section->free_ports.prev);
 
 	spin_unlock_bh(&pool->lock);

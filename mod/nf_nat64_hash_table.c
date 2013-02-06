@@ -78,7 +78,7 @@ struct HTABLE_NAME
 	 */
 	struct hlist_head table[HASH_TABLE_SIZE];
 	/** Number of key-value pairs currently stored by the table. */
-	__u16 size;
+	__u32 size;
 
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
@@ -116,18 +116,16 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	struct KEY_VALUE_PAIR *current_pair;
 	__u16 hash_code;
 
-	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
-	// log_debug("  -> Hash code: %d", hash_code);
+	if (!table)
+		return NULL;
 
+	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-		if (table->equals_function(key, current_pair->key)) {
-			// log_debug("  -> Found.");
+		if (table->equals_function(key, current_pair->key))
 			return current_pair;
-		}
 	}
 
-	// log_debug("  -> Not found.");
 	return NULL;
 }
 
@@ -137,22 +135,33 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 
 /**
  * Readies "table" for future use.
+ * TODO check return value.
  *
  * @param table the HTABLE_NAME instance you want to initialize.
  * @param equals_function function the table will use to locate slots.
  * @param hash_function function the table will use to locate linked lists.
  */
-static void INIT(struct HTABLE_NAME *table,
+static bool INIT(struct HTABLE_NAME *table,
 		bool (*equals_function)(KEY_TYPE *, KEY_TYPE *),
 		__u16 (*hash_function)(KEY_TYPE *))
 {
 	__u16 i;
+
+	if (!table)
+		return false;
+	if (!equals_function)
+		return false;
+	if (!hash_function)
+		return false;
+
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&table->table[i]);
 
 	table->equals_function = equals_function;
 	table->hash_function = hash_function;
 	table->size = 0;
+
+	return true;
 }
 
 /**
@@ -170,6 +179,9 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 {
 	struct KEY_VALUE_PAIR *key_value;
 	__u16 hash_code;
+
+	if (!table)
+		return false;
 
 	// We're not going to insert the value alone, but a key-value structure.
 	// (Because we'll later need the key available during lookups.)
@@ -248,6 +260,9 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 	struct KEY_VALUE_PAIR *current_pair;
 	__u16 row;
 
+	if (!table)
+		return;
+
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		while (!hlist_empty(&table->table[row])) {
 			current_node = table->table[row].first;
@@ -283,6 +298,9 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 	__u16 row;
 
 	log_debug("** Printing table: %s **", header);
+
+	if (!table)
+		goto end;
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
@@ -290,6 +308,9 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 					&current_pair->value);
 		}
 	}
+
+	/* Fall through.*/
+end:
 	log_debug("** End of table **");
 }
 #endif
@@ -314,12 +335,12 @@ static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
 	__u16 row;
 
 	VALUE_TYPE **array;
-	__s32 array_counter = 0;
-	__s32 array_size = table->size;
-	if (array_size < 1)
+	__u32 array_counter = 0;
+
+	if (!table || table->size < 1)
 		return 0;
 
-	array = kmalloc(array_size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
+	array = kmalloc(table->size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
 	if (!array)
 		return -1;
 
@@ -331,12 +352,12 @@ static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
 		}
 	}
 
-	if (array_counter != array_size)
+	if (array_counter != table->size)
 		log_crit("Programming error: The table's size field does not equal the seemingly "
 				"actual number of objects it contains.");
 
 	*result = array;
-	return array_size;
+	return table->size;
 }
 #endif
 

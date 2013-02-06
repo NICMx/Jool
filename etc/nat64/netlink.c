@@ -27,8 +27,6 @@ int netlink_request(void *request, __u16 request_len, int (*callback)(struct nl_
 		nl_close(nls);
 		nl_socket_free(nls);
 		return RESPONSE_SEND_FAILED;
-	} else {
-		printf("sent %d bytes\n", ret);
 	}
 
 	ret = nl_recvmsgs_default(nls);

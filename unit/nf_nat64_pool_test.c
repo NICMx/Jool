@@ -36,7 +36,7 @@ static bool assert_tuple_addr(struct in_addr *expected_address, __u16 expected_p
 {
 	bool success = true;
 	success &= assert_equals_ipv4(expected_address, &actual->address, test_name);
-	success &= assert_equals_u16(expected_port, be16_to_cpu(actual->pi.port), test_name);
+	success &= assert_equals_u16(expected_port, actual->l4_id, test_name);
 	return success;
 }
 
@@ -161,7 +161,7 @@ static bool test_get_similar_function(void)
 
 	// Borrow the entire first address.
 	query.address = expected_ips[0];
-	query.pi.port = cpu_to_be16(24);
+	query.l4_id = 24;
 	for (i = 0; i < 1024; i += 2) {
 		success &= assert_true(pool4_get_similar(IPPROTO_UDP, &query, &results1[i]),
 				"Borrow Addr1-res");
@@ -178,7 +178,7 @@ static bool test_get_similar_function(void)
 
 	// Borrow some from the second address.
 	query.address = expected_ips[1];
-	query.pi.port = cpu_to_be16(888);
+	query.l4_id = 888;
 	for (i = 0; i < 512; i += 2) {
 		success &= assert_true(pool4_get_similar(IPPROTO_UDP, &query, &results2[i]),
 				"Borrow Addr2-res");
@@ -195,7 +195,7 @@ static bool test_get_similar_function(void)
 	success &= assert_true(pool4_return(IPPROTO_UDP, &results2[256]), "Return Addr1-port256");
 
 	// Reborrow it.
-	query.pi.port = cpu_to_be16(334);
+	query.l4_id = 334;
 
 	query.address = expected_ips[0];
 	success &= assert_true(pool4_get_similar(IPPROTO_UDP, &query, &results1[128]),
@@ -254,7 +254,8 @@ static void destroy(void)
 	pool4_destroy();
 }
 
-int init_module(void){
+int init_module(void)
+{
 	START_TESTS("Pool");
 
 	INIT_CALL_END(init(), test_get_any_function(), destroy(), "Get simple");
@@ -265,5 +266,5 @@ int init_module(void){
 }
 void cleanup_module(void)
 {
-	// Sin código.
+	// No code.
 }

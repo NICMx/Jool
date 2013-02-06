@@ -9,7 +9,11 @@
 #define _XT_NAT64_MODULE_CONF_VALIDATION_H
 
 
-#include <linux/in.h>
+#ifdef __KERNEL__
+	#include <linux/in.h>
+#else
+	#include <arpa/inet.h>
+#endif
 
 
 #define IPV4_NETMASK_BITS_MAX	32

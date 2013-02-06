@@ -25,7 +25,7 @@ static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff
 	in->tuple = tuple;
 
 	in->l3_hdr = ip4_hdr;
-	in->l3_hdr_type = IPPROTO_IP;
+	in->l3_hdr_type = NFPROTO_IPV4;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
 	in->l3_hdr_basic_len = sizeof(*ip4_hdr);
 	in->compute_l3_hdr_len = compute_ipv4_hdr_len;
@@ -42,7 +42,7 @@ static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff
 		in->l4_hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
-		log_warning("  Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
+		log_warning("Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
 		return false;
 	}
 
@@ -156,7 +156,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		log_warning("  Allocation of the IPv6 header failed.");
+		log_warning("Allocation of the IPv6 header failed.");
 		return false;
 	}
 
@@ -189,7 +189,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	// }
 
 	if (has_unexpired_src_route(ip4_hdr) && in->packet != NULL) {
-		log_info("  Cannot translate: Packet has an unexpired source route.");
+		log_info("Cannot translate: Packet has an unexpired source route.");
 		icmp_send(in->packet, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
 		return false;
 	}
@@ -342,7 +342,7 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 		break;
 
 	default: // hostPrecedenceViolation (14) is known to fall through here.
-		log_info("  ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
+		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
 		return false; // No ICMP error.
 	}
@@ -372,7 +372,7 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		};
 
 		if (icmp4_pointer < 0 || 19 < icmp4_pointer || pointers[icmp4_pointer] == DROP) {
-			log_info("  ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
+			log_info("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
 					icmpv4_hdr->type, icmpv4_hdr->code, icmp4_pointer);
 			return false;
 		}
@@ -382,7 +382,7 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		break;
 	}
 	default: // missingARequiredOption (1) is known to fall through here.
-		log_info("  ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
+		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
 		return false; // No ICMP error.
 	}
@@ -399,7 +399,7 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmphdr *icmpv4_hdr = icmp_hdr(in->packet);
 	struct icmp6hdr *icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
 	if (!icmpv6_hdr) {
-		log_warning("  Allocation of the ICMPv6 header failed.");
+		log_warning("Allocation of the ICMPv6 header failed.");
 		return false;
 	}
 
@@ -448,7 +448,7 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 		// Router Solicitation (10), Source Quench (4),
 		// Redirect (5), Alternative Host Address (6).
 		// This time there's no ICMP error.
-		log_info("  ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
+		log_info("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
 		return false;
 	}
 

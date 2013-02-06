@@ -27,9 +27,9 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 		inet_ntop(AF_INET6, &entries[i].ipv6.address, addr_str, INET6_ADDRSTRLEN);
 		printf("%s#%u - %s#%u\n",
 				inet_ntoa(entries[i].ipv4.address),
-				ntohs(entries[i].ipv4.pi.port),
+				entries[i].ipv4.l4_id,
 				addr_str,
-				ntohs(entries[i].ipv6.pi.port));
+				entries[i].ipv6.l4_id);
 	}
 
 	return 0;

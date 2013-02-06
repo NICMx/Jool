@@ -18,10 +18,8 @@ error_t bib_display(bool use_tcp, bool use_udp, bool use_icmp);
 error_t session_display(bool use_tcp, bool use_udp, bool use_icmp);
 error_t session_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6,
 		struct ipv4_pair *pair4);
-error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, __u8 l4_proto,
-		struct ipv4_pair *pair4);
-error_t session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, __u8 l4_proto,
-		struct ipv6_pair *pair6);
+error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ipv4_pair *pair4);
+error_t session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6);
 
 error_t filtering_request(__u32 operation, struct filtering_config *config);
 error_t translate_request(__u32 operation, struct translate_config *config);

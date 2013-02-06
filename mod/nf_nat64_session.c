@@ -2,6 +2,9 @@
 
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <linux/timer.h>
+
+#include "nf_nat64_filtering_and_updating.h"
 
 
 /********************************************
@@ -48,6 +51,11 @@ static struct session_table session_table_icmp;
  */
 static LIST_HEAD(all_sessions);
 
+struct timer_list expire_timer;
+static bool expire_timer_active = true;
+static DEFINE_SPINLOCK(expire_timer_lock);
+
+
 /********************************************
  * Private (helper) functions.
  ********************************************/
@@ -72,17 +80,52 @@ static struct session_table *get_session_table(u_int8_t l4protocol)
 static void tuple_to_ipv6_pair(struct nf_conntrack_tuple *tuple, struct ipv6_pair *pair)
 {
 	pair->remote.address = tuple->ipv6_src_addr;
-	pair->remote.pi.port = tuple->src_port;
+	pair->remote.l4_id = be16_to_cpu(tuple->src_port);
 	pair->local.address = tuple->ipv6_dst_addr;
-	pair->local.pi.port = tuple->dst_port;
+	pair->local.l4_id = be16_to_cpu(tuple->dst_port);
 }
 
 static void tuple_to_ipv4_pair(struct nf_conntrack_tuple *tuple, struct ipv4_pair *pair)
 {
 	pair->remote.address = tuple->ipv4_src_addr;
-	pair->remote.pi.port = tuple->src_port;
+	pair->remote.l4_id = be16_to_cpu(tuple->src_port);
 	pair->local.address = tuple->ipv4_dst_addr;
-	pair->local.pi.port = tuple->dst_port;
+	pair->local.l4_id = be16_to_cpu(tuple->dst_port);
+}
+
+/**
+ * Removes from the tables the entries whose lifetime has expired. The entries are also freed from
+ * memory.
+ */
+static void clean_expired_sessions(unsigned long param)
+{
+	struct list_head *current_node, *next_node;
+	struct session_entry *current_entry;
+	unsigned int current_time = jiffies_to_msecs(jiffies);
+	unsigned int removed = 0;
+
+	log_debug("Deleting expired sessions...");
+
+	spin_lock_bh(&bib_session_lock);
+	list_for_each_safe(current_node, next_node, &all_sessions) {
+		current_entry = list_entry(current_node, struct session_entry, all_sessions);
+		if (!current_entry->is_static && current_entry->dying_time <= current_time) {
+			if (!session_expired(current_entry) && nat64_remove_session_entry(current_entry)) {
+				removed++;
+				kfree(current_entry);
+			}
+		}
+	}
+	spin_unlock_bh(&bib_session_lock);
+
+	spin_lock_bh(&expire_timer_lock);
+	if (expire_timer_active) {
+		expire_timer.expires = jiffies + msecs_to_jiffies(5000);
+		add_timer(&expire_timer);
+	}
+	spin_unlock_bh(&expire_timer_lock);
+
+	log_debug("Done deleting expired sessions.");
 }
 
 /*******************************
@@ -91,23 +134,36 @@ static void tuple_to_ipv4_pair(struct nf_conntrack_tuple *tuple, struct ipv4_pai
 
 void nat64_session_init(void)
 {
-	ipv4_table_init(&session_table_udp.ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
-	ipv6_table_init(&session_table_udp.ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
+	struct session_table *tables[] = { &session_table_udp, &session_table_tcp,
+			&session_table_icmp };
+	int i;
 
-	ipv4_table_init(&session_table_tcp.ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
-	ipv6_table_init(&session_table_tcp.ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
+	for (i = 0; i < ARRAY_SIZE(tables); i++) {
+		ipv4_table_init(&tables[i]->ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
+		ipv6_table_init(&tables[i]->ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
+	}
 
-	ipv4_table_init(&session_table_icmp.ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
-	ipv6_table_init(&session_table_icmp.ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
+	INIT_LIST_HEAD(&all_sessions);
+
+	init_timer(&expire_timer);
+	expire_timer.function = clean_expired_sessions;
+	expire_timer.expires = jiffies + msecs_to_jiffies(5000);
+	expire_timer.data = 0;
+	add_timer(&expire_timer);
 }
 
 bool nat64_add_session_entry(struct session_entry *entry)
 {
 	bool inserted_to_ipv4, inserted_to_ipv6;
-	struct session_table *table = get_session_table(entry->l4protocol);
+	struct session_table *table;
 
-	if (entry->bib == NULL)
-		return false; // Because it's invalid.
+	if (!entry)
+		return false;
+	if (!entry->bib)
+		return false;
+	table = get_session_table(entry->l4protocol);
+	if (!table)
+		return false;
 
 	// Insert into the hash tables.
 	inserted_to_ipv4 = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
@@ -131,57 +187,56 @@ bool nat64_add_session_entry(struct session_entry *entry)
 struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol)
 {
 	struct session_table *table = get_session_table(l4protocol);
-
-	log_debug("Searching session entry: [%pI4#%d, %pI4#%d]...",
-			&pair->local.address, be16_to_cpu(pair->local.pi.port),
-			&pair->remote.address, be16_to_cpu(pair->remote.pi.port));
-
+	if (!table)
+		return NULL;
 	return ipv4_table_get(&table->ipv4, pair);
 }
 
 struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol)
 {
 	struct session_table *table = get_session_table(l4protocol);
-
-	log_debug("Searching session entry: [%pI6c#%d, %pI6c#%d]...",
-			&pair->remote.address, be16_to_cpu(pair->remote.pi.port),
-			&pair->local.address, be16_to_cpu(pair->local.pi.port));
-
+	if (!table)
+		return NULL;
 	return ipv6_table_get(&table->ipv6, pair);
 }
 
 struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple)
 {
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+
+	if (!tuple)
+		return NULL;
+
 	switch (tuple->L3_PROTOCOL) {
-		case NFPROTO_IPV6: {
-			struct ipv6_pair pair;
-			tuple_to_ipv6_pair(tuple, &pair);
-			return nat64_get_session_entry_by_ipv6(&pair, tuple->L4_PROTOCOL);
-		}
-		case NFPROTO_IPV4: {
-			struct ipv4_pair pair;
-			tuple_to_ipv4_pair(tuple, &pair);
-			return nat64_get_session_entry_by_ipv4(&pair, tuple->L4_PROTOCOL);
-		}
-		default: {
-			log_crit("Programming error; unknown l3 protocol: %d", tuple->L3_PROTOCOL);
-			return NULL;
-		}
+	case NFPROTO_IPV6:
+		tuple_to_ipv6_pair(tuple, &pair6);
+		return nat64_get_session_entry_by_ipv6(&pair6, tuple->L4_PROTOCOL);
+	case NFPROTO_IPV4:
+		tuple_to_ipv4_pair(tuple, &pair4);
+		return nat64_get_session_entry_by_ipv4(&pair4, tuple->L4_PROTOCOL);
+	default:
+		log_crit("Programming error; unknown l3 protocol: %d", tuple->L3_PROTOCOL);
+		return NULL;
 	}
 }
 
 bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 {
-	struct ipv4_table *table;
+	struct session_table *table;
 	__u16 hash_code;
 	struct hlist_node *current_node;
 	struct ipv4_pair tuple_pair, *session_pair;
 
-	tuple_to_ipv4_pair(tuple, &tuple_pair);
-	table = &get_session_table(tuple->L4_PROTOCOL)->ipv4;
-	hash_code = table->hash_function(&tuple_pair) % (64 * 1024);
+	if (!tuple)
+		return false;
+	table = get_session_table(tuple->L4_PROTOCOL);
+	if (!table)
+		return false;
 
-	hlist_for_each(current_node, &table->table[hash_code]) {
+	tuple_to_ipv4_pair(tuple, &tuple_pair);
+	hash_code = table->ipv4.hash_function(&tuple_pair) % ARRAY_SIZE(table->ipv4.table);
+	hlist_for_each(current_node, &table->ipv4.table[hash_code]) {
 		session_pair = list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
 		if (ipv4_tuple_addr_equals(&session_pair->local, &tuple_pair.local)
 				&& ipv4_addr_equals(&session_pair->remote.address, &tuple_pair.remote.address)) {
@@ -192,16 +247,14 @@ bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 	return false;
 }
 
-void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl)
+inline void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl)
 {
 	entry->dying_time = jiffies_to_msecs(jiffies) + ttl;
 }
 
-void nat64_update_session_state(struct session_entry *entry, u_int8_t state)
+inline void nat64_update_session_state(struct session_entry *entry, u_int8_t state)
 {
-	// lock
 	entry->current_state = state;
-	// unlock
 }
 
 bool nat64_remove_session_entry(struct session_entry *entry)
@@ -209,7 +262,11 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 	struct session_table *table;
 	bool removed_from_ipv4, removed_from_ipv6;
 
+	if (!entry)
+		return false;
 	table = get_session_table(entry->l4protocol);
+	if (!table)
+		return false;
 
 	// Free from both tables.
 	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
@@ -238,38 +295,25 @@ bool nat64_remove_session_entry(struct session_entry *entry)
 	return true;
 }
 
-void nat64_clean_old_sessions(void)
-{
-	struct list_head *current_node, *next_node;
-	struct session_entry *current_entry;
-	unsigned int current_time = jiffies_to_msecs(jiffies);
-
-	list_for_each_safe(current_node, next_node, &all_sessions) {
-		current_entry = list_entry(current_node, struct session_entry, all_sessions);
-		if (!current_entry->is_static && current_entry->dying_time <= current_time) {
-			nat64_remove_session_entry(current_entry);
-			kfree(current_entry);
-		}
-	}
-}
-
 void nat64_session_destroy(void)
 {
+	struct session_table *tables[] = { &session_table_udp, &session_table_tcp,
+			&session_table_icmp };
+	int i;
+
 	log_debug("Emptying the session tables...");
-
 	// The keys needn't be released because they're part of the values.
-	// The values need to be released only in one of the tables because both tables point to the same values.
+	// The values need to be released only in one of the tables because both tables point to the
+	// same values.
+	for (i = 0; i < ARRAY_SIZE(tables); i++) {
+		ipv4_table_empty(&session_table_udp.ipv4, false, false);
+		ipv6_table_empty(&session_table_udp.ipv6, false, true);
+	}
 
-	ipv4_table_empty(&session_table_udp.ipv4, false, false);
-	ipv6_table_empty(&session_table_udp.ipv6, false, true);
-
-	ipv4_table_empty(&session_table_tcp.ipv4, false, false);
-	ipv6_table_empty(&session_table_tcp.ipv6, false, true);
-
-	ipv4_table_empty(&session_table_icmp.ipv4, false, false);
-	ipv6_table_empty(&session_table_icmp.ipv6, false, true);
-
-	INIT_LIST_HEAD(&all_sessions);
+	spin_lock_bh(&expire_timer_lock);
+	expire_timer_active = false;
+	spin_unlock_bh(&expire_timer_lock);
+	del_timer_sync(&expire_timer);
 }
 
 struct session_entry *nat64_create_static_session_entry(
@@ -306,7 +350,11 @@ struct session_entry *nat64_create_session_entry(
 
 int nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array)
 {
-	return ipv4_table_to_array(&get_session_table(l4protocol)->ipv4, array);
+	struct session_table *table = get_session_table(l4protocol);
+	if (!table)
+		return 0;
+
+	return ipv4_table_to_array(&table->ipv4, array);
 }
 
 bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)

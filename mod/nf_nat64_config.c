@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <net/sock.h>
-#include <net/netlink.h>
+#include <linux/netlink.h>
 
 #include "nf_nat64_constants.h"
 #include "nf_nat64_types.h"
@@ -14,22 +14,20 @@
 #include "nf_nat64_pool6.h"
 #include "nf_nat64_ipv4_pool.h"
 #include "nf_nat64_static_routes.h"
+#include "nf_nat64_filtering_and_updating.h"
 #include "nf_nat64_translate_packet.h"
 
-
-struct filtering_config filtering_conf;
 
 /**
  * Socket the userspace application will speak to. We don't use it directly, but we need the
  * reference anyway.
  */
-struct sock *my_nl_sock;
+struct sock *netlink_socket;
 
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
  */
 DEFINE_MUTEX(my_mutex);
-
 
 bool nat64_config_init(void)
 {
@@ -53,6 +51,7 @@ void nat64_config_destroy(void)
 //	if (my_nl_sock)
 //		netlink_kernel_release(my_nl_sock);
 }
+
 
 static bool write_data(struct response_hdr **response, enum response_code code, void *payload,
 		__u32 payload_len)
@@ -204,24 +203,19 @@ static bool handle_session_config(__u32 operation, struct request_session *reque
 static bool handle_filtering_config(__u32 operation, union request_filtering *request,
 		struct response_hdr **response)
 {
-	struct filtering_config *new_config = &request->update.config;
+	struct filtering_config clone;
 
 	if (operation == 0) {
 		log_debug("Returning 'Filtering and Updating' options...");
-		return write_data(response, RESPONSE_SUCCESS, &filtering_conf, sizeof(filtering_conf));
+
+		if (!clone_filtering_config(&clone))
+			return write_code(response, RESPONSE_ALLOC_FAILED);
+
+		return write_data(response, RESPONSE_SUCCESS, &clone, sizeof(clone));
+	} else {
+		log_debug("Updating 'Filtering and Updating' options:");
+		return write_code(response, set_filtering_config(operation, &request->update.config));
 	}
-
-	log_debug("Updating 'Filtering and Updating' options:");
-
-	if (operation & ADDRESS_DEPENDENT_FILTER_MASK)
-		filtering_conf.address_dependent_filtering = new_config->address_dependent_filtering;
-	if (operation & FILTER_INFO_MASK)
-		filtering_conf.filter_informational_icmpv6 = new_config->filter_informational_icmpv6;
-	if (operation & DROP_TCP_MASK)
-		filtering_conf.drop_externally_initiated_tcp_connections =
-				new_config->drop_externally_initiated_tcp_connections; // Dude.
-
-	return write_code(response, RESPONSE_SUCCESS);
 }
 
 static bool handle_translate_config(struct request_hdr *hdr, union request_translate *request,
@@ -295,47 +289,48 @@ bool update_nat_config(struct request_hdr *hdr, struct response_hdr **res)
  * @param nlh message's metadata.
  * @return result status.
  */
-static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nlh)
 {
-	int pid;
-	struct request_hdr *req;
-	struct response_hdr *as;
-	int res;
+	struct request_hdr *request;
+	struct response_hdr *response = NULL;
+	int pid, res;
 	struct sk_buff *skb_out;
 
 	if (nlh->nlmsg_type != MSG_TYPE_NAT64) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_NAT64, nlh->nlmsg_type);
-		return -EINVAL;
+		goto failure;
 	}
 
-	req = NLMSG_DATA(nlh);
+	request = NLMSG_DATA(nlh);
 	pid = nlh->nlmsg_pid;
 
-	if (!update_nat_config(req, &as) != 0) {
+	if (!update_nat_config(request, &response) != 0) {
 		log_warning("Error while updating NAT64 running configuration");
-		return -EINVAL;
+		goto failure;
 	}
 
-	skb_out = nlmsg_new(as->length, 0);
+	skb_out = nlmsg_new(response->length, 0);
 	if (!skb_out) {
 		log_warning("Failed to allocate a response skb to the user.");
-		return -EINVAL;
+		goto failure;
 	}
 
-	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, as->length, 0);
+	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, response->length, 0);
 	NETLINK_CB(skb_out).dst_group = 0;
+	memcpy(nlmsg_data(nlh), response, response->length);
 
-	memcpy(nlmsg_data(nlh), as, as->length);
-	kfree(as);
-
-	res = nlmsg_unicast(my_nl_sock, skb_out, pid);
+	res = nlmsg_unicast(netlink_socket, skb_out, pid);
 	if (res < 0) {
 		log_warning("Error code %d while returning response to the user.", res);
-		return -EINVAL;
+		goto failure;
 	}
 
-	// TODO (info) as y quizá skb_out no parecen estarse liberando en todos los caminos.
+	kfree(response);
 	return 0;
+
+failure:
+	kfree(response);
+	return -EINVAL;
 }
 
 /**

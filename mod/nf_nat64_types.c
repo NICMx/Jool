@@ -63,7 +63,7 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 		return false;
 	if (!ipv4_addr_equals(&expected->address, &actual->address))
 		return false;
-	if (expected->pi.port != actual->pi.port)
+	if (expected->l4_id != actual->l4_id)
 		return false;
 
 	return true;
@@ -71,7 +71,7 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 
 __u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *address)
 {
-	return (address != NULL) ? ntohs(address->pi.port) : 0;
+	return (address != NULL) ? address->l4_id : 0;
 }
 
 bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tuple_address *actual)
@@ -82,7 +82,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 		return false;
 	if (!ipv6_addr_equals(&expected->address, &actual->address))
 		return false;
-	if (expected->pi.port != actual->pi.port)
+	if (expected->l4_id != actual->l4_id)
 		return false;
 
 	return true;
@@ -90,7 +90,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 
 __u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
 {
-	// address->pi.port would perhaps be the logical hash code, since it's usually random,
+	// address->l4_id would perhaps be the logical hash code, since it's usually random,
 	// but during nat64_get_bib_entry_by_ipv6_only() we need to ignore it during lookup
 	// so this needs to be a little more creative.
 
@@ -136,7 +136,7 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 
 __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 {
-	// pair->remote.pi.port would perhaps be the logical hash code, since it's usually random,
+	// pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
 	// but during nat64_is_allowed_by_address_filtering() we need to ignore it during lookup
 	// so this needs to be a little more creative.
 
@@ -159,7 +159,7 @@ __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 
 __u16 ipv6_pair_hashcode(struct ipv6_pair *pair)
 {
-	return (pair != NULL) ? ntohs(pair->local.pi.port) : 0;
+	return (pair != NULL) ? pair->local.l4_id : 0;
 }
 
 bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)
@@ -171,7 +171,7 @@ bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual
 
 	if (!ipv6_addr_equals(&expected->address, &actual->address))
 		return false;
-	if (expected->maskbits != actual->maskbits)
+	if (expected->len != actual->len)
 		return false;
 
 	return true;

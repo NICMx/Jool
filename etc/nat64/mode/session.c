@@ -27,20 +27,20 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 		return 0;
 	}
 
-	printf("---------------------------------");
+	printf("---------------------------------\n");
 
 	for (i = 0; i < entry_count; i++) {
 		struct session_entry_us *entry = &entries[i];
 
 		inet_ntop(AF_INET6, &entry->ipv6.remote.address, str6, INET6_ADDRSTRLEN);
-		printf("IPv6-remote: %s#%d\n", str6, ntohs(entry->ipv6.remote.pi.port));
+		printf("IPv6-remote: %s#%u\n", str6, entry->ipv6.remote.l4_id);
 		inet_ntop(AF_INET6, &entry->ipv6.local.address, str6, INET6_ADDRSTRLEN);
-		printf("IPv6-local:  %s#%u\n", str6, ntohs(entry->ipv6.local.pi.port));
+		printf("IPv6-local:  %s#%u\n", str6, entry->ipv6.local.l4_id);
 
 		str4 = inet_ntoa(entry->ipv4.local.address);
-		printf("IPv4-local:  %s#%d\n", str4, ntohs(entry->ipv4.local.pi.port));
+		printf("IPv4-local:  %s#%u\n", str4, entry->ipv4.local.l4_id);
 		str4 = inet_ntoa(entry->ipv4.remote.address);
-		printf("IPv4-remote:  %s#%d\n", str4, ntohs(entry->ipv4.remote.pi.port));
+		printf("IPv4-remote:  %s#%u\n", str4, entry->ipv4.remote.l4_id);
 
 		// TODO (later) imprimir tiempo a morir?
 		printf("%s; ", entry->is_static ? "STATIC" : "DYNAMIC");
@@ -60,7 +60,7 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 			break;
 		}
 
-		printf("---------------------------------");
+		printf("---------------------------------\n");
 	}
 
 	return 0;
@@ -130,8 +130,7 @@ static int session_remove_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, __u8 l4_proto,
-		struct ipv4_pair *pair4)
+error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ipv4_pair *pair4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -146,8 +145,7 @@ error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, __u8 l4_p
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, session_remove_response);
 }
 
-error_t session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, __u8 l4_proto,
-		struct ipv6_pair *pair6)
+error_t session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
