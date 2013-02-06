@@ -48,7 +48,7 @@ extern spinlock_t bib_session_lock;
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
-void nat64_bib_init(void);
+bool nat64_bib_init(void);
 
 /**
  * Adds "entry" to the BIB table whose layer-4 protocol is "protocol".

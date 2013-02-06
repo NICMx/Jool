@@ -549,9 +549,7 @@ free:
 
 bool init(void)
 {
-	nat64_bib_init();
-	nat64_session_init();
-	return true;
+	return nat64_bib_init() && nat64_session_init();
 }
 
 void end(void)

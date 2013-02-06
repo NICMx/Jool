@@ -65,7 +65,7 @@ struct session_entry
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
-void nat64_session_init(void);
+bool nat64_session_init(void);
 
 /**
  * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".

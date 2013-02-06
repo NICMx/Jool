@@ -9,17 +9,19 @@
 
 bool str_to_bool(const char *str, bool *bool_out)
 {
-	if (strcmp(str, "true") == 0 || strcmp(str, "1") == 0 || strcmp(str, "yes") == 0) {
+	if (strcasecmp(str, "true") == 0 || strcasecmp(str, "1") == 0
+			|| strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0) {
 		*bool_out = true;
 		return true;
 	}
 
-	if (strcmp(str, "false") == 0 || strcmp(str, "0") == 0 || strcmp(str, "no") == 0) {
+	if (strcasecmp(str, "false") == 0 || strcasecmp(str, "0") == 0
+			|| strcasecmp(str, "no") == 0 || strcasecmp(str, "off") == 0) {
 		*bool_out = false;
 		return true;
 	}
 
-	printf("Error: Cannot parse '%s' as a boolean value (true|1|yes|false|0|no).\n", str);
+	printf("Error: Cannot parse '%s' as a boolean value (true|false|1|0|yes|no|on|off).\n", str);
 	return false;
 }
 
@@ -91,8 +93,10 @@ bool str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 	array_len = 0;
 	token = strtok(str_copy, ",");
 	while (token) {
-		if (!str_to_u16(str, &array[array_len], 0, MAX_PORT))
+		if (!str_to_u16(token, &array[array_len], 0, 0xFFFF)) {
+			free(array);
 			return false; // Error msg already printed.
+		}
 		array_len++;
 		token = strtok(NULL, ",");
 	}
@@ -103,7 +107,6 @@ bool str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 	return true;
 }
 
-// TODO (later) Do something to join these three functions...
 bool str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 {
 	const char *FORMAT = "<IPv4 address>#<port> (eg. 10.20.30.40#50)";
@@ -167,11 +170,11 @@ bool str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 bool str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv6 address>/<length> (eg. 64:ff9b::/96)";
-	const int str_max_len = INET6_ADDRSTRLEN + 1 + 3; // [addr + null chara] + / + prefix len
-	char str_copy[str_max_len]; // strtok corrupts the string, so we'll be using this copy instead.
+	const int STR_MAX_LEN = INET6_ADDRSTRLEN + 1 + 3; // [addr + null chara] + / + prefix len
+	char str_copy[STR_MAX_LEN]; // strtok corrupts the string, so we'll be using this copy instead.
 	char *token;
 
-	if (strlen(str) + 1 > str_max_len) {
+	if (strlen(str) + 1 > STR_MAX_LEN) {
 		printf("Error: '%s' is too long for this poor, limited parser...\n", str);
 		return false;
 	}

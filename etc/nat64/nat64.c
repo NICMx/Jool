@@ -17,6 +17,7 @@
 #include "str_utils.h"
 #include "mode.h"
 #include "nf_nat64_config.h"
+#include "nf_nat64_constants.h"
 #include "xt_nat64_module_comm.h"
 #include "xt_nat64_module_conf_validation.h"
 
@@ -92,9 +93,9 @@ enum argp_flags {
 	ARGP_REMOTE4 = 2023,
 
 	// Filtering
-	ARGP_ADF = 3000,
-	ARGP_FINFO = 3001,
-	ARGP_DROPTCP = 3002,
+	ARGP_DROP_ADDR = 3000,
+	ARGP_DROP_INFO = 3001,
+	ARGP_DROP_TCP = 3002,
 	ARGP_UDP_TO = 3010,
 	ARGP_ICMP_TO = 3011,
 	ARGP_TCP_TO = 3012,
@@ -120,6 +121,7 @@ enum argp_flags {
 #define IPV4_TRANSPORT_FORMAT "<ipv4>#<num>"
 #define IPV4_ADDR_FORMAT "<ipv4>"
 #define BOOL_FORMAT "<bool>"
+#define NUM_ARR_FORMAT "<num>[,<num>]*"
 
 
 /*
@@ -194,14 +196,14 @@ static struct argp_option options[] =
 	{ "filtering",	ARGP_FILTERING,	0, 0,
 			"Command is filtering related. Use alone to display configuration. "
 			"Will be implicit if any other filtering command is entered." },
-	{ "adf",		ARGP_ADF,		BOOL_FORMAT, 0, "Use Address-Dependent Filtering." },
-	{ "finfo",		ARGP_FINFO,		BOOL_FORMAT, 0, "Filter ICMPv6 Informational packets." },
-	{ "droptcp",	ARGP_DROPTCP,	BOOL_FORMAT, 0, "Drop externally initiated TCP connections" },
-	{ "udpto",		ARGP_UDP_TO,	NUM_FORMAT, 0, "Set the timeout for new UDP sessions." },
-	{ "icmpto",		ARGP_ICMP_TO,	NUM_FORMAT, 0, "Set the timeout for new ICMP sessions." },
-	{ "tcpto",		ARGP_TCP_TO,	NUM_FORMAT, 0,
+	{ "dropAddr",	ARGP_DROP_ADDR,	BOOL_FORMAT, 0, "Use Address-Dependent Filtering." },
+	{ "dropInfo",	ARGP_DROP_INFO,		BOOL_FORMAT, 0, "Filter ICMPv6 Informational packets." },
+	{ "dropTCP",	ARGP_DROP_TCP,	BOOL_FORMAT, 0, "Drop externally initiated TCP connections" },
+	{ "toUDP",		ARGP_UDP_TO,	NUM_FORMAT, 0, "Set the timeout for new UDP sessions." },
+	{ "toICMP",		ARGP_ICMP_TO,	NUM_FORMAT, 0, "Set the timeout for new ICMP sessions." },
+	{ "toTCPest",	ARGP_TCP_TO,	NUM_FORMAT, 0,
 			"Set the established connection idle-timeout for new TCP sessions." },
-	{ "tcptransto",	ARGP_TCP_TRANS_TO,NUM_FORMAT, 0,
+	{ "toTCPtrans",	ARGP_TCP_TRANS_TO,NUM_FORMAT, 0,
 			"Set the transitory connection idle-timeout for new TCP sessions." },
 
 	{ 0, 0, 0, 0, "'Translate the Packet' step options:", 31 },
@@ -210,15 +212,15 @@ static struct argp_option options[] =
 				"Will be implicit if any other translate command is entered." },
 	{ "head",		ARGP_HEAD,		NUM_FORMAT, 0, "Packet head room." },
 	{ "tail",		ARGP_TAIL,		NUM_FORMAT, 0, "Packet tail room." },
-	{ "o6tclass",	ARGP_O6TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
-	{ "o4tclass",	ARGP_O4TCLASS,	BOOL_FORMAT, 0, "Override IPv4 Traffic class." },
-	{ "4tclass",	ARGP_4TCLASS,	NUM_FORMAT, 0, "IPv4 Traffic class." },
-	{ "df",			ARGP_DF,		BOOL_FORMAT, 0, "Always set Don't Fragment." },
-	{ "genid",		ARGP_GENID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
-	{ "imp_mtu_rate",ARGP_IMP_MTU,	BOOL_FORMAT, 0, "Improve MTU failure rate." },
-	{ "min_ipv6_mtu",ARGP_MIN_MTU6,	NUM_FORMAT, 0, "Minimal MTU value used in IPv6 network." },
-	{ "min_ipv4_mtu",ARGP_MIN_MTU4,	NUM_FORMAT, 0, "Minimal MTU value used in IPv4 network." },
-	{ "mtu_plateau",ARGP_PLATEAU,	NUM_FORMAT, 0, "MTU plateaus." },
+	{ "setTC",		ARGP_O6TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
+	{ "setTOS",		ARGP_O4TCLASS,	BOOL_FORMAT, 0, "Override IPv4 Traffic class." },
+	{ "TOS",		ARGP_4TCLASS,	NUM_FORMAT, 0, "IPv4 Traffic class." },
+	{ "setDF",		ARGP_DF,		BOOL_FORMAT, 0, "Always set Don't Fragment." },
+	{ "genID",		ARGP_GENID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
+	{ "boostMTU",	ARGP_IMP_MTU,	BOOL_FORMAT, 0, "Improve MTU failure rate." },
+	{ "minMTU6",	ARGP_MIN_MTU6,	NUM_FORMAT, 0, "Minimal MTU value used in IPv6 network." },
+	{ "minMTU4",	ARGP_MIN_MTU4,	NUM_FORMAT, 0, "Minimal MTU value used in IPv4 network." },
+	{ "plateaus",	ARGP_PLATEAU,	NUM_ARR_FORMAT, 0, "MTU plateaus." },
 
 	{ 0 },
 };
@@ -319,19 +321,19 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->session_pair4_remote_set = true;
 		break;
 
-	case ARGP_ADF:
+	case ARGP_DROP_ADDR:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ADDRESS_DEPENDENT_FILTER_MASK;
 		if (!str_to_bool(arg, &arguments->filtering.address_dependent_filtering))
 			return RESPONSE_PARSE_FAIL;
 		break;
-	case ARGP_FINFO:
+	case ARGP_DROP_INFO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= FILTER_INFO_MASK;
 		if (!str_to_bool(arg, &arguments->filtering.filter_informational_icmpv6))
 			return RESPONSE_PARSE_FAIL;
 		break;
-	case ARGP_DROPTCP:
+	case ARGP_DROP_TCP:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_TCP_MASK;
 		if (!str_to_bool(arg, &arguments->filtering.drop_externally_initiated_tcp_connections))
@@ -340,7 +342,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+		if (!str_to_u16(arg, &temp, UDP_MIN, 0xFFFF))
 			return RESPONSE_PARSE_FAIL;
 		arguments->filtering.to.udp = temp;
 		break;
@@ -353,15 +355,15 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
-		arguments->operation |= TCP_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+		arguments->operation |= TCP_EST_TIMEOUT_MASK;
+		if (!str_to_u16(arg, &temp, TCP_EST, 0xFFFF))
 			return RESPONSE_PARSE_FAIL;
-		arguments->filtering.to.tcp = temp;
+		arguments->filtering.to.tcp_est = temp;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
+		if (!str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF))
 			return RESPONSE_PARSE_FAIL;
 		arguments->filtering.to.tcp_trans = temp;
 		break;
@@ -522,6 +524,7 @@ int main(int argc, char **argv)
 			printf("Unknown operation for IPv4 pool mode: %d.\n", args.operation);
 			return RESPONSE_UNKNOWN_OP;
 		}
+
 	case MODE_BIB:
 		switch (args.operation) {
 		case OP_DISPLAY:

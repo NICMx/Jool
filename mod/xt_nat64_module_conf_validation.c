@@ -175,7 +175,6 @@ int ip_addr_in_same_net(int af,
 
 			break;
 		case AF_INET6:
-			// TODO (info) implement  me
 			// Is thís necesary?
 			//convert_bits_to_netmask(af, ipv6_bits, &ipv6_netmask);
 			break;

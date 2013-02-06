@@ -1,4 +1,5 @@
 #include "mode.h"
+#include <time.h>
 #include "netlink.h"
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -14,14 +15,13 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	char str6[INET6_ADDRSTRLEN];
 
 	hdr = nlmsg_data(nlmsg_hdr(msg));
-	entries = (struct session_entry_us *) (hdr + 1);
-	entry_count = (hdr->length - sizeof(*hdr)) / sizeof(*entries);
-
 	if (hdr->result_code != RESPONSE_SUCCESS) {
 		print_code_msg(hdr, "Session table", NULL);
 		return hdr->result_code;
 	}
 
+	entries = (struct session_entry_us *) (hdr + 1);
+	entry_count = (hdr->length - sizeof(*hdr)) / sizeof(*entries);
 	if (entry_count == 0) {
 		printf("The table is empty.\n");
 		return 0;
@@ -42,8 +42,8 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 		str4 = inet_ntoa(entry->ipv4.remote.address);
 		printf("IPv4-remote:  %s#%u\n", str4, entry->ipv4.remote.l4_id);
 
-		// TODO (later) imprimir tiempo a morir?
 		printf("%s; ", entry->is_static ? "STATIC" : "DYNAMIC");
+		printf("expires in %u milliseconds; ", entry->dying_time);
 		switch (entry->l4protocol) {
 		case IPPROTO_TCP:
 			printf("TCP\n");
@@ -71,18 +71,25 @@ static error_t exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct re
 {
 	error_t result = 0;
 
+	result = netlink_connect(callback);
+	if (result != RESPONSE_SUCCESS)
+		return result;
+
+	result = 0;
 	if (use_tcp) {
 		payload->l4_proto = IPPROTO_TCP;
-		result |= netlink_request(hdr, hdr->length, callback);
+		result |= netlink_request(hdr, hdr->length);
 	}
 	if (use_udp) {
 		payload->l4_proto = IPPROTO_UDP;
-		result |= netlink_request(hdr, hdr->length, callback);
+		result |= netlink_request(hdr, hdr->length);
 	}
 	if (use_icmp) {
 		payload->l4_proto = IPPROTO_ICMP;
-		result |= netlink_request(hdr, hdr->length, callback);
+		result |= netlink_request(hdr, hdr->length);
 	}
+
+	netlink_disconnect();
 
 	return result;
 }

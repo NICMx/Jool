@@ -357,8 +357,6 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 {
 	icmpv6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 
-	// TODO (test) might wanna unit test this,
-	// especialmente la parte de agarrar el pointer a partir del unused.
 	switch (icmpv4_hdr->code) {
 	case ICMP_PTR_INDICATES_ERROR:
 	case ICMP_BAD_LENGTH: {

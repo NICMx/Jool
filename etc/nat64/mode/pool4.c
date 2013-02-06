@@ -36,7 +36,7 @@ error_t pool4_display(void)
 			.operation = OP_DISPLAY,
 	};
 
-	return netlink_request(&request, request.length, pool4_display_response);
+	return netlink_single_request(&request, request.length, pool4_display_response);
 }
 
 static int pool4_add_response(struct nl_msg *msg, void *arg)
@@ -57,7 +57,7 @@ error_t pool4_add(struct in_addr *addr)
 	hdr->operation = OP_ADD;
 	payload->update.addr = *addr;
 
-	return netlink_request(request, hdr->length, pool4_add_response);
+	return netlink_single_request(request, hdr->length, pool4_add_response);
 }
 
 static int pool4_remove_response(struct nl_msg *msg, void *arg)
@@ -78,5 +78,5 @@ error_t pool4_remove(struct in_addr *addr)
 	hdr->operation = OP_REMOVE;
 	payload->update.addr = *addr;
 
-	return netlink_request(request, hdr->length, pool4_remove_response);
+	return netlink_single_request(request, hdr->length, pool4_remove_response);
 }

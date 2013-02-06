@@ -1113,6 +1113,25 @@ revert:
 }
 #undef min_mtu
 
+static bool test_function_icmp4_to_icmp6_param_prob(void)
+{
+	struct icmphdr hdr4;
+	struct icmp6hdr hdr6;
+	bool success = true;
+
+	hdr4.type = ICMP_PARAMETERPROB;
+	hdr4.code = ICMP_PTR_INDICATES_ERROR;
+	hdr4.icmp4_unused = cpu_to_be16(0x08000000);
+	success &= icmp4_to_icmp6_param_prob(&hdr4, &hdr6, "func result 1");
+	success &= assert_equals_u8(ICMPV6_HDR_FIELD, hdr6.icmp6_code, "code");
+	success &= assert_equals_u8(7, be32_to_cpu(hdr6.icmp6_pointer), "pointer");
+
+	hdr4.icmp4_unused = cpu_to_be16(0x05000000);
+	success &= !icmp4_to_icmp6_param_prob(&hdr4, &hdr6, "func result 2");
+
+	return success;
+}
+
 static bool test_function_build_tos_field(void)
 {
 	__u8 ipv6_header[4]; // We don't really need the rest of the bytes.
@@ -1465,6 +1484,7 @@ int init_module(void)
 	CALL_TEST(test_function_build_ipv6_frag_off_field(), "Fragment offset builder");
 	CALL_TEST(test_function_build_id_field(), "Identification builder");
 	CALL_TEST(test_function_icmp6_minimum_mtu(), "ICMP6 Minimum MTU function");
+	CALL_TEST(test_function_icmp4_to_icmp6_param_prob(), "Param problem function");
 
 	// 6 to 4 simple function tests.
 	CALL_TEST(test_function_build_tos_field(), "Build TOS function");

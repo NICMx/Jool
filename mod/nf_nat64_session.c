@@ -120,7 +120,7 @@ static void clean_expired_sessions(unsigned long param)
 
 	spin_lock_bh(&expire_timer_lock);
 	if (expire_timer_active) {
-		expire_timer.expires = jiffies + msecs_to_jiffies(5000);
+		expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
 		add_timer(&expire_timer);
 	}
 	spin_unlock_bh(&expire_timer_lock);
@@ -132,24 +132,28 @@ static void clean_expired_sessions(unsigned long param)
  * Public functions.
  *******************************/
 
-void nat64_session_init(void)
+bool nat64_session_init(void)
 {
 	struct session_table *tables[] = { &session_table_udp, &session_table_tcp,
 			&session_table_icmp };
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_init(&tables[i]->ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
-		ipv6_table_init(&tables[i]->ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
+		if (!ipv4_table_init(&tables[i]->ipv4, ipv4_pair_equals, ipv4_pair_hashcode))
+			return false;
+		if (!ipv6_table_init(&tables[i]->ipv6, ipv6_pair_equals, ipv6_pair_hashcode))
+			return false;
 	}
 
 	INIT_LIST_HEAD(&all_sessions);
 
 	init_timer(&expire_timer);
 	expire_timer.function = clean_expired_sessions;
-	expire_timer.expires = jiffies + msecs_to_jiffies(5000);
+	expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
 	expire_timer.data = 0;
 	add_timer(&expire_timer);
+
+	return true;
 }
 
 bool nat64_add_session_entry(struct session_entry *entry)
@@ -175,8 +179,6 @@ bool nat64_add_session_entry(struct session_entry *entry)
 		return false;
 	}
 
-	/* FIXME:	Function tcp_closed_state_handle() requires the insertion of a session entry
-	 * 			without a bib entry	( entry->bib == NULL )	*/
 	// Insert into the linked lists.
 	list_add(&entry->entries_from_bib, &entry->bib->session_entries);
 	list_add(&entry->all_sessions, &all_sessions);

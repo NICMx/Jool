@@ -76,7 +76,7 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	 	goto failure;
 	}
 
-	// TODO (warning) add header validations?
+	// TODO (test) validate l4 headers?
 
 	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
 		log_info("Packet does not use TCP, UDP or ICMPv4.");
@@ -227,19 +227,12 @@ int __init nat64_init(void)
 	need_conntrack();
 	need_ipv4_conntrack();
 
-	if (!nat64_config_init())
-		return false;
-	if (!pool6_init())
-		return false;
-	if (!pool4_init())
-		return false;
-	nat64_bib_init();
-	nat64_session_init();
-	if (!nat64_determine_incoming_tuple_init())
-		return false;
-	if (!filtering_init())
-		return false;
-	if (!translate_packet_init())
+	if (!(nat64_config_init()
+			&& pool6_init() && pool4_init()
+			&& nat64_bib_init() && nat64_session_init()
+			&& nat64_determine_incoming_tuple_init()
+			&& filtering_init()
+			&& translate_packet_init()))
 		return false;
 
 	result = xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
@@ -265,7 +258,7 @@ void __exit nat64_exit(void)
 }
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("NIC-ITESM"); // TODO (later) decidir quienes van a ir aquí?
+MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("\"NAT64\" (RFC 6146)");
 MODULE_ALIAS("ipt_nat64");
 MODULE_ALIAS("ip6t_nat64");

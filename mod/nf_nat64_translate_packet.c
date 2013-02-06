@@ -2,6 +2,7 @@
 
 #include <linux/kernel.h>
 #include <linux/printk.h>
+#include <linux/sort.h>
 #include <linux/icmpv6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -69,14 +70,54 @@ bool clone_translate_config(struct translate_config *clone)
 		spin_unlock_bh(&config_lock);
 		return false;
 	}
-	memcpy(clone->mtu_plateaus, &config.mtu_plateaus, plateaus_len);
+	memcpy(clone->mtu_plateaus, config.mtu_plateaus, plateaus_len);
 
 	spin_unlock_bh(&config_lock);
 	return true;
 }
 
+static int be16_compare(const void *a, const void *b)
+{
+	return *(__u16 *)b  - *(__u16 *)a;
+}
+
+static void be16_swap(void *a, void *b, int size)
+{
+	__u16 t = *(__u16 *)a;
+	*(__u16 *)a = *(__u16 *)b;
+	*(__u16 *)b = t;
+}
+
 enum response_code set_translate_config(__u32 operation, struct translate_config *new_config)
 {
+	// Validate.
+	if (operation & MTU_PLATEAUS_MASK) {
+		int i, j;
+
+		if (new_config->mtu_plateau_count == 0)
+			return RESPONSE_INVALID_VALUE;
+
+		// Sort descending.
+		sort(new_config->mtu_plateaus, new_config->mtu_plateau_count,
+				sizeof(*new_config->mtu_plateaus), be16_compare, be16_swap);
+
+		// Remove zeroes and duplicates.
+		for (i = 0, j = 1; j < new_config->mtu_plateau_count; j++) {
+			if (new_config->mtu_plateaus[j] == 0)
+				break;
+			if (new_config->mtu_plateaus[i] != new_config->mtu_plateaus[j]) {
+				i++;
+				new_config->mtu_plateaus[i] = new_config->mtu_plateaus[j];
+			}
+		}
+
+		if (new_config->mtu_plateaus[0] == 0)
+			return RESPONSE_INVALID_VALUE;
+
+		new_config->mtu_plateau_count = i + 1;
+	}
+
+	// Update.
 	spin_lock_bh(&config_lock);
 
 	if (operation & PHR_MASK)

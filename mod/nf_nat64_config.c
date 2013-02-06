@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <net/sock.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 
 #include "nf_nat64_constants.h"
 #include "nf_nat64_types.h"
@@ -28,29 +28,6 @@ struct sock *netlink_socket;
  * A lock, used to avoid sync issues when receiving messages from userspace.
  */
 DEFINE_MUTEX(my_mutex);
-
-bool nat64_config_init(void)
-{
-//	// Netlink sockets.
-//	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
-//	struct netlink_kernel_cfg cfg = {
-//			.input = &receive_from_userspace,
-//	};
-//	my_nl_sock = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &cfg);
-//	if (!my_nl_sock) {
-//		log_warning("Creation of netlink socket failed.");
-//		return false;
-//	}
-//	log_debug("Netlink socket created.");
-//
-	return true;
-}
-
-void nat64_config_destroy(void)
-{
-//	if (my_nl_sock)
-//		netlink_kernel_release(my_nl_sock);
-}
 
 
 static bool write_data(struct response_hdr **response, enum response_code code, void *payload,
@@ -200,7 +177,7 @@ static bool handle_session_config(__u32 operation, struct request_session *reque
 	}
 }
 
-static bool handle_filtering_config(__u32 operation, union request_filtering *request,
+static bool handle_filtering_config(__u32 operation, struct filtering_config *request,
 		struct response_hdr **response)
 {
 	struct filtering_config clone;
@@ -214,11 +191,11 @@ static bool handle_filtering_config(__u32 operation, union request_filtering *re
 		return write_data(response, RESPONSE_SUCCESS, &clone, sizeof(clone));
 	} else {
 		log_debug("Updating 'Filtering and Updating' options:");
-		return write_code(response, set_filtering_config(operation, &request->update.config));
+		return write_code(response, set_filtering_config(operation, request));
 	}
 }
 
-static bool handle_translate_config(struct request_hdr *hdr, union request_translate *request,
+static bool handle_translate_config(struct request_hdr *hdr, struct translate_config *request,
 		struct response_hdr **response)
 {
 	bool success;
@@ -245,7 +222,7 @@ static bool handle_translate_config(struct request_hdr *hdr, union request_trans
 
 		log_debug("Updating 'Translate the Packet' options:");
 
-		if (!deserialize_translate_config(request + 1, hdr->length - sizeof(*hdr), &new_config))
+		if (!deserialize_translate_config(request, hdr->length - sizeof(*hdr), &new_config))
 			return write_code(response, RESPONSE_ALLOC_FAILED);
 
 		success = write_code(response, set_translate_config(hdr->operation, &new_config));
@@ -274,9 +251,9 @@ bool update_nat_config(struct request_hdr *hdr, struct response_hdr **res)
 	case MODE_SESSION:
 		return handle_session_config(hdr->operation, (struct request_session *) (hdr + 1), res);
 	case MODE_FILTERING:
-		return handle_filtering_config(hdr->operation, (union request_filtering *) (hdr + 1), res);
+		return handle_filtering_config(hdr->operation, (struct filtering_config *) (hdr + 1), res);
 	case MODE_TRANSLATE:
-		return handle_translate_config(hdr, (union request_translate *) (hdr + 1), res);
+		return handle_translate_config(hdr, (struct translate_config *) (hdr + 1), res);
 	default:
 		return write_code(res, RESPONSE_UNKNOWN_MODE);
 	}
@@ -344,4 +321,25 @@ static void receive_from_userspace(struct sk_buff *skb)
 	mutex_lock(&my_mutex);
 	netlink_rcv_skb(skb, &handle_netlink_message);
 	mutex_unlock(&my_mutex);
+}
+
+bool nat64_config_init(void)
+{
+	// Netlink sockets.
+	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
+	netlink_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
+			NULL, THIS_MODULE);
+	if (!netlink_socket) {
+		log_warning("Creation of netlink socket failed.");
+		return false;
+	}
+	log_debug("Netlink socket created.");
+
+	return true;
+}
+
+void nat64_config_destroy(void)
+{
+	if (netlink_socket)
+		netlink_kernel_release(netlink_socket);
 }

@@ -27,10 +27,11 @@ bool serialize_translate_config(struct translate_config *config, unsigned char *
 bool deserialize_translate_config(void *buffer, __u16 buffer_len,
 		struct translate_config *target_out)
 {
-	__u16 mtus_len = target_out->mtu_plateau_count * sizeof(*target_out->mtu_plateaus);
+	__u16 mtus_len;
 
 	memcpy(target_out, buffer, sizeof(*target_out));
 
+	mtus_len = target_out->mtu_plateau_count * sizeof(*target_out->mtu_plateaus);
 	target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
 	if (!target_out->mtu_plateaus)
 		return false;

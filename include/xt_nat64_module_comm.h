@@ -21,7 +21,7 @@
 
 
 enum config_mode {
-	MODE_POOL6,
+	MODE_POOL6 = 1,
 	MODE_POOL4,
 	MODE_BIB,
 	MODE_SESSION,
@@ -156,7 +156,7 @@ struct translate_config
 
 	/** Default should be true; in fact I don't see why anyone would want it to be false. */
 	bool improve_mtu_failure_rate;
-	// TODO (info) there should probably be a way to compute these two values by ourselves.
+	// TODO (info) how can we compute these automatically?
 	__u16 ipv6_nexthop_mtu;
 	__u16 ipv4_nexthop_mtu;
 
@@ -217,24 +217,6 @@ struct request_session {
 	};
 };
 
-union request_filtering {
-	struct {
-		// Nothing needed here ATM.
-	} display;
-	struct {
-		struct filtering_config config;
-	} update;
-};
-
-union request_translate {
-	struct {
-		// Nothing needed here ATM.
-	} display;
-	struct {
-		struct translate_config config;
-	} update;
-};
-
 /**
  * Because the payload is sometimes a variable-length array, and as such I cannot make a struct
  * that can contain it without using pointers, a pointer to a header is actually a pointer to the
@@ -243,24 +225,6 @@ union request_translate {
 struct response_hdr {
 	__u32 length;
 	__u8 result_code;
-};
-
-union response_filtering {
-	struct {
-		struct filtering_config config;
-	} display;
-	struct {
-		// Nothing needed here ATM.
-	} update;
-};
-
-union response_translate {
-	struct {
-		struct translate_config config;
-	} display;
-	struct {
-		// Nothing needed here ATM.
-	} update;
 };
 
 

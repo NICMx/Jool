@@ -136,6 +136,7 @@ enum response_code nat64_print_session_table(struct request_session *request, __
 	struct session_entry **sessions_ks = NULL;
 	struct session_entry_us *sessions_us = NULL;
 	__s32 counter, count;
+	unsigned int now;
 
 	spin_lock_bh(&bib_session_lock);
 	count = nat64_session_table_to_array(request->l4_proto, &sessions_ks);
@@ -152,11 +153,13 @@ enum response_code nat64_print_session_table(struct request_session *request, __
 	if (!sessions_us)
 		goto kmalloc_fail;
 
+	now = jiffies_to_msecs(jiffies);
+
 	for (counter = 0; counter < count; counter++) {
 		sessions_us[counter].ipv6 = sessions_ks[counter]->ipv6;
 		sessions_us[counter].ipv4 = sessions_ks[counter]->ipv4;
 		sessions_us[counter].is_static = sessions_ks[counter]->is_static;
-		sessions_us[counter].dying_time = sessions_ks[counter]->dying_time;
+		sessions_us[counter].dying_time = sessions_ks[counter]->dying_time - now;
 		sessions_us[counter].l4protocol = sessions_ks[counter]->l4protocol;
 	}
 

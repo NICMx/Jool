@@ -73,15 +73,19 @@ static struct bib_table *get_bib_table(u_int8_t l4protocol)
  * Public functions.
  *******************************/
 
-void nat64_bib_init(void)
+bool nat64_bib_init(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_init(&tables[i]->ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode);
-		ipv6_table_init(&tables[i]->ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode);
+		if (!ipv4_table_init(&tables[i]->ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode))
+			return false;
+		if (!ipv6_table_init(&tables[i]->ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode))
+			return false;
 	}
+
+	return true;
 }
 
 bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)

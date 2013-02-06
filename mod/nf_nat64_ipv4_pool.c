@@ -4,8 +4,6 @@
 #include "nf_nat64_constants.h"
 
 
-// TODO (info) revisa nulos en valores de retorno.
-
 /**
  * A port which is known to be in the pool; available for borrowal.
  */
@@ -237,6 +235,9 @@ enum response_code pool4_register(struct in_addr *address)
 	struct pool_node *node[pool_count];
 	int i;
 
+	if (!address)
+		return RESPONSE_MISSING_PARAM;
+
 	for (i = 0; i < pool_count; i++) {
 		node[i] = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 		if (!node[i]) {
@@ -270,6 +271,9 @@ enum response_code pool4_remove(struct in_addr *address)
 	int proto;
 	int deleted = 0;
 
+	if (!address)
+		return RESPONSE_MISSING_PARAM;
+
 	for (proto = 0; proto < pool_count; proto++) {
 		spin_lock_bh(&pool[proto]->lock);
 
@@ -300,10 +304,10 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 	// Init
 	pool = get_pool(l4protocol);
 	if (!pool)
-		return NULL;
+		return false;
 	if (list_empty(&pool->list)) {
 		log_warning("The IPv4 pool is empty! Won't be able to lend an address.");
-		return NULL;
+		return false;
 	}
 
 	// Find an address with a compatible port
@@ -335,6 +339,8 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 	struct pool_node *node;
 	struct addr_section *section;
 
+	if (!address)
+		return false;
 	pool = get_pool(l4protocol);
 	if (!pool)
 		return false;
@@ -369,6 +375,8 @@ bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address)
 	struct addr_section *section;
 	struct free_port *new_port;
 
+	if (!address)
+		return false;
 	pool = get_pool(l4protocol);
 	if (!pool)
 		return false;
@@ -404,6 +412,9 @@ failure:
 bool pool4_contains(struct in_addr *address)
 {
 	bool result;
+
+	if (!address)
+		return false;
 
 	spin_lock_bh(&pools.udp.lock);
 	result = (get_pool_node(&pools.udp, address) != NULL);

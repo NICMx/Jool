@@ -11,15 +11,11 @@
  * @author Alberto Leiva
  */
 
-#include <linux/types.h>
-#include <linux/icmp.h>
-
 
 // -- Timeouts, defined by RFC 6146, section 4. --
 
 /**
  * Minimum allowable session lifetime for UDP bindings, in seconds.
- * TODO (rob) we don't use it yet.
  */
 #define UDP_MIN (2 * 60)
 /**
@@ -37,8 +33,8 @@
 #define TCP_EST (2 * 60 * 60)
 /** Timeout of several types of new STEs created during the CLOSED state of the TCP state machine. */
 #define TCP_INCOMING_SYN (6)
-/** Default time interval fragments are allowed to arrive in. In seconds. TODO (rob) we don't use it yet. */
-#define FRAGMENT_MIN (2)
+// /** Default time interval fragments are allowed to arrive in. In seconds. */
+// #define FRAGMENT_MIN (2)
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
@@ -64,6 +60,10 @@
 #define TRAN_DEF_IPV6_NEXTHOP_MTU 1280
 #define TRAN_DEF_IPV4_NEXTHOP_MTU 576
 #define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
+
+
+// -- Session --
+#define SESSION_TIMER_INTERVAL (10 * 1000)
 
 
 // -- ICMP constants missing from icmp.h and icmpv6.h. --

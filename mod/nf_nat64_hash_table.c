@@ -20,10 +20,6 @@
  *		be generated.
  *
  * This module contains no header file; it needs to be #included directly.
- *
- * TODO (optimization) Use slab instead of kmalloc.
- * TODO (warning) we'll need locks; both the BIB and session tables are probably being called by
- * different threads.
  */
 
 #include <linux/slab.h>
@@ -135,7 +131,6 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 
 /**
  * Readies "table" for future use.
- * TODO check return value.
  *
  * @param table the HTABLE_NAME instance you want to initialize.
  * @param equals_function function the table will use to locate slots.

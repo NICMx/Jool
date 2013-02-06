@@ -6,6 +6,7 @@
 #include <netlink/socket.h>
 #include <netlink/msg.h>
 #include <netlink/attr.h>
+#include <argp.h>
 
 
 // Assert we're compiling with libnl version >= 3.0
@@ -16,7 +17,11 @@
 	#error "Unsupported LIBNL library version number (< 3.0)."
 #endif
 
-int netlink_request(void *request, __u16 request_len, int (*callback)(struct nl_msg *, void *));
+error_t netlink_connect(int (*callback)(struct nl_msg *, void *));
+error_t netlink_request(void *request, __u16 request_len);
+void netlink_disconnect(void);
+error_t netlink_single_request(void *request, __u16 request_len,
+		int (*callback)(struct nl_msg *, void *));
 
 
 #endif

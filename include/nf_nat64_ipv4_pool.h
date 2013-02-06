@@ -14,8 +14,6 @@
 #include "xt_nat64_module_comm.h"
 
 
-// TODO (info) recuerda revisar be's vs u's.
-
 /**
  * Readies the rest of this module for future use.
  *

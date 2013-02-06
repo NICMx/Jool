@@ -98,7 +98,8 @@ static bool init(void)
 	}
 
 	// Init the BIB module
-	nat64_bib_init();
+	if (!nat64_bib_init())
+		return false;
 
 	for (i = 0; i < ARRAY_SIZE(protocols); i++)
 		if (!add_bib(&local_ipv4, 80, &remote_ipv6, 1500, protocols[i]))
