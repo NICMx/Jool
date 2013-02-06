@@ -8,24 +8,24 @@ ccflags-y := -I$(src)/../include
 
 obj-m += nat64.o
 
-nat64-objs += nf_nat64_types.o
-nat64-objs += nf_nat64_ipv6_hdr_iterator.o
-nat64-objs += nf_nat64_rfc6052.o
-nat64-objs += nf_nat64_pool6.o
-nat64-objs += nf_nat64_ipv4_pool.o
-nat64-objs += nf_nat64_bib.o
-nat64-objs += nf_nat64_session.o
-nat64-objs += nf_nat64_static_routes.o
-nat64-objs += nf_nat64_config.o
-nat64-objs += xt_nat64_module_conf_validation.o
-nat64-objs += xt_nat64_config_proto.o
-nat64-objs += nf_nat64_determine_incoming_tuple.o
-nat64-objs += nf_nat64_filtering_and_updating.o
-nat64-objs += nf_nat64_outgoing.o
-nat64-objs += nf_nat64_translate_packet.o
-nat64-objs += nf_nat64_handling_hairpinning.o
-nat64-objs += nf_nat64_send_packet.o
-nat64-objs += xt_nat64_core.o
+nat64-objs += types.o
+nat64-objs += ipv6_hdr_iterator.o
+nat64-objs += rfc6052.o
+nat64-objs += pool6.o
+nat64-objs += pool4.o
+nat64-objs += bib.o
+nat64-objs += session.o
+nat64-objs += static_routes.o
+nat64-objs += config.o
+nat64-objs += config_validation.o
+nat64-objs += config_proto.o
+nat64-objs += determine_incoming_tuple.o
+nat64-objs += filtering_and_updating.o
+nat64-objs += compute_outgoing_tuple.o
+nat64-objs += translate_packet.o
+nat64-objs += handling_hairpinning.o
+nat64-objs += send_packet.o
+nat64-objs += xt_core.o
 
 
 all:

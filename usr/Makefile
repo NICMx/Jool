@@ -1,9 +1,52 @@
-# make libxt_NAT64.so
+CC = gcc
+LD = ld
 
-IDIR =../include
-CFLAGS = -O2 -Wall -I$(IDIR)
+INCDIRS += -Iinclude -I../include
+INCDIRS += $(shell pkg-config --cflags libnl-3.0)
+CFLAGS += -Wall ${INCDIRS}
 
-lib%.so: lib%.o
-	gcc -shared -fPIC -o $@ $^;
-lib%.o: lib%.c
-	gcc ${CFLAGS} -D_INIT=lib$*_init -fPIC -c -o $@ $<;
+KERNEL_VER = $(shell uname -r | cut -d'-' -f1 | cut -f1 -d.)
+# For netlink sockets include library: libnl
+ifeq "${KERNEL_VER}" "2"
+#	For Ubuntu 10.04
+LDLIBS += -lnl-3
+$(info Compiling on kernel family 2)
+else
+# 	For Ubuntu 12.04
+LDLIBS += $(shell pkg-config --libs libnl-3.0)
+$(info Compiling on kernel family 3)
+endif
+
+PROGS = nat64
+OBJS := str_utils.o common.o netlink.o pool6.o pool4.o bib.o session.o filtering.o translate.o \
+		nat64.o
+
+
+nat64: $(OBJS)
+	$(CC) -o $@ $(LDLIBS) $(OBJS)
+
+str_utils.o: str_utils.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+common.o: common.c
+	$(CC) -c $(CFLAGS) $< -o $@
+netlink.o: netlink.c
+	$(CC) -c $(CFLAGS) $< -o $@
+pool6.o: pool6.c
+	$(CC) -c $(CFLAGS) $< -o $@
+pool4.o: pool4.c
+	$(CC) -c $(CFLAGS) $< -o $@
+bib.o: bib.c
+	$(CC) -c $(CFLAGS) $< -o $@
+session.o: session.c
+	$(CC) -c $(CFLAGS) $< -o $@
+filtering.o: filtering.c
+	$(CC) -c $(CFLAGS) $< -o $@
+translate.o: translate.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+nat64.o: nat64.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+clean:
+	rm -f $(PROGS) $(OBJS)

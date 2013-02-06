@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
-#include "unit_test.h"
+#include "nat64/unit_test.h"
+
 
 #define UNIT_WARNING(test_name, expected, actual, specifier) \
 		log_warning("Test '%s' failed. Expected: " specifier ". Actual: " specifier ".", \
