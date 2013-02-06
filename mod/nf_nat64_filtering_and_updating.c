@@ -1598,11 +1598,9 @@ int tcp_trans_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
  * */
 bool session_expired(struct session_entry *session_entry_p)
 {
-    spin_lock_bh(&bib_session_lock);
     switch( session_entry_p->current_state )
     {
         case CLOSED:
-            spin_unlock_bh(&bib_session_lock);
             return false;
         case V4_INIT:
             /* TODO:
@@ -1611,12 +1609,10 @@ bool session_expired(struct session_entry *session_entry_p)
              * is deleted, and the state is moved to CLOSED. */
             // send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
             nat64_update_session_state(session_entry_p, CLOSED);
-            spin_unlock_bh(&bib_session_lock);
             return false;
         case ESTABLISHED:
             send_probe_packet(session_entry_p);
             nat64_update_session_state(session_entry_p, TRANS);
-            spin_unlock_bh(&bib_session_lock);
             return true;
         case V6_INIT:
         case V4_FIN_RCV:
@@ -1624,11 +1620,9 @@ bool session_expired(struct session_entry *session_entry_p)
         case V4_FIN_V6_FIN_RCV:
         case TRANS:
             nat64_update_session_state(session_entry_p, CLOSED);
-            spin_unlock_bh(&bib_session_lock);
             return false;
         default:
             log_err("TCP. Invalid state found, keeping STE.");
-            spin_unlock_bh(&bib_session_lock);
             return false;
     }
     

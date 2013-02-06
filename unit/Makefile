@@ -70,10 +70,10 @@ test:
 	-sudo rmmod rfc6052
 	-sudo insmod hashtable.ko
 	-sudo rmmod hashtable
-	#-sudo insmod pool4.ko
-	#-sudo rmmod pool4
-	#-sudo insmod bib_session.ko
-	#-sudo rmmod bib_session
+	-sudo insmod pool4.ko
+	-sudo rmmod pool4
+	-sudo insmod bib_session.ko
+	-sudo rmmod bib_session
 	-sudo insmod iterator.ko
 	-sudo rmmod iterator
 	-sudo insmod filtering.ko

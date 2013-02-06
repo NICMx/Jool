@@ -52,8 +52,8 @@ static bool test_range(__u32 port_range_min, __u32 port_range_max, char *test_na
 					test_name);
 			success &= assert_tuple_addr(&expected_ips[addr_ctr], port_ctr, &result, test_name);
 
-			if (!success && (port_ctr % 20 == 0 || (port_ctr + 1) % 20 == 0))
-				return false;
+//			if (!success && (port_ctr % 20 == 0 || (port_ctr + 1) % 20 == 0))
+//				return false;
 		}
 	}
 
@@ -259,8 +259,8 @@ int init_module(void)
 	START_TESTS("Pool");
 
 	INIT_CALL_END(init(), test_get_any_function(), destroy(), "Get simple");
-//	INIT_CALL_END(init(), test_return_function(), destroy(), "Get and Return");
-//	INIT_CALL_END(init(), test_get_similar_function(), destroy(), "Allocate functions");
+	INIT_CALL_END(init(), test_return_function(), destroy(), "Get and Return");
+	INIT_CALL_END(init(), test_get_similar_function(), destroy(), "Allocate functions");
 
 	END_TESTS;
 }

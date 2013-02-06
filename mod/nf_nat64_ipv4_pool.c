@@ -321,7 +321,7 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 		struct addr_section *section;
 
 		tuple_addr.address = node->address;
-		tuple_addr.l4_id = port;
+		tuple_addr.l4_id = be16_to_cpu(port);
 		section = get_section(node, &tuple_addr);
 
 		if (section != NULL && extract_any_port(section, &result->l4_id)) {

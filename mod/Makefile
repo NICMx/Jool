@@ -46,10 +46,10 @@ insert:
 	sudo insmod nat64.ko
 	dmesg | tail -15
 	# insert the rules
-	#sudo iptables -t mangle --flush
-	#sudo ip6tables -t mangle --flush
-	#sudo iptables -t mangle -A PREROUTING -j NAT64
-	#sudo ip6tables -t mangle -A PREROUTING -j NAT64
+	sudo iptables -t mangle --flush
+	sudo ip6tables -t mangle --flush
+	sudo iptables -t mangle -A PREROUTING -j NAT64
+	sudo ip6tables -t mangle -A PREROUTING -j NAT64
 remove:
 	# remove the rules
 	sudo iptables -t mangle --flush
@@ -63,5 +63,3 @@ modules_install:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	#rm -f ../mod/*.o ../unit/*.o
-	#rm -f *.o *.mod.c *.ko modules.order
