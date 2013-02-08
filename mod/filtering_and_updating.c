@@ -1597,36 +1597,45 @@ int tcp_trans_state_handle(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
  * @return TRUE: keep STE, FALSE: remove STE.
  * */
 bool session_expired(struct session_entry *session_entry_p)
-{
-    switch( session_entry_p->current_state )
-    {
-        case CLOSED:
-            return false;
-        case V4_INIT:
-            /* TODO:
-             * If the lifetime expires, an ICMP Port Unreachable error (Type 3, Code 3) containing the
-             * IPv4 SYN packet stored is sent back to the source of the v4 SYN, the Session Table Entry
-             * is deleted, and the state is moved to CLOSED. */
-            // send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
-            nat64_update_session_state(session_entry_p, CLOSED);
-            return false;
-        case ESTABLISHED:
-            send_probe_packet(session_entry_p);
-            nat64_update_session_state(session_entry_p, TRANS);
-            return true;
-        case V6_INIT:
-        case V4_FIN_RCV:
-        case V6_FIN_RCV:
-        case V4_FIN_V6_FIN_RCV:
-        case TRANS:
-            nat64_update_session_state(session_entry_p, CLOSED);
-            return false;
-        default:
-            log_err("TCP. Invalid state found, keeping STE.");
-            return false;
-    }
-    
-    return true;
+{		
+	switch(session_entry_p->l4protocol) {
+		case IPPROTO_UDP:
+			return false;
+		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
+			return false;
+		case IPPROTO_TCP:
+			switch( session_entry_p->current_state )
+			{
+				case CLOSED:
+					return false;
+				case V4_INIT:
+					/* TODO:
+					 * If the lifetime expires, an ICMP Port Unreachable error (Type 3, Code 3) containing the
+					 * IPv4 SYN packet stored is sent back to the source of the v4 SYN, the Session Table Entry
+					 * is deleted, and the state is moved to CLOSED. */
+					// send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
+					nat64_update_session_state(session_entry_p, CLOSED);
+					return false;
+				case ESTABLISHED:
+					send_probe_packet(session_entry_p);
+					nat64_update_session_state(session_entry_p, TRANS);
+					return true;
+				case V6_INIT:
+				case V4_FIN_RCV:
+				case V6_FIN_RCV:
+				case V4_FIN_V6_FIN_RCV:
+				case TRANS:
+					nat64_update_session_state(session_entry_p, CLOSED);
+					return false;
+				default:
+					log_err("TCP. Invalid state found, remove STE.");
+					return false;
+			}
+		default:
+			log_err("Invalid protocol: %d.", session_entry_p->l4protocol);
+			return false;
+	}
 }
 
 /** Filtering of incoming TCP packets.

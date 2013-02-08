@@ -53,7 +53,7 @@ void init_tuple_for_test_ipv6(struct nf_conntrack_tuple *tuple, u_int8_t l4proto
     tuple->L3_PROTOCOL = NFPROTO_IPV6;
     tuple->L4_PROTOCOL = l4protocol;
     
-    if ( l4protocol == IPPROTO_ICMPV6 )
+    if ( l4protocol == IPPROTO_ICMPV6 || l4protocol == IPPROTO_ICMP)
     {
         tuple->icmp_id = htons( INIT_TUPLE_IPV6_ICMP_ID );
         tuple->dst_port = htons( INIT_TUPLE_IPV6_ICMP_ID );
@@ -114,7 +114,7 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple,
             l4_len = sizeof(struct icmphdr);
             break;
         default:
-            log_warning("Invalid protocol 1.");
+            log_warning("Invalid protocol 1: %d", protocol);
             skb = NULL;
             return NULL;
     }
@@ -214,7 +214,7 @@ bool inject_bib_entry( struct bib_entry *bib_e, u_int8_t l4protocol )
     str_to_addr6(IPV6_INJECT_BIB_ENTRY_SRC_ADDR, &addr6);
 
 
-    if ( l4protocol == IPPROTO_ICMPV6 || l4protocol == IPPROTO_ICMPV6 )
+    if ( l4protocol == IPPROTO_ICMP || l4protocol == IPPROTO_ICMPV6 )
     {
         transport_address_ipv4( addr4, htons( INIT_TUPLE_ICMP_ID ), &ta_ipv4 );
         transport_address_ipv6( addr6, htons( INIT_TUPLE_ICMP_ID ), &ta_ipv6 );        
@@ -523,8 +523,8 @@ bool test_ipv6_udp( void )
     // Init tuple
     init_tuple_for_test_ipv6( &tuple, protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
 
     // Create Bib & Session:
     success &= assert_equals_int(NF_ACCEPT, ipv6_udp( skb, &tuple ), 
@@ -555,8 +555,8 @@ bool test_ipv4_udp( void )
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol  );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
 
     // Discard un-expected IPv4 packets.
 pr_debug(" Discard un-expected IPv4 packets");
@@ -597,7 +597,8 @@ bool test_ipv6_icmp6( void )
     
     bool success = true;
 
-    protocol = IPPROTO_ICMPV6;
+    //~ protocol = IPPROTO_ICMPV6;
+    protocol = IPPROTO_ICMP;
 
     nat64_bib_init();
     nat64_session_init();
@@ -608,8 +609,8 @@ bool test_ipv6_icmp6( void )
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
 
     // Create Bib & Session:
     success &= assert_equals_int(NF_ACCEPT,  ipv6_icmp6(skb, &tuple), 
@@ -642,8 +643,8 @@ bool test_ipv4_icmp4( void )
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
 
 pr_debug(" * Discard un-expected IPv4 packets");
     // Discard un-expected IPv4 packets.
@@ -656,11 +657,12 @@ pr_debug(" * Process an expected packet");
     
 pr_debug(" * Create Bib & Session");
     // Create Bib & Session:
-    protocol = IPPROTO_ICMPV6;
+    //~ protocol = IPPROTO_ICMPV6;
+    protocol = IPPROTO_ICMP;
     init_tuple_for_test_ipv6( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     success &= assert_equals_int(NF_ACCEPT, ipv6_icmp6(skb, &tuple ), 
 		"See if we can process correctly an IPv6 ICMP packet.");
     kfree_skb(skb);
@@ -670,8 +672,8 @@ pr_debug(" * Process an expected IPv4 packets.");
     protocol = IPPROTO_ICMP;
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     success &= assert_equals_int(NF_ACCEPT, ipv4_icmp4( skb, &tuple ), 
 		"See if we can process correctly an expected IPv4 ICMP packet.");
 
@@ -703,8 +705,8 @@ bool test_send_icmp_error_message( void )
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
     //~ if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-    if ( (skb = init_skb_for_test( &tuple, skb, IPPROTO_UDP ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    //~ skb = init_skb_for_test( &tuple, skb, protocol );
+    //~ success &= assert_not_null(skb, "init_skb_for_test");        
 
     //~ l3_len = sizeof(struct iphdr);
     //~ skb = alloc_skb(LL_MAX_HEADER + l3_len + sizeof(struct icmphdr) + BUFFER_SIZE_ICMP, GFP_ATOMIC);
@@ -745,8 +747,8 @@ bool test_send_icmp_error_message( void )
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, IPPROTO_UDP ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
 
     pr_debug("Test if we can send an ICMPv6 error packet: DESTINATION_UNREACHABLE, HOST_UNREACHABLE");
     type = DESTINATION_UNREACHABLE;
@@ -796,8 +798,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");    
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     icmp_hdr(skb)->type = ICMP_DEST_UNREACH; // Set a error packet
     // Process a tuple generated from a incoming IPv6 packet:
     success &= assert_equals_int(NF_ACCEPT,  filtering_and_updating( skb, &tuple), 
@@ -813,8 +815,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     // Add pref64
     str_to_addr6(INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR , &addr6);
     tuple.ipv6_src_addr = addr6; 
@@ -829,8 +831,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");    
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     // Unwanted packet
     str_to_addr6(INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR , &addr6);
     tuple.ipv6_dst_addr = addr6; 
@@ -845,8 +847,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     // Packet destined to an address not in pool
     str_to_addr4(INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR , &addr4);
     tuple.ipv4_dst_addr = addr4; 
@@ -861,8 +863,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     // Process a tuple generated from a incoming IPv6 packet:
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
 		"See if we can do reject an incoming IPv4 UDP packet.");
@@ -874,8 +876,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv6( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     // Process a tuple generated from a incoming IPv6 packet:
     ret = filtering_and_updating( skb, &tuple);
     success &= assert_equals_int(NF_ACCEPT,  ret, "See if we can do filtering and updating on an incoming IPv6 UDP packet.");
@@ -887,8 +889,8 @@ bool test_filtering_and_updating( void )
     // Init tuple
     init_tuple_for_test_ipv4( &tuple , protocol );
     // Init skb
-    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        pr_debug("ERROR, SKB == NULL");
+    skb = init_skb_for_test( &tuple, skb, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");        
     // Process a tuple generated from a incoming IPv6 packet:
     success &= assert_equals_int(NF_ACCEPT,  filtering_and_updating( skb, &tuple), 
 		"See if we can do filtering and updating on an incoming IPv4 UDP packet.");
@@ -1810,8 +1812,8 @@ bool test_tcp( void )
     //~ // Init tuple
     //~ init_tuple_for_test_ipv4( &tuple , protocol  );
     //~ // Init skb
-    //~ if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
-        //~ pr_debug("ERROR, SKB == NULL");
+    //~ skb = init_skb_for_test( &tuple, skb, protocol );
+    //~ success &= assert_not_null(skb, "init_skb_for_test");        
 //~ 
         //~ send_icmp_error_message(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE); 
 
@@ -1841,7 +1843,8 @@ int __init filtering_test_init(void)
 
 
     // Initialize the NAT configuration for the tests.
-    nat64_config_init();
+    if ( !nat64_config_init() )
+		return -EINVAL;
 
     /*      UDP & ICMP      */
     //~ CALL_TEST(test_icmp(), "test_icmp");
@@ -1880,6 +1883,7 @@ int __init filtering_test_init(void)
     CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
     CALL_TEST(test_tcp(), "test_tcp");
   
+	nat64_config_destroy();
     /* A non 0 return means a test failed; module can't be loaded. */
     END_TESTS;
 }
