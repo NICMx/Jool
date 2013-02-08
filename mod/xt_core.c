@@ -33,7 +33,7 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 
 	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
 		goto free_and_fail;
-	if (!filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
+	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
 	if (!compute_outgoing_fn(tuple_in, skb_in, &tuple_out))
 		goto free_and_fail;

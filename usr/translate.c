@@ -57,7 +57,7 @@ error_t translate_request(__u32 operation, struct translate_config *config)
 		request.mode = MODE_TRANSLATE;
 		request.operation = 0;
 
-		return netlink_single_request(&request, request.length, handle_display_response);
+		return netlink_request(&request, request.length, handle_display_response);
 	} else {
 		struct request_hdr *hdr;
 		struct translate_config *payload_translate;
@@ -81,7 +81,7 @@ error_t translate_request(__u32 operation, struct translate_config *config)
 		*payload_translate = *config;
 		memcpy(payload_mtus, config->mtu_plateaus, mtus_len);
 
-		result = netlink_single_request(hdr, request_len, handle_update_response);
+		result = netlink_request(hdr, request_len, handle_update_response);
 		free(hdr);
 		return result;
 	}

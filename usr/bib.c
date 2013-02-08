@@ -32,6 +32,7 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 				addr_str,
 				entries[i].ipv6.l4_id);
 	}
+	printf("\n");
 
 	return 0;
 }
@@ -41,34 +42,27 @@ error_t bib_display(bool use_tcp, bool use_udp, bool use_icmp)
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_bib *payload = (union request_bib *) (request + HDR_LEN);
-	error_t result;
+	error_t result = 0;
 
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_BIB;
 	hdr->operation = OP_DISPLAY;
 
-	result = netlink_connect(bib_display_response);
-	if (result != RESPONSE_SUCCESS)
-		return result;
-
-	result = 0;
 	if (use_tcp) {
 		printf("TCP:\n");
 		payload->display.l4_proto = IPPROTO_TCP;
-		result |= netlink_request(request, hdr->length);
+		result |= netlink_request(request, hdr->length, bib_display_response);
 	}
 	if (use_udp) {
 		printf("UDP:\n");
 		payload->display.l4_proto = IPPROTO_UDP;
-		result |= netlink_request(request, hdr->length);
+		result |= netlink_request(request, hdr->length, bib_display_response);
 	}
 	if (use_icmp) {
 		printf("ICMP:\n");
 		payload->display.l4_proto = IPPROTO_ICMP;
-		result |= netlink_request(request, hdr->length);
+		result |= netlink_request(request, hdr->length, bib_display_response);
 	}
-
-	netlink_disconnect();
 
 	return result;
 }

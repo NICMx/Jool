@@ -2,11 +2,10 @@
 #include "nat64/config_proto.h"
 
 
-struct nl_sock *nl_socket;
-
-error_t netlink_connect(int (*callback)(struct nl_msg *, void *))
+error_t netlink_request(void *request, __u16 request_len, int (*callback)(struct nl_msg *, void *))
 {
 	int ret;
+	struct nl_sock *nl_socket;
 
 	nl_socket = nl_socket_alloc();
 	if (!nl_socket) {
@@ -21,57 +20,36 @@ error_t netlink_connect(int (*callback)(struct nl_msg *, void *))
 	if (ret < 0) {
 		nl_perror(ret, "Could not register response handler. I will not be able to parse the "
 				"NAT64's response, so I will not send the request");
-		return RESPONSE_SEND_FAILED;
+		goto fail_free;
 	}
 
 	ret = nl_connect(nl_socket, NETLINK_USERSOCK);
 	if (ret < 0) {
 		nl_perror(ret, "Could not connect to the NAT64 (is it really up?)");
-		goto connect_failure;
+		goto fail_free;
 	}
-
-	return RESPONSE_SUCCESS;
-
-connect_failure:
-	nl_socket_free(nl_socket);
-	return RESPONSE_CONNECT_FAILED;
-}
-
-error_t netlink_request(void *request, __u16 request_len)
-{
-	int ret;
 
 	ret = nl_send_simple(nl_socket, MSG_TYPE_NAT64, 0, request, request_len);
 	if (ret < 0) {
 		nl_perror(ret, "Error while messaging the NAT64");
-		return RESPONSE_SEND_FAILED;
+		goto fail_close;
 	}
 
 	ret = nl_recvmsgs_default(nl_socket);
 	if (ret < 0) {
 		nl_perror(ret, "Waiting for the NAT64's response yielded failure");
-		return RESPONSE_SEND_FAILED;
+		goto fail_close;
 	}
 
-	return RESPONSE_SUCCESS;
-}
-
-void netlink_disconnect(void)
-{
 	nl_close(nl_socket);
 	nl_socket_free(nl_socket);
-}
+	return RESPONSE_SUCCESS;
 
-error_t netlink_single_request(void *request, __u16 request_len,
-		int (*callback)(struct nl_msg *, void *))
-{
-	error_t result;
+fail_close:
+	nl_close(nl_socket);
+	/* Fall through. */
 
-	result = netlink_connect(callback);
-	if (result != RESPONSE_SUCCESS)
-		return result;
-	result = netlink_request(request, request_len);
-	netlink_disconnect();
-
-	return result;
+fail_free:
+	nl_socket_free(nl_socket);
+	return RESPONSE_SEND_FAILED;
 }

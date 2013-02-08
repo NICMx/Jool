@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
+#include "nat64/constants.h"
+
 
 #define MAX_PORT 0xFFFF
 
@@ -185,6 +187,9 @@ bool str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 	const int STR_MAX_LEN = INET6_ADDRSTRLEN + 1 + 3; // [addr + null chara] + / + prefix len
 	char str_copy[STR_MAX_LEN]; // strtok corrupts the string, so we'll be using this copy instead.
 	char *token;
+	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
+	int valid_lengths_size = sizeof(valid_lengths) / sizeof((valid_lengths)[0]);
+	int i;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
 		printf("Error: '%s' is too long for this poor, limited parser...\n", str);
@@ -203,8 +208,13 @@ bool str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 		printf("Error: '%s' does not seem to contain a mask (format: %s).\n", str, FORMAT);
 		return false;
 	}
-	if (!str_to_u8(token, &prefix_out->len, 0, 128))
+	if (!str_to_u8(token, &prefix_out->len, 0, 0xFF))
 		return false; // Error msg already printed.
 
-	return true;
+	for (i = 0; i < valid_lengths_size; i++)
+		if (prefix_out->len == valid_lengths[i])
+			return true;
+
+	printf("Error: %u is not a valid prefix length.\n", prefix_out->len);
+	return false;
 }

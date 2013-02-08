@@ -40,7 +40,7 @@ error_t pool6_display(void)
 			.operation = OP_DISPLAY,
 	};
 
-	return netlink_single_request(&request, request.length, pool6_display_response);
+	return netlink_request(&request, request.length, pool6_display_response);
 }
 
 static int pool6_add_response(struct nl_msg *msg, void *arg)
@@ -61,7 +61,7 @@ error_t pool6_add(struct ipv6_prefix *prefix)
 	hdr->operation = OP_ADD;
 	payload->update.prefix = *prefix;
 
-	return netlink_single_request(request, hdr->length, pool6_add_response);
+	return netlink_request(request, hdr->length, pool6_add_response);
 }
 
 static int pool6_remove_response(struct nl_msg *msg, void *arg)
@@ -82,5 +82,5 @@ error_t pool6_remove(struct ipv6_prefix *prefix)
 	hdr->operation = OP_REMOVE;
 	payload->update.prefix = *prefix;
 
-	return netlink_single_request(request, hdr->length, pool6_remove_response);
+	return netlink_request(request, hdr->length, pool6_remove_response);
 }

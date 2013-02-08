@@ -62,6 +62,10 @@
 #define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
 
 
+// IPv6 Pool
+#define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
+
+
 // -- Session --
 #define SESSION_TIMER_INTERVAL (10 * 1000)
 

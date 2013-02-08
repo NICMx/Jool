@@ -41,7 +41,7 @@ error_t filtering_request(__u32 operation, struct filtering_config *config)
 		request.mode = MODE_FILTERING;
 		request.operation = 0;
 
-		return netlink_single_request(&request, request.length, handle_display_response);
+		return netlink_request(&request, request.length, handle_display_response);
 	} else {
 		unsigned char request[HDR_LEN + PAYLOAD_LEN];
 		struct request_hdr *hdr = (struct request_hdr *) request;
@@ -52,6 +52,6 @@ error_t filtering_request(__u32 operation, struct filtering_config *config)
 		hdr->operation = operation;
 		*payload = *config;
 
-		return netlink_single_request(request, hdr->length, handle_update_response);
+		return netlink_request(request, hdr->length, handle_update_response);
 	}
 }

@@ -30,8 +30,14 @@ static DEFINE_SPINLOCK(pool_lock);
 
 static bool is_prefix_len_valid(__u8 prefix_len)
 {
-	return (prefix_len == 32) || (prefix_len == 40) || (prefix_len == 48) || (prefix_len == 56)
-			|| (prefix_len == 64) || (prefix_len == 96);
+	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(valid_lengths); i++)
+		if (prefix_len == valid_lengths[i])
+			return true;
+
+	return false;
 }
 
 static bool load_defaults(void)

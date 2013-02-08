@@ -18,7 +18,7 @@ bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tupl
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	if (!filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
+	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
 	if (!compute_outgoing_tuple_4to6(tuple_in, skb_in, &tuple_out))
 		goto free_and_fail;

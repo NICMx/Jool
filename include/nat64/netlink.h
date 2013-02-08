@@ -16,11 +16,7 @@
 	#error "Unsupported LIBNL library version number (< 3.0)."
 #endif
 
-error_t netlink_connect(int (*callback)(struct nl_msg *, void *));
-error_t netlink_request(void *request, __u16 request_len);
-void netlink_disconnect(void);
-error_t netlink_single_request(void *request, __u16 request_len,
-		int (*callback)(struct nl_msg *, void *));
+error_t netlink_request(void *request, __u16 request_len, int (*callback)(struct nl_msg *, void *));
 
 
 #endif

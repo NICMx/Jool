@@ -26,7 +26,7 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	entries = (struct session_entry_us *) (hdr + 1);
 	entry_count = (hdr->length - sizeof(*hdr)) / sizeof(*entries);
 	if (entry_count == 0) {
-		printf("The table is empty.\n");
+		printf("  (empty)\n\n");
 		return 0;
 	}
 
@@ -35,36 +35,24 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	for (i = 0; i < entry_count; i++) {
 		struct session_entry_us *entry = &entries[i];
 
+		if (entry->is_static)
+			printf("STATIC\n");
+		else
+			printf("DYNAMIC (expires in %u milliseconds).\n", entry->dying_time);
+
+		str4 = inet_ntoa(entry->ipv4.remote.address);
+		printf("Remote: %s#%u\t", str4, entry->ipv4.remote.l4_id);
 		inet_ntop(AF_INET6, &entry->ipv6.remote.address, str6, INET6_ADDRSTRLEN);
-		printf("IPv6-remote: %s#%u\n", str6, entry->ipv6.remote.l4_id);
-		inet_ntop(AF_INET6, &entry->ipv6.local.address, str6, INET6_ADDRSTRLEN);
-		printf("IPv6-local:  %s#%u\n", str6, entry->ipv6.local.l4_id);
+		printf("%s#%u\n", str6, entry->ipv6.remote.l4_id);
 
 		str4 = inet_ntoa(entry->ipv4.local.address);
-		printf("IPv4-local:  %s#%u\n", str4, entry->ipv4.local.l4_id);
-		str4 = inet_ntoa(entry->ipv4.remote.address);
-		printf("IPv4-remote:  %s#%u\n", str4, entry->ipv4.remote.l4_id);
-
-		printf("%s; ", entry->is_static ? "STATIC" : "DYNAMIC");
-		printf("expires in %u milliseconds; ", entry->dying_time);
-		switch (entry->l4protocol) {
-		case IPPROTO_TCP:
-			printf("TCP\n");
-			break;
-		case IPPROTO_UDP:
-			printf("UDP\n");
-			break;
-		case IPPROTO_ICMP:
-		case IPPROTO_ICMPV6:
-			printf("ICMP\n");
-			break;
-		default:
-			printf("Unknown protocol.\n");
-			break;
-		}
+		printf("Local: %s#%u\t", str4, entry->ipv4.local.l4_id);
+		inet_ntop(AF_INET6, &entry->ipv6.local.address, str6, INET6_ADDRSTRLEN);
+		printf("%s#%u\n", str6, entry->ipv6.local.l4_id);
 
 		printf("---------------------------------\n");
 	}
+	printf("\n");
 
 	return 0;
 }
@@ -74,25 +62,21 @@ static error_t exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct re
 {
 	error_t result = 0;
 
-	result = netlink_connect(callback);
-	if (result != RESPONSE_SUCCESS)
-		return result;
-
-	result = 0;
 	if (use_tcp) {
+		printf("TCP:\n");
 		payload->l4_proto = IPPROTO_TCP;
-		result |= netlink_request(hdr, hdr->length);
+		result |= netlink_request(hdr, hdr->length, callback);
 	}
 	if (use_udp) {
+		printf("UDP:\n");
 		payload->l4_proto = IPPROTO_UDP;
-		result |= netlink_request(hdr, hdr->length);
+		result |= netlink_request(hdr, hdr->length, callback);
 	}
 	if (use_icmp) {
+		printf("ICMP:\n");
 		payload->l4_proto = IPPROTO_ICMP;
-		result |= netlink_request(hdr, hdr->length);
+		result |= netlink_request(hdr, hdr->length, callback);
 	}
-
-	netlink_disconnect();
 
 	return result;
 }
