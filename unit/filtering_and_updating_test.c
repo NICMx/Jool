@@ -455,7 +455,7 @@ pr_debug("  IPV4_ALLOCATED_PORT=%d , new_ipv4_transport_address.l4_id=%d", IPV4_
 }
 
 
-#define IPV4_ALLOCATED_PORT_DIGGER  4
+#define IPV4_ALLOCATED_PORT_DIGGER  1024
 bool test_allocate_ipv4_transport_address_digger( void )
 {
     struct in_addr expected_addr;
@@ -533,6 +533,7 @@ bool test_ipv6_udp( void )
     nat64_session_destroy();
     nat64_bib_destroy();
     pool4_destroy();
+    kfree_skb(skb);
     
     return success;
 }
@@ -648,6 +649,7 @@ pr_debug(" * Discard un-expected IPv4 packets");
     // Discard un-expected IPv4 packets.
     success &= assert_equals_int(NF_DROP, ipv4_icmp4( skb, &tuple ), 
 		"See if we discard an IPv4 ICMP packet, which tries to start a communication.");
+    kfree_skb(skb);
 
 pr_debug(" * Process an expected packet");
     // Process an expected packet
@@ -656,13 +658,20 @@ pr_debug(" * Create Bib & Session");
     // Create Bib & Session:
     protocol = IPPROTO_ICMPV6;
     init_tuple_for_test_ipv6( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     success &= assert_equals_int(NF_ACCEPT, ipv6_icmp6(skb, &tuple ), 
 		"See if we can process correctly an IPv6 ICMP packet.");
+    kfree_skb(skb);
 
 pr_debug(" * Process an expected IPv4 packets.");
     // Process an expected IPv4 packets.
     protocol = IPPROTO_ICMP;
     init_tuple_for_test_ipv4( &tuple , protocol );
+    // Init skb
+    if ( (skb = init_skb_for_test( &tuple, skb, protocol ) ) == NULL )
+        pr_debug("ERROR, SKB == NULL");
     success &= assert_equals_int(NF_ACCEPT, ipv4_icmp4( skb, &tuple ), 
 		"See if we can process correctly an expected IPv4 ICMP packet.");
 
@@ -1207,7 +1216,7 @@ pr_debug("V4_INIT = %d\n", V4_INIT );
 
 /* FIXME:   Can NOT test this as there's a conflict in the function: 
  *          bool nat64_add_session_entry()    */
-/* 
+/*
 bool test_tcp_v4_init_state_handle( void )
 {
     struct sk_buff *skb;
@@ -1251,6 +1260,7 @@ pr_debug("V4_INIT = %d\n", V4_INIT );
     nat64_session_destroy();
     nat64_bib_destroy();
     pool4_destroy();
+    kfree_skb(skb);
     
     return success;
 }
