@@ -499,7 +499,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
-static bool post_icmp4(struct packet_out *out)
+static bool post_icmp4(struct packet_in *in, struct packet_out *out)
 {
 	struct icmphdr *icmp4_hdr = icmp_hdr(out->packet);
 
@@ -512,11 +512,14 @@ static bool post_icmp4(struct packet_out *out)
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static bool post_tcp_ipv4(struct packet_out *out)
+static bool post_tcp_ipv4(struct packet_in *in, struct packet_out *out)
 {
 	struct iphdr *ip4_hdr = ip_hdr(out->packet);
 	struct tcphdr *tcp_header = tcp_hdr(out->packet);
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
+
+	tcp_header->source = in->tuple->src_port;
+	tcp_header->dest = in->tuple->dst_port;
 
 	tcp_header->check = 0;
 	tcp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,
@@ -528,11 +531,14 @@ static bool post_tcp_ipv4(struct packet_out *out)
 /**
  * Sets the Length and Checksum fields from out's UDP header.
  */
-static bool post_udp_ipv4(struct packet_out *out)
+static bool post_udp_ipv4(struct packet_in *in, struct packet_out *out)
 {
 	struct iphdr *ip4_hdr = ip_hdr(out->packet);
 	struct udphdr *udp_header = udp_hdr(out->packet);
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
+
+	udp_header->source = in->tuple->src_port;
+	udp_header->dest = in->tuple->dst_port;
 
 	udp_header->len = cpu_to_be16(datagram_len);
 	udp_header->check = 0;

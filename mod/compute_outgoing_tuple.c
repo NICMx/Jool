@@ -65,9 +65,9 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 			goto lock_fail;
 		if (!nat64_append_ipv4(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
 			goto lock_fail;
-		out->src_port = cpu_to_be16(bib->ipv6.l4_id);
-		out->ipv6_src_addr = bib->ipv6.address;
-		out->src_port = cpu_to_be16(bib->ipv6.l4_id);
+		out->src_port = in->src_port;
+		out->ipv6_dst_addr = bib->ipv6.address;
+		out->dst_port = cpu_to_be16(bib->ipv6.l4_id);
 		break;
 
 	default:

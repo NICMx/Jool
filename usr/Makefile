@@ -23,7 +23,7 @@ OBJS := str_utils.o common.o netlink.o pool6.o pool4.o bib.o session.o filtering
 
 
 nat64: $(OBJS)
-	$(CC) -o $@ $(LDLIBS) $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDLIBS)
 
 str_utils.o: str_utils.c
 	$(CC) -c $(CFLAGS) $< -o $@

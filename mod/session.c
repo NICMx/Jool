@@ -256,7 +256,7 @@ bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple)
 
 inline void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl)
 {
-	entry->dying_time = jiffies_to_msecs(jiffies) + ttl;
+	entry->dying_time = jiffies_to_msecs(jiffies) + ttl * 1000;
 }
 
 inline void nat64_update_session_state(struct session_entry *entry, u_int8_t state)
@@ -384,3 +384,4 @@ bool session_entry_equals(struct session_entry *session_1, struct session_entry 
 
 	return true;
 }
+

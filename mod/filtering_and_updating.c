@@ -1712,21 +1712,32 @@ int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
     if ( NFPROTO_IPV6 == tuple->L3_PROTOCOL ) {
         /// Errores de ICMP no deben afectar las tablas.
         if ( IPPROTO_ICMPV6 == tuple->L4_PROTOCOL && !is_icmp6_info(icmp6_hdr(skb)->icmp6_type) )
-            return NF_ACCEPT;
-
+	{	
+		log_debug("Packet is ICMPv6 info, ignoring...");
+		return NF_ACCEPT;
+	}
         /// Get rid of hairpinning loop and unwanted packets.
         if ( pool6_contains(&tuple->ipv6_src_addr) || !pool6_contains(&tuple->ipv6_dst_addr) )
-            return NF_DROP; 
+        {	
+		log_debug("Packet was rejected by pool6, dropping...");
+		return NF_DROP;
+	} 
     }
             
     if ( NFPROTO_IPV4 == tuple->L3_PROTOCOL ) {
         /// Errores de ICMP no deben afectar las tablas.
         if ( IPPROTO_ICMP == tuple->L4_PROTOCOL && !is_icmp_info(icmp_hdr(skb)->type) )
-            return NF_ACCEPT;
+        {	
+		log_debug("Packet is ICMPv4 info, ignoring...");
+		return NF_ACCEPT;
+	}    
 
         /// Get rid of unexpected packets
         if ( !pool4_contains(&tuple->ipv4_dst_addr) )
-            return NF_DROP;  
+        {	
+		log_debug("Packet was rejected by pool4, dropping...");
+		return NF_DROP;
+	}      
     }
             
     /// Process packet, according to its protocol.

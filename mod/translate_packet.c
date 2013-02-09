@@ -354,7 +354,7 @@ static bool translate_packet(struct nf_conntrack_tuple *tuple,
 		bool (*l3_hdr_function)(struct packet_in *in, struct packet_out *out),
 		bool (*l4_hdr_and_payload_function)(struct packet_in *in, struct packet_out *out),
 		bool (*l3_post_function)(struct packet_out *out),
-		bool (*l4_post_function)(struct packet_out *out))
+		bool (*l4_post_function)(struct packet_in *in, struct packet_out *out))
 {
 	struct packet_in in;
 	struct packet_out out = INIT_PACKET_OUT;
@@ -369,7 +369,7 @@ static bool translate_packet(struct nf_conntrack_tuple *tuple,
 		goto failure;
 	if (!l3_post_function(&out))
 		goto failure;
-	if (!l4_post_function(&out))
+	if (!l4_post_function(&in, &out))
 		goto failure;
 
 	*skb_out = out.packet;
@@ -388,7 +388,7 @@ bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 		struct sk_buff *skb_in, struct sk_buff **skb_out)
 {
 	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
-	bool (*l4_post_function)(struct packet_out *);
+	bool (*l4_post_function)(struct packet_in *, struct packet_out *);
 
 	log_debug("Step 4: Translating the Packet");
 
@@ -420,7 +420,7 @@ bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 		struct sk_buff *skb_in, struct sk_buff **skb_out)
 {
 	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
-	bool (*l4_post_function)(struct packet_out *);
+	bool (*l4_post_function)(struct packet_in *, struct packet_out *);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ipv6_hdr(skb_in));
 
 	log_debug("Step 4: Translating the Packet");
