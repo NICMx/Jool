@@ -1,10 +1,3 @@
-/**
- *  @file Filtering.h
- *
- *  @brief  Function prototypes used to test structures defined in files 
- *          'nf_nat64_bib_session.h' and 'nf_nat64_types.h'
- */
-
 #ifndef _FILTERING_H
 #define _FILTERING_H
 

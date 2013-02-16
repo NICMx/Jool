@@ -24,7 +24,7 @@
  *
  * A packet is a hairpin if the IPv4 pool contains its destination address.
  */
-bool nat64_got_hairpin(struct nf_conntrack_tuple *outgoing);
+bool is_hairpin(struct nf_conntrack_tuple *outgoing);
 /**
  * Mirrors the core's behavior by processing skb_in as if it was the incoming packet.
  *
@@ -33,7 +33,7 @@ bool nat64_got_hairpin(struct nf_conntrack_tuple *outgoing);
  * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in);
+bool handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in);
 
 
 #endif /* _NF_NAT64_HANDLING_HARPINNING_H */

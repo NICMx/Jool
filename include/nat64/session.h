@@ -21,8 +21,7 @@
  *
  * Please note that modifications to this structure may need to cascade to *_module_comm.h.
  */
-struct session_entry
-{
+struct session_entry {
 	/** IPv6 version of the connection. */
 	struct ipv6_pair ipv6;
 	/** IPv4 version of the connection. */
@@ -57,7 +56,7 @@ struct session_entry
 	/** Current TCP state.
 	 * 	Each STE represents a state machine
 	 */
-	u_int8_t current_state;
+	u_int8_t state;
 };
 
 
@@ -65,7 +64,7 @@ struct session_entry
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
-bool nat64_session_init(void);
+bool session_init(void);
 
 /**
  * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
@@ -77,7 +76,7 @@ bool nat64_session_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted
  *		if some dynamic memory allocation failed.
  */
-bool nat64_add_session_entry(struct session_entry *entry);
+bool session_add(struct session_entry *entry);
 
 /**
  * Returns the Session entry from the "l4protocol" table whose IPv4 side (both addresses and ports)
@@ -89,7 +88,7 @@ bool nat64_add_session_entry(struct session_entry *entry);
  * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
-struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol);
+struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol);
 /**
  * Returns the Session entry from the "l4protocol" table whose IPv6 side (both addresses and ports)
  * is "pair".
@@ -100,7 +99,7 @@ struct session_entry *nat64_get_session_entry_by_ipv4(struct ipv4_pair *pair, u_
  * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
-struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol);
+struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol);
 
 /**
  * Returns the session entry you'd expect from the "tuple" tuple.
@@ -111,15 +110,15 @@ struct session_entry *nat64_get_session_entry_by_ipv6(struct ipv6_pair *pair, u_
  * @return the session entry you'd expect from the "tuple" tuple.
  *		returns null if no entry could be found.
  */
-struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
+struct session_entry *session_get(struct nf_conntrack_tuple *tuple);
 
 /**
  * Normally looks ups an entry, except it ignores "tuple"'s source port.
  * Returns "true" if such an entry could be found, "false" otherwise.
  *
  * The name comes from the fact that this functionality serves no purpose other than determining
- * whether a packet should be allowed through or not.
- * Also, it's somewhat abbreviated. The RFC calls it "address dependent filtering".
+ * whether a packet should be allowed through or not. The RFC calls it "address dependent
+ * filtering".
  *
  * Only works while translating from IPv4 to IPv6. Behavior is undefined otherwise.
  *
@@ -128,17 +127,7 @@ struct session_entry *nat64_get_session_entry(struct nf_conntrack_tuple *tuple);
  *		IPv4 destination transport address, and destination IPv4 address equal to the tuple's source
  *		address.
  */
-bool nat64_is_allowed_by_address_filtering(struct nf_conntrack_tuple *tuple);
-
-/**
- * Set "entry"'s time to live as <current time> + "ttl".
- *
- * @param entry session entry to update.
- * @param ttl number of milliseconds "entry" should survive if inactive.
- */
-void nat64_update_session_lifetime(struct session_entry *entry, unsigned int ttl);
-
-void nat64_update_session_state(struct session_entry *entry, u_int8_t state);
+bool session_allow(struct nf_conntrack_tuple *tuple);
 
 /**
  * Destroys the session table's reference to "entry". It does NOT kfree "entry".
@@ -148,13 +137,13 @@ void nat64_update_session_state(struct session_entry *entry, u_int8_t state);
  * @return "true" if "entry" was in fact in the table. "false" if it wasn't,
  *		and hence it wasn't removed from anywhere.
  */
-bool nat64_remove_session_entry(struct session_entry *entry);
+bool session_remove(struct session_entry *entry);
 
 /**
  * Empties the session tables, freeing any memory being used by them.
  * Call during destruction to avoid memory leaks.
  */
-void nat64_session_destroy(void);
+void session_destroy(void);
 
 /**
  * Helper function, intended to initialize a static Session entry (static as in doesn't expire after
@@ -165,14 +154,14 @@ void nat64_session_destroy(void);
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a Session table, you
  * need to kfree it).
  */
-struct session_entry *nat64_create_static_session_entry(
+struct session_entry *session_create_static(
 		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);
 
 /**
  * Note, you still need to set the timeout.
  */
-struct session_entry *nat64_create_session_entry(
+struct session_entry *session_create(
 		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);
 
@@ -189,7 +178,7 @@ struct session_entry *nat64_create_session_entry(
  * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
  * the real entries from the table.
  */
-__s32 nat64_session_table_to_array(__u8 l4protocol, struct session_entry ***array);
+__s32 session_to_array(__u8 l4protocol, struct session_entry ***array);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as

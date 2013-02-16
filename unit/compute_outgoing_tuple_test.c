@@ -36,14 +36,14 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	bib->ipv4.l4_id = ip4_port;
 	bib->ipv6.address = *ip6_addr;
 	bib->ipv6.l4_id = ip6_port;
-	INIT_LIST_HEAD(&bib->session_entries);
+	INIT_LIST_HEAD(&bib->sessions);
 
 	//	log_debug("BIB [%pI4#%d, %pI6c#%d]",
 	//			&bib->ipv4.address, be16_to_cpu(bib->ipv4.l4_id),
 	//			&bib->ipv6.address, be16_to_cpu(bib->ipv6.l4_id));
 
 	// Add it to the table.
-	if (!nat64_add_bib_entry(bib, l4protocol)) {
+	if (!bib_add(bib, l4protocol)) {
 		log_warning("Can't add the dummy BIB to the table.");
 		goto failure;
 	}
@@ -99,7 +99,7 @@ static bool init(void)
 	}
 
 	// Init the BIB module
-	if (!nat64_bib_init())
+	if (!bib_init())
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(protocols); i++)
@@ -114,7 +114,7 @@ static bool init(void)
  */
 static void cleanup(void)
 {
-	nat64_bib_destroy();
+	bib_destroy();
 	pool6_destroy();
 }
 

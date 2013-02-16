@@ -1,7 +1,7 @@
 /**
  * @file
  * Functions from Translate the Packet which specifically target the IPv4 -> IPv6 direction.
- * Would normally be part of nf_nat64_translate_packet.c; the constant scrolling was killing me.
+ * Would normally be part of translate_packet.c; the constant scrolling was killing me.
  */
 
 /**
@@ -42,7 +42,7 @@ static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff
 		in->l4_hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
-		log_warning("Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
+		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", in->l4_hdr_type);
 		return false;
 	}
 
@@ -156,7 +156,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		log_warning("Allocation of the IPv6 header failed.");
+		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv6 header failed.");
 		return false;
 	}
 
@@ -189,7 +189,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	// }
 
 	if (has_unexpired_src_route(ip4_hdr) && in->packet != NULL) {
-		log_info("Cannot translate: Packet has an unexpired source route.");
+		log_info("Packet has an unexpired source route.");
 		icmp_send(in->packet, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
 		return false;
 	}
@@ -376,7 +376,6 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		}
 
 		icmpv6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
-		log_warning("%u", icmp4_pointer);
 		icmpv6_hdr->icmp6_pointer = cpu_to_be32(pointers[icmp4_pointer]);
 		break;
 	}
@@ -398,7 +397,7 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmphdr *icmpv4_hdr = icmp_hdr(in->packet);
 	struct icmp6hdr *icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
 	if (!icmpv6_hdr) {
-		log_warning("Allocation of the ICMPv6 header failed.");
+		log_err(ERR_ALLOC_FAILED, "Allocation of the ICMPv6 header failed.");
 		return false;
 	}
 
@@ -489,9 +488,8 @@ static bool post_tcp_ipv6(struct packet_in *in, struct packet_out *out)
 	struct tcphdr *tcp_header = tcp_hdr(out->packet);
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
 
-        tcp_header->source = in->tuple->src_port;
-        tcp_header->dest = in->tuple->dst_port;
-
+	tcp_header->source = in->tuple->src_port;
+	tcp_header->dest = in->tuple->dst_port;
 	tcp_header->check = 0;
 	tcp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
@@ -508,9 +506,8 @@ static bool post_udp_ipv6(struct packet_in *in, struct packet_out *out)
 	struct udphdr *udp_header = udp_hdr(out->packet);
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
 
-        udp_header->source = in->tuple->src_port;
-        udp_header->dest = in->tuple->dst_port;
-
+	udp_header->source = in->tuple->src_port;
+	udp_header->dest = in->tuple->dst_port;
 	udp_header->len = cpu_to_be16(datagram_len);
 	udp_header->check = 0;
 	udp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,

@@ -32,8 +32,7 @@
  * BIB table definition.
  * Holds two hash tables, one for each indexing need (IPv4 and IPv6).
  */
-struct bib_table
-{
+struct bib_table {
 	/** Indexes entries by IPv4. */
 	struct ipv4_table ipv4;
 	/** Indexes entries by IPv6. */
@@ -65,7 +64,7 @@ static struct bib_table *get_bib_table(u_int8_t l4protocol)
 			return &bib_icmp;
 	}
 
-	log_crit("Error: Unknown l4 protocol (%d); no BIB mapped to it.", l4protocol);
+	log_crit(ERR_L4PROTO, "Unknown l4 protocol (%d); no BIB mapped to it.", l4protocol);
 	return NULL;
 }
 
@@ -73,7 +72,7 @@ static struct bib_table *get_bib_table(u_int8_t l4protocol)
  * Public functions.
  *******************************/
 
-bool nat64_bib_init(void)
+bool bib_init(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
 	int i;
@@ -88,13 +87,15 @@ bool nat64_bib_init(void)
 	return true;
 }
 
-bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
+bool bib_add(struct bib_entry *entry, u_int8_t l4protocol)
 {
 	bool indexed_by_ipv4, indexed_by_ipv6;
 	struct bib_table *table;
 
-	if (!entry)
+	if (!entry) {
+		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
 		return false;
+	}
 	table = get_bib_table(l4protocol);
 	if (!table)
 		return false;
@@ -111,8 +112,7 @@ bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 	return true;
 }
 
-struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address,
-		u_int8_t l4protocol)
+struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol)
 {
 	struct bib_table *table;
 
@@ -125,8 +125,7 @@ struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address
 	return ipv4_table_get(&table->ipv4, address);
 }
 
-struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
-		u_int8_t l4protocol)
+struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol)
 {
 	struct bib_table *table;
 
@@ -139,7 +138,7 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address
 	return ipv6_table_get(&table->ipv6, address);
 }
 
-struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol)
+struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol)
 {
 	struct bib_table *table;
 	__u16 hash_code;
@@ -165,7 +164,7 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_i
 	return NULL;
 }
 
-struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
+struct bib_entry *bib_get(struct nf_conntrack_tuple *tuple)
 {
 	struct ipv6_tuple_address address6;
 	struct ipv4_tuple_address address4;
@@ -177,30 +176,32 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple)
 	case NFPROTO_IPV6:
 		address6.address = tuple->ipv6_src_addr;
 		address6.l4_id = be16_to_cpu(tuple->src_port);
-		return nat64_get_bib_entry_by_ipv6(&address6, tuple->L4_PROTOCOL);
+		return bib_get_by_ipv6(&address6, tuple->L4_PROTOCOL);
 	case NFPROTO_IPV4:
 		address4.address = tuple->ipv4_dst_addr;
 		address4.l4_id = be16_to_cpu(tuple->dst_port);
-		return nat64_get_bib_entry_by_ipv4(&address4, tuple->L4_PROTOCOL);
+		return bib_get_by_ipv4(&address4, tuple->L4_PROTOCOL);
 	default:
-		log_crit("Programming error; unknown l3 protocol: %d", tuple->L3_PROTOCOL);
+		log_crit(ERR_L3PROTO, "Programming error; unknown l3 protocol: %d", tuple->L3_PROTOCOL);
 		return NULL;
 	}
 }
 
-bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
+bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol)
 {
 	struct bib_table *table;
 	bool removed_from_ipv4, removed_from_ipv6;
 
-	if (!entry)
+	if (!entry) {
+		log_err(ERR_NULL, "The BIB tables do not contain NULL entries.");
 		return false;
+	}
 	table = get_bib_table(l4protocol);
 	if (!table)
 		return false;
 
 	// Don't erase the BIB if there are still session entries related to it.
-	if (!list_empty(&entry->session_entries))
+	if (!list_empty(&entry->sessions))
 		return false;
 
 	// Free the memory from both tables.
@@ -213,12 +214,12 @@ bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol)
 		return false;
 
 	// Why was it not indexed by both tables? Programming error.
-	log_crit("Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.", removed_from_ipv4,
-			removed_from_ipv6);
+	log_crit(ERR_INCOMPLETE_INDEX_BIB, "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
+			removed_from_ipv4, removed_from_ipv6);
 	return true;
 }
 
-void nat64_bib_destroy(void)
+void bib_destroy(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
 	int i;
@@ -233,8 +234,7 @@ void nat64_bib_destroy(void)
 	}
 }
 
-struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
-		struct ipv6_tuple_address *ipv6)
+struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6)
 {
 	struct bib_entry *result = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 	if (!result)
@@ -242,12 +242,12 @@ struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
 
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
-	INIT_LIST_HEAD(&result->session_entries);
+	INIT_LIST_HEAD(&result->sessions);
 
 	return result;
 }
 
-int nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array)
+int bib_to_array(__u8 l4protocol, struct bib_entry ***array)
 {
 	struct bib_table *table = get_bib_table(l4protocol);
 	if (!table)

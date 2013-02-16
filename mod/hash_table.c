@@ -66,8 +66,7 @@
  ********************************************/
 
 /** The hash table. */
-struct HTABLE_NAME
-{
+struct HTABLE_NAME {
 	/**
 	 * The array of linked lists.
 	 * Each of these contains the values mapped to its index's hash code.
@@ -83,8 +82,7 @@ struct HTABLE_NAME
 };
 
 /** Every entry in the table; the key used to access the value and the value. */
-struct KEY_VALUE_PAIR
-{
+struct KEY_VALUE_PAIR {
 	/** Dictates where in the table the value is. */
 	KEY_TYPE *key;
 	/** The value the user wants to store in the table. */
@@ -112,8 +110,10 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	struct KEY_VALUE_PAIR *current_pair;
 	__u16 hash_code;
 
-	if (!table)
-		return NULL;
+	if (!table) {
+		log_err(ERR_NULL, "The table is NULL.");
+		return false;
+	}
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_for_each(current_node, &table->table[hash_code]) {
@@ -142,12 +142,18 @@ static bool INIT(struct HTABLE_NAME *table,
 {
 	__u16 i;
 
-	if (!table)
+	if (!table) {
+		log_err(ERR_NULL, "The table is NULL.");
 		return false;
-	if (!equals_function)
+	}
+	if (!equals_function) {
+		log_err(ERR_NULL, "The equals function is NULL.");
 		return false;
-	if (!hash_function)
+	}
+	if (!hash_function) {
+		log_err(ERR_NULL, "The hash code function is NULL.");
 		return false;
+	}
 
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&table->table[i]);
@@ -175,15 +181,19 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	struct KEY_VALUE_PAIR *key_value;
 	__u16 hash_code;
 
-	if (!table)
+	if (!table) {
+		log_err(ERR_NULL, "The table is NULL.");
 		return false;
+	}
 
 	// We're not going to insert the value alone, but a key-value structure.
 	// (Because we'll later need the key available during lookups.)
 	// We generate it here.
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
-	if (!key_value)
+	if (!key_value) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
 		return false;
+	}
 	key_value->key = key;
 	key_value->value = value;
 
@@ -255,8 +265,10 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 	struct KEY_VALUE_PAIR *current_pair;
 	__u16 row;
 
-	if (!table)
+	if (!table) {
+		log_err(ERR_NULL, "The table is NULL.");
 		return;
+	}
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		while (!hlist_empty(&table->table[row])) {
@@ -336,8 +348,10 @@ static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
 		return 0;
 
 	array = kmalloc(table->size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
-	if (!array)
+	if (!array) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate the array.");
 		return -1;
+	}
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
@@ -348,8 +362,7 @@ static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
 	}
 
 	if (array_counter != table->size)
-		log_crit("Programming error: The table's size field does not equal the seemingly "
-				"actual number of objects it contains.");
+		log_crit(ERR_WRONG_SIZE, "The table's size field does not match its contents.");
 
 	*result = array;
 	return table->size;

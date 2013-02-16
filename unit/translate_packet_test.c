@@ -23,6 +23,8 @@ static struct nf_conntrack_tuple get_ip4_tuple(void)
 
 	result.ipv4_src_addr.s_addr = cpu_to_be32(0x57613990);
 	result.ipv4_dst_addr.s_addr = cpu_to_be32(0x97254347);
+	result.src_port = cpu_to_be16(9797);
+	result.dst_port = cpu_to_be16(7979);
 
 	return result;
 }
@@ -40,6 +42,9 @@ static struct nf_conntrack_tuple get_ip6_tuple(void)
 	result.ipv6_dst_addr.s6_addr32[1] = cpu_to_be32(0xFEDCBA98);
 	result.ipv6_dst_addr.s6_addr32[2] = cpu_to_be32(0x87654321);
 	result.ipv6_dst_addr.s6_addr32[3] = cpu_to_be32(0x0FEDCBA9);
+
+	result.src_port = cpu_to_be16(9797);
+	result.dst_port = cpu_to_be16(7979);
 
 	return result;
 }
@@ -373,8 +378,8 @@ static bool build_l3_payload_icmp4_embedded(void **l3_payload, __u16 *l3_payload
 	ip_header->saddr = cpu_to_be32(0x12345678);
 	ip_header->daddr = cpu_to_be32(0xFEDCBA98);
 
-	udp_header->source = cpu_to_be16(5883);
-	udp_header->dest = cpu_to_be16(9215);
+	udp_header->source = cpu_to_be16(1472);
+	udp_header->dest = cpu_to_be16(2741);
 	udp_header->len = cpu_to_be16(sizeof(struct udphdr) + 4);
 	udp_header->check = cpu_to_be16(0xAFAF);
 
@@ -424,8 +429,8 @@ static bool build_l3_payload_icmp6_embedded(void **l3_payload, __u16 *l3_payload
 	ip6_header->daddr.s6_addr32[2] = cpu_to_be32(0x99aabbcc);
 	ip6_header->daddr.s6_addr32[3] = cpu_to_be32(0xddeeff00);
 
-	udp_header->source = cpu_to_be16(5883);
-	udp_header->dest = cpu_to_be16(9215);
+	udp_header->source = cpu_to_be16(3692);
+	udp_header->dest = cpu_to_be16(2963);
 	udp_header->len = cpu_to_be16(8 + 4);
 	udp_header->check = cpu_to_be16(0xAFAF);
 
@@ -494,7 +499,7 @@ static bool translate(bool (*l3_hdr_function)(void **, __u16 *),
 
 	// Validate.
 	if (packet_out == NULL) {
-		log_warning("nat64_translating_the_packet() returned success but its packet is NULL.");
+		log_warning("The translate packet function returned success but its packet is NULL.");
 		goto error;
 	}
 
@@ -746,8 +751,8 @@ static bool validate_l3_payload_udp(void *l4_hdr)
 	struct udphdr *udp_header = l4_hdr;
 	bool success = true;
 
-	success &= assert_equals_u16(5883, be16_to_cpu(udp_header->source), "UDP source port");
-	success &= assert_equals_u16(9215, be16_to_cpu(udp_header->dest), "UDP dest port");
+	success &= assert_equals_u16(9797, be16_to_cpu(udp_header->source), "UDP source port");
+	success &= assert_equals_u16(7979, be16_to_cpu(udp_header->dest), "UDP dest port");
 	success &= assert_equals_u16(8 + 4, be16_to_cpu(udp_header->len), "UDP length");
 	// success &= assert_equals_u16(0xAFAF, be16_to_cpu(udp_header->check), "UDP checksum");
 
@@ -761,8 +766,8 @@ static bool validate_l3_payload_tcp(void *l4_hdr)
 	struct tcphdr *tcp_header = l4_hdr;
 	bool success = true;
 
-	success &= assert_equals_u16(3885, be16_to_cpu(tcp_header->source), "Source port");
-	success &= assert_equals_u16(1592, be16_to_cpu(tcp_header->dest), "Dest port");
+	success &= assert_equals_u16(9797, be16_to_cpu(tcp_header->source), "Source port");
+	success &= assert_equals_u16(7979, be16_to_cpu(tcp_header->dest), "Dest port");
 	success &= assert_equals_u32(112233, be32_to_cpu(tcp_header->seq), "Seq number");
 	success &= assert_equals_u32(332211, be32_to_cpu(tcp_header->ack_seq), "ACK number");
 	success &= assert_equals_u8(5, tcp_header->doff, "Data offset");
@@ -817,7 +822,12 @@ static bool validate_l3_payload_icmp4_embedded(void *l4_hdr)
 	// success &= assert_equals_u16(iphdr + udphdr + 4, be16_to_cpu(ip4_header->tot_len),
 	// 		"Inner checksum");
 
-	success &= validate_l3_payload_udp(udp_header);
+	success &= assert_equals_u16(3692, be16_to_cpu(udp_header->source), "Inner source port");
+	success &= assert_equals_u16(2963, be16_to_cpu(udp_header->dest), "Inner dest port");
+	success &= assert_equals_u16(8 + 4, be16_to_cpu(udp_header->len), "Inner UDP length");
+	// success &= assert_equals_u16(0xAFAF, be16_to_cpu(udp_header->check), "Inner UDP checksum");
+
+	success &= validate_simple_payload((unsigned char *) (udp_header + 1));
 
 	return success;
 }
@@ -858,7 +868,12 @@ static bool validate_l3_payload_icmp6_embedded(void *l4_hdr)
 	success &= assert_equals_u8(IPPROTO_UDP, ip6_header->nexthdr, "Inner next header");
 	success &= assert_equals_u8(0, ip6_header->hop_limit, "Inner hop limit");
 
-	success &= validate_l3_payload_udp(udp_header);
+	success &= assert_equals_u16(1472, be16_to_cpu(udp_header->source), "Inner source port");
+	success &= assert_equals_u16(2741, be16_to_cpu(udp_header->dest), "Inner dest port");
+	success &= assert_equals_u16(8 + 4, be16_to_cpu(udp_header->len), "Inner UDP length");
+	// success &= assert_equals_u16(0xAFAF, be16_to_cpu(udp_header->check), "Inner UDP checksum");
+
+	success &= validate_simple_payload((unsigned char *) (udp_header + 1));
 
 	return success;
 }
@@ -1363,7 +1378,7 @@ static bool test_4to6_translation_simple_udp(void)
 	return translate(build_ip4_hdr_udp,
 			build_l3_payload_udp,
 			get_ip6_tuple,
-			nat64_translating_the_packet_4to6,
+			translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_udp_nofrag,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_udp);
@@ -1374,7 +1389,7 @@ static bool test_4to6_translation_simple_tcp(void)
 	return translate(build_ip4_hdr_tcp,
 			build_l3_payload_tcp,
 			get_ip6_tuple,
-			nat64_translating_the_packet_4to6,
+			translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_tcp_nofrag,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_tcp);
@@ -1385,7 +1400,7 @@ static bool test_4to6_translation_simple_icmp(void)
 	return translate(build_ip4_hdr_icmp4,
 			build_l3_payload_icmp4,
 			get_ip6_tuple,
-			nat64_translating_the_packet_4to6,
+			translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_icmp_nofrag,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp6_simple);
@@ -1396,7 +1411,7 @@ static bool test_4to6_translation_fragment(void)
 	return translate(build_ip4_hdr_fragment,
 			build_l3_payload_udp,
 			get_ip6_tuple,
-			nat64_translating_the_packet_4to6,
+			translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_udp_dofrag,
 			validate_ip6_frag_hdr_dofrag,
 			validate_l3_payload_udp);
@@ -1407,7 +1422,7 @@ static bool test_4to6_translation_embedded(void)
 	return translate(build_ip4_hdr_icmp4_embedded,
 			build_l3_payload_icmp4_embedded,
 			get_ip6_tuple,
-			nat64_translating_the_packet_4to6,
+			translating_the_packet_4to6,
 			validate_ip6_fixed_hdr_icmp_embedded,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp6_embedded);
@@ -1418,7 +1433,7 @@ static bool test_6to4_translation_simple_udp(void)
 	return translate(build_ip6_hdr_udp,
 			build_l3_payload_udp,
 			get_ip4_tuple,
-			nat64_translating_the_packet_6to4,
+			translating_the_packet_6to4,
 			validate_ip4_hdr_udp,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_udp);
@@ -1429,7 +1444,7 @@ static bool test_6to4_translation_simple_tcp(void)
 	return translate(build_ip6_hdr_tcp,
 			build_l3_payload_tcp,
 			get_ip4_tuple,
-			nat64_translating_the_packet_6to4,
+			translating_the_packet_6to4,
 			validate_ip4_hdr_tcp,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_tcp);
@@ -1440,7 +1455,7 @@ static bool test_6to4_translation_simple_icmp(void)
 	return translate(build_ip6_hdr_icmp,
 			build_l3_payload_icmp6,
 			get_ip4_tuple,
-			nat64_translating_the_packet_6to4,
+			translating_the_packet_6to4,
 			validate_ip4_hdr_icmp4,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp4_simple);
@@ -1451,7 +1466,7 @@ static bool test_6to4_translation_fragment(void)
 	return translate(build_ip6_hdr_fragment,
 			build_l3_payload_udp,
 			get_ip4_tuple,
-			nat64_translating_the_packet_6to4,
+			translating_the_packet_6to4,
 			validate_ip4_hdr_fragment,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_udp);
@@ -1462,7 +1477,7 @@ static bool test_6to4_translation_embedded(void)
 	return translate(build_ip6_hdr_embedded,
 			build_l3_payload_icmp6_embedded,
 			get_ip4_tuple,
-			nat64_translating_the_packet_6to4,
+			translating_the_packet_6to4,
 			validate_ip4_hdr_embedded,
 			validate_ip6_frag_hdr_nofrag,
 			validate_l3_payload_icmp4_embedded);

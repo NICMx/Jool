@@ -61,7 +61,7 @@ static inline bool is_l4_protocol_supported_ipv6(u_int8_t l4protocol)
 			|| l4protocol == IPPROTO_ICMPV6;
 }
 
-bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
+bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -73,7 +73,7 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	/** Conntrack already built the tuple, so just ask. */
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct) {
-		log_warning("Packet does not contain a conntrack entry. Dropping...");
+		log_err(ERR_CONNTRACK, "Packet does not contain a conntrack entry. Dropping...");
 		return false;
 	}
 	dir = CTINFO2DIR(ctinfo);
@@ -104,32 +104,32 @@ bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tup
 	return true;
 
 unsupported_l3_protocol:
-	log_warning("Unsupported L3 protocol (%u). Dropping packet...", tuple->L3_PROTOCOL);
+	log_err(ERR_L3PROTO, "Unsupported L3 protocol: %u.", tuple->L3_PROTOCOL);
 	return false;
 
 unsupported_l4_protocol:
-	log_warning("Unsupported L4 protocol (%u). Dropping packet...", tuple->L4_PROTOCOL);
+	log_err(ERR_L4PROTO, "Unsupported L4 protocol: %u.", tuple->L4_PROTOCOL);
 	return false;
 }
 
-bool nat64_determine_incoming_tuple_init(void)
+bool determine_in_tuple_init(void)
 {
 	l3proto_ip = nf_ct_l3proto_find_get(NFPROTO_IPV4);
 	if (!l3proto_ip) {
-		log_warning("Couldn't load IPv4 l3proto.");
+		log_err(ERR_PROTO_LOAD_FAILURE, "Couldn't load IPv4 l3proto.");
 		return false;
 	}
 
 	l3proto_ipv6 = nf_ct_l3proto_find_get(NFPROTO_IPV6);
 	if (!l3proto_ipv6) {
-		log_warning("Couldn't load IPv6 l3proto.");
+		log_err(ERR_PROTO_LOAD_FAILURE, "Couldn't load IPv6 l3proto.");
 		return false;
 	}
 
 	return true;
 }
 
-void nat64_determine_incoming_tuple_destroy(void)
+void determine_in_tuple_destroy(void)
 {
 	nf_ct_l3proto_put(l3proto_ip);
 	nf_ct_l3proto_put(l3proto_ipv6);

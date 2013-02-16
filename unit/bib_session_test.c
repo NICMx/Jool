@@ -71,7 +71,7 @@ struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
 {
 	struct ipv4_tuple_address address_4 = create_tuple_addr_4(ipv4_index);
 	struct ipv6_tuple_address address_6 = create_tuple_addr_6(ipv4_index);
-	return nat64_create_bib_entry(&address_4, &address_6);
+	return bib_create(&address_4, &address_6);
 }
 
 struct session_entry *create_session_entry(
@@ -81,10 +81,12 @@ struct session_entry *create_session_entry(
 	struct ipv4_pair pair_4 = { create_tuple_addr_4(remote_id_4), create_tuple_addr_4(local_id_4) };
 	struct ipv6_pair pair_6 = { create_tuple_addr_6(local_id_6), create_tuple_addr_6(remote_id_6) };
 
-	struct session_entry* entry = nat64_create_static_session_entry(&pair_4, &pair_6, bib,
+	struct session_entry* entry = session_create_static(&pair_4, &pair_6, bib,
 			l4protocol);
-	if (!entry)
+	if (!entry) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate a session entry.");
 		return NULL;
+	}
 
 	entry->is_static = false;
 	entry->dying_time = dying_time;
@@ -161,11 +163,11 @@ bool assert_bib(char* test_name, struct bib_entry* bib,
 		struct bib_entry *expected_bib = table_has_it[i] ? bib : NULL;
 		struct bib_entry *retrieved_bib;
 
-		retrieved_bib = nat64_get_bib_entry_by_ipv4(&bib->ipv4, l4protocols[i]);
+		retrieved_bib = bib_get_by_ipv4(&bib->ipv4, l4protocols[i]);
 		if (!assert_bib_entry_equals(expected_bib, retrieved_bib, test_name))
 			return false;
 
-		retrieved_bib = nat64_get_bib_entry_by_ipv6(&bib->ipv6, l4protocols[i]);
+		retrieved_bib = bib_get_by_ipv6(&bib->ipv6, l4protocols[i]);
 		if (!assert_bib_entry_equals(expected_bib, retrieved_bib, test_name))
 			return false;
 	}
@@ -189,11 +191,11 @@ bool assert_session(char* test_name, struct session_entry* session,
 		struct session_entry *expected_session = table_has_it[i] ? session : NULL;
 		struct session_entry *retrieved_session;
 
-		retrieved_session = nat64_get_session_entry_by_ipv4(&pair_4, l4protocols[i]);
+		retrieved_session = session_get_by_ipv4(&pair_4, l4protocols[i]);
 		if (!assert_session_entry_equals(expected_session, retrieved_session, test_name))
 			return false;
 
-		retrieved_session = nat64_get_session_entry_by_ipv6(&pair_6, l4protocols[i]);
+		retrieved_session = session_get_by_ipv6(&pair_6, l4protocols[i]);
 		if (!assert_session_entry_equals(expected_session, retrieved_session, test_name))
 			return false;
 	}
@@ -219,7 +221,7 @@ bool simple_bib(void)
 	}
 
 	// Add
-	if (!nat64_add_bib_entry(bib, IPPROTO_TCP)) {
+	if (!bib_add(bib, IPPROTO_TCP)) {
 		log_warning("Test 'BIB insertion' failed: Call returned false.");
 		return false;
 	}
@@ -227,7 +229,7 @@ bool simple_bib(void)
 		return false;
 
 	// Remove
-	if (!nat64_remove_bib_entry(bib, IPPROTO_TCP)) {
+	if (!bib_remove(bib, IPPROTO_TCP)) {
 		log_warning("Test 'BIB removal' failed: Call returned false.");
 		return false;
 	}
@@ -255,7 +257,7 @@ bool simple_bib_session(void)
 	}
 
 	// Insert the BIB entry.
-	if (!nat64_add_bib_entry(bib, IPPROTO_TCP)) {
+	if (!bib_add(bib, IPPROTO_TCP)) {
 		log_warning("Test 'BIB insertion' failed: Call returned false.");
 		return false;
 	}
@@ -263,7 +265,7 @@ bool simple_bib_session(void)
 		return false;
 
 	// Insert the session entry.
-	if (!nat64_add_session_entry(session)) {
+	if (!session_add(session)) {
 		log_warning("Test 'Session insertion' failed: Call returned false.");
 		return false;
 	}
@@ -271,7 +273,7 @@ bool simple_bib_session(void)
 		return false;
 
 	// The BIB entry has a session entry, so it shouldn't be removable.
-	if (nat64_remove_bib_entry(bib, IPPROTO_TCP)) {
+	if (bib_remove(bib, IPPROTO_TCP)) {
 		log_warning("Test 'Bib removal' failed: Removal shouldn't have succeeded.");
 		return false;
 	}
@@ -282,7 +284,7 @@ bool simple_bib_session(void)
 
 	// Remove the session entry.
 	// Because the BIB entry no longer has sessions, it should be automatically removed as well.
-	if (!nat64_remove_session_entry(session)) {
+	if (!session_remove(session)) {
 		log_warning("Test 'Session removal' failed: Call returned false.");
 		return false;
 	}
@@ -337,7 +339,7 @@ bool test_clean_old_sessions(void)
 
 	// Insert to the tables.
 	for (cbib = 0; cbib < BIB_COUNT; cbib++) {
-		if (!nat64_add_bib_entry(bibs[cbib], IPPROTO_UDP)) {
+		if (!bib_add(bibs[cbib], IPPROTO_UDP)) {
 			log_warning("Could not add BIB entry %d.", cbib);
 			return false;
 		}
@@ -345,7 +347,7 @@ bool test_clean_old_sessions(void)
 
 	for (cbib = 0; cbib < BIB_COUNT; cbib++) {
 		for (cses = 0; cses < SESSIONS_PER_BIB; cses++) {
-			if (!nat64_add_session_entry(sessions[cbib][cses])) {
+			if (!session_add(sessions[cbib][cses])) {
 				log_warning("Could not add session entry %d-%d.", cbib, cses);
 				return false;
 			}
@@ -436,7 +438,7 @@ bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_i
 	tuple.L4_PROTOCOL = IPPROTO_UDP;
 	tuple.L3_PROTOCOL = NFPROTO_IPV4;
 
-	return (expected == nat64_is_allowed_by_address_filtering(&tuple));
+	return (expected == session_allow(&tuple));
 }
 
 bool test_address_filtering(void)
@@ -456,11 +458,11 @@ bool test_address_filtering(void)
 		return false;
 	}
 
-	if (!nat64_add_bib_entry(bib, IPPROTO_UDP)) {
+	if (!bib_add(bib, IPPROTO_UDP)) {
 		log_warning("Could not add the BIB entry.");
 		return false;
 	}
-	if (!nat64_add_session_entry(session)) {
+	if (!session_add(session)) {
 		log_warning("Could not add the session entry.");
 		return false;
 	}
@@ -498,7 +500,7 @@ bool test_to_array(void)
 		log_warning("Could not allocate the first BIB entry.");
 		return false;
 	}
-	if (!nat64_add_bib_entry(first_bib, IPPROTO_UDP)) {
+	if (!bib_add(first_bib, IPPROTO_UDP)) {
 		log_warning("Could not add the first BIB entry.");
 		return false;
 	}
@@ -508,17 +510,17 @@ bool test_to_array(void)
 		log_warning("Could not allocate the second BIB entry.");
 		return false;
 	}
-	if (!nat64_add_bib_entry(second_bib, IPPROTO_UDP)) {
+	if (!bib_add(second_bib, IPPROTO_UDP)) {
 		log_warning("Could not add the second BIB entry.");
 		return false;
 	}
 
 	// Call the function.
-	array_size = nat64_bib_to_array(IPPROTO_UDP, &array);
+	array_size = bib_to_array(IPPROTO_UDP, &array);
 
 	// Return value validations.
 	if (array_size == -1) {
-		log_warning("nat64_bib_to_array could not allocate the array.");
+		log_warning("bib_to_array could not allocate the array.");
 		goto free;
 	}
 	if (array_size != 2) {
@@ -550,13 +552,13 @@ free:
 
 bool init(void)
 {
-	return nat64_bib_init() && nat64_session_init();
+	return bib_init() && session_init();
 }
 
 void end(void)
 {
-	nat64_session_destroy();
-	nat64_bib_destroy();
+	session_destroy();
+	bib_destroy();
 }
 
 int init_module(void)

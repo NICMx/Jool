@@ -49,23 +49,23 @@ char prefixes_str[6][INET6_ADDRSTRLEN] = {
 __u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
 struct ipv6_prefix prefixes[6];
 
-bool test_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
+bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
 {
 	struct in_addr actual;
 	bool success = true;
 
-	success &= assert_true(nat64_extract_ipv4(src, prefix, &actual), "Extract IPv4-result");
+	success &= assert_true(addr_6to4(src, prefix, &actual), "Extract IPv4-result");
 	success &= assert_equals_ipv4(expected, &actual, "Extract IPv4-out");
 
 	return success;
 }
 
-bool test_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
+bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
 {
 	struct in6_addr actual;
 	bool success = true;
 
-	success &= assert_true(nat64_append_ipv4(src, prefix, &actual), "Append IPv4-result");
+	success &= assert_true(addr_4to6(src, prefix, &actual), "Append IPv4-result");
 	success &= assert_equals_ipv6(expected, &actual, "Append IPv4-out.");
 
 	return success;
@@ -101,20 +101,20 @@ static bool init(void)
 int init_module(void)
 {
 	int i;
-	START_TESTS("nf_nat64_rfc6052.c");
+	START_TESTS("rfc6052.c");
 
 	if (!init())
 		return -EINVAL;
 
 	// test the extract function.
 	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_extract_ipv4(&ipv6_addr[i], &prefixes[i], &ipv4_addr), "Extract-%pI6c",
+		CALL_TEST(test_addr_6to4(&ipv6_addr[i], &prefixes[i], &ipv4_addr), "Extract-%pI6c",
 				&ipv6_addr[i]);
 	}
 
 	// Test the append function.
 	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_append_ipv4(&ipv4_addr, &prefixes[i], &ipv6_addr[i]), "Append-%pI6c",
+		CALL_TEST(test_addr_4to6(&ipv4_addr, &prefixes[i], &ipv6_addr[i]), "Append-%pI6c",
 				&ipv6_addr[i]);
 	}
 

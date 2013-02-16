@@ -22,7 +22,7 @@
  *
  * @return whether the initialization was successful or not.
  */
-bool nat64_determine_incoming_tuple_init(void);
+bool determine_in_tuple_init(void);
 
 /**
  * Extracts the relevant data from "skb" and stores it in the "tuple" tuple.
@@ -34,13 +34,13 @@ bool nat64_determine_incoming_tuple_init(void);
  * @param tuple this function will initialize *tuple as a pointer to conntrack's tuple for skb.
  * @return "true" if the tuple could be created, "false" otherwise.
  */
-bool nat64_determine_incoming_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **tuple);
+bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **tuple);
 
 /**
  * Terminates this module. Call during destruction to revert the effects of
- * nat64_determine_incoming_tuple_init().
+ * determine_incoming_tuple_init().
  */
-void nat64_determine_incoming_tuple_destroy(void);
+void determine_in_tuple_destroy(void);
 
 
 #endif /* _NF_NAT64_DETERMINE_INCOMING_TUPLE_H */

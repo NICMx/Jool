@@ -92,6 +92,15 @@ bool assert_false(bool condition, char *test_name)
 	return true;
 }
 
+bool assert_not_equals_int(int expected, int actual, char *test_name)
+{
+	if (expected == actual) {
+		UNIT_WARNING_NOT(test_name, expected, actual, "%d");
+		return false;
+	}
+	return true;
+}
+
 bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name)
 {
 	if (expected == actual) {

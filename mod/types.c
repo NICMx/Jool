@@ -3,13 +3,8 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/inet.h>
+#include <net/ipv6.h>
 
-
-/** This is a slightly more versatile in_addr. */
-union ipv4_addr_union {
-	__be32 by32;
-	__be16 by16[2];
-};
 
 bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 {
@@ -25,32 +20,14 @@ bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 
 bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
 {
-	int i;
-
 	if (expected == actual)
 		return true;
 	if (expected == NULL || actual == NULL)
 		return false;
-	for (i = 0; i < 4; i++)
-		if (expected->s6_addr32[i] != expected->s6_addr32[i])
-			return false;
+	if (!ipv6_addr_equal(expected, actual))
+		return false;
 
 	return true;
-}
-
-__u16 ipv4_addr_hashcode(struct in_addr *addr)
-{
-	union ipv4_addr_union addr_union;
-	__u16 result = 1;
-
-	if (addr == NULL)
-		return 0;
-	addr_union.by32 = addr->s_addr;
-
-	result = 31 * result + ntohs(addr_union.by16[0]);
-	result = 31 * result + ntohs(addr_union.by16[1]);
-
-	return result;
 }
 
 bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tuple_address *actual)
@@ -59,7 +36,7 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 		return true;
 	if (expected == NULL || actual == NULL)
 		return false;
-	if (!ipv4_addr_equals(&expected->address, &actual->address))
+	if (expected->address.s_addr != actual->address.s_addr)
 		return false;
 	if (expected->l4_id != actual->l4_id)
 		return false;
@@ -78,7 +55,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 		return true;
 	if (expected == NULL || actual == NULL)
 		return false;
-	if (!ipv6_addr_equals(&expected->address, &actual->address))
+	if (!ipv6_addr_equal(&expected->address, &actual->address))
 		return false;
 	if (expected->l4_id != actual->l4_id)
 		return false;
@@ -89,7 +66,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 __u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
 {
 	// address->l4_id would perhaps be the logical hash code, since it's usually random,
-	// but during nat64_get_bib_entry_by_ipv6_only() we need to ignore it during lookup
+	// but during bib_get_by_ipv6_only() we need to ignore it during lookup
 	// so this needs to be a little more creative.
 
 	__u16 i;
@@ -135,10 +112,13 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 {
 	// pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
-	// but during nat64_is_allowed_by_address_filtering() we need to ignore it during lookup
+	// but during is_allowed_by_address_filtering() we need to ignore it during lookup
 	// so this needs to be a little more creative.
 
-	union ipv4_addr_union local, remote;
+	union ipv4_addr_union {
+		__be32 by32;
+		__be16 by16[2];
+	} local, remote;
 	__u16 result = 1;
 
 	if (pair == NULL)
@@ -164,10 +144,9 @@ bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual
 {
 	if (expected == actual)
 		return true;
-	if (expected == NULL || actual == NULL)
+	if (expected == NULL || actual == NULL )
 		return false;
-
-	if (!ipv6_addr_equals(&expected->address, &actual->address))
+	if (!ipv6_addr_equal(&expected->address, &actual->address))
 		return false;
 	if (expected->len != actual->len)
 		return false;

@@ -17,11 +17,11 @@
  *
  * @return "true" if initialization was successful, "false" otherwise.
  */
-bool nat64_config_init(void);
+bool config_init(void);
 /**
  * Terminates this module. Deletes any memory left on the heap.
  */
-void nat64_config_destroy(void);
+void config_destroy(void);
 
 
 #endif /* NF_NAT64_CONFIG_H_ */

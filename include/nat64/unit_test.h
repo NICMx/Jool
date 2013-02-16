@@ -15,6 +15,7 @@ bool assert_equals_ipv6(struct in6_addr *expected, struct in6_addr *actual, char
 bool assert_null(void *actual, char *test_name);
 
 bool assert_false(bool condition, char *test_name);
+bool assert_not_equals_int(int expected, int actual, char *test_name);
 bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name);
 bool assert_not_equals_ptr(void *expected, void *actual, char *test_name);
 bool assert_not_null(void *actual, char *test_name);

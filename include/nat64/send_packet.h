@@ -33,7 +33,7 @@
  * Please note that this function inherits from ip_local_out() the idiotic side effect of freeing
  * "skb", EVEN IF IT COULD NOT BE SENT.
  */
-bool nat64_send_packet_ipv4(struct sk_buff *skb);
+bool send_packet_ipv4(struct sk_buff *skb);
 /**
  * Assumes "skb" contains a IPv6 packet, and sends it.
  *
@@ -49,7 +49,7 @@ bool nat64_send_packet_ipv4(struct sk_buff *skb);
  * Please note that this function inherits from ip6_local_out() the idiotic side effect of freeing
  * "skb", EVEN IF IT COULD NOT BE SENT.
  */
-bool nat64_send_packet_ipv6(struct sk_buff *skb);
+bool send_packet_ipv6(struct sk_buff *skb);
 
 
 #endif /* _NF_NAT64_SEND_PACKET_H */

@@ -18,8 +18,7 @@
 /**
  * An object that helps you traverse the IPv6 headers of a packet.
  */
-struct hdr_iterator
-{
+struct hdr_iterator {
 	/** Type of the header we're currently visiting (previous header's nexthdr value). */
 	__u8 hdr_type;
 	/**

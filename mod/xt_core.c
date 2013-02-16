@@ -22,7 +22,7 @@
 
 
 unsigned int nat64_core(struct sk_buff *skb_in,
-		bool (*compute_outgoing_fn)(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
+		bool (*compute_out_tuple_fn)(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
 				struct nf_conntrack_tuple *out),
 		bool (*translate_packet_fn)(struct nf_conntrack_tuple *, struct sk_buff *,
 				struct sk_buff **),
@@ -31,16 +31,16 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 	struct sk_buff *skb_out = NULL;
 	struct nf_conntrack_tuple *tuple_in = NULL, tuple_out;
 
-	if (!nat64_determine_incoming_tuple(skb_in, &tuple_in))
+	if (!determine_in_tuple(skb_in, &tuple_in))
 		goto free_and_fail;
 	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
-	if (!compute_outgoing_fn(tuple_in, skb_in, &tuple_out))
+	if (!compute_out_tuple_fn(tuple_in, skb_in, &tuple_out))
 		goto free_and_fail;
 	if (!translate_packet_fn(&tuple_out, skb_in, &skb_out))
 		goto free_and_fail;
-	if (nat64_got_hairpin(&tuple_out)) {
-		if (!nat64_handling_hairpinning(skb_out, &tuple_out))
+	if (is_hairpin(&tuple_out)) {
+		if (!handling_hairpinning(skb_out, &tuple_out))
 			goto free_and_fail;
 	} else {
 		if (!send_packet_fn(skb_out))
@@ -63,37 +63,31 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct iphdr *ip4_header = ip_hdr(skb);
 	__u8 l4protocol = ip4_header->protocol;
-	struct in_addr daddr_aux;
-
-	log_debug("===============================================");
-	log_debug("Incoming IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
+	struct in_addr daddr;
 
 	// Validate.
-	daddr_aux.s_addr = ip4_header->daddr;
-	if (!pool4_contains(&daddr_aux)) {
-		log_info("Packet is not destined to me.");
-	 	goto failure;
-	}
+	daddr.s_addr = ip4_header->daddr;
+	if (!pool4_contains(&daddr))
+		return NF_ACCEPT; // Let something else handle it.
 
-	// TODO (test) validate l4 headers?
+	log_debug("===============================================");
+	log_debug("Catching IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
 
+	// TODO (test) validate l4 headers further?
 	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
-		log_info("Packet does not use TCP, UDP or ICMPv4.");
-		goto failure;
+		log_debug("Packet does not use TCP, UDP or ICMP.");
+		return NF_ACCEPT;
 	}
 
 	// Set the skb's transport header pointer.
 	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
 	// And despite that, its availability will be appreciated.
-	skb_set_transport_header(skb, 4 * ip_hdr(skb)->ihl);
+	skb_set_transport_header(skb, 4 * ip4_header->ihl);
 
 	return nat64_core(skb,
-			compute_outgoing_tuple_4to6,
-			nat64_translating_the_packet_4to6,
-			nat64_send_packet_ipv6);
-
-failure:
-	return NF_ACCEPT;
+			compute_out_tuple_4to6,
+			translating_the_packet_4to6,
+			send_packet_ipv6);
 }
 
 unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
@@ -103,25 +97,23 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	enum hdr_iterator_result iterator_result;
 	__u8 l4protocol;
 
-	log_debug("===============================================");
-	log_debug("Incoming IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
-
 	// Validate.
-	if (!pool6_contains(&ip6_header->daddr)) {
-		log_info("Packet is not destined to me.");
+	if (!pool6_contains(&ip6_header->daddr))
 		goto failure;
-	}
+
+	log_debug("===============================================");
+	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
 
 	iterator_result = hdr_iterator_last(&iterator);
 	switch (iterator_result) {
 	case HDR_ITERATOR_SUCCESS:
-		log_crit("Programming error: I was supposed to reach the packet's payload, "
-				"but iterator reports there are more headers left. o_o");
+		log_crit(ERR_ITERATOR_IS_LYING, "Iterator reports there are headers beyond the payload.");
 		goto failure;
 	case HDR_ITERATOR_END:
 		l4protocol = iterator.hdr_type;
 		break;
 	case HDR_ITERATOR_UNSUPPORTED:
+		// RFC 6146 section 5.1.
 		log_info("Packet contains an Authentication or ESP header, which I do not support.");
 		goto failure;
 	case HDR_ITERATOR_OVERFLOW:
@@ -129,14 +121,14 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 				"Packet seems corrupted; ignoring.");
 		goto failure;
 	default:
-		log_crit("Unknown header iterator result code: %d.", iterator_result);
+		log_crit(ERR_UNKNOWN_RCODE, "Unknown header iterator result code: %d.", iterator_result);
 		goto failure;
 	}
 
 	switch (l4protocol) {
 	case NEXTHDR_TCP:
 		if (iterator.data + tcp_hdrlen(skb) > iterator.limit) {
-			log_warning("TCP header does not fit in the packet. Packet seems corrupted; ignoring.");
+			log_warning("TCP header doesn't fit in the packet. Packet seems corrupted; ignoring.");
 			goto failure;
 		}
 		break;
@@ -144,11 +136,12 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	case NEXTHDR_UDP: {
 		struct udphdr *hdr = iterator.data;
 		if (iterator.data + sizeof(struct udphdr) > iterator.limit) {
-			log_warning("UDP header does not fit in the packet. Packet seems corrupted; ignoring.");
+			log_warning("UDP header doesn't fit in the packet. Packet seems corrupted; ignoring.");
 			goto failure;
 		}
 		if (iterator.data + be16_to_cpu(hdr->len) > iterator.limit) {
-			log_warning("UDP header + payload do not fit in the packet. Packet seems corrupted; ignoring.");
+			log_warning("UDP header + payload do not fit in the packet. "
+					"Packet seems corrupted; ignoring.");
 			goto failure;
 		}
 		break;
@@ -157,7 +150,7 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	case NEXTHDR_ICMP: {
 		struct icmp6hdr *hdr = iterator.data;
 		if (iterator.data + sizeof(*hdr) > iterator.limit) {
-			log_warning("ICMP header does not fit in the packet. Packet seems corrupted; ignoring.");
+			log_warning("ICMP header doesn't fit in the packet. Packet seems corrupted; ignoring.");
 			goto failure;
 		}
 		break;
@@ -174,9 +167,9 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	skb_set_transport_header(skb, iterator.data - (void *) ip6_header);
 
 	return nat64_core(skb,
-			compute_outgoing_tuple_6to4,
-			nat64_translating_the_packet_6to4,
-			nat64_send_packet_ipv4);
+			compute_out_tuple_6to4,
+			translating_the_packet_6to4,
+			send_packet_ipv4);
 
 failure:
 	return NF_ACCEPT;
@@ -188,8 +181,8 @@ int nat64_tg_check(const struct xt_tgchk_param *par)
 //	if (ret < 0)
 //		log_info("cannot load support for proto=%u", par->family);
 //	return ret;
-
-	log_info("Check function.");
+//
+//	log_info("Check function.");
 	return 0;
 }
 
@@ -226,10 +219,10 @@ int __init nat64_init(void)
 	need_conntrack();
 	need_ipv4_conntrack();
 
-	if (!(nat64_config_init()
+	if (!(config_init()
 			&& pool6_init() && pool4_init(true)
-			&& nat64_bib_init() && nat64_session_init()
-			&& nat64_determine_incoming_tuple_init()
+			&& bib_init() && session_init()
+			&& determine_in_tuple_init()
 			&& filtering_init()
 			&& translate_packet_init()))
 		return false;
@@ -246,12 +239,12 @@ void __exit nat64_exit(void)
 
 	translate_packet_destroy();
 	filtering_destroy();
-	nat64_determine_incoming_tuple_destroy();
-	nat64_session_destroy();
-	nat64_bib_destroy();
+	determine_in_tuple_destroy();
+	session_destroy();
+	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
-	nat64_config_destroy();
+	config_destroy();
 
 	log_debug("NAT64 module removed.");
 }

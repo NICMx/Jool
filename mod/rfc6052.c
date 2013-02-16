@@ -11,7 +11,7 @@ union ipv4_address {
 	__u8 as8[4];
 };
 
-bool nat64_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
+bool addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
 
@@ -47,7 +47,7 @@ bool nat64_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct
 		dst_aux.as32 = src->s6_addr32[3];
 		break;
 	default:
-		log_err("Prefix has an invalid length: %d.", prefix->len);
+		log_err(ERR_PREF_LEN, "Prefix has an invalid length: %d.", prefix->len);
 		return false;
 	}
 
@@ -55,7 +55,7 @@ bool nat64_extract_ipv4(struct in6_addr *src, struct ipv6_prefix *prefix, struct
 	return true;
 }
 
-bool nat64_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst)
+bool addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst)
 {
 	union ipv4_address src_aux;
 
@@ -109,7 +109,7 @@ bool nat64_append_ipv4(struct in_addr *src, struct ipv6_prefix *prefix, struct i
 		dst->s6_addr32[3] = src_aux.as32;
 		break;
 	default:
-		log_err("Prefix has an invalid length: %d.", prefix->len);
+		log_err(ERR_PREF_LEN, "Prefix has an invalid length: %d.", prefix->len);
 		return false;
 	}
 

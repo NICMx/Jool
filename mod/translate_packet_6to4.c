@@ -1,7 +1,7 @@
 /**
  * @file
  * Functions from Translate the Packet which specifically target the IPv6 -> IPv4 direction.
- * Would normally be part of nf_nat64_translate_packet.c; the constant scrolling was killing me.
+ * Would normally be part of translate_packet.c; the constant scrolling was killing me.
  */
 
 /**
@@ -46,13 +46,13 @@ static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff
 		in->l4_hdr_len = sizeof(struct icmp6hdr);
 		break;
 	default:
-		log_warning("Unsupported l4 protocol (%d). Cannot translate.", in->l4_hdr_type);
+		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", in->l4_hdr_type);
 		return false;
 	}
 
 	in->payload = iterator.data + in->l4_hdr_len;
-	in->payload_len = be16_to_cpu(ip6_hdr->payload_len) //
-			- (in->l3_hdr_len - sizeof(*ip6_hdr)) //
+	in->payload_len = be16_to_cpu(ip6_hdr->payload_len)
+			- (in->l3_hdr_len - sizeof(*ip6_hdr))
 			- in->l4_hdr_len;
 
 	return true;
@@ -190,7 +190,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	out->l3_hdr_len = sizeof(struct iphdr);
 	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
 	if (!out->l3_hdr) {
-		log_warning("Allocation of the IPv4 header failed.");
+		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv4 header failed.");
 		return false;
 	}
 
@@ -218,7 +218,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	if (in->packet != NULL) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
-			log_debug("Cannot translate: Packet's segments left field is nonzero.");
+			log_info("Packet's segments left field is nonzero.");
 			icmpv6_send(in->packet, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
 			return false;
 		}
@@ -286,10 +286,10 @@ static __be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu)
  */
 static bool icmpv6_has_inner_packet(__u8 icmp6_type)
 {
-	return (icmp6_type == ICMPV6_DEST_UNREACH) //
-			|| (icmp6_type == ICMPV6_PKT_TOOBIG) //
-			|| (icmp6_type == ICMPV6_TIME_EXCEED) //
-			|| (icmp6_type == ICMPV6_PARAMPROB); //
+	return (icmp6_type == ICMPV6_DEST_UNREACH)
+			|| (icmp6_type == ICMPV6_PKT_TOOBIG)
+			|| (icmp6_type == ICMPV6_TIME_EXCEED)
+			|| (icmp6_type == ICMPV6_PARAMPROB);
 }
 
 /**
@@ -335,7 +335,7 @@ static bool icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr, struct ic
 		goto success;
 	}
 
-	log_crit("Programming error: Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
+	log_crit(ERR_UNKNOWN_ERROR, "Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
 	goto failure;
 
 success:
@@ -399,8 +399,8 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
 
 	default:
 		// ICMPV6_UNK_OPTION is known to fall through here.
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
-				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
+		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
+				icmpv6_hdr->icmp6_code);
 		return false;
 	}
 
@@ -418,7 +418,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
-		log_warning("Allocation of the ICMPv4 header failed.");
+		log_err(ERR_ALLOC_FAILED, "Allocation of the ICMPv4 header failed.");
 		return false;
 	}
 
@@ -520,7 +520,6 @@ static bool post_tcp_ipv4(struct packet_in *in, struct packet_out *out)
 
 	tcp_header->source = in->tuple->src_port;
 	tcp_header->dest = in->tuple->dst_port;
-
 	tcp_header->check = 0;
 	tcp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,
 			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
@@ -539,7 +538,6 @@ static bool post_udp_ipv4(struct packet_in *in, struct packet_out *out)
 
 	udp_header->source = in->tuple->src_port;
 	udp_header->dest = in->tuple->dst_port;
-
 	udp_header->len = cpu_to_be16(datagram_len);
 	udp_header->check = 0;
 	udp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,

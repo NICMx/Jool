@@ -6,12 +6,12 @@
 #include "nat64/send_packet.h"
 
 
-bool nat64_got_hairpin(struct nf_conntrack_tuple *outgoing)
+bool is_hairpin(struct nf_conntrack_tuple *outgoing)
 {
 	return outgoing->L3_PROTOCOL && pool4_contains(&outgoing->dst.u3.in);
 }
 
-bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)
+bool handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)
 {
 	struct sk_buff *skb_out = NULL;
 	struct nf_conntrack_tuple tuple_out;
@@ -20,11 +20,11 @@ bool nat64_handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tupl
 
 	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
-	if (!compute_outgoing_tuple_4to6(tuple_in, skb_in, &tuple_out))
+	if (!compute_out_tuple_4to6(tuple_in, skb_in, &tuple_out))
 		goto free_and_fail;
-	if (!nat64_translating_the_packet_4to6(&tuple_out, skb_in, &skb_out))
+	if (!translating_the_packet_4to6(&tuple_out, skb_in, &skb_out))
 		goto free_and_fail;
-	if (!nat64_send_packet_ipv6(skb_out))
+	if (!send_packet_ipv6(skb_out))
 		goto fail;
 
 	log_debug("Done step 5.");

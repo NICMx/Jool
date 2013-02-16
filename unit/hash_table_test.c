@@ -54,8 +54,6 @@ static bool assert_table_content(struct test_table *table,
 	for (i = 0; i < 4; i++) {
 		struct table_value *current_val = test_table_get(table, &keys[i]);
 
-		pr_debug("%d %u %u %p\n", i, keys[i].key, expected_values[i].value, current_val);
-
 		if (expected_values[i].value == -1) {
 			success &= assert_null(current_val, test_name);
 		} else {

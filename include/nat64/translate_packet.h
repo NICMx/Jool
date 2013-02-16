@@ -6,16 +6,6 @@
  * Fourth step of the Nat64 translation algorithm: "Translating the Packet", as defined in RFC6146
  * section 3.7.
  *
- * Abbreviations seen in this submodule:
- * - hdr = header
- * - src = source
- * - dst = destination
- * - frag = fragment
- * - len = length
- * - ptr = pointer
- * - in = incoming (Note, not "inner")
- * - out = outgoing (Not "outer")
- *
  * @author Alberto Leiva
  */
 
@@ -37,8 +27,7 @@
  * sk_buff and then some. The point is to avoid having to recompute stuff whenever it's needed.
  * Most code should assume it is already and completely populated.
  */
-struct packet_in
-{
+struct packet_in {
 	/**
 	 * A pointer to the incoming packet, in case you need something that's not in the packet_in.
 	 * This field will NOT be set if this packet_in belongs to a packet inside of a packet (Because
@@ -114,8 +103,7 @@ struct packet_in
  * The only exceptions are the headers' checksums and lenghts, since they require the rest of the
  * packet to be known, so they have to be computed at the very end.
  */
-struct packet_out
-{
+struct packet_out {
 	/**
 	 * "l3_hdr"'s type. Either IPPROTO_IP or IPPROTO_IPV6.
 	 * You don't need to query this all the time. If we're translating from 4 to 6 this will always
@@ -186,7 +174,7 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
  * @param skb_in the incoming packet.
  * @param skb_out out parameter, where the outgoing packet will be placed.
  */
-bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
+bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 		struct sk_buff *skb_in, struct sk_buff **skb_out);
 /**
  * Assumes "skb_in" is a IPv6 packet, and stores a IPv4 equivalent in "skb_out".
@@ -195,16 +183,12 @@ bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
  * @param skb_in the incoming packet.
  * @param skb_out out parameter, where the outgoing packet will be placed.
  */
-bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
+bool translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 		struct sk_buff *skb_in, struct sk_buff **skb_out);
 
 /**
  * Interprets in.payload as an independent packet, translates its layer 3 header (using
  * "l3_hdr_function") and places the result in out.payload.
- *
- * I've more or less arbitrarily decided that errors within this function will not trigger a packet
- * drop. If the translation of the inner packet fails, the original inner packet will be returned.
- * If this decision proves troublesome, just adjust the code to return false on failure.
  */
 bool translate_inner_packet(struct packet_in *in, struct packet_out *out,
 		bool (*l3_hdr_function)(struct packet_in *, struct packet_out *));

@@ -40,7 +40,7 @@ bool translate_packet_init(void)
 	config.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
 	config.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
 	if (!config.mtu_plateaus) {
-		log_warning("Could not allocate memory to store the MTU plateaus.");
+		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the MTU plateaus.");
 		spin_unlock_bh(&config_lock);
 		return false;
 	}
@@ -68,6 +68,7 @@ bool clone_translate_config(struct translate_config *clone)
 	clone->mtu_plateaus = kmalloc(plateaus_len, GFP_ATOMIC);
 	if (!clone->mtu_plateaus) {
 		spin_unlock_bh(&config_lock);
+		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
 		return false;
 	}
 	memcpy(clone->mtu_plateaus, config.mtu_plateaus, plateaus_len);
@@ -94,8 +95,10 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 	if (operation & MTU_PLATEAUS_MASK) {
 		int i, j;
 
-		if (new_config->mtu_plateau_count == 0)
+		if (new_config->mtu_plateau_count == 0) {
+			log_err(ERR_MTU_LIST_EMPTY, "The MTU list received from userspace is empty.");
 			return RESPONSE_INVALID_VALUE;
+		}
 
 		// Sort descending.
 		sort(new_config->mtu_plateaus, new_config->mtu_plateau_count,
@@ -111,8 +114,10 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 			}
 		}
 
-		if (new_config->mtu_plateaus[0] == 0)
+		if (new_config->mtu_plateaus[0] == 0) {
+			log_err(ERR_MTU_LIST_ZEROES, "The MTU list contains nothing but zeroes.");
 			return RESPONSE_INVALID_VALUE;
+		}
 
 		new_config->mtu_plateau_count = i + 1;
 	}
@@ -148,6 +153,7 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 		if (!config.mtu_plateaus) {
 			config.mtu_plateaus = old_mtus; // Should we revert the other fields?
 			spin_unlock_bh(&config_lock);
+			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
 			return RESPONSE_ALLOC_FAILED;
 		}
 
@@ -182,7 +188,7 @@ static bool create_skb(struct packet_out *out)
 			+ tail_room, // user's reserved+.
 			GFP_ATOMIC);
 	if (!new_skb) {
-		log_warning("New packet allocation failed.");
+		log_err(ERR_ALLOC_FAILED, "New packet allocation failed.");
 		return false;
 	}
 	out->packet = new_skb;
@@ -274,7 +280,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	inner_packet_in.tuple = in_outer->tuple;
 	inner_packet_in.l3_hdr = in_inner.hdr.src;
 	if (!l3_function(&inner_packet_in, &inner_packet_out)) {
-		log_warning("Header translation failed.");
+		log_err(ERR_INNER_PACKET, "Translation of the inner packet's layer 3 header failed.");
 		goto failure;
 	}
 
@@ -289,7 +295,7 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	out_outer->payload_len = out_inner.hdr.len + out_inner.payload.len;
 	out_outer->payload = kmalloc(out_outer->payload_len, GFP_ATOMIC);
 	if (!out_outer->payload) {
-		log_warning("New payload allocation failed.");
+		log_err(ERR_ALLOC_FAILED, "Translation of the inner packet's payload header failed.");
 		goto failure;
 	}
 	out_outer->payload_needs_kfreeing = true;
@@ -304,13 +310,8 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 	return true;
 
 failure:
-	log_warning("Will leave the inner content as is.");
-	out_outer->payload = in_outer->payload;
-	out_outer->payload_len = in_outer->payload_len;
-	out_outer->payload_needs_kfreeing = false;
-
 	kfree(inner_packet_out.l3_hdr);
-	return true;
+	return false;
 }
 
 /**
@@ -384,7 +385,7 @@ failure:
 	return false;
 }
 
-bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
+bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 		struct sk_buff *skb_in, struct sk_buff **skb_out)
 {
 	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
@@ -406,7 +407,7 @@ bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 		l4_post_function = post_icmp6;
 		break;
 	default:
-		log_warning("Unsupported l4 protocol (%d). Cannot translate.", ip_hdr(skb_in)->protocol);
+		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", ip_hdr(skb_in)->protocol);
 		return false;
 	}
 
@@ -416,7 +417,7 @@ bool nat64_translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 			post_ipv6, l4_post_function);
 }
 
-bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
+bool translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 		struct sk_buff *skb_in, struct sk_buff **skb_out)
 {
 	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
@@ -426,13 +427,6 @@ bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 	log_debug("Step 4: Translating the Packet");
 
 	hdr_iterator_last(&iterator);
-	if (iterator.hdr_type == NEXTHDR_AUTH || iterator.hdr_type == NEXTHDR_ESP) {
-		// RFC 6146 section 5.1.
-		log_warning("Incoming IPv6 packet has an Auth header or an ESP header. Cannot translate; "
-				"will drop the packet.");
-		return false;
-	}
-
 	switch (iterator.hdr_type) {
 	case NEXTHDR_TCP:
 		l4_hdr_and_payload_function = copy_l4_hdr_and_payload;
@@ -447,7 +441,7 @@ bool nat64_translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 		l4_post_function = post_icmp4;
 		break;
 	default:
-		log_warning("Unsupported l4 protocol (%d). Cannot translate.", iterator.hdr_type);
+		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", iterator.hdr_type);
 		return false;
 	}
 

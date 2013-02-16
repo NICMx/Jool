@@ -20,15 +20,14 @@
  *
  * Please note that modifications to this structure may need to cascade to *_module_comm.h.
  */
-struct bib_entry
-{
+struct bib_entry {
 	/** The address from the IPv4 network. */
 	struct ipv4_tuple_address ipv4;
 	/** The address from the IPv6 network. */
 	struct ipv6_tuple_address ipv6;
 
 	/** Session entries related to this BIB. */
-	struct list_head session_entries;
+	struct list_head sessions;
 };
 
 
@@ -48,7 +47,7 @@ extern spinlock_t bib_session_lock;
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
-bool nat64_bib_init(void);
+bool bib_init(void);
 
 /**
  * Adds "entry" to the BIB table whose layer-4 protocol is "protocol".
@@ -62,7 +61,7 @@ bool nat64_bib_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
-bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
+bool bib_add(struct bib_entry *entry, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
@@ -74,8 +73,7 @@ bool nat64_add_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
  * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
-struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address,
-		u_int8_t l4protocol);
+struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol);
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  * "address".
@@ -86,9 +84,8 @@ struct bib_entry *nat64_get_bib_entry_by_ipv4(struct ipv4_tuple_address *address
  * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
-struct bib_entry *nat64_get_bib_entry_by_ipv6(struct ipv6_tuple_address *address,
-		u_int8_t l4protocol);
-struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
+struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol);
+struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.
@@ -101,7 +98,7 @@ struct bib_entry *nat64_get_bib_entry_by_ipv6_only(struct in6_addr *address, u_i
  * @param tuple summary of the packet. Describes the BIB you need.
  * @return the BIB entry you'd expect from the "tuple" tuple.
  */
-struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
+struct bib_entry *bib_get(struct nf_conntrack_tuple *tuple);
 
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4protocol".
@@ -113,21 +110,20 @@ struct bib_entry *nat64_get_bib_entry(struct nf_conntrack_tuple *tuple);
  * @return whether the entry was in fact removed or not. The removal will fail if the entry is not
  *		on the table, or if it still has related session entries.
  */
-bool nat64_remove_bib_entry(struct bib_entry *entry, u_int8_t l4protocol);
+bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol);
 
 /**
  * Empties the BIB tables, freeing any memory being used by them.
  * Call during destruction to avoid memory leaks.
  */
-void nat64_bib_destroy(void);
+void bib_destroy(void);
 
 /**
  * Helper function, intended to initialize a BIB entry.
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a BIB table, you need
  * to kfree it).
  */
-struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
-		struct ipv6_tuple_address *ipv6);
+struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6);
 
 /**
  * Creates an array out of the "l4protocol" BIB's data and places it in *"array".
@@ -142,7 +138,7 @@ struct bib_entry *nat64_create_bib_entry(struct ipv4_tuple_address *ipv4,
  * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
  * the real entries from the table.
  */
-__s32 nat64_bib_to_array(__u8 l4protocol, struct bib_entry ***array);
+__s32 bib_to_array(__u8 l4protocol, struct bib_entry ***array);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".

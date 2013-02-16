@@ -1,5 +1,5 @@
 /** 
- * @file nf_nat64_static_routes.c 
+ * @file
  *
  * This module implements the feature mentioned in the RFC6146, 
  * about managing static routes. It allows to add a new entry in
@@ -12,32 +12,31 @@
 #include "nat64/bib.h"
 #include "nat64/session.h"
 
-enum response_code nat64_add_static_route(struct request_session *req)
+enum response_code add_static_route(struct request_session *req)
 {
 	struct bib_entry *bib = NULL;
 	struct session_entry *session = NULL;
 
-	bib = nat64_create_bib_entry(&req->add.pair4.local, &req->add.pair6.remote);
+	bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
 	if (!bib) {
-		log_warning("Could NOT allocate a BIB entry.");
+		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
 		return RESPONSE_ALLOC_FAILED;
 	}
 
 	spin_lock_bh(&bib_session_lock);
-	if (!nat64_add_bib_entry(bib, req->l4_proto)) {
-		log_warning("Could NOT add the BIB entry to the table.");
+	if (!bib_add(bib, req->l4_proto)) {
+		log_err(ERR_SR_BIB_INSERT_FAILED, "Could NOT add the BIB entry to the table.");
 		goto failure;
 	}
 
-	session = nat64_create_static_session_entry(&req->add.pair4, &req->add.pair6, bib,
-			req->l4_proto);
+	session = session_create_static(&req->add.pair4, &req->add.pair6, bib, req->l4_proto);
 	if (!session) {
-		log_warning("Could NOT allocate a session entry.");
+		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a session entry.");
 		goto failure;
 	}
 
-	if (!nat64_add_session_entry(session)) {
-		log_warning("Could NOT add the session entry to the table.");
+	if (!session_add(session)) {
+		log_err(ERR_SR_SESSION_INSERT_FAILED, "Could NOT add the session entry to the table.");
 		goto failure;
 	}
 
@@ -48,14 +47,14 @@ failure:
 	if (session)
 		kfree(session);
 	if (bib) {
-		nat64_remove_bib_entry(bib, req->l4_proto);
+		bib_remove(bib, req->l4_proto);
 		kfree(bib);
 	}
 	spin_unlock_bh(&bib_session_lock);
 	return RESPONSE_ALLOC_FAILED;
 }
 
-enum response_code nat64_delete_static_route(struct request_session *req)
+enum response_code delete_static_route(struct request_session *req)
 {
 	struct session_entry *session = NULL;
 	enum response_code result = RESPONSE_SUCCESS;
@@ -63,37 +62,35 @@ enum response_code nat64_delete_static_route(struct request_session *req)
 	spin_lock_bh(&bib_session_lock);
 	switch (req->remove.l3_proto) {
 	case NFPROTO_IPV6:
-		session = nat64_get_session_entry_by_ipv6(&req->remove.pair6, req->l4_proto);
+		session = session_get_by_ipv6(&req->remove.pair6, req->l4_proto);
 		break;
 	case NFPROTO_IPV4:
-		session = nat64_get_session_entry_by_ipv4(&req->remove.pair4, req->l4_proto);
+		session = session_get_by_ipv4(&req->remove.pair4, req->l4_proto);
 		break;
 	default:
-		result = RESPONSE_UNKNOWN_L3PROTO;
-		goto failure;
+		spin_unlock_bh(&bib_session_lock);
+		log_err(ERR_L3PROTO, "Unknown network protocol: %d.", req->remove.l3_proto);
+		return RESPONSE_UNKNOWN_L3PROTO;
 	}
 
 	if (!session) {
-		result = RESPONSE_NOT_FOUND;
-		goto failure;
+		spin_unlock_bh(&bib_session_lock);
+		log_err(ERR_SESSION_NOT_FOUND, "Could not find the session entry requested by the user.");
+		return RESPONSE_NOT_FOUND;
 	}
 
-	if (!nat64_remove_session_entry(session)) {
-		log_err("Bug: Remove session call ended in failure, despite previous validations.");
-		result = RESPONSE_UNKNOWN_ERROR;
-		goto failure;
+	if (!session_remove(session)) {
+		spin_unlock_bh(&bib_session_lock);
+		log_err(ERR_UNKNOWN_ERROR, "Remove session call ended in failure, despite validations.");
+		return RESPONSE_UNKNOWN_ERROR;
 	}
 
 	kfree(session);
 	spin_unlock_bh(&bib_session_lock);
 	return result;
-
-failure:
-	spin_unlock_bh(&bib_session_lock);
-	return result;
 }
 
-enum response_code nat64_print_bib_table(union request_bib *request, __u16 *count_out,
+enum response_code print_bib_table(union request_bib *request, __u16 *count_out,
 		struct bib_entry_us **bibs_us_out)
 {
 	struct bib_entry **bibs_ks = NULL; // ks = kernelspace. Array of pointers to bib entries.
@@ -101,7 +98,7 @@ enum response_code nat64_print_bib_table(union request_bib *request, __u16 *coun
 	__s32 counter, count;
 
 	spin_lock_bh(&bib_session_lock);
-	count = nat64_bib_to_array(request->display.l4_proto, &bibs_ks);
+	count = bib_to_array(request->display.l4_proto, &bibs_ks);
 	spin_unlock_bh(&bib_session_lock);
 	if (count == 0) {
 		*count_out = 0;
@@ -130,7 +127,7 @@ kmalloc_fail:
 	return RESPONSE_ALLOC_FAILED;
 }
 
-enum response_code nat64_print_session_table(struct request_session *request, __u16 *count_out,
+enum response_code print_session_table(struct request_session *request, __u16 *count_out,
 		struct session_entry_us **sessions_us_out)
 {
 	struct session_entry **sessions_ks = NULL;
@@ -139,7 +136,7 @@ enum response_code nat64_print_session_table(struct request_session *request, __
 	unsigned int now;
 
 	spin_lock_bh(&bib_session_lock);
-	count = nat64_session_table_to_array(request->l4_proto, &sessions_ks);
+	count = session_to_array(request->l4_proto, &sessions_ks);
 	spin_unlock_bh(&bib_session_lock);
 	if (count == 0) {
 		*count_out = 0;

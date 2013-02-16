@@ -37,7 +37,7 @@ static bool write_data(struct response_hdr **response, enum response_code code, 
 
 	*response = kmalloc(length, GFP_ATOMIC);
 	if (!(*response)) {
-		log_warning("Could not allocate an answer for the user...");
+		log_err(ERR_ALLOC_FAILED, "Could not allocate an answer for the user...");
 		return false;
 	}
 
@@ -131,7 +131,7 @@ static bool handle_bib_config(__u32 operation, union request_bib *request,
 	case OP_DISPLAY:
 		log_debug("Sending BIB to userspace.");
 
-		code = nat64_print_bib_table(request, &bib_count, &bibs);
+		code = print_bib_table(request, &bib_count, &bibs);
 		if (code != RESPONSE_SUCCESS)
 			return write_code(response, code);
 
@@ -156,7 +156,7 @@ static bool handle_session_config(__u32 operation, struct request_session *reque
 	case OP_DISPLAY:
 		log_debug("Sending session table to userspace.");
 
-		code = nat64_print_session_table(request, &session_count, &sessions);
+		code = print_session_table(request, &session_count, &sessions);
 		if (code != RESPONSE_SUCCESS)
 			return write_code(response, code);
 
@@ -166,11 +166,11 @@ static bool handle_session_config(__u32 operation, struct request_session *reque
 
 	case OP_ADD:
 		log_debug("Adding session.");
-		return write_code(response, nat64_add_static_route(request));
+		return write_code(response, add_static_route(request));
 
 	case OP_REMOVE:
 		log_debug("Removing session.");
-		return write_code(response, nat64_delete_static_route(request));
+		return write_code(response, delete_static_route(request));
 
 	default:
 		return write_code(response, RESPONSE_UNKNOWN_OP);
@@ -183,14 +183,14 @@ static bool handle_filtering_config(__u32 operation, struct filtering_config *re
 	struct filtering_config clone;
 
 	if (operation == 0) {
-		log_debug("Returning 'Filtering and Updating' options...");
+		log_debug("Returning 'Filtering and Updating' options.");
 
 		if (!clone_filtering_config(&clone))
 			return write_code(response, RESPONSE_ALLOC_FAILED);
 
 		return write_data(response, RESPONSE_SUCCESS, &clone, sizeof(clone));
 	} else {
-		log_debug("Updating 'Filtering and Updating' options:");
+		log_debug("Updating 'Filtering and Updating' options.");
 		return write_code(response, set_filtering_config(operation, request));
 	}
 }
@@ -205,7 +205,7 @@ static bool handle_translate_config(struct request_hdr *hdr, struct translate_co
 		unsigned char *config;
 		__u16 config_len;
 
-		log_debug("Returning 'Translate the Packet' options...");
+		log_debug("Returning 'Translate the Packet' options.");
 
 		if (!clone_translate_config(&clone))
 			return write_code(response, RESPONSE_ALLOC_FAILED);
@@ -220,7 +220,7 @@ static bool handle_translate_config(struct request_hdr *hdr, struct translate_co
 	} else {
 		struct translate_config new_config;
 
-		log_debug("Updating 'Translate the Packet' options:");
+		log_debug("Updating 'Translate the Packet' options.");
 
 		if (!deserialize_translate_config(request, hdr->length - sizeof(*hdr), &new_config))
 			return write_code(response, RESPONSE_ALLOC_FAILED);
@@ -281,14 +281,12 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nlh)
 	request = NLMSG_DATA(nlh);
 	pid = nlh->nlmsg_pid;
 
-	if (!update_nat_config(request, &response) != 0) {
-		log_warning("Error while updating NAT64 running configuration");
+	if (!update_nat_config(request, &response) != 0)
 		goto failure;
-	}
 
 	skb_out = nlmsg_new(response->length, 0);
 	if (!skb_out) {
-		log_warning("Failed to allocate a response skb to the user.");
+		log_err(ERR_ALLOC_FAILED, "Failed to allocate a response skb to the user.");
 		goto failure;
 	}
 
@@ -298,7 +296,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nlh)
 
 	res = nlmsg_unicast(netlink_socket, skb_out, pid);
 	if (res < 0) {
-		log_warning("Error code %d while returning response to the user.", res);
+		log_err(ERR_NETLINK, "Error code %d while returning response to the user.", res);
 		goto failure;
 	}
 
@@ -323,14 +321,14 @@ static void receive_from_userspace(struct sk_buff *skb)
 	mutex_unlock(&my_mutex);
 }
 
-bool nat64_config_init(void)
+bool config_init(void)
 {
 	// Netlink sockets.
 	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
 	netlink_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
 	if (!netlink_socket) {
-		log_warning("Creation of netlink socket failed.");
+		log_err(ERR_NETLINK, "Creation of netlink socket failed.");
 		return false;
 	}
 	log_debug("Netlink socket created.");
@@ -338,7 +336,7 @@ bool nat64_config_init(void)
 	return true;
 }
 
-void nat64_config_destroy(void)
+void config_destroy(void)
 {
 	if (netlink_socket)
 		netlink_kernel_release(netlink_socket);

@@ -86,8 +86,7 @@ enum response_code {
  *
  * See *_bib.h for the fields' doc.
  */
-struct bib_entry_us
-{
+struct bib_entry_us {
 	struct ipv4_tuple_address ipv4;
 	struct ipv6_tuple_address ipv6;
 };
@@ -100,8 +99,7 @@ struct bib_entry_us
  *
  * See *_session.h for the fields' doc.
  */
-struct session_entry_us
-{
+struct session_entry_us {
 	struct ipv6_pair ipv6;
 	struct ipv4_pair ipv4;
 	bool is_static;
@@ -112,8 +110,7 @@ struct session_entry_us
 /**
  * Configuration for the "Filtering and Updating" module.
  */
-struct filtering_config
-{
+struct filtering_config {
 	/** Use Address-Dependent Filtering? */
 	bool address_dependent_filtering;
 	/** Filter ICMPv6 Informational packets */
@@ -121,8 +118,7 @@ struct filtering_config
 	/** Drop externally initiated TCP connections? (IPv4 initiated) */
 	bool drop_externally_initiated_tcp_connections;
 	/** Current timeout values */
-	struct timeouts
-	{
+	struct timeouts {
 		unsigned int udp;
 		unsigned int icmp;
 		unsigned int tcp_est;
@@ -133,8 +129,7 @@ struct filtering_config
 /**
  * Configuration for the "Translate the packet" module.
  */
-struct translate_config
-{
+struct translate_config {
 	/**
 	 * The user's reserved head room in bytes. Default should be 0.
 	 * Can be negative, if the user wants to compensate for the LL_MAX_HEADER constant.
@@ -202,6 +197,7 @@ struct request_session {
 	__u8 l4_proto;
 	union {
 		struct {
+			// Nothing needed here.
 		} display;
 		struct {
 			struct ipv6_pair pair6;
