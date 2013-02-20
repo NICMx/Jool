@@ -18,8 +18,7 @@ $(info Compiling on kernel family 3)
 endif
 
 PROGS = nat64
-OBJS := str_utils.o common.o netlink.o pool6.o pool4.o bib.o session.o filtering.o translate.o \
-		nat64.o
+OBJS := str_utils.o netlink.o pool6.o pool4.o bib.o session.o filtering.o translate.o nat64.o
 
 
 nat64: $(OBJS)
@@ -28,8 +27,6 @@ nat64: $(OBJS)
 str_utils.o: str_utils.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-common.o: common.c
-	$(CC) -c $(CFLAGS) $< -o $@
 netlink.o: netlink.c
 	$(CC) -c $(CFLAGS) $< -o $@
 pool6.o: pool6.c
@@ -47,6 +44,8 @@ translate.o: translate.c
 
 nat64.o: nat64.c
 	$(CC) -c $(CFLAGS) $< -o $@
+
+all: nat64
 
 clean:
 	rm -f $(PROGS) $(OBJS)

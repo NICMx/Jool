@@ -22,8 +22,8 @@
  * This module contains no header file; it needs to be #included directly.
  */
 
+#include "nat64/comm/types.h"
 #include <linux/slab.h>
-#include "nat64/types.h"
 
 /********************************************
  * Macros.
@@ -176,14 +176,14 @@ static bool INIT(struct HTABLE_NAME *table,
  * @param value element to store in the table.
  * @return success status. The value will not be inserted if a kmalloc fails.
  */
-static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
+static enum error_code PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 {
 	struct KEY_VALUE_PAIR *key_value;
 	__u16 hash_code;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return false;
+		return ERR_NULL;
 	}
 
 	// We're not going to insert the value alone, but a key-value structure.
@@ -192,7 +192,7 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
-		return false;
+		return ERR_ALLOC_FAILED;
 	}
 	key_value->key = key;
 	key_value->value = value;
@@ -202,7 +202,7 @@ static bool PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
 	table->size++;
 
-	return true;
+	return ERR_SUCCESS;
 }
 
 /**
@@ -284,7 +284,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 				kfree(current_pair->value);
 			kfree(current_pair);
 
-			// log_debug("Deleted a node whose hash code was %d.", row);
+			// log_debug("Deleted a node whose hash code was %u.", row);
 		}
 	}
 }
@@ -311,7 +311,7 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			log_debug("  hash:%d - key:%p - value:%p", row, &current_pair->key,
+			log_debug("  hash:%u - key:%p - value:%p", row, &current_pair->key,
 					&current_pair->value);
 		}
 	}

@@ -14,12 +14,15 @@
 #include <linux/types.h>
 #include <string.h>
 
-#include "nat64/str_utils.h"
-#include "nat64/mode.h"
-#include "nat64/config.h"
-#include "nat64/constants.h"
-#include "nat64/config_proto.h"
-#include "nat64/config_validation.h"
+#include "nat64/comm/constants.h"
+#include "nat64/comm/config_proto.h"
+#include "nat64/comm/str_utils.h"
+#include "nat64/usr/pool6.h"
+#include "nat64/usr/pool4.h"
+#include "nat64/usr/bib.h"
+#include "nat64/usr/session.h"
+#include "nat64/usr/filtering.h"
+#include "nat64/usr/translate.h"
 
 
 const char *argp_program_version = "NAT64 userspace app 0.1";
@@ -104,15 +107,15 @@ enum argp_flags {
 	// Translate
 	ARGP_HEAD = 4000,
 	ARGP_TAIL = 4001,
-	ARGP_O6TCLASS = 4002,
-	ARGP_O4TCLASS = 4003,
-	ARGP_4TCLASS = 4004,
+	ARGP_RESET_TCLASS = 4002,
+	ARGP_RESET_TOS = 4003,
+	ARGP_NEW_TOS = 4004,
 	ARGP_DF = 4005,
-	ARGP_GENID = 4006,
-	ARGP_IMP_MTU = 4007,
-	ARGP_MIN_MTU6 = 4008,
-	ARGP_MIN_MTU4 = 4009,
-	ARGP_PLATEAU = 4010,
+	ARGP_BUILD_ID = 4006,
+	ARGP_LOWER_MTU_FAIL = 4007,
+	ARGP_NEXT_MTU6 = 4008,
+	ARGP_NEXT_MTU4 = 4009,
+	ARGP_PLATEAUS = 4010,
 };
 
 #define NUM_FORMAT "<int>"
@@ -196,31 +199,32 @@ static struct argp_option options[] =
 	{ "filtering",	ARGP_FILTERING,	0, 0,
 			"Command is filtering related. Use alone to display configuration. "
 			"Will be implicit if any other filtering command is entered." },
-	{ "dropAddr",	ARGP_DROP_ADDR,	BOOL_FORMAT, 0, "Use Address-Dependent Filtering." },
-	{ "dropInfo",	ARGP_DROP_INFO,		BOOL_FORMAT, 0, "Filter ICMPv6 Informational packets." },
-	{ "dropTCP",	ARGP_DROP_TCP,	BOOL_FORMAT, 0, "Drop externally initiated TCP connections" },
-	{ "toUDP",		ARGP_UDP_TO,	NUM_FORMAT, 0, "Set the timeout for new UDP sessions." },
-	{ "toICMP",		ARGP_ICMP_TO,	NUM_FORMAT, 0, "Set the timeout for new ICMP sessions." },
-	{ "toTCPest",	ARGP_TCP_TO,	NUM_FORMAT, 0,
+	{ DROP_BY_ADDR_OPT,	ARGP_DROP_ADDR,	BOOL_FORMAT, 0, "Use Address-Dependent Filtering." },
+	{ DROP_ICMP6_INFO_OPT,	ARGP_DROP_INFO,	BOOL_FORMAT, 0, "Filter ICMPv6 Informational packets." },
+	{ DROP_EXTERNAL_TCP_OPT,	ARGP_DROP_TCP,	BOOL_FORMAT, 0, "Drop externally initiated TCP connections "
+			"-- DISABLING THIS IS NOT YET IMPLEMENTED" },
+	{ UDP_TIMEOUT_OPT,		ARGP_UDP_TO,	NUM_FORMAT, 0, "Set the timeout for new UDP sessions." },
+	{ ICMP_TIMEOUT_OPT,		ARGP_ICMP_TO,	NUM_FORMAT, 0, "Set the timeout for new ICMP sessions." },
+	{ TCP_EST_TIMEOUT_OPT,	ARGP_TCP_TO,	NUM_FORMAT, 0,
 			"Set the established connection idle-timeout for new TCP sessions." },
-	{ "toTCPtrans",	ARGP_TCP_TRANS_TO,NUM_FORMAT, 0,
+	{ TCP_TRANS_TIMEOUT_OPT,	ARGP_TCP_TRANS_TO,NUM_FORMAT, 0,
 			"Set the transitory connection idle-timeout for new TCP sessions." },
 
 	{ 0, 0, 0, 0, "'Translate the Packet' step options:", 31 },
 	{ "translate",	ARGP_TRANSLATE,	0, 0,
 				"Command is translate related. Use alone to display configuration. "
 				"Will be implicit if any other translate command is entered." },
-	{ "head",		ARGP_HEAD,		NUM_FORMAT, 0, "Packet head room." },
-	{ "tail",		ARGP_TAIL,		NUM_FORMAT, 0, "Packet tail room." },
-	{ "setTC",		ARGP_O6TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
-	{ "setTOS",		ARGP_O4TCLASS,	BOOL_FORMAT, 0, "Override IPv4 Traffic class." },
-	{ "TOS",		ARGP_4TCLASS,	NUM_FORMAT, 0, "IPv4 Traffic class." },
-	{ "setDF",		ARGP_DF,		BOOL_FORMAT, 0, "Always set Don't Fragment." },
-	{ "genID",		ARGP_GENID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
-	{ "boostMTU",	ARGP_IMP_MTU,	BOOL_FORMAT, 0, "Improve MTU failure rate." },
-	{ "minMTU6",	ARGP_MIN_MTU6,	NUM_FORMAT, 0, "Minimal MTU value used in IPv6 network." },
-	{ "minMTU4",	ARGP_MIN_MTU4,	NUM_FORMAT, 0, "Minimal MTU value used in IPv4 network." },
-	{ "plateaus",	ARGP_PLATEAU,	NUM_ARR_FORMAT, 0, "MTU plateaus." },
+	{ SKB_HEAD_ROOM_OPT,	ARGP_HEAD,			NUM_FORMAT, 0, "Packet head room." },
+	{ SKB_TAIL_ROOM_OPT,	ARGP_TAIL,			NUM_FORMAT, 0, "Packet tail room." },
+	{ RESET_TCLASS_OPT,		ARGP_RESET_TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
+	{ RESET_TOS_OPT,		ARGP_RESET_TOS,		BOOL_FORMAT, 0, "Override IPv4 Type of Service." },
+	{ NEW_TOS_OPT,			ARGP_NEW_TOS,		NUM_FORMAT, 0, "IPv4 Type of Service." },
+	{ DF_ALWAYS_ON_OPT,		ARGP_DF,			BOOL_FORMAT, 0, "Always set Don't Fragment." },
+	{ BUILD_IPV4_ID_OPT,	ARGP_BUILD_ID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
+	{ LOWER_MTU_FAIL_OPT,	ARGP_LOWER_MTU_FAIL,BOOL_FORMAT, 0, "Decrease MTU failure rate." },
+	{ IPV6_NEXTHOP_MTU_OPT,	ARGP_NEXT_MTU6,		NUM_FORMAT, 0, "Nexthop MTU of the IPv6 network." },
+	{ IPV4_NEXTHOP_MTU_OPT,	ARGP_NEXT_MTU4,		NUM_FORMAT, 0, "Nexthop MTU of the IPv4 network." },
+	{ MTU_PLATEAUS_OPT,		ARGP_PLATEAUS,		NUM_ARR_FORMAT,0, "MTU plateaus." },
 
 	{ 0 },
 };
@@ -228,7 +232,7 @@ static struct argp_option options[] =
 /*
  * PARSER. Field 2 in ARGP.
  */
-static error_t parse_opt(int key, char *arg, struct argp_state *state)
+static int parse_opt(int key, char *arg, struct argp_state *state)
 {
 	struct arguments *arguments = state->input;
 	__u16 temp;
@@ -274,14 +278,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 
 	case ARGP_ADDRESS:
-		if (!str_to_addr4(arg, &arguments->pool4_addr)) {
-			printf("Cannot parse '%s' as a IPv4 address.\n", arg);
-			return RESPONSE_PARSE_FAIL;
-		}
+		if (str_to_addr4(arg, &arguments->pool4_addr) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_PREFIX:
-		if (!str_to_prefix(arg, &arguments->pool6_prefix))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_prefix(arg, &arguments->pool6_prefix) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_STATIC:
 		arguments->static_entries = true;
@@ -291,149 +293,149 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 
 	case ARGP_IPV6:
-		if (!str_to_addr6_port(arg, &arguments->bib_addr6))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_addr6_port(arg, &arguments->bib_addr6) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->bib_addr6_set = true;
 		break;
 	case ARGP_IPV4:
-		if (!str_to_addr4_port(arg, &arguments->bib_addr4))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_addr4_port(arg, &arguments->bib_addr4) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->bib_addr4_set = true;
 		break;
 	case ARGP_REMOTE6:
-		if (!str_to_addr6_port(arg, &arguments->session_pair6.remote))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_addr6_port(arg, &arguments->session_pair6.remote) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->session_pair6_remote_set = true;
 		break;
 	case ARGP_LOCAL6:
-		if (!str_to_addr6_port(arg, &arguments->session_pair6.local))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_addr6_port(arg, &arguments->session_pair6.local) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->session_pair6_local_set = true;
 		break;
 	case ARGP_LOCAL4:
-		if (!str_to_addr4_port(arg, &arguments->session_pair4.local))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_addr4_port(arg, &arguments->session_pair4.local) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->session_pair4_local_set = true;
 		break;
 	case ARGP_REMOTE4:
-		if (!str_to_addr4_port(arg, &arguments->session_pair4.remote))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_addr4_port(arg, &arguments->session_pair4.remote) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->session_pair4_remote_set = true;
 		break;
 
 	case ARGP_DROP_ADDR:
 		arguments->mode = MODE_FILTERING;
-		arguments->operation |= ADDRESS_DEPENDENT_FILTER_MASK;
-		if (!str_to_bool(arg, &arguments->filtering.address_dependent_filtering))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= DROP_BY_ADDR_MASK;
+		if (str_to_bool(arg, &arguments->filtering.drop_by_addr) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_DROP_INFO:
 		arguments->mode = MODE_FILTERING;
-		arguments->operation |= FILTER_INFO_MASK;
-		if (!str_to_bool(arg, &arguments->filtering.filter_informational_icmpv6))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= DROP_ICMP6_INFO_MASK;
+		if (str_to_bool(arg, &arguments->filtering.drop_icmp6_info) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_DROP_TCP:
 		arguments->mode = MODE_FILTERING;
-		arguments->operation |= DROP_TCP_MASK;
-		if (!str_to_bool(arg, &arguments->filtering.drop_externally_initiated_tcp_connections))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
+		if (str_to_bool(arg, &arguments->filtering.drop_external_tcp) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, UDP_MIN, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_u16(arg, &temp, UDP_MIN, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->filtering.to.udp = temp;
 		break;
 	case ARGP_ICMP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ICMP_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, 0, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_u16(arg, &temp, 0, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->filtering.to.icmp = temp;
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_EST_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, TCP_EST, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_u16(arg, &temp, TCP_EST, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->filtering.to.tcp_est = temp;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
-		if (!str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		arguments->filtering.to.tcp_trans = temp;
 		break;
 
 	case ARGP_HEAD:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= PHR_MASK;
-		if (!str_to_u16(arg, &arguments->translate.packet_head_room, 0, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= SKB_HEAD_ROOM_MASK;
+		if (str_to_u16(arg, &arguments->translate.skb_head_room, 0, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_TAIL:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= PTR_MASK;
-		if (!str_to_u16(arg, &arguments->translate.packet_tail_room, 0, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= SKB_TAIL_ROOM_MASK;
+		if (str_to_u16(arg, &arguments->translate.skb_tail_room, 0, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_O6TCLASS:
+	case ARGP_RESET_TCLASS:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= OIPV6_MASK;
-		if (!str_to_bool(arg, &arguments->translate.override_ipv6_traffic_class))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= RESET_TCLASS_MASK;
+		if (str_to_bool(arg, &arguments->translate.reset_traffic_class) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_O4TCLASS:
+	case ARGP_RESET_TOS:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= OIPV4_MASK;
-		if (!str_to_bool(arg, &arguments->translate.override_ipv4_traffic_class))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= RESET_TOS_MASK;
+		if (str_to_bool(arg, &arguments->translate.reset_tos) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_4TCLASS:
+	case ARGP_NEW_TOS:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= IPV4_TRAFFIC_MASK;
-		if (!str_to_u8(arg, &arguments->translate.ipv4_traffic_class, 0, 0xFF))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= NEW_TOS_MASK;
+		if (str_to_u8(arg, &arguments->translate.new_tos, 0, 0xFF) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 	case ARGP_DF:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= DF_ALWAYS_MASK;
-		if (!str_to_bool(arg, &arguments->translate.df_always_set))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= DF_ALWAYS_ON_MASK;
+		if (str_to_bool(arg, &arguments->translate.df_always_on) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_GENID:
+	case ARGP_BUILD_ID:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= GEN_IPV4_MASK;
-		if (!str_to_bool(arg, &arguments->translate.generate_ipv4_id))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= BUILD_IPV4_ID_MASK;
+		if (str_to_bool(arg, &arguments->translate.build_ipv4_id) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_IMP_MTU:
+	case ARGP_LOWER_MTU_FAIL:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= IMP_MTU_FAIL_MASK;
-		if (!str_to_bool(arg, &arguments->translate.improve_mtu_failure_rate))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= LOWER_MTU_FAIL_MASK;
+		if (str_to_bool(arg, &arguments->translate.lower_mtu_fail) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_MIN_MTU6:
+	case ARGP_NEXT_MTU6:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= IPV6_NEXTHOP_MASK;
-		if (!str_to_u16(arg, &arguments->translate.ipv6_nexthop_mtu, 0, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= IPV6_NEXTHOP_MTU_MASK;
+		if (str_to_u16(arg, &arguments->translate.ipv6_nexthop_mtu, 0, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_MIN_MTU4:
+	case ARGP_NEXT_MTU4:
 		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= IPV4_NEXTHOP_MASK;
-		if (!str_to_u16(arg, &arguments->translate.ipv4_nexthop_mtu, 0, 0xFFFF))
-			return RESPONSE_PARSE_FAIL;
+		arguments->operation |= IPV4_NEXTHOP_MTU_MASK;
+		if (str_to_u16(arg, &arguments->translate.ipv4_nexthop_mtu, 0, 0xFFFF) != ERR_SUCCESS)
+			return EINVAL;
 		break;
-	case ARGP_PLATEAU:
+	case ARGP_PLATEAUS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= MTU_PLATEAUS_MASK;
-		if (!str_to_u16_array(arg, &arguments->translate.mtu_plateaus,
-				&arguments->translate.mtu_plateau_count))
-			return RESPONSE_PARSE_FAIL;
+		if (str_to_u16_array(arg, &arguments->translate.mtu_plateaus,
+				&arguments->translate.mtu_plateau_count) != ERR_SUCCESS)
+			return EINVAL;
 		break;
 
 	default:
@@ -460,16 +462,16 @@ static char doc[] = "nat64 -- The NAT64 kernel module's configuration interface.
  * Uses argp.h to read the parameters from the user, validates them, and returns the result as a
  * structure.
  */
-error_t parse_args(int argc, char **argv, struct arguments *result)
+int parse_args(int argc, char **argv, struct arguments *result)
 {
-	error_t parse_result;
+	int error;
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
 
-	parse_result = argp_parse(&argp, argc, argv, 0, 0, result);
-	if (parse_result != 0)
-		return parse_result;
+	error = argp_parse(&argp, argc, argv, 0, 0, result);
+	if (error != 0)
+		return error;
 
 	if (!result->tcp && !result->udp && !result->icmp) {
 		result->tcp = true;
@@ -491,11 +493,11 @@ error_t parse_args(int argc, char **argv, struct arguments *result)
 int main(int argc, char **argv)
 {
 	struct arguments args;
-	error_t result;
+	int error;
 
-	result = parse_args(argc, argv, &args);
-	if (result != 0)
-		return result;
+	error = parse_args(argc, argv, &args);
+	if (error)
+		return error;
 
 	switch (args.mode) {
 	case MODE_POOL6:
@@ -507,8 +509,8 @@ int main(int argc, char **argv)
 		case OP_REMOVE:
 			return pool6_remove(&args.pool6_prefix);
 		default:
-			printf("Unknown operation for IPv6 pool mode: %d.\n", args.operation);
-			return RESPONSE_UNKNOWN_OP;
+			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv6 pool mode: %u.", args.operation);
+			return EINVAL;
 		}
 		break;
 
@@ -521,8 +523,8 @@ int main(int argc, char **argv)
 		case OP_REMOVE:
 			return pool4_remove(&args.pool4_addr);
 		default:
-			printf("Unknown operation for IPv4 pool mode: %d.\n", args.operation);
-			return RESPONSE_UNKNOWN_OP;
+			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv4 pool mode: %u.", args.operation);
+			return EINVAL;
 		}
 
 	case MODE_BIB:
@@ -530,8 +532,8 @@ int main(int argc, char **argv)
 		case OP_DISPLAY:
 			return bib_display(args.tcp, args.udp, args.icmp);
 		default:
-			printf("Unknown operation for BIB mode: %d.\n", args.operation);
-			return RESPONSE_UNKNOWN_OP;
+			log_err(ERR_UNKNOWN_OP, "Unknown operation for BIB mode: %u.", args.operation);
+			return EINVAL;
 		}
 		break;
 
@@ -541,25 +543,25 @@ int main(int argc, char **argv)
 			return session_display(args.tcp, args.udp, args.icmp);
 
 		case OP_ADD:
-			result = RESPONSE_SUCCESS;
+			error = 0;
 			if (!args.session_pair6_remote_set) {
-				printf("Missing remote IPv6 address#port.\n");
-				result = RESPONSE_MISSING_PARAM;
+				log_err(ERR_MISSING_PARAM, "Missing remote IPv6 address#port.");
+				error = EINVAL;
 			}
 			if (!args.session_pair6_local_set) {
-				printf("Missing local IPv6 address#port.\n");
-				result = RESPONSE_MISSING_PARAM;
+				log_err(ERR_MISSING_PARAM, "Missing local IPv6 address#port.");
+				error = EINVAL;
 			}
 			if (!args.session_pair4_local_set) {
-				printf("Missing local IPv4 address#port.\n");
-				result = RESPONSE_MISSING_PARAM;
+				log_err(ERR_MISSING_PARAM, "Missing local IPv4 address#port.");
+				error = EINVAL;
 			}
 			if (!args.session_pair4_remote_set) {
-				printf("Missing remote IPv4 address#port.\n");
-				result = RESPONSE_MISSING_PARAM;
+				log_err(ERR_MISSING_PARAM, "Missing remote IPv4 address#port.");
+				error = EINVAL;
 			}
-			if (result != RESPONSE_SUCCESS)
-				return result;
+			if (error)
+				return error;
 
 			return session_add(args.tcp, args.udp, args.icmp, &args.session_pair6,
 					&args.session_pair4);
@@ -571,13 +573,13 @@ int main(int argc, char **argv)
 			if (args.session_pair4_remote_set && args.session_pair4_local_set)
 				return session_remove_ipv4(args.tcp, args.udp, args.icmp, &args.session_pair4);
 
-			printf("You need to provide both the local and remote nodes' address#port, "
-					"either from the IPv6 or the IPv4 side.\n");
-			return RESPONSE_MISSING_PARAM;
+			log_err(ERR_MISSING_PARAM, "You need to provide both the local and remote nodes' "
+					"address#port, either from the IPv6 or the IPv4 side.");
+			return EINVAL;
 
 		default:
-			printf("Unknown operation for session mode: %d.\n", args.operation);
-			return RESPONSE_UNKNOWN_OP;
+			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
+			return EINVAL;
 		}
 		break;
 
@@ -585,13 +587,13 @@ int main(int argc, char **argv)
 		return filtering_request(args.operation, &args.filtering);
 
 	case MODE_TRANSLATE:
-		result = translate_request(args.operation, &args.translate);
+		error = translate_request(args.operation, &args.translate);
 		if (args.translate.mtu_plateaus)
 			free(args.translate.mtu_plateaus);
-		return result;
+		return error;
 
 	default:
-		printf("Command seems empty; --help or --usage for info.\n");
-		return RESPONSE_UNKNOWN_MODE;
+		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");
+		return EINVAL;
 	}
 }

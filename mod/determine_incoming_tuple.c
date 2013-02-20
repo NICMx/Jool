@@ -1,17 +1,11 @@
-#include "nat64/determine_incoming_tuple.h"
+#include "nat64/mod/determine_incoming_tuple.h"
+#include "nat64/comm/types.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <net/icmp.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 
-#include "nat64/types.h"
-
-
-/** A identifier of the IPv4 protocol. */
-struct nf_conntrack_l3proto * l3proto_ip __read_mostly;
-/** A identifier of the IPv6 protocol. */
-struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 
 /**
  * log_tuple() - Prints the "tuple" tuple on the kernel ring buffer.
@@ -22,13 +16,13 @@ struct nf_conntrack_l3proto * l3proto_ipv6 __read_mostly;
 static inline void log_tuple(const struct nf_conntrack_tuple *tuple)
 {
 	switch (tuple->src.l3num) {
-	case NFPROTO_IPV4:
+	case PF_INET:
 		log_debug("tuple %p: l3:%u l4:%u %pI4#%hu -> %pI4#%hu",
 				tuple, tuple->src.l3num, tuple->dst.protonum,
 				&tuple->src.u3.ip, ntohs(tuple->src.u.all),
 				&tuple->dst.u3.ip, ntohs(tuple->dst.u.all));
 		break;
-	case NFPROTO_IPV6:
+	case PF_INET6:
 		log_debug("tuple %p: l3:%u l4:%u %pI6c#%hu -> %pI6c#%hu",
 				tuple, tuple->src.l3num, tuple->dst.protonum,
 				&tuple->src.u3.all, ntohs(tuple->src.u.all),
@@ -82,15 +76,15 @@ bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
 	log_tuple(tuple);
 
 	/** Now perform the only validation defined in this step. */
-	switch (tuple->L3_PROTOCOL) {
-	case NFPROTO_IPV4:
-		if (!is_l4_protocol_supported_ipv4(tuple->L4_PROTOCOL)) {
+	switch (tuple->L3_PROTO) {
+	case PF_INET:
+		if (!is_l4_protocol_supported_ipv4(tuple->L4_PROTO)) {
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
 			goto unsupported_l4_protocol;
 		}
 		break;
-	case NFPROTO_IPV6:
-		if (!is_l4_protocol_supported_ipv6(tuple->L4_PROTOCOL)) {
+	case PF_INET6:
+		if (!is_l4_protocol_supported_ipv6(tuple->L4_PROTO)) {
 			icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 			goto unsupported_l4_protocol;
 		}
@@ -104,33 +98,10 @@ bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
 	return true;
 
 unsupported_l3_protocol:
-	log_err(ERR_L3PROTO, "Unsupported L3 protocol: %u.", tuple->L3_PROTOCOL);
+	log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->L3_PROTO);
 	return false;
 
 unsupported_l4_protocol:
-	log_err(ERR_L4PROTO, "Unsupported L4 protocol: %u.", tuple->L4_PROTOCOL);
+	log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", tuple->L4_PROTO);
 	return false;
-}
-
-bool determine_in_tuple_init(void)
-{
-	l3proto_ip = nf_ct_l3proto_find_get(NFPROTO_IPV4);
-	if (!l3proto_ip) {
-		log_err(ERR_PROTO_LOAD_FAILURE, "Couldn't load IPv4 l3proto.");
-		return false;
-	}
-
-	l3proto_ipv6 = nf_ct_l3proto_find_get(NFPROTO_IPV6);
-	if (!l3proto_ipv6) {
-		log_err(ERR_PROTO_LOAD_FAILURE, "Couldn't load IPv6 l3proto.");
-		return false;
-	}
-
-	return true;
-}
-
-void determine_in_tuple_destroy(void)
-{
-	nf_ct_l3proto_put(l3proto_ip);
-	nf_ct_l3proto_put(l3proto_ipv6);
 }

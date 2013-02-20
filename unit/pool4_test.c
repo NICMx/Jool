@@ -1,7 +1,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "nat64/unit_test.h"
+#include "nat64/mod/unit_test.h"
 #include "pool4.c"
 
 
@@ -235,12 +235,12 @@ static bool init(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(expected_ips); i++) {
-		if (!str_to_addr4(expected_ips_as_str[i], &expected_ips[i])) {
+		if (str_to_addr4(expected_ips_as_str[i], &expected_ips[i]) != ERR_SUCCESS) {
 			log_warning("Cannot parse test address '%s'. Failing.", expected_ips_as_str[i]);
 			return false;
 		}
 
-		if (pool4_register(&expected_ips[i]) != RESPONSE_SUCCESS) {
+		if (pool4_register(&expected_ips[i]) != ERR_SUCCESS) {
 			log_warning("Could not register address %pI4. Failing...", &expected_ips[i]);
 			return false;
 		}

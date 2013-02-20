@@ -1,49 +1,54 @@
-#include "nat64/netlink.h"
-#include "nat64/config_proto.h"
+#include "nat64/usr/netlink.h"
+#include "nat64/comm/config_proto.h"
+#include <errno.h>
 
 
-error_t netlink_request(void *request, __u16 request_len, int (*callback)(struct nl_msg *, void *))
+int netlink_request(void *request, __u16 request_len, int (*callback)(struct nl_msg *, void *))
 {
-	int ret;
 	struct nl_sock *nl_socket;
+	int ret;
 
 	nl_socket = nl_socket_alloc();
 	if (!nl_socket) {
-		printf("Error: Could not allocate a socket; cannot speak to the NAT64");
-		return RESPONSE_ALLOC_FAILED;
+		log_err(ERR_ALLOC_FAILED, "Could not allocate a socket; cannot speak to the NAT64.");
+		return ENOMEM;
 	}
 
 	// Warning shutupper. I'm not sure if this is the correct way to handle it.
 	nl_socket_disable_seq_check(nl_socket);
 
-	ret = nl_socket_modify_cb(nl_socket, NL_CB_MSG_IN, NL_CB_CUSTOM, callback, NULL );
+	ret = nl_socket_modify_cb(nl_socket, NL_CB_MSG_IN, NL_CB_CUSTOM, callback, NULL);
 	if (ret < 0) {
-		nl_perror(ret, "Could not register response handler. I will not be able to parse the "
-				"NAT64's response, so I will not send the request");
+		log_err(ERR_NETLINK, "Could not register response handler. I won't be able to "
+				"parse the NAT64's response, so I won't send the request.\n"
+				"Netlink error message: %s (Code %d)", nl_geterror(ret), ret);
 		goto fail_free;
 	}
 
 	ret = nl_connect(nl_socket, NETLINK_USERSOCK);
 	if (ret < 0) {
-		nl_perror(ret, "Could not connect to the NAT64 (is it really up?)");
+		log_err(ERR_NETLINK, "Could not connect to the NAT64.\n"
+				"Netlink error message: %s (Code %d)", nl_geterror(ret), ret);
 		goto fail_free;
 	}
 
 	ret = nl_send_simple(nl_socket, MSG_TYPE_NAT64, 0, request, request_len);
 	if (ret < 0) {
-		nl_perror(ret, "Error while messaging the NAT64");
+		log_err(ERR_NETLINK, "Could not send the request to the NAT64 (is it really up?).\n"
+				"Netlink error message: %s (Code %d)", nl_geterror(ret), ret);
 		goto fail_close;
 	}
 
 	ret = nl_recvmsgs_default(nl_socket);
 	if (ret < 0) {
-		nl_perror(ret, "Waiting for the NAT64's response yielded failure");
+		log_err(ERR_NETLINK, "Waiting for the NAT64's response yielded failure.\n"
+				"Netlink error message: %s (Code %d)", nl_geterror(ret), ret);
 		goto fail_close;
 	}
 
 	nl_close(nl_socket);
 	nl_socket_free(nl_socket);
-	return RESPONSE_SUCCESS;
+	return 0;
 
 fail_close:
 	nl_close(nl_socket);
@@ -51,5 +56,5 @@ fail_close:
 
 fail_free:
 	nl_socket_free(nl_socket);
-	return RESPONSE_SEND_FAILED;
+	return EINVAL;
 }

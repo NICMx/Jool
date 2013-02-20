@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <xtables.h>
-#include "nat64.h"
+#include "nat64/comm/nat64.h"
 
 
 static void nat64_tg_help(void)

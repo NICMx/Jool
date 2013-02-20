@@ -1,8 +1,9 @@
-#include "nat64/mode.h"
-
+#include "nat64/usr/session.h"
+#include "nat64/comm/config_proto.h"
+#include "nat64/comm/str_utils.h"
+#include "nat64/usr/netlink.h"
+#include <errno.h>
 #include <time.h>
-
-#include "nat64/netlink.h"
 
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -18,9 +19,9 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	char str6[INET6_ADDRSTRLEN];
 
 	hdr = nlmsg_data(nlmsg_hdr(msg));
-	if (hdr->result_code != RESPONSE_SUCCESS) {
-		print_code_msg(hdr, "Session table", NULL);
-		return hdr->result_code;
+	if (hdr->result_code != ERR_SUCCESS) {
+		print_code_msg(hdr->result_code, NULL);
+		return EINVAL;
 	}
 
 	entries = (struct session_entry_us *) (hdr + 1);
@@ -57,31 +58,31 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-static error_t exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct request_hdr *hdr,
+static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct request_hdr *hdr,
 		struct request_session *payload, int (*callback)(struct nl_msg *msg, void *arg))
 {
-	error_t result = 0;
+	int tcp_error, udp_error, icmp_error;
 
 	if (use_tcp) {
 		printf("TCP:\n");
 		payload->l4_proto = IPPROTO_TCP;
-		result |= netlink_request(hdr, hdr->length, callback);
+		tcp_error = netlink_request(hdr, hdr->length, callback);
 	}
 	if (use_udp) {
 		printf("UDP:\n");
 		payload->l4_proto = IPPROTO_UDP;
-		result |= netlink_request(hdr, hdr->length, callback);
+		udp_error = netlink_request(hdr, hdr->length, callback);
 	}
 	if (use_icmp) {
 		printf("ICMP:\n");
 		payload->l4_proto = IPPROTO_ICMP;
-		result |= netlink_request(hdr, hdr->length, callback);
+		icmp_error = netlink_request(hdr, hdr->length, callback);
 	}
 
-	return result;
+	return (tcp_error || udp_error || icmp_error) ? EINVAL : 0;
 }
 
-error_t session_display(bool use_tcp, bool use_udp, bool use_icmp)
+int session_display(bool use_tcp, bool use_udp, bool use_icmp)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -97,11 +98,11 @@ error_t session_display(bool use_tcp, bool use_udp, bool use_icmp)
 static int session_add_response(struct nl_msg *msg, void *arg)
 {
 	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr, "Session table", "The session entry was added successfully.");
+	print_code_msg(hdr->result_code, "The session entry was added successfully.");
 	return 0;
 }
 
-error_t session_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6,
+int session_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6,
 		struct ipv4_pair *pair4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -120,11 +121,11 @@ error_t session_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair 
 static int session_remove_response(struct nl_msg *msg, void *arg)
 {
 	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr, "Session table", "The session entry was removed successfully.");
+	print_code_msg(hdr->result_code, "The session entry was removed successfully.");
 	return 0;
 }
 
-error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ipv4_pair *pair4)
+int session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ipv4_pair *pair4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -133,13 +134,13 @@ error_t session_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ip
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_SESSION;
 	hdr->operation = OP_REMOVE;
-	payload->remove.l3_proto = 4;
+	payload->remove.l3_proto = PF_INET;
 	payload->remove.pair4 = *pair4;
 
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, session_remove_response);
 }
 
-error_t session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6)
+int session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pair6)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -148,7 +149,7 @@ error_t session_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ip
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_SESSION;
 	hdr->operation = OP_REMOVE;
-	payload->remove.l3_proto = 6;
+	payload->remove.l3_proto = PF_INET6;
 	payload->remove.pair6 = *pair6;
 
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, session_remove_response);

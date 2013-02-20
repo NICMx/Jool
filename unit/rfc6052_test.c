@@ -2,8 +2,9 @@
 #include <linux/printk.h>
 #include <linux/inet.h>
 
-#include "nat64/unit_test.h"
-#include "nat64/types.h"
+#include "nat64/mod/unit_test.h"
+#include "nat64/comm/types.h"
+#include "nat64/comm/str_utils.h"
 #include "rfc6052.c"
 
 
@@ -75,20 +76,20 @@ static bool init(void)
 {
 	int i;
 
-	if (!str_to_addr4(ipv4_addr_str, &ipv4_addr)) {
+	if (str_to_addr4(ipv4_addr_str, &ipv4_addr) != ERR_SUCCESS) {
 		log_warning("Could not convert '%s' to a IPv4 address. Failing...", ipv4_addr_str);
 		return false;
 	}
 
 	for (i = 0; i < 6; i++) {
-		if (!str_to_addr6(ipv6_addr_str[i], &ipv6_addr[i])) {
+		if (str_to_addr6(ipv6_addr_str[i], &ipv6_addr[i]) != ERR_SUCCESS) {
 			log_warning("Could not convert '%s' to a IPv6 address. Failing...", ipv6_addr_str[i]);
 			return false;
 		}
 	}
 
 	for (i = 0; i < 6; i++) {
-		if (!str_to_addr6(prefixes_str[i], &prefixes[i].address)) {
+		if (str_to_addr6(prefixes_str[i], &prefixes[i].address) != ERR_SUCCESS) {
 			log_warning("Could not convert '%s' to a IPv6 address. Failing...", prefixes_str[i]);
 			return false;
 		}

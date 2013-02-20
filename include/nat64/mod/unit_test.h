@@ -1,7 +1,7 @@
 #ifndef UNIT_TEST_H_
 #define UNIT_TEST_H_
 
-#include "nat64/types.h"
+#include "nat64/comm/types.h"
 
 
 bool assert_true(bool condition, char *test_name);

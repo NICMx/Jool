@@ -2,8 +2,8 @@
 #include <linux/printk.h>
 #include <net/ipv6.h>
 
-#include "nat64/unit_test.h"
-#include "nat64/types.h"
+#include "nat64/mod/unit_test.h"
+#include "nat64/comm/types.h"
 #include "ipv6_hdr_iterator.c"
 
 

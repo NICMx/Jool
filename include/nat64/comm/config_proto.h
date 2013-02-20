@@ -12,7 +12,7 @@
  */
 
 #include <linux/types.h>
-#include "nat64/types.h"
+#include "nat64/comm/types.h"
 
 
 //#define MSG_TYPE_CONF (0x10 + 2)  ///< Netlink socket packet ID, configuration
@@ -36,46 +36,25 @@ enum config_operation {
 	OP_REMOVE,
 
 	/* The following apply when mode is filtering or translate. */
-	#define BIB_MASK (1 << 0)
-	#define SESSION_MASK (1 << 1)
-	#define IPV6_MASK (1 << 2)
-	#define IPV4_MASK (1 << 3)
-	#define HAIR_MASK (1 << 4)
-	#define PHR_MASK (1 << 5)
-	#define PTR_MASK (1 << 6)
-	#define OIPV6_MASK (1 << 7)
-	#define OIPV4_MASK (1 << 8)
-	#define IPV4_TRAFFIC_MASK (1 << 9)
-	#define DF_ALWAYS_MASK (1 << 10)
-	#define GEN_IPV4_MASK (1 << 11)
-	#define IMP_MTU_FAIL_MASK (1 << 12)
-	#define IPV6_NEXTHOP_MASK (1 << 13)
-	#define IPV4_NEXTHOP_MASK (1 << 14)
-	#define MTU_PLATEAUS_MASK (1 << 15)
+	#define SKB_HEAD_ROOM_MASK		(1 << 0)
+	#define SKB_TAIL_ROOM_MASK		(1 << 1)
+	#define RESET_TCLASS_MASK		(1 << 2)
+	#define RESET_TOS_MASK			(1 << 3)
+	#define NEW_TOS_MASK			(1 << 4)
+	#define DF_ALWAYS_ON_MASK		(1 << 5)
+	#define BUILD_IPV4_ID_MASK		(1 << 6)
+	#define LOWER_MTU_FAIL_MASK		(1 << 7)
+	#define IPV6_NEXTHOP_MTU_MASK	(1 << 8)
+	#define IPV4_NEXTHOP_MTU_MASK	(1 << 9)
+	#define MTU_PLATEAUS_MASK		(1 << 10)
 
-	#define ADDRESS_DEPENDENT_FILTER_MASK	(1 << 0)
-	#define FILTER_INFO_MASK				(1 << 1)
-	#define DROP_TCP_MASK					(1 << 2)
-	#define UDP_TIMEOUT_MASK				(1 << 3)
-	#define ICMP_TIMEOUT_MASK				(1 << 4)
-	#define TCP_EST_TIMEOUT_MASK			(1 << 5)
-	#define TCP_TRANS_TIMEOUT_MASK 			(1 << 6)
-};
-
-enum response_code {
-	RESPONSE_SUCCESS = 0,
-	RESPONSE_UNKNOWN_MODE,
-	RESPONSE_UNKNOWN_OP,
-	RESPONSE_UNKNOWN_L3PROTO,
-	RESPONSE_UNKNOWN_L4PROTO,
-	RESPONSE_NOT_FOUND,
-	RESPONSE_ALLOC_FAILED,
-	RESPONSE_CONNECT_FAILED,
-	RESPONSE_SEND_FAILED,
-	RESPONSE_PARSE_FAIL,
-	RESPONSE_INVALID_VALUE,
-	RESPONSE_MISSING_PARAM,
-	RESPONSE_UNKNOWN_ERROR,
+	#define DROP_BY_ADDR_MASK		(1 << 0)
+	#define DROP_ICMP6_INFO_MASK	(1 << 1)
+	#define DROP_EXTERNAL_TCP_MASK	(1 << 2)
+	#define UDP_TIMEOUT_MASK		(1 << 3)
+	#define ICMP_TIMEOUT_MASK		(1 << 4)
+	#define TCP_EST_TIMEOUT_MASK	(1 << 5)
+	#define TCP_TRANS_TIMEOUT_MASK 	(1 << 6)
 };
 
 /**
@@ -104,7 +83,7 @@ struct session_entry_us {
 	struct ipv4_pair ipv4;
 	bool is_static;
 	unsigned int dying_time;
-	u_int8_t l4protocol;
+	u_int8_t l4_proto;
 };
 
 /**
@@ -112,11 +91,11 @@ struct session_entry_us {
  */
 struct filtering_config {
 	/** Use Address-Dependent Filtering? */
-	bool address_dependent_filtering;
+	bool drop_by_addr;
 	/** Filter ICMPv6 Informational packets */
-	bool filter_informational_icmpv6;
+	bool drop_icmp6_info;
 	/** Drop externally initiated TCP connections? (IPv4 initiated) */
-	bool drop_externally_initiated_tcp_connections;
+	bool drop_external_tcp;
 	/** Current timeout values */
 	struct timeouts {
 		unsigned int udp;
@@ -131,33 +110,72 @@ struct filtering_config {
  */
 struct translate_config {
 	/**
-	 * The user's reserved head room in bytes. Default should be 0.
-	 * Can be negative, if the user wants to compensate for the LL_MAX_HEADER constant.
+	 * Extra bytes the translator will allocate at the head of the packets it generates. These are
+	 * meant to be used by other Netfilter modules for futher alien functionality (Eg. Add
+	 * additional headers withoug having to reallocate the packet).
+	 * Can be negative, if the user wants to compensate for the "LL_MAX_HEADER" constant.
 	 * (LL_MAX_HEADER = the kernel's reserved head room + l2 header's length.)
+	 *
+	 * TODO (later) LL_MAX_HEADER is probably intended for this very purpose, so these two values
+	 * are probably redundant.
 	 */
-	__u16 packet_head_room;
-	/** I suggest default = 32 bytes. */
-	__u16 packet_tail_room;
+	__u16 skb_head_room;
+	/**
+	 * Extra bytes the translator will allocate at the tail of the packets it generates. See
+	 * "skb_head_room".
+	 */
+	__u16 skb_tail_room;
 
-	bool override_ipv6_traffic_class;
-	/** Default should be false. */
-	bool override_ipv4_traffic_class;
-	__u8 ipv4_traffic_class;
-	/** Default should be true. */
-	bool df_always_set;
+	/**
+	 * "true" if the Traffic Class field of the translated IPv6 header should always be set to zero.
+	 * Otherwise it will be copied from the IPv4 header's TOS field.
+	 */
+	bool reset_traffic_class;
+	/**
+	 * "true" if the Type of Service (TOS) field of the translated IPv4 header should always be set
+	 * to "new_tos".
+	 * Otherwise it will be copied from the IPv6 header's Traffic Class field.
+	 */
+	bool reset_tos;
+	/**
+	 * If "reset_tos" is "true", this is the value the translator will always write in the TOS field
+	 * of the translated IPv4 headers.
+	 * If "reset_tos" is "false", then this doesn't do anything.
+	 */
+	__u8 new_tos;
+	/**
+	 * If "true", the translator will always set the translated IPv4 header's Don't Fragment (DF)
+	 * flag to one.
+	 * Otherwise the flag will be set depending on the packet's length.
+	 */
+	bool df_always_on;
+	/**
+	 * Whether the translated IPv4 header's Identification field should be computed (Either from the
+	 * IPv6 fragment header's Identification field or deduced from the packet's length).
+	 * Otherwise it will always be set to zero.
+	 */
+	bool build_ipv4_id;
+	/**
+	 * "true" if the value for the MTU field of outgoing ICMPv6 fragmentation needed packets should
+	 * be set to no less than 1280, regardless of MTU plateaus and whatnot.
+	 * See RFC 6145 section 6, second approach.
+	 */
+	bool lower_mtu_fail;
 
-	/** Default should be false. */
-	bool generate_ipv4_id;
-
-	/** Default should be true; in fact I don't see why anyone would want it to be false. */
-	bool improve_mtu_failure_rate;
 	// TODO (info) how can we compute these automatically?
 	__u16 ipv6_nexthop_mtu;
 	__u16 ipv4_nexthop_mtu;
 
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
-	/** Default values are { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }. */
+	/**
+	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
+	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
+	 * fragmentation needed packets.
+	 * The translator is supposed to pick the greatest plateau value that is less than the incoming
+	 * packet's Total Length field.
+	 * Default value is { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }.
+	 */
 	__u16 *mtu_plateaus;
 };
 
@@ -220,13 +238,14 @@ struct request_session {
  */
 struct response_hdr {
 	__u32 length;
+	// TODO vas a tener que cambiarle la longitud a esto.
 	__u8 result_code;
 };
 
 
-bool serialize_translate_config(struct translate_config *config, unsigned char **buffer_out,
-		__u16 *buffer_len_out);
-bool deserialize_translate_config(void *buffer, __u16 buffer_len,
+enum error_code serialize_translate_config(struct translate_config *config,
+		unsigned char **buffer_out, __u16 *buffer_len_out);
+enum error_code deserialize_translate_config(void *buffer, __u16 buffer_len,
 		struct translate_config *target_out);
 
 #endif

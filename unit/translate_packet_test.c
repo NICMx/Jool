@@ -1,7 +1,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-#include "nat64/unit_test.h"
+#include "nat64/mod/unit_test.h"
 #include "translate_packet.c"
 
 
@@ -1065,11 +1065,11 @@ static bool test_function_icmp6_minimum_mtu(void)
 
 	__u16 plateaus[] = { 1400, 1200, 600 };
 
-	bool old_improve_mtu_rate = config.improve_mtu_failure_rate;
+	bool old_lower_mtu_fail = config.lower_mtu_fail;
 	__u16 *old_plateaus = config.mtu_plateaus;
 	__u16 old_plateaus_count = config.mtu_plateau_count;
 
-	config.improve_mtu_failure_rate = false;
+	config.lower_mtu_fail = false;
 	config.mtu_plateaus = plateaus;
 	config.mtu_plateau_count = ARRAY_SIZE(plateaus);
 
@@ -1098,7 +1098,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 		goto revert;
 
 	// Test hack 2: User wants us to try to improve the failure rate.
-	config.improve_mtu_failure_rate = true;
+	config.lower_mtu_fail = true;
 
 	success &= assert_equals_u16(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
 	success &= assert_equals_u16(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
@@ -1122,7 +1122,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 
 	// Fall through.
 revert:
-	config.improve_mtu_failure_rate = old_improve_mtu_rate;
+	config.lower_mtu_fail = old_lower_mtu_fail;
 	config.mtu_plateaus = old_plateaus;
 	config.mtu_plateau_count = old_plateaus_count;
 	return success;

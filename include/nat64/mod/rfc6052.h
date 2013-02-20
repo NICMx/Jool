@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include "nat64/types.h"
+#include "nat64/comm/types.h"
 
 
 bool addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst);

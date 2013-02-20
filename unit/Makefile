@@ -10,6 +10,7 @@ obj-m += rfc6052.o hashtable.o pool4.o iterator.o bib_session.o
 obj-m += filtering.o outgoing.o translate.o
 
 rfc6052-objs += ../mod/types.o
+rfc6052-objs += ../mod/str_utils.o
 rfc6052-objs += unit_test.o
 rfc6052-objs += rfc6052_test.o
 
@@ -18,10 +19,12 @@ hashtable-objs += unit_test.o
 hashtable-objs += hash_table_test.o
 
 pool4-objs += ../mod/types.o
+pool4-objs += ../mod/str_utils.o
 pool4-objs += unit_test.o
 pool4-objs += pool4_test.o
 
 bib_session-objs += ../mod/types.o
+bib_session-objs += ../mod/str_utils.o
 bib_session-objs += ../mod/rfc6052.o
 bib_session-objs += ../mod/pool6.o
 bib_session-objs += ../mod/pool4.o
@@ -36,6 +39,7 @@ iterator-objs += unit_test.o
 iterator-objs += ipv6_hdr_iterator_test.o
 
 filtering-objs += ../mod/types.o
+filtering-objs += ../mod/str_utils.o
 filtering-objs += ../mod/ipv6_hdr_iterator.o
 filtering-objs += ../mod/rfc6052.o
 filtering-objs += ../mod/pool6.o
@@ -51,6 +55,7 @@ filtering-objs += unit_test.o
 filtering-objs += filtering_and_updating_test.o
 
 outgoing-objs += ../mod/types.o
+outgoing-objs += ../mod/str_utils.o
 outgoing-objs += ../mod/rfc6052.o
 outgoing-objs += ../mod/pool6.o
 outgoing-objs += ../mod/bib.o

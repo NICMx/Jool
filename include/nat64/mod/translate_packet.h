@@ -13,7 +13,7 @@
 #include <linux/skbuff.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-#include "nat64/config_proto.h"
+#include "nat64/comm/config_proto.h"
 
 
 /**
@@ -46,7 +46,7 @@ struct packet_in {
 	 */
 	void *l3_hdr;
 	/**
-	 * "l3_hdr"'s type. Either NFPROTO_IPV6, NFPROTO_IPV4
+	 * "l3_hdr"'s type. Either PF_INET6, PF_INET.
 	 * You don't need to query this all the time. If we're translating from 6 to 4 this will always
 	 * be the former, else the latter.
 	 */
@@ -164,8 +164,8 @@ struct packet_out {
 bool translate_packet_init(void);
 void translate_packet_destroy(void);
 
-bool clone_translate_config(struct translate_config *clone);
-enum response_code set_translate_config(__u32 operation, struct translate_config *new_config);
+enum error_code clone_translate_config(struct translate_config *clone);
+enum error_code set_translate_config(__u32 operation, struct translate_config *new_config);
 
 /**
  * Assumes "skb_in" is a IPv4 packet, and stores a IPv6 equivalent in "skb_out".

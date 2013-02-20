@@ -6,42 +6,48 @@
  * the BIB and Session tables from Userspace.
  */
 
-#include "nat64/static_routes.h"
+#include "nat64/mod/static_routes.h"
+#include "nat64/mod/config.h"
+#include "nat64/mod/bib.h"
+#include "nat64/mod/session.h"
 
-#include "nat64/config.h"
-#include "nat64/bib.h"
-#include "nat64/session.h"
 
-enum response_code add_static_route(struct request_session *req)
+enum error_code add_static_route(struct request_session *req)
 {
 	struct bib_entry *bib = NULL;
 	struct session_entry *session = NULL;
+	enum error_code result;
 
 	bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
 	if (!bib) {
-		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
-		return RESPONSE_ALLOC_FAILED;
+		result = ERR_ALLOC_FAILED;
+		log_err(result, "Could NOT allocate a BIB entry.");
+		goto failure;
 	}
 
 	spin_lock_bh(&bib_session_lock);
-	if (!bib_add(bib, req->l4_proto)) {
-		log_err(ERR_SR_BIB_INSERT_FAILED, "Could NOT add the BIB entry to the table.");
+
+	result = bib_add(bib, req->l4_proto);
+	if (result != ERR_SUCCESS) {
+		log_err(result, "Could NOT add the BIB entry to the table.");
 		goto failure;
 	}
 
 	session = session_create_static(&req->add.pair4, &req->add.pair6, bib, req->l4_proto);
 	if (!session) {
-		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a session entry.");
+		result = ERR_ALLOC_FAILED;
+		log_err(result, "Could NOT allocate a session entry.");
 		goto failure;
 	}
 
-	if (!session_add(session)) {
-		log_err(ERR_SR_SESSION_INSERT_FAILED, "Could NOT add the session entry to the table.");
+	result = session_add(session);
+	if (result != ERR_SUCCESS) {
+		log_err(result, "Could NOT add the session entry to the table.");
 		goto failure;
 	}
 
 	spin_unlock_bh(&bib_session_lock);
-	return RESPONSE_SUCCESS;
+	return result;
 
 failure:
 	if (session)
@@ -51,46 +57,46 @@ failure:
 		kfree(bib);
 	}
 	spin_unlock_bh(&bib_session_lock);
-	return RESPONSE_ALLOC_FAILED;
+	return result;
 }
 
-enum response_code delete_static_route(struct request_session *req)
+enum error_code delete_static_route(struct request_session *req)
 {
 	struct session_entry *session = NULL;
-	enum response_code result = RESPONSE_SUCCESS;
 
 	spin_lock_bh(&bib_session_lock);
 	switch (req->remove.l3_proto) {
-	case NFPROTO_IPV6:
+	case PF_INET6:
 		session = session_get_by_ipv6(&req->remove.pair6, req->l4_proto);
 		break;
-	case NFPROTO_IPV4:
+	case PF_INET:
 		session = session_get_by_ipv4(&req->remove.pair4, req->l4_proto);
 		break;
 	default:
 		spin_unlock_bh(&bib_session_lock);
-		log_err(ERR_L3PROTO, "Unknown network protocol: %d.", req->remove.l3_proto);
-		return RESPONSE_UNKNOWN_L3PROTO;
+		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
+		return ERR_L3PROTO;
 	}
 
 	if (!session) {
 		spin_unlock_bh(&bib_session_lock);
 		log_err(ERR_SESSION_NOT_FOUND, "Could not find the session entry requested by the user.");
-		return RESPONSE_NOT_FOUND;
+		return ERR_SESSION_NOT_FOUND;
 	}
 
 	if (!session_remove(session)) {
 		spin_unlock_bh(&bib_session_lock);
+		// Rather have a slight memory leak than damaged memory, so I'm not kfreeing session.
 		log_err(ERR_UNKNOWN_ERROR, "Remove session call ended in failure, despite validations.");
-		return RESPONSE_UNKNOWN_ERROR;
+		return ERR_UNKNOWN_ERROR;
 	}
 
 	kfree(session);
 	spin_unlock_bh(&bib_session_lock);
-	return result;
+	return ERR_SUCCESS;
 }
 
-enum response_code print_bib_table(union request_bib *request, __u16 *count_out,
+enum error_code print_bib_table(union request_bib *request, __u16 *count_out,
 		struct bib_entry_us **bibs_us_out)
 {
 	struct bib_entry **bibs_ks = NULL; // ks = kernelspace. Array of pointers to bib entries.
@@ -103,7 +109,7 @@ enum response_code print_bib_table(union request_bib *request, __u16 *count_out,
 	if (count == 0) {
 		*count_out = 0;
 		*bibs_us_out = NULL;
-		return RESPONSE_SUCCESS;
+		return ERR_SUCCESS;
 	}
 	if (count < 0)
 		goto kmalloc_fail;
@@ -120,14 +126,14 @@ enum response_code print_bib_table(union request_bib *request, __u16 *count_out,
 	kfree(bibs_ks);
 	*count_out = count;
 	*bibs_us_out = bibs_us;
-	return RESPONSE_SUCCESS;
+	return ERR_SUCCESS;
 
 kmalloc_fail:
 	kfree(bibs_ks);
-	return RESPONSE_ALLOC_FAILED;
+	return ERR_ALLOC_FAILED;
 }
 
-enum response_code print_session_table(struct request_session *request, __u16 *count_out,
+enum error_code print_session_table(struct request_session *request, __u16 *count_out,
 		struct session_entry_us **sessions_us_out)
 {
 	struct session_entry **sessions_ks = NULL;
@@ -141,7 +147,7 @@ enum response_code print_session_table(struct request_session *request, __u16 *c
 	if (count == 0) {
 		*count_out = 0;
 		*sessions_us_out = NULL;
-		return RESPONSE_SUCCESS;
+		return ERR_SUCCESS;
 	}
 	if (count < 0)
 		goto kmalloc_fail;
@@ -157,15 +163,15 @@ enum response_code print_session_table(struct request_session *request, __u16 *c
 		sessions_us[counter].ipv4 = sessions_ks[counter]->ipv4;
 		sessions_us[counter].is_static = sessions_ks[counter]->is_static;
 		sessions_us[counter].dying_time = sessions_ks[counter]->dying_time - now;
-		sessions_us[counter].l4protocol = sessions_ks[counter]->l4protocol;
+		sessions_us[counter].l4_proto = sessions_ks[counter]->l4_proto;
 	}
 
 	kfree(sessions_ks);
 	*count_out = count;
 	*sessions_us_out = sessions_us;
-	return RESPONSE_SUCCESS;
+	return ERR_SUCCESS;
 
 kmalloc_fail:
 	kfree(sessions_ks);
-	return RESPONSE_ALLOC_FAILED;
+	return ERR_ALLOC_FAILED;
 }

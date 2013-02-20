@@ -9,6 +9,7 @@ ccflags-y := -I$(src)/../include
 obj-m += nat64.o
 
 nat64-objs += types.o
+nat64-objs += str_utils.o
 nat64-objs += ipv6_hdr_iterator.o
 nat64-objs += rfc6052.o
 nat64-objs += pool6.o

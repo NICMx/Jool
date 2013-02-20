@@ -1,5 +1,8 @@
-#include "nat64/mode.h"
-#include "nat64/netlink.h"
+#include "nat64/usr/pool6.h"
+#include "nat64/comm/config_proto.h"
+#include "nat64/comm/str_utils.h"
+#include "nat64/usr/netlink.h"
+#include <errno.h>
 
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -17,9 +20,9 @@ static int pool6_display_response(struct nl_msg *msg, void *arg)
 	prefixes = (struct ipv6_prefix *) (hdr + 1);
 	prefix_count = (hdr->length - sizeof(*hdr)) / sizeof(*prefixes);
 
-	if (hdr->result_code != RESPONSE_SUCCESS) {
-		print_code_msg(hdr, "IPv6 pool", NULL);
-		return hdr->result_code;
+	if (hdr->result_code != ERR_SUCCESS) {
+		print_code_msg(hdr->result_code, NULL);
+		return EINVAL;
 	}
 
 	if (prefix_count == 0)
@@ -32,7 +35,7 @@ static int pool6_display_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-error_t pool6_display(void)
+int pool6_display(void)
 {
 	struct request_hdr request = {
 			.length = sizeof(request),
@@ -46,11 +49,11 @@ error_t pool6_display(void)
 static int pool6_add_response(struct nl_msg *msg, void *arg)
 {
 	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr, "IPv6 pool", "The prefix was added successfully.");
+	print_code_msg(hdr->result_code, "The prefix was added successfully.");
 	return 0;
 }
 
-error_t pool6_add(struct ipv6_prefix *prefix)
+int pool6_add(struct ipv6_prefix *prefix)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -67,11 +70,11 @@ error_t pool6_add(struct ipv6_prefix *prefix)
 static int pool6_remove_response(struct nl_msg *msg, void *arg)
 {
 	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr, "IPv6 pool", "The prefix was removed successfully.");
+	print_code_msg(hdr->result_code, "The prefix was removed successfully.");
 	return 0;
 }
 
-error_t pool6_remove(struct ipv6_prefix *prefix)
+int pool6_remove(struct ipv6_prefix *prefix)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;

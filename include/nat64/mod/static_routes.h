@@ -1,7 +1,7 @@
 #ifndef _NAT64_STATIC_ROUTES_H
 #define _NAT64_STATIC_ROUTES_H
 
-#include "nat64/config_proto.h"
+#include "nat64/comm/config_proto.h"
 
 
 /** 
@@ -22,7 +22,7 @@
  * to add a static route to the BIB and Session Table of NAT64.
  *
  */
-enum response_code add_static_route(struct request_session *req);
+enum error_code add_static_route(struct request_session *req);
 
 /**
  * delete_static_route - deletes a static route
@@ -34,7 +34,7 @@ enum response_code add_static_route(struct request_session *req);
  * to delete a static route to the BIB and Session Table of NAT64.
  *
  */
-enum response_code delete_static_route(struct request_session *req);
+enum error_code delete_static_route(struct request_session *req);
 
 
 /**
@@ -44,7 +44,7 @@ enum response_code delete_static_route(struct request_session *req);
  * It obtains bib information from the table and sends it back
  * to userpsace
  */
-enum response_code print_bib_table(union request_bib *request, __u16 *count_out,
+enum error_code print_bib_table(union request_bib *request, __u16 *count_out,
 		struct bib_entry_us **bibs_us_out);
 
 
@@ -55,7 +55,7 @@ enum response_code print_bib_table(union request_bib *request, __u16 *count_out,
  * It obtains session information from the table and sends it back
  * to userpsace
  */
-enum response_code print_session_table(struct request_session *request, __u16 *count_out,
+enum error_code print_session_table(struct request_session *request, __u16 *count_out,
 		struct session_entry_us **sessions_us_out);
 
 #endif

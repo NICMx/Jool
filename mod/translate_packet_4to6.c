@@ -25,7 +25,7 @@ static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff
 	in->tuple = tuple;
 
 	in->l3_hdr = ip4_hdr;
-	in->l3_hdr_type = NFPROTO_IPV4;
+	in->l3_hdr_type = PF_INET;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
 	in->l3_hdr_basic_len = sizeof(*ip4_hdr);
 	in->compute_l3_hdr_len = compute_ipv4_hdr_len;
@@ -42,7 +42,7 @@ static bool init_packet_in_4to6(struct nf_conntrack_tuple *tuple, struct sk_buff
 		in->l4_hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
-		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", in->l4_hdr_type);
+		log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_hdr_type);
 		return false;
 	}
 
@@ -148,7 +148,7 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 {
 	struct iphdr *ip4_hdr = in->l3_hdr;
 	struct ipv6hdr *ip6_hdr;
-	bool override_traffic_class;
+	bool reset_traffic_class;
 
 	bool has_frag_hdr = !is_dont_fragment_set(ip4_hdr);
 
@@ -161,12 +161,12 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	}
 
 	spin_lock_bh(&config_lock);
-	override_traffic_class = config.override_ipv6_traffic_class;
+	reset_traffic_class = config.reset_traffic_class;
 	spin_unlock_bh(&config_lock);
 
 	ip6_hdr = out->l3_hdr;
 	ip6_hdr->version = 6;
-	if (override_traffic_class) {
+	if (reset_traffic_class) {
 		ip6_hdr->priority = 0;
 		ip6_hdr->flow_lbl[0] = 0;
 	} else {
@@ -264,7 +264,7 @@ static __be16 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, _
 		result = (packet_mtu < out_mtu) ? packet_mtu : out_mtu;
 
 	spin_lock_bh(&config_lock);
-	if (config.improve_mtu_failure_rate && result < 1280) {
+	if (config.lower_mtu_fail && result < 1280) {
 		// Probably some router does not implement RFC 4890, section 4.3.1.
 		// Gotta override and hope for the best.
 		// See RFC 6145 section 6, second approach, to understand the logic here.

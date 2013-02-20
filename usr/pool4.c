@@ -1,5 +1,8 @@
-#include "nat64/mode.h"
-#include "nat64/netlink.h"
+#include "nat64/usr/pool4.h"
+#include "nat64/comm/config_proto.h"
+#include "nat64/comm/str_utils.h"
+#include "nat64/usr/netlink.h"
+#include <errno.h>
 
 
 #define HDR_LEN sizeof(struct request_hdr)
@@ -16,9 +19,9 @@ static int pool4_display_response(struct nl_msg *msg, void *arg)
 	addresses = (struct in_addr *) (hdr + 1);
 	addr_count = (hdr->length - sizeof(*hdr)) / sizeof(*addresses);
 
-	if (hdr->result_code != RESPONSE_SUCCESS) {
-		print_code_msg(hdr, "IPv4 pool", NULL);
-		return hdr->result_code;
+	if (hdr->result_code != ERR_SUCCESS) {
+		print_code_msg(hdr->result_code, NULL);
+		return EINVAL;
 	}
 
 	if (addr_count == 0)
@@ -29,7 +32,7 @@ static int pool4_display_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-error_t pool4_display(void)
+int pool4_display(void)
 {
 	struct request_hdr request = {
 			.length = sizeof(request),
@@ -43,11 +46,11 @@ error_t pool4_display(void)
 static int pool4_add_response(struct nl_msg *msg, void *arg)
 {
 	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr, "IPv4 pool", "The address was added successfully.");
+	print_code_msg(hdr->result_code, "The address was added successfully.");
 	return 0;
 }
 
-error_t pool4_add(struct in_addr *addr)
+int pool4_add(struct in_addr *addr)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -64,11 +67,11 @@ error_t pool4_add(struct in_addr *addr)
 static int pool4_remove_response(struct nl_msg *msg, void *arg)
 {
 	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr, "IPv4 pool", "The address was removed successfully.");
+	print_code_msg(hdr->result_code, "The address was removed successfully.");
 	return 0;
 }
 
-error_t pool4_remove(struct in_addr *addr)
+int pool4_remove(struct in_addr *addr)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;

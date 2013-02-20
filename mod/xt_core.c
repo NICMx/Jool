@@ -1,24 +1,23 @@
-#include "nat64/xt_core.h"
+#include "nat64/mod/xt_core.h"
+#include "nat64/comm/nat64.h"
+#include "nat64/mod/ipv6_hdr_iterator.h"
+#include "nat64/mod/pool4.h"
+#include "nat64/mod/pool6.h"
+#include "nat64/mod/bib.h"
+#include "nat64/mod/session.h"
+#include "nat64/mod/config.h"
+#include "nat64/mod/determine_incoming_tuple.h"
+#include "nat64/mod/filtering_and_updating.h"
+#include "nat64/mod/compute_outgoing_tuple.h"
+#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/handling_hairpinning.h"
+#include "nat64/mod/send_packet.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/netfilter/nf_conntrack.h>
-
-#include "nat64/nat64.h"
-#include "nat64/ipv6_hdr_iterator.h"
-#include "nat64/pool4.h"
-#include "nat64/pool6.h"
-#include "nat64/bib.h"
-#include "nat64/session.h"
-#include "nat64/config.h"
-#include "nat64/determine_incoming_tuple.h"
-#include "nat64/filtering_and_updating.h"
-#include "nat64/compute_outgoing_tuple.h"
-#include "nat64/translate_packet.h"
-#include "nat64/handling_hairpinning.h"
-#include "nat64/send_packet.h"
 
 
 unsigned int nat64_core(struct sk_buff *skb_in,
@@ -107,7 +106,7 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	iterator_result = hdr_iterator_last(&iterator);
 	switch (iterator_result) {
 	case HDR_ITERATOR_SUCCESS:
-		log_crit(ERR_ITERATOR_IS_LYING, "Iterator reports there are headers beyond the payload.");
+		log_crit(ERR_INVALID_ITERATOR, "Iterator reports there are headers beyond the payload.");
 		goto failure;
 	case HDR_ITERATOR_END:
 		l4protocol = iterator.hdr_type;
@@ -121,7 +120,7 @@ unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 				"Packet seems corrupted; ignoring.");
 		goto failure;
 	default:
-		log_crit(ERR_UNKNOWN_RCODE, "Unknown header iterator result code: %d.", iterator_result);
+		log_crit(ERR_INVALID_ITERATOR, "Unknown header iterator result code: %d.", iterator_result);
 		goto failure;
 	}
 
@@ -222,7 +221,6 @@ int __init nat64_init(void)
 	if (!(config_init()
 			&& pool6_init() && pool4_init(true)
 			&& bib_init() && session_init()
-			&& determine_in_tuple_init()
 			&& filtering_init()
 			&& translate_packet_init()))
 		return false;
@@ -239,7 +237,6 @@ void __exit nat64_exit(void)
 
 	translate_packet_destroy();
 	filtering_destroy();
-	determine_in_tuple_destroy();
 	session_destroy();
 	bib_destroy();
 	pool4_destroy();

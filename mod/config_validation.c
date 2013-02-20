@@ -1,5 +1,6 @@
-#include "nat64/config_validation.h"
-#include "nat64/types.h"
+#include "nat64/mod/config_validation.h"
+#include "nat64/comm/types.h"
+#include "nat64/comm/str_utils.h"
 
 
 /** Validate the network mask in the CIDR format '/n'.

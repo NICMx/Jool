@@ -1,12 +1,12 @@
-#include "nat64/filtering_and_updating.h"
-#include "nat64/config.h"
-#include "nat64/config_proto.h"
-#include "nat64/config_validation.h"
-#include "nat64/rfc6052.h"
-#include "nat64/constants.h"
-#include "nat64/pool4.h"
-#include "nat64/pool6.h"
-#include "nat64/send_packet.h"
+#include "nat64/mod/filtering_and_updating.h"
+#include "nat64/comm/constants.h"
+#include "nat64/comm/config_proto.h"
+#include "nat64/mod/config.h"
+#include "nat64/mod/config_validation.h"
+#include "nat64/mod/rfc6052.h"
+#include "nat64/mod/pool4.h"
+#include "nat64/mod/pool6.h"
+#include "nat64/mod/send_packet.h"
 
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -33,9 +33,9 @@ bool filtering_init(void)
     config.to.tcp_trans = TCP_TRANS;
     config.to.tcp_est = TCP_EST;
 
-    config.address_dependent_filtering = FILT_DEF_ADDR_DEPENDENT_FILTERING;
-    config.drop_externally_initiated_tcp_connections = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
-    config.filter_informational_icmpv6 = FILT_DEF_FILTER_ICMPV6_INFO;
+    config.drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
+    config.drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
+    config.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
 
     spin_unlock_bh(&config_lock);
     
@@ -53,14 +53,14 @@ void filtering_destroy(void)
  *  La necesito en configuración para enviar la configuración a userspace cuando se consulta 
  * 
  *  @param[out]  clone   A copy of the current configuration values.
- *  @return     TRUE: if copy  , FALSE: otherwise. */
-bool clone_filtering_config(struct filtering_config *clone)
+ *  @return     ________. */
+enum error_code clone_filtering_config(struct filtering_config *clone)
 {
     spin_lock_bh(&config_lock);
     *clone = config;
     spin_unlock_bh(&config_lock);
 
-    return true;
+    return ERR_SUCCESS;
 } 
 
 /** Sirve para modificar a config 
@@ -69,48 +69,48 @@ bool clone_filtering_config(struct filtering_config *clone)
  *  @param[in]  new_config  The new configuration.
  *  @return response_code   ___________.
  *  */
-enum response_code set_filtering_config(__u32 operation, struct filtering_config *new_config)
+enum error_code set_filtering_config(__u32 operation, struct filtering_config *new_config)
 {
+	enum error_code result = ERR_SUCCESS;
+
     spin_lock_bh(&config_lock);
 
-    if (operation & ADDRESS_DEPENDENT_FILTER_MASK)
-        config.address_dependent_filtering = new_config->address_dependent_filtering;
-    if (operation & FILTER_INFO_MASK)
-        config.filter_informational_icmpv6 = new_config->filter_informational_icmpv6;
-    if (operation & DROP_TCP_MASK)
-        config.drop_externally_initiated_tcp_connections =
-            new_config->drop_externally_initiated_tcp_connections; // Dude.
+    if (operation & DROP_BY_ADDR_MASK)
+        config.drop_by_addr = new_config->drop_by_addr;
+    if (operation & DROP_ICMP6_INFO_MASK)
+        config.drop_icmp6_info = new_config->drop_icmp6_info;
+    if (operation & DROP_EXTERNAL_TCP_MASK)
+        config.drop_external_tcp = new_config->drop_external_tcp;
  
     if (operation & UDP_TIMEOUT_MASK) {
         if ( new_config->to.udp < UDP_MIN ) {
-            log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u.", UDP_MIN);
-            goto invalid_value;
+        	result = ERR_UDP_TO_RANGE;
+            log_err(result, "The UDP timeout must be at least %u.", UDP_MIN);
+        } else {
+        	config.to.udp = new_config->to.udp;
         }
-        config.to.udp = new_config->to.udp;
     }
     if (operation & ICMP_TIMEOUT_MASK)
         config.to.icmp = new_config->to.icmp;
-    if (operation & TCP_TRANS_TIMEOUT_MASK) {
-        if ( new_config->to.tcp_trans < TCP_TRANS ) {
-            log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u.", TCP_TRANS);
-            goto invalid_value;
-        }
-        config.to.tcp_trans = new_config->to.tcp_trans;
-    }
     if (operation & TCP_EST_TIMEOUT_MASK) {
         if ( new_config->to.tcp_est < TCP_EST ) {
-        	log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u.", TCP_EST);
-            goto invalid_value;
+        	result = ERR_TCPEST_TO_RANGE;
+        	log_err(result, "The TCP est timeout must be at least %u.", TCP_EST);
+        } else {
+        	config.to.tcp_est = new_config->to.tcp_est;
         }
-        config.to.tcp_est = new_config->to.tcp_est;
+    }
+    if (operation & TCP_TRANS_TIMEOUT_MASK) {
+        if ( new_config->to.tcp_trans < TCP_TRANS ) {
+        	result = ERR_TCPTRANS_TO_RANGE;
+            log_err(result, "The TCP trans timeout must be at least %u.", TCP_TRANS);
+        } else {
+        	config.to.tcp_trans = new_config->to.tcp_trans;
+        }
     }
   
     spin_unlock_bh(&config_lock);
-    return RESPONSE_SUCCESS;
-
-invalid_value:
-    spin_unlock_bh(&config_lock);
-    return RESPONSE_INVALID_VALUE;
+    return result;
 } 
 
 static void update_session_lifetime(struct session_entry *session_entry_p, unsigned int *timeout)
@@ -129,7 +129,7 @@ static bool filter_icmpv6_info(void)
     bool result;
     
     spin_lock_bh(&config_lock);
-    result = config.filter_informational_icmpv6;
+    result = config.drop_icmp6_info;
     spin_unlock_bh(&config_lock);
     
     return result;
@@ -140,7 +140,7 @@ static bool address_dependent_filtering(void)
     bool result;
     
     spin_lock_bh(&config_lock);
-    result = config.address_dependent_filtering;
+    result = config.drop_by_addr;
     spin_unlock_bh(&config_lock);
     
     return result;
@@ -151,7 +151,7 @@ static bool drop_external_connections(void)
     bool result;
     
     spin_lock_bh(&config_lock);
-    result = config.drop_externally_initiated_tcp_connections;
+    result = config.drop_external_tcp;
     spin_unlock_bh(&config_lock);
     
     return result;
@@ -169,7 +169,7 @@ void print_bib_entry( struct bib_entry *bib_entry_p )
     if ( bib_entry_p == NULL )
         log_debug("  > bib_entry = NULL   :'( ");
     else
-    	log_debug("  > bib_entry = (%pI6c , %d) -- (%pI4 , %d)",
+    	log_debug("  > bib_entry = (%pI6c , %u) -- (%pI4 , %u)",
             &bib_entry_p->ipv6.address, bib_entry_p->ipv6.l4_id,
             &(bib_entry_p->ipv4.address), bib_entry_p->ipv4.l4_id );
 }
@@ -571,7 +571,7 @@ int ipv6_udp(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
         bib_is_local = true;
             
         // Add the BIB entry
-        if (!bib_add( bib_entry_p, protocol)) {
+        if (bib_add( bib_entry_p, protocol) != ERR_SUCCESS) {
             log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
             goto failure;
         }
@@ -610,7 +610,7 @@ int ipv6_udp(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
         }
 
         // Add the session entry
-        if ( !session_add(session_entry_p) )
+        if ( session_add(session_entry_p) != ERR_SUCCESS )
         {            
             log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto failure;
@@ -709,7 +709,7 @@ int ipv4_udp(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
         }
 
         // Add the session entry
-        if ( !session_add(session_entry_p) )
+        if ( session_add(session_entry_p) != ERR_SUCCESS )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -791,7 +791,7 @@ int ipv6_icmp6(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
         bib_is_local = true;
 
         // Add the new BIB entry
-        if ( !bib_add(bib_entry_p, protocol) )
+        if ( bib_add(bib_entry_p, protocol) != ERR_SUCCESS )
         {
         	log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
             goto icmp_and_fail;
@@ -833,7 +833,7 @@ int ipv6_icmp6(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
         }
 
         // Add the session entry
-        if ( !session_add( session_entry_p ) )
+        if ( session_add( session_entry_p ) != ERR_SUCCESS )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -936,7 +936,7 @@ int ipv4_icmp4(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
         }
 
         // Add the session entry
-        if ( !session_add(session_entry_p) )
+        if ( session_add(session_entry_p) != ERR_SUCCESS )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -1040,7 +1040,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tup
             bib_is_local = true;
 
             // Add the new BIB entry
-            if ( !bib_add( bib_entry_p, protocol) )
+            if ( bib_add( bib_entry_p, protocol) != ERR_SUCCESS )
             {
                 icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
                 log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
@@ -1076,7 +1076,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tup
         update_session_lifetime(session_entry_p, &config.to.tcp_trans);
         session_entry_p->state = V6_INIT;
 
-        if ( !session_add(session_entry_p) )
+        if ( session_add(session_entry_p) != ERR_SUCCESS )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -1170,7 +1170,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tup
             }
         }
 
-        if ( !session_add(session_entry_p) )
+        if ( session_add(session_entry_p) != ERR_SUCCESS )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -1352,7 +1352,7 @@ static bool tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *se
  * */
 bool session_expired(struct session_entry *session_entry_p)
 {		
-	switch(session_entry_p->l4protocol) {
+	switch(session_entry_p->l4_proto) {
 		case IPPROTO_UDP:
 			return false;
 		case IPPROTO_ICMP:
@@ -1387,7 +1387,7 @@ bool session_expired(struct session_entry *session_entry_p)
 					return false;
 			}
 		default:
-			log_err(ERR_L4PROTO, "Invalid protocol: %u.", session_entry_p->l4protocol);
+			log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", session_entry_p->l4_proto);
 			return false;
 	}
 }
@@ -1470,9 +1470,9 @@ end:
  */
 int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
 {
-    if ( NFPROTO_IPV6 == tuple->L3_PROTOCOL ) {
+    if ( PF_INET6 == tuple->L3_PROTO ) {
         /// Errores de ICMP no deben afectar las tablas.
-        if ( IPPROTO_ICMPV6 == tuple->L4_PROTOCOL && !is_icmp6_info(icmp6_hdr(skb)->icmp6_type) )
+        if ( IPPROTO_ICMPV6 == tuple->L4_PROTO && !is_icmp6_info(icmp6_hdr(skb)->icmp6_type) )
 		{
 			log_debug("Packet is ICMPv6 info, ignoring...");
 			return NF_ACCEPT;
@@ -1485,9 +1485,9 @@ int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
 		}
     }
             
-    if ( NFPROTO_IPV4 == tuple->L3_PROTOCOL ) {
+    if ( PF_INET == tuple->L3_PROTO ) {
         /// Errores de ICMP no deben afectar las tablas.
-        if ( IPPROTO_ICMP == tuple->L4_PROTOCOL && !is_icmp_info(icmp_hdr(skb)->type) )
+        if ( IPPROTO_ICMP == tuple->L4_PROTO && !is_icmp_info(icmp_hdr(skb)->type) )
         {
 			log_debug("Packet is ICMPv4 info, ignoring...");
 			return NF_ACCEPT;
@@ -1502,22 +1502,22 @@ int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
     }
             
     /// Process packet, according to its protocol.
-    switch (tuple->L4_PROTOCOL) {
+    switch (tuple->L4_PROTO) {
         case IPPROTO_UDP:
-            if ( NFPROTO_IPV6 == tuple->L3_PROTOCOL )
+            if ( PF_INET6 == tuple->L3_PROTO )
                 return ipv6_udp(skb, tuple);
-            if ( NFPROTO_IPV4 == tuple->L3_PROTOCOL )
+            if ( PF_INET == tuple->L3_PROTO )
                 return ipv4_udp(skb, tuple);
-            log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->L3_PROTOCOL);
+            log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->L3_PROTO);
             break;
         case IPPROTO_TCP:
             return tcp(skb, tuple);
         case IPPROTO_ICMP:
-            if ( NFPROTO_IPV6 == tuple->L3_PROTOCOL )
+            if ( PF_INET6 == tuple->L3_PROTO )
                 return ipv6_icmp6(skb, tuple);
-            if ( NFPROTO_IPV4 == tuple->L3_PROTOCOL )
+            if ( PF_INET == tuple->L3_PROTO )
                 return ipv4_icmp4(skb, tuple);
-            log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->L3_PROTOCOL);
+            log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->L3_PROTO);
             break;    
         default:
             return NF_DROP;

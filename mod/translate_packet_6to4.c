@@ -28,7 +28,7 @@ static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff
 	in->tuple = tuple;
 
 	in->l3_hdr = ip6_hdr;
-	in->l3_hdr_type = NFPROTO_IPV6;
+	in->l3_hdr_type = PF_INET6;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
 	in->l3_hdr_basic_len = sizeof(*ip6_hdr);
 	in->compute_l3_hdr_len = compute_ipv6_hdr_len;
@@ -46,7 +46,7 @@ static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff
 		in->l4_hdr_len = sizeof(struct icmp6hdr);
 		break;
 	default:
-		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", in->l4_hdr_type);
+		log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_hdr_type);
 		return false;
 	}
 
@@ -183,7 +183,7 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	struct frag_hdr *ip6_frag_hdr;
 	struct iphdr *ip4_hdr;
 
-	bool override_traffic_class, generate_ipv4_id, df_always_set;
+	bool reset_tos, build_ipv4_id, df_always_on;
 	__u8 dont_fragment;
 
 	out->l3_hdr_type = IPPROTO_IP;
@@ -195,18 +195,18 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	}
 
 	spin_lock_bh(&config_lock);
-	override_traffic_class = config.override_ipv4_traffic_class;
-	generate_ipv4_id = config.generate_ipv4_id;
-	df_always_set = config.df_always_set;
+	reset_tos = config.reset_tos;
+	build_ipv4_id = config.build_ipv4_id;
+	df_always_on = config.df_always_on;
 	spin_unlock_bh(&config_lock);
 
 	ip4_hdr = out->l3_hdr;
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
-	ip4_hdr->tos = override_traffic_class ? 0 : build_tos_field(ip6_hdr);
+	ip4_hdr->tos = reset_tos ? 0 : build_tos_field(ip6_hdr);
 	// ip4_hdr->tot_len is set during post-processing.
-	ip4_hdr->id = generate_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
-	dont_fragment = df_always_set ? 1 : generate_df_flag(ip6_hdr);
+	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
+	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	ip4_hdr->ttl = ip6_hdr->hop_limit; // The TTL is decremented by the kernel.
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);

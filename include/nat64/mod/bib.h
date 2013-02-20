@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
-#include "nat64/types.h"
+#include "nat64/comm/types.h"
 
 
 /**
@@ -61,7 +61,7 @@ bool bib_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
-bool bib_add(struct bib_entry *entry, u_int8_t l4protocol);
+enum error_code bib_add(struct bib_entry *entry, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is

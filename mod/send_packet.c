@@ -1,4 +1,5 @@
-#include "nat64/send_packet.h"
+#include "nat64/mod/send_packet.h"
+#include "nat64/comm/types.h"
 
 #include <linux/ip.h>
 #include <linux/module.h>
@@ -15,8 +16,6 @@
 #include <net/ip6_route.h>
 #include <net/route.h>
 #include <linux/kallsyms.h>
-
-#include "nat64/types.h"
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)

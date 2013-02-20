@@ -1,8 +1,8 @@
-#include "nat64/pool4.h"
+#include "nat64/mod/pool4.h"
+#include "nat64/comm/constants.h"
+#include "nat64/comm/str_utils.h"
 
 #include <linux/slab.h>
-
-#include "nat64/constants.h"
 
 
 /**
@@ -79,16 +79,16 @@ static struct {
 static struct address_list *get_pool(u_int8_t l4protocol)
 {
 	switch (l4protocol) {
-		case IPPROTO_UDP:
-			return &pools.udp;
-		case IPPROTO_TCP:
-			return &pools.tcp;
-		case IPPROTO_ICMP:
-		case IPPROTO_ICMPV6:
-			return &pools.icmp;
+	case IPPROTO_UDP:
+		return &pools.udp;
+	case IPPROTO_TCP:
+		return &pools.tcp;
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6:
+		return &pools.icmp;
 	}
 
-	log_crit(ERR_L4PROTO, "Unknown l4 protocol: %d.", l4protocol);
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
 	return NULL;
 }
 
@@ -149,11 +149,12 @@ static bool load_defaults(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(default_addrs); i++) {
-		if (!str_to_addr4(default_addrs[i], &current_addr)) {
-			log_err(ERR_POOL4_ADDR, "Address in headers is malformed: %s.", default_addrs[i]);
+		if (str_to_addr4(default_addrs[i], &current_addr) != ERR_SUCCESS) {
+			log_err(ERR_POOL4_INVALID_DEFAULT, "Address in headers is malformed: %s.",
+					default_addrs[i]);
 			goto failure;
 		}
-		if (pool4_register(&current_addr) != RESPONSE_SUCCESS)
+		if (pool4_register(&current_addr) != ERR_SUCCESS)
 			goto failure;
 	}
 
@@ -235,7 +236,7 @@ static void init_section(struct addr_section *section, __u32 next_port, __u32 ma
 	INIT_LIST_HEAD(&section->free_ports);
 }
 
-enum response_code pool4_register(struct in_addr *address)
+enum error_code pool4_register(struct in_addr *address)
 {
 	struct address_list *pool[] = { &pools.tcp, &pools.udp, &pools.icmp };
 	const int pool_count = ARRAY_SIZE(pool);
@@ -244,7 +245,7 @@ enum response_code pool4_register(struct in_addr *address)
 
 	if (!address) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
-		return RESPONSE_MISSING_PARAM;
+		return ERR_NULL;
 	}
 
 	for (i = 0; i < pool_count; i++) {
@@ -253,7 +254,7 @@ enum response_code pool4_register(struct in_addr *address)
 			for (i = i - 1; i >= 0; i--)
 				kfree(node[i]);
 			log_err(ERR_ALLOC_FAILED, "Allocation of IPv4 pool node failed.");
-			return RESPONSE_ALLOC_FAILED;
+			return ERR_ALLOC_FAILED;
 		}
 	}
 
@@ -270,10 +271,10 @@ enum response_code pool4_register(struct in_addr *address)
 		spin_unlock_bh(&pool[i]->lock);
 	}
 
-	return RESPONSE_SUCCESS;
+	return ERR_SUCCESS;
 }
 
-enum response_code pool4_remove(struct in_addr *address)
+enum error_code pool4_remove(struct in_addr *address)
 {
 	struct address_list *pool[] = { &pools.tcp, &pools.udp, &pools.icmp };
 	const int pool_count = ARRAY_SIZE(pool);
@@ -283,7 +284,7 @@ enum response_code pool4_remove(struct in_addr *address)
 
 	if (!address) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
-		return RESPONSE_MISSING_PARAM;
+		return ERR_NULL;
 	}
 
 	for (proto = 0; proto < pool_count; proto++) {
@@ -300,12 +301,16 @@ enum response_code pool4_remove(struct in_addr *address)
 		deleted++;
 	}
 
-	if (deleted != 0 && deleted != pool_count) {
+	if (deleted == 0) {
+		log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
+		return ERR_POOL4_NOT_FOUND;
+	}
+	if (deleted != pool_count) {
 		log_crit(ERR_POOL4_INCOMPLETE_INDEX, "Address was in %u table(s).", deleted);
-		return RESPONSE_NOT_FOUND;
+		return ERR_POOL4_INCOMPLETE_INDEX;
 	}
 
-	return RESPONSE_SUCCESS;
+	return ERR_SUCCESS;
 }
 
 bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *result)
@@ -317,13 +322,13 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 	pool = get_pool(l4protocol);
 	if (!pool)
 		return false;
-	if (list_empty(&pool->list)) {
-		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
-		return false;
-	}
+
+	spin_lock_bh(&pool->lock);
 
 	// Find an address with a compatible port
-	spin_lock_bh(&pool->lock);
+	if (list_empty(&pool->list))
+		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
+
 	list_for_each_entry(node, &pool->list, next) {
 		struct ipv4_tuple_address tuple_addr;
 		struct addr_section *section;
@@ -338,6 +343,7 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 			return true;
 		}
 	}
+
 	spin_unlock_bh(&pool->lock);
 
 	// All compatible ports are taken. Go to a corner and cry...
@@ -361,9 +367,14 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 
 	spin_lock_bh(&pool->lock);
 
+	if (list_empty(&pool->list)) {
+		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
+		goto failure;
+	}
+
 	node = get_pool_node(pool, &address->address);
 	if (!node) {
-		log_err(ERR_NOT_FOUND, "%pI4 does not belong to the pool.", &address->address);
+		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &address->address);
 		goto failure;
 	}
 	// TODO (later) el RFC permite usar puerto de diferente paridad/rango si aquí no se encuentra.
@@ -399,9 +410,14 @@ bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address)
 
 	spin_lock_bh(&pool->lock);
 
+	if (list_empty(&pool->list)) {
+		goto failure;
+		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
+	}
+
 	node = get_pool_node(pool, &address->address);
 	if (!node) {
-		log_err(ERR_NOT_FOUND, "%pI4 does not belong to the pool.", &address->address);
+		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &address->address);
 		goto failure;
 	}
 	section = get_section(node, address);
@@ -436,7 +452,7 @@ bool pool4_contains(struct in_addr *address)
 	return result;
 }
 
-enum response_code pool4_to_array(struct in_addr **array_out, __u32 *size_out)
+enum error_code pool4_to_array(struct in_addr **array_out, __u32 *size_out)
 {
 	struct list_head *cursor;
 	struct pool_node *node;
@@ -453,7 +469,7 @@ enum response_code pool4_to_array(struct in_addr **array_out, __u32 *size_out)
 	array = kmalloc(size * sizeof(*node), GFP_ATOMIC);
 	if (!array) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the array meant to hold the table.");
-		return RESPONSE_ALLOC_FAILED;
+		return ERR_ALLOC_FAILED;
 	}
 
 	size = 0;
@@ -466,5 +482,5 @@ enum response_code pool4_to_array(struct in_addr **array_out, __u32 *size_out)
 
 	*array_out = array;
 	*size_out = size;
-	return RESPONSE_SUCCESS;
+	return ERR_SUCCESS;
 }

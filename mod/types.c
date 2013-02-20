@@ -1,8 +1,7 @@
-#include "nat64/types.h"
+#include "nat64/comm/types.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
-#include <linux/inet.h>
 #include <net/ipv6.h>
 
 
@@ -162,14 +161,4 @@ bool is_icmp6_info(__u8 type)
 bool is_icmp_info(__u8 type)
 {
 	return (type == ICMP_ECHO) || (type == ICMP_ECHOREPLY);
-}
-
-bool str_to_addr4(const char *str, struct in_addr *result)
-{
-	return in4_pton(str, -1, (u8 *) result, '\0', NULL);
-}
-
-bool str_to_addr6(const char *str, struct in6_addr *result)
-{
-	return in6_pton(str, -1, (u8 *) result, '\0', NULL);
 }

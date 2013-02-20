@@ -11,8 +11,8 @@
 
 #include <linux/types.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
-#include "nat64/types.h"
-#include "nat64/bib.h"
+#include "nat64/comm/types.h"
+#include "nat64/mod/bib.h"
 
 
 /**
@@ -51,7 +51,7 @@ struct session_entry {
 	 * Transport protocol of the table this entry is in.
 	 * Used to know which table the session should be removed from when expired.
 	 */
-	u_int8_t l4protocol;
+	u_int8_t l4_proto;
 
 	/** Current TCP state.
 	 * 	Each STE represents a state machine
@@ -76,7 +76,7 @@ bool session_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted
  *		if some dynamic memory allocation failed.
  */
-bool session_add(struct session_entry *entry);
+enum error_code session_add(struct session_entry *entry);
 
 /**
  * Returns the Session entry from the "l4protocol" table whose IPv4 side (both addresses and ports)

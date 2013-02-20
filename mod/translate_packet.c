@@ -1,4 +1,8 @@
-#include "nat64/translate_packet.h"
+#include "nat64/mod/translate_packet.h"
+#include "nat64/comm/types.h"
+#include "nat64/comm/constants.h"
+#include "nat64/mod/config.h"
+#include "nat64/mod/ipv6_hdr_iterator.h"
 
 #include <linux/kernel.h>
 #include <linux/printk.h>
@@ -8,11 +12,6 @@
 #include <net/ipv6.h>
 #include <net/icmp.h>
 #include <net/tcp.h>
-
-#include "nat64/types.h"
-#include "nat64/constants.h"
-#include "nat64/config.h"
-#include "nat64/ipv6_hdr_iterator.h"
 
 
 struct translate_config config;
@@ -27,14 +26,14 @@ bool translate_packet_init(void)
 
 	spin_lock_bh(&config_lock);
 
-	config.packet_head_room = TRAN_DEF_USR_HEAD_ROOM;
-	config.packet_tail_room = TRAN_DEF_USR_TAIL_ROOM;
-	config.override_ipv6_traffic_class = TRAN_DEF_OVERRIDE_IPV6_TRAFFIC_CLASS;
-	config.override_ipv4_traffic_class = TRAN_DEF_OVERRIDE_IPV4_TRAFFIC_CLASS;
-	config.ipv4_traffic_class = TRAN_DEF_TRAFFIC_CLASS;
-	config.df_always_set = TRAN_DEF_DF_ALWAYS_SET;
-	config.generate_ipv4_id = TRAN_DEF_GENERATE_IPV4_ID;
-	config.improve_mtu_failure_rate = TRAN_DEF_IMPROVE_MTU_FAILURE_RATE;
+	config.skb_head_room = TRAN_DEF_SKB_HEAD_ROOM;
+	config.skb_tail_room = TRAN_DEF_SKB_TAIL_ROOM;
+	config.reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
+	config.reset_tos = TRAN_DEF_RESET_TOS;
+	config.new_tos = TRAN_DEF_NEW_TOS;
+	config.df_always_on = TRAN_DEF_DF_ALWAYS_ON;
+	config.build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
+	config.lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
 	config.ipv6_nexthop_mtu = TRAN_DEF_IPV6_NEXTHOP_MTU;
 	config.ipv4_nexthop_mtu = TRAN_DEF_IPV4_NEXTHOP_MTU;
 	config.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
@@ -57,7 +56,7 @@ void translate_packet_destroy(void)
 	spin_unlock_bh(&config_lock);
 }
 
-bool clone_translate_config(struct translate_config *clone)
+enum error_code clone_translate_config(struct translate_config *clone)
 {
 	__u16 plateaus_len;
 
@@ -69,12 +68,12 @@ bool clone_translate_config(struct translate_config *clone)
 	if (!clone->mtu_plateaus) {
 		spin_unlock_bh(&config_lock);
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
-		return false;
+		return ERR_ALLOC_FAILED;
 	}
 	memcpy(clone->mtu_plateaus, config.mtu_plateaus, plateaus_len);
 
 	spin_unlock_bh(&config_lock);
-	return true;
+	return ERR_SUCCESS;
 }
 
 static int be16_compare(const void *a, const void *b)
@@ -89,7 +88,7 @@ static void be16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-enum response_code set_translate_config(__u32 operation, struct translate_config *new_config)
+enum error_code set_translate_config(__u32 operation, struct translate_config *new_config)
 {
 	// Validate.
 	if (operation & MTU_PLATEAUS_MASK) {
@@ -97,7 +96,7 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 
 		if (new_config->mtu_plateau_count == 0) {
 			log_err(ERR_MTU_LIST_EMPTY, "The MTU list received from userspace is empty.");
-			return RESPONSE_INVALID_VALUE;
+			return ERR_MTU_LIST_EMPTY;
 		}
 
 		// Sort descending.
@@ -116,7 +115,7 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 
 		if (new_config->mtu_plateaus[0] == 0) {
 			log_err(ERR_MTU_LIST_ZEROES, "The MTU list contains nothing but zeroes.");
-			return RESPONSE_INVALID_VALUE;
+			return ERR_MTU_LIST_ZEROES;
 		}
 
 		new_config->mtu_plateau_count = i + 1;
@@ -125,26 +124,26 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 	// Update.
 	spin_lock_bh(&config_lock);
 
-	if (operation & PHR_MASK)
-		config.packet_head_room = new_config->packet_head_room;
-	if (operation & PTR_MASK)
-		config.packet_tail_room = new_config->packet_tail_room;
-	if (operation & IPV6_NEXTHOP_MASK)
+	if (operation & SKB_HEAD_ROOM_MASK)
+		config.skb_head_room = new_config->skb_head_room;
+	if (operation & SKB_TAIL_ROOM_MASK)
+		config.skb_tail_room = new_config->skb_tail_room;
+	if (operation & RESET_TCLASS_MASK)
+		config.reset_traffic_class = new_config->reset_traffic_class;
+	if (operation & RESET_TOS_MASK)
+		config.reset_tos = new_config->reset_tos;
+	if (operation & NEW_TOS_MASK)
+		config.new_tos = new_config->new_tos;
+	if (operation & DF_ALWAYS_ON_MASK)
+		config.df_always_on = new_config->df_always_on;
+	if (operation & BUILD_IPV4_ID_MASK)
+		config.build_ipv4_id = new_config->build_ipv4_id;
+	if (operation & LOWER_MTU_FAIL_MASK)
+		config.lower_mtu_fail = new_config->lower_mtu_fail;
+	if (operation & IPV6_NEXTHOP_MTU_MASK)
 		config.ipv6_nexthop_mtu = new_config->ipv6_nexthop_mtu;
-	if (operation & IPV4_NEXTHOP_MASK)
+	if (operation & IPV4_NEXTHOP_MTU_MASK)
 		config.ipv4_nexthop_mtu = new_config->ipv4_nexthop_mtu;
-	if (operation & IPV4_TRAFFIC_MASK)
-		config.ipv4_traffic_class = new_config->ipv4_traffic_class;
-	if (operation & OIPV6_MASK)
-		config.override_ipv6_traffic_class = new_config->override_ipv6_traffic_class;
-	if (operation & OIPV4_MASK)
-		config.override_ipv4_traffic_class = new_config->override_ipv4_traffic_class;
-	if (operation & DF_ALWAYS_MASK)
-		config.df_always_set = new_config->df_always_set;
-	if (operation & GEN_IPV4_MASK)
-		config.generate_ipv4_id = new_config->generate_ipv4_id;
-	if (operation & IMP_MTU_FAIL_MASK)
-		config.improve_mtu_failure_rate = new_config->improve_mtu_failure_rate;
 	if (operation & MTU_PLATEAUS_MASK) {
 		__u16 *old_mtus = config.mtu_plateaus;
 		__u16 new_mtus_len = new_config->mtu_plateau_count * sizeof(*new_config->mtu_plateaus);
@@ -154,7 +153,7 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 			config.mtu_plateaus = old_mtus; // Should we revert the other fields?
 			spin_unlock_bh(&config_lock);
 			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
-			return RESPONSE_ALLOC_FAILED;
+			return ERR_ALLOC_FAILED;
 		}
 
 		kfree(old_mtus);
@@ -163,7 +162,7 @@ enum response_code set_translate_config(__u32 operation, struct translate_config
 	}
 
 	spin_unlock_bh(&config_lock);
-	return RESPONSE_SUCCESS;
+	return ERR_SUCCESS;
 }
 
 /**
@@ -176,8 +175,8 @@ static bool create_skb(struct packet_out *out)
 	__u16 head_room, tail_room;
 
 	spin_lock_bh(&config_lock);
-	head_room = config.packet_head_room;
-	tail_room = config.packet_tail_room;
+	head_room = config.skb_head_room;
+	tail_room = config.skb_tail_room;
 	spin_unlock_bh(&config_lock);
 
 	new_skb = alloc_skb(head_room // user's reserved.
@@ -407,7 +406,7 @@ bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 		l4_post_function = post_icmp6;
 		break;
 	default:
-		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", ip_hdr(skb_in)->protocol);
+		log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", ip_hdr(skb_in)->protocol);
 		return false;
 	}
 
@@ -441,7 +440,7 @@ bool translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
 		l4_post_function = post_icmp4;
 		break;
 	default:
-		log_err(ERR_L4PROTO, "Unsupported l4 protocol: %d.", iterator.hdr_type);
+		log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", iterator.hdr_type);
 		return false;
 	}
 

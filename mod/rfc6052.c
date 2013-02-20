@@ -1,9 +1,8 @@
-#include "nat64/rfc6052.h"
+#include "nat64/mod/rfc6052.h"
+#include "nat64/comm/types.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
-
-#include "nat64/types.h"
 
 
 union ipv4_address {
@@ -47,7 +46,7 @@ bool addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr 
 		dst_aux.as32 = src->s6_addr32[3];
 		break;
 	default:
-		log_err(ERR_PREF_LEN, "Prefix has an invalid length: %d.", prefix->len);
+		log_err(ERR_PREF_LEN_RANGE, "Prefix has an invalid length: %u.", prefix->len);
 		return false;
 	}
 
@@ -109,7 +108,7 @@ bool addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr 
 		dst->s6_addr32[3] = src_aux.as32;
 		break;
 	default:
-		log_err(ERR_PREF_LEN, "Prefix has an invalid length: %d.", prefix->len);
+		log_err(ERR_PREF_LEN_RANGE, "Prefix has an invalid length: %u.", prefix->len);
 		return false;
 	}
 

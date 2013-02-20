@@ -1,10 +1,9 @@
-#include "nat64/session.h"
+#include "nat64/mod/session.h"
+#include "nat64/mod/filtering_and_updating.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/timer.h>
-
-#include "nat64/filtering_and_updating.h"
 
 
 /********************************************
@@ -59,20 +58,23 @@ static DEFINE_SPINLOCK(expire_timer_lock);
  * Private (helper) functions.
  ********************************************/
 
-static struct session_table *get_session_table(u_int8_t l4protocol)
+static enum error_code get_session_table(u_int8_t l4protocol, struct session_table **result)
 {
 	switch (l4protocol) {
-		case IPPROTO_UDP:
-			return &session_table_udp;
-		case IPPROTO_TCP:
-			return &session_table_tcp;
-		case IPPROTO_ICMP:
-		case IPPROTO_ICMPV6:
-			return &session_table_icmp;
+	case IPPROTO_UDP:
+		*result = &session_table_udp;
+		return ERR_SUCCESS;
+	case IPPROTO_TCP:
+		*result = &session_table_tcp;
+		return ERR_SUCCESS;
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6:
+		*result = &session_table_icmp;
+		return ERR_SUCCESS;
 	}
 
-	log_crit(ERR_L4PROTO, "Unknown transport protocol: %d.", l4protocol);
-	return NULL;
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
+	return ERR_L4PROTO;
 }
 
 static void tuple_to_ipv6_pair(struct nf_conntrack_tuple *tuple, struct ipv6_pair *pair)
@@ -116,7 +118,7 @@ static void clean_expired_sessions(void)
 	}
 	spin_unlock_bh(&bib_session_lock);
 
-	log_debug("Deleted %d session entries.", removed);
+	log_debug("Deleted %u session entries.", removed);
 }
 
 static void cleaner_timer(unsigned long param)
@@ -159,52 +161,52 @@ bool session_init(void)
 	return true;
 }
 
-bool session_add(struct session_entry *entry)
+enum error_code session_add(struct session_entry *entry)
 {
-	bool inserted_to_ipv4, inserted_to_ipv6;
 	struct session_table *table;
+	enum error_code error;
 
 	if (!entry) {
 		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
-		return false;
+		return ERR_NULL;
 	}
 	if (!entry->bib) {
 		log_err(ERR_SESSION_BIBLESS, "Session needs to reference a BIB entry.");
-		return false;
+		return ERR_SESSION_BIBLESS;
 	}
-	table = get_session_table(entry->l4protocol);
-	if (!table)
-		return false;
+	error = get_session_table(entry->l4_proto, &table);
+	if (error != ERR_SUCCESS)
+		return error;
 
 	// Insert into the hash tables.
-	inserted_to_ipv4 = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
-	inserted_to_ipv6 = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
-
-	if (!inserted_to_ipv4 || !inserted_to_ipv6) {
+	error = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
+	if (error != ERR_SUCCESS)
+		return error;
+	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
+	if (error != ERR_SUCCESS) {
 		ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
-		ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
-		return false;
+		return error;
 	}
 
 	// Insert into the linked lists.
 	list_add(&entry->entries_from_bib, &entry->bib->sessions);
 	list_add(&entry->all_sessions, &all_sessions);
 
-	return true;
+	return ERR_SUCCESS;
 }
 
 struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol)
 {
-	struct session_table *table = get_session_table(l4protocol);
-	if (!table)
+	struct session_table *table;
+	if (get_session_table(l4protocol, &table) != ERR_SUCCESS)
 		return NULL;
 	return ipv4_table_get(&table->ipv4, pair);
 }
 
 struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol)
 {
-	struct session_table *table = get_session_table(l4protocol);
-	if (!table)
+	struct session_table *table;
+	if (get_session_table(l4protocol, &table) != ERR_SUCCESS)
 		return NULL;
 	return ipv6_table_get(&table->ipv6, pair);
 }
@@ -219,15 +221,15 @@ struct session_entry *session_get(struct nf_conntrack_tuple *tuple)
 		return NULL;
 	}
 
-	switch (tuple->L3_PROTOCOL) {
-	case NFPROTO_IPV6:
+	switch (tuple->L3_PROTO) {
+	case PF_INET6:
 		tuple_to_ipv6_pair(tuple, &pair6);
-		return session_get_by_ipv6(&pair6, tuple->L4_PROTOCOL);
-	case NFPROTO_IPV4:
+		return session_get_by_ipv6(&pair6, tuple->L4_PROTO);
+	case PF_INET:
 		tuple_to_ipv4_pair(tuple, &pair4);
-		return session_get_by_ipv4(&pair4, tuple->L4_PROTOCOL);
+		return session_get_by_ipv4(&pair4, tuple->L4_PROTO);
 	default:
-		log_crit(ERR_L3PROTO, "Unknown l3 protocol: %d.", tuple->L3_PROTOCOL);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->L3_PROTO);
 		return NULL;
 	}
 }
@@ -243,8 +245,7 @@ bool session_allow(struct nf_conntrack_tuple *tuple)
 		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
 		return false;
 	}
-	table = get_session_table(tuple->L4_PROTOCOL);
-	if (!table)
+	if (get_session_table(tuple->L4_PROTO, &table) != ERR_SUCCESS)
 		return false;
 
 	tuple_to_ipv4_pair(tuple, &tuple_pair);
@@ -269,8 +270,7 @@ bool session_remove(struct session_entry *entry)
 		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
 		return false;
 	}
-	table = get_session_table(entry->l4protocol);
-	if (!table)
+	if (get_session_table(entry->l4_proto, &table) != ERR_SUCCESS)
 		return false;
 
 	// Free from both tables.
@@ -283,7 +283,7 @@ bool session_remove(struct session_entry *entry)
 		list_del(&entry->all_sessions);
 
 		// Erase the BIB. Might not happen if it has more sessions.
-		if (bib_remove(entry->bib, entry->l4protocol)) {
+		if (bib_remove(entry->bib, entry->l4_proto)) {
 			kfree(entry->bib);
 			entry->bib = NULL;
 		}
@@ -336,7 +336,7 @@ struct session_entry *session_create_static(
 	result->bib = bib;
 	INIT_LIST_HEAD(&result->entries_from_bib);
 	INIT_LIST_HEAD(&result->all_sessions);
-	result->l4protocol = l4protocol;
+	result->l4_proto = l4protocol;
 
 	return result;
 }
@@ -355,10 +355,9 @@ struct session_entry *session_create(
 
 int session_to_array(__u8 l4protocol, struct session_entry ***array)
 {
-	struct session_table *table = get_session_table(l4protocol);
-	if (!table)
+	struct session_table *table;
+	if (get_session_table(l4protocol, &table) != ERR_SUCCESS)
 		return 0;
-
 	return ipv4_table_to_array(&table->ipv4, array);
 }
 
@@ -369,7 +368,7 @@ bool session_entry_equals(struct session_entry *session_1, struct session_entry 
 	if (session_1 == NULL || session_2 == NULL)
 		return false;
 
-	if (session_1->l4protocol != session_2->l4protocol)
+	if (session_1->l4_proto != session_2->l4_proto)
 		return false;
 	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
 		return false;

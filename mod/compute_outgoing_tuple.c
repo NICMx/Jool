@@ -1,11 +1,10 @@
-#include "nat64/compute_outgoing_tuple.h"
+#include "nat64/mod/compute_outgoing_tuple.h"
+#include "nat64/mod/rfc6052.h"
+#include "nat64/mod/pool6.h"
+#include "nat64/mod/bib.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
-
-#include "nat64/rfc6052.h"
-#include "nat64/pool6.h"
-#include "nat64/bib.h"
 
 
 static bool switch_l4_proto(u_int8_t proto_in, u_int8_t *proto_out)
@@ -22,13 +21,12 @@ static bool switch_l4_proto(u_int8_t proto_in, u_int8_t *proto_out)
 		*proto_out = IPPROTO_ICMP;
 		return true;
 	default:
-		log_crit(ERR_L4PROTO, "Unknown l4 protocol: %u.", proto_in);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", proto_in);
 		return false;
 	}
 }
 
-static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out,
-		enum translation_mode mode)
+static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
@@ -47,10 +45,10 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		goto lock_fail;
 	}
 
-	switch (mode) {
-	case IPV6_TO_IPV4:
-		out->L3_PROTOCOL = PF_INET;
-		if (!switch_l4_proto(in->L4_PROTOCOL, &out->L4_PROTOCOL))
+	switch (in->L3_PROTO) {
+	case PF_INET6:
+		out->L3_PROTO = PF_INET;
+		if (!switch_l4_proto(in->L4_PROTO, &out->L4_PROTO))
 			goto lock_fail;
 		out->ipv4_src_addr = bib->ipv4.address;
 		out->src_port = cpu_to_be16(bib->ipv4.l4_id);
@@ -59,9 +57,9 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		out->dst_port = in->dst_port;
 		break;
 
-	case IPV4_TO_IPV6:
-		out->L3_PROTOCOL = PF_INET6;
-		if (!switch_l4_proto(in->L4_PROTOCOL, &out->L4_PROTOCOL))
+	case PF_INET:
+		out->L3_PROTO = PF_INET6;
+		if (!switch_l4_proto(in->L4_PROTO, &out->L4_PROTO))
 			goto lock_fail;
 		if (!addr_4to6(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
 			goto lock_fail;
@@ -71,7 +69,7 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		break;
 
 	default:
-		log_crit(ERR_TRANSLATION_MODE, "Unknown translation mode: %d.", mode);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", in->L3_PROTO);
 		goto lock_fail;
 	}
 
@@ -84,8 +82,7 @@ lock_fail:
 	return false;
 }
 
-static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out,
-		enum translation_mode mode)
+static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
@@ -104,19 +101,19 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		goto lock_fail;
 	}
 
-	switch (mode) {
-	case IPV6_TO_IPV4:
-		out->L3_PROTOCOL = PF_INET;
-		out->L4_PROTOCOL = IPPROTO_ICMP;
+	switch (in->L3_PROTO) {
+	case PF_INET6:
+		out->L3_PROTO = PF_INET;
+		out->L4_PROTO = IPPROTO_ICMP;
 		out->ipv4_src_addr = bib->ipv4.address;
 		if (!addr_6to4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
 			goto lock_fail;
 		out->icmp_id = cpu_to_be16(bib->ipv4.l4_id);
 		break;
 
-	case IPV4_TO_IPV6:
-		out->L3_PROTOCOL = PF_INET6;
-		out->L4_PROTOCOL = IPPROTO_ICMPV6;
+	case PF_INET:
+		out->L3_PROTO = PF_INET6;
+		out->L4_PROTO = IPPROTO_ICMPV6;
 		if (!addr_4to6(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
 			goto lock_fail;
 		out->ipv6_dst_addr = bib->ipv6.address;
@@ -124,7 +121,7 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		break;
 
 	default:
-		log_crit(ERR_TRANSLATION_MODE, "Programming error: Unknown translation mode: %d.", mode);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", in->L3_PROTO);
 		goto lock_fail;
 	}
 
@@ -140,17 +137,17 @@ lock_fail:
 bool compute_out_tuple_6to4(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
 		struct nf_conntrack_tuple *out)
 {
-	switch (in->L4_PROTOCOL) {
+	switch (in->L4_PROTO) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
-		return tuple5(in, out, IPV6_TO_IPV4);
+		return tuple5(in, out);
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		return is_icmp6_info(icmp6_hdr(skb_in)->icmp6_type)
-				? tuple3(in, out, IPV6_TO_IPV4)
-				: tuple5(in, out, IPV6_TO_IPV4);
+				? tuple3(in, out)
+				: tuple5(in, out);
 	default:
-		log_crit(ERR_L4PROTO, "Unknown transport protocol: %u.", in->L4_PROTOCOL);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->L4_PROTO);
 		return false;
 	}
 }
@@ -158,17 +155,17 @@ bool compute_out_tuple_6to4(struct nf_conntrack_tuple *in, struct sk_buff *skb_i
 bool compute_out_tuple_4to6(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
 		struct nf_conntrack_tuple *out)
 {
-	switch (in->L4_PROTOCOL) {
+	switch (in->L4_PROTO) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
-		return tuple5(in, out, IPV4_TO_IPV6);
+		return tuple5(in, out);
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		return is_icmp_info(icmp_hdr(skb_in)->type)
-				? tuple3(in, out, IPV4_TO_IPV6)
-				: tuple5(in, out, IPV4_TO_IPV6);
+				? tuple3(in, out)
+				: tuple5(in, out);
 	default:
-		log_crit(ERR_L4PROTO, "Unknown transport protocol: %u.", in->L4_PROTOCOL);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->L4_PROTO);
 		return false;
 	}
 }

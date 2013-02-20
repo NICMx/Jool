@@ -17,17 +17,17 @@ MODULE_AUTHOR("Roberto <r.aceves@itesm.mx>");
 MODULE_DESCRIPTION("Unitary tests for the Filtering\'s part of NAT64");
 MODULE_ALIAS("nat64_test_filtering");
 
-#include "nat64/unit_test.h"
-#include "nat64/pool4.h"
-#include "nat64/config.h"
-#include "nat64/config_validation.h"
+#include "nat64/mod/unit_test.h"
+#include "nat64/comm/str_utils.h"
+#include "nat64/mod/pool4.h"
+#include "nat64/mod/config.h"
 #include "filtering_and_updating.c"
 
 
 
 bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 {
-	if (!str_to_addr6(str, addr))
+	if (str_to_addr6(str, addr) != ERR_SUCCESS)
 	{
 		log_warning("Cannot parse '%s' as a valid IPv6 address", str);
 		return false;
@@ -36,7 +36,7 @@ bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 }
 bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 {
-	if (!str_to_addr4(str, addr))
+	if (str_to_addr4(str, addr) != ERR_SUCCESS)
 	{
 		log_warning("Cannot parse '%s' as a valid IPv4 address", str);
 		return false;
@@ -61,8 +61,8 @@ bool init_tuple_for_test_ipv6(struct nf_conntrack_tuple *tuple, u_int8_t l4proto
     if (!str_to_addr6_verbose(INIT_TUPLE_IPV6_DST_ADDR, &tuple->ipv6_dst_addr))
     	return false;
 
-    tuple->L3_PROTOCOL = NFPROTO_IPV6;
-    tuple->L4_PROTOCOL = l4protocol;
+    tuple->L3_PROTO = PF_INET6;
+    tuple->L4_PROTO = l4protocol;
     
     if ( l4protocol == IPPROTO_ICMPV6 || l4protocol == IPPROTO_ICMP)
     {
@@ -84,8 +84,8 @@ bool init_tuple_for_test_ipv4(struct nf_conntrack_tuple *tuple, u_int8_t l4proto
     if (!str_to_addr4_verbose(INIT_TUPLE_IPV4_SRC_ADDR, &tuple->ipv4_dst_addr)) // ?
 		return false;
 
-    tuple->L3_PROTOCOL = NFPROTO_IPV4;
-    tuple->L4_PROTOCOL = l4protocol;
+    tuple->L3_PROTO = PF_INET;
+    tuple->L4_PROTO = l4protocol;
 
     if ( l4protocol == IPPROTO_ICMP )
     {
@@ -125,7 +125,7 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple, u_int8_t p
             l4_len = sizeof(struct icmphdr);
             break;
         default:
-            log_warning("Invalid protocol 1: %d", protocol);
+            log_warning("Invalid protocol 1: %u", protocol);
             return NULL;
     }
 
@@ -175,7 +175,7 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple, u_int8_t p
 			//~ icmp6_header->icmp6_type = ICMPV6_ECHO_REPLY;
             break;
         default:
-            log_warning("Invalid protocol 2: %d", protocol);
+            log_warning("Invalid protocol 2: %u", protocol);
             kfree_skb(skb);
             return NULL;
     }
@@ -237,7 +237,7 @@ bool inject_bib_entry( u_int8_t l4protocol )
     	return false;
     }
     
-    if (!bib_add( bib_e, l4protocol ))
+    if (bib_add( bib_e, l4protocol ) != ERR_SUCCESS)
     {
     	log_warning("Could not insert the BIB entry to the table.");
 		return false;
@@ -284,7 +284,7 @@ bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
     se->bib = NULL;
     INIT_LIST_HEAD(&se->entries_from_bib);
     INIT_LIST_HEAD(&se->all_sessions);
-    se->l4protocol = l4protocol;
+    se->l4_proto = l4protocol;
     se->state = CLOSED;
 
     return true;
@@ -989,7 +989,7 @@ bool test_tcp_closed_state_handle_4( void )
     struct nf_conntrack_tuple tuple;
     bool success = true;
 
-    config.drop_externally_initiated_tcp_connections = false;
+    config.drop_external_tcp = false;
 
     if (!(skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )))
         return false;

@@ -3,7 +3,8 @@
 #include <net/ipv6.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
 
-#include "nat64/unit_test.h"
+#include "nat64/mod/unit_test.h"
+#include "nat64/comm/str_utils.h"
 #include "compute_outgoing_tuple.c"
 
 
@@ -38,12 +39,12 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	bib->ipv6.l4_id = ip6_port;
 	INIT_LIST_HEAD(&bib->sessions);
 
-	//	log_debug("BIB [%pI4#%d, %pI6c#%d]",
-	//			&bib->ipv4.address, be16_to_cpu(bib->ipv4.l4_id),
-	//			&bib->ipv6.address, be16_to_cpu(bib->ipv6.l4_id));
+	//	log_debug("BIB [%pI4#%u, %pI6c#%u]",
+	//			&bib->ipv4.address, bib->ipv4.l4_id,
+	//			&bib->ipv6.address, bib->ipv6.l4_id);
 
 	// Add it to the table.
-	if (!bib_add(bib, l4protocol)) {
+	if (bib_add(bib, l4protocol) != ERR_SUCCESS) {
 		log_warning("Can't add the dummy BIB to the table.");
 		goto failure;
 	}
@@ -68,19 +69,19 @@ static bool init(void)
 	struct ipv6_prefix prefix;
 
 	// Init test addresses
-	if (!str_to_addr6(remote_ipv6_str, &remote_ipv6)) {
+	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != ERR_SUCCESS) {
 		log_warning("Can't parse address '%s'. Failing test...", remote_ipv6_str);
 		return false;
 	}
-	if (!str_to_addr6(local_ipv6_str, &local_ipv6)) {
+	if (str_to_addr6(local_ipv6_str, &local_ipv6) != ERR_SUCCESS) {
 		log_warning("Can't parse address '%s'. Failing test...", local_ipv6_str);
 		return false;
 	}
-	if (!str_to_addr4(local_ipv4_str, &local_ipv4)) {
+	if (str_to_addr4(local_ipv4_str, &local_ipv4) != ERR_SUCCESS) {
 		log_warning("Can't parse address '%s'. Failing test...", local_ipv4_str);
 		return false;
 	}
-	if (!str_to_addr4(remote_ipv4_str, &remote_ipv4)) {
+	if (str_to_addr4(remote_ipv4_str, &remote_ipv4) != ERR_SUCCESS) {
 		log_warning("Can't parse address '%s'. Failing test...", remote_ipv4_str);
 		return false;
 	}
@@ -88,12 +89,12 @@ static bool init(void)
 	// Init the IPv6 pool module
 	if (!pool6_init())
 		return false;
-	if (!str_to_addr6("64:ff9b::", &prefix.address)) {
+	if (str_to_addr6("64:ff9b::", &prefix.address) != ERR_SUCCESS) {
 		log_warning("Cannot parse the IPv6 prefix. Failing...");
 		return false;
 	}
 	prefix.len = 96;
-	if (pool6_register(&prefix) != RESPONSE_SUCCESS) {
+	if (pool6_register(&prefix) != ERR_SUCCESS) {
 		log_warning("Could not add the IPv6 prefix. Failing...");
 		return false;
 	}
@@ -119,8 +120,7 @@ static void cleanup(void)
 }
 
 static bool test_6to4(
-		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *,
-				enum translation_mode),
+		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *),
 		u_int8_t in_l4_protocol, u_int8_t out_l4_protocol)
 {
 	struct nf_conntrack_tuple incoming, outgoing;
@@ -130,22 +130,21 @@ static bool test_6to4(
 	incoming.ipv6_dst_addr = local_ipv6;
 	incoming.src_port = cpu_to_be16(1500); // Lookup will use this.
 	incoming.dst_port = cpu_to_be16(123); // Whatever
-	incoming.L3_PROTOCOL = NFPROTO_IPV6;
-	incoming.L4_PROTOCOL = in_l4_protocol;
+	incoming.L3_PROTO = PF_INET6;
+	incoming.L4_PROTO = in_l4_protocol;
 
-	success &= assert_true(function(&incoming, &outgoing, IPV6_TO_IPV4), "Function call");
+	success &= assert_true(function(&incoming, &outgoing), "Function call");
 	success &= assert_equals_ipv4(&local_ipv4, &outgoing.ipv4_src_addr, "Source address");
 	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.ipv4_dst_addr, "Destination address");
-	success &= assert_equals_u16(NFPROTO_IPV4, outgoing.L3_PROTOCOL, "Layer-3 protocol");
-	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTOCOL, "Layer-4 protocol");
+	success &= assert_equals_u16(PF_INET, outgoing.L3_PROTO, "Layer-3 protocol");
+	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTO, "Layer-4 protocol");
 	// TODO (test) need to test ports?
 
 	return success;
 }
 
 static bool test_4to6(
-		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *,
-				enum translation_mode),
+		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *),
 		u_int8_t in_l4_protocol, u_int8_t out_l4_protocol)
 {
 	struct nf_conntrack_tuple incoming, outgoing;
@@ -155,14 +154,14 @@ static bool test_4to6(
 	incoming.ipv4_dst_addr = local_ipv4;
 	incoming.src_port = cpu_to_be16(123); // Whatever
 	incoming.dst_port = cpu_to_be16(80); // Lookup will use this.
-	incoming.L3_PROTOCOL = NFPROTO_IPV4;
-	incoming.L4_PROTOCOL = in_l4_protocol;
+	incoming.L3_PROTO = PF_INET;
+	incoming.L4_PROTO = in_l4_protocol;
 
-	success &= assert_true(function(&incoming, &outgoing, IPV4_TO_IPV6), "Function call");
+	success &= assert_true(function(&incoming, &outgoing), "Function call");
 	success &= assert_equals_ipv6(&local_ipv6, &outgoing.ipv6_src_addr, "Source address");
 	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.ipv6_dst_addr, "Destination address");
-	success &= assert_equals_u16(NFPROTO_IPV6, outgoing.L3_PROTOCOL, "Layer-3 protocol");
-	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTOCOL, "Layer-4 protocol");
+	success &= assert_equals_u16(PF_INET6, outgoing.L3_PROTO, "Layer-3 protocol");
+	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTO, "Layer-4 protocol");
 	// TODO (test) need to test ports?
 
 	return success;

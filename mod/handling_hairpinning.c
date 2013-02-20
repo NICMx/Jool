@@ -1,14 +1,14 @@
-#include "nat64/handling_hairpinning.h"
-#include "nat64/pool4.h"
-#include "nat64/filtering_and_updating.h"
-#include "nat64/compute_outgoing_tuple.h"
-#include "nat64/translate_packet.h"
-#include "nat64/send_packet.h"
+#include "nat64/mod/handling_hairpinning.h"
+#include "nat64/mod/pool4.h"
+#include "nat64/mod/filtering_and_updating.h"
+#include "nat64/mod/compute_outgoing_tuple.h"
+#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/send_packet.h"
 
 
 bool is_hairpin(struct nf_conntrack_tuple *outgoing)
 {
-	return outgoing->L3_PROTOCOL && pool4_contains(&outgoing->dst.u3.in);
+	return (outgoing->L3_PROTO == PF_INET6) && pool4_contains(&outgoing->dst.u3.in);
 }
 
 bool handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)

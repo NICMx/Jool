@@ -21,7 +21,7 @@
 	#include <stdbool.h>
 	#include <arpa/inet.h>
 #endif
-#include "nat64.h"
+#include "nat64/comm/nat64.h"
 
 
 /**
@@ -33,7 +33,7 @@
 	#define log_informational(func, text, ...) func(text "\n", ##__VA_ARGS__)
 #else
 	#define log_error(func, id, text, ...) printf("ERR%d: " text "\n", id, ##__VA_ARGS__)
-	#define log_informational(func, text, ...) func(text "\n", ##__VA_ARGS__)
+	#define log_informational(func, text, ...) printf(text "\n", ##__VA_ARGS__)
 #endif
 
 /** Messages to help us walk through a run. */
@@ -49,64 +49,71 @@
 
 enum error_code {
 	/* General */
+	ERR_SUCCESS = 0,
 	ERR_NULL,
 	ERR_L4PROTO,
 	ERR_L3PROTO,
-	ERR_TRANSLATION_MODE,
 	ERR_ALLOC_FAILED,
-	ERR_NOT_FOUND,
-	ERR_UNKNOWN_RCODE,
 	ERR_UNKNOWN_ERROR,
 
 	/* Config */
-	ERR_NETLINK,
+	ERR_NETLINK = 1000,
 	ERR_MTU_LIST_EMPTY,
 	ERR_MTU_LIST_ZEROES,
-	ERR_SR_BIB_INSERT_FAILED,
-	ERR_SR_SESSION_INSERT_FAILED,
 	ERR_UDP_TO_RANGE,
 	ERR_TCPEST_TO_RANGE,
 	ERR_TCPTRANS_TO_RANGE,
-	/* RFC6052 */
-	ERR_PREF_LEN,
+	ERR_PARSE_BOOL,
+	ERR_PARSE_INT,
+	ERR_INT_OUT_OF_BOUNDS,
+	ERR_PARSE_INTARRAY,
+	ERR_PARSE_ADDR4,
+	ERR_PARSE_ADDR6,
+	ERR_PARSE_ADDR4_PORT,
+	ERR_PARSE_ADDR6_PORT,
+	ERR_PARSE_PREFIX,
+	ERR_UNKNOWN_MODE,
+	ERR_UNKNOWN_OP,
+	ERR_MISSING_PARAM,
+	ERR_EMPTY_COMMAND,
+	ERR_PREF_LEN_RANGE,
+	ERR_POOL6_NOT_FOUND,
+	ERR_POOL4_NOT_FOUND,
+
+	/* IPv6 header iterator */
+	ERR_INVALID_ITERATOR = 2000,
 	/* Hash table */
-	ERR_WRONG_SIZE,
+	ERR_WRONG_SIZE = 2100,
 
-	/* Pool4 */
-	ERR_POOL4_EMPTY,
-	ERR_POOL4_ADDR,
-	ERR_POOL4_INCOMPLETE_INDEX,
 	/* Pool6 */
-	ERR_POOL6_EMPTY,
-	ERR_POOL6_DRAINED,
-	ERR_POOL6_PREF,
-	ERR_POOL6_PREF_LEN,
-
-	ERR_ITERATOR_IS_LYING,
-	
+	ERR_POOL6_EMPTY = 2200,
+	ERR_POOL6_INVALID_DEFAULT,
+	/* Pool4 */
+	ERR_POOL4_EMPTY = 2300,
+	ERR_POOL4_INVALID_DEFAULT,
+	ERR_POOL4_INCOMPLETE_INDEX,
 	/* BIB */
-	ERR_INCOMPLETE_INDEX_BIB,
+	ERR_INCOMPLETE_INDEX_BIB = 2400,
 	/* Session */
-	ERR_SESSION_NOT_FOUND,
+	ERR_SESSION_NOT_FOUND = 2500,
 	ERR_SESSION_BIBLESS,
 	ERR_INCOMPLETE_REMOVE,
 
 	/* Incoming */
-	ERR_PROTO_LOAD_FAILURE,
-	ERR_CONNTRACK,
+	ERR_CONNTRACK = 4000,
 	/* Filtering */
-	ERR_ADD_BIB_FAILED,
-	ERR_EXTRACT_FAILED,
+	ERR_EXTRACT_FAILED = 4100,
 	ERR_APPEND_FAILED,
+	ERR_ADD_BIB_FAILED,
 	ERR_ADD_SESSION_FAILED,
-	ERR_STRAY_IPV4_PACKET,
 	ERR_INVALID_STATE,
 	/* Outgoing */
-	ERR_MISSING_BIB,
+	ERR_MISSING_BIB = 4200,
 	/* Translate */
-	ERR_INNER_PACKET,
+	ERR_INNER_PACKET = 4300,
+	/* Hairpinning */
 	/* Send packet */
-	ERR_ROUTE_FAILED,
+	ERR_ROUTE_FAILED = 4500,
 	ERR_SEND_FAILED,
 };
 
@@ -122,17 +129,9 @@ enum error_code {
 #define icmp_id			src.u.icmp.id
 #define src_port		src.u.all
 #define dst_port		dst.u.all
-#define L3_PROTOCOL		src.l3num
-#define L4_PROTOCOL		dst.protonum
+#define L3_PROTO		src.l3num
+#define L4_PROTO		dst.protonum
 
-
-/** Direction of the translation. */
-enum translation_mode {
-	/** We're translating a IPv4 packet into a IPv6 packet. */
-	IPV4_TO_IPV6,
-	/** We're translating a IPv6 packet into a IPv4 packet. */
-	IPV6_TO_IPV4,
-};
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
@@ -213,21 +212,6 @@ __u16 ipv6_pair_hashcode(struct ipv6_pair *pair);
 
 bool is_icmp6_info(__u8 type);
 bool is_icmp_info(__u8 type);
-
-/**
- * Converts "str" to a IPv4 address. Stores the result in "result".
- *
- * Useful mainly in code common to kernelspace and userspace, since their conversion functions
- * differ, but meant to be used everywhere to strip the parameters from in_pton() we don't want.
- */
-bool str_to_addr4(const char *str, struct in_addr *result);
-/**
- * Converts "str" to a IPv6 address. Stores the result in "result".
- *
- * Useful mainly in code common to kernelspace and userspace, since their conversion functions
- * differ, but meant to be used everywhere to strip the parameters from in6_pton() we don't want.
- */
-bool str_to_addr6(const char *str, struct in6_addr *result);
 
 
 #endif
