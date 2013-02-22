@@ -61,9 +61,9 @@ enum config_operation {
  * A BIB entry, from the eyes of userspace ("us" stands for userspace).
  *
  * It's a stripped version of "struct bib_entry" and only used when BIBs need to travel to
- * userspace. For anything else, use "struct bib_entry" from *_bib.h.
+ * userspace. For anything else, use "struct bib_entry" from bib.h.
  *
- * See *_bib.h for the fields' doc.
+ * See bib.h for the fields' doc.
  */
 struct bib_entry_us {
 	struct ipv4_tuple_address ipv4;
@@ -74,9 +74,9 @@ struct bib_entry_us {
  * A session entry, from the eyes of userspace ("us" stands for userspace).
  *
  * It's a stripped version of "struct session_entry" and only used when sessions need to travel to
- * userspace. For anything else, use "struct session_entry" from *_session.h.
+ * userspace. For anything else, use "struct session_entry" from session.h.
  *
- * See *_session.h for the fields' doc.
+ * See session.h for the fields' doc.
  */
 struct session_entry_us {
 	struct ipv6_pair ipv6;
@@ -238,8 +238,7 @@ struct request_session {
  */
 struct response_hdr {
 	__u32 length;
-	// TODO vas a tener que cambiarle la longitud a esto.
-	__u8 result_code;
+	__u32 result_code;
 };
 
 

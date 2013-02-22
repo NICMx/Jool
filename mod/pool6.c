@@ -24,7 +24,7 @@ struct pool_node {
  * It can be a linked list because we're assuming we won't be holding too many prefixes.
  * The list contains nodes of type pool_node.
  */
-struct address_list pool;
+static struct address_list pool;
 
 static DEFINE_SPINLOCK(pool_lock);
 

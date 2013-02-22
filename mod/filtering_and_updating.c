@@ -661,12 +661,10 @@ int ipv4_udp(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
     spin_lock_bh(&bib_session_lock);
     bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
 
-    // If not found, try to create a new one.
+    // Without state there's no way to know where should the packet be sent, so just die.
     if ( bib_entry_p == NULL )
     {
-        // TODO:    Define the checks that evaluate if resources availability
-        //          and policy allows the creation of a new entry.
-        log_warning("There is not BIB entry for the incoming IPv4 UDP packet.");
+        log_warning("There is no BIB entry for the incoming IPv4 UDP packet.");
         goto icmp_and_fail;
     }
     
@@ -758,6 +756,7 @@ int ipv6_icmp6(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
     
     if ( filter_icmpv6_info() )
     {
+    	log_info("Packet is ICMPv6 info; dropping due to policy.");
         return NF_DROP;
     }
 
@@ -783,7 +782,8 @@ int ipv6_icmp6(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
 
         // Create the BIB entry
         bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_source);
-        if ( bib_entry_p == NULL ) {
+        if ( bib_entry_p == NULL )
+        {
         	log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
             goto icmp_and_fail;
         }
@@ -890,7 +890,7 @@ int ipv4_icmp4(struct sk_buff* skb, struct nf_conntrack_tuple *tuple)
     {   
         // TODO: Does the policy allow us to send this packet?
         icmp_send(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE, 0);
-        log_warning("There is not BIB entry for the incoming IPv4 ICMP packet.");
+        log_warning("There is no BIB entry for the incoming IPv4 ICMP packet.");
         goto failure;
     }
 
@@ -1093,9 +1093,6 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tup
         // Pack addresses and ports into transport address
         transport_address_ipv4( tuple->ipv4_dst_addr, tuple->dst_port, &ipv4_ta );
 
-        // Look for the destination transport address (X,x) in the BIB 
-        bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
-
         // Translate address
         if (!append_ipv4(&tuple->ipv4_src_addr, &ipv6_local.address)) // Y'(Y)
         {
@@ -1103,6 +1100,9 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct nf_conntrack_tup
             return false;
         }
         ipv6_local.l4_id = be16_to_cpu(tuple->src_port); // y
+
+        // Look for the destination transport address (X,x) in the BIB
+		bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
 
         // TODO:    Define the checks that evaluate if resources availability 
         //          and policy allows the creation of a new entry.

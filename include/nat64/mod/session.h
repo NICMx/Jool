@@ -19,7 +19,7 @@
  * A row, intended to be part of one of the session tables.
  * The mapping between the connections, as perceived by both sides (IPv4 vs IPv6).
  *
- * Please note that modifications to this structure may need to cascade to *_module_comm.h.
+ * Please note that modifications to this structure may need to cascade to config_proto.h.
  */
 struct session_entry {
 	/** IPv6 version of the connection. */

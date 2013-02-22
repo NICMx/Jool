@@ -143,7 +143,7 @@ bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual
 {
 	if (expected == actual)
 		return true;
-	if (expected == NULL || actual == NULL )
+	if (expected == NULL || actual == NULL)
 		return false;
 	if (!ipv6_addr_equal(&expected->address, &actual->address))
 		return false;

@@ -1245,19 +1245,21 @@ static bool test_function_build_protocol_field(void)
 	struct ipv6_opt_hdr *dest_options_hdr;
 	struct icmp6hdr *icmp6_hdr;
 
-	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + 8 + 16 + 24 + sizeof(*icmp6_hdr), GFP_ATOMIC);
+	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + 8 + 16 + 24 + sizeof(struct tcphdr), GFP_ATOMIC);
 	if (!ip6_hdr) {
 		log_warning("Could not allocate a test packet.");
 		goto failure;
 	}
 
 	// Just ICMP.
-	ip6_hdr->nexthdr = NEXTHDR_ICMP; // Leave everything else as trash. Don't need it.
+	ip6_hdr->nexthdr = NEXTHDR_ICMP;
+	ip6_hdr->payload_len = cpu_to_be16(sizeof(*icmp6_hdr));
 	if (!assert_equals_u8(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Just ICMP"))
 		goto failure;
 
 	// Skippable headers then ICMP.
 	ip6_hdr->nexthdr = NEXTHDR_HOP;
+	ip6_hdr->payload_len = cpu_to_be16(8 + 16 + 24 + sizeof(*icmp6_hdr));
 
 	hop_by_hop_hdr = (struct ipv6_opt_hdr *) (ip6_hdr + 1);
 	hop_by_hop_hdr->nexthdr = NEXTHDR_ROUTING;
@@ -1276,6 +1278,7 @@ static bool test_function_build_protocol_field(void)
 
 	// Skippable headers then something else.
 	dest_options_hdr->nexthdr = NEXTHDR_TCP;
+	ip6_hdr->payload_len = cpu_to_be16(8 + 16 + 24 + sizeof(struct tcphdr));
 	if (!assert_equals_u8(IPPROTO_TCP, build_protocol_field(ip6_hdr), "Skippable then TCP"))
 		goto failure;
 

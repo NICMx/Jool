@@ -171,6 +171,9 @@ static bool INIT(struct HTABLE_NAME *table,
  * Important: The table stores pointers to (as opposed to "copies of") both key and value.
  * So please consider that neither must be released from memory after the call to this function.
  *
+ * Also important: This function differs from HashMap.put() in that it doesn't validate whether the
+ * value is already in the table before inserting.
+ *
  * @param table the HTABLE_NAME instance you want to insert a value to.
  * @param key descriptor of the slot to place "value" in.
  * @param value element to store in the table.

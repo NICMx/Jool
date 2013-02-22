@@ -12,25 +12,93 @@
 #include "nat64/mod/session.h"
 
 
+/**
+ * TODO (critical) ports are not being borrowed from the IPv4 pool!!!
+ * We also need to check that pair6.remote and pair4.local belong to the pools =_=.
+ */
 enum error_code add_static_route(struct request_session *req)
 {
-	struct bib_entry *bib = NULL;
-	struct session_entry *session = NULL;
-	enum error_code result;
+	struct bib_entry *bib_by_ipv6, *bib_by_ipv4;
+	struct session_entry *session_by_4, *session_by_6;
 
-	bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
-	if (!bib) {
-		result = ERR_ALLOC_FAILED;
-		log_err(result, "Could NOT allocate a BIB entry.");
-		goto failure;
-	}
+	struct bib_entry *bib = NULL;
+	bool bib_is_new = false;
+	struct session_entry *session = NULL;
+
+	enum error_code result;
 
 	spin_lock_bh(&bib_session_lock);
 
-	result = bib_add(bib, req->l4_proto);
-	if (result != ERR_SUCCESS) {
-		log_err(result, "Could NOT add the BIB entry to the table.");
+	session_by_4 = session_get_by_ipv4(&req->add.pair4, req->l4_proto);
+	session_by_6 = session_get_by_ipv6(&req->add.pair6, req->l4_proto);
+
+	if (session_by_6 != NULL && session_by_4 == NULL) {
+		result = ERR_SESSION_PAIR6_REINSERT;
+		log_err(result, "The requested local-remote ipv6 addresses are already in use.");
 		goto failure;
+
+	} else if (session_by_6 == NULL && session_by_4 != NULL) {
+		result = ERR_SESSION_PAIR4_REINSERT;
+		log_err(result, "The requested local-remote ipv4 addresses are already in use.");
+		goto failure;
+
+	} else if (session_by_6 != NULL && session_by_4 != NULL) {
+		if (session_by_6 == session_by_4) {
+			if (session_by_6->is_static) {
+				result = ERR_SESSION_REINSERT;
+				log_err(result, "The session entry is already on the table.");
+				goto failure;
+			}
+			session_by_6->is_static = true;
+			goto success;
+
+		} else {
+			result = ERR_SESSION_DUAL_REINSERT;
+			log_err(result, "Both address pairs are already in use in the table.");
+			goto failure;
+		}
+	}
+
+	bib_by_ipv6 = bib_get_by_ipv6(&req->add.pair6.remote, req->l4_proto);
+	bib_by_ipv4 = bib_get_by_ipv4(&req->add.pair4.local, req->l4_proto);
+
+	if (bib_by_ipv6 != NULL && bib_by_ipv4 == NULL) {
+		result = ERR_BIB_ADDR6_REINSERT;
+		log_err(result, "The requested remote addr6#port combination is already mapped "
+				"to some other local addr4#port.");
+		goto failure;
+
+	} else if (bib_by_ipv6 == NULL && bib_by_ipv4 != NULL) {
+		result = ERR_BIB_ADDR4_REINSERT;
+		log_err(result, "The requested local addr4#port combination is already mapped "
+				"to some other remote addr6#port.");
+		goto failure;
+
+	} else if (bib_by_ipv6 != NULL && bib_by_ipv4 != NULL) {
+		if (bib_by_ipv6 == bib_by_ipv4) {
+			bib = bib_by_ipv6;
+			bib_is_new = false;
+		} else {
+			result = ERR_BIB_DUAL_REINSERT;
+			log_err(result, "The local addr4#port and the remote addr6#port are already mapped.");
+			goto failure;
+		}
+
+	} else {
+		bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
+		if (!bib) {
+			result = ERR_ALLOC_FAILED;
+			log_err(result, "Could NOT allocate a BIB entry.");
+			goto failure;
+		}
+
+		result = bib_add(bib, req->l4_proto);
+		if (result != ERR_SUCCESS) {
+			log_err(result, "Could NOT add the BIB entry to the table.");
+			goto failure;
+		}
+
+		bib_is_new = true;
 	}
 
 	session = session_create_static(&req->add.pair4, &req->add.pair6, bib, req->l4_proto);
@@ -46,13 +114,16 @@ enum error_code add_static_route(struct request_session *req)
 		goto failure;
 	}
 
+	/* Fall through. */
+
+success:
 	spin_unlock_bh(&bib_session_lock);
-	return result;
+	return ERR_SUCCESS;
 
 failure:
 	if (session)
 		kfree(session);
-	if (bib) {
+	if (bib_is_new) {
 		bib_remove(bib, req->l4_proto);
 		kfree(bib);
 	}
@@ -83,6 +154,8 @@ enum error_code delete_static_route(struct request_session *req)
 		log_err(ERR_SESSION_NOT_FOUND, "Could not find the session entry requested by the user.");
 		return ERR_SESSION_NOT_FOUND;
 	}
+
+	// I'm tempted to assert that the session is static here. Would that serve a purpose?
 
 	if (!session_remove(session)) {
 		spin_unlock_bh(&bib_session_lock);

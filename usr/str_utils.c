@@ -43,10 +43,11 @@ enum error_code str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 enum error_code str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 {
 	long result;
+	char *endptr;
 
 	errno = 0;
-	result = strtol(str, NULL, 10);
-	if (errno != 0) {
+	result = strtol(str, &endptr, 10);
+	if (errno != 0 || str == endptr) {
 		log_err(ERR_PARSE_INT, "Cannot parse '%s' as an integer value.", str);
 		return ERR_PARSE_INT;
 	}
@@ -121,7 +122,7 @@ enum error_code str_to_addr4(const char *str, struct in_addr *result)
 {
 	if (!inet_pton(AF_INET, str, result)) {
 		log_err(ERR_PARSE_ADDR4, "Cannot parse '%s' as a IPv4 address.", str);
-		return ERR_PARSE_ADDR4; // TODO (crit) quienes llaman a esto no vuelven a imprimir?
+		return ERR_PARSE_ADDR4;
 	}
 	return ERR_SUCCESS;
 }
@@ -130,7 +131,7 @@ enum error_code str_to_addr6(const char *str, struct in6_addr *result)
 {
 	if (!inet_pton(AF_INET6, str, result)) {
 		log_err(ERR_PARSE_ADDR6, "Cannot parse '%s' as a IPv6 address.", str);
-		return ERR_PARSE_ADDR6; // TODO (crot) idem
+		return ERR_PARSE_ADDR6;
 	}
 	return ERR_SUCCESS;
 }
@@ -314,6 +315,24 @@ static char *get_error_msg(enum error_code code)
 		return "The requested entry could not be found in the IPv6 pool.";
 	case ERR_POOL4_NOT_FOUND:
 		return "The requested entry could not be found in the IPv4 pool.";
+	case ERR_POOL4_REINSERT:
+		return "The address is already part of the pool.";
+	case ERR_SESSION_REINSERT:
+		return "The session entry is already on the table.";
+	case ERR_SESSION_PAIR6_REINSERT:
+		return "The requested local-remote ipv6 addresses are already in use.";
+	case ERR_SESSION_PAIR4_REINSERT:
+		return "The requested local-remote ipv4 addresses are already in use.";
+	case ERR_SESSION_DUAL_REINSERT:
+		return "Both address pairs are already in use in the table.";
+	case ERR_BIB_ADDR6_REINSERT:
+		return "The requested remote addr6#port combination is already mapped "
+				"to some other local addr4#port.";
+	case ERR_BIB_ADDR4_REINSERT:
+		return "The requested local addr4#port combination is already mapped "
+		"to some other remote addr6#port.";
+	case ERR_BIB_DUAL_REINSERT:
+		return "The local addr4#port and the remote addr6#port are already mapped.";
 
 	case ERR_INVALID_ITERATOR:
 		return "A internal iterator is corrupted.";
@@ -324,8 +343,6 @@ static char *get_error_msg(enum error_code code)
 		return "The IPv4 is empty! Please throw in addresses, so the NAT64 can translate.";
 	case ERR_POOL4_INVALID_DEFAULT:
 		return "Some default address from the IPv4 pool is malformed. Please fix constants.h.";
-	case ERR_POOL4_INCOMPLETE_INDEX:
-		return "Some address seems to net be referenced from every table on the IPv4 pool.";
 	case ERR_POOL6_EMPTY:
 		return "The IPv6 is empty! Please throw in prefixes, so the NAT64 can translate.";
 	case ERR_POOL6_INVALID_DEFAULT:

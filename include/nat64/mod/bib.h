@@ -18,7 +18,7 @@
  * A row, intended to be part of one of the BIB tables.
  * A binding between a transport address from the IPv4 network to one from the IPv6 network.
  *
- * Please note that modifications to this structure may need to cascade to *_module_comm.h.
+ * Please note that modifications to this structure may need to cascade to config_proto.h.
  */
 struct bib_entry {
 	/** The address from the IPv4 network. */

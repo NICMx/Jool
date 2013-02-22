@@ -26,7 +26,7 @@ struct sock *netlink_socket;
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
  */
-DEFINE_MUTEX(my_mutex);
+static DEFINE_MUTEX(my_mutex);
 
 
 static bool write_data(struct response_hdr **response, enum error_code code, void *payload,

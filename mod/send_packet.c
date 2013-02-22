@@ -34,11 +34,12 @@ static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 
 	error = ip_route_output_key(&init_net, &table, &fl);
 	if (error) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() failed. Code: %d.", error);
+		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() failed. Code: %d. Cannot route packet.",
+				error);
 		return NULL;
 	}
 	if (!table) {
-		log_err(ERR_ROUTE_FAILED, "The routing table is NULL.");
+		log_err(ERR_ROUTE_FAILED, "The routing table is NULL. Cannot route packet.");
 		return NULL;
 	}
 
@@ -59,7 +60,7 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL.");
+		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
 		return NULL;
 	}
 
@@ -81,11 +82,11 @@ static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 
 	table = ip_route_output_key(&init_net, &fl.u.ip4);
 	if (!table) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() returned NULL.");
+		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() returned NULL. Cannot route packet.");
 		return NULL;
 	}
 	if (IS_ERR(table)) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() returned %p.", table);
+		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() returned %p. Cannot route packet.", table);
 		return NULL;
 	}
 
@@ -106,7 +107,7 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
 	if (!dst) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL.");
+		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
 		return NULL;
 	}
 
@@ -132,7 +133,7 @@ bool send_packet_ipv4(struct sk_buff *skb)
 	log_debug("Sending packet via device '%s'...", skb->dev->name);
 	error = ip_local_out(skb); // Send.
 	if (error) {
-		log_err(ERR_SEND_FAILED, "ip_local_out() failed. Code: %d.", error);
+		log_err(ERR_SEND_FAILED, "ip_local_out() failed. Code: %d. Cannot send packet.", error);
 		return false;
 	}
 
@@ -156,7 +157,7 @@ bool send_packet_ipv6(struct sk_buff *skb)
 	log_debug("Sending packet via device '%s'...", skb->dev->name);
 	error = ip6_local_out(skb); // Send.
 	if (error) {
-		log_err(ERR_SEND_FAILED, "ip6_local_out() failed. Code: %d.", error);
+		log_err(ERR_SEND_FAILED, "ip6_local_out() failed. Code: %d. Cannot send packet.", error);
 		return false;
 	}
 
