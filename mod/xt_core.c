@@ -28,13 +28,13 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 		bool (*send_packet_fn)(struct sk_buff *))
 {
 	struct sk_buff *skb_out = NULL;
-	struct nf_conntrack_tuple *tuple_in = NULL, tuple_out;
+	struct nf_conntrack_tuple tuple_in, tuple_out;
 
 	if (!determine_in_tuple(skb_in, &tuple_in))
 		goto free_and_fail;
-	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
+	if (filtering_and_updating(skb_in, &tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
-	if (!compute_out_tuple_fn(tuple_in, skb_in, &tuple_out))
+	if (!compute_out_tuple_fn(&tuple_in, skb_in, &tuple_out))
 		goto free_and_fail;
 	if (!translate_packet_fn(&tuple_out, skb_in, &skb_out))
 		goto free_and_fail;

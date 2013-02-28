@@ -1513,6 +1513,7 @@ int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
         case IPPROTO_TCP:
             return tcp(skb, tuple);
         case IPPROTO_ICMP:
+        case IPPROTO_ICMPV6:
             if ( PF_INET6 == tuple->L3_PROTO )
                 return ipv6_icmp6(skb, tuple);
             if ( PF_INET == tuple->L3_PROTO )
@@ -1520,6 +1521,7 @@ int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple
             log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->L3_PROTO);
             break;    
         default:
+            log_err(ERR_L4PROTO, "Transport protocol not handled: %d", tuple->L4_PROTO);
             return NF_DROP;
     }
 

@@ -410,14 +410,14 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = icmpv4_hdr->un.echo.id;
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = in->tuple->icmp_id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		break;
 
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = icmpv4_hdr->un.echo.id;
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = in->tuple->icmp_id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		break;
 

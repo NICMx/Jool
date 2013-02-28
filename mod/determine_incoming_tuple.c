@@ -55,12 +55,11 @@ static inline bool is_l4_protocol_supported_ipv6(u_int8_t l4protocol)
 			|| l4protocol == IPPROTO_ICMPV6;
 }
 
-bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
+bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	enum ip_conntrack_dir dir;
-	struct nf_conntrack_tuple *tuple;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
 
@@ -71,7 +70,10 @@ bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
 		return false;
 	}
 	dir = CTINFO2DIR(ctinfo);
-	tuple = &ct->tuplehash[dir].tuple;
+	*tuple = ct->tuplehash[dir].tuple;
+
+	if ( tuple->L4_PROTO == IPPROTO_ICMPV6 || tuple->L4_PROTO == IPPROTO_ICMP )
+		tuple->dst_port = tuple->src_port;
 
 	log_tuple(tuple);
 
@@ -93,7 +95,6 @@ bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple **result)
 		goto unsupported_l3_protocol;
 	}
 
-	*result = tuple;
 	log_debug("Done step 1.");
 	return true;
 
