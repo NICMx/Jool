@@ -58,7 +58,9 @@ fail:
 	return NF_DROP;
 }
 
-unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
+unsigned int hook_ipv4(unsigned int hooknum, struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		int (*okfn)(struct sk_buff *))
 {
 	struct iphdr *ip4_header = ip_hdr(skb);
 	__u8 l4protocol = ip4_header->protocol;
@@ -89,7 +91,9 @@ unsigned int nat64_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 			send_packet_ipv6);
 }
 
-unsigned int nat64_tg6(struct sk_buff *skb, const struct xt_action_param *par)
+unsigned int hook_ipv6(unsigned int hooknum, struct sk_buff *skb,
+		const struct net_device *in, const struct net_device *out,
+		int (*okfn)(struct sk_buff *))
 {
 	struct ipv6hdr *ip6_header = ipv6_hdr(skb);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_header);
@@ -174,37 +178,18 @@ failure:
 	return NF_ACCEPT;
 }
 
-int nat64_tg_check(const struct xt_tgchk_param *par)
-{
-//	int ret = nf_ct_l3proto_try_module_get(par->family);
-//	if (ret < 0)
-//		log_info("cannot load support for proto=%u", par->family);
-//	return ret;
-//
-//	log_info("Check function.");
-	return 0;
-}
-
-static struct xt_target nat64_tg_reg[] __read_mostly = {
+static struct nf_hook_ops nfho[] = {
 	{
-		.name = MODULE_NAME,
-		.revision = 0,
-		.family = NFPROTO_IPV4,
-		.table = "mangle",
-		.target = nat64_tg4,
-		.checkentry = nat64_tg_check,
-		.hooks = (1 << NF_INET_PRE_ROUTING),
-		.me = THIS_MODULE,
+		.hook = hook_ipv6,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.pf = PF_INET6,
+		.priority = NF_IP_PRI_FIRST,
 	},
 	{
-		.name = MODULE_NAME,
-		.revision = 0,
-		.family = NFPROTO_IPV6,
-		.table = "mangle",
-		.target = nat64_tg6,
-		.checkentry = nat64_tg_check,
-		.hooks = (1 << NF_INET_PRE_ROUTING),
-		.me = THIS_MODULE,
+		.hook = hook_ipv4,
+		.hooknum = NF_INET_PRE_ROUTING,
+		.pf = PF_INET,
+		.priority = NF_IP_PRI_FIRST,
 	}
 };
 
@@ -215,9 +200,6 @@ int __init nat64_init(void)
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
 
-	need_conntrack();
-	need_ipv4_conntrack();
-
 	if (!(config_init()
 			&& pool6_init() && pool4_init(true)
 			&& bib_init() && session_init()
@@ -225,7 +207,7 @@ int __init nat64_init(void)
 			&& translate_packet_init()))
 		return false;
 
-	result = xt_register_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
+	result = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (result == 0)
 		log_debug("Ok, success.");
 	return result;
@@ -233,7 +215,7 @@ int __init nat64_init(void)
 
 void __exit nat64_exit(void)
 {
-	xt_unregister_targets(nat64_tg_reg, ARRAY_SIZE(nat64_tg_reg));
+	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	translate_packet_destroy();
 	filtering_destroy();

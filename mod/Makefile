@@ -34,10 +34,6 @@ all:
 insert:
 	# insert the dependencies
 	sudo modprobe ipv6
-	sudo modprobe ip_tables
-	sudo modprobe nf_conntrack
-	sudo modprobe nf_conntrack_ipv4
-	sudo modprobe nf_conntrack_ipv6
 	# enable ipv6 and ipv4 forwarding
 	sudo sysctl -w net.ipv4.conf.all.forwarding=1
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
@@ -47,15 +43,7 @@ insert:
 	sudo insmod nat64.ko
 	dmesg | tail -15
 	# insert the rules
-	sudo iptables -t mangle --flush
-	sudo ip6tables -t mangle --flush
-	sudo iptables -t mangle -A PREROUTING -j NAT64
-	sudo ip6tables -t mangle -A PREROUTING -j NAT64
 remove:
-	# remove the rules
-	sudo iptables -t mangle --flush
-	sudo ip6tables -t mangle --flush
-	# remove the module
 	sudo rmmod nat64
 	dmesg | tail -15
 modules:
