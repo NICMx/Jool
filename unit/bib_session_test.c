@@ -426,20 +426,20 @@ bool test_clean_old_sessions(void)
 bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id, int dst_port_id,
 		bool expected)
 {
-	struct nf_conntrack_tuple tuple;
+	struct tuple tuple;
 
-	if (str_to_addr4(IPV4_ADDRS[src_addr_id], &tuple.ipv4_src_addr) != ERR_SUCCESS) {
+	if (str_to_addr4(IPV4_ADDRS[src_addr_id], &tuple.src.addr.ipv4) != ERR_SUCCESS) {
 		log_warning("Can't parse the '%s' source address. Failing test.", IPV4_ADDRS[src_addr_id]);
 		return false;
 	}
-	if (str_to_addr4(IPV4_ADDRS[dst_addr_id], &tuple.ipv4_dst_addr) != ERR_SUCCESS) {
+	if (str_to_addr4(IPV4_ADDRS[dst_addr_id], &tuple.dst.addr.ipv4) != ERR_SUCCESS) {
 		log_warning("Can't parse the '%s' dest address. Failing test.", IPV4_ADDRS[dst_addr_id]);
 		return false;
 	}
-	tuple.src_port = cpu_to_be16(IPV4_PORTS[src_port_id]);
-	tuple.dst_port = cpu_to_be16(IPV4_PORTS[dst_port_id]);
-	tuple.L4_PROTO = IPPROTO_UDP;
-	tuple.L3_PROTO 	= PF_INET;
+	tuple.src.l4_id = IPV4_PORTS[src_port_id];
+	tuple.dst.l4_id = IPV4_PORTS[dst_port_id];
+	tuple.l4_proto = IPPROTO_UDP;
+	tuple.l3_proto 	= PF_INET;
 
 	return (expected == session_allow(&tuple));
 }

@@ -124,21 +124,6 @@ enum error_code {
 	ERR_SEND_FAILED,
 };
 
-/**
- * Accesors for somewhat more readability of nf_conntrack_tuples.
- * Useful only in kernelspace (I think).
- */
-// TODO (later) capitalize.
-#define ipv4_src_addr 	src.u3.in
-#define ipv6_src_addr	src.u3.in6
-#define ipv4_dst_addr	dst.u3.in
-#define ipv6_dst_addr	dst.u3.in6
-#define icmp_id			src.u.icmp.id
-#define src_port		src.u.all
-#define dst_port		dst.u.all
-#define L3_PROTO		src.l3num
-#define L4_PROTO		dst.protonum
-
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
@@ -190,6 +175,22 @@ struct ipv6_prefix {
 	__u8 len;
 };
 
+struct tuple_addr {
+	union {
+		struct in_addr ipv4;
+		struct in6_addr ipv6;
+	} addr;
+	__u16 l4_id;
+};
+
+struct tuple {
+	struct tuple_addr src;
+	struct tuple_addr dst;
+	u_int16_t l3_proto;
+	u_int8_t l4_proto;
+#define icmp_id src.l4_id
+};
+
 /**
  * All of these functions return "true" if the first parameter is the same as the second one, even
  * if they are pointers to different places in memory.
@@ -219,6 +220,8 @@ __u16 ipv6_pair_hashcode(struct ipv6_pair *pair);
 
 bool is_icmp6_info(__u8 type);
 bool is_icmp_info(__u8 type);
+
+void log_tuple(struct tuple *tuple);
 
 
 #endif

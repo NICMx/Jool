@@ -9,8 +9,6 @@
  * @author Alberto Leiva
  */
 
-#include <linux/types.h>
-#include <net/netfilter/nf_conntrack_tuple.h>
 #include "nat64/comm/types.h"
 #include "nat64/mod/bib.h"
 
@@ -110,7 +108,7 @@ struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4pro
  * @return the session entry you'd expect from the "tuple" tuple.
  *		returns null if no entry could be found.
  */
-struct session_entry *session_get(struct nf_conntrack_tuple *tuple);
+struct session_entry *session_get(struct tuple *tuple);
 
 /**
  * Normally looks ups an entry, except it ignores "tuple"'s source port.
@@ -127,7 +125,7 @@ struct session_entry *session_get(struct nf_conntrack_tuple *tuple);
  *		IPv4 destination transport address, and destination IPv4 address equal to the tuple's source
  *		address.
  */
-bool session_allow(struct nf_conntrack_tuple *tuple);
+bool session_allow(struct tuple *tuple);
 
 /**
  * Destroys the session table's reference to "entry". It does NOT kfree "entry".

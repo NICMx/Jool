@@ -54,55 +54,55 @@ bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 #define INIT_TUPLE_IPV6_DST_PORT    1081
 #define INIT_TUPLE_IPV4_SRC_PORT    1024
 #define INIT_TUPLE_IPV4_DST_PORT    1081
-bool init_tuple_for_test_ipv6(struct nf_conntrack_tuple *tuple, u_int8_t l4protocol)
+bool init_tuple_for_test_ipv6(struct tuple *tuple, u_int8_t l4protocol)
 {
-    if (!str_to_addr6_verbose(INIT_TUPLE_IPV6_SRC_ADDR, &tuple->ipv6_src_addr))
+    if (!str_to_addr6_verbose(INIT_TUPLE_IPV6_SRC_ADDR, &tuple->src.addr.ipv6))
     	return false;
-    if (!str_to_addr6_verbose(INIT_TUPLE_IPV6_DST_ADDR, &tuple->ipv6_dst_addr))
+    if (!str_to_addr6_verbose(INIT_TUPLE_IPV6_DST_ADDR, &tuple->dst.addr.ipv6))
     	return false;
 
-    tuple->L3_PROTO = PF_INET6;
-    tuple->L4_PROTO = l4protocol;
+    tuple->l3_proto = PF_INET6;
+    tuple->l4_proto = l4protocol;
     
     if ( l4protocol == IPPROTO_ICMPV6 || l4protocol == IPPROTO_ICMP)
     {
-        tuple->icmp_id = htons( INIT_TUPLE_IPV6_ICMP_ID );
-        tuple->dst_port = htons( INIT_TUPLE_IPV6_ICMP_ID );
+        tuple->icmp_id = INIT_TUPLE_IPV6_ICMP_ID;
+        tuple->dst.l4_id = INIT_TUPLE_IPV6_ICMP_ID;
     }
     else
     {
-        tuple->src_port = htons( INIT_TUPLE_IPV6_SRC_PORT );
-        tuple->dst_port = htons( INIT_TUPLE_IPV6_DST_PORT );
+        tuple->src.l4_id = INIT_TUPLE_IPV6_SRC_PORT;
+        tuple->dst.l4_id = INIT_TUPLE_IPV6_DST_PORT;
     }
 
     return true;
 }
-bool init_tuple_for_test_ipv4(struct nf_conntrack_tuple *tuple, u_int8_t l4protocol)
+bool init_tuple_for_test_ipv4(struct tuple *tuple, u_int8_t l4protocol)
 {
-    if (!str_to_addr4_verbose(INIT_TUPLE_IPV4_DST_ADDR, &tuple->ipv4_src_addr)) // ?
+    if (!str_to_addr4_verbose(INIT_TUPLE_IPV4_DST_ADDR, &tuple->src.addr.ipv4)) // ?
     	return false;
-    if (!str_to_addr4_verbose(INIT_TUPLE_IPV4_SRC_ADDR, &tuple->ipv4_dst_addr)) // ?
+    if (!str_to_addr4_verbose(INIT_TUPLE_IPV4_SRC_ADDR, &tuple->dst.addr.ipv4)) // ?
 		return false;
 
-    tuple->L3_PROTO = PF_INET;
-    tuple->L4_PROTO = l4protocol;
+    tuple->l3_proto = PF_INET;
+    tuple->l4_proto = l4protocol;
 
     if ( l4protocol == IPPROTO_ICMP )
     {
-        tuple->icmp_id = htons( INIT_TUPLE_IPV4_ICMP_ID );
-        tuple->dst_port = htons( INIT_TUPLE_IPV4_ICMP_ID );
+        tuple->icmp_id = INIT_TUPLE_IPV4_ICMP_ID;
+        tuple->dst.l4_id = INIT_TUPLE_IPV4_ICMP_ID;
     }
     else
     {
-        tuple->src_port = htons( INIT_TUPLE_IPV4_DST_PORT ); // ?
-        tuple->dst_port = htons( INIT_TUPLE_IPV4_SRC_PORT ); // ?
+        tuple->src.l4_id = INIT_TUPLE_IPV4_DST_PORT; // ?
+        tuple->dst.l4_id = INIT_TUPLE_IPV4_SRC_PORT; // ?
     }
 
     return true;
 }
 
 #define SKB_PAYLOAD 22
-struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple, u_int8_t protocol )
+struct sk_buff* init_skb_for_test(  struct tuple *tuple, u_int8_t protocol )
 {
     __u32 l3_len;
     __u32 l4_len;
@@ -153,15 +153,15 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple, u_int8_t p
             tcp_header = tcp_hdr(skb);
             memset(tcp_header, 0, l4_len);
 
-            tcp_header->source = tuple->src_port;
-            tcp_header->dest = tuple->dst_port;
+            tcp_header->source = tuple->src.l4_id;
+            tcp_header->dest = tuple->dst.l4_id;
             break;
         case IPPROTO_UDP:
             udp_header = udp_hdr(skb);
             memset(udp_header, 0, l4_len);
             
-            udp_header->source = tuple->src_port;
-            udp_header->dest = tuple->dst_port;
+            udp_header->source = tuple->src.l4_id;
+            udp_header->dest = tuple->dst.l4_id;
             udp_header->len = htons(sizeof(struct udphdr) + SKB_PAYLOAD);
             udp_header->check = 0;
             break;
@@ -191,8 +191,8 @@ struct sk_buff* init_skb_for_test(  struct nf_conntrack_tuple *tuple, u_int8_t p
     ip_header->check = 0;
     //~ skb_forward_csum(skb);
 
-    ip_header->saddr = tuple->ipv4_src_addr.s_addr;
-    ip_header->daddr = tuple->ipv4_dst_addr.s_addr;
+    ip_header->saddr = tuple->src.addr.ipv4.s_addr;
+    ip_header->daddr = tuple->dst.addr.ipv4.s_addr;
 
     skb->protocol = htons(ETH_P_IP);
 
@@ -221,13 +221,13 @@ bool inject_bib_entry( u_int8_t l4protocol )
 
     if ( l4protocol == IPPROTO_ICMP || l4protocol == IPPROTO_ICMPV6 )
     {
-        transport_address_ipv4( addr4, htons( INIT_TUPLE_ICMP_ID ), &ta_ipv4 );
-        transport_address_ipv6( addr6, htons( INIT_TUPLE_ICMP_ID ), &ta_ipv6 );        
+        transport_address_ipv4( addr4, INIT_TUPLE_ICMP_ID, &ta_ipv4 );
+        transport_address_ipv6( addr6, INIT_TUPLE_ICMP_ID, &ta_ipv6 );
     }
     else
     {
-        transport_address_ipv4( addr4, htons( IPV4_INJECT_BIB_ENTRY_DST_PORT ), &ta_ipv4 );
-        transport_address_ipv6( addr6, htons( IPV6_INJECT_BIB_ENTRY_SRC_PORT ), &ta_ipv6 );
+        transport_address_ipv4( addr4, IPV4_INJECT_BIB_ENTRY_DST_PORT, &ta_ipv4 );
+        transport_address_ipv6( addr6, IPV6_INJECT_BIB_ENTRY_SRC_PORT, &ta_ipv6 );
     }
 
     bib_e = bib_create( &ta_ipv4, &ta_ipv6);
@@ -302,7 +302,7 @@ bool test_transport_address_ipv4( void )
 
     if (!str_to_addr4_verbose(IPV4_TRANSPORT_ADDR, &addr))
     	return false;
-    transport_address_ipv4( addr, htons( IPV4_TRANSPORT_PORT ), &ta );
+    transport_address_ipv4( addr, IPV4_TRANSPORT_PORT, &ta );
     
     success &= assert_equals_ipv4(&ta.address, &addr,
         "Check that the address part of an IPv4 transport address is correct.");
@@ -324,7 +324,7 @@ bool test_transport_address_ipv6( void )
     // Build an IPv6 transport address from address & port
     if (!str_to_addr6_verbose(IPV6_TRANSPORT_ADDR, &addr6))
 		return false;
-    transport_address_ipv6( addr6, htons( IPV6_TRANSPORT_PORT ), &ta );
+    transport_address_ipv6( addr6, IPV6_TRANSPORT_PORT, &ta );
     
     success &= assert_equals_ipv6(&ta.address, &addr6 ,
         "Check that the address part of an IPv6 transport address is correct.");
@@ -389,19 +389,16 @@ bool test_embed_ipv4_in_ipv6( void )
 }
 
 
-#define IPV6_ALLOCATE_SRC_ADDR  "2001:db8:c0ca:1::1"
-#define IPV6_ALLOCATE_SRC_PORT  1024
+#define IPV6_ALLOCATE_PORT  1024
 #define IPV4_ALLOCATED_ADDR     "192.168.2.1"
-#define IPV4_ALLOCATED_PORT_ICMP     (IPV6_ALLOCATE_SRC_PORT )  // <-- 1024
-#define IPV4_ALLOCATED_PORT     ( IPV6_ALLOCATE_SRC_PORT +1 )  // <-- 1025
 bool test_allocate_ipv4_transport_address( void )
 {
 	u_int8_t protocols[] = { IPPROTO_ICMP, IPPROTO_TCP, IPPROTO_UDP };
-	__u16 expected_ports[] = { IPV4_ALLOCATED_PORT_ICMP, IPV4_ALLOCATED_PORT, IPV4_ALLOCATED_PORT };
+	__u16 expected_ports[] = { IPV6_ALLOCATE_PORT, IPV6_ALLOCATE_PORT, IPV6_ALLOCATE_PORT };
 
     struct in_addr expected_addr;
     
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct ipv4_tuple_address new_ipv4_transport_address;
 
     bool success = true;
@@ -419,14 +416,14 @@ bool test_allocate_ipv4_transport_address( void )
 
     for (i = 0; i < ARRAY_SIZE(protocols); i++)
     {
-		init_tuple_for_test_ipv4(&tuple, protocols[i]);
+		init_tuple_for_test_ipv6(&tuple, protocols[i]);
 
 		success &= assert_true(allocate_ipv4_transport_address(&tuple, protocols[i], &new_ipv4_transport_address),
-			"Check that we can allocate a brand new IPv4 transport address for ICMP.");
+			"Check that we can allocate a brand new IPv4 transport address.");
 		success &= assert_equals_ipv4(&expected_addr , &new_ipv4_transport_address.address,
-			"Check that the allocated IPv4 address is correct for ICMP.");
+			"Check that the allocated IPv4 address is correct.");
 		success &= assert_equals_u16( expected_ports[i], new_ipv4_transport_address.l4_id,
-			"Check that the allocated IPv4 port is correct for ICMP.");
+			"Check that the allocated IPv4 port is correct.");
     }
 
     bib_destroy();
@@ -441,7 +438,7 @@ bool test_allocate_ipv4_transport_address( void )
 bool test_allocate_ipv4_transport_address_digger( void )
 {
     struct in_addr expected_addr;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct ipv4_tuple_address new_ipv4_transport_address;
     bool success = true;
 
@@ -472,7 +469,7 @@ bool test_allocate_ipv4_transport_address_digger( void )
 bool test_ipv6_udp( void )
 {
     u_int8_t protocol = IPPROTO_UDP;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct sk_buff *skb;
     bool success = true;
 
@@ -492,7 +489,7 @@ bool test_ipv6_udp( void )
 bool test_ipv4_udp( void )
 {
     u_int8_t protocol = IPPROTO_UDP;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct sk_buff* skb;
     bool success = true;
 
@@ -520,7 +517,7 @@ bool test_ipv4_udp( void )
 bool test_ipv6_icmp6( void )
 {
     u_int8_t protocol = IPPROTO_ICMP;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct sk_buff *skb;
     bool success = true;
 
@@ -541,7 +538,7 @@ bool test_ipv6_icmp6( void )
 bool test_ipv4_icmp4( void )
 {
     u_int8_t protocol;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct sk_buff* skb = NULL;
     bool success = true;
 
@@ -575,7 +572,7 @@ bool test_ipv4_icmp4( void )
 #define BUFFER_SIZE_ICMP 22
 bool test_send_icmp_error_message( void )
 {
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     u_int8_t protocol;
     u_int8_t type;
     u_int8_t code;
@@ -663,7 +660,7 @@ bool test_send_icmp_error_message( void )
 bool test_filtering_and_updating( void )
 {
     u_int8_t protocol;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     struct sk_buff *skb;
     struct in_addr addr4;
     struct in6_addr addr6;
@@ -688,7 +685,7 @@ bool test_filtering_and_updating( void )
     success &= assert_not_null(skb, "init_skb_for_test");        
     // Add pref64
     success &= str_to_addr6_verbose(INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR , &addr6);
-    tuple.ipv6_src_addr = addr6; 
+    tuple.src.addr.ipv6 = addr6;
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
 		"See if we can get rid of hairpinning loop in IPv6.");
     kfree_skb(skb);
@@ -699,7 +696,7 @@ bool test_filtering_and_updating( void )
     success &= assert_not_null(skb, "init_skb_for_test");        
     // Unwanted packet
     success &= str_to_addr6_verbose(INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR , &addr6);
-    tuple.ipv6_dst_addr = addr6; 
+    tuple.dst.addr.ipv6 = addr6;
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
 		"See if we can get rid of unwanted packets in IPv6.");
     kfree_skb(skb);
@@ -710,7 +707,7 @@ bool test_filtering_and_updating( void )
     success &= assert_not_null(skb, "init_skb_for_test");        
     // Packet destined to an address not in pool
     success &= str_to_addr4_verbose(INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR , &addr4);
-    tuple.ipv4_dst_addr = addr4; 
+    tuple.dst.addr.ipv4 = addr4;
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
 		"See if we can get rid of packet destined to an address not in pool.");
     kfree_skb(skb);
@@ -963,7 +960,7 @@ bool test_tcp_closed_state_handle_6( void )
 {
     struct sk_buff *skb;
     struct session_entry *session;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     bool success = true;
 
     if (!(skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )))
@@ -986,7 +983,7 @@ bool test_tcp_closed_state_handle_4( void )
 {
     struct sk_buff *skb;
     struct session_entry *session;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     bool success = true;
 
     config.drop_external_tcp = false;
@@ -1010,7 +1007,7 @@ bool test_tcp_closed_state_handle_4( void )
 static bool init_skb_and_session(struct sk_buff **skb, struct session_entry *session,
         unsigned char type, u_int8_t state, unsigned int lifetime)
 {
-    struct nf_conntrack_tuple tuple4, tuple6;
+    struct tuple tuple4, tuple6;
 
     // Init the packet.
     *skb = init_packet_type_for_test(type);
@@ -1023,14 +1020,14 @@ static bool init_skb_and_session(struct sk_buff **skb, struct session_entry *ses
     if (!init_tuple_for_test_ipv6(&tuple6, IPPROTO_TCP))
         goto failure;
 
-    session->ipv6.remote.address = tuple6.ipv6_src_addr;
-    session->ipv6.remote.l4_id = tuple6.src_port;
-    session->ipv6.local.address = tuple6.ipv6_dst_addr;
-    session->ipv6.local.l4_id = tuple6.dst_port;
-    session->ipv4.remote.address = tuple4.ipv4_src_addr;
-    session->ipv4.remote.l4_id = tuple4.src_port;
-    session->ipv4.local.address = tuple4.ipv4_dst_addr;
-    session->ipv4.local.l4_id = tuple4.dst_port;
+    session->ipv6.remote.address = tuple6.src.addr.ipv6;
+    session->ipv6.remote.l4_id = tuple6.src.l4_id;
+    session->ipv6.local.address = tuple6.dst.addr.ipv6;
+    session->ipv6.local.l4_id = tuple6.dst.l4_id;
+    session->ipv4.remote.address = tuple4.src.addr.ipv4;
+    session->ipv4.remote.l4_id = tuple4.src.l4_id;
+    session->ipv4.local.address = tuple4.dst.addr.ipv4;
+    session->ipv4.local.l4_id = tuple4.dst.l4_id;
     session->dying_time = 10;
     session->state = state;
 
@@ -1258,7 +1255,7 @@ bool test_tcp( void )
 {
     struct sk_buff *skb;
     struct session_entry *session;
-    struct nf_conntrack_tuple tuple;
+    struct tuple tuple;
     bool success = true;
 
     // V6 SYN

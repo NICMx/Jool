@@ -300,10 +300,9 @@ enum error_code pool4_remove(struct in_addr *address)
 	return ERR_SUCCESS;
 }
 
-bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *result)
+bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *result)
 {
 	struct pool_node *node;
-	__u16 cpu_port;
 
 	spin_lock_bh(&pool_lock);
 
@@ -314,9 +313,8 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 	}
 
 	// Find an address with a compatible port
-	cpu_port = be16_to_cpu(port);
 	list_for_each_entry(node, &pool, next) {
-		if (extract_any_port(get_section(get_ids(node, l4protocol), cpu_port), &result->l4_id)) {
+		if (extract_any_port(get_section(get_ids(node, l4protocol), port), &result->l4_id)) {
 			result->address = node->address;
 			spin_unlock_bh(&pool_lock);
 			return true;

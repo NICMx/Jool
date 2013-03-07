@@ -1,9 +1,8 @@
 #ifndef _NF_NAT64_DETERMINE_INCOMING_TUPLE_H
 #define _NF_NAT64_DETERMINE_INCOMING_TUPLE_H
 
-#include <linux/types.h>
 #include <linux/skbuff.h>
-#include <net/netfilter/nf_conntrack_tuple.h>
+#include "nat64/comm/types.h"
 
 
 /**
@@ -27,7 +26,7 @@
  * @param tuple this function will initialize *tuple as a pointer to conntrack's tuple for skb.
  * @return "true" if the tuple could be created, "false" otherwise.
  */
-bool determine_in_tuple(struct sk_buff *skb, struct nf_conntrack_tuple *tuple);
+bool determine_in_tuple(struct sk_buff *skb, struct tuple *tuple);
 
 
 #endif /* _NF_NAT64_DETERMINE_INCOMING_TUPLE_H */

@@ -17,34 +17,34 @@ MODULE_DESCRIPTION("Tranlating the Packet (IPv4 to IPv6) module test.");
 #define ICMP_HDR_LEN sizeof(struct icmphdr)
 #define FRAG_HDR_LEN sizeof(struct frag_hdr)
 
-static struct nf_conntrack_tuple get_ip4_tuple(void)
+static struct tuple get_ip4_tuple(void)
 {
-	struct nf_conntrack_tuple result;
+	struct tuple result;
 
-	result.ipv4_src_addr.s_addr = cpu_to_be32(0x57613990);
-	result.ipv4_dst_addr.s_addr = cpu_to_be32(0x97254347);
-	result.src_port = cpu_to_be16(9797);
-	result.dst_port = cpu_to_be16(7979);
+	result.src.addr.ipv4.s_addr = cpu_to_be32(0x57613990);
+	result.dst.addr.ipv4.s_addr = cpu_to_be32(0x97254347);
+	result.src.l4_id = 9797;
+	result.dst.l4_id = 7979;
 
 	return result;
 }
 
-static struct nf_conntrack_tuple get_ip6_tuple(void)
+static struct tuple get_ip6_tuple(void)
 {
-	struct nf_conntrack_tuple result;
+	struct tuple result;
 
-	result.ipv6_src_addr.s6_addr32[0] = cpu_to_be32(0x01234567);
-	result.ipv6_src_addr.s6_addr32[1] = cpu_to_be32(0x89ABCDEF);
-	result.ipv6_src_addr.s6_addr32[2] = cpu_to_be32(0x12345678);
-	result.ipv6_src_addr.s6_addr32[3] = cpu_to_be32(0x9ABCDEF0);
+	result.src.addr.ipv6.s6_addr32[0] = cpu_to_be32(0x01234567);
+	result.src.addr.ipv6.s6_addr32[1] = cpu_to_be32(0x89ABCDEF);
+	result.src.addr.ipv6.s6_addr32[2] = cpu_to_be32(0x12345678);
+	result.src.addr.ipv6.s6_addr32[3] = cpu_to_be32(0x9ABCDEF0);
 
-	result.ipv6_dst_addr.s6_addr32[0] = cpu_to_be32(0x76543210);
-	result.ipv6_dst_addr.s6_addr32[1] = cpu_to_be32(0xFEDCBA98);
-	result.ipv6_dst_addr.s6_addr32[2] = cpu_to_be32(0x87654321);
-	result.ipv6_dst_addr.s6_addr32[3] = cpu_to_be32(0x0FEDCBA9);
+	result.dst.addr.ipv6.s6_addr32[0] = cpu_to_be32(0x76543210);
+	result.dst.addr.ipv6.s6_addr32[1] = cpu_to_be32(0xFEDCBA98);
+	result.dst.addr.ipv6.s6_addr32[2] = cpu_to_be32(0x87654321);
+	result.dst.addr.ipv6.s6_addr32[3] = cpu_to_be32(0x0FEDCBA9);
 
-	result.src_port = cpu_to_be16(9797);
-	result.dst_port = cpu_to_be16(7979);
+	result.src.l4_id = 9797;
+	result.dst.l4_id = 7979;
 
 	return result;
 }
@@ -478,9 +478,8 @@ error:
 
 static bool translate(bool (*l3_hdr_function)(void **, __u16 *),
 		bool (*l3_payload_function)(void **, __u16 *),
-		struct nf_conntrack_tuple (*tuple_function)(void),
-		bool (*translate_packet_function)(struct nf_conntrack_tuple *, struct sk_buff *,
-				struct sk_buff **),
+		struct tuple (*tuple_function)(void),
+		bool (*translate_packet_function)(struct tuple *, struct sk_buff *, struct sk_buff **),
 		bool (*fixed_hdr_validate_function)(void *),
 		bool (*frag_hdr_validate_function)(struct frag_hdr *),
 		bool (*l4_validate_function)(void *l4_hdr))
@@ -488,7 +487,7 @@ static bool translate(bool (*l3_hdr_function)(void **, __u16 *),
 	// Init.
 	struct sk_buff *packet_in = build_test_skb(l3_hdr_function, l3_payload_function);
 	struct sk_buff *packet_out = NULL;
-	struct nf_conntrack_tuple tuple_in = tuple_function();
+	struct tuple tuple_in = tuple_function();
 
 	if (!packet_in)
 		goto error;
@@ -524,7 +523,7 @@ error:
 static bool validate_ip6_fixed_hdr_common(void *ip6_header)
 {
 	struct ipv6hdr *hdr = ip6_header;
-	struct nf_conntrack_tuple dummy_tuple = get_ip6_tuple();
+	struct tuple dummy_tuple = get_ip6_tuple();
 	bool success = true;
 
 	success &= assert_equals_u8(6, hdr->version, "Version");
@@ -536,8 +535,8 @@ static bool validate_ip6_fixed_hdr_common(void *ip6_header)
 	// success &= assert_equals_u16(, be16_to_cpu(hdr->payload_len), "Payload len");
 	// success &= assert_equals_u8(, hdr->nexthdr, "Next header");
 	// success &= assert_equals_u8(5, hdr->hop_limit, "Hop limit");
-	success &= assert_equals_ipv6(&dummy_tuple.ipv6_src_addr, &hdr->saddr, "Source address");
-	success &= assert_equals_ipv6(&dummy_tuple.ipv6_dst_addr, &hdr->daddr, "Dest address");
+	success &= assert_equals_ipv6(&dummy_tuple.src.addr.ipv6, &hdr->saddr, "Source address");
+	success &= assert_equals_ipv6(&dummy_tuple.dst.addr.ipv6, &hdr->daddr, "Dest address");
 
 	return success;
 }
@@ -634,7 +633,7 @@ static bool validate_ip6_frag_hdr_dofrag(struct frag_hdr *frag_header)
 static bool validate_ip4_hdr_common(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
-	struct nf_conntrack_tuple dummy_tuple = get_ip4_tuple();
+	struct tuple dummy_tuple = get_ip4_tuple();
 	bool success = true;
 
 	struct in_addr src, dst;
@@ -650,8 +649,8 @@ static bool validate_ip4_hdr_common(void *l3_hdr)
 	success &= assert_equals_u8(5, hdr->ttl, "Time to Live");
 	// success &= assert_equals(, hdr->protocol, "Protocol");
 	// success &= assert_equals(, hdr->check, "Header Checksum");
-	success &= assert_equals_ipv4(&dummy_tuple.ipv4_src_addr, &src, "Source address");
-	success &= assert_equals_ipv4(&dummy_tuple.ipv4_dst_addr, &dst, "Dest address");
+	success &= assert_equals_ipv4(&dummy_tuple.src.addr.ipv4, &src, "Source address");
+	success &= assert_equals_ipv4(&dummy_tuple.dst.addr.ipv4, &dst, "Dest address");
 
 	return success;
 }
@@ -698,7 +697,7 @@ static bool validate_ip4_hdr_icmp4(void *l3_hdr)
 static bool validate_ip4_hdr_fragment(void *l3_hdr)
 {
 	struct iphdr *hdr = l3_hdr;
-	struct nf_conntrack_tuple dummy_tuple = get_ip4_tuple();
+	struct tuple dummy_tuple = get_ip4_tuple();
 	bool success = true;
 
 	struct in_addr src, dst;
@@ -715,8 +714,8 @@ static bool validate_ip4_hdr_fragment(void *l3_hdr)
 	success &= assert_equals_u8(5, hdr->ttl, "Time to Live");
 	success &= assert_equals_u8(IPPROTO_UDP, hdr->protocol, "Protocol"); //
 	// success &= assert_equals(, hdr->check, "Header Checksum");
-	success &= assert_equals_ipv4(&dummy_tuple.ipv4_src_addr, &src, "Source address");
-	success &= assert_equals_ipv4(&dummy_tuple.ipv4_dst_addr, &dst, "Dest address");
+	success &= assert_equals_ipv4(&dummy_tuple.src.addr.ipv4, &src, "Source address");
+	success &= assert_equals_ipv4(&dummy_tuple.dst.addr.ipv4, &dst, "Dest address");
 
 	return success;
 }
@@ -795,7 +794,8 @@ static bool validate_l3_payload_icmp4_simple(void *l4_hdr)
 	success &= assert_equals_u8(ICMP_ECHOREPLY, icmp4_header->type, "Type");
 	success &= assert_equals_u8(0, icmp4_header->code, "Code");
 	// success &= assert_equals(, icmp4_header->checksum, "Checksum");
-	success &= assert_equals_u16(45, be16_to_cpu(icmp4_header->un.echo.id), "Echo ID");
+	// The one from the tuple has to everride the one from the packet.
+	success &= assert_equals_u16(9797, be16_to_cpu(icmp4_header->un.echo.id), "Echo ID");
 	success &= assert_equals_u16(54, be16_to_cpu(icmp4_header->un.echo.sequence), "Echo seq");
 
 	return success;
@@ -840,7 +840,8 @@ static bool validate_l3_payload_icmp6_simple(void *l4_hdr)
 	success &= assert_equals_u8(ICMPV6_ECHO_REPLY, hdr->icmp6_type, "ICMP type");
 	success &= assert_equals_u8(0, hdr->icmp6_code, "ICMP code");
 	// success &= assert_equals(6, hdr->icmp6_cksum, "ICMP checksum");
-	success &= assert_equals_u16(45, be16_to_cpu(hdr->icmp6_dataun.u_echo.identifier),
+	// The one from the tuple has to everride the one from the packet.
+	success &= assert_equals_u16(9797, be16_to_cpu(hdr->icmp6_dataun.u_echo.identifier),
 			"ICMP echo reply id");
 	success &= assert_equals_u16(54, be16_to_cpu(hdr->icmp6_dataun.u_echo.sequence),
 			"ICMP echo reply seq");

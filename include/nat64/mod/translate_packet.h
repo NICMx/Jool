@@ -9,10 +9,8 @@
  * @author Alberto Leiva
  */
 
-#include <linux/types.h>
 #include <linux/skbuff.h>
-#include <net/netfilter/nf_conntrack_tuple.h>
-
+#include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 
 
@@ -38,7 +36,7 @@ struct packet_in {
 	 * "packet"'s address, except already translated by "Computing the Outgoing Tuple".
 	 * We're supposed to write it in the outgoing packet.
 	 */
-	struct nf_conntrack_tuple *tuple;
+	struct tuple *tuple;
 
 	/**
 	 * "packet"'s IP header. Think skb_network_header(packet_in.packet), except usable when
@@ -174,8 +172,8 @@ enum error_code set_translate_config(__u32 operation, struct translate_config *n
  * @param skb_in the incoming packet.
  * @param skb_out out parameter, where the outgoing packet will be placed.
  */
-bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
-		struct sk_buff *skb_in, struct sk_buff **skb_out);
+bool translating_the_packet_4to6(struct tuple *tuple, struct sk_buff *skb_in,
+		struct sk_buff **skb_out);
 /**
  * Assumes "skb_in" is a IPv6 packet, and stores a IPv4 equivalent in "skb_out".
  *
@@ -183,8 +181,8 @@ bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
  * @param skb_in the incoming packet.
  * @param skb_out out parameter, where the outgoing packet will be placed.
  */
-bool translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
-		struct sk_buff *skb_in, struct sk_buff **skb_out);
+bool translating_the_packet_6to4(struct tuple *tuple, struct sk_buff *skb_in,
+		struct sk_buff **skb_out);
 
 /**
  * Interprets in.payload as an independent packet, translates its layer 3 header (using

@@ -10,6 +10,7 @@
 #include "nat64/mod/config.h"
 #include "nat64/mod/bib.h"
 #include "nat64/mod/session.h"
+#include <linux/slab.h>
 
 
 /**

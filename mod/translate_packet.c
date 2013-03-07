@@ -347,10 +347,8 @@ static void kfree_packet_out(struct packet_out *out)
  *		already been assembled. When you want to access the headers, use out.packet.
  * @param l4_post_function Post-processing involving the layer 4 header. See l3_post_function.
  */
-static bool translate_packet(struct nf_conntrack_tuple *tuple,
-		struct sk_buff *skb_in, struct sk_buff **skb_out,
-		bool (*init_packet_in_function)(struct nf_conntrack_tuple *, struct sk_buff *,
-				struct packet_in *in),
+static bool translate_packet(struct tuple *tuple, struct sk_buff *skb_in, struct sk_buff **skb_out,
+		bool (*init_packet_in_function)(struct tuple *, struct sk_buff *, struct packet_in *in),
 		bool (*l3_hdr_function)(struct packet_in *in, struct packet_out *out),
 		bool (*l4_hdr_and_payload_function)(struct packet_in *in, struct packet_out *out),
 		bool (*l3_post_function)(struct packet_out *out),
@@ -384,8 +382,8 @@ failure:
 	return false;
 }
 
-bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
-		struct sk_buff *skb_in, struct sk_buff **skb_out)
+bool translating_the_packet_4to6(struct tuple *tuple, struct sk_buff *skb_in,
+		struct sk_buff **skb_out)
 {
 	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
 	bool (*l4_post_function)(struct packet_in *, struct packet_out *);
@@ -416,8 +414,8 @@ bool translating_the_packet_4to6(struct nf_conntrack_tuple *tuple,
 			post_ipv6, l4_post_function);
 }
 
-bool translating_the_packet_6to4(struct nf_conntrack_tuple *tuple,
-		struct sk_buff *skb_in, struct sk_buff **skb_out)
+bool translating_the_packet_6to4(struct tuple *tuple, struct sk_buff *skb_in,
+		struct sk_buff **skb_out)
 {
 	bool (*l4_hdr_and_payload_function)(struct packet_in *, struct packet_out *);
 	bool (*l4_post_function)(struct packet_in *, struct packet_out *);

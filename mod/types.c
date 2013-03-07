@@ -162,3 +162,27 @@ bool is_icmp_info(__u8 type)
 {
 	return (type == ICMP_ECHO) || (type == ICMP_ECHOREPLY);
 }
+
+/**
+* log_tuple() - Prints the "tuple" tuple on the kernel ring buffer.
+* @tuple: Structure to be dumped on logging.
+*
+* It's a ripoff of nf_ct_dump_tuple(), adjusted to comply to this project's logging requirements.
+*/
+void log_tuple(struct tuple *tuple)
+{
+	switch (tuple->l3_proto) {
+	case PF_INET:
+		log_debug("tuple %p: l3:%u l4:%u %pI4#%u -> %pI4#%u",
+				tuple, tuple->l3_proto, tuple->l4_proto,
+				&tuple->src.addr.ipv4, tuple->src.l4_id,
+				&tuple->dst.addr.ipv4, tuple->dst.l4_id);
+		break;
+	case PF_INET6:
+		log_debug("tuple %p: l3:%u l4:%u %pI6c#%u -> %pI6c#%u",
+				tuple, tuple->l3_proto, tuple->l4_proto,
+				&tuple->src.addr.ipv6, tuple->src.l4_id,
+				&tuple->dst.addr.ipv6, tuple->dst.l4_id);
+		break;
+	}
+}

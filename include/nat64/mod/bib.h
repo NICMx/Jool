@@ -9,8 +9,7 @@
  * @author Alberto Leiva
  */
 
-#include <linux/types.h>
-#include <net/netfilter/nf_conntrack_tuple.h>
+#include <linux/spinlock.h>
 #include "nat64/comm/types.h"
 
 
@@ -98,7 +97,7 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4prot
  * @param tuple summary of the packet. Describes the BIB you need.
  * @return the BIB entry you'd expect from the "tuple" tuple.
  */
-struct bib_entry *bib_get(struct nf_conntrack_tuple *tuple);
+struct bib_entry *bib_get(struct tuple *tuple);
 
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4protocol".

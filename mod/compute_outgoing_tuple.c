@@ -26,7 +26,7 @@ static bool switch_l4_proto(u_int8_t proto_in, u_int8_t *proto_out)
 	}
 }
 
-static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out)
+static bool tuple5(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
@@ -45,36 +45,37 @@ static bool tuple5(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		goto lock_fail;
 	}
 
-	switch (in->L3_PROTO) {
+	switch (in->l3_proto) {
 	case PF_INET6:
-		out->L3_PROTO = PF_INET;
-		if (!switch_l4_proto(in->L4_PROTO, &out->L4_PROTO))
+		out->l3_proto = PF_INET;
+		if (!switch_l4_proto(in->l4_proto, &out->l4_proto))
 			goto lock_fail;
-		out->ipv4_src_addr = bib->ipv4.address;
-		out->src_port = cpu_to_be16(bib->ipv4.l4_id);
-		if (!addr_6to4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
+		out->src.addr.ipv4 = bib->ipv4.address;
+		out->src.l4_id = bib->ipv4.l4_id;
+		if (!addr_6to4(&in->dst.addr.ipv6, &prefix, &out->dst.addr.ipv4))
 			goto lock_fail;
-		out->dst_port = in->dst_port;
+		out->dst.l4_id = in->dst.l4_id;
 		break;
 
 	case PF_INET:
-		out->L3_PROTO = PF_INET6;
-		if (!switch_l4_proto(in->L4_PROTO, &out->L4_PROTO))
+		out->l3_proto = PF_INET6;
+		if (!switch_l4_proto(in->l4_proto, &out->l4_proto))
 			goto lock_fail;
-		if (!addr_4to6(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
+		if (!addr_4to6(&in->src.addr.ipv4, &prefix, &out->src.addr.ipv6))
 			goto lock_fail;
-		out->src_port = in->src_port;
-		out->ipv6_dst_addr = bib->ipv6.address;
-		out->dst_port = cpu_to_be16(bib->ipv6.l4_id);
+		out->src.l4_id = in->src.l4_id;
+		out->dst.addr.ipv6 = bib->ipv6.address;
+		out->dst.l4_id = bib->ipv6.l4_id;
 		break;
 
 	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", in->L3_PROTO);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", in->l3_proto);
 		goto lock_fail;
 	}
 
 	spin_unlock_bh(&bib_session_lock);
 	log_debug("Done step 3.");
+	log_tuple(out);
 	return true;
 
 lock_fail:
@@ -82,7 +83,7 @@ lock_fail:
 	return false;
 }
 
-static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out)
+static bool tuple3(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
@@ -101,31 +102,32 @@ static bool tuple3(struct nf_conntrack_tuple *in, struct nf_conntrack_tuple *out
 		goto lock_fail;
 	}
 
-	switch (in->L3_PROTO) {
+	switch (in->l3_proto) {
 	case PF_INET6:
-		out->L3_PROTO = PF_INET;
-		out->L4_PROTO = IPPROTO_ICMP;
-		out->ipv4_src_addr = bib->ipv4.address;
-		if (!addr_6to4(&in->ipv6_dst_addr, &prefix, &out->ipv4_dst_addr))
+		out->l3_proto = PF_INET;
+		out->l4_proto = IPPROTO_ICMP;
+		out->src.addr.ipv4 = bib->ipv4.address;
+		if (!addr_6to4(&in->dst.addr.ipv6, &prefix, &out->dst.addr.ipv4))
 			goto lock_fail;
-		out->icmp_id = cpu_to_be16(bib->ipv4.l4_id);
+		out->icmp_id = bib->ipv4.l4_id;
 		break;
 
 	case PF_INET:
-		out->L3_PROTO = PF_INET6;
-		out->L4_PROTO = IPPROTO_ICMPV6;
-		if (!addr_4to6(&in->ipv4_src_addr, &prefix, &out->ipv6_src_addr))
+		out->l3_proto = PF_INET6;
+		out->l4_proto = IPPROTO_ICMPV6;
+		if (!addr_4to6(&in->src.addr.ipv4, &prefix, &out->src.addr.ipv6))
 			goto lock_fail;
-		out->ipv6_dst_addr = bib->ipv6.address;
-		out->icmp_id = cpu_to_be16(bib->ipv6.l4_id);
+		out->dst.addr.ipv6 = bib->ipv6.address;
+		out->icmp_id = bib->ipv6.l4_id;
 		break;
 
 	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", in->L3_PROTO);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", in->l3_proto);
 		goto lock_fail;
 	}
 
 	spin_unlock_bh(&bib_session_lock);
+	log_tuple(out);
 	log_debug("Done step 3.");
 	return true;
 
@@ -134,10 +136,9 @@ lock_fail:
 	return false;
 }
 
-bool compute_out_tuple_6to4(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
-		struct nf_conntrack_tuple *out)
+bool compute_out_tuple_6to4(struct tuple *in, struct sk_buff *skb_in, struct tuple *out)
 {
-	switch (in->L4_PROTO) {
+	switch (in->l4_proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
 		return tuple5(in, out);
@@ -147,15 +148,14 @@ bool compute_out_tuple_6to4(struct nf_conntrack_tuple *in, struct sk_buff *skb_i
 				? tuple3(in, out)
 				: tuple5(in, out);
 	default:
-		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->L4_PROTO);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_proto);
 		return false;
 	}
 }
 
-bool compute_out_tuple_4to6(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
-		struct nf_conntrack_tuple *out)
+bool compute_out_tuple_4to6(struct tuple *in, struct sk_buff *skb_in, struct tuple *out)
 {
-	switch (in->L4_PROTO) {
+	switch (in->l4_proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
 		return tuple5(in, out);
@@ -165,7 +165,7 @@ bool compute_out_tuple_4to6(struct nf_conntrack_tuple *in, struct sk_buff *skb_i
 				? tuple3(in, out)
 				: tuple5(in, out);
 	default:
-		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->L4_PROTO);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_proto);
 		return false;
 	}
 }

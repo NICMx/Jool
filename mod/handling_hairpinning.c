@@ -6,15 +6,15 @@
 #include "nat64/mod/send_packet.h"
 
 
-bool is_hairpin(struct nf_conntrack_tuple *outgoing)
+bool is_hairpin(struct tuple *outgoing)
 {
-	return (outgoing->L3_PROTO == PF_INET6) && pool4_contains(&outgoing->dst.u3.in);
+	return (outgoing->l3_proto == PF_INET6) && pool4_contains(&outgoing->dst.addr.ipv4);
 }
 
-bool handling_hairpinning(struct sk_buff *skb_in, struct nf_conntrack_tuple *tuple_in)
+bool handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 {
 	struct sk_buff *skb_out = NULL;
-	struct nf_conntrack_tuple tuple_out;
+	struct tuple tuple_out;
 
 	log_debug("Step 5: Handling Hairpinning...");
 

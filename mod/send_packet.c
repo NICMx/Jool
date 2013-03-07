@@ -10,7 +10,6 @@
 #ifdef CONFIG_BRIDGE_NETFILTER
 #	include <linux/netfilter_bridge.h>
 #endif
-#include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/ip.h>
 #include <net/ip6_checksum.h>
 #include <net/ip6_route.h>

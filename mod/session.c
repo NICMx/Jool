@@ -77,20 +77,20 @@ static enum error_code get_session_table(u_int8_t l4protocol, struct session_tab
 	return ERR_L4PROTO;
 }
 
-static void tuple_to_ipv6_pair(struct nf_conntrack_tuple *tuple, struct ipv6_pair *pair)
+static void tuple_to_ipv6_pair(struct tuple *tuple, struct ipv6_pair *pair)
 {
-	pair->remote.address = tuple->ipv6_src_addr;
-	pair->remote.l4_id = be16_to_cpu(tuple->src_port);
-	pair->local.address = tuple->ipv6_dst_addr;
-	pair->local.l4_id = be16_to_cpu(tuple->dst_port);
+	pair->remote.address = tuple->src.addr.ipv6;
+	pair->remote.l4_id = tuple->src.l4_id;
+	pair->local.address = tuple->dst.addr.ipv6;
+	pair->local.l4_id = tuple->dst.l4_id;
 }
 
-static void tuple_to_ipv4_pair(struct nf_conntrack_tuple *tuple, struct ipv4_pair *pair)
+static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
 {
-	pair->remote.address = tuple->ipv4_src_addr;
-	pair->remote.l4_id = be16_to_cpu(tuple->src_port);
-	pair->local.address = tuple->ipv4_dst_addr;
-	pair->local.l4_id = be16_to_cpu(tuple->dst_port);
+	pair->remote.address = tuple->src.addr.ipv4;
+	pair->remote.l4_id = tuple->src.l4_id;
+	pair->local.address = tuple->dst.addr.ipv4;
+	pair->local.l4_id = tuple->dst.l4_id;
 }
 
 /**
@@ -211,7 +211,7 @@ struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4pro
 	return ipv6_table_get(&table->ipv6, pair);
 }
 
-struct session_entry *session_get(struct nf_conntrack_tuple *tuple)
+struct session_entry *session_get(struct tuple *tuple)
 {
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
@@ -221,20 +221,20 @@ struct session_entry *session_get(struct nf_conntrack_tuple *tuple)
 		return NULL;
 	}
 
-	switch (tuple->L3_PROTO) {
+	switch (tuple->l3_proto) {
 	case PF_INET6:
 		tuple_to_ipv6_pair(tuple, &pair6);
-		return session_get_by_ipv6(&pair6, tuple->L4_PROTO);
+		return session_get_by_ipv6(&pair6, tuple->l4_proto);
 	case PF_INET:
 		tuple_to_ipv4_pair(tuple, &pair4);
-		return session_get_by_ipv4(&pair4, tuple->L4_PROTO);
+		return session_get_by_ipv4(&pair4, tuple->l4_proto);
 	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->L3_PROTO);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
 		return NULL;
 	}
 }
 
-bool session_allow(struct nf_conntrack_tuple *tuple)
+bool session_allow(struct tuple *tuple)
 {
 	struct session_table *table;
 	__u16 hash_code;
@@ -245,7 +245,7 @@ bool session_allow(struct nf_conntrack_tuple *tuple)
 		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
 		return false;
 	}
-	if (get_session_table(tuple->L4_PROTO, &table) != ERR_SUCCESS)
+	if (get_session_table(tuple->l4_proto, &table) != ERR_SUCCESS)
 		return false;
 
 	tuple_to_ipv4_pair(tuple, &tuple_pair);

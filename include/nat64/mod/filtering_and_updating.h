@@ -9,7 +9,7 @@
 #include "nat64/mod/session.h"
 
 
-int filtering_and_updating(struct sk_buff* skb, struct nf_conntrack_tuple *tuple);
+int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple);
 
 bool session_expired(struct session_entry *session_entry_p);
 

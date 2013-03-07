@@ -1,6 +1,6 @@
 # make libxt_NAT64.so
 
-IDIR =../include/nat64
+IDIR =../include
 CFLAGS = -O2 -Wall -I$(IDIR)
 
 lib%.so: lib%.o

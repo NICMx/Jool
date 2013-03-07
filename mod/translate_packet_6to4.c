@@ -18,7 +18,7 @@ static __u16 compute_ipv6_hdr_len(void *l3_hdr)
  * Initializes "in" using the data from "tuple", "skb_in", and the assumption that we're translating
  * from 6 to 4.
  */
-static bool init_packet_in_6to4(struct nf_conntrack_tuple *tuple, struct sk_buff *skb_in,
+static bool init_packet_in_6to4(struct tuple *tuple, struct sk_buff *skb_in,
 				struct packet_in *in)
 {
 	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb_in);
@@ -211,8 +211,8 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	ip4_hdr->ttl = ip6_hdr->hop_limit; // The TTL is decremented by the kernel.
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	// ip4_hdr->check is set during post-processing.
-	ip4_hdr->saddr = in->tuple->ipv4_src_addr.s_addr;
-	ip4_hdr->daddr = in->tuple->ipv4_dst_addr.s_addr;
+	ip4_hdr->saddr = in->tuple->src.addr.ipv4.s_addr;
+	ip4_hdr->daddr = in->tuple->dst.addr.ipv4.s_addr;
 
 	// if in->packet == NULL, we're translating a inner packet, so don't care.
 	if (in->packet != NULL) {
@@ -431,14 +431,14 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = in->tuple->icmp_id;
+		icmpv4_hdr->un.echo.id = cpu_to_be16(in->tuple->icmp_id);
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
 		break;
 
 	case ICMPV6_ECHO_REPLY:
 		icmpv4_hdr->type = ICMP_ECHOREPLY;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = in->tuple->icmp_id;
+		icmpv4_hdr->un.echo.id = cpu_to_be16(in->tuple->icmp_id);
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
 		break;
 
@@ -518,8 +518,8 @@ static bool post_tcp_ipv4(struct packet_in *in, struct packet_out *out)
 	struct tcphdr *tcp_header = tcp_hdr(out->packet);
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
 
-	tcp_header->source = in->tuple->src_port;
-	tcp_header->dest = in->tuple->dst_port;
+	tcp_header->source = cpu_to_be16(in->tuple->src.l4_id);
+	tcp_header->dest = cpu_to_be16(in->tuple->dst.l4_id);
 	tcp_header->check = 0;
 	tcp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,
 			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
@@ -536,8 +536,8 @@ static bool post_udp_ipv4(struct packet_in *in, struct packet_out *out)
 	struct udphdr *udp_header = udp_hdr(out->packet);
 	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
 
-	udp_header->source = in->tuple->src_port;
-	udp_header->dest = in->tuple->dst_port;
+	udp_header->source = cpu_to_be16(in->tuple->src.l4_id);
+	udp_header->dest = cpu_to_be16(in->tuple->dst.l4_id);
 	udp_header->len = cpu_to_be16(datagram_len);
 	udp_header->check = 0;
 	udp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,

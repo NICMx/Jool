@@ -1,7 +1,6 @@
 #include <linux/module.h>
 #include <linux/inet.h>
 #include <net/ipv6.h>
-#include <net/netfilter/nf_conntrack_tuple.h>
 
 #include "nat64/mod/unit_test.h"
 #include "nat64/comm/str_utils.h"
@@ -119,49 +118,47 @@ static void cleanup(void)
 	pool6_destroy();
 }
 
-static bool test_6to4(
-		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *),
+static bool test_6to4(bool (*function)(struct tuple *, struct tuple *),
 		u_int8_t in_l4_protocol, u_int8_t out_l4_protocol)
 {
-	struct nf_conntrack_tuple incoming, outgoing;
+	struct tuple incoming, outgoing;
 	bool success = true;
 
-	incoming.ipv6_src_addr = remote_ipv6;
-	incoming.ipv6_dst_addr = local_ipv6;
-	incoming.src_port = cpu_to_be16(1500); // Lookup will use this.
-	incoming.dst_port = cpu_to_be16(123); // Whatever
-	incoming.L3_PROTO = PF_INET6;
-	incoming.L4_PROTO = in_l4_protocol;
+	incoming.src.addr.ipv6 = remote_ipv6;
+	incoming.dst.addr.ipv6 = local_ipv6;
+	incoming.src.l4_id = 1500; // Lookup will use this.
+	incoming.dst.l4_id = 123; // Whatever
+	incoming.l3_proto = PF_INET6;
+	incoming.l4_proto = in_l4_protocol;
 
 	success &= assert_true(function(&incoming, &outgoing), "Function call");
-	success &= assert_equals_ipv4(&local_ipv4, &outgoing.ipv4_src_addr, "Source address");
-	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.ipv4_dst_addr, "Destination address");
-	success &= assert_equals_u16(PF_INET, outgoing.L3_PROTO, "Layer-3 protocol");
-	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTO, "Layer-4 protocol");
+	success &= assert_equals_ipv4(&local_ipv4, &outgoing.src.addr.ipv4, "Source address");
+	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.dst.addr.ipv4, "Destination address");
+	success &= assert_equals_u16(PF_INET, outgoing.l3_proto, "Layer-3 protocol");
+	success &= assert_equals_u8(out_l4_protocol, outgoing.l4_proto, "Layer-4 protocol");
 	// TODO (test) need to test ports?
 
 	return success;
 }
 
-static bool test_4to6(
-		bool (*function)(struct nf_conntrack_tuple *, struct nf_conntrack_tuple *),
+static bool test_4to6(bool (*function)(struct tuple *, struct tuple *),
 		u_int8_t in_l4_protocol, u_int8_t out_l4_protocol)
 {
-	struct nf_conntrack_tuple incoming, outgoing;
+	struct tuple incoming, outgoing;
 	bool success = true;
 
-	incoming.ipv4_src_addr = remote_ipv4;
-	incoming.ipv4_dst_addr = local_ipv4;
-	incoming.src_port = cpu_to_be16(123); // Whatever
-	incoming.dst_port = cpu_to_be16(80); // Lookup will use this.
-	incoming.L3_PROTO = PF_INET;
-	incoming.L4_PROTO = in_l4_protocol;
+	incoming.src.addr.ipv4 = remote_ipv4;
+	incoming.dst.addr.ipv4 = local_ipv4;
+	incoming.src.l4_id = 123; // Whatever
+	incoming.dst.l4_id = 80; // Lookup will use this.
+	incoming.l3_proto = PF_INET;
+	incoming.l4_proto = in_l4_protocol;
 
 	success &= assert_true(function(&incoming, &outgoing), "Function call");
-	success &= assert_equals_ipv6(&local_ipv6, &outgoing.ipv6_src_addr, "Source address");
-	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.ipv6_dst_addr, "Destination address");
-	success &= assert_equals_u16(PF_INET6, outgoing.L3_PROTO, "Layer-3 protocol");
-	success &= assert_equals_u8(out_l4_protocol, outgoing.L4_PROTO, "Layer-4 protocol");
+	success &= assert_equals_ipv6(&local_ipv6, &outgoing.src.addr.ipv6, "Source address");
+	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.dst.addr.ipv6, "Destination address");
+	success &= assert_equals_u16(PF_INET6, outgoing.l3_proto, "Layer-3 protocol");
+	success &= assert_equals_u8(out_l4_protocol, outgoing.l4_proto, "Layer-4 protocol");
 	// TODO (test) need to test ports?
 
 	return success;

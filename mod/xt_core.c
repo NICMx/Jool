@@ -21,14 +21,12 @@
 
 
 unsigned int nat64_core(struct sk_buff *skb_in,
-		bool (*compute_out_tuple_fn)(struct nf_conntrack_tuple *in, struct sk_buff *skb_in,
-				struct nf_conntrack_tuple *out),
-		bool (*translate_packet_fn)(struct nf_conntrack_tuple *, struct sk_buff *,
-				struct sk_buff **),
+		bool (*compute_out_tuple_fn)(struct tuple *, struct sk_buff *, struct tuple *),
+		bool (*translate_packet_fn)(struct tuple *, struct sk_buff *, struct sk_buff **),
 		bool (*send_packet_fn)(struct sk_buff *))
 {
 	struct sk_buff *skb_out = NULL;
-	struct nf_conntrack_tuple tuple_in, tuple_out;
+	struct tuple tuple_in, tuple_out;
 
 	if (!determine_in_tuple(skb_in, &tuple_in))
 		goto free_and_fail;

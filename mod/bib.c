@@ -164,7 +164,7 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4prot
 	return NULL;
 }
 
-struct bib_entry *bib_get(struct nf_conntrack_tuple *tuple)
+struct bib_entry *bib_get(struct tuple *tuple)
 {
 	struct ipv6_tuple_address address6;
 	struct ipv4_tuple_address address4;
@@ -172,17 +172,17 @@ struct bib_entry *bib_get(struct nf_conntrack_tuple *tuple)
 	if (!tuple)
 		return NULL;
 
-	switch (tuple->L3_PROTO) {
+	switch (tuple->l3_proto) {
 	case PF_INET6:
-		address6.address = tuple->ipv6_src_addr;
-		address6.l4_id = be16_to_cpu(tuple->src_port);
-		return bib_get_by_ipv6(&address6, tuple->L4_PROTO);
+		address6.address = tuple->src.addr.ipv6;
+		address6.l4_id = tuple->src.l4_id;
+		return bib_get_by_ipv6(&address6, tuple->l4_proto);
 	case PF_INET:
-		address4.address = tuple->ipv4_dst_addr;
-		address4.l4_id = be16_to_cpu(tuple->dst_port);
-		return bib_get_by_ipv4(&address4, tuple->L4_PROTO);
+		address4.address = tuple->dst.addr.ipv4;
+		address4.l4_id = tuple->dst.l4_id;
+		return bib_get_by_ipv4(&address4, tuple->l4_proto);
 	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->L3_PROTO);
+		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
 		return NULL;
 	}
 }

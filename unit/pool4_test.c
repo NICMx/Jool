@@ -48,8 +48,7 @@ static bool test_range(__u32 port_range_min, __u32 port_range_max, char *test_na
 
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		for (port_ctr = port_range_min; port_ctr <= port_range_max; port_ctr += 2) {
-			success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(port_range_min), &result),
-					test_name);
+			success &= assert_true(pool4_get_any(IPPROTO_UDP, port_range_min, &result), test_name);
 			success &= assert_tuple_addr(&expected_ips[addr_ctr], port_ctr, &result, test_name);
 
 //			if (!success && (port_ctr % 20 == 0 || (port_ctr + 1) % 20 == 0))
@@ -57,10 +56,8 @@ static bool test_range(__u32 port_range_min, __u32 port_range_max, char *test_na
 		}
 	}
 
-	success &= assert_false(pool4_get_any(IPPROTO_UDP, cpu_to_be16(port_range_min), &result),
-			test_name);
-	success &= assert_false(pool4_get_any(IPPROTO_UDP, cpu_to_be16(port_range_min), &result),
-			test_name);
+	success &= assert_false(pool4_get_any(IPPROTO_UDP, port_range_min, &result), test_name);
+	success &= assert_false(pool4_get_any(IPPROTO_UDP, port_range_min, &result), test_name);
 
 	return success;
 }
@@ -103,14 +100,12 @@ static bool test_return_function(void)
 
 	// Borrow the entire first address.
 	for (i = 0; i < 1024; i += 2) {
-		success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(i), &results1[i]),
-				"Borrow Addr1-res");
+		success &= assert_true(pool4_get_any(IPPROTO_UDP, i, &results1[i]), "Borrow Addr1-res");
 		success &= assert_tuple_addr(&expected_ips[0], i, &results1[i], "Borrow Addr1-out");
 	}
 
 	// Borrow the first port of the second address.
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(0), &results2[0]),
-			"Borrow Addr2-res-port0");
+	success &= assert_true(pool4_get_any(IPPROTO_UDP, 0, &results2[0]), "Borrow Addr2-res-port0");
 	success &= assert_tuple_addr(&expected_ips[1], 0, &results2[0], "Borrow Addr2-out-port0");
 
 	// Return the last one.
@@ -119,8 +114,7 @@ static bool test_return_function(void)
 		return success;
 
 	// Reborrow it.
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(0), &results2[0]),
-			"Reborrow Addr2-res-port0");
+	success &= assert_true(pool4_get_any(IPPROTO_UDP, 0, &results2[0]), "Reborrow Addr2-res-port0");
 	success &= assert_tuple_addr(&expected_ips[1], 0, &results2[0], "Reborrow Addr2-out-port0");
 	if (!success)
 		return success;
@@ -133,11 +127,11 @@ static bool test_return_function(void)
 		return success;
 
 	// Reborrow it.
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(24), &results1[46]),
+	success &= assert_true(pool4_get_any(IPPROTO_UDP, 24, &results1[46]),
 			"Reborrow Addr1-res-port46");
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(1010), &results1[1000]),
+	success &= assert_true(pool4_get_any(IPPROTO_UDP, 1010, &results1[1000]),
 			"Reborrow Addr1-res-port1000");
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, cpu_to_be16(56), &results2[0]),
+	success &= assert_true(pool4_get_any(IPPROTO_UDP, 56, &results2[0]),
 			"ReReborrow Addr2-res-port0");
 	success &= assert_tuple_addr(&expected_ips[0], 46, &results1[46],
 			"Reborrow Addr1-out-port46");
