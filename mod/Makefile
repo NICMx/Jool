@@ -12,6 +12,7 @@ nat64-objs += types.o
 nat64-objs += str_utils.o
 nat64-objs += ipv6_hdr_iterator.o
 nat64-objs += rfc6052.o
+nat64-objs += out_stream.o
 nat64-objs += pool6.o
 nat64-objs += pool4.o
 nat64-objs += bib.o

@@ -43,7 +43,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	//			&bib->ipv6.address, bib->ipv6.l4_id);
 
 	// Add it to the table.
-	if (bib_add(bib, l4protocol) != ERR_SUCCESS) {
+	if (bib_add(bib, l4protocol) != 0) {
 		log_warning("Can't add the dummy BIB to the table.");
 		goto failure;
 	}
@@ -68,19 +68,19 @@ static bool init(void)
 	struct ipv6_prefix prefix;
 
 	// Init test addresses
-	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != ERR_SUCCESS) {
+	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != 0) {
 		log_warning("Can't parse address '%s'. Failing test...", remote_ipv6_str);
 		return false;
 	}
-	if (str_to_addr6(local_ipv6_str, &local_ipv6) != ERR_SUCCESS) {
+	if (str_to_addr6(local_ipv6_str, &local_ipv6) != 0) {
 		log_warning("Can't parse address '%s'. Failing test...", local_ipv6_str);
 		return false;
 	}
-	if (str_to_addr4(local_ipv4_str, &local_ipv4) != ERR_SUCCESS) {
+	if (str_to_addr4(local_ipv4_str, &local_ipv4) != 0) {
 		log_warning("Can't parse address '%s'. Failing test...", local_ipv4_str);
 		return false;
 	}
-	if (str_to_addr4(remote_ipv4_str, &remote_ipv4) != ERR_SUCCESS) {
+	if (str_to_addr4(remote_ipv4_str, &remote_ipv4) != 0) {
 		log_warning("Can't parse address '%s'. Failing test...", remote_ipv4_str);
 		return false;
 	}
@@ -88,12 +88,12 @@ static bool init(void)
 	// Init the IPv6 pool module
 	if (!pool6_init())
 		return false;
-	if (str_to_addr6("64:ff9b::", &prefix.address) != ERR_SUCCESS) {
+	if (str_to_addr6("64:ff9b::", &prefix.address) != 0) {
 		log_warning("Cannot parse the IPv6 prefix. Failing...");
 		return false;
 	}
 	prefix.len = 96;
-	if (pool6_register(&prefix) != ERR_SUCCESS) {
+	if (pool6_register(&prefix) != 0) {
 		log_warning("Could not add the IPv6 prefix. Failing...");
 		return false;
 	}

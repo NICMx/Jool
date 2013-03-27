@@ -90,8 +90,6 @@ enum error_code {
 
 	/* IPv6 header iterator */
 	ERR_INVALID_ITERATOR = 2000,
-	/* Hash table */
-	ERR_WRONG_SIZE = 2100,
 
 	/* Pool6 */
 	ERR_POOL6_EMPTY = 2200,

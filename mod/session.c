@@ -15,7 +15,7 @@
 #define HTABLE_NAME ipv4_table
 #define KEY_TYPE struct ipv4_pair
 #define VALUE_TYPE struct session_entry
-#define GENERATE_TO_ARRAY
+#define GENERATE_FOR_EACH
 #include "hash_table.c"
 
 // Hash table; indexes BIB entries by IPv6 address.
@@ -58,23 +58,23 @@ static DEFINE_SPINLOCK(expire_timer_lock);
  * Private (helper) functions.
  ********************************************/
 
-static enum error_code get_session_table(u_int8_t l4protocol, struct session_table **result)
+static int get_session_table(u_int8_t l4protocol, struct session_table **result)
 {
 	switch (l4protocol) {
 	case IPPROTO_UDP:
 		*result = &session_table_udp;
-		return ERR_SUCCESS;
+		return 0;
 	case IPPROTO_TCP:
 		*result = &session_table_tcp;
-		return ERR_SUCCESS;
+		return 0;
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		*result = &session_table_icmp;
-		return ERR_SUCCESS;
+		return 0;
 	}
 
 	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
-	return ERR_L4PROTO;
+	return EINVAL;
 }
 
 static void tuple_to_ipv6_pair(struct tuple *tuple, struct ipv6_pair *pair)
@@ -161,29 +161,29 @@ bool session_init(void)
 	return true;
 }
 
-enum error_code session_add(struct session_entry *entry)
+int session_add(struct session_entry *entry)
 {
 	struct session_table *table;
 	enum error_code error;
 
 	if (!entry) {
 		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
-		return ERR_NULL;
+		return EINVAL;
 	}
 	if (!entry->bib) {
 		log_err(ERR_SESSION_BIBLESS, "Session needs to reference a BIB entry.");
-		return ERR_SESSION_BIBLESS;
+		return EINVAL;
 	}
 	error = get_session_table(entry->l4_proto, &table);
-	if (error != ERR_SUCCESS)
+	if (error)
 		return error;
 
 	// Insert into the hash tables.
 	error = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
-	if (error != ERR_SUCCESS)
+	if (error)
 		return error;
 	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
-	if (error != ERR_SUCCESS) {
+	if (error) {
 		ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
 		return error;
 	}
@@ -192,13 +192,13 @@ enum error_code session_add(struct session_entry *entry)
 	list_add(&entry->entries_from_bib, &entry->bib->sessions);
 	list_add(&entry->all_sessions, &all_sessions);
 
-	return ERR_SUCCESS;
+	return 0;
 }
 
 struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol)
 {
 	struct session_table *table;
-	if (get_session_table(l4protocol, &table) != ERR_SUCCESS)
+	if (get_session_table(l4protocol, &table) != 0)
 		return NULL;
 	return ipv4_table_get(&table->ipv4, pair);
 }
@@ -206,7 +206,7 @@ struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4pro
 struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol)
 {
 	struct session_table *table;
-	if (get_session_table(l4protocol, &table) != ERR_SUCCESS)
+	if (get_session_table(l4protocol, &table) != 0)
 		return NULL;
 	return ipv6_table_get(&table->ipv6, pair);
 }
@@ -245,7 +245,7 @@ bool session_allow(struct tuple *tuple)
 		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
 		return false;
 	}
-	if (get_session_table(tuple->l4_proto, &table) != ERR_SUCCESS)
+	if (get_session_table(tuple->l4_proto, &table) != 0)
 		return false;
 
 	tuple_to_ipv4_pair(tuple, &tuple_pair);
@@ -270,7 +270,7 @@ bool session_remove(struct session_entry *entry)
 		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
 		return false;
 	}
-	if (get_session_table(entry->l4_proto, &table) != ERR_SUCCESS)
+	if (get_session_table(entry->l4_proto, &table) != 0)
 		return false;
 
 	// Free from both tables.
@@ -353,12 +353,16 @@ struct session_entry *session_create(
 	return result;
 }
 
-int session_to_array(__u8 l4protocol, struct session_entry ***array)
+int session_for_each(__u8 l4protocol, int (*func)(struct session_entry *, void *), void *arg)
 {
 	struct session_table *table;
-	if (get_session_table(l4protocol, &table) != ERR_SUCCESS)
-		return 0;
-	return ipv4_table_to_array(&table->ipv4, array);
+	int error;
+
+	error = get_session_table(l4protocol, &table);
+	if (error)
+		return error;
+
+	return ipv4_table_for_each(&table->ipv4, func, arg);
 }
 
 bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)

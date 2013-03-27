@@ -3,12 +3,12 @@
 #include <linux/inet.h>
 
 
-enum error_code str_to_addr4(const char *str, struct in_addr *result)
+int str_to_addr4(const char *str, struct in_addr *result)
 {
-	return in4_pton(str, -1, (u8 *) result, '\0', NULL) ? ERR_SUCCESS : ERR_PARSE_ADDR4;
+	return in4_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : EINVAL;
 }
 
-enum error_code str_to_addr6(const char *str, struct in6_addr *result)
+int str_to_addr6(const char *str, struct in6_addr *result)
 {
-	return in6_pton(str, -1, (u8 *) result, '\0', NULL) ? ERR_SUCCESS : ERR_PARSE_ADDR6;
+	return in6_pton(str, -1, (u8 *) result, '\0', NULL) ? 0 : EINVAL;
 }

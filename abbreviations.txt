@@ -22,3 +22,5 @@ fn = function ("this parameter is a pointer to a function.")
 comm = common
 mod = module
 usr = user[space]
+nl = netlink
+cb = callback

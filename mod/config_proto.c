@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 
 
-enum error_code serialize_translate_config(struct translate_config *config,
+int serialize_translate_config(struct translate_config *config,
 		unsigned char **buffer_out, __u16 *buffer_len_out)
 {
 	unsigned char *buffer;
@@ -14,7 +14,7 @@ enum error_code serialize_translate_config(struct translate_config *config,
 	buffer = kmalloc(struct_len + mtus_len, GFP_ATOMIC);
 	if (!buffer) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a serialized version of the configuration.");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 
 	memcpy(buffer, config, sizeof(*config));
@@ -22,10 +22,10 @@ enum error_code serialize_translate_config(struct translate_config *config,
 
 	*buffer_out = buffer;
 	*buffer_len_out = struct_len + mtus_len;
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code deserialize_translate_config(void *buffer, __u16 buffer_len,
+int deserialize_translate_config(void *buffer, __u16 buffer_len,
 		struct translate_config *target_out)
 {
 	__u16 mtus_len;
@@ -36,9 +36,9 @@ enum error_code deserialize_translate_config(void *buffer, __u16 buffer_len,
 	target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
 	if (!target_out->mtu_plateaus) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the config's plateaus.");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 	memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 
-	return ERR_SUCCESS;
+	return 0;
 }

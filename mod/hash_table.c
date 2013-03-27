@@ -16,7 +16,7 @@
  *		Default = Max = 64k - 1.
  * @macro GENERATE_PRINT just define it if you want the print function; otherwise it will not be
  *		generated.
- * @macro GENERATE_TO_ARRAY just define it if you want the to_array function; otherwise it will not
+ * @macro GENERATE_FOR_EACH just define it if you want the for_each function; otherwise it will not
  *		be generated.
  *
  * This module contains no header file; it needs to be #included directly.
@@ -58,8 +58,8 @@
 #define GET_AUX			CONCAT(HTABLE_NAME, _get_aux)
 /** The name of the print function. */
 #define PRINT			CONCAT(HTABLE_NAME, _print)
-/** The name of the to_array function. */
-#define TO_ARRAY		CONCAT(HTABLE_NAME, _to_array)
+/** The name of the for_each function. */
+#define FOR_EACH		CONCAT(HTABLE_NAME, _for_each)
 
 /********************************************
  * Structures.
@@ -72,8 +72,6 @@ struct HTABLE_NAME {
 	 * Each of these contains the values mapped to its index's hash code.
 	 */
 	struct hlist_head table[HASH_TABLE_SIZE];
-	/** Number of key-value pairs currently stored by the table. */
-	__u32 size;
 
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
@@ -160,7 +158,6 @@ static bool INIT(struct HTABLE_NAME *table,
 
 	table->equals_function = equals_function;
 	table->hash_function = hash_function;
-	table->size = 0;
 
 	return true;
 }
@@ -179,14 +176,14 @@ static bool INIT(struct HTABLE_NAME *table,
  * @param value element to store in the table.
  * @return success status. The value will not be inserted if a kmalloc fails.
  */
-static enum error_code PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
+static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 {
 	struct KEY_VALUE_PAIR *key_value;
 	__u16 hash_code;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return ERR_NULL;
+		return EINVAL;
 	}
 
 	// We're not going to insert the value alone, but a key-value structure.
@@ -195,7 +192,7 @@ static enum error_code PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE 
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 	key_value->key = key;
 	key_value->value = value;
@@ -203,9 +200,8 @@ static enum error_code PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE 
 	// Insert the key-value to the table.
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
-	table->size++;
 
-	return ERR_SUCCESS;
+	return 0;
 }
 
 /**
@@ -240,7 +236,6 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, b
 		return false;
 
 	hlist_del(&key_value->nodes);
-	table->size--;
 
 	if (release_key)
 		kfree(key_value->key);
@@ -279,7 +274,6 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 			current_pair = container_of(current_node, struct KEY_VALUE_PAIR, nodes);
 
 			hlist_del(current_node);
-			table->size--;
 
 			if (release_keys)
 				kfree(current_pair->key);
@@ -325,10 +319,12 @@ end:
 }
 #endif
 
-#ifdef GENERATE_TO_ARRAY
+#ifdef GENERATE_FOR_EACH
 /**
  * Builds an array out of the current table contents, and then returns it.
  * (It's a shallow copy).
+ *
+ * TODO
  *
  * @param table the HTABLE_NAME instance you want to convert to an array.
  * @param result makes this point to the resulting array. "***" = "by-reference argument of an array
@@ -338,37 +334,28 @@ end:
  * You have to kfree "result" after you use it. Don't kfree the objects pointed by its slots, as
  * they are the real entries from the hash table.
  */
-static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
+static enum error_code FOR_EACH(struct HTABLE_NAME *table,
+		int (*func)(VALUE_TYPE *, void *),
+		void *arg)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
 	__u16 row;
+	int error;
 
-	VALUE_TYPE **array;
-	__u32 array_counter = 0;
-
-	if (!table || table->size < 1)
-		return 0;
-
-	array = kmalloc(table->size * sizeof(VALUE_TYPE *), GFP_ATOMIC);
-	if (!array) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the array.");
-		return -1;
-	}
+	if (!table)
+		return EINVAL;
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			array[array_counter] = current_pair->value;
-			array_counter++;
+			error = func(current_pair->value, arg);
+			if (error)
+				return error;
 		}
 	}
 
-	if (array_counter != table->size)
-		log_crit(ERR_WRONG_SIZE, "The table's size field does not match its contents.");
-
-	*result = array;
-	return table->size;
+	return 0;
 }
 #endif
 
@@ -379,4 +366,4 @@ static __s32 TO_ARRAY(struct HTABLE_NAME *table, VALUE_TYPE ***result)
 #undef VALUE_TYPE
 #undef HASH_TABLE_SIZE
 #undef GENERATE_PRINT
-#undef GENERATE_TO_ARRAY
+#undef GENERATE_FOR_EACH

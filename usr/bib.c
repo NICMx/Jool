@@ -8,25 +8,18 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(union request_bib)
 
+
 static int bib_display_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr;
+	struct nlmsghdr *hdr;
 	struct bib_entry_us *entries;
-	__u16 entry_count;
-	__u16 i;
+	__u16 entry_count, i;
 	char addr_str[INET6_ADDRSTRLEN];
 
-	hdr = nlmsg_data(nlmsg_hdr(msg));
-	entries = (struct bib_entry_us *) (hdr + 1);
-	entry_count = (hdr->length - sizeof(*hdr)) / sizeof(*entries);
+	hdr = nlmsg_hdr(msg);
+	entries = nlmsg_data(hdr);
+	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
 
-	if (hdr->result_code != ERR_SUCCESS) {
-		print_code_msg(hdr->result_code, NULL);
-		return EINVAL;
-	}
-
-	if (entry_count == 0)
-		printf("  (empty)\n");
 	for (i = 0; i < entry_count; i++) {
 		inet_ntop(AF_INET6, &entries[i].ipv6.address, addr_str, INET6_ADDRSTRLEN);
 		printf("%s#%u - %s#%u\n",
@@ -35,37 +28,49 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 				addr_str,
 				entries[i].ipv6.l4_id);
 	}
-	printf("\n");
 
+	*((int *) arg) += entry_count;
 	return 0;
 }
 
-int bib_display(bool use_tcp, bool use_udp, bool use_icmp)
+static bool display_single_table(char *table_name, u_int8_t l4_proto)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_bib *payload = (union request_bib *) (request + HDR_LEN);
-	int tcp_error, udp_error, icmp_error;
+	int row_count = 0;
+	bool error;
+
+	printf("%s:\n", table_name);
 
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_BIB;
 	hdr->operation = OP_DISPLAY;
+	payload->display.l4_proto = l4_proto;
 
-	if (use_tcp) {
-		printf("TCP:\n");
-		payload->display.l4_proto = IPPROTO_TCP;
-		tcp_error = netlink_request(request, hdr->length, bib_display_response);
+	error = netlink_request(request, hdr->length, bib_display_response, &row_count);
+	if (!error) {
+		if (row_count > 0)
+			printf("  (Fetched %u entries.)\n", row_count);
+		else
+			printf("  (empty)\n");
 	}
-	if (use_udp) {
-		printf("UDP:\n");
-		payload->display.l4_proto = IPPROTO_UDP;
-		udp_error = netlink_request(request, hdr->length, bib_display_response);
-	}
-	if (use_icmp) {
-		printf("ICMP:\n");
-		payload->display.l4_proto = IPPROTO_ICMP;
-		icmp_error = netlink_request(request, hdr->length, bib_display_response);
-	}
+
+	return error;
+}
+
+int bib_display(bool use_tcp, bool use_udp, bool use_icmp)
+{
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (use_tcp)
+		tcp_error = display_single_table("TCP", IPPROTO_TCP);
+	if (use_udp)
+		udp_error = display_single_table("UDP", IPPROTO_UDP);
+	if (use_icmp)
+		icmp_error = display_single_table("ICMP", IPPROTO_ICMP);
 
 	return (tcp_error || udp_error || icmp_error) ? EINVAL : 0;
 }

@@ -9,32 +9,21 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct request_session)
 
+
 static int session_display_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr;
+	struct nlmsghdr *hdr;
 	struct session_entry_us *entries;
-	__u16 entry_count;
-	__u16 i;
-	char *str4;
-	char str6[INET6_ADDRSTRLEN];
+	__u16 entry_count, i;
 
-	hdr = nlmsg_data(nlmsg_hdr(msg));
-	if (hdr->result_code != ERR_SUCCESS) {
-		print_code_msg(hdr->result_code, NULL);
-		return EINVAL;
-	}
-
-	entries = (struct session_entry_us *) (hdr + 1);
-	entry_count = (hdr->length - sizeof(*hdr)) / sizeof(*entries);
-	if (entry_count == 0) {
-		printf("  (empty)\n\n");
-		return 0;
-	}
-
-	printf("---------------------------------\n");
+	hdr = nlmsg_hdr(msg);
+	entries = nlmsg_data(hdr);
+	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
 
 	for (i = 0; i < entry_count; i++) {
 		struct session_entry_us *entry = &entries[i];
+		char *str4;
+		char str6[INET6_ADDRSTRLEN];
 
 		if (entry->is_static)
 			printf("STATIC\n");
@@ -53,52 +42,83 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 
 		printf("---------------------------------\n");
 	}
-	printf("\n");
 
+	*((int *) arg) += entry_count;
 	return 0;
+}
+
+static bool display_single_table(char *table_name, u_int8_t l4_proto)
+{
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	struct request_session *payload = (struct request_session *) (request + HDR_LEN);
+	int row_count = 0;
+	bool error;
+
+	printf("%s:\n", table_name);
+	printf("---------------------------------\n");
+
+	hdr->length = sizeof(request);
+	hdr->mode = MODE_SESSION;
+	hdr->operation = OP_DISPLAY;
+	payload->l4_proto = l4_proto;
+
+	error = netlink_request(request, hdr->length, session_display_response, &row_count);
+	if (!error) {
+		if (row_count > 0)
+			log_info("  (Fetched %u entries.)\n", row_count);
+		else
+			log_info("  (empty)\n");
+	}
+
+	return error;
+}
+
+int session_display(bool use_tcp, bool use_udp, bool use_icmp)
+{
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (use_tcp)
+		tcp_error = display_single_table("TCP", IPPROTO_TCP);
+	if (use_udp)
+		udp_error = display_single_table("UDP", IPPROTO_UDP);
+	if (use_icmp)
+		icmp_error = display_single_table("ICMP", IPPROTO_ICMP);
+
+	return (tcp_error || udp_error || icmp_error) ? EINVAL : 0;
 }
 
 static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct request_hdr *hdr,
 		struct request_session *payload, int (*callback)(struct nl_msg *msg, void *arg))
 {
-	int tcp_error, udp_error, icmp_error;
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
 
 	if (use_tcp) {
 		printf("TCP:\n");
 		payload->l4_proto = IPPROTO_TCP;
-		tcp_error = netlink_request(hdr, hdr->length, callback);
+		tcp_error = netlink_request(hdr, hdr->length, callback, NULL);
 	}
 	if (use_udp) {
 		printf("UDP:\n");
 		payload->l4_proto = IPPROTO_UDP;
-		udp_error = netlink_request(hdr, hdr->length, callback);
+		udp_error = netlink_request(hdr, hdr->length, callback, NULL);
 	}
 	if (use_icmp) {
 		printf("ICMP:\n");
 		payload->l4_proto = IPPROTO_ICMP;
-		icmp_error = netlink_request(hdr, hdr->length, callback);
+		icmp_error = netlink_request(hdr, hdr->length, callback, NULL);
 	}
 
 	return (tcp_error || udp_error || icmp_error) ? EINVAL : 0;
 }
 
-int session_display(bool use_tcp, bool use_udp, bool use_icmp)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	struct request_session *payload = (struct request_session *) (request + HDR_LEN);
-
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_SESSION;
-	hdr->operation = OP_DISPLAY;
-
-	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, session_display_response);
-}
-
 static int session_add_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr->result_code, "The session entry was added successfully.");
+	log_info("The session entry was added successfully.");
 	return 0;
 }
 
@@ -120,8 +140,7 @@ int session_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_pair *pai
 
 static int session_remove_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr->result_code, "The session entry was removed successfully.");
+	log_info("The session entry was removed successfully.");
 	return 0;
 }
 

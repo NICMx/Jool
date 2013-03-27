@@ -56,7 +56,7 @@ void translate_packet_destroy(void)
 	spin_unlock_bh(&config_lock);
 }
 
-enum error_code clone_translate_config(struct translate_config *clone)
+int clone_translate_config(struct translate_config *clone)
 {
 	__u16 plateaus_len;
 
@@ -68,12 +68,12 @@ enum error_code clone_translate_config(struct translate_config *clone)
 	if (!clone->mtu_plateaus) {
 		spin_unlock_bh(&config_lock);
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 	memcpy(clone->mtu_plateaus, config.mtu_plateaus, plateaus_len);
 
 	spin_unlock_bh(&config_lock);
-	return ERR_SUCCESS;
+	return 0;
 }
 
 static int be16_compare(const void *a, const void *b)
@@ -88,7 +88,7 @@ static void be16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-enum error_code set_translate_config(__u32 operation, struct translate_config *new_config)
+int set_translate_config(__u32 operation, struct translate_config *new_config)
 {
 	// Validate.
 	if (operation & MTU_PLATEAUS_MASK) {
@@ -96,7 +96,7 @@ enum error_code set_translate_config(__u32 operation, struct translate_config *n
 
 		if (new_config->mtu_plateau_count == 0) {
 			log_err(ERR_MTU_LIST_EMPTY, "The MTU list received from userspace is empty.");
-			return ERR_MTU_LIST_EMPTY;
+			return EINVAL;
 		}
 
 		// Sort descending.
@@ -115,7 +115,7 @@ enum error_code set_translate_config(__u32 operation, struct translate_config *n
 
 		if (new_config->mtu_plateaus[0] == 0) {
 			log_err(ERR_MTU_LIST_ZEROES, "The MTU list contains nothing but zeroes.");
-			return ERR_MTU_LIST_ZEROES;
+			return EINVAL;
 		}
 
 		new_config->mtu_plateau_count = i + 1;
@@ -153,7 +153,7 @@ enum error_code set_translate_config(__u32 operation, struct translate_config *n
 			config.mtu_plateaus = old_mtus; // Should we revert the other fields?
 			spin_unlock_bh(&config_lock);
 			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
-			return ERR_ALLOC_FAILED;
+			return ENOMEM;
 		}
 
 		kfree(old_mtus);
@@ -162,7 +162,7 @@ enum error_code set_translate_config(__u32 operation, struct translate_config *n
 	}
 
 	spin_unlock_bh(&config_lock);
-	return ERR_SUCCESS;
+	return 0;
 }
 
 /**

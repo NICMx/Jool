@@ -44,14 +44,14 @@ static bool load_defaults(void)
 {
 	struct ipv6_prefix pool6_prefix;
 
-	if (str_to_addr6(POOL6_DEF_PREFIX, &pool6_prefix.address) != ERR_SUCCESS) {
+	if (str_to_addr6(POOL6_DEF_PREFIX, &pool6_prefix.address) != 0) {
 		log_err(ERR_POOL6_INVALID_DEFAULT, "IPv6 prefix in headers is malformed: %s.",
 				POOL6_DEF_PREFIX);
 		return false;
 	}
 	pool6_prefix.len = POOL6_DEF_PREFIX_LEN;
 
-	return pool6_register(&pool6_prefix) == ERR_SUCCESS;
+	return pool6_register(&pool6_prefix) == 0;
 }
 
 bool pool6_init(void)
@@ -71,25 +71,25 @@ void pool6_destroy(void)
 	spin_unlock_bh(&pool_lock);
 }
 
-enum error_code pool6_register(struct ipv6_prefix *prefix)
+int pool6_register(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
 
 	if (!prefix) {
 		log_err(ERR_NULL, "NULL is not a valid prefix.");
-		return ERR_NULL;
+		return EINVAL;
 	}
 
 	if (!is_prefix_len_valid(prefix->len)) {
 		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
 				prefix->len);
-		return ERR_PREF_LEN_RANGE;
+		return EINVAL;
 	}
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of IPv6 pool node failed.");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 
 	node->prefix = *prefix;
@@ -98,16 +98,16 @@ enum error_code pool6_register(struct ipv6_prefix *prefix)
 	list_add(&node->next, pool.prev);
 	spin_unlock_bh(&pool_lock);
 
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code pool6_remove(struct ipv6_prefix *prefix)
+int pool6_remove(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
 
 	if (!prefix) {
 		log_err(ERR_NULL, "NULL is not a valid prefix.");
-		return ERR_NULL;
+		return EINVAL;
 	}
 
 	spin_lock_bh(&pool_lock);
@@ -115,7 +115,7 @@ enum error_code pool6_remove(struct ipv6_prefix *prefix)
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
 		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty.");
-		return ERR_POOL6_EMPTY;
+		return EINVAL;
 	}
 
 	list_for_each_entry(node, &pool, next) {
@@ -123,13 +123,13 @@ enum error_code pool6_remove(struct ipv6_prefix *prefix)
 			list_del(&node->next);
 			kfree(node);
 			spin_unlock_bh(&pool_lock);
-			return ERR_SUCCESS;
+			return 0;
 		}
 	}
 	spin_unlock_bh(&pool_lock);
 
 	log_err(ERR_POOL6_NOT_FOUND, "The prefix is not part of the pool.");
-	return ERR_POOL6_NOT_FOUND;
+	return ENOENT;
 }
 
 bool pool6_contains(struct in6_addr *address)
@@ -178,35 +178,19 @@ bool pool6_peek(struct ipv6_prefix *out)
 	return true;
 }
 
-enum error_code pool6_to_array(struct ipv6_prefix **array_out, __u32 *size_out)
+int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
 {
-	struct list_head *cursor;
 	struct pool_node *node;
 
-	struct ipv6_prefix *array;
-	__u32 size;
-
-	size = 0;
-	spin_lock_bh(&pool_lock);
-	list_for_each(cursor, &pool)
-		size++;
-	spin_unlock_bh(&pool_lock);
-
-	array = kmalloc(size * sizeof(*node), GFP_ATOMIC);
-	if (!array) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the array meant to hold the table.");
-		return ERR_ALLOC_FAILED;
-	}
-
-	size = 0;
 	spin_lock_bh(&pool_lock);
 	list_for_each_entry(node, &pool, next) {
-		memcpy(&array[size], &node->prefix, sizeof(*node));
-		size++;
+		int error = func(&node->prefix, arg);
+		if (error) {
+			spin_unlock_bh(&pool_lock);
+			return error;
+		}
 	}
 	spin_unlock_bh(&pool_lock);
 
-	*array_out = array;
-	*size_out = size;
-	return ERR_SUCCESS;
+	return 0;
 }

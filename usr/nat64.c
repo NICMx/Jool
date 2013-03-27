@@ -230,6 +230,7 @@ static struct argp_option options[] =
 static int parse_opt(int key, char *arg, struct argp_state *state)
 {
 	struct arguments *arguments = state->input;
+	int error = 0;
 	__u16 temp;
 
 	switch (key) {
@@ -273,13 +274,11 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 
 	case ARGP_ADDRESS:
-		if (str_to_addr4(arg, &arguments->pool4_addr) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_addr4(arg, &arguments->pool4_addr);
 		arguments->pool4_addr_set = true;
 		break;
 	case ARGP_PREFIX:
-		if (str_to_prefix(arg, &arguments->pool6_prefix) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_prefix(arg, &arguments->pool6_prefix);
 		arguments->pool6_prefix_set = true;
 		break;
 //	case ARGP_STATIC:
@@ -290,156 +289,132 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 //		break;
 //
 //	case ARGP_IPV6:
-//		if (str_to_addr6_port(arg, &arguments->bib_addr6) != ERR_SUCCESS)
-//			return EINVAL;
+//		error = str_to_addr6_port(arg, &arguments->bib_addr6);
 //		arguments->bib_addr6_set = true;
 //		break;
 //	case ARGP_IPV4:
-//		if (str_to_addr4_port(arg, &arguments->bib_addr4) != ERR_SUCCESS)
-//			return EINVAL;
+//		error = str_to_addr4_port(arg, &arguments->bib_addr4);
 //		arguments->bib_addr4_set = true;
 //		break;
 	case ARGP_REMOTE6:
-		if (str_to_addr6_port(arg, &arguments->session_pair6.remote) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_addr6_port(arg, &arguments->session_pair6.remote);
 		arguments->session_pair6_remote_set = true;
 		break;
 	case ARGP_LOCAL6:
-		if (str_to_addr6_port(arg, &arguments->session_pair6.local) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_addr6_port(arg, &arguments->session_pair6.local);
 		arguments->session_pair6_local_set = true;
 		break;
 	case ARGP_LOCAL4:
-		if (str_to_addr4_port(arg, &arguments->session_pair4.local) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_addr4_port(arg, &arguments->session_pair4.local);
 		arguments->session_pair4_local_set = true;
 		break;
 	case ARGP_REMOTE4:
-		if (str_to_addr4_port(arg, &arguments->session_pair4.remote) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_addr4_port(arg, &arguments->session_pair4.remote);
 		arguments->session_pair4_remote_set = true;
 		break;
 
 	case ARGP_DROP_ADDR:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_BY_ADDR_MASK;
-		if (str_to_bool(arg, &arguments->filtering.drop_by_addr) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->filtering.drop_by_addr);
 		break;
 	case ARGP_DROP_INFO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_ICMP6_INFO_MASK;
-		if (str_to_bool(arg, &arguments->filtering.drop_icmp6_info) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->filtering.drop_icmp6_info);
 		break;
 //	case ARGP_DROP_TCP:
 //		arguments->mode = MODE_FILTERING;
 //		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
-//		if (str_to_bool(arg, &arguments->filtering.drop_external_tcp) != ERR_SUCCESS)
-//			return EINVAL;
+//		error = str_to_bool(arg, &arguments->filtering.drop_external_tcp);
 //		break;
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
-		if (str_to_u16(arg, &temp, UDP_MIN, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &temp, UDP_MIN, 0xFFFF);
 		arguments->filtering.to.udp = temp;
 		break;
 	case ARGP_ICMP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ICMP_TIMEOUT_MASK;
-		if (str_to_u16(arg, &temp, 0, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &temp, 0, 0xFFFF);
 		arguments->filtering.to.icmp = temp;
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_EST_TIMEOUT_MASK;
-		if (str_to_u16(arg, &temp, TCP_EST, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &temp, TCP_EST, 0xFFFF);
 		arguments->filtering.to.tcp_est = temp;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
-		if (str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF);
 		arguments->filtering.to.tcp_trans = temp;
 		break;
 
 	case ARGP_HEAD:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= SKB_HEAD_ROOM_MASK;
-		if (str_to_u16(arg, &arguments->translate.skb_head_room, 0, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &arguments->translate.skb_head_room, 0, 0xFFFF);
 		break;
 	case ARGP_TAIL:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= SKB_TAIL_ROOM_MASK;
-		if (str_to_u16(arg, &arguments->translate.skb_tail_room, 0, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &arguments->translate.skb_tail_room, 0, 0xFFFF);
 		break;
 	case ARGP_RESET_TCLASS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= RESET_TCLASS_MASK;
-		if (str_to_bool(arg, &arguments->translate.reset_traffic_class) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->translate.reset_traffic_class);
 		break;
 	case ARGP_RESET_TOS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= RESET_TOS_MASK;
-		if (str_to_bool(arg, &arguments->translate.reset_tos) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->translate.reset_tos);
 		break;
 	case ARGP_NEW_TOS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= NEW_TOS_MASK;
-		if (str_to_u8(arg, &arguments->translate.new_tos, 0, 0xFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u8(arg, &arguments->translate.new_tos, 0, 0xFF);
 		break;
 	case ARGP_DF:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= DF_ALWAYS_ON_MASK;
-		if (str_to_bool(arg, &arguments->translate.df_always_on) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->translate.df_always_on);
 		break;
 	case ARGP_BUILD_ID:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= BUILD_IPV4_ID_MASK;
-		if (str_to_bool(arg, &arguments->translate.build_ipv4_id) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->translate.build_ipv4_id);
 		break;
 	case ARGP_LOWER_MTU_FAIL:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= LOWER_MTU_FAIL_MASK;
-		if (str_to_bool(arg, &arguments->translate.lower_mtu_fail) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_bool(arg, &arguments->translate.lower_mtu_fail);
 		break;
 	case ARGP_NEXT_MTU6:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= IPV6_NEXTHOP_MTU_MASK;
-		if (str_to_u16(arg, &arguments->translate.ipv6_nexthop_mtu, 0, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &arguments->translate.ipv6_nexthop_mtu, 0, 0xFFFF);
 		break;
 	case ARGP_NEXT_MTU4:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= IPV4_NEXTHOP_MTU_MASK;
-		if (str_to_u16(arg, &arguments->translate.ipv4_nexthop_mtu, 0, 0xFFFF) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16(arg, &arguments->translate.ipv4_nexthop_mtu, 0, 0xFFFF);
 		break;
 	case ARGP_PLATEAUS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= MTU_PLATEAUS_MASK;
-		if (str_to_u16_array(arg, &arguments->translate.mtu_plateaus,
-				&arguments->translate.mtu_plateau_count) != ERR_SUCCESS)
-			return EINVAL;
+		error = str_to_u16_array(arg, &arguments->translate.mtu_plateaus,
+				&arguments->translate.mtu_plateau_count);
 		break;
 
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
 
-	return 0;
+	return error;
 }
 
 /*

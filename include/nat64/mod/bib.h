@@ -60,7 +60,7 @@ bool bib_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
-enum error_code bib_add(struct bib_entry *entry, u_int8_t l4protocol);
+int bib_add(struct bib_entry *entry, u_int8_t l4protocol);
 
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
@@ -125,19 +125,9 @@ void bib_destroy(void);
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6);
 
 /**
- * Creates an array out of the "l4protocol" BIB's data and places it in *"array".
- *
- * @param l4protocol identifier of the table to array-ize. Should be either IPPROTO_UDP, IPPROTO_TCP
- *		or IPPROTO_ICMP from linux/in.h.
- * @param array the result will be stored here. Yes, this parameter is a horrible abomination. Think
- *		of it this way: It's an array (asterisk 2) of pointers (asterisk 3). The remaining asterisk
- *		makes it a by-reference argument. FML.
- * @return the resulting length of "array". May be -1, if memory could not be allocated.
- *
- * You have to kfree "array" after you use it. Don't kfree its contents, as they are references to
- * the real entries from the table.
+ * Asume que el candado ya se reservó.
  */
-__s32 bib_to_array(__u8 l4protocol, struct bib_entry ***array);
+int bib_for_each(__u8 l4protocol, int (*func)(struct bib_entry *, void *), void *arg);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".

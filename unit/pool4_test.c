@@ -229,12 +229,12 @@ static bool init(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(expected_ips); i++) {
-		if (str_to_addr4(expected_ips_as_str[i], &expected_ips[i]) != ERR_SUCCESS) {
+		if (str_to_addr4(expected_ips_as_str[i], &expected_ips[i]) != 0) {
 			log_warning("Cannot parse test address '%s'. Failing.", expected_ips_as_str[i]);
 			return false;
 		}
 
-		if (pool4_register(&expected_ips[i]) != ERR_SUCCESS) {
+		if (pool4_register(&expected_ips[i]) != 0) {
 			log_warning("Could not register address %pI4. Failing...", &expected_ips[i]);
 			return false;
 		}

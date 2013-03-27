@@ -27,7 +27,7 @@ MODULE_ALIAS("nat64_test_filtering");
 
 bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 {
-	if (str_to_addr6(str, addr) != ERR_SUCCESS)
+	if (str_to_addr6(str, addr) != 0)
 	{
 		log_warning("Cannot parse '%s' as a valid IPv6 address", str);
 		return false;
@@ -36,7 +36,7 @@ bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 }
 bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 {
-	if (str_to_addr4(str, addr) != ERR_SUCCESS)
+	if (str_to_addr4(str, addr) != 0)
 	{
 		log_warning("Cannot parse '%s' as a valid IPv4 address", str);
 		return false;
@@ -237,7 +237,7 @@ bool inject_bib_entry( u_int8_t l4protocol )
     	return false;
     }
     
-    if (bib_add( bib_e, l4protocol ) != ERR_SUCCESS)
+    if (bib_add( bib_e, l4protocol ) != 0)
     {
     	log_warning("Could not insert the BIB entry to the table.");
 		return false;

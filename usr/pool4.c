@@ -8,27 +8,21 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(union request_pool6)
 
+
 static int pool4_display_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr;
+	struct nlmsghdr *hdr;
 	struct in_addr *addresses;
-	__u16 addr_count;
-	__u16 i;
+	__u16 addr_count, i;
 
-	hdr = nlmsg_data(nlmsg_hdr(msg));
-	addresses = (struct in_addr *) (hdr + 1);
-	addr_count = (hdr->length - sizeof(*hdr)) / sizeof(*addresses);
+	hdr = nlmsg_hdr(msg);
+	addresses = nlmsg_data(hdr);
+	addr_count = nlmsg_datalen(hdr) / sizeof(*addresses);
 
-	if (hdr->result_code != ERR_SUCCESS) {
-		print_code_msg(hdr->result_code, NULL);
-		return EINVAL;
-	}
-
-	if (addr_count == 0)
-		printf("The pool is empty.\n");
 	for (i = 0; i < addr_count; i++)
 		printf("%s\n", inet_ntoa(addresses[i]));
 
+	*((int *) arg) += addr_count;
 	return 0;
 }
 
@@ -39,14 +33,23 @@ int pool4_display(void)
 			.mode = MODE_POOL4,
 			.operation = OP_DISPLAY,
 	};
+	int row_count = 0;
+	int error;
 
-	return netlink_request(&request, request.length, pool4_display_response);
+	error = netlink_request(&request, request.length, pool4_display_response, &row_count);
+	if (!error) {
+		if (row_count > 0)
+			log_info("  (Fetched %u addresses.)", row_count);
+		else
+			log_info("  (empty)");
+	}
+
+	return error;
 }
 
 static int pool4_add_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr->result_code, "The address was added successfully.");
+	log_info("The address was added successfully.");
 	return 0;
 }
 
@@ -61,13 +64,12 @@ int pool4_add(struct in_addr *addr)
 	hdr->operation = OP_ADD;
 	payload->update.addr = *addr;
 
-	return netlink_request(request, hdr->length, pool4_add_response);
+	return netlink_request(request, hdr->length, pool4_add_response, NULL);
 }
 
 static int pool4_remove_response(struct nl_msg *msg, void *arg)
 {
-	struct response_hdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-	print_code_msg(hdr->result_code, "The address was removed successfully.");
+	log_info("The address was removed successfully.");
 	return 0;
 }
 
@@ -82,5 +84,5 @@ int pool4_remove(struct in_addr *addr)
 	hdr->operation = OP_REMOVE;
 	payload->update.addr = *addr;
 
-	return netlink_request(request, hdr->length, pool4_remove_response);
+	return netlink_request(request, hdr->length, pool4_remove_response, NULL);
 }

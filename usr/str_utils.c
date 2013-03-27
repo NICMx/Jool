@@ -9,38 +9,38 @@
 
 #define MAX_PORT 0xFFFF
 
-enum error_code str_to_bool(const char *str, bool *bool_out)
+int str_to_bool(const char *str, bool *bool_out)
 {
 	if (strcasecmp(str, "true") == 0 || strcasecmp(str, "1") == 0
 			|| strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0) {
 		*bool_out = true;
-		return ERR_SUCCESS;
+		return 0;
 	}
 
 	if (strcasecmp(str, "false") == 0 || strcasecmp(str, "0") == 0
 			|| strcasecmp(str, "no") == 0 || strcasecmp(str, "off") == 0) {
 		*bool_out = false;
-		return ERR_SUCCESS;
+		return 0;
 	}
 
 	log_err(ERR_PARSE_BOOL, "Cannot parse '%s' as a boolean (true|false|1|0|yes|no|on|off).", str);
-	return ERR_PARSE_BOOL;
+	return EINVAL;
 }
 
-enum error_code str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
+int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 {
 	__u16 result;
-	enum error_code error;
+	int error;
 
 	error = str_to_u16(str, &result, min, max);
 	if (error)
 		return error; // Error msg already printed.
 
 	*u8_out = result;
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
+int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 {
 	long result;
 	char *endptr;
@@ -49,18 +49,18 @@ enum error_code str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max
 	result = strtol(str, &endptr, 10);
 	if (errno != 0 || str == endptr) {
 		log_err(ERR_PARSE_INT, "Cannot parse '%s' as an integer value.", str);
-		return ERR_PARSE_INT;
+		return EINVAL;
 	}
 	if (result < min || max < result) {
 		log_err(ERR_INT_OUT_OF_BOUNDS, "'%s' is out of bounds (%u-%u).", str, min, max);
-		return ERR_INT_OUT_OF_BOUNDS;
+		return EINVAL;
 	}
 
 	*u16_out = result;
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
+int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 {
 	const unsigned int str_max_len = 2048;
 	char str_copy[str_max_len]; // strtok corrupts the string, so we'll be using this copy instead.
@@ -71,7 +71,7 @@ enum error_code str_to_u16_array(const char *str, __u16 **array_out, __u16 *arra
 	// Validate str and copy it to the temp buffer.
 	if (strlen(str) + 1 > str_max_len) {
 		log_err(ERR_PARSE_INTARRAY, "'%s' is too long for this poor, limited parser...", str);
-		return ERR_PARSE_INTARRAY;
+		return EINVAL;
 	}
 	strcpy(str_copy, str);
 
@@ -85,14 +85,14 @@ enum error_code str_to_u16_array(const char *str, __u16 **array_out, __u16 *arra
 
 	if (array_len == 0) {
 		log_err(ERR_PARSE_INTARRAY, "'%s' seems to be an empty list, which is not supported.", str);
-		return ERR_PARSE_INTARRAY;
+		return EINVAL;
 	}
 
 	// Build the result.
 	array = malloc(array_len * sizeof(__u16));
 	if (!array) {
 		log_err(ERR_ALLOC_FAILED, "Memory allocation failed. Cannot parse the input...");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 
 	strcpy(str_copy, str);
@@ -100,7 +100,7 @@ enum error_code str_to_u16_array(const char *str, __u16 **array_out, __u16 *arra
 	array_len = 0;
 	token = strtok(str_copy, ",");
 	while (token) {
-		enum error_code error;
+		int error;
 
 		error = str_to_u16(token, &array[array_len], 0, 0xFFFF);
 		if (error) {
@@ -115,45 +115,45 @@ enum error_code str_to_u16_array(const char *str, __u16 **array_out, __u16 *arra
 	// Finish.
 	*array_out = array;
 	*array_len_out = array_len;
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_addr4(const char *str, struct in_addr *result)
+int str_to_addr4(const char *str, struct in_addr *result)
 {
 	if (!inet_pton(AF_INET, str, result)) {
 		log_err(ERR_PARSE_ADDR4, "Cannot parse '%s' as a IPv4 address.", str);
-		return ERR_PARSE_ADDR4;
+		return EINVAL;
 	}
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_addr6(const char *str, struct in6_addr *result)
+int str_to_addr6(const char *str, struct in6_addr *result)
 {
 	if (!inet_pton(AF_INET6, str, result)) {
 		log_err(ERR_PARSE_ADDR6, "Cannot parse '%s' as a IPv6 address.", str);
-		return ERR_PARSE_ADDR6;
+		return EINVAL;
 	}
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
+int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 {
 	const char *FORMAT = "<IPv4 address>#<port> (eg. 10.20.30.40#50)";
 	const unsigned int STR_MAX_LEN = INET_ADDRSTRLEN + 1 + 5; // [addr + null chara] + # + port
 	char str_copy[STR_MAX_LEN]; // strtok corrupts the string, so we'll be using this copy instead.
 	char *token;
-	enum error_code error;
+	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
 		log_err(ERR_PARSE_ADDR4_PORT, "'%s' is too long for this poor, limited parser...", str);
-		return ERR_PARSE_ADDR4_PORT;
+		return EINVAL;
 	}
 	strcpy(str_copy, str);
 
 	token = strtok(str_copy, "#");
 	if (!token) {
 		log_err(ERR_PARSE_ADDR4_PORT, "Cannot parse '%s' as a %s.", str, FORMAT);
-		return ERR_PARSE_ADDR4_PORT;
+		return EINVAL;
 	}
 
 	error = str_to_addr4(token, &addr_out->address);
@@ -164,33 +164,33 @@ enum error_code str_to_addr4_port(const char *str, struct ipv4_tuple_address *ad
 	if (!token) {
 		log_err(ERR_PARSE_ADDR4_PORT, "'%s' does not seem to contain a port (format: %s).", str,
 				FORMAT);
-		return ERR_PARSE_ADDR4_PORT;
+		return EINVAL;
 	}
 	error = str_to_u16(token, &addr_out->l4_id, 0, MAX_PORT);
 	if (error)
 		return error; // Error msg already printed.
 
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
+int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 {
 	const char *FORMAT = "<IPv6 address>#<port> (eg. 64:ff9b::#96)";
 	const unsigned int STR_MAX_LEN = INET6_ADDRSTRLEN + 1 + 5; // [addr + null chara] + # + port
 	char str_copy[STR_MAX_LEN]; // strtok corrupts the string, so we'll be using this copy instead.
 	char *token;
-	enum error_code error;
+	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
 		log_err(ERR_PARSE_ADDR6_PORT, "'%s' is too long for this poor, limited parser...", str);
-		return ERR_PARSE_ADDR6_PORT;
+		return EINVAL;
 	}
 	strcpy(str_copy, str);
 
 	token = strtok(str_copy, "#");
 	if (!token) {
 		log_err(ERR_PARSE_ADDR6_PORT, "Cannot parse '%s' as a %s.", str, FORMAT);
-		return ERR_PARSE_ADDR6_PORT;
+		return EINVAL;
 	}
 
 	error = str_to_addr6(token, &addr_out->address);
@@ -201,36 +201,36 @@ enum error_code str_to_addr6_port(const char *str, struct ipv6_tuple_address *ad
 	if (!token) {
 		log_err(ERR_PARSE_ADDR6_PORT, "'%s' does not seem to contain a port (format: %s).", str,
 				FORMAT);
-		return ERR_PARSE_ADDR6_PORT;
+		return EINVAL;
 	}
 	error = str_to_u16(token, &addr_out->l4_id, 0, MAX_PORT);
 	if (error)
 		return error; // Error msg already printed.
 
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
+int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv6 address>/<length> (eg. 64:ff9b::/96)";
 	const unsigned int STR_MAX_LEN = INET6_ADDRSTRLEN + 1 + 3; // [addr + null chara] + / + pref len
 	char str_copy[STR_MAX_LEN]; // strtok corrupts the string, so we'll be using this copy instead.
 	char *token;
 	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
-	int valid_lengths_size = sizeof(valid_lengths) / sizeof((valid_lengths)[0]);
+	int valid_lengths_size = sizeof(valid_lengths) / sizeof(valid_lengths[0]);
 	int i;
 	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
 		log_err(ERR_PARSE_PREFIX, "'%s' is too long for this poor, limited parser...", str);
-		return ERR_PARSE_PREFIX;
+		return EINVAL;
 	}
 	strcpy(str_copy, str);
 
 	token = strtok(str_copy, "/");
 	if (!token) {
 		log_err(ERR_PARSE_PREFIX, "Cannot parse '%s' as a %s.", str, FORMAT);
-		return ERR_PARSE_PREFIX;
+		return EINVAL;
 	}
 
 	error = str_to_addr6(token, &prefix_out->address);
@@ -240,7 +240,7 @@ enum error_code str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 	token = strtok(NULL, "/");
 	if (!token) {
 		log_err(ERR_PARSE_PREFIX, "'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
-		return ERR_PARSE_PREFIX;
+		return EINVAL;
 	}
 	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
 	if (error)
@@ -248,10 +248,10 @@ enum error_code str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 
 	for (i = 0; i < valid_lengths_size; i++)
 		if (prefix_out->len == valid_lengths[i])
-			return ERR_SUCCESS;
+			return 0;
 
 	log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length.", prefix_out->len);
-	return ERR_PREF_LEN_RANGE;
+	return EINVAL;
 }
 
 static char *get_error_msg(enum error_code code)
@@ -336,8 +336,6 @@ static char *get_error_msg(enum error_code code)
 
 	case ERR_INVALID_ITERATOR:
 		return "A internal iterator is corrupted.";
-	case ERR_WRONG_SIZE:
-		return "A internal hash table is corrupted.";
 
 	case ERR_POOL4_EMPTY:
 		return "The IPv4 is empty! Please throw in addresses, so the NAT64 can translate.";

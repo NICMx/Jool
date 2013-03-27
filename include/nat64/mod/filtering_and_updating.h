@@ -17,9 +17,9 @@ bool filtering_init(void); // Esto se llama al insertar el módulo y se encarga 
 
 void filtering_destroy(void); // Esto libera la memoria reservada por filtering_init. Supongo qeu no la necesitas
 
-enum error_code clone_filtering_config(struct filtering_config *clone); // Esta guarda el contenido de config en el parámetro "clone". La necesito en configuración para enviar la configuración a userspace cuando se consulta
+int clone_filtering_config(struct filtering_config *clone); // Esta guarda el contenido de config en el parámetro "clone". La necesito en configuración para enviar la configuración a userspace cuando se consulta
 
-enum error_code set_filtering_config(__u32 operation, struct filtering_config *new_config); // Esta sirve para modificar a config
+int set_filtering_config(__u32 operation, struct filtering_config *new_config); // Esta sirve para modificar a config
 
 
 #endif

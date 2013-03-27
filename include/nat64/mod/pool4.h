@@ -29,13 +29,13 @@ void pool4_destroy(void);
  * Inserts the "address" address (along with its 64k ports) into the "l4protocol" pool.
  * These elements will then become borrowable through the pool_get_* functions.
  */
-enum error_code pool4_register(struct in_addr *address);
+int pool4_register(struct in_addr *address);
 /**
  * Removes the "address" address (along with its 64k ports) from the "l4_protocol" pool.
  * If something was borrowed (not in the pool at the moment) it will be erased later, when the pool
  * retrieves it.
  */
-enum error_code pool4_remove(struct in_addr *address);
+int pool4_remove(struct in_addr *address);
 
 /**
  * Reserves and returns some available IPv4 address from the "l4protocol" pool, along with one of
@@ -73,6 +73,6 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 
 bool pool4_contains(struct in_addr *address);
-enum error_code pool4_to_array(struct in_addr **array_out, __u32 *size_out);
+int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg);
 
 #endif /* _NF_NAT64_IPV4_POOL_H */

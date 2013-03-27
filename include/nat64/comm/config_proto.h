@@ -19,6 +19,8 @@
 //#define MSG_TYPE_ROUTE (0x10 + 3)  ///< Netlink socket packet ID, static routes 
 #define MSG_TYPE_NAT64 (0x10 + 2)  ///< Netlink socket packet ID, configuration
 
+#define MSG_SETCFG      0x11
+#define MSG_GETCFG      0x12
 
 enum config_mode {
 	MODE_POOL6 = 1,
@@ -231,20 +233,13 @@ struct request_session {
 	};
 };
 
-/**
- * Because the payload is sometimes a variable-length array, and as such I cannot make a struct
- * that can contain it without using pointers, a pointer to a header is actually a pointer to the
- * entire response.
- */
-struct response_hdr {
-	__u32 length;
-	__u32 result_code;
-};
+// Because of the somewhat intrusive nature of the netlink header, response header structures are
+// not really neccesary.
 
 
-enum error_code serialize_translate_config(struct translate_config *config,
+int serialize_translate_config(struct translate_config *config,
 		unsigned char **buffer_out, __u16 *buffer_len_out);
-enum error_code deserialize_translate_config(void *buffer, __u16 buffer_len,
+int deserialize_translate_config(void *buffer, __u16 buffer_len,
 		struct translate_config *target_out);
 
 #endif

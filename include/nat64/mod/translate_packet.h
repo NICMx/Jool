@@ -162,8 +162,8 @@ struct packet_out {
 bool translate_packet_init(void);
 void translate_packet_destroy(void);
 
-enum error_code clone_translate_config(struct translate_config *clone);
-enum error_code set_translate_config(__u32 operation, struct translate_config *new_config);
+int clone_translate_config(struct translate_config *clone);
+int set_translate_config(__u32 operation, struct translate_config *new_config);
 
 /**
  * Assumes "skb_in" is a IPv4 packet, and stores a IPv6 equivalent in "skb_out".

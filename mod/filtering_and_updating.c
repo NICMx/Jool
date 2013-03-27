@@ -54,13 +54,13 @@ void filtering_destroy(void)
  * 
  *  @param[out]  clone   A copy of the current configuration values.
  *  @return     ________. */
-enum error_code clone_filtering_config(struct filtering_config *clone)
+int clone_filtering_config(struct filtering_config *clone)
 {
     spin_lock_bh(&config_lock);
     *clone = config;
     spin_unlock_bh(&config_lock);
 
-    return ERR_SUCCESS;
+    return 0;
 } 
 
 /** Sirve para modificar a config 
@@ -69,9 +69,9 @@ enum error_code clone_filtering_config(struct filtering_config *clone)
  *  @param[in]  new_config  The new configuration.
  *  @return response_code   ___________.
  *  */
-enum error_code set_filtering_config(__u32 operation, struct filtering_config *new_config)
+int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 {
-	enum error_code result = ERR_SUCCESS;
+	int error = 0;
 
     spin_lock_bh(&config_lock);
 
@@ -84,8 +84,8 @@ enum error_code set_filtering_config(__u32 operation, struct filtering_config *n
  
     if (operation & UDP_TIMEOUT_MASK) {
         if ( new_config->to.udp < UDP_MIN ) {
-        	result = ERR_UDP_TO_RANGE;
-            log_err(result, "The UDP timeout must be at least %u.", UDP_MIN);
+        	error = EINVAL;
+            log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u.", UDP_MIN);
         } else {
         	config.to.udp = new_config->to.udp;
         }
@@ -94,23 +94,23 @@ enum error_code set_filtering_config(__u32 operation, struct filtering_config *n
         config.to.icmp = new_config->to.icmp;
     if (operation & TCP_EST_TIMEOUT_MASK) {
         if ( new_config->to.tcp_est < TCP_EST ) {
-        	result = ERR_TCPEST_TO_RANGE;
-        	log_err(result, "The TCP est timeout must be at least %u.", TCP_EST);
+        	error = EINVAL;
+        	log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u.", TCP_EST);
         } else {
         	config.to.tcp_est = new_config->to.tcp_est;
         }
     }
     if (operation & TCP_TRANS_TIMEOUT_MASK) {
         if ( new_config->to.tcp_trans < TCP_TRANS ) {
-        	result = ERR_TCPTRANS_TO_RANGE;
-            log_err(result, "The TCP trans timeout must be at least %u.", TCP_TRANS);
+        	error = EINVAL;
+            log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u.", TCP_TRANS);
         } else {
         	config.to.tcp_trans = new_config->to.tcp_trans;
         }
     }
   
     spin_unlock_bh(&config_lock);
-    return result;
+    return error;
 } 
 
 static void update_session_lifetime(struct session_entry *session_entry_p, unsigned int *timeout)
@@ -571,7 +571,7 @@ int ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
         bib_is_local = true;
             
         // Add the BIB entry
-        if (bib_add( bib_entry_p, protocol) != ERR_SUCCESS) {
+        if (bib_add( bib_entry_p, protocol) != 0) {
             log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
             goto failure;
         }
@@ -610,7 +610,7 @@ int ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
         }
 
         // Add the session entry
-        if ( session_add(session_entry_p) != ERR_SUCCESS )
+        if ( session_add(session_entry_p) != 0 )
         {            
             log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto failure;
@@ -707,7 +707,7 @@ int ipv4_udp(struct sk_buff* skb, struct tuple *tuple)
         }
 
         // Add the session entry
-        if ( session_add(session_entry_p) != ERR_SUCCESS )
+        if ( session_add(session_entry_p) != 0 )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -791,7 +791,7 @@ int ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
         bib_is_local = true;
 
         // Add the new BIB entry
-        if ( bib_add(bib_entry_p, protocol) != ERR_SUCCESS )
+        if ( bib_add(bib_entry_p, protocol) != 0 )
         {
         	log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
             goto icmp_and_fail;
@@ -833,7 +833,7 @@ int ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
         }
 
         // Add the session entry
-        if ( session_add( session_entry_p ) != ERR_SUCCESS )
+        if ( session_add( session_entry_p ) != 0 )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -936,7 +936,7 @@ int ipv4_icmp4(struct sk_buff* skb, struct tuple *tuple)
         }
 
         // Add the session entry
-        if ( session_add(session_entry_p) != ERR_SUCCESS )
+        if ( session_add(session_entry_p) != 0 )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -1040,7 +1040,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
             bib_is_local = true;
 
             // Add the new BIB entry
-            if ( bib_add( bib_entry_p, protocol) != ERR_SUCCESS )
+            if ( bib_add( bib_entry_p, protocol) != 0 )
             {
                 icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
                 log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
@@ -1076,7 +1076,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
         update_session_lifetime(session_entry_p, &config.to.tcp_trans);
         session_entry_p->state = V6_INIT;
 
-        if ( session_add(session_entry_p) != ERR_SUCCESS )
+        if ( session_add(session_entry_p) != 0 )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;
@@ -1170,7 +1170,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
             }
         }
 
-        if ( session_add(session_entry_p) != ERR_SUCCESS )
+        if ( session_add(session_entry_p) != 0 )
         {
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
             goto icmp_and_fail;

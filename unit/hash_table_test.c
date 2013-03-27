@@ -91,7 +91,7 @@ static bool test(void)
 
 	// Test put and get.
 	for (i = 0; i < 3; i++)
-		if (test_table_put(&table, &keys[i], &values[i]) != ERR_SUCCESS) {
+		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation (1) failed on value %d.", i);
 			goto failure;
 		}
@@ -126,7 +126,7 @@ static bool test(void)
 	values[2].value = 736;
 
 	for (i = 0; i < 3; i++)
-		if (test_table_put(&table, &keys[i], &values[i]) != ERR_SUCCESS) {
+		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation (2) failed on value %d.", i);
 			goto failure;
 		}
@@ -164,7 +164,7 @@ static bool test_to_array_function(void)
 	// Init.
 	test_table_init(&table, &equals_function, &hash_code_function);
 	for (i = 0; i < ARRAY_SIZE(values); i++)
-		if (test_table_put(&table, &keys[i], &values[i]) != ERR_SUCCESS) {
+		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation failed on value %d.", i);
 			goto failure;
 		}

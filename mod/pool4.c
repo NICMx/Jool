@@ -150,11 +150,11 @@ static bool load_defaults(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(addrs); i++) {
-		if (str_to_addr4(addrs[i], &addr) != ERR_SUCCESS) {
+		if (str_to_addr4(addrs[i], &addr) != 0) {
 			log_err(ERR_POOL4_INVALID_DEFAULT, "Address in headers is malformed: %s.", addrs[i]);
 			goto failure;
 		}
-		if (pool4_register(&addr) != ERR_SUCCESS)
+		if (pool4_register(&addr) != 0)
 			goto failure;
 	}
 
@@ -238,19 +238,19 @@ static void init_protocol_ids(struct protocol_ids *ids)
 	init_section(&ids->even_high, 1024, 65534);
 }
 
-enum error_code pool4_register(struct in_addr *address)
+int pool4_register(struct in_addr *address)
 {
 	struct pool_node *old_node, *new_node;
 
 	if (!address) {
 		log_err(ERR_NULL, "NULL cannot be inserted to the pool.");
-		return ERR_NULL;
+		return EINVAL;
 	}
 
 	new_node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!new_node) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of IPv4 pool node failed.");
-		return ERR_ALLOC_FAILED;
+		return ENOMEM;
 	}
 
 	new_node->address = *address;
@@ -265,7 +265,7 @@ enum error_code pool4_register(struct in_addr *address)
 			spin_unlock_bh(&pool_lock);
 			kfree(new_node);
 			log_err(ERR_POOL4_REINSERT, "The %pI4 address already belongs to the pool.", address);
-			return ERR_POOL4_REINSERT;
+			return EINVAL;
 		}
 	}
 
@@ -273,16 +273,16 @@ enum error_code pool4_register(struct in_addr *address)
 	list_add(&new_node->next, pool.prev);
 
 	spin_unlock_bh(&pool_lock);
-	return ERR_SUCCESS;
+	return 0;
 }
 
-enum error_code pool4_remove(struct in_addr *address)
+int pool4_remove(struct in_addr *address)
 {
 	struct pool_node *node;
 
 	if (!address) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
-		return ERR_NULL;
+		return EINVAL;
 	}
 
 	spin_lock_bh(&pool_lock);
@@ -291,13 +291,13 @@ enum error_code pool4_remove(struct in_addr *address)
 	if (!node) {
 		spin_unlock_bh(&pool_lock);
 		log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
-		return ERR_POOL4_NOT_FOUND;
+		return ENOENT;
 	}
 
 	destroy_pool_node(node);
 
 	spin_unlock_bh(&pool_lock);
-	return ERR_SUCCESS;
+	return 0;
 }
 
 bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *result)
@@ -410,34 +410,19 @@ bool pool4_contains(struct in_addr *address)
 	return result;
 }
 
-enum error_code pool4_to_array(struct in_addr **array_out, __u32 *size_out)
+int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg)
 {
-	struct list_head *cursor;
 	struct pool_node *node;
 
-	struct in_addr *array;
-	__u32 size;
-
-	size = 0;
 	spin_lock_bh(&pool_lock);
-	list_for_each(cursor, &pool)
-		size++;
-
-	array = kmalloc(size * sizeof(*node), GFP_ATOMIC);
-	if (!array) {
-		spin_unlock_bh(&pool_lock);
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the array meant to hold the table.");
-		return ERR_ALLOC_FAILED;
-	}
-
-	size = 0;
 	list_for_each_entry(node, &pool, next) {
-		memcpy(&array[size], &node->address, sizeof(struct in_addr));
-		size++;
+		int error = func(&node->address, arg);
+		if (error) {
+			spin_unlock_bh(&pool_lock);
+			return error;
+		}
 	}
 	spin_unlock_bh(&pool_lock);
 
-	*array_out = array;
-	*size_out = size;
-	return ERR_SUCCESS;
+	return 0;
 }

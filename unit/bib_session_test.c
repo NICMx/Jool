@@ -53,7 +53,7 @@ const __u16 IPV6_PORTS[] = { 334, 0, 9556, 65535, //
 struct ipv4_tuple_address create_tuple_addr_4(int index)
 {
 	struct ipv4_tuple_address result;
-	if (str_to_addr4(IPV4_ADDRS[index], &result.address) != ERR_SUCCESS)
+	if (str_to_addr4(IPV4_ADDRS[index], &result.address) != 0)
 		log_warning("Can't convert '%s' to a in_addr. Test is going to fail.", IPV4_ADDRS[index]);
 	result.l4_id = IPV4_PORTS[index];
 	return result;
@@ -62,7 +62,7 @@ struct ipv4_tuple_address create_tuple_addr_4(int index)
 struct ipv6_tuple_address create_tuple_addr_6(int index)
 {
 	struct ipv6_tuple_address result;
-	if (str_to_addr6(IPV6_ADDRS[index], &result.address) != ERR_SUCCESS)
+	if (str_to_addr6(IPV6_ADDRS[index], &result.address) != 0)
 		log_warning("Can't convert '%s' to a in6_addr. Test is going to fail.", IPV6_ADDRS[index]);
 	result.l4_id = IPV6_PORTS[index];
 	return result;
@@ -224,7 +224,7 @@ bool simple_bib(void)
 	}
 
 	// Add
-	if (bib_add(bib, IPPROTO_TCP) != ERR_SUCCESS) {
+	if (bib_add(bib, IPPROTO_TCP) != 0) {
 		log_warning("Test 'BIB insertion' failed: Call returned failure.");
 		return false;
 	}
@@ -260,7 +260,7 @@ bool simple_bib_session(void)
 	}
 
 	// Insert the BIB entry.
-	if (bib_add(bib, IPPROTO_TCP) != ERR_SUCCESS) {
+	if (bib_add(bib, IPPROTO_TCP) != 0) {
 		log_warning("Test 'BIB insertion' failed: Call returned failure.");
 		return false;
 	}
@@ -268,7 +268,7 @@ bool simple_bib_session(void)
 		return false;
 
 	// Insert the session entry.
-	if (session_add(session) != ERR_SUCCESS) {
+	if (session_add(session) != 0) {
 		log_warning("Test 'Session insertion' failed: Call returned failure.");
 		return false;
 	}
@@ -342,7 +342,7 @@ bool test_clean_old_sessions(void)
 
 	// Insert to the tables.
 	for (cbib = 0; cbib < BIB_COUNT; cbib++) {
-		if (bib_add(bibs[cbib], IPPROTO_UDP) != ERR_SUCCESS) {
+		if (bib_add(bibs[cbib], IPPROTO_UDP) != 0) {
 			log_warning("Could not add BIB entry %d.", cbib);
 			return false;
 		}
@@ -350,7 +350,7 @@ bool test_clean_old_sessions(void)
 
 	for (cbib = 0; cbib < BIB_COUNT; cbib++) {
 		for (cses = 0; cses < SESSIONS_PER_BIB; cses++) {
-			if (session_add(sessions[cbib][cses]) != ERR_SUCCESS) {
+			if (session_add(sessions[cbib][cses]) != 0) {
 				log_warning("Could not add session entry %d-%d.", cbib, cses);
 				return false;
 			}
@@ -428,11 +428,11 @@ bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_i
 {
 	struct tuple tuple;
 
-	if (str_to_addr4(IPV4_ADDRS[src_addr_id], &tuple.src.addr.ipv4) != ERR_SUCCESS) {
+	if (str_to_addr4(IPV4_ADDRS[src_addr_id], &tuple.src.addr.ipv4) != 0) {
 		log_warning("Can't parse the '%s' source address. Failing test.", IPV4_ADDRS[src_addr_id]);
 		return false;
 	}
-	if (str_to_addr4(IPV4_ADDRS[dst_addr_id], &tuple.dst.addr.ipv4) != ERR_SUCCESS) {
+	if (str_to_addr4(IPV4_ADDRS[dst_addr_id], &tuple.dst.addr.ipv4) != 0) {
 		log_warning("Can't parse the '%s' dest address. Failing test.", IPV4_ADDRS[dst_addr_id]);
 		return false;
 	}
@@ -461,11 +461,11 @@ bool test_address_filtering(void)
 		return false;
 	}
 
-	if (bib_add(bib, IPPROTO_UDP) != ERR_SUCCESS) {
+	if (bib_add(bib, IPPROTO_UDP) != 0) {
 		log_warning("Could not add the BIB entry.");
 		return false;
 	}
-	if (session_add(session) != ERR_SUCCESS) {
+	if (session_add(session) != 0) {
 		log_warning("Could not add the session entry.");
 		return false;
 	}
@@ -503,7 +503,7 @@ bool test_to_array(void)
 		log_warning("Could not allocate the first BIB entry.");
 		return false;
 	}
-	if (bib_add(first_bib, IPPROTO_UDP) != ERR_SUCCESS) {
+	if (bib_add(first_bib, IPPROTO_UDP) != 0) {
 		log_warning("Could not add the first BIB entry.");
 		return false;
 	}
@@ -513,7 +513,7 @@ bool test_to_array(void)
 		log_warning("Could not allocate the second BIB entry.");
 		return false;
 	}
-	if (bib_add(second_bib, IPPROTO_UDP) != ERR_SUCCESS) {
+	if (bib_add(second_bib, IPPROTO_UDP) != 0) {
 		log_warning("Could not add the second BIB entry.");
 		return false;
 	}

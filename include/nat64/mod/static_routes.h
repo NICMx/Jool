@@ -22,7 +22,7 @@
  * to add a static route to the BIB and Session Table of NAT64.
  *
  */
-enum error_code add_static_route(struct request_session *req);
+int add_static_route(struct request_session *req);
 
 /**
  * delete_static_route - deletes a static route
@@ -34,28 +34,7 @@ enum error_code add_static_route(struct request_session *req);
  * to delete a static route to the BIB and Session Table of NAT64.
  *
  */
-enum error_code delete_static_route(struct request_session *req);
+int delete_static_route(struct request_session *req);
 
-
-/**
- * print_bib_table - prints route table
- * @param  rst  The struct where the route is contained.
- *
- * It obtains bib information from the table and sends it back
- * to userpsace
- */
-enum error_code print_bib_table(union request_bib *request, __u16 *count_out,
-		struct bib_entry_us **bibs_us_out);
-
-
-/**
- * print_session_table - prints route table
- * @param  rst  The struct where the route is contained.
- *
- * It obtains session information from the table and sends it back
- * to userpsace
- */
-enum error_code print_session_table(struct request_session *request, __u16 *count_out,
-		struct session_entry_us **sessions_us_out);
 
 #endif
