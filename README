@@ -20,8 +20,8 @@ IMPORTANT:
 
 Authors:
 	NIC-Mx representatives
-		Ing. Julio Cossío <jcossio@nic.mx>
-		Ing. Jorge Cano <jcano@nic.mx>
+		Ing. Julio Cossío
+		Ing. Jorge Cano
 		Ing. Alberto Leiva <aleiva@nic.mx>
 
 	ITESM representatives
@@ -44,9 +44,6 @@ Authors:
 
 Module Dependencies (modprobe):
 	ipv6
-	ip_tables
-	nf_conntrack
-	nf_conntrack_ipv4
 
 Directories:
 	/doc : Code documentation; Doxygen output.

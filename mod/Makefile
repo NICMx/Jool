@@ -1,37 +1,18 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
-EXTRA_CFLAGS += -DDEBUG
-
-ccflags-y := -I$(src)/../include
-#ccflags-y += -I$(src)/../mod
-
-
-obj-m += nat64.o
-
-nat64-objs += types.o
-nat64-objs += str_utils.o
-nat64-objs += ipv6_hdr_iterator.o
-nat64-objs += rfc6052.o
-nat64-objs += out_stream.o
-nat64-objs += pool6.o
-nat64-objs += pool4.o
-nat64-objs += bib.o
-nat64-objs += session.o
-nat64-objs += static_routes.o
-nat64-objs += config.o
-nat64-objs += config_validation.o
-nat64-objs += config_proto.o
-nat64-objs += determine_incoming_tuple.o
-nat64-objs += filtering_and_updating.o
-nat64-objs += compute_outgoing_tuple.o
-nat64-objs += translate_packet.o
-nat64-objs += handling_hairpinning.o
-nat64-objs += send_packet.o
-nat64-objs += xt_core.o
-
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
+modules:
+	make -C ${KERNEL_DIR} M=$$PWD $@;
+modules_install:
+	make -C ${KERNEL_DIR} M=$$PWD $@;
+clean:
+	make -C ${KERNEL_DIR} M=$$PWD $@;
+
+# The targets below are meant for quick testing.
+# If you want to install the module, see ../INSTALL.
+
 insert:
 	# insert the dependencies
 	sudo modprobe ipv6
@@ -43,13 +24,6 @@ insert:
 	# insert the module
 	sudo insmod nat64.ko
 	dmesg | tail -15
-	# insert the rules
 remove:
 	sudo rmmod nat64
 	dmesg | tail -15
-modules:
-	make -C ${KERNEL_DIR} M=$$PWD $@;
-modules_install:
-	make -C ${KERNEL_DIR} M=$$PWD $@;
-clean:
-	make -C ${KERNEL_DIR} M=$$PWD $@;

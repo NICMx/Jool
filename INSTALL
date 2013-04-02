@@ -1,67 +1,47 @@
-(Tested in Ubuntu and Archlinux.)
-TODO find out what's the deal about that "./configure" stuff everyone's using.
-
-
 Install the requirements:
-	They are iptables-dev, libssl-dev, libnl-3-dev, libnl-genl-3-dev,
-	libmnl-dev and your kernel's image and headers (at least 2.6.38).
-			$ apt-get install iptables-dev libssl-dev
-			$ apt-get install linux-headers-$(uname -r) linux-image-$(uname -r)
+	They are libssl-dev, libnl-3-dev, libnl-genl-3-dev, libmnl-dev and your kernel's image and
+	headers (at least 2.6.38).
+		$ apt-get install libssl-dev
+		$ apt-get install linux-headers-$(uname -r) linux-image-$(uname -r)
 	TODO Netlink stuff needs to be downloaded manually...: packages.ubuntu.com
+	TODO What? we really need the image? Actually please recheck every dependency.
 
-Compile the project:
-	Compile the userspace library.
-			NAT64$ cd usr
-			NAT64/usr$ make libxt_nat64.so
-
-	Copy the userspace library to iptables's targets directory. This directory
-	appears to vary depending on your distribution (try /lib/xtables,
-	/usr/lib/xtables, /usr/local/lib/xtables...).
-	TODO Find that out. Don't sound so ignorant...
-			NAT64/usr$ cp libxt_nat64.so /lib/xtables
-
-	Compile the module.
-			NAT64/usr$ cd ../bin
-			NAT64/bin$ make
+Compile the module:
+	NAT64$ cd mod
+	NAT64/mod$ make
 
 Install the module:
+	NAT64/mod$ make modules_install
+	$ depmod
+
+Insert the module:
 	Ensure the dependencies are up.
-			NAT64/bin$ modprobe ipv6
-			NAT64/bin$ modprobe ip_tables
-			NAT64/bin$ modprobe nf_conntrack
-			NAT64/bin$ modprobe nf_conntrack_ipv4
-
-	Install the module.
-			NAT64/bin$ insmod nat64.ko
-
-	You might want to read the initialization output.
-			$ lsmod   # to check whether the module was actually inserted.
-			$ dmesg   # to check the log.
+		$ modprobe ipv6
 
 	Enable ipv6 and ipv4 forwarding.
-			$ sysctl -w net.ipv4.conf.all.forwarding=1
-			$ sysctl -w net.ipv6.conf.all.forwarding=1
+		$ sysctl -w net.ipv4.conf.all.forwarding=1
+		$ sysctl -w net.ipv6.conf.all.forwarding=1
 
-	Prevent martian packets from reaching the module.
-			$ sysctl -w net.ipv4.conf.all.log_martians=1
+	Prevent martian packets from reaching the module (Required by RFC 6146).
+		$ sysctl -w net.ipv4.conf.all.log_martians=1
 
-	Insert the iptables rules (so the packets actually reaches the module).
-			$ iptables -t mangle --flush
-			$ ip6tables -t mangle --flush
-			$ iptables -t mangle -A PREROUTING -j NAT64
-			$ ip6tables -t mangle -A PREROUTING -j NAT64
+	Install the module.
+		$ modprobe nat64
 
-	You might want to stare at your new rules:
-			$ iptables -t mangle -n -L
-			$ ip6tables -t mangle -n -L
+	You might want to see your module shine.
+		$ lsmod   # See your module listed. Might want to pipe over to "grep nat64".
+		$ dmesg   # Check the log. Only if compiled with DEBUG (see mod/Kbuild).
 
 Configure the module:
-	TODO
+	Compile the userspace application.
+		NAT64$ cd usr
+		NAT64/usr$ make
+
+	Send requests to the module.
+		NAT64/usr$ ./nat64 --help
+		NAT64/usr$ ./nat64 (...)
+
+	(TODO?)
 
 Removing the module:
-	Remove the rules from iptables
-			$ iptables -t mangle --flush
-			$ ip6tables -t mangle --flush
-	Remove the module
-			$ rmmod nat64
-
+	$ rmmod nat64
