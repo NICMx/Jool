@@ -93,10 +93,8 @@ enum error_code {
 
 	/* Pool6 */
 	ERR_POOL6_EMPTY = 2200,
-	ERR_POOL6_INVALID_DEFAULT,
 	/* Pool4 */
 	ERR_POOL4_EMPTY = 2300,
-	ERR_POOL4_INVALID_DEFAULT,
 	/* BIB */
 	ERR_INCOMPLETE_INDEX_BIB = 2400,
 	/* Session */

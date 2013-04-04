@@ -35,19 +35,19 @@ int add_static_route(struct request_session *req)
 
 	if (session_by_6 != NULL && session_by_4 == NULL) {
 		log_err(ERR_SESSION_PAIR6_REINSERT, "The requested ipv6 address pair is already in use.");
-		error = EEXIST;
+		error = -EEXIST;
 		goto failure;
 
 	} else if (session_by_6 == NULL && session_by_4 != NULL) {
 		log_err(ERR_SESSION_PAIR4_REINSERT, "The requested ipv4 address pair is already in use.");
-		error = EEXIST;
+		error = -EEXIST;
 		goto failure;
 
 	} else if (session_by_6 != NULL && session_by_4 != NULL) {
 		if (session_by_6 == session_by_4) {
 			if (session_by_6->is_static) {
 				log_err(ERR_SESSION_REINSERT, "The session entry already exists.");
-				error = EEXIST;
+				error = -EEXIST;
 				goto failure;
 			}
 			session_by_6->is_static = true;
@@ -55,7 +55,7 @@ int add_static_route(struct request_session *req)
 
 		} else {
 			log_err(ERR_SESSION_DUAL_REINSERT, "Both address pairs are already in use.");
-			error = EEXIST;
+			error = -EEXIST;
 			goto failure;
 		}
 	}
@@ -66,13 +66,13 @@ int add_static_route(struct request_session *req)
 	if (bib_by_ipv6 != NULL && bib_by_ipv4 == NULL) {
 		log_err(ERR_BIB_ADDR6_REINSERT, "The requested remote addr6#port combination is already "
 				"mapped to some other local addr4#port.");
-		error = EEXIST;
+		error = -EEXIST;
 		goto failure;
 
 	} else if (bib_by_ipv6 == NULL && bib_by_ipv4 != NULL) {
 		log_err(ERR_BIB_ADDR4_REINSERT, "The requested local addr4#port combination is already "
 				"mapped to some other remote addr6#port.");
-		error = EEXIST;
+		error = -EEXIST;
 		goto failure;
 
 	} else if (bib_by_ipv6 != NULL && bib_by_ipv4 != NULL) {
@@ -82,7 +82,7 @@ int add_static_route(struct request_session *req)
 		} else {
 			log_err(ERR_BIB_DUAL_REINSERT, "The local addr4#port and the remote addr6#port are "
 					"already mapped.");
-			error = EEXIST;
+			error = -EEXIST;
 			goto failure;
 		}
 
@@ -90,7 +90,7 @@ int add_static_route(struct request_session *req)
 		bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
 		if (!bib) {
 			log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto failure;
 		}
 
@@ -106,7 +106,7 @@ int add_static_route(struct request_session *req)
 	session = session_create_static(&req->add.pair4, &req->add.pair6, bib, req->l4_proto);
 	if (!session) {
 		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a session entry.");
-		error = ENOMEM;
+		error = -ENOMEM;
 		goto failure;
 	}
 
@@ -148,13 +148,13 @@ int delete_static_route(struct request_session *req)
 	default:
 		spin_unlock_bh(&bib_session_lock);
 		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	if (!session) {
 		spin_unlock_bh(&bib_session_lock);
 		log_err(ERR_SESSION_NOT_FOUND, "Could not find the session entry requested by the user.");
-		return ENOENT;
+		return -ENOENT;
 	}
 
 	// I'm tempted to assert that the session is static here. Would that serve a purpose?
@@ -163,7 +163,7 @@ int delete_static_route(struct request_session *req)
 		spin_unlock_bh(&bib_session_lock);
 		// Rather have a slight memory leak than damaged memory, so I'm not kfreeing session.
 		log_err(ERR_UNKNOWN_ERROR, "Remove session call ended in failure, despite validations.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	kfree(session);

@@ -3,11 +3,9 @@
 #include "nat64/comm/str_utils.h"
 
 //#include <linux/slab.h>
+#include <linux/inet.h>
 #include <net/ipv6.h>
 
-
-/** Rename for the type of the pool list below. */
-#define address_list list_head
 
 /**
  * A prefix within the pool.
@@ -24,8 +22,7 @@ struct pool_node {
  * It can be a linked list because we're assuming we won't be holding too many prefixes.
  * The list contains nodes of type pool_node.
  */
-static struct address_list pool;
-
+static LIST_HEAD(pool);
 static DEFINE_SPINLOCK(pool_lock);
 
 static bool is_prefix_len_valid(__u8 prefix_len)
@@ -40,24 +37,40 @@ static bool is_prefix_len_valid(__u8 prefix_len)
 	return false;
 }
 
-static bool load_defaults(void)
+int pool6_init(char *pref_strs[], int pref_count)
 {
-	struct ipv6_prefix pool6_prefix;
+	char *defaults[] = POOL6_DEF;
+	int i;
 
-	if (str_to_addr6(POOL6_DEF_PREFIX, &pool6_prefix.address) != 0) {
-		log_err(ERR_POOL6_INVALID_DEFAULT, "IPv6 prefix in headers is malformed: %s.",
-				POOL6_DEF_PREFIX);
-		return false;
+	if (!pref_strs || pref_count == 0) {
+		pref_strs = defaults;
+		pref_count = ARRAY_SIZE(defaults);
 	}
-	pool6_prefix.len = POOL6_DEF_PREFIX_LEN;
 
-	return pool6_register(&pool6_prefix) == 0;
-}
+	for (i = 0; i < pref_count; i++) {
+		struct ipv6_prefix pref;
+		const char *slash_pos;
 
-bool pool6_init(void)
-{
-	INIT_LIST_HEAD(&pool);
-	return load_defaults();
+		// TODO validate the string.
+
+		if (in6_pton(pref_strs[i], -1, (u8 *) &pref.address.in6_u.u6_addr8, '/', &slash_pos) != 1)
+			goto parse_failure;
+		if (kstrtou8(slash_pos + 1, 0, &pref.len) != 0)
+			goto parse_failure;
+		log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &pref.address, pref.len);
+		if (pool6_register(&pref) != 0)
+			goto silent_failure;
+	}
+
+	return 0;
+
+parse_failure:
+	log_err(ERR_PARSE_PREFIX, "IPv6 prefix is malformed: %s.", pref_strs[i]);
+	/* Fall through. */
+
+silent_failure:
+	pool6_destroy();
+	return -EINVAL;
 }
 
 void pool6_destroy(void)
@@ -77,19 +90,19 @@ int pool6_register(struct ipv6_prefix *prefix)
 
 	if (!prefix) {
 		log_err(ERR_NULL, "NULL is not a valid prefix.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	if (!is_prefix_len_valid(prefix->len)) {
 		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
 				prefix->len);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of IPv6 pool node failed.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	node->prefix = *prefix;
@@ -107,7 +120,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 
 	if (!prefix) {
 		log_err(ERR_NULL, "NULL is not a valid prefix.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	spin_lock_bh(&pool_lock);
@@ -115,7 +128,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
 		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	list_for_each_entry(node, &pool, next) {
@@ -129,7 +142,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	spin_unlock_bh(&pool_lock);
 
 	log_err(ERR_POOL6_NOT_FOUND, "The prefix is not part of the pool.");
-	return ENOENT;
+	return -ENOENT;
 }
 
 bool pool6_contains(struct in6_addr *address)

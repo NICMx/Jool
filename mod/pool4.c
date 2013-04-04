@@ -5,10 +5,6 @@
 #include <linux/slab.h>
 
 
-/** Rename for the type of the port list below. */
-#define port_list list_head
-#define address_list list_head
-
 /**
  * A port which is known to be in the pool; available for borrowal.
  */
@@ -34,7 +30,7 @@ struct addr_section {
 	 * List of available (and previously used) ports. Contains structs of type free_port.
 	 * It's a list because the FIFO behavior is ideal.
 	 */
-	struct port_list free_ports;
+	struct list_head free_ports;
 };
 
 struct protocol_ids {
@@ -63,7 +59,7 @@ struct pool_node {
 	struct list_head next;
 };
 
-static struct address_list pool;
+static LIST_HEAD(pool);
 static DEFINE_SPINLOCK(pool_lock);
 
 
@@ -117,7 +113,7 @@ static struct addr_section *get_section(struct protocol_ids *ids, __u16 l4_id)
 }
 
 /**
- * Assumes that section's pool has already been locked (pool->lock). TODO
+ * Assumes that section's pool has already been locked (pool->lock). TODO (doc)
  */
 static bool extract_any_port(struct addr_section *section, __u16 *port)
 {
@@ -143,36 +139,35 @@ static bool extract_any_port(struct addr_section *section, __u16 *port)
 	return true;
 }
 
-static bool load_defaults(void)
+int pool4_init(char *addr_strs[], int addr_count)
 {
-	unsigned char *addrs[] = POOL4_DEF;
-	struct in_addr addr;
+	char *defaults[] = POOL4_DEF;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(addrs); i++) {
-		if (str_to_addr4(addrs[i], &addr) != 0) {
-			log_err(ERR_POOL4_INVALID_DEFAULT, "Address in headers is malformed: %s.", addrs[i]);
-			goto failure;
-		}
-		if (pool4_register(&addr) != 0)
-			goto failure;
+	if (!addr_strs || addr_count == 0) {
+		addr_strs = defaults;
+		addr_count = ARRAY_SIZE(defaults);
 	}
 
-	return true;
+	for (i = 0; i < addr_count; i++) {
+		struct in_addr addr;
 
-failure:
+		if (str_to_addr4(addr_strs[i], &addr) != 0)
+			goto parse_failure;
+		log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
+		if (pool4_register(&addr) != 0)
+			goto silent_failure;
+	}
+
+	return 0;
+
+parse_failure:
+	log_err(ERR_PARSE_ADDR4, "Address is malformed: %s.", addr_strs[i]);
+	/* Fall through. */
+
+silent_failure:
 	pool4_destroy();
-	return false;
-}
-
-bool pool4_init(bool defaults)
-{
-	INIT_LIST_HEAD(&pool);
-
-	if (defaults && !load_defaults())
-		return false;
-
-	return true;
+	return -EINVAL;
 }
 
 /**
@@ -244,13 +239,13 @@ int pool4_register(struct in_addr *address)
 
 	if (!address) {
 		log_err(ERR_NULL, "NULL cannot be inserted to the pool.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	new_node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!new_node) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of IPv4 pool node failed.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	new_node->address = *address;
@@ -265,7 +260,7 @@ int pool4_register(struct in_addr *address)
 			spin_unlock_bh(&pool_lock);
 			kfree(new_node);
 			log_err(ERR_POOL4_REINSERT, "The %pI4 address already belongs to the pool.", address);
-			return EINVAL;
+			return -EINVAL;
 		}
 	}
 
@@ -282,7 +277,7 @@ int pool4_remove(struct in_addr *address)
 
 	if (!address) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	spin_lock_bh(&pool_lock);
@@ -291,7 +286,7 @@ int pool4_remove(struct in_addr *address)
 	if (!node) {
 		spin_unlock_bh(&pool_lock);
 		log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
-		return ENOENT;
+		return -ENOENT;
 	}
 
 	destroy_pool_node(node);

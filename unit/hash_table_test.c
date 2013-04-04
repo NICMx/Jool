@@ -86,7 +86,10 @@ static bool test(void)
 	int i;
 
 	// Init.
-	test_table_init(&table, &equals_function, &hash_code_function);
+	if (test_table_init(&table, &equals_function, &hash_code_function) < 0) {
+		log_warning("The init function failed.");
+		return false;
+	}
 	test_table_print(&table, "After init");
 
 	// Test put and get.

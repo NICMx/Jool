@@ -14,7 +14,7 @@ int serialize_translate_config(struct translate_config *config,
 	buffer = kmalloc(struct_len + mtus_len, GFP_ATOMIC);
 	if (!buffer) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a serialized version of the configuration.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	memcpy(buffer, config, sizeof(*config));
@@ -36,7 +36,7 @@ int deserialize_translate_config(void *buffer, __u16 buffer_len,
 	target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
 	if (!target_out->mtu_plateaus) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the config's plateaus.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 	memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 

@@ -14,7 +14,7 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 	sk = nl_socket_alloc();
 	if (!sk) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a socket; cannot speak to the NAT64.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
@@ -57,5 +57,5 @@ fail_close:
 
 fail_free:
 	nl_socket_free(sk);
-	return EINVAL;
+	return -EINVAL;
 }

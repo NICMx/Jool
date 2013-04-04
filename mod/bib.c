@@ -68,26 +68,28 @@ static int get_bib_table(u_int8_t l4protocol, struct bib_table **result)
 	}
 
 	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
-	return EINVAL;
+	return -EINVAL;
 }
 
 /*******************************
  * Public functions.
  *******************************/
 
-bool bib_init(void)
+int bib_init(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
-	int i;
+	int i, error;
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		if (!ipv4_table_init(&tables[i]->ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode))
-			return false;
-		if (!ipv6_table_init(&tables[i]->ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode))
-			return false;
+		error = ipv4_table_init(&tables[i]->ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode);
+		if (error)
+			return error;
+		error = ipv6_table_init(&tables[i]->ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode);
+		if (error)
+			return error;
 	}
 
-	return true;
+	return 0;
 }
 
 int bib_add(struct bib_entry *entry, u_int8_t l4protocol)
@@ -97,7 +99,7 @@ int bib_add(struct bib_entry *entry, u_int8_t l4protocol)
 
 	if (!entry) {
 		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
-		return EINVAL;
+		return -EINVAL;
 	}
 	error = get_bib_table(l4protocol, &table);
 	if (error)

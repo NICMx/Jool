@@ -12,6 +12,12 @@
  */
 
 
+/**
+ * Step the module will be injected in within Netfilter's prerouting hook.
+ *(After defragmentation, before Conntrack).
+ */
+#define NF_PRI_NAT64 (NF_IP_PRI_CONNTRACK_DEFRAG + NF_IP_PRI_RAW) / 2
+
 // -- Timeouts, defined by RFC 6146, section 4. --
 
 /**
@@ -40,8 +46,7 @@
 
 
 // -- Config defaults --
-#define POOL6_DEF_PREFIX		"64:ff9b::"
-#define POOL6_DEF_PREFIX_LEN	96
+#define POOL6_DEF { "64:ff9b::/96" }
 
 #define POOL4_DEF { "192.168.2.1", "192.168.2.2", "192.168.2.3", "192.168.2.4" }
 

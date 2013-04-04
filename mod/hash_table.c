@@ -1,7 +1,8 @@
 /**
  * @file
  * A generic hash table implementation. Its design is largely based off Java's java.util.HashMap.
- * One difference is that the internal array does not resize.
+ * One difference is that the internal array does not resize. One important similarity is that it
+ * is not synchronized.
  *
  * Uses the kernel's hlist internally.
  * We're not using hlist directly because it implies a lot of code rewriting (eg. the entry
@@ -39,7 +40,7 @@
 
 /** Creates a token name by concatenating prefix and suffix. */
 #define CONCAT_AUX(prefix, suffix) prefix ## suffix
-/** Seems useless, but if not present, the compiles won't expand the HTABLE_NAME macro... */
+/** Seems useless, but if not present, the compiler won't expand the HTABLE_NAME macro... */
 #define CONCAT(prefix, suffix) CONCAT_AUX(prefix, suffix)
 
 /** The name of the key-value structure. */
@@ -134,7 +135,7 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
  * @param equals_function function the table will use to locate slots.
  * @param hash_function function the table will use to locate linked lists.
  */
-static bool INIT(struct HTABLE_NAME *table,
+static int INIT(struct HTABLE_NAME *table,
 		bool (*equals_function)(KEY_TYPE *, KEY_TYPE *),
 		__u16 (*hash_function)(KEY_TYPE *))
 {
@@ -142,15 +143,15 @@ static bool INIT(struct HTABLE_NAME *table,
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return false;
+		return -EINVAL;
 	}
 	if (!equals_function) {
 		log_err(ERR_NULL, "The equals function is NULL.");
-		return false;
+		return -EINVAL;
 	}
 	if (!hash_function) {
 		log_err(ERR_NULL, "The hash code function is NULL.");
-		return false;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
@@ -159,7 +160,7 @@ static bool INIT(struct HTABLE_NAME *table,
 	table->equals_function = equals_function;
 	table->hash_function = hash_function;
 
-	return true;
+	return 0;
 }
 
 /**
@@ -183,7 +184,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	// We're not going to insert the value alone, but a key-value structure.
@@ -192,7 +193,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 	key_value->key = key;
 	key_value->value = value;
@@ -321,10 +322,10 @@ end:
 
 #ifdef GENERATE_FOR_EACH
 /**
+ * TODO (doc) this comment is completely upside-down.
+ *
  * Builds an array out of the current table contents, and then returns it.
  * (It's a shallow copy).
- *
- * TODO
  *
  * @param table the HTABLE_NAME instance you want to convert to an array.
  * @param result makes this point to the resulting array. "***" = "by-reference argument of an array
@@ -334,9 +335,7 @@ end:
  * You have to kfree "result" after you use it. Don't kfree the objects pointed by its slots, as
  * they are the real entries from the hash table.
  */
-static enum error_code FOR_EACH(struct HTABLE_NAME *table,
-		int (*func)(VALUE_TYPE *, void *),
-		void *arg)
+static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *), void *arg)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
@@ -344,7 +343,7 @@ static enum error_code FOR_EACH(struct HTABLE_NAME *table,
 	int error;
 
 	if (!table)
-		return EINVAL;
+		return -EINVAL;
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {

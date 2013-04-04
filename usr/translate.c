@@ -73,7 +73,7 @@ int translate_request(__u32 operation, struct translate_config *config)
 		request_len = sizeof(*hdr) + sizeof(*payload_translate) + mtus_len;
 		hdr = malloc(request_len);
 		if (!hdr)
-			return ENOMEM;
+			return -ENOMEM;
 		payload_translate = (struct translate_config *) (hdr + 1);
 		payload_mtus = (__u16 *) (payload_translate + 1);
 

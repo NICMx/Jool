@@ -115,6 +115,13 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 #endif
 
+// TODO (fine) delete this.
+static inline __u16 df(struct iphdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return (frag_off & IP_DF) >> 14;
+}
+
 bool send_packet_ipv4(struct sk_buff *skb)
 {
 	struct rtable *routing_table;
@@ -130,6 +137,7 @@ bool send_packet_ipv4(struct sk_buff *skb)
 	skb_dst_set(skb, (struct dst_entry *) routing_table);
 
 	log_debug("Sending packet via device '%s'...", skb->dev->name);
+	log_debug("(mtu is %u; len is %u, DF is %u)", skb->dev->mtu, skb->len, df(ip_hdr(skb)));
 	error = ip_local_out(skb); // Send.
 	if (error) {
 		log_err(ERR_SEND_FAILED, "ip_local_out() failed. Code: %d. Cannot send packet.", error);
@@ -154,6 +162,7 @@ bool send_packet_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, dst);
 
 	log_debug("Sending packet via device '%s'...", skb->dev->name);
+	log_debug("(mtu is %u; len is %u)", skb->dev->mtu, skb->len);
 	error = ip6_local_out(skb); // Send.
 	if (error) {
 		log_err(ERR_SEND_FAILED, "ip6_local_out() failed. Code: %d. Cannot send packet.", error);

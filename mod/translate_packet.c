@@ -14,13 +14,13 @@
 #include <net/tcp.h>
 
 
-struct translate_config config;
+static struct translate_config config;
 static DEFINE_SPINLOCK(config_lock);
 
 #include "translate_packet_4to6.c"
 #include "translate_packet_6to4.c"
 
-bool translate_packet_init(void)
+int translate_packet_init(void)
 {
 	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
 
@@ -41,17 +41,19 @@ bool translate_packet_init(void)
 	if (!config.mtu_plateaus) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the MTU plateaus.");
 		spin_unlock_bh(&config_lock);
-		return false;
+		return -ENOMEM;
 	}
 	memcpy(config.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
 	spin_unlock_bh(&config_lock);
-	return true;
+	return 0;
 }
 
 void translate_packet_destroy(void)
 {
 	spin_lock_bh(&config_lock);
+	// Note that config is static (and hence its members are initialized to zero at startup),
+	// so calling destroy() before init() is not harmful.
 	kfree(config.mtu_plateaus);
 	spin_unlock_bh(&config_lock);
 }
@@ -68,7 +70,7 @@ int clone_translate_config(struct translate_config *clone)
 	if (!clone->mtu_plateaus) {
 		spin_unlock_bh(&config_lock);
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 	memcpy(clone->mtu_plateaus, config.mtu_plateaus, plateaus_len);
 
@@ -96,7 +98,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 
 		if (new_config->mtu_plateau_count == 0) {
 			log_err(ERR_MTU_LIST_EMPTY, "The MTU list received from userspace is empty.");
-			return EINVAL;
+			return -EINVAL;
 		}
 
 		// Sort descending.
@@ -115,7 +117,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 
 		if (new_config->mtu_plateaus[0] == 0) {
 			log_err(ERR_MTU_LIST_ZEROES, "The MTU list contains nothing but zeroes.");
-			return EINVAL;
+			return -EINVAL;
 		}
 
 		new_config->mtu_plateau_count = i + 1;
@@ -153,7 +155,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 			config.mtu_plateaus = old_mtus; // Should we revert the other fields?
 			spin_unlock_bh(&config_lock);
 			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
-			return ENOMEM;
+			return -ENOMEM;
 		}
 
 		kfree(old_mtus);

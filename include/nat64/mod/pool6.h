@@ -14,7 +14,7 @@
 #include "nat64/comm/config_proto.h"
 
 
-bool pool6_init(void);
+int pool6_init(char *pref_strs[], int pref_count);
 void pool6_destroy(void);
 
 int pool6_register(struct ipv6_prefix *prefix);

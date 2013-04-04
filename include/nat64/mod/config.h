@@ -17,7 +17,7 @@
  *
  * @return "true" if initialization was successful, "false" otherwise.
  */
-bool config_init(void);
+int config_init(void);
 /**
  * Terminates this module. Deletes any memory left on the heap.
  */

@@ -23,8 +23,8 @@ static DEFINE_SPINLOCK(config_lock);
 
 /** Esto se llama al insertar el módulo y se encarga de poner los valores por defecto
  *  
- *  @return TRUE: if initialization ran fine, FALSE: otherwhise. */
-bool filtering_init(void)
+ *  @return zero: if initialization ran fine, nonzero: otherwhise. */
+int filtering_init(void)
 {
     spin_lock_bh(&config_lock);
     
@@ -39,7 +39,7 @@ bool filtering_init(void)
 
     spin_unlock_bh(&config_lock);
     
-    return true;
+    return 0;
 } 
 
 /** Esto libera la memoria reservada por filtering_init. 
@@ -84,7 +84,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
  
     if (operation & UDP_TIMEOUT_MASK) {
         if ( new_config->to.udp < UDP_MIN ) {
-        	error = EINVAL;
+        	error = -EINVAL;
             log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u.", UDP_MIN);
         } else {
         	config.to.udp = new_config->to.udp;
@@ -94,7 +94,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
         config.to.icmp = new_config->to.icmp;
     if (operation & TCP_EST_TIMEOUT_MASK) {
         if ( new_config->to.tcp_est < TCP_EST ) {
-        	error = EINVAL;
+        	error = -EINVAL;
         	log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u.", TCP_EST);
         } else {
         	config.to.tcp_est = new_config->to.tcp_est;
@@ -102,7 +102,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
     }
     if (operation & TCP_TRANS_TIMEOUT_MASK) {
         if ( new_config->to.tcp_trans < TCP_TRANS ) {
-        	error = EINVAL;
+        	error = -EINVAL;
             log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u.", TCP_TRANS);
         } else {
         	config.to.tcp_trans = new_config->to.tcp_trans;

@@ -72,5 +72,5 @@ int bib_display(bool use_tcp, bool use_udp, bool use_icmp)
 	if (use_icmp)
 		icmp_error = display_single_table("ICMP", IPPROTO_ICMP);
 
-	return (tcp_error || udp_error || icmp_error) ? EINVAL : 0;
+	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }

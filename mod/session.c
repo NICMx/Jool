@@ -50,7 +50,7 @@ static struct session_table session_table_icmp;
 static LIST_HEAD(all_sessions);
 
 struct timer_list expire_timer;
-static bool expire_timer_active = true;
+static bool expire_timer_active = false;
 static DEFINE_SPINLOCK(expire_timer_lock);
 
 
@@ -74,7 +74,7 @@ static int get_session_table(u_int8_t l4protocol, struct session_table **result)
 	}
 
 	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
-	return EINVAL;
+	return -EINVAL;
 }
 
 static void tuple_to_ipv6_pair(struct tuple *tuple, struct ipv6_pair *pair)
@@ -137,17 +137,19 @@ static void cleaner_timer(unsigned long param)
  * Public functions.
  *******************************/
 
-bool session_init(void)
+int session_init(void)
 {
 	struct session_table *tables[] = { &session_table_udp, &session_table_tcp,
 			&session_table_icmp };
-	int i;
+	int i, error;
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		if (!ipv4_table_init(&tables[i]->ipv4, ipv4_pair_equals, ipv4_pair_hashcode))
-			return false;
-		if (!ipv6_table_init(&tables[i]->ipv6, ipv6_pair_equals, ipv6_pair_hashcode))
-			return false;
+		error = ipv4_table_init(&tables[i]->ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
+		if (error)
+			return error;
+		error = ipv6_table_init(&tables[i]->ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
+		if (error)
+			return error;
 	}
 
 	INIT_LIST_HEAD(&all_sessions);
@@ -157,8 +159,9 @@ bool session_init(void)
 	expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
 	expire_timer.data = 0;
 	add_timer(&expire_timer);
+	expire_timer_active = true;
 
-	return true;
+	return 0;
 }
 
 int session_add(struct session_entry *entry)
@@ -168,11 +171,11 @@ int session_add(struct session_entry *entry)
 
 	if (!entry) {
 		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
-		return EINVAL;
+		return -EINVAL;
 	}
 	if (!entry->bib) {
 		log_err(ERR_SESSION_BIBLESS, "Session needs to reference a BIB entry.");
-		return EINVAL;
+		return -EINVAL;
 	}
 	error = get_session_table(entry->l4_proto, &table);
 	if (error)
@@ -316,9 +319,13 @@ void session_destroy(void)
 	}
 
 	spin_lock_bh(&expire_timer_lock);
-	expire_timer_active = false;
-	spin_unlock_bh(&expire_timer_lock);
-	del_timer_sync(&expire_timer);
+	if (expire_timer_active) {
+		expire_timer_active = false;
+		spin_unlock_bh(&expire_timer_lock);
+		del_timer_sync(&expire_timer);
+	} else {
+		spin_unlock_bh(&expire_timer_lock);
+	}
 }
 
 struct session_entry *session_create_static(

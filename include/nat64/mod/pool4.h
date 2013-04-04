@@ -17,9 +17,9 @@
 /**
  * Readies the rest of this module for future use.
  *
- * @return "true" if the initialization was successful, false otherwise.
+ * TODO (doc)
  */
-bool pool4_init(bool defaults);
+int pool4_init(char *addr_strs[], int addr_count);
 /**
  * Frees resources allocated by the pool.
  */

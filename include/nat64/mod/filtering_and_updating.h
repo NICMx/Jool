@@ -13,7 +13,7 @@ int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple);
 
 bool session_expired(struct session_entry *session_entry_p);
 
-bool filtering_init(void); // Esto se llama al insertar el módulo y se encarga de poner los valores por defecto
+int filtering_init(void); // Esto se llama al insertar el módulo y se encarga de poner los valores por defecto
 
 void filtering_destroy(void); // Esto libera la memoria reservada por filtering_init. Supongo qeu no la necesitas
 

@@ -42,7 +42,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
 		log_err(ERR_ALLOC_FAILED, "Failed to allocate a response skb to the user.");
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	nl_hdr_out = nlmsg_put(skb_out,
@@ -74,7 +74,7 @@ static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload
  */
 static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 {
-	struct nlmsgerr payload = { error, *nl_hdr_in };
+	struct nlmsgerr payload = { abs(error), *nl_hdr_in };
 	return respond_single_msg(nl_hdr_in, NLMSG_ERROR, &payload, sizeof(payload));
 }
 
@@ -103,7 +103,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
 			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
-			return respond_error(nl_hdr, ENOMEM);
+			return respond_error(nl_hdr, -ENOMEM);
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
@@ -111,7 +111,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		stream_close(stream);
 
 		kfree(stream);
-		return error; // TODO ?
+		return error;
 
 	case OP_ADD:
 		log_debug("Adding a prefix to the IPv6 pool.");
@@ -122,8 +122,8 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 
 	default:
-		// TODO por qué no estás loggeando esto?
-		return respond_error(nl_hdr, EINVAL);
+		// TODO (warning) why aren't we logging this?
+		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
@@ -147,7 +147,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
 			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
-			return respond_error(nl_hdr, ENOMEM);
+			return respond_error(nl_hdr, -ENOMEM);
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
@@ -166,7 +166,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
 
 	default:
-		return respond_error(nl_hdr, EINVAL);
+		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
@@ -195,7 +195,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
 			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
-			return respond_error(nl_hdr, ENOMEM);
+			return respond_error(nl_hdr, -ENOMEM);
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
@@ -208,7 +208,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return error;
 
 	default:
-		return respond_error(nl_hdr, EINVAL);
+		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
@@ -240,7 +240,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
 			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
-			return respond_error(nl_hdr, ENOMEM);
+			return respond_error(nl_hdr, -ENOMEM);
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
@@ -261,7 +261,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
-		return respond_error(nl_hdr, EINVAL);
+		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
@@ -366,10 +366,10 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		error = handle_translate_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
-		error = respond_error(nl_hdr, EINVAL);
+		error = respond_error(nl_hdr, -EINVAL);
 	}
 
-	return -error;
+	return error;
 }
 
 /**
@@ -385,7 +385,7 @@ static void receive_from_userspace(struct sk_buff *skb)
 	mutex_unlock(&my_mutex);
 }
 
-bool config_init(void)
+int config_init(void)
 {
 	// Netlink sockets.
 	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
@@ -393,15 +393,14 @@ bool config_init(void)
 			NULL, THIS_MODULE);
 	if (!nl_socket) {
 		log_err(ERR_NETLINK, "Creation of netlink socket failed.");
-		return false;
+		return -EINVAL;
 	}
 	log_debug("Netlink socket created.");
 
-	return true;
+	return 0;
 }
 
 void config_destroy(void)
 {
-	if (nl_socket)
-		netlink_kernel_release(nl_socket);
+	netlink_kernel_release(nl_socket);
 }

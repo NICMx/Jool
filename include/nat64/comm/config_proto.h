@@ -19,8 +19,8 @@
 //#define MSG_TYPE_ROUTE (0x10 + 3)  ///< Netlink socket packet ID, static routes 
 #define MSG_TYPE_NAT64 (0x10 + 2)  ///< Netlink socket packet ID, configuration
 
-#define MSG_SETCFG      0x11
-#define MSG_GETCFG      0x12
+#define MSG_SETCFG		0x11
+#define MSG_GETCFG		0x12
 
 enum config_mode {
 	MODE_POOL6 = 1,

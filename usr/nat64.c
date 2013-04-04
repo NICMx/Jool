@@ -479,18 +479,18 @@ int main(int argc, char **argv)
 		case OP_ADD:
 			if (!args.pool6_prefix_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the prefix to be added (--prefix).");
-				return EINVAL;
+				return -EINVAL;
 			}
 			return pool6_add(&args.pool6_prefix);
 		case OP_REMOVE:
 			if (!args.pool6_prefix_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the prefix to be removed (--prefix).");
-				return EINVAL;
+				return -EINVAL;
 			}
 			return pool6_remove(&args.pool6_prefix);
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv6 pool mode: %u.", args.operation);
-			return EINVAL;
+			return -EINVAL;
 		}
 		break;
 
@@ -501,18 +501,18 @@ int main(int argc, char **argv)
 		case OP_ADD:
 			if (!args.pool4_addr_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the address to be added (--address).");
-				return EINVAL;
+				return -EINVAL;
 			}
 			return pool4_add(&args.pool4_addr);
 		case OP_REMOVE:
 			if (!args.pool4_addr_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the address to be removed (--address).");
-				return EINVAL;
+				return -EINVAL;
 			}
 			return pool4_remove(&args.pool4_addr);
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv4 pool mode: %u.", args.operation);
-			return EINVAL;
+			return -EINVAL;
 		}
 
 	case MODE_BIB:
@@ -521,7 +521,7 @@ int main(int argc, char **argv)
 			return bib_display(args.tcp, args.udp, args.icmp);
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for BIB mode: %u.", args.operation);
-			return EINVAL;
+			return -EINVAL;
 		}
 		break;
 
@@ -534,19 +534,19 @@ int main(int argc, char **argv)
 			error = 0;
 			if (!args.session_pair6_remote_set) {
 				log_err(ERR_MISSING_PARAM, "Missing remote IPv6 address#port (--remote6).");
-				error = EINVAL;
+				error = -EINVAL;
 			}
 			if (!args.session_pair6_local_set) {
 				log_err(ERR_MISSING_PARAM, "Missing local IPv6 address#port (--local6).");
-				error = EINVAL;
+				error = -EINVAL;
 			}
 			if (!args.session_pair4_local_set) {
 				log_err(ERR_MISSING_PARAM, "Missing local IPv4 address#port (--local4).");
-				error = EINVAL;
+				error = -EINVAL;
 			}
 			if (!args.session_pair4_remote_set) {
 				log_err(ERR_MISSING_PARAM, "Missing remote IPv4 address#port (--remote4).");
-				error = EINVAL;
+				error = -EINVAL;
 			}
 			if (error)
 				return error;
@@ -563,11 +563,11 @@ int main(int argc, char **argv)
 
 			log_err(ERR_MISSING_PARAM, "You need to provide both the local and remote nodes' "
 					"address#port, either from the IPv6 or the IPv4 side.");
-			return EINVAL;
+			return -EINVAL;
 
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
-			return EINVAL;
+			return -EINVAL;
 		}
 		break;
 
@@ -582,6 +582,6 @@ int main(int argc, char **argv)
 
 	default:
 		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");
-		return EINVAL;
+		return -EINVAL;
 	}
 }

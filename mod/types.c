@@ -111,7 +111,7 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 {
 	// pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
-	// but during is_allowed_by_address_filtering() we need to ignore it during lookup
+	// but during session_allow() we need to ignore it during lookup
 	// so this needs to be a little more creative.
 
 	union ipv4_addr_union {

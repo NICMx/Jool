@@ -159,7 +159,7 @@ struct packet_out {
 #define INIT_PACKET_OUT { 0, 0, NULL, 0, 0, NULL, 0, NULL, false, NULL }
 
 
-bool translate_packet_init(void);
+int translate_packet_init(void);
 void translate_packet_destroy(void);
 
 int clone_translate_config(struct translate_config *clone);

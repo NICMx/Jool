@@ -43,8 +43,8 @@ void stream_write(struct out_stream *stream, void *payload, int payload_len)
 	if (payload == NULL || payload_len == 0)
 		return;
 
-	// TODO si payload_len > BUFFER_SIZE, esto no va a jalar tan bien.
-	// No se si arreglarlo porque nunca pasa en este proyecto...
+	// TODO (fine) if payload_len > BUFFER_SIZE, this will go downhill.
+	// Will never happen in this project, hence the low priority.
 	if (stream->buffer_len + payload_len > BUFFER_SIZE)
 		flush(stream, 0);
 
