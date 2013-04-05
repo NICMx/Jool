@@ -122,7 +122,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 
 	default:
-		// TODO (warning) why aren't we logging this?
+		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -166,6 +166,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
 
 	default:
+		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -208,6 +209,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return error;
 
 	default:
+		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -261,6 +263,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
+		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -366,6 +369,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		error = handle_translate_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
+		log_err(ERR_UNKNOWN_OP, "Unknown configuration mode: %d", nat64_hdr->mode);
 		error = respond_error(nl_hdr, -EINVAL);
 	}
 
