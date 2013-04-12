@@ -34,8 +34,6 @@ int translate_packet_init(void)
 	config.df_always_on = TRAN_DEF_DF_ALWAYS_ON;
 	config.build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
 	config.lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
-	config.ipv6_nexthop_mtu = TRAN_DEF_IPV6_NEXTHOP_MTU;
-	config.ipv4_nexthop_mtu = TRAN_DEF_IPV4_NEXTHOP_MTU;
 	config.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
 	config.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
 	if (!config.mtu_plateaus) {
@@ -142,10 +140,6 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		config.build_ipv4_id = new_config->build_ipv4_id;
 	if (operation & LOWER_MTU_FAIL_MASK)
 		config.lower_mtu_fail = new_config->lower_mtu_fail;
-	if (operation & IPV6_NEXTHOP_MTU_MASK)
-		config.ipv6_nexthop_mtu = new_config->ipv6_nexthop_mtu;
-	if (operation & IPV4_NEXTHOP_MTU_MASK)
-		config.ipv4_nexthop_mtu = new_config->ipv4_nexthop_mtu;
 	if (operation & MTU_PLATEAUS_MASK) {
 		__u16 *old_mtus = config.mtu_plateaus;
 		__u16 new_mtus_len = new_config->mtu_plateau_count * sizeof(*new_config->mtu_plateaus);

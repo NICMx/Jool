@@ -108,8 +108,6 @@ enum argp_flags {
 	ARGP_DF = 4005,
 	ARGP_BUILD_ID = 4006,
 	ARGP_LOWER_MTU_FAIL = 4007,
-	ARGP_NEXT_MTU6 = 4008,
-	ARGP_NEXT_MTU4 = 4009,
 	ARGP_PLATEAUS = 4010,
 };
 
@@ -217,8 +215,6 @@ static struct argp_option options[] =
 	{ DF_ALWAYS_ON_OPT,		ARGP_DF,			BOOL_FORMAT, 0, "Always set Don't Fragment." },
 	{ BUILD_IPV4_ID_OPT,	ARGP_BUILD_ID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
 	{ LOWER_MTU_FAIL_OPT,	ARGP_LOWER_MTU_FAIL,BOOL_FORMAT, 0, "Decrease MTU failure rate." },
-	{ IPV6_NEXTHOP_MTU_OPT,	ARGP_NEXT_MTU6,		NUM_FORMAT, 0, "Nexthop MTU of the IPv6 network." },
-	{ IPV4_NEXTHOP_MTU_OPT,	ARGP_NEXT_MTU4,		NUM_FORMAT, 0, "Nexthop MTU of the IPv4 network." },
 	{ MTU_PLATEAUS_OPT,		ARGP_PLATEAUS,		NUM_ARR_FORMAT,0, "MTU plateaus." },
 
 	{ 0 },
@@ -392,16 +388,6 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= LOWER_MTU_FAIL_MASK;
 		error = str_to_bool(arg, &arguments->translate.lower_mtu_fail);
-		break;
-	case ARGP_NEXT_MTU6:
-		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= IPV6_NEXTHOP_MTU_MASK;
-		error = str_to_u16(arg, &arguments->translate.ipv6_nexthop_mtu, 0, 0xFFFF);
-		break;
-	case ARGP_NEXT_MTU4:
-		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= IPV4_NEXTHOP_MTU_MASK;
-		error = str_to_u16(arg, &arguments->translate.ipv4_nexthop_mtu, 0, 0xFFFF);
 		break;
 	case ARGP_PLATEAUS:
 		arguments->mode = MODE_TRANSLATE;

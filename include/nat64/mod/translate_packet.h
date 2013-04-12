@@ -191,5 +191,7 @@ bool translating_the_packet_6to4(struct tuple *tuple, struct sk_buff *skb_in,
 bool translate_inner_packet(struct packet_in *in, struct packet_out *out,
 		bool (*l3_hdr_function)(struct packet_in *, struct packet_out *));
 
+__be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu);
+__be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 tot_len_field);
 
 #endif /* _NF_NAT64_TRANSLATING_THE_PACKET_H */

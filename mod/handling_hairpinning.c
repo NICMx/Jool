@@ -24,7 +24,7 @@ bool handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 		goto free_and_fail;
 	if (!translating_the_packet_4to6(&tuple_out, skb_in, &skb_out))
 		goto free_and_fail;
-	if (!send_packet_ipv6(skb_out))
+	if (!send_packet_ipv6(skb_in, skb_out))
 		goto fail;
 
 	log_debug("Done step 5.");

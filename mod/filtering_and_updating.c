@@ -487,7 +487,7 @@ bool send_probe_packet(struct session_entry *entry)
     skb->ip_summed = CHECKSUM_UNNECESSARY;
 
     // Send the packet
-    send_packet_ipv6(skb);
+    send_packet_ipv6(NULL, skb);
     log_debug("Packet sent; catch it using a tool like Wireshark or tcpdump.");
 
     return true;
@@ -1177,14 +1177,26 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
         }
     }
     else // For any packet, other than SYN, belonging to this connection:
-    {
-        // Pack source address into transport address
-        transport_address_ipv6( tuple->dst.addr.ipv6, tuple->dst.l4_id, &ipv6_ta );
+	{
+		if ( packet_is_ipv6(skb) ) // IPv6
+		{
+			// Pack source address into transport address
+			transport_address_ipv6( tuple->src.addr.ipv6, tuple->src.l4_id, &ipv6_ta );
 
-        // Look if there is a corresponding entry in the TCP BIB
-        bib_entry_p = bib_get_by_ipv6( &ipv6_ta, protocol );
-        return (bib_entry_p != NULL);
-    }
+			// Look if there is a corresponding entry in the TCP BIB
+			bib_entry_p = bib_get_by_ipv6( &ipv6_ta, protocol );
+		}
+		else if( packet_is_ipv4(skb) ) // IPv4
+		{
+			// Pack addresses and ports into transport address
+			transport_address_ipv4( tuple->dst.addr.ipv4, tuple->dst.l4_id, &ipv4_ta );
+
+			// Look for the destination transport address (X,x) in the BIB
+			bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
+		}
+
+		return (bib_entry_p != NULL);
+	}
 
     return true;
 
@@ -1470,6 +1482,10 @@ end:
  */
 int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 {
+	int result;
+	
+	log_debug("Step 2: Filtering and updating");
+	
     if ( PF_INET6 == tuple->l3_proto ) {
         /// Errores de ICMP no deben afectar las tablas.
         if ( IPPROTO_ICMPV6 == tuple->l3_proto && !is_icmp6_info(icmp6_hdr(skb)->icmp6_type) )
@@ -1500,30 +1516,38 @@ int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 			return NF_DROP;
 		}
     }
-            
+
     /// Process packet, according to its protocol.
     switch (tuple->l4_proto) {
         case IPPROTO_UDP:
             if ( PF_INET6 == tuple->l3_proto )
-                return ipv6_udp(skb, tuple);
-            if ( PF_INET == tuple->l3_proto )
-                return ipv4_udp(skb, tuple);
-            log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->l3_proto);
+                result = ipv6_udp(skb, tuple);
+            else if ( PF_INET == tuple->l3_proto )
+                result = ipv4_udp(skb, tuple);
+            else {
+				log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->l3_proto);
+				result = NF_DROP;
+			}
             break;
         case IPPROTO_TCP:
-            return tcp(skb, tuple);
+            result = tcp(skb, tuple);
+            break;
         case IPPROTO_ICMP:
         case IPPROTO_ICMPV6:
             if ( PF_INET6 == tuple->l3_proto )
-                return ipv6_icmp6(skb, tuple);
-            if ( PF_INET == tuple->l3_proto )
-                return ipv4_icmp4(skb, tuple);
-            log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->l3_proto);
+                result = ipv6_icmp6(skb, tuple);
+            else if ( PF_INET == tuple->l3_proto )
+                result = ipv4_icmp4(skb, tuple);
+			else {
+				log_err(ERR_L3PROTO, "Not IPv4 nor IPv6: %u.", tuple->l3_proto);
+				result = NF_DROP;
+			}
             break;    
         default:
             log_err(ERR_L4PROTO, "Transport protocol not handled: %d", tuple->l4_proto);
-            return NF_DROP;
+            result = NF_DROP;
     }
 
-    return NF_DROP;
+	log_debug("Done: Step 2.");
+    return result;
 }

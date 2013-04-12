@@ -46,9 +46,7 @@ enum config_operation {
 	#define DF_ALWAYS_ON_MASK		(1 << 5)
 	#define BUILD_IPV4_ID_MASK		(1 << 6)
 	#define LOWER_MTU_FAIL_MASK		(1 << 7)
-	#define IPV6_NEXTHOP_MTU_MASK	(1 << 8)
-	#define IPV4_NEXTHOP_MTU_MASK	(1 << 9)
-	#define MTU_PLATEAUS_MASK		(1 << 10)
+	#define MTU_PLATEAUS_MASK		(1 << 8)
 
 	#define DROP_BY_ADDR_MASK		(1 << 0)
 	#define DROP_ICMP6_INFO_MASK	(1 << 1)
@@ -163,11 +161,6 @@ struct translate_config {
 	 * See RFC 6145 section 6, second approach.
 	 */
 	bool lower_mtu_fail;
-
-	// TODO (info) how can we compute these automatically?
-	__u16 ipv6_nexthop_mtu;
-	__u16 ipv4_nexthop_mtu;
-
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 	/**

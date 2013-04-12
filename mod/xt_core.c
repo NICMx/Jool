@@ -38,7 +38,7 @@ MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
 unsigned int nat64_core(struct sk_buff *skb_in,
 		bool (*compute_out_tuple_fn)(struct tuple *, struct sk_buff *, struct tuple *),
 		bool (*translate_packet_fn)(struct tuple *, struct sk_buff *, struct sk_buff **),
-		bool (*send_packet_fn)(struct sk_buff *))
+		bool (*send_packet_fn)(struct sk_buff *, struct sk_buff *))
 {
 	struct sk_buff *skb_out = NULL;
 	struct tuple tuple_in, tuple_out;
@@ -55,7 +55,7 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 		if (!handling_hairpinning(skb_out, &tuple_out))
 			goto free_and_fail;
 	} else {
-		if (!send_packet_fn(skb_out))
+		if (!send_packet_fn(skb_in, skb_out))
 			goto fail;
 	}
 

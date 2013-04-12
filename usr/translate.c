@@ -22,10 +22,6 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			conf->build_ipv4_id ? "ON" : "OFF");
 	printf("Decrease MTU failure rate (%s): %s\n", LOWER_MTU_FAIL_OPT,
 			conf->lower_mtu_fail ? "ON" : "OFF");
-	printf("IPv6 next hop MTU (%s): %u\n", IPV6_NEXTHOP_MTU_OPT,
-			conf->ipv6_nexthop_mtu);
-	printf("IPv4 next hop MTU (%s): %u\n", IPV4_NEXTHOP_MTU_OPT,
-			conf->ipv4_nexthop_mtu);
 
 	printf("MTU plateaus (%s): ", MTU_PLATEAUS_OPT);
 	plateaus = (__u16 *) (conf + 1);

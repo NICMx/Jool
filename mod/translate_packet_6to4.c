@@ -269,7 +269,7 @@ static bool post_ipv4(struct packet_out *out)
  * One liner for creating the ICMPv4 header's MTU field.
  * Returns the smallest out of the three parameters.
  */
-static __be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu)
+__be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu)
 {
 	__u16 result;
 
@@ -413,8 +413,6 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
  */
 static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out *out)
 {
-	__u16 ipv4_mtu, ipv6_mtu;
-
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in->packet);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
@@ -448,20 +446,16 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
-		spin_lock_bh(&config_lock);
-		ipv6_mtu = config.ipv6_nexthop_mtu;
-		ipv4_mtu = config.ipv4_nexthop_mtu;
-		spin_unlock_bh(&config_lock);
-
-		icmpv4_hdr->type = ICMP_DEST_UNREACH;
-		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
-		icmpv4_hdr->un.frag.__unused = 0;
 		// BTW, I have no idea what the RFC means by "taking into account whether or not
 		// the packet in error includes a Fragment Header"... What does the fragment header
 		// have to do with anything here?
-		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
-				ipv4_mtu,
-				ipv6_mtu - 20);
+		icmpv4_hdr->type = ICMP_DEST_UNREACH;
+		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
+		icmpv4_hdr->un.frag.__unused = 0;
+		// We don't know the nexthop MTU at this point, so we had to move this to the send_packet step.
+		//~ icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
+				//~ ipv4_mtu,
+				//~ ipv6_mtu - 20);
 		break;
 
 	case ICMPV6_TIME_EXCEED:

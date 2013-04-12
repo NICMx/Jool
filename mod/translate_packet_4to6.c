@@ -238,9 +238,9 @@ static bool post_ipv6(struct packet_out *out)
  * Returns the smallest out of the three first parameters. It also handles some quirks. See comments
  * inside for more info.
  */
-static __be16 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 tot_len_field)
+__be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 tot_len_field)
 {
-	__u16 result;
+	__u32 result;
 
 	if (packet_mtu == 0) {
 		// Some router does not implement RFC 1191.
@@ -272,7 +272,7 @@ static __be16 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, _
 	}
 	spin_unlock_bh(&config_lock);
 
-	return cpu_to_be16(result);
+	return cpu_to_be32(result);
 }
 
 /**
@@ -293,8 +293,6 @@ static bool icmp4_has_inner_packet(__u8 icmp_type)
 static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr,
 		__u16 tot_len_field)
 {
-	__u16 ipv6_mtu, ipv4_mtu;
-
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmpv6_hdr->icmp6_unused = 0;
 
@@ -321,17 +319,13 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 		break;
 
 	case ICMP_FRAG_NEEDED:
-		spin_lock_bh(&config_lock);
-		ipv6_mtu = config.ipv6_nexthop_mtu;
-		ipv4_mtu = config.ipv4_nexthop_mtu;
-		spin_unlock_bh(&config_lock);
-
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				ipv6_mtu,
-				ipv4_mtu + 20,
-				tot_len_field);
+		// We don't know the nexthop MTU at this point, so we had to move this to the send_packet step.
+		//~ icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
+				//~ ipv6_mtu,
+				//~ ipv4_mtu + 20,
+				//~ tot_len_field);
 		break;
 
 	case ICMP_NET_ANO:

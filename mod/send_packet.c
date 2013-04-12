@@ -1,5 +1,6 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/comm/types.h"
+#include "nat64/mod/translate_packet.h"
 
 #include <linux/ip.h>
 #include <linux/module.h>
@@ -15,6 +16,8 @@
 #include <net/ip6_route.h>
 #include <net/route.h>
 #include <linux/kallsyms.h>
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
@@ -115,30 +118,46 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 #endif
 
-// TODO (fine) delete this.
-static inline __u16 df(struct iphdr *hdr)
+static void ipv4_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_DF) >> 14;
+	struct icmp6hdr *hdr6 = icmp6_hdr(skb_in);
+	struct icmphdr *hdr4 = icmp_hdr(skb_out);
+	
+	unsigned int ipv6_mtu = skb_in->dev->mtu;
+	unsigned int ipv4_mtu = skb_out->dev->mtu;
+
+	if (!skb_in)
+		return;
+	
+	if (ip_hdr(skb_out)->protocol != IPPROTO_ICMP)
+		return;
+	
+	if (hdr4->type != ICMP_DEST_UNREACH || hdr4->code != ICMP_FRAG_NEEDED)
+	   return;
+
+   hdr4->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(hdr6->icmp6_mtu) - 20,
+		   ipv4_mtu,
+		   ipv6_mtu - 20);
 }
 
-bool send_packet_ipv4(struct sk_buff *skb)
+bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	struct rtable *routing_table;
 	int error;
 
-	skb->protocol = htons(ETH_P_IP);
+	skb_out->protocol = htons(ETH_P_IP);
 
-	routing_table = route_packet_ipv4(skb);
+	routing_table = route_packet_ipv4(skb_out);
 	if (!routing_table)
 		return false;
 
-	skb->dev = routing_table->dst.dev;
-	skb_dst_set(skb, (struct dst_entry *) routing_table);
+	skb_out->dev = routing_table->dst.dev;
+	skb_dst_set(skb_out, (struct dst_entry *) routing_table);
 
-	log_debug("Sending packet via device '%s'...", skb->dev->name);
-	log_debug("(mtu is %u; len is %u, DF is %u)", skb->dev->mtu, skb->len, df(ip_hdr(skb)));
-	error = ip_local_out(skb); // Send.
+	ipv4_mtu_hack(skb_in, skb_out);
+
+	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
+	error = ip_local_out(skb_out); // Send.
 	if (error) {
 		log_err(ERR_SEND_FAILED, "ip_local_out() failed. Code: %d. Cannot send packet.", error);
 		return false;
@@ -147,23 +166,46 @@ bool send_packet_ipv4(struct sk_buff *skb)
 	return true;
 }
 
-bool send_packet_ipv6(struct sk_buff *skb)
+static void ipv6_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
+{
+	struct icmphdr *hdr4 = icmp_hdr(skb_in);
+	struct icmp6hdr *hdr6 = icmp6_hdr(skb_out);
+	unsigned int ipv6_mtu = skb_out->dev->mtu;
+	unsigned int ipv4_mtu = skb_in->dev->mtu;
+
+	if (!skb_in)
+		return;
+	
+	if (ip_hdr(skb_in)->protocol != IPPROTO_ICMP)
+		return;
+	
+	if (hdr6->icmp6_type != ICMPV6_PKT_TOOBIG || hdr6->icmp6_type != 0)
+		return;
+
+	hdr6->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(hdr4->un.frag.mtu) + 20,
+			ipv6_mtu,
+			ipv4_mtu + 20,
+			be16_to_cpu(ip_hdr(skb_in)->tot_len));			
+}
+
+bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	struct dst_entry *dst;
 	int error;
 
-	skb->protocol = htons(ETH_P_IPV6);
+	skb_out->protocol = htons(ETH_P_IPV6);
 
-	dst = route_packet_ipv6(skb);
+	dst = route_packet_ipv6(skb_out);
 	if (!dst)
 		return false;
 
-	skb->dev = dst->dev;
-	skb_dst_set(skb, dst);
+	skb_out->dev = dst->dev;
+	skb_dst_set(skb_out, dst);
 
-	log_debug("Sending packet via device '%s'...", skb->dev->name);
-	log_debug("(mtu is %u; len is %u)", skb->dev->mtu, skb->len);
-	error = ip6_local_out(skb); // Send.
+	ipv6_mtu_hack(skb_in, skb_out);
+
+	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
+	error = ip6_local_out(skb_out); // Send.
 	if (error) {
 		log_err(ERR_SEND_FAILED, "ip6_local_out() failed. Code: %d. Cannot send packet.", error);
 		return false;
