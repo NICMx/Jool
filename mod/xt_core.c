@@ -75,9 +75,14 @@ unsigned int hook_ipv4(unsigned int hooknum, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
-	struct iphdr *ip4_header = ip_hdr(skb);
-	__u8 l4protocol = ip4_header->protocol;
+	struct iphdr *ip4_header;
+	__u8 l4protocol;
 	struct in_addr daddr;
+
+	skb_linearize(skb);
+	
+	ip4_header = ip_hdr(skb);
+	l4protocol = ip4_header->protocol;
 
 	// Validate.
 	daddr.s_addr = ip4_header->daddr;
@@ -108,11 +113,16 @@ unsigned int hook_ipv6(unsigned int hooknum, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
-	struct ipv6hdr *ip6_header = ipv6_hdr(skb);
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_header);
+	struct ipv6hdr *ip6_header;
+	struct hdr_iterator iterator;
 	enum hdr_iterator_result iterator_result;
 	__u8 l4protocol;
 
+	skb_linearize(skb);
+	
+	ip6_header = ipv6_hdr(skb);
+	hdr_iterator_init(&iterator, ip6_header);
+	
 	// Validate.
 	if (!pool6_contains(&ip6_header->daddr))
 		goto failure;

@@ -18,6 +18,7 @@
 #include <linux/kallsyms.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
+#include <net/icmp.h>
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
@@ -156,6 +157,17 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
 
 	ipv4_mtu_hack(skb_in, skb_out);
 
+	if (skb_out->len > skb_out->dev->mtu) {
+		if ( ip_hdr(skb_out)->protocol == IPPROTO_ICMP
+				&& (! is_icmp_info(icmp_hdr(skb_out)->type)) ) {
+			skb_trim(skb_out, skb_out->dev->mtu);
+			// TODO Fix packet length and checksum
+		} else {
+			icmpv6_send(skb_in, ICMPV6_PKT_TOOBIG, 0, cpu_to_be32(skb_out->dev->mtu));
+			return false;
+		}
+	}
+
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
 	error = ip_local_out(skb_out); // Send.
 	if (error) {
@@ -204,6 +216,17 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 
 	ipv6_mtu_hack(skb_in, skb_out);
 
+	if (skb_out->len > skb_out->dev->mtu) {
+		if ( ip_hdr(skb_in)->protocol == IPPROTO_ICMP
+				&& (! is_icmp6_info(icmp6_hdr(skb_out)->icmp6_type)) ) {
+			skb_trim(skb_out, skb_out->dev->mtu);
+			// TODO Fix packet length
+		} else {
+			icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(skb_out->dev->mtu));
+			return false;
+		}
+	}
+	
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
 	error = ip6_local_out(skb_out); // Send.
 	if (error) {
