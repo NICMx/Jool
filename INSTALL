@@ -1,7 +1,7 @@
 Install the requirements:
 	They are libssl-dev, libnl-3-dev, libnl-genl-3-dev, libmnl-dev and your kernel's image and
 	headers (at least 2.6.38).
-		$ apt-get install libssl-dev
+		$ apt-get install libssl-dev libnl-genl-3-dev
 		$ apt-get install linux-headers-$(uname -r) linux-image-$(uname -r)
 	TODO Netlink stuff needs to be downloaded manually...: packages.ubuntu.com
 	TODO What? we really need the image? Actually please recheck every dependency.

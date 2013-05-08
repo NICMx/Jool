@@ -6,8 +6,8 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += rfc6052.o hashtable.o pool4.o iterator.o bib_session.o
-obj-m += filtering.o outgoing.o translate.o
+obj-m += rfc6052.o poolnum.o pool4.o iterator.o
+obj-m += translate.o
 
 rfc6052-objs += ../mod/types.o
 rfc6052-objs += ../mod/str_utils.o
@@ -18,8 +18,15 @@ hashtable-objs += ../mod/types.o
 hashtable-objs += unit_test.o
 hashtable-objs += hash_table_test.o
 
+poolnum-objs += ../mod/types.o
+poolnum-objs += ../mod/random.o
+poolnum-objs += unit_test.o
+poolnum-objs += pool_num_test.o
+
 pool4-objs += ../mod/types.o
 pool4-objs += ../mod/str_utils.o
+pool4-objs += ../mod/random.o
+pool4-objs += ../mod/poolnum.o
 pool4-objs += unit_test.o
 pool4-objs += pool4_test.o
 
@@ -73,18 +80,20 @@ all:
 test:
 	-sudo insmod rfc6052.ko
 	-sudo rmmod rfc6052
-	-sudo insmod hashtable.ko
-	-sudo rmmod hashtable
+	#-sudo insmod hashtable.ko
+	#-sudo rmmod hashtable
+	-sudo insmod poolnum.ko
+	-sudo rmmod poolnum
 	-sudo insmod pool4.ko
 	-sudo rmmod pool4
-	-sudo insmod bib_session.ko
-	-sudo rmmod bib_session
+	#-sudo insmod bib_session.ko
+	#-sudo rmmod bib_session
 	-sudo insmod iterator.ko
 	-sudo rmmod iterator
-	-sudo insmod filtering.ko
-	-sudo rmmod filtering
-	-sudo insmod outgoing.ko
-	-sudo rmmod outgoing
+	#-sudo insmod filtering.ko
+	#-sudo rmmod filtering
+	#-sudo insmod outgoing.ko
+	#-sudo rmmod outgoing
 	-sudo insmod translate.ko
 	-sudo rmmod translate
 	dmesg | grep 'Finished.'

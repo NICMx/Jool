@@ -8,15 +8,13 @@
 
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/config.h"
+#include "nat64/mod/pool6.h"
+#include "nat64/mod/pool4.h"
 #include "nat64/mod/bib.h"
 #include "nat64/mod/session.h"
 #include <linux/slab.h>
 
 
-/**
- * TODO (critical) ports are not being borrowed from the IPv4 pool!!!
- * We also need to check that pair6.remote and pair4.local belong to the pools =_=.
- */
 int add_static_route(struct request_session *req)
 {
 	struct bib_entry *bib_by_ipv6, *bib_by_ipv4;
@@ -27,6 +25,17 @@ int add_static_route(struct request_session *req)
 	struct session_entry *session = NULL;
 
 	int error;
+
+	if (!pool6_contains(&req->add.pair6.local.address)) {
+		log_err(ERR_POOL6_NOT_FOUND, "The address '%pI6c' does not belong to the IPv6 pool.",
+				&req->add.pair6.local.address);
+		return -EINVAL;
+	}
+	if (!pool4_contains(&req->add.pair4.local.address)) {
+		log_err(ERR_POOL6_NOT_FOUND, "The address '%pI4' does not belong to the IPv4 pool.",
+				&req->add.pair4.local.address);
+		return -EINVAL;
+	}
 
 	spin_lock_bh(&bib_session_lock);
 
@@ -87,6 +96,17 @@ int add_static_route(struct request_session *req)
 		}
 
 	} else {
+		if (!pool4_get(req->l4_proto, &req->add.pair4.local)) {
+			// This error should probably never happen, because one of the ifs above should have
+			// kicked in. I'm not quite sure ATM so
+			// TODO (later) rethink whether this should be log_err or log_crit.
+			log_err(ERR_BIB_ADDR4_REINSERT, "Port number %u from address %pI4 appears to be taken "
+					"(see the BIB or session tables).", req->add.pair4.local.l4_id,
+					&req->add.pair4.local.address);
+			error = -EEXIST;
+			goto failure;
+		}
+
 		bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
 		if (!bib) {
 			log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
@@ -158,6 +178,7 @@ int delete_static_route(struct request_session *req)
 	}
 
 	// I'm tempted to assert that the session is static here. Would that serve a purpose?
+	// Nah.
 
 	if (!session_remove(session)) {
 		spin_unlock_bh(&bib_session_lock);

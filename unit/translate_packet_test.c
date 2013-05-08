@@ -1058,7 +1058,7 @@ static bool test_function_build_id_field(void)
 	return success;
 }
 
-#define min_mtu(packet, in, out, len) be16_to_cpu(icmp6_minimum_mtu(packet, in, out, len))
+#define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(packet, in, out, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
 	int i;
@@ -1075,25 +1075,25 @@ static bool test_function_icmp6_minimum_mtu(void)
 	config.mtu_plateau_count = ARRAY_SIZE(plateaus);
 
 	// Test the bare minimum functionality.
-	success &= assert_equals_u16(1, min_mtu(1, 2, 2, 0), "No hacks, min is packet");
-	success &= assert_equals_u16(1, min_mtu(2, 1, 2, 0), "No hacks, min is in");
-	success &= assert_equals_u16(1, min_mtu(2, 2, 1, 0), "No hacks, min is out");
+	success &= assert_equals_u32(1, min_mtu(1, 2, 2, 0), "No hacks, min is packet");
+	success &= assert_equals_u32(1, min_mtu(2, 1, 2, 0), "No hacks, min is in");
+	success &= assert_equals_u32(1, min_mtu(2, 2, 1, 0), "No hacks, min is out");
 
 	if (!success)
 		goto revert;
 
 	// Test hack 1: MTU is overriden if some router set is as zero.
 	for (i = 1500; i > 1400; --i)
-		success &= assert_equals_u16(1400, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= assert_equals_u32(1400, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 1400; i > 1200; --i)
-		success &= assert_equals_u16(1200, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= assert_equals_u32(1200, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 1200; i > 600; --i)
-		success &= assert_equals_u16(600, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= assert_equals_u32(600, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 600; i > 0; --i)
-		success &= assert_equals_u16(0, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= assert_equals_u32(0, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 
-	success &= assert_equals_u16(1, min_mtu(0, 1, 2, 1000), "Override packet MTU, min is in");
-	success &= assert_equals_u16(1, min_mtu(0, 2, 1, 1000), "Override packet MTU, min is out");
+	success &= assert_equals_u32(1, min_mtu(0, 1, 2, 1000), "Override packet MTU, min is in");
+	success &= assert_equals_u32(1, min_mtu(0, 2, 1, 1000), "Override packet MTU, min is out");
 
 	if (!success)
 		goto revert;
@@ -1101,25 +1101,25 @@ static bool test_function_icmp6_minimum_mtu(void)
 	// Test hack 2: User wants us to try to improve the failure rate.
 	config.lower_mtu_fail = true;
 
-	success &= assert_equals_u16(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
-	success &= assert_equals_u16(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
-	success &= assert_equals_u16(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
+	success &= assert_equals_u32(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
+	success &= assert_equals_u32(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
+	success &= assert_equals_u32(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
 
-	success &= assert_equals_u16(1300, min_mtu(1300, 1400, 1400, 0), "Fail improve rate, packet");
-	success &= assert_equals_u16(1300, min_mtu(1400, 1300, 1400, 0), "Fail improve rate, in");
-	success &= assert_equals_u16(1300, min_mtu(1400, 1400, 1300, 0), "Fail improve rate, out");
+	success &= assert_equals_u32(1300, min_mtu(1300, 1400, 1400, 0), "Fail improve rate, packet");
+	success &= assert_equals_u32(1300, min_mtu(1400, 1300, 1400, 0), "Fail improve rate, in");
+	success &= assert_equals_u32(1300, min_mtu(1400, 1400, 1300, 0), "Fail improve rate, out");
 
 	if (!success)
 		goto revert;
 
 	// Test both hacks at the same time.
-	success &= assert_equals_u16(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
-	success &= assert_equals_u16(1280, min_mtu(0, 1, 2, 1000), "2 hacks, override in");
-	success &= assert_equals_u16(1280, min_mtu(0, 2, 1, 1000), "2 hacks, override out");
+	success &= assert_equals_u32(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
+	success &= assert_equals_u32(1280, min_mtu(0, 1, 2, 1000), "2 hacks, override in");
+	success &= assert_equals_u32(1280, min_mtu(0, 2, 1, 1000), "2 hacks, override out");
 
-	success &= assert_equals_u16(1400, min_mtu(0, 1500, 1500, 1401), "2 hacks, packet/not 1280");
-	success &= assert_equals_u16(1400, min_mtu(0, 1400, 1500, 1501), "2 hacks, in/not 1280");
-	success &= assert_equals_u16(1400, min_mtu(0, 1500, 1400, 1501), "2 hacks, out/not 1280");
+	success &= assert_equals_u32(1400, min_mtu(0, 1500, 1500, 1401), "2 hacks, packet/not 1280");
+	success &= assert_equals_u32(1400, min_mtu(0, 1400, 1500, 1501), "2 hacks, in/not 1280");
+	success &= assert_equals_u32(1400, min_mtu(0, 1500, 1400, 1501), "2 hacks, out/not 1280");
 
 	// Fall through.
 revert:

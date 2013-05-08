@@ -1,59 +1,33 @@
 #include "nat64/mod/pool4.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/mod/poolnum.h"
 
 #include <linux/slab.h>
 
 
 /**
- * A port which is known to be in the pool; available for borrowal.
- */
-struct free_port {
-	/** The port number. */
-	__u16 port;
-	/** Next port within the list of free ones (see addr_section.free_ports). */
-	struct list_head next;
-};
-
-/**
- * A range of ports within an address.
- */
-struct addr_section {
-	/** Next available (and never before used) port. */
-	__u32 next_port;
-	/**
-	 * Maximum value "next_port" can hold. If this value has been reached and next_port needs to
-	 * be incremented, the section has been exhausted.
-	 */
-	__u32 max_port;
-	/**
-	 * List of available (and previously used) ports. Contains structs of type free_port.
-	 * It's a list because the FIFO behavior is ideal.
-	 */
-	struct list_head free_ports;
-};
-
-struct protocol_ids {
-	/** The address's odd ports from the range 0-1023. */
-	struct addr_section odd_low;
-	/** The address's even ports from the range 0-1023. */
-	struct addr_section even_low;
-	/** The address's odd ports from the range 1024-65535. */
-	struct addr_section odd_high;
-	/** The address's even ports from the range 1024-65535. */
-	struct addr_section even_high;
-};
-
-/**
  * An address within the pool, along with its ports.
  */
-struct pool_node {
+struct pool4_node {
 	/** The address itself. */
-	struct in_addr address;
+	struct in_addr addr;
 
-	struct protocol_ids udp;
-	struct protocol_ids tcp;
-	struct protocol_ids icmp;
+	struct {
+		/** The address's even ports from the range 0-1023. */
+		struct poolnum low_even;
+		/** The address's odd ports from the range 0-1023. */
+		struct poolnum low_odd;
+		/** The address's even ports from the range 1024-65535. */
+		struct poolnum high_even;
+		/** The address's odd ports from the range 1024-65535. */
+		struct poolnum high_odd;
+	} udp_ports;
+	struct {
+		struct poolnum low;
+		struct poolnum high;
+	} tcp_ports;
+	struct poolnum icmp_ids;
 
 	/** Next address within the pool (since they are linked listed; see pool). */
 	struct list_head next;
@@ -64,11 +38,11 @@ static DEFINE_SPINLOCK(pool_lock);
 
 
 /**
- * Assumes that pool has already been locked (pool->lock).
+ * Assumes that pool has already been locked (pool_lock).
  */
-static struct pool_node *get_pool_node(struct in_addr *address)
+static struct pool4_node *get_pool4_node_from_addr(struct in_addr *addr)
 {
-	struct pool_node *node;
+	struct pool4_node *node;
 
 	if (list_empty(&pool)) {
 		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
@@ -76,75 +50,44 @@ static struct pool_node *get_pool_node(struct in_addr *address)
 	}
 
 	list_for_each_entry(node, &pool, next)
-		if (ipv4_addr_equals(&node->address, address))
+		if (ipv4_addr_equals(&node->addr, addr))
 			return node;
 
 	return NULL;
 }
 
-static struct protocol_ids *get_ids(struct pool_node *node, u_int8_t l4protocol)
+/**
+ * Assumes that pool has already been locked (pool_lock).
+ */
+static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, u_int8_t l4protocol,
+		__u16 id)
 {
 	switch (l4protocol) {
 	case IPPROTO_UDP:
-		return &node->udp;
+		if (id < 1024)
+			return (id % 2 == 0) ? &node->udp_ports.low_even : &node->udp_ports.low_odd;
+		else
+			return (id % 2 == 0) ? &node->udp_ports.high_even : &node->udp_ports.high_odd;
+
 	case IPPROTO_TCP:
-		return &node->tcp;
+		return (id < 1024) ? &node->tcp_ports.low : &node->tcp_ports.high;
+
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		return &node->icmp;
+		return &node->icmp_ids;
 	}
 
 	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
 	return NULL;
 }
 
-/**
- * Assumes that node's pool has already been locked (pool->lock).
- */
-static struct addr_section *get_section(struct protocol_ids *ids, __u16 l4_id)
-{
-	if (!ids)
-		return NULL;
-
-	if (l4_id < 1024)
-		return (l4_id % 2 == 0) ? &ids->even_low : &ids->odd_low;
-	else
-		return (l4_id % 2 == 0) ? &ids->even_high : &ids->odd_high;
-}
-
-/**
- * Assumes that section's pool has already been locked (pool->lock). TODO (doc)
- */
-static bool extract_any_port(struct addr_section *section, __u16 *port)
-{
-	if (!section)
-		return NULL;
-
-	if (!list_empty(&section->free_ports)) {
-		// Reuse it.
-		struct free_port *node = list_entry(section->free_ports.next, struct free_port, next);
-		*port = node->port;
-
-		list_del(&node->next);
-		kfree(node);
-
-		return true;
-	}
-
-	if (section->next_port > section->max_port)
-		return false;
-
-	*port = section->next_port;
-	section->next_port += 2;
-	return true;
-}
-
 int pool4_init(char *addr_strs[], int addr_count)
 {
-	char *defaults[] = POOL4_DEF;
 	int i;
+	int error;
 
 	if (!addr_strs || addr_count == 0) {
+		char *defaults[] = POOL4_DEF;
 		addr_strs = defaults;
 		addr_count = ARRAY_SIZE(defaults);
 	}
@@ -152,10 +95,13 @@ int pool4_init(char *addr_strs[], int addr_count)
 	for (i = 0; i < addr_count; i++) {
 		struct in_addr addr;
 
-		if (str_to_addr4(addr_strs[i], &addr) != 0)
+		error = str_to_addr4(addr_strs[i], &addr);
+		if (error)
 			goto parse_failure;
+
 		log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
-		if (pool4_register(&addr) != 0)
+		error = pool4_register(&addr);
+		if (error)
 			goto silent_failure;
 	}
 
@@ -167,129 +113,121 @@ parse_failure:
 
 silent_failure:
 	pool4_destroy();
-	return -EINVAL;
+	return error;
 }
 
 /**
- * Assumes that "pool_lock" has already been locked.
+ * Assumes that pool has already been locked (pool_lock).
  */
-static void destroy_section(struct addr_section *section)
+static void destroy_pool4_node(struct pool4_node *node, bool remove_from_list)
 {
-	struct list_head *node;
-	struct free_port *port;
+	if (remove_from_list)
+		list_del(&node->next);
 
-	while (!list_empty(&section->free_ports)) {
-		node = section->free_ports.next;
-		port = container_of(node, struct free_port, next);
-		list_del(node);
-		kfree(port);
-	}
-}
+	poolnum_destroy(&node->udp_ports.low_even);
+	poolnum_destroy(&node->udp_ports.low_odd);
+	poolnum_destroy(&node->udp_ports.high_even);
+	poolnum_destroy(&node->udp_ports.high_odd);
+	poolnum_destroy(&node->tcp_ports.low);
+	poolnum_destroy(&node->tcp_ports.high);
+	poolnum_destroy(&node->icmp_ids);
 
-/**
- * Assumes that "pool_lock" has already been locked.
- */
-static void destroy_pool_node(struct pool_node *node)
-{
-	struct protocol_ids *protos[] = { &node->udp, &node->tcp, &node->icmp };
-	int i;
-
-	list_del(&node->next);
-	for (i = 0; i < ARRAY_SIZE(protos); i++) {
-		destroy_section(&protos[i]->odd_low);
-		destroy_section(&protos[i]->even_low);
-		destroy_section(&protos[i]->odd_high);
-		destroy_section(&protos[i]->even_high);
-	}
 	kfree(node);
 }
 
 void pool4_destroy(void)
 {
 	struct list_head *head;
-	struct pool_node *node;
+	struct pool4_node *node;
 
 	spin_lock_bh(&pool_lock);
 	while (!list_empty(&pool)) {
 		head = pool.next;
-		node = container_of(head, struct pool_node, next);
-		destroy_pool_node(node);
+		node = container_of(head, struct pool4_node, next);
+		destroy_pool4_node(node, true);
 	}
 	spin_unlock_bh(&pool_lock);
 }
 
-static void init_section(struct addr_section *section, __u32 next_port, __u32 max_port)
+int pool4_register(struct in_addr *addr)
 {
-	section->next_port = next_port;
-	section->max_port = max_port;
-	INIT_LIST_HEAD(&section->free_ports);
-}
+	struct pool4_node *old_node, *new_node;
+	int error;
 
-static void init_protocol_ids(struct protocol_ids *ids)
-{
-	init_section(&ids->odd_low, 1, 1023);
-	init_section(&ids->even_low, 0, 1022);
-	init_section(&ids->odd_high, 1025, 65535);
-	init_section(&ids->even_high, 1024, 65534);
-}
-
-int pool4_register(struct in_addr *address)
-{
-	struct pool_node *old_node, *new_node;
-
-	if (!address) {
+	if (!addr) {
 		log_err(ERR_NULL, "NULL cannot be inserted to the pool.");
 		return -EINVAL;
 	}
 
-	new_node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
+	new_node = kmalloc(sizeof(struct pool4_node), GFP_ATOMIC);
 	if (!new_node) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of IPv4 pool node failed.");
 		return -ENOMEM;
 	}
+	memset(new_node, 0, sizeof(*new_node));
 
-	new_node->address = *address;
-	init_protocol_ids(&new_node->udp);
-	init_protocol_ids(&new_node->tcp);
-	init_protocol_ids(&new_node->icmp);
+	new_node->addr = *addr;
+	error = poolnum_init(&new_node->udp_ports.low_even, 0, 1022, 2);
+	if (error)
+		goto failure;
+	error = poolnum_init(&new_node->udp_ports.low_odd, 1, 1023, 2);
+	if (error)
+		goto failure;
+	error = poolnum_init(&new_node->udp_ports.high_even, 1024, 65534, 2);
+	if (error)
+		goto failure;
+	error = poolnum_init(&new_node->udp_ports.high_odd, 1025, 65535, 2);
+	if (error)
+		goto failure;
+	error = poolnum_init(&new_node->tcp_ports.low, 0, 1023, 1);
+	if (error)
+		goto failure;
+	error = poolnum_init(&new_node->tcp_ports.high, 1024, 65535, 1);
+	if (error)
+		goto failure;
+	error = poolnum_init(&new_node->icmp_ids, 0, 65535, 1);
+	if (error)
+		goto failure;
 
 	spin_lock_bh(&pool_lock);
 
 	list_for_each_entry(old_node, &pool, next) {
-		if (ipv4_addr_equals(&old_node->address, address)) {
+		if (ipv4_addr_equals(&old_node->addr, addr)) {
 			spin_unlock_bh(&pool_lock);
-			kfree(new_node);
-			log_err(ERR_POOL4_REINSERT, "The %pI4 address already belongs to the pool.", address);
+			destroy_pool4_node(new_node, false);
+			log_err(ERR_POOL4_REINSERT, "The %pI4 address already belongs to the pool.", addr);
 			return -EINVAL;
 		}
 	}
-
-	// "add to head->prev" = "add to the end of the list".
-	list_add(&new_node->next, pool.prev);
+	list_add(&new_node->next, pool.prev); // "add to head->prev" = "add to the end of the list".
 
 	spin_unlock_bh(&pool_lock);
 	return 0;
+
+failure:
+	destroy_pool4_node(new_node, false);
+	return error;
 }
 
-int pool4_remove(struct in_addr *address)
+int pool4_remove(struct in_addr *addr)
 {
-	struct pool_node *node;
+	struct pool4_node *node;
 
-	if (!address) {
+	if (!addr) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
 		return -EINVAL;
 	}
 
 	spin_lock_bh(&pool_lock);
 
-	node = get_pool_node(address);
+	node = get_pool4_node_from_addr(addr);
 	if (!node) {
 		spin_unlock_bh(&pool_lock);
 		log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
 		return -ENOENT;
 	}
 
-	destroy_pool_node(node);
+	destroy_pool4_node(node, true);
 
 	spin_unlock_bh(&pool_lock);
 	return 0;
@@ -297,7 +235,7 @@ int pool4_remove(struct in_addr *address)
 
 bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *result)
 {
-	struct pool_node *node;
+	struct pool4_node *node;
 
 	spin_lock_bh(&pool_lock);
 
@@ -309,8 +247,18 @@ bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *r
 
 	// Find an address with a compatible port
 	list_for_each_entry(node, &pool, next) {
-		if (extract_any_port(get_section(get_ids(node, l4protocol), port), &result->l4_id)) {
-			result->address = node->address;
+		struct poolnum *ids;
+		int error;
+
+		ids = get_poolnum_from_pool4_node(node, l4protocol, port);
+		if (!ids) {
+			spin_unlock_bh(&pool_lock);
+			return false;
+		}
+
+		error = poolnum_get_any(ids, &result->l4_id);
+		if (!error) {
+			result->address = node->addr;
 			spin_unlock_bh(&pool_lock);
 			return true;
 		}
@@ -321,70 +269,67 @@ bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *r
 	return false;
 }
 
-bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
+bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *addr,
 		struct ipv4_tuple_address *result)
 {
-	struct pool_node *node;
+	struct pool4_node *node;
+	struct poolnum *ids;
+	int error;
 
-	if (!address) {
+	if (!addr) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
 		return false;
 	}
 
 	spin_lock_bh(&pool_lock);
 
-	node = get_pool_node(&address->address);
+	node = get_pool4_node_from_addr(&addr->address);
 	if (!node) {
-		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &address->address);
+		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
 		goto failure;
 	}
 
-	// TODO (later) el RFC permite usar puerto de diferente paridad/rango si aquí no se encuentra.
-	result->address = address->address;
-	if (extract_any_port(get_section(get_ids(node, l4protocol), address->l4_id), &result->l4_id)) {
-		spin_unlock_bh(&pool_lock);
-		return true;
-	}
+	ids = get_poolnum_from_pool4_node(node, l4protocol, addr->l4_id);
+	if (!ids)
+		goto failure;
+	error = poolnum_get_any(ids, &result->l4_id);
+	if (error)
+		goto failure;
 
-	// Fall through.
+	spin_unlock_bh(&pool_lock);
+	result->address = addr->address;
+	return true;
 
 failure:
 	spin_unlock_bh(&pool_lock);
 	return false;
 }
 
-bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address)
+bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *addr)
 {
-	struct pool_node *node;
-	struct addr_section *section;
-	struct free_port *new_port;
+	struct pool4_node *node;
+	struct poolnum *ids;
+	bool success;
 
-	if (!address) {
+	if (!addr) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
 		return false;
 	}
 
 	spin_lock_bh(&pool_lock);
 
-	node = get_pool_node(&address->address);
+	node = get_pool4_node_from_addr(&addr->address);
 	if (!node) {
-		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &address->address);
-		goto failure;
-	}
-	section = get_section(get_ids(node, l4protocol), address->l4_id);
-	if (!section)
-		goto failure;
-
-	new_port = kmalloc(sizeof(*new_port), GFP_ATOMIC);
-	if (!new_port) {
-		// Well, crap. I guess we won't be seeing this address/port anymore :/.
-		log_err(ERR_ALLOC_FAILED, "Cannot instantiate! I won't be able to remember that %pI4#%u "
-				"can be reused.", &address->address, address->l4_id);
+		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
 		goto failure;
 	}
 
-	new_port->port = address->l4_id;
-	list_add(&new_port->next, section->free_ports.prev);
+	ids = get_poolnum_from_pool4_node(node, l4protocol, addr->l4_id);
+	if (!ids)
+		goto failure;
+	success = poolnum_get(ids, addr->l4_id);
+	if (!success)
+		goto failure;
 
 	spin_unlock_bh(&pool_lock);
 	return true;
@@ -394,12 +339,47 @@ failure:
 	return false;
 }
 
-bool pool4_contains(struct in_addr *address)
+bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *addr)
+{
+	struct pool4_node *node;
+	struct poolnum *ids;
+	int error;
+
+	if (!addr) {
+		log_err(ERR_NULL, "NULL is not a valid address.");
+		return false;
+	}
+
+	spin_lock_bh(&pool_lock);
+
+	node = get_pool4_node_from_addr(&addr->address);
+	if (!node) {
+		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
+		goto failure;
+	}
+
+	ids = get_poolnum_from_pool4_node(node, l4protocol, addr->l4_id);
+	if (!ids)
+		goto failure;
+
+	error = poolnum_return(ids, addr->l4_id);
+	if (error)
+		goto failure;
+
+	spin_unlock_bh(&pool_lock);
+	return true;
+
+failure:
+	spin_unlock_bh(&pool_lock);
+	return false;
+}
+
+bool pool4_contains(struct in_addr *addr)
 {
 	bool result;
 
 	spin_lock_bh(&pool_lock);
-	result = (get_pool_node(address) != NULL);
+	result = (get_pool4_node_from_addr(addr) != NULL);
 	spin_unlock_bh(&pool_lock);
 
 	return result;
@@ -407,11 +387,11 @@ bool pool4_contains(struct in_addr *address)
 
 int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg)
 {
-	struct pool_node *node;
+	struct pool4_node *node;
 
 	spin_lock_bh(&pool_lock);
 	list_for_each_entry(node, &pool, next) {
-		int error = func(&node->address, arg);
+		int error = func(&node->addr, arg);
 		if (error) {
 			spin_unlock_bh(&pool_lock);
 			return error;

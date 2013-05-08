@@ -61,6 +61,8 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
  */
 bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 		struct ipv4_tuple_address *result);
+
+bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 /**
  * Puts the (previously borrowed) address "address" back into the "l4protocol" pool. Meant to revert
  * the effect of the pool4_get_* functions.
