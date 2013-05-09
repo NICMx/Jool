@@ -200,10 +200,21 @@ static void ipv6_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 			be16_to_cpu(ip_hdr(skb_in)->tot_len));			
 }
 
+/**
+ * Returns 1 if the Don't Fragments flag from the "header" header is set, 0 otherwise.
+ */
+static inline __u16 is_dont_fragment_set(struct iphdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return (frag_off & IP_DF) >> 14;
+}
+
 bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	struct dst_entry *dst;
 	int error;
+
+log_warning("1");
 
 	skb_out->protocol = htons(ETH_P_IPV6);
 
@@ -211,17 +222,22 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	if (!dst)
 		return false;
 
+log_warning("2");
+
 	skb_out->dev = dst->dev;
 	skb_dst_set(skb_out, dst);
 
 	ipv6_mtu_hack(skb_in, skb_out);
+
+log_warning("3");
 
 	if (skb_out->len > skb_out->dev->mtu) {
 		if ( ip_hdr(skb_in)->protocol == IPPROTO_ICMP
 				&& (! is_icmp6_info(icmp6_hdr(skb_out)->icmp6_type)) ) {
 			skb_trim(skb_out, skb_out->dev->mtu);
 			// TODO Fix packet length
-		} else {
+		} else if (is_dont_fragment_set(ip_hdr(skb_in))) {
+			log_warning("Longitud es mayor al MTU y DF esta prendido.");
 			icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(skb_out->dev->mtu));
 			return false;
 		}
