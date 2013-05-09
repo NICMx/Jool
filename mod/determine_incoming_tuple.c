@@ -53,6 +53,7 @@ static bool ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, stru
 	struct iphdr *inner_ipv4 = (struct iphdr *) (hdr_icmp + 1);
 	struct udphdr *inner_udp;
 	struct tcphdr *inner_tcp;
+	struct icmphdr *inner_icmp;
 
 	tuple->src.addr.ipv4.s_addr = inner_ipv4->daddr;
 	tuple->dst.addr.ipv4.s_addr = inner_ipv4->saddr;
@@ -70,8 +71,18 @@ static bool ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, stru
 		tuple->dst.l4_id = be16_to_cpu(inner_tcp->source);
 		break;
 
+	case IPPROTO_ICMP:
+		inner_icmp = ipv4_extract_l4_hdr(inner_ipv4);
+
+		if (!is_icmp_info(inner_icmp->type))
+			return false;
+
+		tuple->src.l4_id = be16_to_cpu(inner_icmp->un.echo.id);
+		tuple->dst.l4_id = tuple->src.l4_id;
+		break;
+
 	default:
-		log_warning("Packet's inner packet is not UDP or TCP (%d).", inner_ipv4->protocol);
+		log_warning("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
 		return false;
 	}
 
@@ -120,6 +131,7 @@ static bool ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, s
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ipv6);
 	struct udphdr *inner_udp;
 	struct tcphdr *inner_tcp;
+	struct icmp6hdr *inner_icmp;
 
 	tuple->src.addr.ipv6 = inner_ipv6->daddr;
 	tuple->dst.addr.ipv6 = inner_ipv6->saddr;
@@ -138,8 +150,18 @@ static bool ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, s
 		tuple->dst.l4_id = be16_to_cpu(inner_tcp->source);
 		break;
 
+	case IPPROTO_ICMPV6:
+		inner_icmp = iterator.data;
+
+		if (!is_icmp6_info(inner_icmp->icmp6_type))
+			return false;
+
+		tuple->src.l4_id = be16_to_cpu(inner_icmp->icmp6_dataun.u_echo.identifier);
+		tuple->dst.l4_id = tuple->src.l4_id;
+		break;
+
 	default:
-		log_warning("Packet's inner packet is not UDP or TCP (%d).", iterator.hdr_type);
+		log_warning("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
 		return false;
 	}
 
