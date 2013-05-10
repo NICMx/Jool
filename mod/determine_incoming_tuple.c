@@ -74,7 +74,7 @@ static bool ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, stru
 	case IPPROTO_ICMP:
 		inner_icmp = ipv4_extract_l4_hdr(inner_ipv4);
 
-		if (!is_icmp_info(inner_icmp->type))
+		if (is_icmp4_error(inner_icmp->type))
 			return false;
 
 		tuple->src.l4_id = be16_to_cpu(inner_icmp->un.echo.id);
@@ -153,7 +153,7 @@ static bool ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, s
 	case IPPROTO_ICMPV6:
 		inner_icmp = iterator.data;
 
-		if (!is_icmp6_info(inner_icmp->icmp6_type))
+		if (is_icmp6_error(inner_icmp->icmp6_type))
 			return false;
 
 		tuple->src.l4_id = be16_to_cpu(inner_icmp->icmp6_dataun.u_echo.identifier);
@@ -195,7 +195,7 @@ bool determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 			break;
 		case IPPROTO_ICMP:
 			icmp4 = ipv4_extract_l4_hdr(hdr4);
-			if (is_icmp_info(icmp4->type)) {
+			if (is_icmp4_info(icmp4->type)) {
 				if (!ipv4_icmp_info(hdr4, icmp4, tuple))
 					return false;
 			} else {

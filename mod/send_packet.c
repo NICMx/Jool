@@ -1,5 +1,6 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/comm/types.h"
+#include "nat64/mod/ipv6_hdr_iterator.h"
 #include "nat64/mod/translate_packet.h"
 
 #include <linux/ip.h>
@@ -119,6 +120,11 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 #endif
 
+static unsigned int min_uint(unsigned int val1, unsigned int val2)
+{
+	return (val1 < val2) ? val1 : val2;
+}
+
 static void ipv4_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	struct icmp6hdr *hdr6 = icmp6_hdr(skb_in);
@@ -134,11 +140,49 @@ static void ipv4_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		return;
 	
 	if (hdr4->type != ICMP_DEST_UNREACH || hdr4->code != ICMP_FRAG_NEEDED)
-	   return;
+		return;
 
-   hdr4->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(hdr6->icmp6_mtu) - 20,
-		   ipv4_mtu,
-		   ipv6_mtu - 20);
+	hdr4->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(hdr6->icmp6_mtu) - 20,
+			ipv4_mtu,
+			ipv6_mtu - 20);
+}
+
+static bool ipv4_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb_out)
+{
+	struct iphdr *ip4_hdr = ip_hdr(skb_out);
+
+	if (skb_out->len <= skb_out->dev->mtu)
+		return true;
+
+	if (ip4_hdr->protocol == IPPROTO_ICMP) {
+		struct icmphdr *icmp4_hdr = icmp_hdr(skb_out);
+		if (is_icmp4_error(icmp4_hdr->type)) {
+			int new_packet_len = skb_out->dev->mtu;
+
+			skb_trim(skb_out, new_packet_len);
+
+			ip4_hdr->tot_len = cpu_to_be16(new_packet_len);
+			ip4_hdr->check = 0;
+			ip4_hdr->check = ip_fast_csum(ip4_hdr, ip4_hdr->ihl);
+
+			icmp4_hdr->checksum = 0;
+			icmp4_hdr->checksum = ip_compute_csum(icmp4_hdr, new_packet_len - 4 * ip4_hdr->ihl);
+
+			return true;
+		}
+	}
+
+	if (is_dont_fragment_set(ip4_hdr)) {
+		unsigned int ipv6_mtu = skb_in->dev->mtu;
+		unsigned int ipv4_mtu = skb_out->dev->mtu;
+
+		log_debug("Packet is too large for the outgoing MTU and the DF flag is set. Dropping...");
+		icmpv6_send(skb_in, ICMPV6_PKT_TOOBIG, 0, cpu_to_be32(min_uint(ipv4_mtu, ipv6_mtu - 20)));
+		return false;
+	}
+
+	// The kernel will fragment it.
+	return true;
 }
 
 bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
@@ -156,17 +200,8 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	skb_dst_set(skb_out, (struct dst_entry *) routing_table);
 
 	ipv4_mtu_hack(skb_in, skb_out);
-
-	if (skb_out->len > skb_out->dev->mtu) {
-		if ( ip_hdr(skb_out)->protocol == IPPROTO_ICMP
-				&& (! is_icmp_info(icmp_hdr(skb_out)->type)) ) {
-			skb_trim(skb_out, skb_out->dev->mtu);
-			// TODO Fix packet length and checksum
-		} else {
-			icmpv6_send(skb_in, ICMPV6_PKT_TOOBIG, 0, cpu_to_be32(skb_out->dev->mtu));
-			return false;
-		}
-	}
+	if (!ipv4_validate_packet_len(skb_in, skb_out))
+		return false;
 
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
 	error = ip_local_out(skb_out); // Send.
@@ -200,6 +235,45 @@ static void ipv6_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 			be16_to_cpu(ip_hdr(skb_in)->tot_len));			
 }
 
+static bool ipv6_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb_out)
+{
+	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb_out);
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
+	unsigned int ipv6_mtu;
+	unsigned int ipv4_mtu;
+
+	if (skb_out->len <= skb_out->dev->mtu)
+		return true;
+
+	hdr_iterator_last(&iterator);
+	if (iterator.hdr_type == IPPROTO_ICMPV6) {
+		struct icmp6hdr *icmpv6_hdr = icmp6_hdr(skb_out);
+		if (is_icmp6_error(icmpv6_hdr->icmp6_type)) {
+			int new_packet_len = skb_out->dev->mtu;
+			int l3_payload_len = new_packet_len - (iterator.data - (void *) ip6_hdr);
+
+			skb_trim(skb_out, new_packet_len);
+
+			ip6_hdr->payload_len = cpu_to_be16(l3_payload_len);
+
+			icmpv6_hdr->icmp6_cksum = 0;
+			icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
+					l3_payload_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, l3_payload_len, 0));
+
+			return true;
+		}
+	}
+
+	ipv6_mtu = skb_out->dev->mtu;
+	ipv4_mtu = skb_in->dev->mtu;
+
+	log_debug("Packet is too large for the outgoing MTU and IPv6 routers don't do fragmentation. "
+			"Dropping...");
+	icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+			cpu_to_be32(min_uint(ipv6_mtu, ipv4_mtu + 20)));
+	return false;
+}
+
 bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	struct dst_entry *dst;
@@ -215,18 +289,9 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	skb_dst_set(skb_out, dst);
 
 	ipv6_mtu_hack(skb_in, skb_out);
+	if (!ipv6_validate_packet_len(skb_in, skb_out))
+		return false;
 
-	if (skb_out->len > skb_out->dev->mtu) {
-		if ( ip_hdr(skb_in)->protocol == IPPROTO_ICMP
-				&& (! is_icmp6_info(icmp6_hdr(skb_out)->icmp6_type)) ) {
-			skb_trim(skb_out, skb_out->dev->mtu);
-			// TODO Fix packet length
-		} else {
-			icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(skb_out->dev->mtu));
-			return false;
-		}
-	}
-	
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
 	error = ip6_local_out(skb_out); // Send.
 	if (error) {

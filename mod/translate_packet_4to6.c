@@ -60,7 +60,7 @@ static bool init_packet_in_4to6(struct tuple *tuple, struct sk_buff *skb_in,
 /**
  * Returns 1 if the Don't Fragments flag from the "header" header is set, 0 otherwise.
  */
-static inline __u16 is_dont_fragment_set(struct iphdr *hdr)
+__u16 is_dont_fragment_set(struct iphdr *hdr)
 {
 	__u16 frag_off = be16_to_cpu(hdr->frag_off);
 	return (frag_off & IP_DF) >> 14;

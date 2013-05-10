@@ -17,7 +17,9 @@
 /**
  * Readies the rest of this module for future use.
  *
- * TODO (doc)
+ * @param addr_strs array of strings denoting the IP addresses the pool should start with.
+ * @param addr_count size of the "addr_strs" array.
+ * @return result status (< 0 on error).
  */
 int pool4_init(char *addr_strs[], int addr_count);
 /**
