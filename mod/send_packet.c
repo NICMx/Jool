@@ -193,15 +193,19 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	skb_out->protocol = htons(ETH_P_IP);
 
 	routing_table = route_packet_ipv4(skb_out);
-	if (!routing_table)
+	if (!routing_table) {
+		kfree_skb(skb_out);
 		return false;
+	}
 
 	skb_out->dev = routing_table->dst.dev;
 	skb_dst_set(skb_out, (struct dst_entry *) routing_table);
 
 	ipv4_mtu_hack(skb_in, skb_out);
-	if (!ipv4_validate_packet_len(skb_in, skb_out))
+	if (!ipv4_validate_packet_len(skb_in, skb_out)) {
+		kfree_skb(skb_out);
 		return false;
+	}
 
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
 	error = ip_local_out(skb_out); // Send.
@@ -282,15 +286,19 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	skb_out->protocol = htons(ETH_P_IPV6);
 
 	dst = route_packet_ipv6(skb_out);
-	if (!dst)
+	if (!dst) {
+		kfree_skb(skb_out);
 		return false;
+	}
 
 	skb_out->dev = dst->dev;
 	skb_dst_set(skb_out, dst);
 
 	ipv6_mtu_hack(skb_in, skb_out);
-	if (!ipv6_validate_packet_len(skb_in, skb_out))
+	if (!ipv6_validate_packet_len(skb_in, skb_out)) {
+		kfree_skb(skb_out);
 		return false;
+	}
 
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
 	error = ip6_local_out(skb_out); // Send.
