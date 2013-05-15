@@ -1,6 +1,5 @@
 #include "nat64/mod/bib.h"
 #include "nat64/comm/types.h"
-#include "nat64/mod/pool4.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
@@ -214,11 +213,6 @@ bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol)
 		return true;
 	if (!removed_from_ipv4 && !removed_from_ipv6)
 		return false;
-
-	if (!pool4_return(l4protocol, &entry->ipv4)) {
-		log_err(ERR_POOL4_NOT_FOUND, "Failed to return transport address %pI4#%u to the pool.",
-				&entry->ipv4.address, entry->ipv4.l4_id);
-	}
 
 	// Why was it not indexed by both tables? Programming error.
 	log_crit(ERR_INCOMPLETE_INDEX_BIB, "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",

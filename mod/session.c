@@ -1,5 +1,5 @@
 #include "nat64/mod/session.h"
-#include "nat64/mod/filtering_and_updating.h"
+#include "nat64/comm/constants.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
@@ -52,6 +52,16 @@ static LIST_HEAD(all_sessions);
 struct timer_list expire_timer;
 static bool expire_timer_active = false;
 static DEFINE_SPINLOCK(expire_timer_lock);
+
+/**
+ * This callback will be called by the session-cleaning thread for every session whose lifetime
+ * just expired. It's expected to either update the session (particularly its lifetime) or approve
+ * its deletion.
+ *
+ * @param session the session whose lifetime just expired.
+ * @return whether the session should survive (true) or not (false).
+ */
+static bool (*session_expired_cb)(struct session_entry *session);
 
 
 /********************************************
@@ -110,7 +120,7 @@ static void clean_expired_sessions(void)
 	list_for_each_safe(current_node, next_node, &all_sessions) {
 		current_entry = list_entry(current_node, struct session_entry, all_sessions);
 		if (!current_entry->is_static && current_entry->dying_time <= current_time) {
-			if (!session_expired(current_entry) && session_remove(current_entry)) {
+			if (!session_expired_cb(current_entry) && session_remove(current_entry)) {
 				removed++;
 				kfree(current_entry);
 			}
@@ -137,7 +147,7 @@ static void cleaner_timer(unsigned long param)
  * Public functions.
  *******************************/
 
-int session_init(void)
+int session_init(bool (*session_expired_callback)(struct session_entry *))
 {
 	struct session_table *tables[] = { &session_table_udp, &session_table_tcp,
 			&session_table_icmp };
@@ -160,6 +170,8 @@ int session_init(void)
 	expire_timer.data = 0;
 	add_timer(&expire_timer);
 	expire_timer_active = true;
+
+	session_expired_cb = session_expired_callback;
 
 	return 0;
 }

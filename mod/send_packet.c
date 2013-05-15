@@ -133,9 +133,6 @@ static void ipv4_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	unsigned int ipv6_mtu = skb_in->dev->mtu;
 	unsigned int ipv4_mtu = skb_out->dev->mtu;
 
-	if (!skb_in)
-		return;
-	
 	if (ip_hdr(skb_out)->protocol != IPPROTO_ICMP)
 		return;
 	
@@ -201,10 +198,12 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	skb_out->dev = routing_table->dst.dev;
 	skb_dst_set(skb_out, (struct dst_entry *) routing_table);
 
-	ipv4_mtu_hack(skb_in, skb_out);
-	if (!ipv4_validate_packet_len(skb_in, skb_out)) {
-		kfree_skb(skb_out);
-		return false;
+	if (skb_in) {
+		ipv4_mtu_hack(skb_in, skb_out);
+		if (!ipv4_validate_packet_len(skb_in, skb_out)) {
+			kfree_skb(skb_out);
+			return false;
+		}
 	}
 
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
@@ -224,9 +223,6 @@ static void ipv6_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	unsigned int ipv6_mtu = skb_out->dev->mtu;
 	unsigned int ipv4_mtu = skb_in->dev->mtu;
 
-	if (!skb_in)
-		return;
-	
 	if (ip_hdr(skb_in)->protocol != IPPROTO_ICMP)
 		return;
 	
@@ -294,10 +290,12 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	skb_out->dev = dst->dev;
 	skb_dst_set(skb_out, dst);
 
-	ipv6_mtu_hack(skb_in, skb_out);
-	if (!ipv6_validate_packet_len(skb_in, skb_out)) {
-		kfree_skb(skb_out);
-		return false;
+	if (skb_in) {
+		ipv6_mtu_hack(skb_in, skb_out);
+		if (!ipv6_validate_packet_len(skb_in, skb_out)) {
+			kfree_skb(skb_out);
+			return false;
+		}
 	}
 
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);

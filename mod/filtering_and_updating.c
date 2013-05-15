@@ -1,8 +1,6 @@
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/config_proto.h"
-#include "nat64/mod/config.h"
-#include "nat64/mod/config_validation.h"
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
