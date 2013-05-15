@@ -214,7 +214,7 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	struct dst_entry *dst;
 	int error;
 
-log_warning("1");
+//~ log_warning("1");
 
 	skb_out->protocol = htons(ETH_P_IPV6);
 
@@ -222,14 +222,14 @@ log_warning("1");
 	if (!dst)
 		return false;
 
-log_warning("2");
+//~ log_warning("2");
 
 	skb_out->dev = dst->dev;
 	skb_dst_set(skb_out, dst);
 
 	ipv6_mtu_hack(skb_in, skb_out);
 
-log_warning("3");
+//~ log_warning("3");
 
 	if (skb_out->len > skb_out->dev->mtu) {
 		if ( ip_hdr(skb_in)->protocol == IPPROTO_ICMP
