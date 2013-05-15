@@ -86,20 +86,16 @@ static bool init(void)
 	}
 
 	// Init the IPv6 pool module
-	if (!pool6_init())
+	if (pool6_init(NULL, 0) != 0) // we'll use the defaults.
 		return false;
 	if (str_to_addr6("64:ff9b::", &prefix.address) != 0) {
 		log_warning("Cannot parse the IPv6 prefix. Failing...");
 		return false;
 	}
 	prefix.len = 96;
-	if (pool6_register(&prefix) != 0) {
-		log_warning("Could not add the IPv6 prefix. Failing...");
-		return false;
-	}
 
 	// Init the BIB module
-	if (!bib_init())
+	if (bib_init() != 0)
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(protocols); i++)

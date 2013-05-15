@@ -322,18 +322,12 @@ end:
 
 #ifdef GENERATE_FOR_EACH
 /**
- * TODO (doc) this comment is completely upside-down.
+ * Executes the "func" function for every element in the table.
  *
- * Builds an array out of the current table contents, and then returns it.
- * (It's a shallow copy).
- *
- * @param table the HTABLE_NAME instance you want to convert to an array.
- * @param result makes this point to the resulting array. "***" = "by-reference argument of an array
- *			of pointers."
- * @return the length of "result" (in array slots). May be -1, if memory could not be allocated.
- *
- * You have to kfree "result" after you use it. Don't kfree the objects pointed by its slots, as
- * they are the real entries from the hash table.
+ * @param table the HTABLE_NAME instance you want to walk-through.
+ * @param func function you want executed for each table entry. Will receive each value and "arg".
+ * @param arg anything you want "func" to receive on every call.
+ * @return error status.
  */
 static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *), void *arg)
 {

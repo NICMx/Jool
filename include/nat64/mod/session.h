@@ -62,7 +62,7 @@ struct session_entry {
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
-int session_init(void);
+int session_init(bool (*session_expired_callback)(struct session_entry *));
 
 /**
  * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".

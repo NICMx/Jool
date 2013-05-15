@@ -92,7 +92,7 @@ unsigned int hook_ipv4(unsigned int hooknum, struct sk_buff *skb,
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
 
-	// TODO (test) validate l4 headers further?
+	// TODO (warning) validate l4 headers further?
 	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
 		log_debug("Packet does not use TCP, UDP or ICMP.");
 		return NF_ACCEPT;
@@ -251,7 +251,7 @@ int __init nat64_init(void)
 	error = bib_init();
 	if (error)
 		goto failure;
-	error = session_init();
+	error = session_init(session_expired);
 	if (error)
 		goto failure;
 	error = filtering_init();

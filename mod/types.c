@@ -158,9 +158,19 @@ bool is_icmp6_info(__u8 type)
 	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);
 }
 
-bool is_icmp_info(__u8 type)
+bool is_icmp6_error(__u8 type)
+{
+	return !is_icmp6_info(type);
+}
+
+bool is_icmp4_info(__u8 type)
 {
 	return (type == ICMP_ECHO) || (type == ICMP_ECHOREPLY);
+}
+
+bool is_icmp4_error(__u8 type)
+{
+	return !is_icmp4_info(type);
 }
 
 /**

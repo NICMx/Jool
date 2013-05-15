@@ -51,8 +51,6 @@ int pool6_init(char *pref_strs[], int pref_count)
 		struct ipv6_prefix pref;
 		const char *slash_pos;
 
-		// TODO validate the string.
-
 		if (in6_pton(pref_strs[i], -1, (u8 *) &pref.address.in6_u.u6_addr8, '/', &slash_pos) != 1)
 			goto parse_failure;
 		if (kstrtou8(slash_pos + 1, 0, &pref.len) != 0)

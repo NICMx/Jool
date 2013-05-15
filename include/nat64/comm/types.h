@@ -215,7 +215,9 @@ __u16 ipv4_pair_hashcode(struct ipv4_pair *pair);
 __u16 ipv6_pair_hashcode(struct ipv6_pair *pair);
 
 bool is_icmp6_info(__u8 type);
-bool is_icmp_info(__u8 type);
+bool is_icmp6_error(__u8 type);
+bool is_icmp4_info(__u8 type);
+bool is_icmp4_error(__u8 type);
 
 void log_tuple(struct tuple *tuple);
 

@@ -19,7 +19,7 @@ struct table_value {
 #define VALUE_TYPE struct table_value
 #define HASH_TABLE_SIZE (10)
 #define GENERATE_PRINT
-#define GENERATE_TO_ARRAY
+#define GENERATE_FOR_EACH
 #include "hash_table.c"
 
 // These are also kind of part of the table.
@@ -154,59 +154,67 @@ failure:
 	return false;
 }
 
-static bool test_to_array_function(void)
+struct loop_summary {
+	int values[3];
+	int array_size;
+};
+
+int for_each_func(struct table_value *val, void *arg)
+{
+	struct loop_summary *summary = arg;
+
+	if (summary->array_size >= 3) {
+		log_warning("Expected only 3 values in the table.");
+		return -EINVAL;
+	}
+
+	summary->values[summary->array_size] = val->value;
+	summary->array_size++;
+
+	return 0;
+}
+
+static bool test_for_each_function(void)
 {
 	struct test_table table;
-	struct table_value **array = NULL;
-	int array_size;
+	struct loop_summary summary = {
+			.values = { 0, 0, 0 },
+			.array_size = 0
+	};
 	int i;
+	bool success;
 
 	struct table_key keys[] = { { 2 }, { 3 }, { 12 } };
 	struct table_value values[] = { { 6623 }, { 784 }, { 736 } };
 
 	// Init.
 	test_table_init(&table, &equals_function, &hash_code_function);
-	for (i = 0; i < ARRAY_SIZE(values); i++)
+	for (i = 0; i < ARRAY_SIZE(values); i++) {
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation failed on value %d.", i);
-			goto failure;
+			test_table_empty(&table, false, false);
+			return false;
 		}
-
-	// Call.
-	array_size = test_table_to_array(&table, &array);
-
-	// Assert.
-	if (array_size != 3) {
-		log_warning("Test failed: Array size. Expected: 3. Actual: %d", array_size);
-		goto failure;
 	}
 
+	success &= assert_equals_int(0, test_table_for_each(&table, for_each_func, &summary), "");
+	success &= assert_equals_int(3, summary.array_size, "");
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
-		if (array[0]->value != values[i].value
-				&& array[1]->value != values[i].value
-				&& array[2]->value != values[i].value) {
-			log_warning("Test failed: To array function. Expected array to contain %d.",
-					values[i].value);
-			goto failure;
-		}
+		success &= assert_true(summary.values[0] == values[i].value
+				|| summary.values[1] == values[i].value
+				|| summary.values[2] == values[i].value, "");
 	}
 
-	kfree(array);
 	test_table_empty(&table, false, false);
 	return true;
-
-failure:
-	kfree(array);
-	test_table_empty(&table, false, false);
-	return false;
 }
 
 int init_module(void)
 {
 	START_TESTS("Hash table");
 
-	CALL_TEST(test(), "Everything, except to_array");
-	CALL_TEST(test_to_array_function(), "to_array function");
+	CALL_TEST(test(), "Everything, except for_each");
+	CALL_TEST(test_for_each_function(), "for_each function");
 
 	END_TESTS;
 }

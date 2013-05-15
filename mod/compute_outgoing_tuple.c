@@ -161,7 +161,7 @@ bool compute_out_tuple_4to6(struct tuple *in, struct sk_buff *skb_in, struct tup
 		return tuple5(in, out);
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		return is_icmp_info(icmp_hdr(skb_in)->type)
+		return is_icmp4_info(icmp_hdr(skb_in)->type)
 				? tuple3(in, out)
 				: tuple5(in, out);
 	default:
