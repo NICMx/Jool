@@ -1,5 +1,6 @@
-#include "nat64/mod/xt_core.h"
+#include "nat64/mod/core.h"
 #include "nat64/comm/nat64.h"
+#include "nat64/mod/packet.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
@@ -23,7 +24,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("\"NAT64\" (RFC 6146)");
-//MODULE_ALIAS("nat64"); // TODO (later) uncomment when we fix the project's name.
+/* MODULE_ALIAS("nat64"); TODO (later) uncomment when we fix the project's name. */
 
 static char *pool6[5];
 static int pool6_size;
@@ -60,11 +61,11 @@ unsigned int nat64_core(struct sk_buff *skb_in,
 	}
 
 	log_debug("Success.");
-	return NF_DROP; // Lol, the irony.
+	return NF_DROP; /* Lol, the irony. */
 
 free_and_fail:
 	kfree_skb(skb_out);
-	// Fall through.
+	/* Fall through. */
 
 fail:
 	log_debug("Failure.");
@@ -76,32 +77,23 @@ unsigned int hook_ipv4(unsigned int hooknum, struct sk_buff *skb,
 		int (*okfn)(struct sk_buff *))
 {
 	struct iphdr *ip4_header;
-	__u8 l4protocol;
 	struct in_addr daddr;
+	enum verdict result;
 
 	skb_linearize(skb);
-	
-	ip4_header = ip_hdr(skb);
-	l4protocol = ip4_header->protocol;
 
-	// Validate.
+	ip4_header = ip_hdr(skb);
+
 	daddr.s_addr = ip4_header->daddr;
 	if (!pool4_contains(&daddr))
-		return NF_ACCEPT; // Let something else handle it.
+		return NF_ACCEPT;
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
 
-	// TODO (warning) validate l4 headers further?
-	if (l4protocol != IPPROTO_TCP && l4protocol != IPPROTO_UDP && l4protocol != IPPROTO_ICMP) {
-		log_debug("Packet does not use TCP, UDP or ICMP.");
-		return NF_ACCEPT;
-	}
-
-	// Set the skb's transport header pointer.
-	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
-	// And despite that, its availability will be appreciated.
-	skb_set_transport_header(skb, 4 * ip4_header->ihl);
+	result = validate_skb_ipv4(skb);
+	if (result != VER_CONTINUE)
+		return result;
 
 	return nat64_core(skb,
 			compute_out_tuple_4to6,
@@ -114,91 +106,26 @@ unsigned int hook_ipv6(unsigned int hooknum, struct sk_buff *skb,
 		int (*okfn)(struct sk_buff *))
 {
 	struct ipv6hdr *ip6_header;
-	struct hdr_iterator iterator;
-	enum hdr_iterator_result iterator_result;
-	__u8 l4protocol;
+	enum verdict result;
 
 	skb_linearize(skb);
 	
 	ip6_header = ipv6_hdr(skb);
-	hdr_iterator_init(&iterator, ip6_header);
-	
-	// Validate.
+
 	if (!pool6_contains(&ip6_header->daddr))
-		goto failure;
+		return NF_ACCEPT;
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
 
-	iterator_result = hdr_iterator_last(&iterator);
-	switch (iterator_result) {
-	case HDR_ITERATOR_SUCCESS:
-		log_crit(ERR_INVALID_ITERATOR, "Iterator reports there are headers beyond the payload.");
-		goto failure;
-	case HDR_ITERATOR_END:
-		l4protocol = iterator.hdr_type;
-		break;
-	case HDR_ITERATOR_UNSUPPORTED:
-		// RFC 6146 section 5.1.
-		log_info("Packet contains an Authentication or ESP header, which I do not support.");
-		goto failure;
-	case HDR_ITERATOR_OVERFLOW:
-		log_warning("IPv6 extension header analysis ran past the end of the packet. "
-				"Packet seems corrupted; ignoring.");
-		goto failure;
-	default:
-		log_crit(ERR_INVALID_ITERATOR, "Unknown header iterator result code: %d.", iterator_result);
-		goto failure;
-	}
-
-	switch (l4protocol) {
-	case NEXTHDR_TCP:
-		if (iterator.data + tcp_hdrlen(skb) > iterator.limit) {
-			log_warning("TCP header doesn't fit in the packet. Packet seems corrupted; ignoring.");
-			goto failure;
-		}
-		break;
-
-	case NEXTHDR_UDP: {
-		struct udphdr *hdr = iterator.data;
-		if (iterator.data + sizeof(struct udphdr) > iterator.limit) {
-			log_warning("UDP header doesn't fit in the packet. Packet seems corrupted; ignoring.");
-			goto failure;
-		}
-		if (iterator.data + be16_to_cpu(hdr->len) > iterator.limit) {
-			log_warning("UDP header + payload do not fit in the packet. "
-					"Packet seems corrupted; ignoring.");
-			goto failure;
-		}
-		break;
-	}
-
-	case NEXTHDR_ICMP: {
-		struct icmp6hdr *hdr = iterator.data;
-		if (iterator.data + sizeof(*hdr) > iterator.limit) {
-			log_warning("ICMP header doesn't fit in the packet. Packet seems corrupted; ignoring.");
-			goto failure;
-		}
-		break;
-	}
-
-	default:
-		log_info("Packet does not use TCP, UDP or ICMPv6.");
-		goto failure;
-	}
-
-	// Set the skb's transport header pointer.
-	// It's yet to be set because the packet hasn't reached the kernel's transport layer.
-	// And despite that, its availability will be appreciated.
-	skb_set_transport_header(skb, iterator.data - (void *) ip6_header);
+	result = validate_skb_ipv6(skb);
+	if (result != VER_CONTINUE)
+		return result;
 
 	return nat64_core(skb,
 			compute_out_tuple_6to4,
 			translating_the_packet_6to4,
 			send_packet_ipv4);
-
-failure:
-	return NF_ACCEPT;
 }
 
 static void deinit(void)
