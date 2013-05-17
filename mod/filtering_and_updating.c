@@ -1180,6 +1180,9 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
 
 			// Look if there is a corresponding entry in the TCP BIB
 			bib_entry_p = bib_get_by_ipv6( &ipv6_ta, protocol );
+			
+			if (!bib_entry_p)
+				log_warning("BIB entry not found for %pI6c#%u.", &tuple->src.addr.ipv6, tuple->src.l4_id);
 		}
 		else if( packet_is_ipv4(skb) ) // IPv4
 		{
@@ -1188,6 +1191,9 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
 
 			// Look for the destination transport address (X,x) in the BIB
 			bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
+			
+			if (!bib_entry_p)
+				log_warning("BIB entry not found for %pI4#%u.", &tuple->dst.addr.ipv4, tuple->dst.l4_id);
 		}
 
 		return (bib_entry_p != NULL);

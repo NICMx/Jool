@@ -95,11 +95,6 @@ unsigned int hook_ipv4(unsigned int hooknum, struct sk_buff *skb,
 	if (result != VER_CONTINUE)
 		return result;
 
-log_warning("%pI4 -> %pI4 skb->len:%d , ip4_header->tot_len:%d",
-		&ip4_header->saddr, &ip4_header->daddr, 
-		(skb->len), be16_to_cpu(ip4_header->tot_len) );
-
-
 	return nat64_core(skb,
 			compute_out_tuple_4to6,
 			translating_the_packet_4to6,

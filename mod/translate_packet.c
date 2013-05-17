@@ -199,6 +199,18 @@ static bool create_skb(struct packet_out *out)
 	memcpy(skb_transport_header(new_skb), out->l4_hdr, out->l4_hdr_len);
 	memcpy(skb_transport_header(new_skb) + out->l4_hdr_len, out->payload, out->payload_len);
 
+	switch (out->l3_hdr_type) {
+	case IPPROTO_IP:
+		new_skb->protocol = htons(ETH_P_IP);
+		break;
+	case IPPROTO_IPV6:
+		new_skb->protocol = htons(ETH_P_IPV6);
+		break;
+	default:
+		log_err(ERR_L3PROTO, "Invalid protocol type: %u", out->l3_hdr_type);
+		return false;
+	}
+	
 	return true;
 }
 

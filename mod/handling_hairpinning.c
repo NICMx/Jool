@@ -8,7 +8,7 @@
 
 bool is_hairpin(struct tuple *outgoing)
 {
-	return (outgoing->l3_proto == PF_INET6) && pool4_contains(&outgoing->dst.addr.ipv4);
+	return (outgoing->l3_proto == PF_INET) && pool4_contains(&outgoing->dst.addr.ipv4);
 }
 
 bool handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
