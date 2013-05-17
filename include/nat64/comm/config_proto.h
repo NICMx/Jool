@@ -68,6 +68,7 @@ enum config_operation {
 struct bib_entry_us {
 	struct ipv4_tuple_address ipv4;
 	struct ipv6_tuple_address ipv6;
+	bool is_static;
 };
 
 /**
@@ -81,7 +82,6 @@ struct bib_entry_us {
 struct session_entry_us {
 	struct ipv6_pair ipv6;
 	struct ipv4_pair ipv4;
-	bool is_static;
 	unsigned int dying_time;
 	u_int8_t l4_proto;
 };
@@ -200,30 +200,28 @@ union request_pool4 {
 	} update;
 };
 
-union request_bib {
-	struct {
-		u_int8_t l4_proto;
-	} display;
-};
-
-struct request_session {
+struct request_bib {
 	__u8 l4_proto;
 	union {
 		struct {
-			// Nothing needed here.
+			/* Nothing needed here. */
 		} display;
 		struct {
-			struct ipv6_pair pair6;
-			struct ipv4_pair pair4;
+			struct ipv6_tuple_address ipv6;
+			struct ipv4_tuple_address ipv4;
 		} add;
 		struct {
 			__u16 l3_proto;
 			union {
-				struct ipv6_pair pair6;
-				struct ipv4_pair pair4;
+				struct ipv6_tuple_address ipv6;
+				struct ipv4_tuple_address ipv4;
 			};
 		} remove;
 	};
+};
+
+struct request_session {
+	__u8 l4_proto;
 };
 
 // Because of the somewhat intrusive nature of the netlink header, response header structures are

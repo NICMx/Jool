@@ -235,7 +235,8 @@ void bib_destroy(void)
 	}
 }
 
-struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6)
+struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
+		bool is_static)
 {
 	struct bib_entry *result = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 	if (!result)
@@ -243,6 +244,7 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
+	result->is_static = is_static;
 	INIT_LIST_HEAD(&result->sessions);
 
 	return result;

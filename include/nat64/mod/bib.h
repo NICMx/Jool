@@ -25,6 +25,9 @@ struct bib_entry {
 	/** The address from the IPv6 network. */
 	struct ipv6_tuple_address ipv6;
 
+	/** Should the entry never expire? */
+	bool is_static;
+
 	/** Session entries related to this BIB. */
 	struct list_head sessions;
 };
@@ -122,7 +125,8 @@ void bib_destroy(void);
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a BIB table, you need
  * to kfree it).
  */
-struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6);
+struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
+		bool is_static);
 
 /**
  * Asume que el candado ya se reservó.

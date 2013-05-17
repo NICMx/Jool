@@ -301,8 +301,6 @@ static char *get_error_msg(enum error_code code)
 		return "Could not parse the input as a IPv6 address and port (eg. '12ab:450::1#2048').";
 	case ERR_PARSE_PREFIX:
 		return "Could not parse the input as a IPv6 prefix (eg. '12ab:450::/2048').";
-	case ERR_UNKNOWN_MODE:
-		return "Unknown configuration mode.";
 	case ERR_UNKNOWN_OP:
 		return "Unknown configuration operation.";
 	case ERR_MISSING_PARAM:
@@ -317,22 +315,10 @@ static char *get_error_msg(enum error_code code)
 		return "The requested entry could not be found in the IPv4 pool.";
 	case ERR_POOL4_REINSERT:
 		return "The address is already part of the pool.";
-	case ERR_SESSION_REINSERT:
-		return "The session entry is already on the table.";
-	case ERR_SESSION_PAIR6_REINSERT:
-		return "The requested local-remote ipv6 addresses are already in use.";
-	case ERR_SESSION_PAIR4_REINSERT:
-		return "The requested local-remote ipv4 addresses are already in use.";
-	case ERR_SESSION_DUAL_REINSERT:
-		return "Both address pairs are already in use in the table.";
-	case ERR_BIB_ADDR6_REINSERT:
-		return "The requested remote addr6#port combination is already mapped "
-				"to some other local addr4#port.";
-	case ERR_BIB_ADDR4_REINSERT:
-		return "The requested local addr4#port combination is already mapped "
-		"to some other remote addr6#port.";
-	case ERR_BIB_DUAL_REINSERT:
-		return "The local addr4#port and the remote addr6#port are already mapped.";
+	case ERR_BIB_NOT_FOUND:
+		return "The entry you just tried to remove does not exist in the table.";
+	case ERR_BIB_REINSERT:
+		return "There's a mapping in the table that conflicts with the one being inserted.";
 
 	case ERR_INVALID_ITERATOR:
 		return "A internal iterator is corrupted.";

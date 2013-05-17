@@ -119,7 +119,7 @@ static void clean_expired_sessions(void)
 	spin_lock_bh(&bib_session_lock);
 	list_for_each_safe(current_node, next_node, &all_sessions) {
 		current_entry = list_entry(current_node, struct session_entry, all_sessions);
-		if (!current_entry->is_static && current_entry->dying_time <= current_time) {
+		if (current_entry->dying_time <= current_time) {
 			if (!session_expired_cb(current_entry) && session_remove(current_entry)) {
 				removed++;
 				kfree(current_entry);
@@ -298,7 +298,7 @@ bool session_remove(struct session_entry *entry)
 		list_del(&entry->all_sessions);
 
 		// Erase the BIB. Might not happen if it has more sessions.
-		if (bib_remove(entry->bib, entry->l4_proto)) {
+		if (!entry->bib->is_static && bib_remove(entry->bib, entry->l4_proto)) {
 			kfree(entry->bib);
 			entry->bib = NULL;
 		}
@@ -340,8 +340,7 @@ void session_destroy(void)
 	}
 }
 
-struct session_entry *session_create_static(
-		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol)
 {
 	struct session_entry *result = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
@@ -350,25 +349,12 @@ struct session_entry *session_create_static(
 
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
-	result->is_static = true;
 	result->dying_time = 0;
 	result->bib = bib;
 	INIT_LIST_HEAD(&result->entries_from_bib);
 	INIT_LIST_HEAD(&result->all_sessions);
 	result->l4_proto = l4protocol;
 
-	return result;
-}
-
-struct session_entry *session_create(
-		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		struct bib_entry *bib, u_int8_t l4protocol)
-{
-	struct session_entry *result = session_create_static(ipv4, ipv6, bib, l4protocol);
-	if (!result)
-		return NULL;
-
-	result->is_static = false;
 	return result;
 }
 
