@@ -13,28 +13,20 @@
  */
 
 /**
- * add_static_route - adds a static route
- * @param  rst  The struct where the route is contained.
- * @param  buffer  The char buffer where the IPv4 addres from the pool 
- * is contained.
+ * Adds a static entry to the BIB.
  *
- * It obtains the data from the struct and detects each parameter needed
- * to add a static route to the BIB and Session Table of NAT64.
- *
+ * @param req description of the BIB to be added. Uses the fields from the "add" substructure.
+ * @return success status as a unix error code.
  */
-int add_static_route(struct request_session *req);
+int add_static_route(struct request_bib *req);
 
 /**
- * delete_static_route - deletes a static route
- * @param  rst  The struct where the route is contained.
- * @param  buffer  The char buffer where the IPv4 addres from the pool 
- * is contained.
+ * Mainly deletes static entries from the BIB. It can also remove dynamic entries, though.
  *
- * It obtains the data from the struct and detects each parameter needed
- * to delete a static route to the BIB and Session Table of NAT64.
- *
+ * @param req description of the BIB to be removed.
+ * @return success status as a unix error code.
  */
-int delete_static_route(struct request_session *req);
+int delete_static_route(struct request_bib *req);
 
 
 #endif

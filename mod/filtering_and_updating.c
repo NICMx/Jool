@@ -561,7 +561,7 @@ int ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
         }
 
         // Create the BIB entry
-        bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_ta);
+        bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_ta, false);
         if ( bib_entry_p == NULL ) {
             icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
             log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
@@ -778,7 +778,7 @@ int ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
         }
 
         // Create the BIB entry
-        bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_source);
+        bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_source, false);
         if ( bib_entry_p == NULL )
         {
         	log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
@@ -1025,7 +1025,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
             }
 
             // Create the BIB entry
-            bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_ta);
+            bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_ta, false);
             if ( bib_entry_p == NULL ) {
                 icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
                 log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");

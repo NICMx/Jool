@@ -46,10 +46,10 @@ struct arguments {
 	bool tcp, udp, icmp;
 	bool static_entries, dynamic_entries;
 
-	struct ipv6_pair session_pair6;
-	bool session_pair6_remote_set, session_pair6_local_set;
-	struct ipv4_pair session_pair4;
-	bool session_pair4_remote_set, session_pair4_local_set;
+	struct ipv6_tuple_address bib6;
+	bool bib6_set;
+	struct ipv4_tuple_address bib4;
+	bool bib4_set;
 
 	// Filtering, translate
 	struct filtering_config filtering;
@@ -85,10 +85,8 @@ enum argp_flags {
 //	ARGP_DYNAMIC = 2001,
 //	ARGP_IPV6 = 2010,
 //	ARGP_IPV4 = 2011,
-	ARGP_REMOTE6 = 2020,
-	ARGP_LOCAL6 = 2021,
-	ARGP_LOCAL4 = 2022,
-	ARGP_REMOTE4 = 2023,
+	ARGP_BIB_IPV6 = 2020,
+	ARGP_BIB_IPV4 = 2021,
 
 	// Filtering
 	ARGP_DROP_ADDR = 3000,
@@ -114,7 +112,7 @@ enum argp_flags {
 #define NUM_FORMAT "NUM"
 #define PREFIX_FORMAT "ADDR6/NUM"
 #define IPV6_TRANSPORT_FORMAT "ADDR6#NUM"
-#define IPV4_TRANSPORT_FORMAT "ADDR6#NUM"
+#define IPV4_TRANSPORT_FORMAT "ADDR4#NUM"
 #define IPV4_ADDR_FORMAT "ADDR4"
 #define BOOL_FORMAT "BOOL"
 #define NUM_ARR_FORMAT "NUM[,NUM]*"
@@ -145,6 +143,8 @@ static struct argp_option options[] =
 	{ 0, 0, 0, 0, "BIB options:", 20 },
 	{ "bib",		ARGP_BIB, 		0, 0, "The command will operate on BIBs." },
 	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the table as output (default)." },
+	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add an entry to the table." },
+	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove an entry from a table" },
 	{ "icmp",		ARGP_ICMP,		0, 0, "Print the ICMP BIB." },
 	{ "tcp",		ARGP_TCP,		0, 0, "Print the TCP BIB." },
 	{ "udp",		ARGP_UDP,		0, 0, "Print the UDP BIB." },
@@ -156,12 +156,16 @@ static struct argp_option options[] =
 //			"Filter out entries unrelated to the following IPv4 address and/or port." },
 //	{ "ipv6",		ARGP_IPV6,		IPV6_TRANSPORT_FORMAT, 0,
 //			"Filter out entries unrelated to the following IPv4 address and/or port." },
+	{ "bib6",		ARGP_BIB_IPV6,	IPV6_TRANSPORT_FORMAT, 0,
+			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
+			"Available on add and remove operations only." },
+	{ "bib4",		ARGP_BIB_IPV4,	IPV4_TRANSPORT_FORMAT, 0,
+			"This is the local IPv4 addres#port of the entry to be added or removed. "
+			"Available on add and remove operations only." },
 
 	{ 0, 0, 0, 0, "Session options:", 21 },
 	{ "session",	ARGP_SESSION,	0, 0, "The command will operate on the session tables." },
 	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the table as output (default)." },
-	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add an entry to the table." },
-	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove an entry from a table" },
 	{ "icmp",		ARGP_ICMP,		0, 0, "Operate on the ICMP session table." },
 	{ "tcp",		ARGP_TCP,		0, 0, "Operate on the TCP session table." },
 	{ "udp",		ARGP_UDP,		0, 0, "Operate on the UDP session table." },
@@ -171,18 +175,6 @@ static struct argp_option options[] =
 //	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
 //			"Filter out entries created statically (by the user). "
 //			"Available on display operation only. " },
-	{ "remote6",	ARGP_REMOTE6,	IPV6_TRANSPORT_FORMAT, 0,
-			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
-			"Available on add and remove operations only." },
-	{ "local6",		ARGP_LOCAL6,	IPV6_TRANSPORT_FORMAT, 0,
-			"This is the local IPv6 addres#port of the entry to be added or removed. "
-			"Available on add and remove operations only." },
-	{ "local4",		ARGP_LOCAL4,	IPV6_TRANSPORT_FORMAT, 0,
-			"This is the local IPv4 addres#port of the entry to be added or removed. "
-			"Available on add and remove operations only." },
-	{ "remote4",	ARGP_REMOTE4,	IPV6_TRANSPORT_FORMAT, 0,
-			"This is the addres#port of the remote IPv4 node of the entry to be added or removed. "
-			"Available on add and remove operations only." },
 
 	{ 0, 0, 0, 0, "'Filtering and Updating' step options:", 30 },
 	{ "filtering",			ARGP_FILTERING,		0, 0,
@@ -283,30 +275,14 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 //	case ARGP_DYNAMIC:
 //		arguments->dynamic_entries = true;
 //		break;
-//
-//	case ARGP_IPV6:
-//		error = str_to_addr6_port(arg, &arguments->bib_addr6);
-//		arguments->bib_addr6_set = true;
-//		break;
-//	case ARGP_IPV4:
-//		error = str_to_addr4_port(arg, &arguments->bib_addr4);
-//		arguments->bib_addr4_set = true;
-//		break;
-	case ARGP_REMOTE6:
-		error = str_to_addr6_port(arg, &arguments->session_pair6.remote);
-		arguments->session_pair6_remote_set = true;
+
+	case ARGP_BIB_IPV6:
+		error = str_to_addr6_port(arg, &arguments->bib6);
+		arguments->bib6_set = true;
 		break;
-	case ARGP_LOCAL6:
-		error = str_to_addr6_port(arg, &arguments->session_pair6.local);
-		arguments->session_pair6_local_set = true;
-		break;
-	case ARGP_LOCAL4:
-		error = str_to_addr4_port(arg, &arguments->session_pair4.local);
-		arguments->session_pair4_local_set = true;
-		break;
-	case ARGP_REMOTE4:
-		error = str_to_addr4_port(arg, &arguments->session_pair4.remote);
-		arguments->session_pair4_remote_set = true;
+	case ARGP_BIB_IPV4:
+		error = str_to_addr4_port(arg, &arguments->bib4);
+		arguments->bib4_set = true;
 		break;
 
 	case ARGP_DROP_ADDR:
@@ -505,8 +481,34 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return bib_display(args.tcp, args.udp, args.icmp);
+
+		case OP_ADD:
+			error = 0;
+			if (!args.bib6_set) {
+				log_err(ERR_MISSING_PARAM, "Missing IPv6 address#port (--bib6).");
+				error = -EINVAL;
+			}
+			if (!args.bib4_set) {
+				log_err(ERR_MISSING_PARAM, "Missing IPv4 address#port (--bib4).");
+				error = -EINVAL;
+			}
+			if (error)
+				return error;
+
+			return bib_add(args.tcp, args.udp, args.icmp, &args.bib6, &args.bib4);
+
+		case OP_REMOVE:
+			if (args.bib6_set)
+				return bib_remove_ipv6(args.tcp, args.udp, args.icmp, &args.bib6);
+			else if (args.bib4_set)
+				return bib_remove_ipv4(args.tcp, args.udp, args.icmp, &args.bib4);
+
+			log_err(ERR_MISSING_PARAM, "I need either the IPv4 transport address or the IPv6 "
+					"transport address of the entry you want to remove.");
+			return -EINVAL;
+
 		default:
-			log_err(ERR_UNKNOWN_OP, "Unknown operation for BIB mode: %u.", args.operation);
+			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
 			return -EINVAL;
 		}
 		break;
@@ -515,42 +517,6 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return session_display(args.tcp, args.udp, args.icmp);
-
-		case OP_ADD:
-			error = 0;
-			if (!args.session_pair6_remote_set) {
-				log_err(ERR_MISSING_PARAM, "Missing remote IPv6 address#port (--remote6).");
-				error = -EINVAL;
-			}
-			if (!args.session_pair6_local_set) {
-				log_err(ERR_MISSING_PARAM, "Missing local IPv6 address#port (--local6).");
-				error = -EINVAL;
-			}
-			if (!args.session_pair4_local_set) {
-				log_err(ERR_MISSING_PARAM, "Missing local IPv4 address#port (--local4).");
-				error = -EINVAL;
-			}
-			if (!args.session_pair4_remote_set) {
-				log_err(ERR_MISSING_PARAM, "Missing remote IPv4 address#port (--remote4).");
-				error = -EINVAL;
-			}
-			if (error)
-				return error;
-
-			return session_add(args.tcp, args.udp, args.icmp, &args.session_pair6,
-					&args.session_pair4);
-
-		case OP_REMOVE:
-			if (args.session_pair6_remote_set && args.session_pair6_local_set)
-				return session_remove_ipv6(args.tcp, args.udp, args.icmp, &args.session_pair6);
-
-			if (args.session_pair4_remote_set && args.session_pair4_local_set)
-				return session_remove_ipv4(args.tcp, args.udp, args.icmp, &args.session_pair4);
-
-			log_err(ERR_MISSING_PARAM, "You need to provide both the local and remote nodes' "
-					"address#port, either from the IPv6 or the IPv4 side.");
-			return -EINVAL;
-
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
 			return -EINVAL;

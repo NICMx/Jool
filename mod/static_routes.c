@@ -8,186 +8,136 @@
 
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/config.h"
-#include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/bib.h"
 #include "nat64/mod/session.h"
 #include <linux/slab.h>
 
 
-int add_static_route(struct request_session *req)
+int add_static_route(struct request_bib *req)
 {
 	struct bib_entry *bib_by_ipv6, *bib_by_ipv4;
-	struct session_entry *session_by_4, *session_by_6;
-
 	struct bib_entry *bib = NULL;
-	bool bib_is_new = false;
-	struct session_entry *session = NULL;
-
 	int error;
 
-	if (!pool6_contains(&req->add.pair6.local.address)) {
-		log_err(ERR_POOL6_NOT_FOUND, "The address '%pI6c' does not belong to the IPv6 pool.",
-				&req->add.pair6.local.address);
-		return -EINVAL;
-	}
-	if (!pool4_contains(&req->add.pair4.local.address)) {
+	if (!pool4_contains(&req->add.ipv4.address)) {
 		log_err(ERR_POOL6_NOT_FOUND, "The address '%pI4' does not belong to the IPv4 pool.",
-				&req->add.pair4.local.address);
+				&req->add.ipv4.address);
 		return -EINVAL;
 	}
 
 	spin_lock_bh(&bib_session_lock);
 
-	session_by_4 = session_get_by_ipv4(&req->add.pair4, req->l4_proto);
-	session_by_6 = session_get_by_ipv6(&req->add.pair6, req->l4_proto);
+	/* Check if the BIB entry exists. */
+	bib_by_ipv6 = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto);
+	bib_by_ipv4 = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto);
 
-	if (session_by_6 != NULL && session_by_4 == NULL) {
-		log_err(ERR_SESSION_PAIR6_REINSERT, "The requested ipv6 address pair is already in use.");
+	if (bib_by_ipv6 != NULL || bib_by_ipv4 != NULL) {
+		bib = (bib_by_ipv6 == NULL) ? bib_by_ipv4 : bib_by_ipv6;
+		log_err(ERR_BIB_REINSERT, "%pI6c#%u is already mapped to %pI4#%u.",
+				&bib->ipv6.address, bib->ipv6.l4_id,
+				&bib->ipv4.address, bib->ipv4.l4_id);
+		bib = NULL;
 		error = -EEXIST;
 		goto failure;
-
-	} else if (session_by_6 == NULL && session_by_4 != NULL) {
-		log_err(ERR_SESSION_PAIR4_REINSERT, "The requested ipv4 address pair is already in use.");
-		error = -EEXIST;
-		goto failure;
-
-	} else if (session_by_6 != NULL && session_by_4 != NULL) {
-		if (session_by_6 == session_by_4) {
-			if (session_by_6->is_static) {
-				log_err(ERR_SESSION_REINSERT, "The session entry already exists.");
-				error = -EEXIST;
-				goto failure;
-			}
-			session_by_6->is_static = true;
-			goto success;
-
-		} else {
-			log_err(ERR_SESSION_DUAL_REINSERT, "Both address pairs are already in use.");
-			error = -EEXIST;
-			goto failure;
-		}
 	}
 
-	bib_by_ipv6 = bib_get_by_ipv6(&req->add.pair6.remote, req->l4_proto);
-	bib_by_ipv4 = bib_get_by_ipv4(&req->add.pair4.local, req->l4_proto);
-
-	if (bib_by_ipv6 != NULL && bib_by_ipv4 == NULL) {
-		log_err(ERR_BIB_ADDR6_REINSERT, "The requested remote addr6#port combination is already "
-				"mapped to some other local addr4#port.");
+	/* Borrow the address and port from the IPv4 pool. */
+	if (!pool4_get(req->l4_proto, &req->add.ipv4)) {
+		/*
+		 * This might happen if Filtering just reserved the address#port, but hasn't yet inserted
+		 * the BIB entry to the table. This is because bib_session_lock doesn't cover the IPv4
+		 * pool.
+		 * Otherwise something's not returning borrowed address#ports to the pool, which is an
+		 * error.
+		 */
+		log_err(ERR_BIB_REINSERT, "Port number %u from address %pI4 is taken from the IPv4 pool, "
+				"but it wasn't found in the BIB. Please try again; if the problem persists, "
+				"please report.", req->add.ipv4.l4_id, &req->add.ipv4.address);
 		error = -EEXIST;
 		goto failure;
-
-	} else if (bib_by_ipv6 == NULL && bib_by_ipv4 != NULL) {
-		log_err(ERR_BIB_ADDR4_REINSERT, "The requested local addr4#port combination is already "
-				"mapped to some other remote addr6#port.");
-		error = -EEXIST;
-		goto failure;
-
-	} else if (bib_by_ipv6 != NULL && bib_by_ipv4 != NULL) {
-		if (bib_by_ipv6 == bib_by_ipv4) {
-			bib = bib_by_ipv6;
-			bib_is_new = false;
-		} else {
-			log_err(ERR_BIB_DUAL_REINSERT, "The local addr4#port and the remote addr6#port are "
-					"already mapped.");
-			error = -EEXIST;
-			goto failure;
-		}
-
-	} else {
-		if (!pool4_get(req->l4_proto, &req->add.pair4.local)) {
-			// This error should probably never happen, because one of the ifs above should have
-			// kicked in. I'm not quite sure ATM so
-			// TODO (later) rethink whether this should be log_err or log_crit.
-			log_err(ERR_BIB_ADDR4_REINSERT, "Port number %u from address %pI4 appears to be taken "
-					"(see the BIB or session tables).", req->add.pair4.local.l4_id,
-					&req->add.pair4.local.address);
-			error = -EEXIST;
-			goto failure;
-		}
-
-		bib = bib_create(&req->add.pair4.local, &req->add.pair6.remote);
-		if (!bib) {
-			log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
-			error = -ENOMEM;
-			goto failure;
-		}
-
-		error = bib_add(bib, req->l4_proto);
-		if (error) {
-			log_err(ERR_UNKNOWN_ERROR, "Could NOT add the BIB entry to the table.");
-			goto failure;
-		}
-
-		bib_is_new = true;
 	}
 
-	session = session_create_static(&req->add.pair4, &req->add.pair6, bib, req->l4_proto);
-	if (!session) {
-		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a session entry.");
+	/* Create and insert the entry. */
+	bib = bib_create(&req->add.ipv4, &req->add.ipv6, true);
+	if (!bib) {
+		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
 		error = -ENOMEM;
 		goto failure;
 	}
 
-	error = session_add(session);
+	error = bib_add(bib, req->l4_proto);
 	if (error) {
-		log_err(ERR_UNKNOWN_ERROR, "Could NOT add the session entry to the table.");
+		log_err(ERR_UNKNOWN_ERROR, "Could NOT add the BIB entry to the table.");
 		goto failure;
 	}
 
-	/* Fall through. */
-
-success:
 	spin_unlock_bh(&bib_session_lock);
 	return 0;
 
 failure:
-	if (session)
-		kfree(session);
-	if (bib_is_new) {
-		bib_remove(bib, req->l4_proto);
-		kfree(bib);
-	}
+	kfree(bib);
 	spin_unlock_bh(&bib_session_lock);
 	return error;
 }
 
-int delete_static_route(struct request_session *req)
+int delete_static_route(struct request_bib *req)
 {
-	struct session_entry *session = NULL;
+	struct bib_entry *bib;
+	struct session_entry *session;
+	int error = 0;
 
 	spin_lock_bh(&bib_session_lock);
+
 	switch (req->remove.l3_proto) {
 	case PF_INET6:
-		session = session_get_by_ipv6(&req->remove.pair6, req->l4_proto);
+		bib = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto);
 		break;
 	case PF_INET:
-		session = session_get_by_ipv4(&req->remove.pair4, req->l4_proto);
+		bib = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto);
 		break;
 	default:
-		spin_unlock_bh(&bib_session_lock);
 		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
-		return -EINVAL;
+		error = -EINVAL;
+		goto end;
 	}
 
-	if (!session) {
-		spin_unlock_bh(&bib_session_lock);
-		log_err(ERR_SESSION_NOT_FOUND, "Could not find the session entry requested by the user.");
-		return -ENOENT;
+	if (!bib) {
+		log_err(ERR_BIB_NOT_FOUND, "Could not find the BIB entry requested by the user.");
+		error = -ENOENT;
+		goto end;
 	}
 
-	// I'm tempted to assert that the session is static here. Would that serve a purpose?
-	// Nah.
+	/*
+	 * I'm tempted to assert that the entry is static here. Would that serve a purpose?
+	 * Nah.
+	 */
 
-	if (!session_remove(session)) {
-		spin_unlock_bh(&bib_session_lock);
-		// Rather have a slight memory leak than damaged memory, so I'm not kfreeing session.
-		log_err(ERR_UNKNOWN_ERROR, "Remove session call ended in failure, despite validations.");
-		return -EINVAL;
+	while (!list_empty(&bib->sessions)) {
+		session = container_of(bib->sessions.next, struct session_entry, entries_from_bib);
+		if (!session_remove(session)) {
+			log_err(ERR_UNKNOWN_ERROR,
+					"Session [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u] refused to die.",
+					&session->ipv6.remote.address, session->ipv6.remote.l4_id,
+					&session->ipv6.local.address, session->ipv6.local.l4_id,
+					&session->ipv4.local.address, session->ipv4.local.l4_id,
+					&session->ipv4.remote.address, session->ipv4.remote.l4_id);
+			error = -EINVAL;
+			goto end;
+		}
+		kfree(session);
 	}
 
-	kfree(session);
+	if (!bib_remove(bib, req->l4_proto)) {
+		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended in failure, despite validations.");
+		error = -EINVAL;
+		goto end;
+	}
+
+	kfree(bib);
+	/* Fall through. */
+
+end:
 	spin_unlock_bh(&bib_session_lock);
-	return 0;
+	return error;
 }

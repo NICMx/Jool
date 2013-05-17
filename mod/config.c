@@ -46,13 +46,13 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 	}
 
 	nl_hdr_out = nlmsg_put(skb_out,
-			0, // src_pid (0 = kernel)
-			nl_hdr_in->nlmsg_seq, // seq
-			type, // type
-			payload_len, // payload len
-			0); // flags
+			0, /* src_pid (0 = kernel) */
+			nl_hdr_in->nlmsg_seq, /* seq */
+			type, /* type */
+			payload_len, /* payload len */
+			0); /* flags */
 	memcpy(nlmsg_data(nl_hdr_out), payload, payload_len);
-	// NETLINK_CB(skb_out).dst_group = 0;
+	/* NETLINK_CB(skb_out).dst_group = 0; */
 
 	res = nlmsg_unicast(nl_socket, skb_out, nl_hdr_in->nlmsg_pid);
 	if (res < 0) {
@@ -78,10 +78,12 @@ static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 	return respond_single_msg(nl_hdr_in, NLMSG_ERROR, &payload, sizeof(payload));
 }
 
-//static int respond_ack(struct nlmsghdr *nl_hdr_in)
-//{
-//	return respond_error(nl_hdr_in, 0);
-//}
+/*
+static int respond_ack(struct nlmsghdr *nl_hdr_in)
+{
+	return respond_error(nl_hdr_in, 0);
+}
+*/
 
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
@@ -178,13 +180,14 @@ static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 
 	entry_us.ipv4 = entry->ipv4;
 	entry_us.ipv6 = entry->ipv6;
+	entry_us.is_static = entry->is_static;
 
 	stream_write(stream, &entry_us, sizeof(entry_us));
 	return 0;
 }
 
 static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_bib *request)
+		struct request_bib *request)
 {
 	struct out_stream *stream;
 	int error;
@@ -201,12 +204,20 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 		stream_init(stream, nl_socket, nl_hdr);
 		spin_lock_bh(&bib_session_lock);
-		error = bib_for_each(request->display.l4_proto, bib_entry_to_userspace, stream);
+		error = bib_for_each(request->l4_proto, bib_entry_to_userspace, stream);
 		spin_unlock_bh(&bib_session_lock);
 		stream_close(stream);
 
 		kfree(stream);
 		return error;
+
+	case OP_ADD:
+		log_debug("Adding BIB entry.");
+		return respond_error(nl_hdr, add_static_route(request));
+
+	case OP_REMOVE:
+		log_debug("Removing BIB entry.");
+		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
@@ -221,7 +232,6 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 
 	entry_us.ipv6 = entry->ipv6;
 	entry_us.ipv4 = entry->ipv4;
-	entry_us.is_static = entry->is_static;
 	entry_us.dying_time = entry->dying_time - jiffies_to_msecs(jiffies);
 	entry_us.l4_proto = entry->l4_proto;
 
@@ -253,14 +263,6 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 
 		kfree(stream);
 		return error;
-
-	case OP_ADD:
-		log_debug("Adding session.");
-		return respond_error(nl_hdr, add_static_route(request));
-
-	case OP_REMOVE:
-		log_debug("Removing session.");
-		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
@@ -391,8 +393,10 @@ static void receive_from_userspace(struct sk_buff *skb)
 
 int config_init(void)
 {
-	// Netlink sockets.
-	// TODO (warning) find out what causes Osorio's compatibility issues and fix it.
+	/*
+	 * Netlink sockets.
+	 * TODO (warning) find out what causes Osorio's compatibility issues and fix it.
+	 */
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
 	if (!nl_socket) {

@@ -25,8 +25,6 @@ struct session_entry {
 	/** IPv4 version of the connection. */
 	struct ipv4_pair ipv4;
 
-	/** Should the session never expire? */
-	bool is_static;
 	/** Millisecond (from the epoch) this session should expire in, if still inactive. */
 	unsigned int dying_time;
 
@@ -144,23 +142,12 @@ bool session_remove(struct session_entry *entry);
 void session_destroy(void);
 
 /**
- * Helper function, intended to initialize a static Session entry (static as in doesn't expire after
- * a while).
- * We don't have a "create_dynamic_session_entry" function ATM, so if you want your entry to be
- * dynamic, you can override its is_static and dying_time fields.
- *
+ * Helper function, intended to initialize a Session entry.
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a Session table, you
  * need to kfree it).
- */
-struct session_entry *session_create_static(
-		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		struct bib_entry *bib, u_int8_t l4protocol);
-
-/**
  * Note, you still need to set the timeout.
  */
-struct session_entry *session_create(
-		struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		struct bib_entry *bib, u_int8_t l4protocol);
 
 int session_for_each(__u8 l4protocol, int (*func)(struct session_entry *, void *), void *arg);
