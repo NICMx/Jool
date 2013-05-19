@@ -145,10 +145,9 @@ void session_destroy(void);
  * Helper function, intended to initialize a Session entry.
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a Session table, you
  * need to kfree it).
- * Note, you still need to set the timeout.
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		struct bib_entry *bib, u_int8_t l4protocol);
+		u_int8_t l4protocol);
 
 int session_for_each(__u8 l4protocol, int (*func)(struct session_entry *, void *), void *arg);
 

@@ -1,5 +1,6 @@
 #include "nat64/mod/session.h"
 #include "nat64/comm/constants.h"
+#include "nat64/mod/pool4.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
@@ -10,16 +11,20 @@
  * Structures and private variables.
  ********************************************/
 
-// Hash table; indexes session entries by IPv4 address.
-// (this code generates the "ipv4_table" structure and related functions used below).
+/*
+ * Hash table; indexes session entries by IPv4 address.
+ * (this code generates the "ipv4_table" structure and related functions used below).
+ */
 #define HTABLE_NAME ipv4_table
 #define KEY_TYPE struct ipv4_pair
 #define VALUE_TYPE struct session_entry
 #define GENERATE_FOR_EACH
 #include "hash_table.c"
 
-// Hash table; indexes BIB entries by IPv6 address.
-// (this code generates the "ipv6_table" structure and related functions used below).
+/*
+ * Hash table; indexes BIB entries by IPv6 address.
+ * (this code generates the "ipv6_table" structure and related functions used below).
+ */
 #define HTABLE_NAME ipv6_table
 #define KEY_TYPE struct ipv6_pair
 #define VALUE_TYPE struct session_entry
@@ -106,29 +111,53 @@ static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
 /**
  * Removes from the tables the entries whose lifetime has expired. The entries are also freed from
  * memory.
+ * TODO (fine) this is too much business logic to belong to this module; move it to a model.
  */
 static void clean_expired_sessions(void)
 {
 	struct list_head *current_node, *next_node;
-	struct session_entry *current_entry;
+	struct session_entry *session;
+	unsigned int s = 0;
+	struct bib_entry *bib;
+	unsigned int b = 0;
 	unsigned int current_time = jiffies_to_msecs(jiffies);
-	unsigned int removed = 0;
+	u_int8_t l4_proto;
 
 	log_debug("Deleting expired sessions...");
-
 	spin_lock_bh(&bib_session_lock);
-	list_for_each_safe(current_node, next_node, &all_sessions) {
-		current_entry = list_entry(current_node, struct session_entry, all_sessions);
-		if (current_entry->dying_time <= current_time) {
-			if (!session_expired_cb(current_entry) && session_remove(current_entry)) {
-				removed++;
-				kfree(current_entry);
-			}
-		}
-	}
-	spin_unlock_bh(&bib_session_lock);
 
-	log_debug("Deleted %u session entries.", removed);
+	list_for_each_safe(current_node, next_node, &all_sessions) {
+		session = list_entry(current_node, struct session_entry, all_sessions);
+
+		if (session->dying_time > current_time || session_expired_cb(session))
+			continue;
+		if (!session_remove(session))
+			continue; /* Error msg already printed. */
+
+		bib = session->bib;
+		l4_proto = session->l4_proto;
+
+		list_del(&session->entries_from_bib);
+		kfree(session);
+		s++;
+
+		if (!bib) {
+			log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
+			continue;
+		}
+
+		if (!list_empty(&bib->sessions) || bib->is_static)
+			continue;
+		if (!bib_remove(bib, l4_proto))
+			continue; /* Error msg already printed. */
+
+		pool4_return(l4_proto, &bib->ipv4);
+		kfree(bib);
+		b++;
+	}
+
+	spin_unlock_bh(&bib_session_lock);
+	log_debug("Deleted %u session entries and %u BIB entries.", s, b);
 }
 
 static void cleaner_timer(unsigned long param)
@@ -185,26 +214,23 @@ int session_add(struct session_entry *entry)
 		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
 		return -EINVAL;
 	}
-	if (!entry->bib) {
-		log_err(ERR_SESSION_BIBLESS, "Session needs to reference a BIB entry.");
-		return -EINVAL;
-	}
+
 	error = get_session_table(entry->l4_proto, &table);
 	if (error)
 		return error;
 
-	// Insert into the hash tables.
+	/* Insert into the hash tables. */
 	error = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
 	if (error)
 		return error;
+
 	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
 	if (error) {
 		ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
 		return error;
 	}
 
-	// Insert into the linked lists.
-	list_add(&entry->entries_from_bib, &entry->bib->sessions);
+	/* Insert into the linked list. */
 	list_add(&entry->all_sessions, &all_sessions);
 
 	return 0;
@@ -260,6 +286,7 @@ bool session_allow(struct tuple *tuple)
 		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
 		return false;
 	}
+
 	if (get_session_table(tuple->l4_proto, &table) != 0)
 		return false;
 
@@ -285,34 +312,26 @@ bool session_remove(struct session_entry *entry)
 		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
 		return false;
 	}
+
 	if (get_session_table(entry->l4_proto, &table) != 0)
 		return false;
 
-	// Free from both tables.
+	/* Free from both tables. */
 	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
 	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
 
 	if (removed_from_ipv4 && removed_from_ipv6) {
-		// Remove the entry from the linked lists.
-		list_del(&entry->entries_from_bib);
 		list_del(&entry->all_sessions);
-
-		// Erase the BIB. Might not happen if it has more sessions.
-		if (!entry->bib->is_static && bib_remove(entry->bib, entry->l4_proto)) {
-			kfree(entry->bib);
-			entry->bib = NULL;
-		}
-
 		return true;
 	}
 	if (!removed_from_ipv4 && !removed_from_ipv6) {
 		return false;
 	}
 
-	// Why was it not indexed by both tables? Programming error.
+	/* Why was it not indexed by both tables? Programming error. */
 	log_crit(ERR_INCOMPLETE_REMOVE, "Inconsistent session removal: ipv4:%d; ipv6:%d.",
 			removed_from_ipv4, removed_from_ipv6);
-	return true;
+	return false;
 }
 
 void session_destroy(void)
@@ -322,9 +341,11 @@ void session_destroy(void)
 	int i;
 
 	log_debug("Emptying the session tables...");
-	// The keys needn't be released because they're part of the values.
-	// The values need to be released only in one of the tables because both tables point to the
-	// same values.
+	/*
+	 * The keys needn't be released because they're part of the values.
+	 * The values need to be released only in one of the tables because both tables point to the
+	 * same values.
+	 */
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
 		ipv4_table_empty(&session_table_udp.ipv4, false, false);
 		ipv6_table_empty(&session_table_udp.ipv6, false, true);
@@ -341,7 +362,7 @@ void session_destroy(void)
 }
 
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		struct bib_entry *bib, u_int8_t l4protocol)
+		u_int8_t l4protocol)
 {
 	struct session_entry *result = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 	if (!result)
@@ -350,7 +371,6 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
 	result->dying_time = 0;
-	result->bib = bib;
 	INIT_LIST_HEAD(&result->entries_from_bib);
 	INIT_LIST_HEAD(&result->all_sessions);
 	result->l4_proto = l4protocol;

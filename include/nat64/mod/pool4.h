@@ -66,13 +66,8 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 
 bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 /**
- * Puts the (previously borrowed) address "address" back into the "l4protocol" pool. Meant to revert
- * the effect of the pool4_get_* functions.
- *
- * @paran address please note that, in order to maintain the symmetry with the pool4_get_*
- *		functions, and since we're assuming "address" is the one we returned there, this function
- *		will kfree "address" if successful. So don't use it after a successful call to this
- *		function.
+ * Don't sweat it too much if this function fails; the user might have removed the address from the
+ * pool.
  */
 bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 

@@ -125,6 +125,7 @@ int delete_static_route(struct request_bib *req)
 			error = -EINVAL;
 			goto end;
 		}
+		list_del(&session->entries_from_bib);
 		kfree(session);
 	}
 
@@ -134,6 +135,7 @@ int delete_static_route(struct request_bib *req)
 		goto end;
 	}
 
+	pool4_return(req->l4_proto, &bib->ipv4);
 	kfree(bib);
 	/* Fall through. */
 

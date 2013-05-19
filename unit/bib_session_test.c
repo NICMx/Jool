@@ -55,7 +55,7 @@ struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
 struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
 {
-	return bib_create(&addr4[ipv4_index], &addr6[ipv6_index]);
+	return bib_create(&addr4[ipv4_index], &addr6[ipv6_index], false);
 }
 
 struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
@@ -71,11 +71,15 @@ struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 			.remote = addr6[remote_id_6],
 	};
 
-	struct session_entry* entry = session_create(&pair_4, &pair_6, bib, l4protocol);
+	struct session_entry* entry = session_create(&pair_4, &pair_6, l4protocol);
 	if (!entry)
 		return NULL;
 
 	entry->dying_time = dying_time;
+	if (bib) {
+		entry->bib = bib;
+		list_add(&entry->entries_from_bib, &bib->sessions);
+	}
 
 	return entry;
 }
@@ -266,40 +270,22 @@ bool simple_bib(void)
 	return success;
 }
 
-bool simple_bib_session(void)
+bool simple_session(void)
 {
-	struct bib_entry *bib;
 	struct session_entry *session;
 	bool success = true;
 
-	/* Create both entries. */
-	bib = create_and_insert_bib(0, 0, IPPROTO_TCP);
-	if (!bib)
-		return false;
-	session = create_and_insert_session(1, 0, 1, 0, bib, IPPROTO_TCP, 12345);
-	if (!session)
+	session = create_session_entry(1, 0, 1, 0, NULL, IPPROTO_TCP, 12345);
+	if (!assert_not_null(session, "Allocation of test session entry"))
 		return false;
 
-	/* Insert both entries. */
-	success &= assert_bib("", bib, false, true, false);
-	success &= assert_session("", session, false, true, false);
+	success &= assert_equals_int(0, session_add(session), "Session insertion call");
+	success &= assert_session("Session insertion state", session, false, true, false);
 	if (!success)
-		return false;
+		return false; /* See simple_bib(). */
 
-	/* The BIB entry has a session entry, so it shouldn't be removable. */
-	success &= assert_false(bib_remove(bib, IPPROTO_TCP), "");
-	success &= assert_bib("Bib removal (bib table)", bib, false, true, false);
-	success &= assert_session("BIB removal (session table)", session, false, true, false);
-	if (!success)
-		return false;
-
-	/*
-	 * Remove the session entry.
-	 * Because the BIB entry no longer has sessions, it should be automatically removed as well.
-	 */
-	success &= assert_true(session_remove(session), "");
-	success &= assert_bib("Session removal (bib table)", bib, false, false, false);
-	success &= assert_session("Session removal (session table)", session, false, false, false);
+	success &= assert_true(session_remove(session), "Session removal call");
+	success &= assert_session("Session removal state", session, false, false, false);
 	if (!success)
 		return false;
 
@@ -355,7 +341,7 @@ bool test_clean_old_sessions(void)
 		memcpy(&bibs[b], db_bibs[b], sizeof(struct bib_entry));
 	}
 
-	db_sessions[3][1]->is_static = true;
+	db_bibs[3]->is_static = true;
 
 	/* 1. Nothing has expired: Test nothing gets deleted. */
 	clean_expired_sessions();
@@ -397,10 +383,7 @@ bool test_clean_old_sessions(void)
 	if (!success)
 		return false;
 
-	/*
-	 * 4. The rest of them expire: Test the BIB keeps keeps behaving as expected.
-	 * Perhaps unnecesary.
-	 */
+	/* 4. The rest of them expire: Test the BIB keeps keeps behaving as expected. */
 	db_sessions[2][2]->dying_time = before;
 
 	clean_expired_sessions();
@@ -413,10 +396,7 @@ bool test_clean_old_sessions(void)
 	if (!success)
 		return false;
 
-	/*
-	 * 5. The sessions of a static BIB expire, but one of them is static.
-	 * Test only the dynamic ones die.
-	 */
+	/* 5. The sessions of a static BIB expire. Test only the sessions ones die. */
 	db_sessions[3][0]->dying_time = before;
 	db_sessions[3][1]->dying_time = before;
 	db_sessions[3][2]->dying_time = before;
@@ -426,7 +406,7 @@ bool test_clean_old_sessions(void)
 	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 0, true, true, true, true);
 	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 1, false, false, false, false);
 	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 2, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 3, true, false, true, false);
+	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 3, true, false, false, false);
 
 	/* Quit. */
 	return success;
@@ -573,7 +553,7 @@ int init_module(void)
 	START_TESTS("BIB-Session");
 
 	INIT_CALL_END(init(), simple_bib(), end(), "Single BIB");
-	INIT_CALL_END(init(), simple_bib_session(), end(), "Single BIB-Session");
+	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
 	INIT_CALL_END(init(), test_clean_old_sessions(), end(), "Session cleansing.");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
 	INIT_CALL_END(init(), test_for_each(), end(), "for-each function.");

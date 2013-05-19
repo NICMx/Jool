@@ -32,6 +32,9 @@ pool4-objs += pool4_test.o
 
 bib_session-objs += ../mod/types.o
 bib_session-objs += ../mod/str_utils.o
+bib_session-objs += ../mod/random.o
+bib_session-objs += ../mod/poolnum.o
+bib_session-objs += ../mod/pool4.o
 bib_session-objs += ../mod/bib.o
 bib_session-objs += unit_test.o
 bib_session-objs += bib_session_test.o

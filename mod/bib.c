@@ -13,16 +13,20 @@
  * Structures and private variables.
  ********************************************/
 
-// Hash table; indexes BIB entries by IPv4 address.
-// (this code generates the "ipv4_table" structure and related functions used below).
+/*
+ * Hash table; indexes BIB entries by IPv4 address.
+ * (this code generates the "ipv4_table" structure and related functions used below).
+ */
 #define HTABLE_NAME ipv4_table
 #define KEY_TYPE struct ipv4_tuple_address
 #define VALUE_TYPE struct bib_entry
 #define GENERATE_FOR_EACH
 #include "hash_table.c"
 
-// Hash table; indexes BIB entries by IPv6 address.
-// (this code generates the "ipv6_table" structure and related functions used below).
+/*
+ * Hash table; indexes BIB entries by IPv6 address.
+ * (this code generates the "ipv6_table" structure and related functions used below).
+ */
 #define HTABLE_NAME ipv6_table
 #define KEY_TYPE struct ipv6_tuple_address
 #define VALUE_TYPE struct bib_entry
@@ -154,7 +158,7 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4prot
 	if (get_bib_table(l4protocol, &table) != 0)
 		return NULL;
 
-	address_full.address = *address; // Port doesn't matter; won't be used by the hash function.
+	address_full.address = *address; /* Port doesn't matter; won't be used by the hash function. */
 	hash_code = table->ipv6.hash_function(&address_full) % ARRAY_SIZE(table->ipv6.table);
 
 	hlist_for_each(current_node, &table->ipv6.table[hash_code]) {
@@ -201,11 +205,7 @@ bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol)
 	if (get_bib_table(l4protocol, &table) != 0)
 		return false;
 
-	// Don't erase the BIB if there are still session entries related to it.
-	if (!list_empty(&entry->sessions))
-		return false;
-
-	// Free the memory from both tables.
+	/* Free the memory from both tables. */
 	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
 	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
 
@@ -214,10 +214,10 @@ bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol)
 	if (!removed_from_ipv4 && !removed_from_ipv6)
 		return false;
 
-	// Why was it not indexed by both tables? Programming error.
+	/* Why was it not indexed by both tables? Programming error. */
 	log_crit(ERR_INCOMPLETE_INDEX_BIB, "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
 			removed_from_ipv4, removed_from_ipv6);
-	return true;
+	return false;
 }
 
 void bib_destroy(void)
@@ -226,9 +226,11 @@ void bib_destroy(void)
 	int i;
 
 	log_debug("Emptying the BIB tables...");
-	// The keys needn't be released because they're part of the values.
-	// The values need to be released only in one of the tables because both tables point to the
-	// same values.
+	/*
+	 * The keys needn't be released because they're part of the values.
+	 * The values need to be released only in one of the tables because both tables point to the
+	 * same values.
+	 */
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
 		ipv4_table_empty(&tables[i]->ipv4, false, false);
 		ipv6_table_empty(&tables[i]->ipv6, false, true);

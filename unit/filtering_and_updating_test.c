@@ -228,7 +228,7 @@ bool inject_bib_entry( u_int8_t l4protocol )
         transport_address_ipv6( addr6, IPV6_INJECT_BIB_ENTRY_SRC_PORT, &ta_ipv6 );
     }
 
-    bib_e = bib_create( &ta_ipv4, &ta_ipv6);
+    bib_e = bib_create( &ta_ipv4, &ta_ipv6, false);
     if (!bib_e)
     {
     	log_warning("Could not allocate the BIB entry.");
@@ -277,7 +277,6 @@ bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
     se->ipv4.remote.address = dst4; // (Z, z) // (Z(Y’),y)
     se->ipv4.remote.l4_id = IPV4_INIT_SESSION_ENTRY_DST_PORT; // (Z, z) // (Z(Y’),y)
 
-    se->is_static = false;
     se->dying_time = 0;
     se->bib = NULL;
     INIT_LIST_HEAD(&se->entries_from_bib);
@@ -959,7 +958,6 @@ bool test_send_probe_packet( void )
 
     return success;
 }
-
 
 bool test_tcp_closed_state_handle_6( void )
 {

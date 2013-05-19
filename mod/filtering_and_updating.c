@@ -44,7 +44,7 @@ int filtering_init(void)
  *  */
 void filtering_destroy(void)
 {
-    // No code.
+    /* No code. */
 } 
 
 /** Esta guarda el contenido de config en el parámetro "clone". 
@@ -156,23 +156,6 @@ static bool drop_external_connections(void)
 }
 
 
-
-/*********************************************
- **                                         **
- **     DEVELOPMENT FUNCTIONS               **
- **                                         **
- *********************************************/
-void print_bib_entry( struct bib_entry *bib_entry_p )
-{
-    if ( bib_entry_p == NULL )
-        log_debug("  > bib_entry = NULL   :'( ");
-    else
-    	log_debug("  > bib_entry = (%pI6c , %u) -- (%pI4 , %u)",
-            &bib_entry_p->ipv6.address, bib_entry_p->ipv6.l4_id,
-            &(bib_entry_p->ipv4.address), bib_entry_p->ipv4.l4_id );
-}
-
-
 /*********************************************
  **                                         **
  **     SUPPORT FUNCTIONS                   **
@@ -186,7 +169,7 @@ void print_bib_entry( struct bib_entry *bib_entry_p )
  * @param[in]  l4_id Port or ICMP ID
  * @param[out] ta    Transport Address
  * */
-void transport_address_ipv4(struct in_addr addr, __u16 l4_id, struct ipv4_tuple_address *ta)
+static void transport_address_ipv4(struct in_addr addr, __u16 l4_id, struct ipv4_tuple_address *ta)
 { 
     ta->address = addr;
     ta->l4_id = l4_id;
@@ -198,43 +181,10 @@ void transport_address_ipv4(struct in_addr addr, __u16 l4_id, struct ipv4_tuple_
  * @param[in]  l4_id Port or ICMP ID
  * @param[out] ta    Transport Address
  * */
-void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv6_tuple_address *ta)
+static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv6_tuple_address *ta)
 { 
     ta->address = addr;
     ta->l4_id = l4_id;
-}
-
-/** Retrieve a new port for the specified IPv4 pool address.
- *
- *  For an already asigned IPv4 pool entry, give me a free port with the same parity as the source port.
- * 
- * If the port s is in the Well-Known port range 0-1023, and the
-NAT64 has an available port t in the same port range, then the
-NAT64 SHOULD allocate the port t. If the NAT64 does not have a
-port available in the same range, the NAT64 MAY assign a port t
-from another range where it has an available port. (This behavior
-is recommended in REQ 3-a of [RFC4787].)
-If the port s is in the range 1024-65535, and the NAT64 has an
-available port t in the same port range, then the NAT64 SHOULD
-allocate the port t. If the NAT64 does not have a port available
-in the same range, the NAT64 MAY assign a port t from another
-range where it has an available port. (This behavior is
-recommended in REQ 3-a of [RFC4787].)
-The NAT64 SHOULD preserve the port parity (odd/even), as per
-Section 4.2.2 of [RFC4787]).
- * 
- * @param[in]   protocol    In what protocolo we should look at?
- * @param[in]   address     Give me a free port for this IP address.
- * @param[in]   pi          Look for a port within the same range and parity.
- * @param[out]  new_ipv4_transport_address  New transport address obtained from the PROTOCOL's pool.
- * @return  true if everything went OK, false otherwise.
- * */
-bool ipv4_pool_get_new_port(struct in_addr address, __u16 pi, u_int8_t protocol,
-        struct ipv4_tuple_address *result)
-{
-    struct ipv4_tuple_address ta4;
-    transport_address_ipv4(address, pi, &ta4);
-    return pool4_get_similar(protocol, &ta4, result);
 }
 
 /** Allocate from IPv4 pool a new transport address for TCP & UDP.
@@ -246,23 +196,24 @@ bool ipv4_pool_get_new_port(struct in_addr address, __u16 pi, u_int8_t protocol,
  * @param[out]  new_ipv4_transport_address  New transport address obtained from the PROTOCOL's pool.
  * @return  true if everything went OK, false otherwise.
  */
-bool allocate_ipv4_transport_address(struct tuple *tuple, u_int8_t protocol,
+static bool allocate_ipv4_transport_address(struct tuple *tuple, u_int8_t protocol,
         struct ipv4_tuple_address *result)
 {
     struct bib_entry *bib_entry_t;
 
-    // Check if the BIB has a previous entry from the same IPv6 source address (X’)
+    /* Check if the BIB has a previous entry from the same IPv6 source address (X’) */
     bib_entry_t = bib_get_by_ipv6_only( &tuple->src.addr.ipv6, protocol );
 
-    // If true, use the same IPv4 address (T). 
     if ( bib_entry_t != NULL )
     {
+    	/* Use the same IPv4 address (T). */
         struct ipv4_tuple_address temp;
         transport_address_ipv4(bib_entry_t->ipv4.address, tuple->src.l4_id, &temp);
         return pool4_get_similar(protocol, &temp, result);
     }
-    else // Else, create a new BIB entry and ask the IPv4 pool for a new IPv4 address.
+    else
     {
+    	/* create a new BIB entry and ask the IPv4 pool for a new IPv4 address. */
         return pool4_get_any(protocol, tuple->src.l4_id, result);
     }
 }
@@ -277,7 +228,7 @@ bool allocate_ipv4_transport_address(struct tuple *tuple, u_int8_t protocol,
  * @param[out]  new_ipv4_transport_address  New transport address obtained from the PROTOCOL's pool.
  * @return  true if everything went OK, false otherwise.
  */
-bool allocate_ipv4_transport_address_digger(struct tuple *tuple, u_int8_t protocol,
+static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, u_int8_t protocol,
         struct ipv4_tuple_address *result)
 { 
     unsigned char ii = 0;
@@ -300,20 +251,20 @@ bool allocate_ipv4_transport_address_digger(struct tuple *tuple, u_int8_t protoc
         if (bib_entry_p != NULL)
         {
             address = &bib_entry_p->ipv4.address;
-            break; // We found one entry!
+            break; /* We found one entry! */
         }
     }
     
     if ( address != NULL )
     {
-        // Use the same address
+        /* Use the same address */
         struct ipv4_tuple_address temp;
         transport_address_ipv4(*address, tuple->src.l4_id, &temp);
         return pool4_get_similar(protocol, &temp, result);
     }
     else
     {
-        // Use whichever address
+        /* Use whichever address */
         return pool4_get_any(protocol, tuple->src.l4_id, result);
     }
 }
@@ -323,7 +274,7 @@ bool allocate_ipv4_transport_address_digger(struct tuple *tuple, u_int8_t protoc
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_ipv4(struct sk_buff* skb)
+static bool packet_is_ipv4(struct sk_buff* skb)
 {
     if (skb == NULL) { 
         log_err(ERR_NULL, "skb == NULL");
@@ -338,7 +289,7 @@ bool packet_is_ipv4(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_ipv6(struct sk_buff* skb)
+static bool packet_is_ipv6(struct sk_buff* skb)
 {
     if (skb == NULL) {
     	log_err(ERR_NULL, "skb == NULL");
@@ -353,7 +304,7 @@ bool packet_is_ipv6(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_v4_syn(struct sk_buff* skb)
+static bool packet_is_v4_syn(struct sk_buff* skb)
 {
     struct tcphdr *hdr = tcp_hdr(skb);
     if (!hdr)
@@ -366,7 +317,7 @@ bool packet_is_v4_syn(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_v6_syn(struct sk_buff* skb)
+static bool packet_is_v6_syn(struct sk_buff* skb)
 {
     struct tcphdr *hdr = tcp_hdr(skb);
     if (!hdr)
@@ -379,7 +330,7 @@ bool packet_is_v6_syn(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_v4_fin(struct sk_buff* skb)
+static bool packet_is_v4_fin(struct sk_buff* skb)
 {
     struct tcphdr *hdr = tcp_hdr(skb);
     if (!hdr)
@@ -392,7 +343,7 @@ bool packet_is_v4_fin(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_v6_fin(struct sk_buff* skb)
+static bool packet_is_v6_fin(struct sk_buff* skb)
 {
     struct tcphdr *hdr = tcp_hdr(skb);
     if (!hdr)
@@ -405,7 +356,7 @@ bool packet_is_v6_fin(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_v4_rst(struct sk_buff* skb)
+static bool packet_is_v4_rst(struct sk_buff* skb)
 {
     struct tcphdr *hdr = tcp_hdr(skb);
     if (!hdr)
@@ -418,7 +369,7 @@ bool packet_is_v4_rst(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool packet_is_v6_rst(struct sk_buff* skb)
+static bool packet_is_v6_rst(struct sk_buff* skb)
 {
     struct tcphdr *hdr = tcp_hdr(skb);
     if (!hdr)
@@ -431,7 +382,7 @@ bool packet_is_v6_rst(struct sk_buff* skb)
  * @param[in]   packet  The incoming packet.
  * @return  true if it is OK, false otherwise.
  */
-bool send_probe_packet(struct session_entry *entry)
+static bool send_probe_packet(struct session_entry *entry)
 {
     struct tcphdr *th;
     struct ipv6hdr *iph;
@@ -457,7 +408,7 @@ bool send_probe_packet(struct session_entry *entry)
     iph->flow_lbl[2] = 0;
     iph->payload_len = l4_hdr_len;
     iph->nexthdr = IPPROTO_TCP;
-    iph->hop_limit = 64; // TODO (warning) set this value during send_packet_ipv6 using dst?
+    iph->hop_limit = 64; /* TODO (warning) set this value during send_packet_ipv6 using dst? */
     iph->saddr = entry->ipv6.local.address;
     iph->daddr = entry->ipv6.remote.address;
 
@@ -484,7 +435,7 @@ bool send_probe_packet(struct session_entry *entry)
             csum_partial(th, l4_hdr_len, 0));
     skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-    // Send the packet
+    /* Send the packet */
     send_packet_ipv6(NULL, skb);
     log_debug("Packet sent; catch it using a tool like Wireshark or tcpdump.");
 
@@ -511,7 +462,7 @@ static bool append_ipv4(struct in_addr *src, struct in6_addr *dst)
 
 static inline void apply_policies(void)
 {
-	// TODO (later) decide whether resources and policy allow filtering to continue.
+	/* TODO (later) decide whether resources and policy allow filtering to continue. */
 }
 
 /*********************************************
@@ -528,110 +479,118 @@ static inline void apply_policies(void)
  * @param[in]   tuple   Tuple of the incoming packet.
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */         
-int ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
+static int ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
 {
-    struct bib_entry *bib_entry_p = NULL;
-    struct session_entry *session_entry_p = NULL;
-    struct ipv4_tuple_address new_ipv4_transport_address;
-    struct ipv4_tuple_address ipv4_remote; // ( Z(Y'), y)
-    struct ipv6_tuple_address ipv6_ta; // Transport Address temporal var.
+    struct bib_entry *bib_entry_p;
+    struct session_entry *session_entry_p;
+    struct ipv4_tuple_address bib_ipv4_addr;
+    struct in_addr destination_as_ipv4;
+    struct ipv6_tuple_address source;
     struct ipv4_pair pair4;
     struct ipv6_pair pair6;
-    u_int8_t protocol;
-    bool bib_is_local;
+    u_int8_t protocol = IPPROTO_UDP;
+    bool bib_is_local = false;
     
-    protocol = IPPROTO_UDP;
-    bib_is_local = false;
+    /* Pack source address into transport address */
+    transport_address_ipv6( tuple->src.addr.ipv6, tuple->src.l4_id, &source );
 
-    // Pack source address into transport address
-    transport_address_ipv6(tuple->src.addr.ipv6, tuple->src.l4_id, &ipv6_ta);
-
-    // Check if a previous BIB entry exist, look for IPv6 source transport address (X’,x).
+    /* Check if a previous BIB entry exist, look for IPv6 source transport address (X’,x). */
     spin_lock_bh(&bib_session_lock);
-    bib_entry_p = bib_get_by_ipv6( &ipv6_ta, protocol );
+    bib_entry_p = bib_get_by_ipv6( &source, protocol );
 
-    // If not found, try to create a new one.
+    /* If not found, try to create a new one. */
     if ( bib_entry_p == NULL )
     {
-        // Find a similar transport address (T, t)
-        if ( !allocate_ipv4_transport_address(tuple, protocol, &new_ipv4_transport_address) ) {
-            icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
+        /* Find a similar transport address (T, t) */
+        if ( !allocate_ipv4_transport_address(tuple, protocol, &bib_ipv4_addr) )
+        {
             log_warning("Could not 'allocate' a compatible transport address for the packet.");
-            goto failure;
+            goto bib_failure;
         }
 
-        // Create the BIB entry
-        bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_ta, false);
-        if ( bib_entry_p == NULL ) {
-            icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
+        /* Create the BIB entry */
+        bib_entry_p = bib_create(&bib_ipv4_addr, &source, false);
+        if ( bib_entry_p == NULL )
+        {
             log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
-            goto failure;
+            goto bib_failure;
         }
 
         bib_is_local = true;
 
         apply_policies();
 
-        // Add the BIB entry
-        if (bib_add( bib_entry_p, protocol) != 0) {
+        /* Add the BIB entry */
+        if ( bib_add(bib_entry_p, protocol) != 0 )
+        {
+        	kfree(bib_entry_p);
             log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
-            goto failure;
+            goto bib_failure;
         }
     }
 
-    // Once we have a BIB entry do ...
+    /* Once we have a BIB entry do ... */
     
     session_entry_p = session_get( tuple );
 
-    // If session was not found, then try to create a new one.
+    /* If session was not found, then try to create a new one. */
     if ( session_entry_p == NULL )
     {
-        // Translate address
-        if ( !extract_ipv4(&tuple->dst.addr.ipv6, &ipv4_remote.address) ) // Z(Y')
+        /* Translate address */
+        if ( !extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4) ) /* Z(Y') */
         {
             log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
-            goto failure;
+            goto session_failure;
         }
-        ipv4_remote.l4_id = tuple->dst.l4_id; // y
 
-        // Create the session entry
-        pair6.remote.address = tuple->src.addr.ipv6; // X'
-        pair6.remote.l4_id = tuple->src.l4_id; // x
-        pair6.local.address = tuple->dst.addr.ipv6; // Y'
-        pair6.local.l4_id = tuple->dst.l4_id; // y
-        pair4.local = bib_entry_p->ipv4; // (T, t)
-        pair4.remote = ipv4_remote; // (Z, z) // (Z(Y’),y)
-        session_entry_p = session_create(&pair4, &pair6, bib_entry_p, protocol);
+        /* Create the session entry */
+        pair6.remote.address = tuple->src.addr.ipv6; /* X' */
+        pair6.remote.l4_id = tuple->src.l4_id; /* x */
+        pair6.local.address = tuple->dst.addr.ipv6; /* Y' */
+        pair6.local.l4_id = tuple->dst.l4_id; /* y */
+        pair4.local = bib_entry_p->ipv4; /* (T, t) */
+        pair4.remote.address = destination_as_ipv4; /* Z or Z(Y’) */
+        pair4.remote.l4_id = tuple->dst.l4_id; /* z or y */
+        session_entry_p = session_create(&pair4, &pair6, protocol);
         if ( session_entry_p == NULL )
         {
             log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-            goto failure;
+            goto session_failure;
         }
 
         apply_policies();
 
-        // Add the session entry
+        /* Add the session entry */
         if ( session_add(session_entry_p) != 0 )
-        {            
+        {
+        	kfree(session_entry_p);
             log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
-            goto failure;
+            goto session_failure;
         }
+
+        /* Cross-reference them. */
+        session_entry_p->bib = bib_entry_p;
+        list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
     }
     
-    // Reset session entry's lifetime.
+    /* Reset session entry's lifetime. */
     update_session_lifetime(session_entry_p, &config.to.udp); 
     spin_unlock_bh(&bib_session_lock);
 
     return NF_ACCEPT;
 
-failure:
-    kfree(session_entry_p);
-    if ( bib_entry_p )
+session_failure:
+    if ( bib_is_local ) {
         bib_remove(bib_entry_p, protocol);
-    if ( bib_is_local )
+        pool4_return(protocol, &bib_entry_p->ipv4);
         kfree(bib_entry_p);
-    spin_unlock_bh(&bib_session_lock);
+    }
+    /* Fall through. */
 
+bib_failure:
+    spin_unlock_bh(&bib_session_lock);
+    /* This is specified in section 3.5.1.1. */
+    icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
     return NF_DROP;
 }
 
@@ -643,91 +602,104 @@ failure:
  * @param[in]   tuple   Tuple obtained from incoming packet
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int ipv4_udp(struct sk_buff* skb, struct tuple *tuple)
+static int ipv4_udp(struct sk_buff* skb, struct tuple *tuple)
 {
-    struct bib_entry *bib_entry_p = NULL;
-    struct session_entry *session_entry_p = NULL;
-    struct ipv6_tuple_address ipv6_local; 
-    struct ipv4_tuple_address ipv4_ta;
+    struct bib_entry *bib_entry_p;
+    struct session_entry *session_entry_p;
+    struct in6_addr source_as_ipv6;
+    struct ipv4_tuple_address destination;
     struct ipv4_pair pair4;
     struct ipv6_pair pair6;
-    u_int8_t protocol;
-    
-    protocol = IPPROTO_UDP;
+    u_int8_t protocol = IPPROTO_UDP;
+    /*
+	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
+	 * what should be sent.
+	 */
+	int icmp_error = -1;
 
-    // Pack source address into transport address
-    transport_address_ipv4( tuple->dst.addr.ipv4, tuple->dst.l4_id, &ipv4_ta );
+    /* Pack source address into transport address */
+    transport_address_ipv4( tuple->dst.addr.ipv4, tuple->dst.l4_id, &destination );
 
-    // Check if a previous BIB entry exist, look for IPv4 destination transport address (T,t).
     spin_lock_bh(&bib_session_lock);
-    bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
 
-    // Without state there's no way to know where should the packet be sent, so just die.
+    /* Check if a previous BIB entry exist, look for IPv4 destination transport address (T,t). */
+    bib_entry_p = bib_get_by_ipv4( &destination, protocol );
     if ( bib_entry_p == NULL )
     {
         log_warning("There is no BIB entry for the incoming IPv4 UDP packet.");
-        goto icmp_and_fail;
+        icmp_error = ICMP_HOST_UNREACH;
+        goto failure;
     }
     
+    /* If we're applying address-dependent filtering in the IPv4 interface, */
     if ( address_dependent_filtering() && !session_allow(tuple) )
     {
         log_info("Packet was blocked by address-dependent filtering.");
-        icmp_send(skb, DESTINATION_UNREACHABLE, COMMUNICATION_ADMINISTRATIVELY_PROHIBITED, 0);
+        icmp_error = ICMP_PKT_FILTERED;
         goto failure;
     }
 
-    // Searches for the Session Table Entry corresponding to the incoming tuple->
+    /* Find the Session Table Entry corresponding to the incoming tuple */
     session_entry_p = session_get( tuple );
     
-    // If NO session was found:
     if ( session_entry_p == NULL )
     {
-        // Translate address
-        if ( !append_ipv4(&tuple->src.addr.ipv4, &ipv6_local.address) ) // Y’(W)
+        /* Translate address */
+        if ( !append_ipv4(&tuple->src.addr.ipv4, &source_as_ipv6) ) /* Y’(W) */
         {
             log_err(ERR_APPEND_FAILED, "Could not translate the packet's address.");
-            goto icmp_and_fail;
+            icmp_error = ICMP_HOST_UNREACH;
+			goto failure;
         }
-        ipv6_local.l4_id = tuple->src.l4_id; // w
 
-        // Create the session entry
-        pair6.remote = bib_entry_p->ipv6;   // (X', x)
-        pair6.local = ipv6_local;           // (Y’(W), w)
-        pair4.local.address = tuple->dst.addr.ipv4; // T
-        pair4.local.l4_id = tuple->dst.l4_id; // t
-        pair4.remote.address = tuple->src.addr.ipv4; // W
-        pair4.remote.l4_id = tuple->src.l4_id; // w
-        session_entry_p = session_create(&pair4, &pair6, bib_entry_p, protocol);
+        /* Create the session entry */
+        pair6.remote = bib_entry_p->ipv6; /* (X', x) */
+        pair6.local.address = source_as_ipv6; /* Y’(W) */
+        pair6.local.l4_id = tuple->src.l4_id; /* w */
+        pair4.local.address = tuple->dst.addr.ipv4; /* T */
+        pair4.local.l4_id = tuple->dst.l4_id; /* t */
+        pair4.remote.address = tuple->src.addr.ipv4; /* W */
+        pair4.remote.l4_id = tuple->src.l4_id; /* w */
+        session_entry_p = session_create(&pair4, &pair6, protocol);
         if ( session_entry_p == NULL )
         {
         	log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-            goto icmp_and_fail;
+        	icmp_error = ICMP_HOST_UNREACH;
+			goto failure;
         }
 
         apply_policies();
 
-        // Add the session entry
+        /* Add the session entry */
         if ( session_add(session_entry_p) != 0 )
         {
+        	kfree(session_entry_p);
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
-            goto icmp_and_fail;
+        	icmp_error = ICMP_HOST_UNREACH;
+			goto failure;
         }
+
+        /* Cross-reference them. */
+		session_entry_p->bib = bib_entry_p;
+		list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
     }
     
+    /* Reset session entry's lifetime. */
     update_session_lifetime(session_entry_p, &config.to.udp);
     spin_unlock_bh(&bib_session_lock);
         
     return NF_ACCEPT;
 
-icmp_and_fail:
-    icmp_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-    // Fall through.
 failure:
-    kfree(session_entry_p);
-    if ( bib_entry_p )
-        bib_remove(bib_entry_p, protocol);
-    kfree(bib_entry_p);
     spin_unlock_bh(&bib_session_lock);
+
+    /*
+	 * This is is not specified most of the time, but I assume we're supposed to do it, in order
+	 * to maintain symmetry with IPv6-UDP.
+	 */
+    if (icmp_error != -1)
+    	icmp_send(skb, ICMP_DEST_UNREACH, icmp_error, 0);
+
     return NF_DROP;
 }
 
@@ -739,20 +711,17 @@ failure:
  * @param[in]   tuple   Tuple obtained from incoming packet
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
+static int ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
 {
-    struct bib_entry *bib_entry_p = NULL;
-    struct session_entry *session_entry_p = NULL;
-    struct ipv4_tuple_address new_ipv4_transport_address;
-    struct ipv6_tuple_address ipv6_source;
+    struct bib_entry *bib_entry_p;
+    struct session_entry *session_entry_p;
+    struct ipv4_tuple_address bib_ipv4_addr;
+    struct in_addr destination_as_ipv4;
+    struct ipv6_tuple_address source;
     struct ipv4_pair pair4;
     struct ipv6_pair pair6;
-
-    struct in_addr ipv4_remote_address;
-    u_int8_t protocol;
+    u_int8_t protocol = IPPROTO_ICMP;
     bool bib_is_local = false;
-    
-    protocol = IPPROTO_ICMP;
     
     if ( filter_icmpv6_info() )
     {
@@ -760,99 +729,110 @@ int ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
         return NF_DROP;
     }
 
-    // Pack source address into transport address
-    transport_address_ipv6( tuple->src.addr.ipv6, tuple->icmp_id, &ipv6_source );
+    /* Pack source address into transport address */
+    transport_address_ipv6( tuple->src.addr.ipv6, tuple->icmp_id, &source );
     
-    // Search for an ICMPv6 Query BIB entry that matches the (X’,i1) pair.
+    /* Search for an ICMPv6 Query BIB entry that matches the (X’,i1) pair. */
     spin_lock_bh(&bib_session_lock);
-    bib_entry_p = bib_get_by_ipv6( &ipv6_source, protocol );
+    bib_entry_p = bib_get_by_ipv6( &source, protocol );
 
-    // If not found, try to create a new one.
+    /* If not found, try to create a new one. */
     if ( bib_entry_p == NULL )
     {
-        // Look in the BIB tables for a previous packet from the same origin (X')
-        if (!allocate_ipv4_transport_address_digger(tuple, IPPROTO_ICMP, &new_ipv4_transport_address))
+        /* Look in the BIB tables for a previous packet from the same origin (X') */
+    	if ( !allocate_ipv4_transport_address_digger(tuple, protocol, &bib_ipv4_addr) )
         {
         	log_warning("Could not 'allocate' a compatible transport address for the packet.");
-            goto icmp_and_fail;
+            goto bib_failure;
         }
 
-        // Create the BIB entry
-        bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_source, false);
+        /* Create the BIB entry */
+        bib_entry_p = bib_create(&bib_ipv4_addr, &source, false);
         if ( bib_entry_p == NULL )
         {
         	log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
-            goto icmp_and_fail;
+        	goto bib_failure;
         }
 
         bib_is_local = true;
 
         apply_policies();
 
-        // Add the new BIB entry
+        /* Add the new BIB entry */
         if ( bib_add(bib_entry_p, protocol) != 0 )
         {
+        	kfree(bib_entry_p);
         	log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
-            goto icmp_and_fail;
+        	goto bib_failure;
         }
     }
 
-    // OK, we have a BIB entry to work with...
+    /* OK, we have a BIB entry to work with... */
 
-    /* Searche for an ICMP Query Session Table Entry corresponding to the incoming 
-       3-tuple (X’,Y’,i1).  */
+    /* Search an ICMP STE corresponding to the incoming 3-tuple (X’,Y’,i1). */
     session_entry_p = session_get( tuple );
 
-    // If NO session was found:
+    /* If NO session was found: */
     if ( session_entry_p == NULL )
     {
-        // Translate address from IPv6 to IPv4
-        if ( !extract_ipv4(&tuple->dst.addr.ipv6, &ipv4_remote_address) ) // Z(Y')
+        /* Translate address from IPv6 to IPv4 */
+        if ( !extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4) ) /* Z(Y') */
         {
         	log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
-            goto icmp_and_fail;
+            goto session_failure;
         }
 
-        // Create the session entry
-        pair6.remote.address = tuple->src.addr.ipv6;      // (X')
-        pair6.remote.l4_id = tuple->icmp_id;              // (i1)
-        pair6.local.address = tuple->dst.addr.ipv6;       // (Y')
-        pair6.local.l4_id = tuple->icmp_id;               // (i1)
-        pair4.local = bib_entry_p->ipv4;                  // (T, i2)
-        pair4.remote.address = ipv4_remote_address;       // (Z(Y’))
-        pair4.remote.l4_id = bib_entry_p->ipv4.l4_id;     // (i2)
-        session_entry_p = session_create(&pair4, &pair6, bib_entry_p, protocol);
+        /* Create the session entry */
+        pair6.remote.address = tuple->src.addr.ipv6;      /* (X') */
+        pair6.remote.l4_id = tuple->icmp_id;              /* (i1) */
+        pair6.local.address = tuple->dst.addr.ipv6;       /* (Y') */
+        pair6.local.l4_id = tuple->icmp_id;               /* (i1) */
+        pair4.local = bib_entry_p->ipv4;                  /* (T, i2) */
+        pair4.remote.address = destination_as_ipv4;       /* (Z(Y’)) */
+        pair4.remote.l4_id = bib_entry_p->ipv4.l4_id;     /* (i2) */
+        session_entry_p = session_create(&pair4, &pair6, protocol);
         if ( session_entry_p == NULL )
         {
         	log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-            goto icmp_and_fail;
+            goto session_failure;
         }
 
         apply_policies();
 
-        // Add the session entry
-        if ( session_add( session_entry_p ) != 0 )
+        /* Add the session entry */
+        if ( session_add(session_entry_p) != 0 )
         {
+        	kfree(session_entry_p);
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
-            goto icmp_and_fail;
+            goto session_failure;
         }
+
+        /* Cross-reference them. */
+        session_entry_p->bib = bib_entry_p;
+        list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
     }
     
-    // Reset session entry's lifetime.
+    /* Reset session entry's lifetime. */
     update_session_lifetime(session_entry_p, &config.to.icmp);
     spin_unlock_bh(&bib_session_lock);
 
     return NF_ACCEPT;
 
-icmp_and_fail:
-    icmp_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-
-    kfree(session_entry_p);
-    if ( bib_entry_p )
+session_failure:
+    if ( bib_is_local ) {
         bib_remove(bib_entry_p, protocol);
-    if ( bib_is_local )
+        pool4_return(protocol, &bib_entry_p->ipv4);
         kfree(bib_entry_p);
+    }
+    /* Fall through. */
+
+bib_failure:
     spin_unlock_bh(&bib_session_lock);
+    /*
+     * This is is not specified, but I assume we're supposed to do it, since otherwise this entire
+     * thing is so similar to UDP.
+     */
+    icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
     return NF_DROP;
 }
 
@@ -863,98 +843,104 @@ icmp_and_fail:
  * @param[in]   tuple   Tuple obtained from incoming packet
  * @return  NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int ipv4_icmp4(struct sk_buff* skb, struct tuple *tuple)
+static int ipv4_icmp4(struct sk_buff* skb, struct tuple *tuple)
 {
-    struct bib_entry *bib_entry_p = NULL;
-    struct session_entry *session_entry_p = NULL;
-    struct in6_addr ipv6_remote;
-    struct ipv4_tuple_address ipv4_ta;
+    struct bib_entry *bib_entry_p;
+    struct session_entry *session_entry_p;
+    struct in6_addr source_as_ipv6;
+    struct ipv4_tuple_address destination;
     struct ipv4_pair pair4;
     struct ipv6_pair pair6;
+    u_int8_t protocol = IPPROTO_ICMP;
+    /*
+     * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
+     * what should be sent.
+     */
+    int icmp_error = -1;
     
-    u_int8_t protocol;
+    /* Pack source address into transport address */
+    transport_address_ipv4( tuple->dst.addr.ipv4, tuple->icmp_id, &destination );
     
-    protocol = IPPROTO_ICMP;
-
-    // Pack source address into transport address
-    transport_address_ipv4( tuple->dst.addr.ipv4, tuple->icmp_id, &ipv4_ta );
-    
-    // Look for a previous BIB entry that contains (X) as the IPv4 address and (i2) as the ICMPv4 Identifier.
     spin_lock_bh(&bib_session_lock);
-    bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
 
-    // If such an entry does not exist,
+    /* Find the packet's BIB entry. */
+    bib_entry_p = bib_get_by_ipv4( &destination, protocol );
     if ( bib_entry_p == NULL )
-    {   
-        icmp_send(skb, DESTINATION_UNREACHABLE, HOST_UNREACHABLE, 0);
+    {
         log_warning("There is no BIB entry for the incoming IPv4 ICMP packet.");
+        icmp_error = ICMP_HOST_UNREACH;
         goto failure;
     }
 
-    // If we're applying address-dependent filtering in the IPv4 interface,
+    /* If we're applying address-dependent filtering in the IPv4 interface, */
     if ( address_dependent_filtering() && !session_allow(tuple) )
     {
-        icmp_send(skb, DESTINATION_UNREACHABLE, COMMUNICATION_ADMINISTRATIVELY_PROHIBITED, 0);
         log_info("Packet was blocked by address-dependent filtering.");
+        icmp_error = ICMP_PKT_FILTERED;
         goto failure;
     }
 
-    // Search the Session Table Entry corresponding to the incoming tuple
+    /* Search the Session Table Entry corresponding to the incoming tuple */
     session_entry_p = session_get( tuple );
     
-    // If NO session was found:
     if ( session_entry_p == NULL )
     {
-        // Translation the address
-        if ( !append_ipv4(&tuple->src.addr.ipv4, &ipv6_remote) ) // Y’(Z)
+        /* Translate the address */
+        if ( !append_ipv4(&tuple->src.addr.ipv4, &source_as_ipv6) ) /* Y’(Z) */
         {
         	log_err(ERR_APPEND_FAILED, "Could not translate the packet's address.");
-            goto icmp_and_fail;
+        	icmp_error = ICMP_HOST_UNREACH;
+			goto failure;
         }
 
-        // Create the session entry.
-        // TODO (warning) recheck these values.
-        pair6.remote.address = bib_entry_p->ipv6.address; // X'
-        pair6.remote.l4_id = bib_entry_p->ipv6.l4_id; // i1
-        pair6.local.address = ipv6_remote; // Y'(Z)
-        pair6.local.l4_id = bib_entry_p->ipv6.l4_id; // i1
-        pair4.local.address = tuple->dst.addr.ipv4; // T
-        pair4.local.l4_id = tuple->icmp_id; // i2
-        pair4.remote.address = tuple->src.addr.ipv4; // Z
-        pair4.remote.l4_id = tuple->icmp_id; // i2
-        session_entry_p = session_create(&pair4, &pair6, bib_entry_p, protocol);
+        /* Create the session entry. */
+        pair6.remote = bib_entry_p->ipv6; /* X', i1 */
+        pair6.local.address = source_as_ipv6; /* Y'(Z) */
+        pair6.local.l4_id = bib_entry_p->ipv6.l4_id; /* i1 */
+        pair4.local.address = tuple->dst.addr.ipv4; /* T */
+        pair4.local.l4_id = tuple->icmp_id; /* i2 */
+        pair4.remote.address = tuple->src.addr.ipv4; /* Z */
+        pair4.remote.l4_id = tuple->icmp_id; /* i2 */
+        session_entry_p = session_create(&pair4, &pair6, protocol);
         if ( session_entry_p == NULL )
         {
         	log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-            goto icmp_and_fail;
+        	icmp_error = ICMP_HOST_UNREACH;
+        	goto failure;
         }
 
         apply_policies();
 
-        // Add the session entry
+        /* Add the session entry */
         if ( session_add(session_entry_p) != 0 )
         {
+        	kfree(session_entry_p);
         	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
-            goto icmp_and_fail;
+        	icmp_error = ICMP_HOST_UNREACH;
+        	goto failure;
         }
+
+        /* Cross-reference them. */
+		session_entry_p->bib = bib_entry_p;
+		list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
     }
 
-    // Reset session entry's lifetime.
+    /* Reset session entry's lifetime. */
     update_session_lifetime(session_entry_p, &config.to.icmp);
     spin_unlock_bh(&bib_session_lock);
 
     return NF_ACCEPT;
 
-icmp_and_fail:
-    icmp_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-    // Fall through.
-
 failure:
-    kfree(session_entry_p);
-    if ( bib_entry_p )
-        bib_remove(bib_entry_p, protocol);
-    kfree(bib_entry_p);
     spin_unlock_bh(&bib_session_lock);
+
+	/*
+	 * Sending an ICMP error is not specified, but I assume we're supposed to do it, since
+	 * otherwise this entire thing is so similar to UDP.
+	 */
+    if (icmp_error != -1)
+    	icmp_send(skb, ICMP_DEST_UNREACH, icmp_error, 0);
+
     return NF_DROP;
 }
 
@@ -976,11 +962,217 @@ enum {  CLOSED = 0,
         V6_INIT
 };
 
+static bool tcp_closed_v6_syn(struct sk_buff* skb, struct tuple *tuple)
+{
+	struct bib_entry *bib_entry_p;
+	struct session_entry *session_entry_p;
+	struct ipv6_tuple_address source;
+	struct ipv4_tuple_address bib_ipv4_addr;
+	struct in_addr destination_as_ipv4;
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+	u_int8_t protocol = IPPROTO_TCP;
+	bool bib_is_local = false;
+
+	/* Pack source address into transport address */
+	transport_address_ipv6(tuple->src.addr.ipv6, tuple->src.l4_id, &source);
+
+	/* Check if a previous BIB entry exist, look for IPv6 source transport address (X’,x). */
+	bib_entry_p = bib_get_by_ipv6(&source, protocol);
+
+	/* If bib does not exist, try to create a new one, */
+	if (bib_entry_p == NULL) {
+		/* Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address. */
+		if (!allocate_ipv4_transport_address_digger(tuple, protocol, &bib_ipv4_addr)) {
+			log_warning("Could not 'allocate' a compatible transport address for the packet.");
+			goto bib_failure;
+		}
+
+		/* Create the BIB entry */
+		bib_entry_p = bib_create(&bib_ipv4_addr, &source, false);
+		if (bib_entry_p == NULL) {
+			log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
+			goto bib_failure;
+		}
+
+		bib_is_local = true;
+
+		apply_policies();
+
+		/* Add the new BIB entry */
+		if (bib_add(bib_entry_p, protocol) != 0) {
+			log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
+			goto bib_failure;
+		}
+	}
+
+	/* Now that we have a BIB entry... */
+
+	/* Translate address*/
+	if (!extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4)) { /* Z(Y') */
+		log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
+		goto session_failure;
+	}
+
+	/* Create the session entry. */
+	pair6.remote.address = tuple->src.addr.ipv6; /* X' */
+	pair6.remote.l4_id = tuple->src.l4_id; /* x */
+	pair6.local.address = tuple->dst.addr.ipv6; /* Y' */
+	pair6.local.l4_id = tuple->dst.l4_id; /* y */
+	pair4.local = bib_entry_p->ipv4; /* (T, t) */
+	pair4.remote.address = destination_as_ipv4; /* Z or Z(Y’) */
+	pair4.remote.l4_id = tuple->dst.l4_id; /* z or y */
+
+	session_entry_p = session_create(&pair4, &pair6, protocol);
+	if (session_entry_p == NULL) {
+		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
+		goto session_failure;
+	}
+
+	update_session_lifetime(session_entry_p, &config.to.tcp_trans);
+	session_entry_p->state = V6_INIT;
+
+	apply_policies();
+
+	if (session_add(session_entry_p) != 0) {
+		kfree(session_entry_p);
+		log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
+		goto session_failure;
+	}
+
+	/* Cross-reference them. */
+	session_entry_p->bib = bib_entry_p;
+	list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
+
+	return true;
+
+session_failure:
+	if (bib_is_local) {
+		bib_remove(bib_entry_p, protocol);
+		pool4_return(protocol, &bib_entry_p->ipv4);
+		kfree(bib_entry_p);
+	}
+	/* Fall through. */
+
+bib_failure:
+	/* TODO (later) We're sending this while the spinlock is held; this might be really slow. */
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+	return false;
+}
+
+static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
+{
+	struct bib_entry *bib_entry_p = NULL;
+	struct session_entry *session_entry_p = NULL;
+	struct ipv4_tuple_address destination;
+	struct in6_addr ipv6_local;
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+	u_int8_t protocol = IPPROTO_TCP;
+
+	if (drop_external_connections()) {
+		log_info("Applying policy: Dropping externally initiated TCP connections.");
+		return false;
+	}
+
+	/* Pack addresses and ports into transport address */
+	transport_address_ipv4(tuple->dst.addr.ipv4, tuple->dst.l4_id, &destination);
+
+	/* Translate address */
+	if (!append_ipv4(&tuple->src.addr.ipv4, &ipv6_local)) { /* Y'(Y) */
+		log_err(ERR_APPEND_FAILED, "Could not translate the packet's address.");
+		goto failure;
+	}
+
+	/* Look for the destination transport address (X,x) in the BIB */
+	bib_entry_p = bib_get_by_ipv4(&destination, protocol);
+
+	if (bib_entry_p == NULL) {
+		/* Try to create a new session entry anyway! */
+		unsigned int temp = TCP_INCOMING_SYN;
+
+		log_warning("Unknown TCP connections started from the IPv4 side is still unsupported. "
+				"Dropping packet...");
+		goto failure;
+
+		/*
+		 * Side:   <-------- IPv6 -------->  N  <------- IPv4 ------->
+		 * Packet: dest(X',x) <--- src(Y',y) A  dest(X,x) <-- src(Y,y)
+		 * NAT64:  remote              local T  local           remote
+		 */
+
+		/* Create the session entry */
+		/* pair6.remote = Not_Available; (X', x) INTENTIONALLY LEFT UNSPECIFIED! */
+		pair6.local.address = ipv6_local; /* (Y', y) */
+		pair6.local.l4_id = tuple->src.l4_id;
+		pair4.local.address = tuple->dst.addr.ipv4; /* (X, x)  (T, t) */
+		pair4.local.l4_id = tuple->dst.l4_id;
+		pair4.remote.address = tuple->src.addr.ipv4; /* (Z(Y’),y) or (Z, z) */
+		pair4.remote.l4_id = tuple->src.l4_id;
+
+		session_entry_p = session_create(&pair4, &pair6, protocol);
+		if (session_entry_p == NULL) {
+			log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
+			goto failure;
+		}
+
+		session_entry_p->state = V4_INIT;
+		update_session_lifetime(session_entry_p, &temp);
+
+		/* TODO (later) store the packet.
+		 *          The result is that the NAT64 will not drop the packet based on the filtering,
+		 *          nor create a BIB entry.  Instead, the NAT64 will only create the Session
+		 *          Table Entry and store the packet. The motivation for this is to support
+		 *          simultaneous open of TCP connections. */
+
+	} else {
+
+		/* BIB entry exists; create the session entry. */
+		pair6.remote = bib_entry_p->ipv6; /* (X', x) */
+		pair6.local.address = ipv6_local; /* (Y', y) */
+		pair6.local.l4_id = tuple->src.l4_id;
+		pair4.local.address = tuple->dst.addr.ipv4; /* (X, x)  (T, t) */
+		pair4.local.l4_id = tuple->dst.l4_id;
+		pair4.remote.address = tuple->src.addr.ipv4; /* (Z(Y’),y) or (Z, z) */
+		pair4.remote.l4_id = tuple->src.l4_id;
+
+		session_entry_p = session_create(&pair4, &pair6, protocol);
+		if (session_entry_p == NULL) {
+			log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
+			goto failure;
+		}
+
+		session_entry_p->state = V4_INIT;
+		if (address_dependent_filtering()) {
+			unsigned int temp = TCP_INCOMING_SYN;
+			update_session_lifetime(session_entry_p, &temp);
+		} else {
+			update_session_lifetime(session_entry_p, &config.to.tcp_trans);
+		}
+	}
+
+	apply_policies();
+
+	if (session_add(session_entry_p) != 0) {
+		kfree(session_entry_p);
+		log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
+		goto failure;
+	}
+
+	/* Cross-reference them. */
+	session_entry_p->bib = bib_entry_p;
+	list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
+
+	return true;
+
+failure:
+	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
+	return false;
+}
+
 /** CLOSED state
  *
  *  Handle SYN packets.
- *
- *  The motivation for this is to support simultaneous open of TCP connections.
  *
  * @param[in]   packet  The incoming packet.
  * @param[in]   tuple   Tuple of the incoming packet.
@@ -988,230 +1180,39 @@ enum {  CLOSED = 0,
  */
 static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
 {
-    struct bib_entry *bib_entry_p = NULL;
-    struct session_entry *session_entry_p = NULL;
+	struct bib_entry *bib_entry_p = NULL;
+	struct ipv6_tuple_address ipv6_ta;
+	struct ipv4_tuple_address ipv4_ta;
+	u_int8_t protocol = IPPROTO_TCP;
 
-    struct ipv4_tuple_address new_ipv4_transport_address;
-    struct ipv6_tuple_address ipv6_ta;
-    struct ipv4_tuple_address ipv4_ta;
+	/* SYN packets */
+	if (packet_is_v6_syn(skb))
+		return tcp_closed_v6_syn(skb, tuple);
 
-    struct ipv4_tuple_address ipv4_remote;
-    struct ipv6_tuple_address ipv6_local;
-    struct ipv6_pair pair6;
-    struct ipv4_pair pair4;
-    u_int8_t protocol;
-    bool bib_is_local = false;
+	if (packet_is_v4_syn(skb))
+		return tcp_closed_v4_syn(skb, tuple);
 
-    protocol = IPPROTO_TCP;
+	/* Non-SYN packets */
+	if (packet_is_ipv6(skb)) {
+		/* Pack source address into transport address */
+		transport_address_ipv6(tuple->src.addr.ipv6, tuple->src.l4_id, &ipv6_ta);
 
-    //  V6 SYN packet: IPv6 -> IPv4
-    if ( packet_is_v6_syn(skb) )
-    {
-        // Pack source address into transport address
-        transport_address_ipv6( tuple->src.addr.ipv6, tuple->src.l4_id, &ipv6_ta );
-        
-        // Check if a previous BIB entry exist, look for IPv6 source transport address (X’,x).
-        bib_entry_p = bib_get_by_ipv6( &ipv6_ta, protocol );
+		/* Look if there is a corresponding entry in the TCP BIB */
+		bib_entry_p = bib_get_by_ipv6(&ipv6_ta, protocol);
+		if (!bib_entry_p)
+			log_warning("BIB entry not found for %pI6c#%u.", &tuple->src.addr.ipv6, tuple->src.l4_id);
 
-        // If bib does not exist, try to create a new one,
-        if ( bib_entry_p == NULL )
-        {
-            // Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address.
-            if ( !allocate_ipv4_transport_address_digger(tuple, protocol, &new_ipv4_transport_address) )
-            {
-                icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-                log_warning("Could not 'allocate' a compatible transport address for the packet.");
-                goto failure;
-            }
+	} else if (packet_is_ipv4(skb)) {
+		/* Pack addresses and ports into transport address */
+		transport_address_ipv4(tuple->dst.addr.ipv4, tuple->dst.l4_id, &ipv4_ta);
 
-            // Create the BIB entry
-            bib_entry_p = bib_create(&new_ipv4_transport_address, &ipv6_ta, false);
-            if ( bib_entry_p == NULL ) {
-                icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-                log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
-                goto failure;
-            }
-            bib_is_local = true;
-
-            apply_policies();
-
-            // Add the new BIB entry
-            if ( bib_add( bib_entry_p, protocol) != 0 )
-            {
-                icmpv6_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-                log_err(ERR_ADD_BIB_FAILED, "Could not add the BIB entry to the table.");
-                goto failure;
-            }
-        }
-
-        // Now that we have a BIB entry...
-
-        // Translate address
-        if ( !extract_ipv4(&tuple->dst.addr.ipv6, &ipv4_remote.address) ) // Z(Y')
-        {
-        	log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
-            goto icmp_and_fail;
-        }
-        ipv4_remote.l4_id = tuple->dst.l4_id; // y
-
-        // Create the session entry.
-
-        pair6.remote.address = tuple->src.addr.ipv6; // X'
-        pair6.remote.l4_id = tuple->src.l4_id; // x
-        pair6.local.address = tuple->dst.addr.ipv6; // Y'
-        pair6.local.l4_id = tuple->dst.l4_id; // y
-        pair4.local = bib_entry_p->ipv4; // (T, t)
-        pair4.remote = ipv4_remote; // (Z, z) // (Z(Y’),y)
-        session_entry_p = session_create(&pair4, &pair6, bib_entry_p, protocol);
-        if ( session_entry_p == NULL )
-        {
-        	log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-            goto icmp_and_fail;
-        }
-
-        update_session_lifetime(session_entry_p, &config.to.tcp_trans);
-        session_entry_p->state = V6_INIT;
-
-        apply_policies();
-
-        if ( session_add(session_entry_p) != 0 )
-        {
-        	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
-            goto icmp_and_fail;
-        }
-    }
-    else if ( packet_is_v4_syn(skb) )
-    {
-        if ( drop_external_connections() )
-        {
-            log_info("Applying policy: Dropping externally initiated TCP connections.");
-            return false;
-        }
-
-        // Pack addresses and ports into transport address
-        transport_address_ipv4( tuple->dst.addr.ipv4, tuple->dst.l4_id, &ipv4_ta );
-
-        // Translate address
-        if (!append_ipv4(&tuple->src.addr.ipv4, &ipv6_local.address)) // Y'(Y)
-        {
-            log_err(ERR_APPEND_FAILED, "Could not translate the packet's address.");
-            return false;
-        }
-        ipv6_local.l4_id = tuple->src.l4_id; // y
-
-        // Look for the destination transport address (X,x) in the BIB
-		bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
-
-        // If not found (not in use), even try to create a new SESSION entry!!!
-        if ( bib_entry_p == NULL )
-        {
-            unsigned int temp = TCP_INCOMING_SYN;
-
-            log_warning("Unknown TCP connections started from the IPv4 side is still unsupported. "
-                    "Dropping packet...");
-            return false;
-
-            /*  Side:   <-------- IPv6 -------->  N  <------- IPv4 ------->
-                Packet: dest(X',x) <-- src(Y',y)  A  dest(X,x) <-- src(Y,y)
-                NAT64:    remote       local      T    local        remote
-            */
-
-            // Create the session entry
-            // pair6.remote = Not_Available; // (X', x) INTENTIONALLY LEFT UNSPECIFIED!
-            pair6.local = ipv6_local; // (Y', y)
-            pair4.local.address = tuple->dst.addr.ipv4; // (X, x)  (T, t)
-            pair4.local.l4_id = tuple->dst.l4_id;
-            pair4.remote.address = tuple->src.addr.ipv4; // (Z(Y’),y) ; // (Z, z)
-            pair4.remote.l4_id = tuple->src.l4_id;
-            session_entry_p = session_create(&pair4, &pair6, NULL, protocol);
-            if ( session_entry_p == NULL )
-            {
-                log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-                goto icmp_and_fail;
-            }
-            session_entry_p->state = V4_INIT;
-            update_session_lifetime(session_entry_p, &temp);
-
-            /* TODO (later) store the packet.
-             *          The result is that the NAT64 will not drop the packet based on the filtering,
-             *          nor create a BIB entry.  Instead, the NAT64 will only create the Session
-             *          Table Entry and store the packet. The motivation for this is to support
-             *          simultaneous open of TCP connections. */
-        }
-        else // if a bib entry exists
-        {
-            // Create the session entry
-            pair6.remote = bib_entry_p->ipv6; // (X', x)
-            pair6.local = ipv6_local; // (Y', y)
-            pair4.local.address = tuple->dst.addr.ipv4; // (X, x)  (T, t)
-            pair4.local.l4_id = tuple->dst.l4_id;
-            pair4.remote.address = tuple->src.addr.ipv4; // (Z(Y’),y) ; // (Z, z)
-            pair4.remote.l4_id = tuple->src.l4_id;
-            session_entry_p = session_create(&pair4, &pair6, bib_entry_p, protocol);
-            if ( session_entry_p == NULL )
-            {
-            	log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-                goto icmp_and_fail;
-            }
-            session_entry_p->state = V4_INIT;
-
-            if ( address_dependent_filtering() ) {
-                unsigned int temp = TCP_INCOMING_SYN;
-                update_session_lifetime(session_entry_p, &temp);
-            } else {
-                update_session_lifetime(session_entry_p, &config.to.tcp_trans);
-            }
-        }
-
-        apply_policies();
-
-        if ( session_add(session_entry_p) != 0 )
-        {
-        	log_err(ERR_ADD_SESSION_FAILED, "Could not add the session entry to the table.");
-            goto icmp_and_fail;
-        }
-    }
-    else // For any packet, other than SYN, belonging to this connection:
-	{
-		if ( packet_is_ipv6(skb) ) // IPv6
-		{
-			// Pack source address into transport address
-			transport_address_ipv6( tuple->src.addr.ipv6, tuple->src.l4_id, &ipv6_ta );
-
-			// Look if there is a corresponding entry in the TCP BIB
-			bib_entry_p = bib_get_by_ipv6( &ipv6_ta, protocol );
-			
-			if (!bib_entry_p)
-				log_warning("BIB entry not found for %pI6c#%u.", &tuple->src.addr.ipv6, tuple->src.l4_id);
-		}
-		else if( packet_is_ipv4(skb) ) // IPv4
-		{
-			// Pack addresses and ports into transport address
-			transport_address_ipv4( tuple->dst.addr.ipv4, tuple->dst.l4_id, &ipv4_ta );
-
-			// Look for the destination transport address (X,x) in the BIB
-			bib_entry_p = bib_get_by_ipv4( &ipv4_ta, protocol );
-			
-			if (!bib_entry_p)
-				log_warning("BIB entry not found for %pI4#%u.", &tuple->dst.addr.ipv4, tuple->dst.l4_id);
-		}
-
-		return (bib_entry_p != NULL);
+		/* Look for the destination transport address (X,x) in the BIB */
+		bib_entry_p = bib_get_by_ipv4(&ipv4_ta, protocol);
+		if (!bib_entry_p)
+			log_warning("BIB entry not found for %pI4#%u.", &tuple->dst.addr.ipv4, tuple->dst.l4_id);
 	}
 
-    return true;
-
-icmp_and_fail:
-    icmp_send(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE, 0);
-    // Fall through.
-
-failure:
-    kfree(session_entry_p);
-    if ( bib_entry_p )
-        bib_remove(bib_entry_p, protocol);
-    if ( bib_is_local )
-        kfree(bib_entry_p);
-    return false;
+	return (bib_entry_p != NULL);
 }
 
 /** V4 INIT state
@@ -1227,7 +1228,7 @@ static bool tcp_v4_init_state_handle(struct sk_buff* skb, struct session_entry *
     {
         update_session_lifetime(session_entry_p, &config.to.tcp_est);
         session_entry_p->state = ESTABLISHED;
-    } // else, the state remains unchanged.
+    } /* else, the state remains unchanged. */
 
     return true;
 }
@@ -1249,7 +1250,7 @@ static bool tcp_v6_init_state_handle(struct sk_buff* skb, struct session_entry *
     else if (packet_is_v6_syn(skb))
     {
         update_session_lifetime(session_entry_p, &config.to.tcp_trans);
-    } // else, the state remains unchanged
+    } /* else, the state remains unchanged */
     
     return true;
 }
@@ -1335,7 +1336,7 @@ static bool tcp_v6_fin_rcv_state_handle(struct sk_buff* skb, struct session_entr
  */
 static bool tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session_entry_p)
 {
-    // Only the timeout can change this state.
+    /* Only the timeout can change this state. */
     return true;
 }
 
@@ -1379,7 +1380,7 @@ bool session_expired(struct session_entry *session_entry_p)
 					 * If the lifetime expires, an ICMP Port Unreachable error (Type 3, Code 3) containing the
 					 * IPv4 SYN packet stored is sent back to the source of the v4 SYN, the Session Table Entry
 					 * is deleted, and the state is moved to CLOSED. */
-					// send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE);
+					/* send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE); */
 					session_entry_p->state = CLOSED;
 					return false;
 				case ESTABLISHED:
@@ -1394,8 +1395,10 @@ bool session_expired(struct session_entry *session_entry_p)
 					session_entry_p->state = CLOSED;
 					return false;
 				default:
-					// Because closed sessions are not supposed to be stored,
-					// CLOSED is known to fall through here.
+					/*
+					 * Because closed sessions are not supposed to be stored,
+					 * CLOSED is known to fall through here.
+					 */
 					log_err(ERR_INVALID_STATE, "Invalid state found; removing session entry.");
 					return false;
 			}
@@ -1414,7 +1417,7 @@ bool session_expired(struct session_entry *session_entry_p)
  *  @params[in] tuple   Tuple of incoming packet
  *  @return     NF_ACCEPT if everything went OK, NF_DROP otherwise.
  */
-int tcp(struct sk_buff* skb, struct tuple *tuple)
+static int tcp(struct sk_buff* skb, struct tuple *tuple)
 {
     struct session_entry *session_entry_p;
     bool result;
@@ -1422,13 +1425,13 @@ int tcp(struct sk_buff* skb, struct tuple *tuple)
     spin_lock_bh(&bib_session_lock);
     session_entry_p = session_get( tuple );
 
-    // If NO session was found:
+    /* If NO session was found: */
     if ( session_entry_p == NULL ) {
         result = tcp_closed_state_handle(skb, tuple);
         goto end;
     }
 
-    // Act according the current state.
+    /* Act according the current state. */
     switch( session_entry_p->state )
     {
         case V4_INIT:
@@ -1453,8 +1456,10 @@ int tcp(struct sk_buff* skb, struct tuple *tuple)
         	result = tcp_trans_state_handle(skb, session_entry_p);
             break;
         default:
-        	// Because closed sessions are not supposed to be stored,
-        	// CLOSED is known to fall through here.
+        	/*
+        	 * Because closed sessions are not supposed to be stored,
+        	 * CLOSED is known to fall through here.
+        	 */
             log_err(ERR_INVALID_STATE, "Invalid state found: %u.", session_entry_p->state);
             result = false;
     }
@@ -1488,13 +1493,13 @@ int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 	log_debug("Step 2: Filtering and updating");
 	
     if ( PF_INET6 == tuple->l3_proto ) {
-        /// Errores de ICMP no deben afectar las tablas.
+        /* Errores de ICMP no deben afectar las tablas. */
         if ( IPPROTO_ICMPV6 == tuple->l3_proto && is_icmp6_error(icmp6_hdr(skb)->icmp6_type) )
 		{
 			log_debug("Packet is ICMPv6 info, ignoring...");
 			return NF_ACCEPT;
 		}
-        /// Get rid of hairpinning loop and unwanted packets.
+        /* Get rid of hairpinning loop and unwanted packets. */
         if ( pool6_contains(&tuple->src.addr.ipv6) || !pool6_contains(&tuple->dst.addr.ipv6) )
         {
 			log_info("Packet was rejected by pool6, dropping...");
@@ -1503,14 +1508,14 @@ int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
     }
             
     if ( PF_INET == tuple->l3_proto ) {
-        /// Errores de ICMP no deben afectar las tablas.
+        /* Errores de ICMP no deben afectar las tablas. */
         if ( IPPROTO_ICMP == tuple->l4_proto && is_icmp4_error(icmp_hdr(skb)->type) )
         {
 			log_debug("Packet is ICMPv4 info, ignoring...");
 			return NF_ACCEPT;
 		}
 
-        /// Get rid of unexpected packets
+        /* Get rid of unexpected packets */
         if ( !pool4_contains(&tuple->dst.addr.ipv4) )
         {
 			log_info("Packet was rejected by pool4, dropping...");
@@ -1518,7 +1523,7 @@ int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		}
     }
 
-    /// Process packet, according to its protocol.
+    /* Process packet, according to its protocol. */
     switch (tuple->l4_proto) {
         case IPPROTO_UDP:
             if ( PF_INET6 == tuple->l3_proto )
