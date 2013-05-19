@@ -13,13 +13,26 @@ int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple);
 
 bool session_expired(struct session_entry *session_entry_p);
 
-int filtering_init(void); // Esto se llama al insertar el módulo y se encarga de poner los valores por defecto
+/**
+ * Esto se llama al insertar el módulo y se encarga de poner los valores por defecto
+ */
+int filtering_init(void);
 
-void filtering_destroy(void); // Esto libera la memoria reservada por filtering_init. Supongo qeu no la necesitas
+/**
+ * Esto libera la memoria reservada por filtering_init. Supongo qeu no la necesitas
+ */
+void filtering_destroy(void);
 
-int clone_filtering_config(struct filtering_config *clone); // Esta guarda el contenido de config en el parámetro "clone". La necesito en configuración para enviar la configuración a userspace cuando se consulta
+/**
+ * Esta guarda el contenido de config en el parámetro "clone". La necesito en configuración para
+ * enviar la configuración a userspace cuando se consulta
+ */
+int clone_filtering_config(struct filtering_config *clone);
 
-int set_filtering_config(__u32 operation, struct filtering_config *new_config); // Esta sirve para modificar a config
+/**
+ * Esta sirve para modificar a config
+ */
+int set_filtering_config(__u32 operation, struct filtering_config *new_config);
 
 
 #endif

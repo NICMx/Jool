@@ -18,7 +18,7 @@
  */
 #define NF_PRI_NAT64 (NF_IP_PRI_CONNTRACK_DEFRAG + NF_IP_PRI_RAW) / 2
 
-// -- Timeouts, defined by RFC 6146, section 4. --
+/* -- Timeouts, defined by RFC 6146, section 4. */
 
 /**
  * Minimum allowable session lifetime for UDP bindings, in seconds.
@@ -29,23 +29,25 @@
  * in seconds. We use it as the actual default value.
  */
 #define UDP_DEFAULT (5 * 60)
-/** Transitory connection idle timeout.
- *  In other words, the timeout of several states in the TCP state machine. In seconds.
+/**
+ * Transitory connection idle timeout.
+ * In other words, the timeout of several states in the TCP state machine. In seconds.
  */
 #define TCP_TRANS (4 * 60)
-/** Established connection idle timeout.
- *  In other words, the timeout of several states in the TCP state machine. In seconds.
+/**
+ * Established connection idle timeout.
+ * In other words, the timeout of several states in the TCP state machine. In seconds.
  */
 #define TCP_EST (2 * 60 * 60)
 /** Timeout of several types of new STEs created during the CLOSED state of the TCP state machine. */
 #define TCP_INCOMING_SYN (6)
-// /** Default time interval fragments are allowed to arrive in. In seconds. */
-// #define FRAGMENT_MIN (2)
+/** Default time interval fragments are allowed to arrive in. In seconds. */
+/* #define FRAGMENT_MIN (2) */
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
 
-// -- Config defaults --
+/* -- Config defaults -- */
 #define POOL6_DEF { "64:ff9b::/96" }
 
 #define POOL4_DEF { "192.168.2.1", "192.168.2.2", "192.168.2.3", "192.168.2.4" }
@@ -65,15 +67,15 @@
 #define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
 
 
-// -- IPv6 Pool --
+/* -- IPv6 Pool -- */
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
 
 
-// -- Session --
+/* -- Session -- */
 #define SESSION_TIMER_INTERVAL (10 * 1000)
 
 
-// -- ICMP constants missing from icmp.h and icmpv6.h. --
+/* -- ICMP constants missing from icmp.h and icmpv6.h. -- */
 
 /** Code 0 for ICMP messages of type ICMP_PARAMETERPROB. */
 #define ICMP_PTR_INDICATES_ERROR 0

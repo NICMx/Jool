@@ -12,7 +12,7 @@ int validate_ipv4_netmask_bits(unsigned char netmask_bits)
 {
 	if (netmask_bits > 32 || netmask_bits < 0)
 		return (false);
-	
+
 	return (true);
 }
 
@@ -55,11 +55,11 @@ int convert_bits_to_netmask(int af, unsigned char bits, void *net)
 			}
 			break;
 		default:
-			//~ log_warning("%s. Error, bad address family.", "convert_bits_to_netmask");
+			/* log_warning("%s. Error, bad address family.", "convert_bits_to_netmask"); */
 			return false;
 	}
 
-	return true;	
+	return true;
 }
 
 /** Obtain the network address of an IP address.
@@ -81,21 +81,19 @@ int get_net_addr(int af, void *ip_addr, void *ip_netmask, void *ip_net)
 				(*(struct in_addr *)ip_addr).s_addr & \
 				(*(struct in_addr *)ip_netmask).s_addr;
 			break;
-		
+
 		case AF_INET6:
-// log_debug(">	ip_net:%pI6 = ip_addr:%pI6 & ip_netmask:%pI6", ip_net, ip_addr, ip_netmask);
 			for (ii = 0; ii < IPV6_SIZE_UINT32; ii++)
 			{
 				(*(struct in6_addr *)ip_net).s6_addr32[ii] = \
 					(*(struct in6_addr *)ip_addr).s6_addr32[ii] & \
 					(*(struct in6_addr *)ip_netmask).s6_addr32[ii];
-// log_debug("[%d] ip_net:%pI6 = ip_addr:%pI6 & ip_netmask:%pI6", ii, ip_net, ip_addr, ip_netmask);
 			}
 
 			break;
 
 		default:
-			//~ log_warning("%s. Error, bad address family.", "get_net_addr");
+			/* log_warning("%s. Error, bad address family.", "get_net_addr"); */
 			return false;
 
 	}
@@ -127,11 +125,8 @@ int get_net_addr_from_netmask_bits(int af, void *addr, unsigned char netmask_bit
         case AF_INET6:
             if ( ! convert_bits_to_netmask(AF_INET6, netmask_bits, &mask6) )
                 return false;
-//~ log_debug("addr6: %pI6", addr);
-//~ log_debug("mask6: %pI6", &mask6);
             if ( ! get_net_addr(AF_INET6, addr, &mask6, net) )
                 return false;
-//~ log_debug("net6: %pI6", net);
             break;
         default:
             return false;
@@ -148,7 +143,7 @@ int get_net_addr_from_netmask_bits(int af, void *addr, unsigned char netmask_bit
  * @param[in] 	addr_last		Last IP address.
  * @return		true if all they belong to the same net, otherwise return false.
  */
-int ip_addr_in_same_net(int af, 
+int ip_addr_in_same_net(int af,
 			const void *network, unsigned char maskbits,
 	       	const void *addr_first, const void *addr_last)
 {
@@ -169,18 +164,18 @@ int ip_addr_in_same_net(int af,
 			get_net_addr(af, (struct in_addr *)addr_first, &ipv4_netmask, &ipv4_first);
 			if ( !ipv4_addr_equals(&ipv4_net, &ipv4_first)  )
 				return false;
-			
+
 			get_net_addr(af, (struct in_addr *)addr_last, &ipv4_netmask, &ipv4_last);
 			if ( !ipv4_addr_equals(&ipv4_net, &ipv4_last)  )
 				return false;
 
 			break;
 		case AF_INET6:
-			// Is thís necesary?
-			//convert_bits_to_netmask(af, ipv6_bits, &ipv6_netmask);
+			/* Is this necesary? */
+			/* convert_bits_to_netmask(af, ipv6_bits, &ipv6_netmask); */
 			break;
 		default:
-			//~ log_warning("%s. Error, bad address family.", "ip_addr_in_same_net");
+			/* log_warning("%s. Error, bad address family.", "ip_addr_in_same_net"); */
 			return false;
 	}
 
@@ -202,14 +197,14 @@ int validate_ipv4_pool_range(	const struct in_addr *network,
 {
 	if (addr_first->s_addr > addr_last->s_addr)
 		return false;
-	
+
 	if ( ip_addr_in_same_net(AF_INET, \
 			network, maskbits, \
 	       	addr_first, addr_last) == false )
 		return false;
-	
+
 	return true;
-}	
+}
 
 /** Validates the IPv4 ports range.
  *
@@ -224,12 +219,13 @@ int validate_ports_range(unsigned int first, unsigned int last)
 	if (last < 0 || last > 65535)
 		return false;
 	if (first > last)
-		return false;	
-	
+		return false;
+
 	return true;
 }
 
-int round_mask_up(int subnetmaskx){ // We need to figure out the most significant bit, then set the subnetmaskx to that number.
+int round_mask_up(int subnetmaskx){
+	/* We need to figure out the most significant bit, then set the subnetmaskx to that number. */
 	if (subnetmaskx == 0) {
 		return 255;
 	} else if (subnetmaskx < 2 ) {

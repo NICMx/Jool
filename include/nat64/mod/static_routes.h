@@ -4,7 +4,7 @@
 #include "nat64/comm/config_proto.h"
 
 
-/** 
+/**
  * @file
  * A bridge between the configuration module and the BIB and session modules.
  *

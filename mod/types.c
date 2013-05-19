@@ -64,9 +64,11 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 
 __u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
 {
-	// address->l4_id would perhaps be the logical hash code, since it's usually random,
-	// but during bib_get_by_ipv6_only() we need to ignore it during lookup
-	// so this needs to be a little more creative.
+	/*
+	 * address->l4_id would perhaps be the logical hash code, since it's usually random,
+	 * but during bib_get_by_ipv6_only() we need to ignore it during lookup
+	 * so this needs to be a little more creative.
+	 */
 
 	__u16 i;
 	__u16 result = 1;
@@ -110,9 +112,11 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 
 __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 {
-	// pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
-	// but during session_allow() we need to ignore it during lookup
-	// so this needs to be a little more creative.
+	/*
+	 * pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
+	 * but during session_allow() we need to ignore it during lookup
+	 * so this needs to be a little more creative.
+	 */
 
 	union ipv4_addr_union {
 		__be32 by32;

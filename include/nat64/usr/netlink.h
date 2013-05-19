@@ -7,8 +7,8 @@
 #include <netlink/attr.h>
 
 
-// Assert we're compiling with libnl version >= 3.0
-#if !defined(LIBNL_VER_NUM) 
+/* Assert we're compiling with libnl version >= 3.0 */
+#if !defined(LIBNL_VER_NUM)
 	#error "Missing LIBNL dependency (need at least version 3)."
 #endif
 #if LIBNL_VER_NUM < LIBNL_VER(3,0)

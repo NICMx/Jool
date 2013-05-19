@@ -109,7 +109,7 @@ unsigned int hook_ipv6(unsigned int hooknum, struct sk_buff *skb,
 	enum verdict result;
 
 	skb_linearize(skb);
-	
+
 	ip6_header = ipv6_hdr(skb);
 
 	if (!pool6_contains(&ip6_header->daddr))

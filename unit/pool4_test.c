@@ -140,7 +140,7 @@ static bool test_return_function(void)
 	bool success = true;
 	int addr_ctr, port_ctr;
 
-	// Try to return the entire pool, even though we haven't borrowed anything.
+	/* Try to return the entire pool, even though we haven't borrowed anything. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		result.address = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
@@ -149,7 +149,7 @@ static bool test_return_function(void)
 		}
 	}
 
-	// Borrow the entire pool.
+	/* Borrow the entire pool. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
 			success &= assert_true(pool4_get_any(IPPROTO_UDP, port_ctr, &result), "Borrow-result");
@@ -163,7 +163,7 @@ static bool test_return_function(void)
 	if (!success)
 		return success;
 
-	// Return something from the first address.
+	/* Return something from the first address. */
 	result.address = expected_ips[0];
 	result.l4_id = 1000;
 	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return");
@@ -172,7 +172,7 @@ static bool test_return_function(void)
 	if (!success)
 		return success;
 
-	// Re-borrow it, assert it's the same one.
+	/* Re-borrow it, assert it's the same one. */
 	success &= assert_true(pool4_get_any(IPPROTO_UDP, 0, &result), "");
 	success &= assert_equals_ipv4(&expected_ips[0], &result.address, "");
 	success &= assert_false(ports[0][result.l4_id], "");
@@ -182,7 +182,10 @@ static bool test_return_function(void)
 	if (!success)
 		return success;
 
-	// Do the same to the second address. Use get_similar instead of get_any to add some quick noise.
+	/*
+	 * Do the same to the second address. Use get_similar() instead of get_any() to add some quick
+	 * noise.
+	 */
 	result.address = expected_ips[1];
 	result.l4_id = 1000;
 	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return");
@@ -202,7 +205,7 @@ static bool test_return_function(void)
 	if (!success)
 		return success;
 
-	// Return some more stuff at once.
+	/* Return some more stuff at once. */
 	result.address = expected_ips[0];
 	result.l4_id = 46;
 	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return Addr1-port46");
@@ -220,7 +223,7 @@ static bool test_return_function(void)
 	if (!success)
 		return success;
 
-	// Reborrow it.
+	/* Reborrow it. */
 	success &= assert_true(pool4_get_any(IPPROTO_UDP, 24, &result), "Reborrow Addr1-res-port24");
 	success &= assert_equals_ipv4(&expected_ips[0], &result.address, "");
 	success &= assert_false(ports[0][result.l4_id], "");
@@ -243,7 +246,7 @@ static bool test_return_function(void)
 	if (!success)
 		return success;
 
-	// Now return everything.
+	/* Now return everything. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		result.address = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
@@ -302,5 +305,5 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	// No code.
+	/* No code. */
 }

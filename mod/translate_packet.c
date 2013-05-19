@@ -50,8 +50,10 @@ int translate_packet_init(void)
 void translate_packet_destroy(void)
 {
 	spin_lock_bh(&config_lock);
-	// Note that config is static (and hence its members are initialized to zero at startup),
-	// so calling destroy() before init() is not harmful.
+	/*
+	 * Note that config is static (and hence its members are initialized to zero at startup),
+	 * so calling destroy() before init() is not harmful.
+	 */
 	kfree(config.mtu_plateaus);
 	spin_unlock_bh(&config_lock);
 }
@@ -78,7 +80,7 @@ int clone_translate_config(struct translate_config *clone)
 
 static int be16_compare(const void *a, const void *b)
 {
-	return *(__u16 *)b  - *(__u16 *)a;
+	return *(__u16 *)b - *(__u16 *)a;
 }
 
 static void be16_swap(void *a, void *b, int size)
@@ -90,7 +92,7 @@ static void be16_swap(void *a, void *b, int size)
 
 int set_translate_config(__u32 operation, struct translate_config *new_config)
 {
-	// Validate.
+	/* Validate. */
 	if (operation & MTU_PLATEAUS_MASK) {
 		int i, j;
 
@@ -99,11 +101,11 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 			return -EINVAL;
 		}
 
-		// Sort descending.
+		/* Sort descending. */
 		sort(new_config->mtu_plateaus, new_config->mtu_plateau_count,
 				sizeof(*new_config->mtu_plateaus), be16_compare, be16_swap);
 
-		// Remove zeroes and duplicates.
+		/* Remove zeroes and duplicates. */
 		for (i = 0, j = 1; j < new_config->mtu_plateau_count; j++) {
 			if (new_config->mtu_plateaus[j] == 0)
 				break;
@@ -121,7 +123,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		new_config->mtu_plateau_count = i + 1;
 	}
 
-	// Update.
+	/* Update. */
 	spin_lock_bh(&config_lock);
 
 	if (operation & SKB_HEAD_ROOM_MASK)
@@ -146,7 +148,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 
 		config.mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
 		if (!config.mtu_plateaus) {
-			config.mtu_plateaus = old_mtus; // Should we revert the other fields?
+			config.mtu_plateaus = old_mtus; /* Should we revert the other fields? */
 			spin_unlock_bh(&config_lock);
 			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
 			return -ENOMEM;
@@ -175,12 +177,12 @@ static bool create_skb(struct packet_out *out)
 	tail_room = config.skb_tail_room;
 	spin_unlock_bh(&config_lock);
 
-	new_skb = alloc_skb(head_room // user's reserved.
-			+ LL_MAX_HEADER // kernel's reserved + layer 2.
-			+ out->l3_hdr_len // layer 3.
-			+ out->l4_hdr_len // layer 4.
-			+ out->payload_len // packet data.
-			+ tail_room, // user's reserved+.
+	new_skb = alloc_skb(head_room /* user's reserved. */
+			+ LL_MAX_HEADER /* kernel's reserved + layer 2. */
+			+ out->l3_hdr_len /* layer 3. */
+			+ out->l4_hdr_len /* layer 4. */
+			+ out->payload_len /* packet data. */
+			+ tail_room, /* user's reserved+. */
 			GFP_ATOMIC);
 	if (!new_skb) {
 		log_err(ERR_ALLOC_FAILED, "New packet allocation failed.");
@@ -210,7 +212,7 @@ static bool create_skb(struct packet_out *out)
 		log_err(ERR_L3PROTO, "Invalid protocol type: %u", out->l3_hdr_type);
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -233,12 +235,14 @@ static bool copy_l4_hdr_and_payload(struct packet_in *in, struct packet_out *out
 bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_outer,
 		bool (*l3_function)(struct packet_in *, struct packet_out *))
 {
-	// While naming variables in this function,
-	// "in" means either (inner or outer) incoming packet (the one we're translating).
-	// "out" means either (inner or outer) outgoing packet (the NAT64's translation).
-	// "src" are the pointers to where the data is originally allocated.
-	// "dst" are the pointers to where the data will be once returned.
-	// (And just to be paranoid: "l3's payload" means l4 header + real payload.)
+	/*
+	 * While naming variables in this function,
+	 * "in" means either (inner or outer) incoming packet (the one we're translating).
+	 * "out" means either (inner or outer) outgoing packet (the NAT64's translation).
+	 * "src" are the pointers to where the data is originally allocated.
+	 * "dst" are the pointers to where the data will be once returned.
+	 * (And just to be paranoid: "l3's payload" means l4 header + real payload.)
+	 */
 
 	/** Data from the original packet's inner packet. */
 	struct {
@@ -276,13 +280,13 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 		goto failure;
 	}
 
-	// Get references to the original data.
+	/* Get references to the original data. */
 	in_inner.hdr.src = in_outer->payload;
 	in_inner.hdr.len = in_outer->compute_l3_hdr_len(in_inner.hdr.src);
 	in_inner.payload.src = in_inner.hdr.src + in_inner.hdr.len;
 	in_inner.payload.len = in_outer->payload_len - in_inner.hdr.len;
 
-	// Create the layer 3 headers.
+	/* Create the layer 3 headers. */
 	inner_packet_in.packet = NULL;
 	inner_packet_in.tuple = in_outer->tuple;
 	inner_packet_in.l3_hdr = in_inner.hdr.src;
@@ -291,14 +295,14 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 		goto failure;
 	}
 
-	// Get references to the new data.
+	/* Get references to the new data. */
 	out_inner.hdr.src = inner_packet_out.l3_hdr;
 	out_inner.hdr.len = inner_packet_out.l3_hdr_len;
 	out_inner.payload.src = in_inner.payload.src;
-	// If this exceeds the MTU, we'll cut it later; we don't know the full packet's length ATM.
+	/* If this exceeds the MTU, we'll cut it later; we don't know the full packet's length ATM. */
 	out_inner.payload.len = in_inner.payload.len;
 
-	// Put it all together.
+	/* Put it all together. */
 	out_outer->payload_len = out_inner.hdr.len + out_inner.payload.len;
 	out_outer->payload = kmalloc(out_outer->payload_len, GFP_ATOMIC);
 	if (!out_outer->payload) {

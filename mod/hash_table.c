@@ -187,9 +187,11 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 		return -EINVAL;
 	}
 
-	// We're not going to insert the value alone, but a key-value structure.
-	// (Because we'll later need the key available during lookups.)
-	// We generate it here.
+	/*
+	 * We're not going to insert the value alone, but a key-value structure.
+	 * (Because we'll later need the key available during lookups.)
+	 * We generate it here.
+	 */
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
@@ -198,7 +200,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	key_value->key = key;
 	key_value->value = value;
 
-	// Insert the key-value to the table.
+	/* Insert the key-value to the table. */
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
 
@@ -282,7 +284,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 				kfree(current_pair->value);
 			kfree(current_pair);
 
-			// log_debug("Deleted a node whose hash code was %u.", row);
+			/* log_debug("Deleted a node whose hash code was %u.", row); */
 		}
 	}
 }
@@ -352,8 +354,10 @@ static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *)
 }
 #endif
 
-// Compiler cleanup. The macros are freed, just so you can define another kind
-// of hash table in the same file without compiler warnings.
+/*
+ * Compiler cleanup. The macros are freed, just so you can define another kind
+ * of hash table in the same file without compiler warnings.
+ */
 #undef HTABLE_NAME
 #undef KEY_TYPE
 #undef VALUE_TYPE

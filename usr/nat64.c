@@ -35,14 +35,14 @@ struct arguments {
 	__u16 mode;
 	__u32 operation;
 
-	// Pools
+	/* Pools */
 	struct in_addr pool4_addr;
 	bool pool4_addr_set;
 
 	struct ipv6_prefix pool6_prefix;
 	bool pool6_prefix_set;
 
-	// BIB, session
+	/* BIB, session */
 	bool tcp, udp, icmp;
 	bool static_entries, dynamic_entries;
 
@@ -51,7 +51,7 @@ struct arguments {
 	struct ipv4_tuple_address bib4;
 	bool bib4_set;
 
-	// Filtering, translate
+	/* Filtering, translate */
 	struct filtering_config filtering;
 	struct translate_config translate;
 };
@@ -60,7 +60,7 @@ struct arguments {
  * The flags the user can write as program parameters.
  */
 enum argp_flags {
-	// Modes
+	/* Modes */
 	ARGP_POOL6 = '6',
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
@@ -68,36 +68,38 @@ enum argp_flags {
 	ARGP_FILTERING = 'y',
 	ARGP_TRANSLATE = 'z',
 
-	// Operations
+	/* Operations */
 	ARGP_DISPLAY = 'd',
 	ARGP_ADD = 'a',
 	ARGP_REMOVE = 'r',
 
-	// Pools
+	/* Pools */
 	ARGP_PREFIX = 1000,
 	ARGP_ADDRESS = 1001,
 
-	// BIB, session
+	/* BIB, session */
 	ARGP_TCP = 't',
 	ARGP_UDP = 'u',
 	ARGP_ICMP = 'i',
-//	ARGP_STATIC = 2000,
-//	ARGP_DYNAMIC = 2001,
-//	ARGP_IPV6 = 2010,
-//	ARGP_IPV4 = 2011,
+	/*
+	ARGP_STATIC = 2000,
+	ARGP_DYNAMIC = 2001,
+	ARGP_IPV6 = 2010,
+	ARGP_IPV4 = 2011,
+	*/
 	ARGP_BIB_IPV6 = 2020,
 	ARGP_BIB_IPV4 = 2021,
 
-	// Filtering
+	/* Filtering */
 	ARGP_DROP_ADDR = 3000,
 	ARGP_DROP_INFO = 3001,
-//	ARGP_DROP_TCP = 3002,
+	/* ARGP_DROP_TCP = 3002, */
 	ARGP_UDP_TO = 3010,
 	ARGP_ICMP_TO = 3011,
 	ARGP_TCP_TO = 3012,
 	ARGP_TCP_TRANS_TO = 3013,
 
-	// Translate
+	/* Translate */
 	ARGP_HEAD = 4000,
 	ARGP_TAIL = 4001,
 	ARGP_RESET_TCLASS = 4002,
@@ -148,14 +150,16 @@ static struct argp_option options[] =
 	{ "icmp",		ARGP_ICMP,		0, 0, "Print the ICMP BIB." },
 	{ "tcp",		ARGP_TCP,		0, 0, "Print the TCP BIB." },
 	{ "udp",		ARGP_UDP,		0, 0, "Print the UDP BIB." },
-//	{ "static",		ARGP_STATIC,	0, 0,
-//			"Filter out entries created dynamically (by incoming connections). " },
-//	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
-//			"Filter out entries created statically (by the user). " },
-//	{ "ipv4",		ARGP_IPV4,		IPV4_TRANSPORT_FORMAT, 0,
-//			"Filter out entries unrelated to the following IPv4 address and/or port." },
-//	{ "ipv6",		ARGP_IPV6,		IPV6_TRANSPORT_FORMAT, 0,
-//			"Filter out entries unrelated to the following IPv4 address and/or port." },
+	/*
+	{ "static",		ARGP_STATIC,	0, 0,
+			"Filter out entries created dynamically (by incoming connections). " },
+	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
+			"Filter out entries created statically (by the user). " },
+	{ "ipv4",		ARGP_IPV4,		IPV4_TRANSPORT_FORMAT, 0,
+			"Filter out entries unrelated to the following IPv4 address and/or port." },
+	{ "ipv6",		ARGP_IPV6,		IPV6_TRANSPORT_FORMAT, 0,
+			"Filter out entries unrelated to the following IPv4 address and/or port." },
+	*/
 	{ "bib6",		ARGP_BIB_IPV6,	IPV6_TRANSPORT_FORMAT, 0,
 			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
 			"Available on add and remove operations only." },
@@ -169,12 +173,14 @@ static struct argp_option options[] =
 	{ "icmp",		ARGP_ICMP,		0, 0, "Operate on the ICMP session table." },
 	{ "tcp",		ARGP_TCP,		0, 0, "Operate on the TCP session table." },
 	{ "udp",		ARGP_UDP,		0, 0, "Operate on the UDP session table." },
-//	{ "static",		ARGP_STATIC,	0, 0,
-//			"Filter out entries created dynamically (by incoming connections from IPv6 networks). "
-//			"Available on display operation only." },
-//	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
-//			"Filter out entries created statically (by the user). "
-//			"Available on display operation only. " },
+	/*
+	{ "static",		ARGP_STATIC,	0, 0,
+			"Filter out entries created dynamically (by incoming connections from IPv6 networks). "
+			"Available on display operation only." },
+	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
+			"Filter out entries created statically (by the user). "
+			"Available on display operation only. " },
+	 */
 
 	{ 0, 0, 0, 0, "'Filtering and Updating' step options:", 30 },
 	{ "filtering",			ARGP_FILTERING,		0, 0,
@@ -184,8 +190,10 @@ static struct argp_option options[] =
 			"Use Address-Dependent Filtering." },
 	{ DROP_ICMP6_INFO_OPT,	ARGP_DROP_INFO,		BOOL_FORMAT, 0,
 			"Filter ICMPv6 Informational packets." },
-//	{ DROP_EXTERNAL_TCP_OPT,ARGP_DROP_TCP,		BOOL_FORMAT, 0,
-//			"Drop externally initiated TCP connections." },
+	/*
+	{ DROP_EXTERNAL_TCP_OPT,ARGP_DROP_TCP,		BOOL_FORMAT, 0,
+			"Drop externally initiated TCP connections." },
+	*/
 	{ UDP_TIMEOUT_OPT,		ARGP_UDP_TO,		NUM_FORMAT, 0,
 			"Set the timeout for new UDP sessions." },
 	{ ICMP_TIMEOUT_OPT,		ARGP_ICMP_TO,		NUM_FORMAT, 0,
@@ -269,12 +277,14 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		error = str_to_prefix(arg, &arguments->pool6_prefix);
 		arguments->pool6_prefix_set = true;
 		break;
-//	case ARGP_STATIC:
-//		arguments->static_entries = true;
-//		break;
-//	case ARGP_DYNAMIC:
-//		arguments->dynamic_entries = true;
-//		break;
+	/*
+	case ARGP_STATIC:
+		arguments->static_entries = true;
+		break;
+	case ARGP_DYNAMIC:
+		arguments->dynamic_entries = true;
+		break;
+	*/
 
 	case ARGP_BIB_IPV6:
 		error = str_to_addr6_port(arg, &arguments->bib6);
@@ -295,11 +305,13 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->operation |= DROP_ICMP6_INFO_MASK;
 		error = str_to_bool(arg, &arguments->filtering.drop_icmp6_info);
 		break;
-//	case ARGP_DROP_TCP:
-//		arguments->mode = MODE_FILTERING;
-//		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
-//		error = str_to_bool(arg, &arguments->filtering.drop_external_tcp);
-//		break;
+	/*
+	case ARGP_DROP_TCP:
+		arguments->mode = MODE_FILTERING;
+		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
+		error = str_to_bool(arg, &arguments->filtering.drop_external_tcp);
+		break;
+	*/
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;

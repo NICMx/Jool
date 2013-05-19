@@ -199,7 +199,7 @@ int pool4_register(struct in_addr *addr)
 			return -EINVAL;
 		}
 	}
-	list_add(&new_node->next, pool.prev); // "add to head->prev" = "add to the end of the list".
+	list_add(&new_node->next, pool.prev); /* "add to head->prev" = "add to the end of the list". */
 
 	spin_unlock_bh(&pool_lock);
 	return 0;
@@ -245,7 +245,7 @@ bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *r
 		return false;
 	}
 
-	// Find an address with a compatible port
+	/* Find an address with a compatible port */
 	list_for_each_entry(node, &pool, next) {
 		struct poolnum *ids;
 		int error;
@@ -264,7 +264,7 @@ bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *r
 		}
 	}
 
-	// All compatible ports are taken. Go to a corner and cry...
+	/* All compatible ports are taken. Go to a corner and cry... */
 	spin_unlock_bh(&pool_lock);
 	return false;
 }

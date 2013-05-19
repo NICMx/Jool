@@ -25,7 +25,7 @@ struct in_addr local_ipv4, remote_ipv4;
 static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *ip6_addr,
 		__u16 ip6_port, u_int8_t l4protocol)
 {
-	// Generate the BIB.
+	/* Generate the BIB. */
 	struct bib_entry *bib = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
 	if (!bib) {
 		log_warning("Unable to allocate a dummy BIB.");
@@ -38,11 +38,13 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	bib->ipv6.l4_id = ip6_port;
 	INIT_LIST_HEAD(&bib->sessions);
 
-	//	log_debug("BIB [%pI4#%u, %pI6c#%u]",
-	//			&bib->ipv4.address, bib->ipv4.l4_id,
-	//			&bib->ipv6.address, bib->ipv6.l4_id);
+	/*
+	log_debug("BIB [%pI4#%u, %pI6c#%u]",
+			&bib->ipv4.address, bib->ipv4.l4_id,
+			&bib->ipv6.address, bib->ipv6.l4_id);
+	*/
 
-	// Add it to the table.
+	/* Add it to the table. */
 	if (bib_add(bib, l4protocol) != 0) {
 		log_warning("Can't add the dummy BIB to the table.");
 		goto failure;
@@ -67,7 +69,7 @@ static bool init(void)
 	int i;
 	struct ipv6_prefix prefix;
 
-	// Init test addresses
+	/* Init test addresses */
 	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != 0) {
 		log_warning("Can't parse address '%s'. Failing test...", remote_ipv6_str);
 		return false;
@@ -85,8 +87,8 @@ static bool init(void)
 		return false;
 	}
 
-	// Init the IPv6 pool module
-	if (pool6_init(NULL, 0) != 0) // we'll use the defaults.
+	/* Init the IPv6 pool module */
+	if (pool6_init(NULL, 0) != 0) /* we'll use the defaults. */
 		return false;
 	if (str_to_addr6("64:ff9b::", &prefix.address) != 0) {
 		log_warning("Cannot parse the IPv6 prefix. Failing...");
@@ -94,7 +96,7 @@ static bool init(void)
 	}
 	prefix.len = 96;
 
-	// Init the BIB module
+	/* Init the BIB module */
 	if (bib_init() != 0)
 		return false;
 
@@ -122,8 +124,8 @@ static bool test_6to4(bool (*function)(struct tuple *, struct tuple *),
 
 	incoming.src.addr.ipv6 = remote_ipv6;
 	incoming.dst.addr.ipv6 = local_ipv6;
-	incoming.src.l4_id = 1500; // Lookup will use this.
-	incoming.dst.l4_id = 123; // Whatever
+	incoming.src.l4_id = 1500; /* Lookup will use this. */
+	incoming.dst.l4_id = 123; /* Whatever */
 	incoming.l3_proto = PF_INET6;
 	incoming.l4_proto = in_l4_protocol;
 
@@ -132,7 +134,7 @@ static bool test_6to4(bool (*function)(struct tuple *, struct tuple *),
 	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.dst.addr.ipv4, "Destination address");
 	success &= assert_equals_u16(PF_INET, outgoing.l3_proto, "Layer-3 protocol");
 	success &= assert_equals_u8(out_l4_protocol, outgoing.l4_proto, "Layer-4 protocol");
-	// TODO (test) need to test ports?
+	/* TODO (test) need to test ports? */
 
 	return success;
 }
@@ -145,8 +147,8 @@ static bool test_4to6(bool (*function)(struct tuple *, struct tuple *),
 
 	incoming.src.addr.ipv4 = remote_ipv4;
 	incoming.dst.addr.ipv4 = local_ipv4;
-	incoming.src.l4_id = 123; // Whatever
-	incoming.dst.l4_id = 80; // Lookup will use this.
+	incoming.src.l4_id = 123; /* Whatever */
+	incoming.dst.l4_id = 80; /* Lookup will use this. */
 	incoming.l3_proto = PF_INET;
 	incoming.l4_proto = in_l4_protocol;
 
@@ -155,7 +157,7 @@ static bool test_4to6(bool (*function)(struct tuple *, struct tuple *),
 	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.dst.addr.ipv6, "Destination address");
 	success &= assert_equals_u16(PF_INET6, outgoing.l3_proto, "Layer-3 protocol");
 	success &= assert_equals_u8(out_l4_protocol, outgoing.l4_proto, "Layer-4 protocol");
-	// TODO (test) need to test ports?
+	/* TODO (test) need to test ports? */
 
 	return success;
 }
@@ -184,5 +186,5 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	// No code.
+	/* No code. */
 }

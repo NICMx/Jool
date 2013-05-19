@@ -22,7 +22,7 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
 		max = temp;
 	}
 
-	// TODO (fine) this looks like it could be optimized using some formula.
+	/* TODO (fine) this looks like it could be optimized using some formula. */
 	pool->count = 0;
 	for (i = min; i <= max; i += step)
 		pool->count++;
@@ -30,7 +30,7 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
 	pool->array = kmalloc(pool->count * sizeof(u16), GFP_ATOMIC);
 	if (!pool->array)
 		return -ENOMEM;
-	// Initialize and shuffle the numbers (http://en.wikipedia.org/wiki/Fisher-Yates_shuffle).
+	/* Initialize and shuffle the numbers (http://en.wikipedia.org/wiki/Fisher-Yates_shuffle). */
 	pool->array[0] = min;
 	for (i = 1; i < pool->count; i++) {
 		j = random_by_range(0, i);
@@ -62,7 +62,7 @@ static u32 get_next_index(u32 index, u32 max)
 int poolnum_get_any(struct poolnum *pool, u16 *result)
 {
 	if (pool->next_is_ahead && pool->next == pool->returned)
-		return -ESRCH; // We ran out of values.
+		return -ESRCH; /* We ran out of values. */
 
 	*result = pool->array[pool->next];
 	pool->next = get_next_index(pool->next, pool->count);

@@ -81,21 +81,23 @@ static bool test_poolnum_get_any_function(void)
 	return success;
 }
 
-//static bool assert_pool(struct poolnum *pool,
-//		u16 expected_arr_1, u16 expected_arr_2, u16 expected_arr_3,
-//		u32 expected_next, u32 expected_returned)
-//{
-//	bool success = true;
-//
-//	success &= assert_equals_u16(expected_arr_1, pool->array[0], "");
-//	success &= assert_equals_u16(expected_arr_2, pool->array[1], "");
-//	success &= assert_equals_u16(expected_arr_3, pool->array[2], "");
-//	success &= assert_equals_u32(3, pool->count, "");
-//	success &= assert_equals_u32(expected_next, pool->next, "");
-//	success &= assert_equals_u32(expected_returned, pool->returned, "");
-//
-//	return success;
-//}
+/*
+static bool assert_pool(struct poolnum *pool,
+		u16 expected_arr_1, u16 expected_arr_2, u16 expected_arr_3,
+		u32 expected_next, u32 expected_returned)
+{
+	bool success = true;
+
+	success &= assert_equals_u16(expected_arr_1, pool->array[0], "");
+	success &= assert_equals_u16(expected_arr_2, pool->array[1], "");
+	success &= assert_equals_u16(expected_arr_3, pool->array[2], "");
+	success &= assert_equals_u32(3, pool->count, "");
+	success &= assert_equals_u32(expected_next, pool->next, "");
+	success &= assert_equals_u32(expected_returned, pool->returned, "");
+
+	return success;
+}
+*/
 
 static bool test_poolnum_return_function(void)
 {
@@ -103,7 +105,7 @@ static bool test_poolnum_return_function(void)
 	struct poolnum pool;
 	u16 next_get = 0;
 
-	// TODO (test) change numbers to comments?
+	/* TODO (test) change numbers to comments? */
 	success &= assert_equals_int(0, poolnum_init(&pool, 1, 3, 1), "1");
 	if (!success)
 		return success;
@@ -112,17 +114,17 @@ static bool test_poolnum_return_function(void)
 	pool.array[2] = 3;
 
 	success &= assert_equals_int(-EINVAL, poolnum_return(&pool, 4), "2");
-//	success &= assert_pool(&pool, 1, 2, 3, 0, 0);
+	/* success &= assert_pool(&pool, 1, 2, 3, 0, 0); */
 
 	success &= assert_equals_int(0, poolnum_get_any(&pool, &next_get), "3");
 	success &= assert_equals_u16(1, next_get, "");
-//	success &= assert_pool(&pool, 1, 2, 3, 1, 0);
+	/* success &= assert_pool(&pool, 1, 2, 3, 1, 0); */
 
 	success &= assert_equals_int(0, poolnum_return(&pool, 10), "4");
-//	success &= assert_pool(&pool, 10, 2, 3, 1, 1);
+	/* success &= assert_pool(&pool, 10, 2, 3, 1, 1); */
 
 	success &= assert_equals_int(-EINVAL, poolnum_return(&pool, 4), "5");
-//	success &= assert_pool(&pool, 10, 2, 3, 1, 1);
+	/* success &= assert_pool(&pool, 10, 2, 3, 1, 1); */
 
 	success &= assert_equals_int(0, poolnum_get_any(&pool, &next_get), "6");
 	success &= assert_equals_u16(2, next_get, "7");
@@ -131,7 +133,7 @@ static bool test_poolnum_return_function(void)
 	success &= assert_equals_int(0, poolnum_get_any(&pool, &next_get), "10");
 	success &= assert_equals_u16(10, next_get, "11");
 	success &= assert_equals_int(-ESRCH, poolnum_get_any(&pool, &next_get), "12");
-//	success &= assert_pool(&pool, 10, 2, 3, 1, 0);
+	/* success &= assert_pool(&pool, 10, 2, 3, 1, 0); */
 
 	success &= assert_equals_int(0, poolnum_return(&pool, 2), "13");
 	success &= assert_equals_int(0, poolnum_return(&pool, 3), "14");
@@ -175,7 +177,7 @@ static bool test_poolnum_get_function(void) {
 	pool.array[2] = 2;
 	pool.array[3] = 3;
 
-	// Request values that do not belong to the pool.
+	/* Request values that do not belong to the pool. */
 	success &= assert_false(poolnum_get(&pool, -1), "");
 	success &= assert_pool(&pool, 0, 1, 2, 3,	0, 0, false);
 	success &= assert_false(poolnum_get(&pool, -4), "");
@@ -184,7 +186,7 @@ static bool test_poolnum_get_function(void) {
 	if (!success)
 		return success;
 
-	// Test featuring get_anys.
+	/* Test featuring get_anys. */
 	success &= assert_true(poolnum_get(&pool, 2), "");
 	success &= assert_pool(&pool, 0, 1, 0, 3,	1, 0, true);
 	success &= assert_true(poolnum_get(&pool, 1), "");
@@ -202,7 +204,7 @@ static bool test_poolnum_get_function(void) {
 	if (!success)
 		return success;
 
-	// Reset.
+	/* Reset. */
 	pool.array[0] = 0;
 	pool.array[1] = 1;
 	pool.array[2] = 2;
@@ -211,7 +213,7 @@ static bool test_poolnum_get_function(void) {
 	pool.returned = 0;
 	pool.next_is_ahead = false;
 
-	// Test featuring returns.
+	/* Test featuring returns. */
 	success &= assert_true(poolnum_get(&pool, 0), "1");
 	success &= assert_pool(&pool, 0, 1, 2, 3,	1, 0, true);
 	success &= assert_true(poolnum_get(&pool, 3), "2");
@@ -252,7 +254,7 @@ static bool test_boundaries(void)
 	bool success = true;
 	u16 port = 0;
 
-	// Init result array.
+	/* Init result array. */
 	results = kmalloc(PORT_COUNT * sizeof(*results), GFP_ATOMIC);
 	success = assert_true(results, "Test array allocation");
 	if (!success)
@@ -260,18 +262,18 @@ static bool test_boundaries(void)
 	for (i = 0; i < PORT_COUNT; i++)
 		results[i] = false;
 
-	// Init the pool.
+	/* Init the pool. */
 	success &= assert_equals_int(0, poolnum_init(&pool, PORT_MIN, PORT_MAX, 1), "Pool init");
 	if (!success) {
 		kfree(results);
 		return false;
 	}
 
-	// Fakely advance both pointers, in order to test the wrapping as well.
+	/* Fakely advance both pointers, in order to test the wrapping as well. */
 	pool.next = 10;
 	pool.returned = 10;
 
-	// Test.
+	/* Test. */
 	for (i = 0; i < PORT_COUNT; i++) {
 		success &= assert_equals_int(0, poolnum_get_any(&pool, &port), "Function result");
 		success &= assert_false(results[port], "Result is unique");
@@ -287,7 +289,7 @@ static bool test_boundaries(void)
 		success &= assert_true(poolnum_get(&pool, i), "");
 	success &= assert_false(poolnum_get(&pool, 5), "");
 
-	// Clean up & quit.
+	/* Clean up & quit. */
 	kfree(results);
 	poolnum_destroy(&pool);
 	return success;
@@ -297,7 +299,7 @@ int init_module(void)
 {
 	START_TESTS("Number pool");
 
-	// BTW, neither of these functions test the randomness of the number order.
+	/* BTW, neither of these functions test the randomness of the number order. */
 	CALL_TEST(test_poolnum_init_function(), "num_pool_init function.");
 	CALL_TEST(test_poolnum_get_any_function(), "num_pool_get_any function.");
 	CALL_TEST(test_poolnum_return_function(), "num_pool_return function.");
@@ -309,7 +311,7 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	// No code.
+	/* No code. */
 }
 
 MODULE_LICENSE("GPL");

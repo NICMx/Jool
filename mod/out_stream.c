@@ -16,13 +16,13 @@ static void flush(struct out_stream *stream, __u16 nlmsg_type)
 	}
 
 	nl_hdr_out = nlmsg_put(skb_out,
-			0, // src_pid (0 = kernel)
-			stream->request_hdr->nlmsg_seq, // seq
-			nlmsg_type, // type
-			stream->buffer_len, // payload len
-			NLM_F_MULTI); // flags.
+			0, /* src_pid (0 = kernel) */
+			stream->request_hdr->nlmsg_seq, /* seq */
+			nlmsg_type, /* type */
+			stream->buffer_len, /* payload len */
+			NLM_F_MULTI); /* flags. */
 	memcpy(nlmsg_data(nl_hdr_out), stream->buffer, stream->buffer_len);
-	// NETLINK_CB(skb_out).dst_group = 0;
+	/* NETLINK_CB(skb_out).dst_group = 0; */
 
 	res = nlmsg_unicast(stream->socket, skb_out, stream->request_hdr->nlmsg_pid);
 	if (res < 0)
@@ -43,8 +43,10 @@ void stream_write(struct out_stream *stream, void *payload, int payload_len)
 	if (payload == NULL || payload_len == 0)
 		return;
 
-	// TODO (fine) if payload_len > BUFFER_SIZE, this will go downhill.
-	// Will never happen in this project, hence the low priority.
+	/*
+	 * TODO (fine) if payload_len > BUFFER_SIZE, this will go downhill.
+	 * Will never happen in this project, hence the low priority.
+	 */
 	if (stream->buffer_len + payload_len > BUFFER_SIZE)
 		flush(stream, 0);
 

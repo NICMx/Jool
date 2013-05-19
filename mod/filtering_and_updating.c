@@ -1365,7 +1365,7 @@ static bool tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *se
  * @return TRUE: keep STE, FALSE: remove STE.
  * */
 bool session_expired(struct session_entry *session_entry_p)
-{		
+{
 	switch(session_entry_p->l4_proto) {
 		case IPPROTO_UDP:
 			return false;
@@ -1489,9 +1489,9 @@ end:
 int filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 {
 	int result;
-	
+
 	log_debug("Step 2: Filtering and updating");
-	
+
     if ( PF_INET6 == tuple->l3_proto ) {
         /* Errores de ICMP no deben afectar las tablas. */
         if ( IPPROTO_ICMPV6 == tuple->l3_proto && is_icmp6_error(icmp6_hdr(skb)->icmp6_type) )

@@ -2,7 +2,6 @@
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
 
-//#include <linux/slab.h>
 #include <linux/inet.h>
 #include <net/ipv6.h>
 

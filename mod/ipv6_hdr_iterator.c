@@ -42,9 +42,11 @@ enum hdr_iterator_result hdr_iterator_next(struct hdr_iterator *iterator)
 
 	case NEXTHDR_AUTH:
 	case NEXTHDR_ESP:
-		// I understand we're not supposed to support these (RFC 6146 section 5.1).
-		// If exthdrs_core.c is updated in kernel 3.5.0, the kernel doesn't support them either.
-		// I also don't understand how am I supposed to know the ESP header's length.
+		/*
+		 * I understand we're not supposed to support these (RFC 6146 section 5.1).
+		 * If exthdrs_core.c is updated in kernel 3.5.0, the kernel doesn't support them either.
+		 * I also don't understand how am I supposed to know the ESP header's length.
+		 */
 		return HDR_ITERATOR_UNSUPPORTED;
 
 	default:

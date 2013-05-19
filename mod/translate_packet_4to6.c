@@ -86,7 +86,7 @@ static bool has_unexpired_src_route(struct iphdr *hdr)
 	unsigned char *current_option, *end_of_options;
 	__u8 src_route_length, src_route_pointer;
 
-	// Find a loose source route or a strict source route option.
+	/* Find a loose source route or a strict source route option. */
 	current_option = (unsigned char *) (hdr + 1);
 	end_of_options = ((unsigned char *) hdr) + (4 * hdr->ihl);
 	if (current_option >= end_of_options)
@@ -100,8 +100,10 @@ static bool has_unexpired_src_route(struct iphdr *hdr)
 			current_option++;
 			break;
 		default:
-			// IPOPT_SEC, IPOPT_RR, IPOPT_SID, IPOPT_TIMESTAMP, IPOPT_CIPSO and IPOPT_RA
-			// are known to fall through here.
+			/*
+			 * IPOPT_SEC, IPOPT_RR, IPOPT_SID, IPOPT_TIMESTAMP, IPOPT_CIPSO and IPOPT_RA
+			 * are known to fall through here.
+			 */
 			current_option += current_option[1];
 			break;
 		}
@@ -110,7 +112,7 @@ static bool has_unexpired_src_route(struct iphdr *hdr)
 			return false;
 	}
 
-	// Finally test.
+	/* Finally test. */
 	src_route_length = current_option[1];
 	src_route_pointer = current_option[2];
 	return src_route_length >= src_route_pointer;
@@ -175,18 +177,20 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
-	// ip6_hdr->payload_len is set during post-processing.
+	/* ip6_hdr->payload_len is set during post-processing. */
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
-	ip6_hdr->hop_limit = ip4_hdr->ttl; // The TTL is decremented by the kernel.
+	ip6_hdr->hop_limit = ip4_hdr->ttl; /* The TTL is decremented by the kernel. */
 	ip6_hdr->saddr = in->tuple->src.addr.ipv6;
 	ip6_hdr->daddr = in->tuple->dst.addr.ipv6;
 
-	// This is already covered by the kernel, by logging martians
-	// (see the installation instructions).
-	// if (!is_address_legal(&ip6_hdr->saddr)) {
-	// // This time there's no ICMP error.
-	// return false;
-	// }
+	/*
+	 * This is already covered by the kernel, by logging martians
+	 * (see the installation instructions).
+	 */
+	/*
+	if (!is_address_legal(&ip6_hdr->saddr))
+		return false;
+	*/
 
 	if (has_unexpired_src_route(ip4_hdr) && in->packet != NULL) {
 		log_info("Packet has an unexpired source route.");
@@ -197,11 +201,13 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	if (has_frag_hdr) {
 		struct frag_hdr *frag_header = (struct frag_hdr *) (ip6_hdr + 1);
 
-		// Override some fixed header fields...
-		// ip6_hdr->payload_len is set during post-processing.
+		/*
+		 * Override some fixed header fields...
+		 * ip6_hdr->payload_len is set during post-processing.
+		 */
 		ip6_hdr->nexthdr = NEXTHDR_FRAGMENT;
 
-		// ...and set the fragment header ones.
+		/* ...and set the fragment header ones. */
 		frag_header->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP)
 				? NEXTHDR_ICMP
 				: ip4_hdr->protocol;
@@ -243,9 +249,11 @@ __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 to
 	__u32 result;
 
 	if (packet_mtu == 0) {
-		// Some router does not implement RFC 1191.
-		// Got to determine a likely path MTU.
-		// See RFC 1191 sections 5, 7 and 7.1 to understand the logic here.
+		/*
+		 * Some router does not implement RFC 1191.
+		 * Got to determine a likely path MTU.
+		 * See RFC 1191 sections 5, 7 and 7.1 to understand the logic here.
+		 */
 		int plateau;
 		spin_lock_bh(&config_lock);
 		for (plateau = 0; plateau < config.mtu_plateau_count; plateau++) {
@@ -257,7 +265,7 @@ __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 to
 		spin_unlock_bh(&config_lock);
 	}
 
-	// Core comparison to find the minimum value.
+	/* Core comparison to find the minimum value. */
 	if (in_mtu < packet_mtu)
 		result = (in_mtu < out_mtu) ? in_mtu : out_mtu;
 	else
@@ -265,9 +273,11 @@ __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 to
 
 	spin_lock_bh(&config_lock);
 	if (config.lower_mtu_fail && result < 1280) {
-		// Probably some router does not implement RFC 4890, section 4.3.1.
-		// Gotta override and hope for the best.
-		// See RFC 6145 section 6, second approach, to understand the logic here.
+		/*
+		 * Probably some router does not implement RFC 4890, section 4.3.1.
+		 * Gotta override and hope for the best.
+		 * See RFC 6145 section 6, second approach, to understand the logic here.
+		 */
 		result = 1280;
 	}
 	spin_unlock_bh(&config_lock);
@@ -321,11 +331,16 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 	case ICMP_FRAG_NEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
-		// We don't know the nexthop MTU at this point, so we had to move this to the send_packet step.
-		//~ icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				//~ ipv6_mtu,
-				//~ ipv4_mtu + 20,
-				//~ tot_len_field);
+		/*
+		 * We don't know the nexthop MTU at this point, so we had to move this to the send_packet
+		 * step.
+		 */
+		/*
+		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
+				ipv6_mtu,
+				ipv4_mtu + 20,
+				tot_len_field);
+		*/
 		break;
 
 	case ICMP_NET_ANO:
@@ -335,10 +350,10 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 		icmpv6_hdr->icmp6_code = ICMPV6_ADM_PROHIBITED;
 		break;
 
-	default: // hostPrecedenceViolation (14) is known to fall through here.
+	default: /* hostPrecedenceViolation (14) is known to fall through here. */
 		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
-		return false; // No ICMP error.
+		return false; /* No ICMP error. */
 	}
 
 	return true;
@@ -373,10 +388,10 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		icmpv6_hdr->icmp6_pointer = cpu_to_be32(pointers[icmp4_pointer]);
 		break;
 	}
-	default: // missingARequiredOption (1) is known to fall through here.
+	default: /* missingARequiredOption (1) is known to fall through here. */
 		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
-		return false; // No ICMP error.
+		return false; /* No ICMP error. */
 	}
 
 	return true;
@@ -399,7 +414,7 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 	out->l4_hdr_len = sizeof(*icmpv6_hdr);
 	out->l4_hdr = icmpv6_hdr;
 
-	// -- First the ICMP header. --
+	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
@@ -434,22 +449,24 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 		break;
 
 	default:
-		// The following codes are known to fall through here:
-		// Information Request/Reply (15, 16), Timestamp and Timestamp Reply (13, 14),
-		// Address Mask Request/Reply (17, 18), Router Advertisement (9),
-		// Router Solicitation (10), Source Quench (4),
-		// Redirect (5), Alternative Host Address (6).
-		// This time there's no ICMP error.
+		/*
+		 * The following codes are known to fall through here:
+		 * Information Request/Reply (15, 16), Timestamp and Timestamp Reply (13, 14),
+		 * Address Mask Request/Reply (17, 18), Router Advertisement (9),
+		 * Router Solicitation (10), Source Quench (4),
+		 * Redirect (5), Alternative Host Address (6).
+		 * This time there's no ICMP error.
+		 */
 		log_info("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
 		return false;
 	}
 
-	// -- Then the payload. --
+	/* -- Then the payload. -- */
 	if (icmp4_has_inner_packet(icmpv4_hdr->type)) {
 		if (!translate_inner_packet(in, out, create_ipv6_hdr))
 			return false;
 	} else {
-		// The payload won't change, so don't bother re-creating it.
+		/* The payload won't change, so don't bother re-creating it. */
 		out->payload = in->payload;
 		out->payload_len = in->payload_len;
 	}

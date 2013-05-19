@@ -54,7 +54,7 @@ int bib_init(void);
 /**
  * Adds "entry" to the BIB table whose layer-4 protocol is "protocol".
  * Expects all fields from "entry" to have been initialized.
- * 
+ *
  * Because never in this project is required otherwise, assumes the entry is not yet on the table.
  *
  * @param entry row to be added to the table.

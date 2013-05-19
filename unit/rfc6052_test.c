@@ -107,13 +107,13 @@ int init_module(void)
 	if (!init())
 		return -EINVAL;
 
-	// test the extract function.
+	/* test the extract function. */
 	for (i = 0; i < 6; i++) {
 		CALL_TEST(test_addr_6to4(&ipv6_addr[i], &prefixes[i], &ipv4_addr), "Extract-%pI6c",
 				&ipv6_addr[i]);
 	}
 
-	// Test the append function.
+	/* Test the append function. */
 	for (i = 0; i < 6; i++) {
 		CALL_TEST(test_addr_4to6(&ipv4_addr, &prefixes[i], &ipv6_addr[i]), "Append-%pI6c",
 				&ipv6_addr[i]);
@@ -124,5 +124,5 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	// No code.
+	/* No code. */
 }

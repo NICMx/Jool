@@ -18,10 +18,14 @@
 
 #define IPV4_NETMASK_BITS_MAX	32
 #define IPV6_NETMASK_BITS_MAX	128
-#define BROADCAST_ADDR	0xffffFFFF	// 255.255.255.255
-#define DONT_CARE	0x00000000	// 0.0.0.0
-#define IPV6_SIZE_UINT32	4	// IPv6 is compoused by 4 ints
-#define IPV6_SIZE_UINT32_BITS	32 // Each int is 32-bits long
+/* 255.255.255.255 */
+#define BROADCAST_ADDR	0xffffFFFF
+/* 0.0.0.0 */
+#define DONT_CARE	0x00000000
+/* IPv6 is compoused by 4 ints */
+#define IPV6_SIZE_UINT32	4
+/* Each int is 32-bits long */
+#define IPV6_SIZE_UINT32_BITS	32
 
 
 int get_net_addr_from_netmask_bits(int af, void *addr, unsigned char netmask_bits, void *net);
@@ -37,7 +41,7 @@ int validate_ipv4_pool_range(	const struct in_addr *network,
 
 int validate_ports_range(unsigned int first, unsigned int last);
 
-//int validate_ipv6_netmask_bits(unsigned char netmask_bits);
+/*int validate_ipv6_netmask_bits(unsigned char netmask_bits); */
 
 int round_mask_up(int subnetmaskx);
 

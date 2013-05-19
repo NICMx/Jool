@@ -168,9 +168,9 @@ struct sk_buff* init_skb_for_test(  struct tuple *tuple, u_int8_t protocol )
             memset(icmp_header, 0, l4_len);
 
 			icmp_header->type = ICMP_ECHO;
-			//~ icmp_header->type = ICMP_ECHOREPLY;
-			//~ icmp6_header->icmp6_type = ICMPV6_ECHO_REQUEST;
-			//~ icmp6_header->icmp6_type = ICMPV6_ECHO_REPLY;
+			/* icmp_header->type = ICMP_ECHOREPLY; */
+			/* icmp6_header->icmp6_type = ICMPV6_ECHO_REQUEST; */
+			/* icmp6_header->icmp6_type = ICMPV6_ECHO_REPLY; */
             break;
         default:
             log_warning("Invalid protocol 2: %u", protocol);
@@ -187,7 +187,7 @@ struct sk_buff* init_skb_for_test(  struct tuple *tuple, u_int8_t protocol )
     ip_header->ttl = 64;
     ip_header->protocol = protocol;
     ip_header->check = 0;
-    //~ skb_forward_csum(skb);
+    /* skb_forward_csum(skb); */
 
     ip_header->saddr = tuple->src.addr.ipv4.s_addr;
     ip_header->daddr = tuple->dst.addr.ipv4.s_addr;
@@ -268,14 +268,14 @@ bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
     if (!str_to_addr4_verbose(IPV4_INIT_SESSION_ENTRY_DST_ADDR, &dst4))
 		return false;
 
-    se->ipv6.remote.address = src6; // X'
-    se->ipv6.remote.l4_id = IPV6_INIT_SESSION_ENTRY_SRC_PORT; // x
-    se->ipv6.local.address = dst6; // Y'
-    se->ipv6.local.l4_id = IPV6_INIT_SESSION_ENTRY_DST_PORT; // y
-    se->ipv4.local.address = src4; // (T, t)
-    se->ipv4.local.l4_id = IPV4_INIT_SESSION_ENTRY_SRC_PORT; // (T, t)
-    se->ipv4.remote.address = dst4; // (Z, z) // (Z(Y’),y)
-    se->ipv4.remote.l4_id = IPV4_INIT_SESSION_ENTRY_DST_PORT; // (Z, z) // (Z(Y’),y)
+    se->ipv6.remote.address = src6; /* X' */
+    se->ipv6.remote.l4_id = IPV6_INIT_SESSION_ENTRY_SRC_PORT; /* x */
+    se->ipv6.local.address = dst6; /* Y' */
+    se->ipv6.local.l4_id = IPV6_INIT_SESSION_ENTRY_DST_PORT; /* y */
+    se->ipv4.local.address = src4; /* (T, t) */
+    se->ipv4.local.l4_id = IPV4_INIT_SESSION_ENTRY_SRC_PORT; /* (T, t) */
+    se->ipv4.remote.address = dst4; /* (Z, z) or (Z(Y’),y) */
+    se->ipv4.remote.l4_id = IPV4_INIT_SESSION_ENTRY_DST_PORT; /* (Z, z) or (Z(Y’),y) */
 
     se->dying_time = 0;
     se->bib = NULL;
@@ -318,7 +318,7 @@ bool test_transport_address_ipv6( void )
     struct ipv6_tuple_address ta;
     bool success = true;
 
-    // Build an IPv6 transport address from address & port
+    /* Build an IPv6 transport address from address & port */
     if (!str_to_addr6_verbose(IPV6_TRANSPORT_ADDR, &addr6))
 		return false;
     transport_address_ipv6( addr6, IPV6_TRANSPORT_PORT, &ta );
@@ -489,18 +489,21 @@ bool test_ipv4_udp( void )
 		"See if we can process correctly an IPv6 UDP packet.");
     kfree_skb(skb);
 
-//    TODO (test) The following code no longer works, because the BIB stored in the previous step
-//    now uses a random port. These tests are missing lots of asserts anyway, so I'll fix both
-//    issues at the same time later.
-
-//    if (!init_tuple_for_test_ipv4( &tuple , protocol  ))
-//    	return false;
-//    skb = init_skb_for_test( &tuple, protocol );
-//    if (!skb)
-//		return false;
-//    success &= assert_equals_int(NF_ACCEPT, ipv4_udp( skb, &tuple ),
-//		"See if we can process correctly an expected IPv4 UDP packet.");
-//    kfree_skb(skb);
+    /*
+     * TODO (test) The following code no longer works, because the BIB stored in the previous step
+     * now uses a random port. These tests are missing lots of asserts anyway, so I'll fix both
+     * issues at the same time later.
+     */
+    /*
+    if (!init_tuple_for_test_ipv4( &tuple , protocol  ))
+    	return false;
+    skb = init_skb_for_test( &tuple, protocol );
+    if (!skb)
+		return false;
+    success &= assert_equals_int(NF_ACCEPT, ipv4_udp( skb, &tuple ),
+		"See if we can process correctly an expected IPv4 UDP packet.");
+    kfree_skb(skb);
+    */
 
     return success;
 }
@@ -555,18 +558,19 @@ bool test_ipv4_icmp4( void )
 		"See if we can process correctly an IPv6 ICMP packet.");
     kfree_skb(skb);
 
-//    TODO (test) see test_ipv4_udp().
-
-//    protocol = IPPROTO_ICMP;
-//    if (!init_tuple_for_test_ipv4( &tuple , protocol ))
-//    	return false;
-//    skb = init_skb_for_test( &tuple, protocol );
-//    if (!skb)
-//		return false;
-//    success &= assert_not_null(skb, "init_skb_for_test");
-//    success &= assert_equals_int(NF_ACCEPT, ipv4_icmp4( skb, &tuple ),
-//		"See if we can process correctly an expected IPv4 ICMP packet.");
-//    kfree_skb(skb);
+    /* TODO (test) see test_ipv4_udp(). */
+    /*
+    protocol = IPPROTO_ICMP;
+    if (!init_tuple_for_test_ipv4( &tuple , protocol ))
+    	return false;
+    skb = init_skb_for_test( &tuple, protocol );
+    if (!skb)
+		return false;
+    success &= assert_not_null(skb, "init_skb_for_test");
+    success &= assert_equals_int(NF_ACCEPT, ipv4_icmp4( skb, &tuple ),
+		"See if we can process correctly an expected IPv4 ICMP packet.");
+    kfree_skb(skb);
+    */
 
     return success;
 }
@@ -674,8 +678,8 @@ bool test_filtering_and_updating( void )
     success &= init_tuple_for_test_ipv4( &tuple , protocol );
     skb = init_skb_for_test( &tuple, protocol );
     success &= assert_not_null(skb, "init_skb_for_test");
-    icmp_hdr(skb)->type = ICMP_DEST_UNREACH; // Error packet
-    // Process a tuple generated from a incoming IPv6 packet:
+    icmp_hdr(skb)->type = ICMP_DEST_UNREACH; /* Error packet */
+    /* Process a tuple generated from a incoming IPv6 packet: */
     success &= assert_equals_int(NF_ACCEPT,  filtering_and_updating( skb, &tuple),
 		"See if we can forward an IPv4 ICMP packet.");
     kfree_skb(skb);
@@ -685,7 +689,7 @@ bool test_filtering_and_updating( void )
     success &= init_tuple_for_test_ipv6( &tuple , protocol );
     skb = init_skb_for_test( &tuple, protocol );
     success &= assert_not_null(skb, "init_skb_for_test");
-    // Add pref64
+    /* Add pref64 */
     success &= str_to_addr6_verbose(INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR , &addr6);
     tuple.src.addr.ipv6 = addr6;
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
@@ -696,7 +700,7 @@ bool test_filtering_and_updating( void )
     success &= init_tuple_for_test_ipv6( &tuple , protocol );
     skb = init_skb_for_test( &tuple, protocol );
     success &= assert_not_null(skb, "init_skb_for_test");        
-    // Unwanted packet
+    /* Unwanted packet */
     success &= str_to_addr6_verbose(INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR , &addr6);
     tuple.dst.addr.ipv6 = addr6;
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
@@ -707,7 +711,7 @@ bool test_filtering_and_updating( void )
     success &= init_tuple_for_test_ipv4( &tuple , protocol );
     skb = init_skb_for_test( &tuple, protocol );
     success &= assert_not_null(skb, "init_skb_for_test");        
-    // Packet destined to an address not in pool
+    /* Packet destined to an address not in pool */
     success &= str_to_addr4_verbose(INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR , &addr4);
     tuple.dst.addr.ipv4 = addr4;
     success &= assert_equals_int(NF_DROP,  filtering_and_updating( skb, &tuple), 
@@ -730,16 +734,17 @@ bool test_filtering_and_updating( void )
     		"See if we can do filtering and updating on an incoming IPv6 UDP packet.");
     kfree_skb(skb);
 
-//    TODO (test) see test_ipv4_udp().
+    /* TODO (test) see test_ipv4_udp(). */
+    /*
+    log_debug(" >>> IPv4 incoming packet --> accept");
+    success &= init_tuple_for_test_ipv4( &tuple , protocol );
+    skb = init_skb_for_test( &tuple, protocol );
+    success &= assert_not_null(skb, "init_skb_for_test");
+    success &= assert_equals_int(NF_ACCEPT,  filtering_and_updating( skb, &tuple),
+			"See if we can do filtering and updating on an incoming IPv4 UDP packet.");
+    kfree_skb(skb);
+    */
 
-//    log_debug(" >>> IPv4 incoming packet --> accept");
-//    success &= init_tuple_for_test_ipv4( &tuple , protocol );
-//    skb = init_skb_for_test( &tuple, protocol );
-//    success &= assert_not_null(skb, "init_skb_for_test");
-//    success &= assert_equals_int(NF_ACCEPT,  filtering_and_updating( skb, &tuple),
-//		"See if we can do filtering and updating on an incoming IPv4 UDP packet.");
-//    kfree_skb(skb);
-    
     return success;
 }
 
@@ -827,7 +832,7 @@ bool test_packet_is_ipv4( void )
     struct sk_buff *buffer;
     bool success = true;
 
-    // Set packet type to V4 SYN
+    /* Set packet type to V4 SYN */
     if ((buffer = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
         return false;
 
@@ -842,7 +847,7 @@ bool test_packet_is_ipv6( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V6 SYN
+    /* Set packet type to V6 SYN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
         return false;
 
@@ -857,7 +862,7 @@ bool test_packet_is_v4_syn( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V4 SYN
+    /* Set packet type to V4 SYN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
         return false;
 
@@ -872,7 +877,7 @@ bool test_packet_is_v6_syn( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V6 SYN
+    /* Set packet type to V6 SYN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
         return false;
 
@@ -887,7 +892,7 @@ bool test_packet_is_v4_fin( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V4 FIN
+    /* Set packet type to V4 FIN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
         return false;
 
@@ -902,7 +907,7 @@ bool test_packet_is_v6_fin( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V6 FIN
+    /* Set packet type to V6 FIN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
         return false;
 
@@ -917,7 +922,7 @@ bool test_packet_is_v4_rst( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V4 RST
+    /* Set packet type to V4 RST */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_RST )) == NULL)
         return false;
 
@@ -932,7 +937,7 @@ bool test_packet_is_v6_rst( void )
     struct sk_buff *skb;
     bool success = true;
 
-    // Set packet type to V6 RST
+    /* Set packet type to V6 RST */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
         return false;
 
@@ -1012,12 +1017,12 @@ static bool init_skb_and_session(struct sk_buff **skb, struct session_entry *ses
 {
     struct tuple tuple4, tuple6;
 
-    // Init the packet.
+    /* Init the packet. */
     *skb = init_packet_type_for_test(type);
     if (!(*skb))
         return false;
 
-    // Init the session.
+    /* Init the session. */
     if (!init_tuple_for_test_ipv4(&tuple4, IPPROTO_TCP))
         goto failure;
     if (!init_tuple_for_test_ipv6(&tuple6, IPPROTO_TCP))
@@ -1048,7 +1053,7 @@ bool test_tcp_v4_init_state_handle( void )
     struct session_entry session;
     bool success = true;
 
-    // A V6 SYN packet arrives.
+    /* A V6 SYN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_SYN, V4_INIT, 10))
         return false;
 
@@ -1057,7 +1062,7 @@ bool test_tcp_v4_init_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V6 syn-lifetime");
     kfree_skb(skb);
 
-    // Something else arrives.
+    /* Something else arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_RST, V4_INIT, 10))
         return false;
 
@@ -1075,7 +1080,7 @@ bool test_tcp_v6_init_state_handle( void )
     struct session_entry session;
     bool success = true;
 
-    // A V4 SYN packet arrives.
+    /* A V4 SYN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_SYN, V6_INIT, 10))
         return false;
 
@@ -1084,7 +1089,7 @@ bool test_tcp_v6_init_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V4 syn-lifetime");
     kfree_skb(skb);
 
-    // A V6 SYN packet arrives.
+    /* A V6 SYN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_SYN, V6_INIT, 10))
         return false;
 
@@ -1093,7 +1098,7 @@ bool test_tcp_v6_init_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V6 syn-lifetime");
     kfree_skb(skb);
 
-    // Something else arrives.
+    /* Something else arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_RST, V6_INIT, 10))
         return false;
 
@@ -1111,7 +1116,7 @@ bool test_tcp_established_state_handle( void )
     struct session_entry session;
     bool success = true;
 
-    // A V4 FIN packet arrives.
+    /* A V4 FIN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_FIN, ESTABLISHED, 10))
         return false;
 
@@ -1120,7 +1125,7 @@ bool test_tcp_established_state_handle( void )
     success &= assert_equals_int(10, session.dying_time, "V4 fin-lifetime");
     kfree_skb(skb);
 
-    // A V6 FIN packet arrives.
+    /* A V6 FIN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_FIN, ESTABLISHED, 10))
         return false;
 
@@ -1129,7 +1134,7 @@ bool test_tcp_established_state_handle( void )
     success &= assert_equals_int(10, session.dying_time, "V6 fin-lifetime");
     kfree_skb(skb);
 
-    // A V4 RST packet arrives.
+    /* A V4 RST packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_RST, ESTABLISHED, 10))
         return false;
 
@@ -1138,7 +1143,7 @@ bool test_tcp_established_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V4 rst-lifetime");
     kfree_skb(skb);
 
-    // A V6 RST packet arrives.
+    /* A V6 RST packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_RST, ESTABLISHED, 10))
         return false;
 
@@ -1147,7 +1152,7 @@ bool test_tcp_established_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V6 rst-lifetime");
     kfree_skb(skb);
 
-    // Something else arrives.
+    /* Something else arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_SYN, ESTABLISHED, 10))
         return false;
 
@@ -1165,7 +1170,7 @@ bool test_tcp_v4_fin_rcv_state_handle( void )
     struct session_entry session;
     bool success = true;
 
-    // A V6 FIN packet arrives.
+    /* A V6 FIN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_FIN, V4_FIN_RCV, 10))
         return false;
 
@@ -1174,7 +1179,7 @@ bool test_tcp_v4_fin_rcv_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V6 fin-lifetime");
     kfree_skb(skb);
 
-    // Something else arrives.
+    /* Something else arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_SYN, V4_FIN_RCV, 10))
         return false;
 
@@ -1192,7 +1197,7 @@ bool test_tcp_v6_fin_rcv_state_handle( void )
     struct session_entry session;
     bool success = true;
 
-    // A V4 FIN packet arrives.
+    /* A V4 FIN packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_FIN, V6_FIN_RCV, 10))
         return false;
 
@@ -1201,7 +1206,7 @@ bool test_tcp_v6_fin_rcv_state_handle( void )
     success &= assert_not_equals_int(10, session.dying_time, "V4 fin-lifetime");
     kfree_skb(skb);
 
-    // Something else arrives.
+    /* Something else arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_SYN, V6_FIN_RCV, 10))
         return false;
 
@@ -1219,7 +1224,7 @@ bool test_tcp_trans_state_handle( void )
     struct session_entry session;
     bool success = true;
 
-    // A V4 RST packet arrives.
+    /* A V4 RST packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_RST, TRANS, 10))
         return false;
 
@@ -1228,7 +1233,7 @@ bool test_tcp_trans_state_handle( void )
     success &= assert_equals_int(10, session.dying_time, "V4 rst-lifetime");
     kfree_skb(skb);
 
-    // A V6 RST packet arrives.
+    /* A V6 RST packet arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V6_RST, TRANS, 10))
         return false;
 
@@ -1237,7 +1242,7 @@ bool test_tcp_trans_state_handle( void )
     success &= assert_equals_int(10, session.dying_time, "V6 rst-lifetime");
     kfree_skb(skb);
 
-    // Something else arrives.
+    /* Something else arrives. */
     if (!init_skb_and_session(&skb, &session, PACKET_TYPE_V4_SYN, TRANS, 10))
         return false;
 
@@ -1263,7 +1268,7 @@ bool test_tcp( void )
     struct tuple tuple;
     bool success = true;
 
-    // V6 SYN
+    /* V6 SYN */
     skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN );
     if (!skb)
         goto failure;
@@ -1276,7 +1281,7 @@ bool test_tcp( void )
         success &= assert_equals_u8(V6_INIT, session->state, "Closed-state");
     kfree_skb(skb);
 
-    // V4 SYN
+    /* V4 SYN */
     skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN );
     if (!skb)
         goto failure;
@@ -1289,7 +1294,7 @@ bool test_tcp( void )
         success &= assert_equals_u8(ESTABLISHED, session->state, "V6 init-state");
     kfree_skb(skb);
 
-    // V6 RST
+    /* V6 RST */
     skb = init_packet_type_for_test( PACKET_TYPE_V6_RST );
     if (!skb)
         goto failure;
@@ -1302,7 +1307,7 @@ bool test_tcp( void )
         success &= assert_equals_u8(TRANS, session->state, "Established-state");
     kfree_skb(skb);
 
-    // V6 SYN
+    /* V6 SYN */
     skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN );
     if (!skb)
         goto failure;
@@ -1391,7 +1396,7 @@ int __init filtering_test_init(void)
     INIT_CALL_END(init_full(), test_ipv4_udp(), end_full(), "test_ipv4_udp");
     INIT_CALL_END(init_full(), test_ipv6_icmp6(), end_full(), "test_ipv6_icmp6");
     INIT_CALL_END(init_full(), test_ipv4_icmp4(), end_full(), "test_ipv4_icmp4");
-    //~ CALL_TEST(test_send_icmp_error_message(), "test_send_icmp_error_message"); // Not implemented yet!
+    /* CALL_TEST(test_send_icmp_error_message(), "test_send_icmp_error_message"); Not implemented yet! */
     INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "test_filtering_and_updating");
 
     /*      TCP      */
@@ -1405,14 +1410,14 @@ int __init filtering_test_init(void)
     CALL_TEST(test_packet_is_v6_rst(), "test_packet_is_v6_rst");
     CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
     INIT_CALL_END(init_full(), test_tcp_closed_state_handle_6(), end_full(), "test_tcp_closed_state_handle_6");
-    //~ INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "test_tcp_closed_state_handle_4"); // Not implemented yet!
+    /* INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "test_tcp_closed_state_handle_4"); Not implemented yet! */
     CALL_TEST(test_tcp_v4_init_state_handle(), "test_tcp_v4_init_state_handle");
     CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
     CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
     CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
     CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
     CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
-    //~ INIT_CALL_END(init_full(), test_tcp(), end_full(), "test_tcp");
+    /* INIT_CALL_END(init_full(), test_tcp(), end_full(), "test_tcp"); */
 
     /* A non 0 return means a test failed; module can't be loaded. */
     END_TESTS;

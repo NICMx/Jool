@@ -15,9 +15,12 @@
 #include "nat64/comm/types.h"
 
 
-//#define MSG_TYPE_CONF (0x10 + 2)  ///< Netlink socket packet ID, configuration
-//#define MSG_TYPE_ROUTE (0x10 + 3)  ///< Netlink socket packet ID, static routes 
-#define MSG_TYPE_NAT64 (0x10 + 2)  ///< Netlink socket packet ID, configuration
+/* Netlink socket packet ID, configuration */
+/*
+#define MSG_TYPE_CONF (0x10 + 2)
+#define MSG_TYPE_ROUTE (0x10 + 3)
+*/
+#define MSG_TYPE_NAT64 (0x10 + 2)
 
 #define MSG_SETCFG		0x11
 #define MSG_GETCFG		0x12
@@ -183,7 +186,7 @@ struct request_hdr {
 
 union request_pool6 {
 	struct {
-		// Nothing needed here ATM.
+		/* Nothing needed here ATM. */
 	} display;
 	struct {
 		struct ipv6_prefix prefix;
@@ -192,7 +195,7 @@ union request_pool6 {
 
 union request_pool4 {
 	struct {
-		// Nothing needed there ATM.
+		/* Nothing needed there ATM. */
 	} display;
 	struct {
 		__u8 l4_proto;
@@ -224,8 +227,10 @@ struct request_session {
 	__u8 l4_proto;
 };
 
-// Because of the somewhat intrusive nature of the netlink header, response header structures are
-// not really neccesary.
+/*
+ * Because of the somewhat intrusive nature of the netlink header, response header structures are
+ * not really neccesary.
+ */
 
 
 int serialize_translate_config(struct translate_config *config,

@@ -32,7 +32,7 @@ bool handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 
 free_and_fail:
 	kfree_skb(skb_out);
-	// Fall through.
+	/* Fall through. */
 
 fail:
 	return false;

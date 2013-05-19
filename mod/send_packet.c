@@ -129,16 +129,16 @@ static void ipv4_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	struct icmp6hdr *hdr6 = icmp6_hdr(skb_in);
 	struct icmphdr *hdr4 = icmp_hdr(skb_out);
-	
+
 	unsigned int ipv6_mtu = skb_in->dev->mtu;
 	unsigned int ipv4_mtu = skb_out->dev->mtu;
 
 	if (!skb_in)
 		return;
-	
+
 	if (ip_hdr(skb_out)->protocol != IPPROTO_ICMP)
 		return;
-	
+
 	if (hdr4->type != ICMP_DEST_UNREACH || hdr4->code != ICMP_FRAG_NEEDED)
 		return;
 
@@ -181,7 +181,7 @@ static bool ipv4_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb
 		return false;
 	}
 
-	// The kernel will fragment it.
+	/* The kernel will fragment it. */
 	return true;
 }
 
@@ -210,7 +210,7 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	}
 
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
-	error = ip_local_out(skb_out); // Send.
+	error = ip_local_out(skb_out); /* Send. */
 	if (error) {
 		log_err(ERR_SEND_FAILED, "ip_local_out() failed. Code: %d. Cannot send packet.", error);
 		return false;
@@ -228,17 +228,17 @@ static void ipv6_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
 
 	if (!skb_in)
 		return;
-	
+
 	if (ip_hdr(skb_in)->protocol != IPPROTO_ICMP)
 		return;
-	
+
 	if (hdr6->icmp6_type != ICMPV6_PKT_TOOBIG || hdr6->icmp6_type != 0)
 		return;
 
 	hdr6->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(hdr4->un.frag.mtu) + 20,
 			ipv6_mtu,
 			ipv4_mtu + 20,
-			be16_to_cpu(ip_hdr(skb_in)->tot_len));			
+			be16_to_cpu(ip_hdr(skb_in)->tot_len));
 }
 
 static bool ipv6_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb_out)
@@ -303,21 +303,9 @@ bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
 			return false;
 		}
 	}
-	ipv6_mtu_hack(skb_in, skb_out);
 
-	if (skb_out->len > skb_out->dev->mtu) {
-		if ( ip_hdr(skb_in)->protocol == IPPROTO_ICMP
-				&& (! is_icmp6_info(icmp6_hdr(skb_out)->icmp6_type)) ) {
-			skb_trim(skb_out, skb_out->dev->mtu);
-			// TODO Fix packet length
-		} else {
-			icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(skb_out->dev->mtu));
-			return false;
-		}
-	}
-	
 	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
-	error = ip6_local_out(skb_out); // Send.
+	error = ip6_local_out(skb_out); /* Send. */
 	if (error) {
 		log_err(ERR_SEND_FAILED, "ip6_local_out() failed. Code: %d. Cannot send packet.", error);
 		return false;

@@ -88,7 +88,7 @@ static __be16 generate_ipv4_id_nofrag(struct ipv6hdr *ip6_header)
 		return random;
 	}
 
-	return 0; // Because the DF flag will be set.
+	return 0; /* Because the DF flag will be set. */
 }
 
 /**
@@ -120,7 +120,7 @@ static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_header);
 
-	// Skip stuff that does not exist in IPv4.
+	/* Skip stuff that does not exist in IPv4. */
 	while (iterator.hdr_type == NEXTHDR_HOP
 			|| iterator.hdr_type == NEXTHDR_ROUTING
 			|| iterator.hdr_type == NEXTHDR_DEST)
@@ -204,17 +204,17 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? 0 : build_tos_field(ip6_hdr);
-	// ip4_hdr->tot_len is set during post-processing.
+	/* ip4_hdr->tot_len is set during post-processing. */
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
-	ip4_hdr->ttl = ip6_hdr->hop_limit; // The TTL is decremented by the kernel.
+	ip4_hdr->ttl = ip6_hdr->hop_limit; /* The TTL is decremented by the kernel. */
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
-	// ip4_hdr->check is set during post-processing.
+	/* ip4_hdr->check is set during post-processing. */
 	ip4_hdr->saddr = in->tuple->src.addr.ipv4.s_addr;
 	ip4_hdr->daddr = in->tuple->dst.addr.ipv4.s_addr;
 
-	// if in->packet == NULL, we're translating a inner packet, so don't care.
+	/* if in->packet == NULL, we're translating a inner packet, so don't care. */
 	if (in->packet != NULL) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
@@ -232,14 +232,16 @@ static bool create_ipv4_hdr(struct packet_in *in, struct packet_out *out)
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);
 
-		// ip4_hdr->tot_len is set during post-processing.
+		/* ip4_hdr->tot_len is set during post-processing. */
 		ip4_hdr->id = generate_ipv4_id_dofrag(ip6_frag_hdr);
 		ip4_hdr->frag_off = build_ipv4_frag_off_field(0, ipv6_m, ipv6_fragment_offset);
 		ip4_hdr->protocol = (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 	}
 
-	// The kernel already drops packets if they don't allow fragmentation
-	// and the next hop MTU is smaller than their size.
+	/*
+	 * The kernel already drops packets if they don't allow fragmentation
+	 * and the next hop MTU is smaller than their size.
+	 */
 
 	return true;
 }
@@ -398,7 +400,7 @@ static bool icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphd
 		break;
 
 	default:
-		// ICMPV6_UNK_OPTION is known to fall through here.
+		/* ICMPV6_UNK_OPTION is known to fall through here. */
 		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
 				icmpv6_hdr->icmp6_code);
 		return false;
@@ -424,7 +426,7 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 	out->l4_hdr_len = sizeof(*icmpv4_hdr);
 	out->l4_hdr = icmpv4_hdr;
 
-	// -- First the ICMP header. --
+	/* -- First the ICMP header. -- */
 	switch (icmpv6_hdr->icmp6_type) {
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
@@ -446,16 +448,23 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
-		// BTW, I have no idea what the RFC means by "taking into account whether or not
-		// the packet in error includes a Fragment Header"... What does the fragment header
-		// have to do with anything here?
+		/*
+		 * BTW, I have no idea what the RFC means by "taking into account whether or not
+		 * the packet in error includes a Fragment Header"... What does the fragment header
+		 * have to do with anything here?
+		 */
 		icmpv4_hdr->type = ICMP_DEST_UNREACH;
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
 		icmpv4_hdr->un.frag.__unused = 0;
-		// We don't know the nexthop MTU at this point, so we had to move this to the send_packet step.
-		//~ icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
-				//~ ipv4_mtu,
-				//~ ipv6_mtu - 20);
+		/*
+		 * We don't know the nexthop MTU at this point, so we had to move this to the send_packet
+		 * step.
+		 */
+		/*
+		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
+				ipv4_mtu,
+				ipv6_mtu - 20);
+		*/
 		break;
 
 	case ICMPV6_TIME_EXCEED:
@@ -470,19 +479,21 @@ static bool create_icmp4_hdr_and_payload(struct packet_in *in, struct packet_out
 		break;
 
 	default:
-		// The following codes are known to fall through here:
-		// ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
-		// Neighbor Discover messages (133 - 137).
+		/*
+		 * The following codes are known to fall through here:
+		 * ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
+		 * Neighbor Discover messages (133 - 137).
+		 */
 		log_info("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		return false;
 	}
 
-	// -- Then the payload. --
+	/* -- Then the payload. -- */
 	if (icmpv6_has_inner_packet(icmpv6_hdr->icmp6_type)) {
 		if (!translate_inner_packet(in, out, create_ipv4_hdr))
 			return false;
 	} else {
-		// The payload won't change, so don't bother re-creating it.
+		/* The payload won't change, so don't bother re-creating it. */
 		out->payload = in->payload;
 		out->payload_len = in->payload_len;
 	}

@@ -5,7 +5,7 @@
 #include "nat64/mod/unit_test.h"
 
 
-// Generate the hash table.
+/* Generate the hash table. */
 struct table_key {
 	int key;
 };
@@ -22,7 +22,7 @@ struct table_value {
 #define GENERATE_FOR_EACH
 #include "hash_table.c"
 
-// These are also kind of part of the table.
+/* These are also kind of part of the table. */
 static bool equals_function(struct table_key *key1, struct table_key *key2)
 {
 	if (key1 == key2)
@@ -76,23 +76,25 @@ static bool assert_table_content(struct test_table *table,
 static bool test(void)
 {
 	struct test_table table;
-	// The second value is a normal, troubleless key-value pair.
-	// The first and third keys have the same hash code (tests the table doesn't override them or
-	// something).
-	// The fourth key-value shall not be inserted (tests the table doesn't go bananas attempting to
-	// retrieve it).
+	/*
+	 * The second value is a normal, troubleless key-value pair.
+	 * The first and third keys have the same hash code (tests the table doesn't override them or
+	 * something).
+	 * The fourth key-value shall not be inserted (tests the table doesn't go bananas attempting to
+	 * retrieve it).
+	 */
 	struct table_key keys[] = { { 2 }, { 3 }, { 12 }, { 4 } };
 	struct table_value values[] = { { 6623 }, { 784 }, { 736 }, { -1 } };
 	int i;
 
-	// Init.
+	/* Init. */
 	if (test_table_init(&table, &equals_function, &hash_code_function) < 0) {
 		log_warning("The init function failed.");
 		return false;
 	}
 	test_table_print(&table, "After init");
 
-	// Test put and get.
+	/* Test put and get. */
 	for (i = 0; i < 3; i++)
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation (1) failed on value %d.", i);
@@ -103,7 +105,7 @@ static bool test(void)
 		goto failure;
 	test_table_print(&table, "After puts");
 
-	// Test remove.
+	/* Test remove. */
 	if (!test_table_remove(&table, &keys[1], false, false)) {
 		log_warning("Remove operation failed on value 1.");
 		goto failure;
@@ -114,7 +116,7 @@ static bool test(void)
 		goto failure;
 	test_table_print(&table, "After remove");
 
-	// Test empty.
+	/* Test empty. */
 	test_table_empty(&table, false, false);
 	values[0].value = -1;
 	values[2].value = -1;
@@ -123,7 +125,7 @@ static bool test(void)
 		goto failure;
 	test_table_print(&table, "After empty");
 
-	// Test put after the cleanup.
+	/* Test put after the cleanup. */
 	values[0].value = 6623;
 	values[1].value = 784;
 	values[2].value = 736;
@@ -138,7 +140,7 @@ static bool test(void)
 		goto failure;
 	test_table_print(&table, "After puts");
 
-	// Clean up. Also do a final assert just in case.
+	/* Clean up. Also do a final assert just in case. */
 	test_table_empty(&table, false, false);
 	values[0].value = -1;
 	values[1].value = -1;
@@ -187,7 +189,7 @@ static bool test_for_each_function(void)
 	struct table_key keys[] = { { 2 }, { 3 }, { 12 } };
 	struct table_value values[] = { { 6623 }, { 784 }, { 736 } };
 
-	// Init.
+	/* Init. */
 	test_table_init(&table, &equals_function, &hash_code_function);
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
@@ -221,7 +223,7 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	// No code.
+	/* No code. */
 }
 
 MODULE_LICENSE("GPL");
