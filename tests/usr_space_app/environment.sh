@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export EXP_DIR="../"
+export EXP_DIR="../.."
 export WORK_DIR="$EXP_DIR/usr"
 export MOD_DIR="$EXP_DIR/mod"
 export LOGS_DIR="./logs"

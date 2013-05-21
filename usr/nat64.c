@@ -93,7 +93,7 @@ enum argp_flags {
 	/* Filtering */
 	ARGP_DROP_ADDR = 3000,
 	ARGP_DROP_INFO = 3001,
-	/* ARGP_DROP_TCP = 3002, */
+	ARGP_DROP_TCP = 3002,
 	ARGP_UDP_TO = 3010,
 	ARGP_ICMP_TO = 3011,
 	ARGP_TCP_TO = 3012,
@@ -190,10 +190,8 @@ static struct argp_option options[] =
 			"Use Address-Dependent Filtering." },
 	{ DROP_ICMP6_INFO_OPT,	ARGP_DROP_INFO,		BOOL_FORMAT, 0,
 			"Filter ICMPv6 Informational packets." },
-	/*
 	{ DROP_EXTERNAL_TCP_OPT,ARGP_DROP_TCP,		BOOL_FORMAT, 0,
 			"Drop externally initiated TCP connections." },
-	*/
 	{ UDP_TIMEOUT_OPT,		ARGP_UDP_TO,		NUM_FORMAT, 0,
 			"Set the timeout for new UDP sessions." },
 	{ ICMP_TIMEOUT_OPT,		ARGP_ICMP_TO,		NUM_FORMAT, 0,
@@ -305,13 +303,11 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->operation |= DROP_ICMP6_INFO_MASK;
 		error = str_to_bool(arg, &arguments->filtering.drop_icmp6_info);
 		break;
-	/*
 	case ARGP_DROP_TCP:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
 		error = str_to_bool(arg, &arguments->filtering.drop_external_tcp);
 		break;
-	*/
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;

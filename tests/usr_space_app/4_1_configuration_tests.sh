@@ -97,12 +97,11 @@ VALUES=( ' ' 10 "false" )
 RETURNS=( ERR1006 ERR1006 success )
 test_options
 
-### Un-implemented option
-#SECTION="--filtering"
-#OPTS="--dropTcp"
-#VALUES=( 22 10 on )
-#RETURNS=( ERR1006 ERR1006 success )
-#test_options
+SECTION="--filtering"
+OPTS="--dropTCP"
+VALUES=( 22 10 on )
+RETURNS=( ERR1006 ERR1006 success )
+test_options
 
 ### Translate TC 
 SECTION="--translate"
