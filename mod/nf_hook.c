@@ -119,7 +119,7 @@ int __init nat64_init(void)
 	if (error)
 		goto failure;
 
-	log_debug("Ok, success.");
+	log_info(MODULE_NAME " module inserted.");
 	return error;
 
 failure:
@@ -131,7 +131,7 @@ void __exit nat64_exit(void)
 {
 	deinit();
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
-	log_debug(MODULE_NAME " module removed.");
+	log_info(MODULE_NAME " module removed.");
 }
 
 module_init(nat64_init);
