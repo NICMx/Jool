@@ -25,4 +25,5 @@ nat64-objs += compute_outgoing_tuple.o
 nat64-objs += translate_packet.o
 nat64-objs += handling_hairpinning.o
 nat64-objs += send_packet.o
+nat64-objs += nf_hook.o
 nat64-objs += core.o

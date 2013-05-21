@@ -1,5 +1,5 @@
-#ifndef _FILTERING_H
-#define _FILTERING_H
+#ifndef _NF_NAT64_FILTERING_H
+#define _NF_NAT64_FILTERING_H
 
 #include <linux/netfilter.h>
 #include "nat64/comm/constants.h"
@@ -35,4 +35,4 @@ int clone_filtering_config(struct filtering_config *clone);
 int set_filtering_config(__u32 operation, struct filtering_config *new_config);
 
 
-#endif
+#endif /* _NF_NAT64_FILTERING_H */

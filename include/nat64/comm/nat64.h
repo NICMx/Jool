@@ -1,5 +1,5 @@
-#ifndef _LIBXT_NAT64_H
-#define _LIBXT_NAT64_H
+#ifndef _NF_NAT64_H
+#define _NF_NAT64_H
 
 /**
  * @file
@@ -9,7 +9,8 @@
  */
 
 
+/* TODO (Issue #39) Change this. */
 #define MODULE_NAME "NAT64"
 
 
-#endif
+#endif /* _NF_NAT64_H */

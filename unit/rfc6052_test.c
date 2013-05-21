@@ -2,7 +2,7 @@
 #include <linux/printk.h>
 #include <linux/inet.h>
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 #include "nat64/comm/types.h"
 #include "nat64/comm/str_utils.h"
 #include "rfc6052.c"

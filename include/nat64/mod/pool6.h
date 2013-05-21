@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_IPV6_POOL_H
-#define _NF_NAT64_IPV6_POOL_H
+#ifndef _NF_NAT64_POOL6_H
+#define _NF_NAT64_POOL6_H
 
 /**
  * @file
@@ -24,4 +24,4 @@ bool pool6_contains(struct in6_addr *address);
 bool pool6_peek(struct ipv6_prefix *out);
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
 
-#endif /* _NF_NAT64_IPV6_POOL_H */
+#endif /* _NF_NAT64_POOL6_H */

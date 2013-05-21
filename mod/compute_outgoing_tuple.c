@@ -110,6 +110,7 @@ static bool tuple3(struct tuple *in, struct tuple *out)
 		if (!addr_6to4(&in->dst.addr.ipv6, &prefix, &out->dst.addr.ipv4))
 			goto lock_fail;
 		out->icmp_id = bib->ipv4.l4_id;
+		out->dst.l4_id = out->icmp_id;
 		break;
 
 	case PF_INET:
@@ -119,6 +120,7 @@ static bool tuple3(struct tuple *in, struct tuple *out)
 			goto lock_fail;
 		out->dst.addr.ipv6 = bib->ipv6.address;
 		out->icmp_id = bib->ipv6.l4_id;
+		out->dst.l4_id = out->icmp_id;
 		break;
 
 	default:

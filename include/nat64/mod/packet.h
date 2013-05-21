@@ -1,3 +1,6 @@
+#ifndef _NF_NAT64_PACKET_H
+#define _NF_NAT64_PACKET_H
+
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
 
@@ -13,6 +16,7 @@
  * On the other hand, the transport header checks are a must, since the packet hasn't reached the
  * kernel's transport layer when the module kicks in.
  */
+
 
 enum verdict {
 	/** No problems thus far, processing of the packet can continue. */
@@ -38,3 +42,6 @@ enum verdict validate_skb_ipv4(struct sk_buff *skb);
  * @return validation result.
  */
 enum verdict validate_skb_ipv6(struct sk_buff *skb);
+
+
+#endif /* _NF_NAT64_PACKET_H */

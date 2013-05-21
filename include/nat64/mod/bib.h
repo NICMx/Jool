@@ -143,4 +143,4 @@ int bib_for_each(__u8 l4protocol, int (*func)(struct bib_entry *, void *), void 
  */
 bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2);
 
-#endif
+#endif /* _NF_NAT64_BIB_H */

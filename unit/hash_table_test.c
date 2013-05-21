@@ -2,7 +2,7 @@
 #include <linux/printk.h>
 #include <linux/inet.h>
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 
 
 /* Generate the hash table. */

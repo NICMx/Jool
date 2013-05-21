@@ -86,7 +86,8 @@ static enum verdict validate_csum_ipv6(__sum16 *pkt_csum, struct sk_buff *skb,
 	*pkt_csum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match. Expected: %d, actual: %d.", tmp, computed_csum);
+		log_warning("Checksum doesn't match (protocol: %d). Expected: %d, actual: %d.", l4_proto,
+				computed_csum, tmp);
 		return VER_DROP;
 	}
 
@@ -124,7 +125,8 @@ static enum verdict validate_csum_ipv4(__sum16 *pkt_csum, struct sk_buff *skb,
 	*pkt_csum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match. Expected: %d, actual: %d.", tmp, computed_csum);
+		log_warning("Checksum doesn't match (protocol: %d). Expected: %d, actual: %d.", l4_proto,
+				computed_csum, tmp);
 		return VER_DROP;
 	}
 
@@ -155,7 +157,8 @@ static enum verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
 	hdr->checksum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match. Expected: %d, actual: %d.", tmp, computed_csum);
+		log_warning("Checksum doesn't match (protocol: ICMPv4). Expected: %d, actual: %d.",
+				computed_csum, tmp);
 		return VER_DROP;
 	}
 

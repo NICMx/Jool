@@ -1,7 +1,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 #include "pool4.c"
 
 

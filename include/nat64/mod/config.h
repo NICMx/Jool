@@ -1,5 +1,5 @@
-#ifndef NF_NAT64_CONFIG_H_
-#define NF_NAT64_CONFIG_H_
+#ifndef _NF_NAT64_CONFIG_H
+#define _NF_NAT64_CONFIG_H
 
 /**
  * @file
@@ -24,4 +24,4 @@ int config_init(void);
 void config_destroy(void);
 
 
-#endif /* NF_NAT64_CONFIG_H_ */
+#endif /* _NF_NAT64_CONFIG_H */

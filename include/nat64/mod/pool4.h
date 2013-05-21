@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_IPV4_POOL_H
-#define _NF_NAT64_IPV4_POOL_H
+#ifndef _NF_NAT64_POOL4_H
+#define _NF_NAT64_POOL4_H
 
 /**
  * @file
@@ -74,4 +74,4 @@ bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
 bool pool4_contains(struct in_addr *address);
 int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg);
 
-#endif /* _NF_NAT64_IPV4_POOL_H */
+#endif /* _NF_NAT64_POOL4_H */

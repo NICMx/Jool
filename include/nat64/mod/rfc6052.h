@@ -20,4 +20,3 @@ bool addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr 
 
 
 #endif /* _NF_NAT64_RFC6052_H */
-

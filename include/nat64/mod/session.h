@@ -161,4 +161,4 @@ int session_for_each(__u8 l4protocol, int (*func)(struct session_entry *, void *
  */
 bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2);
 
-#endif
+#endif /* _NF_NAT64_SESSION_H */

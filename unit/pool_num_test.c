@@ -1,7 +1,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 #include "poolnum.c"
 
 static bool find(u16 *arr, u16 arr_len, u16 value)

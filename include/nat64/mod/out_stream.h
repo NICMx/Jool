@@ -18,4 +18,4 @@ void stream_init(struct out_stream *stream, struct sock *nl_socket, struct nlmsg
 void stream_write(struct out_stream *stream, void *payload, int payload_len);
 void stream_close(struct out_stream *stream);
 
-#endif
+#endif /* _NF_NAT64_STREAM_H */

@@ -18,6 +18,12 @@ bool handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 
 	log_debug("Step 5: Handling Hairpinning...");
 
+	if (tuple_in->l4_proto == IPPROTO_ICMP || tuple_in->l4_proto == IPPROTO_ICMPV6) {
+		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
+		log_warning("ICMP is NOT supported by hairpinning. Dropping packet...");
+		goto free_and_fail;
+	}
+
 	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
 	if (!compute_out_tuple_4to6(tuple_in, skb_in, &tuple_out))

@@ -4,7 +4,7 @@
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
 #include "nat64/mod/bib.h"
 #include "session.c"

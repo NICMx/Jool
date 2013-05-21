@@ -1,3 +1,6 @@
+#ifndef _NF_NAT64_POOLNUM_H
+#define _NF_NAT64_POOLNUM_H
+
 #include <linux/types.h>
 
 struct poolnum {
@@ -20,3 +23,5 @@ void poolnum_destroy(struct poolnum *pool);
 int poolnum_get_any(struct poolnum *pool, u16 *result);
 bool poolnum_get(struct poolnum *pool, u16 value);
 int poolnum_return(struct poolnum *pool, u16 value);
+
+#endif /* _NF_NAT64_POOLNUM_H */

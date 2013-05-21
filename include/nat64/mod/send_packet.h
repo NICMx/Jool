@@ -53,6 +53,4 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out);
 bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out);
 
 
-
-
 #endif /* _NF_NAT64_SEND_PACKET_H */

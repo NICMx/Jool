@@ -17,7 +17,7 @@ MODULE_AUTHOR("Roberto <r.aceves@itesm.mx>");
 MODULE_DESCRIPTION("Unitary tests for the Filtering\'s part of NAT64");
 MODULE_ALIAS("nat64_test_filtering");
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
 #include "filtering_and_updating.c"
 

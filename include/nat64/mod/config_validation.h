@@ -5,8 +5,8 @@
  * @author Roberto Aceves
  */
 
-#ifndef _XT_NAT64_MODULE_CONF_VALIDATION_H
-#define _XT_NAT64_MODULE_CONF_VALIDATION_H
+#ifndef _NF_NAT64_MODULE_CONF_VALIDATION_H
+#define _NF_NAT64_MODULE_CONF_VALIDATION_H
 
 
 #ifdef __KERNEL__
@@ -47,4 +47,4 @@ int round_mask_up(int subnetmaskx);
 
 int ip_masklen(int num);
 
-#endif
+#endif /* _NF_NAT64_MODULE_CONF_VALIDATION_H */

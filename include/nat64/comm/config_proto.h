@@ -1,5 +1,5 @@
-#ifndef _XT_NAT64_MODULE_COMM_H
-#define _XT_NAT64_MODULE_COMM_H
+#ifndef _NF_NAT64_MODULE_COMM_H
+#define _NF_NAT64_MODULE_COMM_H
 
 /**
  * @file
@@ -238,4 +238,4 @@ int serialize_translate_config(struct translate_config *config,
 int deserialize_translate_config(void *buffer, __u16 buffer_len,
 		struct translate_config *target_out);
 
-#endif
+#endif /* _NF_NAT64_MODULE_COMM_H */

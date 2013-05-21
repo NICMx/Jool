@@ -1,5 +1,5 @@
 #include <linux/kernel.h>
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 
 
 #define UNIT_WARNING(test_name, expected, actual, specifier) \

@@ -177,6 +177,34 @@ bool is_icmp4_error(__u8 type)
 	return !is_icmp4_info(type);
 }
 
+static unsigned char *l3proto_to_str(int l3_proto)
+{
+	switch (l3_proto) {
+	case PF_INET:
+		return "IPv4";
+	case PF_INET6:
+		return "IPv6";
+	default:
+		return "Unknown";
+	}
+}
+
+static unsigned char *l4proto_to_str(int l4_proto)
+{
+	switch (l4_proto) {
+	case IPPROTO_UDP:
+		return "UDP";
+	case IPPROTO_TCP:
+		return "TCP";
+	case IPPROTO_ICMP:
+		return "ICMPv4";
+	case IPPROTO_ICMPV6:
+		return "ICMPv6";
+	default:
+		return "Unknown";
+	}
+}
+
 /**
 * log_tuple() - Prints the "tuple" tuple on the kernel ring buffer.
 * @tuple: Structure to be dumped on logging.
@@ -187,14 +215,14 @@ void log_tuple(struct tuple *tuple)
 {
 	switch (tuple->l3_proto) {
 	case PF_INET:
-		log_debug("tuple %p: l3:%u l4:%u %pI4#%u -> %pI4#%u",
-				tuple, tuple->l3_proto, tuple->l4_proto,
+		log_debug("tuple %s-%s %pI4#%u -> %pI4#%u",
+				l3proto_to_str(tuple->l3_proto), l4proto_to_str(tuple->l4_proto),
 				&tuple->src.addr.ipv4, tuple->src.l4_id,
 				&tuple->dst.addr.ipv4, tuple->dst.l4_id);
 		break;
 	case PF_INET6:
-		log_debug("tuple %p: l3:%u l4:%u %pI6c#%u -> %pI6c#%u",
-				tuple, tuple->l3_proto, tuple->l4_proto,
+		log_debug("tuple %s-%s %pI6c#%u -> %pI6c#%u",
+				l3proto_to_str(tuple->l3_proto), l4proto_to_str(tuple->l4_proto),
 				&tuple->src.addr.ipv6, tuple->src.l4_id,
 				&tuple->dst.addr.ipv6, tuple->dst.l4_id);
 		break;

@@ -2,7 +2,7 @@
 #include <linux/inet.h>
 #include <net/ipv6.h>
 
-#include "nat64/mod/unit_test.h"
+#include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
 #include "compute_outgoing_tuple.c"
 
