@@ -56,16 +56,6 @@ struct packet_in {
 	 * protocols behave like transport protocols here.
 	 */
 	__u16 l3_hdr_len;
-	/**
-	 * "l3_hdr"'s length, stripped of options and extension headers.
-	 * So it's just a sizeof(struct iphdr) or a sizeof(struct ipv6hdr).
-	 */
-	__u16 l3_hdr_basic_len;
-	/**
-	 * A helper function, that can help you get a packet's l3_hdr_len, assuming its l3_hdr_type is
-	 * the same as this packet_in's.
-	 */
-	__u16 (*compute_l3_hdr_len)(void *l3_hdr);
 
 	/**
 	 * skb_transport_header(packet_in.packet)'s type.

@@ -232,6 +232,90 @@ static bool copy_l4_hdr_and_payload(struct packet_in *in, struct packet_out *out
 	return true;
 }
 
+/*
+ * TODO (later) eventually merge this with packet.c when we support fragmentation.
+ */
+static bool validate_inner_packet(int l3_hdr_type, void *inner_l3_hdr, int pkt_size,
+		unsigned int *l3_hdr_len_result)
+{
+	struct iphdr *hdr4;
+	struct ipv6hdr *hdr6;
+	struct hdr_iterator iterator;
+	enum hdr_iterator_result result;
+	int l3_hdr_len;
+
+	switch (l3_hdr_type) {
+	case PF_INET:
+		if (pkt_size < sizeof(*hdr4)) {
+			log_warning("The packet is too small to contain a inner IPv4 header.");
+			return false;
+		}
+
+		hdr4 = inner_l3_hdr;
+		if (hdr4->ihl < 5) {
+			log_warning("The inner packet's IHL field is too small.");
+			return false;
+		}
+
+		l3_hdr_len = 4 * hdr4->ihl;
+		/* RFC 792: "Internet Header + 64 bits of Original Data Datagram" */
+		if (l3_hdr_len + 8 > pkt_size) {
+			log_warning("The IPv4 packet is too small to contain transport-layer IDs.");
+			return false;
+		}
+		break;
+
+	case PF_INET6:
+		if (pkt_size < sizeof(struct ipv6hdr)) {
+			log_warning("The packet is too small to contain a inner IPv6 header.");
+			return false;
+		}
+
+		hdr6 = inner_l3_hdr;
+		hdr_iterator_init(&iterator, hdr6);
+
+		if (sizeof(struct ipv6hdr) + be16_to_cpu(hdr6->payload_len) > pkt_size)
+			/* The packet is truncated; do not trust its payload_len field. */
+			iterator.limit = inner_l3_hdr + pkt_size;
+
+		result = hdr_iterator_last(&iterator);
+		switch (result) {
+		case HDR_ITERATOR_SUCCESS:
+			log_crit(ERR_INVALID_ITERATOR, "Iterator reports there are headers beyond the payload.");
+			return false;
+		case HDR_ITERATOR_END:
+			l3_hdr_len = iterator.data - inner_l3_hdr;
+			/*
+			 * I'm going to inherit this 8 from ICMPv4 in the meantime. When we support ICMP inside
+			 * ICMP, this might not be appropriate.
+			 */
+			if (l3_hdr_len + 8 > pkt_size) {
+				log_warning("The IPv6 packet is too small to contain transport-layer IDs.");
+				return false;
+			}
+			break;
+		case HDR_ITERATOR_UNSUPPORTED:
+			log_info("Packet contains an Authentication or ESP header, which I do not support.");
+			return false;
+		case HDR_ITERATOR_OVERFLOW:
+			log_warning("The packet is too small to contain a inner transport header.");
+			return false;
+		default:
+			log_crit(ERR_INVALID_ITERATOR, "Unknown header iterator result code: %d.", result);
+			return false;
+		}
+
+		break;
+
+	default:
+		log_warning("Unsupported network protocol: %d.", l3_hdr_type);
+		return false;
+	}
+
+	*l3_hdr_len_result = l3_hdr_len;
+	return true;
+}
+
 bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_outer,
 		bool (*l3_function)(struct packet_in *, struct packet_out *))
 {
@@ -275,14 +359,12 @@ bool translate_inner_packet(struct packet_in *in_outer, struct packet_out *out_o
 
 	log_debug("Translating the inner packet...");
 
-	if (in_outer->payload_len < in_outer->l3_hdr_basic_len) {
-		log_warning("Packet is too small to contain a packet.");
-		goto failure;
-	}
 
 	/* Get references to the original data. */
 	in_inner.hdr.src = in_outer->payload;
-	in_inner.hdr.len = in_outer->compute_l3_hdr_len(in_inner.hdr.src);
+	if (!validate_inner_packet(in_outer->l3_hdr_type, in_outer->payload, in_outer->payload_len,
+			&in_inner.hdr.len))
+		goto failure;
 	in_inner.payload.src = in_inner.hdr.src + in_inner.hdr.len;
 	in_inner.payload.len = in_outer->payload_len - in_inner.hdr.len;
 

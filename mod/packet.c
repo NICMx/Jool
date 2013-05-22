@@ -267,6 +267,10 @@ enum verdict validate_skb_ipv4(struct sk_buff *skb)
 		return VER_DROP;
 	}
 	*/
+	if (ip4_hdr->ihl < 5) {
+		log_debug("Packet's IHL field is too small.");
+		return VER_DROP;
+	}
 	if (ip_fast_csum((u8 *) ip4_hdr, ip4_hdr->ihl)) {
 		log_debug("Packet's IPv4 checksum is incorrect.");
 		return VER_DROP;

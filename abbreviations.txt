@@ -23,5 +23,11 @@ comm = common
 mod = module
 usr = user[space]
 nl = netlink
-cb = callback
+cb = callback (synonym for "fn")
 pool<n> = IPv<n> pool (pool4 = IPv4 pool)
+
+
+BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're
+making an effort to follow the kernel's code conventions:
+https://www.kernel.org/doc/Documentation/CodingStyle
+So please don't freak out when you catch glimpse of those gotos :).

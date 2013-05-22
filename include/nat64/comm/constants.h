@@ -14,7 +14,7 @@
 
 /**
  * Step the module will be injected in within Netfilter's prerouting hook.
- *(After defragmentation, before Conntrack).
+ * (After defragmentation, before Conntrack).
  */
 #define NF_PRI_NAT64 (NF_IP_PRI_CONNTRACK_DEFRAG + NF_IP_PRI_RAW) / 2
 

@@ -5,16 +5,6 @@
  */
 
 /**
- * Assumes that "l3_hdr" points to a ipv6hdr, and returns its size, extension headers included.
- */
-static __u16 compute_ipv6_hdr_len(void *l3_hdr)
-{
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) l3_hdr);
-	hdr_iterator_last(&iterator);
-	return iterator.data - l3_hdr;
-}
-
-/**
  * Initializes "in" using the data from "tuple", "skb_in", and the assumption that we're translating
  * from 6 to 4.
  */
@@ -30,8 +20,6 @@ static bool init_packet_in_6to4(struct tuple *tuple, struct sk_buff *skb_in,
 	in->l3_hdr = ip6_hdr;
 	in->l3_hdr_type = PF_INET6;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
-	in->l3_hdr_basic_len = sizeof(*ip6_hdr);
-	in->compute_l3_hdr_len = compute_ipv6_hdr_len;
 
 	hdr_iterator_last(&iterator);
 	in->l4_hdr_type = iterator.hdr_type;

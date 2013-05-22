@@ -5,14 +5,6 @@
  */
 
 /**
- * Assumes that "l3_hdr" points to a iphdr, and returns its size, options included.
- */
-static __u16 compute_ipv4_hdr_len(void *l3_hdr)
-{
-	return 4 * ((struct iphdr *) l3_hdr)->ihl;
-}
-
-/**
  * Initializes "in" using the data from "tuple", "skb_in", and the assumption that we're translating
  * from 4 to 6.
  */
@@ -27,8 +19,6 @@ static bool init_packet_in_4to6(struct tuple *tuple, struct sk_buff *skb_in,
 	in->l3_hdr = ip4_hdr;
 	in->l3_hdr_type = PF_INET;
 	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
-	in->l3_hdr_basic_len = sizeof(*ip4_hdr);
-	in->compute_l3_hdr_len = compute_ipv4_hdr_len;
 
 	in->l4_hdr_type = ip4_hdr->protocol;
 	switch (in->l4_hdr_type) {
