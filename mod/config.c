@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -397,8 +398,19 @@ int config_init(void)
 	 * Netlink sockets.
 	 * TODO (warning) find out what causes Osorio's compatibility issues and fix it.
 	 */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
+#else
+	struct netlink_kernel_cfg nl_cfg = {
+		.groups = 0,
+		.input  = receive_from_userspace,
+		.cb_mutex = NULL,
+	};
+	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg); 
+#endif
+	
 	if (!nl_socket) {
 		log_err(ERR_NETLINK, "Creation of netlink socket failed.");
 		return -EINVAL;
