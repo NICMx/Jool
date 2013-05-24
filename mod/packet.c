@@ -86,7 +86,7 @@ static enum verdict validate_csum_ipv6(__sum16 *pkt_csum, struct sk_buff *skb,
 	*pkt_csum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match (protocol: %d). Expected: %d, actual: %d.", l4_proto,
+		log_warning("Checksum doesn't match (protocol: %d). Expected: %x, actual: %x.", l4_proto,
 				computed_csum, tmp);
 		return VER_DROP;
 	}
@@ -112,37 +112,51 @@ static enum verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
 	return validate_csum_ipv6(&hdr->icmp6_cksum, skb, datagram_len, IPPROTO_ICMPV6);
 }
 
-static enum verdict validate_csum_ipv4(__sum16 *pkt_csum, struct sk_buff *skb,
-		unsigned int datagram_len, int l4_proto)
+static enum verdict validate_csum_tcp4(struct sk_buff *skb, int datagram_len)
 {
+	struct tcphdr *hdr = tcp_hdr(skb);
 	__sum16 tmp;
 	__sum16 computed_csum;
 
-	tmp = *pkt_csum;
-	*pkt_csum = 0;
+	tmp = hdr->check;
+	hdr->check = 0;
 	computed_csum = csum_tcpudp_magic(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr, datagram_len,
-			l4_proto, csum_partial(skb_transport_header(skb), datagram_len, 0));
-	*pkt_csum = tmp;
+			IPPROTO_TCP, csum_partial(skb_transport_header(skb), datagram_len, 0));
+	hdr->check = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match (protocol: %d). Expected: %d, actual: %d.", l4_proto,
-				computed_csum, tmp);
+		log_warning("Checksum doesn't match (TCP). Expected: %x, actual: %x.", computed_csum, tmp);
 		return VER_DROP;
 	}
 
 	return VER_CONTINUE;
-}
 
-static enum verdict validate_csum_tcp4(struct sk_buff *skb, int datagram_len)
-{
-	struct tcphdr *hdr = tcp_hdr(skb);
-	return validate_csum_ipv4(&hdr->check, skb, datagram_len, IPPROTO_TCP);
 }
 
 static enum verdict validate_csum_udp4(struct sk_buff *skb, int datagram_len)
 {
 	struct udphdr *hdr = udp_hdr(skb);
-	return validate_csum_ipv4(&hdr->check, skb, datagram_len, IPPROTO_UDP);
+	__sum16 tmp;
+	__sum16 computed_csum;
+
+	if (hdr->check == 0)
+		return VER_CONTINUE;
+
+	tmp = hdr->check;
+	hdr->check = 0;
+	computed_csum = csum_tcpudp_magic(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr, datagram_len,
+			IPPROTO_UDP, csum_partial(skb_transport_header(skb), datagram_len, 0));
+	hdr->check = tmp;
+
+	if (computed_csum == 0)
+		computed_csum = 0xFFFF;
+
+	if (tmp != computed_csum) {
+		log_warning("Checksum doesn't match (UDP). Expected: %x, actual: %x.", computed_csum, tmp);
+		return VER_DROP;
+	}
+
+	return VER_CONTINUE;
 }
 
 static enum verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
@@ -157,7 +171,7 @@ static enum verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
 	hdr->checksum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match (protocol: ICMPv4). Expected: %d, actual: %d.",
+		log_warning("Checksum doesn't match (ICMPv4). Expected: %x, actual: %x.",
 				computed_csum, tmp);
 		return VER_DROP;
 	}

@@ -535,6 +535,8 @@ static bool post_udp_ipv4(struct packet_in *in, struct packet_out *out)
 	udp_header->check = 0;
 	udp_header->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr,
 			datagram_len, IPPROTO_UDP, csum_partial(udp_header, datagram_len, 0));
+	if (udp_header->check == 0)
+		udp_header->check = 0xFFFF;
 
 	return true;
 }
