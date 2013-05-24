@@ -83,11 +83,11 @@ static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, u_in
 
 int pool4_init(char *addr_strs[], int addr_count)
 {
+	char *defaults[] = POOL4_DEF;
 	int i;
 	int error;
 
 	if (!addr_strs || addr_count == 0) {
-		char *defaults[] = POOL4_DEF;
 		addr_strs = defaults;
 		addr_count = ARRAY_SIZE(defaults);
 	}
