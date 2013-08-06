@@ -1,10 +1,10 @@
 Install the requirements:
-	They are libssl-dev, libnl-3-dev, libnl-genl-3-dev, libmnl-dev and your kernel's image and
-	headers (at least 2.6.38).
-		$ apt-get install libssl-dev libnl-genl-3-dev
-		$ apt-get install linux-headers-$(uname -r) linux-image-$(uname -r)
-	TODO Netlink stuff needs to be downloaded manually...: packages.ubuntu.com
-	TODO What? we really need the image? Actually please recheck every dependency.
+	1. libnl-3-dev: http://www.carisma.slowglass.com/~tgr/libnl
+	2. Your kernel headers (2.6.38 - 3.9.2)
+		$ sudo apt-get install linux-headers-$(uname -r)
+
+Install the DNS64:
+	- BIND 9.8+: https://www.isc.org/software/bind
 
 Compile the module:
 	NAT64$ cd mod
@@ -26,10 +26,10 @@ Insert the module:
 		$ sysctl -w net.ipv4.conf.all.log_martians=1
 
 	Install the module.
-		$ modprobe nat64
+		$ modprobe jool
 
 	You might want to see your module shine.
-		$ lsmod   # See your module listed. Might want to pipe over to "grep nat64".
+		$ lsmod   # See your module listed. Might want to pipe over to "grep jool".
 		$ dmesg   # Check the log. Only if compiled with DEBUG (see mod/Kbuild).
 
 Configure the module:
@@ -38,10 +38,10 @@ Configure the module:
 		NAT64/usr$ make
 
 	Send requests to the module.
-		NAT64/usr$ ./nat64 --help
-		NAT64/usr$ ./nat64 (...)
+		NAT64/usr$ ./jool --help
+		NAT64/usr$ ./jool (...)
 
 	(TODO?)
 
 Removing the module:
-	$ rmmod nat64
+	$ rmmod jool
