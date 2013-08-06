@@ -17,11 +17,11 @@ LDLIBS += $(shell pkg-config --libs libnl-3.0)
 $(info Compiling on kernel family 3)
 endif
 
-PROGS = nat64
-OBJS := str_utils.o netlink.o pool6.o pool4.o bib.o session.o filtering.o translate.o nat64.o
+PROGS = jool
+OBJS := str_utils.o netlink.o pool6.o pool4.o bib.o session.o filtering.o translate.o jool.o
 
 
-nat64: $(OBJS)
+jool: $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDLIBS)
 
 str_utils.o: str_utils.c
@@ -42,10 +42,10 @@ filtering.o: filtering.c
 translate.o: translate.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-nat64.o: nat64.c
+jool.o: jool.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-all: nat64
+all: jool
 
 clean:
 	rm -f $(PROGS) $(OBJS)

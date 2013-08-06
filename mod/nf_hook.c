@@ -16,7 +16,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION(MODULE_NAME " (RFC 6146)");
-/* MODULE_ALIAS("nat64"); TODO (Issue #39) uncomment when we fix the project's name. */
+MODULE_ALIAS("nat64");
 
 static char *pool6[5];
 static int pool6_size;

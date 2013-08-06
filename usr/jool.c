@@ -25,7 +25,7 @@
 #include "nat64/usr/translate.h"
 
 
-const char *argp_program_version = "NAT64 userspace app 0.1";
+const char *argp_program_version = "Jool userspace app 0.1";
 const char *argp_program_bug_address = "<aleiva@nic.mx>";
 
 /**
@@ -397,7 +397,7 @@ static char args_doc[] = "";
  * DOC. Field 4 in ARGP.
  * Program documentation.
  */
-static char doc[] = "nat64 -- The NAT64 kernel module's configuration interface.\v";
+static char doc[] = "jool -- The Jool kernel module's configuration interface.\v";
 
 
 /**

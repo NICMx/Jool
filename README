@@ -1,4 +1,4 @@
-	NAT64 - An implementation of RFC6146.
+	Jool - An implementation of RFC6146 (stateful NAT64).
 	Copyright (C) 2012  NIC-Mx - ITESM
 
 	This program is free software: you can redistribute it and/or modify
@@ -15,8 +15,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 IMPORTANT:
-	Project still under construction.
 	Please send improvements, complaints and corrections to aleiva@nic.mx.
+	You might want to upload issues at https://github.com/NICMx/NAT64/issues
+	as well.
 
 Authors:
 	NIC-Mx representatives
@@ -41,6 +42,8 @@ Authors:
 		Manuel Aude <dormam@gmail.com>
 		Gabriel Chavez <gabrielchavez02@gmail.com>
 		Alan Villela López <avillop@gmail.com>
+		Angel Cazares <angel.cazares@live.com>
+		Abraham Baez
 
 Module Dependencies (modprobe):
 	ipv6

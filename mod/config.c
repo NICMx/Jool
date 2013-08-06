@@ -394,11 +394,6 @@ static void receive_from_userspace(struct sk_buff *skb)
 
 int config_init(void)
 {
-	/*
-	 * Netlink sockets.
-	 * TODO (warning) find out what causes Osorio's compatibility issues and fix it.
-	 */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
