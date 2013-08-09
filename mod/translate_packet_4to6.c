@@ -4,44 +4,6 @@
  * Would normally be part of translate_packet.c; the constant scrolling was killing me.
  */
 
-/**
- * Initializes "in" using the data from "tuple", "skb_in", and the assumption that we're translating
- * from 4 to 6.
- */
-static bool init_packet_in_4to6(struct tuple *tuple, struct sk_buff *skb_in,
-				struct packet_in *in)
-{
-	struct iphdr *ip4_hdr = ip_hdr(skb_in);
-
-	in->packet = skb_in;
-	in->tuple = tuple;
-
-	in->l3_hdr = ip4_hdr;
-	in->l3_hdr_type = PF_INET;
-	in->l3_hdr_len = skb_transport_header(skb_in) - skb_network_header(skb_in);
-
-	in->l4_hdr_type = ip4_hdr->protocol;
-	switch (in->l4_hdr_type) {
-	case IPPROTO_TCP:
-		in->l4_hdr_len = tcp_hdrlen(skb_in);
-		break;
-	case IPPROTO_UDP:
-		in->l4_hdr_len = sizeof(struct udphdr);
-		break;
-	case IPPROTO_ICMP:
-		in->l4_hdr_len = sizeof(struct icmphdr);
-		break;
-	default:
-		log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_hdr_type);
-		return false;
-	}
-
-	in->payload = skb_transport_header(skb_in) + in->l4_hdr_len;
-	in->payload_len = be16_to_cpu(ip4_hdr->tot_len) - in->l3_hdr_len - in->l4_hdr_len;
-
-	return true;
-}
-
 /*************************************************************************************************
  * -- Layer 3 --
  * (This is RFC 6145 section 4.1. Translates IPv4 headers to IPv6)
@@ -136,27 +98,27 @@ static inline __be32 build_id_field(struct iphdr *ip4_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet().
  */
-static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
+static enum verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct iphdr *ip4_hdr = in->l3_hdr;
+	struct iphdr *ip4_hdr = frag_get_ipv4_hdr(in);
 	struct ipv6hdr *ip6_hdr;
 	bool reset_traffic_class;
 
 	bool has_frag_hdr = !is_dont_fragment_set(ip4_hdr);
 
-	out->l3_hdr_type = IPPROTO_IPV6;
-	out->l3_hdr_len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
-	out->l3_hdr = kmalloc(out->l3_hdr_len, GFP_ATOMIC);
-	if (!out->l3_hdr) {
+	out->l3_hdr.proto = L3PROTO_IPV6;
+	out->l3_hdr.len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
+	out->l3_hdr.ptr = kmalloc(out->l3_hdr.len, GFP_ATOMIC);
+	if (!out->l3_hdr.ptr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv6 header failed.");
-		return false;
+		return VER_DROP;
 	}
 
 	spin_lock_bh(&config_lock);
 	reset_traffic_class = config.reset_traffic_class;
 	spin_unlock_bh(&config_lock);
 
-	ip6_hdr = out->l3_hdr;
+	ip6_hdr = frag_get_ipv6_hdr(out);
 	ip6_hdr->version = 6;
 	if (reset_traffic_class) {
 		ip6_hdr->priority = 0;
@@ -170,8 +132,8 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 	/* ip6_hdr->payload_len is set during post-processing. */
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
 	ip6_hdr->hop_limit = ip4_hdr->ttl; /* The TTL is decremented by the kernel. */
-	ip6_hdr->saddr = in->tuple->src.addr.ipv6;
-	ip6_hdr->daddr = in->tuple->dst.addr.ipv6;
+	ip6_hdr->saddr = tuple->src.addr.ipv6;
+	ip6_hdr->daddr = tuple->dst.addr.ipv6;
 
 	/*
 	 * This is already covered by the kernel, by logging martians
@@ -182,10 +144,10 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 		return false;
 	*/
 
-	if (has_unexpired_src_route(ip4_hdr) && in->packet != NULL) {
+	if (has_unexpired_src_route(ip4_hdr) && in->skb != NULL) {
 		log_info("Packet has an unexpired source route.");
-		icmp_send(in->packet, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
-		return false;
+		icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_SR_FAILED, 0);
+		return VER_DROP;
 	}
 
 	if (has_frag_hdr) {
@@ -206,20 +168,20 @@ static bool create_ipv6_hdr(struct packet_in *in, struct packet_out *out)
 		frag_header->identification = build_id_field(ip4_hdr);
 	}
 
-	return true;
+	return VER_CONTINUE;
 }
 
 /**
  * Sets the Payload Length field from out's IPv6 header.
  */
-static bool post_ipv6(struct packet_out *out)
+static enum verdict post_ipv6(struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(out->packet);
-	__u16 l3_hdr_len = out->l3_hdr_len - sizeof(struct ipv6hdr);
+	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
+	__u16 l3_hdr_len = out->l3_hdr.len - sizeof(struct ipv6hdr);
 
-	ip6_hdr->payload_len = cpu_to_be16(l3_hdr_len + out->l4_hdr_len + out->payload_len);
+	ip6_hdr->payload_len = cpu_to_be16(l3_hdr_len + out->l4_hdr.len + out->payload.len);
 
-	return true;
+	return VER_CONTINUE;
 }
 
 
@@ -290,7 +252,7 @@ static bool icmp4_has_inner_packet(__u8 icmp_type)
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to ICMPv6.
  */
-static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr,
+static enum verdict icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr,
 		__u16 tot_len_field)
 {
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
@@ -343,16 +305,16 @@ static bool icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6
 	default: /* hostPrecedenceViolation (14) is known to fall through here. */
 		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
-		return false; /* No ICMP error. */
+		return VER_DROP; /* No ICMP error. */
 	}
 
-	return true;
+	return VER_CONTINUE;
 }
 
 /**
  * One-liner for translating "Parameter Problem" messages from ICMPv4 to ICMPv6.
  */
-static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr)
+static enum verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr)
 {
 	icmpv6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 
@@ -371,7 +333,7 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 		if (icmp4_pointer < 0 || 19 < icmp4_pointer || pointers[icmp4_pointer] == DROP) {
 			log_info("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
 					icmpv4_hdr->type, icmpv4_hdr->code, icmp4_pointer);
-			return false;
+			return VER_DROP;
 		}
 
 		icmpv6_hdr->icmp6_code = ICMPV6_HDR_FIELD;
@@ -381,49 +343,51 @@ static bool icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hd
 	default: /* missingARequiredOption (1) is known to fall through here. */
 		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
 				icmpv4_hdr->code);
-		return false; /* No ICMP error. */
+		return VER_DROP; /* No ICMP error. */
 	}
 
-	return true;
+	return VER_CONTINUE;
 }
 
 /**
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out *out)
+static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment *in, struct fragment *out)
 {
-	struct icmphdr *icmpv4_hdr = icmp_hdr(in->packet);
+	enum verdict result;
+	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
 	struct icmp6hdr *icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
 	if (!icmpv6_hdr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of the ICMPv6 header failed.");
-		return false;
+		return VER_DROP;
 	}
 
-	out->l4_hdr_type = NEXTHDR_ICMP;
-	out->l4_hdr_len = sizeof(*icmpv6_hdr);
-	out->l4_hdr = icmpv6_hdr;
+	out->l4_hdr.proto = L4PROTO_ICMP;
+	out->l4_hdr.len = sizeof(*icmpv6_hdr);
+	out->l4_hdr.ptr = icmpv6_hdr;
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(in->tuple->icmp_id);
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple->icmp_id);
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		break;
 
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(in->tuple->icmp_id);
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple->icmp_id);
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		break;
 
 	case ICMP_DEST_UNREACH: {
-		__u16 tot_len = be16_to_cpu(ip_hdr(in->packet)->tot_len);
-		if (!icmp4_to_icmp6_dest_unreach(icmpv4_hdr, icmpv6_hdr, tot_len))
-			return false;
+		__u16 tot_len = be16_to_cpu(ip_hdr(in->skb)->tot_len);
+		result = icmp4_to_icmp6_dest_unreach(icmpv4_hdr, icmpv6_hdr, tot_len);
+		if (result != VER_CONTINUE)
+			return result;
 		break;
 	}
 
@@ -434,8 +398,9 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 		break;
 
 	case ICMP_PARAMETERPROB:
-		if (!icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr))
-			return false;
+		result = icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr);
+		if (result != VER_CONTINUE)
+			return result;
 		break;
 
 	default:
@@ -448,71 +413,71 @@ static bool create_icmp6_hdr_and_payload(struct packet_in *in, struct packet_out
 		 * This time there's no ICMP error.
 		 */
 		log_info("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
-		return false;
+		return VER_DROP;
 	}
 
 	/* -- Then the payload. -- */
 	if (icmp4_has_inner_packet(icmpv4_hdr->type)) {
-		if (!translate_inner_packet(in, out, create_ipv6_hdr))
-			return false;
+		result = translate_inner_packet(in, out, create_ipv6_hdr);
+		if (result != VER_CONTINUE)
+			return result;
 	} else {
 		/* The payload won't change, so don't bother re-creating it. */
 		out->payload = in->payload;
-		out->payload_len = in->payload_len;
 	}
 
-	return true;
+	return VER_CONTINUE;
 }
 
 /**
  * Sets the Checksum field from out's ICMPv6 header.
  */
-static bool post_icmp6(struct packet_in *in, struct packet_out *out)
+static enum verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(out->packet);
-	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(out->packet);
-	unsigned int datagram_len = out->l4_hdr_len + out->payload_len;
+	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
+	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(out);
+	unsigned int datagram_len = out->l4_hdr.len + out->payload.len;
 
 	icmpv6_hdr->icmp6_cksum = 0;
 	icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, datagram_len, 0));
 
-	return true;
+	return VER_CONTINUE;
 }
 
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static bool post_tcp_ipv6(struct packet_in *in, struct packet_out *out)
+static enum verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(out->packet);
-	struct tcphdr *tcp_header = tcp_hdr(out->packet);
-	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
+	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
+	struct tcphdr *tcp_header = frag_get_tcp_hdr(out);
+	__u16 datagram_len = out->l4_hdr.len + out->payload.len;
 
-	tcp_header->source = cpu_to_be16(in->tuple->src.l4_id);
-	tcp_header->dest = cpu_to_be16(in->tuple->dst.l4_id);
+	tcp_header->source = cpu_to_be16(tuple->src.l4_id);
+	tcp_header->dest = cpu_to_be16(tuple->dst.l4_id);
 	tcp_header->check = 0;
 	tcp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
 
-	return true;
+	return VER_CONTINUE;
 }
 
 /**
  * Sets the Length and Checksum fields from out's UDP header.
  */
-static bool post_udp_ipv6(struct packet_in *in, struct packet_out *out)
+static enum verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(out->packet);
-	struct udphdr *udp_header = udp_hdr(out->packet);
-	__u16 datagram_len = out->l4_hdr_len + out->payload_len;
+	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
+	struct udphdr *udp_header = frag_get_udp_hdr(out);
+	__u16 datagram_len = out->l4_hdr.len + out->payload.len;
 
-	udp_header->source = cpu_to_be16(in->tuple->src.l4_id);
-	udp_header->dest = cpu_to_be16(in->tuple->dst.l4_id);
+	udp_header->source = cpu_to_be16(tuple->src.l4_id);
+	udp_header->dest = cpu_to_be16(tuple->dst.l4_id);
 	udp_header->len = cpu_to_be16(datagram_len);
 	udp_header->check = 0;
 	udp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_UDP, csum_partial(udp_header, datagram_len, 0));
 
-	return true;
+	return VER_CONTINUE;
 }

@@ -115,6 +115,20 @@ enum error_code {
 };
 
 
+enum l3_proto {
+	L3PROTO_IPV6 = 0,
+	L3PROTO_IPV4 = 1,
+#define L3_PROTO_COUNT 2
+};
+
+enum l4_proto {
+	L4PROTO_NONE = 0,
+	L4PROTO_TCP = 1,
+	L4PROTO_UDP = 2,
+	L4PROTO_ICMP = 3,
+#define L4_PROTO_COUNT 4
+};
+
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
  * Because they're paired all the time in this project.

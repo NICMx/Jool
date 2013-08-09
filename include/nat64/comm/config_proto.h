@@ -175,6 +175,9 @@ struct translate_config {
 	 * Default value is { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }.
 	 */
 	__u16 *mtu_plateaus;
+
+	/** TODO make configurable. */
+	__u16 min_ipv6_mtu;
 };
 
 

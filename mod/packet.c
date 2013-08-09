@@ -2,6 +2,7 @@
 #include "nat64/comm/types.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
 
+//#include <linux/list.h>
 #include <linux/ipv6.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -18,6 +19,125 @@
 #define MIN_ICMP6_HDR_LEN sizeof(struct icmp6hdr)
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
+
+void frag_init(struct fragment *frag)
+{
+	memset(frag, 0, sizeof(*frag));
+	INIT_LIST_HEAD(&frag->next);
+}
+
+struct ipv6hdr *frag_get_ipv6_hdr(struct fragment *frag)
+{
+	return frag->l3_hdr.ptr;
+}
+
+struct iphdr *frag_get_ipv4_hdr(struct fragment *frag)
+{
+	return frag->l3_hdr.ptr;
+}
+
+struct tcphdr *frag_get_tcp_hdr(struct fragment *frag)
+{
+	return frag->l4_hdr.ptr;
+}
+
+struct udphdr *frag_get_udp_hdr(struct fragment *frag)
+{
+	return frag->l4_hdr.ptr;
+}
+
+struct icmp6hdr *frag_get_icmp6_hdr(struct fragment *frag)
+{
+	return frag->l4_hdr.ptr;
+}
+
+struct icmphdr *frag_get_icmp4_hdr(struct fragment *frag)
+{
+	return frag->l4_hdr.ptr;
+}
+
+/**
+ * Joins out.l3_hdr, out.l4_hdr and out.payload into a single packet, placing the result in
+ * out.skb.
+ */
+enum verdict frag_create_skb(struct fragment *frag)
+{
+	struct sk_buff *new_skb;
+	__u16 head_room = 0, tail_room = 0;
+
+//	TODO
+//	spin_lock_bh(&config_lock);
+//	head_room = config.skb_head_room;
+//	tail_room = config.skb_tail_room;
+//	spin_unlock_bh(&config_lock);
+
+	new_skb = alloc_skb(head_room /* user's reserved. */
+			+ LL_MAX_HEADER /* kernel's reserved + layer 2. */
+			+ frag->l3_hdr.len /* layer 3. */
+			+ frag->l4_hdr.len /* layer 4. */
+			+ frag->payload.len /* packet data. */
+			+ tail_room, /* user's reserved+. */
+			GFP_ATOMIC);
+	if (!new_skb) {
+		log_err(ERR_ALLOC_FAILED, "New packet allocation failed.");
+		return VER_DROP;
+	}
+	frag->skb = new_skb;
+
+	skb_reserve(new_skb, head_room + LL_MAX_HEADER);
+	skb_put(new_skb, frag->l3_hdr.len + frag->l4_hdr.len + frag->payload.len);
+
+	skb_reset_mac_header(new_skb);
+	skb_reset_network_header(new_skb);
+	skb_set_transport_header(new_skb, frag->l3_hdr.len);
+
+	memcpy(skb_network_header(new_skb), frag->l3_hdr.ptr, frag->l3_hdr.len);
+	memcpy(skb_transport_header(new_skb), frag->l4_hdr.ptr, frag->l4_hdr.len);
+	memcpy(skb_transport_header(new_skb) + frag->l4_hdr.len, frag->payload.ptr, frag->payload.len);
+
+	if (!frag->l3_hdr.ptr_belongs_to_skb)
+		kfree(frag->l3_hdr.ptr);
+	if (!frag->l4_hdr.ptr_belongs_to_skb)
+		kfree(frag->l4_hdr.ptr);
+	if (!frag->payload.ptr_belongs_to_skb)
+		kfree(frag->payload.ptr);
+
+	frag->l3_hdr.ptr = skb_network_header(new_skb);
+	frag->l4_hdr.ptr = skb_transport_header(new_skb);
+	frag->payload.ptr = skb_transport_header(new_skb) + frag->l4_hdr.len;
+
+	frag->l3_hdr.ptr_belongs_to_skb = true;
+	frag->l4_hdr.ptr_belongs_to_skb = true;
+	frag->payload.ptr_belongs_to_skb = true;
+
+	switch (frag->l3_hdr.proto) {
+	case L3PROTO_IPV4:
+		new_skb->protocol = htons(ETH_P_IP);
+		break;
+	case L3PROTO_IPV6:
+		new_skb->protocol = htons(ETH_P_IPV6);
+		break;
+	default:
+		log_err(ERR_L3PROTO, "Invalid protocol type: %u", frag->l3_hdr.proto);
+		return VER_DROP;
+	}
+
+	return VER_CONTINUE;
+}
+
+void frag_kfree(struct fragment *frag)
+{
+	if (frag->skb)
+		kfree_skb(frag->skb);
+	if (frag->l3_hdr.ptr_belongs_to_skb)
+		kfree(frag->l3_hdr.ptr);
+	if (frag->l4_hdr.ptr_belongs_to_skb)
+		kfree(frag->l4_hdr.ptr);
+	if (frag->payload.ptr_belongs_to_skb)
+		kfree(frag->payload.ptr);
+
+	list_del(&frag->next);
+}
 
 static enum verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)
 {
