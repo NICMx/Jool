@@ -79,16 +79,20 @@ struct fragment {
 	struct list_head next;
 };
 
+enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out);
+enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out);
 void frag_init(struct fragment *);
+enum verdict frag_create_skb(struct fragment *);
 
 struct ipv6hdr *frag_get_ipv6_hdr(struct fragment *);
+struct frag_hdr *frag_get_fragment_hdr(struct fragment *frag);
 struct iphdr *frag_get_ipv4_hdr(struct fragment *);
 struct tcphdr *frag_get_tcp_hdr(struct fragment *);
 struct udphdr *frag_get_udp_hdr(struct fragment *);
 struct icmp6hdr *frag_get_icmp6_hdr(struct fragment *);
 struct icmphdr *frag_get_icmp4_hdr(struct fragment *);
+unsigned char *frag_get_payload(struct fragment *);
 
-enum verdict frag_create_skb(struct fragment *);
 void frag_kfree(struct fragment *);
 
 struct packet {
@@ -115,5 +119,7 @@ struct packet {
 
 void pkt_add_skb(struct packet *pkt, struct sk_buff *skb);
 bool pkt_is_complete(struct packet *pkt);
+
+void pkt_kfree(struct packet *);
 
 #endif /* _NF_NAT64_PACKET_H */

@@ -526,10 +526,14 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		if (out->skb->len > min_ipv6_mtu) {
 			// It's too big, so subdivide it.
 
+			log_debug("Voy a subdividir.");
+
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
 				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, 0); // TODO set the MTU
 				return VER_DROP;
 			}
+
+			log_debug("Vaaaaaaaa.");
 
 			result = divide(out, out_list);
 			if (result != VER_CONTINUE)
@@ -576,9 +580,6 @@ enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, stru
 	return VER_CONTINUE;
 
 error:
-	while (!list_empty(&out->fragments)) {
-		/* out->fragment.next is the first element of the list. */
-		frag_kfree(list_entry(out->fragments.next, struct fragment, next));
-	}
+	pkt_kfree(out);
 	return result;
 }

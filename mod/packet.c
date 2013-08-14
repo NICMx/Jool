@@ -31,6 +31,11 @@ struct ipv6hdr *frag_get_ipv6_hdr(struct fragment *frag)
 	return frag->l3_hdr.ptr;
 }
 
+struct frag_hdr *frag_get_fragment_hdr(struct fragment *frag)
+{
+	return get_extension_header(frag_get_ipv6_hdr(frag), NEXTHDR_FRAGMENT);
+}
+
 struct iphdr *frag_get_ipv4_hdr(struct fragment *frag)
 {
 	return frag->l3_hdr.ptr;
@@ -54,6 +59,128 @@ struct icmp6hdr *frag_get_icmp6_hdr(struct fragment *frag)
 struct icmphdr *frag_get_icmp4_hdr(struct fragment *frag)
 {
 	return frag->l4_hdr.ptr;
+}
+
+unsigned char *frag_get_payload(struct fragment *frag)
+{
+	return frag->payload.ptr;
+}
+
+enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
+{
+	struct fragment *frag;
+	struct ipv6hdr *ipv6_header;
+	struct hdr_iterator iterator;
+
+	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
+	if (!frag) {
+		log_warning("Cannot allocate a fragment structure.");
+		return VER_DROP;
+	}
+
+	// Layer 3
+	ipv6_header = ipv6_hdr(skb);
+	hdr_iterator_init(&iterator, ipv6_header);
+	hdr_iterator_last(&iterator);
+
+	frag->l3_hdr.proto = L3PROTO_IPV6;
+	frag->l3_hdr.len = iterator.data - (void *) ipv6_header;
+	frag->l3_hdr.ptr = ipv6_header;
+	frag->l3_hdr.ptr_belongs_to_skb = true;
+
+	// Layer 4
+	switch (iterator.hdr_type) {
+	case NEXTHDR_TCP:
+		frag->l4_hdr.proto = L4PROTO_TCP;
+		frag->l4_hdr.len = tcp_hdrlen(skb);
+		break;
+
+	case NEXTHDR_UDP:
+		frag->l4_hdr.proto = L4PROTO_UDP;
+		frag->l4_hdr.len = sizeof(struct udphdr);
+		break;
+
+	case NEXTHDR_ICMP:
+		frag->l4_hdr.proto = L4PROTO_ICMP;
+		frag->l4_hdr.len = sizeof(struct icmp6hdr);
+		break;
+
+	default:
+		log_warning("Unsupported layer 4 protocol: %d", iterator.hdr_type);
+		kfree(frag);
+		return VER_DROP;
+	}
+
+	frag->l4_hdr.ptr = iterator.data;
+	frag->l4_hdr.ptr_belongs_to_skb = true;
+
+	// Payload
+	frag->payload.len = skb->len - frag->l3_hdr.len - frag->l4_hdr.len;
+	frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
+	frag->payload.ptr_belongs_to_skb = true;
+
+	// List
+	INIT_LIST_HEAD(&frag->next);
+
+	*frag_out = frag;
+	return VER_CONTINUE;
+}
+
+enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
+{
+	struct fragment *frag;
+	struct iphdr *ipv4_header;
+
+	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
+	if (!frag) {
+		log_warning("Cannot allocate a fragment structure.");
+		return VER_DROP;
+	}
+
+	// Layer 3
+	ipv4_header = ip_hdr(skb);
+
+	frag->l3_hdr.proto = L3PROTO_IPV4;
+	frag->l3_hdr.len = ipv4_header->ihl << 2;
+	frag->l3_hdr.ptr = ipv4_header;
+	frag->l3_hdr.ptr_belongs_to_skb = true;
+
+	// Layer 4
+	switch (ipv4_header->protocol) {
+	case IPPROTO_TCP:
+		frag->l4_hdr.proto = L4PROTO_TCP;
+		frag->l4_hdr.len = tcp_hdrlen(skb);
+		break;
+
+	case IPPROTO_UDP:
+		frag->l4_hdr.proto = L4PROTO_UDP;
+		frag->l4_hdr.len = sizeof(struct udphdr);
+		break;
+
+	case IPPROTO_ICMP:
+		frag->l4_hdr.proto = L4PROTO_ICMP;
+		frag->l4_hdr.len = sizeof(struct icmphdr);
+		break;
+
+	default:
+		log_warning("Unsupported layer 4 protocol: %d", ipv4_header->protocol);
+		kfree(frag);
+		return VER_DROP;
+	}
+
+	frag->l4_hdr.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
+	frag->l4_hdr.ptr_belongs_to_skb = true;
+
+	// Payload
+	frag->payload.len = skb->len - frag->l3_hdr.len - frag->l4_hdr.len;
+	frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
+	frag->payload.ptr_belongs_to_skb = true;
+
+	// List
+	INIT_LIST_HEAD(&frag->next);
+
+	*frag_out = frag;
+	return VER_CONTINUE;
 }
 
 /**
@@ -129,14 +256,25 @@ void frag_kfree(struct fragment *frag)
 {
 	if (frag->skb)
 		kfree_skb(frag->skb);
-	if (frag->l3_hdr.ptr_belongs_to_skb)
+	if (!frag->l3_hdr.ptr_belongs_to_skb)
 		kfree(frag->l3_hdr.ptr);
-	if (frag->l4_hdr.ptr_belongs_to_skb)
+	if (!frag->l4_hdr.ptr_belongs_to_skb)
 		kfree(frag->l4_hdr.ptr);
-	if (frag->payload.ptr_belongs_to_skb)
+	if (!frag->payload.ptr_belongs_to_skb)
 		kfree(frag->payload.ptr);
 
 	list_del(&frag->next);
+}
+
+void pkt_kfree(struct packet *pkt)
+{
+	if (!pkt)
+		return;
+
+	while (!list_empty(&pkt->fragments)) {
+		/* pkt->fragment.next is the first element of the list. */
+		frag_kfree(list_entry(pkt->fragments.next, struct fragment, next));
+	}
 }
 
 static enum verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)

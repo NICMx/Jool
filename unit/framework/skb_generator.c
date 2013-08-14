@@ -4,6 +4,7 @@
 #include <linux/if_ether.h>
 #include <linux/ipv6.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/icmp.h>
@@ -19,8 +20,8 @@ static int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->ihl = 5;
 	hdr->tos = 0;
 	hdr->tot_len = cpu_to_be16(sizeof(*hdr) + payload_len);
-	hdr->id = 0;
-	hdr->frag_off = 0;
+	hdr->id = cpu_to_be16(1234);
+	hdr->frag_off = cpu_to_be16(IP_DF | 0x0000);
 	hdr->ttl = 32;
 	hdr->protocol = nexthdr;
 	hdr->saddr = pair4->remote.address.s_addr;
@@ -153,13 +154,12 @@ static int init_icmp6_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void 
 	return 0;
 }
 
-#define PAYLOAD_LEN 5
-static int init_payload_normal(void *l4_hdr)
+static int init_payload_normal(void *target, u16 payload_len)
 {
-	unsigned char *payload = l4_hdr;
+	unsigned char *payload = target;
 	int i;
 
-	for (i = 0; i < PAYLOAD_LEN; i++)
+	for (i = 0; i < payload_len; i++)
 		payload[i] = i;
 
 	return 0;
@@ -229,7 +229,7 @@ static int ipv6_icmp_post(void *l4_hdr, u16 datagram_len, void *arg)
 
 static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type, int l3_hdr_len,
 		int (*l4_hdr_cb)(void *, int, u16, void *), int l4_hdr_type, int l4_hdr_len,
-		int (*payload_cb)(void *), int payload_len,
+		int (*payload_cb)(void *, u16), u16 payload_len,
 		int (*l4_post_cb)(void *, u16, void *),
 		struct sk_buff **result, void *arg)
 {
@@ -257,7 +257,7 @@ static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type
 	error = l4_hdr_cb(skb_transport_header(skb), l3_hdr_type, datagram_len, arg);
 	if (error)
 		goto failure;
-	error = payload_cb(skb_transport_header(skb) + l4_hdr_len);
+	error = payload_cb(skb_transport_header(skb) + l4_hdr_len, payload_len);
 	if (error)
 		goto failure;
 	error = l4_post_cb(skb_transport_header(skb), datagram_len, arg);
@@ -272,56 +272,56 @@ failure:
 	return error;
 }
 
-int create_skb_ipv6_udp(struct ipv6_pair *pair6, struct sk_buff **result)
+int create_skb_ipv6_udp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
 	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
 			init_udp_hdr, IPPROTO_UDP, UDP_HDR_LEN,
-			init_payload_normal, PAYLOAD_LEN,
+			init_payload_normal, payload_len,
 			ipv6_udp_post,
 			result, pair6);
 }
 
-int create_skb_ipv6_tcp(struct ipv6_pair *pair6, struct sk_buff **result)
+int create_skb_ipv6_tcp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
 	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
 			init_tcp_hdr, IPPROTO_TCP, TCP_HDR_LEN,
-			init_payload_normal, PAYLOAD_LEN,
+			init_payload_normal, payload_len,
 			ipv6_tcp_post,
 			result, pair6);
 }
 
-int create_skb_ipv6_icmp(struct ipv6_pair *pair6, struct sk_buff **result)
+int create_skb_ipv6_icmp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
 	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
 			init_icmp6_hdr, IPPROTO_ICMPV6, ICMP6_HDR_LEN,
-			init_payload_normal, PAYLOAD_LEN,
+			init_payload_normal, payload_len,
 			ipv6_icmp_post,
 			result, pair6);
 }
 
-int create_skb_ipv4_udp(struct ipv4_pair *pair4, struct sk_buff **result)
+int create_skb_ipv4_udp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
 	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
 			init_udp_hdr, IPPROTO_UDP, UDP_HDR_LEN,
-			init_payload_normal, PAYLOAD_LEN,
+			init_payload_normal, payload_len,
 			ipv4_udp_post,
 			result, pair4);
 }
 
-int create_skb_ipv4_tcp(struct ipv4_pair *pair4, struct sk_buff **result)
+int create_skb_ipv4_tcp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
 	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
 			init_tcp_hdr, IPPROTO_TCP, TCP_HDR_LEN,
-			init_payload_normal, PAYLOAD_LEN,
+			init_payload_normal, payload_len,
 			ipv4_tcp_post,
 			result, pair4);
 }
 
-int create_skb_ipv4_icmp(struct ipv4_pair *pair4, struct sk_buff **result)
+int create_skb_ipv4_icmp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
 	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
 			init_icmp4_hdr, IPPROTO_ICMP, ICMP4_HDR_LEN,
-			init_payload_normal, PAYLOAD_LEN,
+			init_payload_normal, payload_len,
 			ipv4_icmp_post,
 			result, pair4);
 }
