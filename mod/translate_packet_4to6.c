@@ -108,6 +108,7 @@ static enum verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, st
 
 	out->l3_hdr.proto = L3PROTO_IPV6;
 	out->l3_hdr.len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
+	out->l3_hdr.ptr_belongs_to_skb = false;
 	out->l3_hdr.ptr = kmalloc(out->l3_hdr.len, GFP_ATOMIC);
 	if (!out->l3_hdr.ptr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv6 header failed.");
@@ -366,6 +367,7 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 	out->l4_hdr.proto = L4PROTO_ICMP;
 	out->l4_hdr.len = sizeof(*icmpv6_hdr);
 	out->l4_hdr.ptr = icmpv6_hdr;
+	out->l4_hdr.ptr_belongs_to_skb = false;
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
@@ -434,13 +436,22 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
  */
 static enum verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
-	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(out);
-	unsigned int datagram_len = out->l4_hdr.len + out->payload.len;
+	struct ipv6hdr *ip6_hdr;
+	struct icmp6hdr *icmpv6_hdr;
+	unsigned int datagram_len;
 
+//log_debug("aaa1");
+	ip6_hdr = frag_get_ipv6_hdr(out);
+//log_debug("aaa2");
+	icmpv6_hdr = frag_get_icmp6_hdr(out);
+//log_debug("aaa3");
+	datagram_len = out->l4_hdr.len + out->payload.len;
+//log_debug("aaa4");
 	icmpv6_hdr->icmp6_cksum = 0;
+//log_debug("aaa6");
 	icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, datagram_len, 0));
+//log_debug("aaa7");
 
 	return VER_CONTINUE;
 }

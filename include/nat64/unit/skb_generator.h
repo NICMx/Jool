@@ -15,3 +15,4 @@ int create_skb_ipv6_icmp(struct ipv6_pair *pair6, struct sk_buff **result, u16 p
 int create_skb_ipv4_udp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
 int create_skb_ipv4_tcp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
 int create_skb_ipv4_icmp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv4_empty(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);

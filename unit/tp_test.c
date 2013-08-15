@@ -19,7 +19,7 @@ struct in_addr dummies4[2];
 
 
 static struct fragment *create_fragment_ipv4(int payload_len,
-		int (*l4_hdr_fn)(struct ipv4_pair *, struct sk_buff **, u16))
+		int (*skb_create_fn)(struct ipv4_pair *, struct sk_buff **, u16), u16 df, u16 mf, u16 frag_off)
 {
 	struct fragment *frag;
 	struct sk_buff *skb;
@@ -31,8 +31,10 @@ static struct fragment *create_fragment_ipv4(int payload_len,
 	pair4.remote.l4_id = 5644;
 	pair4.local.address = dummies4[1];
 	pair4.local.l4_id = 6721;
-	if (l4_hdr_fn(&pair4, &skb, payload_len) != 0)
+	if (skb_create_fn(&pair4, &skb, payload_len) != 0)
 		return NULL;
+
+	ip_hdr(skb)->frag_off = cpu_to_be16(df | mf | frag_off);
 
 	// init the fragment.
 	result = frag_create_ipv4(skb, &frag);
@@ -48,12 +50,12 @@ static struct fragment *create_fragment_ipv4(int payload_len,
 static bool create_pkt_ipv4(struct packet *pkt, int payload_len,
 		int (*l4_hdr_fn)(struct ipv4_pair *, struct sk_buff **, u16))
 {
-	struct fragment *frag = create_fragment_ipv4(payload_len, l4_hdr_fn);
+	struct fragment *frag = create_fragment_ipv4(payload_len, l4_hdr_fn, IP_DF, 0, 0);
 	if (!frag)
 		return false;
 
 	INIT_LIST_HEAD(&pkt->fragments);
-	list_add(&frag->next, &pkt->fragments);
+	list_add(&frag->next, pkt->fragments.prev);
 
 	return true;
 }
@@ -84,7 +86,7 @@ static bool create_pkt_ipv6(struct packet *pkt, int payload_len,
 
 	// init the packet.
 	INIT_LIST_HEAD(&pkt->fragments);
-	list_add(&frag->next, &pkt->fragments);
+	list_add(&frag->next, pkt->fragments.prev);
 
 	return true;
 }
@@ -123,7 +125,7 @@ static bool validate_pkt_ipv6_udp(struct packet *pkt, struct tuple *tuple, int p
 
 	frag = container_of(pkt->fragments.next, struct fragment, next);
 
-	if (!validate_frag_ipv6(frag))
+	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
 	if (!validate_frag_udp(frag))
 		return false;
@@ -136,7 +138,7 @@ static bool validate_pkt_ipv6_udp(struct packet *pkt, struct tuple *tuple, int p
 		return false;
 	if (!validate_udp_hdr(frag_get_udp_hdr(frag), payload_len, tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len))
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
 		return false;
 
 	return true;
@@ -152,7 +154,7 @@ static bool validate_pkt_ipv6_tcp(struct packet *pkt, struct tuple *tuple, int p
 
 	frag = container_of(pkt->fragments.next, struct fragment, next);
 
-	if (!validate_frag_ipv6(frag))
+	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
 	if (!validate_frag_tcp(frag))
 		return false;
@@ -165,7 +167,7 @@ static bool validate_pkt_ipv6_tcp(struct packet *pkt, struct tuple *tuple, int p
 		return false;
 	if (!validate_tcp_hdr(frag_get_tcp_hdr(frag), sizeof(struct tcphdr), tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len))
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
 		return false;
 
 	return true;
@@ -181,7 +183,7 @@ static bool validate_pkt_ipv6_icmp(struct packet *pkt, struct tuple *tuple, int 
 
 	frag = container_of(pkt->fragments.next, struct fragment, next);
 
-	if (!validate_frag_ipv6(frag))
+	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
 	if (!validate_frag_icmp6(frag))
 		return false;
@@ -194,7 +196,7 @@ static bool validate_pkt_ipv6_icmp(struct packet *pkt, struct tuple *tuple, int 
 		return false;
 	if (!validate_icmp6_hdr(frag_get_icmp6_hdr(frag), 5644, tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len))
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
 		return false;
 
 	return true;
@@ -223,7 +225,7 @@ static bool validate_pkt_ipv4_udp(struct packet *pkt, struct tuple *tuple, int p
 		return false;
 	if (!validate_udp_hdr(frag_get_udp_hdr(frag), payload_len, tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len))
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
 		return false;
 
 	return true;
@@ -252,7 +254,7 @@ static bool validate_pkt_ipv4_tcp(struct packet *pkt, struct tuple *tuple, int p
 		return false;
 	if (!validate_tcp_hdr(frag_get_tcp_hdr(frag), sizeof(struct tcphdr), tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len))
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
 		return false;
 
 	return true;
@@ -281,7 +283,7 @@ static bool validate_pkt_ipv4_icmp(struct packet *pkt, struct tuple *tuple, int 
 		return false;
 	if (!validate_icmp4_hdr(frag_get_icmp4_hdr(frag), 5644, tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len))
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
 		return false;
 
 	return true;
@@ -290,33 +292,73 @@ static bool validate_pkt_ipv4_icmp(struct packet *pkt, struct tuple *tuple, int 
 static bool validate_pkt_multiple(struct packet *pkt, struct tuple *tuple)
 {
 	struct fragment *frag;
-	int payload_len1;
+	int payload_len;
+	u16 offset;
 
-	// Validate the first fragment
 	if (!validate_fragment_count(pkt, 3))
 		return false;
 
+	log_debug("Validating the first fragment...");
 	frag = container_of(pkt->fragments.next, struct fragment, next);
+	offset = 0;
+	payload_len = 1280 - sizeof(struct ipv6hdr) - sizeof(struct frag_hdr) - sizeof(struct udphdr);
 
-	if (!validate_frag_ipv6(frag))
+	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr) + sizeof(struct frag_hdr)))
 		return false;
 	if (!validate_frag_udp(frag))
 		return false;
-	payload_len1 = 1280 - sizeof(struct ipv6hdr) - sizeof(struct frag_hdr) - sizeof(struct udphdr);
-	if (!validate_frag_payload(frag, payload_len1))
+	if (!validate_frag_payload(frag, payload_len))
 		return false;
 
-	// Validate the first skb.
+	log_debug("Validating the first skb...");
 	if (!validate_ipv6_hdr(frag_get_ipv6_hdr(frag), 1280 - sizeof(struct ipv6hdr), NEXTHDR_FRAGMENT, tuple))
 		return false;
-	if (!validate_frag_hdr(frag_get_fragment_hdr(frag), 0, IP6_MF))
+	if (!validate_frag_hdr(frag_get_fragment_hdr(frag), offset, IP6_MF))
 		return false;
-	if (!validate_udp_hdr(frag_get_udp_hdr(frag), payload_len1, tuple))
+	if (!validate_udp_hdr(frag_get_udp_hdr(frag), 2000, tuple))
 		return false;
-	if (!validate_payload(frag_get_payload(frag), payload_len1))
+	if (!validate_payload(frag_get_payload(frag), payload_len, offset))
 		return false;
 
-	// TODO faltan dos fragmentos.
+	log_debug("Validating the second fragment...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	offset = 1232;
+	payload_len = 776;
+
+	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr) + sizeof(struct frag_hdr)))
+		return false;
+	if (!validate_frag_empty_l4(frag))
+		return false;
+	if (!validate_frag_payload(frag, payload_len))
+		return false;
+
+	log_debug("Validating the second skb...");
+	if (!validate_ipv6_hdr(frag_get_ipv6_hdr(frag), sizeof(struct frag_hdr) + payload_len, NEXTHDR_FRAGMENT, tuple))
+		return false;
+	if (!validate_frag_hdr(frag_get_fragment_hdr(frag), offset, IP6_MF))
+		return false;
+	if (!validate_payload(frag_get_payload(frag), payload_len, offset - sizeof(struct udphdr)))
+		return false;
+
+	log_debug("Validating the third fragment...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	offset = 2008;
+	payload_len = 100;
+
+	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr) + sizeof(struct frag_hdr)))
+		return false;
+	if (!validate_frag_empty_l4(frag))
+		return false;
+	if (!validate_frag_payload(frag, payload_len))
+		return false;
+
+	log_debug("Validating the third skb...");
+	if (!validate_ipv6_hdr(frag_get_ipv6_hdr(frag), sizeof(struct frag_hdr) + payload_len, NEXTHDR_FRAGMENT, tuple))
+		return false;
+	if (!validate_frag_hdr(frag_get_fragment_hdr(frag), offset, 0))
+		return false;
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
+		return false;
 
 	return true;
 }
@@ -328,6 +370,7 @@ bool test_simple_4to6_udp(void)
 	struct packet pkt_in, pkt_out;
 	struct tuple tuple;
 	enum verdict result;
+	struct fragment *frag;
 
 	// Init
 	INIT_LIST_HEAD(&pkt_out.fragments);
@@ -336,6 +379,9 @@ bool test_simple_4to6_udp(void)
 		return false;
 	if (!create_pkt_ipv4(&pkt_in, PAYLOAD_LEN, create_skb_ipv4_udp))
 		return false;
+
+frag = container_of(pkt_in.fragments.next, struct fragment, next);
+log_debug("%d", frag_get_ipv4_hdr(frag)->frag_off);
 
 	// Call the function
 	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
@@ -498,7 +544,6 @@ bool test_simple_6to4_icmp(void)
 	struct packet pkt_in, pkt_out;
 	struct tuple tuple;
 	enum verdict result;
-//	struct fragment *frag;
 
 	// Init
 	INIT_LIST_HEAD(&pkt_out.fragments);
@@ -534,7 +579,6 @@ bool test_multiple_4to6_udp(void)
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
-	struct iphdr *hdr4;
 
 	// Init
 	INIT_LIST_HEAD(&pkt_out.fragments);
@@ -546,30 +590,30 @@ bool test_multiple_4to6_udp(void)
 
 	INIT_LIST_HEAD(&pkt_in.fragments);
 
-	frag = create_fragment_ipv4(2000, create_skb_ipv4_udp);
+	frag = create_fragment_ipv4(2000, create_skb_ipv4_udp, 0, IP_MF, 0);
 	if (!frag)
 		goto fail;
-	hdr4 = frag->l3_hdr.ptr;
-	hdr4->frag_off = cpu_to_be16(IP_MF | 0);
-	list_add(&frag->next, &pkt_in.fragments);
+	list_add(&frag->next, pkt_in.fragments.prev);
 
-	frag = create_fragment_ipv4(100, create_skb_ipv4_udp);
+	frag = create_fragment_ipv4(100, create_skb_ipv4_empty, 0, 0, 2008);
 	if (!frag)
 		goto fail;
-	hdr4 = frag->l3_hdr.ptr;
-	hdr4->frag_off = cpu_to_be16(/*IP_MF |*/ 2000);
-	list_add(&frag->next, &pkt_in.fragments);
+	list_add(&frag->next, pkt_in.fragments.prev);
 
-
+//log_debug("payload[6] = %d", ((unsigned char *)frag->payload.ptr)[6]);
+//log_debug("PAYLOAD LENGTH: %d", frag->payload.len);
 
 	// Call the function
 	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
+//frag = container_of(pkt_out.fragments.prev, struct fragment, next);
+//log_debug("AJSDNFKJASNDKJANDSJKASNDKJ: %d", frag->payload.len);
+
 	// Validate
-//	if (!validate_pkt_multiple(&pkt_out, &tuple))
-//		goto fail;
+	if (!validate_pkt_multiple(&pkt_out, &tuple))
+		goto fail;
 
 	// Yaaaaaaaaay
 	pkt_kfree(&pkt_in);
@@ -581,6 +625,60 @@ fail:
 	pkt_kfree(&pkt_out);
 	return false;
 }
+
+//bool test_multiple_6to4_tcp(void)
+//{
+//	struct packet pkt_in, pkt_out;
+//	struct tuple tuple;
+//	enum verdict result;
+//	struct fragment *frag;
+//	struct frag_hdr *frag_hdr;
+//
+//	// Init
+//	INIT_LIST_HEAD(&pkt_out.fragments);
+//
+//	if (!create_tuple_ipv4(&tuple, L4PROTO_TCP))
+//		return false;
+//
+//
+//
+//	INIT_LIST_HEAD(&pkt_in.fragments);
+//
+//	frag = create_fragment_ipv6(2000, create_skb_ipv6_tcp);
+//	if (!frag)
+//		goto fail;
+//	frag_hdr = frag_get_fragment_hdr(frag);
+//	frag_hdr->frag_off = cpu_to_be16(0 << 3 | IP6_MF);
+//	list_add(&frag->next, pkt_in.fragments.prev);
+//
+//	frag = create_fragment_ipv6(100, create_skb_ipv6_tcp);
+//	if (!frag)
+//		goto fail;
+//	frag_hdr = frag_get_fragment_hdr(frag);
+//	frag_hdr->frag_off = cpu_to_be16(2000 << 3 /*| IP6_MF*/);
+//	list_add(&frag->next, pkt_in.fragments.prev);
+//
+//
+//
+//	// Call the function
+//	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+//	if (result != VER_CONTINUE)
+//		goto fail;
+//
+//	// Validate
+//	if (!validate_pkt_multiple_6to4(&pkt_out, &tuple))
+//		goto fail;
+//
+//	// Yaaaaaaaaay
+//	pkt_kfree(&pkt_in);
+//	pkt_kfree(&pkt_out);
+//	return true;
+//
+//fail:
+//	pkt_kfree(&pkt_in);
+//	pkt_kfree(&pkt_out);
+//	return false;
+//}
 
 int init_module(void)
 {
@@ -599,11 +697,11 @@ int init_module(void)
 
 //	CALL_TEST(test_simple_4to6_udp(), "Simple 4->6 UDP");
 //	CALL_TEST(test_simple_4to6_tcp(), "Simple 4->6 TCP");
-//	CALL_TEST(test_simple_4to6_icmp(), "Simple 4->6 ICMP");
+	CALL_TEST(test_simple_4to6_icmp(), "Simple 4->6 ICMP");
 //	CALL_TEST(test_simple_6to4_udp(), "Simple 6->4 UDP");
 //	CALL_TEST(test_simple_6to4_tcp(), "Simple 6->4 TCP");
 //	CALL_TEST(test_simple_6to4_icmp(), "Simple 6->4 ICMP");
-	CALL_TEST(test_multiple_4to6_udp(), "Multiple 4->6 UDP");
+//	CALL_TEST(test_multiple_4to6_udp(), "Multiple 4->6 UDP");
 
 	translate_packet_destroy();
 

@@ -70,6 +70,7 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 {
 	struct fragment *frag;
 	struct ipv6hdr *ipv6_header;
+	struct frag_hdr *frag_header;
 	struct hdr_iterator iterator;
 
 	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
@@ -89,32 +90,39 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 	frag->l3_hdr.ptr_belongs_to_skb = true;
 
 	// Layer 4
-	switch (iterator.hdr_type) {
-	case NEXTHDR_TCP:
-		frag->l4_hdr.proto = L4PROTO_TCP;
-		frag->l4_hdr.len = tcp_hdrlen(skb);
-		break;
+	frag_header = get_extension_header(ipv6_header, NEXTHDR_FRAGMENT);
+	if (frag_header == NULL || be16_to_cpu(frag_header->frag_off) == 0) {
+		switch (iterator.hdr_type) {
+		case NEXTHDR_TCP:
+			frag->l4_hdr.proto = L4PROTO_TCP;
+			frag->l4_hdr.len = tcp_hdrlen(skb);
+			break;
 
-	case NEXTHDR_UDP:
-		frag->l4_hdr.proto = L4PROTO_UDP;
-		frag->l4_hdr.len = sizeof(struct udphdr);
-		break;
+		case NEXTHDR_UDP:
+			frag->l4_hdr.proto = L4PROTO_UDP;
+			frag->l4_hdr.len = sizeof(struct udphdr);
+			break;
 
-	case NEXTHDR_ICMP:
-		frag->l4_hdr.proto = L4PROTO_ICMP;
-		frag->l4_hdr.len = sizeof(struct icmp6hdr);
-		break;
+		case NEXTHDR_ICMP:
+			frag->l4_hdr.proto = L4PROTO_ICMP;
+			frag->l4_hdr.len = sizeof(struct icmp6hdr);
+			break;
 
-	default:
-		log_warning("Unsupported layer 4 protocol: %d", iterator.hdr_type);
-		kfree(frag);
-		return VER_DROP;
+		default:
+			log_warning("Unsupported layer 4 protocol: %d", iterator.hdr_type);
+			kfree(frag);
+			return VER_DROP;
+		}
+
+	} else {
+		frag->l4_hdr.proto = L4PROTO_NONE;
+		frag->l4_hdr.len = 0;
 	}
 
 	frag->l4_hdr.ptr = iterator.data;
 	frag->l4_hdr.ptr_belongs_to_skb = true;
 
-	// Payload
+	// Payload TODO
 	frag->payload.len = skb->len - frag->l3_hdr.len - frag->l4_hdr.len;
 	frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
 	frag->payload.ptr_belongs_to_skb = true;
@@ -130,6 +138,7 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 {
 	struct fragment *frag;
 	struct iphdr *ipv4_header;
+	u16 fragment_offset;
 
 	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
 	if (!frag) {
@@ -145,35 +154,42 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 	frag->l3_hdr.ptr = ipv4_header;
 	frag->l3_hdr.ptr_belongs_to_skb = true;
 
-	// Layer 4
-	switch (ipv4_header->protocol) {
-	case IPPROTO_TCP:
-		frag->l4_hdr.proto = L4PROTO_TCP;
-		frag->l4_hdr.len = tcp_hdrlen(skb);
-		break;
+	// Layer 4, Payload
+	fragment_offset = be16_to_cpu(ipv4_header->frag_off) & 0x1FFF;
+	if (fragment_offset == 0) {
+		switch (ipv4_header->protocol) {
+		case IPPROTO_TCP:
+			frag->l4_hdr.proto = L4PROTO_TCP;
+			frag->l4_hdr.len = tcp_hdrlen(skb);
+			break;
 
-	case IPPROTO_UDP:
-		frag->l4_hdr.proto = L4PROTO_UDP;
-		frag->l4_hdr.len = sizeof(struct udphdr);
-		break;
+		case IPPROTO_UDP:
+			frag->l4_hdr.proto = L4PROTO_UDP;
+			frag->l4_hdr.len = sizeof(struct udphdr);
+			break;
 
-	case IPPROTO_ICMP:
-		frag->l4_hdr.proto = L4PROTO_ICMP;
-		frag->l4_hdr.len = sizeof(struct icmphdr);
-		break;
+		case IPPROTO_ICMP:
+			frag->l4_hdr.proto = L4PROTO_ICMP;
+			frag->l4_hdr.len = sizeof(struct icmphdr);
+			break;
 
-	default:
-		log_warning("Unsupported layer 4 protocol: %d", ipv4_header->protocol);
-		kfree(frag);
-		return VER_DROP;
+		default:
+			log_warning("Unsupported layer 4 protocol: %d", ipv4_header->protocol);
+			kfree(frag);
+			return VER_DROP;
+		}
+		frag->l4_hdr.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
+		frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
+
+	} else {
+		frag->l4_hdr.proto = L4PROTO_NONE;
+		frag->l4_hdr.len = 0;
+		frag->l4_hdr.ptr = NULL;
+		frag->payload.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
 	}
 
-	frag->l4_hdr.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
 	frag->l4_hdr.ptr_belongs_to_skb = true;
-
-	// Payload
 	frag->payload.len = skb->len - frag->l3_hdr.len - frag->l4_hdr.len;
-	frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
 	frag->payload.ptr_belongs_to_skb = true;
 
 	// List
@@ -218,20 +234,37 @@ enum verdict frag_create_skb(struct fragment *frag)
 	skb_reset_network_header(new_skb);
 	skb_set_transport_header(new_skb, frag->l3_hdr.len);
 
-	memcpy(skb_network_header(new_skb), frag->l3_hdr.ptr, frag->l3_hdr.len);
-	memcpy(skb_transport_header(new_skb), frag->l4_hdr.ptr, frag->l4_hdr.len);
-	memcpy(skb_transport_header(new_skb) + frag->l4_hdr.len, frag->payload.ptr, frag->payload.len);
+//log_debug("payload[6] = %d", ((unsigned char *)frag->payload.ptr)[6]);
+//log_debug("PAYLOAD LENGTH: %d", frag->payload.len);
 
-	if (!frag->l3_hdr.ptr_belongs_to_skb)
+	memcpy(skb_network_header(new_skb), frag->l3_hdr.ptr, frag->l3_hdr.len);
+	if (frag->l4_hdr.ptr) {
+		memcpy(skb_transport_header(new_skb), frag->l4_hdr.ptr, frag->l4_hdr.len);
+		memcpy(skb_transport_header(new_skb) + frag->l4_hdr.len, frag->payload.ptr, frag->payload.len);
+	} else {
+		memcpy(skb_transport_header(new_skb), frag->payload.ptr, frag->payload.len);
+	}
+
+	if (!frag->l3_hdr.ptr_belongs_to_skb) {
 		kfree(frag->l3_hdr.ptr);
-	if (!frag->l4_hdr.ptr_belongs_to_skb)
+		frag->l3_hdr.ptr = NULL;
+	}
+	if (!frag->l4_hdr.ptr_belongs_to_skb) {
 		kfree(frag->l4_hdr.ptr);
-	if (!frag->payload.ptr_belongs_to_skb)
+		frag->l4_hdr.ptr = NULL;
+	}
+	if (!frag->payload.ptr_belongs_to_skb) {
 		kfree(frag->payload.ptr);
+		frag->payload.ptr = NULL;
+	}
 
 	frag->l3_hdr.ptr = skb_network_header(new_skb);
-	frag->l4_hdr.ptr = skb_transport_header(new_skb);
-	frag->payload.ptr = skb_transport_header(new_skb) + frag->l4_hdr.len;
+	if (frag->l4_hdr.ptr) {
+		frag->l4_hdr.ptr = skb_transport_header(new_skb);
+		frag->payload.ptr = skb_transport_header(new_skb) + frag->l4_hdr.len;
+	} else {
+		frag->payload.ptr = skb_transport_header(new_skb);
+	}
 
 	frag->l3_hdr.ptr_belongs_to_skb = true;
 	frag->l4_hdr.ptr_belongs_to_skb = true;

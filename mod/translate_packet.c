@@ -436,7 +436,6 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 	__u16 min_ipv6_mtu;
 	__u16 head_room, tail_room;
 
-
 	spin_lock_bh(&config_lock);
 	min_ipv6_mtu = config.min_ipv6_mtu;
 	head_room = config.skb_head_room;
@@ -455,7 +454,7 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 	}
 
 	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
-	list_add(&frag->next, list);
+	list_add(&frag->next, list->prev);
 
 	current_p = skb_network_header(frag->skb) + min_ipv6_mtu;
 
@@ -481,7 +480,7 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 		new_skb->protocol = htons(ETH_P_IPV6);
 
 		set_frag_headers(first_hdr6, ipv6_hdr(new_skb), actual_total_size,
-				original_fragment_offset + (current_p - frag->skb->data + headers_size),
+				original_fragment_offset + (current_p - frag->skb->data - headers_size),
 				is_last ? original_mf : true);
 		memcpy(skb_network_header(new_skb) + headers_size, current_p, actual_payload_size);
 
@@ -492,13 +491,25 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 		}
 
 		new_fragment->skb = new_skb;
+		new_fragment->l3_hdr.proto = frag->l3_hdr.proto;
+		new_fragment->l3_hdr.len = frag->l3_hdr.len;
+		new_fragment->l3_hdr.ptr = skb_network_header(new_skb);
+		new_fragment->l3_hdr.ptr_belongs_to_skb = true;
+		new_fragment->l4_hdr.proto = L4PROTO_NONE;
+		new_fragment->l4_hdr.len = 0;
+		new_fragment->l4_hdr.ptr = NULL;
+		new_fragment->l4_hdr.ptr_belongs_to_skb = false;
+		new_fragment->payload.len = actual_payload_size;
+		new_fragment->payload.ptr = new_fragment->l3_hdr.ptr + new_fragment->l3_hdr.len;
+		new_fragment->payload.ptr_belongs_to_skb = true;
 
-		list_add(&new_fragment->next, list);
+		list_add(&new_fragment->next, list->prev);
 
 		current_p += actual_payload_size;
 	}
 
 	skb_set_tail_pointer(frag->skb, min_ipv6_mtu);
+	frag->payload.len = min_ipv6_mtu - sizeof(struct ipv6hdr) - sizeof(struct frag_hdr) - sizeof(struct udphdr);
 
 	return VER_CONTINUE;
 }
@@ -510,8 +521,10 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	enum verdict result;
 	__u16 min_ipv6_mtu;
 
-
 	// Translate this single fragment.
+//log_debug("Van los protos: %d %d", in->l3_hdr.proto, in->l4_hdr.proto);
+//log_debug("L4-header: %p", in->l4_hdr.ptr);
+
 	result = translate(tuple, in, &out, &steps[in->l3_hdr.proto][in->l4_hdr.proto]);
 	if (result != VER_CONTINUE)
 		return result;
@@ -525,27 +538,22 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 
 		if (out->skb->len > min_ipv6_mtu) {
 			// It's too big, so subdivide it.
-
-			log_debug("Voy a subdividir.");
-
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
 				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, 0); // TODO set the MTU
 				return VER_DROP;
 			}
-
-			log_debug("Vaaaaaaaa.");
 
 			result = divide(out, out_list);
 			if (result != VER_CONTINUE)
 				return result;
 		} else {
 			// Just add that one fragment to the list.
-			list_add(&out->next, out_list);
+			list_add(&out->next, out_list->prev);
 		}
 		break;
 
 	case L3PROTO_IPV6:
-		list_add(&out->next, out_list);
+		list_add(&out->next, out_list->prev);
 		break;
 
 	default:

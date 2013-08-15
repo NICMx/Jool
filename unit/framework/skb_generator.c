@@ -22,6 +22,7 @@ static int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->tot_len = cpu_to_be16(sizeof(*hdr) + payload_len);
 	hdr->id = cpu_to_be16(1234);
 	hdr->frag_off = cpu_to_be16(IP_DF | 0x0000);
+log_debug("SETEADO COMO %d", be16_to_cpu(hdr->frag_off));
 	hdr->ttl = 32;
 	hdr->protocol = nexthdr;
 	hdr->saddr = pair4->remote.address.s_addr;
@@ -154,14 +155,26 @@ static int init_icmp6_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void 
 	return 0;
 }
 
+static int init_empty_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg)
+{
+	return 0;
+}
+
 static int init_payload_normal(void *target, u16 payload_len)
 {
 	unsigned char *payload = target;
-	int i;
+	u16 i;
 
-	for (i = 0; i < payload_len; i++)
+	for (i = 0; i < payload_len; i++) {
 		payload[i] = i;
+//log_debug("init payload normal: %u %u", payload[i], i);
+	}
 
+	return 0;
+}
+
+static int empty_post(void *l4_hdr, u16 datagram_len, void *arg)
+{
 	return 0;
 }
 
@@ -260,11 +273,17 @@ static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type
 	error = payload_cb(skb_transport_header(skb) + l4_hdr_len, payload_len);
 	if (error)
 		goto failure;
+
+//for (i = 0; i < 10; i++) {
+//log_debug("aaaaa %u", (skb_transport_header(skb) + l4_hdr_len)[i]);
+//}
+
 	error = l4_post_cb(skb_transport_header(skb), datagram_len, arg);
 	if (error)
 		goto failure;
 
 	*result = skb;
+
 	return 0;
 
 failure:
@@ -323,5 +342,14 @@ int create_skb_ipv4_icmp(struct ipv4_pair *pair4, struct sk_buff **result, u16 p
 			init_icmp4_hdr, IPPROTO_ICMP, ICMP4_HDR_LEN,
 			init_payload_normal, payload_len,
 			ipv4_icmp_post,
+			result, pair4);
+}
+
+int create_skb_ipv4_empty(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
+{
+	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
+			init_empty_hdr, IPPROTO_UDP, 0,
+			init_payload_normal, payload_len,
+			empty_post,
 			result, pair4);
 }
