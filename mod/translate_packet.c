@@ -169,8 +169,10 @@ static enum verdict copy_payload(struct tuple *tuple, struct fragment *in, struc
 	out->l4_hdr.proto = L4PROTO_NONE;
 	out->l4_hdr.len = 0;
 	out->l4_hdr.ptr = NULL;
-	out->l4_hdr.ptr_belongs_to_skb = true;
-	out->payload = in->payload;
+	out->l4_hdr.ptr_needs_kfree = false;
+	out->payload.len = in->payload.len;
+	out->payload.ptr = in->payload.ptr;
+	out->payload.ptr_needs_kfree = false;
 
 	return VER_CONTINUE;
 }
@@ -183,7 +185,9 @@ static enum verdict copy_payload(struct tuple *tuple, struct fragment *in, struc
 static enum verdict copy_l4_hdr_and_payload(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	out->l4_hdr = in->l4_hdr;
+	out->l4_hdr.ptr_needs_kfree = false;
 	out->payload = in->payload;
+	out->payload.ptr_needs_kfree = false;
 
 	return VER_CONTINUE;
 }
@@ -494,14 +498,14 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 		new_fragment->l3_hdr.proto = frag->l3_hdr.proto;
 		new_fragment->l3_hdr.len = frag->l3_hdr.len;
 		new_fragment->l3_hdr.ptr = skb_network_header(new_skb);
-		new_fragment->l3_hdr.ptr_belongs_to_skb = true;
+		new_fragment->l3_hdr.ptr_needs_kfree = false;
 		new_fragment->l4_hdr.proto = L4PROTO_NONE;
 		new_fragment->l4_hdr.len = 0;
 		new_fragment->l4_hdr.ptr = NULL;
-		new_fragment->l4_hdr.ptr_belongs_to_skb = false;
+		new_fragment->l4_hdr.ptr_needs_kfree = false;
 		new_fragment->payload.len = actual_payload_size;
 		new_fragment->payload.ptr = new_fragment->l3_hdr.ptr + new_fragment->l3_hdr.len;
-		new_fragment->payload.ptr_belongs_to_skb = true;
+		new_fragment->payload.ptr_needs_kfree = false;
 
 		list_add(&new_fragment->next, list->prev);
 

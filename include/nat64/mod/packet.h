@@ -59,20 +59,20 @@ struct fragment {
 		enum l3_proto proto;
 		int len;
 		void *ptr;
-		bool ptr_belongs_to_skb;
+		bool ptr_needs_kfree;
 	} l3_hdr;
 
 	struct {
 		enum l4_proto proto;
 		int len;
 		void *ptr;
-		bool ptr_belongs_to_skb;
+		bool ptr_needs_kfree;
 	} l4_hdr;
 
 	struct {
 		int len;
 		void *ptr;
-		bool ptr_belongs_to_skb;
+		bool ptr_needs_kfree;
 	} payload;
 
 	/** De la lista de packet.fragments. */
@@ -92,6 +92,8 @@ struct udphdr *frag_get_udp_hdr(struct fragment *);
 struct icmp6hdr *frag_get_icmp6_hdr(struct fragment *);
 struct icmphdr *frag_get_icmp4_hdr(struct fragment *);
 unsigned char *frag_get_payload(struct fragment *);
+
+void frag_print(struct fragment *frag);
 
 void frag_kfree(struct fragment *);
 

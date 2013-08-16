@@ -137,7 +137,7 @@ static enum verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, st
 
 	out->l3_hdr.proto = L3PROTO_IPV4;
 	out->l3_hdr.len = sizeof(struct iphdr);
-	out->l3_hdr.ptr_belongs_to_skb = false;
+	out->l3_hdr.ptr_needs_kfree = true;
 	out->l3_hdr.ptr = kmalloc(out->l3_hdr.len, GFP_ATOMIC);
 	if (!out->l3_hdr.ptr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv4 header failed.");
@@ -388,7 +388,7 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 	out->l4_hdr.proto = L4PROTO_ICMP;
 	out->l4_hdr.len = sizeof(*icmpv4_hdr);
 	out->l4_hdr.ptr = icmpv4_hdr;
-	out->l4_hdr.ptr_belongs_to_skb = false;
+	out->l4_hdr.ptr_needs_kfree = true;
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv6_hdr->icmp6_type) {

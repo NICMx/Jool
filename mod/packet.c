@@ -9,6 +9,7 @@
 #include <linux/udp.h>
 #include <linux/icmpv6.h>
 #include <linux/icmp.h>
+#include <net/ip.h>
 #include <net/ipv6.h>
 
 
@@ -87,7 +88,7 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 	frag->l3_hdr.proto = L3PROTO_IPV6;
 	frag->l3_hdr.len = iterator.data - (void *) ipv6_header;
 	frag->l3_hdr.ptr = ipv6_header;
-	frag->l3_hdr.ptr_belongs_to_skb = true;
+	frag->l3_hdr.ptr_needs_kfree = false;
 
 	// Layer 4
 	frag_header = get_extension_header(ipv6_header, NEXTHDR_FRAGMENT);
@@ -120,12 +121,12 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 	}
 
 	frag->l4_hdr.ptr = iterator.data;
-	frag->l4_hdr.ptr_belongs_to_skb = true;
+	frag->l4_hdr.ptr_needs_kfree = false;
 
 	// Payload TODO
 	frag->payload.len = skb->len - frag->l3_hdr.len - frag->l4_hdr.len;
 	frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
-	frag->payload.ptr_belongs_to_skb = true;
+	frag->payload.ptr_needs_kfree = false;
 
 	// List
 	INIT_LIST_HEAD(&frag->next);
@@ -152,7 +153,7 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 	frag->l3_hdr.proto = L3PROTO_IPV4;
 	frag->l3_hdr.len = ipv4_header->ihl << 2;
 	frag->l3_hdr.ptr = ipv4_header;
-	frag->l3_hdr.ptr_belongs_to_skb = true;
+	frag->l3_hdr.ptr_needs_kfree = false;
 
 	// Layer 4, Payload
 	fragment_offset = be16_to_cpu(ipv4_header->frag_off) & 0x1FFF;
@@ -188,9 +189,9 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 		frag->payload.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
 	}
 
-	frag->l4_hdr.ptr_belongs_to_skb = true;
+	frag->l4_hdr.ptr_needs_kfree = false;
 	frag->payload.len = skb->len - frag->l3_hdr.len - frag->l4_hdr.len;
-	frag->payload.ptr_belongs_to_skb = true;
+	frag->payload.ptr_needs_kfree = false;
 
 	// List
 	INIT_LIST_HEAD(&frag->next);
@@ -200,13 +201,16 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 }
 
 /**
- * Joins out.l3_hdr, out.l4_hdr and out.payload into a single packet, placing the result in
- * out.skb.
+ * Joins frag.l3_hdr, frag.l4_hdr and frag.payload into a single packet, placing the result in
+ * frag.skb.
+ *
+ * Assumes that frag.skb is NULL (Hence, frag->*.ptr_belongs_to_skb are false).
  */
 enum verdict frag_create_skb(struct fragment *frag)
 {
 	struct sk_buff *new_skb;
 	__u16 head_room = 0, tail_room = 0;
+	bool has_l4_hdr;
 
 //	TODO
 //	spin_lock_bh(&config_lock);
@@ -237,38 +241,37 @@ enum verdict frag_create_skb(struct fragment *frag)
 //log_debug("payload[6] = %d", ((unsigned char *)frag->payload.ptr)[6]);
 //log_debug("PAYLOAD LENGTH: %d", frag->payload.len);
 
+	has_l4_hdr = (frag->l4_hdr.ptr != NULL);
+
 	memcpy(skb_network_header(new_skb), frag->l3_hdr.ptr, frag->l3_hdr.len);
-	if (frag->l4_hdr.ptr) {
+	if (has_l4_hdr) {
 		memcpy(skb_transport_header(new_skb), frag->l4_hdr.ptr, frag->l4_hdr.len);
 		memcpy(skb_transport_header(new_skb) + frag->l4_hdr.len, frag->payload.ptr, frag->payload.len);
 	} else {
 		memcpy(skb_transport_header(new_skb), frag->payload.ptr, frag->payload.len);
 	}
 
-	if (!frag->l3_hdr.ptr_belongs_to_skb) {
+	if (frag->l3_hdr.ptr_needs_kfree)
 		kfree(frag->l3_hdr.ptr);
-		frag->l3_hdr.ptr = NULL;
-	}
-	if (!frag->l4_hdr.ptr_belongs_to_skb) {
+	if (frag->l4_hdr.ptr_needs_kfree)
 		kfree(frag->l4_hdr.ptr);
-		frag->l4_hdr.ptr = NULL;
-	}
-	if (!frag->payload.ptr_belongs_to_skb) {
+	if (frag->payload.ptr_needs_kfree)
 		kfree(frag->payload.ptr);
-		frag->payload.ptr = NULL;
-	}
+
+//log_debug("bools: %d %d %d", frag->l3_hdr.ptr_needs_kfree, frag->l4_hdr.ptr_needs_kfree, frag->payload.ptr_needs_kfree);
 
 	frag->l3_hdr.ptr = skb_network_header(new_skb);
-	if (frag->l4_hdr.ptr) {
+	if (has_l4_hdr) {
 		frag->l4_hdr.ptr = skb_transport_header(new_skb);
 		frag->payload.ptr = skb_transport_header(new_skb) + frag->l4_hdr.len;
 	} else {
+		frag->l4_hdr.ptr = NULL;
 		frag->payload.ptr = skb_transport_header(new_skb);
 	}
 
-	frag->l3_hdr.ptr_belongs_to_skb = true;
-	frag->l4_hdr.ptr_belongs_to_skb = true;
-	frag->payload.ptr_belongs_to_skb = true;
+	frag->l3_hdr.ptr_needs_kfree = false;
+	frag->l4_hdr.ptr_needs_kfree = false;
+	frag->payload.ptr_needs_kfree = false;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV4:
@@ -289,14 +292,141 @@ void frag_kfree(struct fragment *frag)
 {
 	if (frag->skb)
 		kfree_skb(frag->skb);
-	if (!frag->l3_hdr.ptr_belongs_to_skb)
+	if (frag->l3_hdr.ptr_needs_kfree)
 		kfree(frag->l3_hdr.ptr);
-	if (!frag->l4_hdr.ptr_belongs_to_skb)
+	if (frag->l4_hdr.ptr_needs_kfree)
 		kfree(frag->l4_hdr.ptr);
-	if (!frag->payload.ptr_belongs_to_skb)
+	if (frag->payload.ptr_needs_kfree)
 		kfree(frag->payload.ptr);
 
 	list_del(&frag->next);
+}
+
+static char *nexthdr_to_string(u8 nexthdr)
+{
+	switch (nexthdr) {
+	case NEXTHDR_TCP:
+		return "TCP";
+	case NEXTHDR_UDP:
+		return "UDP";
+	case NEXTHDR_ICMP:
+		return "ICMP";
+	case NEXTHDR_FRAGMENT:
+		return "Fragment";
+	}
+
+	return "Don't know";
+}
+
+static char *protocol_to_string(u8 protocol)
+{
+	switch (protocol) {
+	case IPPROTO_TCP:
+		return "TCP";
+	case IPPROTO_UDP:
+		return "UDP";
+	case IPPROTO_ICMP:
+		return "ICMP";
+	}
+
+	return "Don't know";
+}
+
+void frag_print(struct fragment *frag)
+{
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *frag_header;
+	struct iphdr *hdr4;
+	struct tcphdr *tcp_header;
+	struct udphdr *udp_header;
+	struct in_addr addr4;
+	u16 frag_off;
+
+	if (!frag) {
+		log_info("(null)");
+		return;
+	}
+
+	log_info("Layer 3 - proto:%s length:%u kfree:%d", l3proto_to_string(frag->l3_hdr.proto),
+			frag->l3_hdr.len, frag->l3_hdr.ptr_needs_kfree);
+	switch (frag->l3_hdr.proto) {
+	case L3PROTO_IPV6:
+		hdr6 = frag_get_ipv6_hdr(frag);
+		log_info("		version: %u", hdr6->version);
+		log_info("		traffic class: %u", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
+		log_info("		flow label: %u", ((hdr6->flow_lbl[0] & 0xf) << 16) | (hdr6->flow_lbl[1] << 8) | hdr6->flow_lbl[0]);
+		log_info("		payload length: %u", be16_to_cpu(hdr6->payload_len));
+		log_info("		next header: %s", nexthdr_to_string(hdr6->nexthdr));
+		log_info("		hop limit: %u", hdr6->hop_limit);
+		log_info("		source address: %pI6c", &hdr6->saddr);
+		log_info("		destination address: %pI6c", &hdr6->daddr);
+
+		if (hdr6->nexthdr == NEXTHDR_FRAGMENT) {
+			frag_header = (struct frag_hdr *) (hdr6 + 1);
+			frag_off = be16_to_cpu(frag_header->frag_off);
+			log_info("Fragment header:");
+			log_info("		next header: %s", nexthdr_to_string(frag_header->nexthdr));
+			log_info("		reserved: %u", frag_header->reserved);
+			log_info("		fragment offset: %u", frag_off >> 3);
+			log_info("		more fragments: %u", frag_off & 0x1);
+			log_info("		identification: %u", be32_to_cpu(frag_header->identification));
+		}
+		break;
+
+	case L3PROTO_IPV4:
+		hdr4 = frag_get_ipv4_hdr(frag);
+		frag_off = be16_to_cpu(hdr4->frag_off);
+		log_info("		version: %u", hdr4->version);
+		log_info("		header length: %u", hdr4->ihl);
+		log_info("		type of service: %u", hdr4->tos);
+		log_info("		total length: %u", be16_to_cpu(hdr4->tot_len));
+		log_info("		identification: %u", be16_to_cpu(hdr4->id));
+		log_info("		more fragments: %u", (frag_off & IP_MF) >> 13);
+		log_info("		don't fragment: %u", (frag_off & IP_DF) >> 14);
+		log_info("		fragment offset: %u", frag_off & 0x1fff);
+		log_info("		time to live: %u", hdr4->ttl);
+		log_info("		protocol: %s", protocol_to_string(hdr4->protocol));
+		log_info("		checksum: %u", hdr4->check);
+		addr4.s_addr = hdr4->saddr;
+		log_info("		source address: %pI4", &addr4);
+		addr4.s_addr = hdr4->daddr;
+		log_info("		destination address: %pI4", &addr4);
+		break;
+	}
+
+	log_info("Layer 4 - proto:%s length:%u kfree:%d", l4proto_to_string(frag->l4_hdr.proto),
+			frag->l4_hdr.len, frag->l4_hdr.ptr_needs_kfree);
+	switch (frag->l4_hdr.proto) {
+	case L4PROTO_TCP:
+		tcp_header = frag_get_tcp_hdr(frag);
+		log_info("		source port: %u", be16_to_cpu(tcp_header->source));
+		log_info("		destination port: %u", be16_to_cpu(tcp_header->dest));
+		log_info("		seq: %u", be32_to_cpu(tcp_header->seq));
+		log_info("		ack_seq: %u", be32_to_cpu(tcp_header->ack_seq));
+		log_info("		doff:%u res1:%u cwr:%u ece:%u urg:%u", tcp_header->doff, tcp_header->res1,
+				tcp_header->cwr, tcp_header->ece, tcp_header->urg);
+		log_info("		ack:%u psh:%u rst:%u syn:%u fin:%u", tcp_header->ack, tcp_header->psh,
+				tcp_header->rst, tcp_header->syn, tcp_header->fin);
+		log_info("		window: %u", be16_to_cpu(tcp_header->window));
+		log_info("		check: %u", tcp_header->check);
+		log_info("		urg_ptr: %u", be16_to_cpu(tcp_header->urg_ptr));
+		break;
+
+	case L4PROTO_UDP:
+		udp_header = frag_get_udp_hdr(frag);
+		log_info("		source port: %u", be16_to_cpu(udp_header->source));
+		log_info("		destination port: %u", be16_to_cpu(udp_header->dest));
+		log_info("		length: %u", be16_to_cpu(udp_header->len));
+		log_info("		checksum: %u", udp_header->check);
+		break;
+
+	case L4PROTO_ICMP:
+		/* too lazy */
+	case L4PROTO_NONE:
+		break;
+	}
+
+	log_info("Payload - length:%u kfree:%d", frag->payload.len, frag->payload.ptr_needs_kfree);
 }
 
 void pkt_kfree(struct packet *pkt)

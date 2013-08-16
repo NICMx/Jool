@@ -108,7 +108,7 @@ static enum verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, st
 
 	out->l3_hdr.proto = L3PROTO_IPV6;
 	out->l3_hdr.len = sizeof(struct ipv6hdr) + (has_frag_hdr ? sizeof(struct frag_hdr) : 0);
-	out->l3_hdr.ptr_belongs_to_skb = false;
+	out->l3_hdr.ptr_needs_kfree = true;
 	out->l3_hdr.ptr = kmalloc(out->l3_hdr.len, GFP_ATOMIC);
 	if (!out->l3_hdr.ptr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv6 header failed.");
@@ -367,7 +367,7 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 	out->l4_hdr.proto = L4PROTO_ICMP;
 	out->l4_hdr.len = sizeof(*icmpv6_hdr);
 	out->l4_hdr.ptr = icmpv6_hdr;
-	out->l4_hdr.ptr_belongs_to_skb = false;
+	out->l4_hdr.ptr_needs_kfree = true;
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {

@@ -48,9 +48,9 @@ static struct fragment *create_fragment_ipv4(int payload_len,
 }
 
 static bool create_pkt_ipv4(struct packet *pkt, int payload_len,
-		int (*l4_hdr_fn)(struct ipv4_pair *, struct sk_buff **, u16))
+		int (*skb_create_fn)(struct ipv4_pair *, struct sk_buff **, u16))
 {
-	struct fragment *frag = create_fragment_ipv4(payload_len, l4_hdr_fn, IP_DF, 0, 0);
+	struct fragment *frag = create_fragment_ipv4(payload_len, skb_create_fn, IP_DF, 0, 0);
 	if (!frag)
 		return false;
 
@@ -60,12 +60,14 @@ static bool create_pkt_ipv4(struct packet *pkt, int payload_len,
 	return true;
 }
 
-static bool create_pkt_ipv6(struct packet *pkt, int payload_len,
-		int (*l4_hdr_fn)(struct ipv6_pair *, struct sk_buff **, u16))
+static struct fragment *create_fragment_ipv6(int payload_len,
+		int (*skb_create_fn)(struct ipv6_pair *, struct sk_buff **, u16), u16 df, u16 mf, u16 frag_off)
 {
 	struct fragment *frag;
 	struct sk_buff *skb;
 	struct ipv6_pair pair6;
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *frag_header;
 	enum verdict result;
 
 	// init the skb.
@@ -73,8 +75,14 @@ static bool create_pkt_ipv6(struct packet *pkt, int payload_len,
 	pair6.remote.l4_id = 5644;
 	pair6.local.address = dummies6[1];
 	pair6.local.l4_id = 6721;
-	if (l4_hdr_fn(&pair6, &skb, payload_len) != 0)
+	if (skb_create_fn(&pair6, &skb, payload_len) != 0)
 		return false;
+
+	hdr6 = ipv6_hdr(skb);
+	if (hdr6->nexthdr == NEXTHDR_FRAGMENT) {
+		frag_header = (struct frag_hdr *) (hdr6 + 1);
+		frag_header->frag_off = cpu_to_be16(frag_off << 3 | mf);
+	}
 
 	// init the fragment.
 	result = frag_create_ipv6(skb, &frag);
@@ -83,6 +91,16 @@ static bool create_pkt_ipv6(struct packet *pkt, int payload_len,
 		kfree_skb(skb);
 		return false;
 	}
+
+	return frag;
+}
+
+static bool create_pkt_ipv6(struct packet *pkt, int payload_len,
+		int (*skb_create_fn)(struct ipv6_pair *, struct sk_buff **, u16))
+{
+	struct fragment *frag = create_fragment_ipv6(payload_len, skb_create_fn, IP_DF, 0, 0);
+	if (!frag)
+		return false;
 
 	// init the packet.
 	INIT_LIST_HEAD(&pkt->fragments);
@@ -289,7 +307,7 @@ static bool validate_pkt_ipv4_icmp(struct packet *pkt, struct tuple *tuple, int 
 	return true;
 }
 
-static bool validate_pkt_multiple(struct packet *pkt, struct tuple *tuple)
+static bool validate_pkt_multiple_4to6(struct packet *pkt, struct tuple *tuple)
 {
 	struct fragment *frag;
 	int payload_len;
@@ -365,12 +383,67 @@ static bool validate_pkt_multiple(struct packet *pkt, struct tuple *tuple)
 
 
 
+static bool validate_pkt_multiple_6to4(struct packet *pkt, struct tuple *tuple)
+{
+	struct fragment *frag;
+	int payload_len;
+	u16 offset;
+
+	if (!validate_fragment_count(pkt, 2))
+		return false;
+
+	log_debug("Validating the first fragment...");
+	frag = container_of(pkt->fragments.next, struct fragment, next);
+	offset = 0;
+	payload_len = 2000;
+
+	if (!validate_frag_ipv4(frag))
+		return false;
+	if (!validate_frag_tcp(frag))
+		return false;
+	if (!validate_frag_payload(frag, payload_len))
+		return false;
+
+	log_debug("Validating the first skb...");
+	if (!validate_ipv4_hdr(frag_get_ipv4_hdr(frag), sizeof(struct iphdr) + sizeof(struct tcphdr) + payload_len, IPPROTO_TCP, tuple))
+		return false;
+	if (!validate_tcp_hdr(frag_get_tcp_hdr(frag), sizeof(struct tcphdr), tuple))
+		return false;
+	if (!validate_payload(frag_get_payload(frag), payload_len, offset))
+		return false;
+
+	log_debug("Validating the second fragment...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	offset = sizeof(struct tcphdr) + 2000;
+	payload_len = 100;
+
+//log_info("Version final:");
+//frag_print(frag);
+
+	if (!validate_frag_ipv4(frag))
+		return false;
+	if (!validate_frag_empty_l4(frag))
+		return false;
+	if (!validate_frag_payload(frag, payload_len))
+		return false;
+
+	log_debug("Validating the second skb...");
+	if (!validate_ipv4_hdr(frag_get_ipv4_hdr(frag), sizeof(struct iphdr) + payload_len, IPPROTO_TCP, tuple))
+		return false;
+	if (!validate_payload(frag_get_payload(frag), payload_len, 0))
+		return false;
+
+	return true;
+}
+
+
+
 bool test_simple_4to6_udp(void)
 {
 	struct packet pkt_in, pkt_out;
 	struct tuple tuple;
 	enum verdict result;
-	struct fragment *frag;
+//	struct fragment *frag;
 
 	// Init
 	INIT_LIST_HEAD(&pkt_out.fragments);
@@ -380,8 +453,8 @@ bool test_simple_4to6_udp(void)
 	if (!create_pkt_ipv4(&pkt_in, PAYLOAD_LEN, create_skb_ipv4_udp))
 		return false;
 
-frag = container_of(pkt_in.fragments.next, struct fragment, next);
-log_debug("%d", frag_get_ipv4_hdr(frag)->frag_off);
+//frag = container_of(pkt_in.fragments.next, struct fragment, next);
+//log_debug("%d", frag_get_ipv4_hdr(frag)->frag_off);
 
 	// Call the function
 	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
@@ -612,7 +685,7 @@ bool test_multiple_4to6_udp(void)
 //log_debug("AJSDNFKJASNDKJANDSJKASNDKJ: %d", frag->payload.len);
 
 	// Validate
-	if (!validate_pkt_multiple(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_4to6(&pkt_out, &tuple))
 		goto fail;
 
 	// Yaaaaaaaaay
@@ -626,59 +699,64 @@ fail:
 	return false;
 }
 
-//bool test_multiple_6to4_tcp(void)
-//{
-//	struct packet pkt_in, pkt_out;
-//	struct tuple tuple;
-//	enum verdict result;
-//	struct fragment *frag;
-//	struct frag_hdr *frag_hdr;
-//
-//	// Init
-//	INIT_LIST_HEAD(&pkt_out.fragments);
-//
-//	if (!create_tuple_ipv4(&tuple, L4PROTO_TCP))
-//		return false;
-//
-//
-//
-//	INIT_LIST_HEAD(&pkt_in.fragments);
-//
-//	frag = create_fragment_ipv6(2000, create_skb_ipv6_tcp);
-//	if (!frag)
-//		goto fail;
-//	frag_hdr = frag_get_fragment_hdr(frag);
-//	frag_hdr->frag_off = cpu_to_be16(0 << 3 | IP6_MF);
-//	list_add(&frag->next, pkt_in.fragments.prev);
-//
-//	frag = create_fragment_ipv6(100, create_skb_ipv6_tcp);
-//	if (!frag)
-//		goto fail;
-//	frag_hdr = frag_get_fragment_hdr(frag);
-//	frag_hdr->frag_off = cpu_to_be16(2000 << 3 /*| IP6_MF*/);
-//	list_add(&frag->next, pkt_in.fragments.prev);
-//
-//
-//
-//	// Call the function
-//	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
-//	if (result != VER_CONTINUE)
-//		goto fail;
-//
-//	// Validate
-//	if (!validate_pkt_multiple_6to4(&pkt_out, &tuple))
-//		goto fail;
-//
-//	// Yaaaaaaaaay
-//	pkt_kfree(&pkt_in);
-//	pkt_kfree(&pkt_out);
-//	return true;
-//
-//fail:
-//	pkt_kfree(&pkt_in);
-//	pkt_kfree(&pkt_out);
-//	return false;
-//}
+/**
+ * TODO under development.
+ */
+bool test_multiple_6to4_tcp(void)
+{
+	struct packet pkt_in, pkt_out;
+	struct tuple tuple;
+	enum verdict result;
+	struct fragment *frag;
+
+	// Init
+	INIT_LIST_HEAD(&pkt_out.fragments);
+
+	if (!create_tuple_ipv4(&tuple, L4PROTO_TCP))
+		return false;
+
+
+
+	INIT_LIST_HEAD(&pkt_in.fragments);
+
+	frag = create_fragment_ipv6(2000, create_skb_ipv6_tcp, 0, IP_MF, 0);
+	if (!frag)
+		goto fail;
+	list_add(&frag->next, pkt_in.fragments.prev);
+
+	frag = create_fragment_ipv6(100, create_skb_ipv6_empty, 0, 0, 2008);
+	if (!frag)
+		goto fail;
+	list_add(&frag->next, pkt_in.fragments.prev);
+
+//log_info("Version inicial:");
+//frag_print(frag);
+
+//log_debug("payload[6] = %d", ((unsigned char *)frag->payload.ptr)[6]);
+//log_debug("PAYLOAD LENGTH: %d", frag->payload.len);
+
+	// Call the function
+	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	if (result != VER_CONTINUE)
+		goto fail;
+
+//frag = container_of(pkt_out.fragments.prev, struct fragment, next);
+//log_debug("AJSDNFKJASNDKJANDSJKASNDKJ: %d", frag->payload.len);
+
+	// Validate
+	if (!validate_pkt_multiple_6to4(&pkt_out, &tuple))
+		goto fail;
+
+	// Yaaaaaaaaay
+	pkt_kfree(&pkt_in);
+	pkt_kfree(&pkt_out);
+	return true;
+
+fail:
+	pkt_kfree(&pkt_in);
+	pkt_kfree(&pkt_out);
+	return false;
+}
 
 int init_module(void)
 {
@@ -695,13 +773,14 @@ int init_module(void)
 
 	translate_packet_init();
 
-//	CALL_TEST(test_simple_4to6_udp(), "Simple 4->6 UDP");
-//	CALL_TEST(test_simple_4to6_tcp(), "Simple 4->6 TCP");
+	CALL_TEST(test_simple_4to6_udp(), "Simple 4->6 UDP");
+	CALL_TEST(test_simple_4to6_tcp(), "Simple 4->6 TCP");
 	CALL_TEST(test_simple_4to6_icmp(), "Simple 4->6 ICMP");
-//	CALL_TEST(test_simple_6to4_udp(), "Simple 6->4 UDP");
-//	CALL_TEST(test_simple_6to4_tcp(), "Simple 6->4 TCP");
-//	CALL_TEST(test_simple_6to4_icmp(), "Simple 6->4 ICMP");
-//	CALL_TEST(test_multiple_4to6_udp(), "Multiple 4->6 UDP");
+	CALL_TEST(test_simple_6to4_udp(), "Simple 6->4 UDP");
+	CALL_TEST(test_simple_6to4_tcp(), "Simple 6->4 TCP");
+	CALL_TEST(test_simple_6to4_icmp(), "Simple 6->4 ICMP");
+	CALL_TEST(test_multiple_4to6_udp(), "Multiple 4->6 UDP");
+	CALL_TEST(test_multiple_6to4_tcp(), "Multiple 6->4 TCP");
 
 	translate_packet_destroy();
 

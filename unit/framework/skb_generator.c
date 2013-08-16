@@ -5,6 +5,7 @@
 #include <linux/ipv6.h>
 #include <linux/ip.h>
 #include <net/ip.h>
+#include <net/ipv6.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/icmp.h>
@@ -22,7 +23,7 @@ static int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->tot_len = cpu_to_be16(sizeof(*hdr) + payload_len);
 	hdr->id = cpu_to_be16(1234);
 	hdr->frag_off = cpu_to_be16(IP_DF | 0x0000);
-log_debug("SETEADO COMO %d", be16_to_cpu(hdr->frag_off));
+//log_debug("SETEADO COMO %d", be16_to_cpu(hdr->frag_off));
 	hdr->ttl = 32;
 	hdr->protocol = nexthdr;
 	hdr->saddr = pair4->remote.address.s_addr;
@@ -50,6 +51,25 @@ static int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->hop_limit = 32;
 	hdr->saddr = pair6->remote.address;
 	hdr->daddr = pair6->local.address;
+
+	return 0;
+}
+
+#define FRAG_HDR_LEN sizeof(struct frag_hdr)
+static int init_ipv6_and_frag_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
+{
+	struct ipv6hdr *hdr6 = l3_hdr;
+	struct frag_hdr *frag_hdr = (struct frag_hdr *) (hdr6 + 1);
+	int error;
+
+	error = init_ipv6_hdr(hdr6, FRAG_HDR_LEN + payload_len, NEXTHDR_FRAGMENT, arg);
+	if (error != 0)
+		return error;
+
+	frag_hdr->nexthdr = nexthdr;
+	frag_hdr->reserved = 0;
+	frag_hdr->frag_off = cpu_to_be16(0);
+	frag_hdr->identification = cpu_to_be32(1234);
 
 	return 0;
 }
@@ -352,4 +372,13 @@ int create_skb_ipv4_empty(struct ipv4_pair *pair4, struct sk_buff **result, u16 
 			init_payload_normal, payload_len,
 			empty_post,
 			result, pair4);
+}
+
+int create_skb_ipv6_empty(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
+{
+	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+			init_empty_hdr, IPPROTO_TCP, 0,
+			init_payload_normal, payload_len,
+			empty_post,
+			result, pair6);
 }

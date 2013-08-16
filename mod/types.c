@@ -5,6 +5,34 @@
 #include <net/ipv6.h>
 
 
+char *l3proto_to_string(enum l3_proto proto)
+{
+	switch (proto) {
+	case L3PROTO_IPV6:
+		return "IPv6";
+	case L3PROTO_IPV4:
+		return "IPv4";
+	}
+
+	return NULL;
+}
+
+char *l4proto_to_string(enum l4_proto proto)
+{
+	switch (proto) {
+	case L4PROTO_NONE:
+		return "None";
+	case L4PROTO_TCP:
+		return "TCP";
+	case L4PROTO_UDP:
+		return "UDP";
+	case L4PROTO_ICMP:
+		return "ICMP";
+	}
+
+	return NULL;
+}
+
 bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 {
 	if (expected == actual)

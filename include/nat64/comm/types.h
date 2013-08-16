@@ -121,6 +121,8 @@ enum l3_proto {
 #define L3_PROTO_COUNT 2
 };
 
+char *l3proto_to_string(enum l3_proto proto);
+
 enum l4_proto {
 	L4PROTO_NONE = 0,
 	L4PROTO_TCP = 1,
@@ -128,6 +130,8 @@ enum l4_proto {
 	L4PROTO_ICMP = 3,
 #define L4_PROTO_COUNT 4
 };
+
+char *l4proto_to_string(enum l4_proto proto);
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).

@@ -23,7 +23,7 @@ bool validate_frag_ipv6(struct fragment *frag, int len)
 	success &= assert_equals_int(L3PROTO_IPV6, frag->l3_hdr.proto, "L3-proto");
 	success &= assert_equals_int(len, frag->l3_hdr.len, "L3-len");
 	success &= assert_equals_ptr(skb_network_header(frag->skb), frag->l3_hdr.ptr, "L3-ptr");
-	success &= assert_equals_int(true, frag->l3_hdr.ptr_belongs_to_skb, "L3-ptr in skb");
+//	success &= assert_equals_int(true, frag->l3_hdr.ptr_needs_kfree, "L3-ptr in skb");
 
 	return success;
 }
@@ -35,7 +35,7 @@ bool validate_frag_ipv4(struct fragment *frag)
 	success &= assert_equals_int(L3PROTO_IPV4, frag->l3_hdr.proto, "L3-proto");
 	success &= assert_equals_int(sizeof(struct iphdr), frag->l3_hdr.len, "L3-len");
 	success &= assert_equals_ptr(skb_network_header(frag->skb), frag->l3_hdr.ptr, "L3-ptr");
-	success &= assert_equals_int(true, frag->l3_hdr.ptr_belongs_to_skb, "L3-ptr in skb");
+//	success &= assert_equals_int(true, frag->l3_hdr.ptr_needs_kfree, "L3-ptr in skb");
 
 	return success;
 }
@@ -47,7 +47,7 @@ bool validate_frag_udp(struct fragment *frag)
 	success &= assert_equals_int(L4PROTO_UDP, frag->l4_hdr.proto, "L4-proto");
 	success &= assert_equals_int(sizeof(struct udphdr), frag->l4_hdr.len, "L4-len");
 	success &= assert_equals_ptr(udp_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_equals_int(true, frag->l4_hdr.ptr_belongs_to_skb, "L4-ptr in skb");
+//	success &= assert_equals_int(true, frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
 
 	return success;
 }
@@ -59,7 +59,7 @@ bool validate_frag_tcp(struct fragment *frag)
 	success &= assert_equals_int(L4PROTO_TCP, frag->l4_hdr.proto, "L4-proto");
 	success &= assert_equals_int(sizeof(struct tcphdr), frag->l4_hdr.len, "L4-len");
 	success &= assert_equals_ptr(tcp_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_equals_int(true, frag->l4_hdr.ptr_belongs_to_skb, "L4-ptr in skb");
+//	success &= assert_equals_int(true, frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
 
 	return success;
 }
@@ -71,7 +71,7 @@ bool validate_frag_icmp6(struct fragment *frag)
 	success &= assert_equals_int(L4PROTO_ICMP, frag->l4_hdr.proto, "L4-proto");
 	success &= assert_equals_int(sizeof(struct icmp6hdr), frag->l4_hdr.len, "L4-len");
 	success &= assert_equals_ptr(icmp6_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_equals_int(true, frag->l4_hdr.ptr_belongs_to_skb, "L4-ptr in skb");
+//	success &= assert_equals_int(true, frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
 
 	return success;
 }
@@ -83,7 +83,7 @@ bool validate_frag_icmp4(struct fragment *frag)
 	success &= assert_equals_int(L4PROTO_ICMP, frag->l4_hdr.proto, "L4-proto");
 	success &= assert_equals_int(sizeof(struct icmphdr), frag->l4_hdr.len, "L4-len");
 	success &= assert_equals_ptr(icmp_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_equals_int(true, frag->l4_hdr.ptr_belongs_to_skb, "L4-ptr in skb");
+//	success &= assert_equals_int(true, frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
 
 	return success;
 }
@@ -98,7 +98,7 @@ bool validate_frag_payload(struct fragment *frag, u16 payload_len)
 	} else {
 		success &= assert_equals_ptr(skb_network_header(frag->skb) + frag->l3_hdr.len, frag->payload.ptr, "Payload-pointer");
 	}
-	success &= assert_equals_int(true, frag->payload.ptr_belongs_to_skb, "Payload-ptr in skb");
+//	success &= assert_equals_int(true, frag->payload.ptr_needs_kfree, "Payload-ptr in skb");
 
 	return success;
 }
