@@ -23,6 +23,39 @@
 #define icmp4_unused un.gateway
 
 
+struct translation_steps {
+	/**
+	 * The function that will translate the layer-3 header.
+	 * Its purpose if to set the variables from "out" which are prefixed by "l3_", based on the
+ 	 * packet described by "in".
+	 */
+	enum verdict (*l3_hdr_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
+	/**
+	 * The function that will translate the layer-4 header and the
+	 * payload. Layer 4 and payload are combined in a single function due to their strong
+	 * interdependence.
+	 * Its purpose is to set the variables from "out" which are prefixed by "l4_" or "payload",
+	 * based on the packet described by "in".
+	 */
+	enum verdict (*l4_hdr_and_payload_function)(struct tuple *, struct fragment *in, struct fragment *out);
+	/**
+	 * Post-processing involving the layer 3 header.
+	 * Currently, this function fixes the header's lengths and checksum, which cannot be done in
+	 * the functions above given that they generally require the packet to be assembled and ready.
+	 * Not all lengths and checksums have that requirement, but just to be consistent do it always
+	 * here, please.
+	 * Note, out.l3_hdr, out.l4_hdr and out.payload point to garbage given that the packet has
+	 * already been assembled. When you want to access the headers, use out.packet.
+	 */
+	enum verdict (*l3_post_function)(struct fragment *out);
+	/** Post-processing involving the layer 4 header. See l3_post_function. */
+	enum verdict (*l4_post_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
+};
+
+struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
+
+
+
 int translate_packet_init(void);
 void translate_packet_destroy(void);
 
@@ -48,12 +81,14 @@ bool translating_the_packet_4to6(struct tuple *tuple, struct packet *pkt_in,
 bool translating_the_packet_6to4(struct tuple *tuple, struct packet *pkt_in,
 		struct packet **pkt_out);
 
-/**
- * Interprets in.payload as an independent packet, translates its layer 3 header (using
- * "l3_hdr_function") and places the result in out.payload.
- */
-enum verdict translate_inner_packet(struct fragment *in_outer, struct fragment *out_outer,
-		enum verdict (*l3_function)(struct tuple *, struct fragment *, struct fragment *));
+
+enum verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
+		struct fragment *out_outer);
+enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
+		struct fragment *out_outer);
+enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
+		struct translation_steps *steps);
+
 
 __be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu);
 __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 tot_len_field);

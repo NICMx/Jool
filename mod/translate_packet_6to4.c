@@ -6,7 +6,6 @@
  * TODO read the erratas (6145 and 6146).
  */
 
-
 /*************************************************************************************************
  * -- Layer 3 --
  * (This is RFC 6145 sections 5.1 and 5.1.1. Translates IPv6 headers to IPv4.)
@@ -456,12 +455,14 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 
 	/* -- Then the payload. -- */
 	if (icmpv6_has_inner_packet(icmpv6_hdr->icmp6_type)) {
-		result = translate_inner_packet(in, out, create_ipv4_hdr);
+		result = translate_inner_packet_6to4(tuple, in, out);
 		if (result != VER_CONTINUE)
 			return result;
 	} else {
 		/* The payload won't change, so don't bother re-creating it. */
-		out->payload = in->payload;
+		out->payload.len = in->payload.len;
+		out->payload.ptr = in->payload.ptr;
+		out->payload.ptr_needs_kfree = false;
 	}
 
 	return VER_CONTINUE;
@@ -515,6 +516,107 @@ static enum verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, stru
 			datagram_len, IPPROTO_UDP, csum_partial(udp_header, datagram_len, 0));
 	if (udp_header->check == 0)
 		udp_header->check = 0xFFFF;
+
+	return VER_CONTINUE;
+}
+
+/*************************************************************************************************
+ * -- Inner packet --
+ *************************************************************************************************/
+
+/* TODO mover a types o algo así. */
+static enum l4_proto nexthdr_to_l4proto(u8 nexthdr)
+{
+	switch (nexthdr) {
+	case NEXTHDR_TCP:
+		return L4PROTO_TCP;
+	case NEXTHDR_UDP:
+		return L4PROTO_UDP;
+	case NEXTHDR_ICMP:
+		return L4PROTO_ICMP;
+	}
+
+	return -1;
+}
+
+static int l4_hdr_len(void *hdr, enum l3_proto l3proto, enum l4_proto l4proto)
+{
+	switch (l4proto) {
+	case L4PROTO_TCP:
+		return 4 * ((struct tcphdr *) hdr)->doff;
+
+	case L4PROTO_UDP:
+		return sizeof(struct udphdr);
+
+	case L4PROTO_ICMP:
+		switch (l3proto) {
+		case L3PROTO_IPV6:
+			return sizeof(struct icmp6hdr);
+		case L3PROTO_IPV4:
+			return sizeof(struct icmphdr);
+		}
+
+	case L4PROTO_NONE:
+		return 0;
+	}
+
+	return -1;
+}
+
+enum verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
+		struct fragment *out_outer)
+{
+	struct fragment in_inner;
+	struct fragment *out_inner;
+	struct ipv6hdr *hdr6;
+	struct hdr_iterator iterator;
+	enum verdict result;
+	enum hdr_iterator_result iterator_result;
+
+	log_debug("Translating the inner packet (6->4)...");
+
+	in_inner.skb = NULL;
+
+	in_inner.l3_hdr.proto = L3PROTO_IPV6;
+	in_inner.l3_hdr.ptr = in_outer->payload.ptr;
+	in_inner.l3_hdr.ptr_needs_kfree = false;
+	hdr6 = frag_get_ipv6_hdr(&in_inner);
+	hdr_iterator_init(&iterator, hdr6);
+	iterator_result = hdr_iterator_last(&iterator); /* TODO validar esto. */
+	in_inner.l3_hdr.len = iterator.data - (void *) hdr6;
+
+	in_inner.l4_hdr.proto = nexthdr_to_l4proto(iterator.hdr_type);
+	if (in_inner.l4_hdr.proto == -1)
+		return VER_DROP;
+	in_inner.l4_hdr.ptr = iterator.data;
+	in_inner.l4_hdr.ptr_needs_kfree = false;
+	in_inner.l4_hdr.len = l4_hdr_len(in_inner.l4_hdr.ptr, in_inner.l3_hdr.proto, in_inner.l4_hdr.proto);
+
+	if (in_inner.l4_hdr.proto == L4PROTO_ICMP) {
+		struct icmp6hdr *hdr_icmp = frag_get_icmp6_hdr(&in_inner);
+		if (icmpv6_has_inner_packet(hdr_icmp->icmp6_type))
+			return VER_DROP; /* packet inside packet inside packet. */
+	}
+
+	/* TODO mandar a llamar a la función de validación. */
+
+	in_inner.payload.ptr = in_inner.l4_hdr.ptr + in_inner.l4_hdr.len;
+	in_inner.payload.ptr_needs_kfree = false;
+	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
+
+	result = translate(tuple, &in_inner, &out_inner, &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto]);
+	if (result != VER_CONTINUE)
+		return result;
+
+	out_outer->payload.len = out_inner->skb->len;
+	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);
+	out_outer->payload.ptr_needs_kfree = true;
+	if (!out_outer->payload.ptr) {
+		frag_kfree(out_inner);
+		return VER_DROP;
+	}
+	memcpy(out_outer->payload.ptr, skb_network_header(out_inner->skb), out_outer->payload.len);
+	frag_kfree(out_inner);
 
 	return VER_CONTINUE;
 }

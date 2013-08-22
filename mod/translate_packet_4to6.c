@@ -19,15 +19,6 @@ __u16 is_dont_fragment_set(struct iphdr *hdr)
 }
 
 /**
- * Returns 1 if the More Fragments flag from the "header" header is set, 0 otherwise.
- */
-static inline __u16 is_more_fragments_set(struct iphdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_MF) >> 13;
-}
-
-/**
  * Returns "true" if "hdr" contains a source route option and the last address from it hasn't been
  * reached.
  *
@@ -420,12 +411,14 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 
 	/* -- Then the payload. -- */
 	if (icmp4_has_inner_packet(icmpv4_hdr->type)) {
-		result = translate_inner_packet(in, out, create_ipv6_hdr);
+		result = translate_inner_packet_4to6(tuple, in, out);
 		if (result != VER_CONTINUE)
 			return result;
 	} else {
 		/* The payload won't change, so don't bother re-creating it. */
-		out->payload = in->payload;
+		out->payload.len = in->payload.len;
+		out->payload.ptr = in->payload.ptr;
+		out->payload.ptr_needs_kfree = false;
 	}
 
 	return VER_CONTINUE;
@@ -489,6 +482,79 @@ static enum verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, stru
 	udp_header->check = 0;
 	udp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_UDP, csum_partial(udp_header, datagram_len, 0));
+
+	return VER_CONTINUE;
+}
+
+
+/*************************************************************************************************
+ * -- Inner packet --
+ *************************************************************************************************/
+
+static enum l4_proto protocol_to_l4proto(u8 protocol)
+{
+	switch (protocol) {
+	case IPPROTO_TCP:
+		return L4PROTO_TCP;
+	case IPPROTO_UDP:
+		return L4PROTO_UDP;
+	case IPPROTO_ICMP:
+		return L4PROTO_ICMP;
+	}
+
+	return -1;
+}
+
+enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
+		struct fragment *out_outer)
+{
+	struct fragment in_inner;
+	struct fragment *out_inner;
+	struct iphdr *hdr4;
+	enum verdict result;
+
+	log_debug("Translating the inner packet (4->6)...");
+
+	in_inner.skb = NULL;
+
+	in_inner.l3_hdr.proto = L3PROTO_IPV4;
+	in_inner.l3_hdr.ptr = in_outer->payload.ptr;
+	in_inner.l3_hdr.ptr_needs_kfree = false;
+	hdr4 = frag_get_ipv4_hdr(&in_inner);
+	in_inner.l3_hdr.len = 4 * hdr4->ihl;
+
+	in_inner.l4_hdr.proto = protocol_to_l4proto(hdr4->protocol);
+	if (in_inner.l4_hdr.proto == -1)
+		return VER_DROP;
+	in_inner.l4_hdr.ptr = in_inner.l3_hdr.ptr + in_inner.l3_hdr.len;
+	in_inner.l4_hdr.ptr_needs_kfree = false;
+	in_inner.l4_hdr.len = l4_hdr_len(in_inner.l4_hdr.ptr, in_inner.l3_hdr.proto, in_inner.l4_hdr.proto);
+
+	if (in_inner.l4_hdr.proto == L4PROTO_ICMP) {
+		struct icmphdr *hdr_icmp = frag_get_icmp4_hdr(&in_inner);
+		if (icmp4_has_inner_packet(hdr_icmp->type))
+			return VER_DROP; /* packet inside packet inside packet. */
+	}
+
+	/* TODO mandar a llamar a la función de validación. */
+
+	in_inner.payload.ptr = in_inner.l4_hdr.ptr + in_inner.l4_hdr.len;
+	in_inner.payload.ptr_needs_kfree = false;
+	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
+
+	result = translate(tuple, &in_inner, &out_inner, &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto]);
+	if (result != VER_CONTINUE)
+		return result;
+
+	out_outer->payload.len = out_inner->skb->len;
+	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);
+	out_outer->payload.ptr_needs_kfree = true;
+	if (!out_outer->payload.ptr) {
+		frag_kfree(out_inner);
+		return VER_DROP;
+	}
+	memcpy(out_outer->payload.ptr, skb_network_header(out_inner->skb), out_outer->payload.len);
+	frag_kfree(out_inner);
 
 	return VER_CONTINUE;
 }

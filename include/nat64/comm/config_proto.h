@@ -89,6 +89,10 @@ struct session_entry_us {
 	u_int8_t l4_proto;
 };
 
+struct packet_config {
+	unsigned int fragment_timeout;
+};
+
 /**
  * Configuration for the "Filtering and Updating" module.
  */

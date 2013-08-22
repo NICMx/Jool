@@ -1,6 +1,8 @@
 #include "nat64/mod/packet.h"
 #include "nat64/comm/types.h"
+#include "nat64/comm/config_proto.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
+#include "nat64/mod/packet_db.h"
 
 //#include <linux/list.h>
 #include <linux/ipv6.h>
@@ -20,6 +22,25 @@
 #define MIN_ICMP6_HDR_LEN sizeof(struct icmp6hdr)
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
+
+static struct packet_config config;
+static DEFINE_SPINLOCK(config_lock);
+
+
+/**
+ * Returns 1 if the More Fragments flag from the "header" header is set, 0 otherwise.
+ */
+__u16 is_more_fragments_set(struct iphdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return (frag_off & IP_MF) >> 13;
+}
+
+__u16 get_fragment_offset(struct iphdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return frag_off & 0x1FFF;
+}
 
 void frag_init(struct fragment *frag)
 {
@@ -300,6 +321,8 @@ void frag_kfree(struct fragment *frag)
 		kfree(frag->payload.ptr);
 
 	list_del(&frag->next);
+
+	kfree(frag);
 }
 
 static char *nexthdr_to_string(u8 nexthdr)
@@ -429,6 +452,50 @@ void frag_print(struct fragment *frag)
 	log_info("Payload - length:%u kfree:%d", frag->payload.len, frag->payload.ptr_needs_kfree);
 }
 
+unsigned int pkt_get_fragment_timeout(void)
+{
+	unsigned int result;
+
+	spin_lock_bh(&config_lock);
+	result = config.fragment_timeout;
+	spin_unlock_bh(&config_lock);
+
+	return result;
+}
+
+void pkt_init_ipv4(struct packet *pkt, struct fragment *frag)
+{
+	struct iphdr *hdr4 = frag_get_ipv4_hdr(frag);
+
+	INIT_LIST_HEAD(&pkt->fragments);
+	pkt->total_bytes = 0;
+	pkt->current_bytes = 0;
+	pkt->fragment_id = be16_to_cpu(hdr4->id);
+	pkt->dying_time = 0;
+	pkt->proto = frag->l4_hdr.proto;
+	pkt->addr.ipv4.src.s_addr = hdr4->saddr;
+	pkt->addr.ipv4.dst.s_addr = hdr4->daddr;
+	INIT_LIST_HEAD(&pkt->pkt_list_node);
+
+	pkt_add_frag_ipv4(pkt, frag);
+}
+
+void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
+{
+	struct iphdr *hdr4 = frag_get_ipv4_hdr(frag);
+
+	if (!is_more_fragments_set(hdr4))
+		pkt->total_bytes = get_fragment_offset(hdr4) + frag->l4_hdr.len + frag->payload.len;
+	pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
+	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
+}
+
+/* TODO si current_bytes > total_bytes, hay que MATAR A pkt INMEDIATAMENTE!!! */
+bool pkt_is_complete(struct packet *pkt)
+{
+	return (pkt->total_bytes != 0) && (pkt->total_bytes == pkt->current_bytes);
+}
+
 void pkt_kfree(struct packet *pkt)
 {
 	if (!pkt)
@@ -436,9 +503,23 @@ void pkt_kfree(struct packet *pkt)
 
 	while (!list_empty(&pkt->fragments)) {
 		/* pkt->fragment.next is the first element of the list. */
-		frag_kfree(list_entry(pkt->fragments.next, struct fragment, next));
+		struct fragment *frag = list_entry(pkt->fragments.next, struct fragment, next);
+		frag_kfree(frag);
 	}
 }
+
+
+
+
+
+/*
+ * -- Old --
+ */
+
+
+
+
+
 
 static enum verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)
 {

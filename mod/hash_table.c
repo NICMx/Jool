@@ -83,9 +83,9 @@ struct HTABLE_NAME {
 /** Every entry in the table; the key used to access the value and the value. */
 struct KEY_VALUE_PAIR {
 	/** Dictates where in the table the value is. */
-	KEY_TYPE *key;
+	KEY_TYPE key;
 	/** The value the user wants to store in the table. */
-	VALUE_TYPE *value;
+	VALUE_TYPE value;
 	/** Other key-values chained with this one (see: HTABLE_NAME.table). */
 	struct hlist_node nodes;
 };
@@ -117,7 +117,7 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_for_each(current_node, &table->table[hash_code]) {
 		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-		if (table->equals_function(key, current_pair->key))
+		if (table->equals_function(key, &current_pair->key))
 			return current_pair;
 	}
 
@@ -166,8 +166,8 @@ static int INIT(struct HTABLE_NAME *table,
 /**
  * Inserts "value" to the "table" table in the slot described by the "key" key.
  *
- * Important: The table stores pointers to (as opposed to "copies of") both key and value.
- * So please consider that neither must be released from memory after the call to this function.
+ * Important: The table stores copies of both key and value.
+ * If you kmalloc'd them, free them. And you might need to update pointers in certain situations.
  *
  * Also important: This function differs from HashMap.put() in that it doesn't validate whether the
  * value is already in the table before inserting.
@@ -175,16 +175,16 @@ static int INIT(struct HTABLE_NAME *table,
  * @param table the HTABLE_NAME instance you want to insert a value to.
  * @param key descriptor of the slot to place "value" in.
  * @param value element to store in the table.
- * @return success status. The value will not be inserted if a kmalloc fails.
+ * @return the generated copy of "value", so you don't have to GET() it.
  */
-static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
+static VALUE_TYPE *PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 {
 	struct KEY_VALUE_PAIR *key_value;
 	__u16 hash_code;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return -EINVAL;
+		return NULL;
 	}
 
 	/*
@@ -195,16 +195,16 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
-		return -ENOMEM;
+		return NULL;
 	}
-	key_value->key = key;
-	key_value->value = value;
+	key_value->key = *key;
+	key_value->value = *value;
 
 	/* Insert the key-value to the table. */
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
 
-	return 0;
+	return &key_value->value;
 }
 
 /**
@@ -220,30 +220,22 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 static VALUE_TYPE *GET(struct HTABLE_NAME *table, KEY_TYPE *key)
 {
 	struct KEY_VALUE_PAIR *key_value = GET_AUX(table, key);
-	return (key_value != NULL) ? key_value->value : NULL;
+	return (key_value != NULL) ? &key_value->value : NULL;
 }
 
 /**
  * Stops "key" from accesing its value in the "table" table.
- * Releases memory as well, depending on the release_* arguments.
  *
  * @param table the HTABLE_NAME instance you want to stop mapping "key" from.
  * @param key descriptor whose associated value will be removed from "table".
- * @param release_key send "true" if the key stored in the table should be released from memory.
- * @param release_value send "true" if the value stored in the table should be released from memory.
  */
-static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, bool release_value)
+static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key)
 {
 	struct KEY_VALUE_PAIR *key_value = GET_AUX(table, key);
 	if (key_value == NULL)
 		return false;
 
 	hlist_del(&key_value->nodes);
-
-	if (release_key)
-		kfree(key_value->key);
-	if (release_value)
-		kfree(key_value->value);
 	kfree(key_value);
 
 	return true;
@@ -254,13 +246,8 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, b
  * into oblivion!!!
  *
  * @param table the HTABLE_NAME instance you want to clear.
- * @param release_keys send "true" if the table's stored keys should be deallocated.
- * @param release_values send "true" if the table's stored keys should be deallocated.
- *
- * Note that even if you want to release the keys and the values, you still need to call this
- * function since you have no control over the key-value pairs.
  */
-static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_values)
+static void EMPTY(struct HTABLE_NAME *table)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
@@ -277,11 +264,6 @@ static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_val
 			current_pair = container_of(current_node, struct KEY_VALUE_PAIR, nodes);
 
 			hlist_del(current_node);
-
-			if (release_keys)
-				kfree(current_pair->key);
-			if (release_values)
-				kfree(current_pair->value);
 			kfree(current_pair);
 
 			/* log_debug("Deleted a node whose hash code was %u.", row); */
@@ -311,8 +293,7 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			log_debug("  hash:%u - key:%p - value:%p", row, &current_pair->key,
-					&current_pair->value);
+			log_debug("  hash:%u", row);
 		}
 	}
 
@@ -344,7 +325,7 @@ static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *)
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
 			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			error = func(current_pair->value, arg);
+			error = func(&current_pair->value, arg);
 			if (error)
 				return error;
 		}

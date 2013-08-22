@@ -32,7 +32,8 @@ enum verdict {
 	/** Packet is not meant for translation. Please hand it to the local host. */
 	VER_ACCEPT = NF_ACCEPT,
 	/** Packet is invalid and should be dropped. */
-	VER_DROP = NF_DROP
+	VER_DROP = NF_DROP,
+	VER_STOLEN = NF_STOLEN,
 };
 
 /**
@@ -51,6 +52,8 @@ enum verdict validate_skb_ipv4(struct sk_buff *skb);
  */
 enum verdict validate_skb_ipv6(struct sk_buff *skb);
 
+__u16 is_more_fragments_set(struct iphdr *hdr);
+__u16 get_fragment_offset(struct iphdr *hdr);
 
 struct fragment {
 	struct sk_buff *skb;
@@ -101,27 +104,33 @@ struct packet {
 	struct list_head fragments;
 
 	/** Si es cero, no sabemos todavía el tamaño total. */
-//	u16 total_bytes;
-//	u16 current_bytes;
-//	u32 fragment_id;
-//	unsigned int dying_time;
+	u16 total_bytes;
+	u16 current_bytes;
+	u32 fragment_id;
+	/* In milliseconds. */
+	unsigned int dying_time;
 
-//	// TODO recordatorio: No hemos seteado esto en el de salida.
-//	enum l4_proto proto;
-//	union {
-//		struct {
-//			struct in6_addr src, dst;
-//		} ipv6;
-//		struct {
-//			struct in_addr src, dst;
-//		} ipv4;
-//	} addr;
-//	u16 src_port, dst_port;
+	// TODO recordatorio: No hemos seteado esto en el de salida.
+	enum l4_proto proto;
+	union {
+		struct {
+			struct in6_addr src, dst;
+		} ipv6;
+		struct {
+			struct in_addr src, dst;
+		} ipv4;
+	} addr;
+
+	struct list_head pkt_list_node;
 };
 
-void pkt_add_skb(struct packet *pkt, struct sk_buff *skb);
+/* TODO renombrar esto. E implementar. */
+int pkt_init(void);
+unsigned int pkt_get_fragment_timeout(void);
+struct packet *pkt_from_skb(struct sk_buff *skb);
+void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag);
+void pkt_init_ipv4(struct packet *pkt, struct fragment *frag);
 bool pkt_is_complete(struct packet *pkt);
-
-void pkt_kfree(struct packet *);
+void pkt_kfree(struct packet *pkt);
 
 #endif /* _NF_NAT64_PACKET_H */
