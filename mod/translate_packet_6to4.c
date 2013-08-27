@@ -49,19 +49,6 @@ static __be16 generate_df_flag(struct ipv6hdr *ip6_header)
 }
 
 /**
- * One-liner for creating the IPv4 header's Fragment Offset field.
- */
-static __be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragments,
-		__u16 fragment_offset)
-{
-	__u16 result = (dont_fragment << 14)
-			| (more_fragments << 13)
-			| (fragment_offset << 0);
-
-	return cpu_to_be16(result);
-}
-
-/**
  * One-liner for creating the IPv4 header's Protocol field.
  */
 static __u8 build_protocol_field(struct ipv6hdr *ip6_header)

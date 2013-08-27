@@ -417,9 +417,6 @@ static bool validate_pkt_multiple_6to4(struct packet *pkt, struct tuple *tuple)
 	offset = sizeof(struct tcphdr) + 2000;
 	payload_len = 100;
 
-//log_info("Version final:");
-//frag_print(frag);
-
 	if (!validate_frag_ipv4(frag))
 		return false;
 	if (!validate_frag_empty_l4(frag))
@@ -443,7 +440,6 @@ bool test_simple_4to6_udp(void)
 	struct packet pkt_in, pkt_out;
 	struct tuple tuple;
 	enum verdict result;
-//	struct fragment *frag;
 
 	// Init
 	INIT_LIST_HEAD(&pkt_out.fragments);
@@ -452,9 +448,6 @@ bool test_simple_4to6_udp(void)
 		return false;
 	if (!create_pkt_ipv4(&pkt_in, PAYLOAD_LEN, create_skb_ipv4_udp))
 		return false;
-
-//frag = container_of(pkt_in.fragments.next, struct fragment, next);
-//log_debug("%d", frag_get_ipv4_hdr(frag)->frag_off);
 
 	// Call the function
 	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
@@ -673,16 +666,10 @@ bool test_multiple_4to6_udp(void)
 		goto fail;
 	list_add(&frag->next, pkt_in.fragments.prev);
 
-//log_debug("payload[6] = %d", ((unsigned char *)frag->payload.ptr)[6]);
-//log_debug("PAYLOAD LENGTH: %d", frag->payload.len);
-
 	// Call the function
 	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
-
-//frag = container_of(pkt_out.fragments.prev, struct fragment, next);
-//log_debug("AJSDNFKJASNDKJANDSJKASNDKJ: %d", frag->payload.len);
 
 	// Validate
 	if (!validate_pkt_multiple_4to6(&pkt_out, &tuple))
@@ -699,9 +686,6 @@ fail:
 	return false;
 }
 
-/**
- * TODO under development.
- */
 bool test_multiple_6to4_tcp(void)
 {
 	struct packet pkt_in, pkt_out;
@@ -729,19 +713,10 @@ bool test_multiple_6to4_tcp(void)
 		goto fail;
 	list_add(&frag->next, pkt_in.fragments.prev);
 
-//log_info("Version inicial:");
-//frag_print(frag);
-
-//log_debug("payload[6] = %d", ((unsigned char *)frag->payload.ptr)[6]);
-//log_debug("PAYLOAD LENGTH: %d", frag->payload.len);
-
 	// Call the function
 	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
-
-//frag = container_of(pkt_out.fragments.prev, struct fragment, next);
-//log_debug("AJSDNFKJASNDKJANDSJKASNDKJ: %d", frag->payload.len);
 
 	// Validate
 	if (!validate_pkt_multiple_6to4(&pkt_out, &tuple))

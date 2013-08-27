@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
@@ -52,8 +53,18 @@ enum verdict validate_skb_ipv4(struct sk_buff *skb);
  */
 enum verdict validate_skb_ipv6(struct sk_buff *skb);
 
-__u16 is_more_fragments_set(struct iphdr *hdr);
-__u16 get_fragment_offset(struct iphdr *hdr);
+
+int pkt_init(void);
+void pkt_destroy(void);
+
+
+__u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr);
+__u16 is_more_fragments_set_ipv4(struct iphdr *hdr);
+__u16 get_fragment_offset_ipv6(struct frag_hdr *hdr);
+__u16 get_fragment_offset_ipv4(struct iphdr *hdr);
+__be16 build_ipv6_frag_off_field(__u16 more_fragments, __u16 fragment_offset);
+__be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragments, __u16 fragment_offset);
+
 
 struct fragment {
 	struct sk_buff *skb;
@@ -124,12 +135,11 @@ struct packet {
 	struct list_head pkt_list_node;
 };
 
-/* TODO renombrar esto. E implementar. */
-int pkt_init(void);
 unsigned int pkt_get_fragment_timeout(void);
-struct packet *pkt_from_skb(struct sk_buff *skb);
+void pkt_add_frag_ipv6(struct packet *pkt, struct fragment *frag);
 void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag);
-void pkt_init_ipv4(struct packet *pkt, struct fragment *frag);
+struct packet *pkt_create_ipv6(struct fragment *frag);
+struct packet *pkt_create_ipv4(struct fragment *frag);
 bool pkt_is_complete(struct packet *pkt);
 void pkt_kfree(struct packet *pkt);
 

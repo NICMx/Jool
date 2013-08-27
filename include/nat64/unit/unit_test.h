@@ -11,7 +11,11 @@ bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name);
 bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name);
 bool assert_equals_ptr(void *expected, void *actual, char *test_name);
 bool assert_equals_ipv4(struct in_addr *expected, struct in_addr *actual, char *test_name);
+bool assert_equals_ipv4_str(unsigned char *expected_str, struct in_addr *actual, char *test_name);
 bool assert_equals_ipv6(struct in6_addr *expected, struct in6_addr *actual, char *test_name);
+bool assert_equals_ipv6_str(unsigned char *expected_str, struct in6_addr *actual, char *test_name);
+bool assert_range(unsigned int expected_min, unsigned int expected_max, unsigned int actual,
+		char *test_name);
 bool assert_null(void *actual, char *test_name);
 
 bool assert_false(bool condition, char *test_name);

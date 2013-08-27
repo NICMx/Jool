@@ -109,7 +109,7 @@ static bool pktdb_remove(struct packet *pkt)
 		return false;
 
 	list_del(&pkt->pkt_list_node);
-	return pktdb_table_remove(&table, &key);
+	return pktdb_table_remove(&table, &key, false);
 }
 
 
@@ -133,11 +133,8 @@ static unsigned int clean_expired_fragments(void)
 			return pkt->dying_time - current_time;
 		}
 
+		pktdb_remove(pkt);
 		pkt_kfree(pkt);
-		if (!pktdb_remove(pkt)) {
-			log_crit(ERR_UNKNOWN_ERROR, "A fragment was in the list but not in the table.");
-			continue;
-		}
 
 		f++;
 	}
@@ -190,7 +187,6 @@ static int pktdb_put(struct packet *pkt)
 {
 	struct fragment *frag;
 	struct pktdb_key key;
-	struct packet *inserted_pkt;
 	int error;
 
 	frag = container_of(pkt->fragments.next, struct fragment, next);
@@ -198,11 +194,11 @@ static int pktdb_put(struct packet *pkt)
 	if (error)
 		return error;
 
-	inserted_pkt = pktdb_table_put(&table, &key, pkt);
-	if (!inserted_pkt)
-		return -ENOMEM;
+	error = pktdb_table_put(&table, &key, pkt);
+	if (error)
+		return error;
 
-	list_add(&inserted_pkt->pkt_list_node, list.prev);
+	list_add(&pkt->pkt_list_node, list.prev);
 	return 0;
 }
 
@@ -210,13 +206,15 @@ static int pktdb_put(struct packet *pkt)
  * pkt should point to allocated memory (heap vs stack doesn't matter). It should not be initialized
  * (that's the job of this function).
  */
-enum verdict pkt_from_skb_4to6(struct sk_buff *skb, struct packet *pkt)
+enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 {
 	struct packet *pkt_from_db;
 	struct fragment *frag;
 	enum verdict result;
 
-	result = frag_create_ipv4(skb, &frag);
+	result = (skb->protocol == IPPROTO_IPV6)
+			? frag_create_ipv6(skb, &frag)
+			: frag_create_ipv4(skb, &frag);
 	if (result != VER_CONTINUE)
 		return result;
 
@@ -224,31 +222,37 @@ enum verdict pkt_from_skb_4to6(struct sk_buff *skb, struct packet *pkt)
 
 	pkt_from_db = pktdb_get(frag);
 	if (pkt_from_db) {
-		pkt_add_frag_ipv4(pkt_from_db, frag);
+		if (skb->protocol == IPPROTO_IPV6)
+			pkt_add_frag_ipv6(pkt_from_db, frag);
+		else
+			pkt_add_frag_ipv4(pkt_from_db, frag);
+
 		list_del(&pkt_from_db->pkt_list_node);
 		list_add(&pkt_from_db->pkt_list_node, list.prev);
 
 		if (pkt_is_complete(pkt_from_db)) {
 			/* We're done collecting fragments. */
-			*pkt = *pkt_from_db;
-			INIT_LIST_HEAD(&pkt->pkt_list_node);
-
 			pktdb_remove(pkt_from_db);
+			INIT_LIST_HEAD(&pkt_from_db->pkt_list_node);
+			*pkt = pkt_from_db;
 			result = VER_CONTINUE;
+
 		} else {
 			/* Keep waiting for fragments. */
 			result = VER_STOLEN;
 		}
 
 	} else {
-		pkt_init_ipv4(pkt, frag);
+		*pkt = (skb->protocol == IPPROTO_IPV6)
+				? pkt_create_ipv6(frag)
+				: pkt_create_ipv4(frag);
 
-		if (pkt_is_complete(pkt))
+		if (pkt_is_complete(*pkt))
 			/* No fragmentation; no need to reassemble. pkt is already set so just state success. */
 			result = VER_CONTINUE;
 		else
 			/* skb is the first fragment we got. Store it and wait till the other ones arrive. */
-			result = (pktdb_put(pkt) == 0) ? VER_STOLEN : VER_DROP;
+			result = (pktdb_put(*pkt) == 0) ? VER_STOLEN : VER_DROP;
 	}
 
 	spin_unlock_bh(&db_lock);
@@ -257,7 +261,7 @@ enum verdict pkt_from_skb_4to6(struct sk_buff *skb, struct packet *pkt)
 
 void pktdb_destroy(void)
 {
-	pktdb_table_empty(&table);
+	pktdb_table_empty(&table, true);
 
 	spin_lock_bh(&expire_timer_lock);
 	if (expire_timer_active) {

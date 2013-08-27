@@ -1,4 +1,5 @@
 #include "nat64/mod/packet.h"
+#include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
@@ -27,20 +28,65 @@ static struct packet_config config;
 static DEFINE_SPINLOCK(config_lock);
 
 
+int pkt_init(void)
+{
+	config.fragment_timeout = FRAGMENT_MIN;
+	return 0;
+}
+
+void pkt_destroy(void)
+{
+	/* No code. */
+}
+
+__u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return (frag_off & 0x1);
+}
+
 /**
  * Returns 1 if the More Fragments flag from the "header" header is set, 0 otherwise.
  */
-__u16 is_more_fragments_set(struct iphdr *hdr)
+__u16 is_more_fragments_set_ipv4(struct iphdr *hdr)
 {
 	__u16 frag_off = be16_to_cpu(hdr->frag_off);
 	return (frag_off & IP_MF) >> 13;
 }
 
-__u16 get_fragment_offset(struct iphdr *hdr)
+__u16 get_fragment_offset_ipv6(struct frag_hdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return frag_off >> 3;
+}
+
+__u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 {
 	__u16 frag_off = be16_to_cpu(hdr->frag_off);
 	return frag_off & 0x1FFF;
 }
+
+__be16 build_ipv6_frag_off_field(__u16 fragment_offset, __u16 more_fragments)
+{
+	__u16 result = (fragment_offset << 3)
+			| (more_fragments << 0);
+
+	return cpu_to_be16(result);
+}
+
+/**
+ * One-liner for creating the IPv4 header's Fragment Offset field.
+ * TODO shouldn't those be booleans?
+ */
+__be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragments, __u16 fragment_offset)
+{
+	__u16 result = (dont_fragment << 14)
+			| (more_fragments << 13)
+			| (fragment_offset << 0);
+
+	return cpu_to_be16(result);
+}
+
 
 void frag_init(struct fragment *frag)
 {
@@ -167,6 +213,8 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 		log_warning("Cannot allocate a fragment structure.");
 		return VER_DROP;
 	}
+
+	frag->skb = skb;
 
 	// Layer 3
 	ipv4_header = ip_hdr(skb);
@@ -463,29 +511,79 @@ unsigned int pkt_get_fragment_timeout(void)
 	return result;
 }
 
-void pkt_init_ipv4(struct packet *pkt, struct fragment *frag)
+struct packet *pkt_create_ipv6(struct fragment *frag)
 {
+	struct packet *pkt;
+	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(frag);
+	struct frag_hdr *hdr_frag = frag_get_fragment_hdr(frag);
+
+	pkt = kmalloc(sizeof(*pkt), GFP_ATOMIC);
+	if (!pkt) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate a packet.");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&pkt->fragments);
+	pkt->total_bytes = 0;
+	pkt->current_bytes = 0;
+	pkt->fragment_id = be32_to_cpu(hdr_frag->identification);
+	pkt->dying_time = 0;
+	pkt->proto = frag->l3_hdr.proto;
+	pkt->addr.ipv6.src = hdr6->saddr;
+	pkt->addr.ipv6.dst = hdr6->daddr;
+	INIT_LIST_HEAD(&pkt->pkt_list_node);
+
+	pkt_add_frag_ipv6(pkt, frag);
+
+	return pkt;
+}
+
+struct packet *pkt_create_ipv4(struct fragment *frag)
+{
+	struct packet *pkt;
 	struct iphdr *hdr4 = frag_get_ipv4_hdr(frag);
+
+	pkt = kmalloc(sizeof(*pkt), GFP_ATOMIC);
+	if (!pkt) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate a packet.");
+		return NULL;
+	}
 
 	INIT_LIST_HEAD(&pkt->fragments);
 	pkt->total_bytes = 0;
 	pkt->current_bytes = 0;
 	pkt->fragment_id = be16_to_cpu(hdr4->id);
 	pkt->dying_time = 0;
-	pkt->proto = frag->l4_hdr.proto;
+	pkt->proto = frag->l3_hdr.proto;
 	pkt->addr.ipv4.src.s_addr = hdr4->saddr;
 	pkt->addr.ipv4.dst.s_addr = hdr4->daddr;
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv4(pkt, frag);
+
+	return pkt;
+}
+
+void pkt_add_frag_ipv6(struct packet *pkt, struct fragment *frag)
+{
+	struct frag_hdr *hdr_frag = frag_get_fragment_hdr(frag);
+
+	list_add(&frag->next, pkt->fragments.prev);
+
+	if (!is_more_fragments_set_ipv6(hdr_frag))
+		pkt->total_bytes = get_fragment_offset_ipv6(hdr_frag) + frag->l4_hdr.len + frag->payload.len;
+	pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
+	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
 }
 
 void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
 {
 	struct iphdr *hdr4 = frag_get_ipv4_hdr(frag);
 
-	if (!is_more_fragments_set(hdr4))
-		pkt->total_bytes = get_fragment_offset(hdr4) + frag->l4_hdr.len + frag->payload.len;
+	list_add(&frag->next, pkt->fragments.prev);
+
+	if (!is_more_fragments_set_ipv4(hdr4))
+		pkt->total_bytes = get_fragment_offset_ipv4(hdr4) + frag->l4_hdr.len + frag->payload.len;
 	pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
 	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
 }
@@ -506,6 +604,8 @@ void pkt_kfree(struct packet *pkt)
 		struct fragment *frag = list_entry(pkt->fragments.next, struct fragment, next);
 		frag_kfree(frag);
 	}
+
+	kfree(pkt);
 }
 
 

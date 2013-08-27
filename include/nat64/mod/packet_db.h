@@ -6,7 +6,7 @@
 
 /* TODO llama al init y al destroy. */
 int pktdb_init(void);
-enum verdict pkt_from_skb_4to6(struct sk_buff *skb, struct packet *pkt);
+enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt);
 void pktdb_destroy(void);
 
 

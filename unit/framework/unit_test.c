@@ -1,5 +1,6 @@
-#include <linux/kernel.h>
 #include "nat64/unit/unit_test.h"
+#include <linux/kernel.h>
+#include "nat64/comm/str_utils.h"
 
 
 #define UNIT_WARNING(test_name, expected, actual, specifier) \
@@ -69,12 +70,47 @@ bool assert_equals_ipv4(struct in_addr *expected, struct in_addr *actual, char *
 	return true;
 }
 
+bool assert_equals_ipv4_str(unsigned char *expected_str, struct in_addr *actual, char *test_name)
+{
+	struct in_addr expected;
+
+	if (str_to_addr4(expected_str, &expected) != 0) {
+		log_warning("Could not parse '%s' as a valid IPv4 address.", expected_str);
+		return false;
+	}
+
+	return assert_equals_ipv4(&expected, actual, test_name);
+}
+
 bool assert_equals_ipv6(struct in6_addr *expected, struct in6_addr *actual, char *test_name)
 {
 	if (!ipv6_addr_equals(expected, actual)) {
 		UNIT_WARNING(test_name, expected, actual, "%pI6c");
 		return false;
 	}
+	return true;
+}
+
+bool assert_equals_ipv6_str(unsigned char *expected_str, struct in6_addr *actual, char *test_name)
+{
+	struct in6_addr expected;
+
+	if (str_to_addr6(expected_str, &expected) != 0) {
+		log_warning("Could not parse '%s' as a valid IPv6 address.", expected_str);
+		return false;
+	}
+
+	return assert_equals_ipv6(&expected, actual, test_name);
+}
+
+bool assert_range(unsigned int expected_min, unsigned int expected_max, unsigned int actual,
+		char *test_name)
+{
+	if (actual < expected_min || expected_max < actual) {
+		UNIT_WARNING(test_name, (expected_min + expected_max) / 2, actual, "%d");
+		return false;
+	}
+
 	return true;
 }
 
