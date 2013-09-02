@@ -30,7 +30,7 @@
  * If you want to place more kernel modules on netfilter's postrouting hook, you probably need to
  * set more.
  *
- * Please note that this function inherits from ip_local_out() the idiotic side effect of freeing
+ * Please note that this function inherits from ip_local_out() the annoying side effect of freeing
  * "skb", EVEN IF IT COULD NOT BE SENT.
  */
 bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out);
@@ -47,7 +47,7 @@ bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out);
  * If you want to place more kernel modules on netfilter's postrouting hook, you probably need to
  * set more.
  *
- * Please note that this function inherits from ip6_local_out() the idiotic side effect of freeing
+ * Please note that this function inherits from ip6_local_out() the annoying side effect of freeing
  * "skb", EVEN IF IT COULD NOT BE SENT.
  */
 bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out);

@@ -103,6 +103,15 @@ bool assert_equals_ipv6_str(unsigned char *expected_str, struct in6_addr *actual
 	return assert_equals_ipv6(&expected, actual, test_name);
 }
 
+bool assert_equals_csum(__sum16 expected, __sum16 actual, char *test_name)
+{
+	if (expected != actual) {
+		UNIT_WARNING(test_name, expected, actual, "%x");
+		return false;
+	}
+	return true;
+}
+
 bool assert_range(unsigned int expected_min, unsigned int expected_max, unsigned int actual,
 		char *test_name)
 {

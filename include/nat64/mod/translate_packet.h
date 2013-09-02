@@ -52,8 +52,6 @@ struct translation_steps {
 	enum verdict (*l4_post_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
 };
 
-struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
-
 
 
 int translate_packet_init(void);
@@ -62,24 +60,7 @@ void translate_packet_destroy(void);
 int clone_translate_config(struct translate_config *clone);
 int set_translate_config(__u32 operation, struct translate_config *new_config);
 
-/**
- * Assumes "skb_in" is a IPv4 packet, and stores a IPv6 equivalent in "skb_out".
- *
- * @param tuple translated addresses from "skb_in".
- * @param skb_in the incoming packet.
- * @param skb_out out parameter, where the outgoing packet will be placed.
- */
-bool translating_the_packet_4to6(struct tuple *tuple, struct packet *pkt_in,
-		struct packet **pkt_out);
-/**
- * Assumes "skb_in" is a IPv6 packet, and stores a IPv4 equivalent in "skb_out".
- *
- * @param tuple translated addresses from "skb_in".
- * @param skb_in the incoming packet.
- * @param skb_out out parameter, where the outgoing packet will be placed.
- */
-bool translating_the_packet_6to4(struct tuple *tuple, struct packet *pkt_in,
-		struct packet **pkt_out);
+enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out);
 
 
 enum verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,

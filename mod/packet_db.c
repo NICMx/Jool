@@ -227,9 +227,6 @@ enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 		else
 			pkt_add_frag_ipv4(pkt_from_db, frag);
 
-		list_del(&pkt_from_db->pkt_list_node);
-		list_add(&pkt_from_db->pkt_list_node, list.prev);
-
 		if (pkt_is_complete(pkt_from_db)) {
 			/* We're done collecting fragments. */
 			pktdb_remove(pkt_from_db);

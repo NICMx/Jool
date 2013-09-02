@@ -12,7 +12,7 @@
 
 
 #define IPV4_HDR_LEN sizeof(struct iphdr)
-static int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
+int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 {
 	struct iphdr *hdr = l3_hdr;
 	struct ipv4_pair *pair4 = arg;
@@ -23,7 +23,6 @@ static int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->tot_len = cpu_to_be16(sizeof(*hdr) + payload_len);
 	hdr->id = cpu_to_be16(1234);
 	hdr->frag_off = cpu_to_be16(IP_DF | 0x0000);
-//log_debug("SETEADO COMO %d", be16_to_cpu(hdr->frag_off));
 	hdr->ttl = 32;
 	hdr->protocol = nexthdr;
 	hdr->saddr = pair4->remote.address.s_addr;
@@ -36,7 +35,7 @@ static int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 }
 
 #define IPV6_HDR_LEN sizeof(struct ipv6hdr)
-static int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
+int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 {
 	struct ipv6hdr *hdr = l3_hdr;
 	struct ipv6_pair *pair6 = arg;
@@ -104,7 +103,7 @@ static int init_udp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *a
 }
 
 #define TCP_HDR_LEN sizeof(struct tcphdr)
-static int init_tcp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg)
+int init_tcp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg)
 {
 	struct tcphdr *hdr = l4_hdr;
 	struct ipv6_pair *pair6;
@@ -180,21 +179,30 @@ static int init_empty_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void 
 	return 0;
 }
 
-static int init_payload_normal(void *target, u16 payload_len)
+int init_payload_normal(void *target, u16 payload_len)
 {
 	unsigned char *payload = target;
 	u16 i;
 
-	for (i = 0; i < payload_len; i++) {
+	for (i = 0; i < payload_len; i++)
 		payload[i] = i;
-//log_debug("init payload normal: %u %u", payload[i], i);
-	}
 
 	return 0;
 }
 
 static int empty_post(void *l4_hdr, u16 datagram_len, void *arg)
 {
+	return 0;
+}
+
+int ipv4_tcp_post(void *l4_hdr, u16 datagram_len, void *arg)
+{
+	struct tcphdr *hdr = l4_hdr;
+	struct ipv4_pair *pair4 = arg;
+
+	hdr->check = csum_tcpudp_magic(pair4->remote.address.s_addr, pair4->local.address.s_addr,
+			datagram_len, IPPROTO_TCP, csum_partial(l4_hdr, datagram_len, 0));
+
 	return 0;
 }
 
@@ -209,21 +217,21 @@ static int ipv4_udp_post(void *l4_hdr, u16 datagram_len, void *arg)
 	return 0;
 }
 
-static int ipv4_tcp_post(void *l4_hdr, u16 datagram_len, void *arg)
-{
-	struct tcphdr *hdr = l4_hdr;
-	struct ipv4_pair *pair4 = arg;
-
-	hdr->check = csum_tcpudp_magic(pair4->remote.address.s_addr, pair4->local.address.s_addr,
-			datagram_len, IPPROTO_TCP, csum_partial(l4_hdr, datagram_len, 0));
-
-	return 0;
-}
-
 static int ipv4_icmp_post(void *l4_hdr, u16 datagram_len, void *arg)
 {
 	struct icmphdr *hdr = l4_hdr;
 	hdr->checksum = ip_compute_csum(hdr, datagram_len);
+	return 0;
+}
+
+int ipv6_tcp_post(void *l4_hdr, u16 datagram_len, void *arg)
+{
+	struct tcphdr *hdr = l4_hdr;
+	struct ipv6_pair *pair6 = arg;
+
+	hdr->check = csum_ipv6_magic(&pair6->remote.address, &pair6->local.address, datagram_len,
+			IPPROTO_TCP, csum_partial(l4_hdr, datagram_len, 0));
+
 	return 0;
 }
 
@@ -234,17 +242,6 @@ static int ipv6_udp_post(void *l4_hdr, u16 datagram_len, void *arg)
 
 	hdr->check = csum_ipv6_magic(&pair6->remote.address, &pair6->local.address, datagram_len,
 			IPPROTO_UDP, csum_partial(l4_hdr, datagram_len, 0));
-
-	return 0;
-}
-
-static int ipv6_tcp_post(void *l4_hdr, u16 datagram_len, void *arg)
-{
-	struct tcphdr *hdr = l4_hdr;
-	struct ipv6_pair *pair6 = arg;
-
-	hdr->check = csum_ipv6_magic(&pair6->remote.address, &pair6->local.address, datagram_len,
-			IPPROTO_TCP, csum_partial(l4_hdr, datagram_len, 0));
 
 	return 0;
 }

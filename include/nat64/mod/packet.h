@@ -141,6 +141,6 @@ void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag);
 struct packet *pkt_create_ipv6(struct fragment *frag);
 struct packet *pkt_create_ipv4(struct fragment *frag);
 bool pkt_is_complete(struct packet *pkt);
-void pkt_kfree(struct packet *pkt);
+void pkt_kfree(struct packet *pkt, bool free_pkt);
 
 #endif /* _NF_NAT64_PACKET_H */

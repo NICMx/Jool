@@ -62,18 +62,6 @@ static bool has_unexpired_src_route(struct iphdr *hdr)
 }
 
 /**
- * One-liner for creating the { Fragment Offset, Res, M } field of the IPv6 Fragment header.
- */
-static inline __be16 build_ipv6_frag_off_field(struct iphdr *ip4_hdr)
-{
-	__u16 fragment_offset = be16_to_cpu(ip4_hdr->frag_off) & IP_OFFSET;
-	__u16 res = 0;
-	__u16 m = is_more_fragments_set(ip4_hdr);
-
-	return cpu_to_be16((fragment_offset << 3) | (res << 1) | m);
-}
-
-/**
  * One-liner for creating the Identification field of the IPv6 Fragment header.
  */
 static inline __be32 build_id_field(struct iphdr *ip4_hdr)
@@ -156,7 +144,8 @@ static enum verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, st
 				? NEXTHDR_ICMP
 				: ip4_hdr->protocol;
 		frag_header->reserved = 0;
-		frag_header->frag_off = build_ipv6_frag_off_field(ip4_hdr);
+		frag_header->frag_off = build_ipv6_frag_off_field(get_fragment_offset_ipv4(ip4_hdr),
+				is_more_fragments_set_ipv4(ip4_hdr));
 		frag_header->identification = build_id_field(ip4_hdr);
 	}
 
@@ -433,20 +422,50 @@ static enum verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct 
 	struct icmp6hdr *icmpv6_hdr;
 	unsigned int datagram_len;
 
-//log_debug("aaa1");
 	ip6_hdr = frag_get_ipv6_hdr(out);
-//log_debug("aaa2");
 	icmpv6_hdr = frag_get_icmp6_hdr(out);
-//log_debug("aaa3");
 	datagram_len = out->l4_hdr.len + out->payload.len;
-//log_debug("aaa4");
 	icmpv6_hdr->icmp6_cksum = 0;
-//log_debug("aaa6");
 	icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
 			datagram_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, datagram_len, 0));
-//log_debug("aaa7");
 
 	return VER_CONTINUE;
+}
+
+static __sum16 update_csum_4to6(__sum16 csum16,
+		struct iphdr *in_ip4, __be16 in_src_port, __be16 in_dst_port,
+		struct ipv6hdr *out_ip6, __be16 out_src_port, __be16 out_dst_port)
+{
+	__wsum csum;
+	int i;
+	union {
+		__be32 as32;
+		__be16 as16[2];
+	} addr4;
+
+	csum = ~csum_unfold(csum16);
+
+	/* Remove the IPv4 crap */
+	addr4.as32 = in_ip4->saddr;
+	for (i = 0; i < 2; i++)
+		csum = csum_sub(csum, addr4.as16[i]);
+	addr4.as32 = in_ip4->daddr;
+	for (i = 0; i < 2; i++)
+		csum = csum_sub(csum, addr4.as16[i]);
+	csum = csum_sub(csum, in_src_port);
+	csum = csum_sub(csum, in_dst_port);
+	csum = csum_sub(csum, cpu_to_be16(in_ip4->protocol));
+
+	/* Add the Ipv6 crap */
+	for (i = 0; i < 8; i++)
+		csum = csum_add(csum, out_ip6->saddr.s6_addr16[i]);
+	for (i = 0; i < 8; i++)
+		csum = csum_add(csum, out_ip6->daddr.s6_addr16[i]);
+	csum = csum_add(csum, out_src_port);
+	csum = csum_add(csum, out_dst_port);
+	csum = csum_add(csum, cpu_to_be16(out_ip6->nexthdr));
+
+	return csum_fold(csum);
 }
 
 /**
@@ -454,15 +473,16 @@ static enum verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct 
  */
 static enum verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
-	struct tcphdr *tcp_header = frag_get_tcp_hdr(out);
-	__u16 datagram_len = out->l4_hdr.len + out->payload.len;
+	struct iphdr *in_ip4 = frag_get_ipv4_hdr(in);
+	struct tcphdr *in_tcp = frag_get_tcp_hdr(in);
+	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(out);
+	struct tcphdr *out_tcp = frag_get_tcp_hdr(out);
 
-	tcp_header->source = cpu_to_be16(tuple->src.l4_id);
-	tcp_header->dest = cpu_to_be16(tuple->dst.l4_id);
-	tcp_header->check = 0;
-	tcp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
-			datagram_len, IPPROTO_TCP, csum_partial(tcp_header, datagram_len, 0));
+	out_tcp->source = cpu_to_be16(tuple->src.l4_id);
+	out_tcp->dest = cpu_to_be16(tuple->dst.l4_id);
+	out_tcp->check = update_csum_4to6(in_tcp->check,
+			in_ip4, in_tcp->source, in_tcp->dest,
+			out_ip6, out_tcp->source, out_tcp->dest);
 
 	return VER_CONTINUE;
 }
@@ -472,16 +492,17 @@ static enum verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, stru
  */
 static enum verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
-	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
-	struct udphdr *udp_header = frag_get_udp_hdr(out);
-	__u16 datagram_len = out->l4_hdr.len + out->payload.len;
+	struct iphdr *in_ip4 = frag_get_ipv4_hdr(in);
+	struct udphdr *in_udp = frag_get_udp_hdr(in);
+	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(out);
+	struct udphdr *out_udp = frag_get_udp_hdr(out);
 
-	udp_header->source = cpu_to_be16(tuple->src.l4_id);
-	udp_header->dest = cpu_to_be16(tuple->dst.l4_id);
-	udp_header->len = cpu_to_be16(datagram_len);
-	udp_header->check = 0;
-	udp_header->check = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
-			datagram_len, IPPROTO_UDP, csum_partial(udp_header, datagram_len, 0));
+	out_udp->source = cpu_to_be16(tuple->src.l4_id);
+	out_udp->dest = cpu_to_be16(tuple->dst.l4_id);
+	out_udp->len = cpu_to_be16(out->l4_hdr.len + out->payload.len);
+	out_udp->check = update_csum_4to6(in_udp->check,
+			in_ip4, in_udp->source, in_udp->dest,
+			out_ip6, out_udp->source, out_udp->dest);
 
 	return VER_CONTINUE;
 }

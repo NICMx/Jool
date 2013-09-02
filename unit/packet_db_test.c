@@ -17,49 +17,6 @@ MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Packet database test");
 
 
-int init_pair6(struct ipv6_pair *pair6, unsigned char *remote_addr, u16 remote_id,
-		unsigned char *local_addr, u16 local_id)
-{
-	int error;
-
-	error = str_to_addr6(remote_addr, &pair6->remote.address);
-	if (error) {
-		log_warning("Cannot parse '%s' as a valid IPv6 address", remote_addr);
-		return error;
-	}
-	pair6->remote.l4_id = remote_id;
-
-	error = str_to_addr6(local_addr, &pair6->local.address);
-	if (error) {
-		log_warning("Cannot parse '%s' as a valid IPv6 address", local_addr);
-		return error;
-	}
-	pair6->local.l4_id = local_id;
-
-	return 0;
-}
-int init_pair4(struct ipv4_pair *pair4, unsigned char *remote_addr, u16 remote_id,
-		unsigned char *local_addr, u16 local_id)
-{
-	int error;
-
-	error = str_to_addr4(remote_addr, &pair4->remote.address);
-	if (error) {
-		log_warning("Cannot parse '%s' as a valid IPv4 address", remote_addr);
-		return error;
-	}
-	pair4->remote.l4_id = remote_id;
-
-	error = str_to_addr4(local_addr, &pair4->local.address);
-	if (error) {
-		log_warning("Cannot parse '%s' as a valid IPv4 address", local_addr);
-		return error;
-	}
-	pair4->local.l4_id = local_id;
-
-	return 0;
-}
-
 static int pktdb_counter(struct packet *pkt, void *arg)
 {
 	unsigned int *int_arg = arg;
@@ -209,6 +166,7 @@ static bool test_fragments(void)
 	struct fragment *frag;
 	struct sk_buff *skb1, *skb2, *skb3;
 	struct ipv4_pair pair4;
+	struct iphdr *hdr4;
 	int error;
 	bool success = true;
 
@@ -220,7 +178,10 @@ static bool test_fragments(void)
 	error = create_skb_ipv4_udp(&pair4, &skb1, 100);
 	if (error)
 		return false;
-	ip_hdr(skb1)->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4 = ip_hdr(skb1);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb1, &pkt), "1st verdict");
 	success &= validate_database(1);
@@ -229,7 +190,10 @@ static bool test_fragments(void)
 	error = create_skb_ipv4_empty(&pair4, &skb2, 100);
 	if (error)
 		return false;
-	ip_hdr(skb2)->frag_off = build_ipv4_frag_off_field(false, true, sizeof(struct udphdr) + 100);
+	hdr4 = ip_hdr(skb2);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, sizeof(struct udphdr) + 100);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb2, &pkt), "2nd verdict");
 	success &= validate_database(1);
@@ -238,7 +202,10 @@ static bool test_fragments(void)
 	error = create_skb_ipv4_empty(&pair4, &skb3, 100);
 	if (error)
 		return false;
-	ip_hdr(skb3)->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 200);
+	hdr4 = ip_hdr(skb3);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 200);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb3, &pkt), "3rd verdict");
 	success &= validate_database(0);
@@ -269,7 +236,6 @@ static bool test_fragments(void)
  * Three things are being validated here:
  * - The timer deletes the correct stuff whenever it has to.
  * - multiple packets in the DB at once.
- * - packets jump to the end of the list when their fragments arrive.
  */
 static bool test_timer(void)
 {
@@ -277,6 +243,7 @@ static bool test_timer(void)
 	struct ipv4_pair pair13, pair2; /* skbs 1 and 3 use pair 13. skb2 uses pair2. */
 	struct pktdb_key expected_keys[3];
 	struct packet *pkt;
+	struct iphdr *hdr4;
 	bool success = true;
 	int error;
 
@@ -291,7 +258,10 @@ static bool test_timer(void)
 	error = create_skb_ipv4_udp(&pair13, &skb1, 100);
 	if (error)
 		return false;
-	ip_hdr(skb1)->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4 = ip_hdr(skb1);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb1, &pkt), "1st verdict");
 
@@ -310,7 +280,10 @@ static bool test_timer(void)
 	error = create_skb_ipv4_empty(&pair2, &skb2, 100);
 	if (error)
 		return false;
-	ip_hdr(skb2)->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4 = ip_hdr(skb2);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb2, &pkt), "2nd verdict");
 
@@ -325,13 +298,13 @@ static bool test_timer(void)
 	error = create_skb_ipv4_udp(&pair13, &skb3, 100);
 	if (error)
 		return false;
-	ip_hdr(skb3)->frag_off = build_ipv4_frag_off_field(false, true, sizeof(struct udphdr) + 100);
+	hdr4 = ip_hdr(skb3);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, sizeof(struct udphdr) + 100);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb3, &pkt), "3rd verdict");
 
-	expected_keys[2] = expected_keys[0];
-	expected_keys[0] = expected_keys[1];
-	expected_keys[1] = expected_keys[2];
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);
 
@@ -369,6 +342,7 @@ static bool test_conflicts(void)
 	struct fragment *frag;
 	struct sk_buff *skb1, *skb2, *skb3;
 	struct ipv4_pair pair13, pair2;
+	struct iphdr *hdr4;
 	int error;
 	bool success = true;
 
@@ -383,7 +357,10 @@ static bool test_conflicts(void)
 	error = create_skb_ipv4_empty(&pair13, &skb1, 100);
 	if (error)
 		return false;
-	ip_hdr(skb1)->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 100);
+	hdr4 = ip_hdr(skb1);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 100);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb1, &pkt), "1st verdict");
 	success &= validate_database(1);
@@ -392,7 +369,10 @@ static bool test_conflicts(void)
 	error = create_skb_ipv4_empty(&pair2, &skb2, 100);
 	if (error)
 		return false;
-	ip_hdr(skb2)->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4 = ip_hdr(skb2);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb2, &pkt), "2nd verdict");
 	success &= validate_database(2);
@@ -401,7 +381,10 @@ static bool test_conflicts(void)
 	error = create_skb_ipv4_udp(&pair13, &skb3, 100);
 	if (error)
 		return false;
-	ip_hdr(skb3)->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4 = ip_hdr(skb3);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb3, &pkt), "3rd verdict");
 	success &= validate_database(1);

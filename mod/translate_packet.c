@@ -19,6 +19,8 @@
 static struct translate_config config;
 static DEFINE_SPINLOCK(config_lock);
 
+static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
+
 
 #include "translate_packet_6to4.c"
 #include "translate_packet_4to6.c"
@@ -469,6 +471,6 @@ enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, stru
 	return VER_CONTINUE;
 
 error:
-	pkt_kfree(out);
-	return result;
+	pkt_kfree(out, false);
+	return VER_DROP;
 }
