@@ -27,12 +27,12 @@ static DEFINE_SPINLOCK(db_lock);
 static struct pktdb_table table;
 static LIST_HEAD(list);
 
-struct timer_list expire_timer;
+static struct timer_list expire_timer;
 static bool expire_timer_active = false;
 static DEFINE_SPINLOCK(expire_timer_lock);
 
 
-bool equals_function(struct pktdb_key *key1, struct pktdb_key *key2)
+static bool equals_function(struct pktdb_key *key1, struct pktdb_key *key2)
 {
 	if (key1 == key2)
 		return true;
@@ -59,7 +59,7 @@ bool equals_function(struct pktdb_key *key1, struct pktdb_key *key2)
 	return true;
 }
 
-__u16 hash_function(struct pktdb_key *key)
+static __u16 hash_function(struct pktdb_key *key)
 {
 	return key->identifier;
 }
@@ -134,7 +134,7 @@ static unsigned int clean_expired_fragments(void)
 		}
 
 		pktdb_remove(pkt);
-		pkt_kfree(pkt);
+		pkt_kfree(pkt, true);
 
 		f++;
 	}

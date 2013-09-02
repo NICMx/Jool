@@ -940,12 +940,21 @@ int init_module(void)
 
 	CALL_TEST(test_simple_4to6_udp(), "Simple 4->6 UDP");
 	CALL_TEST(test_simple_4to6_tcp(), "Simple 4->6 TCP");
-	CALL_TEST(test_simple_4to6_icmp(), "Simple 4->6 ICMP");
+	CALL_TEST(test_simple_4to6_icmp(), "Simple 4->6 ICMP info");
+	// TODO Simple 4->6 ICMP error
+
 	CALL_TEST(test_simple_6to4_udp(), "Simple 6->4 UDP");
 	CALL_TEST(test_simple_6to4_tcp(), "Simple 6->4 TCP");
-	CALL_TEST(test_simple_6to4_icmp(), "Simple 6->4 ICMP");
+	CALL_TEST(test_simple_6to4_icmp(), "Simple 6->4 ICMP info");
+	// TODO Simple 6->4 ICMP error
+
 	CALL_TEST(test_multiple_4to6_udp(), "Multiple 4->6 UDP");
+	// TODO Multiple 4->6 TCP
+	// TODO Multiple 4->6 ICMP
+
+	// TODO Multiple 6->4 UDP
 	CALL_TEST(test_multiple_6to4_tcp(), "Multiple 6->4 TCP");
+	// TODO Multiple 6->4 ICMP
 
 	translate_packet_destroy();
 

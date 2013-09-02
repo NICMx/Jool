@@ -830,6 +830,8 @@ void pkt_add_frag_ipv6(struct packet *pkt, struct fragment *frag)
 		pkt->total_bytes = frag->l4_hdr.len + frag->payload.len;
 		pkt->current_bytes = pkt->total_bytes;
 	}
+	if (pkt->proto == L4PROTO_NONE)
+		pkt->proto = frag->l4_hdr.proto;
 }
 
 void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
@@ -841,6 +843,8 @@ void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
 	if (!is_more_fragments_set_ipv4(hdr4))
 		pkt->total_bytes = get_fragment_offset_ipv4(hdr4) + frag->l4_hdr.len + frag->payload.len;
 	pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
+	if (pkt->proto == L4PROTO_NONE)
+		pkt->proto = frag->l4_hdr.proto;
 }
 
 /* TODO si current_bytes > total_bytes, hay que MATAR A pkt INMEDIATAMENTE!!! */

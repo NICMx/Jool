@@ -4,6 +4,7 @@
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/validator.h"
+#include "nat64/unit/types.h"
 #include "nat64/comm/str_utils.h"
 #include "nat64/comm/constants.h"
 
@@ -38,7 +39,7 @@ static bool validate_packet(struct packet *pkt, int fragment_count, u16 total_by
 			&& pkt->dying_time < expected_dying_time + 100,
 			"Dying time");
 
-	success &= assert_equals_int(L3PROTO_IPV4, pkt->proto, "L3 protocol");
+	success &= assert_equals_int(L4PROTO_UDP, pkt->proto, "L4 protocol");
 	success &= assert_equals_ipv4_str("8.7.6.5", &pkt->addr.ipv4.src, "Source address");
 	success &= assert_equals_ipv4_str("5.6.7.8", &pkt->addr.ipv4.dst, "Destination address");
 
@@ -127,7 +128,7 @@ static bool validate_list(struct pktdb_key *expected, int expected_count)
 	return success;
 }
 
-static bool test_no_fragments(void)
+static bool test_no_fragments_4to6(void)
 {
 	struct packet *pkt;
 	struct fragment *frag;
@@ -156,11 +157,11 @@ static bool test_no_fragments(void)
 	/* Validate the database. */
 	success &= validate_database(0);
 
-	pkt_kfree(pkt);
+	pkt_kfree(pkt, true);
 	return success;
 }
 
-static bool test_fragments(void)
+static bool test_fragments_4to6(void)
 {
 	struct packet *pkt;
 	struct fragment *frag;
@@ -226,14 +227,14 @@ static bool test_fragments(void)
 	frag = container_of(frag->next.next, struct fragment, next);
 	success &= validate_fragment(frag, skb3, false);
 
-	pkt_kfree(pkt);
+	pkt_kfree(pkt, true);
 	return success;
 }
 
 /* TODO jiffies NO ES ATÓMICA. */
 
 /**
- * Three things are being validated here:
+ * Two things are being validated here:
  * - The timer deletes the correct stuff whenever it has to.
  * - multiple packets in the DB at once.
  */
@@ -401,7 +402,7 @@ static bool test_conflicts(void)
 	frag = container_of(frag->next.next, struct fragment, next);
 	success &= validate_fragment(frag, skb3, true);
 
-	pkt_kfree(pkt);
+	pkt_kfree(pkt, true);
 	return success;
 }
 
@@ -418,10 +419,12 @@ int init_module(void)
 	pkt_init();
 	pktdb_init();
 
-	CALL_TEST(test_no_fragments(), "Unfragmented packet arrives.");
-	CALL_TEST(test_fragments(), "3 fragmented packets arrive.");
-	CALL_TEST(test_timer(), "Timer test.");
-	CALL_TEST(test_conflicts(), "Conflicts test.");
+	CALL_TEST(test_no_fragments_4to6(), "Unfragmented packet arrives.");
+	// TODO test_no_fragments_6to4
+	CALL_TEST(test_fragments_4to6(), "3 fragmented packets arrive.");
+	// TODO test_fragments_6to4
+	CALL_TEST(test_timer(), "Timer test."); // TODO colocat 6to4 adentro.
+	CALL_TEST(test_conflicts(), "Conflicts test."); // TODO colocar 6to4 adentro.
 
 	pktdb_destroy();
 	pkt_destroy();

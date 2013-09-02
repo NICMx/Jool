@@ -111,7 +111,7 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return false;
+		return NULL;
 	}
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
