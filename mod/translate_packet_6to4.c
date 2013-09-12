@@ -28,7 +28,8 @@ static __u8 build_tos_field(struct ipv6hdr *ip6_hdr)
  */
 static __be16 generate_ipv4_id_nofrag(struct ipv6hdr *ip6_header)
 {
-	__u16 packet_len, random;
+	__u16 packet_len;
+	__be16 random;
 
 	packet_len = sizeof(*ip6_header) + be16_to_cpu(ip6_header->payload_len);
 	if (88 < packet_len && packet_len <= 1280) {
@@ -162,8 +163,8 @@ static enum verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, st
 
 	ip6_frag_hdr = get_extension_header(ip6_hdr, NEXTHDR_FRAGMENT);
 	if (ip6_frag_hdr) {
-		__u16 ipv6_fragment_offset = be16_to_cpu(ip6_frag_hdr->frag_off) >> 3;
-		__u16 ipv6_m = be16_to_cpu(ip6_frag_hdr->frag_off) & IP6_MF;
+		__u16 ipv6_fragment_offset = get_fragment_offset_ipv6(ip6_frag_hdr);
+		__u16 ipv6_m = is_more_fragments_set_ipv6(ip6_frag_hdr);
 
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);
@@ -416,6 +417,7 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 				ipv4_mtu,
 				ipv6_mtu - 20);
 		*/
+		icmpv4_hdr->un.frag.mtu = cpu_to_be16(0);
 		break;
 
 	case ICMPV6_TIME_EXCEED:

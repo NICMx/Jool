@@ -1,6 +1,7 @@
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/types.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/mod/packet.h"
 
 #include <linux/if_ether.h>
 #include <linux/ipv6.h>
@@ -23,7 +24,7 @@ int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->tos = 0;
 	hdr->tot_len = cpu_to_be16(sizeof(*hdr) + payload_len);
 	hdr->id = cpu_to_be16(1234);
-	hdr->frag_off = cpu_to_be16(IP_DF | 0x0000);
+	hdr->frag_off = build_ipv4_frag_off_field(true, false, 0);
 	hdr->ttl = 32;
 	hdr->protocol = nexthdr;
 	hdr->saddr = pair4->remote.address.s_addr;
@@ -69,7 +70,7 @@ static int init_ipv6_and_frag_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, voi
 	frag_hdr->nexthdr = nexthdr;
 	frag_hdr->reserved = 0;
 	frag_hdr->frag_off = cpu_to_be16(0);
-	frag_hdr->identification = cpu_to_be32(1234);
+	frag_hdr->identification = cpu_to_be32(4321);
 
 	return 0;
 }
@@ -126,21 +127,21 @@ int init_tcp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg)
 		return -EINVAL;
 	}
 
-	hdr->seq = cpu_to_be16(10000);
-	hdr->ack_seq = cpu_to_be16(11000);
+	hdr->seq = cpu_to_be32(4669);
+	hdr->ack_seq = cpu_to_be32(6576);
 	hdr->doff = sizeof(*hdr) / 4;
-	hdr->res1 = 0;
+	hdr->res1 = 1;
 	hdr->cwr = 0;
-	hdr->ece = 0;
-	hdr->urg = 0;
+	hdr->ece = 1;
+	hdr->urg = 1;
 	hdr->ack = 0;
 	hdr->psh = 0;
-	hdr->rst = 0;
+	hdr->rst = 1;
 	hdr->syn = 1;
-	hdr->fin = 0;
-	hdr->window = 10;
+	hdr->fin = 1;
+	hdr->window = cpu_to_be16(3233);
 	hdr->check = 0;
-	hdr->urg_ptr = 0;
+	hdr->urg_ptr = cpu_to_be16(9865);
 
 	return 0;
 }
@@ -195,7 +196,7 @@ static int init_icmp6_hdr_error(void *l4_hdr, int l3_hdr_type, u16 datagram_len,
 	hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 	hdr->icmp6_code = 0;
 	hdr->icmp6_cksum = 0;
-	hdr->icmp6_mtu = cpu_to_be32(1300);
+	hdr->icmp6_mtu = cpu_to_be32(3100);
 
 	return 0;
 }
@@ -375,10 +376,6 @@ static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type
 	error = payload_cb(skb_transport_header(skb) + l4_hdr_len, payload_len);
 	if (error)
 		goto failure;
-
-//for (i = 0; i < 10; i++) {
-//log_debug("aaaaa %u", (skb_transport_header(skb) + l4_hdr_len)[i]);
-//}
 
 	error = l4_post_cb(skb_transport_header(skb), datagram_len, arg);
 	if (error)

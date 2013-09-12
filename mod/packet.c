@@ -39,10 +39,19 @@ void pkt_destroy(void)
 	/* No code. */
 }
 
+/**
+ * Returns 1 if the Don't Fragments flag from the "header" header is set, 0 otherwise.
+ */
+__u16 is_dont_fragment_set(struct iphdr *hdr)
+{
+	__u16 frag_off = be16_to_cpu(hdr->frag_off);
+	return (frag_off & IP_DF) >> 14;
+}
+
 __u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr)
 {
 	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & 0x1);
+	return (frag_off & IP6_MF);
 }
 
 /**
@@ -63,7 +72,7 @@ __u16 get_fragment_offset_ipv6(struct frag_hdr *hdr)
 __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 {
 	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return frag_off & 0x1FFF;
+	return frag_off & IP_OFFSET;
 }
 
 __be16 build_ipv6_frag_off_field(__u16 fragment_offset, __u16 more_fragments)
@@ -428,7 +437,7 @@ static enum verdict init_ipv4_l3_payload(struct fragment *frag)
 	u16 fragment_offset;
 	enum verdict result;
 
-	fragment_offset = be16_to_cpu(ipv4_header->frag_off) & 0x1FFF;
+	fragment_offset = get_fragment_offset_ipv4(ipv4_header);
 	if (fragment_offset == 0) {
 		u16 datagram_len = frag->skb->len - frag->l3_hdr.len;
 
@@ -664,7 +673,6 @@ void frag_print(struct fragment *frag)
 	struct tcphdr *tcp_header;
 	struct udphdr *udp_header;
 	struct in_addr addr4;
-	u16 frag_off;
 
 	if (!frag) {
 		log_info("(null)");
@@ -687,27 +695,25 @@ void frag_print(struct fragment *frag)
 
 		if (hdr6->nexthdr == NEXTHDR_FRAGMENT) {
 			frag_header = (struct frag_hdr *) (hdr6 + 1);
-			frag_off = be16_to_cpu(frag_header->frag_off);
 			log_info("Fragment header:");
 			log_info("		next header: %s", nexthdr_to_string(frag_header->nexthdr));
 			log_info("		reserved: %u", frag_header->reserved);
-			log_info("		fragment offset: %u", frag_off >> 3);
-			log_info("		more fragments: %u", frag_off & 0x1);
+			log_info("		fragment offset: %u", get_fragment_offset_ipv6(frag_header));
+			log_info("		more fragments: %u", is_more_fragments_set_ipv6(frag_header));
 			log_info("		identification: %u", be32_to_cpu(frag_header->identification));
 		}
 		break;
 
 	case L3PROTO_IPV4:
 		hdr4 = frag_get_ipv4_hdr(frag);
-		frag_off = be16_to_cpu(hdr4->frag_off);
 		log_info("		version: %u", hdr4->version);
 		log_info("		header length: %u", hdr4->ihl);
 		log_info("		type of service: %u", hdr4->tos);
 		log_info("		total length: %u", be16_to_cpu(hdr4->tot_len));
 		log_info("		identification: %u", be16_to_cpu(hdr4->id));
-		log_info("		more fragments: %u", (frag_off & IP_MF) >> 13);
-		log_info("		don't fragment: %u", (frag_off & IP_DF) >> 14);
-		log_info("		fragment offset: %u", frag_off & 0x1fff);
+		log_info("		more fragments: %u", is_more_fragments_set_ipv4(hdr4));
+		log_info("		don't fragment: %u", is_dont_fragment_set(hdr4));
+		log_info("		fragment offset: %u", get_fragment_offset_ipv4(hdr4));
 		log_info("		time to live: %u", hdr4->ttl);
 		log_info("		protocol: %s", protocol_to_string(hdr4->protocol));
 		log_info("		checksum: %u", hdr4->check);
