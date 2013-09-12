@@ -10,26 +10,26 @@ ccflags-y += -I$(src)/../mod
 obj-m += test.o
 
 # Translate packet
-#test-objs += ../mod/types.o
-#test-objs += ../mod/str_utils.o
-#test-objs += ../mod/packet.o
-#test-objs += ../mod/ipv6_hdr_iterator.o
-#test-objs += framework/unit_test.o
-#test-objs += framework/skb_generator.o
-#test-objs += framework/validator.o
-#test-objs += framework/types.o
-#test-objs += tp_test.o
-
-# Packet
 test-objs += ../mod/types.o
 test-objs += ../mod/str_utils.o
-test-objs += ../mod/ipv6_hdr_iterator.o
 test-objs += ../mod/packet.o
+test-objs += ../mod/ipv6_hdr_iterator.o
 test-objs += framework/unit_test.o
 test-objs += framework/skb_generator.o
 test-objs += framework/validator.o
 test-objs += framework/types.o
-test-objs += packet_db_test.o
+test-objs += tp_test.o
+
+# Packet
+#test-objs += ../mod/types.o
+#test-objs += ../mod/str_utils.o
+#test-objs += ../mod/ipv6_hdr_iterator.o
+#test-objs += ../mod/packet.o
+#test-objs += framework/unit_test.o
+#test-objs += framework/skb_generator.o
+#test-objs += framework/validator.o
+#test-objs += framework/types.o
+#test-objs += packet_db_test.o
 
 # Impresión de tamaños
 #test-objs += misc_test.o

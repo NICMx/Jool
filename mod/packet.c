@@ -279,7 +279,8 @@ static enum verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterat
 	ip6_header = ipv6_hdr(frag->skb);
 	frag_header = get_extension_header(ip6_header, NEXTHDR_FRAGMENT);
 
-	if (frag_header == NULL || be16_to_cpu(frag_header->frag_off) == 0) {
+	/* TODO revisa que nunca accedas a frag_off directamente. */
+	if (frag_header == NULL || get_fragment_offset_ipv6(frag_header) == 0) {
 		u16 datagram_len = frag->skb->len - frag->l3_hdr.len;
 		enum verdict result;
 

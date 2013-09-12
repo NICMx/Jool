@@ -526,6 +526,9 @@ static enum l4_proto protocol_to_l4proto(u8 protocol)
 	return -1;
 }
 
+/**
+ * Sets out_outer.payload.*.
+ */
 enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
@@ -562,6 +565,8 @@ enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *i
 	in_inner.payload.ptr = in_inner.l4_hdr.ptr + in_inner.l4_hdr.len;
 	in_inner.payload.ptr_needs_kfree = false;
 	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
+
+	/* log_debug("Inner packet protocols: %d %d", in_inner.l3_hdr.proto, in_inner.l4_hdr.proto); */
 
 	result = translate(tuple, &in_inner, &out_inner, &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto]);
 	if (result != VER_CONTINUE)

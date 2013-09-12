@@ -277,11 +277,6 @@ failure:
 	return result;
 }
 
-static __be16 combine_frag_offset_and_m(u16 frag_offset, bool m)
-{
-	return cpu_to_be16((frag_offset << 3) | (m ? 1 : 0));
-}
-
 static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
 		u16 packet_size, u16 offset, bool mf)
 {
@@ -294,7 +289,7 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
 
 	hdrfrag_new->nexthdr = hdrfrag_old->nexthdr;
 	hdrfrag_new->reserved = 0;
-	hdrfrag_new->frag_off = combine_frag_offset_and_m(offset, mf);
+	hdrfrag_new->frag_off = build_ipv6_frag_off_field(offset, mf);
 	hdrfrag_new->identification = hdrfrag_old->identification;
 }
 
@@ -332,8 +327,8 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 		struct frag_hdr *frag_header = (struct frag_hdr *) (first_hdr6 + 1);
 
 		original_identification = frag_header->identification;
-		original_fragment_offset = be16_to_cpu(frag_header->frag_off) >> 3;
-		original_mf = be16_to_cpu(frag_header->frag_off) | 0x1;
+		original_fragment_offset = get_fragment_offset_ipv6(frag_header);
+		original_mf = is_more_fragments_set_ipv6(frag_header);
 	}
 
 	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
@@ -392,7 +387,7 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 	}
 
 	skb_set_tail_pointer(frag->skb, min_ipv6_mtu);
-	frag->payload.len = min_ipv6_mtu - sizeof(struct ipv6hdr) - sizeof(struct frag_hdr) - sizeof(struct udphdr);
+	frag->payload.len = min_ipv6_mtu - frag->l3_hdr.len - frag->l4_hdr.len;
 
 	return VER_CONTINUE;
 }
@@ -404,15 +399,13 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	enum verdict result;
 	__u16 min_ipv6_mtu;
 
-	// Translate this single fragment.
-//log_debug("Van los protos: %d %d", in->l3_hdr.proto, in->l4_hdr.proto);
-//log_debug("L4-header: %p", in->l4_hdr.ptr);
-
+	/* Translate this single fragment. */
+	/* log_debug("Packet protocols: %d %d", in->l3_hdr.proto, in->l4_hdr.proto); */
 	result = translate(tuple, in, &out, &steps[in->l3_hdr.proto][in->l4_hdr.proto]);
 	if (result != VER_CONTINUE)
 		return result;
 
-	// Add it to the list of outgoing fragments.
+	/* Add it to the list of outgoing fragments. */
 	switch (in->l3_hdr.proto) {
 	case L3PROTO_IPV4:
 		spin_lock_bh(&config_lock);
@@ -420,9 +413,9 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		spin_unlock_bh(&config_lock);
 
 		if (out->skb->len > min_ipv6_mtu) {
-			// It's too big, so subdivide it.
+			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
-				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, 0); // TODO set the MTU
+				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, 0); /* TODO set the MTU */
 				return VER_DROP;
 			}
 
@@ -430,7 +423,7 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 			if (result != VER_CONTINUE)
 				return result;
 		} else {
-			// Just add that one fragment to the list.
+			/* Just add that one fragment to the list. */
 			list_add(&out->next, out_list->prev);
 		}
 		break;

@@ -1,6 +1,7 @@
 #include "nat64/unit/validator.h"
 #include "nat64/unit/unit_test.h"
 
+#include <net/ip.h>
 #include <net/ipv6.h>
 
 bool validate_fragment_count(struct packet *pkt, int expected_count)
@@ -115,23 +116,33 @@ bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct 
 	return success;
 }
 
-bool validate_frag_hdr(struct frag_hdr *hdr, u16 expected_frag_offset, u16 expected_mf)
+bool validate_frag_hdr(struct frag_hdr *hdr, u16 frag_offset, u16 mf, __u8 nexthdr)
 {
 	bool success = true;
 
-	success &= assert_equals_u16(expected_frag_offset, be16_to_cpu(hdr->frag_off) >> 3, "Fragment header - frag offset");
-	success &= assert_equals_u16(expected_mf, be16_to_cpu(hdr->frag_off) & 1, "Fragment header - mf");
-	success &= assert_equals_u8(NEXTHDR_UDP, hdr->nexthdr, "Fragment header - nexthdr");
+	success &= assert_equals_u16(frag_offset, be16_to_cpu(hdr->frag_off) >> 3, "Fragment header - frag offset");
+	success &= assert_equals_u16(mf, be16_to_cpu(hdr->frag_off) & 1, "Fragment header - mf");
+	success &= assert_equals_u8(nexthdr, hdr->nexthdr, "Fragment header - nexthdr");
 
 	return success;
 }
 
-bool validate_ipv4_hdr(struct iphdr *hdr, u16 total_len, u8 protocol, struct tuple *tuple)
+bool validate_ipv4_hdr(struct iphdr *hdr, u16 total_len, u16 df, u16 mf, u16 frag_off, u8 protocol,
+		struct tuple *tuple)
 {
 	struct in_addr addr;
 	bool success = true;
 
-	success &= assert_equals_u16(total_len, be16_to_cpu(hdr->tot_len), "IPv4 header-total length");
+	success &= assert_equals_u8(4, hdr->version, "IPv4 hdr-Version");
+	success &= assert_equals_u8(5, hdr->ihl, "IPv4 hdr-IHL");
+	success &= assert_equals_u8(0, hdr->tos, "IPv4 hdr-TOS");
+	success &= assert_equals_u16(total_len, be16_to_cpu(hdr->tot_len), "IPv4 hdr-total length");
+//	success &= assert_equals_u16(, be16_to_cpu(hdr->id), "IPv4 header - Identifier");
+	success &= assert_equals_u16(df, be16_to_cpu(hdr->frag_off) & IP_DF, "IPv4 hdr-DF");
+	success &= assert_equals_u16(mf, be16_to_cpu(hdr->frag_off) & IP_MF, "IPv4 hdr-MF");
+	success &= assert_equals_u16(frag_off, be16_to_cpu(hdr->frag_off) & 0x1FFF,
+			"IPv4 hdr-Fragment offset");
+//	success &= assert_equals_u8(, hdr->ttl, "IPv4 header - TTL");
 	success &= assert_equals_u8(protocol, hdr->protocol, "IPv4 header-protocol");
 
 	addr.s_addr = hdr->saddr;
@@ -187,6 +198,17 @@ bool validate_icmp6_hdr(struct icmp6hdr *hdr, u16 id, struct tuple *tuple)
 	return success;
 }
 
+bool validate_icmp6_hdr_error(struct icmp6hdr *hdr)
+{
+	bool success = true;
+
+	success &= assert_equals_u8(ICMPV6_PKT_TOOBIG, hdr->icmp6_type, "ICMP header-type");
+	success &= assert_equals_u8(0, hdr->icmp6_code, "ICMP header-code");
+//	success &= assert_equals_u32(1300, be32_to_cpu(hdr->icmp6_mtu), "ICMP header-MTU");
+
+	return success;
+}
+
 bool validate_icmp4_hdr(struct icmphdr *hdr, u16 id, struct tuple *tuple)
 {
 	bool success = true;
@@ -198,15 +220,73 @@ bool validate_icmp4_hdr(struct icmphdr *hdr, u16 id, struct tuple *tuple)
 	return success;
 }
 
+bool validate_icmp4_hdr_error(struct icmphdr *hdr)
+{
+	bool success = true;
+
+	success &= assert_equals_u8(ICMP_DEST_UNREACH, hdr->type, "ICMP header-type");
+	success &= assert_equals_u8(ICMP_FRAG_NEEDED, hdr->code, "ICMP header-code");
+//	success &= assert_equals_u32(1300, be32_to_cpu(hdr->un.frag.mtu), "ICMP header-unused");
+
+	return success;
+}
+
 bool validate_payload(unsigned char *payload, u16 len, u16 offset)
 {
 	u16 i;
 
 	for (i = 0; i < len; i++) {
-//log_debug("Imprimiendo %u %u %u", i, i + offset, payload[i]);
 		if (!assert_equals_u8(i + offset, payload[i], "Payload content"))
 			return false;
 	}
+
+	return true;
+}
+
+bool validate_inner_pkt_ipv6(unsigned char *payload, u16 len)
+{
+	struct ipv6hdr *hdr_ipv6;
+	struct tcphdr *hdr_tcp;
+	unsigned char *inner_payload;
+	struct tuple tuple;
+
+	if (init_ipv6_tuple(&tuple, "1::1", 1234, "2::2", 4321, IPPROTO_TCP) != 0)
+		return false;
+
+	hdr_ipv6 = (struct ipv6hdr *) payload;
+	hdr_tcp = (struct tcphdr *) (hdr_ipv6 + 1);
+	inner_payload = (unsigned char *) (hdr_tcp + 1);
+
+	if (!validate_ipv6_hdr(hdr_ipv6, 80, NEXTHDR_TCP, &tuple))
+		return false;
+	if (!validate_tcp_hdr(hdr_tcp, sizeof(*hdr_tcp), &tuple))
+		return false;
+	if (!validate_payload(inner_payload, len - sizeof(*hdr_ipv6) - sizeof(*hdr_tcp), 0))
+		return false;
+
+	return true;
+}
+
+bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len)
+{
+	struct iphdr *hdr_ipv4;
+	struct tcphdr *hdr_tcp;
+	unsigned char *inner_payload;
+	struct tuple tuple;
+
+	if (init_ipv4_tuple(&tuple, "1.1.1.1", 1234, "2.2.2.2", 4321, IPPROTO_TCP) != 0)
+		return false;
+
+	hdr_ipv4 = (struct iphdr *) payload;
+	hdr_tcp = (struct tcphdr *) (hdr_ipv4 + 1);
+	inner_payload = (unsigned char *) (hdr_tcp + 1);
+
+	if (!validate_ipv4_hdr(hdr_ipv4, 80, IP_DF, 0, 0, IPPROTO_TCP, &tuple))
+		return false;
+	if (!validate_tcp_hdr(hdr_tcp, sizeof(*hdr_tcp), &tuple))
+		return false;
+	if (!validate_payload(inner_payload, len - sizeof(*hdr_ipv4) - sizeof(*hdr_tcp), 0))
+		return false;
 
 	return true;
 }

@@ -163,7 +163,7 @@ static enum verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, st
 	ip6_frag_hdr = get_extension_header(ip6_hdr, NEXTHDR_FRAGMENT);
 	if (ip6_frag_hdr) {
 		__u16 ipv6_fragment_offset = be16_to_cpu(ip6_frag_hdr->frag_off) >> 3;
-		__u16 ipv6_m = be16_to_cpu(ip6_frag_hdr->frag_off) & 0x1;
+		__u16 ipv6_m = be16_to_cpu(ip6_frag_hdr->frag_off) & IP6_MF;
 
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);
