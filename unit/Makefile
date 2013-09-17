@@ -64,4 +64,4 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
-	rm -f ../mod/*.o
+	rm -f  ../mod/*.o  *.ko  *.o

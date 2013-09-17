@@ -74,7 +74,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 
 	return nat64_core(skb,
 			compute_out_tuple_4to6,
-			translating_the_packet_4to6,
+			translating_the_packet,
 			send_packet_ipv6);
 }
 
@@ -99,6 +99,6 @@ unsigned int core_6to4(struct sk_buff *skb)
 
 	return nat64_core(skb,
 			compute_out_tuple_6to4,
-			translating_the_packet_6to4,
+			translating_the_packet,
 			send_packet_ipv4);
 }

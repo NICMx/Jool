@@ -203,7 +203,6 @@ bool validate_payload(unsigned char *payload, u16 len, u16 offset)
 	u16 i;
 
 	for (i = 0; i < len; i++) {
-//log_debug("Imprimiendo %u %u %u", i, i + offset, payload[i]);
 		if (!assert_equals_u8(i + offset, payload[i], "Payload content"))
 			return false;
 	}

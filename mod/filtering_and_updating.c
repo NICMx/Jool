@@ -1402,6 +1402,7 @@ bool session_expired(struct session_entry *session_entry_p)
 					log_err(ERR_INVALID_STATE, "Invalid state found; removing session entry.");
 					return false;
 			}
+			return false;
 		default:
 			log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", session_entry_p->l4_proto);
 			return false;

@@ -405,9 +405,6 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	__u16 min_ipv6_mtu;
 
 	// Translate this single fragment.
-//log_debug("Van los protos: %d %d", in->l3_hdr.proto, in->l4_hdr.proto);
-//log_debug("L4-header: %p", in->l4_hdr.ptr);
-
 	result = translate(tuple, in, &out, &steps[in->l3_hdr.proto][in->l4_hdr.proto]);
 	if (result != VER_CONTINUE)
 		return result;

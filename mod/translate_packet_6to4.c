@@ -581,7 +581,7 @@ static int l4_hdr_len(void *hdr, enum l3_proto l3proto, enum l4_proto l4proto)
 		case L3PROTO_IPV4:
 			return sizeof(struct icmphdr);
 		}
-
+		return -1;
 	case L4PROTO_NONE:
 		return 0;
 	}

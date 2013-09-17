@@ -10,9 +10,23 @@ int init_payload_normal(void *l4_hdr, u16 payload_len);
 
 int create_skb_ipv6_udp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
 int create_skb_ipv6_tcp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
-int create_skb_ipv6_icmp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_icmp_info(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_icmp_error(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+
 int create_skb_ipv4_udp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
 int create_skb_ipv4_tcp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
-int create_skb_ipv4_icmp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
-int create_skb_ipv4_empty(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
-int create_skb_ipv6_empty(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv4_icmp_info(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv4_icmp_error(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+
+int create_skb_ipv4_udp_fragment(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv4_tcp_fragment(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv4_icmp_info_fragment(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+/* fragmented ICMPv4 errors do not exist. */
+
+int create_skb_ipv6_udp_fragment_1(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_udp_fragment_n(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_tcp_fragment_1(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_tcp_fragment_n(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_icmp_info_fragment_1(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+int create_skb_ipv6_icmp_info_fragment_n(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len);
+/* fragmented ICMPv6 errors do not exist. */

@@ -60,6 +60,7 @@ void pkt_destroy(void);
 
 __u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr);
 __u16 is_more_fragments_set_ipv4(struct iphdr *hdr);
+__u16 is_dont_fragment_set(struct iphdr *hdr);
 __u16 get_fragment_offset_ipv6(struct frag_hdr *hdr);
 __u16 get_fragment_offset_ipv4(struct iphdr *hdr);
 __be16 build_ipv6_frag_off_field(__u16 more_fragments, __u16 fragment_offset);

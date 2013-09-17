@@ -84,6 +84,7 @@ enum error_code {
 
 	/* IPv6 header iterator */
 	ERR_INVALID_ITERATOR = 2000,
+	ERR_MISSING_FRAG_HEADER = 2001,
 
 	/* Pool6 */
 	ERR_POOL6_EMPTY = 2200,

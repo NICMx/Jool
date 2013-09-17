@@ -64,6 +64,18 @@ static __u16 hash_function(struct pktdb_key *key)
 	return key->identifier;
 }
 
+static int pkt_fragment_count(struct packet *pkt)
+{
+	struct fragment *frag;
+	int i = 0;
+
+	list_for_each_entry(frag, &pkt->fragments, next) {
+		i++;
+	}
+
+	return i;
+}
+
 static int frag_to_key(struct fragment *frag, struct pktdb_key *key)
 {
 	struct ipv6hdr *hdr6;
@@ -74,10 +86,12 @@ static int frag_to_key(struct fragment *frag, struct pktdb_key *key)
 	case L3PROTO_IPV6:
 		hdr6 = frag_get_ipv6_hdr(frag);
 		hdr_frag = frag_get_fragment_hdr(frag);
+		if (!hdr_frag)
+			return -EINVAL; // Unfragmented packet
+		key->identifier = hdr_frag->identification;
 		key->is_ipv6 = true;
 		key->ipv6.src = hdr6->saddr;
 		key->ipv6.dst = hdr6->daddr;
-		key->identifier = hdr_frag->identification;
 		break;
 
 	case L3PROTO_IPV4:
@@ -85,6 +99,9 @@ static int frag_to_key(struct fragment *frag, struct pktdb_key *key)
 		key->is_ipv6 = false;
 		key->ipv4.src.s_addr = hdr4->saddr;
 		key->ipv4.dst.s_addr = hdr4->daddr;
+		if ( !is_more_fragments_set_ipv4(hdr4)
+			 && get_fragment_offset_ipv4(hdr4) == 0 )
+			return -EINVAL; // Unfragmented packet
 		key->identifier = be16_to_cpu(hdr4->id);
 		break;
 
@@ -212,7 +229,7 @@ enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 	struct fragment *frag;
 	enum verdict result;
 
-	result = (skb->protocol == IPPROTO_IPV6)
+	result = (skb->protocol == htons(ETH_P_IPV6))
 			? frag_create_ipv6(skb, &frag)
 			: frag_create_ipv4(skb, &frag);
 	if (result != VER_CONTINUE)
@@ -222,7 +239,7 @@ enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 
 	pkt_from_db = pktdb_get(frag);
 	if (pkt_from_db) {
-		if (skb->protocol == IPPROTO_IPV6)
+		if (skb->protocol == htons(ETH_P_IPV6))
 			pkt_add_frag_ipv6(pkt_from_db, frag);
 		else
 			pkt_add_frag_ipv4(pkt_from_db, frag);
@@ -240,9 +257,10 @@ enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 		}
 
 	} else {
-		*pkt = (skb->protocol == IPPROTO_IPV6)
+		*pkt = (skb->protocol == htons(ETH_P_IPV6))
 				? pkt_create_ipv6(frag)
 				: pkt_create_ipv4(frag);
+
 
 		if (pkt_is_complete(*pkt))
 			/* No fragmentation; no need to reassemble. pkt is already set so just state success. */

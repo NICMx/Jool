@@ -47,7 +47,7 @@ void stream_write(struct out_stream *stream, void *payload, int payload_len)
 	 * TODO (fine) if payload_len > BUFFER_SIZE, this will go downhill.
 	 * Will never happen in this project, hence the low priority.
 	 */
-	if (stream->buffer_len + payload_len > BUFFER_SIZE)
+	if (stream->buffer_len + payload_len > OUT_STREAM_BUFFER_SIZE)
 		flush(stream, 0);
 
 	memcpy(stream->buffer + stream->buffer_len, payload, payload_len);
