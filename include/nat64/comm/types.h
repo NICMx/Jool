@@ -195,8 +195,8 @@ struct tuple_addr {
 struct tuple {
 	struct tuple_addr src;
 	struct tuple_addr dst;
-	u_int16_t l3_proto;
-	u_int8_t l4_proto;
+	enum l3_proto l3_proto;
+	enum l4_proto l4_proto;
 #define icmp_id src.l4_id
 };
 

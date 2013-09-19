@@ -63,7 +63,7 @@ int bib_init(void);
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
-int bib_add(struct bib_entry *entry, u_int8_t l4protocol);
+int bib_add(struct bib_entry *entry, enum l4_proto l4proto);
 
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
@@ -75,7 +75,7 @@ int bib_add(struct bib_entry *entry, u_int8_t l4protocol);
  * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
-struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol);
+struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, enum l4_proto l4proto);
 /**
  * Returns the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  * "address".
@@ -86,8 +86,8 @@ struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l
  * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
-struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol);
-struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
+struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, enum l4_proto l4proto);
+struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, enum l4_proto l4proto);
 
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.
@@ -112,7 +112,7 @@ struct bib_entry *bib_get(struct tuple *tuple);
  * @return whether the entry was in fact removed or not. The removal will fail if the entry is not
  *		on the table, or if it still has related session entries.
  */
-bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol);
+bool bib_remove(struct bib_entry *entry, enum l4_proto l4proto);
 
 /**
  * Empties the BIB tables, freeing any memory being used by them.
@@ -131,7 +131,7 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 /**
  * Asume que el candado ya se reservó.
  */
-int bib_for_each(__u8 l4protocol, int (*func)(struct bib_entry *, void *), void *arg);
+int bib_for_each(enum l4_proto l4proto, int (*func)(struct bib_entry *, void *), void *arg);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".

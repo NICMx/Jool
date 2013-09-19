@@ -11,11 +11,10 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include <linux/skbuff.h>
 #include "nat64/comm/types.h"
+#include "nat64/mod/packet.h"
 
 
-bool compute_out_tuple_6to4(struct tuple *in, struct sk_buff *skb_in, struct tuple *out);
-bool compute_out_tuple_4to6(struct tuple *in, struct sk_buff *skb_in, struct tuple *out);
+bool compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple *out);
 
 #endif /* _NF_NAT64_OUTGOING_H */
