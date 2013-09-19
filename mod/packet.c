@@ -370,7 +370,7 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 		goto error;
 
 	// Payload
-	if ( frag->l4_hdr.proto == L4PROTO_NONE ){
+	if (frag->l4_hdr.proto == L4PROTO_NONE) {
 		frag->payload.len = iterator.limit - iterator.data;
 		frag->payload.ptr = iterator.data;
 	} else {

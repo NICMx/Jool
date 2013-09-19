@@ -1,4 +1,5 @@
 #include "nat64/comm/types.h"
+#include "nat64/comm/str_utils.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
@@ -255,4 +256,46 @@ void log_tuple(struct tuple *tuple)
 				&tuple->dst.addr.ipv6, tuple->dst.l4_id);
 		break;
 	}
+}
+
+int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
+		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto)
+{
+	int error;
+
+	error = str_to_addr4(src_addr, &tuple->src.addr.ipv4);
+	if (error)
+		return error;
+	tuple->src.l4_id = src_port;
+
+	error = str_to_addr4(dst_addr, &tuple->dst.addr.ipv4);
+	if (error)
+		return error;
+	tuple->dst.l4_id = dst_port;
+
+	tuple->l3_proto = PF_INET;
+	tuple->l4_proto = l4_proto;
+
+	return 0;
+}
+
+int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
+		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto)
+{
+	int error;
+
+	error = str_to_addr6(src_addr, &tuple->src.addr.ipv6);
+	if (error)
+		return error;
+	tuple->src.l4_id = src_port;
+
+	error = str_to_addr6(dst_addr, &tuple->dst.addr.ipv6);
+	if (error)
+		return error;
+	tuple->dst.l4_id = dst_port;
+
+	tuple->l3_proto = PF_INET6;
+	tuple->l4_proto = l4_proto;
+
+	return 0;
 }

@@ -233,6 +233,10 @@ bool is_icmp4_info(__u8 type);
 bool is_icmp4_error(__u8 type);
 
 void log_tuple(struct tuple *tuple);
+int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
+		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto);
+int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
+		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto);
 
 
 #endif
