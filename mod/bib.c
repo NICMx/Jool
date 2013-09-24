@@ -179,17 +179,17 @@ struct bib_entry *bib_get(struct tuple *tuple)
 		return NULL;
 
 	switch (tuple->l3_proto) {
-	case PF_INET6:
+	case L3PROTO_IPV6:
 		address6.address = tuple->src.addr.ipv6;
 		address6.l4_id = tuple->src.l4_id;
 		return bib_get_by_ipv6(&address6, tuple->l4_proto);
-	case PF_INET:
+	case L3PROTO_IPV4:
 		address4.address = tuple->dst.addr.ipv4;
 		address4.l4_id = tuple->dst.l4_id;
 		return bib_get_by_ipv4(&address4, tuple->l4_proto);
-	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
-		return NULL;
+//	default:
+//		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+//		return NULL;
 	}
 }
 

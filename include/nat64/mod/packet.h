@@ -123,7 +123,7 @@ struct packet {
 	unsigned int dying_time;
 
 	// TODO recordatorio: No hemos seteado esto en el de salida.
-	enum l4_proto proto;
+	enum l3_proto proto;
 	union {
 		struct {
 			struct in6_addr src, dst;

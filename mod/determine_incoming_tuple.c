@@ -44,7 +44,7 @@ static bool ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, str
 	tuple->dst.addr.ipv4.s_addr = hdr_ipv4->daddr;
 	tuple->dst.l4_id = tuple->src.l4_id;
 	tuple->l3_proto = PF_INET;
-	tuple->l4_proto = IPPROTO_ICMP;
+	tuple->l4_proto = IPPROTO_ICMP; // TODO: Aquí deberíamos poner TCP o UDP
 	return true;
 }
 
@@ -181,29 +181,36 @@ static bool ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, s
 	return true;
 }
 
-bool determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
+//bool determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
+bool determine_in_tuple(struct packet *pkt, struct tuple *tuple)
 {
 	struct iphdr *hdr4;
 	struct ipv6hdr *hdr6;
 	struct icmphdr *icmp4;
 	struct icmp6hdr *icmp6;
 	struct hdr_iterator iterator;
+	struct sk_buff *skb;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
 
+	skb = pkt->fragments.next;
+	if (!skb)
+		return false;
+
+	// TODO: Should we add a l3_proto element to packet struct?
 	switch (be16_to_cpu(skb->protocol)) {
 	case ETH_P_IP:
 		hdr4 = ip_hdr(skb);
-		switch (hdr4->protocol) {
-		case IPPROTO_UDP:
+		switch (pkt->proto) {
+		case L4PROTO_UDP:
 			if (!ipv4_udp(hdr4, ipv4_extract_l4_hdr(hdr4), tuple))
 				return false;
 			break;
-		case IPPROTO_TCP:
+		case L4PROTO_TCP:
 			if (!ipv4_tcp(hdr4, ipv4_extract_l4_hdr(hdr4), tuple))
 				return false;
 			break;
-		case IPPROTO_ICMP:
+		case L4PROTO_ICMP:
 			icmp4 = ipv4_extract_l4_hdr(hdr4);
 			if (is_icmp4_info(icmp4->type)) {
 				if (!ipv4_icmp_info(hdr4, icmp4, tuple))
