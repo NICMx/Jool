@@ -58,6 +58,8 @@ int pkt_init(void);
 void pkt_destroy(void);
 
 
+__u8 get_traffic_class(struct ipv6hdr *hdr);
+__be32 get_flow_label(struct ipv6hdr *hdr);
 __u16 is_dont_fragment_set(struct iphdr *hdr);
 __u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr);
 __u16 is_more_fragments_set_ipv4(struct iphdr *hdr);
@@ -70,6 +72,7 @@ __be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragments, __u1
 
 struct fragment {
 	struct sk_buff *skb;
+	struct dst_entry *dst;
 
 	struct {
 		enum l3_proto proto;

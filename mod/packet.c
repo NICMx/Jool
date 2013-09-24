@@ -39,6 +39,19 @@ void pkt_destroy(void)
 	/* No code. */
 }
 
+__u8 get_traffic_class(struct ipv6hdr *hdr)
+{
+	__u8 upper_bits = hdr->priority;
+	__u8 lower_bits = hdr->flow_lbl[0] >> 4;
+
+	return (upper_bits << 4) | lower_bits;
+}
+
+__be32 get_flow_label(struct ipv6hdr *hdr)
+{
+	return (*(__be32 *) hdr) & IPV6_FLOWLABEL_MASK;
+}
+
 /**
  * Returns 1 if the Don't Fragments flag from the "header" header is set, 0 otherwise.
  */

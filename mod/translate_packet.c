@@ -431,11 +431,6 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	case L3PROTO_IPV6:
 		list_add(&out->next, out_list->prev);
 		break;
-
-	default:
-		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", in->l3_hdr.proto);
-		return VER_DROP;
-
 	}
 
 	return VER_CONTINUE;
@@ -455,15 +450,13 @@ enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, stru
 
 	list_for_each_entry(current_in, &in->fragments, next) {
 		result = translate_fragment(current_in, tuple, &out->fragments);
-		if (result != VER_CONTINUE)
-			goto error;
+		if (result != VER_CONTINUE) {
+			pkt_kfree(out, false);
+			return result;
+		}
 	}
 
 	log_debug("Done step 4.");
 
 	return VER_CONTINUE;
-
-error:
-	pkt_kfree(out, false);
-	return VER_DROP;
 }

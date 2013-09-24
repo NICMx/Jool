@@ -12,17 +12,6 @@
  *************************************************************************************************/
 
 /**
- * One-liner for creating the IPv4 header's Type of Service field.
- */
-static __u8 build_tos_field(struct ipv6hdr *ip6_hdr)
-{
-	__u8 upper_bits = ip6_hdr->priority;
-	__u8 lower_bits = ip6_hdr->flow_lbl[0] >> 4;
-
-	return (upper_bits << 4) | lower_bits;
-}
-
-/**
  * One-liner for creating the IPv4 header's Identification field.
  * It assumes that the packet will not contain a fragment header.
  */
@@ -140,7 +129,7 @@ static enum verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, st
 	ip4_hdr = frag_get_ipv4_hdr(out);
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
-	ip4_hdr->tos = reset_tos ? 0 : build_tos_field(ip6_hdr);
+	ip4_hdr->tos = reset_tos ? 0 : get_traffic_class(ip6_hdr);
 	/* ip4_hdr->tot_len is set during post-processing. */
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);

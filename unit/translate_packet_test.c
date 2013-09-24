@@ -498,21 +498,21 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 	return success;
 }
 
-static bool test_function_build_tos_field(void)
+static bool test_function_get_traffic_class(void)
 {
 	__u8 ipv6_header[4]; /* We don't really need the rest of the bytes. */
 	bool success = true;
 
 	/*
-	 * version: 2 (Yes, it's not 6. Doesn't matter.)
-	 * traffic class: ce
-	 * flow label: 3c3e0
+	 * version: 6
+	 * traffic class: 78
+	 * flow label: 9abcd
 	 */
-	ipv6_header[0] = 0x2c;
-	ipv6_header[1] = 0xe3;
-	ipv6_header[2] = 0xc3;
-	ipv6_header[3] = 0xe0;
-	success &= assert_equals_u8(0xce, build_tos_field((struct ipv6hdr *) ipv6_header), "Simple");
+	ipv6_header[0] = 0x67;
+	ipv6_header[1] = 0x89;
+	ipv6_header[2] = 0xab;
+	ipv6_header[3] = 0xcd;
+	success &= assert_equals_u8(0x78, get_traffic_class((struct ipv6hdr *) ipv6_header), "Simple");
 
 	return success;
 }
@@ -926,6 +926,7 @@ static bool validate_pkt_ipv6_icmp_error(struct packet *pkt, struct tuple *tuple
 		return false;
 	if (!validate_frag_icmp6(frag))
 		return false;
+	/* The payload was a packet, which was also translated, so it grew. */
 	if (!validate_frag_payload(frag, 120))
 		return false;
 
@@ -961,7 +962,6 @@ static bool test_simple_4to6_icmp_error(void)
 		goto fail;
 
 	/* Validate */
-	/* The 20 extra bytes come from the difference between the IPv6 header and the IPv4 one. */
 	if (!validate_pkt_ipv6_icmp_error(&pkt_out, &tuple))
 		goto fail;
 
@@ -1185,6 +1185,7 @@ static bool validate_pkt_ipv4_icmp_error(struct packet *pkt, struct tuple *tuple
 		return false;
 	if (!validate_frag_icmp4(frag))
 		return false;
+	/* The payload was a packet, which was also translated, so it shrank. */
 	if (!validate_frag_payload(frag, 80))
 		return false;
 
@@ -1221,7 +1222,6 @@ static bool test_simple_6to4_icmp_error(void)
 		goto fail;
 
 	/* Validate */
-	/* The 20 missing bytes come from the difference between the IPv6 header and the IPv4 one. */
 	if (!validate_pkt_ipv4_icmp_error(&pkt_out, &tuple))
 		goto fail;
 
@@ -1882,7 +1882,7 @@ int init_module(void)
 	CALL_TEST(test_function_icmp6_minimum_mtu(), "ICMP6 Minimum MTU function");
 	CALL_TEST(test_function_icmp4_to_icmp6_param_prob(), "Param problem function");
 
-	CALL_TEST(test_function_build_tos_field(), "Build TOS function");
+	CALL_TEST(test_function_get_traffic_class(), "Get Traffic Class function");
 	CALL_TEST(test_function_generate_ipv4_id_nofrag(), "Generate id function (no frag)");
 	CALL_TEST(test_function_generate_df_flag(), "Generate DF flag function");
 	CALL_TEST(test_function_build_protocol_field(), "Build protocol function");

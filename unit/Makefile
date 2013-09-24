@@ -7,7 +7,8 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += packet.o packetdb.o outgoing.o translate.o
+obj-m += packet.o packetdb.o outgoing.o translate.o send.o
+
 
 # Packet
 packet-objs += ../mod/types.o
@@ -49,6 +50,9 @@ translate-objs += framework/skb_generator.o
 translate-objs += framework/validator.o
 translate-objs += framework/types.o
 translate-objs += translate_packet_test.o
+
+# Send packet (does not have a unit test, so just make sure it compiles.)
+send-objs += ../mod/send_packet.o
 
 
 all:

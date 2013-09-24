@@ -1,42 +1,60 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/comm/types.h"
-#include "nat64/mod/ipv6_hdr_iterator.h"
-#include "nat64/mod/translate_packet.h"
 
-#include <linux/ip.h>
-#include <linux/module.h>
 #include <linux/version.h>
-#include <linux/skbuff.h>
-#include <linux/udp.h>
-#include <linux/netfilter/x_tables.h>
-#ifdef CONFIG_BRIDGE_NETFILTER
-#	include <linux/netfilter_bridge.h>
-#endif
 #include <net/ip.h>
-#include <net/ip6_checksum.h>
 #include <net/ip6_route.h>
 #include <net/route.h>
-#include <linux/kallsyms.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
-#include <net/icmp.h>
 
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 
-static struct rtable *route_packet_ipv4(struct sk_buff *skb)
+struct dst_entry *route_skb_ipv4(struct fragment *frag)
 {
-	struct iphdr *iph = ip_hdr(skb);
-	struct flowi fl;
+	struct iphdr *hdr_ip4 = frag_get_ipv4_hdr(frag);
+	struct flowi flow;
 	struct rtable *table;
 	int error;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.fl4_dst = iph->daddr;
-	fl.fl4_tos = RT_TOS(iph->tos);
-	fl.proto = skb->protocol;
+	memset(&flow, 0, sizeof(flow));
+	/* flow.oif; */
+	/* flow.iif; */
+	if (frag->skb)
+		flow.mark = frag->skb->mark;
+	flow.fl4_dst = hdr_ip4->daddr;
+	flow.fl4_src = hdr_ip4->saddr;
+	flow.fl4_tos = RT_TOS(hdr_ip4->tos);
+	flow.fl4_scope = RT_SCOPE_UNIVERSE;
+	flow.proto = hdr_ip4->protocol;
+	flow.flags = 0;
+	{
+		struct udphdr *hdr_udp;
+		struct tcphdr *hdr_tcp;
+		struct icmphdr *hdr_icmp4;
 
-	error = ip_route_output_key(&init_net, &table, &fl);
+		switch (frag->l4_hdr.proto) {
+		case L4PROTO_NONE:
+			break;
+		case L4PROTO_TCP:
+			hdr_tcp = frag_get_tcp_hdr(frag);
+			flow.fl_ip_sport = hdr_tcp->source;
+			flow.fl_ip_dport = hdr_tcp->dest;
+			break;
+		case L4PROTO_UDP:
+			hdr_udp = frag_get_udp_hdr(frag);
+			flow.fl_ip_sport = hdr_udp->source;
+			flow.fl_ip_dport = hdr_udp->dest;
+			break;
+		case L4PROTO_ICMP:
+			hdr_icmp4 = frag_get_icmp4_hdr(frag);
+			flow.fl_icmp_type = hdr_icmp4->type;
+			flow.fl_icmp_code = hdr_icmp4->code;
+			break;
+		}
+	}
+	/* flow.secid; */
+
+	error = ip_route_output_key(&init_net, &table, &flow);
 	if (error) {
 		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() failed. Code: %d. Cannot route packet.",
 				error);
@@ -47,24 +65,60 @@ static struct rtable *route_packet_ipv4(struct sk_buff *skb)
 		return NULL;
 	}
 
-	return table;
+	return &table->dst;
 }
 
-static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
+struct dst_entry *route_skb_ipv6(struct fragment *frag)
 {
-	struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct flowi fl;
+	struct ipv6hdr *hdr_ip6 = frag_get_ipv6_hdr(frag);
+	struct flowi flow;
 	struct dst_entry *dst;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.fl6_src = iph->saddr;
-	fl.fl6_dst = iph->daddr;
-	fl.fl6_flowlabel = 0;
-	fl.proto = skb->protocol;
+	memset(&flow, 0, sizeof(flow));
+	/* flow.oif; */
+	/* flow.iif; */
+	if (frag->skb)
+		flow.mark = frag->skb->mark;
+	flow.fl6_dst = hdr_ip6->daddr;
+	flow.fl6_src = hdr_ip6->saddr;
+	flow.fl6_flowlabel = get_flow_label(hdr_ip6);
+	flow.proto = hdr_ip6->nexthdr;
+	flow.flags = 0;
+	{
+		struct udphdr *hdr_udp;
+		struct tcphdr *hdr_tcp;
+		struct icmp6hdr *hdr_icmp6;
 
-	dst = ip6_route_output(&init_net, NULL, &fl);
+		switch (frag->l4_hdr.proto) {
+		case L4PROTO_NONE:
+			break;
+		case L4PROTO_TCP:
+			hdr_tcp = frag_get_tcp_hdr(frag);
+			flow.fl_ip_sport = hdr_tcp->source;
+			flow.fl_ip_dport = hdr_tcp->dest;
+			break;
+		case L4PROTO_UDP:
+			hdr_udp = frag_get_udp_hdr(frag);
+			flow.fl_ip_sport = hdr_udp->source;
+			flow.fl_ip_dport = hdr_udp->dest;
+			break;
+		case L4PROTO_ICMP:
+			hdr_icmp6 = frag_get_icmp6_hdr(frag);
+			flow.fl_icmp_type = hdr_icmp6->icmp6_type;
+			flow.fl_icmp_code = hdr_icmp6->icmp6_code;
+			break;
+		}
+	}
+	/* flow.secid; */
+
+	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
+		return NULL;
+	}
+	if (dst->error) {
+		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned error %d. Cannot route packet.",
+				dst->error);
 		return NULL;
 	}
 
@@ -73,45 +127,126 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 #else
 
-static struct rtable *route_packet_ipv4(struct sk_buff *skb)
+struct dst_entry *route_fragment_ipv4(struct fragment *frag)
 {
-	struct iphdr *ip_header = ip_hdr(skb);
-	struct flowi fl;
+	struct iphdr *hdr_ip = frag_get_ipv4_hdr(frag);
+	struct flowi4 flow;
 	struct rtable *table;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.u.ip4.daddr = ip_header->daddr;
-	fl.flowi_tos = RT_TOS(ip_header->tos);
-	fl.flowi_proto = skb->protocol;
+	memset(&flow, 0, sizeof(flow));
+	/* flow.flowi4_oif; */
+	/* flow.flowi4_iif; */
+	if (frag->skb)
+		flow.flowi4_mark = frag->skb->mark;
+	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
+	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi4_proto = hdr_ip->protocol;
+	/*
+	 * TODO Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever create
+	 * routes on Jool's behalf?
+	 * TODO We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
+	 * If you change it, the corresponding attribute in route_skb_ipv6() should probably follow.
+	 */
+	flow.flowi4_flags = 0;
+	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
+	/* flow.flowi4_secid; */
+	flow.saddr = hdr_ip->saddr;
+	flow.daddr = hdr_ip->daddr;
+	{
+		struct udphdr *hdr_udp;
+		struct tcphdr *hdr_tcp;
+		struct icmphdr *hdr_icmp4;
 
-	table = ip_route_output_key(&init_net, &fl.u.ip4);
-	if (!table) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() returned NULL. Cannot route packet.");
+		switch (frag->l4_hdr.proto) {
+		case L4PROTO_NONE:
+			break;
+		case L4PROTO_TCP:
+			hdr_tcp = frag_get_tcp_hdr(frag);
+			flow.fl4_sport = hdr_tcp->source;
+			flow.fl4_dport = hdr_tcp->dest;
+			break;
+		case L4PROTO_UDP:
+			hdr_udp = frag_get_udp_hdr(frag);
+			flow.fl4_sport = hdr_udp->source;
+			flow.fl4_dport = hdr_udp->dest;
+			break;
+		case L4PROTO_ICMP:
+			hdr_icmp4 = frag_get_icmp4_hdr(frag);
+			flow.fl4_icmp_type = hdr_icmp4->type;
+			flow.fl4_icmp_code = hdr_icmp4->code;
+			break;
+		}
+	}
+
+	/*
+	 * I'm using neither ip_route_output_key() nor ip_route_output_flow() because those seem to
+	 * mind about XFRM (= IPsec), which is probably just troublesome overhead given that "any
+	 * protocols that protect IP header information are essentially incompatible with NAT64"
+	 * (RFC 6146).
+	 */
+	table = __ip_route_output_key(&init_net, &flow);
+	if (!table || IS_ERR(table)) {
+		log_err(ERR_ROUTE_FAILED, "__ip_route_output_key() returned %p. Cannot route packet.",
+				table);
 		return NULL;
 	}
-	if (IS_ERR(table)) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() returned %p. Cannot route packet.", table);
-		return NULL;
-	}
 
-	return table;
+	return &table->dst;
 }
 
-static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
+struct dst_entry *route_fragment_ipv6(struct fragment *frag)
 {
-	struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct flowi fl;
+	struct ipv6hdr *hdr_ip6 = frag_get_ipv6_hdr(frag);
+	struct flowi6 flow;
 	struct dst_entry *dst;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.u.ip6.saddr = iph->saddr;
-	fl.u.ip6.daddr = iph->daddr;
-	fl.u.ip6.flowlabel = 0;
-	fl.flowi_proto= skb->protocol;
+	memset(&flow, 0, sizeof(flow));
+	/* flow->flowi6_oif; */
+	/* flow->flowi6_iif; */
+	if (frag->skb)
+		flow.flowi6_mark = frag->skb->mark;
+	flow.flowi6_tos = get_traffic_class(hdr_ip6);
+	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi6_proto = hdr_ip6->nexthdr;
+	flow.flowi6_flags = 0;
+	/* flow->flowi6_secid; */
+	flow.saddr = hdr_ip6->saddr;
+	flow.daddr = hdr_ip6->daddr;
+	flow.flowlabel = get_flow_label(hdr_ip6);
+	{
+		struct udphdr *hdr_udp;
+		struct tcphdr *hdr_tcp;
+		struct icmp6hdr *hdr_icmp6;
 
-	dst = ip6_route_output(&init_net, NULL, &fl.u.ip6);
+		switch (frag->l4_hdr.proto) {
+		case L4PROTO_NONE:
+			break;
+		case L4PROTO_TCP:
+			hdr_tcp = frag_get_tcp_hdr(frag);
+			flow.fl6_sport = hdr_tcp->source;
+			flow.fl6_dport = hdr_tcp->dest;
+			break;
+		case L4PROTO_UDP:
+			hdr_udp = frag_get_udp_hdr(frag);
+			flow.fl6_sport = hdr_udp->source;
+			flow.fl6_dport = hdr_udp->dest;
+			break;
+		case L4PROTO_ICMP:
+			hdr_icmp6 = frag_get_icmp6_hdr(frag);
+			flow.fl6_icmp_type = hdr_icmp6->icmp6_type;
+			flow.fl6_icmp_code = hdr_icmp6->icmp6_code;
+			break;
+		}
+	}
+
+	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
+		return NULL;
+	}
+	if (dst->error) {
+		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned error %d. Cannot route packet.",
+				dst->error);
 		return NULL;
 	}
 
@@ -120,196 +255,33 @@ static struct dst_entry *route_packet_ipv6(struct sk_buff *skb)
 
 #endif
 
-static unsigned int min_uint(unsigned int val1, unsigned int val2)
+enum verdict send_pkt(struct packet *pkt)
 {
-	return (val1 < val2) ? val1 : val2;
-}
-
-static void ipv4_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
-{
-	struct icmp6hdr *hdr6 = icmp6_hdr(skb_in);
-	struct icmphdr *hdr4 = icmp_hdr(skb_out);
-
-	unsigned int ipv6_mtu = skb_in->dev->mtu;
-	unsigned int ipv4_mtu = skb_out->dev->mtu;
-
-	if (!skb_in)
-		return;
-
-	if (ip_hdr(skb_out)->protocol != IPPROTO_ICMP)
-		return;
-
-	if (hdr4->type != ICMP_DEST_UNREACH || hdr4->code != ICMP_FRAG_NEEDED)
-		return;
-
-	hdr4->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(hdr6->icmp6_mtu) - 20,
-			ipv4_mtu,
-			ipv6_mtu - 20);
-}
-
-static bool ipv4_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb_out)
-{
-	struct iphdr *ip4_hdr = ip_hdr(skb_out);
-
-	if (skb_out->len <= skb_out->dev->mtu)
-		return true;
-
-	if (ip4_hdr->protocol == IPPROTO_ICMP) {
-		struct icmphdr *icmp4_hdr = icmp_hdr(skb_out);
-		if (is_icmp4_error(icmp4_hdr->type)) {
-			int new_packet_len = skb_out->dev->mtu;
-
-			skb_trim(skb_out, new_packet_len);
-
-			ip4_hdr->tot_len = cpu_to_be16(new_packet_len);
-			ip4_hdr->check = 0;
-			ip4_hdr->check = ip_fast_csum(ip4_hdr, ip4_hdr->ihl);
-
-			icmp4_hdr->checksum = 0;
-			icmp4_hdr->checksum = ip_compute_csum(icmp4_hdr, new_packet_len - 4 * ip4_hdr->ihl);
-
-			return true;
-		}
-	}
-
-	if (is_dont_fragment_set(ip4_hdr)) {
-		unsigned int ipv6_mtu = skb_in->dev->mtu;
-		unsigned int ipv4_mtu = skb_out->dev->mtu;
-
-		log_debug("Packet is too large for the outgoing MTU and the DF flag is set. Dropping...");
-		icmpv6_send(skb_in, ICMPV6_PKT_TOOBIG, 0, cpu_to_be32(min_uint(ipv4_mtu, ipv6_mtu - 20)));
-		return false;
-	}
-
-	/* The kernel will fragment it. */
-	return true;
-}
-
-bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
-{
-	struct rtable *routing_table;
+	struct fragment *frag;
 	int error;
 
-	skb_out->protocol = htons(ETH_P_IP);
+	list_for_each_entry(frag, &pkt->fragments, next) {
+		log_debug("Sending skb via device '%s'...", frag->skb->dev->name);
+		switch (frag->l3_hdr.proto) {
+		case L3PROTO_IPV6:
+			frag->skb->protocol = htons(ETH_P_IPV6);
+			error = ip6_local_out(frag->skb);
+			break;
+		case L3PROTO_IPV4:
+			frag->skb->protocol = htons(ETH_P_IP);
+			error = ip_local_out(frag->skb);
+			break;
+		}
 
-	routing_table = route_packet_ipv4(skb_out);
-	if (!routing_table) {
-		kfree_skb(skb_out);
-		return false;
-	}
+		/* the ip*_local_out() functions free the skb, so prevent crashing during frag_kfree(). */
+		frag->skb = NULL;
 
-	skb_out->dev = routing_table->dst.dev;
-	skb_dst_set(skb_out, (struct dst_entry *) routing_table);
-
-	if (skb_in) {
-		ipv4_mtu_hack(skb_in, skb_out);
-		if (!ipv4_validate_packet_len(skb_in, skb_out)) {
-			kfree_skb(skb_out);
-			return false;
+		if (error) {
+			log_err(ERR_SEND_FAILED, "The kernel's packet dispatch function returned errcode %d. "
+					"Cannot send packet.", error);
+			return VER_DROP; /* The rest will also probably fail methinks, so meh. */
 		}
 	}
 
-	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
-	error = ip_local_out(skb_out); /* Send. */
-	if (error) {
-		log_err(ERR_SEND_FAILED, "ip_local_out() failed. Code: %d. Cannot send packet.", error);
-		return false;
-	}
-
-	return true;
-}
-
-static void ipv6_mtu_hack(struct sk_buff *skb_in, struct sk_buff *skb_out)
-{
-	struct icmphdr *hdr4 = icmp_hdr(skb_in);
-	struct icmp6hdr *hdr6 = icmp6_hdr(skb_out);
-	unsigned int ipv6_mtu = skb_out->dev->mtu;
-	unsigned int ipv4_mtu = skb_in->dev->mtu;
-
-	if (!skb_in)
-		return;
-
-	if (ip_hdr(skb_in)->protocol != IPPROTO_ICMP)
-		return;
-
-	if (hdr6->icmp6_type != ICMPV6_PKT_TOOBIG || hdr6->icmp6_type != 0)
-		return;
-
-	hdr6->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(hdr4->un.frag.mtu) + 20,
-			ipv6_mtu,
-			ipv4_mtu + 20,
-			be16_to_cpu(ip_hdr(skb_in)->tot_len));
-}
-
-static bool ipv6_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb_out)
-{
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb_out);
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
-	unsigned int ipv6_mtu;
-	unsigned int ipv4_mtu;
-
-	if (skb_out->len <= skb_out->dev->mtu)
-		return true;
-
-	hdr_iterator_last(&iterator);
-	if (iterator.hdr_type == IPPROTO_ICMPV6) {
-		struct icmp6hdr *icmpv6_hdr = icmp6_hdr(skb_out);
-		if (is_icmp6_error(icmpv6_hdr->icmp6_type)) {
-			int new_packet_len = skb_out->dev->mtu;
-			int l3_payload_len = new_packet_len - (iterator.data - (void *) ip6_hdr);
-
-			skb_trim(skb_out, new_packet_len);
-
-			ip6_hdr->payload_len = cpu_to_be16(l3_payload_len);
-
-			icmpv6_hdr->icmp6_cksum = 0;
-			icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
-					l3_payload_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, l3_payload_len, 0));
-
-			return true;
-		}
-	}
-
-	ipv6_mtu = skb_out->dev->mtu;
-	ipv4_mtu = skb_in->dev->mtu;
-
-	log_debug("Packet is too large for the outgoing MTU and IPv6 routers don't do fragmentation. "
-			"Dropping...");
-	icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
-			cpu_to_be32(min_uint(ipv6_mtu, ipv4_mtu + 20)));
-	return false;
-}
-
-bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
-{
-	struct dst_entry *dst;
-	int error;
-
-	skb_out->protocol = htons(ETH_P_IPV6);
-
-	dst = route_packet_ipv6(skb_out);
-	if (!dst) {
-		kfree_skb(skb_out);
-		return false;
-	}
-
-	skb_out->dev = dst->dev;
-	skb_dst_set(skb_out, dst);
-
-	if (skb_in) {
-		ipv6_mtu_hack(skb_in, skb_out);
-		if (!ipv6_validate_packet_len(skb_in, skb_out)) {
-			kfree_skb(skb_out);
-			return false;
-		}
-	}
-
-	log_debug("Sending packet via device '%s'...", skb_out->dev->name);
-	error = ip6_local_out(skb_out); /* Send. */
-	if (error) {
-		log_err(ERR_SEND_FAILED, "ip6_local_out() failed. Code: %d. Cannot send packet.", error);
-		return false;
-	}
-
-	return true;
+	return VER_CONTINUE;
 }

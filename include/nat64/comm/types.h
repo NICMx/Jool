@@ -196,6 +196,10 @@ struct tuple {
 	struct tuple_addr src;
 	struct tuple_addr dst;
 	enum l3_proto l3_proto;
+	/**
+	 * Note: The tuple's packet's outer l4-protocol might differ from the tuple's l4-protocol.
+	 * This is beacuse ICMP errors generate UDP or TCP tuples (depending on the inner packet).
+	 */
 	enum l4_proto l4_proto;
 #define icmp_id src.l4_id
 };
