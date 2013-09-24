@@ -351,7 +351,7 @@ static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type
 {
 	struct sk_buff *skb;
 	int datagram_len = l4_hdr_len + payload_len;
-	int errorx;
+	int error;
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + datagram_len, GFP_ATOMIC);
 	if (!skb) {
@@ -367,18 +367,18 @@ static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, l3_hdr_len);
 
-	errorx = l3_hdr_cb(skb_network_header(skb), datagram_len, l4_hdr_type, arg);
-	if (errorx)
+	error = l3_hdr_cb(skb_network_header(skb), datagram_len, l4_hdr_type, arg);
+	if (error)
 		goto failure;
-	errorx = l4_hdr_cb(skb_transport_header(skb), l3_hdr_type, datagram_len, arg);
-	if (errorx)
+	error = l4_hdr_cb(skb_transport_header(skb), l3_hdr_type, datagram_len, arg);
+	if (error)
 		goto failure;
-	errorx = payload_cb(skb_transport_header(skb) + l4_hdr_len, payload_len);
-	if (errorx)
+	error = payload_cb(skb_transport_header(skb) + l4_hdr_len, payload_len);
+	if (error)
 		goto failure;
 
-	errorx = l4_post_cb(skb_transport_header(skb), datagram_len, arg);
-	if (errorx)
+	error = l4_post_cb(skb_transport_header(skb), datagram_len, arg);
+	if (error)
 		goto failure;
 
 	*result = skb;
@@ -387,7 +387,7 @@ static int create_skb(int (*l3_hdr_cb)(void *, u16, u8, void *), int l3_hdr_type
 
 failure:
 	kfree_skb(skb);
-	return errorx;
+	return error;
 }
 
 int create_skb_ipv6_udp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)

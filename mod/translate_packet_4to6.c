@@ -10,15 +10,6 @@
  *************************************************************************************************/
 
 /**
- * Returns 1 if the Don't Fragments flag from the "header" header is set, 0 otherwise.
- */
-__u16 is_dont_fragment_set(struct iphdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_DF) >> 14;
-}
-
-/**
  * Returns "true" if "hdr" contains a source route option and the last address from it hasn't been
  * reached.
  *
@@ -274,6 +265,7 @@ static enum verdict icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, stru
 				ipv4_mtu + 20,
 				tot_len_field);
 		*/
+		icmpv6_hdr->icmp6_mtu = cpu_to_be32(0);
 		break;
 
 	case ICMP_NET_ANO:
@@ -526,6 +518,9 @@ static enum l4_proto protocol_to_l4proto(u8 protocol)
 	return -1;
 }
 
+/**
+ * Sets out_outer.payload.*.
+ */
 enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
@@ -562,6 +557,8 @@ enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *i
 	in_inner.payload.ptr = in_inner.l4_hdr.ptr + in_inner.l4_hdr.len;
 	in_inner.payload.ptr_needs_kfree = false;
 	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
+
+	/* log_debug("Inner packet protocols: %d %d", in_inner.l3_hdr.proto, in_inner.l4_hdr.proto); */
 
 	result = translate(tuple, &in_inner, &out_inner, &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto]);
 	if (result != VER_CONTINUE)

@@ -370,7 +370,7 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 		goto error;
 
 	// Payload
-	if ( frag->l4_hdr.proto == L4PROTO_NONE ){
+	if (frag->l4_hdr.proto == L4PROTO_NONE) {
 		frag->payload.len = iterator.limit - iterator.data;
 		frag->payload.ptr = iterator.data;
 	} else {
@@ -773,7 +773,6 @@ unsigned int pkt_get_fragment_timeout(void)
 struct packet *pkt_create_ipv6(struct fragment *frag)
 {
 	struct packet *pkt;
-	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(frag);
 	struct frag_hdr *hdr_frag = frag_get_fragment_hdr(frag);
 
 	pkt = kmalloc(sizeof(*pkt), GFP_ATOMIC);
@@ -787,9 +786,6 @@ struct packet *pkt_create_ipv6(struct fragment *frag)
 	pkt->current_bytes = 0;
 	pkt->fragment_id = (hdr_frag != NULL) ? be32_to_cpu(hdr_frag->identification) : 0;
 	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
-	pkt->proto = frag->l4_hdr.proto;
-	pkt->addr.ipv6.src = hdr6->saddr;
-	pkt->addr.ipv6.dst = hdr6->daddr;
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv6(pkt, frag);
@@ -813,9 +809,6 @@ struct packet *pkt_create_ipv4(struct fragment *frag)
 	pkt->current_bytes = 0;
 	pkt->fragment_id = be16_to_cpu(hdr4->id);
 	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
-	pkt->proto = frag->l4_hdr.proto;
-	pkt->addr.ipv4.src.s_addr = hdr4->saddr;
-	pkt->addr.ipv4.dst.s_addr = hdr4->daddr;
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv4(pkt, frag);
@@ -837,8 +830,8 @@ void pkt_add_frag_ipv6(struct packet *pkt, struct fragment *frag)
 		pkt->total_bytes = frag->l4_hdr.len + frag->payload.len;
 		pkt->current_bytes = pkt->total_bytes;
 	}
-	if (pkt->proto == L4PROTO_NONE)
-		pkt->proto = frag->l4_hdr.proto;
+	if (frag->l4_hdr.proto != L4PROTO_NONE)
+		pkt->first_fragment = frag;
 }
 
 void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
@@ -850,8 +843,8 @@ void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
 	if (!is_more_fragments_set_ipv4(hdr4))
 		pkt->total_bytes = get_fragment_offset_ipv4(hdr4) + frag->l4_hdr.len + frag->payload.len;
 	pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
-	if (pkt->proto == L4PROTO_NONE)
-		pkt->proto = frag->l4_hdr.proto;
+	if (frag->l4_hdr.proto != L4PROTO_NONE)
+		pkt->first_fragment = frag;
 }
 
 /* TODO si current_bytes > total_bytes, hay que MATAR A pkt INMEDIATAMENTE!!! */
@@ -873,4 +866,38 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 
 	if (free_pkt)
 		kfree(pkt);
+}
+
+inline enum l3_proto pkt_get_l3proto(struct packet *pkt)
+{
+	return pkt->first_fragment->l3_hdr.proto;
+}
+
+inline enum l4_proto pkt_get_l4proto(struct packet *pkt)
+{
+	return pkt->first_fragment->l4_hdr.proto;
+}
+
+inline void pkt_get_ipv4_src_addr(struct packet *pkt, struct in_addr *result)
+{
+	struct iphdr *hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
+	result->s_addr = hdr4->saddr;
+}
+
+inline void pkt_get_ipv4_dst_addr(struct packet *pkt, struct in_addr *result)
+{
+	struct iphdr *hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
+	result->s_addr = hdr4->daddr;
+}
+
+inline struct in6_addr *pkt_get_ipv6_src_addr(struct packet *pkt)
+{
+	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
+	return &hdr6->saddr;
+}
+
+inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
+{
+	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
+	return &hdr6->daddr;
 }

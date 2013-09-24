@@ -114,6 +114,7 @@ void frag_kfree(struct fragment *);
 
 struct packet {
 	struct list_head fragments;
+	struct fragment *first_fragment; /* TODO recordatorio: No hemos seteado esto en el de salida. */
 
 	/** Si es cero, no sabemos todavía el tamaño total. */
 	u16 total_bytes;
@@ -121,17 +122,6 @@ struct packet {
 	u32 fragment_id;
 	/* In milliseconds. */
 	unsigned int dying_time;
-
-	// TODO recordatorio: No hemos seteado esto en el de salida.
-	enum l3_proto proto;
-	union {
-		struct {
-			struct in6_addr src, dst;
-		} ipv6;
-		struct {
-			struct in_addr src, dst;
-		} ipv4;
-	} addr;
 
 	struct list_head pkt_list_node;
 };
@@ -143,5 +133,12 @@ struct packet *pkt_create_ipv6(struct fragment *frag);
 struct packet *pkt_create_ipv4(struct fragment *frag);
 bool pkt_is_complete(struct packet *pkt);
 void pkt_kfree(struct packet *pkt, bool free_pkt);
+
+inline enum l3_proto pkt_get_l3proto(struct packet *pkt);
+inline enum l4_proto pkt_get_l4proto(struct packet *pkt);
+inline void pkt_get_ipv4_src_addr(struct packet *pkt, struct in_addr *result);
+inline void pkt_get_ipv4_dst_addr(struct packet *pkt, struct in_addr *result);
+inline struct in6_addr *pkt_get_ipv6_src_addr(struct packet *pkt);
+inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt);
 
 #endif /* _NF_NAT64_PACKET_H */

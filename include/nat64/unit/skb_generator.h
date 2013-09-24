@@ -1,6 +1,7 @@
 #include <linux/skbuff.h>
 #include "nat64/comm/types.h"
 
+
 int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg);
 int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg);
 int init_tcp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg);
