@@ -71,9 +71,6 @@ enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment
 		struct translation_steps *steps);
 
 
-__be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu);
-__be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 tot_len_field);
-
 __u16 is_dont_fragment_set(struct iphdr *hdr);
 
 #endif /* _NF_NAT64_TRANSLATING_THE_PACKET_H */

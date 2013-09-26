@@ -45,6 +45,7 @@ translate-objs += ../mod/types.o
 translate-objs += ../mod/str_utils.o
 translate-objs += ../mod/packet.o
 translate-objs += ../mod/ipv6_hdr_iterator.o
+translate-objs += ../mod/send_packet.o
 translate-objs += framework/unit_test.o
 translate-objs += framework/skb_generator.o
 translate-objs += framework/validator.o

@@ -168,7 +168,8 @@ static enum verdict post_ipv6(struct fragment *out)
  * Returns the smallest out of the three first parameters. It also handles some quirks. See comments
  * inside for more info.
  */
-__be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 tot_len_field)
+static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 nexthop4_mtu,
+		__u16 tot_len_field)
 {
 	__u32 result;
 
@@ -190,10 +191,10 @@ __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 in_mtu, __u16 out_mtu, __u16 to
 	}
 
 	/* Core comparison to find the minimum value. */
-	if (in_mtu < packet_mtu)
-		result = (in_mtu < out_mtu) ? in_mtu : out_mtu;
+	if (nexthop6_mtu < packet_mtu)
+		result = (nexthop6_mtu < nexthop4_mtu) ? nexthop6_mtu : nexthop4_mtu;
 	else
-		result = (packet_mtu < out_mtu) ? packet_mtu : out_mtu;
+		result = (packet_mtu < nexthop4_mtu) ? packet_mtu : nexthop4_mtu;
 
 	spin_lock_bh(&config_lock);
 	if (config.lower_mtu_fail && result < 1280) {
@@ -224,9 +225,12 @@ static bool icmp4_has_inner_packet(__u8 icmp_type)
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to ICMPv6.
  */
-static enum verdict icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr,
+static enum verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment *out,
 		__u16 tot_len_field)
 {
+	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
+	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(out);
+
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmpv6_hdr->icmp6_unused = 0;
 
@@ -255,17 +259,15 @@ static enum verdict icmp4_to_icmp6_dest_unreach(struct icmphdr *icmpv4_hdr, stru
 	case ICMP_FRAG_NEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
-		/*
-		 * We don't know the nexthop MTU at this point, so we had to move this to the send_packet
-		 * step.
-		 */
-		/*
+
+		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
+		if (!out->dst)
+			return VER_DROP;
+
 		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				ipv6_mtu,
-				ipv4_mtu + 20,
+				out->dst->dev->mtu,
+				in->skb->dev->mtu + 20,
 				tot_len_field);
-		*/
-		icmpv6_hdr->icmp6_mtu = cpu_to_be32(0);
 		break;
 
 	case ICMP_NET_ANO:
@@ -326,7 +328,8 @@ static enum verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment *in, struct fragment *out)
+static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment *in,
+		struct fragment *out)
 {
 	enum verdict result;
 	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
@@ -359,7 +362,7 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 
 	case ICMP_DEST_UNREACH: {
 		__u16 tot_len = be16_to_cpu(ip_hdr(in->skb)->tot_len);
-		result = icmp4_to_icmp6_dest_unreach(icmpv4_hdr, icmpv6_hdr, tot_len);
+		result = icmp4_to_icmp6_dest_unreach(in, out, tot_len);
 		if (result != VER_CONTINUE)
 			return result;
 		break;

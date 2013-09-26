@@ -2,6 +2,7 @@
 #include "nat64/comm/types.h"
 
 #include <linux/version.h>
+#include <linux/list.h>
 #include <net/ip.h>
 #include <net/ip6_route.h>
 #include <net/route.h>
@@ -9,9 +10,8 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 
-struct dst_entry *route_skb_ipv4(struct fragment *frag)
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, enum l4_proto l4proto, u32 mark)
 {
-	struct iphdr *hdr_ip4 = frag_get_ipv4_hdr(frag);
 	struct flowi flow;
 	struct rtable *table;
 	int error;
@@ -19,8 +19,7 @@ struct dst_entry *route_skb_ipv4(struct fragment *frag)
 	memset(&flow, 0, sizeof(flow));
 	/* flow.oif; */
 	/* flow.iif; */
-	if (frag->skb)
-		flow.mark = frag->skb->mark;
+	flow.mark = mark;
 	flow.fl4_dst = hdr_ip4->daddr;
 	flow.fl4_src = hdr_ip4->saddr;
 	flow.fl4_tos = RT_TOS(hdr_ip4->tos);
@@ -32,21 +31,21 @@ struct dst_entry *route_skb_ipv4(struct fragment *frag)
 		struct tcphdr *hdr_tcp;
 		struct icmphdr *hdr_icmp4;
 
-		switch (frag->l4_hdr.proto) {
+		switch (l4proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:
-			hdr_tcp = frag_get_tcp_hdr(frag);
+			hdr_tcp = l4_hdr;
 			flow.fl_ip_sport = hdr_tcp->source;
 			flow.fl_ip_dport = hdr_tcp->dest;
 			break;
 		case L4PROTO_UDP:
-			hdr_udp = frag_get_udp_hdr(frag);
+			hdr_udp = l4_hdr;
 			flow.fl_ip_sport = hdr_udp->source;
 			flow.fl_ip_dport = hdr_udp->dest;
 			break;
 		case L4PROTO_ICMP:
-			hdr_icmp4 = frag_get_icmp4_hdr(frag);
+			hdr_icmp4 = l4_hdr;
 			flow.fl_icmp_type = hdr_icmp4->type;
 			flow.fl_icmp_code = hdr_icmp4->code;
 			break;
@@ -68,17 +67,15 @@ struct dst_entry *route_skb_ipv4(struct fragment *frag)
 	return &table->dst;
 }
 
-struct dst_entry *route_skb_ipv6(struct fragment *frag)
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, enum l4_proto l4proto, u32 mark)
 {
-	struct ipv6hdr *hdr_ip6 = frag_get_ipv6_hdr(frag);
 	struct flowi flow;
 	struct dst_entry *dst;
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow.oif; */
 	/* flow.iif; */
-	if (frag->skb)
-		flow.mark = frag->skb->mark;
+	flow.mark = mark;
 	flow.fl6_dst = hdr_ip6->daddr;
 	flow.fl6_src = hdr_ip6->saddr;
 	flow.fl6_flowlabel = get_flow_label(hdr_ip6);
@@ -89,21 +86,21 @@ struct dst_entry *route_skb_ipv6(struct fragment *frag)
 		struct tcphdr *hdr_tcp;
 		struct icmp6hdr *hdr_icmp6;
 
-		switch (frag->l4_hdr.proto) {
+		switch (l4proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:
-			hdr_tcp = frag_get_tcp_hdr(frag);
+			hdr_tcp = l4_hdr;
 			flow.fl_ip_sport = hdr_tcp->source;
 			flow.fl_ip_dport = hdr_tcp->dest;
 			break;
 		case L4PROTO_UDP:
-			hdr_udp = frag_get_udp_hdr(frag);
+			hdr_udp = l4_hdr;
 			flow.fl_ip_sport = hdr_udp->source;
 			flow.fl_ip_dport = hdr_udp->dest;
 			break;
 		case L4PROTO_ICMP:
-			hdr_icmp6 = frag_get_icmp6_hdr(frag);
+			hdr_icmp6 = l4_hdr;
 			flow.fl_icmp_type = hdr_icmp6->icmp6_type;
 			flow.fl_icmp_code = hdr_icmp6->icmp6_code;
 			break;
@@ -127,17 +124,15 @@ struct dst_entry *route_skb_ipv6(struct fragment *frag)
 
 #else
 
-struct dst_entry *route_fragment_ipv4(struct fragment *frag)
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark)
 {
-	struct iphdr *hdr_ip = frag_get_ipv4_hdr(frag);
 	struct flowi4 flow;
 	struct rtable *table;
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
-	if (frag->skb)
-		flow.flowi4_mark = frag->skb->mark;
+	flow.flowi4_mark = mark;
 	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr_ip->protocol;
@@ -157,21 +152,21 @@ struct dst_entry *route_fragment_ipv4(struct fragment *frag)
 		struct tcphdr *hdr_tcp;
 		struct icmphdr *hdr_icmp4;
 
-		switch (frag->l4_hdr.proto) {
+		switch (l4proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:
-			hdr_tcp = frag_get_tcp_hdr(frag);
+			hdr_tcp = l4_hdr;
 			flow.fl4_sport = hdr_tcp->source;
 			flow.fl4_dport = hdr_tcp->dest;
 			break;
 		case L4PROTO_UDP:
-			hdr_udp = frag_get_udp_hdr(frag);
+			hdr_udp = l4_hdr;
 			flow.fl4_sport = hdr_udp->source;
 			flow.fl4_dport = hdr_udp->dest;
 			break;
 		case L4PROTO_ICMP:
-			hdr_icmp4 = frag_get_icmp4_hdr(frag);
+			hdr_icmp4 = l4_hdr;
 			flow.fl4_icmp_type = hdr_icmp4->type;
 			flow.fl4_icmp_code = hdr_icmp4->code;
 			break;
@@ -194,45 +189,43 @@ struct dst_entry *route_fragment_ipv4(struct fragment *frag)
 	return &table->dst;
 }
 
-struct dst_entry *route_fragment_ipv6(struct fragment *frag)
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark)
 {
-	struct ipv6hdr *hdr_ip6 = frag_get_ipv6_hdr(frag);
 	struct flowi6 flow;
 	struct dst_entry *dst;
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow->flowi6_oif; */
 	/* flow->flowi6_iif; */
-	if (frag->skb)
-		flow.flowi6_mark = frag->skb->mark;
-	flow.flowi6_tos = get_traffic_class(hdr_ip6);
+	flow.flowi6_mark = mark;
+	flow.flowi6_tos = get_traffic_class(hdr_ip);
 	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi6_proto = hdr_ip6->nexthdr;
+	flow.flowi6_proto = hdr_ip->nexthdr;
 	flow.flowi6_flags = 0;
 	/* flow->flowi6_secid; */
-	flow.saddr = hdr_ip6->saddr;
-	flow.daddr = hdr_ip6->daddr;
-	flow.flowlabel = get_flow_label(hdr_ip6);
+	flow.saddr = hdr_ip->saddr;
+	flow.daddr = hdr_ip->daddr;
+	flow.flowlabel = get_flow_label(hdr_ip);
 	{
 		struct udphdr *hdr_udp;
 		struct tcphdr *hdr_tcp;
 		struct icmp6hdr *hdr_icmp6;
 
-		switch (frag->l4_hdr.proto) {
+		switch (l4proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:
-			hdr_tcp = frag_get_tcp_hdr(frag);
+			hdr_tcp = l4_hdr;
 			flow.fl6_sport = hdr_tcp->source;
 			flow.fl6_dport = hdr_tcp->dest;
 			break;
 		case L4PROTO_UDP:
-			hdr_udp = frag_get_udp_hdr(frag);
+			hdr_udp = l4_hdr;
 			flow.fl6_sport = hdr_udp->source;
 			flow.fl6_dport = hdr_udp->dest;
 			break;
 		case L4PROTO_ICMP:
-			hdr_icmp6 = frag_get_icmp6_hdr(frag);
+			hdr_icmp6 = l4_hdr;
 			flow.fl6_icmp_type = hdr_icmp6->icmp6_type;
 			flow.fl6_icmp_code = hdr_icmp6->icmp6_code;
 			break;
@@ -255,6 +248,7 @@ struct dst_entry *route_fragment_ipv6(struct fragment *frag)
 
 #endif
 
+
 enum verdict send_pkt(struct packet *pkt)
 {
 	struct fragment *frag;
@@ -264,11 +258,9 @@ enum verdict send_pkt(struct packet *pkt)
 		log_debug("Sending skb via device '%s'...", frag->skb->dev->name);
 		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV6:
-			frag->skb->protocol = htons(ETH_P_IPV6);
 			error = ip6_local_out(frag->skb);
 			break;
 		case L3PROTO_IPV4:
-			frag->skb->protocol = htons(ETH_P_IP);
 			error = ip_local_out(frag->skb);
 			break;
 		}

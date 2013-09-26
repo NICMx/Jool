@@ -4,6 +4,7 @@
 #include "nat64/mod/random.h"
 #include "nat64/mod/config.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
+#include "nat64/mod/send_packet.h"
 
 #include <linux/kernel.h>
 #include <linux/printk.h>
@@ -259,9 +260,12 @@ enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment
 	result = steps->l4_hdr_and_payload_function(tuple, in, *out);
 	if (result != VER_CONTINUE)
 		goto failure;
+
 	result = frag_create_skb(*out);
 	if (result != VER_CONTINUE)
 		goto failure;
+	(*out)->skb->mark = in->skb->mark;
+
 	result = steps->l3_post_function(*out);
 	if (result != VER_CONTINUE)
 		goto failure;
@@ -356,6 +360,7 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 		skb_reset_mac_header(new_skb);
 		skb_reset_network_header(new_skb);
 		new_skb->protocol = htons(ETH_P_IPV6);
+		new_skb->mark = frag->skb->mark;
 
 		set_frag_headers(first_hdr6, ipv6_hdr(new_skb), actual_total_size,
 				original_fragment_offset + (current_p - frag->skb->data - headers_size),
@@ -437,6 +442,54 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 }
 
 /**
+ * By the time this function is called, "out"'s fields (including its fragments) are properly
+ * initialized, but each fragments' skb are not.
+ *
+ * Of course, Linux doesn't give two shits about struct packets and struct fragments, so the skbs
+ * need to be fixed eventually. Because of hairpinning (i. e. 'out' becoming an 'in' packet), I'd
+ * much rather do it in this step than during the send_packet module. Also we get the added benefit
+ * of translate_packet not returning half-baked output to the core.
+ *
+ * This is not part of the RFC; I added it because Linux needs it.
+ *
+ * Also note: I'm not familiar with all of skb's fields and I feel the documentation is a little
+ * lacking, so I'm just fixing what I know.
+ */
+static enum verdict post_process(struct packet *out)
+{
+	struct fragment *frag;
+	struct sk_buff *skb;
+
+	list_for_each_entry(frag, &out->fragments, next) {
+		skb = frag->skb;
+		/* Moved skb->protocol to frag_create_skb() and divide(). */
+		/* Moved skb->mark to translate() and divide(). */
+
+		/*
+		 * I'm not sure if I should only route the first fragment or all of them separately.
+		 * Well, there's the routing cache, so this shouldn't be too slow.
+		 */
+		if (!frag->dst) {
+			switch (frag->l3_hdr.proto) {
+			case L3PROTO_IPV6:
+				frag->dst = route_ipv6(frag->l3_hdr.ptr, frag->l4_hdr.ptr, frag->l4_hdr.proto,
+						skb->mark);
+				break;
+			case L3PROTO_IPV4:
+				frag->dst = route_ipv4(frag->l3_hdr.ptr, frag->l4_hdr.ptr, frag->l4_hdr.proto,
+						skb->mark);
+				break;
+			}
+		}
+
+		skb->dev = frag->dst->dev;
+		skb_dst_set(skb, frag->dst);
+	}
+
+	return VER_CONTINUE;
+}
+
+/**
  * It's ONLY responsible for out->fragments.
  *
  * Assumes that out is already initialized.
@@ -455,6 +508,10 @@ enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, stru
 			return result;
 		}
 	}
+
+	result = post_process(out);
+	if (result != VER_CONTINUE)
+		return result;
 
 	log_debug("Done step 4.");
 

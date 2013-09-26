@@ -202,14 +202,14 @@ static enum verdict post_ipv4(struct fragment *out)
  * One liner for creating the ICMPv4 header's MTU field.
  * Returns the smallest out of the three parameters.
  */
-__be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 in_mtu, __u16 out_mtu)
+static __be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 nexthop4_mtu, __u16 nexthop6_mtu)
 {
 	__u16 result;
 
-	if (in_mtu < packet_mtu)
-		result = (in_mtu < out_mtu) ? in_mtu : out_mtu;
+	if (nexthop4_mtu < packet_mtu)
+		result = (nexthop4_mtu < nexthop6_mtu) ? nexthop4_mtu : nexthop6_mtu;
 	else
-		result = (packet_mtu < out_mtu) ? packet_mtu : out_mtu;
+		result = (packet_mtu < nexthop6_mtu) ? packet_mtu : nexthop6_mtu;
 
 	return cpu_to_be16(result);
 }
@@ -397,16 +397,14 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 		icmpv4_hdr->type = ICMP_DEST_UNREACH;
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
 		icmpv4_hdr->un.frag.__unused = 0;
-		/*
-		 * We don't know the nexthop MTU at this point, so we had to move this to the send_packet
-		 * step.
-		 */
-		/*
+
+		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
+		if (!out->dst)
+			return VER_DROP;
+
 		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
-				ipv4_mtu,
-				ipv6_mtu - 20);
-		*/
-		icmpv4_hdr->un.frag.mtu = cpu_to_be16(0);
+				out->dst->dev->mtu,
+				in->skb->dev->mtu - 20);
 		break;
 
 	case ICMPV6_TIME_EXCEED:
