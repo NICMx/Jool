@@ -1,4 +1,6 @@
 #include "nat64/comm/nat64.h"
+#include "nat64/mod/packet.h"
+#include "nat64/mod/packet_db.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/bib.h"
@@ -68,6 +70,8 @@ static void deinit(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
+	pktdb_destroy();
+	pktmod_destroy();
 	config_destroy();
 }
 
@@ -94,6 +98,12 @@ int __init nat64_init(void)
 	log_debug("Inserting the module...");
 
 	error = config_init();
+	if (error)
+		goto failure;
+	error = pktmod_init();
+	if (error)
+		goto failure;
+	error = pktdb_init();
 	if (error)
 		goto failure;
 	error = pool6_init(pool6, pool6_size);

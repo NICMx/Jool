@@ -71,6 +71,4 @@ enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment
 		struct translation_steps *steps);
 
 
-__u16 is_dont_fragment_set(struct iphdr *hdr);
-
 #endif /* _NF_NAT64_TRANSLATING_THE_PACKET_H */

@@ -1,5 +1,6 @@
 #include "nat64/mod/core.h"
 #include "nat64/mod/packet.h"
+#include "nat64/mod/packet_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/determine_incoming_tuple.h"
@@ -15,47 +16,62 @@
 #include <net/ipv6.h>
 
 
-static unsigned int nat64_core(struct sk_buff *skb_in,
-		bool (*compute_out_tuple_fn)(struct tuple *, struct sk_buff *, struct tuple *),
-		bool (*translate_packet_fn)(struct tuple *, struct sk_buff *, struct sk_buff **),
-		bool (*send_packet_fn)(struct sk_buff *, struct sk_buff *))
+static unsigned int core_common(struct sk_buff *skb_in)
 {
-	struct sk_buff *skb_out = NULL;
-	struct tuple tuple_in, tuple_out;
+	struct packet *pkt_in = NULL;
+	struct packet pkt_out;
+	struct tuple tuple_in;
+	struct tuple tuple_out;
+	enum verdict result;
 
+	result = pkt_from_skb(skb_in, &pkt_in);
+	if (result != VER_CONTINUE)
+		return result;
+
+	memset(&pkt_out, 0, sizeof(pkt_out));
+
+	/*
 	if (!determine_in_tuple(skb_in, &tuple_in))
 		goto free_and_fail;
+	*/
+	/*
 	if (filtering_and_updating(skb_in, &tuple_in) != NF_ACCEPT)
 		goto free_and_fail;
-	if (!compute_out_tuple_fn(&tuple_in, skb_in, &tuple_out))
-		goto free_and_fail;
-	if (!translate_packet_fn(&tuple_out, skb_in, &skb_out))
-		goto free_and_fail;
+	*/
+	result = compute_out_tuple(&tuple_in, pkt_in, &tuple_out);
+	if (result != VER_CONTINUE)
+		goto fail;
+	result = translating_the_packet(&tuple_out, pkt_in, &pkt_out);
+	if (result != VER_CONTINUE)
+		goto fail;
 	if (is_hairpin(&tuple_out)) {
+		/*
 		if (!handling_hairpinning(skb_out, &tuple_out))
 			goto free_and_fail;
+		*/
 	} else {
-		if (!send_packet_fn(skb_in, skb_out))
+		result = send_pkt(&pkt_out);
+		if (result != VER_CONTINUE)
 			goto fail;
 	}
 
 	log_debug("Success.");
 	return NF_DROP; /* Lol, the irony. */
 
-free_and_fail:
-	kfree_skb(skb_out);
-	/* Fall through. */
-
 fail:
+	pkt_kfree(pkt_in, true);
+	pkt_kfree(&pkt_out, false);
 	log_debug("Failure.");
-	return NF_DROP;
+	return result;
 }
 
+/**
+ * Entry point for IPv4 packet processing.
+ */
 unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct iphdr *ip4_header;
 	struct in_addr daddr;
-	enum verdict result;
 
 	skb_linearize(skb);
 
@@ -68,20 +84,15 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
 
-	result = validate_skb_ipv4(skb);
-	if (result != VER_CONTINUE)
-		return result;
-
-	return nat64_core(skb,
-			compute_out_tuple_4to6,
-			translating_the_packet,
-			send_packet_ipv6);
+	return core_common(skb);
 }
 
+/**
+ * Entry point for IPv6 packet processing.
+ */
 unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct ipv6hdr *ip6_header;
-	enum verdict result;
 
 	skb_linearize(skb);
 
@@ -93,12 +104,5 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
 
-	result = validate_skb_ipv6(skb);
-	if (result != VER_CONTINUE)
-		return result;
-
-	return nat64_core(skb,
-			compute_out_tuple_6to4,
-			translating_the_packet,
-			send_packet_ipv4);
+	return core_common(skb);
 }

@@ -249,10 +249,9 @@ enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment
 {
 	enum verdict result;
 
-	*out = kmalloc(sizeof(**out), GFP_ATOMIC);
-	if (!*out)
-		return VER_DROP;
-	frag_init(*out);
+	result = frag_create_empty(out);
+	if (result != VER_CONTINUE)
+		return result;
 
 	result = steps->l3_hdr_function(tuple, in, *out);
 	if (result != VER_CONTINUE)
@@ -492,7 +491,7 @@ static enum verdict post_process(struct packet *out)
 /**
  * It's ONLY responsible for out->fragments.
  *
- * Assumes that out is already initialized.
+ * Assumes that out is already allocated.
  */
 enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out)
 {

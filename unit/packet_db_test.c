@@ -725,7 +725,7 @@ int init_module(void)
 
 	START_TESTS("Packet database");
 
-	pkt_init();
+	pktmod_init();
 	pktdb_init();
 
 	CALL_TEST(test_no_fragments_4to6(), "Unfragmented IPv4 packet arrives.");
@@ -736,7 +736,7 @@ int init_module(void)
 	CALL_TEST(test_conflicts(), "Conflicts test.");
 
 	pktdb_destroy();
-	pkt_destroy();
+	pktmod_destroy();
 
 	END_TESTS;
 }

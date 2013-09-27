@@ -158,7 +158,7 @@ static unsigned int clean_expired_fragments(void)
 
 	spin_unlock_bh(&db_lock);
 	log_debug("Deleted %u fragments. The database is now empty.", f);
-	return pkt_get_fragment_timeout();
+	return pktmod_get_fragment_timeout();
 }
 
 static void cleaner_timer(unsigned long param)
@@ -182,7 +182,7 @@ int pktdb_init(void)
 
 	init_timer(&expire_timer);
 	expire_timer.function = cleaner_timer;
-	expire_timer.expires = jiffies + pkt_get_fragment_timeout();
+	expire_timer.expires = jiffies + pktmod_get_fragment_timeout();
 	expire_timer.data = 0;
 	add_timer(&expire_timer);
 	expire_timer_active = true;
@@ -219,10 +219,6 @@ static int pktdb_put(struct packet *pkt)
 	return 0;
 }
 
-/**
- * pkt should point to allocated memory (heap vs stack doesn't matter). It should not be initialized
- * (that's the job of this function).
- */
 enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 {
 	struct packet *pkt_from_db;

@@ -2,18 +2,7 @@
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
-#include "nat64/mod/ipv6_hdr_iterator.h"
 #include "nat64/mod/packet_db.h"
-
-//#include <linux/list.h>
-#include <linux/ipv6.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/icmpv6.h>
-#include <linux/icmp.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
 
 
 #define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
@@ -28,132 +17,41 @@ static struct packet_config config;
 static DEFINE_SPINLOCK(config_lock);
 
 
-int pkt_init(void)
+int pktmod_init(void)
 {
 	config.fragment_timeout = FRAGMENT_MIN;
 	return 0;
 }
 
-void pkt_destroy(void)
+void pktmod_destroy(void)
 {
 	/* No code. */
 }
 
-__u8 get_traffic_class(struct ipv6hdr *hdr)
+unsigned int pktmod_get_fragment_timeout(void)
 {
-	__u8 upper_bits = hdr->priority;
-	__u8 lower_bits = hdr->flow_lbl[0] >> 4;
+	unsigned int result;
 
-	return (upper_bits << 4) | lower_bits;
+	spin_lock_bh(&config_lock);
+	result = config.fragment_timeout;
+	spin_unlock_bh(&config_lock);
+
+	return result;
 }
 
-__be32 get_flow_label(struct ipv6hdr *hdr)
+enum verdict frag_create_empty(struct fragment **out)
 {
-	return (*(__be32 *) hdr) & IPV6_FLOWLABEL_MASK;
-}
+	struct fragment *frag;
 
-/**
- * Returns 1 if the Don't Fragments flag from the "header" header is set, 0 otherwise.
- */
-__u16 is_dont_fragment_set(struct iphdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_DF) >> 14;
-}
+	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
+	if (!frag)
+		return VER_DROP;
 
-__u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP6_MF);
-}
-
-/**
- * Returns 1 if the More Fragments flag from the "header" header is set, 0 otherwise.
- */
-__u16 is_more_fragments_set_ipv4(struct iphdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_MF) >> 13;
-}
-
-__u16 get_fragment_offset_ipv6(struct frag_hdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return frag_off >> 3;
-}
-
-__u16 get_fragment_offset_ipv4(struct iphdr *hdr)
-{
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return frag_off & IP_OFFSET;
-}
-
-__be16 build_ipv6_frag_off_field(__u16 fragment_offset, __u16 more_fragments)
-{
-	__u16 result = (fragment_offset << 3)
-			| (more_fragments << 0);
-
-	return cpu_to_be16(result);
-}
-
-/**
- * One-liner for creating the IPv4 header's Fragment Offset field.
- * TODO shouldn't those be booleans?
- */
-__be16 build_ipv4_frag_off_field(__u16 dont_fragment, __u16 more_fragments, __u16 fragment_offset)
-{
-	__u16 result = (dont_fragment << 14)
-			| (more_fragments << 13)
-			| (fragment_offset << 0);
-
-	return cpu_to_be16(result);
-}
-
-
-void frag_init(struct fragment *frag)
-{
 	memset(frag, 0, sizeof(*frag));
 	INIT_LIST_HEAD(&frag->next);
-}
 
-struct ipv6hdr *frag_get_ipv6_hdr(struct fragment *frag)
-{
-	return frag->l3_hdr.ptr;
-}
-
-struct frag_hdr *frag_get_fragment_hdr(struct fragment *frag)
-{
-	return get_extension_header(frag_get_ipv6_hdr(frag), NEXTHDR_FRAGMENT);
-}
-
-struct iphdr *frag_get_ipv4_hdr(struct fragment *frag)
-{
-	return frag->l3_hdr.ptr;
-}
-
-struct tcphdr *frag_get_tcp_hdr(struct fragment *frag)
-{
-	return frag->l4_hdr.ptr;
-}
-
-struct udphdr *frag_get_udp_hdr(struct fragment *frag)
-{
-	return frag->l4_hdr.ptr;
-}
-
-struct icmp6hdr *frag_get_icmp6_hdr(struct fragment *frag)
-{
-	return frag->l4_hdr.ptr;
-}
-
-struct icmphdr *frag_get_icmp4_hdr(struct fragment *frag)
-{
-	return frag->l4_hdr.ptr;
-}
-
-unsigned char *frag_get_payload(struct fragment *frag)
-{
-	return frag->payload.ptr;
+	*out = frag;
+	return VER_CONTINUE;
 }
 
 static enum verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)
@@ -772,17 +670,6 @@ void frag_print(struct fragment *frag)
 	log_info("Payload - length:%u kfree:%d", frag->payload.len, frag->payload.ptr_needs_kfree);
 }
 
-unsigned int pkt_get_fragment_timeout(void)
-{
-	unsigned int result;
-
-	spin_lock_bh(&config_lock);
-	result = config.fragment_timeout;
-	spin_unlock_bh(&config_lock);
-
-	return result;
-}
-
 struct packet *pkt_create_ipv6(struct fragment *frag)
 {
 	struct packet *pkt;
@@ -798,7 +685,7 @@ struct packet *pkt_create_ipv6(struct fragment *frag)
 	pkt->total_bytes = 0;
 	pkt->current_bytes = 0;
 	pkt->fragment_id = (hdr_frag != NULL) ? be32_to_cpu(hdr_frag->identification) : 0;
-	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
+	pkt->dying_time = jiffies_to_msecs(jiffies) + pktmod_get_fragment_timeout();
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv6(pkt, frag);
@@ -821,7 +708,7 @@ struct packet *pkt_create_ipv4(struct fragment *frag)
 	pkt->total_bytes = 0;
 	pkt->current_bytes = 0;
 	pkt->fragment_id = be16_to_cpu(hdr4->id);
-	pkt->dying_time = jiffies_to_msecs(jiffies) + pkt_get_fragment_timeout();
+	pkt->dying_time = jiffies_to_msecs(jiffies) + pktmod_get_fragment_timeout();
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv4(pkt, frag);
@@ -879,38 +766,4 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 
 	if (free_pkt)
 		kfree(pkt);
-}
-
-inline enum l3_proto pkt_get_l3proto(struct packet *pkt)
-{
-	return pkt->first_fragment->l3_hdr.proto;
-}
-
-inline enum l4_proto pkt_get_l4proto(struct packet *pkt)
-{
-	return pkt->first_fragment->l4_hdr.proto;
-}
-
-inline void pkt_get_ipv4_src_addr(struct packet *pkt, struct in_addr *result)
-{
-	struct iphdr *hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
-	result->s_addr = hdr4->saddr;
-}
-
-inline void pkt_get_ipv4_dst_addr(struct packet *pkt, struct in_addr *result)
-{
-	struct iphdr *hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
-	result->s_addr = hdr4->daddr;
-}
-
-inline struct in6_addr *pkt_get_ipv6_src_addr(struct packet *pkt)
-{
-	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
-	return &hdr6->saddr;
-}
-
-inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
-{
-	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
-	return &hdr6->daddr;
 }
