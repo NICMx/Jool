@@ -78,14 +78,15 @@ unsigned int core_4to6(struct sk_buff *skb)
 			send_packet_ipv6);
 }
 
-unsigned int core_6to4(struct sk_buff *skb)
+//unsigned int core_6to4(struct sk_buff *skb)
+unsigned int core_6to4(struct packet *pkt)
 {
 	struct ipv6hdr *ip6_header;
 	enum verdict result;
 
-	skb_linearize(skb);
+	skb_linearize(pkt);
 
-	ip6_header = ipv6_hdr(skb);
+	ip6_header = ipv6_hdr(pkt);
 
 	if (!pool6_contains(&ip6_header->daddr))
 		return NF_ACCEPT;
@@ -93,11 +94,11 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
 
-	result = validate_skb_ipv6(skb);
+	result = validate_skb_ipv6(pkt);
 	if (result != VER_CONTINUE)
 		return result;
 
-	return nat64_core(skb,
+	return nat64_core(pkt,
 			compute_out_tuple_6to4,
 			translating_the_packet,
 			send_packet_ipv4);

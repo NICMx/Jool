@@ -18,7 +18,16 @@ $(info Compiling on kernel family 3)
 endif
 
 PROGS = jool
-OBJS := str_utils.o netlink.o pool6.o pool4.o bib.o session.o filtering.o translate.o jool.o
+OBJS := str_utils.o 
+OBJS += netlink.o 
+OBJS += pool6.o 
+OBJS += pool4.o 
+OBJS += bib.o 
+OBJS += session.o 
+OBJS += filtering.o 
+OBJS += translate.o 
+OBJS += jool.o 
+OBJS += fragmentation.o
 
 
 jool: $(OBJS)
@@ -40,6 +49,8 @@ session.o: session.c
 filtering.o: filtering.c
 	$(CC) -c $(CFLAGS) $< -o $@
 translate.o: translate.c
+	$(CC) -c $(CFLAGS) $< -o $@
+fragmentation.o: fragmentation.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
 jool.o: jool.c

@@ -24,7 +24,7 @@
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
 
-static struct packet_config config;
+static struct fragmentation_config config;
 static DEFINE_SPINLOCK(config_lock);
 
 
@@ -900,4 +900,30 @@ inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
 {
 	struct ipv6hdr *hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
 	return &hdr6->daddr;
+}
+
+/**
+ * 	Updates Fragmentation configuration options.
+ *
+ *  @param[in]  operation   _____________
+ *  @param[in]  new_config  The new configuration.
+ *  @return response_code   ___________.
+ *  */
+int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
+{
+	int error = 0;
+
+    spin_lock_bh(&config_lock);
+
+    if (operation & FRAGMENT_TIMEOUT_MASK) {
+        if ( new_config->fragment_timeout < FRAGMENT_MIN ) {
+        	error = -EINVAL;
+            log_err(ERR_FRAGMENTATION_TO_RANGE, "The Fragmentation timeout must be at least %u miliseconds.", FRAGMENT_MIN);
+        } else {
+        	config.fragment_timeout = new_config->fragment_timeout;
+        }
+    }
+
+    spin_unlock_bh(&config_lock);
+    return error;
 }

@@ -206,29 +206,27 @@ bool is_icmp4_error(__u8 type)
 	return !is_icmp4_info(type);
 }
 
-static unsigned char *l3proto_to_str(int l3_proto)
+static unsigned char *l3proto_to_str(enum l3_proto l3_proto)
 {
 	switch (l3_proto) {
-	case PF_INET:
+	case L3PROTO_IPV4:
 		return "IPv4";
-	case PF_INET6:
+	case L3PROTO_IPV6:
 		return "IPv6";
 	default:
 		return "Unknown";
 	}
 }
 
-static unsigned char *l4proto_to_str(int l4_proto)
+static unsigned char *l4proto_to_str(enum l4_proto l4_proto)
 {
 	switch (l4_proto) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		return "UDP";
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		return "TCP";
-	case IPPROTO_ICMP:
-		return "ICMPv4";
-	case IPPROTO_ICMPV6:
-		return "ICMPv6";
+	case L4PROTO_ICMP:
+		return "ICMP";
 	default:
 		return "Unknown";
 	}
@@ -243,13 +241,13 @@ static unsigned char *l4proto_to_str(int l4_proto)
 void log_tuple(struct tuple *tuple)
 {
 	switch (tuple->l3_proto) {
-	case PF_INET:
+	case L3PROTO_IPV4:
 		log_debug("tuple %s-%s %pI4#%u -> %pI4#%u",
 				l3proto_to_str(tuple->l3_proto), l4proto_to_str(tuple->l4_proto),
 				&tuple->src.addr.ipv4, tuple->src.l4_id,
 				&tuple->dst.addr.ipv4, tuple->dst.l4_id);
 		break;
-	case PF_INET6:
+	case L3PROTO_IPV6:
 		log_debug("tuple %s-%s %pI6c#%u -> %pI6c#%u",
 				l3proto_to_str(tuple->l3_proto), l4proto_to_str(tuple->l4_proto),
 				&tuple->src.addr.ipv6, tuple->src.l4_id,
@@ -273,7 +271,7 @@ int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 		return error;
 	tuple->dst.l4_id = dst_port;
 
-	tuple->l3_proto = PF_INET;
+	tuple->l3_proto = L3PROTO_IPV4;
 	tuple->l4_proto = l4_proto;
 
 	return 0;
@@ -294,7 +292,7 @@ int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 		return error;
 	tuple->dst.l4_id = dst_port;
 
-	tuple->l3_proto = PF_INET6;
+	tuple->l3_proto = L3PROTO_IPV6;
 	tuple->l4_proto = l4_proto;
 
 	return 0;

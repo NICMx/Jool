@@ -219,9 +219,9 @@ struct bib_entry *create_dynamic_bib(int l4_proto)
 	return bib;
 }
 
-static bool test_hairpin(int l4_proto, int (*create_skb_cb)(struct ipv6_pair *, struct sk_buff **))
+static bool test_hairpin(int l4_proto, int (*create_pkt_cb)(struct ipv6_pair *, struct packet **))
 {
-	struct sk_buff *skb_in, *skb_out;
+	struct packet *pkt_in, *pkt_out;
 	struct bib_entry *static_bib, *dynamic_bib;
 	struct session_entry *static_session, *dynamic_session;
 	struct ipv6_pair request_pkt, response_pkt;
@@ -250,34 +250,34 @@ static bool test_hairpin(int l4_proto, int (*create_skb_cb)(struct ipv6_pair *, 
 		return false;
 
 	/* Send the request. */
-	if (create_skb_cb(&request_pkt, &skb_in) != 0)
+	if (create_pkt_cb(&request_pkt, &pkt_in) != 0)
 		return false;
 
-	success &= assert_equals_int(NF_DROP, core_6to4(skb_in), "Request result");
+	success &= assert_equals_int(NF_DROP, core_6to4(pkt_in), "Request result");
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
-	skb_out = get_sent_pkt();
+	pkt_out = get_sent_pkt();
 	/* TODO (test) Improve this one. At least validate the packet's addresses and ports. */
-	success &= assert_not_null(skb_out, "Request packet");
+	success &= assert_not_null(pkt_out, "Request packet");
 
 	set_sent_pkt(NULL);
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
+	pkt_kfree(pkt_in, true);
+	pkt_kfree(pkt_out, true);
 
 	/* Send the response. */
-	if (create_skb_cb(&response_pkt, &skb_in) != 0)
+	if (create_pkt_cb(&response_pkt, &pkt_in) != 0)
 		return false;
-	success &= assert_equals_int(NF_DROP, core_6to4(skb_in), "Response result");
+	success &= assert_equals_int(NF_DROP, core_6to4(pkt_in), "Response result");
 	/* The module should have reused the entries, so the database shouldn't have changed. */
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
-	skb_out = get_sent_pkt();
+	pkt_out = get_sent_pkt();
 	/* TODO (test) Improve this one. At least validate the packet's addresses and ports. */
-	success &= assert_not_null(skb_out, "Response packet");
+	success &= assert_not_null(pkt_out, "Response packet");
 
 	set_sent_pkt(NULL);
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
+	pkt_kfree(pkt_in, true);
+	pkt_kfree(pkt_out, true);
 
 	/* We're done. */
 	print_bibs(l4_proto);
@@ -348,8 +348,11 @@ int init_test_module(void)
 
 	/* TODO (test) test errors (eg. ICMP hairpins). */
 
-	CALL_TEST(test_hairpin(IPPROTO_UDP, create_skb_ipv6_udp), "UDP");
-	CALL_TEST(test_hairpin(IPPROTO_TCP, create_skb_ipv6_tcp), "TCP");
+//	CALL_TEST(test_hairpin(L4PROTO_UDP, create_skb_ipv6_udp), "UDP");
+//	CALL_TEST(test_hairpin(L4PROTO_TCP, create_skb_ipv6_tcp), "TCP");
+
+	CALL_TEST(test_hairpin(L4PROTO_UDP, create_packet_ipv6_udp_fragmented_disordered), "UDP");
+	CALL_TEST(test_hairpin(L4PROTO_TCP, create_packet_ipv6_tcp_fragmented_disordered), "TCP");
 
 	deinit();
 

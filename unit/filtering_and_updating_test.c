@@ -42,6 +42,7 @@ bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 	return true;
 }
 
+// TODO: This functions are duplicated in nat64/mod/types.h, rather use those.
 #define INIT_TUPLE_IPV4_SRC_ADDR    "192.168.2.1"
 #define INIT_TUPLE_IPV6_SRC_ADDR    "2001:db8:c0ca:1::1"
 #define INIT_TUPLE_IPV4_DST_ADDR    "192.168.2.44"

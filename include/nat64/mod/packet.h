@@ -134,8 +134,8 @@ struct packet *pkt_create_ipv4(struct fragment *frag);
 bool pkt_is_complete(struct packet *pkt);
 void pkt_kfree(struct packet *pkt, bool free_pkt);
 
-inline enum l3_proto pkt_get_l3proto(struct packet *pkt);
-inline enum l4_proto pkt_get_l4proto(struct packet *pkt);
+enum l3_proto pkt_get_l3proto(struct packet *pkt);
+enum l4_proto pkt_get_l4proto(struct packet *pkt);
 inline void pkt_get_ipv4_src_addr(struct packet *pkt, struct in_addr *result);
 inline void pkt_get_ipv4_dst_addr(struct packet *pkt, struct in_addr *result);
 inline struct in6_addr *pkt_get_ipv6_src_addr(struct packet *pkt);
