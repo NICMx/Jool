@@ -263,7 +263,8 @@ enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment
 	result = frag_create_skb(*out);
 	if (result != VER_CONTINUE)
 		goto failure;
-	(*out)->skb->mark = in->skb->mark;
+	if (in->skb)
+		(*out)->skb->mark = in->skb->mark;
 
 	result = steps->l3_post_function(*out);
 	if (result != VER_CONTINUE)
@@ -456,6 +457,7 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
  */
 static enum verdict post_process(struct packet *out)
 {
+#ifndef UNIT_TESTING
 	struct fragment *frag;
 	struct sk_buff *skb;
 
@@ -484,6 +486,7 @@ static enum verdict post_process(struct packet *out)
 		skb->dev = frag->dst->dev;
 		skb_dst_set(skb, frag->dst);
 	}
+#endif
 
 	return VER_CONTINUE;
 }

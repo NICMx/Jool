@@ -25,6 +25,7 @@ usr = user[space]
 nl = netlink
 cb = callback (synonym for "fn")
 pool<n> = IPv<n> pool (pool4 = IPv4 pool)
+pkt = packet
 
 
 BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're

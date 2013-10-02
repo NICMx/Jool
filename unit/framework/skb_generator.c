@@ -1,7 +1,7 @@
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/types.h"
 #include "nat64/comm/str_utils.h"
-#include "nat64/mod/packet.h"
+#include "nat64/mod/packet_db.h"
 
 #include <linux/if_ether.h>
 #include <linux/ipv6.h>
@@ -553,7 +553,7 @@ bool create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4,
 	bool success = true;
 
 	/* First packet arrives. */
-	error = create_skb_ipv4_udp_fragment(&pair4, &skb3, 100);
+	error = create_skb_ipv4_udp_fragment(pair4, &skb3, 100);
 	if (error)
 		return false;
 	hdr4 = ip_hdr(skb3);
@@ -564,7 +564,7 @@ bool create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4,
 	success &= VER_STOLEN == pkt_from_skb(skb3, pkt);
 
 	/* Second packet arrives. */
-	error = create_skb_ipv4_udp_fragment(&pair4, &skb2, 100);
+	error = create_skb_ipv4_udp_fragment(pair4, &skb2, 100);
 	if (error)
 		return false;
 	hdr4 = ip_hdr(skb2);
@@ -575,7 +575,7 @@ bool create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4,
 	success &= VER_STOLEN == pkt_from_skb(skb2, pkt);
 
 	/* Third and final packet arrives. */
-	error = create_skb_ipv4_udp(&pair4, &skb1, 100);
+	error = create_skb_ipv4_udp(pair4, &skb1, 100);
 	if (error)
 		return false;
 	hdr4 = ip_hdr(skb1);
@@ -599,7 +599,7 @@ bool create_packet_ipv6_udp_fragmented_disordered(struct ipv6_pair *pair6,
 	bool success = true;
 
 	/* First packet arrives. */
-	error = create_skb_ipv6_udp_fragment_n(&pair6, &skb3, 100);
+	error = create_skb_ipv6_udp_fragment_n(pair6, &skb3, 100);
 	if (error)
 		return false;
 	hdr6 = ipv6_hdr(skb3);
@@ -610,7 +610,7 @@ bool create_packet_ipv6_udp_fragmented_disordered(struct ipv6_pair *pair6,
 	success &= VER_STOLEN == pkt_from_skb(skb3, pkt);
 
 	/* Second packet arrives. */
-	error = create_skb_ipv6_udp_fragment_n(&pair6, &skb2, 100);
+	error = create_skb_ipv6_udp_fragment_n(pair6, &skb2, 100);
 	if (error)
 		return false;
 	hdr6 = ipv6_hdr(skb2);
@@ -621,7 +621,7 @@ bool create_packet_ipv6_udp_fragmented_disordered(struct ipv6_pair *pair6,
 	success &= VER_STOLEN == pkt_from_skb(skb2, pkt);
 
 	/* Third and final packet arrives. */
-	error = create_skb_ipv6_udp_fragment_1(&pair6, &skb1, 100);
+	error = create_skb_ipv6_udp_fragment_1(pair6, &skb1, 100);
 	if (error)
 		return false;
 	hdr6 = ipv6_hdr(skb1);
@@ -645,7 +645,7 @@ bool create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6,
 	bool success = true;
 
 	/* First packet arrives. */
-	error = create_skb_ipv6_tcp_fragment_n(&pair6, &skb3, 100);
+	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb3, 100);
 	if (error)
 		return false;
 	hdr6 = ipv6_hdr(skb3);
@@ -656,7 +656,7 @@ bool create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6,
 	success &= VER_STOLEN == pkt_from_skb(skb3, pkt);
 
 	/* Second packet arrives. */
-	error = create_skb_ipv6_tcp_fragment_n(&pair6, &skb2, 100);
+	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb2, 100);
 	if (error)
 		return false;
 	hdr6 = ipv6_hdr(skb2);
@@ -667,7 +667,7 @@ bool create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6,
 	success &= VER_STOLEN == pkt_from_skb(skb2, pkt);
 
 	/* Third and final packet arrives. */
-	error = create_skb_ipv6_tcp_fragment_1(&pair6, &skb1, 100);
+	error = create_skb_ipv6_tcp_fragment_1(pair6, &skb1, 100);
 	if (error)
 		return false;
 	hdr6 = ipv6_hdr(skb1);

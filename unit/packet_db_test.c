@@ -26,6 +26,18 @@ static int pktdb_counter(struct packet *pkt, void *arg)
 	return 0;
 }
 
+static int pkt_fragment_count(struct packet *pkt)
+{
+	struct fragment *frag;
+	int i = 0;
+
+	list_for_each_entry(frag, &pkt->fragments, next) {
+		i++;
+	}
+
+	return i;
+}
+
 static bool validate_packet_ipv6(struct packet *pkt, int fragment_count, u16 total_bytes)
 {
 	unsigned int expected_dying_time;

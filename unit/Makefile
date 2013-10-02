@@ -3,107 +3,123 @@ KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -DDEBUG
 CC=cgcc
 
+PKT = pkt
+PKTDB = pktdb
+INCOMING = incoming
+OUTGOING = outgoing
+TRANSLATE = translate
+HAIRPINNING = hairpinning
+SEND = send
+
+
 ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += packet.o packetdb.o incoming.o outgoing.o translate.o hairpinning.o send.o
+obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o # $(HAIRPINNING).o
 
 
 # Packet
-packet-objs += ../mod/types.o
-packet-objs += ../mod/str_utils.o
-packet-objs += ../mod/ipv6_hdr_iterator.o
-packet-objs += ../mod/packet.o
-packet-objs += framework/unit_test.o
-packet-objs += packet_test.o
+$(PKT)-objs += ../mod/types.o
+$(PKT)-objs += ../mod/str_utils.o
+$(PKT)-objs += ../mod/ipv6_hdr_iterator.o
+$(PKT)-objs += ../mod/packet.o
+$(PKT)-objs += framework/unit_test.o
+$(PKT)-objs += packet_test.o
 
 # Packet DB
-packetdb-objs += ../mod/types.o
-packetdb-objs += ../mod/str_utils.o
-packetdb-objs += ../mod/ipv6_hdr_iterator.o
-packetdb-objs += ../mod/packet.o
-packetdb-objs += framework/unit_test.o
-packetdb-objs += framework/skb_generator.o
-packetdb-objs += framework/validator.o
-packetdb-objs += framework/types.o
-packetdb-objs += packet_db_test.o
+$(PKTDB)-objs += ../mod/types.o
+$(PKTDB)-objs += ../mod/str_utils.o
+$(PKTDB)-objs += ../mod/ipv6_hdr_iterator.o
+$(PKTDB)-objs += ../mod/packet.o
+$(PKTDB)-objs += framework/unit_test.o
+$(PKTDB)-objs += framework/skb_generator.o
+$(PKTDB)-objs += framework/validator.o
+$(PKTDB)-objs += framework/types.o
+$(PKTDB)-objs += packet_db_test.o
 
 # Incoming tuple
-incoming-objs += ../mod/types.o
-incoming-objs += ../mod/str_utils.o
-incoming-objs += ../mod/ipv6_hdr_iterator.o
-incoming-objs += ../mod/packet.o
-incoming-objs += framework/unit_test.o
-incoming-objs += framework/skb_generator.o
-incoming-objs += framework/validator.o
-incoming-objs += framework/types.o
-incoming-objs += ../mod/packet_db.o
-incoming-objs += determine_incoming_tuple_test.o
+$(INCOMING)-objs += ../mod/types.o
+$(INCOMING)-objs += ../mod/str_utils.o
+$(INCOMING)-objs += ../mod/ipv6_hdr_iterator.o
+$(INCOMING)-objs += ../mod/packet.o
+$(INCOMING)-objs += framework/unit_test.o
+$(INCOMING)-objs += framework/skb_generator.o
+$(INCOMING)-objs += framework/validator.o
+$(INCOMING)-objs += framework/types.o
+$(INCOMING)-objs += ../mod/packet_db.o
+$(INCOMING)-objs += determine_incoming_tuple_test.o
 
 # Computing the Outgoing Tuple
-outgoing-objs += ../mod/types.o
-outgoing-objs += ../mod/str_utils.o
-outgoing-objs += ../mod/packet.o
-outgoing-objs += ../mod/ipv6_hdr_iterator.o
-outgoing-objs += ../mod/rfc6052.o
-outgoing-objs += ../mod/pool6.o
-outgoing-objs += ../mod/bib.o
-outgoing-objs += framework/unit_test.o
-outgoing-objs += compute_outgoing_tuple_test.o
+$(OUTGOING)-objs += ../mod/types.o
+$(OUTGOING)-objs += ../mod/str_utils.o
+$(OUTGOING)-objs += ../mod/packet.o
+$(OUTGOING)-objs += ../mod/ipv6_hdr_iterator.o
+$(OUTGOING)-objs += ../mod/rfc6052.o
+$(OUTGOING)-objs += ../mod/pool6.o
+$(OUTGOING)-objs += ../mod/bib.o
+$(OUTGOING)-objs += framework/unit_test.o
+$(OUTGOING)-objs += compute_outgoing_tuple_test.o
 
 # Translating the Packet
-translate-objs += ../mod/types.o
-translate-objs += ../mod/str_utils.o
-translate-objs += ../mod/packet.o
-translate-objs += ../mod/ipv6_hdr_iterator.o
-translate-objs += ../mod/send_packet.o
-translate-objs += framework/unit_test.o
-translate-objs += framework/skb_generator.o
-translate-objs += framework/validator.o
-translate-objs += framework/types.o
-translate-objs += translate_packet_test.o
+$(TRANSLATE)-objs += ../mod/types.o
+$(TRANSLATE)-objs += ../mod/str_utils.o
+$(TRANSLATE)-objs += ../mod/packet.o
+$(TRANSLATE)-objs += ../mod/packet_db.o
+$(TRANSLATE)-objs += ../mod/ipv6_hdr_iterator.o
+$(TRANSLATE)-objs += framework/unit_test.o
+$(TRANSLATE)-objs += framework/skb_generator.o
+$(TRANSLATE)-objs += framework/validator.o
+$(TRANSLATE)-objs += framework/types.o
+$(TRANSLATE)-objs += framework/impersonator_send_packet.o
+$(TRANSLATE)-objs += translate_packet_test.o
 
 # Hairpinning
-hairpinning-objs += ../mod/types.o
-hairpinning-objs += ../mod/str_utils.o
-hairpinning-objs += ../mod/ipv6_hdr_iterator.o
-hairpinning-objs += ../mod/packet.o
-hairpinning-objs += framework/unit_test.o
-hairpinning-objs += framework/skb_generator.o
-hairpinning-objs += framework/validator.o
-hairpinning-objs += framework/types.o
-hairpinning-objs += ../mod/packet_db.o
-hairpinning-objs += handling_hairpinning_test.o
+$(HAIRPINNING)-objs += ../mod/types.o
+$(HAIRPINNING)-objs += ../mod/str_utils.o
+$(HAIRPINNING)-objs += ../mod/ipv6_hdr_iterator.o
+$(HAIRPINNING)-objs += ../mod/packet.o
+$(HAIRPINNING)-objs += framework/unit_test.o
+$(HAIRPINNING)-objs += framework/skb_generator.o
+$(HAIRPINNING)-objs += framework/validator.o
+$(HAIRPINNING)-objs += framework/types.o
+$(HAIRPINNING)-objs += ../mod/packet_db.o
+$(HAIRPINNING)-objs += handling_hairpinning_test.o
 
 # Send packet (does not have a unit test, so just make sure it compiles.)
-send-objs += ../mod/send_packet.o
+$(SEND)-objs += ../mod/send_packet.o
 
 
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
-	-sudo insmod rfc6052.ko
-	-sudo rmmod rfc6052
-	-sudo insmod hashtable.ko
-	-sudo rmmod hashtable
-	-sudo insmod poolnum.ko
-	-sudo rmmod poolnum
-	-sudo insmod pool4.ko
-	-sudo rmmod pool4
-	-sudo insmod bib_session.ko
-	-sudo rmmod bib_session
-	-sudo insmod iterator.ko
-	-sudo rmmod iterator
-	-sudo insmod filtering.ko
-	-sudo rmmod filtering
-	-sudo insmod outgoing.ko
-	-sudo rmmod outgoing
-	-sudo insmod translate.ko
-	-sudo rmmod translate
-	-sudo insmod hairpinning.ko
-	-sudo rmmod hairpinning
+	#-sudo insmod rfc6052.ko
+	#-sudo rmmod rfc6052
+	#-sudo insmod hashtable.ko
+	#-sudo rmmod hashtable
+	#-sudo insmod poolnum.ko
+	#-sudo rmmod poolnum
+	#-sudo insmod pool4.ko
+	#-sudo rmmod pool4
+	#-sudo insmod bib_session.ko
+	#-sudo rmmod bib_session
+	#-sudo insmod iterator.ko
+	#-sudo rmmod iterator
+	-sudo insmod $(PKT).ko
+	-sudo rmmod $(PKT)
+	-sudo insmod $(PKTDB).ko
+	-sudo rmmod $(PKTDB)
+	-sudo insmod $(INCOMING).ko
+	-sudo rmmod $(INCOMING)
+	#-sudo insmod filtering.ko
+	#-sudo rmmod filtering
+	-sudo insmod $(OUTGOING).ko
+	-sudo rmmod $(OUTGOING)
+	-sudo insmod $(TRANSLATE).ko
+	-sudo rmmod $(TRANSLATE)
+	#-sudo insmod $(HAIRPINNING).ko
+	#-sudo rmmod $(HAIRPINNING)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

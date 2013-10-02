@@ -260,6 +260,7 @@ static enum verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct frag
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
 
+#ifndef UNIT_TESTING
 		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
 		if (!out->dst)
 			return VER_DROP;
@@ -268,6 +269,10 @@ static enum verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct frag
 				out->dst->dev->mtu,
 				in->skb->dev->mtu + 20,
 				tot_len_field);
+
+#else
+		icmpv6_hdr->icmp6_mtu = 1500;
+#endif
 		break;
 
 	case ICMP_NET_ANO:
@@ -332,8 +337,11 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 		struct fragment *out)
 {
 	enum verdict result;
-	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
-	struct icmp6hdr *icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
+	struct icmphdr *icmpv4_hdr;
+	struct icmp6hdr *icmpv6_hdr;
+
+	icmpv4_hdr = frag_get_icmp4_hdr(in);
+	icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
 	if (!icmpv6_hdr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of the ICMPv6 header failed.");
 		return VER_DROP;
@@ -363,6 +371,7 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 	case ICMP_DEST_UNREACH: {
 		__u16 tot_len = be16_to_cpu(ip_hdr(in->skb)->tot_len);
 		result = icmp4_to_icmp6_dest_unreach(in, out, tot_len);
+
 		if (result != VER_CONTINUE)
 			return result;
 		break;
@@ -575,6 +584,7 @@ enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *i
 		return VER_DROP;
 	}
 	memcpy(out_outer->payload.ptr, skb_network_header(out_inner->skb), out_outer->payload.len);
+
 	frag_kfree(out_inner);
 
 	return VER_CONTINUE;

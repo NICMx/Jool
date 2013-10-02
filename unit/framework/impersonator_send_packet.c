@@ -2,30 +2,35 @@
 #include "nat64/comm/types.h"
 
 
-static struct sk_buff *sent_pkt = NULL;
+static struct packet *sent_pkt = NULL;
 
-bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
+
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark)
 {
-	log_debug("Step 6: Pretending I'm sending IPv4 packet %p...", skb_out);
-	sent_pkt = skb_out;
-	log_debug("Done step 6.");
-	return true;
+	return NULL;
 }
 
-bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark)
 {
-	log_debug("Step 6: Pretending I'm sending IPv6 packet %p...", skb_out);
-	sent_pkt = skb_out;
-	log_debug("Done step 6.");
-	return true;
+	return NULL;
 }
 
-struct sk_buff *get_sent_pkt(void)
+enum verdict send_pkt(struct packet *pkt)
+{
+	log_debug("Step 6: Pretending I'm sending packet %p...", pkt);
+	sent_pkt = pkt;
+	log_debug("Done step 6.");
+	return VER_CONTINUE;
+}
+
+/*
+struct packet *get_sent_pkt(void)
 {
 	return sent_pkt;
 }
 
-void set_sent_pkt(struct sk_buff *skb)
+void set_sent_pkt(struct packet *skb)
 {
 	sent_pkt = skb;
 }
+*/

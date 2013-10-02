@@ -1,7 +1,6 @@
 #include "nat64/mod/packet.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
-#include "nat64/comm/config_proto.h"
 #include "nat64/mod/packet_db.h"
 
 
@@ -768,13 +767,6 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 		kfree(pkt);
 }
 
-/**
- * 	Updates Fragmentation configuration options.
- *
- *  @param[in]  operation   _____________
- *  @param[in]  new_config  The new configuration.
- *  @return response_code   ___________.
- *  */
 int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
 {
 	int error = 0;

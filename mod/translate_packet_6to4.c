@@ -398,6 +398,7 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
 		icmpv4_hdr->un.frag.__unused = 0;
 
+#ifndef UNIT_TESTING
 		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
 		if (!out->dst)
 			return VER_DROP;
@@ -405,6 +406,9 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
 				out->dst->dev->mtu,
 				in->skb->dev->mtu - 20);
+#else
+		icmpv4_hdr->un.frag.mtu = 1500;
+#endif
 		break;
 
 	case ICMPV6_TIME_EXCEED:

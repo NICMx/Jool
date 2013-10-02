@@ -14,6 +14,7 @@
 #include <linux/icmpv6.h>
 
 #include "nat64/comm/types.h"
+#include "nat64/comm/config_proto.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
 
 
@@ -48,6 +49,15 @@
 int pktmod_init(void);
 /** Call this to free any memory held by this module. */
 void pktmod_destroy(void);
+/**
+ * Updates Fragmentation configuration options.
+ *
+ * @param[in]  operation   _____________
+ * @param[in]  new_config  The new configuration.
+ * @return response_code   ___________.
+ */
+int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config);
+
 /**
  * Synchronization-safely returns the current configuration's fragment timeout.
  * fragment timeout is the maximum time any fragment should remain in memory. If that much time has

@@ -64,18 +64,6 @@ static __u16 hash_function(struct pktdb_key *key)
 	return key->identifier;
 }
 
-static int pkt_fragment_count(struct packet *pkt)
-{
-	struct fragment *frag;
-	int i = 0;
-
-	list_for_each_entry(frag, &pkt->fragments, next) {
-		i++;
-	}
-
-	return i;
-}
-
 static int frag_to_key(struct fragment *frag, struct pktdb_key *key)
 {
 	struct ipv6hdr *hdr6;

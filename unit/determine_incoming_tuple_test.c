@@ -79,14 +79,14 @@ int init_module(void)
 {
 	START_TESTS("Determine incoming tuple");
 
-	pkt_init();
+	pktmod_init();
 	pktdb_init();
 
 	CALL_TEST(test_determine_in_tuple_ipv4(), "Determine incoming tuple of a 3 fragments IPv4 packet.");
 	CALL_TEST(test_determine_in_tuple_ipv6(), "Determine incoming tuple of a 3 fragments IPv6 packet.");
 
 	pktdb_destroy();
-	pkt_destroy();
+	pktmod_destroy();
 
 	END_TESTS;
 }
