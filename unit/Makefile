@@ -7,7 +7,7 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += packet.o packetdb.o outgoing.o translate.o send.o
+obj-m += packet.o packetdb.o incoming.o outgoing.o translate.o hairpinning.o send.o
 
 
 # Packet
@@ -28,6 +28,18 @@ packetdb-objs += framework/skb_generator.o
 packetdb-objs += framework/validator.o
 packetdb-objs += framework/types.o
 packetdb-objs += packet_db_test.o
+
+# Incoming tuple
+incoming-objs += ../mod/types.o
+incoming-objs += ../mod/str_utils.o
+incoming-objs += ../mod/ipv6_hdr_iterator.o
+incoming-objs += ../mod/packet.o
+incoming-objs += framework/unit_test.o
+incoming-objs += framework/skb_generator.o
+incoming-objs += framework/validator.o
+incoming-objs += framework/types.o
+incoming-objs += ../mod/packet_db.o
+incoming-objs += determine_incoming_tuple_test.o
 
 # Computing the Outgoing Tuple
 outgoing-objs += ../mod/types.o
@@ -52,37 +64,46 @@ translate-objs += framework/validator.o
 translate-objs += framework/types.o
 translate-objs += translate_packet_test.o
 
+# Hairpinning
+hairpinning-objs += ../mod/types.o
+hairpinning-objs += ../mod/str_utils.o
+hairpinning-objs += ../mod/ipv6_hdr_iterator.o
+hairpinning-objs += ../mod/packet.o
+hairpinning-objs += framework/unit_test.o
+hairpinning-objs += framework/skb_generator.o
+hairpinning-objs += framework/validator.o
+hairpinning-objs += framework/types.o
+hairpinning-objs += ../mod/packet_db.o
+hairpinning-objs += handling_hairpinning_test.o
+
 # Send packet (does not have a unit test, so just make sure it compiles.)
 send-objs += ../mod/send_packet.o
+
 
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
-	-sudo insmod packet.ko
-	-sudo rmmod packet
-	-sudo insmod packetdb.ko
-	-sudo rmmod packetdb
-	#-sudo insmod iterator.ko
-	#-sudo rmmod iterator
-	#-sudo insmod rfc6052.ko
-	#-sudo rmmod rfc6052
-	#-sudo insmod hashtable.ko
-	#-sudo rmmod hashtable
-	#-sudo insmod poolnum.ko
-	#-sudo rmmod poolnum
-	#-sudo insmod pool4.ko
-	#-sudo rmmod pool4
-	#-sudo insmod bib_session.ko
-	#-sudo rmmod bib_session
-	#-sudo insmod filtering.ko
-	#-sudo rmmod filtering
+	-sudo insmod rfc6052.ko
+	-sudo rmmod rfc6052
+	-sudo insmod hashtable.ko
+	-sudo rmmod hashtable
+	-sudo insmod poolnum.ko
+	-sudo rmmod poolnum
+	-sudo insmod pool4.ko
+	-sudo rmmod pool4
+	-sudo insmod bib_session.ko
+	-sudo rmmod bib_session
+	-sudo insmod iterator.ko
+	-sudo rmmod iterator
+	-sudo insmod filtering.ko
+	-sudo rmmod filtering
 	-sudo insmod outgoing.ko
 	-sudo rmmod outgoing
 	-sudo insmod translate.ko
 	-sudo rmmod translate
-	#-sudo insmod hairpinning.ko
-	#-sudo rmmod hairpinning
+	-sudo insmod hairpinning.ko
+	-sudo rmmod hairpinning
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

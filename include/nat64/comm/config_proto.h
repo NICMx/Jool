@@ -32,6 +32,7 @@ enum config_mode {
 	MODE_SESSION,
 	MODE_FILTERING,
 	MODE_TRANSLATE,
+	MODE_FRAGMENTATION,
 };
 
 enum config_operation {
@@ -58,6 +59,8 @@ enum config_operation {
 	#define ICMP_TIMEOUT_MASK		(1 << 4)
 	#define TCP_EST_TIMEOUT_MASK	(1 << 5)
 	#define TCP_TRANS_TIMEOUT_MASK 	(1 << 6)
+
+	#define FRAGMENT_TIMEOUT_MASK 	(1 << 0)
 };
 
 /**
@@ -89,7 +92,10 @@ struct session_entry_us {
 	u_int8_t l4_proto;
 };
 
-struct packet_config {
+/**
+ * Time interval to allow arrival of fragments, in milliseconds.
+ */
+struct fragmentation_config {
 	unsigned int fragment_timeout;
 };
 
@@ -236,7 +242,7 @@ struct request_session {
 
 /*
  * Because of the somewhat intrusive nature of the netlink header, response header structures are
- * not really neccesary.
+ * not really necessary.
  */
 
 

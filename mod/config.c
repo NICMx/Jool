@@ -291,6 +291,26 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 	}
 }
 
+static int handle_fragmentation_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		struct filtering_config *request)
+{
+	struct filtering_config clone;
+	int error;
+
+	if (nat64_hdr->operation == 0) {
+		log_debug("Returning 'Fragmentation' options.");
+
+		error = clone_filtering_config(&clone);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
+	} else {
+		log_debug("Updating 'Fragmentation' options.");
+		return respond_error(nl_hdr, set_fragmentation_config(nat64_hdr->operation, request));
+	}
+}
+
 static int handle_translate_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		struct translate_config *request)
 {
@@ -370,6 +390,9 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		break;
 	case MODE_TRANSLATE:
 		error = handle_translate_config(nl_hdr, nat64_hdr, request);
+		break;
+	case MODE_FRAGMENTATION:
+		error = handle_fragmentation_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown configuration mode: %d", nat64_hdr->mode);

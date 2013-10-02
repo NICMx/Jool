@@ -23,6 +23,7 @@
 #include "nat64/usr/session.h"
 #include "nat64/usr/filtering.h"
 #include "nat64/usr/translate.h"
+#include "nat64/usr/fragmentation.h"
 
 
 const char *argp_program_version = "Jool userspace app 0.1";
@@ -54,6 +55,9 @@ struct arguments {
 	/* Filtering, translate */
 	struct filtering_config filtering;
 	struct translate_config translate;
+
+	bool fragmentation;
+	struct fragmentation_config frag_conf;
 };
 
 /**
@@ -67,6 +71,7 @@ enum argp_flags {
 	ARGP_SESSION = 's',
 	ARGP_FILTERING = 'y',
 	ARGP_TRANSLATE = 'z',
+	ARGP_FRAGMENTATION = 'f',
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
@@ -109,6 +114,9 @@ enum argp_flags {
 	ARGP_BUILD_ID = 4006,
 	ARGP_LOWER_MTU_FAIL = 4007,
 	ARGP_PLATEAUS = 4010,
+
+	/* Fragmentation */
+	ARGP_FRAG_TO = 5000,
 };
 
 #define NUM_FORMAT "NUM"
@@ -214,6 +222,13 @@ static struct argp_option options[] =
 	{ BUILD_IPV4_ID_OPT,	ARGP_BUILD_ID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
 	{ LOWER_MTU_FAIL_OPT,	ARGP_LOWER_MTU_FAIL,BOOL_FORMAT, 0, "Decrease MTU failure rate." },
 	{ MTU_PLATEAUS_OPT,		ARGP_PLATEAUS,		NUM_ARR_FORMAT,0, "MTU plateaus." },
+
+	{ 0, 0, 0, 0, "'Fragmentation' options:", 40 },
+	{ "fragmentation",			ARGP_FRAGMENTATION,		0, 0,
+			"Command is fragmentation related. Use alone to display configuration. "
+			"Will be implicit if any other fragmentation command is entered." },
+	{ FRAGMENTATION_TIMEOUT_OPT,		ARGP_FRAG_TO,		NUM_FORMAT, 0,
+			"Set the timeout for arrival of fragments." },
 
 	{ 0 },
 };
@@ -380,6 +395,13 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 				&arguments->translate.mtu_plateau_count);
 		break;
 
+	case ARGP_FRAG_TO:
+		arguments->mode = MODE_FRAGMENTATION;
+		arguments->operation |= FRAGMENT_TIMEOUT_MASK;
+		error = str_to_u16(arg, &temp, FRAGMENT_MIN, 0xFFFF);
+		arguments->fragmentation = temp;
+		break;
+
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
@@ -415,10 +437,11 @@ int parse_args(int argc, char **argv, struct arguments *result)
 	if (error != 0)
 		return error;
 
-	if (!result->tcp && !result->udp && !result->icmp) {
+	if (!result->tcp && !result->udp && !result->icmp && !result->fragmentation) {
 		result->tcp = true;
 		result->udp = true;
 		result->icmp = true;
+		result->fragmentation = true;
 	}
 
 	if (!result->static_entries && !result->dynamic_entries) {
@@ -484,6 +507,7 @@ int main(int argc, char **argv)
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv4 pool mode: %u.", args.operation);
 			return -EINVAL;
 		}
+		break;
 
 	case MODE_BIB:
 		switch (args.operation) {
@@ -539,6 +563,9 @@ int main(int argc, char **argv)
 		if (args.translate.mtu_plateaus)
 			free(args.translate.mtu_plateaus);
 		return error;
+
+	case MODE_FRAGMENTATION:
+		return fragmentation_request(args.operation, &args.frag_conf);
 
 	default:
 		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");

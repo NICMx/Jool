@@ -246,7 +246,6 @@ enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 			INIT_LIST_HEAD(&pkt_from_db->pkt_list_node);
 			*pkt = pkt_from_db;
 			result = VER_CONTINUE;
-
 		} else {
 			/* Keep waiting for fragments. */
 			result = VER_STOLEN;
@@ -256,7 +255,6 @@ enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 		*pkt = (skb->protocol == htons(ETH_P_IPV6))
 				? pkt_create_ipv6(frag)
 				: pkt_create_ipv4(frag);
-
 
 		if (pkt_is_complete(*pkt))
 			/* No fragmentation; no need to reassemble. pkt is already set so just state success. */

@@ -273,6 +273,8 @@ static char *get_error_msg(enum error_code code)
 		return "Unsupported network protocol.";
 	case ERR_ALLOC_FAILED:
 		return "A memory allocation failed, so the handling of the request could not be completed.";
+	case ERR_MISSING_FRAG_HEADER:
+		return "Missing fragment header in a IPv6 packet.";
 	case ERR_UNKNOWN_ERROR:
 		return "Unknown error.";
 
@@ -362,6 +364,9 @@ static char *get_error_msg(enum error_code code)
 		return "The kernel could not route the packet I want to send.";
 	case ERR_SEND_FAILED:
 		return "The kernel could not send the packet I just translated.";
+
+	case ERR_FRAGMENTATION_TO_RANGE:
+		return "The fragmentation timeout is out of range.";
 	}
 
 	return "Unknown result code.";

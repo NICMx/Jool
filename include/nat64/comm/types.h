@@ -81,6 +81,7 @@ enum error_code {
 	ERR_POOL4_REINSERT = 1021,
 	ERR_BIB_NOT_FOUND = 1022,
 	ERR_BIB_REINSERT = 1023,
+	ERR_FRAGMENTATION_TO_RANGE = 1024,
 
 	/* IPv6 header iterator */
 	ERR_INVALID_ITERATOR = 2000,
@@ -237,10 +238,10 @@ bool is_icmp4_info(__u8 type);
 bool is_icmp4_error(__u8 type);
 
 void log_tuple(struct tuple *tuple);
-int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
-		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto);
-int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
-		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto);
+int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
+		unsigned char *dst_addr, __u16 dst_port, u_int8_t l4_proto);
+int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
+		unsigned char *dst_addr, __u16 dst_port, u_int8_t l4_proto);
 
 
 #endif

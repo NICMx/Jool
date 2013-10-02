@@ -186,9 +186,9 @@ struct bib_entry *bib_get(struct tuple *tuple)
 		address4.address = tuple->dst.addr.ipv4;
 		address4.l4_id = tuple->dst.l4_id;
 		return bib_get_by_ipv4(&address4, tuple->l4_proto);
-	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
-		return NULL;
+//	default:
+//		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+//		return NULL;
 	}
 }
 

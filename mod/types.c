@@ -271,7 +271,7 @@ int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 		return error;
 	tuple->dst.l4_id = dst_port;
 
-	tuple->l3_proto = PF_INET;
+	tuple->l3_proto = L3PROTO_IPV4;
 	tuple->l4_proto = l4_proto;
 
 	return 0;
@@ -292,7 +292,7 @@ int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 		return error;
 	tuple->dst.l4_id = dst_port;
 
-	tuple->l3_proto = PF_INET6;
+	tuple->l3_proto = L3PROTO_IPV6;
 	tuple->l4_proto = l4_proto;
 
 	return 0;
