@@ -51,7 +51,6 @@ Module Dependencies (modprobe):
 Directories:
 	/doc : Code documentation; Doxygen output.
 	/include : The entire system's header files.
-	/lib : The iptables module's implementation code.
 	/mod : The kernel module's implementation code.
 	/unit : Unit tests.
 	/usr : The userspace application's implementation code.
