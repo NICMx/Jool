@@ -129,8 +129,12 @@ static void clean_expired_sessions(void)
 	list_for_each_safe(current_node, next_node, &all_sessions) {
 		session = list_entry(current_node, struct session_entry, all_sessions);
 
-		if (session->dying_time > current_time || session_expired_cb(session))
+		if (session->dying_time > current_time)
 			continue;
+		session_expired_cb(session);
+		if (session->dying_time > current_time)
+			continue;
+
 		if (!session_remove(session))
 			continue; /* Error msg already printed. */
 
