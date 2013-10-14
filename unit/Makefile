@@ -10,13 +10,14 @@ OUTGOING = outgoing
 TRANSLATE = translate
 HAIRPINNING = hairpinning
 SEND = send
+SENDFRAGPKT = sendFragmentedPacket
 
 
 ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o # $(HAIRPINNING).o
+obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o # $(HAIRPINNING).o $(SENDFRAGPKT).o
 
 
 # Packet
@@ -89,6 +90,20 @@ $(HAIRPINNING)-objs += handling_hairpinning_test.o
 # Send packet (does not have a unit test, so just make sure it compiles.)
 $(SEND)-objs += ../mod/send_packet.o
 
+# Incoming tuple
+$(SENDFRAGPKT)-objs += ../mod/types.o
+$(SENDFRAGPKT)-objs += ../mod/str_utils.o
+$(SENDFRAGPKT)-objs += ../mod/ipv6_hdr_iterator.o
+$(SENDFRAGPKT)-objs += ../mod/packet.o
+$(SENDFRAGPKT)-objs += framework/unit_test.o
+$(SENDFRAGPKT)-objs += framework/skb_generator.o
+$(SENDFRAGPKT)-objs += framework/validator.o
+$(SENDFRAGPKT)-objs += framework/types.o
+$(SENDFRAGPKT)-objs += ../mod/packet_db.o
+$(SENDFRAGPKT)-objs += ../mod/send_packet.o
+#$(SENDFRAGPKT)-objs += ../mod/send_packet_old.o  # This indeed works
+$(SENDFRAGPKT)-objs += send_fragmented_packet.o
+
 
 
 all:
@@ -120,6 +135,8 @@ test:
 	-sudo rmmod $(TRANSLATE)
 	#-sudo insmod $(HAIRPINNING).ko
 	#-sudo rmmod $(HAIRPINNING)
+	#-sudo insmod $(SENDFRAGPKT).ko
+	#-sudo rmmod $(SENDFRAGPKT)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

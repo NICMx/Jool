@@ -132,9 +132,9 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, enum l4_proto l
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
-	flow.flowi4_mark = mark;
-	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
-	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
+//	flow.flowi4_mark = mark;
+//	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
+//	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr_ip->protocol;
 	/*
 	 * TODO Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever create
@@ -142,36 +142,39 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, enum l4_proto l
 	 * TODO We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
 	 * If you change it, the corresponding attribute in route_skb_ipv6() should probably follow.
 	 */
-	flow.flowi4_flags = 0;
+//	flow.flowi4_flags = 0;
 	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
 	/* flow.flowi4_secid; */
 	flow.saddr = hdr_ip->saddr;
 	flow.daddr = hdr_ip->daddr;
-	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmphdr *hdr_icmp4;
 
-		switch (l4proto) {
-		case L4PROTO_NONE:
-			break;
-		case L4PROTO_TCP:
-			hdr_tcp = l4_hdr;
-			flow.fl4_sport = hdr_tcp->source;
-			flow.fl4_dport = hdr_tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr_udp = l4_hdr;
-			flow.fl4_sport = hdr_udp->source;
-			flow.fl4_dport = hdr_udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr_icmp4 = l4_hdr;
-			flow.fl4_icmp_type = hdr_icmp4->type;
-			flow.fl4_icmp_code = hdr_icmp4->code;
-			break;
-		}
-	}
+log_debug("route_ipv4: %pI4 --> %pI4", &flow.saddr, &flow.daddr );
+
+//	{
+//		struct udphdr *hdr_udp;
+//		struct tcphdr *hdr_tcp;
+//		struct icmphdr *hdr_icmp4;
+//
+//		switch (l4proto) {
+//		case L4PROTO_NONE:
+//			break;
+//		case L4PROTO_TCP:
+//			hdr_tcp = l4_hdr;
+//			flow.fl4_sport = hdr_tcp->source;
+//			flow.fl4_dport = hdr_tcp->dest;
+//			break;
+//		case L4PROTO_UDP:
+//			hdr_udp = l4_hdr;
+//			flow.fl4_sport = hdr_udp->source;
+//			flow.fl4_dport = hdr_udp->dest;
+//			break;
+//		case L4PROTO_ICMP:
+//			hdr_icmp4 = l4_hdr;
+//			flow.fl4_icmp_type = hdr_icmp4->type;
+//			flow.fl4_icmp_code = hdr_icmp4->code;
+//			break;
+//		}
+//	}
 
 	/*
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow() because those seem to
