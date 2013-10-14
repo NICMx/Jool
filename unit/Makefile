@@ -1,11 +1,13 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -DDEBUG
+# If it cannot compile, install sparse or comment this line.
 CC=cgcc
 
 PKT = pkt
 PKTDB = pktdb
 INCOMING = incoming
+FILTERING = filtering
 OUTGOING = outgoing
 TRANSLATE = translate
 HAIRPINNING = hairpinning
@@ -50,6 +52,9 @@ $(INCOMING)-objs += framework/validator.o
 $(INCOMING)-objs += framework/types.o
 $(INCOMING)-objs += ../mod/packet_db.o
 $(INCOMING)-objs += determine_incoming_tuple_test.o
+
+# Filtering and Updating
+$(FILTERING)-objs += filtering_and_updating_test.o
 
 # Computing the Outgoing Tuple
 $(OUTGOING)-objs += ../mod/types.o

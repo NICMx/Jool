@@ -23,7 +23,7 @@ MODULE_ALIAS("nat64_test_filtering");
 
 
 
-bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
+static bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 {
 	if (str_to_addr6(str, addr) != 0)
 	{
@@ -32,7 +32,7 @@ bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 	}
 	return true;
 }
-bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
+static bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 {
 	if (str_to_addr4(str, addr) != 0)
 	{
@@ -53,7 +53,7 @@ bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 #define INIT_TUPLE_IPV6_DST_PORT    1081
 #define INIT_TUPLE_IPV4_SRC_PORT    1024
 #define INIT_TUPLE_IPV4_DST_PORT    1081
-bool init_tuple_for_test_ipv6(struct tuple *tuple, u_int8_t l4protocol)
+static bool init_tuple_for_test_ipv6(struct tuple *tuple, u_int8_t l4protocol)
 {
     if (!str_to_addr6_verbose(INIT_TUPLE_IPV6_SRC_ADDR, &tuple->src.addr.ipv6))
     	return false;
@@ -76,7 +76,7 @@ bool init_tuple_for_test_ipv6(struct tuple *tuple, u_int8_t l4protocol)
 
     return true;
 }
-bool init_tuple_for_test_ipv4(struct tuple *tuple, u_int8_t l4protocol)
+static bool init_tuple_for_test_ipv4(struct tuple *tuple, u_int8_t l4protocol)
 {
     if (!str_to_addr4_verbose(INIT_TUPLE_IPV4_DST_ADDR, &tuple->src.addr.ipv4))
     	return false;
@@ -101,7 +101,7 @@ bool init_tuple_for_test_ipv4(struct tuple *tuple, u_int8_t l4protocol)
 }
 
 #define SKB_PAYLOAD 22
-struct sk_buff* init_skb_for_test(  struct tuple *tuple, u_int8_t protocol )
+static struct sk_buff* init_skb_for_test(  struct tuple *tuple, u_int8_t protocol )
 {
     __u32 l3_len;
     __u32 l4_len;
@@ -203,7 +203,7 @@ struct sk_buff* init_skb_for_test(  struct tuple *tuple, u_int8_t protocol )
 #define IPV4_INJECT_BIB_ENTRY_DST_ADDR  "192.168.2.1"
 #define IPV4_INJECT_BIB_ENTRY_DST_PORT  1082
 #define INIT_TUPLE_ICMP_ID              10
-bool inject_bib_entry( u_int8_t l4protocol )
+static bool inject_bib_entry( u_int8_t l4protocol )
 {
     struct ipv4_tuple_address ta_ipv4;
     struct ipv6_tuple_address ta_ipv6;
@@ -253,7 +253,7 @@ bool inject_bib_entry( u_int8_t l4protocol )
 #define IPV4_INIT_SESSION_ENTRY_SRC_PORT  1082
 #define IPV4_INIT_SESSION_ENTRY_DST_ADDR  "192.168.2.44"
 #define IPV4_INIT_SESSION_ENTRY_DST_PORT  1082
-bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
+static bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
 {
     struct in_addr src4;
     struct in_addr dst4;
@@ -292,7 +292,7 @@ bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
 
 #define IPV4_TRANSPORT_ADDR     "192.168.1.4"
 #define IPV4_TRANSPORT_PORT     1081
-bool test_transport_address_ipv4( void )
+static bool test_transport_address_ipv4( void )
 {
     struct in_addr addr;
     struct ipv4_tuple_address ta;
@@ -313,7 +313,7 @@ bool test_transport_address_ipv4( void )
 
 #define IPV6_TRANSPORT_ADDR     "2001:db8:c0ca:1::1"
 #define IPV6_TRANSPORT_PORT     1081
-bool test_transport_address_ipv6( void )
+static bool test_transport_address_ipv6( void )
 {
     struct in6_addr addr6;
     struct ipv6_tuple_address ta;
@@ -335,7 +335,7 @@ bool test_transport_address_ipv6( void )
 
 #define IPV6_EXTRACT_ADDR     "64:ff9b::192.168.2.3"
 #define IPV4_EXTRACTED_ADDR     "192.168.2.3"
-bool test_extract_ipv4_from_ipv6( void )
+static bool test_extract_ipv4_from_ipv6( void )
 {
     struct in6_addr addr6;
     struct in_addr extracted4;
@@ -359,7 +359,7 @@ bool test_extract_ipv4_from_ipv6( void )
 
 #define IPV6_EMBEDDED_ADDR      "64:ff9b::192.168.2.3"
 #define IPV4_EMBEDDABLE_ADDR    "192.168.2.3"
-bool test_embed_ipv4_in_ipv6( void )
+static bool test_embed_ipv4_in_ipv6( void )
 {
     struct in_addr embeddable4;
     struct in6_addr embed6;
@@ -381,7 +381,7 @@ bool test_embed_ipv4_in_ipv6( void )
 
 
 #define IPV4_ALLOCATED_ADDR     "192.168.2.1"
-bool test_allocate_ipv4_transport_address( void )
+static bool test_allocate_ipv4_transport_address( void )
 {
     struct tuple tuple;
     struct ipv4_tuple_address tuple_addr;
@@ -418,7 +418,7 @@ bool test_allocate_ipv4_transport_address( void )
 
 
 #define IPV4_ALLOCATED_PORT_DIGGER  1024
-bool test_allocate_ipv4_transport_address_digger( void )
+static bool test_allocate_ipv4_transport_address_digger( void )
 {
     struct in_addr expected_addr;
     struct tuple tuple;
@@ -445,7 +445,7 @@ bool test_allocate_ipv4_transport_address_digger( void )
 }
 
 
-bool test_ipv6_udp( void )
+static bool test_ipv6_udp( void )
 {
     u_int8_t protocol = IPPROTO_UDP;
     struct tuple tuple;
@@ -458,14 +458,14 @@ bool test_ipv6_udp( void )
     if (!skb)
     	return false;
 
-    success &= assert_equals_int(NF_ACCEPT, ipv6_udp( skb, &tuple ), 
+    success &= assert_equals_int(VER_ACCEPT, ipv6_udp( skb, &tuple ),
 		"See if we can process correctly an IPv6 UDP packet.");
 
     kfree_skb(skb);
     return success;
 }
 
-bool test_ipv4_udp( void )
+static bool test_ipv4_udp( void )
 {
     u_int8_t protocol = IPPROTO_UDP;
     struct tuple tuple;
@@ -509,7 +509,7 @@ bool test_ipv4_udp( void )
     return success;
 }
 
-bool test_ipv6_icmp6( void )
+static bool test_ipv6_icmp6( void )
 {
     u_int8_t protocol = IPPROTO_ICMP;
     struct tuple tuple;
@@ -530,7 +530,7 @@ bool test_ipv6_icmp6( void )
     return success;
 }
 
-bool test_ipv4_icmp4( void )
+static bool test_ipv4_icmp4( void )
 {
     u_int8_t protocol;
     struct tuple tuple;
@@ -664,7 +664,7 @@ bool test_send_icmp_error_message( void )
 #define INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR    "2001:db8:c0ca:1::1"
 #define INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR    "64:ff9b::192.168.2.44"
 #define INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR     "192.168.100.44"
-bool test_filtering_and_updating( void )
+static bool test_filtering_and_updating( void )
 {
     u_int8_t protocol;
     struct tuple tuple;
@@ -827,124 +827,65 @@ struct sk_buff *init_packet_type_for_test(unsigned char type)
     return skb;
 }
 
-
-bool test_packet_is_ipv4( void )
-{
-    struct sk_buff *buffer;
-    bool success = true;
-
-    /* Set packet type to V4 SYN */
-    if ((buffer = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
-        return false;
-
-    success &= assert_true( packet_is_ipv4( buffer ), "Test if we detect an IPv4 packet.");
-
-    kfree_skb(buffer);
-    return success;
-}
-
-bool test_packet_is_ipv6( void )
+bool test_packet_is_syn( void )
 {
     struct sk_buff *skb;
     bool success = true;
 
-    /* Set packet type to V6 SYN */
-    if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
-        return false;
-
-    success &= assert_true( packet_is_ipv6( skb ), "Test if we detect an IPv6 packet.");
-
-    kfree_skb(skb);
-    return success;
-}
-
-bool test_packet_is_v4_syn( void )
-{
-    struct sk_buff *skb;
-    bool success = true;
-
-    /* Set packet type to V4 SYN */
+    /* V4 SYN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_SYN )) == NULL)
         return false;
-
-    success &= assert_true(packet_is_v4_syn( skb ), "Test if we detect a V4 SYN packet.");
-
+    success &= assert_true(packet_is_syn( skb ), "Test if we detect a V4 SYN packet.");
     kfree_skb(skb);
-    return success;
-}
 
-bool test_packet_is_v6_syn( void )
-{
-    struct sk_buff *skb;
-    bool success = true;
-
-    /* Set packet type to V6 SYN */
+    /* V6 SYN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_SYN )) == NULL)
         return false;
-
-    success &= assert_true( packet_is_v6_syn( skb ), "Test if we detect a V6 SYN packet.");
-
+    success &= assert_true( packet_is_syn( skb ), "Test if we detect a V6 SYN packet.");
     kfree_skb(skb);
+
     return success;
 }
 
-bool test_packet_is_v4_fin( void )
+bool test_packet_is_fin( void )
 {
     struct sk_buff *skb;
     bool success = true;
 
-    /* Set packet type to V4 FIN */
+    /* V4 FIN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_FIN )) == NULL)
         return false;
-
-    success &= assert_true(packet_is_v4_fin( skb ), "Test if we detect a V4 FIN packet.");
-
+    success &= assert_true(packet_is_fin( skb ), "Test if we detect a V4 FIN packet.");
     kfree_skb(skb);
-    return success;
-}
 
-bool test_packet_is_v6_fin( void )
-{
-    struct sk_buff *skb;
-    bool success = true;
-
-    /* Set packet type to V6 FIN */
+    /* V6 FIN */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_FIN )) == NULL)
         return false;
-
-    success &= assert_true( packet_is_v6_fin( skb ), "Test if we detect a V6 FIN packet.");
-
+    success &= assert_true( packet_is_fin( skb ), "Test if we detect a V6 FIN packet.");
     kfree_skb(skb);
+
     return success;
 }
 
-bool test_packet_is_v4_rst( void )
+bool test_packet_is_rst( void )
 {
     struct sk_buff *skb;
     bool success = true;
 
-    /* Set packet type to V4 RST */
+    /* V4 RST */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V4_RST )) == NULL)
         return false;
-
-    success &= assert_true(packet_is_v4_rst( skb ), "Test if we detect a V4 RST packet.");
-
+    success &= assert_true(packet_is_rst( skb ), "Test if we detect a V4 RST packet.");
     kfree_skb(skb);
-    return success;
-}
 
-bool test_packet_is_v6_rst( void )
-{
-    struct sk_buff *skb;
-    bool success = true;
-
-    /* Set packet type to V6 RST */
+    /* V6 RST */
     if ((skb = init_packet_type_for_test( PACKET_TYPE_V6_RST )) == NULL)
         return false;
-
-    success &= assert_true( packet_is_v6_rst( skb ), "Test if we detect a V6 RST packet.");
-
+    success &= assert_true( packet_is_rst( skb ), "Test if we detect a V6 RST packet.");
     kfree_skb(skb);
+
+    /* TODO missing unset flags tests. */
+
     return success;
 }
 
@@ -1401,14 +1342,9 @@ int __init filtering_test_init(void)
     INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "test_filtering_and_updating");
 
     /*      TCP      */
-    CALL_TEST(test_packet_is_ipv4(), "test_packet_is_ipv4");
-    CALL_TEST(test_packet_is_ipv6(), "test_packet_is_ipv6");
-    CALL_TEST(test_packet_is_v4_syn(), "test_packet_is_v4_syn");
-    CALL_TEST(test_packet_is_v6_syn(), "test_packet_is_v6_syn");
-    CALL_TEST(test_packet_is_v4_fin(), "test_packet_is_v4_fin");
-    CALL_TEST(test_packet_is_v6_fin(), "test_packet_is_v6_fin");
-    CALL_TEST(test_packet_is_v4_rst(), "test_packet_is_v4_rst");
-    CALL_TEST(test_packet_is_v6_rst(), "test_packet_is_v6_rst");
+    CALL_TEST(test_packet_is_syn(), "test_packet_is_syn");
+    CALL_TEST(test_packet_is_fin(), "test_packet_is_fin");
+    CALL_TEST(test_packet_is_rst(), "test_packet_is_rst");
     CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
     INIT_CALL_END(init_full(), test_tcp_closed_state_handle_6(), end_full(), "test_tcp_closed_state_handle_6");
     /* INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "test_tcp_closed_state_handle_4"); Not implemented yet! */
