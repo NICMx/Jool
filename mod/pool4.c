@@ -59,21 +59,20 @@ static struct pool4_node *get_pool4_node_from_addr(struct in_addr *addr)
 /**
  * Assumes that pool has already been locked (pool_lock).
  */
-static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, u_int8_t l4protocol,
+static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, enum l4_proto l4protocol,
 		__u16 id)
 {
 	switch (l4protocol) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		if (id < 1024)
 			return (id % 2 == 0) ? &node->udp_ports.low_even : &node->udp_ports.low_odd;
 		else
 			return (id % 2 == 0) ? &node->udp_ports.high_even : &node->udp_ports.high_odd;
 
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		return (id < 1024) ? &node->tcp_ports.low : &node->tcp_ports.high;
 
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		return &node->icmp_ids;
 	}
 
@@ -339,7 +338,7 @@ failure:
 	return false;
 }
 
-bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *addr)
+bool pool4_return(enum l4_proto l4protocol, struct ipv4_tuple_address *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;

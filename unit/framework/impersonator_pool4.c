@@ -36,20 +36,19 @@ int pool4_remove(struct in_addr *address)
 	return 0;
 }
 
-bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *result)
+bool pool4_get_any(enum l4_proto l4protocol, __be16 port, struct ipv4_tuple_address *result)
 {
 	u32 *port_counter;
 
 	result->address = pool_address;
 	switch (l4protocol) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		port_counter = &pool_current_udp_port;
 		break;
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		port_counter = &pool_current_tcp_port;
 		break;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		port_counter = &pool_current_icmp_id;
 		break;
 	default:
@@ -68,7 +67,7 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
 	return true;
 }
 
-bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
+bool pool4_get_similar(enum l4_proto, struct ipv4_tuple_address *address,
 		struct ipv4_tuple_address *result)
 {
 	if (!address) {
@@ -85,13 +84,13 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
 
 }
 
-bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *address)
+bool pool4_get(enum l4_proto, struct ipv4_tuple_address *address)
 {
 	log_warning("pool_get() is not implemented for testing.");
 	return false;
 }
 
-bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address)
+bool pool4_return(enum l4_proto, struct ipv4_tuple_address *address)
 {
 	/* Meh, whatever. */
 	log_debug("Somebody returned %pI4#%u to the pool.", &address->address, address->l4_id);

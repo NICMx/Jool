@@ -54,7 +54,7 @@ static struct session_table session_table_icmp;
  */
 static LIST_HEAD(all_sessions);
 
-struct timer_list expire_timer;
+static struct timer_list expire_timer;
 static bool expire_timer_active = false;
 static DEFINE_SPINLOCK(expire_timer_lock);
 
@@ -73,19 +73,20 @@ static bool (*session_expired_cb)(struct session_entry *session);
  * Private (helper) functions.
  ********************************************/
 
-static int get_session_table(u_int8_t l4protocol, struct session_table **result)
+static int get_session_table(enum l4_proto l4protocol, struct session_table **result)
 {
 	switch (l4protocol) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		*result = &session_table_udp;
 		return 0;
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		*result = &session_table_tcp;
 		return 0;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		*result = &session_table_icmp;
 		return 0;
+	case L4PROTO_NONE:
+		break;
 	}
 
 	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
@@ -230,7 +231,7 @@ int session_add(struct session_entry *entry)
 
 	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
 	if (error) {
-		ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
+		ipv4_table_remove(&table->ipv4, &entry->ipv4, false);
 		return error;
 	}
 
@@ -267,10 +268,10 @@ struct session_entry *session_get(struct tuple *tuple)
 	}
 
 	switch (tuple->l3_proto) {
-	case PF_INET6:
+	case L3PROTO_IPV6:
 		tuple_to_ipv6_pair(tuple, &pair6);
 		return session_get_by_ipv6(&pair6, tuple->l4_proto);
-	case PF_INET:
+	case L3PROTO_IPV4:
 		tuple_to_ipv4_pair(tuple, &pair4);
 		return session_get_by_ipv4(&pair4, tuple->l4_proto);
 	default:
@@ -297,7 +298,7 @@ bool session_allow(struct tuple *tuple)
 	tuple_to_ipv4_pair(tuple, &tuple_pair);
 	hash_code = table->ipv4.hash_function(&tuple_pair) % ARRAY_SIZE(table->ipv4.table);
 	hlist_for_each(current_node, &table->ipv4.table[hash_code]) {
-		session_pair = list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
+		session_pair = &list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
 		if (ipv4_tuple_addr_equals(&session_pair->local, &tuple_pair.local)
 				&& ipv4_addr_equals(&session_pair->remote.address, &tuple_pair.remote.address)) {
 			return true;
@@ -321,8 +322,8 @@ bool session_remove(struct session_entry *entry)
 		return false;
 
 	/* Free from both tables. */
-	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
-	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
+	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false);
+	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false);
 
 	if (removed_from_ipv4 && removed_from_ipv6) {
 		list_del(&entry->all_sessions);
@@ -351,8 +352,8 @@ void session_destroy(void)
 	 * same values.
 	 */
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_empty(&session_table_udp.ipv4, false, false);
-		ipv6_table_empty(&session_table_udp.ipv6, false, true);
+		ipv4_table_empty(&session_table_udp.ipv4, false);
+		ipv6_table_empty(&session_table_udp.ipv6, true);
 	}
 
 	spin_lock_bh(&expire_timer_lock);

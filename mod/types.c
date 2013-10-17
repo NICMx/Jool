@@ -297,3 +297,31 @@ int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 
 	return 0;
 }
+
+int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, u_int8_t l4_proto)
+{
+	tuple->src.addr.ipv4 = pair4->remote.address;
+	tuple->src.l4_id = pair4->remote.l4_id;
+
+	tuple->dst.addr.ipv4 = pair4->local.address;
+	tuple->dst.l4_id = pair4->local.l4_id;
+
+	tuple->l3_proto = L3PROTO_IPV4;
+	tuple->l4_proto = l4_proto;
+
+	return 0;
+}
+
+int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, u_int8_t l4_proto)
+{
+	tuple->src.addr.ipv6 = pair6->remote.address;
+	tuple->src.l4_id = pair6->remote.l4_id;
+
+	tuple->dst.addr.ipv6 = pair6->local.address;
+	tuple->dst.l4_id = pair6->local.l4_id;
+
+	tuple->l3_proto = L3PROTO_IPV6;
+	tuple->l4_proto = l4_proto;
+
+	return 0;
+}

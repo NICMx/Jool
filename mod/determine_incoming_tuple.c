@@ -59,19 +59,19 @@ static bool ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, stru
 	tuple->dst.addr.ipv4.s_addr = inner_ipv4->saddr;
 
 	switch (inner_ipv4->protocol) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		inner_udp = ipv4_extract_l4_hdr(inner_ipv4);
 		tuple->src.l4_id = be16_to_cpu(inner_udp->dest);
 		tuple->dst.l4_id = be16_to_cpu(inner_udp->source);
 		break;
 
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		inner_tcp = ipv4_extract_l4_hdr(inner_ipv4);
 		tuple->src.l4_id = be16_to_cpu(inner_tcp->dest);
 		tuple->dst.l4_id = be16_to_cpu(inner_tcp->source);
 		break;
 
-	case IPPROTO_ICMP:
+	case L4PROTO_ICMP:
 		/* We're not supporting ICMP inside ICMP yet. */
 		return false;
 
@@ -143,19 +143,19 @@ static bool ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, s
 
 	hdr_iterator_last(&iterator);
 	switch (iterator.hdr_type) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		inner_udp = iterator.data;
 		tuple->src.l4_id = be16_to_cpu(inner_udp->dest);
 		tuple->dst.l4_id = be16_to_cpu(inner_udp->source);
 		break;
 
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		inner_tcp = iterator.data;
 		tuple->src.l4_id = be16_to_cpu(inner_tcp->dest);
 		tuple->dst.l4_id = be16_to_cpu(inner_tcp->source);
 		break;
 
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		/* We're not supporting ICMP inside ICMP yet. */
 		return false;
 

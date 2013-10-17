@@ -103,13 +103,13 @@ static enum verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
 
 	tmp = hdr->icmp6_cksum;
 	hdr->icmp6_cksum = 0;
-	computed_csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, IPPROTO_ICMPV6,
+	computed_csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
 			csum_partial(skb_transport_header(skb), datagram_len, 0));
 	hdr->icmp6_cksum = tmp;
 
 	if (tmp != computed_csum) {
 		log_warning("Checksum doesn't match (protocol: %d). Expected: %x, actual: %x.",
-				IPPROTO_ICMPV6, computed_csum, tmp);
+				NEXTHDR_ICMP, computed_csum, tmp);
 		return VER_DROP;
 	}
 
@@ -564,11 +564,11 @@ static char *nexthdr_to_string(u8 nexthdr)
 static char *protocol_to_string(u8 protocol)
 {
 	switch (protocol) {
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		return "TCP";
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		return "UDP";
-	case IPPROTO_ICMP:
+	case L4PROTO_ICMP:
 		return "ICMP";
 	}
 

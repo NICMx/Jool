@@ -271,7 +271,7 @@ static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, enum l4_
 		struct ipv4_tuple_address *result)
 {
 	unsigned char ii = 0;
-	u_int8_t proto[] = { IPPROTO_TCP, IPPROTO_UDP, IPPROTO_ICMP };
+	u_int8_t proto[] = { L4PROTO_TCP, L4PROTO_UDP, L4PROTO_ICMP };
 	struct in_addr *address = NULL;
 
 	/* Look for S' in all three BIBs. */
@@ -371,7 +371,7 @@ static bool send_probe_packet(struct session_entry *session)
 	iph->flow_lbl[1] = 0;
 	iph->flow_lbl[2] = 0;
 	iph->payload_len = l4_hdr_len;
-	iph->nexthdr = IPPROTO_TCP;
+	iph->nexthdr = NEXTHDR_TCP;
 	iph->hop_limit = 255;
 	iph->saddr = session->ipv6.local.address;
 	iph->daddr = session->ipv6.remote.address;
@@ -395,11 +395,11 @@ static bool send_probe_packet(struct session_entry *session)
 	th->check = 0;
 	th->urg_ptr = 0;
 
-	th->check = csum_ipv6_magic(&iph->saddr, &iph->daddr, l4_hdr_len, IPPROTO_TCP,
+	th->check = csum_ipv6_magic(&iph->saddr, &iph->daddr, l4_hdr_len, NEXTHDR_TCP,
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	dst = route_ipv6(iph, th, L4PROTO_TCP, 0);
+	dst = route_ipv6(iph, th, NEXTHDR_TCP, 0);
 	if (!dst)
 		return false;
 	skb->dev = dst->dev;
@@ -478,7 +478,7 @@ static enum verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_tuple_address source;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_UDP;
+	enum l4_proto protocol = L4PROTO_UDP;
 	bool bib_is_local = false;
 
 	/* Pack source address into transport address */
@@ -594,7 +594,7 @@ static enum verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_tuple_address destination;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_UDP;
+	enum l4_proto protocol = L4PROTO_UDP;
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
 	 * what should be sent.
@@ -700,7 +700,7 @@ static enum verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_tuple_address source;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_ICMP;
+	enum l4_proto protocol = L4PROTO_ICMP;
 	bool bib_is_local = false;
 
 	if (filter_icmpv6_info()) {
@@ -826,7 +826,7 @@ static enum verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_tuple_address destination;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_ICMP;
+	enum l4_proto protocol = L4PROTO_ICMP;
 
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
@@ -920,25 +920,25 @@ enum tcp_states {
 	/** No traffic has been seen; state is fictional. */
 	CLOSED = 0,
 	/** A SYN packet arrived from the IPv6 side; some IPv4 node is trying to start a connection. */
-	V6_INIT,
+	V6_INIT = 1,
 	/** A SYN packet arrived from the IPv4 side; some IPv4 node is trying to start a connection. */
-	V4_INIT,
+	V4_INIT = 2,
 	/** The handshake is complete and the sides are exchanging upper-layer data. */
-	ESTABLISHED,
+	ESTABLISHED = 3,
 	/**
 	 * The IPv4 node wants to terminate the connection. Data can still flow.
 	 * Awaiting a IPv6 FIN...
 	 */
-	V4_FIN_RCV,
+	V4_FIN_RCV = 4,
 	/**
 	 * The IPv6 node wants to terminate the connection. Data can still flow.
 	 * Awaiting a IPv4 FIN...
 	 */
-	V6_FIN_RCV,
+	V6_FIN_RCV = 5,
 	/** Both sides issued a FIN. Packets can still flow for a short time. */
-	V4_FIN_V6_FIN_RCV,
+	V4_FIN_V6_FIN_RCV = 6,
 	/** The session might die in a short while. */
-	TRANS,
+	TRANS = 7,
 };
 
 static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
@@ -950,7 +950,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	struct in_addr destination_as_ipv4;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	u_int8_t protocol = IPPROTO_TCP;
+	enum l4_proto protocol = L4PROTO_TCP;
 	bool bib_is_local = false;
 
 	/* Pack source address into transport address */
@@ -1047,7 +1047,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 	struct in6_addr ipv6_local;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	u_int8_t protocol = IPPROTO_TCP;
+	enum l4_proto protocol = L4PROTO_TCP;
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
@@ -1163,7 +1163,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 	struct bib_entry *bib = NULL;
 	struct ipv6_tuple_address ipv6_ta;
 	struct ipv4_tuple_address ipv4_ta;
-	u_int8_t protocol = IPPROTO_TCP;
+	enum l4_proto protocol = L4PROTO_TCP;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:
@@ -1353,12 +1353,11 @@ static bool tcp_trans_state_handle(struct fragment *frag, struct session_entry *
 bool session_expired(struct session_entry *session)
 {
 	switch (session->l4_proto) {
-	case IPPROTO_UDP:
+	case L4PROTO_UDP:
 		return false;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		return false;
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		switch (session->state) {
 		case V4_INIT:
 			/* TODO (later) send the stored packet.

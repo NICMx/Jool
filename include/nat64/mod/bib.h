@@ -58,8 +58,7 @@ int bib_init(void);
  * Because never in this project is required otherwise, assumes the entry is not yet on the table.
  *
  * @param entry row to be added to the table.
- * @param protocol identifier of the table to add "entry" to. Should be either IPPROTO_UDP,
- *		IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @param protocol identifier of the table to add "entry" to.
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
@@ -70,8 +69,7 @@ int bib_add(struct bib_entry *entry, enum l4_proto l4proto);
  * "address".
  *
  * @param address address and port you want the BIB entry for.
- * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @param l4protocol identifier of the table to retrieve the entry from.
  * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
@@ -81,8 +79,7 @@ struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, enum l4_pr
  * "address".
  *
  * @param address address and port you want the BIB entry for.
- * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMPV6 from linux/in.h.
+ * @param l4protocol identifier of the table to retrieve the entry from.
  * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
  *		"address". Returns NULL if there is no such an entry.
  */
@@ -107,8 +104,7 @@ struct bib_entry *bib_get(struct tuple *tuple);
  * Even though the entry is removed from the table, it is not kfreed.
  *
  * @param entry row to be removed from the table.
- * @param l4protocol identifier of the table to remove "entry" from. Should be either IPPROTO_UDP,
- *		IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @param l4protocol identifier of the table to remove "entry" from.
  * @return whether the entry was in fact removed or not. The removal will fail if the entry is not
  *		on the table, or if it still has related session entries.
  */

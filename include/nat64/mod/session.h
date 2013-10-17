@@ -79,8 +79,7 @@ int session_add(struct session_entry *entry);
  * is "pair".
  *
  * @param pairt IPv4 data you want the Session entry for.
- * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @param l4protocol identifier of the table to retrieve the entry from.
  * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
@@ -90,8 +89,7 @@ struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4pro
  * is "pair".
  *
  * @param pairt IPv6 data you want the Session entry for.
- * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
+ * @param l4protocol identifier of the table to retrieve the entry from.
  * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */

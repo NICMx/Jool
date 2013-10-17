@@ -19,8 +19,7 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o # $(HAIRPINNING).o $(SENDFRAGPKT).o
-
+obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o # $(HAIRPINNING).o $(SENDFRAGPKT).o $(FILTERING).o
 
 # Packet
 $(PKT)-objs += ../mod/types.o
@@ -54,6 +53,22 @@ $(INCOMING)-objs += ../mod/packet_db.o
 $(INCOMING)-objs += determine_incoming_tuple_test.o
 
 # Filtering and Updating
+$(FILTERING)-objs += ../mod/random.o
+$(FILTERING)-objs += ../mod/types.o
+$(FILTERING)-objs += ../mod/str_utils.o
+$(FILTERING)-objs += ../mod/ipv6_hdr_iterator.o
+$(FILTERING)-objs += ../mod/pool6.o
+$(FILTERING)-objs += ../mod/pool4.o
+$(FILTERING)-objs += ../mod/bib.o
+$(FILTERING)-objs += ../mod/session.o
+$(FILTERING)-objs += ../mod/rfc6052.o
+$(FILTERING)-objs += ../mod/poolnum.o
+$(FILTERING)-objs += ../mod/packet.o
+$(FILTERING)-objs += ../mod/packet_db.o
+$(FILTERING)-objs += ../mod/send_packet.o
+$(FILTERING)-objs += framework/skb_generator.o
+$(FILTERING)-objs += framework/unit_test.o
+$(FILTERING)-objs += framework/types.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
 # Computing the Outgoing Tuple
@@ -95,7 +110,8 @@ $(HAIRPINNING)-objs += handling_hairpinning_test.o
 # Send packet (does not have a unit test, so just make sure it compiles.)
 $(SEND)-objs += ../mod/send_packet.o
 
-# Incoming tuple
+## TODO: Move this code to somewhere else.
+# Send fragmented packets
 $(SENDFRAGPKT)-objs += ../mod/types.o
 $(SENDFRAGPKT)-objs += ../mod/str_utils.o
 $(SENDFRAGPKT)-objs += ../mod/ipv6_hdr_iterator.o

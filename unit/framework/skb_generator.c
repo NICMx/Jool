@@ -130,15 +130,15 @@ int init_tcp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg)
 	hdr->seq = cpu_to_be32(4669);
 	hdr->ack_seq = cpu_to_be32(6576);
 	hdr->doff = sizeof(*hdr) / 4;
-	hdr->res1 = 1;
+	hdr->res1 = 0;
 	hdr->cwr = 0;
-	hdr->ece = 1;
-	hdr->urg = 1;
+	hdr->ece = 0;
+	hdr->urg = 0;
 	hdr->ack = 0;
 	hdr->psh = 0;
-	hdr->rst = 1;
-	hdr->syn = 1;
-	hdr->fin = 1;
+	hdr->rst = 0;
+	hdr->syn = 0;
+	hdr->fin = 0;
 	hdr->window = cpu_to_be16(3233);
 	hdr->check = 0;
 	hdr->urg_ptr = cpu_to_be16(9865);
@@ -316,7 +316,7 @@ int ipv6_tcp_post(void *l4_hdr, u16 datagram_len, void *arg)
 	struct ipv6_pair *pair6 = arg;
 
 	hdr->check = csum_ipv6_magic(&pair6->remote.address, &pair6->local.address, datagram_len,
-			IPPROTO_TCP, csum_partial(l4_hdr, datagram_len, 0));
+			NEXTHDR_TCP, csum_partial(l4_hdr, datagram_len, 0));
 
 	return 0;
 }
@@ -327,7 +327,7 @@ static int ipv6_udp_post(void *l4_hdr, u16 datagram_len, void *arg)
 	struct ipv6_pair *pair6 = arg;
 
 	hdr->check = csum_ipv6_magic(&pair6->remote.address, &pair6->local.address, datagram_len,
-			IPPROTO_UDP, csum_partial(l4_hdr, datagram_len, 0));
+			NEXTHDR_UDP, csum_partial(l4_hdr, datagram_len, 0));
 
 	return 0;
 }
@@ -338,7 +338,7 @@ static int ipv6_icmp_post(void *l4_hdr, u16 datagram_len, void *arg)
 	struct ipv6_pair *pair6 = arg;
 
 	hdr->icmp6_cksum = csum_ipv6_magic(&pair6->remote.address, &pair6->local.address, datagram_len,
-			IPPROTO_ICMPV6, csum_partial(l4_hdr, datagram_len, 0));
+			NEXTHDR_ICMP, csum_partial(l4_hdr, datagram_len, 0));
 
 	return 0;
 }

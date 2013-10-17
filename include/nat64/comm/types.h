@@ -165,13 +165,14 @@ struct ipv4_pair {
 	struct ipv4_tuple_address local;
 };
 
+// TODO: Should Jool be seen as local side?
 /**
  * The IPv6 side of a connection: A remote node in some IPv6 network and the NAT64.
  */
 struct ipv6_pair {
-	/** The IPv6 node's address and port being used in the connection. */
-	struct ipv6_tuple_address local;
 	/** The NAT64's address and port being used in the connection. */
+	struct ipv6_tuple_address local;
+	/** The IPv6 node's address and port being used in the connection. */
 	struct ipv6_tuple_address remote;
 };
 
@@ -242,6 +243,9 @@ int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port
 		unsigned char *dst_addr, __u16 dst_port, u_int8_t l4_proto);
 int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
 		unsigned char *dst_addr, __u16 dst_port, u_int8_t l4_proto);
+
+int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, u_int8_t l4_proto);
+int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, u_int8_t l4_proto);
 
 
 #endif

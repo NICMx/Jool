@@ -60,7 +60,7 @@ struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
 
 struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 		int local_id_6, int remote_id_6,
-		struct bib_entry* bib, u_int8_t l4protocol, unsigned int dying_time)
+		struct bib_entry* bib, enum l4_proto l4protocol, unsigned int dying_time)
 {
 	struct ipv4_pair pair_4 = {
 			.remote = addr4[remote_id_4],
@@ -105,7 +105,7 @@ static struct bib_entry *create_and_insert_bib(int ipv4_index, int ipv6_index, i
 }
 
 static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
-		int remote6_id, struct bib_entry* bib, u_int8_t l4protocol, unsigned int dying_time)
+		int remote6_id, struct bib_entry* bib, enum l4_proto l4protocol, unsigned int dying_time)
 {
 	struct session_entry *result;
 	int error;
@@ -186,7 +186,7 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 bool assert_bib(char* test_name, struct bib_entry* bib,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	u_int8_t l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
+	enum l4_proto l4protocols[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 
@@ -212,7 +212,7 @@ bool assert_bib(char* test_name, struct bib_entry* bib,
 bool assert_session(char* test_name, struct session_entry* session,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	u_int8_t l4protocols[] = { IPPROTO_UDP, IPPROTO_TCP, IPPROTO_ICMP };
+	enum l4_proto l4protocols[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 
@@ -251,7 +251,7 @@ bool simple_bib(void)
 	if (!assert_not_null(bib, "Allocation of test BIB entry"))
 		return false;
 
-	success &= assert_equals_int(0, bib_add(bib, IPPROTO_TCP), "BIB insertion call");
+	success &= assert_equals_int(0, bib_add(bib, L4PROTO_TCP), "BIB insertion call");
 	success &= assert_bib("BIB insertion state", bib, false, true, false);
 	if (!success)
 		/*
@@ -261,7 +261,7 @@ bool simple_bib(void)
 		 */
 		return false;
 
-	success &= assert_true(bib_remove(bib, IPPROTO_TCP), "BIB removal call");
+	success &= assert_true(bib_remove(bib, L4PROTO_TCP), "BIB removal call");
 	success &= assert_bib("BIB removal state", bib, false, false, false);
 	if (!success)
 		return false;
@@ -275,7 +275,7 @@ bool simple_session(void)
 	struct session_entry *session;
 	bool success = true;
 
-	session = create_session_entry(1, 0, 1, 0, NULL, IPPROTO_TCP, 12345);
+	session = create_session_entry(1, 0, 1, 0, NULL, L4PROTO_TCP, 12345);
 	if (!assert_not_null(session, "Allocation of test session entry"))
 		return false;
 
@@ -326,12 +326,12 @@ bool test_clean_old_sessions(void)
 
 	/* Allocate and insert to the tables. */
 	for (b = 0; b < BIB_COUNT; b++) {
-		db_bibs[b] = create_and_insert_bib(b, b, IPPROTO_UDP);
+		db_bibs[b] = create_and_insert_bib(b, b, L4PROTO_UDP);
 		if (!db_bibs[b])
 			return false;
 
 		for (s = 0; s < SESSIONS_PER_BIB; s++) {
-			db_sessions[b][s] = create_and_insert_session(b, s + 5, b, s + 5, db_bibs[b], IPPROTO_UDP, after);
+			db_sessions[b][s] = create_and_insert_session(b, s + 5, b, s + 5, db_bibs[b], L4PROTO_UDP, after);
 			if (!db_sessions[b][s])
 				return false;
 
@@ -425,8 +425,8 @@ static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst
 	tuple.dst.addr.ipv4 = addr4[dst_addr_id].address;
 	tuple.src.l4_id = IPV4_PORTS[src_port_id];
 	tuple.dst.l4_id = IPV4_PORTS[dst_port_id];
-	tuple.l4_proto = IPPROTO_UDP;
-	tuple.l3_proto 	= PF_INET;
+	tuple.l4_proto = L4PROTO_UDP;
+	tuple.l3_proto 	= L3PROTO_IPV4;
 
 	return session_allow(&tuple);
 }
@@ -438,10 +438,10 @@ bool test_address_filtering(void)
 	bool success = true;
 
 	/* Init. */
-	bib = create_and_insert_bib(0, 0, IPPROTO_UDP);
+	bib = create_and_insert_bib(0, 0, L4PROTO_UDP);
 	if (!bib)
 		return false;
-	session = create_and_insert_session(0, 0, 0, 0, bib, IPPROTO_UDP, 12345);
+	session = create_and_insert_session(0, 0, 0, 0, bib, L4PROTO_UDP, 12345);
 	if (!session)
 		return false;
 
@@ -487,14 +487,14 @@ bool test_for_each(void)
 	struct loop_summary summary = { .bib1 = NULL, .bib2 = NULL };
 	bool success = true;
 
-	bib1 = create_and_insert_bib(0, 0, IPPROTO_UDP);
+	bib1 = create_and_insert_bib(0, 0, L4PROTO_UDP);
 	if (!bib1)
 		return false;
-	bib2 = create_and_insert_bib(1, 1, IPPROTO_UDP);
+	bib2 = create_and_insert_bib(1, 1, L4PROTO_UDP);
 	if (!bib2)
 		return false;
 
-	success &= assert_equals_int(0, bib_for_each(IPPROTO_UDP, for_each_func, &summary), "");
+	success &= assert_equals_int(0, bib_for_each(L4PROTO_UDP, for_each_func, &summary), "");
 	success &= assert_true(bib_entry_equals(bib1, summary.bib1) || bib_entry_equals(bib1, summary.bib2), "");
 	success &= assert_true(bib_entry_equals(bib2, summary.bib2) || bib_entry_equals(bib2, summary.bib2), "");
 

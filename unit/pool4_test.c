@@ -28,7 +28,7 @@ struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
  */
 static bool ports[ARRAY_SIZE(expected_ips)][ID_COUNT];
 
-static bool test_get_any_aux(u_int8_t l4protocol, u32 port_min, u32 port_max, u32 step, char *test_name)
+static bool test_get_any_aux(enum l4_proto l4protocol, u32 port_min, u32 port_max, u32 step, char *test_name)
 {
 	u32 addr_ctr, port_ctr;
 	struct ipv4_tuple_address result;
@@ -57,10 +57,10 @@ static bool test_get_any_function_udp(void)
 {
 	bool success = true;
 
-	success &= test_get_any_aux(IPPROTO_UDP, 0, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
-	success &= test_get_any_aux(IPPROTO_UDP, 1, PORT_LOW_RANGE_MAX, 2, "UDP-Low odd ports");
-	success &= test_get_any_aux(IPPROTO_UDP, 1024, PORT_HIGH_RANGE_MAX, 2, "UDP-High even ports");
-	success &= test_get_any_aux(IPPROTO_UDP, 1025, PORT_HIGH_RANGE_MAX, 2, "UDP-High odd ports");
+	success &= test_get_any_aux(L4PROTO_UDP, 0, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
+	success &= test_get_any_aux(L4PROTO_UDP, 1, PORT_LOW_RANGE_MAX, 2, "UDP-Low odd ports");
+	success &= test_get_any_aux(L4PROTO_UDP, 1024, PORT_HIGH_RANGE_MAX, 2, "UDP-High even ports");
+	success &= test_get_any_aux(L4PROTO_UDP, 1025, PORT_HIGH_RANGE_MAX, 2, "UDP-High odd ports");
 
 	return success;
 }
@@ -69,18 +69,18 @@ static bool test_get_any_function_tcp(void)
 {
 	bool success = true;
 
-	success &= test_get_any_aux(IPPROTO_TCP, 0, PORT_LOW_RANGE_MAX, 1, "TCP-Low ports");
-	success &= test_get_any_aux(IPPROTO_TCP, 1024, PORT_HIGH_RANGE_MAX, 1, "TCP-High ports");
+	success &= test_get_any_aux(L4PROTO_TCP, 0, PORT_LOW_RANGE_MAX, 1, "TCP-Low ports");
+	success &= test_get_any_aux(L4PROTO_TCP, 1024, PORT_HIGH_RANGE_MAX, 1, "TCP-High ports");
 
 	return success;
 }
 
 static bool test_get_any_function_icmp(void)
 {
-	return test_get_any_aux(IPPROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
+	return test_get_any_aux(L4PROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
 }
 
-static bool test_get_similar_aux(u_int8_t l4protocol, u32 port_min, u32 port_max, u32 step, char *test_name)
+static bool test_get_similar_aux(enum l4_proto l4protocol, u32 port_min, u32 port_max, u32 step, char *test_name)
 {
 	u32 addr_ctr, port_ctr;
 	struct ipv4_tuple_address query, result;
@@ -108,10 +108,10 @@ static bool test_get_similar_function_udp(void)
 {
 	bool success = true;
 
-	success &= test_get_similar_aux(IPPROTO_UDP, 0, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
-	success &= test_get_similar_aux(IPPROTO_UDP, 1, PORT_LOW_RANGE_MAX, 2, "UDP-Low odd ports");
-	success &= test_get_similar_aux(IPPROTO_UDP, 1024, PORT_HIGH_RANGE_MAX, 2, "UDP-High even ports");
-	success &= test_get_similar_aux(IPPROTO_UDP, 1025, PORT_HIGH_RANGE_MAX, 2, "UDP-High odd ports");
+	success &= test_get_similar_aux(L4PROTO_UDP, 0, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
+	success &= test_get_similar_aux(L4PROTO_UDP, 1, PORT_LOW_RANGE_MAX, 2, "UDP-Low odd ports");
+	success &= test_get_similar_aux(L4PROTO_UDP, 1024, PORT_HIGH_RANGE_MAX, 2, "UDP-High even ports");
+	success &= test_get_similar_aux(L4PROTO_UDP, 1025, PORT_HIGH_RANGE_MAX, 2, "UDP-High odd ports");
 
 	return success;
 }
@@ -120,15 +120,15 @@ static bool test_get_similar_function_tcp(void)
 {
 	bool success = true;
 
-	success &= test_get_similar_aux(IPPROTO_TCP, 0, PORT_LOW_RANGE_MAX, 1, "TCP-Low even ports");
-	success &= test_get_similar_aux(IPPROTO_TCP, 1024, PORT_HIGH_RANGE_MAX, 1, "TCP-High odd ports");
+	success &= test_get_similar_aux(L4PROTO_TCP, 0, PORT_LOW_RANGE_MAX, 1, "TCP-Low even ports");
+	success &= test_get_similar_aux(L4PROTO_TCP, 1024, PORT_HIGH_RANGE_MAX, 1, "TCP-High odd ports");
 
 	return success;
 }
 
 static bool test_get_similar_function_icmp(void)
 {
-	return test_get_similar_aux(IPPROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
+	return test_get_similar_aux(L4PROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
 }
 
 /**
@@ -145,20 +145,20 @@ static bool test_return_function(void)
 		result.address = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
 			result.l4_id = port_ctr;
-			success &= assert_false(pool4_return(IPPROTO_UDP, &result), "");
+			success &= assert_false(pool4_return(L4PROTO_UDP, &result), "");
 		}
 	}
 
 	/* Borrow the entire pool. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			success &= assert_true(pool4_get_any(IPPROTO_UDP, port_ctr, &result), "Borrow-result");
+			success &= assert_true(pool4_get_any(L4PROTO_UDP, port_ctr, &result), "Borrow-result");
 			success &= assert_equals_ipv4(&expected_ips[addr_ctr], &result.address, "Borrow-addr");
 			success &= assert_false(ports[addr_ctr][result.l4_id], "Borrow-port");
 			ports[addr_ctr][result.l4_id] = true;
 		}
 	}
-	success &= assert_false(pool4_get_any(IPPROTO_UDP, 0, &result), "Pool should be exhausted.");
+	success &= assert_false(pool4_get_any(L4PROTO_UDP, 0, &result), "Pool should be exhausted.");
 
 	if (!success)
 		return success;
@@ -166,18 +166,18 @@ static bool test_return_function(void)
 	/* Return something from the first address. */
 	result.address = expected_ips[0];
 	result.l4_id = 1000;
-	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return");
+	success &= assert_true(pool4_return(L4PROTO_UDP, &result), "Return");
 	ports[0][result.l4_id] = false;
 
 	if (!success)
 		return success;
 
 	/* Re-borrow it, assert it's the same one. */
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, 0, &result), "");
+	success &= assert_true(pool4_get_any(L4PROTO_UDP, 0, &result), "");
 	success &= assert_equals_ipv4(&expected_ips[0], &result.address, "");
 	success &= assert_false(ports[0][result.l4_id], "");
 	ports[0][result.l4_id] = true;
-	success &= assert_false(pool4_get_any(IPPROTO_UDP, 0, &result), "");
+	success &= assert_false(pool4_get_any(L4PROTO_UDP, 0, &result), "");
 
 	if (!success)
 		return success;
@@ -188,7 +188,7 @@ static bool test_return_function(void)
 	 */
 	result.address = expected_ips[1];
 	result.l4_id = 1000;
-	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return");
+	success &= assert_true(pool4_return(L4PROTO_UDP, &result), "Return");
 	ports[1][result.l4_id] = false;
 
 	if (!success)
@@ -196,11 +196,11 @@ static bool test_return_function(void)
 
 	query.address = expected_ips[1];
 	query.l4_id = 0;
-	success &= assert_true(pool4_get_similar(IPPROTO_UDP, &query, &result), "");
+	success &= assert_true(pool4_get_similar(L4PROTO_UDP, &query, &result), "");
 	success &= assert_equals_ipv4(&expected_ips[1], &result.address, "");
 	success &= assert_false(ports[1][result.l4_id], "");
 	ports[1][result.l4_id] = true;
-	success &= assert_false(pool4_get_similar(IPPROTO_UDP, &query, &result), "");
+	success &= assert_false(pool4_get_similar(L4PROTO_UDP, &query, &result), "");
 
 	if (!success)
 		return success;
@@ -208,40 +208,40 @@ static bool test_return_function(void)
 	/* Return some more stuff at once. */
 	result.address = expected_ips[0];
 	result.l4_id = 46;
-	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return Addr1-port46");
+	success &= assert_true(pool4_return(L4PROTO_UDP, &result), "Return Addr1-port46");
 	ports[0][46] = false;
 
 	result.l4_id = 1000;
-	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "Return Addr1-port1000");
+	success &= assert_true(pool4_return(L4PROTO_UDP, &result), "Return Addr1-port1000");
 	ports[0][1000] = false;
 
 	result.address = expected_ips[1];
 	result.l4_id = 0;
-	success &= assert_true(pool4_return(IPPROTO_UDP, &result), "ReReturn Addr2-port0");
+	success &= assert_true(pool4_return(L4PROTO_UDP, &result), "ReReturn Addr2-port0");
 	ports[1][0] = false;
 
 	if (!success)
 		return success;
 
 	/* Reborrow it. */
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, 24, &result), "Reborrow Addr1-res-port24");
+	success &= assert_true(pool4_get_any(L4PROTO_UDP, 24, &result), "Reborrow Addr1-res-port24");
 	success &= assert_equals_ipv4(&expected_ips[0], &result.address, "");
 	success &= assert_false(ports[0][result.l4_id], "");
 	ports[0][result.l4_id] = true;
 
 	query.address = expected_ips[0];
 	query.l4_id = 100;
-	success &= assert_true(pool4_get_similar(IPPROTO_UDP, &query, &result), "Reborrow Addr1-res-port100");
+	success &= assert_true(pool4_get_similar(L4PROTO_UDP, &query, &result), "Reborrow Addr1-res-port100");
 	success &= assert_equals_ipv4(&expected_ips[0], &result.address, "");
 	success &= assert_false(ports[0][result.l4_id], "");
 	ports[0][result.l4_id] = true;
 
-	success &= assert_true(pool4_get_any(IPPROTO_UDP, 56, &result), "ReReborrow Addr2-res-port56");
+	success &= assert_true(pool4_get_any(L4PROTO_UDP, 56, &result), "ReReborrow Addr2-res-port56");
 	success &= assert_equals_ipv4(&expected_ips[1], &result.address, "");
 	success &= assert_false(ports[1][result.l4_id], "");
 	ports[1][result.l4_id] = true;
 
-	success &= assert_false(pool4_get_any(IPPROTO_UDP, 12, &result), "");
+	success &= assert_false(pool4_get_any(L4PROTO_UDP, 12, &result), "");
 
 	if (!success)
 		return success;
@@ -251,11 +251,11 @@ static bool test_return_function(void)
 		result.address = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
 			result.l4_id = port_ctr;
-			success &= assert_true(pool4_return(IPPROTO_UDP, &result), "");
+			success &= assert_true(pool4_return(L4PROTO_UDP, &result), "");
 			ports[addr_ctr][port_ctr] = false;
 		}
 	}
-	success &= assert_false(pool4_return(IPPROTO_UDP, &result), "");
+	success &= assert_false(pool4_return(L4PROTO_UDP, &result), "");
 
 	return success;
 }
