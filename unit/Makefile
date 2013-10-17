@@ -19,7 +19,10 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o # $(HAIRPINNING).o $(SENDFRAGPKT).o $(FILTERING).o
+# obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o
+# $(HAIRPINNING).o $(SENDFRAGPKT).o
+
+obj-m += $(FILTERING).o
 
 # Packet
 $(PKT)-objs += ../mod/types.o
@@ -142,18 +145,18 @@ test:
 	#-sudo rmmod bib_session
 	#-sudo insmod iterator.ko
 	#-sudo rmmod iterator
-	-sudo insmod $(PKT).ko
-	-sudo rmmod $(PKT)
-	-sudo insmod $(PKTDB).ko
-	-sudo rmmod $(PKTDB)
-	-sudo insmod $(INCOMING).ko
-	-sudo rmmod $(INCOMING)
-	#-sudo insmod filtering.ko
-	#-sudo rmmod filtering
-	-sudo insmod $(OUTGOING).ko
-	-sudo rmmod $(OUTGOING)
-	-sudo insmod $(TRANSLATE).ko
-	-sudo rmmod $(TRANSLATE)
+	#-sudo insmod $(PKT).ko
+	#-sudo rmmod $(PKT)
+	#-sudo insmod $(PKTDB).ko
+	#-sudo rmmod $(PKTDB)
+	#-sudo insmod $(INCOMING).ko
+	#-sudo rmmod $(INCOMING)
+	-sudo insmod filtering.ko
+	-sudo rmmod filtering
+	#-sudo insmod $(OUTGOING).ko
+	#-sudo rmmod $(OUTGOING)
+	#-sudo insmod $(TRANSLATE).ko
+	#-sudo rmmod $(TRANSLATE)
 	#-sudo insmod $(HAIRPINNING).ko
 	#-sudo rmmod $(HAIRPINNING)
 	#-sudo insmod $(SENDFRAGPKT).ko

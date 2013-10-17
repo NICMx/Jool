@@ -59,10 +59,10 @@ static struct pool4_node *get_pool4_node_from_addr(struct in_addr *addr)
 /**
  * Assumes that pool has already been locked (pool_lock).
  */
-static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, enum l4_proto l4protocol,
+static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, l4_protocol l4_proto,
 		__u16 id)
 {
-	switch (l4protocol) {
+	switch (l4_proto) {
 	case L4PROTO_UDP:
 		if (id < 1024)
 			return (id % 2 == 0) ? &node->udp_ports.low_even : &node->udp_ports.low_odd;
@@ -74,9 +74,13 @@ static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, enum
 
 	case L4PROTO_ICMP:
 		return &node->icmp_ids;
+
+	case L4PROTO_NONE:
+		log_crit(ERR_L4PROTO, "There's no pool for the 'NONE' protocol.");
+		return NULL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
 	return NULL;
 }
 
@@ -232,7 +236,7 @@ int pool4_remove(struct in_addr *addr)
 	return 0;
 }
 
-bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *result)
+bool pool4_get_any(l4_protocol l4_proto, __u16 port, struct ipv4_tuple_address *result)
 {
 	struct pool4_node *node;
 
@@ -249,7 +253,7 @@ bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *r
 		struct poolnum *ids;
 		int error;
 
-		ids = get_poolnum_from_pool4_node(node, l4protocol, port);
+		ids = get_poolnum_from_pool4_node(node, l4_proto, port);
 		if (!ids) {
 			spin_unlock_bh(&pool_lock);
 			return false;
@@ -268,7 +272,7 @@ bool pool4_get_any(u_int8_t l4protocol, __u16 port, struct ipv4_tuple_address *r
 	return false;
 }
 
-bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *addr,
+bool pool4_get_similar(l4_protocol l4_proto, struct ipv4_tuple_address *addr,
 		struct ipv4_tuple_address *result)
 {
 	struct pool4_node *node;
@@ -288,7 +292,7 @@ bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *addr,
 		goto failure;
 	}
 
-	ids = get_poolnum_from_pool4_node(node, l4protocol, addr->l4_id);
+	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4_id);
 	if (!ids)
 		goto failure;
 	error = poolnum_get_any(ids, &result->l4_id);
@@ -304,7 +308,7 @@ failure:
 	return false;
 }
 
-bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *addr)
+bool pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;
@@ -323,7 +327,7 @@ bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *addr)
 		goto failure;
 	}
 
-	ids = get_poolnum_from_pool4_node(node, l4protocol, addr->l4_id);
+	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4_id);
 	if (!ids)
 		goto failure;
 	success = poolnum_get(ids, addr->l4_id);
@@ -338,7 +342,7 @@ failure:
 	return false;
 }
 
-bool pool4_return(enum l4_proto l4protocol, struct ipv4_tuple_address *addr)
+bool pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;
@@ -357,7 +361,7 @@ bool pool4_return(enum l4_proto l4protocol, struct ipv4_tuple_address *addr)
 		goto failure;
 	}
 
-	ids = get_poolnum_from_pool4_node(node, l4protocol, addr->l4_id);
+	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4_id);
 	if (!ids)
 		goto failure;
 

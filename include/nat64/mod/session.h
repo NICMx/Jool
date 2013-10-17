@@ -47,7 +47,7 @@ struct session_entry {
 	 * Transport protocol of the table this entry is in.
 	 * Used to know which table the session should be removed from when expired.
 	 */
-	enum l4_proto l4proto;
+	l4_protocol l4_proto;
 
 	/** Current TCP state.
 	 * 	Each STE represents a state machine
@@ -83,7 +83,7 @@ int session_add(struct session_entry *entry);
  * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
-struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, enum l4_proto proto);
+struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto);
 /**
  * Returns the Session entry from the "l4protocol" table whose IPv6 side (both addresses and ports)
  * is "pair".
@@ -93,7 +93,7 @@ struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, enum l4_proto 
  * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
-struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, enum l4_proto proto);
+struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto);
 
 /**
  * Returns the session entry you'd expect from the "tuple" tuple.
@@ -145,11 +145,11 @@ void session_destroy(void);
  * need to kfree it).
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		enum l4_proto proto);
+		l4_protocol l4_proto);
 
 
 
-int session_for_each(enum l4_proto proto, int (*func)(struct session_entry *, void *), void *arg);
+int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as

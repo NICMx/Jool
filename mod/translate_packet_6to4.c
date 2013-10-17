@@ -544,7 +544,7 @@ static enum verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, stru
  *************************************************************************************************/
 
 /* TODO mover a types o algo así. */
-static enum l4_proto nexthdr_to_l4proto(u8 nexthdr)
+static l4_proto nexthdr_to_l4proto(u8 nexthdr)
 {
 	switch (nexthdr) {
 	case NEXTHDR_TCP:
@@ -558,7 +558,7 @@ static enum l4_proto nexthdr_to_l4proto(u8 nexthdr)
 	return -1;
 }
 
-static int l4_hdr_len(void *hdr, enum l3_proto l3proto, enum l4_proto l4proto)
+static int l4_hdr_len(void *hdr, l3_protocol l3_proto, l4_protocol l4_proto)
 {
 	switch (l4proto) {
 	case L4PROTO_TCP:

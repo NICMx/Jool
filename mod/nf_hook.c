@@ -115,7 +115,7 @@ int __init nat64_init(void)
 	error = bib_init();
 	if (error)
 		goto failure;
-	error = session_init(session_expired);
+	error = session_init();
 	if (error)
 		goto failure;
 	error = filtering_init();

@@ -36,7 +36,7 @@ int pool4_remove(struct in_addr *address)
 	return 0;
 }
 
-bool pool4_get_any(enum l4_proto l4protocol, __be16 port, struct ipv4_tuple_address *result)
+bool pool4_get_any(enum l4_protocol l4_proto, __be16 port, struct ipv4_tuple_address *result)
 {
 	u32 *port_counter;
 

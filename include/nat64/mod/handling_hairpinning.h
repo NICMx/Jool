@@ -11,8 +11,8 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include <linux/skbuff.h>
 #include "nat64/comm/types.h"
+#include "nat64/mod/packet.h"
 
 
 /**
@@ -33,7 +33,7 @@ bool is_hairpin(struct tuple *outgoing);
  * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-bool handling_hairpinning(struct paket *pkt_in, struct tuple *tuple_in);
+bool handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in);
 
 
 #endif /* _NF_NAT64_HANDLING_HARPINNING_H */

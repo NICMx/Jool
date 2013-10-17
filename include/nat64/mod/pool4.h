@@ -48,7 +48,7 @@ int pool4_remove(struct in_addr *address);
  * @return whether there was something available (and compatible) in the pool. if "false", "result"
  *		will point to garbage.
  */
-bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *result);
+bool pool4_get_any(l4_protocol l4_proto, __be16 port, struct ipv4_tuple_address *result);
 /**
  * Reserves and returns a transport address from the "l4protocol" pool.
  * The address's IPv4 address will be "address.address" and its port will be 'compatible' with
@@ -61,15 +61,15 @@ bool pool4_get_any(u_int8_t l4protocol, __be16 port, struct ipv4_tuple_address *
  *		This resulting object will be stored in the heap. If you never return it (by means of
  *		pool4_return()), you're expected to kfree it once you're done with it.
  */
-bool pool4_get_similar(u_int8_t l4protocol, struct ipv4_tuple_address *address,
+bool pool4_get_similar(l4_protocol l4_proto, struct ipv4_tuple_address *address,
 		struct ipv4_tuple_address *result);
 
-bool pool4_get(u_int8_t l4protocol, struct ipv4_tuple_address *address);
+bool pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *address);
 /**
  * Don't sweat it too much if this function fails; the user might have removed the address from the
  * pool.
  */
-bool pool4_return(u_int8_t l4protocol, struct ipv4_tuple_address *address);
+bool pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address);
 
 bool pool4_contains(struct in_addr *address);
 int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg);

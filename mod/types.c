@@ -6,9 +6,9 @@
 #include <net/ipv6.h>
 
 
-char *l3proto_to_string(enum l3_proto proto)
+char *l3proto_to_string(l3_protocol l3_proto)
 {
-	switch (proto) {
+	switch (l3_proto) {
 	case L3PROTO_IPV6:
 		return "IPv6";
 	case L3PROTO_IPV4:
@@ -18,9 +18,9 @@ char *l3proto_to_string(enum l3_proto proto)
 	return NULL;
 }
 
-char *l4proto_to_string(enum l4_proto proto)
+char *l4proto_to_string(l4_protocol l4_proto)
 {
-	switch (proto) {
+	switch (l4_proto) {
 	case L4PROTO_NONE:
 		return "None";
 	case L4PROTO_TCP:
@@ -206,9 +206,9 @@ bool is_icmp4_error(__u8 type)
 	return !is_icmp4_info(type);
 }
 
-static unsigned char *l3proto_to_str(enum l3_proto l3proto)
+static unsigned char *l3proto_to_str(l3_protocol l3_proto)
 {
-	switch (l3proto) {
+	switch (l3_proto) {
 	case L3PROTO_IPV4:
 		return "IPv4";
 	case L3PROTO_IPV6:
@@ -217,9 +217,9 @@ static unsigned char *l3proto_to_str(enum l3_proto l3proto)
 	return NULL;
 }
 
-static unsigned char *l4proto_to_str(enum l4_proto l4proto)
+static unsigned char *l4proto_to_str(l4_protocol l4_proto)
 {
-	switch (l4proto) {
+	switch (l4_proto) {
 	case L4PROTO_UDP:
 		return "UDP";
 	case L4PROTO_TCP:
@@ -257,7 +257,7 @@ void log_tuple(struct tuple *tuple)
 }
 
 int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
-		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto)
+		unsigned char *dst_addr, u16 dst_port, l4_protocol l4_proto)
 {
 	int error;
 
@@ -278,7 +278,7 @@ int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 }
 
 int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
-		unsigned char *dst_addr, u16 dst_port, u_int8_t l4_proto)
+		unsigned char *dst_addr, u16 dst_port, l4_protocol l4_proto)
 {
 	int error;
 
@@ -298,7 +298,7 @@ int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
 	return 0;
 }
 
-int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, u_int8_t l4_proto)
+int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, l4_protocol l4_proto)
 {
 	tuple->src.addr.ipv4 = pair4->remote.address;
 	tuple->src.l4_id = pair4->remote.l4_id;
@@ -312,7 +312,7 @@ int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, u_in
 	return 0;
 }
 
-int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, u_int8_t l4_proto)
+int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, l4_protocol l4_proto)
 {
 	tuple->src.addr.ipv6 = pair6->remote.address;
 	tuple->src.l4_id = pair6->remote.l4_id;

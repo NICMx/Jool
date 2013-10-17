@@ -10,7 +10,7 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 
-struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, enum l4_proto l4proto, u32 mark)
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, l4_protocol l4_proto, u32 mark)
 {
 	struct flowi flow;
 	struct rtable *table;
@@ -67,7 +67,7 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, enum l4_proto 
 	return &table->dst;
 }
 
-struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, enum l4_proto l4proto, u32 mark)
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, l4_protocol l4_proto, u32 mark)
 {
 	struct flowi flow;
 	struct dst_entry *dst;
@@ -124,7 +124,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, enum l4_prot
 
 #else
 
-struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark)
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark)
 {
 	struct flowi4 flow;
 	struct rtable *table;
@@ -192,7 +192,7 @@ log_debug("route_ipv4: %pI4 --> %pI4", &flow.saddr, &flow.daddr );
 	return &table->dst;
 }
 
-struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark)
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark)
 {
 	struct flowi6 flow;
 	struct dst_entry *dst;
@@ -214,7 +214,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, enum l4_proto
 		struct tcphdr *hdr_tcp;
 		struct icmp6hdr *hdr_icmp6;
 
-		switch (l4proto) {
+		switch (l4_proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:

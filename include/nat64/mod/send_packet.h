@@ -22,12 +22,12 @@
  * Routes the skb described by the arguments. Returns the 'destination entry' the kernel needs
  * to know which interface the skb should be forwarded through.
  */
-struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark);
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark);
 
 /**
  * Same as route_ipv4(), except for IPv6.
  */
-struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, enum l4_proto l4proto, u32 mark);
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark);
 
 /**
  * Puts all of "pkt"'s skbs on the network.

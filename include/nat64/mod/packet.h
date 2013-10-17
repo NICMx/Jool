@@ -186,7 +186,7 @@ struct fragment {
 	/** Network header. */
 	struct {
 		/** Indicator of how the "ptr" variable should be read. */
-		enum l3_proto proto;
+		l3_protocol proto;
 		/** Length of the header, including options (IPv4) or extension headers (IPv6). */
 		int len;
 		/**
@@ -205,7 +205,7 @@ struct fragment {
 	/** Transport header. */
 	struct {
 		/** Indicator of how the "ptr" variable should be read. */
-		enum l4_proto proto;
+		l4_protocol proto;
 		/** Length of the header, including TCP options and any other crap before the payload. */
 		int len;
 		/**
@@ -377,13 +377,13 @@ bool pkt_is_complete(struct packet *pkt);
 void pkt_kfree(struct packet *pkt, bool free_pkt);
 
 /** Getter for "pkt"'s network protocol. */
-static inline enum l3_proto pkt_get_l3proto(struct packet *pkt)
+static inline l3_protocol pkt_get_l3proto(struct packet *pkt)
 {
 	return pkt->first_fragment->l3_hdr.proto;
 }
 
 /** Getter for "pkt"'s transport protocol. */
-static inline enum l4_proto pkt_get_l4proto(struct packet *pkt)
+static inline l4_protocol pkt_get_l4proto(struct packet *pkt)
 {
 	return pkt->first_fragment->l4_hdr.proto;
 }

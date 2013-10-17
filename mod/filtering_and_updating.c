@@ -255,9 +255,9 @@ static bool send_probe_packet(struct session_entry *session)
  * @param[in] session The entry whose lifetime just expired.
  * @return true: remove STE. false: keep STE.
  */
-bool session_expire(struct session_entry *session)
+static bool session_expire(struct session_entry *session)
 {
-	switch (session->l4proto) {
+	switch (session->l4_proto) {
 	case L4PROTO_UDP:
 		/* Fall through. */
 	case L4PROTO_ICMP:
@@ -314,7 +314,7 @@ static void clean_expired_sessions(struct list_head *list)
 	struct list_head *current_node, *next_node;
 	struct session_entry *session;
 	struct bib_entry *bib;
-	enum l4_proto l4proto;
+	l4_protocol l4_proto;
 
 	list_for_each_safe(current_node, next_node, list) {
 		session = list_entry(current_node, struct session_entry, expiration_node);
@@ -328,7 +328,7 @@ static void clean_expired_sessions(struct list_head *list)
 			continue; /* Error msg already printed. */
 
 		bib = session->bib;
-		l4proto = session->l4proto;
+		l4proto = session->l4_proto;
 
 		list_del(&session->entries_from_bib);
 		kfree(session);
@@ -340,10 +340,10 @@ static void clean_expired_sessions(struct list_head *list)
 
 		if (!list_empty(&bib->sessions) || bib->is_static)
 			continue; /* The BIB entry needn't die; no error to report. */
-		if (!bib_remove(bib, l4proto))
+		if (!bib_remove(bib, l4_proto))
 			continue; /* Error msg already printed. */
 
-		pool4_return(l4proto, &bib->ipv4);
+		pool4_return(l4_proto, &bib->ipv4);
 		kfree(bib);
 	}
 }
@@ -457,7 +457,7 @@ static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv
  * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
  * context would be "borrow".
  *
- * RFC6146 - Section 3.5.1.1
+ * RFC6146 - Section 3.5.1.1l4proto
  *
  * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
  * @param[out] result the transport address we borrowed from the pool.
@@ -495,11 +495,11 @@ static bool allocate_ipv4_transport_address(struct tuple *tuple, struct ipv4_tup
  * @param[out] result the transport address we borrowed from the pool.
  * @return true if everything went OK, false otherwise.
  */
-static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, enum l4_proto protocol,
+static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, l4_protocol l4_proto,
 		struct ipv4_tuple_address *result)
 {
 	unsigned char ii = 0;
-	enum l4_proto proto[] = { L4PROTO_TCP, L4PROTO_UDP, L4PROTO_ICMP };
+	l4_protocol l4_proto[] = { L4PROTO_TCP, L4PROTO_UDP, L4PROTO_ICMP };
 	struct in_addr *address = NULL;
 
 	/* Look for S' in all three BIBs. */
@@ -626,7 +626,7 @@ static enum verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_tuple_address source;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	enum l4_proto protocol = L4PROTO_UDP;
+	l4_protocol l4_proto = L4PROTO_UDP;
 	bool bib_is_local = false;
 
 	/* Pack source address into transport address */
@@ -742,7 +742,7 @@ static enum verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_tuple_address destination;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	enum l4_proto protocol = L4PROTO_UDP;
+	l4_protocol l4_proto = L4PROTO_UDP;
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
 	 * what should be sent.
@@ -848,7 +848,7 @@ static enum verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_tuple_address source;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	enum l4_proto protocol = L4PROTO_ICMP;
+	l4_protocol l4_proto = L4PROTO_ICMP;
 	bool bib_is_local = false;
 
 	if (filter_icmpv6_info()) {
@@ -974,7 +974,7 @@ static enum verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_tuple_address destination;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	enum l4_proto protocol = L4PROTO_ICMP;
+	l4_protocol l4_proto = L4PROTO_ICMP;
 
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
@@ -1072,7 +1072,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	struct in_addr destination_as_ipv4;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	enum l4_proto protocol = L4PROTO_TCP;
+	l4_protocol l4_proto = L4PROTO_TCP;
 	bool bib_is_local = false;
 
 	/* Pack source address into transport address */
@@ -1169,7 +1169,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 	struct in6_addr ipv6_local;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	enum l4_proto protocol = L4PROTO_TCP;
+	l4_protocol l4_proto = L4PROTO_TCP;
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
@@ -1281,7 +1281,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 	struct bib_entry *bib = NULL;
 	struct ipv6_tuple_address ipv6_ta;
 	struct ipv4_tuple_address ipv4_ta;
-	enum l4_proto protocol = L4PROTO_TCP;
+	l4_protocol l4_proto = L4PROTO_TCP;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:

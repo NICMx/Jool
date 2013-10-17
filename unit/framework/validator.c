@@ -192,15 +192,15 @@ bool validate_tcp_hdr(struct tcphdr *hdr, struct tuple *tuple)
 	success &= assert_equals_u32(4669, be32_to_cpu(hdr->seq), "TCPhdr-seq");
 	success &= assert_equals_u32(6576, be32_to_cpu(hdr->ack_seq), "TCPhdr-ack seq");
 	success &= assert_equals_u16(5, hdr->doff, "TCPhdr-data offset");
-	success &= assert_equals_u16(1, hdr->res1, "TCPhdr-reserved");
+	success &= assert_equals_u16(0, hdr->res1, "TCPhdr-reserved");
 	success &= assert_equals_u16(0, hdr->cwr, "TCPhdr-cwr");
-	success &= assert_equals_u16(1, hdr->ece, "TCPhdr-ece");
-	success &= assert_equals_u16(1, hdr->urg, "TCPhdr-urg");
+	success &= assert_equals_u16(0, hdr->ece, "TCPhdr-ece");
+	success &= assert_equals_u16(0, hdr->urg, "TCPhdr-urg");
 	success &= assert_equals_u16(0, hdr->ack, "TCPhdr-ack");
 	success &= assert_equals_u16(0, hdr->psh, "TCPhdr-psh");
-	success &= assert_equals_u16(1, hdr->rst, "TCPhdr-rst");
-	success &= assert_equals_u16(1, hdr->syn, "TCPhdr-syn");
-	success &= assert_equals_u16(1, hdr->fin, "TCPhdr-fin");
+	success &= assert_equals_u16(0, hdr->rst, "TCPhdr-rst");
+	success &= assert_equals_u16(0, hdr->syn, "TCPhdr-syn");
+	success &= assert_equals_u16(0, hdr->fin, "TCPhdr-fin");
 	success &= assert_equals_u16(3233, be16_to_cpu(hdr->window), "TCPhdr-window");
 	success &= assert_equals_u16(9865, be16_to_cpu(hdr->urg_ptr), "TCPhdr-urgent ptr");
 

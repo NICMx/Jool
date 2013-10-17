@@ -28,7 +28,7 @@ struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
  */
 static bool ports[ARRAY_SIZE(expected_ips)][ID_COUNT];
 
-static bool test_get_any_aux(enum l4_proto l4protocol, u32 port_min, u32 port_max, u32 step, char *test_name)
+static bool test_get_any_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_max, u32 step, char *test_name)
 {
 	u32 addr_ctr, port_ctr;
 	struct ipv4_tuple_address result;
@@ -80,7 +80,7 @@ static bool test_get_any_function_icmp(void)
 	return test_get_any_aux(L4PROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
 }
 
-static bool test_get_similar_aux(enum l4_proto l4protocol, u32 port_min, u32 port_max, u32 step, char *test_name)
+static bool test_get_similar_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_max, u32 step, char *test_name)
 {
 	u32 addr_ctr, port_ctr;
 	struct ipv4_tuple_address query, result;

@@ -12,10 +12,10 @@ bool is_hairpin(struct tuple *outgoing)
 	return (outgoing->l3_proto == L3PROTO_IPV4) && pool4_contains(&outgoing->dst.addr.ipv4);
 }
 
-bool handling_hairpinning(struct paket *pkt_in, struct tuple *tuple_in)
+bool handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 {
-	struct packet *pkt_out;
-	struct tuple tuple_out;
+//	struct packet *pkt_out;
+//	struct tuple tuple_out;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
@@ -25,22 +25,23 @@ bool handling_hairpinning(struct paket *pkt_in, struct tuple *tuple_in)
 		goto free_and_fail;
 	}
 
-	if (filtering_and_updating(pkt_in, tuple_in) != NF_ACCEPT)
-		goto free_and_fail;
-	if (!compute_out_tuple_4to6(tuple_in, pkt_in, &tuple_out))
-		goto free_and_fail;
-	if (!translating_the_packet_4to6(&tuple_out, pkt_in, &pkt_out))
-		goto free_and_fail;
-	if (!send_packet_ipv6(pkt_in, pkt_out))
-		goto fail;
+//	FIXME
+//	if (filtering_and_updating(pkt_in, tuple_in) != NF_ACCEPT)
+//		goto free_and_fail;
+//	if (!compute_out_tuple_4to6(tuple_in, pkt_in, &tuple_out))
+//		goto free_and_fail;
+//	if (!translating_the_packet_4to6(&tuple_out, pkt_in, &pkt_out))
+//		goto free_and_fail;
+//	if (!send_packet_ipv6(pkt_in, pkt_out))
+//		goto fail;
 
 	log_debug("Done step 5.");
 	return true;
 
 free_and_fail:
-	pkt_kfree(pkt_out, true);
+//	pkt_kfree(pkt_out, true);
 	/* Fall through. */
 
-fail:
+//fail:
 	return false;
 }

@@ -22,7 +22,7 @@ static struct in_addr local_ipv4, remote_ipv4;
 
 
 static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *ip6_addr,
-		__u16 ip6_port, enum l4_proto l4proto)
+		__u16 ip6_port, l4_protocol l4_proto)
 {
 	/* Generate the BIB. */
 	struct bib_entry *bib = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
@@ -64,7 +64,7 @@ failure:
  */
 static bool init(void)
 {
-	enum l4_proto protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
+	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	int i;
 	struct ipv6_prefix prefix;
 
@@ -115,7 +115,7 @@ static void cleanup(void)
 	pool6_destroy();
 }
 
-static bool test_6to4(enum l4_proto proto)
+static bool test_6to4(l4_protocol l4_proto)
 {
 	struct tuple incoming, outgoing;
 	bool success = true;
@@ -143,7 +143,7 @@ static bool test_6to4(enum l4_proto proto)
 	return success;
 }
 
-static bool test_4to6(enum l4_proto proto)
+static bool test_4to6(l4_protocol l4_proto)
 {
 	struct tuple incoming, outgoing;
 	bool success = true;

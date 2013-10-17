@@ -53,9 +53,9 @@ static struct session_table session_table_icmp;
  * Private (helper) functions.
  ********************************************/
 
-static int get_session_table(enum l4_proto proto, struct session_table **result)
+static int get_session_table(l4_protocol l4_proto, struct session_table **result)
 {
-	switch (proto) {
+	switch (l4_proto) {
 	case L4PROTO_UDP:
 		*result = &session_table_udp;
 		return 0;
@@ -70,7 +70,7 @@ static int get_session_table(enum l4_proto proto, struct session_table **result)
 		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", proto);
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
 }
 
@@ -123,7 +123,7 @@ int session_add(struct session_entry *entry)
 		return -EINVAL;
 	}
 
-	error = get_session_table(entry->l4proto, &table);
+	error = get_session_table(entry->l4_proto, &table);
 	if (error)
 		return error;
 
@@ -141,18 +141,18 @@ int session_add(struct session_entry *entry)
 	return 0;
 }
 
-struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, enum l4_proto proto)
+struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto)
 {
 	struct session_table *table;
-	if (get_session_table(proto, &table) != 0)
+	if (get_session_table(l4_proto, &table) != 0)
 		return NULL;
 	return ipv4_table_get(&table->ipv4, pair);
 }
 
-struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, enum l4_proto proto)
+struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto)
 {
 	struct session_table *table;
-	if (get_session_table(proto, &table) != 0)
+	if (get_session_table(l4_proto, &table) != 0)
 		return NULL;
 	return ipv6_table_get(&table->ipv6, pair);
 }
@@ -218,7 +218,7 @@ bool session_remove(struct session_entry *entry)
 		return false;
 	}
 
-	if (get_session_table(entry->l4proto, &table) != 0)
+	if (get_session_table(entry->l4_proto, &table) != 0)
 		return false;
 
 	/* Free from both tables. */
@@ -255,7 +255,7 @@ void session_destroy(void)
 }
 
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		enum l4_proto proto)
+		l4_protocol l4_proto)
 {
 	struct session_entry *result = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 	if (!result)
@@ -267,18 +267,18 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	result->bib = NULL;
 	INIT_LIST_HEAD(&result->entries_from_bib);
 	INIT_LIST_HEAD(&result->expiration_node);
-	result->l4proto = proto;
+	result->l4_proto = l4_proto;
 	result->state = 0;
 
 	return result;
 }
 
-int session_for_each(enum l4_proto proto, int (*func)(struct session_entry *, void *), void *arg)
+int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg)
 {
 	struct session_table *table;
 	int error;
 
-	error = get_session_table(proto, &table);
+	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
 
@@ -292,7 +292,7 @@ bool session_entry_equals(struct session_entry *session_1, struct session_entry 
 	if (session_1 == NULL || session_2 == NULL)
 		return false;
 
-	if (session_1->l4proto != session_2->l4proto)
+	if (session_1->l4_proto != session_2->l4_proto)
 		return false;
 	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
 		return false;

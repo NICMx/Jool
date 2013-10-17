@@ -56,9 +56,9 @@ DEFINE_SPINLOCK(bib_session_lock);
  * Private (helper) functions.
  ********************************************/
 
-static int get_bib_table(enum l4_proto l4proto, struct bib_table **result)
+static int get_bib_table(l4_protocol l4_proto, struct bib_table **result)
 {
-	switch (l4proto) {
+	switch (l4_proto) {
 	case L4PROTO_UDP:
 		*result = &bib_udp;
 		return 0;
@@ -69,7 +69,7 @@ static int get_bib_table(enum l4_proto l4proto, struct bib_table **result)
 		*result = &bib_icmp;
 		return 0;
 	default:
-		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4proto);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
 		return -EINVAL;
 	}
 }
@@ -95,7 +95,7 @@ int bib_init(void)
 	return 0;
 }
 
-int bib_add(struct bib_entry *entry, enum l4_proto l4proto)
+int bib_add(struct bib_entry *entry, l4_protocol l4_proto)
 {
 	struct bib_table *table;
 	int error;
@@ -104,7 +104,7 @@ int bib_add(struct bib_entry *entry, enum l4_proto l4proto)
 		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
 		return -EINVAL;
 	}
-	error = get_bib_table(l4proto, &table);
+	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
 
@@ -120,31 +120,31 @@ int bib_add(struct bib_entry *entry, enum l4_proto l4proto)
 	return 0;
 }
 
-struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, enum l4_proto l4proto)
+struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, l4_protocol l4_proto)
 {
 	struct bib_table *table;
 
 	if (!address)
 		return NULL;
-	if (get_bib_table(l4proto, &table) != 0)
+	if (get_bib_table(l4_proto, &table) != 0)
 		return NULL;
 
 	return ipv4_table_get(&table->ipv4, address);
 }
 
-struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, enum l4_proto l4proto)
+struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, l4_protocol l4_proto)
 {
 	struct bib_table *table;
 
 	if (!address)
 		return NULL;
-	if (get_bib_table(l4proto, &table) != 0)
+	if (get_bib_table(l4_proto, &table) != 0)
 		return NULL;
 
 	return ipv6_table_get(&table->ipv6, address);
 }
 
-struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, enum l4_proto l4proto)
+struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, l4_protocol l4_proto)
 {
 	struct bib_table *table;
 	__u16 hash_code;
@@ -154,7 +154,7 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, enum l4_proto l
 
 	if (!address)
 		return NULL;
-	if (get_bib_table(l4proto, &table) != 0)
+	if (get_bib_table(l4_proto, &table) != 0)
 		return NULL;
 
 	address_full.address = *address; /* Port doesn't matter; won't be used by the hash function. */
@@ -192,7 +192,7 @@ struct bib_entry *bib_get(struct tuple *tuple)
 	return NULL;
 }
 
-bool bib_remove(struct bib_entry *entry, enum l4_proto l4proto)
+bool bib_remove(struct bib_entry *entry, l4_protocol l4_proto)
 {
 	struct bib_table *table;
 	bool removed_from_ipv4, removed_from_ipv6;
@@ -201,7 +201,7 @@ bool bib_remove(struct bib_entry *entry, enum l4_proto l4proto)
 		log_err(ERR_NULL, "The BIB tables do not contain NULL entries.");
 		return false;
 	}
-	if (get_bib_table(l4proto, &table) != 0)
+	if (get_bib_table(l4_proto, &table) != 0)
 		return false;
 
 	/* Free the memory from both tables. */
@@ -250,12 +250,12 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 	return result;
 }
 
-int bib_for_each(enum l4_proto l4proto, int (*func)(struct bib_entry *, void *), void *arg)
+int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg)
 {
 	struct bib_table *table;
 	int error;
 
-	error = get_bib_table(l4proto, &table);
+	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
 

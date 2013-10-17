@@ -60,7 +60,7 @@ struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
 
 struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 		int local_id_6, int remote_id_6,
-		struct bib_entry* bib, enum l4_proto l4protocol, unsigned int dying_time)
+		struct bib_entry* bib, enum l4_protocol l4_proto, unsigned int dying_time)
 {
 	struct ipv4_pair pair_4 = {
 			.remote = addr4[remote_id_4],
@@ -105,7 +105,7 @@ static struct bib_entry *create_and_insert_bib(int ipv4_index, int ipv6_index, i
 }
 
 static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
-		int remote6_id, struct bib_entry* bib, enum l4_proto l4protocol, unsigned int dying_time)
+		int remote6_id, struct bib_entry* bib, enum l4_protocol l4_proto, unsigned int dying_time)
 {
 	struct session_entry *result;
 	int error;
@@ -186,7 +186,7 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 bool assert_bib(char* test_name, struct bib_entry* bib,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	enum l4_proto l4protocols[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
+	enum l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 
@@ -212,7 +212,7 @@ bool assert_bib(char* test_name, struct bib_entry* bib,
 bool assert_session(char* test_name, struct session_entry* session,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	enum l4_proto l4protocols[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
+	enum l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 

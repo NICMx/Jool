@@ -101,7 +101,7 @@ static bool inject_bib_entry( u_int8_t l4protocol )
 #define IPV4_INIT_SESSION_ENTRY_SRC_PORT  1082
 #define IPV4_INIT_SESSION_ENTRY_DST_ADDR  "192.168.2.44"
 #define IPV4_INIT_SESSION_ENTRY_DST_PORT  1082
-static bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
+static bool init_session_entry( l4_protocol l4_proto, struct session_entry *se )
 {
     struct in_addr src4;
     struct in_addr dst4;
@@ -129,8 +129,8 @@ static bool init_session_entry( u_int8_t l4protocol, struct session_entry *se )
     se->dying_time = 0;
     se->bib = NULL;
     INIT_LIST_HEAD(&se->entries_from_bib);
-    INIT_LIST_HEAD(&se->all_sessions);
-    se->l4_proto = l4protocol;
+    INIT_LIST_HEAD(&se->expiration_node);
+    se->l4proto = l4_proto;
     se->state = CLOSED;
 
     return true;
@@ -1554,7 +1554,7 @@ static bool init_full(void)
 	error = bib_init();
 	if (error)
 		goto fail;
-	error = session_init(session_expired_callback);
+	error = session_init();
 	if (error)
 		goto fail;
 	error = filtering_init();

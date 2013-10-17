@@ -116,24 +116,23 @@ enum error_code {
 	ERR_SEND_FAILED = 4501,
 };
 
-
-enum l3_proto {
+typedef enum l3_protocol {
 	L3PROTO_IPV6 = 0,
 	L3PROTO_IPV4 = 1,
 #define L3_PROTO_COUNT 2
-};
+} l3_protocol;
 
-char *l3proto_to_string(enum l3_proto proto);
+char *l3proto_to_string(l3_protocol proto);
 
-enum l4_proto {
+typedef enum l4_protocol {
 	L4PROTO_NONE = 0,
 	L4PROTO_TCP = 1,
 	L4PROTO_UDP = 2,
 	L4PROTO_ICMP = 3,
 #define L4_PROTO_COUNT 4
-};
+} l4_protocol;
 
-char *l4proto_to_string(enum l4_proto proto);
+char *l4proto_to_string(l4_protocol proto);
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
@@ -165,7 +164,6 @@ struct ipv4_pair {
 	struct ipv4_tuple_address local;
 };
 
-// TODO: Should Jool be seen as local side?
 /**
  * The IPv6 side of a connection: A remote node in some IPv6 network and the NAT64.
  */
@@ -197,12 +195,12 @@ struct tuple_addr {
 struct tuple {
 	struct tuple_addr src;
 	struct tuple_addr dst;
-	enum l3_proto l3_proto;
+	l3_protocol l3_proto;
 	/**
 	 * Note: The tuple's packet's outer l4-protocol might differ from the tuple's l4-protocol.
-	 * This is beacuse ICMP errors generate UDP or TCP tuples (depending on the inner packet).
+	 * This is because ICMP errors generate UDP or TCP tuples (depending on the inner packet).
 	 */
-	enum l4_proto l4_proto;
+	l4_protocol l4_proto;
 #define icmp_id src.l4_id
 };
 
@@ -240,12 +238,12 @@ bool is_icmp4_error(__u8 type);
 
 void log_tuple(struct tuple *tuple);
 int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
-		unsigned char *dst_addr, __u16 dst_port, u_int8_t l4_proto);
+		unsigned char *dst_addr, __u16 dst_port, l4_protocol l4_proto);
 int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
-		unsigned char *dst_addr, __u16 dst_port, u_int8_t l4_proto);
+		unsigned char *dst_addr, __u16 dst_port, l4_protocol l4_proto);
 
-int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, u_int8_t l4_proto);
-int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, u_int8_t l4_proto);
+int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, l4_protocol l4_proto);
+int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, l4_protocol l4_proto);
 
 
 #endif
