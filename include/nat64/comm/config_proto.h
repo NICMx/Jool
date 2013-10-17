@@ -111,10 +111,10 @@ struct filtering_config {
 	bool drop_external_tcp;
 	/** Current timeout values */
 	struct timeouts {
-		unsigned int udp;
-		unsigned int icmp;
-		unsigned int tcp_est;
-		unsigned int tcp_trans;
+		unsigned long udp;
+		unsigned long icmp;
+		unsigned long tcp_est;
+		unsigned long tcp_trans;
 	} to;
 };
 

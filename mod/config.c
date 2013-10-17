@@ -234,7 +234,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_us.ipv6 = entry->ipv6;
 	entry_us.ipv4 = entry->ipv4;
 	entry_us.dying_time = entry->dying_time - jiffies_to_msecs(jiffies);
-	entry_us.l4_proto = entry->l4_proto;
+	entry_us.l4_proto = entry->l4proto;
 
 	stream_write(stream, &entry_us, sizeof(entry_us));
 	return 0;
@@ -284,9 +284,20 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 		if (error)
 			return respond_error(nl_hdr, error);
 
+		clone.to.udp = jiffies_to_msecs(clone.to.udp);
+		clone.to.tcp_est = jiffies_to_msecs(clone.to.tcp_est);
+		clone.to.tcp_trans = jiffies_to_msecs(clone.to.tcp_trans);
+		clone.to.icmp = jiffies_to_msecs(clone.to.icmp);
+
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
 		log_debug("Updating 'Filtering and Updating' options.");
+
+		request->to.udp = msecs_to_jiffies(request->to.udp);
+		request->to.tcp_est = msecs_to_jiffies(request->to.tcp_est);
+		request->to.tcp_trans = msecs_to_jiffies(request->to.tcp_trans);
+		request->to.icmp = msecs_to_jiffies(request->to.icmp);
+
 		return respond_error(nl_hdr, set_filtering_config(nat64_hdr->operation, request));
 	}
 }

@@ -30,16 +30,20 @@
  */
 #define UDP_DEFAULT (5 * 60)
 /**
- * Transitory connection idle timeout.
- * In other words, the timeout of several states in the TCP state machine. In seconds.
+ * Established connection idle timeout (in seconds).
+ * In other words, the tolerance time for established and healthy TCP sessions.
+ * If a connection remains idle for longer than this, then we expect it to terminate soon.
+ */
+#define TCP_EST (2 * 60 * 60)
+/**
+ * Transitory connection idle timeout (in seconds).
+ * In other words, the timeout of TCP sessions which are expected to terminate soon.
  */
 #define TCP_TRANS (4 * 60)
 /**
- * Established connection idle timeout.
- * In other words, the timeout of several states in the TCP state machine. In seconds.
+ * Timeout of TCP sessions being initialized (in seconds).
+ * It's shorter by default since these are typical DoS attacks.
  */
-#define TCP_EST (2 * 60 * 60)
-/** Timeout of several types of new STEs created during the CLOSED state of the TCP state machine. */
 #define TCP_INCOMING_SYN (6)
 /** Default time interval fragments are allowed to arrive in. In milliseconds. */
 #define FRAGMENT_MIN (2 * 1000)
@@ -73,7 +77,7 @@
 
 
 /* -- Session -- */
-#define SESSION_TIMER_INTERVAL (10 * 1000)
+#define SESSION_MAX_TIMER_INTERVAL msecs_to_jiffies(60 * 60 * 1000)
 
 
 /* -- ICMP constants missing from icmp.h and icmpv6.h. -- */

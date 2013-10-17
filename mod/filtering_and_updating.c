@@ -8,7 +8,7 @@
 
 /**
  * @file
- * Second step of the stateful Nat64 translation algorithm: "Filtering and Updating Binding and
+ * Second step of the stateful NAT64 translation algorithm: "Filtering and Updating Binding and
  * Session Information", as defined in RFC6146 section 3.5.
  *
  * @author Roberto Aceves
@@ -23,316 +23,145 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 
+
 /** Current valid configuration for the filtering and updating module. */
 static struct filtering_config config;
 /** Synchronizes access to the "config" variable. */
 static DEFINE_SPINLOCK(config_lock);
 
+/** Sessions whose expiration date was initialized using "config".to.udp. */
+static LIST_HEAD(sessions_udp);
+/** Sessions whose expiration date was initialized using "config".to.tcp_est. */
+static LIST_HEAD(sessions_tcp_est);
+/** Sessions whose expiration date was initialized using "config".to.tcp_trans. */
+static LIST_HEAD(sessions_tcp_trans);
+/** Sessions whose expiration date was initialized using "config".to.icmp. */
+static LIST_HEAD(sessions_icmp);
+/** Sessions whose expiration date was initialized using "TCP_INCOMING_SYN". */
+static LIST_HEAD(sessions_syn);
+
+/** Deletes expired sessions every once in a while. */
+static struct timer_list expire_timer;
+/** Is "expire_timer" currently running? */
+static bool expire_timer_active = false;
+/** Synchronizes access to the "expire_timer" variable. */
+static DEFINE_SPINLOCK(expire_timer_lock);
+
+
+/** The states from the TCP state machine; RFC 6146 section 3.5.2. */
+enum tcp_states {
+	/** No traffic has been seen; state is fictional. */
+	CLOSED = 0,
+	/** A SYN packet arrived from the IPv6 side; some IPv4 node is trying to start a connection. */
+	V6_INIT,
+	/** A SYN packet arrived from the IPv4 side; some IPv4 node is trying to start a connection. */
+	V4_INIT,
+	/** The handshake is complete and the sides are exchanging upper-layer data. */
+	ESTABLISHED,
+	/**
+	 * The IPv4 node wants to terminate the connection. Data can still flow.
+	 * Awaiting a IPv6 FIN...
+	 */
+	V4_FIN_RCV,
+	/**
+	 * The IPv6 node wants to terminate the connection. Data can still flow.
+	 * Awaiting a IPv4 FIN...
+	 */
+	V6_FIN_RCV,
+	/** Both sides issued a FIN. Packets can still flow for a short time. */
+	V4_FIN_V6_FIN_RCV,
+	/** The session might die in a short while. */
+	TRANS,
+};
+
+
 /**
- * Prepares this module for future use. Avoid calling the rest of the functions unless this has
- * already been executed once.
- *
- * @return zero on success, nonzero on failure.
+ * Helper of the set_*_timer functions. Safely updates "session"->dying_time and moves it from its
+ * original location to the end of "list".
  */
-int filtering_init(void)
+static void update_timer(struct session_entry *session, struct list_head *list, unsigned long *ttl)
 {
 	spin_lock_bh(&config_lock);
-
-	config.to.udp = UDP_DEFAULT;
-	config.to.icmp = ICMP_DEFAULT;
-	config.to.tcp_trans = TCP_TRANS;
-	config.to.tcp_est = TCP_EST;
-
-	config.drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
-	config.drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
-	config.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
-
+	session->dying_time = jiffies + *ttl;
 	spin_unlock_bh(&config_lock);
 
-	return 0;
+	list_del(&session->expiration_node);
+	list_add(&session->expiration_node, list->prev);
 }
 
 /**
- * Frees any memory allocated by this module.
+ * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
  */
-void filtering_destroy(void)
+static void set_udp_timer(struct session_entry *session)
 {
-	/* No code. */
+	update_timer(session, &sessions_udp, &config.to.udp);
 }
 
 /**
- * Copies this module's current configuration to "clone".
- *
- * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
- * @return zero on success, nonzero on failure.
+ * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
  */
-int clone_filtering_config(struct filtering_config *clone)
+static void set_tcp_est_timer(struct session_entry *session)
 {
-	spin_lock_bh(&config_lock);
-	*clone = config;
-	spin_unlock_bh(&config_lock);
-
-	return 0;
+	update_timer(session, &sessions_tcp_est, &config.to.tcp_est);
 }
 
 /**
- * Updates the configuration of this module.
- *
- * @param[in] operation indicator of which fields from "new_config" should be taken into account.
- * @param[in] new configuration values.
- * @return zero on success, nonzero on failure.
+ * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
  */
-int set_filtering_config(__u32 operation, struct filtering_config *new_config)
+static void set_tcp_trans_timer(struct session_entry *session)
 {
-	int error = 0;
-
-	spin_lock_bh(&config_lock);
-
-	if (operation & DROP_BY_ADDR_MASK)
-		config.drop_by_addr = new_config->drop_by_addr;
-	if (operation & DROP_ICMP6_INFO_MASK)
-		config.drop_icmp6_info = new_config->drop_icmp6_info;
-	if (operation & DROP_EXTERNAL_TCP_MASK)
-		config.drop_external_tcp = new_config->drop_external_tcp;
-
-	if (operation & UDP_TIMEOUT_MASK) {
-		if (new_config->to.udp < UDP_MIN) {
-			error = -EINVAL;
-			log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u.", UDP_MIN);
-		} else {
-			config.to.udp = new_config->to.udp;
-		}
-	}
-	if (operation & ICMP_TIMEOUT_MASK)
-		config.to.icmp = new_config->to.icmp;
-	if (operation & TCP_EST_TIMEOUT_MASK) {
-		if (new_config->to.tcp_est < TCP_EST) {
-			error = -EINVAL;
-			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u.", TCP_EST);
-		} else {
-			config.to.tcp_est = new_config->to.tcp_est;
-		}
-	}
-	if (operation & TCP_TRANS_TIMEOUT_MASK) {
-		if (new_config->to.tcp_trans < TCP_TRANS) {
-			error = -EINVAL;
-			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u.", TCP_TRANS);
-		} else {
-			config.to.tcp_trans = new_config->to.tcp_trans;
-		}
-	}
-
-	spin_unlock_bh(&config_lock);
-	return error;
+	update_timer(session, &sessions_tcp_trans, &config.to.tcp_trans);
 }
 
 /**
- * Use this function to safely update a session_entry's dying_time field.
- *
- * This is needed because the possible values dying_time can obtain always come from variables that
- * need to be synchronized.
- *
- * @param[out] session the structure you want to update.
- * @param[in] a pointer to the value you want to set session->dying_time to.
+ * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
  */
-static void update_session_lifetime(struct session_entry *session, unsigned int *timeout)
+static void set_icmp_timer(struct session_entry *session)
 {
-	unsigned int ttl;
-
-	spin_lock_bh(&config_lock);
-	ttl = *timeout;
-	spin_unlock_bh(&config_lock);
-
-	session->dying_time = jiffies_to_msecs(jiffies) + 1000 * ttl;
+	update_timer(session, &sessions_icmp, &config.to.icmp);
 }
 
 /**
- * Use this function to safely obtain the configuration value which dictates whether Jool should
- * drop all informational ICMP packets that are traveling from IPv6 to IPv4.
- *
- * @return whether Jool should drop all ICMPv6 info packets.
+ * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
  */
-static bool filter_icmpv6_info(void)
+static void set_syn_timer(struct session_entry *session)
 {
-	bool result;
+	session->dying_time = jiffies + msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
 
-	spin_lock_bh(&config_lock);
-	result = config.drop_icmp6_info;
-	spin_unlock_bh(&config_lock);
-
-	return result;
+	list_del(&session->expiration_node);
+	list_add(&session->expiration_node, sessions_syn.prev);
 }
 
 /**
- * Use this function to safely obtain the configuration value which dictates whether Jool should
- * be applying "address-dependent filtering" (Look that up in the RFC).
- *
- * @return whether Jool should apply "address-dependent filtering".
+ * Returns the earlier time between "current_min" and "list"'s first node's expiration date.
  */
-static bool address_dependent_filtering(void)
+static unsigned long choose_prior(unsigned long current_min, struct list_head *list)
 {
-	bool result;
+	struct session_entry *session;
 
-	spin_lock_bh(&config_lock);
-	result = config.drop_by_addr;
-	spin_unlock_bh(&config_lock);
+	if (list_empty(list))
+		return current_min;
 
-	return result;
+	session = list_entry(list->next, struct session_entry, expiration_node);
+
+	return time_before(current_min, session->dying_time) ? current_min : session->dying_time;
 }
 
 /**
- * Use this function to safaly obtain the configuration value which dictates whether IPv4 nodes
- * should be allowed to initiate conversations with IPv6 nodes.
- *
- * @return whether IPv4 nodes should be allowed to initiate conversations with IPv6 nodes.
+ * Returns the time the next session will expire at.
  */
-static bool drop_external_connections(void)
+static unsigned long get_next_dying_time(void)
 {
-	bool result;
+	unsigned long current_min = jiffies + SESSION_MAX_TIMER_INTERVAL;
 
-	spin_lock_bh(&config_lock);
-	result = config.drop_external_tcp;
-	spin_unlock_bh(&config_lock);
+	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
+	current_min = choose_prior(current_min, &sessions_udp);
+	current_min = choose_prior(current_min, &sessions_tcp_est);
+	current_min = choose_prior(current_min, &sessions_tcp_trans);
+	current_min = choose_prior(current_min, &sessions_icmp);
+	current_min = choose_prior(current_min, &sessions_syn);
 
-	return result;
-}
-
-/**
- * Join a IPv4 address and a port (or ICMP ID) to create a transport (or tuple) address.
- *
- * @param[in] addr the address component of the transport address you want to init.
- * @param[in] l4_id port or ICMP ID component of the transport address you want to init.
- * @param[out] ta the resulting transport address. Must be already allocated.
- */
-static void transport_address_ipv4(struct in_addr addr, __u16 l4_id, struct ipv4_tuple_address *ta)
-{
-	ta->address = addr;
-	ta->l4_id = l4_id;
-}
-
-/**
- * Join a IPv6 address and a port (or ICMP ID) to create a transport (or tuple) address.
- *
- * @param[in] addr the address component of the transport address you want to init.
- * @param[in] l4_id port or ICMP ID component of the transport address you want to init.
- * @param[out] ta the resulting transport address. Must be already allocated.
- */
-static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv6_tuple_address *ta)
-{
-	ta->address = addr;
-	ta->l4_id = l4_id;
-}
-
-/**
- * "Allocates" from the IPv4 pool a new transport address for use by the UDP BIB.
- *
- * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
- * context would be "borrow".
- *
- * RFC6146 - Section 3.5.1.1
- *
- * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
- * @param[out] result the transport address we borrowed from the pool.
- * @return true if everything went OK, false otherwise.
- */
-static bool allocate_ipv4_transport_address(struct tuple *tuple, struct ipv4_tuple_address *result)
-{
-	struct bib_entry *bib;
-
-	/* Check if the BIB has a previous entry from the same IPv6 source address (X’). */
-	bib = bib_get_by_ipv6_only(&tuple->src.addr.ipv6, L4PROTO_UDP);
-
-	if (bib) {
-		/* Use the same IPv4 address (T). */
-		struct ipv4_tuple_address temp;
-		transport_address_ipv4(bib->ipv4.address, tuple->src.l4_id, &temp);
-		return pool4_get_similar(L4PROTO_UDP, &temp, result);
-	} else {
-		/* Don't care; use any address. */
-		return pool4_get_any(L4PROTO_UDP, tuple->src.l4_id, result);
-	}
-}
-
-/**
- * "Allocates" from the IPv4 pool a new transport address. Attemps to make this address as similar
- * to already existing data as possible.
- *
- * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
- * context would be "borrow".
- *
- * RFC6146 - Section 3.5.2.3
- *
- * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
- * @param[in] protocol protocol of the IPv4 pool the transport address should be borrowed from.
- * @param[out] result the transport address we borrowed from the pool.
- * @return true if everything went OK, false otherwise.
- */
-static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, enum l4_proto protocol,
-		struct ipv4_tuple_address *result)
-{
-	unsigned char ii = 0;
-	u_int8_t proto[] = { IPPROTO_TCP, IPPROTO_UDP, IPPROTO_ICMP };
-	struct in_addr *address = NULL;
-
-	/* Look for S' in all three BIBs. */
-	for (ii = 0; ii < 3; ii++) {
-		struct bib_entry *bib;
-
-		bib = bib_get_by_ipv6_only(&tuple->src.addr.ipv6, proto[ii]);
-		if (bib) {
-			address = &bib->ipv4.address;
-			break; /* We found one entry! */
-		}
-	}
-
-	if (address) {
-		/* Use the same address */
-		struct ipv4_tuple_address temp;
-		transport_address_ipv4(*address, tuple->src.l4_id, &temp);
-		return pool4_get_similar(protocol, &temp, result);
-	} else {
-		/* Use whichever address */
-		return pool4_get_any(protocol, tuple->src.l4_id, result);
-	}
-}
-
-/**
- * Returns true if frag's SYN flag is ON.
- *
- * @param[in] frag fragment you want to read the flag from.
- * @return true if frag's SYN flag is ON, false otherwise.
- */
-static inline bool packet_is_syn(struct fragment* frag)
-{
-	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
-	BUG_ON(!hdr);
-	return hdr->syn;
-}
-
-/**
- * Returns true if frag's FIN flag is ON.
- *
- * @param[in] frag fragment you want to read the flag from.
- * @return true if frag's FIN flag is ON, false otherwise.
- */
-static inline bool packet_is_fin(struct fragment* frag)
-{
-	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
-	BUG_ON(!hdr);
-	return hdr->fin;
-}
-
-/**
- * Returns true if frag's RST flag is ON.
- *
- * @param[in] frag fragment you want to read the flag from.
- * @return true if frag's RST flag is ON, false otherwise.
- */
-static inline bool packet_is_rst(struct fragment* frag)
-{
-	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
-	BUG_ON(!hdr);
-	return hdr->rst;
+	return current_min;
 }
 
 /**
@@ -416,6 +245,325 @@ static bool send_probe_packet(struct session_entry *session)
 }
 
 /**
+ * Decides whether "session"'s expiration should cause its destruction or not. It should be called
+ * when "session" expires.
+ *
+ * If "session" should be destroyed, it'll return true.
+ * If "session" should not be destroyed, it will update its lifetime and TCP state (if applies) and
+ * will return false.
+ *
+ * @param[in] session The entry whose lifetime just expired.
+ * @return true: remove STE. false: keep STE.
+ */
+bool session_expire(struct session_entry *session)
+{
+	switch (session->l4proto) {
+	case L4PROTO_UDP:
+		/* Fall through. */
+	case L4PROTO_ICMP:
+		return true;
+
+	case L4PROTO_TCP:
+		switch (session->state) {
+		case V4_INIT:
+			/* TODO (later) send the stored packet. */
+			/* send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE); */
+			session->state = CLOSED;
+			return true;
+
+		case ESTABLISHED:
+			send_probe_packet(session);
+			session->state = TRANS;
+			set_tcp_trans_timer(session);
+			return false;
+
+		case V6_INIT:
+		case V4_FIN_RCV:
+		case V6_FIN_RCV:
+		case V4_FIN_V6_FIN_RCV:
+		case TRANS:
+			session->state = CLOSED;
+			return true;
+
+		case CLOSED:
+			/* Closed sessions are not supposed to be stored. */
+			log_err(ERR_INVALID_STATE, "Closed state found; removing session entry.");
+			return true;
+		}
+
+		log_err(ERR_INVALID_STATE, "Unknown state found (%d); removing session entry.",
+				session->state);
+		return true;
+
+	case L4PROTO_NONE:
+		log_err(ERR_L4PROTO, "Invalid transport protocol: NONE.");
+		return true;
+	}
+
+	log_err(ERR_L4PROTO, "Unknown transport protocol: %u.", session->l4proto);
+	return true;
+}
+
+/**
+ * Iterates through "list", deleting expired sessions.
+ * "list" is assumed to be sorted by expiration date, so it will stop on the first unexpired
+ * session.
+ */
+static void clean_expired_sessions(struct list_head *list)
+{
+	struct list_head *current_node, *next_node;
+	struct session_entry *session;
+	struct bib_entry *bib;
+	enum l4_proto l4proto;
+
+	list_for_each_safe(current_node, next_node, list) {
+		session = list_entry(current_node, struct session_entry, expiration_node);
+
+		if (time_before(jiffies, session->dying_time))
+			return;
+		if (!session_expire(session))
+			continue; /* The entry's TTL changed, which doesn't mean the next one isn't expired. */
+
+		if (!session_remove(session))
+			continue; /* Error msg already printed. */
+
+		bib = session->bib;
+		l4proto = session->l4proto;
+
+		list_del(&session->entries_from_bib);
+		kfree(session);
+
+		if (!bib) {
+			log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
+			continue;
+		}
+
+		if (!list_empty(&bib->sessions) || bib->is_static)
+			continue; /* The BIB entry needn't die; no error to report. */
+		if (!bib_remove(bib, l4proto))
+			continue; /* Error msg already printed. */
+
+		pool4_return(l4proto, &bib->ipv4);
+		kfree(bib);
+	}
+}
+
+/**
+ * Called once in a while to kick off the scheduled expired sessions massacre.
+ */
+static void cleaner_timer(unsigned long param)
+{
+	log_debug("Deleting expired sessions...");
+	spin_lock_bh(&bib_session_lock);
+
+	clean_expired_sessions(&sessions_udp);
+	clean_expired_sessions(&sessions_tcp_est);
+	clean_expired_sessions(&sessions_tcp_trans);
+	clean_expired_sessions(&sessions_icmp);
+	clean_expired_sessions(&sessions_syn);
+
+	spin_unlock_bh(&bib_session_lock);
+	log_debug("Done deleting expired sessions.");
+
+	spin_lock_bh(&expire_timer_lock);
+	if (expire_timer_active) {
+		/* I added a second to prevent the timer from annoying the kernel too much. */
+		expire_timer.expires = get_next_dying_time() + msecs_to_jiffies(1000);
+		add_timer(&expire_timer);
+	}
+	spin_unlock_bh(&expire_timer_lock);
+}
+
+/**
+ * Use this function to safely obtain the configuration value which dictates whether Jool should
+ * drop all informational ICMP packets that are traveling from IPv6 to IPv4.
+ *
+ * @return whether Jool should drop all ICMPv6 info packets.
+ */
+static bool filter_icmpv6_info(void)
+{
+	bool result;
+
+	spin_lock_bh(&config_lock);
+	result = config.drop_icmp6_info;
+	spin_unlock_bh(&config_lock);
+
+	return result;
+}
+
+/**
+ * Use this function to safely obtain the configuration value which dictates whether Jool should
+ * be applying "address-dependent filtering" (Look that up in the RFC).
+ *
+ * @return whether Jool should apply "address-dependent filtering".
+ */
+static bool address_dependent_filtering(void)
+{
+	bool result;
+
+	spin_lock_bh(&config_lock);
+	result = config.drop_by_addr;
+	spin_unlock_bh(&config_lock);
+
+	return result;
+}
+
+/**
+ * Use this function to safaly obtain the configuration value which dictates whether IPv4 nodes
+ * should be allowed to initiate conversations with IPv6 nodes.
+ *
+ * @return whether IPv4 nodes should be allowed to initiate conversations with IPv6 nodes.
+ */
+static bool drop_external_connections(void)
+{
+	bool result;
+
+	spin_lock_bh(&config_lock);
+	result = config.drop_external_tcp;
+	spin_unlock_bh(&config_lock);
+
+	return result;
+}
+
+/**
+ * Joins a IPv4 address and a port (or ICMP ID) to create a transport (or tuple) address.
+ *
+ * @param[in] addr the address component of the transport address you want to init.
+ * @param[in] l4_id port or ICMP ID component of the transport address you want to init.
+ * @param[out] ta the resulting transport address. Must be already allocated.
+ */
+static void transport_address_ipv4(struct in_addr addr, __u16 l4_id, struct ipv4_tuple_address *ta)
+{
+	ta->address = addr;
+	ta->l4_id = l4_id;
+}
+
+/**
+ * Joins a IPv6 address and a port (or ICMP ID) to create a transport (or tuple) address.
+ *
+ * @param[in] addr the address component of the transport address you want to init.
+ * @param[in] l4_id port or ICMP ID component of the transport address you want to init.
+ * @param[out] ta the resulting transport address. Must be already allocated.
+ */
+static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv6_tuple_address *ta)
+{
+	ta->address = addr;
+	ta->l4_id = l4_id;
+}
+
+/**
+ * "Allocates" from the IPv4 pool a new transport address for use by the UDP BIB.
+ *
+ * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
+ * context would be "borrow".
+ *
+ * RFC6146 - Section 3.5.1.1
+ *
+ * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
+ * @param[out] result the transport address we borrowed from the pool.
+ * @return true if everything went OK, false otherwise.
+ */
+static bool allocate_ipv4_transport_address(struct tuple *tuple, struct ipv4_tuple_address *result)
+{
+	struct bib_entry *bib;
+
+	/* Check if the BIB has a previous entry from the same IPv6 source address (X’). */
+	bib = bib_get_by_ipv6_only(&tuple->src.addr.ipv6, L4PROTO_UDP);
+
+	if (bib) {
+		/* Use the same IPv4 address (T). */
+		struct ipv4_tuple_address temp;
+		transport_address_ipv4(bib->ipv4.address, tuple->src.l4_id, &temp);
+		return pool4_get_similar(L4PROTO_UDP, &temp, result);
+	} else {
+		/* Don't care; use any address. */
+		return pool4_get_any(L4PROTO_UDP, tuple->src.l4_id, result);
+	}
+}
+
+/**
+ * "Allocates" from the IPv4 pool a new transport address. Attemps to make this address as similar
+ * to already existing data as possible.
+ *
+ * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
+ * context would be "borrow".
+ *
+ * RFC6146 - Section 3.5.2.3
+ *
+ * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
+ * @param[in] protocol protocol of the IPv4 pool the transport address should be borrowed from.
+ * @param[out] result the transport address we borrowed from the pool.
+ * @return true if everything went OK, false otherwise.
+ */
+static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, enum l4_proto protocol,
+		struct ipv4_tuple_address *result)
+{
+	unsigned char ii = 0;
+	enum l4_proto proto[] = { L4PROTO_TCP, L4PROTO_UDP, L4PROTO_ICMP };
+	struct in_addr *address = NULL;
+
+	/* Look for S' in all three BIBs. */
+	for (ii = 0; ii < 3; ii++) {
+		struct bib_entry *bib;
+
+		bib = bib_get_by_ipv6_only(&tuple->src.addr.ipv6, proto[ii]);
+		if (bib) {
+			address = &bib->ipv4.address;
+			break; /* We found one entry! */
+		}
+	}
+
+	if (address) {
+		/* Use the same address */
+		struct ipv4_tuple_address temp;
+		transport_address_ipv4(*address, tuple->src.l4_id, &temp);
+		return pool4_get_similar(protocol, &temp, result);
+	} else {
+		/* Use whichever address */
+		return pool4_get_any(protocol, tuple->src.l4_id, result);
+	}
+}
+
+/**
+ * Returns true if frag's SYN flag is ON.
+ *
+ * @param[in] frag fragment you want to read the flag from.
+ * @return true if frag's SYN flag is ON, false otherwise.
+ */
+static inline bool packet_is_syn(struct fragment* frag)
+{
+	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
+	BUG_ON(!hdr);
+	return hdr->syn;
+}
+
+/**
+ * Returns true if frag's FIN flag is ON.
+ *
+ * @param[in] frag fragment you want to read the flag from.
+ * @return true if frag's FIN flag is ON, false otherwise.
+ */
+static inline bool packet_is_fin(struct fragment* frag)
+{
+	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
+	BUG_ON(!hdr);
+	return hdr->fin;
+}
+
+/**
+ * Returns true if frag's RST flag is ON.
+ *
+ * @param[in] frag fragment you want to read the flag from.
+ * @return true if frag's RST flag is ON, false otherwise.
+ */
+static inline bool packet_is_rst(struct fragment* frag)
+{
+	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
+	BUG_ON(!hdr);
+	return hdr->rst;
+}
+
+/**
  * Wrapper for the 6to4 function of the rfc6052 module. Extracts the prefix from "src" and returns
  * the result as a IPv4 address on "dst".
  *
@@ -478,7 +626,7 @@ static enum verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_tuple_address source;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_UDP;
+	enum l4_proto protocol = L4PROTO_UDP;
 	bool bib_is_local = false;
 
 	/* Pack source address into transport address */
@@ -557,7 +705,7 @@ static enum verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	}
 
 	/* Reset session entry's lifetime. */
-	update_session_lifetime(session, &config.to.udp);
+	set_udp_timer(session);
 	spin_unlock_bh(&bib_session_lock);
 
 	return VER_CONTINUE;
@@ -594,7 +742,7 @@ static enum verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_tuple_address destination;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_UDP;
+	enum l4_proto protocol = L4PROTO_UDP;
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
 	 * what should be sent.
@@ -664,7 +812,7 @@ static enum verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	}
 
 	/* Reset session entry's lifetime. */
-	update_session_lifetime(session, &config.to.udp);
+	set_udp_timer(session);
 	spin_unlock_bh(&bib_session_lock);
 
 	return VER_CONTINUE;
@@ -700,7 +848,7 @@ static enum verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_tuple_address source;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_ICMP;
+	enum l4_proto protocol = L4PROTO_ICMP;
 	bool bib_is_local = false;
 
 	if (filter_icmpv6_info()) {
@@ -785,7 +933,7 @@ static enum verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	}
 
 	/* Reset session entry's lifetime. */
-	update_session_lifetime(session, &config.to.icmp);
+	set_icmp_timer(session);
 	spin_unlock_bh(&bib_session_lock);
 
 	return VER_CONTINUE;
@@ -826,7 +974,7 @@ static enum verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_tuple_address destination;
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
-	u_int8_t protocol = IPPROTO_ICMP;
+	enum l4_proto protocol = L4PROTO_ICMP;
 
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
@@ -897,7 +1045,7 @@ static enum verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	}
 
 	/* Reset session entry's lifetime. */
-	update_session_lifetime(session, &config.to.icmp);
+	set_icmp_timer(session);
 	spin_unlock_bh(&bib_session_lock);
 
 	return VER_CONTINUE;
@@ -915,32 +1063,6 @@ failure:
 	return VER_DROP;
 }
 
-/** The states from the TCP state machine; RFC 6146 section 3.5.2. */
-enum tcp_states {
-	/** No traffic has been seen; state is fictional. */
-	CLOSED = 0,
-	/** A SYN packet arrived from the IPv6 side; some IPv4 node is trying to start a connection. */
-	V6_INIT,
-	/** A SYN packet arrived from the IPv4 side; some IPv4 node is trying to start a connection. */
-	V4_INIT,
-	/** The handshake is complete and the sides are exchanging upper-layer data. */
-	ESTABLISHED,
-	/**
-	 * The IPv4 node wants to terminate the connection. Data can still flow.
-	 * Awaiting a IPv6 FIN...
-	 */
-	V4_FIN_RCV,
-	/**
-	 * The IPv6 node wants to terminate the connection. Data can still flow.
-	 * Awaiting a IPv4 FIN...
-	 */
-	V6_FIN_RCV,
-	/** Both sides issued a FIN. Packets can still flow for a short time. */
-	V4_FIN_V6_FIN_RCV,
-	/** The session might die in a short while. */
-	TRANS,
-};
-
 static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 {
 	struct bib_entry *bib;
@@ -950,7 +1072,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	struct in_addr destination_as_ipv4;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	u_int8_t protocol = IPPROTO_TCP;
+	enum l4_proto protocol = L4PROTO_TCP;
 	bool bib_is_local = false;
 
 	/* Pack source address into transport address */
@@ -1008,7 +1130,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 		goto session_failure;
 	}
 
-	update_session_lifetime(session, &config.to.tcp_trans);
+	set_tcp_trans_timer(session);
 	session->state = V6_INIT;
 
 	apply_policies();
@@ -1047,7 +1169,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 	struct in6_addr ipv6_local;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	u_int8_t protocol = IPPROTO_TCP;
+	enum l4_proto protocol = L4PROTO_TCP;
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
@@ -1068,8 +1190,6 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 
 	if (bib == NULL) {
 		/* Try to create a new session entry anyway! */
-		unsigned int temp = TCP_INCOMING_SYN;
-
 		log_warning("Unknown TCP connections started from the IPv4 side is still unsupported. "
 		"Dropping packet...");
 		goto failure;
@@ -1096,7 +1216,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 		}
 
 		session->state = V4_INIT;
-		update_session_lifetime(session, &temp);
+		set_syn_timer(session);
 
 		/* TODO (later) store the packet.
 		 *          The result is that the NAT64 will not drop the packet based on the filtering,
@@ -1122,12 +1242,10 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 		}
 
 		session->state = V4_INIT;
-		if (address_dependent_filtering()) {
-			unsigned int temp = TCP_INCOMING_SYN;
-			update_session_lifetime(session, &temp);
-		} else {
-			update_session_lifetime(session, &config.to.tcp_trans);
-		}
+		if (address_dependent_filtering())
+			set_syn_timer(session);
+		else
+			set_tcp_trans_timer(session);
 	}
 
 	apply_policies();
@@ -1163,7 +1281,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 	struct bib_entry *bib = NULL;
 	struct ipv6_tuple_address ipv6_ta;
 	struct ipv4_tuple_address ipv4_ta;
-	u_int8_t protocol = IPPROTO_TCP;
+	enum l4_proto protocol = L4PROTO_TCP;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:
@@ -1209,7 +1327,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 static bool tcp_v4_init_state_handle(struct fragment* frag, struct session_entry *session)
 {
 	if (frag->l3_hdr.proto == L3PROTO_IPV6 && packet_is_syn(frag)) {
-		update_session_lifetime(session, &config.to.tcp_est);
+		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
 
@@ -1229,11 +1347,11 @@ static bool tcp_v6_init_state_handle(struct fragment* frag, struct session_entry
 	if (packet_is_syn(frag)) {
 		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV4:
-			update_session_lifetime(session, &config.to.tcp_est);
+			set_tcp_est_timer(session);
 			session->state = ESTABLISHED;
 			break;
 		case L3PROTO_IPV6:
-			update_session_lifetime(session, &config.to.tcp_trans);
+			set_tcp_trans_timer(session);
 			break;
 		}
 	} /* else, the state remains unchanged */
@@ -1262,11 +1380,10 @@ static bool tcp_established_state_handle(struct fragment* frag, struct session_e
 		}
 
 	} else if (packet_is_rst(frag)) {
-		update_session_lifetime(session, &config.to.tcp_trans);
+		set_tcp_trans_timer(session);
 		session->state = TRANS;
-
 	} else {
-		update_session_lifetime(session, &config.to.tcp_est);
+		set_tcp_est_timer(session);
 	}
 
 	return true;
@@ -1283,10 +1400,10 @@ static bool tcp_established_state_handle(struct fragment* frag, struct session_e
 static bool tcp_v4_fin_rcv_state_handle(struct fragment* frag, struct session_entry *session)
 {
 	if (frag->l3_hdr.proto == L3PROTO_IPV6 && packet_is_fin(frag)) {
-		update_session_lifetime(session, &config.to.tcp_trans);
+		set_tcp_trans_timer(session);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
-		update_session_lifetime(session, &config.to.tcp_est);
+		set_tcp_est_timer(session);
 	}
 	return true;
 }
@@ -1302,10 +1419,10 @@ static bool tcp_v4_fin_rcv_state_handle(struct fragment* frag, struct session_en
 static bool tcp_v6_fin_rcv_state_handle(struct fragment* frag, struct session_entry *session)
 {
 	if (frag->l3_hdr.proto == L3PROTO_IPV4 && packet_is_fin(frag)) {
-		update_session_lifetime(session, &config.to.tcp_trans);
+		set_tcp_trans_timer(session);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
-		update_session_lifetime(session, &config.to.tcp_est);
+		set_tcp_est_timer(session);
 	}
 	return true;
 }
@@ -1336,63 +1453,11 @@ static bool tcp_v4_fin_v6_fin_rcv_state_handle(struct fragment *frag,
 static bool tcp_trans_state_handle(struct fragment *frag, struct session_entry *session)
 {
 	if (!packet_is_rst(frag)) {
-		update_session_lifetime(session, &config.to.tcp_est);
+		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	}
 
 	return true;
-}
-
-/**
- * This function should be called when "session" expires. If F&U has reasons to prevent its murder,
- * this function will update its lifetime and return true.
- *
- * @param[in]   session_entry   The entry whose lifetime just expired.
- * @return true: remove STE. false: keep STE.
- */
-bool session_expired(struct session_entry *session)
-{
-	switch (session->l4_proto) {
-	case IPPROTO_UDP:
-		return false;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
-		return false;
-	case IPPROTO_TCP:
-		switch (session->state) {
-		case V4_INIT:
-			/* TODO (later) send the stored packet.
-			 * If the lifetime expires, an ICMP Port Unreachable error (Type 3, Code 3) containing the
-			 * IPv4 SYN packet stored is sent back to the source of the v4 SYN, the Session Table Entry
-			 * is deleted, and the state is moved to CLOSED. */
-			/* send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE); */
-			session->state = CLOSED;
-			return false;
-		case ESTABLISHED:
-			send_probe_packet(session);
-			session->state = TRANS;
-			update_session_lifetime(session, &config.to.tcp_trans);
-			return true;
-		case V6_INIT:
-		case V4_FIN_RCV:
-		case V6_FIN_RCV:
-		case V4_FIN_V6_FIN_RCV:
-		case TRANS:
-			session->state = CLOSED;
-			return false;
-		default:
-			/*
-			 * Because closed sessions are not supposed to be stored,
-			 * CLOSED is known to fall through here.
-			 */
-			log_err(ERR_INVALID_STATE, "Invalid state found; removing session entry.");
-			return false;
-		}
-		return false;
-	default:
-		log_err(ERR_L4PROTO, "Unsupported transport protocol: %u.", session->l4_proto);
-		return false;
-	}
 }
 
 /**
@@ -1455,6 +1520,124 @@ static enum verdict tcp(struct fragment* frag, struct tuple *tuple)
 end:
 	spin_unlock_bh(&bib_session_lock);
 	return result ? VER_CONTINUE : VER_DROP;
+}
+
+/**
+ * Prepares this module for future use. Avoid calling the rest of the functions unless this has
+ * already been executed once.
+ *
+ * @return zero on success, nonzero on failure.
+ */
+int filtering_init(void)
+{
+	config.to.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
+	config.to.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
+	config.to.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	config.to.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	config.drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
+	config.drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
+	config.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
+
+	INIT_LIST_HEAD(&sessions_udp);
+	INIT_LIST_HEAD(&sessions_tcp_est);
+	INIT_LIST_HEAD(&sessions_tcp_trans);
+	INIT_LIST_HEAD(&sessions_icmp);
+	INIT_LIST_HEAD(&sessions_syn);
+
+	init_timer(&expire_timer);
+	expire_timer.function = cleaner_timer;
+	expire_timer.expires = jiffies + SESSION_MAX_TIMER_INTERVAL;
+	expire_timer.data = 0;
+	add_timer(&expire_timer);
+	expire_timer_active = true;
+
+	return 0;
+}
+
+/**
+ * Frees any memory allocated by this module.
+ */
+void filtering_destroy(void)
+{
+	spin_lock_bh(&expire_timer_lock);
+	if (expire_timer_active) {
+		expire_timer_active = false;
+		spin_unlock_bh(&expire_timer_lock);
+		del_timer_sync(&expire_timer);
+	} else {
+		spin_unlock_bh(&expire_timer_lock);
+	}
+}
+
+/**
+ * Copies this module's current configuration to "clone".
+ *
+ * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
+ * @return zero on success, nonzero on failure.
+ */
+int clone_filtering_config(struct filtering_config *clone)
+{
+	spin_lock_bh(&config_lock);
+	*clone = config;
+	spin_unlock_bh(&config_lock);
+
+	return 0;
+}
+
+/**
+ * Updates the configuration of this module.
+ *
+ * @param[in] operation indicator of which fields from "new_config" should be taken into account.
+ * @param[in] new configuration values.
+ * @return zero on success, nonzero on failure.
+ */
+int set_filtering_config(__u32 operation, struct filtering_config *new_config)
+{
+	int error = 0;
+	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
+	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+
+	spin_lock_bh(&config_lock);
+
+	if (operation & DROP_BY_ADDR_MASK)
+		config.drop_by_addr = new_config->drop_by_addr;
+	if (operation & DROP_ICMP6_INFO_MASK)
+		config.drop_icmp6_info = new_config->drop_icmp6_info;
+	if (operation & DROP_EXTERNAL_TCP_MASK)
+		config.drop_external_tcp = new_config->drop_external_tcp;
+
+	if (operation & UDP_TIMEOUT_MASK) {
+		if (new_config->to.udp < udp_min) {
+			error = -EINVAL;
+			log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u seconds.", UDP_MIN);
+		} else {
+			config.to.udp = new_config->to.udp;
+		}
+	}
+	if (operation & ICMP_TIMEOUT_MASK)
+		config.to.icmp = new_config->to.icmp;
+	if (operation & TCP_EST_TIMEOUT_MASK) {
+		if (new_config->to.tcp_est < tcp_est) {
+			error = -EINVAL;
+			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u seconds.",
+					TCP_EST);
+		} else {
+			config.to.tcp_est = new_config->to.tcp_est;
+		}
+	}
+	if (operation & TCP_TRANS_TIMEOUT_MASK) {
+		if (new_config->to.tcp_trans < tcp_trans) {
+			error = -EINVAL;
+			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u seconds.",
+					TCP_TRANS);
+		} else {
+			config.to.tcp_trans = new_config->to.tcp_trans;
+		}
+	}
+
+	spin_unlock_bh(&config_lock);
+	return error;
 }
 
 /**

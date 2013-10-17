@@ -14,8 +14,6 @@ static u8 get_next_byte(void)
 {
 	u8 result;
 
-	spin_lock_bh(&buffer_lock);
-
 	if (last_returned >= BUFFER_SIZE) {
 		get_random_bytes(buffer, sizeof(buffer));
 		last_returned = 0;
@@ -24,15 +22,19 @@ static u8 get_next_byte(void)
 	result = buffer[last_returned];
 	last_returned++;
 
-	spin_unlock_bh(&buffer_lock);
-
 	return result;
 }
 
 u32 get_random_u32(void)
 {
-	return (get_next_byte() << 24)
-			| (get_next_byte() << 16)
-			| (get_next_byte() << 8)
-			| get_next_byte();
+	u32 result;
+	spin_lock_bh(&buffer_lock);
+
+	result = (get_next_byte() << 24)
+				| (get_next_byte() << 16)
+				| (get_next_byte() << 8)
+				| get_next_byte();
+
+	spin_unlock_bh(&buffer_lock);
+	return result;
 }

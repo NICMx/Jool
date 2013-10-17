@@ -7,6 +7,18 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct filtering_config)
 
+static void print_time(unsigned long millis)
+{
+	if (millis < 1000)
+		printf("%lu milliseconds\n", millis);
+	else if (millis < 1000 * 60)
+		printf("%lu seconds\n", millis / 1000);
+	else if (millis < 1000 * 60 * 60)
+		printf("%lu minutes\n", millis / (1000 * 60));
+	else
+		printf("%lu hours\n", millis / (1000 * 60 * 60));
+}
+
 static int handle_display_response(struct nl_msg *msg, void *arg)
 {
 	struct filtering_config *conf = nlmsg_data(nlmsg_hdr(msg));
@@ -17,14 +29,14 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			conf->drop_icmp6_info ? "ON" : "OFF");
 	printf("Dropping externally initiated TCP connections (%s): %s\n", DROP_EXTERNAL_TCP_OPT,
 			conf->drop_external_tcp ? "ON" : "OFF");
-	printf("UDP session lifetime (%s): %u seconds\n", UDP_TIMEOUT_OPT,
-			conf->to.udp);
-	printf("TCP established session lifetime (%s): %u seconds\n", TCP_EST_TIMEOUT_OPT,
-			conf->to.tcp_est);
-	printf("TCP transitory session lifetime (%s): %u seconds\n", TCP_TRANS_TIMEOUT_OPT,
-			conf->to.tcp_trans);
-	printf("ICMP session lifetime (%s): %u seconds\n", ICMP_TIMEOUT_OPT,
-			conf->to.icmp);
+	printf("UDP session lifetime (%s): ", UDP_TIMEOUT_OPT);
+	print_time(conf->to.udp);
+	printf("TCP established session lifetime (%s): ", TCP_EST_TIMEOUT_OPT);
+	print_time(conf->to.tcp_est);
+	printf("TCP transitory session lifetime (%s): ", TCP_TRANS_TIMEOUT_OPT);
+	print_time(conf->to.tcp_trans);
+	printf("ICMP session lifetime (%s): ", ICMP_TIMEOUT_OPT);
+	print_time(conf->to.icmp);
 
 	return 0;
 }

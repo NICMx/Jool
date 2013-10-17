@@ -25,8 +25,8 @@ struct session_entry {
 	/** IPv4 version of the connection. */
 	struct ipv4_pair ipv4;
 
-	/** Millisecond (from the epoch) this session should expire in, if still inactive. */
-	unsigned int dying_time;
+	/** Jiffy (from the epoch) this session should expire in, if still inactive. */
+	unsigned long dying_time;
 
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
@@ -39,15 +39,15 @@ struct session_entry {
 	 */
 	struct list_head entries_from_bib;
 	/**
-	 * Chains this session with the rest (see all_sessions, defined in nf_nat_session.h).
+	 * Chainer to one of the expiration timer lists (sessions_udp, sessions_tcp_est, etc).
 	 * Used for iterating while looking for expired sessions.
 	 */
-	struct list_head all_sessions;
+	struct list_head expiration_node;
 	/**
 	 * Transport protocol of the table this entry is in.
 	 * Used to know which table the session should be removed from when expired.
 	 */
-	u_int8_t l4_proto;
+	enum l4_proto l4proto;
 
 	/** Current TCP state.
 	 * 	Each STE represents a state machine
@@ -60,7 +60,7 @@ struct session_entry {
  * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
-int session_init(bool (*session_expired_callback)(struct session_entry *));
+int session_init(void);
 
 /**
  * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
@@ -84,7 +84,7 @@ int session_add(struct session_entry *entry);
  * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
-struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol);
+struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, enum l4_proto proto);
 /**
  * Returns the Session entry from the "l4protocol" table whose IPv6 side (both addresses and ports)
  * is "pair".
@@ -95,7 +95,7 @@ struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4pro
  * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
  *		is "address". Returns NULL if there is no such an entry.
  */
-struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol);
+struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, enum l4_proto proto);
 
 /**
  * Returns the session entry you'd expect from the "tuple" tuple.
@@ -147,9 +147,11 @@ void session_destroy(void);
  * need to kfree it).
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		u_int8_t l4protocol);
+		enum l4_proto proto);
 
-int session_for_each(__u8 l4protocol, int (*func)(struct session_entry *, void *), void *arg);
+
+
+int session_for_each(enum l4_proto proto, int (*func)(struct session_entry *, void *), void *arg);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as
