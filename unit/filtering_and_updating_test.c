@@ -130,7 +130,7 @@ static bool init_session_entry( l4_protocol l4_proto, struct session_entry *se )
     se->bib = NULL;
     INIT_LIST_HEAD(&se->entries_from_bib);
     INIT_LIST_HEAD(&se->expiration_node);
-    se->l4proto = l4_proto;
+    se->l4_proto = l4_proto;
     se->state = CLOSED;
 
     return true;
@@ -1018,7 +1018,6 @@ static bool test_tcp_v4_init_state_handle( void )
     struct tuple tuple4;
     struct packet *pkt;
     int error;
-
     /*
      * A V6 SYN packet arrives.
      */
@@ -1595,33 +1594,33 @@ static int __init filtering_test_init(void)
     log_debug("\n\nNAT64 %s TEST module inserted!", "filtering_test");
 
     /*      UDP & ICMP      */
-    CALL_TEST(test_transport_address_ipv4(), "test_transport_address_ipv4");
-    CALL_TEST(test_transport_address_ipv6(), "test_transport_address_ipv6");
-    CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
-    CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
-    INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address(), end_full(), "test_allocate_ipv4_transport_address");
-    INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address_digger(), end_full(), "test_allocate_ipv4_transport_address_digger");
-    INIT_CALL_END(init_full(), test_ipv6_udp(), end_full(), "test_ipv6_udp");
-    INIT_CALL_END(init_full(), test_ipv4_udp(), end_full(), "test_ipv4_udp");
-    INIT_CALL_END(init_full(), test_ipv6_icmp6(), end_full(), "test_ipv6_icmp6");
-    INIT_CALL_END(init_full(), test_ipv4_icmp4(), end_full(), "test_ipv4_icmp4");
-    /* CALL_TEST(test_send_icmp_error_message(), "test_send_icmp_error_message"); Not implemented yet! */
-    INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "test_filtering_and_updating");
-
-    /*      TCP      */
-    CALL_TEST(test_packet_is_syn(), "test_packet_is_syn");
-    CALL_TEST(test_packet_is_fin(), "test_packet_is_fin");
-    CALL_TEST(test_packet_is_rst(), "test_packet_is_rst");
-    CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
-    INIT_CALL_END(init_full(), test_tcp_closed_state_handle_6(), end_full(), "test_tcp_closed_state_handle_6");
+//    CALL_TEST(test_transport_address_ipv4(), "test_transport_address_ipv4");
+//    CALL_TEST(test_transport_address_ipv6(), "test_transport_address_ipv6");
+//    CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
+//    CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
+//    INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address(), end_full(), "test_allocate_ipv4_transport_address");
+//    INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address_digger(), end_full(), "test_allocate_ipv4_transport_address_digger");
+//    INIT_CALL_END(init_full(), test_ipv6_udp(), end_full(), "test_ipv6_udp");
+//    INIT_CALL_END(init_full(), test_ipv4_udp(), end_full(), "test_ipv4_udp");
+//    INIT_CALL_END(init_full(), test_ipv6_icmp6(), end_full(), "test_ipv6_icmp6");
+//    INIT_CALL_END(init_full(), test_ipv4_icmp4(), end_full(), "test_ipv4_icmp4");
+//    /* CALL_TEST(test_send_icmp_error_message(), "test_send_icmp_error_message"); Not implemented yet! */
+//    INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "test_filtering_and_updating");
+//
+//    /*      TCP      */
+//    CALL_TEST(test_packet_is_syn(), "test_packet_is_syn");
+//    CALL_TEST(test_packet_is_fin(), "test_packet_is_fin");
+//    CALL_TEST(test_packet_is_rst(), "test_packet_is_rst");
+//    CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
+//    INIT_CALL_END(init_full(), test_tcp_closed_state_handle_6(), end_full(), "test_tcp_closed_state_handle_6");
     /* INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "test_tcp_closed_state_handle_4"); Not implemented yet! */
     CALL_TEST(test_tcp_v4_init_state_handle(), "test_tcp_v4_init_state_handle");
-    CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
-    CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
-    CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
-    CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
-    CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
-    INIT_CALL_END(init_full(), test_tcp(), end_full(), "test_tcp"); /**/
+//    CALL_TEST(test_tcp_v6_init_state_handle(), "test_tcp_v6_init_state_handle");
+//    CALL_TEST(test_tcp_established_state_handle(), "test_tcp_established_state_handle");
+//    CALL_TEST(test_tcp_v4_fin_rcv_state_handle(), "test_tcp_v4_fin_rcv_state_handle");
+//    CALL_TEST(test_tcp_v6_fin_rcv_state_handle(), "test_tcp_v6_fin_rcv_state_handle");
+//    CALL_TEST(test_tcp_trans_state_handle(), "test_tcp_trans_state_handle");
+//    INIT_CALL_END(init_full(), test_tcp(), end_full(), "test_tcp"); /**/
 
     /* A non 0 return means a test failed; module can't be loaded. */
     END_TESTS;

@@ -19,7 +19,7 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-# obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o
+#obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o
 # $(HAIRPINNING).o $(SENDFRAGPKT).o
 
 obj-m += $(FILTERING).o
@@ -125,7 +125,6 @@ $(SENDFRAGPKT)-objs += framework/validator.o
 $(SENDFRAGPKT)-objs += framework/types.o
 $(SENDFRAGPKT)-objs += ../mod/packet_db.o
 $(SENDFRAGPKT)-objs += ../mod/send_packet.o
-#$(SENDFRAGPKT)-objs += ../mod/send_packet_old.o  # This indeed works
 $(SENDFRAGPKT)-objs += send_fragmented_packet.o
 
 
