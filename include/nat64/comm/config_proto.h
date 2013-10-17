@@ -88,7 +88,7 @@ struct bib_entry_us {
 struct session_entry_us {
 	struct ipv6_pair ipv6;
 	struct ipv4_pair ipv4;
-	unsigned int dying_time;
+	unsigned long dying_time;
 	u_int8_t l4_proto;
 };
 

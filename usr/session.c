@@ -25,7 +25,8 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 		char *str4;
 		char str6[INET6_ADDRSTRLEN];
 
-		printf("Expires in %u milliseconds.\n", entry->dying_time);
+		printf("Expires in ");
+		print_time(entry->dying_time);
 
 		str4 = inet_ntoa(entry->ipv4.remote.address);
 		printf("Remote: %s#%u\t", str4, entry->ipv4.remote.l4_id);

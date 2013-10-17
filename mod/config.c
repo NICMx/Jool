@@ -233,7 +233,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 
 	entry_us.ipv6 = entry->ipv6;
 	entry_us.ipv4 = entry->ipv4;
-	entry_us.dying_time = entry->dying_time - jiffies_to_msecs(jiffies);
+	entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies);
 	entry_us.l4_proto = entry->l4proto;
 
 	stream_write(stream, &entry_us, sizeof(entry_us));
@@ -303,15 +303,15 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 }
 
 static int handle_fragmentation_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		struct filtering_config *request)
+		struct fragmentation_config *request)
 {
-	struct filtering_config clone;
+	struct fragmentation_config clone;
 	int error;
 
 	if (nat64_hdr->operation == 0) {
 		log_debug("Returning 'Fragmentation' options.");
 
-		error = clone_filtering_config(&clone);
+		error = clone_fragmentation_config(&clone);
 		if (error)
 			return respond_error(nl_hdr, error);
 

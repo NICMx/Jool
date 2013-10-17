@@ -7,18 +7,6 @@
 #define HDR_LEN sizeof(struct request_hdr)
 #define PAYLOAD_LEN sizeof(struct filtering_config)
 
-static void print_time(unsigned long millis)
-{
-	if (millis < 1000)
-		printf("%lu milliseconds\n", millis);
-	else if (millis < 1000 * 60)
-		printf("%lu seconds\n", millis / 1000);
-	else if (millis < 1000 * 60 * 60)
-		printf("%lu minutes\n", millis / (1000 * 60));
-	else
-		printf("%lu hours\n", millis / (1000 * 60 * 60));
-}
-
 static int handle_display_response(struct nl_msg *msg, void *arg)
 {
 	struct filtering_config *conf = nlmsg_data(nlmsg_hdr(msg));
