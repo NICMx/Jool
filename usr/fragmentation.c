@@ -11,8 +11,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 {
 	struct fragmentation_config *conf = nlmsg_data(nlmsg_hdr(msg));
 
-	printf("Fragments arrival time slot(%s): %u milliseconds\n", FRAGMENTATION_TIMEOUT_OPT,
-			conf->fragment_timeout);
+	printf("Fragments arrival time slot (%s): ", FRAGMENTATION_TIMEOUT_OPT);
+	print_time(conf->fragment_timeout);
 
 	return 0;
 }

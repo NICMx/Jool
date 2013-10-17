@@ -5,7 +5,7 @@
 #include "nat64/comm/config_proto.h"
 
 
-#define FRAGMENTATION_TIMEOUT_OPT 	"toFragMin"
+#define FRAGMENTATION_TIMEOUT_OPT 	"toFrag"
 
 int fragmentation_request(__u32 operation, struct fragmentation_config *config);
 

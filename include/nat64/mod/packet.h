@@ -57,6 +57,13 @@ void pktmod_destroy(void);
  * @return response_code   ___________.
  */
 int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config);
+/**
+ * Copies this module's current configuration to "clone".
+ *
+ * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
+ * @return zero on success, nonzero on failure.
+ */
+int clone_fragmentation_config(struct fragmentation_config *clone);
 
 /**
  * Synchronization-safely returns the current configuration's fragment timeout.

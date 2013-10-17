@@ -767,6 +767,15 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 		kfree(pkt);
 }
 
+int clone_fragmentation_config(struct fragmentation_config *clone)
+{
+	spin_lock_bh(&config_lock);
+	*clone = config;
+	spin_unlock_bh(&config_lock);
+
+	return 0;
+}
+
 int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
 {
 	int error = 0;

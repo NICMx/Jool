@@ -88,7 +88,7 @@ struct bib_entry_us {
 struct session_entry_us {
 	struct ipv6_pair ipv6;
 	struct ipv4_pair ipv4;
-	unsigned int dying_time;
+	unsigned long dying_time;
 	u_int8_t l4_proto;
 };
 
@@ -111,10 +111,10 @@ struct filtering_config {
 	bool drop_external_tcp;
 	/** Current timeout values */
 	struct timeouts {
-		unsigned int udp;
-		unsigned int icmp;
-		unsigned int tcp_est;
-		unsigned int tcp_trans;
+		unsigned long udp;
+		unsigned long icmp;
+		unsigned long tcp_est;
+		unsigned long tcp_trans;
 	} to;
 };
 

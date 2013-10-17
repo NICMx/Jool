@@ -381,3 +381,35 @@ void print_code_msg(enum error_code code, char *success_msg)
 
 	log_err(code, "%s", get_error_msg(code));
 }
+
+void print_time(unsigned long millis)
+{
+	unsigned long seconds;
+	unsigned long minutes;
+	unsigned long hours;
+
+	if (millis < 1000) {
+		printf("%lu milliseconds\n", millis);
+		return;
+	}
+
+	seconds = millis / 1000;
+
+	if (seconds < 60) {
+		printf("%lu seconds\n", seconds);
+		return;
+	}
+
+	minutes = seconds / 60;
+	seconds %= 60;
+
+	if (minutes < 60) {
+		printf("%lu minutes, %lu seconds\n", minutes, seconds);
+		return;
+	}
+
+	hours = minutes / 60;
+	minutes %= 60;
+
+	printf("%lu hours, %lu minutes\n", hours, minutes);
+}
