@@ -1327,12 +1327,10 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 static bool tcp_v4_init_state_handle(struct fragment* frag, struct session_entry *session)
 {
 	if (frag->l3_hdr.proto == L3PROTO_IPV6 && packet_is_syn(frag)) {
-log_debug("TOFIX: Este timer esta ocasionando un kernel panic!");
 		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
 
-log_debug("		ii = %d", ii++);
 	return true;
 }
 

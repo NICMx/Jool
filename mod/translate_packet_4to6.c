@@ -516,7 +516,7 @@ static enum verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, stru
  * -- Inner packet --
  *************************************************************************************************/
 
-static l4_protocol l4_proto_to_l4proto(u8 protocol)
+static l4_protocol protocol_to_l4proto(u8 protocol)
 {
 	switch (protocol) {
 	case IPPROTO_TCP:

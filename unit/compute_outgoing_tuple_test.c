@@ -44,7 +44,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	*/
 
 	/* Add it to the table. */
-	if (bib_add(bib, l4proto) != 0) {
+	if (bib_add(bib, l4_proto) != 0) {
 		log_warning("Can't add the dummy BIB to the table.");
 		goto failure;
 	}
@@ -99,8 +99,8 @@ static bool init(void)
 	if (bib_init() != 0)
 		return false;
 
-	for (i = 0; i < ARRAY_SIZE(protos); i++)
-		if (!add_bib(&local_ipv4, 80, &remote_ipv6, 1500, protos[i]))
+	for (i = 0; i < ARRAY_SIZE(l4_protos); i++)
+		if (!add_bib(&local_ipv4, 80, &remote_ipv6, 1500, l4_protos[i]))
 			return false;
 
 	return true;
@@ -125,9 +125,9 @@ static bool test_6to4(l4_protocol l4_proto)
 	incoming.src.l4_id = 1500; /* Lookup will use this. */
 	incoming.dst.l4_id = 123; /* Whatever */
 	incoming.l3_proto = L3PROTO_IPV6;
-	incoming.l4_proto = proto;
+	incoming.l4_proto = l4_proto;
 
-	if (proto != L4PROTO_ICMP) {
+	if (l4_proto != L4PROTO_ICMP) {
 		success &= assert_true(tuple5(&incoming, &outgoing), "Function call");
 		success &= assert_equals_u16(80, outgoing.src.l4_id, "Source port");
 		success &= assert_equals_u16(123, outgoing.dst.l4_id, "Destination port");
@@ -138,7 +138,7 @@ static bool test_6to4(l4_protocol l4_proto)
 	success &= assert_equals_ipv4(&local_ipv4, &outgoing.src.addr.ipv4, "Source address");
 	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.dst.addr.ipv4, "Destination address");
 	success &= assert_equals_u16(L3PROTO_IPV4, outgoing.l3_proto, "Layer-3 protocol");
-	success &= assert_equals_u8(proto, outgoing.l4_proto, "Layer-4 protocol");
+	success &= assert_equals_u8(l4_proto, outgoing.l4_proto, "Layer-4 protocol");
 
 	return success;
 }
@@ -153,9 +153,9 @@ static bool test_4to6(l4_protocol l4_proto)
 	incoming.src.l4_id = 123; /* Whatever */
 	incoming.dst.l4_id = 80; /* Lookup will use this. */
 	incoming.l3_proto = L3PROTO_IPV4;
-	incoming.l4_proto = proto;
+	incoming.l4_proto = l4_proto;
 
-	if (proto != L4PROTO_ICMP) {
+	if (l4_proto != L4PROTO_ICMP) {
 		success &= assert_true(tuple5(&incoming, &outgoing), "Function call");
 		success &= assert_equals_u16(123, outgoing.src.l4_id, "Source port");
 		success &= assert_equals_u16(1500, outgoing.dst.l4_id, "Destination port");
@@ -166,7 +166,7 @@ static bool test_4to6(l4_protocol l4_proto)
 	success &= assert_equals_ipv6(&local_ipv6, &outgoing.src.addr.ipv6, "Source address");
 	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.dst.addr.ipv6, "Destination address");
 	success &= assert_equals_u16(L3PROTO_IPV6, outgoing.l3_proto, "Layer-3 protocol");
-	success &= assert_equals_u8(proto, outgoing.l4_proto, "Layer-4 protocol");
+	success &= assert_equals_u8(l4_proto, outgoing.l4_proto, "Layer-4 protocol");
 
 	return success;
 }

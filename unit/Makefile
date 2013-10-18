@@ -19,10 +19,9 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-#obj-m += $(PKT).o $(PKTDB).o $(INCOMING).o $(OUTGOING).o $(TRANSLATE).o $(SEND).o
+obj-m += $(PKT).o $(PKTDB).o $(SEND).o
+obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o
 # $(HAIRPINNING).o $(SENDFRAGPKT).o
-
-obj-m += $(FILTERING).o
 
 # Packet
 $(PKT)-objs += ../mod/types.o
@@ -61,7 +60,6 @@ $(FILTERING)-objs += ../mod/types.o
 $(FILTERING)-objs += ../mod/str_utils.o
 $(FILTERING)-objs += ../mod/ipv6_hdr_iterator.o
 $(FILTERING)-objs += ../mod/pool6.o
-$(FILTERING)-objs += ../mod/pool4.o
 $(FILTERING)-objs += ../mod/bib.o
 $(FILTERING)-objs += ../mod/session.o
 $(FILTERING)-objs += ../mod/rfc6052.o
@@ -72,6 +70,7 @@ $(FILTERING)-objs += ../mod/send_packet.o
 $(FILTERING)-objs += framework/skb_generator.o
 $(FILTERING)-objs += framework/unit_test.o
 $(FILTERING)-objs += framework/types.o
+$(FILTERING)-objs += framework/impersonator_pool4.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
 # Computing the Outgoing Tuple
@@ -144,18 +143,18 @@ test:
 	#-sudo rmmod bib_session
 	#-sudo insmod iterator.ko
 	#-sudo rmmod iterator
-	#-sudo insmod $(PKT).ko
-	#-sudo rmmod $(PKT)
-	#-sudo insmod $(PKTDB).ko
-	#-sudo rmmod $(PKTDB)
-	#-sudo insmod $(INCOMING).ko
-	#-sudo rmmod $(INCOMING)
-	-sudo insmod filtering.ko
-	-sudo rmmod filtering
-	#-sudo insmod $(OUTGOING).ko
-	#-sudo rmmod $(OUTGOING)
-	#-sudo insmod $(TRANSLATE).ko
-	#-sudo rmmod $(TRANSLATE)
+	-sudo insmod $(PKT).ko
+	-sudo rmmod $(PKT)
+	-sudo insmod $(PKTDB).ko
+	-sudo rmmod $(PKTDB)
+	-sudo insmod $(INCOMING).ko
+	-sudo rmmod $(INCOMING)
+	-sudo insmod $(FILTERING).ko
+	-sudo rmmod $(FILTERING)
+	-sudo insmod $(OUTGOING).ko
+	-sudo rmmod $(OUTGOING)
+	-sudo insmod $(TRANSLATE).ko
+	-sudo rmmod $(TRANSLATE)
 	#-sudo insmod $(HAIRPINNING).ko
 	#-sudo rmmod $(HAIRPINNING)
 	#-sudo insmod $(SENDFRAGPKT).ko

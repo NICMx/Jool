@@ -1,10 +1,11 @@
 #include "nat64/mod/pool4.h"
+#include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 #include "nat64/comm/str_utils.h"
 
 #include <linux/kernel.h>
 
-#define ADDRESS "2.2.2.2"
+//#define ADDRESS "2.2.2.2"
 
 static struct in_addr pool_address;
 static u32 pool_current_udp_port = 1024;
@@ -13,8 +14,13 @@ static u32 pool_current_icmp_id = 1024;
 
 int pool4_init(char *addr_strs[], int addr_count)
 {
-	if (str_to_addr4(ADDRESS, &pool_address) != 0) {
-		log_warning("Cannot parse '%s' as a IPv4 address.", ADDRESS);
+	char *defaults[] = POOL4_DEF;
+
+	if (!addr_strs)
+		addr_strs = defaults;
+
+	if (str_to_addr4(addr_strs[0], &pool_address) != 0) {
+		log_warning("Cannot parse '%s' as a IPv4 address.", addr_strs[0]);
 		return -EINVAL;
 	}
 
@@ -41,7 +47,7 @@ bool pool4_get_any(enum l4_protocol l4_proto, __be16 port, struct ipv4_tuple_add
 	u32 *port_counter;
 
 	result->address = pool_address;
-	switch (l4protocol) {
+	switch (l4_proto) {
 	case L4PROTO_UDP:
 		port_counter = &pool_current_udp_port;
 		break;
@@ -52,7 +58,7 @@ bool pool4_get_any(enum l4_protocol l4_proto, __be16 port, struct ipv4_tuple_add
 		port_counter = &pool_current_icmp_id;
 		break;
 	default:
-		log_warning("Unknown l4 protocol: %d.", l4protocol);
+		log_warning("Unknown l4 protocol: %d.", l4_proto);
 		return false;
 	}
 
@@ -67,7 +73,7 @@ bool pool4_get_any(enum l4_protocol l4_proto, __be16 port, struct ipv4_tuple_add
 	return true;
 }
 
-bool pool4_get_similar(enum l4_proto, struct ipv4_tuple_address *address,
+bool pool4_get_similar(l4_protocol l4_proto, struct ipv4_tuple_address *address,
 		struct ipv4_tuple_address *result)
 {
 	if (!address) {
@@ -80,17 +86,16 @@ bool pool4_get_similar(enum l4_proto, struct ipv4_tuple_address *address,
 		return false;
 	}
 
-	return pool4_get_any(l4protocol, address->l4_id, result);
-
+	return pool4_get_any(l4_proto, address->l4_id, result);
 }
 
-bool pool4_get(enum l4_proto, struct ipv4_tuple_address *address)
+bool pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *address)
 {
 	log_warning("pool_get() is not implemented for testing.");
 	return false;
 }
 
-bool pool4_return(enum l4_proto, struct ipv4_tuple_address *address)
+bool pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address)
 {
 	/* Meh, whatever. */
 	log_debug("Somebody returned %pI4#%u to the pool.", &address->address, address->l4_id);
