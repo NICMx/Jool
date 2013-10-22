@@ -2,7 +2,6 @@
 #define _NF_NAT64_PACKET_H
 
 #include <linux/skbuff.h>
-#include <linux/netfilter.h>
 #include <linux/list.h>
 #include <linux/ip.h>
 #include <net/ip.h>
@@ -153,32 +152,6 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
 	return cpu_to_be16(result);
 }
 
-
-/* TODO Why doesn't this belong to types? */
-typedef enum verdict {
-	/** No problems thus far, processing of the packet can continue. */
-	VER_CONTINUE = -1,
-	/** Packet is not meant for translation. Please hand it to the local host. */
-	VER_ACCEPT = NF_ACCEPT,
-	/** Packet is invalid and should be dropped. */
-	VER_DROP = NF_DROP,
-	/*
-	 * Packet is a fragment, and I need more information to be able to translate it, so I'll keep
-	 * it for a while.
-	 */
-	VER_STOLEN = NF_STOLEN,
-} verdict;
-
-/*
-typedef struct verdict {
-	int lol;
-} *verdict;
-
-#define VER_CONTINUE NULL
-#define VER_ACCEPT NULL
-#define VER_DROP NULL
-#define VER_STOLEN NULL
-*/
 
 /*	---------------
 	-- Fragments --

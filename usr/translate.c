@@ -32,6 +32,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			printf("%u\n", plateaus[i]);
 	}
 
+	printf("Minimum IPv6 MTU (%s): %u\n", MIN_IPV6_MTU_OPT,
+			conf->min_ipv6_mtu);
 	printf("Packet reserved head room (%s): %u\n", SKB_HEAD_ROOM_OPT,
 			conf->skb_head_room);
 	printf("Packet reserved tail room (%s): %u\n", SKB_TAIL_ROOM_OPT,

@@ -51,6 +51,7 @@ enum config_operation {
 	#define BUILD_IPV4_ID_MASK		(1 << 6)
 	#define LOWER_MTU_FAIL_MASK		(1 << 7)
 	#define MTU_PLATEAUS_MASK		(1 << 8)
+	#define MIN_IPV6_MTU_MASK		(1 << 9)
 
 	#define DROP_BY_ADDR_MASK		(1 << 0)
 	#define DROP_ICMP6_INFO_MASK	(1 << 1)
@@ -186,7 +187,10 @@ struct translate_config {
 	 */
 	__u16 *mtu_plateaus;
 
-	/** TODO make configurable. */
+	/**
+	 * The smallest MTU in the IPv6 side. Jool will ensure that packets traveling from 4 to 6 will
+	 * be no bigger than this amount of bytes.
+	 */
 	__u16 min_ipv6_mtu;
 };
 

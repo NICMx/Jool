@@ -1,5 +1,4 @@
 #include "nat64/mod/bib.h"
-#include "nat64/comm/types.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>

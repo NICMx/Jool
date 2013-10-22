@@ -126,6 +126,8 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		config.mtu_plateau_count = new_config->mtu_plateau_count;
 		memcpy(config.mtu_plateaus, new_config->mtu_plateaus, new_mtus_len);
 	}
+	if (operation & MIN_IPV6_MTU_MASK)
+		config.min_ipv6_mtu = new_config->min_ipv6_mtu;
 
 	spin_unlock_bh(&config_lock);
 	return 0;

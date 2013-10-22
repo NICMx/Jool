@@ -21,6 +21,7 @@
 	#include <stdbool.h>
 	#include <arpa/inet.h>
 #endif
+#include <linux/netfilter.h>
 #include "nat64/comm/nat64.h"
 
 
@@ -115,6 +116,20 @@ enum error_code {
 	ERR_ROUTE_FAILED = 4500,
 	ERR_SEND_FAILED = 4501,
 };
+
+typedef enum verdict {
+	/** No problems thus far, processing of the packet can continue. */
+	VER_CONTINUE = -1,
+	/** Packet is not meant for translation. Please hand it to the local host. */
+	VER_ACCEPT = NF_ACCEPT,
+	/** Packet is invalid and should be dropped. */
+	VER_DROP = NF_DROP,
+	/*
+	 * Packet is a fragment, and I need more information to be able to translate it, so I'll keep
+	 * it for a while.
+	 */
+	VER_STOLEN = NF_STOLEN,
+} verdict;
 
 typedef enum l3_protocol {
 	L3PROTO_IPV6 = 0,

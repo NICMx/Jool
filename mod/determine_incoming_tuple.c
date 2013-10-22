@@ -53,7 +53,7 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 	struct iphdr *inner_ipv4 = (struct iphdr *) (hdr_icmp + 1);
 	struct udphdr *inner_udp;
 	struct tcphdr *inner_tcp;
-	/* struct icmphdr *inner_icmp; */
+	struct icmphdr *inner_icmp;
 
 	tuple->src.addr.ipv4.s_addr = inner_ipv4->daddr;
 	tuple->dst.addr.ipv4.s_addr = inner_ipv4->saddr;
@@ -74,10 +74,6 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 		break;
 
 	case IPPROTO_ICMP:
-		/* We're not supporting ICMP inside ICMP yet. */
-		return VER_DROP;
-
-		/*
 		inner_icmp = ipv4_extract_l4_hdr(inner_ipv4);
 
 		if (is_icmp4_error(inner_icmp->type))
@@ -87,7 +83,6 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 		tuple->dst.l4_id = tuple->src.l4_id;
 		tuple->l4_proto = L4PROTO_ICMP;
 		break;
-		*/
 
 	default:
 		log_warning("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
@@ -138,7 +133,7 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ipv6);
 	struct udphdr *inner_udp;
 	struct tcphdr *inner_tcp;
-	/* struct icmp6hdr *inner_icmp; */
+	struct icmp6hdr *inner_icmp;
 
 	tuple->src.addr.ipv6 = inner_ipv6->daddr;
 	tuple->dst.addr.ipv6 = inner_ipv6->saddr;
@@ -160,10 +155,6 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 		break;
 
 	case NEXTHDR_ICMP:
-		/* We're not supporting ICMP inside ICMP yet. */
-		return VER_DROP;
-
-		/*
 		inner_icmp = iterator.data;
 
 		if (is_icmp6_error(inner_icmp->icmp6_type))
@@ -173,7 +164,6 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 		tuple->dst.l4_id = tuple->src.l4_id;
 		tuple->l4_proto = L4PROTO_ICMP;
 		break;
-		*/
 
 	default:
 		log_warning("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
@@ -191,16 +181,13 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple)
 	struct ipv6hdr *hdr6;
 	struct icmphdr *icmp4;
 	struct icmp6hdr *icmp6;
-	struct hdr_iterator iterator;
-	struct sk_buff *skb;
 	verdict result;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
 
-	skb = pkt->first_fragment->skb;
 	switch (pkt_get_l3proto(pkt)) {
 	case L3PROTO_IPV4:
-		hdr4 = ip_hdr(skb);
+		hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
 		switch (pkt_get_l4proto(pkt)) {
 		case L4PROTO_UDP:
 			result = ipv4_udp(hdr4, ipv4_extract_l4_hdr(hdr4), tuple);
@@ -217,32 +204,30 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple)
 			break;
 		default:
 			log_info("Unsupported transport protocol for IPv4: %d.", hdr4->protocol);
-			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
+			icmp_send(pkt->first_fragment->skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
 			result = VER_DROP;
 		}
 		break;
 
 	case L3PROTO_IPV6:
-		hdr6 = ipv6_hdr(skb);
-		hdr_iterator_init(&iterator, hdr6);
-		hdr_iterator_last(&iterator);
+		hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
 		switch (pkt_get_l4proto(pkt)) {
 		case L4PROTO_UDP:
-			result = ipv6_udp(hdr6, iterator.data, tuple);
+			result = ipv6_udp(hdr6, frag_get_udp_hdr(pkt->first_fragment), tuple);
 			break;
 		case L4PROTO_TCP:
-			result = ipv6_tcp(hdr6, iterator.data, tuple);
+			result = ipv6_tcp(hdr6, frag_get_tcp_hdr(pkt->first_fragment), tuple);
 			break;
 		case L4PROTO_ICMP:
-			icmp6 = iterator.data;
+			icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
 			if (is_icmp6_info(icmp6->icmp6_type))
 				result = ipv6_icmp_info(hdr6, icmp6, tuple);
 			else
 				result = ipv6_icmp_err(hdr6, icmp6, tuple);
 			break;
 		default:
-			log_info("Unsupported transport protocol for IPv6: %d.", iterator.hdr_type);
-			icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
+			log_info("Unsupported transport protocol for IPv6: %d.", pkt_get_l4proto(pkt));
+			icmpv6_send(pkt->first_fragment->skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 			result = VER_DROP;
 		}
 		break;

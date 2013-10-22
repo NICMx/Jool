@@ -114,6 +114,7 @@ enum argp_flags {
 	ARGP_BUILD_ID = 4006,
 	ARGP_LOWER_MTU_FAIL = 4007,
 	ARGP_PLATEAUS = 4010,
+	ARGP_MIN_IPV6_MTU = 4011,
 
 	/* Fragmentation */
 	ARGP_FRAG_TO = 5000,
@@ -222,6 +223,7 @@ static struct argp_option options[] =
 	{ BUILD_IPV4_ID_OPT,	ARGP_BUILD_ID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
 	{ LOWER_MTU_FAIL_OPT,	ARGP_LOWER_MTU_FAIL,BOOL_FORMAT, 0, "Decrease MTU failure rate." },
 	{ MTU_PLATEAUS_OPT,		ARGP_PLATEAUS,		NUM_ARR_FORMAT,0, "MTU plateaus." },
+	{ MIN_IPV6_MTU_OPT,		ARGP_MIN_IPV6_MTU,	NUM_FORMAT, 0, "Minimum IPv6 MTU." },
 
 	{ 0, 0, 0, 0, "'Fragmentation' options:", 40 },
 	{ "fragmentation",			ARGP_FRAGMENTATION,		0, 0,
@@ -393,6 +395,11 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->operation |= MTU_PLATEAUS_MASK;
 		error = str_to_u16_array(arg, &arguments->translate.mtu_plateaus,
 				&arguments->translate.mtu_plateau_count);
+		break;
+	case ARGP_MIN_IPV6_MTU:
+		arguments->mode = MODE_TRANSLATE;
+		arguments->operation |= MIN_IPV6_MTU_MASK;
+		error = str_to_u16(arg, &arguments->translate.min_ipv6_mtu, 1280, 65535);
 		break;
 
 	case ARGP_FRAG_TO:
