@@ -68,7 +68,7 @@ static inline __be32 build_id_field(struct iphdr *ip4_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet().
  */
-static enum verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct iphdr *ip4_hdr = frag_get_ipv4_hdr(in);
 	struct ipv6hdr *ip6_hdr;
@@ -146,7 +146,7 @@ static enum verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, st
 /**
  * Sets the Payload Length field from out's IPv6 header.
  */
-static enum verdict post_ipv6(struct fragment *out)
+static verdict post_ipv6(struct fragment *out)
 {
 	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(out);
 	__u16 l3_hdr_len = out->l3_hdr.len - sizeof(struct ipv6hdr);
@@ -225,7 +225,7 @@ static bool icmp4_has_inner_packet(__u8 icmp_type)
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to ICMPv6.
  */
-static enum verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment *out,
+static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment *out,
 		__u16 tot_len_field)
 {
 	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
@@ -294,7 +294,7 @@ static enum verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct frag
 /**
  * One-liner for translating "Parameter Problem" messages from ICMPv4 to ICMPv6.
  */
-static enum verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr)
+static verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr *icmpv6_hdr)
 {
 	icmpv6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 
@@ -333,10 +333,10 @@ static enum verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment *in,
+static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment *in,
 		struct fragment *out)
 {
-	enum verdict result;
+	verdict result;
 	struct icmphdr *icmpv4_hdr;
 	struct icmp6hdr *icmpv6_hdr;
 
@@ -420,7 +420,7 @@ static enum verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fra
 /**
  * Sets the Checksum field from out's ICMPv6 header.
  */
-static enum verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct ipv6hdr *ip6_hdr;
 	struct icmp6hdr *icmpv6_hdr;
@@ -475,7 +475,7 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static enum verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct iphdr *in_ip4 = frag_get_ipv4_hdr(in);
 	struct tcphdr *in_tcp = frag_get_tcp_hdr(in);
@@ -494,7 +494,7 @@ static enum verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, stru
 /**
  * Sets the Length and Checksum fields from out's UDP header.
  */
-static enum verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct iphdr *in_ip4 = frag_get_ipv4_hdr(in);
 	struct udphdr *in_udp = frag_get_udp_hdr(in);
@@ -533,13 +533,13 @@ static l4_protocol protocol_to_l4proto(u8 protocol)
 /**
  * Sets out_outer.payload.*.
  */
-enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
+verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
 	struct fragment in_inner;
 	struct fragment *out_inner;
 	struct iphdr *hdr4;
-	enum verdict result;
+	verdict result;
 
 	log_debug("Translating the inner packet (4->6)...");
 

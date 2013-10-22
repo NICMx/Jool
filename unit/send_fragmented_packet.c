@@ -16,8 +16,8 @@
 #include "nat64/comm/str_utils.h"
 #include "nat64/comm/constants.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
-#include "nat64/mod/send_packet.h" // TODO: The new version generates 'the panic',
-//#include "nat64/mod/send_packet_old.h" // use old instead.
+#include "nat64/mod/send_packet.h"
+/* *#include "nat64/mod/send_packet_old.h" */
 #include "nat64/mod/packet_db.h"
 
 #define GENERATE_FOR_EACH true
@@ -29,10 +29,32 @@ MODULE_AUTHOR("Roberto Aceves");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Packet database test");
 
-#define REMOTE_ADDR "192.168.1.1"
-#define REMOTE_PORT	5000
-#define LOCAL_ADDR "192.168.1.3"
-#define LOCAL_PORT 5000
+#define DST_ADDR "10.2.18.230"
+#define DST_PORT 80
+#define SRC_ADDR "192.168.1.3"
+#define SRC_PORT 5000
+
+static bool send_packet(struct sk_buff *skb)
+{
+	struct dst_entry *dst;
+	int error;
+
+	dst = route_ipv4(ip_hdr(skb), udp_hdr(skb), L4PROTO_UDP, 0);
+	if (!dst)
+		return false;
+	skb->dev = dst->dev;
+	skb_dst_set(skb, dst);
+
+	error = ip_local_out(skb);
+	if (error) {
+		log_err(ERR_SEND_FAILED, "The kernel's packet dispatch function returned errcode %d. "
+				"Cannot send packet.", -error);
+		return false;
+	}
+
+	return true;
+}
+
 /**
  *
  */
@@ -43,7 +65,7 @@ static bool test_send_ipv4_fragment_first(void)
 	struct ipv4_pair pair4;
 	int error;
 
-	error = init_pair4(&pair4, REMOTE_ADDR, REMOTE_PORT, LOCAL_ADDR, LOCAL_PORT);
+	error = init_pair4(&pair4, SRC_ADDR, SRC_PORT, DST_ADDR, DST_PORT);
 	if (error)
 		return false;
 
@@ -58,7 +80,7 @@ static bool test_send_ipv4_fragment_first(void)
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	/* Actually send the packet */
-	return send_packet_ipv4(NULL, skb1);
+	return send_packet(skb1);
 }
 
 static bool test_send_ipv4_fragment_middle(void)
@@ -68,7 +90,7 @@ static bool test_send_ipv4_fragment_middle(void)
 	struct ipv4_pair pair4;
 	int error;
 
-	error = init_pair4(&pair4, REMOTE_ADDR, REMOTE_PORT, LOCAL_ADDR, LOCAL_PORT);
+	error = init_pair4(&pair4, SRC_ADDR, SRC_PORT, DST_ADDR, DST_PORT);
 	if (error)
 		return false;
 
@@ -83,7 +105,7 @@ static bool test_send_ipv4_fragment_middle(void)
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	/* Actually send the packet */
-	return send_packet_ipv4(NULL, skb1);
+	return send_packet(skb1);
 }
 
 static bool test_send_ipv4_fragment_last(void)
@@ -93,7 +115,7 @@ static bool test_send_ipv4_fragment_last(void)
 	struct ipv4_pair pair4;
 	int error;
 
-	error = init_pair4(&pair4, REMOTE_ADDR, REMOTE_PORT, LOCAL_ADDR, LOCAL_PORT);
+	error = init_pair4(&pair4, SRC_ADDR, SRC_PORT, DST_ADDR, DST_PORT);
 	if (error)
 		return false;
 
@@ -108,7 +130,7 @@ static bool test_send_ipv4_fragment_last(void)
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	/* Actually send the packet */
-	return send_packet_ipv4(NULL, skb1);
+	return send_packet(skb1);
 }
 
 int init_module(void)

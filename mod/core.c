@@ -22,47 +22,36 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	struct packet pkt_out;
 	struct tuple tuple_in;
 	struct tuple tuple_out;
-	enum verdict result;
+	verdict result;
 
 	result = pkt_from_skb(skb_in, &pkt_in);
 	if (result != VER_CONTINUE)
-		return result;
+		return (unsigned int) result;
 
 	memset(&pkt_out, 0, sizeof(pkt_out));
+	INIT_LIST_HEAD(&pkt_out.fragments);
 
-	/*
-	if (!determine_in_tuple(skb_in, &tuple_in))
-		goto free_and_fail;
-	*/
-	/*
-	if (filtering_and_updating(skb_in, &tuple_in) != NF_ACCEPT)
-		goto free_and_fail;
-	*/
-	result = compute_out_tuple(&tuple_in, pkt_in, &tuple_out);
-	if (result != VER_CONTINUE)
+	if (determine_in_tuple(pkt_in, &tuple_in) != VER_CONTINUE)
 		goto fail;
-	result = translating_the_packet(&tuple_out, pkt_in, &pkt_out);
-	if (result != VER_CONTINUE)
+	if (filtering_and_updating(pkt_in, &tuple_in) != VER_CONTINUE)
 		goto fail;
-	if (is_hairpin(&tuple_out)) {
-		/*
-		if (!handling_hairpinning(skb_out, &tuple_out))
-			goto free_and_fail;
-		*/
-	} else {
-		result = send_pkt(&pkt_out);
-		if (result != VER_CONTINUE)
-			goto fail;
-	}
+	if (compute_out_tuple(&tuple_in, pkt_in, &tuple_out) != VER_CONTINUE)
+		goto fail;
+	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
+		goto fail;
+
+	if (is_hairpin(&tuple_out))
+		handling_hairpinning(&pkt_out, &tuple_out);
+	else
+		send_pkt(&pkt_out);
 
 	log_debug("Success.");
-	return NF_DROP; /* Lol, the irony. */
+	/* Fall through. */
 
 fail:
 	pkt_kfree(pkt_in, true);
 	pkt_kfree(&pkt_out, false);
-	log_debug("Failure.");
-	return result;
+	return (unsigned int) VER_STOLEN;
 }
 
 /**

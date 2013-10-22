@@ -22,7 +22,7 @@
 /**
  * Socket the userspace application will speak to.
  */
-struct sock *nl_socket;
+static struct sock *nl_socket;
 
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
@@ -234,7 +234,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_us.ipv6 = entry->ipv6;
 	entry_us.ipv4 = entry->ipv4;
 	entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies);
-	entry_us.l4_proto = entry->l4proto;
+	entry_us.l4_proto = entry->l4_proto;
 
 	stream_write(stream, &entry_us, sizeof(entry_us));
 	return 0;

@@ -42,7 +42,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l
  * Note that this function inherits from ip_local_out() and ip6_local_out() the annoying side
  * effect of freeing the skbs, EVEN IF THEY COULD NOT BE SENT.
  */
-enum verdict send_pkt(struct packet *pkt);
+verdict send_pkt(struct packet *pkt);
 
 
 #endif /* _NF_NAT64_SEND_PACKET_H */

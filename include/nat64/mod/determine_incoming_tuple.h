@@ -23,8 +23,7 @@
  * @param tuple this function will initialize *tuple as a pointer to conntrack's tuple for skb.
  * @return "true" if the tuple could be created, "false" otherwise.
  */
-//bool determine_in_tuple(struct sk_buff *skb, struct tuple *tuple);
-bool determine_in_tuple(struct packet *pkt, struct tuple *tuple);
+verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple);
 
 
 #endif /* _NF_NAT64_DETERMINE_INCOMING_TUPLE_H */

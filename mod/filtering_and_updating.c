@@ -617,7 +617,7 @@ static inline void apply_policies(void)
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static enum verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
+static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -734,7 +734,7 @@ bib_failure:
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static enum verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
+static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -748,7 +748,6 @@ static enum verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	 * what should be sent.
 	 */
 	int icmp_error = -1;
-
 	/* Pack source address into transport address */
 	transport_address_ipv4(tuple->dst.addr.ipv4, tuple->dst.l4_id, &destination);
 
@@ -839,7 +838,7 @@ failure:
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static enum verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
+static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -966,7 +965,7 @@ bib_failure:
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static enum verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
+static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -1470,7 +1469,7 @@ static bool tcp_trans_state_handle(struct fragment *frag, struct session_entry *
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static enum verdict tcp(struct fragment* frag, struct tuple *tuple)
+static verdict tcp(struct fragment* frag, struct tuple *tuple)
 {
 	struct session_entry *session;
 	bool result;
@@ -1650,12 +1649,12 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
  * @param[in] tuple packet's summary.
  * @return indicator of what should happen to pkt.
  */
-enum verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
+verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
 {
 	struct fragment *frag = pkt->first_fragment;
 	struct icmp6hdr *hdr_icmp6;
 	struct icmphdr *hdr_icmp4;
-	enum verdict result = VER_CONTINUE;
+	verdict result = VER_CONTINUE;
 
 	log_debug("Step 2: Filtering and Updating");
 

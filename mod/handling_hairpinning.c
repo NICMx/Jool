@@ -12,36 +12,39 @@ bool is_hairpin(struct tuple *outgoing)
 	return (outgoing->l3_proto == L3PROTO_IPV4) && pool4_contains(&outgoing->dst.addr.ipv4);
 }
 
-bool handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
+verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 {
-//	struct packet *pkt_out;
-//	struct tuple tuple_out;
+	struct packet pkt_out;
+	struct tuple tuple_out;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
 	if (tuple_in->l4_proto == L4PROTO_ICMP) {
 		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
 		log_warning("ICMP is NOT supported by hairpinning. Dropping packet...");
-		goto free_and_fail;
+		goto fail;
 	}
 
-//	FIXME
-//	if (filtering_and_updating(pkt_in, tuple_in) != NF_ACCEPT)
-//		goto free_and_fail;
-//	if (!compute_out_tuple_4to6(tuple_in, pkt_in, &tuple_out))
-//		goto free_and_fail;
-//	if (!translating_the_packet_4to6(&tuple_out, pkt_in, &pkt_out))
-//		goto free_and_fail;
-//	if (!send_packet_ipv6(pkt_in, pkt_out))
-//		goto fail;
+	memset(&pkt_out, 0, sizeof(pkt_out));
+	INIT_LIST_HEAD(&pkt_out.fragments);
 
+	if (filtering_and_updating(pkt_in, tuple_in) != VER_CONTINUE)
+		goto fail;
+	if (compute_out_tuple(tuple_in, pkt_in, &tuple_out) != VER_CONTINUE)
+		goto fail;
+	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
+		goto free_and_fail;
+	if (send_pkt(&pkt_out) != VER_CONTINUE)
+		goto free_and_fail;
+
+	pkt_kfree(&pkt_out, false);
 	log_debug("Done step 5.");
-	return true;
+	return VER_CONTINUE;
 
 free_and_fail:
-//	pkt_kfree(pkt_out, true);
+	pkt_kfree(&pkt_out, false);
 	/* Fall through. */
 
-//fail:
-	return false;
+fail:
+	return VER_DROP;
 }

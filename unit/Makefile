@@ -1,6 +1,6 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
-EXTRA_CFLAGS += -DDEBUG
+EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
 # If it cannot compile, install sparse or comment this line.
 CC=cgcc
 
@@ -19,9 +19,8 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += $(PKT).o $(PKTDB).o $(SEND).o
-obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o
-# $(HAIRPINNING).o $(SENDFRAGPKT).o
+obj-m += $(PKT).o $(PKTDB).o $(SEND).o $(SENDFRAGPKT).o
+obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o $(HAIRPINNING).o
 
 # Packet
 $(PKT)-objs += ../mod/types.o
@@ -101,12 +100,26 @@ $(TRANSLATE)-objs += translate_packet_test.o
 $(HAIRPINNING)-objs += ../mod/types.o
 $(HAIRPINNING)-objs += ../mod/str_utils.o
 $(HAIRPINNING)-objs += ../mod/ipv6_hdr_iterator.o
+$(HAIRPINNING)-objs += ../mod/random.o
+$(HAIRPINNING)-objs += ../mod/rfc6052.o
+$(HAIRPINNING)-objs += ../mod/out_stream.o
 $(HAIRPINNING)-objs += ../mod/packet.o
+$(HAIRPINNING)-objs += ../mod/packet_db.o
+$(HAIRPINNING)-objs += ../mod/pool6.o
+$(HAIRPINNING)-objs += ../mod/bib.o
+$(HAIRPINNING)-objs += ../mod/session.o
+$(HAIRPINNING)-objs += ../mod/determine_incoming_tuple.o
+$(HAIRPINNING)-objs += ../mod/filtering_and_updating.o
+$(HAIRPINNING)-objs += ../mod/compute_outgoing_tuple.o
+$(HAIRPINNING)-objs += ../mod/translate_packet.o
+$(HAIRPINNING)-objs += ../mod/handling_hairpinning.o
+$(HAIRPINNING)-objs += ../mod/core.o
 $(HAIRPINNING)-objs += framework/unit_test.o
 $(HAIRPINNING)-objs += framework/skb_generator.o
-$(HAIRPINNING)-objs += framework/validator.o
 $(HAIRPINNING)-objs += framework/types.o
-$(HAIRPINNING)-objs += ../mod/packet_db.o
+$(HAIRPINNING)-objs += framework/bib_session_helper.o
+$(HAIRPINNING)-objs += framework/impersonator_pool4.o
+$(HAIRPINNING)-objs += framework/impersonator_send_packet.o
 $(HAIRPINNING)-objs += handling_hairpinning_test.o
 
 # Send packet (does not have a unit test, so just make sure it compiles.)
@@ -155,8 +168,8 @@ test:
 	-sudo rmmod $(OUTGOING)
 	-sudo insmod $(TRANSLATE).ko
 	-sudo rmmod $(TRANSLATE)
-	#-sudo insmod $(HAIRPINNING).ko
-	#-sudo rmmod $(HAIRPINNING)
+	-sudo insmod $(HAIRPINNING).ko
+	-sudo rmmod $(HAIRPINNING)
 	#-sudo insmod $(SENDFRAGPKT).ko
 	#-sudo rmmod $(SENDFRAGPKT)
 	dmesg | grep 'Finished.'

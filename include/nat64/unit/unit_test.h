@@ -4,8 +4,7 @@
 #include "nat64/comm/types.h"
 
 
-/* TODO this is a hack; remove it. */
-#define UNIT_TESTING 1
+/* TODO UNIT_TESTING is a hack; remove it. */
 
 bool assert_true(bool condition, char *test_name);
 bool assert_equals_int(int expected, int actual, char *test_name);

@@ -29,7 +29,7 @@ struct translation_steps {
 	 * Its purpose if to set the variables from "out" which are prefixed by "l3_", based on the
  	 * packet described by "in".
 	 */
-	enum verdict (*l3_hdr_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
+	verdict (*l3_hdr_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
 	/**
 	 * The function that will translate the layer-4 header and the
 	 * payload. Layer 4 and payload are combined in a single function due to their strong
@@ -37,7 +37,7 @@ struct translation_steps {
 	 * Its purpose is to set the variables from "out" which are prefixed by "l4_" or "payload",
 	 * based on the packet described by "in".
 	 */
-	enum verdict (*l4_hdr_and_payload_function)(struct tuple *, struct fragment *in, struct fragment *out);
+	verdict (*l4_hdr_and_payload_function)(struct tuple *, struct fragment *in, struct fragment *out);
 	/**
 	 * Post-processing involving the layer 3 header.
 	 * Currently, this function fixes the header's lengths and checksum, which cannot be done in
@@ -47,9 +47,9 @@ struct translation_steps {
 	 * Note, out.l3_hdr, out.l4_hdr and out.payload point to garbage given that the packet has
 	 * already been assembled. When you want to access the headers, use out.packet.
 	 */
-	enum verdict (*l3_post_function)(struct fragment *out);
+	verdict (*l3_post_function)(struct fragment *out);
 	/** Post-processing involving the layer 4 header. See l3_post_function. */
-	enum verdict (*l4_post_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
+	verdict (*l4_post_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
 };
 
 
@@ -60,14 +60,14 @@ void translate_packet_destroy(void);
 int clone_translate_config(struct translate_config *clone);
 int set_translate_config(__u32 operation, struct translate_config *new_config);
 
-enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out);
+verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out);
 
 
-enum verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
+verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer);
-enum verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
+verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer);
-enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
+verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
 		struct translation_steps *steps);
 
 

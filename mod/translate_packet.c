@@ -131,12 +131,12 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 	return 0;
 }
 
-static enum verdict empty(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict empty(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	return VER_CONTINUE;
 }
 
-static enum verdict copy_payload(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict copy_payload(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	out->l4_hdr.proto = L4PROTO_NONE;
 	out->l4_hdr.len = 0;
@@ -154,7 +154,7 @@ static enum verdict copy_payload(struct tuple *tuple, struct fragment *in, struc
  * As such, it just copies the pointers to the original data to the pointers to the new data,
  * instead of populating new data.
  */
-static enum verdict copy_l4_hdr_and_payload(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict copy_l4_hdr_and_payload(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	out->l4_hdr = in->l4_hdr;
 	out->l4_hdr.ptr_needs_kfree = false;
@@ -244,11 +244,10 @@ void translate_packet_destroy(void)
 	spin_unlock_bh(&config_lock);
 }
 
-enum verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
+verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
 		struct translation_steps *steps)
 {
-	enum verdict result;
-
+	verdict result;
 	result = frag_create_empty(out);
 	if (result != VER_CONTINUE)
 		return result;
@@ -302,7 +301,7 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
  * También asume que los siguientes campos de frag->skb están bien seteados: network_header,
  * head, data, tail.
  */
-static enum verdict divide(struct fragment *frag, struct list_head *list)
+static verdict divide(struct fragment *frag, struct list_head *list)
 {
 	unsigned char *current_p;
 	struct sk_buff *new_skb;
@@ -397,11 +396,11 @@ static enum verdict divide(struct fragment *frag, struct list_head *list)
 	return VER_CONTINUE;
 }
 
-static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
+static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		struct list_head *out_list)
 {
 	struct fragment *out;
-	enum verdict result;
+	verdict result;
 	__u16 min_ipv6_mtu;
 
 	/* Translate this single fragment. */
@@ -455,7 +454,7 @@ static enum verdict translate_fragment(struct fragment *in, struct tuple *tuple,
  * Also note: I'm not familiar with all of skb's fields and I feel the documentation is a little
  * lacking, so I'm just fixing what I know.
  */
-static enum verdict post_process(struct packet *out)
+static verdict post_process(struct packet *out)
 {
 #ifndef UNIT_TESTING
 	struct fragment *frag;
@@ -492,14 +491,14 @@ static enum verdict post_process(struct packet *out)
 }
 
 /**
- * It's ONLY responsible for out->fragments.
+ * It's ONLY responsible for out->fragments and out->first_fragment.
  *
  * Assumes that out is already allocated.
  */
-enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out)
+verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out)
 {
 	struct fragment *current_in;
-	enum verdict result;
+	verdict result;
 
 	log_debug("Step 4: Translating the Packet");
 
@@ -509,6 +508,9 @@ enum verdict translating_the_packet(struct tuple *tuple, struct packet *in, stru
 			pkt_kfree(out, false);
 			return result;
 		}
+
+		if (current_in == in->first_fragment)
+			out->first_fragment = container_of(out->fragments.prev, struct fragment, next);
 	}
 
 	result = post_process(out);

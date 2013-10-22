@@ -588,8 +588,7 @@ bool create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4,
 	return success;
 }
 
-bool create_packet_ipv6_udp_fragmented_disordered(struct ipv6_pair *pair6,
-															struct packet **pkt)
+bool create_packet_ipv6_udp_fragmented_disordered(struct ipv6_pair *pair6, struct packet **pkt)
 {
 	struct sk_buff *skb1, *skb2, *skb3;
 	struct ipv6hdr *hdr6;

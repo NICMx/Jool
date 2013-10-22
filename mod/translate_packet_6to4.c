@@ -102,7 +102,7 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet().
  */
-static enum verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct ipv6hdr *ip6_hdr = frag_get_ipv6_hdr(in);
 	struct frag_hdr *ip6_frag_hdr;
@@ -180,7 +180,7 @@ static enum verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, st
 /**
  * Sets the Total Length and Checksum fields from out's IPv4 header.
  */
-static enum verdict post_ipv4(struct fragment *out)
+static verdict post_ipv4(struct fragment *out)
 {
 	struct iphdr *ip4_hdr = frag_get_ipv4_hdr(out);
 
@@ -229,7 +229,7 @@ static bool icmpv6_has_inner_packet(__u8 icmp6_type)
  * One liner for translating the ICMPv6's pointer field to ICMPv4.
  * "Pointer" is a field from "Parameter Problem" ICMP messages.
  */
-static enum verdict icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr,
+static verdict icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr,
 		struct icmphdr *icmpv4_hdr)
 {
 	__u32 icmp6_ptr = be32_to_cpu(icmpv6_hdr->icmp6_dataun.un_data32[0]);
@@ -283,7 +283,7 @@ failure:
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv6 to ICMPv4.
  */
-static enum verdict icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr,
+static verdict icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr,
 		struct icmphdr *icmpv4_hdr)
 {
 	icmpv4_hdr->type = ICMP_DEST_UNREACH;
@@ -316,10 +316,10 @@ static enum verdict icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr,
 /**
  * One-liner for translating "Parameter Problem" messages from ICMPv6 to ICMPv4.
  */
-static enum verdict icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr,
+static verdict icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr,
 		struct icmphdr *icmpv4_hdr)
 {
-	enum verdict result;
+	verdict result;
 
 	switch (icmpv6_hdr->icmp6_code) {
 	case ICMPV6_HDR_FIELD:
@@ -350,10 +350,10 @@ static enum verdict icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr,
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
  * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4()).
  */
-static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment *in,
+static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment *in,
 		struct fragment *out)
 {
-	enum verdict result;
+	verdict result;
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(in);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
@@ -451,7 +451,7 @@ static enum verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fra
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
-static enum verdict post_icmp4(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_icmp4(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct icmphdr *icmp4_hdr = frag_get_icmp4_hdr(out);
 
@@ -500,7 +500,7 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static enum verdict post_tcp_ipv4(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_tcp_ipv4(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(in);
 	struct tcphdr *in_tcp = frag_get_tcp_hdr(in);
@@ -519,7 +519,7 @@ static enum verdict post_tcp_ipv4(struct tuple *tuple, struct fragment *in, stru
 /**
  * Sets the Length and Checksum fields from out's UDP header.
  */
-static enum verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
 	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(in);
 	struct udphdr *in_udp = frag_get_udp_hdr(in);
@@ -582,14 +582,14 @@ static int l4_hdr_len(void *hdr, l3_protocol l3_proto, l4_protocol l4_proto)
 	return -1;
 }
 
-enum verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
+verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
 	struct fragment in_inner;
 	struct fragment *out_inner;
 	struct ipv6hdr *hdr6;
 	struct hdr_iterator iterator;
-	enum verdict result;
+	verdict result;
 	enum hdr_iterator_result iterator_result;
 
 	log_debug("Translating the inner packet (6->4)...");

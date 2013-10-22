@@ -49,7 +49,7 @@ int pktdb_init(void);
  * pkt should point to allocated memory (heap vs stack doesn't matter). It should not be initialized
  * (that's the job of this function).
  */
-enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt);
+verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt);
 
 /**
  * Empties the database, freeing memory. Call during destruction to avoid memory leaks.

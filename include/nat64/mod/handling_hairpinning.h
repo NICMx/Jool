@@ -33,7 +33,7 @@ bool is_hairpin(struct tuple *outgoing);
  * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-bool handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in);
+verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in);
 
 
 #endif /* _NF_NAT64_HANDLING_HARPINNING_H */

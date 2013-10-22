@@ -75,7 +75,7 @@ static int frag_to_key(struct fragment *frag, struct pktdb_key *key)
 		hdr6 = frag_get_ipv6_hdr(frag);
 		hdr_frag = frag_get_fragment_hdr(frag);
 		if (!hdr_frag)
-			return -EINVAL; // Unfragmented packet
+			return -EINVAL; /* Unfragmented packet */
 		key->identifier = hdr_frag->identification;
 		key->is_ipv6 = true;
 		key->ipv6.src = hdr6->saddr;
@@ -89,7 +89,7 @@ static int frag_to_key(struct fragment *frag, struct pktdb_key *key)
 		key->ipv4.dst.s_addr = hdr4->daddr;
 		if ( !is_more_fragments_set_ipv4(hdr4)
 			 && get_fragment_offset_ipv4(hdr4) == 0 )
-			return -EINVAL; // Unfragmented packet
+			return -EINVAL; /* Unfragmented packet */
 		key->identifier = be16_to_cpu(hdr4->id);
 		break;
 
@@ -207,11 +207,11 @@ static int pktdb_put(struct packet *pkt)
 	return 0;
 }
 
-enum verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
+verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 {
 	struct packet *pkt_from_db;
 	struct fragment *frag;
-	enum verdict result;
+	verdict result;
 
 	result = (skb->protocol == htons(ETH_P_IPV6))
 			? frag_create_ipv6(skb, &frag)

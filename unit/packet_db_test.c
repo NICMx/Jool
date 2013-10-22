@@ -56,10 +56,12 @@ static bool validate_packet_ipv6(struct packet *pkt, int fragment_count, u16 tot
 			&& pkt->dying_time < expected_dying_time + 100,
 			"Dying time");
 
-//	success &= assert_equals_int(L4PROTO_UDP, pkt->proto, "L4 protocol");
-//	success &= assert_equals_ipv6_str("1::2", &pkt->addr.ipv6.src, "Source address");
-//	success &= assert_equals_ipv6_str("3::4", &pkt->addr.ipv6.dst, "Destination address");
-//	// TODO: Validate ports also.
+	/*
+	success &= assert_equals_int(L4PROTO_UDP, pkt->proto, "L4 protocol");
+	success &= assert_equals_ipv6_str("1::2", &pkt->addr.ipv6.src, "Source address");
+	success &= assert_equals_ipv6_str("3::4", &pkt->addr.ipv6.dst, "Destination address");
+	TODO: Validate ports also.
+	 */
 
 	success &= assert_true(list_empty(&pkt->pkt_list_node), "Not linked");
 
@@ -203,7 +205,7 @@ static bool test_no_fragments_6to4(void)
 
 	/* Validate the fragment. */
 	frag = container_of(pkt->fragments.next, struct fragment, next);
-	success &= validate_fragment(frag, skb, true); // TODO: This is intended for IPv4.
+	success &= validate_fragment(frag, skb, true); /* TODO: This is intended for IPv4. */
 
 	/* Validate the database. */
 	success &= validate_database(0);
@@ -416,16 +418,16 @@ static bool test_timer(void)
 	int errorx;
 	int count = 0;
 
-	errorx = init_pair4(&pair13, "8.7.6.5", 8765, "5.6.7.8", 5678);	// Pkt_DB(0)
+	errorx = init_pair4(&pair13, "8.7.6.5", 8765, "5.6.7.8", 5678);	/* Pkt_DB(0) */
 	if (errorx)
 		return false;
-	errorx = init_pair4(&pair2, "11.12.13.14", 1112, "14.13.12.11", 1413); // Pkt_DB(1)
+	errorx = init_pair4(&pair2, "11.12.13.14", 1112, "14.13.12.11", 1413); /* Pkt_DB(1) */
 	if (errorx)
 		return false;
-	errorx = init_pair6(&pair46, "1::2", 1212, "3::4", 3434);		// Pkt_DB(2)
+	errorx = init_pair6(&pair46, "1::2", 1212, "3::4", 3434);		/* Pkt_DB(2) */
 	if (errorx)
 		return false;
-	errorx = init_pair6(&pair5, "8::7", 8787, "6::5", 6565);		// Pkt_DB(3)
+	errorx = init_pair6(&pair5, "8::7", 8787, "6::5", 6565);		/* Pkt_DB(3) */
 	if (errorx)
 		return false;
 
@@ -449,7 +451,7 @@ static bool test_timer(void)
 	expected_keys[3].ipv6.dst = pair5.local.address;
 	expected_keys[3].identifier = id1;
 
-	// First packet
+	/* First packet */
 	log_debug("Packet #%d", ++count);
 	errorx = create_skb_ipv4_udp(&pair13, &skb1, 100);
 	if (errorx)
@@ -467,7 +469,7 @@ static bool test_timer(void)
 	success &= validate_database(1);
 	success &= validate_list(&expected_keys[0], 1);
 
-	// Second packet
+	/* Second packet */
 	log_debug("Packet #%d", ++count);
 	errorx = create_skb_ipv4_udp_fragment(&pair2, &skb2, 100);
 	if (errorx)
@@ -485,7 +487,7 @@ static bool test_timer(void)
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);
 
-	// Third packet
+	/* Third packet */
 	log_debug("Packet #%d", ++count);
 	errorx = create_skb_ipv4_udp(&pair13, &skb3, 100);
 	if (errorx)
@@ -503,7 +505,7 @@ static bool test_timer(void)
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);
 
-	// Fourth packet - IPv6
+	/* Fourth packet - IPv6 */
 	log_debug("Packet #%d", ++count);
 	errorx = create_skb_ipv6_udp_fragment_1(&pair46, &skb4, 100);
 	if (errorx)
@@ -521,7 +523,7 @@ static bool test_timer(void)
 	success &= validate_database(3);
 	success &= validate_list(&expected_keys[0], 3);
 
-	// Fifth packet - IPv6
+	/* Fifth packet - IPv6 */
 	log_debug("Packet #%d", ++count);
 	errorx = create_skb_ipv6_udp_fragment_n(&pair5, &skb5, 100);
 	if (errorx)
@@ -539,7 +541,7 @@ static bool test_timer(void)
 	success &= validate_database(4);
 	success &= validate_list(&expected_keys[0], 4);
 
-	// Sixth packet - IPv6
+	/* Sixth packet - IPv6 */
 	log_debug("Packet #%d", ++count);
 	errorx = create_skb_ipv6_udp_fragment_n(&pair46, &skb6, 100);
 	if (errorx)
@@ -557,7 +559,7 @@ static bool test_timer(void)
 	success &= validate_database(4);
 	success &= validate_list(&expected_keys[0], 4);
 
-	// After 2 seconds, the first packet should die.
+	/* After 2 seconds, the first packet should die. */
 	pkt6 = container_of(list.next, struct packet, pkt_list_node);
 	pkt6->dying_time = jiffies_to_msecs(jiffies) - 1;
 	pkt6 = container_of(pkt6->pkt_list_node.next, struct packet, pkt_list_node);
@@ -567,14 +569,14 @@ static bool test_timer(void)
 	success &= validate_database(3);
 	success &= validate_list(&expected_keys[1], 3);
 
-	// After a while, the second packet should die.
+	/* After a while, the second packet should die. */
 	pkt6->dying_time = jiffies_to_msecs(jiffies) - 1;
 
 	success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 4");
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[2], 2);
 
-	// After 2 seconds, the third packet should die.
+	/* After 2 seconds, the third packet should die. */
 	pkt6 = container_of(list.next, struct packet, pkt_list_node);
 	pkt6->dying_time = jiffies_to_msecs(jiffies) - 1;
 	pkt6 = container_of(pkt6->pkt_list_node.next, struct packet, pkt_list_node);
@@ -584,7 +586,7 @@ static bool test_timer(void)
 	success &= validate_database(1);
 	success &= validate_list(&expected_keys[3], 1);
 
-	// After a while, the fourth packet should die.
+	/* After a while, the fourth packet should die. */
 	pkt6->dying_time = jiffies_to_msecs(jiffies) - 1;
 
 	success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 6");

@@ -155,7 +155,7 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
 
 
 /* TODO Why doesn't this belong to types? */
-enum verdict {
+typedef enum verdict {
 	/** No problems thus far, processing of the packet can continue. */
 	VER_CONTINUE = -1,
 	/** Packet is not meant for translation. Please hand it to the local host. */
@@ -167,8 +167,18 @@ enum verdict {
 	 * it for a while.
 	 */
 	VER_STOLEN = NF_STOLEN,
-};
+} verdict;
 
+/*
+typedef struct verdict {
+	int lol;
+} *verdict;
+
+#define VER_CONTINUE NULL
+#define VER_ACCEPT NULL
+#define VER_DROP NULL
+#define VER_STOLEN NULL
+*/
 
 /*	---------------
 	-- Fragments --
@@ -238,16 +248,16 @@ struct fragment {
  * Allocates "frag_out" and initializes it out of "skb".
  * Assumes that "skb" represents a IPv6 packet.
  */
-enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out);
+verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out);
 /**
  * Allocates "frag_out" and initializes it out of "skb".
  * Assumes that "skb" represents a IPv4 packet.
  */
-enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out);
+verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out);
 /** Allocates "out" under the assumption that a skb is going to be created from it. */
-enum verdict frag_create_empty(struct fragment **out);
+verdict frag_create_empty(struct fragment **out);
 /** Collapses all of "frag"'s fields into "frag".skb (i. e. creates a skb out of "frag"). */
-enum verdict frag_create_skb(struct fragment *frag);
+verdict frag_create_skb(struct fragment *frag);
 /** Best-effortlessly prints "frag" on the log. Intended for debugging. */
 void frag_print(struct fragment *frag);
 /** Releases "frag" and its contents from memory. */
@@ -314,8 +324,9 @@ struct packet {
 	/** The fragments this packet is composed of. */
 	struct list_head fragments;
 	/** Quick accesor of the one fragment that contains the layer-4 headers. */
-	/* TODO recordatorio: No hemos seteado esto en el de salida. */
 	struct fragment *first_fragment;
+
+	/* TODO the fields below are only used by packet_db. We should probably move them there. */
 
 	/**
 	 * Number of bytes that have to be collected for the packet to be complete.

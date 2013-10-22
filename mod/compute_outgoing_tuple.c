@@ -4,14 +4,14 @@
 #include "nat64/mod/bib.h"
 
 
-static bool tuple5(struct tuple *in, struct tuple *out)
+static verdict tuple5(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
 
 	if (!pool6_peek(&prefix)) {
 		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty. Cannot translate.");
-		return false;
+		return VER_DROP;
 	}
 
 	spin_lock_bh(&bib_session_lock);
@@ -45,21 +45,21 @@ static bool tuple5(struct tuple *in, struct tuple *out)
 
 	spin_unlock_bh(&bib_session_lock);
 	log_tuple(out);
-	return true;
+	return VER_CONTINUE;
 
 lock_fail:
 	spin_unlock_bh(&bib_session_lock);
-	return false;
+	return VER_DROP;
 }
 
-static bool tuple3(struct tuple *in, struct tuple *out)
+static verdict tuple3(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
 
 	if (!pool6_peek(&prefix)) {
 		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty. Cannot translate.");
-		return false;
+		return VER_DROP;
 	}
 
 	spin_lock_bh(&bib_session_lock);
@@ -93,39 +93,39 @@ static bool tuple3(struct tuple *in, struct tuple *out)
 
 	spin_unlock_bh(&bib_session_lock);
 	log_tuple(out);
-	return true;
+	return VER_CONTINUE;
 
 lock_fail:
 	spin_unlock_bh(&bib_session_lock);
-	return false;
+	return VER_DROP;
 }
 
-bool compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple *out)
+verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple *out)
 {
 	struct icmp6hdr *icmp6;
 	struct icmphdr *icmp4;
-	bool success = false;
+	verdict result = VER_DROP;
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
 	switch (in->l4_proto) {
 	case L4PROTO_TCP:
 	case L4PROTO_UDP:
-		success = tuple5(in, out);
+		result = tuple5(in, out);
 		break;
 
 	case L4PROTO_ICMP:
 		switch (in->l3_proto) {
 		case L3PROTO_IPV6:
 			icmp6 = frag_get_icmp6_hdr(pkt_in->first_fragment);
-			success = is_icmp6_info(icmp6->icmp6_type)
+			result = is_icmp6_info(icmp6->icmp6_type)
 					? tuple3(in, out)
 					: tuple5(in, out);
 			break;
 
 		case L3PROTO_IPV4:
 			icmp4 = frag_get_icmp4_hdr(pkt_in->first_fragment);
-			success = is_icmp4_info(icmp4->type)
+			result = is_icmp4_info(icmp4->type)
 					? tuple3(in, out)
 					: tuple5(in, out);
 			break;
@@ -133,9 +133,9 @@ bool compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple *ou
 
 	default:
 		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_proto);
-		success = false;
+		result = VER_DROP;
 	}
 
 	log_debug("Done step 3.");
-	return success;
+	return result;
 }

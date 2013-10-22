@@ -7,7 +7,7 @@ static int count_bibs(struct bib_entry *bib, void *arg)
 	return 0;
 }
 
-bool bib_assert(int l4_proto, struct bib_entry **expected_bibs)
+bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 {
 	int expected_count = 0;
 	int actual_count = 0;
@@ -47,7 +47,7 @@ static int count_sessions(struct session_entry *session, void *arg)
 	return 0;
 }
 
-bool session_assert(int l4_proto, struct session_entry **expected_sessions)
+bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessions)
 {
 	int expected_count = 0;
 	int actual_count = 0;
@@ -92,7 +92,7 @@ static int print_bibs_aux(struct bib_entry *bib, void *arg)
 	return 0;
 }
 
-int print_bibs(int l4_proto)
+int print_bibs(l4_protocol l4_proto)
 {
 	log_debug("BIB:");
 	return bib_for_each(l4_proto, print_bibs_aux, NULL);
@@ -109,7 +109,7 @@ static int print_sessions_aux(struct session_entry *session, void *arg)
 	return 0;
 }
 
-int print_sessions(int l4_proto)
+int print_sessions(l4_protocol l4_proto)
 {
 	log_debug("Sessions:");
 	return session_for_each(l4_proto, print_sessions_aux, NULL);

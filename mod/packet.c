@@ -38,7 +38,7 @@ unsigned int pktmod_get_fragment_timeout(void)
 	return result;
 }
 
-enum verdict frag_create_empty(struct fragment **out)
+verdict frag_create_empty(struct fragment **out)
 {
 	struct fragment *frag;
 
@@ -53,7 +53,7 @@ enum verdict frag_create_empty(struct fragment **out)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)
+static verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)
 {
 	if (skb->len < l3_hdr_len + MIN_TCP_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic TCP header.");
@@ -63,7 +63,7 @@ static enum verdict validate_lengths_tcp(struct sk_buff *skb, u16 l3_hdr_len)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_lengths_udp(struct sk_buff *skb, u16 l3_hdr_len)
+static verdict validate_lengths_udp(struct sk_buff *skb, u16 l3_hdr_len)
 {
 	if (skb->len < l3_hdr_len + MIN_UDP_HDR_LEN) {
 		log_debug("Packet is too small to contain a UDP header.");
@@ -73,7 +73,7 @@ static enum verdict validate_lengths_udp(struct sk_buff *skb, u16 l3_hdr_len)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_lengths_icmp6(struct sk_buff *skb, u16 l3_hdr_len)
+static verdict validate_lengths_icmp6(struct sk_buff *skb, u16 l3_hdr_len)
 {
 	if (skb->len < l3_hdr_len + MIN_ICMP6_HDR_LEN) {
 		log_debug("Packet is too small to contain a ICMPv6 header.");
@@ -83,7 +83,7 @@ static enum verdict validate_lengths_icmp6(struct sk_buff *skb, u16 l3_hdr_len)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_lengths_icmp4(struct sk_buff *skb, u16 l3_hdr_len)
+static verdict validate_lengths_icmp4(struct sk_buff *skb, u16 l3_hdr_len)
 {
 	if (skb->len < l3_hdr_len + MIN_ICMP4_HDR_LEN) {
 		log_debug("Packet is too small to contain a ICMPv4 header.");
@@ -93,7 +93,7 @@ static enum verdict validate_lengths_icmp4(struct sk_buff *skb, u16 l3_hdr_len)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
+static verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
 {
 	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb);
 	struct icmp6hdr *hdr = icmp6_hdr(skb);
@@ -116,7 +116,7 @@ static enum verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
+static verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
 {
 	struct icmphdr *hdr = icmp_hdr(skb);
 	__sum16 tmp;
@@ -136,7 +136,7 @@ static enum verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
 	return VER_CONTINUE;
 }
 
-static enum verdict validate_ipv6_integrity(struct sk_buff *skb, struct hdr_iterator *iterator)
+static verdict validate_ipv6_integrity(struct sk_buff *skb, struct hdr_iterator *iterator)
 {
 	struct ipv6hdr *ip6_header;
 	enum hdr_iterator_result result;
@@ -177,7 +177,7 @@ static enum verdict validate_ipv6_integrity(struct sk_buff *skb, struct hdr_iter
 	}
 }
 
-static enum verdict init_ipv6_l3_fields(struct fragment *frag, struct hdr_iterator *iterator)
+static verdict init_ipv6_l3_fields(struct fragment *frag, struct hdr_iterator *iterator)
 {
 	struct ipv6hdr *ip6_header = ipv6_hdr(frag->skb);
 
@@ -190,7 +190,7 @@ static enum verdict init_ipv6_l3_fields(struct fragment *frag, struct hdr_iterat
 	return VER_CONTINUE;
 }
 
-static enum verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterator *iterator)
+static verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterator *iterator)
 {
 	struct ipv6hdr *ip6_header;
 	struct frag_hdr *frag_header;
@@ -200,7 +200,7 @@ static enum verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterat
 
 	if (frag_header == NULL || get_fragment_offset_ipv6(frag_header) == 0) {
 		u16 datagram_len = frag->skb->len - frag->l3_hdr.len;
-		enum verdict result;
+		verdict result;
 
 		skb_set_transport_header(frag->skb, iterator->data - (void *) ip6_header);
 
@@ -252,11 +252,11 @@ static enum verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterat
 	return VER_CONTINUE;
 }
 
-enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
+verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 {
 	struct fragment *frag;
 	struct hdr_iterator iterator;
-	enum verdict result;
+	verdict result;
 
 	result = validate_ipv6_integrity(skb, &iterator);
 	if (result != VER_CONTINUE)
@@ -269,17 +269,17 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 	}
 	frag->skb = skb;
 
-	// Layer 3
+	/* Layer 3 */
 	result = init_ipv6_l3_fields(frag, &iterator);
 	if (result != VER_CONTINUE)
 		goto error;
 
-	// Layer 4
+	/* Layer 4 */
 	result = init_ipv6_l4_fields(frag, &iterator);
 	if (result != VER_CONTINUE)
 		goto error;
 
-	// Payload
+	/* Payload */
 	if (frag->l4_hdr.proto == L4PROTO_NONE) {
 		frag->payload.len = iterator.limit - iterator.data;
 		frag->payload.ptr = iterator.data;
@@ -289,7 +289,7 @@ enum verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 	}
 	frag->payload.ptr_needs_kfree = false;
 
-	// List
+	/* List */
 	INIT_LIST_HEAD(&frag->next);
 
 	*frag_out = frag;
@@ -300,7 +300,7 @@ error:
 	return result;
 }
 
-static enum verdict validate_ipv4_integrity(struct sk_buff *skb)
+static verdict validate_ipv4_integrity(struct sk_buff *skb)
 {
 	struct iphdr *ip4_hdr = ip_hdr(skb);
 	u16 ip4_hdr_len;
@@ -334,7 +334,7 @@ static enum verdict validate_ipv4_integrity(struct sk_buff *skb)
 	return VER_CONTINUE;
 }
 
-static enum verdict init_ipv4_l3_hdr(struct fragment *frag)
+static verdict init_ipv4_l3_hdr(struct fragment *frag)
 {
 	struct iphdr *ipv4_header = ip_hdr(frag->skb);
 
@@ -346,11 +346,11 @@ static enum verdict init_ipv4_l3_hdr(struct fragment *frag)
 	return VER_CONTINUE;
 }
 
-static enum verdict init_ipv4_l3_payload(struct fragment *frag)
+static verdict init_ipv4_l3_payload(struct fragment *frag)
 {
 	struct iphdr *ipv4_header = ip_hdr(frag->skb);
 	u16 fragment_offset;
-	enum verdict result;
+	verdict result;
 
 	fragment_offset = get_fragment_offset_ipv4(ipv4_header);
 	if (fragment_offset == 0) {
@@ -408,10 +408,10 @@ static enum verdict init_ipv4_l3_payload(struct fragment *frag)
 	return VER_CONTINUE;
 }
 
-enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
+verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 {
 	struct fragment *frag;
-	enum verdict result;
+	verdict result;
 
 	result = validate_ipv4_integrity(skb);
 	if (result != VER_CONTINUE)
@@ -424,17 +424,17 @@ enum verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
 	}
 	frag->skb = skb;
 
-	// Layer 3
+	/* Layer 3 */
 	result = init_ipv4_l3_hdr(frag);
 	if (result != VER_CONTINUE)
 		goto error;
 
-	// Layer 4, Payload
+	/* Layer 4, Payload */
 	result = init_ipv4_l3_payload(frag);
 	if (result != VER_CONTINUE)
 		goto error;
 
-	// List
+	/* List */
 	INIT_LIST_HEAD(&frag->next);
 
 	*frag_out = frag;
@@ -451,7 +451,7 @@ error:
  *
  * Assumes that frag.skb is NULL (Hence, frag->*.ptr_belongs_to_skb are false).
  */
-enum verdict frag_create_skb(struct fragment *frag)
+verdict frag_create_skb(struct fragment *frag)
 {
 	struct sk_buff *new_skb;
 	__u16 head_room = 0, tail_room = 0;
