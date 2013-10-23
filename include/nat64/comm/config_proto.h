@@ -215,13 +215,12 @@ union request_pool4 {
 		/* Nothing needed there ATM. */
 	} display;
 	struct {
-		__u8 l4_proto;
 		struct in_addr addr;
 	} update;
 };
 
 struct request_bib {
-	__u8 l4_proto;
+	l4_protocol l4_proto;
 	union {
 		struct {
 			/* Nothing needed here. */
@@ -231,7 +230,7 @@ struct request_bib {
 			struct ipv4_tuple_address ipv4;
 		} add;
 		struct {
-			__u16 l3_proto;
+			l3_protocol l3_proto;
 			union {
 				struct ipv6_tuple_address ipv6;
 				struct ipv4_tuple_address ipv4;
@@ -241,7 +240,7 @@ struct request_bib {
 };
 
 struct request_session {
-	__u8 l4_proto;
+	l4_protocol l4_proto;
 };
 
 /*

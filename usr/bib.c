@@ -34,7 +34,7 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-static bool display_single_table(char *table_name, u_int8_t l4_proto)
+static bool display_single_table(char *table_name, l4_protocol l4_proto)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -85,17 +85,17 @@ static int exec_request(bool use_tcp, bool use_udp, bool use_icmp, struct reques
 
 	if (use_tcp) {
 		printf("TCP:\n");
-		payload->l4_proto = IPPROTO_TCP;
+		payload->l4_proto = L4PROTO_TCP;
 		tcp_error = netlink_request(hdr, hdr->length, callback, NULL);
 	}
 	if (use_udp) {
 		printf("UDP:\n");
-		payload->l4_proto = IPPROTO_UDP;
+		payload->l4_proto = L4PROTO_UDP;
 		udp_error = netlink_request(hdr, hdr->length, callback, NULL);
 	}
 	if (use_icmp) {
 		printf("ICMP:\n");
-		payload->l4_proto = IPPROTO_ICMP;
+		payload->l4_proto = L4PROTO_ICMP;
 		icmp_error = netlink_request(hdr, hdr->length, callback, NULL);
 	}
 
@@ -139,7 +139,7 @@ int bib_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_tuple
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_BIB;
 	hdr->operation = OP_REMOVE;
-	payload->remove.l3_proto = PF_INET6;
+	payload->remove.l3_proto = L3PROTO_IPV6;
 	payload->remove.ipv6 = *ipv6;
 
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, bib_remove_response);
@@ -154,7 +154,7 @@ int bib_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ipv4_tuple
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_BIB;
 	hdr->operation = OP_REMOVE;
-	payload->remove.l3_proto = PF_INET;
+	payload->remove.l3_proto = L3PROTO_IPV4;
 	payload->remove.ipv4 = *ipv4;
 
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, bib_remove_response);

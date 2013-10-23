@@ -60,7 +60,7 @@ struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
 
 struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 		int local_id_6, int remote_id_6,
-		struct bib_entry* bib, enum l4_protocol l4_proto, unsigned int dying_time)
+		struct bib_entry* bib, l4_protocol l4_proto, unsigned int dying_time)
 {
 	struct ipv4_pair pair_4 = {
 			.remote = addr4[remote_id_4],
@@ -71,7 +71,7 @@ struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 			.remote = addr6[remote_id_6],
 	};
 
-	struct session_entry* entry = session_create(&pair_4, &pair_6, l4protocol);
+	struct session_entry* entry = session_create(&pair_4, &pair_6, l4_proto);
 	if (!entry)
 		return NULL;
 
@@ -105,12 +105,12 @@ static struct bib_entry *create_and_insert_bib(int ipv4_index, int ipv6_index, i
 }
 
 static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
-		int remote6_id, struct bib_entry* bib, enum l4_protocol l4_proto, unsigned int dying_time)
+		int remote6_id, struct bib_entry* bib, l4_protocol l4_proto, unsigned int dying_time)
 {
 	struct session_entry *result;
 	int error;
 
-	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, bib, l4protocol, dying_time);
+	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, bib, l4_proto, dying_time);
 	if (!result) {
 		log_warning("Could not allocate a session entry.");
 		return NULL;
@@ -186,7 +186,7 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
 bool assert_bib(char* test_name, struct bib_entry* bib,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	enum l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
+	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 
@@ -194,11 +194,11 @@ bool assert_bib(char* test_name, struct bib_entry* bib,
 		struct bib_entry *expected_bib = table_has_it[i] ? bib : NULL;
 		struct bib_entry *retrieved_bib;
 
-		retrieved_bib = bib_get_by_ipv4(&bib->ipv4, l4protocols[i]);
+		retrieved_bib = bib_get_by_ipv4(&bib->ipv4, l4_protos[i]);
 		if (!assert_bib_entry_equals(expected_bib, retrieved_bib, test_name))
 			return false;
 
-		retrieved_bib = bib_get_by_ipv6(&bib->ipv6, l4protocols[i]);
+		retrieved_bib = bib_get_by_ipv6(&bib->ipv6, l4_protos[i]);
 		if (!assert_bib_entry_equals(expected_bib, retrieved_bib, test_name))
 			return false;
 	}
@@ -212,7 +212,7 @@ bool assert_bib(char* test_name, struct bib_entry* bib,
 bool assert_session(char* test_name, struct session_entry* session,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
-	enum l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
+	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
 	int i;
 
@@ -222,11 +222,11 @@ bool assert_session(char* test_name, struct session_entry* session,
 		struct session_entry *expected_session = table_has_it[i] ? session : NULL;
 		struct session_entry *retrieved_session;
 
-		retrieved_session = session_get_by_ipv4(&pair_4, l4protocols[i]);
+		retrieved_session = session_get_by_ipv4(&pair_4, l4_protos[i]);
 		if (!assert_session_entry_equals(expected_session, retrieved_session, test_name))
 			return false;
 
-		retrieved_session = session_get_by_ipv6(&pair_6, l4protocols[i]);
+		retrieved_session = session_get_by_ipv6(&pair_6, l4_protos[i]);
 		if (!assert_session_entry_equals(expected_session, retrieved_session, test_name))
 			return false;
 	}
