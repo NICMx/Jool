@@ -1,4 +1,4 @@
-CC = gcc
+CC = cgcc
 LD = ld
 
 INCDIRS += -Iinclude -I../include

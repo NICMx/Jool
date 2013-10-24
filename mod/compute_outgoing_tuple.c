@@ -130,6 +130,7 @@ verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple 
 					: tuple5(in, out);
 			break;
 		}
+		break;
 
 	default:
 		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_proto);

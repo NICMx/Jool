@@ -90,10 +90,10 @@ int delete_static_route(struct request_bib *req)
 	spin_lock_bh(&bib_session_lock);
 
 	switch (req->remove.l3_proto) {
-	case PF_INET6:
+	case L3PROTO_IPV6:
 		bib = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto);
 		break;
-	case PF_INET:
+	case L3PROTO_IPV4:
 		bib = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto);
 		break;
 	default:

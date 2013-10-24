@@ -67,11 +67,11 @@ int bib_display(bool use_tcp, bool use_udp, bool use_icmp)
 	int icmp_error = 0;
 
 	if (use_tcp)
-		tcp_error = display_single_table("TCP", IPPROTO_TCP);
+		tcp_error = display_single_table("TCP", L4PROTO_TCP);
 	if (use_udp)
-		udp_error = display_single_table("UDP", IPPROTO_UDP);
+		udp_error = display_single_table("UDP", L4PROTO_UDP);
 	if (use_icmp)
-		icmp_error = display_single_table("ICMP", IPPROTO_ICMP);
+		icmp_error = display_single_table("ICMP", L4PROTO_ICMP);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }

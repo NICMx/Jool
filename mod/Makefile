@@ -22,8 +22,8 @@ insert:
 	# prevent martian packets from reaching the module
 	sudo sysctl -w net.ipv4.conf.all.log_martians=1
 	# insert the module
-	sudo insmod nat64.ko
+	sudo insmod jool.ko
 	dmesg | tail -15
 remove:
-	sudo rmmod nat64
+	sudo rmmod jool
 	dmesg | tail -15

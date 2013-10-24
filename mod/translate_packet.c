@@ -482,6 +482,9 @@ static verdict post_process(struct packet *out)
 						skb->mark);
 				break;
 			}
+
+			if (!frag->dst)
+				return VER_DROP;
 		}
 
 		skb->dev = frag->dst->dev;
