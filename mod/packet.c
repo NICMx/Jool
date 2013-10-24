@@ -356,6 +356,8 @@ static verdict init_ipv4_l3_payload(struct fragment *frag)
 	if (fragment_offset == 0) {
 		u16 datagram_len = frag->skb->len - frag->l3_hdr.len;
 
+		skb_set_transport_header(frag->skb, frag->l3_hdr.len);
+
 		switch (ipv4_header->protocol) {
 		case IPPROTO_TCP:
 			result = validate_lengths_tcp(frag->skb, frag->l3_hdr.len);

@@ -145,9 +145,9 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_
 	flow.flowi4_flags = 0;
 	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
 	/* flow.flowi4_secid; */
-	flow.saddr = hdr_ip->saddr;
+	/* It appears this one only introduces noise. */
+	/* flow.saddr = hdr_ip->saddr; */
 	flow.daddr = hdr_ip->daddr;
-
 
 	{
 		struct udphdr *hdr_udp;
@@ -161,19 +161,16 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_
 			hdr_tcp = l4_hdr;
 			flow.fl4_sport = hdr_tcp->source;
 			flow.fl4_dport = hdr_tcp->dest;
-log_debug("route_ipv4(proto %u): %pI4(%u) --> %pI4(%u)", flow.flowi4_proto, &flow.saddr,flow.fl4_sport, &flow.daddr, flow.fl4_dport); /**/
 			break;
 		case L4PROTO_UDP:
 			hdr_udp = l4_hdr;
 			flow.fl4_sport = hdr_udp->source;
 			flow.fl4_dport = hdr_udp->dest;
-log_debug("route_ipv4(proto %u): %pI4(%u) --> %pI4(%u)", flow.flowi4_proto, &flow.saddr,flow.fl4_sport, &flow.daddr, flow.fl4_dport); /**/
 			break;
 		case L4PROTO_ICMP:
 			hdr_icmp4 = l4_hdr;
 			flow.fl4_icmp_type = hdr_icmp4->type;
 			flow.fl4_icmp_code = hdr_icmp4->code;
-log_debug("route_ipv4(proto %u): %pI4 --> %pI4 ; type: %u , code: %u", flow.flowi4_proto, &flow.saddr, &flow.daddr, hdr_icmp4->type, hdr_icmp4->code); /**/
 			break;
 		}
 	}
