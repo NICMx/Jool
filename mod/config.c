@@ -315,9 +315,14 @@ static int handle_fragmentation_config(struct nlmsghdr *nl_hdr, struct request_h
 		if (error)
 			return respond_error(nl_hdr, error);
 
+		clone.fragment_timeout = jiffies_to_msecs(clone.fragment_timeout);
+
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
 		log_debug("Updating 'Fragmentation' options.");
+
+		request->fragment_timeout = msecs_to_jiffies(request->fragment_timeout);
+
 		return respond_error(nl_hdr, set_fragmentation_config(nat64_hdr->operation, request));
 	}
 }

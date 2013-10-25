@@ -18,7 +18,7 @@ static DEFINE_SPINLOCK(config_lock);
 
 int pktmod_init(void)
 {
-	config.fragment_timeout = FRAGMENT_MIN;
+	config.fragment_timeout = msecs_to_jiffies(FRAGMENT_MIN);
 	return 0;
 }
 
@@ -27,9 +27,9 @@ void pktmod_destroy(void)
 	/* No code. */
 }
 
-unsigned int pktmod_get_fragment_timeout(void)
+unsigned long pktmod_get_fragment_timeout(void)
 {
-	unsigned int result;
+	unsigned long result;
 
 	spin_lock_bh(&config_lock);
 	result = config.fragment_timeout;
@@ -686,7 +686,7 @@ struct packet *pkt_create_ipv6(struct fragment *frag)
 	pkt->total_bytes = 0;
 	pkt->current_bytes = 0;
 	pkt->fragment_id = (hdr_frag != NULL) ? be32_to_cpu(hdr_frag->identification) : 0;
-	pkt->dying_time = jiffies_to_msecs(jiffies) + pktmod_get_fragment_timeout();
+	pkt->dying_time = jiffies + pktmod_get_fragment_timeout();
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv6(pkt, frag);
@@ -709,7 +709,7 @@ struct packet *pkt_create_ipv4(struct fragment *frag)
 	pkt->total_bytes = 0;
 	pkt->current_bytes = 0;
 	pkt->fragment_id = be16_to_cpu(hdr4->id);
-	pkt->dying_time = jiffies_to_msecs(jiffies) + pktmod_get_fragment_timeout();
+	pkt->dying_time = jiffies + pktmod_get_fragment_timeout();
 	INIT_LIST_HEAD(&pkt->pkt_list_node);
 
 	pkt_add_frag_ipv4(pkt, frag);
@@ -785,7 +785,7 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
     spin_lock_bh(&config_lock);
 
     if (operation & FRAGMENT_TIMEOUT_MASK) {
-        if ( new_config->fragment_timeout < FRAGMENT_MIN ) {
+        if ( new_config->fragment_timeout < msecs_to_jiffies(FRAGMENT_MIN) ) {
         	error = -EINVAL;
             log_err(ERR_FRAGMENTATION_TO_RANGE, "The Fragmentation timeout must be at least %u miliseconds.", FRAGMENT_MIN);
         } else {

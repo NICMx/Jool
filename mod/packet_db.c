@@ -28,8 +28,6 @@ static struct pktdb_table table;
 static LIST_HEAD(list);
 
 static struct timer_list expire_timer;
-static bool expire_timer_active = false;
-static DEFINE_SPINLOCK(expire_timer_lock);
 
 
 static bool equals_function(struct pktdb_key *key1, struct pktdb_key *key2)
@@ -118,10 +116,9 @@ static bool pktdb_remove(struct packet *pkt)
 }
 
 
-static unsigned int clean_expired_fragments(void)
+static void clean_expired_fragments(void)
 {
 	struct list_head *current_node, *next_node;
-	unsigned int current_time = jiffies_to_msecs(jiffies);
 	unsigned int f = 0;
 	struct packet *pkt;
 
@@ -132,10 +129,10 @@ static unsigned int clean_expired_fragments(void)
 	list_for_each_safe(current_node, next_node, &list) {
 		pkt = list_entry(current_node, struct packet, pkt_list_node);
 
-		if (pkt->dying_time > current_time) {
+		if (time_after(pkt->dying_time, jiffies)) {
 			spin_unlock_bh(&db_lock);
 			log_debug("Deleted %u fragments.", f);
-			return pkt->dying_time - current_time;
+			return;
 		}
 
 		pktdb_remove(pkt);
@@ -146,19 +143,27 @@ static unsigned int clean_expired_fragments(void)
 
 	spin_unlock_bh(&db_lock);
 	log_debug("Deleted %u fragments. The database is now empty.", f);
-	return pktmod_get_fragment_timeout();
 }
 
 static void cleaner_timer(unsigned long param)
 {
-	unsigned int next_expire = clean_expired_fragments();
+	struct packet *pkt;
+	unsigned long next_expire;
 
-	spin_lock_bh(&expire_timer_lock);
-	if (expire_timer_active) {
-		expire_timer.expires = jiffies + msecs_to_jiffies(next_expire);
-		add_timer(&expire_timer);
+	clean_expired_fragments();
+
+	spin_lock_bh(&db_lock);
+	if (list_empty(&list)) {
+		spin_unlock_bh(&db_lock);
+		/* No need to re-schedule the timer. */
+		return;
 	}
-	spin_unlock_bh(&expire_timer_lock);
+
+	/* Restart the timer. */
+	pkt = list_entry(list.next, struct packet, pkt_list_node);
+	next_expire = pkt->dying_time;
+	spin_unlock_bh(&db_lock);
+	mod_timer(&expire_timer, next_expire);
 }
 
 /*
@@ -170,10 +175,8 @@ int pktdb_init(void)
 
 	init_timer(&expire_timer);
 	expire_timer.function = cleaner_timer;
-	expire_timer.expires = jiffies + pktmod_get_fragment_timeout();
+	expire_timer.expires = 0;
 	expire_timer.data = 0;
-	add_timer(&expire_timer);
-	expire_timer_active = true;
 
 	return 0;
 }
@@ -244,12 +247,17 @@ verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 				? pkt_create_ipv6(frag)
 				: pkt_create_ipv4(frag);
 
-		if (pkt_is_complete(*pkt))
+		if (pkt_is_complete(*pkt)) {
 			/* No fragmentation; no need to reassemble. pkt is already set so just state success. */
 			result = VER_CONTINUE;
-		else
+		} else {
 			/* skb is the first fragment we got. Store it and wait till the other ones arrive. */
 			result = (pktdb_put(*pkt) == 0) ? VER_STOLEN : VER_DROP;
+			if (!timer_pending(&expire_timer)) {
+				log_debug("ESTOY ARRANCANDO EL TIMER.");
+				mod_timer(&expire_timer, (*pkt)->dying_time);
+			}
+		}
 	}
 
 	spin_unlock_bh(&db_lock);
@@ -259,13 +267,5 @@ verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 void pktdb_destroy(void)
 {
 	pktdb_table_empty(&table, true);
-
-	spin_lock_bh(&expire_timer_lock);
-	if (expire_timer_active) {
-		expire_timer_active = false;
-		spin_unlock_bh(&expire_timer_lock);
-		del_timer_sync(&expire_timer);
-	} else {
-		spin_unlock_bh(&expire_timer_lock);
-	}
+	del_timer_sync(&expire_timer);
 }

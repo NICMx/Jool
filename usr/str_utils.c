@@ -382,11 +382,11 @@ void print_code_msg(enum error_code code, char *success_msg)
 	log_err(code, "%s", get_error_msg(code));
 }
 
-void print_time(unsigned long millis)
+void print_time(__u64 millis)
 {
-	unsigned long seconds;
-	unsigned long minutes;
-	unsigned long hours;
+	__u64 seconds;
+	__u64 minutes;
+	__u64 hours;
 
 	if (millis < 1000) {
 		printf("%lu milliseconds\n", millis);

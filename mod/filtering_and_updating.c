@@ -42,10 +42,6 @@ static LIST_HEAD(sessions_syn);
 
 /** Deletes expired sessions every once in a while. */
 static struct timer_list expire_timer;
-/** Is "expire_timer" currently running? */
-static bool expire_timer_active = false;
-/** Synchronizes access to the "expire_timer" variable. */
-static DEFINE_SPINLOCK(expire_timer_lock);
 
 
 /** The states from the TCP state machine; RFC 6146 section 3.5.2. */
@@ -79,7 +75,7 @@ enum tcp_states {
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time and moves it from its
  * original location to the end of "list".
  */
-static void update_timer(struct session_entry *session, struct list_head *list, unsigned long *ttl)
+static void update_timer(struct session_entry *session, struct list_head *list, __u64 *ttl)
 {
 	spin_lock_bh(&config_lock);
 	session->dying_time = jiffies + *ttl;
@@ -87,6 +83,18 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
 
 	list_del(&session->expiration_node);
 	list_add(&session->expiration_node, list->prev);
+
+	if (!timer_pending(&expire_timer)) {
+		log_debug("DISPARANDO SESSION TIMER A %u", jiffies_to_msecs(session->dying_time));
+		mod_timer(&expire_timer, session->dying_time);
+	}
+
+	if (time_before(session->dying_time, expire_timer.expires)) {
+		log_debug("SESSION TIMER ANTES: %u, DESPUES: %u",
+				jiffies_to_msecs(expire_timer.expires),
+				jiffies_to_msecs(session->dying_time));
+		mod_timer(&expire_timer, session->dying_time);
+	}
 }
 
 /**
@@ -126,10 +134,8 @@ static void set_icmp_timer(struct session_entry *session)
  */
 static void set_syn_timer(struct session_entry *session)
 {
-	session->dying_time = jiffies + msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-
-	list_del(&session->expiration_node);
-	list_add(&session->expiration_node, sessions_syn.prev);
+	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
+	update_timer(session, &sessions_syn, &ttl);
 }
 
 /**
@@ -152,7 +158,7 @@ static unsigned long choose_prior(unsigned long current_min, struct list_head *l
  */
 static unsigned long get_next_dying_time(void)
 {
-	unsigned long current_min = jiffies + SESSION_MAX_TIMER_INTERVAL;
+	unsigned long current_min = ULONG_MAX;
 
 	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
 	current_min = choose_prior(current_min, &sessions_udp);
@@ -308,8 +314,10 @@ static bool session_expire(struct session_entry *session)
  * Iterates through "list", deleting expired sessions.
  * "list" is assumed to be sorted by expiration date, so it will stop on the first unexpired
  * session.
+ *
+ * @return "true" if all sessions from the list were wiped.
  */
-static void clean_expired_sessions(struct list_head *list)
+static bool clean_expired_sessions(struct list_head *list)
 {
 	struct list_head *current_node, *next_node;
 	struct session_entry *session;
@@ -320,7 +328,7 @@ static void clean_expired_sessions(struct list_head *list)
 		session = list_entry(current_node, struct session_entry, expiration_node);
 
 		if (time_before(jiffies, session->dying_time))
-			return;
+			return false;
 		if (!session_expire(session))
 			continue; /* The entry's TTL changed, which doesn't mean the next one isn't expired. */
 
@@ -346,6 +354,8 @@ static void clean_expired_sessions(struct list_head *list)
 		pool4_return(l4_proto, &bib->ipv4);
 		kfree(bib);
 	}
+
+	return true;
 }
 
 /**
@@ -353,25 +363,22 @@ static void clean_expired_sessions(struct list_head *list)
  */
 static void cleaner_timer(unsigned long param)
 {
+	bool clean = true;
+
 	log_debug("Deleting expired sessions...");
 	spin_lock_bh(&bib_session_lock);
 
-	clean_expired_sessions(&sessions_udp);
-	clean_expired_sessions(&sessions_tcp_est);
-	clean_expired_sessions(&sessions_tcp_trans);
-	clean_expired_sessions(&sessions_icmp);
-	clean_expired_sessions(&sessions_syn);
+	clean &= clean_expired_sessions(&sessions_udp);
+	clean &= clean_expired_sessions(&sessions_tcp_est);
+	clean &= clean_expired_sessions(&sessions_tcp_trans);
+	clean &= clean_expired_sessions(&sessions_icmp);
+	clean &= clean_expired_sessions(&sessions_syn);
 
 	spin_unlock_bh(&bib_session_lock);
 	log_debug("Done deleting expired sessions.");
 
-	spin_lock_bh(&expire_timer_lock);
-	if (expire_timer_active) {
-		/* I added a second to prevent the timer from annoying the kernel too much. */
-		expire_timer.expires = get_next_dying_time() + msecs_to_jiffies(1000);
-		add_timer(&expire_timer);
-	}
-	spin_unlock_bh(&expire_timer_lock);
+	if (!clean)
+		mod_timer(&expire_timer, get_next_dying_time());
 }
 
 /**
@@ -1545,10 +1552,8 @@ int filtering_init(void)
 
 	init_timer(&expire_timer);
 	expire_timer.function = cleaner_timer;
-	expire_timer.expires = jiffies + SESSION_MAX_TIMER_INTERVAL;
+	expire_timer.expires = 0;
 	expire_timer.data = 0;
-	add_timer(&expire_timer);
-	expire_timer_active = true;
 
 	return 0;
 }
@@ -1558,14 +1563,7 @@ int filtering_init(void)
  */
 void filtering_destroy(void)
 {
-	spin_lock_bh(&expire_timer_lock);
-	if (expire_timer_active) {
-		expire_timer_active = false;
-		spin_unlock_bh(&expire_timer_lock);
-		del_timer_sync(&expire_timer);
-	} else {
-		spin_unlock_bh(&expire_timer_lock);
-	}
+	del_timer_sync(&expire_timer);
 }
 
 /**

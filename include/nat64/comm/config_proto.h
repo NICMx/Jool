@@ -89,7 +89,7 @@ struct bib_entry_us {
 struct session_entry_us {
 	struct ipv6_pair ipv6;
 	struct ipv4_pair ipv4;
-	unsigned long dying_time;
+	__u64 dying_time;
 	l4_protocol l4_proto;
 };
 
@@ -97,7 +97,7 @@ struct session_entry_us {
  * Time interval to allow arrival of fragments, in milliseconds.
  */
 struct fragmentation_config {
-	unsigned int fragment_timeout;
+	__u64 fragment_timeout;
 };
 
 /**
@@ -112,10 +112,10 @@ struct filtering_config {
 	bool drop_external_tcp;
 	/** Current timeout values */
 	struct timeouts {
-		unsigned long udp;
-		unsigned long icmp;
-		unsigned long tcp_est;
-		unsigned long tcp_trans;
+		__u64 udp;
+		__u64 icmp;
+		__u64 tcp_est;
+		__u64 tcp_trans;
 	} to;
 };
 

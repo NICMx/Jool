@@ -76,10 +76,6 @@
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
 
 
-/* -- Session -- */
-#define SESSION_MAX_TIMER_INTERVAL msecs_to_jiffies(60 * 60 * 1000)
-
-
 /* -- ICMP constants missing from icmp.h and icmpv6.h. -- */
 
 /** Code 0 for ICMP messages of type ICMP_PARAMETERPROB. */

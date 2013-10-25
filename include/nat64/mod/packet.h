@@ -70,7 +70,7 @@ int clone_fragmentation_config(struct fragmentation_config *clone);
  * passed, it's most likely because at least one of its siblings died during shipping, and as such
  * reassembly is impossible.
  */
-unsigned int pktmod_get_fragment_timeout(void);
+unsigned long pktmod_get_fragment_timeout(void);
 
 
 /*	---------------
@@ -328,8 +328,8 @@ struct packet {
 	 * fragment header.
 	 */
 	u32 fragment_id;
-	/* Millisecond from the epoch at which Jool should forget about this "fragment stream". */
-	unsigned int dying_time;
+	/* Jiffies from the epoch at which Jool should forget about this "fragment stream". */
+	unsigned long dying_time;
 
 	/** Node used to link this packet in packet_db's "list" list. */
 	struct list_head pkt_list_node;
