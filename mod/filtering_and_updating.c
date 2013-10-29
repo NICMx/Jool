@@ -15,6 +15,9 @@
 #include <net/icmp.h>
 
 
+/*Mi primer código OMG!!!*/
+
+
 /** Current valid configuration for the filtering and updating module. */
 static struct filtering_config config;
 static DEFINE_SPINLOCK(config_lock);

@@ -1,6 +1,8 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 
+CC = cgcc
+
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 modules:
