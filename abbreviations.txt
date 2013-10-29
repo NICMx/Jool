@@ -1,5 +1,7 @@
 Some shortcuts used while naming variables and functions through the code:
 
+nf = Netfilter (http://www.netfilter.org/)
+nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
 alloc = memory allocation
 pref = prefix
 err = error

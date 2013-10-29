@@ -389,14 +389,14 @@ void print_time(__u64 millis)
 	__u64 hours;
 
 	if (millis < 1000) {
-		printf("%lu milliseconds\n", millis);
+		printf("%llu milliseconds\n", millis);
 		return;
 	}
 
 	seconds = millis / 1000;
 
 	if (seconds < 60) {
-		printf("%lu seconds\n", seconds);
+		printf("%llu seconds\n", seconds);
 		return;
 	}
 
@@ -404,12 +404,12 @@ void print_time(__u64 millis)
 	seconds %= 60;
 
 	if (minutes < 60) {
-		printf("%lu minutes, %lu seconds\n", minutes, seconds);
+		printf("%llu minutes, %llu seconds\n", minutes, seconds);
 		return;
 	}
 
 	hours = minutes / 60;
 	minutes %= 60;
 
-	printf("%lu hours, %lu minutes\n", hours, minutes);
+	printf("%llu hours, %llu minutes\n", hours, minutes);
 }

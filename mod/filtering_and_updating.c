@@ -84,16 +84,10 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
 	list_del(&session->expiration_node);
 	list_add(&session->expiration_node, list->prev);
 
-	if (!timer_pending(&expire_timer)) {
-		log_debug("DISPARANDO SESSION TIMER A %u", jiffies_to_msecs(session->dying_time));
+	if (!timer_pending(&expire_timer) || time_before(session->dying_time, expire_timer.expires)) {
 		mod_timer(&expire_timer, session->dying_time);
-	}
-
-	if (time_before(session->dying_time, expire_timer.expires)) {
-		log_debug("SESSION TIMER ANTES: %u, DESPUES: %u",
-				jiffies_to_msecs(expire_timer.expires),
-				jiffies_to_msecs(session->dying_time));
-		mod_timer(&expire_timer, session->dying_time);
+		log_debug("The filtering timer is going to run again in %u msecs.",
+				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
 }
 
@@ -141,16 +135,20 @@ static void set_syn_timer(struct session_entry *session)
 /**
  * Returns the earlier time between "current_min" and "list"'s first node's expiration date.
  */
-static unsigned long choose_prior(unsigned long current_min, struct list_head *list)
+static void choose_prior(struct list_head *list, unsigned long *min, bool *min_exists)
 {
 	struct session_entry *session;
 
 	if (list_empty(list))
-		return current_min;
+		return;
 
 	session = list_entry(list->next, struct session_entry, expiration_node);
 
-	return time_before(current_min, session->dying_time) ? current_min : session->dying_time;
+	if (*min_exists)
+		*min = time_before(*min, session->dying_time) ? *min : session->dying_time;
+	else
+		*min = session->dying_time;
+	*min_exists = true;
 }
 
 /**
@@ -158,14 +156,15 @@ static unsigned long choose_prior(unsigned long current_min, struct list_head *l
  */
 static unsigned long get_next_dying_time(void)
 {
-	unsigned long current_min = ULONG_MAX;
+	unsigned long current_min = 0;
+	bool min_exists = false;
 
 	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
-	current_min = choose_prior(current_min, &sessions_udp);
-	current_min = choose_prior(current_min, &sessions_tcp_est);
-	current_min = choose_prior(current_min, &sessions_tcp_trans);
-	current_min = choose_prior(current_min, &sessions_icmp);
-	current_min = choose_prior(current_min, &sessions_syn);
+	choose_prior(&sessions_udp, &current_min, &min_exists);
+	choose_prior(&sessions_tcp_est, &current_min, &min_exists);
+	choose_prior(&sessions_tcp_trans, &current_min, &min_exists);
+	choose_prior(&sessions_icmp, &current_min, &min_exists);
+	choose_prior(&sessions_syn, &current_min, &min_exists);
 
 	return current_min;
 }
@@ -322,6 +321,8 @@ static bool clean_expired_sessions(struct list_head *list)
 	struct list_head *current_node, *next_node;
 	struct session_entry *session;
 	struct bib_entry *bib;
+	unsigned int s = 0;
+	unsigned int b = 0;
 	l4_protocol l4_proto;
 
 	list_for_each_safe(current_node, next_node, list) {
@@ -339,7 +340,9 @@ static bool clean_expired_sessions(struct list_head *list)
 		l4_proto = session->l4_proto;
 
 		list_del(&session->entries_from_bib);
+		list_del(&session->expiration_node);
 		kfree(session);
+		s++;
 
 		if (!bib) {
 			log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
@@ -353,7 +356,10 @@ static bool clean_expired_sessions(struct list_head *list)
 
 		pool4_return(l4_proto, &bib->ipv4);
 		kfree(bib);
+		b++;
 	}
+
+	log_debug("Deleted %u sessions and %u BIB entries.", s, b);
 
 	return true;
 }
@@ -365,6 +371,7 @@ static void cleaner_timer(unsigned long param)
 {
 	bool clean = true;
 
+	log_debug("===============================================");
 	log_debug("Deleting expired sessions...");
 	spin_lock_bh(&bib_session_lock);
 
@@ -377,8 +384,12 @@ static void cleaner_timer(unsigned long param)
 	spin_unlock_bh(&bib_session_lock);
 	log_debug("Done deleting expired sessions.");
 
-	if (!clean)
-		mod_timer(&expire_timer, get_next_dying_time());
+	if (!clean) {
+		unsigned long next_dying_time = get_next_dying_time();
+		mod_timer(&expire_timer, next_dying_time);
+		log_debug("The filtering timer is going to run in %u msecs.",
+				jiffies_to_msecs(next_dying_time - jiffies));
+	}
 }
 
 /**
