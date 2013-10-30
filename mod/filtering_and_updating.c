@@ -86,7 +86,7 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
 
 	if (!timer_pending(&expire_timer) || time_before(session->dying_time, expire_timer.expires)) {
 		mod_timer(&expire_timer, session->dying_time);
-		log_debug("The filtering timer is going to run again in %u msecs.",
+		log_debug("The session cleaning timer will awake in %u msecs.",
 				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
 }
@@ -328,8 +328,10 @@ static bool clean_expired_sessions(struct list_head *list)
 	list_for_each_safe(current_node, next_node, list) {
 		session = list_entry(current_node, struct session_entry, expiration_node);
 
-		if (time_before(jiffies, session->dying_time))
+		if (time_before(jiffies, session->dying_time)) {
+			log_debug("Deleted %u sessions and %u BIB entries.", s, b);
 			return false;
+		}
 		if (!session_expire(session))
 			continue; /* The entry's TTL changed, which doesn't mean the next one isn't expired. */
 
@@ -382,13 +384,12 @@ static void cleaner_timer(unsigned long param)
 	clean &= clean_expired_sessions(&sessions_syn);
 
 	spin_unlock_bh(&bib_session_lock);
-	log_debug("Done deleting expired sessions.");
+	log_debug("Session database cleaned successfully.");
 
 	if (!clean) {
-		unsigned long next_dying_time = get_next_dying_time();
-		mod_timer(&expire_timer, next_dying_time);
-		log_debug("The filtering timer is going to run in %u msecs.",
-				jiffies_to_msecs(next_dying_time - jiffies));
+		mod_timer(&expire_timer, get_next_dying_time());
+		log_debug("The timer will awake again in %u msecs.",
+				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
 }
 

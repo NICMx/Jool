@@ -516,20 +516,6 @@ static verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fr
  * -- Inner packet --
  *************************************************************************************************/
 
-static l4_protocol protocol_to_l4proto(u8 protocol)
-{
-	switch (protocol) {
-	case IPPROTO_TCP:
-		return L4PROTO_TCP;
-	case IPPROTO_UDP:
-		return L4PROTO_UDP;
-	case IPPROTO_ICMP:
-		return L4PROTO_ICMP;
-	}
-
-	return -1;
-}
-
 /**
  * Sets out_outer.payload.*.
  */

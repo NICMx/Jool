@@ -197,10 +197,9 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple)
 			break;
 		case L4PROTO_ICMP:
 			icmp4 = ipv4_extract_l4_hdr(hdr4);
-			if (is_icmp4_info(icmp4->type))
-				result = ipv4_icmp_info(hdr4, icmp4, tuple);
-			else
-				result = ipv4_icmp_err(hdr4, icmp4, tuple);
+			result = (is_icmp4_info(icmp4->type))
+					? ipv4_icmp_info(hdr4, icmp4, tuple)
+					: ipv4_icmp_err(hdr4, icmp4, tuple);
 			break;
 		default:
 			log_info("Unsupported transport protocol for IPv4: %d.", hdr4->protocol);
@@ -220,10 +219,9 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple)
 			break;
 		case L4PROTO_ICMP:
 			icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
-			if (is_icmp6_info(icmp6->icmp6_type))
-				result = ipv6_icmp_info(hdr6, icmp6, tuple);
-			else
-				result = ipv6_icmp_err(hdr6, icmp6, tuple);
+			result = (is_icmp6_info(icmp6->icmp6_type))
+					? result = ipv6_icmp_info(hdr6, icmp6, tuple)
+					: ipv6_icmp_err(hdr6, icmp6, tuple);
 			break;
 		default:
 			log_info("Unsupported transport protocol for IPv6: %d.", pkt_get_l4proto(pkt));

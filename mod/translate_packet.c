@@ -299,9 +299,9 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
 }
 
 /**
- * Asume que frag trae un fragment header.
- * También asume que los siguientes campos de frag->skb están bien seteados: network_header,
- * head, data, tail.
+ * Assumes frag has a fragment header.
+ * Also assumes the following fields from frag->skb are properly set: network_header, head, data
+ * and tail.
  */
 static verdict divide(struct fragment *frag, struct list_head *list)
 {

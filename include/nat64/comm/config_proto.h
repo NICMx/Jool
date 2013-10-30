@@ -125,7 +125,7 @@ struct filtering_config {
 struct translate_config {
 	/**
 	 * Extra bytes the translator will allocate at the head of the packets it generates. These are
-	 * meant to be used by other Netfilter modules for futher alien functionality (Eg. Add
+	 * meant to be used by other Netfilter modules for further alien functionality (Eg. Add
 	 * additional headers withoug having to reallocate the packet).
 	 * Can be negative, if the user wants to compensate for the "LL_MAX_HEADER" constant.
 	 * (LL_MAX_HEADER = the kernel's reserved head room + l2 header's length.)

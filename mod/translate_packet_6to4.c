@@ -543,21 +543,6 @@ static verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, struct fr
  * -- Inner packet --
  *************************************************************************************************/
 
-/* TODO mover a types o algo así. */
-static l4_protocol nexthdr_to_l4proto(u8 nexthdr)
-{
-	switch (nexthdr) {
-	case NEXTHDR_TCP:
-		return L4PROTO_TCP;
-	case NEXTHDR_UDP:
-		return L4PROTO_UDP;
-	case NEXTHDR_ICMP:
-		return L4PROTO_ICMP;
-	}
-
-	return -1;
-}
-
 static int l4_hdr_len(void *hdr, l3_protocol l3_proto, l4_protocol l4_proto)
 {
 	switch (l4_proto) {

@@ -547,7 +547,7 @@ void frag_kfree(struct fragment *frag)
 	kfree(frag);
 }
 
-static char *nexthdr_to_string(u8 nexthdr)
+static char *nexthdr_to_string(__u8 nexthdr)
 {
 	switch (nexthdr) {
 	case NEXTHDR_TCP:
@@ -563,7 +563,7 @@ static char *nexthdr_to_string(u8 nexthdr)
 	return "Don't know";
 }
 
-static char *protocol_to_string(u8 protocol)
+static char *protocol_to_string(__u8 protocol)
 {
 	switch (protocol) {
 	case L4PROTO_TCP:
@@ -664,6 +664,7 @@ void frag_print(struct fragment *frag)
 
 	case L4PROTO_ICMP:
 		/* too lazy */
+		break;
 	case L4PROTO_NONE:
 		break;
 	}

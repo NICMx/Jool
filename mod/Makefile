@@ -1,5 +1,7 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
+# If it won't compile, install sparse or comment this line.
+CC=cgcc
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

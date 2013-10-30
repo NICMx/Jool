@@ -148,6 +148,8 @@ typedef enum l4_protocol {
 } l4_protocol;
 
 char *l4proto_to_string(l4_protocol proto);
+l4_protocol nexthdr_to_l4proto(__u8 nexthdr);
+l4_protocol protocol_to_l4proto(__u8 protocol);
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).

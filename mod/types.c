@@ -34,6 +34,34 @@ char *l4proto_to_string(l4_protocol l4_proto)
 	return NULL;
 }
 
+l4_protocol nexthdr_to_l4proto(__u8 nexthdr)
+{
+	switch (nexthdr) {
+	case NEXTHDR_TCP:
+		return L4PROTO_TCP;
+	case NEXTHDR_UDP:
+		return L4PROTO_UDP;
+	case NEXTHDR_ICMP:
+		return L4PROTO_ICMP;
+	}
+
+	return -1;
+}
+
+l4_protocol protocol_to_l4proto(__u8 protocol)
+{
+	switch (protocol) {
+	case IPPROTO_TCP:
+		return L4PROTO_TCP;
+	case IPPROTO_UDP:
+		return L4PROTO_UDP;
+	case IPPROTO_ICMP:
+		return L4PROTO_ICMP;
+	}
+
+	return -1;
+}
+
 bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 {
 	if (expected == actual)
