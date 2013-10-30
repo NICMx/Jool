@@ -220,7 +220,7 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple)
 		case L4PROTO_ICMP:
 			icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
 			result = (is_icmp6_info(icmp6->icmp6_type))
-					? result = ipv6_icmp_info(hdr6, icmp6, tuple)
+					? ipv6_icmp_info(hdr6, icmp6, tuple)
 					: ipv6_icmp_err(hdr6, icmp6, tuple);
 			break;
 		default:

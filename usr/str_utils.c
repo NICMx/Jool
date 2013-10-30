@@ -60,17 +60,17 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 	return 0;
 }
 
+#define STR_MAX_LEN 2048
 int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 {
-	const unsigned int str_max_len = 2048;
 	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[str_max_len];
+	char str_copy[STR_MAX_LEN];
 	char *token;
 	__u16 *array;
 	__u16 array_len;
 
 	/* Validate str and copy it to the temp buffer. */
-	if (strlen(str) + 1 > str_max_len) {
+	if (strlen(str) + 1 > STR_MAX_LEN) {
 		log_err(ERR_PARSE_INTARRAY, "'%s' is too long for this poor, limited parser...", str);
 		return -EINVAL;
 	}
@@ -137,11 +137,11 @@ int str_to_addr6(const char *str, struct in6_addr *result)
 	return 0;
 }
 
+#undef STR_MAX_LEN
+#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 5) /* [addr + null chara] + # + port */
 int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 {
 	const char *FORMAT = "<IPv4 address>#<port> (eg. 10.20.30.40#50)";
-	/* [addr + null chara] + # + port */
-	const unsigned int STR_MAX_LEN = INET_ADDRSTRLEN + 1 + 5;
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
@@ -176,10 +176,11 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 	return 0;
 }
 
+#undef STR_MAX_LEN
+#define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 5) /* [addr + null chara] + # + port */
 int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 {
 	const char *FORMAT = "<IPv6 address>#<port> (eg. 64:ff9b::#96)";
-	const unsigned int STR_MAX_LEN = INET6_ADDRSTRLEN + 1 + 5; /* [addr + null chara] + # + port */
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
@@ -214,11 +215,11 @@ int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 	return 0;
 }
 
+#undef STR_MAX_LEN
+#define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3) /* [addr + null chara] + / + pref len */
 int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv6 address>/<length> (eg. 64:ff9b::/96)";
-	/* [addr + null chara] + / + pref len */
-	const unsigned int STR_MAX_LEN = INET6_ADDRSTRLEN + 1 + 3;
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;

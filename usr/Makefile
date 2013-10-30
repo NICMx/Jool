@@ -3,6 +3,9 @@ LD = ld
 
 INCDIRS += -Iinclude -I../include
 INCDIRS += $(shell pkg-config --cflags libnl-3.0)
+# TODO this is too specific for our setup. Remove it for the release.
+INCDIRS += -I/usr/include/x86_64-linux-gnu
+
 CFLAGS += -Wall ${INCDIRS}
 
 KERNEL_VER = $(shell uname -r | cut -d'-' -f1 | cut -f1 -d.)
