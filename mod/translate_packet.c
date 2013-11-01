@@ -133,7 +133,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 	return 0;
 }
 
-static verdict empty(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict empty(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
 	return VER_CONTINUE;
 }
@@ -269,10 +269,7 @@ verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **ou
 
 	result = steps->l3_post_function(*out);
 	if (result != VER_CONTINUE)
-		goto failure;
-	result = steps->l4_post_function(tuple, in, *out);
-	if (result != VER_CONTINUE)
-		goto failure;
+		return result;
 
 	return result;
 
@@ -320,7 +317,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	__u16 head_room, tail_room;
 
 	spin_lock_bh(&config_lock);
-	min_ipv6_mtu = config.min_ipv6_mtu;
+	min_ipv6_mtu = config.min_ipv6_mtu & 0xFFF8;
 	head_room = config.skb_head_room;
 	tail_room = config.skb_tail_room;
 	spin_unlock_bh(&config_lock);
@@ -342,11 +339,14 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	current_p = skb_network_header(frag->skb) + min_ipv6_mtu;
 
 	while (current_p < skb_tail_pointer(frag->skb)) {
-		bool is_last = (skb_tail_pointer(frag->skb) - current_p < payload_max_size);
+		bool is_last = (skb_tail_pointer(frag->skb) - current_p <= payload_max_size);
 		u16 actual_payload_size = is_last
 					? skb_tail_pointer(frag->skb) - current_p
 					: payload_max_size;
-		u16 actual_total_size = headers_size + actual_payload_size;
+		u16 actual_total_size;
+
+		actual_payload_size &= 0xFFF8; /* The fragment offset field only accepts 8-byte blocks. */
+		actual_total_size = headers_size + actual_payload_size;
 
 		new_skb = alloc_skb(head_room /* user's reserved. */
 				+ LL_MAX_HEADER /* kernel's reserved + layer 2. */
@@ -375,6 +375,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		}
 
 		new_fragment->skb = new_skb;
+		new_fragment->dst = NULL;
 		new_fragment->l3_hdr.proto = frag->l3_hdr.proto;
 		new_fragment->l3_hdr.len = frag->l3_hdr.len;
 		new_fragment->l3_hdr.ptr = skb_network_header(new_skb);
@@ -392,24 +393,37 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		current_p += actual_payload_size;
 	}
 
-	skb_set_tail_pointer(frag->skb, min_ipv6_mtu);
+	skb_put(frag->skb, -(frag->skb->len - min_ipv6_mtu));
 	frag->payload.len = min_ipv6_mtu - frag->l3_hdr.len - frag->l4_hdr.len;
 
 	return VER_CONTINUE;
 }
 
 static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
-		struct list_head *out_list)
+		struct packet *pkt_out)
 {
 	struct fragment *out;
 	verdict result;
 	__u16 min_ipv6_mtu;
+	struct frag_hdr *hdr_frag;
 
 	/* Translate this single fragment. */
 	/* log_debug("Packet protocols: %d %d", in->l3_hdr.proto, in->l4_hdr.proto); */
 	result = translate(tuple, in, &out, &steps[in->l3_hdr.proto][in->l4_hdr.proto]);
 	if (result != VER_CONTINUE)
 		return result;
+
+	switch (out->l3_hdr.proto) {
+	case L3PROTO_IPV6:
+		hdr_frag = frag_get_fragment_hdr(out);
+		if (!hdr_frag || get_fragment_offset_ipv6(hdr_frag) == 0)
+			pkt_out->first_fragment = out;
+		break;
+	case L3PROTO_IPV4:
+		if (get_fragment_offset_ipv4(frag_get_ipv4_hdr(out)) == 0)
+			pkt_out->first_fragment = out;
+		break;
+	}
 
 	/* Add it to the list of outgoing fragments. */
 	switch (in->l3_hdr.proto) {
@@ -422,20 +436,22 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
 				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, 0); /* TODO set the MTU */
+				log_info("Packet is too big (%u bytes; MTU: %u); dropping.",
+						out->skb->len, min_ipv6_mtu);
 				return VER_DROP;
 			}
 
-			result = divide(out, out_list);
+			result = divide(out, pkt_out->fragments.prev);
 			if (result != VER_CONTINUE)
 				return result;
 		} else {
 			/* Just add that one fragment to the list. */
-			list_add(&out->next, out_list->prev);
+			list_add(&out->next, pkt_out->fragments.prev);
 		}
 		break;
 
 	case L3PROTO_IPV6:
-		list_add(&out->next, out_list->prev);
+		list_add(&out->next, pkt_out->fragments.prev);
 		break;
 	}
 
@@ -456,11 +472,18 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
  * Also note: I'm not familiar with all of skb's fields and I feel the documentation is a little
  * lacking, so I'm just fixing what I know.
  */
-static verdict post_process(struct packet *out)
+static verdict post_process(struct tuple *tuple, struct packet *in, struct packet *out)
 {
-#ifndef UNIT_TESTING
 	struct fragment *frag;
 	struct sk_buff *skb;
+	verdict result;
+	struct translation_steps *step = &steps[in->first_fragment->l3_hdr.proto][in->first_fragment->l4_hdr.proto];
+
+	result = step->l4_post_function(tuple, in, out);
+	if (result != VER_CONTINUE)
+		return result;
+
+#ifndef UNIT_TESTING
 
 	list_for_each_entry(frag, &out->fragments, next) {
 		skb = frag->skb;
@@ -490,6 +513,7 @@ static verdict post_process(struct packet *out)
 		skb->dev = frag->dst->dev;
 		skb_dst_set(skb, frag->dst);
 	}
+
 #endif
 
 	return VER_CONTINUE;
@@ -508,17 +532,12 @@ verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct pa
 	log_debug("Step 4: Translating the Packet");
 
 	list_for_each_entry(current_in, &in->fragments, next) {
-		result = translate_fragment(current_in, tuple, &out->fragments);
-		if (result != VER_CONTINUE) {
-			pkt_kfree(out, false);
+		result = translate_fragment(current_in, tuple, out);
+		if (result != VER_CONTINUE)
 			return result;
-		}
-
-		if (current_in == in->first_fragment)
-			out->first_fragment = container_of(out->fragments.prev, struct fragment, next);
 	}
 
-	result = post_process(out);
+	result = post_process(tuple, in, out);
 	if (result != VER_CONTINUE)
 		return result;
 

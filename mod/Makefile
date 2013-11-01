@@ -26,6 +26,7 @@ insert:
 	# insert the module
 	sudo insmod jool.ko
 	dmesg | tail -15
+	../usr/jool -z --minMTU6=1500
 remove:
 	sudo rmmod jool
 	dmesg | tail -15

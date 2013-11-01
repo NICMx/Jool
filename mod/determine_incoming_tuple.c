@@ -76,8 +76,10 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 	case IPPROTO_ICMP:
 		inner_icmp = ipv4_extract_l4_hdr(inner_ipv4);
 
-		if (is_icmp4_error(inner_icmp->type))
-			return false;
+		if (is_icmp4_error(inner_icmp->type)) {
+			log_debug("Packet is a ICMP error containing a ICMP error.");
+			return VER_DROP;
+		}
 
 		tuple->src.l4_id = be16_to_cpu(inner_icmp->un.echo.id);
 		tuple->dst.l4_id = tuple->src.l4_id;
@@ -157,8 +159,10 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 	case NEXTHDR_ICMP:
 		inner_icmp = iterator.data;
 
-		if (is_icmp6_error(inner_icmp->icmp6_type))
-			return false;
+		if (is_icmp6_error(inner_icmp->icmp6_type)) {
+			log_debug("Packet is a ICMP error containing a ICMP error.");
+			return VER_DROP;
+		}
 
 		tuple->src.l4_id = be16_to_cpu(inner_icmp->icmp6_dataun.u_echo.identifier);
 		tuple->dst.l4_id = tuple->src.l4_id;

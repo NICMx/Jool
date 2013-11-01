@@ -195,6 +195,10 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l
 {
 	struct flowi6 flow;
 	struct dst_entry *dst;
+	struct hdr_iterator iterator;
+
+	hdr_iterator_init(&iterator, hdr_ip);
+	hdr_iterator_last(&iterator);
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow->flowi6_oif; */
@@ -202,7 +206,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l
 	flow.flowi6_mark = mark;
 	flow.flowi6_tos = get_traffic_class(hdr_ip);
 	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi6_proto = hdr_ip->nexthdr;
+	flow.flowi6_proto = iterator.hdr_type;
 	flow.flowi6_flags = 0;
 	/* flow->flowi6_secid; */
 	flow.saddr = hdr_ip->saddr;
@@ -254,7 +258,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l
 verdict send_pkt(struct packet *pkt)
 {
 	struct fragment *frag;
-	int error;
+	int error = 0;
 
 	list_for_each_entry(frag, &pkt->fragments, next) {
 		log_debug("Sending skb via device '%s'...", frag->skb->dev->name);

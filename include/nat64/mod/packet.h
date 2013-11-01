@@ -118,15 +118,15 @@ static inline bool is_more_fragments_set_ipv4(struct iphdr *hdr)
 /** Returns a hack-free version of the 'Fragment offset' field from the "hdr" fragment header. */
 static inline __u16 get_fragment_offset_ipv6(struct frag_hdr *hdr)
 {
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return frag_off >> 3;
+	return be16_to_cpu(hdr->frag_off) & 0xFFF8;
 }
 
 /** Returns a hack-free version of the 'Fragment offset' field from the "hdr" IPv4 header. */
 static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 {
 	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return frag_off & IP_OFFSET;
+	/* 3 bit shifts to the left == multiplication by 8. */
+	return (frag_off & IP_OFFSET) << 3;
 }
 
 /**
@@ -135,7 +135,7 @@ static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
  */
 static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, bool mf)
 {
-	__u16 result = (frag_offset << 3)
+	__u16 result = (frag_offset & 0xFFF8)
 			| (mf << 0);
 	return cpu_to_be16(result);
 }
@@ -148,9 +148,12 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
 {
 	__u16 result = (df << 14)
 			| (mf << 13)
-			| (frag_offset << 0);
+			| (frag_offset >> 3); /* 3 bit shifts to the right == division by 8. */
 	return cpu_to_be16(result);
 }
+
+verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len);
+verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len);
 
 
 /*	---------------
@@ -302,7 +305,8 @@ struct packet {
 	/* TODO the fields below are only used by packet_db. We should probably move them there. */
 
 	/**
-	 * Number of bytes that have to be collected for the packet to be complete.
+	 * Number of bytes that have to be collected for the packet to be complete. Only includes
+	 * layer 4 and up.
 	 *
 	 * If this is zero, then we still don't know the total length (the only way to know this is
 	 * to infer it from the last fragment).

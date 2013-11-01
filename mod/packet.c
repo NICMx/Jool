@@ -93,7 +93,7 @@ static verdict validate_lengths_icmp4(struct sk_buff *skb, u16 l3_hdr_len)
 	return VER_CONTINUE;
 }
 
-static verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
+verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
 {
 	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb);
 	struct icmp6hdr *hdr = icmp6_hdr(skb);
@@ -116,7 +116,7 @@ static verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
 	return VER_CONTINUE;
 }
 
-static verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
+verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
 {
 	struct icmphdr *hdr = icmp_hdr(skb);
 	__sum16 tmp;
@@ -199,7 +199,6 @@ static verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterator *i
 	frag_header = get_extension_header(ip6_header, NEXTHDR_FRAGMENT);
 
 	if (frag_header == NULL || get_fragment_offset_ipv6(frag_header) == 0) {
-		u16 datagram_len = frag->skb->len - frag->l3_hdr.len;
 		verdict result;
 
 		skb_set_transport_header(frag->skb, iterator->data - (void *) ip6_header);
@@ -225,9 +224,6 @@ static verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterator *i
 
 		case NEXTHDR_ICMP:
 			result = validate_lengths_icmp6(frag->skb, frag->l3_hdr.len);
-			if (result != VER_CONTINUE)
-				return result;
-			result = validate_csum_icmp6(frag->skb, datagram_len);
 			if (result != VER_CONTINUE)
 				return result;
 
@@ -354,8 +350,6 @@ static verdict init_ipv4_l3_payload(struct fragment *frag)
 
 	fragment_offset = get_fragment_offset_ipv4(ipv4_header);
 	if (fragment_offset == 0) {
-		u16 datagram_len = frag->skb->len - frag->l3_hdr.len;
-
 		skb_set_transport_header(frag->skb, frag->l3_hdr.len);
 
 		switch (ipv4_header->protocol) {
@@ -379,9 +373,6 @@ static verdict init_ipv4_l3_payload(struct fragment *frag)
 
 		case IPPROTO_ICMP:
 			result = validate_lengths_icmp4(frag->skb, frag->l3_hdr.len);
-			if (result != VER_CONTINUE)
-				return result;
-			result = validate_csum_icmp4(frag->skb, datagram_len);
 			if (result != VER_CONTINUE)
 				return result;
 

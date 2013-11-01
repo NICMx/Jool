@@ -451,12 +451,54 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
-static verdict post_icmp4(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_icmp4(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
-	struct icmphdr *icmp4_hdr = frag_get_icmp4_hdr(out);
+	struct fragment *in = pkt_in->first_fragment;
+	struct fragment *out = pkt_out->first_fragment;
+	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(in);
+	struct icmp6hdr *in_icmp = frag_get_icmp6_hdr(in);
+	struct icmphdr *out_icmp = frag_get_icmp4_hdr(out);
 
-	icmp4_hdr->checksum = 0;
-	icmp4_hdr->checksum = ip_compute_csum(icmp4_hdr, out->l4_hdr.len + out->payload.len);
+	if (is_icmp4_error(out_icmp->type)) {
+		/*
+		 * Header and payload both changed completely, so just trash the old checksum
+		 * and start anew.
+		 */
+		out_icmp->checksum = 0;
+		out_icmp->checksum = ip_compute_csum(out_icmp, out->l4_hdr.len + out->payload.len);
+	} else {
+		/*
+		 * Only the ICMP header changed, so subtract the old data from the checksum
+		 * and add the new one.
+		 */
+		__wsum csum;
+		int i;
+
+		csum = ~csum_unfold(in_icmp->icmp6_cksum);
+
+		/* Remove the ICMPv6 pseudo-header */
+		for (i = 0; i < 8; i++)
+			csum = csum_sub(csum, in_ip6->saddr.s6_addr16[i]);
+		for (i = 0; i < 8; i++)
+			csum = csum_sub(csum, in_ip6->daddr.s6_addr16[i]);
+
+		csum = csum_sub(csum, cpu_to_be16(pkt_in->total_bytes - in->l4_hdr.len + out->l4_hdr.len));
+		csum = csum_sub(csum, cpu_to_be16(NEXTHDR_ICMP));
+
+		/* Remove the ICMPv6 header */
+		csum = csum_sub(csum, cpu_to_be16(in_icmp->icmp6_type << 8 | in_icmp->icmp6_code));
+		csum = csum_sub(csum, in_icmp->icmp6_dataun.u_echo.identifier);
+		csum = csum_sub(csum, in_icmp->icmp6_dataun.u_echo.sequence);
+
+		/* There's no ICMPv4 pseudo-header. */
+
+		/* Add the ICMPv4 header */
+		csum = csum_add(csum, cpu_to_be16(out_icmp->type << 8 | out_icmp->code));
+		csum = csum_add(csum, out_icmp->un.echo.id);
+		csum = csum_add(csum, out_icmp->un.echo.sequence);
+
+		out_icmp->checksum = csum_fold(csum);
+	}
 
 	return VER_CONTINUE;
 }
@@ -500,12 +542,12 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static verdict post_tcp_ipv4(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_tcp_ipv4(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
-	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(in);
-	struct tcphdr *in_tcp = frag_get_tcp_hdr(in);
-	struct iphdr *out_ip4 = frag_get_ipv4_hdr(out);
-	struct tcphdr *out_tcp = frag_get_tcp_hdr(out);
+	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(pkt_in->first_fragment);
+	struct tcphdr *in_tcp = frag_get_tcp_hdr(pkt_in->first_fragment);
+	struct iphdr *out_ip4 = frag_get_ipv4_hdr(pkt_out->first_fragment);
+	struct tcphdr *out_tcp = frag_get_tcp_hdr(pkt_out->first_fragment);
 
 	out_tcp->source = cpu_to_be16(tuple->src.l4_id);
 	out_tcp->dest = cpu_to_be16(tuple->dst.l4_id);
@@ -519,8 +561,10 @@ static verdict post_tcp_ipv4(struct tuple *tuple, struct fragment *in, struct fr
 /**
  * Sets the Length and Checksum fields from out's UDP header.
  */
-static verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_udp_ipv4(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
+	struct fragment *in = pkt_in->first_fragment;
+	struct fragment *out = pkt_out->first_fragment;
 	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(in);
 	struct udphdr *in_udp = frag_get_udp_hdr(in);
 	struct iphdr *out_ip4 = frag_get_ipv4_hdr(out);
@@ -528,7 +572,7 @@ static verdict post_udp_ipv4(struct tuple *tuple, struct fragment *in, struct fr
 
 	out_udp->source = cpu_to_be16(tuple->src.l4_id);
 	out_udp->dest = cpu_to_be16(tuple->dst.l4_id);
-	out_udp->len = cpu_to_be16(out->l4_hdr.len + out->payload.len);
+	out_udp->len = cpu_to_be16(pkt_in->total_bytes - in->l4_hdr.len + out->l4_hdr.len);
 
 	out_udp->check = update_csum_6to4(in_udp->check,
 			in_ip6, in_udp->source, in_udp->dest,

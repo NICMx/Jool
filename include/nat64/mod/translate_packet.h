@@ -49,7 +49,7 @@ struct translation_steps {
 	 */
 	verdict (*l3_post_function)(struct fragment *out);
 	/** Post-processing involving the layer 4 header. See l3_post_function. */
-	verdict (*l4_post_function)(struct tuple *tuple, struct fragment *in, struct fragment *out);
+	verdict (*l4_post_function)(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out);
 };
 
 

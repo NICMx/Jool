@@ -420,18 +420,56 @@ static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment
 /**
  * Sets the Checksum field from out's ICMPv6 header.
  */
-static verdict post_icmp6(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_icmp6(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
-	struct ipv6hdr *ip6_hdr;
-	struct icmp6hdr *icmpv6_hdr;
-	unsigned int datagram_len;
+	struct fragment *in = pkt_in->first_fragment;
+	struct fragment *out = pkt_out->first_fragment;
+	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(out);
+	struct icmphdr *in_icmp = frag_get_icmp4_hdr(in);
+	struct icmp6hdr *out_icmp = frag_get_icmp6_hdr(out);
 
-	ip6_hdr = frag_get_ipv6_hdr(out);
-	icmpv6_hdr = frag_get_icmp6_hdr(out);
-	datagram_len = out->l4_hdr.len + out->payload.len;
-	icmpv6_hdr->icmp6_cksum = 0;
-	icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
-			datagram_len, IPPROTO_ICMPV6, csum_partial(icmpv6_hdr, datagram_len, 0));
+	if (is_icmp6_error(out_icmp->icmp6_type)) {
+		/*
+		 * Header and payload both changed completely, so just trash the old checksum
+		 * and start anew.
+		 */
+		unsigned int datagram_len = out->l4_hdr.len + out->payload.len;
+		out_icmp->icmp6_cksum = 0;
+		out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
+			datagram_len, IPPROTO_ICMPV6, csum_partial(out_icmp, datagram_len, 0));
+	} else {
+		/*
+		 * Only the ICMP header changed, so subtract the old data from the checksum
+		 * and add the new one.
+		 */
+		__wsum csum;
+		int i;
+
+		csum = ~csum_unfold(in_icmp->checksum);
+
+		/* Add the ICMPv6 pseudo-header */
+		for (i = 0; i < 8; i++)
+			csum = csum_add(csum, out_ip6->saddr.s6_addr16[i]);
+		for (i = 0; i < 8; i++)
+			csum = csum_add(csum, out_ip6->daddr.s6_addr16[i]);
+
+		csum = csum_add(csum, cpu_to_be16(pkt_in->total_bytes - in->l4_hdr.len + out->l4_hdr.len));
+		csum = csum_add(csum, cpu_to_be16(NEXTHDR_ICMP));
+
+		/* Add the ICMPv6 header */
+		csum = csum_add(csum, cpu_to_be16(out_icmp->icmp6_type << 8 | out_icmp->icmp6_code));
+		csum = csum_add(csum, out_icmp->icmp6_dataun.u_echo.identifier);
+		csum = csum_add(csum, out_icmp->icmp6_dataun.u_echo.sequence);
+
+		/* There's no ICMPv4 pseudo-header. */
+
+		/* Remove the ICMPv4 header */
+		csum = csum_sub(csum, cpu_to_be16(in_icmp->type << 8 | in_icmp->code));
+		csum = csum_sub(csum, in_icmp->un.echo.id);
+		csum = csum_sub(csum, in_icmp->un.echo.sequence);
+
+		out_icmp->icmp6_cksum = csum_fold(csum);
+	}
 
 	return VER_CONTINUE;
 }
@@ -475,12 +513,12 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_tcp_ipv6(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
-	struct iphdr *in_ip4 = frag_get_ipv4_hdr(in);
-	struct tcphdr *in_tcp = frag_get_tcp_hdr(in);
-	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(out);
-	struct tcphdr *out_tcp = frag_get_tcp_hdr(out);
+	struct iphdr *in_ip4 = frag_get_ipv4_hdr(pkt_in->first_fragment);
+	struct tcphdr *in_tcp = frag_get_tcp_hdr(pkt_in->first_fragment);
+	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(pkt_out->first_fragment);
+	struct tcphdr *out_tcp = frag_get_tcp_hdr(pkt_out->first_fragment);
 
 	out_tcp->source = cpu_to_be16(tuple->src.l4_id);
 	out_tcp->dest = cpu_to_be16(tuple->dst.l4_id);
@@ -494,8 +532,10 @@ static verdict post_tcp_ipv6(struct tuple *tuple, struct fragment *in, struct fr
 /**
  * Sets the Length and Checksum fields from out's UDP header.
  */
-static verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fragment *out)
+static verdict post_udp_ipv6(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
+	struct fragment *in = pkt_in->first_fragment;
+	struct fragment *out = pkt_out->first_fragment;
 	struct iphdr *in_ip4 = frag_get_ipv4_hdr(in);
 	struct udphdr *in_udp = frag_get_udp_hdr(in);
 	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(out);
@@ -503,7 +543,7 @@ static verdict post_udp_ipv6(struct tuple *tuple, struct fragment *in, struct fr
 
 	out_udp->source = cpu_to_be16(tuple->src.l4_id);
 	out_udp->dest = cpu_to_be16(tuple->dst.l4_id);
-	out_udp->len = cpu_to_be16(out->l4_hdr.len + out->payload.len);
+	out_udp->len = cpu_to_be16(pkt_in->total_bytes - in->l4_hdr.len + out->l4_hdr.len);
 	out_udp->check = update_csum_4to6(in_udp->check,
 			in_ip4, in_udp->source, in_udp->dest,
 			out_ip6, out_udp->source, out_udp->dest);

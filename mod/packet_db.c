@@ -210,6 +210,83 @@ static int pktdb_put(struct packet *pkt)
 	return 0;
 }
 
+verdict l4_post(struct packet *pkt) {
+	verdict result = VER_CONTINUE;
+	struct fragment *frag;
+	struct iphdr *ip4_hdr;
+	struct udphdr *hdr_udp;
+	struct icmphdr *hdr_icmp4;
+	struct icmp6hdr *hdr_icmp6;
+	__sum16 tmp_csum;
+	unsigned long len;
+
+	switch (pkt_get_l4proto(pkt)) {
+	case L4PROTO_TCP:
+		break;
+	case L4PROTO_UDP:
+		if (pkt_get_l3proto(pkt) == L3PROTO_IPV6)
+			break; /* The checksum is mandatory in IPv6, so it's already set. */
+
+		hdr_udp = frag_get_udp_hdr(pkt->first_fragment);
+		if (hdr_udp->check != 0)
+			break; /* The client went through the trouble to compute the csum. */
+
+		/* We'll have to compute the checksum ourselves. */
+		tmp_csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
+		len = sizeof(*hdr_udp);
+		list_for_each_entry(frag, &pkt->fragments, next) {
+			tmp_csum = csum_partial(frag->payload.ptr, frag->payload.len, tmp_csum);
+			len += frag->payload.len;
+		}
+
+		ip4_hdr = frag_get_ipv4_hdr(pkt->first_fragment);
+		hdr_udp->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr, len, IPPROTO_UDP, tmp_csum);
+		break;
+
+	case L4PROTO_ICMP:
+		switch (pkt_get_l3proto(pkt)) {
+		case L3PROTO_IPV4:
+			hdr_icmp4 = frag_get_icmp4_hdr(pkt->first_fragment);
+			if (is_icmp4_info(hdr_icmp4->type)) {
+				/*
+				 * The ICMP payload is not another packet.
+				 * Hence, it will not be translated (it will be copied as-is).
+				 * Hence, we will not have to recompute the checksum from scratch
+				 * (we'll just update the old checksum with the new header's data).
+				 * Hence, we don't have to validate the incoming checksum.
+				 * (Because that will be the IPv6 node's responsibility.)
+				 */
+				break;
+			}
+
+			/* BTW: we're not iterating over all the fragments because ICMP errors are never fragmented. */
+			result = validate_csum_icmp4(pkt->first_fragment->skb,
+					pkt->first_fragment->l4_hdr.len + pkt->first_fragment->payload.len);
+			if (result != VER_CONTINUE)
+				log_debug("The packet's checksum is incorrect. Dropping...");
+			break;
+		case L3PROTO_IPV6:
+			hdr_icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
+			if (is_icmp6_info(hdr_icmp6->icmp6_type))
+				break; /* See the comment above. */
+
+			result = validate_csum_icmp6(pkt->first_fragment->skb,
+					pkt->first_fragment->l4_hdr.len + pkt->first_fragment->payload.len);
+			if (result != VER_CONTINUE)
+				log_debug("The packet's checksum is incorrect. Dropping...");
+			break;
+		}
+		break;
+
+	case L4PROTO_NONE:
+		log_warning("The transport protocol of the first fragment is NONE.");
+		result = VER_DROP;
+		break;
+	}
+
+	return result;
+}
+
 verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 {
 	struct packet *pkt_from_db;
@@ -233,12 +310,14 @@ verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 
 		if (pkt_is_complete(pkt_from_db)) {
 			/* We're done collecting fragments. */
+			log_debug("The fragment completed the packet.");
 			pktdb_remove(pkt_from_db);
 			INIT_LIST_HEAD(&pkt_from_db->pkt_list_node);
 			*pkt = pkt_from_db;
-			result = VER_CONTINUE;
+			result = l4_post(pkt_from_db);
 		} else {
 			/* Keep waiting for fragments. */
+			log_debug("Stored the fragment in the DB.");
 			result = VER_STOLEN;
 		}
 
@@ -249,9 +328,11 @@ verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 
 		if (pkt_is_complete(*pkt)) {
 			/* No fragmentation; no need to reassemble. pkt is already set so just state success. */
-			result = VER_CONTINUE;
+			log_debug("Packet is not a fragment.");
+			result = l4_post(*pkt);
 		} else {
 			/* skb is the first fragment we got. Store it and wait till the other ones arrive. */
+			log_debug("Stored the fragment in the DB.");
 			result = (pktdb_put(*pkt) == 0) ? VER_STOLEN : VER_DROP;
 			if (!timer_pending(&expire_timer)) {
 				log_debug("ESTOY ARRANCANDO EL TIMER.");
