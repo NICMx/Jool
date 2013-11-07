@@ -322,6 +322,7 @@ verdict pkt_from_skb(struct sk_buff *skb, struct packet **pkt)
 		}
 
 	} else {
+		/* TODO where's the NULL check. */
 		*pkt = (skb->protocol == htons(ETH_P_IPV6))
 				? pkt_create_ipv6(frag)
 				: pkt_create_ipv4(frag);

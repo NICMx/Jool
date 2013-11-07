@@ -12,32 +12,6 @@
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
 
-static struct fragmentation_config config;
-static DEFINE_SPINLOCK(config_lock);
-
-
-int pktmod_init(void)
-{
-	config.fragment_timeout = msecs_to_jiffies(FRAGMENT_MIN);
-	return 0;
-}
-
-void pktmod_destroy(void)
-{
-	/* No code. */
-}
-
-unsigned long pktmod_get_fragment_timeout(void)
-{
-	unsigned long result;
-
-	spin_lock_bh(&config_lock);
-	result = config.fragment_timeout;
-	spin_unlock_bh(&config_lock);
-
-	return result;
-}
-
 verdict frag_create_empty(struct fragment **out)
 {
 	struct fragment *frag;
@@ -401,41 +375,31 @@ static verdict init_ipv4_l3_payload(struct fragment *frag)
 	return VER_CONTINUE;
 }
 
-verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out)
+struct fragment *frag_create_ipv4(struct sk_buff *skb)
 {
 	struct fragment *frag;
-	verdict result;
 
-	result = validate_ipv4_integrity(skb);
-	if (result != VER_CONTINUE)
-		return result;
+	if (validate_ipv4_integrity(skb) != VER_CONTINUE)
+		return NULL;
 
 	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
 	if (!frag) {
 		log_warning("Cannot allocate a fragment structure.");
-		return VER_DROP;
+		return NULL;
 	}
 	frag->skb = skb;
 
-	/* Layer 3 */
-	result = init_ipv4_l3_hdr(frag);
-	if (result != VER_CONTINUE)
+	if (init_ipv4_l3_hdr(frag) != VER_CONTINUE)
 		goto error;
-
-	/* Layer 4, Payload */
-	result = init_ipv4_l3_payload(frag);
-	if (result != VER_CONTINUE)
+	if (init_ipv4_l3_payload(frag) != VER_CONTINUE)
 		goto error;
-
-	/* List */
 	INIT_LIST_HEAD(&frag->next);
 
-	*frag_out = frag;
-	return VER_CONTINUE;
+	return frag;
 
 error:
 	kfree(frag);
-	return result;
+	return NULL;
 }
 
 /**

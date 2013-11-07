@@ -226,10 +226,10 @@ struct fragment {
  */
 verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out);
 /**
- * Allocates "frag_out" and initializes it out of "skb".
+ * Allocates a fragment, initializes it out of "skb" and returns it.
  * Assumes that "skb" represents a IPv4 packet.
  */
-verdict frag_create_ipv4(struct sk_buff *skb, struct fragment **frag_out);
+struct fragment *frag_create_ipv4(struct sk_buff *skb);
 /** Allocates "out" under the assumption that a skb is going to be created from it. */
 verdict frag_create_empty(struct fragment **out);
 /** Collapses all of "frag"'s fields into "frag".skb (i. e. creates a skb out of "frag"). */
@@ -302,41 +302,8 @@ struct packet {
 	/** Quick accesor of the one fragment that contains the layer-4 headers. */
 	struct fragment *first_fragment;
 
-	/* TODO the fields below are only used by packet_db. We should probably move them there. */
-
-	/**
-	 * Number of bytes that have to be collected for the packet to be complete. Only includes
-	 * layer 4 and up.
-	 *
-	 * If this is zero, then we still don't know the total length (the only way to know this is
-	 * to infer it from the last fragment).
-	 *
-	 * This is only relevant when the fragments are being collected. After the packet_db module,
-	 * you should probably ignore it (See the packet_db module for information on why we're
-	 * collecting related fragments even though we're not reassembling).
-	 */
-	u16 total_bytes;
-	/**
-	 * Number of bytes that have been collected so far.
-	 *
-	 * This is only relevant when the fragments are being collected. After the packet_db module,
-	 * you should probably ignore it.
-	 *
-	 * This is only relevant when the fragments are being collected. After the packet_db module,
-	 * you should probably ignore it (See the packet_db module for information on why we're
-	 * collecting related fragments even though we're not reassembling).
-	 */
-	u16 current_bytes;
-	/**
-	 * Identification of this "fragment stream". Identification field from the IPv4 header or IPv6
-	 * fragment header.
-	 */
-	u32 fragment_id;
-	/* Jiffies from the epoch at which Jool should forget about this "fragment stream". */
-	unsigned long dying_time;
-
 	/** Node used to link this packet in packet_db's "list" list. */
-	struct list_head pkt_list_node;
+	struct list_head hook;
 };
 
 /**
