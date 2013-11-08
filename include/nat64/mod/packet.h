@@ -31,46 +31,12 @@
  * natural fragments out there though, so most of the time it's just one struct packet containing
  * one struct fragment containing one struct sk_buff.
  *
- * Unlike most modules, this one has three function prefixes:
- * - "pktmod_" stands for functions affecting the whole module.
+ * Unlike most modules, this one has two function prefixes:
  * - "pkt_" refers to functions meant to interact with struct packet.
  * - "frag_" refers to functions meant to interact with struct fragment.
  * There are also functions lacking a prefix. These are for general interaction with oddly-designed
  * kernel packet-related structures.
  */
-
-
-/*	-------------------
-	-- Packet module --
-	------------------- */
-
-/** This module is configurable. Please call this at the beggining to load the default values. */
-int pktmod_init(void);
-/** Call this to free any memory held by this module. */
-void pktmod_destroy(void);
-/**
- * Updates Fragmentation configuration options.
- *
- * @param[in]  operation   _____________
- * @param[in]  new_config  The new configuration.
- * @return response_code   ___________.
- */
-int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config);
-/**
- * Copies this module's current configuration to "clone".
- *
- * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
- * @return zero on success, nonzero on failure.
- */
-int clone_fragmentation_config(struct fragmentation_config *clone);
-
-/**
- * Synchronization-safely returns the current configuration's fragment timeout.
- * fragment timeout is the maximum time any fragment should remain in memory. If that much time has
- * passed, it's most likely because at least one of its siblings died during shipping, and as such
- * reassembly is impossible.
- */
-unsigned long pktmod_get_fragment_timeout(void);
 
 
 /*	---------------
@@ -221,10 +187,10 @@ struct fragment {
 };
 
 /**
- * Allocates "frag_out" and initializes it out of "skb".
+ * Allocates a fragment, initializes it out of "skb" and returns it.
  * Assumes that "skb" represents a IPv6 packet.
  */
-verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out);
+struct fragment *frag_create_ipv6(struct sk_buff *skb);
 /**
  * Allocates a fragment, initializes it out of "skb" and returns it.
  * Assumes that "skb" represents a IPv4 packet.
@@ -301,33 +267,12 @@ struct packet {
 	struct list_head fragments;
 	/** Quick accesor of the one fragment that contains the layer-4 headers. */
 	struct fragment *first_fragment;
-
-	/** Node used to link this packet in packet_db's "list" list. */
-	struct list_head hook;
 };
 
-/**
- * Allocates and initializes a packet out of "frag"'s contents. Includes "frag" in its list.
- * Assumes that "frag" represents IPv6 data.
- */
-struct packet *pkt_create_ipv6(struct fragment *frag);
-/**
- * Allocates and initializes a packet out of "frag"'s contents. Includes "frag" in its list.
- * Assumes that "frag" represents IPv4 data.
- */
-struct packet *pkt_create_ipv4(struct fragment *frag);
-/**
- * Adds "frag" to "pkt"'s fragment list, and updates "pkt"'s counters and metadata.
- * Assumes that both "pkt" and "frag" represent IPv6 data.
- */
-void pkt_add_frag_ipv6(struct packet *pkt, struct fragment *frag);
-/**
- * Adds "frag" to "pkt"'s fragment list, and updates "pkt"'s counters and metadata.
- * Assumes that both "pkt" and "frag" represent IPv4 data.
- */
-void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag);
-/** Returns true if all of "pkt"'s fragments have arrived. */
-bool pkt_is_complete(struct packet *pkt);
+/** Allocates and initializes a packet out of "frag"'s contents. Includes "frag" in its list. */
+struct packet *pkt_create(struct fragment *frag);
+/** Adds "frag" to "pkt". Has the added comfort of updating "pkt".first_fragment if applies. */
+void pkt_add_frag(struct packet *pkt, struct fragment *frag);
 /** Frees "pkt"'s contents. If "free_pkt" is true, frees "pkt" as well. */
 void pkt_kfree(struct packet *pkt, bool free_pkt);
 

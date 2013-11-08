@@ -5,7 +5,7 @@ EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
 CC=cgcc
 
 PKT = pkt
-PKTDB = pktdb
+FRAGDB = fragdb
 INCOMING = incoming
 FILTERING = filtering
 OUTGOING = outgoing
@@ -19,8 +19,9 @@ ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += $(PKT).o $(PKTDB).o $(SEND).o $(SENDFRAGPKT).o
-obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o $(HAIRPINNING).o
+obj-m +=  $(FRAGDB).o
+#obj-m += $(PKT).o $(FRAGDB).o $(SEND).o $(SENDFRAGPKT).o
+#obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o $(HAIRPINNING).o
 
 # Packet
 $(PKT)-objs += ../mod/types.o
@@ -31,15 +32,14 @@ $(PKT)-objs += framework/unit_test.o
 $(PKT)-objs += packet_test.o
 
 # Packet DB
-$(PKTDB)-objs += ../mod/types.o
-$(PKTDB)-objs += ../mod/str_utils.o
-$(PKTDB)-objs += ../mod/ipv6_hdr_iterator.o
-$(PKTDB)-objs += ../mod/packet.o
-$(PKTDB)-objs += framework/unit_test.o
-$(PKTDB)-objs += framework/skb_generator.o
-$(PKTDB)-objs += framework/validator.o
-$(PKTDB)-objs += framework/types.o
-$(PKTDB)-objs += packet_db_test.o
+$(FRAGDB)-objs += ../mod/types.o
+$(FRAGDB)-objs += ../mod/str_utils.o
+$(FRAGDB)-objs += ../mod/ipv6_hdr_iterator.o
+$(FRAGDB)-objs += ../mod/packet.o
+$(FRAGDB)-objs += framework/unit_test.o
+$(FRAGDB)-objs += framework/skb_generator.o
+$(FRAGDB)-objs += framework/types.o
+$(FRAGDB)-objs += fragment_db_test.o
 
 # Incoming tuple
 $(INCOMING)-objs += ../mod/types.o
@@ -158,8 +158,8 @@ test:
 	#-sudo rmmod iterator
 	-sudo insmod $(PKT).ko
 	-sudo rmmod $(PKT)
-	-sudo insmod $(PKTDB).ko
-	-sudo rmmod $(PKTDB)
+	-sudo insmod $(FRAGDB).ko
+	-sudo rmmod $(FRAGDB)
 	-sudo insmod $(INCOMING).ko
 	-sudo rmmod $(INCOMING)
 	-sudo insmod $(FILTERING).ko

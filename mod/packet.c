@@ -1,7 +1,6 @@
 #include "nat64/mod/packet.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
-#include "nat64/mod/packet_db.h"
 
 
 #define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
@@ -222,31 +221,27 @@ static verdict init_ipv6_l4_fields(struct fragment *frag, struct hdr_iterator *i
 	return VER_CONTINUE;
 }
 
-verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
+struct fragment *frag_create_ipv6(struct sk_buff *skb)
 {
 	struct fragment *frag;
 	struct hdr_iterator iterator;
-	verdict result;
 
-	result = validate_ipv6_integrity(skb, &iterator);
-	if (result != VER_CONTINUE)
-		return result;
+	if (validate_ipv6_integrity(skb, &iterator) != VER_CONTINUE)
+		return NULL;
 
 	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
 	if (!frag) {
 		log_warning("Cannot allocate a fragment structure.");
-		return VER_DROP;
+		return NULL;
 	}
 	frag->skb = skb;
 
 	/* Layer 3 */
-	result = init_ipv6_l3_fields(frag, &iterator);
-	if (result != VER_CONTINUE)
+	if (init_ipv6_l3_fields(frag, &iterator) != VER_CONTINUE)
 		goto error;
 
 	/* Layer 4 */
-	result = init_ipv6_l4_fields(frag, &iterator);
-	if (result != VER_CONTINUE)
+	if (init_ipv6_l4_fields(frag, &iterator) != VER_CONTINUE)
 		goto error;
 
 	/* Payload */
@@ -262,12 +257,11 @@ verdict frag_create_ipv6(struct sk_buff *skb, struct fragment **frag_out)
 	/* List */
 	INIT_LIST_HEAD(&frag->next);
 
-	*frag_out = frag;
-	return VER_CONTINUE;
+	return frag;
 
 error:
 	kfree(frag);
-	return result;
+	return NULL;
 }
 
 static verdict validate_ipv4_integrity(struct sk_buff *skb)
@@ -627,10 +621,9 @@ void frag_print(struct fragment *frag)
 	log_info("Payload - length:%u kfree:%d", frag->payload.len, frag->payload.ptr_needs_kfree);
 }
 
-struct packet *pkt_create_ipv6(struct fragment *frag)
+struct packet *pkt_create(struct fragment *frag)
 {
 	struct packet *pkt;
-	struct frag_hdr *hdr_frag = frag_get_fragment_hdr(frag);
 
 	pkt = kmalloc(sizeof(*pkt), GFP_ATOMIC);
 	if (!pkt) {
@@ -639,75 +632,16 @@ struct packet *pkt_create_ipv6(struct fragment *frag)
 	}
 
 	INIT_LIST_HEAD(&pkt->fragments);
-	pkt->total_bytes = 0;
-	pkt->current_bytes = 0;
-	pkt->fragment_id = (hdr_frag != NULL) ? be32_to_cpu(hdr_frag->identification) : 0;
-	pkt->dying_time = jiffies + pktmod_get_fragment_timeout();
-	INIT_LIST_HEAD(&pkt->pkt_list_node);
-
-	pkt_add_frag_ipv6(pkt, frag);
+	pkt_add_frag(pkt, frag);
 
 	return pkt;
 }
 
-struct packet *pkt_create_ipv4(struct fragment *frag)
+void pkt_add_frag(struct packet *pkt, struct fragment *frag)
 {
-	struct packet *pkt;
-	struct iphdr *hdr4 = frag_get_ipv4_hdr(frag);
-
-	pkt = kmalloc(sizeof(*pkt), GFP_ATOMIC);
-	if (!pkt) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate a packet.");
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&pkt->fragments);
-	pkt->total_bytes = 0;
-	pkt->current_bytes = 0;
-	pkt->fragment_id = be16_to_cpu(hdr4->id);
-	pkt->dying_time = jiffies + pktmod_get_fragment_timeout();
-	INIT_LIST_HEAD(&pkt->pkt_list_node);
-
-	pkt_add_frag_ipv4(pkt, frag);
-
-	return pkt;
-}
-
-void pkt_add_frag_ipv6(struct packet *pkt, struct fragment *frag)
-{
-	struct frag_hdr *hdr_frag = frag_get_fragment_hdr(frag);
-
 	list_add(&frag->next, pkt->fragments.prev);
-
-	if (hdr_frag != NULL) {
-		if (!is_more_fragments_set_ipv6(hdr_frag))
-			pkt->total_bytes = get_fragment_offset_ipv6(hdr_frag) + frag->l4_hdr.len + frag->payload.len;
-		pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
-	} else {
-		pkt->total_bytes = frag->l4_hdr.len + frag->payload.len;
-		pkt->current_bytes = pkt->total_bytes;
-	}
 	if (frag->l4_hdr.proto != L4PROTO_NONE)
 		pkt->first_fragment = frag;
-}
-
-void pkt_add_frag_ipv4(struct packet *pkt, struct fragment *frag)
-{
-	struct iphdr *hdr4 = frag_get_ipv4_hdr(frag);
-
-	list_add(&frag->next, pkt->fragments.prev);
-
-	if (!is_more_fragments_set_ipv4(hdr4))
-		pkt->total_bytes = get_fragment_offset_ipv4(hdr4) + frag->l4_hdr.len + frag->payload.len;
-	pkt->current_bytes += frag->l4_hdr.len + frag->payload.len;
-	if (frag->l4_hdr.proto != L4PROTO_NONE)
-		pkt->first_fragment = frag;
-}
-
-/* TODO si current_bytes > total_bytes, hay que MATAR A pkt INMEDIATAMENTE!!! */
-bool pkt_is_complete(struct packet *pkt)
-{
-	return (pkt->total_bytes != 0) && (pkt->total_bytes == pkt->current_bytes);
 }
 
 void pkt_kfree(struct packet *pkt, bool free_pkt)
@@ -723,32 +657,4 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 
 	if (free_pkt)
 		kfree(pkt);
-}
-
-int clone_fragmentation_config(struct fragmentation_config *clone)
-{
-	spin_lock_bh(&config_lock);
-	*clone = config;
-	spin_unlock_bh(&config_lock);
-
-	return 0;
-}
-
-int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
-{
-	int error = 0;
-
-    spin_lock_bh(&config_lock);
-
-    if (operation & FRAGMENT_TIMEOUT_MASK) {
-        if ( new_config->fragment_timeout < msecs_to_jiffies(FRAGMENT_MIN) ) {
-        	error = -EINVAL;
-            log_err(ERR_FRAGMENTATION_TO_RANGE, "The Fragmentation timeout must be at least %u miliseconds.", FRAGMENT_MIN);
-        } else {
-        	config.fragment_timeout = new_config->fragment_timeout;
-        }
-    }
-
-    spin_unlock_bh(&config_lock);
-    return error;
 }
