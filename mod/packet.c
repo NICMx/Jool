@@ -632,6 +632,7 @@ struct packet *pkt_create(struct fragment *frag)
 	}
 
 	INIT_LIST_HEAD(&pkt->fragments);
+	pkt->first_fragment = NULL;
 	pkt_add_frag(pkt, frag);
 
 	return pkt;
@@ -646,12 +647,13 @@ void pkt_add_frag(struct packet *pkt, struct fragment *frag)
 
 void pkt_kfree(struct packet *pkt, bool free_pkt)
 {
+	struct fragment *frag;
+
 	if (!pkt)
 		return;
 
 	while (!list_empty(&pkt->fragments)) {
-		/* pkt->fragment.next is the first element of the list. */
-		struct fragment *frag = list_entry(pkt->fragments.next, struct fragment, next);
+		frag = pkt_get_first_frag(pkt);
 		frag_kfree(frag);
 	}
 

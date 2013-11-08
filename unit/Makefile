@@ -144,34 +144,20 @@ $(SENDFRAGPKT)-objs += send_fragmented_packet.o
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
-	#-sudo insmod rfc6052.ko
-	#-sudo rmmod rfc6052
-	#-sudo insmod hashtable.ko
-	#-sudo rmmod hashtable
-	#-sudo insmod poolnum.ko
-	#-sudo rmmod poolnum
-	#-sudo insmod pool4.ko
-	#-sudo rmmod pool4
-	#-sudo insmod bib_session.ko
-	#-sudo rmmod bib_session
-	#-sudo insmod iterator.ko
-	#-sudo rmmod iterator
-	-sudo insmod $(PKT).ko
-	-sudo rmmod $(PKT)
-	-sudo insmod $(FRAGDB).ko
-	-sudo rmmod $(FRAGDB)
-	-sudo insmod $(INCOMING).ko
-	-sudo rmmod $(INCOMING)
-	-sudo insmod $(FILTERING).ko
-	-sudo rmmod $(FILTERING)
-	-sudo insmod $(OUTGOING).ko
-	-sudo rmmod $(OUTGOING)
-	-sudo insmod $(TRANSLATE).ko
-	-sudo rmmod $(TRANSLATE)
-	-sudo insmod $(HAIRPINNING).ko
-	-sudo rmmod $(HAIRPINNING)
-	#-sudo insmod $(SENDFRAGPKT).ko
-	#-sudo rmmod $(SENDFRAGPKT)
+	#-sudo insmod rfc6052.ko && sudo rmmod rfc6052 
+	#-sudo insmod hashtable.ko && sudo rmmod hashtable
+	#-sudo insmod poolnum.ko && sudo rmmod poolnum
+	#-sudo insmod pool4.ko && sudo rmmod pool4
+	#-sudo insmod bib_session.ko && sudo rmmod bib_session
+	#-sudo insmod iterator.ko && sudo rmmod iterator
+	#-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
+	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
+	#-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
+	#-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
+	#-sudo insmod $(OUTGOING).ko & sudo rmmod $(OUTGOING)
+	#-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
+	#-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
+	#-sudo insmod $(SENDFRAGPKT).ko && sudo rmmod $(SENDFRAGPKT)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

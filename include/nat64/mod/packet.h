@@ -316,5 +316,11 @@ static inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
 	return &hdr6->daddr;
 }
 
+/* TODO try to always use this. */
+static inline struct fragment *pkt_get_first_frag(struct packet *pkt)
+{
+	return list_entry(pkt->fragments.next, struct fragment, next);
+}
+
 
 #endif /* _NF_NAT64_PACKET_H */

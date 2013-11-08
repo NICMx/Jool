@@ -22,8 +22,8 @@ struct reassembly_buffer_key {
 	l3_protocol l3_proto;
 	union {
 		struct {
-			__be32 src_addr;
-			__be32 dst_addr;
+			struct in_addr src_addr;
+			struct in_addr dst_addr;
 			__be16 identification;
 		} ipv4;
 		struct {
@@ -32,7 +32,7 @@ struct reassembly_buffer_key {
 			__be32 identification;
 		} ipv6;
 	};
-	l4_protocol l4_proto;
+	__u8 l4_proto;
 };
 
 struct reassembly_buffer {
@@ -85,11 +85,19 @@ static bool equals_function(struct reassembly_buffer_key *key1, struct reassembl
 
 	switch (key1->l3_proto) {
 	case L3PROTO_IPV4:
-		if (memcmp(&key1->ipv4, &key2->ipv4, sizeof(key1->ipv4)) != 0)
+		if (!ipv4_addr_equals(&key1->ipv4.src_addr, &key2->ipv4.src_addr))
+			return false;
+		if (!ipv4_addr_equals(&key1->ipv4.dst_addr, &key2->ipv4.dst_addr))
+			return false;
+		if (key1->ipv4.identification != key2->ipv4.identification)
 			return false;
 		break;
 	case L3PROTO_IPV6:
-		if (memcmp(&key1->ipv6, &key2->ipv6, sizeof(key1->ipv6)) != 0)
+		if (!ipv6_addr_equals(&key1->ipv6.src_addr, &key2->ipv6.src_addr))
+			return false;
+		if (!ipv6_addr_equals(&key1->ipv6.dst_addr, &key2->ipv6.dst_addr))
+			return false;
+		if (key1->ipv6.identification != key2->ipv6.identification)
 			return false;
 		break;
 	}
@@ -139,7 +147,7 @@ static bool is_fragmented(struct fragment *frag)
 		break;
 	}
 
-	return (fragment_offset == 0) && (!mf);
+	return (fragment_offset != 0) || (mf);
 }
 
 static struct hole_descriptor *hole_alloc(u16 first, u16 last)
@@ -180,14 +188,16 @@ static void frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key
 {
 	struct iphdr *hdr4;
 	struct ipv6hdr *hdr6;
+	struct hdr_iterator iterator;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV4:
 		hdr4 = frag_get_ipv4_hdr(frag);
 		key->l3_proto = L3PROTO_IPV4;
-		key->ipv4.src_addr = hdr4->saddr;
-		key->ipv4.dst_addr = hdr4->daddr;
+		key->ipv4.src_addr.s_addr = hdr4->saddr;
+		key->ipv4.dst_addr.s_addr = hdr4->daddr;
 		key->ipv4.identification = hdr4->id;
+		key->l4_proto = hdr4->protocol;
 		break;
 
 	case L3PROTO_IPV6:
@@ -195,11 +205,19 @@ static void frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key
 		key->l3_proto = L3PROTO_IPV6;
 		key->ipv6.src_addr = hdr6->saddr;
 		key->ipv6.dst_addr = hdr6->daddr;
-		key->ipv6.identification = frag_get_fragment_hdr(frag)->identification;
+
+		hdr_iterator_init(&iterator, hdr6);
+		while (iterator.hdr_type != NEXTHDR_FRAGMENT) {
+			if (hdr_iterator_next(&iterator) != HDR_ITERATOR_SUCCESS)
+				log_debug("Error"); /* TODO */
+		}
+		key->ipv6.identification = ((struct frag_hdr *) iterator.data)->identification;
+
+		hdr_iterator_last(&iterator);
+		key->l4_proto = iterator.hdr_type;
 		break;
 	}
 
-	key->l4_proto = frag->l4_hdr.proto;
 }
 
 static struct reassembly_buffer *buffer_get(struct fragment *frag)
@@ -214,7 +232,7 @@ static int buffer_put(struct reassembly_buffer *buffer)
 	struct reassembly_buffer_key key;
 	int error;
 
-	frag_to_key(buffer->pkt->first_fragment, &key);
+	frag_to_key(pkt_get_first_frag(buffer->pkt), &key);
 	error = fragdb_table_put(&table, &key, buffer);
 	if (error)
 		return error;
@@ -232,12 +250,10 @@ static int buffer_put(struct reassembly_buffer *buffer)
 static void buffer_destroy(struct reassembly_buffer *buffer, bool free_pkt)
 {
 	struct reassembly_buffer_key key;
-	int error;
 
 	/* Remove it from the DB. */
-	frag_to_key(buffer->pkt->first_fragment, &key);
-	error = fragdb_table_remove(&table, &key, buffer);
-	if (error) {
+	frag_to_key(pkt_get_first_frag(buffer->pkt), &key);
+	if (!fragdb_table_remove(&table, &key, false)) {
 		log_crit(ERR_UNKNOWN_ERROR, "Something is attempting to delete a buffer that wasn't stored"
 				"in the database.");
 		return;
@@ -463,7 +479,10 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	spin_lock_bh(&table_lock);
 
 	buffer = buffer_get(frag);
-	if (!buffer) {
+	if (buffer) {
+		pkt_add_frag(buffer->pkt, frag);
+
+	} else {
 		buffer = buffer_alloc(frag);
 		if (!buffer)
 			goto fail;

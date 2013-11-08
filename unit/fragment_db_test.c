@@ -116,31 +116,6 @@ static bool validate_database(int expected_count)
 	return success;
 }
 
-//static bool validate_list(struct pktdb_key *expected, int expected_count)
-//{
-//	struct packet *current_pkt;
-//	bool success = true;
-//	int c = 0;
-//
-//	list_for_each_entry(current_pkt, &list, pkt_list_node) {
-//		if (!assert_true(c < expected_count, "List count"))
-//			return false;
-//
-////		if (expected[c].is_ipv6) {
-////			success &= assert_equals_ipv6(&expected[c].ipv6.src, &current_pkt->addr.ipv6.src, "IPv6 Src addr");
-////			success &= assert_equals_ipv6(&expected[c].ipv6.dst, &current_pkt->addr.ipv6.dst, "IPv6 Dst addr");
-////		} else {
-////			success &= assert_equals_ipv4(&expected[c].ipv4.src, &current_pkt->addr.ipv4.src, "IPv4 Src addr");
-////			success &= assert_equals_ipv4(&expected[c].ipv4.dst, &current_pkt->addr.ipv4.dst, "IPv4 Dst addr");
-////		}
-//		success &= assert_equals_u32(expected[c].identifier, current_pkt->fragment_id, "Fragment ID");
-//
-//		c++;
-//	}
-//
-//	return success;
-//}
-
 static bool test_no_fragments_6to4(void)
 {
 	struct packet *pkt;
@@ -153,13 +128,13 @@ static bool test_no_fragments_6to4(void)
 	error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
 	if (error)
 		return false;
-	error = create_skb_ipv6_udp(&pair6, &skb, 100);
+	error = create_skb_ipv6_udp(&pair6, &skb, 10);
 	if (error)
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb, &pkt), "Verdict");
 	success &= validate_packet(pkt, 1);
-	success &= validate_fragment(pkt->first_fragment, skb, true, false, 100);
+	success &= validate_fragment(pkt->first_fragment, skb, true, false, 10);
 	success &= validate_database(0);
 
 	pkt_kfree(pkt, true);
@@ -178,96 +153,100 @@ static bool test_no_fragments_4to6(void)
 	error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
 	if (error)
 		return false;
-	error = create_skb_ipv4_udp(&pair4, &skb, 110);
+	error = create_skb_ipv4_udp(&pair4, &skb, 20);
 	if (error)
 		return false;
 
+	/* Test */
 	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb, &pkt), "Verdict");
+	if (!success)
+		return false;
+
 	success &= validate_packet(pkt, 1);
-	success &= validate_fragment(pkt->first_fragment, skb, true, false, 110);
+	success &= validate_fragment(pkt->first_fragment, skb, true, false, 20);
 	success &= validate_database(0);
 
 	pkt_kfree(pkt, true);
 	return success;
 }
 
-///**
-// *
-// * Three packets: 	((IPv6 + frag_hdr) + udp_hdr + payload100),
-// * 					((IPv6 + frag_hdr) payload100)
-// * 					((IPv6 + frag_hdr) payload100)
-// */
-//static bool test_fragments_6to4(void)
-//{
-//	struct packet *pkt;
-//	struct fragment *frag;
-//	struct sk_buff *skb1, *skb2, *skb3;
-//	struct ipv6_pair pair6;
-//	struct ipv6hdr *hdr6;
-//	struct frag_hdr *hdr_frag;
-//	int errorx;
-//	bool success = true;
-//	u32 id1 = 1234;
-//
-//	errorx = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
-//	if (errorx)
-//		return false;
-//
-//	/* First packet arrives. */
-//	errorx = create_skb_ipv6_udp_fragment_1(&pair6, &skb1, 100);
-//	if (errorx)
-//		return false;
-//	hdr6 = ipv6_hdr(skb1);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb1, &pkt), "1st verdict");
-//	success &= validate_database(1);
-//
-//	/* Second packet arrives. */
-//	errorx = create_skb_ipv6_udp_fragment_n(&pair6, &skb2, 100);
-//	if (errorx)
-//		return false;
-//	hdr6 = ipv6_hdr(skb2);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(100+sizeof(struct udphdr), true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb2, &pkt), "2nd verdict");
-//	success &= validate_database(1);
-//
-//	/* Third and final packet arrives. */
-//	errorx = create_skb_ipv6_udp_fragment_n(&pair6, &skb3, 100);
-//	if (errorx)
-//		return false;
-//	hdr6 = ipv6_hdr(skb3);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(200+sizeof(struct udphdr), false);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb3, &pkt), "3rd verdict");
-//	success &= validate_database(0);
-//
-//	/* Validate the packet. */
-//	success &= validate_packet_ipv6(pkt, 3, sizeof(struct udphdr) + 300);
-//
-//	/* Validate the fragments. */
-//	log_debug("Validating the first fragment...");
-//	frag = container_of(pkt->fragments.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb1, true);
-//
-//	log_debug("Validating the second fragment...");
-//	frag = container_of(frag->next.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb2, false);
-//
-//	log_debug("Validating the third fragment...");
-//	frag = container_of(frag->next.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb3, false);
-//
-//	pkt_kfree(pkt, true);
-//	return success;
-//}
+/**
+ *
+ * Three packets: 	((IPv6 + frag_hdr) + udp_hdr + payload100),
+ * 					((IPv6 + frag_hdr) payload100)
+ * 					((IPv6 + frag_hdr) payload100)
+ */
+static bool test_fragments_6to4(void)
+{
+	struct packet *pkt;
+	struct fragment *frag;
+	struct sk_buff *skb1, *skb2, *skb3;
+	struct ipv6_pair pair6;
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *hdr_frag;
+	int errorx;
+	bool success = true;
+	u32 id1 = 1234;
+
+	errorx = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
+	if (errorx)
+		return false;
+
+	/* First packet arrives. */
+	errorx = create_skb_ipv6_udp_fragment_1(&pair6, &skb1, 64 - sizeof(struct udphdr));
+	if (errorx)
+		return false;
+	hdr6 = ipv6_hdr(skb1);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
+	hdr_frag->identification = cpu_to_be32(id1);
+
+	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &pkt), "1st verdict");
+	success &= validate_database(1);
+
+	/* Second packet arrives. */
+	errorx = create_skb_ipv6_udp_fragment_n(&pair6, &skb2, 128);
+	if (errorx)
+		return false;
+	hdr6 = ipv6_hdr(skb2);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(64, true);
+	hdr_frag->identification = cpu_to_be32(id1);
+
+	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &pkt), "2nd verdict");
+	success &= validate_database(1);
+
+	/* Third and final packet arrives. */
+	errorx = create_skb_ipv6_udp_fragment_n(&pair6, &skb3, 192);
+	if (errorx)
+		return false;
+	hdr6 = ipv6_hdr(skb3);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(192, false);
+	hdr_frag->identification = cpu_to_be32(id1);
+
+	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb3, &pkt), "3rd verdict");
+	success &= validate_database(0);
+
+	/* Validate the packet. */
+	success &= validate_packet(pkt, 3);
+
+	/* Validate the fragments. */
+	log_debug("Validating the first fragment...");
+	frag = container_of(pkt->fragments.next, struct fragment, next);
+	success &= validate_fragment(frag, skb1, true, true, 64 - sizeof(struct udphdr));
+
+	log_debug("Validating the second fragment...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	success &= validate_fragment(frag, skb2, false, true, 128);
+
+	log_debug("Validating the third fragment...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	success &= validate_fragment(frag, skb3, false, true, 192);
+
+	pkt_kfree(pkt, true);
+	return success;
+}
 
 static bool test_fragments_4to6(void)
 {
@@ -284,7 +263,7 @@ static bool test_fragments_4to6(void)
 		return false;
 
 	/* First packet arrives. */
-	error = create_skb_ipv4_udp(&pair4, &skb1, 120);
+	error = create_skb_ipv4_udp(&pair4, &skb1, 64 - sizeof(struct udphdr));
 	if (error)
 		return false;
 	hdr4 = ip_hdr(skb1);
@@ -296,11 +275,11 @@ static bool test_fragments_4to6(void)
 	success &= validate_database(1);
 
 	/* Second packet arrives. */
-	error = create_skb_ipv4_udp_fragment(&pair4, &skb2, 130);
+	error = create_skb_ipv4_udp_fragment(&pair4, &skb2, 128);
 	if (error)
 		return false;
 	hdr4 = ip_hdr(skb2);
-	hdr4->frag_off = build_ipv4_frag_off_field(false, true, sizeof(struct udphdr) + 120);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 64);
 	hdr4->check = 0;
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
@@ -308,11 +287,11 @@ static bool test_fragments_4to6(void)
 	success &= validate_database(1);
 
 	/* Third and final packet arrives. */
-	error = create_skb_ipv4_udp_fragment(&pair4, &skb3, 140);
+	error = create_skb_ipv4_udp_fragment(&pair4, &skb3, 192);
 	if (error)
 		return false;
 	hdr4 = ip_hdr(skb3);
-	hdr4->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 250);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, false, 192);
 	hdr4->check = 0;
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
@@ -320,20 +299,24 @@ static bool test_fragments_4to6(void)
 	success &= validate_database(0);
 
 	/* Validate the packet. */
+	if (pkt == NULL) {
+		log_debug("Nulo");
+		return false;
+	}
 	success &= validate_packet(pkt, 3);
 
 	/* Validate the fragments. */
 	log_debug("Validating the first fragment...");
 	frag = container_of(pkt->fragments.next, struct fragment, next);
-	success &= validate_fragment(frag, skb1, true, false, 120);
+	success &= validate_fragment(frag, skb1, true, false, 64 - sizeof(struct udphdr));
 
 	log_debug("Validating the second fragment...");
 	frag = container_of(frag->next.next, struct fragment, next);
-	success &= validate_fragment(frag, skb2, false, false, 130);
+	success &= validate_fragment(frag, skb2, false, false, 128);
 
 	log_debug("Validating the third fragment...");
 	frag = container_of(frag->next.next, struct fragment, next);
-	success &= validate_fragment(frag, skb3, false, false, 140);
+	success &= validate_fragment(frag, skb3, false, false, 192);
 
 	pkt_kfree(pkt, true);
 	return success;
@@ -341,6 +324,41 @@ static bool test_fragments_4to6(void)
 
 /* TODO jiffies NO ES ATÓMICA. */
 
+//static bool validate_list(struct reassembly_buffer_key *expected, int expected_count)
+//{
+//	struct reassembly_buffer *current_buffer;
+//	bool success = true;
+//	int c = 0;
+//
+////	list_for_each_entry(current_buffer, &expire_list, hook) {
+//		if (!assert_true(c < expected_count, "List count"))
+//			return false;
+//
+//		switch (expected[c].l3_proto) {
+//		case L3PROTO_IPV6:
+//			success &= assert_equals_ipv6(&expected[c].ipv6.src_addr, &current_buffer->addr.ipv6.src,
+//					"IPv6 Src addr");
+//			success &= assert_equals_ipv6(&expected[c].ipv6.dst_addr, &current_buffer->addr.ipv6.dst,
+//					"IPv6 Dst addr");
+//			success &= assert_equals_u32(expected[c].ipv6.identification, current_buffer->fragment_id,
+//					"Fragment ID");
+//			break;
+//		case L3PROTO_IPV4:
+//			success &= assert_equals_ipv4(&expected[c].ipv4.src_addr, &current_buffer->addr.ipv4.src,
+//					"IPv4 Src addr");
+//			success &= assert_equals_ipv4(&expected[c].ipv4.dst_addr, &current_buffer->addr.ipv4.dst,
+//					"IPv4 Dst addr");
+//			success &= assert_equals_u32(expected[c].ipv4.identification, current_buffer->fragment_id,
+//					"Fragment ID");
+//			break;
+//		}
+//
+//		c++;
+////	}
+//
+//	return success;
+//}
+//
 ///**
 // * Two things are being validated here:
 // * - The timer deletes the correct stuff whenever it has to.
@@ -352,12 +370,12 @@ static bool test_fragments_4to6(void)
 //	struct ipv4_pair pair13, pair2; /* skbs 1 and 3 use pair 13. skb2 uses pair2. */
 //	struct sk_buff *skb4, *skb5, *skb6;
 //	struct ipv6_pair pair46, pair5; /* skbs 4 and 6 use pair 46. skb5 uses pair5. */
-//	struct pktdb_key expected_keys[6];
+//	struct reassembly_buffer_key expected_keys[6];
 //	struct packet *pkt, *pkt6;
 //	struct iphdr *hdr4;
 //	struct ipv6hdr *hdr6;
 //	struct frag_hdr *hdr_frag;
-//	u32 id1 = 1234;
+//	u16 id1 = 1234;
 //	bool success = true;
 //	int errorx;
 //	int count = 0;
@@ -375,25 +393,29 @@ static bool test_fragments_4to6(void)
 //	if (errorx)
 //		return false;
 //
-//	expected_keys[0].is_ipv6 = false;
-//	expected_keys[0].ipv4.src = pair13.remote.address;
-//	expected_keys[0].ipv4.dst = pair13.local.address;
-//	expected_keys[0].identifier = id1;
+//	expected_keys[0].l3_proto = L3PROTO_IPV4;
+//	expected_keys[0].ipv4.src_addr = pair13.remote.address;
+//	expected_keys[0].ipv4.dst_addr = pair13.local.address;
+//	expected_keys[0].ipv4.identification = cpu_to_be16(id1);
+//	expected_keys[0].l4_proto = NEXTHDR_UDP;
 //
-//	expected_keys[1].is_ipv6 = false;
-//	expected_keys[1].ipv4.src = pair2.remote.address;
-//	expected_keys[1].ipv4.dst = pair2.local.address;
-//	expected_keys[1].identifier = id1;
+//	expected_keys[1].l3_proto = L3PROTO_IPV4;
+//	expected_keys[1].ipv4.src_addr = pair2.remote.address;
+//	expected_keys[1].ipv4.dst_addr = pair2.local.address;
+//	expected_keys[1].ipv4.identification = cpu_to_be16(id1);
+//	expected_keys[1].l4_proto = NEXTHDR_UDP;
 //
-//	expected_keys[2].is_ipv6 = true;
-//	expected_keys[2].ipv6.src = pair46.remote.address;
-//	expected_keys[2].ipv6.dst = pair46.local.address;
-//	expected_keys[2].identifier = id1;
+//	expected_keys[2].l3_proto = L3PROTO_IPV6;
+//	expected_keys[2].ipv6.src_addr = pair46.remote.address;
+//	expected_keys[2].ipv6.dst_addr = pair46.local.address;
+//	expected_keys[2].ipv6.identification = cpu_to_be32(id1);
+//	expected_keys[2].l4_proto = NEXTHDR_UDP;
 //
-//	expected_keys[3].is_ipv6 = true;
-//	expected_keys[3].ipv6.src = pair5.remote.address;
-//	expected_keys[3].ipv6.dst = pair5.local.address;
-//	expected_keys[3].identifier = id1;
+//	expected_keys[3].l3_proto = L3PROTO_IPV6;
+//	expected_keys[3].ipv6.src_addr = pair5.remote.address;
+//	expected_keys[3].ipv6.dst_addr = pair5.local.address;
+//	expected_keys[3].ipv6.identification = cpu_to_be32(id1);
+//	expected_keys[3].l4_proto = NEXTHDR_UDP;
 //
 //	/* First packet */
 //	log_debug("Packet #%d", ++count);
@@ -405,12 +427,12 @@ static bool test_fragments_4to6(void)
 //	hdr4->check = 0;
 //	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 //
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb1, &pkt), "1st verdict");
+//	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &pkt), "1st verdict");
 //
 //	success &= validate_database(1);
 //	success &= validate_list(&expected_keys[0], 1);
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 1"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(1);
 //	success &= validate_list(&expected_keys[0], 1);
 //
@@ -424,12 +446,12 @@ static bool test_fragments_4to6(void)
 //	hdr4->check = 0;
 //	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 //
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb2, &pkt), "2nd verdict");
+//	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &pkt), "2nd verdict");
 //
 //	success &= validate_database(2);
 //	success &= validate_list(&expected_keys[0], 2);
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 2"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(2);
 //	success &= validate_list(&expected_keys[0], 2);
 //
@@ -443,12 +465,12 @@ static bool test_fragments_4to6(void)
 //	hdr4->check = 0;
 //	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 //
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb3, &pkt), "3rd verdict");
+//	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb3, &pkt), "3rd verdict");
 //
 //	success &= validate_database(2);
 //	success &= validate_list(&expected_keys[0], 2);
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 2"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(2);
 //	success &= validate_list(&expected_keys[0], 2);
 //
@@ -462,12 +484,12 @@ static bool test_fragments_4to6(void)
 //	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
 //	hdr_frag->identification = cpu_to_be32(id1);
 //
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb4, &pkt6), "4th verdict");
+//	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb4, &pkt6), "4th verdict");
 //
 //	success &= validate_database(3);
 //	success &= validate_list(&expected_keys[0], 3);
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 4"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(3);
 //	success &= validate_list(&expected_keys[0], 3);
 //
@@ -481,12 +503,12 @@ static bool test_fragments_4to6(void)
 //	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
 //	hdr_frag->identification = cpu_to_be32(id1);
 //
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb5, &pkt6), "5th verdict");
+//	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &pkt6), "5th verdict");
 //
 //	success &= validate_database(4);
 //	success &= validate_list(&expected_keys[0], 4);
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 5"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(4);
 //	success &= validate_list(&expected_keys[0], 4);
 //
@@ -500,12 +522,12 @@ static bool test_fragments_4to6(void)
 //	hdr_frag->frag_off = build_ipv6_frag_off_field(100+sizeof(struct udphdr), true);
 //	hdr_frag->identification = cpu_to_be32(id1);
 //
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb6, &pkt6), "6th verdict");
+//	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb6, &pkt6), "6th verdict");
 //
 //	success &= validate_database(4);
 //	success &= validate_list(&expected_keys[0], 4);
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 6"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(4);
 //	success &= validate_list(&expected_keys[0], 4);
 //
@@ -516,7 +538,7 @@ static bool test_fragments_4to6(void)
 //	pkt6->dying_time = jiffies + msecs_to_jiffies(4000);
 //
 //	/* success &= assert_range(3900, 4100, clean_expired_fragments(), "Timer 3"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(3);
 //	success &= validate_list(&expected_keys[1], 3);
 //
@@ -524,7 +546,7 @@ static bool test_fragments_4to6(void)
 //	pkt6->dying_time = jiffies - 1;
 //
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 4"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(2);
 //	success &= validate_list(&expected_keys[2], 2);
 //
@@ -535,7 +557,7 @@ static bool test_fragments_4to6(void)
 //	pkt6->dying_time = jiffies + msecs_to_jiffies(4000);
 //
 //	/* success &= assert_range(3900, 4100, clean_expired_fragments(), "Timer 5"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(1);
 //	success &= validate_list(&expected_keys[3], 1);
 //
@@ -543,145 +565,144 @@ static bool test_fragments_4to6(void)
 //	pkt6->dying_time = jiffies - 1;
 //
 //	/* success &= assert_range(1900, 2100, clean_expired_fragments(), "Timer 6"); */
-//	clean_expired_fragments();
+//	clean_expired_buffers();
 //	success &= validate_database(0);
 //
 //	return success;
 //}
-//
-///**
-// * Three things are being validated here:
-// * - Fragments arriving in disorder.
-// * - Fragments from different connections but same identifier.
-// */
-//static bool test_conflicts(void)
-//{
-//	struct packet *pkt, *pkt6;
-//	struct fragment *frag;
-//	struct sk_buff *skb1, *skb2, *skb3;
-//	struct sk_buff *skb4, *skb5, *skb6;
-//	struct ipv4_pair pair13, pair2;
-//	struct ipv6_pair pair46, pair5;
-//	struct iphdr *hdr4;
-//	struct ipv6hdr *hdr6;
-//	struct frag_hdr *hdr_frag;
-//	u32 id1 = 1234;
-//	int error;
-//	bool success = true;
-//
-//	error = init_pair4(&pair13, "8.7.6.5", 8765, "5.6.7.8", 5678);
-//	if (error)
-//		return false;
-//	error = init_pair4(&pair2, "11.12.13.14", 1112, "14.13.12.11", 1413);
-//	if (error)
-//		return false;
-//	error = init_pair6(&pair46, "1::2", 1212, "3::4", 3434);
-//	if (error)
-//		return false;
-//	error = init_pair6(&pair5, "8::7", 8787, "6::5", 6565);
-//	if (error)
-//		return false;
-//
-//	/* First packet arrives. */
-//	error = create_skb_ipv4_udp_fragment(&pair13, &skb1, 100);
-//	if (error)
-//		return false;
-//	hdr4 = ip_hdr(skb1);
-//	hdr4->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 100);
-//	hdr4->check = 0;
-//	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
-//
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb1, &pkt), "1st verdict");
-//	success &= validate_database(1);
-//
-//	/* Second packet arrives. */
-//	error = create_skb_ipv4_udp_fragment(&pair2, &skb2, 100);
-//	if (error)
-//		return false;
-//	hdr4 = ip_hdr(skb2);
-//	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
-//	hdr4->check = 0;
-//	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
-//
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb2, &pkt), "2nd verdict");
-//	success &= validate_database(2);
-//
-//	/* Third and final packet arrives. */
-//	error = create_skb_ipv4_udp(&pair13, &skb3, 100);
-//	if (error)
-//		return false;
-//	hdr4 = ip_hdr(skb3);
-//	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
-//	hdr4->check = 0;
-//	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
-//
-//	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb3, &pkt), "3rd verdict");
-//	success &= validate_database(1);
-//
-//	/* Validate the packet. */
-//	success &= validate_packet_ipv4(pkt, 2, sizeof(struct udphdr) + 200);
-//
-//	/* Validate the fragments. */
-//	log_debug("Validating the first fragment...");
-//	frag = container_of(pkt->fragments.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb1, false);
-//
-//	log_debug("Validating the second fragment...");
-//	frag = container_of(frag->next.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb3, true);
-//
-//	/* Fourth packet arrives - IPv6. */
-//	log_debug("Start with IPv6");
-//	error = create_skb_ipv6_udp_fragment_n(&pair46, &skb4, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb4);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(100+sizeof(struct udphdr), false);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb4, &pkt6), "4th verdict");
-//	success &= validate_database(2);
-//
-//	/* Fifth packet arrives - IPv6. */
-//	error = create_skb_ipv6_udp_fragment_n(&pair5, &skb5, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb5);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(100+sizeof(struct udphdr), true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= assert_equals_int(VER_STOLEN, pkt_from_skb(skb5, &pkt6), "5th verdict");
-//	success &= validate_database(3);
-//
-//	/* Sixth and final packet arrives - IPv6. */
-//	error = create_skb_ipv6_udp_fragment_1(&pair46, &skb6, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb6);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb6, &pkt6), "6th verdict");
-//	success &= validate_database(2);
-//
-//	/* Validate the packet - IPv6. */
-//	success &= validate_packet_ipv6(pkt6, 2, sizeof(struct udphdr) + 200);
-//
-//	/* Validate the fragments - IPv6. */
-//	log_debug("Validating the third fragment...");
-//	frag = container_of(pkt6->fragments.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb4, false);
-//
-//	log_debug("Validating the fourth fragment...");
-//	frag = container_of(frag->next.next, struct fragment, next);
-//	success &= validate_fragment(frag, skb6, true);
-//
-//	pkt_kfree(pkt, true);
-//	return success;
-//}
+
+/**
+ * Three things are being validated here:
+ * - Fragments arriving in disorder.
+ * - Fragments from different connections but same identifier.
+ */
+static bool test_conflicts(void)
+{
+	struct packet *pkt, *pkt6;
+	struct fragment *frag;
+	struct sk_buff *skb1, *skb2, *skb3;
+	struct sk_buff *skb4, *skb5, *skb6;
+	struct ipv4_pair pair13, pair2;
+	struct ipv6_pair pair46, pair5;
+	struct iphdr *hdr4;
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *hdr_frag;
+	u32 id1 = 1234;
+	int error;
+	bool success = true;
+
+	error = init_pair4(&pair13, "8.7.6.5", 8765, "5.6.7.8", 5678);
+	if (error)
+		return false;
+	error = init_pair4(&pair2, "11.12.13.14", 1112, "14.13.12.11", 1413);
+	if (error)
+		return false;
+	error = init_pair6(&pair46, "1::2", 1212, "3::4", 3434);
+	if (error)
+		return false;
+	error = init_pair6(&pair5, "8::7", 8787, "6::5", 6565);
+	if (error)
+		return false;
+
+	/* Second and final fragment of packet 1 (IPv4) arrives. */
+	error = create_skb_ipv4_udp_fragment(&pair13, &skb1, 24);
+	if (error)
+		return false;
+	hdr4 = ip_hdr(skb1);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, false, 16);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
+
+	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &pkt), "1st verdict");
+	success &= validate_database(1);
+
+	/* First fragment of packet 2 (IPv4) arrives. */
+	error = create_skb_ipv4_udp_fragment(&pair2, &skb2, 32);
+	if (error)
+		return false;
+	hdr4 = ip_hdr(skb2);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
+
+	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &pkt), "2nd verdict");
+	success &= validate_database(2);
+
+	/* First fragment of packet 1 (IPv4) arrives. */
+	error = create_skb_ipv4_udp(&pair13, &skb3, 16 - sizeof(struct udphdr));
+	if (error)
+		return false;
+	hdr4 = ip_hdr(skb3);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
+
+	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb3, &pkt), "3rd verdict");
+	success &= validate_database(1);
+
+	/* Validate packet 1. */
+	success &= validate_packet(pkt, 2);
+
+	/* Validate packet 1's fragments. */
+	log_debug("Validating fragment 1.2...");
+	frag = container_of(pkt->fragments.next, struct fragment, next);
+	success &= validate_fragment(frag, skb1, false, false, 24);
+
+	log_debug("Validating fragment 1.1...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	success &= validate_fragment(frag, skb3, true, false, 8);
+
+	/* Second fragment of packet 3 (IPv6) arrives. */
+	error = create_skb_ipv6_udp_fragment_n(&pair46, &skb4, 40);
+	if (error)
+		return false;
+	hdr6 = ipv6_hdr(skb4);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(56, false);
+	hdr_frag->identification = cpu_to_be32(id1);
+
+	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb4, &pkt6), "4th verdict");
+	success &= validate_database(2);
+
+	/* Second fragment of packet 4 (IPv6) arrives. */
+	error = create_skb_ipv6_udp_fragment_n(&pair5, &skb5, 48);
+	if (error)
+		return false;
+	hdr6 = ipv6_hdr(skb5);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(64, true);
+	hdr_frag->identification = cpu_to_be32(id1);
+
+	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &pkt6), "5th verdict");
+	success &= validate_database(3);
+
+	/* First fragment of packet 3 (IPv6) arrives. */
+	error = create_skb_ipv6_udp_fragment_1(&pair46, &skb6, 48);
+	if (error)
+		return false;
+	hdr6 = ipv6_hdr(skb6);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
+	hdr_frag->identification = cpu_to_be32(id1);
+
+	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb6, &pkt6), "6th verdict");
+	success &= validate_database(2);
+
+	/* Validate packet 3. */
+	success &= validate_packet(pkt6, 2);
+
+	/* Validate packet 3's fragments. */
+	log_debug("Validating fragment 3.2...");
+	frag = container_of(pkt6->fragments.next, struct fragment, next);
+	success &= validate_fragment(frag, skb4, false, true, 40);
+
+	log_debug("Validating fragment 3.1...");
+	frag = container_of(frag->next.next, struct fragment, next);
+	success &= validate_fragment(frag, skb6, true, true, 48);
+
+	pkt_kfree(pkt, true);
+	return success;
+}
 
 int init_module(void)
 {
@@ -698,9 +719,9 @@ int init_module(void)
 	CALL_TEST(test_no_fragments_4to6(), "Unfragmented IPv4 packet arrives.");
 	CALL_TEST(test_no_fragments_6to4(), "Unfragmented IPv6 packet arrives.");
 	CALL_TEST(test_fragments_4to6(), "3 fragmented IPv4 packets arrive.");
-//	CALL_TEST(test_fragments_6to4(), "3 fragmented IPv6 packets arrive.");
+	CALL_TEST(test_fragments_6to4(), "3 fragmented IPv6 packets arrive.");
 //	CALL_TEST(test_timer(), "Timer test.");
-//	CALL_TEST(test_conflicts(), "Conflicts test.");
+	CALL_TEST(test_conflicts(), "Conflicts test."); /* BTW: This test is leaving the DB dirty. */
 
 	fragdb_destroy();
 
