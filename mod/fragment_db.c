@@ -62,6 +62,12 @@ static struct timer_list expire_timer;
 static LIST_HEAD(expire_list);
 
 
+/**
+ * Synchronization-safely returns the current configuration's fragment timeout.
+ * fragment timeout is the maximum time any fragment should remain in memory. If that much time has
+ * passed, it's most likely because at least one of its siblings died during shipping, and as such
+ * reassembly is impossible.
+ */
 static unsigned long get_fragment_timeout(void)
 {
 	unsigned long result;
@@ -122,32 +128,6 @@ static __u16 hash_function(struct reassembly_buffer_key *key)
 	}
 
 	return result;
-}
-
-static bool is_fragmented(struct fragment *frag)
-{
-	struct iphdr *hdr4;
-	struct frag_hdr *hdr_frag;
-	__u16 fragment_offset = 0;
-	bool mf = false;
-
-	switch (frag->l3_hdr.proto) {
-	case L3PROTO_IPV4:
-		hdr4 = frag_get_ipv4_hdr(frag);
-		fragment_offset = get_fragment_offset_ipv4(hdr4);
-		mf = is_more_fragments_set_ipv4(hdr4);
-		break;
-
-	case L3PROTO_IPV6:
-		hdr_frag = frag_get_fragment_hdr(frag);
-		if (!hdr_frag)
-			return false;
-		fragment_offset = get_fragment_offset_ipv6(hdr_frag);
-		mf = is_more_fragments_set_ipv6(hdr_frag);
-		break;
-	}
-
-	return (fragment_offset != 0) || (mf);
 }
 
 static struct hole_descriptor *hole_alloc(u16 first, u16 last)
@@ -264,6 +244,7 @@ static void buffer_destroy(struct reassembly_buffer *buffer, bool free_pkt)
 	/* Deallocate it. */
 	while (!list_empty(&buffer->holes)) {
 		struct hole_descriptor *hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+		list_del(&hole->hook);
 		kfree(hole);
 	}
 	if (free_pkt)
@@ -306,7 +287,7 @@ static bool is_mf_set(struct fragment *frag)
 static void clean_expired_buffers(void)
 {
 	struct list_head *current_node, *next_node;
-	unsigned int f = 0;
+	unsigned int b = 0;
 	struct reassembly_buffer *buffer;
 
 	log_debug("Deleting expired reassembly buffers...");
@@ -318,16 +299,16 @@ static void clean_expired_buffers(void)
 
 		if (time_after(buffer->dying_time, jiffies)) {
 			spin_unlock_bh(&table_lock);
-			log_debug("Deleted %u reassembly buffers.", f);
+			log_debug("Deleted %u reassembly buffers.", b);
 			return;
 		}
 
 		buffer_destroy(buffer, true);
-		f++;
+		b++;
 	}
 
 	spin_unlock_bh(&table_lock);
-	log_debug("Deleted %u reassembly buffers. The database is now empty.", f);
+	log_debug("Deleted %u reassembly buffers. The database is now empty.", b);
 }
 
 static void cleaner_timer(unsigned long param)
@@ -442,6 +423,36 @@ int fragdb_init(void)
 	return 0;
 }
 
+int clone_fragmentation_config(struct fragmentation_config *clone)
+{
+	spin_lock_bh(&config_lock);
+	*clone = config;
+	spin_unlock_bh(&config_lock);
+
+	return 0;
+}
+
+int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
+{
+	unsigned long fragment_min = msecs_to_jiffies(FRAGMENT_MIN);
+	int error = 0;
+
+	spin_lock_bh(&config_lock);
+
+	if (operation & FRAGMENT_TIMEOUT_MASK) {
+		if (new_config->fragment_timeout < fragment_min) {
+			error = -EINVAL;
+			log_err(ERR_FRAGMENTATION_TO_RANGE, "The fragment timeout must be at least %u msecs.",
+					FRAGMENT_MIN);
+		} else {
+			config.fragment_timeout = new_config->fragment_timeout;
+		}
+	}
+
+	spin_unlock_bh(&config_lock);
+	return error;
+}
+
 /**
  * RFC 815, section 3.
  */
@@ -470,7 +481,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	 * This short circuit is not part of the RFC.
 	 * I added it because I really don't want to spinlock nor allocate if I don't have to.
 	 */
-	if (!is_fragmented(frag)) {
+	if (!frag_is_fragmented(frag)) {
 		/* No need to interact with the database. Encapsulate the packet and let it fly. */
 		*result = pkt_create(frag);
 		return l4_post(*result);
@@ -500,7 +511,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	}
 
 	fragment_first = compute_fragment_first(frag);
-	fragment_last = fragment_first + ((frag->l4_hdr.len + frag->payload.len) >> 3);
+	fragment_last = fragment_first + ((frag->l4_hdr.len + frag->payload.len - 8) >> 3);
 
 	/* Step 1 */
 	list_for_each_entry_safe(hole, hole_aux, &buffer->holes, hook) {
@@ -527,7 +538,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 			new_hole = hole_alloc(fragment_last + 1, hole->last);
 			if (!new_hole)
 				goto fail;
-			list_add(&new_hole->hook, hole->hook.next);
+			list_add(&new_hole->hook, &hole->hook);
 		}
 
 		/*
@@ -536,6 +547,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		 * the list in steps 5 and 6.)
 		 */
 		list_del(&hole->hook);
+		kfree(hole);
 	} /* Step 7 */
 
 	/* Step 8 */

@@ -4,7 +4,6 @@
 #include "nat64/mod/compute_outgoing_tuple.h"
 #include "nat64/mod/translate_packet.h"
 #include "nat64/mod/send_packet.h"
-#include "nat64/mod/packet_db.h"
 
 
 bool is_hairpin(struct tuple *outgoing)

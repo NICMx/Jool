@@ -480,6 +480,32 @@ verdict frag_create_skb(struct fragment *frag)
 	return VER_CONTINUE;
 }
 
+bool frag_is_fragmented(struct fragment *frag)
+{
+	struct iphdr *hdr4;
+	struct frag_hdr *hdr_frag;
+	__u16 fragment_offset = 0;
+	bool mf = false;
+
+	switch (frag->l3_hdr.proto) {
+	case L3PROTO_IPV4:
+		hdr4 = frag_get_ipv4_hdr(frag);
+		fragment_offset = get_fragment_offset_ipv4(hdr4);
+		mf = is_more_fragments_set_ipv4(hdr4);
+		break;
+
+	case L3PROTO_IPV6:
+		hdr_frag = frag_get_fragment_hdr(frag);
+		if (!hdr_frag)
+			return false;
+		fragment_offset = get_fragment_offset_ipv6(hdr_frag);
+		mf = is_more_fragments_set_ipv6(hdr_frag);
+		break;
+	}
+
+	return (fragment_offset != 0) || (mf);
+}
+
 void frag_kfree(struct fragment *frag)
 {
 	if (frag->skb)

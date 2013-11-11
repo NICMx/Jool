@@ -448,6 +448,34 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 	return VER_CONTINUE;
 }
 
+static verdict get_total_len_ipv6(struct packet *pkt, int *total_len)
+{
+	struct fragment *last_frag;
+	u16 frag_offset;
+
+	if (frag_is_fragmented(pkt->first_fragment)) {
+		/* Find the last fragment. */
+		last_frag = NULL;
+		list_for_each_entry(last_frag, &pkt->fragments, next) {
+			if (!is_more_fragments_set_ipv6(frag_get_fragment_hdr(last_frag)))
+				break;
+		}
+		if (!last_frag) {
+			log_crit(ERR_UNKNOWN_ERROR, "IPv6 packet has no last fragment.");
+			return VER_DROP;
+		}
+
+		/* Compute its offset. */
+		frag_offset = get_fragment_offset_ipv6(frag_get_fragment_hdr(last_frag));
+	} else {
+		last_frag = pkt->first_fragment;
+		frag_offset = 0;
+	}
+
+	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
+	return VER_CONTINUE;
+}
+
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
@@ -472,7 +500,12 @@ static verdict post_icmp4(struct tuple *tuple, struct packet *pkt_in, struct pac
 		 * and add the new one.
 		 */
 		__wsum csum;
-		int i;
+		int i, len;
+		verdict result;
+
+		result = get_total_len_ipv6(pkt_out, &len);
+		if (result != VER_CONTINUE)
+			return result;
 
 		csum = ~csum_unfold(in_icmp->icmp6_cksum);
 
@@ -482,7 +515,7 @@ static verdict post_icmp4(struct tuple *tuple, struct packet *pkt_in, struct pac
 		for (i = 0; i < 8; i++)
 			csum = csum_sub(csum, in_ip6->daddr.s6_addr16[i]);
 
-		csum = csum_sub(csum, cpu_to_be16(pkt_in->total_bytes - in->l4_hdr.len + out->l4_hdr.len));
+		csum = csum_sub(csum, cpu_to_be16(len));
 		csum = csum_sub(csum, cpu_to_be16(NEXTHDR_ICMP));
 
 		/* Remove the ICMPv6 header */
@@ -559,7 +592,7 @@ static verdict post_tcp_ipv4(struct tuple *tuple, struct packet *pkt_in, struct 
 }
 
 /**
- * Sets the Length and Checksum fields from out's UDP header.
+ * Sets the ports and checksum of out's UDP header.
  */
 static verdict post_udp_ipv4(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out)
 {
@@ -572,8 +605,6 @@ static verdict post_udp_ipv4(struct tuple *tuple, struct packet *pkt_in, struct 
 
 	out_udp->source = cpu_to_be16(tuple->src.l4_id);
 	out_udp->dest = cpu_to_be16(tuple->dst.l4_id);
-	out_udp->len = cpu_to_be16(pkt_in->total_bytes - in->l4_hdr.len + out->l4_hdr.len);
-
 	out_udp->check = update_csum_6to4(in_udp->check,
 			in_ip6, in_udp->source, in_udp->dest,
 			out_ip4, out_udp->source, out_udp->dest);

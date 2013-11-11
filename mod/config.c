@@ -3,6 +3,7 @@
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/out_stream.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/static_routes.h"

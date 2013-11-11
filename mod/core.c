@@ -1,6 +1,6 @@
 #include "nat64/mod/core.h"
 #include "nat64/mod/packet.h"
-#include "nat64/mod/packet_db.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/determine_incoming_tuple.h"
@@ -24,7 +24,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	struct tuple tuple_out;
 	verdict result;
 
-	result = pkt_from_skb(skb_in, &pkt_in);
+	result = fragment_arrives(skb_in, &pkt_in);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
 

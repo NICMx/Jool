@@ -200,6 +200,7 @@ struct fragment *frag_create_ipv4(struct sk_buff *skb);
 verdict frag_create_empty(struct fragment **out);
 /** Collapses all of "frag"'s fields into "frag".skb (i. e. creates a skb out of "frag"). */
 verdict frag_create_skb(struct fragment *frag);
+bool frag_is_fragmented(struct fragment *frag);
 /** Best-effortlessly prints "frag" on the log. Intended for debugging. */
 void frag_print(struct fragment *frag);
 /** Releases "frag" and its contents from memory. */
