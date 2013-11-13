@@ -5,8 +5,6 @@
 #include "nat64/comm/config_proto.h"
 
 
-#define SKB_HEAD_ROOM_OPT		"head"
-#define SKB_TAIL_ROOM_OPT		"tail"
 #define RESET_TCLASS_OPT		"setTC"
 #define RESET_TOS_OPT			"setTOS"
 #define NEW_TOS_OPT				"TOS"

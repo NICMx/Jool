@@ -66,49 +66,6 @@ static verdict validate_lengths_icmp4(struct sk_buff *skb, u16 l3_hdr_len)
 	return VER_CONTINUE;
 }
 
-verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len)
-{
-	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb);
-	struct icmp6hdr *hdr = icmp6_hdr(skb);
-
-	__sum16 tmp;
-	__sum16 computed_csum;
-
-	tmp = hdr->icmp6_cksum;
-	hdr->icmp6_cksum = 0;
-	computed_csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
-			csum_partial(skb_transport_header(skb), datagram_len, 0));
-	hdr->icmp6_cksum = tmp;
-
-	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match (protocol: %d). Expected: %x, actual: %x.",
-				NEXTHDR_ICMP, computed_csum, tmp);
-		return VER_DROP;
-	}
-
-	return VER_CONTINUE;
-}
-
-verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len)
-{
-	struct icmphdr *hdr = icmp_hdr(skb);
-	__sum16 tmp;
-	__sum16 computed_csum;
-
-	tmp = hdr->checksum;
-	hdr->checksum = 0;
-	computed_csum = ip_compute_csum(hdr, datagram_len);
-	hdr->checksum = tmp;
-
-	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match (ICMPv4). Expected: %x, actual: %x.",
-				computed_csum, tmp);
-		return VER_DROP;
-	}
-
-	return VER_CONTINUE;
-}
-
 static verdict validate_ipv6_integrity(struct sk_buff *skb, struct hdr_iterator *iterator)
 {
 	struct ipv6hdr *ip6_header;
@@ -405,21 +362,12 @@ error:
 verdict frag_create_skb(struct fragment *frag)
 {
 	struct sk_buff *new_skb;
-	__u16 head_room = 0, tail_room = 0;
 	bool has_l4_hdr;
 
-//	TODO
-//	spin_lock_bh(&config_lock);
-//	head_room = config.skb_head_room;
-//	tail_room = config.skb_tail_room;
-//	spin_unlock_bh(&config_lock);
-
-	new_skb = alloc_skb(head_room /* user's reserved. */
-			+ LL_MAX_HEADER /* kernel's reserved + layer 2. */
+	new_skb = alloc_skb(LL_MAX_HEADER /* kernel's reserved + layer 2. */
 			+ frag->l3_hdr.len /* layer 3. */
 			+ frag->l4_hdr.len /* layer 4. */
-			+ frag->payload.len /* packet data. */
-			+ tail_room, /* user's reserved+. */
+			+ frag->payload.len, /* packet data. */
 			GFP_ATOMIC);
 	if (!new_skb) {
 		log_err(ERR_ALLOC_FAILED, "New packet allocation failed.");
@@ -429,7 +377,7 @@ verdict frag_create_skb(struct fragment *frag)
 
 	has_l4_hdr = (frag->l4_hdr.ptr != NULL);
 
-	skb_reserve(new_skb, head_room + LL_MAX_HEADER);
+	skb_reserve(new_skb, LL_MAX_HEADER);
 	skb_put(new_skb, frag->l3_hdr.len + frag->l4_hdr.len + frag->payload.len);
 
 	skb_reset_mac_header(new_skb);

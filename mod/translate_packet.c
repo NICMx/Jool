@@ -94,10 +94,6 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 	/* Update. */
 	spin_lock_bh(&config_lock);
 
-	if (operation & SKB_HEAD_ROOM_MASK)
-		config.skb_head_room = new_config->skb_head_room;
-	if (operation & SKB_TAIL_ROOM_MASK)
-		config.skb_tail_room = new_config->skb_tail_room;
 	if (operation & RESET_TCLASS_MASK)
 		config.reset_traffic_class = new_config->reset_traffic_class;
 	if (operation & RESET_TOS_MASK)
@@ -172,8 +168,6 @@ int translate_packet_init(void)
 
 	spin_lock_bh(&config_lock);
 
-	config.skb_head_room = TRAN_DEF_SKB_HEAD_ROOM;
-	config.skb_tail_room = TRAN_DEF_SKB_TAIL_ROOM;
 	config.reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
 	config.reset_tos = TRAN_DEF_RESET_TOS;
 	config.new_tos = TRAN_DEF_NEW_TOS;
@@ -314,12 +308,9 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	bool original_mf;
 
 	__u16 min_ipv6_mtu;
-	__u16 head_room, tail_room;
 
 	spin_lock_bh(&config_lock);
 	min_ipv6_mtu = config.min_ipv6_mtu & 0xFFF8;
-	head_room = config.skb_head_room;
-	tail_room = config.skb_tail_room;
 	spin_unlock_bh(&config_lock);
 
 	headers_size = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
@@ -348,15 +339,13 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		actual_payload_size &= 0xFFF8; /* The fragment offset field only accepts 8-byte blocks. */
 		actual_total_size = headers_size + actual_payload_size;
 
-		new_skb = alloc_skb(head_room /* user's reserved. */
-				+ LL_MAX_HEADER /* kernel's reserved + layer 2. */
-				+ actual_total_size /* l3 header + l4 header + packet data. */
-				+ tail_room, /* user's reserved+. */
+		new_skb = alloc_skb(LL_MAX_HEADER /* kernel's reserved + layer 2. */
+				+ actual_total_size, /* l3 header + l4 header + packet data. */
 				GFP_ATOMIC);
 		if (!new_skb)
 			return VER_DROP;
 
-		skb_reserve(new_skb, head_room + LL_MAX_HEADER);
+		skb_reserve(new_skb, LL_MAX_HEADER);
 		skb_put(new_skb, actual_total_size);
 		skb_reset_mac_header(new_skb);
 		skb_reset_network_header(new_skb);

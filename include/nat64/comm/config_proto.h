@@ -42,8 +42,6 @@ enum config_operation {
 	OP_REMOVE,
 
 	/* The following apply when mode is filtering or translate. */
-	#define SKB_HEAD_ROOM_MASK		(1 << 0)
-	#define SKB_TAIL_ROOM_MASK		(1 << 1)
 	#define RESET_TCLASS_MASK		(1 << 2)
 	#define RESET_TOS_MASK			(1 << 3)
 	#define NEW_TOS_MASK			(1 << 4)
@@ -123,23 +121,6 @@ struct filtering_config {
  * Configuration for the "Translate the packet" module.
  */
 struct translate_config {
-	/**
-	 * Extra bytes the translator will allocate at the head of the packets it generates. These are
-	 * meant to be used by other Netfilter modules for further alien functionality (Eg. Add
-	 * additional headers withoug having to reallocate the packet).
-	 * Can be negative, if the user wants to compensate for the "LL_MAX_HEADER" constant.
-	 * (LL_MAX_HEADER = the kernel's reserved head room + l2 header's length.)
-	 *
-	 * TODO (later) LL_MAX_HEADER is probably intended for this very purpose, so these two values
-	 * are probably redundant.
-	 */
-	__u16 skb_head_room;
-	/**
-	 * Extra bytes the translator will allocate at the tail of the packets it generates. See
-	 * "skb_head_room".
-	 */
-	__u16 skb_tail_room;
-
 	/**
 	 * "true" if the Traffic Class field of the translated IPv6 header should always be set to zero.
 	 * Otherwise it will be copied from the IPv4 header's TOS field.

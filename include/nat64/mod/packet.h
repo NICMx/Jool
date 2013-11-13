@@ -122,9 +122,6 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
 	return cpu_to_be16(result);
 }
 
-verdict validate_csum_icmp6(struct sk_buff *skb, int datagram_len);
-verdict validate_csum_icmp4(struct sk_buff *skb, int datagram_len);
-
 
 /*	---------------
 	-- Fragments --
@@ -325,7 +322,13 @@ static inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
 	return &hdr6->daddr;
 }
 
-/* TODO try to always use this. */
+/**
+ * Getter of the first fragment listed by pkt. This is <em>not</em> the fragment whose offset is
+ * zero; it's the fragment that was simply received first.
+ * If you want the fragment-zero fragment, use pkt->first_fragment.
+ *
+ * TODO try to always use this.
+ */
 static inline struct fragment *pkt_get_first_frag(struct packet *pkt)
 {
 	return list_entry(pkt->fragments.next, struct fragment, next);

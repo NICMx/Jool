@@ -337,13 +337,10 @@ static void cleaner_timer(unsigned long param)
  * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
  * IPv4 nodes.
  *
- * Thanks to this function, the rest of the modules after the fragment database can assume the
- * incoming layer-4 checksum is valid in all circumstances.
- *
  * This function assumes that pkt has no holes. That is, for each byte in the original packet,
  * there is at least one fragment in pkt that contains it.
  */
-static verdict compute_udp_csum(struct packet *pkt)
+static verdict compute_csum_udp(struct packet *pkt)
 {
 	struct fragment *frag;
 	struct iphdr *hdr4;
@@ -390,53 +387,108 @@ static verdict compute_udp_csum(struct packet *pkt)
 	return VER_CONTINUE;
 }
 
+/**
+ * Assumes that pkt is a IPv6 ICMP message, and ensures that its checksum is valid, but only if it's
+ * neccesary. See validate_csum_icmp4() for more info.
+ */
+static verdict validate_csum_icmp6(struct packet *pkt)
+{
+	struct fragment *frag;
+	struct ipv6hdr *ip6_hdr;
+	struct icmp6hdr *icmp6_hdr;
+	__sum16 tmp;
+	__sum16 computed_csum;
+
+	frag = pkt->first_fragment;
+	ip6_hdr = frag_get_ipv6_hdr(frag);
+	icmp6_hdr = frag_get_icmp6_hdr(frag);
+	if (is_icmp6_info(icmp6_hdr->icmp6_type))
+		return VER_CONTINUE;
+
+	tmp = icmp6_hdr->icmp6_cksum;
+	icmp6_hdr->icmp6_cksum = 0;
+	computed_csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
+			frag->l4_hdr.len + frag->payload.len, NEXTHDR_ICMP,
+			csum_partial(icmp6_hdr, frag->l4_hdr.len + frag->payload.len, 0));
+	icmp6_hdr->icmp6_cksum = tmp;
+
+	if (tmp != computed_csum) {
+		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+		return VER_DROP;
+	}
+
+	return VER_CONTINUE;
+}
+
+/**
+ * Assumes that pkt is a IPv4 ICMP message, and ensures that its checksum is valid, but only if it's
+ * neccesary. See the comments inside for more info.
+ */
+static verdict validate_csum_icmp4(struct packet *pkt)
+{
+	struct fragment *frag;
+	struct icmphdr *hdr;
+	__sum16 tmp;
+	__sum16 computed_csum;
+
+	frag = pkt->first_fragment;
+	hdr = frag_get_icmp4_hdr(frag);
+	if (is_icmp4_info(hdr->type)) {
+		/*
+		 * The ICMP payload is not another packet.
+		 * Hence, it will not be translated (it will be copied as-is).
+		 * Hence, we will not have to recompute the checksum from scratch
+		 * (we'll just update the old checksum with the new header's data).
+		 * Hence, we don't have to validate the incoming checksum.
+		 * (Because that will be the IPv6 node's responsibility.)
+		 */
+		return VER_CONTINUE;
+	}
+
+	/* BTW: we're not iterating over all the fragments because ICMP errors are never fragmented. */
+	tmp = hdr->checksum;
+	hdr->checksum = 0;
+	computed_csum = ip_compute_csum(hdr, frag->l4_hdr.len + frag->payload.len);
+	hdr->checksum = tmp;
+
+	if (tmp != computed_csum) {
+		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+		return VER_DROP;
+	}
+
+	return VER_CONTINUE;
+}
+
+/**
+ * Cleans pkt's content of any leftover garbage. Currently, this means only adjusting transport
+ * checksums.
+ *
+ * In an ideal world, Jool would not have to worry about checksums because it's really just a
+ * pseudo-routing, mostly layer-3 device; checksum verification is a task best left to endpoints.
+ *
+ * Thanks to this function, the rest of the modules after the fragment database can assume the
+ * incoming layer-4 checksum is either valid or irrelevant in all circumstances:
+ * - If pkt is a TCP, ICMP info or a checksum-featuring UDP packet, this function does nothing
+ *   because it's not
+ */
 static verdict l4_post(struct packet *pkt) {
 	verdict result = VER_CONTINUE;
-	struct icmphdr *hdr_icmp4;
-	struct icmp6hdr *hdr_icmp6;
 
 	switch (pkt_get_l4proto(pkt)) {
 	case L4PROTO_TCP:
+		/* Nothing to do here. */
 		break;
 	case L4PROTO_UDP:
-		result = compute_udp_csum(pkt);
+		result = compute_csum_udp(pkt);
 		break;
 
 	case L4PROTO_ICMP:
 		switch (pkt_get_l3proto(pkt)) {
 		case L3PROTO_IPV4:
-			hdr_icmp4 = frag_get_icmp4_hdr(pkt->first_fragment);
-			if (is_icmp4_info(hdr_icmp4->type)) {
-				/*
-				 * The ICMP payload is not another packet.
-				 * Hence, it will not be translated (it will be copied as-is).
-				 * Hence, we will not have to recompute the checksum from scratch
-				 * (we'll just update the old checksum with the new header's data).
-				 * Hence, we don't have to validate the incoming checksum.
-				 * (Because that will be the IPv6 node's responsibility.)
-				 */
-				break;
-			}
-
-			/*
-			 * BTW: we're not iterating over all the fragments because ICMP errors are never
-			 * fragmented.
-			 */
-			result = validate_csum_icmp4(pkt->first_fragment->skb,
-					pkt->first_fragment->l4_hdr.len + pkt->first_fragment->payload.len);
-			if (result != VER_CONTINUE)
-				log_debug("The packet's checksum is incorrect. Dropping...");
+			result = validate_csum_icmp4(pkt);
 			break;
 		case L3PROTO_IPV6:
-			/* See the comments above. */
-			hdr_icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
-			if (is_icmp6_info(hdr_icmp6->icmp6_type))
-				break;
-
-			result = validate_csum_icmp6(pkt->first_fragment->skb,
-					pkt->first_fragment->l4_hdr.len + pkt->first_fragment->payload.len);
-			if (result != VER_CONTINUE)
-				log_debug("The packet's checksum is incorrect. Dropping...");
+			result = validate_csum_icmp6(pkt);
 			break;
 		}
 		break;

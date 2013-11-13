@@ -105,8 +105,6 @@ enum argp_flags {
 	ARGP_TCP_TRANS_TO = 3013,
 
 	/* Translate */
-	ARGP_HEAD = 4000,
-	ARGP_TAIL = 4001,
 	ARGP_RESET_TCLASS = 4002,
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
@@ -214,8 +212,6 @@ static struct argp_option options[] =
 	{ "translate",			ARGP_TRANSLATE,		NULL, 0,
 				"Command is translate related. Use alone to display configuration. "
 				"Will be implicit if any other translate command is entered." },
-	{ SKB_HEAD_ROOM_OPT,	ARGP_HEAD,			NUM_FORMAT, 0, "Packet head room." },
-	{ SKB_TAIL_ROOM_OPT,	ARGP_TAIL,			NUM_FORMAT, 0, "Packet tail room." },
 	{ RESET_TCLASS_OPT,		ARGP_RESET_TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
 	{ RESET_TOS_OPT,		ARGP_RESET_TOS,		BOOL_FORMAT, 0, "Override IPv4 Type of Service." },
 	{ NEW_TOS_OPT,			ARGP_NEW_TOS,		NUM_FORMAT, 0, "IPv4 Type of Service." },
@@ -350,16 +346,6 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->filtering.to.tcp_trans = temp;
 		break;
 
-	case ARGP_HEAD:
-		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= SKB_HEAD_ROOM_MASK;
-		error = str_to_u16(arg, &arguments->translate.skb_head_room, 0, 0xFFFF);
-		break;
-	case ARGP_TAIL:
-		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= SKB_TAIL_ROOM_MASK;
-		error = str_to_u16(arg, &arguments->translate.skb_tail_room, 0, 0xFFFF);
-		break;
 	case ARGP_RESET_TCLASS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= RESET_TCLASS_MASK;
