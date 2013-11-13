@@ -52,9 +52,9 @@ static bool test_function_build_ipv4_frag_off_field(void)
 {
 	bool success = true;
 
-	success &= assert_equals_u16(0x407b, be16_to_cpu(build_ipv4_frag_off_field(1, 0, 123)),
+	success &= assert_equals_u16(0x400F, be16_to_cpu(build_ipv4_frag_off_field(1, 0, 120)),
 			"Simple 1");
-	success &= assert_equals_u16(0x2159, be16_to_cpu(build_ipv4_frag_off_field(0, 1, 345)),
+	success &= assert_equals_u16(0x202B, be16_to_cpu(build_ipv4_frag_off_field(0, 1, 344)),
 			"Simple 2");
 
 	return success;

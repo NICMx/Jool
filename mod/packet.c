@@ -657,11 +657,16 @@ struct packet *pkt_create(struct fragment *frag)
 		return NULL;
 	}
 
+	pkt_init(pkt, frag);
+
+	return pkt;
+}
+
+void pkt_init(struct packet *pkt, struct fragment *frag)
+{
 	INIT_LIST_HEAD(&pkt->fragments);
 	pkt->first_fragment = NULL;
 	pkt_add_frag(pkt, frag);
-
-	return pkt;
 }
 
 void pkt_add_frag(struct packet *pkt, struct fragment *frag)
@@ -669,6 +674,64 @@ void pkt_add_frag(struct packet *pkt, struct fragment *frag)
 	list_add(&frag->next, pkt->fragments.prev);
 	if (frag->l4_hdr.proto != L4PROTO_NONE)
 		pkt->first_fragment = frag;
+}
+
+verdict pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len)
+{
+	struct fragment *frag, *last_frag;
+	u16 frag_offset;
+
+	if (frag_is_fragmented(pkt->first_fragment)) {
+		/* Find the last fragment. */
+		last_frag = NULL;
+		list_for_each_entry(frag, &pkt->fragments, next) {
+			if (!is_more_fragments_set_ipv6(frag_get_fragment_hdr(frag))) {
+				last_frag = frag;
+				break;
+			}
+		}
+		if (!last_frag) {
+			log_crit(ERR_UNKNOWN_ERROR, "IPv6 packet has no last fragment.");
+			return VER_DROP;
+		}
+
+		/* Compute its offset. */
+		frag_offset = get_fragment_offset_ipv6(frag_get_fragment_hdr(last_frag));
+	} else {
+		last_frag = pkt->first_fragment;
+		frag_offset = 0;
+	}
+
+	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
+	return VER_CONTINUE;
+}
+
+verdict pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len)
+{
+	struct fragment *last_frag;
+	u16 frag_offset;
+
+	if (frag_is_fragmented(pkt->first_fragment)) {
+		/* Find the last fragment. */
+		last_frag = NULL;
+		list_for_each_entry(last_frag, &pkt->fragments, next) {
+			if (!is_more_fragments_set_ipv4(frag_get_ipv4_hdr(last_frag)))
+				break;
+		}
+		if (!last_frag) {
+			log_crit(ERR_UNKNOWN_ERROR, "IPv4 packet has no last fragment.");
+			return VER_DROP;
+		}
+
+		/* Compute its offset. */
+		frag_offset = get_fragment_offset_ipv4(frag_get_ipv4_hdr(last_frag));
+	} else {
+		last_frag = pkt->first_fragment;
+		frag_offset = 0;
+	}
+
+	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
+	return VER_CONTINUE;
 }
 
 void pkt_kfree(struct packet *pkt, bool free_pkt)

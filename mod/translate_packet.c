@@ -520,8 +520,6 @@ static verdict post_process(struct tuple *tuple, struct packet *in, struct packe
 }
 
 /**
- * It's ONLY responsible for out->fragments and out->first_fragment.
- *
  * Assumes that out is already allocated.
  */
 verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out)
@@ -530,6 +528,9 @@ verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct pa
 	verdict result;
 
 	log_debug("Step 4: Translating the Packet");
+
+	INIT_LIST_HEAD(&out->fragments);
+	out->first_fragment = NULL;
 
 	list_for_each_entry(current_in, &in->fragments, next) {
 		result = translate_fragment(current_in, tuple, out);

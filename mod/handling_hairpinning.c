@@ -24,9 +24,6 @@ verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 		goto fail;
 	}
 
-	memset(&pkt_out, 0, sizeof(pkt_out));
-	INIT_LIST_HEAD(&pkt_out.fragments);
-
 	if (filtering_and_updating(pkt_in, tuple_in) != VER_CONTINUE)
 		goto fail;
 	if (compute_out_tuple(tuple_in, pkt_in, &tuple_out) != VER_CONTINUE)

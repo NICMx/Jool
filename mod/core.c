@@ -28,9 +28,6 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
 
-	memset(&pkt_out, 0, sizeof(pkt_out));
-	INIT_LIST_HEAD(&pkt_out.fragments);
-
 	if (determine_in_tuple(pkt_in, &tuple_in) != VER_CONTINUE)
 		goto fail;
 	if (filtering_and_updating(pkt_in, &tuple_in) != VER_CONTINUE)

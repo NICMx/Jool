@@ -417,34 +417,6 @@ static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment
 	return VER_CONTINUE;
 }
 
-static verdict get_total_len_ipv4(struct packet *pkt, int *total_len)
-{
-	struct fragment *last_frag;
-	u16 frag_offset;
-
-	if (frag_is_fragmented(pkt->first_fragment)) {
-		/* Find the last fragment. */
-		last_frag = NULL;
-		list_for_each_entry(last_frag, &pkt->fragments, next) {
-			if (!is_more_fragments_set_ipv4(frag_get_ipv4_hdr(last_frag)))
-				break;
-		}
-		if (!last_frag) {
-			log_crit(ERR_UNKNOWN_ERROR, "IPv4 packet has no last fragment.");
-			return VER_DROP;
-		}
-
-		/* Compute its offset. */
-		frag_offset = get_fragment_offset_ipv4(frag_get_ipv4_hdr(last_frag));
-	} else {
-		last_frag = pkt->first_fragment;
-		frag_offset = 0;
-	}
-
-	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
-	return VER_CONTINUE;
-}
-
 /**
  * Sets the Checksum field from out's ICMPv6 header.
  */
@@ -464,17 +436,17 @@ static verdict post_icmp6(struct tuple *tuple, struct packet *pkt_in, struct pac
 		unsigned int datagram_len = out->l4_hdr.len + out->payload.len;
 		out_icmp->icmp6_cksum = 0;
 		out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
-			datagram_len, IPPROTO_ICMPV6, csum_partial(out_icmp, datagram_len, 0));
+				datagram_len, IPPROTO_ICMPV6, csum_partial(out_icmp, datagram_len, 0));
 	} else {
 		/*
 		 * Only the ICMP header changed, so subtract the old data from the checksum
 		 * and add the new one.
 		 */
 		__wsum csum;
-		int i, len;
+		unsigned int i, len;
 		verdict result;
 
-		result = get_total_len_ipv4(pkt_out, &len);
+		result = pkt_get_total_len_ipv6(pkt_out, &len);
 		if (result != VER_CONTINUE)
 			return result;
 
@@ -594,9 +566,11 @@ static verdict post_udp_ipv6(struct tuple *tuple, struct packet *pkt_in, struct 
 verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
+	struct packet dummy_pkt_in, dummy_pkt_out;
 	struct fragment in_inner;
 	struct fragment *out_inner;
 	struct iphdr *hdr4;
+	struct translation_steps *step;
 	verdict result;
 
 	log_debug("Translating the inner packet (4->6)...");
@@ -629,10 +603,17 @@ verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_out
 	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
 
 	/* log_debug("Inner packet protocols: %d %d", in_inner.l3_hdr.proto, in_inner.l4_hdr.proto); */
-
-	result = translate(tuple, &in_inner, &out_inner, &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto]);
+	step = &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto];
+	result = translate(tuple, &in_inner, &out_inner, step);
 	if (result != VER_CONTINUE)
 		return result;
+	pkt_init(&dummy_pkt_in, &in_inner);
+	pkt_init(&dummy_pkt_out, out_inner);
+	result = step->l4_post_function(tuple, &dummy_pkt_in, &dummy_pkt_out);
+	if (result != VER_CONTINUE) {
+		frag_kfree(out_inner);
+		return result;
+	}
 
 	out_outer->payload.len = out_inner->skb->len;
 	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);

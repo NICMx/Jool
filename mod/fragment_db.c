@@ -332,37 +332,74 @@ static void cleaner_timer(unsigned long param)
 	mod_timer(&expire_timer, next_expire);
 }
 
+/**
+ * Assumes that "pkt" is UDP, and ensures the UDP header's checksum field is set.
+ * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
+ * IPv4 nodes.
+ *
+ * Thanks to this function, the rest of the modules after the fragment database can assume the
+ * incoming layer-4 checksum is valid in all circumstances.
+ *
+ * This function assumes that pkt has no holes. That is, for each byte in the original packet,
+ * there is at least one fragment in pkt that contains it.
+ */
+static verdict compute_udp_csum(struct packet *pkt)
+{
+	struct fragment *frag;
+	struct iphdr *hdr4;
+	struct udphdr *hdr_udp;
+	unsigned char *buffer;
+	unsigned int buffer_len;
+	__u16 offset;
+	verdict result;
+
+	if (pkt_get_l3proto(pkt) == L3PROTO_IPV6)
+		return VER_CONTINUE; /* The checksum is mandatory in IPv6, so it's already set. */
+
+	hdr_udp = frag_get_udp_hdr(pkt->first_fragment);
+	if (hdr_udp->check != 0)
+		return VER_CONTINUE; /* The client went through the trouble of computing the csum. */
+
+	/*
+	 * Okay, compute the checksum.
+	 * Implementation detail: We're going to assemble the fragments into a large buffer.
+	 * Why? because some fragments might overlap with each other, so if we just join the checksums
+	 * of each separate fragment, we'll end up summing some bytes multiple times.
+	 */
+	result = pkt_get_total_len_ipv4(pkt, &buffer_len);
+	if (result != VER_CONTINUE)
+		return result;
+
+	buffer = kmalloc(buffer_len, GFP_ATOMIC);
+	if (!buffer)
+		return VER_DROP;
+
+	list_for_each_entry(frag, &pkt->fragments, next) {
+		hdr4 = frag_get_ipv4_hdr(frag);
+		offset = get_fragment_offset_ipv4(hdr4);
+		memcpy(&buffer[offset], frag->l4_hdr.ptr, frag->l4_hdr.len);
+		offset += frag->l4_hdr.len;
+		memcpy(&buffer[offset], frag->payload.ptr, frag->payload.len);
+	}
+
+	hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
+	hdr_udp->check = csum_tcpudp_magic(hdr4->saddr, hdr4->daddr, buffer_len, IPPROTO_UDP,
+			csum_partial(buffer, buffer_len, 0));
+
+	kfree(buffer);
+	return VER_CONTINUE;
+}
+
 static verdict l4_post(struct packet *pkt) {
 	verdict result = VER_CONTINUE;
-	struct fragment *frag;
-	struct iphdr *ip4_hdr;
-	struct udphdr *hdr_udp;
 	struct icmphdr *hdr_icmp4;
 	struct icmp6hdr *hdr_icmp6;
-	__sum16 tmp_csum;
-	unsigned long len;
 
 	switch (pkt_get_l4proto(pkt)) {
 	case L4PROTO_TCP:
 		break;
 	case L4PROTO_UDP:
-		if (pkt_get_l3proto(pkt) == L3PROTO_IPV6)
-			break; /* The checksum is mandatory in IPv6, so it's already set. */
-
-		hdr_udp = frag_get_udp_hdr(pkt->first_fragment);
-		if (hdr_udp->check != 0)
-			break; /* The client went through the trouble to compute the csum. */
-
-		/* We'll have to compute the checksum ourselves. */
-		tmp_csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
-		len = sizeof(*hdr_udp);
-		list_for_each_entry(frag, &pkt->fragments, next) {
-			tmp_csum = csum_partial(frag->payload.ptr, frag->payload.len, tmp_csum);
-			len += frag->payload.len;
-		}
-
-		ip4_hdr = frag_get_ipv4_hdr(pkt->first_fragment);
-		hdr_udp->check = csum_tcpudp_magic(ip4_hdr->saddr, ip4_hdr->daddr, len, IPPROTO_UDP, tmp_csum);
+		result = compute_udp_csum(pkt);
 		break;
 
 	case L4PROTO_ICMP:
@@ -381,16 +418,20 @@ static verdict l4_post(struct packet *pkt) {
 				break;
 			}
 
-			/* BTW: we're not iterating over all the fragments because ICMP errors are never fragmented. */
+			/*
+			 * BTW: we're not iterating over all the fragments because ICMP errors are never
+			 * fragmented.
+			 */
 			result = validate_csum_icmp4(pkt->first_fragment->skb,
 					pkt->first_fragment->l4_hdr.len + pkt->first_fragment->payload.len);
 			if (result != VER_CONTINUE)
 				log_debug("The packet's checksum is incorrect. Dropping...");
 			break;
 		case L3PROTO_IPV6:
+			/* See the comments above. */
 			hdr_icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
 			if (is_icmp6_info(hdr_icmp6->icmp6_type))
-				break; /* See the comment above. */
+				break;
 
 			result = validate_csum_icmp6(pkt->first_fragment->skb,
 					pkt->first_fragment->l4_hdr.len + pkt->first_fragment->payload.len);
@@ -465,6 +506,10 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	u16 fragment_first = 0; /* In octets. */
 	u16 fragment_last = 0; /* In octets. */
 
+	/**
+	 * Encapsulating and validating the packet is not part of the RFC, we just do it because we
+	 * need it. Just saying.
+	 */
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
 		frag = frag_create_ipv4(skb);

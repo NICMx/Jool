@@ -18,7 +18,6 @@
 #include "nat64/mod/ipv6_hdr_iterator.h"
 #include "nat64/mod/send_packet.h"
 /* *#include "nat64/mod/send_packet_old.h" */
-#include "nat64/mod/packet_db.h"
 
 #define GENERATE_FOR_EACH true
 #include "determine_incoming_tuple.c"

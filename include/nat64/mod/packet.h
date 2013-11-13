@@ -98,6 +98,8 @@ static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 /**
  * frag_hdr.frag_off is actually a combination of the 'More fragments' flag and the
  * 'Fragment offset' field. This function is a one-liner for creating a settable frag_off.
+ * Note that fragment offset is measured in units of eight-byte blocks. That means that you want
+ * "frag_offset" to be a multiple of 8 if you want your fragmentation to work properly.
  */
 static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, bool mf)
 {
@@ -109,6 +111,8 @@ static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, bool mf)
 /**
  * iphdr.frag_off is actually a combination of the DF flag, the MF flag, and the 'Fragment offset'
  * field. This function is a one-liner for creating a settable frag_off.
+ * Note that fragment offset is measured in units of eight-byte blocks. That means that you want
+ * "frag_offset" to be a multiple of 8 if you want your fragmentation to work properly.
  */
 static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offset)
 {
@@ -272,8 +276,12 @@ struct packet {
 
 /** Allocates and initializes a packet out of "frag"'s contents. Includes "frag" in its list. */
 struct packet *pkt_create(struct fragment *frag);
+
+void pkt_init(struct packet *pkt, struct fragment *frag);
 /** Adds "frag" to "pkt". Has the added comfort of updating "pkt".first_fragment if applies. */
 void pkt_add_frag(struct packet *pkt, struct fragment *frag);
+verdict pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len);
+verdict pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len);
 /** Frees "pkt"'s contents. If "free_pkt" is true, frees "pkt" as well. */
 void pkt_kfree(struct packet *pkt, bool free_pkt);
 

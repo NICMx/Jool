@@ -542,138 +542,111 @@ int create_skb_ipv6_icmp_info_fragment_n(struct ipv6_pair *pair6, struct sk_buff
 			result, pair6);
 }
 
-///* Packet stuff */
-//bool create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4,
-//															struct packet **pkt)
-//{
-//	struct sk_buff *skb1, *skb2, *skb3;
-//	struct iphdr *hdr4;
-//	int error;
-//	bool success = true;
-//
-//	/* First packet arrives. */
-//	error = create_skb_ipv4_udp_fragment(pair4, &skb3, 100);
-//	if (error)
-//		return false;
-//	hdr4 = ip_hdr(skb3);
-//	hdr4->frag_off = build_ipv4_frag_off_field(false, false, sizeof(struct udphdr) + 200);
-//	hdr4->check = 0;
-//	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
-//
-//	success &= VER_STOLEN == pkt_from_skb(skb3, pkt);
-//
-//	/* Second packet arrives. */
-//	error = create_skb_ipv4_udp_fragment(pair4, &skb2, 100);
-//	if (error)
-//		return false;
-//	hdr4 = ip_hdr(skb2);
-//	hdr4->frag_off = build_ipv4_frag_off_field(false, true, sizeof(struct udphdr) + 100);
-//	hdr4->check = 0;
-//	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
-//
-//	success &= VER_STOLEN == pkt_from_skb(skb2, pkt);
-//
-//	/* Third and final packet arrives. */
-//	error = create_skb_ipv4_udp(pair4, &skb1, 100);
-//	if (error)
-//		return false;
-//	hdr4 = ip_hdr(skb1);
-//	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
-//	hdr4->check = 0;
-//	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
-//
-//	success &= VER_CONTINUE == pkt_from_skb(skb1, pkt);
-//
-//	return success;
-//}
-//
-//bool create_packet_ipv6_udp_fragmented_disordered(struct ipv6_pair *pair6, struct packet **pkt)
-//{
-//	struct sk_buff *skb1, *skb2, *skb3;
-//	struct ipv6hdr *hdr6;
-//	struct frag_hdr *hdr_frag;
-//	u32 id1 = 1234;
-//	int error;
-//	bool success = true;
-//
-//	/* First packet arrives. */
-//	error = create_skb_ipv6_udp_fragment_n(pair6, &skb3, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb3);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(200+sizeof(struct udphdr), false);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= VER_STOLEN == pkt_from_skb(skb3, pkt);
-//
-//	/* Second packet arrives. */
-//	error = create_skb_ipv6_udp_fragment_n(pair6, &skb2, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb2);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(100+sizeof(struct udphdr), true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= VER_STOLEN == pkt_from_skb(skb2, pkt);
-//
-//	/* Third and final packet arrives. */
-//	error = create_skb_ipv6_udp_fragment_1(pair6, &skb1, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb1);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= VER_CONTINUE == pkt_from_skb(skb1, pkt);
-//
-//	return success;
-//}
-//
-//bool create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6,
-//															struct packet **pkt)
-//{
-//	struct sk_buff *skb1, *skb2, *skb3;
-//	struct ipv6hdr *hdr6;
-//	struct frag_hdr *hdr_frag;
-//	u32 id1 = 1234;
-//	int error;
-//	bool success = true;
-//
-//	/* First packet arrives. */
-//	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb3, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb3);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(200+sizeof(struct tcphdr), false);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= VER_STOLEN == pkt_from_skb(skb3, pkt);
-//
-//	/* Second packet arrives. */
-//	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb2, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb2);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(100+sizeof(struct tcphdr), true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= VER_STOLEN == pkt_from_skb(skb2, pkt);
-//
-//	/* Third and final packet arrives. */
-//	error = create_skb_ipv6_tcp_fragment_1(pair6, &skb1, 100);
-//	if (error)
-//		return false;
-//	hdr6 = ipv6_hdr(skb1);
-//	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-//	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
-//	hdr_frag->identification = cpu_to_be32(id1);
-//
-//	success &= VER_CONTINUE == pkt_from_skb(skb1, pkt);
-//
-//	return success;
-//}
+/* Packet stuff */
+int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct packet **pkt)
+{
+	struct fragment *frag;
+	struct sk_buff *skb;
+	struct iphdr *hdr4;
+	int error;
+
+	/* Third fragment. */
+	error = create_skb_ipv4_udp_fragment(pair4, &skb, 8);
+	if (error)
+		return error;
+	hdr4 = ip_hdr(skb);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, false, 16);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
+
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return -ENOMEM;
+
+	*pkt = pkt_create(frag);
+
+	/* Second fragment. */
+	error = create_skb_ipv4_udp_fragment(pair4, &skb, 8);
+	if (error)
+		return error;
+	hdr4 = ip_hdr(skb);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 24);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
+
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return -ENOMEM;
+
+	pkt_add_frag(*pkt, frag);
+
+	/* First fragment. */
+	error = create_skb_ipv4_udp(pair4, &skb, 8);
+	if (error)
+		return error;
+	hdr4 = ip_hdr(skb);
+	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
+	hdr4->check = 0;
+	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
+
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return -ENOMEM;
+
+	pkt_add_frag(*pkt, frag);
+
+	return 0;
+}
+
+int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct packet **pkt)
+{
+	struct fragment *frag;
+	struct sk_buff *skb;
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *hdr_frag;
+	int error;
+
+	/* Third fragment. */
+	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb, 8);
+	if (error)
+		return false;
+	hdr6 = ipv6_hdr(skb);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(24, false);
+
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return -ENOMEM;
+
+	*pkt = pkt_create(frag);
+
+	/* Second fragment. */
+	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb, 8);
+	if (error)
+		return false;
+	hdr6 = ipv6_hdr(skb);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(16, true);
+
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return -ENOMEM;
+
+	pkt_add_frag(*pkt, frag);
+
+	/* First fragment. */
+	error = create_skb_ipv6_tcp_fragment_1(pair6, &skb, 8);
+	if (error)
+		return false;
+	hdr6 = ipv6_hdr(skb);
+	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
+	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
+
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return -ENOMEM;
+
+	pkt_add_frag(*pkt, frag);
+
+	return 0;
+}

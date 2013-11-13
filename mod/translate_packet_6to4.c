@@ -448,34 +448,6 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 	return VER_CONTINUE;
 }
 
-static verdict get_total_len_ipv6(struct packet *pkt, int *total_len)
-{
-	struct fragment *last_frag;
-	u16 frag_offset;
-
-	if (frag_is_fragmented(pkt->first_fragment)) {
-		/* Find the last fragment. */
-		last_frag = NULL;
-		list_for_each_entry(last_frag, &pkt->fragments, next) {
-			if (!is_more_fragments_set_ipv6(frag_get_fragment_hdr(last_frag)))
-				break;
-		}
-		if (!last_frag) {
-			log_crit(ERR_UNKNOWN_ERROR, "IPv6 packet has no last fragment.");
-			return VER_DROP;
-		}
-
-		/* Compute its offset. */
-		frag_offset = get_fragment_offset_ipv6(frag_get_fragment_hdr(last_frag));
-	} else {
-		last_frag = pkt->first_fragment;
-		frag_offset = 0;
-	}
-
-	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
-	return VER_CONTINUE;
-}
-
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
@@ -503,7 +475,7 @@ static verdict post_icmp4(struct tuple *tuple, struct packet *pkt_in, struct pac
 		int i, len;
 		verdict result;
 
-		result = get_total_len_ipv6(pkt_out, &len);
+		result = pkt_get_total_len_ipv6(pkt_in, &len);
 		if (result != VER_CONTINUE)
 			return result;
 
@@ -645,10 +617,12 @@ static int l4_hdr_len(void *hdr, l3_protocol l3_proto, l4_protocol l4_proto)
 verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
+	struct packet dummy_pkt_in, dummy_pkt_out;
 	struct fragment in_inner;
 	struct fragment *out_inner;
 	struct ipv6hdr *hdr6;
 	struct hdr_iterator iterator;
+	struct translation_steps *step;
 	verdict result;
 	enum hdr_iterator_result iterator_result;
 
@@ -683,9 +657,17 @@ verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_out
 	in_inner.payload.ptr_needs_kfree = false;
 	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
 
-	result = translate(tuple, &in_inner, &out_inner, &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto]);
+	step = &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto];
+	result = translate(tuple, &in_inner, &out_inner, step);
 	if (result != VER_CONTINUE)
 		return result;
+	pkt_init(&dummy_pkt_in, &in_inner);
+	pkt_init(&dummy_pkt_out, out_inner);
+	result = step->l4_post_function(tuple, &dummy_pkt_in, &dummy_pkt_out);
+	if (result != VER_CONTINUE) {
+		frag_kfree(out_inner);
+		return result;
+	}
 
 	out_outer->payload.len = out_inner->skb->len;
 	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);

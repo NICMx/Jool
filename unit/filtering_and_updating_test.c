@@ -19,12 +19,10 @@ MODULE_DESCRIPTION("Unitary tests for the Filtering\'s part of NAT64");
 MODULE_ALIAS("nat64_test_filtering");
 
 #include "nat64/comm/str_utils.h"
-#include "nat64/mod/packet_db.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
 #include "filtering_and_updating.c"
-
 
 
 static noinline bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
@@ -305,140 +303,148 @@ static noinline bool test_allocate_ipv4_transport_address_digger( void )
 
 static noinline bool test_ipv6_udp( void )
 {
-    struct packet *pkt;
-    struct tuple tuple;
-    struct ipv6_pair pair6;
-    struct sk_buff *skb;
-    bool success = true;
-    int error;
+	struct fragment *frag;
+	struct sk_buff *skb;
+	struct tuple tuple;
+	struct ipv6_pair pair6;
+	bool success = true;
+	int error;
 
-    /* Prepare */
-	error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
-	if (error)
-		return false;
-    error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
-	if (error)
-			return false;
-    error = create_skb_ipv6_udp(&pair6, &skb, 100);
-	if (error)
-		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
-
-	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, ipv6_udp( pkt->first_fragment, &tuple ),
-		"See if we can process correctly an IPv6 UDP packet.");
-    pkt_kfree(pkt, true);
-
-    return success;
-}
-
-static noinline bool test_ipv4_udp( void )
-{
-    struct packet *pkt;
-    struct tuple tuple;
-    struct sk_buff* skb;
-    struct ipv4_pair pair4;
-    struct ipv6_pair pair6;
-    bool success = true;
-    int error;
-
-    /* Prepare */
-	error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
-	if (error)
-		return false;
-    error = init_ipv4_tuple_from_pair(&tuple, &pair4, L4PROTO_UDP);
-	if (error)
-		return false;
-	error = create_skb_ipv4_udp(&pair4, &skb, 100);
-	if (error)
-		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb IPv4 UDP");
-
-	/* Evaluate */
-    success &= assert_equals_int(VER_DROP, ipv4_udp( pkt->first_fragment, &tuple ),
-		"See if we discard an IPv4 UDP packet, which tries to start a communication.");
-    pkt_kfree(pkt, true);
-
-    /* Prepare */
+	/* Prepare */
 	error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
 	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
 	if (error)
-			return false;
+		return false;
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
 
 	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, ipv6_udp( pkt->first_fragment, &tuple ),
-		"See if we can process correctly an IPv6 UDP packet, (in test_ipv4_udp)");
-    pkt_kfree(pkt, true);
+	success &= assert_equals_int(VER_CONTINUE, ipv6_udp(frag, &tuple),
+			"See if we can process correctly an IPv6 UDP packet.");
+	frag_kfree(frag);
 
-    /*
-     * TODO (test) The following code no longer works, because the BIB stored in the previous step
-     * now uses a random port. These tests are missing lots of asserts anyway, so I'll fix both
-     * issues at the same time later.
-     */
-    /*
-    if (!init_tuple_for_test_ipv4( &tuple , protocol  ))
-    	return false;
-    skb = init_skb_for_test( &tuple, protocol );
-    if (!skb)
+	return success;
+}
+
+static noinline bool test_ipv4_udp( void )
+{
+	struct fragment *frag;
+	struct sk_buff *skb;
+	struct tuple tuple;
+	struct ipv4_pair pair4;
+	struct ipv6_pair pair6;
+	bool success = true;
+	int error;
+
+	/* Prepare */
+	error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
+	if (error)
 		return false;
-    success &= assert_equals_int(VER_CONTINUE, ipv4_udp( skb, &tuple ),
-		"See if we can process correctly an expected IPv4 UDP packet.");
-    kfree_skb(skb);
-    */
+	error = init_ipv4_tuple_from_pair(&tuple, &pair4, L4PROTO_UDP);
+	if (error)
+		return false;
+	error = create_skb_ipv4_udp(&pair4, &skb, 100);
+	if (error)
+		return false;
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return false;
 
-    return success;
+	/* Evaluate */
+	success &= assert_equals_int(VER_DROP, ipv4_udp(frag, &tuple),
+			"See if we discard an IPv4 UDP packet, which tries to start a communication.");
+	frag_kfree(frag);
+
+	/* Prepare */
+	error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
+	if (error)
+		return false;
+	error = create_skb_ipv6_udp(&pair6, &skb, 100);
+	if (error)
+		return false;
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
+	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
+	if (error)
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(VER_CONTINUE, ipv6_udp(frag, &tuple),
+			"See if we can process correctly an IPv6 UDP packet, (in test_ipv4_udp)");
+	frag_kfree(frag);
+
+	/*
+	 * TODO (test) The following code no longer works, because the BIB stored in the previous step
+	 * now uses a random port. These tests are missing lots of asserts anyway, so I'll fix both
+	 * issues at the same time later.
+	 */
+	/*
+	if (!init_tuple_for_test_ipv4( &tuple , protocol  ))
+		return false;
+	skb = init_skb_for_test( &tuple, protocol );
+	if (!skb)
+		return false;
+	success &= assert_equals_int(VER_CONTINUE, ipv4_udp( skb, &tuple ),
+		"See if we can process correctly an expected IPv4 UDP packet.");
+	kfree_skb(skb);
+	*/
+
+	return success;
 }
 
 static noinline bool test_ipv6_icmp6( void )
 {
-    struct packet *pkt;
-    struct tuple tuple;
-    struct sk_buff *skb;
-    struct ipv6_pair pair6;
-    bool success = true;
-    int error;
+	struct fragment *frag;
+	struct sk_buff *skb;
+	struct tuple tuple;
+	struct ipv6_pair pair6;
+	bool success = true;
+	int error;
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
 	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_ICMP);
 	if (error)
-			return false;
+		return false;
 	error = create_skb_ipv6_icmp_info(&pair6, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb IPv6 ICMP");
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
 
 	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, ipv6_icmp6(pkt->first_fragment, &tuple),
-		"See if we can process correctly an IPv6 ICMP packet.");
-    pkt_kfree(pkt, true);
-      
-    return success;
+	success &= assert_equals_int(VER_CONTINUE, ipv6_icmp6(frag, &tuple),
+			"See if we can process correctly an IPv6 ICMP packet.");
+	frag_kfree(frag);
+
+	return success;
 }
 
 static noinline bool test_ipv4_icmp4( void )
 {
-	struct packet *pkt;
+	struct fragment *frag;
+	struct sk_buff* skb = NULL;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-    struct tuple tuple;
-    struct sk_buff* skb = NULL;
-    bool success = true;
-    int error;
+	struct tuple tuple;
+	bool success = true;
+	int error;
 
-    /*
-     * Discard an ICMP coming from IPv4 machine.
-     */
+	/*
+	 * Discard an ICMP coming from IPv4 machine.
+	 */
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
 	if (error)
 		return false;
@@ -448,12 +454,14 @@ static noinline bool test_ipv4_icmp4( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb IPv4 UDP");
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return false;
 
 	/* Evaluate */
-	success &= assert_equals_int(VER_DROP, ipv4_icmp4(pkt->first_fragment, &tuple ),
+	success &= assert_equals_int(VER_DROP, ipv4_icmp4(frag, &tuple),
 			"See if we discard an IPv4 ICMP packet, which tries to start a communication.");
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 
 	/*
 	 * Accept & process an ICMP coming from IPv6 machine.
@@ -465,32 +473,34 @@ static noinline bool test_ipv4_icmp4( void )
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_ICMP);
 	if (error)
-			return false;
+		return false;
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
 
 	/* Evaluate */
-	success &= assert_equals_int(VER_CONTINUE, ipv6_icmp6(pkt->first_fragment, &tuple ),
+	success &= assert_equals_int(VER_CONTINUE, ipv6_icmp6(frag, &tuple),
 			"See if we can process correctly an IPv6 ICMP packet.");
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 
-    /* TODO (test) see test_ipv4_udp(). */
-    /*
-    protocol = L4PROTO_ICMP;
-    if (!init_tuple_for_test_ipv4( &tuple , protocol ))
-    	return false;
-    skb = init_skb_for_test( &tuple, protocol );
-    if (!skb)
+	/* TODO (test) see test_ipv4_udp(). */
+	/*
+	protocol = L4PROTO_ICMP;
+	if (!init_tuple_for_test_ipv4( &tuple , protocol ))
 		return false;
-    success &= assert_not_null(skb, "init_skb_for_test");
-    success &= assert_equals_int(VER_CONTINUE, ipv4_icmp4( skb, &tuple ),
+	skb = init_skb_for_test( &tuple, protocol );
+	if (!skb)
+		return false;
+	success &= assert_not_null(skb, "init_skb_for_test");
+	success &= assert_equals_int(VER_CONTINUE, ipv4_icmp4( skb, &tuple ),
 		"See if we can process correctly an expected IPv4 ICMP packet.");
-    kfree_skb(skb);
-    */
+	kfree_skb(skb);
+	*/
 
-    return success;
+	return success;
 }
 /*
 #define BUFFER_SIZE_ICMP 22
@@ -583,17 +593,18 @@ bool test_send_icmp_error_message( void )
 #define INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR     "192.168.100.44"
 static noinline bool test_filtering_and_updating( void )
 {
-    struct packet *pkt;
-    struct tuple tuple;
-    struct sk_buff *skb;
-    struct ipv6_pair pair6;
-    struct ipv4_pair pair4;
-    bool success = true;
-    int error;
+	struct packet *pkt;
+	struct fragment *frag;
+	struct sk_buff *skb;
+	struct tuple tuple;
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+	bool success;
+	int error;
 
-    log_debug(" >>> Errores de ICMP no deben afectar las tablas ");
+	log_debug(" >>> Errores de ICMP no deben afectar las tablas ");
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
 	if (error)
 		return false;
@@ -603,58 +614,79 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv4_icmp_error(&pair4, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return false;
+	pkt = pkt_create(frag);
+	if (!pkt)
+		return false;
 
 	/* Evaluate */
-    icmp_hdr(skb)->type = ICMP_DEST_UNREACH; /* Error packet */
-	success &= assert_equals_int(VER_CONTINUE,  filtering_and_updating(pkt, &tuple),
-		"See if we can forward an IPv4 ICMP packet.");
+	icmp_hdr(skb)->type = ICMP_DEST_UNREACH; /* Error packet */
+	success = assert_equals_int(VER_CONTINUE, filtering_and_updating(pkt, &tuple),
+			"See if we can forward an IPv4 ICMP packet.");
 	pkt_kfree(pkt, true);
+	if (!success)
+		return false;
 
 
-    log_debug(" >>> Get rid of hairpinning loop ");
+	log_debug(" >>> Get rid of hairpinning loop ");
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair6(&pair6, "64:ff9b::1:2", 1212, "64:ff9b::3:4", 3434);
 	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
 	if (error)
-			return false;
+		return false;
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
+	pkt = pkt_create(frag);
+	if (!pkt)
+		return false;
 
 	/* Evaluate */
-    success &= assert_equals_int(VER_DROP,  filtering_and_updating(pkt, &tuple),
-		"See if we can get rid of hairpinning loop in IPv6.");
+	success = assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple),
+			"See if we can get rid of hairpinning loop in IPv6.");
 	pkt_kfree(pkt, true);
+	if (!success)
+		return false;
 
 
-    log_debug(" >>> Get rid of unwanted packets ");
+	log_debug(" >>> Get rid of unwanted packets ");
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair6(&pair6, "1::2", 1212, INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR, 3434);
 	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
 	if (error)
-			return false;
+		return false;
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
+	pkt = pkt_create(frag);
+	if (!pkt)
+		return false;
 
 	/* Evaluate */
-	success &= assert_equals_int(VER_DROP,  filtering_and_updating(pkt, &tuple),
-		"See if we can get rid of unwanted packets in IPv6.");
+	success = assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple),
+			"See if we can get rid of unwanted packets in IPv6.");
 	pkt_kfree(pkt, true);
+	if (!success)
+		return false;
 
 
-    log_debug(" >>> Get rid of un-expected packets, destined to an address not in pool");
+	log_debug(" >>> Get rid of un-expected packets, destined to an address not in pool");
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair4(&pair4, INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR, 8765, "5.6.7.8", 5678);
 	if (error)
 		return false;
@@ -664,17 +696,24 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return false;
+	pkt = pkt_create(frag);
+	if (!pkt)
+		return false;
 
 	/* Evaluate */
-    success &= assert_equals_int(VER_DROP,  filtering_and_updating(pkt, &tuple),
-		"See if we can get rid of packet destined to an address not in pool.");
+	success = assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple),
+			"See if we can get rid of packet destined to an address not in pool.");
 	pkt_kfree(pkt, true);
+	if (!success)
+		return false;
 
 
-    log_debug(" >>> IPv4 incoming packet --> reject");
+	log_debug(" >>> IPv4 incoming packet --> reject");
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
 	if (error)
 		return false;
@@ -684,224 +723,158 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv4(skb);
+	if (!frag)
+		return false;
+	pkt = pkt_create(frag);
+	if (!pkt)
+		return false;
 
 	/* Evaluate */
-    success &= assert_equals_int(VER_DROP,  filtering_and_updating(pkt, &tuple),
-		"See if we can do reject an incoming IPv4 UDP packet.");
+	success = assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple),
+			"See if we can do reject an incoming IPv4 UDP packet.");
 	pkt_kfree(pkt, true);
+	if (!success)
+		return false;
 
 
-    log_debug(" >>> IPv6 incoming packet --> accept");
+	log_debug(" >>> IPv6 incoming packet --> accept");
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair6(&pair6, "1::2", 1212, "64:ff9b::3:4", 3434);
 	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
 	if (error)
-			return false;
+		return false;
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, &pkt), "Get pkt_from_skb");
+	frag = frag_create_ipv6(skb);
+	if (!frag)
+		return false;
+	pkt = pkt_create(frag);
+	if (!pkt)
+		return false;
 
 	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(pkt, &tuple),
-    		"See if we can do filtering and updating on an incoming IPv6 UDP packet.");
+	success = assert_equals_int(VER_CONTINUE, filtering_and_updating(pkt, &tuple),
+			"See if we can do filtering and updating on an incoming IPv6 UDP packet.");
 	pkt_kfree(pkt, true);
-
-
-    /* TODO (test) see test_ipv4_udp(). */
-    /*
-    log_debug(" >>> IPv4 incoming packet --> accept");
-    success &= init_tuple_for_test_ipv4( &tuple , protocol );
-    skb = init_skb_for_test( &tuple, protocol );
-    success &= assert_not_null(skb, "init_skb_for_test");
-    success &= assert_equals_int(VER_CONTINUE,  filtering_and_updating( skb, &tuple),
-			"See if we can do filtering and updating on an incoming IPv4 UDP packet.");
-    kfree_skb(skb);
-    */
-
-    return success;
-}
-
-
-enum test_packet_type {
-	PACKET_TYPE_DEFAULT=0,
-	PACKET_TYPE_V6_SYN=1, PACKET_TYPE_V4_SYN,
-	PACKET_TYPE_V6_RST,   PACKET_TYPE_V4_RST,
-	PACKET_TYPE_V6_FIN,   PACKET_TYPE_V4_FIN
-};
-
-static noinline bool set_skb_tcp_type(struct sk_buff *skb, enum test_packet_type type)
-{
-    struct tcphdr *tcp_header;
-
-    if (!skb) {
-    	log_err(ERR_NULL, "Skb is NULL");
-    	return false;
-    }
-    tcp_header = tcp_hdr(skb);
-
-    switch (type) {
-	case PACKET_TYPE_V6_SYN:
-	case PACKET_TYPE_V4_SYN:
-		tcp_header->syn = 1;
-		break;
-	case PACKET_TYPE_V6_RST:
-	case PACKET_TYPE_V4_RST:
-		tcp_header->rst = 1;
-		break;
-	case PACKET_TYPE_V6_FIN:
-	case PACKET_TYPE_V4_FIN:
-		tcp_header->fin = 1;
-		break;
-	case PACKET_TYPE_DEFAULT:
-		break;
-	default:
-		log_debug("  set_skb_tcp_type.c: Invalid packet type: %u", type);
+	if (!success)
 		return false;
-    }
 
-    return true;
+
+	/* TODO (test) see test_ipv4_udp(). */
+	/*
+	log_debug(" >>> IPv4 incoming packet --> accept");
+	success &= init_tuple_for_test_ipv4( &tuple , protocol );
+	skb = init_skb_for_test( &tuple, protocol );
+	success &= assert_not_null(skb, "init_skb_for_test");
+	success &= assert_equals_int(VER_CONTINUE,  filtering_and_updating( skb, &tuple),
+			"See if we can do filtering and updating on an incoming IPv4 UDP packet.");
+	kfree_skb(skb);
+	*/
+
+	return success;
 }
 
-static noinline bool test_create_packet_tcp(struct packet **pkt, enum test_packet_type type)
+
+static noinline bool create_tcp_packet(struct fragment **frag, l3_protocol l3_proto,
+		bool syn, bool rst, bool fin)
 {
 	struct sk_buff *skb;
+	struct tcphdr *hdr_tcp;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
-	bool success = true;
 	int error;
 
-	switch (type) {
-	case PACKET_TYPE_V6_SYN:
-	case PACKET_TYPE_V6_RST:
-	case PACKET_TYPE_V6_FIN:
-		error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
-		if (error)
-			return false;
-		error = create_skb_ipv6_tcp(&pair6, &skb, 100);
-		if (error)
-			return false;
-		success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, pkt), "Get pkt_from_skb");
-		break;
-
-	case PACKET_TYPE_V4_SYN:
-	case PACKET_TYPE_V4_RST:
-	case PACKET_TYPE_V4_FIN:
+	switch (l3_proto) {
+	case L3PROTO_IPV4:
 		error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
 		if (error)
 			return false;
 		error = create_skb_ipv4_tcp(&pair4, &skb, 100);
 		if (error)
 			return false;
-		success &= assert_equals_int(VER_CONTINUE, pkt_from_skb(skb, pkt), "Get pkt_from_skb");
+		*frag = frag_create_ipv4(skb);
+		if (!(*frag))
+			return false;
 		break;
-
-	case PACKET_TYPE_DEFAULT:
-	default:
-		log_debug("  Invalid packet type: %u", type);
-		return false;
+	case L3PROTO_IPV6:
+		error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
+		if (error)
+			return false;
+		error = create_skb_ipv6_tcp(&pair6, &skb, 100);
+		if (error)
+			return false;
+		*frag = frag_create_ipv6(skb);
+		if (!(*frag))
+			return false;
+		break;
 	}
 
-	success &= set_skb_tcp_type((*pkt)->first_fragment->skb, type);
+	hdr_tcp = frag_get_tcp_hdr(*frag);
+	hdr_tcp->syn = syn;
+	hdr_tcp->rst = rst;
+	hdr_tcp->fin = fin;
 
-	return success;
+	return true;
 }
 
 static noinline bool test_packet_is_syn( void )
 {
-    struct packet *pkt;
-    bool success = true;
+	struct fragment *frag;
+	bool success = true;
 
-	/*
-	 * V4 SYN
-	 */
+	/* V4 SYN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
+	success &= assert_true(packet_is_syn(frag), "V4 SYN");
+	frag_kfree(frag);
 
-    /* Prepare */
-    success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
+	/* V6 SYN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, true, false, false);
+	success &= assert_true(packet_is_syn(frag), "Test if we detect a V6 SYN packet.");
+	frag_kfree(frag);
 
-	/* Evaluate */
-    success &= assert_true(packet_is_syn( pkt->first_fragment ), "Test if we detect a V4 SYN packet.");
-	pkt_kfree(pkt, true);
-
-    /*
-     * V6 SYN
-     */
-
-	/* Prepare */
-    success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_SYN);
-
-	/* Evaluate */
-    success &= assert_true( packet_is_syn( pkt->first_fragment ), "Test if we detect a V6 SYN packet.");
-	pkt_kfree(pkt, true);
-
-    return success;
+	return success;
 }
 
 static noinline bool test_packet_is_fin( void )
 {
-    struct packet *pkt;
-    bool success = true;
+	struct fragment *frag;
+	bool success = true;
 
-	/*
-	 * V4 FIN
-	 */
+	/* V4 FIN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, false, false, true);
+	success &= assert_true(packet_is_fin(frag), "Test if we detect a V4 FIN packet.");
+	frag_kfree(frag);
 
-    /* Prepare */
-    success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_FIN);
+	/* V6 FIN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, false, true);
+	success &= assert_true(packet_is_fin(frag), "Test if we detect a V6 FIN packet.");
+	frag_kfree(frag);
 
-	/* Evaluate */
-    success &= assert_true(packet_is_fin( pkt->first_fragment ), "Test if we detect a V4 FIN packet.");
-	pkt_kfree(pkt, true);
-
-    /*
-     * V6 FIN
-     */
-
-	/* Prepare */
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_FIN);
-
-	/* Evaluate */
-    success &= assert_true( packet_is_fin( pkt->first_fragment ), "Test if we detect a V6 FIN packet.");
-	pkt_kfree(pkt, true);
-
-    return success;
+	return success;
 }
 
 static noinline bool test_packet_is_rst( void )
 {
-    struct packet *pkt;
-    bool success = true;
+	struct fragment *frag;
+	bool success = true;
 
-	/*
-	 * V4 RST
-	 */
+	/* V4 RST */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, false, true, false);
+	success &= assert_true(packet_is_rst(frag), "Test if we detect a V4 RST packet.");
+	frag_kfree(frag);
 
-    /* Prepare */
-    success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_RST);
+	/* V6 RST */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
+	success &= assert_true( packet_is_rst(frag), "Test if we detect a V6 RST packet.");
+	frag_kfree(frag);
 
-	/* Evaluate */
-    success &= assert_true(packet_is_rst( pkt->first_fragment ), "Test if we detect a V4 RST packet.");
-	pkt_kfree(pkt, true);
-
-    /*
-     * V6 RST
-     */
-
-	/* Prepare */
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_RST);
-
-	/* Evaluate */
-    success &= assert_true( packet_is_rst( pkt->first_fragment ), "Test if we detect a V6 RST packet.");
-	pkt_kfree(pkt, true);
-
-
-/* TODO missing unset flags tests. */
-
-    return success;
+	/* TODO missing unset flags tests. */
+	return success;
 }
 
 
@@ -910,47 +883,48 @@ static noinline bool test_packet_is_rst( void )
  */
 static noinline bool test_send_probe_packet( void )
 {
-    struct session_entry se;
-    bool success = true;
+	struct session_entry se;
+	bool success = true;
 
-    if (!init_session_entry( L4PROTO_TCP, &se ))
-    	return false;
+	if (!init_session_entry(L4PROTO_TCP, &se))
+		return false;
 
-    log_debug("Sending a packet, catch it!");
-    success &= assert_true( send_probe_packet( &se ), "Test if we can send a probe packet.");
+	log_debug("Sending a packet, catch it!");
+	success &= assert_true(send_probe_packet(&se), "Test if we can send a probe packet.");
 
-    return success;
+	return success;
 }
 
 static noinline bool test_tcp_closed_state_handle_6( void )
 {
-    struct session_entry *session;
-    struct tuple tuple;
-    struct packet *pkt;
-    struct ipv6_pair pair6;
-    bool success = true;
-    int error;
+	struct session_entry *session;
+	struct tuple tuple;
+	struct fragment *frag;
+	struct ipv6_pair pair6;
+	bool success = true;
+	int error;
 
-    /* Prepare */
+	/* Prepare */
 	error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
 	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_TCP);
 	if (error)
 		return false;
-    success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_SYN);
+	if (!create_tcp_packet(&frag, L3PROTO_IPV6, true, false, false))
+		return false;
 
 	/* Evaluate */
-    success &= assert_true(tcp_closed_state_handle( pkt->first_fragment, &tuple ), "V6 syn-result");
+	success &= assert_true(tcp_closed_state_handle(frag, &tuple), "V6 syn-result");
 
 	/* Validate */
-    session = session_get( &tuple );
-    success &= assert_not_null(session, "V6 syn-session.");
-    if (session)
-    	success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
-	pkt_kfree(pkt, true);
+	session = session_get(&tuple);
+	success &= assert_not_null(session, "V6 syn-session.");
+	if (session)
+		success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
 
-    return success;
+	frag_kfree(frag);
+	return success;
 }
 
 /*
@@ -1026,22 +1000,22 @@ static noinline bool init_tcp_session(
 static noinline bool test_tcp_v4_init_state_handle_v6syn( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_INIT, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_init_state_handle(pkt->first_fragment, &session), "V6 syn-result");
+	success &= assert_true(tcp_v4_init_state_handle(frag, &session), "V6 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V6 syn-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1051,22 +1025,22 @@ static noinline bool test_tcp_v4_init_state_handle_v6syn( void )
 static noinline bool test_tcp_v4_init_state_handle_else( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_INIT, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_RST);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_init_state_handle(pkt->first_fragment, &session), "else-result");
+	success &= assert_true(tcp_v4_init_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V4_INIT, session.state, "else-state");
 	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1076,23 +1050,23 @@ static noinline bool test_tcp_v4_init_state_handle_else( void )
 static noinline bool test_tcp_v6_init_state_handle_v4syn( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_INIT, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_init_state_handle(pkt->first_fragment, &session),
+	success &= assert_true(tcp_v6_init_state_handle(frag, &session),
 			"V4 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V4 syn-state");
 	success &= assert_true(session.dying_time > jiffies, "V4 syn-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1102,23 +1076,23 @@ static noinline bool test_tcp_v6_init_state_handle_v4syn( void )
 static noinline bool test_tcp_v6_init_state_handle_v6syn( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_INIT, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_init_state_handle(pkt->first_fragment, &session),
+	success &= assert_true(tcp_v6_init_state_handle(frag, &session),
 			"V6 syn-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "V6 syn-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1128,22 +1102,22 @@ static noinline bool test_tcp_v6_init_state_handle_v6syn( void )
 static noinline bool test_tcp_v6_init_state_handle_else( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_INIT, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_RST);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_init_state_handle(pkt->first_fragment, &session), "else-result");
+	success &= assert_true(tcp_v6_init_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "else-state");
 	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 /*
@@ -1152,22 +1126,22 @@ static noinline bool test_tcp_v6_init_state_handle_else( void )
 static noinline bool test_tcp_established_state_handle_v4fin( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_FIN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, false, false, true);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle( pkt->first_fragment, &session ), "result");
+	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "V4 fin-state");
 	success &= assert_true(session.dying_time < jiffies, "V4 fin-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1177,22 +1151,22 @@ static noinline bool test_tcp_established_state_handle_v4fin( void )
 static noinline bool test_tcp_established_state_handle_v6fin( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_FIN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, false, true);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle( pkt->first_fragment, &session ), "result");
+	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "V6 fin-state");
 	success &= assert_true(session.dying_time < jiffies, "V6 fin-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1202,22 +1176,22 @@ static noinline bool test_tcp_established_state_handle_v6fin( void )
 static noinline bool test_tcp_established_state_handle_v4rst( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 				ESTABLISHED, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_RST);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle( pkt->first_fragment, &session ), "result");
+	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
 	success &= assert_true(session.dying_time > jiffies, "V4 rst-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1227,22 +1201,22 @@ static noinline bool test_tcp_established_state_handle_v4rst( void )
 static noinline bool test_tcp_established_state_handle_v6rst( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_RST);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle( pkt->first_fragment, &session ), "result");
+	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 rst-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1252,22 +1226,22 @@ static noinline bool test_tcp_established_state_handle_v6rst( void )
 static noinline bool test_tcp_established_state_handle_else( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle(pkt->first_fragment, &session), "result");
+	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1277,22 +1251,22 @@ static noinline bool test_tcp_established_state_handle_else( void )
 static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_FIN_RCV, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_FIN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, false, true);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_fin_rcv_state_handle( pkt->first_fragment, &session ), "V6 fin-result");
+	success &= assert_true(tcp_v4_fin_rcv_state_handle(frag, &session ), "V6 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V6 fin-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 fin-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1302,22 +1276,22 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin( void )
 static noinline bool test_tcp_v4_fin_rcv_state_handle_else( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_FIN_RCV, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_fin_rcv_state_handle(pkt->first_fragment, &session), "else-result");
+	success &= assert_true(tcp_v4_fin_rcv_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1327,22 +1301,22 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_else( void )
 static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_FIN_RCV, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_FIN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, false, false, true);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_fin_rcv_state_handle( pkt->first_fragment, &session ), "V4 fin-result");
+	success &= assert_true(tcp_v6_fin_rcv_state_handle(frag, &session), "V4 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V4 fin-state");
 	success &= assert_true(session.dying_time > jiffies, "V4 fin-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1352,22 +1326,22 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin( void )
 static noinline bool test_tcp_v6_fin_rcv_state_handle_else( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_FIN_RCV, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_fin_rcv_state_handle(pkt->first_fragment, &session), "else-result");
+	success &= assert_true(tcp_v6_fin_rcv_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1377,22 +1351,22 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_else( void )
 static noinline bool test_tcp_trans_state_handle_v4rst( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			TRANS, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_RST);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, false, true, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_trans_state_handle( pkt->first_fragment, &session ), "V4 rst-result");
+	success &= assert_true(tcp_trans_state_handle(frag, &session), "V4 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
 	success &= assert_true(session.dying_time < jiffies, "V4 rst-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1402,22 +1376,22 @@ static noinline bool test_tcp_trans_state_handle_v4rst( void )
 static noinline bool test_tcp_trans_state_handle_v6rst( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			TRANS, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_RST);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_trans_state_handle( pkt->first_fragment, &session ), "V6 rst-result");
+	success &= assert_true(tcp_trans_state_handle(frag, &session), "V6 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
 	success &= assert_true(session.dying_time < jiffies, "V6 rst-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1427,22 +1401,22 @@ static noinline bool test_tcp_trans_state_handle_v6rst( void )
 static noinline bool test_tcp_trans_state_handle_else( void )
 {
 	struct session_entry session;
-	struct packet *pkt;
+	struct fragment *frag;
 	bool success = true;
 
 	/* Prepare */
 	success &= init_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			TRANS, &session);
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
 	if (!success)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_trans_state_handle(pkt->first_fragment, &session), "else-result");
+	success &= assert_true(tcp_trans_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	return success;
 }
 
@@ -1455,13 +1429,13 @@ static noinline bool test_tcp_trans_state_handle_else( void )
  */
 static noinline bool test_tcp( void )
 {
-    struct session_entry *session;
-    bool success = true;
-    struct ipv6_pair pair6;
+	struct session_entry *session;
+	bool success = true;
+	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
 	struct tuple tuple6;
 	struct tuple tuple4;
-	struct packet *pkt;
+	struct fragment *frag;
 	int error;
 
 	error = init_pair6(&pair6, "1::2", 1212, "64:ff9b::3:4", 3434);
@@ -1478,74 +1452,49 @@ static noinline bool test_tcp( void )
 	if (error)
 		return false;
 
-    /*
-     * V6 SYN
-     */
+	/* V6 SYN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, true, false, false);
 
-	/* Prepare */
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_SYN);
+	success &= assert_equals_int(VER_CONTINUE, tcp(frag, &tuple6 ), "Closed-result");
+	session = session_get(&tuple6);
+	success &= assert_not_null(session, "Closed-session");
+	if (session)
+		success &= assert_equals_u8(V6_INIT, session->state, "Closed-state");
+	frag_kfree(frag);
 
-	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, tcp( pkt->first_fragment, &tuple6 ), "Closed-result");
-    session = session_get(&tuple6);
-    success &= assert_not_null(session, "Closed-session");
-    if (session)
-        success &= assert_equals_u8(V6_INIT, session->state, "Closed-state");
-	pkt_kfree(pkt, true);
+	/* V4 SYN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV4, true, false, false);
 
-    /*
-     * V4 SYN
-     */
-
-    /* Prepare */
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V4_SYN);
-
-	/* Evaluate */
 	tuple4.dst.l4_id = session->ipv4.local.l4_id; /* Local port is given by pool4 and random */
-    success &= assert_equals_int(VER_CONTINUE, tcp( pkt->first_fragment, &tuple4 ), "V6 init-result");
-    session = session_get(&tuple4);
-    success &= assert_not_null(session, "V6 init-session");
-    if (session)
-        success &= assert_equals_u8(ESTABLISHED, session->state, "V6 init-state");
-	pkt_kfree(pkt, true);
+	success &= assert_equals_int(VER_CONTINUE, tcp(frag, &tuple4 ), "V6 init-result");
+	session = session_get(&tuple4);
+	success &= assert_not_null(session, "V6 init-session");
+	if (session)
+		success &= assert_equals_u8(ESTABLISHED, session->state, "V6 init-state");
+	frag_kfree(frag);
 
-    /*
-     * V6 RST
-     */
+	/* V6 RST */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, false, true, false);
 
-	/* Prepare */
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_RST);
+	success &= assert_equals_int(VER_CONTINUE, tcp(frag, &tuple6 ), "Established-result");
+	session = session_get(&tuple6);
+	success &= assert_not_null(session, "Established-session");
+	if (session)
+		success &= assert_equals_u8(TRANS, session->state, "Established-state");
+	frag_kfree(frag);
 
-	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, tcp( pkt->first_fragment, &tuple6 ), "Established-result");
-    session = session_get(&tuple6);
-    success &= assert_not_null(session, "Established-session");
-    if (session)
-        success &= assert_equals_u8(TRANS, session->state, "Established-state");
-	pkt_kfree(pkt, true);
+	/* V6 SYN */
+	success &= create_tcp_packet(&frag, L3PROTO_IPV6, true, false, false);
 
-    /*
-     * V6 SYN
-     */
+	success &= assert_equals_int(VER_CONTINUE, tcp(frag, &tuple6 ), "Trans-result");
+	session = session_get(&tuple6);
+	success &= assert_not_null(session, "Trans-session");
+	if (session)
+		success &= assert_equals_u8(ESTABLISHED, session->state, "Trans-state");
+	frag_kfree(frag);
 
-	/* Prepare */
-	success &= test_create_packet_tcp(&pkt, PACKET_TYPE_V6_SYN);
-
-	/* Evaluate */
-    success &= assert_equals_int(VER_CONTINUE, tcp( pkt->first_fragment, &tuple6 ), "Trans-result");
-    session = session_get(&tuple6);
-    success &= assert_not_null(session, "Trans-session");
-    if (session)
-        success &= assert_equals_u8(ESTABLISHED, session->state, "Trans-state");
-	pkt_kfree(pkt, true);
-
-    return success;
+	return success;
 }
-
-//static bool session_expired_callback(struct session_entry *entry)
-//{
-//	return false;
-//}
 
 static noinline bool init_full(void)
 {
