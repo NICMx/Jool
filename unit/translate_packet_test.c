@@ -1404,17 +1404,17 @@ static bool validate_pkt_multiple_4to6_tcp(struct packet *pkt, struct tuple *tup
 
 	log_debug("Validating the first fragment...");
 	frag = container_of(pkt->fragments.next, struct fragment, next);
-	if (!validate_fragment(frag, false, false, 3020, 0, 1232, tuple))
+	if (!validate_fragment(frag, false, false, 3016, 0, 1232, tuple))
 		return false;
 
 	log_debug("Validating the second fragment...");
 	frag = container_of(frag->next.next, struct fragment, next);
-	if (!validate_fragment(frag, false, false, 4252, 1232, 1232, tuple))
+	if (!validate_fragment(frag, false, false, 4248, 1232, 1232, tuple))
 		return false;
 
 	log_debug("Validating the third fragment...");
 	frag = container_of(frag->next.next, struct fragment, next);
-	if (!validate_fragment(frag, false, true, 5484, 2464, 36, tuple))
+	if (!validate_fragment(frag, false, true, 5480, 2464, 36, tuple))
 		return false;
 
 	log_debug("Validating the fourth fragment...");
@@ -1427,9 +1427,9 @@ static bool validate_pkt_multiple_4to6_tcp(struct packet *pkt, struct tuple *tup
 	if (!validate_fragment(frag, false, false, 1232, 1212, 1232, tuple))
 		return false;
 
-	log_debug("Validating the fifth fragment...");
+	log_debug("Validating the sixth fragment...");
 	frag = container_of(frag->next.next, struct fragment, next);
-	if (!validate_fragment(frag, false, false, 2464, 2444, 556, tuple))
+	if (!validate_fragment(frag, false, false, 2464, 2444, 552, tuple))
 		return false;
 
 	return true;
@@ -1451,12 +1451,12 @@ static bool test_multiple_4to6_tcp(void)
 	 * Two incoming fragments arriving backwards.
 	 * Both fragments will also be refragmented twice (ie. 6 outgoing fragments).
 	 */
-	frag = create_fragment_ipv4(2500, create_skb_ipv4_tcp_fragment, false, false, 3020);
+	frag = create_fragment_ipv4(2500, create_skb_ipv4_tcp_fragment, false, false, 3016);
 	if (!frag)
 		goto fail;
 	pkt_init(&pkt_in, frag);
 
-	frag = create_fragment_ipv4(3000, create_skb_ipv4_tcp, false, true, 0);
+	frag = create_fragment_ipv4(2996, create_skb_ipv4_tcp, false, true, 0);
 	if (!frag)
 		goto fail;
 	pkt_add_frag(&pkt_in, frag);
@@ -1907,8 +1907,7 @@ int init_module(void)
 	CALL_TEST(test_simple_6to4_icmp_error(), "Simple 6->4 ICMP error");
 
 	CALL_TEST(test_multiple_4to6_udp(), "Multiple 4->6 UDP");
-	/* TODO this test runs out of memory for some reason. */
-	/* CALL_TEST(test_multiple_4to6_tcp(), "Multiple 4->6 TCP"); */
+	CALL_TEST(test_multiple_4to6_tcp(), "Multiple 4->6 TCP");
 	CALL_TEST(test_multiple_4to6_icmp_info(), "Multiple 4->6 ICMP info");
 
 	CALL_TEST(test_multiple_6to4_udp(), "Multiple 6->4 UDP");

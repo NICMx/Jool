@@ -302,7 +302,6 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	struct ipv6hdr *first_hdr6 = ipv6_hdr(frag->skb);
 	u16 headers_size;
 	u16 payload_max_size;
-
 	__be32 original_identification;
 	u16 original_fragment_offset;
 	bool original_mf;
@@ -310,7 +309,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	__u16 min_ipv6_mtu;
 
 	spin_lock_bh(&config_lock);
-	min_ipv6_mtu = config.min_ipv6_mtu & 0xFFF8;
+	min_ipv6_mtu = config.min_ipv6_mtu;
 	spin_unlock_bh(&config_lock);
 
 	headers_size = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
@@ -324,20 +323,16 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		original_mf = is_more_fragments_set_ipv6(frag_header);
 	}
 
-	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
+	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu & 0xFFF8, original_fragment_offset, true);
 	list_add(&frag->next, list->prev);
 
-	current_p = skb_network_header(frag->skb) + min_ipv6_mtu;
-
+	current_p = skb_network_header(frag->skb) + (min_ipv6_mtu & 0xFFF8);
 	while (current_p < skb_tail_pointer(frag->skb)) {
 		bool is_last = (skb_tail_pointer(frag->skb) - current_p <= payload_max_size);
 		u16 actual_payload_size = is_last
 					? skb_tail_pointer(frag->skb) - current_p
-					: payload_max_size;
-		u16 actual_total_size;
-
-		actual_payload_size &= 0xFFF8; /* The fragment offset field only accepts 8-byte blocks. */
-		actual_total_size = headers_size + actual_payload_size;
+					: payload_max_size & 0xFFF8;
+		u16 actual_total_size = headers_size + actual_payload_size;
 
 		new_skb = alloc_skb(LL_MAX_HEADER /* kernel's reserved + layer 2. */
 				+ actual_total_size, /* l3 header + l4 header + packet data. */
@@ -430,7 +425,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 				return VER_DROP;
 			}
 
-			result = divide(out, pkt_out->fragments.prev);
+			result = divide(out, &pkt_out->fragments);
 			if (result != VER_CONTINUE)
 				return result;
 		} else {
