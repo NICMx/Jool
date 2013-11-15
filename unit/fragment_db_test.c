@@ -816,13 +816,13 @@ static bool test_timer(void)
 	expected_keys[0].ipv4.src_addr = pair13.remote.address;
 	expected_keys[0].ipv4.dst_addr = pair13.local.address;
 	expected_keys[0].ipv4.identification = cpu_to_be16(1234);
-	expected_keys[0].l4_proto = NEXTHDR_UDP;
+	expected_keys[0].l4_proto = IPPROTO_UDP;
 
 	expected_keys[1].l3_proto = L3PROTO_IPV4;
 	expected_keys[1].ipv4.src_addr = pair2.remote.address;
 	expected_keys[1].ipv4.dst_addr = pair2.local.address;
 	expected_keys[1].ipv4.identification = cpu_to_be16(1234);
-	expected_keys[1].l4_proto = NEXTHDR_UDP;
+	expected_keys[1].l4_proto = IPPROTO_UDP;
 
 	expected_keys[2].l3_proto = L3PROTO_IPV6;
 	expected_keys[2].ipv6.src_addr = pair46.remote.address;

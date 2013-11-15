@@ -444,11 +444,9 @@ static verdict post_icmp6(struct tuple *tuple, struct packet *pkt_in, struct pac
 		 */
 		__wsum csum;
 		unsigned int i, len;
-		verdict result;
 
-		result = pkt_get_total_len_ipv6(pkt_out, &len);
-		if (result != VER_CONTINUE)
-			return result;
+		if (is_error(pkt_get_total_len_ipv6(pkt_out, &len)))
+			return VER_DROP;
 
 		csum = ~csum_unfold(in_icmp->checksum);
 
@@ -562,69 +560,57 @@ static verdict post_udp_ipv6(struct tuple *tuple, struct packet *pkt_in, struct 
 
 /**
  * Sets out_outer.payload.*.
+ *
+ * TODO this is too similar to translate_inner_packet_6to4(). Find a way to join them.
  */
 verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
 	struct packet dummy_pkt_in, dummy_pkt_out;
-	struct fragment in_inner;
-	struct fragment *out_inner;
-	struct iphdr *hdr4;
+	struct fragment *in_inner = NULL;
+	struct fragment *out_inner = NULL;
 	struct translation_steps *step;
-	verdict result;
+	verdict result = VER_DROP;
 
 	log_debug("Translating the inner packet (4->6)...");
 
-	in_inner.skb = NULL;
+	/* Prepare the translate function's requirements. */
+	if (is_error(frag_create_from_buffer_ipv4(in_outer->payload.ptr, in_outer->payload.len, true,
+			&in_inner)))
+		goto end;
 
-	in_inner.l3_hdr.proto = L3PROTO_IPV4;
-	in_inner.l3_hdr.ptr = in_outer->payload.ptr;
-	in_inner.l3_hdr.ptr_needs_kfree = false;
-	hdr4 = frag_get_ipv4_hdr(&in_inner);
-	in_inner.l3_hdr.len = 4 * hdr4->ihl;
-
-	in_inner.l4_hdr.proto = protocol_to_l4proto(hdr4->protocol);
-	if (in_inner.l4_hdr.proto == -1)
-		return VER_DROP;
-	in_inner.l4_hdr.ptr = in_inner.l3_hdr.ptr + in_inner.l3_hdr.len;
-	in_inner.l4_hdr.ptr_needs_kfree = false;
-	in_inner.l4_hdr.len = l4_hdr_len(in_inner.l4_hdr.ptr, in_inner.l3_hdr.proto, in_inner.l4_hdr.proto);
-
-	if (in_inner.l4_hdr.proto == L4PROTO_ICMP) {
-		struct icmphdr *hdr_icmp = frag_get_icmp4_hdr(&in_inner);
+	if (in_inner->l4_hdr.proto == L4PROTO_ICMP) {
+		struct icmphdr *hdr_icmp = frag_get_icmp4_hdr(in_inner);
 		if (icmp4_has_inner_packet(hdr_icmp->type))
-			return VER_DROP; /* packet inside packet inside packet. */
+			goto end; /* packet inside packet inside packet. */
 	}
 
-	/* TODO mandar a llamar a la función de validación. */
+	step = &steps[in_inner->l3_hdr.proto][in_inner->l4_hdr.proto];
 
-	in_inner.payload.ptr = in_inner.l4_hdr.ptr + in_inner.l4_hdr.len;
-	in_inner.payload.ptr_needs_kfree = false;
-	in_inner.payload.len = in_outer->payload.len - in_inner.l3_hdr.len - in_inner.l4_hdr.len;
-
-	/* log_debug("Inner packet protocols: %d %d", in_inner.l3_hdr.proto, in_inner.l4_hdr.proto); */
-	step = &steps[in_inner.l3_hdr.proto][in_inner.l4_hdr.proto];
-	result = translate(tuple, &in_inner, &out_inner, step);
+	/* Actually translate the inner packet. */
+	result = translate(tuple, in_inner, &out_inner, step);
 	if (result != VER_CONTINUE)
-		return result;
-	pkt_init(&dummy_pkt_in, &in_inner);
+		goto end;
+
+	pkt_init(&dummy_pkt_in, in_inner);
 	pkt_init(&dummy_pkt_out, out_inner);
 	result = step->l4_post_function(tuple, &dummy_pkt_in, &dummy_pkt_out);
-	if (result != VER_CONTINUE) {
-		frag_kfree(out_inner);
-		return result;
-	}
+	if (result != VER_CONTINUE)
+		goto end;
 
+	/* Finally set the values this function is meant for. */
 	out_outer->payload.len = out_inner->skb->len;
 	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);
 	out_outer->payload.ptr_needs_kfree = true;
-	if (!out_outer->payload.ptr) {
-		frag_kfree(out_inner);
-		return VER_DROP;
-	}
+	if (!out_outer->payload.ptr)
+		goto end;
 	memcpy(out_outer->payload.ptr, skb_network_header(out_inner->skb), out_outer->payload.len);
 
-	frag_kfree(out_inner);
+	result = VER_CONTINUE;
+	/* Fall through. */
 
-	return VER_CONTINUE;
+end:
+	frag_kfree(in_inner);
+	frag_kfree(out_inner);
+	return result;
 }

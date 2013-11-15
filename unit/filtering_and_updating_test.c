@@ -320,8 +320,8 @@ static noinline bool test_ipv6_udp( void )
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -352,8 +352,8 @@ static noinline bool test_ipv4_udp( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv4(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -368,8 +368,8 @@ static noinline bool test_ipv4_udp( void )
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
 	error = init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP);
 	if (error)
@@ -418,8 +418,8 @@ static noinline bool test_ipv6_icmp6( void )
 	error = create_skb_ipv6_icmp_info(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -454,8 +454,8 @@ static noinline bool test_ipv4_icmp4( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv4(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -477,8 +477,8 @@ static noinline bool test_ipv4_icmp4( void )
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -614,11 +614,11 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv4_icmp_error(&pair4, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv4(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
-	pkt = pkt_create(frag);
-	if (!pkt)
+	error = pkt_create(frag, &pkt);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -642,11 +642,11 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
-	pkt = pkt_create(frag);
-	if (!pkt)
+	error = pkt_create(frag, &pkt);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -669,11 +669,11 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
-	pkt = pkt_create(frag);
-	if (!pkt)
+	error = pkt_create(frag, &pkt);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -696,11 +696,11 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv4(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
-	pkt = pkt_create(frag);
-	if (!pkt)
+	error = pkt_create(frag, &pkt);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -723,11 +723,11 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv4_udp(&pair4, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv4(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
-	pkt = pkt_create(frag);
-	if (!pkt)
+	error = pkt_create(frag, &pkt);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -750,11 +750,11 @@ static noinline bool test_filtering_and_updating( void )
 	error = create_skb_ipv6_udp(&pair6, &skb, 100);
 	if (error)
 		return false;
-	frag = frag_create_ipv6(skb);
-	if (!frag)
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
 		return false;
-	pkt = pkt_create(frag);
-	if (!pkt)
+	error = pkt_create(frag, &pkt);
+	if (error)
 		return false;
 
 	/* Evaluate */
@@ -797,8 +797,8 @@ static noinline bool create_tcp_packet(struct fragment **frag, l3_protocol l3_pr
 		error = create_skb_ipv4_tcp(&pair4, &skb, 100);
 		if (error)
 			return false;
-		*frag = frag_create_ipv4(skb);
-		if (!(*frag))
+		error = frag_create_from_skb(skb, frag);
+		if (error)
 			return false;
 		break;
 	case L3PROTO_IPV6:
@@ -808,8 +808,8 @@ static noinline bool create_tcp_packet(struct fragment **frag, l3_protocol l3_pr
 		error = create_skb_ipv6_tcp(&pair6, &skb, 100);
 		if (error)
 			return false;
-		*frag = frag_create_ipv6(skb);
-		if (!(*frag))
+		error = frag_create_from_skb(skb, frag);
+		if (error)
 			return false;
 		break;
 	}
@@ -873,7 +873,7 @@ static noinline bool test_packet_is_rst( void )
 	success &= assert_true( packet_is_rst(frag), "Test if we detect a V6 RST packet.");
 	frag_kfree(frag);
 
-	/* TODO missing unset flags tests. */
+	/* TODO (test) missing unset flags tests. */
 	return success;
 }
 

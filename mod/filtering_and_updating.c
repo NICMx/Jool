@@ -271,7 +271,7 @@ static bool session_expire(struct session_entry *session)
 	case L4PROTO_TCP:
 		switch (session->state) {
 		case V4_INIT:
-			/* TODO (later) send the stored packet. */
+			/* TODO (Issue #58) send the stored packet. */
 			/* send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE); */
 			session->state = CLOSED;
 			return true;
@@ -1236,7 +1236,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 		session->state = V4_INIT;
 		set_syn_timer(session);
 
-		/* TODO (later) store the packet.
+		/* TODO (Issue #58) store the packet.
 		 *          The result is that the NAT64 will not drop the packet based on the filtering,
 		 *          nor create a BIB entry.  Instead, the NAT64 will only create the Session
 		 *          Table Entry and store the packet. The motivation for this is to support

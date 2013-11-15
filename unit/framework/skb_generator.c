@@ -559,11 +559,13 @@ int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct
 	hdr4->check = 0;
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
-	frag = frag_create_ipv4(skb);
-	if (!frag)
-		return -ENOMEM;
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
+		return error;
 
-	*pkt = pkt_create(frag);
+	error = pkt_create(frag, pkt);
+	if (error)
+		return error;
 
 	/* Second fragment. */
 	error = create_skb_ipv4_udp_fragment(pair4, &skb, 8);
@@ -574,9 +576,9 @@ int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct
 	hdr4->check = 0;
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
-	frag = frag_create_ipv4(skb);
-	if (!frag)
-		return -ENOMEM;
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
+		return error;
 
 	pkt_add_frag(*pkt, frag);
 
@@ -589,9 +591,9 @@ int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct
 	hdr4->check = 0;
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
-	frag = frag_create_ipv4(skb);
-	if (!frag)
-		return -ENOMEM;
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
+		return error;
 
 	pkt_add_frag(*pkt, frag);
 
@@ -614,11 +616,13 @@ int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct
 	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
 	hdr_frag->frag_off = build_ipv6_frag_off_field(24, false);
 
-	frag = frag_create_ipv6(skb);
-	if (!frag)
-		return -ENOMEM;
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
+		return error;
 
-	*pkt = pkt_create(frag);
+	error = pkt_create(frag, pkt);
+	if (error)
+		return error;
 
 	/* Second fragment. */
 	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb, 8);
@@ -628,9 +632,9 @@ int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct
 	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
 	hdr_frag->frag_off = build_ipv6_frag_off_field(16, true);
 
-	frag = frag_create_ipv6(skb);
-	if (!frag)
-		return -ENOMEM;
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
+		return error;
 
 	pkt_add_frag(*pkt, frag);
 
@@ -642,9 +646,9 @@ int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct
 	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
 	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
 
-	frag = frag_create_ipv6(skb);
-	if (!frag)
-		return -ENOMEM;
+	error = frag_create_from_skb(skb, &frag);
+	if (error)
+		return error;
 
 	pkt_add_frag(*pkt, frag);
 

@@ -117,6 +117,11 @@ enum error_code {
 	ERR_SEND_FAILED = 4501,
 };
 
+static inline bool is_error(int status)
+{
+	return status;
+}
+
 typedef enum verdict {
 	/** No problems thus far, processing of the packet can continue. */
 	VER_CONTINUE = -1,

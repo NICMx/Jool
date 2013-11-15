@@ -229,7 +229,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 	int error;
 	bool success = true;
 
-	/* TODO free stuff on failure. */
+	/* TODO (test) free stuff on failure. */
 	static_bib = create_and_insert_static_bib(l4_proto);
 	if (!static_bib)
 		return false;

@@ -41,8 +41,7 @@ static struct fragment *create_fragment_ipv4(int payload_len,
 	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
 	/* init the fragment. */
-	frag = frag_create_ipv4(skb);
-	if (!frag) {
+	if (is_error(frag_create_from_skb(skb, &frag))) {
 		kfree_skb(skb);
 		return NULL;
 	}
@@ -60,8 +59,7 @@ static struct packet *create_pkt_ipv4(int payload_len,
 	if (!frag)
 		return NULL;
 
-	pkt = pkt_create(frag);
-	if (!pkt)
+	if (is_error(pkt_create(frag, &pkt)))
 		frag_kfree(frag);
 
 	return pkt;
@@ -92,8 +90,7 @@ static struct fragment *create_fragment_ipv6(int payload_len,
 	}
 
 	/* init the fragment. */
-	frag = frag_create_ipv6(skb);
-	if (!frag) {
+	if (is_error(frag_create_from_skb(skb, &frag))) {
 		kfree_skb(skb);
 		return NULL;
 	}
@@ -111,8 +108,7 @@ static struct packet *create_pkt_ipv6(int payload_len,
 	if (!frag)
 		return NULL;
 
-	pkt = pkt_create(frag);
-	if (!pkt)
+	if (is_error(pkt_create(frag, &pkt)))
 		frag_kfree(frag);
 
 	return pkt;
@@ -165,18 +161,14 @@ static bool test_post_tcp_csum_6to4(void)
 	if (create_skb_ipv4_tcp(&pair4, &skb_out, 100) != 0)
 		goto error;
 
-	frag_in = frag_create_ipv6(skb_in);
-	if (!frag_in)
+	if (is_error(frag_create_from_skb(skb_in, &frag_in)))
 		goto error;
-	frag_out = frag_create_ipv4(skb_out);
-	if (!frag_out)
+	if (is_error(frag_create_from_skb(skb_out, &frag_out)))
 		goto error;
 
-	pkt_in = pkt_create(frag_in);
-	if (!pkt_in)
+	if (is_error(pkt_create(frag_in, &pkt_in)))
 		goto error;
-	pkt_out = pkt_create(frag_out);
-	if (!pkt_out)
+	if (is_error(pkt_create(frag_out, &pkt_out)))
 		goto error;
 
 	hdr_tcp = frag_get_tcp_hdr(frag_out);
@@ -230,18 +222,14 @@ static bool test_post_udp_csum_6to4(void)
 	if (create_skb_ipv4_udp(&pair4, &skb_out, 100) != 0)
 		goto error;
 
-	frag_in = frag_create_ipv6(skb_in);
-	if (!frag_in)
+	if (is_error(frag_create_from_skb(skb_in, &frag_in)))
 		goto error;
-	frag_out = frag_create_ipv4(skb_out);
-	if (!frag_out)
+	if (is_error(frag_create_from_skb(skb_out, &frag_out)))
 		goto error;
 
-	pkt_in = pkt_create(frag_in);
-	if (!pkt_in)
+	if (is_error(pkt_create(frag_in, &pkt_in)))
 		goto error;
-	pkt_out = pkt_create(frag_out);
-	if (!pkt_out)
+	if (is_error(pkt_create(frag_out, &pkt_out)))
 		goto error;
 
 	hdr_udp = frag_get_udp_hdr(frag_out);

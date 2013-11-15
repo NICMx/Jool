@@ -187,20 +187,35 @@ struct fragment {
 	struct list_head next;
 };
 
+/** Allocates "frag" in the heap and initializes it out of "skb". */
+int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag);
 /**
- * Allocates a fragment, initializes it out of "skb" and returns it.
- * Assumes that "skb" represents a IPv6 packet.
+ * These two allocate "frag" in the heap and initialize it out of the raw packet "buffer" (whose
+ * length is "len").
+ *
+ * @param buffer must be a byte array version of a packet, starting at the layer-3 header and ending at
+ *	the end of its payload.
+ * @param len length of buffer.
+ * @param is_truncated send true if buffer *MIGHT* be truncated. If false, additional restrictions
+ *	regarding the lengths in buffer's headers will be enforced.
+ *	When buffer is truncated, it is still at least expected to contain up to (and including)
+ *	transport headers, whenever applies.
+ * @param frag the result will be placed in this out parameter.
+ * @return zero on success, non-zero for an error status.
  */
-struct fragment *frag_create_ipv6(struct sk_buff *skb);
-/**
- * Allocates a fragment, initializes it out of "skb" and returns it.
- * Assumes that "skb" represents a IPv4 packet.
- */
-struct fragment *frag_create_ipv4(struct sk_buff *skb);
+int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
+		struct fragment **frag);
+int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
+		struct fragment **frag);
 /** Allocates "out" under the assumption that a skb is going to be created from it. */
-verdict frag_create_empty(struct fragment **out);
-/** Collapses all of "frag"'s fields into "frag".skb (i. e. creates a skb out of "frag"). */
-verdict frag_create_skb(struct fragment *frag);
+int frag_create_empty(struct fragment **out);
+
+/** Collapses all of "frag"'s fields into "frag"->skb (i. e. creates a skb out of "frag"). */
+int frag_create_skb(struct fragment *frag);
+/*
+ * Returns true if "frag" actually represents a fragmented packet. Returns false if "frag" is the
+ * only fragment of its packet.
+ */
 bool frag_is_fragmented(struct fragment *frag);
 /** Best-effortlessly prints "frag" on the log. Intended for debugging. */
 void frag_print(struct fragment *frag);
@@ -271,14 +286,17 @@ struct packet {
 	struct fragment *first_fragment;
 };
 
-/** Allocates and initializes a packet out of "frag"'s contents. Includes "frag" in its list. */
-struct packet *pkt_create(struct fragment *frag);
+/**
+ * Allocates and initializes packet "pkt_out" out of "frag"'s contents.
+ * Includes "frag" in its list.
+ */
+int pkt_create(struct fragment *frag, struct packet **pkt_out);
 
 void pkt_init(struct packet *pkt, struct fragment *frag);
 /** Adds "frag" to "pkt". Has the added comfort of updating "pkt".first_fragment if applies. */
 void pkt_add_frag(struct packet *pkt, struct fragment *frag);
-verdict pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len);
-verdict pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len);
+int pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len);
+int pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len);
 /** Frees "pkt"'s contents. If "free_pkt" is true, frees "pkt" as well. */
 void pkt_kfree(struct packet *pkt, bool free_pkt);
 

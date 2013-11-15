@@ -5,7 +5,6 @@
 
 #include <linux/kernel.h>
 
-//#define ADDRESS "2.2.2.2"
 
 static struct in_addr pool_address;
 static u32 pool_current_udp_port = 1024;

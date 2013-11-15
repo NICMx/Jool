@@ -22,9 +22,9 @@
  * information to translate them (i. e. the first fragment, which contains the transport headers),
  * and then translate them (separately, but all based on the first one).
  *
- * TODO What we actually do currently is store the fragments until they have all arrived, and then
- * translate them. I don't think this is as bad as it sounds since the default arrival tolerance is
- * only two seconds, but the to-do is there anyway.
+ * TODO (fine) What we actually do currently is store the fragments until they have all arrived, and
+ * then translate them. I don't think this is as bad as it sounds since the default arrival
+ * tolerance is only two seconds, but the to-do is there anyway.
  *
  * This module is the database that stores the fragments still waiting for their siblings.
  */

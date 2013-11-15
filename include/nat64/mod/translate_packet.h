@@ -48,7 +48,12 @@ struct translation_steps {
 	 * already been assembled. When you want to access the headers, use out.packet.
 	 */
 	verdict (*l3_post_function)(struct fragment *out);
-	/** Post-processing involving the layer 4 header. See l3_post_function. */
+	/**
+	 * Post-processing involving the layer 4 header. See l3_post_function.
+	 * This one is a little annoying because layer-4 information encompasses all of a packet's
+	 * fragments, so this function has to be called separately, after all fragments have been
+	 * processed.
+	 */
 	verdict (*l4_post_function)(struct tuple *tuple, struct packet *pkt_in, struct packet *pkt_out);
 };
 

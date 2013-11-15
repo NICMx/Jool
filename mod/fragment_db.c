@@ -32,6 +32,10 @@ struct reassembly_buffer_key {
 			__be32 identification;
 		} ipv6;
 	};
+	/*
+	 * I don't want this value to be a enum l4_protocol because I don't want people to be tempted
+	 * to assign L4PROTO_NONE to it.
+	 */
 	__u8 l4_proto;
 };
 
@@ -151,8 +155,7 @@ static struct reassembly_buffer *buffer_alloc(struct fragment *frag)
 	buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
 	if (!buffer)
 		return NULL;
-	pkt = pkt_create(frag);
-	if (!pkt) {
+	if (is_error(pkt_create(frag, &pkt))) {
 		kfree(buffer);
 		return NULL;
 	}
@@ -164,11 +167,12 @@ static struct reassembly_buffer *buffer_alloc(struct fragment *frag)
 	return buffer;
 }
 
-static void frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key)
+static int frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key)
 {
 	struct iphdr *hdr4;
 	struct ipv6hdr *hdr6;
 	struct hdr_iterator iterator;
+	enum hdr_iterator_result result;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV4:
@@ -188,32 +192,36 @@ static void frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key
 
 		hdr_iterator_init(&iterator, hdr6);
 		while (iterator.hdr_type != NEXTHDR_FRAGMENT) {
-			if (hdr_iterator_next(&iterator) != HDR_ITERATOR_SUCCESS)
-				log_debug("Error"); /* TODO */
+			result = hdr_iterator_next(&iterator);
+			if (result != HDR_ITERATOR_SUCCESS)
+				goto iterator_fail;
 		}
 		key->ipv6.identification = ((struct frag_hdr *) iterator.data)->identification;
 
-		hdr_iterator_last(&iterator);
+		result = hdr_iterator_last(&iterator);
+		if (result != HDR_ITERATOR_END)
+			goto iterator_fail;
 		key->l4_proto = iterator.hdr_type;
 		break;
 	}
 
+	return 0;
+
+iterator_fail:
+	log_crit(ERR_INVALID_ITERATOR, "Iterator yielded status %u on a valid fragment.", result);
+	return -EINVAL;
 }
 
-static struct reassembly_buffer *buffer_get(struct fragment *frag)
+static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
 {
-	struct reassembly_buffer_key key;
-	frag_to_key(frag, &key);
-	return fragdb_table_get(&table, &key);
+	return fragdb_table_get(&table, key);
 }
 
-static int buffer_put(struct reassembly_buffer *buffer)
+static int buffer_put(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer)
 {
-	struct reassembly_buffer_key key;
 	int error;
 
-	frag_to_key(pkt_get_first_frag(buffer->pkt), &key);
-	error = fragdb_table_put(&table, &key, buffer);
+	error = fragdb_table_put(&table, key, buffer);
 	if (error)
 		return error;
 
@@ -227,13 +235,11 @@ static int buffer_put(struct reassembly_buffer *buffer)
 	return 0;
 }
 
-static void buffer_destroy(struct reassembly_buffer *buffer, bool free_pkt)
+static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer,
+		bool free_pkt)
 {
-	struct reassembly_buffer_key key;
-
 	/* Remove it from the DB. */
-	frag_to_key(pkt_get_first_frag(buffer->pkt), &key);
-	if (!fragdb_table_remove(&table, &key, false)) {
+	if (!fragdb_table_remove(&table, key, false)) {
 		log_crit(ERR_UNKNOWN_ERROR, "Something is attempting to delete a buffer that wasn't stored"
 				"in the database.");
 		return;
@@ -288,6 +294,7 @@ static void clean_expired_buffers(void)
 {
 	struct list_head *current_node, *next_node;
 	unsigned int b = 0;
+	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
 
 	log_debug("Deleting expired reassembly buffers...");
@@ -303,8 +310,10 @@ static void clean_expired_buffers(void)
 			return;
 		}
 
-		buffer_destroy(buffer, true);
-		b++;
+		if (!is_error(frag_to_key(buffer->pkt->first_fragment, &key))) {
+			buffer_destroy(&key, buffer, true);
+			b++;
+		}
 	}
 
 	spin_unlock_bh(&table_lock);
@@ -340,7 +349,7 @@ static void cleaner_timer(unsigned long param)
  * This function assumes that pkt has no holes. That is, for each byte in the original packet,
  * there is at least one fragment in pkt that contains it.
  */
-static verdict compute_csum_udp(struct packet *pkt)
+static int compute_csum_udp(struct packet *pkt)
 {
 	struct fragment *frag;
 	struct iphdr *hdr4;
@@ -348,14 +357,14 @@ static verdict compute_csum_udp(struct packet *pkt)
 	unsigned char *buffer;
 	unsigned int buffer_len;
 	__u16 offset;
-	verdict result;
+	int error;
 
 	if (pkt_get_l3proto(pkt) == L3PROTO_IPV6)
-		return VER_CONTINUE; /* The checksum is mandatory in IPv6, so it's already set. */
+		return 0; /* The checksum is mandatory in IPv6, so it's already set. */
 
 	hdr_udp = frag_get_udp_hdr(pkt->first_fragment);
 	if (hdr_udp->check != 0)
-		return VER_CONTINUE; /* The client went through the trouble of computing the csum. */
+		return 0; /* The client went through the trouble of computing the csum. */
 
 	/*
 	 * Okay, compute the checksum.
@@ -363,13 +372,13 @@ static verdict compute_csum_udp(struct packet *pkt)
 	 * Why? because some fragments might overlap with each other, so if we just join the checksums
 	 * of each separate fragment, we'll end up summing some bytes multiple times.
 	 */
-	result = pkt_get_total_len_ipv4(pkt, &buffer_len);
-	if (result != VER_CONTINUE)
-		return result;
+	error = pkt_get_total_len_ipv4(pkt, &buffer_len);
+	if (error)
+		return error;
 
 	buffer = kmalloc(buffer_len, GFP_ATOMIC);
 	if (!buffer)
-		return VER_DROP;
+		return -ENOMEM;
 
 	list_for_each_entry(frag, &pkt->fragments, next) {
 		hdr4 = frag_get_ipv4_hdr(frag);
@@ -384,14 +393,14 @@ static verdict compute_csum_udp(struct packet *pkt)
 			csum_partial(buffer, buffer_len, 0));
 
 	kfree(buffer);
-	return VER_CONTINUE;
+	return 0;
 }
 
 /**
  * Assumes that pkt is a IPv6 ICMP message, and ensures that its checksum is valid, but only if it's
  * neccesary. See validate_csum_icmp4() for more info.
  */
-static verdict validate_csum_icmp6(struct packet *pkt)
+static int validate_csum_icmp6(struct packet *pkt)
 {
 	struct fragment *frag;
 	struct ipv6hdr *ip6_hdr;
@@ -403,7 +412,7 @@ static verdict validate_csum_icmp6(struct packet *pkt)
 	ip6_hdr = frag_get_ipv6_hdr(frag);
 	icmp6_hdr = frag_get_icmp6_hdr(frag);
 	if (is_icmp6_info(icmp6_hdr->icmp6_type))
-		return VER_CONTINUE;
+		return 0;
 
 	tmp = icmp6_hdr->icmp6_cksum;
 	icmp6_hdr->icmp6_cksum = 0;
@@ -414,17 +423,17 @@ static verdict validate_csum_icmp6(struct packet *pkt)
 
 	if (tmp != computed_csum) {
 		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
-		return VER_DROP;
+		return -EINVAL;
 	}
 
-	return VER_CONTINUE;
+	return 0;
 }
 
 /**
  * Assumes that pkt is a IPv4 ICMP message, and ensures that its checksum is valid, but only if it's
  * neccesary. See the comments inside for more info.
  */
-static verdict validate_csum_icmp4(struct packet *pkt)
+static int validate_csum_icmp4(struct packet *pkt)
 {
 	struct fragment *frag;
 	struct icmphdr *hdr;
@@ -442,7 +451,7 @@ static verdict validate_csum_icmp4(struct packet *pkt)
 		 * Hence, we don't have to validate the incoming checksum.
 		 * (Because that will be the IPv6 node's responsibility.)
 		 */
-		return VER_CONTINUE;
+		return 0;
 	}
 
 	/* BTW: we're not iterating over all the fragments because ICMP errors are never fragmented. */
@@ -453,10 +462,10 @@ static verdict validate_csum_icmp4(struct packet *pkt)
 
 	if (tmp != computed_csum) {
 		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
-		return VER_DROP;
+		return -EINVAL;
 	}
 
-	return VER_CONTINUE;
+	return 0;
 }
 
 /**
@@ -464,42 +473,53 @@ static verdict validate_csum_icmp4(struct packet *pkt)
  * checksums.
  *
  * In an ideal world, Jool would not have to worry about checksums because it's really just a
- * pseudo-routing, mostly layer-3 device; checksum verification is a task best left to endpoints.
+ * pseudo-routing, mostly layer-3 device; layer-4 checksum verification is a task best left to
+ * endpoints. However, in reality transport checksums are usually affected by the layer-3 protocol,
+ * so we need to work around them.
  *
  * Thanks to this function, the rest of the modules after the fragment database can assume the
- * incoming layer-4 checksum is either valid or irrelevant in all circumstances:
+ * incoming layer-4 checksum is valid in all circumstances:
  * - If pkt is a TCP, ICMP info or a checksum-featuring UDP packet, this function does nothing
- *   because it's not
+ *   because the translation mangling is going to be simple enough that Jool will be able to update
+ *   (rather than recompute) the existing checksum. Any existing corruption will still be reflected
+ *   in the checksum and the destination node will be able to tell.
+ * - If pkt is a ICMP error, then this function will drop the packet if its checksum doesn't match.
+ *   This is because the translation might change the packet considerably, so Jool will have to
+ *   recompute the checksum completely, and we shouldn't assign a correct checksum to a corrupted
+ *   packet.
+ * - If pkt is a IPv4 zero-checksum UDP packet, then this function will compute and assign its
+ *   checksum. If there's any corruption, the destination node will have to bear it. This behavior
+ *   is mandated by RFC 6146 section 3.4.
  */
-static verdict l4_post(struct packet *pkt) {
-	verdict result = VER_CONTINUE;
+static int l4_post(struct packet *pkt) {
+	int error = 0;
 
 	switch (pkt_get_l4proto(pkt)) {
 	case L4PROTO_TCP:
 		/* Nothing to do here. */
 		break;
 	case L4PROTO_UDP:
-		result = compute_csum_udp(pkt);
+		error = compute_csum_udp(pkt);
 		break;
 
 	case L4PROTO_ICMP:
 		switch (pkt_get_l3proto(pkt)) {
 		case L3PROTO_IPV4:
-			result = validate_csum_icmp4(pkt);
+			error = validate_csum_icmp4(pkt);
 			break;
 		case L3PROTO_IPV6:
-			result = validate_csum_icmp6(pkt);
+			error = validate_csum_icmp6(pkt);
 			break;
 		}
 		break;
 
 	case L4PROTO_NONE:
 		log_warning("The transport protocol of the first fragment is NONE.");
-		result = VER_DROP;
+		error = -EINVAL;
 		break;
 	}
 
-	return result;
+	return error;
 }
 
 int fragdb_init(void)
@@ -551,6 +571,7 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
  */
 verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 {
+	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
 	struct hole_descriptor *hole;
 	struct hole_descriptor *hole_aux;
@@ -562,17 +583,8 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	 * Encapsulating and validating the packet is not part of the RFC, we just do it because we
 	 * need it. Just saying.
 	 */
-	switch (ntohs(skb->protocol)) {
-	case ETH_P_IP:
-		frag = frag_create_ipv4(skb);
-		break;
-	case ETH_P_IPV6:
-		frag = frag_create_ipv6(skb);
-		break;
-	default:
-		log_err(ERR_L3PROTO, "Unsupported network protocol: %u", ntohs(skb->protocol));
+	if (is_error(frag_create_from_skb(skb, &frag)))
 		return VER_DROP;
-	}
 
 	/*
 	 * This short circuit is not part of the RFC.
@@ -580,31 +592,50 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	 */
 	if (!frag_is_fragmented(frag)) {
 		/* No need to interact with the database. Encapsulate the packet and let it fly. */
-		*result = pkt_create(frag);
-		return l4_post(*result);
+		if (is_error(pkt_create(frag, result))) {
+			frag_kfree(frag);
+			return VER_STOLEN;
+		}
+		if (is_error(l4_post(*result))) {
+			pkt_kfree(*result, true);
+			return VER_STOLEN;
+		}
+		return VER_CONTINUE;
+	}
+
+	if (is_error(frag_to_key(frag, &key))) {
+		kfree(frag);
+		return VER_DROP;
 	}
 
 	spin_lock_bh(&table_lock);
 
-	buffer = buffer_get(frag);
+	buffer = buffer_get(&key);
 	if (buffer) {
 		pkt_add_frag(buffer->pkt, frag);
 
 	} else {
 		buffer = buffer_alloc(frag);
-		if (!buffer)
+		if (!buffer) {
+			kfree(frag);
 			goto fail;
+		}
 
 		hole = hole_alloc(0, INFINITY);
 		if (!hole) {
 			kfree(buffer);
+			kfree(frag);
 			goto fail;
 		}
 
 		list_add(&hole->hook, &buffer->holes);
 
-		if (buffer_put(buffer) != 0)
+		if (is_error(buffer_put(&key, buffer))) {
+			kfree(hole);
+			kfree(buffer);
+			kfree(frag);
 			goto fail;
+		}
 	}
 
 	fragment_first = compute_fragment_first(frag);
@@ -650,9 +681,15 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	/* Step 8 */
 	if (list_empty(&buffer->holes)) {
 		*result = buffer->pkt;
-		buffer_destroy(buffer, false);
+		buffer_destroy(&key, buffer, false);
 		spin_unlock_bh(&table_lock);
-		return l4_post(*result);
+
+		if (is_error(l4_post(*result))) { /* omg fml =_= */
+			pkt_kfree(*result, true);
+			return VER_STOLEN;
+		}
+
+		return VER_CONTINUE;
 	}
 
 	spin_unlock_bh(&table_lock);
