@@ -476,7 +476,7 @@ static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv
  * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
  * context would be "borrow".
  *
- * RFC6146 - Section 3.5.1.1l4proto
+ * RFC6146 - Section 3.5.1.1
  *
  * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
  * @param[out] result the transport address we borrowed from the pool.
@@ -541,45 +541,6 @@ static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, l4_proto
 		/* Use whichever address */
 		return pool4_get_any(l4_proto, tuple->src.l4_id, result);
 	}
-}
-
-/**
- * Returns true if frag's SYN flag is ON.
- *
- * @param[in] frag fragment you want to read the flag from.
- * @return true if frag's SYN flag is ON, false otherwise.
- */
-static inline bool packet_is_syn(struct fragment* frag)
-{
-	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
-	BUG_ON(!hdr);
-	return hdr->syn;
-}
-
-/**
- * Returns true if frag's FIN flag is ON.
- *
- * @param[in] frag fragment you want to read the flag from.
- * @return true if frag's FIN flag is ON, false otherwise.
- */
-static inline bool packet_is_fin(struct fragment* frag)
-{
-	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
-	BUG_ON(!hdr);
-	return hdr->fin;
-}
-
-/**
- * Returns true if frag's RST flag is ON.
- *
- * @param[in] frag fragment you want to read the flag from.
- * @return true if frag's RST flag is ON, false otherwise.
- */
-static inline bool packet_is_rst(struct fragment* frag)
-{
-	struct tcphdr *hdr = frag_get_tcp_hdr(frag);
-	BUG_ON(!hdr);
-	return hdr->rst;
 }
 
 /**
@@ -663,7 +624,7 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 			goto bib_failure;
 		}
 
-		/* Create the BIB entry */
+		/* Use it to create the BIB entry */
 		bib = bib_create(&bib_ipv4_addr, &source, false);
 		if (bib == NULL) {
 			log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
@@ -689,8 +650,7 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	/* If session was not found, then try to create a new one. */
 	if (session == NULL) {
 		/* Translate address */
-		if (!extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4)) /* Z(Y') */
-		{
+		if (!extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4)) { /* Z(Y') */
 			log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
 			goto session_failure;
 		}
@@ -1303,7 +1263,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:
-		if (packet_is_syn(frag))
+		if (frag_get_tcp_hdr(frag)->syn)
 			return tcp_closed_v6_syn(frag, tuple);
 
 		/* Pack source address into transport address */
@@ -1317,7 +1277,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 		break;
 
 	case L3PROTO_IPV4:
-		if (packet_is_syn(frag))
+		if (frag_get_tcp_hdr(frag)->syn)
 			return tcp_closed_v4_syn(frag, tuple);
 
 		/* Pack addresses and ports into transport address */
@@ -1344,7 +1304,7 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
  */
 static bool tcp_v4_init_state_handle(struct fragment* frag, struct session_entry *session)
 {
-	if (frag->l3_hdr.proto == L3PROTO_IPV6 && packet_is_syn(frag)) {
+	if (frag->l3_hdr.proto == L3PROTO_IPV6 && frag_get_tcp_hdr(frag)->syn) {
 		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
@@ -1362,7 +1322,7 @@ static bool tcp_v4_init_state_handle(struct fragment* frag, struct session_entry
  */
 static bool tcp_v6_init_state_handle(struct fragment* frag, struct session_entry *session)
 {
-	if (packet_is_syn(frag)) {
+	if (frag_get_tcp_hdr(frag)->syn) {
 		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV4:
 			set_tcp_est_timer(session);
@@ -1387,7 +1347,7 @@ static bool tcp_v6_init_state_handle(struct fragment* frag, struct session_entry
  */
 static bool tcp_established_state_handle(struct fragment* frag, struct session_entry *session)
 {
-	if (packet_is_fin(frag)) {
+	if (frag_get_tcp_hdr(frag)->fin) {
 		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
@@ -1397,7 +1357,7 @@ static bool tcp_established_state_handle(struct fragment* frag, struct session_e
 			break;
 		}
 
-	} else if (packet_is_rst(frag)) {
+	} else if (frag_get_tcp_hdr(frag)->rst) {
 		set_tcp_trans_timer(session);
 		session->state = TRANS;
 	} else {
@@ -1417,7 +1377,7 @@ static bool tcp_established_state_handle(struct fragment* frag, struct session_e
  */
 static bool tcp_v4_fin_rcv_state_handle(struct fragment* frag, struct session_entry *session)
 {
-	if (frag->l3_hdr.proto == L3PROTO_IPV6 && packet_is_fin(frag)) {
+	if (frag->l3_hdr.proto == L3PROTO_IPV6 && frag_get_tcp_hdr(frag)->fin) {
 		set_tcp_trans_timer(session);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
@@ -1436,7 +1396,7 @@ static bool tcp_v4_fin_rcv_state_handle(struct fragment* frag, struct session_en
  */
 static bool tcp_v6_fin_rcv_state_handle(struct fragment* frag, struct session_entry *session)
 {
-	if (frag->l3_hdr.proto == L3PROTO_IPV4 && packet_is_fin(frag)) {
+	if (frag->l3_hdr.proto == L3PROTO_IPV4 && frag_get_tcp_hdr(frag)->fin) {
 		set_tcp_trans_timer(session);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
@@ -1470,7 +1430,7 @@ static bool tcp_v4_fin_v6_fin_rcv_state_handle(struct fragment *frag,
  */
 static bool tcp_trans_state_handle(struct fragment *frag, struct session_entry *session)
 {
-	if (!packet_is_rst(frag)) {
+	if (!frag_get_tcp_hdr(frag)->rst) {
 		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	}
@@ -1672,12 +1632,16 @@ verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
 	case L3PROTO_IPV6:
 		hdr_icmp6 = frag_get_icmp6_hdr(frag);
 		/* ICMP errors should not affect the tables. */
-		if (L4PROTO_ICMP == tuple->l4_proto && is_icmp6_error(hdr_icmp6->icmp6_type)) {
-			log_debug("Packet is ICMPv6 info, ignoring...");
+		if (pkt_get_l4proto(pkt) == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
+			log_debug("Packet is ICMPv6 error, ignoring...");
 			return VER_CONTINUE;
 		}
 		/* Get rid of hairpinning loops and unwanted packets. */
-		if (pool6_contains(&tuple->src.addr.ipv6) || !pool6_contains(&tuple->dst.addr.ipv6)) {
+		if (pool6_contains(&tuple->src.addr.ipv6)) {
+			log_info("Hairpinning loop. Dropping...");
+			return VER_DROP;
+		}
+		if (!pool6_contains(&tuple->dst.addr.ipv6)) {
 			log_info("Packet was rejected by pool6, dropping...");
 			return VER_DROP;
 		}
@@ -1685,8 +1649,8 @@ verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
 	case L3PROTO_IPV4:
 		hdr_icmp4 = frag_get_icmp4_hdr(frag);
 		/* ICMP errors should not affect the tables. */
-		if (L4PROTO_ICMP == tuple->l4_proto && is_icmp4_error(hdr_icmp4->type)) {
-			log_debug("Packet is ICMPv4 info, ignoring...");
+		if (pkt_get_l4proto(pkt) == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
+			log_debug("Packet is ICMPv4 error, ignoring...");
 			return VER_CONTINUE;
 		}
 		/* Get rid of unexpected packets */

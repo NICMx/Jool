@@ -108,6 +108,7 @@ verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple 
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
+	/* TODO (error) the l4 proto should not be borrowed from the tuple. */
 	switch (in->l4_proto) {
 	case L4PROTO_TCP:
 	case L4PROTO_UDP:

@@ -2,12 +2,6 @@
 #include "nat64/comm/constants.h"
 
 
-/**
- * @file
- * RFC 815, adapted to the requirement of only correlating (never assembling) fragments.
- */
-
-
 #define INFINITY 60000
 
 struct hole_descriptor {
@@ -571,15 +565,22 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
  */
 verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 {
-	struct reassembly_buffer_key key;
+	/* The fragment collector skb belongs to. */
 	struct reassembly_buffer *buffer;
+	/* This is just a helper that allows us to quickly find buffer. */
+	struct reassembly_buffer_key key;
+	/* THE hole, repeatedly addressed by the RFC. */
 	struct hole_descriptor *hole;
+	/* Only helps to safely iterate. You generally needn't mind this one. */
 	struct hole_descriptor *hole_aux;
+	/* skb's descriptor. */
 	struct fragment *frag;
-	u16 fragment_first = 0; /* In octets. */
-	u16 fragment_last = 0; /* In octets. */
+	/* "fragment.first" as stated by the RFC. Spans 8 bytes. */
+	u16 fragment_first = 0;
+	/* "fragment.last" as stated by the RFC. Spans 8 bytes. */
+	u16 fragment_last = 0;
 
-	/**
+	/*
 	 * Encapsulating and validating the packet is not part of the RFC, we just do it because we
 	 * need it. Just saying.
 	 */
@@ -603,6 +604,10 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		return VER_CONTINUE;
 	}
 
+	/*
+	 * Store buffer's accesor so we don't have to recalculate it all the time.
+	 * Also not part of the RFC.
+	 */
 	if (is_error(frag_to_key(frag, &key))) {
 		kfree(frag);
 		return VER_DROP;
@@ -610,6 +615,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 
 	spin_lock_bh(&table_lock);
 
+	/* Start reading page 4 here. "We start the algorithm when the earliest fragment..." */
 	buffer = buffer_get(&key);
 	if (buffer) {
 		pkt_add_frag(buffer->pkt, frag);

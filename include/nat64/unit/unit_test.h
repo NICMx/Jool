@@ -28,6 +28,7 @@ bool assert_not_equals_ptr(void *expected, void *actual, char *test_name);
 bool assert_not_null(void *actual, char *test_name);
 
 bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *test_name);
+bool assert_list_count(int expected, struct list_head *head, char *test_name);
 
 
 /**

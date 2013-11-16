@@ -158,18 +158,6 @@ static bool validate_database(int expected_count)
 	return success;
 }
 
-static int list_count(struct list_head *list)
-{
-	struct list_head *node;
-	int count = 0;
-
-	list_for_each(node, list) {
-		count++;
-	}
-
-	return count;
-}
-
 /**
  * Asserts the packet doesn't stay in the database if it is not a fragment.
  * IPv6-to-IPv4 direction.
@@ -371,7 +359,7 @@ static bool test_disordered_fragments_4(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 1");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 1");
 	if (!success)
 		return false;
 
@@ -389,7 +377,7 @@ static bool test_disordered_fragments_4(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 2");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 2");
 	if (!success)
 		return false;
 
@@ -407,7 +395,7 @@ static bool test_disordered_fragments_4(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 3");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 3");
 	if (!success)
 		return false;
 
@@ -425,7 +413,7 @@ static bool test_disordered_fragments_4(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(1, list_count(&buffer->holes), "Hole count 4");
+	success &= assert_list_count(1, &buffer->holes, "Hole count 4");
 	if (!success)
 		return false;
 
@@ -498,7 +486,7 @@ static bool test_disordered_fragments_6(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 1");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 1");
 	if (!success)
 		return false;
 
@@ -516,7 +504,7 @@ static bool test_disordered_fragments_6(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 2");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 2");
 	if (!success)
 		return false;
 
@@ -534,7 +522,7 @@ static bool test_disordered_fragments_6(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 3");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 3");
 	if (!success)
 		return false;
 
@@ -552,7 +540,7 @@ static bool test_disordered_fragments_6(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(2, list_count(&buffer->holes), "Hole count 4");
+	success &= assert_list_count(2, &buffer->holes, "Hole count 4");
 	if (!success)
 		return false;
 
@@ -570,7 +558,7 @@ static bool test_disordered_fragments_6(void)
 	success &= validate_database(1);
 
 	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
-	success &= assert_equals_int(1, list_count(&buffer->holes), "Hole count 5");
+	success &= assert_list_count(1, &buffer->holes, "Hole count 5");
 	if (!success)
 		return false;
 

@@ -7,9 +7,9 @@
 
 
 static struct in_addr pool_address;
-static u32 pool_current_udp_port = 1024;
-static u32 pool_current_tcp_port = 1024;
-static u32 pool_current_icmp_id = 1024;
+static u32 pool_current_udp_port;
+static u32 pool_current_tcp_port;
+static u32 pool_current_icmp_id;
 
 int pool4_init(char *addr_strs[], int addr_count)
 {
@@ -22,6 +22,10 @@ int pool4_init(char *addr_strs[], int addr_count)
 		log_warning("Cannot parse '%s' as a IPv4 address.", addr_strs[0]);
 		return -EINVAL;
 	}
+
+	pool_current_udp_port = 1024;
+	pool_current_tcp_port = 1024;
+	pool_current_icmp_id = 1024;
 
 	return 0;
 }
@@ -104,7 +108,7 @@ bool pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address)
 bool pool4_contains(struct in_addr *address)
 {
 	if (!address) {
-		log_warning("Somebody send me NULL as an IPv4 address.");
+		log_warning("Somebody sent me NULL as an IPv4 address.");
 		return false;
 	}
 

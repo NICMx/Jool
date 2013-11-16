@@ -176,31 +176,35 @@ bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *tes
 	log_warning("%s", test_name);
 	switch (expected->l3_proto) {
 	case L3PROTO_IPV4:
-		success &= assert_equals_ipv4(	&expected->src.addr.ipv4,
-										&actual->src.addr.ipv4,
-										"IPv4 Src addr");
-		success &= assert_equals_ipv4(	&expected->dst.addr.ipv4,
-										&actual->dst.addr.ipv4,
-										"IPv4 Dst addr");
+		success &= assert_equals_ipv4(&expected->src.addr.ipv4, &actual->src.addr.ipv4,
+				"IPv4 Src addr");
+		success &= assert_equals_ipv4(&expected->dst.addr.ipv4, &actual->dst.addr.ipv4,
+				"IPv4 Dst addr");
 		break;
 	case L3PROTO_IPV6:
-		success &= assert_equals_ipv6(	&expected->src.addr.ipv6,
-										&actual->src.addr.ipv6,
-										"IPv6 Src addr");
-		success &= assert_equals_ipv6(	&expected->dst.addr.ipv6,
-										&actual->dst.addr.ipv6,
-										"IPv6 Dst addr");
+		success &= assert_equals_ipv6(&expected->src.addr.ipv6, &actual->src.addr.ipv6,
+				"IPv6 Src addr");
+		success &= assert_equals_ipv6(&expected->dst.addr.ipv6, &actual->dst.addr.ipv6,
+				"IPv6 Dst addr");
 		break;
-	default:
-		log_warning("Invalid L3 proto");
-		success &= false;
 	}
-	success &= assert_equals_u16(	expected->src.l4_id, actual->src.l4_id,
-									"l4_id");
-	success &= assert_equals_u8(	expected->l3_proto, actual->l3_proto,
-									"l3_proto");
-	success &= assert_equals_u8(	expected->l4_proto, actual->l4_proto,
-									"l4_proto");
+
+	/* TODO What happened to dst.l4_id? */
+	success &= assert_equals_u16(expected->src.l4_id, actual->src.l4_id, "l4_id");
+	success &= assert_equals_u8(expected->l3_proto, actual->l3_proto, "l3_proto");
+	success &= assert_equals_u8(expected->l4_proto, actual->l4_proto, "l4_proto");
 
 	return success;
+}
+
+bool assert_list_count(int expected, struct list_head *head, char *test_name)
+{
+	struct list_head *node;
+	int count = 0;
+
+	list_for_each(node, head) {
+		count++;
+	}
+
+	return assert_equals_int(expected, count, test_name);
 }

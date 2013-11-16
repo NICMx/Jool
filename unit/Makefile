@@ -4,6 +4,7 @@ EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
 # If it won't compile, install sparse or comment this line.
 CC=cgcc
 
+POOLNUM = poolnum
 PKT = pkt
 FRAGDB = fragdb
 INCOMING = incoming
@@ -12,23 +13,25 @@ OUTGOING = outgoing
 TRANSLATE = translate
 HAIRPINNING = hairpinning
 SEND = send
-SENDFRAGPKT = sendFragmentedPacket
-
 
 ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod
 
 
-obj-m += $(PKT).o $(FRAGDB).o $(SEND).o $(SENDFRAGPKT).o
+obj-m += $(PKT).o $(FRAGDB).o $(SEND).o
 obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o $(HAIRPINNING).o
 
-# Packet
+$(POOLNUM)-objs += ../mod/types.o
+$(POOLNUM)-objs += ../mod/random.o
+$(POOLNUM)-objs += ../mod/str_utils.o
+$(POOLNUM)-objs += framework/unit_test.o
+$(POOLNUM)-objs += pool_num_test.o
+
 $(PKT)-objs += ../mod/types.o
 $(PKT)-objs += ../mod/str_utils.o
 $(PKT)-objs += framework/unit_test.o
 $(PKT)-objs += packet_test.o
 
-# Packet DB
 $(FRAGDB)-objs += ../mod/types.o
 $(FRAGDB)-objs += ../mod/str_utils.o
 $(FRAGDB)-objs += ../mod/ipv6_hdr_iterator.o
@@ -38,7 +41,6 @@ $(FRAGDB)-objs += framework/skb_generator.o
 $(FRAGDB)-objs += framework/types.o
 $(FRAGDB)-objs += fragment_db_test.o
 
-# Incoming tuple
 $(INCOMING)-objs += ../mod/types.o
 $(INCOMING)-objs += ../mod/str_utils.o
 $(INCOMING)-objs += ../mod/ipv6_hdr_iterator.o
@@ -48,7 +50,6 @@ $(INCOMING)-objs += framework/skb_generator.o
 $(INCOMING)-objs += framework/types.o
 $(INCOMING)-objs += determine_incoming_tuple_test.o
 
-# Filtering and Updating
 $(FILTERING)-objs += ../mod/types.o
 $(FILTERING)-objs += ../mod/str_utils.o
 $(FILTERING)-objs += ../mod/ipv6_hdr_iterator.o
@@ -64,7 +65,6 @@ $(FILTERING)-objs += framework/types.o
 $(FILTERING)-objs += framework/impersonator_pool4.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
-# Computing the Outgoing Tuple
 $(OUTGOING)-objs += ../mod/types.o
 $(OUTGOING)-objs += ../mod/str_utils.o
 $(OUTGOING)-objs += ../mod/rfc6052.o
@@ -73,7 +73,6 @@ $(OUTGOING)-objs += ../mod/bib.o
 $(OUTGOING)-objs += framework/unit_test.o
 $(OUTGOING)-objs += compute_outgoing_tuple_test.o
 
-# Translating the Packet
 $(TRANSLATE)-objs += ../mod/types.o
 $(TRANSLATE)-objs += ../mod/str_utils.o
 $(TRANSLATE)-objs += ../mod/packet.o
@@ -84,7 +83,6 @@ $(TRANSLATE)-objs += framework/validator.o
 $(TRANSLATE)-objs += framework/types.o
 $(TRANSLATE)-objs += translate_packet_test.o
 
-# Hairpinning
 $(HAIRPINNING)-objs += ../mod/types.o
 $(HAIRPINNING)-objs += ../mod/str_utils.o
 $(HAIRPINNING)-objs += ../mod/ipv6_hdr_iterator.o
@@ -111,27 +109,13 @@ $(HAIRPINNING)-objs += handling_hairpinning_test.o
 # Send packet (does not have a unit test, so just make sure it compiles.)
 $(SEND)-objs += ../mod/send_packet.o
 
-## TODO: Move this code to somewhere else.
-# Send fragmented packets
-$(SENDFRAGPKT)-objs += ../mod/types.o
-$(SENDFRAGPKT)-objs += ../mod/str_utils.o
-$(SENDFRAGPKT)-objs += ../mod/ipv6_hdr_iterator.o
-$(SENDFRAGPKT)-objs += ../mod/packet.o
-$(SENDFRAGPKT)-objs += framework/unit_test.o
-$(SENDFRAGPKT)-objs += framework/skb_generator.o
-$(SENDFRAGPKT)-objs += framework/validator.o
-$(SENDFRAGPKT)-objs += framework/types.o
-$(SENDFRAGPKT)-objs += ../mod/send_packet.o
-$(SENDFRAGPKT)-objs += send_fragmented_packet.o
-
-
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
 	#-sudo insmod rfc6052.ko && sudo rmmod rfc6052 
 	#-sudo insmod hashtable.ko && sudo rmmod hashtable
-	#-sudo insmod poolnum.ko && sudo rmmod poolnum
+	#-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
 	#-sudo insmod pool4.ko && sudo rmmod pool4
 	#-sudo insmod bib_session.ko && sudo rmmod bib_session
 	#-sudo insmod iterator.ko && sudo rmmod iterator
@@ -142,7 +126,6 @@ test:
 	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
 	-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
-	#-sudo insmod $(SENDFRAGPKT).ko && sudo rmmod $(SENDFRAGPKT)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

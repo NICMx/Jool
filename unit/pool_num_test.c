@@ -20,13 +20,13 @@ static bool test_poolnum_init_function(void)
 	bool success = true;
 	struct poolnum pool;
 
-	success &= assert_equals_int(0, poolnum_init(&pool, 7, 13, 2), "Return value");
+	success &= assert_equals_int(0, poolnum_init(&pool, 7, 13, 2), "Return value 1");
 	if (!success)
 		return success;
 
-	success &= assert_equals_u16(4, pool.count, "Pool's array count");
-	success &= assert_equals_u16(0, pool.next, "Next gettable value's index");
-	success &= assert_equals_u16(0, pool.returned, "Index of value just returned");
+	success &= assert_equals_u16(4, pool.count, "Pool's array count 1");
+	success &= assert_equals_u16(0, pool.next, "Next gettable value's index 1");
+	success &= assert_equals_u16(0, pool.returned, "Index of value just returned 1");
 
 	success &= assert_false(find(pool.array, 4, 5), "5 should not belong to the pool");
 	success &= assert_false(find(pool.array, 4, 6), "6 should not belong to the pool");
@@ -41,6 +41,22 @@ static bool test_poolnum_init_function(void)
 	success &= assert_false(find(pool.array, 4, 15), "15 should not belong to the pool");
 
 	poolnum_destroy(&pool);
+
+	success &= assert_equals_int(0, poolnum_init(&pool, 0, 5, 3), "Return value 2");
+	if (!success)
+		return success;
+
+	success &= assert_equals_u16(2, pool.count, "Pool's array count 2");
+	success &= assert_equals_u16(0, pool.next, "Next gettable value's index 2");
+	success &= assert_equals_u16(0, pool.returned, "Index of value just returned 2");
+
+	success &= assert_true(find(pool.array, 2, 0), "0 should belong to the pool");
+	success &= assert_false(find(pool.array, 2, 1), "1 should not belong to the pool");
+	success &= assert_false(find(pool.array, 2, 2), "2 should not belong to the pool");
+	success &= assert_true(find(pool.array, 2, 3), "3 should belong to the pool");
+	success &= assert_false(find(pool.array, 2, 4), "4 should not belong to the pool");
+	success &= assert_false(find(pool.array, 2, 5), "5 should not belong to the pool 2");
+
 	return success;
 }
 
@@ -248,7 +264,8 @@ static bool test_boundaries(void)
 	const u32 PORT_MIN = 0;
 	const u32 PORT_MAX = PORT_COUNT - 1;
 
-	bool *results;
+	/* This should be an array of booleans, but cgcc complains and I don't know the cause. */
+	char *results;
 	struct poolnum pool;
 	u32 i;
 	bool success = true;
