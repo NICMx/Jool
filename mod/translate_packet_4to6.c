@@ -330,6 +330,35 @@ static verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp
 }
 
 /**
+ * Sets out_outer.payload.*.
+ */
+verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
+		struct fragment *out_outer)
+{
+	struct fragment *in_inner = NULL;
+	verdict result = VER_DROP;
+
+	log_debug("Translating the inner packet (4->6)...");
+
+	/* Prepare the translate function's requirements. */
+	if (is_error(frag_create_from_buffer_ipv4(in_outer->payload.ptr, in_outer->payload.len, true,
+			&in_inner)))
+		goto end;
+
+	if (in_inner->l4_hdr.proto == L4PROTO_ICMP) {
+		struct icmphdr *hdr_icmp = frag_get_icmp4_hdr(in_inner);
+		if (icmp4_has_inner_packet(hdr_icmp->type))
+			goto end; /* packet inside packet inside packet. */
+	}
+
+	result = translate_inner_packet(tuple, in_inner, out_outer);
+
+end:
+	frag_kfree(in_inner);
+	return result;
+}
+
+/**
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
@@ -551,66 +580,4 @@ static verdict post_udp_ipv6(struct tuple *tuple, struct packet *pkt_in, struct 
 			out_ip6, out_udp->source, out_udp->dest);
 
 	return VER_CONTINUE;
-}
-
-
-/*************************************************************************************************
- * -- Inner packet --
- *************************************************************************************************/
-
-/**
- * Sets out_outer.payload.*.
- *
- * TODO this is too similar to translate_inner_packet_6to4(). Find a way to join them.
- */
-verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
-		struct fragment *out_outer)
-{
-	struct packet dummy_pkt_in, dummy_pkt_out;
-	struct fragment *in_inner = NULL;
-	struct fragment *out_inner = NULL;
-	struct translation_steps *step;
-	verdict result = VER_DROP;
-
-	log_debug("Translating the inner packet (4->6)...");
-
-	/* Prepare the translate function's requirements. */
-	if (is_error(frag_create_from_buffer_ipv4(in_outer->payload.ptr, in_outer->payload.len, true,
-			&in_inner)))
-		goto end;
-
-	if (in_inner->l4_hdr.proto == L4PROTO_ICMP) {
-		struct icmphdr *hdr_icmp = frag_get_icmp4_hdr(in_inner);
-		if (icmp4_has_inner_packet(hdr_icmp->type))
-			goto end; /* packet inside packet inside packet. */
-	}
-
-	step = &steps[in_inner->l3_hdr.proto][in_inner->l4_hdr.proto];
-
-	/* Actually translate the inner packet. */
-	result = translate(tuple, in_inner, &out_inner, step);
-	if (result != VER_CONTINUE)
-		goto end;
-
-	pkt_init(&dummy_pkt_in, in_inner);
-	pkt_init(&dummy_pkt_out, out_inner);
-	result = step->l4_post_function(tuple, &dummy_pkt_in, &dummy_pkt_out);
-	if (result != VER_CONTINUE)
-		goto end;
-
-	/* Finally set the values this function is meant for. */
-	out_outer->payload.len = out_inner->skb->len;
-	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);
-	out_outer->payload.ptr_needs_kfree = true;
-	if (!out_outer->payload.ptr)
-		goto end;
-	memcpy(out_outer->payload.ptr, skb_network_header(out_inner->skb), out_outer->payload.len);
-
-	result = VER_CONTINUE;
-	/* Fall through. */
-
-end:
-	frag_kfree(in_inner);
-	frag_kfree(out_inner);
-	return result;
 }

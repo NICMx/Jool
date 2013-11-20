@@ -137,9 +137,9 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr_ip->protocol;
 	/*
-	 * TODO Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever create
-	 * routes on Jool's behalf?
-	 * TODO We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
+	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever
+	 * create routes on Jool's behalf?
+	 * TODO (help) We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
 	 * If you change it, the corresponding attribute in route_skb_ipv6() should probably follow.
 	 */
 	flow.flowi4_flags = 0;

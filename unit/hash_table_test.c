@@ -106,7 +106,7 @@ static bool test(void)
 	test_table_print(&table, "After puts");
 
 	/* Test remove. */
-	if (!test_table_remove(&table, &keys[1], false, false)) {
+	if (!test_table_remove(&table, &keys[1], false)) {
 		log_warning("Remove operation failed on value 1.");
 		goto failure;
 	}
@@ -117,7 +117,7 @@ static bool test(void)
 	test_table_print(&table, "After remove");
 
 	/* Test empty. */
-	test_table_empty(&table, false, false);
+	test_table_empty(&table, false);
 	values[0].value = -1;
 	values[2].value = -1;
 
@@ -141,18 +141,18 @@ static bool test(void)
 	test_table_print(&table, "After puts");
 
 	/* Clean up. Also do a final assert just in case. */
-	test_table_empty(&table, false, false);
+	test_table_empty(&table, false);
 	values[0].value = -1;
 	values[1].value = -1;
 	values[2].value = -1;
 	if (!assert_table_content(&table, keys, values, "Needless extra test"))
 		goto failure;
 
-	test_table_empty(&table, false, false);
+	test_table_empty(&table, false);
 	return true;
 
 failure:
-	test_table_empty(&table, false, false);
+	test_table_empty(&table, false);
 	return false;
 }
 
@@ -161,7 +161,7 @@ struct loop_summary {
 	int array_size;
 };
 
-int for_each_func(struct table_value *val, void *arg)
+static int for_each_func(struct table_value *val, void *arg)
 {
 	struct loop_summary *summary = arg;
 
@@ -194,7 +194,7 @@ static bool test_for_each_function(void)
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation failed on value %d.", i);
-			test_table_empty(&table, false, false);
+			test_table_empty(&table, false);
 			return false;
 		}
 	}
@@ -207,7 +207,7 @@ static bool test_for_each_function(void)
 				|| summary.values[2] == values[i].value, "");
 	}
 
-	test_table_empty(&table, false, false);
+	test_table_empty(&table, false);
 	return true;
 }
 

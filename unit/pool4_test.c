@@ -16,8 +16,8 @@ MODULE_DESCRIPTION("IPv4 pool module test");
 #define PORT_HIGH_RANGE_MAX		(ID_COUNT - 1)
 #define ICMP_ID_MAX				(ID_COUNT - 1)
 
-char* expected_ips_as_str[] = { "192.168.2.1", "192.168.2.2" };
-struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
+static char* expected_ips_as_str[] = { "192.168.2.1", "192.168.2.2" };
+static struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
 /**
  * This is used by the tests.
  * It's too big for the stack frame limit, and I don't feel like meddling with kmallocs,
@@ -28,7 +28,8 @@ struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
  */
 static bool ports[ARRAY_SIZE(expected_ips)][ID_COUNT];
 
-static bool test_get_any_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_max, u32 step, char *test_name)
+static bool test_get_any_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_max, u32 step,
+		char *test_name)
 {
 	u32 addr_ctr, port_ctr;
 	struct ipv4_tuple_address result;
@@ -36,13 +37,13 @@ static bool test_get_any_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_m
 
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		for (port_ctr = port_min; port_ctr <= port_max; port_ctr += step) {
-			success &= assert_true(pool4_get_any(l4protocol, port_ctr, &result), test_name);
+			success &= assert_true(pool4_get_any(l4_proto, port_ctr, &result), test_name);
 			success &= assert_equals_ipv4(&expected_ips[addr_ctr], &result.address, test_name);
 			success &= assert_false(ports[addr_ctr][result.l4_id], test_name);
 			ports[addr_ctr][result.l4_id] = true;
 		}
 	}
-	success &= assert_false(pool4_get_any(l4protocol, 0, &result), test_name);
+	success &= assert_false(pool4_get_any(l4_proto, 0, &result), test_name);
 
 	return success;
 }
@@ -80,7 +81,8 @@ static bool test_get_any_function_icmp(void)
 	return test_get_any_aux(L4PROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
 }
 
-static bool test_get_similar_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_max, u32 step, char *test_name)
+static bool test_get_similar_aux(enum l4_protocol l4_proto, u32 port_min, u32 port_max, u32 step,
+		char *test_name)
 {
 	u32 addr_ctr, port_ctr;
 	struct ipv4_tuple_address query, result;
@@ -91,14 +93,14 @@ static bool test_get_similar_aux(enum l4_protocol l4_proto, u32 port_min, u32 po
 
 		for (port_ctr = port_min; port_ctr <= port_max; port_ctr += step) {
 			query.l4_id = port_ctr;
-			success &= assert_true(pool4_get_similar(l4protocol, &query, &result), test_name);
+			success &= assert_true(pool4_get_similar(l4_proto, &query, &result), test_name);
 			success &= assert_equals_ipv4(&expected_ips[addr_ctr], &result.address, test_name);
 			success &= assert_false(ports[addr_ctr][result.l4_id], test_name);
 			ports[addr_ctr][result.l4_id] = true;
 		}
 
 		query.l4_id = port_min;
-		success &= assert_false(pool4_get_similar(l4protocol, &query, &result), test_name);
+		success &= assert_false(pool4_get_similar(l4_proto, &query, &result), test_name);
 	}
 
 	return success;

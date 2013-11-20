@@ -344,8 +344,6 @@ static inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
  * Getter of the first fragment listed by pkt. This is <em>not</em> the fragment whose offset is
  * zero; it's the fragment that was simply received first.
  * If you want the fragment-zero fragment, use pkt->first_fragment.
- *
- * TODO try to always use this.
  */
 static inline struct fragment *pkt_get_first_frag(struct packet *pkt)
 {

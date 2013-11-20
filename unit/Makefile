@@ -4,9 +4,18 @@ EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
 # If it won't compile, install sparse or comment this line.
 CC=cgcc
 
-POOLNUM = poolnum
+ccflags-y := -I$(src)/../include
+ccflags-y += -I$(src)/../mod
+
+
+ITERATOR = iterator
+HASHTABLE = hashtable
+RFC6052 = rfc6052
 PKT = pkt
 FRAGDB = fragdb
+POOLNUM = poolnum
+POOL4 = pool4
+BIB_SESSION = bib_session
 INCOMING = incoming
 FILTERING = filtering
 OUTGOING = outgoing
@@ -14,18 +23,27 @@ TRANSLATE = translate
 HAIRPINNING = hairpinning
 SEND = send
 
-ccflags-y := -I$(src)/../include
-ccflags-y += -I$(src)/../mod
 
-
-obj-m += $(PKT).o $(FRAGDB).o $(SEND).o
+obj-m += $(ITERATOR).o $(HASHTABLE).o $(RFC6052).o
+obj-m += $(PKT).o $(FRAGDB).o
+obj-m += $(POOLNUM).o $(POOL4).o $(BIB_SESSION).o
 obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o $(HAIRPINNING).o
+obj-m += $(SEND).o
 
-$(POOLNUM)-objs += ../mod/types.o
-$(POOLNUM)-objs += ../mod/random.o
-$(POOLNUM)-objs += ../mod/str_utils.o
-$(POOLNUM)-objs += framework/unit_test.o
-$(POOLNUM)-objs += pool_num_test.o
+$(ITERATOR)-objs += ../mod/types.o
+$(ITERATOR)-objs += ../mod/str_utils.o
+$(ITERATOR)-objs += framework/unit_test.o
+$(ITERATOR)-objs += ipv6_hdr_iterator_test.o
+
+$(HASHTABLE)-objs += ../mod/types.o
+$(HASHTABLE)-objs += ../mod/str_utils.o
+$(HASHTABLE)-objs += framework/unit_test.o
+$(HASHTABLE)-objs += hash_table_test.o
+
+$(RFC6052)-objs += ../mod/types.o
+$(RFC6052)-objs += ../mod/str_utils.o
+$(RFC6052)-objs += framework/unit_test.o
+$(RFC6052)-objs += rfc6052_test.o
 
 $(PKT)-objs += ../mod/types.o
 $(PKT)-objs += ../mod/str_utils.o
@@ -40,6 +58,25 @@ $(FRAGDB)-objs += framework/unit_test.o
 $(FRAGDB)-objs += framework/skb_generator.o
 $(FRAGDB)-objs += framework/types.o
 $(FRAGDB)-objs += fragment_db_test.o
+
+$(POOLNUM)-objs += ../mod/types.o
+$(POOLNUM)-objs += ../mod/str_utils.o
+$(POOLNUM)-objs += ../mod/random.o
+$(POOLNUM)-objs += framework/unit_test.o
+$(POOLNUM)-objs += pool_num_test.o
+
+$(POOL4)-objs += ../mod/types.o
+$(POOL4)-objs += ../mod/str_utils.o
+$(POOL4)-objs += ../mod/random.o
+$(POOL4)-objs += ../mod/poolnum.o
+$(POOL4)-objs += framework/unit_test.o
+$(POOL4)-objs += pool4_test.o
+
+$(BIB_SESSION)-objs += ../mod/types.o
+$(BIB_SESSION)-objs += ../mod/str_utils.o
+$(BIB_SESSION)-objs += ../mod/bib.o
+$(BIB_SESSION)-objs += framework/unit_test.o
+$(BIB_SESSION)-objs += bib_session_test.o
 
 $(INCOMING)-objs += ../mod/types.o
 $(INCOMING)-objs += ../mod/str_utils.o
@@ -107,18 +144,19 @@ $(HAIRPINNING)-objs += framework/impersonator_send_packet.o
 $(HAIRPINNING)-objs += handling_hairpinning_test.o
 
 # Send packet (does not have a unit test, so just make sure it compiles.)
+$(SEND)-objs += ../mod/ipv6_hdr_iterator.o
 $(SEND)-objs += ../mod/send_packet.o
 
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
-	#-sudo insmod rfc6052.ko && sudo rmmod rfc6052 
-	#-sudo insmod hashtable.ko && sudo rmmod hashtable
-	#-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
-	#-sudo insmod pool4.ko && sudo rmmod pool4
-	#-sudo insmod bib_session.ko && sudo rmmod bib_session
-	#-sudo insmod iterator.ko && sudo rmmod iterator
+	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052) 
+	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
+	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
+	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
+	-sudo insmod $(BIB_SESSION).ko && sudo rmmod $(BIB_SESSION)
+	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)

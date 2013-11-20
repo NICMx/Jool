@@ -25,40 +25,40 @@ MODULE_DESCRIPTION("BIB-Session module test.");
 	&session->ipv6.local.address, session->ipv6.local.l4_id, \
 	&session->ipv6.remote.address, session->ipv6.remote.l4_id
 
-const char* IPV4_ADDRS[] = { "0.0.0.0", "255.1.2.3", "65.0.123.2", "0.1.0.3",
+static const char* IPV4_ADDRS[] = { "0.0.0.0", "255.1.2.3", "65.0.123.2", "0.1.0.3",
 		"55.55.55.55", "10.11.12.13", "13.12.11.10", "255.255.255.255",
 		"1.2.3.4", "4.3.2.1", "2.3.4.5", "5.4.3.2",
 		"3.4.5.6", "6.5.4.3", "4.5.6.7", "7.6.5.4",
 		"56.56.56.56" };
-const __u16 IPV4_PORTS[] = { 0, 456, 9556, 7523,
+static const __u16 IPV4_PORTS[] = { 0, 456, 9556, 7523,
 		65535, 536, 284, 231,
 		1234, 4321, 2345, 5432,
 		3456, 6543, 4567, 7654,
 		6384 };
-const char* IPV6_ADDRS[] = { "::1", "5:3::2", "4::", "44:55:66::",
+static const char* IPV6_ADDRS[] = { "::1", "5:3::2", "4::", "44:55:66::",
 		"FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF", "123::4", "::0", "44:1:1::2:9",
 		"1:2:3:4::", "4:3:2:1::", "2:3:4:5::", "5:4:3:2::",
 		"3:4:5:6::", "6:5:4:3::", "4:5:6:7::", "7:6:5:4::",
 		"56:56:56:56::" };
-const __u16 IPV6_PORTS[] = { 334, 0, 9556, 65535,
+static const __u16 IPV6_PORTS[] = { 334, 0, 9556, 65535,
 		55555, 825, 1111, 99,
 		1234, 4321, 2345, 5432,
 		3456, 6543, 4567, 7654,
 		6384 };
 
-struct ipv4_tuple_address addr4[ARRAY_SIZE(IPV4_ADDRS)];
-struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
+static struct ipv4_tuple_address addr4[ARRAY_SIZE(IPV4_ADDRS)];
+static struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
 /********************************************
  * Auxiliar functions.
  ********************************************/
 
-struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
+static struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
 {
 	return bib_create(&addr4[ipv4_index], &addr6[ipv6_index], false);
 }
 
-struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
+static struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 		int local_id_6, int remote_id_6,
 		struct bib_entry* bib, l4_protocol l4_proto, unsigned int dying_time)
 {
@@ -110,7 +110,8 @@ static struct session_entry *create_and_insert_session(int remote4_id, int local
 	struct session_entry *result;
 	int error;
 
-	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, bib, l4_proto, dying_time);
+	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, bib, l4_proto,
+			dying_time);
 	if (!result) {
 		log_warning("Could not allocate a session entry.");
 		return NULL;
@@ -125,7 +126,8 @@ static struct session_entry *create_and_insert_session(int remote4_id, int local
 	return result;
 }
 
-bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual, char* test_name)
+static bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual,
+		char* test_name)
 {
 	if (expected == actual)
 		return true;
@@ -149,8 +151,8 @@ bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actua
 	return true;
 }
 
-bool assert_session_entry_equals(struct session_entry* expected, struct session_entry* actual,
-		char* test_name)
+static bool assert_session_entry_equals(struct session_entry* expected,
+		struct session_entry* actual, char* test_name)
 {
 	if (expected == actual)
 		return true;
@@ -183,12 +185,16 @@ bool assert_session_entry_equals(struct session_entry* expected, struct session_
  * -> if icmp_table_has_it, will test the entry exists and is correctly indexed by the ICMP table.
  *    Else it will assert the bib is not indexed by the ICMP table.
  */
-bool assert_bib(char* test_name, struct bib_entry* bib,
+static bool assert_bib(char* test_name, struct bib_entry* bib,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
 	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
-	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
+	bool table_has_it[3];
 	int i;
+
+	table_has_it[0] = udp_table_has_it;
+	table_has_it[1] = tcp_table_has_it;
+	table_has_it[2] = icmp_table_has_it;
 
 	for (i = 0; i < 3; i++) {
 		struct bib_entry *expected_bib = table_has_it[i] ? bib : NULL;
@@ -209,12 +215,16 @@ bool assert_bib(char* test_name, struct bib_entry* bib,
 /**
  * Same as assert_bib(), except asserting session entries on the session table.
  */
-bool assert_session(char* test_name, struct session_entry* session,
+static bool assert_session(char* test_name, struct session_entry* session,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
 	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
-	bool table_has_it[] = { udp_table_has_it, tcp_table_has_it, icmp_table_has_it };
+	bool table_has_it[3];
 	int i;
+
+	table_has_it[0] = udp_table_has_it;
+	table_has_it[1] = tcp_table_has_it;
+	table_has_it[2] = icmp_table_has_it;
 
 	for (i = 0; i < 3; i++) {
 		struct ipv4_pair pair_4 = { session->ipv4.remote, session->ipv4.local };
@@ -242,7 +252,7 @@ bool assert_session(char* test_name, struct session_entry* session,
  * Inserts a single entry, validates it, removes it, validates again.
  * Does not touch the session tables.
  */
-bool simple_bib(void)
+static bool simple_bib(void)
 {
 	struct bib_entry *bib;
 	bool success = true;
@@ -270,7 +280,7 @@ bool simple_bib(void)
 	return success;
 }
 
-bool simple_session(void)
+static bool simple_session(void)
 {
 	struct session_entry *session;
 	bool success = true;
@@ -293,129 +303,6 @@ bool simple_session(void)
 	return true;
 }
 
-#define BIB_COUNT 4
-#define SESSIONS_PER_BIB 3
-
-#define ASSERT_SINGLE_BIB(test_name, bib_id, bib_is_alive, s1_is_alive, s2_is_alive, s3_is_alive) \
-		assert_bib(test_name, &bibs[bib_id], bib_is_alive, false, false) \
-				& assert_session(test_name, &sessions[bib_id][0], s1_is_alive, false, false) \
-				& assert_session(test_name, &sessions[bib_id][1], s2_is_alive, false, false) \
-				& assert_session(test_name, &sessions[bib_id][2], s3_is_alive, false, false)
-
-/*
- * The following fields are global because they don't fit in test_clean_old_sessions()'s frame
- * size.
- */
-
-/** The BIB entries we inserted to the BIB. */
-struct bib_entry *db_bibs[BIB_COUNT];
-/** The session entries we inserted to the session tables. */
-struct session_entry *db_sessions[BIB_COUNT][SESSIONS_PER_BIB];
-/** Copies of db_bibs. We need this because clean_expired_sessions() kfrees the DB entries. */
-struct bib_entry bibs[BIB_COUNT];
-/** Copies of db_sessions. We need this because clean_expired_sessions() kfrees the DB entries. */
-struct session_entry sessions[BIB_COUNT][SESSIONS_PER_BIB];
-
-bool test_clean_old_sessions(void)
-{
-	int b, s; /* bib counter, session counter. */
-	bool success = true;
-
-	const unsigned int before = jiffies_to_msecs(jiffies) - 1000;
-	const unsigned int after = jiffies_to_msecs(jiffies) + 1000;
-
-	/* Allocate and insert to the tables. */
-	for (b = 0; b < BIB_COUNT; b++) {
-		db_bibs[b] = create_and_insert_bib(b, b, L4PROTO_UDP);
-		if (!db_bibs[b])
-			return false;
-
-		for (s = 0; s < SESSIONS_PER_BIB; s++) {
-			db_sessions[b][s] = create_and_insert_session(b, s + 5, b, s + 5, db_bibs[b], L4PROTO_UDP, after);
-			if (!db_sessions[b][s])
-				return false;
-
-			memcpy(&sessions[b][s], db_sessions[b][s], sizeof(struct session_entry));
-		}
-
-		memcpy(&bibs[b], db_bibs[b], sizeof(struct bib_entry));
-	}
-
-	db_bibs[3]->is_static = true;
-
-	/* 1. Nothing has expired: Test nothing gets deleted. */
-	clean_expired_sessions();
-
-	success &= ASSERT_SINGLE_BIB("Clean deletes nothing", 0, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Clean deletes nothing", 1, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Clean deletes nothing", 2, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Clean deletes nothing", 3, true, true, true, true);
-
-	if (!success)
-		return false;
-
-	/* 2. All of a single BIB's sessions expire: Test both BIBs and Sessions die. */
-	db_sessions[1][0]->dying_time = before;
-	db_sessions[1][1]->dying_time = before;
-	db_sessions[1][2]->dying_time = before;
-
-	clean_expired_sessions();
-
-	success &= ASSERT_SINGLE_BIB("Whole BIB dies 0", 0, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Whole BIB dies 1", 1, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Whole BIB dies 2", 2, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Whole BIB dies 3", 3, true, true, true, true);
-
-	if (!success)
-		return false;
-
-	/* 3. Some sessions of a BIB expire: Test only those sessions get deleted. */
-	db_sessions[2][0]->dying_time = before;
-	db_sessions[2][1]->dying_time = before;
-
-	clean_expired_sessions();
-
-	success &= ASSERT_SINGLE_BIB("Some sessions die", 0, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Some sessions die", 1, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Some sessions die", 2, true, false, false, true);
-	success &= ASSERT_SINGLE_BIB("Some sessions die", 3, true, true, true, true);
-
-	if (!success)
-		return false;
-
-	/* 4. The rest of them expire: Test the BIB keeps keeps behaving as expected. */
-	db_sessions[2][2]->dying_time = before;
-
-	clean_expired_sessions();
-
-	success &= ASSERT_SINGLE_BIB("Last session dies", 0, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Last session dies", 1, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Last session dies", 2, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Last session dies", 3, true, true, true, true);
-
-	if (!success)
-		return false;
-
-	/* 5. The sessions of a static BIB expire. Test only the sessions ones die. */
-	db_sessions[3][0]->dying_time = before;
-	db_sessions[3][1]->dying_time = before;
-	db_sessions[3][2]->dying_time = before;
-
-	clean_expired_sessions();
-
-	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 0, true, true, true, true);
-	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 1, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 2, false, false, false, false);
-	success &= ASSERT_SINGLE_BIB("Static session doesn't die", 3, true, false, false, false);
-
-	/* Quit. */
-	return success;
-}
-
-#undef BIB_COUNT
-#undef SESSIONS_PER_BIB
-#undef ASSERT_SINGLE_BIB
-
 static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id,
 		int dst_port_id)
 {
@@ -431,7 +318,7 @@ static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst
 	return session_allow(&tuple);
 }
 
-bool test_address_filtering(void)
+static bool test_address_filtering(void)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -464,7 +351,7 @@ struct loop_summary {
 	struct bib_entry *bib2;
 };
 
-int for_each_func(struct bib_entry *entry, void *arg)
+static int for_each_func(struct bib_entry *entry, void *arg)
 {
 	struct loop_summary *summary = arg;
 
@@ -481,7 +368,7 @@ int for_each_func(struct bib_entry *entry, void *arg)
 	return -EINVAL;
 }
 
-bool test_for_each(void)
+static bool test_for_each(void)
 {
 	struct bib_entry *bib1, *bib2;
 	struct loop_summary summary = { .bib1 = NULL, .bib2 = NULL };
@@ -505,12 +392,7 @@ bool test_for_each(void)
  * Main.
  ********************************************/
 
-static bool session_always_dies(struct session_entry *session)
-{
-	return false;
-}
-
-bool init(void)
+static bool init(void)
 {
 	int error;
 	int i;
@@ -533,7 +415,7 @@ bool init(void)
 	if (error)
 		return false;
 
-	error = session_init(session_always_dies);
+	error = session_init();
 	if (error) {
 		bib_destroy();
 		return false;
@@ -542,7 +424,7 @@ bool init(void)
 	return true;
 }
 
-void end(void)
+static void end(void)
 {
 	session_destroy();
 	bib_destroy();
@@ -554,7 +436,6 @@ int init_module(void)
 
 	INIT_CALL_END(init(), simple_bib(), end(), "Single BIB");
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
-	INIT_CALL_END(init(), test_clean_old_sessions(), end(), "Session cleansing.");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
 	INIT_CALL_END(init(), test_for_each(), end(), "for-each function.");
 

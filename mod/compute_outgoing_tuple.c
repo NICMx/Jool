@@ -108,15 +108,14 @@ verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple 
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	/* TODO (error) the l4 proto should not be borrowed from the tuple. */
-	switch (in->l4_proto) {
+	switch (pkt_get_l4proto(pkt_in)) {
 	case L4PROTO_TCP:
 	case L4PROTO_UDP:
 		result = tuple5(in, out);
 		break;
 
 	case L4PROTO_ICMP:
-		switch (in->l3_proto) {
+		switch (pkt_get_l3proto(pkt_in)) {
 		case L3PROTO_IPV6:
 			icmp6 = frag_get_icmp6_hdr(pkt_in->first_fragment);
 			result = is_icmp6_info(icmp6->icmp6_type)
@@ -134,7 +133,7 @@ verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple 
 		break;
 
 	default:
-		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", in->l4_proto);
+		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", pkt_get_l4proto(pkt_in));
 		result = VER_DROP;
 	}
 

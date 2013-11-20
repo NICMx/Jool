@@ -67,10 +67,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config);
 
 verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out);
 
-
-verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
-		struct fragment *out_outer);
-verdict translate_inner_packet_4to6(struct tuple *tuple, struct fragment *in_outer,
+verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 		struct fragment *out_outer);
 verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
 		struct translation_steps *steps);

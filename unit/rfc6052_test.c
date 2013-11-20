@@ -26,10 +26,10 @@ MODULE_DESCRIPTION("RFC 6052 module test.");
  +-----------------------+------------+------------------------------+
  */
 
-char ipv4_addr_str[INET_ADDRSTRLEN] = "192.0.2.33";
-struct in_addr ipv4_addr;
+static char ipv4_addr_str[INET_ADDRSTRLEN] = "192.0.2.33";
+static struct in_addr ipv4_addr;
 
-char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
+static char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:c000:221::",
 		"2001:db8:1c0:2:21::",
 		"2001:db8:122:c000:2:2100::",
@@ -37,9 +37,9 @@ char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:122:344:c0:2:2100::",
 		"2001:db8:122:344::192.0.2.33"
 };
-struct in6_addr ipv6_addr[6];
+static struct in6_addr ipv6_addr[6];
 
-char prefixes_str[6][INET6_ADDRSTRLEN] = {
+static char prefixes_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8::",
 		"2001:db8:100::",
 		"2001:db8:122::",
@@ -47,10 +47,10 @@ char prefixes_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:122:344::",
 		"2001:db8:122:344::"
 };
-__u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
-struct ipv6_prefix prefixes[6];
+static __u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
+static struct ipv6_prefix prefixes[6];
 
-bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
+static bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
 {
 	struct in_addr actual;
 	bool success = true;
@@ -61,7 +61,7 @@ bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_
 	return success;
 }
 
-bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
+static bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
 {
 	struct in6_addr actual;
 	bool success = true;

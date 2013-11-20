@@ -12,11 +12,11 @@ MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
 MODULE_DESCRIPTION("Header iterator test.");
 
 
-const __u8 FRAG_HDR_LEN = sizeof(struct frag_hdr);
-const __u8 ROUTING_HDR_LEN = 40;
-const __u8 OPT_HDR_LEN = 32; /* Needs to be a multiple of 8. */
+static const __u8 FRAG_HDR_LEN = sizeof(struct frag_hdr);
+static const __u8 ROUTING_HDR_LEN = 40;
+static const __u8 OPT_HDR_LEN = 32; /* Needs to be a multiple of 8. */
 
-struct ipv6hdr *kmalloc_packet(__u16 payload_len, __u8 nexthdr)
+static struct ipv6hdr *kmalloc_packet(__u16 payload_len, __u8 nexthdr)
 {
 	struct ipv6hdr *result = kmalloc(sizeof(struct ipv6hdr) + payload_len, GFP_ATOMIC);
 	if (!result) {
@@ -29,14 +29,15 @@ struct ipv6hdr *kmalloc_packet(__u16 payload_len, __u8 nexthdr)
 	return result;
 }
 
-struct frag_hdr *add_frag_hdr(void *previous_hdr, __u16 previous_hdr_len, __u8 nexthdr)
+static struct frag_hdr *add_frag_hdr(void *previous_hdr, __u16 previous_hdr_len, __u8 nexthdr)
 {
 	struct frag_hdr *hdr = previous_hdr + previous_hdr_len;
 	hdr->nexthdr = nexthdr;
 	return hdr;
 }
 
-struct ipv6_opt_hdr *add_routing_hdr(void *previous_hdr, __u16 previous_hdr_len, __u8 nexthdr)
+static struct ipv6_opt_hdr *add_routing_hdr(void *previous_hdr, __u16 previous_hdr_len,
+		__u8 nexthdr)
 {
 	struct ipv6_opt_hdr *hdr = previous_hdr + previous_hdr_len;
 	hdr->nexthdr = NEXTHDR_UDP;
@@ -48,7 +49,7 @@ struct ipv6_opt_hdr *add_routing_hdr(void *previous_hdr, __u16 previous_hdr_len,
  * Sometimes this function is also used to obtain ESP headers. I'm aware they don't work like this;
  * for the purposes of the tests that doesn't matter.
  */
-struct ipv6_opt_hdr *add_opt_hdr(void *previous_hdr, __u16 previous_hdr_len, __u8 nexthdr)
+static struct ipv6_opt_hdr *add_opt_hdr(void *previous_hdr, __u16 previous_hdr_len, __u8 nexthdr)
 {
 	struct ipv6_opt_hdr *hdr = previous_hdr + previous_hdr_len;
 	hdr->nexthdr = nexthdr;
@@ -56,7 +57,7 @@ struct ipv6_opt_hdr *add_opt_hdr(void *previous_hdr, __u16 previous_hdr_len, __u
 	return hdr;
 }
 
-unsigned char *add_payload(void *previous_hdr, __u16 previous_hdr_len)
+static unsigned char *add_payload(void *previous_hdr, __u16 previous_hdr_len)
 {
 	return previous_hdr + previous_hdr_len;
 }

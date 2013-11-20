@@ -420,8 +420,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		if (out->skb->len > min_ipv6_mtu) {
 			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
-				/* TODO (error) set the MTU */
-				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, 0);
+				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
 				log_info("Packet is too big (%u bytes; MTU: %u); dropping.",
 						out->skb->len, min_ipv6_mtu);
 				return VER_DROP;
@@ -442,6 +441,43 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	}
 
 	return VER_CONTINUE;
+}
+
+verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
+		struct fragment *out_outer)
+{
+	struct packet dummy_pkt_in, dummy_pkt_out;
+	struct fragment *out_inner = NULL;
+	struct translation_steps *step;
+	verdict result = VER_DROP;
+
+	step = &steps[in_inner->l3_hdr.proto][in_inner->l4_hdr.proto];
+
+	/* Actually translate the inner packet. */
+	result = translate(tuple, in_inner, &out_inner, step);
+	if (result != VER_CONTINUE)
+		return result;
+
+	pkt_init(&dummy_pkt_in, in_inner);
+	pkt_init(&dummy_pkt_out, out_inner);
+	result = step->l4_post_function(tuple, &dummy_pkt_in, &dummy_pkt_out);
+	if (result != VER_CONTINUE)
+		goto end;
+
+	/* Finally set the values this function is meant for. */
+	out_outer->payload.len = out_inner->skb->len;
+	out_outer->payload.ptr = kmalloc(out_outer->payload.len, GFP_ATOMIC);
+	out_outer->payload.ptr_needs_kfree = true;
+	if (!out_outer->payload.ptr)
+		goto end;
+	memcpy(out_outer->payload.ptr, skb_network_header(out_inner->skb), out_outer->payload.len);
+
+	result = VER_CONTINUE;
+	/* Fall through. */
+
+end:
+	frag_kfree(out_inner);
+	return result;
 }
 
 /**

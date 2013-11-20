@@ -189,8 +189,8 @@ bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *tes
 		break;
 	}
 
-	/* TODO What happened to dst.l4_id? */
-	success &= assert_equals_u16(expected->src.l4_id, actual->src.l4_id, "l4_id");
+	success &= assert_equals_u16(expected->src.l4_id, actual->src.l4_id, "src l4_id");
+	success &= assert_equals_u16(expected->dst.l4_id, actual->dst.l4_id, "dst l4_id");
 	success &= assert_equals_u8(expected->l3_proto, actual->l3_proto, "l3_proto");
 	success &= assert_equals_u8(expected->l4_proto, actual->l4_proto, "l4_proto");
 
