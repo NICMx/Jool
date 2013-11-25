@@ -177,7 +177,7 @@ static bool ipv4_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb
 		unsigned int ipv4_mtu = skb_out->dev->mtu;
 
 		log_debug("Packet is too large for the outgoing MTU and the DF flag is set. Dropping...");
-		icmpv6_send(skb_in, ICMPV6_PKT_TOOBIG, 0, cpu_to_be32(min_uint(ipv4_mtu, ipv6_mtu - 20)));
+		icmpv6_send(skb_in, ICMPV6_PKT_TOOBIG, 0, cpu_to_be32(min_uint(ipv4_mtu + 20, ipv6_mtu)));
 		return false;
 	}
 
@@ -260,7 +260,7 @@ static bool ipv6_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb
 
 			skb_trim(skb_out, new_packet_len);
 
-			ip6_hdr->payload_len = cpu_to_be16(l3_payload_len);
+			ip6_hdr->payload_len = cpu_to_be16(new_packet_len - sizeof(struct ipv6hdr));
 
 			icmpv6_hdr->icmp6_cksum = 0;
 			icmpv6_hdr->icmp6_cksum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr,
@@ -276,7 +276,7 @@ static bool ipv6_validate_packet_len(struct sk_buff *skb_in, struct sk_buff *skb
 	log_debug("Packet is too large for the outgoing MTU and IPv6 routers don't do fragmentation. "
 			"Dropping...");
 	icmp_send(skb_in, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
-			cpu_to_be32(min_uint(ipv6_mtu, ipv4_mtu + 20)));
+			cpu_to_be32(min_uint(ipv6_mtu - 20, ipv4_mtu)));
 	return false;
 }
 
