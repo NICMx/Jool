@@ -499,7 +499,7 @@ static verdict post_process(struct tuple *tuple, struct packet *in, struct packe
 	struct fragment *frag;
 	struct sk_buff *skb;
 	verdict result;
-	struct translation_steps *step = &steps[in->first_fragment->l3_hdr.proto][in->first_fragment->l4_hdr.proto];
+	struct translation_steps *step = &steps[pkt_get_l3proto(in)][pkt_get_l4proto(in)];
 
 	result = step->l4_post_function(tuple, in, out);
 	if (result != VER_CONTINUE)

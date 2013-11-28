@@ -1134,7 +1134,7 @@ session_failure:
 	/* Fall through. */
 
 bib_failure:
-	/* TODO (later) We're sending this while the spinlock is held; this might be really slow. */
+	/* TODO (performance) We're sending this while the spinlock is held; this might be really slow. */
 	icmpv6_send(frag->skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
 	return false;
 }
@@ -1615,13 +1615,12 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
  * Decides if a packet must be processed, updating binding and session information,
  * and if it may be also filtered.
  *
- * @param[in] pkt packet being translated.
+ * @param[in] frag zero-offset fragment of the packet being translated.
  * @param[in] tuple packet's summary.
  * @return indicator of what should happen to pkt.
  */
-verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
+verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 {
-	struct fragment *frag = pkt->first_fragment;
 	struct icmp6hdr *hdr_icmp6;
 	struct icmphdr *hdr_icmp4;
 	verdict result = VER_CONTINUE;
@@ -1632,7 +1631,7 @@ verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
 	case L3PROTO_IPV6:
 		hdr_icmp6 = frag_get_icmp6_hdr(frag);
 		/* ICMP errors should not affect the tables. */
-		if (pkt_get_l4proto(pkt) == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
+		if (frag->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
 			log_debug("Packet is ICMPv6 error, ignoring...");
 			return VER_CONTINUE;
 		}
@@ -1649,7 +1648,7 @@ verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple)
 	case L3PROTO_IPV4:
 		hdr_icmp4 = frag_get_icmp4_hdr(frag);
 		/* ICMP errors should not affect the tables. */
-		if (pkt_get_l4proto(pkt) == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
+		if (frag->l4_hdr.proto == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
 			log_debug("Packet is ICMPv4 error, ignoring...");
 			return VER_CONTINUE;
 		}

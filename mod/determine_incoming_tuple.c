@@ -7,13 +7,7 @@
 #include <linux/tcp.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
-#include <net/icmp.h>
 
-
-static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
-{
-	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
-}
 
 static verdict ipv4_udp(struct iphdr *hdr_ipv4, struct udphdr *hdr_udp, struct tuple *tuple)
 {
@@ -46,6 +40,11 @@ static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, 
 	tuple->l3_proto = L3PROTO_IPV4;
 	tuple->l4_proto = L4PROTO_ICMP;
 	return VER_CONTINUE;
+}
+
+static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
+{
+	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
 }
 
 static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple)
@@ -179,65 +178,72 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 	return VER_CONTINUE;
 }
 
-verdict determine_in_tuple(struct packet *pkt, struct tuple *tuple)
+/**
+ * Extracts relevant data from "frag" and stores it in the "tuple" tuple.
+ *
+ * @param frag fragment the data will be extracted from. Whether the packet is fragmented or not,
+ *		this has to be the chunk whose fragment offset is zero.
+ * @param tuple this function will populate this value using "frag"'s contents.
+ * @return whether packet processing should continue.
+ */
+verdict determine_in_tuple(struct fragment *frag, struct tuple *tuple)
 {
 	struct iphdr *hdr4;
 	struct ipv6hdr *hdr6;
 	struct icmphdr *icmp4;
 	struct icmp6hdr *icmp6;
-	verdict result;
+	verdict result = VER_CONTINUE;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
 
-	switch (pkt_get_l3proto(pkt)) {
+	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV4:
-		hdr4 = frag_get_ipv4_hdr(pkt->first_fragment);
-		switch (pkt_get_l4proto(pkt)) {
+		hdr4 = frag_get_ipv4_hdr(frag);
+		switch (frag->l4_hdr.proto) {
 		case L4PROTO_UDP:
-			result = ipv4_udp(hdr4, ipv4_extract_l4_hdr(hdr4), tuple);
+			result = ipv4_udp(hdr4, frag_get_udp_hdr(frag), tuple);
 			break;
 		case L4PROTO_TCP:
-			result = ipv4_tcp(hdr4, ipv4_extract_l4_hdr(hdr4), tuple);
+			result = ipv4_tcp(hdr4, frag_get_tcp_hdr(frag), tuple);
 			break;
 		case L4PROTO_ICMP:
-			icmp4 = ipv4_extract_l4_hdr(hdr4);
+			icmp4 = frag_get_icmp4_hdr(frag);
 			result = (is_icmp4_info(icmp4->type))
 					? ipv4_icmp_info(hdr4, icmp4, tuple)
 					: ipv4_icmp_err(hdr4, icmp4, tuple);
 			break;
-		default:
-			log_info("Unsupported transport protocol for IPv4: %d.", hdr4->protocol);
-			icmp_send(pkt->first_fragment->skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
+		case L4PROTO_NONE:
+			log_crit(ERR_ILLEGAL_NONE, "IPv4 - First fragment has no transport header.");
 			result = VER_DROP;
 		}
 		break;
 
 	case L3PROTO_IPV6:
-		hdr6 = frag_get_ipv6_hdr(pkt->first_fragment);
-		switch (pkt_get_l4proto(pkt)) {
+		hdr6 = frag_get_ipv6_hdr(frag);
+		switch (frag->l4_hdr.proto) {
 		case L4PROTO_UDP:
-			result = ipv6_udp(hdr6, frag_get_udp_hdr(pkt->first_fragment), tuple);
+			result = ipv6_udp(hdr6, frag_get_udp_hdr(frag), tuple);
 			break;
 		case L4PROTO_TCP:
-			result = ipv6_tcp(hdr6, frag_get_tcp_hdr(pkt->first_fragment), tuple);
+			result = ipv6_tcp(hdr6, frag_get_tcp_hdr(frag), tuple);
 			break;
 		case L4PROTO_ICMP:
-			icmp6 = frag_get_icmp6_hdr(pkt->first_fragment);
+			icmp6 = frag_get_icmp6_hdr(frag);
 			result = (is_icmp6_info(icmp6->icmp6_type))
 					? ipv6_icmp_info(hdr6, icmp6, tuple)
 					: ipv6_icmp_err(hdr6, icmp6, tuple);
 			break;
-		default:
-			log_info("Unsupported transport protocol for IPv6: %d.", pkt_get_l4proto(pkt));
-			icmpv6_send(pkt->first_fragment->skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
+		case L4PROTO_NONE:
+			log_crit(ERR_ILLEGAL_NONE, "IPv6 - First fragment has no transport header.");
 			result = VER_DROP;
 		}
 		break;
-
-	default:
-		log_info("Packet's protocol (%d) is not IPv4 or IPv6.", pkt_get_l3proto(pkt));
-		result = VER_DROP;
 	}
+
+	/*
+	 * We moved the transport-protocol-not-recognized ICMP errors to fragment_db because they're
+	 * covered in validations.
+	 */
 
 	log_tuple(tuple);
 	log_debug("Done step 1.");

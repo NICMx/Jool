@@ -28,11 +28,11 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
 
-	if (determine_in_tuple(pkt_in, &tuple_in) != VER_CONTINUE)
+	if (determine_in_tuple(pkt_in->first_fragment, &tuple_in) != VER_CONTINUE)
 		goto fail;
-	if (filtering_and_updating(pkt_in, &tuple_in) != VER_CONTINUE)
+	if (filtering_and_updating(pkt_in->first_fragment, &tuple_in) != VER_CONTINUE)
 		goto fail;
-	if (compute_out_tuple(&tuple_in, pkt_in, &tuple_out) != VER_CONTINUE)
+	if (compute_out_tuple(&tuple_in, &tuple_out) != VER_CONTINUE)
 		goto fail;
 	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
 		goto fail;

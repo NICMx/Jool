@@ -56,6 +56,7 @@ enum error_code {
 	ERR_L3PROTO = 3,
 	ERR_ALLOC_FAILED = 4,
 	ERR_UNKNOWN_ERROR = 5,
+	ERR_ILLEGAL_NONE = 6,
 
 	/* Config */
 	ERR_NETLINK = 1000,
@@ -225,6 +226,18 @@ struct tuple {
 	l4_protocol l4_proto;
 #define icmp_id src.l4_id
 };
+
+static inline bool is_3_tuple(struct tuple *tuple)
+{
+	return (tuple->l4_proto == L4PROTO_ICMP);
+}
+
+/*
+static inline bool is_5_tuple(struct tuple *tuple)
+{
+	return !is_3_tuple(tuple);
+}
+*/
 
 /**
  * All of these functions return "true" if the first parameter is the same as the second one, even

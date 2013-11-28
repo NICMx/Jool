@@ -1,4 +1,7 @@
 #include "nat64/mod/packet.h"
+
+#include <net/icmp.h>
+
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 
@@ -32,10 +35,10 @@ int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag)
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		error = frag_create_from_buffer_ipv4(skb_network_header(skb), skb->len, false, frag);
+		error = frag_create_from_buffer_ipv4(skb_network_header(skb), skb->len, false, frag, skb);
 		break;
 	case ETH_P_IPV6:
-		error = frag_create_from_buffer_ipv6(skb_network_header(skb), skb->len, false, frag);
+		error = frag_create_from_buffer_ipv6(skb_network_header(skb), skb->len, false, frag, skb);
 		break;
 	default:
 		log_err(ERR_L3PROTO, "Unsupported network protocol: %u", ntohs(skb->protocol));
@@ -140,7 +143,7 @@ static int init_ipv6_l3_hdr(struct fragment *frag, struct ipv6hdr *hdr6,
 }
 
 static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, unsigned int len,
-		struct hdr_iterator *iterator)
+		struct hdr_iterator *iterator, struct sk_buff *skb)
 {
 	struct frag_hdr *frag_header;
 	int error;
@@ -178,6 +181,8 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 
 		default:
 			log_warning("Unsupported layer 4 protocol: %d", iterator->hdr_type);
+			if (skb != NULL)
+				icmpv6_send(frag->skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 			return -EINVAL;
 		}
 
@@ -199,7 +204,7 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 }
 
 int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **out_frag)
+		struct fragment **out_frag, struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr = (struct ipv6hdr *) buffer;
 	struct fragment *frag;
@@ -221,7 +226,7 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
 	if (error)
 		goto fail;
-	error = init_ipv6_l3_payload(frag, hdr, len, &iterator);
+	error = init_ipv6_l3_payload(frag, hdr, len, &iterator, skb);
 	if (error)
 		goto fail;
 	INIT_LIST_HEAD(&frag->next);
@@ -277,7 +282,8 @@ static int init_ipv4_l3_hdr(struct fragment *frag, struct iphdr *hdr)
 	return 0;
 }
 
-static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsigned int len)
+static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsigned int len,
+		struct sk_buff *skb)
 {
 	u16 fragment_offset;
 	int error;
@@ -315,6 +321,8 @@ static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsig
 
 		default:
 			log_warning("Unsupported layer 4 protocol: %d", hdr4->protocol);
+			if (skb != NULL)
+				icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
 			return -EINVAL;
 		}
 
@@ -335,7 +343,7 @@ static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsig
 }
 
 int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **out_frag)
+		struct fragment **out_frag, struct sk_buff *skb)
 {
 	struct iphdr *hdr = (struct iphdr *) buffer;
 	struct fragment *frag;
@@ -356,7 +364,7 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 	error = init_ipv4_l3_hdr(frag, hdr);
 	if (error)
 		goto fail;
-	error = init_ipv4_l3_payload(frag, hdr, len);
+	error = init_ipv4_l3_payload(frag, hdr, len, skb);
 	if (error)
 		goto fail;
 	INIT_LIST_HEAD(&frag->next);

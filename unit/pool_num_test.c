@@ -139,7 +139,7 @@ static bool test_poolnum_return_function(void)
 	success &= assert_equals_int(0, poolnum_get_any(&pool, &next_get), "3rd get_any-result");
 	success &= assert_equals_u16(10, next_get, "3rd get_any-result");
 	success &= assert_equals_int(-ESRCH, poolnum_get_any(&pool, &next_get), "borrow on empty pool");
-	success &= assert_pool_simple(&pool, 1, 0);
+	success &= assert_pool_simple(&pool, 1, 1);
 
 	success &= assert_equals_int(0, poolnum_return(&pool, 2), "return 2nd borrowed value");
 	success &= assert_equals_int(0, poolnum_return(&pool, 3), "return 3rd borrowed value");

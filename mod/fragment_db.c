@@ -77,6 +77,10 @@ static unsigned long get_fragment_timeout(void)
 	return result;
 }
 
+/**
+ * As specified above, the database is (mostly) a hash table. This is one of two functions used
+ * internally by the table to search for values.
+ */
 static bool equals_function(struct reassembly_buffer_key *key1, struct reassembly_buffer_key *key2)
 {
 	if (key1 == key2)
@@ -112,6 +116,10 @@ static bool equals_function(struct reassembly_buffer_key *key1, struct reassembl
 	return true;
 }
 
+/**
+ * As specified above, the database is (mostly) a hash table. This is one of two functions used
+ * internally by the table to search for values.
+ */
 static __u16 hash_function(struct reassembly_buffer_key *key)
 {
 	__u16 result = 0;
@@ -128,6 +136,9 @@ static __u16 hash_function(struct reassembly_buffer_key *key)
 	return result;
 }
 
+/**
+ * Just a one-liner for constructing hole_descriptors.
+ */
 static struct hole_descriptor *hole_alloc(u16 first, u16 last)
 {
 	struct hole_descriptor *hd = kmalloc(sizeof(*hd), GFP_ATOMIC);
@@ -141,6 +152,9 @@ static struct hole_descriptor *hole_alloc(u16 first, u16 last)
 	return hd;
 }
 
+/**
+ * Just a one-liner for constructing reassembly_buffers.
+ */
 static struct reassembly_buffer *buffer_alloc(struct fragment *frag)
 {
 	struct reassembly_buffer *buffer;
@@ -161,6 +175,9 @@ static struct reassembly_buffer *buffer_alloc(struct fragment *frag)
 	return buffer;
 }
 
+/**
+ * Just a one-liner for populating reassembly_buffer_keys.
+ */
 static int frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key)
 {
 	struct iphdr *hdr4;
@@ -206,11 +223,20 @@ iterator_fail:
 	return -EINVAL;
 }
 
+/**
+ * Returns the reassembly buffer described by "key" from the database.
+ */
 static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
 {
 	return fragdb_table_get(&table, key);
 }
 
+/**
+ * Inserts "buffer" into the database, mapping it to the descriptor "key".
+ *
+ * "key" is assumed to have been constructed from "buffer"; it is not inferred internally for silly
+ * performance reasons.
+ */
 static int buffer_put(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer)
 {
 	int error;
@@ -229,6 +255,14 @@ static int buffer_put(struct reassembly_buffer_key *key, struct reassembly_buffe
 	return 0;
 }
 
+/**
+ * Removes "buffer" from the database and destroys it.
+ *
+ * "key" is assumed to have been constructed from "buffer"; it is not inferred internally for silly
+ * performance reasons.
+ *
+ * @param free_pkt send "true" if the buffer's internal packet structure should also be released.
+ */
 static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer,
 		bool free_pkt)
 {
@@ -252,6 +286,10 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 	kfree(buffer);
 }
 
+/**
+ * One-liner to calculate the RFC's "fragment.first" value. The functionality is separated to make
+ * the fragment_arrives() function a little less convoluted.
+ */
 static u16 compute_fragment_first(struct fragment *frag)
 {
 	u16 offset = 0; /* In bytes. */
@@ -268,6 +306,10 @@ static u16 compute_fragment_first(struct fragment *frag)
 	return offset >> 3;
 }
 
+/**
+ * Returns "true" if "frag"'s MF flag is set. The point is to make the layer-3 protocol transparent
+ * to the caller.
+ */
 static bool is_mf_set(struct fragment *frag)
 {
 	bool mf = false;
@@ -284,6 +326,10 @@ static bool is_mf_set(struct fragment *frag)
 	return mf;
 }
 
+/**
+ * Core of the cleaner_timer() function, intended to actually clean the database from obsolete
+ * fragments.
+ */
 static void clean_expired_buffers(void)
 {
 	struct list_head *current_node, *next_node;
@@ -314,6 +360,9 @@ static void clean_expired_buffers(void)
 	log_debug("Deleted %u reassembly buffers. The database is now empty.", b);
 }
 
+/**
+ * Executed by the kernel every once in a while to extermine expired fragments.
+ */
 static void cleaner_timer(unsigned long param)
 {
 	struct reassembly_buffer *buffer;
@@ -365,6 +414,9 @@ static int compute_csum_udp(struct packet *pkt)
 	 * Implementation detail: We're going to assemble the fragments into a large buffer.
 	 * Why? because some fragments might overlap with each other, so if we just join the checksums
 	 * of each separate fragment, we'll end up summing some bytes multiple times.
+	 *
+	 * TODO (performance) OK fine, but at the very least we could avoid the copy when there is no
+	 * fragmentation, since there is no overlapping and it's a pretty common scenario.
 	 */
 	error = pkt_get_total_len_ipv4(pkt, &buffer_len);
 	if (error)
@@ -516,6 +568,9 @@ static int l4_post(struct packet *pkt) {
 	return error;
 }
 
+/**
+ * Call during initialization for the remaining functions to work properly.
+ */
 int fragdb_init(void)
 {
 	config.fragment_timeout = msecs_to_jiffies(FRAGMENT_MIN);
@@ -530,6 +585,12 @@ int fragdb_init(void)
 	return 0;
 }
 
+/**
+ * Copies this module's current configuration to "clone".
+ *
+ * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
+ * @return zero on success, nonzero on failure.
+ */
 int clone_fragmentation_config(struct fragmentation_config *clone)
 {
 	spin_lock_bh(&config_lock);
@@ -539,6 +600,13 @@ int clone_fragmentation_config(struct fragmentation_config *clone)
 	return 0;
 }
 
+/**
+ * Updates the configuration of this module.
+ *
+ * @param[in] operation indicator of which fields from "new_config" should be taken into account.
+ * @param[in] new configuration values.
+ * @return zero on success, nonzero on failure.
+ */
 int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
 {
 	unsigned long fragment_min = msecs_to_jiffies(FRAGMENT_MIN);
@@ -561,6 +629,10 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
 }
 
 /**
+ * Computes "skb"'s struct fragment, infers whether it is part of a larger packet, and stores it in
+ * the database if it has siblings that haven't arrived yet. If they have all arrived, or if skb is
+ * already whole, then it returns the resulting packet in "result".
+ *
  * RFC 815, section 3.
  */
 verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
@@ -589,7 +661,8 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 
 	/*
 	 * This short circuit is not part of the RFC.
-	 * I added it because I really don't want to spinlock nor allocate if I don't have to.
+	 * I added it because I really don't want to spinlock nor allocate table stuff if I don't have
+	 * to.
 	 */
 	if (!frag_is_fragmented(frag)) {
 		/* No need to interact with the database. Encapsulate the packet and let it fly. */
@@ -606,7 +679,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 
 	/*
 	 * Store buffer's accesor so we don't have to recalculate it all the time.
-	 * Also not part of the RFC.
+	 * Also implementation specific, not part of the RFC.
 	 */
 	if (is_error(frag_to_key(frag, &key))) {
 		kfree(frag);
@@ -698,6 +771,8 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		return VER_CONTINUE;
 	}
 
+	/* RFC 815 ends here. */
+
 	spin_unlock_bh(&table_lock);
 	return VER_STOLEN;
 
@@ -706,6 +781,9 @@ fail:
 	return VER_DROP;
 }
 
+/**
+ * Empties the database, freeing memory. Call during destruction to avoid memory leaks.
+ */
 void fragdb_destroy(void)
 {
 	fragdb_table_empty(&table, true);

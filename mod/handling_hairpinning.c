@@ -24,9 +24,9 @@ verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 		goto fail;
 	}
 
-	if (filtering_and_updating(pkt_in, tuple_in) != VER_CONTINUE)
+	if (filtering_and_updating(pkt_in->first_fragment, tuple_in) != VER_CONTINUE)
 		goto fail;
-	if (compute_out_tuple(tuple_in, pkt_in, &tuple_out) != VER_CONTINUE)
+	if (compute_out_tuple(tuple_in, &tuple_out) != VER_CONTINUE)
 		goto fail;
 	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
 		goto free_and_fail;

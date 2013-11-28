@@ -100,42 +100,12 @@ lock_fail:
 	return VER_DROP;
 }
 
-verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple *out)
+verdict compute_out_tuple(struct tuple *in, struct tuple *out)
 {
-	struct icmp6hdr *icmp6;
-	struct icmphdr *icmp4;
-	verdict result = VER_DROP;
-
+	verdict result;
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	switch (pkt_get_l4proto(pkt_in)) {
-	case L4PROTO_TCP:
-	case L4PROTO_UDP:
-		result = tuple5(in, out);
-		break;
-
-	case L4PROTO_ICMP:
-		switch (pkt_get_l3proto(pkt_in)) {
-		case L3PROTO_IPV6:
-			icmp6 = frag_get_icmp6_hdr(pkt_in->first_fragment);
-			result = is_icmp6_info(icmp6->icmp6_type)
-					? tuple3(in, out)
-					: tuple5(in, out);
-			break;
-
-		case L3PROTO_IPV4:
-			icmp4 = frag_get_icmp4_hdr(pkt_in->first_fragment);
-			result = is_icmp4_info(icmp4->type)
-					? tuple3(in, out)
-					: tuple5(in, out);
-			break;
-		}
-		break;
-
-	default:
-		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", pkt_get_l4proto(pkt_in));
-		result = VER_DROP;
-	}
+	result = is_3_tuple(in) ? tuple3(in, out) : tuple5(in, out);
 
 	log_debug("Done step 3.");
 	return result;

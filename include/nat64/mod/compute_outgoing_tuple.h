@@ -15,6 +15,7 @@
 #include "nat64/mod/packet.h"
 
 
-verdict compute_out_tuple(struct tuple *in, struct packet *pkt_in, struct tuple *out);
+verdict compute_out_tuple(struct tuple *in, struct tuple *out);
+
 
 #endif /* _NF_NAT64_OUTGOING_H */

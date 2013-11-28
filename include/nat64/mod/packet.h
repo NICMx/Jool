@@ -201,12 +201,14 @@ int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag);
  *	When buffer is truncated, it is still at least expected to contain up to (and including)
  *	transport headers, whenever applies.
  * @param frag the result will be placed in this out parameter.
+ * @param skb if "buffer" was extracted from a skb, send that here. It will become the internal
+ * packet of a ICMP error message if it needs to be sent.
  * @return zero on success, non-zero for an error status.
  */
 int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **frag);
+		struct fragment **frag, struct sk_buff *skb);
 int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **frag);
+		struct fragment **frag, struct sk_buff *skb);
 /** Allocates "out" under the assumption that a skb is going to be created from it. */
 int frag_create_empty(struct fragment **out);
 

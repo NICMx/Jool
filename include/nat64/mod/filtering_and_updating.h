@@ -16,7 +16,7 @@ void filtering_destroy(void);
 int clone_filtering_config(struct filtering_config *clone);
 int set_filtering_config(__u32 operation, struct filtering_config *new_config);
 
-verdict filtering_and_updating(struct packet* pkt, struct tuple *tuple);
+verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple);
 
 
 #endif /* _NF_NAT64_FILTERING_H */

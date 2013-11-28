@@ -346,7 +346,7 @@ static verdict icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr,
 	return VER_CONTINUE;
 }
 
-verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
+static verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_outer,
 		struct fragment *out_outer)
 {
 	struct fragment *in_inner = NULL;
@@ -356,7 +356,7 @@ verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment *in_out
 
 	/* Prepare the translate function's requirements. */
 	if (is_error(frag_create_from_buffer_ipv6(in_outer->payload.ptr, in_outer->payload.len, true,
-			&in_inner)))
+			&in_inner, NULL)))
 		goto end;
 
 	if (in_inner->l4_hdr.proto == L4PROTO_ICMP) {

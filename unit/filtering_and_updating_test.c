@@ -276,7 +276,6 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 #define INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR "192.168.100.44"
 static noinline bool test_filtering_and_updating(void)
 {
-	struct packet *pkt;
 	struct fragment *frag;
 	struct sk_buff *skb;
 	struct tuple tuple;
@@ -293,15 +292,13 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 	if (is_error(frag_create_from_skb(skb, &frag)))
 		return false;
-	if (is_error(pkt_create(frag, &pkt)))
-		return false;
 
 	icmp_hdr(skb)->type = ICMP_DEST_UNREACH;
-	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(pkt, &tuple), "ICMP error");
+	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(frag, &tuple), "ICMP error");
 	success &= assert_bib_count(0, L4PROTO_ICMP);
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	if (!success)
 		return false;
 
@@ -314,14 +311,12 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 	if (is_error(frag_create_from_skb(skb, &frag)))
 		return false;
-	if (is_error(pkt_create(frag, &pkt)))
-		return false;
 
-	success &= assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple), "Hairpinning");
+	success &= assert_equals_int(VER_DROP, filtering_and_updating(frag, &tuple), "Hairpinning");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	if (!success)
 		return false;
 
@@ -334,14 +329,12 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 	if (is_error(frag_create_from_skb(skb, &frag)))
 		return false;
-	if (is_error(pkt_create(frag, &pkt)))
-		return false;
 
-	success &= assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple), "Not pool6 packet");
+	success &= assert_equals_int(VER_DROP, filtering_and_updating(frag, &tuple), "Not pool6 packet");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	if (!success)
 		return false;
 
@@ -354,14 +347,12 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 	if (is_error(frag_create_from_skb(skb, &frag)))
 		return false;
-	if (is_error(pkt_create(frag, &pkt)))
-		return false;
 
-	success &= assert_equals_int(VER_DROP, filtering_and_updating(pkt, &tuple), "Not pool4 packet");
+	success &= assert_equals_int(VER_DROP, filtering_and_updating(frag, &tuple), "Not pool4 packet");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	if (!success)
 		return false;
 
@@ -374,14 +365,12 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 	if (is_error(frag_create_from_skb(skb, &frag)))
 		return false;
-	if (is_error(pkt_create(frag, &pkt)))
-		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(pkt, &tuple), "IPv6 success");
+	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(frag, &tuple), "IPv6 success");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_session_count(1, L4PROTO_UDP);
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	if (!success)
 		return false;
 
@@ -394,14 +383,12 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 	if (is_error(frag_create_from_skb(skb, &frag)))
 		return false;
-	if (is_error(pkt_create(frag, &pkt)))
-		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(pkt, &tuple), "IPv4 success");
+	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(frag, &tuple), "IPv4 success");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_session_count(1, L4PROTO_UDP);
 
-	pkt_kfree(pkt, true);
+	frag_kfree(frag);
 	if (!success)
 		return false;
 
