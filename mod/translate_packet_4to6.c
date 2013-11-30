@@ -61,12 +61,12 @@ static inline __be32 build_id_field(struct iphdr *ip4_hdr)
 }
 
 /**
- * Infers a IPv6 header from in's IPv4 header and tuple. Places the result in out->fixed_hdr.
+ * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result in "out"->l3_hdr.
  * This is RFC 6145 section 4.1, except Payload Length (See post_ipv6()).
  *
  * Aside from the main call (to translate a normal IPv4 packet's layer 3 header), this function can
  * also be called to translate a packet's inner packet, which severely constraints the information
- * from "in" it can use; see translate_inner_packet().
+ * from "in" it can use; see translate_inner_packet() and its callers.
  */
 static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct fragment *out)
 {
@@ -102,7 +102,8 @@ static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct 
 	ip6_hdr->flow_lbl[2] = 0;
 	/* ip6_hdr->payload_len is set during post-processing. */
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
-	ip6_hdr->hop_limit = ip4_hdr->ttl; /* The TTL is decremented by the kernel. */
+	/* The TTL is decremented by the kernel. TODO (warning) please confirm this. */
+	ip6_hdr->hop_limit = ip4_hdr->ttl;
 	ip6_hdr->saddr = tuple->src.addr.ipv6;
 	ip6_hdr->daddr = tuple->dst.addr.ipv6;
 

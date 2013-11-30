@@ -4,16 +4,9 @@
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
+#include "nat64/mod/bib.h"
+#include "nat64/mod/session.h"
 #include "nat64/mod/send_packet.h"
-
-/**
- * @file
- * Second step of the stateful NAT64 translation algorithm: "Filtering and Updating Binding and
- * Session Information", as defined in RFC6146 section 3.5.
- *
- * @author Roberto Aceves
- * @author Alberto Leiva
- */
 
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -1612,35 +1605,37 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 /**
  * Main F&U routine. Called during the processing of every packet.
  *
- * Decides if a packet must be processed, updating binding and session information,
- * and if it may be also filtered.
+ * Decides if "frag"'s packet must be processed, updating binding and session information.
  *
  * @param[in] frag zero-offset fragment of the packet being translated.
- * @param[in] tuple packet's summary.
- * @return indicator of what should happen to pkt.
+ * @param[in] tuple frag's summary.
+ * @return indicator of what should happen to frag.
  */
 verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 {
+	struct in_addr addr4;
+	struct ipv6hdr *hdr_ip6;
 	struct icmp6hdr *hdr_icmp6;
 	struct icmphdr *hdr_icmp4;
 	verdict result = VER_CONTINUE;
 
 	log_debug("Step 2: Filtering and Updating");
 
-	switch (tuple->l3_proto) {
+	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:
 		hdr_icmp6 = frag_get_icmp6_hdr(frag);
 		/* ICMP errors should not affect the tables. */
 		if (frag->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
-			log_debug("Packet is ICMPv6 error, ignoring...");
+			log_debug("Packet is ICMPv6 error; skipping step...");
 			return VER_CONTINUE;
 		}
 		/* Get rid of hairpinning loops and unwanted packets. */
-		if (pool6_contains(&tuple->src.addr.ipv6)) {
+		hdr_ip6 = frag_get_ipv6_hdr(frag);
+		if (pool6_contains(&hdr_ip6->saddr)) {
 			log_info("Hairpinning loop. Dropping...");
 			return VER_DROP;
 		}
-		if (!pool6_contains(&tuple->dst.addr.ipv6)) {
+		if (!pool6_contains(&hdr_ip6->daddr)) {
 			log_info("Packet was rejected by pool6, dropping...");
 			return VER_DROP;
 		}
@@ -1649,11 +1644,12 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		hdr_icmp4 = frag_get_icmp4_hdr(frag);
 		/* ICMP errors should not affect the tables. */
 		if (frag->l4_hdr.proto == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
-			log_debug("Packet is ICMPv4 error, ignoring...");
+			log_debug("Packet is ICMPv4 error; skipping step...");
 			return VER_CONTINUE;
 		}
 		/* Get rid of unexpected packets */
-		if (!pool4_contains(&tuple->dst.addr.ipv4)) {
+		addr4.s_addr = frag_get_ipv4_hdr(frag)->daddr;
+		if (!pool4_contains(&addr4)) {
 			log_info("Packet was rejected by pool4, dropping...");
 			return VER_DROP;
 		}
@@ -1661,9 +1657,9 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 	}
 
 	/* Process packet, according to its protocol. */
-	switch (tuple->l4_proto) {
+	switch (frag->l4_hdr.proto) {
 	case L4PROTO_UDP:
-		switch (tuple->l3_proto) {
+		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV6:
 			result = ipv6_udp(frag, tuple);
 			break;
@@ -1678,7 +1674,7 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		break;
 
 	case L4PROTO_ICMP:
-		switch (tuple->l3_proto) {
+		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV6:
 			result = ipv6_icmp6(frag, tuple);
 			break;
@@ -1689,7 +1685,7 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		break;
 
 	case L4PROTO_NONE:
-		log_err(ERR_L4PROTO, "Tuples should not contain the 'NONE' transport protocol.");
+		log_err(ERR_ILLEGAL_NONE, "Tuples should not contain the 'NONE' transport protocol.");
 		result = VER_DROP;
 		break;
 	}

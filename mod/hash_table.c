@@ -166,8 +166,7 @@ static int INIT(struct HTABLE_NAME *table,
 /**
  * Inserts "value" to the "table" table in the slot described by the "key" key.
  *
- * Important: The table stores copies of both key and value.
- * If you kmalloc'd them, free them. And you might need to update pointers in certain situations.
+ * Important: The table stores a copy of key. If you kmalloc'd it, free it.
  *
  * Also important: This function differs from HashMap.put() in that it doesn't validate whether the
  * value is already in the table before inserting.

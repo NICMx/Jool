@@ -6,6 +6,8 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
+#include "nat64/mod/bib.h"
+#include "nat64/mod/session.h"
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -13,11 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/printk.h>
-#include <linux/slab.h>
-#include <linux/mutex.h>
-#include <net/sock.h>
-#include <net/netlink.h>
 
 
 /**

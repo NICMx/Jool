@@ -147,6 +147,7 @@ static bool test_post_tcp_csum_6to4(void)
 	struct ipv4_pair pair4;
 	struct tuple tuple;
 	__sum16 expected_csum;
+	bool success = true;
 
 	struct tcphdr *hdr_tcp;
 
@@ -177,9 +178,13 @@ static bool test_post_tcp_csum_6to4(void)
 	tuple.src.l4_id = 1234;
 	tuple.dst.l4_id = 2345;
 
-	post_tcp_ipv4(&tuple, pkt_in, pkt_out);
+	success &= assert_equals_int(VER_CONTINUE, post_tcp_ipv4(&tuple, pkt_in, pkt_out), "result");
+	success &= assert_equals_csum(expected_csum, hdr_tcp->check, "Checksum");
 
-	return assert_equals_csum(expected_csum, hdr_tcp->check, "Checksum");
+	pkt_kfree(pkt_in, true);
+	pkt_kfree(pkt_out, true);
+
+	return success;
 
 error:
 	if (pkt_in)
@@ -208,6 +213,7 @@ static bool test_post_udp_csum_6to4(void)
 	struct ipv4_pair pair4;
 	struct tuple tuple;
 	__sum16 expected_csum;
+	bool success = true;
 
 	struct udphdr *hdr_udp;
 
@@ -238,9 +244,13 @@ static bool test_post_udp_csum_6to4(void)
 	tuple.src.l4_id = 1234;
 	tuple.dst.l4_id = 2345;
 
-	post_udp_ipv4(&tuple, pkt_in, pkt_out);
+	success &= assert_equals_int(VER_CONTINUE, post_udp_ipv4(&tuple, pkt_in, pkt_out), "result");
+	success &= assert_equals_csum(expected_csum, hdr_udp->check, "Checksum");
 
-	return assert_equals_csum(expected_csum, hdr_udp->check, "Checksum");
+	pkt_kfree(pkt_in, true);
+	pkt_kfree(pkt_out, true);
+
+	return success;
 
 error:
 	if (frag_in)
@@ -1862,7 +1872,12 @@ int init_module(void)
 	if (str_to_addr4("2.2.2.2", &dummies4[1]) != 0)
 		return -EINVAL;
 
-	translate_packet_init();
+	if (is_error(pktmod_init()))
+		return -EINVAL;
+	if (is_error(translate_packet_init())) {
+		pktmod_destroy();
+		return -EINVAL;
+	}
 
 	/* Checksum tests */
 	CALL_TEST(test_post_tcp_csum_6to4(), "Recomputed TCP checksum 6->4");
@@ -1903,6 +1918,7 @@ int init_module(void)
 	CALL_TEST(test_multiple_6to4_icmp_info(), "Multiple 6->4 ICMP info");
 
 	translate_packet_destroy();
+	pktmod_destroy();
 
 	END_TESTS;
 }

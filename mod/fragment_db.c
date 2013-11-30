@@ -12,6 +12,9 @@ struct hole_descriptor {
 	struct list_head hook;
 };
 
+/** Cache for struct hole_descriptors, for efficient allocation. */
+static struct kmem_cache *hole_cache;
+
 struct reassembly_buffer_key {
 	l3_protocol l3_proto;
 	union {
@@ -44,6 +47,8 @@ struct reassembly_buffer {
 	struct list_head hook;
 };
 
+/** Cache for struct reassembly_buffers, for efficient allocation. */
+static struct kmem_cache *buffer_cache;
 
 #define HTABLE_NAME fragdb_table
 #define KEY_TYPE struct reassembly_buffer_key
@@ -141,7 +146,7 @@ static __u16 hash_function(struct reassembly_buffer_key *key)
  */
 static struct hole_descriptor *hole_alloc(u16 first, u16 last)
 {
-	struct hole_descriptor *hd = kmalloc(sizeof(*hd), GFP_ATOMIC);
+	struct hole_descriptor *hd = kmem_cache_alloc(hole_cache, GFP_ATOMIC);
 	if (!hd)
 		return NULL;
 
@@ -160,11 +165,11 @@ static struct reassembly_buffer *buffer_alloc(struct fragment *frag)
 	struct reassembly_buffer *buffer;
 	struct packet *pkt;
 
-	buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+	buffer = kmem_cache_alloc(buffer_cache, GFP_ATOMIC);
 	if (!buffer)
 		return NULL;
 	if (is_error(pkt_create(frag, &pkt))) {
-		kfree(buffer);
+		kmem_cache_free(buffer_cache, buffer);
 		return NULL;
 	}
 
@@ -268,7 +273,7 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 {
 	/* Remove it from the DB. */
 	if (!fragdb_table_remove(&table, key, false)) {
-		log_crit(ERR_UNKNOWN_ERROR, "Something is attempting to delete a buffer that wasn't stored"
+		log_crit(ERR_UNKNOWN_ERROR, "Something is attempting to delete a buffer that wasn't stored "
 				"in the database.");
 		return;
 	}
@@ -279,11 +284,11 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 	while (!list_empty(&buffer->holes)) {
 		struct hole_descriptor *hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
 		list_del(&hole->hook);
-		kfree(hole);
+		kmem_cache_free(hole_cache, hole);
 	}
 	if (free_pkt)
 		pkt_kfree(buffer->pkt, true);
-	kfree(buffer);
+	kmem_cache_free(buffer_cache, buffer);
 }
 
 /**
@@ -575,6 +580,16 @@ int fragdb_init(void)
 {
 	config.fragment_timeout = msecs_to_jiffies(FRAGMENT_MIN);
 
+	hole_cache = kmem_cache_create("jool_hole_descriptors", sizeof(struct hole_descriptor),
+			0, SLAB_POISON, NULL);
+	if (!hole_cache)
+		return -ENOMEM;
+
+	buffer_cache = kmem_cache_create("jool_reassembly_buffers", sizeof(struct reassembly_buffer),
+			0, SLAB_POISON, NULL);
+	if (!buffer_cache)
+		return -ENOMEM;
+
 	fragdb_table_init(&table, equals_function, hash_function);
 
 	init_timer(&expire_timer);
@@ -702,7 +717,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 
 		hole = hole_alloc(0, INFINITY);
 		if (!hole) {
-			kfree(buffer);
+			kmem_cache_free(buffer_cache, buffer);
 			kfree(frag);
 			goto fail;
 		}
@@ -710,8 +725,8 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		list_add(&hole->hook, &buffer->holes);
 
 		if (is_error(buffer_put(&key, buffer))) {
-			kfree(hole);
-			kfree(buffer);
+			kmem_cache_free(hole_cache, hole);
+			kmem_cache_free(buffer_cache, buffer);
 			kfree(frag);
 			goto fail;
 		}
@@ -754,7 +769,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		 * the list in steps 5 and 6.)
 		 */
 		list_del(&hole->hook);
-		kfree(hole);
+		kmem_cache_free(hole_cache, hole);
 	} /* Step 7 */
 
 	/* Step 8 */
@@ -788,4 +803,7 @@ void fragdb_destroy(void)
 {
 	fragdb_table_empty(&table, true);
 	del_timer_sync(&expire_timer);
+
+	kmem_cache_destroy(hole_cache);
+	kmem_cache_destroy(buffer_cache);
 }

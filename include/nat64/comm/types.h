@@ -232,12 +232,10 @@ static inline bool is_3_tuple(struct tuple *tuple)
 	return (tuple->l4_proto == L4PROTO_ICMP);
 }
 
-/*
 static inline bool is_5_tuple(struct tuple *tuple)
 {
 	return !is_3_tuple(tuple);
 }
-*/
 
 /**
  * All of these functions return "true" if the first parameter is the same as the second one, even

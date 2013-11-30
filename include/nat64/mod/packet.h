@@ -31,9 +31,10 @@
  * natural fragments out there though, so most of the time it's just one struct packet containing
  * one struct fragment containing one struct sk_buff.
  *
- * Unlike most modules, this one has two function prefixes:
+ * Unlike most modules, this one has three function prefixes:
  * - "pkt_" refers to functions meant to interact with struct packet.
  * - "frag_" refers to functions meant to interact with struct fragment.
+ * - "pktmod_" refer to this module as a whole.
  * There are also functions lacking a prefix. These are for general interaction with oddly-designed
  * kernel packet-related structures.
  */
@@ -122,6 +123,12 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
 	return cpu_to_be16(result);
 }
 
+/*	---------------
+	--- Module ----
+	--------------- */
+
+int pktmod_init(void);
+void pktmod_destroy(void);
 
 /*	---------------
 	-- Fragments --

@@ -13,12 +13,37 @@
 #define MIN_ICMP6_HDR_LEN sizeof(struct icmp6hdr)
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
+/** Cache for struct fragments, for efficient allocation. */
+static struct kmem_cache *frag_cache;
+/** Cache for struct packets, for efficient allocation. */
+static struct kmem_cache *pkt_cache;
+
+int pktmod_init(void)
+{
+	pkt_cache = kmem_cache_create("jool_packets", sizeof(struct packet), 0, SLAB_POISON, NULL);
+	if (!pkt_cache)
+		return -ENOMEM;
+
+	frag_cache = kmem_cache_create("jool_fragments", sizeof(struct fragment), 0, SLAB_POISON, NULL);
+	if (!frag_cache) {
+		kmem_cache_destroy(pkt_cache);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void pktmod_destroy(void)
+{
+	kmem_cache_destroy(pkt_cache);
+	kmem_cache_destroy(frag_cache);
+}
 
 int frag_create_empty(struct fragment **out)
 {
 	struct fragment *frag;
 
-	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
+	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
 	if (!frag)
 		return -ENOMEM;
 
@@ -215,7 +240,7 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	if (error)
 		return error;
 
-	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
+	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
 	if (!frag) {
 		log_warning("Cannot allocate a fragment structure.");
 		return -ENOMEM;
@@ -353,7 +378,7 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 	if (error)
 		return error;
 
-	frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
+	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
 	if (!frag) {
 		log_warning("Cannot allocate a fragment structure.");
 		return -ENOMEM;
@@ -491,7 +516,7 @@ void frag_kfree(struct fragment *frag)
 
 	list_del(&frag->next);
 
-	kfree(frag);
+	kmem_cache_free(frag_cache, frag);
 }
 
 static char *nexthdr_to_string(__u8 nexthdr)
@@ -623,7 +648,7 @@ int pkt_create(struct fragment *frag, struct packet **pkt_out)
 {
 	struct packet *pkt;
 
-	pkt = kmalloc(sizeof(*pkt), GFP_ATOMIC);
+	pkt = kmem_cache_alloc(pkt_cache, GFP_ATOMIC);
 	if (!pkt) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a packet.");
 		return -ENOMEM;
@@ -720,5 +745,5 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 	}
 
 	if (free_pkt)
-		kfree(pkt);
+		kmem_cache_free(pkt_cache, pkt);
 }

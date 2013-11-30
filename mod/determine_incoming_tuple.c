@@ -9,6 +9,11 @@
 #include <linux/icmpv6.h>
 
 
+/*
+ * Sorry, I think that commenting every one of these functions would be extremely redundant.
+ * Just jump to determine_in_tuple() to figure out what's going on.
+ */
+
 static verdict ipv4_udp(struct iphdr *hdr_ipv4, struct udphdr *hdr_udp, struct tuple *tuple)
 {
 	tuple->src.addr.ipv4.s_addr = hdr_ipv4->saddr;
@@ -42,6 +47,10 @@ static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, 
 	return VER_CONTINUE;
 }
 
+/**
+ * Assumes that hdr_ipv4 is part of a packet, and returns a pointer to the chunk of data after it.
+ * Skips IPv4 options if any.
+ */
 static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
 {
 	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
@@ -117,7 +126,8 @@ static verdict ipv6_tcp(struct ipv6hdr *hdr_ipv6, struct tcphdr *hdr_tcp, struct
 	return VER_CONTINUE;
 }
 
-static verdict ipv6_icmp_info(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, struct tuple *tuple)
+static verdict ipv6_icmp_info(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp,
+		struct tuple *tuple)
 {
 	tuple->src.addr.ipv6 = hdr_ipv6->saddr;
 	tuple->src.l4_id = be16_to_cpu(hdr_icmp->icmp6_dataun.u_echo.identifier);
@@ -128,7 +138,8 @@ static verdict ipv6_icmp_info(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icm
 	return VER_CONTINUE;
 }
 
-static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp, struct tuple *tuple)
+static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp,
+		struct tuple *tuple)
 {
 	struct ipv6hdr *inner_ipv6 = (struct ipv6hdr *) (hdr_icmp + 1);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ipv6);

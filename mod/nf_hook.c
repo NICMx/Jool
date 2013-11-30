@@ -1,4 +1,5 @@
 #include "nat64/comm/nat64.h"
+#include "nat64/comm/constants.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool4.h"
@@ -72,6 +73,7 @@ static void deinit(void)
 	pool6_destroy();
 	fragdb_destroy();
 	config_destroy();
+	pktmod_destroy();
 }
 
 static struct nf_hook_ops nfho[] = {
@@ -96,6 +98,9 @@ int __init nat64_init(void)
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
 
+	error = pktmod_init();
+	if (error)
+		goto failure;
 	error = config_init();
 	if (error)
 		goto failure;

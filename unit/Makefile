@@ -151,14 +151,14 @@ $(SEND)-objs += ../mod/send_packet.o
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
-	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052) 
+	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
 	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
+	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
+	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
+	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
 	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
 	-sudo insmod $(BIB_SESSION).ko && sudo rmmod $(BIB_SESSION)
-	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
-	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
-	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
 	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)

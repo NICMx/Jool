@@ -37,7 +37,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
 		goto fail;
 
-	if (is_hairpin(&tuple_out))
+	if (is_hairpin(&pkt_out))
 		handling_hairpinning(&pkt_out, &tuple_out);
 	else
 		send_pkt(&pkt_out);

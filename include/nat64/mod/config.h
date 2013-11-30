@@ -9,8 +9,6 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include <linux/types.h>
-
 
 /**
  * Initializes this module. Sets default values for the entire configuration.

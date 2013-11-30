@@ -585,6 +585,7 @@ static noinline bool init_tcp_session(
 	return true;
 }
 
+/*
 #define IPV6_INIT_SESSION_ENTRY_SRC_ADDR "2001:db8:c0ca:1::1"
 #define IPV6_INIT_SESSION_ENTRY_SRC_PORT 1080
 #define IPV6_INIT_SESSION_ENTRY_DST_ADDR "64:ff9b::192.168.2.44"
@@ -609,14 +610,14 @@ static noinline bool init_session_entry(l4_protocol l4_proto, struct session_ent
 	if (!str_to_addr4_verbose(IPV4_INIT_SESSION_ENTRY_DST_ADDR, &dst4))
 		return false;
 
-	se->ipv6.remote.address = src6; /* X' */
-	se->ipv6.remote.l4_id = IPV6_INIT_SESSION_ENTRY_SRC_PORT; /* x */
-	se->ipv6.local.address = dst6; /* Y' */
-	se->ipv6.local.l4_id = IPV6_INIT_SESSION_ENTRY_DST_PORT; /* y */
-	se->ipv4.local.address = src4; /* (T, t) */
-	se->ipv4.local.l4_id = IPV4_INIT_SESSION_ENTRY_SRC_PORT; /* (T, t) */
-	se->ipv4.remote.address = dst4; /* (Z, z) or (Z(Y’),y) */
-	se->ipv4.remote.l4_id = IPV4_INIT_SESSION_ENTRY_DST_PORT; /* (Z, z) or (Z(Y’),y) */
+	se->ipv6.remote.address = src6; // X'
+	se->ipv6.remote.l4_id = IPV6_INIT_SESSION_ENTRY_SRC_PORT; // x
+	se->ipv6.local.address = dst6; // Y'
+	se->ipv6.local.l4_id = IPV6_INIT_SESSION_ENTRY_DST_PORT; // y
+	se->ipv4.local.address = src4; // (T, t)
+	se->ipv4.local.l4_id = IPV4_INIT_SESSION_ENTRY_SRC_PORT; // (T, t)
+	se->ipv4.remote.address = dst4; // (Z, z) or (Z(Y’),y)
+	se->ipv4.remote.l4_id = IPV4_INIT_SESSION_ENTRY_DST_PORT; // (Z, z) or (Z(Y’),y)
 
 	se->dying_time = 0;
 	se->bib = NULL;
@@ -627,10 +628,12 @@ static noinline bool init_session_entry(l4_protocol l4_proto, struct session_ent
 
 	return true;
 }
+*/
 
 /**
  * BTW: This test doesn't assert the packet is actually sent.
  */
+/*
 static noinline bool test_send_probe_packet(void)
 {
 	struct session_entry se;
@@ -644,6 +647,7 @@ static noinline bool test_send_probe_packet(void)
 
 	return success;
 }
+*/
 
 static noinline bool test_tcp_closed_state_handle_6(void)
 {
@@ -1185,6 +1189,9 @@ static noinline bool init_full(void)
 {
 	int error;
 
+	error = pktmod_init();
+	if (error)
+		goto fail;
 	error = pool6_init(NULL, 0);
 	if (error)
 		goto fail;
@@ -1209,8 +1216,12 @@ fail:
 
 static noinline bool init_filtering_only(void)
 {
-	int error = filtering_init();
-	return error ? false : true;
+	if (is_error(pktmod_init()))
+		return false;
+	if (is_error(filtering_init()))
+		return false;
+
+	return true;
 }
 
 static void end_full(void)
@@ -1220,11 +1231,13 @@ static void end_full(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
+	pktmod_destroy();
 }
 
 static void end_filtering_only(void)
 {
 	filtering_destroy();
+	pktmod_destroy();
 }
 
 #define TEST_FILTERING_ONLY(fn, name) \
@@ -1247,7 +1260,7 @@ static int __init filtering_test_init(void)
 	INIT_CALL_END(init_full(), test_icmp(), end_full(), "ICMP");
 
 	/* TCP */
-	CALL_TEST(test_send_probe_packet(), "test_send_probe_packet");
+	/* CALL_TEST(test_send_probe_packet(), "test_send_probe_packet"); */
 	INIT_CALL_END(init_full(), test_tcp_closed_state_handle_6(), end_full(), "TCP-CLOSED-6");
 	/* Not implemented yet! */
 	/* INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "TCP-CLOSED-4"); */

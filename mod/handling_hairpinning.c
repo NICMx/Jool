@@ -6,11 +6,31 @@
 #include "nat64/mod/send_packet.h"
 
 
-bool is_hairpin(struct tuple *outgoing)
+/**
+ * Checks whether "pkt" is a hairpin packet.
+ *
+ * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
+ * @return whether pkt is a hairpin packet.
+ */
+bool is_hairpin(struct packet *pkt)
 {
-	return (outgoing->l3_proto == L3PROTO_IPV4) && pool4_contains(&outgoing->dst.addr.ipv4);
+	struct in_addr addr;
+
+	if (pkt_get_l3proto(pkt) != L3PROTO_IPV4)
+		return false;
+
+	pkt_get_ipv4_dst_addr(pkt, &addr);
+	return pool4_contains(&addr);
 }
 
+/**
+ * Mirrors the core's behavior by processing pkt_in as if it was the incoming packet.
+ *
+ * @param pkt_in the outgoing packet. Except because it's a hairpin, here it's treated as if it was
+ *		the one received from the network.
+ * @param tuple_in pkt_in's tuple.
+ * @return whether we managed to U-turn the packet successfully.
+ */
 verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 {
 	struct packet pkt_out;

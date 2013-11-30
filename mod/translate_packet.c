@@ -291,9 +291,16 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
 }
 
 /**
+ * Fragments "frag" until all the pieces are at most "min_ipv6_mtu" bytes long.
+ * "min_ipv6_mtu" comes from the user's configuration.
+ * The resulting smaller fragments are appended to frag's list (frag->next).
+ *
  * Assumes frag has a fragment header.
  * Also assumes the following fields from frag->skb are properly set: network_header, head, data
  * and tail.
+ *
+ * Sorry, this function is probably our most convoluted one, but everything in it is too
+ * inter-related so I don't know how to fix it without creating thousand-argument functions.
  */
 static verdict divide(struct fragment *frag, struct list_head *list)
 {
@@ -309,6 +316,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 
 	__u16 min_ipv6_mtu;
 
+	/* Prepare the helper values. */
 	spin_lock_bh(&config_lock);
 	min_ipv6_mtu = config.min_ipv6_mtu;
 	spin_unlock_bh(&config_lock);
@@ -327,6 +335,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu & 0xFFF8, original_fragment_offset, true);
 	list_add(&frag->next, list->prev);
 
+	/* Copy frag's overweight to newly-created fragments.  */
 	current_p = skb_network_header(frag->skb) + (min_ipv6_mtu & 0xFFF8);
 	while (current_p < skb_tail_pointer(frag->skb)) {
 		bool is_last = (skb_tail_pointer(frag->skb) - current_p <= payload_max_size);
@@ -353,8 +362,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 				is_last ? original_mf : true);
 		memcpy(skb_network_header(new_skb) + headers_size, current_p, actual_payload_size);
 
-		new_fragment = kmalloc(sizeof(*new_fragment), GFP_ATOMIC);
-		if (!new_fragment) {
+		if (is_error(frag_create_empty(&new_fragment))) {
 			kfree_skb(new_skb);
 			return VER_DROP;
 		}
@@ -378,6 +386,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		current_p += actual_payload_size;
 	}
 
+	/* Finally truncate frag and we're done. */
 	skb_put(frag->skb, -(frag->skb->len - min_ipv6_mtu));
 	frag->payload.len = min_ipv6_mtu - frag->l3_hdr.len - frag->l4_hdr.len;
 

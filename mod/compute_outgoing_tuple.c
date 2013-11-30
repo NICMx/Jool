@@ -4,6 +4,9 @@
 #include "nat64/mod/bib.h"
 
 
+/**
+ * Section 3.6.1 of RFC 6146.
+ */
 static verdict tuple5(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
@@ -52,6 +55,9 @@ lock_fail:
 	return VER_DROP;
 }
 
+/**
+ * Section 3.6.2 of RFC 6146.
+ */
 static verdict tuple3(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
@@ -100,12 +106,15 @@ lock_fail:
 	return VER_DROP;
 }
 
+/**
+ * Section 3.6 of RFC 6146.
+ */
 verdict compute_out_tuple(struct tuple *in, struct tuple *out)
 {
 	verdict result;
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	result = is_3_tuple(in) ? tuple3(in, out) : tuple5(in, out);
+	result = is_5_tuple(in) ? tuple5(in, out) : tuple3(in, out);
 
 	log_debug("Done step 3.");
 	return result;

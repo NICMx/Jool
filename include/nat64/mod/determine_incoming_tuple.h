@@ -11,7 +11,6 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include <linux/skbuff.h>
 #include "nat64/comm/types.h"
 #include "nat64/mod/packet.h"
 

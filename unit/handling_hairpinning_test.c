@@ -350,6 +350,7 @@ static void deinit(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
+	pktmod_destroy();
 }
 
 static int init(void)
@@ -358,6 +359,9 @@ static int init(void)
 	char *pool4[] = { NAT64_IPV4_ADDR };
 	int error;
 
+	error = pktmod_init();
+	if (error)
+		goto failure;
 	error = pool6_init(pool6, ARRAY_SIZE(pool6));
 	if (error)
 		goto failure;

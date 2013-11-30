@@ -71,8 +71,13 @@ int init_module(void)
 {
 	START_TESTS("Determine incoming tuple");
 
+	if (is_error(pktmod_init()))
+		return -EINVAL;
+
 	CALL_TEST(test_determine_in_tuple_ipv4(), "3 fragments IPv4 packet.");
 	CALL_TEST(test_determine_in_tuple_ipv6(), "3 fragments IPv6 packet.");
+
+	pktmod_destroy();
 
 	END_TESTS;
 }

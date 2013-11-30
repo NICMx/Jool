@@ -940,7 +940,12 @@ int init_module(void)
 {
 	START_TESTS("Fragment database");
 
-	fragdb_init();
+	if (is_error(pktmod_init()))
+		return -EINVAL;
+	if (is_error(fragdb_init())) {
+		pktmod_destroy();
+		return -EINVAL;
+	}
 
 	CALL_TEST(test_no_fragments_4(), "Unfragmented IPv4 packet arrives");
 	CALL_TEST(test_no_fragments_6(), "Unfragmented IPv6 packet arrives");
@@ -953,6 +958,7 @@ int init_module(void)
 	CALL_TEST(test_timer(), "Timer test.");
 
 	fragdb_destroy();
+	pktmod_destroy();
 
 	END_TESTS;
 }
