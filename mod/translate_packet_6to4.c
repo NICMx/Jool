@@ -552,7 +552,6 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 		csum = csum_sub(csum, in_ip6->daddr.s6_addr16[i]);
 	csum = csum_sub(csum, in_src_port);
 	csum = csum_sub(csum, in_dst_port);
-	csum = csum_sub(csum, cpu_to_be16(in_ip6->nexthdr));
 
 	/* Add the IPv4 crap */
 	addr4.as32 = out_ip4->saddr;
@@ -563,7 +562,8 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 		csum = csum_add(csum, addr4.as16[i]);
 	csum = csum_add(csum, out_src_port);
 	csum = csum_add(csum, out_dst_port);
-	csum = csum_add(csum, cpu_to_be16(out_ip4->protocol));
+
+	/* "Next Header" and "length" remain equal. */
 
 	return csum_fold(csum);
 }
