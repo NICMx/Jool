@@ -318,7 +318,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 
 	/* Prepare the helper values. */
 	spin_lock_bh(&config_lock);
-	min_ipv6_mtu = config.min_ipv6_mtu;
+	min_ipv6_mtu = config.min_ipv6_mtu & 0xFFF8;
 	spin_unlock_bh(&config_lock);
 
 	headers_size = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
@@ -332,11 +332,11 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		original_mf = is_more_fragments_set_ipv6(frag_header);
 	}
 
-	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu & 0xFFF8, original_fragment_offset, true);
+	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
 	list_add(&frag->next, list->prev);
 
 	/* Copy frag's overweight to newly-created fragments.  */
-	current_p = skb_network_header(frag->skb) + (min_ipv6_mtu & 0xFFF8);
+	current_p = skb_network_header(frag->skb) + min_ipv6_mtu;
 	while (current_p < skb_tail_pointer(frag->skb)) {
 		bool is_last = (skb_tail_pointer(frag->skb) - current_p <= payload_max_size);
 		u16 actual_payload_size = is_last
@@ -452,10 +452,14 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	return VER_CONTINUE;
 }
 
+/**
+ * Because of simplifications, "in_inner"'s list hook is expected to not chain it to any lists.
+ */
 verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 		struct fragment *out_outer)
 {
-	struct packet dummy_pkt_in, dummy_pkt_out;
+	struct packet *dummy_pkt_in = NULL;
+	struct packet *dummy_pkt_out = NULL;
 	struct fragment *out_inner = NULL;
 	struct translation_steps *step;
 	verdict result = VER_DROP;
@@ -467,9 +471,11 @@ verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 	if (result != VER_CONTINUE)
 		return result;
 
-	pkt_init(&dummy_pkt_in, in_inner);
-	pkt_init(&dummy_pkt_out, out_inner);
-	result = step->l4_post_function(tuple, &dummy_pkt_in, &dummy_pkt_out);
+	if (is_error(pkt_create(in_inner, &dummy_pkt_in)))
+		goto end;
+	if (is_error(pkt_create(out_inner, &dummy_pkt_out)))
+		goto end;
+	result = step->l4_post_function(tuple, dummy_pkt_in, dummy_pkt_out);
 	if (result != VER_CONTINUE)
 		goto end;
 
@@ -485,7 +491,21 @@ verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 	/* Fall through. */
 
 end:
-	frag_kfree(out_inner);
+	if (dummy_pkt_out)
+		pkt_kfree(dummy_pkt_out);
+	else
+		frag_kfree(out_inner);
+
+	if (dummy_pkt_in) {
+		/*
+		 * Because we want memory allocations to be as symmetric as possible, the fragment has to
+		 * be freed outside. So destroy everything but the fragment.
+		 */
+		list_del(&in_inner->next);
+		INIT_LIST_HEAD(&in_inner->next); /* Unpoison. */
+		pkt_kfree(dummy_pkt_in);
+	}
+
 	return result;
 }
 
@@ -550,30 +570,32 @@ static verdict post_process(struct tuple *tuple, struct packet *in, struct packe
 	return VER_CONTINUE;
 }
 
-/**
- * Assumes that out is already allocated.
- */
-verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out)
+verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet **out)
 {
 	struct fragment *current_in;
 	verdict result;
 
 	log_debug("Step 4: Translating the Packet");
 
-	INIT_LIST_HEAD(&out->fragments);
-	out->first_fragment = NULL;
+	if (is_error(pkt_alloc(out)))
+		return VER_DROP;
 
 	list_for_each_entry(current_in, &in->fragments, next) {
-		result = translate_fragment(current_in, tuple, out);
+		result = translate_fragment(current_in, tuple, *out);
 		if (result != VER_CONTINUE)
-			return result;
+			goto fail;
 	}
 
-	result = post_process(tuple, in, out);
+	result = post_process(tuple, in, *out);
 	if (result != VER_CONTINUE)
-		return result;
+		goto fail;
 
 	log_debug("Done step 4.");
 
 	return VER_CONTINUE;
+
+fail:
+	pkt_kfree(*out);
+	*out = NULL;
+	return result;
 }

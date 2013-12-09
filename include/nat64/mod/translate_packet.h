@@ -65,7 +65,7 @@ void translate_packet_destroy(void);
 int clone_translate_config(struct translate_config *clone);
 int set_translate_config(__u32 operation, struct translate_config *new_config);
 
-verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet *out);
+verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct packet **out);
 
 verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 		struct fragment *out_outer);

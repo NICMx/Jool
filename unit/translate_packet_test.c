@@ -181,21 +181,21 @@ static bool test_post_tcp_csum_6to4(void)
 	success &= assert_equals_int(VER_CONTINUE, post_tcp_ipv4(&tuple, pkt_in, pkt_out), "result");
 	success &= assert_equals_csum(expected_csum, hdr_tcp->check, "Checksum");
 
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(pkt_out, true);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 
 	return success;
 
 error:
 	if (pkt_in)
-		pkt_kfree(pkt_in, true);
+		pkt_kfree(pkt_in);
 	else if (frag_in)
 		frag_kfree(frag_in);
 	else
 		kfree_skb(skb_in);
 
 	if (pkt_out)
-		pkt_kfree(pkt_out, true);
+		pkt_kfree(pkt_out);
 	else if (frag_out)
 		frag_kfree(frag_out);
 	else
@@ -247,8 +247,8 @@ static bool test_post_udp_csum_6to4(void)
 	success &= assert_equals_int(VER_CONTINUE, post_udp_ipv4(&tuple, pkt_in, pkt_out), "result");
 	success &= assert_equals_csum(expected_csum, hdr_udp->check, "Checksum");
 
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(pkt_out, true);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 
 	return success;
 
@@ -774,16 +774,17 @@ static bool validate_pkt_ipv6_udp(struct packet *pkt, struct tuple *tuple)
 
 static bool test_simple_4to6_udp(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv6(&tuple, L4PROTO_UDP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv4(100, create_skb_ipv4_udp);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -791,17 +792,17 @@ static bool test_simple_4to6_udp(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv6_udp(&pkt_out, &tuple))
+	if (!validate_pkt_ipv6_udp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -836,16 +837,17 @@ static bool validate_pkt_ipv6_tcp(struct packet *pkt, struct tuple *tuple)
 
 static bool test_simple_4to6_tcp(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv6(&tuple, L4PROTO_TCP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv4(100, create_skb_ipv4_tcp);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -853,17 +855,17 @@ static bool test_simple_4to6_tcp(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv6_tcp(&pkt_out, &tuple))
+	if (!validate_pkt_ipv6_tcp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -898,16 +900,17 @@ static bool validate_pkt_ipv6_icmp_info(struct packet *pkt, struct tuple *tuple)
 
 static bool test_simple_4to6_icmp_info(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv6(&tuple, L4PROTO_ICMP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv4(100, create_skb_ipv4_icmp_info);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -915,17 +918,17 @@ static bool test_simple_4to6_icmp_info(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv6_icmp_info(&pkt_out, &tuple))
+	if (!validate_pkt_ipv6_icmp_info(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -961,16 +964,17 @@ static bool validate_pkt_ipv6_icmp_error(struct packet *pkt, struct tuple *tuple
 
 static bool test_simple_4to6_icmp_error(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv6(&tuple, L4PROTO_ICMP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv4(100, create_skb_ipv4_icmp_error);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -978,17 +982,17 @@ static bool test_simple_4to6_icmp_error(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv6_icmp_error(&pkt_out, &tuple))
+	if (!validate_pkt_ipv6_icmp_error(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1024,16 +1028,17 @@ static bool validate_pkt_ipv4_udp(struct packet *pkt, struct tuple *tuple)
 
 static bool test_simple_6to4_udp(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv4(&tuple, L4PROTO_UDP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv6(100, create_skb_ipv6_udp);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -1041,17 +1046,17 @@ static bool test_simple_6to4_udp(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv4_udp(&pkt_out, &tuple))
+	if (!validate_pkt_ipv4_udp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1087,16 +1092,17 @@ static bool validate_pkt_ipv4_tcp(struct packet *pkt, struct tuple *tuple)
 
 static bool test_simple_6to4_tcp(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv4(&tuple, L4PROTO_TCP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv6(100, create_skb_ipv6_tcp);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -1104,17 +1110,17 @@ static bool test_simple_6to4_tcp(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv4_tcp(&pkt_out, &tuple))
+	if (!validate_pkt_ipv4_tcp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1150,16 +1156,17 @@ static bool validate_pkt_ipv4_icmp_info(struct packet *pkt, struct tuple *tuple)
 
 static bool test_simple_6to4_icmp_info(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv4(&tuple, L4PROTO_ICMP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv6(100, create_skb_ipv6_icmp_info);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -1167,17 +1174,17 @@ static bool test_simple_6to4_icmp_info(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv4_icmp_info(&pkt_out, &tuple))
+	if (!validate_pkt_ipv4_icmp_info(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1214,16 +1221,17 @@ static bool validate_pkt_ipv4_icmp_error(struct packet *pkt, struct tuple *tuple
 
 static bool test_simple_6to4_icmp_error(void)
 {
-	struct packet *pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 
 	/* Init */
 	if (!create_tuple_ipv4(&tuple, L4PROTO_ICMP))
-		return false;
+		goto fail;
 	pkt_in = create_pkt_ipv6(100, create_skb_ipv6_icmp_error);
 	if (!pkt_in)
-		return false;
+		goto fail;
 
 	/* Call the function */
 	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
@@ -1231,17 +1239,17 @@ static bool test_simple_6to4_icmp_error(void)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_ipv4_icmp_error(&pkt_out, &tuple))
+	if (!validate_pkt_ipv4_icmp_error(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(pkt_in, true);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1321,13 +1329,13 @@ static bool validate_pkt_multiple_4to6_udp(struct packet *pkt, struct tuple *tup
 
 static bool test_multiple_4to6_udp(void)
 {
-	struct packet pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
 
 	/* Init */
-	INIT_LIST_HEAD(&pkt_in.fragments);
 	if (!create_tuple_ipv6(&tuple, L4PROTO_UDP))
 		return false;
 
@@ -1338,30 +1346,31 @@ static bool test_multiple_4to6_udp(void)
 	frag = create_fragment_ipv4(2000, create_skb_ipv4_udp, false, true, 0);
 	if (!frag)
 		goto fail;
-	pkt_init(&pkt_in, frag);
+	if (is_error(pkt_create(frag, &pkt_in)))
+		goto fail;
 
 	frag = create_fragment_ipv4(8, create_skb_ipv4_udp_fragment, false, false, 2008);
 	if (!frag)
 		goto fail;
-	pkt_add_frag(&pkt_in, frag);
+	pkt_add_frag(pkt_in, frag);
 
 	/* Call the function */
-	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_multiple_4to6_udp(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_4to6_udp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1435,13 +1444,13 @@ static bool validate_pkt_multiple_4to6_tcp(struct packet *pkt, struct tuple *tup
 
 static bool test_multiple_4to6_tcp(void)
 {
-	struct packet pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
 
 	/* Init */
-	INIT_LIST_HEAD(&pkt_in.fragments);
 	if (!create_tuple_ipv6(&tuple, L4PROTO_TCP))
 		return false;
 
@@ -1452,30 +1461,31 @@ static bool test_multiple_4to6_tcp(void)
 	frag = create_fragment_ipv4(2500, create_skb_ipv4_tcp_fragment, false, false, 3016);
 	if (!frag)
 		goto fail;
-	pkt_init(&pkt_in, frag);
+	if (is_error(pkt_create(frag, &pkt_in)))
+		goto fail;
 
 	frag = create_fragment_ipv4(2996, create_skb_ipv4_tcp, false, true, 0);
 	if (!frag)
 		goto fail;
-	pkt_add_frag(&pkt_in, frag);
+	pkt_add_frag(pkt_in, frag);
 
 	/* Call the function */
-	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_multiple_4to6_tcp(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_4to6_tcp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1535,13 +1545,13 @@ static bool validate_pkt_multiple_4to6_icmp_info(struct packet *pkt, struct tupl
 
 static bool test_multiple_4to6_icmp_info(void)
 {
-	struct packet pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
 
 	/* Init */
-	INIT_LIST_HEAD(&pkt_in.fragments);
 	if (!create_tuple_ipv6(&tuple, L4PROTO_ICMP))
 		return false;
 
@@ -1552,25 +1562,26 @@ static bool test_multiple_4to6_icmp_info(void)
 	frag = create_fragment_ipv4(2000, create_skb_ipv4_icmp_info, false, false, 0);
 	if (!frag)
 		goto fail;
-	pkt_init(&pkt_in, frag);
+	if (is_error(pkt_create(frag, &pkt_in)))
+		goto fail;
 
 	/* Call the function */
-	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_multiple_4to6_icmp_info(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_4to6_icmp_info(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1629,43 +1640,44 @@ static bool validate_pkt_multiple_6to4_udp(struct packet *pkt, struct tuple *tup
 
 static bool test_multiple_6to4_udp(void)
 {
-	struct packet pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
 
 	/* Init */
-	INIT_LIST_HEAD(&pkt_in.fragments);
 	if (!create_tuple_ipv4(&tuple, L4PROTO_UDP))
 		return false;
 
 	frag = create_fragment_ipv6(8, create_skb_ipv6_udp_fragment_1, true, 0);
 	if (!frag)
 		goto fail;
-	pkt_init(&pkt_in, frag);
+	if (is_error(pkt_create(frag, &pkt_in)))
+		goto fail;
 
 	frag = create_fragment_ipv6(8, create_skb_ipv6_udp_fragment_n, false, 16);
 	if (!frag)
 		goto fail;
-	pkt_add_frag(&pkt_in, frag);
+	pkt_add_frag(pkt_in, frag);
 
 	/* Call the function */
-	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_multiple_6to4_udp(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_6to4_udp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1724,43 +1736,44 @@ static bool validate_pkt_multiple_6to4_tcp(struct packet *pkt, struct tuple *tup
 
 static bool test_multiple_6to4_tcp(void)
 {
-	struct packet pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
 
 	/* Init */
-	INIT_LIST_HEAD(&pkt_in.fragments);
 	if (!create_tuple_ipv4(&tuple, L4PROTO_TCP))
 		return false;
 
 	frag = create_fragment_ipv6(8, create_skb_ipv6_tcp_fragment_1, true, 0);
 	if (!frag)
 		goto fail;
-	pkt_init(&pkt_in, frag);
+	if (is_error(pkt_create(frag, &pkt_in)))
+		goto fail;
 
 	frag = create_fragment_ipv6(8, create_skb_ipv6_tcp_fragment_n, false, 16);
 	if (!frag)
 		goto fail;
-	pkt_add_frag(&pkt_in, frag);
+	pkt_add_frag(pkt_in, frag);
 
 	/* Call the function */
-	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_multiple_6to4_tcp(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_6to4_tcp(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 
@@ -1819,43 +1832,44 @@ static bool validate_pkt_multiple_6to4_icmp_info(struct packet *pkt, struct tupl
 
 static bool test_multiple_6to4_icmp_info(void)
 {
-	struct packet pkt_in, pkt_out;
+	struct packet *pkt_in = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple;
 	enum verdict result;
 	struct fragment *frag;
 
 	/* Init */
-	INIT_LIST_HEAD(&pkt_in.fragments);
 	if (!create_tuple_ipv4(&tuple, L4PROTO_ICMP))
 		return false;
 
 	frag = create_fragment_ipv6(8, create_skb_ipv6_icmp_info_fragment_1, true, 0);
 	if (!frag)
 		goto fail;
-	pkt_init(&pkt_in, frag);
+	if (is_error(pkt_create(frag, &pkt_in)))
+		goto fail;
 
 	frag = create_fragment_ipv6(8, create_skb_ipv6_icmp_info_fragment_n, false, 16);
 	if (!frag)
 		goto fail;
-	pkt_add_frag(&pkt_in, frag);
+	pkt_add_frag(pkt_in, frag);
 
 	/* Call the function */
-	result = translating_the_packet(&tuple, &pkt_in, &pkt_out);
+	result = translating_the_packet(&tuple, pkt_in, &pkt_out);
 	if (result != VER_CONTINUE)
 		goto fail;
 
 	/* Validate */
-	if (!validate_pkt_multiple_6to4_icmp_info(&pkt_out, &tuple))
+	if (!validate_pkt_multiple_6to4_icmp_info(pkt_out, &tuple))
 		goto fail;
 
 	/* Yaaaaaaaaay */
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return true;
 
 fail:
-	pkt_kfree(&pkt_in, false);
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_in);
+	pkt_kfree(pkt_out);
 	return false;
 }
 

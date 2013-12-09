@@ -296,18 +296,22 @@ struct packet {
 };
 
 /**
- * Allocates and initializes packet "pkt_out" out of "frag"'s contents.
- * Includes "frag" in its list.
+ * Allocates a struct packet in the heap and makes "pkt_out" point to it.
+ * Though initialized to default values, the resulting packet is fairly invalid since it contains
+ * no fragments. Because of that, maybe you want to use pkt_create() instead.
+ */
+int pkt_alloc(struct packet **pkt_out);
+/**
+ * Allocates a struct packet in the heap, initializes it using "frag", and makes "pkt_out" point to
+ * it.
  */
 int pkt_create(struct fragment *frag, struct packet **pkt_out);
-
-void pkt_init(struct packet *pkt, struct fragment *frag);
 /** Adds "frag" to "pkt". Has the added comfort of updating "pkt".first_fragment if applies. */
 void pkt_add_frag(struct packet *pkt, struct fragment *frag);
 int pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len);
 int pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len);
-/** Frees "pkt"'s contents. If "free_pkt" is true, frees "pkt" as well. */
-void pkt_kfree(struct packet *pkt, bool free_pkt);
+/** Frees "pkt" and its contents. */
+void pkt_kfree(struct packet *pkt);
 
 /** Getter for "pkt"'s network protocol. */
 static inline l3_protocol pkt_get_l3proto(struct packet *pkt)

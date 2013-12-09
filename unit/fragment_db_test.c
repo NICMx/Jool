@@ -183,7 +183,7 @@ static bool test_no_fragments_6(void)
 	success &= validate_fragment(pkt->first_fragment, skb, true, false, 10);
 	success &= validate_database(0);
 
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return success;
 }
 
@@ -216,7 +216,7 @@ static bool test_no_fragments_4(void)
 	success &= validate_fragment(pkt->first_fragment, skb, true, false, 20);
 	success &= validate_database(0);
 
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return success;
 }
 
@@ -272,7 +272,7 @@ static bool test_ordered_fragments_4(void)
 	frag = container_of(frag->next.next, struct fragment, next);
 	success &= validate_fragment(frag, skb3, false, false, 192);
 
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return success;
 }
 
@@ -328,7 +328,7 @@ static bool test_ordered_fragments_6(void)
 	frag = container_of(frag->next.next, struct fragment, next);
 	success &= validate_fragment(frag, skb3, false, true, 192);
 
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return success;
 }
 
@@ -453,7 +453,7 @@ static bool test_disordered_fragments_4(void)
 	frag = container_of(frag->next.next, struct fragment, next);
 	success &= validate_fragment(frag, skb4, false, false, 16);
 
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return success;
 }
 
@@ -600,7 +600,7 @@ static bool test_disordered_fragments_6(void)
 	frag = container_of(frag->next.next, struct fragment, next);
 	success &= validate_fragment(frag, skb6, true, true, 0);
 
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return success;
 }
 
@@ -641,7 +641,7 @@ static bool throw_three_ipv4_udp_fragments(__sum16 original_csum, __sum16 *resul
 		return false;
 
 	*result_csum = hdr_udp->check;
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return true;
 }
 
@@ -704,7 +704,7 @@ static bool throw_three_ipv6_udp_fragments(__sum16 original_csum, __sum16 *resul
 		return false;
 
 	*result_csum = hdr_udp->check;
-	pkt_kfree(pkt, true);
+	pkt_kfree(pkt);
 	return true;
 }
 

@@ -505,6 +505,9 @@ bool frag_is_fragmented(struct fragment *frag)
 
 void frag_kfree(struct fragment *frag)
 {
+	if (!frag)
+		return;
+
 	if (frag->skb)
 		kfree_skb(frag->skb);
 	if (frag->l3_hdr.ptr_needs_kfree)
@@ -644,27 +647,32 @@ void frag_print(struct fragment *frag)
 	log_info("Payload - length:%u kfree:%d", frag->payload.len, frag->payload.ptr_needs_kfree);
 }
 
-int pkt_create(struct fragment *frag, struct packet **pkt_out)
+int pkt_alloc(struct packet **pkt_out)
 {
 	struct packet *pkt;
 
 	pkt = kmem_cache_alloc(pkt_cache, GFP_ATOMIC);
-	if (!pkt) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate a packet.");
+	if (!pkt)
 		return -ENOMEM;
-	}
 
-	pkt_init(pkt, frag);
+	INIT_LIST_HEAD(&pkt->fragments);
+	pkt->first_fragment = NULL;
 
 	*pkt_out = pkt;
 	return 0;
 }
 
-void pkt_init(struct packet *pkt, struct fragment *frag)
+int pkt_create(struct fragment *frag, struct packet **pkt_out)
 {
-	INIT_LIST_HEAD(&pkt->fragments);
-	pkt->first_fragment = NULL;
-	pkt_add_frag(pkt, frag);
+	int error;
+
+	error = pkt_alloc(pkt_out);
+	if (error)
+		return error;
+
+	pkt_add_frag(*pkt_out, frag);
+
+	return 0;
 }
 
 void pkt_add_frag(struct packet *pkt, struct fragment *frag)
@@ -732,7 +740,7 @@ int pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len)
 	return 0;
 }
 
-void pkt_kfree(struct packet *pkt, bool free_pkt)
+void pkt_kfree(struct packet *pkt)
 {
 	struct fragment *frag;
 
@@ -744,6 +752,5 @@ void pkt_kfree(struct packet *pkt, bool free_pkt)
 		frag_kfree(frag);
 	}
 
-	if (free_pkt)
-		kmem_cache_free(pkt_cache, pkt);
+	kmem_cache_free(pkt_cache, pkt);
 }

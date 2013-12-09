@@ -287,7 +287,7 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 		kmem_cache_free(hole_cache, hole);
 	}
 	if (free_pkt)
-		pkt_kfree(buffer->pkt, true);
+		pkt_kfree(buffer->pkt);
 	kmem_cache_free(buffer_cache, buffer);
 }
 
@@ -686,7 +686,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 			return VER_STOLEN;
 		}
 		if (is_error(l4_post(*result))) {
-			pkt_kfree(*result, true);
+			pkt_kfree(*result);
 			return VER_STOLEN;
 		}
 		return VER_CONTINUE;
@@ -779,7 +779,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		spin_unlock_bh(&table_lock);
 
 		if (is_error(l4_post(*result))) { /* omg fml =_= */
-			pkt_kfree(*result, true);
+			pkt_kfree(*result);
 			return VER_STOLEN;
 		}
 

@@ -431,16 +431,21 @@ static void receive_from_userspace(struct sk_buff *skb)
 
 int config_init(void)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
+	/*
+	 * The function changed in commit a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337)
+	 * an then again in 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
+	 *
+	 * TODO (warning) confirm this is correct using http://lxr.linux.no.
+	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
+	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
 #else
-	struct netlink_kernel_cfg nl_cfg = {
-		.groups = 0,
-		.input  = receive_from_userspace,
-		.cb_mutex = NULL,
-	};
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg); 
+	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
+	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
 #endif
 	
 	if (!nl_socket) {

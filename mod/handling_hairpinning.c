@@ -33,7 +33,7 @@ bool is_hairpin(struct packet *pkt)
  */
 verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 {
-	struct packet pkt_out;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple_out;
 
 	log_debug("Step 5: Handling Hairpinning...");
@@ -49,18 +49,15 @@ verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 	if (compute_out_tuple(tuple_in, &tuple_out) != VER_CONTINUE)
 		goto fail;
 	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
-		goto free_and_fail;
-	if (send_pkt(&pkt_out) != VER_CONTINUE)
-		goto free_and_fail;
+		goto fail;
+	if (send_pkt(pkt_out) != VER_CONTINUE)
+		goto fail;
 
-	pkt_kfree(&pkt_out, false);
+	pkt_kfree(pkt_out);
 	log_debug("Done step 5.");
 	return VER_CONTINUE;
 
-free_and_fail:
-	pkt_kfree(&pkt_out, false);
-	/* Fall through. */
-
 fail:
+	pkt_kfree(pkt_out);
 	return VER_DROP;
 }
