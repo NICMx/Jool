@@ -342,6 +342,11 @@ static void clean_expired_buffers(void)
 	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
 
+	/*
+	 * Warning: Do *not* use buffer->pkt->first_fragment here.
+	 * The fragment whose fragment offset is zero might still be in transit.
+	 */
+
 	log_debug("Deleting expired reassembly buffers...");
 
 	spin_lock_bh(&table_lock);
@@ -355,7 +360,7 @@ static void clean_expired_buffers(void)
 			return;
 		}
 
-		if (!is_error(frag_to_key(buffer->pkt->first_fragment, &key))) {
+		if (!is_error(frag_to_key(pkt_get_first_frag(buffer->pkt), &key))) {
 			buffer_destroy(&key, buffer, true);
 			b++;
 		}

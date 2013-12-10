@@ -88,6 +88,18 @@ static struct nf_hook_ops nfho[] = {
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET,
 		.priority = NF_PRI_NAT64,
+	},
+	{
+		.hook = hook_ipv6,
+		.hooknum = NF_INET_LOCAL_OUT,
+		.pf = PF_INET6,
+		.priority = NF_PRI_NAT64,
+	},
+	{
+		.hook = hook_ipv4,
+		.hooknum = NF_INET_LOCAL_OUT,
+		.pf = PF_INET,
+		.priority = NF_PRI_NAT64,
 	}
 };
 
