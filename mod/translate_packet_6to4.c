@@ -134,6 +134,10 @@ static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct 
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
+	if (ip6_hdr->hop_limit <= 1) {
+		icmp6_send(in->skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT, 0);
+		return VER_DROP;
+	}
 	ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set during post-processing. */
