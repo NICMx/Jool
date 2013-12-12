@@ -5,6 +5,7 @@
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/send_packet.h"
+#include "nat64/mod/pkt_queue.h"
 
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -13,9 +14,6 @@
 #include <linux/icmpv6.h>
 #include <net/tcp.h>
 #include <net/icmp.h>
-
-
-/*Mi primer código OMG!!!*/
 
 
 /** Current valid configuration for the filtering and updating module. */
@@ -27,6 +25,8 @@ static DEFINE_SPINLOCK(config_lock);
  *  @return zero: if initialization ran fine, nonzero: otherwhise. */
 int filtering_init(void)
 {
+	int error;
+
     spin_lock_bh(&config_lock);
     
     config.to.udp = UDP_DEFAULT;
@@ -40,13 +40,17 @@ int filtering_init(void)
 
     spin_unlock_bh(&config_lock);
     
-    return 0;
+    //Initializes the TCP packet list
+    error = pktqueue_init();
+
+    return error;
 } 
 
 /** Esto libera la memoria reservada por filtering_init. 
  *  */
 void filtering_destroy(void)
 {
+	pktqueue_destroy();
     /* No code. */
 } 
 
@@ -1072,6 +1076,7 @@ static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
 	u_int8_t protocol = IPPROTO_TCP;
+	int error;
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
@@ -1122,11 +1127,18 @@ static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 		session_entry_p->state = V4_INIT;
 		update_session_lifetime(session_entry_p, &temp);
 
+		//Adds a packet's reference to the TCP packet list
+		error = pktqueue_add(session_entry_p, skb);
+		if(error){
+			goto failure;
+		}
+
 		/* TODO (later) store the packet.
 		 *          The result is that the NAT64 will not drop the packet based on the filtering,
 		 *          nor create a BIB entry.  Instead, the NAT64 will only create the Session
 		 *          Table Entry and store the packet. The motivation for this is to support
 		 *          simultaneous open of TCP connections. */
+
 
 	} else {
 
