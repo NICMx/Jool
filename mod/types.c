@@ -221,6 +221,10 @@ bool is_icmp6_info(__u8 type)
 
 bool is_icmp6_error(__u8 type)
 {
+	/**
+	 * TODO (error) I think this is wrong...
+	 * see is_icmp4_error() too.
+	 */
 	return !is_icmp6_info(type);
 }
 
@@ -256,74 +260,4 @@ void log_tuple(struct tuple *tuple)
 				&tuple->dst.addr.ipv6, tuple->dst.l4_id);
 		break;
 	}
-}
-
-int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
-		unsigned char *dst_addr, u16 dst_port, l4_protocol l4_proto)
-{
-	int error;
-
-	error = str_to_addr4(src_addr, &tuple->src.addr.ipv4);
-	if (error)
-		return error;
-	tuple->src.l4_id = src_port;
-
-	error = str_to_addr4(dst_addr, &tuple->dst.addr.ipv4);
-	if (error)
-		return error;
-	tuple->dst.l4_id = dst_port;
-
-	tuple->l3_proto = L3PROTO_IPV4;
-	tuple->l4_proto = l4_proto;
-
-	return 0;
-}
-
-int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, u16 src_port,
-		unsigned char *dst_addr, u16 dst_port, l4_protocol l4_proto)
-{
-	int error;
-
-	error = str_to_addr6(src_addr, &tuple->src.addr.ipv6);
-	if (error)
-		return error;
-	tuple->src.l4_id = src_port;
-
-	error = str_to_addr6(dst_addr, &tuple->dst.addr.ipv6);
-	if (error)
-		return error;
-	tuple->dst.l4_id = dst_port;
-
-	tuple->l3_proto = L3PROTO_IPV6;
-	tuple->l4_proto = l4_proto;
-
-	return 0;
-}
-
-int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, l4_protocol l4_proto)
-{
-	tuple->src.addr.ipv4 = pair4->remote.address;
-	tuple->src.l4_id = pair4->remote.l4_id;
-
-	tuple->dst.addr.ipv4 = pair4->local.address;
-	tuple->dst.l4_id = pair4->local.l4_id;
-
-	tuple->l3_proto = L3PROTO_IPV4;
-	tuple->l4_proto = l4_proto;
-
-	return 0;
-}
-
-int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, l4_protocol l4_proto)
-{
-	tuple->src.addr.ipv6 = pair6->remote.address;
-	tuple->src.l4_id = pair6->remote.l4_id;
-
-	tuple->dst.addr.ipv6 = pair6->local.address;
-	tuple->dst.l4_id = pair6->local.l4_id;
-
-	tuple->l3_proto = L3PROTO_IPV6;
-	tuple->l4_proto = l4_proto;
-
-	return 0;
 }

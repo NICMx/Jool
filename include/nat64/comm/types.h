@@ -9,7 +9,7 @@
  *
  * @author Miguel Gonzalez
  * @author Ramiro Nava
- * @author Robert Aceves
+ * @author Roberto Aceves
  * @author Alberto Leiva
  */
 
@@ -48,6 +48,11 @@
 /** "I'm dropping the packet because I detected a programming error." */
 #define log_crit(id, text, ...)	log_error(pr_crit, id, text, ##__VA_ARGS__)
 
+/**
+ * Truth be told, I do not really have any use for these; I wish they would go away.
+ * The error messages that come along during error log entries are much more informative.
+ * So, sorry if I don't feel like documenting them.
+ */
 enum error_code {
 	/* General */
 	ERR_SUCCESS = 0,
@@ -118,43 +123,109 @@ enum error_code {
 	ERR_SEND_FAILED = 4501,
 };
 
+/**
+ * Returns nonzero if "status" is an error, returns zero if "status" represents success.
+ *
+ * This exists because if find stuff like this very baffling:
+ * 		if (function_call()) {
+ * 			log_err("Oh noes error");
+ * 			return error;
+ * 		}
+ *
+ * My common sense dictates that it should be like this:
+ * 		if (!function_call()) {
+ * 			log_err("Oh noes error");
+ * 			return error;
+ * 		}
+ *
+ * Or at least this:
+ * 		if (is_error(function_call())) {
+ * 			log_err("Oh noes error");
+ * 			return error;
+ * 		}
+ */
 static inline bool is_error(int status)
 {
+	/* https://dl.dropboxusercontent.com/u/95836775/Jool/genius.jpg */
 	return status;
 }
 
+/**
+ * An indicator of what a function expects its caller to do with the packet being translated.
+ */
 typedef enum verdict {
-	/** No problems thus far, processing of the packet can continue. */
+	/** "No problems thus far, processing of the packet can continue." */
 	VER_CONTINUE = -1,
-	/** Packet is not meant for translation. Please hand it to the local host. */
+	/** "Packet is not meant for translation. Please hand it to the local host." */
 	VER_ACCEPT = NF_ACCEPT,
-	/** Packet is invalid and should be dropped. */
+	/**
+	 * "Packet is invalid and should be silently dropped."
+	 * (Or "packet is invalid and I already sent a ICMP error, so just kill it".)
+	 */
 	VER_DROP = NF_DROP,
 	/*
-	 * Packet is a fragment, and I need more information to be able to translate it, so I'll keep
-	 * it for a while.
+	 * "Packet is a fragment, and I need more information to be able to translate it, so I'll keep
+	 * it for a while. Do not free, access or modify it."
 	 */
 	VER_STOLEN = NF_STOLEN,
 } verdict;
 
+/**
+ * Network (layer 3) protocols Jool is supposed to support.
+ * We do not use PF_INET, PF_INET6, AF_INET or AF_INET6 because I want the compiler to pester me
+ * during defaultless switch'es. Also, the zero-based index is convenient in the Translate Packet
+ * module.
+ */
 typedef enum l3_protocol {
+	/** RFC 2460. */
 	L3PROTO_IPV6 = 0,
+	/** RFC 791. */
 	L3PROTO_IPV4 = 1,
 #define L3_PROTO_COUNT 2
 } l3_protocol;
 
+/**
+ * Returns a string version of "proto".
+ * For debugging purposes really, but maybe we should use it more often during error messages.
+ */
 char *l3proto_to_string(l3_protocol proto);
 
+/**
+ * Transport (layer 4) protocols Jool is supposed to support.
+ * We do not use IPPROTO_TCP and friends because I want the compiler to pester me during
+ * defaultless switch'es. Also, the zero-based index is convenient in the Translate Packet module.
+ * And lastly, L4PROTO_NONE is great at simplifying things.
+ */
 typedef enum l4_protocol {
+	/**
+	 * The packet has no layer-4 header. This happens if the packet is a fragment whose fragment
+	 * offset is not zero.
+	 * The packet still has a layer-4 protocol, of course, but the point is that the code should
+	 * not attempt to extract a layer-4 header from it.
+	 */
 	L4PROTO_NONE = 0,
+	/** The packet has a TCP header after the layer-3 headers. */
 	L4PROTO_TCP = 1,
+	/** The packet has a UDP header after the layer-3 headers. */
 	L4PROTO_UDP = 2,
+	/**
+	 * The packet has a ICMP header after the layer-3 headers. Whether the header is ICMPv4 or
+	 * ICMPv6 never matters.
+	 * We know that ICMP is not a transport protocol, but for all intents and purposes, it behaves
+	 * exactly like one in NAT64.
+	 */
 	L4PROTO_ICMP = 3,
 #define L4_PROTO_COUNT 4
 } l4_protocol;
 
+/**
+ * Returns a string version of "proto".
+ * For debugging purposes really, but maybe we should use it more often during error messages.
+ */
 char *l4proto_to_string(l4_protocol proto);
+/** Converts from "Next Header" format (the field from a IPv6 header) to l4_protocol. */
 l4_protocol nexthdr_to_l4proto(__u8 nexthdr);
+/** Converts from "Protocol" format (the field from a IPv4 header) to l4_protocol. */
 l4_protocol protocol_to_l4proto(__u8 protocol);
 
 /**
@@ -173,7 +244,9 @@ struct ipv4_tuple_address {
  * Because they're paired all the time in this project.
  */
 struct ipv6_tuple_address {
+	/** The layer-3 identifier. */
 	struct in6_addr address;
+	/** The layer-4 identifier (Either the port (TCP or UDP) or the ICMP id). */
 	__u16 l4_id;
 };
 
@@ -183,7 +256,7 @@ struct ipv6_tuple_address {
 struct ipv4_pair {
 	/** The IPv4 node's address and port being used in the connection. */
 	struct ipv4_tuple_address remote;
-	/** The NAT64's address and port being used in the connection. */
+	/** Jool's address and port being used in the connection. */
 	struct ipv4_tuple_address local;
 };
 
@@ -193,17 +266,17 @@ struct ipv4_pair {
 struct ipv6_pair {
 	/** The NAT64's address and port being used in the connection. */
 	struct ipv6_tuple_address local;
-	/** The IPv6 node's address and port being used in the connection. */
+	/** Jool's address and port being used in the connection. */
 	struct ipv6_tuple_address remote;
 };
 
 /**
- * Struct to handle valid IPv6 prefixes specified as configuration parameters.
+ * A member of the IPv6 pool; the network component of a IPv6 address.
  */
 struct ipv6_prefix {
 	/** IPv6 prefix. */
 	struct in6_addr address;
-	/** Number of bits from "addr" which represent the network. */
+	/** Number of bits from "address" which represent the network. */
 	__u8 len;
 };
 
@@ -215,68 +288,118 @@ struct tuple_addr {
 	__u16 l4_id;
 };
 
+/**
+ * A tuple is sort of a summary of a packet; it is a quick accesor for several of its key elements.
+ *
+ * Keep in mind that the tuple's values do not always come from places you'd normally expect. If
+ * the RFC says "the tuple's source address", then you *MUST* extract the address from the tuple,
+ * not from the packet. Conversely, if it says "the packet's source address", then *DO NOT* extract
+ * it from the tuple for convenience. See comments inside for more info.
+ */
 struct tuple {
+	/**
+	 * Most of the time, this is the packet's _source_ address and layer-4 identifier. When the
+	 * packet contains a inner packet, this is the inner packet's _destination_ address and l4 id.
+	 */
 	struct tuple_addr src;
+	/**
+	 * Most of the time, this is the packet's _destination_ address and layer-4 identifier. When
+	 * the packet contains a inner packet, this is the inner packet's _source_ address and l4 id.
+	 */
 	struct tuple_addr dst;
+	/** The packet's network protocol. */
 	l3_protocol l3_proto;
 	/**
-	 * Note: The tuple's packet's outer l4-protocol might differ from the tuple's l4-protocol.
-	 * This is because ICMP errors generate UDP or TCP tuples (depending on the inner packet).
+	 * The packet's transport protocol that counts.
+	 *
+	 * Most of the time, this is the packet's simple l4-protocol. When the packet contains a inner
+	 * packet, this is the inner packet's l4-protocol.
+	 * Also, keep in mind that tuples represent whole packets, not fragments. If a packet's
+	 * fragment offset is not zero, then its layer 4 protocol will be L4PROTO_NONE, but its tuple's
+	 * l4_proto will be something else.
 	 */
 	l4_protocol l4_proto;
 #define icmp_id src.l4_id
 };
 
+/**
+ * Returns true if "tuple" represents a '3-tuple' (address-address-ICMP id), as defined by the RFC.
+ */
 static inline bool is_3_tuple(struct tuple *tuple)
 {
 	return (tuple->l4_proto == L4PROTO_ICMP);
 }
 
+/**
+ * Returns true if "tuple" represents a '5-tuple' (address-port-address-port-transport protocol),
+ * as defined by the RFC.
+ */
 static inline bool is_5_tuple(struct tuple *tuple)
 {
 	return !is_3_tuple(tuple);
 }
 
 /**
- * All of these functions return "true" if the first parameter is the same as the second one, even
- * if they are pointers to different places in memory.
+ * @{
+ * Returns "true" if the first parameter is the same as the second one, even if they are pointers
+ * to different places in memory.
  *
- * @param addr_1 struct you want to compare to "addr_2".
- * @param addr_2 struct you want to compare to "addr_1".
- * @return (*addr_1) === (*addr_2).
+ * @param a struct you want to compare to "b".
+ * @param b struct you want to compare to "a".
+ * @return (*addr_1) === (*addr_2), with null checks as appropriate.
  */
-bool ipv4_addr_equals(struct in_addr *addr_1, struct in_addr *addr_2);
-bool ipv6_addr_equals(struct in6_addr *addr_1, struct in6_addr *addr_2);
-bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *addr_1, struct ipv4_tuple_address *addr_2);
-bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *addr_1, struct ipv6_tuple_address *addr_2);
-bool ipv4_pair_equals(struct ipv4_pair *pair_1, struct ipv4_pair *pair_2);
-bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2);
-bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual);
+bool ipv4_addr_equals(struct in_addr *a, struct in_addr *b);
+bool ipv6_addr_equals(struct in6_addr *a, struct in6_addr *b);
+bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *a, struct ipv4_tuple_address *b);
+bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *a, struct ipv6_tuple_address *b);
+bool ipv4_pair_equals(struct ipv4_pair *a, struct ipv4_pair *b);
+bool ipv6_pair_equals(struct ipv6_pair *a, struct ipv6_pair *b);
+bool ipv6_prefix_equals(struct ipv6_prefix *a, struct ipv6_prefix *b);
+/**
+ * @}
+ */
 
 /**
- * All of these functions compute a 16-bit hash identifier out of the parameter and return it.
+ * @{
+ * Computes a 16-bit hash identifier out of the parameter and returns it.
  *
- * @param addr object you want a hash from.
- * @return hash code of "addr".
+ * @param a object you want a hash from.
+ * @return hash code of "a".
  */
-__u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *addr);
-__u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *addr);
-__u16 ipv4_pair_hashcode(struct ipv4_pair *pair);
-__u16 ipv6_pair_hashcode(struct ipv6_pair *pair);
+__u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *a);
+__u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *a);
+__u16 ipv4_pair_hashcode(struct ipv4_pair *a);
+__u16 ipv6_pair_hashcode(struct ipv6_pair *a);
+/**
+ * @}
+ */
 
+/**
+ * @{
+ * Returns true if "type" (which is assumed to have been extracted from a ICMP header) represents
+ * a packet involved in a ping.
+ */
 bool is_icmp6_info(__u8 type);
-bool is_icmp6_error(__u8 type);
 bool is_icmp4_info(__u8 type);
+/**
+ * @}
+ */
+
+/**
+ * @{
+ * Returns true if "type" (which is assumed to have been extracted from a ICMP header) represents
+ * a packet which is an error response.
+ */
+bool is_icmp6_error(__u8 type);
 bool is_icmp4_error(__u8 type);
+/**
+ * @}
+ */
 
+/**
+ * Prints "tuple" pretty in the log.
+ */
 void log_tuple(struct tuple *tuple);
-int init_ipv4_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
-		unsigned char *dst_addr, __u16 dst_port, l4_protocol l4_proto);
-int init_ipv6_tuple(struct tuple *tuple, unsigned char *src_addr, __u16 src_port,
-		unsigned char *dst_addr, __u16 dst_port, l4_protocol l4_proto);
-
-int init_ipv4_tuple_from_pair(struct tuple *tuple, struct ipv4_pair *pair4, l4_protocol l4_proto);
-int init_ipv6_tuple_from_pair(struct tuple *tuple, struct ipv6_pair *pair6, l4_protocol l4_proto);
 
 
 #endif

@@ -52,38 +52,49 @@ extern spinlock_t bib_session_lock;
 int bib_init(void);
 
 /**
- * Adds "entry" to the BIB table whose layer-4 protocol is "protocol".
+ * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto".
  * Expects all fields from "entry" to have been initialized.
  *
  * Because never in this project is required otherwise, assumes the entry is not yet on the table.
  *
+ * You must lock bib_session_lock before calling this function.
+ *
  * @param entry row to be added to the table.
- * @param protocol identifier of the table to add "entry" to.
+ * @param l4_proto identifier of the table to add "entry" to.
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
 int bib_add(struct bib_entry *entry, l4_protocol l4_proto);
 
 /**
- * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
- * "address".
+ * Returns the BIB entry from the "l4_proto" table whose IPv4 side (address and port) is "address".
+ *
+ * You must lock bib_session_lock before calling this function.
  *
  * @param address address and port you want the BIB entry for.
- * @param l4protocol identifier of the table to retrieve the entry from.
- * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
- *		"address". Returns NULL if there is no such an entry.
+ * @param l4_proto identifier of the table to retrieve the entry from.
+ * @return the BIB entry from the "l4_proto" table whose IPv4 side (address and port) is "address".
+ *		Returns NULL if there is no such entry.
  */
 struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, l4_protocol l4_proto);
 /**
- * Returns the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
- * "address".
+ * Returns the BIB entry from the "l4_proto" table whose IPv6 side (address and port) is "address".
+ *
+ * You must lock bib_session_lock before calling this function.
  *
  * @param address address and port you want the BIB entry for.
- * @param l4protocol identifier of the table to retrieve the entry from.
- * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
- *		"address". Returns NULL if there is no such an entry.
+ * @param l4_proto identifier of the table to retrieve the entry from.
+ * @return the BIB entry from the "l4_proto" table whose IPv6 side (address and port) is "address".
+ *		Returns NULL if there is no such entry.
  */
 struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, l4_protocol l4_proto);
+/**
+ * Returns any BIB entry from the "l4_proto" table whose IPv6 address is "address".
+ *
+ * @param address address you want any BIB entry for.
+ * @param l4_proto identifier of the table to retrieve the entry from.
+ * @return some BIB entry from the "l4_proto" table whose IPv6 address is "address".
+ */
 struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, l4_protocol l4_proto);
 
 /**
@@ -100,11 +111,11 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, l4_protocol l4_
 struct bib_entry *bib_get(struct tuple *tuple);
 
 /**
- * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4protocol".
+ * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4_proto".
  * Even though the entry is removed from the table, it is not kfreed.
  *
  * @param entry row to be removed from the table.
- * @param l4protocol identifier of the table to remove "entry" from.
+ * @param l4_proto identifier of the table to remove "entry" from.
  * @return whether the entry was in fact removed or not. The removal will fail if the entry is not
  *		on the table, or if it still has related session entries.
  */
@@ -138,5 +149,6 @@ int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), 
  *		entries are not compared.
  */
 bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2);
+
 
 #endif /* _NF_NAT64_BIB_H */

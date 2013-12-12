@@ -103,7 +103,7 @@ static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct 
 	/* ip6_hdr->payload_len is set during post-processing. */
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
 	if (ip4_hdr->ttl <= 1) {
-		icmp_send(frag->skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
+		icmp_send(in->skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
 		return VER_DROP;
 	}
 	ip6_hdr->hop_limit = ip4_hdr->ttl - 1;

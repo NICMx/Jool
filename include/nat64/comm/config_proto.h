@@ -4,11 +4,9 @@
 /**
  * @file
  * Elements usable both by the kernel module and the userspace application.
- * Example from:
- * http://stackoverflow.com/questions/862964/who-can-give-me-the-latest-netlink-programming-samples
  *
  * @author Miguel Gonzalez
- * @author Alberto Leiva  <- maintenance
+ * @author Alberto Leiva
  */
 
 #include <linux/types.h>

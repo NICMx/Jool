@@ -67,10 +67,13 @@ static int get_bib_table(l4_protocol l4_proto, struct bib_table **result)
 	case L4PROTO_ICMP:
 		*result = &bib_icmp;
 		return 0;
-	default:
-		log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	case L4PROTO_NONE:
+		log_crit(ERR_ILLEGAL_NONE, "Tuples are not supposed to contain NONE.");
 		return -EINVAL;
 	}
+
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	return -EINVAL;
 }
 
 /*******************************

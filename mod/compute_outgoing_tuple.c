@@ -20,7 +20,8 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 	spin_lock_bh(&bib_session_lock);
 	bib = bib_get(in);
 	if (!bib) {
-		log_crit(ERR_MISSING_BIB, "Could not find the BIB entry we just created/updated!");
+		log_crit(ERR_MISSING_BIB, "Could not find the BIB entry we just created or updated in "
+				"the Filtering and Updating step!");
 		goto lock_fail;
 	}
 
@@ -71,7 +72,8 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 	spin_lock_bh(&bib_session_lock);
 	bib = bib_get(in);
 	if (!bib) {
-		log_crit(ERR_MISSING_BIB, "Could not find the BIB entry we just created/updated!");
+		log_crit(ERR_MISSING_BIB, "Could not find the BIB entry we just created or updated in "
+				"the Filtering and Updating step!");
 		goto lock_fail;
 	}
 

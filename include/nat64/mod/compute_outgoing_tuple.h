@@ -8,7 +8,7 @@
  * Infers a tuple (summary) of the outgoing packet, yet to be created.
  *
  * @author Ramiro Nava
- * @author Alberto Leiva  <- maintenance
+ * @author Alberto Leiva
  */
 
 #include "nat64/comm/types.h"

@@ -1,5 +1,6 @@
 #include "nat64/unit/validator.h"
 #include "nat64/unit/unit_test.h"
+#include "nat64/unit/types.h"
 
 #include <net/ip.h>
 #include <net/ipv6.h>
