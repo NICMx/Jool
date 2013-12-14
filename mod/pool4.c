@@ -29,8 +29,8 @@ struct pool4_node {
 	} tcp_ports;
 	struct poolnum icmp_ids;
 
-	/** Next address within the pool (since they are linked listed; see pool). */
-	struct list_head next;
+	/** The thing that connects this object to the "pool" list. */
+	struct list_head list_hook;
 };
 
 static LIST_HEAD(pool);
@@ -49,7 +49,7 @@ static struct pool4_node *get_pool4_node_from_addr(struct in_addr *addr)
 		return NULL;
 	}
 
-	list_for_each_entry(node, &pool, next)
+	list_for_each_entry(node, &pool, list_hook)
 		if (ipv4_addr_equals(&node->addr, addr))
 			return node;
 
@@ -125,7 +125,7 @@ silent_failure:
 static void destroy_pool4_node(struct pool4_node *node, bool remove_from_list)
 {
 	if (remove_from_list)
-		list_del(&node->next);
+		list_del(&node->list_hook);
 
 	poolnum_destroy(&node->udp_ports.low_even);
 	poolnum_destroy(&node->udp_ports.low_odd);
@@ -146,7 +146,7 @@ void pool4_destroy(void)
 	spin_lock_bh(&pool_lock);
 	while (!list_empty(&pool)) {
 		head = pool.next;
-		node = container_of(head, struct pool4_node, next);
+		node = container_of(head, struct pool4_node, list_hook);
 		destroy_pool4_node(node, true);
 	}
 	spin_unlock_bh(&pool_lock);
@@ -194,7 +194,7 @@ int pool4_register(struct in_addr *addr)
 
 	spin_lock_bh(&pool_lock);
 
-	list_for_each_entry(old_node, &pool, next) {
+	list_for_each_entry(old_node, &pool, list_hook) {
 		if (ipv4_addr_equals(&old_node->addr, addr)) {
 			spin_unlock_bh(&pool_lock);
 			destroy_pool4_node(new_node, false);
@@ -202,7 +202,8 @@ int pool4_register(struct in_addr *addr)
 			return -EINVAL;
 		}
 	}
-	list_add(&new_node->next, pool.prev); /* "add to head->prev" = "add to the end of the list". */
+	/* "add to head->prev" = "add to the end of the list". */
+	list_add(&new_node->list_hook, pool.prev);
 
 	spin_unlock_bh(&pool_lock);
 	return 0;
@@ -249,7 +250,7 @@ bool pool4_get_any(l4_protocol l4_proto, __u16 port, struct ipv4_tuple_address *
 	}
 
 	/* Find an address with a compatible port */
-	list_for_each_entry(node, &pool, next) {
+	list_for_each_entry(node, &pool, list_hook) {
 		struct poolnum *ids;
 		int error;
 
@@ -393,7 +394,7 @@ int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg)
 	struct pool4_node *node;
 
 	spin_lock_bh(&pool_lock);
-	list_for_each_entry(node, &pool, next) {
+	list_for_each_entry(node, &pool, list_hook) {
 		int error = func(&node->addr, arg);
 		if (error) {
 			spin_unlock_bh(&pool_lock);

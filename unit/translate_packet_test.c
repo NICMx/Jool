@@ -751,7 +751,7 @@ static bool validate_pkt_ipv6_udp(struct packet *pkt, struct tuple *tuple)
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
@@ -814,7 +814,7 @@ static bool validate_pkt_ipv6_tcp(struct packet *pkt, struct tuple *tuple)
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
@@ -877,7 +877,7 @@ static bool validate_pkt_ipv6_icmp_info(struct packet *pkt, struct tuple *tuple)
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
@@ -940,7 +940,7 @@ static bool validate_pkt_ipv6_icmp_error(struct packet *pkt, struct tuple *tuple
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv6(frag, sizeof(struct ipv6hdr)))
 		return false;
@@ -1004,7 +1004,7 @@ static bool validate_pkt_ipv4_udp(struct packet *pkt, struct tuple *tuple)
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv4(frag))
 		return false;
@@ -1068,7 +1068,7 @@ static bool validate_pkt_ipv4_tcp(struct packet *pkt, struct tuple *tuple)
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv4(frag))
 		return false;
@@ -1132,7 +1132,7 @@ static bool validate_pkt_ipv4_icmp_info(struct packet *pkt, struct tuple *tuple)
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv4(frag))
 		return false;
@@ -1196,7 +1196,7 @@ static bool validate_pkt_ipv4_icmp_error(struct packet *pkt, struct tuple *tuple
 	if (!validate_fragment_count(pkt, 1))
 		return false;
 
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 
 	if (!validate_frag_ipv4(frag))
 		return false;
@@ -1263,7 +1263,7 @@ static bool validate_pkt_multiple_4to6_udp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	offset = 0;
 	payload_len = 1280 - sizeof(struct ipv6hdr) - sizeof(struct frag_hdr) - sizeof(struct udphdr);
 
@@ -1285,7 +1285,7 @@ static bool validate_pkt_multiple_4to6_udp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	offset = 1232;
 	payload_len = 776;
 
@@ -1305,7 +1305,7 @@ static bool validate_pkt_multiple_4to6_udp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the third fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	offset = 2008;
 	payload_len = 8;
 
@@ -1410,32 +1410,32 @@ static bool validate_pkt_multiple_4to6_tcp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	if (!validate_fragment(frag, false, false, 3016, 0, 1232, tuple))
 		return false;
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	if (!validate_fragment(frag, false, false, 4248, 1232, 1232, tuple))
 		return false;
 
 	log_debug("Validating the third fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	if (!validate_fragment(frag, false, true, 5480, 2464, 36, tuple))
 		return false;
 
 	log_debug("Validating the fourth fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	if (!validate_fragment(frag, true, false, 0, 0, 1212, tuple))
 		return false;
 
 	log_debug("Validating the fifth fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	if (!validate_fragment(frag, false, false, 1232, 1212, 1232, tuple))
 		return false;
 
 	log_debug("Validating the sixth fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	if (!validate_fragment(frag, false, false, 2464, 2444, 552, tuple))
 		return false;
 
@@ -1499,7 +1499,7 @@ static bool validate_pkt_multiple_4to6_icmp_info(struct packet *pkt, struct tupl
 		return false;
 
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	offset = 0;
 	payload_len = 1280 - sizeof(struct ipv6hdr) - sizeof(struct frag_hdr) - sizeof(struct icmp6hdr);
 
@@ -1521,7 +1521,7 @@ static bool validate_pkt_multiple_4to6_icmp_info(struct packet *pkt, struct tupl
 		return false;
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	offset = 1232;
 	payload_len = 776;
 
@@ -1595,7 +1595,7 @@ static bool validate_pkt_multiple_6to4_udp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	offset = 0;
 	payload_len = 8;
 
@@ -1617,7 +1617,7 @@ static bool validate_pkt_multiple_6to4_udp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	offset = 16;
 	payload_len = 8;
 
@@ -1691,7 +1691,7 @@ static bool validate_pkt_multiple_6to4_tcp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	offset = 0;
 	payload_len = 8;
 
@@ -1713,7 +1713,7 @@ static bool validate_pkt_multiple_6to4_tcp(struct packet *pkt, struct tuple *tup
 		return false;
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	offset = 16;
 	payload_len = 8;
 
@@ -1787,7 +1787,7 @@ static bool validate_pkt_multiple_6to4_icmp_info(struct packet *pkt, struct tupl
 		return false;
 
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	offset = 0;
 	payload_len = 8;
 
@@ -1809,7 +1809,7 @@ static bool validate_pkt_multiple_6to4_icmp_info(struct packet *pkt, struct tupl
 		return false;
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	offset = 16;
 	payload_len = 8;
 

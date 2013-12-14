@@ -163,7 +163,7 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, l4_protocol l4_
 	hash_code = table->ipv6.hash_function(&address_full) % ARRAY_SIZE(table->ipv6.table);
 
 	hlist_for_each(current_node, &table->ipv6.table[hash_code]) {
-		keyvalue = list_entry(current_node, struct ipv6_table_key_value, nodes);
+		keyvalue = list_entry(current_node, struct ipv6_table_key_value, hlist_hook);
 		if (ipv6_addr_equals(address, &keyvalue->key.address))
 			return keyvalue->value;
 	}

@@ -577,8 +577,8 @@ static noinline bool init_tcp_session(
 
 	session->dying_time = jiffies - msecs_to_jiffies(100);
 	session->bib = NULL;
-	INIT_LIST_HEAD(&session->entries_from_bib);
-	INIT_LIST_HEAD(&session->expiration_node);
+	INIT_LIST_HEAD(&session->bib_list_hook);
+	INIT_LIST_HEAD(&session->expire_list_hook);
 	session->l4_proto = L4PROTO_TCP;
 	session->state = state;
 

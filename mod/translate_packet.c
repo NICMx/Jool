@@ -333,7 +333,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	}
 
 	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
-	list_add(&frag->next, list->prev);
+	list_add(&frag->list_hook, list->prev);
 
 	/* Copy frag's overweight to newly-created fragments.  */
 	current_p = skb_network_header(frag->skb) + min_ipv6_mtu;
@@ -381,7 +381,7 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		new_fragment->payload.ptr = new_fragment->l3_hdr.ptr + new_fragment->l3_hdr.len;
 		new_fragment->payload.ptr_needs_kfree = false;
 
-		list_add(&new_fragment->next, list->prev);
+		list_add(&new_fragment->list_hook, list->prev);
 
 		current_p += actual_payload_size;
 	}
@@ -440,12 +440,12 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 				return result;
 		} else {
 			/* Just add that one fragment to the list. */
-			list_add(&out->next, pkt_out->fragments.prev);
+			list_add(&out->list_hook, pkt_out->fragments.prev);
 		}
 		break;
 
 	case L3PROTO_IPV6:
-		list_add(&out->next, pkt_out->fragments.prev);
+		list_add(&out->list_hook, pkt_out->fragments.prev);
 		break;
 	}
 
@@ -501,8 +501,8 @@ end:
 		 * Because we want memory allocations to be as symmetric as possible, the fragment has to
 		 * be freed outside. So destroy everything but the fragment.
 		 */
-		list_del(&in_inner->next);
-		INIT_LIST_HEAD(&in_inner->next); /* Unpoison. */
+		list_del(&in_inner->list_hook);
+		INIT_LIST_HEAD(&in_inner->list_hook); /* Unpoison. */
 		pkt_kfree(dummy_pkt_in);
 	}
 
@@ -536,7 +536,7 @@ static verdict post_process(struct tuple *tuple, struct packet *in, struct packe
 
 #ifndef UNIT_TESTING
 
-	list_for_each_entry(frag, &out->fragments, next) {
+	list_for_each_entry(frag, &out->fragments, list_hook) {
 		skb = frag->skb;
 		/* Moved skb->protocol to frag_create_skb() and divide(). */
 		/* Moved skb->mark to translate() and divide(). */
@@ -580,7 +580,7 @@ verdict translating_the_packet(struct tuple *tuple, struct packet *in, struct pa
 	if (is_error(pkt_alloc(out)))
 		return VER_DROP;
 
-	list_for_each_entry(current_in, &in->fragments, next) {
+	list_for_each_entry(current_in, &in->fragments, list_hook) {
 		result = translate_fragment(current_in, tuple, *out);
 		if (result != VER_CONTINUE)
 			goto fail;

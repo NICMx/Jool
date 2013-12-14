@@ -86,8 +86,11 @@ struct KEY_VALUE_PAIR {
 	KEY_TYPE key;
 	/** The value the user wants to store in the table. */
 	VALUE_TYPE *value;
-	/** Other key-values chained with this one (see: HTABLE_NAME.table). */
-	struct hlist_node nodes;
+	/**
+	 * The thing that connects this object to other elements in the list it belongs to
+	 * (the key value pair will be hooked to one the HTABLE_NAME.table lists).
+	 */
+	struct hlist_node hlist_hook;
 };
 
 /********************************************
@@ -116,7 +119,7 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_for_each(current_node, &table->table[hash_code]) {
-		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
+		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, hlist_hook);
 		if (table->equals_function(key, &current_pair->key))
 			return current_pair;
 	}
@@ -201,7 +204,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 
 	/* Insert the key-value to the table. */
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
-	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
+	hlist_add_head(&key_value->hlist_hook, &table->table[hash_code]);
 
 	return 0;
 }
@@ -234,7 +237,7 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool kfree_value)
 	if (key_value == NULL)
 		return false;
 
-	hlist_del(&key_value->nodes);
+	hlist_del(&key_value->hlist_hook);
 	if (kfree_value)
 		kfree(key_value->value);
 	kfree(key_value);
@@ -262,7 +265,7 @@ static void EMPTY(struct HTABLE_NAME *table, bool kfree_values)
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		while (!hlist_empty(&table->table[row])) {
 			current_node = table->table[row].first;
-			current_pair = container_of(current_node, struct KEY_VALUE_PAIR, nodes);
+			current_pair = container_of(current_node, struct KEY_VALUE_PAIR, hlist_hook);
 
 			hlist_del(current_node);
 			if (kfree_values)
@@ -295,7 +298,7 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 		goto end;
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
-			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
+			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, hlist_hook);
 			log_debug("  hash:%u", row);
 		}
 	}
@@ -327,7 +330,7 @@ static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *)
 
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
-			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
+			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, hlist_hook);
 			error = func(current_pair->value, arg);
 			if (error)
 				return error;

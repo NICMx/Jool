@@ -191,7 +191,7 @@ struct fragment {
 	} payload;
 
 	/** Node used to link this fragment in the packet.fragments list. */
-	struct list_head next;
+	struct list_head list_hook;
 };
 
 /** Allocates "frag" in the heap and initializes it out of "skb". */
@@ -360,7 +360,7 @@ static inline struct in6_addr *pkt_get_ipv6_dst_addr(struct packet *pkt)
  */
 static inline struct fragment *pkt_get_first_frag(struct packet *pkt)
 {
-	return list_entry(pkt->fragments.next, struct fragment, next);
+	return list_entry(pkt->fragments.next, struct fragment, list_hook);
 }
 
 

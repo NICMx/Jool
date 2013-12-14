@@ -260,7 +260,7 @@ verdict send_pkt(struct packet *pkt)
 	struct fragment *frag;
 	int error = 0;
 
-	list_for_each_entry(frag, &pkt->fragments, next) {
+	list_for_each_entry(frag, &pkt->fragments, list_hook) {
 		log_debug("Sending skb via device '%s'...", frag->skb->dev->name);
 		switch (frag->l3_hdr.proto) {
 		case L3PROTO_IPV6:

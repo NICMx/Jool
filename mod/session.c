@@ -198,7 +198,7 @@ bool session_allow(struct tuple *tuple)
 	tuple_to_ipv4_pair(tuple, &tuple_pair);
 	hash_code = table->ipv4.hash_function(&tuple_pair) % ARRAY_SIZE(table->ipv4.table);
 	hlist_for_each(current_node, &table->ipv4.table[hash_code]) {
-		session_pair = &list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
+		session_pair = &list_entry(current_node, struct ipv4_table_key_value, hlist_hook)->key;
 		if (ipv4_tuple_addr_equals(&session_pair->local, &tuple_pair.local)
 				&& ipv4_addr_equals(&session_pair->remote.address, &tuple_pair.remote.address)) {
 			return true;
@@ -265,8 +265,8 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	result->ipv6 = *ipv6;
 	result->dying_time = 0;
 	result->bib = NULL;
-	INIT_LIST_HEAD(&result->entries_from_bib);
-	INIT_LIST_HEAD(&result->expiration_node);
+	INIT_LIST_HEAD(&result->bib_list_hook);
+	INIT_LIST_HEAD(&result->expire_list_hook);
 	result->l4_proto = l4_proto;
 	result->state = 0;
 

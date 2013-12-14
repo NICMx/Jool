@@ -37,12 +37,12 @@ struct session_entry {
 	 * Chains this session with the rest from the same BIB (see bib_entry.session_entries).
 	 * Used by the BIB to know whether it should commit suicide or not.
 	 */
-	struct list_head entries_from_bib;
+	struct list_head bib_list_hook;
 	/**
 	 * Chainer to one of the expiration timer lists (sessions_udp, sessions_tcp_est, etc).
 	 * Used for iterating while looking for expired sessions.
 	 */
-	struct list_head expiration_node;
+	struct list_head expire_list_hook;
 	/**
 	 * Transport protocol of the table this entry is in.
 	 * Used to know which table the session should be removed from when expired.

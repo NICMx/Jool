@@ -78,7 +78,7 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 	entry->dying_time = dying_time;
 	if (bib) {
 		entry->bib = bib;
-		list_add(&entry->entries_from_bib, &bib->sessions);
+		list_add(&entry->bib_list_hook, &bib->sessions);
 	}
 
 	return entry;

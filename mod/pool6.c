@@ -12,8 +12,8 @@
 struct pool_node {
 	/** The address itself. */
 	struct ipv6_prefix prefix;
-	/** Next prefix within the pool (since they are linked listed; see pools.*). */
-	struct list_head next;
+	/** The thing that connects this object to the "pool" list. */
+	struct list_head list_hook;
 };
 
 /**
@@ -74,8 +74,8 @@ void pool6_destroy(void)
 {
 	spin_lock_bh(&pool_lock);
 	while (!list_empty(&pool)) {
-		struct pool_node *node = container_of(pool.next, struct pool_node, next);
-		list_del(&node->next);
+		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
+		list_del(&node->list_hook);
 		kfree(node);
 	}
 	spin_unlock_bh(&pool_lock);
@@ -105,7 +105,7 @@ int pool6_register(struct ipv6_prefix *prefix)
 	node->prefix = *prefix;
 
 	spin_lock_bh(&pool_lock);
-	list_add(&node->next, pool.prev);
+	list_add(&node->list_hook, pool.prev);
 	spin_unlock_bh(&pool_lock);
 
 	return 0;
@@ -128,9 +128,9 @@ int pool6_remove(struct ipv6_prefix *prefix)
 		return -EINVAL;
 	}
 
-	list_for_each_entry(node, &pool, next) {
+	list_for_each_entry(node, &pool, list_hook) {
 		if (ipv6_prefix_equals(&node->prefix, prefix)) {
-			list_del(&node->next);
+			list_del(&node->list_hook);
 			kfree(node);
 			spin_unlock_bh(&pool_lock);
 			return 0;
@@ -159,7 +159,7 @@ bool pool6_contains(struct in6_addr *address)
 		return false;
 	}
 
-	list_for_each_entry(node, &pool, next) {
+	list_for_each_entry(node, &pool, list_hook) {
 		if (ipv6_prefix_equal(&node->prefix.address, address, node->prefix.len)) {
 			spin_unlock_bh(&pool_lock);
 			return true;
@@ -181,7 +181,7 @@ bool pool6_peek(struct ipv6_prefix *out)
 		return false;
 	}
 
-	node = container_of(pool.next, struct pool_node, next);
+	node = container_of(pool.next, struct pool_node, list_hook);
 	*out = node->prefix;
 
 	spin_unlock_bh(&pool_lock);
@@ -193,7 +193,7 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
 	struct pool_node *node;
 
 	spin_lock_bh(&pool_lock);
-	list_for_each_entry(node, &pool, next) {
+	list_for_each_entry(node, &pool, list_hook) {
 		int error = func(&node->prefix, arg);
 		if (error) {
 			spin_unlock_bh(&pool_lock);

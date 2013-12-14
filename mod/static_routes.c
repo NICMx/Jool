@@ -114,7 +114,7 @@ int delete_static_route(struct request_bib *req)
 	 */
 
 	while (!list_empty(&bib->sessions)) {
-		session = container_of(bib->sessions.next, struct session_entry, entries_from_bib);
+		session = container_of(bib->sessions.next, struct session_entry, bib_list_hook);
 		if (!session_remove(session)) {
 			log_err(ERR_UNKNOWN_ERROR,
 					"Session [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u] refused to die.",
@@ -125,7 +125,7 @@ int delete_static_route(struct request_bib *req)
 			error = -EINVAL;
 			goto end;
 		}
-		list_del(&session->entries_from_bib);
+		list_del(&session->bib_list_hook);
 		kfree(session);
 	}
 

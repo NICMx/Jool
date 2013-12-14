@@ -74,8 +74,8 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
 	session->dying_time = jiffies + *ttl;
 	spin_unlock_bh(&config_lock);
 
-	list_del(&session->expiration_node);
-	list_add(&session->expiration_node, list->prev);
+	list_del(&session->expire_list_hook);
+	list_add(&session->expire_list_hook, list->prev);
 
 	if (!timer_pending(&expire_timer) || time_before(session->dying_time, expire_timer.expires)) {
 		mod_timer(&expire_timer, session->dying_time);
@@ -135,7 +135,7 @@ static void choose_prior(struct list_head *list, unsigned long *min, bool *min_e
 	if (list_empty(list))
 		return;
 
-	session = list_entry(list->next, struct session_entry, expiration_node);
+	session = list_entry(list->next, struct session_entry, expire_list_hook);
 
 	if (*min_exists)
 		*min = time_before(*min, session->dying_time) ? *min : session->dying_time;
@@ -311,15 +311,15 @@ static bool session_expire(struct session_entry *session)
  */
 static bool clean_expired_sessions(struct list_head *list)
 {
-	struct list_head *current_node, *next_node;
+	struct list_head *current_hook, *next_hook;
 	struct session_entry *session;
 	struct bib_entry *bib;
 	unsigned int s = 0;
 	unsigned int b = 0;
 	l4_protocol l4_proto;
 
-	list_for_each_safe(current_node, next_node, list) {
-		session = list_entry(current_node, struct session_entry, expiration_node);
+	list_for_each_safe(current_hook, next_hook, list) {
+		session = list_entry(current_hook, struct session_entry, expire_list_hook);
 
 		if (time_before(jiffies, session->dying_time)) {
 			log_debug("Deleted %u sessions and %u BIB entries.", s, b);
@@ -334,8 +334,8 @@ static bool clean_expired_sessions(struct list_head *list)
 		bib = session->bib;
 		l4_proto = session->l4_proto;
 
-		list_del(&session->entries_from_bib);
-		list_del(&session->expiration_node);
+		list_del(&session->bib_list_hook);
+		list_del(&session->expire_list_hook);
 		kfree(session);
 		s++;
 
@@ -673,7 +673,7 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 
 		/* Cross-reference them. */
 		session->bib = bib;
-		list_add(&session->entries_from_bib, &bib->sessions);
+		list_add(&session->bib_list_hook, &bib->sessions);
 	}
 
 	/* Reset session entry's lifetime. */
@@ -779,7 +779,7 @@ static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 
 		/* Cross-reference them. */
 		session->bib = bib;
-		list_add(&session->entries_from_bib, &bib->sessions);
+		list_add(&session->bib_list_hook, &bib->sessions);
 	}
 
 	/* Reset session entry's lifetime. */
@@ -900,7 +900,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 
 		/* Cross-reference them. */
 		session->bib = bib;
-		list_add(&session->entries_from_bib, &bib->sessions);
+		list_add(&session->bib_list_hook, &bib->sessions);
 	}
 
 	/* Reset session entry's lifetime. */
@@ -1012,7 +1012,7 @@ static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 
 		/* Cross-reference them. */
 		session->bib = bib;
-		list_add(&session->entries_from_bib, &bib->sessions);
+		list_add(&session->bib_list_hook, &bib->sessions);
 	}
 
 	/* Reset session entry's lifetime. */
@@ -1114,7 +1114,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 
 	/* Cross-reference them. */
 	session->bib = bib;
-	list_add(&session->entries_from_bib, &bib->sessions);
+	list_add(&session->bib_list_hook, &bib->sessions);
 
 	return true;
 
@@ -1229,7 +1229,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 
 	/* Cross-reference them. */
 	session->bib = bib;
-	list_add(&session->entries_from_bib, &bib->sessions);
+	list_add(&session->bib_list_hook, &bib->sessions);
 
 	return true;
 

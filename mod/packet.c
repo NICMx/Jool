@@ -53,7 +53,7 @@ int frag_create_empty(struct fragment **out)
 	}
 
 	memset(frag, 0, sizeof(*frag));
-	INIT_LIST_HEAD(&frag->next);
+	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out = frag;
 	return 0;
@@ -260,7 +260,7 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	error = init_ipv6_l3_payload(frag, hdr, len, &iterator, skb);
 	if (error)
 		goto fail;
-	INIT_LIST_HEAD(&frag->next);
+	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
 	return 0;
@@ -398,7 +398,7 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 	error = init_ipv4_l3_payload(frag, hdr, len, skb);
 	if (error)
 		goto fail;
-	INIT_LIST_HEAD(&frag->next);
+	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
 	return 0;
@@ -520,7 +520,7 @@ void frag_kfree(struct fragment *frag)
 	if (frag->payload.ptr_needs_kfree)
 		kfree(frag->payload.ptr);
 
-	list_del(&frag->next);
+	list_del(&frag->list_hook);
 
 	kmem_cache_free(frag_cache, frag);
 }
@@ -682,7 +682,7 @@ int pkt_create(struct fragment *frag, struct packet **pkt_out)
 
 void pkt_add_frag(struct packet *pkt, struct fragment *frag)
 {
-	list_add(&frag->next, pkt->fragments.prev);
+	list_add(&frag->list_hook, pkt->fragments.prev);
 	if (frag->l4_hdr.proto != L4PROTO_NONE)
 		pkt->first_fragment = frag;
 }
@@ -695,7 +695,7 @@ int pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len)
 	if (frag_is_fragmented(pkt->first_fragment)) {
 		/* Find the last fragment. */
 		last_frag = NULL;
-		list_for_each_entry(frag, &pkt->fragments, next) {
+		list_for_each_entry(frag, &pkt->fragments, list_hook) {
 			if (!is_more_fragments_set_ipv6(frag_get_fragment_hdr(frag))) {
 				last_frag = frag;
 				break;
@@ -729,7 +729,7 @@ int pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len)
 	if (frag_is_fragmented(pkt->first_fragment)) {
 		/* Find the last fragment. */
 		last_frag = NULL;
-		list_for_each_entry(last_frag, &pkt->fragments, next) {
+		list_for_each_entry(last_frag, &pkt->fragments, list_hook) {
 			if (!is_more_fragments_set_ipv4(frag_get_ipv4_hdr(last_frag)))
 				break;
 		}

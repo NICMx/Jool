@@ -9,7 +9,7 @@ struct hole_descriptor {
 	u16 last;
 
 	/** The thing that connects this object in its hole descriptor list. */
-	struct list_head hook;
+	struct list_head list_hook;
 };
 
 /** Cache for struct hole_descriptors, for efficient allocation. */
@@ -44,7 +44,7 @@ struct reassembly_buffer {
 	/* Jiffy at which the fragment timer will delete this buffer. */
 	unsigned long dying_time;
 
-	struct list_head hook;
+	struct list_head list_hook;
 };
 
 /** Cache for struct reassembly_buffers, for efficient allocation. */
@@ -250,7 +250,7 @@ static int buffer_put(struct reassembly_buffer_key *key, struct reassembly_buffe
 	if (error)
 		return error;
 
-	list_add(&buffer->hook, expire_list.prev);
+	list_add(&buffer->list_hook, expire_list.prev);
 	if (!timer_pending(&expire_timer) || time_before(buffer->dying_time, expire_timer.expires)) {
 		mod_timer(&expire_timer, buffer->dying_time);
 		log_debug("The buffer cleaning timer will awake in %u msecs.",
@@ -278,12 +278,12 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 		return;
 	}
 
-	list_del(&buffer->hook);
+	list_del(&buffer->list_hook);
 
 	/* Deallocate it. */
 	while (!list_empty(&buffer->holes)) {
-		struct hole_descriptor *hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
-		list_del(&hole->hook);
+		struct hole_descriptor *hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
+		list_del(&hole->list_hook);
 		kmem_cache_free(hole_cache, hole);
 	}
 	if (free_pkt)
@@ -337,7 +337,7 @@ static bool is_mf_set(struct fragment *frag)
  */
 static void clean_expired_buffers(void)
 {
-	struct list_head *current_node, *next_node;
+	struct list_head *current_hook, *next_hook;
 	unsigned int b = 0;
 	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
@@ -351,8 +351,8 @@ static void clean_expired_buffers(void)
 
 	spin_lock_bh(&table_lock);
 
-	list_for_each_safe(current_node, next_node, &expire_list) {
-		buffer = list_entry(current_node, struct reassembly_buffer, hook);
+	list_for_each_safe(current_hook, next_hook, &expire_list) {
+		buffer = list_entry(current_hook, struct reassembly_buffer, list_hook);
 
 		if (time_after(buffer->dying_time, jiffies)) {
 			spin_unlock_bh(&table_lock);
@@ -388,7 +388,7 @@ static void cleaner_timer(unsigned long param)
 	}
 
 	/* Restart the timer. */
-	buffer = list_entry(expire_list.next, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.next, struct reassembly_buffer, list_hook);
 	next_expire = buffer->dying_time;
 	spin_unlock_bh(&table_lock);
 	mod_timer(&expire_timer, next_expire);
@@ -436,7 +436,7 @@ static int compute_csum_udp(struct packet *pkt)
 	if (!buffer)
 		return -ENOMEM;
 
-	list_for_each_entry(frag, &pkt->fragments, next) {
+	list_for_each_entry(frag, &pkt->fragments, list_hook) {
 		hdr4 = frag_get_ipv4_hdr(frag);
 		offset = get_fragment_offset_ipv4(hdr4);
 		memcpy(&buffer[offset], frag->l4_hdr.ptr, frag->l4_hdr.len);
@@ -727,7 +727,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 			goto fail;
 		}
 
-		list_add(&hole->hook, &buffer->holes);
+		list_add(&hole->list_hook, &buffer->holes);
 
 		if (is_error(buffer_put(&key, buffer))) {
 			kmem_cache_free(hole_cache, hole);
@@ -741,7 +741,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	fragment_last = fragment_first + ((frag->l4_hdr.len + frag->payload.len - 8) >> 3);
 
 	/* Step 1 */
-	list_for_each_entry_safe(hole, hole_aux, &buffer->holes, hook) {
+	list_for_each_entry_safe(hole, hole_aux, &buffer->holes, list_hook) {
 		/* Step 2 */
 		if (fragment_first > hole->last)
 			continue;
@@ -756,7 +756,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 			new_hole = hole_alloc(hole->first, fragment_first - 1);
 			if (!new_hole)
 				goto fail;
-			list_add(&new_hole->hook, hole->hook.prev);
+			list_add(&new_hole->list_hook, hole->list_hook.prev);
 		}
 
 		/* Step 6 */
@@ -765,7 +765,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 			new_hole = hole_alloc(fragment_last + 1, hole->last);
 			if (!new_hole)
 				goto fail;
-			list_add(&new_hole->hook, &hole->hook);
+			list_add(&new_hole->list_hook, &hole->list_hook);
 		}
 
 		/*
@@ -773,7 +773,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		 * (I had to move this because it seems to be the simplest way to append the new_holes to
 		 * the list in steps 5 and 6.)
 		 */
-		list_del(&hole->hook);
+		list_del(&hole->list_hook);
 		kmem_cache_free(hole_cache, hole);
 	} /* Step 7 */
 

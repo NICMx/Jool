@@ -65,7 +65,7 @@ static bool validate_packet(struct packet *pkt, int expected_frag_count)
 	bool found_first = false;
 	bool success = true;
 
-	list_for_each_entry(frag, &pkt->fragments, next) {
+	list_for_each_entry(frag, &pkt->fragments, list_hook) {
 		actual_frag_count++;
 		if (frag == pkt->first_fragment) {
 			if (found_first) {
@@ -261,15 +261,15 @@ static bool test_ordered_fragments_4(void)
 
 	/* Validate the fragments. */
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb1, true, false, 64 - sizeof(struct udphdr));
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb2, false, false, 128);
 
 	log_debug("Validating the third fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb3, false, false, 192);
 
 	pkt_kfree(pkt);
@@ -317,15 +317,15 @@ static bool test_ordered_fragments_6(void)
 
 	/* Validate the fragments. */
 	log_debug("Validating the first fragment...");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb1, true, true, 64 - sizeof(struct udphdr));
 
 	log_debug("Validating the second fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb2, false, true, 128);
 
 	log_debug("Validating the third fragment...");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb3, false, true, 192);
 
 	pkt_kfree(pkt);
@@ -358,15 +358,15 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb3, &pkt), "verdict 1");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 1");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(0, hole->first, "1.1.first");
 	success &= assert_equals_u16(2, hole->last, "1.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(4, hole->first, "1.2.first");
 	success &= assert_equals_u16(INFINITY, hole->last, "1.2.last");
 
@@ -376,15 +376,15 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &pkt), "verdict 2");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 2");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(2, hole->first, "2.1.first");
 	success &= assert_equals_u16(2, hole->last, "2.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(4, hole->first, "2.2.first");
 	success &= assert_equals_u16(INFINITY, hole->last, "2.2.last");
 
@@ -394,15 +394,15 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &pkt), "verdict 3");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 3");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(2, hole->first, "3.1.first");
 	success &= assert_equals_u16(2, hole->last, "3.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(4, hole->first, "3.2.first");
 	success &= assert_equals_u16(5, hole->last, "3.2.last");
 
@@ -412,12 +412,12 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &pkt), "verdict 4");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(1, &buffer->holes, "Hole count 4");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(4, hole->first, "4.1.first");
 	success &= assert_equals_u16(5, hole->last, "4.1.last");
 
@@ -434,23 +434,23 @@ static bool test_disordered_fragments_4(void)
 
 	/* Validate the fragments. */
 	log_debug("Fragment 3");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb3, false, false, 8);
 
 	log_debug("Fragment 1");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb1, true, false, 8);
 
 	log_debug("Fragment 5");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb5, false, false, 8);
 
 	log_debug("Fragment 2");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb2, false, false, 8);
 
 	log_debug("Fragment 4");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb4, false, false, 16);
 
 	pkt_kfree(pkt);
@@ -485,15 +485,15 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &pkt), "verdict 1");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 1");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(0, hole->first, "1.1.first");
 	success &= assert_equals_u16(2, hole->last, "1.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(6, hole->first, "1.2.first");
 	success &= assert_equals_u16(INFINITY, hole->last, "1.2.last");
 
@@ -503,15 +503,15 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &pkt), "verdict 2");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 2");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(0, hole->first, "2.1.first");
 	success &= assert_equals_u16(1, hole->last, "2.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(6, hole->first, "2.2.first");
 	success &= assert_equals_u16(INFINITY, hole->last, "2.2.last");
 
@@ -521,15 +521,15 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb3, &pkt), "verdict 3");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 3");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(0, hole->first, "3.1.first");
 	success &= assert_equals_u16(1, hole->last, "3.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(7, hole->first, "3.2.first");
 	success &= assert_equals_u16(INFINITY, hole->last, "3.2.last");
 
@@ -539,15 +539,15 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb4, &pkt), "verdict 4");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(2, &buffer->holes, "Hole count 4");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(0, hole->first, "4.1.first");
 	success &= assert_equals_u16(0, hole->last, "4.1.last");
-	hole = list_entry(hole->hook.next, struct hole_descriptor, hook);
+	hole = list_entry(hole->list_hook.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(8, hole->first, "4.2.first");
 	success &= assert_equals_u16(INFINITY, hole->last, "4.2.last");
 
@@ -557,12 +557,12 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &pkt), "verdict 5");
 	success &= validate_database(1);
 
-	buffer = list_entry(expire_list.prev, struct reassembly_buffer, hook);
+	buffer = list_entry(expire_list.prev, struct reassembly_buffer, list_hook);
 	success &= assert_list_count(1, &buffer->holes, "Hole count 5");
 	if (!success)
 		return false;
 
-	hole = list_entry(buffer->holes.next, struct hole_descriptor, hook);
+	hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
 	success &= assert_equals_u16(0, hole->first, "5.1.first");
 	success &= assert_equals_u16(0, hole->last, "5.1.last");
 
@@ -577,27 +577,27 @@ static bool test_disordered_fragments_6(void)
 
 	/* Validate the fragments. */
 	log_debug("Fragment 24-48");
-	frag = container_of(pkt->fragments.next, struct fragment, next);
+	frag = container_of(pkt->fragments.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb1, false, true, 24);
 
 	log_debug("Fragment 16-32");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb2, false, true, 16);
 
 	log_debug("Fragment 40-56");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb3, false, true, 16);
 
 	log_debug("Fragment 8-64");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb4, false, true, 56);
 
 	log_debug("Fragment 64-72");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb5, false, true, 8);
 
 	log_debug("Fragment 0-8");
-	frag = container_of(frag->next.next, struct fragment, next);
+	frag = container_of(frag->list_hook.next, struct fragment, list_hook);
 	success &= validate_fragment(frag, skb6, true, true, 0);
 
 	pkt_kfree(pkt);
@@ -739,7 +739,7 @@ static bool validate_list(struct reassembly_buffer_key *expected, int expected_c
 	bool success = true;
 	int c = 0;
 
-	list_for_each_entry(current_buffer, &expire_list, hook) {
+	list_for_each_entry(current_buffer, &expire_list, list_hook) {
 		if (!assert_true(c < expected_count, "List count"))
 			return false;
 
@@ -897,9 +897,9 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[0], 4);
 
 	/* After 2 seconds, packet 1 should die. */
-	dummy_buffer = container_of(expire_list.next, struct reassembly_buffer, hook);
+	dummy_buffer = container_of(expire_list.next, struct reassembly_buffer, list_hook);
 	dummy_buffer->dying_time = jiffies - 1;
-	dummy_buffer = container_of(dummy_buffer->hook.next, struct reassembly_buffer, hook);
+	dummy_buffer = container_of(dummy_buffer->list_hook.next, struct reassembly_buffer, list_hook);
 	dummy_buffer->dying_time = jiffies + msecs_to_jiffies(4000);
 
 	/* success &= assert_range(3900, 4100, clean_expired_fragments(), "Timer 3"); */
@@ -916,9 +916,9 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[2], 2);
 
 	/* After 2 seconds, the third packet should die. */
-	dummy_buffer = container_of(expire_list.next, struct reassembly_buffer, hook);
+	dummy_buffer = container_of(expire_list.next, struct reassembly_buffer, list_hook);
 	dummy_buffer->dying_time = jiffies - 1;
-	dummy_buffer = container_of(dummy_buffer->hook.next, struct reassembly_buffer, hook);
+	dummy_buffer = container_of(dummy_buffer->list_hook.next, struct reassembly_buffer, list_hook);
 	dummy_buffer->dying_time = jiffies + msecs_to_jiffies(4000);
 
 	/* success &= assert_range(3900, 4100, clean_expired_fragments(), "Timer 5"); */

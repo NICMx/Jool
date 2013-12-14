@@ -11,7 +11,7 @@ bool validate_fragment_count(struct packet *pkt, int expected_count)
 	int i;
 
 	i = 0;
-	list_for_each_entry(frag, &pkt->fragments, next) {
+	list_for_each_entry(frag, &pkt->fragments, list_hook) {
 		i++;
 	}
 
