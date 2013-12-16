@@ -300,6 +300,19 @@ int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
 	return 0;
 }
 
+int bib_count(l4_protocol proto, __u64 *result)
+{
+	struct bib_table *table;
+	int error;
+
+	error = get_bib_table(proto, &table);
+	if (error)
+		return error;
+
+	*result = table->ipv4.node_count;
+	return 0;
+}
+
 bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)
 {
 	if (bib_1 == bib_2)

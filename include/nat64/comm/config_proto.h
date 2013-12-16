@@ -36,6 +36,7 @@ enum config_mode {
 enum config_operation {
 	/* The following apply when mode is pool6, pool4, BIB or session. */
 	OP_DISPLAY,
+	OP_COUNT,
 	OP_ADD,
 	OP_REMOVE,
 
@@ -205,6 +206,9 @@ struct request_bib {
 			/* Nothing needed here. */
 		} display;
 		struct {
+			/* Nothing needed here. */
+		} count;
+		struct {
 			struct ipv6_tuple_address ipv6;
 			struct ipv4_tuple_address ipv4;
 		} add;
@@ -215,6 +219,9 @@ struct request_bib {
 				struct ipv4_tuple_address ipv4;
 			};
 		} remove;
+		struct {
+			/* Nothing needed here. */
+		} clear;
 	};
 };
 

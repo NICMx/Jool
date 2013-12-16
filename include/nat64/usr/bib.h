@@ -5,6 +5,7 @@
 
 
 int bib_display(bool use_tcp, bool use_udp, bool use_icmp);
+int bib_count(bool use_tcp, bool use_udp, bool use_icmp);
 
 int bib_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_tuple_address *ipv6,
 		struct ipv4_tuple_address *ipv4);

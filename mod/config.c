@@ -95,6 +95,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		union request_pool6 *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -113,6 +114,13 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		kfree(stream);
 		return error;
+
+	case OP_COUNT:
+		log_debug("Returning IPv6 prefix count.");
+		error = pool6_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
 		log_debug("Adding a prefix to the IPv6 pool.");
@@ -138,6 +146,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		union request_pool4 *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -156,6 +165,13 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		kfree(stream);
 		return error;
+
+	case OP_COUNT:
+		log_debug("Returning IPv4 address count.");
+		error = pool4_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
 		log_debug("Adding an address to the IPv4 pool.");
@@ -188,6 +204,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		struct request_bib *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -208,6 +225,13 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 		kfree(stream);
 		return error;
+
+	case OP_COUNT:
+		log_debug("Returning BIB count.");
+		error = bib_count(request->l4_proto, &count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
 		log_debug("Adding BIB entry.");
@@ -241,6 +265,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		struct request_session *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -261,6 +286,13 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 
 		kfree(stream);
 		return error;
+
+	case OP_COUNT:
+		log_debug("Returning session count.");
+		error = session_count(request->l4_proto, &count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
@@ -431,10 +463,11 @@ static void receive_from_userspace(struct sk_buff *skb)
 int config_init(void)
 {
 	/*
-	 * The function changed in commit a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337)
-	 * an then again in 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
+	 * The function changed between Linux 3.5.7 and 3.6, and then again from 3.6.11 to 3.7.
 	 *
-	 * TODO (warning) confirm this is correct using http://lxr.linux.no.
+	 * If you're reading Git's history, that appears to be commit
+	 * a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337) and then again in
+	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,

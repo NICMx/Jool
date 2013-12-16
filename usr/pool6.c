@@ -50,6 +50,23 @@ int pool6_display(void)
 	return error;
 }
 
+static int pool6_count_response(struct nl_msg *msg, void *arg)
+{
+	__u64 *conf = nlmsg_data(nlmsg_hdr(msg));
+	printf("%llu\n", *conf);
+	return 0;
+}
+
+int pool6_count(void)
+{
+	struct request_hdr request = {
+			.length = sizeof(request),
+			.mode = MODE_POOL6,
+			.operation = OP_COUNT,
+	};
+	return netlink_request(&request, request.length, pool6_count_response, NULL);
+}
+
 static int pool6_add_response(struct nl_msg *msg, void *arg)
 {
 	log_info("The prefix was added successfully.");

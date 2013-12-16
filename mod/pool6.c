@@ -204,3 +204,16 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
 
 	return 0;
 }
+
+static int counter(struct ipv6_prefix *prefix, void *arg)
+{
+	__u64 *count = arg;
+	(*count)++;
+	return 0;
+}
+
+int pool6_count(__u64 *result)
+{
+	*result = 0;
+	return pool6_for_each(counter, result);
+}

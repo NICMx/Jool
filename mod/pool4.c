@@ -367,7 +367,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 
 	spin_lock_bh(&pool_lock);
 
-	if (pool.node_count == 0) { /* TODO qué pasó con el resto de estos? */
+	if (pool.node_count == 0) {
 		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
 		goto failure;
 	}
@@ -475,4 +475,10 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
 	spin_unlock_bh(&pool_lock);
 
 	return error;
+}
+
+int pool4_count(__u64 *result)
+{
+	*result = pool.node_count;
+	return 0;
 }

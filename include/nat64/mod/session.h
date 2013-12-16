@@ -61,6 +61,11 @@ struct session_entry {
  * Call during initialization for the remaining functions to work properly.
  */
 int session_init(void);
+/**
+ * Empties the session tables, freeing any memory being used by them.
+ * Call during destruction to avoid memory leaks.
+ */
+void session_destroy(void);
 
 /**
  * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
@@ -133,11 +138,8 @@ bool session_allow(struct tuple *tuple);
  */
 bool session_remove(struct session_entry *entry);
 
-/**
- * Empties the session tables, freeing any memory being used by them.
- * Call during destruction to avoid memory leaks.
- */
-void session_destroy(void);
+int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
+int session_count(l4_protocol proto, __u64 *result);
 
 /**
  * Helper function, intended to initialize a Session entry.
@@ -146,11 +148,6 @@ void session_destroy(void);
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		l4_protocol l4_proto);
-
-
-
-int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
-
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as
  * "bib_2".

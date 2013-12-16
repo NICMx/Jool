@@ -50,6 +50,11 @@ extern spinlock_t bib_session_lock;
  * Call during initialization for the remaining functions to work properly.
  */
 int bib_init(void);
+/**
+ * Empties the BIB tables, freeing any memory being used by them.
+ * Call during destruction to avoid memory leaks.
+ */
+void bib_destroy(void);
 
 /**
  * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto".
@@ -122,10 +127,12 @@ struct bib_entry *bib_get(struct tuple *tuple);
 bool bib_remove(struct bib_entry *entry, l4_protocol l4_proto);
 
 /**
- * Empties the BIB tables, freeing any memory being used by them.
- * Call during destruction to avoid memory leaks.
+ * Asume que el candado ya se reservó.
  */
-void bib_destroy(void);
+int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
+int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
+		int (*func)(struct bib_entry *, void *), void *arg);
+int bib_count(l4_protocol proto, __u64 *result);
 
 /**
  * Helper function, intended to initialize a BIB entry.
@@ -134,14 +141,6 @@ void bib_destroy(void);
  */
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static);
-
-/**
- * Asume que el candado ya se reservó.
- */
-int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
-int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
-		int (*func)(struct bib_entry *, void *), void *arg);
-
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".
  *

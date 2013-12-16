@@ -23,5 +23,6 @@ int pool6_remove(struct ipv6_prefix *prefix);
 bool pool6_contains(struct in6_addr *address);
 bool pool6_peek(struct ipv6_prefix *out);
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
+int pool6_count(__u64 *result);
 
 #endif /* _NF_NAT64_POOL6_H */

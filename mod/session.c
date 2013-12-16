@@ -290,6 +290,19 @@ int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, v
 	return ipv4_table_for_each(&table->ipv4, func, arg);
 }
 
+int session_count(l4_protocol proto, __u64 *result)
+{
+	struct session_table *table;
+	int error;
+
+	error = get_session_table(proto, &table);
+	if (error)
+		return error;
+
+	*result = table->ipv4.node_count;
+	return 0;
+}
+
 bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)
 {
 	if (session_1 == session_2)

@@ -75,6 +75,7 @@ enum argp_flags {
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
+	ARGP_COUNT = 'c',
 	ARGP_ADD = 'a',
 	ARGP_REMOVE = 'r',
 
@@ -136,6 +137,7 @@ static struct argp_option options[] =
 	{ NULL, 0, NULL, 0, "IPv6 Pool options:", 10},
 	{ "pool6",		ARGP_POOL6,		NULL, 0, "The command will operate on the IPv6 pool." },
 	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the IPv6 pool as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of IPv6 prefixes registered." },
 	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add a prefix to the pool." },
 	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove a prefix from the pool." },
 	{ "prefix",		ARGP_PREFIX,	PREFIX_FORMAT, 0,
@@ -144,6 +146,7 @@ static struct argp_option options[] =
 	{ NULL, 0, NULL, 0, "IPv4 Pool options:", 11 },
 	{ "pool4",		ARGP_POOL4,		NULL, 0, "The command will operate on the IPv4 pool." },
 	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the IPv4 pool as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of IPv4 addresses registered." },
 	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add an address to the pool." },
 	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove an address from the pool." },
 	{ "address",	ARGP_ADDRESS,	IPV4_ADDR_FORMAT, 0,
@@ -152,6 +155,7 @@ static struct argp_option options[] =
 	{ NULL, 0, NULL, 0, "BIB options:", 20 },
 	{ "bib",		ARGP_BIB, 		NULL, 0, "The command will operate on BIBs." },
 	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the table as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of BIB entries registered." },
 	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add an entry to the table." },
 	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove an entry from a table" },
 	{ "icmp",		ARGP_ICMP,		NULL, 0, "Print the ICMP BIB." },
@@ -177,6 +181,7 @@ static struct argp_option options[] =
 	{ NULL, 0, NULL, 0, "Session options:", 21 },
 	{ "session",	ARGP_SESSION,	NULL, 0, "The command will operate on the session tables." },
 	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the table as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of session entries registered." },
 	{ "icmp",		ARGP_ICMP,		NULL, 0, "Operate on the ICMP session table." },
 	{ "tcp",		ARGP_TCP,		NULL, 0, "Operate on the TCP session table." },
 	{ "udp",		ARGP_UDP,		NULL, 0, "Operate on the UDP session table." },
@@ -262,6 +267,9 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 
 	case ARGP_DISPLAY:
 		arguments->operation = OP_DISPLAY;
+		break;
+	case ARGP_COUNT:
+		arguments->operation = OP_COUNT;
 		break;
 	case ARGP_ADD:
 		arguments->operation = OP_ADD;
@@ -462,6 +470,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return pool6_display();
+		case OP_COUNT:
+			return pool6_count();
 		case OP_ADD:
 			if (!args.pool6_prefix_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the prefix to be added (--prefix).");
@@ -484,6 +494,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return pool4_display();
+		case OP_COUNT:
+			return pool4_count();
 		case OP_ADD:
 			if (!args.pool4_addr_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the address to be added (--address).");
@@ -506,6 +518,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return bib_display(args.tcp, args.udp, args.icmp);
+		case OP_COUNT:
+			return bib_count(args.tcp, args.udp, args.icmp);
 
 		case OP_ADD:
 			error = 0;
@@ -542,6 +556,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return session_display(args.tcp, args.udp, args.icmp);
+		case OP_COUNT:
+			return session_count(args.tcp, args.udp, args.icmp);
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
 			return -EINVAL;

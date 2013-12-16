@@ -127,6 +127,7 @@ bool pool4_contains(struct in_addr *addr);
  * Executes the "func" function with the "arg" argument on every address in the pool.
  */
 int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
+int pool4_count(__u64 *result);
 
 
 #endif /* _NF_NAT64_POOL4_H */
