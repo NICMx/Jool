@@ -131,51 +131,24 @@ static noinline bool test_allocate_ipv4_transport_address(void)
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_ICMP)))
 		return false;
-	success &= assert_true(allocate_ipv4_transport_address(&tuple, &tuple_addr), "ICMP result");
+	success &= assert_true(allocate_ipv4_transport_address(L4PROTO_ICMP, &tuple, &tuple_addr),
+			"ICMP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "ICMP address");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
 		return false;
-	success &= assert_true(allocate_ipv4_transport_address(&tuple, &tuple_addr), "TCP result");
+	success &= assert_true(allocate_ipv4_transport_address(L4PROTO_TCP, &tuple, &tuple_addr),
+			"TCP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "TCP address");
 	success &= assert_true(tuple_addr.l4_id > 1023, "Port range for TCP");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
 		return false;
-	success &= assert_true(allocate_ipv4_transport_address(&tuple, &tuple_addr), "UDP result");
+	success &= assert_true(allocate_ipv4_transport_address(L4PROTO_UDP, &tuple, &tuple_addr),
+			"UDP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "UDP address");
 	success &= assert_true(tuple_addr.l4_id % 2 == 0, "UDP port parity");
 	success &= assert_true(tuple_addr.l4_id > 1023, "UDP Port range");
-
-	return success;
-}
-
-
-#define IPV4_ALLOCATED_PORT_DIGGER 1024
-static noinline bool test_allocate_ipv4_transport_address_digger(void)
-{
-	struct in_addr expected_addr;
-	struct tuple tuple;
-	struct ipv4_tuple_address new_ipv4_transport_address;
-	bool success = true;
-
-	success &= inject_bib_entry(L4PROTO_ICMP);
-	success &= inject_bib_entry(L4PROTO_TCP);
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
-		return false;
-	success &= str_to_addr4_verbose(IPV4_ALLOCATED_ADDR, &expected_addr);
-	if (!success)
-		return false;
-
-	success &= assert_true(allocate_ipv4_transport_address_digger(&tuple, L4PROTO_UDP,
-			&new_ipv4_transport_address),
-			"Check that we can allocate a brand new IPv4 transport address for UDP.");
-	success &= assert_equals_ipv4(&new_ipv4_transport_address.address, &expected_addr,
-			"Check that the allocated IPv4 address is correct for UDP.");
-	success &= assert_true(new_ipv4_transport_address.l4_id % 2 == 0,
-			"Check that the allocated IPv4 port is even.");
-	success &= assert_true(new_ipv4_transport_address.l4_id > 1023,
-			"Check that the allocated IPv4 port is in the upper range.");
 
 	return success;
 }
@@ -1250,7 +1223,6 @@ static int __init filtering_test_init(void)
 	CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
 	CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
 	INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address(), end_full(), "allocate addr");
-	INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address_digger(), end_full(), "digger");
 	INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "core function");
 
 	/* UDP */

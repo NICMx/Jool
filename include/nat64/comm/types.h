@@ -366,10 +366,11 @@ bool ipv6_prefix_equals(struct ipv6_prefix *a, struct ipv6_prefix *b);
  * @param a object you want a hash from.
  * @return hash code of "a".
  */
-__u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *a);
-__u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *a);
-__u16 ipv4_pair_hashcode(struct ipv4_pair *a);
-__u16 ipv6_pair_hashcode(struct ipv6_pair *a);
+unsigned int ipv4_addr_hashcode(struct in_addr *a);
+unsigned int ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *a);
+unsigned int ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *a);
+unsigned int ipv4_pair_hashcode(struct ipv4_pair *a);
+unsigned int ipv6_pair_hashcode(struct ipv6_pair *a);
 /**
  * @}
  */

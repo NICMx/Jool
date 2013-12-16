@@ -103,6 +103,9 @@ int poolnum_get_any(struct poolnum *pool, u16 *result)
 /**
  * Borrows "value" from "pool".
  * This function is slow; avoid it during packet processing.
+ *
+ * TODO this function should differenciate whether it failed because value is already taken or
+ * because of a real error.
  */
 bool poolnum_get(struct poolnum *pool, u16 value)
 {

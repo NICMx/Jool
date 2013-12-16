@@ -463,77 +463,73 @@ static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv
 	ta->l4_id = l4_id;
 }
 
-/**
- * "Allocates" from the IPv4 pool a new transport address for use by the UDP BIB.
- *
- * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
- * context would be "borrow".
- *
- * RFC6146 - Section 3.5.1.1
- *
- * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
- * @param[out] result the transport address we borrowed from the pool.
- * @return true if everything went OK, false otherwise.
- */
-static bool allocate_ipv4_transport_address(struct tuple *tuple, struct ipv4_tuple_address *result)
+struct iteration_args {
+	struct ipv4_tuple_address *result;
+	l4_protocol l4_proto;
+};
+
+static int find_perfect_tuple_addr4(struct bib_entry *bib, void *void_args)
 {
-	struct bib_entry *bib;
+	struct iteration_args *args = void_args;
+	int error;
 
-	/* Check if the BIB has a previous entry from the same IPv6 source address (X’). */
-	bib = bib_get_by_ipv6_only(&tuple->src.addr.ipv6, L4PROTO_UDP);
+	error = pool4_get_match(args->l4_proto, &bib->ipv4, &args->result->l4_id);
+	if (error)
+		return 0; /* Not a satisfactory match; keep looking.*/
 
-	if (bib) {
-		/* Use the same IPv4 address (T). */
-		struct ipv4_tuple_address temp;
-		transport_address_ipv4(bib->ipv4.address, tuple->src.l4_id, &temp);
-		return pool4_get_similar(L4PROTO_UDP, &temp, result);
-	} else {
-		/* Don't care; use any address. */
-		return pool4_get_any(L4PROTO_UDP, tuple->src.l4_id, result);
-	}
+	args->result->address = bib->ipv4.address;
+	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
+}
+
+static int find_runnerup_tuple_addr4(struct bib_entry *bib, void *void_args)
+{
+	struct iteration_args *args = void_args;
+	int error;
+
+	error = pool4_get_any_port(args->l4_proto, &bib->ipv4.address, &args->result->l4_id);
+	if (error)
+		return 0; /* Not a satisfactory match; keep looking.*/
+
+	args->result->address = bib->ipv4.address;
+	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
 }
 
 /**
  * "Allocates" from the IPv4 pool a new transport address. Attemps to make this address as similar
- * to already existing data as possible.
+ * to "tuple"'s contents as possible.
  *
  * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
- * context would be "borrow".
+ * context would be "borrow (from the IPv4 pool)".
  *
- * RFC6146 - Section 3.5.2.3
+ * RFC6146 - Sections 3.5.1.1 and 3.5.2.3.
  *
  * @param[in] tuple this should contain the IPv6 source address you want the IPv4 address for.
  * @param[in] protocol protocol of the IPv4 pool the transport address should be borrowed from.
  * @param[out] result the transport address we borrowed from the pool.
  * @return true if everything went OK, false otherwise.
  */
-static bool allocate_ipv4_transport_address_digger(struct tuple *tuple, l4_protocol l4_proto,
+static int allocate_ipv4_transport_address(l4_protocol l4_proto, struct tuple *base,
 		struct ipv4_tuple_address *result)
 {
-	unsigned char ii = 0;
-	l4_protocol l4_protos[] = { L4PROTO_TCP, L4PROTO_UDP, L4PROTO_ICMP };
-	struct in_addr *address = NULL;
+	int error;
+	struct iteration_args args = { .result = result, .l4_proto = l4_proto };
 
-	/* Look for S' in all three BIBs. */
-	for (ii = 0; ii < 3; ii++) {
-		struct bib_entry *bib;
+	/* First, try to find a perfect match.*/
+	error = bib_for_each_ipv6(l4_proto, &base->src.addr.ipv6, find_perfect_tuple_addr4, &args);
+	if (error < 0)
+		return error; /* Something failed, report.*/
+	else if (error > 0)
+		return 0; /* A match was found and "result" is already populated, so report success. */
 
-		bib = bib_get_by_ipv6_only(&tuple->src.addr.ipv6, l4_protos[ii]);
-		if (bib) {
-			address = &bib->ipv4.address;
-			break; /* We found one entry! */
-		}
-	}
+	/* Else, iteration ended with no perfect match. Find a good match instead... */
+	error = bib_for_each_ipv6(l4_proto, &base->src.addr.ipv6, find_runnerup_tuple_addr4, &args);
+	if (error < 0)
+		return error;
+	else if (error > 0)
+		return 0;
 
-	if (address) {
-		/* Use the same address */
-		struct ipv4_tuple_address temp;
-		transport_address_ipv4(*address, tuple->src.l4_id, &temp);
-		return pool4_get_similar(l4_proto, &temp, result);
-	} else {
-		/* Use whichever address */
-		return pool4_get_any(l4_proto, tuple->src.l4_id, result);
-	}
+	/* There are no good matches. Just use any available IPv4 address and hope for the best. */
+	return pool4_get_any_addr(l4_proto, base->src.l4_id, result);
 }
 
 /**
@@ -612,7 +608,7 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	/* If not found, try to create a new one. */
 	if (bib == NULL) {
 		/* Find a similar transport address (T, t) */
-		if (!allocate_ipv4_transport_address(tuple, &bib_ipv4_addr)) {
+		if (!allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr)) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
 			goto bib_failure;
 		}
@@ -837,7 +833,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	/* If not found, try to create a new one. */
 	if (bib == NULL) {
 		/* Look in the BIB tables for a previous packet from the same origin (X') */
-		if (!allocate_ipv4_transport_address_digger(tuple, l4_proto, &bib_ipv4_addr)) {
+		if (!allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr)) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
 			goto bib_failure;
 		}
@@ -1055,7 +1051,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	/* If bib does not exist, try to create a new one, */
 	if (bib == NULL) {
 		/* Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address. */
-		if (!allocate_ipv4_transport_address_digger(tuple, l4_proto, &bib_ipv4_addr)) {
+		if (!allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr)) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
 			goto bib_failure;
 		}

@@ -125,9 +125,9 @@ static bool equals_function(struct reassembly_buffer_key *key1, struct reassembl
  * As specified above, the database is (mostly) a hash table. This is one of two functions used
  * internally by the table to search for values.
  */
-static __u16 hash_function(struct reassembly_buffer_key *key)
+static unsigned int hash_function(struct reassembly_buffer_key *key)
 {
-	__u16 result = 0;
+	unsigned int result = 0;
 
 	switch (key->l3_proto) {
 	case L3PROTO_IPV4:
@@ -260,6 +260,20 @@ static int buffer_put(struct reassembly_buffer_key *key, struct reassembly_buffe
 	return 0;
 }
 
+static void buffer_dealloc(struct reassembly_buffer *buffer)
+{
+	struct hole_descriptor *hole;
+
+	while (!list_empty(&buffer->holes)) {
+		hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
+		list_del(&hole->list_hook);
+		kmem_cache_free(hole_cache, hole);
+	}
+
+	pkt_kfree(buffer->pkt);
+	kmem_cache_free(buffer_cache, buffer);
+}
+
 /**
  * Removes "buffer" from the database and destroys it.
  *
@@ -268,11 +282,10 @@ static int buffer_put(struct reassembly_buffer_key *key, struct reassembly_buffe
  *
  * @param free_pkt send "true" if the buffer's internal packet structure should also be released.
  */
-static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer,
-		bool free_pkt)
+static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer)
 {
 	/* Remove it from the DB. */
-	if (!fragdb_table_remove(&table, key, false)) {
+	if (!fragdb_table_remove(&table, key, NULL)) {
 		log_crit(ERR_UNKNOWN_ERROR, "Something is attempting to delete a buffer that wasn't stored "
 				"in the database.");
 		return;
@@ -281,14 +294,7 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 	list_del(&buffer->list_hook);
 
 	/* Deallocate it. */
-	while (!list_empty(&buffer->holes)) {
-		struct hole_descriptor *hole = list_entry(buffer->holes.next, struct hole_descriptor, list_hook);
-		list_del(&hole->list_hook);
-		kmem_cache_free(hole_cache, hole);
-	}
-	if (free_pkt)
-		pkt_kfree(buffer->pkt);
-	kmem_cache_free(buffer_cache, buffer);
+	buffer_dealloc(buffer);
 }
 
 /**
@@ -361,7 +367,7 @@ static void clean_expired_buffers(void)
 		}
 
 		if (!is_error(frag_to_key(pkt_get_first_frag(buffer->pkt), &key))) {
-			buffer_destroy(&key, buffer, true);
+			buffer_destroy(&key, buffer);
 			b++;
 		}
 	}
@@ -780,7 +786,8 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	/* Step 8 */
 	if (list_empty(&buffer->holes)) {
 		*result = buffer->pkt;
-		buffer_destroy(&key, buffer, false);
+		buffer->pkt = NULL;
+		buffer_destroy(&key, buffer);
 		spin_unlock_bh(&table_lock);
 
 		if (is_error(l4_post(*result))) { /* omg fml =_= */
@@ -806,8 +813,8 @@ fail:
  */
 void fragdb_destroy(void)
 {
-	fragdb_table_empty(&table, true);
 	del_timer_sync(&expire_timer);
+	fragdb_table_empty(&table, buffer_dealloc);
 
 	kmem_cache_destroy(hole_cache);
 	kmem_cache_destroy(buffer_cache);

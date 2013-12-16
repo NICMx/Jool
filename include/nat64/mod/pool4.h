@@ -3,7 +3,7 @@
 
 /**
  * @file
- * The pool of IPv4 addresses (and their ports).
+ * The pool of IPv4 addresses (and their ports and ICMP ids).
  *
  * @author Alberto Leiva
  */
@@ -12,7 +12,35 @@
 #include <linux/in.h>
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
+#include "nat64/mod/poolnum.h"
 
+
+/**
+ * An address within the pool, along with its ports.
+ */
+struct pool4_node {
+	/** The address itself. */
+	struct in_addr addr;
+
+	struct {
+		/** The address's even UDP ports from the range 0-1023. */
+		struct poolnum low_even;
+		/** The address's odd UDP ports from the range 0-1023. */
+		struct poolnum low_odd;
+		/** The address's even UDP ports from the range 1024-65535. */
+		struct poolnum high_even;
+		/** The address's odd UDP ports from the range 1024-65535. */
+		struct poolnum high_odd;
+	} udp_ports;
+	struct {
+		/** The address's TCP ports from the range 0-1023. */
+		struct poolnum low;
+		/** The address's TCP ports from the range 1024-65535. */
+		struct poolnum high;
+	} tcp_ports;
+	/** The address's ICMP IDs. */
+	struct poolnum icmp_ids;
+};
 
 /**
  * Readies the rest of this module for future use.
@@ -28,50 +56,77 @@ int pool4_init(char *addr_strs[], int addr_count);
 void pool4_destroy(void);
 
 /**
- * Inserts the "address" address (along with its 64k ports) into the "l4protocol" pool.
- * These elements will then become borrowable through the pool_get_* functions.
+ * Inserts the "addr" address (along with its 128k ports and 64k ICMP ids) to the pool.
+ * These elements will then become borrowable through the pool_get* functions.
  */
-int pool4_register(struct in_addr *address);
+int pool4_register(struct in_addr *addr);
 /**
- * Removes the "address" address (along with its 64k ports) from the "l4_protocol" pool.
+ * Removes the "addr" address (along with its ports and IDs) from the pool.
  * If something was borrowed (not in the pool at the moment) it will be erased later, when the pool
- * retrieves it.
+ * retrieves it (Which is pretty counter-intuitive - TODO (Issue #65)).
  */
-int pool4_remove(struct in_addr *address);
+int pool4_remove(struct in_addr *addr);
 
 /**
- * Reserves and returns some available IPv4 address from the "l4protocol" pool, along with one of
- * its ports. This port will be 'compatible' with "port".
- * 'Compatible' means same parity and range. See RFC 6146 section 3.5.1.1 for more details on this
- * port hack.
+ * Borrows "addr" from the pool. This function will only succeed if the exact combination of
+ * address and port from "addr" can be found in the pool.
  *
- * @return whether there was something available (and compatible) in the pool. if "false", "result"
- *		will point to garbage.
+ * Also, it won't return the address and port because you already have them in "addr";
+ * it will simply return 0 if you can use the combination, and nonzero on failure.
+ *
+ * Warning: This function is pretty slow. Do not use it during packet processing.
  */
-bool pool4_get_any(l4_protocol l4_proto, __be16 port, struct ipv4_tuple_address *result);
+int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr);
 /**
- * Reserves and returns a transport address from the "l4protocol" pool.
- * The address's IPv4 address will be "address.address" and its port will be 'compatible' with
- * "address.l4_id".
- * 'Compatible' means same parity and range. See RFC 6146 section 3.5.1.1 for more details on this
- * port hack.
+ * Borrows an acceptable match for "addr" from the pool. That is, it'll borrow the same address as
+ * "addr->address", and a similar ID as "addr->l4_id".
  *
- * @return the address/port you want to borrow.
- *		Will return NULL if there's nothing available (and compatible) in the pool.
- *		This resulting object will be stored in the heap. If you never return it (by means of
- *		pool4_return()), you're expected to kfree it once you're done with it.
+ * If "proto" is UDP, then a 'similar ID' is one that has the same range (less than 1024 or higher
+ * than 1023) and parity (even/odd).
+ * If "proto" is TCP, then a 'similar ID' is one that has the same range.
+ * If "proto" is ICMP, then a 'similar ID' is any ID.
+ *
+ * The function will not return the address because you already have it in "addr". The 'similar ID'
+ * will be placed in the outgoing parameter, "result".
  */
-bool pool4_get_similar(l4_protocol l4_proto, struct ipv4_tuple_address *address,
-		struct ipv4_tuple_address *result);
+int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *result);
+/**
+ * Borrows any port of the "addr" address from the pool.
+ *
+ * The borrowed port will be placed in the outgoing parameter, "result".
+ */
+int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result);
+/**
+ * Borrows any address that has a similar ID as "l4_id". This one is a little quirky in that it
+ * falls back to returning any address with any ID if no similar one could be found.
+ *
+ * See pool4_get_match() for a definition of 'similar ID'.
+ *
+ * The resulting address-ID will be placed in the outgoing parameter, "result".
+ */
+int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result);
 
-bool pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *address);
+
 /**
+ * Returns the address-port combination from "addr" to the pool, so it can be borrowed again later.
+ *
  * Don't sweat it too much if this function fails; the user might have removed the address from the
  * pool.
  */
-bool pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address);
+int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *addr);
 
-bool pool4_contains(struct in_addr *address);
-int pool4_for_each(int (*func)(struct in_addr *, void *), void * arg);
+/**
+ * Returns whether the "addr" address is part of the pool.
+ *
+ * This function doesn't care if all of the ports and IDs from "addr" have been borrowed. All it
+ * takes for an address to belong to the pool is to have been pool4_register()ed and not
+ * pool4_remove()d.
+ */
+bool pool4_contains(struct in_addr *addr);
+/**
+ * Executes the "func" function with the "arg" argument on every address in the pool.
+ */
+int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
+
 
 #endif /* _NF_NAT64_POOL4_H */

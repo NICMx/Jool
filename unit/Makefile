@@ -24,10 +24,19 @@ HAIRPINNING = hairpinning
 SEND = send
 
 
-obj-m += $(ITERATOR).o $(HASHTABLE).o $(RFC6052).o
-obj-m += $(PKT).o $(FRAGDB).o
-obj-m += $(POOLNUM).o $(POOL4).o $(BIB_SESSION).o
-obj-m += $(INCOMING).o $(FILTERING).o $(OUTGOING).o $(TRANSLATE).o $(HAIRPINNING).o
+obj-m += $(ITERATOR).o
+obj-m += $(HASHTABLE).o
+obj-m += $(RFC6052).o
+obj-m += $(PKT).o
+obj-m += $(FRAGDB).o
+obj-m += $(POOLNUM).o
+obj-m += $(POOL4).o
+obj-m += $(BIB_SESSION).o
+obj-m += $(INCOMING).o
+obj-m += $(FILTERING).o
+obj-m += $(OUTGOING).o
+obj-m += $(TRANSLATE).o
+obj-m += $(HAIRPINNING).o
 obj-m += $(SEND).o
 
 $(ITERATOR)-objs += ../mod/types.o

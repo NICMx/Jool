@@ -100,7 +100,12 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 	return true;
 }
 
-__u16 ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *address)
+unsigned int ipv4_addr_hashcode(struct in_addr *addr)
+{
+	return be32_to_cpu(addr->s_addr);
+}
+
+unsigned int ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *address)
 {
 	return (address != NULL) ? address->l4_id : 0;
 }
@@ -119,7 +124,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 	return true;
 }
 
-__u16 ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
+unsigned int ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
 {
 	/*
 	 * address->l4_id would perhaps be the logical hash code, since it's usually random,
@@ -167,7 +172,7 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 	return true;
 }
 
-__u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
+unsigned int ipv4_pair_hashcode(struct ipv4_pair *pair)
 {
 	/*
 	 * pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
@@ -195,7 +200,7 @@ __u16 ipv4_pair_hashcode(struct ipv4_pair *pair)
 	return result;
 }
 
-__u16 ipv6_pair_hashcode(struct ipv6_pair *pair)
+unsigned int ipv6_pair_hashcode(struct ipv6_pair *pair)
 {
 	return (pair != NULL) ? pair->local.l4_id : 0;
 }

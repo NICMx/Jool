@@ -128,10 +128,9 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	}
 }
 
-static int pool4_entry_to_userspace(struct in_addr *address, void *arg)
+static int pool4_entry_to_userspace(struct pool4_node *node, void *arg)
 {
-	struct out_stream *stream = (struct out_stream *) arg;
-	stream_write(stream, address, sizeof(*address));
+	stream_write(arg, &node->addr, sizeof(node->addr));
 	return 0;
 }
 

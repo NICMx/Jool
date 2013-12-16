@@ -134,7 +134,7 @@ int session_add(struct session_entry *entry)
 
 	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
 	if (error) {
-		ipv4_table_remove(&table->ipv4, &entry->ipv4, false);
+		ipv4_table_remove(&table->ipv4, &entry->ipv4, NULL);
 		return error;
 	}
 
@@ -222,8 +222,8 @@ bool session_remove(struct session_entry *entry)
 		return false;
 
 	/* Free from both tables. */
-	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false);
-	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false);
+	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, NULL);
+	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, NULL);
 
 	if (removed_from_ipv4 && removed_from_ipv6)
 		return true;
@@ -234,6 +234,11 @@ bool session_remove(struct session_entry *entry)
 	log_crit(ERR_INCOMPLETE_REMOVE, "Inconsistent session removal: ipv4:%d; ipv6:%d.",
 			removed_from_ipv4, removed_from_ipv6);
 	return false;
+}
+
+static void session_dealloc(struct session_entry *session)
+{
+	kfree(session); /* TODO this is screaming for a cache. */
 }
 
 void session_destroy(void)
@@ -249,8 +254,8 @@ void session_destroy(void)
 	 * same values.
 	 */
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_empty(&session_table_udp.ipv4, false);
-		ipv6_table_empty(&session_table_udp.ipv6, true);
+		ipv4_table_empty(&session_table_udp.ipv4, NULL);
+		ipv6_table_empty(&session_table_udp.ipv6, session_dealloc);
 	}
 }
 

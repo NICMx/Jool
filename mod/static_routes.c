@@ -43,7 +43,7 @@ int add_static_route(struct request_bib *req)
 	}
 
 	/* Borrow the address and port from the IPv4 pool. */
-	if (!pool4_get(req->l4_proto, &req->add.ipv4)) {
+	if (is_error(pool4_get(req->l4_proto, &req->add.ipv4))) {
 		/*
 		 * This might happen if Filtering just reserved the address#port, but hasn't yet inserted
 		 * the BIB entry to the table. This is because bib_session_lock doesn't cover the IPv4

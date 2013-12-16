@@ -139,6 +139,8 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
  * Asume que el candado ya se reservó.
  */
 int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
+int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
+		int (*func)(struct bib_entry *, void *), void *arg);
 
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".

@@ -115,7 +115,7 @@ int bib_add(struct bib_entry *entry, l4_protocol l4_proto)
 		return error;
 	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
 	if (error) {
-		ipv4_table_remove(&table->ipv4, &entry->ipv4, false);
+		ipv4_table_remove(&table->ipv4, &entry->ipv4, NULL);
 		return error;
 	}
 
@@ -207,8 +207,8 @@ bool bib_remove(struct bib_entry *entry, l4_protocol l4_proto)
 		return false;
 
 	/* Free the memory from both tables. */
-	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false);
-	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false);
+	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, NULL);
+	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, NULL);
 
 	if (removed_from_ipv4 && removed_from_ipv6)
 		return true;
@@ -219,6 +219,11 @@ bool bib_remove(struct bib_entry *entry, l4_protocol l4_proto)
 	log_crit(ERR_INCOMPLETE_INDEX_BIB, "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
 			removed_from_ipv4, removed_from_ipv6);
 	return false;
+}
+
+static void bib_dealloc(struct bib_entry *bib)
+{
+	kfree(bib);
 }
 
 void bib_destroy(void)
@@ -232,8 +237,8 @@ void bib_destroy(void)
 	 * same values.
 	 */
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_empty(&tables[i]->ipv4, false);
-		ipv6_table_empty(&tables[i]->ipv6, true);
+		ipv4_table_empty(&tables[i]->ipv4, NULL);
+		ipv6_table_empty(&tables[i]->ipv6, bib_dealloc);
 	}
 }
 
@@ -262,6 +267,37 @@ int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), 
 		return error;
 
 	return ipv4_table_for_each(&table->ipv4, func, arg);
+}
+
+int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
+		int (*func)(struct bib_entry *, void *), void *arg)
+{
+	struct bib_table *table;
+	unsigned int hash_code;
+	struct hlist_node *current_node;
+	struct ipv6_table_key_value *current_pair;
+	struct ipv6_tuple_address tuple_addr;
+	int error;
+
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	tuple_addr.address = *addr;
+	tuple_addr.l4_id = 0; /* Not important because of the way the hash function is designed. */
+
+	/* TODO - that constant. */
+	hash_code = ipv6_tuple_addr_hashcode(&tuple_addr) % (64 * 1024 - 1);
+	hlist_for_each(current_node, &table->ipv6.table[hash_code]) {
+		current_pair = hlist_entry(current_node, struct ipv6_table_key_value, hlist_hook);
+		if (ipv6_addr_equals(addr, &current_pair->key.address)) {
+			error = func(current_pair->value, arg);
+			if (error)
+				return error;
+		}
+	}
+
+	return 0;
 }
 
 bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)

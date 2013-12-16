@@ -7,7 +7,7 @@
 
 /* Generate the hash table. */
 struct table_key {
-	int key;
+	unsigned int key;
 };
 
 struct table_value {
@@ -33,7 +33,7 @@ static bool equals_function(struct table_key *key1, struct table_key *key2)
 	return (key1->key == key2->key);
 }
 
-static __u16 hash_code_function(struct table_key *key1)
+static unsigned int hash_code_function(struct table_key *key1)
 {
 	return (key1 != NULL) ? key1->key : 0;
 }
@@ -106,7 +106,7 @@ static bool test(void)
 	test_table_print(&table, "After puts");
 
 	/* Test remove. */
-	if (!test_table_remove(&table, &keys[1], false)) {
+	if (!test_table_remove(&table, &keys[1], NULL)) {
 		log_warning("Remove operation failed on value 1.");
 		goto failure;
 	}
@@ -117,7 +117,7 @@ static bool test(void)
 	test_table_print(&table, "After remove");
 
 	/* Test empty. */
-	test_table_empty(&table, false);
+	test_table_empty(&table, NULL);
 	values[0].value = -1;
 	values[2].value = -1;
 
@@ -141,18 +141,18 @@ static bool test(void)
 	test_table_print(&table, "After puts");
 
 	/* Clean up. Also do a final assert just in case. */
-	test_table_empty(&table, false);
+	test_table_empty(&table, NULL);
 	values[0].value = -1;
 	values[1].value = -1;
 	values[2].value = -1;
 	if (!assert_table_content(&table, keys, values, "Needless extra test"))
 		goto failure;
 
-	test_table_empty(&table, false);
+	test_table_empty(&table, NULL);
 	return true;
 
 failure:
-	test_table_empty(&table, false);
+	test_table_empty(&table, NULL);
 	return false;
 }
 
@@ -194,7 +194,7 @@ static bool test_for_each_function(void)
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_warning("Put operation failed on value %d.", i);
-			test_table_empty(&table, false);
+			test_table_empty(&table, NULL);
 			return false;
 		}
 	}
@@ -207,7 +207,7 @@ static bool test_for_each_function(void)
 				|| summary.values[2] == values[i].value, "");
 	}
 
-	test_table_empty(&table, false);
+	test_table_empty(&table, NULL);
 	return true;
 }
 
