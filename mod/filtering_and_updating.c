@@ -608,7 +608,7 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	/* If not found, try to create a new one. */
 	if (bib == NULL) {
 		/* Find a similar transport address (T, t) */
-		if (!allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr)) {
+		if (is_error(allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr))) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
 			goto bib_failure;
 		}
@@ -833,7 +833,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	/* If not found, try to create a new one. */
 	if (bib == NULL) {
 		/* Look in the BIB tables for a previous packet from the same origin (X') */
-		if (!allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr)) {
+		if (is_error(allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr))) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
 			goto bib_failure;
 		}
@@ -1051,7 +1051,7 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	/* If bib does not exist, try to create a new one, */
 	if (bib == NULL) {
 		/* Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address. */
-		if (!allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr)) {
+		if (is_error(allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr))) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
 			goto bib_failure;
 		}

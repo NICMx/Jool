@@ -131,21 +131,21 @@ static noinline bool test_allocate_ipv4_transport_address(void)
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_ICMP)))
 		return false;
-	success &= assert_true(allocate_ipv4_transport_address(L4PROTO_ICMP, &tuple, &tuple_addr),
-			"ICMP result");
+	success &= assert_equals_int(0, allocate_ipv4_transport_address(L4PROTO_ICMP, &tuple,
+			&tuple_addr), "ICMP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "ICMP address");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
 		return false;
-	success &= assert_true(allocate_ipv4_transport_address(L4PROTO_TCP, &tuple, &tuple_addr),
-			"TCP result");
+	success &= assert_equals_int(0, allocate_ipv4_transport_address(L4PROTO_TCP, &tuple,
+			&tuple_addr), "TCP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "TCP address");
 	success &= assert_true(tuple_addr.l4_id > 1023, "Port range for TCP");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
 		return false;
-	success &= assert_true(allocate_ipv4_transport_address(L4PROTO_UDP, &tuple, &tuple_addr),
-			"UDP result");
+	success &= assert_equals_int(0, allocate_ipv4_transport_address(L4PROTO_UDP, &tuple,
+			&tuple_addr), "UDP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "UDP address");
 	success &= assert_true(tuple_addr.l4_id % 2 == 0, "UDP port parity");
 	success &= assert_true(tuple_addr.l4_id > 1023, "UDP Port range");

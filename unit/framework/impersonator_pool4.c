@@ -45,57 +45,52 @@ int pool4_remove(struct in_addr *address)
 	return 0;
 }
 
-//int pool4_get_any(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result)
-//{
-//	u32 *port_counter;
-//
-//	result->address = pool_address;
-//	switch (proto) {
-//	case L4PROTO_UDP:
-//		port_counter = &pool_current_udp_port;
-//		break;
-//	case L4PROTO_TCP:
-//		port_counter = &pool_current_tcp_port;
-//		break;
-//	case L4PROTO_ICMP:
-//		port_counter = &pool_current_icmp_id;
-//		break;
-//	default:
-//		log_warning("Unknown l4 protocol: %d.", proto);
-//		return false;
-//	}
-//
-//	if (*port_counter > 65535) {
-//		log_warning("I ran out of ports/icmp ids.");
-//		return false;
-//	}
-//
-//	result->l4_id = *port_counter;
-//	*port_counter += 2;
-//
-//	return true;
-//}
-//
-//bool pool4_get_similar(l4_protocol l4_proto, struct ipv4_tuple_address *address,
-//		struct ipv4_tuple_address *result)
-//{
-//	if (!address) {
-//		log_warning("Somebody send me NULL as an IPv4 address.");
-//		return false;
-//	}
-//
-//	if (pool_address.s_addr != address->address.s_addr) {
-//		log_warning("Address %pI4 does not belong to the pool.", &address->address);
-//		return false;
-//	}
-//
-//	return pool4_get_any(l4_proto, address->l4_id, result);
-//}
-
-int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
+static int get_next_port(l4_protocol proto, __u16 *result)
 {
-	log_warning("pool_get() is not implemented for testing.");
-	return false;
+	u32 *port_counter;
+
+	switch (proto) {
+	case L4PROTO_UDP:
+		port_counter = &pool_current_udp_port;
+		break;
+	case L4PROTO_TCP:
+		port_counter = &pool_current_tcp_port;
+		break;
+	case L4PROTO_ICMP:
+		port_counter = &pool_current_icmp_id;
+		break;
+	default:
+		log_warning("Unknown l4 protocol: %d.", proto);
+		return -EINVAL;
+	}
+
+	if (*port_counter > 65535) {
+		log_warning("I ran out of ports/icmp ids.");
+		return -ESRCH;
+	}
+
+	*result = *port_counter;
+	*port_counter += 2;
+
+	return 0;
+}
+
+int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *result)
+{
+	return pool4_get_any_port(proto, &addr->address, result);
+}
+
+int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result)
+{
+	return ipv4_addr_equals(addr, &pool_address)
+			? get_next_port(proto, result)
+			: -EINVAL;
+}
+
+int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result)
+{
+	result->address = pool_address;
+	return get_next_port(proto, &result->l4_id);
 }
 
 int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address)
