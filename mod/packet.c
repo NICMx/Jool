@@ -61,17 +61,23 @@ int frag_create_empty(struct fragment **out)
 
 int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag)
 {
+	__u8 *first_byte;
+	__u8 first_4_bits;
 	int error;
 
-	switch (ntohs(skb->protocol)) {
-	case ETH_P_IP:
+	first_byte = skb_network_header(skb);
+	first_4_bits = (*first_byte) >> 4;
+
+	/* We can't use skb->protocol because it isn't set during the LOCAL_OUT Netfilter chains. */
+	switch (first_4_bits) {
+	case 4:
 		error = frag_create_from_buffer_ipv4(skb_network_header(skb), skb->len, false, frag, skb);
 		break;
-	case ETH_P_IPV6:
+	case 6:
 		error = frag_create_from_buffer_ipv6(skb_network_header(skb), skb->len, false, frag, skb);
 		break;
 	default:
-		log_info("Unsupported network protocol: %u", ntohs(skb->protocol));
+		log_info("Unsupported network protocol: %u", first_4_bits);
 		return -EINVAL;
 	}
 
