@@ -25,8 +25,6 @@ static DEFINE_SPINLOCK(config_lock);
  *  @return zero: if initialization ran fine, nonzero: otherwhise. */
 int filtering_init(void)
 {
-	int error;
-
     spin_lock_bh(&config_lock);
     
     config.to.udp = UDP_DEFAULT;
@@ -39,11 +37,8 @@ int filtering_init(void)
     config.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
 
     spin_unlock_bh(&config_lock);
-    
-    //Initializes the TCP packet list
-    error = pktqueue_init();
 
-    return error;
+    return pktqueue_init();
 } 
 
 /** Esto libera la memoria reservada por filtering_init. 
@@ -51,7 +46,6 @@ int filtering_init(void)
 void filtering_destroy(void)
 {
 	pktqueue_destroy();
-    /* No code. */
 } 
 
 /** Esta guarda el contenido de config en el parámetro "clone". 
@@ -1067,7 +1061,7 @@ bib_failure:
 	return false;
 }
 
-static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
+static int tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 {
 	struct bib_entry *bib_entry_p = NULL;
 	struct session_entry *session_entry_p = NULL;
@@ -1080,7 +1074,7 @@ static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
-		return false;
+		return NF_DROP;
 	}
 
 	/* Pack addresses and ports into transport address */
@@ -1133,6 +1127,8 @@ static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 			goto failure;
 		}
 
+		return NF_STOLEN;
+
 		/* TODO (later) store the packet.
 		 *          The result is that the NAT64 will not drop the packet based on the filtering,
 		 *          nor create a BIB entry.  Instead, the NAT64 will only create the Session
@@ -1178,11 +1174,11 @@ static bool tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 	session_entry_p->bib = bib_entry_p;
 	list_add(&session_entry_p->entries_from_bib, &bib_entry_p->sessions);
 
-	return true;
+	return NF_ACCEPT;
 
 failure:
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
-	return false;
+	return NF_DROP;
 }
 
 /** CLOSED state
@@ -1193,7 +1189,7 @@ failure:
  * @param[in]   tuple   Tuple of the incoming packet.
  * @return  true if everything went OK, false otherwise.
  */
-static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
+static int tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
 {
 	struct bib_entry *bib_entry_p = NULL;
 	struct ipv6_tuple_address ipv6_ta;
@@ -1202,7 +1198,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
 
 	/* SYN packets */
 	if (packet_is_v6_syn(skb))
-		return tcp_closed_v6_syn(skb, tuple);
+		return tcp_closed_v6_syn(skb, tuple) ? NF_ACCEPT : NF_DROP;
 
 	if (packet_is_v4_syn(skb))
 		return tcp_closed_v4_syn(skb, tuple);
@@ -1227,7 +1223,7 @@ static bool tcp_closed_state_handle(struct sk_buff* skb, struct tuple *tuple)
 			log_warning("BIB entry not found for %pI4#%u.", &tuple->dst.addr.ipv4, tuple->dst.l4_id);
 	}
 
-	return (bib_entry_p != NULL);
+	return (bib_entry_p != NULL) ? NF_ACCEPT : NF_DROP;
 }
 
 /** V4 INIT state
@@ -1436,14 +1432,16 @@ static int tcp(struct sk_buff* skb, struct tuple *tuple)
 {
     struct session_entry *session_entry_p;
     bool result;
+    int nf_result;
     
     spin_lock_bh(&bib_session_lock);
     session_entry_p = session_get( tuple );
 
     /* If NO session was found: */
     if ( session_entry_p == NULL ) {
-        result = tcp_closed_state_handle(skb, tuple);
-        goto end;
+    	nf_result = tcp_closed_state_handle(skb, tuple);
+    	spin_unlock_bh(&bib_session_lock);
+        return nf_result;
     }
 
     /* Act according the current state. */
@@ -1478,9 +1476,7 @@ static int tcp(struct sk_buff* skb, struct tuple *tuple)
             log_err(ERR_INVALID_STATE, "Invalid state found: %u.", session_entry_p->state);
             result = false;
     }
-    /* Fall through. */
 
-end:
     spin_unlock_bh(&bib_session_lock);
     return result ? NF_ACCEPT : NF_DROP;
 }
