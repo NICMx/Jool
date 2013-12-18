@@ -66,8 +66,8 @@ int pktqueue_add(struct session_entry *entry, struct sk_buff *skb)
 		return -ENOMEM;
 	}
 
-	if(list_empty(&all_packets)){
-		expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
+	if (list_empty(&all_packets)) {
+		expires = msecs_to_jiffies(entry->dying_time) + 10;
 		mod_timer(&expire_timer, expires);
 	}
 
@@ -87,10 +87,13 @@ int pktqueue_add(struct session_entry *entry, struct sk_buff *skb)
 int pktqueue_remove(void)
 {
 	struct packet_node *node;
-	node = container_of(all_packets.prev, struct packet_node, list_hook);
+
+	node = container_of(all_packets.next, struct packet_node, list_hook);
 	icmp_send(node->skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
-    list_del(all_packets.prev);
-    kfree(node);
+	list_del(all_packets.next);
+	kfree_skb(node->skb);
+	kfree(node->session_entry_p);
+	kfree(node);
 	return 0;
 }
 
@@ -137,10 +140,10 @@ static void cleaner_timer(unsigned long param)
 
 	clean_expired_packets();
 
-	if(!list_empty(&all_packets))
+	if (!list_empty(&all_packets))
 	{
 		node = container_of(all_packets.next, struct packet_node, list_hook);
-		expires = jiffies + msecs_to_jiffies(node->dying_time);
+		expires = msecs_to_jiffies(node->dying_time) + 10;
 		mod_timer(&expire_timer, expires);
 	}
 }
@@ -159,14 +162,14 @@ void pktqueue_destroy(void)
 {
  	int error;
 
-	//Finish the timer execution
+	/* Finish the timer execution */
 	del_timer_sync(&expire_timer);
 
-	//Remove all packets
+	/* Remove all packets */
 	spin_lock_bh(&all_packets_lock);
 	while (!list_empty(&all_packets)) {
 		error = pktqueue_remove();
-		if(error)
+		if (error)
 			break;
 	}
 	spin_unlock_bh(&all_packets_lock);

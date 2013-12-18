@@ -1070,7 +1070,7 @@ static int tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
 	u_int8_t protocol = IPPROTO_TCP;
-	int error;
+	int error = 0;
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
@@ -1092,10 +1092,6 @@ static int tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 	if (bib_entry_p == NULL) {
 		/* Try to create a new session entry anyway! */
 		unsigned int temp = TCP_INCOMING_SYN;
-
-		log_warning("Unknown TCP connections started from the IPv4 side is still unsupported. "
-				"Dropping packet...");
-		goto failure;
 
 		/*
 		 * Side:   <-------- IPv6 -------->  N  <------- IPv4 ------->
@@ -1121,20 +1117,13 @@ static int tcp_closed_v4_syn(struct sk_buff* skb, struct tuple *tuple)
 		session_entry_p->state = V4_INIT;
 		update_session_lifetime(session_entry_p, &temp);
 
-		//Adds a packet's reference to the TCP packet list
+		/* Adds a packet's reference to the TCP packet list */
 		error = pktqueue_add(session_entry_p, skb);
 		if(error){
 			goto failure;
 		}
 
 		return NF_STOLEN;
-
-		/* TODO (later) store the packet.
-		 *          The result is that the NAT64 will not drop the packet based on the filtering,
-		 *          nor create a BIB entry.  Instead, the NAT64 will only create the Session
-		 *          Table Entry and store the packet. The motivation for this is to support
-		 *          simultaneous open of TCP connections. */
-
 
 	} else {
 

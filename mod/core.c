@@ -13,6 +13,9 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
+#include <linux/icmp.h>
+#include <net/icmp.h>
+
 
 
 static unsigned int nat64_core(struct sk_buff *skb_in,
@@ -22,11 +25,20 @@ static unsigned int nat64_core(struct sk_buff *skb_in,
 {
 	struct sk_buff *skb_out = NULL;
 	struct tuple tuple_in, tuple_out;
+	int nf_result;
 
 	if (!determine_in_tuple(skb_in, &tuple_in))
 		goto free_and_fail;
-	if (filtering_and_updating(skb_in, &tuple_in) != NF_ACCEPT)
+
+	nf_result = filtering_and_updating(skb_in, &tuple_in);
+	switch(nf_result){
+	case NF_DROP:
 		goto free_and_fail;
+	case NF_STOLEN:
+		log_debug("The packet was stored.");
+		return NF_STOLEN;
+	}
+
 	if (!compute_out_tuple_fn(&tuple_in, skb_in, &tuple_out))
 		goto free_and_fail;
 	if (!translate_packet_fn(&tuple_out, skb_in, &skb_out))
