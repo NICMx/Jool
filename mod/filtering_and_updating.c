@@ -464,6 +464,7 @@ static void transport_address_ipv6(struct in6_addr addr, __u16 l4_id, struct ipv
 }
 
 struct iteration_args {
+	struct tuple *tuple;
 	struct ipv4_tuple_address *result;
 	l4_protocol l4_proto;
 };
@@ -471,9 +472,13 @@ struct iteration_args {
 static int find_perfect_tuple_addr4(struct bib_entry *bib, void *void_args)
 {
 	struct iteration_args *args = void_args;
+	struct ipv4_tuple_address tuple_addr;
 	int error;
 
-	error = pool4_get_match(args->l4_proto, &bib->ipv4, &args->result->l4_id);
+	tuple_addr.address = bib->ipv4.address;
+	tuple_addr.l4_id = args->tuple->src.l4_id;
+
+	error = pool4_get_match(args->l4_proto, &tuple_addr, &args->result->l4_id);
 	if (error)
 		return 0; /* Not a satisfactory match; keep looking.*/
 
@@ -512,7 +517,11 @@ static int allocate_ipv4_transport_address(l4_protocol l4_proto, struct tuple *b
 		struct ipv4_tuple_address *result)
 {
 	int error;
-	struct iteration_args args = { .result = result, .l4_proto = l4_proto };
+	struct iteration_args args = {
+			.tuple = base,
+			.result = result,
+			.l4_proto = l4_proto
+	};
 
 	/* First, try to find a perfect match.*/
 	error = bib_for_each_ipv6(l4_proto, &base->src.addr.ipv6, find_perfect_tuple_addr4, &args);
