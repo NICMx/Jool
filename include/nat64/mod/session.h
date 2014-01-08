@@ -53,6 +53,9 @@ struct session_entry {
 	 * 	Each STE represents a state machine
 	 */
 	u_int8_t state;
+
+	struct rb_node tree6_hook;
+	struct rb_node tree4_hook;
 };
 
 
@@ -67,49 +70,41 @@ int session_init(void);
  */
 void session_destroy(void);
 
-/**
- * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
- * Expects all fields but the list_heads from "entry" to have been initialized.
- *
- * Because never in this project is required otherwise, assumes the entry is not yet on the table.
- *
- * @param entry row to be added to the table.
- * @return whether the entry could be inserted or not. It will not be inserted
- *		if some dynamic memory allocation failed.
- */
-int session_add(struct session_entry *entry);
 
 /**
- * Returns the Session entry from the "l4protocol" table whose IPv4 side (both addresses and ports)
- * is "pair".
+ * Returns in "result" the session entry from the "l4_proto" table whose IPv4 side (both addresses
+ * and ports) is "pair".
  *
- * @param pairt IPv4 data you want the Session entry for.
- * @param l4protocol identifier of the table to retrieve the entry from.
- * @return the Session entry from the "l4protocol" table whose IPv4 side (both addresses and posts)
- *		is "address". Returns NULL if there is no such an entry.
+ * @param[in] pairt IPv4 data you want the session entry for.
+ * @param[in] l4_proto identifier of the table to retrieve the entry from.
+ * @param[out] result the Session entry from the "l4_proto" table whose IPv4 side (both addresses
+ *		and ports) is "address".
+ * @return error status.
  */
-struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto);
+int session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
+		struct session_entry **result);
 /**
- * Returns the Session entry from the "l4protocol" table whose IPv6 side (both addresses and ports)
- * is "pair".
+ * Returns in "result" the session entry from the "l4_proto" table whose IPv6 side (both addresses
+ * and ports) is "pair".
  *
- * @param pairt IPv6 data you want the Session entry for.
- * @param l4protocol identifier of the table to retrieve the entry from.
- * @return the Session entry from the "l4protocol" table whose IPv6 side (both addresses and posts)
- *		is "address". Returns NULL if there is no such an entry.
+ * @param[in] pairt IPv6 data you want the session entry for.
+ * @param[in] l4_proto identifier of the table to retrieve the entry from.
+ * @param[out] result the Session entry from the "l4_proto" table whose IPv6 side (both addresses
+ *		and ports) is "address".
+ * @return error status.
  */
-struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto);
-
+int session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
+		struct session_entry **result);
 /**
- * Returns the session entry you'd expect from the "tuple" tuple.
+ * Returns in "result" the session entry you'd expect from the "tuple" tuple.
  *
  * That is, looks ups the session entry by both source and destination addresses.
  *
- * @param tuple summary of the packet. Describes the session you need.
- * @return the session entry you'd expect from the "tuple" tuple.
- *		returns null if no entry could be found.
+ * @param[in] tuple summary of the packet. Describes the session you need.
+ * @param[out] result the session entry you'd expect from the "tuple" tuple.
+ * @return error status.
  */
-struct session_entry *session_get(struct tuple *tuple);
+int session_get(struct tuple *tuple, struct session_entry **result);
 
 /**
  * Normally looks ups an entry, except it ignores "tuple"'s source port.
@@ -129,14 +124,25 @@ struct session_entry *session_get(struct tuple *tuple);
 bool session_allow(struct tuple *tuple);
 
 /**
+ * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
+ * Expects all fields but the list_heads from "entry" to have been initialized.
+ *
+ * Because never in this project is required otherwise, assumes the entry is not yet on the table.
+ *
+ * @param entry row to be added to the table.
+ * @return whether the entry could be inserted or not. It will not be inserted
+ *		if some dynamic memory allocation failed.
+ */
+int session_add(struct session_entry *entry);
+/**
  * Destroys the session table's reference to "entry". It does NOT kfree "entry".
  * Also, it removes "entry" regardless of whether it is static or not.
+ * "entry" is blatantly assumed to belong to the table. TODO
  *
  * @param entry entry to be removed from its table.
- * @return "true" if "entry" was in fact in the table. "false" if it wasn't,
- *		and hence it wasn't removed from anywhere.
+ * @return error status.
  */
-bool session_remove(struct session_entry *entry);
+int session_remove(struct session_entry *entry);
 
 int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
 int session_count(l4_protocol proto, __u64 *result);
@@ -148,6 +154,8 @@ int session_count(l4_protocol proto, __u64 *result);
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		l4_protocol l4_proto);
+void session_dealloc(struct session_entry *session);
+
 /**
  * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as
  * "bib_2".

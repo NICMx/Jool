@@ -199,13 +199,19 @@ static bool assert_bib(char* test_name, struct bib_entry* bib,
 	for (i = 0; i < 3; i++) {
 		struct bib_entry *expected_bib = table_has_it[i] ? bib : NULL;
 		struct bib_entry *retrieved_bib;
+		int success = true;
 
-		retrieved_bib = bib_get_by_ipv4(&bib->ipv4, l4_protos[i]);
-		if (!assert_bib_entry_equals(expected_bib, retrieved_bib, test_name))
-			return false;
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+				bib_get_by_ipv4(&bib->ipv4, l4_protos[i], &retrieved_bib),
+				test_name);
+		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
 
-		retrieved_bib = bib_get_by_ipv6(&bib->ipv6, l4_protos[i]);
-		if (!assert_bib_entry_equals(expected_bib, retrieved_bib, test_name))
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+				bib_get_by_ipv6(&bib->ipv6, l4_protos[i], &retrieved_bib),
+				test_name);
+		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
+
+		if (!success)
 			return false;
 	}
 
@@ -231,13 +237,19 @@ static bool assert_session(char* test_name, struct session_entry* session,
 		struct ipv6_pair pair_6 = { session->ipv6.local, session->ipv6.remote };
 		struct session_entry *expected_session = table_has_it[i] ? session : NULL;
 		struct session_entry *retrieved_session;
+		bool success = true;
 
-		retrieved_session = session_get_by_ipv4(&pair_4, l4_protos[i]);
-		if (!assert_session_entry_equals(expected_session, retrieved_session, test_name))
-			return false;
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+				session_get_by_ipv4(&pair_4, l4_protos[i], &retrieved_session),
+				test_name);
+		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
 
-		retrieved_session = session_get_by_ipv6(&pair_6, l4_protos[i]);
-		if (!assert_session_entry_equals(expected_session, retrieved_session, test_name))
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+				session_get_by_ipv6(&pair_6, l4_protos[i], &retrieved_session),
+				test_name);
+		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
+
+		if (!success)
 			return false;
 	}
 
@@ -264,19 +276,14 @@ static bool simple_bib(void)
 	success &= assert_equals_int(0, bib_add(bib, L4PROTO_TCP), "BIB insertion call");
 	success &= assert_bib("BIB insertion state", bib, false, true, false);
 	if (!success)
-		/*
-		 * Rather have a slight memory leak than corrupted memory. Because of the error, the table
-		 * might or might not have a reference to the entry, and if it does, it will try to kfree
-		 * it during bib_destroy(). Hence, better not free it here.
-		 */
 		return false;
 
-	success &= assert_true(bib_remove(bib, L4PROTO_TCP), "BIB removal call");
+	success &= assert_equals_int(0, bib_remove(bib, L4PROTO_TCP), "BIB removal call");
 	success &= assert_bib("BIB removal state", bib, false, false, false);
 	if (!success)
 		return false;
 
-	kfree(bib);
+	bib_dealloc(bib);
 	return success;
 }
 
@@ -294,12 +301,12 @@ static bool simple_session(void)
 	if (!success)
 		return false; /* See simple_bib(). */
 
-	success &= assert_true(session_remove(session), "Session removal call");
+	success &= assert_equals_int(0, session_remove(session), "Session removal call");
 	success &= assert_session("Session removal state", session, false, false, false);
 	if (!success)
 		return false;
 
-	kfree(session);
+	session_dealloc(session);
 	return true;
 }
 
@@ -381,9 +388,13 @@ static bool test_for_each(void)
 	if (!bib2)
 		return false;
 
-	success &= assert_equals_int(0, bib_for_each(L4PROTO_UDP, for_each_func, &summary), "");
-	success &= assert_true(bib_entry_equals(bib1, summary.bib1) || bib_entry_equals(bib1, summary.bib2), "");
-	success &= assert_true(bib_entry_equals(bib2, summary.bib2) || bib_entry_equals(bib2, summary.bib2), "");
+	success &= assert_equals_int(0, bib_for_each(L4PROTO_UDP, for_each_func, &summary), "result");
+	success &= assert_true(
+			bib_entry_equals(bib1, summary.bib1) || bib_entry_equals(bib1, summary.bib2),
+			"bib1 visited");
+	success &= assert_true(
+			bib_entry_equals(bib2, summary.bib1) || bib_entry_equals(bib2, summary.bib2),
+			"bib2 visited");
 
 	return success;
 }

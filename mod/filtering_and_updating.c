@@ -1,5 +1,6 @@
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/comm/constants.h"
+#include "nat64/mod/icmp_wrapper.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/pool4.h"
@@ -597,16 +598,19 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_pair pair6;
 	l4_protocol l4_proto = L4PROTO_UDP;
 	bool bib_is_local = false;
+	int error;
 
 	/* Pack source address into transport address */
 	transport_address_ipv6(tuple->src.addr.ipv6, tuple->src.l4_id, &source);
 
 	/* Check if a previous BIB entry exist, look for IPv6 source transport address (X’,x). */
 	spin_lock_bh(&bib_session_lock);
-	bib = bib_get_by_ipv6(&source, l4_proto);
+	error = bib_get_by_ipv6(&source, l4_proto, &bib);
+	if (error != 0 && error != -ENOENT)
+		goto bib_failure;
 
 	/* If not found, try to create a new one. */
-	if (bib == NULL) {
+	if (error == -ENOENT) {
 		/* Find a similar transport address (T, t) */
 		if (is_error(allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr))) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
@@ -634,10 +638,12 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 
 	/* Once we have a BIB entry do ... */
 
-	session = session_get(tuple);
+	error = session_get(tuple, &session);
+	if (error != 0 && error != -ENOENT)
+		goto session_failure;
 
 	/* If session was not found, then try to create a new one. */
-	if (session == NULL) {
+	if (error == -ENOENT) {
 		/* Translate address */
 		if (!extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4)) { /* Z(Y') */
 			log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
@@ -711,6 +717,7 @@ static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
 	l4_protocol l4_proto = L4PROTO_UDP;
+	int error;
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
 	 * what should be sent.
@@ -722,8 +729,11 @@ static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	spin_lock_bh(&bib_session_lock);
 
 	/* Check if a previous BIB entry exist, look for IPv4 destination transport address (T,t). */
-	bib = bib_get_by_ipv4(&destination, l4_proto);
-	if (bib == NULL) {
+	error = bib_get_by_ipv4(&destination, l4_proto, &bib);
+	if (error != 0 && error != -ENOENT)
+		goto failure;
+
+	if (error == -ENOENT) {
 		log_warning("There is no BIB entry for the incoming IPv4 UDP packet.");
 		icmp_error = ICMP_HOST_UNREACH;
 		goto failure;
@@ -737,12 +747,13 @@ static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
 	}
 
 	/* Find the Session Table Entry corresponding to the incoming tuple */
-	session = session_get(tuple);
+	error = session_get(tuple, &session);
+	if (error != 0 && error != -ENOENT)
+		goto failure;
 
-	if (session == NULL) {
+	if (error == -ENOENT) {
 		/* Translate address */
-		if (!append_ipv4(&tuple->src.addr.ipv4, &source_as_ipv6)) /* Y’(W) */
-		{
+		if (!append_ipv4(&tuple->src.addr.ipv4, &source_as_ipv6)) { /* Y’(W) */
 			log_err(ERR_APPEND_FAILED, "Could not translate the packet's address.");
 			icmp_error = ICMP_HOST_UNREACH;
 			goto failure;
@@ -817,6 +828,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	struct ipv6_pair pair6;
 	l4_protocol l4_proto = L4PROTO_ICMP;
 	bool bib_is_local = false;
+	int error;
 
 	if (filter_icmpv6_info()) {
 		log_info("Packet is ICMPv6 info; dropping due to policy.");
@@ -828,10 +840,12 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 
 	/* Search for an ICMPv6 Query BIB entry that matches the (X’,i1) pair. */
 	spin_lock_bh(&bib_session_lock);
-	bib = bib_get_by_ipv6(&source, l4_proto);
+	error = bib_get_by_ipv6(&source, l4_proto, &bib);
+	if (error != 0 && error != -ENOENT)
+		goto bib_failure;
 
 	/* If not found, try to create a new one. */
-	if (bib == NULL) {
+	if (error == -ENOENT) {
 		/* Look in the BIB tables for a previous packet from the same origin (X') */
 		if (is_error(allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr))) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
@@ -860,13 +874,14 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	/* OK, we have a BIB entry to work with... */
 
 	/* Search an ICMP STE corresponding to the incoming 3-tuple (X’,Y’,i1). */
-	session = session_get(tuple);
+	error = session_get(tuple, &session);
+	if (error != 0 && error != -ENOENT)
+		goto session_failure;
 
 	/* If NO session was found: */
-	if (session == NULL) {
+	if (error == -ENOENT) {
 		/* Translate address from IPv6 to IPv4 */
-		if (!extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4)) /* Z(Y') */
-		{
+		if (!extract_ipv4(&tuple->dst.addr.ipv6, &destination_as_ipv4)) { /* Z(Y') */
 			log_err(ERR_EXTRACT_FAILED, "Could not translate the packet's address.");
 			goto session_failure;
 		}
@@ -942,6 +957,7 @@ static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
 	l4_protocol l4_proto = L4PROTO_ICMP;
+	int error;
 
 	/*
 	 * We don't want to call icmp_send() while the spinlock is held, so this will tell whether and
@@ -955,8 +971,11 @@ static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	spin_lock_bh(&bib_session_lock);
 
 	/* Find the packet's BIB entry. */
-	bib = bib_get_by_ipv4(&destination, l4_proto);
-	if (bib == NULL) {
+	error = bib_get_by_ipv4(&destination, l4_proto, &bib);
+	if (error != 0 && error != -ENOENT)
+		goto failure;
+
+	if (error == ENOENT) {
 		log_warning("There is no BIB entry for the incoming IPv4 ICMP packet.");
 		icmp_error = ICMP_HOST_UNREACH;
 		goto failure;
@@ -970,12 +989,13 @@ static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
 	}
 
 	/* Search the Session Table Entry corresponding to the incoming tuple */
-	session = session_get(tuple);
+	error = session_get(tuple, &session);
+	if (error != 0 && error != -ENOENT)
+		goto failure;
 
-	if (session == NULL) {
+	if (error == -ENOENT) {
 		/* Translate the address */
-		if (!append_ipv4(&tuple->src.addr.ipv4, &source_as_ipv6)) /* Y’(Z) */
-		{
+		if (!append_ipv4(&tuple->src.addr.ipv4, &source_as_ipv6)) { /* Y’(Z) */
 			log_err(ERR_APPEND_FAILED, "Could not translate the packet's address.");
 			icmp_error = ICMP_HOST_UNREACH;
 			goto failure;
@@ -1041,15 +1061,18 @@ static bool tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	struct ipv4_pair pair4;
 	l4_protocol l4_proto = L4PROTO_TCP;
 	bool bib_is_local = false;
+	int error;
 
 	/* Pack source address into transport address */
 	transport_address_ipv6(tuple->src.addr.ipv6, tuple->src.l4_id, &source);
 
 	/* Check if a previous BIB entry exist, look for IPv6 source transport address (X’,x). */
-	bib = bib_get_by_ipv6(&source, l4_proto);
+	error = bib_get_by_ipv6(&source, l4_proto, &bib);
+	if (error != 0 && error != -ENOENT)
+		goto bib_failure;
 
 	/* If bib does not exist, try to create a new one, */
-	if (bib == NULL) {
+	if (error == -ENOENT) {
 		/* Obtain a new BIB IPv4 transport address (T,t), put it in new_ipv4_transport_address. */
 		if (is_error(allocate_ipv4_transport_address(l4_proto, tuple, &bib_ipv4_addr))) {
 			log_warning("Could not 'allocate' a compatible transport address for the packet.");
@@ -1137,6 +1160,7 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
 	l4_protocol l4_proto = L4PROTO_TCP;
+	int error;
 
 	if (drop_external_connections()) {
 		log_info("Applying policy: Dropping externally initiated TCP connections.");
@@ -1153,9 +1177,11 @@ static bool tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 	}
 
 	/* Look for the destination transport address (X,x) in the BIB */
-	bib = bib_get_by_ipv4(&destination, l4_proto);
+	error = bib_get_by_ipv4(&destination, l4_proto, &bib);
+	if (error != 0 && error != -ENOENT)
+		goto failure;
 
-	if (bib == NULL) {
+	if (error == -ENOENT) {
 		/* Try to create a new session entry anyway! */
 		log_warning("Unknown TCP connections started from the IPv4 side is still unsupported. "
 		"Dropping packet...");
@@ -1245,10 +1271,11 @@ failure:
  */
 static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 {
-	struct bib_entry *bib = NULL;
+	struct bib_entry *bib;
 	struct ipv6_tuple_address ipv6_ta;
 	struct ipv4_tuple_address ipv4_ta;
 	l4_protocol l4_proto = L4PROTO_TCP;
+	int error = 0;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:
@@ -1259,9 +1286,9 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 		transport_address_ipv6(tuple->src.addr.ipv6, tuple->src.l4_id, &ipv6_ta);
 
 		/* Look if there is a corresponding entry in the TCP BIB */
-		bib = bib_get_by_ipv6(&ipv6_ta, l4_proto);
-		if (!bib)
-			log_warning("BIB entry not found for %pI6c#%u.",
+		error = bib_get_by_ipv6(&ipv6_ta, l4_proto, &bib);
+		if (error)
+			log_warning("Error code %d while trying to find a BIB entry for %pI6c#%u.", error,
 					&tuple->src.addr.ipv6, tuple->src.l4_id);
 		break;
 
@@ -1273,14 +1300,14 @@ static bool tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 		transport_address_ipv4(tuple->dst.addr.ipv4, tuple->dst.l4_id, &ipv4_ta);
 
 		/* Look for the destination transport address (X,x) in the BIB */
-		bib = bib_get_by_ipv4(&ipv4_ta, l4_proto);
-		if (!bib)
-			log_warning("BIB entry not found for %pI4#%u.",
+		error = bib_get_by_ipv4(&ipv4_ta, l4_proto, &bib);
+		if (error)
+			log_warning("Error code %d while trying to find a BIB entry for %pI4#%u.", error,
 					&tuple->dst.addr.ipv4, tuple->dst.l4_id);
 		break;
 	}
 
-	return (bib != NULL);
+	return (!error);
 }
 
 /**
@@ -1441,12 +1468,18 @@ static verdict tcp(struct fragment* frag, struct tuple *tuple)
 {
 	struct session_entry *session;
 	bool result;
+	int error;
 
 	spin_lock_bh(&bib_session_lock);
-	session = session_get(tuple);
+	error = session_get(tuple, &session);
+	if (error != 0 && error != -ENOENT) {
+		log_warning("Error code %d while trying to find a TCP session.", error);
+		result = false;
+		goto end;
+	}
 
 	/* If NO session was found: */
-	if (session == NULL) {
+	if (error == -ENOENT) {
 		result = tcp_closed_state_handle(frag, tuple);
 		goto end;
 	}

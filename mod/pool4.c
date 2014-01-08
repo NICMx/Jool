@@ -12,6 +12,7 @@
 #define GENERATE_FOR_EACH
 #include "hash_table.c"
 
+
 static struct pool4_table pool;
 static DEFINE_SPINLOCK(pool_lock);
 static struct in_addr *last_used_addr;
@@ -19,6 +20,24 @@ static struct in_addr *last_used_addr;
 /** Cache for struct pool4_nodes, for efficient allocation. */
 static struct kmem_cache *node_cache;
 
+
+static unsigned int ipv4_addr_hashcode(struct in_addr *addr)
+{
+	__u32 addr32;
+	unsigned int result;
+
+	if (!addr)
+		return 0;
+
+	addr32 = be32_to_cpu(addr->s_addr);
+
+	result = (addr32 >> 24) & 0xFF;
+	result = 31 * result + ((addr32 >> 16) & 0xFF);
+	result = 31 * result + ((addr32 >> 8) & 0xFF);
+	result = 31 * result + (addr32 & 0xFF);
+
+	return result;
+}
 
 /**
  * Assumes that pool has already been locked (pool_lock).

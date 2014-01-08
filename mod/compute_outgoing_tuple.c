@@ -11,6 +11,7 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
+	int error;
 
 	if (!pool6_peek(&prefix)) {
 		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty. Cannot translate.");
@@ -18,10 +19,10 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 	}
 
 	spin_lock_bh(&bib_session_lock);
-	bib = bib_get(in);
-	if (!bib) {
-		log_crit(ERR_MISSING_BIB, "Could not find the BIB entry we just created or updated in "
-				"the Filtering and Updating step!");
+	error = bib_get(in, &bib);
+	if (error) {
+		log_warning("Error code %d while trying to find a BIB entry we just created or updated in "
+				"the Filtering and Updating step...", error);
 		goto lock_fail;
 	}
 
@@ -63,6 +64,7 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
+	int error;
 
 	if (!pool6_peek(&prefix)) {
 		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty. Cannot translate.");
@@ -70,10 +72,10 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 	}
 
 	spin_lock_bh(&bib_session_lock);
-	bib = bib_get(in);
-	if (!bib) {
-		log_crit(ERR_MISSING_BIB, "Could not find the BIB entry we just created or updated in "
-				"the Filtering and Updating step!");
+	error = bib_get(in, &bib);
+	if (error) {
+		log_warning("Error code %d while trying to find a BIB entry we just created or updated in "
+				"the Filtering and Updating step...", error);
 		goto lock_fail;
 	}
 

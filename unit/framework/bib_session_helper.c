@@ -19,11 +19,13 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 
 	while (expected_bibs[expected_count] != NULL) {
 		struct bib_entry *expected = expected_bibs[expected_count];
-		struct bib_entry *actual = bib_get_by_ipv6(&expected->ipv6, l4_proto);
+		struct bib_entry *actual;
+		int error;
 
-		if (!actual) {
-			log_warning("Could not find BIB entry [%pI6c#%u, %pI4#%u] in the database.",
-					&expected->ipv6.address, expected->ipv6.l4_id,
+		error = bib_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
+		if (error) {
+			log_warning("Error %d while trying to find BIB entry [%pI6c#%u, %pI4#%u] in the DB.",
+					error, &expected->ipv6.address, expected->ipv6.l4_id,
 					&expected->ipv4.address, expected->ipv4.l4_id);
 			return false;
 		}
@@ -59,11 +61,13 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 
 	while (expected_sessions[expected_count] != NULL) {
 		struct session_entry *expected = expected_sessions[expected_count];
-		struct session_entry *actual = session_get_by_ipv6(&expected->ipv6, l4_proto);
+		struct session_entry *actual;
+		int error;
 
-		if (!actual) {
-			log_warning("Could not find session entry %d [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u] "
-					"in the database.", expected_count,
+		error = session_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
+		if (error) {
+			log_warning("Error %d while trying to find session entry %d [%pI6c#%u, %pI6c#%u, "
+					"%pI4#%u, %pI4#%u] in the DB.", error, expected_count,
 					&expected->ipv6.remote.address, expected->ipv6.remote.l4_id,
 					&expected->ipv6.local.address, expected->ipv6.local.l4_id,
 					&expected->ipv4.local.address, expected->ipv4.local.l4_id,

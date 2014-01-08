@@ -340,6 +340,11 @@ static inline bool is_5_tuple(struct tuple *tuple)
 }
 
 /**
+ * Prints "tuple" pretty in the log.
+ */
+void log_tuple(struct tuple *tuple);
+
+/**
  * @{
  * Returns "true" if the first parameter is the same as the second one, even if they are pointers
  * to different places in memory.
@@ -359,21 +364,14 @@ bool ipv6_prefix_equals(struct ipv6_prefix *a, struct ipv6_prefix *b);
  * @}
  */
 
-/**
- * @{
- * Computes a 16-bit hash identifier out of the parameter and returns it.
- *
- * @param a object you want a hash from.
- * @return hash code of "a".
- */
-unsigned int ipv4_addr_hashcode(struct in_addr *a);
-unsigned int ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *a);
-unsigned int ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *a);
-unsigned int ipv4_pair_hashcode(struct ipv4_pair *a);
-unsigned int ipv6_pair_hashcode(struct ipv6_pair *a);
-/**
- * @}
- */
+static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *a2)
+{
+	return memcmp(a1, a2, sizeof(struct in_addr));
+}
+
+
+#define icmp_send icmp4_send
+#define icmpv6_send icmp6_send
 
 /**
  * @{
@@ -396,11 +394,6 @@ bool is_icmp4_error(__u8 type);
 /**
  * @}
  */
-
-/**
- * Prints "tuple" pretty in the log.
- */
-void log_tuple(struct tuple *tuple);
 
 
 #endif

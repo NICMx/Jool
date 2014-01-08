@@ -178,8 +178,7 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 		return false;
 	tuple_addr.l4_id = port6;
 
-	bib = bib_get_by_ipv6(&tuple_addr, proto);
-	success &= assert_not_null(bib, "BIB exists");
+	success &= assert_equals_int(0, bib_get_by_ipv6(&tuple_addr, proto, &bib), "BIB exists");
 	if (!success)
 		return false;
 
@@ -224,8 +223,7 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 		return false;
 	pair6.local.l4_id = local_port6;
 
-	session = session_get_by_ipv6(&pair6, proto);
-	success &= assert_not_null(session, "Session exists");
+	success &= assert_equals_int(0, session_get_by_ipv6(&pair6, proto, &session), "Session exists");
 	if (!success)
 		return false;
 
@@ -642,9 +640,8 @@ static noinline bool test_tcp_closed_state_handle_6(void)
 	success &= assert_true(tcp_closed_state_handle(frag, &tuple), "V6 syn-result");
 
 	/* Validate */
-	session = session_get(&tuple);
-	success &= assert_not_null(session, "V6 syn-session.");
-	if (session)
+	success &= assert_equals_int(0, session_get(&tuple, &session), "V6 syn-session.");
+	if (success)
 		success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
 
 	frag_kfree(frag);

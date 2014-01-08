@@ -6,6 +6,7 @@ obj-m += jool.o
 jool-objs += types.o
 jool-objs += str_utils.o
 jool-objs += packet.o
+jool-objs += icmp_wrapper.o
 jool-objs += fragment_db.o
 jool-objs += ipv6_hdr_iterator.o
 jool-objs += rfc6052.o

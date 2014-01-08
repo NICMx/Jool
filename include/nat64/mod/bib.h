@@ -30,6 +30,9 @@ struct bib_entry {
 
 	/** Session entries related to this BIB. */
 	struct list_head sessions;
+
+	struct rb_node tree6_hook;
+	struct rb_node tree4_hook;
 };
 
 
@@ -57,6 +60,47 @@ int bib_init(void);
 void bib_destroy(void);
 
 /**
+ * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv4 side (address and
+ * port) is "addr".
+ *
+ * You must lock bib_session_lock before calling this function.
+ *
+ * @param[in] address address and port you want the BIB entry for.
+ * @param[in] l4_proto identifier of the table to retrieve the entry from.
+ * @param[out] the BIB entry from the table will be placed here.
+ * @return error status.
+ */
+int bib_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+		struct bib_entry **result);
+/**
+ * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv6 side (address and
+ * port) is "addr".
+ *
+ * You must lock bib_session_lock before calling this function.
+ *
+ * @param[in] address address and port you want the BIB entry for.
+ * @param[in] l4_proto identifier of the table to retrieve the entry from.
+ * @param[out] the BIB entry from the table will be placed here.
+ * @return error status.
+ */
+int bib_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+		struct bib_entry **result);
+
+/**
+ * Returns the BIB entry you'd expect from the "tuple" tuple.
+ *
+ * That is, when we're translating from IPv6 to IPv4, returns the BIB whose IPv6 address is
+ * "tuple"'s source address.
+ * When we're translating from IPv4 to IPv6, returns the BIB whose IPv4 address is "tuple"'s
+ * destination address.
+ *
+ * @param[in] tuple summary of the packet. Describes the BIB you need.
+ * @param[out] the BIB entry you'd expect from the "tuple" tuple.
+ * @return error status.
+ */
+int bib_get(struct tuple *tuple, struct bib_entry **result);
+
+/**
  * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto".
  * Expects all fields from "entry" to have been initialized.
  *
@@ -70,61 +114,15 @@ void bib_destroy(void);
  *		memory allocation failed.
  */
 int bib_add(struct bib_entry *entry, l4_protocol l4_proto);
-
-/**
- * Returns the BIB entry from the "l4_proto" table whose IPv4 side (address and port) is "address".
- *
- * You must lock bib_session_lock before calling this function.
- *
- * @param address address and port you want the BIB entry for.
- * @param l4_proto identifier of the table to retrieve the entry from.
- * @return the BIB entry from the "l4_proto" table whose IPv4 side (address and port) is "address".
- *		Returns NULL if there is no such entry.
- */
-struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, l4_protocol l4_proto);
-/**
- * Returns the BIB entry from the "l4_proto" table whose IPv6 side (address and port) is "address".
- *
- * You must lock bib_session_lock before calling this function.
- *
- * @param address address and port you want the BIB entry for.
- * @param l4_proto identifier of the table to retrieve the entry from.
- * @return the BIB entry from the "l4_proto" table whose IPv6 side (address and port) is "address".
- *		Returns NULL if there is no such entry.
- */
-struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, l4_protocol l4_proto);
-/**
- * Returns any BIB entry from the "l4_proto" table whose IPv6 address is "address".
- *
- * @param address address you want any BIB entry for.
- * @param l4_proto identifier of the table to retrieve the entry from.
- * @return some BIB entry from the "l4_proto" table whose IPv6 address is "address".
- */
-struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, l4_protocol l4_proto);
-
-/**
- * Returns the BIB entry you'd expect from the "tuple" tuple.
- *
- * That is, when we're translating from IPv6 to IPv4, returns the BIB whose IPv6 address is
- * "tuple"'s source address.
- * When we're translating from IPv4 to IPv6, returns the BIB whose IPv4 address is "tuple"'s
- * destination address.
- *
- * @param tuple summary of the packet. Describes the BIB you need.
- * @return the BIB entry you'd expect from the "tuple" tuple.
- */
-struct bib_entry *bib_get(struct tuple *tuple);
-
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4_proto".
  * Even though the entry is removed from the table, it is not kfreed.
  *
  * @param entry row to be removed from the table.
  * @param l4_proto identifier of the table to remove "entry" from.
- * @return whether the entry was in fact removed or not. The removal will fail if the entry is not
- *		on the table, or if it still has related session entries.
+ * @return error status.
  */
-bool bib_remove(struct bib_entry *entry, l4_protocol l4_proto);
+int bib_remove(struct bib_entry *entry, l4_protocol l4_proto);
 
 /**
  * Asume que el candado ya se reservó.
@@ -141,6 +139,8 @@ int bib_count(l4_protocol proto, __u64 *result);
  */
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static);
+void bib_dealloc(struct bib_entry *bib);
+
 /**
  * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".
  *

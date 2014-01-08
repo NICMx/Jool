@@ -100,16 +100,6 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 	return true;
 }
 
-unsigned int ipv4_addr_hashcode(struct in_addr *addr)
-{
-	return be32_to_cpu(addr->s_addr);
-}
-
-unsigned int ipv4_tuple_addr_hashcode(struct ipv4_tuple_address *address)
-{
-	return (address != NULL) ? address->l4_id : 0;
-}
-
 bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tuple_address *actual)
 {
 	if (expected == actual)
@@ -122,26 +112,6 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 		return false;
 
 	return true;
-}
-
-unsigned int ipv6_tuple_addr_hashcode(struct ipv6_tuple_address *address)
-{
-	/*
-	 * address->l4_id would perhaps be the logical hash code, since it's usually random,
-	 * but during bib_get_by_ipv6_only() we need to ignore it during lookup
-	 * so this needs to be a little more creative.
-	 */
-
-	__u16 i;
-	__u16 result = 1;
-
-	if (address == NULL)
-		return 0;
-
-	for (i = 0; i < 8; i++)
-		result = 31 * result + ntohs(address->address.s6_addr16[i]);
-
-	return result;
 }
 
 bool ipv4_pair_equals(struct ipv4_pair *pair_1, struct ipv4_pair *pair_2)
@@ -170,39 +140,6 @@ bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
 		return false;
 
 	return true;
-}
-
-unsigned int ipv4_pair_hashcode(struct ipv4_pair *pair)
-{
-	/*
-	 * pair->remote.l4_id would perhaps be the logical hash code, since it's usually random,
-	 * but during session_allow() we need to ignore it during lookup
-	 * so this needs to be a little more creative.
-	 */
-
-	union ipv4_addr_union {
-		__be32 by32;
-		__be16 by16[2];
-	} local, remote;
-	__u16 result = 1;
-
-	if (pair == NULL)
-		return 0;
-
-	local.by32 = pair->local.address.s_addr;
-	remote.by32 = pair->remote.address.s_addr;
-
-	result = 31 * result + ntohs(local.by16[0]);
-	result = 31 * result + ntohs(remote.by16[0]);
-	result = 31 * result + ntohs(local.by16[1]);
-	result = 31 * result + ntohs(remote.by16[1]);
-
-	return result;
-}
-
-unsigned int ipv6_pair_hashcode(struct ipv6_pair *pair)
-{
-	return (pair != NULL) ? pair->local.l4_id : 0;
 }
 
 bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)

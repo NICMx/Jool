@@ -29,8 +29,12 @@ int add_static_route(struct request_bib *req)
 	spin_lock_bh(&bib_session_lock);
 
 	/* Check if the BIB entry exists. */
-	bib_by_ipv6 = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto);
-	bib_by_ipv4 = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto);
+	error = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto, &bib_by_ipv6);
+	if (error)
+		goto failure;
+	error = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto, &bib_by_ipv4);
+	if (error)
+		goto failure;
 
 	if (bib_by_ipv6 != NULL || bib_by_ipv4 != NULL) {
 		bib = (bib_by_ipv6 == NULL) ? bib_by_ipv4 : bib_by_ipv6;
@@ -91,10 +95,14 @@ int delete_static_route(struct request_bib *req)
 
 	switch (req->remove.l3_proto) {
 	case L3PROTO_IPV6:
-		bib = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto);
+		error = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto, &bib);
+		if (error)
+			goto end;
 		break;
 	case L3PROTO_IPV4:
-		bib = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto);
+		error = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
+		if (error)
+			goto end;
 		break;
 	default:
 		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
