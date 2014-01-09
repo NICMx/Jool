@@ -291,10 +291,11 @@ struct tuple_addr {
 /**
  * A tuple is sort of a summary of a packet; it is a quick accesor for several of its key elements.
  *
- * Keep in mind that the tuple's values do not always come from places you'd normally expect. If
- * the RFC says "the tuple's source address", then you *MUST* extract the address from the tuple,
- * not from the packet. Conversely, if it says "the packet's source address", then *DO NOT* extract
- * it from the tuple for convenience. See comments inside for more info.
+ * Keep in mind that the tuple's values do not always come from places you'd normally expect.
+ * Unless you know ICMP errors are not involved, if the RFC says "the tuple's source address",
+ * then you *MUST* extract the address from the tuple, not from the packet.
+ * Conversely, if it says "the packet's source address", then *DO NOT* extract it from the tuple
+ * for convenience. See comments inside for more info.
  */
 struct tuple {
 	/**
@@ -319,6 +320,11 @@ struct tuple {
 	 * l4_proto will be something else.
 	 */
 	l4_protocol l4_proto;
+
+/**
+ * By the way: There's code that assumes that src.l4_id contains the same value as dst.l4_id when
+ * l4_proto == L4PROTO_ICMP.
+ */
 #define icmp_id src.l4_id
 };
 

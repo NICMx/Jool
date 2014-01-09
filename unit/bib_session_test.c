@@ -405,29 +405,24 @@ static bool test_for_each(void)
 
 static bool init(void)
 {
-	int error;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		error = str_to_addr4(IPV4_ADDRS[i], &addr4[i].address);
-		if (error)
+		if (is_error(str_to_addr4(IPV4_ADDRS[i], &addr4[i].address)))
 			return false;
 		addr4[i].l4_id = IPV4_PORTS[i];
 	}
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		error = str_to_addr6(IPV6_ADDRS[i], &addr6[i].address);
-		if (error)
+		if (is_error(str_to_addr6(IPV6_ADDRS[i], &addr6[i].address)))
 			return false;
 		addr6[i].l4_id = IPV6_PORTS[i];
 	}
 
-	error = bib_init();
-	if (error)
+	if (is_error(bib_init()))
 		return false;
 
-	error = session_init();
-	if (error) {
+	if (is_error(session_init())) {
 		bib_destroy();
 		return false;
 	}

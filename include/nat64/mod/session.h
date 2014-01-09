@@ -124,7 +124,7 @@ int session_get(struct tuple *tuple, struct session_entry **result);
 bool session_allow(struct tuple *tuple);
 
 /**
- * Adds "entry" to the session table whose layer-4 protocol is "entry->protocol".
+ * Adds "entry" to the session table whose layer-4 protocol is "entry->l4_proto".
  * Expects all fields but the list_heads from "entry" to have been initialized.
  *
  * Because never in this project is required otherwise, assumes the entry is not yet on the table.
@@ -137,7 +137,7 @@ int session_add(struct session_entry *entry);
 /**
  * Destroys the session table's reference to "entry". It does NOT kfree "entry".
  * Also, it removes "entry" regardless of whether it is static or not.
- * "entry" is blatantly assumed to belong to the table. TODO
+ * "entry" is blatantly assumed to belong to the table.
  *
  * @param entry entry to be removed from its table.
  * @return error status.
@@ -154,6 +154,9 @@ int session_count(l4_protocol proto, __u64 *result);
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		l4_protocol l4_proto);
+/**
+ * Warning: Careful with this one; "session" cannot be NULL.
+ */
 void session_dealloc(struct session_entry *session);
 
 /**

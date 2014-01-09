@@ -139,6 +139,9 @@ int bib_count(l4_protocol proto, __u64 *result);
  */
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static);
+/**
+ * Warning: Careful with this one; "bib" cannot be NULL.
+ */
 void bib_dealloc(struct bib_entry *bib);
 
 /**

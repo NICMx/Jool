@@ -24,18 +24,21 @@ static struct in_addr local_ipv4, remote_ipv4;
 static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *ip6_addr,
 		__u16 ip6_port, l4_protocol l4_proto)
 {
-	/* Generate the BIB. */
-	struct bib_entry *bib = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
-	if (!bib) {
-		log_warning("Unable to allocate a dummy BIB.");
-		goto failure;
-	}
+	struct bib_entry *bib;
+	struct ipv6_tuple_address addr6;
+	struct ipv4_tuple_address addr4;
 
-	bib->ipv4.address = *ip4_addr;
-	bib->ipv4.l4_id = ip4_port;
-	bib->ipv6.address = *ip6_addr;
-	bib->ipv6.l4_id = ip6_port;
-	INIT_LIST_HEAD(&bib->sessions);
+	/* Generate the BIB. */
+	addr4.address = *ip4_addr;
+	addr4.l4_id = ip4_port;
+	addr6.address = *ip6_addr;
+	addr6.l4_id = ip6_port;
+
+	bib = bib_create(&addr4, &addr6, false);
+	if (!bib) {
+		log_warning("Can't allocate a BIB entry!");
+		return false;
+	}
 
 	/*
 	log_debug("BIB [%pI4#%u, %pI6c#%u]",
@@ -44,16 +47,13 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	*/
 
 	/* Add it to the table. */
-	if (bib_add(bib, l4_proto) != 0) {
+	if (is_error(bib_add(bib, l4_proto))) {
 		log_warning("Can't add the dummy BIB to the table.");
-		goto failure;
+		bib_dealloc(bib);
+		return false;
 	}
 
 	return true;
-
-failure:
-	kfree(bib);
-	return false;
 }
 
 /**
@@ -96,7 +96,7 @@ static bool init(void)
 	prefix.len = 96;
 
 	/* Init the BIB module */
-	if (bib_init() != 0)
+	if (is_error(bib_init()))
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(l4_protos); i++)
@@ -128,11 +128,11 @@ static bool test_6to4(l4_protocol l4_proto)
 	incoming.l4_proto = l4_proto;
 
 	if (l4_proto != L4PROTO_ICMP) {
-		success &= assert_true(tuple5(&incoming, &outgoing), "Function call");
+		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing), "Function5 call");
 		success &= assert_equals_u16(80, outgoing.src.l4_id, "Source port");
 		success &= assert_equals_u16(123, outgoing.dst.l4_id, "Destination port");
 	} else {
-		success &= assert_true(tuple3(&incoming, &outgoing), "Function call");
+		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing), "Function3 call");
 		success &= assert_equals_u16(80, outgoing.icmp_id, "ICMP ID");
 	}
 	success &= assert_equals_ipv4(&local_ipv4, &outgoing.src.addr.ipv4, "Source address");
@@ -156,11 +156,11 @@ static bool test_4to6(l4_protocol l4_proto)
 	incoming.l4_proto = l4_proto;
 
 	if (l4_proto != L4PROTO_ICMP) {
-		success &= assert_true(tuple5(&incoming, &outgoing), "Function call");
+		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing), "Function5 call");
 		success &= assert_equals_u16(123, outgoing.src.l4_id, "Source port");
 		success &= assert_equals_u16(1500, outgoing.dst.l4_id, "Destination port");
 	} else {
-		success &= assert_true(tuple3(&incoming, &outgoing), "Function call");
+		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing), "Function3 call");
 		success &= assert_equals_u16(1500, outgoing.icmp_id, "ICMP ID");
 	}
 	success &= assert_equals_ipv6(&local_ipv6, &outgoing.src.addr.ipv6, "Source address");

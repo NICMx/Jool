@@ -35,46 +35,6 @@ static noinline bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
 	return true;
 }
 
-#define IPV6_EXTRACT_ADDR "64:ff9b::192.168.2.3"
-#define IPV4_EXTRACTED_ADDR "192.168.2.3"
-static noinline bool test_extract_ipv4_from_ipv6(void)
-{
-	struct in6_addr addr6;
-	struct in_addr extracted4;
-	bool success = true;
-
-	if (is_error(pool6_init(NULL, 0)))
-		return false;
-	if (!str_to_addr6_verbose(IPV6_EXTRACT_ADDR, &addr6))
-		return false;
-
-	success &= assert_true(extract_ipv4(&addr6, &extracted4), "result");
-	success &= assert_equals_ipv4_str(IPV4_EXTRACTED_ADDR, &extracted4, "address");
-
-	pool6_destroy();
-	return success;
-}
-
-
-#define IPV6_EMBEDDED_ADDR "64:ff9b::192.168.2.3"
-#define IPV4_EMBEDDABLE_ADDR "192.168.2.3"
-static noinline bool test_embed_ipv4_in_ipv6(void)
-{
-	struct in_addr embeddable4;
-	struct in6_addr embed6;
-	bool success = true;
-
-	if (is_error(pool6_init(NULL, 9)))
-		return false;
-	if (!str_to_addr4_verbose(IPV4_EMBEDDABLE_ADDR, &embeddable4))
-		return false;
-
-	success &= assert_true(append_ipv4(&embeddable4, &embed6) , "result");
-	success &= assert_equals_ipv6_str(IPV6_EMBEDDED_ADDR, &embed6, "address");
-
-	return success;
-}
-
 #define IPV6_INJECT_BIB_ENTRY_SRC_ADDR "2001:db8:c0ca:1::1"
 #define IPV6_INJECT_BIB_ENTRY_SRC_PORT 1080
 #define IPV4_INJECT_BIB_ENTRY_DST_ADDR "192.168.2.1"
@@ -166,8 +126,12 @@ static int bib_count_fn(struct bib_entry *bib, void *arg)
 static bool assert_bib_count(int expected, l4_protocol proto)
 {
 	int count = 0;
-	bib_for_each(proto, bib_count_fn, &count);
-	return assert_equals_int(expected, count, "BIB count");
+	bool success = true;
+
+	success &= assert_equals_int(0, bib_for_each(proto, bib_count_fn, &count), "count");
+	success &= assert_equals_int(expected, count, "BIB count");
+
+	return success;
 }
 
 static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *addr4, u16 port4,
@@ -205,8 +169,12 @@ static int session_count_fn(struct session_entry *session, void *arg)
 static bool assert_session_count(int expected, l4_protocol proto)
 {
 	int count = 0;
-	session_for_each(proto, session_count_fn, &count);
-	return assert_equals_int(expected, count, "Session count");
+	bool success = true;
+
+	success = assert_equals_int(0, session_for_each(proto, session_count_fn, &count), "count");
+	success = assert_equals_int(expected, count, "Session count");
+
+	return success;
 }
 
 static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
@@ -640,7 +608,7 @@ static noinline bool test_tcp_closed_state_handle_6(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_closed_state_handle(frag, &tuple), "V6 syn-result");
+	success &= assert_equals_int(0, tcp_closed_state_handle(frag, &tuple), "V6 syn-result");
 
 	/* Validate */
 	success &= assert_equals_int(0, session_get(&tuple, &session), "V6 syn-session.");
@@ -668,7 +636,7 @@ static noinline bool test_tcp_v4_init_state_handle_v6syn(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_init_state_handle(frag, &session), "V6 syn-result");
+	success &= assert_equals_int(0, tcp_v4_init_state_handle(frag, &session), "V6 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V6 syn-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
 
@@ -693,7 +661,7 @@ static noinline bool test_tcp_v4_init_state_handle_else(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_init_state_handle(frag, &session), "else-result");
+	success &= assert_equals_int(0, tcp_v4_init_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V4_INIT, session.state, "else-state");
 	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
 
@@ -718,8 +686,7 @@ static noinline bool test_tcp_v6_init_state_handle_v4syn(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_init_state_handle(frag, &session),
-			"V4 syn-result");
+	success &= assert_equals_int(0, tcp_v6_init_state_handle(frag, &session), "V4 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V4 syn-state");
 	success &= assert_true(session.dying_time > jiffies, "V4 syn-lifetime");
 
@@ -744,8 +711,7 @@ static noinline bool test_tcp_v6_init_state_handle_v6syn(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_init_state_handle(frag, &session),
-			"V6 syn-result");
+	success &= assert_equals_int(0, tcp_v6_init_state_handle(frag, &session), "V6 syn-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "V6 syn-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
 
@@ -770,7 +736,7 @@ static noinline bool test_tcp_v6_init_state_handle_else(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_init_state_handle(frag, &session), "else-result");
+	success &= assert_equals_int(0, tcp_v6_init_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "else-state");
 	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
 
@@ -794,7 +760,7 @@ static noinline bool test_tcp_established_state_handle_v4fin(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
+	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "V4 fin-state");
 	success &= assert_true(session.dying_time < jiffies, "V4 fin-lifetime");
 
@@ -819,7 +785,7 @@ static noinline bool test_tcp_established_state_handle_v6fin(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
+	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "V6 fin-state");
 	success &= assert_true(session.dying_time < jiffies, "V6 fin-lifetime");
 
@@ -844,7 +810,7 @@ static noinline bool test_tcp_established_state_handle_v4rst(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
+	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
 	success &= assert_true(session.dying_time > jiffies, "V4 rst-lifetime");
 
@@ -869,7 +835,7 @@ static noinline bool test_tcp_established_state_handle_v6rst(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
+	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 rst-lifetime");
 
@@ -894,7 +860,7 @@ static noinline bool test_tcp_established_state_handle_else(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_established_state_handle(frag, &session), "result");
+	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
@@ -919,7 +885,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_fin_rcv_state_handle(frag, &session), "V6 fin-result");
+	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(frag, &session), "V6 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V6 fin-state");
 	success &= assert_true(session.dying_time > jiffies, "V6 fin-lifetime");
 
@@ -944,7 +910,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_else(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v4_fin_rcv_state_handle(frag, &session), "else-result");
+	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
@@ -969,7 +935,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_fin_rcv_state_handle(frag, &session), "V4 fin-result");
+	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(frag, &session), "V4 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V4 fin-state");
 	success &= assert_true(session.dying_time > jiffies, "V4 fin-lifetime");
 
@@ -994,7 +960,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_else(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_v6_fin_rcv_state_handle(frag, &session), "else-result");
+	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
@@ -1019,7 +985,7 @@ static noinline bool test_tcp_trans_state_handle_v4rst(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_trans_state_handle(frag, &session), "V4 rst-result");
+	success &= assert_equals_int(0, tcp_trans_state_handle(frag, &session), "V4 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
 	success &= assert_true(session.dying_time < jiffies, "V4 rst-lifetime");
 
@@ -1044,7 +1010,7 @@ static noinline bool test_tcp_trans_state_handle_v6rst(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_trans_state_handle(frag, &session), "V6 rst-result");
+	success &= assert_equals_int(0, tcp_trans_state_handle(frag, &session), "V6 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
 	success &= assert_true(session.dying_time < jiffies, "V6 rst-lifetime");
 
@@ -1069,7 +1035,7 @@ static noinline bool test_tcp_trans_state_handle_else(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_true(tcp_trans_state_handle(frag, &session), "else-result");
+	success &= assert_equals_int(0, tcp_trans_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
 	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
 
@@ -1220,8 +1186,6 @@ static int __init filtering_test_init(void)
 	START_TESTS("Filtering and Updating");
 
 	/* General */
-	CALL_TEST(test_extract_ipv4_from_ipv6(), "test_extract_ipv4_from_ipv6");
-	CALL_TEST(test_embed_ipv4_in_ipv6(), "test_embed_ipv4_in_ipv6");
 	INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address(), end_full(), "allocate addr");
 	INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "core function");
 

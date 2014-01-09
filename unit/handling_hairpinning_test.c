@@ -149,7 +149,7 @@ static struct bib_entry *create_and_insert_static_bib(int l4_proto)
 		log_warning("Could not allocate the static BIB entry.");
 		return NULL;
 	}
-	if (bib_add(bib, l4_proto) != 0)
+	if (is_error(bib_add(bib, l4_proto)))
 		return NULL;
 
 	return bib;
@@ -338,6 +338,10 @@ static bool test_hairpin(l4_protocol l4_proto,
 	/* We're done. */
 	print_bibs(l4_proto);
 	print_sessions(l4_proto);
+
+	session_dealloc(dynamic_session);
+	session_dealloc(static_session);
+	bib_dealloc(dynamic_bib);
 
 	return success;
 }

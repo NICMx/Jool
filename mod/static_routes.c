@@ -80,7 +80,8 @@ int add_static_route(struct request_bib *req)
 	return 0;
 
 failure:
-	kfree(bib);
+	if (bib)
+		bib_dealloc(bib);
 	spin_unlock_bh(&bib_session_lock);
 	return error;
 }
@@ -123,18 +124,18 @@ int delete_static_route(struct request_bib *req)
 
 	while (!list_empty(&bib->sessions)) {
 		session = container_of(bib->sessions.next, struct session_entry, bib_list_hook);
-		if (!session_remove(session)) {
+		error = session_remove(session);
+		if (error) {
 			log_err(ERR_UNKNOWN_ERROR,
 					"Session [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u] refused to die.",
 					&session->ipv6.remote.address, session->ipv6.remote.l4_id,
 					&session->ipv6.local.address, session->ipv6.local.l4_id,
 					&session->ipv4.local.address, session->ipv4.local.l4_id,
 					&session->ipv4.remote.address, session->ipv4.remote.l4_id);
-			error = -EINVAL;
 			goto end;
 		}
 		list_del(&session->bib_list_hook);
-		kfree(session);
+		session_dealloc(session);
 	}
 
 	error = bib_remove(bib, req->l4_proto);
@@ -145,7 +146,7 @@ int delete_static_route(struct request_bib *req)
 	}
 
 	pool4_return(req->l4_proto, &bib->ipv4);
-	kfree(bib);
+	bib_dealloc(bib);
 	/* Fall through. */
 
 end:

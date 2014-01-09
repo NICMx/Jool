@@ -55,7 +55,7 @@ static bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, str
 	struct in_addr actual;
 	bool success = true;
 
-	success &= assert_true(addr_6to4(src, prefix, &actual), "Extract IPv4-result");
+	success &= assert_equals_int(0, addr_6to4(src, prefix, &actual), "Extract IPv4-result");
 	success &= assert_equals_ipv4(expected, &actual, "Extract IPv4-out");
 
 	return success;
@@ -66,7 +66,7 @@ static bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, stru
 	struct in6_addr actual;
 	bool success = true;
 
-	success &= assert_true(addr_4to6(src, prefix, &actual), "Append IPv4-result");
+	success &= assert_equals_int(0, addr_4to6(src, prefix, &actual), "Append IPv4-result");
 	success &= assert_equals_ipv6(expected, &actual, "Append IPv4-out.");
 
 	return success;

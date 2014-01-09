@@ -12,7 +12,7 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 	int expected_count = 0;
 	int actual_count = 0;
 
-	if (bib_for_each(l4_proto, count_bibs, &actual_count) != 0) {
+	if (is_error(bib_for_each(l4_proto, count_bibs, &actual_count))) {
 		log_warning("Could not count the BIB entries in the database for some reason.");
 		return false;
 	}
@@ -54,7 +54,7 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 	int expected_count = 0;
 	int actual_count = 0;
 
-	if (session_for_each(l4_proto, count_sessions, &actual_count) != 0) {
+	if (is_error(session_for_each(l4_proto, count_sessions, &actual_count))) {
 		log_warning("Could not count the session entries in the database for some reason.");
 		return false;
 	}

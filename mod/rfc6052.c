@@ -10,7 +10,7 @@ union ipv4_address {
 	__u8 as8[4];
 };
 
-bool addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
+int addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
 
@@ -47,14 +47,14 @@ bool addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr 
 		break;
 	default:
 		log_err(ERR_PREF_LEN_RANGE, "Prefix has an invalid length: %u.", prefix->len);
-		return false;
+		return -EINVAL;
 	}
 
 	dst->s_addr = dst_aux.as32;
-	return true;
+	return 0;
 }
 
-bool addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst)
+int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst)
 {
 	union ipv4_address src_aux;
 
@@ -109,8 +109,8 @@ bool addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr 
 		break;
 	default:
 		log_err(ERR_PREF_LEN_RANGE, "Prefix has an invalid length: %u.", prefix->len);
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
