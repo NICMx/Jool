@@ -137,9 +137,10 @@ int delete_static_route(struct request_bib *req)
 		kfree(session);
 	}
 
-	if (!bib_remove(bib, req->l4_proto)) {
-		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended in failure, despite validations.");
-		error = -EINVAL;
+	error = bib_remove(bib, req->l4_proto);
+	if (error) {
+		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended with error code %d, "
+				"despite validations.", error);
 		goto end;
 	}
 

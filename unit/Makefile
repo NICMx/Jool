@@ -105,6 +105,7 @@ $(FILTERING)-objs += ../mod/session.o
 $(FILTERING)-objs += ../mod/rfc6052.o
 $(FILTERING)-objs += ../mod/packet.o
 $(FILTERING)-objs += ../mod/send_packet.o
+$(FILTERING)-objs += ../mod/icmp_wrapper.o
 $(FILTERING)-objs += framework/skb_generator.o
 $(FILTERING)-objs += framework/unit_test.o
 $(FILTERING)-objs += framework/types.o

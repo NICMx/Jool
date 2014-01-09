@@ -234,6 +234,10 @@ int bib_remove(struct bib_entry *entry, l4_protocol l4_proto)
 		log_err(ERR_NULL, "The BIB tables do not contain NULL entries.");
 		return -EINVAL;
 	}
+	if (RB_EMPTY_NODE(&entry->tree6_hook) || RB_EMPTY_NODE(&entry->tree4_hook)) {
+		log_err(ERR_BIB_NOT_FOUND, "BIB entry does not belong to any trees.");
+		return -EINVAL;
+	}
 	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -256,6 +260,8 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 	result->ipv6 = *ipv6;
 	result->is_static = is_static;
 	INIT_LIST_HEAD(&result->sessions);
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
 
 	return result;
 }
@@ -291,6 +297,7 @@ int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
 	struct bib_entry *bib;
 	struct rb_node *node;
 	int error;
+	bool found;
 
 	/* Sanitize */
 	if (!addr)
@@ -299,10 +306,26 @@ int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
 	if (error)
 		return error;
 
-	/* Find the first node whose IPv6 address is addr. */
+	/* Find the top-most node in the tree whose IPv6 address is addr. */
 	bib = rbtree_find(addr, &table->tree6, compare_addr6, struct bib_entry, tree6_hook);
 	if (!bib)
-		return -ENOENT;
+		return 0; /* _Successfully_ iterated through no entries. */
+
+	/* Keep moving left until we find the first node whose IPv6 address is addr. */
+	found = false;
+	do {
+		node = rb_prev(&bib->tree6_hook);
+
+		if (node) {
+			struct bib_entry *tmp = rb_entry(node, struct bib_entry, tree6_hook);
+			if (compare_addr6(tmp, addr))
+				bib = tmp;
+			else
+				found = true;
+		} else {
+			found = true;
+		}
+	} while (!found);
 
 	/*
 	 * Keep moving right until the address changes.

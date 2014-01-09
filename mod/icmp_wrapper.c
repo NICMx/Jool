@@ -1,3 +1,5 @@
+#include "nat64/mod/icmp_wrapper.h"
+
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 

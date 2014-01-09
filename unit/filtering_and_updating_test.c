@@ -16,6 +16,7 @@ MODULE_ALIAS("nat64_test_filtering");
 #include "nat64/unit/skb_generator.h"
 #include "filtering_and_updating.c"
 
+
 static noinline bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
 {
 	if (is_error(str_to_addr6(str, addr))) {
@@ -79,7 +80,7 @@ static noinline bool test_embed_ipv4_in_ipv6(void)
 #define IPV4_INJECT_BIB_ENTRY_DST_ADDR "192.168.2.1"
 #define IPV4_INJECT_BIB_ENTRY_DST_PORT 1082
 #define INIT_TUPLE_ICMP_ID 10
-static noinline bool inject_bib_entry(u_int8_t l4protocol)
+static noinline bool inject_bib_entry(l4_protocol l4_proto)
 {
 	struct ipv4_tuple_address ta_ipv4;
 	struct ipv6_tuple_address ta_ipv6;
@@ -92,12 +93,14 @@ static noinline bool inject_bib_entry(u_int8_t l4protocol)
 	if (!str_to_addr6_verbose(IPV6_INJECT_BIB_ENTRY_SRC_ADDR, &addr6))
 		return false;
 
-	if (l4protocol == L4PROTO_ICMP) {
-		transport_address_ipv4(addr4, INIT_TUPLE_ICMP_ID, &ta_ipv4);
-		transport_address_ipv6(addr6, INIT_TUPLE_ICMP_ID, &ta_ipv6);
+	ta_ipv4.address = addr4;
+	ta_ipv6.address = addr6;
+	if (l4_proto == L4PROTO_ICMP) {
+		ta_ipv4.l4_id = INIT_TUPLE_ICMP_ID;
+		ta_ipv6.l4_id = INIT_TUPLE_ICMP_ID;
 	} else {
-		transport_address_ipv4(addr4, IPV4_INJECT_BIB_ENTRY_DST_PORT, &ta_ipv4);
-		transport_address_ipv6(addr6, IPV6_INJECT_BIB_ENTRY_SRC_PORT, &ta_ipv6);
+		ta_ipv4.l4_id = IPV4_INJECT_BIB_ENTRY_DST_PORT;
+		ta_ipv6.l4_id = IPV6_INJECT_BIB_ENTRY_SRC_PORT;
 	}
 
 	bib_e = bib_create(&ta_ipv4, &ta_ipv6, false);
@@ -106,7 +109,7 @@ static noinline bool inject_bib_entry(u_int8_t l4protocol)
 		return false;
 	}
 
-	if (bib_add(bib_e, l4protocol) != 0) {
+	if (bib_add(bib_e, l4_proto) != 0) {
 		log_warning("Could not insert the BIB entry to the table.");
 		return false;
 	}
@@ -131,21 +134,21 @@ static noinline bool test_allocate_ipv4_transport_address(void)
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_ICMP)))
 		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(L4PROTO_ICMP, &tuple,
-			&tuple_addr), "ICMP result");
+	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
+			"ICMP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "ICMP address");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
 		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(L4PROTO_TCP, &tuple,
-			&tuple_addr), "TCP result");
+	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
+			"TCP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "TCP address");
 	success &= assert_true(tuple_addr.l4_id > 1023, "Port range for TCP");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
 		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(L4PROTO_UDP, &tuple,
-			&tuple_addr), "UDP result");
+	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
+			"UDP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "UDP address");
 	success &= assert_true(tuple_addr.l4_id % 2 == 0, "UDP port parity");
 	success &= assert_true(tuple_addr.l4_id > 1023, "UDP Port range");
