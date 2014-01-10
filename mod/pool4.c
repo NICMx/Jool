@@ -253,7 +253,7 @@ int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;
-	bool success;
+	int error;
 
 	if (!addr) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
@@ -265,22 +265,19 @@ int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 	node = pool4_table_get(&pool, &addr->address);
 	if (!node) {
 		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
-		goto failure;
+		spin_unlock_bh(&pool_lock);
+		return -EINVAL;
 	}
 
 	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4_id);
-	if (!ids)
-		goto failure;
-	success = poolnum_get(ids, addr->l4_id);
-	if (!success)
-		goto failure;
+	if (!ids) {
+		spin_unlock_bh(&pool_lock);
+		return -EINVAL;
+	}
 
+	error = poolnum_get(ids, addr->l4_id);
 	spin_unlock_bh(&pool_lock);
-	return 0;
-
-failure:
-	spin_unlock_bh(&pool_lock);
-	return -EINVAL;
+	return error;
 }
 
 int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *result)

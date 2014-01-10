@@ -343,7 +343,7 @@ static bool clean_expired_sessions(struct list_head *list)
 
 		list_del(&session->bib_list_hook);
 		list_del(&session->expire_list_hook);
-		session_dealloc(session);
+		session_kfree(session);
 		s++;
 
 		if (!bib) {
@@ -357,7 +357,7 @@ static bool clean_expired_sessions(struct list_head *list)
 			continue; /* Error msg already printed. */
 
 		pool4_return(l4_proto, &bib->ipv4);
-		bib_dealloc(bib);
+		bib_kfree(bib);
 		b++;
 	}
 
@@ -583,7 +583,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
 	apply_policies();
 	error = bib_add(*bib, tuple->l4_proto);
 	if (error) {
-		bib_dealloc(*bib);
+		bib_kfree(*bib);
 		log_err(ERR_ADD_BIB_FAILED, "Error code %d while adding a BIB entry to the DB.", error);
 		return error;
 	}
@@ -635,12 +635,11 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	int error;
 
 	/* Translate address from IPv6 to IPv4 */
-	/*
-	 * FIXME (error) if the user configures several prefixes w/different lengths, this is going to
-	 * do something weird.
-	 */
-	if (!pool6_peek(&prefix))
-		return -EINVAL; /* Error msg already printed. */
+	error = pool6_get(&tuple->dst.addr.ipv6, &prefix);
+	if (error) {
+		log_warning("Errcode %d while obtaining %pI6c's prefix.", error, &tuple->dst.addr.ipv6);
+		return error;
+	}
 
 	error = addr_6to4(&tuple->dst.addr.ipv6, &prefix, &ipv4_dst);
 	if (error) {
@@ -673,7 +672,7 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	/* Add it to the table. */
 	error = session_add(*session);
 	if (error) {
-		session_dealloc(*session);
+		session_kfree(*session);
 		log_err(ERR_ADD_SESSION_FAILED, "Error code %d while adding the session to the DB.", error);
 		return error;
 	}
@@ -718,10 +717,10 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	struct ipv6_pair pair6;
 	int error;
 
-	/* Translate the address */
-	/* FIXME (error) see 6->4. */
-	if (!pool6_peek(&prefix))
-		return -EINVAL;
+	/* Translate address from IPv4 to IPv6 */
+	error = pool6_peek(&prefix);
+	if (error)
+		return error;
 
 	error = addr_4to6(&tuple->src.addr.ipv4, &prefix, &ipv6_src);
 	if (error) {
@@ -754,7 +753,7 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	/* Add it to the table. */
 	error = session_add(*session);
 	if (error) {
-		session_dealloc(*session);
+		session_kfree(*session);
 		log_err(ERR_ADD_SESSION_FAILED, "Error code %d while adding the session to the DB.", error);
 		return error;
 	}
@@ -808,7 +807,7 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
 	if (error) {
 		bib_remove(bib, tuple->l4_proto);
 		pool4_return(tuple->l4_proto, &bib->ipv4);
-		bib_dealloc(bib);
+		bib_kfree(bib);
 		return VER_DROP;
 	}
 
@@ -869,7 +868,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	if (error) {
 		bib_remove(bib, tuple->l4_proto);
 		pool4_return(tuple->l4_proto, &bib->ipv4);
-		bib_dealloc(bib);
+		bib_kfree(bib);
 		return VER_DROP;
 	}
 
@@ -921,7 +920,7 @@ static int tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 	if (error) {
 		bib_remove(bib, tuple->l4_proto);
 		pool4_return(tuple->l4_proto, &bib->ipv4);
-		bib_dealloc(bib);
+		bib_kfree(bib);
 		return error;
 	}
 

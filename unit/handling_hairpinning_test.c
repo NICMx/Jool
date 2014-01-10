@@ -339,9 +339,9 @@ static bool test_hairpin(l4_protocol l4_proto,
 	print_bibs(l4_proto);
 	print_sessions(l4_proto);
 
-	session_dealloc(dynamic_session);
-	session_dealloc(static_session);
-	bib_dealloc(dynamic_bib);
+	session_kfree(dynamic_session);
+	session_kfree(static_session);
+	bib_kfree(dynamic_bib);
 
 	return success;
 }

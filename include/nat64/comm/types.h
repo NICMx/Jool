@@ -223,10 +223,6 @@ typedef enum l4_protocol {
  * For debugging purposes really, but maybe we should use it more often during error messages.
  */
 char *l4proto_to_string(l4_protocol proto);
-/** Converts from "Next Header" format (the field from a IPv6 header) to l4_protocol. */
-l4_protocol nexthdr_to_l4proto(__u8 nexthdr);
-/** Converts from "Protocol" format (the field from a IPv4 header) to l4_protocol. */
-l4_protocol protocol_to_l4proto(__u8 protocol);
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
@@ -322,8 +318,8 @@ struct tuple {
 	l4_protocol l4_proto;
 
 /**
- * By the way: There's code that assumes that src.l4_id contains the same value as dst.l4_id when
- * l4_proto == L4PROTO_ICMP.
+ * By the way: There's code that depends on src.l4_id containing the same value as dst.l4_id when
+ * l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
  */
 #define icmp_id src.l4_id
 };
@@ -363,21 +359,21 @@ bool ipv4_addr_equals(struct in_addr *a, struct in_addr *b);
 bool ipv6_addr_equals(struct in6_addr *a, struct in6_addr *b);
 bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *a, struct ipv4_tuple_address *b);
 bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *a, struct ipv6_tuple_address *b);
-bool ipv4_pair_equals(struct ipv4_pair *a, struct ipv4_pair *b);
-bool ipv6_pair_equals(struct ipv6_pair *a, struct ipv6_pair *b);
 bool ipv6_prefix_equals(struct ipv6_prefix *a, struct ipv6_prefix *b);
 /**
  * @}
  */
 
+/**
+ * The kernel has a ipv6_addr_cmp(), but not a ipv4_addr_cmp().
+ * Of course, that is because in_addrs are, to most intents and purposes, 32-bit integer values.
+ * But the absence of ipv4_addr_cmp() does makes things look asymmetric.
+ * So, booya.
+ */
 static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *a2)
 {
 	return memcmp(a1, a2, sizeof(struct in_addr));
 }
-
-
-#define icmp_send icmp4_send
-#define icmpv6_send icmp6_send
 
 /**
  * @{

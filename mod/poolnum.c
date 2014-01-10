@@ -103,16 +103,13 @@ int poolnum_get_any(struct poolnum *pool, u16 *result)
 /**
  * Borrows "value" from "pool".
  * This function is slow; avoid it during packet processing.
- *
- * TODO this function should differenciate whether it failed because value is already taken or
- * because of a real error.
  */
-bool poolnum_get(struct poolnum *pool, u16 value)
+int poolnum_get(struct poolnum *pool, u16 value)
 {
 	u32 current_index;
 
 	if (pool->next_is_ahead && pool->next == pool->returned)
-		return false;
+		return -ESRCH;
 
 	current_index = pool->next;
 	do {
@@ -120,12 +117,12 @@ bool poolnum_get(struct poolnum *pool, u16 value)
 			pool->array[current_index] = pool->array[pool->next];
 			pool->next = get_next_index(pool->next, pool->count);
 			pool->next_is_ahead = true;
-			return true;
+			return 0;
 		}
 		current_index = get_next_index(current_index, pool->count);
 	} while (current_index != pool->returned);
 
-	return false;
+	return -ESRCH;
 }
 
 /**

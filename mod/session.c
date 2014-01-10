@@ -149,7 +149,7 @@ int session_init(void)
 
 static void session_destroy_aux(struct rb_node *node)
 {
-	session_dealloc(rb_entry(node, struct session_entry, tree6_hook));
+	session_kfree(rb_entry(node, struct session_entry, tree6_hook));
 }
 
 void session_destroy(void)
@@ -175,8 +175,10 @@ int session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 	struct session_table *table;
 	int error;
 
-	if (!pair)
+	if (!pair) {
+		log_warning("The session tables cannot contain NULL.");
 		return -EINVAL;
+	}
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -191,8 +193,10 @@ int session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 	struct session_table *table;
 	int error;
 
-	if (!pair)
+	if (!pair) {
+		log_warning("The session tables cannot contain NULL.");
 		return -EINVAL;
+	}
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -274,7 +278,6 @@ int session_add(struct session_entry *entry)
 	return 0;
 }
 
-/* TODO creo que esto ya no puede ser llamado con entries que no estén en la tabla. */
 int session_remove(struct session_entry *entry)
 {
 	struct session_table *table;
@@ -318,7 +321,7 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	return result;
 }
 
-void session_dealloc(struct session_entry *session)
+void session_kfree(struct session_entry *session)
 {
 	kmem_cache_free(entry_cache, session);
 }
@@ -353,25 +356,4 @@ int session_count(l4_protocol proto, __u64 *result)
 
 	*result = table->count;
 	return 0;
-}
-
-bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)
-{
-	if (session_1 == session_2)
-		return true;
-	if (session_1 == NULL || session_2 == NULL)
-		return false;
-
-	if (session_1->l4_proto != session_2->l4_proto)
-		return false;
-	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
-		return false;
-	if (!ipv6_tuple_addr_equals(&session_1->ipv6.local, &session_2->ipv6.local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&session_1->ipv4.local, &session_2->ipv4.local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&session_1->ipv4.remote, &session_2->ipv4.remote))
-		return false;
-
-	return true;
 }

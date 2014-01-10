@@ -3,7 +3,7 @@
  * Functions from Translate the Packet which specifically target the IPv6 -> IPv4 direction.
  * Would normally be part of translate_packet.c; the constant scrolling was killing me.
  *
- * TODO (warning) read the erratas (6145 and 6146).
+ * TODO (warning) read the erratas more (6145 and 6146).
  */
 
 /*************************************************************************************************
@@ -135,7 +135,7 @@ static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct 
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	if (ip6_hdr->hop_limit <= 1) {
-		icmpv6_send(in->skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT, 0);
+		icmp6_send(in->skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT, 0);
 		return VER_DROP;
 	}
 	ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
@@ -149,7 +149,7 @@ static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct 
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
 			log_info("Packet's segments left field is nonzero.");
-			icmpv6_send(in->skb, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
+			icmp6_send(in->skb, ICMPV6_PARAMPROB, ICMPV6_HDR_FIELD, nonzero_location);
 			return VER_DROP;
 		}
 	}

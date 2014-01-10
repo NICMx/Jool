@@ -124,7 +124,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 	case OP_ADD:
 		log_debug("Adding a prefix to the IPv6 pool.");
-		return respond_error(nl_hdr, pool6_register(&request->update.prefix));
+		return respond_error(nl_hdr, pool6_add(&request->update.prefix));
 
 	case OP_REMOVE:
 		log_debug("Removing a prefix from the IPv6 pool.");

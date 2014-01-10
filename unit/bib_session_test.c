@@ -84,6 +84,42 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 	return entry;
 }
 
+static bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)
+{
+	if (bib_1 == bib_2)
+		return true;
+	if (!bib_1 || !bib_2)
+		return false;
+
+	if (!ipv4_tuple_addr_equals(&bib_1->ipv4, &bib_2->ipv4))
+		return false;
+	if (!ipv6_tuple_addr_equals(&bib_1->ipv6, &bib_2->ipv6))
+		return false;
+
+	return true;
+}
+
+static bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)
+{
+	if (session_1 == session_2)
+		return true;
+	if (session_1 == NULL || session_2 == NULL)
+		return false;
+
+	if (session_1->l4_proto != session_2->l4_proto)
+		return false;
+	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
+		return false;
+	if (!ipv6_tuple_addr_equals(&session_1->ipv6.local, &session_2->ipv6.local))
+		return false;
+	if (!ipv4_tuple_addr_equals(&session_1->ipv4.local, &session_2->ipv4.local))
+		return false;
+	if (!ipv4_tuple_addr_equals(&session_1->ipv4.remote, &session_2->ipv4.remote))
+		return false;
+
+	return true;
+}
+
 static struct bib_entry *create_and_insert_bib(int ipv4_index, int ipv6_index, int l4proto)
 {
 	struct bib_entry *result;
@@ -283,7 +319,7 @@ static bool simple_bib(void)
 	if (!success)
 		return false;
 
-	bib_dealloc(bib);
+	bib_kfree(bib);
 	return success;
 }
 
@@ -306,7 +342,7 @@ static bool simple_session(void)
 	if (!success)
 		return false;
 
-	session_dealloc(session);
+	session_kfree(session);
 	return true;
 }
 

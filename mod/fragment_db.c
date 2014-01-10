@@ -473,7 +473,7 @@ static int validate_csum_icmp6(struct packet *pkt)
 	frag = pkt->first_fragment;
 	ip6_hdr = frag_get_ipv6_hdr(frag);
 	icmp6_hdr = frag_get_icmp6_hdr(frag);
-	if (is_icmp6_info(icmp6_hdr->icmp6_type))
+	if (!is_icmp6_error(icmp6_hdr->icmp6_type))
 		return 0;
 
 	tmp = icmp6_hdr->icmp6_cksum;
@@ -504,7 +504,7 @@ static int validate_csum_icmp4(struct packet *pkt)
 
 	frag = pkt->first_fragment;
 	hdr = frag_get_icmp4_hdr(frag);
-	if (is_icmp4_info(hdr->type)) {
+	if (!is_icmp4_error(hdr->type)) {
 		/*
 		 * The ICMP payload is not another packet.
 		 * Hence, it will not be translated (it will be copied as-is).

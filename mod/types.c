@@ -1,5 +1,4 @@
 #include "nat64/comm/types.h"
-#include "nat64/comm/str_utils.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
@@ -32,34 +31,6 @@ char *l4proto_to_string(l4_protocol l4_proto)
 	}
 
 	return NULL;
-}
-
-l4_protocol nexthdr_to_l4proto(__u8 nexthdr)
-{
-	switch (nexthdr) {
-	case NEXTHDR_TCP:
-		return L4PROTO_TCP;
-	case NEXTHDR_UDP:
-		return L4PROTO_UDP;
-	case NEXTHDR_ICMP:
-		return L4PROTO_ICMP;
-	}
-
-	return -1;
-}
-
-l4_protocol protocol_to_l4proto(__u8 protocol)
-{
-	switch (protocol) {
-	case IPPROTO_TCP:
-		return L4PROTO_TCP;
-	case IPPROTO_UDP:
-		return L4PROTO_UDP;
-	case IPPROTO_ICMP:
-		return L4PROTO_ICMP;
-	}
-
-	return -1;
 }
 
 bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
@@ -114,34 +85,6 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 	return true;
 }
 
-bool ipv4_pair_equals(struct ipv4_pair *pair_1, struct ipv4_pair *pair_2)
-{
-	if (pair_1 == NULL && pair_2 == NULL)
-		return true;
-	if (pair_1 == NULL || pair_2 == NULL)
-		return false;
-	if (!ipv4_tuple_addr_equals(&pair_1->local, &pair_2->local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&pair_1->remote, &pair_2->remote))
-		return false;
-
-	return true;
-}
-
-bool ipv6_pair_equals(struct ipv6_pair *pair_1, struct ipv6_pair *pair_2)
-{
-	if (pair_1 == NULL && pair_2 == NULL)
-		return true;
-	if (pair_1 == NULL || pair_2 == NULL)
-		return false;
-	if (!ipv6_tuple_addr_equals(&pair_1->local, &pair_2->local))
-		return false;
-	if (!ipv6_tuple_addr_equals(&pair_1->remote, &pair_2->remote))
-		return false;
-
-	return true;
-}
-
 bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)
 {
 	if (expected == actual)
@@ -163,11 +106,10 @@ bool is_icmp6_info(__u8 type)
 
 bool is_icmp6_error(__u8 type)
 {
-	/**
-	 * TODO (error) I think this is wrong...
-	 * see is_icmp4_error() too.
-	 */
-	return !is_icmp6_info(type);
+	return (type == ICMPV6_DEST_UNREACH)
+			|| (type == ICMPV6_PKT_TOOBIG)
+			|| (type == ICMPV6_TIME_EXCEED)
+			|| (type == ICMPV6_PARAMPROB);
 }
 
 bool is_icmp4_info(__u8 type)
@@ -177,11 +119,15 @@ bool is_icmp4_info(__u8 type)
 
 bool is_icmp4_error(__u8 type)
 {
-	return !is_icmp4_info(type);
+	return (type == ICMP_DEST_UNREACH)
+			|| (type == ICMP_SOURCE_QUENCH)
+			|| (type == ICMP_REDIRECT)
+			|| (type == ICMP_TIME_EXCEEDED)
+			|| (type == ICMP_PARAMETERPROB);
 }
 
 /**
-* log_tuple() - Prints the "tuple" tuple on the kernel ring buffer.
+* log_tuple() - Prints the "tuple" tuple in the kernel ring buffer.
 * @tuple: Structure to be dumped on logging.
 *
 * It's a ripoff of nf_ct_dump_tuple(), adjusted to comply to this project's logging requirements.

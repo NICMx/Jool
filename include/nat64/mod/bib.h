@@ -118,6 +118,10 @@ int bib_add(struct bib_entry *entry, l4_protocol l4_proto);
  * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4_proto".
  * Even though the entry is removed from the table, it is not kfreed.
  *
+ * Note, I *think* that the underlying data structure will go bananas if you attempt to remove an
+ * entry that hasn't been previously inserted. I haven't double-checked this because all of the
+ * current uses of this function validate before removing.
+ *
  * @param entry row to be removed from the table.
  * @param l4_proto identifier of the table to remove "entry" from.
  * @return error status.
@@ -135,24 +139,14 @@ int bib_count(l4_protocol proto, __u64 *result);
 /**
  * Helper function, intended to initialize a BIB entry.
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a BIB table, you need
- * to kfree it).
+ * to bib_kfree() it).
  */
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static);
 /**
  * Warning: Careful with this one; "bib" cannot be NULL.
  */
-void bib_dealloc(struct bib_entry *bib);
-
-/**
- * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".
- *
- * @param bib_1 entry to compare to "bib_2".
- * @param bib_2 entry to compare to "bib_1".
- * @return whether "bib_1" and "bib_2" hold the same addresses and ports. Note, related session
- *		entries are not compared.
- */
-bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2);
+void bib_kfree(struct bib_entry *bib);
 
 
 #endif /* _NF_NAT64_BIB_H */

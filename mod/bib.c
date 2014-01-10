@@ -115,7 +115,7 @@ int bib_init(void)
 
 static void bib_destroy_aux(struct rb_node *node)
 {
-	bib_dealloc(rb_entry(node, struct bib_entry, tree6_hook));
+	bib_kfree(rb_entry(node, struct bib_entry, tree6_hook));
 }
 
 void bib_destroy(void)
@@ -142,8 +142,10 @@ int bib_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 	int error;
 
 	/* Sanitize */
-	if (!addr)
+	if (!addr) {
+		log_warning("The BIBs cannot contain NULL.");
 		return -EINVAL;
+	}
 	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -160,8 +162,10 @@ int bib_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 	int error;
 
 	/* Sanitize */
-	if (!addr)
+	if (!addr) {
+		log_warning("The BIBs cannot contain NULL.");
 		return -EINVAL;
+	}
 	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -266,7 +270,7 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 	return result;
 }
 
-void bib_dealloc(struct bib_entry *bib)
+void bib_kfree(struct bib_entry *bib)
 {
 	kmem_cache_free(entry_cache, bib);
 }
@@ -357,20 +361,4 @@ int bib_count(l4_protocol proto, u64 *result)
 
 	*result = table->count;
 	return 0;
-}
-
-/* TODO mover a unit? */
-bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)
-{
-	if (bib_1 == bib_2)
-		return true;
-	if (!bib_1 || !bib_2)
-		return false;
-
-	if (!ipv4_tuple_addr_equals(&bib_1->ipv4, &bib_2->ipv4))
-		return false;
-	if (!ipv6_tuple_addr_equals(&bib_1->ipv6, &bib_2->ipv6))
-		return false;
-
-	return true;
 }

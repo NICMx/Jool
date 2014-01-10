@@ -13,10 +13,9 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 	struct ipv6_prefix prefix;
 	int error;
 
-	if (!pool6_peek(&prefix)) {
-		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty. Cannot translate.");
+	error = pool6_peek(&prefix);
+	if (error)
 		return VER_DROP;
-	}
 
 	spin_lock_bh(&bib_session_lock);
 	error = bib_get(in, &bib);
@@ -66,10 +65,9 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 	struct ipv6_prefix prefix;
 	int error;
 
-	if (!pool6_peek(&prefix)) {
-		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty. Cannot translate.");
+	error = pool6_peek(&prefix);
+	if (error)
 		return VER_DROP;
-	}
 
 	spin_lock_bh(&bib_session_lock);
 	error = bib_get(in, &bib);

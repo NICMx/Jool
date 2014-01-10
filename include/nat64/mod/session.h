@@ -137,7 +137,10 @@ int session_add(struct session_entry *entry);
 /**
  * Destroys the session table's reference to "entry". It does NOT kfree "entry".
  * Also, it removes "entry" regardless of whether it is static or not.
- * "entry" is blatantly assumed to belong to the table.
+ *
+ * Note, I *think* that the underlying data structure will go bananas if you attempt to remove an
+ * entry that hasn't been previously inserted. I haven't double-checked this because all of the
+ * current uses of this function validate before removing.
  *
  * @param entry entry to be removed from its table.
  * @return error status.
@@ -150,23 +153,14 @@ int session_count(l4_protocol proto, __u64 *result);
 /**
  * Helper function, intended to initialize a Session entry.
  * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a Session table, you
- * need to kfree it).
+ * need to session_kfree() it).
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		l4_protocol l4_proto);
 /**
  * Warning: Careful with this one; "session" cannot be NULL.
  */
-void session_dealloc(struct session_entry *session);
+void session_kfree(struct session_entry *session);
 
-/**
- * Helper function, returns "true" if "bib_1" holds the same protocol, addresses and ports as
- * "bib_2".
- *
- * @param bib_1 entry to compare to "bib_2".
- * @param bib_2 entry to compare to "bib_1".
- * @return whether "bib_1" and "bib_2" hold the same protocol, addresses and ports.
- */
-bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2);
 
 #endif /* _NF_NAT64_SESSION_H */

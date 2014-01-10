@@ -49,7 +49,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	/* Add it to the table. */
 	if (is_error(bib_add(bib, l4_proto))) {
 		log_warning("Can't add the dummy BIB to the table.");
-		bib_dealloc(bib);
+		bib_kfree(bib);
 		return false;
 	}
 
@@ -87,7 +87,7 @@ static bool init(void)
 	}
 
 	/* Init the IPv6 pool module */
-	if (pool6_init(NULL, 0) != 0) /* we'll use the defaults. */
+	if (is_error(pool6_init(NULL, 0))) /* we'll use the defaults. */
 		return false;
 	if (str_to_addr6("64:ff9b::", &prefix.address) != 0) {
 		log_warning("Cannot parse the IPv6 prefix. Failing...");

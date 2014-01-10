@@ -81,7 +81,7 @@ int add_static_route(struct request_bib *req)
 
 failure:
 	if (bib)
-		bib_dealloc(bib);
+		bib_kfree(bib);
 	spin_unlock_bh(&bib_session_lock);
 	return error;
 }
@@ -135,7 +135,7 @@ int delete_static_route(struct request_bib *req)
 			goto end;
 		}
 		list_del(&session->bib_list_hook);
-		session_dealloc(session);
+		session_kfree(session);
 	}
 
 	error = bib_remove(bib, req->l4_proto);
@@ -146,7 +146,7 @@ int delete_static_route(struct request_bib *req)
 	}
 
 	pool4_return(req->l4_proto, &bib->ipv4);
-	bib_dealloc(bib);
+	bib_kfree(bib);
 	/* Fall through. */
 
 end:

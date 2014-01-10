@@ -5,6 +5,7 @@
 #include "nat64/mod/config.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
 #include "nat64/mod/send_packet.h"
+#include "nat64/mod/icmp_wrapper.h"
 
 #include <linux/kernel.h>
 #include <linux/printk.h>
@@ -429,7 +430,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		if (out->skb->len > min_ipv6_mtu) {
 			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
-				icmp_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
+				icmp4_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
 				log_info("Packet is too big (%u bytes; MTU: %u); dropping.",
 						out->skb->len, min_ipv6_mtu);
 				return VER_DROP;

@@ -299,7 +299,7 @@ static noinline bool test_filtering_and_updating(void)
 		return false;
 
 	/* Other IPv6 packets should be processed normally. */
-	if (is_error(init_pair6(&pair6, "1::2", 1212, "64:ff9b::3:4", 3434)))
+	if (is_error(init_pair6(&pair6, "1::2", 1212, "3::3:4", 3434)))
 		return false;
 	if (is_error(init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP)))
 		return false;
@@ -367,12 +367,12 @@ static noinline bool test_udp(void)
 		return false;
 
 	/* A IPv4 packet attempts to be translated without state */
-	success &= assert_equals_int(VER_DROP, ipv4_udp(frag4, &tuple4), "result");
+	success &= assert_equals_int(VER_DROP, ipv4_udp(frag4, &tuple4), "result 1");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
-	/* IPv6 packet and gets translated correctly. */
-	success &= assert_equals_int(VER_CONTINUE, ipv6_udp(frag6, &tuple6), "result");
+	/* IPv6 packet gets translated correctly. */
+	success &= assert_equals_int(VER_CONTINUE, ipv6_udp(frag6, &tuple6), "result 2");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_bib_exists("1::2", 1212, "192.168.2.1", 1024, L4PROTO_UDP, 1);
 	success &= assert_session_count(1, L4PROTO_UDP);
@@ -381,7 +381,7 @@ static noinline bool test_udp(void)
 			L4PROTO_UDP, 0);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	success &= assert_equals_int(VER_CONTINUE, ipv4_udp(frag4, &tuple4), "result");
+	success &= assert_equals_int(VER_CONTINUE, ipv4_udp(frag4, &tuple4), "result 3");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_bib_exists("1::2", 1212, "192.168.2.1", 1024, L4PROTO_UDP, 1);
 	success &= assert_session_count(1, L4PROTO_UDP);
@@ -1126,12 +1126,13 @@ static noinline bool test_tcp(void)
 
 static noinline bool init_full(void)
 {
+	char *prefixes[] = { "3::/96" };
 	int error;
 
 	error = pktmod_init();
 	if (error)
 		goto fail;
-	error = pool6_init(NULL, 0);
+	error = pool6_init(prefixes, ARRAY_SIZE(prefixes));
 	if (error)
 		goto fail;
 	error = pool4_init(NULL, 0);

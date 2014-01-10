@@ -34,7 +34,7 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step);
 void poolnum_destroy(struct poolnum *pool);
 
 int poolnum_get_any(struct poolnum *pool, u16 *result);
-bool poolnum_get(struct poolnum *pool, u16 value);
+int poolnum_get(struct poolnum *pool, u16 value);
 int poolnum_return(struct poolnum *pool, u16 value);
 
 

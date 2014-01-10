@@ -217,8 +217,7 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 
 		default:
 			log_info("Unsupported layer 4 protocol: %d", iterator->hdr_type);
-			if (skb != NULL)
-				icmpv6_send(frag->skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
+			icmp6_send(frag->skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 			return -EINVAL;
 		}
 
@@ -357,8 +356,7 @@ static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsig
 
 		default:
 			log_info("Unsupported layer 4 protocol: %d", hdr4->protocol);
-			if (skb != NULL)
-				icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
+			icmp4_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
 			return -EINVAL;
 		}
 

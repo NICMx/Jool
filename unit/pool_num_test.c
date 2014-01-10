@@ -183,27 +183,27 @@ static bool test_poolnum_get_function(void) {
 	pool.array[3] = 3;
 
 	/* Request values that do not belong to the pool. */
-	success &= assert_false(poolnum_get(&pool, -1), "requested -1");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, -1), "requested -1");
 	success &= assert_pool_full(&pool, 0, 1, 2, 3,	0, 0, false);
-	success &= assert_false(poolnum_get(&pool, -4), "requested -4");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, -4), "requested -4");
 	success &= assert_pool_full(&pool, 0, 1, 2, 3,	0, 0, false);
 
 	if (!success)
 		return success;
 
 	/* Tests featuring get_anys. */
-	success &= assert_true(poolnum_get(&pool, 2), "getting value 2");
+	success &= assert_equals_int(0, poolnum_get(&pool, 2), "getting value 2");
 	success &= assert_pool_full(&pool, 0, 1, 0, 3,	1, 0, true);
-	success &= assert_true(poolnum_get(&pool, 1), "getting value 1");
+	success &= assert_equals_int(0, poolnum_get(&pool, 1), "getting value 1");
 	success &= assert_pool_full(&pool, 0, 1, 0, 3,	2, 0, true);
 	success &= assert_equals_int(0, poolnum_get_any(&pool, &get_any_result), "get_any-result");
 	success &= assert_equals_u16(0, get_any_result, "get_any-value");
-	success &= assert_false(poolnum_get(&pool, 0), "getting already borrowed 0");
-	success &= assert_false(poolnum_get(&pool, 1), "getting already borrowed 1");
-	success &= assert_false(poolnum_get(&pool, 2), "getting already borrowed 2");
-	success &= assert_true(poolnum_get(&pool, 3), "getting final value");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 0), "getting already borrowed 0");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 1), "getting already borrowed 1");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 2), "getting already borrowed 2");
+	success &= assert_equals_int(0, poolnum_get(&pool, 3), "getting final value");
 	success &= assert_pool_full(&pool, 0, 1, 0, 3,	0, 0, true);
-	success &= assert_false(poolnum_get(&pool, 3), "getting already borrowed 3");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 3), "getting already borrowed 3");
 	success &= assert_equals_int(-ESRCH, poolnum_get_any(&pool, &get_any_result),
 			"get on empty pool");
 
@@ -220,28 +220,28 @@ static bool test_poolnum_get_function(void) {
 	pool.next_is_ahead = false;
 
 	/* Tests featuring returns. */
-	success &= assert_true(poolnum_get(&pool, 0), "getting 0");
+	success &= assert_equals_int(0, poolnum_get(&pool, 0), "getting 0");
 	success &= assert_pool_full(&pool, 0, 1, 2, 3,	1, 0, true);
-	success &= assert_true(poolnum_get(&pool, 3), "getting 3");
+	success &= assert_equals_int(0, poolnum_get(&pool, 3), "getting 3");
 	success &= assert_pool_full(&pool, 0, 1, 2, 1,	2, 0, true);
 	success &= assert_equals_int(0, poolnum_return(&pool, 3), "returning 3");
 	success &= assert_pool_full(&pool, 3, 1, 2, 1,	2, 1, true);
 	success &= assert_equals_int(0, poolnum_return(&pool, 0), "returning 0");
 	success &= assert_pool_full(&pool, 3, 0, 2, 1,	2, 2, false);
 
-	success &= assert_true(poolnum_get(&pool, 3), "getting everything 3");
+	success &= assert_equals_int(0, poolnum_get(&pool, 3), "getting everything 3");
 	success &= assert_pool_full(&pool, 2, 0, 2, 1,	3, 2, true);
-	success &= assert_true(poolnum_get(&pool, 1), "getting everything 1");
+	success &= assert_equals_int(0, poolnum_get(&pool, 1), "getting everything 1");
 	success &= assert_pool_full(&pool, 2, 0, 2, 1,	0, 2, true);
-	success &= assert_true(poolnum_get(&pool, 0), "getting everything 0");
+	success &= assert_equals_int(0, poolnum_get(&pool, 0), "getting everything 0");
 	success &= assert_pool_full(&pool, 2, 2, 2, 1,	1, 2, true);
-	success &= assert_true(poolnum_get(&pool, 2), "getting everything 2");
+	success &= assert_equals_int(0, poolnum_get(&pool, 2), "getting everything 2");
 	success &= assert_pool_full(&pool, 2, 2, 2, 1,	2, 2, true);
 
-	success &= assert_false(poolnum_get(&pool, 0), "returning everything 0");
-	success &= assert_false(poolnum_get(&pool, 1), "returning everything 1");
-	success &= assert_false(poolnum_get(&pool, 2), "returning everything 2");
-	success &= assert_false(poolnum_get(&pool, 3), "returning everything 3");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 0), "returning everything 0");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 1), "returning everything 1");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 2), "returning everything 2");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 3), "returning everything 3");
 	success &= assert_equals_int(-ESRCH, poolnum_get_any(&pool, &get_any_result),
 			"returning too much");
 
@@ -292,8 +292,8 @@ static bool test_boundaries(void)
 	success &= assert_equals_int(-EINVAL, poolnum_return(&pool, 0), "Returning too much");
 
 	for (i = 0; i < PORT_COUNT; i++)
-		success &= assert_true(poolnum_get(&pool, i), "Getting everything again");
-	success &= assert_false(poolnum_get(&pool, 5), "Getting too much");
+		success &= assert_equals_int(0, poolnum_get(&pool, i), "Getting everything again");
+	success &= assert_equals_int(-ESRCH, poolnum_get(&pool, 5), "Getting too much");
 
 	/* Clean up & quit. */
 	kfree(results);
