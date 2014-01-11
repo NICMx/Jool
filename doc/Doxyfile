@@ -4,7 +4,7 @@
 # (similar to Javadoc) and/or LaTeX (and/or others) form.
 
 # The documentation it'll generate is meant for developers, however. If you're
-# an user of the system, you want to be at
+# a user of the system, you want to be at
 # https://github.com/NICMx/NAT64/wiki/Getting-Started.
 
 # Doxyfile 1.8.1.2

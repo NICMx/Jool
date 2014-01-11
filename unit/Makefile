@@ -61,6 +61,7 @@ $(PKT)-objs += packet_test.o
 
 $(FRAGDB)-objs += ../mod/types.o
 $(FRAGDB)-objs += ../mod/str_utils.o
+$(FRAGDB)-objs += ../mod/random.o
 $(FRAGDB)-objs += ../mod/ipv6_hdr_iterator.o
 $(FRAGDB)-objs += ../mod/packet.o
 $(FRAGDB)-objs += ../mod/icmp_wrapper.o
@@ -135,6 +136,7 @@ $(TRANSLATE)-objs += translate_packet_test.o
 
 $(HAIRPINNING)-objs += ../mod/types.o
 $(HAIRPINNING)-objs += ../mod/str_utils.o
+$(HAIRPINNING)-objs += ../mod/random.o
 $(HAIRPINNING)-objs += ../mod/ipv6_hdr_iterator.o
 $(HAIRPINNING)-objs += ../mod/rfc6052.o
 $(HAIRPINNING)-objs += ../mod/packet.o

@@ -8,6 +8,9 @@
  * Uses the kernel's hlist internally.
  * We're not using hlist directly because it implies a lot of code rewriting (eg. the entry
  * retrieval function; "get") and we need at least four different hash tables.
+ * (Update 2014-01-10 - now it's two, actually. This module will probably die when we address the
+ * performance concerns, especially considering that the kernel now has a more interesting
+ * version/implementation.)
  *
  * Because C does not support templates or generics, you have to set a number of macros and then
  * include this file. These are the macros:

@@ -1,5 +1,6 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/comm/constants.h"
+#include "nat64/mod/random.h"
 
 
 #define INFINITY 60000
@@ -54,6 +55,14 @@ static struct kmem_cache *buffer_cache;
 #define KEY_TYPE struct reassembly_buffer_key
 #define VALUE_TYPE struct reassembly_buffer
 #include "hash_table.c"
+
+/**
+ * Just a random number, initialized at startup.
+ * Used to prevent attackers from crafting special packets that will have the same hash code but
+ * different hash slots. See
+ * http://stackoverflow.com/questions/12175109/why-does-the-linux-ipv4-stack-need-random-numbers.
+ */
+static u32 rnd;
 
 static struct fragdb_table table;
 static DEFINE_SPINLOCK(table_lock);
@@ -122,6 +131,15 @@ static bool equals_function(struct reassembly_buffer_key *key1, struct reassembl
 }
 
 /**
+ * Hash function for IPv4 keys. Generally a blatant ripoff of ip_fragment.c's function of the same
+ * name.
+ */
+static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
+{
+	return jhash_3words((__force u32)id << 16 | prot, (__force u32)saddr, (__force u32)daddr, rnd);
+}
+
+/**
  * As specified above, the database is (mostly) a hash table. This is one of two functions used
  * internally by the table to search for values.
  */
@@ -131,10 +149,12 @@ static unsigned int hash_function(struct reassembly_buffer_key *key)
 
 	switch (key->l3_proto) {
 	case L3PROTO_IPV4:
-		result = be16_to_cpu(key->ipv4.identification);
+		result = ipqhashfn(key->ipv4.identification, key->ipv4.src_addr.s_addr,
+				key->ipv4.dst_addr.s_addr, key->l4_proto);
 		break;
 	case L3PROTO_IPV6:
-		result = be32_to_cpu(key->ipv6.identification);
+		result = inet6_hash_frag(key->ipv6.identification, &key->ipv6.src_addr,
+				&key->ipv6.dst_addr, rnd);
 		break;
 	}
 
@@ -607,6 +627,8 @@ int fragdb_init(void)
 	expire_timer.function = cleaner_timer;
 	expire_timer.expires = 0;
 	expire_timer.data = 0;
+
+	rnd = get_random_u32();
 
 	return 0;
 }
