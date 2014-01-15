@@ -730,7 +730,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	 * Also implementation specific, not part of the RFC.
 	 */
 	if (is_error(frag_to_key(frag, &key))) {
-		kfree(frag);
+		frag_kfree(frag);
 		return VER_DROP;
 	}
 
@@ -744,14 +744,14 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 	} else {
 		buffer = buffer_alloc(frag);
 		if (!buffer) {
-			kfree(frag);
+			frag_kfree(frag);
 			goto fail;
 		}
 
 		hole = hole_alloc(0, INFINITY);
 		if (!hole) {
 			kmem_cache_free(buffer_cache, buffer);
-			kfree(frag);
+			frag_kfree(frag);
 			goto fail;
 		}
 
@@ -760,7 +760,7 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		if (is_error(buffer_put(&key, buffer))) {
 			kmem_cache_free(hole_cache, hole);
 			kmem_cache_free(buffer_cache, buffer);
-			kfree(frag);
+			frag_kfree(frag);
 			goto fail;
 		}
 	}
@@ -782,8 +782,10 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		if (fragment_first > hole->first) {
 			struct hole_descriptor *new_hole;
 			new_hole = hole_alloc(hole->first, fragment_first - 1);
-			if (!new_hole)
+			if (!new_hole) {
+				buffer_destroy(&key, buffer);
 				goto fail;
+			}
 			list_add(&new_hole->list_hook, hole->list_hook.prev);
 		}
 
@@ -791,8 +793,10 @@ verdict fragment_arrives(struct sk_buff *skb, struct packet **result)
 		if (fragment_last < hole->last && is_mf_set(frag)) {
 			struct hole_descriptor *new_hole;
 			new_hole = hole_alloc(fragment_last + 1, hole->last);
-			if (!new_hole)
+			if (!new_hole) {
+				buffer_destroy(&key, buffer);
 				goto fail;
+			}
 			list_add(&new_hole->list_hook, &hole->list_hook);
 		}
 

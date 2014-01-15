@@ -152,8 +152,8 @@ failure:
 
 void __exit nat64_exit(void)
 {
-	deinit();
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+	deinit();
 	log_info(MODULE_NAME " module removed.");
 }
 

@@ -270,7 +270,7 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	return 0;
 
 fail:
-	kfree(frag);
+	frag_kfree(frag);
 	return error;
 }
 
@@ -407,7 +407,7 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 	return 0;
 
 fail:
-	kfree(frag);
+	frag_kfree(frag);
 	return error;
 }
 

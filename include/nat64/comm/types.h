@@ -19,6 +19,7 @@
 	#include <linux/in6.h>
 #else
 	#include <stdbool.h>
+	#include <string.h>
 	#include <arpa/inet.h>
 #endif
 #include <linux/netfilter.h>
