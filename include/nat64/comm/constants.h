@@ -45,8 +45,8 @@
  * It's shorter by default since these are typical DoS attacks.
  */
 #define TCP_INCOMING_SYN (6)
-/** Default time interval fragments are allowed to arrive in. In milliseconds. */
-#define FRAGMENT_MIN (2 * 1000)
+/** Default time interval fragments are allowed to arrive in. In seconds. */
+#define FRAGMENT_MIN (2)
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 

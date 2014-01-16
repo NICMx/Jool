@@ -29,23 +29,26 @@ static unsigned int core_common(struct sk_buff *skb_in)
 		return (unsigned int) result;
 
 	if (determine_in_tuple(pkt_in->first_fragment, &tuple_in) != VER_CONTINUE)
-		goto fail;
+		goto end;
 	if (filtering_and_updating(pkt_in->first_fragment, &tuple_in) != VER_CONTINUE)
-		goto fail;
+		goto end;
 	if (compute_out_tuple(&tuple_in, &tuple_out) != VER_CONTINUE)
-		goto fail;
+		goto end;
 	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
-		goto fail;
+		goto end;
 
-	if (is_hairpin(pkt_out))
-		handling_hairpinning(pkt_out, &tuple_out);
-	else
-		send_pkt(pkt_out);
+	if (is_hairpin(pkt_out)) {
+		if (handling_hairpinning(pkt_out, &tuple_out) != VER_CONTINUE)
+			goto end;
+	} else {
+		if (send_pkt(pkt_out) != VER_CONTINUE)
+			goto end;
+	}
 
 	log_debug("Success.");
 	/* Fall through. */
 
-fail:
+end:
 	pkt_kfree(pkt_in);
 	pkt_kfree(pkt_out);
 	return (unsigned int) VER_STOLEN;

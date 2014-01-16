@@ -262,6 +262,7 @@ verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **ou
 	}
 	if (in->skb)
 		(*out)->skb->mark = in->skb->mark;
+	(*out)->original_skb = in->original_skb;
 
 	result = steps->l3_post_function(*out);
 	if (result != VER_CONTINUE)
@@ -430,7 +431,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		if (out->skb->len > min_ipv6_mtu) {
 			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
-				icmp4_send(in->skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
+				icmp64_send(in, ICMPERR_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
 				log_info("Packet is too big (%u bytes; MTU: %u); dropping.",
 						out->skb->len, min_ipv6_mtu);
 				return VER_DROP;

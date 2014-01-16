@@ -565,7 +565,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
 		log_warning("Error code %d while 'allocating' an address for a BIB entry.", error);
 		if (tuple->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
-			icmp6_send(frag->skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0);
+			icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
 		return error;
 	}
@@ -602,18 +602,18 @@ static int get_or_create_bib_ipv4(struct fragment *frag, struct tuple *tuple,
 
 	error = bib_get(tuple, bib);
 	if (error == -ENOENT) {
-		log_info("There is no BIB entry for the incoming IPv4 ICMP packet.");
-		icmp4_send(frag->skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
+		log_info("There is no BIB entry for the incoming IPv4 packet.");
+		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	} else if (error) {
 		log_warning("Error code %d while finding a BIB entry for the incoming packet.", error);
-		icmp4_send(frag->skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
+		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
 
 	if (address_dependent_filtering() && !session_allow(tuple)) {
 		log_info("Packet was blocked by address-dependent filtering.");
-		icmp4_send(frag->skb, ICMP_DEST_UNREACH, ICMP_PKT_FILTERED, 0);
+		icmp64_send(frag, ICMPERR_FILTER, 0);
 		return -EPERM;
 	}
 

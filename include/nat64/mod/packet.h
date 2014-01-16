@@ -190,6 +190,8 @@ struct fragment {
 		bool ptr_needs_kfree;
 	} payload;
 
+	struct sk_buff *original_skb;
+
 	/** Node used to link this fragment in the packet.fragments list. */
 	struct list_head list_hook;
 };

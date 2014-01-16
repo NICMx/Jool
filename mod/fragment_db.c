@@ -609,7 +609,7 @@ static int l4_post(struct packet *pkt) {
  */
 int fragdb_init(void)
 {
-	config.fragment_timeout = msecs_to_jiffies(FRAGMENT_MIN);
+	config.fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 
 	hole_cache = kmem_cache_create("jool_hole_descriptors", sizeof(struct hole_descriptor),
 			0, SLAB_POISON, NULL);
@@ -657,7 +657,7 @@ int clone_fragmentation_config(struct fragmentation_config *clone)
  */
 int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
 {
-	unsigned long fragment_min = msecs_to_jiffies(FRAGMENT_MIN);
+	unsigned long fragment_min = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 	int error = 0;
 
 	spin_lock_bh(&config_lock);
@@ -665,7 +665,7 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
 	if (operation & FRAGMENT_TIMEOUT_MASK) {
 		if (new_config->fragment_timeout < fragment_min) {
 			error = -EINVAL;
-			log_err(ERR_FRAGMENTATION_TO_RANGE, "The fragment timeout must be at least %u msecs.",
+			log_err(ERR_FRAGMENTATION_TO_RANGE, "The fragment timeout must be at least %u seconds.",
 					FRAGMENT_MIN);
 		} else {
 			config.fragment_timeout = new_config->fragment_timeout;

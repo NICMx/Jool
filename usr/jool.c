@@ -52,12 +52,10 @@ struct arguments {
 	struct ipv4_tuple_address bib4;
 	bool bib4_set;
 
-	/* Filtering, translate */
+	/* Filtering, translate, fragmentation */
 	struct filtering_config filtering;
 	struct translate_config translate;
-
-	bool fragmentation;
-	struct fragmentation_config frag_conf;
+	struct fragmentation_config fragmentation;
 };
 
 /**
@@ -264,6 +262,9 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 	case ARGP_TRANSLATE:
 		arguments->mode = MODE_TRANSLATE;
 		break;
+	case ARGP_FRAGMENTATION:
+		arguments->mode = MODE_FRAGMENTATION;
+		break;
 
 	case ARGP_DISPLAY:
 		arguments->operation = OP_DISPLAY;
@@ -333,25 +334,25 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, UDP_MIN, 0xFFFF);
-		arguments->filtering.to.udp = temp;
+		arguments->filtering.to.udp = temp * 1000;
 		break;
 	case ARGP_ICMP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ICMP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, 0, 0xFFFF);
-		arguments->filtering.to.icmp = temp;
+		arguments->filtering.to.icmp = temp * 1000;
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_EST_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_EST, 0xFFFF);
-		arguments->filtering.to.tcp_est = temp;
+		arguments->filtering.to.tcp_est = temp * 1000;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF);
-		arguments->filtering.to.tcp_trans = temp;
+		arguments->filtering.to.tcp_trans = temp * 1000;
 		break;
 
 	case ARGP_RESET_TCLASS:
@@ -400,7 +401,7 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->mode = MODE_FRAGMENTATION;
 		arguments->operation |= FRAGMENT_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, FRAGMENT_MIN, 0xFFFF);
-		arguments->fragmentation = temp;
+		arguments->fragmentation.fragment_timeout = temp * 1000;
 		break;
 
 	default:
@@ -438,11 +439,10 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	if (error != 0)
 		return error;
 
-	if (!result->tcp && !result->udp && !result->icmp && !result->fragmentation) {
+	if (!result->tcp && !result->udp && !result->icmp) {
 		result->tcp = true;
 		result->udp = true;
 		result->icmp = true;
-		result->fragmentation = true;
 	}
 
 	if (!result->static_entries && !result->dynamic_entries) {
@@ -574,7 +574,7 @@ int main(int argc, char **argv)
 		return error;
 
 	case MODE_FRAGMENTATION:
-		return fragmentation_request(args.operation, &args.frag_conf);
+		return fragmentation_request(args.operation, &args.fragmentation);
 
 	default:
 		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");

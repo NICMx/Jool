@@ -30,21 +30,20 @@ int add_static_route(struct request_bib *req)
 
 	/* Check if the BIB entry exists. */
 	error = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto, &bib_by_ipv6);
-	if (error)
-		goto failure;
-	error = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto, &bib_by_ipv4);
-	if (error)
-		goto failure;
-
-	if (bib_by_ipv6 != NULL || bib_by_ipv4 != NULL) {
-		bib = (bib_by_ipv6 == NULL) ? bib_by_ipv4 : bib_by_ipv6;
-		log_err(ERR_BIB_REINSERT, "%pI6c#%u is already mapped to %pI4#%u.",
-				&bib->ipv6.address, bib->ipv6.l4_id,
-				&bib->ipv4.address, bib->ipv4.l4_id);
-		bib = NULL;
-		error = -EEXIST;
-		goto failure;
+	if (!error) {
+		bib = bib_by_ipv6;
+		goto already_mapped;
 	}
+	if (error != -ENOENT)
+		goto generic_error;
+
+	error = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto, &bib_by_ipv4);
+	if (!error) {
+		bib = bib_by_ipv4;
+		goto already_mapped;
+	}
+	if (error != -ENOENT)
+		goto generic_error;
 
 	/* Borrow the address and port from the IPv4 pool. */
 	if (is_error(pool4_get(req->l4_proto, &req->add.ipv4))) {
@@ -78,6 +77,19 @@ int add_static_route(struct request_bib *req)
 
 	spin_unlock_bh(&bib_session_lock);
 	return 0;
+
+already_mapped:
+	log_err(ERR_BIB_REINSERT, "%pI6c#%u is already mapped to %pI4#%u.",
+			&bib->ipv6.address, bib->ipv6.l4_id,
+			&bib->ipv4.address, bib->ipv4.l4_id);
+	error = -EEXIST;
+	bib = NULL;
+	goto failure;
+
+generic_error:
+	log_err(ERR_UNKNOWN_ERROR, "Error code %u while trying to interact with the BIB.",
+			error);
+	/* Fall through. */
 
 failure:
 	if (bib)
