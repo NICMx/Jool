@@ -30,6 +30,9 @@ struct bib_entry {
 
 	/** Session entries related to this BIB. */
 	struct list_head sessions;
+
+	struct rb_node tree6_hook;
+	struct rb_node tree4_hook;
 };
 
 
@@ -50,44 +53,38 @@ extern spinlock_t bib_session_lock;
  * Call during initialization for the remaining functions to work properly.
  */
 int bib_init(void);
+/**
+ * Empties the BIB tables, freeing any memory being used by them.
+ * Call during destruction to avoid memory leaks.
+ */
+void bib_destroy(void);
 
 /**
- * Adds "entry" to the BIB table whose layer-4 protocol is "protocol".
- * Expects all fields from "entry" to have been initialized.
+ * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv4 side (address and
+ * port) is "addr".
  *
- * Because never in this project is required otherwise, assumes the entry is not yet on the table.
+ * You must lock bib_session_lock before calling this function.
  *
- * @param entry row to be added to the table.
- * @param protocol identifier of the table to add "entry" to. Should be either IPPROTO_UDP,
- *		IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
- *		memory allocation failed.
+ * @param[in] address address and port you want the BIB entry for.
+ * @param[in] l4_proto identifier of the table to retrieve the entry from.
+ * @param[out] the BIB entry from the table will be placed here.
+ * @return error status.
  */
-int bib_add(struct bib_entry *entry, u_int8_t l4protocol);
-
+int bib_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+		struct bib_entry **result);
 /**
- * Returns the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
- * "address".
+ * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv6 side (address and
+ * port) is "addr".
  *
- * @param address address and port you want the BIB entry for.
- * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return the BIB entry from the "l4protocol" table whose IPv4 side (address and port) is
- *		"address". Returns NULL if there is no such an entry.
- */
-struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol);
-/**
- * Returns the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
- * "address".
+ * You must lock bib_session_lock before calling this function.
  *
- * @param address address and port you want the BIB entry for.
- * @param l4protocol identifier of the table to retrieve the entry from. Should be either
- *		IPPROTO_UDP, IPPROTO_TCP or IPPROTO_ICMPV6 from linux/in.h.
- * @return the BIB entry from the "l4protocol" table whose IPv6 side (address and port) is
- *		"address". Returns NULL if there is no such an entry.
+ * @param[in] address address and port you want the BIB entry for.
+ * @param[in] l4_proto identifier of the table to retrieve the entry from.
+ * @param[out] the BIB entry from the table will be placed here.
+ * @return error status.
  */
-struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol);
-struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol);
+int bib_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+		struct bib_entry **result);
 
 /**
  * Returns the BIB entry you'd expect from the "tuple" tuple.
@@ -97,50 +94,59 @@ struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4prot
  * When we're translating from IPv4 to IPv6, returns the BIB whose IPv4 address is "tuple"'s
  * destination address.
  *
- * @param tuple summary of the packet. Describes the BIB you need.
- * @return the BIB entry you'd expect from the "tuple" tuple.
+ * @param[in] tuple summary of the packet. Describes the BIB you need.
+ * @param[out] the BIB entry you'd expect from the "tuple" tuple.
+ * @return error status.
  */
-struct bib_entry *bib_get(struct tuple *tuple);
+int bib_get(struct tuple *tuple, struct bib_entry **result);
 
 /**
- * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4protocol".
+ * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto".
+ * Expects all fields from "entry" to have been initialized.
+ *
+ * Because never in this project is required otherwise, assumes the entry is not yet on the table.
+ *
+ * You must lock bib_session_lock before calling this function.
+ *
+ * @param entry row to be added to the table.
+ * @param l4_proto identifier of the table to add "entry" to.
+ * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
+ *		memory allocation failed.
+ */
+int bib_add(struct bib_entry *entry, l4_protocol l4_proto);
+/**
+ * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4_proto".
  * Even though the entry is removed from the table, it is not kfreed.
  *
+ * Note, I *think* that the underlying data structure will go bananas if you attempt to remove an
+ * entry that hasn't been previously inserted. I haven't double-checked this because all of the
+ * current uses of this function validate before removing.
+ *
  * @param entry row to be removed from the table.
- * @param l4protocol identifier of the table to remove "entry" from. Should be either IPPROTO_UDP,
- *		IPPROTO_TCP or IPPROTO_ICMP from linux/in.h.
- * @return whether the entry was in fact removed or not. The removal will fail if the entry is not
- *		on the table, or if it still has related session entries.
+ * @param l4_proto identifier of the table to remove "entry" from.
+ * @return error status.
  */
-bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol);
-
-/**
- * Empties the BIB tables, freeing any memory being used by them.
- * Call during destruction to avoid memory leaks.
- */
-void bib_destroy(void);
-
-/**
- * Helper function, intended to initialize a BIB entry.
- * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a BIB table, you need
- * to kfree it).
- */
-struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
-		bool is_static);
+int bib_remove(struct bib_entry *entry, l4_protocol l4_proto);
 
 /**
  * Asume que el candado ya se reservó.
  */
-int bib_for_each(__u8 l4protocol, int (*func)(struct bib_entry *, void *), void *arg);
+int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
+int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
+		int (*func)(struct bib_entry *, void *), void *arg);
+int bib_count(l4_protocol proto, __u64 *result);
 
 /**
- * Helper function, returns "true" if "bib_1" holds the same addresses and ports as "bib_2".
- *
- * @param bib_1 entry to compare to "bib_2".
- * @param bib_2 entry to compare to "bib_1".
- * @return whether "bib_1" and "bib_2" hold the same addresses and ports. Note, related session
- *		entries are not compared.
+ * Helper function, intended to initialize a BIB entry.
+ * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a BIB table, you need
+ * to bib_kfree() it).
  */
-bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2);
+struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
+		bool is_static);
+/**
+ * Warning: Careful with this one; "bib" cannot be NULL.
+ */
+void bib_kfree(struct bib_entry *bib);
+
 
 #endif /* _NF_NAT64_BIB_H */

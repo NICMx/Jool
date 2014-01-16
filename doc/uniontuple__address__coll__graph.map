@@ -1,5 +1,0 @@
-<map id="tuple_address" name="tuple_address">
-<area shape="rect" id="node2" href="$structipv4__tuple__address.html" title="ipv4_tuple_address" alt="" coords="5,96,136,123"/>
-<area shape="rect" id="node4" href="$unionport__or__id.html" title="port_or_id" alt="" coords="122,5,200,32"/>
-<area shape="rect" id="node6" href="$structipv6__tuple__address.html" title="ipv6_tuple_address" alt="" coords="161,96,292,123"/>
-</map>

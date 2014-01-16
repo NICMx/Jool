@@ -29,21 +29,24 @@ int add_static_route(struct request_bib *req)
 	spin_lock_bh(&bib_session_lock);
 
 	/* Check if the BIB entry exists. */
-	bib_by_ipv6 = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto);
-	bib_by_ipv4 = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto);
-
-	if (bib_by_ipv6 != NULL || bib_by_ipv4 != NULL) {
-		bib = (bib_by_ipv6 == NULL) ? bib_by_ipv4 : bib_by_ipv6;
-		log_err(ERR_BIB_REINSERT, "%pI6c#%u is already mapped to %pI4#%u.",
-				&bib->ipv6.address, bib->ipv6.l4_id,
-				&bib->ipv4.address, bib->ipv4.l4_id);
-		bib = NULL;
-		error = -EEXIST;
-		goto failure;
+	error = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto, &bib_by_ipv6);
+	if (!error) {
+		bib = bib_by_ipv6;
+		goto already_mapped;
 	}
+	if (error != -ENOENT)
+		goto generic_error;
+
+	error = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto, &bib_by_ipv4);
+	if (!error) {
+		bib = bib_by_ipv4;
+		goto already_mapped;
+	}
+	if (error != -ENOENT)
+		goto generic_error;
 
 	/* Borrow the address and port from the IPv4 pool. */
-	if (!pool4_get(req->l4_proto, &req->add.ipv4)) {
+	if (is_error(pool4_get(req->l4_proto, &req->add.ipv4))) {
 		/*
 		 * This might happen if Filtering just reserved the address#port, but hasn't yet inserted
 		 * the BIB entry to the table. This is because bib_session_lock doesn't cover the IPv4
@@ -75,8 +78,22 @@ int add_static_route(struct request_bib *req)
 	spin_unlock_bh(&bib_session_lock);
 	return 0;
 
+already_mapped:
+	log_err(ERR_BIB_REINSERT, "%pI6c#%u is already mapped to %pI4#%u.",
+			&bib->ipv6.address, bib->ipv6.l4_id,
+			&bib->ipv4.address, bib->ipv4.l4_id);
+	error = -EEXIST;
+	bib = NULL;
+	goto failure;
+
+generic_error:
+	log_err(ERR_UNKNOWN_ERROR, "Error code %u while trying to interact with the BIB.",
+			error);
+	/* Fall through. */
+
 failure:
-	kfree(bib);
+	if (bib)
+		bib_kfree(bib);
 	spin_unlock_bh(&bib_session_lock);
 	return error;
 }
@@ -90,11 +107,15 @@ int delete_static_route(struct request_bib *req)
 	spin_lock_bh(&bib_session_lock);
 
 	switch (req->remove.l3_proto) {
-	case PF_INET6:
-		bib = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto);
+	case L3PROTO_IPV6:
+		error = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto, &bib);
+		if (error)
+			goto end;
 		break;
-	case PF_INET:
-		bib = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto);
+	case L3PROTO_IPV4:
+		error = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
+		if (error)
+			goto end;
 		break;
 	default:
 		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
@@ -114,29 +135,30 @@ int delete_static_route(struct request_bib *req)
 	 */
 
 	while (!list_empty(&bib->sessions)) {
-		session = container_of(bib->sessions.next, struct session_entry, entries_from_bib);
-		if (!session_remove(session)) {
+		session = container_of(bib->sessions.next, struct session_entry, bib_list_hook);
+		error = session_remove(session);
+		if (error) {
 			log_err(ERR_UNKNOWN_ERROR,
 					"Session [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u] refused to die.",
 					&session->ipv6.remote.address, session->ipv6.remote.l4_id,
 					&session->ipv6.local.address, session->ipv6.local.l4_id,
 					&session->ipv4.local.address, session->ipv4.local.l4_id,
 					&session->ipv4.remote.address, session->ipv4.remote.l4_id);
-			error = -EINVAL;
 			goto end;
 		}
-		list_del(&session->entries_from_bib);
-		kfree(session);
+		list_del(&session->bib_list_hook);
+		session_kfree(session);
 	}
 
-	if (!bib_remove(bib, req->l4_proto)) {
-		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended in failure, despite validations.");
-		error = -EINVAL;
+	error = bib_remove(bib, req->l4_proto);
+	if (error) {
+		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended with error code %d, "
+				"despite validations.", error);
 		goto end;
 	}
 
 	pool4_return(req->l4_proto, &bib->ipv4);
-	kfree(bib);
+	bib_kfree(bib);
 	/* Fall through. */
 
 end:

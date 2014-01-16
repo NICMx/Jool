@@ -3,8 +3,11 @@
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/out_stream.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
+#include "nat64/mod/bib.h"
+#include "nat64/mod/session.h"
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -12,17 +15,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/printk.h>
-#include <linux/slab.h>
-#include <linux/mutex.h>
-#include <net/sock.h>
-#include <net/netlink.h>
 
 
 /**
  * Socket the userspace application will speak to.
  */
-struct sock *nl_socket;
+static struct sock *nl_socket;
 
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
@@ -97,6 +95,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		union request_pool6 *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -116,9 +115,16 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		kfree(stream);
 		return error;
 
+	case OP_COUNT:
+		log_debug("Returning IPv6 prefix count.");
+		error = pool6_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
+
 	case OP_ADD:
 		log_debug("Adding a prefix to the IPv6 pool.");
-		return respond_error(nl_hdr, pool6_register(&request->update.prefix));
+		return respond_error(nl_hdr, pool6_add(&request->update.prefix));
 
 	case OP_REMOVE:
 		log_debug("Removing a prefix from the IPv6 pool.");
@@ -130,10 +136,9 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	}
 }
 
-static int pool4_entry_to_userspace(struct in_addr *address, void *arg)
+static int pool4_entry_to_userspace(struct pool4_node *node, void *arg)
 {
-	struct out_stream *stream = (struct out_stream *) arg;
-	stream_write(stream, address, sizeof(*address));
+	stream_write(arg, &node->addr, sizeof(node->addr));
 	return 0;
 }
 
@@ -141,6 +146,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		union request_pool4 *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -159,6 +165,13 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		kfree(stream);
 		return error;
+
+	case OP_COUNT:
+		log_debug("Returning IPv4 address count.");
+		error = pool4_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
 		log_debug("Adding an address to the IPv4 pool.");
@@ -191,6 +204,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		struct request_bib *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -211,6 +225,13 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 		kfree(stream);
 		return error;
+
+	case OP_COUNT:
+		log_debug("Returning BIB count.");
+		error = bib_count(request->l4_proto, &count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
 		log_debug("Adding BIB entry.");
@@ -233,7 +254,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 
 	entry_us.ipv6 = entry->ipv6;
 	entry_us.ipv4 = entry->ipv4;
-	entry_us.dying_time = entry->dying_time - jiffies_to_msecs(jiffies);
+	entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies);
 	entry_us.l4_proto = entry->l4_proto;
 
 	stream_write(stream, &entry_us, sizeof(entry_us));
@@ -244,6 +265,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		struct request_session *request)
 {
 	struct out_stream *stream;
+	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -265,6 +287,13 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		kfree(stream);
 		return error;
 
+	case OP_COUNT:
+		log_debug("Returning session count.");
+		error = session_count(request->l4_proto, &count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
+
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
@@ -284,10 +313,46 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 		if (error)
 			return respond_error(nl_hdr, error);
 
+		clone.to.udp = jiffies_to_msecs(clone.to.udp);
+		clone.to.tcp_est = jiffies_to_msecs(clone.to.tcp_est);
+		clone.to.tcp_trans = jiffies_to_msecs(clone.to.tcp_trans);
+		clone.to.icmp = jiffies_to_msecs(clone.to.icmp);
+
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
 		log_debug("Updating 'Filtering and Updating' options.");
+
+		request->to.udp = msecs_to_jiffies(request->to.udp);
+		request->to.tcp_est = msecs_to_jiffies(request->to.tcp_est);
+		request->to.tcp_trans = msecs_to_jiffies(request->to.tcp_trans);
+		request->to.icmp = msecs_to_jiffies(request->to.icmp);
+
 		return respond_error(nl_hdr, set_filtering_config(nat64_hdr->operation, request));
+	}
+}
+
+static int handle_fragmentation_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		struct fragmentation_config *request)
+{
+	struct fragmentation_config clone;
+	int error;
+
+	if (nat64_hdr->operation == 0) {
+		log_debug("Returning 'Fragmentation' options.");
+
+		error = clone_fragmentation_config(&clone);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		clone.fragment_timeout = jiffies_to_msecs(clone.fragment_timeout);
+
+		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
+	} else {
+		log_debug("Updating 'Fragmentation' options.");
+
+		request->fragment_timeout = msecs_to_jiffies(request->fragment_timeout);
+
+		return respond_error(nl_hdr, set_fragmentation_config(nat64_hdr->operation, request));
 	}
 }
 
@@ -371,6 +436,9 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	case MODE_TRANSLATE:
 		error = handle_translate_config(nl_hdr, nat64_hdr, request);
 		break;
+	case MODE_FRAGMENTATION:
+		error = handle_fragmentation_config(nl_hdr, nat64_hdr, request);
+		break;
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown configuration mode: %d", nat64_hdr->mode);
 		error = respond_error(nl_hdr, -EINVAL);
@@ -394,16 +462,22 @@ static void receive_from_userspace(struct sk_buff *skb)
 
 int config_init(void)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
+	/*
+	 * The function changed between Linux 3.5.7 and 3.6, and then again from 3.6.11 to 3.7.
+	 *
+	 * If you're reading Git's history, that appears to be commit
+	 * a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337) and then again in
+	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
+	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
+	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
 #else
-	struct netlink_kernel_cfg nl_cfg = {
-		.groups = 0,
-		.input  = receive_from_userspace,
-		.cb_mutex = NULL,
-	};
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg); 
+	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
+	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
 #endif
 	
 	if (!nl_socket) {

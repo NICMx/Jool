@@ -1,46 +1,24 @@
 #include "nat64/mod/bib.h"
-#include "nat64/comm/types.h"
 
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-#include <linux/in.h>
-#include <linux/in6.h>
+#include <net/ipv6.h>
+#include "nat64/mod/rbtree.h"
 
 
 /********************************************
  * Structures and private variables.
  ********************************************/
 
-/*
- * Hash table; indexes BIB entries by IPv4 address.
- * (this code generates the "ipv4_table" structure and related functions used below).
- */
-#define HTABLE_NAME ipv4_table
-#define KEY_TYPE struct ipv4_tuple_address
-#define VALUE_TYPE struct bib_entry
-#define GENERATE_FOR_EACH
-#include "hash_table.c"
-
-/*
- * Hash table; indexes BIB entries by IPv6 address.
- * (this code generates the "ipv6_table" structure and related functions used below).
- */
-#define HTABLE_NAME ipv6_table
-#define KEY_TYPE struct ipv6_tuple_address
-#define VALUE_TYPE struct bib_entry
-#include "hash_table.c"
-
 /**
  * BIB table definition.
  * Holds two hash tables, one for each indexing need (IPv4 and IPv6).
  */
 struct bib_table {
-	/** Indexes entries by IPv4. */
-	struct ipv4_table ipv4;
-	/** Indexes entries by IPv6. */
-	struct ipv6_table ipv6;
+	/** Indexes the entries using their IPv6 identifiers. */
+	struct rb_root tree6;
+	/** Indexes the entries using their IPv4 identifiers. */
+	struct rb_root tree4;
+	/* Number of BIB entries in this table. */
+	u64 count;
 };
 
 /** The BIB table for UDP connections. */
@@ -50,29 +28,64 @@ static struct bib_table bib_tcp;
 /** The BIB table for ICMP connections. */
 static struct bib_table bib_icmp;
 
+/** Cache for struct bib_entrys, for efficient allocation. */
+static struct kmem_cache *entry_cache;
+
 DEFINE_SPINLOCK(bib_session_lock);
+
 
 /********************************************
  * Private (helper) functions.
  ********************************************/
 
-static int get_bib_table(u_int8_t l4protocol, struct bib_table **result)
+static int get_bib_table(l4_protocol l4_proto, struct bib_table **result)
 {
-	switch (l4protocol) {
-	case IPPROTO_UDP:
+	switch (l4_proto) {
+	case L4PROTO_UDP:
 		*result = &bib_udp;
 		return 0;
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		*result = &bib_tcp;
 		return 0;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		*result = &bib_icmp;
 		return 0;
+	case L4PROTO_NONE:
+		log_crit(ERR_ILLEGAL_NONE, "There's no BIB for the 'NONE' protocol.");
+		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
+}
+
+static int compare_addr6(struct bib_entry *bib, struct in6_addr *addr)
+{
+	return ipv6_addr_cmp(&bib->ipv6.address, addr);
+}
+
+static int compare_full6(struct bib_entry *bib, struct ipv6_tuple_address *addr)
+{
+	int gap;
+
+	gap = compare_addr6(bib, &addr->address);
+	if (gap != 0)
+		return gap;
+
+	gap = bib->ipv6.l4_id - addr->l4_id;
+	return gap;
+}
+
+static int compare_full4(struct bib_entry *bib, struct ipv4_tuple_address *addr)
+{
+	int gap;
+
+	gap = ipv4_addr_cmp(&bib->ipv4.address, &addr->address);
+	if (gap != 0)
+		return gap;
+
+	gap = bib->ipv4.l4_id - addr->l4_id;
+	return gap;
 }
 
 /*******************************
@@ -82,142 +95,27 @@ static int get_bib_table(u_int8_t l4protocol, struct bib_table **result)
 int bib_init(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
-	int i, error;
+	int i;
+
+	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry),
+			0, SLAB_POISON, NULL);
+	if (!entry_cache) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate the BIB entry cache.");
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		error = ipv4_table_init(&tables[i]->ipv4, ipv4_tuple_addr_equals, ipv4_tuple_addr_hashcode);
-		if (error)
-			return error;
-		error = ipv6_table_init(&tables[i]->ipv6, ipv6_tuple_addr_equals, ipv6_tuple_addr_hashcode);
-		if (error)
-			return error;
+		tables[i]->tree6 = RB_ROOT;
+		tables[i]->tree4 = RB_ROOT;
+		tables[i]->count = 0;
 	}
 
 	return 0;
 }
 
-int bib_add(struct bib_entry *entry, u_int8_t l4protocol)
+static void bib_destroy_aux(struct rb_node *node)
 {
-	struct bib_table *table;
-	int error;
-
-	if (!entry) {
-		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
-		return -EINVAL;
-	}
-	error = get_bib_table(l4protocol, &table);
-	if (error)
-		return error;
-
-	error = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
-	if (error)
-		return error;
-	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
-	if (error) {
-		ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
-		return error;
-	}
-
-	return 0;
-}
-
-struct bib_entry *bib_get_by_ipv4(struct ipv4_tuple_address *address, u_int8_t l4protocol)
-{
-	struct bib_table *table;
-
-	if (!address)
-		return NULL;
-	if (get_bib_table(l4protocol, &table) != 0)
-		return NULL;
-
-	return ipv4_table_get(&table->ipv4, address);
-}
-
-struct bib_entry *bib_get_by_ipv6(struct ipv6_tuple_address *address, u_int8_t l4protocol)
-{
-	struct bib_table *table;
-
-	if (!address)
-		return NULL;
-	if (get_bib_table(l4protocol, &table) != 0)
-		return NULL;
-
-	return ipv6_table_get(&table->ipv6, address);
-}
-
-struct bib_entry *bib_get_by_ipv6_only(struct in6_addr *address, u_int8_t l4protocol)
-{
-	struct bib_table *table;
-	__u16 hash_code;
-	struct hlist_node *current_node;
-	struct ipv6_tuple_address address_full;
-	struct ipv6_table_key_value *keyvalue;
-
-	if (!address)
-		return NULL;
-	if (get_bib_table(l4protocol, &table) != 0)
-		return NULL;
-
-	address_full.address = *address; /* Port doesn't matter; won't be used by the hash function. */
-	hash_code = table->ipv6.hash_function(&address_full) % ARRAY_SIZE(table->ipv6.table);
-
-	hlist_for_each(current_node, &table->ipv6.table[hash_code]) {
-		keyvalue = list_entry(current_node, struct ipv6_table_key_value, nodes);
-		if (ipv6_addr_equals(address, &keyvalue->key->address))
-			return keyvalue->value;
-	}
-
-	return NULL;
-}
-
-struct bib_entry *bib_get(struct tuple *tuple)
-{
-	struct ipv6_tuple_address address6;
-	struct ipv4_tuple_address address4;
-
-	if (!tuple)
-		return NULL;
-
-	switch (tuple->l3_proto) {
-	case PF_INET6:
-		address6.address = tuple->src.addr.ipv6;
-		address6.l4_id = tuple->src.l4_id;
-		return bib_get_by_ipv6(&address6, tuple->l4_proto);
-	case PF_INET:
-		address4.address = tuple->dst.addr.ipv4;
-		address4.l4_id = tuple->dst.l4_id;
-		return bib_get_by_ipv4(&address4, tuple->l4_proto);
-	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
-		return NULL;
-	}
-}
-
-bool bib_remove(struct bib_entry *entry, u_int8_t l4protocol)
-{
-	struct bib_table *table;
-	bool removed_from_ipv4, removed_from_ipv6;
-
-	if (!entry) {
-		log_err(ERR_NULL, "The BIB tables do not contain NULL entries.");
-		return false;
-	}
-	if (get_bib_table(l4protocol, &table) != 0)
-		return false;
-
-	/* Free the memory from both tables. */
-	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
-	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
-
-	if (removed_from_ipv4 && removed_from_ipv6)
-		return true;
-	if (!removed_from_ipv4 && !removed_from_ipv6)
-		return false;
-
-	/* Why was it not indexed by both tables? Programming error. */
-	log_crit(ERR_INCOMPLETE_INDEX_BIB, "Programming error: Weird BIB removal: ipv4:%d; ipv6:%d.",
-			removed_from_ipv4, removed_from_ipv6);
-	return false;
+	bib_kfree(rb_entry(node, struct bib_entry, tree6_hook));
 }
 
 void bib_destroy(void)
@@ -227,20 +125,138 @@ void bib_destroy(void)
 
 	log_debug("Emptying the BIB tables...");
 	/*
-	 * The keys needn't be released because they're part of the values.
-	 * The values need to be released only in one of the tables because both tables point to the
-	 * same values.
+	 * The values need to be released only in one of the trees
+	 * because both tables point to the same values.
 	 */
-	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_empty(&tables[i]->ipv4, false, false);
-		ipv6_table_empty(&tables[i]->ipv6, false, true);
+
+	for (i = 0; i < ARRAY_SIZE(tables); i++)
+		rbtree_clear(&tables[i]->tree6, bib_destroy_aux);
+
+	kmem_cache_destroy(entry_cache);
+}
+
+int bib_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+		struct bib_entry **result)
+{
+	struct bib_table *table;
+	int error;
+
+	/* Sanitize */
+	if (!addr) {
+		log_warning("The BIBs cannot contain NULL.");
+		return -EINVAL;
 	}
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Find it */
+	*result = rbtree_find(addr, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
+	return (*result) ? 0 : -ENOENT;
+}
+
+int bib_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+		struct bib_entry **result)
+{
+	struct bib_table *table;
+	int error;
+
+	/* Sanitize */
+	if (!addr) {
+		log_warning("The BIBs cannot contain NULL.");
+		return -EINVAL;
+	}
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Find it */
+	*result = rbtree_find(addr, &table->tree6, compare_full6, struct bib_entry, tree6_hook);
+	return (*result) ? 0 : -ENOENT;
+}
+
+int bib_get(struct tuple *tuple, struct bib_entry **result)
+{
+	struct ipv6_tuple_address addr6;
+	struct ipv4_tuple_address addr4;
+
+	if (!tuple) {
+		log_err(ERR_NULL, "There's no BIB entry mapped to NULL.");
+		return -EINVAL;
+	}
+
+	switch (tuple->l3_proto) {
+	case L3PROTO_IPV6:
+		addr6.address = tuple->src.addr.ipv6;
+		addr6.l4_id = tuple->src.l4_id;
+		return bib_get_by_ipv6(&addr6, tuple->l4_proto, result);
+	case L3PROTO_IPV4:
+		addr4.address = tuple->dst.addr.ipv4;
+		addr4.l4_id = tuple->dst.l4_id;
+		return bib_get_by_ipv4(&addr4, tuple->l4_proto, result);
+	}
+
+	log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+	return -EINVAL;
+}
+
+int bib_add(struct bib_entry *entry, l4_protocol l4_proto)
+{
+	struct bib_table *table;
+	int error;
+
+	/* Sanity */
+	if (!entry) {
+		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
+		return -EINVAL;
+	}
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Index */
+	error = rbtree_add(entry, ipv6, &table->tree6, compare_full6, struct bib_entry, tree6_hook);
+	if (error)
+		return error;
+
+	error = rbtree_add(entry, ipv4, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
+	if (error) {
+		rb_erase(&entry->tree6_hook, &table->tree6);
+		return error;
+	}
+
+	table->count++;
+	return 0;
+}
+
+int bib_remove(struct bib_entry *entry, l4_protocol l4_proto)
+{
+	struct bib_table *table;
+	int error;
+
+	if (!entry) {
+		log_err(ERR_NULL, "The BIB tables do not contain NULL entries.");
+		return -EINVAL;
+	}
+	if (RB_EMPTY_NODE(&entry->tree6_hook) || RB_EMPTY_NODE(&entry->tree4_hook)) {
+		log_err(ERR_BIB_NOT_FOUND, "BIB entry does not belong to any trees.");
+		return -EINVAL;
+	}
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	rb_erase(&entry->tree6_hook, &table->tree6);
+	rb_erase(&entry->tree4_hook, &table->tree4);
+
+	table->count--;
+	return 0;
 }
 
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static)
 {
-	struct bib_entry *result = kmalloc(sizeof(struct bib_entry), GFP_ATOMIC);
+	struct bib_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!result)
 		return NULL;
 
@@ -248,33 +264,101 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 	result->ipv6 = *ipv6;
 	result->is_static = is_static;
 	INIT_LIST_HEAD(&result->sessions);
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
 
 	return result;
 }
 
-int bib_for_each(__u8 l4protocol, int (*func)(struct bib_entry *, void *), void *arg)
+void bib_kfree(struct bib_entry *bib)
+{
+	kmem_cache_free(entry_cache, bib);
+}
+
+int bib_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg)
+{
+	struct bib_table *table;
+	struct rb_node *node;
+	int error;
+
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	for (node = rb_first(&table->tree4); node; node = rb_next(node)) {
+		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
+		int (*func)(struct bib_entry *, void *), void *arg)
+{
+	struct bib_table *table;
+	struct bib_entry *bib;
+	struct rb_node *node;
+	int error;
+	bool found;
+
+	/* Sanitize */
+	if (!addr)
+		return -EINVAL;
+	error = get_bib_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Find the top-most node in the tree whose IPv6 address is addr. */
+	bib = rbtree_find(addr, &table->tree6, compare_addr6, struct bib_entry, tree6_hook);
+	if (!bib)
+		return 0; /* _Successfully_ iterated through no entries. */
+
+	/* Keep moving left until we find the first node whose IPv6 address is addr. */
+	found = false;
+	do {
+		node = rb_prev(&bib->tree6_hook);
+
+		if (node) {
+			struct bib_entry *tmp = rb_entry(node, struct bib_entry, tree6_hook);
+			if (compare_addr6(tmp, addr))
+				bib = tmp;
+			else
+				found = true;
+		} else {
+			found = true;
+		}
+	} while (!found);
+
+	/*
+	 * Keep moving right until the address changes.
+	 * (The nodes are sorted by address first.)
+	 */
+	do {
+		error = func(bib, arg);
+		if (error)
+			return error;
+
+		node = rb_next(&bib->tree6_hook);
+		if (!node)
+			break;
+
+		bib = rb_entry(node, struct bib_entry, tree6_hook);
+	} while (ipv6_addr_equals(addr, &bib->ipv6.address));
+
+	return 0;
+}
+
+int bib_count(l4_protocol proto, u64 *result)
 {
 	struct bib_table *table;
 	int error;
 
-	error = get_bib_table(l4protocol, &table);
+	error = get_bib_table(proto, &table);
 	if (error)
 		return error;
 
-	return ipv4_table_for_each(&table->ipv4, func, arg);
-}
-
-bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)
-{
-	if (bib_1 == bib_2)
-		return true;
-	if (bib_1 == NULL || bib_2 == NULL)
-		return false;
-
-	if (!ipv4_tuple_addr_equals(&bib_1->ipv4, &bib_2->ipv4))
-		return false;
-	if (!ipv6_tuple_addr_equals(&bib_1->ipv6, &bib_2->ipv6))
-		return false;
-
-	return true;
+	*result = table->count;
+	return 0;
 }

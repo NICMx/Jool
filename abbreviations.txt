@@ -1,5 +1,7 @@
 Some shortcuts used while naming variables and functions through the code:
 
+nf = Netfilter (http://www.netfilter.org/)
+nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
 alloc = memory allocation
 pref = prefix
 err = error
@@ -16,15 +18,18 @@ init = initialize
 proto = protocol
 l2 = layer 2 (link)
 l3 = layer 3 (network; IPv4 or IPv6.)
-l4 = layer 4 (transport; TCP, UDP, ICMP or ICMPv6.)
+l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)
 addr = address
 fn = function ("this parameter is a pointer to a function.")
 comm = common
 mod = module
 usr = user[space]
-nl = netlink
 cb = callback (synonym for "fn")
 pool<n> = IPv<n> pool (pool4 = IPv4 pool)
+pkt = packet
+ver = verdict
+skb = socket buffer (inherited from the kernel)
+aux = auxiliar function
 
 
 BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're

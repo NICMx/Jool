@@ -75,7 +75,7 @@
 #define STATIC_SESSION_IPV6_REMOTE_PORT STATIC_BIB_IPV6_PORT
 
 
-struct session_entry *create_dynamic_session(int l4_proto)
+static struct session_entry *create_dynamic_session(int l4_proto)
 {
 	struct session_entry *session;
 	struct ipv4_pair pair4;
@@ -103,7 +103,7 @@ struct session_entry *create_dynamic_session(int l4_proto)
 	return session;
 }
 
-struct session_entry *create_static_session(int l4_proto)
+static struct session_entry *create_static_session(int l4_proto)
 {
 	struct session_entry *session;
 	struct ipv4_pair pair4;
@@ -131,7 +131,7 @@ struct session_entry *create_static_session(int l4_proto)
 	return session;
 }
 
-struct bib_entry *create_and_insert_static_bib(int l4_proto)
+static struct bib_entry *create_and_insert_static_bib(int l4_proto)
 {
 	struct bib_entry *bib;
 	struct ipv4_tuple_address addr4;
@@ -149,7 +149,7 @@ struct bib_entry *create_and_insert_static_bib(int l4_proto)
 		log_warning("Could not allocate the static BIB entry.");
 		return NULL;
 	}
-	if (bib_add(bib, l4_proto) != 0)
+	if (is_error(bib_add(bib, l4_proto)))
 		return NULL;
 
 	return bib;
@@ -197,7 +197,7 @@ static int strs_to_pair4(char *src_addr, u16 src_port, char *dst_addr, u16 dst_p
 }
 */
 
-struct bib_entry *create_dynamic_bib(int l4_proto)
+static struct bib_entry *create_dynamic_bib(int l4_proto)
 {
 	struct bib_entry *bib;
 	struct ipv6_tuple_address addr6;
@@ -219,16 +219,17 @@ struct bib_entry *create_dynamic_bib(int l4_proto)
 	return bib;
 }
 
-static bool test_hairpin(int l4_proto, int (*create_skb_cb)(struct ipv6_pair *, struct sk_buff **))
+static bool test_hairpin(l4_protocol l4_proto,
+		int (*create_skb_cb)(struct ipv6_pair *, struct sk_buff **, u16))
 {
 	struct sk_buff *skb_in, *skb_out;
 	struct bib_entry *static_bib, *dynamic_bib;
 	struct session_entry *static_session, *dynamic_session;
-	struct ipv6_pair request_pkt, response_pkt;
+	struct ipv6_pair pair6_request, pair6_response;
 	int error;
 	bool success = true;
 
-	/* TODO free stuff on failure. */
+	/* TODO (test) free stuff on failure. */
 	static_bib = create_and_insert_static_bib(l4_proto);
 	if (!static_bib)
 		return false;
@@ -242,53 +243,107 @@ static bool test_hairpin(int l4_proto, int (*create_skb_cb)(struct ipv6_pair *, 
 	if (!dynamic_session)
 		return false;
 
-	error = strs_to_pair6(CLIENT_ADDR, CLIENT_PORT, SERVER_HAIRPIN_ADDR, SERVER_PORT, &request_pkt);
+	error = strs_to_pair6(CLIENT_ADDR, CLIENT_PORT, SERVER_HAIRPIN_ADDR, SERVER_PORT, &pair6_request);
 	if (error)
 		return false;
-	error = strs_to_pair6(SERVER_ADDR, SERVER_PORT, STATIC_SESSION_IPV6_LOCAL_ADDR, STATIC_SESSION_IPV6_LOCAL_PORT, &response_pkt);
+	error = strs_to_pair6(SERVER_ADDR, SERVER_PORT, STATIC_SESSION_IPV6_LOCAL_ADDR,
+			STATIC_SESSION_IPV6_LOCAL_PORT, &pair6_response);
 	if (error)
 		return false;
 
 	/* Send the request. */
-	if (create_skb_cb(&request_pkt, &skb_in) != 0)
+	if (create_skb_cb(&pair6_request, &skb_in, 100) != 0)
 		return false;
 
-	success &= assert_equals_int(NF_DROP, core_6to4(skb_in), "Request result");
+	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Request result");
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
-	skb_out = get_sent_pkt();
-	/* TODO (test) Improve this one. At least validate the packet's addresses and ports. */
-	success &= assert_not_null(skb_out, "Request packet");
+	skb_out = get_sent_skb();
 
-	set_sent_pkt(NULL);
-	kfree_skb(skb_in);
+	success &= assert_not_null(skb_out, "Request packet");
+	success &= assert_equals_ipv6_str(STATIC_SESSION_IPV6_LOCAL_ADDR, &ipv6_hdr(skb_out)->saddr,
+			"out's src addr");
+	success &= assert_equals_ipv6_str(SERVER_ADDR, &ipv6_hdr(skb_out)->daddr, "out's dst addr");
+	switch (l4_proto) {
+	case L4PROTO_UDP:
+		success &= assert_equals_u16(STATIC_SESSION_IPV6_LOCAL_PORT,
+				be16_to_cpu(udp_hdr(skb_out)->source),
+				"out's src port");
+		success &= assert_equals_u16(SERVER_PORT,
+				be16_to_cpu(udp_hdr(skb_out)->dest),
+				"out's dst port");
+		break;
+	case L4PROTO_TCP:
+		success &= assert_equals_u16(STATIC_SESSION_IPV6_LOCAL_PORT,
+				be16_to_cpu(tcp_hdr(skb_out)->source),
+				"out's src port");
+		success &= assert_equals_u16(SERVER_PORT,
+				be16_to_cpu(tcp_hdr(skb_out)->dest),
+				"out's dst port");
+		break;
+	case L4PROTO_ICMP:
+	case L4PROTO_NONE:
+		log_warning("Test is not designed for protocol %d.", l4_proto);
+		success = false;
+		break;
+	}
+
+	if (!success)
+		return false;
+
 	kfree_skb(skb_out);
 
 	/* Send the response. */
-	if (create_skb_cb(&response_pkt, &skb_in) != 0)
+	if (create_skb_cb(&pair6_response, &skb_in, 100) != 0)
 		return false;
-	success &= assert_equals_int(NF_DROP, core_6to4(skb_in), "Response result");
+	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Response result");
 	/* The module should have reused the entries, so the database shouldn't have changed. */
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
-	skb_out = get_sent_pkt();
-	/* TODO (test) Improve this one. At least validate the packet's addresses and ports. */
-	success &= assert_not_null(skb_out, "Response packet");
+	skb_out = get_sent_skb();
 
-	set_sent_pkt(NULL);
-	kfree_skb(skb_in);
+	success &= assert_not_null(skb_out, "Response packet");
+	success &= assert_equals_ipv6_str(SERVER_HAIRPIN_ADDR, &ipv6_hdr(skb_out)->saddr,
+			"out's src addr");
+	success &= assert_equals_ipv6_str(CLIENT_ADDR, &ipv6_hdr(skb_out)->daddr, "out's dst addr");
+	switch (l4_proto) {
+	case L4PROTO_UDP:
+		success &= assert_equals_u16(SERVER_PORT,
+				be16_to_cpu(udp_hdr(skb_out)->source),
+				"out's src port");
+		success &= assert_equals_u16(CLIENT_PORT,
+				be16_to_cpu(udp_hdr(skb_out)->dest),
+				"out's dst port");
+		break;
+	case L4PROTO_TCP:
+		success &= assert_equals_u16(SERVER_PORT,
+				be16_to_cpu(tcp_hdr(skb_out)->source),
+				"out's src port");
+		success &= assert_equals_u16(CLIENT_PORT,
+				be16_to_cpu(tcp_hdr(skb_out)->dest),
+				"out's dst port");
+		break;
+	case L4PROTO_ICMP:
+	case L4PROTO_NONE:
+		log_warning("Test is not designed for protocol %d.", l4_proto);
+		success = false;
+		break;
+	}
+
+	if (!success)
+		return false;
+
 	kfree_skb(skb_out);
 
 	/* We're done. */
 	print_bibs(l4_proto);
 	print_sessions(l4_proto);
 
-	return success;
-}
+	session_kfree(dynamic_session);
+	session_kfree(static_session);
+	bib_kfree(dynamic_bib);
 
-static bool session_expired_callback(struct session_entry *entry)
-{
-	return false;
+	return success;
 }
 
 static void deinit(void)
@@ -299,7 +354,7 @@ static void deinit(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
-	config_destroy();
+	pktmod_destroy();
 }
 
 static int init(void)
@@ -308,7 +363,7 @@ static int init(void)
 	char *pool4[] = { NAT64_IPV4_ADDR };
 	int error;
 
-	error = config_init();
+	error = pktmod_init();
 	if (error)
 		goto failure;
 	error = pool6_init(pool6, ARRAY_SIZE(pool6));
@@ -320,7 +375,7 @@ static int init(void)
 	error = bib_init();
 	if (error)
 		goto failure;
-	error = session_init(session_expired_callback);
+	error = session_init();
 	if (error)
 		goto failure;
 	error = filtering_init();
@@ -337,7 +392,17 @@ failure:
 	return error;
 }
 
-int init_test_module(void)
+static int create_syn_skb(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
+{
+	int error = create_skb_ipv6_tcp(pair6, result, payload_len);
+	if (error)
+		return error;
+
+	tcp_hdr(*result)->syn = 1;
+	return 0;
+}
+
+static int init_test_module(void)
 {
 	int error;
 	START_TESTS("Handling Hairpinning");
@@ -348,15 +413,18 @@ int init_test_module(void)
 
 	/* TODO (test) test errors (eg. ICMP hairpins). */
 
-	CALL_TEST(test_hairpin(IPPROTO_UDP, create_skb_ipv6_udp), "UDP");
-	CALL_TEST(test_hairpin(IPPROTO_TCP, create_skb_ipv6_tcp), "TCP");
+	CALL_TEST(test_hairpin(L4PROTO_UDP, create_skb_ipv6_udp), "UDP");
+	CALL_TEST(test_hairpin(L4PROTO_TCP, create_syn_skb), "TCP");
+
+	/* CALL_TEST(test_hairpin(L4PROTO_UDP, create_packet_ipv6_udp_fragmented_disordered), "UDP"); */
+	/* CALL_TEST(test_hairpin(L4PROTO_TCP, create_packet_ipv6_tcp_fragmented_disordered), "TCP"); */
 
 	deinit();
 
 	END_TESTS;
 }
 
-void cleanup_test_module(void)
+static void cleanup_test_module(void)
 {
 	/* No code. */
 }

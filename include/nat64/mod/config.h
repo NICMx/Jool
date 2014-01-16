@@ -9,13 +9,9 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include <linux/types.h>
-
 
 /**
  * Initializes this module. Sets default values for the entire configuration.
- *
- * @return "true" if initialization was successful, "false" otherwise.
  */
 int config_init(void);
 /**

@@ -1,44 +1,24 @@
 #include "nat64/mod/session.h"
-#include "nat64/comm/constants.h"
-#include "nat64/mod/pool4.h"
 
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/timer.h>
+#include <net/ipv6.h>
+#include "nat64/mod/rbtree.h"
 
 
 /********************************************
  * Structures and private variables.
  ********************************************/
 
-/*
- * Hash table; indexes session entries by IPv4 address.
- * (this code generates the "ipv4_table" structure and related functions used below).
- */
-#define HTABLE_NAME ipv4_table
-#define KEY_TYPE struct ipv4_pair
-#define VALUE_TYPE struct session_entry
-#define GENERATE_FOR_EACH
-#include "hash_table.c"
-
-/*
- * Hash table; indexes BIB entries by IPv6 address.
- * (this code generates the "ipv6_table" structure and related functions used below).
- */
-#define HTABLE_NAME ipv6_table
-#define KEY_TYPE struct ipv6_pair
-#define VALUE_TYPE struct session_entry
-#include "hash_table.c"
-
 /**
  * Session table definition.
  * Holds two hash tables, one for each indexing need (IPv4 and IPv6).
  */
 struct session_table {
-	/** Indexes entries by IPv4. */
-	struct ipv4_table ipv4;
-	/** Indexes entries by IPv6. */
-	struct ipv6_table ipv6;
+	/** Indexes the entries using their IPv6 identifiers. */
+	struct rb_root tree6;
+	/** Indexes the entries using their IPv4 identifiers. */
+	struct rb_root tree4;
+
+	u64 count;
 };
 
 /** The session table for UDP connections. */
@@ -48,47 +28,32 @@ static struct session_table session_table_tcp;
 /** The session table for ICMP connections. */
 static struct session_table session_table_icmp;
 
-/**
- * Chains all known session entries.
- * Currently only used while looking en deleting expired ones.
- */
-static LIST_HEAD(all_sessions);
-
-struct timer_list expire_timer;
-static bool expire_timer_active = false;
-static DEFINE_SPINLOCK(expire_timer_lock);
-
-/**
- * This callback will be called by the session-cleaning thread for every session whose lifetime
- * just expired. It's expected to either update the session (particularly its lifetime) or approve
- * its deletion.
- *
- * @param session the session whose lifetime just expired.
- * @return whether the session should survive (true) or not (false).
- */
-static bool (*session_expired_cb)(struct session_entry *session);
+/** Cache for struct bib_entrys, for efficient allocation. */
+static struct kmem_cache *entry_cache;
 
 
 /********************************************
  * Private (helper) functions.
  ********************************************/
 
-static int get_session_table(u_int8_t l4protocol, struct session_table **result)
+static int get_session_table(l4_protocol l4_proto, struct session_table **result)
 {
-	switch (l4protocol) {
-	case IPPROTO_UDP:
+	switch (l4_proto) {
+	case L4PROTO_UDP:
 		*result = &session_table_udp;
 		return 0;
-	case IPPROTO_TCP:
+	case L4PROTO_TCP:
 		*result = &session_table_tcp;
 		return 0;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
+	case L4PROTO_ICMP:
 		*result = &session_table_icmp;
 		return 0;
+	case L4PROTO_NONE:
+		log_crit(ERR_L4PROTO, "There is no session table for the 'NONE' protocol.");
+		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4protocol);
+	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
 }
 
@@ -108,230 +73,83 @@ static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
 	pair->local.l4_id = tuple->dst.l4_id;
 }
 
-/**
- * Removes from the tables the entries whose lifetime has expired. The entries are also freed from
- * memory.
- * TODO (fine) this is too much business logic to belong to this module; move it to a model.
- */
-static void clean_expired_sessions(void)
+static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
 {
-	struct list_head *current_node, *next_node;
-	struct session_entry *session;
-	unsigned int s = 0;
-	struct bib_entry *bib;
-	unsigned int b = 0;
-	unsigned int current_time = jiffies_to_msecs(jiffies);
-	u_int8_t l4_proto;
+	int gap;
 
-	log_debug("Deleting expired sessions...");
-	spin_lock_bh(&bib_session_lock);
+	gap = ipv6_addr_cmp(&session->ipv6.local.address, &pair->local.address);
+	if (gap != 0)
+		return gap;
 
-	list_for_each_safe(current_node, next_node, &all_sessions) {
-		session = list_entry(current_node, struct session_entry, all_sessions);
+	gap = ipv6_addr_cmp(&session->ipv6.remote.address, &pair->remote.address);
+	if (gap != 0)
+		return gap;
 
-		if (session->dying_time > current_time || session_expired_cb(session))
-			continue;
-		if (!session_remove(session))
-			continue; /* Error msg already printed. */
+	gap = session->ipv6.local.l4_id - pair->local.l4_id;
+	if (gap != 0)
+		return gap;
 
-		bib = session->bib;
-		l4_proto = session->l4_proto;
-
-		list_del(&session->entries_from_bib);
-		kfree(session);
-		s++;
-
-		if (!bib) {
-			log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
-			continue;
-		}
-
-		if (!list_empty(&bib->sessions) || bib->is_static)
-			continue;
-		if (!bib_remove(bib, l4_proto))
-			continue; /* Error msg already printed. */
-
-		pool4_return(l4_proto, &bib->ipv4);
-		kfree(bib);
-		b++;
-	}
-
-	spin_unlock_bh(&bib_session_lock);
-	log_debug("Deleted %u session entries and %u BIB entries.", s, b);
+	gap = session->ipv6.remote.l4_id - pair->remote.l4_id;
+	return gap;
 }
 
-static void cleaner_timer(unsigned long param)
+static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
 {
-	clean_expired_sessions();
+	int gap;
 
-	spin_lock_bh(&expire_timer_lock);
-	if (expire_timer_active) {
-		expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
-		add_timer(&expire_timer);
-	}
-	spin_unlock_bh(&expire_timer_lock);
+	gap = ipv4_addr_cmp(&session->ipv4.local.address, &pair->local.address);
+	if (gap != 0)
+		return gap;
+
+	gap = session->ipv4.local.l4_id - pair->local.l4_id;
+	if (gap != 0)
+		return gap;
+
+	gap = ipv4_addr_cmp(&session->ipv4.remote.address, &pair->remote.address);
+	return gap;
+}
+
+static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
+{
+	int gap;
+
+	gap = compare_addrs4(session, pair);
+	if (gap != 0)
+		return gap;
+
+	gap = session->ipv4.remote.l4_id - pair->remote.l4_id;
+	return gap;
 }
 
 /*******************************
  * Public functions.
  *******************************/
 
-int session_init(bool (*session_expired_callback)(struct session_entry *))
+int session_init(void)
 {
 	struct session_table *tables[] = { &session_table_udp, &session_table_tcp,
 			&session_table_icmp };
-	int i, error;
+	int i;
+
+	entry_cache = kmem_cache_create("jool_session_entries", sizeof(struct session_entry),
+			0, SLAB_POISON, NULL);
+	if (!entry_cache) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate the Session entry cache.");
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		error = ipv4_table_init(&tables[i]->ipv4, ipv4_pair_equals, ipv4_pair_hashcode);
-		if (error)
-			return error;
-		error = ipv6_table_init(&tables[i]->ipv6, ipv6_pair_equals, ipv6_pair_hashcode);
-		if (error)
-			return error;
+		tables[i]->tree6 = RB_ROOT;
+		tables[i]->tree4 = RB_ROOT;
+		tables[i]->count = 0;
 	}
-
-	INIT_LIST_HEAD(&all_sessions);
-
-	init_timer(&expire_timer);
-	expire_timer.function = cleaner_timer;
-	expire_timer.expires = jiffies + msecs_to_jiffies(SESSION_TIMER_INTERVAL);
-	expire_timer.data = 0;
-	add_timer(&expire_timer);
-	expire_timer_active = true;
-
-	session_expired_cb = session_expired_callback;
 
 	return 0;
 }
 
-int session_add(struct session_entry *entry)
+static void session_destroy_aux(struct rb_node *node)
 {
-	struct session_table *table;
-	enum error_code error;
-
-	if (!entry) {
-		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
-		return -EINVAL;
-	}
-
-	error = get_session_table(entry->l4_proto, &table);
-	if (error)
-		return error;
-
-	/* Insert into the hash tables. */
-	error = ipv4_table_put(&table->ipv4, &entry->ipv4, entry);
-	if (error)
-		return error;
-
-	error = ipv6_table_put(&table->ipv6, &entry->ipv6, entry);
-	if (error) {
-		ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
-		return error;
-	}
-
-	/* Insert into the linked list. */
-	list_add(&entry->all_sessions, &all_sessions);
-
-	return 0;
-}
-
-struct session_entry *session_get_by_ipv4(struct ipv4_pair *pair, u_int8_t l4protocol)
-{
-	struct session_table *table;
-	if (get_session_table(l4protocol, &table) != 0)
-		return NULL;
-	return ipv4_table_get(&table->ipv4, pair);
-}
-
-struct session_entry *session_get_by_ipv6(struct ipv6_pair *pair, u_int8_t l4protocol)
-{
-	struct session_table *table;
-	if (get_session_table(l4protocol, &table) != 0)
-		return NULL;
-	return ipv6_table_get(&table->ipv6, pair);
-}
-
-struct session_entry *session_get(struct tuple *tuple)
-{
-	struct ipv6_pair pair6;
-	struct ipv4_pair pair4;
-
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no session entry mapped to NULL.");
-		return NULL;
-	}
-
-	switch (tuple->l3_proto) {
-	case PF_INET6:
-		tuple_to_ipv6_pair(tuple, &pair6);
-		return session_get_by_ipv6(&pair6, tuple->l4_proto);
-	case PF_INET:
-		tuple_to_ipv4_pair(tuple, &pair4);
-		return session_get_by_ipv4(&pair4, tuple->l4_proto);
-	default:
-		log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
-		return NULL;
-	}
-}
-
-bool session_allow(struct tuple *tuple)
-{
-	struct session_table *table;
-	__u16 hash_code;
-	struct hlist_node *current_node;
-	struct ipv4_pair tuple_pair, *session_pair;
-
-	if (!tuple) {
-		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
-		return false;
-	}
-
-	if (get_session_table(tuple->l4_proto, &table) != 0)
-		return false;
-
-	tuple_to_ipv4_pair(tuple, &tuple_pair);
-	hash_code = table->ipv4.hash_function(&tuple_pair) % ARRAY_SIZE(table->ipv4.table);
-	hlist_for_each(current_node, &table->ipv4.table[hash_code]) {
-		session_pair = list_entry(current_node, struct ipv4_table_key_value, nodes)->key;
-		if (ipv4_tuple_addr_equals(&session_pair->local, &tuple_pair.local)
-				&& ipv4_addr_equals(&session_pair->remote.address, &tuple_pair.remote.address)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool session_remove(struct session_entry *entry)
-{
-	struct session_table *table;
-	bool removed_from_ipv4, removed_from_ipv6;
-
-	if (!entry) {
-		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
-		return false;
-	}
-
-	if (get_session_table(entry->l4_proto, &table) != 0)
-		return false;
-
-	/* Free from both tables. */
-	removed_from_ipv4 = ipv4_table_remove(&table->ipv4, &entry->ipv4, false, false);
-	removed_from_ipv6 = ipv6_table_remove(&table->ipv6, &entry->ipv6, false, false);
-
-	if (removed_from_ipv4 && removed_from_ipv6) {
-		list_del(&entry->all_sessions);
-		return true;
-	}
-	if (!removed_from_ipv4 && !removed_from_ipv6) {
-		return false;
-	}
-
-	/* Why was it not indexed by both tables? Programming error. */
-	log_crit(ERR_INCOMPLETE_REMOVE, "Inconsistent session removal: ipv4:%d; ipv6:%d.",
-			removed_from_ipv4, removed_from_ipv6);
-	return false;
+	session_kfree(rb_entry(node, struct session_entry, tree6_hook));
 }
 
 void session_destroy(void)
@@ -342,72 +160,200 @@ void session_destroy(void)
 
 	log_debug("Emptying the session tables...");
 	/*
-	 * The keys needn't be released because they're part of the values.
-	 * The values need to be released only in one of the tables because both tables point to the
-	 * same values.
+	 * The values need to be released only in one of the trees
+	 * because both trees point to the same values.
 	 */
-	for (i = 0; i < ARRAY_SIZE(tables); i++) {
-		ipv4_table_empty(&session_table_udp.ipv4, false, false);
-		ipv6_table_empty(&session_table_udp.ipv6, false, true);
+	for (i = 0; i < ARRAY_SIZE(tables); i++)
+		rbtree_clear(&tables[i]->tree6, session_destroy_aux);
+
+	kmem_cache_destroy(entry_cache);
+}
+
+int session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
+		struct session_entry **result)
+{
+	struct session_table *table;
+	int error;
+
+	if (!pair) {
+		log_warning("The session tables cannot contain NULL.");
+		return -EINVAL;
+	}
+	error = get_session_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	*result = rbtree_find(pair, &table->tree4, compare_full4, struct session_entry, tree4_hook);
+	return (*result) ? 0 : -ENOENT;
+}
+
+int session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
+		struct session_entry **result)
+{
+	struct session_table *table;
+	int error;
+
+	if (!pair) {
+		log_warning("The session tables cannot contain NULL.");
+		return -EINVAL;
+	}
+	error = get_session_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	*result = rbtree_find(pair, &table->tree6, compare_full6, struct session_entry, tree6_hook);
+	return (*result) ? 0 : -ENOENT;
+}
+
+int session_get(struct tuple *tuple, struct session_entry **result)
+{
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+
+	if (!tuple) {
+		log_err(ERR_NULL, "There's no session entry mapped to NULL.");
+		return -EINVAL;
 	}
 
-	spin_lock_bh(&expire_timer_lock);
-	if (expire_timer_active) {
-		expire_timer_active = false;
-		spin_unlock_bh(&expire_timer_lock);
-		del_timer_sync(&expire_timer);
-	} else {
-		spin_unlock_bh(&expire_timer_lock);
+	switch (tuple->l3_proto) {
+	case L3PROTO_IPV6:
+		tuple_to_ipv6_pair(tuple, &pair6);
+		return session_get_by_ipv6(&pair6, tuple->l4_proto, result);
+	case L3PROTO_IPV4:
+		tuple_to_ipv4_pair(tuple, &pair4);
+		return session_get_by_ipv4(&pair4, tuple->l4_proto, result);
 	}
+
+	log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+	return -EINVAL;
+}
+
+bool session_allow(struct tuple *tuple)
+{
+	struct session_table *table;
+	struct ipv4_pair tuple_pair;
+	int error;
+
+	/* Sanity */
+	if (!tuple) {
+		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
+		return false;
+	}
+	error = get_session_table(tuple->l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Action */
+	tuple_to_ipv4_pair(tuple, &tuple_pair);
+	return rbtree_find(&tuple_pair, &table->tree4, compare_addrs4, struct session_entry,
+			tree4_hook);
+}
+
+int session_add(struct session_entry *entry)
+{
+	struct session_table *table;
+	int error;
+
+	/* Sanity */
+	if (!entry) {
+		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
+		return -EINVAL;
+	}
+	error = get_session_table(entry->l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Action */
+	error = rbtree_add(entry, ipv6, &table->tree6, compare_full6, struct session_entry, tree6_hook);
+	if (error)
+		return error;
+
+	error = rbtree_add(entry, ipv4, &table->tree4, compare_full4, struct session_entry, tree4_hook);
+	if (error) {
+		rb_erase(&entry->tree6_hook, &table->tree6);
+		return error;
+	}
+
+	table->count++;
+	return 0;
+}
+
+int session_remove(struct session_entry *entry)
+{
+	struct session_table *table;
+	int error;
+
+	/* Sanity */
+	if (!entry) {
+		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
+		return -EINVAL;
+	}
+	error = get_session_table(entry->l4_proto, &table);
+	if (error)
+		return error;
+
+	/* Action */
+	rb_erase(&entry->tree6_hook, &table->tree6);
+	rb_erase(&entry->tree4_hook, &table->tree4);
+
+	table->count--;
+	return 0;
 }
 
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		u_int8_t l4protocol)
+		l4_protocol l4_proto)
 {
-	struct session_entry *result = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
+	struct session_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!result)
 		return NULL;
 
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
 	result->dying_time = 0;
-	INIT_LIST_HEAD(&result->entries_from_bib);
-	INIT_LIST_HEAD(&result->all_sessions);
-	result->l4_proto = l4protocol;
+	result->bib = NULL;
+	INIT_LIST_HEAD(&result->bib_list_hook);
+	INIT_LIST_HEAD(&result->expire_list_hook);
+	result->l4_proto = l4_proto;
+	result->state = 0;
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
 
 	return result;
 }
 
-int session_for_each(__u8 l4protocol, int (*func)(struct session_entry *, void *), void *arg)
+void session_kfree(struct session_entry *session)
+{
+	kmem_cache_free(entry_cache, session);
+}
+
+int session_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg)
+{
+	struct session_table *table;
+	struct rb_node *node;
+	int error;
+
+	error = get_session_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	for (node = rb_first(&table->tree4); node; node = rb_next(node)) {
+		error = func(rb_entry(node, struct session_entry, tree4_hook), arg);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+int session_count(l4_protocol proto, __u64 *result)
 {
 	struct session_table *table;
 	int error;
 
-	error = get_session_table(l4protocol, &table);
+	error = get_session_table(proto, &table);
 	if (error)
 		return error;
 
-	return ipv4_table_for_each(&table->ipv4, func, arg);
+	*result = table->count;
+	return 0;
 }
-
-bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)
-{
-	if (session_1 == session_2)
-		return true;
-	if (session_1 == NULL || session_2 == NULL)
-		return false;
-
-	if (session_1->l4_proto != session_2->l4_proto)
-		return false;
-	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
-		return false;
-	if (!ipv6_tuple_addr_equals(&session_1->ipv6.local, &session_2->ipv6.local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&session_1->ipv4.local, &session_2->ipv4.local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&session_1->ipv4.remote, &session_2->ipv4.remote))
-		return false;
-
-	return true;
-}
-

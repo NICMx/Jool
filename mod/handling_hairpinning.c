@@ -6,40 +6,58 @@
 #include "nat64/mod/send_packet.h"
 
 
-bool is_hairpin(struct tuple *outgoing)
+/**
+ * Checks whether "pkt" is a hairpin packet.
+ *
+ * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
+ * @return whether pkt is a hairpin packet.
+ */
+bool is_hairpin(struct packet *pkt)
 {
-	return (outgoing->l3_proto == PF_INET) && pool4_contains(&outgoing->dst.addr.ipv4);
+	struct in_addr addr;
+
+	if (pkt_get_l3proto(pkt) != L3PROTO_IPV4)
+		return false;
+
+	pkt_get_ipv4_dst_addr(pkt, &addr);
+	return pool4_contains(&addr);
 }
 
-bool handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
+/**
+ * Mirrors the core's behavior by processing pkt_in as if it was the incoming packet.
+ *
+ * @param pkt_in the outgoing packet. Except because it's a hairpin, here it's treated as if it was
+ *		the one received from the network.
+ * @param tuple_in pkt_in's tuple.
+ * @return whether we managed to U-turn the packet successfully.
+ */
+verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
 {
-	struct sk_buff *skb_out = NULL;
+	struct packet *pkt_out = NULL;
 	struct tuple tuple_out;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	if (tuple_in->l4_proto == IPPROTO_ICMP || tuple_in->l4_proto == IPPROTO_ICMPV6) {
+	if (pkt_get_l4proto(pkt_in) == L4PROTO_ICMP) {
 		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
 		log_warning("ICMP is NOT supported by hairpinning. Dropping packet...");
-		goto free_and_fail;
+		goto fail;
 	}
 
-	if (filtering_and_updating(skb_in, tuple_in) != NF_ACCEPT)
-		goto free_and_fail;
-	if (!compute_out_tuple_4to6(tuple_in, skb_in, &tuple_out))
-		goto free_and_fail;
-	if (!translating_the_packet_4to6(&tuple_out, skb_in, &skb_out))
-		goto free_and_fail;
-	if (!send_packet_ipv6(skb_in, skb_out))
+	if (filtering_and_updating(pkt_in->first_fragment, tuple_in) != VER_CONTINUE)
+		goto fail;
+	if (compute_out_tuple(tuple_in, &tuple_out) != VER_CONTINUE)
+		goto fail;
+	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
+		goto fail;
+	if (send_pkt(pkt_out) != VER_CONTINUE)
 		goto fail;
 
+	pkt_kfree(pkt_out);
 	log_debug("Done step 5.");
-	return true;
-
-free_and_fail:
-	kfree_skb(skb_out);
-	/* Fall through. */
+	return VER_CONTINUE;
 
 fail:
-	return false;
+	pkt_kfree(pkt_out);
+	return VER_DROP;
 }

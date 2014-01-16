@@ -4,11 +4,9 @@
 /**
  * @file
  * Elements usable both by the kernel module and the userspace application.
- * Example from:
- * http://stackoverflow.com/questions/862964/who-can-give-me-the-latest-netlink-programming-samples
  *
  * @author Miguel Gonzalez
- * @author Alberto Leiva  <- maintenance
+ * @author Alberto Leiva
  */
 
 #include <linux/types.h>
@@ -32,17 +30,17 @@ enum config_mode {
 	MODE_SESSION,
 	MODE_FILTERING,
 	MODE_TRANSLATE,
+	MODE_FRAGMENTATION,
 };
 
 enum config_operation {
 	/* The following apply when mode is pool6, pool4, BIB or session. */
 	OP_DISPLAY,
+	OP_COUNT,
 	OP_ADD,
 	OP_REMOVE,
 
 	/* The following apply when mode is filtering or translate. */
-	#define SKB_HEAD_ROOM_MASK		(1 << 0)
-	#define SKB_TAIL_ROOM_MASK		(1 << 1)
 	#define RESET_TCLASS_MASK		(1 << 2)
 	#define RESET_TOS_MASK			(1 << 3)
 	#define NEW_TOS_MASK			(1 << 4)
@@ -50,6 +48,7 @@ enum config_operation {
 	#define BUILD_IPV4_ID_MASK		(1 << 6)
 	#define LOWER_MTU_FAIL_MASK		(1 << 7)
 	#define MTU_PLATEAUS_MASK		(1 << 8)
+	#define MIN_IPV6_MTU_MASK		(1 << 9)
 
 	#define DROP_BY_ADDR_MASK		(1 << 0)
 	#define DROP_ICMP6_INFO_MASK	(1 << 1)
@@ -58,6 +57,8 @@ enum config_operation {
 	#define ICMP_TIMEOUT_MASK		(1 << 4)
 	#define TCP_EST_TIMEOUT_MASK	(1 << 5)
 	#define TCP_TRANS_TIMEOUT_MASK 	(1 << 6)
+
+	#define FRAGMENT_TIMEOUT_MASK 	(1 << 0)
 };
 
 /**
@@ -85,8 +86,15 @@ struct bib_entry_us {
 struct session_entry_us {
 	struct ipv6_pair ipv6;
 	struct ipv4_pair ipv4;
-	unsigned int dying_time;
-	u_int8_t l4_proto;
+	__u64 dying_time;
+	l4_protocol l4_proto;
+};
+
+/**
+ * Time interval to allow arrival of fragments, in milliseconds.
+ */
+struct fragmentation_config {
+	__u64 fragment_timeout;
 };
 
 /**
@@ -101,10 +109,10 @@ struct filtering_config {
 	bool drop_external_tcp;
 	/** Current timeout values */
 	struct timeouts {
-		unsigned int udp;
-		unsigned int icmp;
-		unsigned int tcp_est;
-		unsigned int tcp_trans;
+		__u64 udp;
+		__u64 icmp;
+		__u64 tcp_est;
+		__u64 tcp_trans;
 	} to;
 };
 
@@ -112,23 +120,6 @@ struct filtering_config {
  * Configuration for the "Translate the packet" module.
  */
 struct translate_config {
-	/**
-	 * Extra bytes the translator will allocate at the head of the packets it generates. These are
-	 * meant to be used by other Netfilter modules for futher alien functionality (Eg. Add
-	 * additional headers withoug having to reallocate the packet).
-	 * Can be negative, if the user wants to compensate for the "LL_MAX_HEADER" constant.
-	 * (LL_MAX_HEADER = the kernel's reserved head room + l2 header's length.)
-	 *
-	 * TODO (later) LL_MAX_HEADER is probably intended for this very purpose, so these two values
-	 * are probably redundant.
-	 */
-	__u16 skb_head_room;
-	/**
-	 * Extra bytes the translator will allocate at the tail of the packets it generates. See
-	 * "skb_head_room".
-	 */
-	__u16 skb_tail_room;
-
 	/**
 	 * "true" if the Traffic Class field of the translated IPv6 header should always be set to zero.
 	 * Otherwise it will be copied from the IPv4 header's TOS field.
@@ -175,6 +166,12 @@ struct translate_config {
 	 * Default value is { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }.
 	 */
 	__u16 *mtu_plateaus;
+
+	/**
+	 * The smallest MTU in the IPv6 side. Jool will ensure that packets traveling from 4 to 6 will
+	 * be no bigger than this amount of bytes.
+	 */
+	__u16 min_ipv6_mtu;
 };
 
 
@@ -198,38 +195,43 @@ union request_pool4 {
 		/* Nothing needed there ATM. */
 	} display;
 	struct {
-		__u8 l4_proto;
 		struct in_addr addr;
 	} update;
 };
 
 struct request_bib {
-	__u8 l4_proto;
+	l4_protocol l4_proto;
 	union {
 		struct {
 			/* Nothing needed here. */
 		} display;
 		struct {
+			/* Nothing needed here. */
+		} count;
+		struct {
 			struct ipv6_tuple_address ipv6;
 			struct ipv4_tuple_address ipv4;
 		} add;
 		struct {
-			__u16 l3_proto;
+			l3_protocol l3_proto;
 			union {
 				struct ipv6_tuple_address ipv6;
 				struct ipv4_tuple_address ipv4;
 			};
 		} remove;
+		struct {
+			/* Nothing needed here. */
+		} clear;
 	};
 };
 
 struct request_session {
-	__u8 l4_proto;
+	l4_protocol l4_proto;
 };
 
 /*
  * Because of the somewhat intrusive nature of the netlink header, response header structures are
- * not really neccesary.
+ * not really necessary.
  */
 
 

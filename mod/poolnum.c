@@ -6,12 +6,31 @@
 #include "nat64/mod/random.h"
 
 
+/**
+ * @file
+ * A pool of 16-bit numbers, which are assumed to be going to be used as ports.
+ *
+ * The pool tries to be as efficient as possible during packet processing, so it assumes it is used
+ * in very controlled environments, which sacrifices robustness. Do *not* return numbers that were
+ * originally not part of the pool; validations against this are very ineffective.
+ */
+
+
+/**
+ * Returns a two-byte random number between min and max, inclusive.
+ */
 static int random_by_range(u16 min, u16 max)
 {
 	u32 random_num = get_random_u32();
 	return min + random_num % (max - min + 1);
 }
 
+/**
+ * Initializes "pool".
+ * "pool" will contain every number in "step" increments between "min" and "max" (inclusive) in a
+ * random order.
+ * eg. poolnum_init(pool, 1, 10, 3) will fill pool with 1, 4, 7 and 10.
+ */
 int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
 {
 	u32 i, j;
@@ -22,15 +41,17 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
 		max = temp;
 	}
 
-	/* TODO (fine) this looks like it could be optimized using some formula. */
-	pool->count = 0;
-	for (i = min; i <= max; i += step)
-		pool->count++;
-
+	pool->count = (max - min) / step + 1;
 	pool->array = kmalloc(pool->count * sizeof(u16), GFP_ATOMIC);
 	if (!pool->array)
 		return -ENOMEM;
-	/* Initialize and shuffle the numbers (http://en.wikipedia.org/wiki/Fisher-Yates_shuffle). */
+	/*
+	 * Initialize and shuffle the numbers (http://en.wikipedia.org/wiki/Fisher-Yates_shuffle).
+	 *
+	 * We're not really sure if we should do this. Randomizing the order upon initialization likely
+	 * doesn't serve any purpose; it makes the source ports Jool uses unpredictable to some extent,
+	 * but that probably doesn't add any security.
+	 */
 	pool->array[0] = min;
 	for (i = 1; i < pool->count; i++) {
 		j = random_by_range(0, i);
@@ -45,12 +66,18 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
 	return 0;
 }
 
+/**
+ * Deallocates "pool"'s contents. Does not free "pool".
+ */
 void poolnum_destroy(struct poolnum *pool)
 {
 	if (pool)
 		kfree(pool->array);
 }
 
+/**
+ * Returns "index"'s successor. Wraps "index" around "max" (i. e. (max - 1)'s successor is zero).
+ */
 static u32 get_next_index(u32 index, u32 max)
 {
 	index++;
@@ -59,6 +86,9 @@ static u32 get_next_index(u32 index, u32 max)
 	return index;
 }
 
+/**
+ * Borrows and sets "result" as any number from "pool". Returns error status.
+ */
 int poolnum_get_any(struct poolnum *pool, u16 *result)
 {
 	if (pool->next_is_ahead && pool->next == pool->returned)
@@ -70,12 +100,16 @@ int poolnum_get_any(struct poolnum *pool, u16 *result)
 	return 0;
 }
 
-bool poolnum_get(struct poolnum *pool, u16 value)
+/**
+ * Borrows "value" from "pool".
+ * This function is slow; avoid it during packet processing.
+ */
+int poolnum_get(struct poolnum *pool, u16 value)
 {
 	u32 current_index;
 
 	if (pool->next_is_ahead && pool->next == pool->returned)
-		return false;
+		return -ESRCH;
 
 	current_index = pool->next;
 	do {
@@ -83,14 +117,17 @@ bool poolnum_get(struct poolnum *pool, u16 value)
 			pool->array[current_index] = pool->array[pool->next];
 			pool->next = get_next_index(pool->next, pool->count);
 			pool->next_is_ahead = true;
-			return true;
+			return 0;
 		}
 		current_index = get_next_index(current_index, pool->count);
 	} while (current_index != pool->returned);
 
-	return false;
+	return -ESRCH;
 }
 
+/**
+ * Returns "value" to "pool".
+ */
 int poolnum_return(struct poolnum *pool, u16 value)
 {
 	if (!pool->next_is_ahead && pool->returned == pool->next) {

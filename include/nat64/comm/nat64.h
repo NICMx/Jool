@@ -9,8 +9,7 @@
  */
 
 
-/* TODO (Issue #39) Change this. */
-#define MODULE_NAME "NAT64"
+#define MODULE_NAME "Jool"
 
 
 #endif /* _NF_NAT64_H */

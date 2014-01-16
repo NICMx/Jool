@@ -15,8 +15,8 @@
 #include "nat64/comm/types.h"
 
 
-bool addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst);
-bool addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst);
+int addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst);
+int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *dst);
 
 
 #endif /* _NF_NAT64_RFC6052_H */

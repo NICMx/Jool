@@ -5,8 +5,6 @@
 #include "nat64/comm/config_proto.h"
 
 
-#define SKB_HEAD_ROOM_OPT		"head"
-#define SKB_TAIL_ROOM_OPT		"tail"
 #define RESET_TCLASS_OPT		"setTC"
 #define RESET_TOS_OPT			"setTOS"
 #define NEW_TOS_OPT				"TOS"
@@ -16,6 +14,7 @@
 #define IPV6_NEXTHOP_MTU_OPT	"nextMTU6"
 #define IPV4_NEXTHOP_MTU_OPT	"nextMTU4"
 #define MTU_PLATEAUS_OPT		"plateaus"
+#define MIN_IPV6_MTU_OPT		"minMTU6"
 
 int translate_request(__u32 operation, struct translate_config *config);
 

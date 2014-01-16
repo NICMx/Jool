@@ -1,4 +1,7 @@
 #include "nat64/comm/nat64.h"
+#include "nat64/comm/constants.h"
+#include "nat64/mod/packet.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/bib.h"
@@ -68,7 +71,9 @@ static void deinit(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
+	fragdb_destroy();
 	config_destroy();
+	pktmod_destroy();
 }
 
 static struct nf_hook_ops nfho[] = {
@@ -83,6 +88,18 @@ static struct nf_hook_ops nfho[] = {
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET,
 		.priority = NF_PRI_NAT64,
+	},
+	{
+		.hook = hook_ipv6,
+		.hooknum = NF_INET_LOCAL_OUT,
+		.pf = PF_INET6,
+		.priority = NF_PRI_NAT64,
+	},
+	{
+		.hook = hook_ipv4,
+		.hooknum = NF_INET_LOCAL_OUT,
+		.pf = PF_INET,
+		.priority = NF_PRI_NAT64,
 	}
 };
 
@@ -93,7 +110,13 @@ int __init nat64_init(void)
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
 
+	error = pktmod_init();
+	if (error)
+		goto failure;
 	error = config_init();
+	if (error)
+		goto failure;
+	error = fragdb_init();
 	if (error)
 		goto failure;
 	error = pool6_init(pool6, pool6_size);
@@ -105,7 +128,7 @@ int __init nat64_init(void)
 	error = bib_init();
 	if (error)
 		goto failure;
-	error = session_init(session_expired);
+	error = session_init();
 	if (error)
 		goto failure;
 	error = filtering_init();
@@ -129,8 +152,8 @@ failure:
 
 void __exit nat64_exit(void)
 {
-	deinit();
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
+	deinit();
 	log_info(MODULE_NAME " module removed.");
 }
 

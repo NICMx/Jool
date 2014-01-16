@@ -33,7 +33,7 @@ struct hdr_iterator {
 	void *limit;
 };
 
-enum hdr_iterator_result {
+typedef enum hdr_iterator_result {
 	/** The iterator managed to advance one header. */
 	HDR_ITERATOR_SUCCESS,
 	/** The iterator reached the payload. */
@@ -42,7 +42,7 @@ enum hdr_iterator_result {
 	HDR_ITERATOR_UNSUPPORTED,
 	/** The packet seems truncated, so the iterator won't move anymore. */
 	HDR_ITERATOR_OVERFLOW
-};
+} hdr_iterator_result;
 
 
 /**

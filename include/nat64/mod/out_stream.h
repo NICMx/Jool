@@ -3,14 +3,14 @@
 
 #include "linux/netlink.h"
 
-#define BUFFER_SIZE NLMSG_DEFAULT_SIZE
+#define OUT_STREAM_BUFFER_SIZE NLMSG_DEFAULT_SIZE
 
 
 struct out_stream {
 	struct sock *socket;
 	struct nlmsghdr *request_hdr;
 
-	unsigned char buffer[BUFFER_SIZE];
+	unsigned char buffer[OUT_STREAM_BUFFER_SIZE];
 	int buffer_len;
 };
 

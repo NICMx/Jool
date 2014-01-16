@@ -25,7 +25,8 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 		char *str4;
 		char str6[INET6_ADDRSTRLEN];
 
-		printf("Expires in %u milliseconds.\n", entry->dying_time);
+		printf("Expires in ");
+		print_time(entry->dying_time);
 
 		str4 = inet_ntoa(entry->ipv4.remote.address);
 		printf("Remote: %s#%u\t", str4, entry->ipv4.remote.l4_id);
@@ -78,11 +79,50 @@ int session_display(bool use_tcp, bool use_udp, bool use_icmp)
 	int icmp_error = 0;
 
 	if (use_tcp)
-		tcp_error = display_single_table("TCP", IPPROTO_TCP);
+		tcp_error = display_single_table("TCP", L4PROTO_TCP);
 	if (use_udp)
-		udp_error = display_single_table("UDP", IPPROTO_UDP);
+		udp_error = display_single_table("UDP", L4PROTO_UDP);
 	if (use_icmp)
-		icmp_error = display_single_table("ICMP", IPPROTO_ICMP);
+		icmp_error = display_single_table("ICMP", L4PROTO_ICMP);
+
+	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
+}
+
+static int session_count_response(struct nl_msg *msg, void *arg)
+{
+	__u64 *conf = nlmsg_data(nlmsg_hdr(msg));
+	printf("%llu\n", *conf);
+	return 0;
+}
+
+static bool display_single_count(char *count_name, u_int8_t l4_proto)
+{
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	struct request_session *payload = (struct request_session *) (request + HDR_LEN);
+
+	printf("%s: ", count_name);
+
+	hdr->length = sizeof(request);
+	hdr->mode = MODE_SESSION;
+	hdr->operation = OP_COUNT;
+	payload->l4_proto = l4_proto;
+
+	return netlink_request(request, hdr->length, session_count_response, NULL);
+}
+
+int session_count(bool use_tcp, bool use_udp, bool use_icmp)
+{
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (use_tcp)
+		tcp_error = display_single_count("TCP", L4PROTO_TCP);
+	if (use_udp)
+		udp_error = display_single_count("UDP", L4PROTO_UDP);
+	if (use_icmp)
+		icmp_error = display_single_count("ICMP", L4PROTO_ICMP);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }

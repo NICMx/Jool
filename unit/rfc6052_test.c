@@ -26,10 +26,10 @@ MODULE_DESCRIPTION("RFC 6052 module test.");
  +-----------------------+------------+------------------------------+
  */
 
-char ipv4_addr_str[INET_ADDRSTRLEN] = "192.0.2.33";
-struct in_addr ipv4_addr;
+static char ipv4_addr_str[INET_ADDRSTRLEN] = "192.0.2.33";
+static struct in_addr ipv4_addr;
 
-char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
+static char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:c000:221::",
 		"2001:db8:1c0:2:21::",
 		"2001:db8:122:c000:2:2100::",
@@ -37,9 +37,9 @@ char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:122:344:c0:2:2100::",
 		"2001:db8:122:344::192.0.2.33"
 };
-struct in6_addr ipv6_addr[6];
+static struct in6_addr ipv6_addr[6];
 
-char prefixes_str[6][INET6_ADDRSTRLEN] = {
+static char prefixes_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8::",
 		"2001:db8:100::",
 		"2001:db8:122::",
@@ -47,26 +47,26 @@ char prefixes_str[6][INET6_ADDRSTRLEN] = {
 		"2001:db8:122:344::",
 		"2001:db8:122:344::"
 };
-__u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
-struct ipv6_prefix prefixes[6];
+static __u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
+static struct ipv6_prefix prefixes[6];
 
-bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
+static bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
 {
 	struct in_addr actual;
 	bool success = true;
 
-	success &= assert_true(addr_6to4(src, prefix, &actual), "Extract IPv4-result");
+	success &= assert_equals_int(0, addr_6to4(src, prefix, &actual), "Extract IPv4-result");
 	success &= assert_equals_ipv4(expected, &actual, "Extract IPv4-out");
 
 	return success;
 }
 
-bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
+static bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
 {
 	struct in6_addr actual;
 	bool success = true;
 
-	success &= assert_true(addr_4to6(src, prefix, &actual), "Append IPv4-result");
+	success &= assert_equals_int(0, addr_4to6(src, prefix, &actual), "Append IPv4-result");
 	success &= assert_equals_ipv6(expected, &actual, "Append IPv4-out.");
 
 	return success;

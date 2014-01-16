@@ -23,6 +23,7 @@
 #include "nat64/usr/session.h"
 #include "nat64/usr/filtering.h"
 #include "nat64/usr/translate.h"
+#include "nat64/usr/fragmentation.h"
 
 
 const char *argp_program_version = "Jool userspace app 0.1";
@@ -51,9 +52,10 @@ struct arguments {
 	struct ipv4_tuple_address bib4;
 	bool bib4_set;
 
-	/* Filtering, translate */
+	/* Filtering, translate, fragmentation */
 	struct filtering_config filtering;
 	struct translate_config translate;
+	struct fragmentation_config fragmentation;
 };
 
 /**
@@ -67,9 +69,11 @@ enum argp_flags {
 	ARGP_SESSION = 's',
 	ARGP_FILTERING = 'y',
 	ARGP_TRANSLATE = 'z',
+	ARGP_FRAGMENTATION = 'f',
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
+	ARGP_COUNT = 'c',
 	ARGP_ADD = 'a',
 	ARGP_REMOVE = 'r',
 
@@ -100,8 +104,6 @@ enum argp_flags {
 	ARGP_TCP_TRANS_TO = 3013,
 
 	/* Translate */
-	ARGP_HEAD = 4000,
-	ARGP_TAIL = 4001,
 	ARGP_RESET_TCLASS = 4002,
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
@@ -109,6 +111,10 @@ enum argp_flags {
 	ARGP_BUILD_ID = 4006,
 	ARGP_LOWER_MTU_FAIL = 4007,
 	ARGP_PLATEAUS = 4010,
+	ARGP_MIN_IPV6_MTU = 4011,
+
+	/* Fragmentation */
+	ARGP_FRAG_TO = 5000,
 };
 
 #define NUM_FORMAT "NUM"
@@ -126,34 +132,37 @@ enum argp_flags {
  */
 static struct argp_option options[] =
 {
-	{ 0, 0, 0, 0, "IPv6 Pool options:", 10},
-	{ "pool6",		ARGP_POOL6,		0, 0, "The command will operate on the IPv6 pool." },
-	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the IPv6 pool as output (default)." },
-	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add a prefix to the pool." },
-	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove a prefix from the pool." },
+	{ NULL, 0, NULL, 0, "IPv6 Pool options:", 10},
+	{ "pool6",		ARGP_POOL6,		NULL, 0, "The command will operate on the IPv6 pool." },
+	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the IPv6 pool as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of IPv6 prefixes registered." },
+	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add a prefix to the pool." },
+	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove a prefix from the pool." },
 	{ "prefix",		ARGP_PREFIX,	PREFIX_FORMAT, 0,
 			"The prefix to be added or removed. Available on add and remove operations only." },
 
-	{ 0, 0, 0, 0, "IPv4 Pool options:", 11 },
-	{ "pool4",		ARGP_POOL4,		0, 0, "The command will operate on the IPv4 pool." },
-	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the IPv4 pool as output (default)." },
-	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add an address to the pool." },
-	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove an address from the pool." },
+	{ NULL, 0, NULL, 0, "IPv4 Pool options:", 11 },
+	{ "pool4",		ARGP_POOL4,		NULL, 0, "The command will operate on the IPv4 pool." },
+	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the IPv4 pool as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of IPv4 addresses registered." },
+	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add an address to the pool." },
+	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove an address from the pool." },
 	{ "address",	ARGP_ADDRESS,	IPV4_ADDR_FORMAT, 0,
 			"Address to be added or removed. Available on add and remove operations only." },
 
-	{ 0, 0, 0, 0, "BIB options:", 20 },
-	{ "bib",		ARGP_BIB, 		0, 0, "The command will operate on BIBs." },
-	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the table as output (default)." },
-	{ "add",		ARGP_ADD,		0, 0, "(Operation) Add an entry to the table." },
-	{ "remove",		ARGP_REMOVE,	0, 0, "(Operation) Remove an entry from a table" },
-	{ "icmp",		ARGP_ICMP,		0, 0, "Print the ICMP BIB." },
-	{ "tcp",		ARGP_TCP,		0, 0, "Print the TCP BIB." },
-	{ "udp",		ARGP_UDP,		0, 0, "Print the UDP BIB." },
+	{ NULL, 0, NULL, 0, "BIB options:", 20 },
+	{ "bib",		ARGP_BIB, 		NULL, 0, "The command will operate on BIBs." },
+	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the table as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of BIB entries registered." },
+	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add an entry to the table." },
+	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove an entry from a table" },
+	{ "icmp",		ARGP_ICMP,		NULL, 0, "Print the ICMP BIB." },
+	{ "tcp",		ARGP_TCP,		NULL, 0, "Print the TCP BIB." },
+	{ "udp",		ARGP_UDP,		NULL, 0, "Print the UDP BIB." },
 	/*
-	{ "static",		ARGP_STATIC,	0, 0,
+	{ "static",		ARGP_STATIC,	NULL, 0,
 			"Filter out entries created dynamically (by incoming connections). " },
-	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
+	{ "dynamic",	ARGP_DYNAMIC,	NULL, 0,
 			"Filter out entries created statically (by the user). " },
 	{ "ipv4",		ARGP_IPV4,		IPV4_TRANSPORT_FORMAT, 0,
 			"Filter out entries unrelated to the following IPv4 address and/or port." },
@@ -167,23 +176,24 @@ static struct argp_option options[] =
 			"This is the local IPv4 addres#port of the entry to be added or removed. "
 			"Available on add and remove operations only." },
 
-	{ 0, 0, 0, 0, "Session options:", 21 },
-	{ "session",	ARGP_SESSION,	0, 0, "The command will operate on the session tables." },
-	{ "display",	ARGP_DISPLAY,	0, 0, "(Operation) Print the table as output (default)." },
-	{ "icmp",		ARGP_ICMP,		0, 0, "Operate on the ICMP session table." },
-	{ "tcp",		ARGP_TCP,		0, 0, "Operate on the TCP session table." },
-	{ "udp",		ARGP_UDP,		0, 0, "Operate on the UDP session table." },
+	{ NULL, 0, NULL, 0, "Session options:", 21 },
+	{ "session",	ARGP_SESSION,	NULL, 0, "The command will operate on the session tables." },
+	{ "display",	ARGP_DISPLAY,	NULL, 0, "(Operation) Print the table as output (default)." },
+	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of session entries registered." },
+	{ "icmp",		ARGP_ICMP,		NULL, 0, "Operate on the ICMP session table." },
+	{ "tcp",		ARGP_TCP,		NULL, 0, "Operate on the TCP session table." },
+	{ "udp",		ARGP_UDP,		NULL, 0, "Operate on the UDP session table." },
 	/*
-	{ "static",		ARGP_STATIC,	0, 0,
+	{ "static",		ARGP_STATIC,	NULL, 0,
 			"Filter out entries created dynamically (by incoming connections from IPv6 networks). "
 			"Available on display operation only." },
-	{ "dynamic",	ARGP_DYNAMIC,	0, 0,
+	{ "dynamic",	ARGP_DYNAMIC,	NULL, 0,
 			"Filter out entries created statically (by the user). "
 			"Available on display operation only. " },
 	 */
 
-	{ 0, 0, 0, 0, "'Filtering and Updating' step options:", 30 },
-	{ "filtering",			ARGP_FILTERING,		0, 0,
+	{ NULL, 0, NULL, 0, "'Filtering and Updating' step options:", 30 },
+	{ "filtering",			ARGP_FILTERING,		NULL, 0,
 			"Command is filtering related. Use alone to display configuration. "
 			"Will be implicit if any other filtering command is entered." },
 	{ DROP_BY_ADDR_OPT,		ARGP_DROP_ADDR,		BOOL_FORMAT, 0,
@@ -201,12 +211,10 @@ static struct argp_option options[] =
 	{ TCP_TRANS_TIMEOUT_OPT,ARGP_TCP_TRANS_TO,	NUM_FORMAT, 0,
 			"Set the transitory connection idle-timeout for new TCP sessions." },
 
-	{ 0, 0, 0, 0, "'Translate the Packet' step options:", 31 },
-	{ "translate",			ARGP_TRANSLATE,		0, 0,
+	{ NULL, 0, NULL, 0, "'Translate the Packet' step options:", 31 },
+	{ "translate",			ARGP_TRANSLATE,		NULL, 0,
 				"Command is translate related. Use alone to display configuration. "
 				"Will be implicit if any other translate command is entered." },
-	{ SKB_HEAD_ROOM_OPT,	ARGP_HEAD,			NUM_FORMAT, 0, "Packet head room." },
-	{ SKB_TAIL_ROOM_OPT,	ARGP_TAIL,			NUM_FORMAT, 0, "Packet tail room." },
 	{ RESET_TCLASS_OPT,		ARGP_RESET_TCLASS,	BOOL_FORMAT, 0, "Override IPv6 Traffic class." },
 	{ RESET_TOS_OPT,		ARGP_RESET_TOS,		BOOL_FORMAT, 0, "Override IPv4 Type of Service." },
 	{ NEW_TOS_OPT,			ARGP_NEW_TOS,		NUM_FORMAT, 0, "IPv4 Type of Service." },
@@ -214,8 +222,16 @@ static struct argp_option options[] =
 	{ BUILD_IPV4_ID_OPT,	ARGP_BUILD_ID,		BOOL_FORMAT, 0, "Generate IPv4 ID." },
 	{ LOWER_MTU_FAIL_OPT,	ARGP_LOWER_MTU_FAIL,BOOL_FORMAT, 0, "Decrease MTU failure rate." },
 	{ MTU_PLATEAUS_OPT,		ARGP_PLATEAUS,		NUM_ARR_FORMAT,0, "MTU plateaus." },
+	{ MIN_IPV6_MTU_OPT,		ARGP_MIN_IPV6_MTU,	NUM_FORMAT, 0, "Minimum IPv6 MTU." },
 
-	{ 0 },
+	{ NULL, 0, NULL, 0, "'Fragmentation' options:", 40 },
+	{ "fragmentation",			ARGP_FRAGMENTATION,		NULL, 0,
+			"Command is fragmentation related. Use alone to display configuration. "
+			"Will be implicit if any other fragmentation command is entered." },
+	{ FRAGMENTATION_TIMEOUT_OPT,		ARGP_FRAG_TO,		NUM_FORMAT, 0,
+			"Set the timeout for arrival of fragments." },
+
+	{ NULL },
 };
 
 /*
@@ -246,9 +262,15 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 	case ARGP_TRANSLATE:
 		arguments->mode = MODE_TRANSLATE;
 		break;
+	case ARGP_FRAGMENTATION:
+		arguments->mode = MODE_FRAGMENTATION;
+		break;
 
 	case ARGP_DISPLAY:
 		arguments->operation = OP_DISPLAY;
+		break;
+	case ARGP_COUNT:
+		arguments->operation = OP_COUNT;
 		break;
 	case ARGP_ADD:
 		arguments->operation = OP_ADD;
@@ -312,37 +334,27 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, UDP_MIN, 0xFFFF);
-		arguments->filtering.to.udp = temp;
+		arguments->filtering.to.udp = temp * 1000;
 		break;
 	case ARGP_ICMP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ICMP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, 0, 0xFFFF);
-		arguments->filtering.to.icmp = temp;
+		arguments->filtering.to.icmp = temp * 1000;
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_EST_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_EST, 0xFFFF);
-		arguments->filtering.to.tcp_est = temp;
+		arguments->filtering.to.tcp_est = temp * 1000;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF);
-		arguments->filtering.to.tcp_trans = temp;
+		arguments->filtering.to.tcp_trans = temp * 1000;
 		break;
 
-	case ARGP_HEAD:
-		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= SKB_HEAD_ROOM_MASK;
-		error = str_to_u16(arg, &arguments->translate.skb_head_room, 0, 0xFFFF);
-		break;
-	case ARGP_TAIL:
-		arguments->mode = MODE_TRANSLATE;
-		arguments->operation |= SKB_TAIL_ROOM_MASK;
-		error = str_to_u16(arg, &arguments->translate.skb_tail_room, 0, 0xFFFF);
-		break;
 	case ARGP_RESET_TCLASS:
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= RESET_TCLASS_MASK;
@@ -379,6 +391,18 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		error = str_to_u16_array(arg, &arguments->translate.mtu_plateaus,
 				&arguments->translate.mtu_plateau_count);
 		break;
+	case ARGP_MIN_IPV6_MTU:
+		arguments->mode = MODE_TRANSLATE;
+		arguments->operation |= MIN_IPV6_MTU_MASK;
+		error = str_to_u16(arg, &arguments->translate.min_ipv6_mtu, 1280, 65535);
+		break;
+
+	case ARGP_FRAG_TO:
+		arguments->mode = MODE_FRAGMENTATION;
+		arguments->operation |= FRAGMENT_TIMEOUT_MASK;
+		error = str_to_u16(arg, &temp, FRAGMENT_MIN, 0xFFFF);
+		arguments->fragmentation.fragment_timeout = temp * 1000;
+		break;
 
 	default:
 		return ARGP_ERR_UNKNOWN;
@@ -404,14 +428,14 @@ static char doc[] = "jool -- The Jool kernel module's configuration interface.\v
  * Uses argp.h to read the parameters from the user, validates them, and returns the result as a
  * structure.
  */
-int parse_args(int argc, char **argv, struct arguments *result)
+static int parse_args(int argc, char **argv, struct arguments *result)
 {
 	int error;
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
 
-	error = argp_parse(&argp, argc, argv, 0, 0, result);
+	error = argp_parse(&argp, argc, argv, 0, NULL, result);
 	if (error != 0)
 		return error;
 
@@ -446,6 +470,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return pool6_display();
+		case OP_COUNT:
+			return pool6_count();
 		case OP_ADD:
 			if (!args.pool6_prefix_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the prefix to be added (--prefix).");
@@ -468,6 +494,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return pool4_display();
+		case OP_COUNT:
+			return pool4_count();
 		case OP_ADD:
 			if (!args.pool4_addr_set) {
 				log_err(ERR_MISSING_PARAM, "Please enter the address to be added (--address).");
@@ -484,11 +512,14 @@ int main(int argc, char **argv)
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv4 pool mode: %u.", args.operation);
 			return -EINVAL;
 		}
+		break;
 
 	case MODE_BIB:
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return bib_display(args.tcp, args.udp, args.icmp);
+		case OP_COUNT:
+			return bib_count(args.tcp, args.udp, args.icmp);
 
 		case OP_ADD:
 			error = 0;
@@ -525,6 +556,8 @@ int main(int argc, char **argv)
 		switch (args.operation) {
 		case OP_DISPLAY:
 			return session_display(args.tcp, args.udp, args.icmp);
+		case OP_COUNT:
+			return session_count(args.tcp, args.udp, args.icmp);
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
 			return -EINVAL;
@@ -539,6 +572,9 @@ int main(int argc, char **argv)
 		if (args.translate.mtu_plateaus)
 			free(args.translate.mtu_plateaus);
 		return error;
+
+	case MODE_FRAGMENTATION:
+		return fragmentation_request(args.operation, &args.fragmentation);
 
 	default:
 		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");

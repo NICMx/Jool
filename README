@@ -16,8 +16,8 @@
 
 IMPORTANT:
 	Please send improvements, complaints and corrections to jool@nic.mx.
-	You might want to upload issues at https://github.com/NICMx/NAT64/issues
-	as well.
+	Alternatively, you might want to upload issues at
+	https://github.com/NICMx/NAT64/issues instead.
 
 Authors:
 	NIC-Mx representatives
@@ -45,11 +45,8 @@ Authors:
 		Angel Cazares <angel.cazares@live.com>
 		Abraham Baez <basuam@gmail.com>
 
-Module Dependencies (modprobe):
-	ipv6
-
 Directories:
-	/doc : Code documentation; Doxygen output.
+	/doc : Developer documentation.
 	/include : The entire system's header files.
 	/mod : The kernel module's implementation code.
 	/unit : Unit tests.

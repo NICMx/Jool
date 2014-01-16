@@ -1,12 +1,16 @@
 /**
  * @file
- * A generic hash table implementation. Its design is largely based off Java's java.util.HashMap.
+ * A generic hash table implementation. Its design is largely based off Java's
+ * java.util.LinkedHashMap.
  * One difference is that the internal array does not resize. One important similarity is that it
  * is not synchronized.
  *
  * Uses the kernel's hlist internally.
  * We're not using hlist directly because it implies a lot of code rewriting (eg. the entry
  * retrieval function; "get") and we need at least four different hash tables.
+ * (Update 2014-01-10 - now it's two, actually. This module will probably die when we address the
+ * performance concerns, especially considering that the kernel now has a more interesting
+ * version/implementation.)
  *
  * Because C does not support templates or generics, you have to set a number of macros and then
  * include this file. These are the macros:
@@ -35,6 +39,9 @@
 #endif
 
 #ifndef HASH_TABLE_SIZE
+/**
+ * This number should not exceed unsigned int's maximum.
+ */
 #define HASH_TABLE_SIZE (64 * 1024 - 1)
 #endif
 
@@ -73,21 +80,28 @@ struct HTABLE_NAME {
 	 * Each of these contains the values mapped to its index's hash code.
 	 */
 	struct hlist_head table[HASH_TABLE_SIZE];
+	struct list_head list;
+	unsigned int node_count;
 
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
 	/** Used locate the linked list (within the array) of a value. */
-	__u16 (*hash_function)(KEY_TYPE *);
+	unsigned int (*hash_function)(KEY_TYPE *);
 };
 
 /** Every entry in the table; the key used to access the value and the value. */
 struct KEY_VALUE_PAIR {
 	/** Dictates where in the table the value is. */
-	KEY_TYPE *key;
+	KEY_TYPE key;
 	/** The value the user wants to store in the table. */
 	VALUE_TYPE *value;
-	/** Other key-values chained with this one (see: HTABLE_NAME.table). */
-	struct hlist_node nodes;
+
+	/**
+	 * The thing that connects this object to other elements in the list it belongs to
+	 * (the key value pair will be hooked to one the HTABLE_NAME.table lists).
+	 */
+	struct hlist_node hlist_hook;
+	struct list_head list_hook;
 };
 
 /********************************************
@@ -107,17 +121,17 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	__u16 hash_code;
+	unsigned int hash_code;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
-		return false;
+		return NULL;
 	}
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_for_each(current_node, &table->table[hash_code]) {
-		current_pair = list_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-		if (table->equals_function(key, current_pair->key))
+		current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, hlist_hook);
+		if (table->equals_function(key, &current_pair->key))
 			return current_pair;
 	}
 
@@ -137,9 +151,9 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
  */
 static int INIT(struct HTABLE_NAME *table,
 		bool (*equals_function)(KEY_TYPE *, KEY_TYPE *),
-		__u16 (*hash_function)(KEY_TYPE *))
+		unsigned int (*hash_function)(KEY_TYPE *))
 {
-	__u16 i;
+	unsigned int i;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
@@ -156,6 +170,8 @@ static int INIT(struct HTABLE_NAME *table,
 
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&table->table[i]);
+	INIT_LIST_HEAD(&table->list);
+	table->node_count = 0;
 
 	table->equals_function = equals_function;
 	table->hash_function = hash_function;
@@ -166,8 +182,7 @@ static int INIT(struct HTABLE_NAME *table,
 /**
  * Inserts "value" to the "table" table in the slot described by the "key" key.
  *
- * Important: The table stores pointers to (as opposed to "copies of") both key and value.
- * So please consider that neither must be released from memory after the call to this function.
+ * Important: The table stores a copy of key. If you kmalloc'd it, free it.
  *
  * Also important: This function differs from HashMap.put() in that it doesn't validate whether the
  * value is already in the table before inserting.
@@ -175,12 +190,12 @@ static int INIT(struct HTABLE_NAME *table,
  * @param table the HTABLE_NAME instance you want to insert a value to.
  * @param key descriptor of the slot to place "value" in.
  * @param value element to store in the table.
- * @return success status. The value will not be inserted if a kmalloc fails.
+ * @return the generated copy of "value", so you don't have to GET() it.
  */
 static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 {
 	struct KEY_VALUE_PAIR *key_value;
-	__u16 hash_code;
+	unsigned int hash_code;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
@@ -197,12 +212,14 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
 		return -ENOMEM;
 	}
-	key_value->key = key;
+	key_value->key = *key;
 	key_value->value = value;
 
 	/* Insert the key-value to the table. */
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
-	hlist_add_head(&key_value->nodes, &table->table[hash_code]);
+	hlist_add_head(&key_value->hlist_hook, &table->table[hash_code]);
+	list_add_tail(&key_value->list_hook, &table->list);
+	table->node_count++;
 
 	return 0;
 }
@@ -225,25 +242,22 @@ static VALUE_TYPE *GET(struct HTABLE_NAME *table, KEY_TYPE *key)
 
 /**
  * Stops "key" from accesing its value in the "table" table.
- * Releases memory as well, depending on the release_* arguments.
  *
  * @param table the HTABLE_NAME instance you want to stop mapping "key" from.
  * @param key descriptor whose associated value will be removed from "table".
- * @param release_key send "true" if the key stored in the table should be released from memory.
- * @param release_value send "true" if the value stored in the table should be released from memory.
  */
-static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, bool release_value)
+static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, void (*destructor)(VALUE_TYPE *))
 {
 	struct KEY_VALUE_PAIR *key_value = GET_AUX(table, key);
 	if (key_value == NULL)
 		return false;
 
-	hlist_del(&key_value->nodes);
+	hlist_del(&key_value->hlist_hook);
+	list_del(&key_value->list_hook);
+	table->node_count--;
 
-	if (release_key)
-		kfree(key_value->key);
-	if (release_value)
-		kfree(key_value->value);
+	if (destructor)
+		destructor(key_value->value);
 	kfree(key_value);
 
 	return true;
@@ -254,39 +268,30 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, bool release_key, b
  * into oblivion!!!
  *
  * @param table the HTABLE_NAME instance you want to clear.
- * @param release_keys send "true" if the table's stored keys should be deallocated.
- * @param release_values send "true" if the table's stored keys should be deallocated.
- *
- * Note that even if you want to release the keys and the values, you still need to call this
- * function since you have no control over the key-value pairs.
  */
-static void EMPTY(struct HTABLE_NAME *table, bool release_keys, bool release_values)
+static void EMPTY(struct HTABLE_NAME *table, void (*destructor)(VALUE_TYPE *))
 {
-	struct hlist_node *current_node;
+	struct list_head *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	__u16 row;
 
 	if (!table) {
 		log_err(ERR_NULL, "The table is NULL.");
 		return;
 	}
 
-	for (row = 0; row < HASH_TABLE_SIZE; row++) {
-		while (!hlist_empty(&table->table[row])) {
-			current_node = table->table[row].first;
-			current_pair = container_of(current_node, struct KEY_VALUE_PAIR, nodes);
+	while (!list_empty(&table->list)) {
+		current_node = table->list.next;
+		current_pair = container_of(current_node, struct KEY_VALUE_PAIR, list_hook);
 
-			hlist_del(current_node);
+		hlist_del(&current_pair->hlist_hook);
+		list_del(&current_pair->list_hook);
 
-			if (release_keys)
-				kfree(current_pair->key);
-			if (release_values)
-				kfree(current_pair->value);
-			kfree(current_pair);
-
-			/* log_debug("Deleted a node whose hash code was %u.", row); */
-		}
+		if (destructor)
+			destructor(current_pair->value);
+		kfree(current_pair);
 	}
+
+	table->node_count = 0;
 }
 
 #ifdef GENERATE_PRINT
@@ -302,17 +307,21 @@ static void PRINT(struct HTABLE_NAME *table, char *header)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	__u16 row;
+	unsigned int row;
 
 	log_debug("** Printing table: %s **", header);
 
 	if (!table)
 		goto end;
+	/*
+	 * I'm not using the list to iterate, because if I iterate through the hlists instead, the
+	 * hash codes will appear sorted, so they're easier to read.
+	 * This code is for debugging purposes anyway, so it doesn't matter if it's slow.
+	 */
 	for (row = 0; row < HASH_TABLE_SIZE; row++) {
 		hlist_for_each(current_node, &table->table[row]) {
-			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			log_debug("  hash:%u - key:%p - value:%p", row, &current_pair->key,
-					&current_pair->value);
+			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, hlist_hook);
+			log_debug("  hash:%u", row);
 		}
 	}
 
@@ -333,21 +342,16 @@ end:
  */
 static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *), void *arg)
 {
-	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
-	__u16 row;
 	int error;
 
 	if (!table)
 		return -EINVAL;
 
-	for (row = 0; row < HASH_TABLE_SIZE; row++) {
-		hlist_for_each(current_node, &table->table[row]) {
-			current_pair = hlist_entry(current_node, struct KEY_VALUE_PAIR, nodes);
-			error = func(current_pair->value, arg);
-			if (error)
-				return error;
-		}
+	list_for_each_entry(current_pair, &table->list, list_hook) {
+		error = func(current_pair->value, arg);
+		if (error)
+			return error;
 	}
 
 	return 0;

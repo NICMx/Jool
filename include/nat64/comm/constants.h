@@ -16,7 +16,7 @@
  * Step the module will be injected in within Netfilter's prerouting hook.
  * (After defragmentation, before Conntrack).
  */
-#define NF_PRI_NAT64 (NF_IP_PRI_CONNTRACK_DEFRAG + NF_IP_PRI_RAW) / 2
+#define NF_PRI_NAT64 -500
 
 /* -- Timeouts, defined by RFC 6146, section 4. */
 
@@ -30,19 +30,23 @@
  */
 #define UDP_DEFAULT (5 * 60)
 /**
- * Transitory connection idle timeout.
- * In other words, the timeout of several states in the TCP state machine. In seconds.
+ * Established connection idle timeout (in seconds).
+ * In other words, the tolerance time for established and healthy TCP sessions.
+ * If a connection remains idle for longer than this, then we expect it to terminate soon.
+ */
+#define TCP_EST (2 * 60 * 60)
+/**
+ * Transitory connection idle timeout (in seconds).
+ * In other words, the timeout of TCP sessions which are expected to terminate soon.
  */
 #define TCP_TRANS (4 * 60)
 /**
- * Established connection idle timeout.
- * In other words, the timeout of several states in the TCP state machine. In seconds.
+ * Timeout of TCP sessions being initialized (in seconds).
+ * It's shorter by default since these are typical DoS attacks.
  */
-#define TCP_EST (2 * 60 * 60)
-/** Timeout of several types of new STEs created during the CLOSED state of the TCP state machine. */
 #define TCP_INCOMING_SYN (6)
 /** Default time interval fragments are allowed to arrive in. In seconds. */
-/* #define FRAGMENT_MIN (2) */
+#define FRAGMENT_MIN (2)
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
@@ -56,8 +60,6 @@
 #define FILT_DEF_FILTER_ICMPV6_INFO false
 #define FILT_DEF_DROP_EXTERNAL_CONNECTIONS false
 
-#define TRAN_DEF_SKB_HEAD_ROOM 0
-#define TRAN_DEF_SKB_TAIL_ROOM 0
 #define TRAN_DEF_RESET_TRAFFIC_CLASS false
 #define TRAN_DEF_RESET_TOS false
 #define TRAN_DEF_NEW_TOS 0
@@ -65,14 +67,11 @@
 #define TRAN_DEF_BUILD_IPV4_ID false
 #define TRAN_DEF_LOWER_MTU_FAIL true
 #define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
+#define TRAN_DEF_MIN_IPV6_MTU 1280
 
 
 /* -- IPv6 Pool -- */
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
-
-
-/* -- Session -- */
-#define SESSION_TIMER_INTERVAL (10 * 1000)
 
 
 /* -- ICMP constants missing from icmp.h and icmpv6.h. -- */

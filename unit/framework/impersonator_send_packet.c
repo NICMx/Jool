@@ -1,31 +1,36 @@
+#include "nat64/unit/send_packet_impersonator.h"
 #include "nat64/mod/send_packet.h"
 #include "nat64/comm/types.h"
 
 
-static struct sk_buff *sent_pkt = NULL;
+static struct sk_buff *sent_skb = NULL;
 
-bool send_packet_ipv4(struct sk_buff *skb_in, struct sk_buff *skb_out)
+
+struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark)
 {
-	log_debug("Step 6: Pretending I'm sending IPv4 packet %p...", skb_out);
-	sent_pkt = skb_out;
+	return NULL;
+}
+
+struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark)
+{
+	return NULL;
+}
+
+verdict send_pkt(struct packet *pkt)
+{
+	log_debug("Step 6: Pretending I'm sending packet %p...", pkt);
+	sent_skb = pkt->first_fragment->skb;
+	pkt->first_fragment->skb = NULL;
 	log_debug("Done step 6.");
-	return true;
+	return VER_CONTINUE;
 }
 
-bool send_packet_ipv6(struct sk_buff *skb_in, struct sk_buff *skb_out)
+struct sk_buff *get_sent_skb(void)
 {
-	log_debug("Step 6: Pretending I'm sending IPv6 packet %p...", skb_out);
-	sent_pkt = skb_out;
-	log_debug("Done step 6.");
-	return true;
+	return sent_skb;
 }
 
-struct sk_buff *get_sent_pkt(void)
+void set_sent_skb(struct sk_buff *skb)
 {
-	return sent_pkt;
-}
-
-void set_sent_pkt(struct sk_buff *skb)
-{
-	sent_pkt = skb;
+	sent_skb = skb;
 }
