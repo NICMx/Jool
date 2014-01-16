@@ -312,7 +312,6 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	struct ipv6hdr *first_hdr6 = ipv6_hdr(frag->skb);
 	u16 headers_size;
 	u16 payload_max_size;
-	__be32 original_identification;
 	u16 original_fragment_offset;
 	bool original_mf;
 
@@ -329,7 +328,6 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	{
 		struct frag_hdr *frag_header = (struct frag_hdr *) (first_hdr6 + 1);
 
-		original_identification = frag_header->identification;
 		original_fragment_offset = get_fragment_offset_ipv6(frag_header);
 		original_mf = is_more_fragments_set_ipv6(frag_header);
 	}

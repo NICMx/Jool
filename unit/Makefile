@@ -1,8 +1,6 @@
 MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -DDEBUG -DUNIT_TESTING
-# If it won't compile, install sparse or comment this line.
-CC=cgcc
 
 ccflags-y := -I$(src)/../include
 ccflags-y += -I$(src)/../mod

@@ -21,7 +21,7 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, l4_protocol l4
 	/* flow.iif; */
 	flow.mark = mark;
 	flow.fl4_dst = hdr_ip4->daddr;
-	flow.fl4_src = hdr_ip4->saddr;
+	/* flow.fl4_src = hdr_ip4->saddr; */
 	flow.fl4_tos = RT_TOS(hdr_ip4->tos);
 	flow.fl4_scope = RT_SCOPE_UNIVERSE;
 	flow.proto = hdr_ip4->protocol;
@@ -31,7 +31,7 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, l4_protocol l4
 		struct tcphdr *hdr_tcp;
 		struct icmphdr *hdr_icmp4;
 
-		switch (l4proto) {
+		switch (l4_proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:
@@ -86,7 +86,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, l4_protocol 
 		struct tcphdr *hdr_tcp;
 		struct icmp6hdr *hdr_icmp6;
 
-		switch (l4proto) {
+		switch (l4_proto) {
 		case L4PROTO_NONE:
 			break;
 		case L4PROTO_TCP:
