@@ -26,7 +26,7 @@
 #include "nat64/usr/fragmentation.h"
 
 
-const char *argp_program_version = "Jool userspace app 0.1";
+const char *argp_program_version = "Jool userspace app 3.1.0";
 const char *argp_program_bug_address = "<aleiva@nic.mx>";
 
 /**
