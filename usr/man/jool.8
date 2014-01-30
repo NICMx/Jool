@@ -1,0 +1,200 @@
+./" Manpage for jool's userspace app.
+./" Report bugs to jool@nic.mx.
+
+.TH jool 8 2014-01-29 v3.1.0 "Jool's Userspace Application"
+
+.SH NAME
+jool - Interact with Jool (the kernel module).
+
+.SH DESCRIPTION
+Sends commands and requests to Jool.
+.br
+Jool is a kernel module you load into a Linux kernel. It implements stateful NAT64 (RFC 6146).
+
+.SH AVAILABILITY
+Linux is the only OS in which this program makes sense.
+.br
+Kernels 2.6.38 and up.
+
+.SH SYNTAX
+.RI "jool --pool6 [" OPERATION "] [--prefix " PREFIX ]
+.br
+.RI "jool --pool4 [" OPERATION "] [--address " ADDRESS ]
+.br
+.RI "jool --bib [" OPERATION "] [" PROTOCOLS "] [--bib4 " BIB4 "] [--bib6 " BIB6 ]
+.br
+.RI "jool --session [" OPERATION "] [" PROTOCOLS ]
+.br
+.RI "jool [--filtering] " "FLAG_KEY FLAG_VALUE"
+.br
+.RI "jool [--translate] " "FLAG_KEY FLAG_VALUE"
+.br
+.RI "jool [--fragmentation] " "FLAG_KEY FLAG_VALUE"
+
+.SH OPTIONS
+
+.SS OPERATIONs
+They are mutually exclusive. Default is --display.
+.IP "-d, --display"
+Output the table(s). This is the default.
+.IP "-c, --count"
+Output the number of entries in the table(s).
+.IP "-a, --add"
+Add an entry to the table(s).
+.IP "-r, --remove"
+Remove an entry from the table(s).
+
+.SS PROTOCOLS
+They are not mutually exclusive. If you provide no protocol, the default is all protocols. If you provide at least one protocol, the rest will be turned off.
+.IP "-u, --udp"
+Apply the operation to the UDP table.
+.IP "-t, --tcp"
+Apply the operation to the TCP table.
+.IP "-i, --icmp"
+Apply the operation to the ICMP table.
+
+.SS Others
+.IP --prefix
+.RI "IPv6 prefix to add or remove to the table. Only relevant when " --add " or " --remove " are present."
+.br
+.RI "The format is " IPV6_ADDRESS / PREFIX_LENGTH "."
+.br
+Exampĺe: --prefix 64:ff9b::/96
+.IP --address
+.RI "IPv4 address to add or remove to Jool's IPv4 pool. Only relevant when " --add " or " --remove " are present."
+.br
+Exampĺe: --address 10.20.30.40
+.IP --bib4
+.RI "IPv4 side of the BIB entry being added or removed. Only relevant when " --add " or " --remove " are present."
+.br
+.RI "The format is " IPV4_ADDRESS # PORT "."
+.br
+Exampĺe: --bib4 10.20.30.40#5000
+.IP --bib6
+.RI "IPv6 side of the BIB entry being added or removed. Only relevant when " --add " or " --remove " are present."
+.br
+.RI "The format is " IPV6_ADDRESS # PORT "."
+.br
+Exampĺe: --bib6 1::2#5000
+
+.SS "--filtering's FLAG_KEYs"
+.IP --dropAddr=BOOL
+Apply address-dependent filtering?
+.IP --dropInfo=BOOL
+Filtering ICMPv6 info messages?
+.IP --dropTCP=BOOL
+Drop externally initiated TCP connections?
+.IP --toUDP=INT
+Set the UDP session lifetime (in seconds).
+.IP --toTCPest=INT
+Set the TCP established session lifetime (in seconds).
+.IP --toTCPtrans=INT
+Set the TCP transitory session lifetime (in seconds).
+.IP --toICMP=INT
+Set the ICMP session lifetime (in seconds).
+
+.SS "--translate's FLAG_KEYs"
+.IP --setTC=BOOL
+Override IPv6 traffic class
+.IP --setTOS=BOOL
+Override IPv4 type of service
+.IP --TOS=INT
+IPv4 type of service
+.IP --setDF=BOOL
+DF flag always on
+.IP --genID=BOOL
+Generate IPv4 identification
+.IP --boostMTU=BOOL
+Decrease MTU failure rate
+.IP --plateaus=INT[,INT]*
+MTU plateaus
+
+.SS "--fragmentation's FLAG_KEYs"
+.IP --toFrag=INT
+Set the fragment reassembly timeout (in seconds).
+
+.SH EXAMPLES
+Print the IPv6 pool:
+.br
+	jool --pool6 --display
+.br
+Add prefix 1234:abcd/96 to the IPv6 pool:
+.br
+	jool --pool6 --add --prefix=1234:abcd::/96
+.br
+Remove prefix 1234:abcd/96 from the IPv6 pool:
+.br
+	jool --pool6 --remove --prefix=1234:abcd::/96
+.P
+Print the number of IPv4 addresses in the pool:
+.br
+	jool --pool4 --count
+.br
+Add address 192.168.2.10 to the IPv4 pool:
+.br
+	jool --pool4 --add --addr=192.168.2.10
+.br
+Remove address 192.168.2.10 from the IPv4 pool:
+.br
+	jool --pool4 --remove --addr=192.168.2.10
+.P
+Print the Binding Information Base (BIB):
+.br
+	jool --bib
+.br
+Add a binding to the BIB:
+.br
+	jool --bib --add --bib4=192.168.2.1#11 --bib6=1::1#22
+.br
+Remove a binding from the BIB:
+.br
+	jool --bib --remove --bib4=192.168.2.1#11
+.br
+	or
+.br
+	jool --bib --remove --bib6=1::1#22
+.P
+Print the session table:
+.br
+	jool --session
+.P
+Print the "Filtering and Updating" step's configuration:
+.br
+	jool --filtering
+.br
+Change some "Filtering and Updating" configuration value:
+.br
+	jool --filtering --dropAddr ON
+.P
+Print the "Translating the packet" step's configuration:
+.br
+	jool --translate
+.br
+Change some "Translating the packet" configuration value:
+.br
+	jool --translate --TOS 123
+
+.SH NOTES
+TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.
+
+.SH EXIT STATUS
+Zero on success, non-zero on failure.
+
+.SH AUTHOR
+NIC Mexico & ITESM
+
+.SH REPORTING BUGS
+Our issue tracker is https://github.com/NICMx/NAT64/issues.
+If you want to mail us instead, use jool@nic.mx.
+
+.SH COPYRIGHT
+Copyright 2014 NIC Mexico.
+.br
+License: GPLv3+ (GNU GPL version 3 or later)
+.br
+This is free software: you are free  to  change  and  redistribute  it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH SEE ALSO
+https://www.jool.mx
+

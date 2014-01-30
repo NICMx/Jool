@@ -24,5 +24,5 @@ AC_CHECK_HEADER_STDBOOL
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol])
 
-AC_OUTPUT(Makefile src/Makefile)
+AC_OUTPUT(Makefile src/Makefile man/Makefile)
 

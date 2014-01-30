@@ -26,8 +26,8 @@
 #include "nat64/usr/fragmentation.h"
 
 
-const char *argp_program_version = "Jool userspace app 3.1.0";
-const char *argp_program_bug_address = "<aleiva@nic.mx>";
+const char *argp_program_version = "3.1.0";
+const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
  * The parameters received from the user, formatted and ready to be read in any order.
@@ -456,7 +456,7 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 /*
  * The main function.
  */
-int main(int argc, char **argv)
+static int main_wrapped(int argc, char **argv)
 {
 	struct arguments args;
 	int error;
@@ -580,4 +580,9 @@ int main(int argc, char **argv)
 		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");
 		return -EINVAL;
 	}
+}
+
+int main(int argc, char **argv)
+{
+	return -main_wrapped(argc, argv);
 }
