@@ -11,7 +11,7 @@ AC_PROG_CC
 
 # Checks for libraries.
 AC_CHECK_LIB([nl-3], [nl_send_simple], [],[
-	echo "Could not find the Netlink library. Please install libnl."
+	echo "Could not find the Netlink library. Please install libnl-3-dev."
 	exit -1])
 
 # Checks for header files.
