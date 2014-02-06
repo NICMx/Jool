@@ -612,12 +612,12 @@ int fragdb_init(void)
 	config.fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 
 	hole_cache = kmem_cache_create("jool_hole_descriptors", sizeof(struct hole_descriptor),
-			0, SLAB_POISON, NULL);
+			0, 0, NULL);
 	if (!hole_cache)
 		return -ENOMEM;
 
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers", sizeof(struct reassembly_buffer),
-			0, SLAB_POISON, NULL);
+			0, 0, NULL);
 	if (!buffer_cache)
 		return -ENOMEM;
 

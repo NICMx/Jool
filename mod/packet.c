@@ -19,13 +19,13 @@ static struct kmem_cache *pkt_cache;
 
 int pktmod_init(void)
 {
-	pkt_cache = kmem_cache_create("jool_packets", sizeof(struct packet), 0, SLAB_POISON, NULL);
+	pkt_cache = kmem_cache_create("jool_packets", sizeof(struct packet), 0, 0, NULL);
 	if (!pkt_cache) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the packet cache.");
 		return -ENOMEM;
 	}
 
-	frag_cache = kmem_cache_create("jool_fragments", sizeof(struct fragment), 0, SLAB_POISON, NULL);
+	frag_cache = kmem_cache_create("jool_fragments", sizeof(struct fragment), 0, 0, NULL);
 	if (!frag_cache) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the fragment cache.");
 		kmem_cache_destroy(pkt_cache);
