@@ -25,26 +25,10 @@ MODULE_DESCRIPTION("BIB-Session module test.");
 	&session->ipv6.local.address, session->ipv6.local.l4_id, \
 	&session->ipv6.remote.address, session->ipv6.remote.l4_id
 
-static const char* IPV4_ADDRS[] = { "0.0.0.0", "255.1.2.3", "65.0.123.2", "0.1.0.3",
-		"55.55.55.55", "10.11.12.13", "13.12.11.10", "255.255.255.255",
-		"1.2.3.4", "4.3.2.1", "2.3.4.5", "5.4.3.2",
-		"3.4.5.6", "6.5.4.3", "4.5.6.7", "7.6.5.4",
-		"56.56.56.56" };
-static const __u16 IPV4_PORTS[] = { 0, 456, 9556, 7523,
-		65535, 536, 284, 231,
-		1234, 4321, 2345, 5432,
-		3456, 6543, 4567, 7654,
-		6384 };
-static const char* IPV6_ADDRS[] = { "::1", "5:3::2", "4::", "44:55:66::",
-		"FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF", "123::4", "::0", "44:1:1::2:9",
-		"1:2:3:4::", "4:3:2:1::", "2:3:4:5::", "5:4:3:2::",
-		"3:4:5:6::", "6:5:4:3::", "4:5:6:7::", "7:6:5:4::",
-		"56:56:56:56::" };
-static const __u16 IPV6_PORTS[] = { 334, 0, 9556, 65535,
-		55555, 825, 1111, 99,
-		1234, 4321, 2345, 5432,
-		3456, 6543, 4567, 7654,
-		6384 };
+static const char* IPV4_ADDRS[] = { "0.0.0.0", "1.1.1.1", "2.2.2.2" };
+static const __u16 IPV4_PORTS[] = { 0, 456, 9556 };
+static const char* IPV6_ADDRS[] = { "::1", "::2", "::3" };
+static const __u16 IPV6_PORTS[] = { 334, 0, 9556 };
 
 static struct ipv4_tuple_address addr4[ARRAY_SIZE(IPV4_ADDRS)];
 static struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
@@ -53,9 +37,27 @@ static struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
  * Auxiliar functions.
  ********************************************/
 
-static struct bib_entry *create_bib_entry(int ipv4_index, int ipv6_index)
+static struct bib_entry *create_and_insert_bib(struct ipv4_tuple_address *ipv4,
+		struct ipv6_tuple_address *ipv6,
+		int l4proto)
 {
-	return bib_create(&addr4[ipv4_index], &addr6[ipv6_index], false);
+	struct bib_entry *result;
+	int error;
+
+	result = bib_create(ipv4, ipv6, false);
+	if (!result) {
+		log_err(ERR_ALLOC_FAILED, "kmalloc failed, apparently.");
+		return NULL;
+	}
+
+	error = bib_add(result, l4proto);
+	if (error) {
+		log_warning("Could not insert the BIB entry to the table; call returned %d.", error);
+		bib_kfree(result);
+		return NULL;
+	}
+
+	return result;
 }
 
 static struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
@@ -82,62 +84,6 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 	}
 
 	return entry;
-}
-
-static bool bib_entry_equals(struct bib_entry *bib_1, struct bib_entry *bib_2)
-{
-	if (bib_1 == bib_2)
-		return true;
-	if (!bib_1 || !bib_2)
-		return false;
-
-	if (!ipv4_tuple_addr_equals(&bib_1->ipv4, &bib_2->ipv4))
-		return false;
-	if (!ipv6_tuple_addr_equals(&bib_1->ipv6, &bib_2->ipv6))
-		return false;
-
-	return true;
-}
-
-static bool session_entry_equals(struct session_entry *session_1, struct session_entry *session_2)
-{
-	if (session_1 == session_2)
-		return true;
-	if (session_1 == NULL || session_2 == NULL)
-		return false;
-
-	if (session_1->l4_proto != session_2->l4_proto)
-		return false;
-	if (!ipv6_tuple_addr_equals(&session_1->ipv6.remote, &session_2->ipv6.remote))
-		return false;
-	if (!ipv6_tuple_addr_equals(&session_1->ipv6.local, &session_2->ipv6.local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&session_1->ipv4.local, &session_2->ipv4.local))
-		return false;
-	if (!ipv4_tuple_addr_equals(&session_1->ipv4.remote, &session_2->ipv4.remote))
-		return false;
-
-	return true;
-}
-
-static struct bib_entry *create_and_insert_bib(int ipv4_index, int ipv6_index, int l4proto)
-{
-	struct bib_entry *result;
-	int error;
-
-	result = create_bib_entry(ipv4_index, ipv6_index);
-	if (!result) {
-		log_warning("Could not allocate a BIB entry.");
-		return NULL;
-	}
-
-	error = bib_add(result, l4proto);
-	if (error) {
-		log_warning("Could not insert the BIB entry to the table; call returned %d.", error);
-		return NULL;
-	}
-
-	return result;
 }
 
 static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
@@ -168,17 +114,19 @@ static bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry
 	if (expected == actual)
 		return true;
 
-	if (expected == NULL) {
+	if (!expected) {
 		log_warning("Test '%s' failed: Expected null, got " BIB_PRINT_KEY ".",
 				test_name, PRINT_BIB(actual));
 		return false;
 	}
-	if (actual == NULL) {
+	if (!actual) {
 		log_warning("Test '%s' failed: Expected " BIB_PRINT_KEY ", got null.",
 				test_name, PRINT_BIB(expected));
 		return false;
 	}
-	if (!bib_entry_equals(expected, actual)) {
+
+	if (!ipv4_tuple_addr_equals(&expected->ipv4, &actual->ipv4)
+			|| !ipv6_tuple_addr_equals(&expected->ipv6, &actual->ipv6)) {
 		log_warning("Test '%s' failed: Expected " BIB_PRINT_KEY " got " BIB_PRINT_KEY ".",
 				test_name, PRINT_BIB(expected), PRINT_BIB(actual));
 		return false;
@@ -193,17 +141,22 @@ static bool assert_session_entry_equals(struct session_entry* expected,
 	if (expected == actual)
 		return true;
 
-	if (expected == NULL) {
+	if (!expected) {
 		log_warning("Test '%s' failed: Expected null, obtained " SESSION_PRINT_KEY ".",
 				test_name, PRINT_SESSION(actual));
 		return false;
 	}
-	if (actual == NULL) {
+	if (!actual) {
 		log_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", got null.",
 				test_name, PRINT_SESSION(expected));
 		return false;
 	}
-	if (!session_entry_equals(expected, actual)) {
+
+	if (expected->l4_proto != actual->l4_proto
+			|| !ipv6_tuple_addr_equals(&expected->ipv6.remote, &actual->ipv6.remote)
+			|| !ipv6_tuple_addr_equals(&expected->ipv6.local, &actual->ipv6.local)
+			|| !ipv4_tuple_addr_equals(&expected->ipv4.local, &actual->ipv4.local)
+			|| !ipv4_tuple_addr_equals(&expected->ipv4.remote, &actual->ipv4.remote)) {
 		log_warning("Test '%s' failed: Expected " SESSION_PRINT_KEY ", got " SESSION_PRINT_KEY ".",
 				test_name, PRINT_SESSION(expected), PRINT_SESSION(actual));
 		return false;
@@ -305,7 +258,7 @@ static bool simple_bib(void)
 	struct bib_entry *bib;
 	bool success = true;
 
-	bib = create_bib_entry(0, 0);
+	bib = bib_create(&addr4[0], &addr6[0], false);
 	if (!assert_not_null(bib, "Allocation of test BIB entry"))
 		return false;
 
@@ -368,7 +321,7 @@ static bool test_address_filtering(void)
 	bool success = true;
 
 	/* Init. */
-	bib = create_and_insert_bib(0, 0, L4PROTO_UDP);
+	bib = create_and_insert_bib(&addr4[0], &addr6[0], L4PROTO_UDP);
 	if (!bib)
 		return false;
 	session = create_and_insert_session(0, 0, 0, 0, bib, L4PROTO_UDP, 12345);
@@ -389,48 +342,126 @@ static bool test_address_filtering(void)
 	return true;
 }
 
-struct loop_summary {
-	struct bib_entry *bib1;
-	struct bib_entry *bib2;
+struct foreach6_summary {
+	bool visited[7];
 };
 
-static int for_each_func(struct bib_entry *entry, void *arg)
+static int foreach6_func(struct bib_entry *entry, void *arg)
 {
-	struct loop_summary *summary = arg;
+	struct foreach6_summary *summary = arg;
 
-	if (summary->bib1 == NULL) {
-		summary->bib1 = entry;
-		return 0;
+	log_debug("Iterating through node %pI6c#%u.", &entry->ipv6.address, entry->ipv6.l4_id);
+
+	if (!ipv6_addr_equals(&addr6[1].address, &entry->ipv6.address)) {
+		log_warning("The address was not the one requested.");
+		return -EINVAL;
 	}
 
-	if (summary->bib2 == NULL) {
-		summary->bib2 = entry;
-		return 0;
+	if (entry->ipv6.l4_id < 6 || 12 < entry->ipv6.l4_id) {
+		log_warning("We didn't insert a BIB with this port to the table.");
+		return -EINVAL;
 	}
 
-	return -EINVAL;
+	if (summary->visited[entry->ipv6.l4_id - 6]) {
+		log_warning("This is not the first time we've visited this node.");
+		return -EINVAL;
+	}
+
+	summary->visited[entry->ipv6.l4_id - 6] = true;
+	return 0;
 }
 
-static bool test_for_each(void)
+static bool test_for_each_ipv6(void)
 {
-	struct bib_entry *bib1, *bib2;
-	struct loop_summary summary = { .bib1 = NULL, .bib2 = NULL };
 	bool success = true;
+	int i;
 
-	bib1 = create_and_insert_bib(0, 0, L4PROTO_UDP);
-	if (!bib1)
-		return false;
-	bib2 = create_and_insert_bib(1, 1, L4PROTO_UDP);
-	if (!bib2)
-		return false;
+	/* Build the tree. */
+	{
+		struct bib_entry *bib;
+		struct ipv4_tuple_address a4;
+		struct ipv6_tuple_address a6;
 
-	success &= assert_equals_int(0, bib_for_each(L4PROTO_UDP, for_each_func, &summary), "result");
-	success &= assert_true(
-			bib_entry_equals(bib1, summary.bib1) || bib_entry_equals(bib1, summary.bib2),
-			"bib1 visited");
-	success &= assert_true(
-			bib_entry_equals(bib2, summary.bib1) || bib_entry_equals(bib2, summary.bib2),
-			"bib2 visited");
+		a6.address = addr6[0].address;
+		a6.l4_id = 5;
+		a4.address = addr4[0].address;
+		a4.l4_id = 1;
+
+		for (i = 0; i < 4; i++) {
+			a6.l4_id++;
+			a4.l4_id++;
+
+			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
+			if (!bib)
+				return false;
+		}
+
+		a6.address = addr6[1].address;
+		a6.l4_id = 5;
+
+		for (i = 0; i < 7; i++) {
+			a6.l4_id++;
+			a4.l4_id++;
+
+			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
+			if (!bib)
+				return false;
+		}
+
+		a6.address = addr6[2].address;
+		a6.l4_id = 5;
+
+		for (i = 0; i < 2; i++) {
+			a6.l4_id++;
+			a4.l4_id++;
+
+			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
+			if (!bib)
+				return false;
+		}
+	}
+
+	/* Print the tree. */
+	/*{
+		struct rb_node *node = rb_first(&bib_udp.tree6);
+
+		while (node) {
+			struct bib_entry *bib = rb_entry(node, struct bib_entry, tree6_hook);
+			struct bib_entry *child;
+
+			log_debug("bib: %pI6c - %u", &bib->ipv6.address, bib->ipv6.l4_id);
+
+			if (node->rb_left) {
+				child = rb_entry(node->rb_left, struct bib_entry, tree6_hook);
+				log_debug("	Left: %pI6c - %u", &child->ipv6.address, child->ipv6.l4_id);
+			} else {
+				log_debug("	Left: NULL");
+			}
+
+			if (node->rb_right) {
+				child = rb_entry(node->rb_right, struct bib_entry, tree6_hook);
+				log_debug("	Right: %pI6c - %u", &child->ipv6.address, child->ipv6.l4_id);
+			} else {
+				log_debug("	Right: NULL");
+			}
+
+			node = rb_next(node);
+		};
+	}*/
+
+	/* Run the for each and validate. */
+	{
+		struct foreach6_summary summary;
+
+		for (i = 0; i < ARRAY_SIZE(summary.visited); i++)
+			summary.visited[i] = false;
+
+		success &= assert_equals_int(0,
+				bib_for_each_ipv6(L4PROTO_UDP, &addr6[1].address, foreach6_func, &summary),
+				"result");
+		for (i = 0; i < 7; i++)
+			success &= assert_true(summary.visited[i], "node visited.");
+	}
 
 	return success;
 }
@@ -479,7 +510,7 @@ int init_module(void)
 	INIT_CALL_END(init(), simple_bib(), end(), "Single BIB");
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
-	INIT_CALL_END(init(), test_for_each(), end(), "for-each function.");
+	INIT_CALL_END(init(), test_for_each_ipv6(), end(), "for-each-IPv6 function.");
 
 	END_TESTS;
 }

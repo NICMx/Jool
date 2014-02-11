@@ -323,9 +323,9 @@ int bib_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
 		if (node) {
 			struct bib_entry *tmp = rb_entry(node, struct bib_entry, tree6_hook);
 			if (compare_addr6(tmp, addr))
-				bib = tmp;
-			else
 				found = true;
+			else
+				bib = tmp;
 		} else {
 			found = true;
 		}
