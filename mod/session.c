@@ -132,7 +132,7 @@ int session_init(void)
 	int i;
 
 	entry_cache = kmem_cache_create("jool_session_entries", sizeof(struct session_entry),
-			0, SLAB_POISON, NULL);
+			0, 0, NULL);
 	if (!entry_cache) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the Session entry cache.");
 		return -ENOMEM;

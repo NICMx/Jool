@@ -111,8 +111,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 	if (error)
 		return error;
 
-	node_cache = kmem_cache_create("jool_pool4_nodes", sizeof(struct pool4_node),
-			0, SLAB_POISON, NULL);
+	node_cache = kmem_cache_create("jool_pool4_nodes", sizeof(struct pool4_node), 0, 0, NULL);
 	if (!node_cache) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the IPv4 node cache.");
 		return -ENOMEM;

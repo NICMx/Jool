@@ -97,8 +97,7 @@ int bib_init(void)
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
 	int i;
 
-	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry),
-			0, SLAB_POISON, NULL);
+	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry), 0, 0, NULL);
 	if (!entry_cache) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the BIB entry cache.");
 		return -ENOMEM;
