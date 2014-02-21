@@ -87,12 +87,11 @@ static int respond_ack(struct nlmsghdr *nl_hdr_in)
 static int verify_superpriv(struct request_hdr *nat64_hdr)
 {
 	if (!(current->flags & PF_SUPERPRIV)) {
-		log_err(ERR_ILLEGAL_NONE, "Administrative privileges required: %d", nat64_hdr->operation);
-		return 0;
+		log_warning("Administrative privileges required: %d", nat64_hdr->operation);
+		return -EPERM;
 	}
-	else {
-		return 1;
-	}
+
+	return 0;
 }
 
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
@@ -134,16 +133,18 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
-		if (!(verify_superpriv(nat64_hdr))) {
+		if (verify_superpriv(nat64_hdr)) {
 			return respond_error(nl_hdr, -EPERM);
 		}
+
 		log_debug("Adding a prefix to the IPv6 pool.");
 		return respond_error(nl_hdr, pool6_add(&request->update.prefix));
 
 	case OP_REMOVE:
-		if (!(verify_superpriv(nat64_hdr))) {
+		if (verify_superpriv(nat64_hdr)) {
 			return respond_error(nl_hdr, -EPERM);
 		}
+
 		log_debug("Removing a prefix from the IPv6 pool.");
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 
@@ -191,16 +192,18 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
-		if (!(verify_superpriv(nat64_hdr))) {
+		if (verify_superpriv(nat64_hdr)) {
 			return respond_error(nl_hdr, -EPERM);
 		}
+
 		log_debug("Adding an address to the IPv4 pool.");
 		return respond_error(nl_hdr, pool4_register(&request->update.addr));
 
 	case OP_REMOVE:
-		if (!(verify_superpriv(nat64_hdr))) {
+		if (verify_superpriv(nat64_hdr)) {
 			return respond_error(nl_hdr, -EPERM);
 		}
+
 		log_debug("Removing an address from the IPv4 pool.");
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
 
@@ -257,16 +260,18 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
-		if (!(verify_superpriv(nat64_hdr))) {
+		if (verify_superpriv(nat64_hdr)) {
 			return respond_error(nl_hdr, -EPERM);
 		}
+
 		log_debug("Adding BIB entry.");
 		return respond_error(nl_hdr, add_static_route(request));
 
 	case OP_REMOVE:
-		if (!(verify_superpriv(nat64_hdr))) {
+		if (verify_superpriv(nat64_hdr)) {
 			return respond_error(nl_hdr, -EPERM);
 		}
+
 		log_debug("Removing BIB entry.");
 		return respond_error(nl_hdr, delete_static_route(request));
 
@@ -349,6 +354,10 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
 		log_debug("Updating 'Filtering and Updating' options.");
 
 		request->to.udp = msecs_to_jiffies(request->to.udp);
@@ -377,6 +386,10 @@ static int handle_fragmentation_config(struct nlmsghdr *nl_hdr, struct request_h
 
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
 		log_debug("Updating 'Fragmentation' options.");
 
 		request->fragment_timeout = msecs_to_jiffies(request->fragment_timeout);
@@ -411,6 +424,10 @@ static int handle_translate_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 		return error;
 	} else {
 		struct translate_config new_config;
+
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
 
 		log_debug("Updating 'Translate the Packet' options.");
 
