@@ -37,6 +37,49 @@ static bool is_prefix_len_valid(__u8 prefix_len)
 	return false;
 }
 
+static int verify_prefix(int start, int ip6_length, struct in6_addr *in6)
+{
+	int i;
+
+	for (i = start; i < ip6_length; i++) {
+		if(in6->s6_addr[i] & 0xFF)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int is_valid_prefix(struct ipv6_prefix *prefix)
+{
+	int error = 0;
+
+	switch(prefix->len) {
+	case 32:
+		error = verify_prefix(4, 16, &prefix->address);
+		break;
+	case 40:
+		error = verify_prefix(5, 16, &prefix->address);
+		break;
+	case 48:
+		error = verify_prefix(6, 16, &prefix->address);
+		break;
+	case 56:
+		error = verify_prefix(7, 16, &prefix->address);
+		break;
+	case 64:
+		error = verify_prefix(8, 16, &prefix->address);
+		break;
+	case 96:
+		error = verify_prefix(12, 16, &prefix->address);
+		break;
+	default:
+		log_err(ERR_PREF_LEN_RANGE, "%pI6c is an invalid prefix.", &prefix->address);
+		return -EINVAL;
+	}
+
+	return error;
+}
+
 int pool6_init(char *pref_strs[], int pref_count)
 {
 	char *defaults[] = POOL6_DEF;
@@ -151,6 +194,11 @@ int pool6_add(struct ipv6_prefix *prefix)
 	if (!is_prefix_len_valid(prefix->len)) {
 		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
 				prefix->len);
+		return -EINVAL;
+	}
+
+	if(is_valid_prefix(prefix)){
+		log_err(ERR_PREF_LEN_RANGE,"%pI6c is not a valid prefix",&prefix->address);
 		return -EINVAL;
 	}
 
