@@ -25,24 +25,12 @@ static LIST_HEAD(pool);
 static u64 pool_count;
 static DEFINE_SPINLOCK(pool_lock);
 
-static bool is_prefix_len_valid(__u8 prefix_len)
-{
-	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(valid_lengths); i++)
-		if (prefix_len == valid_lengths[i])
-			return true;
-
-	return false;
-}
-
 static int verify_prefix(int start, int ip6_length, struct in6_addr *in6)
 {
 	int i;
 
 	for (i = start; i < ip6_length; i++) {
-		if(in6->s6_addr[i] & 0xFF)
+		if (in6->s6_addr[i] & 0xFF)
 			return -EINVAL;
 	}
 
@@ -53,7 +41,7 @@ static int is_valid_prefix(struct ipv6_prefix *prefix)
 {
 	int error = 0;
 
-	switch(prefix->len) {
+	switch (prefix->len) {
 	case 32:
 		error = verify_prefix(4, 16, &prefix->address);
 		break;
@@ -73,9 +61,13 @@ static int is_valid_prefix(struct ipv6_prefix *prefix)
 		error = verify_prefix(12, 16, &prefix->address);
 		break;
 	default:
-		log_err(ERR_PREF_LEN_RANGE, "%pI6c is an invalid prefix.", &prefix->address);
+		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
+				prefix->len);
 		return -EINVAL;
 	}
+
+	if (error)
+		log_err(ERR_PREF_LEN_RANGE,"%pI6c is not a valid prefix",&prefix->address);
 
 	return error;
 }
@@ -104,7 +96,6 @@ int pool6_init(char *pref_strs[], int pref_count)
 		if (pool6_add(&pref) != 0)
 			goto silent_failure;
 	}
-
 	return 0;
 
 parse_failure:
@@ -191,15 +182,8 @@ int pool6_add(struct ipv6_prefix *prefix)
 		return -EINVAL;
 	}
 
-	if (!is_prefix_len_valid(prefix->len)) {
-		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
-				prefix->len);
-		return -EINVAL;
-	}
-
-	if(is_valid_prefix(prefix)){
-		log_err(ERR_PREF_LEN_RANGE,"%pI6c is not a valid prefix",&prefix->address);
-		return -EINVAL;
+	if (is_valid_prefix(prefix)){
+		return -EINVAL; /* Error msg already printed. */
 	}
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
