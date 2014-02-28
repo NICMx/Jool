@@ -25,11 +25,11 @@ static LIST_HEAD(pool);
 static u64 pool_count;
 static DEFINE_SPINLOCK(pool_lock);
 
-static int verify_prefix(int start, int ip6_length, struct in6_addr *in6)
+static int verify_prefix(int start, struct in6_addr *in6)
 {
 	int i;
 
-	for (i = start; i < ip6_length; i++) {
+	for (i = start; i < ARRAY_SIZE(in6->s6_addr); i++) {
 		if (in6->s6_addr[i] & 0xFF)
 			return -EINVAL;
 	}
@@ -43,22 +43,22 @@ static int is_valid_prefix(struct ipv6_prefix *prefix)
 
 	switch (prefix->len) {
 	case 32:
-		error = verify_prefix(4, 16, &prefix->address);
+		error = verify_prefix(4, &prefix->address);
 		break;
 	case 40:
-		error = verify_prefix(5, 16, &prefix->address);
+		error = verify_prefix(5, &prefix->address);
 		break;
 	case 48:
-		error = verify_prefix(6, 16, &prefix->address);
+		error = verify_prefix(6, &prefix->address);
 		break;
 	case 56:
-		error = verify_prefix(7, 16, &prefix->address);
+		error = verify_prefix(7, &prefix->address);
 		break;
 	case 64:
-		error = verify_prefix(8, 16, &prefix->address);
+		error = verify_prefix(8, &prefix->address);
 		break;
 	case 96:
-		error = verify_prefix(12, 16, &prefix->address);
+		error = verify_prefix(12, &prefix->address);
 		break;
 	default:
 		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",

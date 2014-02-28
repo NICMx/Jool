@@ -609,6 +609,8 @@ static int l4_post(struct packet *pkt) {
  */
 int fragdb_init(void)
 {
+	int error;
+
 	config.fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 
 	hole_cache = kmem_cache_create("jool_hole_descriptors", sizeof(struct hole_descriptor),
@@ -618,10 +620,18 @@ int fragdb_init(void)
 
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers", sizeof(struct reassembly_buffer),
 			0, 0, NULL);
-	if (!buffer_cache)
+	if (!buffer_cache) {
+		kmem_cache_destroy(hole_cache);
 		return -ENOMEM;
+	}
 
-	fragdb_table_init(&table, equals_function, hash_function);
+	error = fragdb_table_init(&table, equals_function, hash_function);
+	if (error) {
+		fragdb_table_empty(&table, buffer_dealloc);
+		kmem_cache_destroy(buffer_cache);
+		kmem_cache_destroy(hole_cache);
+		return error;
+	}
 
 	init_timer(&expire_timer);
 	expire_timer.function = cleaner_timer;

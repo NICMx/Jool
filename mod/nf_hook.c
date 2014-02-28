@@ -112,41 +112,77 @@ int __init nat64_init(void)
 
 	error = pktmod_init();
 	if (error)
-		goto failure;
+		goto pktmod_failure;
 	error = config_init();
 	if (error)
-		goto failure;
+		goto config_failure;
 	error = fragdb_init();
 	if (error)
-		goto failure;
+		goto fragdb_failure;
 	error = pool6_init(pool6, pool6_size);
 	if (error)
-		goto failure;
+		goto pool6_failure;
 	error = pool4_init(pool4, pool4_size);
 	if (error)
-		goto failure;
+		goto pool4_failure;
 	error = bib_init();
 	if (error)
-		goto failure;
+		goto bib_failure;
 	error = session_init();
 	if (error)
-		goto failure;
+		goto session_failure;
 	error = filtering_init();
 	if (error)
-		goto failure;
+		goto filtering_failure;
 	error = translate_packet_init();
 	if (error)
-		goto failure;
+		goto translate_packet_failure;
 
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
-		goto failure;
+		goto nf_register_hooks_failure;
 
 	log_info(MODULE_NAME " module inserted.");
 	return error;
 
-failure:
-	deinit();
+nf_register_hooks_failure:
+	log_debug("nf_register_hooks_failure");
+	translate_packet_destroy();
+
+translate_packet_failure:
+	log_debug("translate_packet_failure");
+	filtering_destroy();
+
+filtering_failure:
+	log_debug("filtering_failure");
+	session_destroy();
+
+session_failure:
+	log_debug("session_failure");
+	bib_destroy();
+
+bib_failure:
+	log_debug("bib_failure");
+	pool4_destroy();
+
+pool4_failure:
+	log_debug("pool4_failure");
+	pool6_destroy();
+
+pool6_failure:
+	log_debug("pool6_failure");
+	fragdb_destroy();
+
+fragdb_failure:
+	log_debug("fragdb_failure");
+	config_destroy();
+
+config_failure:
+	log_debug("config_failure");
+	pktmod_destroy();
+
+pktmod_failure:
+	log_debug("pktmod_failure");
 	return error;
 }
 

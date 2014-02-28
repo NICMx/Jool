@@ -101,6 +101,22 @@ static void increment_last_used_addr(void)
 	}
 }
 
+/**
+ * Assumes that pool has already been locked (pool_lock).
+ */
+static void destroy_pool4_node(struct pool4_node *node)
+{
+	poolnum_destroy(&node->udp_ports.low_even);
+	poolnum_destroy(&node->udp_ports.low_odd);
+	poolnum_destroy(&node->udp_ports.high_even);
+	poolnum_destroy(&node->udp_ports.high_odd);
+	poolnum_destroy(&node->tcp_ports.low);
+	poolnum_destroy(&node->tcp_ports.high);
+	poolnum_destroy(&node->icmp_ids);
+
+	kmem_cache_free(node_cache, node);
+}
+
 int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
@@ -113,6 +129,9 @@ int pool4_init(char *addr_strs[], int addr_count)
 
 	node_cache = kmem_cache_create("jool_pool4_nodes", sizeof(struct pool4_node), 0, 0, NULL);
 	if (!node_cache) {
+		spin_lock_bh(&pool_lock);
+		pool4_table_empty(&pool, destroy_pool4_node);
+		spin_unlock_bh(&pool_lock);
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the IPv4 node cache.");
 		return -ENOMEM;
 	}
@@ -146,25 +165,11 @@ fail:
 	return error;
 }
 
-/**
- * Assumes that pool has already been locked (pool_lock).
- */
-static void destroy_pool4_node(struct pool4_node *node)
-{
-	poolnum_destroy(&node->udp_ports.low_even);
-	poolnum_destroy(&node->udp_ports.low_odd);
-	poolnum_destroy(&node->udp_ports.high_even);
-	poolnum_destroy(&node->udp_ports.high_odd);
-	poolnum_destroy(&node->tcp_ports.low);
-	poolnum_destroy(&node->tcp_ports.high);
-	poolnum_destroy(&node->icmp_ids);
-
-	kmem_cache_free(node_cache, node);
-}
-
 void pool4_destroy(void)
 {
+	spin_lock_bh(&pool_lock);
 	pool4_table_empty(&pool, destroy_pool4_node);
+	spin_unlock_bh(&pool_lock);
 	kmem_cache_destroy(node_cache);
 }
 
