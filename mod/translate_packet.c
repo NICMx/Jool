@@ -167,8 +167,6 @@ int translate_packet_init(void)
 {
 	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
 
-	spin_lock_bh(&config_lock);
-
 	config.reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
 	config.reset_tos = TRAN_DEF_RESET_TOS;
 	config.new_tos = TRAN_DEF_NEW_TOS;
@@ -184,8 +182,6 @@ int translate_packet_init(void)
 	}
 	config.min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
 	memcpy(config.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
-
-	spin_unlock_bh(&config_lock);
 
 	steps[L3PROTO_IPV6][L4PROTO_NONE].l3_hdr_function = create_ipv4_hdr;
 	steps[L3PROTO_IPV6][L4PROTO_NONE].l4_hdr_and_payload_function = copy_payload;
@@ -232,13 +228,11 @@ int translate_packet_init(void)
 
 void translate_packet_destroy(void)
 {
-	spin_lock_bh(&config_lock);
 	/*
 	 * Note that config is static (and hence its members are initialized to zero at startup),
 	 * so calling destroy() before init() is not harmful.
 	 */
 	kfree(config.mtu_plateaus);
-	spin_unlock_bh(&config_lock);
 }
 
 verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,

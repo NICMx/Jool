@@ -63,19 +63,6 @@ static unsigned int hook_ipv6(unsigned int hooknum, struct sk_buff *skb,
 	return core_6to4(skb);
 }
 
-static void deinit(void)
-{
-	translate_packet_destroy();
-	filtering_destroy();
-	session_destroy();
-	bib_destroy();
-	pool4_destroy();
-	pool6_destroy();
-	fragdb_destroy();
-	config_destroy();
-	pktmod_destroy();
-}
-
 static struct nf_hook_ops nfho[] = {
 	{
 		.hook = hook_ipv6,
@@ -110,6 +97,7 @@ int __init nat64_init(void)
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
 
+	/* Init Jool's submodules. */
 	error = pktmod_init();
 	if (error)
 		goto pktmod_failure;
@@ -138,58 +126,62 @@ int __init nat64_init(void)
 	if (error)
 		goto translate_packet_failure;
 
+	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
 		goto nf_register_hooks_failure;
 
+	/* Yay */
 	log_info(MODULE_NAME " module inserted.");
 	return error;
 
 nf_register_hooks_failure:
-	log_debug("nf_register_hooks_failure");
 	translate_packet_destroy();
 
 translate_packet_failure:
-	log_debug("translate_packet_failure");
 	filtering_destroy();
 
 filtering_failure:
-	log_debug("filtering_failure");
 	session_destroy();
 
 session_failure:
-	log_debug("session_failure");
 	bib_destroy();
 
 bib_failure:
-	log_debug("bib_failure");
 	pool4_destroy();
 
 pool4_failure:
-	log_debug("pool4_failure");
 	pool6_destroy();
 
 pool6_failure:
-	log_debug("pool6_failure");
 	fragdb_destroy();
 
 fragdb_failure:
-	log_debug("fragdb_failure");
 	config_destroy();
 
 config_failure:
-	log_debug("config_failure");
 	pktmod_destroy();
 
 pktmod_failure:
-	log_debug("pktmod_failure");
 	return error;
 }
 
 void __exit nat64_exit(void)
 {
+	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
-	deinit();
+
+	/* Deinitialize the submodules. */
+	translate_packet_destroy();
+	filtering_destroy();
+	session_destroy();
+	bib_destroy();
+	pool4_destroy();
+	pool6_destroy();
+	fragdb_destroy();
+	config_destroy();
+	pktmod_destroy();
+
 	log_info(MODULE_NAME " module removed.");
 }
 

@@ -37,7 +37,7 @@ static int verify_prefix(int start, struct in6_addr *in6)
 	return 0;
 }
 
-static int is_valid_prefix(struct ipv6_prefix *prefix)
+static int validate_prefix(struct ipv6_prefix *prefix)
 {
 	int error = 0;
 
@@ -66,8 +66,10 @@ static int is_valid_prefix(struct ipv6_prefix *prefix)
 		return -EINVAL;
 	}
 
-	if (error)
-		log_err(ERR_PREF_LEN_RANGE,"%pI6c is not a valid prefix",&prefix->address);
+	if (error) {
+		log_err(ERR_PREF_LEN_RANGE,"%pI6c/%u seems to have a suffix (RFC6052 doesn't like this).",
+				&prefix->address, prefix->len);
+	}
 
 	return error;
 }
@@ -109,13 +111,11 @@ silent_failure:
 
 void pool6_destroy(void)
 {
-	spin_lock_bh(&pool_lock);
 	while (!list_empty(&pool)) {
 		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
 		list_del(&node->list_hook);
 		kfree(node);
 	}
-	spin_unlock_bh(&pool_lock);
 }
 
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
@@ -176,15 +176,16 @@ bool pool6_contains(struct in6_addr *addr)
 int pool6_add(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
+	int error;
 
 	if (!prefix) {
 		log_err(ERR_NULL, "NULL is not a valid prefix.");
 		return -EINVAL;
 	}
 
-	if (is_valid_prefix(prefix)){
-		return -EINVAL; /* Error msg already printed. */
-	}
+	error = validate_prefix(prefix);
+	if (error)
+		return error; /* Error msg already printed. */
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {

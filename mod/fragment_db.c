@@ -627,7 +627,6 @@ int fragdb_init(void)
 
 	error = fragdb_table_init(&table, equals_function, hash_function);
 	if (error) {
-		fragdb_table_empty(&table, buffer_dealloc);
 		kmem_cache_destroy(buffer_cache);
 		kmem_cache_destroy(hole_cache);
 		return error;

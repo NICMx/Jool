@@ -129,9 +129,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 
 	node_cache = kmem_cache_create("jool_pool4_nodes", sizeof(struct pool4_node), 0, 0, NULL);
 	if (!node_cache) {
-		spin_lock_bh(&pool_lock);
 		pool4_table_empty(&pool, destroy_pool4_node);
-		spin_unlock_bh(&pool_lock);
 		log_err(ERR_ALLOC_FAILED, "Could not allocate the IPv4 node cache.");
 		return -ENOMEM;
 	}
@@ -167,9 +165,7 @@ fail:
 
 void pool4_destroy(void)
 {
-	spin_lock_bh(&pool_lock);
 	pool4_table_empty(&pool, destroy_pool4_node);
-	spin_unlock_bh(&pool_lock);
 	kmem_cache_destroy(node_cache);
 }
 
