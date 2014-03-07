@@ -85,9 +85,9 @@ static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct 
 		return VER_DROP;
 	}
 
-	spin_lock_bh(&config_lock);
-	reset_traffic_class = config.reset_traffic_class;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	reset_traffic_class = rcu_dereference_bh(config)->reset_traffic_class;
+	rcu_read_unlock_bh();
 
 	ip6_hdr = frag_get_ipv6_hdr(out);
 	ip6_hdr->version = 6;
@@ -184,14 +184,14 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 		 * See RFC 1191 sections 5, 7 and 7.1 to understand the logic here.
 		 */
 		int plateau;
-		spin_lock_bh(&config_lock);
-		for (plateau = 0; plateau < config.mtu_plateau_count; plateau++) {
-			if (config.mtu_plateaus[plateau] < tot_len_field) {
-				packet_mtu = config.mtu_plateaus[plateau];
+		rcu_read_lock_bh();
+		for (plateau = 0; plateau < rcu_dereference_bh(config)->mtu_plateau_count; plateau++) {
+			if (rcu_dereference_bh(config)->mtu_plateaus[plateau] < tot_len_field) {
+				packet_mtu = rcu_dereference_bh(config)->mtu_plateaus[plateau];
 				break;
 			}
 		}
-		spin_unlock_bh(&config_lock);
+		rcu_read_unlock_bh();
 	}
 
 	/* Core comparison to find the minimum value. */
@@ -200,8 +200,8 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 	else
 		result = (packet_mtu < nexthop4_mtu) ? packet_mtu : nexthop4_mtu;
 
-	spin_lock_bh(&config_lock);
-	if (config.lower_mtu_fail && result < 1280) {
+	rcu_read_lock_bh();
+	if (rcu_dereference_bh(config)->lower_mtu_fail && result < 1280) {
 		/*
 		 * Probably some router does not implement RFC 4890, section 4.3.1.
 		 * Gotta override and hope for the best.
@@ -209,7 +209,7 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 		 */
 		result = 1280;
 	}
-	spin_unlock_bh(&config_lock);
+	rcu_read_unlock_bh();
 
 	return cpu_to_be32(result);
 }

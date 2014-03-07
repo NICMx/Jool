@@ -18,8 +18,7 @@
 #include <net/tcp.h>
 
 
-static struct translate_config config;
-static DEFINE_SPINLOCK(config_lock);
+static struct translate_config *config;
 
 static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
 
@@ -31,19 +30,19 @@ int clone_translate_config(struct translate_config *clone)
 {
 	__u16 plateaus_len;
 
-	spin_lock_bh(&config_lock);
+	rcu_read_lock_bh();
 
-	memcpy(clone, &config, sizeof(config));
-	plateaus_len = config.mtu_plateau_count * sizeof(*config.mtu_plateaus);
+	memcpy(clone, config, sizeof(*config));
+	plateaus_len = config->mtu_plateau_count * sizeof(*config->mtu_plateaus);
 	clone->mtu_plateaus = kmalloc(plateaus_len, GFP_ATOMIC);
 	if (!clone->mtu_plateaus) {
-		spin_unlock_bh(&config_lock);
+		rcu_read_unlock_bh();
 		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
 		return -ENOMEM;
 	}
-	memcpy(clone->mtu_plateaus, config.mtu_plateaus, plateaus_len);
+	memcpy(clone->mtu_plateaus, config->mtu_plateaus, plateaus_len);
 
-	spin_unlock_bh(&config_lock);
+	rcu_read_unlock_bh();
 	return 0;
 }
 
@@ -61,6 +60,9 @@ static void be16_swap(void *a, void *b, int size)
 
 int set_translate_config(__u32 operation, struct translate_config *new_config)
 {
+	struct translate_config *tmp_config;
+	struct translate_config *old_config;
+
 	/* Validate. */
 	if (operation & MTU_PLATEAUS_MASK) {
 		int i, j;
@@ -93,40 +95,50 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 	}
 
 	/* Update. */
-	spin_lock_bh(&config_lock);
+	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
+	if (!tmp_config)
+		return -ENOMEM;
+
+	old_config = config;
+	*tmp_config = *old_config;
 
 	if (operation & RESET_TCLASS_MASK)
-		config.reset_traffic_class = new_config->reset_traffic_class;
+		tmp_config->reset_traffic_class = new_config->reset_traffic_class;
 	if (operation & RESET_TOS_MASK)
-		config.reset_tos = new_config->reset_tos;
+		tmp_config->reset_tos = new_config->reset_tos;
 	if (operation & NEW_TOS_MASK)
-		config.new_tos = new_config->new_tos;
+		tmp_config->new_tos = new_config->new_tos;
 	if (operation & DF_ALWAYS_ON_MASK)
-		config.df_always_on = new_config->df_always_on;
+		tmp_config->df_always_on = new_config->df_always_on;
 	if (operation & BUILD_IPV4_ID_MASK)
-		config.build_ipv4_id = new_config->build_ipv4_id;
+		tmp_config->build_ipv4_id = new_config->build_ipv4_id;
 	if (operation & LOWER_MTU_FAIL_MASK)
-		config.lower_mtu_fail = new_config->lower_mtu_fail;
+		tmp_config->lower_mtu_fail = new_config->lower_mtu_fail;
 	if (operation & MTU_PLATEAUS_MASK) {
-		__u16 *old_mtus = config.mtu_plateaus;
+		__u16 *old_mtus = tmp_config->mtu_plateaus;
 		__u16 new_mtus_len = new_config->mtu_plateau_count * sizeof(*new_config->mtu_plateaus);
 
-		config.mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
-		if (!config.mtu_plateaus) {
-			config.mtu_plateaus = old_mtus; /* Should we revert the other fields? */
-			spin_unlock_bh(&config_lock);
+		tmp_config->mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
+		if (!tmp_config->mtu_plateaus) {
+			tmp_config->mtu_plateaus = old_mtus; /* Should we revert the other fields? */
+			rcu_assign_pointer(config, tmp_config);
+			synchronize_rcu_bh();
+			kfree(old_config);
 			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
 			return -ENOMEM;
 		}
 
 		kfree(old_mtus);
-		config.mtu_plateau_count = new_config->mtu_plateau_count;
-		memcpy(config.mtu_plateaus, new_config->mtu_plateaus, new_mtus_len);
+		tmp_config->mtu_plateau_count = new_config->mtu_plateau_count;
+		memcpy(tmp_config->mtu_plateaus, new_config->mtu_plateaus, new_mtus_len);
 	}
 	if (operation & MIN_IPV6_MTU_MASK)
-		config.min_ipv6_mtu = new_config->min_ipv6_mtu;
+		tmp_config->min_ipv6_mtu = new_config->min_ipv6_mtu;
 
-	spin_unlock_bh(&config_lock);
+	rcu_assign_pointer(config, tmp_config);
+	synchronize_rcu_bh();
+	kfree(old_config);
+
 	return 0;
 }
 
@@ -167,21 +179,25 @@ int translate_packet_init(void)
 {
 	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
 
-	config.reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
-	config.reset_tos = TRAN_DEF_RESET_TOS;
-	config.new_tos = TRAN_DEF_NEW_TOS;
-	config.df_always_on = TRAN_DEF_DF_ALWAYS_ON;
-	config.build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
-	config.lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
-	config.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
-	config.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
-	if (!config.mtu_plateaus) {
+	config = kmalloc(sizeof(*config), GFP_ATOMIC);
+	if (!config)
+		return -ENOMEM;
+
+	config->reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
+	config->reset_tos = TRAN_DEF_RESET_TOS;
+	config->new_tos = TRAN_DEF_NEW_TOS;
+	config->df_always_on = TRAN_DEF_DF_ALWAYS_ON;
+	config->build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
+	config->lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
+	config->mtu_plateau_count = ARRAY_SIZE(default_plateaus);
+	config->mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
+	if (!config->mtu_plateaus) {
 		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the MTU plateaus.");
-		spin_unlock_bh(&config_lock);
+		kfree(config);
 		return -ENOMEM;
 	}
-	config.min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
-	memcpy(config.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
+	config->min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
+	memcpy(config->mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
 	steps[L3PROTO_IPV6][L4PROTO_NONE].l3_hdr_function = create_ipv4_hdr;
 	steps[L3PROTO_IPV6][L4PROTO_NONE].l4_hdr_and_payload_function = copy_payload;
@@ -232,7 +248,8 @@ void translate_packet_destroy(void)
 	 * Note that config is static (and hence its members are initialized to zero at startup),
 	 * so calling destroy() before init() is not harmful.
 	 */
-	kfree(config.mtu_plateaus);
+	kfree(config->mtu_plateaus);
+	kfree(config);
 }
 
 verdict translate(struct tuple *tuple, struct fragment *in, struct fragment **out,
@@ -312,9 +329,9 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 	__u16 min_ipv6_mtu;
 
 	/* Prepare the helper values. */
-	spin_lock_bh(&config_lock);
-	min_ipv6_mtu = config.min_ipv6_mtu & 0xFFF8;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	min_ipv6_mtu = rcu_dereference_bh(config)->min_ipv6_mtu & 0xFFF8;
+	rcu_read_unlock_bh();
 
 	headers_size = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
 	payload_max_size = min_ipv6_mtu - headers_size;
@@ -416,9 +433,9 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 	/* Add it to the list of outgoing fragments. */
 	switch (in->l3_hdr.proto) {
 	case L3PROTO_IPV4:
-		spin_lock_bh(&config_lock);
-		min_ipv6_mtu = config.min_ipv6_mtu;
-		spin_unlock_bh(&config_lock);
+		rcu_read_lock_bh();
+		min_ipv6_mtu = rcu_dereference_bh(config)->min_ipv6_mtu;
+		rcu_read_unlock_bh();
 
 		if (out->skb->len > min_ipv6_mtu) {
 			/* It's too big, so subdivide it. */

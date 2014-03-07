@@ -120,11 +120,11 @@ static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct 
 		return VER_DROP;
 	}
 
-	spin_lock_bh(&config_lock);
-	reset_tos = config.reset_tos;
-	build_ipv4_id = config.build_ipv4_id;
-	df_always_on = config.df_always_on;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	reset_tos = rcu_dereference_bh(config)->reset_tos;
+	build_ipv4_id = rcu_dereference_bh(config)->build_ipv4_id;
+	df_always_on = rcu_dereference_bh(config)->df_always_on;
+	rcu_read_unlock_bh();
 
 	ip4_hdr = frag_get_ipv4_hdr(out);
 	ip4_hdr->version = 4;

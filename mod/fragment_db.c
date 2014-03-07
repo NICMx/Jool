@@ -67,8 +67,7 @@ static u32 rnd;
 static struct fragdb_table table;
 static DEFINE_SPINLOCK(table_lock);
 
-static struct fragmentation_config config;
-static DEFINE_SPINLOCK(config_lock);
+static struct fragmentation_config *config;
 
 static struct timer_list expire_timer;
 static LIST_HEAD(expire_list);
@@ -84,9 +83,9 @@ static unsigned long get_fragment_timeout(void)
 {
 	unsigned long result;
 
-	spin_lock_bh(&config_lock);
-	result = config.fragment_timeout;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	result = rcu_dereference_bh(config)->fragment_timeout;
+	rcu_read_unlock_bh();
 
 	return result;
 }
@@ -611,17 +610,25 @@ int fragdb_init(void)
 {
 	int error;
 
-	config.fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
+	config = kmalloc(sizeof(*config), GFP_ATOMIC);
+
+	if (!config) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the fragmentation config.");
+		return -ENOMEM;
+	}
+	config->fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 
 	hole_cache = kmem_cache_create("jool_hole_descriptors", sizeof(struct hole_descriptor),
 			0, 0, NULL);
-	if (!hole_cache)
+	if (!hole_cache) {
+		kfree(config);
 		return -ENOMEM;
-
+	}
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers", sizeof(struct reassembly_buffer),
 			0, 0, NULL);
 	if (!buffer_cache) {
 		kmem_cache_destroy(hole_cache);
+		kfree(config);
 		return -ENOMEM;
 	}
 
@@ -629,6 +636,7 @@ int fragdb_init(void)
 	if (error) {
 		kmem_cache_destroy(buffer_cache);
 		kmem_cache_destroy(hole_cache);
+		kfree(config);
 		return error;
 	}
 
@@ -650,9 +658,10 @@ int fragdb_init(void)
  */
 int clone_fragmentation_config(struct fragmentation_config *clone)
 {
-	spin_lock_bh(&config_lock);
-	*clone = config;
-	spin_unlock_bh(&config_lock);
+
+	rcu_read_lock_bh();
+	*clone = *rcu_dereference_bh(config);
+	rcu_read_unlock_bh();
 
 	return 0;
 }
@@ -666,22 +675,32 @@ int clone_fragmentation_config(struct fragmentation_config *clone)
  */
 int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_config)
 {
+	struct fragmentation_config *tmp_config;
+	struct fragmentation_config *old_config;
+
 	unsigned long fragment_min = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 	int error = 0;
 
-	spin_lock_bh(&config_lock);
+	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
+	if (!tmp_config)
+		return -ENOMEM;
+
+	old_config = config;
+	*tmp_config = *old_config;
 
 	if (operation & FRAGMENT_TIMEOUT_MASK) {
 		if (new_config->fragment_timeout < fragment_min) {
 			error = -EINVAL;
 			log_err(ERR_FRAGMENTATION_TO_RANGE, "The fragment timeout must be at least %u seconds.",
 					FRAGMENT_MIN);
+			kfree(tmp_config);
 		} else {
-			config.fragment_timeout = new_config->fragment_timeout;
+			tmp_config->fragment_timeout = new_config->fragment_timeout;
+			rcu_assign_pointer(config, tmp_config);
+			synchronize_rcu_bh();
+			kfree(old_config);
 		}
 	}
-
-	spin_unlock_bh(&config_lock);
 	return error;
 }
 
@@ -853,4 +872,5 @@ void fragdb_destroy(void)
 
 	kmem_cache_destroy(hole_cache);
 	kmem_cache_destroy(buffer_cache);
+	kfree(config);
 }
