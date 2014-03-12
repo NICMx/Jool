@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/sort.h>
 #include <linux/icmpv6.h>
+#include <linux/module.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/icmp.h>
@@ -23,6 +24,9 @@ static DEFINE_SPINLOCK(config_lock);
 
 static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
 
+static unsigned int min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
+module_param(min_ipv6_mtu, uint, 0644);
+MODULE_PARM_DESC(min_ipv6_mtu, "Minimum IPv6 MTU.");
 
 #include "translate_packet_6to4.c"
 #include "translate_packet_4to6.c"
@@ -180,7 +184,15 @@ int translate_packet_init(void)
 		spin_unlock_bh(&config_lock);
 		return -ENOMEM;
 	}
-	config.min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
+	if (min_ipv6_mtu > 65535) {
+		log_info("min_ipv6_mtu %d is too large, truncating into 65535", min_ipv6_mtu);
+		min_ipv6_mtu = 65535;
+	}
+	else if (min_ipv6_mtu < TRAN_DEF_MIN_IPV6_MTU) {
+		log_info("min_ipv6_mtu %d is too small, rounding up to %d", min_ipv6_mtu, TRAN_DEF_MIN_IPV6_MTU);
+		min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
+	}
+	config.min_ipv6_mtu = min_ipv6_mtu;
 	memcpy(config.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
 	steps[L3PROTO_IPV6][L4PROTO_NONE].l3_hdr_function = create_ipv4_hdr;
