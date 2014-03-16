@@ -201,13 +201,13 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 		result = (packet_mtu < nexthop4_mtu) ? packet_mtu : nexthop4_mtu;
 
 	spin_lock_bh(&config_lock);
-	if (config.lower_mtu_fail && result < 1280) {
+	if (config.lower_mtu_fail && result < config.min_ipv6_mtu) {
 		/*
 		 * Probably some router does not implement RFC 4890, section 4.3.1.
 		 * Gotta override and hope for the best.
 		 * See RFC 6145 section 6, second approach, to understand the logic here.
 		 */
-		result = 1280;
+		result = config.min_ipv6_mtu;
 	}
 	spin_unlock_bh(&config_lock);
 
