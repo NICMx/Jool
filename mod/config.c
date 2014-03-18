@@ -86,7 +86,7 @@ static int respond_ack(struct nlmsghdr *nl_hdr_in)
 
 static int verify_superpriv(struct request_hdr *nat64_hdr)
 {
-	if (!(current->flags & PF_SUPERPRIV)) {
+	if (!capable(CAP_NET_ADMIN)) {
 		log_warning("Administrative privileges required: %d", nat64_hdr->operation);
 		return -EPERM;
 	}

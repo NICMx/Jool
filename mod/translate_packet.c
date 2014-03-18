@@ -426,6 +426,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 				icmp64_send(in, ICMPERR_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
 				log_info("Packet is too big (%u bytes; MTU: %u); dropping.",
 						out->skb->len, min_ipv6_mtu);
+				frag_kfree(out);
 				return VER_DROP;
 			}
 
