@@ -432,7 +432,12 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 #ifndef UNIT_TESTING
 		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
 		if (!out->dst)
+			/* TODO (issue #79) send ICMP destination unreachable! */
 			return VER_DROP;
+
+		/* TODO issue #84 (https://github.com/NICMx/NAT64/issues/84) */
+		if (!in->skb->dev)
+			in->skb->dev = out->dst->dev;
 
 		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
 				out->dst->dev->mtu,

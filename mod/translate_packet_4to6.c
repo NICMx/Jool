@@ -267,7 +267,12 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 #ifndef UNIT_TESTING
 		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
 		if (!out->dst)
+			/* TODO (issue #79) send ICMP destination unreachable! */
 			return VER_DROP;
+
+		/* TODO issue #84 (https://github.com/NICMx/NAT64/issues/84) */
+		if (!in->skb->dev)
+			in->skb->dev = out->dst->dev;
 
 		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
 				out->dst->dev->mtu,
