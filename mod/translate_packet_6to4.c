@@ -385,6 +385,7 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 		struct fragment *out)
 {
 	verdict result;
+	struct dst_entry *in_dst;
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(in);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
@@ -430,18 +431,21 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 		icmpv4_hdr->un.frag.__unused = 0;
 
 #ifndef UNIT_TESTING
-		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
-		if (!out->dst)
-			/* TODO (issue #79) send ICMP destination unreachable! */
+		if (!in->original_skb)
+			return VER_DROP;
+		in_dst = skb_dst(in->original_skb);
+		if (!in_dst)
 			return VER_DROP;
 
-		/* TODO issue #84 (https://github.com/NICMx/NAT64/issues/84) */
-		if (!in->skb->dev)
-			in->skb->dev = out->dst->dev;
+		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
+		if (!out->dst)
+			return VER_DROP;
 
+		/* Note that dst_mtu() returns the PMTU, not the MTU, which is awesome. */
 		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
-				out->dst->dev->mtu,
-				in->skb->dev->mtu - 20);
+				dst_mtu(out->dst),
+				dst_mtu(in_dst) - 20);
+
 #else
 		icmpv4_hdr->un.frag.mtu = 1500;
 #endif

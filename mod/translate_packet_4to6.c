@@ -234,6 +234,7 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 {
 	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(out);
+	struct dst_entry *in_dst;
 
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmpv6_hdr->icmp6_unused = 0;
@@ -265,18 +266,20 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 		icmpv6_hdr->icmp6_code = 0;
 
 #ifndef UNIT_TESTING
-		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
-		if (!out->dst)
-			/* TODO (issue #79) send ICMP destination unreachable! */
+		if (!in->original_skb)
+			return VER_DROP;
+		in_dst = skb_dst(in->original_skb);
+		if (!in_dst)
 			return VER_DROP;
 
-		/* TODO issue #84 (https://github.com/NICMx/NAT64/issues/84) */
-		if (!in->skb->dev)
-			in->skb->dev = out->dst->dev;
+		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
+		if (!out->dst)
+			return VER_DROP;
 
+		/* Note that dst_mtu() returns the PMTU, not the MTU, which is awesome. */
 		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				out->dst->dev->mtu,
-				in->skb->dev->mtu + 20,
+				dst_mtu(out->dst),
+				dst_mtu(in_dst) + 20,
 				tot_len_field);
 
 #else

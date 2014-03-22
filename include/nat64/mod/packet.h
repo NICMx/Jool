@@ -190,6 +190,13 @@ struct fragment {
 		bool ptr_needs_kfree;
 	} payload;
 
+	/**
+	 * Packet we received from the incoming interface, and which we're translating.
+	 * If this fragment is an incoming one, original_skb == skb.
+	 * If this fragment is an outgoing one, original_skb != skb.
+	 * HOWEVER, if this fragment represents a inner packet, then original_skb == NULL (you might
+	 * think this makes no sense, but it's a good way to turn icmp64_send() into a no-op :p).
+	 */
 	struct sk_buff *original_skb;
 
 	/** Node used to link this fragment in the packet.fragments list. */

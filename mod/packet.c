@@ -1,9 +1,10 @@
 #include "nat64/mod/packet.h"
 
+#include <net/route.h>
+
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 #include "nat64/mod/icmp_wrapper.h"
-
 
 #define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
 #define MIN_IPV4_HDR_LEN sizeof(struct iphdr)
@@ -179,7 +180,7 @@ static int init_ipv6_l3_hdr(struct fragment *frag, struct ipv6hdr *hdr6,
 }
 
 static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, unsigned int len,
-		struct hdr_iterator *iterator, struct sk_buff *skb)
+		struct hdr_iterator *iterator)
 {
 	struct frag_hdr *frag_header;
 	int error;
@@ -256,15 +257,22 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 		return -ENOMEM;
 	}
 
-	frag->skb = NULL;
-	frag->dst = NULL;
-	frag->original_skb = skb;
 	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
 	if (error)
 		goto fail;
-	error = init_ipv6_l3_payload(frag, hdr, len, &iterator, skb);
+	error = init_ipv6_l3_payload(frag, hdr, len, &iterator);
 	if (error)
 		goto fail;
+
+	frag->skb = NULL;
+	frag->dst = NULL;
+	frag->original_skb = skb;
+	/*
+	 * If you're comparing this to frag_create_from_buffer_ipv4(), keep in mind that
+	 * ip6_input_finish() and __ip_local_out() tell me every IPv6 packet is already routed by the
+	 * time the pre-routing and local-out hooks run.
+	 */
+
 	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
@@ -318,8 +326,7 @@ static int init_ipv4_l3_hdr(struct fragment *frag, struct iphdr *hdr)
 	return 0;
 }
 
-static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsigned int len,
-		struct sk_buff *skb)
+static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsigned int len)
 {
 	u16 fragment_offset;
 	int error;
@@ -394,22 +401,38 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 		return -ENOMEM;
 	}
 
-	frag->skb = NULL;
-	frag->dst = NULL;
-	frag->original_skb = skb;
 	error = init_ipv4_l3_hdr(frag, hdr);
 	if (error)
 		goto fail;
-	error = init_ipv4_l3_payload(frag, hdr, len, skb);
+	error = init_ipv4_l3_payload(frag, hdr, len);
 	if (error)
 		goto fail;
+
+	frag->skb = NULL;
+	frag->dst = NULL;
+	frag->original_skb = skb;
+	if (skb && skb_rtable(skb) == NULL) {
+		/*
+		 * Some kernel functions assume that the incoming packet is already routed.
+		 * Because they seem to pop up where we least expect them, we'll just route every incoming
+		 * packet, regardless of whether we end up calling one of those functions.
+		 */
+
+		error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
+		if (error) {
+			log_err(ERR_UNKNOWN_ERROR, "ip_route_input failed: %d", error);
+			goto fail;
+		}
+		log_debug("making rtable %p", skb_rtable(frag->original_skb));
+	}
+
 	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
 	return 0;
 
 fail:
-	frag_kfree(frag);
+	kmem_cache_free(frag_cache, frag);
 	return error;
 }
 
