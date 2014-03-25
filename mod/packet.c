@@ -188,6 +188,7 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 	frag_header = get_extension_header(hdr6, NEXTHDR_FRAGMENT);
 	if (frag_header == NULL || get_fragment_offset_ipv6(frag_header) == 0) {
 		frag->l4_hdr.ptr = iterator->data;
+
  		switch (iterator->hdr_type) {
 		case NEXTHDR_TCP:
 			error = validate_lengths_tcp(len, frag->l3_hdr.len);
@@ -257,13 +258,6 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 		return -ENOMEM;
 	}
 
-	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
-	if (error)
-		goto fail;
-	error = init_ipv6_l3_payload(frag, hdr, len, &iterator);
-	if (error)
-		goto fail;
-
 	frag->skb = NULL;
 	frag->dst = NULL;
 	frag->original_skb = skb;
@@ -273,13 +267,20 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	 * time the pre-routing and local-out hooks run.
 	 */
 
+	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
+	if (error)
+		goto fail;
+	error = init_ipv6_l3_payload(frag, hdr, len, &iterator);
+	if (error)
+		goto fail;
+
 	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
 	return 0;
 
 fail:
-	frag_kfree(frag);
+	kmem_cache_free(frag_cache, frag);
 	return error;
 }
 
@@ -401,13 +402,6 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 		return -ENOMEM;
 	}
 
-	error = init_ipv4_l3_hdr(frag, hdr);
-	if (error)
-		goto fail;
-	error = init_ipv4_l3_payload(frag, hdr, len);
-	if (error)
-		goto fail;
-
 	frag->skb = NULL;
 	frag->dst = NULL;
 	frag->original_skb = skb;
@@ -425,6 +419,13 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 		}
 		log_debug("making rtable %p", skb_rtable(frag->original_skb));
 	}
+
+	error = init_ipv4_l3_hdr(frag, hdr);
+	if (error)
+		goto fail;
+	error = init_ipv4_l3_payload(frag, hdr, len);
+	if (error)
+		goto fail;
 
 	INIT_LIST_HEAD(&frag->list_hook);
 

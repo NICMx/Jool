@@ -6,22 +6,16 @@
 
 /**
  * @file
- * Direct use of the icmp_send() and icmpv6_send() functions pretty much anywhere in Jool is bound
- * to become a bug nest, because they don't overly validate their parameters, and also because
- * NAT64 creates a scenario they are not prepared against.
+ * Direct use of the icmp_send() and icmpv6_send() functions after the determine incoming tuple
+ * step is bound to become a bug nest. That's because steps filtering through translate are reused
+ * in hairpinning, so when an error occurs while translating a IPv4 packet, one cannot assume that
+ * the resulting ICMP error will be a IPv4 one.
  *
- * For one thing, Jool is attached to the LOCAL_OUT chain of Netfilter. Packets coming from the
- * localhost have a NULL dst, and the icmp functions above happily dereference that field.
+ * In those situations, you can use this code instead. It transparently sends the correct ICMP
+ * error no matter where you are.
  *
- * Another problem is hairpinning. When a IPv4 packet is being translated to IPv6, it might either
- * have originally been a IPv4 packet, or it might be a IPv6 packet doing a U-turn. In the latter
- * case, if a problem occurs, a IPv6 error message has to be answered, not a IPv4 one. And most of
- * Jool's code is reused during hairpinning.
- *
- * So it is convenient to have a one-liner that figures out the situation and behaves accordingly.
- *
- * Again, direct use of the kernel's icmp*_send() functions anywhere else in Jool is strongly
- * discouraged. Use the functions here instead.
+ * For the sake of consistency, use this module even if your code isn't reused in hairpinning,
+ * please.
  */
 
 typedef enum icmp_error_code {

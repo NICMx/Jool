@@ -97,8 +97,7 @@ static int verify_superpriv(struct request_hdr *nat64_hdr)
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
 	struct out_stream *stream = (struct out_stream *) arg;
-	stream_write(stream, prefix, sizeof(*prefix));
-	return 0;
+	return stream_write(stream, prefix, sizeof(*prefix));
 }
 
 static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
@@ -156,8 +155,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 static int pool4_entry_to_userspace(struct pool4_node *node, void *arg)
 {
-	stream_write(arg, &node->addr, sizeof(node->addr));
-	return 0;
+	return stream_write(arg, &node->addr, sizeof(node->addr));
 }
 
 static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
@@ -222,8 +220,7 @@ static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 	entry_us.ipv6 = entry->ipv6;
 	entry_us.is_static = entry->is_static;
 
-	stream_write(stream, &entry_us, sizeof(entry_us));
-	return 0;
+	return stream_write(stream, &entry_us, sizeof(entry_us));
 }
 
 static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
@@ -291,8 +288,7 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies);
 	entry_us.l4_proto = entry->l4_proto;
 
-	stream_write(stream, &entry_us, sizeof(entry_us));
-	return 0;
+	return stream_write(stream, &entry_us, sizeof(entry_us));
 }
 
 static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,

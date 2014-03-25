@@ -15,7 +15,7 @@ struct out_stream {
 };
 
 void stream_init(struct out_stream *stream, struct sock *nl_socket, struct nlmsghdr *nl_hdr);
-void stream_write(struct out_stream *stream, void *payload, int payload_len);
+int stream_write(struct out_stream *stream, void *payload, int payload_len);
 void stream_close(struct out_stream *stream);
 
 #endif /* _NF_NAT64_STREAM_H */

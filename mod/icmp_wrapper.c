@@ -49,8 +49,8 @@ static void icmp6_send(struct fragment *frag, icmp_error_code error, __be32 info
 		code = ICMPV6_ADDR_UNREACH;
 		break;
 	case ICMPERR_PROTO_UNREACHABLE:
-		type = ICMPV6_DEST_UNREACH;
-		code = ICMPV6_PORT_UNREACH;
+		type = ICMPV6_PARAMPROB;
+		code = ICMPV6_UNK_NEXTHDR;
 		break;
 	case ICMPERR_HOP_LIMIT:
 		type = ICMPV6_TIME_EXCEED;
