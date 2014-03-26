@@ -19,9 +19,7 @@
 
 
 /** Current valid configuration for the filtering and updating module. */
-static struct filtering_config config;
-/** Synchronizes access to the "config" variable. */
-static DEFINE_SPINLOCK(config_lock);
+static struct filtering_config *config;
 
 /** Sessions whose expiration date was initialized using "config".to.udp. */
 static LIST_HEAD(sessions_udp);
@@ -69,11 +67,9 @@ enum tcp_states {
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time and moves it from its
  * original location to the end of "list".
  */
-static void update_timer(struct session_entry *session, struct list_head *list, __u64 *ttl)
+static void update_timer(struct session_entry *session, struct list_head *list, __u64 ttl)
 {
-	spin_lock_bh(&config_lock);
-	session->dying_time = jiffies + *ttl;
-	spin_unlock_bh(&config_lock);
+	session->dying_time = jiffies + ttl;
 
 	list_del(&session->expire_list_hook);
 	list_add(&session->expire_list_hook, list->prev);
@@ -90,7 +86,13 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
  */
 static void set_udp_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_udp, &config.to.udp);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.udp;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_udp, ttl);
 }
 
 /**
@@ -98,7 +100,13 @@ static void set_udp_timer(struct session_entry *session)
  */
 static void set_tcp_est_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_tcp_est, &config.to.tcp_est);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.tcp_est;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_tcp_est, ttl);
 }
 
 /**
@@ -106,7 +114,13 @@ static void set_tcp_est_timer(struct session_entry *session)
  */
 static void set_tcp_trans_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_tcp_trans, &config.to.tcp_trans);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.tcp_trans;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_tcp_trans, ttl);
 }
 
 /**
@@ -114,7 +128,13 @@ static void set_tcp_trans_timer(struct session_entry *session)
  */
 static void set_icmp_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_icmp, &config.to.icmp);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.icmp;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_icmp, ttl);
 }
 
 /**
@@ -124,7 +144,7 @@ static void set_icmp_timer(struct session_entry *session)
 static void set_syn_timer(struct session_entry *session)
 {
 	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-	update_timer(session, &sessions_syn, &ttl);
+	update_timer(session, &sessions_syn, ttl);
 }
 */
 
@@ -403,9 +423,9 @@ static bool filter_icmpv6_info(void)
 {
 	bool result;
 
-	spin_lock_bh(&config_lock);
-	result = config.drop_icmp6_info;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	result = rcu_dereference_bh(config)->drop_icmp6_info;
+	rcu_read_unlock_bh();
 
 	return result;
 }
@@ -420,9 +440,9 @@ static bool address_dependent_filtering(void)
 {
 	bool result;
 
-	spin_lock_bh(&config_lock);
-	result = config.drop_by_addr;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	result = rcu_dereference_bh(config)->drop_by_addr;
+	rcu_read_unlock_bh();
 
 	return result;
 }
@@ -437,9 +457,9 @@ static bool drop_external_connections(void)
 {
 	bool result;
 
-	spin_lock_bh(&config_lock);
-	result = config.drop_external_tcp;
-	spin_unlock_bh(&config_lock);
+	rcu_read_lock_bh();
+	result = rcu_dereference_bh(config)->drop_external_tcp;
+	rcu_read_unlock_bh();
 
 	return result;
 }
@@ -1182,13 +1202,19 @@ end:
  */
 int filtering_init(void)
 {
-	config.to.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
-	config.to.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
-	config.to.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	config.to.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
-	config.drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
-	config.drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
-	config.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
+	config = kmalloc(sizeof(*config), GFP_ATOMIC);
+	if (!config) {
+		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the filtering config.");
+		return -ENOMEM;
+	}
+
+	config->to.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
+	config->to.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
+	config->to.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	config->to.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	config->drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
+	config->drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
+	config->drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
 
 	INIT_LIST_HEAD(&sessions_udp);
 	INIT_LIST_HEAD(&sessions_tcp_est);
@@ -1210,6 +1236,7 @@ int filtering_init(void)
 void filtering_destroy(void)
 {
 	del_timer_sync(&expire_timer);
+	kfree(config);
 }
 
 /**
@@ -1220,10 +1247,9 @@ void filtering_destroy(void)
  */
 int clone_filtering_config(struct filtering_config *clone)
 {
-	spin_lock_bh(&config_lock);
-	*clone = config;
-	spin_unlock_bh(&config_lock);
-
+	rcu_read_lock_bh();
+	*clone = *rcu_dereference_bh(config);
+	rcu_read_unlock_bh();
 	return 0;
 }
 
@@ -1236,51 +1262,64 @@ int clone_filtering_config(struct filtering_config *clone)
  */
 int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 {
-	int error = 0;
+	struct filtering_config *tmp_config;
+	struct filtering_config *old_config;
 	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
 	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
 	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
 
-	spin_lock_bh(&config_lock);
+	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
+	if (!tmp_config)
+		return -ENOMEM;
+
+	old_config = config;
+	*tmp_config = *old_config;
 
 	if (operation & DROP_BY_ADDR_MASK)
-		config.drop_by_addr = new_config->drop_by_addr;
+		tmp_config->drop_by_addr = new_config->drop_by_addr;
 	if (operation & DROP_ICMP6_INFO_MASK)
-		config.drop_icmp6_info = new_config->drop_icmp6_info;
+		tmp_config->drop_icmp6_info = new_config->drop_icmp6_info;
 	if (operation & DROP_EXTERNAL_TCP_MASK)
-		config.drop_external_tcp = new_config->drop_external_tcp;
+		tmp_config->drop_external_tcp = new_config->drop_external_tcp;
 
 	if (operation & UDP_TIMEOUT_MASK) {
 		if (new_config->to.udp < udp_min) {
-			error = -EINVAL;
 			log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u seconds.", UDP_MIN);
-		} else {
-			config.to.udp = new_config->to.udp;
+			goto fail;
 		}
-	}
-	if (operation & ICMP_TIMEOUT_MASK)
-		config.to.icmp = new_config->to.icmp;
-	if (operation & TCP_EST_TIMEOUT_MASK) {
-		if (new_config->to.tcp_est < tcp_est) {
-			error = -EINVAL;
-			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u seconds.",
-					TCP_EST);
-		} else {
-			config.to.tcp_est = new_config->to.tcp_est;
-		}
-	}
-	if (operation & TCP_TRANS_TIMEOUT_MASK) {
-		if (new_config->to.tcp_trans < tcp_trans) {
-			error = -EINVAL;
-			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u seconds.",
-					TCP_TRANS);
-		} else {
-			config.to.tcp_trans = new_config->to.tcp_trans;
-		}
+		tmp_config->to.udp = new_config->to.udp;
 	}
 
-	spin_unlock_bh(&config_lock);
-	return error;
+	if (operation & ICMP_TIMEOUT_MASK)
+		tmp_config->to.icmp = new_config->to.icmp;
+
+	if (operation & TCP_EST_TIMEOUT_MASK) {
+		if (new_config->to.tcp_est < tcp_est) {
+			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u seconds.",
+					TCP_EST);
+			goto fail;
+		}
+		tmp_config->to.tcp_est = new_config->to.tcp_est;
+	}
+
+	if (operation & TCP_TRANS_TIMEOUT_MASK) {
+		if (new_config->to.tcp_trans < tcp_trans) {
+			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u seconds.",
+					TCP_TRANS);
+			goto fail;
+		}
+		tmp_config->to.tcp_trans = new_config->to.tcp_trans;
+	}
+
+	rcu_assign_pointer(config, tmp_config);
+	synchronize_rcu_bh();
+	kfree(old_config);
+
+	return 0;
+
+fail:
+	kfree(tmp_config);
+	return -EINVAL;
 }
 
 /**
