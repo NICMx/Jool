@@ -42,7 +42,8 @@
 #define TCP_TRANS (4 * 60)
 /**
  * Timeout of TCP sessions being initialized (in seconds).
- * It's shorter by default since these are typical DoS attacks.
+ * It's shorter since these are typical DoS attacks.
+ * This value cannot be configured from the userspace app (this is on purpose).
  */
 #define TCP_INCOMING_SYN (6)
 /** Default time interval fragments are allowed to arrive in. In seconds. */

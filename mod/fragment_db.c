@@ -658,7 +658,6 @@ int fragdb_init(void)
  */
 int clone_fragmentation_config(struct fragmentation_config *clone)
 {
-
 	rcu_read_lock_bh();
 	*clone = *rcu_dereference_bh(config);
 	rcu_read_unlock_bh();
@@ -677,9 +676,7 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
 {
 	struct fragmentation_config *tmp_config;
 	struct fragmentation_config *old_config;
-
 	unsigned long fragment_min = msecs_to_jiffies(1000 * FRAGMENT_MIN);
-	int error = 0;
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -690,18 +687,20 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
 
 	if (operation & FRAGMENT_TIMEOUT_MASK) {
 		if (new_config->fragment_timeout < fragment_min) {
-			error = -EINVAL;
 			log_err(ERR_FRAGMENTATION_TO_RANGE, "The fragment timeout must be at least %u seconds.",
 					FRAGMENT_MIN);
 			kfree(tmp_config);
-		} else {
-			tmp_config->fragment_timeout = new_config->fragment_timeout;
-			rcu_assign_pointer(config, tmp_config);
-			synchronize_rcu_bh();
-			kfree(old_config);
+			return -EINVAL;
 		}
+
+		tmp_config->fragment_timeout = new_config->fragment_timeout;
 	}
-	return error;
+
+	rcu_assign_pointer(config, tmp_config);
+	synchronize_rcu_bh();
+	kfree(old_config);
+
+	return 0;
 }
 
 /**

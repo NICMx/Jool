@@ -67,11 +67,9 @@ enum tcp_states {
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time and moves it from its
  * original location to the end of "list".
  */
-static void update_timer(struct session_entry *session, struct list_head *list, __u64 *ttl)
+static void update_timer(struct session_entry *session, struct list_head *list, __u64 ttl)
 {
-	rcu_read_lock_bh();
-	session->dying_time = jiffies + *ttl;
-	rcu_read_unlock_bh();
+	session->dying_time = jiffies + ttl;
 
 	list_del(&session->expire_list_hook);
 	list_add(&session->expire_list_hook, list->prev);
@@ -88,7 +86,13 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
  */
 static void set_udp_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_udp, &rcu_dereference_bh(config)->to.udp);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.udp;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_udp, ttl);
 }
 
 /**
@@ -96,7 +100,13 @@ static void set_udp_timer(struct session_entry *session)
  */
 static void set_tcp_est_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_tcp_est, &rcu_dereference_bh(config)->to.tcp_est);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.tcp_est;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_tcp_est, ttl);
 }
 
 /**
@@ -104,7 +114,13 @@ static void set_tcp_est_timer(struct session_entry *session)
  */
 static void set_tcp_trans_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_tcp_trans, &rcu_dereference_bh(config)->to.tcp_trans);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.tcp_trans;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_tcp_trans, ttl);
 }
 
 /**
@@ -112,7 +128,13 @@ static void set_tcp_trans_timer(struct session_entry *session)
  */
 static void set_icmp_timer(struct session_entry *session)
 {
-	update_timer(session, &sessions_icmp, &rcu_dereference_bh(config)->to.icmp);
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->to.icmp;
+	rcu_read_unlock_bh();
+
+	update_timer(session, &sessions_icmp, ttl);
 }
 
 /**
@@ -122,7 +144,7 @@ static void set_icmp_timer(struct session_entry *session)
 static void set_syn_timer(struct session_entry *session)
 {
 	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-	update_timer(session, &sessions_syn, &ttl);
+	update_timer(session, &sessions_syn, ttl);
 }
 */
 
@@ -1242,7 +1264,6 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 {
 	struct filtering_config *tmp_config;
 	struct filtering_config *old_config;
-	int error = 0;
 	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
 	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
 	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
@@ -1263,38 +1284,42 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 
 	if (operation & UDP_TIMEOUT_MASK) {
 		if (new_config->to.udp < udp_min) {
-			error = -EINVAL;
 			log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u seconds.", UDP_MIN);
-		} else {
-			tmp_config->to.udp = new_config->to.udp;
+			goto fail;
 		}
+		tmp_config->to.udp = new_config->to.udp;
 	}
+
 	if (operation & ICMP_TIMEOUT_MASK)
 		tmp_config->to.icmp = new_config->to.icmp;
+
 	if (operation & TCP_EST_TIMEOUT_MASK) {
 		if (new_config->to.tcp_est < tcp_est) {
-			error = -EINVAL;
 			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u seconds.",
 					TCP_EST);
-		} else {
-			tmp_config->to.tcp_est = new_config->to.tcp_est;
+			goto fail;
 		}
+		tmp_config->to.tcp_est = new_config->to.tcp_est;
 	}
+
 	if (operation & TCP_TRANS_TIMEOUT_MASK) {
 		if (new_config->to.tcp_trans < tcp_trans) {
-			error = -EINVAL;
 			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u seconds.",
 					TCP_TRANS);
-		} else {
-			tmp_config->to.tcp_trans = new_config->to.tcp_trans;
+			goto fail;
 		}
+		tmp_config->to.tcp_trans = new_config->to.tcp_trans;
 	}
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 	kfree(old_config);
 
-	return error;
+	return 0;
+
+fail:
+	kfree(tmp_config);
+	return -EINVAL;
 }
 
 /**
