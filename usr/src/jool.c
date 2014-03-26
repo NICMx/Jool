@@ -26,7 +26,7 @@
 #include "nat64/usr/fragmentation.h"
 
 
-const char *argp_program_version = "3.1.0";
+const char *argp_program_version = "3.1.3";
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
