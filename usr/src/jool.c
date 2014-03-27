@@ -1,7 +1,7 @@
 /**
  * @file
  * Main for the NAT64's userspace application.
- * Parses parameters from the user and hands the real work to the modules inside the mode/ folder.
+ * Parses parameters from the user and hands the real work to the other .c's.
  *
  * @author Miguel González
  * @author Alberto Leiva  <-- maintenance

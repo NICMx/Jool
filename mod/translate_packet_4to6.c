@@ -183,14 +183,19 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1 to understand the logic here.
 		 */
+		struct translate_config *config_safe;
 		int plateau;
+
 		rcu_read_lock_bh();
-		for (plateau = 0; plateau < rcu_dereference_bh(config)->mtu_plateau_count; plateau++) {
-			if (rcu_dereference_bh(config)->mtu_plateaus[plateau] < tot_len_field) {
-				packet_mtu = rcu_dereference_bh(config)->mtu_plateaus[plateau];
+		config_safe = rcu_dereference_bh(config);
+
+		for (plateau = 0; plateau < config_safe->mtu_plateau_count; plateau++) {
+			if (config_safe->mtu_plateaus[plateau] < tot_len_field) {
+				packet_mtu = config_safe->mtu_plateaus[plateau];
 				break;
 			}
 		}
+
 		rcu_read_unlock_bh();
 	}
 
