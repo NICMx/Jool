@@ -55,7 +55,7 @@ Authors:
 		Washam Fan
 
 Directories:
-	/doc : Developer documentation.
+	/doc : Documentation.
 	/include : The entire system's header files.
 	/mod : The kernel module's implementation code.
 	/unit : Unit tests.
