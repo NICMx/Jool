@@ -49,14 +49,20 @@ static char *banner = "\n"
 	"'---'                                    `---`--`       '--'    \n";
 
 
-static unsigned int hook_ipv4(unsigned int hooknum, struct sk_buff *skb,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+#define HOOK_ARG_TYPE const struct nf_hook_ops *
+#else
+#define HOOK_ARG_TYPE unsigned int
+#endif
+
+static unsigned int hook_ipv4(HOOK_ARG_TYPE hook, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
 	return core_4to6(skb);
 }
 
-static unsigned int hook_ipv6(unsigned int hooknum, struct sk_buff *skb,
+static unsigned int hook_ipv6(HOOK_ARG_TYPE hook, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
