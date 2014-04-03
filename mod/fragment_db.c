@@ -2,6 +2,7 @@
 #include "nat64/comm/constants.h"
 #include "nat64/mod/random.h"
 
+#include <linux/version.h>
 
 #define INFINITY 60000
 
@@ -137,6 +138,19 @@ static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 {
 	return jhash_3words((__force u32)id << 16 | prot, (__force u32)saddr, (__force u32)daddr, rnd);
 }
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+/**
+ * Hash function for IPv6 keys from reassembly.c
+ */
+static unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
+		const struct in6_addr *daddr, u32 rnd)
+{
+	u32 c;
+	c = jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr), (__force u32)id, rnd);
+	return c & (INETFRAGS_HASHSZ - 1);
+}
+#endif
 
 /**
  * As specified above, the database is (mostly) a hash table. This is one of two functions used
