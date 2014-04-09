@@ -147,6 +147,7 @@ int delete_static_route(struct request_bib *req)
 			goto end;
 		}
 		list_del(&session->bib_list_hook);
+		list_del(&session->expire_list_hook);
 		session_kfree(session);
 	}
 
