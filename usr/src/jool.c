@@ -59,6 +59,11 @@ struct arguments {
 };
 
 /**
+ * configuration for showing session
+ */
+struct session_config session_config;
+
+/**
  * The flags the user can write as program parameters.
  */
 enum argp_flags {
@@ -85,6 +90,7 @@ enum argp_flags {
 	ARGP_TCP = 't',
 	ARGP_UDP = 'u',
 	ARGP_ICMP = 'i',
+	ARGP_NUMERIC_HOSTNAME = 'n',
 	/*
 	ARGP_STATIC = 2000,
 	ARGP_DYNAMIC = 2001,
@@ -183,6 +189,7 @@ static struct argp_option options[] =
 	{ "icmp",		ARGP_ICMP,		NULL, 0, "Operate on the ICMP session table." },
 	{ "tcp",		ARGP_TCP,		NULL, 0, "Operate on the TCP session table." },
 	{ "udp",		ARGP_UDP,		NULL, 0, "Operate on the UDP session table." },
+	{ "numeric",		ARGP_NUMERIC_HOSTNAME,	NULL, 0, "don't resolve names." },
 	/*
 	{ "static",		ARGP_STATIC,	NULL, 0,
 			"Filter out entries created dynamically (by incoming connections from IPv6 networks). "
@@ -287,6 +294,9 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 	case ARGP_ICMP:
 		arguments->icmp = true;
+		break;
+	case ARGP_NUMERIC_HOSTNAME:
+		session_config.numeric_hostname = true;
 		break;
 
 	case ARGP_ADDRESS:
