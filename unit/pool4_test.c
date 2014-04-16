@@ -44,12 +44,16 @@ static bool test_get_match_aux(enum l4_protocol proto, int port_min, int port_ma
 			success &= assert_equals_int(0, pool4_get_match(proto, &base, &result), test_name);
 			success &= assert_false(ports[a][result], test_name);
 			ports[a][result] = true;
+
+			if (!success)
+				return false;
 		}
 
-		success &= assert_equals_int(-ESRCH, pool4_get_match(proto, &base, &result), test_name);
+		if (!assert_equals_int(-ESRCH, pool4_get_match(proto, &base, &result), test_name))
+			return false;
 	}
 
-	return success;
+	return true;
 }
 
 /**
@@ -97,12 +101,17 @@ static bool test_get_any_port_aux(enum l4_protocol proto, char *test_name)
 					test_name);
 			success &= assert_false(ports[a][result], test_name);
 			ports[a][result] = true;
+
+			if (!success)
+				return success;
 		}
-		success &= assert_equals_int(-ESRCH, pool4_get_any_port(proto, &expected_ips[a], &result),
-				test_name);
+
+		if (!assert_equals_int(-ESRCH, pool4_get_any_port(proto, &expected_ips[a], &result),
+				test_name))
+			return false;
 	}
 
-	return success;
+	return true;
 }
 
 static bool test_get_any_port_function_udp(void)
@@ -141,6 +150,9 @@ static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_rang
 				"Matched borrow 2-address");
 		success &= assert_false(ports[1][tuple_addr.l4_id], "Matched borrow 2-port");
 		ports[1][tuple_addr.l4_id] = true;
+
+		if (!success)
+			return success;
 	}
 
 	/* At this point, the pool should not have low even ports, so it should lend random data. */
@@ -158,6 +170,9 @@ static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_rang
 				"Mismatched borrow 2-address");
 		success &= assert_false(ports[1][tuple_addr.l4_id], "Mismatched borrow 2-port");
 		ports[1][tuple_addr.l4_id] = true;
+
+		if (!success)
+			return success;
 	}
 
 	/* The pool ran out of ports. */

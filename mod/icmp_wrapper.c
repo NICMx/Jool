@@ -1,5 +1,6 @@
 #include "nat64/mod/icmp_wrapper.h"
 
+#include <linux/version.h>
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 
@@ -68,7 +69,11 @@ static void icmp6_send(struct fragment *frag, icmp_error_code error, __be32 info
 		return; /* Not supported or needed. */
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || KERNEL_VERSION(3, 13, 0) <= LINUX_VERSION_CODE
 	icmpv6_send(frag->original_skb, type, code, info);
+#else
+#warning "You're compiling in kernel 3.12. See https://github.com/NICMx/NAT64/issues/90"
+#endif
 }
 
 void icmp64_send(struct fragment *frag, icmp_error_code error, __be32 info)

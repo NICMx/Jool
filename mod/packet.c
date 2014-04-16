@@ -263,8 +263,10 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	frag->original_skb = skb;
 	/*
 	 * If you're comparing this to frag_create_from_buffer_ipv4(), keep in mind that
-	 * ip6_input_finish() and __ip_local_out() tell me every IPv6 packet is already routed by the
-	 * time the pre-routing and local-out hooks run.
+	 * ip6_route_input() is not exported for dynamic modules to use (and linux doesn't know a route
+	 * to the NAT64 prefix anyway), so we have to test the shit out of kernel IPv6 functions which
+	 * might dereference the dst_entries of the skbs.
+	 * We already know of a bug in Linux 3.12 that does exactly that, see icmp_wrapper.c.
 	 */
 
 	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
@@ -405,6 +407,8 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 	frag->skb = NULL;
 	frag->dst = NULL;
 	frag->original_skb = skb;
+
+#ifndef UNIT_TESTING
 	if (skb && skb_rtable(skb) == NULL) {
 		/*
 		 * Some kernel functions assume that the incoming packet is already routed.
@@ -419,6 +423,7 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 		}
 		log_debug("making rtable %p", skb_rtable(frag->original_skb));
 	}
+#endif
 
 	error = init_ipv4_l3_hdr(frag, hdr);
 	if (error)
