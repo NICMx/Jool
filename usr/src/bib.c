@@ -2,6 +2,7 @@
 #include "nat64/comm/config_proto.h"
 #include "nat64/comm/str_utils.h"
 #include "nat64/usr/netlink.h"
+#include "nat64/usr/dns.h"
 #include <errno.h>
 
 
@@ -9,37 +10,40 @@
 #define PAYLOAD_LEN sizeof(struct request_bib)
 
 
+struct display_params {
+	bool numeric_hostname;
+	int row_count;
+};
+
 static int bib_display_response(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *hdr;
 	struct bib_entry_us *entries;
+	struct display_params *params = arg;
 	__u16 entry_count, i;
-	char addr_str[INET6_ADDRSTRLEN];
 
 	hdr = nlmsg_hdr(msg);
 	entries = nlmsg_data(hdr);
 	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
 
 	for (i = 0; i < entry_count; i++) {
-		inet_ntop(AF_INET6, &entries[i].ipv6.address, addr_str, INET6_ADDRSTRLEN);
-		printf("[%s] %s#%u - %s#%u\n",
-				entries[i].is_static ? "Static" : "Dynamic",
-				inet_ntoa(entries[i].ipv4.address),
-				entries[i].ipv4.l4_id,
-				addr_str,
-				entries[i].ipv6.l4_id);
+		printf("[%s] ", entries[i].is_static ? "Static" : "Dynamic");
+		print_ipv4_tuple(&entries[i].ipv4, params->numeric_hostname);
+		printf(" - ");
+		print_ipv6_tuple(&entries[i].ipv6, params->numeric_hostname);
+		printf("\n");
 	}
 
-	*((int *) arg) += entry_count;
+	params->row_count += entry_count;
 	return 0;
 }
 
-static bool display_single_table(char *table_name, l4_protocol l4_proto)
+static bool display_single_table(char *table_name, l4_protocol l4_proto, bool numeric_hostname)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
-	int row_count = 0;
+	struct display_params params;
 	bool error;
 
 	printf("%s:\n", table_name);
@@ -49,10 +53,13 @@ static bool display_single_table(char *table_name, l4_protocol l4_proto)
 	hdr->operation = OP_DISPLAY;
 	payload->l4_proto = l4_proto;
 
-	error = netlink_request(request, hdr->length, bib_display_response, &row_count);
+	params.numeric_hostname = numeric_hostname;
+	params.row_count = 0;
+
+	error = netlink_request(request, hdr->length, bib_display_response, &params);
 	if (!error) {
-		if (row_count > 0)
-			printf("  (Fetched %u entries.)\n", row_count);
+		if (params.row_count > 0)
+			printf("  (Fetched %u entries.)\n", params.row_count);
 		else
 			printf("  (empty)\n");
 	}
@@ -60,18 +67,18 @@ static bool display_single_table(char *table_name, l4_protocol l4_proto)
 	return error;
 }
 
-int bib_display(bool use_tcp, bool use_udp, bool use_icmp)
+int bib_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_hostname)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
 	int icmp_error = 0;
 
 	if (use_tcp)
-		tcp_error = display_single_table("TCP", L4PROTO_TCP);
+		tcp_error = display_single_table("TCP", L4PROTO_TCP, numeric_hostname);
 	if (use_udp)
-		udp_error = display_single_table("UDP", L4PROTO_UDP);
+		udp_error = display_single_table("UDP", L4PROTO_UDP, numeric_hostname);
 	if (use_icmp)
-		icmp_error = display_single_table("ICMP", L4PROTO_ICMP);
+		icmp_error = display_single_table("ICMP", L4PROTO_ICMP, numeric_hostname);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }
