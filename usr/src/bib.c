@@ -31,6 +31,7 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 		print_ipv4_tuple(&entries[i].ipv4, params->numeric_hostname);
 		printf(" - ");
 		print_ipv6_tuple(&entries[i].ipv6, params->numeric_hostname);
+		printf("\n");
 	}
 
 	params->row_count += entry_count;
