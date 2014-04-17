@@ -46,6 +46,7 @@ struct arguments {
 	/* BIB, session */
 	bool tcp, udp, icmp;
 	bool static_entries, dynamic_entries;
+	bool numeric_hostname;
 
 	struct ipv6_tuple_address bib6;
 	bool bib6_set;
@@ -57,11 +58,6 @@ struct arguments {
 	struct translate_config translate;
 	struct fragmentation_config fragmentation;
 };
-
-/**
- * configuration for showing session
- */
-struct session_config session_config;
 
 /**
  * The flags the user can write as program parameters.
@@ -165,6 +161,7 @@ static struct argp_option options[] =
 	{ "icmp",		ARGP_ICMP,		NULL, 0, "Print the ICMP BIB." },
 	{ "tcp",		ARGP_TCP,		NULL, 0, "Print the TCP BIB." },
 	{ "udp",		ARGP_UDP,		NULL, 0, "Print the UDP BIB." },
+	{ "numeric",	ARGP_NUMERIC_HOSTNAME,	NULL, 0, "Don't resolve names." },
 	/*
 	{ "static",		ARGP_STATIC,	NULL, 0,
 			"Filter out entries created dynamically (by incoming connections). " },
@@ -189,7 +186,7 @@ static struct argp_option options[] =
 	{ "icmp",		ARGP_ICMP,		NULL, 0, "Operate on the ICMP session table." },
 	{ "tcp",		ARGP_TCP,		NULL, 0, "Operate on the TCP session table." },
 	{ "udp",		ARGP_UDP,		NULL, 0, "Operate on the UDP session table." },
-	{ "numeric",		ARGP_NUMERIC_HOSTNAME,	NULL, 0, "don't resolve names." },
+	{ "numeric",	ARGP_NUMERIC_HOSTNAME,	NULL, 0, "Don't resolve names." },
 	/*
 	{ "static",		ARGP_STATIC,	NULL, 0,
 			"Filter out entries created dynamically (by incoming connections from IPv6 networks). "
@@ -296,7 +293,7 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->icmp = true;
 		break;
 	case ARGP_NUMERIC_HOSTNAME:
-		session_config.numeric_hostname = true;
+		arguments->numeric_hostname = true;
 		break;
 
 	case ARGP_ADDRESS:
@@ -527,7 +524,7 @@ static int main_wrapped(int argc, char **argv)
 	case MODE_BIB:
 		switch (args.operation) {
 		case OP_DISPLAY:
-			return bib_display(args.tcp, args.udp, args.icmp);
+			return bib_display(args.tcp, args.udp, args.icmp, args.numeric_hostname);
 		case OP_COUNT:
 			return bib_count(args.tcp, args.udp, args.icmp);
 
@@ -565,7 +562,7 @@ static int main_wrapped(int argc, char **argv)
 	case MODE_SESSION:
 		switch (args.operation) {
 		case OP_DISPLAY:
-			return session_display(args.tcp, args.udp, args.icmp);
+			return session_display(args.tcp, args.udp, args.icmp, args.numeric_hostname);
 		case OP_COUNT:
 			return session_count(args.tcp, args.udp, args.icmp);
 		default:

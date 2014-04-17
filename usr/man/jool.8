@@ -21,9 +21,9 @@ Kernels 2.6.38 and up.
 .br
 .RI "jool --pool4 [" OPERATION "] [--address " ADDRESS ]
 .br
-.RI "jool --bib [" OPERATION "] [" PROTOCOLS "] [--bib4 " BIB4 "] [--bib6 " BIB6 ]
+.RI "jool --bib [--numeric] [" OPERATION "] [" PROTOCOLS "] [--bib4 " BIB4 "] [--bib6 " BIB6 ]
 .br
-.RI "jool --session [" OPERATION "] [" PROTOCOLS ]
+.RI "jool --session [--numeric] [" OPERATION "] [" PROTOCOLS ]
 .br
 .RI "jool [--filtering] " "FLAG_KEY FLAG_VALUE"
 .br
@@ -76,6 +76,8 @@ Exampĺe: --bib4 10.20.30.40#5000
 .RI "The format is " IPV6_ADDRESS # PORT "."
 .br
 Exampĺe: --bib6 1::2#5000
+.IP --numeric
+.RI "Do not try to resolve hostnames. Only relevant when " --display " is present."
 
 .SS "--filtering's FLAG_KEYs"
 .IP --dropAddr=BOOL

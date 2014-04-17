@@ -34,7 +34,7 @@
 			__func__, ##__VA_ARGS__)
 	#define log_informational(func, text, ...) func(text "\n", ##__VA_ARGS__)
 #else
-	#define log_error(func, id, text, ...) printf("ERR%d: " text "\n", id, ##__VA_ARGS__)
+	#define log_error(func, id, text, ...) fprintf(stderr, "ERR%d: " text "\n", id, ##__VA_ARGS__)
 	#define log_informational(func, text, ...) printf(text "\n", ##__VA_ARGS__)
 #endif
 
