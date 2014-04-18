@@ -385,7 +385,6 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 		struct fragment *out)
 {
 	verdict result;
-	struct dst_entry *in_dst;
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(in);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
@@ -431,20 +430,16 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 		icmpv4_hdr->un.frag.__unused = 0;
 
 #ifndef UNIT_TESTING
-		if (!in->original_skb)
-			return VER_DROP;
-		in_dst = skb_dst(in->original_skb);
-		if (!in_dst)
+		if (!in->original_skb || !in->original_skb->dev)
 			return VER_DROP;
 
 		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
-		if (!out->dst)
+		if (!out->dst || !out->dst->dev)
 			return VER_DROP;
 
-		/* Note that dst_mtu() returns the PMTU, not the MTU, which is awesome. */
 		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
-				dst_mtu(out->dst),
-				dst_mtu(in_dst) - 20);
+				out->dst->dev->mtu,
+				in->original_skb->dev->mtu - 20);
 
 #else
 		icmpv4_hdr->un.frag.mtu = 1500;

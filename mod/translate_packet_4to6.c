@@ -239,7 +239,6 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 {
 	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(out);
-	struct dst_entry *in_dst;
 
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmpv6_hdr->icmp6_unused = 0;
@@ -271,20 +270,16 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 		icmpv6_hdr->icmp6_code = 0;
 
 #ifndef UNIT_TESTING
-		if (!in->original_skb)
-			return VER_DROP;
-		in_dst = skb_dst(in->original_skb);
-		if (!in_dst)
+		if (!in->original_skb || !in->original_skb->dev)
 			return VER_DROP;
 
 		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
-		if (!out->dst)
+		if (!out->dst || !out->dst->dev)
 			return VER_DROP;
 
-		/* Note that dst_mtu() returns the PMTU, not the MTU, which is awesome. */
 		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				dst_mtu(out->dst),
-				dst_mtu(in_dst) + 20,
+				out->dst->dev->mtu,
+				in->original_skb->dev->mtu + 20,
 				tot_len_field);
 
 #else
