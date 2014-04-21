@@ -74,6 +74,11 @@ int add_static_route(struct request_bib *req)
 		goto failure;
 	}
 
+	/*
+	 * We do not call bib_return(bib) here, because we want the entry to hold a fake user so the
+	 * timer doesn't delete it.
+	 */
+
 	return 0;
 
 already_mapped:
@@ -93,71 +98,50 @@ failure:
 	return error;
 }
 
-/* TODO this is wrong. It doesn't account for dynamic entries and might try to kfree a sessioned bib under heavy concurrence. */
 int delete_static_route(struct request_bib *req)
 {
 	struct bib_entry *bib;
-	int s = 0;
 	int error = 0;
 
 	switch (req->remove.l3_proto) {
 	case L3PROTO_IPV6:
 		error = bibdb_get_by_ipv6(&req->remove.ipv6, req->l4_proto, &bib);
-		if (error)
-			goto end;
 		break;
 	case L3PROTO_IPV4:
 		error = bibdb_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
-		if (error)
-			goto end;
 		break;
 	default:
 		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
 		error = -EINVAL;
-		goto end;
+		break;
 	}
 
-	if (!bib) {
+	if (error == -ENOENT) {
 		log_err(ERR_BIB_NOT_FOUND, "Could not find the BIB entry requested by the user.");
-		error = -ENOENT;
-		goto end;
+		return error;
 	}
-
-	/*
-	 * If everything is going smoothly, bib's refcounter should be 1 + 1 + x, where the first one is
-	 * the fake user, the second is the reference we just got by calling bibdb_get*, and x is the
-	 * bib's session count.
-	 */
-
-	/*
-	 * I'm tempted to assert that the entry is static here. Would that serve a purpose?
-	 * Nah.
-	 */
-
-	s = atomic_read(&bib->refcounter.refcount) - 2;
-	log_debug("The BIB has %d sessions.", s);
-
-	error = sessiondb_delete_by_bib(bib);
 	if (error)
-		goto error;
+		return error;
 
-	s = atomic_read(&bib->refcounter.refcount) - 2;
-	log_debug("The BIB ended with %d sessions.", s);
-
-	error = bibdb_remove(bib, req->l4_proto);
-	if (error) {
-		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended with error code %d, "
-				"despite validations.", error);
-		goto error;
+	/* Remove the fake user. */
+	if (bib->is_static) {
+		bib_return(bib);
+		bib->is_static = false;
 	}
 
-	bib_kfree(bib);
-	/* Fall through. */
+	/* Remove bib's sessions and their references. */
+	error = sessiondb_delete_by_bib(bib);
+	if (error) {
+		bib_return(bib);
+		return error;
+	}
 
-end:
-	return error;
+	/* Remove our own reference. If it was the last one, the entry should be no more. */
+	if (bib_return(bib) == 0) {
+		log_err(ERR_INCOMPLETE_REMOVE, "Looks like some packet was using the BIB entry, "
+				"so it couldn't be deleted. Please try again.");
+		return -EAGAIN;
+	}
 
-error:
-	bib_return(bib);
-	return error;
+	return 0;
 }

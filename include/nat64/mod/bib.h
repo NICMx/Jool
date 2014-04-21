@@ -25,13 +25,25 @@ struct bib_entry {
 	/** The address from the IPv6 network. */
 	struct ipv6_tuple_address ipv6;
 
-	/** l4 protocol used for pool4 return. **/
+	/** l4 protocol used for pool4 return. */
 	l4_protocol l4_proto;
 
-	/** Should the entry never expire? */
+	/**
+	 * Should the entry never expire?
+	 *
+	 * This field is currently only being used by the userspace app's code. If you want to do
+	 * something else with it, keep in mind that you might face the wrath of concurrence hell,
+	 * because config.c's mutex is the only thing protecting it.
+	 *
+	 * The kernel never needs to know whether the entry is static. Preventing the death of a static
+	 * entry when it runs out of sessions is handled by adding a fake user to refcounter.
+	 */
 	bool is_static;
 
-	/** A reference counter related to this BIB. */
+	/**
+	 * Number of active references to this entry, excluding the BIB database's. When this reaches
+	 * zero, the entry is removed from the database and freed.
+	 */
 	struct kref refcounter;
 
 	struct rb_node tree6_hook;
