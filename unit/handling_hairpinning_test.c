@@ -11,8 +11,8 @@
 #include "nat64/comm/str_utils.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -144,12 +144,12 @@ static struct bib_entry *create_and_insert_static_bib(int l4_proto)
 	addr4.l4_id = STATIC_BIB_IPV4_PORT;
 	addr6.l4_id = STATIC_BIB_IPV6_PORT;
 
-	bib = bib_create(&addr4, &addr6, true);
+	bib = bib_create(&addr4, &addr6, true, l4_proto);
 	if (!bib) {
 		log_warning("Could not allocate the static BIB entry.");
 		return NULL;
 	}
-	if (is_error(bib_add(bib, l4_proto)))
+	if (is_error(bibdb_add(bib, l4_proto)))
 		return NULL;
 
 	return bib;
@@ -210,7 +210,7 @@ static struct bib_entry *create_dynamic_bib(int l4_proto)
 	addr6.l4_id = DYNAMIC_BIB_IPV6_PORT;
 	addr4.l4_id = DYNAMIC_BIB_IPV4_PORT;
 
-	bib = bib_create(&addr4, &addr6, true);
+	bib = bib_create(&addr4, &addr6, true, l4_proto);
 	if (!bib) {
 		log_warning("Could not allocate the dynamic BIB entry.");
 		return NULL;
@@ -350,8 +350,8 @@ static void deinit(void)
 {
 	translate_packet_destroy();
 	filtering_destroy();
-	session_destroy();
-	bib_destroy();
+	sessiondb_destroy();
+	bibdb_destroy();
 	pool4_destroy();
 	pool6_destroy();
 	pktmod_destroy();
@@ -372,10 +372,10 @@ static int init(void)
 	error = pool4_init(pool4, ARRAY_SIZE(pool4));
 	if (error)
 		goto failure;
-	error = bib_init();
+	error = bibdb_init();
 	if (error)
 		goto failure;
-	error = session_init();
+	error = sessiondb_init();
 	if (error)
 		goto failure;
 	error = filtering_init();

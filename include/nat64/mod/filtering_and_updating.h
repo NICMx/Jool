@@ -13,6 +13,7 @@
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/packet.h"
+#include "nat64/mod/session.h"
 
 
 int filtering_init(void);
@@ -23,5 +24,6 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config);
 
 verdict filtering_and_updating(struct fragment *frag, struct tuple *tuple);
 
+void set_tcp_trans_timer(struct session_entry *session);
 
 #endif /* _NF_NAT64_FILTERING_H */

@@ -63,13 +63,13 @@ static noinline bool inject_bib_entry(l4_protocol l4_proto)
 		ta_ipv6.l4_id = IPV6_INJECT_BIB_ENTRY_SRC_PORT;
 	}
 
-	bib_e = bib_create(&ta_ipv4, &ta_ipv6, false);
+	bib_e = bib_create(&ta_ipv4, &ta_ipv6, false, l4_proto);
 	if (!bib_e) {
 		log_warning("Could not allocate the BIB entry.");
 		return false;
 	}
 
-	if (bib_add(bib_e, l4_proto) != 0) {
+	if (bibdb_add(bib_e, l4_proto) != 0) {
 		log_warning("Could not insert the BIB entry to the table.");
 		return false;
 	}
@@ -94,20 +94,20 @@ static noinline bool test_allocate_ipv4_transport_address(void)
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_ICMP)))
 		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
+	success &= assert_equals_int(0, bibdb_allocate_ipv4_transport_address(&tuple, &tuple_addr),
 			"ICMP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "ICMP address");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
 		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
+	success &= assert_equals_int(0, bibdb_allocate_ipv4_transport_address(&tuple, &tuple_addr),
 			"TCP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "TCP address");
 	success &= assert_true(tuple_addr.l4_id > 1023, "Port range for TCP");
 
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
 		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
+	success &= assert_equals_int(0, bibdb_allocate_ipv4_transport_address(&tuple, &tuple_addr),
 			"UDP result");
 	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "UDP address");
 	success &= assert_true(tuple_addr.l4_id % 2 == 0, "UDP port parity");
@@ -128,7 +128,7 @@ static bool assert_bib_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success &= assert_equals_int(0, bib_for_each(proto, bib_count_fn, &count), "count");
+	success &= assert_equals_int(0, bibdb_for_each(proto, bib_count_fn, &count), "count");
 	success &= assert_equals_int(expected, count, "BIB count");
 
 	return success;
@@ -145,7 +145,7 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 		return false;
 	tuple_addr.l4_id = port6;
 
-	success &= assert_equals_int(0, bib_get_by_ipv6(&tuple_addr, proto, &bib), "BIB exists");
+	success &= assert_equals_int(0, bibdb_get_by_ipv6(&tuple_addr, proto, &bib), "BIB exists");
 	if (!success)
 		return false;
 
@@ -154,7 +154,9 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 	success &= assert_equals_ipv4_str(addr4, &bib->ipv4.address, "IPv4 address");
 	success &= assert_equals_u16(port4, bib->ipv4.l4_id, "IPv4 port");
 	success &= assert_false(bib->is_static, "BIB is dynamic");
-	success &= assert_list_count(session_count, &bib->sessions, "Session count");
+	success &= assert_equals_int(session_count, atomic_read(&bib->refcounter.refcount) - 1, "BIB Session count");
+
+	bib_return(bib);
 
 	return success;
 }
@@ -171,7 +173,7 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success = assert_equals_int(0, session_for_each(proto, session_count_fn, &count), "count");
+	success = assert_equals_int(0, sessiondb_for_each(proto, session_count_fn, &count), "count");
 	success = assert_equals_int(expected, count, "Session count");
 
 	return success;
@@ -194,7 +196,7 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 		return false;
 	pair6.local.l4_id = local_port6;
 
-	success &= assert_equals_int(0, session_get_by_ipv6(&pair6, proto, &session), "Session exists");
+	success &= assert_equals_int(0, sessiondb_get_by_ipv6(&pair6, proto, &session), "Session exists");
 	if (!success)
 		return false;
 
@@ -209,6 +211,8 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	success &= assert_not_null(session->bib, "Session's BIB");
 	success &= assert_equals_int(proto, session->l4_proto, "Session's l4 proto");
 	success &= assert_equals_int(state, session->state, "Session's state");
+
+	session_return(session);
 
 	return success;
 }
@@ -519,7 +523,6 @@ static noinline bool init_tcp_session(
 
 	session->dying_time = jiffies - msecs_to_jiffies(100);
 	session->bib = NULL;
-	INIT_LIST_HEAD(&session->bib_list_hook);
 	INIT_LIST_HEAD(&session->expire_list_hook);
 	session->l4_proto = L4PROTO_TCP;
 	session->state = state;
@@ -611,7 +614,7 @@ static noinline bool test_tcp_closed_state_handle_6(void)
 	success &= assert_equals_int(0, tcp_closed_state_handle(frag, &tuple), "V6 syn-result");
 
 	/* Validate */
-	success &= assert_equals_int(0, session_get(&tuple, &session), "V6 syn-session.");
+	success &= assert_equals_int(0, sessiondb_get(&tuple, &session), "V6 syn-session.");
 	if (success)
 		success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
 
@@ -1138,10 +1141,10 @@ static noinline bool init_full(void)
 	error = pool4_init(NULL, 0);
 	if (error)
 		goto fail;
-	error = bib_init();
+	error = bibdb_init();
 	if (error)
 		goto fail;
-	error = session_init();
+	error = sessiondb_init();
 	if (error)
 		goto fail;
 	error = filtering_init();
@@ -1158,6 +1161,8 @@ static noinline bool init_filtering_only(void)
 {
 	if (is_error(pktmod_init()))
 		return false;
+	if (is_error(sessiondb_init()))
+			return false;
 	if (is_error(filtering_init()))
 		return false;
 
@@ -1167,8 +1172,8 @@ static noinline bool init_filtering_only(void)
 static void end_full(void)
 {
 	filtering_destroy();
-	session_destroy();
-	bib_destroy();
+	sessiondb_destroy();
+	bibdb_destroy();
 	pool4_destroy();
 	pool6_destroy();
 	pktmod_destroy();
@@ -1177,6 +1182,7 @@ static void end_full(void)
 static void end_filtering_only(void)
 {
 	filtering_destroy();
+	sessiondb_destroy();
 	pktmod_destroy();
 }
 

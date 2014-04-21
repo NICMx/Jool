@@ -4,8 +4,8 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -120,10 +120,10 @@ int __init nat64_init(void)
 	error = pool4_init(pool4, pool4_size);
 	if (error)
 		goto pool4_failure;
-	error = bib_init();
+	error = bibdb_init();
 	if (error)
 		goto bib_failure;
-	error = session_init();
+	error = sessiondb_init();
 	if (error)
 		goto session_failure;
 	error = filtering_init();
@@ -149,10 +149,10 @@ translate_packet_failure:
 	filtering_destroy();
 
 filtering_failure:
-	session_destroy();
+	sessiondb_destroy();
 
 session_failure:
-	bib_destroy();
+	bibdb_destroy();
 
 bib_failure:
 	pool4_destroy();
@@ -181,8 +181,8 @@ void __exit nat64_exit(void)
 	/* Deinitialize the submodules. */
 	translate_packet_destroy();
 	filtering_destroy();
-	session_destroy();
-	bib_destroy();
+	sessiondb_destroy();
+	bibdb_destroy();
 	pool4_destroy();
 	pool6_destroy();
 	fragdb_destroy();

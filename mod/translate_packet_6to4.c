@@ -435,6 +435,7 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 
 		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
 		if (!out->dst || !out->dst->dev)
+			/* TODO return the dst's ref. */
 			return VER_DROP;
 
 		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,

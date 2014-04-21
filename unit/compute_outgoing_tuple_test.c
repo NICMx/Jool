@@ -34,7 +34,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	addr6.address = *ip6_addr;
 	addr6.l4_id = ip6_port;
 
-	bib = bib_create(&addr4, &addr6, false);
+	bib = bib_create(&addr4, &addr6, false, l4_proto);
 	if (!bib) {
 		log_warning("Can't allocate a BIB entry!");
 		return false;
@@ -47,7 +47,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	*/
 
 	/* Add it to the table. */
-	if (is_error(bib_add(bib, l4_proto))) {
+	if (is_error(bibdb_add(bib, l4_proto))) {
 		log_warning("Can't add the dummy BIB to the table.");
 		bib_kfree(bib);
 		return false;
@@ -96,7 +96,7 @@ static bool init(void)
 	prefix.len = 96;
 
 	/* Init the BIB module */
-	if (is_error(bib_init()))
+	if (is_error(bibdb_init()))
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(l4_protos); i++)
@@ -111,7 +111,7 @@ static bool init(void)
  */
 static void cleanup(void)
 {
-	bib_destroy();
+	bibdb_destroy();
 	pool6_destroy();
 }
 

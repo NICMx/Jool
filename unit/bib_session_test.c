@@ -6,8 +6,8 @@
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
-#include "nat64/mod/bib.h"
-#include "session.c"
+#include "nat64/mod/bib_db.h"
+#include "session_db.c"
 
 
 MODULE_LICENSE("GPL");
@@ -44,13 +44,13 @@ static struct bib_entry *create_and_insert_bib(struct ipv4_tuple_address *ipv4,
 	struct bib_entry *result;
 	int error;
 
-	result = bib_create(ipv4, ipv6, false);
+	result = bib_create(ipv4, ipv6, false, l4proto);
 	if (!result) {
 		log_err(ERR_ALLOC_FAILED, "kmalloc failed, apparently.");
 		return NULL;
 	}
 
-	error = bib_add(result, l4proto);
+	error = bibdb_add(result, l4proto);
 	if (error) {
 		log_warning("Could not insert the BIB entry to the table; call returned %d.", error);
 		bib_kfree(result);
@@ -80,7 +80,7 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 	entry->dying_time = dying_time;
 	if (bib) {
 		entry->bib = bib;
-		list_add(&entry->bib_list_hook, &bib->sessions);
+		bib_get(bib);
 	}
 
 	return entry;
@@ -99,7 +99,7 @@ static struct session_entry *create_and_insert_session(int remote4_id, int local
 		return NULL;
 	}
 
-	error = session_add(result);
+	error = sessiondb_add(result);
 	if (error) {
 		log_warning("Could not insert the session entry to the table; call returned %d.", error);
 		return NULL;
@@ -191,12 +191,12 @@ static bool assert_bib(char* test_name, struct bib_entry* bib,
 		int success = true;
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
-				bib_get_by_ipv4(&bib->ipv4, l4_protos[i], &retrieved_bib),
+				bibdb_get_by_ipv4(&bib->ipv4, l4_protos[i], &retrieved_bib),
 				test_name);
 		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
-				bib_get_by_ipv6(&bib->ipv6, l4_protos[i], &retrieved_bib),
+				bibdb_get_by_ipv6(&bib->ipv6, l4_protos[i], &retrieved_bib),
 				test_name);
 		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
 
@@ -229,12 +229,12 @@ static bool assert_session(char* test_name, struct session_entry* session,
 		bool success = true;
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
-				session_get_by_ipv4(&pair_4, l4_protos[i], &retrieved_session),
+				sessiondb_get_by_ipv4(&pair_4, l4_protos[i], &retrieved_session),
 				test_name);
 		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
-				session_get_by_ipv6(&pair_6, l4_protos[i], &retrieved_session),
+				sessiondb_get_by_ipv6(&pair_6, l4_protos[i], &retrieved_session),
 				test_name);
 		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
 
@@ -257,17 +257,18 @@ static bool simple_bib(void)
 {
 	struct bib_entry *bib;
 	bool success = true;
+	l4_protocol l4_proto = L4PROTO_TCP;
 
-	bib = bib_create(&addr4[0], &addr6[0], false);
+	bib = bib_create(&addr4[0], &addr6[0], false, l4_proto);
 	if (!assert_not_null(bib, "Allocation of test BIB entry"))
 		return false;
 
-	success &= assert_equals_int(0, bib_add(bib, L4PROTO_TCP), "BIB insertion call");
+	success &= assert_equals_int(0, bibdb_add(bib, L4PROTO_TCP), "BIB insertion call");
 	success &= assert_bib("BIB insertion state", bib, false, true, false);
 	if (!success)
 		return false;
 
-	success &= assert_equals_int(0, bib_remove(bib, L4PROTO_TCP), "BIB removal call");
+	success &= assert_equals_int(0, bibdb_remove(bib, L4PROTO_TCP), "BIB removal call");
 	success &= assert_bib("BIB removal state", bib, false, false, false);
 	if (!success)
 		return false;
@@ -285,12 +286,12 @@ static bool simple_session(void)
 	if (!assert_not_null(session, "Allocation of test session entry"))
 		return false;
 
-	success &= assert_equals_int(0, session_add(session), "Session insertion call");
+	success &= assert_equals_int(0, sessiondb_add(session), "Session insertion call");
 	success &= assert_session("Session insertion state", session, false, true, false);
 	if (!success)
 		return false; /* See simple_bib(). */
 
-	success &= assert_equals_int(0, session_remove(session), "Session removal call");
+	success &= assert_equals_int(0, sessiondb_remove(session), "Session removal call");
 	success &= assert_session("Session removal state", session, false, false, false);
 	if (!success)
 		return false;
@@ -311,7 +312,7 @@ static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst
 	tuple.l4_proto = L4PROTO_UDP;
 	tuple.l3_proto 	= L3PROTO_IPV4;
 
-	return session_allow(&tuple);
+	return sessiondb_allow(&tuple);
 }
 
 static bool test_address_filtering(void)
@@ -457,7 +458,7 @@ static bool test_for_each_ipv6(void)
 			summary.visited[i] = false;
 
 		success &= assert_equals_int(0,
-				bib_for_each_ipv6(L4PROTO_UDP, &addr6[1].address, foreach6_func, &summary),
+				bibdb_for_each_ipv6(L4PROTO_UDP, &addr6[1].address, foreach6_func, &summary),
 				"result");
 		for (i = 0; i < 7; i++)
 			success &= assert_true(summary.visited[i], "node visited.");
@@ -486,11 +487,11 @@ static bool init(void)
 		addr6[i].l4_id = IPV6_PORTS[i];
 	}
 
-	if (is_error(bib_init()))
+	if (is_error(bibdb_init()))
 		return false;
 
-	if (is_error(session_init())) {
-		bib_destroy();
+	if (is_error(sessiondb_init())) {
+		bibdb_destroy();
 		return false;
 	}
 
@@ -499,8 +500,8 @@ static bool init(void)
 
 static void end(void)
 {
-	session_destroy();
-	bib_destroy();
+	sessiondb_destroy();
+	bibdb_destroy();
 }
 
 int init_module(void)

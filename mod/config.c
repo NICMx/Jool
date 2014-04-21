@@ -6,8 +6,8 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -241,9 +241,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		spin_lock_bh(&bib_session_lock);
-		error = bib_for_each(request->l4_proto, bib_entry_to_userspace, stream);
-		spin_unlock_bh(&bib_session_lock);
+		error = bibdb_for_each(request->l4_proto, bib_entry_to_userspace, stream);
 		stream_close(stream);
 
 		kfree(stream);
@@ -251,7 +249,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 	case OP_COUNT:
 		log_debug("Returning BIB count.");
-		error = bib_count(request->l4_proto, &count);
+		error = bibdb_count(request->l4_proto, &count);
 		if (error)
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
@@ -309,9 +307,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		spin_lock_bh(&bib_session_lock);
-		error = session_for_each(request->l4_proto, session_entry_to_userspace, stream);
-		spin_unlock_bh(&bib_session_lock);
+		error = sessiondb_for_each(request->l4_proto, session_entry_to_userspace, stream);
 		stream_close(stream);
 
 		kfree(stream);
@@ -319,7 +315,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 
 	case OP_COUNT:
 		log_debug("Returning session count.");
-		error = session_count(request->l4_proto, &count);
+		error = sessiondb_count(request->l4_proto, &count);
 		if (error)
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));

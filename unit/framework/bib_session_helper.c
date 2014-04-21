@@ -12,7 +12,7 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 	int expected_count = 0;
 	int actual_count = 0;
 
-	if (is_error(bib_for_each(l4_proto, count_bibs, &actual_count))) {
+	if (is_error(bibdb_for_each(l4_proto, count_bibs, &actual_count))) {
 		log_warning("Could not count the BIB entries in the database for some reason.");
 		return false;
 	}
@@ -22,7 +22,7 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 		struct bib_entry *actual;
 		int error;
 
-		error = bib_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
+		error = bibdb_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
 		if (error) {
 			log_warning("Error %d while trying to find BIB entry [%pI6c#%u, %pI4#%u] in the DB.",
 					error, &expected->ipv6.address, expected->ipv6.l4_id,
@@ -54,7 +54,7 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 	int expected_count = 0;
 	int actual_count = 0;
 
-	if (is_error(session_for_each(l4_proto, count_sessions, &actual_count))) {
+	if (is_error(sessiondb_for_each(l4_proto, count_sessions, &actual_count))) {
 		log_warning("Could not count the session entries in the database for some reason.");
 		return false;
 	}
@@ -64,7 +64,7 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 		struct session_entry *actual;
 		int error;
 
-		error = session_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
+		error = sessiondb_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
 		if (error) {
 			log_warning("Error %d while trying to find session entry %d [%pI6c#%u, %pI6c#%u, "
 					"%pI4#%u, %pI4#%u] in the DB.", error, expected_count,
@@ -99,7 +99,7 @@ static int print_bibs_aux(struct bib_entry *bib, void *arg)
 int print_bibs(l4_protocol l4_proto)
 {
 	log_debug("BIB:");
-	return bib_for_each(l4_proto, print_bibs_aux, NULL);
+	return bibdb_for_each(l4_proto, print_bibs_aux, NULL);
 }
 
 static int print_sessions_aux(struct session_entry *session, void *arg)
@@ -116,5 +116,5 @@ static int print_sessions_aux(struct session_entry *session, void *arg)
 int print_sessions(l4_protocol l4_proto)
 {
 	log_debug("Sessions:");
-	return session_for_each(l4_proto, print_sessions_aux, NULL);
+	return sessiondb_for_each(l4_proto, print_sessions_aux, NULL);
 }

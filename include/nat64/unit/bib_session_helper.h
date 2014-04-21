@@ -1,7 +1,7 @@
 #include <linux/types.h>
 
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 
 
 bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs);

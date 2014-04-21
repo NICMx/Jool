@@ -275,6 +275,7 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 
 		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
 		if (!out->dst || !out->dst->dev)
+			/* TODO in the second case, we need to return the reference. */
 			return VER_DROP;
 
 		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,

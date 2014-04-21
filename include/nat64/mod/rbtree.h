@@ -107,5 +107,35 @@
 		(root)->rb_node = NULL; \
 	}
 
+/**
+ * This is just a stock search on a Red-Black tree.
+ *
+ * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
+ * see https://www.kernel.org/doc/Documentation/rbtree.txt.
+ */
+#define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, node) \
+	({ \
+		int err = 0; \
+		node = &((root)->rb_node); \
+		parent = NULL; \
+		\
+		/* Figure out where to put new node */ \
+		while (*node) { \
+			type *entry = rb_entry(*node, type, hook_name); \
+			int comparison = compare_cb(entry, expected); \
+			\
+			parent = *node; \
+			if (comparison < 0) { \
+				node = &((*node)->rb_left); \
+			} else if (comparison > 0) { \
+				node = &((*node)->rb_right); \
+			} else { \
+				err = -EEXIST; \
+				break; \
+			} \
+		} \
+		err; \
+	})
+
 
 #endif /* _NF_NAT64_RBTREE_H */

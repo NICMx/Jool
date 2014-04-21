@@ -9,8 +9,8 @@
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/config.h"
 #include "nat64/mod/pool4.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include <linux/slab.h>
 
 
@@ -26,10 +26,8 @@ int add_static_route(struct request_bib *req)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&bib_session_lock);
-
 	/* Check if the BIB entry exists. */
-	error = bib_get_by_ipv6(&req->add.ipv6, req->l4_proto, &bib_by_ipv6);
+	error = bibdb_get_by_ipv6(&req->add.ipv6, req->l4_proto, &bib_by_ipv6);
 	if (!error) {
 		bib = bib_by_ipv6;
 		goto already_mapped;
@@ -37,7 +35,7 @@ int add_static_route(struct request_bib *req)
 	if (error != -ENOENT)
 		goto generic_error;
 
-	error = bib_get_by_ipv4(&req->add.ipv4, req->l4_proto, &bib_by_ipv4);
+	error = bibdb_get_by_ipv4(&req->add.ipv4, req->l4_proto, &bib_by_ipv4);
 	if (!error) {
 		bib = bib_by_ipv4;
 		goto already_mapped;
@@ -62,20 +60,20 @@ int add_static_route(struct request_bib *req)
 	}
 
 	/* Create and insert the entry. */
-	bib = bib_create(&req->add.ipv4, &req->add.ipv6, true);
+	bib = bib_create(&req->add.ipv4, &req->add.ipv6, true, req->l4_proto);
 	if (!bib) {
 		log_err(ERR_ALLOC_FAILED, "Could NOT allocate a BIB entry.");
 		error = -ENOMEM;
 		goto failure;
 	}
 
-	error = bib_add(bib, req->l4_proto);
+	error = bibdb_add(bib, req->l4_proto);
 	if (error) {
 		log_err(ERR_UNKNOWN_ERROR, "Could NOT add the BIB entry to the table.");
+		bib_kfree(bib);
 		goto failure;
 	}
 
-	spin_unlock_bh(&bib_session_lock);
 	return 0;
 
 already_mapped:
@@ -83,7 +81,7 @@ already_mapped:
 			&bib->ipv6.address, bib->ipv6.l4_id,
 			&bib->ipv4.address, bib->ipv4.l4_id);
 	error = -EEXIST;
-	bib = NULL;
+	bib_return(bib);
 	goto failure;
 
 generic_error:
@@ -92,28 +90,24 @@ generic_error:
 	/* Fall through. */
 
 failure:
-	if (bib)
-		bib_kfree(bib);
-	spin_unlock_bh(&bib_session_lock);
 	return error;
 }
 
+/* TODO this is wrong. It doesn't account for dynamic entries and might try to kfree a sessioned bib under heavy concurrence. */
 int delete_static_route(struct request_bib *req)
 {
 	struct bib_entry *bib;
-	struct session_entry *session;
+	int s = 0;
 	int error = 0;
-
-	spin_lock_bh(&bib_session_lock);
 
 	switch (req->remove.l3_proto) {
 	case L3PROTO_IPV6:
-		error = bib_get_by_ipv6(&req->remove.ipv6, req->l4_proto, &bib);
+		error = bibdb_get_by_ipv6(&req->remove.ipv6, req->l4_proto, &bib);
 		if (error)
 			goto end;
 		break;
 	case L3PROTO_IPV4:
-		error = bib_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
+		error = bibdb_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
 		if (error)
 			goto end;
 		break;
@@ -130,39 +124,40 @@ int delete_static_route(struct request_bib *req)
 	}
 
 	/*
+	 * If everything is going smoothly, bib's refcounter should be 1 + 1 + x, where the first one is
+	 * the fake user, the second is the reference we just got by calling bibdb_get*, and x is the
+	 * bib's session count.
+	 */
+
+	/*
 	 * I'm tempted to assert that the entry is static here. Would that serve a purpose?
 	 * Nah.
 	 */
 
-	while (!list_empty(&bib->sessions)) {
-		session = container_of(bib->sessions.next, struct session_entry, bib_list_hook);
-		error = session_remove(session);
-		if (error) {
-			log_err(ERR_UNKNOWN_ERROR,
-					"Session [%pI6c#%u, %pI6c#%u, %pI4#%u, %pI4#%u] refused to die.",
-					&session->ipv6.remote.address, session->ipv6.remote.l4_id,
-					&session->ipv6.local.address, session->ipv6.local.l4_id,
-					&session->ipv4.local.address, session->ipv4.local.l4_id,
-					&session->ipv4.remote.address, session->ipv4.remote.l4_id);
-			goto end;
-		}
-		list_del(&session->bib_list_hook);
-		list_del(&session->expire_list_hook);
-		session_kfree(session);
-	}
+	s = atomic_read(&bib->refcounter.refcount) - 2;
+	log_debug("The BIB has %d sessions.", s);
 
-	error = bib_remove(bib, req->l4_proto);
+	error = sessiondb_delete_by_bib(bib);
+	if (error)
+		goto error;
+
+	s = atomic_read(&bib->refcounter.refcount) - 2;
+	log_debug("The BIB ended with %d sessions.", s);
+
+	error = bibdb_remove(bib, req->l4_proto);
 	if (error) {
 		log_err(ERR_UNKNOWN_ERROR, "Remove bib entry call ended with error code %d, "
 				"despite validations.", error);
-		goto end;
+		goto error;
 	}
 
-	pool4_return(req->l4_proto, &bib->ipv4);
 	bib_kfree(bib);
 	/* Fall through. */
 
 end:
-	spin_unlock_bh(&bib_session_lock);
+	return error;
+
+error:
+	bib_return(bib);
 	return error;
 }
