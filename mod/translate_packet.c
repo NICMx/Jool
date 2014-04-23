@@ -378,7 +378,6 @@ static verdict divide(struct fragment *frag, struct list_head *list)
 		}
 
 		new_fragment->skb = new_skb;
-		new_fragment->dst = NULL;
 		new_fragment->l3_hdr.proto = frag->l3_hdr.proto;
 		new_fragment->l3_hdr.len = frag->l3_hdr.len;
 		new_fragment->l3_hdr.ptr = skb_network_header(new_skb);
@@ -472,13 +471,19 @@ verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 	struct packet *dummy_pkt_in = NULL;
 	struct packet *dummy_pkt_out = NULL;
 	struct fragment *out_inner = NULL;
+	struct tuple inner_tuple;
 	struct translation_steps *step;
 	verdict result = VER_DROP;
+
+	inner_tuple.src = tuple->dst;
+	inner_tuple.dst = tuple->src;
+	inner_tuple.l3_proto = tuple->l3_proto;
+	inner_tuple.l4_proto = tuple->l4_proto;
 
 	step = &steps[in_inner->l3_hdr.proto][in_inner->l4_hdr.proto];
 
 	/* Actually translate the inner packet. */
-	result = translate(tuple, in_inner, &out_inner, step);
+	result = translate(&inner_tuple, in_inner, &out_inner, step);
 	if (result != VER_CONTINUE)
 		return result;
 
@@ -486,7 +491,7 @@ verdict translate_inner_packet(struct tuple *tuple, struct fragment *in_inner,
 		goto end;
 	if (is_error(pkt_create(out_inner, &dummy_pkt_out)))
 		goto end;
-	result = step->l4_post_function(tuple, dummy_pkt_in, dummy_pkt_out);
+	result = step->l4_post_function(&inner_tuple, dummy_pkt_in, dummy_pkt_out);
 	if (result != VER_CONTINUE)
 		goto end;
 
@@ -537,7 +542,6 @@ end:
 static verdict post_process(struct tuple *tuple, struct packet *in, struct packet *out)
 {
 	struct fragment *frag;
-	struct sk_buff *skb;
 	verdict result;
 	struct translation_steps *step = &steps[pkt_get_l3proto(in)][pkt_get_l4proto(in)];
 
@@ -546,9 +550,8 @@ static verdict post_process(struct tuple *tuple, struct packet *in, struct packe
 		return result;
 
 #ifndef UNIT_TESTING
-
 	list_for_each_entry(frag, &out->fragments, list_hook) {
-		skb = frag->skb;
+		struct sk_buff *skb = frag->skb;
 		/* Moved skb->protocol to frag_create_skb() and divide(). */
 		/* Moved skb->mark to translate() and divide(). */
 
@@ -556,26 +559,24 @@ static verdict post_process(struct tuple *tuple, struct packet *in, struct packe
 		 * I'm not sure if I should only route the first fragment or all of them separately.
 		 * Well, there's the routing cache, so this shouldn't be too slow.
 		 */
-		if (!frag->dst) {
+		if (!skb_dst(skb)) {
+			struct dst_entry *dst = NULL;
+
 			switch (frag->l3_hdr.proto) {
 			case L3PROTO_IPV6:
-				frag->dst = route_ipv6(frag->l3_hdr.ptr, frag->l4_hdr.ptr, frag->l4_hdr.proto,
-						skb->mark);
+				dst = route_ipv6(frag->l3_hdr.ptr, frag->l4_hdr.ptr, frag->l4_hdr.proto, skb->mark);
 				break;
 			case L3PROTO_IPV4:
-				frag->dst = route_ipv4(frag->l3_hdr.ptr, frag->l4_hdr.ptr, frag->l4_hdr.proto,
-						skb->mark);
+				dst = route_ipv4(frag->l3_hdr.ptr, frag->l4_hdr.ptr, frag->l4_hdr.proto, skb->mark);
 				break;
 			}
 
-			if (!frag->dst)
+			if (!dst)
 				return VER_DROP;
+
+			skb_dst_set(skb, dst);
 		}
-
-		skb->dev = frag->dst->dev;
-		skb_dst_set(skb, frag->dst);
 	}
-
 #endif
 
 	return VER_CONTINUE;

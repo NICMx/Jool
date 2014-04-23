@@ -259,7 +259,6 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	}
 
 	frag->skb = NULL;
-	frag->dst = NULL;
 	frag->original_skb = skb;
 	/*
 	 * If you're comparing this to frag_create_from_buffer_ipv4(), keep in mind that
@@ -405,7 +404,6 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 	}
 
 	frag->skb = NULL;
-	frag->dst = NULL;
 	frag->original_skb = skb;
 
 #ifndef UNIT_TESTING

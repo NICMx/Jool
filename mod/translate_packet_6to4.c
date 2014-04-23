@@ -427,23 +427,9 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 		 */
 		icmpv4_hdr->type = ICMP_DEST_UNREACH;
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
-		icmpv4_hdr->un.frag.__unused = 0;
-
-#ifndef UNIT_TESTING
-		if (!in->original_skb || !in->original_skb->dev)
-			return VER_DROP;
-
-		out->dst = route_ipv4(frag_get_ipv4_hdr(out), icmpv4_hdr, L4PROTO_ICMP, in->skb->mark);
-		if (!out->dst || !out->dst->dev)
-			return VER_DROP;
-
-		icmpv4_hdr->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(icmpv6_hdr->icmp6_mtu) - 20,
-				out->dst->dev->mtu,
-				in->original_skb->dev->mtu - 20);
-
-#else
-		icmpv4_hdr->un.frag.mtu = 1500;
-#endif
+		icmpv4_hdr->un.frag.__unused = htons(0);
+		/* I moved this to post_icmp4() because it needs the skb already created. */
+		icmpv4_hdr->un.frag.mtu = htons(0);
 		break;
 
 	case ICMPV6_TIME_EXCEED:
@@ -483,6 +469,45 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 	return VER_CONTINUE;
 }
 
+static verdict post_mtu4(struct fragment *in, struct fragment *out, struct icmp6hdr *in_icmp,
+		struct icmphdr *out_icmp)
+{
+#ifndef UNIT_TESTING
+	struct dst_entry *out_dst;
+
+	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
+
+	if (!in->skb || !in->skb->dev)
+		return VER_DROP;
+	log_debug("In dev MTU: %u", in->skb->dev->mtu);
+
+	out_dst = route_ipv4(frag_get_ipv4_hdr(out), out_icmp, L4PROTO_ICMP, in->skb->mark);
+	if (!out_dst)
+		return VER_DROP;
+	if (!out_dst->dev) {
+		dst_release(out_dst);
+		log_warning("I found a dst_entry with a NULL dev. "
+				"This is probably going to break someone's PMTUD.");
+		return VER_DROP;
+	}
+
+	skb_dst_set(out->skb, out_dst);
+	/* TODO we have probably never needed this, since ip_output() does it already. */
+	out->skb->dev = out_dst->dev;
+	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
+
+	out_icmp->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(in_icmp->icmp6_mtu) - 20,
+			out_dst->dev->mtu,
+			in->skb->dev->mtu - 20);
+	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
+
+#else
+	out_icmp->un.frag.mtu = 1500;
+#endif
+
+	return VER_CONTINUE;
+}
+
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
@@ -493,6 +518,13 @@ static verdict post_icmp4(struct tuple *tuple, struct packet *pkt_in, struct pac
 	struct ipv6hdr *in_ip6 = frag_get_ipv6_hdr(in);
 	struct icmp6hdr *in_icmp = frag_get_icmp6_hdr(in);
 	struct icmphdr *out_icmp = frag_get_icmp4_hdr(out);
+	verdict result;
+
+	if (out_icmp->type == ICMP_DEST_UNREACH && out_icmp->code == ICMP_FRAG_NEEDED) {
+		result = post_mtu4(in, out, in_icmp, out_icmp);
+		if (result != VER_CONTINUE)
+			return result;
+	}
 
 	if (is_icmp4_error(out_icmp->type)) {
 		/*

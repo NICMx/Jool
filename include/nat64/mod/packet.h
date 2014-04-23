@@ -140,8 +140,6 @@ void pktmod_destroy(void);
 struct fragment {
 	/** Buffer from the socket we're storing data for. */
 	struct sk_buff *skb;
-	/** Destination of the packet. */
-	struct dst_entry *dst;
 
 	/** Network header. */
 	struct {
