@@ -27,12 +27,14 @@ int bibdb_init(void);
 void bibdb_destroy(void);
 
 /**
- * Returns the BIB entry you'd expect from the "tuple" tuple.
+ * Makes "result" point to the BIB entry you'd expect from the "tuple" tuple.
  *
- * That is, when we're translating from IPv6 to IPv4, returns the BIB whose IPv6 address is
- * "tuple"'s source address.
- * When we're translating from IPv4 to IPv6, returns the BIB whose IPv4 address is "tuple"'s
- * destination address.
+ * That is, when we're translating from IPv6 to IPv4, "result" will point to the BIB whose IPv6
+ * address is "tuple"'s source address.
+ * When we're translating from IPv4 to IPv6, "result" will point to the BIB whose IPv4 address is
+ * "tuple"'s destination address.
+ *
+ * It increases "result"'s refcount. Make sure you release it when you're done.
  *
  * @param[in] tuple summary of the packet. Describes the BIB you need.
  * @param[out] the BIB entry you'd expect from the "tuple" tuple.
@@ -43,6 +45,8 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result);
 /**
  * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv4 side (address and
  * port) is "addr".
+ *
+ * It increases "result"'s refcount. Make sure you release it when you're done.
  *
  * @param[in] address address and port you want the BIB entry for.
  * @param[in] l4_proto identifier of the table to retrieve the entry from.
@@ -55,6 +59,8 @@ int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
  * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv6 side (address and
  * port) is "addr".
  *
+ * It increases "result"'s refcount. Make sure you release it when you're done.
+ *
  * @param[in] address address and port you want the BIB entry for.
  * @param[in] l4_proto identifier of the table to retrieve the entry from.
  * @param[out] the BIB entry from the table will be placed here.
@@ -62,6 +68,16 @@ int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
  */
 int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 		struct bib_entry **result);
+/**
+ * Makes "result" point to the BIB entry that corresponds to "tuple" (see bibdb_get()). If it
+ * doesn't exist, it is created.
+ *
+ * It's sort of like calling bibdb_get_by_ipv6() and then bibdb_add() if it failed, except the
+ * latter has concurrence issues.
+ *
+ * It increases "result"'s refcount. Make sure you release it when you're done.
+ */
+int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
 
 /**
  * Adds "in_bib" to the BIB table whose layer-4 protocol is "l4_proto".
@@ -69,8 +85,8 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
  *
  * Because never in this project is required otherwise, assumes the entry is not yet on the table.
  *
- * If the "in_bib" is added to the table, "tree_bib" will point to "in_bib",
- * otherwise "tree_bib" will point to a session of the table.
+ * The table's references are not supposed to count towards the entries' refcounts. Do free your
+ * reference if your entry made it into the table; do not assume you're transferring it.
  *
  * @param entry row to be added to the table.
  * @param l4_proto identifier of the table to add "entry" to.
@@ -78,13 +94,10 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
  *		memory allocation failed.
  */
 int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto);
+
 /**
  * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4_proto".
  * Even though the entry is removed from the table, it is not kfreed.
- *
- * Note, I *think* that the underlying data structure will go bananas if you attempt to remove an
- * entry that hasn't been previously inserted. I haven't double-checked this because all of the
- * current uses of this function validate before removing.
  *
  * @param entry row to be removed from the table.
  * @param l4_proto identifier of the table to remove "entry" from.
@@ -93,15 +106,18 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto);
 int bibdb_remove(struct bib_entry *entry, l4_protocol l4_proto);
 
 /**
- * Asume que el candado ya se reservó.
+ * Runs the "func" function for every entry in the table whose protocol is "l4_proto".
+ *
+ * @param l4_proto protocol of the table you want to iterate in.
+ * @param func function you want to execute for every entry. Will receive both the entry and "arg"
+ * 		as parameters. you can break iteration early by having this function return nonzero.
+ * @param arg something you want to send func for every entry.
  */
 int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
-int bibdb_for_each_ipv6(l4_protocol l4_proto, struct in6_addr *addr,
-		int (*func)(struct bib_entry *, void *), void *arg);
-int bibdb_allocate_ipv4_transport_address(struct tuple *base,
-		struct ipv4_tuple_address *result);
+/**
+ * Sets in the value pointed by "result" the number of entries in the table whose protocol is
+ * "l4_proto".
+ */
 int bibdb_count(l4_protocol proto, __u64 *result);
-
-int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
 
 #endif /* _NF_NAT64_BIB_DB_H */

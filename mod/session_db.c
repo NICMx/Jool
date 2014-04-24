@@ -14,6 +14,30 @@
  * Structures and private variables.
  ********************************************/
 
+/**
+ * Session table definition.
+ * Holds red-black trees, one for each indexing need (IPv4 and IPv6).
+ */
+struct session_table {
+	/** Indexes the entries using their IPv6 identifiers. */
+	struct rb_root tree6;
+	/** Indexes the entries using their IPv4 identifiers. */
+	struct rb_root tree4;
+	/** Number of session entries in this table. */
+	u64 count;
+	/**
+	 * Lock to sync access.
+	 * Note, this protects the structure of the trees, not the entries.
+	 */
+	spinlock_t session_table_lock;
+};
+
+/** The session table for UDP connections. */
+static struct session_table session_table_udp;
+/** The session table for TCP connections. */
+static struct session_table session_table_tcp;
+/** The session table for ICMP connections. */
+static struct session_table session_table_icmp;
 
 /** Sessions whose expiration date was initialized using "config".to.udp. */
 static LIST_HEAD(sessions_udp);
@@ -29,33 +53,13 @@ static LIST_HEAD(sessions_syn);
 /** Deletes expired sessions every once in a while. */
 static struct timer_list expire_timer;
 
-
-/**
- * Session table definition.
- * Holds two hash tables, one for each indexing need (IPv4 and IPv6).
- */
-struct session_table {
-	/** Indexes the entries using their IPv6 identifiers. */
-	struct rb_root tree6;
-	/** Indexes the entries using their IPv4 identifiers. */
-	struct rb_root tree4;
-	/* spinlock for the table */
-	spinlock_t session_table_lock;
-
-	u64 count;
-};
-
-/** The session table for UDP connections. */
-static struct session_table session_table_udp;
-/** The session table for TCP connections. */
-static struct session_table session_table_tcp;
-/** The session table for ICMP connections. */
-static struct session_table session_table_icmp;
-
 /********************************************
  * Private (helper) functions.
  ********************************************/
 
+/**
+ * One-liner to get the session table corresponding to the "l4_proto" protocol.
+ */
 static int get_session_table(l4_protocol l4_proto, struct session_table **result)
 {
 	switch (l4_proto) {
@@ -153,8 +157,6 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
 	return gap;
 }
 
-
-
 /**
  * Sends a probe packet to "session"'s IPv6 endpoint.
  *
@@ -241,6 +243,24 @@ fail:
 }
 
 /**
+ * Removes all of this database's references towards "session", and drops its refcount accordingly.
+ *
+ * The only thing it doesn't do is decrement count of "session"'s table! I do that outside because
+ * I always want to add up and report that number.
+ *
+ * @return number of sessions removed from the database. This is always 1, because I have no way to
+ *		know if the removal failed (and it shouldn't be possible anyway).
+ */
+static int remove(struct session_entry *session)
+{
+	rb_erase(&session->tree6_hook, &table->tree6);
+	rb_erase(&session->tree4_hook, &table->tree4);
+	list_del(&session->expire_list_hook);
+	session_return(session);
+	return 1;
+}
+
+/**
  * Decides whether "session"'s expiration should cause its destruction or not. It should be called
  * when "session" expires.
  *
@@ -306,65 +326,37 @@ static bool session_expire(struct session_entry *session)
  *
  * @return "true" if all sessions from the list were wiped.
  */
-static bool clean_expired_sessions(struct list_head *list)
+static bool clean_expired_sessions(struct list_head *list, struct session_table *table)
 {
 	struct list_head *current_hook, *next_hook;
 	struct session_entry *session;
 	unsigned int s = 0;
+	bool result = true;
+
+	spin_lock_bh(&table->session_table_lock);
 
 	list_for_each_safe(current_hook, next_hook, list) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
-		session_get(session);
 
 		if (time_before(jiffies, session->dying_time)) {
-			log_debug("Deleted %u sessions", s);
-			session_return(session); /* we need to decrement by one the reference of session */
-			return false;
+			result = false;
+			goto end;
 		}
-		if (!session_expire(session)) {
-			session_return(session); /* we need to decrement by one the reference of session */
+
+		if (!session_expire(session))
 			continue; /* The entry's TTL changed, which doesn't mean the next one isn't expired. */
-		}
 
-		if (is_error(sessiondb_remove(session))) {
-			session_return(session); /* we need to decrement by one the reference of session */
-			continue; /* Error msg already printed. */
-		}
-
-//		bib = session->bib;
-//		l4_proto = session->l4_proto;
-
-		list_del(&session->expire_list_hook);
-
-		if (session_return(session)) {
-			s++;
-		}
-//		s++;
-
-//		if (!bib) {
-//			log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
-//			continue;
-//		}
-//		if (atomic_read(&bib->sessions_counter) || bib->is_static) {
-//			continue; /* The BIB entry needn't die; no error to report. */
-//		}
-//		if (bib->is_static) {
-//			continue; /* The BIB entry needn't die; no error to report. */
-//		}
-//		if (is_error(bibdb_remove(bib, l4_proto))) {
-//			continue; /* Error msg already printed. */
-//		}
-//		if (!bib_return(bib)) {
-//			continue; /* The BIB entry was not removed from the DB. */
-//		}
-//		b++;
+		s += remove(session);
 	}
 
-	log_debug("Deleted %u sessions", s);
+	/* Fall through. */
 
+end:
+	table->count -= s;
+	spin_unlock_bh(&table->session_table_lock);
+	log_debug("Deleted %u sessions.", s);
 	return true;
 }
-
 
 /**
  * Returns the earlier time between "current_min" and "list"'s first node's expiration date.
@@ -413,19 +405,11 @@ static void cleaner_timer(unsigned long param)
 	log_debug("===============================================");
 	log_debug("Deleting expired sessions...");
 
-	spin_lock_bh(&session_table_udp.session_table_lock);
-	clean &= clean_expired_sessions(&sessions_udp);
-	spin_unlock_bh(&session_table_udp.session_table_lock);
-
-	spin_lock_bh(&session_table_tcp.session_table_lock);
-	clean &= clean_expired_sessions(&sessions_tcp_est);
-	clean &= clean_expired_sessions(&sessions_tcp_trans);
-	clean &= clean_expired_sessions(&sessions_syn);
-	spin_unlock_bh(&session_table_tcp.session_table_lock);
-
-	spin_lock_bh(&session_table_icmp.session_table_lock);
-	clean &= clean_expired_sessions(&sessions_icmp);
-	spin_unlock_bh(&session_table_icmp.session_table_lock);
+	clean &= clean_expired_sessions(&sessions_udp, &session_table_udp);
+	clean &= clean_expired_sessions(&sessions_tcp_est, &session_table_tcp);
+	clean &= clean_expired_sessions(&sessions_tcp_trans, &session_table_tcp);
+	clean &= clean_expired_sessions(&sessions_syn, &session_table_tcp);
+	clean &= clean_expired_sessions(&sessions_icmp, &session_table_icmp);
 
 	log_debug("Session database cleaned successfully.");
 
@@ -475,8 +459,6 @@ int sessiondb_init(void)
 static void session_destroy_aux(struct rb_node *node)
 {
 	session_kfree(rb_entry(node, struct session_entry, tree6_hook));
-//	session_return(rb_entry(node, struct session_entry, tree6_hook));
-//	session_return(rb_entry(node, struct session_entry, tree6_hook));
 }
 
 void sessiondb_destroy(void)
@@ -573,6 +555,7 @@ bool sessiondb_allow(struct tuple *tuple)
 	struct session_entry *session;
 	struct ipv4_pair tuple_pair;
 	int error;
+	bool result;
 
 	/* Sanity */
 	if (!tuple) {
@@ -584,13 +567,15 @@ bool sessiondb_allow(struct tuple *tuple)
 		return error;
 
 	/* Action */
-	spin_lock_bh(&table->session_table_lock);
 	tuple_to_ipv4_pair(tuple, &tuple_pair);
+
+	spin_lock_bh(&table->session_table_lock);
 	session = rbtree_find(&tuple_pair, &table->tree4, compare_addrs4, struct session_entry,
 			tree4_hook);
+	result = session ? true : false;
 	spin_unlock_bh(&table->session_table_lock);
 
-	return (session) ? true : false;
+	return result;
 }
 
 int sessiondb_add(struct session_entry *session)
@@ -610,51 +595,25 @@ int sessiondb_add(struct session_entry *session)
 	/* Action */
 	spin_lock_bh(&table->session_table_lock);
 
-	error = rbtree_add(session, ipv6, &table->tree6, compare_full6, struct session_entry, tree6_hook);
+	error = rbtree_add(session, ipv6, &table->tree6, compare_full6, struct session_entry,
+			tree6_hook);
 	if (error) {
 		spin_unlock_bh(&table->session_table_lock);
 		return -EEXIST;
 	}
-	session_get(session); /* increment the refcounter +1, related to the tree6_hook reference */
 
-	error = rbtree_add(session, ipv4, &table->tree4, compare_full4, struct session_entry, tree4_hook);
-	if (error) { /*this is not supposed to happen in a perfect world*/
-		log_crit(ERR_ADD_BIB_FAILED, "The session was inserted in Session_table_tree6 but exist in Session_table_tree4");
+	error = rbtree_add(session, ipv4, &table->tree4, compare_full4, struct session_entry,
+			tree4_hook);
+	if (error) { /* this is not supposed to happen in a perfect world */
+		log_crit(ERR_ADD_SESSION_FAILED, "The session could be indexed by IPv6 but not by IPv4.");
 		rb_erase(&session->tree6_hook, &table->tree6);
 		spin_unlock_bh(&table->session_table_lock);
 		return -EEXIST;
 	}
-	session_get(session); /* increment the refcounter +1, related to the tree4_hook reference*/
 
+	session_get(session); /* We have 2 indexes, but really they count as one. */
 	table->count++;
 	spin_unlock_bh(&table->session_table_lock);
-	return 0;
-}
-
-int sessiondb_remove(struct session_entry *entry)
-{
-	struct session_table *table;
-	int error;
-
-	/* Sanity */
-	if (!entry) {
-		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
-		return -EINVAL;
-	}
-	error = get_session_table(entry->l4_proto, &table);
-	if (error)
-		return error;
-
-	/* Action */
-//	spin_lock_bh(&table->session_table_lock);
-
-	rb_erase(&entry->tree6_hook, &table->tree6);
-	session_return(entry);
-	rb_erase(&entry->tree4_hook, &table->tree4);
-	session_return(entry);
-
-	table->count--;
-//	spin_unlock_bh(&table->session_table_lock);
 	return 0;
 }
 
@@ -671,14 +630,13 @@ int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *,
 	spin_lock_bh(&table->session_table_lock);
 	for (node = rb_first(&table->tree4); node; node = rb_next(node)) {
 		error = func(rb_entry(node, struct session_entry, tree4_hook), arg);
-		if (error) {
-			spin_unlock_bh(&table->session_table_lock);
-			return error;
-		}
+		if (error)
+			goto spin_exit;
 	}
 
+spin_exit:
 	spin_unlock_bh(&table->session_table_lock);
-	return 0;
+	return error;
 }
 
 int sessiondb_count(l4_protocol proto, __u64 *result)
@@ -696,7 +654,8 @@ int sessiondb_count(l4_protocol proto, __u64 *result)
 	return 0;
 }
 
-int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib, struct session_entry **session)
+int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
+		struct session_entry **session)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr ipv4_dst;
@@ -719,7 +678,8 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib, str
 
 	/* Find it */
 	spin_lock_bh(&table->session_table_lock);
-	error = rbtree_find_node(&pair6, &table->tree6, compare_full6, struct session_entry, tree6_hook, parent, node);
+	error = rbtree_find_node(&pair6, &table->tree6, compare_full6, struct session_entry,
+			tree6_hook, parent, node);
 	if (*node) {
 		*session = rb_entry(*node, struct session_entry, tree6_hook);
 		session_get(*session);
@@ -833,7 +793,7 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 	pair6.remote = bib->ipv6;
 	pair6.local.address = ipv6_src;
 	pair6.local.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->src.l4_id : bib->ipv6.l4_id;
-	*session = session_create(&pair4, &pair6, tuple->l4_proto); /*refcounter is set to 1 when its created*/
+	*session = session_create(&pair4, &pair6, tuple->l4_proto); /* refcounter = 1 */
 	if (!(*session)) {
 		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
 		spin_unlock_bh(&table->session_table_lock);
@@ -843,10 +803,8 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 	/* add a new node and rebalance the tree */
 	rb_link_node(&(*session)->tree4_hook, parent, node);
 	rb_insert_color(&(*session)->tree4_hook, &table->tree4);
-	session_get(*session); /*tree6 reference +2*/
 
 	error = rbtree_add(*session, ipv6, &table->tree6, compare_full6, struct session_entry, tree6_hook);
-	session_get(*session); /*tree4 reference +3*/
 	if (error) {
 		log_crit(ERR_ADD_SESSION_FAILED, "The entry session was inserted in session_table_tree6 but exist in session_table_tree4");
 		rb_erase(&(*session)->tree4_hook, &table->tree4);
@@ -855,6 +813,7 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 		return error;
 	}
 
+	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
 	bib_get(bib);
 	(*session)->bib = bib;
 	spin_unlock_bh(&table->session_table_lock);
@@ -868,76 +827,51 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 int sessiondb_delete_by_bib(struct bib_entry *bib)
 {
 	struct session_table *table;
-	struct session_entry *session;
-	struct ipv4_tuple_address *addr;
+	struct session_entry *root_session, *session;
 	struct rb_node *node;
 	int error;
 	int s = 0;
-	bool found;
-
-	addr = &bib->ipv4;
 
 	/* Sanitize */
-	if (!addr)
-		return -EINVAL;
 	error = get_session_table(bib->l4_proto, &table);
 	if (error)
 		return error;
 
 	spin_lock_bh(&table->session_table_lock);
+
 	/* Find the top-most node in the tree whose IPv4 address is addr. */
-	session = rbtree_find(addr, &table->tree4, compare_local4, struct session_entry, tree4_hook);
-	if (!session) {
-		spin_unlock_bh(&table->session_table_lock);
-		return 0; /* _Successfully_ iterated through no entries. */
+	root_session = rbtree_find(&bib->ipv4, &table->tree4, compare_local4, struct session_entry,
+			tree4_hook);
+	if (!root_session)
+		goto success; /* "Successfully" deleted zero entries. */
+
+	node = rb_prev(&root_session->tree4_hook);
+	while (node) {
+		session = rb_entry(node, struct session_entry, tree4_hook);
+		if (compare_local4(session, &bib->ipv4) != 0)
+			break;
+		s += remove(session);
+
+		node = rb_prev(&root_session->tree4_hook);
 	}
 
-	/* Keep moving left until we find the first node whose IPv4 address is addr. */
-	found = false;
-	do {
-		node = rb_prev(&session->tree4_hook);
-
-		if (node) {
-			struct session_entry *tmp = rb_entry(node, struct session_entry, tree4_hook);
-			if (compare_local4(tmp, addr))
-				found = true;
-			else
-				session = tmp;
-		} else {
-			found = true;
-		}
-	} while (!found);
-
-	/*
-	 * Keep moving right until the address changes.
-	 * (The nodes are sorted by address first.)
-	 */
-	do {
-		/***
-		 * primero nos aseguramos de referenciar al nodo siguiente antes de eliminar la session a la que
-		 * apuntamos actualmente
-		 */
-		node = rb_next(&session->tree4_hook);
-
-		list_del(&session->expire_list_hook); /* we should delete the expire_list_hook of the session. */
-		/**
-		 * eliminamos la session de la BD
-		 */
-		rb_erase(&session->tree6_hook, &table->tree6);
-		session_return(session);
-		rb_erase(&session->tree4_hook, &table->tree4);
-
-		if (session_return(session))
-			s++;
-		table->count--;
-
-		if (!node)
-			break;
+	node = rb_next(&root_session->tree4_hook);
+	while (node) {
 		session = rb_entry(node, struct session_entry, tree4_hook);
-	} while (ipv4_addr_equals(&addr->address, &session->ipv4.local.address));
+		if (compare_local4(session, &bib->ipv4) != 0)
+			break;
+		s += remove(session);
 
-	log_debug("Deleted %d session, related to an static BIB", s);
+		node = rb_next(&root_session->tree4_hook);
+	}
+
+	s += remove(root_session);
+	table->count -= s;
+	/* Fall through. */
+
+success:
 	spin_unlock_bh(&table->session_table_lock);
+	log_debug("Deleted %d sessions.", s);
 	return 0;
 }
 
@@ -973,7 +907,6 @@ void sessiondb_update_timer(struct session_entry *session, timer_type type, __u6
 	default:
 		log_crit(ERR_UNKNOWN_ERROR, "Unknown timer type to set the update timer");
 		return;
-		break;
 	}
 
 	session->dying_time = jiffies + ttl;

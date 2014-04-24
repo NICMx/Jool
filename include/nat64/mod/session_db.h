@@ -10,7 +10,6 @@
  */
 
 #include "nat64/comm/types.h"
-//#include "nat64/mod/bib.h"
 #include "nat64/mod/session.h"
 #include "nat64/mod/bib.h"
 
@@ -99,18 +98,6 @@ bool sessiondb_allow(struct tuple *tuple);
  *		if some dynamic memory allocation failed.
  */
 int sessiondb_add(struct session_entry *session);
-/**
- * Destroys the session table's reference to "entry". It does NOT kfree "entry".
- * Also, it removes "entry" regardless of whether it is static or not.
- *
- * Note, I *think* that the underlying data structure will go bananas if you attempt to remove an
- * entry that hasn't been previously inserted. I haven't double-checked this because all of the
- * current uses of this function validate before removing.
- *
- * @param entry entry to be removed from its table.
- * @return error status.
- */
-int sessiondb_remove(struct session_entry *entry);
 
 int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
 int sessiondb_count(l4_protocol proto, __u64 *result);

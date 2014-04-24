@@ -27,8 +27,8 @@ static void bib_release(struct kref *ref)
 		log_crit(ERR_INCOMPLETE_REMOVE, "Error when trying to release the bib");
 		return; /* should we delete(kfree) the BIB? at this point bibrefcount = 0 */
 	}
-	log_debug("BIB released");
 	bib_kfree(bib);
+	log_debug("BIB released");
 }
 
 /*******************************
