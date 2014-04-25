@@ -32,7 +32,7 @@ Make sure to have this knowledge under your belt already:
 
 We'll just build on top of the arrangement from the previous tutorial. Though note that the outermost networks have been connected and merged to their respective internets. And I removed the adresses from the diagram because they're no longer very relevant.
 
-Remember that though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine.
+Remember that though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (**unless Jool is monopolizing all of its node's IPv4 addresses!**).
 
 ## Configuration
 
@@ -62,7 +62,7 @@ example.com.		86040	IN	AAAA	2606:2800:220:6d:26bf:1447:1097:aa7
 $ dig nat64-tutorial.mx A
 (...)
 ;; ANSWER SECTION:
-nat64-tutorial.mx.	66029	IN	A	10.2.245.110
+nat64-tutorial.mx.	66029	IN	A	200.94.182.36
 (...)
 
 $ dig nat64-tutorial.mx AAAA
@@ -74,7 +74,7 @@ nat64-tutorial.mx.	240	IN	SOA	potato.mx. hostmaster.jool.mx. 2013070801 3600 900
 
 There's no need for an IPv6 node to access `example.com` via the NAT64. On the other hand, `nat64-tutorial.mx` cannot be accessed from IPv6 without one.
 
-In other words, we want the DNS64 service to return `2606:2800:220:6d:26bf:1447:1097:aa7` when asked for the AAAA record of `example.com` (which is what it normally does), and `64:ff9b::10.2.245.110` (i.e. the prefix plus the IPv4 address) when asked for the AAAA record of `nat64-tutorial.mx` (which is the whole NAT64 hack).
+In other words, we want the DNS64 service to return `2606:2800:220:6d:26bf:1447:1097:aa7` when asked for the AAAA record of `example.com` (which is what it normally does), and `64:ff9b::200.94.182.36` (i.e. the prefix plus the IPv4 address) when asked for the AAAA record of `nat64-tutorial.mx` (which is the whole NAT64 hack).
 
 First, have a working BIND server. On Ubuntu, the only thing you have to do (assuming you don't already have one) is run
 
@@ -89,7 +89,6 @@ options {
 	(...)
 
 	# Listening on IPv6 is off by default.
-	# This is the only option dns64 depends on.
 	listen-on-v6 { any; };
 
 	# This is the key. Note that you can write multiple of these if you need
@@ -138,7 +137,7 @@ example.com.		86040	IN	AAAA	2606:2800:220:6d:26bf:1447:1097:aa7
 $ dig nat64-tutorial.mx AAAA
 (...)
 ;; AUTHORITY SECTION:
-nat64-tutorial.mx.	86040	IN	AAAA	64:ff9b::a02:f56e
+nat64-tutorial.mx.	86040	IN	AAAA	64:ff9b::c85e:b624
 (...)
 {% endhighlight %}
 

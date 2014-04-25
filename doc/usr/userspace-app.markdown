@@ -114,7 +114,7 @@ jool --pool4 --add --address 192.168.2.2
 
 Syntax:
 
-	jool --bib [<operation>] <protocols> [--bib4 <bib4>] [--bib6 <bib6>]
+	jool --bib [--numeric] [<operation>] <protocols> [--bib4 <bib4>] [--bib6 <bib6>]
 
 Arguments:
 
@@ -128,7 +128,7 @@ Description:
 Interacts with Jool's Binding Information Base (BIB). Records in this database map IPv6 transport addresses (of the IPv6 nodes the NAT64 is servicing) with their current IPv4 transport address (from the NAT64's pool). For example, if you see the following output:
 
 {% highlight bash %}
-$ jool --bib --tcp
+$ jool --bib --tcp --numeric
 TCP:
 [Dynamic] 4.4.4.4#44 - 6::6#66
   (Fetched 1 entries.)
@@ -157,11 +157,17 @@ About the protocols:
 
 The command will only affect the tables mentioned by these parameters.
 
+About other parameters:
+
+* The application will attempt to resolve the name of the IPv6 service of each BIB entry. Use `--numeric` to turn this behavior off.
+
 Examples:
 
 {% highlight bash %}
-# Display only the TCP and the UDP tables.
+# Display only the TCP and UDP tables.
 jool --bib --display --tcp --udp
+# Same, but do not query the DNS.
+jool --bib --display --tcp --udp --numeric
 # Display the number of entries in the TCP and ICMP tables.
 jool --bib --count --tcp --icmp
 # Add an entry to the UDP table.
@@ -187,7 +193,7 @@ Another one is that if we merged the BIB entries into the session entries, the i
 
 Syntax:
 
-	jool --session [<operation>] <protocols>
+	jool --session [--numeric] [<operation>] <protocols>
 
 Arguments:
 
@@ -198,9 +204,9 @@ Description:
 
 Sessions mostly exist so the NAT64 can decide when BIB entries should die. You can also use them to know exactly who is speaking to your IPv6 nodes. In a future release you will also be able to <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">define filtering policies based on them</a>.
 
-When you create a static BIB entry, it's normally because you want to publish a service to the IPv4 network. Several IPv4 nodes might then talk to your server at the same time, and because the entry only stores local IPv4 address, they will all use the same one. For each BIB entry, there are one or several session entries. Each session entry describes one connection.
+Each BIB entry is a mapping, which describes the IPv4 name of one of your IPv6 services. For every BIB entry, there are zero or more session entries, each of which represents an active connection currently using that mapping.
 
-You can use this command to get details on each connection's relevant members.
+You can use this command to get information on each of these connections.
 
 About the operations:
 
@@ -211,15 +217,19 @@ About the protocols:
 
 The command will filter out the tables not mentioned in this list.
 
+About other parameters:
+
+* The application will attempt to resolve the name of the nodes talking in each session. Use `--numeric` to turn this behavior off.
+
 Examples:
 
 {% highlight bash %}
-# Display only the ICMP table.
-jool --session --display --icmp
+# Display only the ICMP table. Do not query the DNS.
+jool --session --display --icmp --numeric
 # Same, shorter version.
-jool --session --icmp
+jool --session --icmp --numeric
 # Same, shorter+ version.
-jool -si
+jool -sin
 # We don't need every entry, just print the size of the database.
 jool --session --count
 {% endhighlight %}

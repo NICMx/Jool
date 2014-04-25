@@ -31,11 +31,21 @@ That doesn't stop the IPv6-IPv4 translation mechanism from being functional, how
 
 There are other <a href="https://github.com/NICMx/NAT64/issues?state=open" target="_blank">known issues</a>. Because we have perceived users to be more interested in these latter problems, we intend to postpone the missing features.
 
-Now cooking version 3.1.4...
+Now cooking version 3.1.5...
 
 -------------------
 
 ## News
+
+### 2014-04-25
+
+Version 3.1.4 released. Fixes:
+
+1. Two <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">kernel</a> <a href="https://github.com/NICMx/NAT64/issues/84" target="_blank">crashes</a>.
+2. The userspace application now <a href="https://github.com/NICMx/NAT64/issues/86" target="_blank">resolves names</a>.
+3. <a href="https://github.com/NICMx/NAT64/issues/87" target="_blank">Added support</a> for Linux 3.13+.
+
+Also, we <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">no longer recommend usage of Jool in kernel 3.12</a>.
 
 ### 2014-03-26
 
