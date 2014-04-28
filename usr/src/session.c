@@ -41,10 +41,10 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 		printf("\n");
 
 		printf("Local: ");
-		print_ipv4_tuple(&entry->ipv4.local, params->numeric_hostname);
+		print_ipv4_tuple(&entry->ipv4.local, true);
 
 		printf("\t");
-		print_ipv6_tuple(&entry->ipv6.local, params->numeric_hostname);
+		print_ipv6_tuple(&entry->ipv6.local, true);
 		printf("\n");
 
 		printf("---------------------------------\n");

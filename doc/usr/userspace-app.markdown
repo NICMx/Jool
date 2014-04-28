@@ -33,37 +33,37 @@ libnl-3-dev is a framework the application depends on. That `apt-get` line, of c
 
 ## \--help
 
-Syntax:
+**Syntax**
 
 	jool --help
 
-Description:
+**Description**
 
 Prints mostly a summary of this document, though you can also use it to review the abbreviated form of the flags, which aren't here.
 
 ## \--pool6
 
-Syntax:
+**Syntax**
 
 	jool --pool6 [<operation>] [--prefix <prefix>]
 
-Arguments:
+**Arguments**
 
 	<operation> := --display | --count | --add | --remove
 	<prefix> := <prefix address>/<prefix length>
 
-Description:
+**Description**
 
 Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the IPv6 side are processed; if an incoming packet's destination address has one of the IPv6 prefixes, the packet is translated. Otherwise it is handed to the kernel to either be forwarded in some other way or handed to the upper layers.
 
-About the operations:
+**Operations**
 
 * Using `--display`, the application prints Jool's current prefixes. The `--prefix` parameter is ignored. This is the default operation.
 * Using `--count`, Jool prints the number of prefixes in the database. The `--prefix` parameter is ignored.
 * Using `--add`, Jool adds the `--prefix` prefix to the pool.
 * Using `--remove`, Jool deletes the `--prefix` prefix from the pool.
 
-Examples:
+**Examples**
 
 {% highlight bash %}
 # Display the current prefixes.
@@ -78,26 +78,26 @@ jool --pool6 --add --prefix 64:ff9b::/96
 
 ## \--pool4
 
-Syntax:
+**Syntax**
 
 	jool --pool4 [<operation>] [--address <IPv4 address>]
 
-Arguments:
+**Arguments**
 
 	<operation> := --display | --count | --add | --remove
 
-Description:
+**Description**
 
 Interacts with Jool's IPv4 pool. The pool dictates which packets coming from the IPv4 side are processed; if an incoming packet's destination address is listed in the pool, the packet is translated. Otherwise it is handed to the kernel to either be forwarded in some other way or handed to the upper layers.
 
-About the operations:
+**Operations**
 
 * Using `--display`, the application prints Jool's current addresses. The `--address` parameter is ignored. This is the default operation.
 * Using `--count`, Jool prints the number of addresses in the pool. The `--address` parameter is ignored.
 * Using `--add`, Jool adds `<IPv4 address>` to the pool.
 * Using `--remove`, Jool deletes `<IPv4 address>` from the pool.
 
-Examples:
+**Examples**
 
 {% highlight bash %}
 # Display the current addresses.
@@ -112,18 +112,18 @@ jool --pool4 --add --address 192.168.2.2
 
 ## \--bib
 
-Syntax:
+**Syntax**
 
 	jool --bib [--numeric] [<operation>] <protocols> [--bib4 <bib4>] [--bib6 <bib6>]
 
-Arguments:
+**Arguments**
 
 	<operation> := --display | --count | --add | --remove
 	<protocols> := [--tcp] [--udp] [--icmp]
 	<bib4> := <IPv4 address>#(<port> | <ICMP identifier>)
 	<bib6> := <IPv6 address>#(<port> | <ICMP identifier>)
 
-Description:
+**Description**
 
 Interacts with Jool's Binding Information Base (BIB). Records in this database map IPv6 transport addresses (of the IPv6 nodes the NAT64 is servicing) with their current IPv4 transport address (from the NAT64's pool). For example, if you see the following output:
 
@@ -146,22 +146,31 @@ Jool automatically kills dynamic entries once their sessions expire; Jool never 
 
 The database consists of three separate tables; one for TCP bindings, one for UDP bindings, and one for ICMP bindings. As a result, if you add an entry (e.g. `66::66#6 <-> 44.44.44.44#4`) manually to one of the tables (e.g. TCP), then Jool will not attempt to translate a first IPv4 request to the same address#port and different protocol (e.g. 44.44.44.44#4 on UDP).
 
-About the operations:
+**Operations**
 
 * Using `--display`, the application prints Jool's current BIB. `--bib6` and `--bib4` are ignored. This is the default operation.
 * Using `--count`, Jool prints the number of BIB entries per table. `--bib6` and `--bib4` are ignored.
 * Using `--add`, Jool adds the entry resulting from the `--bib6` and `--bib4` parameters to the BIB. Note that the `--bib4` component is an address assigned to the NAT64, so make sure you have added it to the [IPv4 pool](#pool4).
 * Using `--remove`, Jool deletes the entry. Since both components are unique across all entries from the same table, you only need to supply one of the --bib* arguments.
 
-About the protocols:
+**Protocols**
 
 The command will only affect the tables mentioned by these parameters.
 
-About other parameters:
+**Other parameters**
 
-* The application will attempt to resolve the name of the IPv6 service of each BIB entry. Use `--numeric` to turn this behavior off.
+When `--display`ing, the application will by default attempt to resolve the name of the IPv6 service of each BIB entry. _If your nameservers aren't answering, this will slow the output down_.
 
-Examples:
+{% highlight bash %}
+$ jool --bib --tcp
+TCP:
+[Dynamic] 4.4.4.4#44 - ipv6service.mx#66
+  (Fetched 1 entries.)
+{% endhighlight %}
+
+Use `--numeric` to turn this behavior off (see the example in the description section, above).
+
+**Examples**
 
 {% highlight bash %}
 # Display only the TCP and UDP tables.
@@ -178,7 +187,7 @@ jool --bib --remove --udp --bib6 6::6#66
 
 You might ask:
 
-**Since the session tables contain all the information from the Binding Information Bases (BIB) and more, what's the point of the BIBs?**
+_Since the session tables contain all the information from the Binding Information Bases (BIB) and more, what's the point of the BIBs?_
 
 From the user's perspective, the difference between BIB entries and session entries is meaningful because each of them is queried for their particular reasons:
 
@@ -191,16 +200,16 @@ Another one is that if we merged the BIB entries into the session entries, the i
 
 ## \--session
 
-Syntax:
+**Syntax**
 
 	jool --session [--numeric] [<operation>] <protocols>
 
-Arguments:
+**Arguments**
 
 	<operation> := --display | --count
 	<protocols> := [--tcp] [--udp] [--icmp]
 
-Description:
+**Description**
 
 Sessions mostly exist so the NAT64 can decide when BIB entries should die. You can also use them to know exactly who is speaking to your IPv6 nodes. In a future release you will also be able to <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">define filtering policies based on them</a>.
 
@@ -208,20 +217,20 @@ Each BIB entry is a mapping, which describes the IPv4 name of one of your IPv6 s
 
 You can use this command to get information on each of these connections.
 
-About the operations:
+**Operations**
 
 * Using `--display`, the application prints Jool's current sessions. This is the default operation.
 * Using `--count`, Jool prints the number of sessions per table.
 
-About the protocols:
+**Protocols**
 
 The command will filter out the tables not mentioned in this list.
 
-About other parameters:
+**Other parameters**
 
-* The application will attempt to resolve the name of the nodes talking in each session. Use `--numeric` to turn this behavior off.
+* When `--display`ing, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_. Use `--numeric` to turn this behavior off.
 
-Examples:
+**Command examples**
 
 {% highlight bash %}
 # Display only the ICMP table. Do not query the DNS.
@@ -234,13 +243,49 @@ jool -sin
 jool --session --count
 {% endhighlight %}
 
+**Sample outputs**
+
+![Fig.1 - Session sample network](images/usr-session.svg)
+
+ipv6client.mx makes two HTTP requests to example.com:
+
+{% highlight bash %}
+$ jool --session --display --tcp --numeric
+TCP:
+---------------------------------
+Expires in 3 minutes, 24 seconds
+Remote: 93.184.216.119#80	2001:db8::2#58239
+Local: 192.0.2.1#60477		64:ff9b::5db8:d877#80
+---------------------------------
+Expires in 3 minutes, 24 seconds
+Remote: 93.184.216.119#80	2001:db8::2#58237
+Local: 192.0.2.1#6617		64:ff9b::5db8:d877#80
+---------------------------------
+  (Fetched 2 entries.)
+{% endhighlight %}
+
+{% highlight bash %}
+$ jool --session --display --tcp
+TCP:
+---------------------------------
+Expires in 3 minutes, 24 seconds
+Remote: example.com#http	ipv6client.mx#58239
+Local: 192.0.2.1#60477		64:ff9b::5db8:d877#80
+---------------------------------
+Expires in 3 minutes, 24 seconds
+Remote: example.com#http	ipv6client.mx#58237
+Local: 192.0.2.1#6617		64:ff9b::5db8:d877#80
+---------------------------------
+  (Fetched 2 entries.)
+{% endhighlight %}
+
 ## \--filtering
 
-Syntax:
+**Syntax**
 
 	jool --filtering <flag key> <new value>
 
-Description:
+**Description**
 
 These are several values that affect the way Jool behaves during the <a href="http://tools.ietf.org/html/rfc6146#section-3.5" target="_blank">"Filtering and Updating" step</a>. This step happens while packets are being processed, and its purpose is to _drop_ packets on certain circumstances and _update_ the database so future packets can be identified.
 
@@ -314,11 +359,11 @@ When a ICMP session has been lying around inactive for this long, its entry will
 
 ## \--translate
 
-Syntax:
+**Syntax**
 
 	jool --translate <flag key> <new value>
 
-Description:
+**Description**
 
 These are several values that affect the way Jool behaves during the <a href="http://tools.ietf.org/html/rfc6146#section-3.7" target="_blank">"Translating the Packet" step</a>. This step happens while packets are being processed, and its purpose is to actually change their content (flipping protocols).
 

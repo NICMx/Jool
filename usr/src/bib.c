@@ -28,7 +28,7 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 
 	for (i = 0; i < entry_count; i++) {
 		printf("[%s] ", entries[i].is_static ? "Static" : "Dynamic");
-		print_ipv4_tuple(&entries[i].ipv4, params->numeric_hostname);
+		print_ipv4_tuple(&entries[i].ipv4, true);
 		printf(" - ");
 		print_ipv6_tuple(&entries[i].ipv6, params->numeric_hostname);
 		printf("\n");
