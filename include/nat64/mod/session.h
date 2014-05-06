@@ -10,7 +10,6 @@
  */
 
 #include "nat64/comm/types.h"
-//#include "nat64/mod/bib.h"
 
 /** The states from the TCP state machine; RFC 6146 section 3.5.2. */
 enum tcp_states {

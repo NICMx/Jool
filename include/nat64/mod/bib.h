@@ -84,4 +84,11 @@ int bib_return(struct bib_entry *bib);
  */
 void bib_kfree(struct bib_entry *bib);
 
+/**
+ * Make sure you use bib_get or bibdb_get before you use
+ * this function, otherwise could return a negative number
+ * or an invalid number of sessions.
+ */
+int bib_session_counter(struct bib_entry *bib);
+
 #endif /* _NF_NAT64_BIB_H */

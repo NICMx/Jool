@@ -3,6 +3,7 @@
 #include <net/ipv6.h>
 #include "nat64/mod/rbtree.h"
 #include "nat64/mod/bib.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/icmp_wrapper.h"
@@ -90,6 +91,16 @@ static int compare_full6(struct bib_entry *bib, struct ipv6_tuple_address *addr)
 }
 
 /**
+ * Just returns whether "addr" is "bib"'s IPv4 address.
+ *
+ * @return zero if bib->ipv4.address is addr. Non-zero if they're different.
+ */
+static int compare_addr4(struct bib_entry *bib, struct in_addr *addr)
+{
+	return ipv4_addr_cmp(&bib->ipv4.address, addr);
+}
+
+/**
  * Just returns whether "addr" is "bib"'s IPv4 address and port.
  *
  * @return zero if bib->ipv4.address is addr. Non-zero if they're different.
@@ -98,7 +109,7 @@ static int compare_full4(struct bib_entry *bib, struct ipv4_tuple_address *addr)
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&bib->ipv4.address, &addr->address);
+	gap = compare_addr4(bib, &addr->address);
 	if (gap != 0)
 		return gap;
 
@@ -416,6 +427,7 @@ int bibdb_remove(struct bib_entry *entry, l4_protocol l4_proto)
 {
 	struct bib_table *table;
 	int error;
+	int is_lock;
 
 	if (!entry) {
 		log_err(ERR_NULL, "The BIBs cannot contain NULL.");
@@ -429,15 +441,18 @@ int bibdb_remove(struct bib_entry *entry, l4_protocol l4_proto)
 	if (error)
 		return error;
 
-	spin_lock_bh(&table->bib_table_lock);
+	is_lock = spin_is_locked(&table->bib_table_lock);
+
+	if (!is_lock)
+		spin_lock_bh(&table->bib_table_lock);
 
 	rb_erase(&entry->tree6_hook, &table->tree6);
 	rb_erase(&entry->tree4_hook, &table->tree4);
 	table->count--;
 
-	spin_unlock_bh(&table->bib_table_lock);
+	if (!is_lock)
+		spin_unlock_bh(&table->bib_table_lock);
 
-	log_debug("BIB entry removed from the DB");
 	return 0;
 }
 
@@ -548,5 +563,132 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 	}
 
 	spin_unlock_bh(&table->bib_table_lock);
+	return 0;
+}
+
+/**
+ * Removes all of this database's references towards "bib", and drops its refcount accordingly.
+ *
+ * The only thing it doesn't do is decrement count of "bib"'s table! I do that outside because
+ * I always want to add up and report that number.
+ *
+ * @return number of bibs removed from the database.
+ */
+static int remove(struct bib_entry *bib, struct bib_table *table)
+{
+	int error;
+
+	/* Remove the fake user. */
+	if (bib->is_static) {
+		bib_return(bib);
+		bib->is_static = false;
+	}
+
+	error = sessiondb_delete_by_bib(bib);
+	if (error)
+		return 0;
+
+	return 1;
+}
+
+static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
+{
+	struct bib_entry *root_bib, *bib;
+	struct rb_node *node;
+	int b = 0;
+
+	/* Sanitize */
+	if (!addr) {
+		log_err(ERR_NULL, "ipv4 address is NULL");
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&table->bib_table_lock);
+
+	/* Find the top-most node in the tree whose IPv6 address is addr. */
+	root_bib = rbtree_find(addr, &table->tree4, compare_addr4, struct bib_entry, tree4_hook);
+	if (!root_bib)
+		goto success; /* "Successfully" deleted zero entries. */
+
+	node = rb_prev(&root_bib->tree4_hook);
+	while (node) {
+		bib = rb_entry(node, struct bib_entry, tree4_hook);
+		if (compare_addr4(bib, addr) != 0)
+			break;
+		b += remove(bib, table);
+
+		node = rb_prev(&root_bib->tree4_hook);
+	}
+
+	node = rb_next(&root_bib->tree4_hook);
+	while (node) {
+		bib = rb_entry(node, struct bib_entry, tree4_hook);
+		if (compare_addr4(bib, addr) != 0)
+			break;
+		b += remove(bib, table);
+
+		node = rb_next(&root_bib->tree4_hook);
+	}
+
+	b += remove(root_bib, table);
+	/* Fall through. */
+
+success:
+	spin_unlock_bh(&table->bib_table_lock);
+	log_debug("Deleted %d BIBs.", b);
+	return 0;
+}
+
+int bibdb_delete_by_ipv4(struct in_addr *addr)
+{
+	log_debug("BIB_DB: Erasing tcp bibs by ipv4");//TODO:REMOVE
+	delete_bibs_by_ipv4(&bib_tcp, addr);
+	log_debug("BIB_DB: Erasing icmp bibs by ipv4");//TODO:REMOVE
+	delete_bibs_by_ipv4(&bib_icmp, addr);
+	log_debug("BIB_DB: Erasing udp bibs by ipv4");//TODO:REMOVE
+	delete_bibs_by_ipv4(&bib_udp, addr);
+
+	return 0;
+}
+
+static bool exists_in_bibdb(struct in_addr *addr, struct bib_table *table)
+{
+	struct bib_entry *bib;
+
+	/* Sanitize */
+	if (!addr) {
+		log_err(ERR_NULL, "ipv4 address is NULL");
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&table->bib_table_lock);
+
+	/* Find the top-most node in the tree whose IPv6 address is addr. */
+	bib = rbtree_find(addr, &table->tree4, compare_addr4, struct bib_entry, tree4_hook);
+	if (!bib) {
+		spin_unlock_bh(&table->bib_table_lock);
+		return false; /* There is not bib with in_addr addr. */
+	}
+
+	spin_unlock_bh(&table->bib_table_lock);
+	return true; /** There is one bib with in_addr addr */
+}
+
+int biddb_exists_on_addr(struct in_addr *addr)
+{
+	bool exists = false;
+
+	exists = exists_in_bibdb(addr, &bib_icmp);
+	if (exists)
+		return -EEXIST;
+
+	exists = exists_in_bibdb(addr, &bib_tcp);
+	if (exists)
+		return -EEXIST;
+
+	exists = exists_in_bibdb(addr, &bib_udp);
+	if (exists)
+		return -EEXIST;
+
 	return 0;
 }

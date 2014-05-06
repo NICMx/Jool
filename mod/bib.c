@@ -28,7 +28,6 @@ static void bib_release(struct kref *ref)
 		return; /* should we delete(kfree) the BIB? at this point bibrefcount = 0 */
 	}
 	bib_kfree(bib);
-	log_debug("BIB released");
 }
 
 /*******************************
@@ -90,7 +89,20 @@ void bib_get(struct bib_entry *bib)
 
 void bib_kfree(struct bib_entry *bib)
 {
-	log_debug("BIB kfree");
 	pool4_return(bib->l4_proto, &bib->ipv4);
 	kmem_cache_free(entry_cache, bib);
+}
+
+/**
+ * Make sure you use bib_get or bibdb_get before you use
+ * this function, otherwise could return a negative number
+ * or an invalid number of sessions.
+ */
+int bib_session_counter(struct bib_entry *bib)
+{
+	int s = atomic_read(&bib->refcounter.refcount) - 1;
+	if (bib->is_static)
+		s--;
+
+	return s;
 }

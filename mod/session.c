@@ -21,7 +21,6 @@ void session_release(struct kref *ref)
 {
 	struct session_entry *session = container_of(ref, struct session_entry, refcounter);
 	struct bib_entry *bib;
-	log_debug("session released");
 	bib = session->bib;
 	if (!bib) {
 		log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
@@ -86,6 +85,5 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 
 void session_kfree(struct session_entry *session)
 {
-	log_debug("session kfree");
 	kmem_cache_free(entry_cache, session);
 }

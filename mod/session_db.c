@@ -251,12 +251,13 @@ fail:
  * @return number of sessions removed from the database. This is always 1, because I have no way to
  *		know if the removal failed (and it shouldn't be possible anyway).
  */
-static int remove(struct session_entry *session)
+static int remove(struct session_entry *session, struct session_table *table)
 {
 	rb_erase(&session->tree6_hook, &table->tree6);
 	rb_erase(&session->tree4_hook, &table->tree4);
 	list_del(&session->expire_list_hook);
-	session_return(session);
+	if ( !session_return(session) )
+		log_warning("The session was removed from the session table but not deleted.");
 	return 1;
 }
 
@@ -346,7 +347,7 @@ static bool clean_expired_sessions(struct list_head *list, struct session_table 
 		if (!session_expire(session))
 			continue; /* The entry's TTL changed, which doesn't mean the next one isn't expired. */
 
-		s += remove(session);
+		s += remove(session, table);
 	}
 
 	/* Fall through. */
@@ -722,10 +723,8 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	/* add a new node and rebalance the tree */
 	rb_link_node(&(*session)->tree6_hook, parent, node);
 	rb_insert_color(&(*session)->tree6_hook, &table->tree6);
-	session_get(*session); /*tree6 reference +2*/
 
 	error = rbtree_add(*session, ipv4, &table->tree4, compare_full4, struct session_entry, tree4_hook);
-	session_get(*session); /*tree4 reference +3*/
 	if (error) {
 		log_crit(ERR_ADD_SESSION_FAILED, "The entry session was inserted in session_table_tree6 but exist in session_table_tree4");
 		rb_erase(&(*session)->tree6_hook, &table->tree6);
@@ -734,6 +733,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 		return error;
 	}
 
+	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
 	bib_get(bib);
 	(*session)->bib = bib;
 	spin_unlock_bh(&table->session_table_lock);
@@ -850,7 +850,7 @@ int sessiondb_delete_by_bib(struct bib_entry *bib)
 		session = rb_entry(node, struct session_entry, tree4_hook);
 		if (compare_local4(session, &bib->ipv4) != 0)
 			break;
-		s += remove(session);
+		s += remove(session, table);
 
 		node = rb_prev(&root_session->tree4_hook);
 	}
@@ -860,12 +860,12 @@ int sessiondb_delete_by_bib(struct bib_entry *bib)
 		session = rb_entry(node, struct session_entry, tree4_hook);
 		if (compare_local4(session, &bib->ipv4) != 0)
 			break;
-		s += remove(session);
+		s += remove(session, table);
 
 		node = rb_next(&root_session->tree4_hook);
 	}
 
-	s += remove(root_session);
+	s += remove(root_session, table);
 	table->count -= s;
 	/* Fall through. */
 

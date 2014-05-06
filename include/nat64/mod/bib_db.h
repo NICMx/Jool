@@ -120,4 +120,10 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
  */
 int bibdb_count(l4_protocol proto, __u64 *result);
 
+
+int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
+int bibdb_delete_by_ipv4(struct in_addr *addr);
+
+int biddb_exists_on_addr(struct in_addr *addr);
+
 #endif /* _NF_NAT64_BIB_DB_H */
