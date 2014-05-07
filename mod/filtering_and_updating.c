@@ -773,6 +773,53 @@ int clone_filtering_config(struct filtering_config *clone)
 	return 0;
 }
 
+static void update_list_timer(struct filtering_config *old, struct filtering_config *new, __u32 operation)
+{
+	__u64 old_ttl;
+	__u64 new_ttl;
+
+	/**
+	 * TODO:CHECK: Creo que los lock y unlock no son necesarios ya que la funcion que llama a esta funcion,
+	 * es set_filtering_config, tal vez lo unico que se debe de usar es el "dereference_bh"
+	 */
+	if (operation & UDP_TIMEOUT_MASK) {
+//		rcu_read_lock_bh();
+		old_ttl = rcu_dereference_bh(old)->to.udp;
+		new_ttl = rcu_dereference_bh(new)->to.udp;
+//		rcu_read_unlock_bh();
+
+		sessiondb_update_list_timer(TIMERTYPE_UDP, old_ttl, new_ttl);
+	}
+
+	if (operation & ICMP_TIMEOUT_MASK) {
+
+//		rcu_read_lock_bh();
+		old_ttl = rcu_dereference_bh(old)->to.icmp;
+		new_ttl = rcu_dereference_bh(new)->to.icmp;
+//		rcu_read_unlock_bh();
+
+		sessiondb_update_list_timer(TIMERTYPE_ICMP, old_ttl, new_ttl);
+	}
+
+	if (operation & TCP_EST_TIMEOUT_MASK) {
+//		rcu_read_lock_bh();
+		old_ttl = rcu_dereference_bh(old)->to.tcp_est;
+		new_ttl = rcu_dereference_bh(new)->to.tcp_est;
+//		rcu_read_unlock_bh();
+
+		sessiondb_update_list_timer(TIMERTYPE_TCP_EST, old_ttl, new_ttl);
+	}
+
+	if (operation & TCP_TRANS_TIMEOUT_MASK) {
+//		rcu_read_lock_bh();
+		old_ttl = rcu_dereference_bh(old)->to.tcp_trans;
+		new_ttl = rcu_dereference_bh(new)->to.tcp_trans;
+//		rcu_read_unlock_bh();
+
+		sessiondb_update_list_timer(TIMERTYPE_TCP_TRANS, old_ttl, new_ttl);
+	}
+}
+
 /**
  * Updates the configuration of this module.
  *
@@ -787,6 +834,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
 	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
 	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	int error = 0;
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -805,7 +853,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 	if (operation & UDP_TIMEOUT_MASK) {
 		if (new_config->to.udp < udp_min) {
 			log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u seconds.", UDP_MIN);
-			goto fail;
+			error = -EINVAL;
 		}
 		tmp_config->to.udp = new_config->to.udp;
 	}
@@ -817,7 +865,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 		if (new_config->to.tcp_est < tcp_est) {
 			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u seconds.",
 					TCP_EST);
-			goto fail;
+			error = -EINVAL;
 		}
 		tmp_config->to.tcp_est = new_config->to.tcp_est;
 	}
@@ -826,10 +874,15 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 		if (new_config->to.tcp_trans < tcp_trans) {
 			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u seconds.",
 					TCP_TRANS);
-			goto fail;
+			error = -EINVAL;
 		}
 		tmp_config->to.tcp_trans = new_config->to.tcp_trans;
 	}
+
+	if (error)
+		goto fail;
+
+	update_list_timer(old_config, tmp_config, operation);
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();

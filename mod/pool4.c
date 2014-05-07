@@ -186,7 +186,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 	condemned_addr = kmalloc(sizeof(condemned_addr), GFP_KERNEL);
 	if (!condemned_addr) {
 		log_err(ERR_ALLOC_FAILED, "Allocation of condemned address failed.");
-		error = -ENOENT;
+		error = -ENOMEM;
 		goto fail;
 	}
 
@@ -215,6 +215,7 @@ int pool4_register(struct in_addr *addr)
 		return -EINVAL;
 	}
 
+	/** CHECK: if you want to revive a condemned address */
 	if (condemned_addr != NULL && !ipv4_addr_cmp(condemned_addr, addr))	{
 		condemned_addr->s_addr = 0;
 		return 0;

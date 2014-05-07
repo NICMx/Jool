@@ -116,4 +116,6 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
  */
 void sessiondb_update_timer(struct session_entry *session, timer_type type, __u64 ttl);
 
+void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl);
+
 #endif /* _NF_NAT64_SESSION_DB_H */

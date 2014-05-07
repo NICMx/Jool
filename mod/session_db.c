@@ -39,6 +39,8 @@ static struct session_table session_table_tcp;
 /** The session table for ICMP connections. */
 static struct session_table session_table_icmp;
 
+static DEFINE_SPINLOCK(expire_list_lock);
+
 /** Sessions whose expiration date was initialized using "config".to.udp. */
 static LIST_HEAD(sessions_udp);
 /** Sessions whose expiration date was initialized using "config".to.tcp_est. */
@@ -335,6 +337,7 @@ static bool clean_expired_sessions(struct list_head *list, struct session_table 
 	bool result = true;
 
 	spin_lock_bh(&table->session_table_lock);
+	spin_lock_bh(&expire_list_lock);
 
 	list_for_each_safe(current_hook, next_hook, list) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
@@ -354,9 +357,10 @@ static bool clean_expired_sessions(struct list_head *list, struct session_table 
 
 end:
 	table->count -= s;
+	spin_unlock_bh(&expire_list_lock);
 	spin_unlock_bh(&table->session_table_lock);
 	log_debug("Deleted %u sessions.", s);
-	return true;
+	return result;
 }
 
 /**
@@ -920,4 +924,55 @@ void sessiondb_update_timer(struct session_entry *session, timer_type type, __u6
 				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
 }
+/**
+ * Helper of update_list_timer function in filtering_and_updating.
+ * Updates every "session"->dying_time of the expired list for the
+ * new ttl.
+ */
+void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl)
+{
+	struct list_head *list, *current_hook;
+	struct session_entry *session;
 
+	switch (type) {
+	case TIMERTYPE_UDP:
+		list = &sessions_udp;
+		break;
+
+	case TIMERTYPE_TCP_EST:
+		list = &sessions_tcp_est;
+		break;
+
+	case TIMERTYPE_TCP_TRANS:
+		list = &sessions_tcp_trans;
+		break;
+
+	case TIMERTYPE_TCP_SYN:
+		list = &sessions_syn;
+		break;
+
+	case TIMERTYPE_ICMP:
+		list = &sessions_icmp;
+		break;
+
+	default:
+		log_crit(ERR_UNKNOWN_ERROR, "Unknown timer type to set the update timer");
+		return;
+	}
+
+	spin_lock_bh(&expire_list_lock);
+	list_for_each(current_hook, list) {
+		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+		session->dying_time = session->dying_time - old_ttl + new_ttl;
+	}
+
+	if ( !list_empty(list) ) {
+		mod_timer(&expire_timer, get_next_dying_time());
+		log_debug("The timer will awake again in %u msecs.",
+				jiffies_to_msecs(expire_timer.expires - jiffies));
+	}
+
+	spin_unlock_bh(&expire_list_lock);
+
+	return;
+}
