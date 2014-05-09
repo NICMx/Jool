@@ -562,6 +562,8 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 		return error;
 	}
 
+	table->count++;
+
 	spin_unlock_bh(&table->bib_table_lock);
 	return 0;
 }

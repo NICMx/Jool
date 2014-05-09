@@ -775,49 +775,17 @@ int clone_filtering_config(struct filtering_config *clone)
 
 static void update_list_timer(struct filtering_config *old, struct filtering_config *new, __u32 operation)
 {
-	__u64 old_ttl;
-	__u64 new_ttl;
+	if (operation & UDP_TIMEOUT_MASK)
+		sessiondb_update_list_timer(TIMERTYPE_UDP, old->to.udp, new->to.udp);
 
-	/**
-	 * TODO:CHECK: Creo que los lock y unlock no son necesarios ya que la funcion que llama a esta funcion,
-	 * es set_filtering_config, tal vez lo unico que se debe de usar es el "dereference_bh"
-	 */
-	if (operation & UDP_TIMEOUT_MASK) {
-//		rcu_read_lock_bh();
-		old_ttl = rcu_dereference_bh(old)->to.udp;
-		new_ttl = rcu_dereference_bh(new)->to.udp;
-//		rcu_read_unlock_bh();
+	if (operation & ICMP_TIMEOUT_MASK)
+		sessiondb_update_list_timer(TIMERTYPE_ICMP, old->to.icmp, new->to.icmp);
 
-		sessiondb_update_list_timer(TIMERTYPE_UDP, old_ttl, new_ttl);
-	}
+	if (operation & TCP_EST_TIMEOUT_MASK)
+		sessiondb_update_list_timer(TIMERTYPE_TCP_EST, old->to.tcp_est, new->to.tcp_est);
 
-	if (operation & ICMP_TIMEOUT_MASK) {
-
-//		rcu_read_lock_bh();
-		old_ttl = rcu_dereference_bh(old)->to.icmp;
-		new_ttl = rcu_dereference_bh(new)->to.icmp;
-//		rcu_read_unlock_bh();
-
-		sessiondb_update_list_timer(TIMERTYPE_ICMP, old_ttl, new_ttl);
-	}
-
-	if (operation & TCP_EST_TIMEOUT_MASK) {
-//		rcu_read_lock_bh();
-		old_ttl = rcu_dereference_bh(old)->to.tcp_est;
-		new_ttl = rcu_dereference_bh(new)->to.tcp_est;
-//		rcu_read_unlock_bh();
-
-		sessiondb_update_list_timer(TIMERTYPE_TCP_EST, old_ttl, new_ttl);
-	}
-
-	if (operation & TCP_TRANS_TIMEOUT_MASK) {
-//		rcu_read_lock_bh();
-		old_ttl = rcu_dereference_bh(old)->to.tcp_trans;
-		new_ttl = rcu_dereference_bh(new)->to.tcp_trans;
-//		rcu_read_unlock_bh();
-
-		sessiondb_update_list_timer(TIMERTYPE_TCP_TRANS, old_ttl, new_ttl);
-	}
+	if (operation & TCP_TRANS_TIMEOUT_MASK)
+		sessiondb_update_list_timer(TIMERTYPE_TCP_TRANS, old->to.tcp_trans, new->to.tcp_trans);
 }
 
 /**
