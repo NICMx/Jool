@@ -224,7 +224,7 @@ static int init_payload_inner_ipv6(void *target, u16 payload_len)
 	struct ipv6_pair pair6;
 	int error;
 
-	error = init_pair6(&pair6, "5::5", 55, "6::6", 66);
+	error = init_pair6(&pair6, "2::2", 22, "6::6", 66);
 	if (error)
 		return error;
 
@@ -253,7 +253,7 @@ static int init_payload_inner_ipv4(void *target, u16 payload_len)
 	struct ipv4_pair pair4;
 	int error;
 
-	error = init_pair4(&pair4, "5.5.5.5", 555, "6.6.6.6", 666);
+	error = init_pair4(&pair4, "2.2.2.2", 222, "6.6.6.6", 666);
 	if (error)
 		return error;
 

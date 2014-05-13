@@ -74,7 +74,16 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
 	list_del(&session->expire_list_hook);
 	list_add(&session->expire_list_hook, list->prev);
 
+	/*
+	 * TODO (performance) is the second comparison really neccesary?
+	 * The new session should always expire last. (This also applies to the fragment DB timer)
+	 */
 	if (!timer_pending(&expire_timer) || time_before(session->dying_time, expire_timer.expires)) {
+		/*
+		 * We don't need to make the full "if (!timer_pending) then mod_timer" atomic because both
+		 * threads are going to set the expiration at roughly the same time, so the outcome is the
+		 * same.
+		 */
 		mod_timer(&expire_timer, session->dying_time);
 		log_debug("The session cleaning timer will awake in %u msecs.",
 				jiffies_to_msecs(expire_timer.expires - jiffies));
@@ -172,7 +181,8 @@ static void choose_prior(struct list_head *list, unsigned long *min, bool *min_e
  */
 static unsigned long get_next_dying_time(void)
 {
-	unsigned long current_min = 0;
+	unsigned long current_min = jiffies + msecs_to_jiffies(7200000);
+	unsigned long absolute_min = jiffies + MIN_TIMER_SLEEP;
 	bool min_exists = false;
 
 	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
@@ -181,6 +191,9 @@ static unsigned long get_next_dying_time(void)
 	choose_prior(&sessions_tcp_trans, &current_min, &min_exists);
 	choose_prior(&sessions_icmp, &current_min, &min_exists);
 	choose_prior(&sessions_syn, &current_min, &min_exists);
+
+	if (current_min < absolute_min)
+		current_min = absolute_min;
 
 	return current_min;
 }
@@ -1003,6 +1016,7 @@ static int tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 static int tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 {
 	struct bib_entry *bib;
+	int error;
 
 	switch (frag->l3_hdr.proto) {
 	case L3PROTO_IPV6:
@@ -1016,7 +1030,13 @@ static int tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 		break;
 	}
 
-	return bib_get(tuple, &bib);
+	error = bib_get(tuple, &bib);
+	if (error) {
+		log_info("Closed state: Packet is not SYN and there is no BIB, so discarding. ERRcode %d",
+				error);
+	}
+
+	return error;
 }
 
 /**

@@ -312,8 +312,6 @@ static void buffer_dealloc(struct reassembly_buffer *buffer)
  *
  * "key" is assumed to have been constructed from "buffer"; it is not inferred internally for silly
  * performance reasons.
- *
- * @param free_pkt send "true" if the buffer's internal packet structure should also be released.
  */
 static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer)
 {
@@ -416,6 +414,7 @@ static void cleaner_timer(unsigned long param)
 {
 	struct reassembly_buffer *buffer;
 	unsigned long next_expire;
+	unsigned long min_time = jiffies + MIN_TIMER_SLEEP;
 
 	clean_expired_buffers();
 
@@ -430,6 +429,10 @@ static void cleaner_timer(unsigned long param)
 	buffer = list_entry(expire_list.next, struct reassembly_buffer, list_hook);
 	next_expire = buffer->dying_time;
 	spin_unlock_bh(&table_lock);
+
+	if (next_expire < min_time)
+		next_expire = min_time;
+
 	mod_timer(&expire_timer, next_expire);
 }
 

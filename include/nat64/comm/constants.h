@@ -13,8 +13,7 @@
 
 
 /**
- * Step the module will be injected in within Netfilter's prerouting hook.
- * (After defragmentation, before Conntrack).
+ * Step the module will be injected in within Netfilter's prerouting hook (Before defragmentation).
  */
 #define NF_PRI_NAT64 -500
 
@@ -51,6 +50,22 @@
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
+/*
+ * The timers will never sleep less than this amount of jiffies. This is because I don't think we
+ * need to interrupt the kernel too much.
+ *
+ * 255 stands for TVR_SIZE - 1 (The kernel doesn't export TVR_SIZE).
+ * Why that value? It's the maximum we can afford without cascading the timer wheel when
+ * CONFIG_BASE_SMALL is false (https://lkml.org/lkml/2005/10/19/46).
+ *
+ * jiffies can be configured (http://man7.org/linux/man-pages/man7/time.7.html) to be
+ * - 0.01 seconds, which will make this minimum ~2.5 seconds.
+ * - 0.004 seconds, which will make this minimum ~1 second.
+ * - 0.001 seconds, which will make this minimum ~0.25 seconds.
+ *
+ * If you think this is dumb, you can always set this value to zero or whatever.
+ */
+#define MIN_TIMER_SLEEP (255)
 
 /* -- Config defaults -- */
 #define POOL6_DEF { "64:ff9b::/96" }
