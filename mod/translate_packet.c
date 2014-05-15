@@ -40,7 +40,7 @@ int clone_translate_config(struct translate_config *clone)
 	clone->mtu_plateaus = kmalloc(plateaus_len, GFP_ATOMIC);
 	if (!clone->mtu_plateaus) {
 		rcu_read_unlock_bh();
-		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
+		log_err("Could not allocate a clone of the config's plateaus list.");
 		return -ENOMEM;
 	}
 	memcpy(clone->mtu_plateaus, config_ref->mtu_plateaus, plateaus_len);
@@ -71,7 +71,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		int i, j;
 
 		if (new_config->mtu_plateau_count == 0) {
-			log_err(ERR_MTU_LIST_EMPTY, "The MTU list received from userspace is empty.");
+			log_err("The MTU list received from userspace is empty.");
 			return -EINVAL;
 		}
 
@@ -90,7 +90,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		}
 
 		if (new_config->mtu_plateaus[0] == 0) {
-			log_err(ERR_MTU_LIST_ZEROES, "The MTU list contains nothing but zeroes.");
+			log_err("The MTU list contains nothing but zeroes.");
 			return -EINVAL;
 		}
 
@@ -123,7 +123,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 
 		tmp_config->mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
 		if (!tmp_config->mtu_plateaus) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
+			log_err("Could not allocate the kernel's MTU plateaus list.");
 			kfree(tmp_config);
 			return -ENOMEM;
 		}
@@ -195,7 +195,7 @@ int translate_packet_init(void)
 	config->mtu_plateau_count = ARRAY_SIZE(default_plateaus);
 	config->mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
 	if (!config->mtu_plateaus) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the MTU plateaus.");
+		log_err("Could not allocate memory to store the MTU plateaus.");
 		kfree(config);
 		return -ENOMEM;
 	}
@@ -439,7 +439,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
 				icmp64_send(in, ICMPERR_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu));
-				log_info("Packet is too big (%u bytes; MTU: %u); dropping.",
+				log_debug("Packet is too big (%u bytes; MTU: %u); dropping.",
 						out->skb->len, min_ipv6_mtu);
 				frag_kfree(out);
 				return VER_DROP;

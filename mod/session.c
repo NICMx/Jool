@@ -49,11 +49,11 @@ static int get_session_table(l4_protocol l4_proto, struct session_table **result
 		*result = &session_table_icmp;
 		return 0;
 	case L4PROTO_NONE:
-		log_crit(ERR_L4PROTO, "There is no session table for the 'NONE' protocol.");
+		WARN(true, "There is no session table for the 'NONE' protocol.");
 		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
 }
 
@@ -134,7 +134,7 @@ int session_init(void)
 	entry_cache = kmem_cache_create("jool_session_entries", sizeof(struct session_entry),
 			0, 0, NULL);
 	if (!entry_cache) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the Session entry cache.");
+		log_err("Could not allocate the Session entry cache.");
 		return -ENOMEM;
 	}
 
@@ -175,10 +175,8 @@ int session_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 	struct session_table *table;
 	int error;
 
-	if (!pair) {
-		log_warning("The session tables cannot contain NULL.");
+	if (WARN(!pair, "The session tables cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -193,10 +191,8 @@ int session_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 	struct session_table *table;
 	int error;
 
-	if (!pair) {
-		log_warning("The session tables cannot contain NULL.");
+	if (WARN(!pair, "The session tables cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -210,10 +206,8 @@ int session_get(struct tuple *tuple, struct session_entry **result)
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
 
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no session entry mapped to NULL.");
+	if (WARN(!tuple, "There's no session entry mapped to NULL."))
 		return -EINVAL;
-	}
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
@@ -224,7 +218,7 @@ int session_get(struct tuple *tuple, struct session_entry **result)
 		return session_get_by_ipv4(&pair4, tuple->l4_proto, result);
 	}
 
-	log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
 	return -EINVAL;
 }
 
@@ -235,10 +229,8 @@ bool session_allow(struct tuple *tuple)
 	int error;
 
 	/* Sanity */
-	if (!tuple) {
-		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
+	if (WARN(!tuple, "Cannot extract addresses from NULL."))
 		return false;
-	}
 	error = get_session_table(tuple->l4_proto, &table);
 	if (error)
 		return error;
@@ -255,10 +247,8 @@ int session_add(struct session_entry *entry)
 	int error;
 
 	/* Sanity */
-	if (!entry) {
-		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
+	if (WARN(!entry, "Cannot insert NULL as a session entry."))
 		return -EINVAL;
-	}
 	error = get_session_table(entry->l4_proto, &table);
 	if (error)
 		return error;
@@ -284,10 +274,8 @@ int session_remove(struct session_entry *entry)
 	int error;
 
 	/* Sanity */
-	if (!entry) {
-		log_err(ERR_NULL, "The Session tables do not contain NULL entries.");
+	if (WARN(!entry, "The Session tables do not contain NULL entries."))
 		return -EINVAL;
-	}
 	error = get_session_table(entry->l4_proto, &table);
 	if (error)
 		return error;

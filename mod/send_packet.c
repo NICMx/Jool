@@ -55,12 +55,11 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, l4_protocol l4
 
 	error = ip_route_output_key(&init_net, &table, &flow);
 	if (error) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() failed. Code: %d. Cannot route packet.",
-				-error);
+		log_debug("ip_route_output_key() failed. Code: %d. Cannot route packet.", -error);
 		return NULL;
 	}
 	if (!table) {
-		log_err(ERR_ROUTE_FAILED, "The routing table is NULL. Cannot route packet.");
+		log_debug("The routing table is NULL. Cannot route packet.");
 		return NULL;
 	}
 
@@ -110,12 +109,11 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, l4_protocol 
 
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
+		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
 		return NULL;
 	}
 	if (dst->error) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned error %d. Cannot route packet.",
-				-dst->error);
+		log_debug("ip6_route_output() returned error %d. Cannot route packet.", -dst->error);
 		return NULL;
 	}
 
@@ -183,8 +181,7 @@ struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_
 	 */
 	table = __ip_route_output_key(&init_net, &flow);
 	if (!table || IS_ERR(table)) {
-		log_err(ERR_ROUTE_FAILED, "__ip_route_output_key() returned %ld. Cannot route packet.",
-				(long) table);
+		log_debug("__ip_route_output_key() returned %ld. Cannot route packet.", (long) table);
 		return NULL;
 	}
 
@@ -240,12 +237,11 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l
 
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
+		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
 		return NULL;
 	}
 	if (dst->error) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned error %d. Cannot route packet.",
-				-dst->error);
+		log_debug("ip6_route_output() returned error %d. Cannot route packet.", -dst->error);
 		return NULL;
 	}
 
@@ -275,7 +271,7 @@ verdict send_pkt(struct packet *pkt)
 		frag->skb = NULL;
 
 		if (error) {
-			log_err(ERR_SEND_FAILED, "The kernel's packet dispatch function returned errcode %d. "
+			log_debug("The kernel's packet dispatch function returned errcode %d. "
 					"Cannot send packet.", error);
 			return VER_DROP; /* The rest will also probably fail methinks, so meh. */
 		}

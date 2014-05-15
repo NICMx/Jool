@@ -51,11 +51,11 @@ static int get_bib_table(l4_protocol l4_proto, struct bib_table **result)
 		*result = &bib_icmp;
 		return 0;
 	case L4PROTO_NONE:
-		log_crit(ERR_ILLEGAL_NONE, "There's no BIB for the 'NONE' protocol.");
+		WARN(true, "There's no BIB for the 'NONE' protocol.");
 		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
 }
 
@@ -99,7 +99,7 @@ int bib_init(void)
 
 	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry), 0, 0, NULL);
 	if (!entry_cache) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the BIB entry cache.");
+		log_err("Could not allocate the BIB entry cache.");
 		return -ENOMEM;
 	}
 
@@ -141,10 +141,8 @@ int bib_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 	int error;
 
 	/* Sanitize */
-	if (!addr) {
-		log_warning("The BIBs cannot contain NULL.");
+	if (WARN(!addr, "The BIBs cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -161,10 +159,8 @@ int bib_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 	int error;
 
 	/* Sanitize */
-	if (!addr) {
-		log_warning("The BIBs cannot contain NULL.");
+	if (WARN(!addr, "The BIBs cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -179,10 +175,8 @@ int bib_get(struct tuple *tuple, struct bib_entry **result)
 	struct ipv6_tuple_address addr6;
 	struct ipv4_tuple_address addr4;
 
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no BIB entry mapped to NULL.");
+	if (WARN(!tuple, "There's no BIB entry mapped to NULL."))
 		return -EINVAL;
-	}
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
@@ -195,7 +189,7 @@ int bib_get(struct tuple *tuple, struct bib_entry **result)
 		return bib_get_by_ipv4(&addr4, tuple->l4_proto, result);
 	}
 
-	log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
 	return -EINVAL;
 }
 
@@ -205,10 +199,8 @@ int bib_add(struct bib_entry *entry, l4_protocol l4_proto)
 	int error;
 
 	/* Sanity */
-	if (!entry) {
-		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
+	if (WARN(!entry, "NULL is not a valid BIB entry."))
 		return -EINVAL;
-	}
 	error = get_bib_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -233,12 +225,10 @@ int bib_remove(struct bib_entry *entry, l4_protocol l4_proto)
 	struct bib_table *table;
 	int error;
 
-	if (!entry) {
-		log_err(ERR_NULL, "The BIB tables do not contain NULL entries.");
+	if (WARN(!entry, "The BIB tables do not contain NULL entries."))
 		return -EINVAL;
-	}
 	if (RB_EMPTY_NODE(&entry->tree6_hook) || RB_EMPTY_NODE(&entry->tree4_hook)) {
-		log_err(ERR_BIB_NOT_FOUND, "BIB entry does not belong to any trees.");
+		log_debug("BIB entry does not belong to any trees.");
 		return -EINVAL;
 	}
 	error = get_bib_table(l4_proto, &table);

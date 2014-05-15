@@ -123,10 +123,8 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
 	struct KEY_VALUE_PAIR *current_pair;
 	unsigned int hash_code;
 
-	if (!table) {
-		log_err(ERR_NULL, "The table is NULL.");
+	if (WARN(!table, "The table is NULL."))
 		return NULL;
-	}
 
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_for_each(current_node, &table->table[hash_code]) {
@@ -155,18 +153,12 @@ static int INIT(struct HTABLE_NAME *table,
 {
 	unsigned int i;
 
-	if (!table) {
-		log_err(ERR_NULL, "The table is NULL.");
+	if (WARN(!table, "The table is NULL."))
 		return -EINVAL;
-	}
-	if (!equals_function) {
-		log_err(ERR_NULL, "The equals function is NULL.");
+	if (WARN(!equals_function, "The equals function is NULL."))
 		return -EINVAL;
-	}
-	if (!hash_function) {
-		log_err(ERR_NULL, "The hash code function is NULL.");
+	if (WARN(!hash_function, "The hash code function is NULL."))
 		return -EINVAL;
-	}
 
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&table->table[i]);
@@ -197,10 +189,8 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	struct KEY_VALUE_PAIR *key_value;
 	unsigned int hash_code;
 
-	if (!table) {
-		log_err(ERR_NULL, "The table is NULL.");
+	if (WARN(!table, "The table is NULL."))
 		return -EINVAL;
-	}
 
 	/*
 	 * We're not going to insert the value alone, but a key-value structure.
@@ -209,7 +199,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	 */
 	key_value = kmalloc(sizeof(struct KEY_VALUE_PAIR), GFP_ATOMIC);
 	if (!key_value) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the key-value struct.");
+		log_debug("Could not allocate the key-value struct.");
 		return -ENOMEM;
 	}
 	key_value->key = *key;
@@ -274,10 +264,8 @@ static void EMPTY(struct HTABLE_NAME *table, void (*destructor)(VALUE_TYPE *))
 	struct list_head *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
 
-	if (!table) {
-		log_err(ERR_NULL, "The table is NULL.");
+	if (WARN(!table, "The table is NULL."))
 		return;
-	}
 
 	while (!list_empty(&table->list)) {
 		current_node = table->list.next;

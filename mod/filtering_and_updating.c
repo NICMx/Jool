@@ -218,7 +218,7 @@ static void send_probe_packet(struct session_entry *session)
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
 	if (!skb) {
-		log_warning("Could now allocate a probe packet.");
+		log_debug("Could now allocate a probe packet.");
 		goto fail;
 	}
 
@@ -265,7 +265,7 @@ static void send_probe_packet(struct session_entry *session)
 
 	dst = route_ipv6(iph, th, L4PROTO_TCP, 0);
 	if (!dst) {
-		log_warning("Could now route the probe packet.");
+		log_debug("Could not route the probe packet.");
 		goto fail;
 	}
 	skb->dev = dst->dev;
@@ -273,14 +273,14 @@ static void send_probe_packet(struct session_entry *session)
 
 	error = ip6_local_out(skb);
 	if (error) {
-		log_warning("The kernel's packet dispatch function returned errcode %d.", error);
+		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
 		goto fail;
 	}
 
 	return;
 
 fail:
-	log_warning("Looks like a TCP connection will break or remain idle forever somewhere...");
+	log_debug("Looks like a TCP connection will break or remain idle forever somewhere...");
 }
 
 /**
@@ -325,20 +325,19 @@ static bool session_expire(struct session_entry *session)
 
 		case CLOSED:
 			/* Closed sessions are not supposed to be stored. */
-			log_err(ERR_INVALID_STATE, "Closed state found; removing session entry.");
+			WARN(true, "Allocated but closed state found; removing session entry.");
 			return true;
 		}
 
-		log_err(ERR_INVALID_STATE, "Unknown state found (%d); removing session entry.",
-				session->state);
+		WARN(true, "Unknown state found (%d); removing session entry.", session->state);
 		return true;
 
 	case L4PROTO_NONE:
-		log_err(ERR_L4PROTO, "Invalid transport protocol: NONE.");
+		WARN(true, "Invalid transport protocol: NONE.");
 		return true;
 	}
 
-	log_err(ERR_L4PROTO, "Unknown transport protocol: %u.", session->l4_proto);
+	WARN(true, "Unknown transport protocol: %u.", session->l4_proto);
 	return true;
 }
 
@@ -379,10 +378,8 @@ static bool clean_expired_sessions(struct list_head *list)
 		session_kfree(session);
 		s++;
 
-		if (!bib) {
-			log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
+		if (WARN(!bib, "The session entry I just removed had no BIB entry."))
 			continue;
-		}
 
 		if (!list_empty(&bib->sessions) || bib->is_static)
 			continue; /* The BIB entry needn't die; no error to report. */
@@ -595,7 +592,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
 	/* Look in the BIB tables for a previous packet from the same origin. */
 	error = allocate_ipv4_transport_address(tuple, &addr4);
 	if (error) {
-		log_warning("Error code %d while 'allocating' an address for a BIB entry.", error);
+		log_debug("Error code %d while 'allocating' an address for a BIB entry.", error);
 		if (tuple->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
 			icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
@@ -608,7 +605,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
 	addr6.l4_id = tuple->src.l4_id;
 	*bib = bib_create(&addr4, &addr6, false);
 	if (!(*bib)) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
+		log_debug("Failed to allocate a BIB entry.");
 		return -ENOMEM;
 	}
 
@@ -617,7 +614,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
 	error = bib_add(*bib, tuple->l4_proto);
 	if (error) {
 		bib_kfree(*bib);
-		log_err(ERR_ADD_BIB_FAILED, "Error code %d while adding a BIB entry to the DB.", error);
+		log_debug("Error code %d while adding a BIB entry to the DB.", error);
 		return error;
 	}
 
@@ -635,17 +632,17 @@ static int get_or_create_bib_ipv4(struct fragment *frag, struct tuple *tuple,
 
 	error = bib_get(tuple, bib);
 	if (error == -ENOENT) {
-		log_info("There is no BIB entry for the incoming IPv4 packet.");
+		log_debug("There is no BIB entry for the incoming IPv4 packet.");
 		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	} else if (error) {
-		log_warning("Error code %d while finding a BIB entry for the incoming packet.", error);
+		log_debug("Error code %d while finding a BIB entry for the incoming packet.", error);
 		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
 
 	if (address_dependent_filtering() && !session_allow(tuple)) {
-		log_info("Packet was blocked by address-dependent filtering.");
+		log_debug("Packet was blocked by address-dependent filtering.");
 		icmp64_send(frag, ICMPERR_FILTER, 0);
 		return -EPERM;
 	}
@@ -670,13 +667,13 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	/* Translate address from IPv6 to IPv4 */
 	error = pool6_get(&tuple->dst.addr.ipv6, &prefix);
 	if (error) {
-		log_warning("Errcode %d while obtaining %pI6c's prefix.", error, &tuple->dst.addr.ipv6);
+		log_debug("Errcode %d while obtaining %pI6c's prefix.", error, &tuple->dst.addr.ipv6);
 		return error;
 	}
 
 	error = addr_6to4(&tuple->dst.addr.ipv6, &prefix, &ipv4_dst);
 	if (error) {
-		log_err(ERR_EXTRACT_FAILED, "Error code %d while translating the packet's address.", error);
+		log_debug("Error code %d while translating the packet's address.", error);
 		return error;
 	}
 
@@ -696,7 +693,7 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 
 	*session = session_create(&pair4, &pair6, tuple->l4_proto);
 	if (!(*session)) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
+		log_debug("Failed to allocate a session entry.");
 		return -ENOMEM;
 	}
 
@@ -706,7 +703,7 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	error = session_add(*session);
 	if (error) {
 		session_kfree(*session);
-		log_err(ERR_ADD_SESSION_FAILED, "Error code %d while adding the session to the DB.", error);
+		log_debug("Error code %d while adding the session to the DB.", error);
 		return error;
 	}
 
@@ -757,7 +754,7 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 
 	error = addr_4to6(&tuple->src.addr.ipv4, &prefix, &ipv6_src);
 	if (error) {
-		log_err(ERR_APPEND_FAILED, "Error code %d while translating the packet's address.", error);
+		log_debug("Error code %d while translating the packet's address.", error);
 		return error;
 	}
 
@@ -777,7 +774,7 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 
 	*session = session_create(&pair4, &pair6, tuple->l4_proto);
 	if (!(*session)) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
+		log_debug("Failed to allocate a session entry.");
 		return -ENOMEM;
 	}
 
@@ -787,7 +784,7 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	error = session_add(*session);
 	if (error) {
 		session_kfree(*session);
-		log_err(ERR_ADD_SESSION_FAILED, "Error code %d while adding the session to the DB.", error);
+		log_debug("Error code %d while adding the session to the DB.", error);
 		return error;
 	}
 
@@ -889,7 +886,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 	int error;
 
 	if (filter_icmpv6_info()) {
-		log_info("Packet is ICMPv6 info (ping); dropping due to policy.");
+		log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
 		return VER_DROP;
 	}
 
@@ -966,7 +963,7 @@ static int tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
 static inline void store_packet(void)
 {
 	/* TODO (Issue #58) store the packet. */
-	log_warning("Unknown TCP connections started from the IPv4 side are still unsupported. "
+	log_debug("Unknown TCP connections started from the IPv4 side are still unsupported. "
 			"Dropping packet...");
 }
 
@@ -982,13 +979,13 @@ static int tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
 	int error;
 
 	if (drop_external_connections()) {
-		log_info("Applying policy: Dropping externally initiated TCP connections.");
+		log_debug("Applying policy: Dropping externally initiated TCP connections.");
 		return -EPERM;
 	}
 
 	if (address_dependent_filtering()) {
 		/* TODO (issue #58) set_syn_timer(session); */
-		log_warning("Storage of TCP packets is not yet supported.");
+		log_debug("Storage of TCP packets is not yet supported.");
 		return -EINVAL;
 	}
 
@@ -1032,7 +1029,7 @@ static int tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
 
 	error = bib_get(tuple, &bib);
 	if (error) {
-		log_info("Closed state: Packet is not SYN and there is no BIB, so discarding. ERRcode %d",
+		log_debug("Closed state: Packet is not SYN and there is no BIB, so discarding. ERRcode %d",
 				error);
 	}
 
@@ -1167,7 +1164,7 @@ static verdict tcp(struct fragment* frag, struct tuple *tuple)
 
 	error = session_get(tuple, &session);
 	if (error != 0 && error != -ENOENT) {
-		log_warning("Error code %d while trying to find a TCP session.", error);
+		log_debug("Error code %d while trying to find a TCP session.", error);
 		goto end;
 	}
 
@@ -1205,7 +1202,7 @@ static verdict tcp(struct fragment* frag, struct tuple *tuple)
 		 * Because closed sessions are not supposed to be stored,
 		 * CLOSED is known to fall through here.
 		 */
-		log_err(ERR_INVALID_STATE, "Invalid state found: %u.", session->state);
+		WARN(true, "Invalid state found: %u.", session->state);
 		error = -EINVAL;
 	}
 	/* Fall through. */
@@ -1224,7 +1221,7 @@ int filtering_init(void)
 {
 	config = kmalloc(sizeof(*config), GFP_ATOMIC);
 	if (!config) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the filtering config.");
+		log_err("Could not allocate memory to store the filtering config.");
 		return -ENOMEM;
 	}
 
@@ -1304,7 +1301,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 
 	if (operation & UDP_TIMEOUT_MASK) {
 		if (new_config->to.udp < udp_min) {
-			log_err(ERR_UDP_TO_RANGE, "The UDP timeout must be at least %u seconds.", UDP_MIN);
+			log_err("The UDP timeout must be at least %u seconds.", UDP_MIN);
 			goto fail;
 		}
 		tmp_config->to.udp = new_config->to.udp;
@@ -1315,8 +1312,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 
 	if (operation & TCP_EST_TIMEOUT_MASK) {
 		if (new_config->to.tcp_est < tcp_est) {
-			log_err(ERR_TCPEST_TO_RANGE, "The TCP est timeout must be at least %u seconds.",
-					TCP_EST);
+			log_err("The TCP est timeout must be at least %u seconds.", TCP_EST);
 			goto fail;
 		}
 		tmp_config->to.tcp_est = new_config->to.tcp_est;
@@ -1324,8 +1320,7 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 
 	if (operation & TCP_TRANS_TIMEOUT_MASK) {
 		if (new_config->to.tcp_trans < tcp_trans) {
-			log_err(ERR_TCPTRANS_TO_RANGE, "The TCP trans timeout must be at least %u seconds.",
-					TCP_TRANS);
+			log_err("The TCP trans timeout must be at least %u seconds.", TCP_TRANS);
 			goto fail;
 		}
 		tmp_config->to.tcp_trans = new_config->to.tcp_trans;
@@ -1372,11 +1367,11 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr_ip6 = frag_get_ipv6_hdr(frag);
 		if (pool6_contains(&hdr_ip6->saddr)) {
-			log_info("Hairpinning loop. Dropping...");
+			log_debug("Hairpinning loop. Dropping...");
 			return VER_DROP;
 		}
 		if (!pool6_contains(&hdr_ip6->daddr)) {
-			log_info("Packet was rejected by pool6, dropping...");
+			log_debug("Packet was rejected by pool6, dropping...");
 			return VER_DROP;
 		}
 		break;
@@ -1390,7 +1385,7 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		/* Get rid of unexpected packets */
 		addr4.s_addr = frag_get_ipv4_hdr(frag)->daddr;
 		if (!pool4_contains(&addr4)) {
-			log_info("Packet was rejected by pool4, dropping...");
+			log_debug("Packet was rejected by pool4, dropping...");
 			return VER_DROP;
 		}
 		break;
@@ -1427,7 +1422,7 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		break;
 
 	case L4PROTO_NONE:
-		log_err(ERR_ILLEGAL_NONE, "Tuples should not contain the 'NONE' transport protocol.");
+		WARN(true, "Tuples should not contain the 'NONE' transport protocol.");
 		result = VER_DROP;
 		break;
 	}

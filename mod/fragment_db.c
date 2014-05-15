@@ -257,7 +257,7 @@ static int frag_to_key(struct fragment *frag, struct reassembly_buffer_key *key)
 	return 0;
 
 iterator_fail:
-	log_crit(ERR_INVALID_ITERATOR, "Iterator yielded status %u on a valid fragment.", result);
+	WARN(true, "Iterator yielded status %u on a valid fragment.", result);
 	return -EINVAL;
 }
 
@@ -315,12 +315,13 @@ static void buffer_dealloc(struct reassembly_buffer *buffer)
  */
 static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer)
 {
+	bool success;
+
 	/* Remove it from the DB. */
-	if (!fragdb_table_remove(&table, key, NULL)) {
-		log_crit(ERR_UNKNOWN_ERROR, "Something is attempting to delete a buffer that wasn't stored "
-				"in the database.");
+	success = fragdb_table_remove(&table, key, NULL);
+	if (WARN(!success, "Something is attempting to delete a buffer that wasn't stored "
+			"in the database."))
 		return;
-	}
 
 	list_del(&buffer->list_hook);
 
@@ -520,7 +521,7 @@ static int validate_csum_icmp6(struct packet *pkt)
 	icmp6_hdr->icmp6_cksum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+		log_debug("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
 		return -EINVAL;
 	}
 
@@ -559,7 +560,7 @@ static int validate_csum_icmp4(struct packet *pkt)
 	hdr->checksum = tmp;
 
 	if (tmp != computed_csum) {
-		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+		log_debug("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
 		return -EINVAL;
 	}
 
@@ -612,7 +613,7 @@ static int l4_post(struct packet *pkt) {
 		break;
 
 	case L4PROTO_NONE:
-		log_warning("The transport protocol of the first fragment is NONE.");
+		log_debug("The transport protocol of the first fragment is NONE.");
 		error = -EINVAL;
 		break;
 	}
@@ -630,7 +631,7 @@ int fragdb_init(void)
 	config = kmalloc(sizeof(*config), GFP_ATOMIC);
 
 	if (!config) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the fragmentation config.");
+		log_err("Could not allocate memory to store the fragmentation config.");
 		return -ENOMEM;
 	}
 	config->fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
@@ -639,12 +640,14 @@ int fragdb_init(void)
 			0, 0, NULL);
 	if (!hole_cache) {
 		kfree(config);
+		log_err("Could not allocate the hole descriptor cache.");
 		return -ENOMEM;
 	}
 	buffer_cache = kmem_cache_create("jool_reassembly_buffers", sizeof(struct reassembly_buffer),
 			0, 0, NULL);
 	if (!buffer_cache) {
 		kmem_cache_destroy(hole_cache);
+		log_err("Could not allocate the reassembly buffer cache.");
 		kfree(config);
 		return -ENOMEM;
 	}
@@ -704,8 +707,7 @@ int set_fragmentation_config(__u32 operation, struct fragmentation_config *new_c
 
 	if (operation & FRAGMENT_TIMEOUT_MASK) {
 		if (new_config->fragment_timeout < fragment_min) {
-			log_err(ERR_FRAGMENTATION_TO_RANGE, "The fragment timeout must be at least %u seconds.",
-					FRAGMENT_MIN);
+			log_err("The fragment timeout must be at least %u seconds.", FRAGMENT_MIN);
 			kfree(tmp_config);
 			return -EINVAL;
 		}

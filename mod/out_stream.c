@@ -11,7 +11,7 @@ static int flush(struct out_stream *stream, __u16 nlmsg_type)
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(stream->buffer_len), GFP_ATOMIC);
 	if (!skb_out) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a response skb to the user.");
+		log_err("Failed to allocate a response skb to the user.");
 		return -ENOMEM;
 	}
 
@@ -26,7 +26,7 @@ static int flush(struct out_stream *stream, __u16 nlmsg_type)
 
 	res = nlmsg_unicast(stream->socket, skb_out, stream->request_hdr->nlmsg_pid);
 	if (res < 0) {
-		log_err(ERR_NETLINK, "Error code %d while returning response to the user.", res);
+		log_err("Error code %d while returning response to the user.", res);
 		return res;
 	}
 

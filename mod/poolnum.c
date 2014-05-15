@@ -130,11 +130,9 @@ int poolnum_get(struct poolnum *pool, u16 value)
  */
 int poolnum_return(struct poolnum *pool, u16 value)
 {
-	if (!pool->next_is_ahead && pool->returned == pool->next) {
-		log_crit(ERR_UNKNOWN_ERROR, "Something's trying to return values that were originally "
-				"not part of the pool.");
+	if (WARN(!pool->next_is_ahead && pool->returned == pool->next,
+			"Something's trying to return values that were originally not part of the pool."))
 		return -EINVAL;
-	}
 
 	pool->array[pool->returned] = value;
 	pool->returned = get_next_index(pool->returned, pool->count);

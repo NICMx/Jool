@@ -20,7 +20,8 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 	spin_lock_bh(&bib_session_lock);
 	error = bib_get(in, &bib);
 	if (error) {
-		log_warning("Error code %d while trying to find a BIB entry we just created or updated in "
+		/* TODO What about ICMP errors? they don't get filtered and updated. */
+		log_debug("Error code %d while trying to find a BIB entry we just created or updated in "
 				"the Filtering and Updating step...", error);
 		goto lock_fail;
 	}
@@ -72,7 +73,8 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 	spin_lock_bh(&bib_session_lock);
 	error = bib_get(in, &bib);
 	if (error) {
-		log_warning("Error code %d while trying to find a BIB entry we just created or updated in "
+		/* TODO What about ICMP errors? they don't get filtered and updated. */
+		log_debug("Error code %d while trying to find a BIB entry we just created or updated in "
 				"the Filtering and Updating step...", error);
 		goto lock_fail;
 	}

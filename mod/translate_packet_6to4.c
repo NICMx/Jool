@@ -116,7 +116,7 @@ static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct 
 	out->l3_hdr.ptr_needs_kfree = true;
 	out->l3_hdr.ptr = kmalloc(out->l3_hdr.len, GFP_ATOMIC);
 	if (!out->l3_hdr.ptr) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv4 header failed.");
+		log_debug("Allocation of the IPv4 header failed.");
 		return VER_DROP;
 	}
 
@@ -148,7 +148,7 @@ static verdict create_ipv4_hdr(struct tuple *tuple, struct fragment *in, struct 
 	if (in->skb != NULL) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
-			log_info("Packet's segments left field is nonzero.");
+			log_debug("Packet's segments left field is nonzero.");
 			icmp64_send(in, ICMPERR_HDR_FIELD, nonzero_location);
 			return VER_DROP;
 		}
@@ -274,14 +274,14 @@ static verdict icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr,
 	}
 
 	/* This is critical because the above ifs are supposed to cover all the possible values. */
-	log_crit(ERR_UNKNOWN_ERROR, "Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
+	WARN(true, "Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
 	goto failure;
 
 success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return VER_CONTINUE;
 failure:
-	log_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
+	log_debug("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
 	return VER_DROP;
 }
 
@@ -310,7 +310,7 @@ static verdict icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr,
 		break;
 
 	default:
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+		log_debug("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
 				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return VER_DROP;
 	}
@@ -343,8 +343,8 @@ static verdict icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr,
 
 	default:
 		/* ICMPV6_UNK_OPTION is known to fall through here. */
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
-				icmpv6_hdr->icmp6_code);
+		log_debug("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return VER_DROP;
 	}
 
@@ -388,7 +388,7 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(in);
 	struct icmphdr *icmpv4_hdr = kmalloc(sizeof(struct icmphdr), GFP_ATOMIC);
 	if (!icmpv4_hdr) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of the ICMPv4 header failed.");
+		log_debug("Allocation of the ICMPv4 header failed.");
 		return VER_DROP;
 	}
 
@@ -450,7 +450,7 @@ static verdict create_icmp4_hdr_and_payload(struct tuple* tuple, struct fragment
 		 * ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
 		 * Neighbor Discover messages (133 - 137).
 		 */
-		log_info("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
+		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		return VER_DROP;
 	}
 
@@ -486,7 +486,7 @@ static verdict post_mtu4(struct fragment *in, struct fragment *out, struct icmp6
 		return VER_DROP;
 	if (!out_dst->dev) {
 		dst_release(out_dst);
-		log_warning("I found a dst_entry with a NULL dev. "
+		log_debug("I found a dst_entry with a NULL dev. "
 				"This is probably going to break someone's PMTUD.");
 		return VER_DROP;
 	}
