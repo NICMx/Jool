@@ -13,7 +13,7 @@
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/packet.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/session_db.h"
 
 
 int filtering_init(void);

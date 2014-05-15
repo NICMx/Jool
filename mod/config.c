@@ -203,6 +203,15 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		}
 
 		log_debug("Removing an address from the IPv4 pool.");
+
+		error = sessiondb_delete_by_ipv4(&request->update.addr);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		error = bibdb_delete_by_ipv4(&request->update.addr);
+		if (error)
+			return respond_error(nl_hdr, error);
+
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
 
 	default:

@@ -1,11 +1,10 @@
-#include "nat64/mod/bib.h"
-
-#include <net/ipv6.h>
-#include "nat64/mod/pool4.h"
-#include "nat64/mod/rbtree.h"
-#include "nat64/mod/bib_db.h"
-#include "nat64/mod/icmp_wrapper.h"
-
+/**
+ * @file
+ * The Binding Information Bases.
+ * Formally defined in RFC 6146 section 3.1.
+ *
+ * @author Alberto Leiva
+ */
 
 /********************************************
  * Structures and private variables.

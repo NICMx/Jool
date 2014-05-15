@@ -71,8 +71,7 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
  */
 void poolnum_destroy(struct poolnum *pool)
 {
-	if (pool)
-		kfree(pool->array);
+	kfree(pool->array);
 }
 
 /**
@@ -91,7 +90,7 @@ static u32 get_next_index(u32 index, u32 max)
  */
 int poolnum_get_any(struct poolnum *pool, u16 *result)
 {
-	if (pool->next_is_ahead && pool->next == pool->returned)
+	if (poolnum_is_empty(pool))
 		return -ESRCH; /* We ran out of values. */
 
 	*result = pool->array[pool->next];
@@ -108,7 +107,7 @@ int poolnum_get(struct poolnum *pool, u16 value)
 {
 	u32 current_index;
 
-	if (pool->next_is_ahead && pool->next == pool->returned)
+	if (poolnum_is_empty(pool))
 		return -ESRCH;
 
 	current_index = pool->next;
@@ -130,11 +129,9 @@ int poolnum_get(struct poolnum *pool, u16 value)
  */
 int poolnum_return(struct poolnum *pool, u16 value)
 {
-	if (!pool->next_is_ahead && pool->returned == pool->next) {
-		log_crit(ERR_UNKNOWN_ERROR, "Something's trying to return values that were originally "
-				"not part of the pool.");
+	if (WARN(poolnum_is_full(pool), "Something's trying to return values that were originally "
+			"not part of the pool."))
 		return -EINVAL;
-	}
 
 	pool->array[pool->returned] = value;
 	pool->returned = get_next_index(pool->returned, pool->count);
@@ -142,4 +139,14 @@ int poolnum_return(struct poolnum *pool, u16 value)
 		pool->next_is_ahead = false;
 
 	return 0;
+}
+
+bool poolnum_is_full(struct poolnum *pool)
+{
+	return (!pool->next_is_ahead) && (pool->returned == pool->next);
+}
+
+bool poolnum_is_empty(struct poolnum *pool)
+{
+	return pool->next_is_ahead && (pool->returned == pool->next);
 }

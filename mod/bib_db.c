@@ -2,11 +2,11 @@
 
 #include <net/ipv6.h>
 #include "nat64/mod/rbtree.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session_db.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/icmp_wrapper.h"
+
+#include "bib.c"
 
 /**
  * BIB table definition.
@@ -576,21 +576,18 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
  *
  * @return number of bibs removed from the database.
  */
-static int remove(struct bib_entry *bib, struct bib_table *table)
+static int remove_fake_usr(struct bib_entry *bib, struct bib_table *table)
 {
-	int error;
+	/** if it was removed and deleted b = 1, otherwise b = 0*/
+	int b = 0;
 
 	/* Remove the fake user. */
 	if (bib->is_static) {
-		bib_return(bib);
 		bib->is_static = false;
+		b = bib_return(bib);
 	}
 
-	error = sessiondb_delete_by_bib(bib);
-	if (error)
-		return 0;
-
-	return 1;
+	return b;
 }
 
 static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
@@ -617,7 +614,7 @@ static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 		bib = rb_entry(node, struct bib_entry, tree4_hook);
 		if (compare_addr4(bib, addr) != 0)
 			break;
-		b += remove(bib, table);
+		b += remove_fake_usr(bib, table);
 
 		node = rb_prev(&root_bib->tree4_hook);
 	}
@@ -627,12 +624,12 @@ static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 		bib = rb_entry(node, struct bib_entry, tree4_hook);
 		if (compare_addr4(bib, addr) != 0)
 			break;
-		b += remove(bib, table);
+		b += remove_fake_usr(bib, table);
 
 		node = rb_next(&root_bib->tree4_hook);
 	}
 
-	b += remove(root_bib, table);
+	b += remove_fake_usr(root_bib, table);
 	/* Fall through. */
 
 success:
@@ -643,11 +640,11 @@ success:
 
 int bibdb_delete_by_ipv4(struct in_addr *addr)
 {
-	log_debug("BIB_DB: Erasing tcp bibs by ipv4");//TODO:REMOVE
+	log_debug("BIB_DB: Erasing TCP bibs by ipv4");//TODO:REMOVE
 	delete_bibs_by_ipv4(&bib_tcp, addr);
-	log_debug("BIB_DB: Erasing icmp bibs by ipv4");//TODO:REMOVE
+	log_debug("BIB_DB: Erasing ICMP bibs by ipv4");//TODO:REMOVE
 	delete_bibs_by_ipv4(&bib_icmp, addr);
-	log_debug("BIB_DB: Erasing udp bibs by ipv4");//TODO:REMOVE
+	log_debug("BIB_DB: Erasing UDP bibs by ipv4");//TODO:REMOVE
 	delete_bibs_by_ipv4(&bib_udp, addr);
 
 	return 0;

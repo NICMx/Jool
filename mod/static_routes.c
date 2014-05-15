@@ -125,8 +125,8 @@ int delete_static_route(struct request_bib *req)
 
 	/* Remove the fake user. */
 	if (bib->is_static) {
-		bib_return(bib);
 		bib->is_static = false;
+		bib_return(bib);
 	}
 
 	/* Remove bib's sessions and their references. */

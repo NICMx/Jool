@@ -1,9 +1,10 @@
-#include "nat64/mod/session.h"
-
-#include <net/ipv6.h>
-#include "nat64/mod/rbtree.h"
-#include "nat64/mod/bib.h"
-
+/**
+ * @file
+ * The Session tables.
+ * Formally defined in RFC 6146 section 3.2.
+ *
+ * @author Alberto Leiva
+ */
 
 /********************************************
  * Structures and private variables.

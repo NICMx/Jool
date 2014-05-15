@@ -2,13 +2,13 @@
 
 #include <net/ipv6.h>
 #include "nat64/mod/rbtree.h"
-#include "nat64/mod/session.h"
-#include "nat64/mod/bib.h"
+#include "nat64/mod/bib_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/send_packet.h"
 #include "nat64/mod/filtering_and_updating.h"
 
+#include "session.c"
 
 /********************************************
  * Structures and private variables.
@@ -117,6 +117,12 @@ static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
 	return gap;
 }
 
+
+/**
+ * Just returns whether "ipv4_pair" is "session"'s IPv4 pair, excluding ipv4.remote.l4_id.
+ *
+ * @return zero if session->ipv4 is ipv4_pair. Non-zero if they're different.
+ */
 static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
 {
 	int gap;
@@ -133,6 +139,11 @@ static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
 	return gap;
 }
 
+/**
+ * Just returns whether "ipv4_pair" is "session"'s IPv4 pair.
+ *
+ * @return zero if session->ipv4 is ipv4_pair. Non-zero if they're different.
+ */
 static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
 {
 	int gap;
@@ -145,6 +156,11 @@ static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
 	return gap;
 }
 
+/**
+ * Just returns whether "ipv4_tuple_addr" is "session"'s IPv4 local tuple.
+ *
+ * @return zero if session->ipv4.local is ipv4_tuple_addr. Non-zero if they're different.
+ */
 static int compare_local4(struct session_entry *session, struct ipv4_tuple_address *addr)
 {
 	int gap;
@@ -155,6 +171,17 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
 
 	gap = session->ipv4.local.l4_id - addr->l4_id;
 	return gap;
+}
+
+/** Just compare the session->ipv4.local.address against in_addr */
+/**
+ * Just returns whether "in_addr" is "session"'s IPv4 local.addr.
+ *
+ * @return zero if session->ipv4.local.addr is in_addr. Non-zero if they're different.
+ */
+static int compare_local_addr4(struct session_entry *session, struct in_addr *addr)
+{
+	return ipv4_addr_cmp(&session->ipv4.local.address, addr);
 }
 
 /**
@@ -824,10 +851,9 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 	return 0;
 }
 
-/*******************************************
+/**
  * Helper function for static_routes.c delete
- *******************************************/
-
+ */
 int sessiondb_delete_by_bib(struct bib_entry *bib)
 {
 	struct session_table *table;
@@ -876,6 +902,71 @@ int sessiondb_delete_by_bib(struct bib_entry *bib)
 success:
 	spin_unlock_bh(&table->session_table_lock);
 	log_debug("Deleted %d sessions.", s);
+	return 0;
+}
+
+/**
+ * Helper function for pool4.c delete
+ */
+static int delete_sessions_by_ipv4(struct session_table *table, struct in_addr *addr)
+{
+	struct session_entry *root_session, *session;
+	struct rb_node *node;
+	int s = 0;
+
+	/* Sanitize */
+	if (!addr) {
+		log_err(ERR_NULL, "ipv4 address is NULL");
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&table->session_table_lock);
+
+	/* Find the top-most node in the tree whose IPv4 address is addr. */
+	root_session = rbtree_find(addr, &table->tree4, compare_local_addr4, struct session_entry,
+			tree4_hook);
+	if (!root_session)
+		goto success; /* "Successfully" deleted zero entries. */
+
+	node = rb_prev(&root_session->tree4_hook);
+	while (node) {
+		session = rb_entry(node, struct session_entry, tree4_hook);
+		if (compare_local_addr4(session, addr) != 0)
+			break;
+		s += remove(session, table);
+
+		node = rb_prev(&root_session->tree4_hook);
+	}
+
+	node = rb_next(&root_session->tree4_hook);
+	while (node) {
+		session = rb_entry(node, struct session_entry, tree4_hook);
+		if (compare_local_addr4(session, addr) != 0)
+			break;
+		s += remove(session, table);
+
+		node = rb_next(&root_session->tree4_hook);
+	}
+
+	s += remove(root_session, table);
+	table->count -= s;
+	/* Fall through. */
+
+success:
+	spin_unlock_bh(&table->session_table_lock);
+	log_debug("Deleted %d sessions.", s);
+	return 0;
+}
+
+int sessiondb_delete_by_ipv4(struct in_addr *addr4)
+{
+	log_debug("SESSION_DB: Erasing TCP sessions by ipv4");//TODO:REMOVE
+	delete_sessions_by_ipv4(&session_table_tcp, addr4);
+	log_debug("SESSION_DB: Erasing ICMP sessions by ipv4");//TODO:REMOVE
+	delete_sessions_by_ipv4(&session_table_icmp, addr4);
+	log_debug("SESSION_DB: Erasing UDP sessions by ipv4");//TODO:REMOVE
+	delete_sessions_by_ipv4(&session_table_udp, addr4);
+
 	return 0;
 }
 

@@ -1,5 +1,4 @@
 #include "nat64/mod/pool4.h"
-#include "nat64/mod/bib_db.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
 
@@ -21,8 +20,6 @@ static struct in_addr *last_used_addr;
 
 /** Cache for struct pool4_nodes, for efficient allocation. */
 static struct kmem_cache *node_cache;
-/** address used to lock a pool when its next to be removed, by user request */
-static struct in_addr *condemned_addr;
 
 static unsigned int ipv4_addr_hashcode(struct in_addr *addr)
 {
@@ -40,30 +37,6 @@ static unsigned int ipv4_addr_hashcode(struct in_addr *addr)
 	result = 31 * result + (addr32 & 0xFF);
 
 	return result;
-}
-
-/** verify if the address that will be used in a BIB,
- * is not going to be removed
- *
- * @param[in] an address borrowed from the pool
- * @return 0 if the address can be borrowed, otherwise return -EINVAL
- **/
-static int is_condemned_addr(struct in_addr *addr)
-{
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
-		return -EINVAL;
-	}
-
-	if (!condemned_addr) /* none address will be deleted, continue.*/
-		return 0;
-
-	if (!ipv4_addr_cmp(condemned_addr, addr)) { /* if equals will return 0.*/
-		log_warning("%pI4 will be deleted.", addr);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 /**
@@ -183,24 +156,15 @@ int pool4_init(char *addr_strs[], int addr_count)
 
 	last_used_addr = NULL;
 
-	condemned_addr = kmalloc(sizeof(condemned_addr), GFP_KERNEL);
-	if (!condemned_addr) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of condemned address failed.");
-		error = -ENOMEM;
-		goto fail;
-	}
-
 	return 0;
 
 fail:
-	pool4_table_empty(&pool, destroy_pool4_node);
-	kmem_cache_destroy(node_cache);
+	pool4_destroy();
 	return error;
 }
 
 void pool4_destroy(void)
 {
-	kfree(condemned_addr);
 	pool4_table_empty(&pool, destroy_pool4_node);
 	kmem_cache_destroy(node_cache);
 }
@@ -213,12 +177,6 @@ int pool4_register(struct in_addr *addr)
 	if (!addr) {
 		log_err(ERR_NULL, "NULL cannot be inserted to the pool.");
 		return -EINVAL;
-	}
-
-	/** CHECK: if you want to revive a condemned address */
-	if (condemned_addr != NULL && !ipv4_addr_cmp(condemned_addr, addr))	{
-		condemned_addr->s_addr = 0;
-		return 0;
 	}
 
 	node = kmem_cache_alloc(node_cache, GFP_ATOMIC);
@@ -272,38 +230,78 @@ failure:
 	return error;
 }
 
+static bool pool4_is_full(struct pool4_node *pool4)
+{
+	bool is_full;
+
+	is_full = poolnum_is_full(&pool4->icmp_ids);
+	if (!is_full)
+		goto is_not_full;
+
+	is_full = poolnum_is_full(&pool4->tcp_ports.low);
+	if (!is_full)
+		goto is_not_full;
+
+	is_full = poolnum_is_full(&pool4->tcp_ports.high);
+	if (!is_full)
+		goto is_not_full;
+
+	is_full = poolnum_is_full(&pool4->udp_ports.low_even);
+	if (!is_full)
+		goto is_not_full;
+
+	is_full = poolnum_is_full(&pool4->udp_ports.low_odd);
+	if (!is_full)
+		goto is_not_full;
+
+	is_full = poolnum_is_full(&pool4->udp_ports.high_even);
+	if (!is_full)
+		goto is_not_full;
+
+	is_full = poolnum_is_full(&pool4->udp_ports.high_odd);
+	if (!is_full)
+		goto is_not_full;
+
+	return true;
+
+is_not_full:
+	return false;
+}
+
 int pool4_remove(struct in_addr *addr)
 {
-	int exists = 0;
+	struct pool4_node *node;
+	bool is_full = 0;
 
 	if (!addr) {
 		log_err(ERR_NULL, "NULL is not a valid address.");
 		return -EINVAL;
 	}
 
-	*condemned_addr = *addr;
-	bibdb_delete_by_ipv4(addr);
-
 	spin_lock_bh(&pool_lock);
 
-	exists = biddb_exists_on_addr(addr);
-	if (exists) {
+	node = pool4_table_get(&pool, addr);
+	if (!node)
+		goto not_found;
+
+	is_full = pool4_is_full(node);
+	if (!is_full) {
 		spin_unlock_bh(&pool_lock);
 		log_err(ERR_POOL4_REINSERT, "There is one BIB with one address of pool4, try again.");
 		return -EAGAIN;
 	}
 
-	if (!pool4_table_remove(&pool, addr, destroy_pool4_node)) {
-		condemned_addr->s_addr = 0;
-		spin_unlock_bh(&pool_lock);
-		log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
-		return -ENOENT;
-	}
+	if (!pool4_table_remove(&pool, addr, destroy_pool4_node))
+		goto not_found;
 
-	condemned_addr->s_addr = 0;
 	spin_unlock_bh(&pool_lock);
 
 	return 0;
+
+not_found:
+	spin_unlock_bh(&pool_lock);
+	log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
+	return -ENOENT;
 }
 
 int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
@@ -318,12 +316,6 @@ int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 	}
 
 	spin_lock_bh(&pool_lock);
-
-	error = is_condemned_addr(&addr->address);
-	if (error) {
-		spin_unlock_bh(&pool_lock);
-		return error; /* Error message already printed.*/
-	}
 
 	node = pool4_table_get(&pool, &addr->address);
 	if (!node) {
@@ -355,10 +347,6 @@ int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *r
 	}
 
 	spin_lock_bh(&pool_lock);
-
-	error = is_condemned_addr(&addr->address);
-	if (error)
-		goto end; /* Error Message already printed.*/
 
 	node = pool4_table_get(&pool, &addr->address);
 	if (!node) {
@@ -426,10 +414,6 @@ int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result)
 	}
 
 	spin_lock_bh(&pool_lock);
-
-	error = is_condemned_addr(addr);
-	if (error)
-		goto end; /* Error Message already printed.*/
 
 	node = pool4_table_get(&pool, addr);
 	if (!node) {
@@ -499,12 +483,6 @@ failure:
 	return error;
 
 success:
-	error = is_condemned_addr(last_used_addr);
-	if (error) {
-		spin_unlock_bh(&pool_lock);
-		return error; /* Error message already printed.*/
-	}
-
 	result->address = *last_used_addr;
 	spin_unlock_bh(&pool_lock);
 	return 0;
