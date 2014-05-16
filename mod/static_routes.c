@@ -130,6 +130,7 @@ int delete_static_route(struct request_bib *req)
 	}
 
 	/* Remove bib's sessions and their references. */
+	/* TODO (issue #65) wrong; bib might be dead at this point. */
 	error = sessiondb_delete_by_bib(bib);
 	if (error) {
 		bib_return(bib);

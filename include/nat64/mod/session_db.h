@@ -7,12 +7,13 @@
  * Formally defined in RFC 6146 section 3.2.
  *
  * @author Alberto Leiva
+ * @author Daniel Hernandez
  */
 
 #include "nat64/comm/types.h"
 #include "nat64/mod/bib_db.h"
 
-/************************************* session.h **********************************/
+/************************************* Session Entries **********************************/
 
 /** The states from the TCP state machine; RFC 6146 section 3.5.2. */
 enum tcp_states {
@@ -58,10 +59,16 @@ struct session_entry {
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
 	 * (when the session dies, the BIB might have to die too.)
+	 *
+	 * TODO (issue #65) this comment might not be entirely up-to-date.
 	 */
 	struct bib_entry *bib;
 
-	/** A reference counter related to this session. */
+	/**
+	 * A reference counter related to this session.
+	 *
+	 * TODO (issue #65) expand this comment.
+	 */
 	struct kref refcounter;
 	/**
 	 * Chainer to one of the expiration timer lists (sessions_udp, sessions_tcp_est, etc).
@@ -74,49 +81,52 @@ struct session_entry {
 	 */
 	l4_protocol l4_proto;
 
-	/** Current TCP state.
-	 * 	Each STE represents a state machine
-	 */
+	/** Current TCP state. Only relevant if l4_proto == L4PROTO_TCP. */
 	u_int8_t state;
 
+	/** Appends this entry to the database's IPv6 index. */
 	struct rb_node tree6_hook;
+	/** Appends this entry to the database's IPv4 index. */
 	struct rb_node tree4_hook;
 };
 
 /**
- * Initializes the three tables (UDP, TCP and ICMP).
- * Call during initialization for the remaining functions to work properly.
- */
-int session_init(void);
-/**
- * Empties the session tables, freeing any memory being used by them.
- * Call during destruction to avoid memory leaks.
- */
-void session_destroy(void);
-
-/**
- * Helper function, intended to increment a BIB refcounter
+ * Marks "session" as being used by the caller. The idea is to prevent the cleaners from deleting
+ * it while it's being used.
+ *
+ * You have to grab one of these references whenever you gain access to an entry. Keep in mind that
+ * the session* and sessiondb* functions might have already done that for you.
+ *
+ * Remove the mark when you're done by calling session_return().
  */
 void session_get(struct session_entry *session);
 /**
- * Helper function, intended to decrement a BIB refcounter
+ * Reverts the work of session_get() by removing the mark.
+ *
+ * If no other references to "session" exist, this function will take care of removing and freeing
+ * it.
+ *
+ * DON'T USE "session" AFTER YOU RETURN IT!
  */
 int session_return(struct session_entry *session);
 
 /**
- * Helper function, intended to initialize a Session entry.
- * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a Session table, you
- * need to session_kfree() it).
+ * Allocates and initializes a session entry.
+ * The entry is generated in dynamic memory; remember to kfree, return or pass it along.
  */
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
 		l4_protocol l4_proto);
 /**
- * Warning: Careful with this one; "session" cannot be NULL.
+ * Reverts the work of session_create() by freeing "session" from memory.
+ *
+ * This is intended to be used when you are the only user of "session" (i.e. you just created it
+ * and you haven't inserted it to any tables). If that might not be the case, use session_return()
+ * instead.
  */
 void session_kfree(struct session_entry *session);
 
 
-/********************************* End of session.h *******************************/
+/********************************* Session Database *******************************/
 
 typedef enum timer_type {
 	TIMERTYPE_UDP = 0,
@@ -128,12 +138,10 @@ typedef enum timer_type {
 } timer_type;
 
 /**
- * Initializes the three tables (UDP, TCP and ICMP).
  * Call during initialization for the remaining functions to work properly.
  */
 int sessiondb_init(void);
 /**
- * Empties the session tables, freeing any memory being used by them.
  * Call during destruction to avoid memory leaks.
  */
 void sessiondb_destroy(void);
@@ -143,7 +151,9 @@ void sessiondb_destroy(void);
  * Returns in "result" the session entry from the "l4_proto" table whose IPv4 side (both addresses
  * and ports) is "pair".
  *
- * @param[in] pairt IPv4 data you want the session entry for.
+ * It increases "result"'s refcount. Make sure you decrement it when you're done.
+ *
+ * @param[in] pair IPv4 data you want the session entry for.
  * @param[in] l4_proto identifier of the table to retrieve the entry from.
  * @param[out] result the Session entry from the "l4_proto" table whose IPv4 side (both addresses
  *		and ports) is "address".
@@ -155,6 +165,8 @@ int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
  * Returns in "result" the session entry from the "l4_proto" table whose IPv6 side (both addresses
  * and ports) is "pair".
  *
+ * It increases "result"'s refcount. Make sure you decrement it when you're done.
+ *
  * @param[in] pairt IPv6 data you want the session entry for.
  * @param[in] l4_proto identifier of the table to retrieve the entry from.
  * @param[out] result the Session entry from the "l4_proto" table whose IPv6 side (both addresses
@@ -164,9 +176,10 @@ int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 		struct session_entry **result);
 /**
- * Returns in "result" the session entry you'd expect from the "tuple" tuple.
+ * Returns in "result" the session entry you'd expect from the "tuple" tuple. That is, looks ups
+ * the session entry by both source and destination addresses.
  *
- * That is, looks ups the session entry by both source and destination addresses.
+ * It increases "result"'s refcount. Make sure you release it when you're done.
  *
  * @param[in] tuple summary of the packet. Describes the session you need.
  * @param[out] result the session entry you'd expect from the "tuple" tuple.
@@ -192,15 +205,11 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result);
 bool sessiondb_allow(struct tuple *tuple);
 
 /**
- * Adds "in_session" to the session table whose layer-4 protocol is "entry->l4_proto".
- * Expects all fields but the list_heads from "entry" to have been initialized.
+ * Adds "session" to the database. Expects all fields but the list_heads from "entry" to have been
+ * initialized.
  *
- * if the in_session is added to the table, "tree_session" will point to "in_session",
- * otherwise "tree_session" will point to a session of the table.
- *
- * @param entry row to be added to the table.
- * @return whether the entry could be inserted or not. It will not be inserted
- *		if some dynamic memory allocation failed.
+ * @param session row to be added to the table.
+ * @return error status.
  */
 int sessiondb_add(struct session_entry *session);
 

@@ -960,11 +960,8 @@ success:
 
 int sessiondb_delete_by_ipv4(struct in_addr *addr4)
 {
-	log_debug("SESSION_DB: Erasing TCP sessions by ipv4");//TODO:REMOVE
 	delete_sessions_by_ipv4(&session_table_tcp, addr4);
-	log_debug("SESSION_DB: Erasing ICMP sessions by ipv4");//TODO:REMOVE
 	delete_sessions_by_ipv4(&session_table_icmp, addr4);
-	log_debug("SESSION_DB: Erasing UDP sessions by ipv4");//TODO:REMOVE
 	delete_sessions_by_ipv4(&session_table_udp, addr4);
 
 	return 0;

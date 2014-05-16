@@ -7,13 +7,13 @@
  * Formally defined in RFC 6146 section 3.1.
  *
  * @author Alberto Leiva
+ * @author Daniel Hernandez
  */
 
-#include <linux/spinlock.h>
 #include "nat64/comm/types.h"
 #include "nat64/mod/packet.h"
 
-/******************************** bib.h *************************************/
+/******************************** BIB Entries *************************************/
 
 
 /**
@@ -44,48 +44,55 @@ struct bib_entry {
 	bool is_static;
 
 	/**
-	 * Number of active references to this entry, excluding the BIB database's. When this reaches
-	 * zero, the entry is removed from the database and freed.
+	 * Number of active references to this entry, excluding the ones from the table it belongs to.
+	 * When this reaches zero, the entry is removed from the table and freed.
 	 */
 	struct kref refcounter;
 
+	/** Appends this entry to the database's IPv6 index. */
 	struct rb_node tree6_hook;
+	/** Appends this entry to the database's IPv4 index. */
 	struct rb_node tree4_hook;
 };
 
 /**
- * Initializes the kmem_cache for efficient allocation.
- * Call during initialization for the remaining functions to work properly.
- */
-int bib_init(void);
-
-/**
- * Empties the kmem_cache.
- * Call during destruction to avoid memory leaks.
- */
-void bib_destroy(void);
-
-/**
- * Helper function, intended to initialize a BIB entry.
- * The entry is generated IN DYNAMIC MEMORY (if you end up not inserting it to a BIB table, you need
- * to bib_kfree() it).
+ * Allocates and initializes a BIB entry.
+ * The entry is generated in dynamic memory; remember to kfree, return or pass it along.
  */
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static, l4_protocol l4_proto);
+/**
+ * Roughly reverts the work of bib_create() by freeing "bib" from memory. What breaks the symmetry
+ * is the return of "bib"'s IPv4 address to the IPv4 pool (the borrow doesn't happen in
+ * bib_create()).
+ *
+ * This is intended to be used when you are the only user of "bib" (i.e. you just created it
+ * and you haven't inserted it to any tables). If that might not be the case, use bib_return()
+ * instead.
+ */
+void bib_kfree(struct bib_entry *bib);
 
 /**
- * Helper function, intended to increment a BIB refcounter
+ * Marks "bib" as being used by the caller. The idea is to prevent the cleaners from deleting it
+ * while it's being used.
+ *
+ * You have to grab one of these references whenever you gain access to an entry. Keep in mind that
+ * the bib* and bibdb* functions might have already done that for you. Session entries referencing
+ * BIB entries must also count.
+ *
+ * Remove the mark when you're done by calling bib_return().
  */
 void bib_get(struct bib_entry *bib);
 /**
- * Helper function, intended to decrement a BIB refcounter
+ * Reverts the work of bib_get() by removing the mark.
+ *
+ * If no other references to "bib" exist, this function will take care of removing and freeing it.
+ *
+ * DON'T USE "bib" AFTER YOU RETURN IT!
  */
 int bib_return(struct bib_entry *bib);
+int bib_return_lockless(struct bib_entry *bib);
 
-/**
- * Warning: Careful with this one; "bib" cannot be NULL.
- */
-void bib_kfree(struct bib_entry *bib);
 
 /**
  * Make sure you use bib_get or bibdb_get before you use
@@ -95,7 +102,7 @@ void bib_kfree(struct bib_entry *bib);
 int bib_session_counter(struct bib_entry *bib);
 
 
-/************************* End of bib.h *************************************/
+/************************* BIB (The database) *************************************/
 
 /**
  * Initializes the three tables (UDP, TCP and ICMP).
@@ -116,7 +123,7 @@ void bibdb_destroy(void);
  * When we're translating from IPv4 to IPv6, "result" will point to the BIB whose IPv4 address is
  * "tuple"'s destination address.
  *
- * It increases "result"'s refcount. Make sure you release it when you're done.
+ * It increases "result"'s refcount. Make sure you decrement it when you're done.
  *
  * @param[in] tuple summary of the packet. Describes the BIB you need.
  * @param[out] the BIB entry you'd expect from the "tuple" tuple.
@@ -128,7 +135,7 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result);
  * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv4 side (address and
  * port) is "addr".
  *
- * It increases "result"'s refcount. Make sure you release it when you're done.
+ * It increases "result"'s refcount. Make sure you decrement it when you're done.
  *
  * @param[in] address address and port you want the BIB entry for.
  * @param[in] l4_proto identifier of the table to retrieve the entry from.
@@ -162,10 +169,8 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
 
 /**
- * Adds "in_bib" to the BIB table whose layer-4 protocol is "l4_proto".
+ * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto".
  * Expects all fields from "entry" to have been initialized.
- *
- * Because never in this project is required otherwise, assumes the entry is not yet on the table.
  *
  * The table's references are not supposed to count towards the entries' refcounts. Do free your
  * reference if your entry made it into the table; do not assume you're transferring it.
@@ -178,14 +183,13 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto);
 
 /**
- * Attempts to remove the "entry" entry from the BIB table whose protocol is "l4_proto".
- * Even though the entry is removed from the table, it is not kfreed.
+ * Attempts to remove the "entry" entry from its BIB. It doesn't kfree "entry".
  *
  * @param entry row to be removed from the table.
- * @param l4_proto identifier of the table to remove "entry" from.
+ * @param lock TODO (issue #65)
  * @return error status.
  */
-int bibdb_remove(struct bib_entry *entry, l4_protocol l4_proto);
+int bibdb_remove(struct bib_entry *entry, bool lock);
 
 /**
  * Runs the "func" function for every entry in the table whose protocol is "l4_proto".
@@ -206,6 +210,5 @@ int bibdb_count(l4_protocol proto, __u64 *result);
 int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
 int bibdb_delete_by_ipv4(struct in_addr *addr);
 
-int biddb_exists_on_addr(struct in_addr *addr);
 
 #endif /* _NF_NAT64_BIB_DB_H */

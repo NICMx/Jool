@@ -25,7 +25,7 @@ struct bib_table {
 	 * The entries are immutable, and when they're part of the database, they can only be killed by
 	 * bib_release(), which spinlockly deletes them from the trees first.
 	 */
-	spinlock_t bib_table_lock;
+	spinlock_t lock;
 };
 
 /** The BIB table for UDP connections. */
@@ -180,7 +180,7 @@ static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
 	/* Find the top-most node in the tree whose IPv6 address is addr. */
 	root_bib = rbtree_find(addr, &table->tree6, compare_addr6, struct bib_entry, tree6_hook);
 	if (!root_bib)
-		return 0; /* _Successfully_ iterated through no entries. */
+		return 0; /* "Successfully iterated through no entries. */
 
 	/*
 	 * Run "func" for every entry left of root_bib that has "addr" as address.
@@ -280,7 +280,7 @@ int bibdb_init(void)
 		tables[i]->tree6 = RB_ROOT;
 		tables[i]->tree4 = RB_ROOT;
 		tables[i]->count = 0;
-		spin_lock_init(&tables[i]->bib_table_lock);
+		spin_lock_init(&tables[i]->lock);
 	}
 
 	return 0;
@@ -349,13 +349,13 @@ int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 		return error;
 
 	/* Find it */
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 
 	*result = rbtree_find(addr, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
 	if (*result)
 		bib_get(*result);
 
-	spin_unlock_bh(&table->bib_table_lock);
+	spin_unlock_bh(&table->lock);
 
 	return (*result) ? 0 : -ENOENT;
 }
@@ -376,13 +376,13 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 		return error;
 
 	/* Find it */
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 
 	*result = rbtree_find(addr, &table->tree6, compare_full6, struct bib_entry, tree6_hook);
 	if (*result)
 		bib_get(*result);
 
-	spin_unlock_bh(&table->bib_table_lock);
+	spin_unlock_bh(&table->lock);
 
 	return (*result) ? 0 : -ENOENT;
 }
@@ -402,7 +402,7 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
 		return error;
 
 	/* Index */
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 
 	error = rbtree_add(entry, ipv6, &table->tree6, compare_full6, struct bib_entry, tree6_hook);
 	if (error)
@@ -419,15 +419,14 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
 	/* Fall through. */
 
 spin_exit:
-	spin_unlock_bh(&table->bib_table_lock);
+	spin_unlock_bh(&table->lock);
 	return error;
 }
 
-int bibdb_remove(struct bib_entry *entry, l4_protocol l4_proto)
+int bibdb_remove(struct bib_entry *entry, bool lock)
 {
 	struct bib_table *table;
 	int error;
-	int is_lock;
 
 	if (!entry) {
 		log_err(ERR_NULL, "The BIBs cannot contain NULL.");
@@ -437,21 +436,19 @@ int bibdb_remove(struct bib_entry *entry, l4_protocol l4_proto)
 		log_err(ERR_BIB_NOT_FOUND, "BIB entry does not belong to any trees.");
 		return -EINVAL;
 	}
-	error = get_bibdb_table(l4_proto, &table);
+	error = get_bibdb_table(entry->l4_proto, &table);
 	if (error)
 		return error;
 
-	is_lock = spin_is_locked(&table->bib_table_lock);
-
-	if (!is_lock)
-		spin_lock_bh(&table->bib_table_lock);
+	if (lock)
+		spin_lock_bh(&table->lock);
 
 	rb_erase(&entry->tree6_hook, &table->tree6);
 	rb_erase(&entry->tree4_hook, &table->tree4);
 	table->count--;
 
-	if (!is_lock)
-		spin_unlock_bh(&table->bib_table_lock);
+	if (lock)
+		spin_unlock_bh(&table->lock);
 
 	return 0;
 }
@@ -466,7 +463,7 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
 	if (error)
 		return error;
 
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 
 	for (node = rb_first(&table->tree4); node; node = rb_next(node)) {
 		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
@@ -477,7 +474,7 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
 	/* Fall through. */
 
 spin_exit:
-	spin_unlock_bh(&table->bib_table_lock);
+	spin_unlock_bh(&table->lock);
 	return error;
 }
 
@@ -490,9 +487,9 @@ int bibdb_count(l4_protocol proto, u64 *result)
 	if (error)
 		return error;
 
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 	*result = table->count;
-	spin_unlock_bh(&table->bib_table_lock);
+	spin_unlock_bh(&table->lock);
 	return 0;
 }
 
@@ -518,14 +515,14 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 		return error;
 
 	/* Find it */
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 
 	error = rbtree_find_node(&addr6, &table->tree6, compare_full6, struct bib_entry, tree6_hook,
 			parent, node);
 	if (*node) {
 		*bib = rb_entry(*node, struct bib_entry, tree6_hook);
 		bib_get(*bib);
-		spin_unlock_bh(&table->bib_table_lock);
+		spin_unlock_bh(&table->lock);
 		return 0;
 	}
 
@@ -537,14 +534,14 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
 			icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
-		spin_unlock_bh(&table->bib_table_lock);
+		spin_unlock_bh(&table->lock);
 		return error;
 	}
 
 	*bib = bib_create(&addr4, &addr6, false, tuple->l4_proto);
 	if (!(*bib)) {
 		log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
-		spin_unlock_bh(&table->bib_table_lock);
+		spin_unlock_bh(&table->lock);
 		return -ENOMEM;
 	}
 
@@ -558,56 +555,58 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 		log_crit(ERR_ADD_BIB_FAILED, "The BIB entry could be indexed by IPv6 but not by IPv4.");
 		rb_erase(&(*bib)->tree6_hook, &table->tree6);
 		bib_kfree(*bib);
-		spin_unlock_bh(&table->bib_table_lock);
+		spin_unlock_bh(&table->lock);
 		return error;
 	}
 
 	table->count++;
 
-	spin_unlock_bh(&table->bib_table_lock);
+	spin_unlock_bh(&table->lock);
 	return 0;
 }
 
 /**
- * Removes all of this database's references towards "bib", and drops its refcount accordingly.
+ * Drops the fake user of "bib", if it has one.
  *
- * The only thing it doesn't do is decrement count of "bib"'s table! I do that outside because
- * I always want to add up and report that number.
- *
- * @return number of bibs removed from the database.
+ * @return 1 if the removal triggered the destruction of "bib", zero otherwise.
+ * 		Strictly speaking, note that if it returns zero, the entry might still have been removed
+ * 		from the database (and will be kfreed later, when the other thread drops its reference).
  */
 static int remove_fake_usr(struct bib_entry *bib, struct bib_table *table)
 {
-	/** if it was removed and deleted b = 1, otherwise b = 0*/
 	int b = 0;
 
-	/* Remove the fake user. */
 	if (bib->is_static) {
 		bib->is_static = false;
-		b = bib_return(bib);
+		b = bib_return_lockless(bib);
 	}
 
 	return b;
 }
 
+/*
+ * TODO (issue #65) This is wrong. The returns might not kill the entries,
+ * and because the iteration always starts at the root, this might fall into an infinite loop.
+ * Perhaps we should simply ban the deletion of addresses linked to static BIB entries and call it
+ * a day.
+ */
 static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 {
 	struct bib_entry *root_bib, *bib;
 	struct rb_node *node;
 	int b = 0;
 
-	/* Sanitize */
 	if (!addr) {
 		log_err(ERR_NULL, "ipv4 address is NULL");
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&table->bib_table_lock);
+	spin_lock_bh(&table->lock);
 
-	/* Find the top-most node in the tree whose IPv6 address is addr. */
+	/* This is very similar to the for_each function. See that it you want comments. */
 	root_bib = rbtree_find(addr, &table->tree4, compare_addr4, struct bib_entry, tree4_hook);
 	if (!root_bib)
-		goto success; /* "Successfully" deleted zero entries. */
+		goto success;
 
 	node = rb_prev(&root_bib->tree4_hook);
 	while (node) {
@@ -633,61 +632,16 @@ static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 	/* Fall through. */
 
 success:
-	spin_unlock_bh(&table->bib_table_lock);
-	log_debug("Deleted %d BIBs.", b);
+	spin_unlock_bh(&table->lock);
+	log_debug("Deleted %d BIB entries.", b);
 	return 0;
 }
 
 int bibdb_delete_by_ipv4(struct in_addr *addr)
 {
-	log_debug("BIB_DB: Erasing TCP bibs by ipv4");//TODO:REMOVE
 	delete_bibs_by_ipv4(&bib_tcp, addr);
-	log_debug("BIB_DB: Erasing ICMP bibs by ipv4");//TODO:REMOVE
 	delete_bibs_by_ipv4(&bib_icmp, addr);
-	log_debug("BIB_DB: Erasing UDP bibs by ipv4");//TODO:REMOVE
 	delete_bibs_by_ipv4(&bib_udp, addr);
-
-	return 0;
-}
-
-static bool exists_in_bibdb(struct in_addr *addr, struct bib_table *table)
-{
-	struct bib_entry *bib;
-
-	/* Sanitize */
-	if (!addr) {
-		log_err(ERR_NULL, "ipv4 address is NULL");
-		return -EINVAL;
-	}
-
-	spin_lock_bh(&table->bib_table_lock);
-
-	/* Find the top-most node in the tree whose IPv6 address is addr. */
-	bib = rbtree_find(addr, &table->tree4, compare_addr4, struct bib_entry, tree4_hook);
-	if (!bib) {
-		spin_unlock_bh(&table->bib_table_lock);
-		return false; /* There is not bib with in_addr addr. */
-	}
-
-	spin_unlock_bh(&table->bib_table_lock);
-	return true; /** There is one bib with in_addr addr */
-}
-
-int biddb_exists_on_addr(struct in_addr *addr)
-{
-	bool exists = false;
-
-	exists = exists_in_bibdb(addr, &bib_icmp);
-	if (exists)
-		return -EEXIST;
-
-	exists = exists_in_bibdb(addr, &bib_tcp);
-	if (exists)
-		return -EEXIST;
-
-	exists = exists_in_bibdb(addr, &bib_udp);
-	if (exists)
-		return -EEXIST;
 
 	return 0;
 }

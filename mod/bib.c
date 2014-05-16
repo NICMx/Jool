@@ -1,10 +1,3 @@
-/**
- * @file
- * The Binding Information Bases.
- * Formally defined in RFC 6146 section 3.1.
- *
- * @author Alberto Leiva
- */
 
 /********************************************
  * Structures and private variables.
@@ -17,16 +10,34 @@ static struct kmem_cache *entry_cache;
  * Private functions
  ******************************/
 
-static void bib_release(struct kref *ref)
+/**
+ * Removes the BIB entry from the database and kfrees it.
+ *
+ * @param ref kref field of the entry you want to remove.
+ */
+static void bib_release(struct kref *ref, bool lock)
 {
 	struct bib_entry *bib = container_of(ref, struct bib_entry, refcounter);
-	int error = 0;
-	error = bibdb_remove(bib, bib->l4_proto);
-	if (error) {
-		log_crit(ERR_INCOMPLETE_REMOVE, "Error when trying to release the bib");
-		return; /* should we delete(kfree) the BIB? at this point bibrefcount = 0 */
-	}
+	int error;
+
+	/* TODO (issue #65) we're validating the result of bibdb_remove,
+	 * but we're ignoring the one from pool4_return().
+	 */
+	error = bibdb_remove(bib, lock);
+	if (error)
+		log_crit(ERR_INCOMPLETE_REMOVE, "Error code %d when trying to remove a dying BIB entry"
+				" from the DB. Maybe it should have been kfreed directly instead?", error);
 	bib_kfree(bib);
+}
+
+static void bib_release_lock(struct kref *ref)
+{
+	bib_release(ref, true);
+}
+
+static void bib_release_lockless(struct kref *ref)
+{
+	bib_release(ref, false);
 }
 
 /*******************************
@@ -66,37 +77,29 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 
 	return result;
 }
-/**
- * we need to return the bib when we got one reference of this
- * by any function like bibdb_get or bibdb_get_by_ipvX
- */
-int bib_return(struct bib_entry *bib)
+
+void bib_kfree(struct bib_entry *bib)
 {
-	return kref_put(&bib->refcounter, bib_release);
+	/* TODO (issue #65) should this really be here? */
+	pool4_return(bib->l4_proto, &bib->ipv4);
+	kmem_cache_free(entry_cache, bib);
 }
 
-/**
- * we need to add one reference to the counter when
- *  - is referenced by a session
- *  - iterated to the bib_tree_table, and get the reference
- *  - by any kind of container_of
- */
 void bib_get(struct bib_entry *bib)
 {
 	kref_get(&bib->refcounter);
 }
 
-void bib_kfree(struct bib_entry *bib)
+int bib_return(struct bib_entry *bib)
 {
-	pool4_return(bib->l4_proto, &bib->ipv4);
-	kmem_cache_free(entry_cache, bib);
+	return kref_put(&bib->refcounter, bib_release_lock);
 }
 
-/**
- * Make sure you use bib_get or bibdb_get before you use
- * this function, otherwise could return a negative number
- * or an invalid number of sessions.
- */
+int bib_return_lockless(struct bib_entry *bib)
+{
+	return kref_put(&bib->refcounter, bib_release_lockless);
+}
+
 int bib_session_counter(struct bib_entry *bib)
 {
 	int s = atomic_read(&bib->refcounter.refcount) - 1;

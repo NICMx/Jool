@@ -108,10 +108,8 @@
 	}
 
 /**
- * This is just a stock search on a Red-Black tree.
- *
- * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
- * see https://www.kernel.org/doc/Documentation/rbtree.txt.
+ * Similar to rbtree_find(), except if it doesn't find the node it returns the slot where it'd be
+ * placed so you can insert something in there.
  */
 #define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, node) \
 	({ \

@@ -268,7 +268,7 @@ static bool simple_bib(void)
 	if (!success)
 		return false;
 
-	success &= assert_equals_int(0, bibdb_remove(bib, L4PROTO_TCP), "BIB removal call");
+	success &= assert_equals_int(0, bibdb_remove(bib), "BIB removal call");
 	success &= assert_bib("BIB removal state", bib, false, false, false);
 	if (!success)
 		return false;
