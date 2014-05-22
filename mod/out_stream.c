@@ -3,7 +3,7 @@
 #include "nat64/comm/types.h"
 
 
-static int flush(struct out_stream *stream, __u16 nlmsg_type)
+static int flush(struct out_stream *stream, __u16 nlmsg_type, __u16	nlmsg_flags)
 {
 	struct sk_buff *skb_out;
 	struct nlmsghdr *nl_hdr_out;
@@ -20,7 +20,7 @@ static int flush(struct out_stream *stream, __u16 nlmsg_type)
 			stream->request_hdr->nlmsg_seq, /* seq */
 			nlmsg_type, /* type */
 			stream->buffer_len, /* payload len */
-			NLM_F_MULTI); /* flags. */
+			nlmsg_flags); /* flags. */
 	memcpy(nlmsg_data(nl_hdr_out), stream->buffer, stream->buffer_len);
 	/* NETLINK_CB(skb_out).dst_group = 0; */
 
@@ -44,8 +44,6 @@ void stream_init(struct out_stream *stream, struct sock *nl_socket, struct nlmsg
 
 int stream_write(struct out_stream *stream, void *payload, int payload_len)
 {
-	int error;
-
 	if (payload == NULL || payload_len == 0)
 		return 0;
 
@@ -54,9 +52,7 @@ int stream_write(struct out_stream *stream, void *payload, int payload_len)
 	 * Will never happen in this project, hence the low priority.
 	 */
 	if (stream->buffer_len + payload_len > OUT_STREAM_BUFFER_SIZE) {
-		error = flush(stream, 0);
-		if (error)
-			return error;
+		return 1;
 	}
 
 	memcpy(stream->buffer + stream->buffer_len, payload, payload_len);
@@ -66,7 +62,12 @@ int stream_write(struct out_stream *stream, void *payload, int payload_len)
 	return 0;
 }
 
-void stream_close(struct out_stream *stream)
+int stream_close(struct out_stream *stream)
 {
-	flush(stream, NLMSG_DONE);
+	return flush(stream, NLMSG_DONE, 0);
+}
+
+int stream_close_continue(struct out_stream *stream)
+{
+	return flush(stream, NLMSG_DONE, NLM_F_MULTI);
 }

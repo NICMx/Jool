@@ -227,6 +227,8 @@ struct request_bib {
 
 struct request_session {
 	l4_protocol l4_proto;
+	bool iterate;
+	struct ipv4_tuple_address ipv4;
 };
 
 /*

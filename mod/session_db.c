@@ -101,19 +101,19 @@ static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
 {
 	int gap;
 
-	gap = ipv6_addr_cmp(&session->ipv6.local.address, &pair->local.address);
+	gap = ipv6_addr_cmp(&pair->local.address, &session->ipv6.local.address);
 	if (gap != 0)
 		return gap;
 
-	gap = ipv6_addr_cmp(&session->ipv6.remote.address, &pair->remote.address);
+	gap = ipv6_addr_cmp(&pair->remote.address, &session->ipv6.remote.address);
 	if (gap != 0)
 		return gap;
 
-	gap = session->ipv6.local.l4_id - pair->local.l4_id;
+	gap = pair->local.l4_id - session->ipv6.local.l4_id;
 	if (gap != 0)
 		return gap;
 
-	gap = session->ipv6.remote.l4_id - pair->remote.l4_id;
+	gap = pair->remote.l4_id - session->ipv6.remote.l4_id;
 	return gap;
 }
 
@@ -127,15 +127,15 @@ static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&session->ipv4.local.address, &pair->local.address);
+	gap = ipv4_addr_cmp(&pair->local.address, &session->ipv4.local.address);
 	if (gap != 0)
 		return gap;
 
-	gap = session->ipv4.local.l4_id - pair->local.l4_id;
+	gap = pair->local.l4_id - session->ipv4.local.l4_id;
 	if (gap != 0)
 		return gap;
 
-	gap = ipv4_addr_cmp(&session->ipv4.remote.address, &pair->remote.address);
+	gap = ipv4_addr_cmp(&pair->remote.address, &session->ipv4.remote.address);
 	return gap;
 }
 
@@ -152,7 +152,7 @@ static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
 	if (gap != 0)
 		return gap;
 
-	gap = session->ipv4.remote.l4_id - pair->remote.l4_id;
+	gap = pair->remote.l4_id - session->ipv4.remote.l4_id;
 	return gap;
 }
 
@@ -165,11 +165,11 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&session->ipv4.local.address, &addr->address);
+	gap = ipv4_addr_cmp(&addr->address, &session->ipv4.local.address);
 	if (gap != 0)
 		return gap;
 
-	gap = session->ipv4.local.l4_id - addr->l4_id;
+	gap = addr->l4_id - session->ipv4.local.l4_id;
 	return gap;
 }
 
@@ -181,7 +181,7 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
  */
 static int compare_local_addr4(struct session_entry *session, struct in_addr *addr)
 {
-	return ipv4_addr_cmp(&session->ipv4.local.address, addr);
+	return ipv4_addr_cmp(addr, &session->ipv4.local.address);
 }
 
 /**
@@ -657,6 +657,59 @@ int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *,
 
 	spin_lock_bh(&table->session_table_lock);
 	for (node = rb_first(&table->tree4); node; node = rb_next(node)) {
+		error = func(rb_entry(node, struct session_entry, tree4_hook), arg);
+		if (error)
+			goto spin_exit;
+	}
+
+spin_exit:
+	spin_unlock_bh(&table->session_table_lock);
+	return error;
+}
+
+static struct rb_node *find_best_node(struct session_table *table, struct ipv4_tuple_address *ipv4, bool iterate)
+{
+	struct rb_node **node, *parent;
+	struct session_entry *session;
+	int error;
+	int gap;
+
+	if (!iterate) {
+		return rb_first(&table->tree4);
+	}
+	error = rbtree_find_node(ipv4, &table->tree4, compare_local4, struct session_entry,
+				tree4_hook, parent, node);
+	if (*node) {
+		return rb_next(*node);
+	}
+	session = rb_entry(parent, struct session_entry, tree4_hook);
+	gap = compare_local4(session, ipv4);
+	if (gap < 0)
+		return parent;
+	else if (gap > 0)
+		return rb_next(parent);
+
+	return rb_next(parent);
+}
+
+/** TODO: look for an appropiate name for this function*/
+/**
+ * Iterate through the session table, starts next ipv4_tuple_address
+ */
+int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
+		bool iterate, int (*func)(struct session_entry *, void *), void *arg)
+{
+	struct session_table *table;
+	struct rb_node *node;
+	int error;
+	int i = 1;
+
+	error = get_session_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	spin_lock_bh(&table->session_table_lock);
+	for (node = find_best_node(table, ipv4, iterate); node; node = rb_next(node)) {
 		error = func(rb_entry(node, struct session_entry, tree4_hook), arg);
 		if (error)
 			goto spin_exit;

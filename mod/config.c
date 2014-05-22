@@ -316,8 +316,13 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		error = sessiondb_for_each(request->l4_proto, session_entry_to_userspace, stream);
-		stream_close(stream);
+		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->ipv4,
+						request->iterate, session_entry_to_userspace, stream);
+		if (error > 0) {
+			error = stream_close_continue(stream);
+		} else {
+			error = stream_close(stream);
+		}
 
 		kfree(stream);
 		return error;

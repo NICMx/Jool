@@ -70,7 +70,7 @@ static int get_bibdb_table(l4_protocol l4_proto, struct bib_table **result)
  */
 static int compare_addr6(struct bib_entry *bib, struct in6_addr *addr)
 {
-	return ipv6_addr_cmp(&bib->ipv6.address, addr);
+	return ipv6_addr_cmp(addr, &bib->ipv6.address);
 }
 
 /**
@@ -86,7 +86,7 @@ static int compare_full6(struct bib_entry *bib, struct ipv6_tuple_address *addr)
 	if (gap != 0)
 		return gap;
 
-	gap = bib->ipv6.l4_id - addr->l4_id;
+	gap = addr->l4_id - bib->ipv6.l4_id;
 	return gap;
 }
 
@@ -97,7 +97,7 @@ static int compare_full6(struct bib_entry *bib, struct ipv6_tuple_address *addr)
  */
 static int compare_addr4(struct bib_entry *bib, struct in_addr *addr)
 {
-	return ipv4_addr_cmp(&bib->ipv4.address, addr);
+	return ipv4_addr_cmp(addr, &bib->ipv4.address);
 }
 
 /**
@@ -113,7 +113,7 @@ static int compare_full4(struct bib_entry *bib, struct ipv4_tuple_address *addr)
 	if (gap != 0)
 		return gap;
 
-	gap = bib->ipv4.l4_id - addr->l4_id;
+	gap = addr->l4_id - bib->ipv4.l4_id;
 	return gap;
 }
 

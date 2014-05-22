@@ -214,6 +214,8 @@ bool sessiondb_allow(struct tuple *tuple);
 int sessiondb_add(struct session_entry *session);
 
 int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
+int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
+		bool iterate, int (*func)(struct session_entry *, void *), void *arg);
 int sessiondb_count(l4_protocol proto, __u64 *result);
 
 /**

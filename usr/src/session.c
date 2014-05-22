@@ -14,6 +14,7 @@
 struct display_params {
 	bool numeric_hostname;
 	int row_count;
+	struct request_session req_payload;
 };
 
 static int session_display_response(struct nl_msg *msg, void *arg)
@@ -51,6 +52,15 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
+
+	if (hdr->nlmsg_flags == NLM_F_MULTI) {
+		params->req_payload.iterate = true;
+		params->req_payload.ipv4.address = *(&entries[entry_count - 1].ipv4.local.address);
+		params->req_payload.ipv4.l4_id = *(&entries[entry_count - 1].ipv4.local.l4_id);
+	} else {
+		params->req_payload.iterate = false;
+	}
+
 	return 0;
 }
 
@@ -69,11 +79,22 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 	hdr->mode = MODE_SESSION;
 	hdr->operation = OP_DISPLAY;
 	payload->l4_proto = l4_proto;
+	payload->iterate = false;
 
 	params.numeric_hostname = numeric_hostname;
 	params.row_count = 0;
 
-	error = netlink_request(request, hdr->length, session_display_response, &params);
+	do {
+		error = netlink_request(request, hdr->length, session_display_response, &params);
+		if (error)
+			break;
+		if (payload->iterate) {
+			payload->iterate = params.req_payload.iterate;
+			payload->ipv4.address = params.req_payload.ipv4.address;
+			payload->ipv4.l4_id = params.req_payload.ipv4.l4_id;
+		}
+	} while (payload->iterate);
+
 	if (!error) {
 		if (params.row_count > 0)
 			log_info("  (Fetched %u entries.)\n", params.row_count);
