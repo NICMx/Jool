@@ -203,7 +203,8 @@ struct request_bib {
 	l4_protocol l4_proto;
 	union {
 		struct {
-			/* Nothing needed here. */
+			bool iterate;
+			struct ipv4_tuple_address ipv4;
 		} display;
 		struct {
 			/* Nothing needed here. */

@@ -200,6 +200,8 @@ int bibdb_remove(struct bib_entry *entry, bool lock);
  * @param arg something you want to send func for every entry.
  */
 int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
+		bool iterate, int (*func)(struct bib_entry *, void *), void *arg);
 /**
  * Sets in the value pointed by "result" the number of entries in the table whose protocol is
  * "l4_proto".

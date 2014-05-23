@@ -478,6 +478,61 @@ spin_exit:
 	return error;
 }
 
+static struct rb_node *find_best_node(struct bib_table *table, struct ipv4_tuple_address *ipv4, bool iterate)
+{
+	struct rb_node **node, *parent;
+	struct bib_entry *bib;
+	int error;
+	int gap;
+
+	if (!iterate) {
+		return rb_first(&table->tree4);
+	}
+
+	if (!ipv4)	{
+		return NULL;
+	}
+
+	error = rbtree_find_node(ipv4, &table->tree4, compare_full4, struct bib_entry,
+				tree4_hook, parent, node);
+	if (*node) {
+		return rb_next(*node);
+	}
+	bib = rb_entry(parent, struct bib_entry, tree4_hook);
+	gap = compare_full4(bib, ipv4);
+	if (gap < 0)
+		return parent;
+
+	return rb_next(parent);
+}
+
+/** TODO: look for an appropiate name for this function*/
+/**
+ * Iterate through the session table, starts next ipv4_tuple_address
+ */
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
+		bool iterate, int (*func)(struct bib_entry *, void *), void *arg)
+{
+	struct bib_table *table;
+	struct rb_node *node;
+	int error;
+
+	error = get_bibdb_table(l4_proto, &table);
+	if (error)
+		return error;
+
+	spin_lock_bh(&table->lock);
+	for (node = find_best_node(table, ipv4, iterate); node; node = rb_next(node)) {
+		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
+		if (error)
+			goto spin_exit;
+	}
+
+spin_exit:
+	spin_unlock_bh(&table->lock);
+	return error;
+}
+
 int bibdb_count(l4_protocol proto, u64 *result)
 {
 	struct bib_table *table;

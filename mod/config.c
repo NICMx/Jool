@@ -250,8 +250,13 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		error = bibdb_for_each(request->l4_proto, bib_entry_to_userspace, stream);
-		stream_close(stream);
+		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.ipv4,
+					request->display.iterate, bib_entry_to_userspace, stream);
+		if (error > 0) {
+			error = stream_close_continue(stream);
+		} else {
+			error = stream_close(stream);
+		}
 
 		kfree(stream);
 		return error;

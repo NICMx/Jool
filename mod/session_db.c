@@ -677,6 +677,11 @@ static struct rb_node *find_best_node(struct session_table *table, struct ipv4_t
 	if (!iterate) {
 		return rb_first(&table->tree4);
 	}
+
+	if (!ipv4) {
+		return NULL;
+	}
+
 	error = rbtree_find_node(ipv4, &table->tree4, compare_local4, struct session_entry,
 				tree4_hook, parent, node);
 	if (*node) {
@@ -686,8 +691,6 @@ static struct rb_node *find_best_node(struct session_table *table, struct ipv4_t
 	gap = compare_local4(session, ipv4);
 	if (gap < 0)
 		return parent;
-	else if (gap > 0)
-		return rb_next(parent);
 
 	return rb_next(parent);
 }
@@ -702,7 +705,6 @@ int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *i
 	struct session_table *table;
 	struct rb_node *node;
 	int error;
-	int i = 1;
 
 	error = get_session_table(l4_proto, &table);
 	if (error)
