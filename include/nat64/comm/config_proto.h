@@ -39,6 +39,7 @@ enum config_operation {
 	OP_COUNT,
 	OP_ADD,
 	OP_REMOVE,
+	OP_FLUSH
 
 	/* The following apply when mode is filtering or translate. */
 	#define RESET_TCLASS_MASK		(1 << 2)

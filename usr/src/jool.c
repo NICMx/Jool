@@ -77,6 +77,7 @@ enum argp_flags {
 	ARGP_COUNT = 'c',
 	ARGP_ADD = 'a',
 	ARGP_REMOVE = 'r',
+	ARGP_FLUSH = 'f',
 
 	/* Pools */
 	ARGP_PREFIX = 1000,
@@ -140,6 +141,7 @@ static struct argp_option options[] =
 	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of IPv6 prefixes registered." },
 	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add a prefix to the pool." },
 	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove a prefix from the pool." },
+	{ "flush",		ARGP_FLUSH,	NULL, 0, "(Operation) Flush all records from prefix pool." },
 	{ "prefix",		ARGP_PREFIX,	PREFIX_FORMAT, 0,
 			"The prefix to be added or removed. Available on add and remove operations only." },
 
@@ -149,6 +151,7 @@ static struct argp_option options[] =
 	{ "count",		ARGP_COUNT,		NULL, 0, "(Operation) Print the number of IPv4 addresses registered." },
 	{ "add",		ARGP_ADD,		NULL, 0, "(Operation) Add an address to the pool." },
 	{ "remove",		ARGP_REMOVE,	NULL, 0, "(Operation) Remove an address from the pool." },
+	{ "flush",		ARGP_FLUSH,	NULL, 0, "(Operation) Flush all addresses from the pool." },
 	{ "address",	ARGP_ADDRESS,	IPV4_ADDR_FORMAT, 0,
 			"Address to be added or removed. Available on add and remove operations only." },
 
@@ -281,6 +284,9 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 	case ARGP_REMOVE:
 		arguments->operation = OP_REMOVE;
+		break;
+	case ARGP_FLUSH:
+		arguments->operation = OP_FLUSH;
 		break;
 
 	case ARGP_UDP:
@@ -491,6 +497,8 @@ static int main_wrapped(int argc, char **argv)
 				return -EINVAL;
 			}
 			return pool6_remove(&args.pool6_prefix);
+		case OP_FLUSH:
+			return pool6_flush();
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv6 pool mode: %u.", args.operation);
 			return -EINVAL;
@@ -515,6 +523,8 @@ static int main_wrapped(int argc, char **argv)
 				return -EINVAL;
 			}
 			return pool4_remove(&args.pool4_addr);
+		case OP_FLUSH:
+			return pool4_flush();
 		default:
 			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv4 pool mode: %u.", args.operation);
 			return -EINVAL;
