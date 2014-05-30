@@ -8,6 +8,7 @@ int pool4_display(void);
 int pool4_count(void);
 int pool4_add(struct in_addr *addr);
 int pool4_remove(struct in_addr *addr);
+int pool4_flush(void);
 
 
 #endif /* _POOL4_H */

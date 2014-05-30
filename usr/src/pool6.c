@@ -106,3 +106,19 @@ int pool6_remove(struct ipv6_prefix *prefix)
 
 	return netlink_request(request, hdr->length, pool6_remove_response, NULL);
 }
+
+static int pool6_flush_response(struct nl_msg *msg, void *arg)
+{
+	log_info("The IPv6 pool was flushed successfully.");
+	return 0;
+}
+
+int pool6_flush(void)
+{
+	struct request_hdr request = {
+			.length = sizeof(request),
+			.mode = MODE_POOL6,
+			.operation = OP_FLUSH,
+	};
+	return netlink_request(&request, request.length, pool6_flush_response, NULL);
+}
