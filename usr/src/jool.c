@@ -77,7 +77,7 @@ enum argp_flags {
 	ARGP_COUNT = 'c',
 	ARGP_ADD = 'a',
 	ARGP_REMOVE = 'r',
-	ARGP_FLUSH = 'f',
+	ARGP_FLUSH = 'x',
 
 	/* Pools */
 	ARGP_PREFIX = 1000,
