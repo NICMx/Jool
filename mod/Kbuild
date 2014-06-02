@@ -3,6 +3,7 @@ ccflags-y := -I$(src)/../include
 
 obj-m += jool.o
 
+jool-objs += log_time.o
 jool-objs += types.o
 jool-objs += str_utils.o
 jool-objs += packet.o
