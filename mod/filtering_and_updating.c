@@ -76,7 +76,7 @@ static void update_timer(struct session_entry *session, struct list_head *list, 
 
 	/*
 	 * TODO (performance) is the second comparison really neccesary?
-	 * The new session should always expire last. (This also applies to the fragment DB timer)
+	 * The new session should always expire last.
 	 */
 	if (!timer_pending(&expire_timer) || time_before(session->dying_time, expire_timer.expires)) {
 		/*
@@ -208,7 +208,6 @@ static unsigned long get_next_dying_time(void)
 static void send_probe_packet(struct session_entry *session)
 {
 	struct sk_buff* skb;
-	struct dst_entry *dst;
 	struct ipv6hdr *iph;
 	struct tcphdr *th;
 	int error;
@@ -263,13 +262,11 @@ static void send_probe_packet(struct session_entry *session)
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	dst = route_ipv6(iph, th, L4PROTO_TCP, 0);
-	if (!dst) {
-		log_warning("Could now route the probe packet.");
+	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL);
+
+	error = route_ipv6(skb);
+	if (error)
 		goto fail;
-	}
-	skb->dev = dst->dev;
-	skb_dst_set(skb, dst);
 
 	error = ip6_local_out(skb);
 	if (error) {
@@ -576,7 +573,7 @@ static inline void apply_policies(void)
  * Assumes that "tuple" represents a IPv6 packet, and attempts to find its BIB entry, returning it
  * in "bib". If the entry doesn't exist, it is created.
  */
-static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
+static int get_or_create_bib_ipv6(struct sk_buff *skb, struct tuple *tuple,
 		struct bib_entry **bib)
 {
 	struct ipv6_tuple_address addr6;
@@ -598,7 +595,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
 		log_warning("Error code %d while 'allocating' an address for a BIB entry.", error);
 		if (tuple->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
-			icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
+			icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
 		return error;
 	}
@@ -628,7 +625,7 @@ static int get_or_create_bib_ipv6(struct fragment *frag, struct tuple *tuple,
  * Assumes that "tuple" represents a IPv4 packet, and attempts to find its BIB entry, returning it
  * in "bib". If the entry doesn't exist, it is created.
  */
-static int get_or_create_bib_ipv4(struct fragment *frag, struct tuple *tuple,
+static int get_or_create_bib_ipv4(struct sk_buff *skb, struct tuple *tuple,
 		struct bib_entry **bib)
 {
 	int error;
@@ -636,17 +633,17 @@ static int get_or_create_bib_ipv4(struct fragment *frag, struct tuple *tuple,
 	error = bib_get(tuple, bib);
 	if (error == -ENOENT) {
 		log_info("There is no BIB entry for the incoming IPv4 packet.");
-		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
+		icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	} else if (error) {
 		log_warning("Error code %d while finding a BIB entry for the incoming packet.", error);
-		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
+		icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
 
 	if (address_dependent_filtering() && !session_allow(tuple)) {
 		log_info("Packet was blocked by address-dependent filtering.");
-		icmp64_send(frag, ICMPERR_FILTER, 0);
+		icmp64_send(skb, ICMPERR_FILTER, 0);
 		return -EPERM;
 	}
 
@@ -822,17 +819,17 @@ static int get_or_create_session_ipv4(struct tuple *tuple, struct bib_entry *bib
  *
  * This is RFC 6146 section 3.5.1, first half.
  *
- * @param[in] frag first fragment of tuple's packet. This is actually only used for error reporting.
+ * @param[in] skb tuple's packet. This is actually only used for error reporting.
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
+static verdict ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib_ipv6(frag, tuple, &bib);
+	error = get_or_create_bib_ipv6(skb, tuple, &bib);
 	if (error)
 		return VER_DROP;
 
@@ -854,16 +851,16 @@ static verdict ipv6_udp(struct fragment *frag, struct tuple *tuple)
  *
  * This is RFC 6146 section 3.5.1, second half.
  *
- * @param[in] frag first fragment of tuple's packet. This is actually only used for error reporting.
+ * @param[in] skb tuple's packet. This is actually only used for error reporting.
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
+static verdict ipv4_udp(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 
-	if (is_error(get_or_create_bib_ipv4(frag, tuple, &bib)))
+	if (is_error(get_or_create_bib_ipv4(skb, tuple, &bib)))
 		return VER_DROP;
 	if (is_error(get_or_create_session_ipv4(tuple, bib, &session)))
 		return VER_DROP;
@@ -878,11 +875,11 @@ static verdict ipv4_udp(struct fragment* frag, struct tuple *tuple)
  *
  * This is RFC 6146 section 3.5.3, first half.
  *
- * @param[in] frag first fragment of tuple's packet. This is actually only used for error reporting.
+ * @param[in] skb tuple's packet. This is actually only used for error reporting.
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
+static verdict ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -893,7 +890,7 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
 		return VER_DROP;
 	}
 
-	error = get_or_create_bib_ipv6(frag, tuple, &bib);
+	error = get_or_create_bib_ipv6(skb, tuple, &bib);
 	if (error)
 		return VER_DROP;
 
@@ -915,16 +912,16 @@ static verdict ipv6_icmp6(struct fragment *frag, struct tuple *tuple)
  *
  * This is RFC 6146 section 3.5.3, second half.
  *
- * @param[in] frag first fragment of tuple's packet. This is actually only used for error reporting.
+ * @param[in] skb tuple's packet. This is actually only used for error reporting.
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
+static verdict ipv4_icmp4(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 
-	if (is_error(get_or_create_bib_ipv4(frag, tuple, &bib)))
+	if (is_error(get_or_create_bib_ipv4(skb, tuple, &bib)))
 		return VER_DROP;
 	if (is_error(get_or_create_session_ipv4(tuple, bib, &session)))
 		return VER_DROP;
@@ -939,13 +936,13 @@ static verdict ipv4_icmp4(struct fragment* frag, struct tuple *tuple)
  * Processes IPv6 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_v6_syn(struct fragment* frag, struct tuple *tuple)
+static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib_ipv6(frag, tuple, &bib);
+	error = get_or_create_bib_ipv6(skb, tuple, &bib);
 	if (error)
 		return error;
 
@@ -975,7 +972,7 @@ static inline void store_packet(void)
  * Processes IPv4 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
+static int tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -1013,20 +1010,20 @@ static int tcp_closed_v4_syn(struct fragment* frag, struct tuple *tuple)
  * Filtering and updating done during the CLOSED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
+static int tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	int error;
 
-	switch (frag->l3_hdr.proto) {
+	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
-		if (frag_get_tcp_hdr(frag)->syn)
-			return tcp_closed_v6_syn(frag, tuple);
+		if (tcp_hdr(skb)->syn)
+			return tcp_closed_v6_syn(skb, tuple);
 		break;
 
 	case L3PROTO_IPV4:
-		if (frag_get_tcp_hdr(frag)->syn)
-			return tcp_closed_v4_syn(frag, tuple);
+		if (tcp_hdr(skb)->syn)
+			return tcp_closed_v4_syn(skb, tuple);
 		break;
 	}
 
@@ -1043,9 +1040,9 @@ static int tcp_closed_state_handle(struct fragment* frag, struct tuple *tuple)
  * Filtering and updating done during the V4 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_init_state_handle(struct fragment* frag, struct session_entry *session)
+static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
-	if (frag->l3_hdr.proto == L3PROTO_IPV6 && frag_get_tcp_hdr(frag)->syn) {
+	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->syn) {
 		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
@@ -1057,10 +1054,10 @@ static int tcp_v4_init_state_handle(struct fragment* frag, struct session_entry 
  * Filtering and updating done during the V6 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v6_init_state_handle(struct fragment* frag, struct session_entry *session)
+static int tcp_v6_init_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
-	if (frag_get_tcp_hdr(frag)->syn) {
-		switch (frag->l3_hdr.proto) {
+	if (tcp_hdr(skb)->syn) {
+		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV4:
 			set_tcp_est_timer(session);
 			session->state = ESTABLISHED;
@@ -1078,10 +1075,10 @@ static int tcp_v6_init_state_handle(struct fragment* frag, struct session_entry 
  * Filtering and updating done during the ESTABLISHED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_established_state_handle(struct fragment* frag, struct session_entry *session)
+static int tcp_established_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
-	if (frag_get_tcp_hdr(frag)->fin) {
-		switch (frag->l3_hdr.proto) {
+	if (tcp_hdr(skb)->fin) {
+		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
 			break;
@@ -1090,7 +1087,7 @@ static int tcp_established_state_handle(struct fragment* frag, struct session_en
 			break;
 		}
 
-	} else if (frag_get_tcp_hdr(frag)->rst) {
+	} else if (tcp_hdr(skb)->rst) {
 		set_tcp_trans_timer(session);
 		session->state = TRANS;
 	} else {
@@ -1104,9 +1101,9 @@ static int tcp_established_state_handle(struct fragment* frag, struct session_en
  * Filtering and updating done during the V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_fin_rcv_state_handle(struct fragment* frag, struct session_entry *session)
+static int tcp_v4_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
-	if (frag->l3_hdr.proto == L3PROTO_IPV6 && frag_get_tcp_hdr(frag)->fin) {
+	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->fin) {
 		set_tcp_trans_timer(session);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
@@ -1119,9 +1116,9 @@ static int tcp_v4_fin_rcv_state_handle(struct fragment* frag, struct session_ent
  * Filtering and updating done during the V6 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v6_fin_rcv_state_handle(struct fragment* frag, struct session_entry *session)
+static int tcp_v6_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
-	if (frag->l3_hdr.proto == L3PROTO_IPV4 && frag_get_tcp_hdr(frag)->fin) {
+	if (skb_l3_proto(skb) == L3PROTO_IPV4 && tcp_hdr(skb)->fin) {
 		set_tcp_trans_timer(session);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
@@ -1134,7 +1131,7 @@ static int tcp_v6_fin_rcv_state_handle(struct fragment* frag, struct session_ent
  * Filtering and updating done during the V6 FIN + V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_fin_v6_fin_rcv_state_handle(struct fragment *frag,
+static int tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff *skb,
 		struct session_entry *session)
 {
 	return 0; /* Only the timeout can change this state. */
@@ -1144,9 +1141,9 @@ static int tcp_v4_fin_v6_fin_rcv_state_handle(struct fragment *frag,
  * Filtering and updating done during the TRANS state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_trans_state_handle(struct fragment *frag, struct session_entry *session)
+static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
-	if (!frag_get_tcp_hdr(frag)->rst) {
+	if (!tcp_hdr(skb)->rst) {
 		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	}
@@ -1160,7 +1157,7 @@ static int tcp_trans_state_handle(struct fragment *frag, struct session_entry *s
  *
  * This is RFC 6146 section 3.5.2.
  */
-static verdict tcp(struct fragment* frag, struct tuple *tuple)
+static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct session_entry *session;
 	int error;
@@ -1173,32 +1170,32 @@ static verdict tcp(struct fragment* frag, struct tuple *tuple)
 
 	/* If NO session was found: */
 	if (error == -ENOENT) {
-		error = tcp_closed_state_handle(frag, tuple);
+		error = tcp_closed_state_handle(skb, tuple);
 		goto end;
 	}
 
 	/* Act according the current state. */
 	switch (session->state) {
 	case V4_INIT:
-		error = tcp_v4_init_state_handle(frag, session);
+		error = tcp_v4_init_state_handle(skb, session);
 		break;
 	case V6_INIT:
-		error = tcp_v6_init_state_handle(frag, session);
+		error = tcp_v6_init_state_handle(skb, session);
 		break;
 	case ESTABLISHED:
-		error = tcp_established_state_handle(frag, session);
+		error = tcp_established_state_handle(skb, session);
 		break;
 	case V4_FIN_RCV:
-		error = tcp_v4_fin_rcv_state_handle(frag, session);
+		error = tcp_v4_fin_rcv_state_handle(skb, session);
 		break;
 	case V6_FIN_RCV:
-		error = tcp_v6_fin_rcv_state_handle(frag, session);
+		error = tcp_v6_fin_rcv_state_handle(skb, session);
 		break;
 	case V4_FIN_V6_FIN_RCV:
-		error = tcp_v4_fin_v6_fin_rcv_state_handle(frag, session);
+		error = tcp_v4_fin_v6_fin_rcv_state_handle(skb, session);
 		break;
 	case TRANS:
-		error = tcp_trans_state_handle(frag, session);
+		error = tcp_trans_state_handle(skb, session);
 		break;
 	default:
 		/*
@@ -1345,13 +1342,13 @@ fail:
 /**
  * Main F&U routine. Called during the processing of every packet.
  *
- * Decides if "frag"'s packet must be processed, updating binding and session information.
+ * Decides if "skb" should be processed, updating binding and session information.
  *
- * @param[in] frag zero-offset fragment of the packet being translated.
- * @param[in] tuple frag's summary.
- * @return indicator of what should happen to frag.
+ * @param[in] skb packet being translated.
+ * @param[in] tuple skb's summary.
+ * @return indicator of what should happen to skb.
  */
-verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
+verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 {
 	struct in_addr addr4;
 	struct ipv6hdr *hdr_ip6;
@@ -1361,16 +1358,16 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 
 	log_debug("Step 2: Filtering and Updating");
 
-	switch (frag->l3_hdr.proto) {
+	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
-		hdr_icmp6 = frag_get_icmp6_hdr(frag);
+		hdr_icmp6 = icmp6_hdr(skb);
 		/* ICMP errors should not affect the tables. */
-		if (frag->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
+		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
 			return VER_CONTINUE;
 		}
 		/* Get rid of hairpinning loops and unwanted packets. */
-		hdr_ip6 = frag_get_ipv6_hdr(frag);
+		hdr_ip6 = ipv6_hdr(skb);
 		if (pool6_contains(&hdr_ip6->saddr)) {
 			log_info("Hairpinning loop. Dropping...");
 			return VER_DROP;
@@ -1381,14 +1378,14 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 		}
 		break;
 	case L3PROTO_IPV4:
-		hdr_icmp4 = frag_get_icmp4_hdr(frag);
+		hdr_icmp4 = icmp_hdr(skb);
 		/* ICMP errors should not affect the tables. */
-		if (frag->l4_hdr.proto == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
+		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
 			return VER_CONTINUE;
 		}
 		/* Get rid of unexpected packets */
-		addr4.s_addr = frag_get_ipv4_hdr(frag)->daddr;
+		addr4.s_addr = ip_hdr(skb)->daddr;
 		if (!pool4_contains(&addr4)) {
 			log_info("Packet was rejected by pool4, dropping...");
 			return VER_DROP;
@@ -1399,29 +1396,29 @@ verdict filtering_and_updating(struct fragment* frag, struct tuple *tuple)
 	/* Process packet, according to its protocol. */
 	spin_lock_bh(&bib_session_lock);
 
-	switch (frag->l4_hdr.proto) {
+	switch (skb_l4_proto(skb)) {
 	case L4PROTO_UDP:
-		switch (frag->l3_hdr.proto) {
+		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
-			result = ipv6_udp(frag, tuple);
+			result = ipv6_udp(skb, tuple);
 			break;
 		case L3PROTO_IPV4:
-			result = ipv4_udp(frag, tuple);
+			result = ipv4_udp(skb, tuple);
 			break;
 		}
 		break;
 
 	case L4PROTO_TCP:
-		result = tcp(frag, tuple);
+		result = tcp(skb, tuple);
 		break;
 
 	case L4PROTO_ICMP:
-		switch (frag->l3_hdr.proto) {
+		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
-			result = ipv6_icmp6(frag, tuple);
+			result = ipv6_icmp6(skb, tuple);
 			break;
 		case L3PROTO_IPV4:
-			result = ipv4_icmp4(frag, tuple);
+			result = ipv4_icmp4(skb, tuple);
 			break;
 		}
 		break;

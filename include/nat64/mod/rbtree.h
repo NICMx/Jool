@@ -15,7 +15,7 @@
  * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
  * see https://www.kernel.org/doc/Documentation/rbtree.txt.
  */
-#define rbtree_find(expected, root, compare_cb, type, hook_name) \
+#define rbtree_find(expected, root, compare_fn, type, hook_name) \
 	({ \
 		type *result = NULL; \
 		struct rb_node *node; \
@@ -23,7 +23,7 @@
 		node = (root)->rb_node; \
 		while (node) { \
 			type *entry = rb_entry(node, type, hook_name); \
-			int comparison = compare_cb(entry, expected); \
+			int comparison = compare_fn(entry, expected); \
 			\
 			if (comparison < 0) { \
 				node = node->rb_left; \
@@ -44,7 +44,7 @@
  * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
  * see https://www.kernel.org/doc/Documentation/rbtree.txt.
  */
-#define rbtree_add(entry, field, root, compare_cb, type, hook_name) \
+#define rbtree_add(entry, field, root, compare_fn, type, hook_name) \
 	({ \
 		struct rb_node **new = &((root)->rb_node), *parent = NULL; \
 		int error = 0; \
@@ -52,7 +52,7 @@
 		/* Figure out where to put new node */ \
 		while (*new) { \
 			type *this = rb_entry(*new, type, hook_name); \
-			int result = compare_cb(this, &(entry)->field); \
+			int result = compare_fn(this, &(entry)->field); \
 			\
 			parent = *new; \
 			if (result < 0) { \

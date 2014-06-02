@@ -15,7 +15,7 @@
 #include "nat64/mod/packet.h"
 
 
-verdict determine_in_tuple(struct fragment *frag, struct tuple *tuple);
+verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple);
 
 
 #endif /* _NF_NAT64_DETERMINE_INCOMING_TUPLE_H */

@@ -220,7 +220,7 @@ static struct bib_entry *create_dynamic_bib(int l4_proto)
 }
 
 static bool test_hairpin(l4_protocol l4_proto,
-		int (*create_skb_cb)(struct ipv6_pair *, struct sk_buff **, u16))
+		int (*create_skb_fn)(struct ipv6_pair *, struct sk_buff **, u16))
 {
 	struct sk_buff *skb_in, *skb_out;
 	struct bib_entry *static_bib, *dynamic_bib;
@@ -252,7 +252,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 		return false;
 
 	/* Send the request. */
-	if (create_skb_cb(&pair6_request, &skb_in, 100) != 0)
+	if (create_skb_fn(&pair6_request, &skb_in, 100) != 0)
 		return false;
 
 	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Request result");
@@ -294,7 +294,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 	kfree_skb(skb_out);
 
 	/* Send the response. */
-	if (create_skb_cb(&pair6_response, &skb_in, 100) != 0)
+	if (create_skb_fn(&pair6_response, &skb_in, 100) != 0)
 		return false;
 	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Response result");
 	/* The module should have reused the entries, so the database shouldn't have changed. */
@@ -354,7 +354,6 @@ static void deinit(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
-	pktmod_destroy();
 }
 
 static int init(void)
@@ -363,9 +362,6 @@ static int init(void)
 	char *pool4[] = { NAT64_IPV4_ADDR };
 	int error;
 
-	error = pktmod_init();
-	if (error)
-		goto failure;
 	error = pool6_init(pool6, ARRAY_SIZE(pool6));
 	if (error)
 		goto failure;

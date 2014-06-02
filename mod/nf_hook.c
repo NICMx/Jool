@@ -1,7 +1,6 @@
 #include "nat64/comm/nat64.h"
 #include "nat64/comm/constants.h"
 #include "nat64/mod/packet.h"
-#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/bib.h"
@@ -15,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 
 
 MODULE_LICENSE("GPL");
@@ -75,29 +75,17 @@ static struct nf_hook_ops nfho[] = {
 		.hook = hook_ipv6,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET6,
-		.priority = NF_PRI_NAT64,
+		.priority = NF_PRI6_JOOL,
 	},
 	{
 		.hook = hook_ipv4,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET,
-		.priority = NF_PRI_NAT64,
-	},
-	{
-		.hook = hook_ipv6,
-		.hooknum = NF_INET_LOCAL_OUT,
-		.pf = PF_INET6,
-		.priority = NF_PRI_NAT64,
-	},
-	{
-		.hook = hook_ipv4,
-		.hooknum = NF_INET_LOCAL_OUT,
-		.pf = PF_INET,
-		.priority = NF_PRI_NAT64,
+		.priority = NF_PRI4_JOOL,
 	}
 };
 
-int __init nat64_init(void)
+int/* __init */nat64_init(void)
 {
 	int error;
 
@@ -105,15 +93,9 @@ int __init nat64_init(void)
 	log_debug("Inserting the module...");
 
 	/* Init Jool's submodules. */
-	error = pktmod_init();
-	if (error)
-		goto pktmod_failure;
 	error = config_init();
 	if (error)
 		goto config_failure;
-	error = fragdb_init();
-	if (error)
-		goto fragdb_failure;
 	error = pool6_init(pool6, pool6_size);
 	if (error)
 		goto pool6_failure;
@@ -161,19 +143,13 @@ pool4_failure:
 	pool6_destroy();
 
 pool6_failure:
-	fragdb_destroy();
-
-fragdb_failure:
 	config_destroy();
 
 config_failure:
-	pktmod_destroy();
-
-pktmod_failure:
 	return error;
 }
 
-void __exit nat64_exit(void)
+void/* __exit */nat64_exit(void)
 {
 	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
@@ -185,9 +161,7 @@ void __exit nat64_exit(void)
 	bib_destroy();
 	pool4_destroy();
 	pool6_destroy();
-	fragdb_destroy();
 	config_destroy();
-	pktmod_destroy();
 
 	log_info(MODULE_NAME " module removed.");
 }

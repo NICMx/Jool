@@ -4,7 +4,7 @@
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 
-static void icmp4_send(struct fragment *frag, icmp_error_code error, __be32 info)
+static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 {
 	int type, code;
 
@@ -37,10 +37,10 @@ static void icmp4_send(struct fragment *frag, icmp_error_code error, __be32 info
 		return; /* Not supported or needed. */
 	}
 
-	icmp_send(frag->original_skb, type, code, info);
+	icmp_send(skb, type, code, info);
 }
 
-static void icmp6_send(struct fragment *frag, icmp_error_code error, __be32 info)
+static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 {
 	int type, code;
 
@@ -70,23 +70,25 @@ static void icmp6_send(struct fragment *frag, icmp_error_code error, __be32 info
 	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || KERNEL_VERSION(3, 13, 0) <= LINUX_VERSION_CODE
-	icmpv6_send(frag->original_skb, type, code, info);
+	icmpv6_send(skb, type, code, info);
 #else
 #warning "You're compiling in kernel 3.12. See https://github.com/NICMx/NAT64/issues/90"
 #endif
 }
 
-void icmp64_send(struct fragment *frag, icmp_error_code error, __be32 info)
+void icmp64_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 {
-	if (!frag->original_skb || !frag->original_skb->dev)
+	struct sk_buff *original_skb = skb_original_skb(skb);
+
+	if (!original_skb || !original_skb->dev)
 		return;
 
-	switch (be16_to_cpu(frag->original_skb->protocol)) {
+	switch (ntohs(original_skb->protocol)) {
 	case ETH_P_IP:
-		icmp4_send(frag, error, info);
+		icmp4_send(original_skb, error, info);
 		break;
 	case ETH_P_IPV6:
-		icmp6_send(frag, error, info);
+		icmp6_send(original_skb, error, info);
 		break;
 	}
 }

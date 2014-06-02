@@ -15,8 +15,8 @@
 #include "nat64/mod/packet.h"
 
 
-bool is_hairpin(struct packet *pkt);
-verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in);
+bool is_hairpin(struct sk_buff *skb);
+verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in);
 
 
 #endif /* _NF_NAT64_HANDLING_HARPINNING_H */

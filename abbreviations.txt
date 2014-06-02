@@ -24,7 +24,8 @@ fn = function ("this parameter is a pointer to a function.")
 comm = common
 mod = module
 usr = user[space]
-cb = callback (synonym for "fn")
+cb = control buffer (section in skbs where we store metadata)
+	-> Except in Netlink functions, where it means "callback" (synonym for "fn").
 pool<n> = IPv<n> pool (pool4 = IPv4 pool)
 pkt = packet
 ver = verdict

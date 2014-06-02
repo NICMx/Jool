@@ -1,10 +1,12 @@
 #include "nat64/mod/packet.h"
 
+#include <linux/icmp.h>
 #include <net/route.h>
 
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 #include "nat64/mod/icmp_wrapper.h"
+
 
 #define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
 #define MIN_IPV4_HDR_LEN sizeof(struct iphdr)
@@ -13,94 +15,34 @@
 #define MIN_ICMP6_HDR_LEN sizeof(struct icmp6hdr)
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
-/** Cache for struct fragments, for efficient allocation. */
-static struct kmem_cache *frag_cache;
-/** Cache for struct packets, for efficient allocation. */
-static struct kmem_cache *pkt_cache;
 
-int pktmod_init(void)
+void kfree_skb_queued(struct sk_buff *skb)
 {
-	pkt_cache = kmem_cache_create("jool_packets", sizeof(struct packet), 0, 0, NULL);
-	if (!pkt_cache) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the packet cache.");
-		return -ENOMEM;
+	struct sk_buff *next_skb;
+	while (skb) {
+		next_skb = skb->next;
+		skb->next = skb->prev = NULL;
+		kfree_skb(skb);
+		skb = next_skb;
 	}
-
-	frag_cache = kmem_cache_create("jool_fragments", sizeof(struct fragment), 0, 0, NULL);
-	if (!frag_cache) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the fragment cache.");
-		kmem_cache_destroy(pkt_cache);
-		return -ENOMEM;
-	}
-
-	return 0;
 }
 
-void pktmod_destroy(void)
-{
-	kmem_cache_destroy(pkt_cache);
-	kmem_cache_destroy(frag_cache);
-}
-
-int frag_create_empty(struct fragment **out)
-{
-	struct fragment *frag;
-
-	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
-	if (!frag) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate a struct fragment.");
-		return -ENOMEM;
-	}
-
-	memset(frag, 0, sizeof(*frag));
-	INIT_LIST_HEAD(&frag->list_hook);
-
-	*out = frag;
-	return 0;
-}
-
-int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag)
-{
-	__u8 *first_byte;
-	__u8 first_4_bits;
-	int error;
-
-	first_byte = skb_network_header(skb);
-	first_4_bits = (*first_byte) >> 4;
-
-	/* We can't use skb->protocol because it isn't set during the LOCAL_OUT Netfilter chains. */
-	switch (first_4_bits) {
-	case 4:
-		error = frag_create_from_buffer_ipv4(skb_network_header(skb), skb->len, false, frag, skb);
-		break;
-	case 6:
-		error = frag_create_from_buffer_ipv6(skb_network_header(skb), skb->len, false, frag, skb);
-		break;
-	default:
-		log_info("Unsupported network protocol: %u", first_4_bits);
-		return -EINVAL;
-	}
-
-	if (!error) {
-		(*frag)->skb = skb;
-		/* We no longer need this really, but I'll keep it JIC. */
-		skb_set_transport_header(skb, (*frag)->l3_hdr.len);
-	}
-
-	return error;
-}
-
-static int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr)
 {
 	if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
 		log_warning("Packet is too small to contain a basic TCP header.");
 		return -EINVAL;
 	}
 
+	if (len < l3_hdr_len + tcp_hdr_len(hdr)) {
+		log_warning("Packet is too small to contain its TCP header.");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
-static int validate_lengths_udp(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_udp(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_UDP_HDR_LEN) {
 		log_warning("Packet is too small to contain a UDP header.");
@@ -110,7 +52,7 @@ static int validate_lengths_udp(unsigned int len, u16 l3_hdr_len)
 	return 0;
 }
 
-static int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_ICMP6_HDR_LEN) {
 		log_warning("Packet is too small to contain a ICMPv6 header.");
@@ -120,7 +62,7 @@ static int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len)
 	return 0;
 }
 
-static int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_ICMP4_HDR_LEN) {
 		log_warning("Packet is too small to contain a ICMPv4 header.");
@@ -130,7 +72,7 @@ static int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len)
 	return 0;
 }
 
-static int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
+int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
 		struct hdr_iterator *iterator)
 {
 	enum hdr_iterator_result result;
@@ -167,125 +109,66 @@ static int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool i
 	return -EINVAL;
 }
 
-static int init_ipv6_l3_hdr(struct fragment *frag, struct ipv6hdr *hdr6,
-		struct hdr_iterator *iterator)
+int skb_init_cb_ipv6(struct sk_buff *skb)
 {
-	frag->l3_hdr.proto = L3PROTO_IPV6;
-	/* IPv6 header length = transport header offset - IPv6 header offset. */
-	frag->l3_hdr.len = iterator->data - (void *) hdr6;
-	frag->l3_hdr.ptr = hdr6;
-	frag->l3_hdr.ptr_needs_kfree = false;
-
-	return 0;
-}
-
-static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, unsigned int len,
-		struct hdr_iterator *iterator)
-{
-	struct frag_hdr *frag_header;
-	int error;
-
-	frag_header = get_extension_header(hdr6, NEXTHDR_FRAGMENT);
-	if (frag_header == NULL || get_fragment_offset_ipv6(frag_header) == 0) {
-		frag->l4_hdr.ptr = iterator->data;
-
- 		switch (iterator->hdr_type) {
-		case NEXTHDR_TCP:
-			error = validate_lengths_tcp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
-
-			frag->l4_hdr.proto = L4PROTO_TCP;
-			frag->l4_hdr.len = 4 * frag_get_tcp_hdr(frag)->doff;
-			break;
-
-		case NEXTHDR_UDP:
-			error = validate_lengths_udp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
-
-			frag->l4_hdr.proto = L4PROTO_UDP;
-			frag->l4_hdr.len = sizeof(struct udphdr);
-			break;
-
-		case NEXTHDR_ICMP:
-			error = validate_lengths_icmp6(len, frag->l3_hdr.len);
-			if (error)
-				return error;
-
-			frag->l4_hdr.proto = L4PROTO_ICMP;
-			frag->l4_hdr.len = sizeof(struct icmp6hdr);
-			break;
-
-		default:
-			log_info("Unsupported layer 4 protocol: %d", iterator->hdr_type);
-			icmp64_send(frag, ICMPERR_PROTO_UNREACHABLE, 0);
-			return -EINVAL;
-		}
-
-		frag->payload.len = len - frag->l3_hdr.len - frag->l4_hdr.len;
-		frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
-
-	} else {
-		frag->l4_hdr.proto = L4PROTO_NONE;
-		frag->l4_hdr.len = 0;
-		frag->l4_hdr.ptr = NULL;
-		frag->payload.len = iterator->limit - iterator->data;
-		frag->payload.ptr = iterator->data;
-	}
-
-	frag->l4_hdr.ptr_needs_kfree = false;
-	frag->payload.ptr_needs_kfree = false;
-
-	return 0;
-}
-
-int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **out_frag, struct sk_buff *skb)
-{
-	struct ipv6hdr *hdr = (struct ipv6hdr *) buffer;
-	struct fragment *frag;
+	struct jool_cb *cb = skb_jcb(skb);
 	struct hdr_iterator iterator;
 	int error;
 
-	error = validate_ipv6_integrity(hdr, len, is_truncated, &iterator);
+	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator);
 	if (error)
 		return error;
 
-	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
-	if (!frag) {
-		log_err(ERR_ALLOC_FAILED, "Cannot allocate a struct fragment.");
-		return -ENOMEM;
-	}
-
-	frag->skb = NULL;
-	frag->original_skb = skb;
 	/*
-	 * If you're comparing this to frag_create_from_buffer_ipv4(), keep in mind that
-	 * ip6_route_input() is not exported for dynamic modules to use (and linux doesn't know a route
-	 * to the NAT64 prefix anyway), so we have to test the shit out of kernel IPv6 functions which
-	 * might dereference the dst_entries of the skbs.
+	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
+	 * exported for dynamic modules to use (and linux doesn't know a route to the NAT64 prefix
+	 * anyway), so we have to test the shit out of kernel IPv6 functions which might dereference
+	 * the dst_entries of the skbs.
 	 * We already know of a bug in Linux 3.12 that does exactly that, see icmp_wrapper.c.
 	 */
 
-	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
-	if (error)
-		goto fail;
-	error = init_ipv6_l3_payload(frag, hdr, len, &iterator);
-	if (error)
-		goto fail;
+	cb->l3_proto = L3PROTO_IPV6;
+	cb->original_skb = skb;
+	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
 
-	INIT_LIST_HEAD(&frag->list_hook);
+	switch (iterator.hdr_type) {
+	case NEXTHDR_TCP:
+		error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
+		if (error)
+			return error;
 
-	*out_frag = frag;
+		cb->l4_proto = L4PROTO_TCP;
+		cb->payload = iterator.data + tcp_hdrlen(skb);
+		break;
+
+	case NEXTHDR_UDP:
+		error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
+		if (error)
+			return error;
+
+		cb->l4_proto = L4PROTO_UDP;
+		cb->payload = iterator.data + sizeof(struct udphdr);
+		break;
+
+	case NEXTHDR_ICMP:
+		error = validate_lengths_icmp6(skb->len, skb_l3hdr_len(skb));
+		if (error)
+			return error;
+
+		cb->l4_proto = L4PROTO_ICMP;
+		cb->payload = iterator.data + sizeof(struct icmp6hdr);
+		break;
+
+	default:
+		log_info("Unsupported layer 4 protocol: %d", iterator.hdr_type);
+		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
+		return -EINVAL;
+	}
+
 	return 0;
-
-fail:
-	kmem_cache_free(frag_cache, frag);
-	return error;
 }
 
-static int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated)
+int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated)
 {
 	u16 ip4_hdr_len;
 
@@ -318,93 +201,15 @@ static int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_
 	return 0;
 }
 
-static int init_ipv4_l3_hdr(struct fragment *frag, struct iphdr *hdr)
+int skb_init_cb_ipv4(struct sk_buff *skb)
 {
-	frag->l3_hdr.proto = L3PROTO_IPV4;
-	frag->l3_hdr.len = 4 * hdr->ihl;
-	frag->l3_hdr.ptr = hdr;
-	frag->l3_hdr.ptr_needs_kfree = false;
-
-	return 0;
-}
-
-static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsigned int len)
-{
-	u16 fragment_offset;
+	struct jool_cb *cb = skb_jcb(skb);
+	struct iphdr *hdr4 = ip_hdr(skb);
 	int error;
 
-	fragment_offset = get_fragment_offset_ipv4(hdr4);
-	if (fragment_offset == 0) {
-		frag->l4_hdr.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
-		switch (hdr4->protocol) {
-		case IPPROTO_TCP:
-			error = validate_lengths_tcp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
-
-			frag->l4_hdr.proto = L4PROTO_TCP;
-			frag->l4_hdr.len = 4 * frag_get_tcp_hdr(frag)->doff;
-			break;
-
-		case IPPROTO_UDP:
-			error = validate_lengths_udp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
-
-			frag->l4_hdr.proto = L4PROTO_UDP;
-			frag->l4_hdr.len = sizeof(struct udphdr);
-			break;
-
-		case IPPROTO_ICMP:
-			error = validate_lengths_icmp4(len, frag->l3_hdr.len);
-			if (error)
-				return error;
-
-			frag->l4_hdr.proto = L4PROTO_ICMP;
-			frag->l4_hdr.len = sizeof(struct icmphdr);
-			break;
-
-		default:
-			log_info("Unsupported layer 4 protocol: %d", hdr4->protocol);
-			icmp64_send(frag, ICMPERR_PROTO_UNREACHABLE, 0);
-			return -EINVAL;
-		}
-
-		frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
-
-	} else {
-		frag->l4_hdr.proto = L4PROTO_NONE;
-		frag->l4_hdr.len = 0;
-		frag->l4_hdr.ptr = NULL;
-		frag->payload.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
-	}
-
-	frag->l4_hdr.ptr_needs_kfree = false;
-	frag->payload.len = len - frag->l3_hdr.len - frag->l4_hdr.len;
-	frag->payload.ptr_needs_kfree = false;
-
-	return 0;
-}
-
-int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **out_frag, struct sk_buff *skb)
-{
-	struct iphdr *hdr = (struct iphdr *) buffer;
-	struct fragment *frag;
-	int error;
-
-	error = validate_ipv4_integrity(hdr, len, is_truncated);
+	error = validate_ipv4_integrity(hdr4, skb->len, false);
 	if (error)
 		return error;
-
-	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
-	if (!frag) {
-		log_err(ERR_ALLOC_FAILED, "Cannot allocate a struct fragment.");
-		return -ENOMEM;
-	}
-
-	frag->skb = NULL;
-	frag->original_skb = skb;
 
 #ifndef UNIT_TESTING
 	if (skb && skb_rtable(skb) == NULL) {
@@ -414,147 +219,54 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 		 * packet, regardless of whether we end up calling one of those functions.
 		 */
 
-		error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
+		error = ip_route_input(skb, hdr4->daddr, hdr4->saddr, hdr4->tos, skb->dev);
 		if (error) {
 			log_err(ERR_UNKNOWN_ERROR, "ip_route_input failed: %d", error);
-			goto fail;
+			return error;
 		}
-		log_debug("making rtable %p", skb_rtable(frag->original_skb));
+		log_debug("making rtable %p", skb_rtable(skb));
 	}
 #endif
 
-	error = init_ipv4_l3_hdr(frag, hdr);
-	if (error)
-		goto fail;
-	error = init_ipv4_l3_payload(frag, hdr, len);
-	if (error)
-		goto fail;
+	cb->l3_proto = L3PROTO_IPV4;
+	cb->original_skb = skb;
+	skb_set_transport_header(skb, 4 * hdr4->ihl);
 
-	INIT_LIST_HEAD(&frag->list_hook);
+	switch (hdr4->protocol) {
+	case IPPROTO_TCP:
+		error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
+		if (error)
+			return error;
 
-	*out_frag = frag;
-	return 0;
-
-fail:
-	kmem_cache_free(frag_cache, frag);
-	return error;
-}
-
-/**
- * Joins frag.l3_hdr, frag.l4_hdr and frag.payload into a single packet, placing the result in
- * frag.skb.
- *
- * Assumes that frag.skb is NULL (Hence, frag->*.ptr_belongs_to_skb are false).
- */
-int frag_create_skb(struct fragment *frag)
-{
-	struct sk_buff *new_skb;
-	bool has_l4_hdr;
-
-	new_skb = alloc_skb(LL_MAX_HEADER /* kernel's reserved + layer 2. */
-			+ frag->l3_hdr.len /* layer 3. */
-			+ frag->l4_hdr.len /* layer 4. */
-			+ frag->payload.len, /* packet data. */
-			GFP_ATOMIC);
-	if (!new_skb) {
-		log_err(ERR_ALLOC_FAILED, "New packet allocation failed.");
-		return -ENOMEM;
-	}
-	frag->skb = new_skb;
-
-	has_l4_hdr = (frag->l4_hdr.ptr != NULL);
-
-	skb_reserve(new_skb, LL_MAX_HEADER);
-	skb_put(new_skb, frag->l3_hdr.len + frag->l4_hdr.len + frag->payload.len);
-
-	skb_reset_mac_header(new_skb);
-	skb_reset_network_header(new_skb);
-	if (has_l4_hdr)
-		skb_set_transport_header(new_skb, frag->l3_hdr.len);
-
-	memcpy(skb_network_header(new_skb), frag->l3_hdr.ptr, frag->l3_hdr.len);
-	if (has_l4_hdr) {
-		memcpy(skb_transport_header(new_skb), frag->l4_hdr.ptr, frag->l4_hdr.len);
-		memcpy(skb_transport_header(new_skb) + frag->l4_hdr.len, frag->payload.ptr, frag->payload.len);
-	} else {
-		memcpy(skb_network_header(new_skb) + frag->l3_hdr.len, frag->payload.ptr, frag->payload.len);
-	}
-
-	if (frag->l3_hdr.ptr_needs_kfree)
-		kfree(frag->l3_hdr.ptr);
-	if (frag->l4_hdr.ptr_needs_kfree)
-		kfree(frag->l4_hdr.ptr);
-	if (frag->payload.ptr_needs_kfree)
-		kfree(frag->payload.ptr);
-
-	frag->l3_hdr.ptr = skb_network_header(new_skb);
-	if (has_l4_hdr) {
-		frag->l4_hdr.ptr = skb_transport_header(new_skb);
-		frag->payload.ptr = skb_transport_header(new_skb) + frag->l4_hdr.len;
-	} else {
-		frag->l4_hdr.ptr = NULL;
-		frag->payload.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
-	}
-
-	frag->l3_hdr.ptr_needs_kfree = false;
-	frag->l4_hdr.ptr_needs_kfree = false;
-	frag->payload.ptr_needs_kfree = false;
-
-	switch (frag->l3_hdr.proto) {
-	case L3PROTO_IPV4:
-		new_skb->protocol = htons(ETH_P_IP);
+		cb->l4_proto = L4PROTO_TCP;
+		cb->payload = skb_transport_header(skb) + tcp_hdrlen(skb);
 		break;
-	case L3PROTO_IPV6:
-		new_skb->protocol = htons(ETH_P_IPV6);
+
+	case IPPROTO_UDP:
+		error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
+		if (error)
+			return error;
+
+		cb->l4_proto = L4PROTO_UDP;
+		cb->payload = skb_transport_header(skb) + sizeof(struct udphdr);
 		break;
+
+	case IPPROTO_ICMP:
+		error = validate_lengths_icmp4(skb->len, skb_l3hdr_len(skb));
+		if (error)
+			return error;
+
+		cb->l4_proto = L4PROTO_ICMP;
+		cb->payload = skb_transport_header(skb) + sizeof(struct icmphdr);
+		break;
+
+	default:
+		log_info("Unsupported layer 4 protocol: %d", hdr4->protocol);
+		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
+		return -EINVAL;
 	}
 
 	return 0;
-}
-
-bool frag_is_fragmented(struct fragment *frag)
-{
-	struct iphdr *hdr4;
-	struct frag_hdr *hdr_frag;
-	__u16 fragment_offset = 0;
-	bool mf = false;
-
-	switch (frag->l3_hdr.proto) {
-	case L3PROTO_IPV4:
-		hdr4 = frag_get_ipv4_hdr(frag);
-		fragment_offset = get_fragment_offset_ipv4(hdr4);
-		mf = is_more_fragments_set_ipv4(hdr4);
-		break;
-
-	case L3PROTO_IPV6:
-		hdr_frag = frag_get_fragment_hdr(frag);
-		if (!hdr_frag)
-			return false;
-		fragment_offset = get_fragment_offset_ipv6(hdr_frag);
-		mf = is_more_fragments_set_ipv6(hdr_frag);
-		break;
-	}
-
-	return (fragment_offset != 0) || (mf);
-}
-
-void frag_kfree(struct fragment *frag)
-{
-	if (!frag)
-		return;
-
-	if (frag->skb)
-		kfree_skb(frag->skb);
-	if (frag->l3_hdr.ptr_needs_kfree)
-		kfree(frag->l3_hdr.ptr);
-	if (frag->l4_hdr.ptr_needs_kfree)
-		kfree(frag->l4_hdr.ptr);
-	if (frag->payload.ptr_needs_kfree)
-		kfree(frag->payload.ptr);
-
-	list_del(&frag->list_hook);
-
-	kmem_cache_free(frag_cache, frag);
 }
 
 static char *nexthdr_to_string(__u8 nexthdr)
@@ -576,18 +288,18 @@ static char *nexthdr_to_string(__u8 nexthdr)
 static char *protocol_to_string(__u8 protocol)
 {
 	switch (protocol) {
-	case L4PROTO_TCP:
+	case IPPROTO_TCP:
 		return "TCP";
-	case L4PROTO_UDP:
+	case IPPROTO_UDP:
 		return "UDP";
-	case L4PROTO_ICMP:
+	case IPPROTO_ICMP:
 		return "ICMP";
 	}
 
 	return "Don't know";
 }
 
-void frag_print(struct fragment *frag)
+void skb_print(struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr6;
 	struct frag_hdr *frag_header;
@@ -596,16 +308,15 @@ void frag_print(struct fragment *frag)
 	struct udphdr *udp_header;
 	struct in_addr addr4;
 
-	if (!frag) {
+	if (!skb) {
 		log_info("(null)");
 		return;
 	}
 
-	log_info("Layer 3 - proto:%s length:%u kfree:%d", l3proto_to_string(frag->l3_hdr.proto),
-			frag->l3_hdr.len, frag->l3_hdr.ptr_needs_kfree);
-	switch (frag->l3_hdr.proto) {
+	log_info("Layer 3 proto:%s", l3proto_to_string(skb_l3_proto(skb)));
+	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
-		hdr6 = frag_get_ipv6_hdr(frag);
+		hdr6 = ipv6_hdr(skb);
 		log_info("		version: %u", hdr6->version);
 		log_info("		traffic class: %u", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
 		log_info("		flow label: %u", ((hdr6->flow_lbl[0] & 0xf) << 16) | (hdr6->flow_lbl[1] << 8) | hdr6->flow_lbl[0]);
@@ -627,7 +338,7 @@ void frag_print(struct fragment *frag)
 		break;
 
 	case L3PROTO_IPV4:
-		hdr4 = frag_get_ipv4_hdr(frag);
+		hdr4 = ip_hdr(skb);
 		log_info("		version: %u", hdr4->version);
 		log_info("		header length: %u", hdr4->ihl);
 		log_info("		type of service: %u", hdr4->tos);
@@ -646,11 +357,10 @@ void frag_print(struct fragment *frag)
 		break;
 	}
 
-	log_info("Layer 4 - proto:%s length:%u kfree:%d", l4proto_to_string(frag->l4_hdr.proto),
-			frag->l4_hdr.len, frag->l4_hdr.ptr_needs_kfree);
-	switch (frag->l4_hdr.proto) {
+	log_info("Layer 4 proto:%s", l4proto_to_string(skb_l4_proto(skb)));
+	switch (skb_l4_proto(skb)) {
 	case L4PROTO_TCP:
-		tcp_header = frag_get_tcp_hdr(frag);
+		tcp_header = tcp_hdr(skb);
 		log_info("		source port: %u", be16_to_cpu(tcp_header->source));
 		log_info("		destination port: %u", be16_to_cpu(tcp_header->dest));
 		log_info("		seq: %u", be32_to_cpu(tcp_header->seq));
@@ -665,7 +375,7 @@ void frag_print(struct fragment *frag)
 		break;
 
 	case L4PROTO_UDP:
-		udp_header = frag_get_udp_hdr(frag);
+		udp_header = udp_hdr(skb);
 		log_info("		source port: %u", be16_to_cpu(udp_header->source));
 		log_info("		destination port: %u", be16_to_cpu(udp_header->dest));
 		log_info("		length: %u", be16_to_cpu(udp_header->len));
@@ -678,124 +388,4 @@ void frag_print(struct fragment *frag)
 	case L4PROTO_NONE:
 		break;
 	}
-
-	log_info("Payload - length:%u kfree:%d", frag->payload.len, frag->payload.ptr_needs_kfree);
-}
-
-int pkt_alloc(struct packet **pkt_out)
-{
-	struct packet *pkt;
-
-	pkt = kmem_cache_alloc(pkt_cache, GFP_ATOMIC);
-	if (!pkt) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate a struct packet.");
-		return -ENOMEM;
-	}
-
-	INIT_LIST_HEAD(&pkt->fragments);
-	pkt->first_fragment = NULL;
-
-	*pkt_out = pkt;
-	return 0;
-}
-
-int pkt_create(struct fragment *frag, struct packet **pkt_out)
-{
-	int error;
-
-	error = pkt_alloc(pkt_out);
-	if (error)
-		return error;
-
-	pkt_add_frag(*pkt_out, frag);
-
-	return 0;
-}
-
-void pkt_add_frag(struct packet *pkt, struct fragment *frag)
-{
-	list_add(&frag->list_hook, pkt->fragments.prev);
-	if (frag->l4_hdr.proto != L4PROTO_NONE)
-		pkt->first_fragment = frag;
-}
-
-int pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len)
-{
-	struct fragment *frag, *last_frag;
-	u16 frag_offset;
-
-	if (frag_is_fragmented(pkt->first_fragment)) {
-		/* Find the last fragment. */
-		last_frag = NULL;
-		list_for_each_entry(frag, &pkt->fragments, list_hook) {
-			if (!is_more_fragments_set_ipv6(frag_get_fragment_hdr(frag))) {
-				last_frag = frag;
-				break;
-			}
-		}
-		if (!last_frag) {
-			/*
-			 * This is critical because this function is only called after the database has already
-			 * collected all of pkt's fragments.
-			 */
-			log_crit(ERR_UNKNOWN_ERROR, "IPv6 packet has no last fragment.");
-			return -EINVAL;
-		}
-
-		/* Compute its offset. */
-		frag_offset = get_fragment_offset_ipv6(frag_get_fragment_hdr(last_frag));
-	} else {
-		last_frag = pkt->first_fragment;
-		frag_offset = 0;
-	}
-
-	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
-	return 0;
-}
-
-int pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len)
-{
-	struct fragment *last_frag;
-	u16 frag_offset;
-
-	if (frag_is_fragmented(pkt->first_fragment)) {
-		/* Find the last fragment. */
-		last_frag = NULL;
-		list_for_each_entry(last_frag, &pkt->fragments, list_hook) {
-			if (!is_more_fragments_set_ipv4(frag_get_ipv4_hdr(last_frag)))
-				break;
-		}
-		if (!last_frag) {
-			/*
-			 * This is critical because this function is only called after the database has already
-			 * collected all of pkt's fragments.
-			 */
-			log_crit(ERR_UNKNOWN_ERROR, "IPv4 packet has no last fragment.");
-			return -EINVAL;
-		}
-
-		/* Compute its offset. */
-		frag_offset = get_fragment_offset_ipv4(frag_get_ipv4_hdr(last_frag));
-	} else {
-		last_frag = pkt->first_fragment;
-		frag_offset = 0;
-	}
-
-	*total_len = frag_offset + last_frag->l4_hdr.len + last_frag->payload.len;
-	return 0;
-}
-
-void pkt_kfree(struct packet *pkt)
-{
-	struct fragment *frag;
-
-	if (!pkt)
-		return;
-
-	while (!list_empty(&pkt->fragments)) {
-		frag = pkt_get_first_frag(pkt);
-		frag_kfree(frag);
-	}
-
-	kmem_cache_free(pkt_cache, pkt);
 }

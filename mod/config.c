@@ -3,7 +3,6 @@
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/out_stream.h"
-#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/bib.h"
@@ -132,17 +131,15 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Adding a prefix to the IPv6 pool.");
 		return respond_error(nl_hdr, pool6_add(&request->update.prefix));
 
 	case OP_REMOVE:
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Removing a prefix from the IPv6 pool.");
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
@@ -190,17 +187,15 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Adding an address to the IPv4 pool.");
 		return respond_error(nl_hdr, pool4_register(&request->update.addr));
 
 	case OP_REMOVE:
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Removing an address from the IPv4 pool.");
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
@@ -257,17 +252,15 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Adding BIB entry.");
 		return respond_error(nl_hdr, add_static_route(request));
 
 	case OP_REMOVE:
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Removing BIB entry.");
 		return respond_error(nl_hdr, delete_static_route(request));
@@ -350,9 +343,8 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Updating 'Filtering and Updating' options.");
 
@@ -362,35 +354,6 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 		request->to.icmp = msecs_to_jiffies(request->to.icmp);
 
 		return respond_error(nl_hdr, set_filtering_config(nat64_hdr->operation, request));
-	}
-}
-
-static int handle_fragmentation_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		struct fragmentation_config *request)
-{
-	struct fragmentation_config clone;
-	int error;
-
-	if (nat64_hdr->operation == 0) {
-		log_debug("Returning 'Fragmentation' options.");
-
-		error = clone_fragmentation_config(&clone);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		clone.fragment_timeout = jiffies_to_msecs(clone.fragment_timeout);
-
-		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
-	} else {
-		if (verify_superpriv(nat64_hdr)) {
-			return respond_error(nl_hdr, -EPERM);
-		}
-
-		log_debug("Updating 'Fragmentation' options.");
-
-		request->fragment_timeout = msecs_to_jiffies(request->fragment_timeout);
-
-		return respond_error(nl_hdr, set_fragmentation_config(nat64_hdr->operation, request));
 	}
 }
 
@@ -421,9 +384,8 @@ static int handle_translate_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 	} else {
 		struct translate_config new_config;
 
-		if (verify_superpriv(nat64_hdr)) {
+		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Updating 'Translate the Packet' options.");
 
@@ -477,9 +439,6 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		break;
 	case MODE_TRANSLATE:
 		error = handle_translate_config(nl_hdr, nat64_hdr, request);
-		break;
-	case MODE_FRAGMENTATION:
-		error = handle_fragmentation_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown configuration mode: %d", nat64_hdr->mode);

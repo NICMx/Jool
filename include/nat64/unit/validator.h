@@ -1,18 +1,14 @@
 #ifndef _NF_NAT64_VALIDATOR_H
 #define _NF_NAT64_VALIDATOR_H
 
+#include <linux/icmp.h>
 #include "nat64/mod/packet.h"
 
-bool validate_fragment_count(struct packet *pkt, int expected_count);
+bool validate_fragment_count(struct sk_buff *skb, int expected_count);
 
-bool validate_frag_ipv6(struct fragment *frag, int len);
-bool validate_frag_ipv4(struct fragment *frag);
-bool validate_frag_empty_l4(struct fragment *frag);
-bool validate_frag_udp(struct fragment *frag);
-bool validate_frag_tcp(struct fragment *frag);
-bool validate_frag_icmp6(struct fragment *frag);
-bool validate_frag_icmp4(struct fragment *frag);
-bool validate_frag_payload(struct fragment *frag, u16 payload_len);
+bool validate_cb_l3(struct sk_buff *skb, l3_protocol l3proto, int len);
+bool validate_cb_l4(struct sk_buff *skb, l4_protocol l4proto, int len);
+bool validate_cb_payload(struct sk_buff *skb, int len);
 
 bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct tuple *tuple);
 bool validate_frag_hdr(struct frag_hdr *hdr, u16 frag_offset, u16 mf, __u8 nexthdr);

@@ -30,7 +30,6 @@ enum config_mode {
 	MODE_SESSION,
 	MODE_FILTERING,
 	MODE_TRANSLATE,
-	MODE_FRAGMENTATION,
 };
 
 enum config_operation {
@@ -57,8 +56,6 @@ enum config_operation {
 	#define ICMP_TIMEOUT_MASK		(1 << 4)
 	#define TCP_EST_TIMEOUT_MASK	(1 << 5)
 	#define TCP_TRANS_TIMEOUT_MASK 	(1 << 6)
-
-	#define FRAGMENT_TIMEOUT_MASK 	(1 << 0)
 };
 
 /**
@@ -88,13 +85,6 @@ struct session_entry_us {
 	struct ipv4_pair ipv4;
 	__u64 dying_time;
 	l4_protocol l4_proto;
-};
-
-/**
- * Time interval to allow arrival of fragments, in milliseconds.
- */
-struct fragmentation_config {
-	__u64 fragment_timeout;
 };
 
 /**

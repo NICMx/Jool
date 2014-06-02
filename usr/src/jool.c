@@ -23,7 +23,6 @@
 #include "nat64/usr/session.h"
 #include "nat64/usr/filtering.h"
 #include "nat64/usr/translate.h"
-#include "nat64/usr/fragmentation.h"
 
 
 const char *argp_program_version = "3.1.4";
@@ -53,10 +52,9 @@ struct arguments {
 	struct ipv4_tuple_address bib4;
 	bool bib4_set;
 
-	/* Filtering, translate, fragmentation */
+	/* Filtering, translate */
 	struct filtering_config filtering;
 	struct translate_config translate;
-	struct fragmentation_config fragmentation;
 };
 
 /**
@@ -70,7 +68,6 @@ enum argp_flags {
 	ARGP_SESSION = 's',
 	ARGP_FILTERING = 'y',
 	ARGP_TRANSLATE = 'z',
-	ARGP_FRAGMENTATION = 'f',
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
@@ -114,9 +111,6 @@ enum argp_flags {
 	ARGP_LOWER_MTU_FAIL = 4007,
 	ARGP_PLATEAUS = 4010,
 	ARGP_MIN_IPV6_MTU = 4011,
-
-	/* Fragmentation */
-	ARGP_FRAG_TO = 5000,
 };
 
 #define NUM_FORMAT "NUM"
@@ -228,13 +222,6 @@ static struct argp_option options[] =
 	{ MTU_PLATEAUS_OPT,		ARGP_PLATEAUS,		NUM_ARR_FORMAT,0, "MTU plateaus." },
 	{ MIN_IPV6_MTU_OPT,		ARGP_MIN_IPV6_MTU,	NUM_FORMAT, 0, "Minimum IPv6 MTU." },
 
-	{ NULL, 0, NULL, 0, "'Fragmentation' options:", 40 },
-	{ "fragmentation",			ARGP_FRAGMENTATION,		NULL, 0,
-			"Command is fragmentation related. Use alone to display configuration. "
-			"Will be implicit if any other fragmentation command is entered." },
-	{ FRAGMENTATION_TIMEOUT_OPT,		ARGP_FRAG_TO,		NUM_FORMAT, 0,
-			"Set the timeout for arrival of fragments." },
-
 	{ NULL },
 };
 
@@ -265,9 +252,6 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 	case ARGP_TRANSLATE:
 		arguments->mode = MODE_TRANSLATE;
-		break;
-	case ARGP_FRAGMENTATION:
-		arguments->mode = MODE_FRAGMENTATION;
 		break;
 
 	case ARGP_DISPLAY:
@@ -402,13 +386,6 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->mode = MODE_TRANSLATE;
 		arguments->operation |= MIN_IPV6_MTU_MASK;
 		error = str_to_u16(arg, &arguments->translate.min_ipv6_mtu, 1280, 65535);
-		break;
-
-	case ARGP_FRAG_TO:
-		arguments->mode = MODE_FRAGMENTATION;
-		arguments->operation |= FRAGMENT_TIMEOUT_MASK;
-		error = str_to_u16(arg, &temp, FRAGMENT_MIN, 0xFFFF);
-		arguments->fragmentation.fragment_timeout = temp * 1000;
 		break;
 
 	default:
@@ -579,9 +556,6 @@ static int main_wrapped(int argc, char **argv)
 		if (args.translate.mtu_plateaus)
 			free(args.translate.mtu_plateaus);
 		return error;
-
-	case MODE_FRAGMENTATION:
-		return fragmentation_request(args.operation, &args.fragmentation);
 
 	default:
 		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");

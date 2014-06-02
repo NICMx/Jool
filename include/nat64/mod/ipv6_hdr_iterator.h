@@ -88,6 +88,7 @@ enum hdr_iterator_result hdr_iterator_next(struct hdr_iterator *iterator);
  * @return result status.
  */
 enum hdr_iterator_result hdr_iterator_last(struct hdr_iterator *iterator);
+
 /**
  * Internally uses an iterator to reach and return header "hdr_id" from "ip6_hdr"'s extension
  * headers.

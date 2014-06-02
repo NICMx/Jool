@@ -10,7 +10,6 @@ ITERATOR = iterator
 HASHTABLE = hashtable
 RFC6052 = rfc6052
 PKT = pkt
-FRAGDB = fragdb
 POOLNUM = poolnum
 POOL4 = pool4
 BIB_SESSION = bib_session
@@ -26,7 +25,6 @@ obj-m += $(ITERATOR).o
 obj-m += $(HASHTABLE).o
 obj-m += $(RFC6052).o
 obj-m += $(PKT).o
-obj-m += $(FRAGDB).o
 obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
 obj-m += $(BIB_SESSION).o
@@ -56,17 +54,6 @@ $(PKT)-objs += ../mod/types.o
 $(PKT)-objs += ../mod/str_utils.o
 $(PKT)-objs += framework/unit_test.o
 $(PKT)-objs += packet_test.o
-
-$(FRAGDB)-objs += ../mod/types.o
-$(FRAGDB)-objs += ../mod/str_utils.o
-$(FRAGDB)-objs += ../mod/random.o
-$(FRAGDB)-objs += ../mod/ipv6_hdr_iterator.o
-$(FRAGDB)-objs += ../mod/packet.o
-$(FRAGDB)-objs += ../mod/icmp_wrapper.o
-$(FRAGDB)-objs += framework/unit_test.o
-$(FRAGDB)-objs += framework/skb_generator.o
-$(FRAGDB)-objs += framework/types.o
-$(FRAGDB)-objs += fragment_db_test.o
 
 $(POOLNUM)-objs += ../mod/types.o
 $(POOLNUM)-objs += ../mod/str_utils.o
@@ -130,6 +117,7 @@ $(TRANSLATE)-objs += framework/unit_test.o
 $(TRANSLATE)-objs += framework/skb_generator.o
 $(TRANSLATE)-objs += framework/validator.o
 $(TRANSLATE)-objs += framework/types.o
+$(TRANSLATE)-objs += framework/impersonator_send_packet.o
 $(TRANSLATE)-objs += translate_packet_test.o
 
 $(HAIRPINNING)-objs += ../mod/types.o
@@ -138,7 +126,6 @@ $(HAIRPINNING)-objs += ../mod/random.o
 $(HAIRPINNING)-objs += ../mod/ipv6_hdr_iterator.o
 $(HAIRPINNING)-objs += ../mod/rfc6052.o
 $(HAIRPINNING)-objs += ../mod/packet.o
-$(HAIRPINNING)-objs += ../mod/fragment_db.o
 $(HAIRPINNING)-objs += ../mod/pool6.o
 $(HAIRPINNING)-objs += ../mod/bib.o
 $(HAIRPINNING)-objs += ../mod/session.o
@@ -159,6 +146,9 @@ $(HAIRPINNING)-objs += handling_hairpinning_test.o
 
 # Send packet (does not have a unit test, so just make sure it compiles.)
 $(SEND)-objs += ../mod/ipv6_hdr_iterator.o
+$(SEND)-objs += ../mod/types.o
+$(SEND)-objs += ../mod/packet.o
+$(SEND)-objs += ../mod/icmp_wrapper.o
 $(SEND)-objs += ../mod/send_packet.o
 
 
@@ -169,7 +159,6 @@ test:
 	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
-	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
 	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
 	-sudo insmod $(BIB_SESSION).ko && sudo rmmod $(BIB_SESSION)

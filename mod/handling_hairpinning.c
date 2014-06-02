@@ -12,14 +12,14 @@
  * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
  * @return whether pkt is a hairpin packet.
  */
-bool is_hairpin(struct packet *pkt)
+bool is_hairpin(struct sk_buff *skb)
 {
 	struct in_addr addr;
 
-	if (pkt_get_l3proto(pkt) != L3PROTO_IPV4)
+	if (skb_l3_proto(skb) != L3PROTO_IPV4)
 		return false;
 
-	pkt_get_ipv4_dst_addr(pkt, &addr);
+	addr.s_addr = ip_hdr(skb)->daddr;
 	return pool4_contains(&addr);
 }
 
@@ -31,33 +31,33 @@ bool is_hairpin(struct packet *pkt)
  * @param tuple_in pkt_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-verdict handling_hairpinning(struct packet *pkt_in, struct tuple *tuple_in)
+verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 {
-	struct packet *pkt_out = NULL;
+	struct sk_buff *skb_out;
 	struct tuple tuple_out;
+	verdict result;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	if (pkt_get_l4proto(pkt_in) == L4PROTO_ICMP) {
+	if (skb_l4_proto(skb_in) == L4PROTO_ICMP) {
 		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
 		log_warning("ICMP is NOT supported by hairpinning. Dropping packet...");
-		goto fail;
+		return VER_DROP;
 	}
 
-	if (filtering_and_updating(pkt_in->first_fragment, tuple_in) != VER_CONTINUE)
-		goto fail;
-	if (compute_out_tuple(tuple_in, &tuple_out) != VER_CONTINUE)
-		goto fail;
-	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
-		goto fail;
-	if (send_pkt(pkt_out) != VER_CONTINUE)
-		goto fail;
+	result = filtering_and_updating(skb_in, tuple_in);
+	if (result != VER_CONTINUE)
+		return result;
+	result = compute_out_tuple(tuple_in, &tuple_out);
+	if (result != VER_CONTINUE)
+		return result;
+	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
+	if (result != VER_CONTINUE)
+		return result;
+	result = send_pkt(skb_out);
+	if (result != VER_CONTINUE)
+		return result;
 
-	pkt_kfree(pkt_out);
 	log_debug("Done step 5.");
 	return VER_CONTINUE;
-
-fail:
-	pkt_kfree(pkt_out);
-	return VER_DROP;
 }

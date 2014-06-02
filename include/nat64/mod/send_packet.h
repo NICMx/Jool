@@ -22,27 +22,27 @@
  * Routes the skb described by the arguments. Returns the 'destination entry' the kernel needs
  * to know which interface the skb should be forwarded through.
  */
-struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark);
+int route_ipv4(struct sk_buff *skb);
 
 /**
  * Same as route_ipv4(), except for IPv6.
  */
-struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark);
+int route_ipv6(struct sk_buff *skb);
 
 /**
- * Puts all of "pkt"'s skbs on the network.
+ * Puts "skb" on the network.
  *
- * For the skbs to be valid, setting the following fields is known to be neccesary:
+ * For "skb" to be valid, setting the following fields is known to be neccesary:
  * -> data, head, len, data_len, end, network_header and dev.
  * Also probably:
  * -> tail, transport_header and _skb_refdst.
- * If you want to place more kernel modules on netfilter's postrouting hook, you probably need to
- * set more.
+ * If you want to place more kernel modules on netfilter's postrouting hook, you might need to set
+ * more.
  *
  * Note that this function inherits from ip_local_out() and ip6_local_out() the annoying side
- * effect of freeing the skbs, EVEN IF THEY COULD NOT BE SENT.
+ * effect of freeing "skb", EVEN IF IT COULD NOT BE SENT.
  */
-verdict send_pkt(struct packet *pkt);
+verdict send_pkt(struct sk_buff *skb);
 
 
 #endif /* _NF_NAT64_SEND_PACKET_H */

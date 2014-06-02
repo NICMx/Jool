@@ -1,6 +1,4 @@
 #include "nat64/mod/core.h"
-#include "nat64/mod/packet.h"
-#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/determine_incoming_tuple.h"
@@ -13,44 +11,40 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ip.h>
-#include <net/ipv6.h>
+#include <linux/ipv6.h>
 
 
 static unsigned int core_common(struct sk_buff *skb_in)
 {
-	struct packet *pkt_in = NULL;
-	struct packet *pkt_out = NULL;
+	struct sk_buff *skb_out;
 	struct tuple tuple_in;
 	struct tuple tuple_out;
-	verdict result;
 
-	result = fragment_arrives(skb_in, &pkt_in);
-	if (result != VER_CONTINUE)
-		return (unsigned int) result;
-
-	if (determine_in_tuple(pkt_in->first_fragment, &tuple_in) != VER_CONTINUE)
+	if (determine_in_tuple(skb_in, &tuple_in) != VER_CONTINUE)
 		goto end;
-	if (filtering_and_updating(pkt_in->first_fragment, &tuple_in) != VER_CONTINUE)
+	if (filtering_and_updating(skb_in, &tuple_in) != VER_CONTINUE)
 		goto end;
 	if (compute_out_tuple(&tuple_in, &tuple_out) != VER_CONTINUE)
 		goto end;
-	if (translating_the_packet(&tuple_out, pkt_in, &pkt_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple_out, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
-	if (is_hairpin(pkt_out)) {
-		if (handling_hairpinning(pkt_out, &tuple_out) != VER_CONTINUE)
+	if (is_hairpin(skb_out)) {
+		verdict result = handling_hairpinning(skb_out, &tuple_out);
+		kfree_skb(skb_out);
+		if (result != VER_CONTINUE)
 			goto end;
 	} else {
-		if (send_pkt(pkt_out) != VER_CONTINUE)
+		if (send_pkt(skb_out) != VER_CONTINUE)
 			goto end;
+		/* send_pkt releases skb_out regardless of verdict. */
 	}
 
 	log_debug("Success.");
 	/* Fall through. */
 
 end:
-	pkt_kfree(pkt_in);
-	pkt_kfree(pkt_out);
+	kfree_skb(skb_in);
 	return (unsigned int) VER_STOLEN;
 }
 
@@ -59,19 +53,22 @@ end:
  */
 unsigned int core_4to6(struct sk_buff *skb)
 {
-	struct iphdr *ip4_header;
+	struct iphdr *hdr;
 	struct in_addr daddr;
 
 	skb_linearize(skb);
 
-	ip4_header = ip_hdr(skb);
+	hdr = ip_hdr(skb);
 
-	daddr.s_addr = ip4_header->daddr;
+	daddr.s_addr = hdr->daddr;
 	if (!pool4_contains(&daddr))
-		return NF_ACCEPT;
+		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 
 	log_debug("===============================================");
-	log_debug("Catching IPv4 packet: %pI4->%pI4", &ip4_header->saddr, &ip4_header->daddr);
+	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
+
+	if (skb_init_cb_ipv4(skb) != 0)
+		return NF_DROP;
 
 	return core_common(skb);
 }
@@ -81,17 +78,20 @@ unsigned int core_4to6(struct sk_buff *skb)
  */
 unsigned int core_6to4(struct sk_buff *skb)
 {
-	struct ipv6hdr *ip6_header;
+	struct ipv6hdr *hdr;
 
 	skb_linearize(skb);
 
-	ip6_header = ipv6_hdr(skb);
+	hdr = ipv6_hdr(skb);
 
-	if (!pool6_contains(&ip6_header->daddr))
-		return NF_ACCEPT;
+	if (!pool6_contains(&hdr->daddr))
+		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 
 	log_debug("===============================================");
-	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &ip6_header->saddr, &ip6_header->daddr);
+	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
+
+	if (skb_init_cb_ipv6(skb) != 0)
+		return NF_DROP;
 
 	return core_common(skb);
 }

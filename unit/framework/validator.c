@@ -5,115 +5,33 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 
-bool validate_fragment_count(struct packet *pkt, int expected_count)
+bool validate_fragment_count(struct sk_buff *skb, int expected_count)
 {
-	struct fragment *frag;
-	int i;
+	int i = 0;
 
-	i = 0;
-	list_for_each_entry(frag, &pkt->fragments, list_hook) {
+	while (skb) {
 		i++;
+		skb = skb->next;
 	}
 
 	return assert_equals_int(expected_count, i, "Fragment count");
 }
 
-bool validate_frag_ipv6(struct fragment *frag, int len)
+bool validate_cb_l3(struct sk_buff *skb, l3_protocol l3proto, int len)
 {
-	bool success = true;
-
-	success &= assert_equals_int(L3PROTO_IPV6, frag->l3_hdr.proto, "L3-proto");
-	success &= assert_equals_int(len, frag->l3_hdr.len, "L3-len");
-	success &= assert_equals_ptr(skb_network_header(frag->skb), frag->l3_hdr.ptr, "L3-ptr");
-	success &= assert_false(frag->l3_hdr.ptr_needs_kfree, "L3-ptr in skb");
-
-	return success;
+	return assert_equals_int(l3proto, skb_l3_proto(skb), "cb: L3-proto")
+			& assert_equals_int(len, skb_l3hdr_len(skb), "cb: L3-len");
 }
 
-bool validate_frag_ipv4(struct fragment *frag)
+bool validate_cb_l4(struct sk_buff *skb, l4_protocol l4proto, int len)
 {
-	bool success = true;
-
-	success &= assert_equals_int(L3PROTO_IPV4, frag->l3_hdr.proto, "L3-proto");
-	success &= assert_equals_int(sizeof(struct iphdr), frag->l3_hdr.len, "L3-len");
-	success &= assert_equals_ptr(skb_network_header(frag->skb), frag->l3_hdr.ptr, "L3-ptr");
-	success &= assert_false(frag->l3_hdr.ptr_needs_kfree, "L3-ptr in skb");
-
-	return success;
+	return assert_equals_int(l4proto, skb_l4_proto(skb), "cb: L4-proto")
+			& assert_equals_int(len, skb_l4hdr_len(skb), "cb: L4-len");
 }
 
-bool validate_frag_empty_l4(struct fragment *frag)
+bool validate_cb_payload(struct sk_buff *skb, int len)
 {
-	bool success = true;
-
-	success &= assert_equals_int(0, frag->l4_hdr.len, "Empty layer 4-len");
-	success &= assert_equals_int(L4PROTO_NONE, frag->l4_hdr.proto, "Empty layer 4-proto");
-	success &= assert_null(frag->l4_hdr.ptr, "Empty layer 4-ptr");
-
-	return success;
-}
-
-bool validate_frag_udp(struct fragment *frag)
-{
-	bool success = true;
-
-	success &= assert_equals_int(L4PROTO_UDP, frag->l4_hdr.proto, "L4-proto");
-	success &= assert_equals_int(sizeof(struct udphdr), frag->l4_hdr.len, "L4-len");
-	success &= assert_equals_ptr(udp_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_false(frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
-
-	return success;
-}
-
-bool validate_frag_tcp(struct fragment *frag)
-{
-	bool success = true;
-
-	success &= assert_equals_int(L4PROTO_TCP, frag->l4_hdr.proto, "L4-proto");
-	success &= assert_equals_int(sizeof(struct tcphdr), frag->l4_hdr.len, "L4-len");
-	success &= assert_equals_ptr(tcp_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_false(frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
-
-	return success;
-}
-
-bool validate_frag_icmp6(struct fragment *frag)
-{
-	bool success = true;
-
-	success &= assert_equals_int(L4PROTO_ICMP, frag->l4_hdr.proto, "L4-proto");
-	success &= assert_equals_int(sizeof(struct icmp6hdr), frag->l4_hdr.len, "L4-len");
-	success &= assert_equals_ptr(icmp6_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_false(frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
-
-	return success;
-}
-
-bool validate_frag_icmp4(struct fragment *frag)
-{
-	bool success = true;
-
-	success &= assert_equals_int(L4PROTO_ICMP, frag->l4_hdr.proto, "L4-proto");
-	success &= assert_equals_int(sizeof(struct icmphdr), frag->l4_hdr.len, "L4-len");
-	success &= assert_equals_ptr(icmp_hdr(frag->skb), frag->l4_hdr.ptr, "L4-ptr");
-	success &= assert_false(frag->l4_hdr.ptr_needs_kfree, "L4-ptr in skb");
-
-	return success;
-}
-
-bool validate_frag_payload(struct fragment *frag, u16 payload_len)
-{
-	bool success = true;
-	void *expected_payload;
-
-	success &= assert_equals_int(payload_len, frag->payload.len, "Payload-len");
-	expected_payload = (frag->l4_hdr.len != 0)
-			? skb_transport_header(frag->skb) + frag->l4_hdr.len
-			: skb_network_header(frag->skb) + frag->l3_hdr.len;
-	success &= assert_equals_ptr(expected_payload, frag->payload.ptr, "Payload-ptr");
-	success &= assert_false(frag->payload.ptr_needs_kfree, "Payload-kfree");
-
-	return success;
+	return assert_equals_int(len, skb_payload_len(skb), "cb: payload-len");
 }
 
 bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct tuple *tuple)
@@ -278,7 +196,7 @@ bool validate_inner_pkt_ipv6(unsigned char *payload, u16 len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv6 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	if (!validate_ipv6_hdr(hdr_ipv6, 80, NEXTHDR_TCP, &tuple))
+	if (!validate_ipv6_hdr(hdr_ipv6, 1320, NEXTHDR_TCP, &tuple))
 		return false;
 	if (!validate_tcp_hdr(hdr_tcp, &tuple))
 		return false;
@@ -302,7 +220,7 @@ bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv4 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	if (!validate_ipv4_hdr(hdr_ipv4, 80, 0, IP_DF, 0, 0, IPPROTO_TCP, &tuple))
+	if (!validate_ipv4_hdr(hdr_ipv4, 1300, 0, IP_DF, 0, 0, IPPROTO_TCP, &tuple))
 		return false;
 	if (!validate_tcp_hdr(hdr_tcp, &tuple))
 		return false;

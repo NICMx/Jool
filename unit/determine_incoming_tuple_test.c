@@ -22,7 +22,6 @@ MODULE_DESCRIPTION("Determine Incoming Tuple Test");
 static bool test_determine_in_tuple_ipv4(void)
 {
 	struct sk_buff *skb;
-	struct fragment *frag;
 	struct tuple actual, expected;
 	struct ipv4_pair pair4;
 	bool success = true;
@@ -33,20 +32,17 @@ static bool test_determine_in_tuple_ipv4(void)
 		return false;
 	if (is_error(create_skb_ipv4_udp(&pair4, &skb, 8)))
 		return false;
-	if (is_error(frag_create_from_skb(skb, &frag)))
-		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(frag, &actual), "verdict");
+	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(skb, &actual), "verdict");
 	success &= assert_equals_tuple(&expected, &actual, "tuple");
 
-	frag_kfree(frag);
+	kfree_skb(skb);
 	return success;
 }
 
 static bool test_determine_in_tuple_ipv6(void)
 {
 	struct sk_buff *skb;
-	struct fragment *frag;
 	struct tuple actual, expected;
 	struct ipv6_pair pair6;
 	bool success = true;
@@ -55,15 +51,13 @@ static bool test_determine_in_tuple_ipv6(void)
 		return false;
 	if (is_error(init_pair6(&pair6, "1::2", 1212, "3::4", 3434)))
 		return false;
-	if (is_error(create_skb_ipv6_tcp_fragment_1(&pair6, &skb, 8)))
-		return false;
-	if (is_error(frag_create_from_skb(skb, &frag)))
+	if (is_error(create_skb_ipv6_tcp(&pair6, &skb, 8)))
 		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(frag, &actual), "verdict");
+	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(skb, &actual), "verdict");
 	success &= assert_equals_tuple(&expected, &actual, "tuple");
 
-	frag_kfree(frag);
+	kfree_skb(skb);
 	return success;
 }
 
@@ -71,13 +65,8 @@ int init_module(void)
 {
 	START_TESTS("Determine incoming tuple");
 
-	if (is_error(pktmod_init()))
-		return -EINVAL;
-
 	CALL_TEST(test_determine_in_tuple_ipv4(), "3 fragments IPv4 packet.");
 	CALL_TEST(test_determine_in_tuple_ipv6(), "3 fragments IPv6 packet.");
-
-	pktmod_destroy();
 
 	END_TESTS;
 }
