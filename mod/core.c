@@ -69,6 +69,8 @@ unsigned int core_4to6(struct sk_buff *skb)
 
 	if (skb_init_cb_ipv4(skb) != 0)
 		return NF_DROP;
+	if (fix_checksums_ipv4(skb) != 0)
+		return NF_DROP;
 
 	return core_common(skb);
 }
@@ -91,6 +93,8 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
 	if (skb_init_cb_ipv6(skb) != 0)
+		return NF_DROP;
+	if (fix_checksums_ipv6(skb) != 0)
 		return NF_DROP;
 
 	return core_common(skb);

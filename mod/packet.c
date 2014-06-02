@@ -389,3 +389,137 @@ void skb_print(struct sk_buff *skb)
 		break;
 	}
 }
+
+/**
+ * Assumes that "pkt" is IPv4 and UDP, and ensures the UDP header's checksum field is set.
+ * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
+ * IPv4 nodes.
+ */
+static int compute_csum_udp(struct sk_buff *skb)
+{
+	struct iphdr *hdr4;
+	struct udphdr *hdr_udp;
+	unsigned int datagram_len;
+
+	hdr_udp = udp_hdr(skb);
+	if (hdr_udp->check != 0)
+		return 0; /* The client went through the trouble of computing the csum. */
+
+	hdr4 = ip_hdr(skb);
+	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+	hdr_udp->check = csum_tcpudp_magic(hdr4->saddr, hdr4->daddr, datagram_len, IPPROTO_UDP,
+			csum_partial(hdr_udp, datagram_len, 0));
+
+	return 0;
+}
+
+/**
+ * Assumes that pkt is a IPv6 ICMP message, and ensures that its checksum is valid, but only if it's
+ * neccesary. See validate_csum_icmp4() for more info.
+ */
+static int validate_csum_icmp6(struct sk_buff *skb)
+{
+	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb);
+	struct icmp6hdr *hdr_icmp6 = icmp6_hdr(skb);
+	unsigned int datagram_len;
+	__sum16 tmp;
+	__sum16 computed_csum;
+
+	if (!is_icmp6_error(hdr_icmp6->icmp6_type))
+		return 0;
+
+	tmp = hdr_icmp6->icmp6_cksum;
+	hdr_icmp6->icmp6_cksum = 0;
+	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+	computed_csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
+			csum_partial(hdr_icmp6, datagram_len, 0));
+	hdr_icmp6->icmp6_cksum = tmp;
+
+	if (tmp != computed_csum) {
+		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * Assumes that pkt is a IPv4 ICMP message, and ensures that its checksum is valid, but only if it's
+ * neccesary. See the comments inside for more info.
+ */
+static int validate_csum_icmp4(struct sk_buff *skb)
+{
+	struct icmphdr *hdr = icmp_hdr(skb);
+	__sum16 tmp;
+	__sum16 computed_csum;
+
+	if (!is_icmp4_error(hdr->type)) {
+		/*
+		 * The ICMP payload is not another packet.
+		 * Hence, it will not be translated (it will be copied as-is).
+		 * Hence, we will not have to recompute the checksum from scratch
+		 * (we'll just update the old checksum with the new header's data).
+		 * Hence, we don't have to validate the incoming checksum.
+		 * (Because that will be the IPv6 node's responsibility.)
+		 */
+		return 0;
+	}
+
+	tmp = hdr->checksum;
+	hdr->checksum = 0;
+	computed_csum = ip_compute_csum(hdr, skb_l4hdr_len(skb) + skb_payload_len(skb));
+	hdr->checksum = tmp;
+
+	if (tmp != computed_csum) {
+		log_warning("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int fix_checksums_ipv6(struct sk_buff *skb) {
+	int error = 0;
+
+	switch (skb_l4_proto(skb)) {
+	case L4PROTO_TCP:
+	case L4PROTO_UDP:
+		/* Nothing to do here. */
+		break;
+
+	case L4PROTO_ICMP:
+		error = validate_csum_icmp6(skb);
+		break;
+
+	case L4PROTO_NONE:
+		log_warning("The transport protocol of the skb is NONE.");
+		error = -EINVAL;
+		break;
+	}
+
+	return error;
+}
+
+int fix_checksums_ipv4(struct sk_buff *skb) {
+	int error = 0;
+
+	switch (skb_l4_proto(skb)) {
+	case L4PROTO_TCP:
+		/* Nothing to do here. */
+		break;
+	case L4PROTO_UDP:
+		error = compute_csum_udp(skb);
+		break;
+
+	case L4PROTO_ICMP:
+		error = validate_csum_icmp4(skb);
+		break;
+
+	case L4PROTO_NONE:
+		log_warning("The transport protocol of the skb is NONE.");
+		error = -EINVAL;
+		break;
+	}
+
+	return error;
+}

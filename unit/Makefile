@@ -52,7 +52,12 @@ $(RFC6052)-objs += rfc6052_test.o
 
 $(PKT)-objs += ../mod/types.o
 $(PKT)-objs += ../mod/str_utils.o
+$(PKT)-objs += ../mod/ipv6_hdr_iterator.o
+$(PKT)-objs += ../mod/packet.o
+$(PKT)-objs += ../mod/icmp_wrapper.o
 $(PKT)-objs += framework/unit_test.o
+$(PKT)-objs += framework/types.o
+$(PKT)-objs += framework/skb_generator.o
 $(PKT)-objs += packet_test.o
 
 $(POOLNUM)-objs += ../mod/types.o

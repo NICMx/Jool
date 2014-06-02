@@ -176,5 +176,30 @@ int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);
 void skb_print(struct sk_buff *skb);
 
+/**
+ * These functions adjust skb's layer-4 checksums if neccesary.
+ *
+ * In an ideal world, Jool would not have to worry about checksums because it's really just a
+ * pseudo-routing, mostly layer-3 device; layer-4 checksum verification is a task best left to
+ * endpoints. However, in reality transport checksums are usually affected by the layer-3 protocol,
+ * so we need to work around them.
+ *
+ * Thanks to these functions, the rest of Jool can assume the incoming layer-4 checksum is valid in
+ * all circumstances:
+ * - If skb is a TCP, ICMP info or a checksum-featuring UDP packet, these functions do nothing
+ *   because the translation mangling is going to be simple enough that Jool will be able to update
+ *   (rather than recompute) the existing checksum. Any existing corruption will still be reflected
+ *   in the checksum and the destination node will be able to tell.
+ * - If pkt is a ICMP error, then these functions will drop the packet if its checksum doesn't
+ *   match. This is because the translation might change the packet considerably, so Jool will have
+ *   to recompute the checksum completely, and we shouldn't assign a correct checksum to a
+ *   corrupted packet.
+ * - If pkt is a IPv4 zero-checksum UDP packet, then these functions will compute and assign its
+ *   checksum. If there's any corruption, the destination node will have to bear it. This behavior
+ *   is mandated by RFC 6146 section 3.4.
+ */
+int fix_checksums_ipv6(struct sk_buff *skb);
+int fix_checksums_ipv4(struct sk_buff *skb);
+
 
 #endif /* _NF_NAT64_PACKET_H */
