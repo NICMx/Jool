@@ -389,12 +389,15 @@ end:
 /**
  * Returns the earlier time between "current_min" and "list"'s first node's expiration date.
  */
-static void choose_prior(struct list_head *list, unsigned long *min, bool *min_exists)
+static void choose_prior(struct session_table *table, struct list_head *list,
+		unsigned long *min, bool *min_exists)
 {
 	struct session_entry *session;
 
 	if (list_empty(list))
 		return;
+
+	spin_lock_bh(table->session_table_lock);
 
 	session = list_entry(list->next, struct session_entry, expire_list_hook);
 
@@ -402,6 +405,9 @@ static void choose_prior(struct list_head *list, unsigned long *min, bool *min_e
 		*min = time_before(*min, session->dying_time) ? *min : session->dying_time;
 	else
 		*min = session->dying_time;
+
+	spin_unlock_bh(table->session_table_lock);
+
 	*min_exists = true;
 }
 
@@ -414,11 +420,11 @@ static unsigned long get_next_dying_time(void)
 	bool min_exists = false;
 
 	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
-	choose_prior(&sessions_udp, &current_min, &min_exists);
-	choose_prior(&sessions_tcp_est, &current_min, &min_exists);
-	choose_prior(&sessions_tcp_trans, &current_min, &min_exists);
-	choose_prior(&sessions_icmp, &current_min, &min_exists);
-	choose_prior(&sessions_syn, &current_min, &min_exists);
+	choose_prior(&session_table_udp, &sessions_udp, &current_min, &min_exists);
+	choose_prior(&session_table_tcp, &sessions_tcp_est, &current_min, &min_exists);
+	choose_prior(&session_table_tcp, &sessions_tcp_trans, &current_min, &min_exists);
+	choose_prior(&session_table_icmp, &sessions_icmp, &current_min, &min_exists);
+	choose_prior(&session_table_tcp, &sessions_syn, &current_min, &min_exists);
 
 	return current_min;
 }
@@ -1029,32 +1035,40 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4)
 void sessiondb_update_timer(struct session_entry *session, timer_type type, __u64 ttl)
 {
 	struct list_head *list;
+	struct session_table *table;
 
 	switch (type) {
 	case TIMERTYPE_UDP:
 		list = &sessions_udp;
+		table = &session_table_udp;
 		break;
 
 	case TIMERTYPE_TCP_EST:
 		list = &sessions_tcp_est;
+		table = &session_table_tcp;
 		break;
 
 	case TIMERTYPE_TCP_TRANS:
 		list = &sessions_tcp_trans;
+		table = &session_table_tcp;
 		break;
 
 	case TIMERTYPE_TCP_SYN:
 		list = &sessions_syn;
+		table = &session_table_tcp;
 		break;
 
 	case TIMERTYPE_ICMP:
 		list = &sessions_icmp;
+		table = &session_table_icmp;
 		break;
 
 	default:
 		log_crit(ERR_UNKNOWN_ERROR, "Unknown timer type to set the update timer");
 		return;
 	}
+
+	spin_lock_bh(&table->session_table_lock);
 
 	session->dying_time = jiffies + ttl;
 
@@ -1066,6 +1080,8 @@ void sessiondb_update_timer(struct session_entry *session, timer_type type, __u6
 		log_debug("The session cleaning timer will awake in %u msecs.",
 				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
+
+	spin_unlock_bh(&table->session_table_lock);
 }
 /**
  * Helper of update_list_timer function in filtering_and_updating.
@@ -1110,18 +1126,19 @@ void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl)
 	}
 
 	spin_lock_bh(&table->session_table_lock);
+
 	list_for_each(current_hook, list) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
 		session->dying_time = session->dying_time - old_ttl + new_ttl;
 	}
+
+	spin_unlock_bh(&table->session_table_lock);
 
 	if ( !list_empty(list) ) {
 		mod_timer(&expire_timer, get_next_dying_time());
 		log_debug("The timer will awake again in %u msecs.",
 				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
-
-	spin_unlock_bh(&table->session_table_lock);
 
 	return;
 }
