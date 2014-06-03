@@ -644,6 +644,9 @@ static int remove_fake_usr(struct bib_entry *bib, struct bib_table *table)
  * and because the iteration always starts at the root, this might fall into an infinite loop.
  * Perhaps we should simply ban the deletion of addresses linked to static BIB entries and call it
  * a day.
+ *
+ * 03/Jun/14 the fix could be to get the node of the current bib (inside the while loops) before
+ * we remove the fake usr, to avoid the infinite loop.
  */
 static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 {
@@ -666,21 +669,21 @@ static int delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 	node = rb_prev(&root_bib->tree4_hook);
 	while (node) {
 		bib = rb_entry(node, struct bib_entry, tree4_hook);
+		node = rb_prev(&bib->tree4_hook);
+
 		if (compare_addr4(bib, addr) != 0)
 			break;
 		b += remove_fake_usr(bib, table);
-
-		node = rb_prev(&root_bib->tree4_hook);
 	}
 
 	node = rb_next(&root_bib->tree4_hook);
 	while (node) {
 		bib = rb_entry(node, struct bib_entry, tree4_hook);
+		node = rb_next(&bib->tree4_hook);
+
 		if (compare_addr4(bib, addr) != 0)
 			break;
 		b += remove_fake_usr(bib, table);
-
-		node = rb_next(&root_bib->tree4_hook);
 	}
 
 	b += remove_fake_usr(root_bib, table);
