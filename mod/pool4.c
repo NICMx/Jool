@@ -287,7 +287,8 @@ int pool4_remove(struct in_addr *addr)
 	is_full = pool4_is_full(node);
 	if (!is_full) {
 		spin_unlock_bh(&pool_lock);
-		log_err(ERR_POOL4_REINSERT, "There is one BIB with one address of pool4, try again.");
+		log_err(ERR_POOL4_REINSERT, "There is at least one BIB entry using the address you're "
+				"trying to remove; try again.");
 		return -EAGAIN;
 	}
 

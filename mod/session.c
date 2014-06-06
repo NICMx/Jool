@@ -1,10 +1,3 @@
-/**
- * @file
- * The Session tables.
- * Formally defined in RFC 6146 section 3.2.
- *
- * @author Alberto Leiva
- */
 
 /********************************************
  * Structures and private variables.
@@ -20,9 +13,12 @@ static struct kmem_cache *entry_cache;
 
 void session_release(struct kref *ref)
 {
-	struct session_entry *session = container_of(ref, struct session_entry, refcounter);
+	struct session_entry *session;
 	struct bib_entry *bib;
+
+	session = container_of(ref, struct session_entry, refcounter);
 	bib = session->bib;
+
 	if (!bib) {
 		log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
 		session_kfree(session);

@@ -94,14 +94,6 @@ int bib_return(struct bib_entry *bib);
 int bib_return_lockless(struct bib_entry *bib);
 
 
-/**
- * Make sure you use bib_get or bibdb_get before you use
- * this function, otherwise could return a negative number
- * or an invalid number of sessions.
- */
-int bib_session_counter(struct bib_entry *bib);
-
-
 /************************* BIB (The database) *************************************/
 
 /**
@@ -186,7 +178,8 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto);
  * Attempts to remove the "entry" entry from its BIB. It doesn't kfree "entry".
  *
  * @param entry row to be removed from the table.
- * @param lock TODO (issue #65)
+ * @param lock send true if this function should lock the table before removing. Send false if you
+ * 		already locked it.
  * @return error status.
  */
 int bibdb_remove(struct bib_entry *entry, bool lock);

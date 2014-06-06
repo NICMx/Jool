@@ -59,15 +59,12 @@ struct session_entry {
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
 	 * (when the session dies, the BIB might have to die too.)
-	 *
-	 * TODO (issue #65) this comment might not be entirely up-to-date.
 	 */
 	struct bib_entry *bib;
 
 	/**
-	 * A reference counter related to this session.
-	 *
-	 * TODO (issue #65) expand this comment.
+	 * Number of active references to this entry, including the ones from the table it belongs to.
+	 * When this reaches zero, the entry is released from memory.
 	 */
 	struct kref refcounter;
 	/**
@@ -223,6 +220,9 @@ int sessiondb_count(l4_protocol proto, __u64 *result);
  */
 int sessiondb_delete_by_bib(struct bib_entry *bib);
 
+/**
+ * Helper function for pool4.c delete
+ */
 int sessiondb_delete_by_ipv4(struct in_addr *addr4);
 
 int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib, struct session_entry **session);

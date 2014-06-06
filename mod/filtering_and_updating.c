@@ -149,8 +149,8 @@ static inline void apply_policies(void)
 }
 
 /**
- * Assumes that "tuple" represents a IPv4 packet, and attempts to find its BIB entry, returning it
- * in "bib". If the entry doesn't exist, it is created.
+ * Attempts to find "tuple"'s BIB entry and returns it in "bib".
+ * Assumes "tuple" represents a IPv4 packet.
  */
 static int get_bib_ipv4(struct fragment *frag, struct tuple *tuple,
 		struct bib_entry **bib)
@@ -159,7 +159,7 @@ static int get_bib_ipv4(struct fragment *frag, struct tuple *tuple,
 
 	error = bibdb_get(tuple, bib);
 	if (error == -ENOENT) {
-		log_info("There is no BIB entry for the incoming IPv4 packet.");
+		log_debug("There is no BIB entry for the incoming IPv4 packet.");
 		icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
@@ -236,7 +236,7 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 		return error;
 	}
 
-	bib_get(bib);/* increment the refcounter +1, related to this session*/
+	bib_get(bib); /* refcounter+1, because of session's reference. */
 	(*session)->bib = bib;
 
 	return 0;
@@ -297,7 +297,7 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 		return error;
 	}
 
-	bib_get(bib);/* increment the refcounter +1, related to this session*/
+	bib_get(bib); /* refcounter+1, because of session's reference. */
 	(*session)->bib = bib;
 
 	return 0;
@@ -773,7 +773,8 @@ int clone_filtering_config(struct filtering_config *clone)
 	return 0;
 }
 
-static void update_list_timer(struct filtering_config *old, struct filtering_config *new, __u32 operation)
+static void update_list_timer(struct filtering_config *old, struct filtering_config *new,
+		__u32 operation)
 {
 	if (operation & UDP_TIMEOUT_MASK)
 		sessiondb_update_list_timer(TIMERTYPE_UDP, old->to.udp, new->to.udp);

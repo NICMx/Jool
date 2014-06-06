@@ -37,7 +37,7 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 
 	params->row_count += entry_count;
 
-	if (hdr->nlmsg_flags == NLM_F_MULTI) {
+	if (hdr->nlmsg_flags & NLM_F_MULTI) {
 		params->req_payload->display.iterate = true;
 		params->req_payload->display.ipv4.address = *(&entries[entry_count - 1].ipv4.address);
 		params->req_payload->display.ipv4.l4_id = *(&entries[entry_count - 1].ipv4.l4_id);

@@ -62,8 +62,7 @@ void pool4_destroy(void);
 int pool4_register(struct in_addr *addr);
 /**
  * Removes the "addr" address (along with its ports and IDs) from the pool.
- * If something was borrowed (not in the pool at the moment) it will be erased later, when the pool
- * retrieves it (Which is pretty counter-intuitive - TODO (Issue #65)).
+ * This will only succeed if all of addr's ports have been previously returned.
  */
 int pool4_remove(struct in_addr *addr);
 

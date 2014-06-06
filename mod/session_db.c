@@ -26,8 +26,8 @@ struct session_table {
 	/** Number of session entries in this table. */
 	u64 count;
 	/**
-	 * Lock to sync access.
-	 * Note, this protects the structure of the trees, not the entries.
+	 * Lock to sync access. This protects both the trees and the entries, but if you only need to
+	 * read the entries, you can get away with only incresing their reference counter.
 	 */
 	spinlock_t session_table_lock;
 };
@@ -173,7 +173,6 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
 	return gap;
 }
 
-/** Just compare the session->ipv4.local.address against in_addr */
 /**
  * Just returns whether "in_addr" is "session"'s IPv4 local.addr.
  *
@@ -283,8 +282,7 @@ static int remove(struct session_entry *session, struct session_table *table)
 	rb_erase(&session->tree6_hook, &table->tree6);
 	rb_erase(&session->tree4_hook, &table->tree4);
 	list_del(&session->expire_list_hook);
-	if ( !session_return(session) )
-		log_warning("The session was removed from the session table but not deleted.");
+	session_return(session);
 	return 1;
 }
 
@@ -349,8 +347,6 @@ static bool session_expire(struct session_entry *session)
 
 /**
  * Iterates through "list", deleting expired sessions.
- * "list" is assumed to be sorted by expiration date, so it will stop on the first unexpired
- * session.
  *
  * @return "true" if all sessions from the list were wiped.
  */
@@ -367,6 +363,7 @@ static bool clean_expired_sessions(struct list_head *list, struct session_table 
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
 
 		if (time_before(jiffies, session->dying_time)) {
+			/* "list" is sorted by expiration date, so stop on the first unexpired session. */
 			result = false;
 			goto end;
 		}
@@ -394,11 +391,14 @@ static void choose_prior(struct session_table *table, struct list_head *list,
 {
 	struct session_entry *session;
 
-	if (list_empty(list))
+	spin_lock_bh(&table->session_table_lock);
+
+	if (list_empty(list)) {
+		spin_unlock_bh(&table->session_table_lock);
 		return;
+	}
 
-	spin_lock_bh(table->session_table_lock);
-
+	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
 	session = list_entry(list->next, struct session_entry, expire_list_hook);
 
 	if (*min_exists)
@@ -406,7 +406,7 @@ static void choose_prior(struct session_table *table, struct list_head *list,
 	else
 		*min = session->dying_time;
 
-	spin_unlock_bh(table->session_table_lock);
+	spin_unlock_bh(&table->session_table_lock);
 
 	*min_exists = true;
 }
@@ -419,7 +419,6 @@ static unsigned long get_next_dying_time(void)
 	unsigned long current_min = 0;
 	bool min_exists = false;
 
-	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
 	choose_prior(&session_table_udp, &sessions_udp, &current_min, &min_exists);
 	choose_prior(&session_table_tcp, &sessions_tcp_est, &current_min, &min_exists);
 	choose_prior(&session_table_tcp, &sessions_tcp_trans, &current_min, &min_exists);
@@ -801,7 +800,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	pair4.local = bib->ipv4;
 	pair4.remote.address = ipv4_dst;
 	pair4.remote.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->dst.l4_id : bib->ipv4.l4_id;
-	*session = session_create(&pair4, &pair6, tuple->l4_proto); /*refcounter is set to 1 when its created*/
+	*session = session_create(&pair4, &pair6, tuple->l4_proto); /* refcounter = 1*/
 	if (!(*session)) {
 		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
 		spin_unlock_bh(&table->session_table_lock);
@@ -936,6 +935,7 @@ int sessiondb_delete_by_bib(struct bib_entry *bib)
 	if (!root_session)
 		goto success; /* "Successfully" deleted zero entries. */
 
+	/* Keep moving left deleting sessions until the local address changes. */
 	node = rb_prev(&root_session->tree4_hook);
 	while (node) {
 		session = rb_entry(node, struct session_entry, tree4_hook);
@@ -946,6 +946,7 @@ int sessiondb_delete_by_bib(struct bib_entry *bib)
 		node = rb_prev(&root_session->tree4_hook);
 	}
 
+	/* Keep moving right deleting sessions until the local address changes. */
 	node = rb_next(&root_session->tree4_hook);
 	while (node) {
 		session = rb_entry(node, struct session_entry, tree4_hook);
@@ -1134,7 +1135,7 @@ void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl)
 
 	spin_unlock_bh(&table->session_table_lock);
 
-	if ( !list_empty(list) ) {
+	if (!list_empty(list)) {
 		mod_timer(&expire_timer, get_next_dying_time());
 		log_debug("The timer will awake again in %u msecs.",
 				jiffies_to_msecs(expire_timer.expires - jiffies));

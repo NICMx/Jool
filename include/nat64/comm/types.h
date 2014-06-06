@@ -370,6 +370,8 @@ bool ipv6_prefix_equals(struct ipv6_prefix *a, struct ipv6_prefix *b);
  * Of course, that is because in_addrs are, to most intents and purposes, 32-bit integer values.
  * But the absence of ipv4_addr_cmp() does makes things look asymmetric.
  * So, booya.
+ *
+ * @return positive if a2 is bigger, negative if a1 is bigger, zero it they're equal.
  */
 static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *a2)
 {

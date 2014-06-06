@@ -17,12 +17,11 @@ static struct kmem_cache *entry_cache;
  */
 static void bib_release(struct kref *ref, bool lock)
 {
-	struct bib_entry *bib = container_of(ref, struct bib_entry, refcounter);
+	struct bib_entry *bib;
 	int error;
 
-	/* TODO (issue #65) we're validating the result of bibdb_remove,
-	 * but we're ignoring the one from pool4_return().
-	 */
+	bib = container_of(ref, struct bib_entry, refcounter);
+
 	error = bibdb_remove(bib, lock);
 	if (error)
 		log_crit(ERR_INCOMPLETE_REMOVE, "Error code %d when trying to remove a dying BIB entry"
@@ -80,8 +79,9 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 
 void bib_kfree(struct bib_entry *bib)
 {
-	/* TODO (issue #65) should this really be here? */
-	pool4_return(bib->l4_proto, &bib->ipv4);
+	if (is_error(pool4_return(bib->l4_proto, &bib->ipv4)))
+		log_crit(ERR_UNKNOWN_ERROR, "I'm a BIB entry and couldn't return my IPv4 transport "
+				"address to the IPv4 pool.");
 	kmem_cache_free(entry_cache, bib);
 }
 
@@ -98,13 +98,4 @@ int bib_return(struct bib_entry *bib)
 int bib_return_lockless(struct bib_entry *bib)
 {
 	return kref_put(&bib->refcounter, bib_release_lockless);
-}
-
-int bib_session_counter(struct bib_entry *bib)
-{
-	int s = atomic_read(&bib->refcounter.refcount) - 1;
-	if (bib->is_static)
-		s--;
-
-	return s;
 }
