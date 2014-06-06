@@ -271,7 +271,7 @@ bool validate_inner_pkt_ipv6(unsigned char *payload, u16 len)
 	unsigned char *inner_payload;
 	struct tuple tuple;
 
-	if (init_ipv6_tuple(&tuple, "1::1", 1234, "2::2", 4321, IPPROTO_TCP) != 0)
+	if (init_ipv6_tuple(&tuple, "2::2", 4321, "1::1", 1234, IPPROTO_TCP) != 0)
 		return false;
 
 	hdr_ipv6 = (struct ipv6hdr *) payload;
@@ -295,7 +295,7 @@ bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len)
 	unsigned char *inner_payload;
 	struct tuple tuple;
 
-	if (init_ipv4_tuple(&tuple, "1.1.1.1", 1234, "2.2.2.2", 4321, IPPROTO_TCP) != 0)
+	if (init_ipv4_tuple(&tuple, "2.2.2.2", 4321, "1.1.1.1", 1234, IPPROTO_TCP) != 0)
 		return false;
 
 	hdr_ipv4 = (struct iphdr *) payload;

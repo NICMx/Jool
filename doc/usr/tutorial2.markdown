@@ -171,14 +171,14 @@ user@B:~# /sbin/modprobe -r jool
 
 So what is going on?
 
-1. Node C creates a packet for someone called "64:ff9b::192.168.0.1". It can tell it doesn't belong to its own network, so the packet is sent to its default gateway, node B.
-2. Node B then realizes the destination address contains the NAT64 prefix so Jool gets to process it. Among several modifications it does to the layer 3 and layer 4 headers, it strips the prefix from the destination and sets one from its own pool as the source. The result is a packet that goes to 192.168.0.1 from (say) 192.168.2.1.
-3. Completely unaware of the translation, node C answers what it perceives as your average IPv4 packet. Thus a response from 192.168.0.1 to 192.168.2.1 is born.
+1. Node C creates a packet for someone called "64:ff9b::192.0.2.2". It can tell it doesn't belong to its own network, so the packet is sent to its default gateway, node B.
+2. Node B then realizes the destination address contains the NAT64 prefix so Jool gets to process it. Among several modifications it does to the layer 3 and layer 4 headers, it strips the prefix from the destination and sets one from its own pool as the source. The result is a packet that goes to 192.0.2.2 from (say) 192.168.2.1. (192.168.2.1 is part of Jool's default pool, which we didn't edit)
+3. Completely unaware of the translation, node C answers what it perceives as your average IPv4 packet. Thus a response from 192.0.2.2 to 192.168.2.1 is born.
 4. Node B again realizes that the destination address belongs to one of its pools, so before any routing happens Jool gets to meddle with the packet.
-Jool _remembers_ that C previously wrote to someone who ended up being 192.168.0.1, so it infers the new packet is the response to that. As such, it forwards the data to C.
+Jool _remembers_ that C previously wrote to someone who ended up being 192.0.2.2, so it infers the new packet is the response to that. As such, it forwards the data to C.
 5. Again completely unaware of the translation, node C receives the answer as if nothing weird just happened.
 
-You might realize that all of this is possible because "192.168.0.1" is encoded inside of "64:ff9b::192.168.0.1". This being the case, you can also draw the conclusion that node A cannot be the one who starts the communication, since "64:ff9b::192.168.0.1" cannot be encoded inside of "192.168.0.1" and also Jool wouldn't be able to _remember_ a mapping of addresses that never happened.
+You might realize that all of this is possible because "192.0.2.2" is encoded inside of "64:ff9b::192.0.2.2". This being the case, you can also draw the conclusion that node A cannot be the one who starts the communication, since "64:ff9b::192.0.2.2" cannot be encoded inside of "192.0.2.2" and also Jool wouldn't be able to _remember_ a mapping of addresses that never happened.
 
 And then you might want to realize that I just explained NAT to you, except with IPv6 in one side of the equation. Hence "NAT-six-four".
 
@@ -231,7 +231,7 @@ In this third scenario a slightly more realistic scenario will be covered, along
 
 ![Fig.1 - Network design](images/tut2.3-network.svg)
 
-I dropped again the wireless interface (for realism and to clear the tutorial of iwconfig), threw in more sensible addresses (in particular, the IPv4 pool is no longer an alien), and made each network more than one node each (but they will still all be Linux, since I'm more comfortable with its routing than anything else's). Also, I will assume that you have no control over the IPv4 nodes so we can no longer configure them in unnatural ways (In the previous tutorial, Jool was the IPv4 node's default gateway, which made no sense). If the IPv6 side is your network and the other side is your IPv4 ISP, then this is probably the case.
+I dropped again the wireless interface (for realism and to clear the tutorial of iwconfig), threw in more sensible addresses (in particular, the IPv4 pool is no longer an alien, though that isn't immediately apparent in the diagram), and made each network more than one node each (but they will still all be Linux, since I'm more comfortable with its routing than anything else's). Also, I will assume that you have no control over the IPv4 nodes so we can no longer configure them in unnatural ways (In the previous tutorial, Jool was the IPv4 node's default gateway, which made no sense). If the IPv6 side is your network and the other side is your IPv4 ISP, then this is probably the case.
 
 This tutorial will still not meddle with the DNS, and more or less as a consequence, the environment will still not be connected to the real IPv6 Internet. I've decided to move that to a [separate tutorial](tutorial4.html), because that no longer has much to do with Jool and people already familiar with DNS64 can skip it.
 
@@ -245,7 +245,7 @@ We will still configure everything statically. If your distribution features a n
 
 Long story short: If a packet's destination address belongs to one of the pools, then Jool translates the packet. Otherwise Linux handles it normally.
 
-Router-wise, you can think of the NAT64 as a normal NAT where the IPv6 internet is the hidden network. Nodes in network 2001:db8:2::/64 can perceive J as their default gateway, so you **might** run this on R:
+If your setup is not connected to the IPv6 Internet, you can think of the NAT64 as a normal NAT where the IPv6 network is the hidden one. Nodes in network 2001:db8:2::/64 can perceive J as their default gateway, so you **might** run this on R:
 
 {% highlight bash %}
 user@R:~# /sbin/ip link set eth0 up
@@ -263,14 +263,14 @@ user@R:~# # Unknown traffic is probably headed to IPv4.)
 user@R:~# /sbin/ip -6 route add default via 2001:db8:2::2 dev eth1
 {% endhighlight %}
 
-Of course, when you connect your networks to the IPv6 Internet the NAT64 will not be your default gateway. You know that only packets whose prefix is 64::/96 are meant to be translated, so in the meantime you can drop everything else:
+Of course, when you connect your network to the IPv6 Internet the NAT64 will not be the default gateway. You know that only packets whose prefix is 64::/96 are meant to be translated (i. e. the entire IPv4 Internet can be seen as a single network named "64::/96"), so in the meantime you can drop everything else:
 
 {% highlight bash %}
 user@R:~# # Use this instead of the default gateway instruction.
 user@R:~# /sbin/ip -6 route add 64::/96 via 2001:db8:2::2 dev eth1
 {% endhighlight %}
 
-IPv4 routers simply need to be aware of J's IPv4 addresses. In this case, the pool address belongs to the network, so no magic is needed here.
+IPv4 routers simply need to be aware of J's IPv4 addresses. In this case, they belong to the same network, so no magic is needed here.
 
 The configuration of S (your ISP's router) will probably look something like this. Note the complete unawareness of the fact that J holds Jool, or anything out of the ordinary for that matter:
 
@@ -331,6 +331,7 @@ user@J:~# /sbin/ip link set eth1 up
 user@J:~# 
 user@J:~# /sbin/ip -6 address add 2001:db8:2::2/64 dev eth0
 user@J:~# /sbin/ip address add 192.0.2.2/24 dev eth1
+user@J:~# /sbin/ip address add 192.0.2.3/24 dev eth1
 user@J:~# 
 user@J:~# /sbin/ip -6 route add 2001:db8:1::/64 via 2001:db8:2::1 dev eth0
 user@J:~# /sbin/ip route add default via 192.0.2.1 dev eth1
@@ -339,20 +340,32 @@ user@J:~# /sbin/sysctl -w net.ipv4.conf.all.forwarding=1
 user@J:~# /sbin/sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
-There's a contrast between J's addresses (configured above) and Jool's "pool of addresses" (see below). J uses its own addresses to chat other nodes, and Jool uses its own pool of addresses to know which packets should be translated.
+There's a contrast between J's addresses (configured above) and Jool's "pool of addresses" (a subset of them). J uses its dedicated addresses to chat other nodes, and Jool uses its addresses to know which packets should be translated.
 
 * 2001:db8:2::2 is J's address in the 2001:db8:2::/64 network. For the most part, there is nothing unusual about this: J itself (not the NAT64 mechanism) uses it to communicate with other IPv6 nodes. Again: Jool never touches this address.
-* 192.0.2.2 is more odd. Technically, it _is_ J's address in the 192.0.2.0/24 network, but J doesn't use it to chat the IPv4 nodes. Rather, Jool hogs it up and uses it as source address for all outgoing traffic originated from the IPv6 side. Though it is _only_ used by Jool, we have to add it so Linux answers ARP requests for it.
+* 192.0.2.2 is J's address in the 192.0.2.0/24 network. Just like 2001:db8:2::2, Jool never touches it.
+* At the moment, 192.0.2.3 is also one of J's addresses in its IPv4 network, but later we'll hand it to Jool so it can tell which packets are meant to be translated and which are meant for J. Jool wants to hog it up and use it as source address for all outgoing traffic originated from the IPv6 side. Though it is _only_ used by Jool, we have to `ip addr add` it so Linux answers ARP requests for it.
 * 64::/96 will be Jool's IPv6 pool of addresses. It belongs to Jool, and J can be otherwise unaware of it. Linux doesn't have to ARP reply it because the 2001:db8:2::/64 nodes already know to forward prefixed packets to 2001:db8:2::2's machine (see the routing commands in previous sections).
 
-Since the IPv4 address is completely monopolized by Jool, you might wonder if it is possible for J to chat IPv4 nodes. The answer is yes, indirectly: Just like an IPv6 node, J sends IPv6 packets and translates them to IPv4 itself. So, remember to append the prefix when you're using J. (Note that this is exactly how normal NAT operates, except it's more glaring here because of IPv6.)
+> **Warning!**
+> 
+> Sorry. In previous versions of this documentation, we used to combine J and Jool's IPv4 addresses. This has proven to be very troublesome, thus we don't recommend it anymore.
+> 
+> That is, if you choose to let Jool monopolize all of J's addresses, you're not going to die, but keep in mind that the NAT64 service will work for everyone except for J itself. *J will ironically be the only node unable to access IPv4 content*.
 
-By default, Jool uses addresses 192.168.2.1 through 192.168.2.4 as its IPv4 pool (which is pointless), and prefix 64:ff9b::/96 as its IPv6 pool. You override the default values while inserting the module:
+By default, Jool uses addresses 192.168.2.1 through 192.168.2.4 as its IPv4 pool, and prefix 64:ff9b::/96 as its IPv6 pool. Here's some info on them for you to chew:
+
+* 64:ff9b::/96 has been reserved by <a href="http://tools.ietf.org/html/rfc6052#section-2.1" target="_blank">RFC 6052</a> for 6/4 translation. This prefix is not globally routable, thus you can use it as long as you're not planning to open your NAT64 service to the public.
+* 192.168.2.1-4 is a consequence of our lab testing and is a dumb default we should probably remove. You always want to change it.
+
+You override the default values while inserting the module:
 
 {% highlight bash %}
 user@J:~# # remember to turn offloads off and log martians.
-user@J:~# /sbin/modprobe jool pool6=64::/96 pool4=192.0.2.2
+user@J:~# /sbin/modprobe jool pool6=64::/96 pool4=192.0.2.3
 {% endhighlight %}
+
+We have chosen 192.0.2.2 as J's address, and 192.0.2.3 as Jool's address. You always want to `ip addr add` the module's addresses *after* the node's addresses, because if they have the same priority, the node always chooses the first available one to source its own traffic.
 
 And booya:
 

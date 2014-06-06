@@ -1,14 +1,6 @@
 
-/********************************************
- * Structures and private variables.
- ********************************************/
-
 /** Cache for struct bib_entrys, for efficient allocation. */
 static struct kmem_cache *entry_cache;
-
-/*******************************
- * Private functions
- ******************************/
 
 /**
  * Removes the BIB entry from the database and kfrees it.
@@ -23,9 +15,8 @@ static void bib_release(struct kref *ref, bool lock)
 	bib = container_of(ref, struct bib_entry, refcounter);
 
 	error = bibdb_remove(bib, lock);
-	if (error)
-		log_crit(ERR_INCOMPLETE_REMOVE, "Error code %d when trying to remove a dying BIB entry"
-				" from the DB. Maybe it should have been kfreed directly instead?", error);
+	WARN(error, "Error code %d when trying to remove a dying BIB entry from the DB. "
+			"Maybe it should have been kfreed directly instead?", error);
 	bib_kfree(bib);
 }
 
@@ -47,7 +38,7 @@ int bib_init(void)
 {
 	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry), 0, 0, NULL);
 	if (!entry_cache) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the BIB entry cache.");
+		log_err("Could not allocate the BIB entry cache.");
 		return -ENOMEM;
 	}
 
@@ -79,9 +70,9 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 
 void bib_kfree(struct bib_entry *bib)
 {
-	if (is_error(pool4_return(bib->l4_proto, &bib->ipv4)))
-		log_crit(ERR_UNKNOWN_ERROR, "I'm a BIB entry and couldn't return my IPv4 transport "
-				"address to the IPv4 pool.");
+	int error = pool4_return(bib->l4_proto, &bib->ipv4);
+	WARN(error, "I'm a BIB entry and found error code %d while trying to return my IPv4 transport "
+			"address to the IPv4 pool.", error);
 	kmem_cache_free(entry_cache, bib);
 }
 

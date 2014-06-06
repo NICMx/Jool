@@ -71,7 +71,8 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
  */
 void poolnum_destroy(struct poolnum *pool)
 {
-	kfree(pool->array);
+	if (pool)
+		kfree(pool->array);
 }
 
 /**

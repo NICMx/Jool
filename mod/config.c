@@ -40,7 +40,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a response skb to the user.");
+		log_err("Failed to allocate a response skb to the user.");
 		return -ENOMEM;
 	}
 
@@ -55,7 +55,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	res = nlmsg_unicast(nl_socket, skb_out, nl_hdr_in->nlmsg_pid);
 	if (res < 0) {
-		log_err(ERR_NETLINK, "Error code %d while returning response to the user.", res);
+		log_err("Error code %d while returning response to the user.", res);
 		return res;
 	}
 
@@ -87,7 +87,7 @@ static int respond_ack(struct nlmsghdr *nl_hdr_in)
 static int verify_superpriv(struct request_hdr *nat64_hdr)
 {
 	if (!capable(CAP_NET_ADMIN)) {
-		log_warning("Administrative privileges required: %d", nat64_hdr->operation);
+		log_err("Administrative privileges required: %d", nat64_hdr->operation);
 		return -EPERM;
 	}
 
@@ -113,7 +113,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
@@ -148,7 +148,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -171,7 +171,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
@@ -215,7 +215,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -245,7 +245,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
@@ -285,7 +285,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -316,7 +316,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
@@ -340,7 +340,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -497,7 +497,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		error = handle_fragmentation_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown configuration mode: %d", nat64_hdr->mode);
+		log_err("Unknown configuration mode: %d", nat64_hdr->mode);
 		error = respond_error(nl_hdr, -EINVAL);
 	}
 
@@ -522,7 +522,7 @@ int config_init(void)
 	/*
 	 * The function changed between Linux 3.5.7 and 3.6, and then again from 3.6.11 to 3.7.
 	 *
-	 * If you're reading Git's history, that appears to be commit
+	 * If you're reading the kernel's Git history, that appears to be the commit
 	 * a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337) and then again in
 	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
 	 */
@@ -538,7 +538,7 @@ int config_init(void)
 #endif
 	
 	if (!nl_socket) {
-		log_err(ERR_NETLINK, "Creation of netlink socket failed.");
+		log_err("Creation of netlink socket failed.");
 		return -EINVAL;
 	}
 	log_debug("Netlink socket created.");

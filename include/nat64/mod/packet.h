@@ -34,7 +34,7 @@
  * Unlike most modules, this one has three function prefixes:
  * - "pkt_" refers to functions meant to interact with struct packet.
  * - "frag_" refers to functions meant to interact with struct fragment.
- * - "pktmod_" refer to this module as a whole.
+ * - "pktmod_" refers to this module as a whole.
  * There are also functions lacking a prefix. These are for general interaction with oddly-designed
  * kernel packet-related structures.
  */
@@ -140,8 +140,6 @@ void pktmod_destroy(void);
 struct fragment {
 	/** Buffer from the socket we're storing data for. */
 	struct sk_buff *skb;
-	/** Destination of the packet. */
-	struct dst_entry *dst;
 
 	/** Network header. */
 	struct {

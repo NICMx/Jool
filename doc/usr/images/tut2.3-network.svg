@@ -15,7 +15,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.48.3.1 r9886"
-   sodipodi:docname="tut2-network.svg">
+   sodipodi:docname="tut2.3-network.svg">
   <defs
      id="defs4">
     <marker
@@ -103,9 +103,9 @@
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1920"
-     inkscape:window-height="1149"
-     inkscape:window-x="0"
-     inkscape:window-y="24"
+     inkscape:window-height="1053"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:snap-global="true"
      objecttolerance="20"
@@ -844,13 +844,13 @@
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        x="301.14062"
-       y="1010.3618"
+       y="1024.3618"
        id="text3925"
        sodipodi:linespacing="125%"><tspan
          id="tspan3927"
          sodipodi:role="line"
          x="301.14062"
-         y="1010.3618">(eth1)</tspan></text>
+         y="1024.3618">(eth1)</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
@@ -872,6 +872,10 @@
          y="998.36218"
          x="300.7168"
          id="tspan3939"
-         sodipodi:role="line">.2</tspan></text>
+         sodipodi:role="line">.2</tspan><tspan
+         y="1013.3622"
+         x="300.7168"
+         sodipodi:role="line"
+         id="tspan3121">.3</tspan></text>
   </g>
 </svg>

@@ -95,7 +95,7 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 		break;
 
 	default:
-		log_warning("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
+		log_debug("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
 		return VER_DROP;
 	}
 
@@ -180,7 +180,7 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 		break;
 
 	default:
-		log_warning("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
+		log_debug("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
 		return VER_DROP;
 	}
 
@@ -224,12 +224,12 @@ verdict determine_in_tuple(struct fragment *frag, struct tuple *tuple)
 			} else if (is_icmp4_error(icmp4->type)) {
 				result = ipv4_icmp_err(hdr4, icmp4, tuple);
 			} else {
-				log_warning("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
+				log_debug("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
 				result = VER_DROP;
 			}
 			break;
 		case L4PROTO_NONE:
-			log_crit(ERR_ILLEGAL_NONE, "IPv4 - First fragment has no transport header.");
+			WARN(true, "IPv4 - First fragment has no transport header.");
 			result = VER_DROP;
 		}
 		break;
@@ -250,12 +250,12 @@ verdict determine_in_tuple(struct fragment *frag, struct tuple *tuple)
 			} else if (is_icmp6_error(icmp6->icmp6_type)) {
 				result = ipv6_icmp_err(hdr6, icmp6, tuple);
 			} else {
-				log_warning("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
+				log_debug("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
 				result = VER_DROP;
 			}
 			break;
 		case L4PROTO_NONE:
-			log_crit(ERR_ILLEGAL_NONE, "IPv6 - First fragment has no transport header.");
+			WARN(true, "IPv6 - First fragment has no transport header.");
 			result = VER_DROP;
 		}
 		break;

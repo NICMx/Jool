@@ -19,8 +19,7 @@ void session_release(struct kref *ref)
 	session = container_of(ref, struct session_entry, refcounter);
 	bib = session->bib;
 
-	if (!bib) {
-		log_crit(ERR_NULL, "The session entry I just removed had no BIB entry."); /* ?? */
+	if (WARN(!bib, "The session entry I just removed had no BIB entry.")) {
 		session_kfree(session);
 		return;
 	}
@@ -37,7 +36,7 @@ int session_init(void)
 	entry_cache = kmem_cache_create("jool_session_entries", sizeof(struct session_entry),
 			0, 0, NULL);
 	if (!entry_cache) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the Session entry cache.");
+		log_err("Could not allocate the Session entry cache.");
 		return -ENOMEM;
 	}
 

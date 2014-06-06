@@ -2,7 +2,6 @@
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
 
-
 #include <linux/slab.h>
 
 
@@ -59,11 +58,11 @@ static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, l4_p
 		return &node->icmp_ids;
 
 	case L4PROTO_NONE:
-		log_crit(ERR_L4PROTO, "There's no pool for the 'NONE' protocol.");
+		WARN(true, "There's no pool for the 'NONE' protocol.");
 		return NULL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
 	return NULL;
 }
 
@@ -84,8 +83,7 @@ static void increment_last_used_addr(void)
 	}
 
 	keyval = pool4_table_get_aux(&pool, last_used_addr);
-	if (!keyval) {
-		log_crit(ERR_UNKNOWN_ERROR, "The last used address is not part of the pool.");
+	if (WARN(!keyval, "The last used address is not part of the pool.")) {
 		initialize_last_used_addr();
 		return;
 	}
@@ -130,7 +128,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 	node_cache = kmem_cache_create("jool_pool4_nodes", sizeof(struct pool4_node), 0, 0, NULL);
 	if (!node_cache) {
 		pool4_table_empty(&pool, destroy_pool4_node);
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the IPv4 node cache.");
+		log_err("Could not allocate the IPv4 node cache.");
 		return -ENOMEM;
 	}
 
@@ -144,7 +142,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 
 		error = str_to_addr4(addr_strs[i], &addr);
 		if (error) {
-			log_err(ERR_PARSE_ADDR4, "Address is malformed: %s.", addr_strs[i]);
+			log_err("Address is malformed: %s.", addr_strs[i]);
 			goto fail;
 		}
 
@@ -174,14 +172,12 @@ int pool4_register(struct in_addr *addr)
 	struct pool4_node *node;
 	int error;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL cannot be inserted to the pool.");
+	if (WARN(!addr, "NULL cannot be inserted to the pool."))
 		return -EINVAL;
-	}
 
 	node = kmem_cache_alloc(node_cache, GFP_ATOMIC);
 	if (!node) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of IPv4 pool node failed.");
+		log_err("Allocation of IPv4 pool node failed.");
 		return -ENOMEM;
 	}
 	memset(node, 0, sizeof(*node));
@@ -214,7 +210,7 @@ int pool4_register(struct in_addr *addr)
 	if (pool4_table_get(&pool, addr)) {
 		spin_unlock_bh(&pool_lock);
 		destroy_pool4_node(node);
-		log_err(ERR_POOL4_REINSERT, "The %pI4 address already belongs to the pool.", addr);
+		log_err("Address %pI4 already belongs to the pool.", addr);
 		return -EINVAL;
 	}
 	error = pool4_table_put(&pool, addr, node);
@@ -273,10 +269,8 @@ int pool4_remove(struct in_addr *addr)
 	struct pool4_node *node;
 	bool is_full = 0;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
+	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
@@ -287,8 +281,8 @@ int pool4_remove(struct in_addr *addr)
 	is_full = pool4_is_full(node);
 	if (!is_full) {
 		spin_unlock_bh(&pool_lock);
-		log_err(ERR_POOL4_REINSERT, "There is at least one BIB entry using the address you're "
-				"trying to remove; try again.");
+		log_err("There is at least one BIB entry using the address you're trying to remove; "
+				"try again.");
 		return -EAGAIN;
 	}
 
@@ -311,16 +305,14 @@ int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 	struct poolnum *ids;
 	int error;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
+	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
 	node = pool4_table_get(&pool, &addr->address);
 	if (!node) {
-		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
+		log_debug("%pI4 does not belong to the pool.", &addr->address);
 		spin_unlock_bh(&pool_lock);
 		return -EINVAL;
 	}
@@ -342,16 +334,14 @@ int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *r
 	struct poolnum *ids;
 	int error;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
+	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
 	node = pool4_table_get(&pool, &addr->address);
 	if (!node) {
-		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
+		log_debug("%pI4 does not belong to the pool.", &addr->address);
 		error = -EINVAL;
 		goto end;
 	}
@@ -397,7 +387,7 @@ static int get_any_port(struct pool4_node *node, l4_protocol proto, __u16 *resul
 		error = poolnum_get_any(&node->icmp_ids, result);
 		break;
 	case L4PROTO_NONE:
-		log_crit(ERR_L4PROTO, "There's no pool for the 'NONE' protocol.");
+		WARN(true, "There's no pool for the 'NONE' protocol.");
 		break;
 	}
 
@@ -409,16 +399,14 @@ int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result)
 	struct pool4_node *node;
 	int error = -EINVAL;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
+	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
 	node = pool4_table_get(&pool, addr);
 	if (!node) {
-		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", addr);
+		log_debug("%pI4 does not belong to the pool.", addr);
 		goto end;
 	}
 
@@ -440,7 +428,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 	spin_lock_bh(&pool_lock);
 
 	if (pool.node_count == 0) {
-		log_err(ERR_POOL4_EMPTY, "The IPv4 pool is empty.");
+		log_debug("The IPv4 pool is empty.");
 		goto failure;
 	}
 
@@ -476,7 +464,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 			goto success;
 	} while (original_addr != last_used_addr);
 
-	log_warning("I completely ran out of IPv4 addresses and ports.");
+	log_debug("I completely ran out of IPv4 addresses and ports.");
 	error = -ESRCH;
 
 failure:
@@ -495,16 +483,14 @@ int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 	struct poolnum *ids;
 	int error;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
+	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
 	node = pool4_table_get(&pool, &addr->address);
 	if (!node) {
-		log_err(ERR_POOL4_NOT_FOUND, "%pI4 does not belong to the pool.", &addr->address);
+		log_debug("%pI4 does not belong to the pool.", &addr->address);
 		error = -EINVAL;
 		goto failure;
 	}

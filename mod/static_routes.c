@@ -21,21 +21,21 @@ int add_static_route(struct request_bib *req)
 
 	error = pool4_get(req->l4_proto, &req->add.ipv4);
 	if (error) {
-		log_warning("The IPv4 address and port could not be reserved from the pool."
+		log_err("The IPv4 address and port could not be reserved from the pool."
 				"Maybe they're being used by some other BIB entry?");
 		return error;
 	}
 
 	bib = bib_create(&req->add.ipv4, &req->add.ipv6, true, req->l4_proto);
 	if (!bib) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate the BIB entry.");
+		log_err("Could not allocate the BIB entry.");
 		error = -ENOMEM;
 		goto bib_error;
 	}
 
 	error = bibdb_add(bib, req->l4_proto);
 	if (error) {
-		log_warning("The BIB entry could not be added to the database. Maybe an entry with the "
+		log_err("The BIB entry could not be added to the database. Maybe an entry with the "
 				"same IPv4 and/or IPv6 transport address already exists?");
 		bib_kfree(bib);
 		goto bib_error;
@@ -66,13 +66,13 @@ int delete_static_route(struct request_bib *req)
 		error = bibdb_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
 		break;
 	default:
-		log_err(ERR_L3PROTO, "Unsupported network protocol: %u.", req->remove.l3_proto);
+		log_err("Unsupported network protocol: %u.", req->remove.l3_proto);
 		error = -EINVAL;
 		break;
 	}
 
 	if (error == -ENOENT) {
-		log_err(ERR_BIB_NOT_FOUND, "Could not find the BIB entry requested by the user.");
+		log_err("Could not find the BIB entry requested by the user.");
 		return error;
 	}
 	if (error)
@@ -93,7 +93,7 @@ int delete_static_route(struct request_bib *req)
 
 	/* Remove our own reference. If it was the last one, the entry should be no more. */
 	if (bib_return(bib) == 0) {
-		log_err(ERR_INCOMPLETE_REMOVE, "Looks like some packet was using the BIB entry, "
+		log_err("Looks like some packet was using the BIB entry, "
 				"so it couldn't be deleted immediately. If the entry still exists, "
 				"you might want to try again.");
 		return -EAGAIN;

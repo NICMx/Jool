@@ -30,24 +30,27 @@
  * Logging utilities, meant for standarization of error messages.
  */
 #ifdef __KERNEL__
-	#define log_error(func, id, text, ...) func("%s: ERR%d (%s): " text "\n", MODULE_NAME, id, \
-			__func__, ##__VA_ARGS__)
-	#define log_informational(func, text, ...) func(text "\n", ##__VA_ARGS__)
+
 #else
-	#define log_error(func, id, text, ...) fprintf(stderr, "ERR%d: " text "\n", id, ##__VA_ARGS__)
+	#define log_error(func, text, ...) fprintf(stderr, "ERR%d: " text "\n", id, ##__VA_ARGS__)
 	#define log_informational(func, text, ...) printf(text "\n", ##__VA_ARGS__)
 #endif
 
 /** Messages to help us walk through a run. */
-#define log_debug(text, ...)	log_informational(pr_debug, text, ##__VA_ARGS__)
-/** "I'm dropping the packet and it's perfectly normal." */
-#define log_info(text, ...)		log_informational(pr_info, text, ##__VA_ARGS__)
-/** "I'm dropping the packet because it's corrupted." (i. e. nothing's wrong with the NAT64) */
-#define log_warning(text, ...)	log_informational(pr_warning, text, ##__VA_ARGS__)
-/** "I'm dropping the packet because the config's flipped out or a kmalloc failed." */
-#define log_err(id, text, ...)	log_error(pr_err, id, text, ##__VA_ARGS__)
-/** "I'm dropping the packet because I detected a programming error." */
-#define log_crit(id, text, ...)	log_error(pr_crit, id, text, ##__VA_ARGS__)
+#define log_debug(text, ...) pr_debug("%s: " text "\n", __func__, ##__VA_ARGS__)
+///** "I'm dropping the packet and it's perfectly normal." */
+//#define log_info(text, ...)		log_informational(pr_info, text, ##__VA_ARGS__)
+///** "I'm dropping the packet because it's corrupted." (i. e. nothing's wrong with the NAT64) */
+//#define log_warning(text, ...)	log_informational(pr_warning, text, ##__VA_ARGS__)
+/**
+ * // "I'm dropping the packet because the config's flipped out or a kmalloc failed."
+ * Places where this is acceptable:
+ * - Inits and destroys (modprobes).
+ * - Responses to the userspace app.
+ */
+#define log_err(text, ...) pr_err("%s ERR (%s): " text "\n", MODULE_NAME, __func__, ##__VA_ARGS__)
+///** "I'm dropping the packet because I detected a programming error." */
+//#define log_crit(text, ...)	log_error(pr_crit, text, ##__VA_ARGS__)
 
 /**
  * Truth be told, I do not really have any use for these; I wish they would go away.
@@ -123,6 +126,25 @@ enum error_code {
 	ERR_ROUTE_FAILED = 4500,
 	ERR_SEND_FAILED = 4501,
 };
+
+/**
+ * Wrapper for IP_INC_STATS_BH().
+ *
+ * This exists because I don't trust the kernel :B. I need to validate the crap out of "skb" before
+ * I dereference its pointers.
+ */
+static inline void inc_stats(struct sk_buff *skb, int field)
+{
+	struct net *net;
+
+	if (unlikely(!skb))
+		return;
+	net = dev_net(skb);
+	if (unlikely(!net))
+		return;
+
+	IP_INC_STATS_BH(net, field);
+}
 
 /**
  * Returns nonzero if "status" is an error, returns zero if "status" represents success.

@@ -74,19 +74,19 @@ A "stateless" NAT64 is one in which there is a strong algorithmic relationship b
 
 In the simplest case, you can obtain an IPv6 address simply by appending a prefix to an IPv4 address:
 
-	64:ff9b:: + 10.11.12.13 = 64:ff9b::10.1.2.3 = 64:ff9b::0a01:0203
+	64:ff9b:: + 10.1.2.3 = 64:ff9b::10.1.2.3 = 64:ff9b::0a01:0203
 
 Here's an example:
 
 ![Fig.2 - Stateless example](images/intro-stateless.svg)
 
-Because such a transformation is possible, the NAT64 needs little memory. Hence the name, "stateless". Stateless NAT64s are simple, light and transparent. If you need one of these, you might want to head over to <a href="http://www.litech.org/tayga/" target="_blank">TAYGA</a>.
+Because such a transformation is possible, the NAT64 needs little memory (Hence the name, "stateless"). All you need to configure is the prefixes the translator is supposed to add and remove, and fix your routing in such a way that traffic meant to be translated is sent to the NAT64. Stateless NAT64s are simple, light and transparent. If you need one of these, you might want to head over to <a href="http://www.litech.org/tayga/" target="_blank">TAYGA</a>.
 
 > A word on TAYGA:
 > 
 > TAYGA tends to confuse my readers, because it doesn't seem to behave the way I've described here, at least not by default.
 > 
-> What happens is, my explanation above tells you about _pure_ stateless NAT64, and TAYGA builds on top of that by letting you build translation tables. That is, it lets you map specific IPv6 addresses to specific IPv4 addresses, which removes the constraint that forces you to encapsulate the latter inside the former. It's not really a violation of the RFC, but watch out for it.
+> What happens is, my explanation above tells you about _pure_ stateless NAT64, and TAYGA builds on top of that by letting you build translation tables. That is, it lets you map specific IPv6 addresses to specific IPv4 addresses, which removes the constraint that forces you to encapsulate the latter inside the former. It's not really a violation of the RFC (I guess), but watch out for it.
 
 Stateless NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>.
 
@@ -111,15 +111,14 @@ Jool is an Open Source implementation of a Stateful NAT64 on Linux. It is intend
 1. <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Simultaneous open of TCP connections</a> (being worked on <a href="https://github.com/NICMx/NAT64/tree/tcp_store_packet" target="_blank">here</a>).
 2. <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">Filtering policies</a> (not quite on the map yet).
 
-We're supposed to support Linux kernels 2.6.38 and 3.0.0 to the latest version, but we don't have the resources to test every variation.
+We're supposed to support Linux kernels 3.0.0 and up, but we don't have the resources to test every variation.
 
 Specifically, we have formally tested the system in the following kernels:
 
-* 2.6.38-16-generic
-* 3.2.0-45-generic
-* 3.5.0-28-generic
-* 3.8.0-19-generic
-* 3.11.5-1-ARCH
+* 3.2.0
+* 3.5.0
+* 3.8.0
+* 3.11.5
 
 ### Considerations
 

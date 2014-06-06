@@ -139,7 +139,7 @@ int __init nat64_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_info(MODULE_NAME " module inserted.");
+	log_debug(MODULE_NAME " module inserted.");
 	return error;
 
 nf_register_hooks_failure:
@@ -189,7 +189,7 @@ void __exit nat64_exit(void)
 	config_destroy();
 	pktmod_destroy();
 
-	log_info(MODULE_NAME " module removed.");
+	log_debug(MODULE_NAME " module removed.");
 }
 
 module_init(nat64_init);

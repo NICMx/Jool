@@ -2,7 +2,7 @@ This folder contains **source** files you can use to generate the project's docu
 
 # usr
 
-`usr/` contains the source files we use to generate [Jool's site](www.jool.mx) (**warning**: except the releases in the download/ folder!). It is mostly documentation intended for whoever wants to *use* Jool.
+`usr/` contains the source files we use to generate [Jool's site](https://www.jool.mx) (**warning**: except the releases in the download/ folder!). It is mostly documentation intended for whoever wants to *use* Jool.
 
 If you're a user, you should just follow that link and don't bother generating these files. But if you disagree, you're supposed to compile them using [Jekyll](http://jekyllrb.com/).
 

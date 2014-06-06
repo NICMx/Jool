@@ -81,7 +81,7 @@ static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct 
 	out->l3_hdr.ptr_needs_kfree = true;
 	out->l3_hdr.ptr = kmalloc(out->l3_hdr.len, GFP_ATOMIC);
 	if (!out->l3_hdr.ptr) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of the IPv6 header failed.");
+		log_debug("Allocation of the IPv6 header failed.");
 		return VER_DROP;
 	}
 
@@ -120,7 +120,7 @@ static verdict create_ipv6_hdr(struct tuple *tuple, struct fragment *in, struct 
 	*/
 
 	if (has_unexpired_src_route(ip4_hdr) && in->skb != NULL) {
-		log_info("Packet has an unexpired source route.");
+		log_debug("Packet has an unexpired source route.");
 		icmp64_send(in, ICMPERR_SRC_ROUTE, 0);
 		return VER_DROP;
 	}
@@ -234,8 +234,7 @@ static bool icmp4_has_inner_packet(__u8 icmp_type)
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to ICMPv6.
  */
-static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment *out,
-		__u16 tot_len_field)
+static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment *out)
 {
 	struct icmphdr *icmpv4_hdr = frag_get_icmp4_hdr(in);
 	struct icmp6hdr *icmpv6_hdr = frag_get_icmp6_hdr(out);
@@ -268,24 +267,8 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 	case ICMP_FRAG_NEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
-
-#ifndef UNIT_TESTING
-		if (!in->original_skb || !in->original_skb->dev)
-			return VER_DROP;
-
-		out->dst = route_ipv6(frag_get_ipv6_hdr(out), icmpv6_hdr, L4PROTO_ICMP, in->skb->mark);
-		if (!out->dst || !out->dst->dev)
-			/* TODO in the second case, we need to return the reference. */
-			return VER_DROP;
-
-		icmpv6_hdr->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(icmpv4_hdr->un.frag.mtu) + 20,
-				out->dst->dev->mtu,
-				in->original_skb->dev->mtu + 20,
-				tot_len_field);
-
-#else
-		icmpv6_hdr->icmp6_mtu = 1500;
-#endif
+		/* I moved this to post_icmp6() because it needs the skb already created. */
+		icmpv6_hdr->icmp6_mtu = htonl(0);
 		break;
 
 	case ICMP_NET_ANO:
@@ -296,8 +279,8 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 		break;
 
 	default: /* hostPrecedenceViolation (14) is known to fall through here. */
-		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
-				icmpv4_hdr->code);
+		log_debug("ICMPv4 messages type %u code %u do not exist in ICMPv6.",
+				icmpv4_hdr->type, icmpv4_hdr->code);
 		return VER_DROP; /* No ICMP error. */
 	}
 
@@ -324,7 +307,7 @@ static verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp
 		};
 
 		if (icmp4_pointer < 0 || 19 < icmp4_pointer || pointers[icmp4_pointer] == DROP) {
-			log_info("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
+			log_debug("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
 					icmpv4_hdr->type, icmpv4_hdr->code, icmp4_pointer);
 			return VER_DROP;
 		}
@@ -334,8 +317,8 @@ static verdict icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp
 		break;
 	}
 	default: /* missingARequiredOption (1) is known to fall through here. */
-		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
-				icmpv4_hdr->code);
+		log_debug("ICMPv4 messages type %u code %u do not exist in ICMPv6.",
+				icmpv4_hdr->type, icmpv4_hdr->code);
 		return VER_DROP; /* No ICMP error. */
 	}
 
@@ -385,7 +368,7 @@ static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment
 	icmpv4_hdr = frag_get_icmp4_hdr(in);
 	icmpv6_hdr = kmalloc(sizeof(struct icmp6hdr), GFP_ATOMIC);
 	if (!icmpv6_hdr) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of the ICMPv6 header failed.");
+		log_debug("Allocation of the ICMPv6 header failed.");
 		return VER_DROP;
 	}
 
@@ -410,14 +393,11 @@ static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		break;
 
-	case ICMP_DEST_UNREACH: {
-		__u16 tot_len = be16_to_cpu(ip_hdr(in->skb)->tot_len);
-		result = icmp4_to_icmp6_dest_unreach(in, out, tot_len);
-
+	case ICMP_DEST_UNREACH:
+		result = icmp4_to_icmp6_dest_unreach(in, out);
 		if (result != VER_CONTINUE)
 			return result;
 		break;
-	}
 
 	case ICMP_TIME_EXCEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_TIME_EXCEED;
@@ -440,7 +420,7 @@ static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment
 		 * Redirect (5), Alternative Host Address (6).
 		 * This time there's no ICMP error.
 		 */
-		log_info("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
+		log_debug("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
 		return VER_DROP;
 	}
 
@@ -459,6 +439,46 @@ static verdict create_icmp6_hdr_and_payload(struct tuple* tuple, struct fragment
 	return VER_CONTINUE;
 }
 
+static verdict post_mtu6(struct fragment *in, struct fragment *out, struct icmphdr *in_icmp,
+		struct icmp6hdr *out_icmp)
+{
+#ifndef UNIT_TESTING
+	struct dst_entry *out_dst;
+
+	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
+
+	if (!in->skb || !in->skb->dev)
+		return VER_DROP;
+	log_debug("In dev MTU: %u", in->skb->dev->mtu);
+
+	out_dst = route_ipv6(frag_get_ipv6_hdr(out), out_icmp, L4PROTO_ICMP, in->skb->mark);
+	if (!out_dst)
+		return VER_DROP;
+	if (!out_dst->dev) {
+		dst_release(out_dst);
+		log_debug("I found a dst_entry with a NULL dev. "
+				"This is probably going to break someone's PMTUD.");
+		return VER_DROP;
+	}
+
+	skb_dst_set(out->skb, out_dst);
+	/* TODO we have probably never needed this, since ip6_finish_output2() does it already. */
+	out->skb->dev = out_dst->dev;
+	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
+
+	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu) + 20,
+			out_dst->dev->mtu,
+			in->skb->dev->mtu + 20,
+			be16_to_cpu(frag_get_ipv4_hdr(in)->tot_len));
+	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
+
+#else
+	out_icmp->icmp6_mtu = 1500;
+#endif
+
+	return VER_CONTINUE;
+}
+
 /**
  * Sets the Checksum field from out's ICMPv6 header.
  */
@@ -469,6 +489,13 @@ static verdict post_icmp6(struct tuple *tuple, struct packet *pkt_in, struct pac
 	struct ipv6hdr *out_ip6 = frag_get_ipv6_hdr(out);
 	struct icmphdr *in_icmp = frag_get_icmp4_hdr(in);
 	struct icmp6hdr *out_icmp = frag_get_icmp6_hdr(out);
+	verdict result;
+
+	if (out_icmp->icmp6_type == ICMPV6_PKT_TOOBIG && out_icmp->icmp6_code == 0) {
+		result = post_mtu6(in, out, in_icmp, out_icmp);
+		if (result != VER_CONTINUE)
+			return result;
+	}
 
 	if (is_icmp6_error(out_icmp->icmp6_type)) {
 		/*

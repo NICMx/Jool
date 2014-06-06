@@ -29,9 +29,9 @@ If you came here already installed, maybe you want to go straight to [the second
 
 ## Requirements
 
-First off, the computer that will be translating traffic needs a kernel (again, Linux) whose version is 2.6.38 or 3.0.0 to 3.11.5. Higher versions are probably fine, but we haven't tested them.
+First off, the computer that will be translating traffic needs a kernel (again, Linux) whose version is 3.0.0 to 3.11.5. Higher versions are probably fine, but we haven't tested them thoroughly. We do not recommend using Linux 3.12 because of the reasons outlined <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">here</a>.
 
-Use the `uname` command to know your kernel version.
+Use the `uname -r` command to know your kernel version.
 
 {% highlight bash %}
 $ /bin/uname -r
@@ -58,7 +58,7 @@ Each kernel version combined with each different architecture requires different
 
 On the flip side, kernel modules cannot (AFAIK) have dependencies other than your kernel headers and a good compiler, so the procedure is fairly painless.
 
-> By the way, Git users: We no longer use the code's master branch for potentially destructive development. <a href="https://github.com/NICMx/NAT64" target="_blank">github.com/NICMx/NAT64</a> should _always_ contain the latest stable version. Even if the git repository has tags, you should stick to the latest commit of the master branch if you want to play safe.
+> By the way, Git users: We no longer use the code's master branch for potentially destructive development. <a href="https://github.com/NICMx/NAT64" target="_blank">github.com/NICMx/NAT64</a> should _always_ contain the latest stable version. Even if the git repository has tags, you should stick to the latest commit of the master branch if you want the latest bugfixes.
 > 
 > Also, note that you will need <a href="https://www.gnu.org/software/autoconf/" target="_blank">autoconf</a> and <a href="https://www.gnu.org/software/automake/" target="_blank">automake</a> if you want to compile the userspace application from the git source.
 
