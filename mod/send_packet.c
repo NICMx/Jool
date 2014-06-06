@@ -279,10 +279,11 @@ int route_ipv6(struct sk_buff *skb)
 
 verdict send_pkt(struct sk_buff *skb)
 {
-	struct sk_buff *next_skb;
+	struct sk_buff *next_skb = skb;
 	int error = 0;
 
-	do {
+	while (next_skb) {
+		skb = next_skb;
 		next_skb = skb->next;
 		skb->next = skb->prev = NULL;
 
@@ -293,6 +294,7 @@ verdict send_pkt(struct sk_buff *skb)
 		}
 
 		log_debug("Sending skb via device '%s'...", skb->dev->name);
+
 		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
 			error = ip6_local_out(skb);
@@ -313,7 +315,7 @@ verdict send_pkt(struct sk_buff *skb)
 			kfree_skb_queued(next_skb);
 			return VER_DROP;
 		}
-	} while (next_skb);
+	}
 
 	return VER_CONTINUE;
 }

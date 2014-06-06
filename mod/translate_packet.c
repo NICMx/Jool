@@ -452,8 +452,10 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		skb_reset_mac_header(new_skb);
 		skb_reset_network_header(new_skb);
 		skb_reset_transport_header(new_skb);
-		new_skb->protocol = htons(ETH_P_IPV6);
+		new_skb->protocol = skb->protocol;
 		new_skb->mark = skb->mark;
+		skb_dst_set(new_skb, dst_clone(skb_dst(skb)));
+		new_skb->dev = skb->dev;
 
 		set_frag_headers(first_hdr6, ipv6_hdr(new_skb), actual_total_size,
 				original_fragment_offset + (current_p - skb->data - hdrs_size),
@@ -522,7 +524,6 @@ verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
 		goto fail;
 	if (is_error(skb_to_parts(*out_skb, &out)))
 		goto fail;
-
 	if (is_error(current_steps->l3_hdr_fn(tuple, &in, &out)))
 		goto fail;
 	if (is_error(current_steps->l3_payload_fn(tuple, &in, &out)))
