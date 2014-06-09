@@ -107,6 +107,13 @@ static inline struct jool_cb *skb_jcb(struct sk_buff *skb)
 	return (struct jool_cb *) skb->cb;
 }
 
+static inline void skb_clear_cb(struct sk_buff *skb)
+{
+	struct jool_cb *cb;
+	cb = skb_jcb(skb);
+	memset(cb, 0, sizeof(*cb));
+}
+
 static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
 		void *payload, struct sk_buff *original_skb)
 {

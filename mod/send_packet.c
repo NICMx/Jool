@@ -292,14 +292,15 @@ verdict send_pkt(struct sk_buff *skb)
 			kfree_skb(skb);
 			continue;
 		}
-
 		log_debug("Sending skb via device '%s'...", skb->dev->name);
 
 		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
+			skb_clear_cb(skb);
 			error = ip6_local_out(skb);
 			break;
 		case L3PROTO_IPV4:
+			skb_clear_cb(skb);
 			error = ip_local_out(skb);
 			break;
 		}
