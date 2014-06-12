@@ -147,6 +147,15 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		log_debug("Removing a prefix from the IPv6 pool.");
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 
+	case OP_FLUSH:
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv6 pool.");
+		pool6_flush();
+		return respond_error(nl_hdr, 0);
+
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
@@ -204,6 +213,15 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		log_debug("Removing an address from the IPv4 pool.");
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
+
+	case OP_FLUSH:
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv4 pool.");
+		pool4_flush();
+		return respond_error(nl_hdr, 0);
 
 	default:
 		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);

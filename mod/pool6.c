@@ -118,6 +118,17 @@ void pool6_destroy(void)
 	}
 }
 
+void pool6_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+	while (!list_empty(&pool)) {
+		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
+		list_del(&node->list_hook);
+		kfree(node);
+	}
+	spin_unlock_bh(&pool_lock);
+}
+
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 {
 	struct pool_node *node;

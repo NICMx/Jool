@@ -169,6 +169,13 @@ void pool4_destroy(void)
 	kmem_cache_destroy(node_cache);
 }
 
+void pool4_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+	pool4_table_empty(&pool, destroy_pool4_node);
+	spin_unlock_bh(&pool_lock);
+}
+
 int pool4_register(struct in_addr *addr)
 {
 	struct pool4_node *node;

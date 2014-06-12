@@ -16,6 +16,7 @@
 
 int pool6_init(char *pref_strs[], int pref_count);
 void pool6_destroy(void);
+void pool6_flush(void);
 
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *prefix);
 int pool6_peek(struct ipv6_prefix *result);
