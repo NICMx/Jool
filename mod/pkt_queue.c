@@ -11,13 +11,16 @@
  * Structures and private variables.
  ********************************************/
 
+/** Cache for struct session_entrys, for efficient allocation. */
+static struct kmem_cache *entry_cache;
+
 /**
  *  Stored packages definition.
  *
  */
 struct packet_node {
 	/**  */
-	struct session_entry *session_entry_p;
+	struct session_entry *session_entry;
 
 	/**  */
 	struct sk_buff *skb;
@@ -27,9 +30,6 @@ struct packet_node {
 	 * Used for iterating while looking for expired TCP packets.
 	 */
 	struct list_head list_hook;
-
-	/** Millisecond (from the epoch) this packet should expire in, if still inactive. */
-	unsigned int dying_time;
 };
 
 /**
@@ -59,21 +59,25 @@ int pktqueue_add(struct session_entry *entry, struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	node = kmalloc(sizeof(struct packet_node), GFP_ATOMIC);
-
+	node = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!node) {
 		log_err(ERR_ALLOC_FAILED, "Allocation packet node failed.");
 		return -ENOMEM;
 	}
 
+	/*TODO: wrapp this function*/
 	if (list_empty(&all_packets)) {
-		expires = msecs_to_jiffies(entry->dying_time) + 10;
+//		expires = msecs_to_jiffies(entry->dying_time) + 10;
+		expires = entry->dying_time + 10;
+		/*TODO: check: on issue 88 session->dying_time is set in jiffies,
+		 * but in older code session->dying_time was in msecs, so it's not
+		 * necessary to do msecs_to_jiffies for future code I guess...
+		 * I don't know what 10 means*/
 		mod_timer(&expire_timer, expires);
 	}
 
-	node->session_entry_p = entry;
+	node->session_entry = entry;
 	node->skb = skb;
-	node->dying_time = entry->dying_time;
 	INIT_LIST_HEAD(&node->list_hook);
 
 	spin_lock_bh(&all_packets_lock);
@@ -89,10 +93,10 @@ int pktqueue_remove(void)
 	struct packet_node *node;
 
 	node = container_of(all_packets.next, struct packet_node, list_hook);
-	icmp_send(node->skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
+	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 	list_del(all_packets.next);
 	kfree_skb(node->skb);
-	kfree(node->session_entry_p);
+	kfree(node->session_entry);
 	kfree(node);
 	return 0;
 }
@@ -116,7 +120,9 @@ static void clean_expired_packets(void)
 
 		packet = list_entry(current_node, struct packet_node, list_hook);
 
-		if (packet->dying_time > current_time)
+		/*TODO: check what how is stored packet->session->dying_time if it's in
+		 * msecs or in jiffies */
+		if (time_before(jiffies, packet->session_entry->dying_time))
 			break;
 
 		error = pktqueue_remove();
@@ -140,20 +146,37 @@ static void cleaner_timer(unsigned long param)
 
 	clean_expired_packets();
 
+	/*TODO: wrapp this function*/
 	if (!list_empty(&all_packets))
 	{
+		spin_lock_bh(&all_packets_lock);
+
 		node = container_of(all_packets.next, struct packet_node, list_hook);
-		expires = msecs_to_jiffies(node->dying_time) + 10;
+		expires = node->session_entry->dying_time + 10;
+//		expires = msecs_to_jiffies(node->session_entry_p->dying_time) + 10;
+		/*TODO: check: on issue 88 session->dying_time is set in jiffies,
+		 * but in older code session->dying_time was in msecs, so it's not
+		 * necessary to do msecs_to_jiffies for future code I guess...
+		 * I don't know what 10 means*/
 		mod_timer(&expire_timer, expires);
+
+		spin_unlock_bh(&all_packets_lock);
 	}
 }
 
 int pktqueue_init(void)
 {
+	entry_cache = kmem_cache_create("jool_pkt_queue", sizeof(struct packet_node),
+			0, 0, NULL);
+	if (!entry_cache) {
+		log_err("Could not allocate the Session entry cache.");
+		return -ENOMEM;
+	}
 
 	init_timer(&expire_timer);
 	expire_timer.function = cleaner_timer;
 	expire_timer.data = 0;
+	expire_timer.expires = 0;
 
 	return 0;
 }
@@ -166,11 +189,9 @@ void pktqueue_destroy(void)
 	del_timer_sync(&expire_timer);
 
 	/* Remove all packets */
-	spin_lock_bh(&all_packets_lock);
 	while (!list_empty(&all_packets)) {
 		error = pktqueue_remove();
 		if (error)
 			break;
 	}
-	spin_unlock_bh(&all_packets_lock);
 }
