@@ -4,12 +4,12 @@
 
 
 #define UNIT_WARNING(test_name, expected, actual, specifier) \
-		log_warning("Test '%s' failed. Expected: " specifier ". Actual: " specifier ".", \
+		log_err("Test '%s' failed. Expected: " specifier ". Actual: " specifier ".", \
 				test_name, \
 				expected, \
 				actual);
 #define UNIT_WARNING_NOT(test_name, expected, actual, specifier) \
-		log_warning("Test '%s' failed. Expected: not " specifier ". Actual: " specifier ".", \
+		log_err("Test '%s' failed. Expected: not " specifier ". Actual: " specifier ".", \
 				test_name, \
 				expected, \
 				actual);
@@ -18,7 +18,7 @@
 bool assert_true(bool condition, char *test_name)
 {
 	if (!condition) {
-		log_warning("Test '%s' failed.", test_name);
+		log_err("Test '%s' failed.", test_name);
 		return false;
 	}
 	return true;
@@ -75,7 +75,7 @@ bool assert_equals_ipv4_str(unsigned char *expected_str, struct in_addr *actual,
 	struct in_addr expected;
 
 	if (str_to_addr4(expected_str, &expected) != 0) {
-		log_warning("Could not parse '%s' as a valid IPv4 address.", expected_str);
+		log_err("Could not parse '%s' as a valid IPv4 address.", expected_str);
 		return false;
 	}
 
@@ -96,7 +96,7 @@ bool assert_equals_ipv6_str(unsigned char *expected_str, struct in6_addr *actual
 	struct in6_addr expected;
 
 	if (str_to_addr6(expected_str, &expected) != 0) {
-		log_warning("Could not parse '%s' as a valid IPv6 address.", expected_str);
+		log_err("Could not parse '%s' as a valid IPv6 address.", expected_str);
 		return false;
 	}
 
@@ -131,7 +131,7 @@ bool assert_null(void *actual, char *test_name)
 bool assert_false(bool condition, char *test_name)
 {
 	if (condition) {
-		log_warning("Test '%s' failed.", test_name);
+		log_err("Test '%s' failed.", test_name);
 		return false;
 	}
 	return true;
@@ -173,7 +173,7 @@ bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *tes
 {
 	bool success = true;
 
-	log_warning("%s", test_name);
+	log_debug("%s", test_name);
 	switch (expected->l3_proto) {
 	case L3PROTO_IPV4:
 		success &= assert_equals_ipv4(&expected->src.addr.ipv4, &actual->src.addr.ipv4,

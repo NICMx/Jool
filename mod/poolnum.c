@@ -2,7 +2,7 @@
 
 #include <linux/slab.h>
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 #include "nat64/mod/random.h"
 
 
@@ -40,6 +40,7 @@ int poolnum_init(struct poolnum *pool, u16 min, u16 max, u16 step)
 		min = max;
 		max = temp;
 	}
+
 
 	pool->count = (max - min) / step + 1;
 	pool->array = kmalloc(pool->count * sizeof(u16), GFP_ATOMIC);
@@ -130,8 +131,8 @@ int poolnum_get(struct poolnum *pool, u16 value)
  */
 int poolnum_return(struct poolnum *pool, u16 value)
 {
-	if (WARN(poolnum_is_full(pool), "Something's trying to return values that were originally "
-			"not part of the pool."))
+	if (WARN_IF_REAL(poolnum_is_full(pool), "Something's trying to return values that were "
+			"originally not part of the pool."))
 		return -EINVAL;
 
 	pool->array[pool->returned] = value;

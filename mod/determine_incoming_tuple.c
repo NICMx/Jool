@@ -9,9 +9,18 @@
 #include <linux/icmpv6.h>
 
 
-/*
- * Sorry, I think that commenting every one of these functions would be extremely redundant.
- * Just jump to determine_in_tuple() to figure out what's going on.
+/**
+ * Assumes that hdr_ipv4 is part of a packet, and returns a pointer to the chunk of data after it.
+ * Skips IPv4 options if any.
+ */
+static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
+{
+	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
+}
+
+/**
+ * @{
+ * Builds "tuple"'s fields based on the rest of the arguments.
  */
 
 static verdict ipv4_udp(struct iphdr *hdr_ipv4, struct udphdr *hdr_udp, struct tuple *tuple)
@@ -36,7 +45,8 @@ static verdict ipv4_tcp(struct iphdr *hdr_ipv4, struct tcphdr *hdr_tcp, struct t
 	return VER_CONTINUE;
 }
 
-static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple)
+static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp,
+		struct tuple *tuple)
 {
 	tuple->src.addr.ipv4.s_addr = hdr_ipv4->saddr;
 	tuple->src.l4_id = be16_to_cpu(hdr_icmp->un.echo.id);
@@ -47,18 +57,9 @@ static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, 
 	return VER_CONTINUE;
 }
 
-/**
- * Assumes that hdr_ipv4 is part of a packet, and returns a pointer to the chunk of data after it.
- * Skips IPv4 options if any.
- */
-static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
+static verdict ipv4_icmp_err(struct fragment *frag, struct tuple *tuple)
 {
-	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
-}
-
-static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple)
-{
-	struct iphdr *inner_ipv4 = (struct iphdr *) (hdr_icmp + 1);
+	struct iphdr *inner_ipv4 = (struct iphdr *) (frag_get_icmp4_hdr(frag) + 1);
 	struct udphdr *inner_udp;
 	struct tcphdr *inner_tcp;
 	struct icmphdr *inner_icmp;
@@ -138,10 +139,9 @@ static verdict ipv6_icmp_info(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icm
 	return VER_CONTINUE;
 }
 
-static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp,
-		struct tuple *tuple)
+static verdict ipv6_icmp_err(struct fragment *frag, struct tuple *tuple)
 {
-	struct ipv6hdr *inner_ipv6 = (struct ipv6hdr *) (hdr_icmp + 1);
+	struct ipv6hdr *inner_ipv6 = (struct ipv6hdr *) (frag_get_icmp6_hdr(frag) + 1);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ipv6);
 	struct udphdr *inner_udp;
 	struct tcphdr *inner_tcp;
@@ -188,6 +188,9 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 
 	return VER_CONTINUE;
 }
+/**
+ * @}
+ */
 
 /**
  * Extracts relevant data from "frag" and stores it in the "tuple" tuple.
@@ -222,7 +225,7 @@ verdict determine_in_tuple(struct fragment *frag, struct tuple *tuple)
 			if (is_icmp4_info(icmp4->type)) {
 				result = ipv4_icmp_info(hdr4, icmp4, tuple);
 			} else if (is_icmp4_error(icmp4->type)) {
-				result = ipv4_icmp_err(hdr4, icmp4, tuple);
+				result = ipv4_icmp_err(frag, tuple);
 			} else {
 				log_debug("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
 				result = VER_DROP;
@@ -248,7 +251,7 @@ verdict determine_in_tuple(struct fragment *frag, struct tuple *tuple)
 			if (is_icmp6_info(icmp6->icmp6_type)) {
 				result = ipv6_icmp_info(hdr6, icmp6, tuple);
 			} else if (is_icmp6_error(icmp6->icmp6_type)) {
-				result = ipv6_icmp_err(hdr6, icmp6, tuple);
+				result = ipv6_icmp_err(frag, tuple);
 			} else {
 				log_debug("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
 				result = VER_DROP;

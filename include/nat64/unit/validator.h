@@ -1,7 +1,8 @@
-#ifndef _NF_NAT64_VALIDATOR_H
-#define _NF_NAT64_VALIDATOR_H
+#ifndef _JOOL_UNIT_VALIDATOR_H
+#define _JOOL_UNIT_VALIDATOR_H
 
 #include "nat64/mod/packet.h"
+
 
 bool validate_fragment_count(struct packet *pkt, int expected_count);
 
@@ -28,4 +29,5 @@ bool validate_payload(unsigned char *payload, u16 len, u16 offset);
 bool validate_inner_pkt_ipv6(unsigned char *payload, u16 len);
 bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len);
 
-#endif
+
+#endif /* _JOOL_UNIT_VALIDATOR_H */

@@ -1,6 +1,4 @@
-#include "nat64/unit/send_packet_impersonator.h"
-#include "nat64/mod/send_packet.h"
-#include "nat64/comm/types.h"
+#include "nat64/unit/send_packet.h"
 
 
 static struct sk_buff *sent_skb = NULL;

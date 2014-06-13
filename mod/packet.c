@@ -3,8 +3,9 @@
 #include <net/route.h>
 
 #include "nat64/comm/constants.h"
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 #include "nat64/mod/icmp_wrapper.h"
+#include "nat64/mod/stats.h"
 
 #define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
 #define MIN_IPV4_HDR_LEN sizeof(struct iphdr)
@@ -17,6 +18,27 @@
 static struct kmem_cache *frag_cache;
 /** Cache for struct packets, for efficient allocation. */
 static struct kmem_cache *pkt_cache;
+
+struct packet_result {
+	int error;
+	enum icmp_error_code icmp_code;
+	int snmp_code;
+};
+
+static const struct packet_result no_error = {
+	.error = 0
+};
+
+static struct packet_result construct_error(int error, enum icmp_error_code icmp_code,
+		int snmp_code)
+{
+	struct packet_result result = {
+		.error = -error,
+		.icmp_code = icmp_code,
+		.snmp_code = snmp_code
+	};
+	return result;
+}
 
 int pktmod_init(void)
 {
@@ -49,7 +71,6 @@ int frag_create_empty(struct fragment **out)
 	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
 	if (!frag) {
 		log_debug("Could not allocate a struct fragment.");
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
 	}
 
@@ -60,43 +81,10 @@ int frag_create_empty(struct fragment **out)
 	return 0;
 }
 
-int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag)
-{
-	__u8 *first_byte;
-	__u8 first_4_bits;
-	int error;
-
-	first_byte = skb_network_header(skb);
-	first_4_bits = (*first_byte) >> 4;
-
-	/* We can't use skb->protocol because it isn't set during the LOCAL_OUT Netfilter chains. */
-	switch (first_4_bits) {
-	case 4:
-		error = frag_create_from_buffer_ipv4(skb_network_header(skb), skb->len, false, frag, skb);
-		break;
-	case 6:
-		error = frag_create_from_buffer_ipv6(skb_network_header(skb), skb->len, false, frag, skb);
-		break;
-	default:
-		log_debug("Unsupported network protocol: %u", first_4_bits);
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
-	}
-
-	if (!error) {
-		(*frag)->skb = skb;
-		/* We no longer need this really, but I'll keep it JIC. */
-		skb_set_transport_header(skb, (*frag)->l3_hdr.len);
-	}
-
-	return error;
-}
-
 static int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic TCP header.");
-		inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 		return -EINVAL;
 	}
 
@@ -107,7 +95,6 @@ static int validate_lengths_udp(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_UDP_HDR_LEN) {
 		log_debug("Packet is too small to contain a UDP header.");
-		inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 		return -EINVAL;
 	}
 
@@ -118,7 +105,6 @@ static int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_ICMP6_HDR_LEN) {
 		log_debug("Packet is too small to contain a ICMPv6 header.");
-		inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 		return -EINVAL;
 	}
 
@@ -129,27 +115,24 @@ static int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_ICMP4_HDR_LEN) {
 		log_debug("Packet is too small to contain a ICMPv4 header.");
-		inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator)
+static struct packet_result validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len,
+		bool is_truncated, struct hdr_iterator *iterator)
 {
 	enum hdr_iterator_result result;
 
 	if (len < MIN_IPV6_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic IPv6 header.");
-		inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-		return -EINVAL;
+		return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INTRUNCATEDPKTS);
 	}
 	if (!is_truncated && len != MIN_IPV6_HDR_LEN + be16_to_cpu(hdr->payload_len)) {
 		log_debug("The packet's length does not match the IPv6 header's payload length field.");
-		inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-		return -EINVAL;
+		return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INHDRERRORS);
 	}
 
 	hdr_iterator_init(iterator, hdr);
@@ -158,27 +141,23 @@ static int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool i
 	switch (result) {
 	case HDR_ITERATOR_SUCCESS:
 		WARN(true, "Iterator reports there are headers beyond the payload.");
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-		break;
+		return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INDISCARDS);
 	case HDR_ITERATOR_END:
-		return 0;
+		return no_error;
 	case HDR_ITERATOR_UNSUPPORTED:
 		log_debug("Packet contains an Authentication or ESP header, "
 				"which I'm not supposed to support (RFC 6146 section 5.1).");
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-		/* TODO (issue #57) we're missing a ICMPv6 error (type 4, code 1) here. */
-		break;
+		return construct_error(EINVAL, ICMPERR_PROTO_UNREACHABLE, IPSTATS_MIB_INUNKNOWNPROTOS);
 	case HDR_ITERATOR_OVERFLOW:
 		log_debug("IPv6 extension header analysis ran past the end of the packet. "
 				"Packet seems corrupted; ignoring.");
-		inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-		break;
+		return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INTRUNCATEDPKTS);
 	}
 
-	return -EINVAL;
+	return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INDISCARDS);
 }
 
-static int init_ipv6_l3_hdr(struct fragment *frag, struct ipv6hdr *hdr6,
+static struct packet_result init_ipv6_l3_hdr(struct fragment *frag, struct ipv6hdr *hdr6,
 		struct hdr_iterator *iterator)
 {
 	frag->l3_hdr.proto = L3PROTO_IPV6;
@@ -187,14 +166,13 @@ static int init_ipv6_l3_hdr(struct fragment *frag, struct ipv6hdr *hdr6,
 	frag->l3_hdr.ptr = hdr6;
 	frag->l3_hdr.ptr_needs_kfree = false;
 
-	return 0;
+	return no_error;
 }
 
-static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, unsigned int len,
-		struct hdr_iterator *iterator)
+static struct packet_result init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6,
+		unsigned int len, struct hdr_iterator *iterator)
 {
 	struct frag_hdr *frag_header;
-	int error;
 
 	frag_header = get_extension_header(hdr6, NEXTHDR_FRAGMENT);
 	if (frag_header == NULL || get_fragment_offset_ipv6(frag_header) == 0) {
@@ -202,27 +180,24 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 
  		switch (iterator->hdr_type) {
 		case NEXTHDR_TCP:
-			error = validate_lengths_tcp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
+			if (is_error(validate_lengths_tcp(len, frag->l3_hdr.len)))
+				goto truncated;
 
 			frag->l4_hdr.proto = L4PROTO_TCP;
 			frag->l4_hdr.len = 4 * frag_get_tcp_hdr(frag)->doff;
 			break;
 
 		case NEXTHDR_UDP:
-			error = validate_lengths_udp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
+			if (is_error(validate_lengths_udp(len, frag->l3_hdr.len)))
+				goto truncated;
 
 			frag->l4_hdr.proto = L4PROTO_UDP;
 			frag->l4_hdr.len = sizeof(struct udphdr);
 			break;
 
 		case NEXTHDR_ICMP:
-			error = validate_lengths_icmp6(len, frag->l3_hdr.len);
-			if (error)
-				return error;
+			if (is_error(validate_lengths_icmp6(len, frag->l3_hdr.len)))
+				goto truncated;
 
 			frag->l4_hdr.proto = L4PROTO_ICMP;
 			frag->l4_hdr.len = sizeof(struct icmp6hdr);
@@ -230,9 +205,7 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 
 		default:
 			log_debug("Unsupported layer 4 protocol: %d", iterator->hdr_type);
-			inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-			icmp64_send(frag, ICMPERR_PROTO_UNREACHABLE, 0);
-			return -EINVAL;
+			return construct_error(EINVAL, ICMPERR_PROTO_UNREACHABLE, IPSTATS_MIB_INUNKNOWNPROTOS);
 		}
 
 		frag->payload.len = len - frag->l3_hdr.len - frag->l4_hdr.len;
@@ -249,26 +222,29 @@ static int init_ipv6_l3_payload(struct fragment *frag, struct ipv6hdr *hdr6, uns
 	frag->l4_hdr.ptr_needs_kfree = false;
 	frag->payload.ptr_needs_kfree = false;
 
-	return 0;
+	return no_error;
+
+truncated:
+	return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INTRUNCATEDPKTS);
 }
 
-int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
+static struct packet_result create_from_buffer6(unsigned char *buffer,
+		unsigned int len, bool is_truncated,
 		struct fragment **out_frag, struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr = (struct ipv6hdr *) buffer;
 	struct fragment *frag;
 	struct hdr_iterator iterator;
-	int error;
+	struct packet_result result;
 
-	error = validate_ipv6_integrity(hdr, len, is_truncated, &iterator);
-	if (error)
-		return error;
+	result = validate_ipv6_integrity(hdr, len, is_truncated, &iterator);
+	if (result.error)
+		return result;
 
 	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
 	if (!frag) {
 		log_debug("Cannot allocate a struct fragment.");
-		inc_stats(skb, IPSTATS_MIB_INDELIVERS);
-		return -ENOMEM;
+		return construct_error(ENOMEM, ICMPERR_SILENT, IPSTATS_MIB_INDELIVERS);
 	}
 
 	frag->skb = NULL;
@@ -281,24 +257,31 @@ int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool i
 	 * We already know of a bug in Linux 3.12 that does exactly that, see icmp_wrapper.c.
 	 */
 
-	error = init_ipv6_l3_hdr(frag, hdr, &iterator);
-	if (error)
+	result = init_ipv6_l3_hdr(frag, hdr, &iterator);
+	if (result.error)
 		goto fail;
-	error = init_ipv6_l3_payload(frag, hdr, len, &iterator);
-	if (error)
+	result = init_ipv6_l3_payload(frag, hdr, len, &iterator);
+	if (result.error)
 		goto fail;
 
 	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
-	return 0;
+	return no_error;
 
 fail:
 	kmem_cache_free(frag_cache, frag);
-	return error;
+	return result;
 }
 
-static int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated)
+int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
+		struct fragment **out_frag)
+{
+	return create_from_buffer6(buffer, len, is_truncated, out_frag, NULL).error;
+}
+
+static struct packet_result validate_ipv4_integrity(struct iphdr *hdr, unsigned int len,
+		bool is_truncated)
 {
 	u16 ip4_hdr_len;
 
@@ -317,7 +300,7 @@ static int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_
 	}
 
 	if (is_truncated)
-		return 0;
+		return no_error;
 
 	ip4_hdr_len = 4 * hdr->ihl;
 	if (len < ip4_hdr_len) {
@@ -329,58 +312,53 @@ static int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_
 		goto bad_hdr;
 	}
 
-	return 0;
+	return no_error;
 
 bad_hdr:
-	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-	return -EINVAL;
+	return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INHDRERRORS);
 
 truncated:
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-	return -EINVAL;
+	return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INTRUNCATEDPKTS);
 }
 
-static int init_ipv4_l3_hdr(struct fragment *frag, struct iphdr *hdr)
+static struct packet_result init_ipv4_l3_hdr(struct fragment *frag, struct iphdr *hdr)
 {
 	frag->l3_hdr.proto = L3PROTO_IPV4;
 	frag->l3_hdr.len = 4 * hdr->ihl;
 	frag->l3_hdr.ptr = hdr;
 	frag->l3_hdr.ptr_needs_kfree = false;
 
-	return 0;
+	return no_error;
 }
 
-static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsigned int len)
+static struct packet_result init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4,
+		unsigned int len)
 {
 	u16 fragment_offset;
-	int error;
 
 	fragment_offset = get_fragment_offset_ipv4(hdr4);
 	if (fragment_offset == 0) {
 		frag->l4_hdr.ptr = frag->l3_hdr.ptr + frag->l3_hdr.len;
 		switch (hdr4->protocol) {
 		case IPPROTO_TCP:
-			error = validate_lengths_tcp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
+			if (is_error(validate_lengths_tcp(len, frag->l3_hdr.len)))
+				goto truncated;
 
 			frag->l4_hdr.proto = L4PROTO_TCP;
 			frag->l4_hdr.len = 4 * frag_get_tcp_hdr(frag)->doff;
 			break;
 
 		case IPPROTO_UDP:
-			error = validate_lengths_udp(len, frag->l3_hdr.len);
-			if (error)
-				return error;
+			if (is_error(validate_lengths_udp(len, frag->l3_hdr.len)))
+				goto truncated;
 
 			frag->l4_hdr.proto = L4PROTO_UDP;
 			frag->l4_hdr.len = sizeof(struct udphdr);
 			break;
 
 		case IPPROTO_ICMP:
-			error = validate_lengths_icmp4(len, frag->l3_hdr.len);
-			if (error)
-				return error;
+			if (is_error(validate_lengths_icmp4(len, frag->l3_hdr.len)))
+				goto truncated;
 
 			frag->l4_hdr.proto = L4PROTO_ICMP;
 			frag->l4_hdr.len = sizeof(struct icmphdr);
@@ -388,9 +366,7 @@ static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsig
 
 		default:
 			log_debug("Unsupported layer 4 protocol: %d", hdr4->protocol);
-			inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-			icmp64_send(frag, ICMPERR_PROTO_UNREACHABLE, 0);
-			return -EINVAL;
+			return construct_error(EINVAL, ICMPERR_PROTO_UNREACHABLE, IPSTATS_MIB_INUNKNOWNPROTOS);
 		}
 
 		frag->payload.ptr = frag->l4_hdr.ptr + frag->l4_hdr.len;
@@ -406,25 +382,28 @@ static int init_ipv4_l3_payload(struct fragment *frag, struct iphdr *hdr4, unsig
 	frag->payload.len = len - frag->l3_hdr.len - frag->l4_hdr.len;
 	frag->payload.ptr_needs_kfree = false;
 
-	return 0;
+	return no_error;
+
+truncated:
+	return construct_error(EINVAL, ICMPERR_SILENT, IPSTATS_MIB_INHDRERRORS);
 }
 
-int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
+static struct packet_result create_from_buffer4(unsigned char *buffer,
+		unsigned int len, bool is_truncated,
 		struct fragment **out_frag, struct sk_buff *skb)
 {
 	struct iphdr *hdr = (struct iphdr *) buffer;
 	struct fragment *frag;
-	int error;
+	struct packet_result result;
 
-	error = validate_ipv4_integrity(hdr, len, is_truncated);
-	if (error)
-		return error;
+	result = validate_ipv4_integrity(hdr, len, is_truncated);
+	if (result.error)
+		return result;
 
 	frag = kmem_cache_alloc(frag_cache, GFP_ATOMIC);
 	if (!frag) {
 		log_debug("Cannot allocate a struct fragment.");
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-		return -ENOMEM;
+		return construct_error(ENOMEM, ICMPERR_SILENT, IPSTATS_MIB_INDISCARDS);
 	}
 
 	frag->skb = NULL;
@@ -438,29 +417,65 @@ int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool i
 		 * packet, regardless of whether we end up calling one of those functions.
 		 */
 
-		error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
+		int error = ip_route_input(skb, hdr->daddr, hdr->saddr, hdr->tos, skb->dev);
 		if (error) {
 			log_debug("ip_route_input failed: %d", error);
+			result = construct_error(error, ICMPERR_SILENT, IPSTATS_MIB_INDISCARDS);
 			goto fail;
 		}
 	}
 #endif
 
-	error = init_ipv4_l3_hdr(frag, hdr);
-	if (error)
+	result = init_ipv4_l3_hdr(frag, hdr);
+	if (result.error)
 		goto fail;
-	error = init_ipv4_l3_payload(frag, hdr, len);
-	if (error)
+	result = init_ipv4_l3_payload(frag, hdr, len);
+	if (result.error)
 		goto fail;
 
 	INIT_LIST_HEAD(&frag->list_hook);
 
 	*out_frag = frag;
-	return 0;
+	return no_error;
 
 fail:
 	kmem_cache_free(frag_cache, frag);
-	return error;
+	return result;
+}
+
+int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
+		struct fragment **out_frag)
+{
+	return create_from_buffer4(buffer, len, is_truncated, out_frag, NULL).error;
+}
+
+int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag)
+{
+	struct packet_result result;
+
+	switch (ntohs(skb->protocol)) {
+	case ETH_P_IP:
+		result = create_from_buffer4(skb_network_header(skb), skb->len, false, frag, skb);
+		break;
+	case ETH_P_IPV6:
+		result = create_from_buffer6(skb_network_header(skb), skb->len, false, frag, skb);
+		break;
+	default:
+		log_debug("Unsupported network protocol: %u", ntohs(skb->protocol));
+		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
+		return -EINVAL;
+	}
+
+	if (result.error) {
+		icmp64_send_skb(skb, result.icmp_code, 0);
+		inc_stats(skb, result.snmp_code);
+		return result.error;
+	}
+
+	(*frag)->skb = skb;
+	/* We no longer need this really, but I'll keep it JIC. */
+	skb_set_transport_header(skb, (*frag)->l3_hdr.len);
+	return 0;
 }
 
 /**
@@ -481,7 +496,6 @@ int frag_create_skb(struct fragment *frag)
 			GFP_ATOMIC);
 	if (!new_skb) {
 		log_debug("New packet allocation failed.");
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
 	}
 	frag->skb = new_skb;
@@ -715,7 +729,6 @@ int pkt_alloc(struct packet **pkt_out)
 	pkt = kmem_cache_alloc(pkt_cache, GFP_ATOMIC);
 	if (!pkt) {
 		log_debug("Could not allocate a struct packet.");
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
 	}
 
@@ -765,10 +778,8 @@ int pkt_get_total_len_ipv6(struct packet *pkt, unsigned int *total_len)
 		 * This is unexpected because this function is only called after the database has already
 		 * collected all of pkt's fragments.
 		 */
-		if (WARN(!last_frag, "IPv6 packet has no last fragment.")) {
-			inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		if (WARN(!last_frag, "IPv6 packet has no last fragment."))
 			return -EINVAL;
-		}
 
 		/* Compute its offset. */
 		frag_offset = get_fragment_offset_ipv6(frag_get_fragment_hdr(last_frag));
@@ -798,10 +809,8 @@ int pkt_get_total_len_ipv4(struct packet *pkt, unsigned int *total_len)
 		 * This is unexpected because this function is only called after the database has already
 		 * collected all of pkt's fragments.
 		 */
-		if (WARN(!last_frag, "IPv4 packet has no last fragment.")) {
-			inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		if (WARN(!last_frag, "IPv4 packet has no last fragment."))
 			return -EINVAL;
-		}
 
 		/* Compute its offset. */
 		frag_offset = get_fragment_offset_ipv4(frag_get_ipv4_hdr(last_frag));

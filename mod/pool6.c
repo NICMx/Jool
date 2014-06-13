@@ -1,6 +1,7 @@
 #include "nat64/mod/pool6.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/mod/types.h"
 
 #include <linux/inet.h>
 #include <net/ipv6.h>
@@ -25,13 +26,16 @@ static LIST_HEAD(pool);
 static u64 pool_count;
 static DEFINE_SPINLOCK(pool_lock);
 
-static int verify_prefix(int start, struct in6_addr *in6)
+static int verify_prefix(int start, struct ipv6_prefix *prefix)
 {
 	int i;
 
-	for (i = start; i < ARRAY_SIZE(in6->s6_addr); i++) {
-		if (in6->s6_addr[i] & 0xFF)
+	for (i = start; i < ARRAY_SIZE(prefix->address.s6_addr); i++) {
+		if (prefix->address.s6_addr[i] & 0xFF) {
+			log_err("%pI6c/%u seems to have a suffix (RFC6052 doesn't like this).",
+					&prefix->address, prefix->len);
 			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -39,38 +43,23 @@ static int verify_prefix(int start, struct in6_addr *in6)
 
 static int validate_prefix(struct ipv6_prefix *prefix)
 {
-	int error = 0;
-
 	switch (prefix->len) {
 	case 32:
-		error = verify_prefix(4, &prefix->address);
-		break;
+		return verify_prefix(4, prefix);
 	case 40:
-		error = verify_prefix(5, &prefix->address);
-		break;
+		return verify_prefix(5, prefix);
 	case 48:
-		error = verify_prefix(6, &prefix->address);
-		break;
+		return verify_prefix(6, prefix);
 	case 56:
-		error = verify_prefix(7, &prefix->address);
-		break;
+		return verify_prefix(7, prefix);
 	case 64:
-		error = verify_prefix(8, &prefix->address);
-		break;
+		return verify_prefix(8, prefix);
 	case 96:
-		error = verify_prefix(12, &prefix->address);
-		break;
+		return verify_prefix(12, prefix);
 	default:
 		log_err("%u is not a valid prefix length (32, 40, 48, 56, 64, 96).", prefix->len);
 		return -EINVAL;
 	}
-
-	if (error) {
-		log_err("%pI6c/%u seems to have a suffix (RFC6052 doesn't like this).",
-				&prefix->address, prefix->len);
-	}
-
-	return error;
 }
 
 int pool6_init(char *pref_strs[], int pref_count)
@@ -128,7 +117,7 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
-		log_debug("The IPv6 pool is empty.");
+		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
@@ -152,7 +141,7 @@ int pool6_peek(struct ipv6_prefix *result)
 
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
-		log_debug("The IPv6 pool is empty.");
+		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
@@ -209,7 +198,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
-		log_err("The IPv6 pool is empty.");
+		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 

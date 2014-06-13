@@ -1,17 +1,8 @@
 
-/********************************************
- * Structures and private variables.
- ********************************************/
-
 /** Cache for struct session_entrys, for efficient allocation. */
 static struct kmem_cache *entry_cache;
 
-
-/********************************************
- * Private (helper) functions.
- ********************************************/
-
-void session_release(struct kref *ref)
+static void session_release(struct kref *ref)
 {
 	struct session_entry *session;
 	struct bib_entry *bib;
@@ -27,11 +18,7 @@ void session_release(struct kref *ref)
 	session_kfree(session);
 }
 
-/*******************************
- * Public functions.
- *******************************/
-
-int session_init(void)
+static int session_init(void)
 {
 	entry_cache = kmem_cache_create("jool_session_entries", sizeof(struct session_entry),
 			0, 0, NULL);
@@ -43,7 +30,7 @@ int session_init(void)
 	return 0;
 }
 
-void session_destroy(void)
+static void session_destroy(void)
 {
 	kmem_cache_destroy(entry_cache);
 }

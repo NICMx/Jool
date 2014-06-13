@@ -30,11 +30,7 @@ static void bib_release_lockless(struct kref *ref)
 	bib_release(ref, false);
 }
 
-/*******************************
- * Public functions.
- *******************************/
-
-int bib_init(void)
+static int bib_init(void)
 {
 	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry), 0, 0, NULL);
 	if (!entry_cache) {
@@ -45,7 +41,7 @@ int bib_init(void)
 	return 0;
 }
 
-void bib_destroy(void)
+static void bib_destroy(void)
 {
 	kmem_cache_destroy(entry_cache);
 }

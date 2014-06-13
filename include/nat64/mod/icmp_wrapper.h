@@ -19,6 +19,7 @@
  */
 
 typedef enum icmp_error_code {
+	ICMPERR_SILENT,
 	ICMPERR_ADDR_UNREACHABLE,
 	ICMPERR_PROTO_UNREACHABLE,
 	ICMPERR_HOP_LIMIT,
@@ -32,6 +33,7 @@ typedef enum icmp_error_code {
  * Wrapper for the icmp_send() and the icmpv6_send() functions.
  */
 void icmp64_send(struct fragment *frag, icmp_error_code code, __be32 info);
+void icmp64_send_skb(struct sk_buff *skb, icmp_error_code code, __be32 info);
 
 
 #endif /* _NF_NAT64_ICMP_WRAPPER_H */

@@ -1,9 +1,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
-#include <net/ipv6.h>
 
 #include "nat64/unit/unit_test.h"
-#include "nat64/comm/types.h"
 #include "ipv6_hdr_iterator.c"
 
 
@@ -20,7 +18,7 @@ static struct ipv6hdr *kmalloc_packet(__u16 payload_len, __u8 nexthdr)
 {
 	struct ipv6hdr *result = kmalloc(sizeof(struct ipv6hdr) + payload_len, GFP_ATOMIC);
 	if (!result) {
-		log_warning("Unable to allocate a test header.");
+		log_err("Unable to allocate a test header.");
 		return NULL;
 	}
 

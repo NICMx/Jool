@@ -73,11 +73,11 @@ static int get_session_table(l4_protocol l4_proto, struct session_table **result
 		*result = &session_table_icmp;
 		return 0;
 	case L4PROTO_NONE:
-		log_crit(ERR_L4PROTO, "There is no session table for the 'NONE' protocol.");
+		WARN(true, "There is no session table for the 'NONE' protocol.");
 		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
 }
 
@@ -203,7 +203,7 @@ static void send_probe_packet(struct session_entry *session)
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
 	if (!skb) {
-		log_warning("Could now allocate a probe packet.");
+		log_debug("Could now allocate a probe packet.");
 		goto fail;
 	}
 
@@ -250,7 +250,7 @@ static void send_probe_packet(struct session_entry *session)
 
 	dst = route_ipv6(iph, th, L4PROTO_TCP, 0);
 	if (!dst) {
-		log_warning("Could now route the probe packet.");
+		log_debug("Could not route the probe packet.");
 		goto fail;
 	}
 	skb->dev = dst->dev;
@@ -258,14 +258,14 @@ static void send_probe_packet(struct session_entry *session)
 
 	error = ip6_local_out(skb);
 	if (error) {
-		log_warning("The kernel's packet dispatch function returned errcode %d.", error);
+		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
 		goto fail;
 	}
 
 	return;
 
 fail:
-	log_warning("Looks like a TCP connection will break or remain idle forever somewhere...");
+	log_debug("Looks like a TCP connection will break or remain idle forever somewhere...");
 }
 
 /**
@@ -328,20 +328,19 @@ static bool session_expire(struct session_entry *session)
 
 		case CLOSED:
 			/* Closed sessions are not supposed to be stored. */
-			log_err(ERR_INVALID_STATE, "Closed state found; removing session entry.");
+			WARN(true, "Closed state found; removing session entry.");
 			return true;
 		}
 
-		log_err(ERR_INVALID_STATE, "Unknown state found (%d); removing session entry.",
-				session->state);
+		WARN(true, "Unknown state found (%d); removing session entry.", session->state);
 		return true;
 
 	case L4PROTO_NONE:
-		log_err(ERR_L4PROTO, "Invalid transport protocol: NONE.");
+		WARN(true, "Invalid transport protocol: NONE.");
 		return true;
 	}
 
-	log_err(ERR_L4PROTO, "Unknown transport protocol: %u.", session->l4_proto);
+	WARN(true, "Unknown transport protocol: %u.", session->l4_proto);
 	return true;
 }
 
@@ -519,10 +518,8 @@ int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 	struct session_table *table;
 	int error;
 
-	if (!pair) {
-		log_warning("The session tables cannot contain NULL.");
+	if (WARN(!pair, "The session tables cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -542,10 +539,8 @@ int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 	struct session_table *table;
 	int error;
 
-	if (!pair) {
-		log_warning("The session tables cannot contain NULL.");
+	if (WARN(!pair, "The session tables cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -564,10 +559,8 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
 
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no session entry mapped to NULL.");
+	if (WARN(!tuple, "There's no session entry mapped to NULL."))
 		return -EINVAL;
-	}
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
@@ -578,7 +571,7 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 		return sessiondb_get_by_ipv4(&pair4, tuple->l4_proto, result);
 	}
 
-	log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
 	return -EINVAL;
 }
 
@@ -591,10 +584,8 @@ bool sessiondb_allow(struct tuple *tuple)
 	bool result;
 
 	/* Sanity */
-	if (!tuple) {
-		log_err(ERR_NULL, "Cannot extract addresses from NULL.");
+	if (WARN(!tuple, "Cannot extract addresses from NULL."))
 		return false;
-	}
 	error = get_session_table(tuple->l4_proto, &table);
 	if (error)
 		return error;
@@ -617,10 +608,8 @@ int sessiondb_add(struct session_entry *session)
 	int error;
 
 	/* Sanity */
-	if (!session) {
-		log_err(ERR_NULL, "Cannot insert NULL as a session session.");
+	if (WARN(!session, "Cannot insert NULL as a session session."))
 		return -EINVAL;
-	}
 	error = get_session_table(session->l4_proto, &table);
 	if (error)
 		return error;
@@ -638,7 +627,7 @@ int sessiondb_add(struct session_entry *session)
 	error = rbtree_add(session, ipv4, &table->tree4, compare_full4, struct session_entry,
 			tree4_hook);
 	if (error) { /* this is not supposed to happen in a perfect world */
-		log_crit(ERR_ADD_SESSION_FAILED, "The session could be indexed by IPv6 but not by IPv4.");
+		WARN(true, "The session could be indexed by IPv6 but not by IPv4.");
 		rb_erase(&session->tree6_hook, &table->tree6);
 		spin_unlock_bh(&table->session_table_lock);
 		return -EEXIST;
@@ -672,7 +661,8 @@ spin_exit:
 	return error;
 }
 
-static struct rb_node *find_best_node(struct session_table *table, struct ipv4_tuple_address *ipv4, bool iterate)
+static struct rb_node *find_best_node(struct session_table *table, struct ipv4_tuple_address *ipv4,
+		bool iterate)
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
@@ -683,15 +673,14 @@ static struct rb_node *find_best_node(struct session_table *table, struct ipv4_t
 		return rb_first(&table->tree4);
 	}
 
-	if (!ipv4) {
+	if (WARN(!ipv4, "The IPv4 address is NULL."))
 		return NULL;
-	}
 
 	error = rbtree_find_node(ipv4, &table->tree4, compare_local4, struct session_entry,
 				tree4_hook, parent, node);
-	if (*node) {
+	if (*node)
 		return rb_next(*node);
-	}
+
 	session = rb_entry(parent, struct session_entry, tree4_hook);
 	gap = compare_local4(session, ipv4);
 	if (gap < 0)
@@ -753,10 +742,8 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	struct session_table *table;
 	int error;
 
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no session entry mapped to NULL.");
+	if (WARN(!tuple, "There's no session entry mapped to NULL."))
 		return -EINVAL;
-	}
 
 	tuple_to_ipv6_pair(tuple, &pair6);
 
@@ -779,14 +766,14 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	/* Translate address from IPv6 to IPv4 */
 	error = pool6_get(&tuple->dst.addr.ipv6, &prefix);
 	if (error) {
-		log_warning("Errcode %d while obtaining %pI6c's prefix.", error, &tuple->dst.addr.ipv6);
+		log_debug("Errcode %d while obtaining %pI6c's prefix.", error, &tuple->dst.addr.ipv6);
 		spin_unlock_bh(&table->session_table_lock);
 		return error;
 	}
 
 	error = addr_6to4(&tuple->dst.addr.ipv6, &prefix, &ipv4_dst);
 	if (error) {
-		log_err(ERR_EXTRACT_FAILED, "Error code %d while translating the packet's address.", error);
+		log_debug("Error code %d while translating the packet's address.", error);
 		spin_unlock_bh(&table->session_table_lock);
 		return error;
 	}
@@ -802,7 +789,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	pair4.remote.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->dst.l4_id : bib->ipv4.l4_id;
 	*session = session_create(&pair4, &pair6, tuple->l4_proto); /* refcounter = 1*/
 	if (!(*session)) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
+		log_debug("Failed to allocate a session entry.");
 		spin_unlock_bh(&table->session_table_lock);
 		return -ENOMEM;
 	}
@@ -813,7 +800,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 
 	error = rbtree_add(*session, ipv4, &table->tree4, compare_full4, struct session_entry, tree4_hook);
 	if (error) {
-		log_crit(ERR_ADD_SESSION_FAILED, "The entry session was inserted in session_table_tree6 but exist in session_table_tree4");
+		WARN(true, "The session entry could be indexed by IPv6, but not by IPv4.");
 		rb_erase(&(*session)->tree6_hook, &table->tree6);
 		session_kfree(*session);
 		spin_unlock_bh(&table->session_table_lock);
@@ -830,7 +817,8 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 }
 
 
-int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, struct session_entry **session)
+int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
+		struct session_entry **session)
 {
 	struct ipv6_prefix prefix;
 	struct in6_addr ipv6_src;
@@ -840,10 +828,8 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 	struct session_table *table;
 	int error;
 
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no session entry mapped to NULL.");
+	if (WARN(!tuple, "There's no session entry mapped to NULL."))
 		return -EINVAL;
-	}
 
 	tuple_to_ipv4_pair(tuple, &pair4);
 
@@ -853,7 +839,8 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 
 	/* Find it */
 	spin_lock_bh(&table->session_table_lock);
-	error = rbtree_find_node(&pair4, &table->tree4, compare_full4, struct session_entry, tree4_hook, parent, node);
+	error = rbtree_find_node(&pair4, &table->tree4, compare_full4, struct session_entry,
+			tree4_hook, parent, node);
 	if (*node) {
 		*session = rb_entry(*node, struct session_entry, tree4_hook);
 		session_get(*session);
@@ -865,12 +852,12 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 	/* Translate address from IPv4 to IPv6 */
 	error = pool6_peek(&prefix);
 	if (error)
-		return error;
+		goto end;
 
 	error = addr_4to6(&tuple->src.addr.ipv4, &prefix, &ipv6_src);
 	if (error) {
-		log_err(ERR_APPEND_FAILED, "Error code %d while translating the packet's address.", error);
-		return error;
+		log_debug("Error code %d while translating the packet's address.", error);
+		goto end;
 	}
 
 	/*
@@ -884,31 +871,33 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
 	pair6.local.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->src.l4_id : bib->ipv6.l4_id;
 	*session = session_create(&pair4, &pair6, tuple->l4_proto); /* refcounter = 1 */
 	if (!(*session)) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a session entry.");
-		spin_unlock_bh(&table->session_table_lock);
-		return -ENOMEM;
+		log_debug("Failed to allocate a session entry.");
+		error = -ENOMEM;
+		goto end;
 	}
 
 	/* add a new node and rebalance the tree */
 	rb_link_node(&(*session)->tree4_hook, parent, node);
 	rb_insert_color(&(*session)->tree4_hook, &table->tree4);
 
-	error = rbtree_add(*session, ipv6, &table->tree6, compare_full6, struct session_entry, tree6_hook);
+	error = rbtree_add(*session, ipv6, &table->tree6, compare_full6, struct session_entry,
+			tree6_hook);
 	if (error) {
-		log_crit(ERR_ADD_SESSION_FAILED, "The entry session was inserted in session_table_tree6 but exist in session_table_tree4");
+		WARN(true, "The session entry could be indexed by IPv4, but not by IPv6.");
 		rb_erase(&(*session)->tree4_hook, &table->tree4);
 		session_kfree(*session);
-		spin_unlock_bh(&table->session_table_lock);
-		return error;
+		goto end;
 	}
 
 	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
 	bib_get(bib);
 	(*session)->bib = bib;
 	table->count++;
+	/* Fall through. */
 
+end:
 	spin_unlock_bh(&table->session_table_lock);
-	return 0;
+	return error;
 }
 
 /**
@@ -976,12 +965,6 @@ static int delete_sessions_by_ipv4(struct session_table *table, struct in_addr *
 	struct rb_node *node;
 	int s = 0;
 
-	/* Sanitize */
-	if (!addr) {
-		log_err(ERR_NULL, "ipv4 address is NULL");
-		return -EINVAL;
-	}
-
 	spin_lock_bh(&table->session_table_lock);
 
 	/* Find the top-most node in the tree whose IPv4 address is addr. */
@@ -1022,6 +1005,9 @@ success:
 
 int sessiondb_delete_by_ipv4(struct in_addr *addr4)
 {
+	if (WARN(!addr4, "The IPv4 address is NULL"))
+		return -EINVAL;
+
 	delete_sessions_by_ipv4(&session_table_tcp, addr4);
 	delete_sessions_by_ipv4(&session_table_icmp, addr4);
 	delete_sessions_by_ipv4(&session_table_udp, addr4);
@@ -1065,7 +1051,7 @@ void sessiondb_update_timer(struct session_entry *session, timer_type type, __u6
 		break;
 
 	default:
-		log_crit(ERR_UNKNOWN_ERROR, "Unknown timer type to set the update timer");
+		WARN(true, "Unknown timer type to set the update timer");
 		return;
 	}
 
@@ -1122,7 +1108,7 @@ void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl)
 		break;
 
 	default:
-		log_crit(ERR_UNKNOWN_ERROR, "Unknown timer type to set the update timer");
+		WARN(true, "Unknown timer type to set the update timer");
 		return;
 	}
 

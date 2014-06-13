@@ -1,9 +1,7 @@
 #include "nat64/mod/pool4.h"
 #include "nat64/comm/constants.h"
-#include "nat64/comm/types.h"
 #include "nat64/comm/str_utils.h"
-
-#include <linux/kernel.h>
+#include "nat64/mod/types.h"
 
 
 static struct in_addr pool_address;
@@ -19,7 +17,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 		addr_strs = defaults;
 
 	if (str_to_addr4(addr_strs[0], &pool_address) != 0) {
-		log_warning("Cannot parse '%s' as a IPv4 address.", addr_strs[0]);
+		log_err("Cannot parse '%s' as a IPv4 address.", addr_strs[0]);
 		return -EINVAL;
 	}
 
@@ -60,12 +58,12 @@ static int get_next_port(l4_protocol proto, __u16 *result)
 		port_counter = &pool_current_icmp_id;
 		break;
 	default:
-		log_warning("Unknown l4 protocol: %d.", proto);
+		log_err("Unknown l4 protocol: %d.", proto);
 		return -EINVAL;
 	}
 
 	if (*port_counter > 65535) {
-		log_warning("I ran out of ports/icmp ids.");
+		log_err("I ran out of ports/icmp ids.");
 		return -ESRCH;
 	}
 
@@ -97,13 +95,13 @@ int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address)
 {
 	/* Meh, whatever. */
 	log_debug("Somebody returned %pI4#%u to the pool.", &address->address, address->l4_id);
-	return true;
+	return 0;
 }
 
 bool pool4_contains(struct in_addr *address)
 {
 	if (!address) {
-		log_warning("Somebody sent me NULL as an IPv4 address.");
+		log_err("Somebody sent me NULL as an IPv4 address.");
 		return false;
 	}
 

@@ -69,7 +69,7 @@ static bool validate_packet(struct packet *pkt, int expected_frag_count)
 		actual_frag_count++;
 		if (frag == pkt->first_fragment) {
 			if (found_first) {
-				log_warning("Found the first fragment more than once in the packet.");
+				log_err("Found the first fragment more than once in the packet.");
 				success = false;
 			}
 			found_first = true;

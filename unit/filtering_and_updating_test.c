@@ -17,105 +17,6 @@ MODULE_ALIAS("nat64_test_filtering");
 #include "filtering_and_updating.c"
 
 
-static noinline bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
-{
-	if (is_error(str_to_addr6(str, addr))) {
-		log_warning("Cannot parse '%s' as a valid IPv6 address", str);
-		return false;
-	}
-	return true;
-}
-
-static noinline bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
-{
-	if (is_error(str_to_addr4(str, addr))) {
-		log_warning("Cannot parse '%s' as a valid IPv4 address", str);
-		return false;
-	}
-	return true;
-}
-
-#define IPV6_INJECT_BIB_ENTRY_SRC_ADDR "2001:db8:c0ca:1::1"
-#define IPV6_INJECT_BIB_ENTRY_SRC_PORT 1080
-#define IPV4_INJECT_BIB_ENTRY_DST_ADDR "192.168.2.1"
-#define IPV4_INJECT_BIB_ENTRY_DST_PORT 1082
-#define INIT_TUPLE_ICMP_ID 10
-static noinline bool inject_bib_entry(l4_protocol l4_proto)
-{
-	struct ipv4_tuple_address ta_ipv4;
-	struct ipv6_tuple_address ta_ipv6;
-	struct in_addr addr4;
-	struct in6_addr addr6;
-	struct bib_entry *bib_e;
-
-	if (!str_to_addr4_verbose(IPV4_INJECT_BIB_ENTRY_DST_ADDR, &addr4))
-		return false;
-	if (!str_to_addr6_verbose(IPV6_INJECT_BIB_ENTRY_SRC_ADDR, &addr6))
-		return false;
-
-	ta_ipv4.address = addr4;
-	ta_ipv6.address = addr6;
-	if (l4_proto == L4PROTO_ICMP) {
-		ta_ipv4.l4_id = INIT_TUPLE_ICMP_ID;
-		ta_ipv6.l4_id = INIT_TUPLE_ICMP_ID;
-	} else {
-		ta_ipv4.l4_id = IPV4_INJECT_BIB_ENTRY_DST_PORT;
-		ta_ipv6.l4_id = IPV6_INJECT_BIB_ENTRY_SRC_PORT;
-	}
-
-	bib_e = bib_create(&ta_ipv4, &ta_ipv6, false, l4_proto);
-	if (!bib_e) {
-		log_warning("Could not allocate the BIB entry.");
-		return false;
-	}
-
-	if (bibdb_add(bib_e, l4_proto) != 0) {
-		log_warning("Could not insert the BIB entry to the table.");
-		return false;
-	}
-
-	return true;
-}
-
-#define IPV4_ALLOCATED_ADDR     "192.168.2.1"
-static noinline bool test_allocate_ipv4_transport_address(void)
-{
-	struct tuple tuple;
-	struct ipv4_tuple_address tuple_addr;
-	struct in_addr expected_addr;
-	bool success = true;
-
-	success &= str_to_addr4_verbose(IPV4_ALLOCATED_ADDR, &expected_addr);
-	success &= inject_bib_entry(L4PROTO_ICMP);
-	success &= inject_bib_entry(L4PROTO_TCP);
-	success &= inject_bib_entry(L4PROTO_UDP);
-	if (!success)
-		return false;
-
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_ICMP)))
-		return false;
-	success &= assert_equals_int(0, bibdb_allocate_ipv4_transport_address(&tuple, &tuple_addr),
-			"ICMP result");
-	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "ICMP address");
-
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
-		return false;
-	success &= assert_equals_int(0, bibdb_allocate_ipv4_transport_address(&tuple, &tuple_addr),
-			"TCP result");
-	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "TCP address");
-	success &= assert_true(tuple_addr.l4_id > 1023, "Port range for TCP");
-
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
-		return false;
-	success &= assert_equals_int(0, bibdb_allocate_ipv4_transport_address(&tuple, &tuple_addr),
-			"UDP result");
-	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "UDP address");
-	success &= assert_true(tuple_addr.l4_id % 2 == 0, "UDP port parity");
-	success &= assert_true(tuple_addr.l4_id > 1023, "UDP Port range");
-
-	return success;
-}
-
 static int bib_count_fn(struct bib_entry *bib, void *arg)
 {
 	int *count = arg;
@@ -141,7 +42,7 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 	struct ipv6_tuple_address tuple_addr;
 	bool success = true;
 
-	if (!str_to_addr6_verbose(addr6, &tuple_addr.address))
+	if (is_error(str_to_addr6(addr6, &tuple_addr.address)))
 		return false;
 	tuple_addr.l4_id = port6;
 
@@ -189,10 +90,10 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	struct ipv6_pair pair6;
 	bool success = true;
 
-	if (!str_to_addr6_verbose(remote_addr6, &pair6.remote.address))
+	if (is_error(str_to_addr6(remote_addr6, &pair6.remote.address)))
 		return false;
 	pair6.remote.l4_id = remote_port6;
-	if (!str_to_addr6_verbose(local_addr6, &pair6.local.address))
+	if (is_error(str_to_addr6(local_addr6, &pair6.local.address)))
 		return false;
 	pair6.local.l4_id = local_port6;
 
@@ -220,7 +121,7 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 #define INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR "2001:db8:c0ca:1::1"
 #define INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR "64:ff9b::192.168.2.44"
 #define INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR "192.168.100.44"
-static noinline bool test_filtering_and_updating(void)
+static bool test_filtering_and_updating(void)
 {
 	struct fragment *frag;
 	struct sk_buff *skb;
@@ -341,7 +242,7 @@ static noinline bool test_filtering_and_updating(void)
 	return success;
 }
 
-static noinline bool test_udp(void)
+static bool test_udp(void)
 {
 	struct fragment *frag6, *frag4;
 	struct sk_buff *skb6, *skb4;
@@ -399,7 +300,7 @@ static noinline bool test_udp(void)
 	return success;
 }
 
-static noinline bool test_icmp(void)
+static bool test_icmp(void)
 {
 	struct fragment *frag6, *frag4;
 	struct sk_buff *skb6, *skb4;
@@ -457,7 +358,7 @@ static noinline bool test_icmp(void)
 	return success;
 }
 
-static noinline bool create_tcp_packet(struct fragment **frag, l3_protocol l3_proto,
+static bool create_tcp_packet(struct fragment **frag, l3_protocol l3_proto,
 		bool syn, bool rst, bool fin)
 {
 	struct sk_buff *skb;
@@ -499,7 +400,7 @@ static noinline bool create_tcp_packet(struct fragment **frag, l3_protocol l3_pr
 	return true;
 }
 
-static noinline bool init_tcp_session(
+static bool init_tcp_session(
 		unsigned char *remote6_addr, u16 remote6_id,
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
@@ -507,17 +408,17 @@ static noinline bool init_tcp_session(
 		enum tcp_states state,
 		struct session_entry *session)
 {
-	if (!str_to_addr6_verbose(remote6_addr, &session->ipv6.remote.address))
+	if (is_error(str_to_addr6(remote6_addr, &session->ipv6.remote.address)))
 		return false;
 	session->ipv6.remote.l4_id = remote6_id;
-	if (!str_to_addr6_verbose(local6_addr, &session->ipv6.local.address))
+	if (is_error(str_to_addr6(local6_addr, &session->ipv6.local.address)))
 		return false;
 	session->ipv6.local.l4_id = local6_id;
 
-	if (!str_to_addr4_verbose(local4_addr, &session->ipv4.local.address))
+	if (is_error(str_to_addr4(local4_addr, &session->ipv4.local.address)))
 		return false;
 	session->ipv4.local.l4_id = local4_id;
-	if (!str_to_addr4_verbose(remote4_addr, &session->ipv4.remote.address))
+	if (is_error(str_to_addr4(remote4_addr, &session->ipv4.remote.address)))
 		return false;
 	session->ipv4.remote.l4_id = remote4_id;
 
@@ -539,7 +440,7 @@ static noinline bool init_tcp_session(
 #define IPV4_INIT_SESSION_ENTRY_SRC_PORT 1082
 #define IPV4_INIT_SESSION_ENTRY_DST_ADDR "192.168.2.44"
 #define IPV4_INIT_SESSION_ENTRY_DST_PORT 1082
-static noinline bool init_session_entry(l4_protocol l4_proto, struct session_entry *se)
+static bool init_session_entry(l4_protocol l4_proto, struct session_entry *se)
 {
 	struct in_addr src4;
 	struct in_addr dst4;
@@ -579,7 +480,7 @@ static noinline bool init_session_entry(l4_protocol l4_proto, struct session_ent
  * BTW: This test doesn't assert the packet is actually sent.
  */
 /*
-static noinline bool test_send_probe_packet(void)
+static bool test_send_probe_packet(void)
 {
 	struct session_entry se;
 	bool success = true;
@@ -594,7 +495,7 @@ static noinline bool test_send_probe_packet(void)
 }
 */
 
-static noinline bool test_tcp_closed_state_handle_6(void)
+static bool test_tcp_closed_state_handle_6(void)
 {
 	struct session_entry *session;
 	struct tuple tuple;
@@ -625,7 +526,7 @@ static noinline bool test_tcp_closed_state_handle_6(void)
 /*
  * A V6 SYN packet arrives.
  */
-static noinline bool test_tcp_v4_init_state_handle_v6syn(void)
+static bool test_tcp_v4_init_state_handle_v6syn(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -650,7 +551,7 @@ static noinline bool test_tcp_v4_init_state_handle_v6syn(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v4_init_state_handle_else(void)
+static bool test_tcp_v4_init_state_handle_else(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -675,7 +576,7 @@ static noinline bool test_tcp_v4_init_state_handle_else(void)
 /*
  * A V4 SYN packet arrives.
  */
-static noinline bool test_tcp_v6_init_state_handle_v4syn(void)
+static bool test_tcp_v6_init_state_handle_v4syn(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -700,7 +601,7 @@ static noinline bool test_tcp_v6_init_state_handle_v4syn(void)
 /*
  * A V6 SYN packet arrives.
  */
-static noinline bool test_tcp_v6_init_state_handle_v6syn(void)
+static bool test_tcp_v6_init_state_handle_v6syn(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -725,7 +626,7 @@ static noinline bool test_tcp_v6_init_state_handle_v6syn(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v6_init_state_handle_else(void)
+static bool test_tcp_v6_init_state_handle_else(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -749,7 +650,7 @@ static noinline bool test_tcp_v6_init_state_handle_else(void)
 /*
  * A V4 FIN packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v4fin(void)
+static bool test_tcp_established_state_handle_v4fin(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -774,7 +675,7 @@ static noinline bool test_tcp_established_state_handle_v4fin(void)
 /*
  * A V6 FIN packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v6fin(void)
+static bool test_tcp_established_state_handle_v6fin(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -799,7 +700,7 @@ static noinline bool test_tcp_established_state_handle_v6fin(void)
 /*
  * A V4 RST packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v4rst(void)
+static bool test_tcp_established_state_handle_v4rst(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -824,7 +725,7 @@ static noinline bool test_tcp_established_state_handle_v4rst(void)
 /*
  * A V6 RST packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v6rst(void)
+static bool test_tcp_established_state_handle_v6rst(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -849,7 +750,7 @@ static noinline bool test_tcp_established_state_handle_v6rst(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_established_state_handle_else(void)
+static bool test_tcp_established_state_handle_else(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -874,7 +775,7 @@ static noinline bool test_tcp_established_state_handle_else(void)
 /*
  * A V6 FIN packet arrives.
  */
-static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
+static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -899,7 +800,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v4_fin_rcv_state_handle_else(void)
+static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -924,7 +825,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_else(void)
 /*
  * A V4 FIN packet arrives.
  */
-static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
+static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -949,7 +850,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v6_fin_rcv_state_handle_else(void)
+static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -974,7 +875,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_else(void)
 /*
  * A V4 RST packet arrives.
  */
-static noinline bool test_tcp_trans_state_handle_v4rst(void)
+static bool test_tcp_trans_state_handle_v4rst(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -999,7 +900,7 @@ static noinline bool test_tcp_trans_state_handle_v4rst(void)
 /*
 * A V6 RST packet arrives.
 */
-static noinline bool test_tcp_trans_state_handle_v6rst(void)
+static bool test_tcp_trans_state_handle_v6rst(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -1024,7 +925,7 @@ static noinline bool test_tcp_trans_state_handle_v6rst(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_trans_state_handle_else(void)
+static bool test_tcp_trans_state_handle_else(void)
 {
 	struct session_entry session;
 	struct fragment *frag;
@@ -1051,7 +952,7 @@ static noinline bool test_tcp_trans_state_handle_else(void)
  * the inner functions were tested above anyway.
  * The chain is V6 SYN --> V4 SYN --> V6 RST --> V6 SYN.
  */
-static noinline bool test_tcp(void)
+static bool test_tcp(void)
 {
 	bool success = true;
 	struct ipv6_pair pair6;
@@ -1127,7 +1028,7 @@ static noinline bool test_tcp(void)
 	return success;
 }
 
-static noinline bool init_full(void)
+static bool init_full(void)
 {
 	char *prefixes[] = { "3::/96" };
 	int error;
@@ -1157,12 +1058,12 @@ fail:
 	return false;
 }
 
-static noinline bool init_filtering_only(void)
+static bool init_filtering_only(void)
 {
 	if (is_error(pktmod_init()))
 		return false;
 	if (is_error(sessiondb_init()))
-			return false;
+		return false;
 	if (is_error(filtering_init()))
 		return false;
 
@@ -1188,12 +1089,11 @@ static void end_filtering_only(void)
 
 #define TEST_FILTERING_ONLY(fn, name) \
 		INIT_CALL_END(init_filtering_only(), fn, end_filtering_only(), name)
-static int __init filtering_test_init(void)
+static int filtering_test_init(void)
 {
 	START_TESTS("Filtering and Updating");
 
 	/* General */
-	INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address(), end_full(), "allocate addr");
 	INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "core function");
 
 	/* UDP */
@@ -1229,7 +1129,7 @@ static int __init filtering_test_init(void)
 	END_TESTS;
 }
 
-static void __exit filtering_test_exit(void)
+static void filtering_test_exit(void)
 {
 	/* No code. */
 }

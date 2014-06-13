@@ -1,5 +1,6 @@
-#include <linux/skbuff.h>
-#include "nat64/comm/types.h"
+#ifndef _JOOL_UNIT_SKB_GENERATOR_H
+#define _JOOL_UNIT_SKB_GENERATOR_H
+
 #include "nat64/mod/packet.h"
 
 
@@ -36,3 +37,6 @@ int create_skb_ipv6_icmp_info_fragment_n(struct ipv6_pair *pair6, struct sk_buff
 
 int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct packet **pkt);
 int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct packet **pkt);
+
+
+#endif /* _JOOL_UNIT_SKB_GENERATOR_H */

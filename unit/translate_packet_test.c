@@ -321,7 +321,7 @@ static bool test_function_has_unexpired_src_route(void)
 	bool success = true;
 
 	if (!hdr) {
-		log_warning("Can't allocate a test header.");
+		log_err("Can't allocate a test header.");
 		return false;
 	}
 	options = (unsigned char *) (hdr + 1);
@@ -611,7 +611,7 @@ static bool test_function_build_protocol_field(void)
 
 	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + 8 + 16 + 24 + sizeof(struct tcphdr), GFP_ATOMIC);
 	if (!ip6_hdr) {
-		log_warning("Could not allocate a test packet.");
+		log_err("Could not allocate a test packet.");
 		goto failure;
 	}
 
@@ -665,7 +665,7 @@ static bool test_function_has_nonzero_segments_left(void)
 
 	ip6_hdr = kmalloc(sizeof(*ip6_hdr) + sizeof(*fragment_hdr) + sizeof(*routing_hdr), GFP_ATOMIC);
 	if (!ip6_hdr) {
-		log_warning("Could not allocate a test packet.");
+		log_err("Could not allocate a test packet.");
 		return false;
 	}
 	ip6_hdr->payload_len = cpu_to_be16(sizeof(*fragment_hdr) + sizeof(*routing_hdr));

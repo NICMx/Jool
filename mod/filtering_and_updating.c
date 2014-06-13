@@ -738,7 +738,7 @@ int filtering_init(void)
 {
 	config = kmalloc(sizeof(*config), GFP_ATOMIC);
 	if (!config) {
-		log_err("Could not allocate memory to store the filtering config.");
+		log_debug("Could not allocate memory to store the filtering config.");
 		return -ENOMEM;
 	}
 

@@ -89,7 +89,7 @@ static bool test(void)
 
 	/* Init. */
 	if (test_table_init(&table, &equals_function, &hash_code_function) < 0) {
-		log_warning("The init function failed.");
+		log_err("The init function failed.");
 		return false;
 	}
 	test_table_print(&table, "After init");
@@ -97,7 +97,7 @@ static bool test(void)
 	/* Test put and get. */
 	for (i = 0; i < 3; i++)
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
-			log_warning("Put operation (1) failed on value %d.", i);
+			log_err("Put operation (1) failed on value %d.", i);
 			goto failure;
 		}
 
@@ -107,7 +107,7 @@ static bool test(void)
 
 	/* Test remove. */
 	if (!test_table_remove(&table, &keys[1], NULL)) {
-		log_warning("Remove operation failed on value 1.");
+		log_err("Remove operation failed on value 1.");
 		goto failure;
 	}
 	values[1].value = -1;
@@ -132,7 +132,7 @@ static bool test(void)
 
 	for (i = 0; i < 3; i++)
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
-			log_warning("Put operation (2) failed on value %d.", i);
+			log_err("Put operation (2) failed on value %d.", i);
 			goto failure;
 		}
 
@@ -166,7 +166,7 @@ static int for_each_func(struct table_value *val, void *arg)
 	struct loop_summary *summary = arg;
 
 	if (summary->array_size >= 3) {
-		log_warning("Expected only 3 values in the table.");
+		log_err("Expected only 3 values in the table.");
 		return -EINVAL;
 	}
 
@@ -193,7 +193,7 @@ static bool test_for_each_function(void)
 	test_table_init(&table, &equals_function, &hash_code_function);
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
-			log_warning("Put operation failed on value %d.", i);
+			log_err("Put operation failed on value %d.", i);
 			test_table_empty(&table, NULL);
 			return false;
 		}

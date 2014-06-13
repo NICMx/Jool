@@ -51,11 +51,11 @@ static int get_bibdb_table(l4_protocol l4_proto, struct bib_table **result)
 		*result = &bib_icmp;
 		return 0;
 	case L4PROTO_NONE:
-		log_crit(ERR_ILLEGAL_NONE, "There's no BIB for the 'NONE' protocol.");
+		WARN(true, "There's no BIB for the 'NONE' protocol.");
 		return -EINVAL;
 	}
 
-	log_crit(ERR_L4PROTO, "Unsupported transport protocol: %u.", l4_proto);
+	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
 	return -EINVAL;
 }
 
@@ -228,7 +228,7 @@ static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
  * @param[out] result the transport address we borrowed from the pool.
  * @return true if everything went OK, false otherwise.
  */
-static int allocate_ipv4_transport_address(struct bib_table *table, struct tuple *base,
+static int allocate_transport_address(struct bib_table *table, struct tuple *base,
 		struct ipv4_tuple_address *result)
 {
 	int error;
@@ -239,10 +239,10 @@ static int allocate_ipv4_transport_address(struct bib_table *table, struct tuple
 
 	/* First, try to find a perfect match (Same address and a compatible port or id). */
 	error = for_each_bib_ipv6(table, &base->src.addr.ipv6, find_perfect_addr4, &args);
-	if (error < 0)
-		return error; /* Something failed, report.*/
-	else if (error > 0)
+	if (error > 0)
 		return 0; /* A match was found and "result" is already populated, so report success. */
+	else if (error < 0)
+		return error; /* Something failed, report.*/
 
 	/*
 	 * Else, iteration ended with no perfect match. Find a good match instead...
@@ -254,7 +254,11 @@ static int allocate_ipv4_transport_address(struct bib_table *table, struct tuple
 	else if (error > 0)
 		return 0;
 
-	/* There are no good matches. Just use any available IPv4 address and hope for the best. */
+	/*
+	 * There are no good matches. Just use any available IPv4 address and hope for the best.
+	 * Alternatively, this could be the first BIB entry being created, so assign any address
+	 * anyway.
+	 */
 	return pool4_get_any_addr(base->l4_proto, base->src.l4_id, result);
 }
 
@@ -305,10 +309,8 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result)
 	struct ipv6_tuple_address addr6;
 	struct ipv4_tuple_address addr4;
 
-	if (!tuple) {
-		log_err(ERR_NULL, "There's no BIB entry mapped to NULL.");
+	if (WARN(!tuple, "There's no BIB entry mapped to NULL."))
 		return -EINVAL;
-	}
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
@@ -321,7 +323,7 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result)
 		return bibdb_get_by_ipv4(&addr4, tuple->l4_proto, result);
 	}
 
-	log_crit(ERR_L3PROTO, "Unsupported network protocol: %u.", tuple->l3_proto);
+	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
 	return -EINVAL;
 }
 
@@ -332,10 +334,8 @@ int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 	int error;
 
 	/* Sanitize */
-	if (!addr) {
-		log_warning("The BIBs cannot contain NULL.");
+	if (WARN(!addr, "The BIBs cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_bibdb_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -359,10 +359,8 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 	int error;
 
 	/* Sanitize */
-	if (!addr) {
-		log_warning("The BIBs cannot contain NULL.");
+	if (WARN(!addr, "The BIBs cannot contain NULL."))
 		return -EINVAL;
-	}
 	error = get_bibdb_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -385,10 +383,8 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
 	int error;
 
 	/* Sanity */
-	if (!entry) {
-		log_err(ERR_NULL, "NULL is not a valid BIB entry.");
+	if (WARN(!entry, "NULL is not a valid BIB entry."))
 		return -EINVAL;
-	}
 	error = get_bibdb_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -397,8 +393,10 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
 	spin_lock_bh(&table->lock);
 
 	error = rbtree_add(entry, ipv6, &table->tree6, compare_full6, struct bib_entry, tree6_hook);
-	if (error)
+	if (error) {
+		log_debug("IPv6 index failed.");
 		goto spin_exit;
+	}
 
 	error = rbtree_add(entry, ipv4, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
 	if (error) {
@@ -408,6 +406,7 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
 		 * from static_routes.
 		 */
 		rb_erase(&entry->tree6_hook, &table->tree6);
+		log_debug("IPv4 index failed.");
 		goto spin_exit;
 	}
 
@@ -419,17 +418,15 @@ spin_exit:
 	return error;
 }
 
-int bibdb_remove(struct bib_entry *entry, bool lock)
+int bibdb_remove(struct bib_entry *entry, const bool lock)
 {
 	struct bib_table *table;
 	int error;
 
-	if (!entry) {
-		log_err(ERR_NULL, "The BIBs cannot contain NULL.");
+	if (WARN(!entry, "The BIBs cannot contain NULL."))
 		return -EINVAL;
-	}
 	if (RB_EMPTY_NODE(&entry->tree6_hook) || RB_EMPTY_NODE(&entry->tree4_hook)) {
-		log_err(ERR_BIB_NOT_FOUND, "BIB entry does not belong to any trees.");
+		log_debug("BIB entry does not belong to any trees.");
 		return -EINVAL;
 	}
 	error = get_bibdb_table(entry->l4_proto, &table);
@@ -482,21 +479,19 @@ static struct rb_node *find_best_node(struct bib_table *table, struct ipv4_tuple
 	int error;
 	int gap;
 
-	if (!iterate) {
+	if (!iterate)
 		return rb_first(&table->tree4);
-	}
 
-	if (!ipv4)	{
+	if (WARN(!ipv4, "The IPv4 address is NULL."))
 		return NULL;
-	}
 
 	error = rbtree_find_node(ipv4, &table->tree4, compare_full4, struct bib_entry,
 				tree4_hook, parent, node);
-	if (*node) {
+	if (*node)
 		return rb_next(*node);
-	}
+
 	bib = rb_entry(parent, struct bib_entry, tree4_hook);
-	gap = compare_full4(bib, ipv4); // positivo si derecha es mayor.
+	gap = compare_full4(bib, ipv4);
 	if (gap < 0)
 		return parent;
 
@@ -554,10 +549,8 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 	int error;
 
 	/* Sanitize */
-	if (!tuple) {
-		log_warning("The BIBs cannot contain NULL.");
+	if (WARN(!tuple, "The BIBs cannot contain NULL."))
 		return -EINVAL;
-	}
 
 	addr6.address = tuple->src.addr.ipv6;
 	addr6.l4_id = tuple->src.l4_id;
@@ -579,9 +572,9 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 	}
 
 	/* The entry is not in the table, so create it. */
-	error = allocate_ipv4_transport_address(table, tuple, &addr4);
+	error = allocate_transport_address(table, tuple, &addr4);
 	if (error) {
-		log_warning("Error code %d while 'allocating' an address for a BIB entry.", error);
+		log_debug("Error code %d while 'allocating' an address for a BIB entry.", error);
 		if (tuple->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
 			icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
@@ -592,7 +585,7 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 
 	*bib = bib_create(&addr4, &addr6, false, tuple->l4_proto);
 	if (!(*bib)) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a BIB entry.");
+		log_debug("Failed to allocate a BIB entry.");
 		spin_unlock_bh(&table->lock);
 		return -ENOMEM;
 	}
@@ -604,7 +597,7 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 	/* Index it by IPv4. */
 	error = rbtree_add(*bib, ipv4, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
 	if (error) {
-		log_crit(ERR_ADD_BIB_FAILED, "The BIB entry could be indexed by IPv6 but not by IPv4.");
+		WARN(true, "The BIB entry could be indexed by IPv6 but not by IPv4.");
 		rb_erase(&(*bib)->tree6_hook, &table->tree6);
 		bib_kfree(*bib);
 		spin_unlock_bh(&table->lock);
@@ -679,10 +672,8 @@ success:
 
 int bibdb_delete_by_ipv4(struct in_addr *addr)
 {
-	if (!addr) {
-		log_err(ERR_NULL, "ipv4 address is NULL");
+	if (WARN(!addr, "ipv4 address is NULL"))
 		return -EINVAL;
-	}
 
 	delete_bibs_by_ipv4(&bib_tcp, addr);
 	delete_bibs_by_ipv4(&bib_icmp, addr);

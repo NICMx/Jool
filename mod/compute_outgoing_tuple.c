@@ -19,10 +19,9 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 
 	error = bibdb_get(in, &bib);
 	if (error) {
-		/* TODO What about ICMP errors? they don't get filtered and updated. */
-		log_debug("Error code %d while trying to find a BIB entry we just created or updated in "
-				"the Filtering and Updating step...", error);
-		goto fail;
+		/* Bogus ICMP errors might cause this, so it's not critical. */
+		log_debug("Error code %d while trying to find the packet's BIB entry.", error);
+		return VER_DROP;
 	}
 
 	switch (in->l3_proto) {
@@ -71,10 +70,9 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 
 	error = bibdb_get(in, &bib);
 	if (error) {
-		/* TODO What about ICMP errors? they don't get filtered and updated. */
-		log_debug("Error code %d while trying to find a BIB entry we just created or updated in "
-				"the Filtering and Updating step...", error);
-		goto fail;
+		/* Bogus ICMP errors might cause this, so it's not critical. */
+		log_debug("Error code %d while trying to find the packet's BIB entry.", error);
+		return VER_DROP;
 	}
 
 	switch (in->l3_proto) {

@@ -82,22 +82,10 @@ static struct nf_hook_ops nfho[] = {
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET,
 		.priority = NF_PRI_NAT64,
-	},
-	{
-		.hook = hook_ipv6,
-		.hooknum = NF_INET_LOCAL_OUT,
-		.pf = PF_INET6,
-		.priority = NF_PRI_NAT64,
-	},
-	{
-		.hook = hook_ipv4,
-		.hooknum = NF_INET_LOCAL_OUT,
-		.pf = PF_INET,
-		.priority = NF_PRI_NAT64,
 	}
 };
 
-int __init nat64_init(void)
+static int __init nat64_init(void)
 {
 	int error;
 
@@ -139,7 +127,7 @@ int __init nat64_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_debug(MODULE_NAME " module inserted.");
+	log_info(MODULE_NAME " module inserted.");
 	return error;
 
 nf_register_hooks_failure:
@@ -173,7 +161,7 @@ pktmod_failure:
 	return error;
 }
 
-void __exit nat64_exit(void)
+static void __exit nat64_exit(void)
 {
 	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
@@ -189,7 +177,7 @@ void __exit nat64_exit(void)
 	config_destroy();
 	pktmod_destroy();
 
-	log_debug(MODULE_NAME " module removed.");
+	log_info(MODULE_NAME " module removed.");
 }
 
 module_init(nat64_init);

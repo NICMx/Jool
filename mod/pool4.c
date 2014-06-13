@@ -295,7 +295,7 @@ int pool4_remove(struct in_addr *addr)
 
 not_found:
 	spin_unlock_bh(&pool_lock);
-	log_err(ERR_POOL4_NOT_FOUND, "The address is not part of the pool.");
+	log_err("The address is not part of the pool.");
 	return -ENOENT;
 }
 
@@ -428,7 +428,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 	spin_lock_bh(&pool_lock);
 
 	if (pool.node_count == 0) {
-		log_debug("The IPv4 pool is empty.");
+		log_warn_once("The IPv4 pool is empty.");
 		goto failure;
 	}
 
@@ -464,7 +464,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 			goto success;
 	} while (original_addr != last_used_addr);
 
-	log_debug("I completely ran out of IPv4 addresses and ports.");
+	log_warn_once("I completely ran out of IPv4 addresses and ports.");
 	error = -ESRCH;
 
 failure:

@@ -27,7 +27,7 @@
  * This module contains no header file; it needs to be #included directly.
  */
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 #include <linux/slab.h>
 
 /********************************************

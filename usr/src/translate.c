@@ -1,5 +1,6 @@
 #include "nat64/usr/translate.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
 #include <errno.h>
 

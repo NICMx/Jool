@@ -1,4 +1,5 @@
 #include "nat64/usr/dns.h"
+#include "nat64/usr/types.h"
 #include <netdb.h>
 #include <stdio.h>
 
@@ -20,7 +21,7 @@ void print_ipv6_tuple(struct ipv6_tuple_address *tuple, bool numeric_hostname)
 	err = getnameinfo((const struct sockaddr*) &sa6, sizeof(sa6),
 			hostname, sizeof(hostname), service, sizeof(service), 0);
 	if (err != 0) {
-		log_err(ERR_UNKNOWN_ERROR, "getnameinfo failed: %s", gai_strerror(err));
+		log_err("getnameinfo failed: %s", gai_strerror(err));
 		goto print_numeric;
 	}
 
@@ -50,7 +51,7 @@ void print_ipv4_tuple(struct ipv4_tuple_address *tuple, bool numeric_hostname)
 	err = getnameinfo((const struct sockaddr*) &sa, sizeof(sa),
 			hostname, sizeof(hostname), service, sizeof(service), 0);
 	if (err != 0) {
-		log_err(ERR_UNKNOWN_ERROR, "getnameinfo failed: %s", gai_strerror(err));
+		log_err("getnameinfo failed: %s", gai_strerror(err));
 		goto print_numeric;
 	}
 

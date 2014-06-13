@@ -1,6 +1,6 @@
 #include "nat64/mod/out_stream.h"
 #include "net/netlink.h"
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 
 
 static int flush(struct out_stream *stream, __u16 nlmsg_type, __u16	nlmsg_flags)

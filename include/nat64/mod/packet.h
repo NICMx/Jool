@@ -12,7 +12,7 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
 
@@ -220,9 +220,9 @@ int frag_create_from_skb(struct sk_buff *skb, struct fragment **frag);
  * @return zero on success, non-zero for an error status.
  */
 int frag_create_from_buffer_ipv6(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **frag, struct sk_buff *skb);
+		struct fragment **frag);
 int frag_create_from_buffer_ipv4(unsigned char *buffer, unsigned int len, bool is_truncated,
-		struct fragment **frag, struct sk_buff *skb);
+		struct fragment **frag);
 /** Allocates "out" under the assumption that a skb is going to be created from it. */
 int frag_create_empty(struct fragment **out);
 

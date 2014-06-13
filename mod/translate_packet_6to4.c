@@ -361,7 +361,7 @@ static verdict translate_inner_packet_6to4(struct tuple *tuple, struct fragment 
 
 	/* Prepare the translate function's requirements. */
 	if (is_error(frag_create_from_buffer_ipv6(in_outer->payload.ptr, in_outer->payload.len, true,
-			&in_inner, NULL)))
+			&in_inner)))
 		goto end;
 
 	if (in_inner->l4_hdr.proto == L4PROTO_ICMP) {
