@@ -91,6 +91,10 @@ void bib_get(struct bib_entry *bib);
  * DON'T USE "bib" AFTER YOU RETURN IT!
  */
 int bib_return(struct bib_entry *bib);
+/**
+ * If for some reason you locked the BIB tables and need to return a BIB entry, you have to use
+ * this version so the return doesn't try to lock the table again.
+ */
 int bib_return_lockless(struct bib_entry *bib);
 
 
@@ -161,8 +165,8 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
 
 /**
- * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto".
- * Expects all fields from "entry" to have been initialized.
+ * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto". Make sure you initialized
+ * "entry" using bib_create(), please.
  *
  * The table's references are not supposed to count towards the entries' refcounts. Do free your
  * reference if your entry made it into the table; do not assume you're transferring it.
@@ -193,16 +197,29 @@ int bibdb_remove(struct bib_entry *entry, bool lock);
  * @param arg something you want to send func for every entry.
  */
 int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg);
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
-		bool iterate, int (*func)(struct bib_entry *, void *), void *arg);
 /**
- * Sets in the value pointed by "result" the number of entries in the table whose protocol is
+ * Similar to bibdb_for_each(), except it only runs the function for BIB entries whose IPv4
+ * transport address is "addr".
+ */
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4, bool starting,
+		int (*func)(struct bib_entry *, void *), void *arg);
+/**
+ * Sets in the value pointed by "result" the number of entries in the database whose protocol is
  * "l4_proto".
  */
 int bibdb_count(l4_protocol proto, __u64 *result);
 
-
+/**
+ * Returns in "bib" the BIB entry you'd expect from the "tuple" tuple.
+ * If it doesn't exist, it is created, added and returned.
+ * IPv6 to IPv4 direction.
+ */
 int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
+
+/**
+ * Removes the fake users of all the BIB entries whose local IPv4 address is "addr4".
+ * This is probably a lot faster than you think.
+ */
 int bibdb_delete_by_ipv4(struct in_addr *addr);
 
 

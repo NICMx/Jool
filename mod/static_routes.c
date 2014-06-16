@@ -21,8 +21,9 @@ int add_static_route(struct request_bib *req)
 
 	error = pool4_get(req->l4_proto, &req->add.ipv4);
 	if (error) {
-		log_err("The IPv4 address and port could not be reserved from the pool."
-				"Maybe they're being used by some other BIB entry?");
+		log_err("The IPv4 address and port could not be reserved from the pool. "
+				"Maybe the IPv4 address you provided does not belong to the pool. "
+				"Or maybe they're being used by some other BIB entry?");
 		return error;
 	}
 

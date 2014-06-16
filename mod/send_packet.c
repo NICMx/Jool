@@ -8,120 +8,6 @@
 #include <net/route.h>
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-
-struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, l4_protocol l4_proto, u32 mark)
-{
-	struct flowi flow;
-	struct rtable *table;
-	int error;
-
-	memset(&flow, 0, sizeof(flow));
-	/* flow.oif; */
-	/* flow.iif; */
-	flow.mark = mark;
-	flow.fl4_dst = hdr_ip4->daddr;
-	/* flow.fl4_src = hdr_ip4->saddr; */
-	flow.fl4_tos = RT_TOS(hdr_ip4->tos);
-	flow.fl4_scope = RT_SCOPE_UNIVERSE;
-	flow.proto = hdr_ip4->protocol;
-	flow.flags = 0;
-	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmphdr *hdr_icmp4;
-
-		switch (l4_proto) {
-		case L4PROTO_NONE:
-			break;
-		case L4PROTO_TCP:
-			hdr_tcp = l4_hdr;
-			flow.fl_ip_sport = hdr_tcp->source;
-			flow.fl_ip_dport = hdr_tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr_udp = l4_hdr;
-			flow.fl_ip_sport = hdr_udp->source;
-			flow.fl_ip_dport = hdr_udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr_icmp4 = l4_hdr;
-			flow.fl_icmp_type = hdr_icmp4->type;
-			flow.fl_icmp_code = hdr_icmp4->code;
-			break;
-		}
-	}
-	/* flow.secid; */
-
-	error = ip_route_output_key(&init_net, &table, &flow);
-	if (error) {
-		log_debug("ip_route_output_key() failed. Code: %d. Cannot route packet.", -error);
-		return NULL;
-	}
-	if (!table) {
-		log_debug("The routing table is NULL. Cannot route packet.");
-		return NULL;
-	}
-
-	return &table->dst;
-}
-
-struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, l4_protocol l4_proto, u32 mark)
-{
-	struct flowi flow;
-	struct dst_entry *dst;
-
-	memset(&flow, 0, sizeof(flow));
-	/* flow.oif; */
-	/* flow.iif; */
-	flow.mark = mark;
-	flow.fl6_dst = hdr_ip6->daddr;
-	flow.fl6_src = hdr_ip6->saddr;
-	flow.fl6_flowlabel = get_flow_label(hdr_ip6);
-	flow.proto = hdr_ip6->nexthdr;
-	flow.flags = 0;
-	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmp6hdr *hdr_icmp6;
-
-		switch (l4_proto) {
-		case L4PROTO_NONE:
-			break;
-		case L4PROTO_TCP:
-			hdr_tcp = l4_hdr;
-			flow.fl_ip_sport = hdr_tcp->source;
-			flow.fl_ip_dport = hdr_tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr_udp = l4_hdr;
-			flow.fl_ip_sport = hdr_udp->source;
-			flow.fl_ip_dport = hdr_udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr_icmp6 = l4_hdr;
-			flow.fl_icmp_type = hdr_icmp6->icmp6_type;
-			flow.fl_icmp_code = hdr_icmp6->icmp6_code;
-			break;
-		}
-	}
-	/* flow.secid; */
-
-	dst = ip6_route_output(&init_net, NULL, &flow);
-	if (!dst) {
-		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
-		return NULL;
-	}
-	if (dst->error) {
-		log_debug("ip6_route_output() returned error %d. Cannot route packet.", -dst->error);
-		return NULL;
-	}
-
-	return dst;
-}
-
-#else
-
 struct dst_entry *route_ipv4(struct iphdr *hdr_ip, void *l4_hdr, l4_protocol l4_proto, u32 mark)
 {
 	struct flowi4 flow;
@@ -247,9 +133,6 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip, void *l4_hdr, l4_protocol l
 
 	return dst;
 }
-
-#endif
-
 
 verdict send_pkt(struct packet *pkt)
 {

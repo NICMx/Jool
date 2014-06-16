@@ -167,7 +167,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	/* Packets not belonging to the IPv6 must not be translated. */
+	/* Packets not belonging to the IPv6 pool must not be translated. */
 	if (is_error(init_pair6(&pair6, "1::2", 1212, INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR, 3434)))
 		return false;
 	if (is_error(init_ipv6_tuple_from_pair(&tuple, &pair6, L4PROTO_UDP)))
@@ -185,7 +185,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	/* Packets not belonging to the IPv4 must not be translated. */
+	/* Packets not belonging to the IPv4 pool must not be translated. */
 	if (is_error(init_pair4(&pair4, INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR, 8765, "5.6.7.8", 5678)))
 		return false;
 	if (is_error(init_ipv4_tuple_from_pair(&tuple, &pair4, L4PROTO_UDP)))

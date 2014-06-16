@@ -160,7 +160,8 @@ static int find_runnerup_addr4(struct bib_entry *bib, void *void_args)
  * Runs the "func" function on every entry in "table" whose IPv6 address is "addr".
  * Aside from each entry, it always sends "args" as a parameter to "func".
  *
- * Do not expect the entries to be visited in any particular order.
+ * This function's performance is critical; do not expect the entries to be visited in any
+ * particular order.
  */
 static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
 		int (*func)(struct bib_entry *, void *), void *arg)
@@ -458,69 +459,63 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
 
 	spin_lock_bh(&table->lock);
 
-	for (node = rb_first(&table->tree4); node; node = rb_next(node)) {
+	for (node = rb_first(&table->tree4); node && !error; node = rb_next(node)) {
 		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
-		if (error)
-			goto spin_exit;
 	}
 
-	/* Fall through. */
-
-spin_exit:
 	spin_unlock_bh(&table->lock);
 	return error;
 }
 
-static struct rb_node *find_best_node(struct bib_table *table, struct ipv4_tuple_address *ipv4,
-		bool iterate)
+/**
+ * Tries to find the session whose local IPv4 address is "addr".
+ * If such an entry cannot be found, it returns the one right next to it if it existed.
+ *
+ * Why?
+ * When the user requests the table to be displayed, the kernel module sends it in chunks because
+ * it might be too big for a single Netlink message.
+ * This is the function that finds the next chunk where iteration should continue. The quirk of
+ * choosing the next session if it doesn't exist is because the first session of the next chunk
+ * could have died while the previous chunk was transmitted... so the iteration should just ignore
+ * it and continue with the next session peacefully.
+ */
+static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_tuple_address *addr4,
+		bool starting)
 {
-	struct rb_node **node, *parent;
 	struct bib_entry *bib;
-	int error;
-	int gap;
+	struct rb_node **node;
+	struct rb_node *parent;
 
-	if (!iterate)
+	if (starting)
 		return rb_first(&table->tree4);
 
-	if (WARN(!ipv4, "The IPv4 address is NULL."))
-		return NULL;
-
-	error = rbtree_find_node(ipv4, &table->tree4, compare_full4, struct bib_entry,
-				tree4_hook, parent, node);
+	rbtree_find_node(addr4, &table->tree4, compare_full4, struct bib_entry, tree4_hook, parent,
+			node);
 	if (*node)
 		return rb_next(*node);
 
 	bib = rb_entry(parent, struct bib_entry, tree4_hook);
-	gap = compare_full4(bib, ipv4);
-	if (gap < 0)
-		return parent;
-
-	return rb_next(parent);
+	return (compare_full4(bib, addr4) < 0) ? parent : rb_next(parent);
 }
 
-/** TODO: look for an appropiate name for this function*/
-/**
- * Iterate through the session table, starts next ipv4_tuple_address
- */
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
-		bool iterate, int (*func)(struct bib_entry *, void *), void *arg)
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4, bool starting,
+		int (*func)(struct bib_entry *, void *), void *arg)
 {
 	struct bib_table *table;
 	struct rb_node *node;
 	int error;
 
+	if (WARN(!ipv4, "The IPv4 address is NULL."))
+		return -EINVAL;
 	error = get_bibdb_table(l4_proto, &table);
 	if (error)
 		return error;
 
 	spin_lock_bh(&table->lock);
-	for (node = find_best_node(table, ipv4, iterate); node; node = rb_next(node)) {
+	for (node = find_next_chunk(table, ipv4, starting); node && !error; node = rb_next(node)) {
 		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
-		if (error)
-			goto spin_exit;
 	}
 
-spin_exit:
 	spin_unlock_bh(&table->lock);
 	return error;
 }
@@ -562,13 +557,12 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 	/* Find it */
 	spin_lock_bh(&table->lock);
 
-	error = rbtree_find_node(&addr6, &table->tree6, compare_full6, struct bib_entry, tree6_hook,
-			parent, node);
+	rbtree_find_node(&addr6, &table->tree6, compare_full6, struct bib_entry, tree6_hook, parent,
+			node);
 	if (*node) {
 		*bib = rb_entry(*node, struct bib_entry, tree6_hook);
 		bib_get(*bib);
-		spin_unlock_bh(&table->lock);
-		return 0;
+		goto end;
 	}
 
 	/* The entry is not in the table, so create it. */
@@ -579,15 +573,14 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
 			icmp64_send(frag, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
-		spin_unlock_bh(&table->lock);
-		return error;
+		goto end;
 	}
 
 	*bib = bib_create(&addr4, &addr6, false, tuple->l4_proto);
 	if (!(*bib)) {
 		log_debug("Failed to allocate a BIB entry.");
-		spin_unlock_bh(&table->lock);
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto end;
 	}
 
 	/* Index it by IPv6. We already have the slot, so we don't need to do another rbtree_find(). */
@@ -600,14 +593,15 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
 		WARN(true, "The BIB entry could be indexed by IPv6 but not by IPv4.");
 		rb_erase(&(*bib)->tree6_hook, &table->tree6);
 		bib_kfree(*bib);
-		spin_unlock_bh(&table->lock);
-		return error;
+		goto end;
 	}
 
 	table->count++;
+	/* Fall through. */
 
+end:
 	spin_unlock_bh(&table->lock);
-	return 0;
+	return error;
 }
 
 /**
@@ -672,7 +666,7 @@ success:
 
 int bibdb_delete_by_ipv4(struct in_addr *addr)
 {
-	if (WARN(!addr, "ipv4 address is NULL"))
+	if (WARN(!addr, "IPv4 address is NULL"))
 		return -EINVAL;
 
 	delete_bibs_by_ipv4(&bib_tcp, addr);

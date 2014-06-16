@@ -164,7 +164,7 @@ int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
  *
  * It increases "result"'s refcount. Make sure you decrement it when you're done.
  *
- * @param[in] pairt IPv6 data you want the session entry for.
+ * @param[in] pair IPv6 data you want the session entry for.
  * @param[in] l4_proto identifier of the table to retrieve the entry from.
  * @param[out] result the Session entry from the "l4_proto" table whose IPv6 side (both addresses
  *		and ports) is "address".
@@ -202,31 +202,57 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result);
 bool sessiondb_allow(struct tuple *tuple);
 
 /**
- * Adds "session" to the database. Expects all fields but the list_heads from "entry" to have been
- * initialized.
+ * Adds "session" to the database. Make sure you initialized "session" using session_create(),
+ * please.
  *
  * @param session row to be added to the table.
  * @return error status.
  */
 int sessiondb_add(struct session_entry *session);
 
+/**
+ * Runs the "func" function for every session in the session table whose l4-protocol is "l4_proto".
+ * It sends each entry and "arg" to every call of "func".
+ *
+ * Warning: This locks the table while you're iterating. You want to quit early if the tree is big.
+ */
 int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
-int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4,
-		bool iterate, int (*func)(struct session_entry *, void *), void *arg);
+/**
+ * Similar to sessiondb_for_each(), except it only runs the function for sessions whose IPv4
+ * transport address is "addr".
+ */
+int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *addr, bool starting,
+		int (*func)(struct session_entry *, void *), void *arg);
+/**
+ * Returns in "result" the number of sessions in the table whose l4-protocol is "proto".
+ */
 int sessiondb_count(l4_protocol proto, __u64 *result);
 
 /**
- * this functions is used in statics_routes to delete every session of the bib
+ * Deletes from the database all of the session entries whose BIB entry is "bib".
+ * This is probably a lot faster than you think.
  */
 int sessiondb_delete_by_bib(struct bib_entry *bib);
-
 /**
- * Helper function for pool4.c delete
+ * Deletes from the database all of the session entries whose local IPv4 address is "addr4".
+ * This is probably a lot faster than you think.
  */
 int sessiondb_delete_by_ipv4(struct in_addr *addr4);
 
-int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib, struct session_entry **session);
-int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, struct session_entry **session);
+/**
+ * Returns in "result" the session entry you'd expect from the "tuple" tuple.
+ * If it doesn't exist, it is created, added and returned.
+ * IPv6 to IPv4 direction.
+ */
+int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
+		struct session_entry **session);
+/**
+ * Returns in "result" the session entry you'd expect from the "tuple" tuple.
+ * If it doesn't exist, it is created, added and returned.
+ * IPv4 to IPv6 direction.
+ */
+int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
+		struct session_entry **session);
 
 /**
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time and moves it from its
@@ -234,6 +260,10 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib, str
  */
 void sessiondb_update_timer(struct session_entry *session, timer_type type, __u64 ttl);
 
+/**
+ * Helper of update_list_timer function in filtering_and_updating.
+ * Updates every "session"->dying_time of the expired list for the new ttl.
+ */
 void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl);
 
 #endif /* _NF_NAT64_SESSION_DB_H */

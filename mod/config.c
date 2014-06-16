@@ -251,7 +251,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 		stream_init(stream, nl_socket, nl_hdr);
 		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.ipv4,
-					request->display.iterate, bib_entry_to_userspace, stream);
+				!request->display.iterate, bib_entry_to_userspace, stream);
 		if (error > 0) {
 			error = stream_close_continue(stream);
 		} else {
@@ -321,8 +321,8 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->ipv4,
-						request->iterate, session_entry_to_userspace, stream);
+		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->ipv4, !request->iterate,
+				session_entry_to_userspace, stream);
 		if (error > 0) {
 			error = stream_close_continue(stream);
 		} else {

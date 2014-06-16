@@ -107,13 +107,13 @@
 		(root)->rb_node = NULL; \
 	}
 
+
 /**
- * Similar to rbtree_find(), except if it doesn't find the node it returns the slot where it'd be
- * placed so you can insert something in there.
- */
+  * Similar to rbtree_find(), except if it doesn't find the node it returns the slot where it'd be
+  * placed so you can insert something in there.
+  */
 #define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, node) \
 	({ \
-		int err = 0; \
 		node = &((root)->rb_node); \
 		parent = NULL; \
 		\
@@ -128,11 +128,9 @@
 			} else if (comparison > 0) { \
 				node = &((*node)->rb_right); \
 			} else { \
-				err = -EEXIST; \
 				break; \
 			} \
 		} \
-		err; \
 	})
 
 

@@ -63,6 +63,7 @@ static bool display_single_table(char *table_name, l4_protocol l4_proto, bool nu
 	hdr->operation = OP_DISPLAY;
 	payload->l4_proto = l4_proto;
 	payload->display.iterate = false;
+	memset(&payload->display.ipv4, 0, sizeof(payload->display.ipv4));
 
 	params.numeric_hostname = numeric_hostname;
 	params.row_count = 0;
