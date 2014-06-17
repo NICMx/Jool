@@ -150,7 +150,7 @@ static struct bib_entry *create_and_insert_static_bib(int l4_proto)
 		log_err("Could not allocate the static BIB entry.");
 		return NULL;
 	}
-	if (is_error(bibdb_add(bib, l4_proto)))
+	if (is_error(bibdb_add(bib)))
 		return NULL;
 
 	return bib;

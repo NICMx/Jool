@@ -58,8 +58,8 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 	result->ipv6 = *ipv6;
 	result->l4_proto = l4_proto;
 	result->is_static = is_static;
-	RB_CLEAR_NODE(&result->tree6_hook);
-	RB_CLEAR_NODE(&result->tree4_hook);
+	rb_init_node(&result->tree6_hook);
+	rb_init_node(&result->tree4_hook);
 
 	return result;
 }

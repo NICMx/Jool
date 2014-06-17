@@ -34,7 +34,7 @@ int add_static_route(struct request_bib *req)
 		goto bib_error;
 	}
 
-	error = bibdb_add(bib, req->l4_proto);
+	error = bibdb_add(bib);
 	if (error) {
 		log_err("The BIB entry could not be added to the database. Maybe an entry with the "
 				"same IPv4 and/or IPv6 transport address already exists?");

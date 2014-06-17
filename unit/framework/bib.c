@@ -92,7 +92,7 @@ bool bib_inject(struct in_addr *addr4, u16 port4, struct in6_addr *addr6, u16 po
 		return false;
 	}
 
-	error = bibdb_add(bib, l4_proto);
+	error = bibdb_add(bib);
 	if (error) {
 		log_err("Could not insert the BIB entry to the table: %d", error);
 		return false;

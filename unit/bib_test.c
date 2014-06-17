@@ -41,7 +41,7 @@ static struct bib_entry *create_and_insert_bib(struct ipv4_tuple_address *ipv4,
 		return NULL;
 	}
 
-	error = bibdb_add(result, l4proto);
+	error = bibdb_add(result);
 	if (error) {
 		log_err("Could not insert the BIB entry to the table; call returned %d.", error);
 		bib_kfree(result);
@@ -141,7 +141,7 @@ static bool simple_bib(void)
 	if (!assert_not_null(bib, "Allocation of test BIB entry"))
 		return false;
 
-	success &= assert_equals_int(0, bibdb_add(bib, L4PROTO_TCP), "BIB insertion call");
+	success &= assert_equals_int(0, bibdb_add(bib), "BIB insertion call");
 	success &= assert_bib("BIB insertion state", bib, false, true, false);
 	if (!success)
 		return false;

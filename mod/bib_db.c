@@ -378,7 +378,7 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 	return (*result) ? 0 : -ENOENT;
 }
 
-int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
+int bibdb_add(struct bib_entry *entry)
 {
 	struct bib_table *table;
 	int error;
@@ -386,7 +386,7 @@ int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto)
 	/* Sanity */
 	if (WARN(!entry, "NULL is not a valid BIB entry."))
 		return -EINVAL;
-	error = get_bibdb_table(l4_proto, &table);
+	error = get_bibdb_table(entry->l4_proto, &table);
 	if (error)
 		return error;
 

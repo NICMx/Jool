@@ -165,8 +165,8 @@ int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct bib_entry **bib);
 
 /**
- * Adds "entry" to the BIB table whose layer-4 protocol is "l4_proto". Make sure you initialized
- * "entry" using bib_create(), please.
+ * Adds "entry" to the BIB table it belongs. Make sure you initialized "entry" using bib_create(),
+ * please.
  *
  * The table's references are not supposed to count towards the entries' refcounts. Do free your
  * reference if your entry made it into the table; do not assume you're transferring it.
@@ -176,7 +176,7 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
  * @return whether the entry could be inserted or not. It will not be inserted if some dynamic
  *		memory allocation failed.
  */
-int bibdb_add(struct bib_entry *entry, l4_protocol l4_proto);
+int bibdb_add(struct bib_entry *entry);
 
 /**
  * Attempts to remove the "entry" entry from its BIB. It doesn't kfree "entry".

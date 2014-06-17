@@ -47,7 +47,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	*/
 
 	/* Add it to the table. */
-	if (is_error(bibdb_add(bib, l4_proto))) {
+	if (is_error(bibdb_add(bib))) {
 		log_err("Can't add the dummy BIB to the table.");
 		bib_kfree(bib);
 		return false;

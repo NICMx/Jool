@@ -11,6 +11,7 @@ ITERATOR = iterator
 HASHTABLE = hashtable
 RFC6052 = rfc6052
 PKT = pkt
+RBTREE = rbtree
 FRAGDB = fragdb
 POOLNUM = poolnum
 POOL4 = pool4
@@ -27,6 +28,7 @@ obj-m += $(ITERATOR).o
 obj-m += $(HASHTABLE).o
 obj-m += $(RFC6052).o
 obj-m += $(PKT).o
+obj-m += $(RBTREE).o
 obj-m += $(FRAGDB).o
 obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
@@ -53,6 +55,9 @@ $(RFC6052)-objs += rfc6052_test.o
 
 $(PKT)-objs += $(MIN_REQS)
 $(PKT)-objs += packet_test.o
+
+$(RBTREE)-objs += $(MIN_REQS)
+$(RBTREE)-objs += rbtree_test.o
 
 $(FRAGDB)-objs += $(MIN_REQS)
 $(FRAGDB)-objs += ../mod/ipv6_hdr_iterator.o
@@ -170,6 +175,7 @@ test:
 	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
+	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
 	# Warning: This test is lenghty! It might freeze your computer for a couple of seconds.
