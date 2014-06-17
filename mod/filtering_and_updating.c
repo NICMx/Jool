@@ -21,73 +21,6 @@
 /** Current valid configuration for the filtering and updating module. */
 static struct filtering_config *config;
 
-/**
- * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
- */
-static void set_udp_timer(struct session_entry *session)
-{
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->to.udp;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, TIMERTYPE_UDP, ttl);
-}
-
-/**
- * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
- */
-static void set_tcp_est_timer(struct session_entry *session)
-{
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->to.tcp_est;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, TIMERTYPE_TCP_EST, ttl);
-}
-
-/**
- * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
- */
-void set_tcp_trans_timer(struct session_entry *session)
-{
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->to.tcp_trans;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, TIMERTYPE_TCP_TRANS, ttl);
-}
-
-/**
- * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
- */
-static void set_icmp_timer(struct session_entry *session)
-{
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->to.icmp;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, TIMERTYPE_ICMP, ttl);
-}
-
-/**
- * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
- */
-/*
-static void set_syn_timer(struct session_entry *session)
-{
-	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-	sessiondb_update_timer(session, TIMERTYPE_TCP_SYN, ttl);
-}
-*/
-
 
 /**
  * Use this function to safely obtain the configuration value which dictates whether Jool should
@@ -742,10 +675,6 @@ int filtering_init(void)
 		return -ENOMEM;
 	}
 
-	config->to.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
-	config->to.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
-	config->to.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	config->to.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
 	config->drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
 	config->drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
 	config->drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
@@ -775,22 +704,6 @@ int clone_filtering_config(struct filtering_config *clone)
 	return 0;
 }
 
-static void update_list_timer(struct filtering_config *old, struct filtering_config *new,
-		__u32 operation)
-{
-	if (operation & UDP_TIMEOUT_MASK)
-		sessiondb_update_list_timer(TIMERTYPE_UDP, old->to.udp, new->to.udp);
-
-	if (operation & ICMP_TIMEOUT_MASK)
-		sessiondb_update_list_timer(TIMERTYPE_ICMP, old->to.icmp, new->to.icmp);
-
-	if (operation & TCP_EST_TIMEOUT_MASK)
-		sessiondb_update_list_timer(TIMERTYPE_TCP_EST, old->to.tcp_est, new->to.tcp_est);
-
-	if (operation & TCP_TRANS_TIMEOUT_MASK)
-		sessiondb_update_list_timer(TIMERTYPE_TCP_TRANS, old->to.tcp_trans, new->to.tcp_trans);
-}
-
 /**
  * Updates the configuration of this module.
  *
@@ -802,10 +715,6 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 {
 	struct filtering_config *tmp_config;
 	struct filtering_config *old_config;
-	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
-	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
-	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	int error = 0;
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -821,47 +730,11 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 	if (operation & DROP_EXTERNAL_TCP_MASK)
 		tmp_config->drop_external_tcp = new_config->drop_external_tcp;
 
-	if (operation & UDP_TIMEOUT_MASK) {
-		if (new_config->to.udp < udp_min) {
-			log_err("The UDP timeout must be at least %u seconds.", UDP_MIN);
-			error = -EINVAL;
-		}
-		tmp_config->to.udp = new_config->to.udp;
-	}
-
-	if (operation & ICMP_TIMEOUT_MASK)
-		tmp_config->to.icmp = new_config->to.icmp;
-
-	if (operation & TCP_EST_TIMEOUT_MASK) {
-		if (new_config->to.tcp_est < tcp_est) {
-			log_err("The TCP est timeout must be at least %u seconds.", TCP_EST);
-			error = -EINVAL;
-		}
-		tmp_config->to.tcp_est = new_config->to.tcp_est;
-	}
-
-	if (operation & TCP_TRANS_TIMEOUT_MASK) {
-		if (new_config->to.tcp_trans < tcp_trans) {
-			log_err("The TCP trans timeout must be at least %u seconds.", TCP_TRANS);
-			error = -EINVAL;
-		}
-		tmp_config->to.tcp_trans = new_config->to.tcp_trans;
-	}
-
-	if (error)
-		goto fail;
-
-	update_list_timer(old_config, tmp_config, operation);
-
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 	kfree(old_config);
 
 	return 0;
-
-fail:
-	kfree(tmp_config);
-	return -EINVAL;
 }
 
 /**

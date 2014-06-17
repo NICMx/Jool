@@ -346,22 +346,25 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 }
 
 static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		struct filtering_config *request)
+		struct full_filtering_config *request)
 {
-	struct filtering_config clone;
+	struct full_filtering_config clone;
 	int error;
 
 	if (nat64_hdr->operation == 0) {
 		log_debug("Returning 'Filtering and Updating' options.");
 
-		error = clone_filtering_config(&clone);
+		error = clone_filtering_config(&clone.filtering);
+		if (error)
+			return respond_error(nl_hdr, error);
+		error = sessiondb_clone_config(&clone.sessiondb);
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		clone.to.udp = jiffies_to_msecs(clone.to.udp);
-		clone.to.tcp_est = jiffies_to_msecs(clone.to.tcp_est);
-		clone.to.tcp_trans = jiffies_to_msecs(clone.to.tcp_trans);
-		clone.to.icmp = jiffies_to_msecs(clone.to.icmp);
+		clone.sessiondb.ttl.udp = jiffies_to_msecs(clone.sessiondb.ttl.udp);
+		clone.sessiondb.ttl.tcp_est = jiffies_to_msecs(clone.sessiondb.ttl.tcp_est);
+		clone.sessiondb.ttl.tcp_trans = jiffies_to_msecs(clone.sessiondb.ttl.tcp_trans);
+		clone.sessiondb.ttl.icmp = jiffies_to_msecs(clone.sessiondb.ttl.icmp);
 
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
@@ -371,12 +374,17 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 
 		log_debug("Updating 'Filtering and Updating' options.");
 
-		request->to.udp = msecs_to_jiffies(request->to.udp);
-		request->to.tcp_est = msecs_to_jiffies(request->to.tcp_est);
-		request->to.tcp_trans = msecs_to_jiffies(request->to.tcp_trans);
-		request->to.icmp = msecs_to_jiffies(request->to.icmp);
+		request->sessiondb.ttl.udp = msecs_to_jiffies(request->sessiondb.ttl.udp);
+		request->sessiondb.ttl.tcp_est = msecs_to_jiffies(request->sessiondb.ttl.tcp_est);
+		request->sessiondb.ttl.tcp_trans = msecs_to_jiffies(request->sessiondb.ttl.tcp_trans);
+		request->sessiondb.ttl.icmp = msecs_to_jiffies(request->sessiondb.ttl.icmp);
 
-		return respond_error(nl_hdr, set_filtering_config(nat64_hdr->operation, request));
+		error = set_filtering_config(nat64_hdr->operation, &request->filtering);
+		if (error)
+			return respond_error(nl_hdr, error);
+		error = sessiondb_set_config(nat64_hdr->operation, &request->sessiondb);
+
+		return respond_error(nl_hdr, error);
 	}
 }
 

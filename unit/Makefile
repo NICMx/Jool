@@ -91,7 +91,6 @@ $(BIB)-objs += bib_test.o
 
 $(SESSION)-objs += $(MIN_REQS)
 $(SESSION)-objs += ../mod/bib_db.o
-$(SESSION)-objs += ../mod/filtering_and_updating.o
 $(SESSION)-objs += ../mod/pool6.o
 $(SESSION)-objs += ../mod/rfc6052.o
 $(SESSION)-objs += ../mod/session_db.o

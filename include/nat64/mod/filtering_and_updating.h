@@ -25,6 +25,5 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config);
 
 verdict filtering_and_updating(struct fragment *frag, struct tuple *tuple);
 
-void set_tcp_trans_timer(struct session_entry *session);
 
 #endif /* _NF_NAT64_FILTERING_H */

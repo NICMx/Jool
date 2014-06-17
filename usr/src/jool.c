@@ -55,7 +55,7 @@ struct arguments {
 	bool bib4_set;
 
 	/* Filtering, translate, fragmentation */
-	struct filtering_config filtering;
+	struct full_filtering_config filtering;
 	struct translate_config translate;
 	struct fragmentation_config fragmentation;
 };
@@ -326,41 +326,41 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 	case ARGP_DROP_ADDR:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_BY_ADDR_MASK;
-		error = str_to_bool(arg, &arguments->filtering.drop_by_addr);
+		error = str_to_bool(arg, &arguments->filtering.filtering.drop_by_addr);
 		break;
 	case ARGP_DROP_INFO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_ICMP6_INFO_MASK;
-		error = str_to_bool(arg, &arguments->filtering.drop_icmp6_info);
+		error = str_to_bool(arg, &arguments->filtering.filtering.drop_icmp6_info);
 		break;
 	case ARGP_DROP_TCP:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
-		error = str_to_bool(arg, &arguments->filtering.drop_external_tcp);
+		error = str_to_bool(arg, &arguments->filtering.filtering.drop_external_tcp);
 		break;
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, UDP_MIN, 0xFFFF);
-		arguments->filtering.to.udp = temp * 1000;
+		arguments->filtering.sessiondb.ttl.udp = temp * 1000;
 		break;
 	case ARGP_ICMP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ICMP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, 0, 0xFFFF);
-		arguments->filtering.to.icmp = temp * 1000;
+		arguments->filtering.sessiondb.ttl.icmp = temp * 1000;
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_EST_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_EST, 0xFFFF);
-		arguments->filtering.to.tcp_est = temp * 1000;
+		arguments->filtering.sessiondb.ttl.tcp_est = temp * 1000;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF);
-		arguments->filtering.to.tcp_trans = temp * 1000;
+		arguments->filtering.sessiondb.ttl.tcp_trans = temp * 1000;
 		break;
 
 	case ARGP_RESET_TCLASS:

@@ -125,15 +125,6 @@ void session_kfree(struct session_entry *session);
 
 /********************************* Session Database *******************************/
 
-typedef enum timer_type {
-	TIMERTYPE_UDP = 0,
-	TIMERTYPE_TCP_EST = 1,
-	TIMERTYPE_TCP_TRANS = 2,
-	TIMERTYPE_TCP_SYN = 3,
-	TIMERTYPE_ICMP = 4,
-#define TIMER_TYPE_COUNT 5
-} timer_type;
-
 /**
  * Call during initialization for the remaining functions to work properly.
  */
@@ -142,6 +133,9 @@ int sessiondb_init(void);
  * Call during destruction to avoid memory leaks.
  */
 void sessiondb_destroy(void);
+
+int sessiondb_clone_config(struct sessiondb_config *clone);
+int sessiondb_set_config(__u32 operation, struct sessiondb_config *new_config);
 
 
 /**
@@ -255,15 +249,21 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
 		struct session_entry **session);
 
 /**
- * Helper of the set_*_timer functions. Safely updates "session"->dying_time and moves it from its
- * original location to the end of "list".
+ * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
  */
-void sessiondb_update_timer(struct session_entry *session, timer_type type, __u64 ttl);
-
+void set_udp_timer(struct session_entry *session);
 /**
- * Helper of update_list_timer function in filtering_and_updating.
- * Updates every "session"->dying_time of the expired list for the new ttl.
+ * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
  */
-void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl);
+void set_tcp_est_timer(struct session_entry *session);
+/**
+ * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
+ */
+void set_tcp_trans_timer(struct session_entry *session);
+/**
+ * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
+ */
+void set_icmp_timer(struct session_entry *session);
+
 
 #endif /* _NF_NAT64_SESSION_DB_H */

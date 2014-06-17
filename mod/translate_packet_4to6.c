@@ -462,7 +462,7 @@ static verdict post_mtu6(struct fragment *in, struct fragment *out, struct icmph
 	}
 
 	skb_dst_set(out->skb, out_dst);
-	/* TODO we have probably never needed this, since ip6_finish_output2() does it already. */
+	/* TODO (fine) we have probably never needed this, since ip6_finish_output2() does it. */
 	out->skb->dev = out_dst->dev;
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 

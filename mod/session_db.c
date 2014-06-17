@@ -1,12 +1,12 @@
 #include "nat64/mod/session_db.h"
 
 #include <net/ipv6.h>
+#include "nat64/comm/constants.h"
 #include "nat64/mod/rbtree.h"
 #include "nat64/mod/bib_db.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/send_packet.h"
-#include "nat64/mod/filtering_and_updating.h"
 
 #include "session.c"
 
@@ -29,7 +29,7 @@ struct session_table {
 	 * Lock to sync access. This protects both the trees and the entries, but if you only need to
 	 * read the static portion of the entries, you can get away with only incresing their reference
 	 * counter.
-	 * TODO make those fields (ipv6, ipv4, l4_proto) explicitly constant. Do it on BIB too.
+	 * TODO (info) make those fields (ipv6, ipv4, l4_proto) explicitly constant. Do it on BIB too.
 	 */
 	spinlock_t lock;
 };
@@ -54,6 +54,9 @@ static LIST_HEAD(sessions_syn);
 
 /** Deletes expired sessions every once in a while. */
 static struct timer_list expire_timer;
+
+/** Current valid configuration for the Session DB module. */
+struct sessiondb_config *config;
 
 /********************************************
  * Private (helper) functions.
@@ -479,6 +482,17 @@ int sessiondb_init(void)
 	if (error)
 		return error;
 
+	config = kmalloc(sizeof(*config), GFP_ATOMIC);
+	if (!config) {
+		log_debug("Could not allocate memory to store the session DB config.");
+		return -ENOMEM;
+	}
+
+	config->ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
+	config->ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
+	config->ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	config->ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
 		tables[i]->tree6 = RB_ROOT;
 		tables[i]->tree4 = RB_ROOT;
@@ -522,6 +536,116 @@ void sessiondb_destroy(void)
 		rbtree_clear(&tables[i]->tree6, session_destroy_aux);
 
 	session_destroy();
+}
+
+int sessiondb_clone_config(struct sessiondb_config *clone)
+{
+	rcu_read_lock_bh();
+	*clone = *rcu_dereference_bh(config);
+	rcu_read_unlock_bh();
+	return 0;
+}
+
+static void sessiondb_update_list_timer(struct list_head *list, struct session_table *table,
+		__u64 old_ttl, __u64 new_ttl)
+{
+	struct list_head *current_hook;
+	struct session_entry *session;
+
+	spin_lock_bh(&table->lock);
+
+	list_for_each(current_hook, list) {
+		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+		session->dying_time = session->dying_time - old_ttl + new_ttl;
+	}
+
+	spin_unlock_bh(&table->lock);
+
+	/* TODO what. */
+	if (!list_empty(list)) {
+		mod_timer(&expire_timer, get_next_dying_time());
+		log_debug("The timer will awake again in %u msecs.",
+				jiffies_to_msecs(expire_timer.expires - jiffies));
+	}
+}
+
+static void update_list_timer(struct sessiondb_config *old, struct sessiondb_config *new,
+		__u32 operation)
+{
+	if (operation & UDP_TIMEOUT_MASK)
+		sessiondb_update_list_timer(&sessions_udp, &session_table_udp, old->ttl.udp,
+				new->ttl.udp);
+
+	if (operation & ICMP_TIMEOUT_MASK)
+		sessiondb_update_list_timer(&sessions_icmp, &session_table_icmp, old->ttl.icmp,
+				new->ttl.icmp);
+
+	if (operation & TCP_EST_TIMEOUT_MASK)
+		sessiondb_update_list_timer(&sessions_tcp_est, &session_table_tcp, old->ttl.tcp_est,
+				new->ttl.tcp_est);
+
+	if (operation & TCP_TRANS_TIMEOUT_MASK)
+		sessiondb_update_list_timer(&sessions_tcp_trans, &session_table_tcp, old->ttl.tcp_trans,
+				new->ttl.tcp_trans);
+}
+
+int sessiondb_set_config(__u32 operation, struct sessiondb_config *new_config)
+{
+	struct sessiondb_config *tmp_config;
+	struct sessiondb_config *old_config;
+	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
+	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	int error = 0;
+
+	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
+	if (!tmp_config)
+		return -ENOMEM;
+
+	old_config = config;
+	*tmp_config = *old_config;
+
+	if (operation & UDP_TIMEOUT_MASK) {
+		if (new_config->ttl.udp < udp_min) {
+			log_err("The UDP timeout must be at least %u seconds.", UDP_MIN);
+			error = -EINVAL;
+		}
+		tmp_config->ttl.udp = new_config->ttl.udp;
+	}
+
+	if (operation & ICMP_TIMEOUT_MASK)
+		tmp_config->ttl.icmp = new_config->ttl.icmp;
+
+	if (operation & TCP_EST_TIMEOUT_MASK) {
+		if (new_config->ttl.tcp_est < tcp_est) {
+			log_err("The TCP est timeout must be at least %u seconds.", TCP_EST);
+			error = -EINVAL;
+		}
+		tmp_config->ttl.tcp_est = new_config->ttl.tcp_est;
+	}
+
+	if (operation & TCP_TRANS_TIMEOUT_MASK) {
+		if (new_config->ttl.tcp_trans < tcp_trans) {
+			log_err("The TCP trans timeout must be at least %u seconds.", TCP_TRANS);
+			error = -EINVAL;
+		}
+		tmp_config->ttl.tcp_trans = new_config->ttl.tcp_trans;
+	}
+
+	if (error)
+		goto fail;
+
+	update_list_timer(old_config, tmp_config, operation);
+
+	rcu_assign_pointer(config, tmp_config);
+	synchronize_rcu_bh();
+	kfree(old_config);
+
+	return 0;
+
+fail:
+	kfree(tmp_config);
+	return -EINVAL;
 }
 
 int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
@@ -1016,42 +1140,14 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4)
 	return 0;
 }
 
-void sessiondb_update_timer(struct session_entry *session, timer_type type, __u64 ttl)
+/**
+ * Helper of the set_*_timer functions. Safely updates "session"->dying_time using "ttl" and moves
+ * it from its original location to the end of "list".
+ */
+static void sessiondb_update_timer(struct session_entry *session,
+		struct list_head *list, struct session_table *table,
+		__u64 ttl)
 {
-	struct list_head *list;
-	struct session_table *table;
-
-	switch (type) {
-	case TIMERTYPE_UDP:
-		list = &sessions_udp;
-		table = &session_table_udp;
-		break;
-
-	case TIMERTYPE_TCP_EST:
-		list = &sessions_tcp_est;
-		table = &session_table_tcp;
-		break;
-
-	case TIMERTYPE_TCP_TRANS:
-		list = &sessions_tcp_trans;
-		table = &session_table_tcp;
-		break;
-
-	case TIMERTYPE_TCP_SYN:
-		list = &sessions_syn;
-		table = &session_table_tcp;
-		break;
-
-	case TIMERTYPE_ICMP:
-		list = &sessions_icmp;
-		table = &session_table_icmp;
-		break;
-
-	default:
-		WARN(true, "Unknown timer type to set the update timer");
-		return;
-	}
-
 	spin_lock_bh(&table->lock);
 
 	/*
@@ -1080,57 +1176,57 @@ spin_exit:
 	spin_unlock_bh(&table->lock);
 }
 
-void sessiondb_update_list_timer(timer_type type, __u64 old_ttl, __u64 new_ttl)
+void set_udp_timer(struct session_entry *session)
 {
-	struct list_head *list, *current_hook;
-	struct session_table *table;
-	struct session_entry *session;
+	__u64 ttl;
 
-	switch (type) {
-	case TIMERTYPE_UDP:
-		list = &sessions_udp;
-		table = &session_table_udp;
-		break;
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->ttl.udp;
+	rcu_read_unlock_bh();
 
-	case TIMERTYPE_TCP_EST:
-		list = &sessions_tcp_est;
-		table = &session_table_tcp;
-		break;
-
-	case TIMERTYPE_TCP_TRANS:
-		list = &sessions_tcp_trans;
-		table = &session_table_tcp;
-		break;
-
-	case TIMERTYPE_TCP_SYN:
-		list = &sessions_syn;
-		table = &session_table_tcp;
-		break;
-
-	case TIMERTYPE_ICMP:
-		list = &sessions_icmp;
-		table = &session_table_icmp;
-		break;
-
-	default:
-		WARN(true, "Unknown timer type to set the update timer");
-		return;
-	}
-
-	spin_lock_bh(&table->lock);
-
-	list_for_each(current_hook, list) {
-		session = list_entry(current_hook, struct session_entry, expire_list_hook);
-		session->dying_time = session->dying_time - old_ttl + new_ttl;
-	}
-
-	spin_unlock_bh(&table->lock);
-
-	if (!list_empty(list)) {
-		mod_timer(&expire_timer, get_next_dying_time());
-		log_debug("The timer will awake again in %u msecs.",
-				jiffies_to_msecs(expire_timer.expires - jiffies));
-	}
-
-	return;
+	sessiondb_update_timer(session, &sessions_udp, &session_table_udp, ttl);
 }
+
+void set_tcp_est_timer(struct session_entry *session)
+{
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->ttl.tcp_est;
+	rcu_read_unlock_bh();
+
+	sessiondb_update_timer(session, &sessions_tcp_est, &session_table_tcp, ttl);
+}
+
+void set_tcp_trans_timer(struct session_entry *session)
+{
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->ttl.tcp_trans;
+	rcu_read_unlock_bh();
+
+	sessiondb_update_timer(session, &sessions_tcp_trans, &session_table_tcp, ttl);
+}
+
+void set_icmp_timer(struct session_entry *session)
+{
+	__u64 ttl;
+
+	rcu_read_lock_bh();
+	ttl = rcu_dereference_bh(config)->ttl.icmp;
+	rcu_read_unlock_bh();
+
+	sessiondb_update_timer(session, &sessions_icmp, &session_table_icmp, ttl);
+}
+
+/**
+ * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
+ */
+/*
+void set_syn_timer(struct session_entry *session)
+{
+	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
+	sessiondb_update_timer(session, &sessions_syn, &session_table_tcp, ttl);
+}
+*/
