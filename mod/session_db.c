@@ -1046,6 +1046,17 @@ void sessiondb_update_timer(struct session_entry *session, timer_type type, __u6
 
 	spin_lock_bh(&table->lock);
 
+	/*
+	 * We don't update the session->dying_time when the session isn't part of the DB.
+	 *
+	 * When this function was called, the spinlock wasn't held.
+	 * Ergo, the timer might have remove the timer from the database during that time.
+	 * If that happens, we shouldn't update the timer because that'd leave the DB in an
+	 * inconsistent state.
+	 */
+	if (RB_EMPTY_NODE(&session->tree6_hook) || RB_EMPTY_NODE(&session->tree4_hook))
+		goto spin_exit;
+
 	session->dying_time = jiffies + ttl;
 
 	list_del(&session->expire_list_hook);
@@ -1057,6 +1068,7 @@ void sessiondb_update_timer(struct session_entry *session, timer_type type, __u6
 				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
 
+spin_exit:
 	spin_unlock_bh(&table->lock);
 }
 
