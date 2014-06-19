@@ -68,7 +68,7 @@ static bool test_add_and_remove(void)
 
 	for (i = 0; i < ARRAY_SIZE(nodes); i++) {
 		nodes[i].i = i;
-		rb_init_node(&nodes[i].hook);
+		RB_CLEAR_NODE(&nodes[i].hook);
 		expecteds[i] = false;
 	}
 
