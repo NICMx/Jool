@@ -489,7 +489,7 @@ IPv6 packets and unfragmentable IPv4 packets don't need any of this because they
 
 Because of [this quirk](quirk-iptables.html), Jool has its own defragmenter, which is built upon different requirements than those from the kernel's.
 
-> Warning.
+> **Warning.**
 > 
 > We've recently found the aforementioned quirk to be a fallacy, and we're <a href="https://github.com/NICMx/NAT64/tree/fragments_experiment" target="_blank">experimenting on replacing Jool's defragmenter with the kernel's</a>.
 > 

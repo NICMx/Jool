@@ -102,6 +102,14 @@ You copy the binaries generated to your system's module pool by running the `mod
 user@node:~/Jool-<version>/mod# make modules_install
 {% endhighlight %}
 
+> **Warning!**
+> 
+> Kernels 3.7 and up want you to sign your kernel modules to make sure you're loading them in a responsible manner.
+> 
+> But if your kernel was not configured to _require_ this feature (the kernels of many distros don't), you won't have much of an issue here. The output of `make modules_install` will output "Can't read private key"; this looks like an error, but is actually a warning, <a href="https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942" target="_blank">so you can continue the installation peacefully</a>.
+> 
+> Sorry; if your kernel _was_ compiled to require module signing, you probably know what you're doing, so I'll skip the instructions to make that work.
+
 You'll later activate the module using the `modprobe` command. Thing is, the fact that the module resides in your pool doesn't mean it has already been indexed. Use `depmod` to make `modprobe` aware of the new module:
 
 {% highlight bash %}
