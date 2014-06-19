@@ -294,8 +294,8 @@ static int remove(struct session_entry *session, struct session_table *table)
 	 * The functions above don't clean the nodes,
 	 * and other threads might be holding references to this session.
 	 */
-	rb_init_node(&session->tree6_hook);
-	rb_init_node(&session->tree4_hook);
+	RB_CLEAR_NODE(&session->tree6_hook);
+	RB_CLEAR_NODE(&session->tree4_hook);
 
 	list_del(&session->expire_list_hook);
 	session_return(session);

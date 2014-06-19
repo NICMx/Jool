@@ -60,8 +60,8 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	INIT_LIST_HEAD(&result->expire_list_hook);
 	result->l4_proto = l4_proto;
 	result->state = 0;
-	rb_init_node(&result->tree6_hook);
-	rb_init_node(&result->tree4_hook);
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
 
 	return result;
 }
