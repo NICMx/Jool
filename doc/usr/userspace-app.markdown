@@ -14,6 +14,7 @@ title: Documentation - Userspace Application
 5. [\--session](#session)
 6. [\--filtering](#filtering)
 7. [\--translate](#translate)
+8. [\--fragment](#fragment)
 
 ## Introduction
 
@@ -462,3 +463,42 @@ Note that if `--boostMTU` is activated, the MTU will still be 1280 if the result
 
 Also, you don't really need to sort the values while you input them. Just saying.
 
+### \--minMTU6
+
+- Name: Minimum IPv6 MTU
+- Type: Integer
+- Default: 1280
+- Translation direction: IPv4 to IPv6
+
+All of your IPv6 networks have MTUs. You should set `--minMTU6` as the smallest of them.
+
+IPv4 routers fragment, IPv6 routers don't fragment. If Jool receives a fragmentable IPv4 packet (Don't Fragment (DF) bit off), it has to make sure it's small enough to fit into any forthcoming IPv6 links (because the translation to IPv6 turns fragmentable packets into non-fragmentable packets). Otherwise, the smaller IPv6 hop will not let the packet through.
+
+The way Jool "makes sure it's small enough" is by fragmenting the packet by itself. So, if a fragmentable IPv4 packet gets translated into a IPv6 packet whose length is higher than `--minMTU6`, Jool will fragment it prior to sending it.
+
+So again, you want `--minMTU6` to be the smallest of your IPv6 MTUs so any of these formerly fragmentable packets will manage to fit into any IPv6 networks.
+
+This value defaults to 1280 because all IPv6 networks are theoretically guaranteed to support at least 1280 bytes per packet. If all of your IPv6 networks have a higher MTU, you can raise `--minMTU6` to decrease chances of fragmentation.
+
+- The penalty of `--minMTU6` being too small is performance; you get some unwanted fragmentation.
+- The penalty of `--minMTU6` being too big is reliability; the IPv6 nodes which are behind networks with lesser MTUs will not be able to receive packets from IPv4 whose DF flag os off and which, once translated, are larger than `--minMTU6`.
+
+IPv6 packets and unfragmentable IPv4 packets don't need any of this because they imply the emitter is the one minding MTUs and packet sizes (via <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">Path MTU Discovery</a> or whatever).
+
+## \--fragment
+
+Because of [this quirk](quirk-iptables.html), Jool has its own defragmenter, which is built upon different requirements than those from the kernel's.
+
+> Warning.
+> 
+> We've recently found the aforementioned quirk to be a fallacy, and we're <a href="https://github.com/NICMx/NAT64/tree/fragments_experiment" target="_blank">experimenting on replacing Jool's defragmenter with the kernel's</a>.
+> 
+> As a result, this section of the configuration is bound to be replaced by the kernel's <a href="http://www.linuxfoundation.org/collaborate/workgroups/networking/ip-sysctl#IP_Fragmentation" target="_blank">fragmentation sysctl controls</a> in the future.
+
+### \--toFrag
+
+- Name: Defragmentation Timeout
+- Type: Integer (seconds)
+- Default: 2
+
+Time in seconds to keep an IP fragment in memory.

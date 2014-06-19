@@ -110,10 +110,14 @@ Generate IPv4 identification
 Decrease MTU failure rate
 .IP --plateaus=INT[,INT]*
 MTU plateaus
+.IP --minMTU6=INT
+Minimum MTU of all your IPv6 networks.
 
 .SS "--fragmentation's FLAG_KEYs"
 .IP --toFrag=INT
 Set the fragment reassembly timeout (in seconds).
+.B Note:
+The Fragment Database (and hence this value) is bound to be obsoleted in the next version. If you're using it in your scripts, be prepared to want to tweak them.
 
 .SH EXAMPLES
 Print the IPv6 pool:

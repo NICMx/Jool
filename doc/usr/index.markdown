@@ -29,13 +29,25 @@ Jool is still a couple of features away from being 100% RFC 6146 compliant:
 
 That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
 
-There are other <a href="https://github.com/NICMx/NAT64/issues?state=open" target="_blank">known issues</a>. Because we have perceived users to be more interested in these latter problems, we intend to postpone the missing features.
-
-Now cooking version 3.1.5...
+Our next target is **Simultaneous open of TCP connections**. Now cooking version 3.2.0...
 
 -------------------
 
 ## News
+
+### 2014-06-18
+
+Version 3.1.5 released.
+
+Our most important fix is <a href="https://github.com/NICMx/NAT64/issues/92" target="__blank">issue #92</a>. Incorrect ICMP errors used to confuse IPv4 nodes, which lowered the reliability of 4-to-6 traffic.
+
+Aside from that, the userspace application has been tightened. It doesn't crash silly anymore when it has to <a href="https://github.com/NICMx/NAT64/issues/88" target="__blank">output large BIB or session tables</a>, and <a href="https://github.com/NICMx/NAT64/issues/65" target="__blank">works a lot harder to keep the database free from trashy leftover records</a>.
+
+Then we have a couple of <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">performance</a> <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">optimizations</a>. In particular (and more or less as a side effect), by aligning log priorities to those from the rest of the kernel, more care has been taken to keep the log cleaner.
+
+If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](userspace-app.html#minmtu6), a configuration parameter that helps you avoid fragmentation.
+
+If people doesn't find critical bugs in this version, this appears to be the end of the 3.1.x series. We'll go back to aim for 100% RFC compliance in the next update.
 
 ### 2014-04-25
 
