@@ -41,19 +41,22 @@ static struct session_table session_table_tcp;
 /** The session table for ICMP connections. */
 static struct session_table session_table_icmp;
 
-/** Sessions whose expiration date was initialized using "config".to.udp. */
-static LIST_HEAD(sessions_udp);
-/** Sessions whose expiration date was initialized using "config".to.tcp_est. */
-static LIST_HEAD(sessions_tcp_est);
-/** Sessions whose expiration date was initialized using "config".to.tcp_trans. */
-static LIST_HEAD(sessions_tcp_trans);
-/** Sessions whose expiration date was initialized using "config".to.icmp. */
-static LIST_HEAD(sessions_icmp);
-/** Sessions whose expiration date was initialized using "TCP_INCOMING_SYN". */
-static LIST_HEAD(sessions_syn);
+struct expire_timer {
+	struct timer_list timer;
+	struct list_head sessions;
+	struct session_table *table;
+};
 
-/** Deletes expired sessions every once in a while. */
-static struct timer_list expire_timer;
+/** Killer of sessions whose expiration date was initialized using "config".ttl.udp. */
+struct expire_timer expirer_udp;
+/** Killer of sessions whose expiration date was initialized using "config".ttl.tcp_est. */
+struct expire_timer expirer_tcp_est;
+/** Killer of sessions whose expiration date was initialized using "config".ttl.tcp_trans. */
+struct expire_timer expirer_tcp_trans;
+/** Killer of sessions whose expiration date was initialized using "config".ttl.icmp. */
+struct expire_timer expirer_icmp;
+/** Killer of sessions whose expiration date was initialized using "TCP_INCOMING_SYN". */
+struct expire_timer expirer_syn;
 
 /** Current valid configuration for the Session DB module. */
 struct sessiondb_config *config;
@@ -64,6 +67,8 @@ struct sessiondb_config *config;
 
 /**
  * One-liner to get the session table corresponding to the "l4_proto" protocol.
+ *
+ * Doesn't care about spinlocks.
  */
 static int get_session_table(l4_protocol l4_proto, struct session_table **result)
 {
@@ -86,6 +91,11 @@ static int get_session_table(l4_protocol l4_proto, struct session_table **result
 	return -EINVAL;
 }
 
+/**
+ * Fills "pair" with "tuple"'s contents.
+ *
+ * Doesn't care about spinlocks.
+ */
 static void tuple_to_ipv6_pair(struct tuple *tuple, struct ipv6_pair *pair)
 {
 	pair->remote.address = tuple->src.addr.ipv6;
@@ -94,6 +104,11 @@ static void tuple_to_ipv6_pair(struct tuple *tuple, struct ipv6_pair *pair)
 	pair->local.l4_id = tuple->dst.l4_id;
 }
 
+/**
+ * Fills "pair" with "tuple"'s contents.
+ *
+ * Doesn't care about spinlocks.
+ */
 static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
 {
 	pair->remote.address = tuple->src.addr.ipv4;
@@ -106,6 +121,8 @@ static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
  * Returns a positive integer if session.ipv6 < pair.
  * Returns a negative integer if session.ipv6 > pair.
  * Returns zero if session.ipv6 == pair.
+ *
+ * Doesn't care about spinlocks.
  */
 static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
 {
@@ -131,6 +148,8 @@ static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
  * Returns a positive integer if session.ipv4.local < addr.
  * Returns a negative integer if session.ipv4.local > addr.
  * Returns zero if session.ipv4.local == addr.
+ *
+ * Doesn't care about spinlocks.
  */
 static int compare_local4(struct session_entry *session, struct ipv4_tuple_address *addr)
 {
@@ -150,6 +169,8 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
  * Returns zero if session.ipv4 == pair.
  *
  * It excludes remote layer-4 IDs from the comparison. See session_allow() to find out why.
+ *
+ * Doesn't care about spinlocks.
  */
 static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
 {
@@ -167,6 +188,8 @@ static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
  * Returns a positive integer if session.ipv4 < pair.
  * Returns a negative integer if session.ipv4 > pair.
  * Returns zero if session.ipv4 == pair.
+ *
+ * Doesn't care about spinlocks.
  */
 static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
 {
@@ -184,6 +207,8 @@ static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
  * Returns a positive integer if session.ipv4.local < addr.
  * Returns a negative integer if session.ipv4.local > addr.
  * Returns zero if session.ipv4.local == addr.
+ *
+ * Doesn't care about spinlocks.
  */
 static int compare_local_addr4(struct session_entry *session, struct in_addr *addr)
 {
@@ -197,6 +222,8 @@ static int compare_local_addr4(struct session_entry *session, struct in_addr *ad
  * From RFC 6146 page 30.
  *
  * @param[in] session the established session that has been inactive for too long.
+ *
+ * Doesn't care about spinlocks, but "session" might.
  */
 static void send_probe_packet(struct session_entry *session)
 {
@@ -284,6 +311,8 @@ fail:
  *
  * @return number of sessions removed from the database. This is always 1, because I have no way to
  *		know if the removal failed (and it shouldn't be possible anyway).
+ *
+ * "table"'s spinlock must already be held.
  */
 static int remove(struct session_entry *session, struct session_table *table)
 {
@@ -303,6 +332,22 @@ static int remove(struct session_entry *session, struct session_table *table)
 }
 
 /**
+ * Wrapper for mod_timer().
+ *
+ * Not holding a spinlock is desirable for performance reasons (mod_timer() syncs itself).
+ */
+static void schedule_timer(struct timer_list *timer, unsigned long next_time)
+{
+	unsigned long min_next = jiffies + MIN_TIMER_SLEEP;
+
+	if (time_before(next_time, min_next))
+		next_time = min_next;
+
+	mod_timer(timer, next_time);
+	log_debug("A timer will awake in %u msecs.", jiffies_to_msecs(timer->expires - jiffies));
+}
+
+/**
  * Decides whether "session"'s expiration should cause its destruction or not. It should be called
  * when "session" expires.
  *
@@ -311,6 +356,8 @@ static int remove(struct session_entry *session, struct session_table *table)
  * will return false.
  *
  * @param[in] session The entry whose lifetime just expired.
+ *
+ * session's table's spinlock must already be held.
  */
 static bool session_expire(struct session_entry *session)
 {
@@ -329,8 +376,17 @@ static bool session_expire(struct session_entry *session)
 
 		case ESTABLISHED:
 			send_probe_packet(session);
+
 			session->state = TRANS;
-			set_tcp_trans_timer(session);
+
+			rcu_read_lock_bh();
+			session->dying_time = jiffies + rcu_dereference_bh(config)->ttl.tcp_trans;
+			rcu_read_unlock_bh();
+			list_del(&session->expire_list_hook);
+			list_add_tail(&session->expire_list_hook, &expirer_tcp_trans.sessions);
+			if (!timer_pending(&expirer_tcp_trans.timer))
+				schedule_timer(&expirer_tcp_trans.timer, session->dying_time);
+
 			return false;
 
 		case V6_INIT:
@@ -360,116 +416,64 @@ static bool session_expire(struct session_entry *session)
 }
 
 /**
- * Iterates through "list", deleting expired sessions.
+ * Called once in a while to kick off the scheduled expired sessions massacre.
  *
- * @return "true" if all sessions from the list were wiped.
+ * In that sense, it's a public function, so it requires spinlocks to NOT be held.
  */
-static bool clean_expired_sessions(struct list_head *list, struct session_table *table)
+static void cleaner_timer(unsigned long param)
 {
+	struct expire_timer *expirer = (struct expire_timer *) param;
 	struct list_head *current_hook, *next_hook;
 	struct session_entry *session;
 	unsigned int s = 0;
-	bool result = true;
 
-	spin_lock_bh(&table->lock);
+	log_debug("===============================================");
+	log_debug("Deleting expired sessions...");
 
-	list_for_each_safe(current_hook, next_hook, list) {
+	spin_lock_bh(&expirer->table->lock);
+
+	list_for_each_safe(current_hook, next_hook, &expirer->sessions) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
 
 		if (time_before(jiffies, session->dying_time)) {
 			/* "list" is sorted by expiration date, so stop on the first unexpired session. */
-			result = false;
-			goto end;
+			expirer->table->count -= s;
+			spin_unlock_bh(&expirer->table->lock);
+			log_debug("Deleted %u sessions.", s);
+			schedule_timer(&expirer->timer, session->dying_time);
+			return;
 		}
 
 		if (!session_expire(session))
 			continue; /* The entry's TTL changed, which doesn't mean the next one isn't expired. */
 
-		s += remove(session, table);
+		s += remove(session, expirer->table);
 	}
 
-	/* Fall through. */
-
-end:
-	table->count -= s;
-	spin_unlock_bh(&table->lock);
+	expirer->table->count -= s;
+	spin_unlock_bh(&expirer->table->lock);
 	log_debug("Deleted %u sessions.", s);
-	return result;
-}
-
-/**
- * Returns the earlier time between "current_min" and "list"'s first node's expiration date.
- */
-static void choose_prior(struct session_table *table, struct list_head *list,
-		unsigned long *min, bool *min_exists)
-{
-	struct session_entry *session;
-
-	spin_lock_bh(&table->lock);
-
-	if (list_empty(list)) {
-		spin_unlock_bh(&table->lock);
-		return;
-	}
-
-	/* The lists are sorted by expiration date, so only each list's first entry is relevant. */
-	session = list_entry(list->next, struct session_entry, expire_list_hook);
-
-	if (*min_exists)
-		*min = time_before(*min, session->dying_time) ? *min : session->dying_time;
-	else
-		*min = session->dying_time;
-
-	spin_unlock_bh(&table->lock);
-
-	*min_exists = true;
-}
-
-/**
- * Returns the time the next session will expire at.
- */
-static unsigned long get_next_dying_time(void)
-{
-	unsigned long current_min = 0;
-	bool min_exists = false;
-
-	choose_prior(&session_table_udp, &sessions_udp, &current_min, &min_exists);
-	choose_prior(&session_table_tcp, &sessions_tcp_est, &current_min, &min_exists);
-	choose_prior(&session_table_tcp, &sessions_tcp_trans, &current_min, &min_exists);
-	choose_prior(&session_table_icmp, &sessions_icmp, &current_min, &min_exists);
-	choose_prior(&session_table_tcp, &sessions_syn, &current_min, &min_exists);
-
-	return current_min;
-}
-
-/**
- * Called once in a while to kick off the scheduled expired sessions massacre.
- */
-static void cleaner_timer(unsigned long param)
-{
-	bool clean = true;
-
-	log_debug("===============================================");
-	log_debug("Deleting expired sessions...");
-
-	clean &= clean_expired_sessions(&sessions_udp, &session_table_udp);
-	clean &= clean_expired_sessions(&sessions_tcp_est, &session_table_tcp);
-	clean &= clean_expired_sessions(&sessions_tcp_trans, &session_table_tcp);
-	clean &= clean_expired_sessions(&sessions_syn, &session_table_tcp);
-	clean &= clean_expired_sessions(&sessions_icmp, &session_table_icmp);
-
-	log_debug("Session database cleaned successfully.");
-
-	if (!clean) {
-		mod_timer(&expire_timer, get_next_dying_time());
-		log_debug("The timer will awake again in %u msecs.",
-				jiffies_to_msecs(expire_timer.expires - jiffies));
-	}
 }
 
 /*******************************
  * Public functions.
  *******************************/
+
+/**
+ * Auxiliar for sessiondb_init(). Encapsulates initialization of an expire_timer structure.
+ *
+ * Doesn't care about spinlocks (initialization code doesn't share threads).
+ */
+static void init_expire_timer(struct expire_timer *expirer, struct session_table *table)
+{
+	init_timer(&expirer->timer);
+	expirer->timer.function = cleaner_timer;
+	expirer->timer.expires = 0;
+	expirer->timer.data = (unsigned long) expirer;
+
+	INIT_LIST_HEAD(&expirer->sessions);
+	expirer->table = table;
+}
 
 int sessiondb_init(void)
 {
@@ -500,20 +504,21 @@ int sessiondb_init(void)
 		spin_lock_init(&tables[i]->lock);
 	}
 
-	INIT_LIST_HEAD(&sessions_udp);
-	INIT_LIST_HEAD(&sessions_tcp_est);
-	INIT_LIST_HEAD(&sessions_tcp_trans);
-	INIT_LIST_HEAD(&sessions_icmp);
-	INIT_LIST_HEAD(&sessions_syn);
-
-	init_timer(&expire_timer);
-	expire_timer.function = cleaner_timer;
-	expire_timer.expires = 0;
-	expire_timer.data = 0;
+	init_expire_timer(&expirer_udp, &session_table_udp);
+	init_expire_timer(&expirer_tcp_est, &session_table_tcp);
+	init_expire_timer(&expirer_tcp_trans, &session_table_tcp);
+	init_expire_timer(&expirer_syn, &session_table_tcp);
+	init_expire_timer(&expirer_icmp, &session_table_icmp);
 
 	return 0;
 }
 
+/**
+ * Auxiliar for sessiondb_destroy(). Wraps the destruction of a session, exposing an API the rbtree
+ * module wants.
+ *
+ * Doesn't care about spinlocks (destructor code doesn't share threads).
+ */
 static void session_destroy_aux(struct rb_node *node)
 {
 	session_kfree(rb_entry(node, struct session_entry, tree6_hook));
@@ -525,7 +530,11 @@ void sessiondb_destroy(void)
 			&session_table_icmp };
 	int i;
 
-	del_timer_sync(&expire_timer);
+	del_timer_sync(&expirer_udp.timer);
+	del_timer_sync(&expirer_tcp_est.timer);
+	del_timer_sync(&expirer_tcp_trans.timer);
+	del_timer_sync(&expirer_syn.timer);
+	del_timer_sync(&expirer_icmp.timer);
 
 	log_debug("Emptying the session tables...");
 	/*
@@ -546,47 +555,58 @@ int sessiondb_clone_config(struct sessiondb_config *clone)
 	return 0;
 }
 
-static void sessiondb_update_list_timer(struct list_head *list, struct session_table *table,
-		__u64 old_ttl, __u64 new_ttl)
+/**
+ * Updates the expiration time of expirer's sessions.
+ *
+ * If there are many sessions in the database this will be very slow, so don't use it during packet
+ * processing.
+ * TODO (performance) therefore, every session should store the time at which they were born
+ * instead of the one when they die.
+ *
+ * Requires spinlocks to not be held.
+ */
+static void update_dying_times(struct expire_timer *expirer, __u64 old_ttl, __u64 new_ttl)
 {
 	struct list_head *current_hook;
 	struct session_entry *session;
+	unsigned long next_time;
 
-	spin_lock_bh(&table->lock);
+	if (old_ttl == new_ttl)
+		return;
 
-	list_for_each(current_hook, list) {
+	spin_lock_bh(&expirer->table->lock);
+
+	if (list_empty(&expirer->sessions)) {
+		spin_unlock_bh(&expirer->table->lock);
+		return;
+	}
+
+	list_for_each(current_hook, &expirer->sessions) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
 		session->dying_time = session->dying_time - old_ttl + new_ttl;
 	}
 
-	spin_unlock_bh(&table->lock);
+	session = list_entry(expirer->sessions.next, struct session_entry, expire_list_hook);
+	next_time = session->dying_time;
+	spin_unlock_bh(&expirer->table->lock);
 
-	/* TODO what. */
-	if (!list_empty(list)) {
-		mod_timer(&expire_timer, get_next_dying_time());
-		log_debug("The timer will awake again in %u msecs.",
-				jiffies_to_msecs(expire_timer.expires - jiffies));
-	}
+	schedule_timer(&expirer->timer, next_time);
 }
 
 static void update_list_timer(struct sessiondb_config *old, struct sessiondb_config *new,
 		__u32 operation)
 {
 	if (operation & UDP_TIMEOUT_MASK)
-		sessiondb_update_list_timer(&sessions_udp, &session_table_udp, old->ttl.udp,
-				new->ttl.udp);
+		update_dying_times(&expirer_udp, old->ttl.udp, new->ttl.udp);
 
 	if (operation & ICMP_TIMEOUT_MASK)
-		sessiondb_update_list_timer(&sessions_icmp, &session_table_icmp, old->ttl.icmp,
-				new->ttl.icmp);
+		update_dying_times(&expirer_icmp, old->ttl.icmp, new->ttl.icmp);
 
 	if (operation & TCP_EST_TIMEOUT_MASK)
-		sessiondb_update_list_timer(&sessions_tcp_est, &session_table_tcp, old->ttl.tcp_est,
-				new->ttl.tcp_est);
+		update_dying_times(&expirer_tcp_est, old->ttl.tcp_est, new->ttl.tcp_est);
 
 	if (operation & TCP_TRANS_TIMEOUT_MASK)
-		sessiondb_update_list_timer(&sessions_tcp_trans, &session_table_tcp, old->ttl.tcp_trans,
-				new->ttl.tcp_trans);
+		update_dying_times(&expirer_tcp_trans, old->ttl.tcp_trans, new->ttl.tcp_trans);
 }
 
 int sessiondb_set_config(__u32 operation, struct sessiondb_config *new_config)
@@ -803,6 +823,8 @@ int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *,
 
 /**
  * See the function of the same name from the BIB DB module for comments on this.
+ *
+ * Requires "table"'s spinlock to already be held.
  */
 static struct rb_node *find_next_chunk(struct session_table *table,
 		struct ipv4_tuple_address *addr, bool starting)
@@ -1144,36 +1166,43 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4)
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time using "ttl" and moves
  * it from its original location to the end of "list".
  */
-static void sessiondb_update_timer(struct session_entry *session,
-		struct list_head *list, struct session_table *table,
+static void sessiondb_update_timer(struct session_entry *session, struct expire_timer *expirer,
 		__u64 ttl)
 {
-	spin_lock_bh(&table->lock);
+	unsigned long next_time;
+
+	spin_lock_bh(&expirer->table->lock);
 
 	/*
 	 * We don't update the session->dying_time when the session isn't part of the DB.
 	 *
 	 * When this function was called, the spinlock wasn't held.
-	 * Ergo, the timer might have remove the timer from the database during that time.
+	 * Ergo, the timer might have remove the entry from the database during that time.
 	 * If that happens, we shouldn't update the timer because that'd leave the DB in an
 	 * inconsistent state.
 	 */
-	if (RB_EMPTY_NODE(&session->tree6_hook) || RB_EMPTY_NODE(&session->tree4_hook))
-		goto spin_exit;
-
-	session->dying_time = jiffies + ttl;
-
-	list_del(&session->expire_list_hook);
-	list_add(&session->expire_list_hook, list->prev);
-
-	if (!timer_pending(&expire_timer) || time_before(session->dying_time, expire_timer.expires)) {
-		mod_timer(&expire_timer, session->dying_time);
-		log_debug("The session cleaning timer will awake in %u msecs.",
-				jiffies_to_msecs(expire_timer.expires - jiffies));
+	if (RB_EMPTY_NODE(&session->tree6_hook) || RB_EMPTY_NODE(&session->tree4_hook)) {
+		spin_unlock_bh(&expirer->table->lock);
+		return;
 	}
 
-spin_exit:
-	spin_unlock_bh(&table->lock);
+	session->dying_time = jiffies + ttl;
+	next_time = session->dying_time;
+
+	list_del(&session->expire_list_hook);
+	list_add_tail(&session->expire_list_hook, &expirer->sessions);
+
+	if (timer_pending(&expirer->timer)) {
+		/*
+		 * The new session is always the one who's going to expire last.
+		 * So if the timer is already set, there should be no reason to edit it.
+		 */
+		spin_unlock_bh(&expirer->table->lock);
+		return;
+	}
+
+	spin_unlock_bh(&expirer->table->lock);
+	schedule_timer(&expirer->timer, next_time);
 }
 
 void set_udp_timer(struct session_entry *session)
@@ -1184,7 +1213,7 @@ void set_udp_timer(struct session_entry *session)
 	ttl = rcu_dereference_bh(config)->ttl.udp;
 	rcu_read_unlock_bh();
 
-	sessiondb_update_timer(session, &sessions_udp, &session_table_udp, ttl);
+	sessiondb_update_timer(session, &expirer_udp, ttl);
 }
 
 void set_tcp_est_timer(struct session_entry *session)
@@ -1195,7 +1224,7 @@ void set_tcp_est_timer(struct session_entry *session)
 	ttl = rcu_dereference_bh(config)->ttl.tcp_est;
 	rcu_read_unlock_bh();
 
-	sessiondb_update_timer(session, &sessions_tcp_est, &session_table_tcp, ttl);
+	sessiondb_update_timer(session, &expirer_tcp_est, ttl);
 }
 
 void set_tcp_trans_timer(struct session_entry *session)
@@ -1206,7 +1235,7 @@ void set_tcp_trans_timer(struct session_entry *session)
 	ttl = rcu_dereference_bh(config)->ttl.tcp_trans;
 	rcu_read_unlock_bh();
 
-	sessiondb_update_timer(session, &sessions_tcp_trans, &session_table_tcp, ttl);
+	sessiondb_update_timer(session, &expirer_tcp_trans, ttl);
 }
 
 void set_icmp_timer(struct session_entry *session)
@@ -1217,7 +1246,7 @@ void set_icmp_timer(struct session_entry *session)
 	ttl = rcu_dereference_bh(config)->ttl.icmp;
 	rcu_read_unlock_bh();
 
-	sessiondb_update_timer(session, &sessions_icmp, &session_table_icmp, ttl);
+	sessiondb_update_timer(session, &expirer_icmp, ttl);
 }
 
 /**
@@ -1227,6 +1256,6 @@ void set_icmp_timer(struct session_entry *session)
 void set_syn_timer(struct session_entry *session)
 {
 	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-	sessiondb_update_timer(session, &sessions_syn, &session_table_tcp, ttl);
+	sessiondb_update_timer(session, &expirer_syn, ttl);
 }
 */

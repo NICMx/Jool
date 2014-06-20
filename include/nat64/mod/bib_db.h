@@ -88,7 +88,7 @@ void bib_get(struct bib_entry *bib);
  *
  * If no other references to "bib" exist, this function will take care of removing and freeing it.
  *
- * DON'T USE "bib" AFTER YOU RETURN IT!
+ * DON'T USE "bib" AFTER YOU RETURN IT! (unless you know there's other active reference)
  */
 int bib_return(struct bib_entry *bib);
 /**

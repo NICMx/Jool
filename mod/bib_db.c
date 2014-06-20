@@ -468,16 +468,16 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
 }
 
 /**
- * Tries to find the session whose local IPv4 address is "addr".
+ * Tries to find the BIB entry whose local IPv4 address is "addr".
  * If such an entry cannot be found, it returns the one right next to it if it existed.
  *
  * Why?
  * When the user requests the table to be displayed, the kernel module sends it in chunks because
  * it might be too big for a single Netlink message.
  * This is the function that finds the next chunk where iteration should continue. The quirk of
- * choosing the next session if it doesn't exist is because the first session of the next chunk
+ * choosing the next entry if it doesn't exist is because the first entry of the next chunk
  * could have died while the previous chunk was transmitted... so the iteration should just ignore
- * it and continue with the next session peacefully.
+ * it and continue with the next entry peacefully.
  */
 static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_tuple_address *addr4,
 		bool starting)
@@ -498,21 +498,21 @@ static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_tupl
 	return (compare_full4(bib, addr4) < 0) ? parent : rb_next(parent);
 }
 
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4, bool starting,
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *addr, bool starting,
 		int (*func)(struct bib_entry *, void *), void *arg)
 {
 	struct bib_table *table;
 	struct rb_node *node;
 	int error;
 
-	if (WARN(!ipv4, "The IPv4 address is NULL."))
+	if (WARN(!addr, "The IPv4 address is NULL."))
 		return -EINVAL;
 	error = get_bibdb_table(l4_proto, &table);
 	if (error)
 		return error;
 
 	spin_lock_bh(&table->lock);
-	for (node = find_next_chunk(table, ipv4, starting); node && !error; node = rb_next(node)) {
+	for (node = find_next_chunk(table, addr, starting); node && !error; node = rb_next(node)) {
 		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
 	}
 
