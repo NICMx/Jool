@@ -22,10 +22,10 @@ insert:
 	# prevent martian packets from reaching the module
 	sudo sysctl -w net.ipv4.conf.all.log_martians=1
 	# insert the module
-	sudo insmod jool.ko
+	sudo insmod jool.ko pool4=192.0.2.2
 	dmesg | tail -15
 	sudo ../usr/src/jool -z --minMTU6=1500
-	
+
 remove:
 	sudo rmmod jool
 	dmesg | tail -15

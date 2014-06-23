@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([Jool], [3.1.4], [jool@nic.mx])
+AC_INIT([Jool], [3.1.5], [jool@nic.mx])
 AC_CONFIG_SRCDIR([src/jool.c])
 AM_INIT_AUTOMAKE
 
@@ -21,7 +21,6 @@ AC_CHECK_HEADERS([arpa/inet.h stdlib.h string.h unistd.h])
 AC_CHECK_HEADER_STDBOOL
 
 # Checks for library functions.
-AC_FUNC_MALLOC
 AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol])
 
 AC_OUTPUT(Makefile src/Makefile man/Makefile)

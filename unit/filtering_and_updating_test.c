@@ -542,7 +542,7 @@ static bool test_tcp_v4_init_state_handle_v6syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_init_state_handle(frag, &session), "V6 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V6 syn-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 syn-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -567,7 +567,7 @@ static bool test_tcp_v4_init_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_init_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V4_INIT, session.state, "else-state");
-	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "else-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -592,7 +592,7 @@ static bool test_tcp_v6_init_state_handle_v4syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(frag, &session), "V4 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V4 syn-state");
-	success &= assert_true(session.dying_time > jiffies, "V4 syn-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V4 syn-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -617,7 +617,7 @@ static bool test_tcp_v6_init_state_handle_v6syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(frag, &session), "V6 syn-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "V6 syn-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 syn-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -642,7 +642,7 @@ static bool test_tcp_v6_init_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "else-state");
-	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "else-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -666,7 +666,7 @@ static bool test_tcp_established_state_handle_v4fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "V4 fin-state");
-	success &= assert_true(session.dying_time < jiffies, "V4 fin-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V4 fin-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -691,7 +691,7 @@ static bool test_tcp_established_state_handle_v6fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "V6 fin-state");
-	success &= assert_true(session.dying_time < jiffies, "V6 fin-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V6 fin-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -716,7 +716,7 @@ static bool test_tcp_established_state_handle_v4rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
-	success &= assert_true(session.dying_time > jiffies, "V4 rst-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V4 rst-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -741,7 +741,7 @@ static bool test_tcp_established_state_handle_v6rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 rst-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 rst-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -766,7 +766,7 @@ static bool test_tcp_established_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(frag, &session), "result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -791,7 +791,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(frag, &session), "V6 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V6 fin-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 fin-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 fin-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -816,7 +816,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -841,7 +841,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(frag, &session), "V4 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V4 fin-state");
-	success &= assert_true(session.dying_time > jiffies, "V4 fin-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V4 fin-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -866,7 +866,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -891,7 +891,7 @@ static bool test_tcp_trans_state_handle_v4rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(frag, &session), "V4 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
-	success &= assert_true(session.dying_time < jiffies, "V4 rst-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V4 rst-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -916,7 +916,7 @@ static bool test_tcp_trans_state_handle_v6rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(frag, &session), "V6 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
-	success &= assert_true(session.dying_time < jiffies, "V6 rst-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V6 rst-lifetime");
 
 	frag_kfree(frag);
 	return success;
@@ -941,7 +941,7 @@ static bool test_tcp_trans_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(frag, &session), "else-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	frag_kfree(frag);
 	return success;

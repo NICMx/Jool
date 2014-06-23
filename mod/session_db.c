@@ -48,18 +48,18 @@ struct expire_timer {
 };
 
 /** Killer of sessions whose expiration date was initialized using "config".ttl.udp. */
-struct expire_timer expirer_udp;
+static struct expire_timer expirer_udp;
 /** Killer of sessions whose expiration date was initialized using "config".ttl.tcp_est. */
-struct expire_timer expirer_tcp_est;
+static struct expire_timer expirer_tcp_est;
 /** Killer of sessions whose expiration date was initialized using "config".ttl.tcp_trans. */
-struct expire_timer expirer_tcp_trans;
+static struct expire_timer expirer_tcp_trans;
 /** Killer of sessions whose expiration date was initialized using "config".ttl.icmp. */
-struct expire_timer expirer_icmp;
+static struct expire_timer expirer_icmp;
 /** Killer of sessions whose expiration date was initialized using "TCP_INCOMING_SYN". */
-struct expire_timer expirer_syn;
+static struct expire_timer expirer_syn;
 
 /** Current valid configuration for the Session DB module. */
-struct sessiondb_config *config;
+static struct sessiondb_config *config;
 
 /********************************************
  * Private (helper) functions.
