@@ -1,180 +1,159 @@
 #include "nat64/mod/pkt_queue.h"
-#include "nat64/comm/constants.h"
+#include "nat64/mod/icmp_wrapper.h"
 
-#include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/timer.h>
-#include <linux/icmp.h>
-#include <net/icmp.h>
 
-/********************************************
- * Structures and private variables.
- ********************************************/
-
-/** Cache for struct session_entrys, for efficient allocation. */
-static struct kmem_cache *entry_cache;
 
 /**
- *  Stored packages definition.
- *
+ * A stored packet.
  */
 struct packet_node {
-	/**  */
-	struct session_entry *session_entry;
-
-	/**  */
+	/** The packet's session entry. */
+	struct session_entry *session;
+	/** The packet */
 	struct sk_buff *skb;
 
-	/**
-	 * Chains this packet with the rest
-	 * Used for iterating while looking for expired TCP packets.
-	 */
+	/** Links this packet to the database. See "packets". */
 	struct list_head list_hook;
 };
 
-/**
- * Chains all known session entries.
- * Currently only used while looking and deleting expired ones.
- */
-static LIST_HEAD(all_packets);
+/** The packets we've stored, and which haven't been yet replied. */
+static LIST_HEAD(packets);
+/** Current number of nodes in the "packets" list. */
+static int packet_count = 0;
+
+/** Cache for struct packet_nodes, for efficient allocation. */
+static struct kmem_cache *node_cache;
+/** Protects "packets" and "packet_count". */
+static DEFINE_SPINLOCK(packets_lock);
+
+/** Current valid configuration for this module. */
+static struct pktqueue_config *config;
+
+/** Will awake after a while and reply the "expired" stored packets. */
 static struct timer_list expire_timer;
-static DEFINE_SPINLOCK(all_packets_lock);
 
 
-/********************************************
- * Private (helper) functions.
- ********************************************/
-int pktqueue_add(struct session_entry *entry, struct sk_buff *skb)
+/**
+ * Returns the first packet from the "packets" list.
+ *
+ * Requires packets_lock to already be held (if applies).
+ */
+static struct packet_node *get_first_pkt(void)
+{
+	return list_entry(packets.next, struct packet_node, list_hook);
+}
+
+int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 {
 	struct packet_node *node;
-	unsigned long expires;
+	bool start_timer;
+	unsigned int max_pkts;
 
-	if (!entry) {
-		log_err(ERR_NULL, "Cannot insert NULL as a session entry.");
+	if (WARN(!session, "Cannot insert NULL as a session entry."))
 		return -EINVAL;
-	}
-
-	if (!skb) {
-		log_err(ERR_NULL, "Cannot insert NULL as a packet.");
+	if (WARN(!skb, "Cannot insert NULL as a packet."))
 		return -EINVAL;
-	}
 
-	node = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
-	if (!node) {
-		log_err(ERR_ALLOC_FAILED, "Allocation packet node failed.");
+	rcu_read_lock_bh();
+	max_pkts = rcu_dereference_bh(config)->max_pkts;
+	rcu_read_unlock_bh();
+
+	if (packet_count >= max_pkts) {
+		log_debug("Someone is trying to force lots of simultaneous TCP connections.");
 		return -ENOMEM;
 	}
 
-	/*TODO: wrapp this function*/
-	if (list_empty(&all_packets)) {
-//		expires = msecs_to_jiffies(entry->dying_time) + 10;
-		expires = entry->dying_time + 10;
-		/*TODO: check: on issue 88 session->dying_time is set in jiffies,
-		 * but in older code session->dying_time was in msecs, so it's not
-		 * necessary to do msecs_to_jiffies for future code I guess...
-		 * I don't know what 10 means*/
-		mod_timer(&expire_timer, expires);
+	node = kmem_cache_alloc(node_cache, GFP_ATOMIC);
+	if (!node) {
+		log_debug("Allocation of packet node failed.");
+		return -ENOMEM;
 	}
 
-	node->session_entry = entry;
+	node->session = session;
 	node->skb = skb;
 	INIT_LIST_HEAD(&node->list_hook);
 
-	spin_lock_bh(&all_packets_lock);
-	list_add_tail(&node->list_hook, &all_packets);
-	spin_unlock_bh(&all_packets_lock);
+	spin_lock_bh(&packets_lock);
+	list_add_tail(&node->list_hook, &packets);
+	packet_count++;
+	start_timer = !timer_pending(&expire_timer);
+	spin_unlock_bh(&packets_lock);
 
-	return 0;
-}
+	if (start_timer)
+		mod_timer(&expire_timer, session->dying_time);
 
-
-int pktqueue_remove(void)
-{
-	struct packet_node *node;
-
-	node = container_of(all_packets.next, struct packet_node, list_hook);
-	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
-	list_del(all_packets.next);
-	kfree_skb(node->skb);
-	kfree(node->session_entry);
-	kfree(node);
 	return 0;
 }
 
 /**
- * Removes from the list the entries whose lifetime has expired. The entries are also freed from
- * memory.
+ * Sends node's ICMP error, and removes and destroys it.
  */
-static void clean_expired_packets(void)
+static void pktqueue_reply(struct packet_node *node)
 {
-	struct list_head *current_node, *next_node;
-	struct packet_node *packet;
-	unsigned int p = 0;
-	unsigned int current_time = jiffies_to_msecs(jiffies);
-	int error;
+	icmp64_send_skb(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 
-	log_debug("Deleting expired TCP packages...");
-	spin_lock_bh(&all_packets_lock);
-
-	list_for_each_safe(current_node, next_node, &all_packets) {
-
-		packet = list_entry(current_node, struct packet_node, list_hook);
-
-		/*TODO: check what how is stored packet->session->dying_time if it's in
-		 * msecs or in jiffies */
-		if (time_before(jiffies, packet->session_entry->dying_time))
-			break;
-
-		error = pktqueue_remove();
-
-		if (error) {
-			log_crit(ERR_NULL, "The TCP packet could not be removed: %d", error);
-			continue;
-		}
-
-		p++;
-	}
-
-	spin_unlock_bh(&all_packets_lock);
-	log_debug("Removed %u TCP packets entries.", p);
+	list_del(&node->list_hook);
+	packet_count--;
+	kfree_skb(node->skb);
+	session_kfree(node->session);
+	kmem_cache_free(node_cache, node);
 }
 
-static void cleaner_timer(unsigned long param)
+/**
+ * Called once in a while by the timer to reply the expired stored packets.
+ */
+static void reply_fn(unsigned long param)
 {
-	unsigned long expires;
 	struct packet_node *node;
+	bool start_timer = false;
+	unsigned long next_expire;
+	unsigned int n = 0;
 
-	clean_expired_packets();
+	log_debug("Replying to stored packets...");
+	spin_lock_bh(&packets_lock);
 
-	/*TODO: wrapp this function*/
-	if (!list_empty(&all_packets))
-	{
-		spin_lock_bh(&all_packets_lock);
+	while (!list_empty(&packets)) {
+		node = get_first_pkt();
+		next_expire = node->session->dying_time;
 
-		node = container_of(all_packets.next, struct packet_node, list_hook);
-		expires = node->session_entry->dying_time + 10;
-//		expires = msecs_to_jiffies(node->session_entry_p->dying_time) + 10;
-		/*TODO: check: on issue 88 session->dying_time is set in jiffies,
-		 * but in older code session->dying_time was in msecs, so it's not
-		 * necessary to do msecs_to_jiffies for future code I guess...
-		 * I don't know what 10 means*/
-		mod_timer(&expire_timer, expires);
+		if (time_before(jiffies, next_expire)) {
+			start_timer = true;
+			/*
+			 * The packets are sorted by expiration date, so if this one isn't expired,
+			 * the rest will also not be.
+			 */
+			break;
+		}
 
-		spin_unlock_bh(&all_packets_lock);
+		pktqueue_reply(node);
+		n++;
 	}
+
+	spin_unlock_bh(&packets_lock);
+	log_debug("Replied %u packets.", n);
+
+	if (start_timer)
+		mod_timer(&expire_timer, next_expire);
 }
 
 int pktqueue_init(void)
 {
-	entry_cache = kmem_cache_create("jool_pkt_queue", sizeof(struct packet_node),
-			0, 0, NULL);
-	if (!entry_cache) {
-		log_err("Could not allocate the Session entry cache.");
+	node_cache = kmem_cache_create("jool_pkt_queue", sizeof(struct packet_node), 0, 0, NULL);
+	if (!node_cache) {
+		log_err("Could not allocate the packet queue's node cache.");
+		return -ENOMEM;
+	}
+
+	config = kmalloc(sizeof(*config), GFP_KERNEL);
+	if (!config) {
+		kmem_cache_destroy(node_cache);
 		return -ENOMEM;
 	}
 
 	init_timer(&expire_timer);
-	expire_timer.function = cleaner_timer;
+	expire_timer.function = reply_fn;
 	expire_timer.data = 0;
 	expire_timer.expires = 0;
 
@@ -183,15 +162,38 @@ int pktqueue_init(void)
 
 void pktqueue_destroy(void)
 {
- 	int error;
-
-	/* Finish the timer execution */
 	del_timer_sync(&expire_timer);
 
-	/* Remove all packets */
-	while (!list_empty(&all_packets)) {
-		error = pktqueue_remove();
-		if (error)
-			break;
-	}
+	while (!list_empty(&packets))
+		pktqueue_reply(get_first_pkt());
+
+	kmem_cache_destroy(node_cache);
+}
+
+int pktqueue_clone_config(struct pktqueue_config *clone)
+{
+	rcu_read_lock_bh();
+	*clone = *rcu_dereference_bh(config);
+	rcu_read_unlock_bh();
+	return 0;
+}
+
+int pktqueue_set_config(struct pktqueue_config *new_config)
+{
+	struct pktqueue_config *tmp_config;
+	struct pktqueue_config *old_config;
+
+	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
+	if (!tmp_config)
+		return -ENOMEM;
+
+	old_config = config;
+	*tmp_config = *old_config;
+
+	tmp_config->max_pkts = new_config->max_pkts;
+
+	rcu_assign_pointer(config, tmp_config);
+	synchronize_rcu_bh();
+	kfree(old_config);
+	return 0;
 }

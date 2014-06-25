@@ -119,6 +119,10 @@ struct filtering_config {
 	bool drop_external_tcp;
 };
 
+struct pktqueue_config {
+	unsigned int max_pkts;
+};
+
 /**
  * This exists because of historical reasons. The timeouts used to be part of Filtering; we moved
  * that to the session database, but we kept the interface of the userspace application.
