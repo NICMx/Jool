@@ -1,5 +1,6 @@
 #include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/icmp_wrapper.h"
+#include "nat64/mod/rbtree.h"
 
 #include <linux/printk.h>
 #include <linux/timer.h>
@@ -16,6 +17,10 @@ struct packet_node {
 
 	/** Links this packet to the database. See "packets". */
 	struct list_head list_hook;
+
+	/** Appends this entry to the database's IPv4 index. */
+	struct rb_node tree4_hook;
+
 };
 
 /** The packets we've stored, and which haven't been yet replied. */
@@ -34,6 +39,67 @@ static struct pktqueue_config *config;
 /** Will awake after a while and reply the "expired" stored packets. */
 static struct timer_list expire_timer;
 
+/** Indexes the entries using their IPv4 identifiers. */
+static struct rb_root pkt_tree4;
+
+/********************** Private Helper Functions ******************************/
+
+/**
+ * Returns a positive integer if session.ipv4.remote < addr.
+ * Returns a negative integer if session.ipv4.remote > addr.
+ * Returns zero if session.ipv4.local == addr.
+ *
+ * Doesn't care about spinlocks.
+ */
+static int compare_remote4(struct session_entry *session, struct ipv4_tuple_address *addr)
+{
+	int gap;
+
+	gap = ipv4_addr_cmp(&addr->address, &session->ipv4.remote.address);
+	if (gap != 0)
+		return gap;
+
+	gap = addr->l4_id - session->ipv4.remote.l4_id;
+	return gap;
+}
+
+/**
+ * Returns a positive integer if session.ipv4.remote < addr.
+ * Returns a negative integer if session.ipv4.remote > addr.
+ * Returns zero if session.ipv4.local == addr.
+ *
+ * Doesn't care about spinlocks.
+ */
+static int compare_local4(struct session_entry *session, struct ipv4_tuple_address *addr)
+{
+	int gap;
+
+	gap = ipv4_addr_cmp(&addr->address, &session->ipv4.local.address);
+	if (gap != 0)
+		return gap;
+
+	gap = addr->l4_id - session->ipv4.local.l4_id;
+	return gap;
+}
+
+/**
+ * Returns a positive integer if node.session.ipv4 < pair.
+ * Returns a negative integer if node.session.ipv4 > pair.
+ * Returns zero if session.ipv4 == pair.
+ *
+ * Doesn't care about spinlocks.
+ */
+static int compare_full4(struct packet_node *node, struct ipv4_pair *pair)
+{
+	int gap;
+
+	gap = compare_remote4(node->session, &pair->remote);
+	if (gap != 0)
+		return gap;
+
+	return compare_local4(node->session, &pair->local);
+}
+
 
 /**
  * Returns the first packet from the "packets" list.
@@ -47,6 +113,7 @@ static struct packet_node *get_first_pkt(void)
 
 int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 {
+	int error;
 	struct packet_node *node;
 	bool start_timer;
 	unsigned int max_pkts;
@@ -74,9 +141,20 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	node->session = session;
 	node->skb = skb;
 	INIT_LIST_HEAD(&node->list_hook);
+	RB_CLEAR_NODE(&node->tree4_hook);
 
 	spin_lock_bh(&packets_lock);
+	error = rbtree_add(node, session->ipv4, &pkt_tree4, compare_full4, struct packet_node,
+			tree4_hook);
+	if (error) {
+		spin_unlock_bh(&packets_lock);
+		log_debug("Someone is trying to force lots of simultaneous TCP connections.");
+		kmem_cache_free(node_cache, node);
+		return -EINVAL;
+	}
+
 	list_add_tail(&node->list_hook, &packets);
+
 	packet_count++;
 	start_timer = !timer_pending(&expire_timer);
 	spin_unlock_bh(&packets_lock);
@@ -94,6 +172,7 @@ static void pktqueue_reply(struct packet_node *node)
 {
 	icmp64_send_skb(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 
+	rb_erase(&node->tree4_hook, &pkt_tree4);
 	list_del(&node->list_hook);
 	packet_count--;
 	kfree_skb(node->skb);
@@ -152,6 +231,8 @@ int pktqueue_init(void)
 		return -ENOMEM;
 	}
 
+	pkt_tree4 = RB_ROOT;
+
 	init_timer(&expire_timer);
 	expire_timer.function = reply_fn;
 	expire_timer.data = 0;
@@ -166,6 +247,8 @@ void pktqueue_destroy(void)
 
 	while (!list_empty(&packets))
 		pktqueue_reply(get_first_pkt());
+
+	(&pkt_tree4)->rb_node = NULL;
 
 	kmem_cache_destroy(node_cache);
 }
@@ -195,5 +278,31 @@ int pktqueue_set_config(struct pktqueue_config *new_config)
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 	kfree(old_config);
+	return 0;
+}
+
+int pktqueue_remove(struct session_entry *session)
+{
+	struct packet_node *node;
+
+	if (WARN(!session, "The packet table cannot contain NULL."))
+		return -EINVAL;
+
+	spin_lock_bh(&packets_lock);
+	node = rbtree_find(&session->ipv4, &pkt_tree4, compare_full4, struct packet_node, tree4_hook);
+	if (!node) {
+		spin_unlock_bh(&packets_lock);
+		return -ENOENT;
+	}
+
+	rb_erase(&node->tree4_hook, &pkt_tree4);
+	list_del(&node->list_hook);
+	packet_count--;
+	kfree_skb(node->skb);
+	session_kfree(node->session);
+	kmem_cache_free(node_cache, node);
+
+	spin_unlock_bh(&packets_lock);
+
 	return 0;
 }
