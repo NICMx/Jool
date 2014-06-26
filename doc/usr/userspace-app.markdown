@@ -98,6 +98,8 @@ Interacts with Jool's IPv4 pool. The pool dictates which packets coming from the
 * Using `--add`, Jool adds `<IPv4 address>` to the pool.
 * Using `--remove`, Jool deletes `<IPv4 address>` from the pool.
 
+When you remove an address, its [BIB entries](#bib) are also removed from their respective tables. BIB entry _B_ belongs to pool address _A_ if _B_'s IPv4 address equals _A_.
+
 **Examples**
 
 {% highlight bash %}
@@ -152,7 +154,9 @@ The database consists of three separate tables; one for TCP bindings, one for UD
 * Using `--display`, the application prints Jool's current BIB. `--bib6` and `--bib4` are ignored. This is the default operation.
 * Using `--count`, Jool prints the number of BIB entries per table. `--bib6` and `--bib4` are ignored.
 * Using `--add`, Jool adds the entry resulting from the `--bib6` and `--bib4` parameters to the BIB. Note that the `--bib4` component is an address assigned to the NAT64, so make sure you have added it to the [IPv4 pool](#pool4).
-* Using `--remove`, Jool deletes the entry. Since both components are unique across all entries from the same table, you only need to supply one of the --bib* arguments.
+* Using `--remove`, Jool deletes the entry. Since both components are unique across all entries from the same table, you only need to supply one of the `--bib*` arguments.
+
+When you delete a BIB entry, its [sessions](#session) are also removed from their respective tables. Session entry _S_ belongs to BIB entry _B_ if _S_'s local IPv4 transport address equals _B_'s IPv4 transport address, and _S_'s remote IPv6 transport address equals _B_'s IPv6 transport address.
 
 **Protocols**
 
@@ -334,6 +338,8 @@ Similar to `--dropAddr`, except it only affects TCP packets.
 
 When a UDP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
+When you change this value, the lifetimes of all already existing UDP sessions are updated.
+
 ### \--toTCPest
 
 - Name: TCP established session lifetime
@@ -341,6 +347,8 @@ When a UDP session has been lying around inactive for this long, its entry will 
 - Default: 2 hours
 
 When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `--toTCPtrans` timeout.
+
+When you change this value, the lifetimes of all already existing established TCP sessions are updated.
 
 ### \--toTCPtrans
 
@@ -350,6 +358,8 @@ When an established TCP connection has remained inactive for this long, its exis
 
 When a unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. A "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being terminated by the endpoints, or is technically established but has remained inactive for `--toTCPest` time.
 
+When you change this value, the lifetimes of all already existing transitory TCP sessions are updated.
+
 ### \--toICMP
 
 - Name: ICMP session lifetime
@@ -357,6 +367,8 @@ When a unhealthy TCP session has been lying around inactive for this long, its e
 - Default: 1 minute
 
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
+
+When you change this value, the lifetimes of all already existing ICMP sessions are updated.
 
 ## \--translate
 
