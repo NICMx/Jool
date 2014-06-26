@@ -1,4 +1,4 @@
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>

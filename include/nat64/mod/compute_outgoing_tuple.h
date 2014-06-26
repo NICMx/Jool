@@ -11,7 +11,7 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 
 
 verdict compute_out_tuple(struct tuple *in, struct tuple *out);

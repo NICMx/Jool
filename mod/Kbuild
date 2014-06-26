@@ -1,11 +1,13 @@
+#CC=cgcc
 ccflags-y := -I$(src)/../include
-EXTRA_CFLAGS += -DDEBUG
+#EXTRA_CFLAGS += -DDEBUG
 
 obj-m += jool.o
 
 jool-objs += types.o
 jool-objs += str_utils.o
 jool-objs += packet.o
+jool-objs += stats.o
 jool-objs += icmp_wrapper.o
 jool-objs += ipv6_hdr_iterator.o
 jool-objs += rfc6052.o
@@ -14,8 +16,8 @@ jool-objs += random.o
 jool-objs += poolnum.o
 jool-objs += pool6.o
 jool-objs += pool4.o
-jool-objs += bib.o
-jool-objs += session.o
+jool-objs += bib_db.o
+jool-objs += session_db.o
 jool-objs += static_routes.o
 jool-objs += config.o
 jool-objs += config_proto.o

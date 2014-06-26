@@ -1,7 +1,7 @@
-#ifndef UNIT_TEST_H_
-#define UNIT_TEST_H_
+#ifndef _JOOL_UNIT_TEST_H
+#define _JOOL_UNIT_TEST_H
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 
 
 /* TODO (test) The UNIT_TESTING macro is a hack; remove it. */
@@ -58,4 +58,4 @@ bool assert_list_count(int expected, struct list_head *head, char *test_name);
 	return (failure_counter > 0) ? -EINVAL : 0;
 
 
-#endif /* UNIT_TEST_H_ */
+#endif /* _JOOL_UNIT_TEST_H */

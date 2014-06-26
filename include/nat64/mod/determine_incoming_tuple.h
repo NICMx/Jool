@@ -11,8 +11,7 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include "nat64/comm/types.h"
-#include "nat64/mod/packet.h"
+#include "nat64/mod/types.h"
 
 
 verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple);

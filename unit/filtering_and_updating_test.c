@@ -16,104 +16,6 @@ MODULE_ALIAS("nat64_test_filtering");
 #include "nat64/unit/skb_generator.h"
 #include "filtering_and_updating.c"
 
-static noinline bool str_to_addr6_verbose(const char *str, struct in6_addr *addr)
-{
-	if (is_error(str_to_addr6(str, addr))) {
-		log_warning("Cannot parse '%s' as a valid IPv6 address", str);
-		return false;
-	}
-	return true;
-}
-
-static noinline bool str_to_addr4_verbose(const char *str, struct in_addr *addr)
-{
-	if (is_error(str_to_addr4(str, addr))) {
-		log_warning("Cannot parse '%s' as a valid IPv4 address", str);
-		return false;
-	}
-	return true;
-}
-
-#define IPV6_INJECT_BIB_ENTRY_SRC_ADDR "2001:db8:c0ca:1::1"
-#define IPV6_INJECT_BIB_ENTRY_SRC_PORT 1080
-#define IPV4_INJECT_BIB_ENTRY_DST_ADDR "192.168.2.1"
-#define IPV4_INJECT_BIB_ENTRY_DST_PORT 1082
-#define INIT_TUPLE_ICMP_ID 10
-static noinline bool inject_bib_entry(l4_protocol l4_proto)
-{
-	struct ipv4_tuple_address ta_ipv4;
-	struct ipv6_tuple_address ta_ipv6;
-	struct in_addr addr4;
-	struct in6_addr addr6;
-	struct bib_entry *bib_e;
-
-	if (!str_to_addr4_verbose(IPV4_INJECT_BIB_ENTRY_DST_ADDR, &addr4))
-		return false;
-	if (!str_to_addr6_verbose(IPV6_INJECT_BIB_ENTRY_SRC_ADDR, &addr6))
-		return false;
-
-	ta_ipv4.address = addr4;
-	ta_ipv6.address = addr6;
-	if (l4_proto == L4PROTO_ICMP) {
-		ta_ipv4.l4_id = INIT_TUPLE_ICMP_ID;
-		ta_ipv6.l4_id = INIT_TUPLE_ICMP_ID;
-	} else {
-		ta_ipv4.l4_id = IPV4_INJECT_BIB_ENTRY_DST_PORT;
-		ta_ipv6.l4_id = IPV6_INJECT_BIB_ENTRY_SRC_PORT;
-	}
-
-	bib_e = bib_create(&ta_ipv4, &ta_ipv6, false);
-	if (!bib_e) {
-		log_warning("Could not allocate the BIB entry.");
-		return false;
-	}
-
-	if (bib_add(bib_e, l4_proto) != 0) {
-		log_warning("Could not insert the BIB entry to the table.");
-		return false;
-	}
-
-	return true;
-}
-
-#define IPV4_ALLOCATED_ADDR     "192.168.2.1"
-static noinline bool test_allocate_ipv4_transport_address(void)
-{
-	struct tuple tuple;
-	struct ipv4_tuple_address tuple_addr;
-	struct in_addr expected_addr;
-	bool success = true;
-
-	success &= str_to_addr4_verbose(IPV4_ALLOCATED_ADDR, &expected_addr);
-	success &= inject_bib_entry(L4PROTO_ICMP);
-	success &= inject_bib_entry(L4PROTO_TCP);
-	success &= inject_bib_entry(L4PROTO_UDP);
-	if (!success)
-		return false;
-
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_ICMP)))
-		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
-			"ICMP result");
-	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "ICMP address");
-
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
-		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
-			"TCP result");
-	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "TCP address");
-	success &= assert_true(tuple_addr.l4_id > 1023, "Port range for TCP");
-
-	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
-		return false;
-	success &= assert_equals_int(0, allocate_ipv4_transport_address(&tuple, &tuple_addr),
-			"UDP result");
-	success &= assert_equals_ipv4(&expected_addr , &tuple_addr.address, "UDP address");
-	success &= assert_true(tuple_addr.l4_id % 2 == 0, "UDP port parity");
-	success &= assert_true(tuple_addr.l4_id > 1023, "UDP Port range");
-
-	return success;
-}
 
 static int bib_count_fn(struct bib_entry *bib, void *arg)
 {
@@ -127,7 +29,7 @@ static bool assert_bib_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success &= assert_equals_int(0, bib_for_each(proto, bib_count_fn, &count), "count");
+	success &= assert_equals_int(0, bibdb_for_each(proto, bib_count_fn, &count), "count");
 	success &= assert_equals_int(expected, count, "BIB count");
 
 	return success;
@@ -140,11 +42,11 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 	struct ipv6_tuple_address tuple_addr;
 	bool success = true;
 
-	if (!str_to_addr6_verbose(addr6, &tuple_addr.address))
+	if (is_error(str_to_addr6(addr6, &tuple_addr.address)))
 		return false;
 	tuple_addr.l4_id = port6;
 
-	success &= assert_equals_int(0, bib_get_by_ipv6(&tuple_addr, proto, &bib), "BIB exists");
+	success &= assert_equals_int(0, bibdb_get_by_ipv6(&tuple_addr, proto, &bib), "BIB exists");
 	if (!success)
 		return false;
 
@@ -153,7 +55,9 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 	success &= assert_equals_ipv4_str(addr4, &bib->ipv4.address, "IPv4 address");
 	success &= assert_equals_u16(port4, bib->ipv4.l4_id, "IPv4 port");
 	success &= assert_false(bib->is_static, "BIB is dynamic");
-	success &= assert_list_count(session_count, &bib->sessions, "Session count");
+	success &= assert_equals_int(session_count, atomic_read(&bib->refcounter.refcount) - 1, "BIB Session count");
+
+	bib_return(bib);
 
 	return success;
 }
@@ -170,7 +74,7 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	int count = 0;
 	bool success = true;
 
-	success = assert_equals_int(0, session_for_each(proto, session_count_fn, &count), "count");
+	success = assert_equals_int(0, sessiondb_for_each(proto, session_count_fn, &count), "count");
 	success = assert_equals_int(expected, count, "Session count");
 
 	return success;
@@ -186,14 +90,14 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	struct ipv6_pair pair6;
 	bool success = true;
 
-	if (!str_to_addr6_verbose(remote_addr6, &pair6.remote.address))
+	if (is_error(str_to_addr6(remote_addr6, &pair6.remote.address)))
 		return false;
 	pair6.remote.l4_id = remote_port6;
-	if (!str_to_addr6_verbose(local_addr6, &pair6.local.address))
+	if (is_error(str_to_addr6(local_addr6, &pair6.local.address)))
 		return false;
 	pair6.local.l4_id = local_port6;
 
-	success &= assert_equals_int(0, session_get_by_ipv6(&pair6, proto, &session), "Session exists");
+	success &= assert_equals_int(0, sessiondb_get_by_ipv6(&pair6, proto, &session), "Session exists");
 	if (!success)
 		return false;
 
@@ -209,13 +113,15 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	success &= assert_equals_int(proto, session->l4_proto, "Session's l4 proto");
 	success &= assert_equals_int(state, session->state, "Session's state");
 
+	session_return(session);
+
 	return success;
 }
 
 #define INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR "2001:db8:c0ca:1::1"
 #define INIT_TUPLE_IPV6_HAIR_LOOP_SRC_ADDR "64:ff9b::192.168.2.44"
 #define INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR "192.168.100.44"
-static noinline bool test_filtering_and_updating(void)
+static bool test_filtering_and_updating(void)
 {
 	struct sk_buff *skb;
 	struct tuple tuple;
@@ -320,7 +226,7 @@ static noinline bool test_filtering_and_updating(void)
 	return success;
 }
 
-static noinline bool test_udp(void)
+static bool test_udp(void)
 {
 	struct sk_buff *skb6, *skb4;
 	struct tuple tuple6, tuple4;
@@ -373,7 +279,7 @@ static noinline bool test_udp(void)
 	return success;
 }
 
-static noinline bool test_icmp(void)
+static bool test_icmp(void)
 {
 	struct sk_buff *skb6, *skb4;
 	struct tuple tuple6, tuple4;
@@ -461,7 +367,7 @@ static noinline bool create_tcp_packet(struct sk_buff **skb, l3_protocol l3_prot
 	return true;
 }
 
-static noinline bool init_tcp_session(
+static bool init_tcp_session(
 		unsigned char *remote6_addr, u16 remote6_id,
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
@@ -469,23 +375,22 @@ static noinline bool init_tcp_session(
 		enum tcp_states state,
 		struct session_entry *session)
 {
-	if (!str_to_addr6_verbose(remote6_addr, &session->ipv6.remote.address))
+	if (is_error(str_to_addr6(remote6_addr, &session->ipv6.remote.address)))
 		return false;
 	session->ipv6.remote.l4_id = remote6_id;
-	if (!str_to_addr6_verbose(local6_addr, &session->ipv6.local.address))
+	if (is_error(str_to_addr6(local6_addr, &session->ipv6.local.address)))
 		return false;
 	session->ipv6.local.l4_id = local6_id;
 
-	if (!str_to_addr4_verbose(local4_addr, &session->ipv4.local.address))
+	if (is_error(str_to_addr4(local4_addr, &session->ipv4.local.address)))
 		return false;
 	session->ipv4.local.l4_id = local4_id;
-	if (!str_to_addr4_verbose(remote4_addr, &session->ipv4.remote.address))
+	if (is_error(str_to_addr4(remote4_addr, &session->ipv4.remote.address)))
 		return false;
 	session->ipv4.remote.l4_id = remote4_id;
 
 	session->dying_time = jiffies - msecs_to_jiffies(100);
 	session->bib = NULL;
-	INIT_LIST_HEAD(&session->bib_list_hook);
 	INIT_LIST_HEAD(&session->expire_list_hook);
 	session->l4_proto = L4PROTO_TCP;
 	session->state = state;
@@ -502,7 +407,7 @@ static noinline bool init_tcp_session(
 #define IPV4_INIT_SESSION_ENTRY_SRC_PORT 1082
 #define IPV4_INIT_SESSION_ENTRY_DST_ADDR "192.168.2.44"
 #define IPV4_INIT_SESSION_ENTRY_DST_PORT 1082
-static noinline bool init_session_entry(l4_protocol l4_proto, struct session_entry *se)
+static bool init_session_entry(l4_protocol l4_proto, struct session_entry *se)
 {
 	struct in_addr src4;
 	struct in_addr dst4;
@@ -542,7 +447,7 @@ static noinline bool init_session_entry(l4_protocol l4_proto, struct session_ent
  * BTW: This test doesn't assert the packet is actually sent.
  */
 /*
-static noinline bool test_send_probe_packet(void)
+static bool test_send_probe_packet(void)
 {
 	struct session_entry se;
 	bool success = true;
@@ -557,7 +462,7 @@ static noinline bool test_send_probe_packet(void)
 }
 */
 
-static noinline bool test_tcp_closed_state_handle_6(void)
+static bool test_tcp_closed_state_handle_6(void)
 {
 	struct session_entry *session;
 	struct tuple tuple;
@@ -577,7 +482,8 @@ static noinline bool test_tcp_closed_state_handle_6(void)
 	success &= assert_equals_int(0, tcp_closed_state_handle(skb, &tuple), "V6 syn-result");
 
 	/* Validate */
-	success &= assert_equals_int(0, session_get(&tuple, &session), "V6 syn-session.");
+	/* TODO (warning) session_get and sessiondb_get are a disaster waiting to happen. */
+	success &= assert_equals_int(0, sessiondb_get(&tuple, &session), "V6 syn-session.");
 	if (success)
 		success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
 
@@ -588,7 +494,7 @@ static noinline bool test_tcp_closed_state_handle_6(void)
 /*
  * A V6 SYN packet arrives.
  */
-static noinline bool test_tcp_v4_init_state_handle_v6syn(void)
+static bool test_tcp_v4_init_state_handle_v6syn(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -604,7 +510,7 @@ static noinline bool test_tcp_v4_init_state_handle_v6syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_init_state_handle(skb, &session), "V6 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V6 syn-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 syn-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -613,7 +519,7 @@ static noinline bool test_tcp_v4_init_state_handle_v6syn(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v4_init_state_handle_else(void)
+static bool test_tcp_v4_init_state_handle_else(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -629,7 +535,7 @@ static noinline bool test_tcp_v4_init_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_init_state_handle(skb, &session), "else-result");
 	success &= assert_equals_u8(V4_INIT, session.state, "else-state");
-	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -638,7 +544,7 @@ static noinline bool test_tcp_v4_init_state_handle_else(void)
 /*
  * A V4 SYN packet arrives.
  */
-static noinline bool test_tcp_v6_init_state_handle_v4syn(void)
+static bool test_tcp_v6_init_state_handle_v4syn(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -654,7 +560,7 @@ static noinline bool test_tcp_v6_init_state_handle_v4syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, &session), "V4 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "V4 syn-state");
-	success &= assert_true(session.dying_time > jiffies, "V4 syn-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V4 syn-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -663,7 +569,7 @@ static noinline bool test_tcp_v6_init_state_handle_v4syn(void)
 /*
  * A V6 SYN packet arrives.
  */
-static noinline bool test_tcp_v6_init_state_handle_v6syn(void)
+static bool test_tcp_v6_init_state_handle_v6syn(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -679,7 +585,7 @@ static noinline bool test_tcp_v6_init_state_handle_v6syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, &session), "V6 syn-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "V6 syn-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 syn-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 syn-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -688,7 +594,7 @@ static noinline bool test_tcp_v6_init_state_handle_v6syn(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v6_init_state_handle_else(void)
+static bool test_tcp_v6_init_state_handle_else(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -704,7 +610,7 @@ static noinline bool test_tcp_v6_init_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, &session), "else-result");
 	success &= assert_equals_u8(V6_INIT, session.state, "else-state");
-	success &= assert_true(session.dying_time < jiffies, "else-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -712,7 +618,7 @@ static noinline bool test_tcp_v6_init_state_handle_else(void)
 /*
  * A V4 FIN packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v4fin(void)
+static bool test_tcp_established_state_handle_v4fin(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -728,7 +634,7 @@ static noinline bool test_tcp_established_state_handle_v4fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, &session), "result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "V4 fin-state");
-	success &= assert_true(session.dying_time < jiffies, "V4 fin-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V4 fin-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -737,7 +643,7 @@ static noinline bool test_tcp_established_state_handle_v4fin(void)
 /*
  * A V6 FIN packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v6fin(void)
+static bool test_tcp_established_state_handle_v6fin(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -753,7 +659,7 @@ static noinline bool test_tcp_established_state_handle_v6fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, &session), "result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "V6 fin-state");
-	success &= assert_true(session.dying_time < jiffies, "V6 fin-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V6 fin-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -762,7 +668,7 @@ static noinline bool test_tcp_established_state_handle_v6fin(void)
 /*
  * A V4 RST packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v4rst(void)
+static bool test_tcp_established_state_handle_v4rst(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -778,7 +684,7 @@ static noinline bool test_tcp_established_state_handle_v4rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
-	success &= assert_true(session.dying_time > jiffies, "V4 rst-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V4 rst-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -787,7 +693,7 @@ static noinline bool test_tcp_established_state_handle_v4rst(void)
 /*
  * A V6 RST packet arrives.
  */
-static noinline bool test_tcp_established_state_handle_v6rst(void)
+static bool test_tcp_established_state_handle_v6rst(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -803,7 +709,7 @@ static noinline bool test_tcp_established_state_handle_v6rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, &session), "result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 rst-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 rst-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -812,7 +718,7 @@ static noinline bool test_tcp_established_state_handle_v6rst(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_established_state_handle_else(void)
+static bool test_tcp_established_state_handle_else(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -828,7 +734,7 @@ static noinline bool test_tcp_established_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, &session), "result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -837,7 +743,7 @@ static noinline bool test_tcp_established_state_handle_else(void)
 /*
  * A V6 FIN packet arrives.
  */
-static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
+static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -853,7 +759,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, &session), "V6 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V6 fin-state");
-	success &= assert_true(session.dying_time > jiffies, "V6 fin-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V6 fin-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -862,7 +768,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v4_fin_rcv_state_handle_else(void)
+static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -878,7 +784,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, &session), "else-result");
 	success &= assert_equals_u8(V4_FIN_RCV, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -887,7 +793,7 @@ static noinline bool test_tcp_v4_fin_rcv_state_handle_else(void)
 /*
  * A V4 FIN packet arrives.
  */
-static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
+static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -903,7 +809,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, &session), "V4 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session.state, "V4 fin-state");
-	success &= assert_true(session.dying_time > jiffies, "V4 fin-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "V4 fin-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -912,7 +818,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_v6_fin_rcv_state_handle_else(void)
+static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -928,7 +834,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, &session), "else-result");
 	success &= assert_equals_u8(V6_FIN_RCV, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -937,7 +843,7 @@ static noinline bool test_tcp_v6_fin_rcv_state_handle_else(void)
 /*
  * A V4 RST packet arrives.
  */
-static noinline bool test_tcp_trans_state_handle_v4rst(void)
+static bool test_tcp_trans_state_handle_v4rst(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -953,7 +859,7 @@ static noinline bool test_tcp_trans_state_handle_v4rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(skb, &session), "V4 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V4 rst-state");
-	success &= assert_true(session.dying_time < jiffies, "V4 rst-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V4 rst-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -962,7 +868,7 @@ static noinline bool test_tcp_trans_state_handle_v4rst(void)
 /*
 * A V6 RST packet arrives.
 */
-static noinline bool test_tcp_trans_state_handle_v6rst(void)
+static bool test_tcp_trans_state_handle_v6rst(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -978,7 +884,7 @@ static noinline bool test_tcp_trans_state_handle_v6rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(skb, &session), "V6 rst-result");
 	success &= assert_equals_u8(TRANS, session.state, "V6 rst-state");
-	success &= assert_true(session.dying_time < jiffies, "V6 rst-lifetime");
+	success &= assert_true(time_before(session.dying_time, jiffies), "V6 rst-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -987,7 +893,7 @@ static noinline bool test_tcp_trans_state_handle_v6rst(void)
 /*
  * Something else arrives.
  */
-static noinline bool test_tcp_trans_state_handle_else(void)
+static bool test_tcp_trans_state_handle_else(void)
 {
 	struct session_entry session;
 	struct sk_buff *skb;
@@ -1003,7 +909,7 @@ static noinline bool test_tcp_trans_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(skb, &session), "else-result");
 	success &= assert_equals_u8(ESTABLISHED, session.state, "else-state");
-	success &= assert_true(session.dying_time > jiffies, "else-lifetime");
+	success &= assert_true(time_after(session.dying_time, jiffies), "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -1014,7 +920,7 @@ static noinline bool test_tcp_trans_state_handle_else(void)
  * the inner functions were tested above anyway.
  * The chain is V6 SYN --> V4 SYN --> V6 RST --> V6 SYN.
  */
-static noinline bool test_tcp(void)
+static bool test_tcp(void)
 {
 	bool success = true;
 	struct ipv6_pair pair6;
@@ -1090,7 +996,7 @@ static noinline bool test_tcp(void)
 	return success;
 }
 
-static noinline bool init_full(void)
+static bool init_full(void)
 {
 	char *prefixes[] = { "3::/96" };
 	int error;
@@ -1101,10 +1007,10 @@ static noinline bool init_full(void)
 	error = pool4_init(NULL, 0);
 	if (error)
 		goto fail;
-	error = bib_init();
+	error = bibdb_init();
 	if (error)
 		goto fail;
-	error = session_init();
+	error = sessiondb_init();
 	if (error)
 		goto fail;
 	error = filtering_init();
@@ -1117,8 +1023,10 @@ fail:
 	return false;
 }
 
-static noinline bool init_filtering_only(void)
+static bool init_filtering_only(void)
 {
+	if (is_error(sessiondb_init()))
+		return false;
 	if (is_error(filtering_init()))
 		return false;
 
@@ -1128,8 +1036,8 @@ static noinline bool init_filtering_only(void)
 static void end_full(void)
 {
 	filtering_destroy();
-	session_destroy();
-	bib_destroy();
+	sessiondb_destroy();
+	bibdb_destroy();
 	pool4_destroy();
 	pool6_destroy();
 }
@@ -1137,16 +1045,16 @@ static void end_full(void)
 static void end_filtering_only(void)
 {
 	filtering_destroy();
+	sessiondb_destroy();
 }
 
 #define TEST_FILTERING_ONLY(fn, name) \
 		INIT_CALL_END(init_filtering_only(), fn, end_filtering_only(), name)
-static int __init filtering_test_init(void)
+static int filtering_test_init(void)
 {
 	START_TESTS("Filtering and Updating");
 
 	/* General */
-	INIT_CALL_END(init_full(), test_allocate_ipv4_transport_address(), end_full(), "allocate addr");
 	INIT_CALL_END(init_full(), test_filtering_and_updating(), end_full(), "core function");
 
 	/* UDP */
@@ -1182,7 +1090,7 @@ static int __init filtering_test_init(void)
 	END_TESTS;
 }
 
-static void __exit filtering_test_exit(void)
+static void filtering_test_exit(void)
 {
 	/* No code. */
 }

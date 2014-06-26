@@ -1,5 +1,6 @@
 #include "nat64/comm/str_utils.h"
 #include "nat64/comm/constants.h"
+#include "nat64/usr/types.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -23,7 +24,7 @@ int str_to_bool(const char *str, bool *bool_out)
 		return 0;
 	}
 
-	log_err(ERR_PARSE_BOOL, "Cannot parse '%s' as a boolean (true|false|1|0|yes|no|on|off).", str);
+	log_err("Cannot parse '%s' as a boolean (true|false|1|0|yes|no|on|off).", str);
 	return -EINVAL;
 }
 
@@ -48,11 +49,11 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 	errno = 0;
 	result = strtol(str, &endptr, 10);
 	if (errno != 0 || str == endptr) {
-		log_err(ERR_PARSE_INT, "Cannot parse '%s' as an integer value.", str);
+		log_err("Cannot parse '%s' as an integer value.", str);
 		return -EINVAL;
 	}
 	if (result < min || max < result) {
-		log_err(ERR_INT_OUT_OF_BOUNDS, "'%s' is out of bounds (%u-%u).", str, min, max);
+		log_err("'%s' is out of bounds (%u-%u).", str, min, max);
 		return -EINVAL;
 	}
 
@@ -71,7 +72,7 @@ int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 
 	/* Validate str and copy it to the temp buffer. */
 	if (strlen(str) + 1 > STR_MAX_LEN) {
-		log_err(ERR_PARSE_INTARRAY, "'%s' is too long for this poor, limited parser...", str);
+		log_err("'%s' is too long for this poor, limited parser...", str);
 		return -EINVAL;
 	}
 	strcpy(str_copy, str);
@@ -85,14 +86,14 @@ int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 	}
 
 	if (array_len == 0) {
-		log_err(ERR_PARSE_INTARRAY, "'%s' seems to be an empty list, which is not supported.", str);
+		log_err("'%s' seems to be an empty list, which is not supported.", str);
 		return -EINVAL;
 	}
 
 	/* Build the result. */
 	array = malloc(array_len * sizeof(__u16));
 	if (!array) {
-		log_err(ERR_ALLOC_FAILED, "Memory allocation failed. Cannot parse the input...");
+		log_err("Memory allocation failed. Cannot parse the input...");
 		return -ENOMEM;
 	}
 
@@ -122,7 +123,7 @@ int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 int str_to_addr4(const char *str, struct in_addr *result)
 {
 	if (!inet_pton(AF_INET, str, result)) {
-		log_err(ERR_PARSE_ADDR4, "Cannot parse '%s' as a IPv4 address.", str);
+		log_err("Cannot parse '%s' as a IPv4 address.", str);
 		return -EINVAL;
 	}
 	return 0;
@@ -131,7 +132,7 @@ int str_to_addr4(const char *str, struct in_addr *result)
 int str_to_addr6(const char *str, struct in6_addr *result)
 {
 	if (!inet_pton(AF_INET6, str, result)) {
-		log_err(ERR_PARSE_ADDR6, "Cannot parse '%s' as a IPv6 address.", str);
+		log_err("Cannot parse '%s' as a IPv6 address.", str);
 		return -EINVAL;
 	}
 	return 0;
@@ -148,14 +149,14 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
-		log_err(ERR_PARSE_ADDR4_PORT, "'%s' is too long for this poor, limited parser...", str);
+		log_err("'%s' is too long for this poor, limited parser...", str);
 		return -EINVAL;
 	}
 	strcpy(str_copy, str);
 
 	token = strtok(str_copy, "#");
 	if (!token) {
-		log_err(ERR_PARSE_ADDR4_PORT, "Cannot parse '%s' as a %s.", str, FORMAT);
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
 		return -EINVAL;
 	}
 
@@ -165,8 +166,7 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 
 	token = strtok(NULL, "#");
 	if (!token) {
-		log_err(ERR_PARSE_ADDR4_PORT, "'%s' does not seem to contain a port (format: %s).", str,
-				FORMAT);
+		log_err("'%s' does not seem to contain a port (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
 	error = str_to_u16(token, &addr_out->l4_id, 0, MAX_PORT);
@@ -187,14 +187,14 @@ int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
-		log_err(ERR_PARSE_ADDR6_PORT, "'%s' is too long for this poor, limited parser...", str);
+		log_err("'%s' is too long for this poor, limited parser...", str);
 		return -EINVAL;
 	}
 	strcpy(str_copy, str);
 
 	token = strtok(str_copy, "#");
 	if (!token) {
-		log_err(ERR_PARSE_ADDR6_PORT, "Cannot parse '%s' as a %s.", str, FORMAT);
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
 		return -EINVAL;
 	}
 
@@ -204,8 +204,7 @@ int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 
 	token = strtok(NULL, "#");
 	if (!token) {
-		log_err(ERR_PARSE_ADDR6_PORT, "'%s' does not seem to contain a port (format: %s).", str,
-				FORMAT);
+		log_err("'%s' does not seem to contain a port (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
 	error = str_to_u16(token, &addr_out->l4_id, 0, MAX_PORT);
@@ -229,14 +228,14 @@ int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
-		log_err(ERR_PARSE_PREFIX, "'%s' is too long for this poor, limited parser...", str);
+		log_err("'%s' is too long for this poor, limited parser...", str);
 		return -EINVAL;
 	}
 	strcpy(str_copy, str);
 
 	token = strtok(str_copy, "/");
 	if (!token) {
-		log_err(ERR_PARSE_PREFIX, "Cannot parse '%s' as a %s.", str, FORMAT);
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
 		return -EINVAL;
 	}
 
@@ -246,7 +245,7 @@ int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 
 	token = strtok(NULL, "/");
 	if (!token) {
-		log_err(ERR_PARSE_PREFIX, "'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
+		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
 	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
@@ -257,7 +256,7 @@ int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 		if (prefix_out->len == valid_lengths[i])
 			return 0;
 
-	log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length.", prefix_out->len);
+	log_err("%u is not a valid prefix length.", prefix_out->len);
 	return -EINVAL;
 }
 

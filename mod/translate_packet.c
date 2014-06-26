@@ -24,7 +24,7 @@
  * A bunch of pieces, that will eventually be merged into a sk_buff.
  * We also use it to describe incoming skbs, so we don't have to turn ICMP payloads into skbs when
  * we're translating error messages (since a pkt_parts in the stack is easier on the kernel than
- * a massive temporal sk_buff in dynamic memory, I think).
+ * a massive temporal sk_buff in the heap, I think).
  */
 struct pkt_parts {
 	struct {
@@ -200,7 +200,7 @@ int translate_packet_init(void)
 	config->mtu_plateau_count = ARRAY_SIZE(default_plateaus);
 	config->mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
 	if (!config->mtu_plateaus) {
-		log_err(ERR_ALLOC_FAILED, "Could not allocate memory to store the MTU plateaus.");
+		log_err("Could not allocate memory to store the MTU plateaus.");
 		kfree(config);
 		return -ENOMEM;
 	}
@@ -272,7 +272,7 @@ int clone_translate_config(struct translate_config *clone)
 	clone->mtu_plateaus = kmalloc(plateaus_len, GFP_ATOMIC);
 	if (!clone->mtu_plateaus) {
 		rcu_read_unlock_bh();
-		log_err(ERR_ALLOC_FAILED, "Could not allocate a clone of the config's plateaus list.");
+		log_err("Could not allocate a clone of the config's plateaus list.");
 		return -ENOMEM;
 	}
 	memcpy(clone->mtu_plateaus, config_ref->mtu_plateaus, plateaus_len);
@@ -303,7 +303,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		int i, j;
 
 		if (new_config->mtu_plateau_count == 0) {
-			log_err(ERR_MTU_LIST_EMPTY, "The MTU list received from userspace is empty.");
+			log_err("The MTU list received from userspace is empty.");
 			return -EINVAL;
 		}
 
@@ -322,7 +322,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 		}
 
 		if (new_config->mtu_plateaus[0] == 0) {
-			log_err(ERR_MTU_LIST_ZEROES, "The MTU list contains nothing but zeroes.");
+			log_err("The MTU list contains nothing but zeroes.");
 			return -EINVAL;
 		}
 
@@ -355,7 +355,7 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 
 		tmp_config->mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
 		if (!tmp_config->mtu_plateaus) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate the kernel's MTU plateaus list.");
+			log_err("Could not allocate the kernel's MTU plateaus list.");
 			kfree(tmp_config);
 			return -ENOMEM;
 		}
@@ -472,7 +472,7 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		prev_skb = new_skb;
 	}
 
-	/* Finally truncate frag and we're done. */
+	/* Finally truncate the original packet and we're done. */
 	skb_put(skb, -(skb->len - min_ipv6_mtu));
 
 	return 0;

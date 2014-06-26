@@ -31,6 +31,7 @@ pkt = packet
 ver = verdict
 skb = socket buffer (inherited from the kernel)
 aux = auxiliar function
+req = requirement
 
 
 BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're

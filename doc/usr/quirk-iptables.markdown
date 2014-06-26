@@ -5,7 +5,9 @@ title: Documentation - Quirk-iptables
 
 # Quirk: The iptables Conundrum
 
-(Please note: This is all based on personal research. The Linux Kernel is a massive behemoth and as such, I might have overlooked some detail. If you know of some feature that trumps the reasoning exposed here, we'd love to hear it - [jool@nic.mx](mailto:jool@nic.mx))
+> **Warning.**
+> 
+> Because the RFC wants us to [fragment outgoing IPv6 packets compulsively](userspace-app.html#minmtu6), we now consider this whole reasoning a fallacy. This quirk will probably go away in the next iteration.
 
 ## Index
 

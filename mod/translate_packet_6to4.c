@@ -22,11 +22,10 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	 */
 	total_len = sizeof(struct iphdr) + in->l4_hdr.len + in->payload.len;
 	if (in->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
-		/* In case you can't tell, I hate this IPv6 extension header b***s*** =_=. */
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) (in->payload.ptr));
 
 		if (hdr_iterator_last(&iterator) != HDR_ITERATOR_END) {
-			log_crit(ERR_UNKNOWN_ERROR, "Validated packet has an invalid sub-l3 header.");
+			WARN(true, "Validated packet has an invalid sub-l3 header.");
 			return -EINVAL;
 		}
 
@@ -187,7 +186,7 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	if (!is_inner_pkt(in)) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
-			log_info("Packet's segments left field is nonzero.");
+			log_debug("Packet's segments left field is nonzero.");
 			icmp64_send(in->skb, ICMPERR_HDR_FIELD, nonzero_location);
 			return -EINVAL;
 		}
@@ -313,14 +312,14 @@ static int icmp6_to_icmp4_param_prob_ptr(struct icmp6hdr *icmpv6_hdr,
 	}
 
 	/* This is critical because the above ifs are supposed to cover all the possible values. */
-	log_crit(ERR_UNKNOWN_ERROR, "Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
+	WARN(true, "Unknown pointer '%u' for parameter problem message.", icmp6_ptr);
 	goto failure;
 
 success:
 	icmpv4_hdr->icmp4_unused = cpu_to_be32(icmp4_ptr << 24);
 	return 0;
 failure:
-	log_info("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
+	log_debug("ICMP parameter problem pointer %u has no ICMP4 counterpart.", icmp6_ptr);
 	return -EINVAL;
 }
 
@@ -348,7 +347,7 @@ static int icmp6_to_icmp4_dest_unreach(struct icmp6hdr *icmpv6_hdr, struct icmph
 		break;
 
 	default:
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
+		log_debug("ICMPv6 messages type %u code %u do not exist in ICMPv4.",
 				icmpv6_hdr->icmp6_type, icmpv6_hdr->icmp6_code);
 		return -EINVAL;
 	}
@@ -380,7 +379,7 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 
 	default:
 		/* ICMPV6_UNK_OPTION is known to fall through here. */
-		log_info("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
+		log_debug("ICMPv6 messages type %u code %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type,
 				icmpv6_hdr->icmp6_code);
 		return -EINVAL;
 	}
@@ -526,7 +525,7 @@ static int create_icmp4_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		 * ICMPV6_MGM_QUERY, ICMPV6_MGM_REPORT, ICMPV6_MGM_REDUCTION,
 		 * Neighbor Discover messages (133 - 137).
 		 */
-		log_info("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
+		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		return -EINVAL;
 	}
 

@@ -35,7 +35,6 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out);
 int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out);
 int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out);
 
-void print_code_msg(enum error_code code, char *success_msg);
 void print_time(__u64 millis);
 
 

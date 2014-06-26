@@ -1,137 +1,20 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/comm/types.h"
-#include "nat64/mod/ipv6_hdr_iterator.h"
 
 #include <linux/version.h>
 #include <linux/list.h>
-#include <net/ip.h>
 #include <linux/icmp.h>
-#include <linux/icmpv6.h>
+#include <net/ip.h>
 #include <net/ip6_route.h>
 #include <net/route.h>
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-
-struct dst_entry *route_ipv4(struct iphdr *hdr_ip4, void *l4_hdr, l4_protocol l4_proto, u32 mark)
-{
-	struct flowi flow;
-	struct rtable *table;
-	int error;
-
-	memset(&flow, 0, sizeof(flow));
-	/* flow.oif; */
-	/* flow.iif; */
-	flow.mark = mark;
-	flow.fl4_dst = hdr_ip4->daddr;
-	/* flow.fl4_src = hdr_ip4->saddr; */
-	flow.fl4_tos = RT_TOS(hdr_ip4->tos);
-	flow.fl4_scope = RT_SCOPE_UNIVERSE;
-	flow.proto = hdr_ip4->protocol;
-	flow.flags = 0;
-	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmphdr *hdr_icmp4;
-
-		switch (l4_proto) {
-		case L4PROTO_NONE:
-			break;
-		case L4PROTO_TCP:
-			hdr_tcp = l4_hdr;
-			flow.fl_ip_sport = hdr_tcp->source;
-			flow.fl_ip_dport = hdr_tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr_udp = l4_hdr;
-			flow.fl_ip_sport = hdr_udp->source;
-			flow.fl_ip_dport = hdr_udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr_icmp4 = l4_hdr;
-			flow.fl_icmp_type = hdr_icmp4->type;
-			flow.fl_icmp_code = hdr_icmp4->code;
-			break;
-		}
-	}
-	/* flow.secid; */
-
-	error = ip_route_output_key(&init_net, &table, &flow);
-	if (error) {
-		log_err(ERR_ROUTE_FAILED, "ip_route_output_key() failed. Code: %d. Cannot route packet.",
-				-error);
-		return NULL;
-	}
-	if (!table) {
-		log_err(ERR_ROUTE_FAILED, "The routing table is NULL. Cannot route packet.");
-		return NULL;
-	}
-
-	return &table->dst;
-}
-
-struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip6, void *l4_hdr, l4_protocol l4_proto, u32 mark)
-{
-	struct flowi flow;
-	struct dst_entry *dst;
-
-	memset(&flow, 0, sizeof(flow));
-	/* flow.oif; */
-	/* flow.iif; */
-	flow.mark = mark;
-	flow.fl6_dst = hdr_ip6->daddr;
-	flow.fl6_src = hdr_ip6->saddr;
-	flow.fl6_flowlabel = get_flow_label(hdr_ip6);
-	flow.proto = hdr_ip6->nexthdr;
-	flow.flags = 0;
-	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmp6hdr *hdr_icmp6;
-
-		switch (l4_proto) {
-		case L4PROTO_NONE:
-			break;
-		case L4PROTO_TCP:
-			hdr_tcp = l4_hdr;
-			flow.fl_ip_sport = hdr_tcp->source;
-			flow.fl_ip_dport = hdr_tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr_udp = l4_hdr;
-			flow.fl_ip_sport = hdr_udp->source;
-			flow.fl_ip_dport = hdr_udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr_icmp6 = l4_hdr;
-			flow.fl_icmp_type = hdr_icmp6->icmp6_type;
-			flow.fl_icmp_code = hdr_icmp6->icmp6_code;
-			break;
-		}
-	}
-	/* flow.secid; */
-
-	dst = ip6_route_output(&init_net, NULL, &flow);
-	if (!dst) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
-		return NULL;
-	}
-	if (dst->error) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned error %d. Cannot route packet.",
-				-dst->error);
-		return NULL;
-	}
-
-	return dst;
-}
-
-#else
 
 int route_ipv4(struct sk_buff *skb)
 {
 	struct iphdr *hdr_ip = ip_hdr(skb);
 	struct flowi4 flow;
 	struct rtable *table;
+	int error;
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
@@ -187,22 +70,23 @@ int route_ipv4(struct sk_buff *skb)
 	 */
 	table = __ip_route_output_key(&init_net, &flow);
 	if (!table || IS_ERR(table)) {
-		log_err(ERR_ROUTE_FAILED, "__ip_route_output_key() returned %ld. "
-				"Cannot route packet.", (long) table);
-		return -EINVAL;
+		error = abs(PTR_ERR(table));
+		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
+		return -error;
 	}
 	if (table->dst.error) {
-		log_err(ERR_ROUTE_FAILED, "__ip_route_output_key() returned error %d. "
-				"Cannot route packet.", -table->dst.error);
+		error = abs(table->dst.error);
+		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
+		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
-		log_err(ERR_NULL, "I found a dst entry with no dev. I don't know what to do; failing...");
+		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
 		return -EINVAL;
 	}
 
 	skb_dst_set(skb, &table->dst);
-	/* TODO we have probably never needed this, since ip6_finish_output2() does it already. */
+	/* TODO (fine) ip_output() already does this, so we have probably never needed it. */
 	skb->dev = table->dst.dev;
 
 	return 0;
@@ -259,23 +143,21 @@ int route_ipv6(struct sk_buff *skb)
 
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned NULL. Cannot route packet.");
+		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
 		return -EINVAL;
 	}
 	if (dst->error) {
-		log_err(ERR_ROUTE_FAILED, "ip6_route_output() returned error %d. Cannot route packet.",
-				-dst->error);
-		return -EINVAL;
+		int error = abs(dst->error);
+		log_debug("ip6_route_output() returned error %d. Cannot route packet.", error);
+		return -error;
 	}
 
 	skb_dst_set(skb, dst);
-	/* TODO we have probably never needed this, since ip6_finish_output2() does it already. */
+	/* TODO (fine) ip6_finish_output2() already does this, so we have probably never needed it. */
 	skb->dev = dst->dev;
 
 	return 0;
 }
-
-#endif
 
 verdict send_pkt(struct sk_buff *skb)
 {
@@ -288,7 +170,7 @@ verdict send_pkt(struct sk_buff *skb)
 		skb->next = skb->prev = NULL;
 
 		if (!skb->dev) {
-			log_crit(ERR_UNKNOWN_ERROR, "I'm trying to send a packet that isn't routed.");
+			WARN(true, "I'm trying to send a packet that isn't routed.");
 			kfree_skb(skb);
 			continue;
 		}
@@ -306,7 +188,7 @@ verdict send_pkt(struct sk_buff *skb)
 		}
 
 		if (error) {
-			log_err(ERR_SEND_FAILED, "The kernel's packet dispatch function returned errcode %d. "
+			log_debug("The kernel's packet dispatch function returned errcode %d. "
 					"Could not send packet.", error);
 			/*
 			 * The rest will also probably fail, so don't waste time trying to send them.

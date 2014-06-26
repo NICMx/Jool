@@ -87,6 +87,16 @@ struct session_entry_us {
 	l4_protocol l4_proto;
 };
 
+struct sessiondb_config {
+	/** Current timeout values */
+	struct timeouts {
+		__u64 udp;
+		__u64 icmp;
+		__u64 tcp_est;
+		__u64 tcp_trans;
+	} ttl;
+};
+
 /**
  * Configuration for the "Filtering and Updating" module.
  */
@@ -97,13 +107,16 @@ struct filtering_config {
 	bool drop_icmp6_info;
 	/** Drop externally initiated TCP connections? (IPv4 initiated) */
 	bool drop_external_tcp;
-	/** Current timeout values */
-	struct timeouts {
-		__u64 udp;
-		__u64 icmp;
-		__u64 tcp_est;
-		__u64 tcp_trans;
-	} to;
+};
+
+/**
+ * This exists because of historical reasons. The timeouts used to be part of Filtering; we moved
+ * that to the session database, but we kept the interface of the userspace application.
+ * (so the user configures the session DB via filtering).
+ */
+struct full_filtering_config {
+	struct filtering_config filtering;
+	struct sessiondb_config sessiondb;
 };
 
 /**
@@ -193,7 +206,8 @@ struct request_bib {
 	l4_protocol l4_proto;
 	union {
 		struct {
-			/* Nothing needed here. */
+			bool iterate;
+			struct ipv4_tuple_address ipv4;
 		} display;
 		struct {
 			/* Nothing needed here. */
@@ -217,6 +231,8 @@ struct request_bib {
 
 struct request_session {
 	l4_protocol l4_proto;
+	bool iterate;
+	struct ipv4_tuple_address ipv4;
 };
 
 /*

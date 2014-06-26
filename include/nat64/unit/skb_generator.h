@@ -1,5 +1,6 @@
-#include <linux/skbuff.h>
-#include "nat64/comm/types.h"
+#ifndef _JOOL_UNIT_SKB_GENERATOR_H
+#define _JOOL_UNIT_SKB_GENERATOR_H
+
 #include "nat64/mod/packet.h"
 
 
@@ -19,3 +20,6 @@ int create_skb_ipv4_udp(struct ipv4_pair *pair4, struct sk_buff **result, u16 pa
 int create_skb_ipv4_tcp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
 int create_skb_ipv4_icmp_info(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
 int create_skb_ipv4_icmp_error(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len);
+
+
+#endif /* _JOOL_UNIT_SKB_GENERATOR_H */

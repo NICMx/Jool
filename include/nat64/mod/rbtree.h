@@ -108,4 +108,30 @@
 	}
 
 
+/**
+  * Similar to rbtree_find(), except if it doesn't find the node it returns the slot where it'd be
+  * placed so you can insert something in there.
+  */
+#define rbtree_find_node(expected, root, compare_cb, type, hook_name, parent, node) \
+	({ \
+		node = &((root)->rb_node); \
+		parent = NULL; \
+		\
+		/* Figure out where to put new node */ \
+		while (*node) { \
+			type *entry = rb_entry(*node, type, hook_name); \
+			int comparison = compare_cb(entry, expected); \
+			\
+			parent = *node; \
+			if (comparison < 0) { \
+				node = &((*node)->rb_left); \
+			} else if (comparison > 0) { \
+				node = &((*node)->rb_right); \
+			} else { \
+				break; \
+			} \
+		} \
+	})
+
+
 #endif /* _NF_NAT64_RBTREE_H */

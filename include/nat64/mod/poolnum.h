@@ -37,5 +37,14 @@ int poolnum_get_any(struct poolnum *pool, u16 *result);
 int poolnum_get(struct poolnum *pool, u16 value);
 int poolnum_return(struct poolnum *pool, u16 value);
 
+/**
+ * Returns whether the pool has all of its values (ie. nobody has requested anything, or everyone
+ * has returned everything).
+ */
+bool poolnum_is_full(struct poolnum *pool);
+/**
+ * Returns whether the pool has no values (ie. everyting has been borrowed).
+ */
+bool poolnum_is_empty(struct poolnum *pool);
 
 #endif /* _NF_NAT64_POOLNUM_H */

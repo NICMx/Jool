@@ -5,8 +5,8 @@
 #include "nat64/mod/out_stream.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -39,7 +39,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
-		log_err(ERR_ALLOC_FAILED, "Failed to allocate a response skb to the user.");
+		log_err("Failed to allocate a response skb to the user.");
 		return -ENOMEM;
 	}
 
@@ -54,7 +54,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	res = nlmsg_unicast(nl_socket, skb_out, nl_hdr_in->nlmsg_pid);
 	if (res < 0) {
-		log_err(ERR_NETLINK, "Error code %d while returning response to the user.", res);
+		log_err("Error code %d while returning response to the user.", res);
 		return res;
 	}
 
@@ -86,7 +86,7 @@ static int respond_ack(struct nlmsghdr *nl_hdr_in)
 static int verify_superpriv(struct request_hdr *nat64_hdr)
 {
 	if (!capable(CAP_NET_ADMIN)) {
-		log_warning("Administrative privileges required: %d", nat64_hdr->operation);
+		log_err("Administrative privileges required: %d", nat64_hdr->operation);
 		return -EPERM;
 	}
 
@@ -112,7 +112,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
@@ -145,7 +145,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -168,7 +168,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
@@ -198,10 +198,19 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing an address from the IPv4 pool.");
+
+		error = sessiondb_delete_by_ipv4(&request->update.addr);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		error = bibdb_delete_by_ipv4(&request->update.addr);
+		if (error)
+			return respond_error(nl_hdr, error);
+
 		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -231,22 +240,25 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		spin_lock_bh(&bib_session_lock);
-		error = bib_for_each(request->l4_proto, bib_entry_to_userspace, stream);
-		spin_unlock_bh(&bib_session_lock);
-		stream_close(stream);
+		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.ipv4,
+				!request->display.iterate, bib_entry_to_userspace, stream);
+		if (error > 0) {
+			error = stream_close_continue(stream);
+		} else {
+			error = stream_close(stream);
+		}
 
 		kfree(stream);
 		return error;
 
 	case OP_COUNT:
 		log_debug("Returning BIB count.");
-		error = bib_count(request->l4_proto, &count);
+		error = bibdb_count(request->l4_proto, &count);
 		if (error)
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
@@ -266,7 +278,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -297,49 +309,55 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 
 		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
 		if (!stream) {
-			log_err(ERR_ALLOC_FAILED, "Could not allocate an output stream to userspace.");
+			log_err("Could not allocate an output stream to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		spin_lock_bh(&bib_session_lock);
-		error = session_for_each(request->l4_proto, session_entry_to_userspace, stream);
-		spin_unlock_bh(&bib_session_lock);
-		stream_close(stream);
+		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->ipv4, !request->iterate,
+				session_entry_to_userspace, stream);
+		if (error > 0) {
+			error = stream_close_continue(stream);
+		} else {
+			error = stream_close(stream);
+		}
 
 		kfree(stream);
 		return error;
 
 	case OP_COUNT:
 		log_debug("Returning session count.");
-		error = session_count(request->l4_proto, &count);
+		error = sessiondb_count(request->l4_proto, &count);
 		if (error)
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
 static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		struct filtering_config *request)
+		struct full_filtering_config *request)
 {
-	struct filtering_config clone;
+	struct full_filtering_config clone;
 	int error;
 
 	if (nat64_hdr->operation == 0) {
 		log_debug("Returning 'Filtering and Updating' options.");
 
-		error = clone_filtering_config(&clone);
+		error = clone_filtering_config(&clone.filtering);
+		if (error)
+			return respond_error(nl_hdr, error);
+		error = sessiondb_clone_config(&clone.sessiondb);
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		clone.to.udp = jiffies_to_msecs(clone.to.udp);
-		clone.to.tcp_est = jiffies_to_msecs(clone.to.tcp_est);
-		clone.to.tcp_trans = jiffies_to_msecs(clone.to.tcp_trans);
-		clone.to.icmp = jiffies_to_msecs(clone.to.icmp);
+		clone.sessiondb.ttl.udp = jiffies_to_msecs(clone.sessiondb.ttl.udp);
+		clone.sessiondb.ttl.tcp_est = jiffies_to_msecs(clone.sessiondb.ttl.tcp_est);
+		clone.sessiondb.ttl.tcp_trans = jiffies_to_msecs(clone.sessiondb.ttl.tcp_trans);
+		clone.sessiondb.ttl.icmp = jiffies_to_msecs(clone.sessiondb.ttl.icmp);
 
 		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
 	} else {
@@ -348,12 +366,17 @@ static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 
 		log_debug("Updating 'Filtering and Updating' options.");
 
-		request->to.udp = msecs_to_jiffies(request->to.udp);
-		request->to.tcp_est = msecs_to_jiffies(request->to.tcp_est);
-		request->to.tcp_trans = msecs_to_jiffies(request->to.tcp_trans);
-		request->to.icmp = msecs_to_jiffies(request->to.icmp);
+		request->sessiondb.ttl.udp = msecs_to_jiffies(request->sessiondb.ttl.udp);
+		request->sessiondb.ttl.tcp_est = msecs_to_jiffies(request->sessiondb.ttl.tcp_est);
+		request->sessiondb.ttl.tcp_trans = msecs_to_jiffies(request->sessiondb.ttl.tcp_trans);
+		request->sessiondb.ttl.icmp = msecs_to_jiffies(request->sessiondb.ttl.icmp);
 
-		return respond_error(nl_hdr, set_filtering_config(nat64_hdr->operation, request));
+		error = set_filtering_config(nat64_hdr->operation, &request->filtering);
+		if (error)
+			return respond_error(nl_hdr, error);
+		error = sessiondb_set_config(nat64_hdr->operation, &request->sessiondb);
+
+		return respond_error(nl_hdr, error);
 	}
 }
 
@@ -441,7 +464,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		error = handle_translate_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
-		log_err(ERR_UNKNOWN_OP, "Unknown configuration mode: %d", nat64_hdr->mode);
+		log_err("Unknown configuration mode: %d", nat64_hdr->mode);
 		error = respond_error(nl_hdr, -EINVAL);
 	}
 
@@ -466,7 +489,7 @@ int config_init(void)
 	/*
 	 * The function changed between Linux 3.5.7 and 3.6, and then again from 3.6.11 to 3.7.
 	 *
-	 * If you're reading Git's history, that appears to be commit
+	 * If you're reading the kernel's Git history, that appears to be the commit
 	 * a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337) and then again in
 	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
 	 */
@@ -482,7 +505,7 @@ int config_init(void)
 #endif
 	
 	if (!nl_socket) {
-		log_err(ERR_NETLINK, "Creation of netlink socket failed.");
+		log_err("Creation of netlink socket failed.");
 		return -EINVAL;
 	}
 	log_debug("Netlink socket created.");

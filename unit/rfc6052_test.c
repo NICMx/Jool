@@ -77,20 +77,20 @@ static bool init(void)
 	int i;
 
 	if (str_to_addr4(ipv4_addr_str, &ipv4_addr) != 0) {
-		log_warning("Could not convert '%s' to a IPv4 address. Failing...", ipv4_addr_str);
+		log_err("Could not convert '%s' to a IPv4 address. Failing...", ipv4_addr_str);
 		return false;
 	}
 
 	for (i = 0; i < 6; i++) {
 		if (str_to_addr6(ipv6_addr_str[i], &ipv6_addr[i]) != 0) {
-			log_warning("Could not convert '%s' to a IPv6 address. Failing...", ipv6_addr_str[i]);
+			log_err("Could not convert '%s' to a IPv6 address. Failing...", ipv6_addr_str[i]);
 			return false;
 		}
 	}
 
 	for (i = 0; i < 6; i++) {
 		if (str_to_addr6(prefixes_str[i], &prefixes[i].address) != 0) {
-			log_warning("Could not convert '%s' to a IPv6 address. Failing...", prefixes_str[i]);
+			log_err("Could not convert '%s' to a IPv6 address. Failing...", prefixes_str[i]);
 			return false;
 		}
 		prefixes[i].len = prefixes_mask[i];

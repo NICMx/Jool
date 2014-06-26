@@ -163,7 +163,7 @@ static int create_ipv6_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	*/
 
 	if (!is_inner_pkt(in) && has_unexpired_src_route(ip4_hdr)) {
-		log_info("Packet has an unexpired source route.");
+		log_debug("Packet has an unexpired source route.");
 		icmp64_send(in->skb, ICMPERR_SRC_ROUTE, 0);
 		return -EINVAL;
 	}
@@ -322,8 +322,8 @@ static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *o
 		break;
 
 	default: /* hostPrecedenceViolation (14) is known to fall through here. */
-		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
-				icmpv4_hdr->code);
+		log_debug("ICMPv4 messages type %u code %u do not exist in ICMPv6.",
+				icmpv4_hdr->type, icmpv4_hdr->code);
 		return -EINVAL; /* No ICMP error. */
 	}
 
@@ -350,7 +350,7 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr
 		};
 
 		if (icmp4_pointer < 0 || 19 < icmp4_pointer || pointers[icmp4_pointer] == DROP) {
-			log_info("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
+			log_debug("ICMPv4 messages type %u code %u pointer %u do not exist in ICMPv6.",
 					icmpv4_hdr->type, icmpv4_hdr->code, icmp4_pointer);
 			return -EINVAL;
 		}
@@ -360,8 +360,8 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr
 		break;
 	}
 	default: /* missingARequiredOption (1) is known to fall through here. */
-		log_info("ICMPv4 messages type %u code %u do not exist in ICMPv6.", icmpv4_hdr->type,
-				icmpv4_hdr->code);
+		log_debug("ICMPv4 messages type %u code %u do not exist in ICMPv6.",
+				icmpv4_hdr->type, icmpv4_hdr->code);
 		return -EINVAL; /* No ICMP error. */
 	}
 
@@ -498,7 +498,7 @@ static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		 * Redirect (5), Alternative Host Address (6).
 		 * This time there's no ICMP error.
 		 */
-		log_info("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
+		log_debug("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
 		return -EINVAL;
 	}
 

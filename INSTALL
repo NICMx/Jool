@@ -7,94 +7,91 @@
 ***********************************************************************
 
 Install the requirements:
-	1. Your kernel headers (2.6.38 - 3.9.2)
-		$ sudo apt-get install linux-headers-$(uname -r)
+	1. Your kernel headers (version 3.0.0+)
+		# apt-get install linux-headers-$(uname -r)
 	2. libnl-3-dev (Only if you need the userspace application):
-		$ sudo apt-get install libnl-3-dev
+		# apt-get install libnl-3-dev
 		(Site: http://www.carisma.slowglass.com/~tgr/libnl)
-
-Install the DNS64:
-	- BIND 9.8+: https://www.isc.org/software/bind
 
 Compile the module:
 	NAT64$ cd mod
 	NAT64/mod$ make
 
 Install the module:
-	NAT64/mod$ make modules_install
-	$ depmod
+	NAT64/mod# make modules_install
+	# depmod
 
 Insert the module:
-	Ensure the dependencies are up.
-		$ modprobe ipv6
-
 	Enable ipv6 and ipv4 forwarding.
-		$ sysctl -w net.ipv4.conf.all.forwarding=1
-		$ sysctl -w net.ipv6.conf.all.forwarding=1
+		# sysctl -w net.ipv4.conf.all.forwarding=1
+		# sysctl -w net.ipv6.conf.all.forwarding=1
 
 	Turn off offloads (do this for every relevant interface)
-		$ sudo ethtool --offload <interface> tso off ufo off gso off gro off lro off
+		# sudo ethtool --offload <interface> tso off ufo off gso off gro off lro off
 
 	Prevent martian packets from reaching the module (Required by RFC 6146).
-		$ sysctl -w net.ipv4.conf.all.log_martians=1
+		# sysctl -w net.ipv4.conf.all.log_martians=1
 
 	Actually insert the module:
 		$ # default IPv4 pool: 192.168.2.1-192.168.2.4
 		$ # default IPv6 pool: 64:ff9b::/96
-		$ modprobe jool
+		# modprobe jool
 		or
-		$ modprobe jool pool4=192.168.0.1,192.168.0.2 pool6=1234:abcd::/96
+		# modprobe jool pool4=192.168.0.1,192.168.0.2 pool6=1234:abcd::/96
 
 	You might want to see your module shine.
 		$ lsmod   # See your module listed. Might want to pipe over to "grep jool".
-		$ dmesg   # Check the log. Only if compiled with DEBUG (see mod/Kbuild).
+		$ dmesg   # Check the log. Only relevant if compiled with DEBUG (see mod/Kbuild).
 
 Configure the module:
 	Compile the userspace application.
 		NAT64$ cd usr
+		NAT64/usr$ ./autogen.sh # Only if you downloaded via Git. You need autoconf 2.69+.
+		NAT64/usr$ ./configure
 		NAT64/usr$ make
+		NAT64/usr# make install
 
 	Send requests to the module using the userspace application.
 		Show help:
-			NAT64/usr$ ./jool --help
+			$ jool --help
 
 		Print the IPv6 pool:
-			NAT64/usr$ ./jool --pool6
+			$ jool --pool6
 		Add prefix 1234:abcd/96 to the IPv6 pool:
-			NAT64/usr$ ./jool --pool6 --add --prefix=1234:abcd::/96
+			# jool --pool6 --add --prefix=1234:abcd::/96
 		Remove prefix 1234:abcd/96 from the IPv6 pool:
-			NAT64/usr$ ./jool --pool6 --remove --prefix=1234:abcd::/96
+			# jool --pool6 --remove --prefix=1234:abcd::/96
 
 		Print the IPv4 pool:
-			NAT64/usr$ ./jool --pool4
+			$ jool --pool4
 		Add address 192.168.2.10 to the IPv4 pool:
-			NAT64/usr$ ./jool --pool4 --add --addr=192.168.2.10
+			# jool --pool4 --add --addr=192.168.2.10
 		Remove address 192.168.2.10 from the IPv4 pool:
-			NAT64/usr$ ./jool --pool4 --remove --addr=192.168.2.10
+			# jool --pool4 --remove --addr=192.168.2.10
 
 		Print the Binding Information Base (BIB):
-			NAT64/usr$ ./jool --bib
+			$ jool --bib
 		Add a binding to the BIB:
-			NAT64/usr$ ./jool --bib --add --bib4=192.168.2.1#11 --bib6=1::1#22
+			# jool --bib --add --bib4=192.168.2.1#11 --bib6=1::1#22
 		Remove a binding from the BIB:
-			NAT64/usr$ ./jool --bib --remove --bib4=192.168.2.1#11
+			# jool --bib --remove --bib4=192.168.2.1#11
 			or
-			NAT64/usr$ ./jool --bib --remove --bib6=1::1#22
+			# jool --bib --remove --bib6=1::1#22
 
 		Print the session table:
-			NAT64/usr$ ./jool --session
+			$ jool --session
 
 		Print the "Filtering and Updating" step's configuration:
-			NAT64/usr$ ./jool --filtering
+			$ jool --filtering
 		Change some "Filtering and Updating" configuration value:
-			# Run "./jool --filtering" to quickly see the available values.
-			NAT64/usr$ ./jool --filtering --dropAddr ON
+			$ # Run "jool --filtering" to quickly see the available values.
+			# jool --filtering --dropAddr ON
 
 		Print the "Translating the packet" step's configuration:
-			NAT64/usr$ ./jool --translate
+			$ jool --translate
 		Change some "Translating the packet" configuration value:
-			# Run "./jool --translate" to quickly see the available values.
-			NAT64/usr$ ./jool --translate --setTC ON
+			$ # Run "jool --translate" to quickly see the available values.
+			# jool --translate --setTC ON
 
 Removing the module:
-	$ rmmod jool
+	# modprobe -r jool

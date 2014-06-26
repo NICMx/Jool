@@ -11,7 +11,7 @@
  * @author Alberto Leiva  <- maintenance
  */
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 #include "nat64/mod/packet.h"
 
 

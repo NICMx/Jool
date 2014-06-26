@@ -1,4 +1,5 @@
 #include "nat64/mod/determine_incoming_tuple.h"
+#include "nat64/mod/packet.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
 
 #include <linux/ip.h>
@@ -7,11 +8,21 @@
 #include <linux/tcp.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
+#include <net/ipv6.h>
 
 
-/*
- * Sorry, I think that commenting every one of these functions would be extremely redundant.
- * Just jump to determine_in_tuple() to figure out what's going on.
+/**
+ * Assumes that hdr_ipv4 is part of a packet, and returns a pointer to the chunk of data after it.
+ * Skips IPv4 options if any.
+ */
+static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
+{
+	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
+}
+
+/**
+ * @{
+ * Builds "tuple"'s fields based on the rest of the arguments.
  */
 
 static verdict ipv4_udp(struct iphdr *hdr_ipv4, struct udphdr *hdr_udp, struct tuple *tuple)
@@ -36,7 +47,8 @@ static verdict ipv4_tcp(struct iphdr *hdr_ipv4, struct tcphdr *hdr_tcp, struct t
 	return VER_CONTINUE;
 }
 
-static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple)
+static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp,
+		struct tuple *tuple)
 {
 	tuple->src.addr.ipv4.s_addr = hdr_ipv4->saddr;
 	tuple->src.l4_id = be16_to_cpu(hdr_icmp->un.echo.id);
@@ -45,15 +57,6 @@ static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, 
 	tuple->l3_proto = L3PROTO_IPV4;
 	tuple->l4_proto = L4PROTO_ICMP;
 	return VER_CONTINUE;
-}
-
-/**
- * Assumes that hdr_ipv4 is part of a packet, and returns a pointer to the chunk of data after it.
- * Skips IPv4 options if any.
- */
-static void *ipv4_extract_l4_hdr(struct iphdr *hdr_ipv4)
-{
-	return ((void *) hdr_ipv4) + (hdr_ipv4->ihl << 2);
 }
 
 static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple)
@@ -95,7 +98,7 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 		break;
 
 	default:
-		log_warning("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
+		log_debug("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
 		return VER_DROP;
 	}
 
@@ -180,7 +183,7 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 		break;
 
 	default:
-		log_warning("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
+		log_debug("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
 		return VER_DROP;
 	}
 
@@ -188,6 +191,9 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 
 	return VER_CONTINUE;
 }
+/**
+ * @}
+ */
 
 /**
  * Extracts relevant data from "skb" and stores it in the "tuple" tuple.
@@ -223,12 +229,12 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 			} else if (is_icmp4_error(icmp4->type)) {
 				result = ipv4_icmp_err(hdr4, icmp4, tuple);
 			} else {
-				log_warning("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
+				log_debug("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
 				result = VER_DROP;
 			}
 			break;
 		case L4PROTO_NONE:
-			log_crit(ERR_ILLEGAL_NONE, "IPv4 - Packet has no transport header.");
+			WARN(true, "IPv4 - Packet has no transport header.");
 			result = VER_DROP;
 		}
 		break;
@@ -249,12 +255,12 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 			} else if (is_icmp6_error(icmp6->icmp6_type)) {
 				result = ipv6_icmp_err(hdr6, icmp6, tuple);
 			} else {
-				log_warning("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
+				log_debug("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
 				result = VER_DROP;
 			}
 			break;
 		case L4PROTO_NONE:
-			log_crit(ERR_ILLEGAL_NONE, "IPv6 - Packet has no transport header.");
+			WARN(true, "IPv6 - Packet has no transport header.");
 			result = VER_DROP;
 		}
 		break;

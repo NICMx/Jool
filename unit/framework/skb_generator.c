@@ -74,7 +74,7 @@ static int init_udp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *a
 		hdr->dest = cpu_to_be16(pair4->local.l4_id);
 		break;
 	default:
-		log_warning("Unsupported network protocol: %d.", l3_hdr_type);
+		log_err("Unsupported network protocol: %d.", l3_hdr_type);
 		return -EINVAL;
 	}
 
@@ -103,7 +103,7 @@ int init_tcp_hdr(void *l4_hdr, int l3_hdr_type, u16 datagram_len, void *arg)
 		hdr->dest = cpu_to_be16(pair4->local.l4_id);
 		break;
 	default:
-		log_warning("Unsupported network protocol: %d.", l3_hdr_type);
+		log_err("Unsupported network protocol: %d.", l3_hdr_type);
 		return -EINVAL;
 	}
 
@@ -325,7 +325,7 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, void *), int l3_hdr_type
 
 	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + datagram_len, GFP_ATOMIC);
 	if (!skb) {
-		log_err(ERR_ALLOC_FAILED, "New packet allocation failed.");
+		log_err("New packet allocation failed.");
 		return -ENOMEM;
 	}
 	skb->protocol = htons(l3_hdr_type);

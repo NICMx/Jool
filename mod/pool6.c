@@ -1,6 +1,7 @@
 #include "nat64/mod/pool6.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/mod/types.h"
 
 #include <linux/inet.h>
 #include <net/ipv6.h>
@@ -25,13 +26,16 @@ static LIST_HEAD(pool);
 static u64 pool_count;
 static DEFINE_SPINLOCK(pool_lock);
 
-static int verify_prefix(int start, struct in6_addr *in6)
+static int verify_prefix(int start, struct ipv6_prefix *prefix)
 {
 	int i;
 
-	for (i = start; i < ARRAY_SIZE(in6->s6_addr); i++) {
-		if (in6->s6_addr[i] & 0xFF)
+	for (i = start; i < ARRAY_SIZE(prefix->address.s6_addr); i++) {
+		if (prefix->address.s6_addr[i] & 0xFF) {
+			log_err("%pI6c/%u seems to have a suffix (RFC6052 doesn't like this).",
+					&prefix->address, prefix->len);
 			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -39,39 +43,23 @@ static int verify_prefix(int start, struct in6_addr *in6)
 
 static int validate_prefix(struct ipv6_prefix *prefix)
 {
-	int error = 0;
-
 	switch (prefix->len) {
 	case 32:
-		error = verify_prefix(4, &prefix->address);
-		break;
+		return verify_prefix(4, prefix);
 	case 40:
-		error = verify_prefix(5, &prefix->address);
-		break;
+		return verify_prefix(5, prefix);
 	case 48:
-		error = verify_prefix(6, &prefix->address);
-		break;
+		return verify_prefix(6, prefix);
 	case 56:
-		error = verify_prefix(7, &prefix->address);
-		break;
+		return verify_prefix(7, prefix);
 	case 64:
-		error = verify_prefix(8, &prefix->address);
-		break;
+		return verify_prefix(8, prefix);
 	case 96:
-		error = verify_prefix(12, &prefix->address);
-		break;
+		return verify_prefix(12, prefix);
 	default:
-		log_err(ERR_PREF_LEN_RANGE, "%u is not a valid prefix length (32, 40, 48, 56, 64, 96).",
-				prefix->len);
+		log_err("%u is not a valid prefix length (32, 40, 48, 56, 64, 96).", prefix->len);
 		return -EINVAL;
 	}
-
-	if (error) {
-		log_err(ERR_PREF_LEN_RANGE,"%pI6c/%u seems to have a suffix (RFC6052 doesn't like this).",
-				&prefix->address, prefix->len);
-	}
-
-	return error;
 }
 
 int pool6_init(char *pref_strs[], int pref_count)
@@ -101,7 +89,7 @@ int pool6_init(char *pref_strs[], int pref_count)
 	return 0;
 
 parse_failure:
-	log_err(ERR_PARSE_PREFIX, "IPv6 prefix is malformed: %s.", pref_strs[i]);
+	log_err("IPv6 prefix is malformed: %s.", pref_strs[i]);
 	/* Fall through. */
 
 silent_failure:
@@ -122,16 +110,14 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 {
 	struct pool_node *node;
 
-	if (!addr) {
-		log_err(ERR_NULL, "NULL is not a valid address.");
+	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
-		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty.");
+		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
@@ -155,7 +141,7 @@ int pool6_peek(struct ipv6_prefix *result)
 
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
-		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty.");
+		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
@@ -178,10 +164,8 @@ int pool6_add(struct ipv6_prefix *prefix)
 	struct pool_node *node;
 	int error;
 
-	if (!prefix) {
-		log_err(ERR_NULL, "NULL is not a valid prefix.");
+	if (WARN(!prefix, "NULL is not a valid prefix."))
 		return -EINVAL;
-	}
 
 	error = validate_prefix(prefix);
 	if (error)
@@ -189,7 +173,7 @@ int pool6_add(struct ipv6_prefix *prefix)
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {
-		log_err(ERR_ALLOC_FAILED, "Allocation of IPv6 pool node failed.");
+		log_err("Allocation of IPv6 pool node failed.");
 		return -ENOMEM;
 	}
 
@@ -207,16 +191,14 @@ int pool6_remove(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
 
-	if (!prefix) {
-		log_err(ERR_NULL, "NULL is not a valid prefix.");
+	if (WARN(!prefix, "NULL is not a valid prefix."))
 		return -EINVAL;
-	}
 
 	spin_lock_bh(&pool_lock);
 
 	if (list_empty(&pool)) {
 		spin_unlock_bh(&pool_lock);
-		log_err(ERR_POOL6_EMPTY, "The IPv6 pool is empty.");
+		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
@@ -231,7 +213,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	}
 	spin_unlock_bh(&pool_lock);
 
-	log_err(ERR_POOL6_NOT_FOUND, "The prefix is not part of the pool.");
+	log_err("The prefix is not part of the pool.");
 	return -ENOENT;
 }
 

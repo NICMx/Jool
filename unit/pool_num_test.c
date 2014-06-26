@@ -60,6 +60,50 @@ static bool test_poolnum_init_function(void)
 	return success;
 }
 
+static bool test_poolnum_empty_full(void)
+{
+	bool success = true;
+	struct poolnum pool;
+	u16 trash;
+
+	if (is_error(poolnum_init(&pool, 1, 3, 1)))
+		return false;
+	success &= assert_false(poolnum_is_empty(&pool), "init'd pool is far from empty");
+	success &= assert_true(poolnum_is_full(&pool), "init'd pool is full.");
+
+	if (is_error(poolnum_get_any(&pool, &trash)))
+		return false;
+	success &= assert_false(poolnum_is_empty(&pool), "single borrow, still not empty");
+	success &= assert_false(poolnum_is_full(&pool), "single borrow, not full any more");
+
+	if (is_error(poolnum_get_any(&pool, &trash)))
+		return false;
+	success &= assert_false(poolnum_is_empty(&pool), "two borrows, almost empty");
+	success &= assert_false(poolnum_is_full(&pool), "two borrows, still not full");
+
+	if (is_error(poolnum_get_any(&pool, &trash)))
+		return false;
+	success &= assert_true(poolnum_is_empty(&pool), "all borrows, pool is now empty");
+	success &= assert_false(poolnum_is_full(&pool), "all borrows, pool is far from full");
+
+	if (is_error(poolnum_return(&pool, 1)))
+		return false;
+	success &= assert_false(poolnum_is_empty(&pool), "one return, not empty any more");
+	success &= assert_false(poolnum_is_full(&pool), "one return, still not full");
+
+	if (is_error(poolnum_return(&pool, 2)))
+		return false;
+	success &= assert_false(poolnum_is_empty(&pool), "two returns, still not empty");
+	success &= assert_false(poolnum_is_full(&pool), "two returns, almost full");
+
+	if (is_error(poolnum_return(&pool, 3)))
+		return false;
+	success &= assert_false(poolnum_is_empty(&pool), "all returns, pool is far from empty.");
+	success &= assert_true(poolnum_is_full(&pool), "all returns, pool is full again");
+
+	return success;
+}
+
 static bool test_poolnum_get_any_function(void)
 {
 	bool success = true;
@@ -306,10 +350,11 @@ int init_module(void)
 	START_TESTS("Number pool");
 
 	/* BTW, neither of these functions test the randomness of the number order. */
-	CALL_TEST(test_poolnum_init_function(), "num_pool_init function.");
-	CALL_TEST(test_poolnum_get_any_function(), "num_pool_get_any function.");
-	CALL_TEST(test_poolnum_return_function(), "num_pool_return function.");
-	CALL_TEST(test_poolnum_get_function(), "num_pool_get function.");
+	CALL_TEST(test_poolnum_init_function(), "poolnum_init function.");
+	CALL_TEST(test_poolnum_empty_full(), "poolnum_is_empty and poolnum_is_full functions.");
+	CALL_TEST(test_poolnum_get_any_function(), "poolnum_get_any function.");
+	CALL_TEST(test_poolnum_return_function(), "poolnum_return function.");
+	CALL_TEST(test_poolnum_get_function(), "poolnum_get function.");
 	CALL_TEST(test_boundaries(), "boundaries test.");
 
 	END_TESTS;

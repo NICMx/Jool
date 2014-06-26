@@ -34,9 +34,9 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	addr6.address = *ip6_addr;
 	addr6.l4_id = ip6_port;
 
-	bib = bib_create(&addr4, &addr6, false);
+	bib = bib_create(&addr4, &addr6, false, l4_proto);
 	if (!bib) {
-		log_warning("Can't allocate a BIB entry!");
+		log_err("Can't allocate a BIB entry!");
 		return false;
 	}
 
@@ -47,8 +47,8 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 	*/
 
 	/* Add it to the table. */
-	if (is_error(bib_add(bib, l4_proto))) {
-		log_warning("Can't add the dummy BIB to the table.");
+	if (is_error(bibdb_add(bib))) {
+		log_err("Can't add the dummy BIB to the table.");
 		bib_kfree(bib);
 		return false;
 	}
@@ -70,19 +70,19 @@ static bool init(void)
 
 	/* Init test addresses */
 	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != 0) {
-		log_warning("Can't parse address '%s'. Failing test...", remote_ipv6_str);
+		log_err("Can't parse address '%s'. Failing test...", remote_ipv6_str);
 		return false;
 	}
 	if (str_to_addr6(local_ipv6_str, &local_ipv6) != 0) {
-		log_warning("Can't parse address '%s'. Failing test...", local_ipv6_str);
+		log_err("Can't parse address '%s'. Failing test...", local_ipv6_str);
 		return false;
 	}
 	if (str_to_addr4(local_ipv4_str, &local_ipv4) != 0) {
-		log_warning("Can't parse address '%s'. Failing test...", local_ipv4_str);
+		log_err("Can't parse address '%s'. Failing test...", local_ipv4_str);
 		return false;
 	}
 	if (str_to_addr4(remote_ipv4_str, &remote_ipv4) != 0) {
-		log_warning("Can't parse address '%s'. Failing test...", remote_ipv4_str);
+		log_err("Can't parse address '%s'. Failing test...", remote_ipv4_str);
 		return false;
 	}
 
@@ -90,13 +90,13 @@ static bool init(void)
 	if (is_error(pool6_init(NULL, 0))) /* we'll use the defaults. */
 		return false;
 	if (str_to_addr6("64:ff9b::", &prefix.address) != 0) {
-		log_warning("Cannot parse the IPv6 prefix. Failing...");
+		log_err("Cannot parse the IPv6 prefix. Failing...");
 		return false;
 	}
 	prefix.len = 96;
 
 	/* Init the BIB module */
-	if (is_error(bib_init()))
+	if (is_error(bibdb_init()))
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(l4_protos); i++)
@@ -111,7 +111,7 @@ static bool init(void)
  */
 static void cleanup(void)
 {
-	bib_destroy();
+	bibdb_destroy();
 	pool6_destroy();
 }
 

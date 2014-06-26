@@ -1,6 +1,7 @@
 #include "nat64/usr/bib.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
 #include "nat64/usr/dns.h"
 #include <errno.h>
@@ -13,6 +14,7 @@
 struct display_params {
 	bool numeric_hostname;
 	int row_count;
+	struct request_bib *req_payload;
 };
 
 static int bib_display_response(struct nl_msg *msg, void *arg)
@@ -35,6 +37,14 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
+
+	if (hdr->nlmsg_flags & NLM_F_MULTI) {
+		params->req_payload->display.iterate = true;
+		params->req_payload->display.ipv4.address = *(&entries[entry_count - 1].ipv4.address);
+		params->req_payload->display.ipv4.l4_id = *(&entries[entry_count - 1].ipv4.l4_id);
+	} else {
+		params->req_payload->display.iterate = false;
+	}
 	return 0;
 }
 
@@ -52,11 +62,19 @@ static bool display_single_table(char *table_name, l4_protocol l4_proto, bool nu
 	hdr->mode = MODE_BIB;
 	hdr->operation = OP_DISPLAY;
 	payload->l4_proto = l4_proto;
+	payload->display.iterate = false;
+	memset(&payload->display.ipv4, 0, sizeof(payload->display.ipv4));
 
 	params.numeric_hostname = numeric_hostname;
 	params.row_count = 0;
+	params.req_payload = payload;
 
-	error = netlink_request(request, hdr->length, bib_display_response, &params);
+	do {
+		error = netlink_request(request, hdr->length, bib_display_response, &params);
+		if (error)
+			break;
+	} while (params.req_payload->display.iterate);
+
 	if (!error) {
 		if (params.row_count > 0)
 			printf("  (Fetched %u entries.)\n", params.row_count);

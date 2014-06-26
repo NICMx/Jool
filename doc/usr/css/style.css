@@ -67,11 +67,15 @@ blockquote {
 	padding: 1em;
 	border-radius: 3px;
 	border: 1px solid #ddd;
-	color: #808080;
+	color: #707070;
 	font-size: 90%;
 	margin-left: 3em;
 	margin-right: 3em;
 	margin-bottom: 10px;
+}
+
+blockquote strong {
+	color: #800;
 }
 
 #page a {

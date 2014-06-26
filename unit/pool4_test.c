@@ -328,13 +328,13 @@ static bool init(void)
 
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		if (str_to_addr4(expected_ips_as_str[addr_ctr], &expected_ips[addr_ctr]) != 0) {
-			log_warning("Cannot parse test address '%s'. Failing.", expected_ips_as_str[addr_ctr]);
+			log_err("Cannot parse test address '%s'. Failing.", expected_ips_as_str[addr_ctr]);
 			return false;
 		}
 	}
 
 	if (pool4_init(expected_ips_as_str, ARRAY_SIZE(expected_ips_as_str)) != 0) {
-		log_warning("Could not init the pool. Failing...");
+		log_err("Could not init the pool. Failing...");
 		return false;
 	}
 

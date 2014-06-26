@@ -5,14 +5,15 @@
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
-#include "nat64/unit/bib_session_helper.h"
-#include "nat64/unit/send_packet_impersonator.h"
+#include "nat64/unit/bib.h"
+#include "nat64/unit/session.h"
+#include "nat64/unit/send_packet.h"
 
 #include "nat64/comm/str_utils.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
-#include "nat64/mod/bib.h"
-#include "nat64/mod/session.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
@@ -96,7 +97,7 @@ static struct session_entry *create_dynamic_session(int l4_proto)
 
 	session = session_create(&pair4, &pair6, l4_proto);
 	if (!session) {
-		log_warning("Could not allocate the dynamic session entry.");
+		log_err("Could not allocate the dynamic session entry.");
 		return NULL;
 	}
 
@@ -124,7 +125,7 @@ static struct session_entry *create_static_session(int l4_proto)
 
 	session = session_create(&pair4, &pair6, l4_proto);
 	if (!session) {
-		log_warning("Could not allocate the static session entry.");
+		log_err("Could not allocate the static session entry.");
 		return NULL;
 	}
 
@@ -144,12 +145,12 @@ static struct bib_entry *create_and_insert_static_bib(int l4_proto)
 	addr4.l4_id = STATIC_BIB_IPV4_PORT;
 	addr6.l4_id = STATIC_BIB_IPV6_PORT;
 
-	bib = bib_create(&addr4, &addr6, true);
+	bib = bib_create(&addr4, &addr6, true, l4_proto);
 	if (!bib) {
-		log_warning("Could not allocate the static BIB entry.");
+		log_err("Could not allocate the static BIB entry.");
 		return NULL;
 	}
-	if (is_error(bib_add(bib, l4_proto)))
+	if (is_error(bibdb_add(bib)))
 		return NULL;
 
 	return bib;
@@ -161,12 +162,12 @@ static int strs_to_pair6(char *src_addr, u16 src_port, char *dst_addr, u16 dst_p
 
 	error = str_to_addr6(src_addr, &pair6->remote.address);
 	if (error) {
-		log_warning("Cannot parse %pI6c as a IPv6 address.", src_addr);
+		log_err("Cannot parse %pI6c as a IPv6 address.", src_addr);
 		return error;
 	}
 	error = str_to_addr6(dst_addr, &pair6->local.address);
 	if (error) {
-		log_warning("Cannot parse %pI6c as a IPv6 address.", dst_addr);
+		log_err("Cannot parse %pI6c as a IPv6 address.", dst_addr);
 		return error;
 	}
 	pair6->remote.l4_id = src_port;
@@ -182,12 +183,12 @@ static int strs_to_pair4(char *src_addr, u16 src_port, char *dst_addr, u16 dst_p
 
 	error = str_to_addr4(src_addr, &pair4->remote.address);
 	if (error) {
-		log_warning("Cannot parse %pI4 as a IPv4 address.", src_addr);
+		log_err("Cannot parse %pI4 as a IPv4 address.", src_addr);
 		return error;
 	}
 	error = str_to_addr4(dst_addr, &pair4->local.address);
 	if (error) {
-		log_warning("Cannot parse %pI4 as a IPv4 address.", dst_addr);
+		log_err("Cannot parse %pI4 as a IPv4 address.", dst_addr);
 		return error;
 	}
 	pair4->remote.l4_id = src_port;
@@ -210,9 +211,9 @@ static struct bib_entry *create_dynamic_bib(int l4_proto)
 	addr6.l4_id = DYNAMIC_BIB_IPV6_PORT;
 	addr4.l4_id = DYNAMIC_BIB_IPV4_PORT;
 
-	bib = bib_create(&addr4, &addr6, true);
+	bib = bib_create(&addr4, &addr6, true, l4_proto);
 	if (!bib) {
-		log_warning("Could not allocate the dynamic BIB entry.");
+		log_err("Could not allocate the dynamic BIB entry.");
 		return NULL;
 	}
 
@@ -283,7 +284,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 		break;
 	case L4PROTO_ICMP:
 	case L4PROTO_NONE:
-		log_warning("Test is not designed for protocol %d.", l4_proto);
+		log_err("Test is not designed for protocol %d.", l4_proto);
 		success = false;
 		break;
 	}
@@ -325,7 +326,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 		break;
 	case L4PROTO_ICMP:
 	case L4PROTO_NONE:
-		log_warning("Test is not designed for protocol %d.", l4_proto);
+		log_err("Test is not designed for protocol %d.", l4_proto);
 		success = false;
 		break;
 	}
@@ -336,8 +337,8 @@ static bool test_hairpin(l4_protocol l4_proto,
 	kfree_skb(skb_out);
 
 	/* We're done. */
-	print_bibs(l4_proto);
-	print_sessions(l4_proto);
+	bib_print(l4_proto);
+	session_print(l4_proto);
 
 	session_kfree(dynamic_session);
 	session_kfree(static_session);
@@ -350,8 +351,8 @@ static void deinit(void)
 {
 	translate_packet_destroy();
 	filtering_destroy();
-	session_destroy();
-	bib_destroy();
+	sessiondb_destroy();
+	bibdb_destroy();
 	pool4_destroy();
 	pool6_destroy();
 }
@@ -368,10 +369,10 @@ static int init(void)
 	error = pool4_init(pool4, ARRAY_SIZE(pool4));
 	if (error)
 		goto failure;
-	error = bib_init();
+	error = bibdb_init();
 	if (error)
 		goto failure;
-	error = session_init();
+	error = sessiondb_init();
 	if (error)
 		goto failure;
 	error = filtering_init();

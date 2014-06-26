@@ -13,6 +13,7 @@
  */
 
 #include <linux/types.h>
+#include "nat64/mod/types.h"
 #include "nat64/mod/packet.h"
 
 

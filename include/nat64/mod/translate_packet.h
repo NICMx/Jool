@@ -11,7 +11,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/ip.h>
-#include "nat64/comm/types.h"
+#include "nat64/mod/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/packet.h"
 

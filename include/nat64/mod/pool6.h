@@ -17,6 +17,9 @@
 int pool6_init(char *pref_strs[], int pref_count);
 void pool6_destroy(void);
 
+/**
+ * You're not actually borrowing the prefix, so you don't have to return it.
+ */
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *prefix);
 int pool6_peek(struct ipv6_prefix *result);
 bool pool6_contains(struct in6_addr *addr);

@@ -41,7 +41,7 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 
 	if (skb_l4_proto(skb_in) == L4PROTO_ICMP) {
 		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
-		log_warning("ICMP is NOT supported by hairpinning. Dropping packet...");
+		log_debug("ICMP is NOT supported by hairpinning. Dropping packet...");
 		return VER_DROP;
 	}
 

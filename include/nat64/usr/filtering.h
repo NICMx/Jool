@@ -13,7 +13,7 @@
 #define TCP_EST_TIMEOUT_OPT		"toTCPest"
 #define TCP_TRANS_TIMEOUT_OPT 	"toTCPtrans"
 
-int filtering_request(__u32 operation, struct filtering_config *config);
+int filtering_request(__u32 operation, struct full_filtering_config *config);
 
 
 #endif /* _FILTERING_H */

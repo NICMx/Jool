@@ -17,6 +17,7 @@
 #include "nat64/comm/constants.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/comm/str_utils.h"
+#include "nat64/usr/types.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
 #include "nat64/usr/bib.h"
@@ -25,7 +26,7 @@
 #include "nat64/usr/translate.h"
 
 
-const char *argp_program_version = "3.1.4";
+const char *argp_program_version = "3.1.5";
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
@@ -53,7 +54,7 @@ struct arguments {
 	bool bib4_set;
 
 	/* Filtering, translate */
-	struct filtering_config filtering;
+	struct full_filtering_config filtering;
 	struct translate_config translate;
 };
 
@@ -309,41 +310,41 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 	case ARGP_DROP_ADDR:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_BY_ADDR_MASK;
-		error = str_to_bool(arg, &arguments->filtering.drop_by_addr);
+		error = str_to_bool(arg, &arguments->filtering.filtering.drop_by_addr);
 		break;
 	case ARGP_DROP_INFO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_ICMP6_INFO_MASK;
-		error = str_to_bool(arg, &arguments->filtering.drop_icmp6_info);
+		error = str_to_bool(arg, &arguments->filtering.filtering.drop_icmp6_info);
 		break;
 	case ARGP_DROP_TCP:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= DROP_EXTERNAL_TCP_MASK;
-		error = str_to_bool(arg, &arguments->filtering.drop_external_tcp);
+		error = str_to_bool(arg, &arguments->filtering.filtering.drop_external_tcp);
 		break;
 	case ARGP_UDP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= UDP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, UDP_MIN, 0xFFFF);
-		arguments->filtering.to.udp = temp * 1000;
+		arguments->filtering.sessiondb.ttl.udp = temp * 1000;
 		break;
 	case ARGP_ICMP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= ICMP_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, 0, 0xFFFF);
-		arguments->filtering.to.icmp = temp * 1000;
+		arguments->filtering.sessiondb.ttl.icmp = temp * 1000;
 		break;
 	case ARGP_TCP_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_EST_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_EST, 0xFFFF);
-		arguments->filtering.to.tcp_est = temp * 1000;
+		arguments->filtering.sessiondb.ttl.tcp_est = temp * 1000;
 		break;
 	case ARGP_TCP_TRANS_TO:
 		arguments->mode = MODE_FILTERING;
 		arguments->operation |= TCP_TRANS_TIMEOUT_MASK;
 		error = str_to_u16(arg, &temp, TCP_TRANS, 0xFFFF);
-		arguments->filtering.to.tcp_trans = temp * 1000;
+		arguments->filtering.sessiondb.ttl.tcp_trans = temp * 1000;
 		break;
 
 	case ARGP_RESET_TCLASS:
@@ -458,18 +459,18 @@ static int main_wrapped(int argc, char **argv)
 			return pool6_count();
 		case OP_ADD:
 			if (!args.pool6_prefix_set) {
-				log_err(ERR_MISSING_PARAM, "Please enter the prefix to be added (--prefix).");
+				log_err("Please enter the prefix to be added (--prefix).");
 				return -EINVAL;
 			}
 			return pool6_add(&args.pool6_prefix);
 		case OP_REMOVE:
 			if (!args.pool6_prefix_set) {
-				log_err(ERR_MISSING_PARAM, "Please enter the prefix to be removed (--prefix).");
+				log_err("Please enter the prefix to be removed (--prefix).");
 				return -EINVAL;
 			}
 			return pool6_remove(&args.pool6_prefix);
 		default:
-			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv6 pool mode: %u.", args.operation);
+			log_err("Unknown operation for IPv6 pool mode: %u.", args.operation);
 			return -EINVAL;
 		}
 		break;
@@ -482,18 +483,18 @@ static int main_wrapped(int argc, char **argv)
 			return pool4_count();
 		case OP_ADD:
 			if (!args.pool4_addr_set) {
-				log_err(ERR_MISSING_PARAM, "Please enter the address to be added (--address).");
+				log_err("Please enter the address to be added (--address).");
 				return -EINVAL;
 			}
 			return pool4_add(&args.pool4_addr);
 		case OP_REMOVE:
 			if (!args.pool4_addr_set) {
-				log_err(ERR_MISSING_PARAM, "Please enter the address to be removed (--address).");
+				log_err("Please enter the address to be removed (--address).");
 				return -EINVAL;
 			}
 			return pool4_remove(&args.pool4_addr);
 		default:
-			log_err(ERR_UNKNOWN_OP, "Unknown operation for IPv4 pool mode: %u.", args.operation);
+			log_err("Unknown operation for IPv4 pool mode: %u.", args.operation);
 			return -EINVAL;
 		}
 		break;
@@ -508,11 +509,11 @@ static int main_wrapped(int argc, char **argv)
 		case OP_ADD:
 			error = 0;
 			if (!args.bib6_set) {
-				log_err(ERR_MISSING_PARAM, "Missing IPv6 address#port (--bib6).");
+				log_err("Missing IPv6 address#port (--bib6).");
 				error = -EINVAL;
 			}
 			if (!args.bib4_set) {
-				log_err(ERR_MISSING_PARAM, "Missing IPv4 address#port (--bib4).");
+				log_err("Missing IPv4 address#port (--bib4).");
 				error = -EINVAL;
 			}
 			if (error)
@@ -526,12 +527,12 @@ static int main_wrapped(int argc, char **argv)
 			else if (args.bib4_set)
 				return bib_remove_ipv4(args.tcp, args.udp, args.icmp, &args.bib4);
 
-			log_err(ERR_MISSING_PARAM, "I need either the IPv4 transport address or the IPv6 "
+			log_err("I need either the IPv4 transport address or the IPv6 "
 					"transport address of the entry you want to remove.");
 			return -EINVAL;
 
 		default:
-			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
+			log_err("Unknown operation for session mode: %u.", args.operation);
 			return -EINVAL;
 		}
 		break;
@@ -543,7 +544,7 @@ static int main_wrapped(int argc, char **argv)
 		case OP_COUNT:
 			return session_count(args.tcp, args.udp, args.icmp);
 		default:
-			log_err(ERR_UNKNOWN_OP, "Unknown operation for session mode: %u.", args.operation);
+			log_err("Unknown operation for session mode: %u.", args.operation);
 			return -EINVAL;
 		}
 		break;
@@ -558,7 +559,7 @@ static int main_wrapped(int argc, char **argv)
 		return error;
 
 	default:
-		log_err(ERR_EMPTY_COMMAND, "Command seems empty; --help or --usage for info.");
+		log_err("Command seems empty; --help or --usage for info.");
 		return -EINVAL;
 	}
 }
