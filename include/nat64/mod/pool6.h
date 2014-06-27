@@ -23,6 +23,7 @@ void pool6_destroy(void);
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *prefix);
 int pool6_peek(struct ipv6_prefix *result);
 bool pool6_contains(struct in6_addr *addr);
+int pool6_contains_prefix(struct ipv6_prefix *prefix);
 
 /**
  * A copy of prefix is stored, not prefix itself.

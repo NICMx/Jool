@@ -232,6 +232,12 @@ int sessiondb_delete_by_bib(struct bib_entry *bib);
  * This is probably a lot faster than you think.
  */
 int sessiondb_delete_by_ipv4(struct in_addr *addr4);
+/**
+ * Deletes from the database all of the session entries whose local IPv6 address contains
+ * "prefix".
+ * This is probably a lot faster than you think.
+ */
+int sessiondb_delete_by_ipv6_prefix(struct ipv6_prefix *prefix);
 
 /**
  * Returns in "result" the session entry you'd expect from the "tuple" tuple.

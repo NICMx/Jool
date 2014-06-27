@@ -144,6 +144,10 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 		}
 
+		error = sessiondb_delete_by_ipv6_prefix(&request->update.prefix);
+		if (error)
+			return respond_error(nl_hdr, error);
+
 		log_debug("Removing a prefix from the IPv6 pool.");
 		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
 

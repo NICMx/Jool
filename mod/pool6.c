@@ -159,6 +159,33 @@ bool pool6_contains(struct in6_addr *addr)
 	return !pool6_get(addr, &result); /* 0 -> true, -ENOENT or whatever -> false. */
 }
 
+int pool6_contains_prefix(struct ipv6_prefix *prefix)
+{
+	struct pool_node *node;
+
+	if (WARN(!prefix, "NULL is not a valid prefix."))
+		return -EINVAL;
+
+	spin_lock_bh(&pool_lock);
+
+	if (list_empty(&pool)) {
+		spin_unlock_bh(&pool_lock);
+		log_warn_once("The IPv6 pool is empty.");
+		return -ENOENT;
+	}
+
+	list_for_each_entry(node, &pool, list_hook) {
+		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+			spin_unlock_bh(&pool_lock);
+			return 0;
+		}
+	}
+	spin_unlock_bh(&pool_lock);
+
+	log_err("The prefix is not part of the pool.");
+	return -ENOENT;
+}
+
 int pool6_add(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
