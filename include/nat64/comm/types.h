@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_TYPES_COMM_H
-#define _NF_NAT64_TYPES_COMM_H
+#ifndef _JOOL_COMM_TYPES_H
+#define _JOOL_COMM_TYPES_H
 
 /**
  * @file
@@ -167,4 +167,4 @@ struct tuple_addr {
 };
 
 
-#endif /* _NF_NAT64_TYPES_COMM_H */
+#endif /* _JOOL_COMM_TYPES_H */

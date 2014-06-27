@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_RBTREE_H
-#define _NF_NAT64_RBTREE_H
+#ifndef _JOOL_MOD_RBTREE_H
+#define _JOOL_MOD_RBTREE_H
 
 
 /**
@@ -134,4 +134,4 @@
 	})
 
 
-#endif /* _NF_NAT64_RBTREE_H */
+#endif /* _JOOL_MOD_RBTREE_H */

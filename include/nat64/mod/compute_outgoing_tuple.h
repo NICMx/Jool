@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_OUTGOING_H
-#define _NF_NAT64_OUTGOING_H
+#ifndef _JOOL_MOD_OUTGOING_H
+#define _JOOL_MOD_OUTGOING_H
 
 /**
  * @file
@@ -17,4 +17,4 @@
 verdict compute_out_tuple(struct tuple *in, struct tuple *out);
 
 
-#endif /* _NF_NAT64_OUTGOING_H */
+#endif /* _JOOL_MOD_OUTGOING_H */

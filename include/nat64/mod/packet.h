@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_PACKET_H
-#define _NF_NAT64_PACKET_H
+#ifndef _JOOL_MOD_PACKET_H
+#define _JOOL_MOD_PACKET_H
 
 #include <linux/skbuff.h>
 #include <net/ip.h>
@@ -209,4 +209,4 @@ int fix_checksums_ipv6(struct sk_buff *skb);
 int fix_checksums_ipv4(struct sk_buff *skb);
 
 
-#endif /* _NF_NAT64_PACKET_H */
+#endif /* _JOOL_MOD_PACKET_H */

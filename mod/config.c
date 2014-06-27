@@ -436,8 +436,8 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	void *request;
 	int error;
 
-	if (nl_hdr->nlmsg_type != MSG_TYPE_NAT64) {
-		log_debug("Expecting %#x but got %#x.", MSG_TYPE_NAT64, nl_hdr->nlmsg_type);
+	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL) {
+		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);
 		return -EINVAL;
 	}
 

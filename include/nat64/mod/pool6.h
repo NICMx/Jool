@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_POOL6_H
-#define _NF_NAT64_POOL6_H
+#ifndef _JOOL_MOD_POOL6_H
+#define _JOOL_MOD_POOL6_H
 
 /**
  * @file
@@ -33,4 +33,4 @@ int pool6_remove(struct ipv6_prefix *prefix);
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
 int pool6_count(__u64 *result);
 
-#endif /* _NF_NAT64_POOL6_H */
+#endif /* _JOOL_MOD_POOL6_H */

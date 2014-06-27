@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_ICMP_WRAPPER_H
-#define _NF_NAT64_ICMP_WRAPPER_H
+#ifndef _JOOL_MOD_ICMP_WRAPPER_H
+#define _JOOL_MOD_ICMP_WRAPPER_H
 
 #include "nat64/mod/packet.h"
 
@@ -35,4 +35,4 @@ typedef enum icmp_error_code {
 void icmp64_send(struct sk_buff *skb, icmp_error_code code, __be32 info);
 
 
-#endif /* _NF_NAT64_ICMP_WRAPPER_H */
+#endif /* _JOOL_MOD_ICMP_WRAPPER_H */

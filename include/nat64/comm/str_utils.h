@@ -1,3 +1,6 @@
+#ifndef _JOOL_COMM_STR_UTILS_H
+#define _JOOL_COMM_STR_UTILS_H
+
 /**
  * @file
  * Two-liners (since you need to check the return value) for string-to-something else conversions.
@@ -6,9 +9,6 @@
  *
  * @author Alberto Leiva
  */
-
-#ifndef _STR_UTILS_H_
-#define _STR_UTILS_H_
 
 #include "nat64/comm/types.h"
 
@@ -38,4 +38,4 @@ int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out);
 void print_time(__u64 millis);
 
 
-#endif /* _STR_UTILS_H_ */
+#endif /* _JOOL_COMM_STR_UTILS_H */

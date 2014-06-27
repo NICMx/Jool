@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_CONFIG_H
-#define _NF_NAT64_CONFIG_H
+#ifndef _JOOL_MOD_CONFIG_H
+#define _JOOL_MOD_CONFIG_H
 
 /**
  * @file
@@ -20,4 +20,4 @@ int config_init(void);
 void config_destroy(void);
 
 
-#endif /* _NF_NAT64_CONFIG_H */
+#endif /* _JOOL_MOD_CONFIG_H */

@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_FILTERING_H
-#define _NF_NAT64_FILTERING_H
+#ifndef _JOOL_MOD_FILTERING_H
+#define _JOOL_MOD_FILTERING_H
 
 /**
  * @file
@@ -26,4 +26,4 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config);
 verdict filtering_and_updating(struct sk_buff *skb, struct tuple *tuple);
 
 
-#endif /* _NF_NAT64_FILTERING_H */
+#endif /* _JOOL_MOD_FILTERING_H */

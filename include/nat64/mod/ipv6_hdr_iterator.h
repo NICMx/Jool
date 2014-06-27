@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_IPV6_HDR_ITERATOR_H
-#define _NF_NAT64_IPV6_HDR_ITERATOR_H
+#ifndef _JOOL_MOD_IPV6_HDR_ITERATOR_H
+#define _JOOL_MOD_IPV6_HDR_ITERATOR_H
 
 /**
  * @file
@@ -102,4 +102,4 @@ enum hdr_iterator_result hdr_iterator_last(struct hdr_iterator *iterator);
  */
 void *get_extension_header(struct ipv6hdr *ip6_hdr, __u8 hdr_id);
 
-#endif /* _NF_NAT64_IPV6_HDR_ITERATOR_H */
+#endif /* _JOOL_MOD_IPV6_HDR_ITERATOR_H */

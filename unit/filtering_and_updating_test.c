@@ -482,7 +482,6 @@ static bool test_tcp_closed_state_handle_6(void)
 	success &= assert_equals_int(0, tcp_closed_state_handle(skb, &tuple), "V6 syn-result");
 
 	/* Validate */
-	/* TODO (warning) session_get and sessiondb_get are a disaster waiting to happen. */
 	success &= assert_equals_int(0, sessiondb_get(&tuple, &session), "V6 syn-session.");
 	if (success)
 		success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");

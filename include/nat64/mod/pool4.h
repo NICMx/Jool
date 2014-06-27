@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_POOL4_H
-#define _NF_NAT64_POOL4_H
+#ifndef _JOOL_MOD_POOL4_H
+#define _JOOL_MOD_POOL4_H
 
 /**
  * @file
@@ -129,4 +129,4 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
 int pool4_count(__u64 *result);
 
 
-#endif /* _NF_NAT64_POOL4_H */
+#endif /* _JOOL_MOD_POOL4_H */

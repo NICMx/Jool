@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_STREAM_H
-#define _NF_NAT64_STREAM_H
+#ifndef _JOOL_MOD_OUT_STREAM_H
+#define _JOOL_MOD_OUT_STREAM_H
 
 #include "linux/netlink.h"
 
@@ -19,4 +19,4 @@ int stream_write(struct out_stream *stream, void *payload, int payload_len);
 int stream_close(struct out_stream *stream);
 int stream_close_continue(struct out_stream *stream);
 
-#endif /* _NF_NAT64_STREAM_H */
+#endif /* _JOOL_MOD_OUT_STREAM_H */

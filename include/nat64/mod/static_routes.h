@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_STATIC_ROUTES_H
-#define _NF_NAT64_STATIC_ROUTES_H
+#ifndef _JOOL_MOD_STATIC_ROUTES_H
+#define _JOOL_MOD_STATIC_ROUTES_H
 
 #include "nat64/comm/config_proto.h"
 
@@ -29,4 +29,4 @@ int add_static_route(struct request_bib *req);
 int delete_static_route(struct request_bib *req);
 
 
-#endif /* _NF_NAT64_STATIC_ROUTES_H */
+#endif /* _JOOL_MOD_STATIC_ROUTES_H */

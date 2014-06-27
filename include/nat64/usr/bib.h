@@ -1,5 +1,5 @@
-#ifndef _BIB_H
-#define _BIB_H
+#ifndef _JOOL_USR_BIB_H
+#define _JOOL_USR_BIB_H
 
 #include "nat64/comm/types.h"
 
@@ -14,4 +14,4 @@ int bib_remove_ipv6(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_tuple
 int bib_remove_ipv4(bool use_tcp, bool use_udp, bool use_icmp, struct ipv4_tuple_address *ipv4);
 
 
-#endif /* _BIB_H */
+#endif /* _JOOL_USR_BIB_H */

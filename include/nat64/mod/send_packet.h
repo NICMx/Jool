@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_SEND_PACKET_H
-#define _NF_NAT64_SEND_PACKET_H
+#ifndef _JOOL_MOD_SEND_PACKET_H
+#define _JOOL_MOD_SEND_PACKET_H
 
 /**
  * @file
@@ -46,4 +46,4 @@ int route_ipv6(struct sk_buff *skb);
 verdict send_pkt(struct sk_buff *skb);
 
 
-#endif /* _NF_NAT64_SEND_PACKET_H */
+#endif /* _JOOL_MOD_SEND_PACKET_H */

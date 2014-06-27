@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_SESSION_DB_H
-#define _NF_NAT64_SESSION_DB_H
+#ifndef _JOOL_MOD_SESSION_DB_H
+#define _JOOL_MOD_SESSION_DB_H
 
 /**
  * @file
@@ -267,4 +267,4 @@ void set_tcp_trans_timer(struct session_entry *session);
 void set_icmp_timer(struct session_entry *session);
 
 
-#endif /* _NF_NAT64_SESSION_DB_H */
+#endif /* _JOOL_MOD_SESSION_DB_H */

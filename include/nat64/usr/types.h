@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_TYPES_USR_H
-#define _NF_NAT64_TYPES_USR_H
+#ifndef _JOOL_USR_TYPES_H
+#define _JOOL_USR_TYPES_H
 
 #include "nat64/comm/types.h"
 
@@ -9,4 +9,4 @@
 #define log_err(text, ...) log_debug(text, ##__VA_ARGS__)
 
 
-#endif /* _NF_NAT64_TYPES_USR_H */
+#endif /* _JOOL_USR_TYPES_H */

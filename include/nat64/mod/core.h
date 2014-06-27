@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_CORE_H
-#define _NF_NAT64_CORE_H
+#ifndef _JOOL_MOD_CORE_H
+#define _JOOL_MOD_CORE_H
 
 /**
  * @file
@@ -18,4 +18,4 @@ unsigned int core_6to4(struct sk_buff *skb);
 unsigned int core_4to6(struct sk_buff *skb);
 
 
-#endif /* _NF_NAT64_CORE_H */
+#endif /* _JOOL_MOD_CORE_H */

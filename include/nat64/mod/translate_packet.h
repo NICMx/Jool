@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_TRANSLATING_THE_PACKET_H
-#define _NF_NAT64_TRANSLATING_THE_PACKET_H
+#ifndef _JOOL_MOD_TRANSLATING_THE_PACKET_H
+#define _JOOL_MOD_TRANSLATING_THE_PACKET_H
 
 /**
  * @file
@@ -37,4 +37,4 @@ int set_translate_config(__u32 operation, struct translate_config *new_config);
 verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in, struct sk_buff **output);
 
 
-#endif /* _NF_NAT64_TRANSLATING_THE_PACKET_H */
+#endif /* _JOOL_MOD_TRANSLATING_THE_PACKET_H */

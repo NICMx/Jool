@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_LOG_TIME_H
-#define _NF_NAT64_LOG_TIME_H
+#ifndef _JOOL_COMM_LOG_TIME_H
+#define _JOOL_COMM_LOG_TIME_H
 
 /**
  * @file
@@ -24,4 +24,4 @@ void logtime_print_counter(struct log_time *log_time);
 void logtime_restart(struct log_time *log_time);
 
 
-#endif /* _NF_NAT64_LOG_TIME_H */
+#endif /* _JOOL_COMM_LOG_TIME_H */

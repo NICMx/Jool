@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_BIB_DB_H
-#define _NF_NAT64_BIB_DB_H
+#ifndef _JOOL_MOD_BIB_DB_H
+#define _JOOL_MOD_BIB_DB_H
 
 /**
  * @file
@@ -223,4 +223,4 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
 int bibdb_delete_by_ipv4(struct in_addr *addr);
 
 
-#endif /* _NF_NAT64_BIB_DB_H */
+#endif /* _JOOL_MOD_BIB_DB_H */

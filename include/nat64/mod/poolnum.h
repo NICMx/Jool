@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_POOLNUM_H
-#define _NF_NAT64_POOLNUM_H
+#ifndef _JOOL_MOD_POOLNUM_H
+#define _JOOL_MOD_POOLNUM_H
 
 #include <linux/types.h>
 
@@ -47,4 +47,4 @@ bool poolnum_is_full(struct poolnum *pool);
  */
 bool poolnum_is_empty(struct poolnum *pool);
 
-#endif /* _NF_NAT64_POOLNUM_H */
+#endif /* _JOOL_MOD_POOLNUM_H */

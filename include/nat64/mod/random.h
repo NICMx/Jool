@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_RANDOM_H
-#define _NF_NAT64_RANDOM_H
+#ifndef _JOOL_MOD_RANDOM_H
+#define _JOOL_MOD_RANDOM_H
 
 #include <linux/random.h>
 
@@ -14,4 +14,4 @@
 
 u32 get_random_u32(void);
 
-#endif /* _NF_NAT64_RANDOM_H */
+#endif /* _JOOL_MOD_RANDOM_H */

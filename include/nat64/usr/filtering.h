@@ -1,5 +1,5 @@
-#ifndef _FILTERING_H
-#define _FILTERING_H
+#ifndef _JOOL_USR_FILTERING_H
+#define _JOOL_USR_FILTERING_H
 
 #include <linux/types.h>
 #include "nat64/comm/config_proto.h"
@@ -16,4 +16,4 @@
 int filtering_request(__u32 operation, struct full_filtering_config *config);
 
 
-#endif /* _FILTERING_H */
+#endif /* _JOOL_USR_FILTERING_H */

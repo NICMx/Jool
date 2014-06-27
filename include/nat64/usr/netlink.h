@@ -1,5 +1,5 @@
-#ifndef _NETLINK_H_
-#define _NETLINK_H_
+#ifndef _JOOL_USR_NETLINK_H_
+#define _JOOL_USR_NETLINK_H_
 
 #include <netlink/netlink.h>
 #include <netlink/socket.h>
@@ -19,4 +19,4 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 		void *cb_arg);
 
 
-#endif
+#endif /* _JOOL_USR_NETLINK_H_ */

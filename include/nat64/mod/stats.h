@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_STATS_H
-#define _NF_NAT64_STATS_H
+#ifndef _JOOL_MOD_STATS_H
+#define _JOOL_MOD_STATS_H
 
 #include <linux/skbuff.h>
 
@@ -22,4 +22,4 @@ void inc_stats_ipv4(struct sk_buff *skb, int field);
 void inc_stats(struct sk_buff *skb, int field);
 
 
-#endif /* _NF_NAT64_STATS_H */
+#endif /* _JOOL_MOD_STATS_H */

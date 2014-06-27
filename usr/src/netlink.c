@@ -35,7 +35,7 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 		goto fail_free;
 	}
 
-	error = nl_send_simple(sk, MSG_TYPE_NAT64, 0, request, request_len);
+	error = nl_send_simple(sk, MSG_TYPE_JOOL, 0, request, request_len);
 	if (error < 0) {
 		log_err("Could not send the request to the NAT64 (is it really up?).\n"
 				"Netlink error message: %s (Code %d)", nl_geterror(error), error);

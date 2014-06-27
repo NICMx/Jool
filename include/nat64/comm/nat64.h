@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_H
-#define _NF_NAT64_H
+#ifndef _JOOL_COMM_NAT64_H
+#define _JOOL_COMM_NAT64_H
 
 /**
  * @file
@@ -12,4 +12,4 @@
 #define MODULE_NAME "Jool"
 
 
-#endif /* _NF_NAT64_H */
+#endif /* _JOOL_COMM_NAT64_H */

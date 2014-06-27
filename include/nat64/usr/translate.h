@@ -1,5 +1,5 @@
-#ifndef _TRANSLATE_H
-#define _TRANSLATE_H
+#ifndef _JOOL_USR_TRANSLATE_H
+#define _JOOL_USR_TRANSLATE_H
 
 #include <linux/types.h>
 #include "nat64/comm/config_proto.h"
@@ -19,4 +19,4 @@
 int translate_request(__u32 operation, struct translate_config *config);
 
 
-#endif /* _TRANSLATE_H */
+#endif /* _JOOL_USR_TRANSLATE_H */
