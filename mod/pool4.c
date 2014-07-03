@@ -267,7 +267,6 @@ is_not_full:
 int pool4_remove(struct in_addr *addr)
 {
 	struct pool4_node *node;
-	bool is_full = 0;
 
 	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
@@ -277,14 +276,6 @@ int pool4_remove(struct in_addr *addr)
 	node = pool4_table_get(&pool, addr);
 	if (!node)
 		goto not_found;
-
-	is_full = pool4_is_full(node);
-	if (!is_full) {
-		spin_unlock_bh(&pool_lock);
-		log_err("There is at least one BIB entry using the address you're trying to remove; "
-				"try again.");
-		return -EAGAIN;
-	}
 
 	if (!pool4_table_remove(&pool, addr, destroy_pool4_node))
 		goto not_found;
@@ -538,5 +529,13 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
 int pool4_count(__u64 *result)
 {
 	*result = pool.node_count;
+	return 0;
+}
+
+int pool4_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+	pool4_table_empty(&pool, destroy_pool4_node);
+	spin_unlock_bh(&pool_lock);
 	return 0;
 }

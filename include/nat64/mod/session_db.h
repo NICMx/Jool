@@ -238,6 +238,10 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4);
  * This is probably a lot faster than you think.
  */
 int sessiondb_delete_by_ipv6_prefix(struct ipv6_prefix *prefix);
+/**
+ * Deletes all the session entries from the database.
+ */
+int sessiondb_flush(void);
 
 /**
  * Returns in "result" the session entry you'd expect from the "tuple" tuple.

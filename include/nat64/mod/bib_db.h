@@ -221,6 +221,10 @@ int bibdb_get_or_create_ipv6(struct fragment *frag, struct tuple *tuple, struct 
  * This is probably a lot faster than you think.
  */
 int bibdb_delete_by_ipv4(struct in_addr *addr);
+/**
+ * Removes all the fake users of all the BIB entries
+ */
+int bibdb_flush(void);
 
 
 #endif /* _NF_NAT64_BIB_DB_H */

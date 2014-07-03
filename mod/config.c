@@ -137,6 +137,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		}
 
 		log_debug("Adding a prefix to the IPv6 pool.");
+
 		return respond_error(nl_hdr, pool6_add(&request->update.prefix));
 
 	case OP_REMOVE:
@@ -144,12 +145,28 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 		}
 
-		error = sessiondb_delete_by_ipv6_prefix(&request->update.prefix);
+		log_debug("Removing a prefix from the IPv6 pool.");
+		error = pool6_remove(&request->update.prefix);
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		log_debug("Removing a prefix from the IPv6 pool.");
-		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
+		return respond_error(nl_hdr, sessiondb_delete_by_ipv6_prefix(&request->update.prefix));
+
+	case OP_FLUSH:
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv6 pool...");
+		error = pool6_flush();
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		error = sessiondb_flush();
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_error(nl_hdr, bibdb_flush());
 
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);
@@ -208,15 +225,31 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		log_debug("Removing an address from the IPv4 pool.");
 
+		error = pool4_remove(&request->update.addr);
+		if (error)
+			return respond_error(nl_hdr, error);
+
 		error = sessiondb_delete_by_ipv4(&request->update.addr);
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		error = bibdb_delete_by_ipv4(&request->update.addr);
+		return respond_error(nl_hdr, bibdb_delete_by_ipv4(&request->update.addr));
+
+	case OP_FLUSH:
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv4 pool...");
+		error = pool4_flush();
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
+		error = sessiondb_flush();
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_error(nl_hdr, bibdb_flush());
 
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);

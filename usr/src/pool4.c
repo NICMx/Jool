@@ -7,7 +7,7 @@
 
 
 #define HDR_LEN sizeof(struct request_hdr)
-#define PAYLOAD_LEN sizeof(union request_pool6)
+#define PAYLOAD_LEN sizeof(union request_pool4)
 
 
 static int pool4_display_response(struct nl_msg *msg, void *arg)
@@ -103,4 +103,20 @@ int pool4_remove(struct in_addr *addr)
 	payload->update.addr = *addr;
 
 	return netlink_request(request, hdr->length, pool4_remove_response, NULL);
+}
+
+static int pool4_flush_response(struct nl_msg *msg, void *arg)
+{
+	log_info("The IPv4 pool was flushed successfully");
+	return 0;
+}
+
+int pool4_flush(void)
+{
+	struct request_hdr request  = {
+				.length = sizeof(request),
+				.mode = MODE_POOL4,
+				.operation = OP_FLUSH,
+	};
+	return netlink_request(&request, request.length, pool4_flush_response, NULL);
 }

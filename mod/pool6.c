@@ -198,6 +198,16 @@ int pool6_add(struct ipv6_prefix *prefix)
 	if (error)
 		return error; /* Error msg already printed. */
 
+	spin_lock_bh(&pool_lock);
+	list_for_each_entry(node, &pool, list_hook) {
+		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+			log_err("The prefix already belongs to the pool.");
+			spin_unlock_bh(&pool_lock);
+			return -EEXIST;
+		}
+	}
+	spin_unlock_bh(&pool_lock);
+
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {
 		log_err("Allocation of IPv6 pool node failed.");
@@ -266,5 +276,20 @@ int pool6_count(__u64 *result)
 	spin_lock_bh(&pool_lock);
 	*result = pool_count;
 	spin_unlock_bh(&pool_lock);
+	return 0;
+}
+
+int pool6_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+
+	while (!list_empty(&pool)) {
+		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
+		list_del(&node->list_hook);
+		kfree(node);
+		pool_count--;
+	}
+	spin_unlock_bh(&pool_lock);
+
 	return 0;
 }

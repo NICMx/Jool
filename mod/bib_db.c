@@ -675,3 +675,52 @@ int bibdb_delete_by_ipv4(struct in_addr *addr)
 
 	return 0;
 }
+
+static void flush_aux(struct bib_table *table)
+{
+	struct bib_entry *root_bib, *bib;
+	struct rb_node *node;
+	int b = 0;
+
+	spin_lock_bh(&table->lock);
+
+	/* This is very similar to the for_each function. See that it you want comments. */
+	node = (&table->tree4)->rb_node;
+	if (!node)
+		goto success;
+
+	root_bib = rb_entry(node, struct bib_entry, tree4_hook);
+	if (!root_bib)
+		goto success;
+
+	node = rb_prev(&root_bib->tree4_hook);
+	while (node) {
+		bib = rb_entry(node, struct bib_entry, tree4_hook);
+		node = rb_prev(&bib->tree4_hook);
+		b += remove_fake_usr(bib);
+	}
+
+	node = rb_next(&root_bib->tree4_hook);
+	while (node) {
+		bib = rb_entry(node, struct bib_entry, tree4_hook);
+		node = rb_next(&bib->tree4_hook);
+		b += remove_fake_usr(bib);
+	}
+
+	b += remove_fake_usr(root_bib);
+	/* Fall through. */
+
+success:
+	spin_unlock_bh(&table->lock);
+	log_debug("Deleted %d BIB entries.", b);
+}
+
+int bibdb_flush(void)
+{
+	log_debug("Emptying the BIB tables...");
+	flush_aux(&bib_tcp);
+	flush_aux(&bib_icmp);
+	flush_aux(&bib_udp);
+
+	return 0;
+}

@@ -1341,12 +1341,60 @@ int sessiondb_delete_by_ipv6_prefix(struct ipv6_prefix *prefix)
 	if (WARN(!prefix, "The IPv6 prefix is NULL"))
 		return -EINVAL;
 
-	if (is_error( pool6_contains_prefix(prefix) ))
-		return -EINVAL;
-
 	delete_sessions_by_ipv6_prefix(&session_table_tcp, prefix);
 	delete_sessions_by_ipv6_prefix(&session_table_icmp, prefix);
 	delete_sessions_by_ipv6_prefix(&session_table_udp, prefix);
+
+	return 0;
+}
+
+static int flush_aux(struct session_table *table)
+{
+	struct session_entry *root_session, *session;
+	struct rb_node *node;
+	int s = 0;
+
+	spin_lock_bh(&table->lock);
+
+	node = (&table->tree4)->rb_node;
+	if (!node)
+		goto success;
+
+	root_session = rb_entry(node, struct session_entry, tree4_hook);
+	if (!root_session)
+		goto success;
+
+	node = rb_prev(&root_session->tree4_hook);
+	while (node) {
+		session = rb_entry(node, struct session_entry, tree4_hook);
+		node = rb_prev(&session->tree4_hook);
+		s += remove(session, table);
+	}
+
+	node = rb_next(&root_session->tree4_hook);
+	while (node) {
+		session = rb_entry(node, struct session_entry, tree4_hook);
+		node = rb_next(&session->tree4_hook);
+		s += remove(session, table);
+	}
+
+	s += remove(root_session, table);
+	table->count -= s;
+	/* Fall through. */
+
+success:
+	spin_unlock_bh(&table->lock);
+	log_debug("Deleted %d sessions.", s);
+	return 0;
+}
+
+int sessiondb_flush(void)
+{
+
+	log_debug("Emptying the session tables...");
+	flush_aux(&session_table_udp);
+	flush_aux(&session_table_tcp);
+	flush_aux(&session_table_icmp);
 
 	return 0;
 }

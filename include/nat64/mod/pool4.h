@@ -127,6 +127,10 @@ bool pool4_contains(struct in_addr *addr);
  */
 int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
 int pool4_count(__u64 *result);
+/**
+ * Removes all addresses (along with its ports and IDs) from the pool.
+ */
+int pool4_flush(void);
 
 
 #endif /* _NF_NAT64_POOL4_H */

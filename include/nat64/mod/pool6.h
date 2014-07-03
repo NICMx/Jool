@@ -23,6 +23,9 @@ void pool6_destroy(void);
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *prefix);
 int pool6_peek(struct ipv6_prefix *result);
 bool pool6_contains(struct in6_addr *addr);
+/**
+ * Return 0 if the prefix exists in the pool, otherwise return -ENOENT
+ */
 int pool6_contains_prefix(struct ipv6_prefix *prefix);
 
 /**
@@ -33,5 +36,10 @@ int pool6_remove(struct ipv6_prefix *prefix);
 
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
 int pool6_count(__u64 *result);
+
+/**
+ * Removes all prefixes from the pool.
+ */
+int pool6_flush(void);
 
 #endif /* _NF_NAT64_POOL6_H */
