@@ -45,6 +45,7 @@ struct expire_timer {
 	struct timer_list timer;
 	struct list_head sessions;
 	struct session_table *table;
+	size_t timeout_offset;
 };
 
 /** Killer of sessions whose expiration date was initialized using "config".ttl.udp. */
@@ -344,6 +345,17 @@ static void schedule_timer(struct timer_list *timer, unsigned long next_time)
 	log_debug("A timer will awake in %u msecs.", jiffies_to_msecs(timer->expires - jiffies));
 }
 
+static unsigned long get_timeout(struct expire_timer *expirer)
+{
+	unsigned long timeout;
+
+	rcu_read_lock_bh();
+	timeout = (__u64) *(expirer->timeout_offset + (unsigned char *) rcu_dereference_bh(config));
+	rcu_read_unlock_bh();
+
+	return timeout;
+}
+
 /**
  * Decides whether "session"'s expiration should cause its destruction or not. It should be called
  * when "session" expires.
@@ -375,14 +387,12 @@ static bool session_expire(struct session_entry *session)
 			send_probe_packet(session);
 
 			session->state = TRANS;
+			session->update_time = jiffies;
 
-			rcu_read_lock_bh();
-			session->dying_time = jiffies + rcu_dereference_bh(config)->ttl.tcp_trans;
-			rcu_read_unlock_bh();
 			list_del(&session->expire_list_hook);
 			list_add_tail(&session->expire_list_hook, &expirer_tcp_trans.sessions);
 			if (!timer_pending(&expirer_tcp_trans.timer))
-				schedule_timer(&expirer_tcp_trans.timer, session->dying_time);
+				schedule_timer(&expirer_tcp_trans.timer, jiffies + get_timeout(&expirer_tcp_trans));
 
 			return false;
 
@@ -422,22 +432,25 @@ static void cleaner_timer(unsigned long param)
 	struct expire_timer *expirer = (struct expire_timer *) param;
 	struct list_head *current_hook, *next_hook;
 	struct session_entry *session;
+	unsigned long timeout;
 	unsigned int s = 0;
 
 	log_debug("===============================================");
 	log_debug("Deleting expired sessions...");
+
+	timeout = get_timeout(expirer);
 
 	spin_lock_bh(&expirer->table->lock);
 
 	list_for_each_safe(current_hook, next_hook, &expirer->sessions) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
 
-		if (time_before(jiffies, session->dying_time)) {
+		if (time_before(jiffies, session->update_time + timeout)) {
 			/* "list" is sorted by expiration date, so stop on the first unexpired session. */
 			expirer->table->count -= s;
 			spin_unlock_bh(&expirer->table->lock);
 			log_debug("Deleted %u sessions.", s);
-			schedule_timer(&expirer->timer, session->dying_time);
+			schedule_timer(&expirer->timer, session->update_time + timeout);
 			return;
 		}
 
@@ -461,7 +474,8 @@ static void cleaner_timer(unsigned long param)
  *
  * Doesn't care about spinlocks (initialization code doesn't share threads).
  */
-static void init_expire_timer(struct expire_timer *expirer, struct session_table *table)
+static void init_expire_timer(struct expire_timer *expirer, struct session_table *table,
+		size_t timeout_offset)
 {
 	init_timer(&expirer->timer);
 	expirer->timer.function = cleaner_timer;
@@ -470,6 +484,7 @@ static void init_expire_timer(struct expire_timer *expirer, struct session_table
 
 	INIT_LIST_HEAD(&expirer->sessions);
 	expirer->table = table;
+	expirer->timeout_offset = timeout_offset;
 }
 
 int sessiondb_init(void)
@@ -501,11 +516,15 @@ int sessiondb_init(void)
 		spin_lock_init(&tables[i]->lock);
 	}
 
-	init_expire_timer(&expirer_udp, &session_table_udp);
-	init_expire_timer(&expirer_tcp_est, &session_table_tcp);
-	init_expire_timer(&expirer_tcp_trans, &session_table_tcp);
-	init_expire_timer(&expirer_syn, &session_table_tcp);
-	init_expire_timer(&expirer_icmp, &session_table_icmp);
+	init_expire_timer(&expirer_udp, &session_table_udp,
+			offsetof(struct sessiondb_config, ttl.udp));
+	init_expire_timer(&expirer_tcp_est, &session_table_tcp,
+			offsetof(struct sessiondb_config, ttl.tcp_est));
+	init_expire_timer(&expirer_tcp_trans, &session_table_tcp,
+			offsetof(struct sessiondb_config, ttl.tcp_trans));
+	init_expire_timer(&expirer_syn, &session_table_tcp, 0);
+	init_expire_timer(&expirer_icmp, &session_table_icmp,
+			offsetof(struct sessiondb_config, ttl.icmp));
 
 	return 0;
 }
@@ -552,68 +571,17 @@ int sessiondb_clone_config(struct sessiondb_config *clone)
 	return 0;
 }
 
-/**
- * Updates the expiration time of expirer's sessions.
- *
- * If there are many sessions in the database this will be very slow, so don't use it during packet
- * processing.
- * TODO (performance) therefore, every session should store the time at which they were born
- * instead of the one when they die.
- *
- * Requires spinlocks to not be held.
- */
-static void update_dying_times(struct expire_timer *expirer, __u64 old_ttl, __u64 new_ttl)
-{
-	struct list_head *current_hook;
-	struct session_entry *session;
-	unsigned long next_time;
-
-	if (old_ttl == new_ttl)
-		return;
-
-	spin_lock_bh(&expirer->table->lock);
-
-	if (list_empty(&expirer->sessions)) {
-		spin_unlock_bh(&expirer->table->lock);
-		return;
-	}
-
-	list_for_each(current_hook, &expirer->sessions) {
-		session = list_entry(current_hook, struct session_entry, expire_list_hook);
-		session->dying_time = session->dying_time - old_ttl + new_ttl;
-	}
-
-	session = list_entry(expirer->sessions.next, struct session_entry, expire_list_hook);
-	next_time = session->dying_time;
-	spin_unlock_bh(&expirer->table->lock);
-
-	schedule_timer(&expirer->timer, next_time);
-}
-
-static void update_list_timer(struct sessiondb_config *old, struct sessiondb_config *new,
-		__u32 operation)
-{
-	if (operation & UDP_TIMEOUT_MASK)
-		update_dying_times(&expirer_udp, old->ttl.udp, new->ttl.udp);
-
-	if (operation & ICMP_TIMEOUT_MASK)
-		update_dying_times(&expirer_icmp, old->ttl.icmp, new->ttl.icmp);
-
-	if (operation & TCP_EST_TIMEOUT_MASK)
-		update_dying_times(&expirer_tcp_est, old->ttl.tcp_est, new->ttl.tcp_est);
-
-	if (operation & TCP_TRANS_TIMEOUT_MASK)
-		update_dying_times(&expirer_tcp_trans, old->ttl.tcp_trans, new->ttl.tcp_trans);
-}
-
-int sessiondb_set_config(__u32 operation, struct sessiondb_config *new_config)
+int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 {
 	struct sessiondb_config *tmp_config;
 	struct sessiondb_config *old_config;
-	int udp_min = msecs_to_jiffies(1000 * UDP_MIN);
-	int tcp_est = msecs_to_jiffies(1000 * TCP_EST);
-	int tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	int error = 0;
+	__u64 value64;
+
+	if (size != sizeof(__u64)) {
+		log_err("Expected an 8-byte integer, got %zu bytes.", size);
+		return -EINVAL;
+	}
+	value64 = *((__u64 *) value);
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -622,42 +590,36 @@ int sessiondb_set_config(__u32 operation, struct sessiondb_config *new_config)
 	old_config = config;
 	*tmp_config = *old_config;
 
-	if (operation & UDP_TIMEOUT_MASK) {
-		if (new_config->ttl.udp < udp_min) {
+	switch (type) {
+	case UDP_TIMEOUT:
+		if (value64 < msecs_to_jiffies(1000 * UDP_MIN)) {
 			log_err("The UDP timeout must be at least %u seconds.", UDP_MIN);
-			error = -EINVAL;
+			goto fail;
 		}
-		tmp_config->ttl.udp = new_config->ttl.udp;
-	}
-
-	if (operation & ICMP_TIMEOUT_MASK)
-		tmp_config->ttl.icmp = new_config->ttl.icmp;
-
-	if (operation & TCP_EST_TIMEOUT_MASK) {
-		if (new_config->ttl.tcp_est < tcp_est) {
+		tmp_config->ttl.udp = value64;
+		break;
+	case ICMP_TIMEOUT:
+		tmp_config->ttl.icmp = value64;
+		break;
+	case TCP_EST_TIMEOUT:
+		if (value64 < msecs_to_jiffies(1000 * TCP_EST)) {
 			log_err("The TCP est timeout must be at least %u seconds.", TCP_EST);
-			error = -EINVAL;
+			goto fail;
 		}
-		tmp_config->ttl.tcp_est = new_config->ttl.tcp_est;
-	}
-
-	if (operation & TCP_TRANS_TIMEOUT_MASK) {
-		if (new_config->ttl.tcp_trans < tcp_trans) {
+		tmp_config->ttl.tcp_est = value64;
+		break;
+	case TCP_TRANS_TIMEOUT:
+		if (value64 < msecs_to_jiffies(1000 * TCP_TRANS)) {
 			log_err("The TCP trans timeout must be at least %u seconds.", TCP_TRANS);
-			error = -EINVAL;
+			goto fail;
 		}
-		tmp_config->ttl.tcp_trans = new_config->ttl.tcp_trans;
+		tmp_config->ttl.tcp_trans = value64;
+		break;
 	}
-
-	if (error)
-		goto fail;
-
-	update_list_timer(old_config, tmp_config, operation);
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 	kfree(old_config);
-
 	return 0;
 
 fail:
@@ -1163,11 +1125,8 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4)
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time using "ttl" and moves
  * it from its original location to the end of "list".
  */
-static void sessiondb_update_timer(struct session_entry *session, struct expire_timer *expirer,
-		__u64 ttl)
+static void sessiondb_update_timer(struct session_entry *session, struct expire_timer *expirer)
 {
-	unsigned long next_time;
-
 	spin_lock_bh(&expirer->table->lock);
 
 	/*
@@ -1183,9 +1142,7 @@ static void sessiondb_update_timer(struct session_entry *session, struct expire_
 		return;
 	}
 
-	session->dying_time = jiffies + ttl;
-	next_time = session->dying_time;
-
+	session->update_time = jiffies;
 	list_del(&session->expire_list_hook);
 	list_add_tail(&session->expire_list_hook, &expirer->sessions);
 
@@ -1199,51 +1156,27 @@ static void sessiondb_update_timer(struct session_entry *session, struct expire_
 	}
 
 	spin_unlock_bh(&expirer->table->lock);
-	schedule_timer(&expirer->timer, next_time);
+	schedule_timer(&expirer->timer, jiffies + get_timeout(expirer));
 }
 
 void set_udp_timer(struct session_entry *session)
 {
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->ttl.udp;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, &expirer_udp, ttl);
+	sessiondb_update_timer(session, &expirer_udp);
 }
 
 void set_tcp_est_timer(struct session_entry *session)
 {
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->ttl.tcp_est;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, &expirer_tcp_est, ttl);
+	sessiondb_update_timer(session, &expirer_tcp_est);
 }
 
 void set_tcp_trans_timer(struct session_entry *session)
 {
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->ttl.tcp_trans;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, &expirer_tcp_trans, ttl);
+	sessiondb_update_timer(session, &expirer_tcp_trans);
 }
 
 void set_icmp_timer(struct session_entry *session)
 {
-	__u64 ttl;
-
-	rcu_read_lock_bh();
-	ttl = rcu_dereference_bh(config)->ttl.icmp;
-	rcu_read_unlock_bh();
-
-	sessiondb_update_timer(session, &expirer_icmp, ttl);
+	sessiondb_update_timer(session, &expirer_icmp);
 }
 
 /**
@@ -1252,7 +1185,6 @@ void set_icmp_timer(struct session_entry *session)
 /*
 void set_syn_timer(struct session_entry *session)
 {
-	__u64 ttl = msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-	sessiondb_update_timer(session, &expirer_syn, ttl);
+	sessiondb_update_timer(session, &expirer_syn);
 }
 */

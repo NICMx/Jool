@@ -20,8 +20,8 @@
 int filtering_init(void);
 void filtering_destroy(void);
 
-int clone_filtering_config(struct filtering_config *clone);
-int set_filtering_config(__u32 operation, struct filtering_config *new_config);
+int filtering_clone_config(struct filtering_config *clone);
+int filtering_set_config(enum filtering_type type, size_t size, void *value);
 
 verdict filtering_and_updating(struct sk_buff *skb, struct tuple *tuple);
 

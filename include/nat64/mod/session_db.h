@@ -54,8 +54,8 @@ struct session_entry {
 	/** IPv4 version of the connection. */
 	struct ipv4_pair ipv4;
 
-	/** Jiffy (from the epoch) this session should expire in, if still inactive. */
-	unsigned long dying_time;
+	/** Jiffy (from the epoch) this session was last updated/used. */
+	unsigned long update_time;
 
 	/**
 	 * Owner bib of this session. Used for quick access during removal.
@@ -136,7 +136,7 @@ int sessiondb_init(void);
 void sessiondb_destroy(void);
 
 int sessiondb_clone_config(struct sessiondb_config *clone);
-int sessiondb_set_config(__u32 operation, struct sessiondb_config *new_config);
+int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value);
 
 
 /**

@@ -10,7 +10,7 @@
 
 #define MAX_PORT 0xFFFF
 
-int str_to_bool(const char *str, bool *bool_out)
+int str_to_bool(const char *str, __u8 *bool_out)
 {
 	if (strcasecmp(str, "true") == 0 || strcasecmp(str, "1") == 0
 			|| strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0) {
@@ -62,13 +62,13 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 }
 
 #define STR_MAX_LEN 2048
-int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
+int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_len_out)
 {
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
 	__u16 *array;
-	__u16 array_len;
+	size_t array_len;
 
 	/* Validate str and copy it to the temp buffer. */
 	if (strlen(str) + 1 > STR_MAX_LEN) {
@@ -91,7 +91,7 @@ int str_to_u16_array(const char *str, __u16 **array_out, __u16 *array_len_out)
 	}
 
 	/* Build the result. */
-	array = malloc(array_len * sizeof(__u16));
+	array = malloc(array_len * sizeof(*array));
 	if (!array) {
 		log_err("Memory allocation failed. Cannot parse the input...");
 		return -ENOMEM;

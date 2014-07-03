@@ -218,13 +218,13 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 {
 	struct out_stream *stream = (struct out_stream *) arg;
-	struct bib_entry_us entry_us;
+	struct bib_entry_usr entry_usr;
 
-	entry_us.ipv4 = entry->ipv4;
-	entry_us.ipv6 = entry->ipv6;
-	entry_us.is_static = entry->is_static;
+	entry_usr.addr4 = entry->ipv4;
+	entry_usr.addr6 = entry->ipv6;
+	entry_usr.is_static = entry->is_static;
 
-	return stream_write(stream, &entry_us, sizeof(entry_us));
+	return stream_write(stream, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
@@ -245,7 +245,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.ipv4,
+		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.addr4,
 				!request->display.iterate, bib_entry_to_userspace, stream);
 		if (error > 0) {
 			error = stream_close_continue(stream);
@@ -286,14 +286,15 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 {
 	struct out_stream *stream = (struct out_stream *) arg;
-	struct session_entry_us entry_us;
+	struct session_entry_usr entry_usr;
 
-	entry_us.ipv6 = entry->ipv6;
-	entry_us.ipv4 = entry->ipv4;
-	entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies);
-	entry_us.l4_proto = entry->l4_proto;
+	entry_usr.addr6 = entry->ipv6;
+	entry_usr.addr4 = entry->ipv4;
+	/* TODO where can we get this from now... */
+	/* entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies); */
+	entry_usr.l4_proto = entry->l4_proto;
 
-	return stream_write(stream, &entry_us, sizeof(entry_us));
+	return stream_write(stream, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
@@ -314,8 +315,8 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		}
 
 		stream_init(stream, nl_socket, nl_hdr);
-		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->ipv4, !request->iterate,
-				session_entry_to_userspace, stream);
+		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->display.addr4,
+				!request->display.iterate, session_entry_to_userspace, stream);
 		if (error > 0) {
 			error = stream_close_continue(stream);
 		} else {
@@ -338,89 +339,69 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 	}
 }
 
-static int handle_filtering_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		struct full_filtering_config *request)
+static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		union request_general *request)
 {
-	struct full_filtering_config clone;
+	struct response_general response = { .translate.mtu_plateaus = NULL };
+	unsigned char *buffer;
+	size_t buffer_len;
 	int error;
 
-	if (nat64_hdr->operation == 0) {
-		log_debug("Returning 'Filtering and Updating' options.");
+	switch (nat64_hdr->operation) {
+	case OP_DISPLAY:
+		log_debug("Returning 'General' options.");
 
-		error = clone_filtering_config(&clone.filtering);
+		error = sessiondb_clone_config(&response.sessiondb);
 		if (error)
-			return respond_error(nl_hdr, error);
-		error = sessiondb_clone_config(&clone.sessiondb);
+			goto end;
+		error = filtering_clone_config(&response.filtering);
 		if (error)
-			return respond_error(nl_hdr, error);
+			goto end;
+		error = translate_clone_config(&response.translate);
+		if (error)
+			goto end;
 
-		clone.sessiondb.ttl.udp = jiffies_to_msecs(clone.sessiondb.ttl.udp);
-		clone.sessiondb.ttl.tcp_est = jiffies_to_msecs(clone.sessiondb.ttl.tcp_est);
-		clone.sessiondb.ttl.tcp_trans = jiffies_to_msecs(clone.sessiondb.ttl.tcp_trans);
-		clone.sessiondb.ttl.icmp = jiffies_to_msecs(clone.sessiondb.ttl.icmp);
+		error = serialize_general_config(&response, &buffer, &buffer_len);
+		if (error)
+			goto end;
 
-		return respond_setcfg(nl_hdr, &clone, sizeof(clone));
-	} else {
+		error = respond_setcfg(nl_hdr, buffer, buffer_len);
+		kfree(buffer);
+		break;
+
+	case OP_UPDATE:
 		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Updating 'Filtering and Updating' options.");
+		log_debug("Updating 'General' options.");
 
-		request->sessiondb.ttl.udp = msecs_to_jiffies(request->sessiondb.ttl.udp);
-		request->sessiondb.ttl.tcp_est = msecs_to_jiffies(request->sessiondb.ttl.tcp_est);
-		request->sessiondb.ttl.tcp_trans = msecs_to_jiffies(request->sessiondb.ttl.tcp_trans);
-		request->sessiondb.ttl.icmp = msecs_to_jiffies(request->sessiondb.ttl.icmp);
+		buffer = (unsigned char *) (request + 1);
+		buffer_len = nat64_hdr->length - sizeof(*nat64_hdr) - sizeof(*request);
 
-		error = set_filtering_config(nat64_hdr->operation, &request->filtering);
-		if (error)
-			return respond_error(nl_hdr, error);
-		error = sessiondb_set_config(nat64_hdr->operation, &request->sessiondb);
+		switch (request->update.module) {
+		case SESSIONDB:
+			error = sessiondb_set_config(request->update.type, buffer_len, buffer);
+			break;
+		case FILTERING:
+			error = filtering_set_config(request->update.type, buffer_len, buffer);
+			break;
+		case TRANSLATE:
+			error = translate_set_config(request->update.type, buffer_len, buffer);
+			break;
+		default:
+			log_err("Unknown module: %u", request->update.module);
+			error = -EINVAL;
+		}
+		break;
 
-		return respond_error(nl_hdr, error);
+	default:
+		log_err("Unknown operation: %d", nat64_hdr->operation);
+		error = -EINVAL;
 	}
-}
 
-static int handle_translate_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		struct translate_config *request)
-{
-	int error;
-
-	if (nat64_hdr->operation == 0) {
-		struct translate_config clone;
-		unsigned char *config;
-		__u16 config_len;
-
-		log_debug("Returning 'Translate the Packet' options.");
-
-		error = clone_translate_config(&clone);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		error = serialize_translate_config(&clone, &config, &config_len);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		error = respond_setcfg(nl_hdr, config, config_len);
-		kfree(config);
-		kfree(clone.mtu_plateaus);
-		return error;
-	} else {
-		struct translate_config new_config;
-
-		if (verify_superpriv(nat64_hdr))
-			return respond_error(nl_hdr, -EPERM);
-
-		log_debug("Updating 'Translate the Packet' options.");
-
-		error = deserialize_translate_config(request, nat64_hdr->length - sizeof(*nat64_hdr),
-				&new_config);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		error = respond_error(nl_hdr, set_translate_config(nat64_hdr->operation, &new_config));
-		kfree(new_config.mtu_plateaus);
-		return error;
-	}
+end:
+	kfree(response.translate.mtu_plateaus);
+	return respond_error(nl_hdr, error);
 }
 
 /**
@@ -457,11 +438,8 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	case MODE_SESSION:
 		error = handle_session_config(nl_hdr, nat64_hdr, request);
 		break;
-	case MODE_FILTERING:
-		error = handle_filtering_config(nl_hdr, nat64_hdr, request);
-		break;
-	case MODE_TRANSLATE:
-		error = handle_translate_config(nl_hdr, nat64_hdr, request);
+	case MODE_GENERAL:
+		error = handle_general_config(nl_hdr, nat64_hdr, request);
 		break;
 	default:
 		log_err("Unknown configuration mode: %d", nat64_hdr->mode);

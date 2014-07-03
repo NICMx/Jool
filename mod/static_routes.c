@@ -19,7 +19,7 @@ int add_static_route(struct request_bib *req)
 	struct bib_entry *bib = NULL;
 	int error;
 
-	error = pool4_get(req->l4_proto, &req->add.ipv4);
+	error = pool4_get(req->l4_proto, &req->add.addr4);
 	if (error) {
 		log_err("The IPv4 address and port could not be reserved from the pool. "
 				"Maybe the IPv4 address you provided does not belong to the pool. "
@@ -27,7 +27,7 @@ int add_static_route(struct request_bib *req)
 		return error;
 	}
 
-	bib = bib_create(&req->add.ipv4, &req->add.ipv6, true, req->l4_proto);
+	bib = bib_create(&req->add.addr4, &req->add.addr6, true, req->l4_proto);
 	if (!bib) {
 		log_err("Could not allocate the BIB entry.");
 		error = -ENOMEM;
@@ -50,7 +50,7 @@ int add_static_route(struct request_bib *req)
 	return 0;
 
 bib_error:
-	pool4_return(req->l4_proto, &req->add.ipv4);
+	pool4_return(req->l4_proto, &req->add.addr4);
 	return error;
 }
 
@@ -59,17 +59,13 @@ int delete_static_route(struct request_bib *req)
 	struct bib_entry *bib;
 	int error = 0;
 
-	switch (req->remove.l3_proto) {
-	case L3PROTO_IPV6:
-		error = bibdb_get_by_ipv6(&req->remove.ipv6, req->l4_proto, &bib);
-		break;
-	case L3PROTO_IPV4:
-		error = bibdb_get_by_ipv4(&req->remove.ipv4, req->l4_proto, &bib);
-		break;
-	default:
-		log_err("Unsupported network protocol: %u.", req->remove.l3_proto);
-		error = -EINVAL;
-		break;
+	if (req->remove.addr6_set) {
+		error = bibdb_get_by_ipv6(&req->remove.addr6, req->l4_proto, &bib);
+	} else if (req->remove.addr4_set) {
+		error = bibdb_get_by_ipv4(&req->remove.addr4, req->l4_proto, &bib);
+	} else {
+		log_err("You need to provide an address so I can find the entry you want to remove.");
+		return -EINVAL;
 	}
 
 	if (error == -ENOENT) {
@@ -78,6 +74,14 @@ int delete_static_route(struct request_bib *req)
 	}
 	if (error)
 		return error;
+
+	if (req->remove.addr6_set && req->remove.addr4_set) {
+		if (!ipv4_tuple_addr_equals(&bib->ipv4, &req->remove.addr4)) {
+			log_err("There's no BIB entry with BOTH of the addresses you requested.");
+			bib_return(bib);
+			return -ENOENT;
+		}
+	}
 
 	/* Remove the fake user. */
 	if (bib->is_static) {

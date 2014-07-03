@@ -21,7 +21,7 @@ struct display_params {
 static int session_display_response(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *hdr;
-	struct session_entry_us *entries;
+	struct session_entry_usr *entries;
 	struct display_params *params = arg;
 	__u16 entry_count, i;
 
@@ -30,23 +30,23 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
 
 	for (i = 0; i < entry_count; i++) {
-		struct session_entry_us *entry = &entries[i];
+		struct session_entry_usr *entry = &entries[i];
 
 		printf("Expires in ");
 		print_time(entry->dying_time);
 
 		printf("Remote: ");
-		print_ipv4_tuple(&entry->ipv4.remote, params->numeric_hostname);
+		print_ipv4_tuple(&entry->addr4.remote, params->numeric_hostname);
 
 		printf("\t");
-		print_ipv6_tuple(&entry->ipv6.remote, params->numeric_hostname);
+		print_ipv6_tuple(&entry->addr6.remote, params->numeric_hostname);
 		printf("\n");
 
 		printf("Local: ");
-		print_ipv4_tuple(&entry->ipv4.local, true);
+		print_ipv4_tuple(&entry->addr4.local, true);
 
 		printf("\t");
-		print_ipv6_tuple(&entry->ipv6.local, true);
+		print_ipv6_tuple(&entry->addr6.local, true);
 		printf("\n");
 
 		printf("---------------------------------\n");
@@ -55,11 +55,10 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	params->row_count += entry_count;
 
 	if (hdr->nlmsg_flags == NLM_F_MULTI) {
-		params->req_payload->iterate = true;
-		params->req_payload->ipv4.address = *(&entries[entry_count - 1].ipv4.local.address);
-		params->req_payload->ipv4.l4_id = *(&entries[entry_count - 1].ipv4.local.l4_id);
+		params->req_payload->display.iterate = true;
+		params->req_payload->display.addr4 = *(&entries[entry_count - 1].addr4.local);
 	} else {
-		params->req_payload->iterate = false;
+		params->req_payload->display.iterate = false;
 	}
 
 	return 0;
@@ -80,8 +79,8 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 	hdr->mode = MODE_SESSION;
 	hdr->operation = OP_DISPLAY;
 	payload->l4_proto = l4_proto;
-	payload->iterate = false;
-	memset(&payload->ipv4, 0, sizeof(payload->ipv4));
+	payload->display.iterate = false;
+	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
 
 	params.numeric_hostname = numeric_hostname;
 	params.row_count = 0;
@@ -91,7 +90,7 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 		error = netlink_request(request, hdr->length, session_display_response, &params);
 		if (error)
 			break;
-	} while (params.req_payload->iterate);
+	} while (params.req_payload->display.iterate);
 
 	if (!error) {
 		if (params.row_count > 0)

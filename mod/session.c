@@ -55,7 +55,7 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	kref_init(&result->refcounter);
 	result->ipv4 = *ipv4;
 	result->ipv6 = *ipv6;
-	result->dying_time = 0;
+	result->update_time = jiffies;
 	result->bib = NULL;
 	INIT_LIST_HEAD(&result->expire_list_hook);
 	result->l4_proto = l4_proto;

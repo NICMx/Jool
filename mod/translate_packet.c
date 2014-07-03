@@ -258,7 +258,7 @@ void translate_packet_destroy(void)
 	kfree(config);
 }
 
-int clone_translate_config(struct translate_config *clone)
+int translate_clone_config(struct translate_config *clone)
 {
 	struct translate_config *config_ref;
 	__u16 plateaus_len;
@@ -293,43 +293,79 @@ static void be16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-int set_translate_config(__u32 operation, struct translate_config *new_config)
+static bool validate_size(size_t expected, size_t actual)
+{
+	if (expected != actual) {
+		log_err("Expected a %zu-byte integer, got %zu bytes.", expected, actual);
+		return false;
+	}
+	return true;
+}
+
+static bool expect_u16(size_t actual)
+{
+	return validate_size(sizeof(__u16), actual);
+}
+
+static bool expect_u8(size_t actual)
+{
+	return validate_size(sizeof(__u8), actual);
+}
+
+static int update_plateaus(struct translate_config *config, size_t size, void *value)
+{
+	__u16 *list = value;
+	unsigned int count = size / 2;
+	unsigned int i, j;
+
+	if (count == 0) {
+		log_err("The MTU list received from userspace is empty.");
+		return -EINVAL;
+	}
+	if (size % 2 == 1) {
+		log_err("Expected an array of 16-bit integers; got an uneven number of bytes.");
+		return -EINVAL;
+	}
+
+	/* Sort descending. */
+	sort(list, count, sizeof(*list), be16_compare, be16_swap);
+
+	/* Remove zeroes and duplicates. */
+	for (i = 0, j = 1; j < count; j++) {
+		if (list[j] == 0)
+			break;
+		if (list[i] != list[j]) {
+			i++;
+			list[i] = list[j];
+		}
+	}
+
+	if (list[0] == 0) {
+		log_err("The MTU list contains nothing but zeroes.");
+		return -EINVAL;
+	}
+
+	count = i + 1;
+	size = count * sizeof(*list);
+
+	/* Update. */
+	config->mtu_plateaus = kmalloc(size, GFP_KERNEL);
+	if (!config->mtu_plateaus) {
+		log_err("Could not allocate the kernel's MTU plateaus list.");
+		return -ENOMEM;
+	}
+	memcpy(config->mtu_plateaus, list, size);
+	config->mtu_plateau_count = count;
+
+	return 0;
+}
+
+int translate_set_config(enum translate_type type, size_t size, void *value)
 {
 	struct translate_config *tmp_config;
 	struct translate_config *old_config;
+	int error = -EINVAL;
 
-	/* Validate. */
-	if (operation & MTU_PLATEAUS_MASK) {
-		int i, j;
-
-		if (new_config->mtu_plateau_count == 0) {
-			log_err("The MTU list received from userspace is empty.");
-			return -EINVAL;
-		}
-
-		/* Sort descending. */
-		sort(new_config->mtu_plateaus, new_config->mtu_plateau_count,
-				sizeof(*new_config->mtu_plateaus), be16_compare, be16_swap);
-
-		/* Remove zeroes and duplicates. */
-		for (i = 0, j = 1; j < new_config->mtu_plateau_count; j++) {
-			if (new_config->mtu_plateaus[j] == 0)
-				break;
-			if (new_config->mtu_plateaus[i] != new_config->mtu_plateaus[j]) {
-				i++;
-				new_config->mtu_plateaus[i] = new_config->mtu_plateaus[j];
-			}
-		}
-
-		if (new_config->mtu_plateaus[0] == 0) {
-			log_err("The MTU list contains nothing but zeroes.");
-			return -EINVAL;
-		}
-
-		new_config->mtu_plateau_count = i + 1;
-	}
-
-	/* Update. */
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
 		return -ENOMEM;
@@ -337,35 +373,48 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 	old_config = config;
 	*tmp_config = *old_config;
 
-	if (operation & RESET_TCLASS_MASK)
-		tmp_config->reset_traffic_class = new_config->reset_traffic_class;
-	if (operation & RESET_TOS_MASK)
-		tmp_config->reset_tos = new_config->reset_tos;
-	if (operation & NEW_TOS_MASK)
-		tmp_config->new_tos = new_config->new_tos;
-	if (operation & DF_ALWAYS_ON_MASK)
-		tmp_config->df_always_on = new_config->df_always_on;
-	if (operation & BUILD_IPV4_ID_MASK)
-		tmp_config->build_ipv4_id = new_config->build_ipv4_id;
-	if (operation & LOWER_MTU_FAIL_MASK)
-		tmp_config->lower_mtu_fail = new_config->lower_mtu_fail;
-
-	if (operation & MTU_PLATEAUS_MASK) {
-		__u16 new_mtus_len = new_config->mtu_plateau_count * sizeof(*new_config->mtu_plateaus);
-
-		tmp_config->mtu_plateaus = kmalloc(new_mtus_len, GFP_ATOMIC);
-		if (!tmp_config->mtu_plateaus) {
-			log_err("Could not allocate the kernel's MTU plateaus list.");
-			kfree(tmp_config);
-			return -ENOMEM;
-		}
-
-		tmp_config->mtu_plateau_count = new_config->mtu_plateau_count;
-		memcpy(tmp_config->mtu_plateaus, new_config->mtu_plateaus, new_mtus_len);
+	switch (type) {
+	case RESET_TCLASS:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->reset_traffic_class = *((__u8 *) value);
+		break;
+	case RESET_TOS:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->reset_tos = *((__u8 *) value);
+		break;
+	case NEW_TOS:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->new_tos = *((__u8 *) value);
+		break;
+	case DF_ALWAYS_ON:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->df_always_on = *((__u8 *) value);
+		break;
+	case BUILD_IPV4_ID:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->build_ipv4_id = *((__u8 *) value);
+		break;
+	case LOWER_MTU_FAIL:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->lower_mtu_fail = *((__u8 *) value);
+		break;
+	case MTU_PLATEAUS:
+		error = update_plateaus(tmp_config, size, value);
+		if (error)
+			goto fail;
+		break;
+	case MIN_IPV6_MTU:
+		if (!expect_u16(size))
+			goto fail;
+		tmp_config->min_ipv6_mtu = *((__u16 *) value);
+		break;
 	}
-
-	if (operation & MIN_IPV6_MTU_MASK)
-		tmp_config->min_ipv6_mtu = new_config->min_ipv6_mtu;
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
@@ -375,6 +424,10 @@ int set_translate_config(__u32 operation, struct translate_config *new_config)
 	kfree(old_config);
 
 	return 0;
+
+fail:
+	kfree(tmp_config);
+	return error;
 }
 
 static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,

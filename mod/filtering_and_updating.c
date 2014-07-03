@@ -695,7 +695,7 @@ void filtering_destroy(void)
  * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
  * @return zero on success, nonzero on failure.
  */
-int clone_filtering_config(struct filtering_config *clone)
+int filtering_clone_config(struct filtering_config *clone)
 {
 	rcu_read_lock_bh();
 	*clone = *rcu_dereference_bh(config);
@@ -710,10 +710,17 @@ int clone_filtering_config(struct filtering_config *clone)
  * @param[in] new configuration values.
  * @return zero on success, nonzero on failure.
  */
-int set_filtering_config(__u32 operation, struct filtering_config *new_config)
+int filtering_set_config(enum filtering_type type, size_t size, void *value)
 {
 	struct filtering_config *tmp_config;
 	struct filtering_config *old_config;
+	__u8 value8;
+
+	if (size != sizeof(__u8)) {
+		log_debug("Expected a boolean, got %zu bytes.", size);
+		return -EINVAL;
+	}
+	value8 = *((__u8 *) value);
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -722,12 +729,17 @@ int set_filtering_config(__u32 operation, struct filtering_config *new_config)
 	old_config = config;
 	*tmp_config = *old_config;
 
-	if (operation & DROP_BY_ADDR_MASK)
-		tmp_config->drop_by_addr = new_config->drop_by_addr;
-	if (operation & DROP_ICMP6_INFO_MASK)
-		tmp_config->drop_icmp6_info = new_config->drop_icmp6_info;
-	if (operation & DROP_EXTERNAL_TCP_MASK)
-		tmp_config->drop_external_tcp = new_config->drop_external_tcp;
+	switch (type) {
+	case DROP_BY_ADDR:
+		tmp_config->drop_by_addr = value8;
+		break;
+	case DROP_ICMP6_INFO:
+		tmp_config->drop_icmp6_info = value8;
+		break;
+	case DROP_EXTERNAL_TCP:
+		tmp_config->drop_external_tcp = value8;
+		break;
+	}
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();

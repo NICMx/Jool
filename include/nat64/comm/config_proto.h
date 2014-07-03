@@ -6,8 +6,9 @@
  * Elements visible to both the kernel module and the userspace application, and which they use to
  * communicate with each other.
  *
- * TODO (error) some fields here don't have fixed size data types. That will suck when users run
- * userspaces on top of kernels of dissimilar bittage.
+ * If you see a "__u8", keep in mind it might be intended as a boolean. sizeof(bool) is
+ * implementation defined, which is unacceptable because these structures define a communication
+ * protocol.
  *
  * @author Miguel Gonzalez
  * @author Alberto Leiva
@@ -41,57 +42,41 @@
 
 enum config_mode {
 	/** The current message is talking about the IPv6 pool. */
-	MODE_POOL6 = 1,
+	MODE_POOL6 = (1 << 0),
 	/** The current message is talking about the IPv4 pool. */
-	MODE_POOL4,
+	MODE_POOL4 = (1 << 1),
 	/** The current message is talking about the Binding Information Bases. */
-	MODE_BIB,
+	MODE_BIB = (1 << 2),
 	/** The current message is talking about the session tables. */
-	MODE_SESSION,
-	/** The current message is talking about the Filtering module. */
-	MODE_FILTERING,
-	/** The current message is talking about the Translate module. */
-	MODE_TRANSLATE,
+	MODE_SESSION = (1 << 3),
+	/** The current message wants to change some general configuration value. */
+	MODE_GENERAL = 0,
 };
+
+#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
+#define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
+#define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
+#define SESSION_OPS (OP_DISPLAY | OP_COUNT)
+#define GENERAL_OPS (OP_DISPLAY | OP_UPDATE)
 
 enum config_operation {
-	/* The following make sense when the mode is pool6, pool4, BIB or session. */
-
-	/** The userspace app wants to print the table being requested. */
-	OP_DISPLAY,
+	/** The userspace app wants to print the stuff being requested. */
+	OP_DISPLAY = 0,
 	/** The userspace app wants to print the number of records in the table being requested. */
-	OP_COUNT,
+	OP_COUNT = (1 << 0),
 	/** The userspace app wants to add an element to the table being requested. */
-	OP_ADD,
+	OP_ADD = (1 << 1),
+	/* The userspace app wants to edit some value. */
+	OP_UPDATE = (1 << 2),
 	/** The userspace app wants to delete an element from the table being requested. */
-	OP_REMOVE,
-
-	/* The following make sense when mode is filtering or translate. */
-
-	/**
-	 * @{
-	 * When this bit is on, the userspace app wants to update the corresponding value.
-	 */
-	#define RESET_TCLASS_MASK		(1 << 2)
-	#define RESET_TOS_MASK			(1 << 3)
-	#define NEW_TOS_MASK			(1 << 4)
-	#define DF_ALWAYS_ON_MASK		(1 << 5)
-	#define BUILD_IPV4_ID_MASK		(1 << 6)
-	#define LOWER_MTU_FAIL_MASK		(1 << 7)
-	#define MTU_PLATEAUS_MASK		(1 << 8)
-	#define MIN_IPV6_MTU_MASK		(1 << 9)
-
-	#define DROP_BY_ADDR_MASK		(1 << 0)
-	#define DROP_ICMP6_INFO_MASK	(1 << 1)
-	#define DROP_EXTERNAL_TCP_MASK	(1 << 2)
-	#define UDP_TIMEOUT_MASK		(1 << 3)
-	#define ICMP_TIMEOUT_MASK		(1 << 4)
-	#define TCP_EST_TIMEOUT_MASK	(1 << 5)
-	#define TCP_TRANS_TIMEOUT_MASK 	(1 << 6)
-	/**
-	 * @}
-	 */
+	OP_REMOVE = (1 << 3),
 };
+
+#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL)
+#define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION)
+#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
+#define UPDATE_MODES (MODE_GENERAL)
+#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -101,134 +86,9 @@ struct request_hdr {
 	/** Size of the message. Includes header (this one) and payload. */
 	__u32 length;
 	/** See "enum config_mode". */
-	__u16 mode;
+	__u8 mode;
 	/** See "enum config_operation". */
-	__u32 operation;
-};
-
-/**
- * A BIB entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct bib_entry" and only used when BIB entries need to travel to
- * userspace. For anything else, use "struct bib_entry".
- *
- * See "struct bib_entry" for documentation on the fields.
- */
-struct bib_entry_usr {
-	struct ipv4_tuple_address ipv4;
-	struct ipv6_tuple_address ipv6;
-	bool is_static;
-};
-
-/**
- * A session entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct session_entry" and only used when sessions need to travel to
- * userspace. For anything else, use "struct session_entry".
- *
- * See "struct session_entry" for documentation on the fields.
- */
-struct session_entry_usr {
-	struct ipv6_pair ipv6;
-	struct ipv4_pair ipv4;
-	__u64 dying_time;
-	l4_protocol l4_proto;
-};
-
-/**
- * Configuration of the "Session DB" module. See "struct full_filtering_config".
- */
-struct sessiondb_config {
-	struct timeouts {
-		/** Maximum number of seconds inactive UDP sessions will remain in the DB. */
-		__u64 udp;
-		/** Maximum number of seconds inactive ICMP sessions will remain in the DB. */
-		__u64 icmp;
-		/** Max number of seconds established and inactive TCP sessions will remain in the DB. */
-		__u64 tcp_est;
-		/** Max number of seconds transitory and inactive TCP sessions will remain in the DB. */
-		__u64 tcp_trans;
-	} ttl;
-};
-
-/**
- * Configuration for the "Filtering and Updating" module.
- */
-struct filtering_config {
-	/** Use Address-Dependent Filtering? */
-	bool drop_by_addr;
-	/** Filter ICMPv6 Informational packets? */
-	bool drop_icmp6_info;
-	/** Drop externally initiated TCP connections? (IPv4 initiated) */
-	bool drop_external_tcp;
-};
-
-/**
- * This exists because of historical reasons. The timeouts used to be part of Filtering; we moved
- * that to the session database, but we kept the interface of the userspace application.
- * (so the user configures the session DB via filtering).
- */
-struct full_filtering_config {
-	struct filtering_config filtering;
-	struct sessiondb_config sessiondb;
-};
-
-/**
- * Configuration for the "Translate the packet" module.
- */
-struct translate_config {
-	/**
-	 * "true" if the Traffic Class field of the translated IPv6 header should always be set to zero.
-	 * Otherwise it will be copied from the IPv4 header's TOS field.
-	 */
-	bool reset_traffic_class;
-	/**
-	 * "true" if the Type of Service (TOS) field of the translated IPv4 header should always be set
-	 * to "new_tos".
-	 * Otherwise it will be copied from the IPv6 header's Traffic Class field.
-	 */
-	bool reset_tos;
-	/**
-	 * If "reset_tos" is "true", this is the value the translator will always write in the TOS field
-	 * of the translated IPv4 headers.
-	 * If "reset_tos" is "false", then this doesn't do anything.
-	 */
-	__u8 new_tos;
-	/**
-	 * If "true", the translator will always set the translated IPv4 header's Don't Fragment (DF)
-	 * flag to one.
-	 * Otherwise the flag will be set depending on the packet's length.
-	 */
-	bool df_always_on;
-	/**
-	 * Whether the translated IPv4 header's Identification field should be computed (Either from the
-	 * IPv6 fragment header's Identification field or deduced from the packet's length).
-	 * Otherwise it will always be set to zero.
-	 */
-	bool build_ipv4_id;
-	/**
-	 * "true" if the value for the MTU field of outgoing ICMPv6 fragmentation needed packets should
-	 * be set to no less than 1280, regardless of MTU plateaus and whatnot.
-	 * See RFC 6145 section 6, second approach.
-	 */
-	bool lower_mtu_fail;
-	/** Length of the mtu_plateaus array. */
-	__u16 mtu_plateau_count;
-	/**
-	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
-	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
-	 * fragmentation needed packets.
-	 * The translator is supposed to pick the greatest plateau value that is less than the incoming
-	 * packet's Total Length field.
-	 * Default value is { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }.
-	 */
-	__u16 *mtu_plateaus;
-
-	/**
-	 * The smallest MTU in the IPv6 side. Jool will ensure that packets traveling from 4 to 6 will
-	 * be no bigger than this amount of bytes.
-	 */
-	__u16 min_ipv6_mtu;
+	__u8 operation;
 };
 
 /**
@@ -261,36 +121,39 @@ union request_pool4 {
  * Configuration for the "BIB" module.
  */
 struct request_bib {
-	/** Table the userspace app wants to display or edit. */
-	l4_protocol l4_proto;
+	/**
+	 * Table the userspace app wants to display or edit.
+	 * Actually intended to be a l4_protocol (enum), but enum lengths are implementation-defined.
+	 */
+	__u8 l4_proto;
 	union {
 		struct {
-			/** If this is false, this is the first chunk the app is requesting. */
-			bool iterate;
+			/** If this is false, this is the first chunk the app is requesting. (boolean) */
+			__u8 iterate;
 			/**
 			 * Address the userspace app received in the last chunk. Iteration should contiue
 			 * from here.
 			 */
-			struct ipv4_tuple_address ipv4;
+			struct ipv4_tuple_address addr4;
 		} display;
 		struct {
 			/* Nothing needed here. */
 		} count;
 		struct {
 			/** The IPv6 transport address of the entry the user wants to add. */
-			struct ipv6_tuple_address ipv6;
+			struct ipv6_tuple_address addr6;
 			/** The IPv4 transport address of the entry the user wants to add. */
-			struct ipv4_tuple_address ipv4;
+			struct ipv4_tuple_address addr4;
 		} add;
 		struct {
-			/** Indicator of which element (from the union below) is the valid one. */
-			l3_protocol l3_proto;
-			union {
-				/** The IPv6 transport address of the entry the user wants to remove. */
-				struct ipv6_tuple_address ipv6;
-				/** The IPv4 transport address of the entry the user wants to remove. */
-				struct ipv4_tuple_address ipv4;
-			};
+			/* Is the value if "addr6" set? (boolean) */
+			__u8 addr6_set;
+			/** The IPv6 transport address of the entry the user wants to remove. */
+			struct ipv6_tuple_address addr6;
+			/* Is the value if "addr4" set? (boolean) */
+			__u8 addr4_set;
+			/** The IPv4 transport address of the entry the user wants to remove. */
+			struct ipv4_tuple_address addr4;
 		} remove;
 		struct {
 			/* Nothing needed here. */
@@ -303,17 +166,20 @@ struct request_bib {
  * Only the "OP_DISPLAY" and "OP_COUNT" operations make sense in this module.
  */
 struct request_session {
-	/** Table the userspace app wants to display. */
-	l4_protocol l4_proto;
+	/**
+	 * Table the userspace app wants to display.
+	 * Actually intended to be a l4_protocol (enum), but enum lengths are implementation-defined.
+	 */
+	__u8 l4_proto;
 	union {
 		struct {
-			/** If this is false, this is the first chunk the app is requesting. */
-			bool iterate;
+			/** If this is false, this is the first chunk the app is requesting. (boolean) */
+			__u8 iterate;
 			/**
 			 * Address the userspace app received in the last chunk. Iteration should contiue
 			 * from here.
 			 */
-			struct ipv4_tuple_address ipv4;
+			struct ipv4_tuple_address addr4;
 		} display;
 		struct {
 			/* Nothing needed here. */
@@ -321,25 +187,187 @@ struct request_session {
 	};
 };
 
-/*
- * Because of the somewhat intrusive nature of the netlink header, response header structures are
- * not really necessary.
- */
+enum sessiondb_type {
+	UDP_TIMEOUT,
+	ICMP_TIMEOUT,
+	TCP_EST_TIMEOUT,
+	TCP_TRANS_TIMEOUT,
+};
 
 /**
- * "struct translate_config" has pointers, so if the userspace app wants Translate's configuration,
+ * Configuration of the "Session DB" module.
+ */
+struct sessiondb_config {
+	struct {
+		/** Maximum number of seconds inactive UDP sessions will remain in the DB. */
+		__u64 udp;
+		/** Maximum number of seconds inactive ICMP sessions will remain in the DB. */
+		__u64 icmp;
+		/** Max number of seconds established and inactive TCP sessions will remain in the DB. */
+		__u64 tcp_est;
+		/** Max number of seconds transitory and inactive TCP sessions will remain in the DB. */
+		__u64 tcp_trans;
+	} ttl;
+};
+
+enum filtering_type {
+	DROP_BY_ADDR,
+	DROP_ICMP6_INFO,
+	DROP_EXTERNAL_TCP,
+};
+
+/**
+ * Configuration for the "Filtering and Updating" module.
+ */
+struct filtering_config {
+	/** Use Address-Dependent Filtering? (boolean) */
+	__u8 drop_by_addr;
+	/** Filter ICMPv6 Informational packets? (boolean) */
+	__u8 drop_icmp6_info;
+	/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
+	__u8 drop_external_tcp;
+};
+
+enum translate_type {
+	RESET_TCLASS,
+	RESET_TOS,
+	NEW_TOS,
+	DF_ALWAYS_ON,
+	BUILD_IPV4_ID,
+	LOWER_MTU_FAIL,
+	MTU_PLATEAUS,
+	MIN_IPV6_MTU,
+};
+
+/**
+ * Configuration for the "Translate the packet" module.
+ *
+ * Several of the fields here are intended to be booleans, but sizeof(bool) is implementation
+ * defined, which is unacceptable because this is part of a communication protocol.
+ */
+struct translate_config {
+	/**
+	 * "true" if the Traffic Class field of translated IPv6 headers should always be set to zero.
+	 * Otherwise it will be copied from the IPv4 header's TOS field.
+	 * Boolean.
+	 */
+	__u8 reset_traffic_class;
+	/**
+	 * "true" if the Type of Service (TOS) field of translated IPv4 headers should always be set
+	 * to "new_tos".
+	 * Otherwise it will be copied from the IPv6 header's Traffic Class field.
+	 * Boolean.
+	 */
+	__u8 reset_tos;
+	/**
+	 * If "reset_tos" is "true", this is the value the translator will always write in the TOS
+	 * field of translated IPv4 headers.
+	 * If "reset_tos" is "false", then this doesn't do anything.
+	 */
+	__u8 new_tos;
+	/**
+	 * If "true", the translator will always set translated IPv4 headers' Don't Fragment (DF)
+	 * flags as one.
+	 * Otherwise the flag will be set depending on the packet's length.
+	 * Boolean.
+	 */
+	__u8 df_always_on;
+	/**
+	 * Whether translated IPv4 headers' Identification fields should be computed (Either from the
+	 * IPv6 fragment header's Identification field or deduced from the packet's length).
+	 * Otherwise it will always be set as zero.
+	 * Boolean.
+	 */
+	__u8 build_ipv4_id;
+	/**
+	 * "true" if the value for MTU fields of outgoing ICMPv6 fragmentation needed packets should
+	 * be set as no less than 1280, regardless of MTU plateaus and whatnot.
+	 * See RFC 6145 section 6, second approach.
+	 * Boolean.
+	 */
+	__u8 lower_mtu_fail;
+	/** Length of the mtu_plateaus array. */
+	__u16 mtu_plateau_count;
+	/**
+	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
+	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
+	 * fragmentation needed packets.
+	 * The translator is supposed to pick the greatest plateau value that is less than the incoming
+	 * packet's Total Length field.
+	 */
+	__u16 *mtu_plateaus;
+	/**
+	 * The smallest MTU in the IPv6 side. Jool will ensure that packets traveling from 4 to 6 will
+	 * be no bigger than this amount of bytes.
+	 */
+	__u16 min_ipv6_mtu;
+};
+
+enum general_module {
+	SESSIONDB,
+	FILTERING,
+	TRANSLATE,
+};
+
+union request_general {
+	struct {
+		/* Nothing needed here. */
+	} display;
+	struct {
+		__u8 module;
+		__u8 type;
+		/* The value is given in a variable-sized payload so it's not here. */
+	} update;
+};
+
+/**
+ * A BIB entry, from the eyes of userspace.
+ *
+ * It's a stripped version of "struct bib_entry" and only used when BIB entries need to travel to
+ * userspace. For anything else, use "struct bib_entry".
+ *
+ * See "struct bib_entry" for documentation on the fields.
+ */
+struct bib_entry_usr {
+	struct ipv4_tuple_address addr4;
+	struct ipv6_tuple_address addr6;
+	__u8 is_static;
+};
+
+/**
+ * A session entry, from the eyes of userspace.
+ *
+ * It's a stripped version of "struct session_entry" and only used when sessions need to travel to
+ * userspace. For anything else, use "struct session_entry".
+ *
+ * See "struct session_entry" for documentation on the fields.
+ */
+struct session_entry_usr {
+	struct ipv6_pair addr6;
+	struct ipv4_pair addr4;
+	__u64 dying_time;
+	__u8 l4_proto;
+};
+
+struct response_general {
+	struct sessiondb_config sessiondb;
+	struct filtering_config filtering;
+	struct translate_config translate;
+};
+
+/**
+ * "struct general_config" has pointers, so if the userspace app wants the configuration,
  * the structure cannot simply be copied to userspace.
  * This translates "config" and its subobjects into a byte array which can then be transformed back
- * using "deserialize_translate_config()".
+ * using "deserialize_general_config()".
  */
-int serialize_translate_config(struct translate_config *config,
-		unsigned char **buffer_out, __u16 *buffer_len_out);
+int serialize_general_config(struct response_general *config, unsigned char **buffer_out,
+		size_t *buffer_len_out);
 /**
  * Reverts the work of serialize_translate_config() by creating "config" out of the byte array
  * "buffer".
  */
-int deserialize_translate_config(void *buffer, __u16 buffer_len,
-		struct translate_config *target_out);
+int deserialize_general_config(void *buffer, __u16 buffer_len, struct response_general *config);
 
 
 #endif /* _JOOL_COMM_CONFIG_PROTO_H */
