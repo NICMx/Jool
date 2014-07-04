@@ -201,7 +201,14 @@ union request_pool6 {
 	} display;
 	struct {
 		struct ipv6_prefix prefix;
-	} update;
+	} add;
+	struct {
+		struct ipv6_prefix prefix;
+		__u8 quick;
+	} remove;
+	struct {
+		__u8 quick;
+	} flush;
 };
 
 union request_pool4 {
@@ -210,7 +217,14 @@ union request_pool4 {
 	} display;
 	struct {
 		struct in_addr addr;
-	} update;
+	} add;
+	struct {
+		struct in_addr addr;
+		__u8 quick;
+	} remove;
+	struct {
+		__u8 quick;
+	} flush;
 };
 
 struct request_bib {

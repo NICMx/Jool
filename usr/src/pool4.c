@@ -80,7 +80,7 @@ int pool4_add(struct in_addr *addr)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL4;
 	hdr->operation = OP_ADD;
-	payload->update.addr = *addr;
+	payload->add.addr = *addr;
 
 	return netlink_request(request, hdr->length, pool4_add_response, NULL);
 }
@@ -91,7 +91,7 @@ static int pool4_remove_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_remove(struct in_addr *addr)
+int pool4_remove(struct in_addr *addr, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -100,7 +100,8 @@ int pool4_remove(struct in_addr *addr)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL4;
 	hdr->operation = OP_REMOVE;
-	payload->update.addr = *addr;
+	payload->remove.addr = *addr;
+	payload->remove.quick = quick;
 
 	return netlink_request(request, hdr->length, pool4_remove_response, NULL);
 }
@@ -111,12 +112,16 @@ static int pool4_flush_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_flush(void)
+int pool4_flush(bool quick)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_POOL4,
-			.operation = OP_FLUSH,
-	};
-	return netlink_request(&request, request.length, pool4_flush_response, NULL);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+
+	hdr->length = sizeof(request);
+	hdr->mode = MODE_POOL4;
+	hdr->operation = OP_FLUSH;
+	payload->flush.quick = quick;
+
+	return netlink_request(&request, hdr->length, pool4_flush_response, NULL);
 }

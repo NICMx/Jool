@@ -83,7 +83,7 @@ int pool6_add(struct ipv6_prefix *prefix)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL6;
 	hdr->operation = OP_ADD;
-	payload->update.prefix = *prefix;
+	payload->add.prefix = *prefix;
 
 	return netlink_request(request, hdr->length, pool6_add_response, NULL);
 }
@@ -94,7 +94,7 @@ static int pool6_remove_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool6_remove(struct ipv6_prefix *prefix)
+int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -103,7 +103,8 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL6;
 	hdr->operation = OP_REMOVE;
-	payload->update.prefix = *prefix;
+	payload->remove.prefix = *prefix;
+	payload->remove.quick = quick;
 
 	return netlink_request(request, hdr->length, pool6_remove_response, NULL);
 }
@@ -114,12 +115,16 @@ static int pool6_flush_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool6_flush(void)
+int pool6_flush(bool quick)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_POOL6,
-			.operation = OP_FLUSH,
-	};
-	return netlink_request(&request, request.length, pool6_flush_response, NULL);
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+
+	hdr->length = sizeof(request);
+	hdr->mode = MODE_POOL6;
+	hdr->operation = OP_FLUSH;
+	payload->flush.quick = quick;
+
+	return netlink_request(&request, hdr->length, pool6_flush_response, NULL);
 }
