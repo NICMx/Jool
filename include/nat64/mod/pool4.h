@@ -54,7 +54,10 @@ int pool4_init(char *addr_strs[], int addr_count);
  * Frees resources allocated by the pool.
  */
 void pool4_destroy(void);
-
+/**
+ * Removes all addresses (along with their ports and IDs) from the pool.
+ */
+int pool4_flush(void);
 /**
  * Inserts the "addr" address (along with its 128k ports and 64k ICMP ids) to the pool.
  * These elements will then become borrowable through the pool_get* functions.
@@ -127,10 +130,6 @@ bool pool4_contains(struct in_addr *addr);
  */
 int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
 int pool4_count(__u64 *result);
-/**
- * Removes all addresses (along with its ports and IDs) from the pool.
- */
-int pool4_flush(void);
 
 
 #endif /* _NF_NAT64_POOL4_H */

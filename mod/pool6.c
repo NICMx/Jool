@@ -106,6 +106,21 @@ void pool6_destroy(void)
 	}
 }
 
+int pool6_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+
+	while (!list_empty(&pool)) {
+		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
+		list_del(&node->list_hook);
+		kfree(node);
+		pool_count--;
+	}
+	spin_unlock_bh(&pool_lock);
+
+	return 0;
+}
+
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 {
 	struct pool_node *node;
@@ -276,20 +291,5 @@ int pool6_count(__u64 *result)
 	spin_lock_bh(&pool_lock);
 	*result = pool_count;
 	spin_unlock_bh(&pool_lock);
-	return 0;
-}
-
-int pool6_flush(void)
-{
-	spin_lock_bh(&pool_lock);
-
-	while (!list_empty(&pool)) {
-		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
-		list_del(&node->list_hook);
-		kfree(node);
-		pool_count--;
-	}
-	spin_unlock_bh(&pool_lock);
-
 	return 0;
 }

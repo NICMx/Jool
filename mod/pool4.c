@@ -167,6 +167,14 @@ void pool4_destroy(void)
 	kmem_cache_destroy(node_cache);
 }
 
+int pool4_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+	pool4_table_empty(&pool, destroy_pool4_node);
+	spin_unlock_bh(&pool_lock);
+	return 0;
+}
+
 int pool4_register(struct in_addr *addr)
 {
 	struct pool4_node *node;
@@ -224,44 +232,6 @@ int pool4_register(struct in_addr *addr)
 failure:
 	destroy_pool4_node(node);
 	return error;
-}
-
-static bool pool4_is_full(struct pool4_node *pool4)
-{
-	bool is_full;
-
-	is_full = poolnum_is_full(&pool4->icmp_ids);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->tcp_ports.low);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->tcp_ports.high);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.low_even);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.low_odd);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.high_even);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.high_odd);
-	if (!is_full)
-		goto is_not_full;
-
-	return true;
-
-is_not_full:
-	return false;
 }
 
 int pool4_remove(struct in_addr *addr)
@@ -529,13 +499,5 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
 int pool4_count(__u64 *result)
 {
 	*result = pool.node_count;
-	return 0;
-}
-
-int pool4_flush(void)
-{
-	spin_lock_bh(&pool_lock);
-	pool4_table_empty(&pool, destroy_pool4_node);
-	spin_unlock_bh(&pool_lock);
 	return 0;
 }

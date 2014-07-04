@@ -287,8 +287,8 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->operation = OP_REMOVE;
 		break;
 	case ARGP_FLUSH:
-	 	arguments->operation = OP_FLUSH;
-	 	break;
+		arguments->operation = OP_FLUSH;
+		break;
 
 	case ARGP_UDP:
 		arguments->udp = true;
@@ -499,7 +499,7 @@ static int main_wrapped(int argc, char **argv)
 			}
 			return pool6_remove(&args.pool6_prefix);
 		case OP_FLUSH:
-		 	return pool6_flush();
+			return pool6_flush();
 		default:
 			log_err("Unknown operation for IPv6 pool mode: %u.", args.operation);
 			return -EINVAL;
@@ -525,7 +525,7 @@ static int main_wrapped(int argc, char **argv)
 			}
 			return pool4_remove(&args.pool4_addr);
 		case OP_FLUSH:
-		 	return pool4_flush();
+			return pool4_flush();
 		default:
 			log_err("Unknown operation for IPv4 pool mode: %u.", args.operation);
 			return -EINVAL;

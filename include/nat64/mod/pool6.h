@@ -16,6 +16,10 @@
 
 int pool6_init(char *pref_strs[], int pref_count);
 void pool6_destroy(void);
+/**
+ * Removes all prefixes from the pool.
+ */
+int pool6_flush(void);
 
 /**
  * You're not actually borrowing the prefix, so you don't have to return it.
@@ -36,10 +40,5 @@ int pool6_remove(struct ipv6_prefix *prefix);
 
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
 int pool6_count(__u64 *result);
-
-/**
- * Removes all prefixes from the pool.
- */
-int pool6_flush(void);
 
 #endif /* _NF_NAT64_POOL6_H */
