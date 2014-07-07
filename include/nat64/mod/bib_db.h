@@ -221,6 +221,10 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
  * This is probably a lot faster than you think.
  */
 int bibdb_delete_by_ipv4(struct in_addr *addr);
+/**
+ * Removes all the fake users of all the BIB entries
+ */
+int bibdb_flush(void);
 
 
 #endif /* _JOOL_MOD_BIB_DB_H */

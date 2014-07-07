@@ -13,9 +13,14 @@
 #include "nat64/comm/types.h"
 
 
+#define MAX_U8 0xFF
+#define MAX_U16 0xFFFF
+#define MAX_U64 0xFFFFFFFFFFFFFFFF
+
 int str_to_bool(const char *str, __u8 *bool_out);
 int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max);
 int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max);
+int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max);
 int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_len_out);
 /**
  * Converts "str" to a IPv4 address. Stores the result in "result".

@@ -135,14 +135,37 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding a prefix to the IPv6 pool.");
-		return respond_error(nl_hdr, pool6_add(&request->update.prefix));
+
+		return respond_error(nl_hdr, pool6_add(&request->add.prefix));
 
 	case OP_REMOVE:
 		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing a prefix from the IPv6 pool.");
-		return respond_error(nl_hdr, pool6_remove(&request->update.prefix));
+		error = pool6_remove(&request->remove.prefix);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		if (!request->flush.quick)
+			error = sessiondb_delete_by_ipv6_prefix(&request->remove.prefix);
+
+		return respond_error(nl_hdr, error);
+
+	case OP_FLUSH:
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv6 pool...");
+		error = pool6_flush();
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		if (!request->flush.quick)
+			error = sessiondb_flush();
+
+		return respond_error(nl_hdr, error);
 
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);
@@ -191,7 +214,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding an address to the IPv4 pool.");
-		return respond_error(nl_hdr, pool4_register(&request->update.addr));
+		return respond_error(nl_hdr, pool4_register(&request->add.addr));
 
 	case OP_REMOVE:
 		if (verify_superpriv(nat64_hdr))
@@ -199,15 +222,37 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		log_debug("Removing an address from the IPv4 pool.");
 
-		error = sessiondb_delete_by_ipv4(&request->update.addr);
+		error = pool4_remove(&request->remove.addr);
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		error = bibdb_delete_by_ipv4(&request->update.addr);
+		if (!request->remove.quick) {
+			error = sessiondb_delete_by_ipv4(&request->remove.addr);
+			if (error)
+				return respond_error(nl_hdr, error);
+			error = bibdb_delete_by_ipv4(&request->remove.addr);
+		}
+
+		return respond_error(nl_hdr, error);
+
+	case OP_FLUSH:
+		if (verify_superpriv(nat64_hdr)) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv4 pool...");
+		error = pool4_flush();
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		return respond_error(nl_hdr, pool4_remove(&request->update.addr));
+		if (!request->flush.quick) {
+			error = sessiondb_flush();
+			if (error)
+				return respond_error(nl_hdr, error);
+			error = bibdb_flush();
+		}
+
+		return respond_error(nl_hdr, error);
 
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);

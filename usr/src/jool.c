@@ -33,11 +33,11 @@ const char *argp_program_bug_address = "jool@nic.mx";
  */
 struct arguments {
 	enum config_mode mode;
-	bool mode_set;
 	enum config_operation op;
-	bool op_set;
 
 	struct {
+		bool quick;
+
 		struct {
 			struct ipv6_prefix prefix;
 			bool prefix_set;
@@ -87,10 +87,12 @@ enum argp_flags {
 	ARGP_ADD = 'a',
 	ARGP_UPDATE = 5000,
 	ARGP_REMOVE = 'r',
+	ARGP_FLUSH = 'f',
 
 	/* Pools */
 	ARGP_PREFIX = 1000,
 	ARGP_ADDRESS = 1001,
+	ARGP_QUICK = 'q',
 
 	/* BIB, session */
 	ARGP_TCP = 't',
@@ -147,6 +149,11 @@ static struct argp_option options[] =
 	{ "add", ARGP_ADD, NULL, 0, "Add an element to the target." },
 	{ "update", ARGP_UPDATE, NULL, 0, "Change something in the target." },
 	{ "remove", ARGP_REMOVE, NULL, 0, "Remove an element from the target." },
+	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
+
+	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 11 },
+	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
+		"Available on remove and flush operations only. " },
 
 	{ NULL, 0, NULL, 0, "IPv6 Pool-only options:", 11 },
 	{ "prefix", ARGP_PREFIX, PREFIX_FORMAT, 0, "The prefix to be added or removed. "
@@ -206,26 +213,21 @@ static struct argp_option options[] =
 	{ NULL },
 };
 
-static void set_mode(struct arguments *args, enum config_mode mode)
-{
-	args->mode = mode;
-	args->mode_set = true;
-}
-
-static void set_op(struct arguments *args, enum config_operation op)
-{
-	args->op = op;
-	args->op_set = true;
-}
-
-static int validate_args(struct arguments *args, enum config_mode valid_modes,
+static int update_state(struct arguments *args, enum config_mode valid_modes,
 		enum config_operation valid_ops)
 {
-	if (args->mode_set && (args->mode | valid_modes) != valid_modes)
-		goto fail;
+	enum config_mode common_modes;
+	enum config_operation common_ops;
 
-	if (args->op_set && (args->op | valid_ops) != valid_ops)
+	common_modes = args->mode & valid_modes;
+	if (!common_modes || (common_modes | valid_modes) != valid_modes)
 		goto fail;
+	args->mode = common_modes;
+
+	common_ops = args->op & valid_ops;
+	if (!common_ops || (common_ops | valid_ops) != valid_ops)
+		goto fail;
+	args->op = common_ops;
 
 	return 0;
 
@@ -237,12 +239,9 @@ fail:
 static int set_general_arg(struct arguments *args, enum general_module module, __u8 type,
 		size_t size, void *value)
 {
-	int error = validate_args(args, MODE_GENERAL, OP_UPDATE);
+	int error = update_state(args, MODE_GENERAL, OP_UPDATE);
 	if (error)
 		return error;
-
-	set_mode(args, MODE_GENERAL);
-	set_op(args, GENERAL_OPS);
 
 	if (args->general.data) {
 		log_err("You can only edit one configuration value at a time.");
@@ -287,7 +286,7 @@ static int set_general_u8(struct arguments *args, enum general_module module, __
 }
 
 static int set_general_u16(struct arguments *args, enum general_module module, __u8 type,
-		char *value, __u16 min, __u16 max, __u16 multiplier)
+		char *value, __u16 min, __u16 max)
 {
 	__u16 tmp;
 	int error;
@@ -295,7 +294,20 @@ static int set_general_u16(struct arguments *args, enum general_module module, _
 	error = str_to_u16(value, &tmp, min, max);
 	if (error)
 		return error;
-	tmp *= multiplier;
+
+	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
+}
+
+static int set_general_timeout(struct arguments *args, enum general_module module, __u8 type,
+		char *value, __u64 min, __u64 max)
+{
+	__u64 tmp;
+	int error;
+
+	error = str_to_u64(value, &tmp, min, max);
+	if (error)
+		return error;
+	tmp *= 1000;
 
 	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
 }
@@ -326,95 +338,87 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 
 	switch (key) {
 	case ARGP_POOL6:
-		error = validate_args(args, MODE_POOL6, POOL6_OPS);
-		set_mode(args, MODE_POOL6);
+		error = update_state(args, MODE_POOL6, POOL6_OPS);
 		break;
 	case ARGP_POOL4:
-		error = validate_args(args, MODE_POOL4, POOL4_OPS);
-		set_mode(args, MODE_POOL4);
+		error = update_state(args, MODE_POOL4, POOL4_OPS);
 		break;
 	case ARGP_BIB:
-		error = validate_args(args, MODE_BIB, BIB_OPS);
-		set_mode(args, MODE_BIB);
+		error = update_state(args, MODE_BIB, BIB_OPS);
 		break;
 	case ARGP_SESSION:
-		error = validate_args(args, MODE_SESSION, SESSION_OPS);
-		set_mode(args, MODE_SESSION);
+		error = update_state(args, MODE_SESSION, SESSION_OPS);
 		break;
 	case ARGP_GENERAL:
-		error = validate_args(args, MODE_GENERAL, GENERAL_OPS);
-		set_mode(args, MODE_GENERAL);
+		error = update_state(args, MODE_GENERAL, GENERAL_OPS);
 		break;
 
 	case ARGP_DISPLAY:
-		error = validate_args(args, DISPLAY_MODES, OP_DISPLAY);
-		set_op(args, OP_DISPLAY);
+		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
 		break;
 	case ARGP_COUNT:
-		error = validate_args(args, COUNT_MODES, OP_COUNT);
-		set_op(args, OP_COUNT);
+		error = update_state(args, COUNT_MODES, OP_COUNT);
 		break;
 	case ARGP_ADD:
-		error = validate_args(args, ADD_MODES, OP_ADD);
-		set_op(args, OP_ADD);
+		error = update_state(args, ADD_MODES, OP_ADD);
 		break;
 	case ARGP_UPDATE:
-		error = validate_args(args, UPDATE_MODES, OP_UPDATE);
-		set_op(args, OP_UPDATE);
+		error = update_state(args, UPDATE_MODES, OP_UPDATE);
 		break;
 	case ARGP_REMOVE:
-		error = validate_args(args, REMOVE_MODES, OP_REMOVE);
-		set_op(args, OP_REMOVE);
+		error = update_state(args, REMOVE_MODES, OP_REMOVE);
+		break;
+	case ARGP_FLUSH:
+		error = update_state(args, FLUSH_MODES, OP_FLUSH);
 		break;
 
 	case ARGP_UDP:
-		error = validate_args(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
+		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
 		args->db.tables.udp = true;
 		break;
 	case ARGP_TCP:
-		error = validate_args(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
+		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
 		args->db.tables.tcp = true;
 		break;
 	case ARGP_ICMP:
-		error = validate_args(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
+		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
 		args->db.tables.icmp = true;
 		break;
 	case ARGP_NUMERIC_HOSTNAME:
-		error = validate_args(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
-		set_op(args, OP_DISPLAY);
+		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
 		args->db.tables.numeric_hostname = true;
 		break;
 
 	case ARGP_ADDRESS:
-		error = validate_args(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
 		if (error)
 			return error;
-		set_mode(args, MODE_POOL4);
 		error = str_to_addr4(str, &args->db.pool4.addr);
 		args->db.pool4.addr_set = true;
 		break;
 	case ARGP_PREFIX:
-		error = validate_args(args, MODE_POOL6, OP_ADD | OP_REMOVE);
+		error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
 		if (error)
 			return error;
-		set_mode(args, MODE_POOL6);
 		error = str_to_prefix(str, &args->db.pool6.prefix);
 		args->db.pool6.prefix_set = true;
 		break;
+	case ARGP_QUICK:
+		error = update_state(args, MODE_POOL6 | MODE_POOL4, OP_REMOVE | OP_FLUSH);
+		args->db.quick = true;
+		break;
 
 	case ARGP_BIB_IPV6:
-		error = validate_args(args, MODE_BIB, OP_ADD | OP_REMOVE);
+		error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
 		if (error)
 			return error;
-		set_mode(args, MODE_BIB);
 		error = str_to_addr6_port(str, &args->db.tables.bib.addr6);
 		args->db.tables.bib.addr6_set = true;
 		break;
 	case ARGP_BIB_IPV4:
-		error = validate_args(args, MODE_BIB, OP_ADD | OP_REMOVE);
+		error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
 		if (error)
 			return error;
-		set_mode(args, MODE_BIB);
 		error = str_to_addr4_port(str, &args->db.tables.bib.addr4);
 		args->db.tables.bib.addr4_set = true;
 		break;
@@ -429,16 +433,16 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_bool(args, FILTERING, DROP_EXTERNAL_TCP, str);
 		break;
 	case ARGP_UDP_TO:
-		error = set_general_u16(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, 0xFFFF, 1000);
+		error = set_general_timeout(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U64);
 		break;
 	case ARGP_ICMP_TO:
-		error = set_general_u16(args, SESSIONDB, ICMP_TIMEOUT, str, 0, 0xFFFF, 1000);
+		error = set_general_timeout(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U64);
 		break;
 	case ARGP_TCP_TO:
-		error = set_general_u16(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, 0xFFFF, 1000);
+		error = set_general_timeout(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U64);
 		break;
 	case ARGP_TCP_TRANS_TO:
-		error = set_general_u16(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, 0xFFFF, 1000);
+		error = set_general_timeout(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U64);
 		break;
 
 	case ARGP_RESET_TCLASS:
@@ -448,7 +452,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_bool(args, TRANSLATE, RESET_TOS, str);
 		break;
 	case ARGP_NEW_TOS:
-		error = set_general_u8(args, TRANSLATE, NEW_TOS, str, 0, 0xFF);
+		error = set_general_u8(args, TRANSLATE, NEW_TOS, str, 0, MAX_U8);
 		break;
 	case ARGP_DF:
 		error = set_general_bool(args, TRANSLATE, DF_ALWAYS_ON, str);
@@ -463,7 +467,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_u16_array(args, TRANSLATE, MTU_PLATEAUS, str);
 		break;
 	case ARGP_MIN_IPV6_MTU:
-		error = set_general_u16(args, TRANSLATE, MIN_IPV6_MTU, str, 1280, 0xFFFF, 1);
+		error = set_general_u16(args, TRANSLATE, MIN_IPV6_MTU, str, 1280, MAX_U16);
 		break;
 
 	default:
@@ -485,6 +489,21 @@ static char args_doc[] = "";
  */
 static char doc[] = "jool -- The Jool kernel module's configuration interface.\v";
 
+/**
+ * Zeroizes all of "num"'s bits, except the last one. Returns the result.
+ */
+static unsigned int zeroize_upper_bits(__u8 num)
+{
+	__u8 mask = 0x01;
+
+	do {
+		if ((num & mask) != 0)
+			return num & mask;
+		mask <<= 1;
+	} while (mask);
+
+	return num;
+}
 
 /**
  * Uses argp.h to read the parameters from the user, validates them, and returns the result as a
@@ -496,10 +515,15 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
+	result->mode = 0xFF;
+	result->op = 0xFF;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
 	if (error)
 		return error;
+
+	result->mode = zeroize_upper_bits(result->mode);
+	result->op = zeroize_upper_bits(result->op);
 
 	if (!result->db.tables.tcp && !result->db.tables.udp && !result->db.tables.icmp) {
 		result->db.tables.tcp = true;
@@ -540,7 +564,9 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the prefix to be removed (--prefix).");
 				return -EINVAL;
 			}
-			return pool6_remove(&args.db.pool6.prefix);
+			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
+		case OP_FLUSH:
+			return pool6_flush(args.db.quick);
 		default:
 			log_err("Unknown operation for IPv6 pool mode: %u.", args.op);
 			return -EINVAL;
@@ -564,7 +590,9 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address to be removed (--address).");
 				return -EINVAL;
 			}
-			return pool4_remove(&args.db.pool4.addr);
+			return pool4_remove(&args.db.pool4.addr, args.db.quick);
+		case OP_FLUSH:
+			return pool4_flush(args.db.quick);
 		default:
 			log_err("Unknown operation for IPv4 pool mode: %u.", args.op);
 			return -EINVAL;

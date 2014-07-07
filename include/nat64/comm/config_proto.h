@@ -42,34 +42,36 @@
 
 enum config_mode {
 	/** The current message is talking about the IPv6 pool. */
-	MODE_POOL6 = (1 << 0),
+	MODE_POOL6 = (1 << 1),
 	/** The current message is talking about the IPv4 pool. */
-	MODE_POOL4 = (1 << 1),
+	MODE_POOL4 = (1 << 2),
 	/** The current message is talking about the Binding Information Bases. */
-	MODE_BIB = (1 << 2),
+	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
-	MODE_SESSION = (1 << 3),
-	/** The current message wants to change some general configuration value. */
-	MODE_GENERAL = 0,
+	MODE_SESSION = (1 << 4),
+	/** The current message is talking about general configuration values. */
+	MODE_GENERAL = (1 << 0),
 };
 
-#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
-#define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
+#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+#define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define GENERAL_OPS (OP_DISPLAY | OP_UPDATE)
 
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
-	OP_DISPLAY = 0,
+	OP_DISPLAY = (1 << 0),
 	/** The userspace app wants to print the number of records in the table being requested. */
-	OP_COUNT = (1 << 0),
+	OP_COUNT = (1 << 1),
 	/** The userspace app wants to add an element to the table being requested. */
-	OP_ADD = (1 << 1),
+	OP_ADD = (1 << 2),
 	/* The userspace app wants to edit some value. */
-	OP_UPDATE = (1 << 2),
+	OP_UPDATE = (1 << 3),
 	/** The userspace app wants to delete an element from the table being requested. */
-	OP_REMOVE = (1 << 3),
+	OP_REMOVE = (1 << 4),
+	/* The userspace app wants to clear some table. */
+	OP_FLUSH = (1 << 5),
 };
 
 #define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL)
@@ -77,6 +79,7 @@ enum config_operation {
 #define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 #define UPDATE_MODES (MODE_GENERAL)
 #define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
+#define FLUSH_MODES (MODE_POOL6 | MODE_POOL4)
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -99,9 +102,19 @@ union request_pool6 {
 		/* Nothing needed here ATM. */
 	} display;
 	struct {
-		/** The prefix the user wants to add or remove from the pool. */
+		/** The prefix the user wants to add to the pool. */
 		struct ipv6_prefix prefix;
-	} update;
+	} add;
+	struct {
+		/** The prefix the user wants to remove from the pool. */
+		struct ipv6_prefix prefix;
+		/* Whether the prefix's sessions should be cleared too (false) or not (true). */
+		__u8 quick;
+	} remove;
+	struct {
+		/* Whether the sessions tables should also be cleared (false) or not (true). */
+		__u8 quick;
+	} flush;
 };
 
 /**
@@ -112,9 +125,19 @@ union request_pool4 {
 		/* Nothing needed there ATM. */
 	} display;
 	struct {
-		/** The address the user wants to add or remove from the pool. */
+		/** The address the user wants to add to the pool. */
 		struct in_addr addr;
-	} update;
+	} add;
+	struct {
+		/** The address the user wants to remove from the pool. */
+		struct in_addr addr;
+		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
+		__u8 quick;
+	} remove;
+	struct {
+		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
+		__u8 quick;
+	} flush;
 };
 
 /**
@@ -155,9 +178,6 @@ struct request_bib {
 			/** The IPv4 transport address of the entry the user wants to remove. */
 			struct ipv4_tuple_address addr4;
 		} remove;
-		struct {
-			/* Nothing needed here. */
-		} clear;
 	};
 };
 

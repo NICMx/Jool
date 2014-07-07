@@ -167,6 +167,14 @@ void pool4_destroy(void)
 	kmem_cache_destroy(node_cache);
 }
 
+int pool4_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+	pool4_table_empty(&pool, destroy_pool4_node);
+	spin_unlock_bh(&pool_lock);
+	return 0;
+}
+
 int pool4_register(struct in_addr *addr)
 {
 	struct pool4_node *node;
@@ -226,48 +234,9 @@ failure:
 	return error;
 }
 
-static bool pool4_is_full(struct pool4_node *pool4)
-{
-	bool is_full;
-
-	is_full = poolnum_is_full(&pool4->icmp_ids);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->tcp_ports.low);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->tcp_ports.high);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.low_even);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.low_odd);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.high_even);
-	if (!is_full)
-		goto is_not_full;
-
-	is_full = poolnum_is_full(&pool4->udp_ports.high_odd);
-	if (!is_full)
-		goto is_not_full;
-
-	return true;
-
-is_not_full:
-	return false;
-}
-
 int pool4_remove(struct in_addr *addr)
 {
 	struct pool4_node *node;
-	bool is_full = 0;
 
 	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
@@ -277,14 +246,6 @@ int pool4_remove(struct in_addr *addr)
 	node = pool4_table_get(&pool, addr);
 	if (!node)
 		goto not_found;
-
-	is_full = pool4_is_full(node);
-	if (!is_full) {
-		spin_unlock_bh(&pool_lock);
-		log_err("There is at least one BIB entry using the address you're trying to remove; "
-				"try again.");
-		return -EAGAIN;
-	}
 
 	if (!pool4_table_remove(&pool, addr, destroy_pool4_node))
 		goto not_found;

@@ -106,6 +106,21 @@ void pool6_destroy(void)
 	}
 }
 
+int pool6_flush(void)
+{
+	spin_lock_bh(&pool_lock);
+
+	while (!list_empty(&pool)) {
+		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
+		list_del(&node->list_hook);
+		kfree(node);
+		pool_count--;
+	}
+	spin_unlock_bh(&pool_lock);
+
+	return 0;
+}
+
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 {
 	struct pool_node *node;
@@ -159,6 +174,33 @@ bool pool6_contains(struct in6_addr *addr)
 	return !pool6_get(addr, &result); /* 0 -> true, -ENOENT or whatever -> false. */
 }
 
+int pool6_contains_prefix(struct ipv6_prefix *prefix)
+{
+	struct pool_node *node;
+
+	if (WARN(!prefix, "NULL is not a valid prefix."))
+		return -EINVAL;
+
+	spin_lock_bh(&pool_lock);
+
+	if (list_empty(&pool)) {
+		spin_unlock_bh(&pool_lock);
+		log_warn_once("The IPv6 pool is empty.");
+		return -ENOENT;
+	}
+
+	list_for_each_entry(node, &pool, list_hook) {
+		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+			spin_unlock_bh(&pool_lock);
+			return 0;
+		}
+	}
+	spin_unlock_bh(&pool_lock);
+
+	log_err("The prefix is not part of the pool.");
+	return -ENOENT;
+}
+
 int pool6_add(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;
@@ -170,6 +212,16 @@ int pool6_add(struct ipv6_prefix *prefix)
 	error = validate_prefix(prefix);
 	if (error)
 		return error; /* Error msg already printed. */
+
+	spin_lock_bh(&pool_lock);
+	list_for_each_entry(node, &pool, list_hook) {
+		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+			log_err("The prefix already belongs to the pool.");
+			spin_unlock_bh(&pool_lock);
+			return -EEXIST;
+		}
+	}
+	spin_unlock_bh(&pool_lock);
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {

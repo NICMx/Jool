@@ -66,9 +66,11 @@ struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_
 
 void bib_kfree(struct bib_entry *bib)
 {
-	int error = pool4_return(bib->l4_proto, &bib->ipv4);
-	WARN(error, "I'm a BIB entry and found error code %d while trying to return my IPv4 transport "
-			"address to the IPv4 pool.", error);
+	/*
+	 * We ignore the error of pool4_return(),
+	 * because the user might have removed the address from the pool with --quick.
+	 */
+	pool4_return(bib->l4_proto, &bib->ipv4);
 	kmem_cache_free(entry_cache, bib);
 }
 

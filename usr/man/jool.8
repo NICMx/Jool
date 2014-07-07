@@ -14,7 +14,7 @@ Jool is a kernel module you load into a Linux kernel. It implements stateful NAT
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
 .br
-Kernels 2.6.38 and up.
+Kernels 3.0.0 and up.
 
 .SH SYNTAX
 .RI "jool --pool6 [" OPERATION "] [--prefix " PREFIX ]
@@ -43,6 +43,8 @@ Output the number of entries in the table(s).
 Add an entry to the table(s).
 .IP "-r, --remove"
 Remove an entry from the table(s).
+.IP "-f, --flush"
+Flush all entries from the table.
 
 .SS PROTOCOLS
 They are not mutually exclusive. If you provide no protocol, the default is all protocols. If you provide at least one protocol, the rest will be turned off.
