@@ -13,6 +13,7 @@ jool-objs += ipv6_hdr_iterator.o
 jool-objs += rfc6052.o
 jool-objs += out_stream.o
 jool-objs += random.o
+jool-objs += pkt_queue.o
 jool-objs += poolnum.o
 jool-objs += pool6.o
 jool-objs += pool4.o

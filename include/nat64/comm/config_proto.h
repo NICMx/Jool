@@ -230,6 +230,14 @@ struct sessiondb_config {
 	} ttl;
 };
 
+enum pktqueue_type {
+	MAX_PKTS,
+};
+
+struct pktqueue_config {
+	unsigned int max_pkts;
+};
+
 enum filtering_type {
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
@@ -371,6 +379,7 @@ struct session_entry_usr {
 
 struct response_general {
 	struct sessiondb_config sessiondb;
+	struct pktqueue_config pktqueue;
 	struct filtering_config filtering;
 	struct translate_config translate;
 };

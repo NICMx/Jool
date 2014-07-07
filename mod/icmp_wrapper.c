@@ -13,6 +13,10 @@ static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 		type = ICMP_DEST_UNREACH;
 		code = ICMP_HOST_UNREACH;
 		break;
+	case ICMPERR_PORT_UNREACHABLE:
+		type = ICMP_DEST_UNREACH;
+		code = ICMP_PORT_UNREACH;
+		break;
 	case ICMPERR_PROTO_UNREACHABLE:
 		type = ICMP_DEST_UNREACH;
 		code = ICMP_PROT_UNREACH;
