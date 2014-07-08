@@ -67,6 +67,10 @@ int pktqueue_set_config(struct pktqueue_config *new_config);
  */
 int pktqueue_add(struct session_entry *session, struct sk_buff *skb);
 /**
+ * Sends "session"'s reply and removes it from the DB.
+ */
+int pktqueue_send(struct session_entry *session);
+/**
  * Removes "session"'s skb from the storage. The ICMP error will be canceled.
  */
 int pktqueue_remove(struct session_entry *session);

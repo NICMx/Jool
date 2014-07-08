@@ -3,6 +3,7 @@
 #include "nat64/mod/icmp_wrapper.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/rfc6052.h"
+#include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/bib_db.h"
@@ -174,11 +175,6 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	return 0;
 }
 
-/**
- * Assumes that "tuple" and "bib"'s session doesn't exist, and creates it. Returns the resulting
- * entry in "session".
- * Assumes that "tuple" represents a IPv4 packet.
- */
 static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 		struct session_entry **session)
 {
@@ -188,7 +184,6 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	struct ipv6_pair pair6;
 	int error;
 
-	/* Translate address from IPv4 to IPv6 */
 	error = pool6_peek(&prefix);
 	if (error)
 		return error;
@@ -200,14 +195,13 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	}
 
 	/*
-	 * Create the session entry.
-	 *
 	 * Fortunately, ICMP errors cannot reach this code because of the requirements in the header
 	 * of section 3.5, so we can use the tuple as shortcuts for the packet's fields.
 	 */
-	pair6.remote = bib->ipv6;
+	if (bib)
+		pair6.remote = bib->ipv6;
 	pair6.local.address = ipv6_src;
-	pair6.local.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->src.l4_id : bib->ipv6.l4_id;
+	pair6.local.l4_id = tuple->src.l4_id;
 	pair4.local.address = tuple->dst.addr.ipv4;
 	pair4.local.l4_id = tuple->dst.l4_id;
 	pair4.remote.address = tuple->src.addr.ipv4;
@@ -220,17 +214,6 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	}
 
 	apply_policies();
-
-	/* Add it to the table. */
-	error = sessiondb_add(*session);
-	if (error) {
-		session_kfree(*session);
-		log_debug("Error code %d while adding the session to the DB.", error);
-		return error;
-	}
-
-	bib_get(bib); /* refcounter+1, because of session's reference. */
-	(*session)->bib = bib;
 
 	return 0;
 }
@@ -403,13 +386,6 @@ static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple)
 	return 0;
 }
 
-static inline void store_packet(void)
-{
-	/* TODO (Issue #58) store the packet. */
-	log_debug("Unknown TCP connections started from the IPv4 side are still unsupported. "
-			"Dropping packet...");
-}
-
 /**
  * Second half of the filtering and updating done during the CLOSED state of the TCP state machine.
  * Processes IPv4 SYN packets when there's no state.
@@ -426,31 +402,50 @@ static int tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 		return -EPERM;
 	}
 
-	if (address_dependent_filtering()) {
-		/* TODO (issue #58) set_syn_timer(session); */
-		log_debug("Storage of TCP packets is not yet supported.");
-		return -EINVAL;
-	}
-
 	error = bibdb_get(tuple, &bib);
 	if (error) {
-		if (error == -ENOENT)
-			store_packet();
-		return error;
+		if (error != -ENOENT)
+			return error;
+		bib = NULL;
 	}
 
 	error = create_session_ipv4(tuple, bib, &session);
-	if (error) {
+	if (error)
+		goto fail;
+
+	if (!bib || address_dependent_filtering()) {
+		session->state = V4_INIT;
+		error = pktqueue_add(session, skb);
+		if (error) {
+			session_kfree(session);
+		} else {
+			set_syn_timer(session);
+			/* Do not call session_return() so we transfer the reference to the list. */
+		}
+
+	} else {
+		error = sessiondb_add(session);
+		if (error) {
+			session_kfree(session);
+			log_debug("Error code %d while adding the session to the DB.", error);
+			goto fail;
+		}
+
+		bib_get(bib); /* refcounter+1, because of session's reference. */
+		session->bib = bib;
+
+		session->state = V4_INIT;
+		set_tcp_trans_timer(session);
+		session_return(session);
 		bib_return(bib);
-		return error;
 	}
 
-	session->state = V4_INIT;
-	set_tcp_trans_timer(session);
-	session_return(session);
-	bib_return(bib);
+	return error;
 
-	return 0;
+fail:
+	if (bib)
+		bib_return(bib);
+	return error;
 }
 
 /**

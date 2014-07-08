@@ -3,8 +3,9 @@
 #include <net/ipv6.h>
 #include "nat64/comm/constants.h"
 #include "nat64/mod/rbtree.h"
-#include "nat64/mod/bib_db.h"
+#include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/pool6.h"
+#include "nat64/mod/bib_db.h"
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/send_packet.h"
 
@@ -378,8 +379,7 @@ static bool session_expire(struct session_entry *session)
 	case L4PROTO_TCP:
 		switch (session->state) {
 		case V4_INIT:
-			/* TODO (Issue #58) send the stored packet. */
-			/* send_icmp_error_message(skb, DESTINATION_UNREACHABLE, ADDRESS_UNREACHABLE); */
+			pktqueue_send(session);
 			session->state = CLOSED;
 			return true;
 
@@ -1148,7 +1148,7 @@ static void sessiondb_update_timer(struct session_entry *session, struct expire_
 
 	if (timer_pending(&expirer->timer)) {
 		/*
-		 * The new session is always the one who's going to expire last.
+		 * The new session is always going to expire last.
 		 * So if the timer is already set, there should be no reason to edit it.
 		 */
 		spin_unlock_bh(&expirer->table->lock);
@@ -1179,15 +1179,27 @@ void set_icmp_timer(struct session_entry *session)
 	sessiondb_update_timer(session, &expirer_icmp);
 }
 
-/**
- * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
- */
-/*
+/* TODO join this with sessiondb_update_timer()? */
 void set_syn_timer(struct session_entry *session)
 {
-	sessiondb_update_timer(session, &expirer_syn);
+	spin_lock_bh(&expirer_syn.table->lock);
+
+	session->update_time = jiffies;
+	list_del(&session->expire_list_hook);
+	list_add_tail(&session->expire_list_hook, &expirer_syn.sessions);
+
+	if (timer_pending(&expirer_syn.timer)) {
+		/*
+		 * The new session is always going to expire last.
+		 * So if the timer is already set, there should be no reason to edit it.
+		 */
+		spin_unlock_bh(&expirer_syn.table->lock);
+		return;
+	}
+
+	spin_unlock_bh(&expirer_syn.table->lock);
+	schedule_timer(&expirer_syn.timer, jiffies + msecs_to_jiffies(1000 * TCP_INCOMING_SYN));
 }
-*/
 
 /**
  * Returns 1 if "session"->ipv6.local.address contains "prefix".

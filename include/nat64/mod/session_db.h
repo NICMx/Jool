@@ -275,6 +275,10 @@ void set_tcp_trans_timer(struct session_entry *session);
  * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
  */
 void set_icmp_timer(struct session_entry *session);
+/**
+ * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
+ */
+void set_syn_timer(struct session_entry *session);
 
 
 #endif /* _JOOL_MOD_SESSION_DB_H */
