@@ -8,6 +8,7 @@
 #include "nat64/mod/bib_db.h"
 #include "nat64/mod/session_db.h"
 #include "nat64/mod/static_routes.h"
+#include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
 
@@ -337,7 +338,6 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_usr.addr4 = entry->ipv4;
 	/* TODO where can we get this from now... */
 	/* entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies); */
-	entry_usr.l4_proto = entry->l4_proto;
 
 	return stream_write(stream, &entry_usr, sizeof(entry_usr));
 }
@@ -399,6 +399,9 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		error = sessiondb_clone_config(&response.sessiondb);
 		if (error)
 			goto end;
+		error = pktqueue_clone_config(&response.pktqueue);
+		if (error)
+			goto end;
 		error = filtering_clone_config(&response.filtering);
 		if (error)
 			goto end;
@@ -426,6 +429,9 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		switch (request->update.module) {
 		case SESSIONDB:
 			error = sessiondb_set_config(request->update.type, buffer_len, buffer);
+			break;
+		case PKTQUEUE:
+			error = pktqueue_set_config(request->update.type, buffer_len, buffer);
 			break;
 		case FILTERING:
 			error = filtering_set_config(request->update.type, buffer_len, buffer);

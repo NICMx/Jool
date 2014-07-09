@@ -28,24 +28,45 @@ struct session_table {
 	u64 count;
 	/**
 	 * Lock to sync access. This protects both the trees and the entries, but if you only need to
-	 * read the static portion of the entries, you can get away with only incresing their reference
+	 * read the const portion of the entries, you can get away with only incresing their reference
 	 * counter.
-	 * TODO (info) make those fields (ipv6, ipv4, l4_proto) explicitly constant. Do it on BIB too.
 	 */
 	spinlock_t lock;
 };
 
-/** The session table for UDP connections. */
+/** The session table for UDP conversations. */
 static struct session_table session_table_udp;
 /** The session table for TCP connections. */
 static struct session_table session_table_tcp;
-/** The session table for ICMP connections. */
+/** The session table for ICMP conversations. */
 static struct session_table session_table_icmp;
 
+/**
+ * A timer which will delete expired sessions every once in a while.
+ * All of the timer's sessions have the same time to live.
+ *
+ * Why not a single timer which takes care of all the sessions? Some reasons I remember:
+ * - When the user updates timeouts, this makes updating existing sessions a O(1) operation (since
+ *   the timer holds the timeout, not the sessions).
+ * - It makes timer rescheduling trivial (sessions are sorted by expiration date, so new sessions
+ *   are always simply added to the end of the list (O(1)) and knowing when the timer should be
+ *   triggered next is a matter of peeking the first element (also O(1)).
+ * - I seem to recall it takes care of some sync concern, but I can't remember what it was.
+ *
+ * Why not a timer per session? Well I don't know, it sounds like a lot of stress to the kernel
+ * since we expect lots and lots of sessions.
+ */
 struct expire_timer {
+	/** The actual timer. */
 	struct timer_list timer;
+	/** The sessions this timer is supposed to delete. Sorted by expiration time. */
 	struct list_head sessions;
+	/** All the sessions from the list above belong to this table (the reverse might not apply). */
 	struct session_table *table;
+	/**
+	 * Offset from the "config" structure where the expiration time of this timer can be found.
+	 * Except if this timer is "timer_syn", since the timeout of that one is constant.
+	 */
 	size_t timeout_offset;
 };
 
@@ -126,7 +147,7 @@ static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
  *
  * Doesn't care about spinlocks.
  */
-static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
+static int compare_full6(const struct session_entry *session, const struct ipv6_pair *pair)
 {
 	int gap;
 
@@ -153,7 +174,8 @@ static int compare_full6(struct session_entry *session, struct ipv6_pair *pair)
  *
  * Doesn't care about spinlocks.
  */
-static int compare_local4(struct session_entry *session, struct ipv4_tuple_address *addr)
+static int compare_local4(const struct session_entry *session,
+		const struct ipv4_tuple_address *addr)
 {
 	int gap;
 
@@ -174,7 +196,7 @@ static int compare_local4(struct session_entry *session, struct ipv4_tuple_addre
  *
  * Doesn't care about spinlocks.
  */
-static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
+static int compare_addrs4(const struct session_entry *session, const struct ipv4_pair *pair)
 {
 	int gap;
 
@@ -193,7 +215,7 @@ static int compare_addrs4(struct session_entry *session, struct ipv4_pair *pair)
  *
  * Doesn't care about spinlocks.
  */
-static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
+static int compare_full4(const struct session_entry *session, const struct ipv4_pair *pair)
 {
 	int gap;
 
@@ -212,7 +234,7 @@ static int compare_full4(struct session_entry *session, struct ipv4_pair *pair)
  *
  * Doesn't care about spinlocks.
  */
-static int compare_local_addr4(struct session_entry *session, struct in_addr *addr)
+static int compare_local_addr4(const struct session_entry *session, const struct in_addr *addr)
 {
 	return ipv4_addr_cmp(addr, &session->ipv4.local.address);
 }
@@ -315,15 +337,10 @@ fail:
  */
 static int remove(struct session_entry *session, struct session_table *table)
 {
-	rb_erase(&session->tree6_hook, &table->tree6);
-	rb_erase(&session->tree4_hook, &table->tree4);
-
-	/*
-	 * The functions above don't clean the nodes,
-	 * and other threads might be holding references to this session.
-	 */
-	RB_CLEAR_NODE(&session->tree6_hook);
-	RB_CLEAR_NODE(&session->tree4_hook);
+	if (!RB_EMPTY_NODE(&session->tree6_hook))
+		rb_erase(&session->tree6_hook, &table->tree6);
+	if (!RB_EMPTY_NODE(&session->tree4_hook))
+		rb_erase(&session->tree4_hook, &table->tree4);
 
 	list_del(&session->expire_list_hook);
 	session_return(session);
@@ -349,6 +366,9 @@ static void schedule_timer(struct timer_list *timer, unsigned long next_time)
 static unsigned long get_timeout(struct expire_timer *expirer)
 {
 	unsigned long timeout;
+
+	if (expirer == &expirer_syn)
+		return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
 
 	rcu_read_lock_bh();
 	timeout = (__u64) *(expirer->timeout_offset + (unsigned char *) rcu_dereference_bh(config));
@@ -537,7 +557,7 @@ int sessiondb_init(void)
  */
 static void session_destroy_aux(struct rb_node *node)
 {
-	session_kfree(rb_entry(node, struct session_entry, tree6_hook));
+	kmem_cache_free(entry_cache, rb_entry(node, struct session_entry, tree6_hook));
 }
 
 void sessiondb_destroy(void)
@@ -615,6 +635,9 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 		}
 		tmp_config->ttl.tcp_trans = value64;
 		break;
+	default:
+		log_err("Unknown config type for the 'session database' module: %u", type);
+		goto fail;
 	}
 
 	rcu_assign_pointer(config, tmp_config);
@@ -627,14 +650,16 @@ fail:
 	return -EINVAL;
 }
 
-int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
+/**
+ * Returns in "result" the session entry from the "l4_proto" table that corresponds to the "pair"
+ * IPv4 addresses.
+ */
+static int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 		struct session_entry **result)
 {
 	struct session_table *table;
 	int error;
 
-	if (WARN(!pair, "The session tables cannot contain NULL."))
-		return -EINVAL;
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -648,14 +673,16 @@ int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 	return (*result) ? 0 : -ENOENT;
 }
 
-int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
+/**
+ * Returns in "result" the session entry from the "l4_proto" table that corresponds to the "pair"
+ * IPv6 addresses.
+ */
+static int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 		struct session_entry **result)
 {
 	struct session_table *table;
 	int error;
 
-	if (WARN(!pair, "The session tables cannot contain NULL."))
-		return -EINVAL;
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
@@ -893,7 +920,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	pair4.local = bib->ipv4;
 	pair4.remote.address = ipv4_dst;
 	pair4.remote.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->dst.l4_id : bib->ipv4.l4_id;
-	*session = session_create(&pair4, &pair6, tuple->l4_proto); /* refcounter = 1*/
+	*session = session_create(&pair4, &pair6, tuple->l4_proto, bib); /* refcounter = 1*/
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		error = -ENOMEM;
@@ -909,14 +936,11 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	if (error) {
 		WARN(true, "The session entry could be indexed by IPv6, but not by IPv4.");
 		rb_erase(&(*session)->tree6_hook, &table->tree6);
-		session_kfree(*session);
+		session_return(*session);
 		goto end;
 	}
 
-	/* Tidy up and succeed. */
 	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
-	bib_get(bib); /* refcounter++ (because of the new session's reference) */
-	(*session)->bib = bib;
 	table->count++;
 	/* Fall through. */
 
@@ -977,7 +1001,7 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	pair6.remote = bib->ipv6;
 	pair6.local.address = ipv6_src;
 	pair6.local.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->src.l4_id : bib->ipv6.l4_id;
-	*session = session_create(&pair4, &pair6, tuple->l4_proto); /* refcounter = 1 */
+	*session = session_create(&pair4, &pair6, tuple->l4_proto, bib); /* refcounter = 1 */
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		error = -ENOMEM;
@@ -993,14 +1017,11 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	if (error) {
 		WARN(true, "The session entry could be indexed by IPv4, but not by IPv6.");
 		rb_erase(&(*session)->tree4_hook, &table->tree4);
-		session_kfree(*session);
+		session_return(*session);
 		goto end;
 	}
 
-	/* Tidy up and succeed. */
 	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
-	bib_get(bib); /* refcounter++ (because of the new session's reference) */
-	(*session)->bib = bib;
 	table->count++;
 	/* Fall through. */
 
@@ -1129,19 +1150,6 @@ static void sessiondb_update_timer(struct session_entry *session, struct expire_
 {
 	spin_lock_bh(&expirer->table->lock);
 
-	/*
-	 * We don't update the session->dying_time when the session isn't part of the DB.
-	 *
-	 * When this function was called, the spinlock wasn't held.
-	 * Ergo, the timer might have remove the entry from the database during that time.
-	 * If that happens, we shouldn't update the timer because that'd leave the DB in an
-	 * inconsistent state.
-	 */
-	if (RB_EMPTY_NODE(&session->tree6_hook) || RB_EMPTY_NODE(&session->tree4_hook)) {
-		spin_unlock_bh(&expirer->table->lock);
-		return;
-	}
-
 	session->update_time = jiffies;
 	list_del(&session->expire_list_hook);
 	list_add_tail(&session->expire_list_hook, &expirer->sessions);
@@ -1179,26 +1187,9 @@ void set_icmp_timer(struct session_entry *session)
 	sessiondb_update_timer(session, &expirer_icmp);
 }
 
-/* TODO join this with sessiondb_update_timer()? */
 void set_syn_timer(struct session_entry *session)
 {
-	spin_lock_bh(&expirer_syn.table->lock);
-
-	session->update_time = jiffies;
-	list_del(&session->expire_list_hook);
-	list_add_tail(&session->expire_list_hook, &expirer_syn.sessions);
-
-	if (timer_pending(&expirer_syn.timer)) {
-		/*
-		 * The new session is always going to expire last.
-		 * So if the timer is already set, there should be no reason to edit it.
-		 */
-		spin_unlock_bh(&expirer_syn.table->lock);
-		return;
-	}
-
-	spin_unlock_bh(&expirer_syn.table->lock);
-	schedule_timer(&expirer_syn.timer, jiffies + msecs_to_jiffies(1000 * TCP_INCOMING_SYN));
+	sessiondb_update_timer(session, &expirer_syn);
 }
 
 /**
@@ -1331,7 +1322,6 @@ success:
 
 int sessiondb_flush(void)
 {
-
 	log_debug("Emptying the session tables...");
 	flush_aux(&session_table_udp);
 	flush_aux(&session_table_tcp);

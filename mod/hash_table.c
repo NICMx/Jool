@@ -84,9 +84,9 @@ struct HTABLE_NAME {
 	unsigned int node_count;
 
 	/** Used to locate the slot (within the linked list) of a value. */
-	bool (*equals_function)(KEY_TYPE *, KEY_TYPE *);
+	bool (*equals_function)(const KEY_TYPE *, const KEY_TYPE *);
 	/** Used locate the linked list (within the array) of a value. */
-	unsigned int (*hash_function)(KEY_TYPE *);
+	unsigned int (*hash_function)(const KEY_TYPE *);
 };
 
 /** Every entry in the table; the key used to access the value and the value. */
@@ -117,7 +117,7 @@ struct KEY_VALUE_PAIR {
  * @param key descriptor to which the associated key-value is to be returned.
  * @return the key-value to which "table" maps "key", "null" if there's no mapping for the key.
  */
-static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
+static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, const KEY_TYPE *key)
 {
 	struct hlist_node *current_node;
 	struct KEY_VALUE_PAIR *current_pair;
@@ -148,8 +148,8 @@ static struct KEY_VALUE_PAIR *GET_AUX(struct HTABLE_NAME *table, KEY_TYPE *key)
  * @param hash_function function the table will use to locate linked lists.
  */
 static int INIT(struct HTABLE_NAME *table,
-		bool (*equals_function)(KEY_TYPE *, KEY_TYPE *),
-		unsigned int (*hash_function)(KEY_TYPE *))
+		bool (*equals_function)(const KEY_TYPE *, const KEY_TYPE *),
+		unsigned int (*hash_function)(const KEY_TYPE *))
 {
 	unsigned int i;
 
@@ -224,7 +224,7 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
  * @param key descriptor to which the associated value is to be returned.
  * @return the value to which "table" maps "key", "null" if there's no mapping for the key.
  */
-static VALUE_TYPE *GET(struct HTABLE_NAME *table, KEY_TYPE *key)
+static VALUE_TYPE *GET(struct HTABLE_NAME *table, const KEY_TYPE *key)
 {
 	struct KEY_VALUE_PAIR *key_value = GET_AUX(table, key);
 	return (key_value != NULL) ? key_value->value : NULL;

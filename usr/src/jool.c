@@ -110,6 +110,7 @@ enum argp_flags {
 	ARGP_ICMP_TO = 3011,
 	ARGP_TCP_TO = 3012,
 	ARGP_TCP_TRANS_TO = 3013,
+	ARGP_STORED_PKTS = 3014,
 	ARGP_RESET_TCLASS = 4002,
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
@@ -191,8 +192,11 @@ static struct argp_option options[] =
 			"Set the timeout for ICMP sessions." },
 	{ TCP_EST_TIMEOUT_OPT, ARGP_TCP_TO, NUM_FORMAT, 0,
 			"Set the established connection idle-timeout for TCP sessions." },
-	{ TCP_TRANS_TIMEOUT_OPT,ARGP_TCP_TRANS_TO, NUM_FORMAT, 0,
+	{ TCP_TRANS_TIMEOUT_OPT, ARGP_TCP_TRANS_TO, NUM_FORMAT, 0,
 			"Set the transitory connection idle-timeout for TCP sessions." },
+	{ STORED_PKTS_OPT, ARGP_STORED_PKTS, NUM_FORMAT, 0,
+			"Set the maximum number of packets Jool should bother to remember while awaiting "
+			"simultaneous open of TCP connections." },
 	{ RESET_TCLASS_OPT, ARGP_RESET_TCLASS, BOOL_FORMAT, 0,
 			"Override IPv6 Traffic class?" },
 	{ RESET_TOS_OPT, ARGP_RESET_TOS, BOOL_FORMAT, 0,
@@ -298,8 +302,8 @@ static int set_general_u16(struct arguments *args, enum general_module module, _
 	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
 }
 
-static int set_general_timeout(struct arguments *args, enum general_module module, __u8 type,
-		char *value, __u64 min, __u64 max)
+static int set_general_u64(struct arguments *args, enum general_module module, __u8 type,
+		char *value, __u64 min, __u64 max, __u64 multiplier)
 {
 	__u64 tmp;
 	int error;
@@ -307,7 +311,7 @@ static int set_general_timeout(struct arguments *args, enum general_module modul
 	error = str_to_u64(value, &tmp, min, max);
 	if (error)
 		return error;
-	tmp *= 1000;
+	tmp *= multiplier;
 
 	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
 }
@@ -433,16 +437,19 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_bool(args, FILTERING, DROP_EXTERNAL_TCP, str);
 		break;
 	case ARGP_UDP_TO:
-		error = set_general_timeout(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U64);
+		error = set_general_u64(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U64, 1000);
 		break;
 	case ARGP_ICMP_TO:
-		error = set_general_timeout(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U64);
+		error = set_general_u64(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U64, 1000);
 		break;
 	case ARGP_TCP_TO:
-		error = set_general_timeout(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U64);
+		error = set_general_u64(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U64, 1000);
 		break;
 	case ARGP_TCP_TRANS_TO:
-		error = set_general_timeout(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U64);
+		error = set_general_u64(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U64, 1000);
+		break;
+	case ARGP_STORED_PKTS:
+		error = set_general_u64(args, PKTQUEUE, MAX_PKTS, str, 0, MAX_U64, 1);
 		break;
 
 	case ARGP_RESET_TCLASS:

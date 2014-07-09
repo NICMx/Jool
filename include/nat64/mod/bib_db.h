@@ -24,12 +24,12 @@
  */
 struct bib_entry {
 	/** The address from the IPv4 network. */
-	struct ipv4_tuple_address ipv4;
+	const struct ipv4_tuple_address ipv4;
 	/** The address from the IPv6 network. */
-	struct ipv6_tuple_address ipv6;
+	const struct ipv6_tuple_address ipv6;
 
 	/** l4 protocol used for pool4 return. */
-	l4_protocol l4_proto;
+	const l4_protocol l4_proto;
 
 	/**
 	 * Should the entry never expire?

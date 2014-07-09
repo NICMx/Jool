@@ -7,8 +7,6 @@ int serialize_general_config(struct response_general *config, unsigned char **bu
 		size_t *buffer_len_out)
 {
 	struct sessiondb_config *sconfig;
-	struct filtering_config *fconfig;
-	struct translate_config *tconfig;
 	unsigned char *buffer;
 	size_t mtus_len;
 
@@ -20,17 +18,14 @@ int serialize_general_config(struct response_general *config, unsigned char **bu
 		return -ENOMEM;
 	}
 
-	sconfig = &((struct response_general *) buffer)->sessiondb;
-	fconfig = &((struct response_general *) buffer)->filtering;
-	tconfig = &((struct response_general *) buffer)->translate;
+	memcpy(buffer, config, sizeof(*config));
+	memcpy(buffer + sizeof(*config), config->translate.mtu_plateaus, mtus_len);
 
+	sconfig = &((struct response_general *) buffer)->sessiondb;
 	sconfig->ttl.udp = jiffies_to_msecs(config->sessiondb.ttl.udp);
 	sconfig->ttl.tcp_est = jiffies_to_msecs(config->sessiondb.ttl.tcp_est);
 	sconfig->ttl.tcp_trans = jiffies_to_msecs(config->sessiondb.ttl.tcp_trans);
 	sconfig->ttl.icmp = jiffies_to_msecs(config->sessiondb.ttl.icmp);
-	memcpy(fconfig, &config->filtering, sizeof(*fconfig));
-	memcpy(tconfig, &config->translate, sizeof(*tconfig));
-	memcpy(tconfig + 1, config->translate.mtu_plateaus, mtus_len);
 
 	*buffer_out = buffer;
 	*buffer_len_out = sizeof(*config) + mtus_len;

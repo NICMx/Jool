@@ -146,7 +146,7 @@ static int create_udp_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt_
 	return 0;
 }
 
-int translate_inner_packet(struct tuple *tuple, struct pkt_parts *in_inner,
+static int translate_inner_packet(struct tuple *tuple, struct pkt_parts *in_inner,
 		struct pkt_parts *out_outer)
 {
 	struct pkt_parts out_inner;
@@ -414,6 +414,9 @@ int translate_set_config(enum translate_type type, size_t size, void *value)
 			goto fail;
 		tmp_config->min_ipv6_mtu = *((__u16 *) value);
 		break;
+	default:
+		log_err("Unknown config type for the 'translating the packet' module: %u", type);
+		goto fail;
 	}
 
 	rcu_assign_pointer(config, tmp_config);

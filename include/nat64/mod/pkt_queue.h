@@ -60,7 +60,7 @@ int pktqueue_clone_config(struct pktqueue_config *clone);
 /**
  * Replaces the current configuration of the module with "new_config".
  */
-int pktqueue_set_config(struct pktqueue_config *new_config);
+int pktqueue_set_config(enum pktqueue_type type, size_t size, void *value);
 
 /**
  * Stores packet "skb", associating it with "session". "skb" will be ICMP replied in 6 seconds.

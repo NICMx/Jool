@@ -5,17 +5,11 @@ static struct kmem_cache *entry_cache;
 static void session_release(struct kref *ref)
 {
 	struct session_entry *session;
-	struct bib_entry *bib;
-
 	session = container_of(ref, struct session_entry, refcounter);
-	bib = session->bib;
 
-	if (WARN(!bib, "The session entry I just removed had no BIB entry.")) {
-		session_kfree(session);
-		return;
-	}
-	bib_return(bib);
-	session_kfree(session);
+	if (session->bib)
+		bib_return(session->bib);
+	kmem_cache_free(entry_cache, session);
 }
 
 static int session_init(void)
@@ -46,27 +40,29 @@ void session_get(struct session_entry *session)
 }
 
 struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		l4_protocol l4_proto)
+		l4_protocol l4_proto, struct bib_entry *bib)
 {
+	struct session_entry tmp = {
+			.ipv4 = *ipv4,
+			.ipv6 = *ipv6,
+			.update_time = jiffies,
+			.bib = bib,
+			.l4_proto = l4_proto,
+			.state = 0,
+	};
+
 	struct session_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!result)
 		return NULL;
 
+	memcpy(result, &tmp, sizeof(tmp));
 	kref_init(&result->refcounter);
-	result->ipv4 = *ipv4;
-	result->ipv6 = *ipv6;
-	result->update_time = jiffies;
-	result->bib = NULL;
 	INIT_LIST_HEAD(&result->expire_list_hook);
-	result->l4_proto = l4_proto;
-	result->state = 0;
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
 
-	return result;
-}
+	if (bib)
+		bib_get(bib);
 
-void session_kfree(struct session_entry *session)
-{
-	kmem_cache_free(entry_cache, session);
+	return result;
 }

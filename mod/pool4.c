@@ -20,7 +20,7 @@ static struct in_addr *last_used_addr;
 /** Cache for struct pool4_nodes, for efficient allocation. */
 static struct kmem_cache *node_cache;
 
-static unsigned int ipv4_addr_hashcode(struct in_addr *addr)
+static unsigned int ipv4_addr_hashcode(const struct in_addr *addr)
 {
 	__u32 addr32;
 	unsigned int result;
@@ -355,7 +355,7 @@ static int get_any_port(struct pool4_node *node, l4_protocol proto, __u16 *resul
 	return error;
 }
 
-int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result)
+int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *result)
 {
 	struct pool4_node *node;
 	int error = -EINVAL;
@@ -438,7 +438,7 @@ success:
 	return 0;
 }
 
-int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
+int pool4_return(const l4_protocol l4_proto, const struct ipv4_tuple_address *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;

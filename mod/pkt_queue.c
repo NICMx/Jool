@@ -41,7 +41,7 @@ static struct pktqueue_config *config;
  *
  * Doesn't care about spinlocks.
  */
-static int compare_fn(struct packet_node *node, struct ipv4_pair *pair)
+static int compare_fn(const struct packet_node *node, const struct ipv4_pair *pair)
 {
 	int gap;
 
@@ -61,7 +61,6 @@ static int compare_fn(struct packet_node *node, struct ipv4_pair *pair)
 	return gap;
 }
 
-/* TODO preocúpate por las referencias de session. */
 int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 {
 	struct packet_node *node;
@@ -100,6 +99,7 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	packet_count++;
 
 	spin_unlock_bh(&packets_lock);
+	session_get(session);
 	return 0;
 
 fail:
@@ -132,6 +132,7 @@ int pktqueue_send(struct session_entry *session)
 
 	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 	kfree_skb(node->skb);
+	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
 	return 0;
@@ -150,6 +151,7 @@ int pktqueue_init(void)
 		kmem_cache_destroy(node_cache);
 		return -ENOMEM;
 	}
+	config->max_pkts = PKTQ_DEF_MAX_STORED_PKTS;
 
 	packets = RB_ROOT;
 
@@ -180,10 +182,20 @@ int pktqueue_clone_config(struct pktqueue_config *clone)
 	return 0;
 }
 
-int pktqueue_set_config(struct pktqueue_config *new_config)
+int pktqueue_set_config(enum pktqueue_type type, size_t size, void *value)
 {
 	struct pktqueue_config *tmp_config;
 	struct pktqueue_config *old_config;
+
+	if (type != MAX_PKTS) {
+		log_err("Unknown config type for the 'packet queue' module: %u", type);
+		return -EINVAL;
+	}
+
+	if (size != sizeof(__u64)) {
+		log_err("Expected an 8-byte integer, got %zu bytes.", size);
+		return -EINVAL;
+	}
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -192,7 +204,7 @@ int pktqueue_set_config(struct pktqueue_config *new_config)
 	old_config = config;
 	*tmp_config = *old_config;
 
-	tmp_config->max_pkts = new_config->max_pkts;
+	tmp_config->max_pkts = *((__u64 *) value);
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
@@ -218,6 +230,7 @@ int pktqueue_remove(struct session_entry *session)
 	packet_count--;
 	spin_unlock_bh(&packets_lock);
 	kfree_skb(node->skb);
+	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
 	return 0;

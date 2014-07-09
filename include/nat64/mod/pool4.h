@@ -97,7 +97,7 @@ int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *r
  *
  * The borrowed port will be placed in the outgoing parameter, "result".
  */
-int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result);
+int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *result);
 /**
  * Borrows any address that has a similar ID as "l4_id". This one is a little quirky in that it
  * falls back to returning any address with any ID if no similar one could be found.
@@ -115,7 +115,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
  * Don't sweat it too much if this function fails; the user might have removed the address from the
  * pool.
  */
-int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *addr);
+int pool4_return(const l4_protocol l4_proto, const struct ipv4_tuple_address *addr);
 
 /**
  * Returns whether the "addr" address is part of the pool.

@@ -153,7 +153,7 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	pair4.remote.address = ipv4_dst;
 	pair4.remote.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->dst.l4_id : bib->ipv4.l4_id;
 
-	*session = session_create(&pair4, &pair6, tuple->l4_proto);
+	*session = session_create(&pair4, &pair6, tuple->l4_proto, bib);
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		return -ENOMEM;
@@ -164,13 +164,10 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	/* Add it to the table. */
 	error = sessiondb_add(*session);
 	if (error) {
-		session_kfree(*session);
+		session_return(*session);
 		log_debug("Error code %d while adding the session to the DB.", error);
 		return error;
 	}
-
-	bib_get(bib); /* refcounter+1, because of session's reference. */
-	(*session)->bib = bib;
 
 	return 0;
 }
@@ -207,7 +204,7 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	pair4.remote.address = tuple->src.addr.ipv4;
 	pair4.remote.l4_id = tuple->src.l4_id;
 
-	*session = session_create(&pair4, &pair6, tuple->l4_proto);
+	*session = session_create(&pair4, &pair6, tuple->l4_proto, bib);
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		return -ENOMEM;
@@ -308,7 +305,6 @@ static verdict ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
 	if (error)
 		return VER_DROP;
 
-
 	error = sessiondb_get_or_create_ipv6(tuple, bib, &session);
 	if (error) {
 		bib_return(bib);
@@ -391,68 +387,67 @@ static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple)
  * Processes IPv4 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
+static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
+	verdict result = VER_DROP;
 
 	if (drop_external_connections()) {
 		log_debug("Applying policy: Dropping externally initiated TCP connections.");
-		return -EPERM;
+		return VER_DROP;
 	}
 
 	error = bibdb_get(tuple, &bib);
 	if (error) {
 		if (error != -ENOENT)
-			return error;
+			return VER_DROP;
 		bib = NULL;
 	}
 
 	error = create_session_ipv4(tuple, bib, &session);
 	if (error)
-		goto fail;
+		goto end_bib;
+	/* TODO session->state is not atomic yet we're not holding locks... */
+	session->state = V4_INIT;
 
 	if (!bib || address_dependent_filtering()) {
-		session->state = V4_INIT;
 		error = pktqueue_add(session, skb);
-		if (error) {
-			session_kfree(session);
-		} else {
-			set_syn_timer(session);
-			/* Do not call session_return() so we transfer the reference to the list. */
-		}
+		if (error)
+			goto end_session;
+
+		set_syn_timer(session);
+		result = VER_STOLEN;
 
 	} else {
 		error = sessiondb_add(session);
 		if (error) {
-			session_kfree(session);
 			log_debug("Error code %d while adding the session to the DB.", error);
-			goto fail;
+			goto end_session;
 		}
 
-		bib_get(bib); /* refcounter+1, because of session's reference. */
-		session->bib = bib;
-
-		session->state = V4_INIT;
 		set_tcp_trans_timer(session);
-		session_return(session);
-		bib_return(bib);
+		result = VER_CONTINUE;
 	}
 
-	return error;
+	/* Fall through. */
 
-fail:
+end_session:
+	session_return(session);
+	/* Fall through. */
+
+end_bib:
 	if (bib)
 		bib_return(bib);
-	return error;
+	return result;
 }
 
 /**
  * Filtering and updating done during the CLOSED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
+static verdict tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	int error;
@@ -460,7 +455,7 @@ static int tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
 		if (tcp_hdr(skb)->syn)
-			return tcp_closed_v6_syn(skb, tuple);
+			return is_error(tcp_closed_v6_syn(skb, tuple)) ? VER_DROP : VER_CONTINUE;
 		break;
 
 	case L3PROTO_IPV4:
@@ -470,13 +465,14 @@ static int tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 	}
 
 	error = bibdb_get(tuple, &bib);
-	if (error)
+	if (error) {
 		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. "
 				"ERRcode %d", error);
-	else
-		bib_return(bib);
+		return VER_DROP;
+	}
 
-	return error;
+	bib_return(bib);
+	return VER_CONTINUE;
 }
 
 /**
@@ -486,6 +482,8 @@ static int tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *session)
 {
 	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->syn) {
+		pktqueue_remove(session); /* The packet might have not been stored, so ignore errors. */
+
 		set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
@@ -612,10 +610,8 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 	}
 
 	/* If NO session was found: */
-	if (error == -ENOENT) {
-		error = tcp_closed_state_handle(skb, tuple);
-		goto end;
-	}
+	if (error == -ENOENT)
+		return tcp_closed_state_handle(skb, tuple);
 
 	/* Act according the current state. */
 	switch (session->state) {
@@ -734,6 +730,10 @@ int filtering_set_config(enum filtering_type type, size_t size, void *value)
 	case DROP_EXTERNAL_TCP:
 		tmp_config->drop_external_tcp = value8;
 		break;
+	default:
+		log_err("Unknown config type for the 'filtering and updating' module: %u", type);
+		kfree(tmp_config);
+		return -EINVAL;
 	}
 
 	rcu_assign_pointer(config, tmp_config);

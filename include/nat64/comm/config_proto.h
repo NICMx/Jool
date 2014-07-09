@@ -235,7 +235,7 @@ enum pktqueue_type {
 };
 
 struct pktqueue_config {
-	unsigned int max_pkts;
+	__u64 max_pkts;
 };
 
 enum filtering_type {
@@ -333,6 +333,7 @@ struct translate_config {
 
 enum general_module {
 	SESSIONDB,
+	PKTQUEUE,
 	FILTERING,
 	TRANSLATE,
 };
@@ -374,7 +375,6 @@ struct session_entry_usr {
 	struct ipv6_pair addr6;
 	struct ipv4_pair addr4;
 	__u64 dying_time;
-	__u8 l4_proto;
 };
 
 struct response_general {

@@ -19,33 +19,39 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	struct sk_buff *skb_out;
 	struct tuple tuple_in;
 	struct tuple tuple_out;
+	verdict result;
 
-	if (determine_in_tuple(skb_in, &tuple_in) != VER_CONTINUE)
+	result = determine_in_tuple(skb_in, &tuple_in);
+	if (result != VER_CONTINUE)
 		goto end;
-	if (filtering_and_updating(skb_in, &tuple_in) != VER_CONTINUE)
+	result = filtering_and_updating(skb_in, &tuple_in);
+	if (result != VER_CONTINUE)
 		goto end;
-	if (compute_out_tuple(&tuple_in, &tuple_out) != VER_CONTINUE)
+	result = compute_out_tuple(&tuple_in, &tuple_out);
+	if (result != VER_CONTINUE)
 		goto end;
-	if (translating_the_packet(&tuple_out, skb_in, &skb_out) != VER_CONTINUE)
+	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
+	if (result != VER_CONTINUE)
 		goto end;
 
 	if (is_hairpin(skb_out)) {
-		verdict result = handling_hairpinning(skb_out, &tuple_out);
+		result = handling_hairpinning(skb_out, &tuple_out);
 		kfree_skb(skb_out);
-		if (result != VER_CONTINUE)
-			goto end;
 	} else {
-		if (send_pkt(skb_out) != VER_CONTINUE)
-			goto end;
+		result = send_pkt(skb_out);
 		/* send_pkt releases skb_out regardless of verdict. */
 	}
 
+	if (result != VER_CONTINUE)
+		goto end;
+
 	log_debug("Success.");
+	/* The new packet was sent, so the original one can die; drop it. */
+	result = VER_DROP;
 	/* Fall through. */
 
 end:
-	kfree_skb(skb_in);
-	return (unsigned int) VER_STOLEN;
+	return (unsigned int) result;
 }
 
 /**

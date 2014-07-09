@@ -52,17 +52,12 @@
 typedef enum verdict {
 	/** "No problems thus far, processing of the packet can continue." */
 	VER_CONTINUE = -1,
-	/** "Packet is not meant for translation. Please hand it to the local host." */
-	VER_ACCEPT = NF_ACCEPT,
 	/**
 	 * "Packet is invalid and should be silently dropped."
 	 * (Or "packet is invalid and I already sent a ICMP error, so just kill it".)
 	 */
 	VER_DROP = NF_DROP,
-	/*
-	 * "Packet is a fragment, and I need more information to be able to translate it, so I'll keep
-	 * it for a while. Do not free, access or modify it."
-	 */
+	/** "I need to keep the packet for a while. Do not free, access or modify it." */
 	VER_STOLEN = NF_STOLEN,
 } verdict;
 
@@ -137,11 +132,13 @@ void log_tuple(struct tuple *tuple);
  * @param b struct you want to compare to "a".
  * @return (*addr_1) === (*addr_2), with null checks as appropriate.
  */
-bool ipv4_addr_equals(struct in_addr *a, struct in_addr *b);
-bool ipv6_addr_equals(struct in6_addr *a, struct in6_addr *b);
-bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *a, struct ipv4_tuple_address *b);
-bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *a, struct ipv6_tuple_address *b);
-bool ipv6_prefix_equals(struct ipv6_prefix *a, struct ipv6_prefix *b);
+bool ipv4_addr_equals(const struct in_addr *a, const struct in_addr *b);
+bool ipv6_addr_equals(const struct in6_addr *a, const struct in6_addr *b);
+bool ipv4_tuple_addr_equals(const struct ipv4_tuple_address *a,
+		const struct ipv4_tuple_address *b);
+bool ipv6_tuple_addr_equals(const struct ipv6_tuple_address *a,
+		const struct ipv6_tuple_address *b);
+bool ipv6_prefix_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
 /**
  * @}
  */

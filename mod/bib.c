@@ -49,15 +49,19 @@ static void bib_destroy(void)
 struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
 		bool is_static, l4_protocol l4_proto)
 {
+	struct bib_entry tmp = {
+			.ipv4 = *ipv4,
+			.ipv6 = *ipv6,
+			.l4_proto = l4_proto,
+			.is_static = is_static,
+	};
+
 	struct bib_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!result)
 		return NULL;
 
+	memcpy(result, &tmp, sizeof(tmp));
 	kref_init(&result->refcounter);
-	result->ipv4 = *ipv4;
-	result->ipv6 = *ipv6;
-	result->l4_proto = l4_proto;
-	result->is_static = is_static;
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
 

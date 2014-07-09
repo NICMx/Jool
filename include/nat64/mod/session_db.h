@@ -6,6 +6,9 @@
  * The Session tables.
  * Formally defined in RFC 6146 section 3.2.
  *
+ * Note: "Session database" is not the same as "session table"; the database consists of 3 tables.
+ * Keep that in mind while you read comments.
+ *
  * @author Alberto Leiva
  * @author Daniel Hernandez
  */
@@ -46,13 +49,18 @@ enum tcp_states {
  * A row, intended to be part of one of the session tables.
  * The mapping between the connections, as perceived by both sides (IPv4 vs IPv6).
  *
- * Please note that modifications to this structure may need to cascade to config_proto.h.
+ * Please note that modifications to this structure may need to cascade to
+ * "struct session_entry_usr".
+ *
+ * TODO (performance) this structure is somewhat big (probably 128+ bytes) and there will be lots
+ * of sessions in memory. Maybe turn l4_proto into a single-byte integer and remove some of the
+ * transport addresses (since they can be extracted from bib).
  */
 struct session_entry {
 	/** IPv6 version of the connection. */
-	struct ipv6_pair ipv6;
+	const struct ipv6_pair ipv6;
 	/** IPv4 version of the connection. */
-	struct ipv4_pair ipv4;
+	const struct ipv4_pair ipv4;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
@@ -61,7 +69,7 @@ struct session_entry {
 	 * Owner bib of this session. Used for quick access during removal.
 	 * (when the session dies, the BIB might have to die too.)
 	 */
-	struct bib_entry *bib;
+	struct bib_entry *const bib;
 
 	/**
 	 * Number of active references to this entry, including the ones from the table it belongs to.
@@ -77,7 +85,7 @@ struct session_entry {
 	 * Transport protocol of the table this entry is in.
 	 * Used to know which table the session should be removed from when expired.
 	 */
-	l4_protocol l4_proto;
+	const l4_protocol l4_proto;
 
 	/** Current TCP state. Only relevant if l4_proto == L4PROTO_TCP. */
 	u_int8_t state;
@@ -89,6 +97,14 @@ struct session_entry {
 };
 
 /**
+ * Allocates and initializes a session entry.
+ *
+ * The entry is generated in dynamic memory; remember to session_return() it or pass it along.
+ */
+struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+		l4_protocol l4_proto, struct bib_entry *bib);
+
+/**
  * Marks "session" as being used by the caller. The idea is to prevent the cleaners from deleting
  * it while it's being used.
  *
@@ -98,30 +114,16 @@ struct session_entry {
  * Remove the mark when you're done by calling session_return().
  */
 void session_get(struct session_entry *session);
+
 /**
  * Reverts the work of session_get() by removing the mark.
  *
  * If no other references to "session" exist, this function will take care of removing and freeing
  * it.
  *
- * DON'T USE "session" AFTER YOU RETURN IT!
+ * DON'T USE "session" AFTER YOU RETURN IT! (unless you know you're holding another reference)
  */
 int session_return(struct session_entry *session);
-
-/**
- * Allocates and initializes a session entry.
- * The entry is generated in dynamic memory; remember to kfree, return or pass it along.
- */
-struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
-		l4_protocol l4_proto);
-/**
- * Reverts the work of session_create() by freeing "session" from memory.
- *
- * This is intended to be used when you are the only user of "session" (i.e. you just created it
- * and you haven't inserted it to any tables). If that might not be the case, use session_return()
- * instead.
- */
-void session_kfree(struct session_entry *session);
 
 
 /********************************* Session Database *******************************/
@@ -135,49 +137,58 @@ int sessiondb_init(void);
  */
 void sessiondb_destroy(void);
 
+/**
+ * Copies the current configuration of the session database to "clone".
+ */
 int sessiondb_clone_config(struct sessiondb_config *clone);
+/**
+ * Updates the configuration value of this module whose identifier is "type".
+ *
+ * @param type ID of the configuration value you want to edit.
+ * @size length of "value" in bytes.
+ * @value the new value you want the field to have.
+ */
 int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value);
 
-
 /**
- * Returns in "result" the session entry from the "l4_proto" table whose IPv4 side (both addresses
- * and ports) is "pair".
- *
- * It increases "result"'s refcount. Make sure you decrement it when you're done.
- *
- * @param[in] pair IPv4 data you want the session entry for.
- * @param[in] l4_proto identifier of the table to retrieve the entry from.
- * @param[out] result the Session entry from the "l4_proto" table whose IPv4 side (both addresses
- *		and ports) is "address".
- * @return error status.
- */
-int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
-		struct session_entry **result);
-/**
- * Returns in "result" the session entry from the "l4_proto" table whose IPv6 side (both addresses
- * and ports) is "pair".
- *
- * It increases "result"'s refcount. Make sure you decrement it when you're done.
- *
- * @param[in] pair IPv6 data you want the session entry for.
- * @param[in] l4_proto identifier of the table to retrieve the entry from.
- * @param[out] result the Session entry from the "l4_proto" table whose IPv6 side (both addresses
- *		and ports) is "address".
- * @return error status.
- */
-int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
-		struct session_entry **result);
-/**
- * Returns in "result" the session entry you'd expect from the "tuple" tuple. That is, looks ups
+ * Returns in "result" the session entry you'd expect from the "tuple" tuple. That is, looks up
  * the session entry by both source and destination addresses.
  *
- * It increases "result"'s refcount. Make sure you release it when you're done.
+ * Once you have a reference to the entry, keep in mind that the database's timer might remove it
+ * from the database while you're handling it. This shouldn't be a problem as long as you
+ *
+ * - keep the refcount this function reserves for you and
+ * - you only want to read the const fields of the session.
+ *
+ * Make sure you decrement the refcount (session_return()) when you're done.
  *
  * @param[in] tuple summary of the packet. Describes the session you need.
  * @param[out] result the session entry you'd expect from the "tuple" tuple.
  * @return error status.
+ *
+ * O(log n), where n is the number of entries in the table.
  */
 int sessiondb_get(struct tuple *tuple, struct session_entry **result);
+
+/**
+ * @{
+ * An atomic way of saying something in the lines of
+ *
+ * session = sessiondb_get()
+ * if (!session) {
+ *     session = session_create()
+ *     sessiondb_add(session)
+ * }
+ *
+ * (that's pseudocode; don't swallow it literally.)
+ */
+int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
+		struct session_entry **session);
+int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
+		struct session_entry **session);
+/**
+ * @}
+ */
 
 /**
  * Normally looks ups an entry, except it ignores "tuple"'s source port.
@@ -189,10 +200,12 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result);
  *
  * Only works while translating from IPv4 to IPv6. Behavior is undefined otherwise.
  *
- * @param tuple summary of the packet. Describes the session(s) you need.
- * @return whether there's a session entry with a source IPv4 transport address equal to the tuple's
- *		IPv4 destination transport address, and destination IPv4 address equal to the tuple's source
+ * @param tuple summary of the packet.
+ * @return whether there's a session entry with a source IPv4 transport address equal to "tuple"'s
+ *		IPv4 destination transport address, and destination IPv4 address equal to "tuple"'s source
  *		address.
+ *
+ * O(log n), where n is the number of entries in the table.
  */
 bool sessiondb_allow(struct tuple *tuple);
 
@@ -202,81 +215,92 @@ bool sessiondb_allow(struct tuple *tuple);
  *
  * @param session row to be added to the table.
  * @return error status.
+ *
+ * O(log n), where n is the number of entries in the table.
  */
 int sessiondb_add(struct session_entry *session);
 
 /**
- * Runs the "func" function for every session in the session table whose l4-protocol is "l4_proto".
+ * Runs the "func" function for every session in the session table whose l4-protocol is "proto".
  * It sends each entry and "arg" to every call of "func".
  *
+ * O(n), where n is the number of entries in the table.
  * Warning: This locks the table while you're iterating. You want to quit early if the tree is big.
  */
-int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg);
+int sessiondb_for_each(l4_protocol proto, int (*func)(struct session_entry *, void *), void *arg);
+
 /**
- * Similar to sessiondb_for_each(), except it only runs the function for sessions whose IPv4
- * transport address is "addr".
+ * Similar to sessiondb_for_each(), except it only runs the function for sessions whose local IPv4
+ * transport addresses are "addr".
+ *
+ * O(n), where n is the number of entries in the table whose local IPv4 addresses are "addr".
+ * Warning: This locks the table while you're iterating. You want to quit early if the tree is big.
  */
-int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *addr, bool starting,
+int sessiondb_iterate_by_ipv4(l4_protocol proto, struct ipv4_tuple_address *addr, bool starting,
 		int (*func)(struct session_entry *, void *), void *arg);
+
 /**
  * Returns in "result" the number of sessions in the table whose l4-protocol is "proto".
+ *
+ * O(1).
  */
 int sessiondb_count(l4_protocol proto, __u64 *result);
 
 /**
- * Deletes from the database all of the session entries whose BIB entry is "bib".
- * This is probably a lot faster than you think.
+ * Deletes from the "bib->l4_proto" table the session entries whose BIB entries are "bib".
+ *
+ * O(n), where n is the number of entries in the table whose BIB entries are "bib".
  */
 int sessiondb_delete_by_bib(struct bib_entry *bib);
+
 /**
- * Deletes from the database all of the session entries whose local IPv4 address is "addr4".
- * This is probably a lot faster than you think.
+ * Deletes from the database the session entries whose local IPv4 addresses are "addr4".
+ *
+ * O(n), where n is the number of entries in the DB whose local IPv4 addresses are "addr4".
  */
 int sessiondb_delete_by_ipv4(struct in_addr *addr4);
+
 /**
- * Deletes from the database all of the session entries whose local IPv6 address contains
- * "prefix".
- * This is probably a lot faster than you think.
+ * Deletes from the database the session entries whose local IPv6 addresses contain "prefix".
+ *
+ * O(n), where n is the number of entries in the DB whose local IPv6 addresses contain "prefix".
  */
 int sessiondb_delete_by_ipv6_prefix(struct ipv6_prefix *prefix);
+
 /**
- * Deletes all the session entries from the database.
+ * Empties the entire database.
+ *
+ * O(n), where n is the number of entries in the entire database.
  */
 int sessiondb_flush(void);
 
 /**
- * Returns in "result" the session entry you'd expect from the "tuple" tuple.
- * If it doesn't exist, it is created, added and returned.
- * IPv6 to IPv4 direction.
- */
-int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
-		struct session_entry **session);
-/**
- * Returns in "result" the session entry you'd expect from the "tuple" tuple.
- * If it doesn't exist, it is created, added and returned.
- * IPv4 to IPv6 direction.
- */
-int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
-		struct session_entry **session);
-
-/**
  * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
+ * Same big O as mod_timer().
  */
 void set_udp_timer(struct session_entry *session);
+
 /**
  * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
+ * Same big O as mod_timer().
  */
 void set_tcp_est_timer(struct session_entry *session);
+
 /**
  * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
+ * Same big O as mod_timer().
  */
 void set_tcp_trans_timer(struct session_entry *session);
+
 /**
  * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
+ * Same big O as mod_timer().
  */
 void set_icmp_timer(struct session_entry *session);
+
 /**
  * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
+ * Same big O as mod_timer().
  */
 void set_syn_timer(struct session_entry *session);
 

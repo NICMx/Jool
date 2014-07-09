@@ -33,7 +33,7 @@ char *l4proto_to_string(l4_protocol l4_proto)
 	return NULL;
 }
 
-bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
+bool ipv4_addr_equals(const struct in_addr *expected, const struct in_addr *actual)
 {
 	if (expected == actual)
 		return true;
@@ -45,7 +45,7 @@ bool ipv4_addr_equals(struct in_addr *expected, struct in_addr *actual)
 	return true;
 }
 
-bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
+bool ipv6_addr_equals(const struct in6_addr *expected, const struct in6_addr *actual)
 {
 	if (expected == actual)
 		return true;
@@ -57,7 +57,8 @@ bool ipv6_addr_equals(struct in6_addr *expected, struct in6_addr *actual)
 	return true;
 }
 
-bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tuple_address *actual)
+bool ipv4_tuple_addr_equals(const struct ipv4_tuple_address *expected,
+		const struct ipv4_tuple_address *actual)
 {
 	if (expected == actual)
 		return true;
@@ -71,7 +72,8 @@ bool ipv4_tuple_addr_equals(struct ipv4_tuple_address *expected, struct ipv4_tup
 	return true;
 }
 
-bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tuple_address *actual)
+bool ipv6_tuple_addr_equals(const struct ipv6_tuple_address *expected,
+		const struct ipv6_tuple_address *actual)
 {
 	if (expected == actual)
 		return true;
@@ -85,7 +87,7 @@ bool ipv6_tuple_addr_equals(struct ipv6_tuple_address *expected, struct ipv6_tup
 	return true;
 }
 
-bool ipv6_prefix_equals(struct ipv6_prefix *expected, struct ipv6_prefix *actual)
+bool ipv6_prefix_equals(const struct ipv6_prefix *expected, const struct ipv6_prefix *actual)
 {
 	if (expected == actual)
 		return true;

@@ -12,6 +12,7 @@
 #define ICMP_TIMEOUT_OPT		"toICMP"
 #define TCP_EST_TIMEOUT_OPT		"toTCPest"
 #define TCP_TRANS_TIMEOUT_OPT 	"toTCPtrans"
+#define STORED_PKTS_OPT			"maxStoredPkts"
 
 #define RESET_TCLASS_OPT		"setTC"
 #define RESET_TOS_OPT			"setTOS"
