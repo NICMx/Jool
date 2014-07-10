@@ -613,6 +613,7 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 	if (error == -ENOENT)
 		return tcp_closed_state_handle(skb, tuple);
 
+	spin_lock_bh(&session->lock);
 	/* Act according the current state. */
 	switch (session->state) {
 	case V4_INIT:
@@ -644,6 +645,7 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 		WARN(true, "Invalid state found: %u.", session->state);
 		error = -EINVAL;
 	}
+	spin_unlock_bh(&session->lock);
 	/* Fall through. */
 	session_return(session);
 

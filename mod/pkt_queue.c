@@ -1,6 +1,7 @@
 #include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/icmp_wrapper.h"
 #include "nat64/mod/rbtree.h"
+#include "nat64/comm/constants.h"
 
 #include <linux/printk.h>
 #include <linux/timer.h>

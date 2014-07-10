@@ -82,6 +82,11 @@ struct session_entry {
 	 */
 	struct list_head expire_list_hook;
 	/**
+	 * TODO: dhernandez: referencia al expirer para conseguir el timeout
+	 * Expirer reference who is suppose to delete this session when its death time is reached.
+	 */
+	struct expire_timer *expirer;
+	/**
 	 * Transport protocol of the table this entry is in.
 	 * Used to know which table the session should be removed from when expired.
 	 */
@@ -89,6 +94,12 @@ struct session_entry {
 
 	/** Current TCP state. Only relevant if l4_proto == L4PROTO_TCP. */
 	u_int8_t state;
+	/**
+	 * TODO: dhernandez: lock para los estados de TCP
+	 * A lock for each session, this is used when handling the TCP state.
+	 * Only relevant if l4_proto == L4PROTO_TCP.
+	 */
+	spinlock_t lock;
 
 	/** Appends this entry to the database's IPv6 index. */
 	struct rb_node tree6_hook;

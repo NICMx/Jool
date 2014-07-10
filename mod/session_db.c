@@ -343,6 +343,7 @@ static int remove(struct session_entry *session, struct session_table *table)
 		rb_erase(&session->tree4_hook, &table->tree4);
 
 	list_del(&session->expire_list_hook);
+	session->expirer = NULL;
 	session_return(session);
 	return 1;
 }
@@ -411,6 +412,8 @@ static bool session_expire(struct session_entry *session)
 
 			list_del(&session->expire_list_hook);
 			list_add_tail(&session->expire_list_hook, &expirer_tcp_trans.sessions);
+			session->expirer = &expirer_tcp_trans;
+
 			if (!timer_pending(&expirer_tcp_trans.timer))
 				schedule_timer(&expirer_tcp_trans.timer, jiffies + get_timeout(&expirer_tcp_trans));
 
@@ -1153,6 +1156,7 @@ static void sessiondb_update_timer(struct session_entry *session, struct expire_
 	session->update_time = jiffies;
 	list_del(&session->expire_list_hook);
 	list_add_tail(&session->expire_list_hook, &expirer->sessions);
+	session->expirer = expirer;
 
 	if (timer_pending(&expirer->timer)) {
 		/*

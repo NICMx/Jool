@@ -49,6 +49,7 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 			.bib = bib,
 			.l4_proto = l4_proto,
 			.state = 0,
+			.expirer = NULL,
 	};
 
 	struct session_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
@@ -60,6 +61,7 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 	INIT_LIST_HEAD(&result->expire_list_hook);
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
+	spin_lock_init(&result->lock);
 
 	if (bib)
 		bib_get(bib);

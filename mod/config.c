@@ -338,6 +338,8 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	entry_usr.addr4 = entry->ipv4;
 	/* TODO where can we get this from now... */
 	/* entry_us.dying_time = jiffies_to_msecs(entry->dying_time - jiffies); */
+	/* TODO: dhernandez: is this correct ? */
+	/* entry_us.dying_time = jiffies_to_msecs(entry->dying_time + get_timeout(entry->expirer); */
 
 	return stream_write(stream, &entry_usr, sizeof(entry_usr));
 }
