@@ -437,16 +437,16 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_bool(args, FILTERING, DROP_EXTERNAL_TCP, str);
 		break;
 	case ARGP_UDP_TO:
-		error = set_general_u64(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U64, 1000);
+		error = set_general_u64(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_ICMP_TO:
-		error = set_general_u64(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U64, 1000);
+		error = set_general_u64(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U32/1000, 1000);
 		break;
 	case ARGP_TCP_TO:
-		error = set_general_u64(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U64, 1000);
+		error = set_general_u64(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U32/1000, 1000);
 		break;
 	case ARGP_TCP_TRANS_TO:
-		error = set_general_u64(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U64, 1000);
+		error = set_general_u64(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
 		error = set_general_u64(args, PKTQUEUE, MAX_PKTS, str, 0, MAX_U64, 1);

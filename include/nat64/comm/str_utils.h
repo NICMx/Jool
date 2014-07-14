@@ -15,6 +15,7 @@
 
 #define MAX_U8 0xFF
 #define MAX_U16 0xFFFF
+#define MAX_U32 0xFFFFFFFF
 #define MAX_U64 0xFFFFFFFFFFFFFFFF
 
 int str_to_bool(const char *str, __u8 *bool_out);

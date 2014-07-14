@@ -60,7 +60,7 @@ int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 	char *endptr;
 
 	errno = 0;
-	result = strtol(str, &endptr, 10);
+	result = strtoull(str, &endptr, 10);
 	if (errno != 0 || str == endptr) {
 		log_err("Cannot parse '%s' as an integer value.", str);
 		return -EINVAL;

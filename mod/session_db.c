@@ -599,12 +599,20 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 	struct sessiondb_config *tmp_config;
 	struct sessiondb_config *old_config;
 	__u64 value64;
+	__u32 max_u32 = 0xFFFFFFFFL; /* Max value in milliseconds */
 
 	if (size != sizeof(__u64)) {
 		log_err("Expected an 8-byte integer, got %zu bytes.", size);
 		return -EINVAL;
 	}
+
 	value64 = *((__u64 *) value);
+	if (value64 > max_u32) {
+		log_err("Expected a timeout less than %u seconds", max_u32/1000);
+		return -EINVAL;
+	}
+
+	value64 = msecs_to_jiffies(value64);
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
