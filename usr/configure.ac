@@ -9,11 +9,6 @@ AM_INIT_AUTOMAKE
 # Checks for programs.
 AC_PROG_CC
 
-# Checks for libraries.
-AC_CHECK_LIB([nl-3], [nl_send_simple], [],[
-	echo "Could not find the Netlink library. Please install libnl-3-dev."
-	exit -1])
-
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h stdlib.h string.h unistd.h])
 
@@ -23,5 +18,8 @@ AC_CHECK_HEADER_STDBOOL
 # Checks for library functions.
 AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol])
 
-AC_OUTPUT(Makefile src/Makefile man/Makefile)
+# Checks for dependencies.
+PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1)
 
+# Spit out the makefiles.
+AC_OUTPUT(Makefile src/Makefile man/Makefile)
