@@ -335,6 +335,11 @@ static void schedule_timer(struct timer_list *timer, unsigned long next_time)
 	log_debug("A timer will awake in %u msecs.", jiffies_to_msecs(timer->expires - jiffies));
 }
 
+/**
+ * Returns the configured timeout for all of "expirer"'s sessions.
+ *
+ * Doesn't care about spinlocks.
+ */
 static unsigned long get_timeout(struct expire_timer *expirer)
 {
 	unsigned long timeout;
@@ -349,40 +354,34 @@ static unsigned long get_timeout(struct expire_timer *expirer)
 	return timeout;
 }
 
-void commit_timer(struct expire_timer *expirer)
-{
-	if (expirer)
-		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer));
-}
-
 /**
- * Decides whether "session"'s expiration should cause its destruction or not. It should be called
- * when "session" expires.
+ * Handles "session"'s expiration, assuming it's a TCP session.
  *
- * If "session" should be destroyed, it'll return true.
- * If "session" should not be destroyed, it will update its lifetime and TCP state (if applies) and
- * will return false.
+ * Because of the state machine, the expiration of a TCP session sometimes does not immediately
+ * trigger its destruction. That's why this is a separate function. If "session" should not be
+ * destroyed, this will update and relocate it.
  *
- * @param[in] session The entry whose lifetime just expired.
+ * @return the number of sessions actually removed from the DB (0 or 1).
  *
  * session's table's spinlock must already be held.
  */
 static int session_tcp_expire(struct session_entry *session)
 {
-	case L4PROTO_TCP:
+	int result;
+
 	switch (session->state) {
 	case V4_INIT:
 		session->state = CLOSED;
 
 		session_get(session);
-		remove(session, &session_table_tcp);
+		result = remove(session, &session_table_tcp);
 
 		spin_unlock_bh(&session_table_tcp.lock);
 		pktqueue_send(session);
 		spin_lock_bh(&session_table_tcp.lock);
 
 		session_return(session);
-		return 1;
+		return result;
 
 	case ESTABLISHED:
 		session->state = TRANS;
@@ -410,6 +409,9 @@ static int session_tcp_expire(struct session_entry *session)
 		WARN(true, "Closed state found; removing session entry.");
 		return remove(session, &session_table_tcp);
 	}
+
+	WARN(true, "Unknown state found (%d); removing session entry.", session->state);
+	return remove(session, &session_table_tcp);
 }
 
 /**
@@ -1132,7 +1134,7 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4)
  */
 static struct expire_timer *set_timer(struct session_entry *session, struct expire_timer *expirer)
 {
-	struct expire_timer *result = NULL;
+	struct expire_timer *result;
 
 	spin_lock_bh(&expirer->table->lock);
 
@@ -1141,13 +1143,11 @@ static struct expire_timer *set_timer(struct session_entry *session, struct expi
 	list_add_tail(&session->expire_list_hook, &expirer->sessions);
 	session->expirer = expirer;
 
-	if (!timer_pending(&expirer->timer)) {
-		/*
-		 * The new session is always going to expire last.
-		 * So if the timer is already set, there should be no reason to edit it.
-		 */
-		result = expirer;
-	}
+	/*
+	 * The new session is always going to expire last.
+	 * So if the timer is already set, there should be no reason to edit it.
+	 */
+	result = timer_pending(&expirer->timer) ? NULL : expirer;
 
 	spin_unlock_bh(&expirer->table->lock);
 	return result;
@@ -1176,6 +1176,12 @@ struct expire_timer *set_icmp_timer(struct session_entry *session)
 struct expire_timer *set_syn_timer(struct session_entry *session)
 {
 	return set_timer(session, &expirer_syn);
+}
+
+void commit_timer(struct expire_timer *expirer)
+{
+	if (expirer)
+		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer));
 }
 
 /**

@@ -316,35 +316,55 @@ int sessiondb_flush(void);
 
 /**
  * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
+ * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
 struct expire_timer *set_udp_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
+ * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
 struct expire_timer *set_tcp_est_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
+ * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
 struct expire_timer *set_tcp_trans_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
+ * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
 struct expire_timer *set_icmp_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
+ * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
 struct expire_timer *set_syn_timer(struct session_entry *session);
+
 /**
- * TODO: comentario acerca de este wrapper
+ * The intent is to fire up "expirer"'s timer if it has changed.
+ * (The actual implementation might look a little sillier).
+ *
+ * Why this function exists:
+ * In an ideal world, this would be part of the set_*_timer functions and you wouldn't have to
+ * worry about it. However, this operation includes a kernel function call. We can't guarantee it
+ * returns quickly, so we want to do it outside of spinlocks.
+ *
+ * So, if your code doesn't care about spinlocks, do this:
+ * commit_timer(set_potato_timer(blah));
+ *
+ * Otherwise do this:
+ * expirer = set_potato_timer(blah);
+ * spin_unlock(lock);
+ * commit_timer(expirer);
  */
 void commit_timer(struct expire_timer *expirer);
 
