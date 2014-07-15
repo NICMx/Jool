@@ -46,6 +46,35 @@ enum tcp_states {
 };
 
 /**
+ * A timer which will delete expired sessions every once in a while.
+ * All of the timer's sessions have the same time to live.
+ *
+ * Why not a single timer which takes care of all the sessions? Some reasons I remember:
+ * - When the user updates timeouts, this makes updating existing sessions a O(1) operation (since
+ *   the timer holds the timeout, not the sessions).
+ * - It makes timer rescheduling trivial (sessions are sorted by expiration date, so new sessions
+ *   are always simply added to the end of the list (O(1)) and knowing when the timer should be
+ *   triggered next is a matter of peeking the first element (also O(1)).
+ * - I seem to recall it takes care of some sync concern, but I can't remember what it was.
+ *
+ * Why not a timer per session? Well I don't know, it sounds like a lot of stress to the kernel
+ * since we expect lots and lots of sessions.
+ */
+struct expire_timer {
+	/** The actual timer. */
+	struct timer_list timer;
+	/** The sessions this timer is supposed to delete. Sorted by expiration time. */
+	struct list_head sessions;
+	/** All the sessions from the list above belong to this table (the reverse might not apply). */
+	struct session_table *table;
+	/**
+	 * Offset from the "config" structure where the expiration time of this timer can be found.
+	 * Except if this timer is "timer_syn", since the timeout of that one is constant.
+	 */
+	size_t timeout_offset;
+};
+
+/**
  * A row, intended to be part of one of the session tables.
  * The mapping between the connections, as perceived by both sides (IPv4 vs IPv6).
  *
@@ -289,31 +318,34 @@ int sessiondb_flush(void);
  * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
  * Same big O as mod_timer().
  */
-void set_udp_timer(struct session_entry *session);
+struct expire_timer *set_udp_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
  * Same big O as mod_timer().
  */
-void set_tcp_est_timer(struct session_entry *session);
+struct expire_timer *set_tcp_est_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
  * Same big O as mod_timer().
  */
-void set_tcp_trans_timer(struct session_entry *session);
+struct expire_timer *set_tcp_trans_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
  * Same big O as mod_timer().
  */
-void set_icmp_timer(struct session_entry *session);
+struct expire_timer *set_icmp_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
  * Same big O as mod_timer().
  */
-void set_syn_timer(struct session_entry *session);
-
+struct expire_timer *set_syn_timer(struct session_entry *session);
+/**
+ * TODO: comentario acerca de este wrapper
+ */
+void commit_timer(struct expire_timer *expirer);
 
 #endif /* _JOOL_MOD_SESSION_DB_H */
