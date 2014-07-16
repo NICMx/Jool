@@ -145,6 +145,13 @@ struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *i
 		l4_protocol l4_proto, struct bib_entry *bib);
 
 /**
+ * Creates a copy of session entry.
+ *
+ * The copy will not be part of the database regardless of session's state.
+ */
+struct session_entry *session_clone(struct session_entry *session);
+
+/**
  * Marks "session" as being used by the caller. The idea is to prevent the cleaners from deleting
  * it while it's being used.
  *

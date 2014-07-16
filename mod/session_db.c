@@ -365,25 +365,26 @@ static unsigned long get_timeout(struct expire_timer *expirer)
  *
  * session's table's spinlock must already be held.
  */
-static int session_tcp_expire(struct session_entry *session)
+static int session_tcp_expire(struct session_entry *session, struct list_head *tcp_timeouts,
+		struct list_head *probes)
 {
-	int result;
+	struct session_entry *clone;
 
 	switch (session->state) {
 	case V4_INIT:
+		clone = session_clone(session);
+		if (clone)
+			list_add(&clone->expire_list_hook, tcp_timeouts);
+
 		session->state = CLOSED;
 
-		session_get(session);
-		result = remove(session, &session_table_tcp);
-
-		spin_unlock_bh(&session_table_tcp.lock);
-		pktqueue_send(session);
-		spin_lock_bh(&session_table_tcp.lock);
-
-		session_return(session);
-		return result;
+		return remove(session, &session_table_tcp);
 
 	case ESTABLISHED:
+		clone = session_clone(session);
+		if (clone)
+			list_add(&clone->expire_list_hook, probes);
+
 		session->state = TRANS;
 		session->update_time = jiffies;
 
@@ -391,9 +392,6 @@ static int session_tcp_expire(struct session_entry *session)
 		list_add_tail(&session->expire_list_hook, &expirer_tcp_trans.sessions);
 		session->expirer = &expirer_tcp_trans;
 
-		spin_unlock_bh(&session_table_tcp.lock);
-		send_probe_packet(session);
-		spin_lock_bh(&session_table_tcp.lock);
 		return 0;
 
 	case V6_INIT:
@@ -423,8 +421,9 @@ static void cleaner_timer(unsigned long param)
 {
 	struct expire_timer *expirer = (struct expire_timer *) param;
 	struct list_head *current_hook, *next_hook;
+	struct list_head probes, tcp_timeouts;
 	struct session_entry *session;
-	unsigned long timeout;
+	unsigned long timeout, session_update_time = 0;
 	unsigned int s = 0;
 	bool schedule_tcp_trans = false;
 
@@ -440,17 +439,14 @@ static void cleaner_timer(unsigned long param)
 
 		if (time_before(jiffies, session->update_time + timeout)) {
 			/* "list" is sorted by expiration date, so stop on the first unexpired session. */
-			expirer->table->count -= s;
-			spin_unlock_bh(&expirer->table->lock);
-			log_debug("Deleted %u sessions.", s);
-			schedule_timer(&expirer->timer, session->update_time + timeout);
-			return;
+			session_update_time = session->update_time;
+			break;
 		}
 
 		if (session->l4_proto != L4PROTO_TCP)
 			s += remove(session, expirer->table);
 		else
-			s += session_tcp_expire(session);
+			s += session_tcp_expire(session, &tcp_timeouts, &probes);
 	}
 
 	expirer->table->count -= s;
@@ -458,8 +454,24 @@ static void cleaner_timer(unsigned long param)
 			!list_empty(&expirer_tcp_trans.sessions);
 	spin_unlock_bh(&expirer->table->lock);
 
+	if (session_update_time)
+		schedule_timer(&expirer->timer, session_update_time + timeout);
+
 	if (schedule_tcp_trans)
 		schedule_timer(&expirer_tcp_trans.timer, jiffies + get_timeout(&expirer_tcp_trans));
+
+	list_for_each_safe(current_hook, next_hook, &tcp_timeouts) {
+		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+		pktqueue_send(session);
+		session_return(session);
+	}
+
+	list_for_each_safe(current_hook, next_hook, &probes) {
+		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+		send_probe_packet(session);
+		session_return(session);
+	}
+
 	log_debug("Deleted %u sessions.", s);
 }
 
