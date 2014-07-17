@@ -138,7 +138,7 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result);
  * @param[out] the BIB entry from the table will be placed here.
  * @return error status.
  */
-int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv4(const struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 		struct bib_entry **result);
 /**
  * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv6 side (address and
@@ -151,7 +151,7 @@ int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
  * @param[out] the BIB entry from the table will be placed here.
  * @return error status.
  */
-int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv6(const struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 		struct bib_entry **result);
 /**
  * Makes "result" point to the BIB entry that corresponds to "tuple" (see bibdb_get()). If it

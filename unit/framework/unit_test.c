@@ -33,6 +33,15 @@ bool assert_equals_int(int expected, int actual, char *test_name)
 	return true;
 }
 
+bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name)
+{
+	if (expected != actual) {
+		UNIT_WARNING(test_name, expected, actual, "%lu");
+		return false;
+	}
+	return true;
+}
+
 bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name)
 {
 	return assert_equals_u32(expected, actual, test_name);
@@ -61,7 +70,7 @@ bool assert_equals_ptr(void *expected, void *actual, char *test_name)
 	return true;
 }
 
-bool assert_equals_ipv4(struct in_addr *expected, struct in_addr *actual, char *test_name)
+bool assert_equals_ipv4(struct in_addr *expected, const struct in_addr *actual, char *test_name)
 {
 	if (!ipv4_addr_equals(expected, actual)) {
 		UNIT_WARNING(test_name, expected, actual, "%pI4");
@@ -70,7 +79,8 @@ bool assert_equals_ipv4(struct in_addr *expected, struct in_addr *actual, char *
 	return true;
 }
 
-bool assert_equals_ipv4_str(unsigned char *expected_str, struct in_addr *actual, char *test_name)
+bool assert_equals_ipv4_str(unsigned char *expected_str, const struct in_addr *actual,
+		char *test_name)
 {
 	struct in_addr expected;
 
@@ -82,7 +92,7 @@ bool assert_equals_ipv4_str(unsigned char *expected_str, struct in_addr *actual,
 	return assert_equals_ipv4(&expected, actual, test_name);
 }
 
-bool assert_equals_ipv6(struct in6_addr *expected, struct in6_addr *actual, char *test_name)
+bool assert_equals_ipv6(struct in6_addr *expected, const struct in6_addr *actual, char *test_name)
 {
 	if (!ipv6_addr_equals(expected, actual)) {
 		UNIT_WARNING(test_name, expected, actual, "%pI6c");
@@ -91,7 +101,8 @@ bool assert_equals_ipv6(struct in6_addr *expected, struct in6_addr *actual, char
 	return true;
 }
 
-bool assert_equals_ipv6_str(unsigned char *expected_str, struct in6_addr *actual, char *test_name)
+bool assert_equals_ipv6_str(unsigned char *expected_str, const struct in6_addr *actual,
+		char *test_name)
 {
 	struct in6_addr expected;
 

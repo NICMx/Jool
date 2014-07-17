@@ -354,6 +354,11 @@ static unsigned long get_timeout(struct expire_timer *expirer)
 	return timeout;
 }
 
+unsigned long sessiondb_get_timeout(struct session_entry *session)
+{
+	return get_timeout(session->expirer);
+}
+
 /**
  * Handles "session"'s expiration, assuming it's a TCP session.
  *
@@ -595,7 +600,7 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 
 	value64 = *((__u64 *) value);
 	if (value64 > max_u32) {
-		log_err("Expected a timeout less than %u seconds", max_u32/1000);
+		log_err("Expected a timeout less than %u seconds", max_u32 / 1000);
 		return -EINVAL;
 	}
 

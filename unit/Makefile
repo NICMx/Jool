@@ -31,12 +31,12 @@ obj-m += $(RBTREE).o
 obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
 obj-m += $(BIB).o
-obj-m += $(SESSION).o
+#obj-m += $(SESSION).o
 obj-m += $(INCOMING).o
 obj-m += $(FILTERING).o
 obj-m += $(OUTGOING).o
 obj-m += $(TRANSLATE).o
-obj-m += $(HAIRPINNING).o
+#obj-m += $(HAIRPINNING).o
 
 
 MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o
@@ -105,6 +105,7 @@ $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../mod/bib_db.o
 $(FILTERING)-objs += ../mod/ipv6_hdr_iterator.o
 $(FILTERING)-objs += ../mod/packet.o
+$(FILTERING)-objs += ../mod/pkt_queue.o
 $(FILTERING)-objs += ../mod/pool6.o
 $(FILTERING)-objs += ../mod/rfc6052.o
 $(FILTERING)-objs += ../mod/session_db.o
@@ -172,12 +173,12 @@ test:
 	# Warning: This test is lenghty! It might freeze your computer for a couple of seconds.
 	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
 	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
-	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
+	#-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
 	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
-	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
+	#-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
 	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
-	-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
+	#-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

@@ -23,7 +23,7 @@ struct table_value {
 #include "hash_table.c"
 
 /* These are also kind of part of the table. */
-static bool equals_function(struct table_key *key1, struct table_key *key2)
+static bool equals_function(const struct table_key *key1, const struct table_key *key2)
 {
 	if (key1 == key2)
 		return true;
@@ -33,7 +33,7 @@ static bool equals_function(struct table_key *key1, struct table_key *key2)
 	return (key1->key == key2->key);
 }
 
-static unsigned int hash_code_function(struct table_key *key1)
+static unsigned int hash_code_function(const struct table_key *key1)
 {
 	return (key1 != NULL) ? key1->key : 0;
 }

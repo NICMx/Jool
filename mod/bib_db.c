@@ -328,7 +328,7 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result)
 	return -EINVAL;
 }
 
-int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv4(const struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 		struct bib_entry **result)
 {
 	struct bib_table *table;
@@ -353,7 +353,7 @@ int bibdb_get_by_ipv4(struct ipv4_tuple_address *addr, l4_protocol l4_proto,
 	return (*result) ? 0 : -ENOENT;
 }
 
-int bibdb_get_by_ipv6(struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv6(const struct ipv6_tuple_address *addr, l4_protocol l4_proto,
 		struct bib_entry **result)
 {
 	struct bib_table *table;

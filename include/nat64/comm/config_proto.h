@@ -269,9 +269,6 @@ enum translate_type {
 
 /**
  * Configuration for the "Translate the packet" module.
- *
- * Several of the fields here are intended to be booleans, but sizeof(bool) is implementation
- * defined, which is unacceptable because this is part of a communication protocol.
  */
 struct translate_config {
 	/**

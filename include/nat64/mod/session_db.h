@@ -111,8 +111,7 @@ struct session_entry {
 	 */
 	struct list_head expire_list_hook;
 	/**
-	 * TODO: dhernandez: referencia al expirer para conseguir el timeout
-	 * Expirer reference who is suppose to delete this session when its death time is reached.
+	 * Expiration timer who is supposed to delete this session when its death time is reached.
 	 */
 	struct expire_timer *expirer;
 	/**
@@ -124,8 +123,7 @@ struct session_entry {
 	/** Current TCP state. Only relevant if l4_proto == L4PROTO_TCP. */
 	u_int8_t state;
 	/**
-	 * TODO: dhernandez: lock para los estados de TCP
-	 * A lock for each session, this is used when handling the TCP state.
+	 * A lock for each session, this is used when handling the TCP state. Protects "state".
 	 * Only relevant if l4_proto == L4PROTO_TCP.
 	 */
 	spinlock_t lock;
@@ -374,5 +372,7 @@ struct expire_timer *set_syn_timer(struct session_entry *session);
  * commit_timer(expirer);
  */
 void commit_timer(struct expire_timer *expirer);
+
+unsigned long sessiondb_get_timeout(struct session_entry *session);
 
 #endif /* _JOOL_MOD_SESSION_DB_H */

@@ -410,7 +410,6 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 	error = create_session_ipv4(tuple, bib, &session);
 	if (error)
 		goto end_bib;
-	/* TODO session->state is not atomic yet we're not holding locks... */
 	session->state = V4_INIT;
 
 	if (!bib || address_dependent_filtering()) {

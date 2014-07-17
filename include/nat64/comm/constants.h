@@ -25,8 +25,8 @@
  */
 #define UDP_MIN (2 * 60)
 /**
- * Defined in the RFC as the minimum allowable default value for the session lifetime of UDP bindings,
- * in seconds. We use it as the actual default value.
+ * Defined in the RFC as the minimum allowable default value for the session lifetime of UDP
+ * bindings, in seconds. We use it as the actual default value.
  */
 #define UDP_DEFAULT (5 * 60)
 /**
@@ -46,8 +46,6 @@
  * This value cannot be configured from the userspace app (this is on purpose).
  */
 #define TCP_INCOMING_SYN (6)
-/** Default time interval fragments are allowed to arrive in. In seconds. */
-#define FRAGMENT_MIN (2)
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
