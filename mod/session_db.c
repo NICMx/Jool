@@ -348,7 +348,7 @@ static unsigned long get_timeout(struct expire_timer *expirer)
 		return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
 
 	rcu_read_lock_bh();
-	timeout = (__u64) *(expirer->timeout_offset + (unsigned char *) rcu_dereference_bh(config));
+	timeout = *(expirer->timeout_offset + (__u64 *) rcu_dereference_bh(config));
 	rcu_read_unlock_bh();
 
 	return timeout;
@@ -499,7 +499,7 @@ static void init_expire_timer(struct expire_timer *expirer, struct session_table
 
 	INIT_LIST_HEAD(&expirer->sessions);
 	expirer->table = table;
-	expirer->timeout_offset = timeout_offset;
+	expirer->timeout_offset = timeout_offset / sizeof(__u64);
 }
 
 int sessiondb_init(void)
@@ -521,8 +521,8 @@ int sessiondb_init(void)
 
 	config->ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
 	config->ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
-	config->ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
 	config->ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	config->ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
 		tables[i]->tree6 = RB_ROOT;
@@ -533,13 +533,14 @@ int sessiondb_init(void)
 
 	init_expire_timer(&expirer_udp, &session_table_udp,
 			offsetof(struct sessiondb_config, ttl.udp));
+	init_expire_timer(&expirer_icmp, &session_table_icmp,
+			offsetof(struct sessiondb_config, ttl.icmp));
 	init_expire_timer(&expirer_tcp_est, &session_table_tcp,
 			offsetof(struct sessiondb_config, ttl.tcp_est));
 	init_expire_timer(&expirer_tcp_trans, &session_table_tcp,
 			offsetof(struct sessiondb_config, ttl.tcp_trans));
 	init_expire_timer(&expirer_syn, &session_table_tcp, 0);
-	init_expire_timer(&expirer_icmp, &session_table_icmp,
-			offsetof(struct sessiondb_config, ttl.icmp));
+
 
 	return 0;
 }
