@@ -569,11 +569,12 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
 	error = allocate_transport_address(table, tuple, &addr4);
 	if (error) {
 		log_debug("Error code %d while 'allocating' an address for a BIB entry.", error);
+		spin_unlock_bh(&table->lock);
 		if (tuple->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
 			icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
-		goto end;
+		return error;
 	}
 
 	*bib = bib_create(&addr4, &addr6, false, tuple->l4_proto);

@@ -78,7 +78,7 @@ int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *r
 	return pool4_get_any_port(proto, &addr->address, result);
 }
 
-int pool4_get_any_port(l4_protocol proto, struct in_addr *addr, __u16 *result)
+int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *result)
 {
 	return ipv4_addr_equals(addr, &pool_address)
 			? get_next_port(proto, result)
@@ -91,7 +91,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 	return get_next_port(proto, &result->l4_id);
 }
 
-int pool4_return(l4_protocol l4_proto, struct ipv4_tuple_address *address)
+int pool4_return(l4_protocol l4_proto, const struct ipv4_tuple_address *address)
 {
 	/* Meh, whatever. */
 	log_debug("Somebody returned %pI4#%u to the pool.", &address->address, address->l4_id);

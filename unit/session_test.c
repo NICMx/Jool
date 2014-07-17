@@ -3,7 +3,7 @@
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
-#include "nat64/mod/session_db.h"
+#include "session_db.c"
 
 
 MODULE_LICENSE("GPL");
@@ -31,7 +31,7 @@ static struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
 static struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 		int local_id_6, int remote_id_6,
-		l4_protocol l4_proto, unsigned int dying_time)
+		l4_protocol l4_proto)
 {
 	struct ipv4_pair pair_4 = {
 			.remote = addr4[remote_id_4],
@@ -42,24 +42,20 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 			.remote = addr6[remote_id_6],
 	};
 
-	struct session_entry* entry = session_create(&pair_4, &pair_6, l4_proto);
+	struct session_entry* entry = session_create(&pair_4, &pair_6, l4_proto, NULL);
 	if (!entry)
 		return NULL;
-
-	entry->dying_time = dying_time;
-	entry->bib = NULL;
 
 	return entry;
 }
 
 static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
-		int remote6_id, l4_protocol l4_proto, unsigned int dying_time)
+		int remote6_id, l4_protocol l4_proto)
 {
 	struct session_entry *result;
 	int error;
 
-	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, l4_proto,
-			dying_time);
+	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, l4_proto);
 	if (!result) {
 		log_err("Could not allocate a session entry.");
 		return NULL;
@@ -151,7 +147,7 @@ static bool simple_session(void)
 	struct session_entry *session;
 	bool success = true;
 
-	session = create_session_entry(1, 0, 1, 0, L4PROTO_TCP, 12345);
+	session = create_session_entry(1, 0, 1, 0, L4PROTO_TCP);
 	if (!assert_not_null(session, "Allocation of test session entry"))
 		return false;
 
@@ -184,7 +180,7 @@ static bool test_address_filtering(void)
 	bool success = true;
 
 	/* Init. */
-	session = create_and_insert_session(0, 0, 0, 0, L4PROTO_UDP, 12345);
+	session = create_and_insert_session(0, 0, 0, 0, L4PROTO_UDP);
 	if (!session)
 		return false;
 
@@ -199,7 +195,29 @@ static bool test_address_filtering(void)
 	success &= assert_true(test_address_filtering_aux(0, 1, 0, 0), "lol5");
 	success &= assert_false(test_address_filtering_aux(1, 0, 0, 0), "lol6");
 
-	return true;
+	return success;
+}
+static bool test_sessiondb_timeouts_aux(struct expire_timer *expirer,
+		unsigned int expirer_seconds, char *test_name)
+{
+	unsigned long mssec = msecs_to_jiffies(1000 * expirer_seconds);
+	unsigned long timeout = get_timeout(expirer);
+
+	return assert_equals_int(mssec, timeout, test_name);
+}
+
+static bool test_sessiondb_timeouts(void)
+{
+
+	bool success = true;
+
+	success &= test_sessiondb_timeouts_aux(&expirer_udp, UDP_DEFAULT ,"UDP_timeout");
+	success &= test_sessiondb_timeouts_aux(&expirer_icmp, ICMP_DEFAULT, "ICMP_timeout");
+	success &= test_sessiondb_timeouts_aux(&expirer_tcp_est, TCP_EST, "TCP_EST_timeout");
+	success &= test_sessiondb_timeouts_aux(&expirer_tcp_trans, TCP_TRANS,"TCP_TRANS_timeout");
+	success &= test_sessiondb_timeouts_aux(&expirer_syn, TCP_INCOMING_SYN, "TCP_SYN_timeout");
+
+	return success;
 }
 
 /********************************************
@@ -239,6 +257,7 @@ int init_module(void)
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
+	INIT_CALL_END(init(), test_sessiondb_timeouts(), end(), "Session config timeouts");
 
 	END_TESTS;
 }

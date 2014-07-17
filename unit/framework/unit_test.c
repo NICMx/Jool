@@ -33,6 +33,15 @@ bool assert_equals_int(int expected, int actual, char *test_name)
 	return true;
 }
 
+bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name)
+{
+	if (expected != actual) {
+		UNIT_WARNING(test_name, expected, actual, "%lu");
+		return false;
+	}
+	return true;
+}
+
 bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name)
 {
 	return assert_equals_u32(expected, actual, test_name);
