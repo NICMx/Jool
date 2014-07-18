@@ -161,7 +161,8 @@ int pktqueue_init(void)
 
 static void pktqueue_destroy_aux(struct rb_node *hook)
 {
-	struct packet_node *node = rb_entry(hook, struct packet_node, tree_hook);
+	struct packet_node *node;
+	node = rb_entry(hook, struct packet_node, tree_hook);
 
 	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
 	kfree_skb(node->skb);

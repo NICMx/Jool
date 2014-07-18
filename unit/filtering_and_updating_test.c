@@ -483,7 +483,7 @@ static bool test_tcp_closed_state_handle_6(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_equals_int(0, tcp_closed_state_handle(skb, &tuple), "V6 syn-result");
+	success &= assert_equals_int(VER_CONTINUE, tcp_closed_state_handle(skb, &tuple), "V6 syn-result");
 
 	/* Validate */
 	success &= assert_equals_int(0, sessiondb_get(&tuple, &session), "V6 syn-session.");
@@ -491,6 +491,50 @@ static bool test_tcp_closed_state_handle_6(void)
 		success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
 
 	kfree_skb(skb);
+	return success;
+}
+
+static bool test_tcp_closed_state_handle_4(void)
+{
+	struct session_entry *session, *copy_ptr;
+	struct tuple tuple;
+	struct sk_buff *skb;
+	struct ipv4_pair pair4;
+	struct tcphdr *hdr_tcp;
+	bool success = true;
+
+	/* Prepare */
+	if (is_error(init_pair4(&pair4, "5.6.7.8", 5678, "192.168.2.1", 8765)))
+		return false;
+	if (is_error(init_ipv4_tuple_from_pair(&tuple, &pair4, L4PROTO_TCP)))
+		return false;
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
+			V4_INIT); /* The session entry that is supposed to be created in "tcp_close_state_handle". */
+	if (!session)
+		return false;
+
+	copy_ptr = session;
+	if (is_error(create_skb_ipv4_tcp(&pair4, &skb, 100))) {
+		session_return(session);
+		return false;
+	}
+	hdr_tcp = tcp_hdr(skb);
+	hdr_tcp->syn = true;
+	hdr_tcp->rst = false;
+	hdr_tcp->fin = false;
+
+	/* Evaluate */
+	success &= assert_equals_int(VER_STOLEN, tcp_closed_state_handle(skb, &tuple), "V4 syn-result");
+
+	/* Validate */
+	success &= assert_equals_int(-ENOENT, sessiondb_get(&tuple, &copy_ptr), "V4 syn-session.");
+	success &= assert_equals_int(0, pktqueue_send(session), "V4 syn pktqueue send");
+
+	/* if (success)
+		success &= assert_equals_u8(V4_INIT, session->state, "V4 syn-state"); */
+
+	session_return(session);
+	/* kfree_skb(skb); "skb" kfreed when pktqueue is executed */
 	return success;
 }
 
@@ -545,9 +589,7 @@ static bool test_tcp_v4_init_state_handle_else(void)
 
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_init_state_handle(skb, session, &expirer), "else-result");
-	success &= assert_equals_u8(V4_INIT, session->state, "else-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"else-lifetime");
+	success &= assert_null(session->expirer, "null expirer");
 
 	kfree_skb(skb);
 	return success;
@@ -627,8 +669,7 @@ static bool test_tcp_v6_init_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, session, &expirer), "else-result");
 	success &= assert_equals_u8(V6_INIT, session->state, "else-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"else-lifetime");
+	success &= assert_null(session->expirer, "null expirer");
 
 	kfree_skb(skb);
 	return success;
@@ -653,8 +694,7 @@ static bool test_tcp_established_state_handle_v4fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
 	success &= assert_equals_u8(V4_FIN_RCV, session->state, "V4 fin-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V4 fin-lifetime");
+	success &= assert_null(session->expirer, "null expirer");
 
 	kfree_skb(skb);
 	return success;
@@ -680,8 +720,7 @@ static bool test_tcp_established_state_handle_v6fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
 	success &= assert_equals_u8(V6_FIN_RCV, session->state, "V6 fin-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V6 fin-lifetime");
+	success &= assert_null(session->expirer, "null expirer");
 
 	kfree_skb(skb);
 	return success;
@@ -815,7 +854,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, session, &expirer), "else-result");
 	success &= assert_equals_u8(V4_FIN_RCV, session->state, "else-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
 			"else-lifetime");
 
 	kfree_skb(skb);
@@ -869,7 +908,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, session, &expirer), "else-result");
 	success &= assert_equals_u8(V6_FIN_RCV, session->state, "else-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
 			"else-lifetime");
 
 	kfree_skb(skb);
@@ -896,8 +935,7 @@ static bool test_tcp_trans_state_handle_v4rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(skb, session, &expirer), "V4 rst-result");
 	success &= assert_equals_u8(TRANS, session->state, "V4 rst-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V4 rst-lifetime");
+	success &= assert_null(session->expirer, "null expirer");
 
 	kfree_skb(skb);
 	return success;
@@ -923,8 +961,7 @@ static bool test_tcp_trans_state_handle_v6rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(skb, session, &expirer), "V6 rst-result");
 	success &= assert_equals_u8(TRANS, session->state, "V6 rst-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V6 rst-lifetime");
+	success &= assert_null(session->expirer, "null expirer");
 
 	kfree_skb(skb);
 	return success;
@@ -1049,6 +1086,9 @@ static bool init_full(void)
 	error = pool4_init(NULL, 0);
 	if (error)
 		goto fail;
+	error = pktqueue_init();
+	if (error)
+		goto fail;
 	error = bibdb_init();
 	if (error)
 		goto fail;
@@ -1080,6 +1120,7 @@ static void end_full(void)
 	filtering_destroy();
 	sessiondb_destroy();
 	bibdb_destroy();
+	pktqueue_destroy();
 	pool4_destroy();
 	pool6_destroy();
 }
@@ -1106,10 +1147,11 @@ static int filtering_test_init(void)
 	INIT_CALL_END(init_full(), test_icmp(), end_full(), "ICMP");
 
 	/* TCP */
+	/* Not implemented yet! */
 	/* CALL_TEST(test_send_probe_packet(), "test_send_probe_packet"); */
 	INIT_CALL_END(init_full(), test_tcp_closed_state_handle_6(), end_full(), "TCP-CLOSED-6");
-	/* Not implemented yet! */
-	/* INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "TCP-CLOSED-4"); */
+	INIT_CALL_END(init_full(), test_tcp_closed_state_handle_4(), end_full(), "TCP-CLOSED-4");
+
 	TEST_FILTERING_ONLY(test_tcp_v4_init_state_handle_v6syn(), "TCP-V4 INIT-V6 syn");
 	TEST_FILTERING_ONLY(test_tcp_v4_init_state_handle_else(), "TCP-V4 INIT-else");
 	TEST_FILTERING_ONLY(test_tcp_v6_init_state_handle_v6syn(), "TCP-V6 INIT-V6 SYN");

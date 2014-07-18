@@ -356,6 +356,12 @@ static unsigned long get_timeout(struct expire_timer *expirer)
 
 unsigned long sessiondb_get_timeout(struct session_entry *session)
 {
+	if (!session->expirer) {
+		log_debug("The session entry doesn't have expirer");
+		/* TODO: revisar que valor default regresar, en caso de que no tenga expirer*/
+		return 0;
+	}
+
 	return get_timeout(session->expirer);
 }
 
