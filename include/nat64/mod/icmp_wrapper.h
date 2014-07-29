@@ -14,8 +14,9 @@
  * In those situations, you can use this code instead. It transparently sends the correct ICMP
  * error no matter where you are.
  *
- * For the sake of consistency, use this module even if your code isn't reused in hairpinning,
- * please.
+ * For the sake of consistency, and so the unit tests don't send bogus ICMP errors left and right
+ * (because the unit tests use an impersonator no-op ICMP wrapper), use this module even if your
+ * code isn't reused in hairpinning, please.
  */
 
 typedef enum icmp_error_code {

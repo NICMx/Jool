@@ -73,6 +73,12 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
+	/*
+	 * I'm assuming the control buffer is empty, and therefore I can throw my crap at it happily.
+	 * Though common sense dictates any Netfilter module should not have to worry about leftover
+	 * CB garbage, I do not see any confirmation (formal or otherwise) of this anywhere.
+	 * Any objections?
+	 */
 	if (skb_init_cb_ipv4(skb) != 0)
 		return NF_DROP;
 	if (fix_checksums_ipv4(skb) != 0)
@@ -98,6 +104,7 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
+	/* See respective comment above. */
 	if (skb_init_cb_ipv6(skb) != 0)
 		return NF_DROP;
 	if (fix_checksums_ipv6(skb) != 0)

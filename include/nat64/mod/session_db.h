@@ -86,9 +86,27 @@ struct expire_timer {
  * transport addresses (since they can be extracted from bib).
  */
 struct session_entry {
-	/** IPv6 version of the connection. */
+	/**
+	 * IPv6 version of the connection.
+	 *
+	 * The RFC always calls the remote IPv6 node's address the "Source" IPv6 address.
+	 * The prefix-based NAT64 address is always the "Destination" address.
+	 * That is regardless of translation direction, which looks awful in the IPv4-to-IPv6 pipeline.
+	 * We've decided to rename the "Source" address the "Remote" address. The "Destination" address
+	 * is here the "Local" address.
+	 * "Local" and "Remote" as in, from the NAT64's perspective.
+	 */
 	const struct ipv6_pair ipv6;
-	/** IPv4 version of the connection. */
+	/**
+	 * IPv4 version of the connection.
+	 *
+	 * The RFC always calls the remote IPv4 node's address the "Destination" IPv4 address.
+	 * The pool NAT64 address is always the "Source" address.
+	 * That is regardless of translation direction, which looks awful in the IPv4-to-IPv6 pipeline.
+	 * We've decided to rename the "Source" address the "Local" address. The "Destination" address
+	 * is here the "Remote" address.
+	 * "Local" and "Remote" as in, from the NAT64's perspective.
+	 */
 	const struct ipv4_pair ipv4;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */

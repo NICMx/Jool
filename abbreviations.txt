@@ -29,7 +29,7 @@ cb = control buffer (section in skbs where we store metadata)
 pool<n> = IPv<n> pool (pool4 = IPv4 pool)
 pkt = packet
 ver = verdict
-skb = socket buffer (inherited from the kernel)
+skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
 aux = auxiliar function
 req = requirement
 

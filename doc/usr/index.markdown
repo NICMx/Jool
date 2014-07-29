@@ -35,6 +35,12 @@ Our next target is **Simultaneous open of TCP connections**. Now cooking version
 
 ## News
 
+### 2014-06-26
+
+By the way:
+
+If you can read <a href="https://help.github.com/articles/github-flavored-markdown" target="_blank">Markdown</a> and Github's diffs, you can find the documentation changes for version 3.1.5 <a href="https://github.com/NICMx/NAT64/commit/5295b05cf2c380055c3356d48ef56b74c0b828bb" target="_blank">here</a>, <a href="https://github.com/NICMx/NAT64/commit/2732f520b6616955fb81db778eab9da0f1db210c" target="_blank">here</a> and <a href="https://github.com/NICMx/NAT64/commit/54fc02dd5f5a22c44ac2d6be092306c34abd30ee" target="_blank">here</a>.
+
 ### 2014-06-18
 
 Version 3.1.5 released.

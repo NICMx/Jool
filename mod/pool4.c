@@ -498,6 +498,8 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
 
 int pool4_count(__u64 *result)
 {
+	spin_lock_bh(&pool_lock);
 	*result = pool.node_count;
+	spin_unlock_bh(&pool_lock);
 	return 0;
 }

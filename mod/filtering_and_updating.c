@@ -82,6 +82,28 @@ static inline void apply_policies(void)
 	/* TODO (Issue #41) decide whether resources and policy allow filtering to continue. */
 }
 
+static void log_bib(struct bib_entry *bib)
+{
+	if (bib)
+		log_debug("BIB entry: %pI6c#%u - %pI4#%u",
+				&bib->ipv6.address, bib->ipv6.l4_id,
+				&bib->ipv4.address, bib->ipv4.l4_id);
+	else
+		log_debug("BIB entry: None");
+}
+
+static void log_session(struct session_entry *session)
+{
+	if (session)
+		log_debug("Session entry: %pI6c#%u - %pI6c#%u | %pI4#%u - %pI4#%u",
+				&session->ipv6.remote.address, session->ipv6.remote.l4_id,
+				&session->ipv6.local.address, session->ipv6.local.l4_id,
+				&session->ipv4.local.address, session->ipv4.local.l4_id,
+				&session->ipv4.remote.address, session->ipv4.remote.l4_id);
+	else
+		log_debug("Session entry: None");
+}
+
 /**
  * Attempts to find "tuple"'s BIB entry and returns it in "bib".
  * Assumes "tuple" represents a IPv4 packet.
@@ -233,12 +255,14 @@ static verdict ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
 	error = bibdb_get_or_create_ipv6(skb, tuple, &bib);
 	if (error)
 		return VER_DROP;
+	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv6(tuple, bib, &session);
 	if (error) {
 		bib_return(bib);
 		return VER_DROP;
 	}
+	log_session(session);
 
 	commit_timer(set_udp_timer(session));
 
@@ -266,12 +290,14 @@ static verdict ipv4_udp(struct sk_buff *skb, struct tuple *tuple)
 	error = get_bib_ipv4(skb, tuple, &bib);
 	if (error)
 		return VER_DROP;
+	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv4(tuple, bib, &session);
 	if (error) {
 		bib_return(bib);
 		return VER_DROP;
 	}
+	log_session(session);
 
 	commit_timer(set_udp_timer(session));
 
@@ -304,12 +330,14 @@ static verdict ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
 	error = bibdb_get_or_create_ipv6(skb, tuple, &bib);
 	if (error)
 		return VER_DROP;
+	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv6(tuple, bib, &session);
 	if (error) {
 		bib_return(bib);
 		return VER_DROP;
 	}
+	log_session(session);
 
 	commit_timer(set_icmp_timer(session));
 
@@ -337,13 +365,14 @@ static verdict ipv4_icmp4(struct sk_buff *skb, struct tuple *tuple)
 	error = get_bib_ipv4(skb, tuple, &bib);
 	if (error)
 		return VER_DROP;
+	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv4(tuple, bib, &session);
 	if (error) {
 		bib_return(bib);
 		return VER_DROP;
 	}
-
+	log_session(session);
 
 	commit_timer(set_icmp_timer(session));
 
@@ -367,12 +396,14 @@ static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple)
 	error = bibdb_get_or_create_ipv6(skb, tuple, &bib);
 	if (error)
 		return error;
+	log_bib(bib);
 
 	error = create_session_ipv6(tuple, bib, &session);
 	if (error) {
 		bib_return(bib);
 		return error;
 	}
+	log_session(session);
 
 	commit_timer(set_tcp_trans_timer(session));
 	session->state = V6_INIT;
@@ -406,10 +437,13 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 			return VER_DROP;
 		bib = NULL;
 	}
+	log_bib(bib);
 
 	error = create_session_ipv4(tuple, bib, &session);
 	if (error)
 		goto end_bib;
+	log_session(session);
+
 	session->state = V4_INIT;
 
 	if (!bib || address_dependent_filtering()) {
@@ -619,6 +653,8 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 	/* If NO session was found: */
 	if (error == -ENOENT)
 		return tcp_closed_state_handle(skb, tuple);
+
+	log_session(session);
 
 	spin_lock_bh(&session->lock);
 	/* Act according the current state. */
