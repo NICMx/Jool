@@ -87,6 +87,10 @@
 
 
 /* -- IPv6 Pool -- */
+
+/**
+ * The IPv6 pool's allowed prefix lengths.
+ */
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
 
 

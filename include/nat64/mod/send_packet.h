@@ -10,6 +10,8 @@
  * the same layer-3 protocol exits the module. So we can't just morph IPv4 packets into IPv6 ones
  * and vice-versa; we need to ask the kernel to drop the original packets and send new ones on our
  * own.
+ *
+ * @author Alberto Leiva
  */
 
 #include <linux/types.h>

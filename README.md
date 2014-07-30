@@ -2,14 +2,14 @@
 
 An implementation of [RFC6146](http://tools.ietf.org/html/rfc6146) ([stateful NAT64](https://www.jool.mx/intro.html)) for Linux.
 
-# Documentation
+## Documentation
 
 [See here](https://jool.mx/doc-index.html).
 
 Please send improvements, complaints and fixes to jool@nic.mx.
 Alternatively, you might want to upload bugs and pull requests to the [issue tracker](https://github.com/NICMx/NAT64/issues).
 
-# Directories
+## Directories
 
 * `/doc` : Documentation source.
 * `/include` : The entire system's header files.
@@ -17,21 +17,21 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * `/unit` : Unit tests.
 * `/usr` : The userspace application's implementation code.
 
-# Authors
+## Authors
 
-## NIC-Mx representatives
+### NIC-Mx representatives
 
 * Ing. Julio Cossío
 * Ing. Jorge Cano
 * Ing. [Alberto Leiva](https://github.com/ydahhrk) <aleiva@nic.mx>
 * Ing. [Daniel Hernandez Felix](https://github.com/dhfelix) <dhernandez@nic.mx>
 
-## ITESM representatives
+### ITESM representatives
 
 * Dr. Juan Arturo Nolazco <jnolazco@itesm.mx>
 * Ing. Martha Sordia <msordia@itesm.mx>
 
-## ITESM students
+### ITESM students
 
 * [Juan Antonio Osorio](https://github.com/JAORMX) <jaosorior@gmail.com>
 * [Luis Fernando Hinojosa](https://github.com/luion) <lf.hinojosa@gmail.com>
@@ -50,7 +50,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * Ing. Elvia Patricia Barrón Cano <epatybarron@gmail.com>
 * [Nixa Jayu Gpe Rodríguez Dagnino](https://github.com/NixaDagnino)
 
-## Special Thanks (contributing users)
+### Special Thanks (contributing users)
 
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
@@ -61,7 +61,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * [techmotive](https://github.com/techmotive)
 * Washam Fan
 
-# Legal stuff
+## Legal stuff
 
 	Copyright (C) 2012  NIC-Mx - ITESM
 
@@ -77,3 +77,4 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+

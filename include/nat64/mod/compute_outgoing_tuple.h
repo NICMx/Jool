@@ -13,8 +13,10 @@
 
 #include "nat64/mod/types.h"
 
-
+/**
+ * Computes the addresses of "in"'s opposite layer-3 protocol.
+ * "out" is filled with these addresses.
+ */
 verdict compute_out_tuple(struct tuple *in, struct tuple *out);
-
 
 #endif /* _JOOL_MOD_OUTGOING_H */

@@ -1,9 +1,15 @@
 #ifndef _JOOL_MOD_TYPES_MOD_H
 #define _JOOL_MOD_TYPES_MOD_H
 
+/**
+ * @file
+ * Kernel-specific core data types and routines.
+ *
+ * @author Alberto Leiva
+ */
+
 #include "nat64/comm/types.h"
 #include <linux/netfilter.h>
-
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops (bad checksums,
@@ -29,8 +35,8 @@
 	} while (0)
 /**
  * "Your configuration cannot be applied, user."
- * log_warn() signals errors while processing packets. log_err() signals errors while processing
- * user requests.
+ * log_warn_once() signals errors while processing packets. log_err() signals errors while
+ * processing user requests.
  * I the code found a **programming** error, use WARN() or its variations instead.
  */
 #define log_err(text, ...) pr_err(MODULE_NAME " ERROR (%s): " text "\n", __func__, ##__VA_ARGS__)
@@ -44,7 +50,6 @@
 #else
 	#define WARN_IF_REAL(condition, format...) WARN(condition, format)
 #endif
-
 
 /**
  * An indicator of what a function expects its caller to do with the packet being translated.
@@ -177,6 +182,5 @@ bool is_icmp4_error(__u8 type);
 /**
  * @}
  */
-
 
 #endif /* _JOOL_MOD_TYPES_MOD_H */

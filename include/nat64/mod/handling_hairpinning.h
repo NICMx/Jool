@@ -8,7 +8,7 @@
  * Recognizes a packet that should return from the same interface and handles it accordingly.
  *
  * @author Miguel Gonzalez
- * @author Alberto Leiva  <- maintenance
+ * @author Alberto Leiva
  */
 
 #include "nat64/mod/types.h"

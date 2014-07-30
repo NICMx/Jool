@@ -1,13 +1,17 @@
 #ifndef _JOOL_MOD_RBTREE_H
 #define _JOOL_MOD_RBTREE_H
 
-
 /**
  * @file
  * This is just some convenience additions to the kernel's Red-Black Tree data structure.
  * I'm sorry it looks rather convoluted, but the alternative is a lot of redundant code.
  * Constructive criticism would be very appreciated.
+ *
+ * @author Alberto Leiva
+ * @author Daniel Hernandez
  */
+
+#include "linux/rbtree.h"
 
 /**
  * This is just a stock search on a Red-Black tree.
@@ -75,40 +79,6 @@
 	})
 
 /**
- * Destroys all of the tree's nodes.
- */
-#define rbtree_clear(root, destructor) \
-	{ \
-		/* ... using a postorder traversal. */ \
-		struct rb_node *parent_hook, *current_hook; \
-		\
-		current_hook = rb_first(root); \
-		\
-		while (current_hook) { \
-			while (current_hook->rb_right) { \
-				current_hook = current_hook->rb_right; \
-				while (current_hook->rb_left) \
-					current_hook = current_hook->rb_left; \
-			} \
-			\
-			parent_hook = rb_parent(current_hook); \
-			\
-			if (parent_hook) { \
-				if (current_hook == parent_hook->rb_left) \
-					parent_hook->rb_left = NULL; \
-				else /* if (current_hook == parent_hook->rb_right) */ \
-					parent_hook->rb_right = NULL; \
-			} \
-			destructor(current_hook); \
-			\
-			current_hook = parent_hook; \
-		} \
-		\
-		(root)->rb_node = NULL; \
-	}
-
-
-/**
   * Similar to rbtree_find(), except if it doesn't find the node it returns the slot where it'd be
   * placed so you can insert something in there.
   */
@@ -133,5 +103,9 @@
 		} \
 	})
 
+/**
+ * Destroys all the nodes from "root"'s tree.
+ */
+void rbtree_clear(struct rb_root *root, void (*destructor)(struct rb_node *));
 
 #endif /* _JOOL_MOD_RBTREE_H */

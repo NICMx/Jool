@@ -53,11 +53,19 @@ enum config_mode {
 	MODE_GENERAL = (1 << 0),
 };
 
+/**
+ * @{
+ * Allowed operations for the mode mentioned in the name.
+ * eg. BIB_OPS = Allowed operations for BIB requests.
+ */
 #define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define GENERAL_OPS (OP_DISPLAY | OP_UPDATE)
+/**
+ * @}
+ */
 
 enum config_operation {
 	/** The userspace app wants to print the stuff being requested. */
@@ -74,12 +82,20 @@ enum config_operation {
 	OP_FLUSH = (1 << 5),
 };
 
+/**
+ * @{
+ * Allowed modes for the operation mentioned in the name.
+ * eg. DISPLAY_MODES = Allowed modes for display operations.
+ */
 #define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL)
 #define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION)
 #define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 #define UPDATE_MODES (MODE_GENERAL)
 #define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 #define FLUSH_MODES (MODE_POOL6 | MODE_POOL4)
+/**
+ * @}
+ */
 
 /**
  * Prefix to all user-to-kernel messages.
@@ -144,10 +160,7 @@ union request_pool4 {
  * Configuration for the "BIB" module.
  */
 struct request_bib {
-	/**
-	 * Table the userspace app wants to display or edit.
-	 * Actually intended to be a l4_protocol (enum), but enum lengths are implementation-defined.
-	 */
+	/** Table the userspace app wants to display or edit. See enum l4_protocol. */
 	__u8 l4_proto;
 	union {
 		struct {
@@ -183,13 +196,9 @@ struct request_bib {
 
 /**
  * Configuration for the "Session DB"'s tables.
- * Only the "OP_DISPLAY" and "OP_COUNT" operations make sense in this module.
  */
 struct request_session {
-	/**
-	 * Table the userspace app wants to display.
-	 * Actually intended to be a l4_protocol (enum), but enum lengths are implementation-defined.
-	 */
+	/** Table the userspace app wants to display. See enum l4_protocol. */
 	__u8 l4_proto;
 	union {
 		struct {
@@ -207,6 +216,9 @@ struct request_session {
 	};
 };
 
+/**
+ * Indicators of the respective fields in the sessiondb_config structure.
+ */
 enum sessiondb_type {
 	UDP_TIMEOUT,
 	ICMP_TIMEOUT,
@@ -216,28 +228,40 @@ enum sessiondb_type {
 
 /**
  * Configuration of the "Session DB" module.
+ *
+ * Time values in this structure should be read as jiffies in the kernel, milliseconds in
+ * userspace.
  */
 struct sessiondb_config {
 	struct {
-		/** Maximum number of seconds inactive UDP sessions will remain in the DB. */
+		/** Maximum time inactive UDP sessions will remain in the DB. */
 		__u64 udp;
-		/** Maximum number of seconds inactive ICMP sessions will remain in the DB. */
+		/** Maximum time inactive ICMP sessions will remain in the DB. */
 		__u64 icmp;
-		/** Max number of seconds established and inactive TCP sessions will remain in the DB. */
+		/** Maximum time established TCP sessions will remain in the DB. */
 		__u64 tcp_est;
-		/** Max number of seconds transitory and inactive TCP sessions will remain in the DB. */
+		/** Maximum time transitory TCP sessions will remain in the DB. */
 		__u64 tcp_trans;
 	} ttl;
 };
 
+/**
+ * Indicators of the respective fields in the pktqueue_config structure.
+ */
 enum pktqueue_type {
 	MAX_PKTS,
 };
 
+/**
+ * Configuration of the "Packet Queue" module.
+ */
 struct pktqueue_config {
 	__u64 max_pkts;
 };
 
+/**
+ * Indicators of the respective fields in the filtering_config structure.
+ */
 enum filtering_type {
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
@@ -256,6 +280,9 @@ struct filtering_config {
 	__u8 drop_external_tcp;
 };
 
+/**
+ * Indicators of the respective fields in the translate_config structure.
+ */
 enum translate_type {
 	RESET_TCLASS,
 	RESET_TOS,
@@ -329,12 +356,19 @@ struct translate_config {
 };
 
 enum general_module {
+	/** Indicates the presence of a struct sessiondb_config value. */
 	SESSIONDB,
+	/** Indicates the presence of a struct pktqueue_config value. */
 	PKTQUEUE,
+	/** Indicates the presence of a struct filtering_config value. */
 	FILTERING,
+	/** Indicates the presence of a struct translate_config value. */
 	TRANSLATE,
 };
 
+/**
+ * A request to edit a miscellaneous configuration value.
+ */
 union request_general {
 	struct {
 		/* Nothing needed here. */
@@ -374,6 +408,9 @@ struct session_entry_usr {
 	__u64 dying_time;
 };
 
+/**
+ * A copy of the entire running configuration, excluding databases.
+ */
 struct response_general {
 	struct sessiondb_config sessiondb;
 	struct pktqueue_config pktqueue;

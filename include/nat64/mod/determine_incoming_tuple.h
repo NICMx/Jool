@@ -8,11 +8,10 @@
  * Creates a tuple (summary) of the incoming packet.
  *
  * @author Miguel Gonzalez
- * @author Alberto Leiva  <- maintenance
+ * @author Alberto Leiva
  */
 
 #include "nat64/mod/types.h"
-
 
 verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple);
 

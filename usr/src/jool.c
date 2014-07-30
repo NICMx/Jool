@@ -4,7 +4,7 @@
  * Parses parameters from the user and hands the real work to the other .c's.
  *
  * @author Miguel González
- * @author Alberto Leiva  <-- maintenance
+ * @author Alberto Leiva
  */
 
 #include <stdio.h>
@@ -16,7 +16,7 @@
 
 #include "nat64/comm/constants.h"
 #include "nat64/comm/config_proto.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"

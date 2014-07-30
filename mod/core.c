@@ -54,9 +54,6 @@ end:
 	return (unsigned int) result;
 }
 
-/**
- * Entry point for IPv4 packet processing.
- */
 unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct iphdr *hdr;
@@ -87,9 +84,6 @@ unsigned int core_4to6(struct sk_buff *skb)
 	return core_common(skb);
 }
 
-/**
- * Entry point for IPv6 packet processing.
- */
 unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr;

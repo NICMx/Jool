@@ -163,7 +163,7 @@ static int compare_local4(const struct session_entry *session,
  * Returns a negative integer if session.ipv4 > pair.
  * Returns zero if session.ipv4 == pair.
  *
- * It excludes remote layer-4 IDs from the comparison. See session_allow() to find out why.
+ * It excludes remote layer-4 IDs from the comparison. See sessiondb_allow() to find out why.
  *
  * Doesn't care about spinlocks.
  */
@@ -277,6 +277,7 @@ static void send_probe_packet(struct session_entry *session)
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+	/* TODO wtf */
 	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL);
 
 	error = route_ipv6(skb);
@@ -546,7 +547,6 @@ int sessiondb_init(void)
 	init_expire_timer(&expirer_tcp_trans, &session_table_tcp,
 			offsetof(struct sessiondb_config, ttl.tcp_trans));
 	init_expire_timer(&expirer_syn, &session_table_tcp, 0);
-
 
 	return 0;
 }

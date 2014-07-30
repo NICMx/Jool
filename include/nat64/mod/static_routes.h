@@ -1,9 +1,6 @@
 #ifndef _JOOL_MOD_STATIC_ROUTES_H
 #define _JOOL_MOD_STATIC_ROUTES_H
 
-#include "nat64/comm/config_proto.h"
-
-
 /**
  * @file
  * A bridge between the configuration module and the BIB and session modules.
@@ -11,6 +8,8 @@
  * @author Miguel Gonzalez
  * @author Alberto Leiva
  */
+
+#include "nat64/comm/config_proto.h"
 
 /**
  * Adds a static entry to the BIB.
@@ -27,6 +26,5 @@ int add_static_route(struct request_bib *req);
  * @return success status as a unix error code.
  */
 int delete_static_route(struct request_bib *req);
-
 
 #endif /* _JOOL_MOD_STATIC_ROUTES_H */

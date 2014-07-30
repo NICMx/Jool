@@ -43,7 +43,6 @@
 #include "nat64/mod/session_db.h"
 #include <linux/skbuff.h>
 
-
 /**
  * Call during initialization for the remaining functions to work properly.
  */
@@ -58,12 +57,16 @@ void pktqueue_destroy(void);
  */
 int pktqueue_clone_config(struct pktqueue_config *clone);
 /**
- * Replaces the current configuration of the module with "new_config".
+ * Updates the configuration value of this module whose identifier is "type".
+ *
+ * @param type ID of the configuration value you want to edit.
+ * @size length of "value" in bytes.
+ * @value the new value you want the field to have.
  */
 int pktqueue_set_config(enum pktqueue_type type, size_t size, void *value);
 
 /**
- * Stores packet "skb", associating it with "session". "skb" will be ICMP replied in 6 seconds.
+ * Stores packet "skb", associating it with "session".
  */
 int pktqueue_add(struct session_entry *session, struct sk_buff *skb);
 /**
@@ -71,7 +74,7 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb);
  */
 int pktqueue_send(struct session_entry *session);
 /**
- * Removes "session"'s skb from the storage. The ICMP error will be canceled.
+ * Removes "session"'s skb from the storage. There will be no ICMP error.
  */
 int pktqueue_remove(struct session_entry *session);
 

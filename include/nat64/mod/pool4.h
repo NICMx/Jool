@@ -14,7 +14,6 @@
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/poolnum.h"
 
-
 /**
  * An address within the pool, along with its ports.
  */
@@ -65,7 +64,6 @@ int pool4_flush(void);
 int pool4_register(struct in_addr *addr);
 /**
  * Removes the "addr" address (along with its ports and IDs) from the pool.
- * This will only succeed if all of addr's ports have been previously returned.
  */
 int pool4_remove(struct in_addr *addr);
 
@@ -108,7 +106,6 @@ int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *res
  */
 int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result);
 
-
 /**
  * Returns the address-port combination from "addr" to the pool, so it can be borrowed again later.
  *
@@ -129,7 +126,9 @@ bool pool4_contains(struct in_addr *addr);
  * Executes the "func" function with the "arg" argument on every address in the pool.
  */
 int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
+/**
+ * Copies the current number of addresses in the pool to "result".
+ */
 int pool4_count(__u64 *result);
-
 
 #endif /* _JOOL_MOD_POOL4_H */

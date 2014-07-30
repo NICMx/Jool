@@ -106,9 +106,6 @@ fail:
 	return VER_DROP;
 }
 
-/**
- * Section 3.6 of RFC 6146.
- */
 verdict compute_out_tuple(struct tuple *in, struct tuple *out)
 {
 	verdict result;

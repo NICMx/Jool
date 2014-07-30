@@ -391,6 +391,11 @@ struct expire_timer *set_syn_timer(struct session_entry *session);
  */
 void commit_timer(struct expire_timer *expirer);
 
+/**
+ * Returns the amount of jiffies "session" is supposed to stay in memory.
+ * If you want the jiffy at which the session is going to die, add this up to
+ * "session->update_time".
+ */
 unsigned long sessiondb_get_timeout(struct session_entry *session);
 
 #endif /* _JOOL_MOD_SESSION_DB_H */

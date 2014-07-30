@@ -24,27 +24,20 @@
 #endif
 #include "nat64/comm/nat64.h"
 
-
 /**
  * Returns nonzero if "status" is an error, returns zero if "status" represents success.
  *
  * This exists because if find stuff like this very baffling:
- * 		if (function_call()) {
+ * 		if (function_call())
  * 			log_err("Oh noes error");
- * 			return error;
- * 		}
  *
  * My common sense dictates that it should be like this:
- * 		if (!function_call()) {
+ * 		if (!function_call())
  * 			log_err("Oh noes error");
- * 			return error;
- * 		}
  *
  * Or at least this:
- * 		if (is_error(function_call())) {
+ * 		if (is_error(function_call()))
  * 			log_err("Oh noes error");
- * 			return error;
- * 		}
  */
 static inline bool is_error(int status)
 {
@@ -77,6 +70,7 @@ char *l3proto_to_string(l3_protocol proto);
  * We do not use IPPROTO_TCP and friends because I want the compiler to pester me during
  * defaultless switch'es. Also, the zero-based index is convenient in the Translate Packet module.
  * And lastly, L4PROTO_NONE is great at simplifying things.
+ * TODO looks like it's mostly getting in the way now.
  */
 typedef enum l4_protocol {
 	/**
@@ -144,7 +138,7 @@ struct ipv4_pair {
 struct ipv6_pair {
 	/** The NAT64's address and port being used in the connection. */
 	struct ipv6_tuple_address local;
-	/** Jool's address and port being used in the connection. */
+	/** The IPv6 node's address and port being used in the connection. */
 	struct ipv6_tuple_address remote;
 };
 
@@ -158,6 +152,11 @@ struct ipv6_prefix {
 	__u8 len;
 };
 
+/**
+ * TODO (fine) I don't think there's a reason for this to exist anymore.
+ * Also, see if ipv4_tuple_address and ipv6_tuple_address can also be removed,
+ * just for shits and giggles.
+ */
 struct tuple_addr {
 	union {
 		struct in_addr ipv4;
@@ -165,6 +164,5 @@ struct tuple_addr {
 	} addr;
 	__u16 l4_id;
 };
-
 
 #endif /* _JOOL_COMM_TYPES_H */

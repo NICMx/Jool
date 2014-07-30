@@ -743,11 +743,11 @@ int filtering_clone_config(struct filtering_config *clone)
 }
 
 /**
- * Updates the configuration of this module.
+ * Updates the configuration value of this module whose identifier is "type".
  *
- * @param[in] operation indicator of which fields from "new_config" should be taken into account.
- * @param[in] new configuration values.
- * @return zero on success, nonzero on failure.
+ * @param type ID of the configuration value you want to edit.
+ * @size length of "value" in bytes.
+ * @value the new value you want the field to have.
  */
 int filtering_set_config(enum filtering_type type, size_t size, void *value)
 {

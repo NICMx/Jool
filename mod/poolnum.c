@@ -13,6 +13,8 @@
  * The pool tries to be as efficient as possible during packet processing, so it assumes it is used
  * in very controlled environments, which sacrifices robustness. Do *not* return numbers that were
  * originally not part of the pool; validations against this are very ineffective.
+ *
+ * @author Alberto Leiva
  */
 
 
@@ -143,11 +145,18 @@ int poolnum_return(struct poolnum *pool, u16 value)
 	return 0;
 }
 
+/**
+ * Returns whether the pool has all of its values (ie. nobody has requested anything, or everyone
+ * has returned everything).
+ */
 bool poolnum_is_full(struct poolnum *pool)
 {
 	return (!pool->next_is_ahead) && (pool->returned == pool->next);
 }
 
+/**
+ * Returns whether the pool has no values (ie. everyting has been borrowed).
+ */
 bool poolnum_is_empty(struct poolnum *pool)
 {
 	return pool->next_is_ahead && (pool->returned == pool->next);

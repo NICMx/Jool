@@ -2,7 +2,7 @@
 #include "nat64/comm/constants.h"
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
-#include "nat64/mod/out_stream.h"
+#include "nat64/mod/nl_buffer.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/bib_db.h"
@@ -29,8 +29,8 @@ static DEFINE_MUTEX(my_mutex);
 
 
 /**
- * Use this when data_len is known to be smaller than BUFFER_SIZE. When this might not be the case,
- * use the output stream instead (out_stream.h).
+ * Use this when data_len is known to be smaller than NLBUFFER_SIZE. When this might not be the
+ * case, use the netlink buffer instead (nl_buffer.h).
  */
 static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payload, int payload_len)
 {
@@ -96,14 +96,14 @@ static int verify_superpriv(struct request_hdr *nat64_hdr)
 
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
-	struct out_stream *stream = (struct out_stream *) arg;
-	return stream_write(stream, prefix, sizeof(*prefix));
+	struct nl_buffer *buffer = (struct nl_buffer *) arg;
+	return nlbuffer_write(buffer, prefix, sizeof(*prefix));
 }
 
 static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_pool6 *request)
 {
-	struct out_stream *stream;
+	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
@@ -111,17 +111,17 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	case OP_DISPLAY:
 		log_debug("Sending IPv6 pool to userspace.");
 
-		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
-		if (!stream) {
-			log_err("Could not allocate an output stream to userspace.");
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
-		stream_init(stream, nl_socket, nl_hdr);
-		error = pool6_for_each(pool6_entry_to_userspace, stream);
-		stream_close(stream);
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
+		error = pool6_for_each(pool6_entry_to_userspace, buffer);
+		nlbuffer_close(buffer);
 
-		kfree(stream);
+		kfree(buffer);
 		return error;
 
 	case OP_COUNT:
@@ -176,13 +176,13 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 static int pool4_entry_to_userspace(struct pool4_node *node, void *arg)
 {
-	return stream_write(arg, &node->addr, sizeof(node->addr));
+	return nlbuffer_write(arg, &node->addr, sizeof(node->addr));
 }
 
 static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_pool4 *request)
 {
-	struct out_stream *stream;
+	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
@@ -190,17 +190,17 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	case OP_DISPLAY:
 		log_debug("Sending IPv4 pool to userspace.");
 
-		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
-		if (!stream) {
-			log_err("Could not allocate an output stream to userspace.");
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
-		stream_init(stream, nl_socket, nl_hdr);
-		error = pool4_for_each(pool4_entry_to_userspace, stream);
-		stream_close(stream);
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
+		error = pool4_for_each(pool4_entry_to_userspace, buffer);
+		nlbuffer_close(buffer);
 
-		kfree(stream);
+		kfree(buffer);
 		return error;
 
 	case OP_COUNT:
@@ -263,20 +263,20 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 {
-	struct out_stream *stream = (struct out_stream *) arg;
+	struct nl_buffer *buffer = (struct nl_buffer *) arg;
 	struct bib_entry_usr entry_usr;
 
 	entry_usr.addr4 = entry->ipv4;
 	entry_usr.addr6 = entry->ipv6;
 	entry_usr.is_static = entry->is_static;
 
-	return stream_write(stream, &entry_usr, sizeof(entry_usr));
+	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		struct request_bib *request)
 {
-	struct out_stream *stream;
+	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
@@ -284,22 +284,22 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 	case OP_DISPLAY:
 		log_debug("Sending BIB to userspace.");
 
-		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
-		if (!stream) {
-			log_err("Could not allocate an output stream to userspace.");
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
-		stream_init(stream, nl_socket, nl_hdr);
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
 		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.addr4,
-				!request->display.iterate, bib_entry_to_userspace, stream);
+				!request->display.iterate, bib_entry_to_userspace, buffer);
 		if (error > 0) {
-			error = stream_close_continue(stream);
+			error = nlbuffer_close_continue(buffer);
 		} else {
-			error = stream_close(stream);
+			error = nlbuffer_close(buffer);
 		}
 
-		kfree(stream);
+		kfree(buffer);
 		return error;
 
 	case OP_COUNT:
@@ -331,20 +331,20 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 
 static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 {
-	struct out_stream *stream = (struct out_stream *) arg;
+	struct nl_buffer *buffer = (struct nl_buffer *) arg;
 	struct session_entry_usr entry_usr;
 
 	entry_usr.addr6 = entry->ipv6;
 	entry_usr.addr4 = entry->ipv4;
 	entry_usr.dying_time = jiffies_to_msecs(entry->update_time + sessiondb_get_timeout(entry));
 
-	return stream_write(stream, &entry_usr, sizeof(entry_usr));
+	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
 static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		struct request_session *request)
 {
-	struct out_stream *stream;
+	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
@@ -352,22 +352,22 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 	case OP_DISPLAY:
 		log_debug("Sending session table to userspace.");
 
-		stream = kmalloc(sizeof(*stream), GFP_ATOMIC);
-		if (!stream) {
-			log_err("Could not allocate an output stream to userspace.");
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userspace.");
 			return respond_error(nl_hdr, -ENOMEM);
 		}
 
-		stream_init(stream, nl_socket, nl_hdr);
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
 		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->display.addr4,
-				!request->display.iterate, session_entry_to_userspace, stream);
+				!request->display.iterate, session_entry_to_userspace, buffer);
 		if (error > 0) {
-			error = stream_close_continue(stream);
+			error = nlbuffer_close_continue(buffer);
 		} else {
-			error = stream_close(stream);
+			error = nlbuffer_close(buffer);
 		}
 
-		kfree(stream);
+		kfree(buffer);
 		return error;
 
 	case OP_COUNT:

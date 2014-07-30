@@ -1,6 +1,13 @@
 #ifndef _JOOL_MOD_PACKET_H
 #define _JOOL_MOD_PACKET_H
 
+/**
+ * @file
+ * Random skb-related functions.
+ *
+ * @author Alberto Leiva
+ */
+
 #include <linux/skbuff.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -89,24 +96,65 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
 	return cpu_to_be16(result);
 }
 
+/**
+ * Returns the size in bytes of "hdr", including options.
+ * skbless variant of tcp_hdrlen().
+ */
 static inline int tcp_hdr_len(struct tcphdr *hdr)
 {
 	return hdr->doff << 2;
 }
 
-
+/**
+ * This structure is what Jool stores in control buffers.
+ * Control buffers are reserved spaces in skbs where their current owners (ie. Jool) can store
+ * whatever.
+ *
+ * If you're planning to change this structure, keep in mind its size cannot exceed
+ * sizeof(skb->cb).
+ */
 struct jool_cb {
+	/**
+	 * Protocol of the layer-3 header of the packet.
+	 * Yes, skb->proto has the same superpowers, but it's a little unreliable (it's not set in the
+	 * Local Out chain, though that doesn't affect us ATM).
+	 * Also this saves me a switch in skb_l3_proto() :p.
+	 */
 	__u8 l3_proto;
+	/**
+	 * Protocol of the layer-4 header of the packet. To the best of my knowledge, the kernel also
+	 * uses skb->proto for this, but only on layer-4 code (of which Jool isn't).
+	 * Skbs otherwise do not store a layer-4 identifier.
+	 */
 	__u8 l4_proto;
+	/**
+	 * Pointer to the packet's payload.
+	 * Because skbs only store pointers to headers.
+	 */
 	void *payload;
+	/**
+	 * If this is an incoming packet (as in, incoming to Jool), this points to the same packet.
+	 * Otherwise (which includes hairpin packets), this points to the original (incoming) packet.
+	 * Used by the ICMP wrapper because it needs to reply the original packet, not the one being
+	 * translated.
+	 */
 	struct sk_buff *original_skb;
 };
 
+/**
+ * Returns "skb"'s control buffer in Jool's format.
+ * (jcb = Jool's control buffer.)
+ */
 static inline struct jool_cb *skb_jcb(struct sk_buff *skb)
 {
 	return (struct jool_cb *) skb->cb;
 }
 
+/**
+ * Zeroizes "skb"'s control buffer.
+ * The kernel will go nuts if you don't do this before you transfer "skb"'s ownership; most
+ * citizens in the kernel assume everyone else cleans up their garbage.
+ */
 static inline void skb_clear_cb(struct sk_buff *skb)
 {
 	struct jool_cb *cb;
@@ -114,6 +162,9 @@ static inline void skb_clear_cb(struct sk_buff *skb)
 	memset(cb, 0, sizeof(*cb));
 }
 
+/**
+ * Initializes "skb"'s control buffer using the rest of the arguments.
+ */
 static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
 		void *payload, struct sk_buff *original_skb)
 {
@@ -125,31 +176,50 @@ static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_pro
 	cb->original_skb = original_skb;
 }
 
+/**
+ * Returns "skb"'s layer-3 protocol in enum format.
+ */
 static inline l3_protocol skb_l3_proto(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->l3_proto;
 }
 
+/**
+ * Returns "skb"'s layer-4 protocol in enum format.
+ */
 static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->l4_proto;
 }
 
+/**
+ * Returns a pointer to "skb"'s layer-4 payload.
+ */
 static inline void *skb_payload(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->payload;
 }
 
+/**
+ * Returns the packet Jool started with, which lead to the current "skb".
+ */
 static inline struct sk_buff *skb_original_skb(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->original_skb;
 }
 
+/**
+ * Fragments other than the one with no offset do not contain a layer-4 header.
+ * If this returns false, you should not try to extract a layer-4 header from "skb".
+ */
 static inline bool has_l4_hdr(struct sk_buff *skb)
 {
 	return skb_network_header(skb) != skb_transport_header(skb);
 }
 
+/**
+ * Returns the length of "skb"'s layer-3 header, including options or extension headers.
+ */
 static inline int skb_l3hdr_len(struct sk_buff *skb)
 {
 	return has_l4_hdr(skb)
@@ -157,6 +227,9 @@ static inline int skb_l3hdr_len(struct sk_buff *skb)
 			: (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
+/**
+ * Returns the length of "skb"'s layer-4 header, including options.
+ */
 static inline int skb_l4hdr_len(struct sk_buff *skb)
 {
 	return has_l4_hdr(skb)
@@ -164,26 +237,69 @@ static inline int skb_l4hdr_len(struct sk_buff *skb)
 			: 0;
 }
 
+/**
+ * Returns the length of "skb"'s layer-4 payload.
+ */
 static inline int skb_payload_len(struct sk_buff *skb)
 {
 	return skb->len - (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
+/**
+ * Fails if "hdr" is corrupted.
+ *
+ * @param length of the buffer "hdr" belongs to.
+ * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
+ *		not be considered a problem.
+ * @param iterator this function will leave this iterator at the layer-3 payload of "hdr"'s buffer.
+ */
 int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
 		struct hdr_iterator *iterator);
+/**
+ * Fails if "hdr" is corrupted.
+ *
+ * @param length of the buffer "hdr" belongs to.
+ * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
+ *		not be considered a problem.
+ */
 int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated);
 
+/**
+ * @{
+ * Fails if the parameters describe an invalid respective layer-4 header.
+ *
+ * @param len length of the buffer the header belongs to.
+ * @param l3_hdr_len length of the layer-3 headers of the buffer the header belongs to.
+ */
 int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr);
 int validate_lengths_udp(unsigned int len, u16 l3_hdr_len);
 int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len);
 int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len);
+/**
+ * @}
+ */
 
+/**
+ * kfrees "skb". The point is, if "skb" is fragmented, it also kfrees the rest of the fragments.
+ */
 void kfree_skb_queued(struct sk_buff *skb);
+
+/**
+ * Initializes "skb"'s control buffer. It also validates "skb".
+ */
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);
+/**
+ * @}
+ */
+
+/**
+ * Outputs "skb" in the log.
+ */
 void skb_print(struct sk_buff *skb);
 
 /**
+ * @{
  * These functions adjust skb's layer-4 checksums if neccesary.
  *
  * In an ideal world, Jool would not have to worry about checksums because it's really just a
@@ -207,6 +323,8 @@ void skb_print(struct sk_buff *skb);
  */
 int fix_checksums_ipv6(struct sk_buff *skb);
 int fix_checksums_ipv4(struct sk_buff *skb);
-
+/**
+ * @}
+ */
 
 #endif /* _JOOL_MOD_PACKET_H */
