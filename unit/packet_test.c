@@ -118,6 +118,42 @@ static bool test_udp_checksum_6(void)
 	return success;
 }
 
+static bool test_validate_icmp_integrity(void)
+{
+	struct sk_buff *skb_icmp4_info, *skb_icmp6_info;
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+	struct hdr_iterator iterator6;
+	bool success = true;
+	int error;
+
+	if (init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678) != 0)
+		return false;
+	if (init_pair6(&pair6, "8::5", 8765, "5::8", 5678) != 0)
+		return false;
+
+	if (create_skb_ipv4_icmp_info(&pair4, &skb_icmp4_info, 50) != 0)
+		return false;
+
+	if (create_skb_ipv6_icmp_info(&pair6, &skb_icmp6_info, 50) != 0) {
+		kfree(skb_icmp4_info);
+	}
+
+	error = validate_ipv4_integrity(ip_hdr(skb_icmp4_info), skb_icmp4_info->len, false);
+	success &= assert_equals_int(0, error, "validate ipv4_integrity");
+	error = fix_checksums_ipv4(skb_icmp4_info);
+	success &= assert_equals_int(0, error, "validate fix_checksums_ipv4_icmp");
+	error = validate_ipv6_integrity(ipv6_hdr(skb_icmp6_info), skb_icmp6_info->len, false, &iterator6);
+	success &= assert_equals_int(0, error, "Validate ipv6 integrity");
+	error = fix_checksums_ipv6(skb_icmp6_info);
+	success &= assert_equals_int(0, error, "validate fix_checksums_ipv6_icmp");
+
+	kfree(skb_icmp4_info);
+	kfree(skb_icmp6_info);
+
+	return success;
+}
+
 int init_module(void)
 {
 	START_TESTS("Packet");
@@ -128,6 +164,8 @@ int init_module(void)
 
 	CALL_TEST(test_udp_checksum_4(), "UDP-checksum 4");
 	CALL_TEST(test_udp_checksum_6(), "UDP-checksum 6");
+
+	CALL_TEST(test_validate_icmp_integrity(), "ICMP-Checksums");
 
 	END_TESTS;
 }

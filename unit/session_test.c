@@ -37,6 +37,7 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 			.remote = addr4[remote_id_4],
 			.local = addr4[local_id_4],
 	};
+
 	struct ipv6_pair pair_6 = {
 			.local = addr6[local_id_6],
 			.remote = addr6[remote_id_6],
@@ -45,6 +46,8 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 	struct session_entry* entry = session_create(&pair_4, &pair_6, l4_proto, NULL);
 	if (!entry)
 		return NULL;
+
+	log_debug(SESSION_PRINT_KEY, PRINT_SESSION(entry));
 
 	return entry;
 }
@@ -117,17 +120,34 @@ static bool assert_session(char* test_name, struct session_entry* session,
 	for (i = 0; i < 3; i++) {
 		struct ipv4_pair pair_4 = { session->ipv4.remote, session->ipv4.local };
 		struct ipv6_pair pair_6 = { session->ipv6.local, session->ipv6.remote };
+		struct tuple tuple6, tuple4;
+
+		tuple4.dst.addr.ipv4 = session->ipv4.local.address;
+		tuple4.dst.l4_id = session->ipv4.local.l4_id;
+		tuple4.src.addr.ipv4 = session->ipv4.remote.address;
+		tuple4.src.l4_id = session->ipv4.remote.l4_id;
+		tuple4.l3_proto = L3PROTO_IPV4;
+		tuple4.l4_proto = l4_protos[i];
+
+		tuple6.dst.addr.ipv6 = session->ipv6.local.address;
+		tuple6.dst.l4_id = session->ipv6.local.l4_id;
+		tuple6.src.addr.ipv6 = session->ipv6.remote.address;
+		tuple6.src.l4_id = session->ipv6.remote.l4_id;
+		tuple6.l3_proto = L3PROTO_IPV6;
+		tuple6.l4_proto = l4_protos[i];
+
+
 		struct session_entry *expected_session = table_has_it[i] ? session : NULL;
 		struct session_entry *retrieved_session;
 		bool success = true;
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
-				sessiondb_get_by_ipv4(&pair_4, l4_protos[i], &retrieved_session),
+				sessiondb_get(&tuple4, &retrieved_session),
 				test_name);
 		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
-				sessiondb_get_by_ipv6(&pair_6, l4_protos[i], &retrieved_session),
+				sessiondb_get(&tuple6, &retrieved_session),
 				test_name);
 		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
 
@@ -166,11 +186,12 @@ static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst
 
 	tuple.src.addr.ipv4 = addr4[src_addr_id].address;
 	tuple.dst.addr.ipv4 = addr4[dst_addr_id].address;
-	tuple.src.l4_id = IPV4_PORTS[src_port_id];
-	tuple.dst.l4_id = IPV4_PORTS[dst_port_id];
+	tuple.src.l4_id = addr4[src_port_id].l4_id;
+	tuple.dst.l4_id = addr4[dst_port_id].l4_id;
 	tuple.l4_proto = L4PROTO_UDP;
 	tuple.l3_proto 	= L3PROTO_IPV4;
 
+	log_tuple(&tuple);
 	return sessiondb_allow(&tuple);
 }
 
@@ -194,6 +215,15 @@ static bool test_address_filtering(void)
 	/* The remote port is the only one that doesn't matter. */
 	success &= assert_true(test_address_filtering_aux(0, 1, 0, 0), "lol5");
 	success &= assert_false(test_address_filtering_aux(1, 0, 0, 0), "lol6");
+
+	/* Now we erase the session entry */
+	remove(session, &session_table_udp);
+	session_return(session);
+	session = NULL;
+
+	/* Repeat the "lol5" test but now the assert must be false */
+	success &= assert_false(test_address_filtering_aux(0, 1, 0, 0), "lol7");
+
 
 	return success;
 }
@@ -242,6 +272,8 @@ static bool init(void)
 
 	if (is_error(sessiondb_init()))
 		return false;
+	if (is_error(pktqueue_init()))
+		return false;
 
 	return true;
 }
@@ -249,6 +281,7 @@ static bool init(void)
 static void end(void)
 {
 	sessiondb_destroy();
+	pktqueue_destroy();
 }
 
 int init_module(void)

@@ -20,9 +20,18 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 	while (expected_sessions[expected_count] != NULL) {
 		struct session_entry *expected = expected_sessions[expected_count];
 		struct session_entry *actual;
+		struct tuple tuple6;
+
+		tuple6.dst.addr.ipv6 = expected->ipv6.local.address;
+		tuple6.dst.l4_id = expected->ipv6.local.l4_id;
+		tuple6.src.addr.ipv6 = expected->ipv6.remote.address;
+		tuple6.src.l4_id = expected->ipv6.remote.l4_id;
+		tuple6.l3_proto = L3PROTO_IPV6;
+		tuple6.l4_proto = expected->l4_proto;
+
 		int error;
 
-		error = sessiondb_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
+		error = sessiondb_get(&tuple6, &actual);
 		if (error) {
 			log_err("Error %d while trying to find session entry %d [%pI6c#%u, %pI6c#%u, "
 					"%pI4#%u, %pI4#%u] in the DB.", error, expected_count,

@@ -35,5 +35,11 @@ typedef enum icmp_error_code {
  */
 void icmp64_send(struct sk_buff *skb, icmp_error_code code, __be32 info);
 
+/**
+ * Return the numbers of icmp error that was sent, also reset the static counter
+ * This is only used in Unit Testing;
+ */
+int icmp64_pop(void);
+
 
 #endif /* _JOOL_MOD_ICMP_WRAPPER_H */

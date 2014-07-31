@@ -44,18 +44,23 @@ bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *tes
 
 bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name)
 {
-	return assert_equals_u32(expected, actual, test_name);
+	return assert_equals_u64(expected, actual, test_name);
 }
 
 bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name)
 {
-	return assert_equals_u32(expected, actual, test_name);
+	return assert_equals_u64(expected, actual, test_name);
 }
 
 bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
 {
+	return assert_equals_u64(expected, actual, test_name);
+}
+
+bool assert_equals_u64(__u64 expected, __u64 actual, char *test_name)
+{
 	if (expected != actual) {
-		UNIT_WARNING(test_name, expected, actual, "%u");
+		UNIT_WARNING(test_name, expected, actual, "%llu");
 		return false;
 	}
 	return true;

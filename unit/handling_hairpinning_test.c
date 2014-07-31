@@ -12,6 +12,7 @@
 #include "nat64/comm/str_utils.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
+#include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/bib_db.h"
 #include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
@@ -95,7 +96,7 @@ static struct session_entry *create_dynamic_session(int l4_proto)
 	pair4.local.l4_id = DYNAMIC_SESSION_IPV4_LOCAL_PORT;
 	pair4.remote.l4_id = DYNAMIC_SESSION_IPV4_REMOTE_PORT;
 
-	session = session_create(&pair4, &pair6, l4_proto);
+	session = session_create(&pair4, &pair6, l4_proto, NULL);
 	if (!session) {
 		log_err("Could not allocate the dynamic session entry.");
 		return NULL;
@@ -123,7 +124,7 @@ static struct session_entry *create_static_session(int l4_proto)
 	pair6.local.l4_id = STATIC_SESSION_IPV6_LOCAL_PORT;
 	pair6.remote.l4_id = STATIC_SESSION_IPV6_REMOTE_PORT;
 
-	session = session_create(&pair4, &pair6, l4_proto);
+	session = session_create(&pair4, &pair6, l4_proto, NULL);
 	if (!session) {
 		log_err("Could not allocate the static session entry.");
 		return NULL;
@@ -256,7 +257,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 	if (create_skb_fn(&pair6_request, &skb_in, 100) != 0)
 		return false;
 
-	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Request result");
+	success &= assert_equals_int(VER_DROP, core_6to4(skb_in), "Request result");
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
 	skb_out = get_sent_skb();
@@ -297,7 +298,7 @@ static bool test_hairpin(l4_protocol l4_proto,
 	/* Send the response. */
 	if (create_skb_fn(&pair6_response, &skb_in, 100) != 0)
 		return false;
-	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Response result");
+	success &= assert_equals_int(VER_DROP, core_6to4(skb_in), "Response result");
 	/* The module should have reused the entries, so the database shouldn't have changed. */
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
@@ -340,8 +341,8 @@ static bool test_hairpin(l4_protocol l4_proto,
 	bib_print(l4_proto);
 	session_print(l4_proto);
 
-	session_kfree(dynamic_session);
-	session_kfree(static_session);
+	session_return(dynamic_session);
+	session_return(static_session);
 	bib_kfree(dynamic_bib);
 
 	return success;
@@ -353,6 +354,7 @@ static void deinit(void)
 	filtering_destroy();
 	sessiondb_destroy();
 	bibdb_destroy();
+	pktqueue_destroy();
 	pool4_destroy();
 	pool6_destroy();
 }
@@ -367,6 +369,9 @@ static int init(void)
 	if (error)
 		goto failure;
 	error = pool4_init(pool4, ARRAY_SIZE(pool4));
+	if (error)
+		goto failure;
+	error = pktqueue_init();
 	if (error)
 		goto failure;
 	error = bibdb_init();
