@@ -442,6 +442,8 @@ static void cleaner_timer(unsigned long param)
 	log_debug("Deleting expired sessions...");
 
 	timeout = get_timeout(expirer);
+	INIT_LIST_HEAD(&probes);
+	INIT_LIST_HEAD(&tcp_timeouts);
 
 	spin_lock_bh(&expirer->table->lock);
 
