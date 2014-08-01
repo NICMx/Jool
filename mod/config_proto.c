@@ -47,13 +47,16 @@ int deserialize_general_config(void *buffer, __u16 buffer_len, struct response_g
 	sconfig->ttl.icmp = msecs_to_jiffies(sconfig->ttl.icmp);
 
 	tconfig = &target_out->translate;
-	mtus_len = tconfig->mtu_plateau_count * sizeof(*tconfig->mtu_plateaus);
-	tconfig->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
-	if (!tconfig->mtu_plateaus) {
-		log_debug("Could not allocate the config's plateaus.");
-		return -ENOMEM;
+	tconfig->mtu_plateaus = NULL;
+	if (tconfig->mtu_plateau_count) {
+		mtus_len = tconfig->mtu_plateau_count * sizeof(*tconfig->mtu_plateaus);
+		tconfig->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
+		if (!tconfig->mtu_plateaus) {
+			log_debug("Could not allocate the config's plateaus.");
+			return -ENOMEM;
+		}
+		memcpy(tconfig->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 	}
-	memcpy(tconfig->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 
 	return 0;
 }

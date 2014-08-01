@@ -21,6 +21,8 @@ FILTERING = filtering
 OUTGOING = outgoing
 TRANSLATE = translate
 HAIRPINNING = hairpinning
+PKTQUEUE = pktqueue
+CONFIG_PROTO = config_proto
 
 
 obj-m += $(ITERATOR).o
@@ -31,12 +33,14 @@ obj-m += $(RBTREE).o
 obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
 obj-m += $(BIB).o
-#obj-m += $(SESSION).o
+obj-m += $(SESSION).o
 obj-m += $(INCOMING).o
 obj-m += $(FILTERING).o
 obj-m += $(OUTGOING).o
 obj-m += $(TRANSLATE).o
-#obj-m += $(HAIRPINNING).o
+obj-m += $(HAIRPINNING).o
+obj-m += $(PKTQUEUE).o
+obj-m += $(CONFIG_PROTO).o
 
 
 MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o
@@ -87,7 +91,7 @@ $(SESSION)-objs += $(MIN_REQS)
 $(SESSION)-objs += ../mod/bib_db.o
 $(SESSION)-objs += ../mod/pool6.o
 $(SESSION)-objs += ../mod/rfc6052.o
-$(SESSION)-objs += ../mod/session_db.o
+$(SESSION)-objs += ../mod/pkt_queue.o
 $(SESSION)-objs += impersonator/icmp_wrapper.o
 $(SESSION)-objs += impersonator/pool4.o
 $(SESSION)-objs += impersonator/send_packet.o
@@ -151,6 +155,7 @@ $(HAIRPINNING)-objs += ../mod/packet.o
 $(HAIRPINNING)-objs += ../mod/pool6.o
 $(HAIRPINNING)-objs += ../mod/random.o
 $(HAIRPINNING)-objs += ../mod/rfc6052.o
+$(HAIRPINNING)-objs += ../mod/pkt_queue.o
 $(HAIRPINNING)-objs += ../mod/session_db.o
 $(HAIRPINNING)-objs += ../mod/translate_packet.o
 $(HAIRPINNING)-objs += framework/bib.o
@@ -162,6 +167,39 @@ $(HAIRPINNING)-objs += impersonator/pool4.o
 $(HAIRPINNING)-objs += impersonator/send_packet.o
 $(HAIRPINNING)-objs += impersonator/stats.o
 $(HAIRPINNING)-objs += handling_hairpinning_test.o
+
+$(PKTQUEUE)-objs += $(MIN_REQS)
+$(PKTQUEUE)-objs += ../mod/bib_db.o
+$(PKTQUEUE)-objs += ../mod/packet.o
+$(PKTQUEUE)-objs += ../mod/ipv6_hdr_iterator.o
+$(PKTQUEUE)-objs += ../mod/pool6.o
+$(PKTQUEUE)-objs += ../mod/rfc6052.o
+$(PKTQUEUE)-objs += ../mod/session_db.o
+$(PKTQUEUE)-objs += framework/skb_generator.o
+$(PKTQUEUE)-objs += framework/types.o
+$(PKTQUEUE)-objs += impersonator/icmp_wrapper.o
+$(PKTQUEUE)-objs += impersonator/pool4.o
+$(PKTQUEUE)-objs += impersonator/send_packet.o
+$(PKTQUEUE)-objs += impersonator/stats.o
+$(PKTQUEUE)-objs += pkt_queue_test.o
+
+$(CONFIG_PROTO)-objs += $(MIN_REQS)
+$(CONFIG_PROTO)-objs += ../mod/filtering_and_updating.o
+$(CONFIG_PROTO)-objs += ../mod/packet.o
+$(CONFIG_PROTO)-objs += ../mod/pkt_queue.o
+$(CONFIG_PROTO)-objs += ../mod/ipv6_hdr_iterator.o
+$(CONFIG_PROTO)-objs += ../mod/pool6.o
+$(CONFIG_PROTO)-objs += ../mod/rfc6052.o
+$(CONFIG_PROTO)-objs += ../mod/bib_db.o
+$(CONFIG_PROTO)-objs += ../mod/session_db.o
+$(CONFIG_PROTO)-objs += ../mod/translate_packet.o
+$(CONFIG_PROTO)-objs += impersonator/icmp_wrapper.o
+$(CONFIG_PROTO)-objs += impersonator/pool4.o
+$(CONFIG_PROTO)-objs += impersonator/send_packet.o
+$(CONFIG_PROTO)-objs += impersonator/stats.o
+$(CONFIG_PROTO)-objs += config_proto_test.o
+
+
 
 
 all:
@@ -176,12 +214,14 @@ test:
 	# Warning: This test is lenghty! It might freeze your computer for a couple of seconds.
 	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
 	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
-	#-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
+	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
 	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
-	#-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
+	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
 	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
-	#-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
+	-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
+	-sudo insmod $(PKTQUEUE).ko && sudo rmmod $(PKTQUEUE)
+	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

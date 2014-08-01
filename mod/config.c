@@ -336,7 +336,9 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 
 	entry_usr.addr6 = entry->ipv6;
 	entry_usr.addr4 = entry->ipv4;
-	entry_usr.dying_time = jiffies_to_msecs(entry->update_time + sessiondb_get_timeout(entry));
+
+	entry_usr.dying_time = jiffies_to_msecs(entry->update_time + sessiondb_get_timeout(entry)
+			- jiffies);
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
