@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 2
 ---
 
-# Tutorial 2: Basic Runs
+# Kernel Module > Basic Runs
 
 ## Index
 
@@ -15,6 +15,8 @@ title: Documentation - Tutorial 2
 ## Introduction
 
 The purpose of this tutorial is twofold: To show how the translation mechanism is supposed to be activated and to tune up the user's understanding of how a stateful NAT64 interacts with other nodes so he or she can adapt it to different network arrangements.
+
+Software-wise, only a [successful install of Jool's kernel module](tutorial1.html) is required. The userspace application is out of the scope of this document on purpose.
 
 You might want to get acquainted with the <a href="https://linux.die.net/man/8/ip" target="_blank">ip</a> command before you continue.
 
@@ -28,7 +30,7 @@ Your situation will probably look like this:
 
 ![Fig.1 - Initial state](images/tut2.1-prestate.svg)
 
-I'm going to over-simplify this, and assume your network and the Internet are a single computer each. We'll configure the network manually, and there will be no DNS.
+I'm going to over-simplify this, and assume your network and the IPv4 Internet are a single computer each. We'll configure the network manually, and there will be no DNS. The ordeal will be completely independent of the IPv6 Internet, so that goes away too:
 
 ![Fig.2 - Simplified initial state](images/tut2.1-simplification.svg)
 
@@ -39,6 +41,8 @@ In order to deploy NAT64, throw the Jool machine in-between:
 ![Fig.3 - Dual-stack Linux in between.](images/tut2.1-setup.svg)
 
 Again, the second interface is not really neccesary; you will see a single interface dual-stacking in the [second scenario](#scenario-2-single-interface). Note that one of the interfaces is wireless, because that's how most laptops are today.
+
+> If your interface is not wireless (eg. you're testing in virtual machines), you can still follow these instructions by simply omitting the `iwconfig` commands and replacing every instance of "wlan0" for the name of your respective interface (typically "eth1").
 
 Also, as part of the simplification, I'm going to allow myself to make B both of the other nodes' default gateways. Again, less brain-dead options will be covered later.
 
@@ -51,7 +55,11 @@ If your distro features a network manager, you want to turn it off because we do
 {% highlight bash %}
 user@B:~# # This is how I do it in Ubuntu.
 user@B:~# service network-manager stop
-user@B:~# ip address flush dev eth0 && ip -6 address flush dev wlan0
+user@B:~#
+user@B:~# # You might need to do this if the manager left global addresses in the interfaces.
+user@B:~# # Mind the scope; you DO NOT want to remove the "scope link" addresses!
+user@B:~# ip address flush dev eth0 scope global
+user@B:~# ip address flush dev wlan0 scope global
 {% endhighlight %}
 
 Now configure the cord. Note that there's nothing unusual about this; we haven't gotten into Jool territory yet. Run the following commands on node B:
@@ -60,15 +68,42 @@ Now configure the cord. Note that there's nothing unusual about this; we haven't
 user@B:~# /sbin/ip link set eth0 up
 user@B:~# /sbin/ip link set wlan0 up
 user@B:~#
-user@B:~# /sbin/ip -6 address add 2001:db8::1/32 dev eth0
+user@B:~# /sbin/ip address add 2001:db8::1/32 dev eth0
+user@B:~# /sbin/ip address add 192.0.2.1/24 dev wlan0
 user@B:~#
 user@B:~# # Create a wireless network so Node A can find us
-user@B:~# # (Note, we only have to do this because we chose to use
-user@B:~# # a wireless interface, see the diagram).
+user@B:~# # (We only have to do this because we chose to use a wireless interface;
+user@B:~# # see the diagram. Skip if your interface isn't wireless).
 user@B:~# /sbin/iwconfig wlan0 mode Ad-hoc essid jool
-user@B:~#
-user@B:~# /sbin/ip address add 192.0.2.1/24 dev wlan0
 {% endhighlight %}
+
+Run `ip address` to review the configuration.
+
+<div class="highlight"><pre><code class="bash">user@B:~# /sbin/ip address
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: <strong>eth0</strong>: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UNKNOWN qlen 1000
+    link/ether 08:00:27:33:65:c8 brd ff:ff:ff:ff:ff:ff
+    inet6 <strong>2001:db8::1/32 scope global</strong>
+       valid_lft forever preferred_lft forever
+    inet6 <strong>fe80::a00:27ff:fe33:65c8/64 scope link</strong>
+       valid_lft forever preferred_lft forever
+3: <strong>wlan0</strong>: &lt;NO-CARRIER,BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc mq state DOWN qlen 1000
+    link/ether 00:24:d6:7d:b0:f2 brd ff:ff:ff:ff:ff:ff
+    inet <strong>192.0.2.1/24 scope global</strong> wlan0
+    inet6 fe80::224:d6ff:fe7d:b0f2/64 scope link
+       valid_lft forever preferred_lft forever
+</code></pre></div>
+
+Take heed of the highlighted output:
+
+- Your "scope global" addresses should look the same as in the sample output.
+- Your "scope link" address will probably not look the same, which is fine. Just make sure it exists.
+
+You need "<a href="http://en.wikipedia.org/wiki/Link-local_address" target="_blank">Link addresses</a>" <a href="http://en.wikipedia.org/wiki/Link-local_address#IPv6" target="_blank">whenever you deal with IPv6</a>; they are used by several relevant protocols. In particular, they are used by the *neighbor discovery protocol*, which means if you don't have them, the NAT64 will be intermitently unable to send packets.
 
 ### Network on Node C
 
@@ -76,10 +111,14 @@ Run the following commands on C:
 
 {% highlight bash %}
 user@C:~# service network-manager stop
+user@C:~# ip address flush dev eth0 scope global
+user@C:~#
 user@C:~# /sbin/ip link set eth0 up
 user@C:~# /sbin/ip -6 address add 2001:db8::2/32 dev eth0
 user@C:~# /sbin/ip -6 route add default via 2001:db8::1 dev eth0
 {% endhighlight %}
+
+"eth0" here also needs link addresses.
 
 ### Network on Node A
 
@@ -87,13 +126,17 @@ Run the following commands on A:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
+user@A:~# ip address flush dev wlan0 scope global
+user@A:~#
 user@A:~# /sbin/ip link set wlan0 up
 user@A:~# /sbin/ip address add 192.0.2.2/24 dev wlan0
 user@A:~# /sbin/ip route add default via 192.0.2.1 dev wlan0
+user@A:~#
+user@A:~# # Skip this if your interface isn't wireless.
 user@A:~# /sbin/iwconfig wlan0 mode Ad-hoc essid jool
 {% endhighlight %}
 
-Note that nodes A and C still have no way to interact with each other. You might want to `/bin/ping` A with B, and also `/bin/ping6` B with C to make sure you're on the right track.
+Note that nodes A and C still have no way to interact with each other. At this point, you might want to `/bin/ping` A with B, and also `/bin/ping6` B with C to make sure you're on the right track.
 
 ### NAT64 on Node B
 
@@ -172,7 +215,7 @@ user@B:~# /sbin/modprobe -r jool
 So what is going on?
 
 1. Node C creates a packet for someone called "64:ff9b::192.0.2.2". It can tell it doesn't belong to its own network, so the packet is sent to its default gateway, node B.
-2. Node B then realizes the destination address contains the NAT64 prefix so Jool gets to process it. Among several modifications it does to the layer 3 and layer 4 headers, it strips the prefix from the destination and sets one from its own pool as the source. The result is a packet that goes to 192.0.2.2 from (say) 192.168.2.1. (192.168.2.1 is part of Jool's default pool, which we didn't edit)
+2. Node B then realizes the destination address contains the NAT64 prefix so Jool gets to process it. Among several modifications it does to the layer 3 and layer 4 headers, it strips the prefix from the destination and sets one from its own pool as the source. The result is a packet that goes from 192.168.2.1 to 192.0.2.2. (192.168.2.1 is part of Jool's default pool, which we didn't edit. More on this in future scenarios.)
 3. Completely unaware of the translation, node C answers what it perceives as your average IPv4 packet. Thus a response from 192.0.2.2 to 192.168.2.1 is born.
 4. Node B again realizes that the destination address belongs to one of its pools, so before any routing happens Jool gets to meddle with the packet.
 Jool _remembers_ that C previously wrote to someone who ended up being 192.0.2.2, so it infers the new packet is the response to that. As such, it forwards the data to C.
@@ -192,6 +235,8 @@ This is B's configuration:
 
 {% highlight bash %}
 user@B:~# service network-manager stop
+user@B:~# /sbin/ip address flush dev eth0 scope global
+user@B:~#
 user@B:~# /sbin/ip link set eth0 up
 user@B:~# /sbin/ip -6 address add 2001:db8::1/64 dev eth0
 user@B:~# /sbin/ip address add 192.0.2.1/24 dev eth0
@@ -201,6 +246,8 @@ This is A's configuration:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
+user@A:~# /sbin/ip address flush dev eth0 scope global
+user@A:~#
 user@A:~# /sbin/ip link set eth0 up
 user@A:~# /sbin/ip address add 192.0.2.2/24 dev eth0
 user@A:~# /sbin/ip route add default via 192.0.2.1 dev eth0
@@ -231,7 +278,7 @@ In this third scenario a slightly more realistic scenario will be covered, along
 
 ![Fig.1 - Network design](images/tut2.3-network.svg)
 
-I dropped again the wireless interface (for realism and to clear the tutorial of iwconfig), threw in more sensible addresses (in particular, the IPv4 pool is no longer an alien, though that isn't immediately apparent in the diagram), and made each network more than one node each (but they will still all be Linux, since I'm more comfortable with its routing than anything else's). Also, I will assume that you have no control over the IPv4 nodes so we can no longer configure them in unnatural ways (In the previous tutorial, Jool was the IPv4 node's default gateway, which made no sense). If the IPv6 side is your network and the other side is your IPv4 ISP, then this is probably the case.
+I dropped again the wireless interface (for realism and to clear the tutorial of `iwconfig`), threw in more sensible addresses (in particular, the IPv4 pool is no longer an alien, though that isn't immediately apparent in the diagram), and made each network more than one node each (but they will still all be Linux, since I'm more comfortable with its routing than anything else's). Also, I will assume that you have no control over the IPv4 nodes so we can no longer configure them in unnatural ways (In the previous tutorial, Jool was the IPv4 node's default gateway, which made no sense). If the IPv6 side is your network and the other side is your IPv4 ISP, then this is probably the case.
 
 This tutorial will still not meddle with the DNS, and more or less as a consequence, the environment will still not be connected to the real IPv6 Internet. I've decided to move that to a [separate tutorial](tutorial4.html), because that no longer has much to do with Jool and people already familiar with DNS64 can skip it.
 
@@ -263,7 +310,7 @@ user@R:~# # Unknown traffic is probably headed to IPv4.)
 user@R:~# /sbin/ip -6 route add default via 2001:db8:2::2 dev eth1
 {% endhighlight %}
 
-Of course, when you connect your network to the IPv6 Internet the NAT64 will not be the default gateway. You know that only packets whose prefix is 64::/96 are meant to be translated (i. e. the entire IPv4 Internet can be seen as a single network named "64::/96"), so in the meantime you can drop everything else:
+Of course, when you connect your network to the IPv6 Internet the NAT64 will not be the default gateway. You know that only packets whose prefix is 64::/96 are meant to be translated (i. e. the entire IPv4 Internet can be seen as a single network named "64::/96"), so you can drop everything else:
 
 {% highlight bash %}
 user@R:~# # Use this instead of the default gateway instruction.
@@ -355,7 +402,7 @@ There's a contrast between J's addresses (configured above) and Jool's "pool of 
 
 By default, Jool uses addresses 192.168.2.1 through 192.168.2.4 as its IPv4 pool, and prefix 64:ff9b::/96 as its IPv6 pool. Here's some info on them for you to chew:
 
-* 64:ff9b::/96 has been reserved by <a href="http://tools.ietf.org/html/rfc6052#section-2.1" target="_blank">RFC 6052</a> for 6/4 translation. This prefix is not globally routable, thus you can use it as long as you're not planning to open your NAT64 service to the public.
+* 64:ff9b::/96 has been reserved by <a href="http://tools.ietf.org/html/rfc6052#section-2.1" target="_blank">RFC 6052</a> for 6/4 translation. This prefix is not globally routable, so you can use it as long as you're not planning to open your NAT64 service to the public.
 * 192.168.2.1-4 is a consequence of our lab testing and is a dumb default we should probably remove. You always want to change it.
 
 You override the default values while inserting the module:
@@ -400,7 +447,9 @@ I hope by now you can tell how you want your traffic to flow and how you can inj
 You might also have noticed and be stumped by some of stateful NAT64's limitations. Here's a word on them:
 
 1. If you didn't follow the link to [Static Bindings](static-bindings.html), you might be baffled at the fact that we haven't yet issued a single ping from a IPv4 node. Truth be told, stateful NAT64 is formally defined as "Address and Protocol Translation from IPv6 Clients to IPv4 Servers", which means that IPv6 nodes starting communications is an assumption that happily takes over a big chunk of the RFC. IPv4 clients accesing a _limited_ amount of IPv6 servers is possible though, follow the link to find the details.
-2. Also, scenario 3 hides any number of IPv6 nodes behind a single IPv4 address. How can a NAT64 potentially hide the entire IPv6 internet behind a single puny IPv4 address? Perhaps NAT64 also mangles ports, but then doesn't it mean that you're only limited to 65536 translated connections at a time?
+2. Scenario 3 hides any number of IPv6 nodes behind a single IPv4 address. How can a NAT64 potentially hide the entire IPv6 internet behind a single puny IPv4 address? Perhaps NAT64 also mangles ports, but then doesn't it mean that you're only limited to 65536 translated connections at a time? Go to the [IPv4 pool discussion](tutorial3.html) to find out.
+3. What's up with the NAT64 prefix? It's pretty lame that IPv6 users need to know they need to append it to IPv4 addresses.  
+The answer to that is, they don't; the DNS takes care of that for them. Go to [DNS64](tutorial4.html) to find out how.
 
-Go to the [third tutorial](tutorial3.html) to find out about that.
+Done!
 

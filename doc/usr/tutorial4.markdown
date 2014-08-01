@@ -3,15 +3,15 @@ layout: documentation
 title: Documentation - Tutorial 4
 ---
 
-# Tutorial 4: DNS64
+# DNS64
 
 ## Index
 
 1. [Introduction](#introduction)
 2. [Network](#network)
 3. [Configuration](#configuration)
- 1. [BIND](#bind)
- 2. [Everything else](#everything-else)
+   1. [BIND](#bind)
+   2. [Everything else](#everything-else)
 4. [Outcome](#outcome)
 
 ## Introduction

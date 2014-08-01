@@ -276,6 +276,10 @@ code {
 	padding-right: 0.3em;
 }
 
+.bash .c {
+	color: #058;
+}
+
 table {
 	display: block;
 	background-color: #f8f8f8;

@@ -22,18 +22,27 @@ If you want to know what the development team is currently tweaking, you should 
 
 But just to make things clear, this is the status of the project as of now:
 
-Jool is still a couple of features away from being 100% RFC 6146 compliant:
+Jool is still <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">one feature away</a> from being 100% RFC 6146 compliant. That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
 
-1. <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">Filtering policies</a>
-2. <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Simultaneous open of TCP connections</a>
-
-That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
-
-Our next target is **Simultaneous open of TCP connections**. Now cooking version 3.2.0...
+Out last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.0" target="_blank">3.2.0</a>. Now cooking 3.3.0...
 
 -------------------
 
 ## News
+
+### 2014-07-X (TODO)
+
+Version 3.2.0 released.
+
+<a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Simultaneous Open of TCP Connections</a> is now correctly implemented. The translation pipeline should now be completely quirkless.
+
+The userspace application has a couple of new features: The <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">ability to flush the pools</a> and the addition of `--quick` (TODO). On the other hand, the single-value configuration parameters have been joined: `--general` (TODO) replaced `--filtering` and `--translate`, and `--fragmentation` has been dropped (since you now configure the kernel's defragmenter, not Jool's).
+
+A <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">little confusion</a> also revealed that the path to libnl <a href="https://github.com/NICMx/NAT64/commit/6455ffd898bae996ce3cab37b2fb6a3459ae096b" target="_blank">used to be hardcoded in the configuration script</a>. If you used to have trouble compiling the userspace application, you might want to try again using the new version.
+
+The more unnoticeable stuff includes a major <a href="https://github.com/NICMx/NAT64/issues/104" target="_blank">refactor to the fragmentation code</a>, a <a href="https://github.com/NICMx/NAT64/issues/100" target="_blank">complement to the old issue #65</a>, and a <a href="https://github.com/NICMx/NAT64/issues/56" target="_blank">healthier code-to-comment ratio</a> :).
+
+These are the changes to the documentation: TODO.
 
 ### 2014-06-26
 

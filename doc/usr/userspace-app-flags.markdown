@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Userspace Application
 ---
 
-# Userspace Application
+# Userspace Application > Flags
 
 ## Index
 
@@ -12,25 +12,31 @@ title: Documentation - Userspace Application
 3. [\--pool4](#pool4)
 4. [\--bib](#bib)
 5. [\--session](#session)
-6. [\--filtering](#filtering)
-7. [\--translate](#translate)
-8. [\--fragment](#fragment)
+6. [\--quick](#quick)
+7. [\--general](#general)
+   1. [\--dropAddr](#dropaddr)
+   2. [\--dropInfo](#dropinfo)
+   3. [\--dropTCP](#droptcp)
+   4. [\--toUDP](#toudp)
+   5. [\--toTCPest](#totcpest)
+   6. [\--toTCPtrans](#totcptrans)
+   7. [\--toICMP](#toicmp)
+   8. [\--setTC](#settc)
+   9. [\--setTOS](#settos)
+   10. [\--TOS](#tos)
+   11. [\--setDF](#setdf)
+   12. [\--genID](#genid)
+   13. [\--boostMTU](#boostmtu)
+   14. [\--plateaus](#plateaus)
+   15. [\--minMTU6](#minmtu6)
 
 ## Introduction
 
-This is what you can do with the userspace application under the <a href="https://github.com/NICMx/NAT64/tree/master/usr" target="_blank">usr/</a> folder.
+This document explains the flags and options of Jool's userspace application.
 
-Generate and install the binaries by typing the following:
+See the [compilation and installation](userspace-app-install.html) instructions if you still don't have the binaries.
 
-{% highlight bash %}
-# apt-get install libnl-3-dev
-NAT64-master$ cd usr
-NAT64-master/usr$ ./configure
-NAT64-master/usr$ make
-NAT64-master/usr# make install
-{% endhighlight %}
-
-libnl-3-dev is a framework the application depends on. That `apt-get` line, of course, is good only if you use that particular packet manager; your mileage might vary. As of 2014-01-21, <a href="http://www.carisma.slowglass.com/~tgr/libnl/" target="_blank">this</a> is libnl's website.
+If a command changes the behavior of Jool, it requires network admin privileges (<a href="http://linux.die.net/man/7/capabilities" target="_blank">CAP_NET_ADMIN</a>).
 
 ## \--help
 
@@ -42,15 +48,20 @@ libnl-3-dev is a framework the application depends on. That `apt-get` line, of c
 
 Prints mostly a summary of this document, though you can also use it to review the abbreviated form of the flags, which aren't here.
 
+`--help` is the only mode which does not require Jool's kernel module to be active.
+
 ## \--pool6
 
 **Syntax**
 
-	jool --pool6 [<operation>] [--prefix <prefix>]
+	jool --pool6 [--display]
+	jool --pool6 --count
+	jool --pool6 --add --prefix <prefix>
+	jool --pool6 --remove --prefix <prefix> [--quick]
+	jool --pool6 --flush [--quick]
 
 **Arguments**
 
-	<operation> := --display | --count | --add | --remove
 	<prefix> := <prefix address>/<prefix length>
 
 **Description**
@@ -59,10 +70,15 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 
 **Operations**
 
-* Using `--display`, the application prints Jool's current prefixes. The `--prefix` parameter is ignored. This is the default operation.
-* Using `--count`, Jool prints the number of prefixes in the database. The `--prefix` parameter is ignored.
-* Using `--add`, Jool adds the `--prefix` prefix to the pool.
-* Using `--remove`, Jool deletes the `--prefix` prefix from the pool.
+* Using `--display`, the application prints Jool's current prefixes. This is the default operation.
+* Using `--count`, Jool prints the number of prefixes in the database.
+* Using `--add`, Jool adds the `<prefix>` prefix to the pool.
+* Using `--remove`, Jool deletes the `<prefix>` prefix from the pool.
+* Using `--flush`, Jool empties the pool.
+
+**Additional flags**
+
+See [`--quick`](#quick).
 
 **Examples**
 
@@ -75,17 +91,19 @@ jool --pool6 --count
 jool --pool6 --remove --prefix 64:ff9b::/96
 # Return the default prefix.
 jool --pool6 --add --prefix 64:ff9b::/96
+# Destroy all prefixes. Do not bother cleaning up the garbage.
+jool --pool6 --flush --quick
 {% endhighlight %}
 
 ## \--pool4
 
 **Syntax**
 
-	jool --pool4 [<operation>] [--address <IPv4 address>]
-
-**Arguments**
-
-	<operation> := --display | --count | --add | --remove
+	jool --pool4 [--display]
+	jool --pool4 --count
+	jool --pool4 --add --address <IPv4 address>
+	jool --pool4 --remove --address <IPv4 address> [--quick]
+	jool --pool4 --flush [--quick]
 
 **Description**
 
@@ -93,12 +111,15 @@ Interacts with Jool's IPv4 pool. The pool dictates which packets coming from the
 
 **Operations**
 
-* Using `--display`, the application prints Jool's current addresses. The `--address` parameter is ignored. This is the default operation.
-* Using `--count`, Jool prints the number of addresses in the pool. The `--address` parameter is ignored.
+* Using `--display`, the application prints Jool's current addresses. This is the default operation.
+* Using `--count`, Jool prints the number of addresses in the pool.
 * Using `--add`, Jool adds `<IPv4 address>` to the pool.
 * Using `--remove`, Jool deletes `<IPv4 address>` from the pool.
+* Using `--flush`, Jool empties the pool.
 
-When you remove an address, its [BIB entries](#bib) are also removed from their respective tables. BIB entry _B_ belongs to pool address _A_ if _B_'s IPv4 address equals _A_.
+**Additional flags**
+
+See [`--quick`](#quick).
 
 **Examples**
 
@@ -117,11 +138,14 @@ jool --pool4 --add --address 192.168.2.2
 
 **Syntax**
 
-	jool --bib [--numeric] [<operation>] <protocols> [--bib4 <bib4>] [--bib6 <bib6>]
+	jool --bib [--display] [--numeric] <protocols>
+	jool --bib --count <protocols>
+	jool --bib --add <protocols> --bib4 <bib4> --bib6 <bib6>
+	jool --bib --remove <protocols> --bib4 <bib4> --bib6 <bib6>
+	jool --bib --flush <protocols>
 
 **Arguments**
 
-	<operation> := --display | --count | --add | --remove
 	<protocols> := [--tcp] [--udp] [--icmp]
 	<bib4> := <IPv4 address>#(<port> | <ICMP identifier>)
 	<bib6> := <IPv6 address>#(<port> | <ICMP identifier>)
@@ -139,7 +163,7 @@ TCP:
 
 Then some node from the IPv4 side is chatting 6::6 on port 66 using the TCP protocol. Jool is fooling the IPv4 node into thinking that 6::6#66's address is 4.4.4.4 on port 44. If you want more details on the relationship (such as the IPv4 node's address), head over to [\--session](#session).
 
-The BIB is a very fundamental aspect of stateful NAT64. If you want Jool to be able to translate a packet stream, then you need a corresponding record in the BIB.  
+The BIB is a very fundamental component of stateful NAT64. If you want Jool to be able to translate a packet stream, then you need a corresponding record in the BIB.  
 When translating from IPv6 to IPv4, Jool has enough information to create bindings on its own. As such, you do not need to create manual bindings for traffic IPv6 nodes are going to start.  
 Jool cannot create entries when traffic is started from IPv4 because there's not enough information to create the record. If IPv4 nodes are supposed to be able to start communication (e.g. you want to publish an IPv6 node's service to the IPv4 world) then you need to create manual bindings ([here's the walkthrough](static-bindings.html)).
 
@@ -151,18 +175,16 @@ The database consists of three separate tables; one for TCP bindings, one for UD
 
 **Operations**
 
-* Using `--display`, the application prints Jool's current BIB. `--bib6` and `--bib4` are ignored. This is the default operation.
-* Using `--count`, Jool prints the number of BIB entries per table. `--bib6` and `--bib4` are ignored.
+* Using `--display`, the application prints Jool's current BIB. This is the default operation.
+* Using `--count`, Jool prints the number of BIB entries per table.
 * Using `--add`, Jool adds the entry resulting from the `--bib6` and `--bib4` parameters to the BIB. Note that the `--bib4` component is an address assigned to the NAT64, so make sure you have added it to the [IPv4 pool](#pool4).
-* Using `--remove`, Jool deletes the entry. Since both components are unique across all entries from the same table, you only need to supply one of the `--bib*` arguments.
-
-When you delete a BIB entry, its [sessions](#session) are also removed from their respective tables. Session entry _S_ belongs to BIB entry _B_ if _S_'s local IPv4 transport address equals _B_'s IPv4 transport address, and _S_'s remote IPv6 transport address equals _B_'s IPv6 transport address.
+* Using `--remove`, Jool deletes the entry. Since both components are unique across all entries from the same table, you only need to supply one of the `--bib*` arguments (but you can still input both to make sure you're deleting exactly what you want to delete).
 
 **Protocols**
 
-The command will only affect the tables mentioned by these parameters.
+The command will only affect the tables mentioned by these parameters. If you omit this entirely, Jool will assume you want to operate on all three tables.
 
-**Other parameters**
+**Additional flags**
 
 When `--display`ing, the application will by default attempt to resolve the name of the IPv6 service of each BIB entry. _If your nameservers aren't answering, this will slow the output down_.
 
@@ -174,6 +196,8 @@ TCP:
 {% endhighlight %}
 
 Use `--numeric` to turn this behavior off (see the example in the description section, above).
+
+See [`--quick`](#quick) as well.
 
 **Examples**
 
@@ -207,11 +231,11 @@ Another one is that if we merged the BIB entries into the session entries, the i
 
 **Syntax**
 
-	jool --session [--numeric] [<operation>] <protocols>
+	jool --session [--display] [--numeric] <protocols>
+	jool --session --count <protocols>
 
 **Arguments**
 
-	<operation> := --display | --count
 	<protocols> := [--tcp] [--udp] [--icmp]
 
 **Description**
@@ -229,11 +253,11 @@ You can use this command to get information on each of these connections.
 
 **Protocols**
 
-The command will filter out the tables not mentioned in this list.
+The command will filter out the tables not mentioned in this list. If you don't include any protocols though, Jool will assume you want to see all three tables.
 
 **Other parameters**
 
-* When `--display`ing, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_. Use `--numeric` to turn this behavior off.
+When `--display`ing, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_. Use `--numeric` to turn this behavior off.
 
 **Command examples**
 
@@ -284,15 +308,51 @@ Local: 192.0.2.1#6617		64:ff9b::5db8:d877#80
   (Fetched 2 entries.)
 {% endhighlight %}
 
-## \--filtering
+## \--quick
+
+First, a little background information:
+
+* [IPv6 prefix](#pool6) _P_ owns [session entry](#session) _S_ if _P_ equals the network side of _S_'s local IPv6 address.
+* [IPv4 address](#pool4) _A_ owns [BIB entry](#bib) _B_ if _A_ equals _B_'s IPv4 address.
+* [BIB entry](#bib) _B_ owns [session entry](#session) _S_ if _B_'s IPv4 address equals _S_'s local IPv4 address and _B_'s IPv6 address equals _S_'s remote IPv6 address.
+
+If you `--remove` or `--flush` an owner, its "slaves" become obsolete. For example, if you remove a prefix, its sessions are no longer relevant because its packets are no longer going to be translated.
+
+* If you omit `--quick` while removing owners, Jool will get rid of the newly orphaned slaves. This saves memory and keeps entry lookup efficient during packet translations.
+* On the other hand, when you do issue `--quick`, Jool will only purge the owners.  You might want to do this if you want the operation to succeed quickly (maybe you have a HUGE amount of slaves), or more likely you plan to re-add the owner in the future (in which case the still-remaining slaves will become relevant and usable again).
+
+Orphaned slaves will remain inactive in the database, and will eventually kill themselves once their normal removal conditions are met (eg. orphaned sessions will die once their timeout expires).
+
+## \--general
 
 **Syntax**
 
-	jool --filtering <flag key> <new value>
+	jool [--general]
+	jool [--general] <flag key> <new value>
 
 **Description**
 
-These are several values that affect the way Jool behaves during the <a href="http://tools.ietf.org/html/rfc6146#section-3.5" target="_blank">"Filtering and Updating" step</a>. This step happens while packets are being processed, and its purpose is to _drop_ packets on certain circumstances and _update_ the database so future packets can be identified.
+Controls several of Jool's internal variables.
+
+* Issue an empty `--general` command to display the current values of all of Jool's options.
+* Enter a key and a value to edit the key's variable.
+
+`--general` is the default configuration mode, so you never actually need to input that one flag.
+
+**Examples**
+
+{% highlight bash %}
+# Display the configuration values, keys and values.
+jool --general
+# Same thing, shorter version.
+# BTW: This looks very simple, but it still requires Jool's kernel module to be active.
+jool
+# Turn "address dependent filtering" on.
+# true, false, 1, 0, yes, no, on and off all count as valid booleans.
+jool --general --dropAddr true
+{% endhighlight %}
+
+**Keys**
 
 The following flag keys are available:
 
@@ -369,18 +429,6 @@ When you change this value, the lifetimes of all already existing transitory TCP
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
 When you change this value, the lifetimes of all already existing ICMP sessions are updated.
-
-## \--translate
-
-**Syntax**
-
-	jool --translate <flag key> <new value>
-
-**Description**
-
-These are several values that affect the way Jool behaves during the <a href="http://tools.ietf.org/html/rfc6146#section-3.7" target="_blank">"Translating the Packet" step</a>. This step happens while packets are being processed, and its purpose is to actually change their content (flipping protocols).
-
-The following flag keys are available:
 
 ### \--setTC
 
@@ -497,20 +545,3 @@ This value defaults to 1280 because all IPv6 networks are theoretically guarante
 
 IPv6 packets and unfragmentable IPv4 packets don't need any of this because they imply the emitter is the one minding MTUs and packet sizes (via <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">Path MTU Discovery</a> or whatever).
 
-## \--fragment
-
-Because of [this quirk](quirk-iptables.html), Jool has its own defragmenter, which is built upon different requirements than those from the kernel's.
-
-> **Warning.**
-> 
-> We've recently found the aforementioned quirk to be a fallacy, and we're <a href="https://github.com/NICMx/NAT64/tree/fragments_experiment" target="_blank">experimenting on replacing Jool's defragmenter with the kernel's</a>.
-> 
-> As a result, this section of the configuration is bound to be replaced by the kernel's <a href="http://www.linuxfoundation.org/collaborate/workgroups/networking/ip-sysctl#IP_Fragmentation" target="_blank">fragmentation sysctl controls</a> in the future.
-
-### \--toFrag
-
-- Name: Defragmentation Timeout
-- Type: Integer (seconds)
-- Default: 2
-
-Time in seconds to keep an IP fragment in memory.

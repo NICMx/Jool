@@ -33,22 +33,24 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 
 ### ITESM students
 
-* [Juan Antonio Osorio](https://github.com/JAORMX) <jaosorior@gmail.com>
-* [Luis Fernando Hinojosa](https://github.com/luion) <lf.hinojosa@gmail.com>
-* [David Valenzuela](https://github.com/davidvrdz) <david.valenzuela.88@gmail.com>
-* Jose Vicente Ramirez <pepermz@gmail.com>
-* Mario Gerardo Trevinho <mario_tc88@hotmail.com>
-* [Roberto Aceves](https://github.com/robertoaceves) <roberto.aceves@gmail.com>
-* [Miguel Alejandro González](https://github.com/magg) <maggonzz@gmail.com>
-* [Ramiro Nava](https://github.com/ramironava) <ramironava@gmail.com>
-* [Adrian González](https://github.com/Adrian2112) <bernardogzzf@gmail.com>
-* Manuel Aude <dormam@gmail.com>
-* [Gabriel Chavez](https://github.com/chavezgu) <gabrielchavez02@gmail.com>
-* Alan Villela López <avillop@gmail.com>
-* [Angel Cazares](https://github.com/legionAngel) <angel.cazares@live.com>
-* [Abraham Baez](https://github.com/basuam) <basuam@gmail.com>
-* Ing. Elvia Patricia Barrón Cano <epatybarron@gmail.com>
+* [Abraham Baez](https://github.com/basuam) - basuam@gmail.com
+* [Adrian González](https://github.com/Adrian2112) - bernardogzzf@gmail.com
+* Alan Villela López - avillop@gmail.com
+* [Angel Cazares](https://github.com/legionAngel) - angel.cazares@live.com
+* [David Valenzuela](https://github.com/davidvrdz) - david.valenzuela.88@gmail.com
+* Ing. Elvia Patricia Barrón Cano - epatybarron@gmail.com
+* [Gabriel Chavez](https://github.com/chavezgu) - gabrielchavez02@gmail.com
+* Jose Vicente Ramirez - pepermz@gmail.com
+* [Juan Antonio Osorio](https://github.com/JAORMX) - jaosorior@gmail.com
+* [Juan Francisco Barragán Cantú]() - p.cantu12@gmail.com
+* [Luis Fernando Hinojosa](https://github.com/luion) - lf.hinojosa@gmail.com
+* Manuel Aude - dormam@gmail.com
+* Mario Gerardo Trevinho - mario_tc88@hotmail.com
+* [Miguel Alejandro González](https://github.com/magg) - maggonzz@gmail.com
 * [Nixa Jayu Gpe Rodríguez Dagnino](https://github.com/NixaDagnino)
+* [Ramiro Nava](https://github.com/ramironava) - ramironava@gmail.com
+* [Roberto Aceves](https://github.com/robertoaceves) - roberto.aceves@gmail.com
+* [Roberto Martínez Beltrán]() - robmabe.92@gmail.com
 
 ### Special Thanks (contributing users)
 

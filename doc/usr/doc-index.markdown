@@ -7,32 +7,29 @@ title: Documentation - Index
 
 Welcome to Jool's documentation site.
 
-## Quick links
+## Introduction
 
-If you're completely lost, first [click here for an introduction to NAT64](intro.html).
+1. [What is NAT64?](intro.html)
+2. [What is Jool?](intro.html#jool)
 
-If you just want to run Jool, [click here to get started](tutorial1.html).
-
-## Formal index
-
-### Tutorials
+## Kernel module
 
 1. [Compilation and Installation](tutorial1.html)
-2. [Basic Runs](tutorial2.html)
-3. [A Bigger IPv4 Pool](tutorial3.html)
-4. [DNS64](tutorial4.html)
+2. [Tutorial - Basic Runs](tutorial2.html)
 
-### Miscellaneous
+## Userspace application
 
-1. [Introduction to NAT64](intro.html)
-2. [Static Bindings](static-bindings.html)
-3. [The problem with Offloading](offloading.html)
+1. [Compilation and Installation](userspace-app-install.html)
+2. [Flags](userspace-app-flags.html)
 
-### Reference material
+## Further operation
 
-1. [Userspace Application](userspace-app.html)
+1. [Static Bindings](static-bindings.html)
+2. [A Bigger IPv4 Pool](tutorial3.html)
+3. [DNS64](tutorial4.html)
 
-### Quirks
+## Miscellaneous
 
-1. [Quirk list](quirks.html)
+1. [The problem with Offloading](offloading.html)
+2. [Jool's thievish nature](quirk-thieve.html)
 

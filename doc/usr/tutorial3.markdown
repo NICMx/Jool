@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 3
 ---
 
-# Tutorial 3: A Bigger IPv4 Pool
+# A Bigger IPv4 Pool
 
 ![Fig.1 - Network from Scenario 3](images/tut2.3-network.svg)
 
@@ -58,7 +58,7 @@ To what I'm getting is, all IPv6 nodes share the same IPv4 address (as opposed t
 
 C and D used one port each (and they even happened to be the same one), but Jool still had to use two. Each IPv6 node has 65536 ports to work with, but because they all share the same IPv4 address, as a group, they can use up to 65536 ports via the translator. The more IPv6 nodes you have, the faster J will run out of ports.
 
-How do you make up for this? You can give Jool more addresses. You will get 64k fresh ports for each IPv4 address you throw in. If the IPv4 side is indeed an ISP, do remember that it will the one who'll provide the addresses.
+How do you make up for this? You can give Jool more addresses. You will get 64k fresh ports for each IPv4 address you throw in. If the IPv4 side is indeed an ISP, do remember that it will be the one who'll provide the addresses.
 
 You can specify up to 5 addresses during module insertion:
 
@@ -83,6 +83,4 @@ user@J:~# /sbin/ip address add 192.0.2.4/24 dev eth1
 user@J:~# /sbin/ip address add 192.0.2.5/24 dev eth1
 user@J:~# # etc.
 {% endhighlight %}
-
-[Click here](tutorial4.html) to go to the final stretch.
 

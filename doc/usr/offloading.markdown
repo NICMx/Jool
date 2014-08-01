@@ -46,7 +46,7 @@ This is all fine and dandy, but you start running into trouble when the system i
 
 In step 1 the aggregation happens, which makes step 2 very fast, but then because the assembled packet of the blue stream is too big for the outgoing interface (size 1800 > max 1500), the packet gets fragmented in step 3, which is inefficient.
 
-More importantly, if the emitter performed <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">path MTU discovery</a>, then the optimum MTU computed will be lost in step 1 (because it is not stored in the packet; it is indicated by its size, which step 1 mangles). If the Don't Fragment flag of the IPv4 header is _not_ set, then this will encourage further re-fragmentation. But if the flag IS set, then the packet will be eventually and irremediably dropped as soon as it reaches a lower MTU. Hence, we just created a black hole.
+More importantly, if the emitter performed <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">path MTU discovery</a>, then the optimum MTU computed will be lost in step 1 (because it is not stored in the packet; it is indicated by its size, which step 1 mangles). Because the packet's Don't Fragment flag is going to be ON, then the packet will be eventually and irremediably dropped as soon as it reaches a lower MTU. Hence, we just created a black hole.
 
 (Well, not completely. A number of conditions are required for the NIC to run offloading. These conditions might rarely and randomly not be met, so certain packets will occasionally not be aggregated, and as such will slip past the hole. If your transport protocol retries enough, instead of having a complete denial of service, you get an extremely - **EXTREMELY** - slow network.)
 

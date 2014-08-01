@@ -7,6 +7,8 @@ title: Documentation - Quirk-Thievery
 
 (Please note: This is all based on personal research. The Linux Kernel is a massive behemoth and as such, I might have overlooked some detail. If you know of some feature that trumps the reasoning exposed here, we'd love to hear it - [jool@nic.mx](mailto:jool@nic.mx))
 
+## Problem
+
 If Jool gets to translate a packet, then the packet skips a lot of Linux's network infrastructure.
 
 This is Linux's network pipeline, as we understand it. Packets follow the following roads while traversing the kernel:
@@ -27,13 +29,7 @@ However, we ended up doing this instead:
 
 If Jool detects it is supposed to translate the packet (i.e. the packet is headed to one of Jool's pools) then Jool _steals_ it. The packet skips the other Prerouting hooks, the routing box and any possibility of reaching local processes, and goes directly to postrouting.
 
-There are two reasons why this is done, the second one being more decisive:
-
-## 1: The defrag module
-
-To avoid fragmentation during IPv4 pre-routing. More info [here](quirk-iptables.html).
-
-## 2: Netfilter assumes no layer-3 translation
+## Rationale
 
 The thing with the above diagrams is that one would hope that the boxes were protocol-independent. For example, once a packet abandons the Prerouting box, one would wish that the Routing box would read the packet and figure whether it's supposed to look into the IPv4 routing tables or the IPv6 ones.
 
@@ -79,5 +75,5 @@ And somewhere inside of `ip6_input_finish()`:
 	hdr = ipv6_hdr(skb);
 {% endhighlight %}
 
-So with or without defrag dilemma, Jool absolutely has to prevent the kernel from seeing the mangled packets.
+In other words, Jool absolutely has to prevent the kernel from seeing the mangled packets.
 
