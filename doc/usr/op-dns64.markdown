@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 4
 ---
 
-# DNS64
+# Operation > DNS64
 
 ## Index
 
@@ -16,21 +16,15 @@ title: Documentation - Tutorial 4
 
 ## Introduction
 
-We're pretty much done with Jool. This final part will focus on DNS, the last key to have a fully-sensical NAT64 installation.
+This document focuses on DNS64, the last key to have a fully-sensical NAT64 installation.
 
-Any correct DNS64 implementation is supposed to work; this tutorial will use BIND. I expect you to be already familiarized with DNS and have at least an idea of what BIND's configuration looks like.
-
-Make sure to have this knowledge under your belt already:
-
-* [Tutorial 1](tutorial1.html)
-* [Tutorial 2](tutorial2.html)
-* [Tutorial 3](tutorial3.html)
+Any correct DNS64 implementation is supposed to work; BIND will be used for illustration here. I expect you to be already familiarized with DNS and have at least an idea of what BIND's configuration looks like.
 
 ## Network
 
 ![Fig.1 - Setup](images/tut4-setup.svg)
 
-We'll just build on top of the arrangement from the previous tutorial. Though note that the outermost networks have been connected and merged to their respective internets. And I removed the adresses from the diagram because they're no longer very relevant.
+We'll just build on top of the arrangement from [scenario 3](mod-runs.html#scenario-3-brains). Though note that the outermost networks have been connected and merged to their respective internets. And I removed the adresses from the diagram because they're no longer very relevant.
 
 Remember that though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (**unless Jool is monopolizing all of its node's IPv4 addresses!**).
 

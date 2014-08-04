@@ -16,7 +16,7 @@ title: Documentation - Tutorial 2
 
 The purpose of this tutorial is twofold: To show how the translation mechanism is supposed to be activated and to tune up the user's understanding of how a stateful NAT64 interacts with other nodes so he or she can adapt it to different network arrangements.
 
-Software-wise, only a [successful install of Jool's kernel module](tutorial1.html) is required. The userspace application is out of the scope of this document on purpose.
+Software-wise, only a [successful install of Jool's kernel module](mod-install.html) is required. The userspace application is out of the scope of this document on purpose.
 
 You might want to get acquainted with the <a href="https://linux.die.net/man/8/ip" target="_blank">ip</a> command before you continue.
 
@@ -149,7 +149,7 @@ user@B:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@B:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
-We've come to realize enabling forwarding does not get you rid of <a href="http://en.wikipedia.org/wiki/Large_receive_offload" target="_blank">offloading</a>. Though it does add too much functionality to routers for comfort, offloading is particularly hazardous in an IPv6-featuring environment since IPv6 routers are not expected to reassemble or create fragments ([click here](offloading.html) for a more thorough explanation). So if your equipment supports it, you want to disable it; by running the following commands you might massively improve performance.
+We've come to realize enabling forwarding does not get you rid of <a href="http://en.wikipedia.org/wiki/Large_receive_offload" target="_blank">offloading</a>. Though it does add too much functionality to routers for comfort, offloading is particularly hazardous in an IPv6-featuring environment since IPv6 routers are not expected to reassemble or create fragments ([click here](misc-offloading.html) for a more thorough explanation). So if your equipment supports it, you want to disable it; by running the following commands you might massively improve performance.
 
 {% highlight bash %}
 user@B:~# ethtool --offload eth0 tso off
@@ -179,7 +179,7 @@ And we're done. The following command will stick Jool to your Kernel.
 user@B:~# /sbin/modprobe jool
 {% endhighlight %}
 
-You know you've done everything correctly if you can `ping6` from node C to node A using the prefix + node A's address as the target IPv6 address (You _cannot_ contact C from A unless you create [static bindings](static-bindings.html)).
+You know you've done everything correctly if you can `ping6` from node C to node A using the prefix + node A's address as the target IPv6 address (You _cannot_ contact C from A unless you create [static bindings](op-static-bindings.html)).
 
 {% highlight bash %}
 user@C:~$ ping6 64:ff9b::192.0.2.2
@@ -280,7 +280,7 @@ In this third scenario a slightly more realistic scenario will be covered, along
 
 I dropped again the wireless interface (for realism and to clear the tutorial of `iwconfig`), threw in more sensible addresses (in particular, the IPv4 pool is no longer an alien, though that isn't immediately apparent in the diagram), and made each network more than one node each (but they will still all be Linux, since I'm more comfortable with its routing than anything else's). Also, I will assume that you have no control over the IPv4 nodes so we can no longer configure them in unnatural ways (In the previous tutorial, Jool was the IPv4 node's default gateway, which made no sense). If the IPv6 side is your network and the other side is your IPv4 ISP, then this is probably the case.
 
-This tutorial will still not meddle with the DNS, and more or less as a consequence, the environment will still not be connected to the real IPv6 Internet. I've decided to move that to a [separate tutorial](tutorial4.html), because that no longer has much to do with Jool and people already familiar with DNS64 can skip it.
+This tutorial will still not meddle with the DNS, and more or less as a consequence, the environment will still not be connected to the real IPv6 Internet. I've decided to move that to a [separate document](op-dns64.html), because that no longer has much to do with Jool and people already familiar with DNS64 can skip it.
 
 In case it isn't obvious, the name "J" comes from "Jool", but the "J" in the diagram is not Jool; it is the node _wearing_ Jool. When you read "J" think of the actual computer, and when you read "Jool" think of the kernel module.
 
@@ -446,10 +446,10 @@ I hope by now you can tell how you want your traffic to flow and how you can inj
 
 You might also have noticed and be stumped by some of stateful NAT64's limitations. Here's a word on them:
 
-1. If you didn't follow the link to [Static Bindings](static-bindings.html), you might be baffled at the fact that we haven't yet issued a single ping from a IPv4 node. Truth be told, stateful NAT64 is formally defined as "Address and Protocol Translation from IPv6 Clients to IPv4 Servers", which means that IPv6 nodes starting communications is an assumption that happily takes over a big chunk of the RFC. IPv4 clients accesing a _limited_ amount of IPv6 servers is possible though, follow the link to find the details.
-2. Scenario 3 hides any number of IPv6 nodes behind a single IPv4 address. How can a NAT64 potentially hide the entire IPv6 internet behind a single puny IPv4 address? Perhaps NAT64 also mangles ports, but then doesn't it mean that you're only limited to 65536 translated connections at a time? Go to the [IPv4 pool discussion](tutorial3.html) to find out.
+1. If you didn't follow the link to [Static Bindings](op-static-bindings.html), you might be baffled at the fact that we haven't yet issued a single ping from a IPv4 node. Truth be told, stateful NAT64 is formally defined as "Address and Protocol Translation from IPv6 Clients to IPv4 Servers", which means that IPv6 nodes starting communications is an assumption that happily takes over a big chunk of the RFC. IPv4 clients accesing a _limited_ amount of IPv6 servers is possible though, follow the link to find the details.
+2. Scenario 3 hides any number of IPv6 nodes behind a single IPv4 address. How can a NAT64 potentially hide the entire IPv6 internet behind a single puny IPv4 address? Perhaps NAT64 also mangles ports, but then doesn't it mean that you're only limited to 65536 translated connections at a time? Go to the [IPv4 pool discussion](op-pool4.html) to find out.
 3. What's up with the NAT64 prefix? It's pretty lame that IPv6 users need to know they need to append it to IPv4 addresses.  
-The answer to that is, they don't; the DNS takes care of that for them. Go to [DNS64](tutorial4.html) to find out how.
+The answer to that is, they don't; the DNS takes care of that for them. Go to [DNS64](op-dns64.html) to find out how.
 
 Done!
 

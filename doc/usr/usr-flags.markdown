@@ -34,7 +34,7 @@ title: Documentation - Userspace Application
 
 This document explains the flags and options of Jool's userspace application.
 
-See the [compilation and installation](userspace-app-install.html) instructions if you still don't have the binaries.
+See the [compilation and installation](usr-install.html) instructions if you still don't have the binaries.
 
 If a command changes the behavior of Jool, it requires network admin privileges (<a href="http://linux.die.net/man/7/capabilities" target="_blank">CAP_NET_ADMIN</a>).
 
@@ -165,7 +165,7 @@ Then some node from the IPv4 side is chatting 6::6 on port 66 using the TCP prot
 
 The BIB is a very fundamental component of stateful NAT64. If you want Jool to be able to translate a packet stream, then you need a corresponding record in the BIB.  
 When translating from IPv6 to IPv4, Jool has enough information to create bindings on its own. As such, you do not need to create manual bindings for traffic IPv6 nodes are going to start.  
-Jool cannot create entries when traffic is started from IPv4 because there's not enough information to create the record. If IPv4 nodes are supposed to be able to start communication (e.g. you want to publish an IPv6 node's service to the IPv4 world) then you need to create manual bindings ([here's the walkthrough](static-bindings.html)).
+Jool cannot create entries when traffic is started from IPv4 because there's not enough information to create the record. If IPv4 nodes are supposed to be able to start communication (e.g. you want to publish an IPv6 node's service to the IPv4 world) then you need to create manual bindings ([here's the walkthrough](op-static-bindings.html)).
 
 (When I say "start communication" I mean the first packet in a stream. If the IPv4 node is going to answer a request emitted by an IPv6 node, it counts as a packet from the same stream. Hence you don't need static BIB entries for these.)
 

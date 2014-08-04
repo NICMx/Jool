@@ -17,7 +17,7 @@ title: Documentation - Tutorial 1
 Jool is two things:
 
 1. A <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel module</a> you can hook up to the Linux kernel. This is the main IPv6-IPv4 translating component and all you need for basic use. This is the component this document meddles with.
-2. A <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> application which can be used to configure the module. It has its own [installation document](userspace-app-install.html).
+2. A <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> application which can be used to configure the module. It has its own [installation document](usr-install.html).
 
 When you put it that way, there is really nothing unusual about Jool's installation. But I figure some of our users might have no previous experience meddling with drivers, so this overview will serve as an introduction to at least give them an idea of what each step does.
 
@@ -108,5 +108,5 @@ You'll later activate the module using the `modprobe` command. Thing is, the fac
 user@node:~# /sbin/depmod
 {% endhighlight %}
 
-Done; Jool can now be started. In order to run it, head to [Basic Runs](tutorial2.html).
+Done; Jool can now be started. In order to run it, head to [Basic Runs](mod-runs.html).
 

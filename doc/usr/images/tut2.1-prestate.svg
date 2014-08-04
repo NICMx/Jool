@@ -10,12 +10,12 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="512"
+   width="704"
    height="256"
    id="svg2"
    version="1.1"
    inkscape:version="0.48.3.1 r9886"
-   sodipodi:docname="tut1-prestate.svg">
+   sodipodi:docname="tut2.1-prestate.svg">
   <defs
      id="defs4">
     <linearGradient
@@ -59,15 +59,15 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.7753906"
-     inkscape:cx="256"
+     inkscape:zoom="2.4928977"
+     inkscape:cx="352"
      inkscape:cy="128"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1920"
      inkscape:window-height="1029"
-     inkscape:window-x="1920"
+     inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="1" />
   <metadata
@@ -90,7 +90,7 @@
      style="display:inline">
     <path
        style="fill:none;stroke:#000000;stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 422.46868,900.6567 -16.22582,60.5556"
+       d="m 406.24286,961.2123 16.22582,-60.5556 45.93386,0"
        id="path4116"
        inkscape:connector-curvature="0" />
     <path
@@ -218,7 +218,7 @@
          sodipodi:cy="0"
          sodipodi:rx="25"
          sodipodi:ry="10"
-         d="M 25,0 C 25,5.5228475 13.807119,10 0,10 -13.807119,10 -25,5.5228475 -25,0 c 0,-5.5228475 11.192881,-10 25,-10 13.807119,0 25,4.4771525 25,10 z"
+         d="M 25,0 A 25,10 0 1 1 -25,0 25,10 0 1 1 25,0 z"
          transform="translate(118.79394,1149.7556)" />
       <path
          style="fill:none;stroke:#ffffff;stroke-width:2.71186423;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
@@ -280,14 +280,6 @@
        y="0"
        x="0" />
     <use
-       x="0"
-       y="0"
-       xlink:href="#g3970"
-       id="use3397"
-       transform="translate(296,44)"
-       width="256"
-       height="128" />
-    <use
        height="128"
        width="256"
        transform="translate(232,124)"
@@ -298,17 +290,17 @@
     <use
        x="0"
        y="0"
-       xlink:href="#g3970"
-       id="use3401"
-       transform="translate(180,100)"
+       xlink:href="#path2995"
+       id="use3405"
+       transform="translate(208,0)"
        width="256"
        height="128" />
     <use
        x="0"
        y="0"
-       xlink:href="#path2995"
-       id="use3405"
-       transform="translate(208,0)"
+       xlink:href="#g3970"
+       id="use3401"
+       transform="translate(180,100)"
        width="256"
        height="128" />
     <use
@@ -327,5 +319,36 @@
        xlink:href="#g3979"
        y="0"
        x="0" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#use3405"
+       id="use3025"
+       transform="translate(206,0)"
+       width="768"
+       height="256" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text3027"
+       y="914.40063"
+       x="566.50232"
+       style="font-size:20px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"><tspan
+         y="914.40063"
+         x="566.50232"
+         id="tspan3029"
+         sodipodi:role="line">Internet</tspan><tspan
+         id="tspan3031"
+         y="939.40063"
+         x="566.50232"
+         sodipodi:role="line">(IPv6)</tspan></text>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#use3411"
+       id="use3033"
+       transform="translate(126,0)"
+       width="768"
+       height="256" />
   </g>
 </svg>

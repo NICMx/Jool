@@ -7,6 +7,11 @@ title: Documentation - Userspace Application
 
 ## Introduction
 
+Jool is two things:
+
+1. A <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel module</a> you can hook up to the Linux kernel. This is the main IPv6-IPv4 translating component and all you need for basic use. It has its own [installation document](mod-install.html).
+2. A <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> application which can be used to configure the module.
+
 This document explains how to obtain the binaries of the userspace application.
 
 ## If you downloaded the [official release](download.html)
@@ -18,7 +23,7 @@ user@node:~/Jool/usr$ make
 user@node:~/Jool/usr# make install
 {% endhighlight %}
 
-Done; you should now be able to type `jool --help` and get some garbage. Go to [Flags](userspace-app-flags.html) for more verbose documentation.
+Done; you should now be able to type `jool --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
 
 ## If you downloaded from the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>
 
@@ -38,7 +43,7 @@ Jool/usr$ make
 Jool/usr# make install
 {% endhighlight %}
 
-Done; you should now be able to type `jool --help` and get some garbage. Go to [Flags](userspace-app-flags.html) for more verbose documentation.
+Done; you should now be able to type `jool --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
 
 ## libnl-3
 

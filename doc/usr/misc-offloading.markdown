@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Offloading
 ---
 
-# The problem with Offloading
+# Miscellaneous > Offloading
 
 ## Index
 

@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Static Bindings
 ---
 
-# Static Bindings
+# Operation > Static Bindings
 
 When a translation from IPv6 to IPv4 happens, very little is left of the headers of the original packet. Because of this, Jool has to remember who tried to speak with whom and on which ports, so when answers arrive, it can figure out which conversation the packet belongs to, and mangle the headers correctly. This is not a quirk of NAT64; traditional NAT lives it as well.
 
@@ -15,9 +15,7 @@ Why do you need to know that? A basic NAT64 installation will give your IPv6 net
 
 So what we have here is, the IPv6 nodes can see a HTTP server by querying 1::1 on port 80. What we want is to make it available to the outside via the 1.2.3.4 address on port 5678 (We'll use a different port simply because we can).
 
-You cannot tell the NAT64 the static bindings during module insertion because that'd be very cumbersome, so we devised a [userspace client](userspace-app.html) for you to talk to Jool with. Install following the steps outlined [here](userspace-app.html#introduction).
-
-Now to actually create the mapping, you have to run something in the lines of this:
+To create a mapping, you have to ask the [userspace application](usr-install.html) something in the lines of this:
 
 {% highlight bash %}
 $ jool --bib --add <protocols> --bib6=<Ipv6 address>#<"IPv6" port> --bib4=<IPv4 address>#<"IPv4" port>
@@ -92,6 +90,4 @@ or
 $ # This won't hurt you (and will make sure you're removing exactly what you want to remove).
 $ jool -brt --bib6=1::1#80 --bib4=1.2.3.4#5678
 {% endhighlight %}
-
-[Click here](userspace-app.html) for more on what the application can be used for.
 

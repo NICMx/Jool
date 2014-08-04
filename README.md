@@ -23,13 +23,13 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 
 * Ing. Julio Cossío
 * Ing. Jorge Cano
-* Ing. [Alberto Leiva](https://github.com/ydahhrk) <aleiva@nic.mx>
-* Ing. [Daniel Hernandez Felix](https://github.com/dhfelix) <dhernandez@nic.mx>
+* Ing. [Alberto Leiva](https://github.com/ydahhrk) - aleiva@nic.mx
+* Ing. [Daniel Hernandez Felix](https://github.com/dhfelix) - dhernandez@nic.mx
 
 ### ITESM representatives
 
-* Dr. Juan Arturo Nolazco <jnolazco@itesm.mx>
-* Ing. Martha Sordia <msordia@itesm.mx>
+* Dr. Juan Arturo Nolazco - jnolazco@itesm.mx
+* Ing. Martha Sordia - msordia@itesm.mx
 
 ### ITESM students
 
@@ -42,7 +42,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * [Gabriel Chavez](https://github.com/chavezgu) - gabrielchavez02@gmail.com
 * Jose Vicente Ramirez - pepermz@gmail.com
 * [Juan Antonio Osorio](https://github.com/JAORMX) - jaosorior@gmail.com
-* [Juan Francisco Barragán Cantú]() - p.cantu12@gmail.com
+* Juan Francisco Barragán Cantú - p.cantu12@gmail.com
 * [Luis Fernando Hinojosa](https://github.com/luion) - lf.hinojosa@gmail.com
 * Manuel Aude - dormam@gmail.com
 * Mario Gerardo Trevinho - mario_tc88@hotmail.com
@@ -50,7 +50,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * [Nixa Jayu Gpe Rodríguez Dagnino](https://github.com/NixaDagnino)
 * [Ramiro Nava](https://github.com/ramironava) - ramironava@gmail.com
 * [Roberto Aceves](https://github.com/robertoaceves) - roberto.aceves@gmail.com
-* [Roberto Martínez Beltrán]() - robmabe.92@gmail.com
+* [Roberto Martínez Beltrán](https://github.com/ryuzak) - robmabe.92@gmail.com
 
 ### Special Thanks (contributing users)
 

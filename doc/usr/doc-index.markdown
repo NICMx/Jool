@@ -9,27 +9,27 @@ Welcome to Jool's documentation site.
 
 ## Introduction
 
-1. [What is NAT64?](intro.html)
-2. [What is Jool?](intro.html#jool)
+1. [What is NAT64?](intro-nat64.html)
+2. [What is Jool?](intro-jool.html)
 
 ## Kernel module
 
-1. [Compilation and Installation](tutorial1.html)
-2. [Tutorial - Basic Runs](tutorial2.html)
+1. [Compilation and Installation](mod-install.html)
+2. [Tutorial - Basic Runs](mod-runs.html)
 
 ## Userspace application
 
-1. [Compilation and Installation](userspace-app-install.html)
-2. [Flags](userspace-app-flags.html)
+1. [Compilation and Installation](usr-install.html)
+2. [Flags](usr-flags.html)
 
 ## Further operation
 
-1. [Static Bindings](static-bindings.html)
-2. [A Bigger IPv4 Pool](tutorial3.html)
-3. [DNS64](tutorial4.html)
+1. [The IPv4 pool](op-pool4.html)
+2. [Static Bindings](op-static-bindings.html)
+3. [DNS64](op-dns64.html)
 
 ## Miscellaneous
 
-1. [The problem with Offloading](offloading.html)
-2. [Jool's thievish nature](quirk-thieve.html)
+1. [The problem with Offloading](misc-offloading.html)
+2. [Jool's thievish nature](misc-thieve.html)
 

@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Quirk-Thievery
 ---
 
-# Quirk: Thievery of Packets
+# Miscellaneous > Thievery of Packets
 
 (Please note: This is all based on personal research. The Linux Kernel is a massive behemoth and as such, I might have overlooked some detail. If you know of some feature that trumps the reasoning exposed here, we'd love to hear it - [jool@nic.mx](mailto:jool@nic.mx))
 

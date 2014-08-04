@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 3
 ---
 
-# A Bigger IPv4 Pool
+# Operation > The IPv4 Pool
 
 ![Fig.1 - Network from Scenario 3](images/tut2.3-network.svg)
 
@@ -49,7 +49,7 @@ The solution is to mask not only addresses, but ports as well. Instead of genera
 	Source: 192.0.2.2#6326
 	Destination: 192.0.2.10#80
 
-And the Binding Information Base ([BIB](static-bindings.html)) will look like this:
+And the Binding Information Base ([BIB](usr-flags.html#bib)) will look like this:
 
 1. 2001:db8:2::10#1234 <-> 192.0.2.2#1234
 2. 2001:db8:2::11#1234 <-> 192.0.2.2#6326
@@ -66,7 +66,7 @@ You can specify up to 5 addresses during module insertion:
 user@J:~# /sbin/modprobe jool pool4="192.0.2.2, 192.0.2.3, 192.0.2.4, 192.0.2.5, 192.0.2.6"
 {% endhighlight %}
 
-If you need more, you can add them using the [userspace application](userspace-app.html#pool4):
+If you need more, you can add them using the [userspace application](usr-flags.html#pool4):
 
 {% highlight bash %}
 user@J:~# jool --pool4 --add --address 192.0.2.7
