@@ -123,7 +123,7 @@ static int create_tcp_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt_
 	struct tcphdr *tcp_in = in->l4_hdr.ptr;
 	struct tcphdr *tcp_out = out->l4_hdr.ptr;
 
-	memcpy(tcp_out, tcp_in, sizeof(*tcp_in));
+	memcpy(tcp_out, tcp_in, in->l4_hdr.len);
 	tcp_out->source = cpu_to_be16(tuple->src.l4_id);
 	tcp_out->dest = cpu_to_be16(tuple->dst.l4_id);
 
@@ -137,7 +137,7 @@ static int create_udp_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt_
 	struct udphdr *udp_in = in->l4_hdr.ptr;
 	struct udphdr *udp_out = out->l4_hdr.ptr;
 
-	memcpy(udp_out, udp_in, sizeof(*udp_in));
+	memcpy(udp_out, udp_in, in->l4_hdr.len);
 	udp_out->source = cpu_to_be16(tuple->src.l4_id);
 	udp_out->dest = cpu_to_be16(tuple->dst.l4_id);
 

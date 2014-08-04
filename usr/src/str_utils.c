@@ -33,7 +33,7 @@ int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 	__u64 result;
 	int error;
 
-	error = str_to_u64(str, &result, min, max);
+	error = str_to_u64(str, &result, (__u64) min, (__u64) max);
 	if (error)
 		return error; /* Error msg already printed. */
 
@@ -46,7 +46,7 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 	__u64 result;
 	int error;
 
-	error = str_to_u64(str, &result, min, max);
+	error = str_to_u64(str, &result, (__u64) min, (__u64) max);
 	if (error)
 		return error; /* Error msg already printed. */
 
