@@ -27,6 +27,9 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	printf("ICMP session lifetime (--%s): ", ICMP_TIMEOUT_OPT);
 	print_time(conf->sessiondb.ttl.icmp);
 
+	printf("Maximum number of stored packets (--%s): %llu\n", STORED_PKTS_OPT,
+			conf->pktqueue.max_pkts);
+
 	printf("Override IPv6 traffic class (--%s): %s\n", RESET_TCLASS_OPT,
 			conf->translate.reset_traffic_class ? "ON" : "OFF");
 	printf("Override IPv4 type of service (--%s): %s\n", RESET_TOS_OPT,

@@ -518,7 +518,8 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 				is_last ? original_mf : true);
 		memcpy(skb_network_header(new_skb) + hdrs_size, current_p, actual_payload_size);
 
-		skb_set_jcb(new_skb, L3PROTO_IPV6, L4PROTO_NONE, skb_network_header(new_skb) + hdrs_size,
+		skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(skb),
+				skb_network_header(new_skb) + hdrs_size,
 				skb_original_skb(skb));
 
 		prev_skb->next = new_skb;

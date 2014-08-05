@@ -333,12 +333,18 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
 	struct session_entry_usr entry_usr;
+	unsigned long dying_time;
+	int error;
+
+	error = sessiondb_get_timeout(entry, &dying_time);
+	if (error)
+		return error;
+	dying_time += entry->update_time;
 
 	entry_usr.addr6 = entry->ipv6;
 	entry_usr.addr4 = entry->ipv4;
-
-	entry_usr.dying_time = jiffies_to_msecs(entry->update_time + sessiondb_get_timeout(entry)
-			- jiffies);
+	entry_usr.state = entry->state;
+	entry_usr.dying_time = (dying_time > jiffies) ? jiffies_to_msecs(dying_time - jiffies) : 0;
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }

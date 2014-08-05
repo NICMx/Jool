@@ -924,13 +924,8 @@ static bool validate_fragment(struct sk_buff *skb, bool is_first, bool is_last,
 
 	if (!validate_cb_l3(skb, L3PROTO_IPV6, sizeof(struct ipv6hdr) + sizeof(struct frag_hdr)))
 		return false;
-	if (is_first) {
-		if (!validate_cb_l4(skb, L4PROTO_UDP, sizeof(struct udphdr)))
-			return false;
-	} else {
-		if (!validate_cb_l4(skb, L4PROTO_NONE, 0))
-			return false;
-	}
+	if (!validate_cb_l4(skb, L4PROTO_UDP, is_first ? sizeof(struct udphdr) : 0))
+		return false;
 	if (!validate_cb_payload(skb, payload_len))
 		return false;
 

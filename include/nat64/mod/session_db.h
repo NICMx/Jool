@@ -15,35 +15,10 @@
 
 #include "nat64/comm/types.h"
 #include "nat64/comm/config_proto.h"
+#include "nat64/comm/session.h"
 #include "nat64/mod/bib_db.h"
 
 /************************************* Session Entries **********************************/
-
-/** The states from the TCP state machine; RFC 6146 section 3.5.2. */
-enum tcp_states {
-	/** No traffic has been seen; state is fictional. */
-	CLOSED = 0,
-	/** A SYN packet arrived from the IPv6 side; some IPv4 node is trying to start a connection. */
-	V6_INIT,
-	/** A SYN packet arrived from the IPv4 side; some IPv4 node is trying to start a connection. */
-	V4_INIT,
-	/** The handshake is complete and the sides are exchanging upper-layer data. */
-	ESTABLISHED,
-	/**
-	 * The IPv4 node wants to terminate the connection. Data can still flow.
-	 * Awaiting a IPv6 FIN...
-	 */
-	V4_FIN_RCV,
-	/**
-	 * The IPv6 node wants to terminate the connection. Data can still flow.
-	 * Awaiting a IPv4 FIN...
-	 */
-	V6_FIN_RCV,
-	/** Both sides issued a FIN. Packets can still flow for a short time. */
-	V4_FIN_V6_FIN_RCV,
-	/** The session might die in a short while. */
-	TRANS,
-};
 
 /**
  * A timer which will delete expired sessions every once in a while.
@@ -392,10 +367,10 @@ struct expire_timer *set_syn_timer(struct session_entry *session);
 void commit_timer(struct expire_timer *expirer);
 
 /**
- * Returns the amount of jiffies "session" is supposed to stay in memory.
+ * Returns in "result" the amount of jiffies "session" is supposed to stay in memory.
  * If you want the jiffy at which the session is going to die, add this up to
  * "session->update_time".
  */
-unsigned long sessiondb_get_timeout(struct session_entry *session);
+int sessiondb_get_timeout(struct session_entry *session, unsigned long *result);
 
 #endif /* _JOOL_MOD_SESSION_DB_H */

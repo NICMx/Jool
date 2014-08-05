@@ -16,6 +16,8 @@
 #include <linux/version.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 
 
 MODULE_LICENSE("GPL");
@@ -92,6 +94,9 @@ static int __init nat64_init(void)
 
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
+
+	nf_defrag_ipv6_enable();
+	nf_defrag_ipv4_enable();
 
 	/* Init Jool's submodules. */
 	error = config_init();

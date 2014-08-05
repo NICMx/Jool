@@ -5,6 +5,8 @@
  * @file
  * Log file for benchmark purpose.
  *
+ * This code is not used during normal translations; we link it only when we want to measure stuff.
+ *
  * @author Daniel Hernandez
  */
 

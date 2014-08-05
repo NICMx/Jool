@@ -20,8 +20,6 @@ char *l3proto_to_string(l3_protocol l3_proto)
 char *l4proto_to_string(l4_protocol l4_proto)
 {
 	switch (l4_proto) {
-	case L4PROTO_NONE:
-		return "None";
 	case L4PROTO_TCP:
 		return "TCP";
 	case L4PROTO_UDP:

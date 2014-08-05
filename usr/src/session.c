@@ -1,5 +1,6 @@
 #include "nat64/usr/session.h"
 #include "nat64/comm/config_proto.h"
+#include "nat64/comm/session.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
@@ -18,6 +19,30 @@ struct display_params {
 	struct request_session *req_payload;
 };
 
+char *tcp_state_to_string(enum tcp_state state)
+{
+	switch (state) {
+	case CLOSED:
+		return "CLOSED";
+	case V4_INIT:
+		return "V4_INIT";
+	case V6_INIT:
+		return "V6_INIT";
+	case ESTABLISHED:
+		return "ESTABLISHED";
+	case V4_FIN_RCV:
+		return "V4_FIN_RCV";
+	case V6_FIN_RCV:
+		return "V6_FIN_RCV";
+	case V4_FIN_V6_FIN_RCV:
+		return "V4_FIN_V6_FIN_RCV";
+	case TRANS:
+		return "TRANS";
+	}
+
+	return "UNKNOWN";
+}
+
 static int session_display_response(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *hdr;
@@ -31,6 +56,9 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 
 	for (i = 0; i < entry_count; i++) {
 		struct session_entry_usr *entry = &entries[i];
+
+		if (params->req_payload->l4_proto == L4PROTO_TCP)
+			printf("(%s) ", tcp_state_to_string(entry->state));
 
 		printf("Expires in ");
 		print_time(entry->dying_time);

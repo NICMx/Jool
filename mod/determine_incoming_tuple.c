@@ -233,9 +233,6 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 				result = VER_DROP;
 			}
 			break;
-		case L4PROTO_NONE:
-			WARN(true, "IPv4 - Packet has no transport header.");
-			result = VER_DROP;
 		}
 		break;
 
@@ -259,9 +256,6 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 				result = VER_DROP;
 			}
 			break;
-		case L4PROTO_NONE:
-			WARN(true, "IPv6 - Packet has no transport header.");
-			result = VER_DROP;
 		}
 		break;
 	}

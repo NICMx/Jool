@@ -377,7 +377,7 @@ static struct session_entry *create_tcp_session(
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
 		unsigned char *remote4_addr, u16 remote4_id,
-		enum tcp_states state)
+		enum tcp_state state)
 {
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
@@ -546,6 +546,7 @@ static bool test_tcp_v4_init_state_handle_v6syn(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -562,8 +563,8 @@ static bool test_tcp_v4_init_state_handle_v6syn(void)
 	success &= assert_equals_int(0, tcp_v4_init_state_handle(skb, session, &expirer),
 			"V6 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session->state, "V6 syn-state");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
-			"V6 syn-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 syn-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "V6 syn-lifetime");
 
 	kfree_skb(skb);
 	session_return(session);
@@ -603,6 +604,7 @@ static bool test_tcp_v6_init_state_handle_v4syn(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -615,8 +617,8 @@ static bool test_tcp_v6_init_state_handle_v4syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, session, &expirer), "V4 syn-result");
 	success &= assert_equals_u8(ESTABLISHED, session->state, "V4 syn-state");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
-			"V4 syn-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 syn-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "V4 syn-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -630,6 +632,7 @@ static bool test_tcp_v6_init_state_handle_v6syn(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -642,8 +645,8 @@ static bool test_tcp_v6_init_state_handle_v6syn(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, session, &expirer), "V6 syn-result");
 	success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V6 syn-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 syn-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 syn-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -734,6 +737,7 @@ static bool test_tcp_established_state_handle_v4rst(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -746,8 +750,8 @@ static bool test_tcp_established_state_handle_v4rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
 	success &= assert_equals_u8(TRANS, session->state, "V4 rst-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V4 rst-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 rst-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V4 rst-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -761,6 +765,7 @@ static bool test_tcp_established_state_handle_v6rst(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -773,8 +778,8 @@ static bool test_tcp_established_state_handle_v6rst(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
 	success &= assert_equals_u8(TRANS, session->state, "V6 rst-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V6 rst-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 rst-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 rst-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -788,6 +793,7 @@ static bool test_tcp_established_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -800,8 +806,8 @@ static bool test_tcp_established_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
 	success &= assert_equals_u8(ESTABLISHED, session->state, "else-state");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
-			"else-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -815,6 +821,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -827,8 +834,8 @@ static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, session, &expirer), "V6 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session->state, "V6 fin-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V6 fin-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 fin-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 fin-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -842,6 +849,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -854,8 +862,8 @@ static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, session, &expirer), "else-result");
 	success &= assert_equals_u8(V4_FIN_RCV, session->state, "else-state");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
-			"else-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -869,6 +877,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -881,8 +890,8 @@ static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, session, &expirer), "V4 fin-result");
 	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session->state, "V4 fin-state");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, sessiondb_get_timeout(session),
-			"V4 fin-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 fin-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V4 fin-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -896,6 +905,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -908,8 +918,8 @@ static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, session, &expirer), "else-result");
 	success &= assert_equals_u8(V6_FIN_RCV, session->state, "else-state");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
-			"else-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
 
 	kfree_skb(skb);
 	return success;
@@ -975,6 +985,7 @@ static bool test_tcp_trans_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
+	unsigned long timeout;
 	bool success = true;
 
 	/* Prepare */
@@ -987,8 +998,8 @@ static bool test_tcp_trans_state_handle_else(void)
 	/* Evaluate */
 	success &= assert_equals_int(0, tcp_trans_state_handle(skb, session, &expirer), "else-result");
 	success &= assert_equals_u8(ESTABLISHED, session->state, "else-state");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, sessiondb_get_timeout(session),
-			"else-lifetime");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
 
 	kfree_skb(skb);
 	return success;

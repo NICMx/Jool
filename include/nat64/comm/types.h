@@ -69,29 +69,20 @@ char *l3proto_to_string(l3_protocol proto);
  * Transport (layer 4) protocols Jool is supposed to support.
  * We do not use IPPROTO_TCP and friends because I want the compiler to pester me during
  * defaultless switch'es. Also, the zero-based index is convenient in the Translate Packet module.
- * And lastly, L4PROTO_NONE is great at simplifying things.
- * TODO looks like it's mostly getting in the way now.
  */
 typedef enum l4_protocol {
-	/**
-	 * The packet has no layer-4 header. This happens if the packet is a fragment whose fragment
-	 * offset is not zero.
-	 * The packet still has a layer-4 protocol, of course, but the point is that the code should
-	 * not attempt to extract a layer-4 header from it.
-	 */
-	L4PROTO_NONE = 0,
 	/** The packet has a TCP header after the layer-3 headers. */
-	L4PROTO_TCP = 1,
+	L4PROTO_TCP = 0,
 	/** The packet has a UDP header after the layer-3 headers. */
-	L4PROTO_UDP = 2,
+	L4PROTO_UDP = 1,
 	/**
 	 * The packet has a ICMP header after the layer-3 headers. Whether the header is ICMPv4 or
 	 * ICMPv6 never matters.
 	 * We know that ICMP is not a transport protocol, but for all intents and purposes, it behaves
 	 * exactly like one in NAT64.
 	 */
-	L4PROTO_ICMP = 3,
-#define L4_PROTO_COUNT 4
+	L4PROTO_ICMP = 2,
+#define L4_PROTO_COUNT 3
 } l4_protocol;
 
 /**

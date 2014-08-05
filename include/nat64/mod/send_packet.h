@@ -24,6 +24,8 @@
  *
  * Routes the skb described by the arguments. Returns the 'destination entry' the kernel needs
  * to know which interface the skb should be forwarded through.
+ *
+ * This function assumes "skb" isn't fragmented.
  */
 int route_ipv4(struct sk_buff *skb);
 

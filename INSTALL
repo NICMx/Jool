@@ -1,9 +1,10 @@
 ***********************************************************************
 
 	Before you continue, perhaps you want to have a look at
-	https://github.com/NICMx/NAT64/wiki/Getting-Started
-	, where you should find a newcomer-friendlier version of this file.
-	
+	https://www.jool.mx/doc-index.html, where you should find a
+	newcomer-friendlier version of this file.
+	Alternatively, see doc/README.md and doc/usr/doc-index.markdown.
+
 ***********************************************************************
 
 Install the requirements:
@@ -81,17 +82,10 @@ Configure the module:
 		Print the session table:
 			$ jool --session
 
-		Print the "Filtering and Updating" step's configuration:
-			$ jool --filtering
-		Change some "Filtering and Updating" configuration value:
-			$ # Run "jool --filtering" to quickly see the available values.
-			# jool --filtering --dropAddr ON
-
-		Print the "Translating the packet" step's configuration:
-			$ jool --translate
-		Change some "Translating the packet" configuration value:
-			$ # Run "jool --translate" to quickly see the available values.
-			# jool --translate --setTC ON
+		Print general configuration values:
+			$ jool
+		Change some general configuration value:
+			# jool --dropAddr ON
 
 Removing the module:
 	# modprobe -r jool

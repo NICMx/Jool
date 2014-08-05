@@ -56,10 +56,6 @@ static struct poolnum *get_poolnum_from_pool4_node(struct pool4_node *node, l4_p
 
 	case L4PROTO_ICMP:
 		return &node->icmp_ids;
-
-	case L4PROTO_NONE:
-		WARN(true, "There's no pool for the 'NONE' protocol.");
-		return NULL;
 	}
 
 	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
@@ -346,9 +342,6 @@ static int get_any_port(struct pool4_node *node, l4_protocol proto, __u16 *resul
 		break;
 	case L4PROTO_ICMP:
 		error = poolnum_get_any(&node->icmp_ids, result);
-		break;
-	case L4PROTO_NONE:
-		WARN(true, "There's no pool for the 'NONE' protocol.");
 		break;
 	}
 

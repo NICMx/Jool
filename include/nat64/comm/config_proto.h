@@ -406,6 +406,7 @@ struct session_entry_usr {
 	struct ipv6_pair addr6;
 	struct ipv4_pair addr4;
 	__u64 dying_time;
+	__u8 state;
 };
 
 /**

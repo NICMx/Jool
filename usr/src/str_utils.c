@@ -1,4 +1,4 @@
-#include "nat64/comm/str_utils.h"
+#include "nat64/usr/str_utils.h"
 #include "nat64/comm/constants.h"
 #include "nat64/usr/types.h"
 #include <string.h>

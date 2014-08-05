@@ -21,7 +21,7 @@ static struct session_entry *create_tcp_session(
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
 		unsigned char *remote4_addr, u16 remote4_id,
-		enum tcp_states state)
+		enum tcp_state state)
 {
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;

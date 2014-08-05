@@ -24,7 +24,7 @@ insert:
 	# insert the module
 	sudo insmod jool.ko pool4=192.0.2.2
 	dmesg | tail -15
-	sudo ../usr/src/jool -z --minMTU6=1500
+	sudo ../usr/src/jool --minMTU6=1500
 
 remove:
 	sudo rmmod jool

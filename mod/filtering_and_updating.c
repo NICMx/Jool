@@ -873,11 +873,6 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 			break;
 		}
 		break;
-
-	case L4PROTO_NONE:
-		WARN(true, "Tuples should not contain the 'NONE' transport protocol.");
-		result = VER_DROP;
-		break;
 	}
 
 	log_debug("Done: Step 2.");

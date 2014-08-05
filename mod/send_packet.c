@@ -42,8 +42,6 @@ int route_ipv4(struct sk_buff *skb)
 		struct icmphdr *hdr_icmp4;
 
 		switch (skb_l4_proto(skb)) {
-		case L4PROTO_NONE:
-			break;
 		case L4PROTO_TCP:
 			hdr_tcp = tcp_hdr(skb);
 			flow.fl4_sport = hdr_tcp->source;
@@ -121,8 +119,6 @@ int route_ipv6(struct sk_buff *skb)
 		struct icmp6hdr *hdr_icmp6;
 
 		switch (skb_l4_proto(skb)) {
-		case L4PROTO_NONE:
-			break;
 		case L4PROTO_TCP:
 			hdr_tcp = tcp_hdr(skb);
 			flow.fl6_sport = hdr_tcp->source;

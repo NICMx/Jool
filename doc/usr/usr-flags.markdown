@@ -21,14 +21,15 @@ title: Documentation - Userspace Application
    5. [\--toTCPest](#totcpest)
    6. [\--toTCPtrans](#totcptrans)
    7. [\--toICMP](#toicmp)
-   8. [\--setTC](#settc)
-   9. [\--setTOS](#settos)
-   10. [\--TOS](#tos)
-   11. [\--setDF](#setdf)
-   12. [\--genID](#genid)
-   13. [\--boostMTU](#boostmtu)
-   14. [\--plateaus](#plateaus)
-   15. [\--minMTU6](#minmtu6)
+   8. [\--maxStoredPkts](#maxstoredpkts)
+   9. [\--setTC](#settc)
+   10. [\--setTOS](#settos)
+   11. [\--TOS](#tos)
+   12. [\--setDF](#setdf)
+   13. [\--genID](#genid)
+   14. [\--boostMTU](#boostmtu)
+   15. [\--plateaus](#plateaus)
+   16. [\--minMTU6](#minmtu6)
 
 ## Introduction
 
@@ -197,8 +198,6 @@ TCP:
 
 Use `--numeric` to turn this behavior off (see the example in the description section, above).
 
-See [`--quick`](#quick) as well.
-
 **Examples**
 
 {% highlight bash %}
@@ -314,9 +313,8 @@ First, a little background information:
 
 * [IPv6 prefix](#pool6) _P_ owns [session entry](#session) _S_ if _P_ equals the network side of _S_'s local IPv6 address.
 * [IPv4 address](#pool4) _A_ owns [BIB entry](#bib) _B_ if _A_ equals _B_'s IPv4 address.
-* [BIB entry](#bib) _B_ owns [session entry](#session) _S_ if _B_'s IPv4 address equals _S_'s local IPv4 address and _B_'s IPv6 address equals _S_'s remote IPv6 address.
 
-If you `--remove` or `--flush` an owner, its "slaves" become obsolete. For example, if you remove a prefix, its sessions are no longer relevant because its packets are no longer going to be translated.
+If you `--remove` or `--flush` an owner, its "slaves" become obsolete because the relevant packets are no longer going to be translated.
 
 * If you omit `--quick` while removing owners, Jool will get rid of the newly orphaned slaves. This saves memory and keeps entry lookup efficient during packet translations.
 * On the other hand, when you do issue `--quick`, Jool will only purge the owners.  You might want to do this if you want the operation to succeed quickly (maybe you have a HUGE amount of slaves), or more likely you plan to re-add the owner in the future (in which case the still-remaining slaves will become relevant and usable again).
@@ -429,6 +427,18 @@ When you change this value, the lifetimes of all already existing transitory TCP
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
 When you change this value, the lifetimes of all already existing ICMP sessions are updated.
+
+### \--maxStoredPkts
+
+- Name: Maximum number of stored packets
+- Type: Integer
+- Default: 10
+
+When an external (IPv4) node first attempts to open a connection and there's no [BIB](#bib) entry for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
+
+In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
+
+`--maxStoredPkts` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to answer the ICMP error message on the eleventh one.
 
 ### \--setTC
 

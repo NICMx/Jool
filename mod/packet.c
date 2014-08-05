@@ -387,8 +387,6 @@ void skb_print(struct sk_buff *skb)
 	case L4PROTO_ICMP:
 		/* too lazy */
 		break;
-	case L4PROTO_NONE:
-		break;
 	}
 }
 
@@ -492,11 +490,6 @@ int fix_checksums_ipv6(struct sk_buff *skb) {
 	case L4PROTO_ICMP:
 		error = validate_csum_icmp6(skb);
 		break;
-
-	case L4PROTO_NONE:
-		WARN(true, "The transport protocol of the skb is NONE.");
-		error = -EINVAL;
-		break;
 	}
 
 	return error;
@@ -515,11 +508,6 @@ int fix_checksums_ipv4(struct sk_buff *skb) {
 
 	case L4PROTO_ICMP:
 		error = validate_csum_icmp4(skb);
-		break;
-
-	case L4PROTO_NONE:
-		WARN(true, "The transport protocol of the skb is NONE.");
-		error = -EINVAL;
 		break;
 	}
 

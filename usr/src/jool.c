@@ -36,6 +36,7 @@ struct arguments {
 	enum config_operation op;
 
 	struct {
+		/* This is actually only common to the pools; the tables don't use it. */
 		bool quick;
 
 		struct {
@@ -136,7 +137,7 @@ enum argp_flags {
  */
 static struct argp_option options[] =
 {
-	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 10},
+	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 1 },
 	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 pool." },
 	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 pool." },
 	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
@@ -144,7 +145,7 @@ static struct argp_option options[] =
 	{ "general", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous configuration "
 			"values (default)." },
 
-	{ NULL, 0, NULL, 0, "Operations:", 10},
+	{ NULL, 0, NULL, 0, "Operations:", 2 },
 	{ "display", ARGP_DISPLAY, NULL, 0, "Print the target (default)." },
 	{ "count", ARGP_COUNT, NULL, 0, "Print the number of elements in the target." },
 	{ "add", ARGP_ADD, NULL, 0, "Add an element to the target." },
@@ -152,26 +153,26 @@ static struct argp_option options[] =
 	{ "remove", ARGP_REMOVE, NULL, 0, "Remove an element from the target." },
 	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
 
-	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 11 },
+	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 3 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
 		"Available on remove and flush operations only. " },
 
-	{ NULL, 0, NULL, 0, "IPv6 Pool-only options:", 11 },
+	{ NULL, 0, NULL, 0, "IPv6 Pool-only options:", 4 },
 	{ "prefix", ARGP_PREFIX, PREFIX_FORMAT, 0, "The prefix to be added or removed. "
 			"Available on add and remove operations only." },
 
-	{ NULL, 0, NULL, 0, "IPv4 Pool-only options:", 11 },
+	{ NULL, 0, NULL, 0, "IPv4 Pool-only options:", 5 },
 	{ "address", ARGP_ADDRESS, IPV4_ADDR_FORMAT, 0, "Address to be added or removed. "
 			"Available on add and remove operations only." },
 
-	{ NULL, 0, NULL, 0, "BIB & Session options:", 20 },
-	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP BIB." },
-	{ "tcp", ARGP_TCP, NULL, 0, "Operate on the TCP BIB." },
-	{ "udp", ARGP_UDP, NULL, 0, "Operate on the UDP BIB." },
+	{ NULL, 0, NULL, 0, "BIB & Session options:", 6 },
+	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
+	{ "tcp", ARGP_TCP, NULL, 0, "Operate on the TCP table." },
+	{ "udp", ARGP_UDP, NULL, 0, "Operate on the UDP table." },
 	{ "numeric", ARGP_NUMERIC_HOSTNAME, NULL, 0, "Don't resolve names. "
 			"Available on display operation only." },
 
-	{ NULL, 0, NULL, 0, "BIB-only options:", 20 },
+	{ NULL, 0, NULL, 0, "BIB-only options:", 7 },
 	{ "bib6", ARGP_BIB_IPV6, IPV6_TRANSPORT_FORMAT, 0,
 			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
 			"Available on add and remove operations only." },
@@ -179,7 +180,7 @@ static struct argp_option options[] =
 			"This is the local IPv4 addres#port of the entry to be added or removed. "
 			"Available on add and remove operations only." },
 
-	{ NULL, 0, NULL, 0, "'General' options:", 30 },
+	{ NULL, 0, NULL, 0, "'General' options:", 8 },
 	{ DROP_BY_ADDR_OPT, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
 			"Use Address-Dependent Filtering?" },
 	{ DROP_ICMP6_INFO_OPT, ARGP_DROP_INFO, BOOL_FORMAT, 0,

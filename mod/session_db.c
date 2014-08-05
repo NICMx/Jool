@@ -76,9 +76,6 @@ static int get_session_table(l4_protocol l4_proto, struct session_table **result
 	case L4PROTO_ICMP:
 		*result = &session_table_icmp;
 		return 0;
-	case L4PROTO_NONE:
-		WARN(true, "There is no session table for the 'NONE' protocol.");
-		return -EINVAL;
 	}
 
 	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
@@ -355,15 +352,15 @@ static unsigned long get_timeout(struct expire_timer *expirer)
 	return timeout;
 }
 
-unsigned long sessiondb_get_timeout(struct session_entry *session)
+int sessiondb_get_timeout(struct session_entry *session, unsigned long *result)
 {
 	if (!session->expirer) {
-		log_debug("The session entry doesn't have expirer");
-		/* TODO: revisar que valor default regresar, en caso de que no tenga expirer*/
-		return 0;
+		log_debug("The session entry doesn't have an expirer");
+		return -EINVAL;
 	}
 
-	return get_timeout(session->expirer);
+	*result = get_timeout(session->expirer);
+	return 0;
 }
 
 /**

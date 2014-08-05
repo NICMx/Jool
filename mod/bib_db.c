@@ -50,9 +50,6 @@ static int get_bibdb_table(l4_protocol l4_proto, struct bib_table **result)
 	case L4PROTO_ICMP:
 		*result = &bib_icmp;
 		return 0;
-	case L4PROTO_NONE:
-		WARN(true, "There's no BIB for the 'NONE' protocol.");
-		return -EINVAL;
 	}
 
 	WARN(true, "Unsupported transport protocol: %u.", l4_proto);

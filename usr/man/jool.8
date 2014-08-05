@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2014-01-29 v3.1.0 "Jool's Userspace Application"
+.TH jool 8 2014-08-05 v3.2.0 "Jool's Userspace Application"
 
 .SH NAME
 jool - Interact with Jool (the kernel module).
@@ -17,36 +17,68 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.0.0 and up.
 
 .SH SYNTAX
-.RI "jool --pool6 [" OPERATION "] [--prefix " PREFIX ]
+jool --pool6 (
 .br
-.RI "jool --pool4 [" OPERATION "] [--address " ADDRESS ]
+	[--display]
 .br
-.RI "jool --bib [--numeric] [" OPERATION "] [" PROTOCOLS "] [--bib4 " BIB4 "] [--bib6 " BIB6 ]
+	| --count
 .br
-.RI "jool --session [--numeric] [" OPERATION "] [" PROTOCOLS ]
+.RI "	| --add --prefix " <prefix>
 .br
-.RI "jool [--filtering] " "FLAG_KEY FLAG_VALUE"
+.RI "	| --remove --prefix " <prefix> " [--quick]
 .br
-.RI "jool [--translate] " "FLAG_KEY FLAG_VALUE"
+.RI "	| --flush [--quick]
 .br
-.RI "jool [--fragmentation] " "FLAG_KEY FLAG_VALUE"
+)
+.P
+jool --pool4 (
+.br
+	[--display]
+.br
+	| --count
+.br
+.RI "	| --add --address " <IPv4-address>
+.br
+.RI "	| --remove --address " <IPv4-address> " [--quick]
+.br
+	| --flush [--quick]
+.br
+)
+.P
+.RI "jool --bib [" <PROTOCOLS> "] (
+.br
+	[--display] [--numeric]
+.br
+	| --count
+.br
+.RI "	| --add --bib4=" <bib4> " --bib6=" <bib6>
+.br
+.RI "	| --remove --bib4=" <bib4> " --bib6=" <bib6>
+.br
+	| --flush
+.br
+)
+.P
+.RI "jool --session [" <PROTOCOLS> "] (
+.br
+	[--display] [--numeric] 
+.br
+	| --count
+.br
+)
+.P
+.RI "jool [--general] (
+.br
+	[--display]
+.br
+.RI "	| [--update] " FLAG_KEY = FLAG_VALUE
+.br
+)
+
 
 .SH OPTIONS
 
-.SS OPERATIONs
-They are mutually exclusive. Default is --display.
-.IP "-d, --display"
-Output the table(s). This is the default.
-.IP "-c, --count"
-Output the number of entries in the table(s).
-.IP "-a, --add"
-Add an entry to the table(s).
-.IP "-r, --remove"
-Remove an entry from the table(s).
-.IP "-f, --flush"
-Flush all entries from the table.
-
-.SS PROTOCOLS
+.SS <PROTOCOLS>
 They are not mutually exclusive. If you provide no protocol, the default is all protocols. If you provide at least one protocol, the rest will be turned off.
 .IP "-u, --udp"
 Apply the operation to the UDP table.
@@ -57,35 +89,35 @@ Apply the operation to the ICMP table.
 
 .SS Others
 .IP --prefix
-.RI "IPv6 prefix to add or remove to the table. Only relevant when " --add " or " --remove " are present."
+.RI "IPv6 prefix to add to or remove from Jool's IPv6 pool.
 .br
 .RI "The format is " IPV6_ADDRESS / PREFIX_LENGTH "."
 .br
 Exampĺe: --prefix 64:ff9b::/96
 .IP --address
-.RI "IPv4 address to add or remove to Jool's IPv4 pool. Only relevant when " --add " or " --remove " are present."
+.RI "IPv4 address to add to or remove from Jool's IPv4 pool.
 .br
 Exampĺe: --address 10.20.30.40
 .IP --bib4
-.RI "IPv4 side of the BIB entry being added or removed. Only relevant when " --add " or " --remove " are present."
+.RI "IPv4 side of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV4_ADDRESS # PORT "."
 .br
 Exampĺe: --bib4 10.20.30.40#5000
 .IP --bib6
-.RI "IPv6 side of the BIB entry being added or removed. Only relevant when " --add " or " --remove " are present."
+.RI "IPv6 side of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV6_ADDRESS # PORT "."
 .br
 Exampĺe: --bib6 1::2#5000
-.IP --numeric
-.RI "Do not try to resolve hostnames. Only relevant when " --display " is present."
+.IP "-n, --numeric"
+.RI "Do not try to resolve hostnames.
 
-.SS "--filtering's FLAG_KEYs"
+.SS "--general's FLAG_KEYs"
 .IP --dropAddr=BOOL
 Apply address-dependent filtering?
 .IP --dropInfo=BOOL
-Filtering ICMPv6 info messages?
+Filter ICMPv6 info messages?
 .IP --dropTCP=BOOL
 Drop externally initiated TCP connections?
 .IP --toUDP=INT
@@ -96,30 +128,24 @@ Set the TCP established session lifetime (in seconds).
 Set the TCP transitory session lifetime (in seconds).
 .IP --toICMP=INT
 Set the ICMP session lifetime (in seconds).
-
-.SS "--translate's FLAG_KEYs"
+.IP --maxStoredPkts=INT
+Set the maximum number of slots for storable packets.
 .IP --setTC=BOOL
-Override IPv6 traffic class
+Override IPv6 traffic class?
 .IP --setTOS=BOOL
-Override IPv4 type of service
+Override IPv4 type of service?
 .IP --TOS=INT
 IPv4 type of service
 .IP --setDF=BOOL
-DF flag always on
+DF flag always on?
 .IP --genID=BOOL
-Generate IPv4 identification
+Generate IPv4 identification?
 .IP --boostMTU=BOOL
-Decrease MTU failure rate
+Decrease MTU failure rate?
 .IP --plateaus=INT[,INT]*
-MTU plateaus
+Set the MTU plateaus.
 .IP --minMTU6=INT
-Minimum MTU of all your IPv6 networks.
-
-.SS "--fragmentation's FLAG_KEYs"
-.IP --toFrag=INT
-Set the fragment reassembly timeout (in seconds).
-.B Note:
-The Fragment Database (and hence this value) is bound to be obsoleted in the next version. If you're using it in your scripts, be prepared to want to tweak them.
+Set the minimum MTU of all the IPv6 networks.
 
 .SH EXAMPLES
 Print the IPv6 pool:
@@ -166,21 +192,13 @@ Print the session table:
 .br
 	jool --session
 .P
-Print the "Filtering and Updating" step's configuration:
+Print the general configuration values:
 .br
-	jool --filtering
+	$ jool
 .br
-Change some "Filtering and Updating" configuration value:
+Update some general configuration value:
 .br
-	jool --filtering --dropAddr ON
-.P
-Print the "Translating the packet" step's configuration:
-.br
-	jool --translate
-.br
-Change some "Translating the packet" configuration value:
-.br
-	jool --translate --TOS 123
+	# jool --dropAddr ON
 
 .SH NOTES
 TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.
@@ -206,5 +224,5 @@ There is NO WARRANTY, to the extent permitted by law.
 .SH SEE ALSO
 https://www.jool.mx
 .br
-https://www.jool.mx/userspace-app.html
+https://www.jool.mx/usr-flags.html
 
