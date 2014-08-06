@@ -330,13 +330,15 @@ end:
  */
 static int FOR_EACH(struct HTABLE_NAME *table, int (*func)(VALUE_TYPE *, void *), void *arg)
 {
+	struct list_head *current_hook, *next_hook;
 	struct KEY_VALUE_PAIR *current_pair;
 	int error;
 
 	if (!table)
 		return -EINVAL;
 
-	list_for_each_entry(current_pair, &table->list, list_hook) {
+	list_for_each_safe(current_hook, next_hook, &table->list) {
+		current_pair = list_entry(current_hook, struct KEY_VALUE_PAIR, list_hook);
 		error = func(current_pair->value, arg);
 		if (error)
 			return error;

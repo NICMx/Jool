@@ -39,6 +39,9 @@ struct pool4_node {
 	} tcp_ports;
 	/** The address's ICMP IDs. */
 	struct poolnum icmp_ids;
+
+	/** Indicates whether the node is visible to the application. */
+	bool active;
 };
 
 /**

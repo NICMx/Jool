@@ -55,6 +55,8 @@ static struct expire_timer expirer_syn;
 /** Current valid configuration for the Session DB module. */
 static struct sessiondb_config *config;
 
+static char* EXPIRER_NAMES[] = { "UDP", "ICMP", "TCP_EST", "TCP_TRANS", "TCP_SYN" };
+
 /********************************************
  * Private (helper) functions.
  ********************************************/
@@ -274,13 +276,13 @@ static void send_probe_packet(struct session_entry *session)
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	/* TODO wtf */
 	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL);
 
 	error = route_ipv6(skb);
 	if (error)
 		goto fail;
 
+	skb_clear_cb(skb);
 	error = ip6_local_out(skb);
 	if (error) {
 		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
@@ -322,7 +324,7 @@ static int remove(struct session_entry *session, struct session_table *table)
  *
  * Not holding a spinlock is desirable for performance reasons (mod_timer() syncs itself).
  */
-static void schedule_timer(struct timer_list *timer, unsigned long next_time)
+static void schedule_timer(struct timer_list *timer, unsigned long next_time, char *expirer_name)
 {
 	unsigned long min_next = jiffies + MIN_TIMER_SLEEP;
 
@@ -330,7 +332,8 @@ static void schedule_timer(struct timer_list *timer, unsigned long next_time)
 		next_time = min_next;
 
 	mod_timer(timer, next_time);
-	log_debug("A timer will awake in %u msecs.", jiffies_to_msecs(timer->expires - jiffies));
+	log_debug("%s timer will awake in %u msecs.", expirer_name,
+			jiffies_to_msecs(timer->expires - jiffies));
 }
 
 /**
@@ -432,12 +435,14 @@ static void cleaner_timer(unsigned long param)
 	struct list_head *current_hook, *next_hook;
 	struct list_head probes, tcp_timeouts;
 	struct session_entry *session;
-	unsigned long timeout, session_update_time = 0;
+	unsigned long timeout;
+	unsigned long session_update_time = 0;
 	unsigned int s = 0;
 	bool schedule_tcp_trans = false;
 
 	log_debug("===============================================");
 	log_debug("Deleting expired sessions...");
+	log_debug("Cleaner name: %s", expirer->name);
 
 	timeout = get_timeout(expirer);
 	INIT_LIST_HEAD(&probes);
@@ -450,26 +455,28 @@ static void cleaner_timer(unsigned long param)
 
 		if (time_before(jiffies, session->update_time + timeout)) {
 			/* "list" is sorted by expiration date, so stop on the first unexpired session. */
-			session_update_time = session->update_time;
+			session_update_time = session->update_time + timeout;
 			break;
 		}
 
 		if (session->l4_proto != L4PROTO_TCP)
 			s += remove(session, expirer->table);
-		else
+		else 
 			s += session_tcp_expire(session, &tcp_timeouts, &probes);
+		
+
 	}
 
 	expirer->table->count -= s;
 	schedule_tcp_trans = !timer_pending(&expirer_tcp_trans.timer) &&
-			!list_empty(&expirer_tcp_trans.sessions);
+			!list_empty(&expirer_tcp_trans.sessions) && (expirer != &expirer_tcp_trans);
 	spin_unlock_bh(&expirer->table->lock);
 
-	if (session_update_time)
-		schedule_timer(&expirer->timer, session_update_time + timeout);
-
 	if (schedule_tcp_trans)
-		schedule_timer(&expirer_tcp_trans.timer, jiffies + get_timeout(&expirer_tcp_trans));
+		schedule_timer(&expirer_tcp_trans.timer, jiffies + get_timeout(&expirer_tcp_trans), expirer_tcp_trans.name);
+
+	if (session_update_time)
+		schedule_timer(&expirer->timer, session_update_time, expirer->name);
 
 	list_for_each_safe(current_hook, next_hook, &tcp_timeouts) {
 		session = list_entry(current_hook, struct session_entry, expire_list_hook);
@@ -496,7 +503,7 @@ static void cleaner_timer(unsigned long param)
  * Doesn't care about spinlocks (initialization code doesn't share threads).
  */
 static void init_expire_timer(struct expire_timer *expirer, struct session_table *table,
-		size_t timeout_offset)
+		size_t timeout_offset, char *expirer_name)
 {
 	init_timer(&expirer->timer);
 	expirer->timer.function = cleaner_timer;
@@ -506,6 +513,7 @@ static void init_expire_timer(struct expire_timer *expirer, struct session_table
 	INIT_LIST_HEAD(&expirer->sessions);
 	expirer->table = table;
 	expirer->timeout_offset = timeout_offset / sizeof(__u64);
+	expirer->name = expirer_name;
 }
 
 int sessiondb_init(void)
@@ -538,14 +546,14 @@ int sessiondb_init(void)
 	}
 
 	init_expire_timer(&expirer_udp, &session_table_udp,
-			offsetof(struct sessiondb_config, ttl.udp));
+			offsetof(struct sessiondb_config, ttl.udp), EXPIRER_NAMES[0]);
 	init_expire_timer(&expirer_icmp, &session_table_icmp,
-			offsetof(struct sessiondb_config, ttl.icmp));
+			offsetof(struct sessiondb_config, ttl.icmp), EXPIRER_NAMES[1]);
 	init_expire_timer(&expirer_tcp_est, &session_table_tcp,
-			offsetof(struct sessiondb_config, ttl.tcp_est));
+			offsetof(struct sessiondb_config, ttl.tcp_est), EXPIRER_NAMES[2]);
 	init_expire_timer(&expirer_tcp_trans, &session_table_tcp,
-			offsetof(struct sessiondb_config, ttl.tcp_trans));
-	init_expire_timer(&expirer_syn, &session_table_tcp, 0);
+			offsetof(struct sessiondb_config, ttl.tcp_trans), EXPIRER_NAMES[3]);
+	init_expire_timer(&expirer_syn, &session_table_tcp, 0, EXPIRER_NAMES[4]);
 
 	return 0;
 }
@@ -596,6 +604,7 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 {
 	struct sessiondb_config *tmp_config;
 	struct sessiondb_config *old_config;
+	struct expire_timer *expirer;
 	__u64 value64;
 	__u32 max_u32 = 0xFFFFFFFFL; /* Max value in milliseconds */
 
@@ -626,9 +635,11 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 			goto fail;
 		}
 		tmp_config->ttl.udp = value64;
+		expirer = &expirer_udp;
 		break;
 	case ICMP_TIMEOUT:
 		tmp_config->ttl.icmp = value64;
+		expirer = &expirer_icmp;
 		break;
 	case TCP_EST_TIMEOUT:
 		if (value64 < msecs_to_jiffies(1000 * TCP_EST)) {
@@ -636,6 +647,7 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 			goto fail;
 		}
 		tmp_config->ttl.tcp_est = value64;
+		expirer = &expirer_tcp_est;
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (value64 < msecs_to_jiffies(1000 * TCP_TRANS)) {
@@ -643,6 +655,7 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 			goto fail;
 		}
 		tmp_config->ttl.tcp_trans = value64;
+		expirer = &expirer_tcp_trans;
 		break;
 	default:
 		log_err("Unknown config type for the 'session database' module: %u", type);
@@ -652,6 +665,7 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 	kfree(old_config);
+	commit_timer(expirer);
 	return 0;
 
 fail:
@@ -1204,7 +1218,7 @@ struct expire_timer *set_syn_timer(struct session_entry *session)
 void commit_timer(struct expire_timer *expirer)
 {
 	if (expirer)
-		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer));
+		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
 }
 
 /**
