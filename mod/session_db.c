@@ -753,9 +753,18 @@ bool sessiondb_allow(struct tuple *tuple)
 	return result;
 }
 
+static bool is_set(const struct ipv6_tuple_address *addr)
+{
+	/* Er... is there a dummyless way to do this? */
+	struct ipv6_tuple_address dummy;
+	memset(&dummy, 0, sizeof(dummy));
+	return memcmp(addr, &dummy, sizeof(dummy)) ? false : true;
+}
+
 int sessiondb_add(struct session_entry *session)
 {
 	struct session_table *table;
+	struct rb_node *parent, **node;
 	int error;
 
 	/* Sanity */
@@ -775,26 +784,42 @@ int sessiondb_add(struct session_entry *session)
 		return -EEXIST;
 	}
 
-	error = rbtree_add(session, ipv4, &table->tree4, compare_full4, struct session_entry,
-			tree4_hook);
-	if (error) { /* This is not supposed to happen in a perfect world. */
-		rb_erase(&session->tree6_hook, &table->tree6);
-		spin_unlock_bh(&table->lock);
+	rbtree_find_node(&session->ipv4, &table->tree4, compare_full4, struct session_entry,
+			tree4_hook, parent, node);
+	if (*node) {
 		/*
-		 * Afterthought:
-		 * We've analyzed this and indeed it seems to be impossible.
-		 * However, maybe we should lower the criticalness of it anyway, to protect ourselves from
-		 * future refactors which might break our assumptions...
-		 * Hmmmmmmmmmmmmmmmmmmmmmmmmmm.
+		 * This can happen on Simultaneous Open (SO) of TCP connections.
+		 * An incomplete dummy session was inserted to the database (we didn't have the remote
+		 * IPv6 address at the time), and now we have to replace it with the full version.
 		 */
-		WARN(true, "The session could be indexed by IPv6 but not by IPv4.");
-		return -EEXIST;
+		struct session_entry *other;
+		other = rb_entry(*node, struct session_entry, tree6_hook);
+
+		if (WARN(is_set(&other->ipv6.remote), "IPv6 index worked, IPv4 index didn't."))
+			goto index_trainwreck; /* No actually a SO; this should never happen. */
+
+		pktqueue_remove(other); /* Not sure what to make out it if this fails. */
+
+		table->count -= remove(other, table);
+		error = rbtree_add(session, ipv4, &table->tree4, compare_full4, struct session_entry,
+				tree4_hook);
+		if (WARN(error, "Just removed the conflicting session, insertion still failed."))
+			goto index_trainwreck;
+
+	} else {
+		rb_link_node(&session->tree4_hook, parent, node);
+		rb_insert_color(&session->tree4_hook, &table->tree4);
 	}
 
 	session_get(session); /* We have 2 indexes, but really they count as one. */
 	table->count++;
 	spin_unlock_bh(&table->lock);
 	return 0;
+
+index_trainwreck:
+	rb_erase(&session->tree6_hook, &table->tree6);
+	spin_unlock_bh(&table->lock);
+	return -EEXIST;
 }
 
 int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *, void *), void *arg)

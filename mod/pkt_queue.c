@@ -90,7 +90,7 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	spin_lock_bh(&packets_lock);
 
 	if (packet_count >= max_pkts) {
-		error = -EINVAL;
+		error = -E2BIG;
 		goto fail;
 	}
 
@@ -100,7 +100,9 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	packet_count++;
 
 	spin_unlock_bh(&packets_lock);
+
 	session_get(session);
+	log_debug("Pkt queue - I just stored a packet.");
 	return 0;
 
 fail:
@@ -136,6 +138,7 @@ int pktqueue_send(struct session_entry *session)
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
+	log_debug("Pkt queue - I just sent a ICMP error.");
 	return 0;
 }
 
@@ -235,5 +238,6 @@ int pktqueue_remove(struct session_entry *session)
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
+	log_debug("Pkt queue - I just cancelled a ICMP error.");
 	return 0;
 }

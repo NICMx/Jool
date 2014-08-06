@@ -219,6 +219,8 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	 */
 	if (bib)
 		pair6.remote = bib->ipv6;
+	else
+		memset(&pair6.remote, 0, sizeof(pair6.remote));
 	pair6.local.address = ipv6_src;
 	pair6.local.l4_id = tuple->src.l4_id;
 	pair4.local.address = tuple->dst.addr.ipv4;
@@ -406,6 +408,7 @@ static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple)
 	log_session(session);
 
 	commit_timer(set_tcp_trans_timer(session));
+	/* TODO Shoudln't we set this before inserting to the DB? */
 	session->state = V6_INIT;
 
 	session_return(session);
@@ -448,11 +451,25 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 
 	if (!bib || address_dependent_filtering()) {
 		error = pktqueue_add(session, skb);
-		if (error)
+		if (error) {
+			if (error == -E2BIG) {
+				/* Fall back to assume there's no Simultaneous Open. */
+				icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
+			}
 			goto end_session;
+		}
+
+		/* At this point, skb completely belongs to pktqueue. */
+		result = VER_STOLEN;
+
+		error = sessiondb_add(session);
+		if (error) {
+			log_debug("Error code %d while adding the session to the DB.", error);
+			pktqueue_remove(session);
+			goto end_session;
+		}
 
 		commit_timer(set_syn_timer(session));
-		result = VER_STOLEN;
 
 	} else {
 		error = sessiondb_add(session);
@@ -517,8 +534,6 @@ static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *s
 		struct expire_timer **expirer)
 {
 	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->syn) {
-		pktqueue_remove(session); /* The packet might have not been stored, so ignore errors. */
-
 		*expirer = set_tcp_est_timer(session);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
