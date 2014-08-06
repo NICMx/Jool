@@ -47,6 +47,8 @@ struct expire_timer {
 	 * Except if this timer is "timer_syn", since the timeout of that one is constant.
 	 */
 	size_t timeout_offset;
+
+	char *name;
 };
 
 /**
