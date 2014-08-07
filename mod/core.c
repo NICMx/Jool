@@ -35,6 +35,11 @@ static unsigned int core_common(struct sk_buff *skb_in)
 		goto end;
 
 	if (is_hairpin(skb_out)) {
+		/*
+		 * Note: There's no risk of skb_out being fragmented here,
+		 * because only outgoing IPv6 packets get fragmented,
+		 * and only outgoing IPv4 packets can hairpin.
+		 */
 		result = handling_hairpinning(skb_out, &tuple_out);
 		kfree_skb(skb_out);
 	} else {

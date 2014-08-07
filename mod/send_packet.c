@@ -175,11 +175,11 @@ verdict send_pkt(struct sk_buff *skb)
 		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
 			skb_clear_cb(skb);
-			error = ip6_local_out(skb);
+			error = ip6_local_out(skb); /* Implicit kfree_skb(skb) goes here. */
 			break;
 		case L3PROTO_IPV4:
 			skb_clear_cb(skb);
-			error = ip_local_out(skb);
+			error = ip_local_out(skb); /* Implicit kfree_skb(skb) goes here. */
 			break;
 		}
 

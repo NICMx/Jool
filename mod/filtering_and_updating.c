@@ -459,7 +459,7 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 			goto end_session;
 		}
 
-		/* At this point, skb completely belongs to pktqueue. */
+		/* At this point, skb's original skb completely belongs to pktqueue. */
 		result = VER_STOLEN;
 
 		error = sessiondb_add(session);

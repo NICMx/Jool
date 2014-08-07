@@ -54,6 +54,10 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 		type = ICMPV6_DEST_UNREACH;
 		code = ICMPV6_ADDR_UNREACH;
 		break;
+	case ICMPERR_PORT_UNREACHABLE:
+		type = ICMPV6_DEST_UNREACH;
+		code = ICMPV6_PORT_UNREACH;
+		break;
 	case ICMPERR_PROTO_UNREACHABLE:
 		type = ICMPV6_PARAMPROB;
 		code = ICMPV6_UNK_NEXTHDR;

@@ -769,10 +769,11 @@ bool sessiondb_allow(struct tuple *tuple)
 
 static bool is_set(const struct ipv6_tuple_address *addr)
 {
-	/* Er... is there a dummyless way to do this? */
-	struct ipv6_tuple_address dummy;
-	memset(&dummy, 0, sizeof(dummy));
-	return memcmp(addr, &dummy, sizeof(dummy)) ? false : true;
+	return addr->address.s6_addr32[0]
+			|| addr->address.s6_addr32[1]
+			|| addr->address.s6_addr32[2]
+			|| addr->address.s6_addr32[3]
+			|| addr->l4_id;
 }
 
 int sessiondb_add(struct session_entry *session)
@@ -807,7 +808,7 @@ int sessiondb_add(struct session_entry *session)
 		 * IPv6 address at the time), and now we have to replace it with the full version.
 		 */
 		struct session_entry *other;
-		other = rb_entry(*node, struct session_entry, tree6_hook);
+		other = rb_entry(*node, struct session_entry, tree4_hook);
 
 		if (WARN(is_set(&other->ipv6.remote), "IPv6 index worked, IPv4 index didn't."))
 			goto index_trainwreck; /* No actually a SO; this should never happen. */

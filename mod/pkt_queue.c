@@ -84,12 +84,12 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	}
 
 	node->session = session;
-	node->skb = skb;
+	node->skb = skb_original_skb(skb);
 	RB_CLEAR_NODE(&node->tree_hook);
 
 	spin_lock_bh(&packets_lock);
 
-	if (packet_count >= max_pkts) {
+	if (packet_count + 1 >= max_pkts) {
 		error = -E2BIG;
 		goto fail;
 	}

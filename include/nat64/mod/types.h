@@ -62,7 +62,14 @@ typedef enum verdict {
 	 * (Or "packet is invalid and I already sent a ICMP error, so just kill it".)
 	 */
 	VER_DROP = NF_DROP,
-	/** "I need to keep the packet for a while. Do not free, access or modify it." */
+	/**
+	 * "I need to keep the packet for a while. Do not free, access or modify it."
+	 *
+	 * The packet being stored is THE ORIGINAL PACKET.
+	 * The "original packet" will be different from the "incoming packet" in hairpinning.
+	 * Therefore, if your stealing/storing code doesn't include skb_original_skb(), then YOU HAVE
+	 * A KERNEL PANIC.
+	 */
 	VER_STOLEN = NF_STOLEN,
 } verdict;
 

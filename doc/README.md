@@ -11,7 +11,7 @@ $ cd usr
 $ jekyll build
 ```
 
-Have a look at your generated files in the newly-generated usr/_site folder.
+Have a look at your generated files in the new `usr/_site/` folder (Start at `index.html`).
 
 # dev
 
