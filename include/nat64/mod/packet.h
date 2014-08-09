@@ -136,7 +136,7 @@ struct jool_cb {
 	 * If this is an incoming packet (as in, incoming to Jool), this points to the same packet.
 	 * Otherwise (which includes hairpin packets), this points to the original (incoming) packet.
 	 * Used by the ICMP wrapper because it needs to reply the original packet, not the one being
-	 * translated.
+	 * translated. Also used by the packet queue.
 	 */
 	struct sk_buff *original_skb;
 };

@@ -60,12 +60,6 @@ typedef enum l3_protocol {
 } l3_protocol;
 
 /**
- * Returns a string version of "proto".
- * For debugging purposes really, but maybe we should use it more often during error messages.
- */
-char *l3proto_to_string(l3_protocol proto);
-
-/**
  * Transport (layer 4) protocols Jool is supposed to support.
  * We do not use IPPROTO_TCP and friends because I want the compiler to pester me during
  * defaultless switch'es. Also, the zero-based index is convenient in the Translate Packet module.
@@ -84,12 +78,6 @@ typedef enum l4_protocol {
 	L4PROTO_ICMP = 2,
 #define L4_PROTO_COUNT 3
 } l4_protocol;
-
-/**
- * Returns a string version of "proto".
- * For debugging purposes really, but maybe we should use it more often during error messages.
- */
-char *l4proto_to_string(l4_protocol proto);
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).

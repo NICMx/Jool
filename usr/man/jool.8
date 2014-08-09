@@ -47,7 +47,7 @@ jool --pool4 (
 .P
 .RI "jool --bib [" <PROTOCOLS> "] (
 .br
-	[--display] [--numeric]
+	[--display] [--numeric] [--csv]
 .br
 	| --count
 .br
@@ -55,13 +55,11 @@ jool --pool4 (
 .br
 .RI "	| --remove --bib4=" <bib4> " --bib6=" <bib6>
 .br
-	| --flush
-.br
 )
 .P
 .RI "jool --session [" <PROTOCOLS> "] (
 .br
-	[--display] [--numeric] 
+	[--display] [--numeric] [--csv]
 .br
 	| --count
 .br
@@ -111,7 +109,9 @@ Exampĺe: --bib4 10.20.30.40#5000
 .br
 Exampĺe: --bib6 1::2#5000
 .IP "-n, --numeric"
-.RI "Do not try to resolve hostnames.
+Do not try to resolve hostnames.
+.IP "--csv"
+Output the table in Comma/Character-Separated Values (.csv) format.
 
 .SS "--general's FLAG_KEYs"
 .IP --dropAddr=BOOL

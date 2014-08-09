@@ -25,4 +25,14 @@ int str_to_addr4(const char *str, struct in_addr *result);
  */
 int str_to_addr6(const char *str, struct in6_addr *result);
 
+/**
+ * Returns a string version of "proto".
+ */
+const char *l3proto_to_string(l3_protocol proto);
+
+/**
+ * Returns a string version of "proto".
+ */
+const char *l4proto_to_string(l4_protocol proto);
+
 #endif /* _JOOL_COMM_STR_UTILS_H */

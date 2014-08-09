@@ -1,35 +1,10 @@
 #include "nat64/mod/types.h"
+#include "nat64/comm/str_utils.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 
-
-char *l3proto_to_string(l3_protocol l3_proto)
-{
-	switch (l3_proto) {
-	case L3PROTO_IPV6:
-		return "IPv6";
-	case L3PROTO_IPV4:
-		return "IPv4";
-	}
-
-	return NULL;
-}
-
-char *l4proto_to_string(l4_protocol l4_proto)
-{
-	switch (l4_proto) {
-	case L4PROTO_TCP:
-		return "TCP";
-	case L4PROTO_UDP:
-		return "UDP";
-	case L4PROTO_ICMP:
-		return "ICMP";
-	}
-
-	return NULL;
-}
 
 bool ipv4_addr_equals(const struct in_addr *expected, const struct in_addr *actual)
 {

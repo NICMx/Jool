@@ -19,13 +19,13 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			conf->filtering.drop_external_tcp ? "ON" : "OFF");
 
 	printf("UDP session lifetime (--%s): ", UDP_TIMEOUT_OPT);
-	print_time(conf->sessiondb.ttl.udp);
+	print_time_friendly(conf->sessiondb.ttl.udp);
 	printf("TCP established session lifetime (--%s): ", TCP_EST_TIMEOUT_OPT);
-	print_time(conf->sessiondb.ttl.tcp_est);
+	print_time_friendly(conf->sessiondb.ttl.tcp_est);
 	printf("TCP transitory session lifetime (--%s): ", TCP_TRANS_TIMEOUT_OPT);
-	print_time(conf->sessiondb.ttl.tcp_trans);
+	print_time_friendly(conf->sessiondb.ttl.tcp_trans);
 	printf("ICMP session lifetime (--%s): ", ICMP_TIMEOUT_OPT);
-	print_time(conf->sessiondb.ttl.icmp);
+	print_time_friendly(conf->sessiondb.ttl.icmp);
 
 	printf("Maximum number of stored packets (--%s): %llu\n", STORED_PKTS_OPT,
 			conf->pktqueue.max_pkts);

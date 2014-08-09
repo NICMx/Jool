@@ -281,25 +281,13 @@ code {
 }
 
 table {
-	display: block;
 	background-color: #f8f8f8;
-	border: 1px solid #ddd;
-	font-size: 13px;
-	line-height: 30px;
-	overflow: auto;
-	padding: 6px 10px;
-	border-radius: 3px;
-	margin-bottom: 20px;
 }
 
-td {
+td, th {
 	border: 1px solid #ddd;
-	border-radius: 3px;
-	padding: 0 10px 0 10px;
-	line-height: 200%
-}
-
-th {
+	/*"border-radius: 3px; */
+	padding: 0.5em;
 	text-align: center;
 }
 

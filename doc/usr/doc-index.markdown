@@ -30,6 +30,7 @@ Welcome to Jool's documentation site.
 
 ## Miscellaneous
 
-1. [The problem with Offloading](misc-offloading.html)
-2. [Jool's thievish nature](misc-thieve.html)
+1. [BIB](misc-bib.html)
+2. [The problem with Offloading](misc-offloading.html)
+3. [Jool's thievish nature](misc-thieve.html)
 

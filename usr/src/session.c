@@ -15,6 +15,7 @@
 
 struct display_params {
 	bool numeric_hostname;
+	bool csv_format;
 	int row_count;
 	struct request_session *req_payload;
 };
@@ -54,30 +55,50 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	entries = nlmsg_data(hdr);
 	entry_count = nlmsg_datalen(hdr) / sizeof(*entries);
 
-	for (i = 0; i < entry_count; i++) {
-		struct session_entry_usr *entry = &entries[i];
+	if (params->csv_format) {
+		for (i = 0; i < entry_count; i++) {
+			struct session_entry_usr *entry = &entries[i];
 
-		if (params->req_payload->l4_proto == L4PROTO_TCP)
-			printf("(%s) ", tcp_state_to_string(entry->state));
+			printf("%s,", l4proto_to_string(params->req_payload->l4_proto));
+			print_ipv6_tuple(&entry->addr6.remote, params->numeric_hostname, ",");
+			printf(",");
+			print_ipv6_tuple(&entry->addr6.local, true, ",");
+			printf(",");
+			print_ipv4_tuple(&entry->addr4.local, true, ",");
+			printf(",");
+			print_ipv4_tuple(&entry->addr4.remote, params->numeric_hostname, ",");
+			printf(",");
+			print_time_csv(entry->dying_time);
+			if (params->req_payload->l4_proto == L4PROTO_TCP)
+				printf(",%s", tcp_state_to_string(entry->state));
+			printf("\n");
+		}
+	} else {
+		for (i = 0; i < entry_count; i++) {
+			struct session_entry_usr *entry = &entries[i];
 
-		printf("Expires in ");
-		print_time(entry->dying_time);
+			if (params->req_payload->l4_proto == L4PROTO_TCP)
+				printf("(%s) ", tcp_state_to_string(entry->state));
 
-		printf("Remote: ");
-		print_ipv4_tuple(&entry->addr4.remote, params->numeric_hostname);
+			printf("Expires in ");
+			print_time_friendly(entry->dying_time);
 
-		printf("\t");
-		print_ipv6_tuple(&entry->addr6.remote, params->numeric_hostname);
-		printf("\n");
+			printf("Remote: ");
+			print_ipv4_tuple(&entry->addr4.remote, params->numeric_hostname, "#");
 
-		printf("Local: ");
-		print_ipv4_tuple(&entry->addr4.local, true);
+			printf("\t");
+			print_ipv6_tuple(&entry->addr6.remote, params->numeric_hostname, "#");
+			printf("\n");
 
-		printf("\t");
-		print_ipv6_tuple(&entry->addr6.local, true);
-		printf("\n");
+			printf("Local: ");
+			print_ipv4_tuple(&entry->addr4.local, true, "#");
 
-		printf("---------------------------------\n");
+			printf("\t");
+			print_ipv6_tuple(&entry->addr6.local, true, "#");
+			printf("\n");
+
+			printf("---------------------------------\n");
+		}
 	}
 
 	params->row_count += entry_count;
@@ -92,7 +113,7 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numeric_hostname)
+static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool csv_format)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -100,8 +121,10 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 	struct display_params params;
 	bool error;
 
-	printf("%s:\n", table_name);
-	printf("---------------------------------\n");
+	if (!csv_format) {
+		printf("%s:\n", l4proto_to_string(l4_proto));
+		printf("---------------------------------\n");
+	}
 
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_SESSION;
@@ -111,6 +134,7 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
 
 	params.numeric_hostname = numeric_hostname;
+	params.csv_format = csv_format;
 	params.row_count = 0;
 	params.req_payload = payload;
 
@@ -120,7 +144,7 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 			break;
 	} while (params.req_payload->display.iterate);
 
-	if (!error) {
+	if (!csv_format && !error) {
 		if (params.row_count > 0)
 			log_info("  (Fetched %u entries.)\n", params.row_count);
 		else
@@ -130,18 +154,27 @@ static bool display_single_table(char *table_name, u_int8_t l4_proto, bool numer
 	return error;
 }
 
-int session_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_hostname)
+int session_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_hostname,
+		bool csv_format)
 {
 	int tcp_error = 0;
 	int udp_error = 0;
 	int icmp_error = 0;
 
+	if (csv_format) {
+		printf("Protocol,");
+		printf("IPv6 Remote Address,IPv6 Remote L4-ID,IPv6 Local Address,IPv6 Local L4-ID,");
+		printf("IPv4 Local Address,IPv4 Local L4-ID,IPv4 Remote Address,IPv4 Remote L4-ID,");
+		printf("Expires in,State");
+		printf("\n");
+	}
+
 	if (use_tcp)
-		tcp_error = display_single_table("TCP", L4PROTO_TCP, numeric_hostname);
+		tcp_error = display_single_table(L4PROTO_TCP, numeric_hostname, csv_format);
 	if (use_udp)
-		udp_error = display_single_table("UDP", L4PROTO_UDP, numeric_hostname);
+		udp_error = display_single_table(L4PROTO_UDP, numeric_hostname, csv_format);
 	if (use_icmp)
-		icmp_error = display_single_table("ICMP", L4PROTO_ICMP, numeric_hostname);
+		icmp_error = display_single_table(L4PROTO_ICMP, numeric_hostname, csv_format);
 
 	return (tcp_error || udp_error || icmp_error) ? -EINVAL : 0;
 }

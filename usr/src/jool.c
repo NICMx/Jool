@@ -52,6 +52,7 @@ struct arguments {
 		struct {
 			bool tcp, udp, icmp;
 			bool numeric_hostname;
+			bool csv_format;
 
 			struct {
 				struct ipv6_tuple_address addr6;
@@ -100,6 +101,7 @@ enum argp_flags {
 	ARGP_UDP = 'u',
 	ARGP_ICMP = 'i',
 	ARGP_NUMERIC_HOSTNAME = 'n',
+	ARGP_CSV = 2022,
 	ARGP_BIB_IPV6 = 2020,
 	ARGP_BIB_IPV4 = 2021,
 
@@ -171,6 +173,8 @@ static struct argp_option options[] =
 	{ "udp", ARGP_UDP, NULL, 0, "Operate on the UDP table." },
 	{ "numeric", ARGP_NUMERIC_HOSTNAME, NULL, 0, "Don't resolve names. "
 			"Available on display operation only." },
+	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
+			"Available on display operation only."},
 
 	{ NULL, 0, NULL, 0, "BIB-only options:", 7 },
 	{ "bib6", ARGP_BIB_IPV6, IPV6_TRANSPORT_FORMAT, 0,
@@ -393,6 +397,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
 		args->db.tables.numeric_hostname = true;
 		break;
+	case ARGP_CSV:
+		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
+		args->db.tables.csv_format = true;
+		break;
 
 	case ARGP_ADDRESS:
 		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
@@ -611,7 +619,7 @@ static int main_wrapped(int argc, char **argv)
 		switch (args.op) {
 		case OP_DISPLAY:
 			return bib_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
-					args.db.tables.numeric_hostname);
+					args.db.tables.numeric_hostname, args.db.tables.csv_format);
 		case OP_COUNT:
 			return bib_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
 
@@ -651,7 +659,7 @@ static int main_wrapped(int argc, char **argv)
 		switch (args.op) {
 		case OP_DISPLAY:
 			return session_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
-					args.db.tables.numeric_hostname);
+					args.db.tables.numeric_hostname, args.db.tables.csv_format);
 		case OP_COUNT:
 			return session_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
 		default:

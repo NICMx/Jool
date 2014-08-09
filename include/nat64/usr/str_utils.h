@@ -60,9 +60,14 @@ int str_to_addr6_port(const char *str, struct ipv6_tuple_address *out);
 int str_to_prefix(const char *str, struct ipv6_prefix *out);
 
 /**
+ * Prints the "millis" amount of milliseconds as spreadsheet-friendly format in the console.
+ */
+void print_time_csv(__u64 millis);
+
+/**
  * Prints the "millis" amount of milliseconds as a fairly human-readable string in the console.
  */
-void print_time(__u64 millis);
+void print_time_friendly(__u64 millis);
 
 #endif /* _JOOL_COMM_STR_UTILS_H */
 

@@ -10,6 +10,32 @@
 
 #define MAX_PORT 0xFFFF
 
+const char *l3proto_to_string(l3_protocol l3_proto)
+{
+	switch (l3_proto) {
+	case L3PROTO_IPV6:
+		return "IPv6";
+	case L3PROTO_IPV4:
+		return "IPv4";
+	}
+
+	return NULL;
+}
+
+const char *l4proto_to_string(l4_protocol l4_proto)
+{
+	switch (l4_proto) {
+	case L4PROTO_TCP:
+		return "TCP";
+	case L4PROTO_UDP:
+		return "UDP";
+	case L4PROTO_ICMP:
+		return "ICMP";
+	}
+
+	return NULL;
+}
+
 int str_to_bool(const char *str, __u8 *bool_out)
 {
 	if (strcasecmp(str, "true") == 0 || strcasecmp(str, "1") == 0
@@ -273,7 +299,39 @@ int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 	return -EINVAL;
 }
 
-void print_time(__u64 millis)
+static void print_num_csv(__u64 num, char *separator)
+{
+	if (num < 10)
+		printf("0%llu%s", num, separator);
+	else
+		printf("%llu%s", num, separator);
+}
+
+void print_time_csv(__u64 millis)
+{
+	const __u64 MILLIS_PER_SECOND = 1000;
+	const __u64 MILLIS_PER_MIN = 60 * MILLIS_PER_SECOND;
+	const __u64 MILLIS_PER_HOUR = 60 * MILLIS_PER_MIN;
+	__u64 hours;
+	__u64 minutes;
+	__u64 seconds;
+
+	hours = millis / MILLIS_PER_HOUR;
+	millis -= hours * MILLIS_PER_HOUR;
+
+	minutes = millis / MILLIS_PER_MIN;
+	millis -= minutes * MILLIS_PER_MIN;
+
+	seconds = millis / MILLIS_PER_SECOND;
+	millis -= seconds * MILLIS_PER_SECOND;
+
+	print_num_csv(hours, ":");
+	print_num_csv(minutes, ":");
+	print_num_csv(seconds, ".");
+	printf("%llu", millis);
+}
+
+void print_time_friendly(__u64 millis)
 {
 	__u64 seconds;
 	__u64 minutes;

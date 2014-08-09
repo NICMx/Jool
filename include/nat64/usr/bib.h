@@ -4,7 +4,7 @@
 #include "nat64/comm/types.h"
 
 
-int bib_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_hostname);
+int bib_display(bool use_tcp, bool use_udp, bool use_icmp, bool numeric_hostname, bool csv_format);
 int bib_count(bool use_tcp, bool use_udp, bool use_icmp);
 
 int bib_add(bool use_tcp, bool use_udp, bool use_icmp,

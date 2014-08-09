@@ -4,6 +4,7 @@
 #include <net/route.h>
 
 #include "nat64/comm/constants.h"
+#include "nat64/comm/str_utils.h"
 #include "nat64/mod/types.h"
 #include "nat64/mod/icmp_wrapper.h"
 
