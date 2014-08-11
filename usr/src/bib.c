@@ -32,17 +32,19 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 	if (params->csv_format) {
 		for (i = 0; i < entry_count; i++) {
 			printf("%s,", l4proto_to_string(params->req_payload->l4_proto));
-			print_ipv6_tuple(&entries[i].addr6, params->numeric_hostname, ",");
+			print_ipv6_tuple(&entries[i].addr6, params->numeric_hostname, ",",
+					params->req_payload->l4_proto);
 			printf(",");
-			print_ipv4_tuple(&entries[i].addr4, true, ",");
+			print_ipv4_tuple(&entries[i].addr4, true, ",", params->req_payload->l4_proto);
 			printf(",%u\n", entries[i].is_static);
 		}
 	} else {
 		for (i = 0; i < entry_count; i++) {
 			printf("[%s] ", entries[i].is_static ? "Static" : "Dynamic");
-			print_ipv4_tuple(&entries[i].addr4, true, "#");
+			print_ipv4_tuple(&entries[i].addr4, true, "#", params->req_payload->l4_proto);
 			printf(" - ");
-			print_ipv6_tuple(&entries[i].addr6, params->numeric_hostname, "#");
+			print_ipv6_tuple(&entries[i].addr6, params->numeric_hostname, "#",
+					params->req_payload->l4_proto);
 			printf("\n");
 		}
 	}
