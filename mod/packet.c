@@ -162,7 +162,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 
 	default:
 		log_debug("Unsupported layer 4 protocol: %d", iterator.hdr_type);
-		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
+		icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
 		return -EINVAL;
 	}
 
