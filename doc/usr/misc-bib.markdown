@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - BIB
 ---
 
-# Miscellaneous > BIB
+# [Doc](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > BIB
 
 The _Binding Information Base_ (BIB) is a collection of tables in a NAT64. It is defined in <a href="http://tools.ietf.org/html/rfc6146#section-3.1" target="_blank">RFC 6146</a>. Hopefully, this document can serve as a friendly overview.
 

@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Userspace Application
 ---
 
-# Userspace Application > Flags > \--session
+# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--session
 
 ## Index
 
@@ -15,8 +15,6 @@ title: Documentation - Userspace Application
    3. [\--numeric](#numeric)
    4. [\--csv](#csv)
 4. [Examples](#examples)
-
-[Back to Flags](usr-flags.html).
 
 ## Description
 

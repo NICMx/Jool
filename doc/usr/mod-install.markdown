@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 1
 ---
 
-# Kernel Module > Installation
+# [Doc](doc-index.html) > [Kernel Module](doc-index.html#kernel-module) > Installation
 
 ## Index
 
@@ -46,33 +46,22 @@ $ /sbin/ip link show
     link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff
 {% endhighlight %}
 
+Finally, you need your kernel headers. If you're using apt-get, just run this:
+
+{% highlight bash %}
+$ apt-get install linux-headers-$(uname -r)
+{% endhighlight %}
+
 ## Compilation
 
-Each kernel version combined with each different architecture requires different binaries, so providing packages for every combination would be impossibly cumbersome. For this reason, what you'll download from either the official site or the Github page is the source; there is no way around compiling the code yourself.
+Each kernel version combined with each different architecture requires different binaries, so providing packages for every combination would be impossibly cumbersome. For this reason, what you'll download is the source; there is no way around compiling the code yourself.
 
 On the flip side, kernel modules cannot (AFAIK) have dependencies other than your kernel headers and a good compiler, so the procedure is fairly painless.
 
-> By the way, Git users: We no longer use the code's master branch for potentially destructive development. <a href="https://github.com/NICMx/NAT64" target="_blank">github.com/NICMx/NAT64</a> should _always_ contain the latest stable version. Even if the git repository has tags, you should stick to the latest commit of the master branch if you want the latest bugfixes.
+To download Jool, you have two options:
 
-You need:
-
-* Jool. As stated above, you can download the git source, but using the [official release](download.html) might prove less convoluted.
-* unzip (just to extract Jool).
-	- Most distros feature it by default.
-* gcc and make. This is distro-specific. Here's a few pointers, depending on your packaging tool:
-	- Apt-get (Debian): `# apt-get install build-essential`
-	- Pacman (Arch Linux): `# pacman -S base-devel`
-	- Zypper (OpenSUSE): `# zypper install gcc make`
-	- If you're using Ubuntu or CentOS, you should already have them.
-* Your kernel headers (Any kernel module depends on these):
-	- Apt-get (Debian, Ubuntu): `# apt-get install linux-headers-$(uname -r)`
-	- Pacman (Arch Linux): `# pacman -S base-devel` (Right, you don't have to do it again.)
-	- If you're using CentOS: `# apt-get install linux-headers-$(uname -r)`
-	- Zypper (OpenSUSE): `# zypper install kernel-source`
-* (And just to make sure Jool works as expected) ethtool
-	- Apt-get: `# apt-get install ethtool`
-	- Pacman: `# pacman -S ethtool`
-	- Zypper: `# zypper install ethtool`
+* Official releases are hosted in the [Download page](download.html). These will prove less convoluted when you're installing the userspace application.
+* There's the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>. This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (in case you're wondering, we do all the risky development elsewhere).
 
 You might be used to a cute standard three-step procedure to compile and install programs: `./configure && make && make install`. Kernel modules do not follow it, but have a special one on their own.
 

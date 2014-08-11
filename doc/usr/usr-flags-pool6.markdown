@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Userspace Application
 ---
 
-# Userspace Application > Flags > \--pool6
+# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool6
 
 ## Index
 
@@ -14,8 +14,6 @@ title: Documentation - Userspace Application
    2. [\--quick](#quick)
    3. [\--prefix](#prefix)
 4. [Examples](#examples)
-
-[Back to Flags](usr-flags.html).
 
 ## Description
 
@@ -39,13 +37,13 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 * `--remove`: Deletes from the tables the prefix `<prefix>`.
 * `--flush`: Removes all prefixes from the pool.
 
+### \--quick
+
+See [`--quick`](usr-flags-quick.html).
+
 ### \--prefix
 
 	<prefix> := <prefix address>/<prefix length>
-
-### \--quick
-
-See [`--quick`](#quick).
 
 ## Examples
 

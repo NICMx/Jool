@@ -78,11 +78,11 @@ jool --pool4 (
 
 .SS <PROTOCOLS>
 They are not mutually exclusive. If you provide no protocol, the default is all protocols. If you provide at least one protocol, the rest will be turned off.
-.IP "-u, --udp"
+.IP --udp
 Apply the operation to the UDP table.
-.IP "-t, --tcp"
+.IP --tcp
 Apply the operation to the TCP table.
-.IP "-i, --icmp"
+.IP --icmp
 Apply the operation to the ICMP table.
 
 .SS Others
@@ -108,9 +108,11 @@ Exampĺe: --bib4 10.20.30.40#5000
 .RI "The format is " IPV6_ADDRESS # PORT "."
 .br
 Exampĺe: --bib6 1::2#5000
-.IP "-n, --numeric"
+.IP --quick
+Do not cascade removal to the BIB and session tables.
+.IP --numeric
 Do not try to resolve hostnames.
-.IP "--csv"
+.IP --csv
 Output the table in Comma/Character-Separated Values (.csv) format.
 
 .SS "--general's FLAG_KEYs"

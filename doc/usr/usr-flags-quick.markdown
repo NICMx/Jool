@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Userspace Application
 ---
 
-# Userspace Application > Flags > \--quick
+# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--quick
 
 First, a little background information:
 
@@ -16,6 +16,4 @@ If you `--remove` or `--flush` an owner, its "slaves" become obsolete because th
 * On the other hand, when you do issue `--quick`, Jool will only purge the owners.  You might want to do this if you want the operation to succeed quickly (maybe you have a HUGE amount of slaves), or more likely you plan to re-add the owner in the future (in which case the still-remaining slaves will become relevant and usable again).
 
 Orphaned slaves will remain inactive in the database, and will eventually kill themselves once their normal removal conditions are met (eg. orphaned sessions will die once their timeout expires).
-
-[Back to Flags](usr-flags.html).
 

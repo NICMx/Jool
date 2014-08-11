@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 2
 ---
 
-# Kernel Module > Basic Runs
+# [Doc](doc-index.html) > [Kernel Module](doc-index.html#kernel-module) > Basic Runs
 
 ## Index
 
@@ -18,7 +18,7 @@ The purpose of this tutorial is twofold: To show how the translation mechanism i
 
 Software-wise, only a [successful install of Jool's kernel module](mod-install.html) is required. The userspace application is out of the scope of this document on purpose.
 
-You might want to get acquainted with the <a href="https://linux.die.net/man/8/ip" target="_blank">ip</a> command before you continue.
+You might want to get acquainted with the <a href="http://man7.org/linux/man-pages/man8/ip.8.html" target="_blank">ip</a> command before you continue.
 
 ## Scenario 1: Dumb & Minimalistic
 
@@ -198,7 +198,7 @@ If you know your network sniffing, you can see packets being translated on node 
 
 ![Fig.15 - Wireshark output](images/tut2.1-wireshark.png)
 
-[Here's the libpcap file](download/tut2.1-wireshark.wsk).
+[Here's the libpcap file](obj/tut2.1-wireshark.wsk).
 
 If you publish a server on node A, you can see it from C as well:
 

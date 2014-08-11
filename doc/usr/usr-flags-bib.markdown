@@ -3,21 +3,19 @@ layout: documentation
 title: Documentation - Userspace Application
 ---
 
-# Userspace Application > Flags > \--bib
+# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--bib
 
 ## Index
 
 1. [Description](#description)
 2. [Syntax](#syntax)
 3. [Options](#options)
-   1. [Operations](#operations)
-   2. [&lt;protocols&gt;](#ltprotocolsgt)
+   1. [&lt;protocols&gt;](#ltprotocolsgt)
+   2. [Operations](#operations)
    3. [\--numeric](#numeric)
    4. [\--csv](#csv)
    5. [\--bib4, \--bib6](#bib4---bib6)
 4. [Examples](#examples)
-
-[Back to Flags](usr-flags.html).
 
 ## Description
 
@@ -107,7 +105,7 @@ TCP:
   (Fetched 3 entries.)
 $ # Publish a UDP service.
 $ jool --bib --add --udp --bib6 6::6#6666 --bib4 4.4.4.4#4444
-$ # Dump the database on a CSV file.
+$ # Dump the database on a CSV file (see the link below).
 $ jool --bib --display --numeric --csv > bib.csv
 $ # Display the number of entries in the TCP and ICMP tables.
 $ jool --bib --count --tcp --icmp

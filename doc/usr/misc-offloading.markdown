@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Offloading
 ---
 
-# Miscellaneous > Offloading
+# [Doc](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > Offloading
 
 ## Index
 

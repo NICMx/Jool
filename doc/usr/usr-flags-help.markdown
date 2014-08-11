@@ -3,14 +3,12 @@ layout: documentation
 title: Documentation - Userspace Application
 ---
 
-# Userspace Application > Flags > \--help
+# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--help
 
 ## Index
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-
-[Back to Flags](usr-flags.html).
 
 ## Description
 

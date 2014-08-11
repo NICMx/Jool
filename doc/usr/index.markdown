@@ -36,7 +36,13 @@ Version 3.2.0 released.
 
 <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Simultaneous Open of TCP Connections</a> is now correctly implemented. The translation pipeline should now be completely quirkless.
 
-The userspace application has a couple of new features: The <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">ability to flush the pools</a> and the addition of [`--quick`](usr-flags.html#quick). On the other hand, the single-value configuration parameters have been joined: [`--general`](usr-flags.html#general) replaced `--filtering` and `--translate`, and `--fragmentation` has been dropped (since you now configure the kernel's defragmenter, not Jool's).
+The userspace application has three new features:
+
+1. The <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">ability to flush the pools</a>.
+2. The addition of [`--quick`](usr-flags-quick.html).
+3. The addition of `--svg`, in [BIB](usr-flags-bib.html#csv) and [session](usr-flags-session.html#csv).
+
+On the other hand, the single-value configuration parameters have been joined: [`--general`](usr-flags-general.html) replaced `--filtering` and `--translate`, and `--fragmentation` has been dropped (since you now configure the kernel's defragmenter, not Jool's).
 
 A <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">little confusion</a> also revealed that the path to libnl <a href="https://github.com/NICMx/NAT64/commit/6455ffd898bae996ce3cab37b2fb6a3459ae096b" target="_blank">used to be hardcoded in the configuration script</a>. If you used to have trouble compiling the userspace application, you might want to try again using the new version.
 
@@ -60,7 +66,7 @@ Aside from that, the userspace application has been tightened. It doesn't crash 
 
 Then we have a couple of <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">performance</a> <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">optimizations</a>. In particular (and more or less as a side effect), by aligning log priorities to those from the rest of the kernel, more care has been taken to keep the log cleaner.
 
-If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](usr-flags.html#minmtu6), a configuration parameter that helps you avoid fragmentation.
+If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](usr-flags-general.html#minmtu6), a configuration parameter that helps you avoid fragmentation.
 
 If people doesn't find critical bugs in this version, this appears to be the end of the 3.1.x series. We'll go back to aim for 100% RFC compliance in the next update.
 
