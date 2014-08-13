@@ -17,10 +17,6 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "nat64/mod/translate_packet.h"
 #include "config_proto.c"
 
-static bool dummy_test(void)
-{
-	return false;
-}
 /* functions */
 static int clone_general_config(struct response_general *response)
 {

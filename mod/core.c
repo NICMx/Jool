@@ -86,12 +86,18 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (fix_checksums_ipv4(skb) != 0)
 		return NF_DROP;
 
+	if (ip_is_fragment(hdr)) {
+		log_debug("Defrag4 is not doing its job!");
+		return NF_DROP;
+	}
+
 	return core_common(skb);
 }
 
 unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr;
+	struct frag_hdr *frag_hdr;
 
 	skb_linearize(skb);
 
@@ -108,6 +114,12 @@ unsigned int core_6to4(struct sk_buff *skb)
 		return NF_DROP;
 	if (fix_checksums_ipv6(skb) != 0)
 		return NF_DROP;
+
+	frag_hdr = get_extension_header(hdr, NEXTHDR_FRAGMENT);
+	if (frag_hdr && (is_more_fragments_set_ipv6(frag_hdr) || get_fragment_offset_ipv6(frag_hdr))) {
+		log_debug("Defrag6 is not doing its job!");
+		return NF_DROP;
+	}
 
 	return core_common(skb);
 }

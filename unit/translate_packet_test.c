@@ -805,8 +805,10 @@ static bool test_6to4_udp(void)
 	/* Fall through. */
 
 end:
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
+	if (skb_in)
+		kfree_skb(skb_in);
+	if (skb_out)
+		kfree_skb(skb_out);
 	return result;
 }
 

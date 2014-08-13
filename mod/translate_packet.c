@@ -539,14 +539,18 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	__u16 min_ipv6_mtu;
 	__u16 min_ipv4_mtu;
+	struct iphdr *hdr4;
 
 	if (skb_l3_proto(skb_out) != L3PROTO_IPV6) {
+#ifndef UNIT_TESTING
 		min_ipv4_mtu = skb_dst(skb_out)->dev->mtu;
-		if (skb_out->len > min_ipv4_mtu) {
+		hdr4 = (struct iphdr *) skb_network_header(skb_out);
+		if (is_dont_fragment_set(hdr4) && (skb_out->len > min_ipv4_mtu)) {
 			icmp64_send(skb_out, ICMPERR_FRAG_NEEDED, min_ipv4_mtu + 20);
 			log_info("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv4_mtu);
 			return -EINVAL;
 		}
+#endif
 		return 0; /* IPv4 routers fragment dandily, so let them do it. */
 	}
 

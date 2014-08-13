@@ -11,6 +11,7 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 {
 	int expected_count = 0;
 	int actual_count = 0;
+	int error;
 
 	if (is_error(sessiondb_for_each(l4_proto, count_sessions, &actual_count))) {
 		log_err("Could not count the session entries in the database for some reason.");
@@ -28,8 +29,6 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 		tuple6.src.l4_id = expected->ipv6.remote.l4_id;
 		tuple6.l3_proto = L3PROTO_IPV6;
 		tuple6.l4_proto = expected->l4_proto;
-
-		int error;
 
 		error = sessiondb_get(&tuple6, &actual);
 		if (error) {

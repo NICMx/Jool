@@ -527,11 +527,13 @@ static bool test_tcp_closed_state_handle_4(void)
 	success &= assert_equals_int(VER_STOLEN, tcp_closed_state_handle(skb, &tuple), "V4 syn-result");
 
 	/* Validate */
-	success &= assert_equals_int(-ENOENT, sessiondb_get(&tuple, &copy_ptr), "V4 syn-session.");
+	success &= assert_equals_int(0, sessiondb_get(&tuple, &copy_ptr), "V4 syn-session.");
 	success &= assert_equals_int(0, pktqueue_send(session), "V4 syn pktqueue send");
 
-	/* if (success)
-		success &= assert_equals_u8(V4_INIT, session->state, "V4 syn-state"); */
+	if (success)
+		success &= assert_equals_u8(V4_INIT, session->state, "V4 syn-state");
+
+	success &= assert_equals_int(1, icmp64_pop(), "ICMP sent");
 
 	session_return(session);
 	/* kfree_skb(skb); "skb" kfreed when pktqueue is executed */
@@ -1128,6 +1130,7 @@ static bool init_filtering_only(void)
 
 static void end_full(void)
 {
+	icmp64_pop();
 	filtering_destroy();
 	sessiondb_destroy();
 	bibdb_destroy();

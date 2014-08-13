@@ -109,8 +109,11 @@ static bool assert_session_entry_equals(struct session_entry* expected,
 static bool assert_session(char* test_name, struct session_entry* session,
 		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
 {
+	struct session_entry *retrieved_session, *expected_session;
+	struct tuple tuple6, tuple4;
 	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
 	bool table_has_it[3];
+	bool success;
 	int i;
 
 	table_has_it[0] = udp_table_has_it;
@@ -118,10 +121,6 @@ static bool assert_session(char* test_name, struct session_entry* session,
 	table_has_it[2] = icmp_table_has_it;
 
 	for (i = 0; i < 3; i++) {
-		struct ipv4_pair pair_4 = { session->ipv4.remote, session->ipv4.local };
-		struct ipv6_pair pair_6 = { session->ipv6.local, session->ipv6.remote };
-		struct tuple tuple6, tuple4;
-
 		tuple4.dst.addr.ipv4 = session->ipv4.local.address;
 		tuple4.dst.l4_id = session->ipv4.local.l4_id;
 		tuple4.src.addr.ipv4 = session->ipv4.remote.address;
@@ -136,10 +135,8 @@ static bool assert_session(char* test_name, struct session_entry* session,
 		tuple6.l3_proto = L3PROTO_IPV6;
 		tuple6.l4_proto = l4_protos[i];
 
-
-		struct session_entry *expected_session = table_has_it[i] ? session : NULL;
-		struct session_entry *retrieved_session;
-		bool success = true;
+		expected_session = table_has_it[i] ? session : NULL;
+		success = true;
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
 				sessiondb_get(&tuple4, &retrieved_session),
