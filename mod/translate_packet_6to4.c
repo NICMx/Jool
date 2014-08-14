@@ -152,18 +152,19 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	struct iphdr *ip4_hdr;
 
 	bool reset_tos, build_ipv4_id, df_always_on;
-	__u8 dont_fragment;
+	__u8 dont_fragment, new_tos;
 
 	rcu_read_lock_bh();
 	reset_tos = rcu_dereference_bh(config)->reset_tos;
 	build_ipv4_id = rcu_dereference_bh(config)->build_ipv4_id;
 	df_always_on = rcu_dereference_bh(config)->df_always_on;
+	new_tos = rcu_dereference_bh(config)->new_tos;
 	rcu_read_unlock_bh();
 
 	ip4_hdr = out->l3_hdr.ptr;
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
-	ip4_hdr->tos = reset_tos ? 0 : get_traffic_class(ip6_hdr);
+	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
 	/* This is just a temporary filler value. The real one will be set during post-processing. */
 	ip4_hdr->tot_len = ip6_hdr->payload_len;
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
