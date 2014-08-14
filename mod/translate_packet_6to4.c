@@ -75,10 +75,10 @@ static __be16 generate_ipv4_id_nofrag(struct ipv6hdr *ip6_header)
 /**
  * One-liner for creating the IPv4 header's Dont Fragment flag.
  */
-static __be16 generate_df_flag(struct ipv6hdr *ip6_header)
+static bool generate_df_flag(struct ipv6hdr *ip6_header)
 {
 	__u16 packet_len = sizeof(*ip6_header) + be16_to_cpu(ip6_header->payload_len);
-	return (88 < packet_len && packet_len <= 1280) ? 0 : 1;
+	return (88 < packet_len && packet_len <= 1280) ? false : true;
 }
 
 /**
@@ -564,7 +564,7 @@ static int post_mtu4(struct pkt_parts *in, struct pkt_parts *out)
 	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
 
 #else
-	out_icmp->un.frag.mtu = 1500;
+	out_icmp->un.frag.mtu = cpu_to_be16(1500);
 #endif
 
 	return 0;

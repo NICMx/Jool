@@ -39,7 +39,7 @@ static char *icmp_error_to_string(icmp_error_code error) {
 	return "Unknown";
 }
 
-static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
+static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -79,10 +79,10 @@ static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 	skb_clear_cb(skb);
 	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.", icmp_error_to_string(error), type,
 			code);
-	icmp_send(skb, type, code, info);
+	icmp_send(skb, type, code, cpu_to_be32(info));
 }
 
-static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
+static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -129,7 +129,7 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 #endif
 }
 
-void icmp64_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
+void icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	struct sk_buff *original_skb = skb_original_skb(skb);
 

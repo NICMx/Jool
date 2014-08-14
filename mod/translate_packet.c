@@ -569,7 +569,7 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 
 	if (is_dont_fragment_set(ip_hdr(skb_in))) {
 		/* We're not supposed to fragment; yay. */
-		icmp64_send(skb_in, ICMPERR_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu - 20));
+		icmp64_send(skb_in, ICMPERR_FRAG_NEEDED, min_ipv6_mtu - 20);
 		log_info("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv6_mtu);
 		return -EINVAL;
 	}
