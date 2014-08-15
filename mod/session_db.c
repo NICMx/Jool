@@ -254,7 +254,7 @@ static void send_probe_packet(struct session_entry *session)
 	iph->flow_lbl[0] = 0;
 	iph->flow_lbl[1] = 0;
 	iph->flow_lbl[2] = 0;
-	iph->payload_len = l4_hdr_len;
+	iph->payload_len = cpu_to_be16(l4_hdr_len);
 	iph->nexthdr = NEXTHDR_TCP;
 	iph->hop_limit = 255;
 	iph->saddr = session->ipv6.local.address;

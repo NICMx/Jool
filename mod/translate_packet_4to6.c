@@ -257,7 +257,8 @@ static verdict icmp4_to_icmp6_dest_unreach(struct fragment *in, struct fragment 
 	case ICMP_PROT_UNREACH:
 		icmpv6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 		icmpv6_hdr->icmp6_code = ICMPV6_UNK_NEXTHDR;
-		icmpv6_hdr->icmp6_pointer = offsetof(struct ipv6hdr, nexthdr);
+		/* TODO test this. */
+		icmpv6_hdr->icmp6_pointer = cpu_to_be32(offsetof(struct ipv6hdr, nexthdr));
 		break;
 
 	case ICMP_PORT_UNREACH:
@@ -473,7 +474,7 @@ static verdict post_mtu6(struct fragment *in, struct fragment *out, struct icmph
 	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
 
 #else
-	out_icmp->icmp6_mtu = 1500;
+	out_icmp->icmp6_mtu = cpu_to_be32(1500);
 #endif
 
 	return VER_CONTINUE;

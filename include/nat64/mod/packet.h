@@ -117,8 +117,8 @@ static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, bool mf)
  */
 static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offset)
 {
-	__u16 result = (df << 14)
-			| (mf << 13)
+	__u16 result = (df ? (1 << 14) : 0)
+			| (mf ? (1 << 13) : 0)
 			| (frag_offset >> 3); /* 3 bit shifts to the right == division by 8. */
 	return cpu_to_be16(result);
 }

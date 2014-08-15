@@ -4,7 +4,7 @@
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 
-static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
+static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -37,10 +37,10 @@ static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 		return; /* Not supported or needed. */
 	}
 
-	icmp_send(skb, type, code, info);
+	icmp_send(skb, type, code, cpu_to_be32(info));
 }
 
-static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
+static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	int type, code;
 
@@ -76,7 +76,7 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __be32 info)
 #endif
 }
 
-void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __be32 info)
+void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
 	if (!skb || !skb->dev)
 		return;
@@ -91,7 +91,7 @@ void icmp64_send_skb(struct sk_buff *skb, icmp_error_code error, __be32 info)
 	}
 }
 
-void icmp64_send(struct fragment *frag, icmp_error_code error, __be32 info)
+void icmp64_send(struct fragment *frag, icmp_error_code error, __u32 info)
 {
 	icmp64_send_skb(frag->original_skb, error, info);
 }

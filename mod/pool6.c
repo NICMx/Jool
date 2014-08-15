@@ -171,15 +171,24 @@ int pool6_add(struct ipv6_prefix *prefix)
 	if (error)
 		return error; /* Error msg already printed. */
 
+	spin_lock_bh(&pool_lock);
+	list_for_each_entry(node, &pool, list_hook) {
+		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+			spin_unlock_bh(&pool_lock);
+			log_err("The prefix already belongs to the pool.");
+			return -EEXIST;
+		}
+	}
+
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {
+		spin_unlock_bh(&pool_lock);
 		log_err("Allocation of IPv6 pool node failed.");
 		return -ENOMEM;
 	}
 
 	node->prefix = *prefix;
 
-	spin_lock_bh(&pool_lock);
 	list_add_tail(&node->list_hook, &pool);
 	pool_count++;
 	spin_unlock_bh(&pool_lock);

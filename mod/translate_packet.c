@@ -438,7 +438,7 @@ static verdict translate_fragment(struct fragment *in, struct tuple *tuple,
 		if (out->skb->len > min_ipv6_mtu) {
 			/* It's too big, so subdivide it. */
 			if (is_dont_fragment_set(frag_get_ipv4_hdr(in))) {
-				icmp64_send(in, ICMPERR_FRAG_NEEDED, cpu_to_be32(min_ipv6_mtu - 20));
+				icmp64_send(in, ICMPERR_FRAG_NEEDED, min_ipv6_mtu - 20);
 				log_debug("Packet is too big (%u bytes; MTU: %u); dropping.",
 						out->skb->len, min_ipv6_mtu);
 				frag_kfree(out);
