@@ -113,12 +113,15 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
 int skb_init_cb_ipv6(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
+	bool is_1st_fragment;
 	struct hdr_iterator iterator;
 	int error;
 
 	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator);
 	if (error)
 		return error;
+
+	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
 
 	/*
 	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
@@ -129,35 +132,45 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	 */
 
 	cb->l3_proto = L3PROTO_IPV6;
+	cb->frag_hdr = get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
 	cb->original_skb = skb;
-	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
+	skb_set_transport_header(skb, is_1st_fragment
+			? (iterator.data - (void *) skb_network_header(skb))
+			: skb_network_offset(skb));
+	cb->payload = iterator.data;
 
 	switch (iterator.hdr_type) {
 	case NEXTHDR_TCP:
-		error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
-		if (error)
-			return error;
-
 		cb->l4_proto = L4PROTO_TCP;
-		cb->payload = iterator.data + tcp_hdrlen(skb);
+
+		if (is_1st_fragment) {
+			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
+			if (error)
+				return error;
+			cb->payload += tcp_hdrlen(skb);
+		}
 		break;
 
 	case NEXTHDR_UDP:
-		error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
-		if (error)
-			return error;
-
 		cb->l4_proto = L4PROTO_UDP;
-		cb->payload = iterator.data + sizeof(struct udphdr);
+
+		if (is_1st_fragment) {
+			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
+			if (error)
+				return error;
+			cb->payload += sizeof(struct udphdr);
+		}
 		break;
 
 	case NEXTHDR_ICMP:
-		error = validate_lengths_icmp6(skb->len, skb_l3hdr_len(skb));
-		if (error)
-			return error;
-
 		cb->l4_proto = L4PROTO_ICMP;
-		cb->payload = iterator.data + sizeof(struct icmp6hdr);
+
+		if (is_1st_fragment) {
+			error = validate_lengths_icmp6(skb->len, skb_l3hdr_len(skb));
+			if (error)
+				return error;
+			cb->payload += sizeof(struct icmp6hdr);
+		}
 		break;
 
 	default:
@@ -206,12 +219,15 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
 int skb_init_cb_ipv4(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
+	bool is_1st_fragment;
 	struct iphdr *hdr4 = ip_hdr(skb);
 	int error;
 
 	error = validate_ipv4_integrity(hdr4, skb->len, false);
 	if (error)
 		return error;
+
+	is_1st_fragment = is_first_fragment_ipv4(hdr4);
 
 #ifndef UNIT_TESTING
 	if (skb && skb_rtable(skb) == NULL) {
@@ -230,35 +246,42 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 #endif
 
 	cb->l3_proto = L3PROTO_IPV4;
+	cb->frag_hdr = NULL;
 	cb->original_skb = skb;
-	skb_set_transport_header(skb, 4 * hdr4->ihl);
+	skb_set_transport_header(skb, is_1st_fragment ? (4 * hdr4->ihl) : skb_network_offset(skb));
 
 	switch (hdr4->protocol) {
 	case IPPROTO_TCP:
-		error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
-		if (error)
-			return error;
-
 		cb->l4_proto = L4PROTO_TCP;
-		cb->payload = skb_transport_header(skb) + tcp_hdrlen(skb);
+
+		if (is_1st_fragment) {
+			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
+			if (error)
+				return error;
+			cb->payload = skb_transport_header(skb) + tcp_hdrlen(skb);
+		}
 		break;
 
 	case IPPROTO_UDP:
-		error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
-		if (error)
-			return error;
-
 		cb->l4_proto = L4PROTO_UDP;
-		cb->payload = skb_transport_header(skb) + sizeof(struct udphdr);
+
+		if (is_1st_fragment) {
+			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
+			if (error)
+				return error;
+			cb->payload = skb_transport_header(skb) + sizeof(struct udphdr);
+		}
 		break;
 
 	case IPPROTO_ICMP:
-		error = validate_lengths_icmp4(skb->len, skb_l3hdr_len(skb));
-		if (error)
-			return error;
-
 		cb->l4_proto = L4PROTO_ICMP;
-		cb->payload = skb_transport_header(skb) + sizeof(struct icmphdr);
+
+		if (is_1st_fragment) {
+			error = validate_lengths_icmp4(skb->len, skb_l3hdr_len(skb));
+			if (error)
+				return error;
+			cb->payload = skb_transport_header(skb) + sizeof(struct icmphdr);
+		}
 		break;
 
 	default:

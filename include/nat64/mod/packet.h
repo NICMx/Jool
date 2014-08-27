@@ -69,6 +69,16 @@ static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 	return (frag_off & IP_OFFSET) << 3;
 }
 
+static inline bool is_first_fragment_ipv4(struct iphdr *hdr)
+{
+	return get_fragment_offset_ipv4(hdr) == 0;
+}
+
+static inline bool is_first_fragment_ipv6(struct frag_hdr *hdr)
+{
+	return hdr ? (get_fragment_offset_ipv6(hdr) == 0) : false;
+}
+
 /**
  * frag_hdr.frag_off is actually a combination of the 'More fragments' flag and the
  * 'Fragment offset' field. This function is a one-liner for creating a settable frag_off.
@@ -132,6 +142,10 @@ struct jool_cb {
 	 * Because skbs only store pointers to headers.
 	 */
 	void *payload;
+	/**
+	 * If the packet is IPv6 and has a fragment header, this points to it. Else, this holds NULL.
+	 */
+	struct frag_hdr *frag_hdr;
 	/**
 	 * If this is an incoming packet (as in, incoming to Jool), this points to the same packet.
 	 * Otherwise (which includes hairpin packets), this points to the original (incoming) packet.
@@ -198,6 +212,14 @@ static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
 static inline void *skb_payload(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->payload;
+}
+
+/**
+ * Returns a pointer to "skb"'s fragment header, if it has one.
+ */
+static inline struct frag_hdr *skb_frag_hdr(struct sk_buff *skb)
+{
+	return skb_jcb(skb)->frag_hdr;
 }
 
 /**

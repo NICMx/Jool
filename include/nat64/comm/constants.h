@@ -49,6 +49,9 @@
 /** Default session lifetime for ICMP bindings, in seconds. */
 #define ICMP_DEFAULT (1 * 60)
 
+/** Default time interval fragments are allowed to arrive in. In seconds. */
+#define FRAGMENT_MIN (2)
+
 /*
  * The timers will never sleep less than this amount of jiffies. This is because I don't think we
  * need to interrupt the kernel too much.

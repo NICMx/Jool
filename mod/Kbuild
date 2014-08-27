@@ -23,6 +23,7 @@ jool-objs += session_db.o
 jool-objs += static_routes.o
 jool-objs += config.o
 jool-objs += config_proto.o
+jool-objs += fragment_db.o
 jool-objs += determine_incoming_tuple.o
 jool-objs += filtering_and_updating.o
 jool-objs += compute_outgoing_tuple.o

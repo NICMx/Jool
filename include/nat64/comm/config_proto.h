@@ -245,6 +245,17 @@ struct sessiondb_config {
 	} ttl;
 };
 
+enum fragmentation_type {
+	FRAGMENT_TIMEOUT,
+};
+
+/**
+ * Time interval to allow arrival of fragments, in milliseconds.
+ */
+struct fragmentation_config {
+	__u64 fragment_timeout;
+};
+
 /**
  * Indicators of the respective fields in the pktqueue_config structure.
  */
@@ -364,6 +375,8 @@ enum general_module {
 	FILTERING,
 	/** Indicates the presence of a struct translate_config value. */
 	TRANSLATE,
+	/** Indicates the presence of a struct fragmentation_config value. */
+	FRAGMENT,
 };
 
 /**
@@ -417,6 +430,7 @@ struct response_general {
 	struct pktqueue_config pktqueue;
 	struct filtering_config filtering;
 	struct translate_config translate;
+	struct fragmentation_config fragmentation;
 };
 
 /**

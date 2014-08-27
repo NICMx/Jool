@@ -1,6 +1,7 @@
 #include "nat64/mod/core.h"
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/determine_incoming_tuple.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/compute_outgoing_tuple.h"
@@ -63,6 +64,8 @@ unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct iphdr *hdr;
 	struct in_addr daddr;
+	struct sk_buff *full_skb;
+	verdict result;
 
 	skb_linearize(skb);
 
@@ -83,21 +86,20 @@ unsigned int core_4to6(struct sk_buff *skb)
 	 */
 	if (skb_init_cb_ipv4(skb) != 0)
 		return NF_DROP;
-	if (fix_checksums_ipv4(skb) != 0)
+	result = fragment_arrives(skb, &full_skb);
+	if (result != VER_CONTINUE)
+		return (unsigned int) result;
+	if (fix_checksums_ipv4(full_skb) != 0)
 		return NF_DROP;
 
-	if (ip_is_fragment(hdr)) {
-		log_debug("Defrag4 is not doing its job!");
-		return NF_DROP;
-	}
-
-	return core_common(skb);
+	return core_common(full_skb);
 }
 
 unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr;
-	struct frag_hdr *frag_hdr;
+	struct sk_buff *full_skb;
+	verdict result;
 
 	skb_linearize(skb);
 
@@ -112,14 +114,11 @@ unsigned int core_6to4(struct sk_buff *skb)
 	/* See respective comment above. */
 	if (skb_init_cb_ipv6(skb) != 0)
 		return NF_DROP;
-	if (fix_checksums_ipv6(skb) != 0)
+	result = fragment_arrives(skb, &full_skb);
+	if (result != VER_CONTINUE)
+		return (unsigned int) result;
+	if (fix_checksums_ipv6(full_skb) != 0)
 		return NF_DROP;
 
-	frag_hdr = get_extension_header(hdr, NEXTHDR_FRAGMENT);
-	if (frag_hdr && (is_more_fragments_set_ipv6(frag_hdr) || get_fragment_offset_ipv6(frag_hdr))) {
-		log_debug("Defrag6 is not doing its job!");
-		return NF_DROP;
-	}
-
-	return core_common(skb);
+	return core_common(full_skb);
 }

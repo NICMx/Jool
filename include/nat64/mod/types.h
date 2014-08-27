@@ -100,9 +100,6 @@ struct tuple {
 	 *
 	 * Most of the time, this is the packet's simple l4-protocol. When the packet contains a inner
 	 * packet, this is the inner packet's l4-protocol.
-	 * Also, keep in mind that tuples represent whole packets, not fragments. If a packet's
-	 * fragment offset is not zero, then its layer 4 protocol will be L4PROTO_NONE, but its tuple's
-	 * l4_proto will be something else.
 	 */
 	l4_protocol l4_proto;
 
