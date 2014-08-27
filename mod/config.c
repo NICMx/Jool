@@ -9,6 +9,7 @@
 #include "nat64/mod/session_db.h"
 #include "nat64/mod/static_routes.h"
 #include "nat64/mod/pkt_queue.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
 
@@ -415,6 +416,9 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		error = translate_clone_config(&response.translate);
 		if (error)
 			goto end;
+		error = fragmentdb_clone_config(&response.fragmentation);
+		if (error)
+			goto end;
 
 		error = serialize_general_config(&response, &buffer, &buffer_len);
 		if (error)
@@ -445,6 +449,9 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 			break;
 		case TRANSLATE:
 			error = translate_set_config(request->update.type, buffer_len, buffer);
+			break;
+		case FRAGMENT:
+			error = fragmentdb_set_config(request->update.type, buffer_len, buffer);
 			break;
 		default:
 			log_err("Unknown module: %u", request->update.module);

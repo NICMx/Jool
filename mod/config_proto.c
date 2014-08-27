@@ -7,6 +7,7 @@ int serialize_general_config(struct response_general *config, unsigned char **bu
 		size_t *buffer_len_out)
 {
 	struct sessiondb_config *sconfig;
+	struct fragmentation_config *fconfig;
 	unsigned char *buffer;
 	size_t mtus_len;
 
@@ -27,6 +28,9 @@ int serialize_general_config(struct response_general *config, unsigned char **bu
 	sconfig->ttl.tcp_trans = jiffies_to_msecs(config->sessiondb.ttl.tcp_trans);
 	sconfig->ttl.icmp = jiffies_to_msecs(config->sessiondb.ttl.icmp);
 
+	fconfig = &((struct response_general *) buffer)->fragmentation;
+	fconfig->fragment_timeout = jiffies_to_msecs(config->fragmentation.fragment_timeout);
+
 	*buffer_out = buffer;
 	*buffer_len_out = sizeof(*config) + mtus_len;
 	return 0;
@@ -36,6 +40,7 @@ int deserialize_general_config(void *buffer, __u16 buffer_len, struct response_g
 {
 	struct sessiondb_config *sconfig;
 	struct translate_config *tconfig;
+	struct fragmentation_config *fconfig;
 	size_t mtus_len;
 
 	memcpy(target_out, buffer, sizeof(*target_out));
@@ -57,6 +62,9 @@ int deserialize_general_config(void *buffer, __u16 buffer_len, struct response_g
 		}
 		memcpy(tconfig->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 	}
+
+	fconfig = &target_out->fragmentation;
+	fconfig->fragment_timeout = msecs_to_jiffies(fconfig->fragment_timeout);
 
 	return 0;
 }

@@ -236,6 +236,10 @@ static inline struct sk_buff *skb_original_skb(struct sk_buff *skb)
  */
 static inline bool has_l4_hdr(struct sk_buff *skb)
 {
+	/*
+	 * The kernel seems to do it this way, particularly when transport_header hasn't been set.
+	 * I think it'd make more sense as payload != transport_header, but whatever.
+	 */
 	return skb_network_header(skb) != skb_transport_header(skb);
 }
 

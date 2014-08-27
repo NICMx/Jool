@@ -248,7 +248,13 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	cb->l3_proto = L3PROTO_IPV4;
 	cb->frag_hdr = NULL;
 	cb->original_skb = skb;
-	skb_set_transport_header(skb, is_1st_fragment ? (4 * hdr4->ihl) : skb_network_offset(skb));
+	if (is_1st_fragment) {
+		skb_set_transport_header(skb, 4 * hdr4->ihl);
+		cb->payload = skb_transport_header(skb);
+	} else {
+		skb_set_transport_header(skb, skb_network_offset(skb));
+		cb->payload = skb_network_header(skb) + 4 * hdr4->ihl;
+	}
 
 	switch (hdr4->protocol) {
 	case IPPROTO_TCP:
@@ -258,7 +264,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
 			if (error)
 				return error;
-			cb->payload = skb_transport_header(skb) + tcp_hdrlen(skb);
+			cb->payload += tcp_hdrlen(skb);
 		}
 		break;
 
@@ -269,7 +275,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
 			if (error)
 				return error;
-			cb->payload = skb_transport_header(skb) + sizeof(struct udphdr);
+			cb->payload += sizeof(struct udphdr);
 		}
 		break;
 
@@ -280,7 +286,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 			error = validate_lengths_icmp4(skb->len, skb_l3hdr_len(skb));
 			if (error)
 				return error;
-			cb->payload = skb_transport_header(skb) + sizeof(struct icmphdr);
+			cb->payload += sizeof(struct icmphdr);
 		}
 		break;
 
@@ -424,15 +430,24 @@ static int compute_csum_udp(struct sk_buff *skb)
 	struct iphdr *hdr4;
 	struct udphdr *hdr_udp;
 	unsigned int datagram_len;
+	struct sk_buff *current_skb;
+	__wsum csum;
 
 	hdr_udp = udp_hdr(skb);
 	if (hdr_udp->check != 0)
 		return 0; /* The client went through the trouble of computing the csum. */
 
-	hdr4 = ip_hdr(skb);
 	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
-	hdr_udp->check = csum_tcpudp_magic(hdr4->saddr, hdr4->daddr, datagram_len, IPPROTO_UDP,
-			csum_partial(hdr_udp, datagram_len, 0));
+	csum = csum_partial(hdr_udp, datagram_len, 0);
+	for (current_skb = skb->next; current_skb != skb; current_skb = current_skb->next) {
+		unsigned int current_len = skb_payload_len(current_skb);
+		csum = csum_partial(skb_payload(current_skb), current_len, csum);
+		datagram_len += current_len;
+	}
+
+	hdr4 = ip_hdr(skb);
+	/* TODO doesn't this require a make_writable? */
+	hdr_udp->check = csum_tcpudp_magic(hdr4->saddr, hdr4->daddr, datagram_len, IPPROTO_UDP, csum);
 
 	return 0;
 }
@@ -446,21 +461,17 @@ static int validate_csum_icmp6(struct sk_buff *skb)
 	struct ipv6hdr *ip6_hdr = ipv6_hdr(skb);
 	struct icmp6hdr *hdr_icmp6 = icmp6_hdr(skb);
 	unsigned int datagram_len;
-	__sum16 tmp;
-	__sum16 computed_csum;
+	__sum16 csum;
 
 	if (!is_icmp6_error(hdr_icmp6->icmp6_type))
 		return 0;
 
-	tmp = hdr_icmp6->icmp6_cksum;
-	hdr_icmp6->icmp6_cksum = 0;
 	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
-	computed_csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
+	csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
 			csum_partial(hdr_icmp6, datagram_len, 0));
-	hdr_icmp6->icmp6_cksum = tmp;
 
-	if (tmp != computed_csum) {
-		log_debug("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+	if (csum != 0) {
+		log_debug("Checksum doesn't match.");
 		return -EINVAL;
 	}
 
@@ -474,8 +485,7 @@ static int validate_csum_icmp6(struct sk_buff *skb)
 static int validate_csum_icmp4(struct sk_buff *skb)
 {
 	struct icmphdr *hdr = icmp_hdr(skb);
-	__sum16 tmp;
-	__sum16 computed_csum;
+	__sum16 csum;
 
 	if (!is_icmp4_error(hdr->type)) {
 		/*
@@ -489,13 +499,9 @@ static int validate_csum_icmp4(struct sk_buff *skb)
 		return 0;
 	}
 
-	tmp = hdr->checksum;
-	hdr->checksum = 0;
-	computed_csum = ip_compute_csum(hdr, skb_l4hdr_len(skb) + skb_payload_len(skb));
-	hdr->checksum = tmp;
-
-	if (tmp != computed_csum) {
-		log_debug("Checksum doesn't match. Expected: %x, actual: %x.", computed_csum, tmp);
+	csum = ip_compute_csum(hdr, skb_l4hdr_len(skb) + skb_payload_len(skb));
+	if (csum != 0) {
+		log_debug("Checksum doesn't match.");
 		return -EINVAL;
 	}
 

@@ -122,6 +122,7 @@ enum argp_flags {
 	ARGP_LOWER_MTU_FAIL = 4007,
 	ARGP_PLATEAUS = 4010,
 	ARGP_MIN_IPV6_MTU = 4011,
+	ARGP_FRAG_TO = 4012,
 };
 
 #define NUM_FORMAT "NUM"
@@ -218,6 +219,8 @@ static struct argp_option options[] =
 			"Set the MTU plateaus." },
 	{ MIN_IPV6_MTU_OPT, ARGP_MIN_IPV6_MTU, NUM_FORMAT, 0,
 			"Set the Minimum IPv6 MTU." },
+	{ FRAG_TIMEOUT_OPT, ARGP_FRAG_TO, NUM_FORMAT, 0,
+			"Set the timeout for arrival of fragments." },
 
 	{ NULL },
 };
@@ -484,6 +487,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_MIN_IPV6_MTU:
 		error = set_general_u16(args, TRANSLATE, MIN_IPV6_MTU, str, 1280, MAX_U16);
+		break;
+
+	case ARGP_FRAG_TO:
+		error = set_general_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, 0, MAX_U32/1000, 1000);
 		break;
 
 	default:

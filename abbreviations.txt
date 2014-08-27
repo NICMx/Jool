@@ -32,6 +32,7 @@ ver = verdict
 skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
 aux = auxiliar function
 req = requirement
+csum = checksum
 
 
 BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're

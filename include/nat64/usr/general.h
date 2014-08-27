@@ -25,6 +25,8 @@
 #define MTU_PLATEAUS_OPT		"plateaus"
 #define MIN_IPV6_MTU_OPT		"minMTU6"
 
+#define FRAG_TIMEOUT_OPT		"toFrag"
+
 
 int general_display(void);
 int general_update(enum general_module module, __u8 type, size_t size, void *data);

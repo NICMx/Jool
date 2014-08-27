@@ -7,6 +7,7 @@
 #include "nat64/mod/bib_db.h"
 #include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/translate_packet.h"
 #include "nat64/mod/core.h"
@@ -112,6 +113,9 @@ static int __init nat64_init(void)
 	error = sessiondb_init();
 	if (error)
 		goto session_failure;
+	error = fragdb_init();
+	if (error)
+		goto fragdb_failure;
 	error = filtering_init();
 	if (error)
 		goto filtering_failure;
@@ -135,6 +139,9 @@ translate_packet_failure:
 	filtering_destroy();
 
 filtering_failure:
+	fragdb_destroy();
+
+fragdb_failure:
 	sessiondb_destroy();
 
 session_failure:
@@ -164,6 +171,7 @@ static void __exit nat64_exit(void)
 	/* Deinitialize the submodules. */
 	translate_packet_destroy();
 	filtering_destroy();
+	fragdb_destroy();
 	sessiondb_destroy();
 	bibdb_destroy();
 	pktqueue_destroy();
