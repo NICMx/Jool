@@ -439,7 +439,7 @@ static int compute_csum_udp(struct sk_buff *skb)
 
 	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
 	csum = csum_partial(hdr_udp, datagram_len, 0);
-	for (current_skb = skb->next; current_skb != skb; current_skb = current_skb->next) {
+	for (current_skb = skb->next; current_skb; current_skb = current_skb->next) {
 		unsigned int current_len = skb_payload_len(current_skb);
 		csum = csum_partial(skb_payload(current_skb), current_len, csum);
 		datagram_len += current_len;
@@ -470,6 +470,7 @@ static int validate_csum_icmp6(struct sk_buff *skb)
 	csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
 			csum_partial(hdr_icmp6, datagram_len, 0));
 
+	/* TODO this is new; test it. */
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
 		return -EINVAL;
@@ -499,6 +500,7 @@ static int validate_csum_icmp4(struct sk_buff *skb)
 		return 0;
 	}
 
+	/* TODO this is new; test it. */
 	csum = ip_compute_csum(hdr, skb_l4hdr_len(skb) + skb_payload_len(skb));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");

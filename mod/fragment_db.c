@@ -202,6 +202,8 @@ static struct reassembly_buffer *buffer_alloc(struct sk_buff *skb)
 	if (!buffer)
 		return NULL;
 
+	skb->next = skb->prev = skb;
+
 	INIT_LIST_HEAD(&buffer->holes);
 	buffer->skb = skb;
 	buffer->dying_time = jiffies + get_fragment_timeout();
@@ -598,9 +600,6 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 	/* "fragment.last" as stated by the RFC. Spans 8 bytes. */
 	u16 fragment_last = 0;
 
-	skb_in->next = skb_in;
-	skb_in->prev = skb_in;
-
 	/*
 	 * This short circuit is not part of the RFC.
 	 * I added it because I really don't want to spinlock nor allocate table stuff if I don't have
@@ -696,6 +695,10 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 		buffer->skb = NULL;
 		buffer_destroy(&key, buffer);
 		spin_unlock_bh(&table_lock);
+
+		(*skb_out)->prev->next = NULL;
+		(*skb_out)->prev = NULL;
+
 		return VER_CONTINUE;
 	}
 

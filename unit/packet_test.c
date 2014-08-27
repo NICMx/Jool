@@ -68,24 +68,44 @@ static bool test_function_build_ipv4_frag_off_field(void)
  */
 static bool test_udp_checksum_4(void)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb1, *skb2;
 	struct ipv4_pair pair4;
 	bool success = true;
 
 	if (init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678) != 0)
 		return false;
-	if (create_skb_ipv4_udp(&pair4, &skb, 8) != 0)
+	if (create_skb_ipv4_udp(&pair4, &skb1, 8) != 0)
 		return false;
 
-	udp_hdr(skb)->check = cpu_to_be16(0x1234);
-	success &= assert_equals_int(0, fix_checksums_ipv4(skb), "Function result 1");
+	udp_hdr(skb1)->check = cpu_to_be16(0x1234);
+	success &= assert_equals_int(0, fix_checksums_ipv4(skb1), "Function result 1");
 	/* Non-zero IPv4 checksums should not be mangled even if they're wrong. */
-	success &= assert_equals_csum(cpu_to_be16(0x1234), udp_hdr(skb)->check, "Computed IPv4 csum");
+	success &= assert_equals_csum(cpu_to_be16(0x1234), udp_hdr(skb1)->check, "Same IPv4 csum");
 
-	udp_hdr(skb)->check = cpu_to_be16(0);
-	success &= assert_equals_int(0, fix_checksums_ipv4(skb), "Function result 2");
+	udp_hdr(skb1)->check = cpu_to_be16(0);
+	success &= assert_equals_int(0, fix_checksums_ipv4(skb1), "Function result 2");
 	/* Zero-checksums should be computed. */
-	success &= assert_equals_csum(cpu_to_be16(0xa139), udp_hdr(skb)->check, "Zero IPv4 csum");
+	success &= assert_equals_csum(cpu_to_be16(0xa139), udp_hdr(skb1)->check, "Computed IPv4 csum");
+
+	kfree_skb(skb1);
+
+	if (create_skb_ipv4_udp_fragment(&pair4, &skb1, 8) != 0)
+		return false;
+	ip_hdr(skb1)->frag_off = build_ipv4_frag_off_field(true, true, 0);
+	if (create_skb_ipv4_udp_fragment(&pair4, &skb2, 8) != 0)
+		return false;
+	ip_hdr(skb2)->frag_off = build_ipv4_frag_off_field(true, false, 16);
+
+	skb1->next = skb2;
+	skb2->prev = skb1;
+
+	udp_hdr(skb1)->check = cpu_to_be16(0);
+	success &= assert_equals_int(0, fix_checksums_ipv4(skb1), "Function result 3");
+	/* Zero-checksums should be computed. */
+	/* TODO is this checksum correct? */
+	success &= assert_equals_csum(cpu_to_be16(0xdfc3), udp_hdr(skb1)->check, "Frag IPv4 csum");
+
+	kfree_skb_queued(skb1);
 
 	return success;
 }
