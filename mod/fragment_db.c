@@ -281,7 +281,7 @@ static void buffer_dealloc(struct reassembly_buffer *buffer)
 		kmem_cache_free(hole_cache, hole);
 	}
 
-	kfree_skb(buffer->skb);
+	kfree_skb_queued(buffer->skb);
 	kmem_cache_free(buffer_cache, buffer);
 }
 

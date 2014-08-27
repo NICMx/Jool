@@ -53,6 +53,8 @@ static int ttp46_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	new_skb->mark = in->skb->mark;
 	new_skb->protocol = htons(ETH_P_IPV6);
+	new_skb->next = NULL;
+	new_skb->prev = NULL;
 
 	*out = new_skb;
 	return 0;

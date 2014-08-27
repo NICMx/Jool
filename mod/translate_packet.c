@@ -105,6 +105,8 @@ static inline bool is_inner_pkt(struct pkt_parts *parts)
 
 static int skb_to_parts(struct sk_buff *skb, struct pkt_parts *parts)
 {
+	struct sk_buff *next_skb = skb->next;
+
 	parts->l3_hdr.proto = skb_l3_proto(skb);
 	parts->l3_hdr.len = skb_l3hdr_len(skb);
 	parts->l3_hdr.ptr = skb_network_header(skb);
@@ -112,6 +114,10 @@ static int skb_to_parts(struct sk_buff *skb, struct pkt_parts *parts)
 	parts->l4_hdr.len = skb_l4hdr_len(skb);
 	parts->l4_hdr.ptr = skb_transport_header(skb);
 	parts->payload.len = skb_payload_len(skb);
+	while (next_skb != skb) {
+		parts->payload.len += skb_payload_len(next_skb);
+		next_skb = next_skb->next;
+	}
 	parts->payload.ptr = skb_payload(skb);
 	parts->skb = skb;
 
@@ -527,6 +533,8 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 
 		current_p += actual_payload_size;
 		prev_skb = new_skb;
+
+		new_skb->next = NULL;
 	}
 
 	/* Finally truncate the original packet and we're done. */
@@ -539,13 +547,11 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	__u16 min_ipv6_mtu;
 	__u16 min_ipv4_mtu;
-	struct iphdr *hdr4;
 
 	if (skb_l3_proto(skb_out) != L3PROTO_IPV6) {
 #ifndef UNIT_TESTING
 		min_ipv4_mtu = skb_dst(skb_out)->dev->mtu;
-		hdr4 = (struct iphdr *) skb_network_header(skb_out);
-		if (is_dont_fragment_set(hdr4) && (skb_out->len > min_ipv4_mtu)) {
+		if (is_dont_fragment_set(ip_hdr(skb_out)) && (skb_out->len > min_ipv4_mtu)) {
 			icmp64_send(skb_out, ICMPERR_FRAG_NEEDED, min_ipv4_mtu + 20);
 			log_info("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv4_mtu);
 			return -EINVAL;
@@ -577,14 +583,13 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	return divide(skb_out, min_ipv6_mtu);
 }
 
-verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
+static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 		struct sk_buff **out_skb)
 {
 	struct pkt_parts in;
 	struct pkt_parts out;
 	struct translation_steps *current_steps = &steps[skb_l3_proto(in_skb)][skb_l4_proto(in_skb)];
 
-	log_debug("Step 4: Translating the Packet");
 	*out_skb = NULL;
 
 	if (is_error(skb_to_parts(in_skb, &in)))
@@ -607,9 +612,49 @@ verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
 	if (is_error(fragment_if_too_big(in_skb, out.skb)))
 		goto fail;
 
-	log_debug("Done step 4.");
 	return VER_CONTINUE;
 
+fail:
+	kfree_skb_queued(*out_skb);
+	*out_skb = NULL;
+	return VER_DROP;
+}
+
+verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
+		struct sk_buff **out_skb)
+{
+	verdict result;
+	struct sk_buff *tmp_out_skb, *prev_out_skb, *next_in_skb;
+
+	log_debug("Step 4: Translating the Packet");
+	/* Translate the first fragment or a complete packet. */
+	result = translate_fragment(tuple, in_skb, out_skb);
+	if (result != VER_CONTINUE)
+		return VER_DROP;
+
+	next_in_skb = in_skb->next;
+	prev_out_skb = *out_skb;
+
+	/* If not a fragment, the next "while" should be omit. */
+	while (next_in_skb) {
+		log_debug("Translating a Fragment Packet");
+		result = translate_fragment(tuple, next_in_skb, &tmp_out_skb);
+		if (result != VER_CONTINUE)
+			goto fail;
+
+		tmp_out_skb->prev = prev_out_skb;
+		prev_out_skb->next = tmp_out_skb;
+
+		while (tmp_out_skb->next) {
+			tmp_out_skb = tmp_out_skb->next;
+		}
+
+		prev_out_skb = tmp_out_skb;
+		next_in_skb = next_in_skb->next;
+	}
+
+	log_debug("Done step 4.");
+	return VER_CONTINUE;
 fail:
 	kfree_skb_queued(*out_skb);
 	*out_skb = NULL;

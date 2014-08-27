@@ -89,8 +89,10 @@ unsigned int core_4to6(struct sk_buff *skb)
 	result = fragment_arrives(skb, &full_skb);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
-	if (fix_checksums_ipv4(full_skb) != 0)
-		return NF_DROP;
+	if (fix_checksums_ipv4(full_skb) != 0) {
+		kfree_skb_queued(full_skb);
+		return NF_STOLEN;
+	}
 
 	return core_common(full_skb);
 }
@@ -117,8 +119,10 @@ unsigned int core_6to4(struct sk_buff *skb)
 	result = fragment_arrives(skb, &full_skb);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
-	if (fix_checksums_ipv6(full_skb) != 0)
-		return NF_DROP;
+	if (fix_checksums_ipv6(full_skb) != 0) {
+		kfree_skb_queued(full_skb);
+		return NF_STOLEN;
+	}
 
 	return core_common(full_skb);
 }
