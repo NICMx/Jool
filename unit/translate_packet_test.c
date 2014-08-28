@@ -186,7 +186,7 @@ static bool test_update_csum_4to6(void)
 
 	hdr4 = (struct iphdr *) &in_pkt[0];
 	hdr_tcp4 = (struct tcphdr *) (hdr4 + 1);
-	if (init_ipv4_hdr(hdr4, datagram_len, IPPROTO_TCP, &pair4) != 0)
+	if (init_ipv4_hdr(hdr4, datagram_len, IPPROTO_TCP, &pair4, true, false, 0) != 0)
 		return false;
 	if (init_tcp_hdr(hdr_tcp4, ETH_P_IP, datagram_len, &pair4) != 0)
 		return false;
@@ -197,7 +197,7 @@ static bool test_update_csum_4to6(void)
 
 	hdr6 = (struct ipv6hdr *) &out_pkt[0];
 	hdr_tcp6 = (struct tcphdr *) (hdr6 + 1);
-	if (init_ipv6_hdr(hdr6, datagram_len, NEXTHDR_TCP, &pair6) != 0)
+	if (init_ipv6_hdr(hdr6, datagram_len, NEXTHDR_TCP, &pair6, true, false, 0) != 0)
 		return false;
 	if (init_tcp_hdr(hdr_tcp6, ETH_P_IPV6, datagram_len, &pair6) != 0)
 		return false;

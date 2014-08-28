@@ -76,7 +76,7 @@ static inline bool is_first_fragment_ipv4(struct iphdr *hdr)
 
 static inline bool is_first_fragment_ipv6(struct frag_hdr *hdr)
 {
-	return hdr ? (get_fragment_offset_ipv6(hdr) == 0) : false;
+	return hdr ? (get_fragment_offset_ipv6(hdr) == 0) : true;
 }
 
 /**

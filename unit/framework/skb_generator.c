@@ -13,7 +13,8 @@
 
 
 #define IPV4_HDR_LEN sizeof(struct iphdr)
-int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
+int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg,
+		bool df, bool mf, u16 frag_offset)
 {
 	struct iphdr *hdr = l3_hdr;
 	struct ipv4_pair *pair4 = arg;
@@ -23,7 +24,7 @@ int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 	hdr->tos = 0;
 	hdr->tot_len = cpu_to_be16(sizeof(*hdr) + payload_len);
 	hdr->id = cpu_to_be16(1234);
-	hdr->frag_off = build_ipv4_frag_off_field(true, false, 0);
+	hdr->frag_off = build_ipv4_frag_off_field(df, mf, frag_offset);
 	hdr->ttl = 32;
 	hdr->protocol = nexthdr;
 	hdr->saddr = pair4->remote.address.s_addr;
@@ -36,7 +37,8 @@ int init_ipv4_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 }
 
 #define IPV6_HDR_LEN sizeof(struct ipv6hdr)
-int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
+int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg,
+		bool df, bool mf, u16 frag_offset)
 {
 	struct ipv6hdr *hdr = l3_hdr;
 	struct ipv6_pair *pair6 = arg;
@@ -56,19 +58,21 @@ int init_ipv6_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
 }
 
 #define FRAG_HDR_LEN sizeof(struct frag_hdr)
-static int init_ipv6_and_frag_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg)
+static int init_ipv6_and_frag_hdr(void *l3_hdr, u16 payload_len, u8 nexthdr, void *arg,
+		bool df, bool mf, u16 frag_offset)
 {
 	struct ipv6hdr *hdr6 = l3_hdr;
 	struct frag_hdr *frag_hdr = (struct frag_hdr *) (hdr6 + 1);
 	int error;
 
-	error = init_ipv6_hdr(hdr6, FRAG_HDR_LEN + payload_len, NEXTHDR_FRAGMENT, arg);
+	error = init_ipv6_hdr(hdr6, FRAG_HDR_LEN + payload_len, NEXTHDR_FRAGMENT, arg,
+			df, mf, frag_offset);
 	if (error != 0)
 		return error;
 
 	frag_hdr->nexthdr = nexthdr;
 	frag_hdr->reserved = 0;
-	frag_hdr->frag_off = cpu_to_be16(0);
+	frag_hdr->frag_off = build_ipv6_frag_off_field(frag_offset, mf);
 	frag_hdr->identification = cpu_to_be32(4321);
 
 	return 0;
@@ -232,7 +236,7 @@ static int init_payload_inner_ipv6(void *target, u16 payload_len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv6 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	error = init_ipv6_hdr(hdr_ipv6, 1300, NEXTHDR_TCP, &pair6);
+	error = init_ipv6_hdr(hdr_ipv6, 1300, NEXTHDR_TCP, &pair6, true, false, 0);
 	if (error)
 		return error;
 	error = init_tcp_hdr(hdr_tcp, ETH_P_IPV6, 1300, &pair6);
@@ -261,7 +265,7 @@ static int init_payload_inner_ipv4(void *target, u16 payload_len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv4 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	error = init_ipv4_hdr(hdr_ipv4, 1300, IPPROTO_TCP, &pair4);
+	error = init_ipv4_hdr(hdr_ipv4, 1300, IPPROTO_TCP, &pair4, true, false, 0);
 	if (error)
 		return error;
 	error = init_tcp_hdr(hdr_tcp, ETH_P_IP, 1300, &pair4);
@@ -342,8 +346,9 @@ static int ipv6_icmp_post(void *l4_hdr, u16 datagram_len, void *arg)
 	return 0;
 }
 
-static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, void *), int l3_hdr_type, int l3_hdr_len,
-		int (*l4_hdr_fn)(void *, int, u16, void *), int l4_hdr_type, int l4_hdr_len,
+static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, void *, bool, bool, u16),
+		int l3_hdr_type, int l3_hdr_len, bool df, bool mf, u16 frag_offset,
+		int (*l4_hdr_fn)(void *, int, u16, void *), int l4_hdr_type, int l4_hdr_len, int l4_total_len,
 		int (*payload_fn)(void *, u16), u16 payload_len,
 		int (*l4_post_fn)(void *, u16, void *),
 		struct sk_buff **result, void *arg)
@@ -366,12 +371,13 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, void *), int l3_hdr_type
 	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, l3_hdr_len);
 
-	error = l3_hdr_fn(skb_network_header(skb), datagram_len, l4_hdr_type, arg);
+	error = l3_hdr_fn(skb_network_header(skb), datagram_len, l4_hdr_type, arg, df, mf, frag_offset);
 	if (error)
 		goto failure;
-	error = l4_hdr_fn(skb_transport_header(skb), l3_hdr_type, datagram_len, arg);
+	error = l4_hdr_fn(skb_transport_header(skb), l3_hdr_type, l4_total_len, arg);
 	if (error)
 		goto failure;
+
 	error = payload_fn(skb_transport_header(skb) + l4_hdr_len, payload_len);
 	if (error)
 		goto failure;
@@ -403,8 +409,8 @@ failure:
 
 int create_skb_ipv6_udp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
-			init_udp_hdr, NEXTHDR_UDP, UDP_HDR_LEN,
+	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN, true, false, 0,
+			init_udp_hdr, NEXTHDR_UDP, UDP_HDR_LEN, UDP_HDR_LEN + payload_len,
 			init_payload_normal, payload_len,
 			ipv6_udp_post,
 			result, pair6);
@@ -412,8 +418,8 @@ int create_skb_ipv6_udp(struct ipv6_pair *pair6, struct sk_buff **result, u16 pa
 
 int create_skb_ipv6_tcp(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
-			init_tcp_hdr, NEXTHDR_TCP, TCP_HDR_LEN,
+	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN, true, false, 0,
+			init_tcp_hdr, NEXTHDR_TCP, TCP_HDR_LEN, TCP_HDR_LEN + payload_len,
 			init_payload_normal, payload_len,
 			ipv6_tcp_post,
 			result, pair6);
@@ -421,8 +427,8 @@ int create_skb_ipv6_tcp(struct ipv6_pair *pair6, struct sk_buff **result, u16 pa
 
 int create_skb_ipv6_icmp_info(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
-			init_icmp6_hdr_info, NEXTHDR_ICMP, ICMP6_HDR_LEN,
+	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN, true, false, 0,
+			init_icmp6_hdr_info, NEXTHDR_ICMP, ICMP6_HDR_LEN, ICMP6_HDR_LEN + payload_len,
 			init_payload_normal, payload_len,
 			ipv6_icmp_post,
 			result, pair6);
@@ -430,8 +436,8 @@ int create_skb_ipv6_icmp_info(struct ipv6_pair *pair6, struct sk_buff **result, 
 
 int create_skb_ipv6_icmp_error(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN,
-			init_icmp6_hdr_error, NEXTHDR_ICMP, ICMP6_HDR_LEN,
+	return create_skb(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN, true, false, 0,
+			init_icmp6_hdr_error, NEXTHDR_ICMP, ICMP6_HDR_LEN, ICMP6_HDR_LEN + payload_len,
 			init_payload_inner_ipv6, payload_len,
 			ipv6_icmp_post,
 			result, pair6);
@@ -439,159 +445,160 @@ int create_skb_ipv6_icmp_error(struct ipv6_pair *pair6, struct sk_buff **result,
 
 int create_skb_ipv4_udp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_udp_hdr, IPPROTO_UDP, UDP_HDR_LEN,
-			init_payload_normal, payload_len,
-			ipv4_udp_post,
-			result, pair4);
+	return create_skb_ipv4_udp_frag(pair4, result, payload_len,
+			UDP_HDR_LEN + payload_len, true, false, 0);
 }
 
 int create_skb_ipv4_tcp(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_tcp_hdr, IPPROTO_TCP, TCP_HDR_LEN,
-			init_payload_normal, payload_len,
-			ipv4_tcp_post,
-			result, pair4);
+	return create_skb_ipv4_tcp_frag(pair4, result, payload_len,
+			TCP_HDR_LEN + payload_len, true, false, 0);
 }
 
 int create_skb_ipv4_icmp_info(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_icmp4_hdr_info, IPPROTO_ICMP, ICMP4_HDR_LEN,
-			init_payload_normal, payload_len,
-			ipv4_icmp_post,
-			result, pair4);
+	return create_skb_ipv4_icmp_info_frag(pair4, result, payload_len,
+			ICMP4_HDR_LEN + payload_len, true, false, 0);
 }
 
 int create_skb_ipv4_icmp_error(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_icmp4_hdr_error, IPPROTO_ICMP, ICMP4_HDR_LEN,
+	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, true, false, 0,
+			init_icmp4_hdr_error, IPPROTO_ICMP, ICMP4_HDR_LEN, ICMP4_HDR_LEN + payload_len,
 			init_payload_inner_ipv4, payload_len,
 			ipv4_icmp_post,
 			result, pair4);
 }
 
-int create_skb_ipv4_udp_fragment(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
+int create_skb_ipv4_udp_frag(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len,
+		u16 total_l4_len, bool df, bool mf, u16 frag_offset)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_empty_hdr, IPPROTO_UDP, 0,
-			init_payload_normal, payload_len,
-			empty_post,
-			result, pair4);
+	if (frag_offset == 0)
+		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
+				init_udp_hdr, IPPROTO_UDP, UDP_HDR_LEN, total_l4_len,
+				init_payload_normal, payload_len,
+				ipv4_udp_post,
+				result, pair4);
+	else
+		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
+				init_empty_hdr, IPPROTO_UDP, 0, total_l4_len,
+				init_payload_normal, payload_len,
+				empty_post,
+				result, pair4);
 }
 
-int create_skb_ipv4_tcp_fragment(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
+int create_skb_ipv4_tcp_frag(struct ipv4_pair *pair4, struct sk_buff **result,
+		u16 total_l4_len, u16 payload_len, bool df, bool mf, u16 frag_offset)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_empty_hdr, IPPROTO_TCP, 0,
-			init_payload_normal, payload_len,
-			empty_post,
-			result, pair4);
+	if (frag_offset == 0)
+		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
+				init_tcp_hdr, IPPROTO_TCP, TCP_HDR_LEN, total_l4_len,
+				init_payload_normal, payload_len,
+				ipv4_tcp_post,
+				result, pair4);
+	else
+		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
+				init_empty_hdr, IPPROTO_TCP, 0, total_l4_len,
+				init_payload_normal, payload_len,
+				empty_post,
+				result, pair4);
 }
 
-int create_skb_ipv4_icmp_info_fragment(struct ipv4_pair *pair4, struct sk_buff **result, u16 payload_len)
+int create_skb_ipv4_icmp_info_frag(struct ipv4_pair *pair4, struct sk_buff **result,
+		u16 total_l4_len, u16 payload_len, bool df, bool mf, u16 frag_offset)
 {
-	return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN,
-			init_empty_hdr, IPPROTO_ICMP, 0,
-			init_payload_normal, payload_len,
-			empty_post,
-			result, pair4);
+	if (frag_offset == 0)
+		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
+				init_icmp4_hdr_info, IPPROTO_ICMP, ICMP4_HDR_LEN, total_l4_len,
+				init_payload_normal, payload_len,
+				ipv4_icmp_post,
+				result, pair4);
+	else
+		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
+				init_empty_hdr, IPPROTO_ICMP, 0, total_l4_len,
+				init_payload_normal, payload_len,
+				empty_post,
+				result, pair4);
 }
 
-int create_skb_ipv6_udp_fragment_1(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
+int create_skb_ipv6_udp_frag(struct ipv6_pair *pair6, struct sk_buff **result,
+		u16 total_l4_len, u16 payload_len, bool mf, u16 frag_offset)
 {
-	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
-			init_udp_hdr, NEXTHDR_UDP, UDP_HDR_LEN,
-			init_payload_normal, payload_len,
-			ipv6_udp_post,
-			result, pair6);
+	if (frag_offset == 0)
+		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+				true, mf, frag_offset,
+				init_udp_hdr, NEXTHDR_UDP, UDP_HDR_LEN, total_l4_len,
+				init_payload_normal, payload_len,
+				ipv6_udp_post,
+				result, pair6);
+	else
+		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+				true, mf, frag_offset,
+				init_empty_hdr, NEXTHDR_UDP, 0, total_l4_len,
+				init_payload_normal, payload_len,
+				empty_post,
+				result, pair6);
 }
 
-int create_skb_ipv6_udp_fragment_n(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
+int create_skb_ipv6_tcp_frag(struct ipv6_pair *pair6, struct sk_buff **result,
+		u16 total_l4_len, u16 payload_len, bool mf, u16 frag_offset)
 {
-	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
-			init_empty_hdr, NEXTHDR_UDP, 0,
-			init_payload_normal, payload_len,
-			empty_post,
-			result, pair6);
+	if (frag_offset == 0)
+		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+				true, mf, frag_offset,
+				init_tcp_hdr, NEXTHDR_TCP, TCP_HDR_LEN, total_l4_len,
+				init_payload_normal, payload_len,
+				ipv6_tcp_post,
+				result, pair6);
+	else
+		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+				true, mf, frag_offset,
+				init_empty_hdr, NEXTHDR_TCP, 0, total_l4_len,
+				init_payload_normal, payload_len,
+				empty_post,
+				result, pair6);
 }
 
-int create_skb_ipv6_tcp_fragment_1(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
+int create_skb_ipv6_icmp_info_frag(struct ipv6_pair *pair6, struct sk_buff **result,
+		u16 total_l4_len, u16 payload_len, bool mf, u16 frag_offset)
 {
-	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
-			init_tcp_hdr, NEXTHDR_TCP, TCP_HDR_LEN,
-			init_payload_normal, payload_len,
-			ipv6_tcp_post,
-			result, pair6);
+	if (frag_offset == 0)
+		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+				true, mf, frag_offset,
+				init_icmp6_hdr_info, NEXTHDR_ICMP, ICMP6_HDR_LEN, total_l4_len,
+				init_payload_normal, payload_len,
+				ipv6_icmp_post,
+				result, pair6);
+	else
+		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
+				true, mf, frag_offset,
+				init_empty_hdr, NEXTHDR_ICMP, 0, total_l4_len,
+				init_payload_normal, payload_len,
+				empty_post,
+				result, pair6);
 }
 
-int create_skb_ipv6_tcp_fragment_n(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
-{
-	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
-			init_empty_hdr, NEXTHDR_TCP, 0,
-			init_payload_normal, payload_len,
-			empty_post,
-			result, pair6);
-}
-
-int create_skb_ipv6_icmp_info_fragment_1(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
-{
-	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
-			init_icmp6_hdr_info, NEXTHDR_ICMP, ICMP6_HDR_LEN,
-			init_payload_normal, payload_len,
-			ipv6_icmp_post,
-			result, pair6);
-}
-
-int create_skb_ipv6_icmp_info_fragment_n(struct ipv6_pair *pair6, struct sk_buff **result, u16 payload_len)
-{
-	return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
-			init_empty_hdr, NEXTHDR_ICMP, 0,
-			init_payload_normal, payload_len,
-			empty_post,
-			result, pair6);
-}
-
-/* Packet stuff */
 int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct sk_buff **skb_out)
 {
 	struct sk_buff *skb1, *skb2, *skb3;
-	struct iphdr *hdr4;
 	int error;
 
-	/* Third fragment. */
-	error = create_skb_ipv4_udp_fragment(pair4, &skb1, 8);
+	error = create_skb_ipv4_udp_frag(pair4, &skb1, 8, 32, true, true, 0);
 	if (error)
 		return error;
-	hdr4 = ip_hdr(skb1);
-	hdr4->frag_off = build_ipv4_frag_off_field(false, false, 16);
-	hdr4->check = 0;
-	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
-	/* Second fragment. */
-	error = create_skb_ipv4_udp_fragment(pair4, &skb2, 8);
+	error = create_skb_ipv4_udp_frag(pair4, &skb2, 8, 32, true, true, 16);
 	if (error)
 		return error;
-	hdr4 = ip_hdr(skb2);
-	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 24);
-	hdr4->check = 0;
-	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
-	/* First fragment. */
-	error = create_skb_ipv4_udp(pair4, &skb3, 8);
+	error = create_skb_ipv4_udp_frag(pair4, &skb3, 8, 32, true, false, 24);
 	if (error)
 		return error;
-	hdr4 = ip_hdr(skb3);
-	hdr4->frag_off = build_ipv4_frag_off_field(false, true, 0);
-	hdr4->check = 0;
-	hdr4->check = ip_fast_csum(hdr4, hdr4->ihl);
 
-	skb1->next = skb2;
-	skb2->next = skb3;
-	skb2->prev = skb1;
-	skb3->prev = skb2;
+	skb1->next = skb3;
+	skb3->next = skb2;
+	skb3->prev = skb1;
+	skb2->prev = skb3;
 	*skb_out = skb1;
 
 	return 0;
@@ -600,33 +607,19 @@ int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct
 int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct sk_buff **skb_out)
 {
 	struct sk_buff *skb1, *skb2, *skb3;
-	struct ipv6hdr *hdr6;
-	struct frag_hdr *hdr_frag;
 	int error;
 
-	/* Third fragment. */
-	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb1, 8);
+	error = create_skb_ipv6_tcp_frag(pair6, &skb1, 8, 32, true, 0);
 	if (error)
 		return false;
-	hdr6 = ipv6_hdr(skb1);
-	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-	hdr_frag->frag_off = build_ipv6_frag_off_field(24, false);
 
-	/* Second fragment. */
-	error = create_skb_ipv6_tcp_fragment_n(pair6, &skb2, 8);
+	error = create_skb_ipv6_tcp_frag(pair6, &skb2, 8, 32, true, 16);
 	if (error)
 		return false;
-	hdr6 = ipv6_hdr(skb2);
-	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-	hdr_frag->frag_off = build_ipv6_frag_off_field(16, true);
 
-	/* First fragment. */
-	error = create_skb_ipv6_tcp_fragment_1(pair6, &skb3, 8);
+	error = create_skb_ipv6_tcp_frag(pair6, &skb3, 8, 32, false, 24);
 	if (error)
 		return false;
-	hdr6 = ipv6_hdr(skb3);
-	hdr_frag = (struct frag_hdr *) (hdr6 + 1);
-	hdr_frag->frag_off = build_ipv6_frag_off_field(0, true);
 
 	skb1->next = skb2;
 	skb2->next = skb3;

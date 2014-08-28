@@ -89,6 +89,8 @@ $(BIB)-objs += bib_test.o
 
 $(SESSION)-objs += $(MIN_REQS)
 $(SESSION)-objs += ../mod/bib_db.o
+$(SESSION)-objs += ../mod/ipv6_hdr_iterator.o
+$(SESSION)-objs += ../mod/packet.o
 $(SESSION)-objs += ../mod/pool6.o
 $(SESSION)-objs += ../mod/rfc6052.o
 $(SESSION)-objs += ../mod/pkt_queue.o
@@ -150,6 +152,7 @@ $(HAIRPINNING)-objs += ../mod/compute_outgoing_tuple.o
 $(HAIRPINNING)-objs += ../mod/core.o
 $(HAIRPINNING)-objs += ../mod/determine_incoming_tuple.o
 $(HAIRPINNING)-objs += ../mod/filtering_and_updating.o
+$(HAIRPINNING)-objs += ../mod/fragment_db.o
 $(HAIRPINNING)-objs += ../mod/handling_hairpinning.o
 $(HAIRPINNING)-objs += ../mod/ipv6_hdr_iterator.o
 $(HAIRPINNING)-objs += ../mod/packet.o
