@@ -105,8 +105,6 @@ static inline bool is_inner_pkt(struct pkt_parts *parts)
 
 static int skb_to_parts(struct sk_buff *skb, struct pkt_parts *parts)
 {
-	struct sk_buff *next_skb = skb->next;
-
 	parts->l3_hdr.proto = skb_l3_proto(skb);
 	parts->l3_hdr.len = skb_l3hdr_len(skb);
 	parts->l3_hdr.ptr = skb_network_header(skb);
@@ -114,10 +112,6 @@ static int skb_to_parts(struct sk_buff *skb, struct pkt_parts *parts)
 	parts->l4_hdr.len = skb_l4hdr_len(skb);
 	parts->l4_hdr.ptr = skb_transport_header(skb);
 	parts->payload.len = skb_payload_len(skb);
-	while (next_skb != skb) {
-		parts->payload.len += skb_payload_len(next_skb);
-		next_skb = next_skb->next;
-	}
 	parts->payload.ptr = skb_payload(skb);
 	parts->skb = skb;
 
