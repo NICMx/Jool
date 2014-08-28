@@ -222,7 +222,7 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 {
 	__u32 result;
 
-	if (packet_mtu == 0) {
+	if (packet_mtu == 20) {
 		/*
 		 * Some router does not implement RFC 1191.
 		 * Got to determine a likely path MTU.
@@ -534,7 +534,9 @@ static int post_mtu6(struct pkt_parts *in, struct pkt_parts *out)
 	out_dst = skb_dst(out->skb);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
-	hdr4 = in->l3_hdr.ptr;
+	/* We want the length of the packet that couldn't get through, not the truncated one. */
+	hdr4 = in->payload.ptr;
+
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu) + 20,
 			out_dst->dev->mtu,
 			in->skb->dev->mtu + 20,
