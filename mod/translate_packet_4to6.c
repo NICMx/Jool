@@ -5,7 +5,8 @@
 
 static int has_frag_hdr(struct iphdr *in_hdr)
 {
-	return !is_dont_fragment_set(in_hdr);
+	return !is_dont_fragment_set(in_hdr) ||
+			(is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr));
 }
 
 static int ttp46_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
