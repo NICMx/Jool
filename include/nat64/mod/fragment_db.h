@@ -39,7 +39,6 @@
 
 int fragdb_init(void);
 
-// TODO
 int fragmentdb_set_config(enum fragmentation_type type, size_t size, void *value);
 int fragmentdb_clone_config(struct fragmentation_config *clone);
 

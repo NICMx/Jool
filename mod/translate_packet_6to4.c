@@ -45,7 +45,7 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	skb_set_jcb(new_skb, L3PROTO_IPV4, in->l4_hdr.proto,
 			skb_transport_header(new_skb) + in->l4_hdr.len,
-			skb_original_skb(in->skb));
+			NULL, skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;
 	new_skb->protocol = htons(ETH_P_IP);

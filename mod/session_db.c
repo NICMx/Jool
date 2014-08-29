@@ -276,7 +276,7 @@ static void send_probe_packet(struct session_entry *session)
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL);
+	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL, NULL);
 
 	error = route_ipv6(skb);
 	if (error)

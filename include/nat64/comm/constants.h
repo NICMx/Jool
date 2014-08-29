@@ -15,8 +15,8 @@
 /**
  * Step the module will be injected in within Netfilter's prerouting hooks.
  */
-#define NF_PRI4_JOOL ((NF_IP_PRI_CONNTRACK_DEFRAG + NF_IP_PRI_RAW) / 2)
-#define NF_PRI6_JOOL ((NF_IP6_PRI_CONNTRACK_DEFRAG + NF_IP6_PRI_RAW) / 2)
+#define NF_PRI4_JOOL (NF_IP_PRI_CONNTRACK_DEFRAG - 100)
+#define NF_PRI6_JOOL (NF_IP6_PRI_CONNTRACK_DEFRAG - 100)
 
 /* -- Timeouts, defined by RFC 6146, section 4. */
 

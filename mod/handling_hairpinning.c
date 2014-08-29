@@ -24,11 +24,11 @@ bool is_hairpin(struct sk_buff *skb)
 }
 
 /**
- * Mirrors the core's behavior by processing pkt_in as if it was the incoming packet.
+ * Mirrors the core's behavior by processing skb_in as if it was the incoming packet.
  *
- * @param pkt_in the outgoing packet. Except because it's a hairpin, here it's treated as if it was
+ * @param skb_in the outgoing packet. Except because it's a hairpin, here it's treated as if it was
  *		the one received from the network.
- * @param tuple_in pkt_in's tuple.
+ * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
 verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
@@ -41,7 +41,7 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 
 	if (skb_l4_proto(skb_in) == L4PROTO_ICMP) {
 		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
-		log_debug("ICMP is NOT supported by hairpinning. Dropping packet...");
+		log_debug("ICMP is not supported by hairpinning. Dropping packet...");
 		return VER_DROP;
 	}
 

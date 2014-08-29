@@ -76,7 +76,6 @@ static void icmp4_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		return; /* Not supported or needed. */
 	}
 
-	skb_clear_cb(skb);
 	log_debug("Sending ICMPv4 error: %s, type: %d, code: %d.", icmp_error_to_string(error), type,
 			code);
 	icmp_send(skb, type, code, cpu_to_be32(info));
@@ -120,7 +119,6 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0) || KERNEL_VERSION(3, 13, 0) <= LINUX_VERSION_CODE
-	skb_clear_cb(skb);
 	log_debug("Sending ICMPv6 error: %s, type: %d, code: %d", icmp_error_to_string(error), type,
 			code);
 	icmpv6_send(skb, type, code, info);
@@ -131,17 +129,33 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 
 void icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 {
-	struct sk_buff *original_skb = skb_original_skb(skb);
+	struct sk_buff *prev, *next;
+	struct jool_cb cb;
 
-	if (!original_skb || !original_skb->dev)
+	skb = skb_original_skb(skb);
+
+	if (!skb || !skb->dev)
 		return;
 
-	switch (ntohs(original_skb->protocol)) {
+	/* We're going to use kernel functions, so let's clean our garbage first. */
+	prev = skb->prev;
+	next = skb->next;
+	memcpy(&cb, &skb->cb, sizeof(cb));
+	skb->prev = skb->next = NULL;
+	skb_clear_cb(skb);
+
+	/* Send the error. */
+	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		icmp4_send(original_skb, error, info);
+		icmp4_send(skb, error, info);
 		break;
 	case ETH_P_IPV6:
-		icmp6_send(original_skb, error, info);
+		icmp6_send(skb, error, info);
 		break;
 	}
+
+	/* Return our garbage, to make this function side-effect free. */
+	skb->prev = prev;
+	skb->next = next;
+	memcpy(&skb->cb, &cb, sizeof(cb));
 }

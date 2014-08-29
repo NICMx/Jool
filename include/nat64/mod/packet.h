@@ -180,13 +180,14 @@ static inline void skb_clear_cb(struct sk_buff *skb)
  * Initializes "skb"'s control buffer using the rest of the arguments.
  */
 static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
-		void *payload, struct sk_buff *original_skb)
+		void *payload, struct frag_hdr *fraghdr, struct sk_buff *original_skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 
 	cb->l3_proto = l3_proto;
 	cb->l4_proto = l4_proto;
 	cb->payload = payload;
+	cb->frag_hdr = fraghdr;
 	cb->original_skb = original_skb;
 }
 

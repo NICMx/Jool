@@ -50,6 +50,7 @@ static int ttp46_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	skb_set_jcb(new_skb, L3PROTO_IPV6, in->l4_hdr.proto,
 			skb_transport_header(new_skb) + in->l4_hdr.len,
+			has_frag_hdr(in->payload.ptr) ? ((struct frag_hdr *) (ipv6_hdr(new_skb) + 1)) : NULL,
 			skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;
@@ -223,7 +224,7 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 {
 	__u32 result;
 
-	if (packet_mtu == 0) {
+	if (packet_mtu == 20) {
 		/*
 		 * Some router does not implement RFC 1191.
 		 * Got to determine a likely path MTU.
@@ -535,7 +536,9 @@ static int post_mtu6(struct pkt_parts *in, struct pkt_parts *out)
 	out_dst = skb_dst(out->skb);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
-	hdr4 = in->l3_hdr.ptr;
+	/* We want the length of the packet that couldn't get through, not the truncated one. */
+	hdr4 = in->payload.ptr;
+
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu) + 20,
 			out_dst->dev->mtu,
 			in->skb->dev->mtu + 20,
