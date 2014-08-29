@@ -49,6 +49,7 @@ static int ttp46_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	skb_set_jcb(new_skb, L3PROTO_IPV6, in->l4_hdr.proto,
 			skb_transport_header(new_skb) + in->l4_hdr.len,
+			has_frag_hdr(in->payload.ptr) ? ((struct frag_hdr *) (ipv6_hdr(new_skb) + 1)) : NULL,
 			skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;

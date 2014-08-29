@@ -828,7 +828,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
 		hdr_icmp6 = icmp6_hdr(skb);
-		/* ICMP errors should not affect the tables. */
+		/* ICMP errors should not be filtered or affect the tables. */
 		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
 			return VER_CONTINUE;
@@ -840,13 +840,13 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 			return VER_DROP;
 		}
 		if (!pool6_contains(&hdr_ip6->daddr)) {
-			log_debug("Packet was rejected by pool6, dropping...");
+			log_debug("Packet was rejected by pool6; dropping...");
 			return VER_DROP;
 		}
 		break;
 	case L3PROTO_IPV4:
 		hdr_icmp4 = icmp_hdr(skb);
-		/* ICMP errors should not affect the tables. */
+		/* ICMP errors should not be filtered or affect the tables. */
 		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
 			return VER_CONTINUE;
@@ -854,7 +854,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		/* Get rid of unexpected packets */
 		addr4.s_addr = ip_hdr(skb)->daddr;
 		if (!pool4_contains(&addr4)) {
-			log_debug("Packet was rejected by pool4, dropping...");
+			log_debug("Packet was rejected by pool4; dropping...");
 			return VER_DROP;
 		}
 		break;
