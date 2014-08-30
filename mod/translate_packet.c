@@ -88,7 +88,7 @@ struct translation_steps {
 	/**
 	 * Post-processing involving the layer 4 header. See l3_post_fn.
 	 */
-	int (*l4_post_fn)(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out);
+	int (*l4_post_fn)(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out);
 };
 
 static struct translate_config *config;
@@ -115,6 +115,12 @@ static int skb_to_parts(struct sk_buff *skb, struct pkt_parts *parts)
 	parts->payload.ptr = skb_payload(skb);
 	parts->skb = skb;
 
+	return 0;
+}
+
+static int copy_payload(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+{
+	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
 	return 0;
 }
 
@@ -581,6 +587,7 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 		struct sk_buff **out_skb)
 {
+	/* TODO looks like pkt_parts no longer serve any purpose. */
 	struct pkt_parts in;
 	struct pkt_parts out;
 	struct translation_steps *current_steps = &steps[skb_l3_proto(in_skb)][skb_l4_proto(in_skb)];
@@ -595,13 +602,16 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 		goto fail;
 	if (is_error(current_steps->l3_hdr_fn(tuple, &in, &out)))
 		goto fail;
-	if (is_error(current_steps->l3_payload_fn(tuple, &in, &out)))
-		goto fail;
+	if (has_l4_hdr(in_skb)) {
+		if (is_error(current_steps->l3_payload_fn(tuple, &in, &out)))
+			goto fail;
+	} else {
+		if (is_error(copy_payload(tuple, &in, &out)))
+			goto fail;
+	}
 	if (is_error(current_steps->l3_post_fn(&out)))
 		goto fail;
 	if (is_error(current_steps->route_fn(out.skb)))
-		goto fail;
-	if (is_error(current_steps->l4_post_fn(tuple, &in, &out)))
 		goto fail;
 
 	if (is_error(fragment_if_too_big(in_skb, out.skb)))
@@ -630,7 +640,7 @@ verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
 	next_in_skb = in_skb->next;
 	prev_out_skb = *out_skb;
 
-	/* If not a fragment, the next "while" should be omit. */
+	/* If not a fragment, the next "while" will be omitted. */
 	while (next_in_skb) {
 		log_debug("Translating a Fragment Packet");
 		result = translate_fragment(tuple, next_in_skb, &tmp_out_skb);
@@ -647,6 +657,9 @@ verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
 		prev_out_skb = tmp_out_skb;
 		next_in_skb = next_in_skb->next;
 	}
+
+	if (is_error(steps[skb_l3_proto(in_skb)][skb_l4_proto(in_skb)].l4_post_fn(tuple, in_skb, *out_skb)))
+		goto fail;
 
 	log_debug("Done step 4.");
 	return VER_CONTINUE;

@@ -7,6 +7,9 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 {
 	int total_len;
 	struct sk_buff *new_skb;
+	bool is_first;
+
+	is_first = is_first_fragment_ipv6(in->l3_hdr.ptr);
 
 	/**
 	 * These are my assumptions to compute total_len:
@@ -21,7 +24,7 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	 * The subpayload will never change in size (unless it gets truncated later, but I don't care).
 	 */
 	total_len = sizeof(struct iphdr) + in->l4_hdr.len + in->payload.len;
-	if (in->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
+	if (is_first && in->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) (in->payload.ptr));
 
 		if (hdr_iterator_last(&iterator) != HDR_ITERATOR_END) {
@@ -41,10 +44,15 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	skb_put(new_skb, total_len);
 	skb_reset_mac_header(new_skb);
 	skb_reset_network_header(new_skb);
-	skb_set_transport_header(new_skb, sizeof(struct iphdr));
+	if (is_first)
+		skb_set_transport_header(new_skb, sizeof(struct iphdr));
+	else
+		skb_reset_transport_header(new_skb);
 
 	skb_set_jcb(new_skb, L3PROTO_IPV4, in->l4_hdr.proto,
-			skb_transport_header(new_skb) + in->l4_hdr.len,
+			is_first
+					? (skb_transport_header(new_skb) + in->l4_hdr.len)
+					: (skb_network_header(new_skb) + sizeof(struct iphdr)),
 			NULL, skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;
@@ -544,25 +552,25 @@ static int create_icmp4_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 	return 0;
 }
 
-static int post_mtu4(struct pkt_parts *in, struct pkt_parts *out)
+static int post_mtu4(struct sk_buff *in, struct sk_buff *out)
 {
-	struct icmphdr *out_icmp = out->l4_hdr.ptr;
+	struct icmphdr *out_icmp = icmp_hdr(out);
 #ifndef UNIT_TESTING
 	struct dst_entry *out_dst;
-	struct icmp6hdr *in_icmp = in->l4_hdr.ptr;
+	struct icmp6hdr *in_icmp = icmpv6_hdr(in);
 
 	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
 
-	if (!in->skb || !in->skb->dev)
+	if (!in || !in->dev)
 		return -EINVAL;
-	log_debug("In dev MTU: %u", in->skb->dev->mtu);
+	log_debug("In dev MTU: %u", in->dev->mtu);
 
-	out_dst = skb_dst(out->skb);
+	out_dst = skb_dst(out);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
 	out_icmp->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(in_icmp->icmp6_mtu) - 20,
 			out_dst->dev->mtu,
-			in->skb->dev->mtu - 20);
+			in->dev->mtu - 20);
 	log_debug("Resulting MTU: %u", be16_to_cpu(out_icmp->un.frag.mtu));
 
 #else
@@ -575,11 +583,11 @@ static int post_mtu4(struct pkt_parts *in, struct pkt_parts *out)
 /**
  * Sets the Checksum field from out's ICMPv4 header.
  */
-static int post_icmp4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+static int post_icmp4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
 {
-	struct ipv6hdr *in_ip6 = in->l3_hdr.ptr;
-	struct icmp6hdr *in_icmp = in->l4_hdr.ptr;
-	struct icmphdr *out_icmp = out->l4_hdr.ptr;
+	struct ipv6hdr *in_ip6 = ipv6_hdr(in);
+	struct icmp6hdr *in_icmp = icmp6_hdr(in);
+	struct icmphdr *out_icmp = icmp_hdr(out);
 	__wsum csum;
 
 	if (out_icmp->type == ICMP_DEST_UNREACH && out_icmp->code == ICMP_FRAG_NEEDED) {
@@ -594,8 +602,8 @@ static int post_icmp4(struct tuple *tuple, struct pkt_parts *in, struct pkt_part
 		 * and start anew.
 		 */
 		out_icmp->checksum = 0;
-		csum = csum_partial(out_icmp, out->l4_hdr.len, 0);
-		csum = csum_partial(out->payload.ptr, out->payload.len, csum);
+		csum = csum_partial(out_icmp, skb_l4hdr_len(out), 0);
+		csum = csum_partial(skb_payload(out), skb_payload_len(out), csum);
 		out_icmp->checksum = csum_fold(csum);
 	} else {
 		/*
@@ -612,7 +620,7 @@ static int post_icmp4(struct tuple *tuple, struct pkt_parts *in, struct pkt_part
 		for (i = 0; i < 8; i++)
 			csum = csum_sub(csum, in_ip6->daddr.s6_addr16[i]);
 
-		csum = csum_sub(csum, cpu_to_be16(out->l4_hdr.len + out->payload.len));
+		csum = csum_sub(csum, cpu_to_be16(skb_l4hdr_len(out) + skb_payload_len(out)));
 		csum = csum_sub(csum, cpu_to_be16(NEXTHDR_ICMP));
 
 		/* Remove the ICMPv6 header */
@@ -672,14 +680,14 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 /**
  * Sets the Checksum field from out's TCP header.
  */
-static int post_tcp_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+static int post_tcp_ipv4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
 {
-	struct tcphdr *in_tcp = in->l4_hdr.ptr;
-	struct tcphdr *out_tcp = out->l4_hdr.ptr;
+	struct tcphdr *in_tcp = tcp_hdr(in);
+	struct tcphdr *out_tcp = tcp_hdr(out);
 
 	out_tcp->check = update_csum_6to4(in_tcp->check,
-			in->l3_hdr.ptr, in_tcp->source, in_tcp->dest,
-			out->l3_hdr.ptr, out_tcp->source, out_tcp->dest);
+			ipv6_hdr(in), in_tcp->source, in_tcp->dest,
+			ip_hdr(out), out_tcp->source, out_tcp->dest);
 
 	return 0;
 }
@@ -687,14 +695,14 @@ static int post_tcp_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_p
 /**
  * Sets the ports and checksum of out's UDP header.
  */
-static int post_udp_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+static int post_udp_ipv4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
 {
-	struct udphdr *in_udp = in->l4_hdr.ptr;
-	struct udphdr *out_udp = out->l4_hdr.ptr;
+	struct udphdr *in_udp = udp_hdr(in);
+	struct udphdr *out_udp = udp_hdr(out);
 
 	out_udp->check = update_csum_6to4(in_udp->check,
-			in->l3_hdr.ptr, in_udp->source, in_udp->dest,
-			out->l3_hdr.ptr, out_udp->source, out_udp->dest);
+			ipv6_hdr(in), in_udp->source, in_udp->dest,
+			ip_hdr(out), out_udp->source, out_udp->dest);
 	if (out_udp->check == 0)
 		out_udp->check = 0xFFFF;
 

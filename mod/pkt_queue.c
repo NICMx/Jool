@@ -87,6 +87,10 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	node->skb = skb_original_skb(skb);
 	RB_CLEAR_NODE(&node->tree_hook);
 
+	/* Don't need to store fragments other than the first one. */
+	kfree_skb_queued(node->skb->next);
+	node->skb->next = NULL;
+
 	spin_lock_bh(&packets_lock);
 
 	if (packet_count + 1 >= max_pkts) {

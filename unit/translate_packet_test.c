@@ -90,7 +90,6 @@ static bool create_tuple_ipv4(struct tuple *tuple, u_int8_t l4proto)
 
 static bool test_post_tcp_csum_6to4(void)
 {
-	struct pkt_parts parts_in, parts_out;
 	struct sk_buff *skb_in = NULL, *skb_out = NULL;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
@@ -109,11 +108,6 @@ static bool test_post_tcp_csum_6to4(void)
 	if (is_error(create_skb_ipv4_tcp(&pair4, &skb_out, 100)))
 		goto error;
 
-	if (is_error(skb_to_parts(skb_in, &parts_in)))
-		goto error;
-	if (is_error(skb_to_parts(skb_out, &parts_out)))
-		goto error;
-
 	expected_csum = tcp_hdr(skb_out)->check;
 	tuple.src.l4_id = 1234;
 	tuple.dst.l4_id = 2345;
@@ -122,7 +116,7 @@ static bool test_post_tcp_csum_6to4(void)
 	 * We're also assuming that post_tcp_ipv4() will override skb_out's checksum
 	 * (and that's what we're going to test).
 	 */
-	success &= assert_equals_int(0, post_tcp_ipv4(&tuple, &parts_in, &parts_out), "result");
+	success &= assert_equals_int(0, post_tcp_ipv4(&tuple, skb_in, skb_out), "result");
 	success &= assert_equals_csum(expected_csum, tcp_hdr(skb_out)->check, "Checksum");
 
 	kfree_skb(skb_in);
@@ -137,7 +131,6 @@ error:
 
 static bool test_post_udp_csum_6to4(void)
 {
-	struct pkt_parts parts_in, parts_out;
 	struct sk_buff *skb_in = NULL, *skb_out = NULL;
 	struct ipv6_pair pair6;
 	struct ipv4_pair pair4;
@@ -156,11 +149,6 @@ static bool test_post_udp_csum_6to4(void)
 	if (is_error(create_skb_ipv4_udp(&pair4, &skb_out, 100)))
 		goto error;
 
-	if (is_error(skb_to_parts(skb_in, &parts_in)))
-		goto error;
-	if (is_error(skb_to_parts(skb_out, &parts_out)))
-		goto error;
-
 	expected_csum = udp_hdr(skb_out)->check;
 	tuple.src.l4_id = 1234;
 	tuple.dst.l4_id = 2345;
@@ -169,7 +157,7 @@ static bool test_post_udp_csum_6to4(void)
 	 * We're also assuming that post_tcp_ipv4() will override skb_out's checksum
 	 * (and that's what we're going to test).
 	 */
-	success &= assert_equals_int(0, post_udp_ipv4(&tuple, &parts_in, &parts_out), "result");
+	success &= assert_equals_int(0, post_udp_ipv4(&tuple, skb_in, skb_out), "result");
 	success &= assert_equals_csum(expected_csum, udp_hdr(skb_out)->check, "Checksum");
 
 	kfree_skb(skb_in);
@@ -364,25 +352,25 @@ static bool test_function_icmp6_minimum_mtu(void)
 	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 
 	/* Test the bare minimum functionality. */
-	success &= assert_equals_u32(1, min_mtu(1, 2, 2, 0), "No hacks, min is packet");
-	success &= assert_equals_u32(1, min_mtu(2, 1, 2, 0), "No hacks, min is in");
-	success &= assert_equals_u32(1, min_mtu(2, 2, 1, 0), "No hacks, min is out");
+	success &= assert_equals_u32(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
+	success &= assert_equals_u32(1, min_mtu(100, 1, 100, 0), "No hacks, min is in");
+	success &= assert_equals_u32(21, min_mtu(100, 100, 1, 0), "No hacks, min is out");
 
 	if (!success)
 		goto revert;
 
 	/* Test hack 1: MTU is overriden if some router set is as zero. */
-	for (i = 1500; i > 1400; --i)
-		success &= assert_equals_u32(1400, min_mtu(0, 1600, 1600, i), "Override packet MTU");
-	for (i = 1400; i > 1200; --i)
-		success &= assert_equals_u32(1200, min_mtu(0, 1600, 1600, i), "Override packet MTU");
-	for (i = 1200; i > 600; --i)
-		success &= assert_equals_u32(600, min_mtu(0, 1600, 1600, i), "Override packet MTU");
-	for (i = 600; i > 0; --i)
-		success &= assert_equals_u32(0, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+	for (i = 1500; i > 1400 && success; --i)
+		success &= assert_equals_u32(1420, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+	for (i = 1400; i > 1200 && success; --i)
+		success &= assert_equals_u32(1220, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+	for (i = 1200; i > 600 && success; --i)
+		success &= assert_equals_u32(620, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+	for (i = 600; i > 0 && success; --i)
+		success &= assert_equals_u32(20, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 
-	success &= assert_equals_u32(1, min_mtu(0, 1, 2, 1000), "Override packet MTU, min is in");
-	success &= assert_equals_u32(1, min_mtu(0, 2, 1, 1000), "Override packet MTU, min is out");
+	success &= assert_equals_u32(1, min_mtu(0, 1, 100, 1000), "Override packet MTU, min is in");
+	success &= assert_equals_u32(21, min_mtu(0, 100, 1, 1000), "Override packet MTU, min is out");
 
 	if (!success)
 		goto revert;
@@ -390,25 +378,25 @@ static bool test_function_icmp6_minimum_mtu(void)
 	/* Test hack 2: User wants us to try to improve the failure rate. */
 	config->lower_mtu_fail = true;
 
-	success &= assert_equals_u32(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
-	success &= assert_equals_u32(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
-	success &= assert_equals_u32(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
+	success &= assert_equals_u32(1300, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
+	success &= assert_equals_u32(1300, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
+	success &= assert_equals_u32(1300, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
 
-	success &= assert_equals_u32(1300, min_mtu(1300, 1400, 1400, 0), "Fail improve rate, packet");
-	success &= assert_equals_u32(1300, min_mtu(1400, 1300, 1400, 0), "Fail improve rate, in");
-	success &= assert_equals_u32(1300, min_mtu(1400, 1400, 1300, 0), "Fail improve rate, out");
+	success &= assert_equals_u32(1420, min_mtu(1400, 1500, 1500, 0), "Fail improve rate, packet");
+	success &= assert_equals_u32(1400, min_mtu(1500, 1400, 1500, 0), "Fail improve rate, in");
+	success &= assert_equals_u32(1420, min_mtu(1500, 1500, 1400, 0), "Fail improve rate, out");
 
 	if (!success)
 		goto revert;
 
 	/* Test both hacks at the same time. */
-	success &= assert_equals_u32(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
-	success &= assert_equals_u32(1280, min_mtu(0, 1, 2, 1000), "2 hacks, override in");
-	success &= assert_equals_u32(1280, min_mtu(0, 2, 1, 1000), "2 hacks, override out");
+	success &= assert_equals_u32(1300, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
+	success &= assert_equals_u32(1300, min_mtu(0, 1, 100, 1000), "2 hacks, override in");
+	success &= assert_equals_u32(1300, min_mtu(0, 100, 1, 1000), "2 hacks, override out");
 
-	success &= assert_equals_u32(1400, min_mtu(0, 1500, 1500, 1401), "2 hacks, packet/not 1280");
-	success &= assert_equals_u32(1400, min_mtu(0, 1400, 1500, 1501), "2 hacks, in/not 1280");
-	success &= assert_equals_u32(1400, min_mtu(0, 1500, 1400, 1501), "2 hacks, out/not 1280");
+	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1500, 1500), "2 hacks, packet/not 1280");
+	success &= assert_equals_u32(1400, min_mtu(0, 1400, 1500, 1500), "2 hacks, in/not 1280");
+	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1400, 1500), "2 hacks, out/not 1280");
 
 	/* Fall through. */
 revert:
@@ -992,6 +980,7 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 	u16 l4_next_hdr;
 	u16 mf = is_last ? 0 : IP6_MF;
 	u16 hdr_payload_len;
+
 	switch (l4proto) {
 	case (L4PROTO_TCP):
 		l4hdr_size = sizeof(struct tcphdr);
@@ -1005,6 +994,9 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 		l4hdr_size = sizeof(struct icmp6hdr);
 		l4_next_hdr = NEXTHDR_ICMP;
 		break;
+	default:
+		log_debug("Invalid l4 protocol: %u", l4proto);
+		return false;
 	}
 	hdr_payload_len = sizeof(struct frag_hdr) + (is_first ? l4hdr_size : 0)	+ payload_len;
 
@@ -1046,8 +1038,6 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 
 	return true;
 }
-
-
 
 static bool validate_frags6(struct sk_buff *skb, struct tuple *tuple, int total_frags,
 		bool is_first[], bool is_last[], u16 frag_offset[], u16 payload_len[], u16 payload_offset[],
@@ -1132,24 +1122,22 @@ static bool test_multiple_4to6_udp(bool df)
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
 	struct tuple tuple;
+	u16 frag_offset[] = {0, 16, 32, 48};
+	u16 payload_len[] = {16, 16, 16, 8};
 	/* IPv4 Parameters. */
 	bool mf_flags[] = {true, true, true, false};
-	u16 fragments_offset[] = {0, 400, 800, 1200};
-	u16 payload_lengths[] = {400, 400, 400, 200};
-	u16 total_len = 1400;
+	u16 total_len = 56;
 	/* IPv6 Parameters. (To evaluate). */
 	bool is_first[] = {true, false, false, false};
 	bool is_last[] = {false, false, false, true};
-	u16 frag_offset[] = {0, 400, 800, 1200};
-	u16 payload_len[] = {400, 400, 400, 200};
 	u16 payload_offset[] = {0, 0, 0, 0};
 
 	if (!create_tuple_ipv6(&tuple, L4PROTO_UDP))
 		goto end;
 
 	/* Create Steps SKBs*/
-	skb_in = create_frags_4(4, mf_flags, fragments_offset, df, total_len + sizeof(struct udphdr),
-			payload_lengths, create_skb_ipv4_udp_frag);
+	skb_in = create_frags_4(4, mf_flags, frag_offset, df, total_len + sizeof(struct udphdr),
+			payload_len, create_skb_ipv4_udp_frag);
 	if (!skb_in)
 		goto end;
 
@@ -1176,24 +1164,22 @@ static bool test_multiple_4to6_tcp(bool df)
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
 	struct tuple tuple;
+	u16 frag_offset[] = {0, 16, 32, 48};
+	u16 payload_len[] = {16, 16, 16, 8};
 	/* IPv4 Parameters. */
 	bool mf_flags[] = {true, true, true, false};
-	u16 fragments_offset[] = {0, 250, 500, 750};
-	u16 payload_lengths[] = {250, 250, 250, 200};
-	u16 total_len = 950;
+	u16 total_len = 56;
 	/* IPv6 Parameters. (To evaluate). */
 	bool is_first[] = {true, false, false, false};
 	bool is_last[] = {false, false, false, true};
-	u16 frag_offset[] = {0, 266, 516, 766};
-	u16 payload_len[] = {250, 250, 250, 200};
-	u16 payload_offset[] = {0, 0,0, 0};
+	u16 payload_offset[] = {0, 0, 0, 0};
 
 	if (!create_tuple_ipv6(&tuple, L4PROTO_TCP))
 		goto end;
 
 	/* Create Steps SKBs*/
-	skb_in = create_frags_4(4, mf_flags, fragments_offset, df, total_len + sizeof(struct tcphdr),
-			payload_lengths, create_skb_ipv4_tcp_frag);
+	skb_in = create_frags_4(4, mf_flags, frag_offset, df, total_len + sizeof(struct tcphdr),
+			payload_len, create_skb_ipv4_tcp_frag);
 	if (!skb_in)
 		goto end;
 
@@ -1220,24 +1206,22 @@ static bool test_multiple_4to6_icmp(bool df)
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
 	struct tuple tuple;
+	u16 frag_offset[] = {0, 16, 32, 48};
+	u16 payload_len[] = {16, 16, 16, 8};
 	/* IPv4 Parameters. */
 	bool mf_flags[] = {true, true, true, false};
-	u16 fragments_offset[] = {0, 250, 500, 750};
-	u16 payload_lengths[] = {250, 250, 250, 200};
-	u16 total_len = 950;
+	u16 total_len = 56;
 	/* IPv6 Parameters. (To evaluate). */
 	bool is_first[] = {true, false, false, false};
 	bool is_last[] = {false, false, false, true};
-	u16 frag_offset[] = {0, 266, 516, 766};
-	u16 payload_len[] = {250, 250, 250, 200};
-	u16 payload_offset[] = {0, 0,0, 0};
+	u16 payload_offset[] = {0, 0, 0, 0};
 
 	if (!create_tuple_ipv6(&tuple, L4PROTO_ICMP))
 		goto end;
 
 	/* Create Steps SKBs*/
-	skb_in = create_frags_4(4, mf_flags, fragments_offset, df, total_len + sizeof(struct icmphdr),
-			payload_lengths, create_skb_ipv4_icmp_info_frag);
+	skb_in = create_frags_4(4, mf_flags, frag_offset, df, total_len + sizeof(struct icmphdr),
+			payload_len, create_skb_ipv4_icmp_info_frag);
 	if (!skb_in)
 		goto end;
 
@@ -1307,16 +1291,13 @@ int init_module(void)
 	CALL_TEST(test_6to4_icmp_error(), "Full translation, 6->4 ICMP error");
 
 	CALL_TEST(test_multiple_4to6_fragment(), "Translate & fragment");
-    //
+
 	CALL_TEST(test_multiple_4to6_udp(true), "Full Fragments, 6->4 UDP DF=True");
 	CALL_TEST(test_multiple_4to6_udp(false), "Full Fragments, 6->4 UDP DF=False");
-
 	CALL_TEST(test_multiple_4to6_tcp(true), "Full Fragments, 6->4 TCP DF=True");
 	CALL_TEST(test_multiple_4to6_tcp(false), "Full Fragments, 6->4 TCP DF=False");
-
 	CALL_TEST(test_multiple_4to6_icmp(true), "Full Fragments, 6->4 ICMP DF=True");
 	CALL_TEST(test_multiple_4to6_icmp(false), "Full Fragments, 6->4 ICMP DF=False");
-
 
 	translate_packet_destroy();
 

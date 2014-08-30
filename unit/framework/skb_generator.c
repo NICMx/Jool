@@ -488,7 +488,7 @@ int create_skb_ipv4_udp_frag(struct ipv4_pair *pair4, struct sk_buff **result, u
 }
 
 int create_skb_ipv4_tcp_frag(struct ipv4_pair *pair4, struct sk_buff **result,
-		u16 total_l4_len, u16 payload_len, bool df, bool mf, u16 frag_offset)
+		u16 payload_len, u16 total_l4_len,bool df, bool mf, u16 frag_offset)
 {
 	if (frag_offset == 0)
 		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
@@ -505,7 +505,7 @@ int create_skb_ipv4_tcp_frag(struct ipv4_pair *pair4, struct sk_buff **result,
 }
 
 int create_skb_ipv4_icmp_info_frag(struct ipv4_pair *pair4, struct sk_buff **result,
-		u16 total_l4_len, u16 payload_len, bool df, bool mf, u16 frag_offset)
+		u16 payload_len, u16 total_l4_len, bool df, bool mf, u16 frag_offset)
 {
 	if (frag_offset == 0)
 		return create_skb(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, df, mf, frag_offset,
@@ -522,7 +522,7 @@ int create_skb_ipv4_icmp_info_frag(struct ipv4_pair *pair4, struct sk_buff **res
 }
 
 int create_skb_ipv6_udp_frag(struct ipv6_pair *pair6, struct sk_buff **result,
-		u16 total_l4_len, u16 payload_len, bool mf, u16 frag_offset)
+		u16 payload_len, u16 total_l4_len, bool mf, u16 frag_offset)
 {
 	if (frag_offset == 0)
 		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
@@ -541,7 +541,7 @@ int create_skb_ipv6_udp_frag(struct ipv6_pair *pair6, struct sk_buff **result,
 }
 
 int create_skb_ipv6_tcp_frag(struct ipv6_pair *pair6, struct sk_buff **result,
-		u16 total_l4_len, u16 payload_len, bool mf, u16 frag_offset)
+		u16 payload_len, u16 total_l4_len, bool mf, u16 frag_offset)
 {
 	if (frag_offset == 0)
 		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,
@@ -560,7 +560,7 @@ int create_skb_ipv6_tcp_frag(struct ipv6_pair *pair6, struct sk_buff **result,
 }
 
 int create_skb_ipv6_icmp_info_frag(struct ipv6_pair *pair6, struct sk_buff **result,
-		u16 total_l4_len, u16 payload_len, bool mf, u16 frag_offset)
+		u16 payload_len, u16 total_l4_len, bool mf, u16 frag_offset)
 {
 	if (frag_offset == 0)
 		return create_skb(init_ipv6_and_frag_hdr, ETH_P_IPV6, IPV6_HDR_LEN + FRAG_HDR_LEN,

@@ -375,6 +375,8 @@ void skb_print(struct sk_buff *skb)
 	unsigned char *payload;
 	unsigned int x;
 
+	pr_debug("----------------\n");
+
 	if (!skb) {
 		pr_debug("(null)\n");
 		return;
