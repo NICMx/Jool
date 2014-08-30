@@ -120,9 +120,6 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator);
 	if (error)
 		return error;
-
-	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
-
 	/*
 	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
 	 * exported for dynamic modules to use (and linux doesn't know a route to the NAT64 prefix
@@ -134,6 +131,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	cb->l3_proto = L3PROTO_IPV6;
 	cb->frag_hdr = get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
 	cb->original_skb = skb;
+	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
 	skb_set_transport_header(skb, is_1st_fragment
 			? (iterator.data - (void *) skb_network_header(skb))
 			: skb_network_offset(skb));
@@ -435,8 +433,15 @@ void skb_print(struct sk_buff *skb)
 
 	pr_debug("Payload (length %u):\n", skb_payload_len(skb));
 	payload = skb_payload(skb);
-	for (x = 0; x < skb_payload_len(skb); x++)
-		pr_debug("		%u\n", payload[x]);
+	if (skb_payload_len(skb))
+		printk("		%u", payload[0]);
+	for (x = 1; x < skb_payload_len(skb); x++) {
+		if (x%12)
+			printk(", %u", payload[x]);
+		else
+			printk("\n		%u", payload[x]);
+	}
+	printk("\n");
 }
 
 /**
