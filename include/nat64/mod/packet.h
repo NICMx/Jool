@@ -235,7 +235,7 @@ static inline struct sk_buff *skb_original_skb(struct sk_buff *skb)
  * Fragments other than the one with no offset do not contain a layer-4 header.
  * If this returns false, you should not try to extract a layer-4 header from "skb".
  */
-static inline bool has_l4_hdr(struct sk_buff *skb)
+static inline bool skb_has_l4_hdr(struct sk_buff *skb)
 {
 	/*
 	 * The kernel seems to do it this way, particularly when transport_header hasn't been set.
@@ -249,7 +249,7 @@ static inline bool has_l4_hdr(struct sk_buff *skb)
  */
 static inline int skb_l3hdr_len(struct sk_buff *skb)
 {
-	return has_l4_hdr(skb)
+	return skb_has_l4_hdr(skb)
 			? (skb_transport_header(skb) - skb_network_header(skb))
 			: (skb_payload(skb) - (void *) skb_network_header(skb));
 }
@@ -259,7 +259,7 @@ static inline int skb_l3hdr_len(struct sk_buff *skb)
  */
 static inline int skb_l4hdr_len(struct sk_buff *skb)
 {
-	return has_l4_hdr(skb)
+	return skb_has_l4_hdr(skb)
 			? (skb_payload(skb) - (void *) skb_transport_header(skb))
 			: 0;
 }
@@ -271,6 +271,20 @@ static inline int skb_payload_len(struct sk_buff *skb)
 {
 	return skb->len - (skb_payload(skb) - (void *) skb_network_header(skb));
 }
+
+/**
+ * Returns in "len" the length of the layer-3 payload of "skb".
+ *
+ * If "skb" is not fragmented, this is the length of the layer-4 header plus the length of the
+ * actual payload.
+ * If "skb" is fragmented, this is the length of the layer-4 header plus the length of the actual
+ * payloads of every fragment.
+ */
+int skb_aggregate_ipv4_payload_len(struct sk_buff *skb, unsigned int *len);
+int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
+/**
+ * @}
+ */
 
 /**
  * Fails if "hdr" is corrupted.

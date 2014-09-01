@@ -28,6 +28,49 @@ void kfree_skb_queued(struct sk_buff *skb)
 	}
 }
 
+int skb_aggregate_ipv4_payload_len(struct sk_buff *skb, unsigned int *len)
+{
+	struct iphdr *hdr;
+
+	do {
+		hdr = ip_hdr(skb);
+
+		if (!is_more_fragments_set_ipv4(hdr)) {
+			*len = get_fragment_offset_ipv4(hdr) + skb_l4hdr_len(skb) + skb_payload_len(skb);
+			return 0;
+		}
+
+		skb = skb->next;
+	} while (skb);
+
+	WARN(true, "I'm missing the MF=false fragment...");
+	return -EINVAL;
+}
+
+int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len)
+{
+	struct frag_hdr *hdr = skb_frag_hdr(skb);
+
+	if (!hdr) {
+		*len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+		return 0;
+	}
+
+	do {
+		hdr = skb_frag_hdr(skb);
+
+		if (!is_more_fragments_set_ipv6(hdr)) {
+			*len = get_fragment_offset_ipv6(hdr) + skb_l4hdr_len(skb) + skb_payload_len(skb);
+			return 0;
+		}
+
+		skb = skb->next;
+	} while (skb);
+
+	WARN(true, "I'm missing the MF=false fragment...");
+	return -EINVAL;
+}
+
 int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr)
 {
 	if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
@@ -121,8 +164,6 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	if (error)
 		return error;
 
-	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
-
 	/*
 	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
 	 * exported for dynamic modules to use (and linux doesn't know a route to the NAT64 prefix
@@ -134,6 +175,9 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	cb->l3_proto = L3PROTO_IPV6;
 	cb->frag_hdr = get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
 	cb->original_skb = skb;
+
+	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
+
 	skb_set_transport_header(skb, is_1st_fragment
 			? (iterator.data - (void *) skb_network_header(skb))
 			: skb_network_offset(skb));

@@ -16,6 +16,7 @@ POOLNUM = poolnum
 POOL4 = pool4
 BIB = bib
 SESSION = session
+FRAGDB = fragdb
 INCOMING = incoming
 FILTERING = filtering
 OUTGOING = outgoing
@@ -34,6 +35,7 @@ obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
 obj-m += $(BIB).o
 obj-m += $(SESSION).o
+obj-m += $(FRAGDB).o
 obj-m += $(INCOMING).o
 obj-m += $(FILTERING).o
 obj-m += $(OUTGOING).o
@@ -99,6 +101,15 @@ $(SESSION)-objs += impersonator/icmp_wrapper.o
 $(SESSION)-objs += impersonator/pool4.o
 $(SESSION)-objs += impersonator/send_packet.o
 $(SESSION)-objs += session_test.o
+
+$(FRAGDB)-objs += $(MIN_REQS)
+$(FRAGDB)-objs += ../mod/ipv6_hdr_iterator.o
+$(FRAGDB)-objs += ../mod/packet.o
+$(FRAGDB)-objs += ../mod/random.o
+$(FRAGDB)-objs += framework/skb_generator.o
+$(FRAGDB)-objs += framework/types.o
+$(FRAGDB)-objs += impersonator/icmp_wrapper.o
+$(FRAGDB)-objs += fragment_db_test.o
 
 $(INCOMING)-objs += $(MIN_REQS)
 $(INCOMING)-objs += ../mod/ipv6_hdr_iterator.o
@@ -222,6 +233,7 @@ test:
 	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
 	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
 	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
+	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
 	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)

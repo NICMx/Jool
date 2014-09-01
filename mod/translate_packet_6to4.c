@@ -557,7 +557,7 @@ static int post_mtu4(struct sk_buff *in, struct sk_buff *out)
 	struct icmphdr *out_icmp = icmp_hdr(out);
 #ifndef UNIT_TESTING
 	struct dst_entry *out_dst;
-	struct icmp6hdr *in_icmp = icmpv6_hdr(in);
+	struct icmp6hdr *in_icmp = icmp6_hdr(in);
 
 	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
 
@@ -589,9 +589,10 @@ static int post_icmp4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 	struct icmp6hdr *in_icmp = icmp6_hdr(in);
 	struct icmphdr *out_icmp = icmp_hdr(out);
 	__wsum csum;
+	int error;
 
 	if (out_icmp->type == ICMP_DEST_UNREACH && out_icmp->code == ICMP_FRAG_NEEDED) {
-		int error = post_mtu4(in, out);
+		error = post_mtu4(in, out);
 		if (error)
 			return error;
 	}
@@ -610,7 +611,11 @@ static int post_icmp4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 		 * Only the ICMP header changed, so subtract the old data from the checksum
 		 * and add the new one.
 		 */
-		int i;
+		int i, len;
+
+		error = skb_aggregate_ipv4_payload_len(in, &len);
+		if (error)
+			return error;
 
 		csum = ~csum_unfold(in_icmp->icmp6_cksum);
 
@@ -620,7 +625,7 @@ static int post_icmp4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 		for (i = 0; i < 8; i++)
 			csum = csum_sub(csum, in_ip6->daddr.s6_addr16[i]);
 
-		csum = csum_sub(csum, cpu_to_be16(skb_l4hdr_len(out) + skb_payload_len(out)));
+		csum = csum_sub(csum, cpu_to_be16(len));
 		csum = csum_sub(csum, cpu_to_be16(NEXTHDR_ICMP));
 
 		/* Remove the ICMPv6 header */

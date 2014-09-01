@@ -587,7 +587,6 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 		struct sk_buff **out_skb)
 {
-	/* TODO looks like pkt_parts no longer serve any purpose. */
 	struct pkt_parts in;
 	struct pkt_parts out;
 	struct translation_steps *current_steps = &steps[skb_l3_proto(in_skb)][skb_l4_proto(in_skb)];
@@ -602,7 +601,7 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 		goto fail;
 	if (is_error(current_steps->l3_hdr_fn(tuple, &in, &out)))
 		goto fail;
-	if (has_l4_hdr(in_skb)) {
+	if (skb_has_l4_hdr(in_skb)) {
 		if (is_error(current_steps->l3_payload_fn(tuple, &in, &out)))
 			goto fail;
 	} else {

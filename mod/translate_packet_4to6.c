@@ -572,9 +572,10 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 	struct icmphdr *in_icmp = icmp_hdr(in);
 	struct icmp6hdr *out_icmp = icmp6_hdr(out);
 	__wsum csum;
+	int error;
 
 	if (out_icmp->icmp6_type == ICMPV6_PKT_TOOBIG && out_icmp->icmp6_code == 0) {
-		int error = post_mtu6(in, out);
+		error = post_mtu6(in, out);
 		if (error)
 			return error;
 	}
@@ -594,7 +595,11 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 		 * Only the ICMP header changed, so subtract the old data from the checksum
 		 * and add the new one.
 		 */
-		unsigned int i;
+		unsigned int i, len;
+
+		error = skb_aggregate_ipv6_payload_len(out, &len);
+		if (error)
+			return error;
 
 		csum = ~csum_unfold(in_icmp->checksum);
 
@@ -604,7 +609,7 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 		for (i = 0; i < 8; i++)
 			csum = csum_add(csum, out_ip6->daddr.s6_addr16[i]);
 
-		csum = csum_add(csum, cpu_to_be16(skb_l4hdr_len(out) + skb_payload_len(out)));
+		csum = csum_add(csum, cpu_to_be16(len));
 		csum = csum_add(csum, cpu_to_be16(NEXTHDR_ICMP));
 
 		/* Add the ICMPv6 header */

@@ -283,7 +283,13 @@ static void buffer_dealloc(struct reassembly_buffer *buffer)
 		kmem_cache_free(hole_cache, hole);
 	}
 
-	kfree_skb_queued(buffer->skb);
+	if (buffer->skb) {
+		/* kfree_skb_queued() assumes the list isn't circular, so uncircle it. */
+		buffer->skb->prev->next = NULL;
+		buffer->skb->prev = NULL;
+		kfree_skb_queued(buffer->skb);
+	}
+
 	kmem_cache_free(buffer_cache, buffer);
 }
 
@@ -346,7 +352,6 @@ static bool is_mf_set(struct sk_buff *skb)
  */
 static void clean_expired_buffers(void)
 {
-	struct list_head *current_hook, *next_hook;
 	unsigned int b = 0;
 	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
@@ -360,8 +365,8 @@ static void clean_expired_buffers(void)
 
 	spin_lock_bh(&table_lock);
 
-	list_for_each_safe(current_hook, next_hook, &expire_list) {
-		buffer = list_entry(current_hook, struct reassembly_buffer, list_hook);
+	while (!list_empty(&expire_list)) {
+		buffer = list_entry(expire_list.next, struct reassembly_buffer, list_hook);
 
 		if (time_after(buffer->dying_time, jiffies)) {
 			spin_unlock_bh(&table_lock);
@@ -391,6 +396,7 @@ static void cleaner_timer(unsigned long param)
 	clean_expired_buffers();
 
 	spin_lock_bh(&table_lock);
+
 	if (list_empty(&expire_list)) {
 		spin_unlock_bh(&table_lock);
 		/* No need to re-schedule the timer. */
