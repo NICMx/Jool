@@ -638,6 +638,9 @@ verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
 
 	next_in_skb = in_skb->next;
 	prev_out_skb = *out_skb;
+	while (prev_out_skb->next) {
+		prev_out_skb = prev_out_skb->next;
+	}
 
 	/* If not a fragment, the next "while" will be omitted. */
 	while (next_in_skb) {
