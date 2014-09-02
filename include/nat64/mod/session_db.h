@@ -117,11 +117,6 @@ struct session_entry {
 
 	/** Current TCP state. Only relevant if l4_proto == L4PROTO_TCP. */
 	u_int8_t state;
-	/**
-	 * A lock for each session, this is used when handling the TCP state. Protects "state".
-	 * Only relevant if l4_proto == L4PROTO_TCP.
-	 */
-	spinlock_t lock;
 
 	/** Appends this entry to the database's IPv6 index. */
 	struct rb_node tree6_hook;
@@ -316,57 +311,31 @@ int sessiondb_flush(void);
 
 /**
  * Marks "session" to be destroyed after the UDP session lifetime has lapsed.
- * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
-struct expire_timer *set_udp_timer(struct session_entry *session);
-
-/**
- * Marks "session" to be destroyed after the establised TCP session lifetime has lapsed.
- * You need to send the return value to commit_timer().
- * Same big O as mod_timer().
- */
-struct expire_timer *set_tcp_est_timer(struct session_entry *session);
-
-/**
- * Marks "session" to be destroyed after the transitory TCP session lifetime has lapsed.
- * You need to send the return value to commit_timer().
- * Same big O as mod_timer().
- */
-struct expire_timer *set_tcp_trans_timer(struct session_entry *session);
+void set_udp_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after the ICMP session lifetime has lapsed.
- * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
-struct expire_timer *set_icmp_timer(struct session_entry *session);
+void set_icmp_timer(struct session_entry *session);
 
 /**
  * Marks "session" to be destroyed after TCP_INCOMING_SYN seconds have lapsed.
- * You need to send the return value to commit_timer().
  * Same big O as mod_timer().
  */
-struct expire_timer *set_syn_timer(struct session_entry *session);
+void set_syn_timer(struct session_entry *session);
 
 /**
- * The intent is to fire up "expirer"'s timer if it has changed.
- * (The actual implementation might look a little sillier).
+ * Updates "session"'s state based on "skb" and "tuple". This is a good chunk of section 3.5.2.2 of
+ * RFC 6146.
  *
- * Why this function exists:
- * In an ideal world, this would be part of the set_*_timer functions and you wouldn't have to
- * worry about it. However, this operation includes a kernel function call. We can't guarantee it
- * returns quickly, so we want to do it outside of spinlocks.
- *
- * So, if your code doesn't care about spinlocks, do this:
- * commit_timer(set_potato_timer(blah));
- *
- * Otherwise do this:
- * expirer = set_potato_timer(blah);
- * spin_unlock(lock);
- * commit_timer(expirer);
+ * This should belong to the filtering module, but it gets so intimate with the database it's
+ * unfeasible.
  */
-void commit_timer(struct expire_timer *expirer);
+int sessiondb_tcp_state_machine(struct sk_buff *skb, struct tuple *tuple,
+		struct session_entry *session);
 
 /**
  * Returns in "result" the amount of jiffies "session" is supposed to stay in memory.

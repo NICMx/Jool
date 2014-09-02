@@ -389,7 +389,6 @@ static int session_tcp_expire(struct session_entry *session, struct list_head *t
 			list_add(&clone->expire_list_hook, tcp_timeouts);
 
 		session->state = CLOSED;
-
 		return remove(session, &session_table_tcp);
 
 	case ESTABLISHED:
@@ -461,10 +460,8 @@ static void cleaner_timer(unsigned long param)
 
 		if (session->l4_proto != L4PROTO_TCP)
 			s += remove(session, expirer->table);
-		else 
+		else
 			s += session_tcp_expire(session, &tcp_timeouts, &probes);
-		
-
 	}
 
 	expirer->table->count -= s;
@@ -665,7 +662,7 @@ int sessiondb_set_config(enum sessiondb_type type, size_t size, void *value)
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 	kfree(old_config);
-	commit_timer(expirer);
+	schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
 	return 0;
 
 fail:
@@ -1195,11 +1192,10 @@ int sessiondb_delete_by_ipv4(struct in_addr *addr4)
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time using "ttl" and moves
  * it from its original location to the end of "list".
  */
-static struct expire_timer *set_timer(struct session_entry *session, struct expire_timer *expirer)
+static struct expire_timer *set_timer(struct session_entry *session,
+		struct expire_timer *expirer)
 {
 	struct expire_timer *result;
-
-	spin_lock_bh(&expirer->table->lock);
 
 	session->update_time = jiffies;
 	list_del(&session->expire_list_hook);
@@ -1212,39 +1208,204 @@ static struct expire_timer *set_timer(struct session_entry *session, struct expi
 	 */
 	result = timer_pending(&expirer->timer) ? NULL : expirer;
 
-	spin_unlock_bh(&expirer->table->lock);
 	return result;
 }
 
-struct expire_timer *set_udp_timer(struct session_entry *session)
+static struct expire_timer *set_timer_autocommit(struct session_entry *session,
+		struct expire_timer *expirer)
 {
-	return set_timer(session, &expirer_udp);
+	struct expire_timer *result;
+
+	spin_lock_bh(&expirer->table->lock);
+	result = set_timer(session, expirer);
+	spin_unlock_bh(&expirer->table->lock);
+
+	schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
+
+	return result;
 }
 
-struct expire_timer *set_tcp_est_timer(struct session_entry *session)
+void set_udp_timer(struct session_entry *session)
 {
-	return set_timer(session, &expirer_tcp_est);
+	set_timer_autocommit(session, &expirer_udp);
 }
 
-struct expire_timer *set_tcp_trans_timer(struct session_entry *session)
+void set_icmp_timer(struct session_entry *session)
 {
-	return set_timer(session, &expirer_tcp_trans);
+	set_timer_autocommit(session, &expirer_icmp);
 }
 
-struct expire_timer *set_icmp_timer(struct session_entry *session)
+void set_syn_timer(struct session_entry *session)
 {
-	return set_timer(session, &expirer_icmp);
+	set_timer_autocommit(session, &expirer_syn);
 }
 
-struct expire_timer *set_syn_timer(struct session_entry *session)
+/**
+ * Filtering and updating done during the V4 INIT state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *session,
+		struct expire_timer **expirer)
 {
-	return set_timer(session, &expirer_syn);
+	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->syn) {
+		*expirer = set_timer(session, &expirer_tcp_est);
+		session->state = ESTABLISHED;
+	} /* else, the state remains unchanged. */
+
+	return 0;
 }
 
-void commit_timer(struct expire_timer *expirer)
+/**
+ * Filtering and updating done during the V6 INIT state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_v6_init_state_handle(struct sk_buff *skb, struct session_entry *session,
+		struct expire_timer **expirer)
 {
+	if (tcp_hdr(skb)->syn) {
+		switch (skb_l3_proto(skb)) {
+		case L3PROTO_IPV4:
+			*expirer = set_timer(session, &expirer_tcp_est);
+			session->state = ESTABLISHED;
+			break;
+		case L3PROTO_IPV6:
+			*expirer = set_timer(session, &expirer_tcp_trans);
+			break;
+		}
+	} /* else, the state remains unchanged */
+
+	return 0;
+}
+
+/**
+ * Filtering and updating done during the ESTABLISHED state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_established_state_handle(struct sk_buff *skb, struct session_entry *session,
+		struct expire_timer **expirer)
+{
+	if (tcp_hdr(skb)->fin) {
+		switch (skb_l3_proto(skb)) {
+		case L3PROTO_IPV4:
+			session->state = V4_FIN_RCV;
+			break;
+		case L3PROTO_IPV6:
+			session->state = V6_FIN_RCV;
+			break;
+		}
+
+	} else if (tcp_hdr(skb)->rst) {
+		*expirer = set_timer(session, &expirer_tcp_trans);
+		session->state = TRANS;
+	} else {
+		*expirer = set_timer(session, &expirer_tcp_est);
+	}
+
+	return 0;
+}
+
+/**
+ * Filtering and updating done during the V4 FIN RCV state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_v4_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session,
+		struct expire_timer **expirer)
+{
+	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->fin) {
+		*expirer = set_timer(session, &expirer_tcp_trans);
+		session->state = V4_FIN_V6_FIN_RCV;
+	} else {
+		*expirer = set_timer(session, &expirer_tcp_est);
+	}
+	return 0;
+}
+
+/**
+ * Filtering and updating done during the V6 FIN RCV state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_v6_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session,
+		struct expire_timer **expirer)
+{
+	if (skb_l3_proto(skb) == L3PROTO_IPV4 && tcp_hdr(skb)->fin) {
+		*expirer = set_timer(session, &expirer_tcp_trans);
+		session->state = V4_FIN_V6_FIN_RCV;
+	} else {
+		*expirer = set_timer(session, &expirer_tcp_est);
+	}
+	return 0;
+}
+
+/**
+ * Filtering and updating done during the V6 FIN + V4 FIN RCV state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff *skb,
+		struct session_entry *session)
+{
+	return 0; /* Only the timeout can change this state. */
+}
+
+/**
+ * Filtering and updating done during the TRANS state of the TCP state machine.
+ * Part of RFC 6146 section 3.5.2.2.
+ */
+static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *session,
+		struct expire_timer **expirer)
+{
+	if (!tcp_hdr(skb)->rst) {
+		*expirer = set_timer(session, &expirer_tcp_est);
+		session->state = ESTABLISHED;
+	}
+
+	return 0;
+}
+
+int sessiondb_tcp_state_machine(struct sk_buff *skb, struct tuple *tuple,
+		struct session_entry *session)
+{
+	struct expire_timer *expirer = NULL;
+	int error;
+
+	spin_lock(&session_table_tcp.lock);
+
+	switch (session->state) {
+	case V4_INIT:
+		error = tcp_v4_init_state_handle(skb, session, &expirer);
+		break;
+	case V6_INIT:
+		error = tcp_v6_init_state_handle(skb, session, &expirer);
+		break;
+	case ESTABLISHED:
+		error = tcp_established_state_handle(skb, session, &expirer);
+		break;
+	case V4_FIN_RCV:
+		error = tcp_v4_fin_rcv_state_handle(skb, session, &expirer);
+		break;
+	case V6_FIN_RCV:
+		error = tcp_v6_fin_rcv_state_handle(skb, session, &expirer);
+		break;
+	case V4_FIN_V6_FIN_RCV:
+		error = tcp_v4_fin_v6_fin_rcv_state_handle(skb, session);
+		break;
+	case TRANS:
+		error = tcp_trans_state_handle(skb, session, &expirer);
+		break;
+	default:
+		/*
+		 * Because closed sessions are not supposed to be stored,
+		 * CLOSED is known to fall through here.
+		 */
+		WARN(true, "Invalid state found: %u.", session->state);
+		error = -EINVAL;
+	}
+
+	spin_unlock(&session_table_tcp.lock);
+
 	if (expirer)
 		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
+
+	return error;
 }
 
 /**

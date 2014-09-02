@@ -266,7 +266,7 @@ static verdict ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
 	}
 	log_session(session);
 
-	commit_timer(set_udp_timer(session));
+	set_udp_timer(session);
 
 	session_return(session);
 	bib_return(bib);
@@ -301,7 +301,7 @@ static verdict ipv4_udp(struct sk_buff *skb, struct tuple *tuple)
 	}
 	log_session(session);
 
-	commit_timer(set_udp_timer(session));
+	set_udp_timer(session);
 
 	session_return(session);
 	bib_return(bib);
@@ -341,7 +341,7 @@ static verdict ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
 	}
 	log_session(session);
 
-	commit_timer(set_icmp_timer(session));
+	set_icmp_timer(session);
 
 	session_return(session);
 	bib_return(bib);
@@ -376,7 +376,7 @@ static verdict ipv4_icmp4(struct sk_buff *skb, struct tuple *tuple)
 	}
 	log_session(session);
 
-	commit_timer(set_icmp_timer(session));
+	set_icmp_timer(session);
 
 	session_return(session);
 	bib_return(bib);
@@ -469,7 +469,7 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 			goto end_session;
 		}
 
-		commit_timer(set_syn_timer(session));
+		set_syn_timer(session);
 
 	} else {
 		error = sessiondb_add(session);
@@ -527,127 +527,6 @@ static verdict tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 }
 
 /**
- * Filtering and updating done during the V4 INIT state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *session,
-		struct expire_timer **expirer)
-{
-	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->syn) {
-		*expirer = set_tcp_est_timer(session);
-		session->state = ESTABLISHED;
-	} /* else, the state remains unchanged. */
-
-	return 0;
-}
-
-/**
- * Filtering and updating done during the V6 INIT state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_v6_init_state_handle(struct sk_buff *skb, struct session_entry *session,
-		struct expire_timer **expirer)
-{
-	if (tcp_hdr(skb)->syn) {
-		switch (skb_l3_proto(skb)) {
-		case L3PROTO_IPV4:
-			*expirer = set_tcp_est_timer(session);
-			session->state = ESTABLISHED;
-			break;
-		case L3PROTO_IPV6:
-			*expirer = set_tcp_trans_timer(session);
-			break;
-		}
-	} /* else, the state remains unchanged */
-
-	return 0;
-}
-
-/**
- * Filtering and updating done during the ESTABLISHED state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_established_state_handle(struct sk_buff *skb, struct session_entry *session,
-		struct expire_timer **expirer)
-{
-	if (tcp_hdr(skb)->fin) {
-		switch (skb_l3_proto(skb)) {
-		case L3PROTO_IPV4:
-			session->state = V4_FIN_RCV;
-			break;
-		case L3PROTO_IPV6:
-			session->state = V6_FIN_RCV;
-			break;
-		}
-
-	} else if (tcp_hdr(skb)->rst) {
-		*expirer = set_tcp_trans_timer(session);
-		session->state = TRANS;
-	} else {
-		*expirer = set_tcp_est_timer(session);
-	}
-
-	return 0;
-}
-
-/**
- * Filtering and updating done during the V4 FIN RCV state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_v4_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session,
-		struct expire_timer **expirer)
-{
-	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->fin) {
-		*expirer = set_tcp_trans_timer(session);
-		session->state = V4_FIN_V6_FIN_RCV;
-	} else {
-		*expirer = set_tcp_est_timer(session);
-	}
-	return 0;
-}
-
-/**
- * Filtering and updating done during the V6 FIN RCV state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_v6_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session,
-		struct expire_timer **expirer)
-{
-	if (skb_l3_proto(skb) == L3PROTO_IPV4 && tcp_hdr(skb)->fin) {
-		*expirer = set_tcp_trans_timer(session);
-		session->state = V4_FIN_V6_FIN_RCV;
-	} else {
-		*expirer = set_tcp_est_timer(session);
-	}
-	return 0;
-}
-
-/**
- * Filtering and updating done during the V6 FIN + V4 FIN RCV state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff *skb,
-		struct session_entry *session)
-{
-	return 0; /* Only the timeout can change this state. */
-}
-
-/**
- * Filtering and updating done during the TRANS state of the TCP state machine.
- * Part of RFC 6146 section 3.5.2.2.
- */
-static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *session,
-		struct expire_timer **expirer)
-{
-	if (!tcp_hdr(skb)->rst) {
-		*expirer = set_tcp_est_timer(session);
-		session->state = ESTABLISHED;
-	}
-
-	return 0;
-}
-
-/**
  * Assumes that "tuple" represents a TCP packet, and filters and updates based on it.
  * Encapsulates the TCP state machine.
  *
@@ -656,61 +535,20 @@ static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *ses
 static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct session_entry *session;
-	struct expire_timer *expirer = NULL;
 	int error;
 
 	error = sessiondb_get(tuple, &session);
 	if (error != 0 && error != -ENOENT) {
 		log_debug("Error code %d while trying to find a TCP session.", error);
-		goto end;
+		return VER_DROP;
 	}
 
-	/* If NO session was found: */
 	if (error == -ENOENT)
 		return tcp_closed_state_handle(skb, tuple);
 
 	log_session(session);
-
-	spin_lock_bh(&session->lock);
-	/* Act according the current state. */
-	switch (session->state) {
-	case V4_INIT:
-		error = tcp_v4_init_state_handle(skb, session, &expirer);
-		break;
-	case V6_INIT:
-		error = tcp_v6_init_state_handle(skb, session, &expirer);
-		break;
-	case ESTABLISHED:
-		error = tcp_established_state_handle(skb, session, &expirer);
-		break;
-	case V4_FIN_RCV:
-		error = tcp_v4_fin_rcv_state_handle(skb, session, &expirer);
-		break;
-	case V6_FIN_RCV:
-		error = tcp_v6_fin_rcv_state_handle(skb, session, &expirer);
-		break;
-	case V4_FIN_V6_FIN_RCV:
-		error = tcp_v4_fin_v6_fin_rcv_state_handle(skb, session);
-		break;
-	case TRANS:
-		error = tcp_trans_state_handle(skb, session, &expirer);
-		break;
-	default:
-		/*
-		 * Because closed sessions are not supposed to be stored,
-		 * CLOSED is known to fall through here.
-		 */
-		WARN(true, "Invalid state found: %u.", session->state);
-		error = -EINVAL;
-	}
-
-	spin_unlock_bh(&session->lock);
-
-	commit_timer(expirer);
-	/* Fall through. */
+	error = sessiondb_tcp_state_machine(skb, tuple, session);
 	session_return(session);
-
-end:
 	return error ? VER_DROP : VER_CONTINUE;
 }
 

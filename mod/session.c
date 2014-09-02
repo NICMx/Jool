@@ -50,7 +50,6 @@ struct session_entry *session_clone(struct session_entry *session)
 	INIT_LIST_HEAD(&result->expire_list_hook);
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
-	spin_lock_init(&result->lock);
 
 	if (session->bib)
 		bib_get(session->bib);
