@@ -1402,8 +1402,10 @@ static bool test_big_multiple_4to6(l4_protocol l4proto, bool df)
 	u16 payload6_len[] = {1224, 1232, 544, 1232, 1232, 536, 1232, 1232, 536};
 	u16 payload_offset[] = {0, 1224, 2456, 0, 1232, 2464, 0, 1232, 2464};
 	int total_frags6 = 9;
-	/*TODO: Fix it, in order to accept TCP, this is because the offset is fixed by 8 bytes and
-	 * sizeof(struct tcphdr) = 20 bytes*/
+	/*
+	 * TODO (test) Fix it, in order to accept TCP, this is because the offset is fixed by 8 bytes
+	 * and sizeof(struct tcphdr) = 20 bytes
+	 */
 	if (!create_tuple_ipv6(&tuple, l4proto))
 		goto end;
 

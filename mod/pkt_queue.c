@@ -178,7 +178,7 @@ static void pktqueue_destroy_aux(struct rb_node *hook)
 
 void pktqueue_destroy(void)
 {
-	rbtree_clear(&packets, pktqueue_destroy_aux); /* TODO test this. */
+	rbtree_clear(&packets, pktqueue_destroy_aux);
 	packets.rb_node = NULL;
 	kmem_cache_destroy(node_cache);
 }

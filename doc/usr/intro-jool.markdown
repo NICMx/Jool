@@ -34,6 +34,8 @@ We're supposed to support Linux kernels 3.0.0 and up. While most of the developm
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
+Red Hat and CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
+
 ## Considerations
 
 Our missing feature (see above) means that you cannot firewall your packets being translated. If you need to filter, you're better off placing another node next to the NAT64 to do the task.

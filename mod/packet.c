@@ -521,7 +521,7 @@ static int compute_csum_udp(struct sk_buff *skb)
 	}
 
 	hdr4 = ip_hdr(skb);
-	/* TODO doesn't this require a make_writable? */
+	/* TODO (warning) doesn't this require a make_writable? */
 	hdr_udp->check = csum_tcpudp_magic(hdr4->saddr, hdr4->daddr, datagram_len, IPPROTO_UDP, csum);
 
 	return 0;

@@ -27,6 +27,7 @@ title: Documentation - Userspace Application
    14. [\--boostMTU](#boostmtu)
    15. [\--plateaus](#plateaus)
    16. [\--minMTU6](#minmtu6)
+   17. [\--toFrag](#tofrag)
 
 ## Description
 
@@ -278,4 +279,26 @@ This value defaults to 1280 because all IPv6 networks are theoretically guarante
 - The penalty of `--minMTU6` being too big is reliability; the IPv6 nodes which are behind networks with lesser MTUs will not be able to receive packets from IPv4 whose DF flag os off and which, once translated, are larger than `--minMTU6`.
 
 IPv6 packets and unfragmentable IPv4 packets don't need any of this because they imply the emitter is the one minding MTUs and packet sizes (via <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">Path MTU Discovery</a> or whatever).
+
+### \--toFrag
+
+- Name: Defragmentation Timeout
+- Type: Integer (seconds)
+- Default: 2
+
+Time in seconds to keep a packet's fragments in memory while it's being reassembled.
+
+Because the defragmenter is fairly bare bones, new fragments of the same packet do not update the packet's timeout, so every packet has **exactly** `--toFrag` seconds to be reassembled (and never more).
+
+You want this value to be big enough that fragments will have enough time to arrive to Jool, but at the same time small enough that attackers won't exhaust your node's memory by sending bursts of incomplete packets.
+
+> _Note_
+> 
+> The kernel's defragmenters have proven to be largely incompatible with NAT64. Because NAT64 requires _some_ level of fragment correlation, Jool has its own defragmenter. That's why this flag exists.
+> 
+> We believe that the best way to implement our missing feature (<a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">Filtering Policies</a>) is to blend Jool with iptables. Unfortunately, it appears that iptables requires use of the kernel's defragmenters, so it looks like we're standing in the loser end of a checkmate.
+> 
+> We still haven't decided how to address the missing feature, which means that we might or might not have to discard Jool's defragmenter in the future. On top of that, `--toFrag` is fairly dumb. Even if we decide to keep Jool's defragmenter, we expect this flag to be replaced by more effective resource management.
+> 
+> Therefore, if you depend on `--toFrag`, brace yourself for modifications in the future.
 

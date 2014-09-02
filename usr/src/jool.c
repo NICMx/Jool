@@ -25,7 +25,7 @@
 #include "nat64/usr/general.h"
 
 
-const char *argp_program_version = "3.1.5";
+const char *argp_program_version = "3.2.0";
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**

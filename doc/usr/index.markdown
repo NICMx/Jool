@@ -24,31 +24,31 @@ But just to make things clear, this is the status of the project as of now:
 
 Jool is still <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">one feature away</a> from being 100% RFC 6146 compliant. That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
 
-Out last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.0" target="_blank">3.2.0</a>. Now cooking 3.3.0...
+Our last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.0" target="_blank">3.2.0</a>.
 
 -------------------
 
 ## News
 
-### 2014-07-06
+### 2014-09-01
 
-Version 3.2.0 released.
+It took it a really long time to overcome testing, but version 3.2.0 is finally released.
 
-<a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Simultaneous Open of TCP Connections</a> is now correctly implemented. The translation pipeline should now be completely quirkless.
-
-The userspace application has three new features:
+We changed the minor version number this time, because the userspace application has a slightly different interface; the single-value configuration parameters have been joined: [`--general`](usr-flags-general.html) replaced `--filtering`, `--translate` and `--fragmentation`. The application also has three new features:
 
 1. The <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">ability to flush the pools</a>.
 2. The addition of [`--quick`](usr-flags-quick.html).
 3. The addition of `--svg`, in [BIB](usr-flags-bib.html#csv) and [session](usr-flags-session.html#csv).
 
-On the other hand, the single-value configuration parameters have been joined: [`--general`](usr-flags-general.html) replaced `--filtering` and `--translate`, and `--fragmentation` has been dropped (since you now configure the kernel's defragmenter, not Jool's).
+The second main novelty is the finally correct implementation of <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Simultaneous Open of TCP Connections</a>. The translation pipeline should now be completely quirkless.
 
 A <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">little confusion</a> also revealed that the path to libnl <a href="https://github.com/NICMx/NAT64/commit/6455ffd898bae996ce3cab37b2fb6a3459ae096b" target="_blank">used to be hardcoded in the configuration script</a>. If you used to have trouble compiling the userspace application, you might want to try again using the new version.
 
-The more unnoticeable stuff includes a major <a href="https://github.com/NICMx/NAT64/issues/104" target="_blank">refactor to the fragmentation code</a>, a <a href="https://github.com/NICMx/NAT64/issues/100" target="_blank">complement to the old issue #65</a>, and a <a href="https://github.com/NICMx/NAT64/issues/56" target="_blank">healthier code-to-comment ratio</a> :).
+The more unnoticeable stuff includes a <a href="https://github.com/NICMx/NAT64/issues/100" target="_blank">complement to the old issue #65</a> and a <a href="https://github.com/NICMx/NAT64/issues/56" target="_blank">healthier code-to-comment ratio</a> :). The user documentation, on the other hand, received a significant refactor, so looking at the <a href="https://github.com/NICMx/NAT64/commit/752ed2584534e6bf6bd481d7f4d4ababb6424efe" target="_blank">diff</a> might not be overly productive this time.
 
-These are the changes to the documentation: <a href="https://github.com/NICMx/NAT64/commit/752ed2584534e6bf6bd481d7f4d4ababb6424efe" target="_blank">link</a>.
+One thing we did not complete was the <a href="https://github.com/NICMx/NAT64/issues/104" target="_blank">fragmentation refactor</a>. This is in fact the reason why this milestone dragged. We appear to really need to reconcile the kernel's defragmenter and the RFC in order to implement filtering policies however, so it's still considered an active issue.
+
+We also released 3.1.6, which is small fixes from 3.1.5, in case somebody has a reason to continue using the 3.1.x series.
 
 ### 2014-06-26
 
