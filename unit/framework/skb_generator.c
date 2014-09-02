@@ -224,9 +224,14 @@ static int init_payload_inner_ipv6(void *target, u16 payload_len)
 {
 	struct ipv6hdr *hdr_ipv6;
 	struct tcphdr *hdr_tcp;
+	struct ipv6hdr tmp_hdr_ipv6;
+	struct tcphdr tmp_hdr_tcp;
 	unsigned char *inner_payload;
 	struct ipv6_pair pair6;
 	int error;
+
+	if (payload_len <= 0)
+		return 0; /* Nothing to do here. */
 
 	error = init_pair6(&pair6, "2::2", 22, "6::6", 66);
 	if (error)
@@ -236,16 +241,35 @@ static int init_payload_inner_ipv6(void *target, u16 payload_len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv6 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	error = init_ipv6_hdr(hdr_ipv6, 1300, NEXTHDR_TCP, &pair6, true, false, 0);
-	if (error)
-		return error;
-	error = init_tcp_hdr(hdr_tcp, ETH_P_IPV6, 1300, &pair6);
-	if (error)
-		return error;
-	error = init_payload_normal(inner_payload, payload_len - sizeof(*hdr_ipv6) - sizeof(*hdr_tcp));
+	error = init_ipv6_hdr(&tmp_hdr_ipv6, 1300, NEXTHDR_TCP, &pair6, true, false, 0);
 	if (error)
 		return error;
 
+	if (payload_len >= IPV6_HDR_LEN) {
+		memcpy(hdr_ipv6, &tmp_hdr_ipv6, IPV6_HDR_LEN);
+		payload_len -= IPV6_HDR_LEN;
+	} else {
+		memcpy(hdr_ipv6, &tmp_hdr_ipv6, payload_len);
+		goto end;
+	}
+
+	error = init_tcp_hdr(&tmp_hdr_tcp, ETH_P_IPV6, 1300, &pair6);
+	if (error)
+		return error;
+
+	if (payload_len >= TCP_HDR_LEN) {
+		memcpy(hdr_tcp, &tmp_hdr_tcp, TCP_HDR_LEN);
+		payload_len -= TCP_HDR_LEN;
+	} else {
+		memcpy(hdr_tcp, &tmp_hdr_tcp, payload_len);
+		goto end;
+	}
+
+	error = init_payload_normal(inner_payload, payload_len);
+	if (error)
+		return error;
+
+end:
 	return 0;
 }
 
@@ -253,9 +277,14 @@ static int init_payload_inner_ipv4(void *target, u16 payload_len)
 {
 	struct iphdr *hdr_ipv4;
 	struct tcphdr *hdr_tcp;
+	struct iphdr tmp_hdr_ipv4;
+	struct tcphdr tmp_hdr_tcp;
 	unsigned char *inner_payload;
 	struct ipv4_pair pair4;
 	int error;
+
+	if (payload_len <= 0)
+		return 0; /* Nothing to do here. */
 
 	error = init_pair4(&pair4, "2.2.2.2", 222, "6.6.6.6", 666);
 	if (error)
@@ -265,17 +294,35 @@ static int init_payload_inner_ipv4(void *target, u16 payload_len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv4 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	error = init_ipv4_hdr(hdr_ipv4, 1300, IPPROTO_TCP, &pair4, true, false, 0);
-	if (error)
-		return error;
-	error = init_tcp_hdr(hdr_tcp, ETH_P_IP, 1300, &pair4);
+	error = init_ipv4_hdr(&tmp_hdr_ipv4, 1300, IPPROTO_TCP, &pair4, true, false, 0);
 	if (error)
 		return error;
 
-	error = init_payload_normal(inner_payload, payload_len - sizeof(*hdr_ipv4) - sizeof(*hdr_tcp));
+	if (payload_len >= IPV4_HDR_LEN) {
+		memcpy(hdr_ipv4, &tmp_hdr_ipv4, IPV4_HDR_LEN);
+		payload_len -= IPV4_HDR_LEN;
+	} else {
+		memcpy(hdr_ipv4, &tmp_hdr_ipv4, payload_len);
+		goto end;
+	}
+
+	error = init_tcp_hdr(&tmp_hdr_tcp, ETH_P_IP, 1300, &pair4);
 	if (error)
 		return error;
 
+	if (payload_len >= TCP_HDR_LEN) {
+		memcpy(hdr_tcp, &tmp_hdr_tcp, TCP_HDR_LEN);
+		payload_len -= TCP_HDR_LEN;
+	} else {
+		memcpy(hdr_tcp, &tmp_hdr_tcp, payload_len);
+		goto end;
+	}
+
+	error = init_payload_normal(inner_payload, payload_len);
+	if (error)
+		return error;
+
+end:
 	return 0;
 }
 

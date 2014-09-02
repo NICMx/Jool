@@ -156,6 +156,71 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
 	return -EINVAL;
 }
 
+bool icmp4_has_inner_packet(__u8 icmp_type)
+{
+	return (icmp_type == ICMP_DEST_UNREACH)
+			|| (icmp_type == ICMP_TIME_EXCEEDED)
+			|| (icmp_type == ICMP_PARAMETERPROB)
+			|| (icmp_type == ICMP_SOURCE_QUENCH)
+			|| (icmp_type == ICMP_REDIRECT);
+}
+
+bool icmpv6_has_inner_packet(__u8 icmp6_type)
+{
+	return (icmp6_type == ICMPV6_DEST_UNREACH)
+			|| (icmp6_type == ICMPV6_PKT_TOOBIG)
+			|| (icmp6_type == ICMPV6_TIME_EXCEED)
+			|| (icmp6_type == ICMPV6_PARAMPROB);
+}
+
+static int validate_inner_packet6(struct ipv6hdr *hdr6, int len)
+{
+	struct hdr_iterator iterator;
+	struct icmp6hdr *l4_hdr;
+	int error, l3_hdr_len;
+
+#ifdef UNIT_TESTING
+	log_debug("Validating inner packet 6");
+#endif
+
+	error = validate_ipv6_integrity(hdr6, len, true, &iterator);
+	if (error)
+		return error;
+
+	l3_hdr_len = iterator.data - (void *) hdr6;
+	l4_hdr = iterator.data;
+
+	switch (iterator.hdr_type) {
+	case NEXTHDR_TCP:
+		if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
+			log_debug("Packet is too small to contain a basic TCP header.");
+			return -EINVAL;
+		}
+		break;
+	case NEXTHDR_UDP:
+		error = validate_lengths_udp(len, l3_hdr_len);
+		if (error)
+			return error;
+		break;
+	case NEXTHDR_ICMP:
+		error = validate_lengths_icmp6(len, l3_hdr_len);
+		if (error)
+			return error;
+		if (icmpv6_has_inner_packet(l4_hdr->icmp6_type))
+			return -EINVAL; /* packet inside packet inside packet. */
+
+		break;
+	default:
+		/*
+		 * Why are we validating an error packet of a packet we couldn't have translated?
+		 * Either an attack or shouldn't happen, so drop silently.
+		 */
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int skb_init_cb_ipv6(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
@@ -219,6 +284,12 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 			 * because it can be done easily there during the computation of the pkt_parts
 			 * structure.
 			 */
+
+			if (icmpv6_has_inner_packet(icmp6_hdr(skb)->icmp6_type)) {
+				error = validate_inner_packet6(cb->payload, skb_payload_len(skb));
+				if (error)
+					return error;
+			}
 		}
 		break;
 
@@ -227,6 +298,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 		icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
 		return -EINVAL;
 	}
+
 
 	return 0;
 }
@@ -259,6 +331,55 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
 	}
 	if (len != be16_to_cpu(hdr->tot_len)) {
 		log_debug("The packet's length does not equal the IPv4 header's lengh field.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int validate_inner_packet4(struct iphdr *hdr4, int len)
+{
+	int error, l3_hdr_len;
+	struct icmphdr *l4_hdr;
+
+#ifdef UNIT_TESTING
+	log_debug("Validating inner packet 4");
+#endif
+
+	error = validate_ipv4_integrity(hdr4, len, true);
+	if (error)
+		return error;
+
+	l3_hdr_len = 4 * hdr4->ihl;
+	l4_hdr = (void*) (hdr4 + l3_hdr_len);
+
+	switch (hdr4->protocol) {
+	case IPPROTO_TCP:
+		if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
+			log_debug("Inner Packet is too small to contain a basic TCP header.");
+			return -EINVAL;
+		}
+
+		break;
+	case IPPROTO_UDP:
+		error = validate_lengths_udp(len, l3_hdr_len);
+		if (error)
+			return error;
+
+		break;
+	case IPPROTO_ICMP:
+		error = validate_lengths_icmp4(len, l3_hdr_len);
+		if (error)
+			return error;
+		if (icmp4_has_inner_packet(l4_hdr->type))
+			return -EINVAL; /* packet inside packet inside packet. */
+
+		break;
+	default:
+		/*
+		 * Why are we validating an error packet of a packet we couldn't have translated?
+		 * Either an attack or shouldn't happen, so drop silently.
+		 */
 		return -EINVAL;
 	}
 
@@ -337,6 +458,13 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 		 * because it can be done easily there during the computation of the pkt_parts
 		 * structure.
 		 */
+		/* TODO:si es un error... validar. */
+		if (icmp4_has_inner_packet(icmp_hdr(skb)->type)) {
+			error = validate_inner_packet4(cb->payload, skb_payload_len(skb));
+			if (error)
+				return error;
+		}
+
 		break;
 
 	default:

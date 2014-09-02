@@ -14,6 +14,7 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "nat64/unit/unit_test.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/pkt_queue.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/translate_packet.h"
 #include "config_proto.c"
 
@@ -34,6 +35,10 @@ static int clone_general_config(struct response_general *response)
 	error = translate_clone_config(&response->translate);
 	if (error)
 		return error;
+	error = fragmentdb_clone_config(&response->fragmentation);
+	if (error)
+		return error;
+
 
 	return 0;
 }
@@ -153,6 +158,8 @@ static bool basic_test(void)
 
 	success &= compare_general_configs(&config, &response);
 
+	kfree(buffer);
+
 	return success;
 }
 
@@ -194,6 +201,8 @@ static bool translate_nulls_mtu(void)
 	success &= assert_null(config.translate.mtu_plateaus, "local config mtu_plateaus");
 	success &= assert_null(response.translate.mtu_plateaus, "deserialized config mtu_plateaus");
 
+	kfree(buffer);
+
 	return success;
 }
 
@@ -205,6 +214,9 @@ static bool init(void)
 	if (error)
 		goto fail;
 	error = sessiondb_init();
+	if (error)
+		goto fail;
+	error = fragdb_init();
 	if (error)
 		goto fail;
 	error = filtering_init();
@@ -221,6 +233,9 @@ fail:
 
 static void end(void)
 {
+	translate_packet_destroy();
+	filtering_destroy();
+	fragdb_destroy();
 	sessiondb_destroy();
 	pktqueue_destroy();
 }

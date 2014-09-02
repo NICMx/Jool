@@ -2,6 +2,7 @@
 #include "nat64/mod/packet.h"
 
 #include "nat64/unit/unit_test.h"
+#include "nat64/comm/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/skb_generator.h"
 
@@ -9,6 +10,36 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Packet test");
 
+static struct in6_addr dummies6[2];
+static struct in_addr dummies4[2];
+
+static struct sk_buff *create_skb4(u16 payload_len,
+		int (*skb_create_fn)(struct ipv4_pair *, struct sk_buff **, u16))
+{
+	struct sk_buff *skb;
+	struct ipv4_pair pair4;
+
+	pair4.remote.address = dummies4[0];
+	pair4.remote.l4_id = 5644;
+	pair4.local.address = dummies4[1];
+	pair4.local.l4_id = 6721;
+
+	return (is_error(skb_create_fn(&pair4, &skb, payload_len))) ? NULL : skb;
+}
+
+static struct sk_buff *create_skb6(u16 payload_len,
+		int (*skb_create_fn)(struct ipv6_pair *, struct sk_buff **, u16))
+{
+	struct sk_buff *skb;
+	struct ipv6_pair pair6;
+
+	pair6.remote.address = dummies6[0];
+	pair6.remote.l4_id = 5644;
+	pair6.local.address = dummies6[1];
+	pair6.local.l4_id = 6721;
+
+	return (is_error(skb_create_fn(&pair6, &skb, payload_len))) ? NULL : skb;
+}
 
 static bool test_function_is_dont_fragment_set(void)
 {
@@ -173,9 +204,65 @@ static bool test_validate_icmp_integrity(void)
 	return success;
 }
 
+static bool test_inner_packet_validation4(void)
+{
+	struct sk_buff *skb = NULL;
+	bool result = true;
+
+	/* Internally call the function to evaluate -> skb_init_cb_ipv4(skb) */
+	skb = create_skb4(100, create_skb_ipv4_icmp_error);
+	result &= assert_not_equals_ptr(NULL, skb, "validate complete inner pkt 4");
+	if (skb)
+		kfree_skb(skb);
+
+	skb = create_skb4(30, create_skb_ipv4_icmp_error);
+	result &= assert_equals_ptr(NULL, skb, "validate incomplete tcp inner pkt 4");
+	if (skb)
+		kfree_skb(skb);
+
+	skb = create_skb4(15, create_skb_ipv4_icmp_error);
+	result &= assert_equals_ptr(NULL, skb, "validate incomplete ipv4hdr inner pkt 4");
+	if (skb)
+		kfree_skb(skb);
+
+	return result;
+}
+
+static bool test_inner_packet_validation6(void)
+{
+	struct sk_buff *skb = NULL;
+	bool result = true;
+
+	/* Internally call the function to evaluate -> skb_init_cb_ipv6(skb) */
+	skb = create_skb6(100, create_skb_ipv6_icmp_error);
+	result &= assert_not_equals_ptr(NULL, skb, "validate complete inner pkt 6");
+	if (skb)
+		kfree_skb(skb);
+
+	skb = create_skb6(50, create_skb_ipv6_icmp_error);
+	result &= assert_equals_ptr(NULL, skb, "validate incomplete tcp inner pkt 6");
+	if (skb)
+		kfree_skb(skb);
+
+	skb = create_skb6(30, create_skb_ipv6_icmp_error);
+	result &= assert_equals_ptr(NULL, skb, "validate incomplete ipv6hdr inner pkt 6");
+	if (skb)
+		kfree_skb(skb);
+
+	return result;
+}
+
 int init_module(void)
 {
 	START_TESTS("Packet");
+	if (str_to_addr6("1::1", &dummies6[0]) != 0)
+		return -EINVAL;
+	if (str_to_addr6("2::2", &dummies6[1]) != 0)
+		return -EINVAL;
+	if (str_to_addr4("1.1.1.1", &dummies4[0]) != 0)
+		return -EINVAL;
+	if (str_to_addr4("2.2.2.2", &dummies4[1]) != 0)
+		return -EINVAL;
 
 	CALL_TEST(test_function_is_dont_fragment_set(), "Dont fragment getter");
 	CALL_TEST(test_function_is_more_fragments_set(), "More fragments getter");
@@ -185,6 +272,9 @@ int init_module(void)
 	CALL_TEST(test_udp_checksum_6(), "UDP-checksum 6");
 
 	CALL_TEST(test_validate_icmp_integrity(), "ICMP-Checksums");
+
+	CALL_TEST(test_inner_packet_validation4(), "Inner packet IPv4 Validation");
+	CALL_TEST(test_inner_packet_validation6(), "Inner packet IPv6 Validation");
 
 	END_TESTS;
 }
