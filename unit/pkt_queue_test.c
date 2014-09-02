@@ -12,39 +12,10 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "nat64/comm/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
+#include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/mod/icmp_wrapper.h"
 #include "pkt_queue.c"
-
-static struct session_entry *create_tcp_session(
-		unsigned char *remote6_addr, u16 remote6_id,
-		unsigned char *local6_addr, u16 local6_id,
-		unsigned char *local4_addr, u16 local4_id,
-		unsigned char *remote4_addr, u16 remote4_id,
-		enum tcp_state state)
-{
-	struct ipv6_pair pair6;
-	struct ipv4_pair pair4;
-	struct session_entry *session;
-
-	if (is_error(str_to_addr6(remote6_addr, &pair6.remote.address)))
-		return NULL;
-	pair6.remote.l4_id = remote6_id;
-	if (is_error(str_to_addr6(local6_addr, &pair6.local.address)))
-		return NULL;
-	pair6.local.l4_id = local6_id;
-
-	if (is_error(str_to_addr4(local4_addr, &pair4.local.address)))
-		return NULL;
-	pair4.local.l4_id = local4_id;
-	if (is_error(str_to_addr4(remote4_addr, &pair4.remote.address)))
-		return NULL;
-	pair4.remote.l4_id = remote4_id;
-
-	session = session_create(&pair4, &pair6, L4PROTO_TCP, NULL);
-	session->state = state;
-	return session;
-}
 
 static bool init(void)
 {

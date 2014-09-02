@@ -113,13 +113,11 @@ static int get_bib_ipv4(struct sk_buff *skb, struct tuple *tuple, struct bib_ent
 	int error;
 
 	error = bibdb_get(tuple, bib);
-	if (error == -ENOENT) {
-		log_debug("There is no BIB entry for the incoming IPv4 packet.");
-		icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
-		return error;
-	}
 	if (error) {
-		log_debug("Error code %d while finding a BIB entry for the incoming packet.", error);
+		if (error == -ENOENT)
+			log_debug("There is no BIB entry for the incoming IPv4 packet.");
+		else
+			log_debug("Error code %d while finding a BIB entry for the incoming packet.", error);
 		icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
@@ -140,7 +138,7 @@ static int get_bib_ipv4(struct sk_buff *skb, struct tuple *tuple, struct bib_ent
  * Assumes that "tuple" represents a IPv6 packet.
  */
 static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
-		struct session_entry **session)
+		struct session_entry **session, enum session_timer_type timer_type, enum tcp_state state)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr ipv4_dst;
@@ -180,11 +178,12 @@ static int create_session_ipv6(struct tuple *tuple, struct bib_entry *bib,
 		log_debug("Failed to allocate a session entry.");
 		return -ENOMEM;
 	}
+	(*session)->state = state;
 
 	apply_policies();
 
 	/* Add it to the table. */
-	error = sessiondb_add(*session);
+	error = sessiondb_add(*session, timer_type);
 	if (error) {
 		session_return(*session);
 		log_debug("Error code %d while adding the session to the DB.", error);
@@ -240,15 +239,15 @@ static int create_session_ipv4(struct tuple *tuple, struct bib_entry *bib,
 }
 
 /**
- * Assumes that "tuple" represents a IPv6-UDP packet, and filters and updates based on it.
+ * Assumes that "tuple" represents a IPv6-UDP or ICMP packet, and filters and updates based on it.
  *
- * This is RFC 6146 section 3.5.1, first half.
+ * This is RFC 6146, first halves of both sections 3.5.1 and 3.5.3.
  *
  * @param[in] skb tuple's packet. This is actually only used for error reporting.
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
+static verdict ipv6_simple(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -266,8 +265,6 @@ static verdict ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
 	}
 	log_session(session);
 
-	set_udp_timer(session);
-
 	session_return(session);
 	bib_return(bib);
 
@@ -275,15 +272,15 @@ static verdict ipv6_udp(struct sk_buff *skb, struct tuple *tuple)
 }
 
 /**
- * Assumes that "tuple" represents a IPv4-UDP packet, and filters and updates based on it.
+ * Assumes that "tuple" represents a IPv4-UDP or ICMP packet, and filters and updates based on it.
  *
- * This is RFC 6146 section 3.5.1, second half.
+ * This is RFC 6146, second halves of both sections 3.5.1 and 3.5.3.
  *
  * @param[in] skb tuple's packet. This is actually only used for error reporting.
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv4_udp(struct sk_buff *skb, struct tuple *tuple)
+static verdict ipv4_simple(struct sk_buff *skb, struct tuple *tuple)
 {
 	int error;
 	struct bib_entry *bib;
@@ -300,83 +297,6 @@ static verdict ipv4_udp(struct sk_buff *skb, struct tuple *tuple)
 		return VER_DROP;
 	}
 	log_session(session);
-
-	set_udp_timer(session);
-
-	session_return(session);
-	bib_return(bib);
-
-	return VER_CONTINUE;
-}
-
-/**
- * Assumes that "tuple" represents a IPv6-ICMP packet, and filters and updates based on it.
- *
- * This is RFC 6146 section 3.5.3, first half.
- *
- * @param[in] skb tuple's packet. This is actually only used for error reporting.
- * @param[in] tuple summary of the packet Jool is currently translating.
- * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
- */
-static verdict ipv6_icmp6(struct sk_buff *skb, struct tuple *tuple)
-{
-	struct bib_entry *bib;
-	struct session_entry *session;
-	int error;
-
-	if (filter_icmpv6_info()) {
-		log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
-		return VER_DROP;
-	}
-
-	error = bibdb_get_or_create_ipv6(skb, tuple, &bib);
-	if (error)
-		return VER_DROP;
-	log_bib(bib);
-
-	error = sessiondb_get_or_create_ipv6(tuple, bib, &session);
-	if (error) {
-		bib_return(bib);
-		return VER_DROP;
-	}
-	log_session(session);
-
-	set_icmp_timer(session);
-
-	session_return(session);
-	bib_return(bib);
-
-	return VER_CONTINUE;
-}
-
-/**
- * Assumes that "tuple" represents a IPv4-ICMP packet, and filters and updates based on it.
- *
- * This is RFC 6146 section 3.5.3, second half.
- *
- * @param[in] skb tuple's packet. This is actually only used for error reporting.
- * @param[in] tuple summary of the packet Jool is currently translating.
- * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
- */
-static verdict ipv4_icmp4(struct sk_buff *skb, struct tuple *tuple)
-{
-	int error;
-	struct bib_entry *bib;
-	struct session_entry *session;
-
-	error = get_bib_ipv4(skb, tuple, &bib);
-	if (error)
-		return VER_DROP;
-	log_bib(bib);
-
-	error = sessiondb_get_or_create_ipv4(tuple, bib, &session);
-	if (error) {
-		bib_return(bib);
-		return VER_DROP;
-	}
-	log_session(session);
-
-	set_icmp_timer(session);
 
 	session_return(session);
 	bib_return(bib);
@@ -400,16 +320,12 @@ static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple)
 		return error;
 	log_bib(bib);
 
-	error = create_session_ipv6(tuple, bib, &session);
+	error = create_session_ipv6(tuple, bib, &session, SESSIONTIMER_TRANS, V6_INIT);
 	if (error) {
 		bib_return(bib);
 		return error;
 	}
 	log_session(session);
-
-	commit_timer(set_tcp_trans_timer(session));
-	/* TODO Shoudln't we set this before inserting to the DB? */
-	session->state = V6_INIT;
 
 	session_return(session);
 	bib_return(bib);
@@ -462,23 +378,20 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple)
 		/* At this point, skb's original skb completely belongs to pktqueue. */
 		result = VER_STOLEN;
 
-		error = sessiondb_add(session);
+		error = sessiondb_add(session, SESSIONTIMER_SYN);
 		if (error) {
 			log_debug("Error code %d while adding the session to the DB.", error);
 			pktqueue_remove(session);
 			goto end_session;
 		}
 
-		set_syn_timer(session);
-
 	} else {
-		error = sessiondb_add(session);
+		error = sessiondb_add(session, SESSIONTIMER_TRANS);
 		if (error) {
 			log_debug("Error code %d while adding the session to the DB.", error);
 			goto end_session;
 		}
 
-		commit_timer(set_tcp_trans_timer(session));
 		result = VER_CONTINUE;
 	}
 
@@ -704,10 +617,10 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 	case L4PROTO_UDP:
 		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
-			result = ipv6_udp(skb, tuple);
+			result = ipv6_simple(skb, tuple);
 			break;
 		case L3PROTO_IPV4:
-			result = ipv4_udp(skb, tuple);
+			result = ipv4_simple(skb, tuple);
 			break;
 		}
 		break;
@@ -719,10 +632,15 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 	case L4PROTO_ICMP:
 		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:
-			result = ipv6_icmp6(skb, tuple);
+			if (filter_icmpv6_info()) {
+				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
+				return VER_DROP;
+			}
+
+			result = ipv6_simple(skb, tuple);
 			break;
 		case L3PROTO_IPV4:
-			result = ipv4_icmp4(skb, tuple);
+			result = ipv4_simple(skb, tuple);
 			break;
 		}
 		break;

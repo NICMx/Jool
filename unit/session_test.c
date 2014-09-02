@@ -1,6 +1,8 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
+#include "nat64/unit/session.h"
+#include "nat64/unit/skb_generator.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
 #include "session_db.c"
@@ -9,6 +11,9 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
 MODULE_DESCRIPTION("Session module test.");
+
+#define TCPTRANS_TIMEOUT msecs_to_jiffies(1000 * TCP_TRANS)
+#define TCPEST_TIMEOUT msecs_to_jiffies(1000 * TCP_EST)
 
 #define SESSION_PRINT_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
 #define PRINT_SESSION(session) \
@@ -53,18 +58,18 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 }
 
 static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
-		int remote6_id, l4_protocol l4_proto)
+		int remote6_id)
 {
 	struct session_entry *result;
 	int error;
 
-	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, l4_proto);
+	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, L4PROTO_UDP);
 	if (!result) {
 		log_err("Could not allocate a session entry.");
 		return NULL;
 	}
 
-	error = sessiondb_add(result);
+	error = sessiondb_add(result, SESSIONTIMER_UDP);
 	if (error) {
 		log_err("Could not insert the session entry to the table; call returned %d.", error);
 		return NULL;
@@ -168,7 +173,8 @@ static bool simple_session(void)
 	if (!assert_not_null(session, "Allocation of test session entry"))
 		return false;
 
-	success &= assert_equals_int(0, sessiondb_add(session), "Session insertion call");
+	success &= assert_equals_int(0, sessiondb_add(session, SESSIONTIMER_EST),
+			"Session insertion call");
 	success &= assert_session("Session insertion state", session, false, true, false);
 	if (!success)
 		return false;
@@ -198,7 +204,7 @@ static bool test_address_filtering(void)
 	bool success = true;
 
 	/* Init. */
-	session = create_and_insert_session(0, 0, 0, 0, L4PROTO_UDP);
+	session = create_and_insert_session(0, 0, 0, 0);
 	if (!session)
 		return false;
 
@@ -247,6 +253,489 @@ static bool test_sessiondb_timeouts(void)
 	return success;
 }
 
+/*
+ * A V6 SYN packet arrives.
+ */
+static bool test_tcp_v4_init_state_handle_v6syn(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V4_INIT);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))) {
+		session_return(session);
+		return false;
+	}
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v4_init_state_handle(skb, session, &expirer),
+			"V6 syn-result");
+	success &= assert_equals_u8(ESTABLISHED, session->state, "V6 syn-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 syn-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "V6 syn-lifetime");
+
+	kfree_skb(skb);
+	session_return(session);
+	return success;
+}
+
+/*
+ * Something else arrives.
+ */
+static bool test_tcp_v4_init_state_handle_else(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V4_INIT);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v4_init_state_handle(skb, session, &expirer), "else-result");
+	success &= assert_null(session->expirer, "null expirer");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V4 SYN packet arrives.
+ */
+static bool test_tcp_v6_init_state_handle_v4syn(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V6_INIT);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, session, &expirer), "V4 syn-result");
+	success &= assert_equals_u8(ESTABLISHED, session->state, "V4 syn-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 syn-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "V4 syn-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V6 SYN packet arrives.
+ */
+static bool test_tcp_v6_init_state_handle_v6syn(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V6_INIT);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, session, &expirer), "V6 syn-result");
+	success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 syn-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 syn-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * Something else arrives.
+ */
+static bool test_tcp_v6_init_state_handle_else(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V6_INIT);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v6_init_state_handle(skb, session, &expirer), "else-result");
+	success &= assert_equals_u8(V6_INIT, session->state, "else-state");
+	success &= assert_null(session->expirer, "null expirer");
+
+	kfree_skb(skb);
+	return success;
+}
+/*
+ * A V4 FIN packet arrives.
+ */
+static bool test_tcp_established_state_handle_v4fin(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			ESTABLISHED);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, false, false, true)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
+	success &= assert_equals_u8(V4_FIN_RCV, session->state, "V4 fin-state");
+	success &= assert_null(session->expirer, "null expirer");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V6 FIN packet arrives.
+ */
+static bool test_tcp_established_state_handle_v6fin(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			ESTABLISHED);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, false, true)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
+	success &= assert_equals_u8(V6_FIN_RCV, session->state, "V6 fin-state");
+	success &= assert_null(session->expirer, "null expirer");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V4 RST packet arrives.
+ */
+static bool test_tcp_established_state_handle_v4rst(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			ESTABLISHED);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
+	success &= assert_equals_u8(TRANS, session->state, "V4 rst-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 rst-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V4 rst-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V6 RST packet arrives.
+ */
+static bool test_tcp_established_state_handle_v6rst(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			ESTABLISHED);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
+	success &= assert_equals_u8(TRANS, session->state, "V6 rst-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 rst-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 rst-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * Something else arrives.
+ */
+static bool test_tcp_established_state_handle_else(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			ESTABLISHED);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_established_state_handle(skb, session, &expirer), "result");
+	success &= assert_equals_u8(ESTABLISHED, session->state, "else-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V6 FIN packet arrives.
+ */
+static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V4_FIN_RCV);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, false, true)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, session, &expirer), "V6 fin-result");
+	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session->state, "V6 fin-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 fin-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 fin-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * Something else arrives.
+ */
+static bool test_tcp_v4_fin_rcv_state_handle_else(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V4_FIN_RCV);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(skb, session, &expirer), "else-result");
+	success &= assert_equals_u8(V4_FIN_RCV, session->state, "else-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V4 FIN packet arrives.
+ */
+static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V6_FIN_RCV);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, false, false, true)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, session, &expirer), "V4 fin-result");
+	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session->state, "V4 fin-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 fin-toresult");
+	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V4 fin-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * Something else arrives.
+ */
+static bool test_tcp_v6_fin_rcv_state_handle_else(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			V6_FIN_RCV);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(skb, session, &expirer), "else-result");
+	success &= assert_equals_u8(V6_FIN_RCV, session->state, "else-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * A V4 RST packet arrives.
+ */
+static bool test_tcp_trans_state_handle_v4rst(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			TRANS);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, false, true, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_trans_state_handle(skb, session, &expirer), "V4 rst-result");
+	success &= assert_equals_u8(TRANS, session->state, "V4 rst-state");
+	success &= assert_null(session->expirer, "null expirer");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+* A V6 RST packet arrives.
+*/
+static bool test_tcp_trans_state_handle_v6rst(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			TRANS);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_trans_state_handle(skb, session, &expirer), "V6 rst-result");
+	success &= assert_equals_u8(TRANS, session->state, "V6 rst-state");
+	success &= assert_null(session->expirer, "null expirer");
+
+	kfree_skb(skb);
+	return success;
+}
+
+/*
+ * Something else arrives.
+ */
+static bool test_tcp_trans_state_handle_else(void)
+{
+	struct session_entry *session;
+	struct expire_timer *expirer;
+	struct sk_buff *skb;
+	unsigned long timeout;
+	bool success = true;
+
+	/* Prepare */
+	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+			TRANS);
+	if (!session)
+		return false;
+	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
+		return false;
+
+	/* Evaluate */
+	success &= assert_equals_int(0, tcp_trans_state_handle(skb, session, &expirer), "else-result");
+	success &= assert_equals_u8(ESTABLISHED, session->state, "else-state");
+	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
+	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
+
+	kfree_skb(skb);
+	return success;
+}
+
 /********************************************
  * Main.
  ********************************************/
@@ -288,6 +777,24 @@ int init_module(void)
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
 	INIT_CALL_END(init(), test_sessiondb_timeouts(), end(), "Session config timeouts");
+
+	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_v6syn(), end(), "TCP-V4 INIT-V6 syn");
+	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_else(), end(), "TCP-V4 INIT-else");
+	INIT_CALL_END(init(), test_tcp_v6_init_state_handle_v6syn(), end(), "TCP-V6 INIT-V6 SYN");
+	INIT_CALL_END(init(), test_tcp_v6_init_state_handle_v4syn(), end(), "TCP-V6 INIT-V4 SYN");
+	INIT_CALL_END(init(), test_tcp_v6_init_state_handle_else(), end(), "TCP-V6 INIT-else");
+	INIT_CALL_END(init(), test_tcp_established_state_handle_v4fin(), end(), "TCP-established-V4 fin");
+	INIT_CALL_END(init(), test_tcp_established_state_handle_v6fin(), end(), "TCP-established-V6 fin");
+	INIT_CALL_END(init(), test_tcp_established_state_handle_v4rst(), end(), "TCP-established-V4 rst");
+	INIT_CALL_END(init(), test_tcp_established_state_handle_v6rst(), end(), "TCP-established-V6 rst");
+	INIT_CALL_END(init(), test_tcp_established_state_handle_else(), end(), "TCP-established-else");
+	INIT_CALL_END(init(), test_tcp_v4_fin_rcv_state_handle_v6fin(), end(), "TCP-V4 FIN RCV-V6 fin");
+	INIT_CALL_END(init(), test_tcp_v4_fin_rcv_state_handle_else(), end(), "TCP-V4 FIN RCV-else");
+	INIT_CALL_END(init(), test_tcp_v6_fin_rcv_state_handle_v4fin(), end(), "TCP-V6 FIN RCV-v4fin");
+	INIT_CALL_END(init(), test_tcp_v6_fin_rcv_state_handle_else(), end(), "TCP-V6 FIN RCV-else");
+	INIT_CALL_END(init(), test_tcp_trans_state_handle_v6rst(), end(), "TCP-TRANS-V6 rst");
+	INIT_CALL_END(init(), test_tcp_trans_state_handle_v4rst(), end(), "TCP-TRANS-V4 rst");
+	INIT_CALL_END(init(), test_tcp_trans_state_handle_else(), end(), "TCP-TRANS-else");
 
 	END_TESTS;
 }

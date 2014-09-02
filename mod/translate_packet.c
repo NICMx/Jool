@@ -547,11 +547,10 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	__u16 min_ipv6_mtu;
-	__u16 min_ipv4_mtu;
 
 	if (skb_l3_proto(skb_out) != L3PROTO_IPV6) {
 #ifndef UNIT_TESTING
-		min_ipv4_mtu = skb_dst(skb_out)->dev->mtu;
+		__u16 min_ipv4_mtu = skb_dst(skb_out)->dev->mtu;
 		if (is_dont_fragment_set(ip_hdr(skb_out)) && (skb_out->len > min_ipv4_mtu)) {
 			icmp64_send(skb_out, ICMPERR_FRAG_NEEDED, min_ipv4_mtu + 20);
 			log_info("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv4_mtu);

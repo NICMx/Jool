@@ -629,3 +629,37 @@ int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct
 
 	return 0;
 }
+
+int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool rst, bool fin)
+{
+	struct tcphdr *hdr_tcp;
+	struct ipv6_pair pair6;
+	struct ipv4_pair pair4;
+	int error;
+
+	switch (l3_proto) {
+	case L3PROTO_IPV4:
+		error = init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678);
+		if (error)
+			return error;
+		error = create_skb_ipv4_tcp(&pair4, skb, 100);
+		if (error)
+			return error;
+		break;
+	case L3PROTO_IPV6:
+		error = init_pair6(&pair6, "1::2", 1212, "3::4", 3434);
+		if (error)
+			return error;
+		error = create_skb_ipv6_tcp(&pair6, skb, 100);
+		if (error)
+			return error;
+		break;
+	}
+
+	hdr_tcp = tcp_hdr(*skb);
+	hdr_tcp->syn = syn;
+	hdr_tcp->rst = rst;
+	hdr_tcp->fin = fin;
+
+	return 0;
+}

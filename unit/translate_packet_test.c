@@ -17,15 +17,6 @@ MODULE_DESCRIPTION("Translating the Packet module test.");
 static struct in6_addr dummies6[2];
 static struct in_addr dummies4[2];
 
-static void print_skb_queued(struct sk_buff *skb)
-{
-	while (skb) {
-		skb_print(skb);
-		skb = skb->next;
-	}
-
-}
-
 static struct sk_buff *create_skb4(u16 payload_len,
 		int (*skb_create_fn)(struct ipv4_pair *, struct sk_buff **, u16))
 {

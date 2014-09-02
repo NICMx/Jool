@@ -42,5 +42,6 @@ int create_skb_ipv6_icmp_info_frag(struct ipv6_pair *pair6, struct sk_buff **res
 int create_packet_ipv4_udp_fragmented_disordered(struct ipv4_pair *pair4, struct sk_buff **skb_out);
 int create_packet_ipv6_tcp_fragmented_disordered(struct ipv6_pair *pair6, struct sk_buff **skb_out);
 
+int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool rst, bool fin);
 
 #endif /* _JOOL_UNIT_SKB_GENERATOR_H */
