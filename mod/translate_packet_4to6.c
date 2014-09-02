@@ -49,15 +49,10 @@ static int ttp46_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	skb_put(new_skb, total_len);
 	skb_reset_mac_header(new_skb);
 	skb_reset_network_header(new_skb);
-	if (is_first)
-		skb_set_transport_header(new_skb, l3_hdr_len);
-	else
-		skb_reset_transport_header(new_skb);
+	skb_set_transport_header(new_skb, l3_hdr_len);
 
 	skb_set_jcb(new_skb, L3PROTO_IPV6, in->l4_hdr.proto,
-			is_first
-					? (skb_transport_header(new_skb) + in->l4_hdr.len)
-					: (skb_network_header(new_skb) + l3_hdr_len),
+			skb_transport_header(new_skb) + in->l4_hdr.len,
 			has_frag_hdr(in->l3_hdr.ptr) ? ((struct frag_hdr *) (ipv6_hdr(new_skb) + 1)) : NULL,
 			skb_original_skb(in->skb));
 
@@ -315,7 +310,6 @@ static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *o
 	case ICMP_PROT_UNREACH:
 		icmpv6_hdr->icmp6_type = ICMPV6_PARAMPROB;
 		icmpv6_hdr->icmp6_code = ICMPV6_UNK_NEXTHDR;
-		/* TODO test this. */
 		icmpv6_hdr->icmp6_pointer = cpu_to_be32(offsetof(struct ipv6hdr, nexthdr));
 		break;
 

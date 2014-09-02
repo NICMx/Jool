@@ -513,7 +513,7 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		skb_put(new_skb, actual_total_size);
 		skb_reset_mac_header(new_skb);
 		skb_reset_network_header(new_skb);
-		skb_reset_transport_header(new_skb);
+		skb_set_transport_header(new_skb, hdrs_size);
 		new_skb->protocol = skb->protocol;
 		new_skb->mark = skb->mark;
 		skb_dst_set(new_skb, dst_clone(skb_dst(skb)));
@@ -525,7 +525,7 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		memcpy(skb_network_header(new_skb) + hdrs_size, current_p, actual_payload_size);
 
 		skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(skb),
-				skb_network_header(new_skb) + hdrs_size,
+				skb_transport_header(new_skb),
 				(struct frag_hdr *) (ipv6_hdr(new_skb) + 1),
 				skb_original_skb(skb));
 

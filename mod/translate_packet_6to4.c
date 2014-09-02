@@ -44,15 +44,10 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	skb_put(new_skb, total_len);
 	skb_reset_mac_header(new_skb);
 	skb_reset_network_header(new_skb);
-	if (is_first)
-		skb_set_transport_header(new_skb, sizeof(struct iphdr));
-	else
-		skb_reset_transport_header(new_skb);
+	skb_set_transport_header(new_skb, sizeof(struct iphdr));
 
 	skb_set_jcb(new_skb, L3PROTO_IPV4, in->l4_hdr.proto,
-			is_first
-					? (skb_transport_header(new_skb) + in->l4_hdr.len)
-					: (skb_network_header(new_skb) + sizeof(struct iphdr)),
+			skb_transport_header(new_skb) + in->l4_hdr.len,
 			NULL, skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;
@@ -176,7 +171,7 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
 	/* This is just a temporary filler value. The real one will be set during post-processing. */
-	ip4_hdr->tot_len = ip6_hdr->payload_len;
+	ip4_hdr->tot_len = cpu_to_be16(sizeof(struct iphdr) + be16_to_cpu(ip6_hdr->payload_len));
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
@@ -211,7 +206,10 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);
 
-		/* ip4_hdr->tot_len is set during post-processing. */
+		/*
+		 * We'll set ip4_hdr->tot_len during post-processing, because the unit tests disagree with
+		 * the RFC and its errata...
+		 */
 		ip4_hdr->id = generate_ipv4_id_dofrag(ip6_frag_hdr);
 		ip4_hdr->frag_off = build_ipv4_frag_off_field(0, ipv6_m, ipv6_fragment_offset);
 		/*

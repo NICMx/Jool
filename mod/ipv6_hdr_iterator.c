@@ -18,6 +18,17 @@ void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr)
 	memcpy(iterator, &defaults, sizeof(defaults));
 }
 
+void hdr_iterator_init_truncated(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr,
+		unsigned int limit)
+{
+	void *limit_ptr = main_hdr + limit;
+
+	hdr_iterator_init(iterator, main_hdr);
+
+	if (limit_ptr < iterator->limit)
+		iterator->limit = limit_ptr;
+}
+
 enum hdr_iterator_result hdr_iterator_next(struct hdr_iterator *iterator)
 {
 	__u8 original_hdr_type = iterator->hdr_type;

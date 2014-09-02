@@ -369,10 +369,7 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, void *, bool, bool, u16)
 
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
-	if (l4_hdr_len != 0)
-		skb_set_transport_header(skb, l3_hdr_len);
-	else
-		skb_reset_transport_header(skb);
+	skb_set_transport_header(skb, l3_hdr_len);
 
 	error = l3_hdr_fn(skb_network_header(skb), datagram_len, l4_hdr_type, arg, df, mf, frag_offset);
 	if (error)
@@ -381,10 +378,7 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, void *, bool, bool, u16)
 	if (error)
 		goto failure;
 
-	if (l4_hdr_len != 0)
-		error = payload_fn(skb_transport_header(skb) + l4_hdr_len, payload_len);
-	else
-		error = payload_fn(skb_network_header(skb) + l3_hdr_len, payload_len);
+	error = payload_fn(skb_transport_header(skb) + l4_hdr_len, payload_len);
 	if (error)
 		goto failure;
 	error = l4_post_fn(skb_transport_header(skb), datagram_len, arg);

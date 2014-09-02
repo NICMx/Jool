@@ -237,11 +237,7 @@ static inline struct sk_buff *skb_original_skb(struct sk_buff *skb)
  */
 static inline bool skb_has_l4_hdr(struct sk_buff *skb)
 {
-	/*
-	 * The kernel seems to do it this way, particularly when transport_header hasn't been set.
-	 * I think it'd make more sense as payload != transport_header, but whatever.
-	 */
-	return skb_network_header(skb) != skb_transport_header(skb);
+	return skb_transport_header(skb) != skb_payload(skb);
 }
 
 /**
@@ -249,9 +245,7 @@ static inline bool skb_has_l4_hdr(struct sk_buff *skb)
  */
 static inline int skb_l3hdr_len(struct sk_buff *skb)
 {
-	return skb_has_l4_hdr(skb)
-			? (skb_transport_header(skb) - skb_network_header(skb))
-			: (skb_payload(skb) - (void *) skb_network_header(skb));
+	return skb_transport_header(skb) - skb_network_header(skb);
 }
 
 /**
@@ -259,9 +253,7 @@ static inline int skb_l3hdr_len(struct sk_buff *skb)
  */
 static inline int skb_l4hdr_len(struct sk_buff *skb)
 {
-	return skb_has_l4_hdr(skb)
-			? (skb_payload(skb) - (void *) skb_transport_header(skb))
-			: 0;
+	return skb_payload(skb) - (void *) skb_transport_header(skb);
 }
 
 /**

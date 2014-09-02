@@ -66,12 +66,18 @@ typedef enum hdr_iterator_result {
  */
 bool is_extension_hdr(__u8 header_id);
 /**
- * Use this to initialize your "hdr_iterator".
+ * Use this to initialize your "hdr_iterator" on a healthy packet.
  *
  * @param iterator The "hdr_iterator" you want to initialize.
  * @param main_hdr The IPv6 header whose subheaders you want to traverse.
  */
 void hdr_iterator_init(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr);
+/**
+ * Same as hdr_iterator_init, except it lets you set an artificial limit (in bytes) as to how much
+ * the iterator can advance. Use this if your packet might be truncated.
+ */
+void hdr_iterator_init_truncated(struct hdr_iterator *iterator, struct ipv6hdr *main_hdr,
+		unsigned int limit);
 /**
  * Advances "iterator->hdr" one header and updates "iterator->hdr_type" accordingly. If "iterator"
  * has already reached the payload, nothing will happen.

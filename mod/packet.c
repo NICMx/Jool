@@ -130,7 +130,10 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
 		return -EINVAL;
 	}
 
-	hdr_iterator_init(iterator, hdr);
+	if (is_truncated)
+		hdr_iterator_init_truncated(iterator, hdr, len);
+	else
+		hdr_iterator_init(iterator, hdr);
 	result = hdr_iterator_last(iterator);
 
 	switch (result) {
@@ -175,11 +178,10 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	cb->l3_proto = L3PROTO_IPV6;
 	cb->frag_hdr = get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
 	cb->original_skb = skb;
-	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
-	skb_set_transport_header(skb, is_1st_fragment
-			? (iterator.data - (void *) skb_network_header(skb))
-			: skb_network_offset(skb));
+	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
 	cb->payload = iterator.data;
+
+	is_1st_fragment = is_first_fragment_ipv6(cb->frag_hdr);
 
 	switch (iterator.hdr_type) {
 	case NEXTHDR_TCP:
@@ -212,6 +214,11 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 			if (error)
 				return error;
 			cb->payload += sizeof(struct icmp6hdr);
+			/*
+			 * If there's a inner packet, we will not validate it until the translate step,
+			 * because it can be done easily there during the computation of the pkt_parts
+			 * structure.
+			 */
 		}
 		break;
 
@@ -290,13 +297,8 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	cb->l3_proto = L3PROTO_IPV4;
 	cb->frag_hdr = NULL;
 	cb->original_skb = skb;
-	if (is_1st_fragment) {
-		skb_set_transport_header(skb, 4 * hdr4->ihl);
-		cb->payload = skb_transport_header(skb);
-	} else {
-		skb_set_transport_header(skb, skb_network_offset(skb));
-		cb->payload = skb_network_header(skb) + 4 * hdr4->ihl;
-	}
+	skb_set_transport_header(skb, 4 * hdr4->ihl);
+	cb->payload = skb_transport_header(skb);
 
 	switch (hdr4->protocol) {
 	case IPPROTO_TCP:
@@ -330,6 +332,11 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 				return error;
 			cb->payload += sizeof(struct icmphdr);
 		}
+		/*
+		 * If there's a inner packet, we will not validate it until the translate step,
+		 * because it can be done easily there during the computation of the pkt_parts
+		 * structure.
+		 */
 		break;
 
 	default:
@@ -538,7 +545,6 @@ static int validate_csum_icmp6(struct sk_buff *skb)
 	csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
 			csum_partial(hdr_icmp6, datagram_len, 0));
 
-	/* TODO this is new; test it. */
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
 		return -EINVAL;
@@ -568,7 +574,6 @@ static int validate_csum_icmp4(struct sk_buff *skb)
 		return 0;
 	}
 
-	/* TODO this is new; test it. */
 	csum = ip_compute_csum(hdr, skb_l4hdr_len(skb) + skb_payload_len(skb));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");

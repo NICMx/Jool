@@ -220,7 +220,7 @@ bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len)
 	hdr_tcp = (struct tcphdr *) (hdr_ipv4 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	if (!validate_ipv4_hdr(hdr_ipv4, 1300, 0, IP_DF, 0, 0, IPPROTO_TCP, &tuple))
+	if (!validate_ipv4_hdr(hdr_ipv4, 1320, 0, IP_DF, 0, 0, IPPROTO_TCP, &tuple))
 		return false;
 	if (!validate_tcp_hdr(hdr_tcp, &tuple))
 		return false;

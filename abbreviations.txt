@@ -34,6 +34,9 @@ aux = auxiliar function
 req = requirement
 csum = checksum
 
+When we say "payload", we mean the layer-4 payload. When we want to say layer-3 payload, we should
+prefix it ("l3_payload").
+
 
 BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're
 making an effort to follow the kernel's code conventions:
