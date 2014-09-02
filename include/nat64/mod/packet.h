@@ -318,6 +318,16 @@ int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len);
 void kfree_skb_queued(struct sk_buff *skb);
 
 /**
+ * Returns "true" if "icmp_type" is defined by RFC 792 to contain a subpacket as payload.
+ */
+bool icmp4_has_inner_packet(__u8 icmp_type);
+
+/**
+ * Returns "true" if "icmp6_type" is defined by RFC 4443 to contain a subpacket as payload.
+ */
+bool icmpv6_has_inner_packet(__u8 icmp6_type);
+
+/**
  * Initializes "skb"'s control buffer. It also validates "skb".
  */
 int skb_init_cb_ipv6(struct sk_buff *skb);

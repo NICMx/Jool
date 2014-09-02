@@ -273,18 +273,6 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 }
 
 /**
- * Returns "true" if "icmp_type" is defined by RFC 792 to contain a subpacket as payload.
- */
-static bool icmp4_has_inner_packet(__u8 icmp_type)
-{
-	return (icmp_type == ICMP_DEST_UNREACH)
-			|| (icmp_type == ICMP_TIME_EXCEEDED)
-			|| (icmp_type == ICMP_PARAMETERPROB)
-			|| (icmp_type == ICMP_SOURCE_QUENCH)
-			|| (icmp_type == ICMP_REDIRECT);
-}
-
-/**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to ICMPv6.
  */
 static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *out)

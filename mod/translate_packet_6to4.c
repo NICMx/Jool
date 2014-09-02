@@ -266,17 +266,6 @@ static __be16 icmp4_minimum_mtu(__u32 packet_mtu, __u16 nexthop4_mtu, __u16 next
 }
 
 /**
- * Returns "true" if "icmp6_type" is defined by RFC 4443 to contain a subpacket as payload.
- */
-static bool icmpv6_has_inner_packet(__u8 icmp6_type)
-{
-	return (icmp6_type == ICMPV6_DEST_UNREACH)
-			|| (icmp6_type == ICMPV6_PKT_TOOBIG)
-			|| (icmp6_type == ICMPV6_TIME_EXCEED)
-			|| (icmp6_type == ICMPV6_PARAMPROB);
-}
-
-/**
  * One liner for translating the ICMPv6's pointer field to ICMPv4.
  * "Pointer" is a field from "Parameter Problem" ICMP messages.
  */
