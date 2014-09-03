@@ -2,7 +2,7 @@ This folder contains the source of the userspace application of Jool.
 
 The userspace application is a client which can be used to send requests to
 Jool, which resides in the kernel. It comes with a man page, but you might want
-to read more documentation at https://www.jool.mx/userspace-app.html.
+to read more documentation at https://www.jool.mx/usr-flags.html.
 
 If you're not using git, install using `./configure && make && make install` as
 the INSTALL file says.
