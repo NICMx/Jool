@@ -7,20 +7,23 @@
 /**
  * Section 3.6.1 of RFC 6146.
  */
-static verdict tuple5(struct tuple *in, struct tuple *out)
+static verdict tuple5(struct tuple *in, struct tuple *out, int *field)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
 	int error;
 
 	error = pool6_peek(&prefix);
-	if (error)
+	if (error) {
+		*field = IPSTATS_MIB_INNOROUTES;
 		return VER_DROP;
+	}
 
 	error = bibdb_get(in, &bib);
 	if (error) {
 		/* Bogus ICMP errors might cause this, so it's not critical. */
 		log_debug("Error code %d while trying to find the packet's BIB entry.", error);
+		*field = IPSTATS_MIB_INDISCARDS;
 		return VER_DROP;
 	}
 
@@ -52,26 +55,30 @@ static verdict tuple5(struct tuple *in, struct tuple *out)
 
 fail:
 	bib_return(bib);
+	*field = IPSTATS_MIB_INDISCARDS;
 	return VER_DROP;
 }
 
 /**
  * Section 3.6.2 of RFC 6146.
  */
-static verdict tuple3(struct tuple *in, struct tuple *out)
+static verdict tuple3(struct tuple *in, struct tuple *out, int *field)
 {
 	struct bib_entry *bib;
 	struct ipv6_prefix prefix;
 	int error;
 
 	error = pool6_peek(&prefix);
-	if (error)
+	if (error) {
+		*field = IPSTATS_MIB_INNOROUTES;
 		return VER_DROP;
+	}
 
 	error = bibdb_get(in, &bib);
 	if (error) {
 		/* Bogus ICMP errors might cause this, so it's not critical. */
 		log_debug("Error code %d while trying to find the packet's BIB entry.", error);
+		*field = IPSTATS_MIB_INDISCARDS;
 		return VER_DROP;
 	}
 
@@ -103,15 +110,16 @@ static verdict tuple3(struct tuple *in, struct tuple *out)
 
 fail:
 	bib_return(bib);
+	*field = IPSTATS_MIB_INDISCARDS;
 	return VER_DROP;
 }
 
-verdict compute_out_tuple(struct tuple *in, struct tuple *out)
+verdict compute_out_tuple(struct tuple *in, struct tuple *out, int *field)
 {
 	verdict result;
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	result = is_5_tuple(in) ? tuple5(in, out) : tuple3(in, out);
+	result = is_5_tuple(in) ? tuple5(in, out, field) : tuple3(in, out, field);
 
 	log_debug("Done step 3.");
 	return result;

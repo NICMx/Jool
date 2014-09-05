@@ -7,6 +7,7 @@
 #include "nat64/comm/str_utils.h"
 #include "nat64/mod/types.h"
 #include "nat64/mod/icmp_wrapper.h"
+#include "nat64/mod/stats.h"
 
 
 #define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
@@ -117,16 +118,18 @@ int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len)
 }
 
 int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator)
+		struct hdr_iterator *iterator, int *field)
 {
 	enum hdr_iterator_result result;
 
 	if (len < MIN_IPV6_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic IPv6 header.");
+		*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 		return -EINVAL;
 	}
 	if (!is_truncated && len != MIN_IPV6_HDR_LEN + be16_to_cpu(hdr->payload_len)) {
 		log_debug("The packet's length does not match the IPv6 header's payload length field.");
+		*field = IPSTATS_MIB_INHDRERRORS;
 		return -EINVAL;
 	}
 
@@ -153,6 +156,8 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
 		break;
 	}
 
+	/* If fall through here, indicates there is a Header Error. */
+	*field = IPSTATS_MIB_INHDRERRORS;
 	return -EINVAL;
 }
 
@@ -173,7 +178,7 @@ bool icmpv6_has_inner_packet(__u8 icmp6_type)
 			|| (icmp6_type == ICMPV6_PARAMPROB);
 }
 
-static int validate_inner_packet6(struct ipv6hdr *hdr6, int len)
+static int validate_inner_packet6(struct ipv6hdr *hdr6, int len, int *field)
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *l4_hdr;
@@ -183,7 +188,7 @@ static int validate_inner_packet6(struct ipv6hdr *hdr6, int len)
 	log_debug("Validating inner packet 6");
 #endif
 
-	error = validate_ipv6_integrity(hdr6, len, true, &iterator);
+	error = validate_ipv6_integrity(hdr6, len, true, &iterator, field);
 	if (error)
 		return error;
 
@@ -194,20 +199,27 @@ static int validate_inner_packet6(struct ipv6hdr *hdr6, int len)
 	case NEXTHDR_TCP:
 		if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
 			log_debug("Packet is too small to contain a basic TCP header.");
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return -EINVAL;
 		}
 		break;
 	case NEXTHDR_UDP:
 		error = validate_lengths_udp(len, l3_hdr_len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 		break;
 	case NEXTHDR_ICMP:
 		error = validate_lengths_icmp6(len, l3_hdr_len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
-		if (icmpv6_has_inner_packet(l4_hdr->icmp6_type))
+		}
+		if (icmpv6_has_inner_packet(l4_hdr->icmp6_type)) {
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return -EINVAL; /* packet inside packet inside packet. */
+		}
 
 		break;
 	default:
@@ -215,6 +227,7 @@ static int validate_inner_packet6(struct ipv6hdr *hdr6, int len)
 		 * Why are we validating an error packet of a packet we couldn't have translated?
 		 * Either an attack or shouldn't happen, so drop silently.
 		 */
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return -EINVAL;
 	}
 
@@ -227,11 +240,13 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	bool is_1st_fragment;
 	struct hdr_iterator iterator;
 	int error;
+	int field = 0;
 
-	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator);
-	if (error)
+	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator, &field);
+	if (error) {
+		inc_stats(skb, field);
 		return error;
-
+	}
 	/*
 	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
 	 * exported for dynamic modules to use (and linux doesn't know a route to the NAT64 prefix
@@ -254,8 +269,10 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 
 		if (is_1st_fragment) {
 			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
-			if (error)
+			if (error) {
+				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 				return error;
+			}
 			cb->payload += tcp_hdrlen(skb);
 		}
 		break;
@@ -265,8 +282,10 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 
 		if (is_1st_fragment) {
 			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
-			if (error)
+			if (error) {
+				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 				return error;
+			}
 			cb->payload += sizeof(struct udphdr);
 		}
 		break;
@@ -276,8 +295,10 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 
 		if (is_1st_fragment) {
 			error = validate_lengths_icmp6(skb->len, skb_l3hdr_len(skb));
-			if (error)
+			if (error) {
+				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 				return error;
+			}
 			cb->payload += sizeof(struct icmp6hdr);
 			/*
 			 * If there's a inner packet, we will not validate it until the translate step,
@@ -286,9 +307,11 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 			 */
 
 			if (icmpv6_has_inner_packet(icmp6_hdr(skb)->icmp6_type)) {
-				error = validate_inner_packet6(cb->payload, skb_payload_len(skb));
-				if (error)
+				error = validate_inner_packet6(cb->payload, skb_payload_len(skb), &field);
+				if (error) {
+					inc_stats(skb, field);
 					return error;
+				}
 			}
 		}
 		break;
@@ -296,6 +319,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	default:
 		log_debug("Unsupported layer 4 protocol: %d", iterator.hdr_type);
 		icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
+		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;
 	}
 
@@ -303,21 +327,24 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	return 0;
 }
 
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated)
+int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field)
 {
 	u16 ip4_hdr_len;
 
 	if (len < MIN_IPV4_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic IP header.");
+		*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 		/* Even if we expect it to be truncated, this length is unacceptable. */
 		return -EINVAL;
 	}
 	if (hdr->ihl < 5) {
 		log_debug("Packet's IHL field is too small.");
+		*field = IPSTATS_MIB_INHDRERRORS;
 		return -EINVAL;
 	}
 	if (ip_fast_csum((u8 *) hdr, hdr->ihl)) {
 		log_debug("Packet's IPv4 checksum is incorrect.");
+		*field = IPSTATS_MIB_INHDRERRORS;
 		return -EINVAL;
 	}
 
@@ -327,17 +354,19 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
 	ip4_hdr_len = 4 * hdr->ihl;
 	if (len < ip4_hdr_len) {
 		log_debug("Packet is too small to contain the IP header + options.");
+		*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 		return -EINVAL;
 	}
 	if (len != be16_to_cpu(hdr->tot_len)) {
 		log_debug("The packet's length does not equal the IPv4 header's lengh field.");
+		*field = IPSTATS_MIB_INHDRERRORS;
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int validate_inner_packet4(struct iphdr *hdr4, int len)
+static int validate_inner_packet4(struct iphdr *hdr4, int len, int *field)
 {
 	int error, l3_hdr_len;
 	struct icmphdr *l4_hdr;
@@ -346,7 +375,7 @@ static int validate_inner_packet4(struct iphdr *hdr4, int len)
 	log_debug("Validating inner packet 4");
 #endif
 
-	error = validate_ipv4_integrity(hdr4, len, true);
+	error = validate_ipv4_integrity(hdr4, len, true, field);
 	if (error)
 		return error;
 
@@ -357,22 +386,29 @@ static int validate_inner_packet4(struct iphdr *hdr4, int len)
 	case IPPROTO_TCP:
 		if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
 			log_debug("Inner Packet is too small to contain a basic TCP header.");
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return -EINVAL;
 		}
 
 		break;
 	case IPPROTO_UDP:
 		error = validate_lengths_udp(len, l3_hdr_len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		break;
 	case IPPROTO_ICMP:
 		error = validate_lengths_icmp4(len, l3_hdr_len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
-		if (icmp4_has_inner_packet(l4_hdr->type))
+		}
+		if (icmp4_has_inner_packet(l4_hdr->type)) {
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return -EINVAL; /* packet inside packet inside packet. */
+		}
 
 		break;
 	default:
@@ -380,6 +416,7 @@ static int validate_inner_packet4(struct iphdr *hdr4, int len)
 		 * Why are we validating an error packet of a packet we couldn't have translated?
 		 * Either an attack or shouldn't happen, so drop silently.
 		 */
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return -EINVAL;
 	}
 
@@ -392,10 +429,13 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	bool is_1st_fragment;
 	struct iphdr *hdr4 = ip_hdr(skb);
 	int error;
+	int field = 0;
 
-	error = validate_ipv4_integrity(hdr4, skb->len, false);
-	if (error)
+	error = validate_ipv4_integrity(hdr4, skb->len, false, &field);
+	if (error) {
+		inc_stats(skb, field);
 		return error;
+	}
 
 	is_1st_fragment = is_first_fragment_ipv4(hdr4);
 
@@ -410,6 +450,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 		error = ip_route_input(skb, hdr4->daddr, hdr4->saddr, hdr4->tos, skb->dev);
 		if (error) {
 			log_debug("ip_route_input failed: %d", error);
+			inc_stats(skb, IPSTATS_MIB_INNOROUTES); //TODO: stats (IN/OUT)NO_ROUTES???
 			return error;
 		}
 	}
@@ -427,8 +468,10 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 
 		if (is_1st_fragment) {
 			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
-			if (error)
+			if (error) {
+				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 				return error;
+			}
 			cb->payload += tcp_hdrlen(skb);
 		}
 		break;
@@ -438,8 +481,10 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 
 		if (is_1st_fragment) {
 			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
-			if (error)
+			if (error) {
+				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 				return error;
+			}
 			cb->payload += sizeof(struct udphdr);
 		}
 		break;
@@ -449,20 +494,21 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 
 		if (is_1st_fragment) {
 			error = validate_lengths_icmp4(skb->len, skb_l3hdr_len(skb));
-			if (error)
+			if (error) {
+				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
 				return error;
+			}
 			cb->payload += sizeof(struct icmphdr);
 		}
 		/*
-		 * If there's a inner packet, we will not validate it until the translate step,
-		 * because it can be done easily there during the computation of the pkt_parts
-		 * structure.
+		 * If there's a inner packet, we will validate.
 		 */
-		/* TODO:si es un error... validar. */
 		if (icmp4_has_inner_packet(icmp_hdr(skb)->type)) {
-			error = validate_inner_packet4(cb->payload, skb_payload_len(skb));
-			if (error)
+			error = validate_inner_packet4(cb->payload, skb_payload_len(skb), &field);
+			if (error) {
+				inc_stats(skb, field);
 				return error;
+			}
 		}
 
 		break;
@@ -470,6 +516,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	default:
 		log_debug("Unsupported layer 4 protocol: %d", hdr4->protocol);
 		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
+		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;
 	}
 

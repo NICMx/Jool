@@ -29,6 +29,7 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 
 		if (hdr_iterator_last(&iterator) != HDR_ITERATOR_END) {
 			WARN(true, "Validated packet has an invalid sub-l3 header.");
+			inc_stats(in->skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 			return -EINVAL;
 		}
 
@@ -37,8 +38,10 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	}
 
 	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
-	if (!new_skb)
+	if (!new_skb) {
+		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
+	}
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
 	skb_put(new_skb, total_len);
@@ -178,6 +181,7 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	if (!is_inner_pkt(in)) {
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in->skb, ICMPERR_HOP_LIMIT, 0);
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
@@ -194,6 +198,7 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
 			log_debug("Packet's segments left field is nonzero.");
 			icmp64_send(in->skb, ICMPERR_HDR_FIELD, nonzero_location);
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 	}
@@ -385,13 +390,13 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 	return 0;
 }
 
-static int buffer6_to_parts(struct ipv6hdr *hdr6, int len, struct pkt_parts *parts)
+static int buffer6_to_parts(struct ipv6hdr *hdr6, int len, struct pkt_parts *parts, int *field)
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *hdr_icmp;
 	int error;
 
-	error = validate_ipv6_integrity(hdr6, len, true, &iterator);
+	error = validate_ipv6_integrity(hdr6, len, true, &iterator, field);
 	if (error)
 		return error;
 
@@ -403,27 +408,35 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, int len, struct pkt_parts *par
 	switch (iterator.hdr_type) {
 	case NEXTHDR_TCP:
 		error = validate_lengths_tcp(len, parts->l3_hdr.len, iterator.data);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		parts->l4_hdr.proto = L4PROTO_TCP;
 		parts->l4_hdr.len = tcp_hdr_len(iterator.data);
 		break;
 	case NEXTHDR_UDP:
 		error = validate_lengths_udp(len, parts->l3_hdr.len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		parts->l4_hdr.proto = L4PROTO_UDP;
 		parts->l4_hdr.len = sizeof(struct udphdr);
 		break;
 	case NEXTHDR_ICMP:
 		error = validate_lengths_icmp6(len, parts->l3_hdr.len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 		hdr_icmp = parts->l4_hdr.ptr;
-		if (icmpv6_has_inner_packet(hdr_icmp->icmp6_type))
+		if (icmpv6_has_inner_packet(hdr_icmp->icmp6_type)) {
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return -EINVAL; /* packet inside packet inside packet. */
+		}
 
 		parts->l4_hdr.proto = L4PROTO_ICMP;
 		parts->l4_hdr.len = sizeof(struct icmp6hdr);
@@ -433,6 +446,7 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, int len, struct pkt_parts *par
 		 * Why are we translating a error packet of a packet we couldn't have translated?
 		 * Either an attack or shouldn't happen, so drop silently.
 		 */
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return -EINVAL;
 	}
 
@@ -444,7 +458,7 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, int len, struct pkt_parts *par
 }
 
 static int translate_inner_packet_6to4(struct tuple *tuple, struct pkt_parts *in_outer,
-		struct pkt_parts *out_outer)
+		struct pkt_parts *out_outer, int *field)
 {
 	struct pkt_parts in_inner;
 	int error;
@@ -452,7 +466,7 @@ static int translate_inner_packet_6to4(struct tuple *tuple, struct pkt_parts *in
 	log_debug("Translating the inner packet (6->4)...");
 
 	memset(&in_inner, 0, sizeof(in_inner));
-	error = buffer6_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner);
+	error = buffer6_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner, field);
 	if (error)
 		return error;
 
@@ -467,6 +481,7 @@ static int create_icmp4_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		struct pkt_parts *out)
 {
 	int error;
+	int field = 0;
 	struct icmp6hdr *icmpv6_hdr = in->l4_hdr.ptr;
 	struct icmphdr *icmpv4_hdr = out->l4_hdr.ptr;
 
@@ -488,8 +503,10 @@ static int create_icmp4_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 
 	case ICMPV6_DEST_UNREACH:
 		error = icmp6_to_icmp4_dest_unreach(icmpv6_hdr, icmpv4_hdr);
-		if (error)
+		if (error) {
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
+		}
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
@@ -513,8 +530,10 @@ static int create_icmp4_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 
 	case ICMPV6_PARAMPROB:
 		error = icmp6_to_icmp4_param_prob(icmpv6_hdr, icmpv4_hdr);
-		if (error)
+		if (error) {
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
+		}
 		break;
 
 	default:
@@ -524,14 +543,17 @@ static int create_icmp4_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		 * Neighbor Discover messages (133 - 137).
 		 */
 		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
+		inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 		return -EINVAL;
 	}
 
 	/* -- Then the payload. -- */
 	if (icmpv6_has_inner_packet(icmpv6_hdr->icmp6_type)) {
-		error = translate_inner_packet_6to4(tuple, in, out);
-		if (error)
+		error = translate_inner_packet_6to4(tuple, in, out, &field);
+		if (error) {
+			inc_stats(in->skb, field);
 			return error;
+		}
 	} else {
 		memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
 	}
@@ -601,8 +623,10 @@ static int post_icmp4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 		int i, len;
 
 		error = skb_aggregate_ipv4_payload_len(out, &len);
-		if (error)
+		if (error) {
+			inc_stats(out, IPSTATS_MIB_INHDRERRORS);
 			return error;
+		}
 
 		csum = ~csum_unfold(in_icmp->icmp6_cksum);
 

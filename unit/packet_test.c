@@ -176,6 +176,7 @@ static bool test_validate_icmp_integrity(void)
 	struct hdr_iterator iterator6;
 	bool success = true;
 	int error;
+	int field = 0;
 
 	if (init_pair4(&pair4, "8.7.6.5", 8765, "5.6.7.8", 5678) != 0)
 		return false;
@@ -189,11 +190,11 @@ static bool test_validate_icmp_integrity(void)
 		kfree(skb_icmp4_info);
 	}
 
-	error = validate_ipv4_integrity(ip_hdr(skb_icmp4_info), skb_icmp4_info->len, false);
+	error = validate_ipv4_integrity(ip_hdr(skb_icmp4_info), skb_icmp4_info->len, false, &field);
 	success &= assert_equals_int(0, error, "validate ipv4_integrity");
 	error = fix_checksums_ipv4(skb_icmp4_info);
 	success &= assert_equals_int(0, error, "validate fix_checksums_ipv4_icmp");
-	error = validate_ipv6_integrity(ipv6_hdr(skb_icmp6_info), skb_icmp6_info->len, false, &iterator6);
+	error = validate_ipv6_integrity(ipv6_hdr(skb_icmp6_info), skb_icmp6_info->len, false, &iterator6, &field);
 	success &= assert_equals_int(0, error, "Validate ipv6 integrity");
 	error = fix_checksums_ipv6(skb_icmp6_info);
 	success &= assert_equals_int(0, error, "validate fix_checksums_ipv6_icmp");

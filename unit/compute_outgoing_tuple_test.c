@@ -119,6 +119,7 @@ static bool test_6to4(l4_protocol l4_proto)
 {
 	struct tuple incoming, outgoing;
 	bool success = true;
+	int field = 0;
 
 	incoming.src.addr.ipv6 = remote_ipv6;
 	incoming.dst.addr.ipv6 = local_ipv6;
@@ -128,11 +129,11 @@ static bool test_6to4(l4_protocol l4_proto)
 	incoming.l4_proto = l4_proto;
 
 	if (l4_proto != L4PROTO_ICMP) {
-		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing), "Function5 call");
+		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing, &field), "Function5 call");
 		success &= assert_equals_u16(80, outgoing.src.l4_id, "Source port");
 		success &= assert_equals_u16(123, outgoing.dst.l4_id, "Destination port");
 	} else {
-		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing), "Function3 call");
+		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing, &field), "Function3 call");
 		success &= assert_equals_u16(80, outgoing.icmp_id, "ICMP ID");
 	}
 	success &= assert_equals_ipv4(&local_ipv4, &outgoing.src.addr.ipv4, "Source address");
@@ -147,6 +148,7 @@ static bool test_4to6(l4_protocol l4_proto)
 {
 	struct tuple incoming, outgoing;
 	bool success = true;
+	int field = 0;
 
 	incoming.src.addr.ipv4 = remote_ipv4;
 	incoming.dst.addr.ipv4 = local_ipv4;
@@ -156,11 +158,11 @@ static bool test_4to6(l4_protocol l4_proto)
 	incoming.l4_proto = l4_proto;
 
 	if (l4_proto != L4PROTO_ICMP) {
-		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing), "Function5 call");
+		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing, &field), "Function5 call");
 		success &= assert_equals_u16(123, outgoing.src.l4_id, "Source port");
 		success &= assert_equals_u16(1500, outgoing.dst.l4_id, "Destination port");
 	} else {
-		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing), "Function3 call");
+		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing, &field), "Function3 call");
 		success &= assert_equals_u16(1500, outgoing.icmp_id, "ICMP ID");
 	}
 	success &= assert_equals_ipv6(&local_ipv6, &outgoing.src.addr.ipv6, "Source address");

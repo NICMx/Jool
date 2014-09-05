@@ -287,7 +287,7 @@ int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
  * @param iterator this function will leave this iterator at the layer-3 payload of "hdr"'s buffer.
  */
 int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator);
+		struct hdr_iterator *iterator, int *field);
 /**
  * Fails if "hdr" is corrupted.
  *
@@ -295,7 +295,7 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
  * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
  *		not be considered a problem.
  */
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated);
+int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field);
 
 /**
  * @{

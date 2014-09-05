@@ -45,7 +45,7 @@ obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
 
 
-MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o
+MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
 
 
 $(ITERATOR)-objs += $(MIN_REQS)

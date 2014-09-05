@@ -1,5 +1,6 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/comm/types.h"
+#include "nat64/mod/stats.h"
 
 #include <linux/version.h>
 #include <linux/list.h>
@@ -70,16 +71,19 @@ int route_ipv4(struct sk_buff *skb)
 	if (!table || IS_ERR(table)) {
 		error = abs(PTR_ERR(table));
 		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (table->dst.error) {
 		error = abs(table->dst.error);
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
+		inc_stats(skb, IPSTATS_MIB_OUTDISCARDS);
 		return -EINVAL;
 	}
 
@@ -140,11 +144,13 @@ int route_ipv6(struct sk_buff *skb)
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 	if (dst->error) {
 		int error = abs(dst->error);
 		log_debug("ip6_route_output() returned error %d. Cannot route packet.", error);
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 
@@ -191,6 +197,7 @@ verdict send_pkt(struct sk_buff *skb)
 			 * If there were more skbs, they were fragments anyway, so the receiving node will
 			 * fail to reassemble them.
 			 */
+			inc_stats(skb, IPSTATS_MIB_OUTDISCARDS);
 			kfree_skb_queued(next_skb);
 			return VER_DROP;
 		}

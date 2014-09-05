@@ -42,8 +42,10 @@ static int ttp46_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	}
 
 	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
-	if (!new_skb)
+	if (!new_skb) {
+		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
+	}
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
 	skb_put(new_skb, total_len);
@@ -151,6 +153,7 @@ static int create_ipv6_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	if (!is_inner_pkt(in)) {
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in->skb, ICMPERR_HOP_LIMIT, 0);
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 		ip6_hdr->hop_limit = ip4_hdr->ttl - 1;
@@ -172,6 +175,7 @@ static int create_ipv6_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	if (!is_inner_pkt(in) && has_unexpired_src_route(ip4_hdr)) {
 		log_debug("Packet has an unexpired source route.");
 		icmp64_send(in->skb, ICMPERR_SRC_ROUTE, 0);
+		inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 		return -EINVAL;
 	}
 
@@ -322,6 +326,7 @@ static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *o
 	default: /* hostPrecedenceViolation (14) is known to fall through here. */
 		log_debug("ICMPv4 messages type %u code %u do not exist in ICMPv6.",
 				icmpv4_hdr->type, icmpv4_hdr->code);
+		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 		return -EINVAL; /* No ICMP error. */
 	}
 
@@ -366,12 +371,12 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr
 	return 0;
 }
 
-static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts)
+static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts, int *field)
 {
 	struct icmphdr *hdr_icmp;
 	int error;
 
-	error = validate_ipv4_integrity(hdr4, len, true);
+	error = validate_ipv4_integrity(hdr4, len, true, field);
 	if (error)
 		return error;
 
@@ -383,27 +388,35 @@ static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts
 	switch (hdr4->protocol) {
 	case IPPROTO_TCP:
 		error = validate_lengths_tcp(len, parts->l3_hdr.len, parts->l4_hdr.ptr);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		parts->l4_hdr.proto = L4PROTO_TCP;
 		parts->l4_hdr.len = tcp_hdr_len(parts->l4_hdr.ptr);
 		break;
 	case IPPROTO_UDP:
 		error = validate_lengths_udp(len, parts->l3_hdr.len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		parts->l4_hdr.proto = L4PROTO_UDP;
 		parts->l4_hdr.len = sizeof(struct udphdr);
 		break;
 	case IPPROTO_ICMP:
 		error = validate_lengths_icmp4(len, parts->l3_hdr.len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 		hdr_icmp = parts->l4_hdr.ptr;
-		if (icmp4_has_inner_packet(hdr_icmp->type))
+		if (icmp4_has_inner_packet(hdr_icmp->type)) {
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return -EINVAL; /* packet inside packet inside packet. */
+		}
 
 		parts->l4_hdr.proto = L4PROTO_ICMP;
 		parts->l4_hdr.len = sizeof(struct icmphdr);
@@ -413,6 +426,7 @@ static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts
 		 * Why are we translating a error packet of a packet we couldn't have translated?
 		 * Either an attack or shouldn't happen, so drop silently.
 		 */
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return -EINVAL;
 	}
 
@@ -427,7 +441,7 @@ static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts
  * Sets out_outer.payload.*.
  */
 static int translate_inner_packet_4to6(struct tuple *tuple, struct pkt_parts *in_outer,
-		struct pkt_parts *out_outer)
+		struct pkt_parts *out_outer, int *field)
 {
 	struct pkt_parts in_inner;
 	int error;
@@ -435,7 +449,7 @@ static int translate_inner_packet_4to6(struct tuple *tuple, struct pkt_parts *in
 	log_debug("Translating the inner packet (4->6)...");
 
 	memset(&in_inner, 0, sizeof(in_inner));
-	error = buffer4_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner);
+	error = buffer4_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner, field);
 	if (error)
 		return error;
 
@@ -452,6 +466,7 @@ static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 	int error;
 	struct icmphdr *icmpv4_hdr = in->l4_hdr.ptr;
 	struct icmp6hdr *icmpv6_hdr = out->l4_hdr.ptr;
+	int field = 0;
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
@@ -483,8 +498,10 @@ static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 
 	case ICMP_PARAMETERPROB:
 		error = icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr);
-		if (error)
+		if (error) {
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
+		}
 		break;
 
 	default:
@@ -497,14 +514,17 @@ static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		 * This time there's no ICMP error.
 		 */
 		log_debug("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
+		inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 		return -EINVAL;
 	}
 
 	/* -- Then the payload. -- */
 	if (icmp4_has_inner_packet(icmpv4_hdr->type)) {
-		error = translate_inner_packet_4to6(tuple, in, out);
-		if (error)
+		error = translate_inner_packet_4to6(tuple, in, out, &field);
+		if (error) {
+			inc_stats(in->skb, field);
 			return error;
+		}
 	} else {
 		memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
 	}
@@ -580,8 +600,10 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 		unsigned int i, len;
 
 		error = skb_aggregate_ipv6_payload_len(out, &len);
-		if (error)
+		if (error) {
+			inc_stats(out, IPSTATS_MIB_INHDRERRORS);
 			return error;
+		}
 
 		csum = ~csum_unfold(in_icmp->checksum);
 
