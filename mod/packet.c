@@ -450,7 +450,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 		error = ip_route_input(skb, hdr4->daddr, hdr4->saddr, hdr4->tos, skb->dev);
 		if (error) {
 			log_debug("ip_route_input failed: %d", error);
-			inc_stats(skb, IPSTATS_MIB_INNOROUTES); //TODO: stats (IN/OUT)NO_ROUTES???
+			inc_stats(skb, IPSTATS_MIB_INNOROUTES);
 			return error;
 		}
 	}

@@ -617,8 +617,10 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 	}
 	if (is_error(current_steps->l3_post_fn(&out)))
 		goto fail;
-	if (is_error(current_steps->route_fn(out.skb)))
+	if (is_error(current_steps->route_fn(out.skb))) {
+		inc_stats(in_skb, IPSTATS_MIB_OUTNOROUTES);
 		goto fail;
+	}
 
 	if (is_error(fragment_if_too_big(in_skb, out.skb)))
 		goto fail;
