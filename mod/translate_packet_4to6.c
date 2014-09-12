@@ -265,7 +265,7 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 		 * Gotta override and hope for the best.
 		 * See RFC 6145 section 6, second approach, to understand the logic here.
 		 */
-		result = IPV6_MIN_MTU + 20;
+		result = IPV6_MIN_MTU;
 	}
 	rcu_read_unlock_bh();
 
@@ -556,28 +556,23 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 	__wsum csum;
 	int error;
 
+	/* See comments at post_icmp4(). */
+
 	if (out_icmp->icmp6_type == ICMPV6_PKT_TOOBIG && out_icmp->icmp6_code == 0) {
 		error = post_mtu6(in, out);
 		if (error)
 			return error;
 	}
 
+	out_icmp->icmp6_cksum = 0;
 	if (is_icmp6_error(out_icmp->icmp6_type)) {
-		/*
-		 * Header and payload both changed completely, so just trash the old checksum
-		 * and start anew.
-		 */
-		out_icmp->icmp6_cksum = 0;
 		csum = csum_partial(out_icmp, skb_l4hdr_len(out), 0);
 		csum = csum_partial(skb_payload(out), skb_payload_len(out), csum);
 		out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
 				skb_l4hdr_len(out) + skb_payload_len(out), IPPROTO_ICMPV6, csum);
 	} else {
-		/*
-		 * Only the ICMP header changed, so subtract the old data from the checksum
-		 * and add the new one.
-		 */
-		unsigned int i, len;
+		struct icmphdr copy_hdr;
+		unsigned int len;
 
 		error = skb_aggregate_ipv6_payload_len(out, &len);
 		if (error)
@@ -585,65 +580,36 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 
 		csum = ~csum_unfold(in_icmp->checksum);
 
-		/* Add the ICMPv6 pseudo-header */
-		for (i = 0; i < 8; i++)
-			csum = csum_add(csum, out_ip6->saddr.s6_addr16[i]);
-		for (i = 0; i < 8; i++)
-			csum = csum_add(csum, out_ip6->daddr.s6_addr16[i]);
+		memcpy(&copy_hdr, in_icmp, sizeof(*in_icmp));
+		copy_hdr.checksum = 0;
+		csum = csum_sub(csum, csum_partial(&copy_hdr, sizeof(copy_hdr), 0));
 
-		csum = csum_add(csum, cpu_to_be16(len));
-		csum = csum_add(csum, cpu_to_be16(NEXTHDR_ICMP));
+		csum = csum_add(csum, csum_partial(out_icmp, sizeof(*out_icmp), 0));
 
-		/* Add the ICMPv6 header */
-		csum = csum_add(csum, cpu_to_be16(out_icmp->icmp6_type << 8 | out_icmp->icmp6_code));
-		csum = csum_add(csum, out_icmp->icmp6_dataun.u_echo.identifier);
-		csum = csum_add(csum, out_icmp->icmp6_dataun.u_echo.sequence);
-
-		/* There's no ICMPv4 pseudo-header. */
-
-		/* Remove the ICMPv4 header */
-		csum = csum_sub(csum, cpu_to_be16(in_icmp->type << 8 | in_icmp->code));
-		csum = csum_sub(csum, in_icmp->un.echo.id);
-		csum = csum_sub(csum, in_icmp->un.echo.sequence);
-
-		out_icmp->icmp6_cksum = csum_fold(csum);
+		out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr, len,
+				IPPROTO_ICMPV6, csum);
 	}
 
 	return 0;
 }
 
 static __sum16 update_csum_4to6(__sum16 csum16,
-		struct iphdr *in_ip4, __be16 in_src_port, __be16 in_dst_port,
-		struct ipv6hdr *out_ip6, __be16 out_src_port, __be16 out_dst_port)
+		struct iphdr *in_ip4, void *in_l4_hdr, size_t in_l4_hdr_len,
+		struct ipv6hdr *out_ip6, void *out_l4_hdr, size_t out_l4_hdr_len)
 {
-	__wsum csum;
-	int i;
-	union {
-		__be32 as32;
-		__be16 as16[2];
-	} addr4;
+	__wsum csum, pseudohdr_csum;
+
+	/* See comments at update_csum_6to4(). */
 
 	csum = ~csum_unfold(csum16);
 
-	/* Remove the IPv4 crap */
-	addr4.as32 = in_ip4->saddr;
-	for (i = 0; i < 2; i++)
-		csum = csum_sub(csum, addr4.as16[i]);
-	addr4.as32 = in_ip4->daddr;
-	for (i = 0; i < 2; i++)
-		csum = csum_sub(csum, addr4.as16[i]);
-	csum = csum_sub(csum, in_src_port);
-	csum = csum_sub(csum, in_dst_port);
+	pseudohdr_csum = csum_tcpudp_nofold(in_ip4->saddr, in_ip4->daddr, 0, 0, 0);
+	csum = csum_sub(csum, pseudohdr_csum);
+	csum = csum_sub(csum, csum_partial(in_l4_hdr, in_l4_hdr_len, 0));
 
-	/* Add the Ipv6 crap */
-	for (i = 0; i < 8; i++)
-		csum = csum_add(csum, out_ip6->saddr.s6_addr16[i]);
-	for (i = 0; i < 8; i++)
-		csum = csum_add(csum, out_ip6->daddr.s6_addr16[i]);
-	csum = csum_add(csum, out_src_port);
-	csum = csum_add(csum, out_dst_port);
-
-	/* "Next Header" and "length" remain equal. */
+	pseudohdr_csum = ~csum_unfold(csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr, 0, 0, 0));
+	csum = csum_add(csum, pseudohdr_csum);
+	csum = csum_add(csum, csum_partial(out_l4_hdr, out_l4_hdr_len, 0));
 
 	return csum_fold(csum);
 }
@@ -655,10 +621,15 @@ static int post_tcp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff
 {
 	struct tcphdr *in_tcp = tcp_hdr(in);
 	struct tcphdr *out_tcp = tcp_hdr(out);
+	struct tcphdr in_copy;
 
+	memcpy(&in_copy, in_tcp, sizeof(*in_tcp));
+	in_copy.check = 0;
+
+	out_tcp->check = 0;
 	out_tcp->check = update_csum_4to6(in_tcp->check,
-			ip_hdr(in), in_tcp->source, in_tcp->dest,
-			ipv6_hdr(out), out_tcp->source, out_tcp->dest);
+			ip_hdr(in), &in_copy, sizeof(in_copy),
+			ipv6_hdr(out), out_tcp, sizeof(*out_tcp));
 
 	return 0;
 }
@@ -670,10 +641,15 @@ static int post_udp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff
 {
 	struct udphdr *in_udp = udp_hdr(in);
 	struct udphdr *out_udp = udp_hdr(out);
+	struct udphdr in_copy;
 
+	memcpy(&in_copy, in_udp, sizeof(*in_udp));
+	in_copy.check = 0;
+
+	out_udp->check = 0;
 	out_udp->check = update_csum_4to6(in_udp->check,
-			ip_hdr(in), in_udp->source, in_udp->dest,
-			ipv6_hdr(out), out_udp->source, out_udp->dest);
+			ip_hdr(in), &in_copy, sizeof(in_copy),
+			ipv6_hdr(out), out_udp, sizeof(*out_udp));
 
 	return 0;
 }

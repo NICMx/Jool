@@ -52,6 +52,11 @@ bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name)
 	return assert_equals_u64(expected, actual, test_name);
 }
 
+bool assert_equals_be16(__be16 expected, __be16 actual, char *test_name)
+{
+	return assert_equals_u16(ntohs(expected), ntohs(actual), test_name);
+}
+
 bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
 {
 	return assert_equals_u64(expected, actual, test_name);
@@ -59,7 +64,7 @@ bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
 
 bool assert_equals_be32(__be32 expected, __be32 actual, char *test_name)
 {
-	return assert_equals_u32(ntohs(expected), ntohs(actual), test_name);
+	return assert_equals_u32(ntohl(expected), ntohl(actual), test_name);
 }
 
 bool assert_equals_u64(__u64 expected, __u64 actual, char *test_name)
@@ -174,6 +179,11 @@ bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name)
 		return false;
 	}
 	return true;
+}
+
+bool assert_not_equals_be16(__be16 expected, __be16 actual, char *test_name)
+{
+	return assert_not_equals_u16(ntohs(expected), ntohs(actual), test_name);
 }
 
 bool assert_not_equals_ptr(void *expected, void *actual, char *test_name)

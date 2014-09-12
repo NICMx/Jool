@@ -200,7 +200,7 @@ static bool test_update_csum_4to6(void)
 	struct ipv6_pair pair6;
 
 	int datagram_len = sizeof(*hdr_tcp4) + 100;
-	__sum16 expected_csum, actual_csum;
+	__sum16 expected_csum, original_csum, actual_csum;
 
 	if (init_pair4(&pair4, "1.2.3.4", 5678, "9.10.11.12", 1314) != 0)
 		return false;
@@ -229,10 +229,15 @@ static bool test_update_csum_4to6(void)
 	if (ipv6_tcp_post(hdr_tcp6, datagram_len, &pair6) != 0)
 		return false;
 
+	original_csum = hdr_tcp4->check;
 	expected_csum = hdr_tcp6->check;
-	actual_csum = update_csum_4to6(hdr_tcp4->check,
-			hdr4, cpu_to_be16(5678), cpu_to_be16(1314),
-			hdr6, cpu_to_be16(1718), cpu_to_be16(2122));
+
+	hdr_tcp4->check = 0;
+	hdr_tcp6->check = 0;
+
+	actual_csum = update_csum_4to6(original_csum,
+			hdr4, hdr_tcp4, sizeof(*hdr_tcp4),
+			hdr6, hdr_tcp6, sizeof(*hdr_tcp6));
 
 	return assert_equals_csum(expected_csum, actual_csum, "Checksums");
 }
@@ -347,7 +352,7 @@ static bool test_function_build_id_field(void)
 	bool success = true;
 
 	hdr.id = cpu_to_be16(1234);
-	success &= assert_equals_u32(cpu_to_be32(1234), build_id_field(&hdr), "Simple");
+	success &= assert_equals_be32(cpu_to_be32(1234), build_id_field(&hdr), "Simple");
 
 	return success;
 }
@@ -395,9 +400,9 @@ static bool test_function_icmp6_minimum_mtu(void)
 	/* Test hack 2: User wants us to try to improve the failure rate. */
 	config->lower_mtu_fail = true;
 
-	success &= assert_equals_u32(1300, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
-	success &= assert_equals_u32(1300, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
-	success &= assert_equals_u32(1300, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
+	success &= assert_equals_u32(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
+	success &= assert_equals_u32(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
+	success &= assert_equals_u32(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
 
 	success &= assert_equals_u32(1420, min_mtu(1400, 1500, 1500, 0), "Fail improve rate, packet");
 	success &= assert_equals_u32(1400, min_mtu(1500, 1400, 1500, 0), "Fail improve rate, in");
@@ -407,9 +412,9 @@ static bool test_function_icmp6_minimum_mtu(void)
 		goto revert;
 
 	/* Test both hacks at the same time. */
-	success &= assert_equals_u32(1300, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
-	success &= assert_equals_u32(1300, min_mtu(0, 1, 100, 1000), "2 hacks, override in");
-	success &= assert_equals_u32(1300, min_mtu(0, 100, 1, 1000), "2 hacks, override out");
+	success &= assert_equals_u32(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
+	success &= assert_equals_u32(1280, min_mtu(0, 1, 100, 1000), "2 hacks, override in");
+	success &= assert_equals_u32(1280, min_mtu(0, 100, 1, 1000), "2 hacks, override out");
 
 	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1500, 1500), "2 hacks, packet/not 1280");
 	success &= assert_equals_u32(1400, min_mtu(0, 1400, 1500, 1500), "2 hacks, in/not 1280");
@@ -469,10 +474,10 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 	bool success = true;
 
 	hdr.payload_len = cpu_to_be16(4); /* packet length is 44. */
-	success &= assert_equals_u16(0, generate_ipv4_id_nofrag(&hdr), "Length < 88 bytes");
+	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&hdr), "Length < 88 bytes");
 
 	hdr.payload_len = cpu_to_be16(48); /* packet length is 88. */
-	success &= assert_equals_u16(0, generate_ipv4_id_nofrag(&hdr), "Length = 88 bytes");
+	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&hdr), "Length = 88 bytes");
 
 	hdr.payload_len = cpu_to_be16(500); /* packet length is 540. */
 	attempt_1 = generate_ipv4_id_nofrag(&hdr);
@@ -482,16 +487,16 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 	 * At least one of the attempts should be nonzero,
 	 * otherwise the random would be sucking major ****.
 	 */
-	success &= assert_not_equals_u16(0, (attempt_1 | attempt_2 | attempt_3), "88 < Len < 1280");
+	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "88 < Len < 1280");
 
 	hdr.payload_len = cpu_to_be16(1240); /* packet length is 1280. */
 	attempt_1 = generate_ipv4_id_nofrag(&hdr);
 	attempt_2 = generate_ipv4_id_nofrag(&hdr);
 	attempt_3 = generate_ipv4_id_nofrag(&hdr);
-	success &= assert_not_equals_u16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1280");
+	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1280");
 
 	hdr.payload_len = cpu_to_be16(4000); /* packet length is 4040. */
-	success &= assert_equals_u16(0, generate_ipv4_id_nofrag(&hdr), "Len > 1280");
+	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&hdr), "Len > 1280");
 
 	return success;
 }
@@ -1057,7 +1062,7 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 }
 
 static bool validate_frags6(struct sk_buff *skb, struct tuple *tuple, int total_frags,
-		bool is_first[], bool is_last[], u16 frag_offset[], u16 payload_len[], u16 payload_offset[],
+		u8 is_first[], u8 is_last[], u16 frag_offset[], u16 payload_len[], u16 payload_offset[],
 		u16 total_payload, l4_protocol l4proto)
 {
 	int i;
@@ -1111,7 +1116,7 @@ static void append_frag_to_skb(struct sk_buff *prev_skb, struct sk_buff *skb)
 	skb->next = NULL;
 }
 
-static struct sk_buff *create_frags_4(int total_frags, bool mf[], u16 frag_offset[], bool df,
+static struct sk_buff *create_frags_4(int total_frags, u8 mf[], u16 frag_offset[], bool df,
 		u16 total_len, u16 payload_len[], int (*skb_create_frag_fn) (struct ipv4_pair *,
 				struct sk_buff **, u16, u16, bool, bool, u16))
 {
@@ -1148,13 +1153,13 @@ static bool test_multiple_4to6(l4_protocol l4proto, bool df)
 	u16 frag_offset[] = {0, 16, 32, 48};
 	u16 payload_len[] = {16, 16, 16, 8};
 	/* IPv4 Parameters. */
-	bool mf_flags[] = {true, true, true, false};
+	u8 mf_flags[] = {true, true, true, false};
 	u16 total_payload = 56;
 	u16 total_frags = 4;
 	u16 total_l4_len;
 	/* IPv6 Parameters. (To evaluate). */
-	bool is_first[] = {true, false, false, false};
-	bool is_last[] = {false, false, false, true};
+	u8 is_first[] = {true, false, false, false};
+	u8 is_last[] = {false, false, false, true};
 	u16 payload_offset[] = {0, 0, 0, 0};
 
 	if (!create_tuple_ipv6(&tuple, l4proto))
@@ -1263,8 +1268,8 @@ static bool validate_frag4(struct tuple *tuple, struct sk_buff *skb, l4_protocol
 }
 
 static bool validate_frags4(struct tuple *tuple, struct sk_buff *skb, int total_frags,
-		l4_protocol l4proto, u16 payload_len[], u16 payload_offset[], bool is_first[],
-		bool is_last[], u16 frag_off[], u16 total_payload)
+		l4_protocol l4proto, u16 payload_len[], u16 payload_offset[], u8 is_first[],
+		u8 is_last[], u16 frag_off[], u16 total_payload)
 {
 	int i;
 
@@ -1286,7 +1291,7 @@ static bool validate_frags4(struct tuple *tuple, struct sk_buff *skb, int total_
 }
 
 static struct sk_buff *create_frags_6(int total_frags, u16 payload_len[], u16 total_l4_len,
-		bool mf[], u16 frag_offset[], int (*skb_create_frag_fn) (struct ipv6_pair *,
+		u8 mf[], u16 frag_offset[], int (*skb_create_frag_fn) (struct ipv6_pair *,
 				struct sk_buff **, u16,	u16, bool, u16))
 {
 	struct sk_buff *root_skb, *prev_skb, *tmp_skb;
@@ -1324,12 +1329,12 @@ static bool test_multiple_6to4(l4_protocol l4proto)
 	u16 frag_offset[] = {0, 200, 400, 600};
 	u16 total_payload = 680;
 	u16 total_l4_len;
-	bool mf[] = {true, true, true, false};
+	u8 mf[] = {true, true, true, false};
 	int total_frags = 4;
 	/* IPv4 evaluate. */
 	u16 payload_offset[] = {0, 0, 0, 0};
-	bool is_first[] = {true, false, false, false};
-	bool is_last[] = {false, false, false, true};
+	u8 is_first[] = {true, false, false, false};
+	u8 is_last[] = {false, false, false, true};
 	skb_in = skb_out = NULL;
 
 	if (!create_tuple_ipv4(&tuple, l4proto))
@@ -1391,13 +1396,13 @@ static bool test_big_multiple_4to6(l4_protocol l4proto, bool df)
 	u16 frag_offset[] = {0, 3008, 6008};
 	u16 payload_len[] = {3000, 3000, 3000};
 	/* IPv4 Parameters. */
-	bool mf_flags[] = {true, true, false};
+	u8 mf_flags[] = {true, true, false};
 	u16 total_payload = 9000;
 	int total_frags = 3;
 	u16 total_l4_len;
 	/* IPv6 Parameters. (To evaluate). */
-	bool is_first[] = {true, false, false, false, false, false, false, false, false};
-	bool is_last[] = {false, false, false, false, false, false, false, false, true};
+	u8 is_first[] = {true, false, false, false, false, false, false, false, false};
+	u8 is_last[] = {false, false, false, false, false, false, false, false, true};
 	u16 frag6_offset[] = {0, 1232, 2464, 3008, 4240, 5472, 6008, 7240, 8472};
 	u16 payload6_len[] = {1224, 1232, 544, 1232, 1232, 536, 1232, 1232, 536};
 	u16 payload_offset[] = {0, 1224, 2456, 0, 1232, 2464, 0, 1232, 2464};

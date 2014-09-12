@@ -568,8 +568,13 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		return 0; /* No need for fragmentation. */
 
 	if (skb_l4_proto(skb_out) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(skb_out)->icmp6_type)) {
-		/* ICMP errors are supposed to be truncated, not fragmented. */
+		/*
+		 * ICMP errors are supposed to be truncated, not fragmented.
+		 * BTW: This corrupts the checksum, but that's fine since we're going to trash it in
+		 * post_icmp6().
+		 */
 		skb_trim(skb_out, min_ipv6_mtu);
+		ipv6_hdr(skb_out)->payload_len = cpu_to_be16(min_ipv6_mtu - sizeof(struct ipv6hdr));
 		return 0;
 	}
 
@@ -609,6 +614,7 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 	}
 	if (is_error(current_steps->l3_post_fn(&out)))
 		goto fail;
+	/* TODO esto considera que puede ser un fragmento? */
 	if (is_error(current_steps->route_fn(out.skb)))
 		goto fail;
 

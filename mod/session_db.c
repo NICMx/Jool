@@ -420,7 +420,7 @@ static struct expire_timer *set_timer(struct session_entry *session,
 	return result;
 }
 
-void commit_timer(struct expire_timer *expirer)
+static void commit_timer(struct expire_timer *expirer)
 {
 	if (expirer)
 		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
