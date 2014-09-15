@@ -36,11 +36,6 @@ static unsigned int core_common(struct sk_buff *skb_in)
 		goto end;
 
 	if (is_hairpin(skb_out)) {
-		/*
-		 * Note: There's no risk of skb_out being fragmented here,
-		 * because only outgoing IPv6 packets get fragmented,
-		 * and only outgoing IPv4 packets can hairpin.
-		 */
 		result = handling_hairpinning(skb_out, &tuple_out);
 		kfree_skb(skb_out);
 	} else {
@@ -57,19 +52,18 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	/* Fall through. */
 
 end:
-	return (unsigned int) result;
+	if (result == VER_DROP)
+		kfree_skb_queued(skb_in);
+	return NF_STOLEN;
 }
 
 unsigned int core_4to6(struct sk_buff *skb)
 {
-	struct iphdr *hdr;
+	struct iphdr *hdr = ip_hdr(skb);
 	struct in_addr daddr;
-	struct sk_buff *full_skb;
+	struct sk_buff *skbs;
+	int error;
 	verdict result;
-
-	skb_linearize(skb);
-
-	hdr = ip_hdr(skb);
 
 	daddr.s_addr = hdr->daddr;
 	if (!pool4_contains(&daddr))
@@ -78,34 +72,43 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
+	error = skb_linearize(skb);
+	if (error) {
+		log_debug("Packet linearization failed with error code %u; cannot translate.", error);
+		return NF_DROP;
+	}
+
+	/* Do not use hdr or daddr from now on. */
+
 	/*
 	 * I'm assuming the control buffer is empty, and therefore I can throw my crap at it happily.
 	 * Though common sense dictates any Netfilter module should not have to worry about leftover
 	 * CB garbage, I do not see any confirmation (formal or otherwise) of this anywhere.
 	 * Any objections?
 	 */
-	if (skb_init_cb_ipv4(skb) != 0)
+	error = skb_init_cb_ipv4(skb);
+	if (error)
 		return NF_DROP;
-	result = fragment_arrives(skb, &full_skb);
+
+	result = fragment_arrives(skb, &skbs);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
-	if (fix_checksums_ipv4(full_skb) != 0) {
-		kfree_skb_queued(full_skb);
+
+	error = validate_icmp4_csum(skbs);
+	if (error) {
+		kfree_skb_queued(skbs);
 		return NF_STOLEN;
 	}
 
-	return core_common(full_skb);
+	return core_common(skbs);
 }
 
 unsigned int core_6to4(struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr;
-	struct sk_buff *full_skb;
+	struct ipv6hdr *hdr = ipv6_hdr(skb);
+	struct sk_buff *skbs;
+	int error;
 	verdict result;
-
-	skb_linearize(skb);
-
-	hdr = ipv6_hdr(skb);
 
 	if (!pool6_contains(&hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
@@ -113,16 +116,26 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
-	/* See respective comment above. */
-	if (skb_init_cb_ipv6(skb) != 0)
+	error = skb_linearize(skb);
+	if (error) {
+		log_debug("Packet linearization failed with error code %u; cannot translate.", error);
 		return NF_DROP;
-	result = fragment_arrives(skb, &full_skb);
+	}
+
+	/* See respective comments above. */
+	error = skb_init_cb_ipv6(skb);
+	if (error)
+		return NF_DROP;
+
+	result = fragment_arrives(skb, &skbs);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
-	if (fix_checksums_ipv6(full_skb) != 0) {
-		kfree_skb_queued(full_skb);
+
+	error = validate_icmp6_csum(skbs);
+	if (error) {
+		kfree_skb_queued(skbs);
 		return NF_STOLEN;
 	}
 
-	return core_common(full_skb);
+	return core_common(skbs);
 }

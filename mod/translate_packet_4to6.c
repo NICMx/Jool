@@ -634,10 +634,7 @@ static int post_tcp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff
 	return 0;
 }
 
-/**
- * Sets the ports and checksum fields of out's UDP header.
- */
-static int post_udp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
+static void update_csum_udp(struct sk_buff *in, struct sk_buff *out)
 {
 	struct udphdr *in_udp = udp_hdr(in);
 	struct udphdr *out_udp = udp_hdr(out);
@@ -650,6 +647,40 @@ static int post_udp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff
 	out_udp->check = update_csum_4to6(in_udp->check,
 			ip_hdr(in), &in_copy, sizeof(in_copy),
 			ipv6_hdr(out), out_udp, sizeof(*out_udp));
+}
 
+/**
+ * Assumes that "pkt" is IPv6 and UDP, and computes and sets its l4-checksum.
+ * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
+ * IPv4 nodes.
+ * This is actually required in the Determine Incoming Tuple step, but it feels more at home here.
+ */
+static void compute_csum_udp(struct sk_buff *skb)
+{
+	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
+	struct udphdr *hdr_udp = udp_hdr(skb);
+	unsigned int datagram_len;
+	__wsum csum;
+
+	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+	csum = csum_partial(hdr_udp, datagram_len, 0);
+	for (skb = skb->next; skb; skb = skb->next) {
+		unsigned int current_len = skb_payload_len(skb);
+		csum = csum_partial(skb_payload(skb), current_len, csum);
+		datagram_len += current_len;
+	}
+
+	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, datagram_len, IPPROTO_UDP, csum);
+}
+
+/**
+ * Fixes the checksum field of out's UDP header.
+ */
+static int post_udp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
+{
+	if (udp_hdr(in)->check != 0)
+		update_csum_udp(in, out);
+	else
+		compute_csum_udp(out);
 	return 0;
 }
