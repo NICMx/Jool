@@ -527,28 +527,15 @@ int fragmentdb_set_config(enum fragmentation_type type, size_t size, void *value
 
 static bool skb_is_frag(struct sk_buff *skb)
 {
-	struct iphdr *hdr4;
-	struct frag_hdr *hdr_frag;
-	__u16 fragment_offset = 0;
-	bool mf = false;
-
 	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV4:
-		hdr4 = ip_hdr(skb);
-		fragment_offset = get_fragment_offset_ipv4(hdr4);
-		mf = is_more_fragments_set_ipv4(hdr4);
-		break;
+		return is_fragmented_ipv4(ip_hdr(skb));
 
 	case L3PROTO_IPV6:
-		hdr_frag = skb_frag_hdr(skb);
-		if (!hdr_frag)
-			return false;
-		fragment_offset = get_fragment_offset_ipv6(hdr_frag);
-		mf = is_more_fragments_set_ipv6(hdr_frag);
-		break;
+		return is_fragmented_ipv6(skb_frag_hdr(skb));
 	}
 
-	return (fragment_offset != 0) || (mf);
+	return false;
 }
 
 static bool is_first(struct sk_buff *skb)

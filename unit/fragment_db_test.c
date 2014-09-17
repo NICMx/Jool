@@ -16,17 +16,6 @@ MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Fragment database test");
 
 
-static bool is_first_frag(struct sk_buff *skb)
-{
-	switch (skb_l3_proto(skb)) {
-	case L3PROTO_IPV6:
-		return is_first_fragment_ipv6(skb_frag_hdr(skb));
-	case L3PROTO_IPV4:
-		return is_first_fragment_ipv4(ip_hdr(skb));
-	}
-	BUG_ON(true);
-}
-
 static bool validate_packet(struct sk_buff *first_skb, int expected_frag_count)
 {
 	struct sk_buff *skb;
@@ -37,13 +26,13 @@ static bool validate_packet(struct sk_buff *first_skb, int expected_frag_count)
 	if (!success)
 		return false;
 
-	success &= assert_true(is_first_frag(first_skb), "1st frag in list is frag offset 0 fragment");
+	success &= assert_true(is_first(first_skb), "1st frag in list is frag offset 0 fragment");
 
 	skb = first_skb;
 	while (skb->next) {
 		skb = skb->next;
 		actual_frag_count++;
-		success &= assert_false(is_first_frag(skb), "Other fragments aren't the first one");
+		success &= assert_false(is_first(skb), "Other fragments aren't the first one");
 		success &= assert_not_equals_ptr(first_skb, skb, "Fragment list is not forward circular");
 		if (!success)
 			return false;

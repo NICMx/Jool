@@ -145,8 +145,8 @@ static int create_ipv6_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
-	/* This is just a temporary filler value. The real one will be set during post-processing. */
-	ip6_hdr->payload_len = ip4_hdr->tot_len;
+	ip6_hdr->payload_len = cpu_to_be16(out->l3_hdr.len - sizeof(struct ipv6hdr)
+			+ out->l4_hdr.len + out->payload.len);;
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
 	if (!is_inner_pkt(in)) {
 		if (ip4_hdr->ttl <= 1) {
@@ -193,19 +193,6 @@ static int create_ipv6_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 				is_more_fragments_set_ipv4(ip4_hdr));
 		frag_header->identification = build_id_field(ip4_hdr);
 	}
-
-	return 0;
-}
-
-/**
- * Sets the Payload Length field from out's IPv6 header.
- */
-static int post_ipv6(struct pkt_parts *out)
-{
-	struct ipv6hdr *ip6_hdr = out->l3_hdr.ptr;
-	__u16 l3_hdr_len = out->l3_hdr.len - sizeof(struct ipv6hdr);
-
-	ip6_hdr->payload_len = cpu_to_be16(l3_hdr_len + out->l4_hdr.len + out->payload.len);
 
 	return 0;
 }
@@ -272,6 +259,39 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 	return cpu_to_be32(result);
 }
 
+static int compute_mtu6(struct sk_buff *in, struct sk_buff *out)
+{
+	struct icmp6hdr *out_icmp = icmp6_hdr(out);
+#ifndef UNIT_TESTING
+	struct dst_entry *out_dst;
+	struct iphdr *hdr4;
+	struct icmphdr *in_icmp = icmp_hdr(in);
+
+	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
+
+	if (!in || !in->dev)
+		return -EINVAL;
+	log_debug("In dev MTU: %u", in->dev->mtu);
+
+	out_dst = skb_dst(out);
+	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
+
+	/* We want the length of the packet that couldn't get through, not the truncated one. */
+	hdr4 = skb_payload(in);
+
+	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu),
+			out_dst->dev->mtu,
+			in->dev->mtu,
+			be16_to_cpu(hdr4->tot_len));
+	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
+
+#else
+	out_icmp->icmp6_mtu = cpu_to_be32(1500);
+#endif
+
+	return 0;
+}
+
 /**
  * One-liner for translating "Destination Unreachable" messages from ICMPv4 to ICMPv6.
  */
@@ -279,6 +299,7 @@ static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *o
 {
 	struct icmphdr *icmpv4_hdr = in->l4_hdr.ptr;
 	struct icmp6hdr *icmpv6_hdr = out->l4_hdr.ptr;
+	int error;
 
 	icmpv6_hdr->icmp6_type = ICMPV6_DEST_UNREACH;
 	icmpv6_hdr->icmp6_unused = 0;
@@ -308,8 +329,9 @@ static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *o
 	case ICMP_FRAG_NEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_PKT_TOOBIG;
 		icmpv6_hdr->icmp6_code = 0;
-		/* I moved this to post_icmp6() because it needs the skb already created. */
-		icmpv6_hdr->icmp6_mtu = htonl(0);
+		error = compute_mtu6(in->skb, out->skb);
+		if (error)
+			return error;
 		break;
 
 	case ICMP_NET_ANO:
@@ -423,10 +445,112 @@ static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts
 	return 0;
 }
 
-/**
- * Sets out_outer.payload.*.
- */
-static int translate_inner_packet_4to6(struct tuple *tuple, struct pkt_parts *in_outer,
+static bool is_truncated_ipv6(struct pkt_parts *parts)
+{
+	struct ipv6hdr *hdr6;
+	struct udphdr *hdr_udp;
+	uint16_t l3_payload_len;
+
+	switch (parts->l4_hdr.proto) {
+	case L4PROTO_TCP:
+	case L4PROTO_ICMP:
+		/* Calculating the checksum doesn't hurt. Not calculating it might. */
+		return false;
+	case L4PROTO_UDP:
+		hdr6 = parts->l3_hdr.ptr;
+		hdr_udp = parts->l4_hdr.ptr;
+		l3_payload_len = ntohs(hdr6->payload_len) - (parts->l4_hdr.ptr - parts->l3_hdr.ptr);
+		return l3_payload_len == ntohs(hdr_udp->len);
+	}
+
+	return true; /* whatever. */
+}
+
+static bool is_csum6_computable(struct pkt_parts *parts)
+{
+	struct ipv6hdr *hdr6 = parts->l3_hdr.ptr;
+	struct frag_hdr *hdr_frag = (hdr6->nexthdr == NEXTHDR_FRAGMENT)
+			? ((struct frag_hdr *) (hdr6 + 1))
+			: NULL;
+
+	if (!is_first_fragment_ipv6(hdr_frag))
+		return false;
+
+	if (!is_inner_pkt(parts))
+		return true;
+
+	if (is_truncated_ipv6(parts))
+		return false;
+
+	if (is_fragmented_ipv6(hdr_frag))
+		return false;
+
+	return true;
+}
+
+static int update_icmp6_csum(struct pkt_parts *in, struct pkt_parts *out)
+{
+	struct ipv6hdr *out_ip6 = out->l3_hdr.ptr;
+	struct icmphdr *in_icmp = in->l4_hdr.ptr;
+	struct icmp6hdr *out_icmp = out->l4_hdr.ptr;
+	struct icmphdr copy_hdr;
+	unsigned int len;
+	__wsum csum;
+	int error;
+
+	out_icmp->icmp6_cksum = 0;
+
+	if (is_inner_pkt(out)) {
+		len = out->l4_hdr.len + out->payload.len;
+	} else {
+		error = skb_aggregate_ipv6_payload_len(out->skb, &len);
+		if (error)
+			return error;
+	}
+
+	csum = ~csum_unfold(in_icmp->checksum);
+
+	memcpy(&copy_hdr, in_icmp, sizeof(*in_icmp));
+	copy_hdr.checksum = 0;
+	csum = csum_sub(csum, csum_partial(&copy_hdr, sizeof(copy_hdr), 0));
+
+	csum = csum_add(csum, csum_partial(out_icmp, sizeof(*out_icmp), 0));
+
+	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr, len,
+			IPPROTO_ICMPV6, csum);
+
+	return 0;
+}
+
+static int compute_icmp6_csum(struct pkt_parts *out)
+{
+	struct ipv6hdr *out_ip6 = out->l3_hdr.ptr;
+	struct icmp6hdr *out_icmp = out->l4_hdr.ptr;
+	__wsum csum;
+
+	out_icmp->icmp6_cksum = 0;
+	csum = csum_partial(out_icmp, out->l4_hdr.len, 0);
+	csum = csum_partial(out->payload.ptr, out->payload.len, csum);
+	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
+			out->l4_hdr.len + out->payload.len, IPPROTO_ICMPV6, csum);
+
+	return 0;
+}
+
+static int post_icmp6info(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+{
+	int error;
+
+	error = copy_payload(tuple, in, out);
+	if (error)
+		return error;
+	if (is_csum6_computable(out))
+		error = update_icmp6_csum(in, out);
+
+	return error;
+}
+
+static int post_icmp6error(struct tuple *tuple, struct pkt_parts *in_outer,
 		struct pkt_parts *out_outer)
 {
 	struct pkt_parts in_inner;
@@ -439,27 +563,33 @@ static int translate_inner_packet_4to6(struct tuple *tuple, struct pkt_parts *in
 	if (error)
 		return error;
 
-	return translate_inner_packet(tuple, &in_inner, out_outer);
+	error = translate_inner_packet(tuple, &in_inner, out_outer);
+	if (error)
+		return error;
+
+	if (is_csum6_computable(out_outer))
+		error = compute_icmp6_csum(out_outer);
+
+	return error;
 }
 
 /**
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *in,
-		struct pkt_parts *out)
+static int icmp_4to6(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
-	int error;
 	struct icmphdr *icmpv4_hdr = in->l4_hdr.ptr;
 	struct icmp6hdr *icmpv6_hdr = out->l4_hdr.ptr;
+	int error = 0;
 
-	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
 		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple->icmp_id);
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
+		error = post_icmp6info(tuple, in, out);
 		break;
 
 	case ICMP_ECHOREPLY:
@@ -467,24 +597,28 @@ static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		icmpv6_hdr->icmp6_code = 0;
 		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple->icmp_id);
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
+		error = post_icmp6info(tuple, in, out);
 		break;
 
 	case ICMP_DEST_UNREACH:
 		error = icmp4_to_icmp6_dest_unreach(in, out);
 		if (error)
 			return error;
+		error = post_icmp6error(tuple, in, out);
 		break;
 
 	case ICMP_TIME_EXCEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_TIME_EXCEED;
 		icmpv6_hdr->icmp6_code = icmpv4_hdr->code;
 		icmpv6_hdr->icmp6_unused = 0;
+		error = post_icmp6error(tuple, in, out);
 		break;
 
 	case ICMP_PARAMETERPROB:
 		error = icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr);
 		if (error)
 			return error;
+		error = post_icmp6error(tuple, in, out);
 		break;
 
 	default:
@@ -500,97 +634,7 @@ static int create_icmp6_hdr_and_payload(struct tuple* tuple, struct pkt_parts *i
 		return -EINVAL;
 	}
 
-	/* -- Then the payload. -- */
-	if (icmp4_has_inner_packet(icmpv4_hdr->type)) {
-		error = translate_inner_packet_4to6(tuple, in, out);
-		if (error)
-			return error;
-	} else {
-		memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
-	}
-
-	return 0;
-}
-
-static int post_mtu6(struct sk_buff *in, struct sk_buff *out)
-{
-	struct icmp6hdr *out_icmp = icmp6_hdr(out);
-#ifndef UNIT_TESTING
-	struct dst_entry *out_dst;
-	struct iphdr *hdr4;
-	struct icmphdr *in_icmp = icmp_hdr(in);
-
-	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
-
-	if (!in || !in->dev)
-		return -EINVAL;
-	log_debug("In dev MTU: %u", in->dev->mtu);
-
-	out_dst = skb_dst(out);
-	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
-
-	/* We want the length of the packet that couldn't get through, not the truncated one. */
-	hdr4 = skb_payload(in);
-
-	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu),
-			out_dst->dev->mtu,
-			in->dev->mtu,
-			be16_to_cpu(hdr4->tot_len));
-	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
-
-#else
-	out_icmp->icmp6_mtu = cpu_to_be32(1500);
-#endif
-
-	return 0;
-}
-
-/**
- * Sets the Checksum field from out's ICMPv6 header.
- */
-static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
-{
-	struct ipv6hdr *out_ip6 = ipv6_hdr(out);
-	struct icmphdr *in_icmp = icmp_hdr(in);
-	struct icmp6hdr *out_icmp = icmp6_hdr(out);
-	__wsum csum;
-	int error;
-
-	/* See comments at post_icmp4(). */
-
-	if (out_icmp->icmp6_type == ICMPV6_PKT_TOOBIG && out_icmp->icmp6_code == 0) {
-		error = post_mtu6(in, out);
-		if (error)
-			return error;
-	}
-
-	out_icmp->icmp6_cksum = 0;
-	if (is_icmp6_error(out_icmp->icmp6_type)) {
-		csum = csum_partial(out_icmp, skb_l4hdr_len(out), 0);
-		csum = csum_partial(skb_payload(out), skb_payload_len(out), csum);
-		out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
-				skb_l4hdr_len(out) + skb_payload_len(out), IPPROTO_ICMPV6, csum);
-	} else {
-		struct icmphdr copy_hdr;
-		unsigned int len;
-
-		error = skb_aggregate_ipv6_payload_len(out, &len);
-		if (error)
-			return error;
-
-		csum = ~csum_unfold(in_icmp->checksum);
-
-		memcpy(&copy_hdr, in_icmp, sizeof(*in_icmp));
-		copy_hdr.checksum = 0;
-		csum = csum_sub(csum, csum_partial(&copy_hdr, sizeof(copy_hdr), 0));
-
-		csum = csum_add(csum, csum_partial(out_icmp, sizeof(*out_icmp), 0));
-
-		out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr, len,
-				IPPROTO_ICMPV6, csum);
-	}
-
-	return 0;
+	return error;
 }
 
 static __sum16 update_csum_4to6(__sum16 csum16,
@@ -615,72 +659,111 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 }
 
 /**
- * Sets the Checksum field from out's TCP header.
- */
-static int post_tcp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
-{
-	struct tcphdr *in_tcp = tcp_hdr(in);
-	struct tcphdr *out_tcp = tcp_hdr(out);
-	struct tcphdr in_copy;
-
-	memcpy(&in_copy, in_tcp, sizeof(*in_tcp));
-	in_copy.check = 0;
-
-	out_tcp->check = 0;
-	out_tcp->check = update_csum_4to6(in_tcp->check,
-			ip_hdr(in), &in_copy, sizeof(in_copy),
-			ipv6_hdr(out), out_tcp, sizeof(*out_tcp));
-
-	return 0;
-}
-
-static void update_csum_udp(struct sk_buff *in, struct sk_buff *out)
-{
-	struct udphdr *in_udp = udp_hdr(in);
-	struct udphdr *out_udp = udp_hdr(out);
-	struct udphdr in_copy;
-
-	memcpy(&in_copy, in_udp, sizeof(*in_udp));
-	in_copy.check = 0;
-
-	out_udp->check = 0;
-	out_udp->check = update_csum_4to6(in_udp->check,
-			ip_hdr(in), &in_copy, sizeof(in_copy),
-			ipv6_hdr(out), out_udp, sizeof(*out_udp));
-}
-
-/**
- * Assumes that "pkt" is IPv6 and UDP, and computes and sets its l4-checksum.
+ * Assumes that "out" is IPv6 and UDP, and computes and sets its l4-checksum.
  * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
  * IPv4 nodes.
  * This is actually required in the Determine Incoming Tuple step, but it feels more at home here.
  */
-static void compute_csum_udp(struct sk_buff *skb)
+static void handle_zero_csum(struct pkt_parts *in, struct pkt_parts *out)
 {
-	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
-	struct udphdr *hdr_udp = udp_hdr(skb);
+	struct sk_buff *skb_in;
+	struct ipv6hdr *hdr6 = out->l3_hdr.ptr;
+	struct udphdr *hdr_udp = out->l4_hdr.ptr;
 	unsigned int datagram_len;
 	__wsum csum;
 
-	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
-	csum = csum_partial(hdr_udp, datagram_len, 0);
-	for (skb = skb->next; skb; skb = skb->next) {
-		unsigned int current_len = skb_payload_len(skb);
-		csum = csum_partial(skb_payload(skb), current_len, csum);
-		datagram_len += current_len;
+	if (is_inner_pkt(in) && is_fragmented_ipv4(in->l3_hdr.ptr)) {
+		/*
+		 * There's no way to compute the checksum.
+		 * Also, this should never happen because we're supposed to have translated this inner
+		 * packet, and we never assign zero UDP checksums in theory.
+		 * But just in case, don't drop the packet.
+		 */
+		hdr_udp->check = (__force __sum16) 0x1234;
+		return;
 	}
+
+	/*
+	 * Here's the deal:
+	 * We want to compute out's checksum. **out is a packet whose fragment offset is zero**.
+	 *
+	 * Problem is, out's payload hasn't been translated yet. Because it can be scattered through
+	 * several fragments, moving this step would make it look annoyingly out of place way later.
+	 *
+	 * Instead, we can exploit the fact that the translation does not affect the UDP payload,
+	 * so here's what we will actually include in the checksum:
+	 * - out's pseudoheader (this will actually be summed last).
+	 * - out's UDP header.
+	 * - in's payload.
+	 *
+	 * That's the second reason why we needed in as an argument.
+	 */
+
+	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
+
+	skb_in = in->skb;
+	datagram_len = sizeof(*hdr_udp);
+	do {
+		unsigned int current_len = skb_payload_len(skb_in);
+		csum = csum_partial(skb_payload(skb_in), current_len, csum);
+		datagram_len += current_len;
+
+		skb_in = skb_in->next;
+	} while (skb_in);
 
 	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, datagram_len, IPPROTO_UDP, csum);
 }
 
-/**
- * Fixes the checksum field of out's UDP header.
- */
-static int post_udp_ipv6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out)
+static int tcp_4to6(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
-	if (udp_hdr(in)->check != 0)
-		update_csum_udp(in, out);
-	else
-		compute_csum_udp(out);
+	struct tcphdr *tcp_in = in->l4_hdr.ptr;
+	struct tcphdr *tcp_out = out->l4_hdr.ptr;
+	struct tcphdr tcp_copy;
+
+	/* Header */
+	memcpy(tcp_out, tcp_in, in->l4_hdr.len);
+
+	tcp_out->source = cpu_to_be16(tuple->src.l4_id);
+	tcp_out->dest = cpu_to_be16(tuple->dst.l4_id);
+
+	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
+	tcp_copy.check = 0;
+
+	tcp_out->check = 0;
+	tcp_out->check = update_csum_4to6(tcp_in->check,
+			in->l3_hdr.ptr, &tcp_copy, sizeof(tcp_copy),
+			out->l3_hdr.ptr, tcp_out, sizeof(*tcp_out));
+
+	/* Payload */
+	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
+
+	return 0;
+}
+
+static int udp_4to6(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+{
+	struct udphdr *udp_in = in->l4_hdr.ptr;
+	struct udphdr *udp_out = out->l4_hdr.ptr;
+	struct udphdr udp_copy;
+
+	/* Header */
+	udp_out->source = cpu_to_be16(tuple->src.l4_id);
+	udp_out->dest = cpu_to_be16(tuple->dst.l4_id);
+	udp_out->len = udp_in->len;
+	if (udp_in->check != 0) {
+		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+		udp_copy.check = 0;
+
+		udp_out->check = 0;
+		udp_out->check = update_csum_4to6(udp_in->check,
+				in->l3_hdr.ptr, &udp_copy, sizeof(udp_copy),
+				out->l3_hdr.ptr, udp_out, sizeof(*udp_out));
+	} else {
+		handle_zero_csum(in, out);
+	}
+
+	/* Payload */
+	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
+
 	return 0;
 }

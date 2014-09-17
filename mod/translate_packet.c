@@ -69,26 +69,10 @@ struct translation_steps {
 	 */
 	int (*l3_payload_fn)(struct tuple *, struct pkt_parts *in, struct pkt_parts *out);
 	/**
-	 * Post-processing involving the layer 3 header.
-	 * Currently, this function fixes the header's lengths and checksum, which cannot be done in
-	 * the functions above given that they generally require the rest of the packet to be known.
-	 * Not all lengths and checksums might have that requirement, but just to be consistent do it
-	 * always here, please.
-	 * This function isn't run for inner packets. This is because inner packets are usually
-	 * truncated, so updating checksums and lengths leads to values just as incorrect as the
-	 * original ones.
-	 * Also, this step happens after "out->skb" has been assembled, so it can dereference it.
-	 */
-	int (*l3_post_fn)(struct pkt_parts *out);
-	/**
 	 * This needs to happen before l4_post_fn(), because that one might deal with MTUs, which
 	 * depend on skb's routing.
 	 */
 	int (*route_fn)(struct sk_buff *skb);
-	/**
-	 * Post-processing involving the layer 4 header. See l3_post_fn.
-	 */
-	int (*l4_post_fn)(struct tuple *tuple, struct sk_buff *in, struct sk_buff *out);
 };
 
 static struct translate_config *config;
@@ -121,34 +105,6 @@ static int skb_to_parts(struct sk_buff *skb, struct pkt_parts *parts)
 static int copy_payload(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
 	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
-	return 0;
-}
-
-static int create_tcp_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
-{
-	struct tcphdr *tcp_in = in->l4_hdr.ptr;
-	struct tcphdr *tcp_out = out->l4_hdr.ptr;
-
-	memcpy(tcp_out, tcp_in, in->l4_hdr.len);
-	tcp_out->source = cpu_to_be16(tuple->src.l4_id);
-	tcp_out->dest = cpu_to_be16(tuple->dst.l4_id);
-
-	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
-
-	return 0;
-}
-
-static int create_udp_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
-{
-	struct udphdr *udp_in = in->l4_hdr.ptr;
-	struct udphdr *udp_out = out->l4_hdr.ptr;
-
-	memcpy(udp_out, udp_in, in->l4_hdr.len);
-	udp_out->source = cpu_to_be16(tuple->src.l4_id);
-	udp_out->dest = cpu_to_be16(tuple->dst.l4_id);
-
-	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
-
 	return 0;
 }
 
@@ -215,44 +171,32 @@ int translate_packet_init(void)
 
 	steps[L3PROTO_IPV6][L4PROTO_TCP].skb_create_fn = ttp64_create_out_skb;
 	steps[L3PROTO_IPV6][L4PROTO_TCP].l3_hdr_fn = create_ipv4_hdr;
-	steps[L3PROTO_IPV6][L4PROTO_TCP].l3_payload_fn = create_tcp_hdr;
-	steps[L3PROTO_IPV6][L4PROTO_TCP].l3_post_fn = post_ipv4;
-	steps[L3PROTO_IPV6][L4PROTO_TCP].l4_post_fn = post_tcp_ipv4;
+	steps[L3PROTO_IPV6][L4PROTO_TCP].l3_payload_fn = tcp_6to4;
 	steps[L3PROTO_IPV6][L4PROTO_TCP].route_fn = route_ipv4;
 
 	steps[L3PROTO_IPV6][L4PROTO_UDP].skb_create_fn = ttp64_create_out_skb;
 	steps[L3PROTO_IPV6][L4PROTO_UDP].l3_hdr_fn = create_ipv4_hdr;
-	steps[L3PROTO_IPV6][L4PROTO_UDP].l3_payload_fn = create_udp_hdr;
-	steps[L3PROTO_IPV6][L4PROTO_UDP].l3_post_fn = post_ipv4;
-	steps[L3PROTO_IPV6][L4PROTO_UDP].l4_post_fn = post_udp_ipv4;
+	steps[L3PROTO_IPV6][L4PROTO_UDP].l3_payload_fn = udp_6to4;
 	steps[L3PROTO_IPV6][L4PROTO_UDP].route_fn = route_ipv4;
 
 	steps[L3PROTO_IPV6][L4PROTO_ICMP].skb_create_fn = ttp64_create_out_skb;
 	steps[L3PROTO_IPV6][L4PROTO_ICMP].l3_hdr_fn = create_ipv4_hdr;
-	steps[L3PROTO_IPV6][L4PROTO_ICMP].l3_payload_fn = create_icmp4_hdr_and_payload;
-	steps[L3PROTO_IPV6][L4PROTO_ICMP].l3_post_fn = post_ipv4;
-	steps[L3PROTO_IPV6][L4PROTO_ICMP].l4_post_fn = post_icmp4;
+	steps[L3PROTO_IPV6][L4PROTO_ICMP].l3_payload_fn = icmp_6to4;
 	steps[L3PROTO_IPV6][L4PROTO_ICMP].route_fn = route_ipv4;
 
 	steps[L3PROTO_IPV4][L4PROTO_TCP].skb_create_fn = ttp46_create_out_skb;
 	steps[L3PROTO_IPV4][L4PROTO_TCP].l3_hdr_fn = create_ipv6_hdr;
-	steps[L3PROTO_IPV4][L4PROTO_TCP].l3_payload_fn = create_tcp_hdr;
-	steps[L3PROTO_IPV4][L4PROTO_TCP].l3_post_fn = post_ipv6;
-	steps[L3PROTO_IPV4][L4PROTO_TCP].l4_post_fn = post_tcp_ipv6;
+	steps[L3PROTO_IPV4][L4PROTO_TCP].l3_payload_fn = tcp_4to6;
 	steps[L3PROTO_IPV4][L4PROTO_TCP].route_fn = route_ipv6;
 
 	steps[L3PROTO_IPV4][L4PROTO_UDP].skb_create_fn = ttp46_create_out_skb;
 	steps[L3PROTO_IPV4][L4PROTO_UDP].l3_hdr_fn = create_ipv6_hdr;
-	steps[L3PROTO_IPV4][L4PROTO_UDP].l3_payload_fn = create_udp_hdr;
-	steps[L3PROTO_IPV4][L4PROTO_UDP].l3_post_fn = post_ipv6;
-	steps[L3PROTO_IPV4][L4PROTO_UDP].l4_post_fn = post_udp_ipv6;
+	steps[L3PROTO_IPV4][L4PROTO_UDP].l3_payload_fn = udp_4to6;
 	steps[L3PROTO_IPV4][L4PROTO_UDP].route_fn = route_ipv6;
 
 	steps[L3PROTO_IPV4][L4PROTO_ICMP].skb_create_fn = ttp46_create_out_skb;
 	steps[L3PROTO_IPV4][L4PROTO_ICMP].l3_hdr_fn = create_ipv6_hdr;
-	steps[L3PROTO_IPV4][L4PROTO_ICMP].l3_payload_fn = create_icmp6_hdr_and_payload;
-	steps[L3PROTO_IPV4][L4PROTO_ICMP].l3_post_fn = post_ipv6;
-	steps[L3PROTO_IPV4][L4PROTO_ICMP].l4_post_fn = post_icmp6;
+	steps[L3PROTO_IPV4][L4PROTO_ICMP].l3_payload_fn = icmp_4to6;
 	steps[L3PROTO_IPV4][L4PROTO_ICMP].route_fn = route_ipv6;
 
 	return 0;
@@ -612,8 +556,6 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in_skb,
 		if (is_error(copy_payload(tuple, &in, &out)))
 			goto fail;
 	}
-	if (is_error(current_steps->l3_post_fn(&out)))
-		goto fail;
 	/* TODO esto considera que puede ser un fragmento? */
 	if (is_error(current_steps->route_fn(out.skb)))
 		goto fail;
@@ -664,9 +606,6 @@ verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in_skb,
 		prev_out_skb = tmp_out_skb;
 		next_in_skb = next_in_skb->next;
 	}
-
-	if (is_error(steps[skb_l3_proto(in_skb)][skb_l4_proto(in_skb)].l4_post_fn(tuple, in_skb, *out_skb)))
-		goto fail;
 
 	log_debug("Done step 4.");
 	return VER_CONTINUE;

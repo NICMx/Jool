@@ -69,6 +69,11 @@ static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 	return (frag_off & IP_OFFSET) << 3;
 }
 
+/**
+ * @{
+ * Does "hdr" belong to the fragment whose fragment offset is zero?
+ * A non-fragmented packet is also considered a first fragment.
+ */
 static inline bool is_first_fragment_ipv4(struct iphdr *hdr)
 {
 	return get_fragment_offset_ipv4(hdr) == 0;
@@ -78,6 +83,26 @@ static inline bool is_first_fragment_ipv6(struct frag_hdr *hdr)
 {
 	return hdr ? (get_fragment_offset_ipv6(hdr) == 0) : true;
 }
+/**
+ * @}
+ */
+
+/**
+ * @{
+ * Is "hdr"'s packet a fragment?
+ */
+static inline bool is_fragmented_ipv4(struct iphdr *hdr)
+{
+	return (get_fragment_offset_ipv4(hdr) != 0) || is_more_fragments_set_ipv4(hdr);
+}
+
+static inline bool is_fragmented_ipv6(struct frag_hdr *hdr)
+{
+	return hdr && ((get_fragment_offset_ipv6(hdr) != 0) || is_more_fragments_set_ipv6(hdr));
+}
+/**
+ * @}
+ */
 
 /**
  * frag_hdr.frag_off is actually a combination of the 'More fragments' flag and the
@@ -250,6 +275,7 @@ static inline int skb_l3hdr_len(struct sk_buff *skb)
 
 /**
  * Returns the length of "skb"'s layer-4 header, including options.
+ * Returns zero if skb has no transport header.
  */
 static inline int skb_l4hdr_len(struct sk_buff *skb)
 {
@@ -258,6 +284,8 @@ static inline int skb_l4hdr_len(struct sk_buff *skb)
 
 /**
  * Returns the length of "skb"'s layer-4 payload.
+ *
+ * TODO (warning) this should be an unsigned int. Check the others too.
  */
 static inline int skb_payload_len(struct sk_buff *skb)
 {
