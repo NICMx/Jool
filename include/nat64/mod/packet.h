@@ -135,7 +135,7 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
  * Returns the size in bytes of "hdr", including options.
  * skbless variant of tcp_hdrlen().
  */
-static inline int tcp_hdr_len(struct tcphdr *hdr)
+static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
 {
 	return hdr->doff << 2;
 }
@@ -268,7 +268,7 @@ static inline bool skb_has_l4_hdr(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-3 header, including options or extension headers.
  */
-static inline int skb_l3hdr_len(struct sk_buff *skb)
+static inline unsigned int skb_l3hdr_len(struct sk_buff *skb)
 {
 	return skb_transport_header(skb) - skb_network_header(skb);
 }
@@ -277,17 +277,15 @@ static inline int skb_l3hdr_len(struct sk_buff *skb)
  * Returns the length of "skb"'s layer-4 header, including options.
  * Returns zero if skb has no transport header.
  */
-static inline int skb_l4hdr_len(struct sk_buff *skb)
+static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
 {
 	return skb_payload(skb) - (void *) skb_transport_header(skb);
 }
 
 /**
  * Returns the length of "skb"'s layer-4 payload.
- *
- * TODO (warning) this should be an unsigned int. Check the others too.
  */
-static inline int skb_payload_len(struct sk_buff *skb)
+static inline unsigned int skb_payload_len(struct sk_buff *skb)
 {
 	return skb->len - (skb_payload(skb) - (void *) skb_network_header(skb));
 }
@@ -332,10 +330,10 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
  * @param len length of the buffer the header belongs to.
  * @param l3_hdr_len length of the layer-3 headers of the buffer the header belongs to.
  */
-int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr);
-int validate_lengths_udp(unsigned int len, u16 l3_hdr_len);
-int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len);
-int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len);
+int validate_lengths_tcp(unsigned int len, unsigned int l3_hdr_len, struct tcphdr *hdr);
+int validate_lengths_udp(unsigned int len, unsigned int l3_hdr_len);
+int validate_lengths_icmp6(unsigned int len, unsigned int l3_hdr_len);
+int validate_lengths_icmp4(unsigned int len, unsigned int l3_hdr_len);
 /**
  * @}
  */

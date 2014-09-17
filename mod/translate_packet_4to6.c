@@ -388,7 +388,7 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr
 	return 0;
 }
 
-static int buffer4_to_parts(struct iphdr *hdr4, int len, struct pkt_parts *parts)
+static int buffer4_to_parts(struct iphdr *hdr4, unsigned int len, struct pkt_parts *parts)
 {
 	struct icmphdr *hdr_icmp;
 	int error;

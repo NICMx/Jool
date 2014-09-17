@@ -71,7 +71,7 @@ int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len)
 	return -EINVAL;
 }
 
-int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr)
+int validate_lengths_tcp(unsigned int len, unsigned int l3_hdr_len, struct tcphdr *hdr)
 {
 	if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic TCP header.");
@@ -86,7 +86,7 @@ int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr)
 	return 0;
 }
 
-int validate_lengths_udp(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_udp(unsigned int len, unsigned int l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_UDP_HDR_LEN) {
 		log_debug("Packet is too small to contain a UDP header.");
@@ -96,7 +96,7 @@ int validate_lengths_udp(unsigned int len, u16 l3_hdr_len)
 	return 0;
 }
 
-int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_icmp6(unsigned int len, unsigned int l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_ICMP6_HDR_LEN) {
 		log_debug("Packet is too small to contain a ICMPv6 header.");
@@ -106,7 +106,7 @@ int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len)
 	return 0;
 }
 
-int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len)
+int validate_lengths_icmp4(unsigned int len, unsigned int l3_hdr_len)
 {
 	if (len < l3_hdr_len + MIN_ICMP4_HDR_LEN) {
 		log_debug("Packet is too small to contain a ICMPv4 header.");
@@ -173,11 +173,12 @@ bool icmpv6_has_inner_packet(__u8 icmp6_type)
 			|| (icmp6_type == ICMPV6_PARAMPROB);
 }
 
-static int validate_inner_packet6(struct ipv6hdr *hdr6, int len)
+static int validate_inner_packet6(struct ipv6hdr *hdr6, unsigned int len)
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *l4_hdr;
-	int error, l3_hdr_len;
+	unsigned int l3_hdr_len;
+	int error;
 
 #ifdef UNIT_TESTING
 	log_debug("Validating inner packet 6");
@@ -337,10 +338,11 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
 	return 0;
 }
 
-static int validate_inner_packet4(struct iphdr *hdr4, int len)
+static int validate_inner_packet4(struct iphdr *hdr4, unsigned int len)
 {
-	int error, l3_hdr_len;
 	struct icmphdr *l4_hdr;
+	unsigned int l3_hdr_len;
+	int error;
 
 #ifdef UNIT_TESTING
 	log_debug("Validating inner packet 4");

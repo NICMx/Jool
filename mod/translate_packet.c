@@ -29,16 +29,16 @@
 struct pkt_parts {
 	struct {
 		l3_protocol proto;
-		int len;
+		unsigned int len;
 		void *ptr;
 	} l3_hdr;
 	struct {
 		l4_protocol proto;
-		int len;
+		unsigned int len;
 		void *ptr;
 	} l4_hdr;
 	struct {
-		int len;
+		unsigned int len;
 		void *ptr;
 	} payload;
 

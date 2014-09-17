@@ -398,7 +398,7 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 	return 0;
 }
 
-static int buffer6_to_parts(struct ipv6hdr *hdr6, int len, struct pkt_parts *parts)
+static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_parts *parts)
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *hdr_icmp;
