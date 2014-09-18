@@ -3,8 +3,11 @@
 
 /**
  * @file
- * Fourth step of the Nat64 translation algorithm: "Translating the Packet", as defined in RFC6146
- * section 3.7.
+ * This is the face of the "Translating the Packet" code. Files outside of this folder should only
+ * see the API exposed by this file.
+ *
+ * "Translating the Packet" is the fourth step of the Nat64 translation algorithm, and it's defined
+ * by RFC6146 section 3.7.
  *
  * @author Alberto Leiva
  */
@@ -14,12 +17,6 @@
 #include "nat64/mod/types.h"
 #include "nat64/comm/config_proto.h"
 #include "nat64/mod/packet.h"
-
-/**
- * An accesor for the full unused portion of the ICMP header, which I feel is missing from
- * linux/icmp.h.
- */
-#define icmp4_unused un.gateway
 
 /**
  * Prepares this module for future use. Avoid calling the rest of the functions unless this has

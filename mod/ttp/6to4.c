@@ -1,9 +1,16 @@
-/*-----------------------------------------------------------------------------------------------
- * -- IPv6 to IPv4, Layer 3 --
- * (This is RFC 6145 sections 5.1 and 5.1.1. Translates IPv6 headers to IPv4.)
- *-----------------------------------------------------------------------------------------------*/
+#include "nat64/mod/ttp/6to4.h"
 
-static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
+#include <linux/ip.h>
+#include <net/ipv6.h>
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
+
+#include "nat64/mod/icmp_wrapper.h"
+#include "nat64/mod/ipv6_hdr_iterator.h"
+#include "nat64/mod/ttp/config.h"
+#include "nat64/mod/send_packet.h"
+
+int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 {
 	int total_len;
 	struct sk_buff *new_skb;
@@ -26,11 +33,10 @@ static int ttp64_create_out_skb(struct pkt_parts *in, struct sk_buff **out)
 	total_len = sizeof(struct iphdr) + in->l4_hdr.len + in->payload.len;
 	if (is_first && in->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) (in->payload.ptr));
+		hdr_iterator_result result = hdr_iterator_last(&iterator);
 
-		if (hdr_iterator_last(&iterator) != HDR_ITERATOR_END) {
-			WARN(true, "Validated packet has an invalid sub-l3 header.");
+		if (WARN(result != HDR_ITERATOR_END, "Validated packet has an invalid l3 header."))
 			return -EINVAL;
-		}
 
 		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
 		total_len += sizeof(struct iphdr) - (iterator.data - in->payload.ptr);
@@ -150,20 +156,22 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet().
  */
-static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct ipv6hdr *ip6_hdr = in->l3_hdr.ptr;
 	struct frag_hdr *ip6_frag_hdr;
 	struct iphdr *ip4_hdr;
+	struct translate_config *config;
 
 	bool reset_tos, build_ipv4_id, df_always_on;
 	__u8 dont_fragment, new_tos;
 
 	rcu_read_lock_bh();
-	reset_tos = rcu_dereference_bh(config)->reset_tos;
-	build_ipv4_id = rcu_dereference_bh(config)->build_ipv4_id;
-	df_always_on = rcu_dereference_bh(config)->df_always_on;
-	new_tos = rcu_dereference_bh(config)->new_tos;
+	config = ttpconfig_get();
+	reset_tos = config->reset_tos;
+	build_ipv4_id = config->build_ipv4_id;
+	df_always_on = config->df_always_on;
+	new_tos = config->new_tos;
 	rcu_read_unlock_bh();
 
 	ip4_hdr = out->l3_hdr.ptr;
@@ -227,13 +235,6 @@ static int create_ipv4_hdr(struct tuple *tuple, struct pkt_parts *in, struct pkt
 	return 0;
 }
 
-
-/*-----------------------------------------------------------------------------------------------
- * -- IPv6 to IPv4, Layer 4 --
- * (Because UDP and TCP almost require no translation, you'll find that this is mostly RFC 6145
- * sections 5.2 and 5.3 (ICMP).)
- *-----------------------------------------------------------------------------------------------*/
-
 /**
  * One liner for creating the ICMPv4 header's MTU field.
  * Returns the smallest out of the three parameters.
@@ -256,6 +257,11 @@ static int compute_mtu4(struct sk_buff *in, struct sk_buff *out)
 #ifndef UNIT_TESTING
 	struct dst_entry *out_dst;
 	struct icmp6hdr *in_icmp = icmp6_hdr(in);
+	int error;
+
+	error = route_ipv4(out);
+	if (error)
+		return error;
 
 	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
 
@@ -558,15 +564,8 @@ static int compute_icmp4_csum(struct pkt_parts *out)
 
 static int post_icmp4info(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
-	int error;
-
-	error = copy_payload(tuple, in, out);
-	if (error)
-		return error;
-	if (is_csum4_computable(out))
-		error = update_icmp4_csum(in, out);
-
-	return error;
+	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
+	return is_csum4_computable(out) ? update_icmp4_csum(in, out) : 0;
 }
 
 static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
@@ -582,7 +581,7 @@ static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
 	if (error)
 		return error;
 
-	error = translate_inner_packet(tuple, &in_inner, out_outer);
+	error = ttpcomm_translate_inner_packet(tuple, &in_inner, out_outer);
 	if (error)
 		return error;
 
@@ -596,7 +595,7 @@ static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
  * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4()).
  */
-static int icmp_6to4(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct icmp6hdr *icmpv6_hdr = in->l4_hdr.ptr;
 	struct icmphdr *icmpv4_hdr = out->l4_hdr.ptr;
@@ -697,7 +696,7 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	return csum_fold(csum);
 }
 
-static int tcp_6to4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct tcphdr *tcp_in = in->l4_hdr.ptr;
 	struct tcphdr *tcp_out = out->l4_hdr.ptr;
@@ -724,7 +723,7 @@ static int tcp_6to4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts 
 	return 0;
 }
 
-static int udp_6to4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_udp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct udphdr *udp_in = in->l4_hdr.ptr;
 	struct udphdr *udp_out = out->l4_hdr.ptr;

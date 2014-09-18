@@ -1,38 +1,43 @@
 Some shortcuts used while naming variables and functions through the code:
 
-nf = Netfilter (http://www.netfilter.org/)
-nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
-alloc = memory allocation
-pref = prefix
-err = error
-def = default
-hdr = header
+
 src = source
 dst = destination
-frag = fragment
-len = length
-ptr = pointer
+
 in = incoming (Note, not "inner")
 out = outgoing (Not "outer")
+
+alloc = memory allocation
+addr = address
+aux = auxiliar function
+cb = control buffer (section in skbs where we store metadata)
+	-> Except in Netlink functions, where it means "callback" (synonym for "fn").
+comm = common
+csum = checksum
+def = default
+err = error
+fn = function ("this parameter is a pointer to a function.")
+frag = fragment
+hdr = header
 init = initialize
-proto = protocol
 l2 = layer 2 (link)
 l3 = layer 3 (network; IPv4 or IPv6.)
 l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)
-addr = address
-fn = function ("this parameter is a pointer to a function.")
-comm = common
+len = length
 mod = module
-usr = user[space]
-cb = control buffer (section in skbs where we store metadata)
-	-> Except in Netlink functions, where it means "callback" (synonym for "fn").
-pool<n> = IPv<n> pool (pool4 = IPv4 pool)
+nf = Netfilter (http://www.netfilter.org/)
+nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
 pkt = packet
-ver = verdict
-skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
-aux = auxiliar function
+pool<n> = IPv<n> pool (pool4 = IPv4 pool)
+pref = prefix
+proto = protocol
+ptr = pointer
 req = requirement
-csum = checksum
+skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
+ttp = Translating the Packet (Fourth core step of the NAT64 translation algorithm; see RFC 6146)
+usr = user[space]
+ver = verdict
+
 
 When we say "payload", we mean the layer-4 payload. When we want to say layer-3 payload, we should
 prefix it ("l3_payload").

@@ -16,6 +16,10 @@ int route_ipv4(struct sk_buff *skb)
 	struct rtable *table;
 	int error;
 
+	/* Sometimes Jool needs to route prematurely, so don't sweat this on the normal pipelines. */
+	if (skb_dst(skb))
+		return 0;
+
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
@@ -27,7 +31,7 @@ int route_ipv4(struct sk_buff *skb)
 	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever
 	 * create routes on Jool's behalf?
 	 * TODO (help) We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
-	 * If you change it, the corresponding attribute in route_skb_ipv6() should probably follow.
+	 * If you change it, the corresponding attribute in route_ipv6() should probably follow.
 	 */
 	flow.flowi4_flags = 0;
 	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
@@ -84,8 +88,6 @@ int route_ipv4(struct sk_buff *skb)
 	}
 
 	skb_dst_set(skb, &table->dst);
-	/* TODO (fine) ip_output() already does this, so we have probably never needed it. */
-	skb->dev = table->dst.dev;
 
 	return 0;
 }
@@ -97,6 +99,9 @@ int route_ipv6(struct sk_buff *skb)
 	struct dst_entry *dst;
 	struct hdr_iterator iterator;
 	hdr_iterator_result iterator_result;
+
+	if (skb_dst(skb))
+		return 0;
 
 	hdr_iterator_init(&iterator, hdr_ip);
 	iterator_result = hdr_iterator_last(&iterator);
@@ -149,8 +154,6 @@ int route_ipv6(struct sk_buff *skb)
 	}
 
 	skb_dst_set(skb, dst);
-	/* TODO (fine) ip6_finish_output2() already does this, so we have probably never needed it. */
-	skb->dev = dst->dev;
 
 	return 0;
 }
@@ -158,6 +161,7 @@ int route_ipv6(struct sk_buff *skb)
 verdict send_pkt(struct sk_buff *skb)
 {
 	struct sk_buff *next_skb = skb;
+	struct dst_entry *dst;
 	int error = 0;
 
 	while (next_skb) {
@@ -165,12 +169,12 @@ verdict send_pkt(struct sk_buff *skb)
 		next_skb = skb->next;
 		skb->next = skb->prev = NULL;
 
-		if (!skb->dev) {
-			WARN(true, "I'm trying to send a packet that isn't routed.");
+		dst = skb_dst(skb);
+		if (WARN(!dst || !dst->dev, "I'm trying to send a packet that isn't routed.")) {
 			kfree_skb(skb);
 			continue;
 		}
-		log_debug("Sending skb via device '%s'...", skb->dev->name);
+		log_debug("Sending skb via device '%s'...", dst->dev->name);
 
 		switch (skb_l3_proto(skb)) {
 		case L3PROTO_IPV6:

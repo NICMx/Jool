@@ -11,7 +11,7 @@
 #include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/filtering_and_updating.h"
-#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/ttp/core.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>

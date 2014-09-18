@@ -2,7 +2,7 @@
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/compute_outgoing_tuple.h"
-#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/ttp/core.h"
 #include "nat64/mod/send_packet.h"
 
 

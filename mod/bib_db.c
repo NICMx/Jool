@@ -431,15 +431,17 @@ int bibdb_remove(struct bib_entry *entry, const bool lock)
 	if (error)
 		return error;
 
-	if (lock)
+	if (lock) {
 		spin_lock_bh(&table->lock);
-
-	rb_erase(&entry->tree6_hook, &table->tree6);
-	rb_erase(&entry->tree4_hook, &table->tree4);
-	table->count--;
-
-	if (lock)
+		rb_erase(&entry->tree6_hook, &table->tree6);
+		rb_erase(&entry->tree4_hook, &table->tree4);
+		table->count--;
 		spin_unlock_bh(&table->lock);
+	} else {
+		rb_erase(&entry->tree6_hook, &table->tree6);
+		rb_erase(&entry->tree4_hook, &table->tree4);
+		table->count--;
+	}
 
 	return 0;
 }
@@ -587,8 +589,7 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
 
 	/* Index it by IPv4. */
 	error = rbtree_add(*bib, ipv4, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
-	if (error) {
-		WARN(true, "The BIB entry could be indexed by IPv6 but not by IPv4.");
+	if (WARN(error, "The BIB entry could be indexed by IPv6 but not by IPv4.")) {
 		rb_erase(&(*bib)->tree6_hook, &table->tree6);
 		bib_kfree(*bib);
 		goto end;

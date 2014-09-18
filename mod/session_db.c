@@ -1063,8 +1063,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 
 	error = rbtree_add(*session, ipv4, &table->tree4, compare_full4, struct session_entry,
 			tree4_hook);
-	if (error) {
-		WARN(true, "The session entry could be indexed by IPv6, but not by IPv4.");
+	if (WARN(error, "The session entry could be indexed by IPv6, but not by IPv4.")) {
 		rb_erase(&(*session)->tree6_hook, &table->tree6);
 		session_return(*session);
 		goto end;
@@ -1168,8 +1167,7 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
 
 	error = rbtree_add(*session, ipv6, &table->tree6, compare_full6, struct session_entry,
 			tree6_hook);
-	if (error) {
-		WARN(true, "The session entry could be indexed by IPv4, but not by IPv6.");
+	if (WARN(error, "The session entry could be indexed by IPv4, but not by IPv6.")) {
 		rb_erase(&(*session)->tree4_hook, &table->tree4);
 		session_return(*session);
 		goto end;
