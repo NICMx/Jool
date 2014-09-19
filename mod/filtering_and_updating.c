@@ -2,6 +2,7 @@
 #include "nat64/comm/constants.h"
 #include "nat64/mod/icmp_wrapper.h"
 #include "nat64/comm/config_proto.h"
+#include "nat64/mod/stats.h"
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/pool4.h"
@@ -588,10 +589,12 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		hdr_ip6 = ipv6_hdr(skb);
 		if (pool6_contains(&hdr_ip6->saddr)) {
 			log_debug("Hairpinning loop. Dropping...");
+			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
 			return VER_DROP;
 		}
 		if (!pool6_contains(&hdr_ip6->daddr)) {
 			log_debug("Packet was rejected by pool6; dropping...");
+			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
 			return VER_DROP;
 		}
 		break;
@@ -606,6 +609,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		addr4.s_addr = ip_hdr(skb)->daddr;
 		if (!pool4_contains(&addr4)) {
 			log_debug("Packet was rejected by pool4; dropping...");
+			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
 			return VER_DROP;
 		}
 		break;
@@ -634,6 +638,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		case L3PROTO_IPV6:
 			if (filter_icmpv6_info()) {
 				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
+				inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 				return VER_DROP;
 			}
 
@@ -647,5 +652,9 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 	}
 
 	log_debug("Done: Step 2.");
+	/*
+	 * TODO (Issue #57) There used to be an if here that looked way off.
+	 * Gotta review the packet drops in this module, but let's merge first.
+	 */
 	return result;
 }

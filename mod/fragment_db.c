@@ -1,5 +1,6 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/comm/constants.h"
+#include "nat64/mod/stats.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/random.h"
 
@@ -599,12 +600,16 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 		return VER_CONTINUE;
 	}
 
+	inc_stats(skb_in, IPSTATS_MIB_REASMREQDS);
+
 	/*
 	 * Store buffer's accesor so we don't have to recalculate it all the time.
 	 * Also implementation specific, not part of the RFC.
 	 */
-	if (is_error(skb_to_key(skb_in, &key)))
+	if (is_error(skb_to_key(skb_in, &key))) {
+		inc_stats(skb_in, IPSTATS_MIB_REASMFAILS);
 		return VER_DROP;
+	}
 
 	spin_lock_bh(&table_lock);
 
@@ -687,6 +692,7 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 		(*skb_out)->prev->next = NULL;
 		(*skb_out)->prev = NULL;
 
+		inc_stats(*skb_out, IPSTATS_MIB_REASMOKS);
 		return VER_CONTINUE;
 	}
 
@@ -697,6 +703,7 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 
 fail:
 	spin_unlock_bh(&table_lock);
+	inc_stats(skb_in, IPSTATS_MIB_REASMFAILS);
 	return VER_DROP;
 }
 

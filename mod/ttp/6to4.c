@@ -9,6 +9,7 @@
 #include "nat64/mod/ipv6_hdr_iterator.h"
 #include "nat64/mod/ttp/config.h"
 #include "nat64/mod/send_packet.h"
+#include "nat64/mod/stats.h"
 
 int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 {
@@ -43,8 +44,10 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 	}
 
 	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
-	if (!new_skb)
+	if (!new_skb) {
+		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
+	}
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
 	skb_put(new_skb, total_len);
@@ -185,6 +188,7 @@ int ttp64_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 	if (!is_inner_pkt(in)) {
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in->skb, ICMPERR_HOP_LIMIT, 0);
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
@@ -201,6 +205,7 @@ int ttp64_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
 			log_debug("Packet's segments left field is nonzero.");
 			icmp64_send(in->skb, ICMPERR_HDR_FIELD, nonzero_location);
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 	}
@@ -404,13 +409,13 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 	return 0;
 }
 
-static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_parts *parts)
+static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_parts *parts, int *field)
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *hdr_icmp;
 	int error;
 
-	error = validate_ipv6_integrity(hdr6, len, true, &iterator);
+	error = validate_ipv6_integrity(hdr6, len, true, &iterator, field);
 	if (error)
 		return error;
 
@@ -422,27 +427,35 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_p
 	switch (iterator.hdr_type) {
 	case NEXTHDR_TCP:
 		error = validate_lengths_tcp(len, parts->l3_hdr.len, iterator.data);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		parts->l4_hdr.proto = L4PROTO_TCP;
 		parts->l4_hdr.len = tcp_hdr_len(iterator.data);
 		break;
 	case NEXTHDR_UDP:
 		error = validate_lengths_udp(len, parts->l3_hdr.len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 
 		parts->l4_hdr.proto = L4PROTO_UDP;
 		parts->l4_hdr.len = sizeof(struct udphdr);
 		break;
 	case NEXTHDR_ICMP:
 		error = validate_lengths_icmp6(len, parts->l3_hdr.len);
-		if (error)
+		if (error) {
+			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return error;
+		}
 		hdr_icmp = parts->l4_hdr.ptr;
-		if (icmpv6_has_inner_packet(hdr_icmp->icmp6_type))
+		if (icmpv6_has_inner_packet(hdr_icmp->icmp6_type)) {
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return -EINVAL; /* packet inside packet inside packet. */
+		}
 
 		parts->l4_hdr.proto = L4PROTO_ICMP;
 		parts->l4_hdr.len = sizeof(struct icmp6hdr);
@@ -452,6 +465,7 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_p
 		 * Why are we translating a error packet of a packet we couldn't have translated?
 		 * Either an attack or shouldn't happen, so drop silently.
 		 */
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return -EINVAL;
 	}
 
@@ -516,8 +530,11 @@ static int update_icmp4_csum(struct pkt_parts *in, struct pkt_parts *out)
 		len = out->l4_hdr.len + out->payload.len;
 	} else {
 		error = skb_aggregate_ipv6_payload_len(in->skb, &len);
-		if (error)
+		if (error) {
+			/* TODO inner packet? */
+			inc_stats(out->skb, IPSTATS_MIB_OUTDISCARDS);
 			return error;
+		}
 	}
 
 	csum = ~csum_unfold(in_icmp->icmp6_cksum);
@@ -569,7 +586,7 @@ static int post_icmp4info(struct tuple *tuple, struct pkt_parts *in, struct pkt_
 }
 
 static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
-		struct pkt_parts *out_outer)
+		struct pkt_parts *out_outer, int *field)
 {
 	struct pkt_parts in_inner;
 	int error;
@@ -577,7 +594,7 @@ static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
 	log_debug("Translating the inner packet (6->4)...");
 
 	memset(&in_inner, 0, sizeof(in_inner));
-	error = buffer6_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner);
+	error = buffer6_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner, field);
 	if (error)
 		return error;
 
@@ -599,6 +616,7 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct icmp6hdr *icmpv6_hdr = in->l4_hdr.ptr;
 	struct icmphdr *icmpv4_hdr = out->l4_hdr.ptr;
+	int field = 0;
 	int error = 0;
 
 	switch (icmpv6_hdr->icmp6_type) {
@@ -620,9 +638,11 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 
 	case ICMPV6_DEST_UNREACH:
 		error = icmp6_to_icmp4_dest_unreach(icmpv6_hdr, icmpv4_hdr);
-		if (error)
+		if (error) {
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
-		error = post_icmp4error(tuple, in, out);
+		}
+		error = post_icmp4error(tuple, in, out, &field);
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
@@ -637,21 +657,23 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 		error = compute_mtu4(in->skb, out->skb);
 		if (error)
 			return error;
-		error = post_icmp4error(tuple, in, out);
+		error = post_icmp4error(tuple, in, out, &field);
 		break;
 
 	case ICMPV6_TIME_EXCEED:
 		icmpv4_hdr->type = ICMP_TIME_EXCEEDED;
 		icmpv4_hdr->code = icmpv6_hdr->icmp6_code;
 		icmpv4_hdr->icmp4_unused = 0;
-		error = post_icmp4error(tuple, in, out);
+		error = post_icmp4error(tuple, in, out, &field);
 		break;
 
 	case ICMPV6_PARAMPROB:
 		error = icmp6_to_icmp4_param_prob(icmpv6_hdr, icmpv4_hdr);
-		if (error)
+		if (error) {
+			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
-		error = post_icmp4error(tuple, in, out);
+		}
+		error = post_icmp4error(tuple, in, out, &field);
 		break;
 
 	default:
@@ -663,6 +685,9 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		error = -EINVAL;
 	}
+
+	if (field)
+		inc_stats(in->skb, field);
 
 	return error;
 }

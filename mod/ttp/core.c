@@ -5,6 +5,7 @@
 #include "nat64/mod/ttp/config.h"
 #include "nat64/mod/icmp_wrapper.h"
 #include "nat64/mod/send_packet.h"
+#include "nat64/mod/stats.h"
 
 int translate_packet_init(void)
 {
@@ -125,8 +126,10 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		new_skb = alloc_skb(LL_MAX_HEADER /* kernel's reserved + layer 2. */
 				+ actual_total_size, /* l3 header + l4 header + packet data. */
 				GFP_ATOMIC);
-		if (!new_skb)
+		if (!new_skb) {
+			inc_stats(skb, IPSTATS_MIB_FRAGFAILS);
 			return -ENOMEM;
+		}
 
 		skb_reserve(new_skb, LL_MAX_HEADER);
 		skb_put(new_skb, actual_total_size);
@@ -153,11 +156,12 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		prev_skb = new_skb;
 
 		new_skb->next = NULL;
+		inc_stats(skb, IPSTATS_MIB_FRAGCREATES);
 	}
 
 	/* Finally truncate the original packet and we're done. */
 	skb_put(skb, -(skb->len - min_ipv6_mtu));
-
+	inc_stats(skb, IPSTATS_MIB_FRAGOKS);
 	return 0;
 }
 
@@ -165,12 +169,16 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	__u16 min_ipv6_mtu;
 
-	if (skb_l3_proto(skb_out) != L3PROTO_IPV6) {
+	/* TODO These logs should probably be debugs. */
+	/* TODO Consider that this function also requires routed packets. */
+
+	if (skb_l3_proto(skb_out) == L3PROTO_IPV4) {
 #ifndef UNIT_TESTING
 		__u16 min_ipv4_mtu = skb_dst(skb_out)->dev->mtu;
 		if (is_dont_fragment_set(ip_hdr(skb_out)) && (skb_out->len > min_ipv4_mtu)) {
 			icmp64_send(skb_out, ICMPERR_FRAG_NEEDED, min_ipv4_mtu + 20);
 			log_info("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv4_mtu);
+			inc_stats(skb_out, IPSTATS_MIB_FRAGFAILS);
 			return -EINVAL;
 		}
 #endif
@@ -199,6 +207,7 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		/* We're not supposed to fragment; yay. */
 		icmp64_send(skb_in, ICMPERR_FRAG_NEEDED, min_ipv6_mtu - 20);
 		log_info("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv6_mtu);
+		inc_stats(skb_in, IPSTATS_MIB_FRAGFAILS);
 		return -EINVAL;
 	}
 

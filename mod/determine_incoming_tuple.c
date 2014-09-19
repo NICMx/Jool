@@ -1,6 +1,7 @@
 #include "nat64/mod/determine_incoming_tuple.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/ipv6_hdr_iterator.h"
+#include "nat64/mod/stats.h"
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -59,7 +60,8 @@ static verdict ipv4_icmp_info(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp,
 	return VER_CONTINUE;
 }
 
-static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple)
+static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, struct tuple *tuple,
+		int *field)
 {
 	struct iphdr *inner_ipv4 = (struct iphdr *) (hdr_icmp + 1);
 	struct udphdr *inner_udp;
@@ -89,6 +91,7 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 
 		if (is_icmp4_error(inner_icmp->type)) {
 			log_debug("Packet is a ICMP error containing a ICMP error.");
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return VER_DROP;
 		}
 
@@ -99,6 +102,7 @@ static verdict ipv4_icmp_err(struct iphdr *hdr_ipv4, struct icmphdr *hdr_icmp, s
 
 	default:
 		log_debug("Packet's inner packet is not UDP, TCP or ICMP (%d)", inner_ipv4->protocol);
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return VER_DROP;
 	}
 
@@ -142,7 +146,7 @@ static verdict ipv6_icmp_info(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icm
 }
 
 static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp,
-		struct tuple *tuple)
+		struct tuple *tuple, int *field)
 {
 	struct ipv6hdr *inner_ipv6 = (struct ipv6hdr *) (hdr_icmp + 1);
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(inner_ipv6);
@@ -174,6 +178,7 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 
 		if (is_icmp6_error(inner_icmp->icmp6_type)) {
 			log_debug("Packet is a ICMP error containing a ICMP error.");
+			*field = IPSTATS_MIB_INHDRERRORS;
 			return VER_DROP;
 		}
 
@@ -184,6 +189,7 @@ static verdict ipv6_icmp_err(struct ipv6hdr *hdr_ipv6, struct icmp6hdr *hdr_icmp
 
 	default:
 		log_debug("Packet's inner packet is not UDP, TCP or ICMPv6 (%d).", iterator.hdr_type);
+		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
 		return VER_DROP;
 	}
 
@@ -209,6 +215,7 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 	struct icmphdr *icmp4;
 	struct icmp6hdr *icmp6;
 	verdict result = VER_CONTINUE;
+	int field = 0;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
 
@@ -227,9 +234,10 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 			if (is_icmp4_info(icmp4->type)) {
 				result = ipv4_icmp_info(hdr4, icmp4, tuple);
 			} else if (is_icmp4_error(icmp4->type)) {
-				result = ipv4_icmp_err(hdr4, icmp4, tuple);
+				result = ipv4_icmp_err(hdr4, icmp4, tuple, &field);
 			} else {
 				log_debug("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
+				field = IPSTATS_MIB_INHDRERRORS;
 				result = VER_DROP;
 			}
 			break;
@@ -250,9 +258,10 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 			if (is_icmp6_info(icmp6->icmp6_type)) {
 				result = ipv6_icmp_info(hdr6, icmp6, tuple);
 			} else if (is_icmp6_error(icmp6->icmp6_type)) {
-				result = ipv6_icmp_err(hdr6, icmp6, tuple);
+				result = ipv6_icmp_err(hdr6, icmp6, tuple, &field);
 			} else {
 				log_debug("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
+				field = IPSTATS_MIB_INHDRERRORS;
 				result = VER_DROP;
 			}
 			break;
@@ -267,5 +276,7 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple)
 
 	log_tuple(tuple);
 	log_debug("Done step 1.");
+	if (field)
+		inc_stats(skb, field);
 	return result;
 }

@@ -8,6 +8,7 @@
 #include "nat64/mod/ttp/core.h"
 #include "nat64/mod/handling_hairpinning.h"
 #include "nat64/mod/send_packet.h"
+#include "nat64/mod/stats.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -21,6 +22,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	struct tuple tuple_in;
 	struct tuple tuple_out;
 	verdict result;
+	int field = 0;
 
 	result = determine_in_tuple(skb_in, &tuple_in);
 	if (result != VER_CONTINUE)
@@ -28,9 +30,11 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	result = filtering_and_updating(skb_in, &tuple_in);
 	if (result != VER_CONTINUE)
 		goto end;
-	result = compute_out_tuple(&tuple_in, &tuple_out);
-	if (result != VER_CONTINUE)
+	result = compute_out_tuple(&tuple_in, &tuple_out, &field);
+	if (result != VER_CONTINUE) {
+		inc_stats(skb_in, field);
 		goto end;
+	}
 	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
 	if (result != VER_CONTINUE)
 		goto end;
@@ -96,6 +100,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 
 	error = validate_icmp4_csum(skbs);
 	if (error) {
+		inc_stats(skbs, IPSTATS_MIB_INHDRERRORS);
 		kfree_skb_queued(skbs);
 		return NF_STOLEN;
 	}
@@ -133,6 +138,7 @@ unsigned int core_6to4(struct sk_buff *skb)
 
 	error = validate_icmp6_csum(skbs);
 	if (error) {
+		inc_stats(skbs, IPSTATS_MIB_INHDRERRORS);
 		kfree_skb_queued(skbs);
 		return NF_STOLEN;
 	}

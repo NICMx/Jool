@@ -1,7 +1,7 @@
 #include "nat64/mod/compute_outgoing_tuple.h"
 #include "nat64/mod/session_db.h"
 
-verdict compute_out_tuple(struct tuple *in, struct tuple *out)
+verdict compute_out_tuple(struct tuple *in, struct tuple *out, int *field)
 {
 	struct session_entry *session;
 	int error;
@@ -15,6 +15,7 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out)
 		 * so it's not critical.
 		 */
 		log_debug("Error code %d while trying to find the packet's session entry.", error);
+		*field = IPSTATS_MIB_INNOROUTES;
 		return VER_DROP;
 	}
 
