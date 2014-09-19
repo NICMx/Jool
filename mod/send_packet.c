@@ -191,6 +191,9 @@ verdict send_pkt(struct sk_buff *skb)
 			 * The rest will also probably fail, so don't waste time trying to send them.
 			 * If there were more skbs, they were fragments anyway, so the receiving node will
 			 * fail to reassemble them.
+			 *
+			 * Looks like the kernel should worry about this stats update, but apparently that's
+			 * not the case.
 			 */
 			inc_stats(skb, IPSTATS_MIB_OUTDISCARDS);
 			kfree_skb_queued(next_skb);

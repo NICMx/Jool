@@ -624,7 +624,7 @@ static int post_icmp4(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 
 		error = skb_aggregate_ipv4_payload_len(out, &len);
 		if (error) {
-			inc_stats(out, IPSTATS_MIB_INHDRERRORS);
+			inc_stats(out, IPSTATS_MIB_INDISCARDS);
 			return error;
 		}
 

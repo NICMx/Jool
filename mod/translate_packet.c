@@ -539,14 +539,12 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		prev_skb = new_skb;
 
 		new_skb->next = NULL;
+		inc_stats(skb, IPSTATS_MIB_FRAGCREATES);
 	}
 
 	/* Finally truncate the original packet and we're done. */
 	skb_put(skb, -(skb->len - min_ipv6_mtu));
-	/* This is ip datagrams that have been sucessfully fragmented. */
 	inc_stats(skb, IPSTATS_MIB_FRAGOKS);
-	/* This is how many ip datagram fragments were created. */
-	inc_stats(skb, IPSTATS_MIB_FRAGCREATES);
 	return 0;
 }
 
@@ -554,7 +552,10 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
 	__u16 min_ipv6_mtu;
 
-	if (skb_l3_proto(skb_out) != L3PROTO_IPV6) {
+	/* TODO These logs should probably be debugs. */
+	/* TODO Consider that this function also requires routed packets. */
+
+	if (skb_l3_proto(skb_out) == L3PROTO_IPV4) {
 #ifndef UNIT_TESTING
 		__u16 min_ipv4_mtu = skb_dst(skb_out)->dev->mtu;
 		if (is_dont_fragment_set(ip_hdr(skb_out)) && (skb_out->len > min_ipv4_mtu)) {

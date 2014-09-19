@@ -531,6 +531,7 @@ int fragmentdb_set_config(enum fragmentation_type type, size_t size, void *value
 	return 0;
 }
 
+/* TODO you don't have functions in types that do this? */
 static bool skb_is_frag(struct sk_buff *skb)
 {
 	struct iphdr *hdr4;
@@ -618,7 +619,6 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 		return VER_CONTINUE;
 	}
 
-	/* TODO: stats If fall through here that means the skb require re-assemble. so... inc_stats*/
 	inc_stats(skb_in, IPSTATS_MIB_REASMREQDS);
 
 	/*
@@ -711,7 +711,6 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 		(*skb_out)->prev->next = NULL;
 		(*skb_out)->prev = NULL;
 
-		/* TODO:stats It means that re-assemble was successful ???.*/
 		inc_stats(*skb_out, IPSTATS_MIB_REASMOKS);
 		return VER_CONTINUE;
 	}

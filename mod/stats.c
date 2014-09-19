@@ -19,7 +19,7 @@ static int inc_stats_validate(struct sk_buff *skb)
 	return 0;
 }
 
-void inc_stats_ipv6(struct sk_buff *skb, int field)
+static void inc_stats_ipv6(struct sk_buff *skb, int field)
 {
 	struct inet6_dev *idev;
 
@@ -34,7 +34,7 @@ void inc_stats_ipv6(struct sk_buff *skb, int field)
 	in6_dev_put(idev);
 }
 
-void inc_stats_ipv4(struct sk_buff *skb, int field)
+static void inc_stats_ipv4(struct sk_buff *skb, int field)
 {
 	if (is_error(inc_stats_validate(skb)))
 		return;

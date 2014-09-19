@@ -326,7 +326,7 @@ static int icmp4_to_icmp6_dest_unreach(struct pkt_parts *in, struct pkt_parts *o
 	default: /* hostPrecedenceViolation (14) is known to fall through here. */
 		log_debug("ICMPv4 messages type %u code %u do not exist in ICMPv6.",
 				icmpv4_hdr->type, icmpv4_hdr->code);
-		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
+		inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 		return -EINVAL; /* No ICMP error. */
 	}
 
@@ -601,7 +601,7 @@ static int post_icmp6(struct tuple *tuple, struct sk_buff *in, struct sk_buff *o
 
 		error = skb_aggregate_ipv6_payload_len(out, &len);
 		if (error) {
-			inc_stats(out, IPSTATS_MIB_INHDRERRORS);
+			inc_stats(out, IPSTATS_MIB_INDISCARDS);
 			return error;
 		}
 

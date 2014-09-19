@@ -594,7 +594,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		}
 		if (!pool6_contains(&hdr_ip6->daddr)) {
 			log_debug("Packet was rejected by pool6; dropping...");
-			inc_stats(skb, IPSTATS_MIB_INNOROUTES);//TODO: stats: inNoRoutes or inNoAddress???
+			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
 			return VER_DROP;
 		}
 		break;
@@ -609,7 +609,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 		addr4.s_addr = ip_hdr(skb)->daddr;
 		if (!pool4_contains(&addr4)) {
 			log_debug("Packet was rejected by pool4; dropping...");
-			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);//TODO: stats: inNoRoutes or inNoAddress???
+			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
 			return VER_DROP;
 		}
 		break;
@@ -652,9 +652,9 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *tuple)
 	}
 
 	log_debug("Done: Step 2.");
-	if (result != VER_CONTINUE || result != VER_STOLEN)
-		/*TODO: stats: I guess here are policies errors or memory errors (Jool or kernel) that are
-		 * reported while processing the packet and falls through here. So we report InDiscards. */
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+	/*
+	 * TODO (Issue #57) There used to be an if here that looked way off.
+	 * Gotta review the packet drops in this module, but let's merge first.
+	 */
 	return result;
 }
