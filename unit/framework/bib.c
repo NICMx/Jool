@@ -26,8 +26,8 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 		error = bibdb_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
 		if (error) {
 			log_err("Error %d while trying to find BIB entry [%pI6c#%u, %pI4#%u] in the DB.",
-					error, &expected->ipv6.address, expected->ipv6.l4_id,
-					&expected->ipv4.address, expected->ipv4.l4_id);
+					error, &expected->ipv6.l3, expected->ipv6.l4,
+					&expected->ipv4.l3, expected->ipv4.l4);
 			return false;
 		}
 
@@ -47,8 +47,8 @@ static int bib_print_aux(struct bib_entry *bib, void *arg)
 {
 	log_debug("  [%s][%pI6c#%u, %pI4#%u]",
 			bib->is_static ? "Static" : "Dynamic",
-			&bib->ipv6.address, bib->ipv6.l4_id,
-			&bib->ipv4.address, bib->ipv4.l4_id);
+			&bib->ipv6.l3, bib->ipv6.l4,
+			&bib->ipv4.l3, bib->ipv4.l4);
 	return 0;
 }
 
@@ -75,13 +75,13 @@ bool bib_inject_str(unsigned char *addr4_str, u16 port4, unsigned char *addr6_st
 bool bib_inject(struct in_addr *addr4, u16 port4, struct in6_addr *addr6, u16 port6,
 		l4_protocol l4_proto)
 {
-	struct ipv4_tuple_address taddr4 = {
-			.address = *addr4,
-			.l4_id = port4,
+	struct ipv4_transport_addr taddr4 = {
+			.l3 = *addr4,
+			.l4 = port4,
 	};
-	struct ipv6_tuple_address taddr6 = {
-			.address = *addr6,
-			.l4_id = port6,
+	struct ipv6_transport_addr taddr6 = {
+			.l3 = *addr6,
+			.l4 = port6,
 	};
 	struct bib_entry *bib;
 	int error;

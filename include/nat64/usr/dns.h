@@ -4,9 +4,9 @@
 
 #include "nat64/comm/types.h"
 
-void print_ipv6_tuple(struct ipv6_tuple_address *tuple, bool numeric_hostname, char *separator,
+void print_addr6(struct ipv6_transport_addr *addr6, bool numeric_hostname, char *separator,
 		__u8 l4_proto);
-void print_ipv4_tuple(struct ipv4_tuple_address *tuple, bool numeric_hostname, char *separator,
+void print_addr4(struct ipv4_transport_addr *addr4, bool numeric_hostname, char *separator,
 		__u8 l4_proto);
 
 

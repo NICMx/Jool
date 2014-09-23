@@ -34,7 +34,7 @@ bool validate_cb_payload(struct sk_buff *skb, int len)
 	return assert_equals_int(len, skb_payload_len(skb), "cb: payload-len");
 }
 
-bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct tuple *tuple)
+bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct tuple *tuple6)
 {
 	bool success = true;
 
@@ -46,8 +46,8 @@ bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct 
 	success &= assert_equals_u16(payload_len, be16_to_cpu(hdr->payload_len), "IPv6hdr-payload len");
 	success &= assert_equals_u8(nexthdr, hdr->nexthdr, "IPv6hdr-nexthdr");
 	/* success &= assert_equals_u8(, hdr->hop_limit, "IPv6hdr-hop limit"); */
-	success &= assert_equals_ipv6(&tuple->src.addr.ipv6, &hdr->saddr, "IPv6hdr-src address");
-	success &= assert_equals_ipv6(&tuple->dst.addr.ipv6, &hdr->daddr, "IPv6hdr-dst address");
+	success &= assert_equals_ipv6(&tuple6->src.addr6.l3, &hdr->saddr, "IPv6hdr-src address");
+	success &= assert_equals_ipv6(&tuple6->dst.addr6.l3, &hdr->daddr, "IPv6hdr-dst address");
 
 	return success;
 }
@@ -66,7 +66,7 @@ bool validate_frag_hdr(struct frag_hdr *hdr, u16 frag_offset, u16 mf, __u8 nexth
 }
 
 bool validate_ipv4_hdr(struct iphdr *hdr, u16 total_len, u16 id, u16 df, u16 mf, u16 frag_off,
-		u8 protocol, struct tuple *tuple)
+		u8 protocol, struct tuple *tuple4)
 {
 	struct in_addr addr;
 	bool success = true;
@@ -83,10 +83,10 @@ bool validate_ipv4_hdr(struct iphdr *hdr, u16 total_len, u16 id, u16 df, u16 mf,
 	success &= assert_equals_u8(protocol, hdr->protocol, "IPv4hdr-protocol");
 
 	addr.s_addr = hdr->saddr;
-	success &= assert_equals_ipv4(&tuple->src.addr.ipv4, &addr, "IPv4hdr-src address");
+	success &= assert_equals_ipv4(&tuple4->src.addr4.l3, &addr, "IPv4hdr-src address");
 
 	addr.s_addr = hdr->daddr;
-	success &= assert_equals_ipv4(&tuple->dst.addr.ipv4, &addr, "IPv4hdr-dst address");
+	success &= assert_equals_ipv4(&tuple4->dst.addr4.l3, &addr, "IPv4hdr-dst address");
 
 	return success;
 }
@@ -95,8 +95,19 @@ bool validate_udp_hdr(struct udphdr *hdr, u16 payload_len, struct tuple *tuple)
 {
 	bool success = true;
 
-	success &= assert_equals_u16(tuple->src.l4_id, be16_to_cpu(hdr->source), "UDPhdr-src");
-	success &= assert_equals_u16(tuple->dst.l4_id, be16_to_cpu(hdr->dest), "UDPhdr-dst");
+	switch (tuple->l3_proto) {
+	case L3PROTO_IPV6:
+		success &= assert_equals_u16(tuple->src.addr6.l4, be16_to_cpu(hdr->source), "UDP6hdr-src");
+		success &= assert_equals_u16(tuple->dst.addr6.l4, be16_to_cpu(hdr->dest), "UDP6hdr-dst");
+		break;
+	case L3PROTO_IPV4:
+		success &= assert_equals_u16(tuple->src.addr4.l4, be16_to_cpu(hdr->source), "UDP4hdr-src");
+		success &= assert_equals_u16(tuple->dst.addr4.l4, be16_to_cpu(hdr->dest), "UDP4hdr-dst");
+		break;
+	default:
+		log_err("L3 proto is not IPv6 or IPv4.");
+		success = false;
+	}
 	success &= assert_equals_u16(sizeof(*hdr) + payload_len, be16_to_cpu(hdr->len), "UDPhdr-len");
 
 	return success;
@@ -106,8 +117,19 @@ bool validate_tcp_hdr(struct tcphdr *hdr, struct tuple *tuple)
 {
 	bool success = true;
 
-	success &= assert_equals_u16(tuple->src.l4_id, be16_to_cpu(hdr->source), "TCPhdr-src");
-	success &= assert_equals_u16(tuple->dst.l4_id, be16_to_cpu(hdr->dest), "TCPhdr-dst");
+	switch (tuple->l3_proto) {
+	case L3PROTO_IPV6:
+		success &= assert_equals_u16(tuple->src.addr6.l4, be16_to_cpu(hdr->source), "TCP6hdr-src");
+		success &= assert_equals_u16(tuple->dst.addr6.l4, be16_to_cpu(hdr->dest), "TCP6hdr-dst");
+		break;
+	case L3PROTO_IPV4:
+		success &= assert_equals_u16(tuple->src.addr4.l4, be16_to_cpu(hdr->source), "TCP4hdr-src");
+		success &= assert_equals_u16(tuple->dst.addr4.l4, be16_to_cpu(hdr->dest), "TCP4hdr-dst");
+		break;
+	default:
+		log_err("L3 proto is not IPv6 or IPv4.");
+		success = false;
+	}
 	success &= assert_equals_u32(4669, be32_to_cpu(hdr->seq), "TCPhdr-seq");
 	success &= assert_equals_u32(6576, be32_to_cpu(hdr->ack_seq), "TCPhdr-ack seq");
 	success &= assert_equals_u16(5, hdr->doff, "TCPhdr-data offset");
@@ -126,13 +148,16 @@ bool validate_tcp_hdr(struct tcphdr *hdr, struct tuple *tuple)
 	return success;
 }
 
-bool validate_icmp6_hdr(struct icmp6hdr *hdr, u16 id, struct tuple *tuple)
+bool validate_icmp6_hdr(struct icmp6hdr *hdr, u16 id, struct tuple *tuple6)
 {
 	bool success = true;
 
 	success &= assert_equals_u8(ICMPV6_ECHO_REQUEST, hdr->icmp6_type, "ICMP6hdr-type");
 	success &= assert_equals_u8(0, hdr->icmp6_code, "ICMP6hdr-code");
-	success &= assert_equals_u16(tuple->icmp_id, be16_to_cpu(hdr->icmp6_identifier), "ICMP6hdr-id");
+	success &= assert_equals_u16(tuple6->src.addr6.l4, be16_to_cpu(hdr->icmp6_identifier),
+			"ICMP6hdr-id1");
+	success &= assert_equals_u16(tuple6->dst.addr6.l4, be16_to_cpu(hdr->icmp6_identifier),
+			"ICMP6hdr-id2");
 
 	return success;
 }
@@ -148,13 +173,14 @@ bool validate_icmp6_hdr_error(struct icmp6hdr *hdr)
 	return success;
 }
 
-bool validate_icmp4_hdr(struct icmphdr *hdr, u16 id, struct tuple *tuple)
+bool validate_icmp4_hdr(struct icmphdr *hdr, u16 id, struct tuple *tuple4)
 {
 	bool success = true;
 
 	success &= assert_equals_u8(ICMP_ECHO, hdr->type, "ICMP4hdr-type");
 	success &= assert_equals_u8(0, hdr->code, "ICMP4hdr-code");
-	success &= assert_equals_u16(tuple->icmp_id, be16_to_cpu(hdr->un.echo.id), "ICMP4hdr-id");
+	success &= assert_equals_u16(tuple4->src.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id1");
+	success &= assert_equals_u16(tuple4->dst.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id2");
 
 	return success;
 }
@@ -187,18 +213,18 @@ bool validate_inner_pkt_ipv6(unsigned char *payload, u16 len)
 	struct ipv6hdr *hdr_ipv6;
 	struct tcphdr *hdr_tcp;
 	unsigned char *inner_payload;
-	struct tuple tuple;
+	struct tuple tuple6;
 
-	if (init_ipv6_tuple(&tuple, "2::2", 4321, "1::1", 1234, IPPROTO_TCP) != 0)
+	if (init_ipv6_tuple(&tuple6, "2::2", 4321, "1::1", 1234, IPPROTO_TCP) != 0)
 		return false;
 
 	hdr_ipv6 = (struct ipv6hdr *) payload;
 	hdr_tcp = (struct tcphdr *) (hdr_ipv6 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	if (!validate_ipv6_hdr(hdr_ipv6, 1320, NEXTHDR_TCP, &tuple))
+	if (!validate_ipv6_hdr(hdr_ipv6, 1320, NEXTHDR_TCP, &tuple6))
 		return false;
-	if (!validate_tcp_hdr(hdr_tcp, &tuple))
+	if (!validate_tcp_hdr(hdr_tcp, &tuple6))
 		return false;
 	if (!validate_payload(inner_payload, len - sizeof(*hdr_ipv6) - sizeof(*hdr_tcp), 0))
 		return false;
@@ -211,18 +237,18 @@ bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len)
 	struct iphdr *hdr_ipv4;
 	struct tcphdr *hdr_tcp;
 	unsigned char *inner_payload;
-	struct tuple tuple;
+	struct tuple tuple4;
 
-	if (init_ipv4_tuple(&tuple, "2.2.2.2", 4321, "1.1.1.1", 1234, IPPROTO_TCP) != 0)
+	if (init_ipv4_tuple(&tuple4, "2.2.2.2", 4321, "1.1.1.1", 1234, IPPROTO_TCP) != 0)
 		return false;
 
 	hdr_ipv4 = (struct iphdr *) payload;
 	hdr_tcp = (struct tcphdr *) (hdr_ipv4 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	if (!validate_ipv4_hdr(hdr_ipv4, 1320, 0, IP_DF, 0, 0, IPPROTO_TCP, &tuple))
+	if (!validate_ipv4_hdr(hdr_ipv4, 1320, 0, IP_DF, 0, 0, IPPROTO_TCP, &tuple4))
 		return false;
-	if (!validate_tcp_hdr(hdr_tcp, &tuple))
+	if (!validate_tcp_hdr(hdr_tcp, &tuple4))
 		return false;
 	if (!validate_payload(inner_payload, len - sizeof(*hdr_ipv4) - sizeof(*hdr_tcp), 0))
 		return false;

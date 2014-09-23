@@ -46,19 +46,15 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out, int *field)
 	case L3PROTO_IPV6:
 		out->l3_proto = L3PROTO_IPV4;
 		out->l4_proto = in->l4_proto;
-		out->src.addr.ipv4 = session->ipv4.local.address;
-		out->src.l4_id = session->ipv4.local.l4_id;
-		out->dst.addr.ipv4 = session->ipv4.remote.address;
-		out->dst.l4_id = session->ipv4.remote.l4_id;
+		out->src.addr4 = session->local4;
+		out->dst.addr4 = session->remote4;
 		break;
 
 	case L3PROTO_IPV4:
 		out->l3_proto = L3PROTO_IPV6;
 		out->l4_proto = in->l4_proto;
-		out->src.addr.ipv6 = session->ipv6.local.address;
-		out->src.l4_id = session->ipv6.local.l4_id;
-		out->dst.addr.ipv6 = session->ipv6.remote.address;
-		out->dst.l4_id = session->ipv6.remote.l4_id;
+		out->src.addr6 = session->local6;
+		out->dst.addr6 = session->remote6;
 		break;
 	}
 

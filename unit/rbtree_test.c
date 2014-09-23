@@ -23,9 +23,9 @@ struct node_thing {
  * Returns a negative integer if thing->i > i.
  * Returns zero if thing->i == i.
  */
-static int compare(struct node_thing *thing, int *i)
+static int compare(struct node_thing *thing, int i)
 {
-	return (*i) - thing->i;
+	return i - thing->i;
 }
 
 /**

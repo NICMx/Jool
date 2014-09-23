@@ -19,7 +19,7 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	is_first = is_first_fragment_ipv6(in->l3_hdr.ptr);
 
-	/**
+	/*
 	 * These are my assumptions to compute total_len:
 	 *
 	 * Any L3 headers will be replaced by an IPv4 header.
@@ -32,7 +32,8 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 	 * The subpayload will never change in size (unless it gets truncated later, but I don't care).
 	 */
 	total_len = sizeof(struct iphdr) + in->l4_hdr.len + in->payload.len;
-	if (is_first && in->l4_hdr.proto == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
+	if (is_first && in->l4_hdr.proto == L4PROTO_ICMP
+			&& is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) (in->payload.ptr));
 		hdr_iterator_result result = hdr_iterator_last(&iterator);
 
@@ -159,7 +160,7 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet().
  */
-int ttp64_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct ipv6hdr *ip6_hdr = in->l3_hdr.ptr;
 	struct frag_hdr *ip6_frag_hdr;
@@ -197,8 +198,8 @@ int ttp64_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
-	ip4_hdr->saddr = tuple->src.addr.ipv4.s_addr;
-	ip4_hdr->daddr = tuple->dst.addr.ipv4.s_addr;
+	ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
+	ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
 
 	if (!is_inner_pkt(in)) {
 		__u32 nonzero_location;
@@ -264,7 +265,7 @@ static int compute_mtu4(struct sk_buff *in, struct sk_buff *out)
 	struct icmp6hdr *in_icmp = icmp6_hdr(in);
 	int error;
 
-	error = route_ipv4(out);
+	error = sendpkt_route4(out);
 	if (error)
 		return error;
 
@@ -409,7 +410,8 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 	return 0;
 }
 
-static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_parts *parts, int *field)
+static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_parts *parts,
+		int *field)
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *hdr_icmp;
@@ -579,13 +581,13 @@ static int compute_icmp4_csum(struct pkt_parts *out)
 	return 0;
 }
 
-static int post_icmp4info(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+static int post_icmp4info(struct pkt_parts *in, struct pkt_parts *out)
 {
 	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
 	return is_csum4_computable(out) ? update_icmp4_csum(in, out) : 0;
 }
 
-static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
+static int post_icmp4error(struct tuple *tuple4, struct pkt_parts *in_outer,
 		struct pkt_parts *out_outer, int *field)
 {
 	struct pkt_parts in_inner;
@@ -598,7 +600,7 @@ static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
 	if (error)
 		return error;
 
-	error = ttpcomm_translate_inner_packet(tuple, &in_inner, out_outer);
+	error = ttpcomm_translate_inner_packet(tuple4, &in_inner, out_outer);
 	if (error)
 		return error;
 
@@ -612,7 +614,7 @@ static int post_icmp4error(struct tuple *tuple, struct pkt_parts *in_outer,
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
  * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4()).
  */
-int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_icmp(struct tuple* tuple4, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct icmp6hdr *icmpv6_hdr = in->l4_hdr.ptr;
 	struct icmphdr *icmpv4_hdr = out->l4_hdr.ptr;
@@ -623,17 +625,17 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = cpu_to_be16(tuple->icmp_id);
+		icmpv4_hdr->un.echo.id = cpu_to_be16(tuple4->icmp4_id);
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
-		error = post_icmp4info(tuple, in, out);
+		error = post_icmp4info(in, out);
 		break;
 
 	case ICMPV6_ECHO_REPLY:
 		icmpv4_hdr->type = ICMP_ECHOREPLY;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = cpu_to_be16(tuple->icmp_id);
+		icmpv4_hdr->un.echo.id = cpu_to_be16(tuple4->icmp4_id);
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
-		error = post_icmp4info(tuple, in, out);
+		error = post_icmp4info(in, out);
 		break;
 
 	case ICMPV6_DEST_UNREACH:
@@ -642,7 +644,7 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
 		}
-		error = post_icmp4error(tuple, in, out, &field);
+		error = post_icmp4error(tuple4, in, out, &field);
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
@@ -657,14 +659,14 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 		error = compute_mtu4(in->skb, out->skb);
 		if (error)
 			return error;
-		error = post_icmp4error(tuple, in, out, &field);
+		error = post_icmp4error(tuple4, in, out, &field);
 		break;
 
 	case ICMPV6_TIME_EXCEED:
 		icmpv4_hdr->type = ICMP_TIME_EXCEEDED;
 		icmpv4_hdr->code = icmpv6_hdr->icmp6_code;
 		icmpv4_hdr->icmp4_unused = 0;
-		error = post_icmp4error(tuple, in, out, &field);
+		error = post_icmp4error(tuple4, in, out, &field);
 		break;
 
 	case ICMPV6_PARAMPROB:
@@ -673,7 +675,7 @@ int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
 		}
-		error = post_icmp4error(tuple, in, out, &field);
+		error = post_icmp4error(tuple4, in, out, &field);
 		break;
 
 	default:
@@ -721,7 +723,7 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	return csum_fold(csum);
 }
 
-int ttp64_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_tcp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct tcphdr *tcp_in = in->l4_hdr.ptr;
 	struct tcphdr *tcp_out = out->l4_hdr.ptr;
@@ -729,8 +731,8 @@ int ttp64_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, in->l4_hdr.len);
-	tcp_out->source = cpu_to_be16(tuple->src.l4_id);
-	tcp_out->dest = cpu_to_be16(tuple->dst.l4_id);
+	tcp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
+	tcp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 
 	if (is_csum4_computable(out)) {
 		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
@@ -748,15 +750,15 @@ int ttp64_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 	return 0;
 }
 
-int ttp64_udp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_udp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct udphdr *udp_in = in->l4_hdr.ptr;
 	struct udphdr *udp_out = out->l4_hdr.ptr;
 	struct udphdr udp_copy;
 
 	/* Header */
-	udp_out->source = cpu_to_be16(tuple->src.l4_id);
-	udp_out->dest = cpu_to_be16(tuple->dst.l4_id);
+	udp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
+	udp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 	udp_out->len = udp_in->len;
 
 	if (is_csum4_computable(out)) {

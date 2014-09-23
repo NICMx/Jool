@@ -46,12 +46,12 @@ static void bib_destroy(void)
 	kmem_cache_destroy(entry_cache);
 }
 
-struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
+struct bib_entry *bib_create(struct ipv4_transport_addr *addr4, struct ipv6_transport_addr *addr6,
 		bool is_static, l4_protocol l4_proto)
 {
 	struct bib_entry tmp = {
-			.ipv4 = *ipv4,
-			.ipv6 = *ipv6,
+			.ipv4 = *addr4,
+			.ipv6 = *addr6,
 			.l4_proto = l4_proto,
 			.is_static = is_static,
 	};

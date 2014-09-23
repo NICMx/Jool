@@ -17,18 +17,18 @@ MODULE_DESCRIPTION("Session module test.");
 
 #define SESSION_PRINT_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
 #define PRINT_SESSION(session) \
-	&session->ipv4.remote.address, session->ipv4.remote.l4_id, \
-	&session->ipv4.local.address, session->ipv4.local.l4_id, \
-	&session->ipv6.local.address, session->ipv6.local.l4_id, \
-	&session->ipv6.remote.address, session->ipv6.remote.l4_id
+	&session->remote4.l3, session->remote4.l4, \
+	&session->local4.l3, session->local4.l4, \
+	&session->local6.l3, session->local6.l4, \
+	&session->remote6.l3, session->remote6.l4
 
 static const char* IPV4_ADDRS[] = { "0.0.0.0", "1.1.1.1", "2.2.2.2" };
 static const __u16 IPV4_PORTS[] = { 0, 456, 9556 };
 static const char* IPV6_ADDRS[] = { "::1", "::2", "::3" };
 static const __u16 IPV6_PORTS[] = { 334, 0, 9556 };
 
-static struct ipv4_tuple_address addr4[ARRAY_SIZE(IPV4_ADDRS)];
-static struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
+static struct ipv4_transport_addr addr4[ARRAY_SIZE(IPV4_ADDRS)];
+static struct ipv6_transport_addr addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
 /********************************************
  * Auxiliar functions.
@@ -38,17 +38,9 @@ static struct session_entry *create_session_entry(int remote_id_4, int local_id_
 		int local_id_6, int remote_id_6,
 		l4_protocol l4_proto)
 {
-	struct ipv4_pair pair_4 = {
-			.remote = addr4[remote_id_4],
-			.local = addr4[local_id_4],
-	};
-
-	struct ipv6_pair pair_6 = {
-			.local = addr6[local_id_6],
-			.remote = addr6[remote_id_6],
-	};
-
-	struct session_entry* entry = session_create(&pair_4, &pair_6, l4_proto, NULL);
+	struct session_entry* entry = session_create(&addr6[remote_id_6], &addr6[local_id_6],
+			&addr4[local_id_4], &addr4[remote_id_4],
+			l4_proto, NULL);
 	if (!entry)
 		return NULL;
 
@@ -96,10 +88,10 @@ static bool assert_session_entry_equals(struct session_entry* expected,
 	}
 
 	if (expected->l4_proto != actual->l4_proto
-			|| !ipv6_tuple_addr_equals(&expected->ipv6.remote, &actual->ipv6.remote)
-			|| !ipv6_tuple_addr_equals(&expected->ipv6.local, &actual->ipv6.local)
-			|| !ipv4_tuple_addr_equals(&expected->ipv4.local, &actual->ipv4.local)
-			|| !ipv4_tuple_addr_equals(&expected->ipv4.remote, &actual->ipv4.remote)) {
+			|| !ipv6_transport_addr_equals(&expected->remote6, &actual->remote6)
+			|| !ipv6_transport_addr_equals(&expected->local6, &actual->local6)
+			|| !ipv4_transport_addr_equals(&expected->local4, &actual->local4)
+			|| !ipv4_transport_addr_equals(&expected->remote4, &actual->remote4)) {
 		log_err("Test '%s' failed: Expected " SESSION_PRINT_KEY ", got " SESSION_PRINT_KEY ".",
 				test_name, PRINT_SESSION(expected), PRINT_SESSION(actual));
 		return false;
@@ -126,17 +118,13 @@ static bool assert_session(char* test_name, struct session_entry* session,
 	table_has_it[2] = icmp_table_has_it;
 
 	for (i = 0; i < 3; i++) {
-		tuple4.dst.addr.ipv4 = session->ipv4.local.address;
-		tuple4.dst.l4_id = session->ipv4.local.l4_id;
-		tuple4.src.addr.ipv4 = session->ipv4.remote.address;
-		tuple4.src.l4_id = session->ipv4.remote.l4_id;
+		tuple4.dst.addr4 = session->local4;
+		tuple4.src.addr4 = session->remote4;
 		tuple4.l3_proto = L3PROTO_IPV4;
 		tuple4.l4_proto = l4_protos[i];
 
-		tuple6.dst.addr.ipv6 = session->ipv6.local.address;
-		tuple6.dst.l4_id = session->ipv6.local.l4_id;
-		tuple6.src.addr.ipv6 = session->ipv6.remote.address;
-		tuple6.src.l4_id = session->ipv6.remote.l4_id;
+		tuple6.dst.addr6 = session->local6;
+		tuple6.src.addr6 = session->remote6;
 		tuple6.l3_proto = L3PROTO_IPV6;
 		tuple6.l4_proto = l4_protos[i];
 
@@ -185,17 +173,17 @@ static bool simple_session(void)
 static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id,
 		int dst_port_id)
 {
-	struct tuple tuple;
+	struct tuple tuple4;
 
-	tuple.src.addr.ipv4 = addr4[src_addr_id].address;
-	tuple.dst.addr.ipv4 = addr4[dst_addr_id].address;
-	tuple.src.l4_id = addr4[src_port_id].l4_id;
-	tuple.dst.l4_id = addr4[dst_port_id].l4_id;
-	tuple.l4_proto = L4PROTO_UDP;
-	tuple.l3_proto 	= L3PROTO_IPV4;
+	tuple4.src.addr4.l3 = addr4[src_addr_id].l3;
+	tuple4.dst.addr4.l3 = addr4[dst_addr_id].l3;
+	tuple4.src.addr4.l4 = addr4[src_port_id].l4;
+	tuple4.dst.addr4.l4 = addr4[dst_port_id].l4;
+	tuple4.l4_proto = L4PROTO_UDP;
+	tuple4.l3_proto = L3PROTO_IPV4;
 
-	log_tuple(&tuple);
-	return sessiondb_allow(&tuple);
+	log_tuple(&tuple4);
+	return sessiondb_allow(&tuple4);
 }
 
 static bool test_address_filtering(void)
@@ -745,15 +733,15 @@ static bool init(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr4(IPV4_ADDRS[i], &addr4[i].address)))
+		if (is_error(str_to_addr4(IPV4_ADDRS[i], &addr4[i].l3)))
 			return false;
-		addr4[i].l4_id = IPV4_PORTS[i];
+		addr4[i].l4 = IPV4_PORTS[i];
 	}
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr6(IPV6_ADDRS[i], &addr6[i].address)))
+		if (is_error(str_to_addr6(IPV6_ADDRS[i], &addr6[i].l3)))
 			return false;
-		addr6[i].l4_id = IPV6_PORTS[i];
+		addr6[i].l4 = IPV6_PORTS[i];
 	}
 
 	if (is_error(sessiondb_init()))

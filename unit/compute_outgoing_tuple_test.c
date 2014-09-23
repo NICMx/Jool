@@ -3,7 +3,8 @@
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
-#include "compute_outgoing_tuple.c"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/compute_outgoing_tuple.h"
 
 
 MODULE_LICENSE("GPL");
@@ -25,14 +26,14 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 		__u16 ip6_port, l4_protocol l4_proto)
 {
 	struct bib_entry *bib;
-	struct ipv6_tuple_address addr6;
-	struct ipv4_tuple_address addr4;
+	struct ipv6_transport_addr addr6;
+	struct ipv4_transport_addr addr4;
 
 	/* Generate the BIB. */
-	addr4.address = *ip4_addr;
-	addr4.l4_id = ip4_port;
-	addr6.address = *ip6_addr;
-	addr6.l4_id = ip6_port;
+	addr4.l3 = *ip4_addr;
+	addr4.l4 = ip4_port;
+	addr6.l3 = *ip6_addr;
+	addr6.l4 = ip6_port;
 
 	bib = bib_create(&addr4, &addr6, false, l4_proto);
 	if (!bib) {
@@ -59,8 +60,7 @@ static bool add_bib(struct in_addr *ip4_addr, __u16 ip4_port, struct in6_addr *i
 /**
  * Prepares the environment for the tests.
  *
- * @return whether the initialization was successful or not. An error message has been printed to
- *		the kernel ring buffer.
+ * @return whether the initialization was successful or not.
  */
 static bool init(void)
 {
@@ -69,26 +69,16 @@ static bool init(void)
 	struct ipv6_prefix prefix;
 
 	/* Init test addresses */
-	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != 0) {
-		log_err("Can't parse address '%s'. Failing test...", remote_ipv6_str);
+	if (str_to_addr6(remote_ipv6_str, &remote_ipv6) != 0)
 		return false;
-	}
-	if (str_to_addr6(local_ipv6_str, &local_ipv6) != 0) {
-		log_err("Can't parse address '%s'. Failing test...", local_ipv6_str);
+	if (str_to_addr6(local_ipv6_str, &local_ipv6) != 0)
 		return false;
-	}
-	if (str_to_addr4(local_ipv4_str, &local_ipv4) != 0) {
-		log_err("Can't parse address '%s'. Failing test...", local_ipv4_str);
+	if (str_to_addr4(local_ipv4_str, &local_ipv4) != 0)
 		return false;
-	}
-	if (str_to_addr4(remote_ipv4_str, &remote_ipv4) != 0) {
-		log_err("Can't parse address '%s'. Failing test...", remote_ipv4_str);
+	if (str_to_addr4(remote_ipv4_str, &remote_ipv4) != 0)
 		return false;
-	}
 
 	/* Init the IPv6 pool module */
-	if (is_error(pool6_init(NULL, 0))) /* we'll use the defaults. */
-		return false;
 	if (str_to_addr6("64:ff9b::", &prefix.address) != 0) {
 		log_err("Cannot parse the IPv6 prefix. Failing...");
 		return false;
@@ -112,7 +102,6 @@ static bool init(void)
 static void cleanup(void)
 {
 	bibdb_destroy();
-	pool6_destroy();
 }
 
 static bool test_6to4(l4_protocol l4_proto)
@@ -121,23 +110,22 @@ static bool test_6to4(l4_protocol l4_proto)
 	bool success = true;
 	int field = 0;
 
-	incoming.src.addr.ipv6 = remote_ipv6;
-	incoming.dst.addr.ipv6 = local_ipv6;
-	incoming.src.l4_id = 1500; /* Lookup will use this. */
-	incoming.dst.l4_id = 123; /* Whatever */
+	incoming.src.addr6.l3 = remote_ipv6;
+	incoming.dst.addr6.l3 = local_ipv6;
+	incoming.src.addr6.l4 = 1500; /* Lookup will use this. */
+	incoming.dst.addr6.l4 = 123; /* Whatever */
 	incoming.l3_proto = L3PROTO_IPV6;
 	incoming.l4_proto = l4_proto;
 
-	if (l4_proto != L4PROTO_ICMP) {
-		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing, &field), "Function5 call");
-		success &= assert_equals_u16(80, outgoing.src.l4_id, "Source port");
-		success &= assert_equals_u16(123, outgoing.dst.l4_id, "Destination port");
-	} else {
-		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing, &field), "Function3 call");
-		success &= assert_equals_u16(80, outgoing.icmp_id, "ICMP ID");
-	}
-	success &= assert_equals_ipv4(&local_ipv4, &outgoing.src.addr.ipv4, "Source address");
-	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.dst.addr.ipv4, "Destination address");
+	success &= assert_equals_int(VER_CONTINUE, compute_out_tuple(&incoming, &outgoing, &field), "Function call");
+	success &= assert_equals_u16(80, outgoing.src.addr4.l4, "Source port");
+
+	if (l4_proto != L4PROTO_ICMP)
+		success &= assert_equals_u16(123, outgoing.dst.addr4.l4, "Destination port");
+	else
+		success &= assert_equals_u16(80, outgoing.dst.addr4.l4, "ICMP ID");
+	success &= assert_equals_ipv4(&local_ipv4, &outgoing.src.addr4.l3, "Source address");
+	success &= assert_equals_ipv4(&remote_ipv4, &outgoing.dst.addr4.l3, "Destination address");
 	success &= assert_equals_u16(L3PROTO_IPV4, outgoing.l3_proto, "Layer-3 protocol");
 	success &= assert_equals_u8(l4_proto, outgoing.l4_proto, "Layer-4 protocol");
 
@@ -150,23 +138,19 @@ static bool test_4to6(l4_protocol l4_proto)
 	bool success = true;
 	int field = 0;
 
-	incoming.src.addr.ipv4 = remote_ipv4;
-	incoming.dst.addr.ipv4 = local_ipv4;
-	incoming.src.l4_id = 123; /* Whatever */
-	incoming.dst.l4_id = 80; /* Lookup will use this. */
+	incoming.src.addr4.l3 = remote_ipv4;
+	incoming.dst.addr4.l3 = local_ipv4;
+	incoming.src.addr4.l4 = 123; /* Whatever */
+	incoming.dst.addr4.l4 = 80; /* Lookup will use this. */
 	incoming.l3_proto = L3PROTO_IPV4;
 	incoming.l4_proto = l4_proto;
 
-	if (l4_proto != L4PROTO_ICMP) {
-		success &= assert_equals_int(VER_CONTINUE, tuple5(&incoming, &outgoing, &field), "Function5 call");
-		success &= assert_equals_u16(123, outgoing.src.l4_id, "Source port");
-		success &= assert_equals_u16(1500, outgoing.dst.l4_id, "Destination port");
-	} else {
-		success &= assert_equals_int(VER_CONTINUE, tuple3(&incoming, &outgoing, &field), "Function3 call");
-		success &= assert_equals_u16(1500, outgoing.icmp_id, "ICMP ID");
-	}
-	success &= assert_equals_ipv6(&local_ipv6, &outgoing.src.addr.ipv6, "Source address");
-	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.dst.addr.ipv6, "Destination address");
+	success &= assert_equals_int(VER_CONTINUE, compute_out_tuple(&incoming, &outgoing, &field), "Function call");
+	success &= assert_equals_u16(1500, outgoing.dst.addr6.l4, "Destination port");
+	if (l4_proto != L4PROTO_ICMP)
+		success &= assert_equals_u16(123, outgoing.src.addr6.l4, "Source port");
+	success &= assert_equals_ipv6(&local_ipv6, &outgoing.src.addr6.l3, "Source address");
+	success &= assert_equals_ipv6(&remote_ipv6, &outgoing.dst.addr6.l3, "Destination address");
 	success &= assert_equals_u16(L3PROTO_IPV6, outgoing.l3_proto, "Layer-3 protocol");
 	success &= assert_equals_u8(l4_proto, outgoing.l4_proto, "Layer-4 protocol");
 

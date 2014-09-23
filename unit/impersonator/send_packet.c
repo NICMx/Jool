@@ -4,17 +4,17 @@
 static struct sk_buff *sent_skb = NULL;
 
 
-int route_ipv4(struct sk_buff *skb)
+int sendpkt_route4(struct sk_buff *skb)
 {
 	return 0;
 }
 
-int route_ipv6(struct sk_buff *skb)
+int sendpkt_route6(struct sk_buff *skb)
 {
 	return 0;
 }
 
-verdict send_pkt(struct sk_buff *skb)
+verdict sendpkt_send(struct sk_buff *skb)
 {
 	log_debug("Step 6: Pretending I'm sending packet %p...", skb);
 	sent_skb = skb;

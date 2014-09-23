@@ -73,6 +73,11 @@ typedef enum verdict {
 	VER_STOLEN = NF_STOLEN,
 } verdict;
 
+union transport_addr {
+	struct ipv6_transport_addr addr6;
+	struct ipv4_transport_addr addr4;
+};
+
 /**
  * A tuple is sort of a summary of a packet; it is a quick accesor for several of its key elements.
  *
@@ -87,12 +92,14 @@ struct tuple {
 	 * Most of the time, this is the packet's _source_ address and layer-4 identifier. When the
 	 * packet contains a inner packet, this is the inner packet's _destination_ address and l4 id.
 	 */
-	struct tuple_addr src;
+	union transport_addr src;
+
 	/**
 	 * Most of the time, this is the packet's _destination_ address and layer-4 identifier. When
 	 * the packet contains a inner packet, this is the inner packet's _source_ address and l4 id.
 	 */
-	struct tuple_addr dst;
+	union transport_addr dst;
+
 	/** The packet's network protocol. */
 	l3_protocol l3_proto;
 	/**
@@ -104,10 +111,11 @@ struct tuple {
 	l4_protocol l4_proto;
 
 /**
- * By the way: There's code that depends on src.l4_id containing the same value as dst.l4_id when
- * l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
+ * By the way: There's code that depends on src.<x>.l4_id containing the same value as
+ * dst.<x>.l4_id when l4_proto == L4PROTO_ICMP (i. e. 3-tuples).
  */
-#define icmp_id src.l4_id
+#define icmp4_id src.addr4.l4
+#define icmp6_id src.addr6.l4
 };
 
 /**
@@ -143,10 +151,10 @@ void log_tuple(struct tuple *tuple);
  */
 bool ipv4_addr_equals(const struct in_addr *a, const struct in_addr *b);
 bool ipv6_addr_equals(const struct in6_addr *a, const struct in6_addr *b);
-bool ipv4_tuple_addr_equals(const struct ipv4_tuple_address *a,
-		const struct ipv4_tuple_address *b);
-bool ipv6_tuple_addr_equals(const struct ipv6_tuple_address *a,
-		const struct ipv6_tuple_address *b);
+bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *a,
+		const struct ipv4_transport_addr *b);
+bool ipv6_transport_addr_equals(const struct ipv6_transport_addr *a,
+		const struct ipv6_transport_addr *b);
 bool ipv6_prefix_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
 /**
  * @}

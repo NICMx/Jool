@@ -163,19 +163,12 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
 
 bool icmp4_has_inner_packet(__u8 icmp_type)
 {
-	return (icmp_type == ICMP_DEST_UNREACH)
-			|| (icmp_type == ICMP_TIME_EXCEEDED)
-			|| (icmp_type == ICMP_PARAMETERPROB)
-			|| (icmp_type == ICMP_SOURCE_QUENCH)
-			|| (icmp_type == ICMP_REDIRECT);
+	return is_icmp4_error(icmp_type);
 }
 
 bool icmpv6_has_inner_packet(__u8 icmp6_type)
 {
-	return (icmp6_type == ICMPV6_DEST_UNREACH)
-			|| (icmp6_type == ICMPV6_PKT_TOOBIG)
-			|| (icmp6_type == ICMPV6_TIME_EXCEED)
-			|| (icmp6_type == ICMPV6_PARAMPROB);
+	return is_icmp6_error(icmp6_type);
 }
 
 static int validate_inner_packet6(struct ipv6hdr *hdr6, unsigned int len, int *field)

@@ -51,6 +51,7 @@ int translate_set_config(enum translate_type type, size_t size, void *value);
  * DF), "output" will be fragmented. Its pieces will be queued in order in (*output)->next.
  * Keep that in mind when you release or send "output".
  */
-verdict translating_the_packet(struct tuple *tuple, struct sk_buff *in, struct sk_buff **output);
+verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in,
+		struct sk_buff **output);
 
 #endif /* _JOOL_MOD_TRANSLATING_THE_PACKET_H */

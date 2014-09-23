@@ -57,13 +57,13 @@ static int get_bibdb_table(l4_protocol l4_proto, struct bib_table **result)
 }
 
 /**
- * Returns a positive integer if bib->ipv6.address < addr.
- * Returns a negative integer if bib->ipv6.address > addr.
- * Returns zero if bib->ipv6.address == addr.
+ * Returns a positive integer if bib->ipv6.l3 < addr.
+ * Returns a negative integer if bib->ipv6.l3 > addr.
+ * Returns zero if bib->ipv6.l3 == addr.
  */
 static int compare_addr6(const struct bib_entry *bib, const struct in6_addr *addr)
 {
-	return ipv6_addr_cmp(addr, &bib->ipv6.address);
+	return ipv6_addr_cmp(addr, &bib->ipv6.l3);
 }
 
 /**
@@ -71,26 +71,26 @@ static int compare_addr6(const struct bib_entry *bib, const struct in6_addr *add
  * Returns a negative integer if bib->ipv6 > addr.
  * Returns zero if bib->ipv6 == addr.
  */
-static int compare_full6(const struct bib_entry *bib, const struct ipv6_tuple_address *addr)
+static int compare_full6(const struct bib_entry *bib, const struct ipv6_transport_addr *addr)
 {
 	int gap;
 
-	gap = compare_addr6(bib, &addr->address);
+	gap = compare_addr6(bib, &addr->l3);
 	if (gap != 0)
 		return gap;
 
-	gap = addr->l4_id - bib->ipv6.l4_id;
+	gap = addr->l4 - bib->ipv6.l4;
 	return gap;
 }
 
 /**
- * Returns a positive integer if bib->ipv4.address < addr.
- * Returns a negative integer if bib->ipv4.address > addr.
- * Returns zero if bib->ipv4.address == addr.
+ * Returns a positive integer if bib->ipv4.l3 < addr.
+ * Returns a negative integer if bib->ipv4.l3 > addr.
+ * Returns zero if bib->ipv4.l3 == addr.
  */
 static int compare_addr4(const struct bib_entry *bib, const struct in_addr *addr)
 {
-	return ipv4_addr_cmp(addr, &bib->ipv4.address);
+	return ipv4_addr_cmp(addr, &bib->ipv4.l3);
 }
 
 /**
@@ -98,21 +98,21 @@ static int compare_addr4(const struct bib_entry *bib, const struct in_addr *addr
  * Returns a negative integer if bib->ipv4 > addr.
  * Returns zero if bib->ipv4 == addr.
  */
-static int compare_full4(const struct bib_entry *bib, const struct ipv4_tuple_address *addr)
+static int compare_full4(const struct bib_entry *bib, const struct ipv4_transport_addr *addr)
 {
 	int gap;
 
-	gap = compare_addr4(bib, &addr->address);
+	gap = compare_addr4(bib, &addr->l3);
 	if (gap != 0)
 		return gap;
 
-	gap = addr->l4_id - bib->ipv4.l4_id;
+	gap = addr->l4 - bib->ipv4.l4;
 	return gap;
 }
 
 struct iteration_args {
-	struct tuple *tuple;
-	struct ipv4_tuple_address *result;
+	struct tuple *tuple6;
+	struct ipv4_transport_addr *result;
 };
 
 /**
@@ -122,17 +122,17 @@ struct iteration_args {
 static int find_perfect_addr4(struct bib_entry *bib, void *void_args)
 {
 	struct iteration_args *args = void_args;
-	struct ipv4_tuple_address tuple_addr;
+	struct ipv4_transport_addr addr;
 	int error;
 
-	tuple_addr.address = bib->ipv4.address;
-	tuple_addr.l4_id = args->tuple->src.l4_id;
+	addr.l3 = bib->ipv4.l3;
+	addr.l4 = args->tuple6->src.addr6.l4;
 
-	error = pool4_get_match(args->tuple->l4_proto, &tuple_addr, &args->result->l4_id);
+	error = pool4_get_match(args->tuple6->l4_proto, &addr, &args->result->l4);
 	if (error)
 		return 0; /* Not a satisfactory match; keep looking.*/
 
-	args->result->address = bib->ipv4.address;
+	args->result->l3 = bib->ipv4.l3;
 	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
 }
 
@@ -145,11 +145,11 @@ static int find_runnerup_addr4(struct bib_entry *bib, void *void_args)
 	struct iteration_args *args = void_args;
 	int error;
 
-	error = pool4_get_any_port(args->tuple->l4_proto, &bib->ipv4.address, &args->result->l4_id);
+	error = pool4_get_any_port(args->tuple6->l4_proto, &bib->ipv4.l3, &args->result->l4);
 	if (error)
 		return 0; /* Not a satisfactory match; keep looking.*/
 
-	args->result->address = bib->ipv4.address;
+	args->result->l3 = bib->ipv4.l3;
 	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
 }
 
@@ -214,7 +214,7 @@ static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
 
 /**
  * "Allocates" from the IPv4 pool a new transport address. Attemps to make this address as similar
- * to "tuple"'s contents as possible.
+ * to "tuple6"'s contents as possible.
  *
  * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
  * context would be "borrow (from the IPv4 pool)".
@@ -222,21 +222,21 @@ static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
  * RFC6146 - Sections 3.5.1.1 and 3.5.2.3.
  *
  * @param[in] The table to iterate through.
- * @param[in] base this should contain the IPv6 source address you want the IPv4 address for.
+ * @param[in] tuple6 this should contain the IPv6 source address you want the IPv4 address for.
  * @param[out] result the transport address we borrowed from the pool.
  * @return true if everything went OK, false otherwise.
  */
-static int allocate_transport_address(struct bib_table *table, struct tuple *base,
-		struct ipv4_tuple_address *result)
+static int allocate_transport_address(struct bib_table *table, struct tuple *tuple6,
+		struct ipv4_transport_addr *result)
 {
 	int error;
 	struct iteration_args args = {
-			.tuple = base,
+			.tuple6 = tuple6,
 			.result = result
 	};
 
 	/* First, try to find a perfect match (Same address and a compatible port or id). */
-	error = for_each_bib_ipv6(table, &base->src.addr.ipv6, find_perfect_addr4, &args);
+	error = for_each_bib_ipv6(table, &tuple6->src.addr6.l3, find_perfect_addr4, &args);
 	if (error > 0)
 		return 0; /* A match was found and "result" is already populated, so report success. */
 	else if (error < 0)
@@ -246,7 +246,7 @@ static int allocate_transport_address(struct bib_table *table, struct tuple *bas
 	 * Else, iteration ended with no perfect match. Find a good match instead...
 	 * (good match = same address, any port or id)
 	 */
-	error = for_each_bib_ipv6(table, &base->src.addr.ipv6, find_runnerup_addr4, &args);
+	error = for_each_bib_ipv6(table, &tuple6->src.addr6.l3, find_runnerup_addr4, &args);
 	if (error < 0)
 		return error;
 	else if (error > 0)
@@ -257,7 +257,7 @@ static int allocate_transport_address(struct bib_table *table, struct tuple *bas
 	 * Alternatively, this could be the first BIB entry being created, so assign any address
 	 * anyway.
 	 */
-	return pool4_get_any_addr(base->l4_proto, base->src.l4_id, result);
+	return pool4_get_any_addr(tuple6->l4_proto, tuple6->src.addr6.l4, result);
 }
 
 int bibdb_init(void)
@@ -304,28 +304,21 @@ void bibdb_destroy(void)
 
 int bibdb_get(struct tuple *tuple, struct bib_entry **result)
 {
-	struct ipv6_tuple_address addr6;
-	struct ipv4_tuple_address addr4;
-
 	if (WARN(!tuple, "There's no BIB entry mapped to NULL."))
 		return -EINVAL;
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		addr6.address = tuple->src.addr.ipv6;
-		addr6.l4_id = tuple->src.l4_id;
-		return bibdb_get_by_ipv6(&addr6, tuple->l4_proto, result);
+		return bibdb_get_by_ipv6(&tuple->src.addr6, tuple->l4_proto, result);
 	case L3PROTO_IPV4:
-		addr4.address = tuple->dst.addr.ipv4;
-		addr4.l4_id = tuple->dst.l4_id;
-		return bibdb_get_by_ipv4(&addr4, tuple->l4_proto, result);
+		return bibdb_get_by_ipv4(&tuple->dst.addr4, tuple->l4_proto, result);
 	}
 
 	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
 	return -EINVAL;
 }
 
-int bibdb_get_by_ipv4(const struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv4(const struct ipv4_transport_addr *addr, l4_protocol l4_proto,
 		struct bib_entry **result)
 {
 	struct bib_table *table;
@@ -350,7 +343,7 @@ int bibdb_get_by_ipv4(const struct ipv4_tuple_address *addr, l4_protocol l4_prot
 	return (*result) ? 0 : -ENOENT;
 }
 
-int bibdb_get_by_ipv6(const struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv6(const struct ipv6_transport_addr *addr, l4_protocol l4_proto,
 		struct bib_entry **result)
 {
 	struct bib_table *table;
@@ -390,13 +383,15 @@ int bibdb_add(struct bib_entry *entry)
 	/* Index */
 	spin_lock_bh(&table->lock);
 
-	error = rbtree_add(entry, ipv6, &table->tree6, compare_full6, struct bib_entry, tree6_hook);
+	error = rbtree_add(entry, &entry->ipv6, &table->tree6, compare_full6, struct bib_entry,
+			tree6_hook);
 	if (error) {
 		log_debug("IPv6 index failed.");
 		goto spin_exit;
 	}
 
-	error = rbtree_add(entry, ipv4, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
+	error = rbtree_add(entry, &entry->ipv4, &table->tree4, compare_full4, struct bib_entry,
+			tree4_hook);
 	if (error) {
 		/*
 		 * This can happen if there's already a BIB entry with the same IPv4 transport address,
@@ -478,7 +473,7 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
  * could have died while the previous chunk was transmitted... so the iteration should just ignore
  * it and continue with the next entry peacefully.
  */
-static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_tuple_address *addr4,
+static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_transport_addr *addr4,
 		bool starting)
 {
 	struct bib_entry *bib;
@@ -497,7 +492,7 @@ static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_tupl
 	return (compare_full4(bib, addr4) < 0) ? parent : rb_next(parent);
 }
 
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *addr, bool starting,
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_transport_addr *addr, bool starting,
 		int (*func)(struct bib_entry *, void *), void *arg)
 {
 	struct bib_table *table;
@@ -534,30 +529,26 @@ int bibdb_count(l4_protocol proto, u64 *result)
 	return 0;
 }
 
-int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bib_entry **bib)
+int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct bib_entry **bib)
 {
-	struct ipv6_tuple_address addr6;
-	struct ipv4_tuple_address addr4;
+	struct ipv4_transport_addr addr4;
 	struct rb_node **node, *parent;
 	struct bib_table *table;
 	int error;
 
 	/* Sanitize */
-	if (WARN(!tuple, "The BIBs cannot contain NULL."))
+	if (WARN(!tuple6, "The BIBs cannot contain NULL."))
 		return -EINVAL;
 
-	addr6.address = tuple->src.addr.ipv6;
-	addr6.l4_id = tuple->src.l4_id;
-
-	error = get_bibdb_table(tuple->l4_proto, &table);
+	error = get_bibdb_table(tuple6->l4_proto, &table);
 	if (error)
 		return error;
 
 	/* Find it */
 	spin_lock_bh(&table->lock);
 
-	rbtree_find_node(&addr6, &table->tree6, compare_full6, struct bib_entry, tree6_hook, parent,
-			node);
+	rbtree_find_node(&tuple6->src.addr6, &table->tree6, compare_full6, struct bib_entry,
+			tree6_hook, parent, node);
 	if (*node) {
 		*bib = rb_entry(*node, struct bib_entry, tree6_hook);
 		bib_get(*bib);
@@ -565,18 +556,18 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
 	}
 
 	/* The entry is not in the table, so create it. */
-	error = allocate_transport_address(table, tuple, &addr4);
+	error = allocate_transport_address(table, tuple6, &addr4);
 	if (error) {
 		log_debug("Error code %d while 'allocating' an address for a BIB entry.", error);
 		spin_unlock_bh(&table->lock);
-		if (tuple->l4_proto != L4PROTO_ICMP) {
+		if (tuple6->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
 			icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
 		return error;
 	}
 
-	*bib = bib_create(&addr4, &addr6, false, tuple->l4_proto);
+	*bib = bib_create(&addr4, &tuple6->src.addr6, false, tuple6->l4_proto);
 	if (!(*bib)) {
 		log_debug("Failed to allocate a BIB entry.");
 		error = -ENOMEM;
@@ -588,7 +579,8 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
 	rb_insert_color(&(*bib)->tree6_hook, &table->tree6);
 
 	/* Index it by IPv4. */
-	error = rbtree_add(*bib, ipv4, &table->tree4, compare_full4, struct bib_entry, tree4_hook);
+	error = rbtree_add(*bib, &(*bib)->ipv4, &table->tree4, compare_full4, struct bib_entry,
+			tree4_hook);
 	if (WARN(error, "The BIB entry could be indexed by IPv6 but not by IPv4.")) {
 		rb_erase(&(*bib)->tree6_hook, &table->tree6);
 		bib_kfree(*bib);

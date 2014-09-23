@@ -44,7 +44,9 @@ struct session_entry {
 	 * is here the "Local" address.
 	 * "Local" and "Remote" as in, from the NAT64's perspective.
 	 */
-	const struct ipv6_pair ipv6;
+	const struct ipv6_transport_addr remote6;
+	const struct ipv6_transport_addr local6;
+
 	/**
 	 * IPv4 version of the connection.
 	 *
@@ -55,7 +57,8 @@ struct session_entry {
 	 * is here the "Remote" address.
 	 * "Local" and "Remote" as in, from the NAT64's perspective.
 	 */
-	const struct ipv4_pair ipv4;
+	const struct ipv4_transport_addr local4;
+	const struct ipv4_transport_addr remote4;
 
 	/** Jiffy (from the epoch) this session was last updated/used. */
 	unsigned long update_time;
@@ -100,7 +103,10 @@ struct session_entry {
  *
  * The entry is generated in dynamic memory; remember to session_return() it or pass it along.
  */
-struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
+		const struct ipv6_transport_addr *local6,
+		const struct ipv4_transport_addr *local4,
+		const struct ipv4_transport_addr *remote4,
 		l4_protocol l4_proto, struct bib_entry *bib);
 
 /**
@@ -250,7 +256,7 @@ int sessiondb_for_each(l4_protocol proto, int (*func)(struct session_entry *, vo
  * O(n), where n is the number of entries in the table whose local IPv4 addresses are "addr".
  * Warning: This locks the table while you're iterating. You want to quit early if the tree is big.
  */
-int sessiondb_iterate_by_ipv4(l4_protocol proto, struct ipv4_tuple_address *addr, bool starting,
+int sessiondb_iterate_by_ipv4(l4_protocol proto, struct ipv4_transport_addr *addr, bool starting,
 		int (*func)(struct session_entry *, void *), void *arg);
 
 /**
@@ -295,14 +301,12 @@ int sessiondb_flush(void);
 void set_syn_timer(struct session_entry *session);
 
 /**
- * Updates "session"'s state based on "skb" and "tuple". This is a good chunk of section 3.5.2.2 of
- * RFC 6146.
+ * Updates "session"'s state based on "skb". This is a good chunk of section 3.5.2.2 of RFC 6146.
  *
  * This should belong to the filtering module, but it gets so intimate with the database it's
  * unfeasible.
  */
-int sessiondb_tcp_state_machine(struct sk_buff *skb, struct tuple *tuple,
-		struct session_entry *session);
+int sessiondb_tcp_state_machine(struct sk_buff *skb, struct session_entry *session);
 
 /**
  * Returns in "result" the amount of jiffies "session" is supposed to stay in memory.

@@ -55,9 +55,9 @@ struct arguments {
 			bool csv_format;
 
 			struct {
-				struct ipv6_tuple_address addr6;
+				struct ipv6_transport_addr addr6;
 				bool addr6_set;
-				struct ipv4_tuple_address addr4;
+				struct ipv4_transport_addr addr4;
 				bool addr4_set;
 			} bib;
 		} tables;

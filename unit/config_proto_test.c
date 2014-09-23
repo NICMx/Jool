@@ -15,7 +15,7 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/fragment_db.h"
-#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/ttp/core.h"
 #include "config_proto.c"
 
 /* functions */

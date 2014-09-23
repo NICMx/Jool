@@ -318,7 +318,7 @@ not_found:
 	return -ENOENT;
 }
 
-int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
+int pool4_get(l4_protocol l4_proto, struct ipv4_transport_addr *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;
@@ -329,25 +329,25 @@ int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr)
 
 	spin_lock_bh(&pool_lock);
 
-	node = pool4_table_get(&pool, &addr->address);
+	node = pool4_table_get(&pool, &addr->l3);
 	if (!node || !node->active) {
-		log_debug("%pI4 does not belong to the pool.", &addr->address);
+		log_debug("%pI4 does not belong to the pool.", &addr->l3);
 		spin_unlock_bh(&pool_lock);
 		return -EINVAL;
 	}
 
-	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4_id);
+	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4);
 	if (!ids) {
 		spin_unlock_bh(&pool_lock);
 		return -EINVAL;
 	}
 
-	error = poolnum_get(ids, addr->l4_id);
+	error = poolnum_get(ids, addr->l4);
 	spin_unlock_bh(&pool_lock);
 	return error;
 }
 
-int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *result)
+int pool4_get_match(l4_protocol proto, struct ipv4_transport_addr *addr, __u16 *result)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;
@@ -358,14 +358,14 @@ int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *r
 
 	spin_lock_bh(&pool_lock);
 
-	node = pool4_table_get(&pool, &addr->address);
+	node = pool4_table_get(&pool, &addr->l3);
 	if (!node || !node->active) {
-		log_debug("%pI4 does not belong to the pool.", &addr->address);
+		log_debug("%pI4 does not belong to the pool.", &addr->l3);
 		error = -EINVAL;
 		goto end;
 	}
 
-	ids = get_poolnum_from_pool4_node(node, proto, addr->l4_id);
+	ids = get_poolnum_from_pool4_node(node, proto, addr->l4);
 	if (!ids) {
 		error = -EINVAL;
 		goto end;
@@ -434,7 +434,7 @@ end:
 	return error;
 }
 
-int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result)
+int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_transport_addr *result)
 {
 	struct pool4_node *node;
 	struct in_addr *original_addr;
@@ -461,7 +461,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 		if (!ids)
 			goto failure;
 
-		error = poolnum_get_any(ids, &result->l4_id);
+		error = poolnum_get_any(ids, &result->l4);
 		if (!error)
 			goto success;
 	} while (original_addr != last_used_addr);
@@ -475,7 +475,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
 		if (!node || !node->active)
 			continue;
 
-		error = get_any_port(node, proto, &result->l4_id);
+		error = get_any_port(node, proto, &result->l4);
 		if (!error)
 			goto success;
 	} while (original_addr != last_used_addr);
@@ -488,12 +488,12 @@ failure:
 	return error;
 
 success:
-	result->address = *last_used_addr;
+	result->l3 = *last_used_addr;
 	spin_unlock_bh(&pool_lock);
 	return 0;
 }
 
-int pool4_return(const l4_protocol l4_proto, const struct ipv4_tuple_address *addr)
+int pool4_return(const l4_protocol l4_proto, const struct ipv4_transport_addr *addr)
 {
 	struct pool4_node *node;
 	struct poolnum *ids;
@@ -504,20 +504,20 @@ int pool4_return(const l4_protocol l4_proto, const struct ipv4_tuple_address *ad
 
 	spin_lock_bh(&pool_lock);
 
-	node = pool4_table_get(&pool, &addr->address);
+	node = pool4_table_get(&pool, &addr->l3);
 	if (!node) {
-		log_debug("%pI4 does not belong to the pool.", &addr->address);
+		log_debug("%pI4 does not belong to the pool.", &addr->l3);
 		error = -EINVAL;
 		goto failure;
 	}
 
-	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4_id);
+	ids = get_poolnum_from_pool4_node(node, l4_proto, addr->l4);
 	if (!ids) {
 		error = -EINVAL;
 		goto failure;
 	}
 
-	error = poolnum_return(ids, addr->l4_id);
+	error = poolnum_return(ids, addr->l4);
 	if (error)
 		goto failure;
 
@@ -537,13 +537,14 @@ failure:
 	return error;
 }
 
-bool pool4_contains(struct in_addr *addr)
+bool pool4_contains(__be32 addr)
 {
 	struct pool4_node *node;
+	struct in_addr inaddr = { .s_addr = addr };
 	bool result = false;
 
 	spin_lock_bh(&pool_lock);
-	node = pool4_table_get(&pool, addr);
+	node = pool4_table_get(&pool, &inaddr);
 	if (node)
 		result = node->active;
 	spin_unlock_bh(&pool_lock);

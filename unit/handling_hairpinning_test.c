@@ -17,8 +17,10 @@
 #include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
 #include "nat64/mod/filtering_and_updating.h"
-#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/ttp/core.h"
 #include "nat64/mod/core.h"
+
+/* TODO looks like this is way more complicated than it should be. Redo it. */
 
 
 /**
@@ -80,23 +82,25 @@
 static struct session_entry *create_dynamic_session(int l4_proto)
 {
 	struct session_entry *session;
-	struct ipv4_pair pair4;
-	struct ipv6_pair pair6;
+	struct ipv6_transport_addr remote6;
+	struct ipv6_transport_addr local6;
+	struct ipv4_transport_addr local4;
+	struct ipv4_transport_addr remote4;
 
-	if (str_to_addr6(DYNAMIC_SESSION_IPV6_REMOTE_ADDR, &pair6.remote.address) != 0)
+	if (str_to_addr6(DYNAMIC_SESSION_IPV6_REMOTE_ADDR, &remote6.l3) != 0)
 		return NULL;
-	if (str_to_addr6(DYNAMIC_SESSION_IPV6_LOCAL_ADDR, &pair6.local.address) != 0)
+	if (str_to_addr6(DYNAMIC_SESSION_IPV6_LOCAL_ADDR, &local6.l3) != 0)
 		return NULL;
-	if (str_to_addr4(DYNAMIC_SESSION_IPV4_LOCAL_ADDR, &pair4.local.address) != 0)
+	if (str_to_addr4(DYNAMIC_SESSION_IPV4_LOCAL_ADDR, &local4.l3) != 0)
 		return NULL;
-	if (str_to_addr4(DYNAMIC_SESSION_IPV4_REMOTE_ADDR, &pair4.remote.address) != 0)
+	if (str_to_addr4(DYNAMIC_SESSION_IPV4_REMOTE_ADDR, &remote4.l3) != 0)
 		return NULL;
-	pair6.remote.l4_id = DYNAMIC_SESSION_IPV6_REMOTE_PORT;
-	pair6.local.l4_id = DYNAMIC_SESSION_IPV6_LOCAL_PORT;
-	pair4.local.l4_id = DYNAMIC_SESSION_IPV4_LOCAL_PORT;
-	pair4.remote.l4_id = DYNAMIC_SESSION_IPV4_REMOTE_PORT;
+	remote6.l4 = DYNAMIC_SESSION_IPV6_REMOTE_PORT;
+	local6.l4 = DYNAMIC_SESSION_IPV6_LOCAL_PORT;
+	local4.l4 = DYNAMIC_SESSION_IPV4_LOCAL_PORT;
+	remote4.l4 = DYNAMIC_SESSION_IPV4_REMOTE_PORT;
 
-	session = session_create(&pair4, &pair6, l4_proto, NULL);
+	session = session_create(&remote6, &local6, &local4, &remote4, l4_proto, NULL);
 	if (!session) {
 		log_err("Could not allocate the dynamic session entry.");
 		return NULL;
@@ -111,18 +115,18 @@ static struct session_entry *create_static_session(int l4_proto)
 	struct ipv4_pair pair4;
 	struct ipv6_pair pair6;
 
-	if (str_to_addr4(STATIC_SESSION_IPV4_REMOTE_ADDR, &pair4.remote.address) != 0)
+	if (str_to_addr4(STATIC_SESSION_IPV4_REMOTE_ADDR, &pair4.remote.l3) != 0)
 		return NULL;
-	if (str_to_addr4(STATIC_SESSION_IPV4_LOCAL_ADDR, &pair4.local.address) != 0)
+	if (str_to_addr4(STATIC_SESSION_IPV4_LOCAL_ADDR, &pair4.local.l3) != 0)
 		return NULL;
-	if (str_to_addr6(STATIC_SESSION_IPV6_LOCAL_ADDR, &pair6.local.address) != 0)
+	if (str_to_addr6(STATIC_SESSION_IPV6_LOCAL_ADDR, &pair6.local.l3) != 0)
 		return NULL;
-	if (str_to_addr6(STATIC_SESSION_IPV6_REMOTE_ADDR, &pair6.remote.address) != 0)
+	if (str_to_addr6(STATIC_SESSION_IPV6_REMOTE_ADDR, &pair6.remote.l3) != 0)
 		return NULL;
-	pair4.remote.l4_id = STATIC_SESSION_IPV4_REMOTE_PORT;
-	pair4.local.l4_id = STATIC_SESSION_IPV4_LOCAL_PORT;
-	pair6.local.l4_id = STATIC_SESSION_IPV6_LOCAL_PORT;
-	pair6.remote.l4_id = STATIC_SESSION_IPV6_REMOTE_PORT;
+	pair4.remote.l4 = STATIC_SESSION_IPV4_REMOTE_PORT;
+	pair4.local.l4 = STATIC_SESSION_IPV4_LOCAL_PORT;
+	pair6.local.l4 = STATIC_SESSION_IPV6_LOCAL_PORT;
+	pair6.remote.l4 = STATIC_SESSION_IPV6_REMOTE_PORT;
 
 	session = session_create(&pair4, &pair6, l4_proto, NULL);
 	if (!session) {
@@ -136,15 +140,15 @@ static struct session_entry *create_static_session(int l4_proto)
 static struct bib_entry *create_and_insert_static_bib(int l4_proto)
 {
 	struct bib_entry *bib;
-	struct ipv4_tuple_address addr4;
-	struct ipv6_tuple_address addr6;
+	struct ipv4_transport_addr addr4;
+	struct ipv6_transport_addr addr6;
 
-	if (str_to_addr4(STATIC_BIB_IPV4_ADDR, &addr4.address) != 0)
+	if (str_to_addr4(STATIC_BIB_IPV4_ADDR, &addr4.l3) != 0)
 		return NULL;
-	if (str_to_addr6(STATIC_BIB_IPV6_ADDR, &addr6.address) != 0)
+	if (str_to_addr6(STATIC_BIB_IPV6_ADDR, &addr6.l3) != 0)
 		return NULL;
-	addr4.l4_id = STATIC_BIB_IPV4_PORT;
-	addr6.l4_id = STATIC_BIB_IPV6_PORT;
+	addr4.l4 = STATIC_BIB_IPV4_PORT;
+	addr6.l4 = STATIC_BIB_IPV6_PORT;
 
 	bib = bib_create(&addr4, &addr6, true, l4_proto);
 	if (!bib) {
@@ -161,56 +165,34 @@ static int strs_to_pair6(char *src_addr, u16 src_port, char *dst_addr, u16 dst_p
 {
 	int error;
 
-	error = str_to_addr6(src_addr, &pair6->remote.address);
+	error = str_to_addr6(src_addr, &pair6->remote.l3);
 	if (error) {
 		log_err("Cannot parse %pI6c as a IPv6 address.", src_addr);
 		return error;
 	}
-	error = str_to_addr6(dst_addr, &pair6->local.address);
+	error = str_to_addr6(dst_addr, &pair6->local.l3);
 	if (error) {
 		log_err("Cannot parse %pI6c as a IPv6 address.", dst_addr);
 		return error;
 	}
-	pair6->remote.l4_id = src_port;
-	pair6->local.l4_id = dst_port;
+	pair6->remote.l4 = src_port;
+	pair6->local.l4 = dst_port;
 
 	return 0;
 }
-
-/*
-static int strs_to_pair4(char *src_addr, u16 src_port, char *dst_addr, u16 dst_port, struct ipv4_pair *pair4)
-{
-	int error;
-
-	error = str_to_addr4(src_addr, &pair4->remote.address);
-	if (error) {
-		log_err("Cannot parse %pI4 as a IPv4 address.", src_addr);
-		return error;
-	}
-	error = str_to_addr4(dst_addr, &pair4->local.address);
-	if (error) {
-		log_err("Cannot parse %pI4 as a IPv4 address.", dst_addr);
-		return error;
-	}
-	pair4->remote.l4_id = src_port;
-	pair4->local.l4_id = dst_port;
-
-	return 0;
-}
-*/
 
 static struct bib_entry *create_dynamic_bib(int l4_proto)
 {
 	struct bib_entry *bib;
-	struct ipv6_tuple_address addr6;
-	struct ipv4_tuple_address addr4;
+	struct ipv6_transport_addr addr6;
+	struct ipv4_transport_addr addr4;
 
-	if (str_to_addr6(DYNAMIC_BIB_IPV6_ADDR, &addr6.address) != 0)
+	if (str_to_addr6(DYNAMIC_BIB_IPV6_ADDR, &addr6.l3) != 0)
 		return NULL;
-	if (str_to_addr4(DYNAMIC_BIB_IPV4_ADDR, &addr4.address) != 0)
+	if (str_to_addr4(DYNAMIC_BIB_IPV4_ADDR, &addr4.l3) != 0)
 		return NULL;
-	addr6.l4_id = DYNAMIC_BIB_IPV6_PORT;
-	addr4.l4_id = DYNAMIC_BIB_IPV4_PORT;
+	addr6.l4 = DYNAMIC_BIB_IPV6_PORT;
+	addr4.l4 = DYNAMIC_BIB_IPV4_PORT;
 
 	bib = bib_create(&addr4, &addr6, true, l4_proto);
 	if (!bib) {

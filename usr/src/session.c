@@ -60,14 +60,14 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 			struct session_entry_usr *entry = &entries[i];
 
 			printf("%s,", l4proto_to_string(params->req_payload->l4_proto));
-			print_ipv6_tuple(&entry->addr6.remote, params->numeric_hostname, ",",
+			print_addr6(&entry->addr6.remote, params->numeric_hostname, ",",
 					params->req_payload->l4_proto);
 			printf(",");
-			print_ipv6_tuple(&entry->addr6.local, true, ",", params->req_payload->l4_proto);
+			print_addr6(&entry->addr6.local, true, ",", params->req_payload->l4_proto);
 			printf(",");
-			print_ipv4_tuple(&entry->addr4.local, true, ",", params->req_payload->l4_proto);
+			print_addr4(&entry->addr4.local, true, ",", params->req_payload->l4_proto);
 			printf(",");
-			print_ipv4_tuple(&entry->addr4.remote, params->numeric_hostname, ",",
+			print_addr4(&entry->addr4.remote, params->numeric_hostname, ",",
 					params->req_payload->l4_proto);
 			printf(",");
 			print_time_csv(entry->dying_time);
@@ -86,19 +86,19 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 			print_time_friendly(entry->dying_time);
 
 			printf("Remote: ");
-			print_ipv4_tuple(&entry->addr4.remote, params->numeric_hostname, "#",
+			print_addr4(&entry->addr4.remote, params->numeric_hostname, "#",
 					params->req_payload->l4_proto);
 
 			printf("\t");
-			print_ipv6_tuple(&entry->addr6.remote, params->numeric_hostname, "#",
+			print_addr6(&entry->addr6.remote, params->numeric_hostname, "#",
 					params->req_payload->l4_proto);
 			printf("\n");
 
 			printf("Local: ");
-			print_ipv4_tuple(&entry->addr4.local, true, "#", params->req_payload->l4_proto);
+			print_addr4(&entry->addr4.local, true, "#", params->req_payload->l4_proto);
 
 			printf("\t");
-			print_ipv6_tuple(&entry->addr6.local, true, "#", params->req_payload->l4_proto);
+			print_addr6(&entry->addr6.local, true, "#", params->req_payload->l4_proto);
 			printf("\n");
 
 			printf("---------------------------------\n");

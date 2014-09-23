@@ -18,19 +18,19 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out);
 /**
  * Translates "in"'s IPv6 header into IPv4 and places the result in "out".
  */
-int ttp64_ipv4(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out);
+int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out);
 /**
  * Translates "in"'s ICMPv6 header and payload into ICMPv4 and payload, and places the result in
  * "out".
  */
-int ttp64_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out);
+int ttp64_icmp(struct tuple* tuple4, struct pkt_parts *in, struct pkt_parts *out);
 /**
  * Translates "in"'s TCP header and payload, and places the result in "out".
  */
-int ttp64_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out);
+int ttp64_tcp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out);
 /**
  * Translates "in"'s UDP header and payload, and places the result in "out".
  */
-int ttp64_udp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out);
+int ttp64_udp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out);
 
 #endif /* _JOOL_MOD_TTP_6TO4_H */

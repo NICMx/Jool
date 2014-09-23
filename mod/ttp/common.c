@@ -1,10 +1,11 @@
 #include "nat64/mod/ttp/common.h"
 #include "nat64/mod/ttp/4to6.h"
 #include "nat64/mod/ttp/6to4.h"
+#include "nat64/mod/send_packet.h"
 
 static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
 
-int ttpcomm_translate_inner_packet(struct tuple *tuple, struct pkt_parts *in_inner,
+int ttpcomm_translate_inner_packet(struct tuple *out_tuple, struct pkt_parts *in_inner,
 		struct pkt_parts *out_outer)
 {
 	struct pkt_parts out_inner;
@@ -12,10 +13,10 @@ int ttpcomm_translate_inner_packet(struct tuple *tuple, struct pkt_parts *in_inn
 	struct translation_steps *current_steps;
 	int error;
 
-	inner_tuple.src = tuple->dst;
-	inner_tuple.dst = tuple->src;
-	inner_tuple.l3_proto = tuple->l3_proto;
-	inner_tuple.l4_proto = tuple->l4_proto;
+	inner_tuple.src = out_tuple->dst;
+	inner_tuple.dst = out_tuple->src;
+	inner_tuple.l3_proto = out_tuple->l3_proto;
+	inner_tuple.l4_proto = out_tuple->l4_proto;
 
 	out_inner.l3_hdr.proto = out_outer->l3_hdr.proto;
 	out_inner.l3_hdr.len = out_outer->payload.len - in_inner->l4_hdr.len - in_inner->payload.len;
@@ -43,26 +44,32 @@ int ttpcomm_init(void)
 	steps[L3PROTO_IPV6][L4PROTO_TCP].skb_create_fn = ttp64_create_skb;
 	steps[L3PROTO_IPV6][L4PROTO_TCP].l3_hdr_fn = ttp64_ipv4;
 	steps[L3PROTO_IPV6][L4PROTO_TCP].l3_payload_fn = ttp64_tcp;
+	steps[L3PROTO_IPV6][L4PROTO_TCP].route_fn = sendpkt_route4;
 
 	steps[L3PROTO_IPV6][L4PROTO_UDP].skb_create_fn = ttp64_create_skb;
 	steps[L3PROTO_IPV6][L4PROTO_UDP].l3_hdr_fn = ttp64_ipv4;
 	steps[L3PROTO_IPV6][L4PROTO_UDP].l3_payload_fn = ttp64_udp;
+	steps[L3PROTO_IPV6][L4PROTO_UDP].route_fn = sendpkt_route4;
 
 	steps[L3PROTO_IPV6][L4PROTO_ICMP].skb_create_fn = ttp64_create_skb;
 	steps[L3PROTO_IPV6][L4PROTO_ICMP].l3_hdr_fn = ttp64_ipv4;
 	steps[L3PROTO_IPV6][L4PROTO_ICMP].l3_payload_fn = ttp64_icmp;
+	steps[L3PROTO_IPV6][L4PROTO_ICMP].route_fn = sendpkt_route4;
 
 	steps[L3PROTO_IPV4][L4PROTO_TCP].skb_create_fn = ttp46_create_skb;
 	steps[L3PROTO_IPV4][L4PROTO_TCP].l3_hdr_fn = ttp46_ipv6;
 	steps[L3PROTO_IPV4][L4PROTO_TCP].l3_payload_fn = ttp46_tcp;
+	steps[L3PROTO_IPV4][L4PROTO_TCP].route_fn = sendpkt_route6;
 
 	steps[L3PROTO_IPV4][L4PROTO_UDP].skb_create_fn = ttp46_create_skb;
 	steps[L3PROTO_IPV4][L4PROTO_UDP].l3_hdr_fn = ttp46_ipv6;
 	steps[L3PROTO_IPV4][L4PROTO_UDP].l3_payload_fn = ttp46_udp;
+	steps[L3PROTO_IPV4][L4PROTO_UDP].route_fn = sendpkt_route6;
 
 	steps[L3PROTO_IPV4][L4PROTO_ICMP].skb_create_fn = ttp46_create_skb;
 	steps[L3PROTO_IPV4][L4PROTO_ICMP].l3_hdr_fn = ttp46_ipv6;
 	steps[L3PROTO_IPV4][L4PROTO_ICMP].l3_payload_fn = ttp46_icmp;
+	steps[L3PROTO_IPV4][L4PROTO_ICMP].route_fn = sendpkt_route6;
 
 	return 0;
 }

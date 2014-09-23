@@ -34,7 +34,6 @@ int ttpconfig_init(void)
 		kfree(config);
 		return -ENOMEM;
 	}
-	config->min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
 	memcpy(config->mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
 	return 0;
@@ -81,23 +80,14 @@ static void be16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-static bool validate_size(size_t expected, size_t actual)
-{
-	if (expected != actual) {
-		log_err("Expected a %zu-byte integer, got %zu bytes.", expected, actual);
-		return false;
-	}
-	return true;
-}
-
-static bool expect_u16(size_t actual)
-{
-	return validate_size(sizeof(__u16), actual);
-}
-
 static bool expect_u8(size_t actual)
 {
-	return validate_size(sizeof(__u8), actual);
+	if (actual != sizeof(__u8)) {
+		log_err("Expected a byte-sized integer, got %zu bytes.", actual);
+		return false;
+	}
+
+	return true;
 }
 
 static int update_plateaus(struct translate_config *config, size_t size, void *value)
@@ -196,11 +186,6 @@ int ttpconfig_update(enum translate_type type, size_t size, void *value)
 		error = update_plateaus(tmp_config, size, value);
 		if (error)
 			goto fail;
-		break;
-	case MIN_IPV6_MTU:
-		if (!expect_u16(size))
-			goto fail;
-		tmp_config->min_ipv6_mtu = *((__u16 *) value);
 		break;
 	default:
 		log_err("Unknown config type for the 'translating the packet' module: %u", type);

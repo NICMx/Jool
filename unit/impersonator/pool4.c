@@ -73,9 +73,9 @@ static int get_next_port(l4_protocol proto, __u16 *result)
 	return 0;
 }
 
-int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *result)
+int pool4_get_match(l4_protocol proto, struct ipv4_transport_addr *addr, __u16 *result)
 {
-	return pool4_get_any_port(proto, &addr->address, result);
+	return pool4_get_any_port(proto, &addr->l3, result);
 }
 
 int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *result)
@@ -85,27 +85,27 @@ int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *res
 			: -EINVAL;
 }
 
-int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result)
+int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_transport_addr *result)
 {
-	result->address = pool_address;
-	return get_next_port(proto, &result->l4_id);
+	result->l3 = pool_address;
+	return get_next_port(proto, &result->l4);
 }
 
-int pool4_return(l4_protocol l4_proto, const struct ipv4_tuple_address *address)
+int pool4_return(l4_protocol l4_proto, const struct ipv4_transport_addr *address)
 {
 	/* Meh, whatever. */
-	log_debug("Somebody returned %pI4#%u to the pool.", &address->address, address->l4_id);
+	log_debug("Somebody returned %pI4#%u to the pool.", &address->l3, address->l4);
 	return 0;
 }
 
-bool pool4_contains(struct in_addr *address)
+bool pool4_contains(__be32 address)
 {
 	if (!address) {
 		log_err("Somebody sent me NULL as an IPv4 address.");
 		return false;
 	}
 
-	return pool_address.s_addr == address->s_addr;
+	return pool_address.s_addr == address;
 }
 
 int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)

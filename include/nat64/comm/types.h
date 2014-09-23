@@ -83,42 +83,22 @@ typedef enum l4_protocol {
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).
  * Because they're paired all the time in this project.
  */
-struct ipv4_tuple_address {
+struct ipv4_transport_addr {
 	/** The layer-3 identifier. */
-	struct in_addr address;
+	struct in_addr l3;
 	/** The layer-4 identifier (Either the port (TCP or UDP) or the ICMP id). */
-	__u16 l4_id;
+	__u16 l4;
 };
 
 /**
  * A layer-3 (IPv6) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMPv6 id).
  * Because they're paired all the time in this project.
  */
-struct ipv6_tuple_address {
+struct ipv6_transport_addr {
 	/** The layer-3 identifier. */
-	struct in6_addr address;
+	struct in6_addr l3;
 	/** The layer-4 identifier (Either the port (TCP or UDP) or the ICMP id). */
-	__u16 l4_id;
-};
-
-/**
- * The IPv4 side of a connection: A remote node in some IPv4 network and the NAT64.
- */
-struct ipv4_pair {
-	/** The IPv4 node's address and port being used in the connection. */
-	struct ipv4_tuple_address remote;
-	/** Jool's address and port being used in the connection. */
-	struct ipv4_tuple_address local;
-};
-
-/**
- * The IPv6 side of a connection: A remote node in some IPv6 network and the NAT64.
- */
-struct ipv6_pair {
-	/** The NAT64's address and port being used in the connection. */
-	struct ipv6_tuple_address local;
-	/** The IPv6 node's address and port being used in the connection. */
-	struct ipv6_tuple_address remote;
+	__u16 l4;
 };
 
 /**
@@ -129,19 +109,6 @@ struct ipv6_prefix {
 	struct in6_addr address;
 	/** Number of bits from "address" which represent the network. */
 	__u8 len;
-};
-
-/**
- * TODO (fine) I don't think there's a reason for this to exist anymore.
- * Also, see if ipv4_tuple_address and ipv6_tuple_address can also be removed,
- * just for shits and giggles.
- */
-struct tuple_addr {
-	union {
-		struct in_addr ipv4;
-		struct in6_addr ipv6;
-	} addr;
-	__u16 l4_id;
 };
 
 #endif /* _JOOL_COMM_TYPES_H */

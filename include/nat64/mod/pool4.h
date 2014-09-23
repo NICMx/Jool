@@ -79,7 +79,7 @@ int pool4_remove(struct in_addr *addr);
  *
  * Warning: This function is pretty slow. Do not use it during packet processing.
  */
-int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr);
+int pool4_get(l4_protocol l4_proto, struct ipv4_transport_addr *addr);
 /**
  * Borrows an acceptable match for "addr" from the pool. That is, it'll borrow the same address as
  * "addr->address", and a similar ID as "addr->l4_id".
@@ -92,7 +92,7 @@ int pool4_get(l4_protocol l4_proto, struct ipv4_tuple_address *addr);
  * The function will not return the address because you already have it in "addr". The 'similar ID'
  * will be placed in the outgoing parameter, "result".
  */
-int pool4_get_match(l4_protocol proto, struct ipv4_tuple_address *addr, __u16 *result);
+int pool4_get_match(l4_protocol proto, struct ipv4_transport_addr *addr, __u16 *result);
 /**
  * Borrows any port of the "addr" address from the pool.
  *
@@ -107,7 +107,7 @@ int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *res
  *
  * The resulting address-ID will be placed in the outgoing parameter, "result".
  */
-int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address *result);
+int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_transport_addr *result);
 
 /**
  * Returns the address-port combination from "addr" to the pool, so it can be borrowed again later.
@@ -115,7 +115,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_tuple_address
  * Don't sweat it too much if this function fails; the user might have removed the address from the
  * pool.
  */
-int pool4_return(const l4_protocol l4_proto, const struct ipv4_tuple_address *addr);
+int pool4_return(const l4_protocol l4_proto, const struct ipv4_transport_addr *addr);
 
 /**
  * Returns whether the "addr" address is part of the pool.
@@ -124,7 +124,7 @@ int pool4_return(const l4_protocol l4_proto, const struct ipv4_tuple_address *ad
  * takes for an address to belong to the pool is to have been pool4_register()ed and not
  * pool4_remove()d.
  */
-bool pool4_contains(struct in_addr *addr);
+bool pool4_contains(__be32 addr);
 /**
  * Executes the "func" function with the "arg" argument on every address in the pool.
  */

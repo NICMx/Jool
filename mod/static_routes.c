@@ -76,7 +76,7 @@ int delete_static_route(struct request_bib *req)
 		return error;
 
 	if (req->remove.addr6_set && req->remove.addr4_set) {
-		if (!ipv4_tuple_addr_equals(&bib->ipv4, &req->remove.addr4)) {
+		if (!ipv4_transport_addr_equals(&bib->ipv4, &req->remove.addr4)) {
 			log_err("There's no BIB entry with BOTH of the addresses you requested.");
 			bib_return(bib);
 			return -ENOENT;

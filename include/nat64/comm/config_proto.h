@@ -170,26 +170,26 @@ struct request_bib {
 			 * Address the userspace app received in the last chunk. Iteration should contiue
 			 * from here.
 			 */
-			struct ipv4_tuple_address addr4;
+			struct ipv4_transport_addr addr4;
 		} display;
 		struct {
 			/* Nothing needed here. */
 		} count;
 		struct {
 			/** The IPv6 transport address of the entry the user wants to add. */
-			struct ipv6_tuple_address addr6;
+			struct ipv6_transport_addr addr6;
 			/** The IPv4 transport address of the entry the user wants to add. */
-			struct ipv4_tuple_address addr4;
+			struct ipv4_transport_addr addr4;
 		} add;
 		struct {
 			/* Is the value if "addr6" set? (boolean) */
 			__u8 addr6_set;
 			/** The IPv6 transport address of the entry the user wants to remove. */
-			struct ipv6_tuple_address addr6;
+			struct ipv6_transport_addr addr6;
 			/* Is the value if "addr4" set? (boolean) */
 			__u8 addr4_set;
 			/** The IPv4 transport address of the entry the user wants to remove. */
-			struct ipv4_tuple_address addr4;
+			struct ipv4_transport_addr addr4;
 		} remove;
 	};
 };
@@ -208,7 +208,7 @@ struct request_session {
 			 * Address the userspace app received in the last chunk. Iteration should contiue
 			 * from here.
 			 */
-			struct ipv4_tuple_address addr4;
+			struct ipv4_transport_addr addr4;
 		} display;
 		struct {
 			/* Nothing needed here. */
@@ -302,7 +302,6 @@ enum translate_type {
 	BUILD_IPV4_ID,
 	LOWER_MTU_FAIL,
 	MTU_PLATEAUS,
-	MIN_IPV6_MTU,
 };
 
 /**
@@ -359,6 +358,13 @@ struct translate_config {
 	 * packet's Total Length field.
 	 */
 	__u16 *mtu_plateaus;
+};
+
+enum sendpkt_type {
+	MIN_IPV6_MTU,
+};
+
+struct sendpkt_config {
 	/**
 	 * The smallest MTU in the IPv6 side. Jool will ensure that packets traveling from 4 to 6 will
 	 * be no bigger than this amount of bytes.
@@ -377,6 +383,8 @@ enum general_module {
 	TRANSLATE,
 	/** Indicates the presence of a struct fragmentation_config value. */
 	FRAGMENT,
+
+	SENDPKT,
 };
 
 /**
@@ -402,8 +410,8 @@ union request_general {
  * See "struct bib_entry" for documentation on the fields.
  */
 struct bib_entry_usr {
-	struct ipv4_tuple_address addr4;
-	struct ipv6_tuple_address addr6;
+	struct ipv4_transport_addr addr4;
+	struct ipv6_transport_addr addr6;
 	__u8 is_static;
 };
 
@@ -416,8 +424,10 @@ struct bib_entry_usr {
  * See "struct session_entry" for documentation on the fields.
  */
 struct session_entry_usr {
-	struct ipv6_pair addr6;
-	struct ipv4_pair addr4;
+	struct ipv6_transport_addr remote6;
+	struct ipv6_transport_addr local6;
+	struct ipv4_transport_addr local4;
+	struct ipv4_transport_addr remote4;
 	__u64 dying_time;
 	__u8 state;
 };
@@ -431,6 +441,7 @@ struct response_general {
 	struct filtering_config filtering;
 	struct translate_config translate;
 	struct fragmentation_config fragmentation;
+	struct sendpkt_config sendpkt;
 };
 
 /**

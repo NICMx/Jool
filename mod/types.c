@@ -30,31 +30,31 @@ bool ipv6_addr_equals(const struct in6_addr *expected, const struct in6_addr *ac
 	return true;
 }
 
-bool ipv4_tuple_addr_equals(const struct ipv4_tuple_address *expected,
-		const struct ipv4_tuple_address *actual)
+bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *expected,
+		const struct ipv4_transport_addr *actual)
 {
 	if (expected == actual)
 		return true;
 	if (expected == NULL || actual == NULL)
 		return false;
-	if (expected->address.s_addr != actual->address.s_addr)
+	if (expected->l3.s_addr != actual->l3.s_addr)
 		return false;
-	if (expected->l4_id != actual->l4_id)
+	if (expected->l4 != actual->l4)
 		return false;
 
 	return true;
 }
 
-bool ipv6_tuple_addr_equals(const struct ipv6_tuple_address *expected,
-		const struct ipv6_tuple_address *actual)
+bool ipv6_transport_addr_equals(const struct ipv6_transport_addr *expected,
+		const struct ipv6_transport_addr *actual)
 {
 	if (expected == actual)
 		return true;
 	if (expected == NULL || actual == NULL)
 		return false;
-	if (!ipv6_addr_equal(&expected->address, &actual->address))
+	if (!ipv6_addr_equal(&expected->l3, &actual->l3))
 		return false;
-	if (expected->l4_id != actual->l4_id)
+	if (expected->l4 != actual->l4)
 		return false;
 
 	return true;
@@ -113,14 +113,14 @@ void log_tuple(struct tuple *tuple)
 	case L3PROTO_IPV4:
 		log_debug("tuple %s-%s %pI4#%u -> %pI4#%u",
 				l3proto_to_string(tuple->l3_proto), l4proto_to_string(tuple->l4_proto),
-				&tuple->src.addr.ipv4, tuple->src.l4_id,
-				&tuple->dst.addr.ipv4, tuple->dst.l4_id);
+				&tuple->src.addr4.l3, tuple->src.addr4.l4,
+				&tuple->dst.addr4.l3, tuple->dst.addr4.l4);
 		break;
 	case L3PROTO_IPV6:
 		log_debug("tuple %s-%s %pI6c#%u -> %pI6c#%u",
 				l3proto_to_string(tuple->l3_proto), l4proto_to_string(tuple->l4_proto),
-				&tuple->src.addr.ipv6, tuple->src.l4_id,
-				&tuple->dst.addr.ipv6, tuple->dst.l4_id);
+				&tuple->src.addr6.l3, tuple->src.addr6.l4,
+				&tuple->dst.addr6.l3, tuple->dst.addr6.l4);
 		break;
 	}
 }

@@ -26,7 +26,7 @@ int ttp46_create_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	is_first = is_first_fragment_ipv4(in->l3_hdr.ptr);
 
-	/**
+	/*
 	 * These are my assumptions to compute total_len:
 	 *
 	 * The IPv4 header will be replaced by a IPv6 header and possibly a fragment header.
@@ -134,7 +134,7 @@ static inline __be32 build_id_field(struct iphdr *ip4_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet() and its callers.
  */
-int ttp46_ipv6(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp46_ipv6(struct tuple *tuple6, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct iphdr *ip4_hdr = in->l3_hdr.ptr;
 	struct ipv6hdr *ip6_hdr;
@@ -168,8 +168,8 @@ int ttp46_ipv6(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 	} else {
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
 	}
-	ip6_hdr->saddr = tuple->src.addr.ipv6;
-	ip6_hdr->daddr = tuple->dst.addr.ipv6;
+	ip6_hdr->saddr = tuple6->src.addr6.l3;
+	ip6_hdr->daddr = tuple6->dst.addr6.l3;
 
 	/*
 	 * This is already covered by the kernel, by logging martians
@@ -273,7 +273,7 @@ static int compute_mtu6(struct sk_buff *in, struct sk_buff *out)
 	struct icmphdr *in_icmp = icmp_hdr(in);
 	int error;
 
-	error = route_ipv6(out);
+	error = sendpkt_route6(out);
 	if (error)
 		return error;
 
@@ -561,13 +561,13 @@ static int compute_icmp6_csum(struct pkt_parts *out)
 	return 0;
 }
 
-static int post_icmp6info(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+static int post_icmp6info(struct pkt_parts *in, struct pkt_parts *out)
 {
 	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
 	return is_csum6_computable(out) ? update_icmp6_csum(in, out) : 0;
 }
 
-static int post_icmp6error(struct tuple *tuple, struct pkt_parts *in_outer,
+static int post_icmp6error(struct tuple *tuple6, struct pkt_parts *in_outer,
 		struct pkt_parts *out_outer, int *field)
 {
 	struct pkt_parts in_inner;
@@ -580,7 +580,7 @@ static int post_icmp6error(struct tuple *tuple, struct pkt_parts *in_outer,
 	if (error)
 		return error;
 
-	error = ttpcomm_translate_inner_packet(tuple, &in_inner, out_outer);
+	error = ttpcomm_translate_inner_packet(tuple6, &in_inner, out_outer);
 	if (error)
 		return error;
 
@@ -594,7 +594,7 @@ static int post_icmp6error(struct tuple *tuple, struct pkt_parts *in_outer,
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-int ttp46_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp46_icmp(struct tuple* tuple6, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct icmphdr *icmpv4_hdr = in->l4_hdr.ptr;
 	struct icmp6hdr *icmpv6_hdr = out->l4_hdr.ptr;
@@ -606,31 +606,31 @@ int ttp46_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple->icmp_id);
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple6->icmp6_id);
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
-		error = post_icmp6info(tuple, in, out);
+		error = post_icmp6info(in, out);
 		break;
 
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple->icmp_id);
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple6->icmp6_id);
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
-		error = post_icmp6info(tuple, in, out);
+		error = post_icmp6info(in, out);
 		break;
 
 	case ICMP_DEST_UNREACH:
 		error = icmp4_to_icmp6_dest_unreach(in, out);
 		if (error)
 			return error;
-		error = post_icmp6error(tuple, in, out, &field);
+		error = post_icmp6error(tuple6, in, out, &field);
 		break;
 
 	case ICMP_TIME_EXCEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_TIME_EXCEED;
 		icmpv6_hdr->icmp6_code = icmpv4_hdr->code;
 		icmpv6_hdr->icmp6_unused = 0;
-		error = post_icmp6error(tuple, in, out, &field);
+		error = post_icmp6error(tuple6, in, out, &field);
 		break;
 
 	case ICMP_PARAMETERPROB:
@@ -639,7 +639,7 @@ int ttp46_icmp(struct tuple* tuple, struct pkt_parts *in, struct pkt_parts *out)
 			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
 			return error;
 		}
-		error = post_icmp6error(tuple, in, out, &field);
+		error = post_icmp6error(tuple6, in, out, &field);
 		break;
 
 	default:
@@ -739,7 +739,7 @@ static void handle_zero_csum(struct pkt_parts *in, struct pkt_parts *out)
 	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, datagram_len, IPPROTO_UDP, csum);
 }
 
-int ttp46_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp46_tcp(struct tuple *tuple6, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct tcphdr *tcp_in = in->l4_hdr.ptr;
 	struct tcphdr *tcp_out = out->l4_hdr.ptr;
@@ -748,8 +748,8 @@ int ttp46_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 	/* Header */
 	memcpy(tcp_out, tcp_in, in->l4_hdr.len);
 
-	tcp_out->source = cpu_to_be16(tuple->src.l4_id);
-	tcp_out->dest = cpu_to_be16(tuple->dst.l4_id);
+	tcp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
+	tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 
 	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
 	tcp_copy.check = 0;
@@ -765,15 +765,15 @@ int ttp46_tcp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
 	return 0;
 }
 
-int ttp46_udp(struct tuple *tuple, struct pkt_parts *in, struct pkt_parts *out)
+int ttp46_udp(struct tuple *tuple6, struct pkt_parts *in, struct pkt_parts *out)
 {
 	struct udphdr *udp_in = in->l4_hdr.ptr;
 	struct udphdr *udp_out = out->l4_hdr.ptr;
 	struct udphdr udp_copy;
 
 	/* Header */
-	udp_out->source = cpu_to_be16(tuple->src.l4_id);
-	udp_out->dest = cpu_to_be16(tuple->dst.l4_id);
+	udp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
+	udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	udp_out->len = udp_in->len;
 	if (udp_in->check != 0) {
 		memcpy(&udp_copy, udp_in, sizeof(*udp_in));

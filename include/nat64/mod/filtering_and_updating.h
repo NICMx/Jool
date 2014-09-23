@@ -23,7 +23,7 @@ void filtering_destroy(void);
 int filtering_clone_config(struct filtering_config *clone);
 int filtering_set_config(enum filtering_type type, size_t size, void *value);
 
-verdict filtering_and_updating(struct sk_buff *skb, struct tuple *tuple);
+verdict filtering_and_updating(struct sk_buff *skb, struct tuple *in_tuple);
 
 
 #endif /* _JOOL_MOD_FILTERING_H */

@@ -57,12 +57,17 @@ struct session_entry *session_clone(struct session_entry *session)
 	return result;
 }
 
-struct session_entry *session_create(struct ipv4_pair *ipv4, struct ipv6_pair *ipv6,
+struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
+		const struct ipv6_transport_addr *local6,
+		const struct ipv4_transport_addr *local4,
+		const struct ipv4_transport_addr *remote4,
 		l4_protocol l4_proto, struct bib_entry *bib)
 {
 	struct session_entry tmp = {
-			.ipv4 = *ipv4,
-			.ipv6 = *ipv6,
+			.remote6 = *remote6,
+			.local6 = *local6,
+			.local4 = *local4,
+			.remote4 = *remote4,
 			.update_time = jiffies,
 			.bib = bib,
 			.l4_proto = l4_proto,

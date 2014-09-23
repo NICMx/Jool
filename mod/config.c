@@ -12,6 +12,7 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/ttp/core.h"
+#include "nat64/mod/send_packet.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -342,8 +343,10 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 		return error;
 	dying_time += entry->update_time;
 
-	entry_usr.addr6 = entry->ipv6;
-	entry_usr.addr4 = entry->ipv4;
+	entry_usr.remote6 = entry->remote6;
+	entry_usr.local6 = entry->local6;
+	entry_usr.local4 = entry->local4;
+	entry_usr.remote4 = entry->remote4;
 	entry_usr.state = entry->state;
 	entry_usr.dying_time = (dying_time > jiffies) ? jiffies_to_msecs(dying_time - jiffies) : 0;
 
@@ -416,7 +419,7 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		error = translate_clone_config(&response.translate);
 		if (error)
 			goto end;
-		error = fragmentdb_clone_config(&response.fragmentation);
+		error = fragdb_clone_config(&response.fragmentation);
 		if (error)
 			goto end;
 
@@ -451,7 +454,10 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 			error = translate_set_config(request->update.type, buffer_len, buffer);
 			break;
 		case FRAGMENT:
-			error = fragmentdb_set_config(request->update.type, buffer_len, buffer);
+			error = fragdb_set_config(request->update.type, buffer_len, buffer);
+			break;
+		case SENDPKT:
+			error = sendpkt_set_config(request->update.type, buffer_len, buffer);
 			break;
 		default:
 			log_err("Unknown module: %u", request->update.module);
@@ -480,7 +486,6 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 {
 	struct request_hdr *nat64_hdr;
 	void *request;
-	int error;
 
 	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);
@@ -492,26 +497,19 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 
 	switch (nat64_hdr->mode) {
 	case MODE_POOL6:
-		error = handle_pool6_config(nl_hdr, nat64_hdr, request);
-		break;
+		return handle_pool6_config(nl_hdr, nat64_hdr, request);
 	case MODE_POOL4:
-		error = handle_pool4_config(nl_hdr, nat64_hdr, request);
-		break;
+		return handle_pool4_config(nl_hdr, nat64_hdr, request);
 	case MODE_BIB:
-		error = handle_bib_config(nl_hdr, nat64_hdr, request);
-		break;
+		return handle_bib_config(nl_hdr, nat64_hdr, request);
 	case MODE_SESSION:
-		error = handle_session_config(nl_hdr, nat64_hdr, request);
-		break;
+		return handle_session_config(nl_hdr, nat64_hdr, request);
 	case MODE_GENERAL:
-		error = handle_general_config(nl_hdr, nat64_hdr, request);
-		break;
-	default:
-		log_err("Unknown configuration mode: %d", nat64_hdr->mode);
-		error = respond_error(nl_hdr, -EINVAL);
+		return handle_general_config(nl_hdr, nat64_hdr, request);
 	}
 
-	return error;
+	log_err("Unknown configuration mode: %d", nat64_hdr->mode);
+	return respond_error(nl_hdr, -EINVAL);
 }
 
 /**

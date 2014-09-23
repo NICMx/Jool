@@ -6,7 +6,9 @@
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/validator.h"
 #include "nat64/unit/types.h"
-#include "translate_packet.c"
+#include "ttp/core.c"
+#include "ttp/6to4.c"
+#include "ttp/4to6.c"
 
 
 MODULE_LICENSE("GPL");
@@ -18,173 +20,91 @@ static struct in6_addr dummies6[2];
 static struct in_addr dummies4[2];
 
 static struct sk_buff *create_skb4(u16 payload_len,
-		int (*skb_create_fn)(struct ipv4_pair *, struct sk_buff **, u16))
+		int (*skb_create_fn)(struct tuple *, struct sk_buff **, u16))
 {
 	struct sk_buff *skb;
-	struct ipv4_pair pair4;
+	struct tuple tuple4;
 
-	pair4.remote.address = dummies4[0];
-	pair4.remote.l4_id = 5644;
-	pair4.local.address = dummies4[1];
-	pair4.local.l4_id = 6721;
+	tuple4.src.addr4.l3 = dummies4[0];
+	tuple4.src.addr4.l4 = 5644;
+	tuple4.dst.addr4.l3 = dummies4[1];
+	tuple4.dst.addr4.l4 = 6721;
 
-	return (is_error(skb_create_fn(&pair4, &skb, payload_len))) ? NULL : skb;
+	return (is_error(skb_create_fn(&tuple4, &skb, payload_len))) ? NULL : skb;
 }
 
 static struct sk_buff *create_skb6(u16 payload_len,
-		int (*skb_create_fn)(struct ipv6_pair *, struct sk_buff **, u16))
+		int (*skb_create_fn)(struct tuple *, struct sk_buff **, u16))
 {
 	struct sk_buff *skb;
-	struct ipv6_pair pair6;
+	struct tuple tuple6;
 
-	pair6.remote.address = dummies6[0];
-	pair6.remote.l4_id = 5644;
-	pair6.local.address = dummies6[1];
-	pair6.local.l4_id = 6721;
+	tuple6.src.addr6.l3 = dummies6[0];
+	tuple6.src.addr6.l4 = 5644;
+	tuple6.dst.addr6.l3 = dummies6[1];
+	tuple6.dst.addr6.l4 = 6721;
 
-	return (is_error(skb_create_fn(&pair6, &skb, payload_len))) ? NULL : skb;
+	return (is_error(skb_create_fn(&tuple6, &skb, payload_len))) ? NULL : skb;
 }
 
 static struct sk_buff *create_frag_skb4(u16 payload_len, u16 total_l4_len, bool df,	bool mf,
-		u16 frag_offset, int (*skb_create_frag_fn) (struct ipv4_pair *, struct sk_buff **, u16,
+		u16 frag_offset, int (*skb_create_frag_fn)(struct tuple *, struct sk_buff **, u16,
 				u16 , bool, bool, u16))
 {
 	struct sk_buff *skb;
-	struct ipv4_pair pair4;
+	struct tuple tuple4;
 
-	pair4.remote.address = dummies4[0];
-	pair4.remote.l4_id = 5644;
-	pair4.local.address = dummies4[1];
-	pair4.local.l4_id = 6721;
+	tuple4.src.addr4.l3 = dummies4[0];
+	tuple4.src.addr4.l4 = 5644;
+	tuple4.dst.addr4.l3 = dummies4[1];
+	tuple4.dst.addr4.l4 = 6721;
 
-	if (is_error(skb_create_frag_fn(&pair4, &skb, payload_len, total_l4_len, df, mf, frag_offset)))
+	if (is_error(skb_create_frag_fn(&tuple4, &skb, payload_len, total_l4_len, df, mf, frag_offset)))
 		skb = NULL;
 
 	return skb;
 }
 
 static struct sk_buff *create_frag_skb6(u16 payload_len, u16 total_l4_len, bool mf,	u16 frag_offset,
-		int (*skb_create_frag_fn) (struct ipv6_pair *, struct sk_buff **, u16, u16 , bool, u16))
+		int (*skb_create_frag_fn)(struct tuple *, struct sk_buff **, u16, u16 , bool, u16))
 {
 	struct sk_buff *skb;
-	struct ipv6_pair pair6;
+	struct tuple tuple6;
 
-	pair6.remote.address = dummies6[0];
-	pair6.remote.l4_id = 5644;
-	pair6.local.address = dummies6[1];
-	pair6.local.l4_id = 6721;
+	tuple6.src.addr6.l3 = dummies6[0];
+	tuple6.src.addr6.l4 = 5644;
+	tuple6.dst.addr6.l3 = dummies6[1];
+	tuple6.dst.addr6.l4 = 6721;
 
-	if (is_error(skb_create_frag_fn(&pair6, &skb, payload_len, total_l4_len, mf, frag_offset)))
+	if (is_error(skb_create_frag_fn(&tuple6, &skb, payload_len, total_l4_len, mf, frag_offset)))
 		skb = NULL;
 
 	return skb;
 }
 
 
-static bool create_tuple_ipv6(struct tuple *tuple, u_int8_t l4proto)
+static bool create_tuple_ipv6(struct tuple *tuple6, u_int8_t l4proto)
 {
-	tuple->l3_proto = L3PROTO_IPV6;
-	tuple->l4_proto = l4proto;
-	tuple->src.addr.ipv6 = dummies6[0];
-	tuple->src.l4_id = 1234;
-	tuple->dst.addr.ipv6 = dummies6[1];
-	tuple->dst.l4_id = 4321;
+	tuple6->l3_proto = L3PROTO_IPV6;
+	tuple6->l4_proto = l4proto;
+	tuple6->src.addr6.l3 = dummies6[0];
+	tuple6->src.addr6.l4 = 1234;
+	tuple6->dst.addr6.l3 = dummies6[1];
+	tuple6->dst.addr6.l4 = 4321;
 
 	return true;
 }
 
-static bool create_tuple_ipv4(struct tuple *tuple, u_int8_t l4proto)
+static bool create_tuple_ipv4(struct tuple *tuple4, u_int8_t l4proto)
 {
-	tuple->l3_proto = L3PROTO_IPV4;
-	tuple->l4_proto = l4proto;
-	tuple->src.addr.ipv4 = dummies4[0];
-	tuple->src.l4_id = 1234;
-	tuple->dst.addr.ipv4 = dummies4[1];
-	tuple->dst.l4_id = 4321;
+	tuple4->l3_proto = L3PROTO_IPV4;
+	tuple4->l4_proto = l4proto;
+	tuple4->src.addr4.l3 = dummies4[0];
+	tuple4->src.addr4.l4 = 1234;
+	tuple4->dst.addr4.l3 = dummies4[1];
+	tuple4->dst.addr4.l4 = 4321;
 
 	return true;
-}
-
-static bool test_post_tcp_csum_6to4(void)
-{
-	struct sk_buff *skb_in = NULL, *skb_out = NULL;
-	struct ipv6_pair pair6;
-	struct ipv4_pair pair4;
-	struct tuple tuple;
-	__sum16 expected_csum;
-	bool success = true;
-
-	if (init_pair6(&pair6, "1::4", 1234, "6::9", 2345) != 0)
-		return false;
-	if (init_pair4(&pair4, "1.2.3.4", 1234, "6.7.8.9", 2345) != 0)
-		return false;
-
-	/* We're assuming both of these will have the same layer-4 headers and payloads. */
-	if (is_error(create_skb_ipv6_tcp(&pair6, &skb_in, 100)))
-		goto error;
-	if (is_error(create_skb_ipv4_tcp(&pair4, &skb_out, 100)))
-		goto error;
-
-	expected_csum = tcp_hdr(skb_out)->check;
-	tuple.src.l4_id = 1234;
-	tuple.dst.l4_id = 2345;
-
-	/*
-	 * We're also assuming that post_tcp_ipv4() will override skb_out's checksum
-	 * (and that's what we're going to test).
-	 */
-	success &= assert_equals_int(0, post_tcp_ipv4(&tuple, skb_in, skb_out), "result");
-	success &= assert_equals_csum(expected_csum, tcp_hdr(skb_out)->check, "Checksum");
-
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
-	return success;
-
-error:
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
-	return false;
-}
-
-static bool test_post_udp_csum_6to4(void)
-{
-	struct sk_buff *skb_in = NULL, *skb_out = NULL;
-	struct ipv6_pair pair6;
-	struct ipv4_pair pair4;
-	struct tuple tuple;
-	__sum16 expected_csum;
-	bool success = true;
-
-	if (init_pair6(&pair6, "1::4", 1234, "6::9", 2345) != 0)
-		return false;
-	if (init_pair4(&pair4, "1.2.3.4", 1234, "6.7.8.9", 2345) != 0)
-		return false;
-
-	/* We're assuming both of these will have the same layer-4 headers and payloads. */
-	if (is_error(create_skb_ipv6_udp(&pair6, &skb_in, 100)))
-		goto error;
-	if (is_error(create_skb_ipv4_udp(&pair4, &skb_out, 100)))
-		goto error;
-
-	expected_csum = udp_hdr(skb_out)->check;
-	tuple.src.l4_id = 1234;
-	tuple.dst.l4_id = 2345;
-
-	/*
-	 * We're also assuming that post_tcp_ipv4() will override skb_out's checksum
-	 * (and that's what we're going to test).
-	 */
-	success &= assert_equals_int(0, post_udp_ipv4(&tuple, skb_in, skb_out), "result");
-	success &= assert_equals_csum(expected_csum, udp_hdr(skb_out)->check, "Checksum");
-
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
-	return success;
-
-error:
-	kfree_skb(skb_in);
-	kfree_skb(skb_out);
-	return false;
 }
 
 static bool test_update_csum_4to6(void)
@@ -196,37 +116,37 @@ static bool test_update_csum_4to6(void)
 	struct ipv6hdr *hdr6;
 	struct tcphdr *hdr_tcp4;
 	struct tcphdr *hdr_tcp6;
-	struct ipv4_pair pair4;
-	struct ipv6_pair pair6;
+	struct tuple tuple4;
+	struct tuple tuple6;
 
 	int datagram_len = sizeof(*hdr_tcp4) + 100;
 	__sum16 expected_csum, original_csum, actual_csum;
 
-	if (init_pair4(&pair4, "1.2.3.4", 5678, "9.10.11.12", 1314) != 0)
+	if (init_ipv4_tuple(&tuple4, "1.2.3.4", 5678, "9.10.11.12", 1314, L4PROTO_TCP) != 0)
 		return false;
-	if (init_pair6(&pair6, "15::16", 1718, "19::20", 2122) != 0)
+	if (init_ipv6_tuple(&tuple6, "15::16", 1718, "19::20", 2122, L4PROTO_TCP) != 0)
 		return false;
 
 	hdr4 = (struct iphdr *) &in_pkt[0];
 	hdr_tcp4 = (struct tcphdr *) (hdr4 + 1);
-	if (init_ipv4_hdr(hdr4, datagram_len, IPPROTO_TCP, &pair4, true, false, 0) != 0)
+	if (init_ipv4_hdr(hdr4, datagram_len, IPPROTO_TCP, &tuple4, true, false, 0) != 0)
 		return false;
-	if (init_tcp_hdr(hdr_tcp4, ETH_P_IP, datagram_len, &pair4) != 0)
+	if (init_tcp_hdr(hdr_tcp4, ETH_P_IP, datagram_len, &tuple4) != 0)
 		return false;
 	if (init_payload_normal(hdr_tcp4 + 1, 100) != 0)
 		return false;
-	if (ipv4_tcp_post(hdr_tcp4, datagram_len, &pair4) != 0)
+	if (ipv4_tcp_post(hdr_tcp4, datagram_len, &tuple4) != 0)
 		return false;
 
 	hdr6 = (struct ipv6hdr *) &out_pkt[0];
 	hdr_tcp6 = (struct tcphdr *) (hdr6 + 1);
-	if (init_ipv6_hdr(hdr6, datagram_len, NEXTHDR_TCP, &pair6, true, false, 0) != 0)
+	if (init_ipv6_hdr(hdr6, datagram_len, NEXTHDR_TCP, &tuple6, true, false, 0) != 0)
 		return false;
-	if (init_tcp_hdr(hdr_tcp6, ETH_P_IPV6, datagram_len, &pair6) != 0)
+	if (init_tcp_hdr(hdr_tcp6, ETH_P_IPV6, datagram_len, &tuple6) != 0)
 		return false;
 	if (init_payload_normal(hdr_tcp6 + 1, 100) != 0)
 		return false;
-	if (ipv6_tcp_post(hdr_tcp6, datagram_len, &pair6) != 0)
+	if (ipv6_tcp_post(hdr_tcp6, datagram_len, &tuple6) != 0)
 		return false;
 
 	original_csum = hdr_tcp4->check;
@@ -360,18 +280,17 @@ static bool test_function_build_id_field(void)
 #define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(packet, in, out, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
-	int i;
+	__u16 plateaus[] = { 1400, 1200, 600 };
+	int i, error;
+	bool true_variable = true;
 	bool success = true;
 
-	__u16 plateaus[] = { 1400, 1200, 600 };
-
-	bool old_lower_mtu_fail = config->lower_mtu_fail;
-	__u16 *old_plateaus = config->mtu_plateaus;
-	__u16 old_plateaus_count = config->mtu_plateau_count;
-
-	config->lower_mtu_fail = false;
-	config->mtu_plateaus = plateaus;
-	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
+	error = ttpconfig_update(LOWER_MTU_FAIL, sizeof(__u8), false);
+	if (error)
+		goto config_fail;
+	error = ttpconfig_update(MTU_PLATEAUS, sizeof(plateaus), &plateaus);
+	if (error)
+		goto config_fail;
 
 	/* Test the bare minimum functionality. */
 	success &= assert_equals_u32(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
@@ -379,7 +298,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 	success &= assert_equals_u32(21, min_mtu(100, 100, 1, 0), "No hacks, min is out");
 
 	if (!success)
-		goto revert;
+		return false;
 
 	/* Test hack 1: MTU is overriden if some router set is as zero. */
 	for (i = 1500; i > 1400 && success; --i)
@@ -395,10 +314,12 @@ static bool test_function_icmp6_minimum_mtu(void)
 	success &= assert_equals_u32(21, min_mtu(0, 100, 1, 1000), "Override packet MTU, min is out");
 
 	if (!success)
-		goto revert;
+		return false;
 
 	/* Test hack 2: User wants us to try to improve the failure rate. */
-	config->lower_mtu_fail = true;
+	error = ttpconfig_update(LOWER_MTU_FAIL, sizeof(__u8), &true_variable);
+	if (error)
+		goto config_fail;
 
 	success &= assert_equals_u32(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
 	success &= assert_equals_u32(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
@@ -409,7 +330,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 	success &= assert_equals_u32(1420, min_mtu(1500, 1500, 1400, 0), "Fail improve rate, out");
 
 	if (!success)
-		goto revert;
+		return false;
 
 	/* Test both hacks at the same time. */
 	success &= assert_equals_u32(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
@@ -420,12 +341,11 @@ static bool test_function_icmp6_minimum_mtu(void)
 	success &= assert_equals_u32(1400, min_mtu(0, 1400, 1500, 1500), "2 hacks, in/not 1280");
 	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1400, 1500), "2 hacks, out/not 1280");
 
-	/* Fall through. */
-revert:
-	config->lower_mtu_fail = old_lower_mtu_fail;
-	config->mtu_plateaus = old_plateaus;
-	config->mtu_plateau_count = old_plateaus_count;
 	return success;
+
+config_fail:
+	log_err("Errcode %u while trying to update the config.", error);
+	return false;
 }
 #undef min_mtu
 
@@ -675,17 +595,17 @@ static bool test_4to6_udp(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	bool result = false;
 
-	if (!create_tuple_ipv6(&tuple, L4PROTO_UDP))
+	if (!create_tuple_ipv6(&tuple6, L4PROTO_UDP))
 		goto end;
 
 	skb_in = create_skb4(100, create_skb_ipv4_udp);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -694,8 +614,8 @@ static bool test_4to6_udp(void)
 			&& validate_cb_payload(skb_out, 100)
 			&& validate_ipv6_hdr(ipv6_hdr(skb_out),
 					skb_l4hdr_len(skb_out) + skb_payload_len(skb_out),
-					NEXTHDR_UDP, &tuple)
-			&& validate_udp_hdr(udp_hdr(skb_out), 100, &tuple)
+					NEXTHDR_UDP, &tuple6)
+			&& validate_udp_hdr(udp_hdr(skb_out), 100, &tuple6)
 			&& validate_payload(skb_payload(skb_out), 100, 0);
 	/* Fall through. */
 
@@ -709,16 +629,16 @@ static bool test_4to6_tcp(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	bool result = false;
 
-	if (!create_tuple_ipv6(&tuple, L4PROTO_TCP))
+	if (!create_tuple_ipv6(&tuple6, L4PROTO_TCP))
 		goto end;
 	skb_in = create_skb4(100, create_skb_ipv4_tcp);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -727,8 +647,8 @@ static bool test_4to6_tcp(void)
 			&& validate_cb_payload(skb_out, 100)
 			&& validate_ipv6_hdr(ipv6_hdr(skb_out),
 					skb_l4hdr_len(skb_out) + skb_payload_len(skb_out),
-					NEXTHDR_TCP, &tuple)
-			&& validate_tcp_hdr(tcp_hdr(skb_out), &tuple)
+					NEXTHDR_TCP, &tuple6)
+			&& validate_tcp_hdr(tcp_hdr(skb_out), &tuple6)
 			&& validate_payload(skb_payload(skb_out), 100, 0);
 	/* Fall through. */
 
@@ -742,16 +662,16 @@ static bool test_4to6_icmp_info(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	bool result = false;
 
-	if (!create_tuple_ipv6(&tuple, L4PROTO_ICMP))
+	if (!create_tuple_ipv6(&tuple6, L4PROTO_ICMP))
 		goto end;
 	skb_in = create_skb4(100, create_skb_ipv4_icmp_info);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -760,8 +680,8 @@ static bool test_4to6_icmp_info(void)
 			&& validate_cb_payload(skb_out, 100)
 			&& validate_ipv6_hdr(ipv6_hdr(skb_out),
 					skb_l4hdr_len(skb_out) + skb_payload_len(skb_out),
-					NEXTHDR_ICMP, &tuple)
-			&& validate_icmp6_hdr(icmp6_hdr(skb_out), 5644, &tuple)
+					NEXTHDR_ICMP, &tuple6)
+			&& validate_icmp6_hdr(icmp6_hdr(skb_out), 5644, &tuple6)
 			&& validate_payload(skb_payload(skb_out), 100, 0);
 	/* Fall through. */
 
@@ -775,16 +695,16 @@ static bool test_4to6_icmp_error(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	bool result = false;
 
-	if (!create_tuple_ipv6(&tuple, L4PROTO_ICMP))
+	if (!create_tuple_ipv6(&tuple6, L4PROTO_ICMP))
 		goto end;
 	skb_in = create_skb4(100, create_skb_ipv4_icmp_error);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -794,7 +714,7 @@ static bool test_4to6_icmp_error(void)
 			&& validate_cb_payload(skb_out, 120)
 			&& validate_ipv6_hdr(ipv6_hdr(skb_out),
 					skb_l4hdr_len(skb_out) + skb_payload_len(skb_out),
-					NEXTHDR_ICMP, &tuple)
+					NEXTHDR_ICMP, &tuple6)
 			&& validate_icmp6_hdr_error(icmp6_hdr(skb_out))
 			&& validate_inner_pkt_ipv6(skb_payload(skb_out), 120);
 	/* Fall through. */
@@ -809,16 +729,16 @@ static bool test_6to4_udp(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple4;
 	bool result = false;
 
-	if (!create_tuple_ipv4(&tuple, L4PROTO_UDP))
+	if (!create_tuple_ipv4(&tuple4, L4PROTO_UDP))
 		goto end;
 	skb_in = create_skb6(100, create_skb_ipv6_udp);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -827,8 +747,8 @@ static bool test_6to4_udp(void)
 			&& validate_cb_payload(skb_out, 100)
 			&& validate_ipv4_hdr(ip_hdr(skb_out),
 					sizeof(struct iphdr) + sizeof(struct udphdr) + 100,
-					0, IP_DF, 0, 0, IPPROTO_UDP, &tuple)
-			&& validate_udp_hdr(udp_hdr(skb_out), 100, &tuple)
+					0, IP_DF, 0, 0, IPPROTO_UDP, &tuple4)
+			&& validate_udp_hdr(udp_hdr(skb_out), 100, &tuple4)
 			&& validate_payload(skb_payload(skb_out), 100, 0);
 	/* Fall through. */
 
@@ -844,16 +764,16 @@ static bool test_6to4_tcp(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple4;
 	bool result = false;
 
-	if (!create_tuple_ipv4(&tuple, L4PROTO_TCP))
+	if (!create_tuple_ipv4(&tuple4, L4PROTO_TCP))
 		goto end;
 	skb_in = create_skb6(100, create_skb_ipv6_tcp);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -862,8 +782,8 @@ static bool test_6to4_tcp(void)
 			&& validate_cb_payload(skb_out, 100)
 			&& validate_ipv4_hdr(ip_hdr(skb_out),
 					sizeof(struct iphdr) + sizeof(struct tcphdr) + 100,
-					0, IP_DF, 0, 0, IPPROTO_TCP, &tuple)
-			&& validate_tcp_hdr(tcp_hdr(skb_out), &tuple)
+					0, IP_DF, 0, 0, IPPROTO_TCP, &tuple4)
+			&& validate_tcp_hdr(tcp_hdr(skb_out), &tuple4)
 			&& validate_payload(skb_payload(skb_out), 100, 0);
 	/* Fall through. */
 
@@ -877,16 +797,16 @@ static bool test_6to4_icmp_info(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple4;
 	bool result = false;
 
-	if (!create_tuple_ipv4(&tuple, L4PROTO_ICMP))
+	if (!create_tuple_ipv4(&tuple4, L4PROTO_ICMP))
 		goto end;
 	skb_in = create_skb6(100, create_skb_ipv6_icmp_info);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -895,8 +815,8 @@ static bool test_6to4_icmp_info(void)
 			&& validate_cb_payload(skb_out, 100)
 			&& validate_ipv4_hdr(ip_hdr(skb_out),
 					sizeof(struct iphdr) + sizeof(struct icmphdr) + 100,
-					0, IP_DF, 0, 0, IPPROTO_ICMP, &tuple)
-			&& validate_icmp4_hdr(icmp_hdr(skb_out), 5644, &tuple)
+					0, IP_DF, 0, 0, IPPROTO_ICMP, &tuple4)
+			&& validate_icmp4_hdr(icmp_hdr(skb_out), 5644, &tuple4)
 			&& validate_payload(skb_payload(skb_out), 100, 0);
 	/* Fall through. */
 
@@ -910,16 +830,16 @@ static bool test_6to4_icmp_error(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple4;
 	bool result = false;
 
-	if (!create_tuple_ipv4(&tuple, L4PROTO_ICMP))
+	if (!create_tuple_ipv4(&tuple4, L4PROTO_ICMP))
 		goto end;
 	skb_in = create_skb6(100, create_skb_ipv6_icmp_error);
 	if (!skb_in)
 		goto end;
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	result = validate_fragment_count(skb_out, 1)
@@ -929,7 +849,7 @@ static bool test_6to4_icmp_error(void)
 			&& validate_cb_payload(skb_out, 80)
 			&& validate_ipv4_hdr(ip_hdr(skb_out),
 					sizeof(struct iphdr) + sizeof(struct icmphdr) + 80,
-					0, IP_DF, 0, 0, IPPROTO_ICMP, &tuple)
+					0, IP_DF, 0, 0, IPPROTO_ICMP, &tuple4)
 			&& validate_icmp4_hdr_error(icmp_hdr(skb_out))
 			&& validate_inner_pkt_ipv4(skb_payload(skb_out), 80);
 	/* Fall through. */
@@ -941,7 +861,7 @@ end:
 }
 
 static bool validate_fragment(struct sk_buff *skb, bool is_first, bool is_last,
-		u16 offset, u16 payload_len, u16 payload_offset, struct tuple *tuple)
+		u16 offset, u16 payload_len, u16 payload_offset, struct tuple *tuple6)
 {
 	u16 mf = is_last ? 0 : IP6_MF;
 	u16 hdr_payload_len = sizeof(struct frag_hdr) + (is_first ? sizeof(struct udphdr) : 0)
@@ -959,12 +879,12 @@ static bool validate_fragment(struct sk_buff *skb, bool is_first, bool is_last,
 	if (!validate_cb_payload(skb, payload_len))
 		return false;
 
-	if (!validate_ipv6_hdr(ipv6_hdr(skb), hdr_payload_len, NEXTHDR_FRAGMENT, tuple))
+	if (!validate_ipv6_hdr(ipv6_hdr(skb), hdr_payload_len, NEXTHDR_FRAGMENT, tuple6))
 		return false;
 	if (!validate_frag_hdr(get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT), offset, mf,
 			NEXTHDR_UDP))
 		return false;
-	if (is_first && !validate_udp_hdr(udp_hdr(skb), 3000, tuple))
+	if (is_first && !validate_udp_hdr(udp_hdr(skb), 3000, tuple6))
 		return false;
 	if (!validate_payload(skb_payload(skb), payload_len, payload_offset))
 		return false;
@@ -972,30 +892,30 @@ static bool validate_fragment(struct sk_buff *skb, bool is_first, bool is_last,
 	return true;
 }
 
-static bool validate_fragments(struct sk_buff *skb, struct tuple *tuple)
+static bool validate_fragments(struct sk_buff *skb, struct tuple *tuple6)
 {
 	if (!validate_fragment_count(skb, 3))
 		return false;
 
 	log_debug("Validating the first skb...");
-	if (!validate_fragment(skb, true, false, 0, 1224, 0, tuple))
+	if (!validate_fragment(skb, true, false, 0, 1224, 0, tuple6))
 		return false;
 
 	log_debug("Validating the second skb...");
 	skb = skb->next;
-	if (!validate_fragment(skb, false, false, 1232, 1232, 1224, tuple))
+	if (!validate_fragment(skb, false, false, 1232, 1232, 1224, tuple6))
 		return false;
 
 	log_debug("Validating the third skb...");
 	skb = skb->next;
-	if (!validate_fragment(skb, false, true, 2464, 544, 2456, tuple))
+	if (!validate_fragment(skb, false, true, 2464, 544, 2456, tuple6))
 		return false;
 
 	return true;
 }
 
 static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16 offset,
-		u16 payload_len, u16 payload_offset, struct tuple *tuple, l4_protocol l4proto,
+		u16 payload_len, u16 payload_offset, struct tuple *tuple6, l4_protocol l4proto,
 		u16 total_payload)
 {
 	size_t l4hdr_size;
@@ -1034,23 +954,23 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 	if (!validate_cb_payload(skb, payload_len))
 		return false;
 
-	if (!validate_ipv6_hdr(ipv6_hdr(skb), hdr_payload_len, NEXTHDR_FRAGMENT, tuple))
+	if (!validate_ipv6_hdr(ipv6_hdr(skb), hdr_payload_len, NEXTHDR_FRAGMENT, tuple6))
 		return false;
 	if (!validate_frag_hdr(get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT), offset, mf,
 			l4_next_hdr))
 		return false;
 	switch (l4proto) {
 	case (L4PROTO_TCP):
-		if (is_first && !validate_tcp_hdr(tcp_hdr(skb), tuple))
+		if (is_first && !validate_tcp_hdr(tcp_hdr(skb), tuple6))
 			return false;
 		break;
 	case (L4PROTO_UDP):
-		if (is_first && !validate_udp_hdr(udp_hdr(skb), total_payload, tuple))
+		if (is_first && !validate_udp_hdr(udp_hdr(skb), total_payload, tuple6))
 			return false;
 		break;
 	case (L4PROTO_ICMP):
 		/*id field is not used in the validate_icmp6_hdr function.*/
-		if (is_first && !validate_icmp6_hdr(icmp6_hdr(skb), 1234, tuple))
+		if (is_first && !validate_icmp6_hdr(icmp6_hdr(skb), 1234, tuple6))
 			return false;
 		break;
 	}
@@ -1061,7 +981,7 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 	return true;
 }
 
-static bool validate_frags6(struct sk_buff *skb, struct tuple *tuple, int total_frags,
+static bool validate_frags6(struct sk_buff *skb, struct tuple *tuple6, int total_frags,
 		u8 is_first[], u8 is_last[], u16 frag_offset[], u16 payload_len[], u16 payload_offset[],
 		u16 total_payload, l4_protocol l4proto)
 {
@@ -1075,7 +995,7 @@ static bool validate_frags6(struct sk_buff *skb, struct tuple *tuple, int total_
 	for (i = 0; i < total_frags; i++) {
 		log_debug("Validating fragment #%d", i);
 		if (!validate_frag6(skb, is_first[i], is_last[i], frag_offset[i], payload_len[i],
-				payload_offset[i], tuple, l4proto, total_payload))
+				payload_offset[i], tuple6, l4proto, total_payload))
 			return false;
 		skb = skb->next;
 	}
@@ -1087,20 +1007,20 @@ static bool test_multiple_4to6_fragment(void)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	bool result = false;
 
-	if (!create_tuple_ipv6(&tuple, L4PROTO_UDP))
+	if (!create_tuple_ipv6(&tuple6, L4PROTO_UDP))
 		goto end;
 	skb_in = create_skb4(3000, create_skb_ipv4_udp);
 	if (!skb_in)
 		goto end;
 	ip_hdr(skb_in)->frag_off = build_ipv4_frag_off_field(false, false, 0);
 
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
-	result = validate_fragments(skb_out, &tuple);
+	result = validate_fragments(skb_out, &tuple6);
 	/* Fall through. */
 
 end:
@@ -1117,7 +1037,7 @@ static void append_frag_to_skb(struct sk_buff *prev_skb, struct sk_buff *skb)
 }
 
 static struct sk_buff *create_frags_4(int total_frags, u8 mf[], u16 frag_offset[], bool df,
-		u16 total_len, u16 payload_len[], int (*skb_create_frag_fn) (struct ipv4_pair *,
+		u16 total_len, u16 payload_len[], int (*skb_create_frag_fn)(struct tuple *,
 				struct sk_buff **, u16, u16, bool, bool, u16))
 {
 	struct sk_buff *root_skb, *prev_skb, *tmp_skb;
@@ -1149,7 +1069,7 @@ static bool test_multiple_4to6(l4_protocol l4proto, bool df)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	u16 frag_offset[] = {0, 16, 32, 48};
 	u16 payload_len[] = {16, 16, 16, 8};
 	/* IPv4 Parameters. */
@@ -1162,7 +1082,7 @@ static bool test_multiple_4to6(l4_protocol l4proto, bool df)
 	u8 is_last[] = {false, false, false, true};
 	u16 payload_offset[] = {0, 0, 0, 0};
 
-	if (!create_tuple_ipv6(&tuple, l4proto))
+	if (!create_tuple_ipv6(&tuple6, l4proto))
 		goto end;
 
 	/* Create Steps SKBs*/
@@ -1194,11 +1114,11 @@ static bool test_multiple_4to6(l4_protocol l4proto, bool df)
 	}
 
 	/* Translate step SKBs*/
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	/* Evaluating SKBs*/
-	if (!validate_frags6(skb_out, &tuple, total_frags, is_first, is_last, frag_offset, payload_len,
+	if (!validate_frags6(skb_out, &tuple6, total_frags, is_first, is_last, frag_offset, payload_len,
 			payload_offset, total_payload, l4proto))
 		goto end;
 
@@ -1211,7 +1131,7 @@ end:
 	return false;
 }
 
-static bool validate_frag4(struct tuple *tuple, struct sk_buff *skb, l4_protocol l4proto,
+static bool validate_frag4(struct tuple *tuple4, struct sk_buff *skb, l4_protocol l4proto,
 		u16 payload_len, u16 payload_offset, bool is_first, bool is_last, u16 frag_off,
 		u16 total_payload)
 {
@@ -1245,19 +1165,19 @@ static bool validate_frag4(struct tuple *tuple, struct sk_buff *skb, l4_protocol
 		return false;
 	if (!validate_cb_payload(skb, payload_len))
 		return false;
-	if (!validate_ipv4_hdr(ip_hdr(skb),	total_l3_len, 4321, 0, mf, frag_off, ip_proto, tuple))
+	if (!validate_ipv4_hdr(ip_hdr(skb),	total_l3_len, 4321, 0, mf, frag_off, ip_proto, tuple4))
 		return false;
 	switch (l4proto) {
 	case (L4PROTO_TCP):
-		if (is_first && !validate_tcp_hdr(tcp_hdr(skb), tuple))
+		if (is_first && !validate_tcp_hdr(tcp_hdr(skb), tuple4))
 			return false;
 		break;
 	case (L4PROTO_UDP):
-		if (is_first && !validate_udp_hdr(udp_hdr(skb), total_payload, tuple))
+		if (is_first && !validate_udp_hdr(udp_hdr(skb), total_payload, tuple4))
 			return false;
 		break;
 	case (L4PROTO_ICMP):
-		if (is_first && !validate_icmp4_hdr(icmp_hdr(skb), 1234, tuple))
+		if (is_first && !validate_icmp4_hdr(icmp_hdr(skb), 1234, tuple4))
 			return false;
 		break;
 	}
@@ -1267,7 +1187,7 @@ static bool validate_frag4(struct tuple *tuple, struct sk_buff *skb, l4_protocol
 	return true;
 }
 
-static bool validate_frags4(struct tuple *tuple, struct sk_buff *skb, int total_frags,
+static bool validate_frags4(struct tuple *tuple4, struct sk_buff *skb, int total_frags,
 		l4_protocol l4proto, u16 payload_len[], u16 payload_offset[], u8 is_first[],
 		u8 is_last[], u16 frag_off[], u16 total_payload)
 {
@@ -1281,7 +1201,7 @@ static bool validate_frags4(struct tuple *tuple, struct sk_buff *skb, int total_
 
 	for (i = 0; i < total_frags; i++) {
 		log_debug("Validating fragment #%d", i);
-		if (!validate_frag4(tuple, skb, l4proto, payload_len[i], payload_offset[i], is_first[i],
+		if (!validate_frag4(tuple4, skb, l4proto, payload_len[i], payload_offset[i], is_first[i],
 				is_last[i],frag_off[i], total_payload))
 			return false;
 		skb = skb->next;
@@ -1291,7 +1211,7 @@ static bool validate_frags4(struct tuple *tuple, struct sk_buff *skb, int total_
 }
 
 static struct sk_buff *create_frags_6(int total_frags, u16 payload_len[], u16 total_l4_len,
-		u8 mf[], u16 frag_offset[], int (*skb_create_frag_fn) (struct ipv6_pair *,
+		u8 mf[], u16 frag_offset[], int (*skb_create_frag_fn) (struct tuple *,
 				struct sk_buff **, u16,	u16, bool, u16))
 {
 	struct sk_buff *root_skb, *prev_skb, *tmp_skb;
@@ -1323,7 +1243,7 @@ end:
 static bool test_multiple_6to4(l4_protocol l4proto)
 {
 	struct sk_buff *skb_in, *skb_out;
-	struct tuple tuple;
+	struct tuple tuple4;
 	/* IPv6 Parameters. */
 	u16 payload_len[] = {200, 200, 200, 80};
 	u16 frag_offset[] = {0, 200, 400, 600};
@@ -1337,7 +1257,7 @@ static bool test_multiple_6to4(l4_protocol l4proto)
 	u8 is_last[] = {false, false, false, true};
 	skb_in = skb_out = NULL;
 
-	if (!create_tuple_ipv4(&tuple, l4proto))
+	if (!create_tuple_ipv4(&tuple4, l4proto))
 		goto end;
 
 	/*Create IPv6 Fragments. */
@@ -1370,11 +1290,11 @@ static bool test_multiple_6to4(l4_protocol l4proto)
 
 
 	/* Translate IPv6 into IPv4 Fragments */
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	/* Evaluating the IPv4 Fragments*/
-	if (!validate_frags4(&tuple, skb_out, total_frags, l4proto, payload_len, payload_offset,
+	if (!validate_frags4(&tuple4, skb_out, total_frags, l4proto, payload_len, payload_offset,
 			is_first, is_last, frag_offset, total_payload))
 		goto end;
 	/* Fall through. */
@@ -1392,7 +1312,7 @@ static bool test_big_multiple_4to6(l4_protocol l4proto, bool df)
 {
 	struct sk_buff *skb_in = NULL;
 	struct sk_buff *skb_out = NULL;
-	struct tuple tuple;
+	struct tuple tuple6;
 	u16 frag_offset[] = {0, 3008, 6008};
 	u16 payload_len[] = {3000, 3000, 3000};
 	/* IPv4 Parameters. */
@@ -1411,7 +1331,7 @@ static bool test_big_multiple_4to6(l4_protocol l4proto, bool df)
 	 * TODO (test) Fix it, in order to accept TCP, this is because the offset is fixed by 8 bytes
 	 * and sizeof(struct tcphdr) = 20 bytes
 	 */
-	if (!create_tuple_ipv6(&tuple, l4proto))
+	if (!create_tuple_ipv6(&tuple6, l4proto))
 		goto end;
 
 	/* Create Steps SKBs*/
@@ -1447,11 +1367,11 @@ static bool test_big_multiple_4to6(l4_protocol l4proto, bool df)
 	}
 
 	/* Translate step SKBs*/
-	if (translating_the_packet(&tuple, skb_in, &skb_out) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, skb_in, &skb_out) != VER_CONTINUE)
 		goto end;
 
 	/* Evaluating SKBs*/
-	if (!validate_frags6(skb_out, &tuple, total_frags6, is_first, is_last, frag6_offset, payload6_len,
+	if (!validate_frags6(skb_out, &tuple6, total_frags6, is_first, is_last, frag6_offset, payload6_len,
 			payload_offset, total_payload, l4proto))
 		goto end;
 
@@ -1481,8 +1401,6 @@ int init_module(void)
 		return -EINVAL;
 
 	/* Checksum tests */
-	CALL_TEST(test_post_tcp_csum_6to4(), "Recomputed TCP checksum 6->4");
-	CALL_TEST(test_post_udp_csum_6to4(), "Recomputed UDP checksum 6->4");
 	CALL_TEST(test_update_csum_4to6(), "Recomputed checksum 4->6");
 
 	/* Misc single function tests */

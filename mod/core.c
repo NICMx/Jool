@@ -43,7 +43,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 		result = handling_hairpinning(skb_out, &tuple_out);
 		kfree_skb(skb_out);
 	} else {
-		result = send_pkt(skb_out);
+		result = sendpkt_send(skb_in, skb_out);
 		/* send_pkt releases skb_out regardless of verdict. */
 	}
 
@@ -64,13 +64,11 @@ end:
 unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct iphdr *hdr = ip_hdr(skb);
-	struct in_addr daddr;
 	struct sk_buff *skbs;
 	int error;
 	verdict result;
 
-	daddr.s_addr = hdr->daddr;
-	if (!pool4_contains(&daddr))
+	if (!pool4_contains(hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 
 	log_debug("===============================================");
@@ -82,7 +80,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 		return NF_DROP;
 	}
 
-	/* Do not use hdr or daddr from now on. */
+	/* Do not use hdr from now on. */
 
 	/*
 	 * I'm assuming the control buffer is empty, and therefore I can throw my crap at it happily.
@@ -94,7 +92,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (error)
 		return NF_DROP;
 
-	result = fragment_arrives(skb, &skbs);
+	result = fragdb_handle4(skb, &skbs);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
 
@@ -132,7 +130,7 @@ unsigned int core_6to4(struct sk_buff *skb)
 	if (error)
 		return NF_DROP;
 
-	result = fragment_arrives(skb, &skbs);
+	result = fragdb_handle6(skb, &skbs);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
 

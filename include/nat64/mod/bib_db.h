@@ -24,9 +24,9 @@
  */
 struct bib_entry {
 	/** The address from the IPv4 network. */
-	const struct ipv4_tuple_address ipv4;
+	const struct ipv4_transport_addr ipv4;
 	/** The address from the IPv6 network. */
-	const struct ipv6_tuple_address ipv6;
+	const struct ipv6_transport_addr ipv6;
 
 	/** l4 protocol used for pool4 return. */
 	const l4_protocol l4_proto;
@@ -59,7 +59,7 @@ struct bib_entry {
  * Allocates and initializes a BIB entry.
  * The entry is generated in dynamic memory; remember to kfree, return or pass it along.
  */
-struct bib_entry *bib_create(struct ipv4_tuple_address *ipv4, struct ipv6_tuple_address *ipv6,
+struct bib_entry *bib_create(struct ipv4_transport_addr *ipv4, struct ipv6_transport_addr *ipv6,
 		bool is_static, l4_protocol l4_proto);
 /**
  * Roughly reverts the work of bib_create() by freeing "bib" from memory. What breaks the symmetry
@@ -138,7 +138,7 @@ int bibdb_get(struct tuple *tuple, struct bib_entry **result);
  * @param[out] the BIB entry from the table will be placed here.
  * @return error status.
  */
-int bibdb_get_by_ipv4(const struct ipv4_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv4(const struct ipv4_transport_addr *addr, l4_protocol l4_proto,
 		struct bib_entry **result);
 /**
  * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv6 side (address and
@@ -151,7 +151,7 @@ int bibdb_get_by_ipv4(const struct ipv4_tuple_address *addr, l4_protocol l4_prot
  * @param[out] the BIB entry from the table will be placed here.
  * @return error status.
  */
-int bibdb_get_by_ipv6(const struct ipv6_tuple_address *addr, l4_protocol l4_proto,
+int bibdb_get_by_ipv6(const struct ipv6_transport_addr *addr, l4_protocol l4_proto,
 		struct bib_entry **result);
 /**
  * Makes "result" point to the BIB entry that corresponds to "tuple" (see bibdb_get()). If it
@@ -201,7 +201,7 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
  * Similar to bibdb_for_each(), except it only runs the function for BIB entries whose IPv4
  * transport address is "addr".
  */
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *ipv4, bool starting,
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_transport_addr *ipv4, bool starting,
 		int (*func)(struct bib_entry *, void *), void *arg);
 /**
  * Sets in the value pointed by "result" the number of entries in the database whose protocol is
