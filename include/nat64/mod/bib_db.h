@@ -13,7 +13,7 @@
 #include "nat64/mod/types.h"
 #include "nat64/mod/packet.h"
 
-/******************************** BIB Entries *************************************/
+/* ------------------------------ BIB Entries ----------------------------------- */
 
 
 /**
@@ -98,7 +98,7 @@ int bib_return(struct bib_entry *bib);
 int bib_return_lockless(struct bib_entry *bib);
 
 
-/************************* BIB (The database) *************************************/
+/** ---------------------- BIB (The database) ----------------------------------- */
 
 /**
  * Initializes the three tables (UDP, TCP and ICMP).

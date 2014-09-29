@@ -27,7 +27,7 @@ static bool test_determine_in_tuple_ipv4(void)
 
 	if (is_error(init_ipv4_tuple(&expected, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv4_udp(&expected, &skb, 8)))
+	if (is_error(create_skb4_udp(&expected, &skb, 8, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(skb, &actual), "verdict");
@@ -45,7 +45,7 @@ static bool test_determine_in_tuple_ipv6(void)
 
 	if (is_error(init_ipv6_tuple(&expected, "1::2", 1212, "3::4", 3434, L4PROTO_TCP)))
 		return false;
-	if (is_error(create_skb_ipv6_tcp(&expected, &skb, 8)))
+	if (is_error(create_skb6_tcp(&expected, &skb, 8, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(skb, &actual), "verdict");

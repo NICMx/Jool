@@ -127,9 +127,9 @@ static bool test_filtering_and_updating(void)
 	bool success = true;
 
 	/* ICMP errors should pass happily, but not affect the tables. */
-	if (is_error(init_ipv4_tuple(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_ICMP)))
+	if (is_error(init_ipv4_tuple(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_TCP)))
 		return false;
-	if (is_error(create_skb_ipv4_icmp_error(&tuple, &skb, 100)))
+	if (is_error(create_skb4_icmp_error(&tuple, &skb, 100, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(skb, &tuple), "ICMP error");
@@ -143,7 +143,7 @@ static bool test_filtering_and_updating(void)
 	/* This step should get rid of hairpinning loops. */
 	if (is_error(init_ipv6_tuple(&tuple, "64:ff9b::1:2", 1212, "64:ff9b::3:4", 3434, L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv6_udp(&tuple, &skb, 100)))
+	if (is_error(create_skb6_udp(&tuple, &skb, 100, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_DROP, filtering_and_updating(skb, &tuple), "Hairpinning");
@@ -158,7 +158,7 @@ static bool test_filtering_and_updating(void)
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, INIT_TUPLE_IPV6_HAIR_LOOP_DST_ADDR, 3434,
 			L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv6_udp(&tuple, &skb, 100)))
+	if (is_error(create_skb6_udp(&tuple, &skb, 100, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_DROP, filtering_and_updating(skb, &tuple), "Not pool6 packet");
@@ -173,7 +173,7 @@ static bool test_filtering_and_updating(void)
 	if (is_error(init_ipv4_tuple(&tuple, INIT_TUPLE_IPV4_NOT_POOL_DST_ADDR, 8765, "5.6.7.8", 5678,
 			L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv4_udp(&tuple, &skb, 100)))
+	if (is_error(create_skb4_udp(&tuple, &skb, 100, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_DROP, filtering_and_updating(skb, &tuple), "Not pool4 packet");
@@ -187,7 +187,7 @@ static bool test_filtering_and_updating(void)
 	/* Other IPv6 packets should be processed normally. */
 	if (is_error(init_ipv6_tuple(&tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv6_udp(&tuple, &skb, 100)))
+	if (is_error(create_skb6_udp(&tuple, &skb, 100, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(skb, &tuple), "IPv6 success");
@@ -201,7 +201,7 @@ static bool test_filtering_and_updating(void)
 	/* Other IPv4 packets should be processed normally. */
 	if (is_error(init_ipv4_tuple(&tuple, "0.3.0.4", 3434, "192.168.2.1", 1024, L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv4_udp(&tuple, &skb, 100)))
+	if (is_error(create_skb4_udp(&tuple, &skb, 100, 32)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, filtering_and_updating(skb, &tuple), "IPv4 success");
@@ -222,13 +222,13 @@ static bool test_udp(void)
 	/* Prepare the IPv6 packet. */
 	if (is_error(init_ipv6_tuple(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv6_udp(&tuple6, &skb6, 16)))
+	if (is_error(create_skb6_udp(&tuple6, &skb6, 16, 32)))
 		return false;
 
 	/* Prepare the IPv4 packet. */
 	if (is_error(init_ipv4_tuple(&tuple4, "0.0.0.4", 3434, "192.168.2.1", 1024, L4PROTO_UDP)))
 		return false;
-	if (is_error(create_skb_ipv4_udp(&tuple4, &skb4, 16)))
+	if (is_error(create_skb4_udp(&tuple4, &skb4, 16, 32)))
 		return false;
 
 	/* A IPv4 packet attempts to be translated without state */
@@ -269,13 +269,13 @@ static bool test_icmp(void)
 	/* Prepare the IPv6 packet. */
 	if (is_error(init_ipv6_tuple(&tuple6, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP)))
 		return false;
-	if (is_error(create_skb_ipv6_icmp_info(&tuple6, &skb6, 16)))
+	if (is_error(create_skb6_icmp_info(&tuple6, &skb6, 16, 32)))
 		return false;
 
 	/* Prepare the IPv4 packet. */
 	if (is_error(init_ipv4_tuple(&tuple4, "0.0.0.4", 1024, "192.168.2.1", 1024, L4PROTO_ICMP)))
 		return false;
-	if (is_error(create_skb_ipv4_icmp_info(&tuple4, &skb4, 16)))
+	if (is_error(create_skb4_icmp_info(&tuple4, &skb4, 16, 32)))
 		return false;
 
 	/* A IPv4 packet attempts to be translated without state */
@@ -409,13 +409,13 @@ static bool test_tcp_closed_state_handle_4(void)
 	if (is_error(init_ipv4_tuple(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
 		return false;
 	/* The session entry that is supposed to be created in "tcp_close_state_handle". */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
 			V4_INIT);
 	if (!session)
 		return false;
 
 	copy_ptr = session;
-	if (is_error(create_skb_ipv4_tcp(&tuple4, &skb, 100))) {
+	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32))) {
 		session_return(session);
 		return false;
 	}

@@ -6,8 +6,6 @@
 #include "nat64/mod/packet.h"
 #include "nat64/mod/icmp_wrapper.h"
 
-#include "bib.c"
-
 /**
  * BIB table definition.
  * Holds two red-black trees, one for each indexing need (IPv4 and IPv6).
@@ -34,6 +32,84 @@ static struct bib_table bib_udp;
 static struct bib_table bib_tcp;
 /** The BIB table for ICMP connections. */
 static struct bib_table bib_icmp;
+
+/** Cache for struct bib_entrys, for efficient allocation. */
+static struct kmem_cache *entry_cache;
+
+/**
+ * Removes the BIB entry from the database and kfrees it.
+ *
+ * @param ref kref field of the entry you want to remove.
+ */
+static void bib_release(struct kref *ref, bool lock)
+{
+	struct bib_entry *bib;
+	int error;
+
+	bib = container_of(ref, struct bib_entry, refcounter);
+
+	error = bibdb_remove(bib, lock);
+	WARN(error, "Error code %d when trying to remove a dying BIB entry from the DB. "
+			"Maybe it should have been kfreed directly instead?", error);
+	bib_kfree(bib);
+}
+
+static void bib_release_lock(struct kref *ref)
+{
+	bib_release(ref, true);
+}
+
+static void bib_release_lockless(struct kref *ref)
+{
+	bib_release(ref, false);
+}
+
+struct bib_entry *bib_create(struct ipv4_transport_addr *addr4, struct ipv6_transport_addr *addr6,
+		bool is_static, l4_protocol l4_proto)
+{
+	struct bib_entry tmp = {
+			.ipv4 = *addr4,
+			.ipv6 = *addr6,
+			.l4_proto = l4_proto,
+			.is_static = is_static,
+	};
+
+	struct bib_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
+	if (!result)
+		return NULL;
+
+	memcpy(result, &tmp, sizeof(tmp));
+	kref_init(&result->refcounter);
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
+
+	return result;
+}
+
+void bib_kfree(struct bib_entry *bib)
+{
+	/*
+	 * We ignore the error of pool4_return(),
+	 * because the user might have removed the address from the pool with --quick.
+	 */
+	pool4_return(bib->l4_proto, &bib->ipv4);
+	kmem_cache_free(entry_cache, bib);
+}
+
+void bib_get(struct bib_entry *bib)
+{
+	kref_get(&bib->refcounter);
+}
+
+int bib_return(struct bib_entry *bib)
+{
+	return kref_put(&bib->refcounter, bib_release_lock);
+}
+
+int bib_return_lockless(struct bib_entry *bib)
+{
+	return kref_put(&bib->refcounter, bib_release_lockless);
+}
 
 /**
  * One-liner to get the BIB table corresponding to the "l4_proto" protocol.
@@ -76,7 +152,7 @@ static int compare_full6(const struct bib_entry *bib, const struct ipv6_transpor
 	int gap;
 
 	gap = compare_addr6(bib, &addr->l3);
-	if (gap != 0)
+	if (gap)
 		return gap;
 
 	gap = addr->l4 - bib->ipv6.l4;
@@ -103,7 +179,7 @@ static int compare_full4(const struct bib_entry *bib, const struct ipv4_transpor
 	int gap;
 
 	gap = compare_addr4(bib, &addr->l3);
-	if (gap != 0)
+	if (gap)
 		return gap;
 
 	gap = addr->l4 - bib->ipv4.l4;
@@ -263,12 +339,13 @@ static int allocate_transport_address(struct bib_table *table, struct tuple *tup
 int bibdb_init(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
-	int error;
 	int i;
 
-	error = bib_init();
-	if (error)
-		return error;
+	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry), 0, 0, NULL);
+	if (!entry_cache) {
+		log_err("Could not allocate the BIB entry cache.");
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(tables); i++) {
 		tables[i]->tree6 = RB_ROOT;
@@ -299,7 +376,7 @@ void bibdb_destroy(void)
 	for (i = 0; i < ARRAY_SIZE(tables); i++)
 		rbtree_clear(&tables[i]->tree6, bibdb_destroy_aux);
 
-	bib_destroy();
+	kmem_cache_destroy(entry_cache);
 }
 
 int bibdb_get(struct tuple *tuple, struct bib_entry **result)

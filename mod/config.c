@@ -422,6 +422,9 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		error = fragdb_clone_config(&response.fragmentation);
 		if (error)
 			goto end;
+		error = sendpkt_clone_config(&response.sendpkt);
+		if (error)
+			goto end;
 
 		error = serialize_general_config(&response, &buffer, &buffer_len);
 		if (error)

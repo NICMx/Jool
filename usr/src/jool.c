@@ -486,7 +486,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_u16_array(args, TRANSLATE, MTU_PLATEAUS, str);
 		break;
 	case ARGP_MIN_IPV6_MTU:
-		error = set_general_u16(args, TRANSLATE, MIN_IPV6_MTU, str, 1280, MAX_U16);
+		error = set_general_u16(args, SENDPKT, MIN_IPV6_MTU, str, 1280, MAX_U16);
 		break;
 
 	case ARGP_FRAG_TO:

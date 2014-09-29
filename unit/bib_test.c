@@ -22,33 +22,6 @@ static const __u16 IPV6_PORTS[] = { 334, 0, 9556 };
 static struct ipv4_transport_addr addr4[ARRAY_SIZE(IPV4_ADDRS)];
 static struct ipv6_transport_addr addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
-/********************************************
- * Auxiliar functions.
- ********************************************/
-
-static struct bib_entry *create_and_insert_bib(struct ipv4_transport_addr *ipv4,
-		struct ipv6_transport_addr *ipv6,
-		int l4proto)
-{
-	struct bib_entry *result;
-	int error;
-
-	result = bib_create(ipv4, ipv6, false, l4proto);
-	if (!result) {
-		log_err("kmalloc failed, apparently.");
-		return NULL;
-	}
-
-	error = bibdb_add(result);
-	if (error) {
-		log_err("Could not insert the BIB entry to the table; call returned %d.", error);
-		bib_kfree(result);
-		return NULL;
-	}
-
-	return result;
-}
-
 static bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual,
 		char* test_name)
 {
@@ -118,10 +91,6 @@ static bool assert_bib(char* test_name, struct bib_entry* bib,
 	return true;
 }
 
-/********************************************
- * Tests.
- ********************************************/
-
 /**
  * Inserts a single entry, validates it, removes it, validates again.
  * Does not touch the session tables.
@@ -154,7 +123,7 @@ static bool simple_bib(void)
 }
 
 struct foreach6_summary {
-	bool visited[7];
+	u8 visited[7];
 };
 
 static int foreach6_func(struct bib_entry *entry, void *arg)
@@ -189,47 +158,37 @@ static bool test_for_each_ipv6(void)
 
 	/* Build the tree. */
 	{
-		struct bib_entry *bib;
-		struct ipv4_transport_addr a4;
-		struct ipv6_transport_addr a6;
+		struct in_addr addr4;
+		u16 port6;
+		u16 port4;
 
-		a6.l3 = addr6[0].l3;
-		a6.l4 = 5;
-		a4.l3 = addr4[0].l3;
+		if (is_error(str_to_addr4(IPV4_ADDRS[0], &addr4)))
+			return false;
 
+		port6 = 5;
 		for (i = 0; i < 4; i++) {
-			a6.l4++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &a4.l3, &a4.l4)))
+			port6++;
+			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
 				return false;
-
-			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
-			if (!bib)
+			if (!bib_inject_str(IPV6_ADDRS[0], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
 				return false;
 		}
 
-		a6.l3 = addr6[1].l3;
-		a6.l4 = 5;
-
+		port6 = 5;
 		for (i = 0; i < 7; i++) {
-			a6.l4++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &a4.l3, &a4.l4)))
+			port6++;
+			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
 				return false;
-
-			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
-			if (!bib)
+			if (!bib_inject_str(IPV6_ADDRS[1], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
 				return false;
 		}
 
-		a6.l3 = addr6[2].l3;
-		a6.l4 = 5;
-
+		port6 = 5;
 		for (i = 0; i < 2; i++) {
-			a6.l4++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &a4.l3, &a4.l4)))
+			port6++;
+			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
 				return false;
-
-			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
-			if (!bib)
+			if (!bib_inject_str(IPV6_ADDRS[2], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
 				return false;
 		}
 	}
@@ -309,8 +268,8 @@ static bool test_allocate_aux(struct tuple *tuple6, struct in_addr *same_addr,
 			"function result");
 
 	/* BTW: Because in_addrs are __be32s, "1.1.1.1" is the same as "0x1010101" */
-	success &= assert_true(result.l3.s_addr == 0x1010101 || result.l3.s_addr == 0x2020202,
-			"Result address is in pool");
+	success &= assert_true(result.l3.s_addr == htonl(0x1010101)
+			|| result.l3.s_addr == htonl(0x2020202), "Result address is in pool");
 	if (same_addr)
 		success &= assert_equals_ipv4(same_addr, &result.l3, "Result address was recycled");
 	if (test_port) {
@@ -320,8 +279,8 @@ static bool test_allocate_aux(struct tuple *tuple6, struct in_addr *same_addr,
 				"Result port has the same parity as requested");
 	}
 
-	success &= bib_inject(&result.l3, result.l4, &tuple6->src.addr6.l3, tuple6->src.addr6.l4,
-			L4PROTO_UDP);
+	success &= bib_inject(&tuple6->src.addr6.l3, tuple6->src.addr6.l4, &result.l3, result.l4,
+			L4PROTO_UDP) != NULL;
 
 	if (out_addr)
 		*out_addr = result.l3;
@@ -429,8 +388,8 @@ static bool test_allocate_ipv4_transport_address(void)
 			&result), "result 3");
 	success &= assert_equals_ipv4(&client3addr4, &result.l3, "runnerup still gets his addr");
 	success &= assert_true(is_high(result.l4), "runnerup gets a high port");
-	success &= bib_inject(&result.l3, result.l4, &sharing_client_tuple->src.addr6.l3,
-			sharing_client_tuple->src.addr6.l4, L4PROTO_UDP);
+	success &= bib_inject(&sharing_client_tuple->src.addr6.l3, sharing_client_tuple->src.addr6.l4,
+			&result.l3, result.l4, L4PROTO_UDP) != NULL;
 	if (!success)
 		goto fail;
 
@@ -453,8 +412,8 @@ static bool test_allocate_ipv4_transport_address(void)
 			"function result");
 	success &= assert_true(client3addr4.s_addr != result.l3.s_addr,
 			"node gets a runnerup address");
-	success &= bib_inject(&result.l3, result.l4, &client3tuple.src.addr6.l3,
-			client3tuple.src.addr6.l4, L4PROTO_UDP);
+	success &= bib_inject(&client3tuple.src.addr6.l3, client3tuple.src.addr6.l4,
+			&result.l3, result.l4, L4PROTO_UDP) != NULL;
 	if (!success)
 		goto fail;
 
@@ -483,10 +442,6 @@ fail:
 	log_debug("i was %u.", i);
 	return false;
 }
-
-/********************************************
- * Main.
- ********************************************/
 
 static bool init(void)
 {

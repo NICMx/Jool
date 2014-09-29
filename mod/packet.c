@@ -552,6 +552,7 @@ static void print_l4_hdr(struct sk_buff *skb)
 {
 	struct tcphdr *tcp_header;
 	struct udphdr *udp_header;
+	struct icmphdr *icmp_header;
 
 	pr_debug("Layer 4 proto: %s\n", l4proto_to_string(skb_l4_proto(skb)));
 	switch (skb_l4_proto(skb)) {
@@ -566,7 +567,7 @@ static void print_l4_hdr(struct sk_buff *skb)
 		pr_debug("		ack:%u psh:%u rst:%u syn:%u fin:%u\n", tcp_header->ack, tcp_header->psh,
 				tcp_header->rst, tcp_header->syn, tcp_header->fin);
 		pr_debug("		window: %u\n", be16_to_cpu(tcp_header->window));
-		pr_debug("		check: %u\n", tcp_header->check);
+		pr_debug("		check: %x\n", be16_to_cpu((__force __be16) tcp_header->check));
 		pr_debug("		urg_ptr: %u\n", be16_to_cpu(tcp_header->urg_ptr));
 		break;
 
@@ -575,11 +576,15 @@ static void print_l4_hdr(struct sk_buff *skb)
 		pr_debug("		source port: %u\n", be16_to_cpu(udp_header->source));
 		pr_debug("		destination port: %u\n", be16_to_cpu(udp_header->dest));
 		pr_debug("		length: %u\n", be16_to_cpu(udp_header->len));
-		pr_debug("		checksum: %u\n", udp_header->check);
+		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) udp_header->check));
 		break;
 
 	case L4PROTO_ICMP:
-		/* too lazy */
+		icmp_header = icmp_hdr(skb);
+		pr_debug("		type: %u", icmp_header->type);
+		pr_debug("		code: %u", icmp_header->code);
+		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) icmp_header->checksum));
+		pr_debug("		un: %x", be32_to_cpu(icmp_header->un.gateway));
 		break;
 	}
 }
@@ -640,7 +645,7 @@ void skb_print(struct sk_buff *skb)
 		pr_debug("		fragment offset: %u\n", get_fragment_offset_ipv4(hdr4));
 		pr_debug("		time to live: %u\n", hdr4->ttl);
 		pr_debug("		protocol: %s\n", protocol_to_string(hdr4->protocol));
-		pr_debug("		checksum: %u\n", hdr4->check);
+		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) hdr4->check));
 		addr4.s_addr = hdr4->saddr;
 		pr_debug("		source address: %pI4\n", &addr4);
 		addr4.s_addr = hdr4->daddr;

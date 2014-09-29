@@ -97,7 +97,7 @@ static bool test_no_fragments_6(void)
 	error = init_ipv6_tuple(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
 	if (error)
 		return false;
-	error = create_skb_ipv6_udp(&tuple6, &skb, 10);
+	error = create_skb6_udp(&tuple6, &skb, 10, 32);
 	if (error)
 		return false;
 
@@ -125,7 +125,7 @@ static bool test_no_fragments_4(void)
 	error = init_ipv4_tuple(&tuple4, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_UDP);
 	if (error)
 		return false;
-	error = create_skb_ipv4_udp(&tuple4, &skb, 20);
+	error = create_skb4_udp(&tuple4, &skb, 20, 32);
 	if (error)
 		return false;
 
@@ -160,21 +160,22 @@ static bool test_ordered_fragments_4(void)
 		return false;
 
 	/* First fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb1, 64 - sizeof(struct udphdr), 384, false, true, 0);
+	error = create_skb4_udp_frag(&tuple4, &skb1, 64 - sizeof(struct udphdr), 384, false, true, 0,
+			32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &full_skb), "1st verdict");
 	success &= validate_database(1);
 
 	/* Second fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb2, 128, 384, false, true, 64);
+	error = create_skb4_udp_frag(&tuple4, &skb2, 128, 384, false, true, 64, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &full_skb), "2nd verdict");
 	success &= validate_database(1);
 
 	/* Third and final fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb3, 192, 384, false, false, 192);
+	error = create_skb4_udp_frag(&tuple4, &skb3, 192, 384, false, false, 192, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb3, &full_skb), "3rd verdict");
@@ -217,14 +218,14 @@ static bool test_ordered_fragments_6(void)
 		return false;
 
 	/* First fragment arrives. */
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb1, 64 - sizeof(struct udphdr), 384, true, 0);
+	error = create_skb6_udp_frag(&tuple6, &skb1, 64 - sizeof(struct udphdr), 384, true, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &full_skb), "1st verdict");
 	success &= validate_database(1);
 
 	/* Second fragment arrives. */
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb2, 128, 384, true, 64);
+	error = create_skb6_udp_frag(&tuple6, &skb2, 128, 384, true, true, 64, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &full_skb), "2nd verdict");
@@ -232,7 +233,7 @@ static bool test_ordered_fragments_6(void)
 
 	/* Third and final fragment arrives. */
 
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb3, 192, 384, false, 192);
+	error = create_skb6_udp_frag(&tuple6, &skb3, 192, 384, true, false, 192, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb3, &full_skb), "3rd verdict");
@@ -277,7 +278,7 @@ static bool test_disordered_fragments_4(void)
 		return false;
 
 	/* Third fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb3, 8, 56, false, true, 24);
+	error = create_skb4_udp_frag(&tuple4, &skb3, 8, 56, false, true, 24, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb3, &full_skb), "verdict 1");
@@ -296,7 +297,7 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_u16(INFINITY, hole->last, "1.2.last");
 
 	/* First fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb1, 8, 56, false, true, 0);
+	error = create_skb4_udp_frag(&tuple4, &skb1, 8, 56, false, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &full_skb), "verdict 2");
@@ -315,7 +316,7 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_u16(INFINITY, hole->last, "2.2.last");
 
 	/* Fifth fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb5, 8, 56, false, false, 48);
+	error = create_skb4_udp_frag(&tuple4, &skb5, 8, 56, false, false, 48, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &full_skb), "verdict 3");
@@ -334,7 +335,7 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_u16(5, hole->last, "3.2.last");
 
 	/* Second fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb2, 8, 56, false, true, 16);
+	error = create_skb4_udp_frag(&tuple4, &skb2, 8, 56, false, true, 16, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &full_skb), "verdict 4");
@@ -350,7 +351,7 @@ static bool test_disordered_fragments_4(void)
 	success &= assert_equals_u16(5, hole->last, "4.1.last");
 
 	/* Fourth fragment arrives. */
-	error = create_skb_ipv4_udp_frag(&tuple4, &skb4, 16, 56, false, true, 32);
+	error = create_skb4_udp_frag(&tuple4, &skb4, 16, 56, false, true, 32, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb4, &full_skb), "verdict 5");
@@ -403,7 +404,7 @@ static bool test_disordered_fragments_6(void)
 		return false;
 
 	/* Bytes 24 through 48 arrive. */
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb1, 24, 72, true, 24);
+	error = create_skb6_udp_frag(&tuple6, &skb1, 24, 72, true, true, 24, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &full_skb), "verdict 1");
@@ -422,7 +423,7 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_u16(INFINITY, hole->last, "1.2.last");
 
 	/* Bytes 16 through 32 arrive. */
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb2, 16, 72, true, 16);
+	error = create_skb6_udp_frag(&tuple6, &skb2, 16, 72, true, true, 16, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &full_skb), "verdict 2");
@@ -441,7 +442,7 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_u16(INFINITY, hole->last, "2.2.last");
 
 	/* Bytes 40 through 56 arrive. */
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb3, 16, 72, true, 40);
+	error = create_skb6_udp_frag(&tuple6, &skb3, 16, 72, true, true, 40, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb3, &full_skb), "verdict 3");
@@ -460,7 +461,7 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_u16(INFINITY, hole->last, "3.2.last");
 
 	/* Bytes 8 through 64 arrive. */
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb4, 56, 72, true, 8);
+	error = create_skb6_udp_frag(&tuple6, &skb4, 56, 72, true, true, 8, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb4, &full_skb), "verdict 4");
@@ -479,7 +480,7 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_u16(INFINITY, hole->last, "4.2.last");
 
 	/* Bytes 64 through 72 arrive.*/
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb5, 8, 72, false, 64);
+	error = create_skb6_udp_frag(&tuple6, &skb5, 8, 72, true, false, 64, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &full_skb), "verdict 5");
@@ -495,7 +496,7 @@ static bool test_disordered_fragments_6(void)
 	success &= assert_equals_u16(0, hole->last, "5.1.last");
 
 	/* Bytes 0 through 8 arrive.*/
-	error = create_skb_ipv6_udp_frag(&tuple6, &skb6, 0, 72, true, 0);
+	error = create_skb6_udp_frag(&tuple6, &skb6, 0, 72, true, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_CONTINUE, fragment_arrives(skb6, &full_skb), "verdict 6");
@@ -555,9 +556,9 @@ static bool validate_list(struct reassembly_buffer_key *expected, int expected_c
 			break;
 		case L3PROTO_IPV4:
 			hdr4 = ip_hdr(skb);
-			success &= assert_equals_u32(expected[c].ipv4.src_addr.s_addr, hdr4->saddr, "src addr4");
-			success &= assert_equals_u32(expected[c].ipv4.dst_addr.s_addr, hdr4->daddr, "dst addr4");
-			success &= assert_equals_u16(expected[c].ipv4.identification, hdr4->id, "frag id 4");
+			success &= assert_equals_be32(expected[c].ipv4.src_addr.s_addr, hdr4->saddr, "src4");
+			success &= assert_equals_be32(expected[c].ipv4.dst_addr.s_addr, hdr4->daddr, "dst4");
+			success &= assert_equals_be16(expected[c].ipv4.identification, hdr4->id, "frag id 4");
 			break;
 		}
 
@@ -626,7 +627,7 @@ static bool test_timer(void)
 	expected_keys[3].l4_proto = NEXTHDR_UDP;
 
 	/* Fragment 1.1 arrives (first fragment of packet 1) (IPv4). */
-	error = create_skb_ipv4_udp_frag(&tuple13, &skb1, 100, 1000, false, true, 0);
+	error = create_skb4_udp_frag(&tuple13, &skb1, 100, 1000, false, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb1, &full_skb), "1st verdict");
@@ -639,7 +640,7 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[0], 1);
 
 	/* Fragment 2.1 arrives (first fragment of packet 2) (IPv4). */
-	error = create_skb_ipv4_udp_frag(&tuple2, &skb2, 100, 1000, false, true, 0);
+	error = create_skb4_udp_frag(&tuple2, &skb2, 100, 1000, false, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb2, &full_skb), "2nd verdict");
@@ -652,7 +653,7 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[0], 2);
 
 	/* Fragment 1.2 arrives (IPv4). */
-	error = create_skb_ipv4_udp_frag(&tuple13, &skb3, 100, 1000, false, true, 108);
+	error = create_skb4_udp_frag(&tuple13, &skb3, 100, 1000, false, true, 108, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb3, &full_skb), "3rd verdict");
@@ -665,7 +666,7 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[0], 2);
 
 	/* Fragment 3.1 (IPv6) arrives. */
-	error = create_skb_ipv6_udp_frag(&tuple46, &skb4, 100, 1000, true, 0);
+	error = create_skb6_udp_frag(&tuple46, &skb4, 100, 1000, true, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb4, &full_skb), "4th verdict");
@@ -678,7 +679,7 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[0], 3);
 
 	/* Fragment 4.1 (IPv6) arrives. */
-	error = create_skb_ipv6_udp_frag(&tuple5, &skb5, 100, 1000, true, 0);
+	error = create_skb6_udp_frag(&tuple5, &skb5, 100, 1000, true, true, 0, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb5, &full_skb), "5th verdict");
@@ -691,7 +692,7 @@ static bool test_timer(void)
 	success &= validate_list(&expected_keys[0], 4);
 
 	/* Fragment 3.2 arrives (IPv6). */
-	error = create_skb_ipv6_udp_frag(&tuple46, &skb6, 100, 1000, true, 108);
+	error = create_skb6_udp_frag(&tuple46, &skb6, 100, 1000, true, true, 108, 32);
 	if (error)
 		return false;
 	success &= assert_equals_int(VER_STOLEN, fragment_arrives(skb6, &full_skb), "6th verdict");

@@ -16,6 +16,7 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "nat64/mod/pkt_queue.h"
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/ttp/core.h"
+#include "nat64/mod/send_packet.h"
 #include "config_proto.c"
 
 /* functions */
@@ -35,12 +36,12 @@ static int clone_general_config(struct response_general *response)
 	error = translate_clone_config(&response->translate);
 	if (error)
 		return error;
-	error = fragmentdb_clone_config(&response->fragmentation);
+	error = fragdb_clone_config(&response->fragmentation);
 	if (error)
 		return error;
+	error = sendpkt_clone_config(&response->sendpkt);
 
-
-	return 0;
+	return error;
 }
 
 /* tests */
@@ -85,7 +86,8 @@ static bool compare_filtering_config(struct filtering_config *expected,
 
 }
 
-static bool compare_translate_config(struct translate_config *expected, struct translate_config *actual)
+static bool compare_translate_config(struct translate_config *expected,
+		struct translate_config *actual)
 {
 	bool success = true;
 	__u16 plateau;
@@ -108,10 +110,15 @@ static bool compare_translate_config(struct translate_config *expected, struct t
 					actual->mtu_plateaus[plateau], "translate: mtu_plateu");
 		}
 	}
-	success &= assert_equals_u16(expected->min_ipv6_mtu, actual->min_ipv6_mtu,
-			"translate: min_ipv6_mtu");
 
 	return success;
+}
+
+static bool compare_sendpkt_config(struct sendpkt_config *expected,
+		struct sendpkt_config *actual)
+{
+	return assert_equals_u16(expected->min_ipv6_mtu, actual->min_ipv6_mtu,
+			"send_pkt: min_ipv6_mtu");
 }
 
 static bool compare_general_configs(struct response_general *expected_config,
@@ -123,6 +130,7 @@ static bool compare_general_configs(struct response_general *expected_config,
 	success &= compare_session_config(&expected_config->sessiondb, &actual_config->sessiondb);
 	success &= compare_filtering_config(&expected_config->filtering, &actual_config->filtering);
 	success &= compare_translate_config(&expected_config->translate, &actual_config->translate);
+	success &= compare_sendpkt_config(&expected_config->sendpkt, &actual_config->sendpkt);
 
 	return success;
 }
@@ -225,6 +233,10 @@ static bool init(void)
 	error = translate_packet_init();
 	if (error)
 		goto fail;
+	error = sendpkt_init();
+	if (error)
+		goto fail;
+
 	return true;
 
 fail:
@@ -233,6 +245,7 @@ fail:
 
 static void end(void)
 {
+	sendpkt_destroy();
 	translate_packet_destroy();
 	filtering_destroy();
 	fragdb_destroy();

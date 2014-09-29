@@ -30,10 +30,6 @@ static const __u16 IPV6_PORTS[] = { 334, 0, 9556 };
 static struct ipv4_transport_addr addr4[ARRAY_SIZE(IPV4_ADDRS)];
 static struct ipv6_transport_addr addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
-/********************************************
- * Auxiliar functions.
- ********************************************/
-
 static struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
 		int local_id_6, int remote_id_6,
 		l4_protocol l4_proto)
@@ -148,10 +144,6 @@ static bool assert_session(char* test_name, struct session_entry* session,
 	return true;
 }
 
-/********************************************
- * Tests.
- ********************************************/
-
 static bool simple_session(void)
 {
 	struct session_entry *session;
@@ -253,7 +245,7 @@ static bool test_tcp_v4_init_state_handle_v6syn(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_INIT);
 	if (!session)
 		return false;
@@ -285,7 +277,7 @@ static bool test_tcp_v4_init_state_handle_else(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_INIT);
 	if (!session)
 		return false;
@@ -312,7 +304,7 @@ static bool test_tcp_v6_init_state_handle_v4syn(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_INIT);
 	if (!session)
 		return false;
@@ -341,7 +333,7 @@ static bool test_tcp_v6_init_state_handle_v6syn(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_INIT);
 	if (!session)
 		return false;
@@ -369,7 +361,7 @@ static bool test_tcp_v6_init_state_handle_else(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_INIT);
 	if (!session)
 		return false;
@@ -395,7 +387,7 @@ static bool test_tcp_established_state_handle_v4fin(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED);
 	if (!session)
 		return false;
@@ -422,7 +414,7 @@ static bool test_tcp_established_state_handle_v6fin(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED);
 	if (!session)
 		return false;
@@ -450,7 +442,7 @@ static bool test_tcp_established_state_handle_v4rst(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED);
 	if (!session)
 		return false;
@@ -479,7 +471,7 @@ static bool test_tcp_established_state_handle_v6rst(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED);
 	if (!session)
 		return false;
@@ -508,7 +500,7 @@ static bool test_tcp_established_state_handle_else(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			ESTABLISHED);
 	if (!session)
 		return false;
@@ -537,7 +529,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_FIN_RCV);
 	if (!session)
 		return false;
@@ -566,7 +558,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V4_FIN_RCV);
 	if (!session)
 		return false;
@@ -595,7 +587,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_FIN_RCV);
 	if (!session)
 		return false;
@@ -624,7 +616,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			V6_FIN_RCV);
 	if (!session)
 		return false;
@@ -652,7 +644,7 @@ static bool test_tcp_trans_state_handle_v4rst(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			TRANS);
 	if (!session)
 		return false;
@@ -679,7 +671,7 @@ static bool test_tcp_trans_state_handle_v6rst(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			TRANS);
 	if (!session)
 		return false;
@@ -707,7 +699,7 @@ static bool test_tcp_trans_state_handle_else(void)
 	bool success = true;
 
 	/* Prepare */
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
 			TRANS);
 	if (!session)
 		return false;
@@ -723,10 +715,6 @@ static bool test_tcp_trans_state_handle_else(void)
 	kfree_skb(skb);
 	return success;
 }
-
-/********************************************
- * Main.
- ********************************************/
 
 static bool init(void)
 {

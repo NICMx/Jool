@@ -155,10 +155,11 @@ int ttp46_ipv6(struct tuple *tuple6, struct pkt_parts *in, struct pkt_parts *out
 	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
-	ip6_hdr->payload_len = cpu_to_be16(out->l3_hdr.len - sizeof(struct ipv6hdr)
-			+ out->l4_hdr.len + out->payload.len);;
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
+
 	if (!is_inner_pkt(in)) {
+		ip6_hdr->payload_len = htons(out->l3_hdr.len - sizeof(*ip6_hdr) + out->l4_hdr.len
+				+ out->payload.len);
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in->skb, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
@@ -166,6 +167,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct pkt_parts *in, struct pkt_parts *out
 		}
 		ip6_hdr->hop_limit = ip4_hdr->ttl - 1;
 	} else {
+		ip6_hdr->payload_len = htons(ntohs(ip4_hdr->tot_len) - (4 * ip4_hdr->ihl));
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
 	}
 	ip6_hdr->saddr = tuple6->src.addr6.l3;
@@ -190,10 +192,9 @@ int ttp46_ipv6(struct tuple *tuple6, struct pkt_parts *in, struct pkt_parts *out
 	if (has_frag_hdr(in->l3_hdr.ptr)) {
 		struct frag_hdr *frag_header = (struct frag_hdr *) (ip6_hdr + 1);
 
-		/*
-		 * Override some fixed header fields...
-		 * ip6_hdr->payload_len is set during post-processing.
-		 */
+		/* Override some fixed header fields... */
+		if (is_inner_pkt(in))
+			ip6_hdr->payload_len = htons(ntohs(ip6_hdr->payload_len) + sizeof(*frag_header));
 		ip6_hdr->nexthdr = NEXTHDR_FRAGMENT;
 
 		/* ...and set the fragment header ones. */
@@ -524,9 +525,8 @@ static int update_icmp6_csum(struct pkt_parts *in, struct pkt_parts *out)
 	if (is_inner_pkt(out)) {
 		len = out->l4_hdr.len + out->payload.len;
 	} else {
-		error = skb_aggregate_ipv6_payload_len(out->skb, &len);
+		error = skb_aggregate_ipv4_payload_len(in->skb, &len);
 		if (error) {
-			/* TODO is there a risk of this involving a inner packet? */
 			inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 			return error;
 		}

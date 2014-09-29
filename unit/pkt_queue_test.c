@@ -54,12 +54,12 @@ static bool test_pkt_queue_asr(void)
 	/* Prepare */
 	if (is_error(init_ipv4_tuple(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
 		return false;
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
 			V4_INIT); /* The session entry that is supposed to be created in "tcp_close_state_handle". */
 	if (!session)
 		return false;
 
-	if (is_error(create_skb_ipv4_tcp(&tuple4, &skb, 100))) {
+	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32))) {
 		session_return(session);
 		return false;
 	}
@@ -94,12 +94,12 @@ static bool test_pkt_queue_ars(void)
 	/* Prepare */
 	if (is_error(init_ipv4_tuple(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
 		return false;
-	session = create_tcp_session("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
+	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
 			V4_INIT); /* The session entry that is supposed to be created in "tcp_close_state_handle". */
 	if (!session)
 		return false;
 
-	if (is_error(create_skb_ipv4_tcp(&tuple4, &skb, 100))) {
+	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32))) {
 		session_return(session);
 		return false;
 	}

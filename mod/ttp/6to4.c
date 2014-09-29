@@ -182,11 +182,11 @@ int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
-	ip4_hdr->tot_len = cpu_to_be16(out->l3_hdr.len + out->l4_hdr.len + out->payload.len);
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	if (!is_inner_pkt(in)) {
+		ip4_hdr->tot_len = cpu_to_be16(out->l3_hdr.len + out->l4_hdr.len + out->payload.len);
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in->skb, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
@@ -194,6 +194,8 @@ int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out
 		}
 		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
 	} else {
+		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len)
+				- (in->l3_hdr.len - sizeof(*ip6_hdr)) + sizeof(*ip4_hdr));
 		ip4_hdr->ttl = ip6_hdr->hop_limit;
 	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
@@ -533,7 +535,6 @@ static int update_icmp4_csum(struct pkt_parts *in, struct pkt_parts *out)
 	} else {
 		error = skb_aggregate_ipv6_payload_len(in->skb, &len);
 		if (error) {
-			/* TODO inner packet? */
 			inc_stats(out->skb, IPSTATS_MIB_OUTDISCARDS);
 			return error;
 		}

@@ -370,38 +370,37 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	return divide(skb_out, min_ipv6_mtu);
 }
 
-verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *skb)
+verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 {
-	struct sk_buff *next_skb = skb;
+	struct sk_buff *next_skb = out_skb;
 	struct dst_entry *dst;
 	int error = 0;
 
 	while (next_skb) {
-		skb = next_skb;
-		next_skb = skb->next;
-		skb->next = skb->prev = NULL;
+		if (is_error(fragment_if_too_big(in_skb, next_skb)))
+			goto fail;
 
-		dst = skb_dst(skb);
+		out_skb = next_skb;
+		next_skb = out_skb->next;
+		out_skb->next = out_skb->prev = NULL;
+
+		dst = skb_dst(out_skb);
+
 		if (WARN(!dst || !dst->dev, "I'm trying to send a packet that isn't routed.")) {
-			kfree_skb(skb);
-			continue;
-		}
-
-		if (is_error(fragment_if_too_big(in_skb, skb))) {
-			kfree_skb(skb);
+			kfree_skb(out_skb);
 			goto fail;
 		}
 
 		log_debug("Sending skb via device '%s'...", dst->dev->name);
 
-		switch (skb_l3_proto(skb)) {
+		switch (skb_l3_proto(out_skb)) {
 		case L3PROTO_IPV6:
-			skb_clear_cb(skb);
-			error = ip6_local_out(skb); /* Implicit kfree_skb(skb) goes here. */
+			skb_clear_cb(out_skb);
+			error = ip6_local_out(out_skb); /* Implicit kfree_skb(out_skb) goes here. */
 			break;
 		case L3PROTO_IPV4:
-			skb_clear_cb(skb);
-			error = ip_local_out(skb); /* Implicit kfree_skb(skb) goes here. */
+			skb_clear_cb(out_skb);
+			error = ip_local_out(out_skb); /* Implicit kfree_skb(out_skb) goes here. */
 			break;
 		}
 
@@ -419,11 +418,8 @@ fail:
 	 * The rest will also probably fail, so don't waste time trying to send them.
 	 * If there were more skbs, they were fragments anyway, so the receiving node will
 	 * fail to reassemble them.
-	 *
-	 * Looks like the kernel should worry about this stats update, but apparently that's
-	 * not the case.
 	 */
-	inc_stats(skb, IPSTATS_MIB_OUTDISCARDS);
+	inc_stats(out_skb, IPSTATS_MIB_OUTDISCARDS);
 	kfree_skb_queued(next_skb);
 	return VER_DROP;
 }

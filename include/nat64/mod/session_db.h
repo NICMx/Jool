@@ -18,7 +18,7 @@
 #include "nat64/comm/session.h"
 #include "nat64/mod/bib_db.h"
 
-/************************************* Session Entries **********************************/
+/** ---------------------------------- Session Entries -------------------------------- */
 
 struct expire_timer;
 
@@ -138,7 +138,7 @@ void session_get(struct session_entry *session);
 int session_return(struct session_entry *session);
 
 
-/********************************* Session Database *******************************/
+/** ------------------------------ Session Database ----------------------------- */
 
 enum session_timer_type {
 	SESSIONTIMER_UDP,

@@ -19,7 +19,7 @@ bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessio
 		return false;
 	}
 
-	while (expected_sessions[expected_count] != NULL) {
+	while (expected_sessions && expected_sessions[expected_count]) {
 		struct session_entry *expected = expected_sessions[expected_count];
 		struct session_entry *actual;
 		struct tuple tuple6;
@@ -69,18 +69,16 @@ int session_print(l4_protocol l4_proto)
 	return sessiondb_for_each(l4_proto, session_print_aux, NULL);
 }
 
-struct session_entry *create_tcp_session(
-		unsigned char *remote6_addr, u16 remote6_id,
+struct session_entry *session_create_str(unsigned char *remote6_addr, u16 remote6_id,
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
 		unsigned char *remote4_addr, u16 remote4_id,
-		enum tcp_state state)
+		enum l4_protocol l4_proto)
 {
 	struct ipv6_transport_addr remote6;
 	struct ipv6_transport_addr local6;
 	struct ipv4_transport_addr local4;
 	struct ipv4_transport_addr remote4;
-	struct session_entry *session;
 
 	if (is_error(str_to_addr6(remote6_addr, &remote6.l3)))
 		return NULL;
@@ -96,8 +94,25 @@ struct session_entry *create_tcp_session(
 		return NULL;
 	remote4.l4 = remote4_id;
 
-	session = session_create(&remote6, &local6, &local4, &remote4, L4PROTO_TCP, NULL);
+	return session_create(&remote6, &local6, &local4, &remote4, l4_proto, NULL);
+}
+
+struct session_entry *session_create_str_tcp(
+		unsigned char *remote6_addr, u16 remote6_id,
+		unsigned char *local6_addr, u16 local6_id,
+		unsigned char *local4_addr, u16 local4_id,
+		unsigned char *remote4_addr, u16 remote4_id,
+		enum tcp_state state)
+{
+	struct session_entry *session;
+
+	session = session_create_str(remote6_addr, remote6_id, local6_addr, local6_id, local4_addr,
+			local4_id, remote4_addr, remote4_id, L4PROTO_TCP);
+	if (!session)
+		return NULL;
+
 	session->state = state;
 	return session;
 }
+
 

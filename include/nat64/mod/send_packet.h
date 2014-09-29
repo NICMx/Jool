@@ -56,7 +56,7 @@ int sendpkt_route6(struct sk_buff *skb);
  * Note that this function inherits from ip_local_out() and ip6_local_out() the annoying side
  * effect of freeing "skb", EVEN IF IT COULD NOT BE SENT.
  */
-verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *skb);
+verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb);
 
 
 #endif /* _JOOL_MOD_SEND_PACKET_H */

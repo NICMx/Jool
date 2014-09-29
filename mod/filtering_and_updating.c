@@ -642,7 +642,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 
 	log_debug("Done: Step 2.");
 	/*
-	 * TODO (Issue #57) There used to be an if here that looked way off.
+	 * TODO There used to be an if here that looked way off.
 	 * Gotta review the packet drops in this module, but let's merge first.
 	 */
 	return result;

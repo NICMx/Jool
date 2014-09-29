@@ -140,7 +140,7 @@ bool validate_tcp_hdr(struct tcphdr *hdr, struct tuple *tuple)
 	success &= assert_equals_u16(0, hdr->ack, "TCPhdr-ack");
 	success &= assert_equals_u16(0, hdr->psh, "TCPhdr-psh");
 	success &= assert_equals_u16(0, hdr->rst, "TCPhdr-rst");
-	success &= assert_equals_u16(0, hdr->syn, "TCPhdr-syn");
+	success &= assert_equals_u16(1, hdr->syn, "TCPhdr-syn");
 	success &= assert_equals_u16(0, hdr->fin, "TCPhdr-fin");
 	success &= assert_equals_u16(3233, be16_to_cpu(hdr->window), "TCPhdr-window");
 	success &= assert_equals_u16(9865, be16_to_cpu(hdr->urg_ptr), "TCPhdr-urgent ptr");
@@ -155,9 +155,7 @@ bool validate_icmp6_hdr(struct icmp6hdr *hdr, u16 id, struct tuple *tuple6)
 	success &= assert_equals_u8(ICMPV6_ECHO_REQUEST, hdr->icmp6_type, "ICMP6hdr-type");
 	success &= assert_equals_u8(0, hdr->icmp6_code, "ICMP6hdr-code");
 	success &= assert_equals_u16(tuple6->src.addr6.l4, be16_to_cpu(hdr->icmp6_identifier),
-			"ICMP6hdr-id1");
-	success &= assert_equals_u16(tuple6->dst.addr6.l4, be16_to_cpu(hdr->icmp6_identifier),
-			"ICMP6hdr-id2");
+			"ICMP6hdr id");
 
 	return success;
 }
@@ -179,8 +177,7 @@ bool validate_icmp4_hdr(struct icmphdr *hdr, u16 id, struct tuple *tuple4)
 
 	success &= assert_equals_u8(ICMP_ECHO, hdr->type, "ICMP4hdr-type");
 	success &= assert_equals_u8(0, hdr->code, "ICMP4hdr-code");
-	success &= assert_equals_u16(tuple4->src.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id1");
-	success &= assert_equals_u16(tuple4->dst.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id2");
+	success &= assert_equals_u16(tuple4->src.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id");
 
 	return success;
 }
@@ -215,14 +212,14 @@ bool validate_inner_pkt_ipv6(unsigned char *payload, u16 len)
 	unsigned char *inner_payload;
 	struct tuple tuple6;
 
-	if (init_ipv6_tuple(&tuple6, "2::2", 4321, "1::1", 1234, IPPROTO_TCP) != 0)
+	if (init_ipv6_tuple(&tuple6, "2::2", 4321, "1::1", 1234, L4PROTO_TCP) != 0)
 		return false;
 
 	hdr_ipv6 = (struct ipv6hdr *) payload;
 	hdr_tcp = (struct tcphdr *) (hdr_ipv6 + 1);
 	inner_payload = (unsigned char *) (hdr_tcp + 1);
 
-	if (!validate_ipv6_hdr(hdr_ipv6, 1320, NEXTHDR_TCP, &tuple6))
+	if (!validate_ipv6_hdr(hdr_ipv6, 1300, NEXTHDR_TCP, &tuple6))
 		return false;
 	if (!validate_tcp_hdr(hdr_tcp, &tuple6))
 		return false;
@@ -239,7 +236,7 @@ bool validate_inner_pkt_ipv4(unsigned char *payload, u16 len)
 	unsigned char *inner_payload;
 	struct tuple tuple4;
 
-	if (init_ipv4_tuple(&tuple4, "2.2.2.2", 4321, "1.1.1.1", 1234, IPPROTO_TCP) != 0)
+	if (init_ipv4_tuple(&tuple4, "2.2.2.2", 4321, "1.1.1.1", 1234, L4PROTO_TCP) != 0)
 		return false;
 
 	hdr_ipv4 = (struct iphdr *) payload;

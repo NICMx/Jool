@@ -124,7 +124,7 @@ int init_module(void)
 	START_TESTS("RB Tree");
 
 	CALL_TEST(test_add_and_remove(), "Add/Remove Test");
-	/* TODO (test) test the get functions? */
+	/* TODO test the get functions? */
 
 	END_TESTS;
 }
