@@ -41,7 +41,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 
 	if (is_hairpin(skb_out)) {
 		result = handling_hairpinning(skb_out, &tuple_out);
-		kfree_skb(skb_out);
+		kfree_skb_queued(skb_out);
 	} else {
 		result = sendpkt_send(skb_in, skb_out);
 		/* send_pkt releases skb_out regardless of verdict. */
@@ -73,6 +73,17 @@ unsigned int core_4to6(struct sk_buff *skb)
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
+
+	if (skb->prev || skb->next) {
+		/*
+		 * Jool uses prev and next heavily, so if the packet is already in a list with some other
+		 * purpose, crashing is inevitable.
+		 * The kernel seems to intend to never send us listed packets, but some other Netfilter
+		 * modules might.
+		 */
+		log_warn_once("Packet is listed; I'm going to ignore it.");
+		return NF_ACCEPT;
+	}
 
 	error = skb_linearize(skb);
 	if (error) {
@@ -108,16 +119,22 @@ unsigned int core_4to6(struct sk_buff *skb)
 
 unsigned int core_6to4(struct sk_buff *skb)
 {
+	/* See respective comments in core_4to6(). */
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sk_buff *skbs;
 	int error;
 	verdict result;
 
 	if (!pool6_contains(&hdr->daddr))
-		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+		return NF_ACCEPT;
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
+
+	if (skb->prev || skb->next) {
+		log_warn_once("Packet is listed; I'm going to ignore it.");
+		return NF_ACCEPT;
+	}
 
 	error = skb_linearize(skb);
 	if (error) {
@@ -125,7 +142,6 @@ unsigned int core_6to4(struct sk_buff *skb)
 		return NF_DROP;
 	}
 
-	/* See respective comments above. */
 	error = skb_init_cb_ipv6(skb);
 	if (error)
 		return NF_DROP;

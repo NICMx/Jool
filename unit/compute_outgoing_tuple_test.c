@@ -3,9 +3,9 @@
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/comm/str_utils.h"
-#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/mod/compute_outgoing_tuple.h"
-#include "nat64/unit/bib.h"
+#include "nat64/unit/session.h"
 #include "nat64/unit/types.h"
 
 
@@ -15,10 +15,10 @@ MODULE_AUTHOR("Alberto Leiva <aleiva@nic.mx>");
 MODULE_DESCRIPTION("Outgoing module test");
 
 
-static unsigned char *remote_ipv6_str = "2001:db8::1";
-static unsigned char *local_ipv6_str = "64:ff9b::c0a8:0002";
-static unsigned char *local_ipv4_str = "203.0.113.1";
-static unsigned char *remote_ipv4_str = "192.168.0.2";
+static unsigned char *remote6 = "2001:db8::1";
+static unsigned char *local6 = "64:ff9b::c0a8:0002";
+static unsigned char *local4 = "203.0.113.1";
+static unsigned char *remote4 = "192.168.0.2";
 
 
 /**
@@ -28,20 +28,24 @@ static unsigned char *remote_ipv4_str = "192.168.0.2";
  */
 static bool init(void)
 {
-	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
-	int i;
-
-	if (is_error(bibdb_init()))
+	if (is_error(sessiondb_init()))
 		return false;
 
-	for (i = 0; i < ARRAY_SIZE(l4_protos); i++) {
-		if (!bib_inject_str(remote_ipv6_str, 1500, local_ipv4_str, 80, l4_protos[i])) {
-			bibdb_destroy();
-			return false;
-		}
-	}
+	if (!session_inject_str(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
+			L4PROTO_UDP, SESSIONTIMER_UDP))
+		goto fail;
+	if (!session_inject_str(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
+			L4PROTO_TCP, SESSIONTIMER_EST))
+		goto fail;
+	if (!session_inject_str(remote6, 1234, local6, 1234, local4, 80, remote4, 80,
+			L4PROTO_ICMP, SESSIONTIMER_ICMP))
+		goto fail;
 
 	return true;
+
+fail:
+	sessiondb_destroy();
+	return false;
 }
 
 /**
@@ -49,30 +53,29 @@ static bool init(void)
  */
 static void cleanup(void)
 {
-	bibdb_destroy();
+	sessiondb_destroy();
 }
 
 static bool test_6to4(l4_protocol l4_proto)
 {
 	struct tuple in, out;
-	bool success = true;
 	int field = 0;
+	bool success = true;
 
-	/* 123 is whatever. Lookup should use the 1500. */
-	if (is_error(init_ipv6_tuple(&in, remote_ipv6_str, 1500, local_ipv6_str, 123, l4_proto)))
+	if (is_error(init_ipv6_tuple(&in, remote6, 1234, local6, 80, l4_proto)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, compute_out_tuple(&in, &out, &field), "Call");
-	success &= assert_equals_u16(80, out.src.addr4.l4, "Source port");
-
-	if (l4_proto != L4PROTO_ICMP)
-		success &= assert_equals_u16(123, out.dst.addr4.l4, "Destination port");
-	else
-		success &= assert_equals_u16(80, out.dst.addr4.l4, "ICMP ID");
-	success &= assert_equals_ipv4_str(local_ipv4_str, &out.src.addr4.l3, "Source address");
-	success &= assert_equals_ipv4_str(remote_ipv4_str, &out.dst.addr4.l3, "Destination address");
-	success &= assert_equals_u16(L3PROTO_IPV4, out.l3_proto, "Layer-3 protocol");
-	success &= assert_equals_u8(l4_proto, out.l4_proto, "Layer-4 protocol");
+	success &= assert_equals_int(L3PROTO_IPV4, out.l3_proto, "l3 proto");
+ 	success &= assert_equals_int(l4_proto, out.l4_proto, "l4 proto");
+ 	success &= assert_equals_ipv4_str(local4, &out.src.addr4.l3, "src addr");
+ 	if (l4_proto == L4PROTO_ICMP)
+ 		success &= assert_equals_u16(80, out.src.addr4.l4, "src port (icmp id)");
+ 	else
+ 		success &= assert_equals_u16(5678, out.src.addr4.l4, "src port");
+ 	success &= assert_equals_ipv4_str(remote4, &out.dst.addr4.l3, "dst addr");
+	success &= assert_equals_u16(80, out.dst.addr4.l4, "dst port (icmp id)");
+ 	success &= assert_equals_int(0, field, "unchanged field");
 
 	return success;
 }
@@ -80,21 +83,23 @@ static bool test_6to4(l4_protocol l4_proto)
 static bool test_4to6(l4_protocol l4_proto)
 {
 	struct tuple in, out;
-	bool success = true;
 	int field = 0;
+	bool success = true;
 
-	/* 123 is whatever. Lookup should use the 80. */
-	if (is_error(init_ipv4_tuple(&in, remote_ipv4_str, 123, local_ipv4_str, 80, l4_proto)))
+	if (is_error(init_ipv4_tuple(&in, remote4, 80, local4, 5678, l4_proto)))
 		return false;
 
 	success &= assert_equals_int(VER_CONTINUE, compute_out_tuple(&in, &out, &field), "Call");
-	success &= assert_equals_u16(1500, out.dst.addr6.l4, "Destination port");
-	if (l4_proto != L4PROTO_ICMP)
-		success &= assert_equals_u16(123, out.src.addr6.l4, "Source port");
-	success &= assert_equals_ipv6_str(local_ipv6_str, &out.src.addr6.l3, "Source address");
-	success &= assert_equals_ipv6_str(remote_ipv6_str, &out.dst.addr6.l3, "Destination address");
-	success &= assert_equals_u16(L3PROTO_IPV6, out.l3_proto, "Layer-3 protocol");
-	success &= assert_equals_u8(l4_proto, out.l4_proto, "Layer-4 protocol");
+	success &= assert_equals_int(L3PROTO_IPV6, out.l3_proto, "l3 proto");
+	success &= assert_equals_int(l4_proto, out.l4_proto, "l4 proto");
+	success &= assert_equals_ipv6_str(local6, &out.src.addr6.l3, "src addr");
+	if (l4_proto == L4PROTO_ICMP)
+		success &= assert_equals_u16(1234, out.src.addr6.l4, "src port (icmp id)");
+	else
+		success &= assert_equals_u16(80, out.src.addr6.l4, "src port");
+	success &= assert_equals_ipv6_str(remote6, &out.dst.addr6.l3, "dst addr");
+	success &= assert_equals_u16(1234, out.dst.addr6.l4, "dst port");
+	success &= assert_equals_int(0, field, "unchanged field");
 
 	return success;
 }

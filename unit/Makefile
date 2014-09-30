@@ -35,14 +35,11 @@ obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
 obj-m += $(BIB).o
 obj-m += $(SESSION).o
-# Oops (null pointer dereference).
 obj-m += $(FRAGDB).o
 obj-m += $(INCOMING).o
 obj-m += $(FILTERING).o
-# 6/6 fails.
 obj-m += $(OUTGOING).o
 obj-m += $(TRANSLATE).o
-# 3/5 fails.
 obj-m += $(HAIRPINNING).o
 obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
@@ -155,7 +152,7 @@ $(OUTGOING)-objs += ../mod/rbtree.o
 $(OUTGOING)-objs += ../mod/rfc6052.o
 $(OUTGOING)-objs += ../mod/session_db.o
 $(OUTGOING)-objs += framework/types.o
-$(OUTGOING)-objs += framework/bib.o
+$(OUTGOING)-objs += framework/session.o
 $(OUTGOING)-objs += impersonator/icmp_wrapper.o
 $(OUTGOING)-objs += impersonator/pool4.o
 $(OUTGOING)-objs += impersonator/send_packet.o

@@ -554,9 +554,11 @@ static struct sk_buff *skb_add_frag(struct sk_buff *main, struct sk_buff *addend
 }
 
 /**
- * Computes "skb"'s struct fragment, infers whether it is part of a larger packet, and stores it in
- * the database if it has siblings that haven't arrived yet. If they have all arrived, or if skb is
- * already whole, then it returns the resulting packet in "result".
+ * Groups "skb_in" with the rest of its fragments.
+ * If the rest of the fragments have not yet arrived, this will return VER_STOLEN and store skb_in.
+ * If all of the fragments have arrived, this will return VER_CONTINUE and the zero-offset fragment
+ * will be returned in "skb_out". The rest of the fragments can be accesed via skb_out's list
+ * (skb_out->next).
  *
  * RFC 815, section 3.
  */

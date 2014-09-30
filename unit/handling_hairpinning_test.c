@@ -14,6 +14,7 @@
 #include "nat64/mod/pool6.h"
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/pkt_queue.h"
+#include "nat64/mod/fragment_db.h"
 #include "nat64/mod/bib_db.h"
 #include "nat64/mod/session_db.h"
 #include "nat64/mod/config.h"
@@ -52,6 +53,22 @@
  * using the correct address.
  */
 
+static bool send(struct sk_buff *skb_in)
+{
+	struct sk_buff *skb_tmp;
+	bool success = true;
+
+	while (skb_in) {
+		skb_tmp = skb_in->next;
+		skb_in->next = skb_in->prev = NULL;
+		skb_clear_cb(skb_in);
+		success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Function result");
+		skb_in = skb_tmp;
+	}
+
+	return success;
+}
+
 static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 {
 	struct sk_buff *skb_in = NULL;
@@ -64,7 +81,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	struct tuple tuple6;
 	bool success = true;
 
-	static_bib = bib_inject_str(SERVER_ADDR6, SERVER_PORT6,
+	static_bib = bib_create_str(SERVER_ADDR6, SERVER_PORT6,
 			NAT64_POOL4, SERVER_PORT6,
 			l4_proto);
 	dynamic_bib = bib_create_str(CLIENT_ADDR, CLIENT_PORT,
@@ -94,7 +111,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	if (is_error(create_skb_fn(&tuple6, &skb_in, 40, 32)))
 		goto fail;
 
-	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Request result");
+	success &= send(skb_in);
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
 
@@ -145,7 +162,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	if (is_error(create_skb_fn(&tuple6, &skb_in, 100, 32)))
 		goto fail;
 
-	success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Response result");
+	success &= send(skb_in);
 	/* The module should have reused the entries, so the database shouldn't have changed. */
 	success &= BIB_ASSERT(l4_proto, static_bib, dynamic_bib);
 	success &= SESSION_ASSERT(l4_proto, static_session, dynamic_session);
@@ -214,10 +231,9 @@ static bool test_icmp(void)
 		return false;
 	if (is_error(create_skb6_icmp_info(&tuple6, &skb, 100, 32)))
 		return false;
+	set_sent_skb(NULL);
 
 	success &= assert_equals_int(NF_STOLEN, core_6to4(skb), "Request result");
-	success &= bib_assert(L4PROTO_ICMP, NULL);
-	success &= session_assert(L4PROTO_ICMP, NULL);
 	success &= assert_null(get_sent_skb(), "Sent SKB");
 
 	return success;
@@ -232,6 +248,7 @@ static void deinit(void)
 	pktqueue_destroy();
 	pool4_destroy();
 	pool6_destroy();
+	fragdb_destroy();
 }
 
 static int init(void)
@@ -240,6 +257,9 @@ static int init(void)
 	char *pool4[] = { NAT64_POOL4 };
 	int error;
 
+	error = fragdb_init();
+	if (error)
+		goto failure;
 	error = pool6_init(pool6, ARRAY_SIZE(pool6));
 	if (error)
 		goto failure;
@@ -260,6 +280,13 @@ static int init(void)
 		goto failure;
 	error = translate_packet_init();
 	if (error)
+		goto failure;
+
+	if (!bib_inject_str(SERVER_ADDR6, SERVER_PORT6, NAT64_POOL4, SERVER_PORT6, L4PROTO_UDP))
+		goto failure;
+	if (!bib_inject_str(SERVER_ADDR6, SERVER_PORT6, NAT64_POOL4, SERVER_PORT6, L4PROTO_TCP))
+		goto failure;
+	if (!bib_inject_str(SERVER_ADDR6, SERVER_PORT6, NAT64_POOL4, SERVER_PORT6, L4PROTO_ICMP))
 		goto failure;
 
 	return 0;

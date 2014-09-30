@@ -115,4 +115,14 @@ struct session_entry *session_create_str_tcp(
 	return session;
 }
 
-
+struct session_entry *session_inject_str(unsigned char *remote6_addr, u16 remote6_id,
+		unsigned char *local6_addr, u16 local6_id,
+		unsigned char *local4_addr, u16 local4_id,
+		unsigned char *remote4_addr, u16 remote4_id,
+		l4_protocol l4_proto, enum session_timer_type timer_type)
+{
+	struct session_entry *session;
+	session = session_create_str(remote6_addr, remote6_id, local6_addr, local6_id,
+			local4_addr, local4_id, remote4_addr, remote4_id, l4_proto);
+	return (sessiondb_add(session, timer_type) != 0) ? NULL : session;
+}
