@@ -115,10 +115,13 @@ static int get_bib_ipv4(struct sk_buff *skb, struct tuple *tuple4, struct bib_en
 
 	error = bibdb_get(tuple4, bib);
 	if (error) {
-		if (error == -ENOENT)
+		if (error == -ENOENT) {
 			log_debug("There is no BIB entry for the incoming IPv4 packet.");
-		else
+			inc_stats(skb, IPSTATS_MIB_INNOROUTES);
+		} else {
 			log_debug("Error code %d while finding a BIB entry for the incoming packet.", error);
+			inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		}
 		icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
@@ -126,6 +129,7 @@ static int get_bib_ipv4(struct sk_buff *skb, struct tuple *tuple4, struct bib_en
 	if (address_dependent_filtering() && !sessiondb_allow(tuple4)) {
 		log_debug("Packet was blocked by address-dependent filtering.");
 		icmp64_send(skb, ICMPERR_FILTER, 0);
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		bib_return(*bib);
 		return -EPERM;
 	}
@@ -246,12 +250,15 @@ static verdict ipv6_simple(struct sk_buff *skb, struct tuple *tuple6)
 	int error;
 
 	error = bibdb_get_or_create_ipv6(skb, tuple6, &bib);
-	if (error)
+	if (error) {
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		return VER_DROP;
+	}
 	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv6(tuple6, bib, &session);
 	if (error) {
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		bib_return(bib);
 		return VER_DROP;
 	}
@@ -285,6 +292,7 @@ static verdict ipv4_simple(struct sk_buff *skb, struct tuple *tuple4)
 
 	error = sessiondb_get_or_create_ipv4(tuple4, bib, &session);
 	if (error) {
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		bib_return(bib);
 		return VER_DROP;
 	}
@@ -406,17 +414,22 @@ end_bib:
 static verdict tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 {
 	struct bib_entry *bib;
+	verdict result;
 	int error;
 
 	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
-		if (tcp_hdr(skb)->syn)
-			return is_error(tcp_closed_v6_syn(skb, tuple)) ? VER_DROP : VER_CONTINUE;
+		if (tcp_hdr(skb)->syn) {
+			result = is_error(tcp_closed_v6_syn(skb, tuple)) ? VER_DROP : VER_CONTINUE;
+			goto syn_out;
+		}
 		break;
 
 	case L3PROTO_IPV4:
-		if (tcp_hdr(skb)->syn)
-			return tcp_closed_v4_syn(skb, tuple);
+		if (tcp_hdr(skb)->syn) {
+			result = tcp_closed_v4_syn(skb, tuple);
+			goto syn_out;
+		}
 		break;
 	}
 
@@ -424,11 +437,17 @@ static verdict tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 	if (error) {
 		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. "
 				"ERRcode %d", error);
+		inc_stats(skb, IPSTATS_MIB_INNOROUTES);
 		return VER_DROP;
 	}
 
 	bib_return(bib);
 	return VER_CONTINUE;
+
+syn_out:
+	if (result == VER_DROP)
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+	return result;
 }
 
 /**
@@ -445,6 +464,7 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 	error = sessiondb_get(tuple, &session);
 	if (error != 0 && error != -ENOENT) {
 		log_debug("Error code %d while trying to find a TCP session.", error);
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
 		return VER_DROP;
 	}
 
@@ -454,7 +474,11 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 	log_session(session);
 	error = sessiondb_tcp_state_machine(skb, session);
 	session_return(session);
-	return error ? VER_DROP : VER_CONTINUE;
+	if (error) {
+		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		return VER_DROP;
+	}
+	return VER_CONTINUE;
 }
 
 /**
@@ -561,17 +585,14 @@ int filtering_set_config(enum filtering_type type, size_t size, void *value)
 verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 {
 	struct ipv6hdr *hdr_ip6;
-	struct icmp6hdr *hdr_icmp6;
-	struct icmphdr *hdr_icmp4;
 	verdict result = VER_CONTINUE;
 
 	log_debug("Step 2: Filtering and Updating");
 
 	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
-		hdr_icmp6 = icmp6_hdr(skb);
 		/* ICMP errors should not be filtered or affect the tables. */
-		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(hdr_icmp6->icmp6_type)) {
+		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(skb)->icmp6_type)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
 			return VER_CONTINUE;
 		}
@@ -589,9 +610,8 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 		}
 		break;
 	case L3PROTO_IPV4:
-		hdr_icmp4 = icmp_hdr(skb);
 		/* ICMP errors should not be filtered or affect the tables. */
-		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(hdr_icmp4->type)) {
+		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(skb)->type)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
 			return VER_CONTINUE;
 		}
@@ -641,9 +661,5 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 	}
 
 	log_debug("Done: Step 2.");
-	/*
-	 * TODO There used to be an if here that looked way off.
-	 * Gotta review the packet drops in this module, but let's merge first.
-	 */
 	return result;
 }

@@ -37,8 +37,10 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) (in->payload.ptr));
 		hdr_iterator_result result = hdr_iterator_last(&iterator);
 
-		if (WARN(result != HDR_ITERATOR_END, "Validated packet has an invalid l3 header."))
+		if (WARN(result != HDR_ITERATOR_END, "Validated packet has an invalid l3 header.")) {
+			inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 			return -EINVAL;
+		}
 
 		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
 		total_len += sizeof(struct iphdr) - (iterator.data - in->payload.ptr);

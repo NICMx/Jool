@@ -4,6 +4,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
+#include "nat64/mod/packet.h"
 #include "nat64/mod/types.h"
 
 
@@ -23,8 +24,12 @@ static void inc_stats_ipv6(struct sk_buff *skb, int field)
 {
 	struct inet6_dev *idev;
 
-	if (is_error(inc_stats_validate(skb)))
-		return;
+	if (is_error(inc_stats_validate(skb))) {
+		/* Maybe we can fall back to increase the stat on the other skb's dev... */
+		skb = skb_original_skb(skb);
+		if (is_error(inc_stats_validate(skb)))
+			return;
+	}
 	idev = in6_dev_get(skb->dev);
 	if (!idev)
 		return;
@@ -36,8 +41,11 @@ static void inc_stats_ipv6(struct sk_buff *skb, int field)
 
 static void inc_stats_ipv4(struct sk_buff *skb, int field)
 {
-	if (is_error(inc_stats_validate(skb)))
-		return;
+	if (is_error(inc_stats_validate(skb))) {
+		skb = skb_original_skb(skb);
+		if (is_error(inc_stats_validate(skb)))
+			return;
+	}
 	IP_INC_STATS_BH(dev_net(skb->dev), field);
 }
 

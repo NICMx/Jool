@@ -632,7 +632,7 @@ int init_module(void)
 	CALL_TEST(test_6to4frag_udp(), "Full Fragments, 6->4 UDP");
 	CALL_TEST(test_6to4frag_icmp(), "Full Fragments, 6->4 ICMP");
 
-	/* TODO still need to test zero IPv4-UDP checksums. I think that's all. */
+	/* TODO (test) still need to test zero IPv4-UDP checksums. I think that's all. */
 
 	translate_packet_destroy();
 

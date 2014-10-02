@@ -10,6 +10,7 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/ttp/core.h"
+#include "nat64/mod/send_packet.h"
 #include "nat64/mod/core.h"
 
 #include <linux/kernel.h>
@@ -122,6 +123,9 @@ static int __init nat64_init(void)
 	error = translate_packet_init();
 	if (error)
 		goto translate_packet_failure;
+	error = sendpkt_init();
+	if (error)
+		goto sendpkt_failure;
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
@@ -133,6 +137,9 @@ static int __init nat64_init(void)
 	return error;
 
 nf_register_hooks_failure:
+	sendpkt_destroy();
+
+sendpkt_failure:
 	translate_packet_destroy();
 
 translate_packet_failure:
@@ -169,6 +176,7 @@ static void __exit nat64_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	/* Deinitialize the submodules. */
+	sendpkt_destroy();
 	translate_packet_destroy();
 	filtering_destroy();
 	fragdb_destroy();

@@ -145,6 +145,11 @@ static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
  * Control buffers are reserved spaces in skbs where their current owners (ie. Jool) can store
  * whatever.
  *
+ * I'm assuming skbs Jool receive are supposed to have clean control buffers, and therefore there's
+ * no problem with the existence of this structure. Though common sense dictates any Netfilter
+ * module should not have to worry about leftover CB garbage, I do not see any confirmation
+ * (formal or otherwise) of this anywhere. Any objections?
+ *
  * If you're planning to change this structure, keep in mind its size cannot exceed
  * sizeof(skb->cb).
  */
@@ -307,9 +312,10 @@ int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
 /**
  * Fails if "hdr" is corrupted.
  *
- * @param length of the buffer "hdr" belongs to.
- * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
- *		not be considered a problem.
+ * @param len length of the buffer "hdr" belongs to.
+ * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
+ *		not be considered a problem (validation will still fail if the buffer does not contain
+ *		enough l3 and l4 headers).
  * @param iterator this function will leave this iterator at the layer-3 payload of "hdr"'s buffer.
  */
 int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
@@ -317,9 +323,10 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
 /**
  * Fails if "hdr" is corrupted.
  *
- * @param length of the buffer "hdr" belongs to.
- * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
- *		not be considered a problem.
+ * @param len length of the buffer "hdr" belongs to.
+ * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
+ *		not be considered a problem (validation will still fail if the buffer does not contain
+ *		enough l3 and l4 headers).
  */
 int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field);
 
@@ -355,6 +362,17 @@ bool icmpv6_has_inner_packet(__u8 icmp6_type);
 
 /**
  * Initializes "skb"'s control buffer. It also validates "skb".
+ *
+ * After this function, code can assume:
+ * - skb contains full l3 and l4 headers. In particular, the header continuity makes sense (eg.
+ * you won't find a UDP header after a NEXTHDR_TCP). Inner l3 and l4 headers (in ICMP errors) are
+ * also validated (except inner TCP options, which are just considered payload at this point).
+ * - skb isn't truncated (though inner packets might).
+ * - The cb functions above can now be used on skb.
+ * - The length fields in the headers can be relied upon.
+ *
+ * Healthy layer 4 checksums are not guaranteed, but that's not an issue since this kind of
+ * corruption should be translated along (see validate_icmp6_csum()).
  */
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);

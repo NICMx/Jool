@@ -100,13 +100,18 @@ struct tuple {
 	 */
 	union transport_addr dst;
 
-	/** The packet's network protocol. */
+	/**
+	 * The packet's network protocol. This is the sure way to know which of the above union
+	 * elements should be used.
+	 */
 	l3_protocol l3_proto;
 	/**
 	 * The packet's transport protocol that counts.
 	 *
 	 * Most of the time, this is the packet's simple l4-protocol. When the packet contains a inner
 	 * packet, this is the inner packet's l4-protocol.
+	 *
+	 * This dictates whether this is a 5-tuple or a 3-tuple (see is_3_tuple()/is_5_tuple()).
 	 */
 	l4_protocol l4_proto;
 

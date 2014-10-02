@@ -65,13 +65,12 @@ typedef enum l3_protocol {
  * defaultless switch'es. Also, the zero-based index is convenient in the Translate Packet module.
  */
 typedef enum l4_protocol {
-	/** The packet has a TCP header after the layer-3 headers. */
+	/** Signals the presence of a TCP header. */
 	L4PROTO_TCP = 0,
-	/** The packet has a UDP header after the layer-3 headers. */
+	/** Signals the presence of a UDP header. */
 	L4PROTO_UDP = 1,
 	/**
-	 * The packet has a ICMP header after the layer-3 headers. Whether the header is ICMPv4 or
-	 * ICMPv6 never matters.
+	 * Signals the presence of a ICMP header. Whether the header is ICMPv4 or ICMPv6 never matters.
 	 * We know that ICMP is not a transport protocol, but for all intents and purposes, it behaves
 	 * exactly like one in NAT64.
 	 */

@@ -122,7 +122,12 @@ void session_get(struct session_entry *session)
 	kref_get(&session->refcounter);
 }
 
-struct session_entry *session_clone(struct session_entry *session)
+/**
+ * Creates a copy of "session".
+ *
+ * The copy will not be part of the database regardless of session's state.
+ */
+static struct session_entry *session_clone(struct session_entry *session)
 {
 	struct session_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!result)
@@ -1063,10 +1068,13 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 	struct ipv4_transport_addr local4;
 	struct rb_node **node, *parent;
 	struct session_table *table;
-	struct expire_timer *expirer;
+	struct expire_timer *expirer = NULL;
 	int error;
 
 	if (WARN(!tuple6, "There's no session entry mapped to NULL."))
+		return -EINVAL;
+	if (WARN(tuple6->l4_proto != L4PROTO_UDP && tuple6->l4_proto != L4PROTO_ICMP,
+			"I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple6->l4_proto))
 		return -EINVAL;
 
 	error = get_session_table(tuple6->l4_proto, &table);
@@ -1079,8 +1087,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 			parent, node);
 	if (*node) {
 		*session = rb_entry(*node, struct session_entry, tree6_hook);
-		session_get(*session);
-		goto end;
+		goto success;
 	}
 	/* The entry doesn't exist, so try to create it. */
 
@@ -1088,13 +1095,13 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 	error = pool6_get(&tuple6->dst.addr6.l3, &prefix);
 	if (error) {
 		log_debug("Errcode %d while obtaining %pI6c's prefix.", error, &tuple6->dst.addr6);
-		goto end;
+		goto fail;
 	}
 
 	error = addr_6to4(&tuple6->dst.addr6.l3, &prefix, &local4.l3);
 	if (error) {
 		log_debug("Error code %d while translating the packet's address.", error);
-		goto end;
+		goto fail;
 	}
 
 	/*
@@ -1109,7 +1116,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		error = -ENOMEM;
-		goto end;
+		goto fail;
 	}
 
 	/* Add it to the database. */
@@ -1121,9 +1128,13 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 	if (WARN(error, "The session entry could be indexed by IPv6, but not by IPv4.")) {
 		rb_erase(&(*session)->tree6_hook, &table->tree6);
 		session_return(*session);
-		goto end;
+		goto fail;
 	}
 
+	table->count++;
+	/* Fall through. */
+
+success:
 	switch (tuple6->l4_proto) {
 	case L4PROTO_UDP:
 		expirer = &expirer_udp;
@@ -1131,27 +1142,21 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 	case L4PROTO_ICMP:
 		expirer = &expirer_icmp;
 		break;
-	default:
-		WARN(true, "I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple6->l4_proto);
-		rb_erase(&(*session)->tree4_hook, &table->tree4);
-		rb_erase(&(*session)->tree6_hook, &table->tree6);
-		session_return(*session);
-		error = -EINVAL;
-		goto end;
+	case L4PROTO_TCP:
+		/* handled in a WARN above, not gonna happen. I'm just hushing the compiler. */
+		break;
 	}
 
 	expirer = set_timer(*session, expirer);
-
-	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
-	table->count++;
+	/* We gotta do this for our caller, because it has to be done before the unlock. */
+	session_get(*session);
 
 	spin_unlock_bh(&table->lock);
 
 	commit_timer(expirer);
-
 	return 0;
 
-end:
+fail:
 	spin_unlock_bh(&table->lock);
 	return error;
 }
@@ -1164,10 +1169,13 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 	struct ipv6_transport_addr remote6;
 	struct rb_node **node, *parent;
 	struct session_table *table;
-	struct expire_timer *expirer;
+	struct expire_timer *expirer = NULL;
 	int error;
 
 	if (WARN(!tuple4, "There's no session entry mapped to NULL."))
+		return -EINVAL;
+	if (WARN(tuple4->l4_proto != L4PROTO_UDP && tuple4->l4_proto != L4PROTO_ICMP,
+			"I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple4->l4_proto))
 		return -EINVAL;
 
 	error = get_session_table(tuple4->l4_proto, &table);
@@ -1180,20 +1188,19 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 			parent, node);
 	if (*node) {
 		*session = rb_entry(*node, struct session_entry, tree4_hook);
-		session_get(*session);
-		goto end;
+		goto success;
 	}
 	/* The entry doesn't exist, so try to create it. */
 
 	/* Translate address from IPv4 to IPv6 */
 	error = pool6_peek(&prefix);
 	if (error)
-		goto end;
+		goto fail;
 
 	error = addr_4to6(&tuple4->src.addr4.l3, &prefix, &remote6.l3);
 	if (error) {
 		log_debug("Error code %d while translating the packet's address.", error);
-		goto end;
+		goto fail;
 	}
 
 	/*
@@ -1208,7 +1215,7 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		error = -ENOMEM;
-		goto end;
+		goto fail;
 	}
 
 	/* Add it to the database. */
@@ -1220,9 +1227,13 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 	if (WARN(error, "The session entry could be indexed by IPv4, but not by IPv6.")) {
 		rb_erase(&(*session)->tree4_hook, &table->tree4);
 		session_return(*session);
-		goto end;
+		goto fail;
 	}
 
+	table->count++;
+	/* Fall through. */
+
+success:
 	switch (tuple4->l4_proto) {
 	case L4PROTO_UDP:
 		expirer = &expirer_udp;
@@ -1230,27 +1241,21 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 	case L4PROTO_ICMP:
 		expirer = &expirer_icmp;
 		break;
-	default:
-		WARN(true, "I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple4->l4_proto);
-		rb_erase(&(*session)->tree4_hook, &table->tree4);
-		rb_erase(&(*session)->tree6_hook, &table->tree6);
-		session_return(*session);
-		error = -EINVAL;
-		goto end;
+	case L4PROTO_TCP:
+		/* handled in a WARN above, not gonna happen. I'm just hushing the compiler. */
+		break;
 	}
 
 	expirer = set_timer(*session, expirer);
-
-	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
-	table->count++;
+	/* We gotta do this for our caller, because it has to be done before the unlock. */
+	session_get(*session);
 
 	spin_unlock_bh(&table->lock);
 
 	commit_timer(expirer);
-
 	return 0;
 
-end:
+fail:
 	spin_unlock_bh(&table->lock);
 	return error;
 }

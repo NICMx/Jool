@@ -133,20 +133,24 @@ int sendpkt_route4(struct sk_buff *skb)
 	if (!table || IS_ERR(table)) {
 		error = abs(PTR_ERR(table));
 		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (table->dst.error) {
 		error = abs(table->dst.error);
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 
 	skb_dst_set(skb, &table->dst);
+	skb->dev = table->dst.dev;
 
 	return 0;
 }
@@ -204,11 +208,13 @@ int sendpkt_route6(struct sk_buff *skb)
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 	if (dst->error) {
 		int error = abs(dst->error);
 		log_debug("ip6_route_output() returned error %d. Cannot route packet.", error);
+		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 
@@ -334,7 +340,7 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		if (is_dont_fragment_set(ip_hdr(skb_out)) && (skb_out->len > min_ipv4_mtu)) {
 			icmp64_send(skb_out, ICMPERR_FRAG_NEEDED, min_ipv4_mtu + 20);
 			log_debug("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv4_mtu);
-			inc_stats(skb_out, IPSTATS_MIB_FRAGFAILS);
+			inc_stats(skb_out, IPSTATS_MIB_INTOOBIGERRORS);
 			return -EINVAL;
 		}
 #endif
@@ -363,7 +369,7 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		/* We're not supposed to fragment; yay. */
 		icmp64_send(skb_in, ICMPERR_FRAG_NEEDED, min_ipv6_mtu - 20);
 		log_debug("Packet is too big (%u bytes; MTU: %u); dropping.", skb_out->len, min_ipv6_mtu);
-		inc_stats(skb_in, IPSTATS_MIB_FRAGFAILS);
+		inc_stats(skb_in, IPSTATS_MIB_INTOOBIGERRORS);
 		return -EINVAL;
 	}
 

@@ -31,7 +31,6 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 	struct sk_buff *skb_out;
 	struct tuple tuple_out;
 	verdict result;
-	int field = 0;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
@@ -44,11 +43,9 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 	result = filtering_and_updating(skb_in, tuple_in);
 	if (result != VER_CONTINUE)
 		return result;
-	result = compute_out_tuple(tuple_in, &tuple_out, &field);
-	if (result != VER_CONTINUE) {
-		inc_stats(skb_in, field);
+	result = compute_out_tuple(tuple_in, &tuple_out, skb_in);
+	if (result != VER_CONTINUE)
 		return result;
-	}
 	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
 	if (result != VER_CONTINUE)
 		return result;
