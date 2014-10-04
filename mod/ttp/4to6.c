@@ -724,6 +724,7 @@ static void handle_zero_csum(struct pkt_parts *in, struct pkt_parts *out)
 	 * That's the second reason why we needed in as an argument.
 	 */
 
+	hdr_udp->check = 0;
 	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
 
 	skb_in = in->skb;

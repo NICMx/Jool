@@ -331,6 +331,14 @@ static u16 compute_fragment_first(struct sk_buff *skb)
 	return 0;
 }
 
+static u16 compute_fragment_last(u16 fragment_first, struct sk_buff *skb)
+{
+	unsigned int l3_payload_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+	return (l3_payload_len >= 8)
+			? fragment_first + ((l3_payload_len - 8) >> 3)
+			: fragment_first;
+}
+
 /**
  * Returns "true" if "frag"'s MF flag is set. The point is to make the layer-3 protocol transparent
  * to the caller.
@@ -613,7 +621,7 @@ static verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out
 	}
 
 	fragment_first = compute_fragment_first(skb_in);
-	fragment_last = fragment_first + ((skb_l4hdr_len(skb_in) + skb_payload_len(skb_in) - 8) >> 3);
+	fragment_last = compute_fragment_last(fragment_first, skb_in);
 
 	/* Step 1 */
 	list_for_each_entry_safe(hole, hole_aux, &buffer->holes, list_hook) {
