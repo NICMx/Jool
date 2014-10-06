@@ -13,6 +13,9 @@
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/ttp/core.h"
 #include "nat64/mod/send_packet.h"
+#ifdef BENCHMARK
+#include "nat64/mod/log_time.h"
+#endif
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -263,6 +266,49 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	}
 }
 
+#ifdef BENCHMARK
+static int logtime_entry_to_userspace(struct log_node *node, void *arg)
+{
+	struct nl_buffer *buffer = (struct nl_buffer *) arg;
+	struct logtime_entry_usr entry_usr;
+
+	entry_usr.time = node->time;
+
+	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+}
+
+static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		struct request_logtime *request)
+{
+	struct nl_buffer *buffer;
+	int error;
+	switch (nat64_hdr->operation) {
+	case OP_DISPLAY:
+		log_debug("Sending logs time to userspace.");
+
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userpace.");
+			return respond_error(nl_hdr, -ENOMEM);
+		}
+
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
+		error = logtime_iterate_and_delete(request->l3_proto, request->l4_proto,
+				logtime_entry_to_userspace, buffer);
+		if (error > 0)
+			error = nlbuffer_close_continue(buffer);
+		else
+			error = nlbuffer_close(buffer);
+
+		kfree(buffer);
+		return error;
+	default:
+		log_err("Unknown operation: %d", nat64_hdr->operation);
+		return respond_error(nl_hdr, -EINVAL);
+	}
+}
+#endif
+
 static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
@@ -507,6 +553,10 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return handle_bib_config(nl_hdr, nat64_hdr, request);
 	case MODE_SESSION:
 		return handle_session_config(nl_hdr, nat64_hdr, request);
+#ifdef BENCHMARK
+	case MODE_LOGTIME:
+		return handle_logtime_config(nl_hdr, nat64_hdr, request);
+#endif
 	case MODE_GENERAL:
 		return handle_general_config(nl_hdr, nat64_hdr, request);
 	}

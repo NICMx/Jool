@@ -3,6 +3,9 @@
 #include "nat64/comm/types.h"
 #include "nat64/mod/stats.h"
 #include "nat64/mod/icmp_wrapper.h"
+#ifdef BENCHMARK
+#include "nat64/mod/log_time.h"
+#endif
 
 #include <linux/version.h>
 #include <linux/list.h>
@@ -381,7 +384,12 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 	struct sk_buff *next_skb = out_skb;
 	struct dst_entry *dst;
 	int error = 0;
-
+#ifdef BENCHMARK
+	struct timespec end_time;
+	getnstimeofday(&end_time);
+	logtime(&skb_jcb(out_skb)->start_time, &end_time, skb_l3_proto(out_skb),
+			skb_l4_proto(out_skb));
+#endif
 	while (next_skb) {
 		if (is_error(fragment_if_too_big(in_skb, next_skb)))
 			goto fail;

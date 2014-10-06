@@ -183,6 +183,12 @@ struct jool_cb {
 	 * translated. Also used by the packet queue.
 	 */
 	struct sk_buff *original_skb;
+#ifdef BENCHMARK
+	/**
+	 * Log the time in epoch when this skb arrives to jool. For benchmark purpouse.
+	 */
+	struct timespec start_time;
+#endif
 };
 
 /**
@@ -219,6 +225,9 @@ static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_pro
 	cb->payload = payload;
 	cb->frag_hdr = fraghdr;
 	cb->original_skb = original_skb;
+#ifdef BENCHMARK
+	cb->start_time = skb_jcb(original_skb)->start_time;
+#endif
 }
 
 /**

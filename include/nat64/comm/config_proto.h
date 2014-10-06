@@ -49,6 +49,10 @@ enum config_mode {
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
+#ifdef BENCHMARK
+	/** The current message is talking about log times for benchmark. */
+	MODE_LOGTIME = (1 << 5),
+#endif
 	/** The current message is talking about general configuration values. */
 	MODE_GENERAL = (1 << 0),
 };
@@ -62,6 +66,9 @@ enum config_mode {
 #define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
+#ifdef BENCHMARK
+#define LOGTIME_OPS (OP_DISPLAY)
+#endif
 #define GENERAL_OPS (OP_DISPLAY | OP_UPDATE)
 /**
  * @}
@@ -87,7 +94,12 @@ enum config_operation {
  * Allowed modes for the operation mentioned in the name.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
+#ifdef BENCHMARK
+#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL \
+		| MODE_LOGTIME)
+#else
 #define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL)
+#endif
 #define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION)
 #define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 #define UPDATE_MODES (MODE_GENERAL)
@@ -155,6 +167,21 @@ union request_pool4 {
 		__u8 quick;
 	} flush;
 };
+#ifdef BENCHMARK
+/**
+ * Configuration for the "Log time" module.
+ */
+struct request_logtime {
+	__u8 l3_proto;
+	__u8 l4_proto;
+	union {
+		struct {
+			/** If this is false, this is the first chunk the app is requesting. (boolean) */
+			__u8 iterate;
+		} display;
+	};
+};
+#endif
 
 /**
  * Configuration for the "BIB" module.
@@ -400,6 +427,18 @@ union request_general {
 		/* The value is given in a variable-sized payload so it's not here. */
 	} update;
 };
+
+#ifdef BENCHMARK
+/**
+ * A logtime node entry, from the eyes of userspace.
+ *
+ * It holds the "struct timespec" which include seconds and nanoseconds, that specific how time
+ * the skb need to be translated to IPv6 -> IPv4 or IPv4 -> IPv6.
+ */
+struct logtime_entry_usr {
+	struct timespec time;
+};
+#endif
 
 /**
  * A BIB entry, from the eyes of userspace.

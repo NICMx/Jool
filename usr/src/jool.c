@@ -23,6 +23,9 @@
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
 #include "nat64/usr/general.h"
+#ifdef BENCHMARK
+#include "nat64/usr/log_time.h"
+#endif
 
 
 const char *argp_program_version = "3.2.0";
@@ -81,6 +84,9 @@ enum argp_flags {
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
+#ifdef BENCHMARK
+	ARGP_LOGTIME = 'l',
+#endif
 	ARGP_GENERAL = 'g',
 
 	/* Operations */
@@ -145,6 +151,9 @@ static struct argp_option options[] =
 	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 pool." },
 	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
 	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
+#ifdef BENCHMARK
+	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
+#endif
 	{ "general", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous configuration "
 			"values (default)." },
 
@@ -361,6 +370,11 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SESSION:
 		error = update_state(args, MODE_SESSION, SESSION_OPS);
 		break;
+#ifdef BENCHMARK
+	case ARGP_LOGTIME:
+		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
+		break;
+#endif
 	case ARGP_GENERAL:
 		error = update_state(args, MODE_GENERAL, GENERAL_OPS);
 		break;
@@ -674,6 +688,18 @@ static int main_wrapped(int argc, char **argv)
 			return -EINVAL;
 		}
 		break;
+#ifdef BENCHMARK
+	case MODE_LOGTIME:
+		switch (args.op) {
+		case OP_DISPLAY:
+			return logtime_display();
+			break;
+		default:
+			log_err("Unknown operation for log time mode: %u.", args.op);
+			break;
+		}
+		break;
+#endif
 
 	case MODE_GENERAL:
 		switch (args.op) {
