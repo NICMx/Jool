@@ -36,9 +36,9 @@ static struct pktqueue_config *config;
 
 
 /**
- * Returns a positive integer if node.session.*4 < session.*4.
- * Returns a negative integer if node.session.*4 > session.*4.
- * Returns zero if node.session.*4 == session.*4.
+ * Returns > 0 if node.session.*4 > session.*4.
+ * Returns < 0 if node.session.*4 < session.*4.
+ * Returns 0 if node.session.*4 == session.*4.
  *
  * Doesn't care about spinlocks.
  */
@@ -46,19 +46,19 @@ static int compare_fn(const struct packet_node *node, struct session_entry *sess
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&session->remote4.l3, &node->session->remote4.l3);
+	gap = ipv4_addr_cmp(&node->session->remote4.l3, &session->remote4.l3);
 	if (gap)
 		return gap;
 
-	gap = session->remote4.l4 - node->session->remote4.l4;
+	gap = node->session->remote4.l4 - session->remote4.l4;
 	if (gap)
 		return gap;
 
-	gap = ipv4_addr_cmp(&session->local4.l3, &node->session->local4.l3);
+	gap = ipv4_addr_cmp(&node->session->local4.l3, &session->local4.l3);
 	if (gap)
 		return gap;
 
-	gap = session->local4.l4 - node->session->local4.l4;
+	gap = node->session->local4.l4 - session->local4.l4;
 	return gap;
 }
 

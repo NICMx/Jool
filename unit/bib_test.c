@@ -443,6 +443,97 @@ fail:
 	return false;
 }
 
+static bool test_compare_addr6(void)
+{
+	struct bib_entry *bib;
+	struct in6_addr addr6;
+	bool success = true;
+
+	bib = bib_create_str("1::1", 1111, "1.1.1.1", 1111, L4PROTO_TCP);
+	if (!bib)
+		return false;
+
+	if (str_to_addr6("2::2", &addr6) != 0)
+		goto fail;
+	success &= assert_true(compare_addr6(bib, &addr6) < 0, "< 0");
+	if (str_to_addr6("1::1", &addr6) != 0)
+		goto fail;
+	success &= assert_true(compare_addr6(bib, &addr6) == 0, "= 0");
+	if (str_to_addr6("0::0", &addr6) != 0)
+		goto fail;
+	success &= assert_true(compare_addr6(bib, &addr6) > 0, "> 0");
+
+	bib_kfree(bib);
+	return success;
+
+fail:
+	bib_kfree(bib);
+	return false;
+}
+
+static bool test_compare_full6(void)
+{
+	struct bib_entry *bib;
+	struct ipv6_transport_addr taddr6;
+	bool success = true;
+
+	bib = bib_create_str("1::1", 1111, "1.1.1.1", 1111, L4PROTO_TCP);
+	if (!bib)
+		return false;
+
+	if (str_to_addr6("2::2", &taddr6.l3) != 0)
+		goto fail;
+	taddr6.l4 = 1111;
+	success &= assert_true(compare_full6(bib, &taddr6) < 0, "<< 0");
+	if (str_to_addr6("1::1", &taddr6.l3) != 0)
+		goto fail;
+	taddr6.l4 = 1112;
+	success &= assert_true(compare_full6(bib, &taddr6) < 0, "< 0");
+	taddr6.l4 = 1111;
+	success &= assert_true(compare_full6(bib, &taddr6) == 0, "= 0");
+	taddr6.l4 = 1110;
+	success &= assert_true(compare_full6(bib, &taddr6) > 0, "> 0");
+	if (str_to_addr6("0::0", &taddr6.l3) != 0)
+		goto fail;
+	taddr6.l4 = 1111;
+	success &= assert_true(compare_full6(bib, &taddr6) > 0, ">> 0");
+
+	bib_kfree(bib);
+	return success;
+
+fail:
+	bib_kfree(bib);
+	return false;
+}
+
+static bool test_compare_addr4(void)
+{
+	struct bib_entry *bib;
+	struct in_addr addr4;
+	bool success = true;
+
+	bib = bib_create_str("1::1", 1111, "1.1.1.1", 1111, L4PROTO_TCP);
+	if (!bib)
+		return false;
+
+	if (str_to_addr4("2.2.2.2", &addr4) != 0)
+		goto fail;
+	success &= assert_true(compare_addr4(bib, &addr4) < 0, "< 0");
+	if (str_to_addr4("1.1.1.1", &addr4) != 0)
+		goto fail;
+	success &= assert_true(compare_addr4(bib, &addr4) == 0, "= 0");
+	if (str_to_addr4("0.0.0.0", &addr4) != 0)
+		goto fail;
+	success &= assert_true(compare_addr4(bib, &addr4) > 0, "> 0");
+
+	bib_kfree(bib);
+	return success;
+
+fail:
+	bib_kfree(bib);
+	return false;
+}
+
 static bool init(void)
 {
 	char *pool4_addrs[] = { "1.1.1.1", "2.2.2.2" };
@@ -484,6 +575,9 @@ int init_module(void)
 	INIT_CALL_END(init(), simple_bib(), end(), "Single BIB");
 	INIT_CALL_END(init(), test_for_each_ipv6(), end(), "for-each-IPv6 function.");
 	INIT_CALL_END(init(), test_allocate_ipv4_transport_address(), end(), "Allocate function.");
+	INIT_CALL_END(init(), test_compare_addr6(), end(), "compare_addr6");
+	INIT_CALL_END(init(), test_compare_full6(), end(), "compare_full6");
+	INIT_CALL_END(init(), test_compare_addr4(), end(), "compare_addr4");
 
 	END_TESTS;
 }

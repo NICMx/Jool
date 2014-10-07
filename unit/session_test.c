@@ -221,7 +221,6 @@ static bool test_sessiondb_timeouts_aux(struct expire_timer *expirer,
 
 static bool test_sessiondb_timeouts(void)
 {
-
 	bool success = true;
 
 	success &= test_sessiondb_timeouts_aux(&expirer_udp, UDP_DEFAULT ,"UDP_timeout");
@@ -229,6 +228,74 @@ static bool test_sessiondb_timeouts(void)
 	success &= test_sessiondb_timeouts_aux(&expirer_tcp_est, TCP_EST, "TCP_EST_timeout");
 	success &= test_sessiondb_timeouts_aux(&expirer_tcp_trans, TCP_TRANS,"TCP_TRANS_timeout");
 	success &= test_sessiondb_timeouts_aux(&expirer_syn, TCP_INCOMING_SYN, "TCP_SYN_timeout");
+
+	return success;
+}
+
+static bool test_compare_session4(void)
+{
+	struct session_entry *s1, *s2;
+	bool success = true;
+
+	{
+		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+		if (!s1)
+			return false;
+		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 34, "4.4.4.4", 44, L4PROTO_UDP);
+		if (!s2)
+			return false;
+
+		success &= assert_true(compare_session4(s1, s2) < 0, "< 0 remote");
+		success &= assert_true(compare_session4(s2, s1) > 0, "> 0 remote");
+
+		session_return(s1);
+		session_return(s2);
+	}
+
+	{
+		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+		if (!s1)
+			return false;
+		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.4", 33, "4.4.4.4", 44, L4PROTO_UDP);
+		if (!s2)
+			return false;
+
+		success &= assert_true(compare_session4(s1, s2) < 0, "< 0 remote");
+		success &= assert_true(compare_session4(s2, s1) > 0, "> 0 remote");
+
+		session_return(s1);
+		session_return(s2);
+	}
+
+	{
+		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+		if (!s1)
+			return false;
+		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 45, L4PROTO_UDP);
+		if (!s2)
+			return false;
+
+		success &= assert_true(compare_session4(s1, s2) < 0, "< 0 remote");
+		success &= assert_true(compare_session4(s2, s1) > 0, "> 0 remote");
+
+		session_return(s1);
+		session_return(s2);
+	}
+
+	{
+		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+		if (!s1)
+			return false;
+		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.5", 44, L4PROTO_UDP);
+		if (!s2)
+			return false;
+
+		success &= assert_true(compare_session4(s1, s2) < 0, "<< 0 remote");
+		success &= assert_true(compare_session4(s2, s1) > 0, ">> 0 remote");
+
+		session_return(s1);
+		session_return(s2);
+	}
 
 	return success;
 }
@@ -753,6 +820,7 @@ int init_module(void)
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
 	INIT_CALL_END(init(), test_sessiondb_timeouts(), end(), "Session config timeouts");
+	INIT_CALL_END(init(), test_compare_session4(), end(), "compare_session4()");
 
 	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_v6syn(), end(), "TCP-V4 INIT-V6 syn");
 	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_else(), end(), "TCP-V4 INIT-else");

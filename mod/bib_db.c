@@ -133,19 +133,19 @@ static int get_bibdb_table(l4_protocol l4_proto, struct bib_table **result)
 }
 
 /**
- * Returns a positive integer if bib->ipv6.l3 < addr.
- * Returns a negative integer if bib->ipv6.l3 > addr.
- * Returns zero if bib->ipv6.l3 == addr.
+ * Returns > 0 if bib->ipv6.l3 > addr.
+ * Returns < 0 if bib->ipv6.l3 < addr.
+ * Returns 0 if bib->ipv6.l3 == addr.
  */
 static int compare_addr6(const struct bib_entry *bib, const struct in6_addr *addr)
 {
-	return ipv6_addr_cmp(addr, &bib->ipv6.l3);
+	return ipv6_addr_cmp(&bib->ipv6.l3, addr);
 }
 
 /**
- * Returns a positive integer if bib->ipv6 < addr.
- * Returns a negative integer if bib->ipv6 > addr.
- * Returns zero if bib->ipv6 == addr.
+ * Returns > 0 if bib->ipv6 > addr.
+ * Returns < 0 if bib->ipv6 < addr.
+ * Returns 0 if bib->ipv6 == addr.
  */
 static int compare_full6(const struct bib_entry *bib, const struct ipv6_transport_addr *addr)
 {
@@ -155,24 +155,24 @@ static int compare_full6(const struct bib_entry *bib, const struct ipv6_transpor
 	if (gap)
 		return gap;
 
-	gap = addr->l4 - bib->ipv6.l4;
+	gap = bib->ipv6.l4 - addr->l4;
 	return gap;
 }
 
 /**
- * Returns a positive integer if bib->ipv4.l3 < addr.
- * Returns a negative integer if bib->ipv4.l3 > addr.
+ * Returns > 0 if bib->ipv4.l3 > addr.
+ * Returns < 0 if bib->ipv4.l3 < addr.
  * Returns zero if bib->ipv4.l3 == addr.
  */
 static int compare_addr4(const struct bib_entry *bib, const struct in_addr *addr)
 {
-	return ipv4_addr_cmp(addr, &bib->ipv4.l3);
+	return ipv4_addr_cmp(&bib->ipv4.l3, addr);
 }
 
 /**
- * Returns a positive integer if bib->ipv4 < addr.
- * Returns a negative integer if bib->ipv4 > addr.
- * Returns zero if bib->ipv4 == addr.
+ * Returns > 0 if bib->ipv4 > addr.
+ * Returns < 0 if bib->ipv4 < addr.
+ * Returns 0 if bib->ipv4 == addr.
  */
 static int compare_full4(const struct bib_entry *bib, const struct ipv4_transport_addr *addr)
 {
@@ -182,7 +182,7 @@ static int compare_full4(const struct bib_entry *bib, const struct ipv4_transpor
 	if (gap)
 		return gap;
 
-	gap = addr->l4 - bib->ipv4.l4;
+	gap = bib->ipv4.l4 - addr->l4;
 	return gap;
 }
 

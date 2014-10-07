@@ -30,9 +30,9 @@
 			int comparison = compare_fn(entry, expected); \
 			\
 			if (comparison < 0) { \
-				node = node->rb_left; \
-			} else if (comparison > 0) { \
 				node = node->rb_right; \
+			} else if (comparison > 0) { \
+				node = node->rb_left; \
 			} else { \
 				result = entry; \
 				break; \
@@ -60,9 +60,9 @@
 			\
 			parent = *new; \
 			if (result < 0) { \
-				new = &((*new)->rb_left); \
-			} else if (result > 0) { \
 				new = &((*new)->rb_right); \
+			} else if (result > 0) { \
+				new = &((*new)->rb_left); \
 			} else { \
 				error = -EEXIST; \
 				break; \
@@ -94,9 +94,9 @@
 			\
 			parent = *node; \
 			if (comparison < 0) { \
-				node = &((*node)->rb_left); \
-			} else if (comparison > 0) { \
 				node = &((*node)->rb_right); \
+			} else if (comparison > 0) { \
+				node = &((*node)->rb_left); \
 			} else { \
 				break; \
 			} \

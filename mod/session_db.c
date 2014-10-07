@@ -213,9 +213,9 @@ static int compare_session6(const struct session_entry *s1, const struct session
 }
 
 /**
- * Returns a positive integer if session.*6 < tuple6.*.addr6.
- * Returns a negative integer if session.*6 > tuple6.*.addr6.
- * Returns zero if session.*6 == tuple6.*.addr6.
+ * Returns > 0 if session.*6 > tuple6.*.addr6.
+ * Returns < 0 integer if session.*6 < tuple6.*.addr6.
+ * Returns 0 if session.*6 == tuple6.*.addr6.
  *
  * Doesn't care about spinlocks.
  */
@@ -256,9 +256,9 @@ static int compare_session4(const struct session_entry *s1, const struct session
 }
 
 /**
- * Returns a positive integer if session.local4 < addr.
- * Returns a negative integer if session.local4 > addr.
- * Returns zero if session.local4 == addr.
+ * Returns > 0 if session.local4 > addr.
+ * Returns < 0 if session.local4 < addr.
+ * Returns 0 if session.local4 == addr.
  *
  * Doesn't care about spinlocks.
  */
@@ -269,9 +269,9 @@ static int compare_local4(const struct session_entry *session,
 }
 
 /**
- * Returns a positive integer if session.*4 < tuple4.*.addr4.
- * Returns a negative integer if session.*4 > tuple4.*.addr4.
- * Returns zero if session.*4 == tuple4.*.addr4.
+ * Returns > 0 if session.*4 > tuple4.*.addr4.
+ * Returns < 0 if session.*4 < tuple4.*.addr4.
+ * Returns 0 if session.*4 == tuple4.*.addr4.
  *
  * It excludes remote layer-4 IDs from the comparison. See sessiondb_allow() to find out why.
  *
@@ -290,9 +290,9 @@ static int compare_addrs4(const struct session_entry *session, const struct tupl
 }
 
 /**
- * Returns a positive integer if session.*4 < tuple4.*.addr4.
- * Returns a negative integer if session.*4 > tuple4.*.addr4.
- * Returns zero if session.*4 == tuple4.*.addr4.
+ * Returns > 0 if session.*4 > tuple4.*.addr4.
+ * Returns < 0 if session.*4 < tuple4.*.addr4.
+ * Returns 0 if session.*4 == tuple4.*.addr4.
  *
  * Doesn't care about spinlocks.
  */
@@ -309,15 +309,15 @@ static int compare_full4(const struct session_entry *session, const struct tuple
 }
 
 /**
- * Returns a positive integer if session.local4.l3 < addr.
- * Returns a negative integer if session.local4.l3 > addr.
- * Returns zero if session.local4.l3 == addr.
+ * Returns > 0 if session.local4.l3 > addr.
+ * Returns < 0 if session.local4.l3 < addr.
+ * Returns 0 if session.local4.l3 == addr.
  *
  * Doesn't care about spinlocks.
  */
 static int compare_local_addr4(const struct session_entry *session, const struct in_addr *addr)
 {
-	return ipv4_addr_cmp(addr, &session->local4.l3);
+	return ipv4_addr_cmp(&session->local4.l3, addr);
 }
 
 /**
@@ -1553,6 +1553,8 @@ static int sessiondb_ipv6_prefix_equal(struct session_entry *session, struct ipv
  * Used in delete_sessions_by_ipv6_prefix when is searching in the Session tree6,
  * returns zero if "session"->ipv6.local.address is equals to "prefix" or contains the "prefix".
  * Otherwise return the gap of the comparison result.
+ *
+ * TODO this looks really different from the compares above. WTF?
  */
 static int compare_local_prefix6(struct session_entry *session, struct ipv6_prefix *prefix) {
 	int gap;
