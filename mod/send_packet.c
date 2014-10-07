@@ -219,6 +219,7 @@ int sendpkt_route6(struct sk_buff *skb)
 	}
 
 	skb_dst_set(skb, dst);
+	skb->dev = dst->dev;
 
 	return 0;
 }
@@ -257,6 +258,8 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 	unsigned char *current_p;
 	struct sk_buff *new_skb;
 	struct sk_buff *prev_skb;
+	/* "last" skb involved here. Not necessarily the last skb of the list. */
+	struct sk_buff *last_skb;
 	struct ipv6hdr *first_hdr6 = ipv6_hdr(skb);
 	u16 hdrs_size;
 	u16 payload_max_size;
@@ -278,10 +281,11 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 
 	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
 	prev_skb = skb;
+	last_skb = skb->next;
 
 	/* Copy frag's overweight to newly-created fragments.  */
 	current_p = skb_network_header(skb) + min_ipv6_mtu;
-	while (current_p < skb_tail_pointer(skb)) {
+	do {
 		bool is_last = (skb_tail_pointer(skb) - current_p <= payload_max_size);
 		u16 actual_payload_size = is_last
 					? (skb_tail_pointer(skb) - current_p)
@@ -303,6 +307,8 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 		skb_set_transport_header(new_skb, hdrs_size);
 		new_skb->protocol = skb->protocol;
 		new_skb->mark = skb->mark;
+		skb_dst_set(new_skb, dst_clone(skb_dst(skb)));
+		new_skb->dev = skb->dev;
 
 		set_frag_headers(first_hdr6, ipv6_hdr(new_skb), actual_total_size,
 				original_fragment_offset + (current_p - skb->data - hdrs_size),
@@ -322,11 +328,54 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 
 		new_skb->next = NULL;
 		inc_stats(skb, IPSTATS_MIB_FRAGCREATES);
+	} while (current_p < skb_tail_pointer(skb));
+
+	if (last_skb) {
+		last_skb->prev = new_skb;
+		new_skb->next = last_skb;
 	}
 
 	/* Finally truncate the original packet and we're done. */
 	skb_put(skb, -(skb->len - min_ipv6_mtu));
 	inc_stats(skb, IPSTATS_MIB_FRAGOKS);
+	return 0;
+}
+
+/**
+ * Might actually trim to a slightly smaller length than new_len, because I need to align new_len,
+ * otherwise the checksum update will be a mess.
+ * (csum_partial() seems to require the start of the data to be aligned to a 32-bit boundary.)
+ */
+static int icmp6_trim(struct sk_buff *skb, __u16 new_len)
+{
+	struct icmp6hdr *hdr = icmp6_hdr(skb);
+	__wsum csum = ~csum_unfold(hdr->icmp6_cksum);
+	__be16 tmp;
+
+	/*
+	 * "After the ethernet header, the protocol header will be aligned on at least a 4-byte
+	 * boundary. Nearly all of the IPV4 and IPV6 protocol processing assumes that the headers are
+	 * properly aligned." (http://vger.kernel.org/~davem/skb_data.html)
+	 *
+	 * Therefore, simply truncate the entire packet size to a multiple of 4.
+	 */
+	new_len = round_down(new_len, 4);
+	if (new_len < sizeof(struct ipv6hdr) + sizeof(struct icmp6hdr))
+		return -EINVAL;
+
+	/* Substract the chunk we're truncating. */
+	csum = csum_sub(csum, csum_partial(skb_network_header(skb) + new_len, skb->len - new_len, 0));
+	/* Substract the difference of the "length" field from the pseudoheader. */
+	tmp = cpu_to_be16(skb->len - new_len);
+	csum = csum_sub(csum, csum_partial(&tmp, sizeof(tmp), 0));
+
+	hdr->icmp6_cksum = csum_fold(csum);
+	/* TODO (fine) There seems to be a problem with RFC 1624... review it later. This works. */
+	if (hdr->icmp6_cksum == (__force __sum16) 0xFFFF)
+		hdr->icmp6_cksum = 0;
+
+	skb_trim(skb, new_len);
+	ipv6_hdr(skb)->payload_len = cpu_to_be16(skb->len - sizeof(struct ipv6hdr));
 	return 0;
 }
 
@@ -355,14 +404,8 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		return 0; /* No need for fragmentation. */
 
 	if (skb_l4_proto(skb_out) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(skb_out)->icmp6_type)) {
-		/*
-		 * ICMP errors are supposed to be truncated, not fragmented.
-		 * BTW: This corrupts the checksum, but that's fine since we're going to trash it in
-		 * post_icmp6().
-		 */
-		skb_trim(skb_out, min_ipv6_mtu);
-		ipv6_hdr(skb_out)->payload_len = cpu_to_be16(min_ipv6_mtu - sizeof(struct ipv6hdr));
-		return 0;
+		/* ICMP errors are supposed to be truncated, not fragmented. */
+		return icmp6_trim(skb_out, min_ipv6_mtu);
 	}
 
 	if (is_dont_fragment_set(ip_hdr(skb_in))) {
