@@ -47,7 +47,7 @@ Insert the module:
 Configure the module:
 	Compile the userspace application.
 		NAT64$ cd usr
-		NAT64/usr$ ./autogen.sh # Only if you downloaded via Git. You need autoconf 2.69+.
+		NAT64/usr$ ./autogen.sh # Only if you downloaded via Git. You need autoconf 2.68+.
 		NAT64/usr$ ./configure
 		NAT64/usr$ make
 		NAT64/usr# make install

@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
-AC_INIT([Jool], [3.2.0], [jool@nic.mx])
+AC_PREREQ([2.68])
+AC_INIT([Jool], [3.2.1], [jool@nic.mx])
 AC_CONFIG_SRCDIR([src/jool.c])
 AM_INIT_AUTOMAKE
 

@@ -166,13 +166,6 @@ user@B:~# ethtool --offload wlan0 lro off
 
 (If it complains it cannot change something, keep in mind it can already be off; run `sudo ethtool --show-offload [interface]` to figure it out.)
 
-Finally, the RFC demands us to get rid of martian packets (even if it didn't, it's still a good idea). We didn't include it in Jool itself since it comes, often by default, in Linux itself.
-
-{% highlight bash %}
-user@B:~# sysctl -w net.ipv4.conf.all.log_martians=1
-(TODO hey, that looks like it only applies to IPv4)
-{% endhighlight %}
-
 And we're done. The following command will stick Jool to your Kernel.
 
 {% highlight bash %}
@@ -408,7 +401,7 @@ By default, Jool uses addresses 192.168.2.1 through 192.168.2.4 as its IPv4 pool
 You override the default values while inserting the module:
 
 {% highlight bash %}
-user@J:~# # remember to turn offloads off and log martians.
+user@J:~# # remember to turn offloads off.
 user@J:~# /sbin/modprobe jool pool6=64::/96 pool4=192.0.2.3
 {% endhighlight %}
 
