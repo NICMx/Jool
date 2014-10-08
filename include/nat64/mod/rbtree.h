@@ -30,9 +30,9 @@
 			int comparison = compare_fn(entry, expected); \
 			\
 			if (comparison < 0) { \
-				node = node->rb_left; \
-			} else if (comparison > 0) { \
 				node = node->rb_right; \
+			} else if (comparison > 0) { \
+				node = node->rb_left; \
 			} else { \
 				result = entry; \
 				break; \
@@ -48,7 +48,7 @@
  * I can't find a way to turn this into a function; if you want to read a cleaner version of it,
  * see https://www.kernel.org/doc/Documentation/rbtree.txt.
  */
-#define rbtree_add(entry, field, root, compare_fn, type, hook_name) \
+#define rbtree_add(entry, key, root, compare_fn, type, hook_name) \
 	({ \
 		struct rb_node **new = &((root)->rb_node), *parent = NULL; \
 		int error = 0; \
@@ -56,13 +56,13 @@
 		/* Figure out where to put new node */ \
 		while (*new) { \
 			type *this = rb_entry(*new, type, hook_name); \
-			int result = compare_fn(this, &(entry)->field); \
+			int result = compare_fn(this, key); \
 			\
 			parent = *new; \
 			if (result < 0) { \
-				new = &((*new)->rb_left); \
-			} else if (result > 0) { \
 				new = &((*new)->rb_right); \
+			} else if (result > 0) { \
+				new = &((*new)->rb_left); \
 			} else { \
 				error = -EEXIST; \
 				break; \
@@ -94,9 +94,9 @@
 			\
 			parent = *node; \
 			if (comparison < 0) { \
-				node = &((*node)->rb_left); \
-			} else if (comparison > 0) { \
 				node = &((*node)->rb_right); \
+			} else if (comparison > 0) { \
+				node = &((*node)->rb_left); \
 			} else { \
 				break; \
 			} \

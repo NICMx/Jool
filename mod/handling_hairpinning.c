@@ -2,8 +2,9 @@
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/filtering_and_updating.h"
 #include "nat64/mod/compute_outgoing_tuple.h"
-#include "nat64/mod/translate_packet.h"
+#include "nat64/mod/ttp/core.h"
 #include "nat64/mod/send_packet.h"
+#include "nat64/mod/stats.h"
 
 
 /**
@@ -14,13 +15,7 @@
  */
 bool is_hairpin(struct sk_buff *skb)
 {
-	struct in_addr addr;
-
-	if (skb_l3_proto(skb) != L3PROTO_IPV4)
-		return false;
-
-	addr.s_addr = ip_hdr(skb)->daddr;
-	return pool4_contains(&addr);
+	return (skb_l3_proto(skb) == L3PROTO_IPV4) ? pool4_contains(ip_hdr(skb)->daddr) : false;
 }
 
 /**
@@ -48,13 +43,13 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 	result = filtering_and_updating(skb_in, tuple_in);
 	if (result != VER_CONTINUE)
 		return result;
-	result = compute_out_tuple(tuple_in, &tuple_out);
+	result = compute_out_tuple(tuple_in, &tuple_out, skb_in);
 	if (result != VER_CONTINUE)
 		return result;
 	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
 	if (result != VER_CONTINUE)
 		return result;
-	result = send_pkt(skb_out);
+	result = sendpkt_send(skb_in, skb_out);
 	if (result != VER_CONTINUE)
 		return result;
 

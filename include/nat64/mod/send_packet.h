@@ -15,8 +15,17 @@
  */
 
 #include <linux/types.h>
+#include "nat64/comm/config_proto.h"
 #include "nat64/mod/types.h"
 #include "nat64/mod/packet.h"
+#include "nat64/mod/packet.h"
+
+
+int sendpkt_init(void);
+void sendpkt_destroy(void);
+
+int sendpkt_clone_config(struct sendpkt_config *clone);
+int sendpkt_set_config(enum sendpkt_type type, size_t size, void *value);
 
 
 /**
@@ -27,17 +36,17 @@
  *
  * This function assumes "skb" isn't fragmented.
  */
-int route_ipv4(struct sk_buff *skb);
+int sendpkt_route4(struct sk_buff *skb);
 
 /**
  * Same as route_ipv4(), except for IPv6.
  */
-int route_ipv6(struct sk_buff *skb);
+int sendpkt_route6(struct sk_buff *skb);
 
 /**
  * Puts "skb" on the network.
  *
- * For "skb" to be valid, setting the following fields is known to be neccesary:
+ * For "skb" to be valid, setting the following fields is known to be necessary:
  * -> data, head, len, data_len, end, network_header and dev.
  * Also probably:
  * -> tail, transport_header and _skb_refdst.
@@ -47,7 +56,7 @@ int route_ipv6(struct sk_buff *skb);
  * Note that this function inherits from ip_local_out() and ip6_local_out() the annoying side
  * effect of freeing "skb", EVEN IF IT COULD NOT BE SENT.
  */
-verdict send_pkt(struct sk_buff *skb);
+verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb);
 
 
 #endif /* _JOOL_MOD_SEND_PACKET_H */

@@ -13,7 +13,7 @@
 
 #include "nat64/mod/types.h"
 
-verdict determine_in_tuple(struct sk_buff *skb, struct tuple *tuple);
+verdict determine_in_tuple(struct sk_buff *skb, struct tuple *in_tuple);
 
 
 #endif /* _JOOL_MOD_INCOMING_H */

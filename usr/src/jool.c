@@ -25,7 +25,7 @@
 #include "nat64/usr/general.h"
 
 
-const char *argp_program_version = "3.2.0";
+const char *argp_program_version = "3.2.1";
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
@@ -55,9 +55,9 @@ struct arguments {
 			bool csv_format;
 
 			struct {
-				struct ipv6_tuple_address addr6;
+				struct ipv6_transport_addr addr6;
 				bool addr6_set;
-				struct ipv4_tuple_address addr4;
+				struct ipv4_transport_addr addr4;
 				bool addr4_set;
 			} bib;
 		} tables;
@@ -486,11 +486,11 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_general_u16_array(args, TRANSLATE, MTU_PLATEAUS, str);
 		break;
 	case ARGP_MIN_IPV6_MTU:
-		error = set_general_u16(args, TRANSLATE, MIN_IPV6_MTU, str, 1280, MAX_U16);
+		error = set_general_u16(args, SENDPKT, MIN_IPV6_MTU, str, 1280, MAX_U16);
 		break;
 
 	case ARGP_FRAG_TO:
-		error = set_general_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, 0, MAX_U32/1000, 1000);
+		error = set_general_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 
 	default:

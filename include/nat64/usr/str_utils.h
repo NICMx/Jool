@@ -48,8 +48,8 @@ int str_to_u16_array(const char *str, __u16 **out, size_t *out_len);
  * @{
  * Parses "str" as a '#' separated l3-address and l4-identifier, which it then copies to "out".
  */
-int str_to_addr4_port(const char *str, struct ipv4_tuple_address *out);
-int str_to_addr6_port(const char *str, struct ipv6_tuple_address *out);
+int str_to_addr4_port(const char *str, struct ipv4_transport_addr *out);
+int str_to_addr6_port(const char *str, struct ipv6_transport_addr *out);
 /**
  * @}
  */

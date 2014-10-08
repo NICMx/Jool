@@ -52,6 +52,11 @@ bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name)
 	return assert_equals_u64(expected, actual, test_name);
 }
 
+bool assert_equals_be16(__be16 expected, __be16 actual, char *test_name)
+{
+	return assert_equals_u16(ntohs(expected), ntohs(actual), test_name);
+}
+
 bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
 {
 	return assert_equals_u64(expected, actual, test_name);
@@ -59,7 +64,7 @@ bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
 
 bool assert_equals_be32(__be32 expected, __be32 actual, char *test_name)
 {
-	return assert_equals_u32(ntohs(expected), ntohs(actual), test_name);
+	return assert_equals_u32(ntohl(expected), ntohl(actual), test_name);
 }
 
 bool assert_equals_u64(__u64 expected, __u64 actual, char *test_name)
@@ -176,6 +181,11 @@ bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name)
 	return true;
 }
 
+bool assert_not_equals_be16(__be16 expected, __be16 actual, char *test_name)
+{
+	return assert_not_equals_u16(ntohs(expected), ntohs(actual), test_name);
+}
+
 bool assert_not_equals_ptr(void *expected, void *actual, char *test_name)
 {
 	if (expected == actual) {
@@ -197,21 +207,19 @@ bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *tes
 	log_debug("%s", test_name);
 	switch (expected->l3_proto) {
 	case L3PROTO_IPV4:
-		success &= assert_equals_ipv4(&expected->src.addr.ipv4, &actual->src.addr.ipv4,
-				"IPv4 Src addr");
-		success &= assert_equals_ipv4(&expected->dst.addr.ipv4, &actual->dst.addr.ipv4,
-				"IPv4 Dst addr");
+		success &= assert_equals_ipv4(&expected->src.addr4.l3, &actual->src.addr4.l3, "Src addr");
+		success &= assert_equals_u16(expected->src.addr4.l4, actual->src.addr4.l4, "src l4_id");
+		success &= assert_equals_ipv4(&expected->dst.addr4.l3, &actual->dst.addr4.l3, "Dst addr");
+		success &= assert_equals_u16(expected->dst.addr4.l4, actual->dst.addr4.l4, "dst l4_id");
 		break;
 	case L3PROTO_IPV6:
-		success &= assert_equals_ipv6(&expected->src.addr.ipv6, &actual->src.addr.ipv6,
-				"IPv6 Src addr");
-		success &= assert_equals_ipv6(&expected->dst.addr.ipv6, &actual->dst.addr.ipv6,
-				"IPv6 Dst addr");
+		success &= assert_equals_ipv6(&expected->src.addr6.l3, &actual->src.addr6.l3, "Src addr");
+		success &= assert_equals_u16(expected->src.addr6.l4, actual->src.addr6.l4, "src l4_id");
+		success &= assert_equals_ipv6(&expected->dst.addr6.l3, &actual->dst.addr6.l3, "Dst addr");
+		success &= assert_equals_u16(expected->dst.addr6.l4, actual->dst.addr6.l4, "dst l4_id");
 		break;
 	}
 
-	success &= assert_equals_u16(expected->src.l4_id, actual->src.l4_id, "src l4_id");
-	success &= assert_equals_u16(expected->dst.l4_id, actual->dst.l4_id, "dst l4_id");
 	success &= assert_equals_u8(expected->l3_proto, actual->l3_proto, "l3_proto");
 	success &= assert_equals_u8(expected->l4_proto, actual->l4_proto, "l4_proto");
 

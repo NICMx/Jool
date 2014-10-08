@@ -27,7 +27,7 @@ Done; you should now be able to type `jool --help` and get some garbage. Go to [
 
 ## If you downloaded from the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>
 
-The repository does not keep track of the configuration script, so you have to generate it yourself. You need autoconf 2.69 or superior to do that.
+The repository does not keep track of the configuration script, so you have to generate it yourself. You need autoconf 2.68 or superior to do that.
 
 {% highlight bash %}
 user@node:~# apt-get install autoconf
@@ -37,7 +37,7 @@ Then just add a call to `autogen.sh` to the normal installation procedure:
 
 {% highlight bash %}
 Jool$ cd usr
-Jool/usr$ ./autogen.sh # You need autoconf 2.69 or superior to run this.
+Jool/usr$ ./autogen.sh # You need autoconf 2.68 or superior to run this.
 Jool/usr$ ./configure # You need libnl-3 to run this; see below.
 Jool/usr$ make
 Jool/usr# make install

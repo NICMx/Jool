@@ -18,7 +18,7 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 		return false;
 	}
 
-	while (expected_bibs[expected_count] != NULL) {
+	while (expected_bibs && expected_bibs[expected_count]) {
 		struct bib_entry *expected = expected_bibs[expected_count];
 		struct bib_entry *actual;
 		int error;
@@ -26,8 +26,8 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 		error = bibdb_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
 		if (error) {
 			log_err("Error %d while trying to find BIB entry [%pI6c#%u, %pI4#%u] in the DB.",
-					error, &expected->ipv6.address, expected->ipv6.l4_id,
-					&expected->ipv4.address, expected->ipv4.l4_id);
+					error, &expected->ipv6.l3, expected->ipv6.l4,
+					&expected->ipv4.l3, expected->ipv4.l4);
 			return false;
 		}
 
@@ -47,8 +47,8 @@ static int bib_print_aux(struct bib_entry *bib, void *arg)
 {
 	log_debug("  [%s][%pI6c#%u, %pI4#%u]",
 			bib->is_static ? "Static" : "Dynamic",
-			&bib->ipv6.address, bib->ipv6.l4_id,
-			&bib->ipv4.address, bib->ipv4.l4_id);
+			&bib->ipv6.l3, bib->ipv6.l4,
+			&bib->ipv4.l3, bib->ipv4.l4);
 	return 0;
 }
 
@@ -58,30 +58,49 @@ int bib_print(l4_protocol l4_proto)
 	return bibdb_for_each(l4_proto, bib_print_aux, NULL);
 }
 
-bool bib_inject_str(unsigned char *addr4_str, u16 port4, unsigned char *addr6_str, u16 port6,
+struct bib_entry *bib_create_str(const unsigned char *addr6_str, u16 port6,
+		const unsigned char *addr4_str, u16 port4,
+		l4_protocol l4_proto)
+{
+	struct ipv6_transport_addr addr6;
+	struct ipv4_transport_addr addr4;
+
+	if (is_error(str_to_addr6(addr6_str, &addr6.l3)))
+		return NULL;
+	addr6.l4 = port6;
+	if (is_error(str_to_addr4(addr4_str, &addr4.l3)))
+		return NULL;
+	addr4.l4 = port4;
+
+	return bib_create(&addr4, &addr6, false, l4_proto);
+}
+
+struct bib_entry *bib_inject_str(const unsigned char *addr6_str, u16 port6,
+		const unsigned char *addr4_str, u16 port4,
 		l4_protocol l4_proto)
 {
 	struct in_addr addr4;
 	struct in6_addr addr6;
 
 	if (is_error(str_to_addr4(addr4_str, &addr4)))
-		return false;
+		return NULL;
 	if (is_error(str_to_addr6(addr6_str, &addr6)))
-		return false;
+		return NULL;
 
-	return bib_inject(&addr4, port4, &addr6, port6, l4_proto);
+	return bib_inject(&addr6, port6, &addr4, port4, l4_proto);
 }
 
-bool bib_inject(struct in_addr *addr4, u16 port4, struct in6_addr *addr6, u16 port6,
+struct bib_entry *bib_inject(const struct in6_addr *addr6, u16 port6,
+		const struct in_addr *addr4, u16 port4,
 		l4_protocol l4_proto)
 {
-	struct ipv4_tuple_address taddr4 = {
-			.address = *addr4,
-			.l4_id = port4,
+	struct ipv4_transport_addr taddr4 = {
+			.l3 = *addr4,
+			.l4 = port4,
 	};
-	struct ipv6_tuple_address taddr6 = {
-			.address = *addr6,
-			.l4_id = port6,
+	struct ipv6_transport_addr taddr6 = {
+			.l3 = *addr6,
+			.l4 = port6,
 	};
 	struct bib_entry *bib;
 	int error;
@@ -89,14 +108,14 @@ bool bib_inject(struct in_addr *addr4, u16 port4, struct in6_addr *addr6, u16 po
 	bib = bib_create(&taddr4, &taddr6, false, l4_proto);
 	if (!bib) {
 		log_err("Could not allocate the BIB entry.");
-		return false;
+		return NULL;
 	}
 
 	error = bibdb_add(bib);
 	if (error) {
 		log_err("Could not insert the BIB entry to the table: %d", error);
-		return false;
+		return NULL;
 	}
 
-	return true;
+	return bib;
 }

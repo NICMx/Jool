@@ -23,9 +23,9 @@ struct node_thing {
  * Returns a negative integer if thing->i > i.
  * Returns zero if thing->i == i.
  */
-static int compare(struct node_thing *thing, int *i)
+static int compare(struct node_thing *thing, int i)
 {
-	return (*i) - thing->i;
+	return i - thing->i;
 }
 
 /**
@@ -103,18 +103,6 @@ static bool test_add_and_remove(void)
 	success &= check_nodes(&root, expecteds);
 	if (!success)
 		return false;
-
-	/*
-	 * As I understand it, when rb_erase() removes the node, it leaves the tree in a consistent
-	 * state but doesn't clean the node. For performance purposes I guess. Jool has to be prepared
-	 * to personally clean the node if it can potentially be used again.
-	 *
-	 * The following tests the assumption of this kernel behavior, and will hopefully warn us if it
-	 * ever changes.
-	 */
-	success = assert_false(RB_EMPTY_NODE(&nodes[2].hook), "node is dirty");
-	RB_CLEAR_NODE(&nodes[2].hook);
-	success = assert_true(RB_EMPTY_NODE(&nodes[2].hook), "node is clean");
 
 	return success;
 }

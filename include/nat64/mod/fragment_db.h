@@ -28,9 +28,6 @@
  * arrival tolerance is only two seconds and never gets updated, but the to-do is there anyway.
  *
  * This module is the database that stores the fragments still waiting for their siblings.
- * Additionally, and because it consumes struct sk_buff's and spits struct packet's, it is also
- * Jool's defensive wall. Modules which execute after this one can assume the packets are valid
- * and healthy.
  */
 
 #include "nat64/mod/types.h"
@@ -39,10 +36,11 @@
 
 int fragdb_init(void);
 
-int fragmentdb_set_config(enum fragmentation_type type, size_t size, void *value);
-int fragmentdb_clone_config(struct fragmentation_config *clone);
+int fragdb_set_config(enum fragmentation_type type, size_t size, void *value);
+int fragdb_clone_config(struct fragmentation_config *clone);
 
-verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out);
+verdict fragdb_handle6(struct sk_buff *skb_in, struct sk_buff **skb_out);
+verdict fragdb_handle4(struct sk_buff *skb_in, struct sk_buff **skb_out);
 
 void fragdb_destroy(void);
 

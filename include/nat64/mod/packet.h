@@ -69,6 +69,11 @@ static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 	return (frag_off & IP_OFFSET) << 3;
 }
 
+/**
+ * @{
+ * Does "hdr" belong to the fragment whose fragment offset is zero?
+ * A non-fragmented packet is also considered a first fragment.
+ */
 static inline bool is_first_fragment_ipv4(struct iphdr *hdr)
 {
 	return get_fragment_offset_ipv4(hdr) == 0;
@@ -78,6 +83,26 @@ static inline bool is_first_fragment_ipv6(struct frag_hdr *hdr)
 {
 	return hdr ? (get_fragment_offset_ipv6(hdr) == 0) : true;
 }
+/**
+ * @}
+ */
+
+/**
+ * @{
+ * Is "hdr"'s packet a fragment?
+ */
+static inline bool is_fragmented_ipv4(struct iphdr *hdr)
+{
+	return (get_fragment_offset_ipv4(hdr) != 0) || is_more_fragments_set_ipv4(hdr);
+}
+
+static inline bool is_fragmented_ipv6(struct frag_hdr *hdr)
+{
+	return hdr && ((get_fragment_offset_ipv6(hdr) != 0) || is_more_fragments_set_ipv6(hdr));
+}
+/**
+ * @}
+ */
 
 /**
  * frag_hdr.frag_off is actually a combination of the 'More fragments' flag and the
@@ -110,7 +135,7 @@ static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offs
  * Returns the size in bytes of "hdr", including options.
  * skbless variant of tcp_hdrlen().
  */
-static inline int tcp_hdr_len(struct tcphdr *hdr)
+static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
 {
 	return hdr->doff << 2;
 }
@@ -119,6 +144,11 @@ static inline int tcp_hdr_len(struct tcphdr *hdr)
  * This structure is what Jool stores in control buffers.
  * Control buffers are reserved spaces in skbs where their current owners (ie. Jool) can store
  * whatever.
+ *
+ * I'm assuming skbs Jool receive are supposed to have clean control buffers, and therefore there's
+ * no problem with the existence of this structure. Though common sense dictates any Netfilter
+ * module should not have to worry about leftover CB garbage, I do not see any confirmation
+ * (formal or otherwise) of this anywhere. Any objections?
  *
  * If you're planning to change this structure, keep in mind its size cannot exceed
  * sizeof(skb->cb).
@@ -243,15 +273,16 @@ static inline bool skb_has_l4_hdr(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-3 header, including options or extension headers.
  */
-static inline int skb_l3hdr_len(struct sk_buff *skb)
+static inline unsigned int skb_l3hdr_len(struct sk_buff *skb)
 {
 	return skb_transport_header(skb) - skb_network_header(skb);
 }
 
 /**
  * Returns the length of "skb"'s layer-4 header, including options.
+ * Returns zero if skb has no transport header.
  */
-static inline int skb_l4hdr_len(struct sk_buff *skb)
+static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
 {
 	return skb_payload(skb) - (void *) skb_transport_header(skb);
 }
@@ -259,7 +290,7 @@ static inline int skb_l4hdr_len(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-4 payload.
  */
-static inline int skb_payload_len(struct sk_buff *skb)
+static inline unsigned int skb_payload_len(struct sk_buff *skb)
 {
 	return skb->len - (skb_payload(skb) - (void *) skb_network_header(skb));
 }
@@ -281,21 +312,23 @@ int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
 /**
  * Fails if "hdr" is corrupted.
  *
- * @param length of the buffer "hdr" belongs to.
- * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
- *		not be considered a problem.
+ * @param len length of the buffer "hdr" belongs to.
+ * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
+ *		not be considered a problem (validation will still fail if the buffer does not contain
+ *		enough l3 and l4 headers).
  * @param iterator this function will leave this iterator at the layer-3 payload of "hdr"'s buffer.
  */
 int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator);
+		struct hdr_iterator *iterator, int *field);
 /**
  * Fails if "hdr" is corrupted.
  *
- * @param length of the buffer "hdr" belongs to.
- * @param is_truncated whether the buffer "hdr" belongs to *might* be truncated, and this should
- *		not be considered a problem.
+ * @param len length of the buffer "hdr" belongs to.
+ * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
+ *		not be considered a problem (validation will still fail if the buffer does not contain
+ *		enough l3 and l4 headers).
  */
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated);
+int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field);
 
 /**
  * @{
@@ -304,10 +337,10 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
  * @param len length of the buffer the header belongs to.
  * @param l3_hdr_len length of the layer-3 headers of the buffer the header belongs to.
  */
-int validate_lengths_tcp(unsigned int len, u16 l3_hdr_len, struct tcphdr *hdr);
-int validate_lengths_udp(unsigned int len, u16 l3_hdr_len);
-int validate_lengths_icmp6(unsigned int len, u16 l3_hdr_len);
-int validate_lengths_icmp4(unsigned int len, u16 l3_hdr_len);
+int validate_lengths_tcp(unsigned int len, unsigned int l3_hdr_len, struct tcphdr *hdr);
+int validate_lengths_udp(unsigned int len, unsigned int l3_hdr_len);
+int validate_lengths_icmp6(unsigned int len, unsigned int l3_hdr_len);
+int validate_lengths_icmp4(unsigned int len, unsigned int l3_hdr_len);
 /**
  * @}
  */
@@ -329,6 +362,17 @@ bool icmpv6_has_inner_packet(__u8 icmp6_type);
 
 /**
  * Initializes "skb"'s control buffer. It also validates "skb".
+ *
+ * After this function, code can assume:
+ * - skb contains full l3 and l4 headers. In particular, the header continuity makes sense (eg.
+ * you won't find a UDP header after a NEXTHDR_TCP). Inner l3 and l4 headers (in ICMP errors) are
+ * also validated (except inner TCP options, which are just considered payload at this point).
+ * - skb isn't truncated (though inner packets might).
+ * - The cb functions above can now be used on skb.
+ * - The length fields in the headers can be relied upon.
+ *
+ * Healthy layer 4 checksums are not guaranteed, but that's not an issue since this kind of
+ * corruption should be translated along (see validate_icmp6_csum()).
  */
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);
@@ -343,29 +387,19 @@ void skb_print(struct sk_buff *skb);
 
 /**
  * @{
- * These functions adjust skb's layer-4 checksums if neccesary.
+ * Drops "skb" if it is an ICMP error packet and its l4-checksum doesn't match.
  *
- * In an ideal world, Jool would not have to worry about checksums because it's really just a
- * pseudo-routing, mostly layer-3 device; layer-4 checksum verification is a task best left to
- * endpoints. However, in reality transport checksums are usually affected by the layer-3 protocol,
- * so we need to work around them.
+ * Because IP-based checksums are updatable, Jool normally doesn't have to worry if a packet has a
+ * bogus layer-4 checksum. It simply translates the packet and updates the checksum with these
+ * changes. If there's a problem, it will still be reflected in the checksum and the target node
+ * will drop it normally.
  *
- * Thanks to these functions, the rest of Jool can assume the incoming layer-4 checksum is valid in
- * all circumstances:
- * - If skb is a TCP, ICMP info or a checksum-featuring UDP packet, these functions do nothing
- *   because the translation mangling is going to be simple enough that Jool will be able to update
- *   (rather than recompute) the existing checksum. Any existing corruption will still be reflected
- *   in the checksum and the destination node will be able to tell.
- * - If pkt is a ICMP error, then these functions will drop the packet if its checksum doesn't
- *   match. This is because the translation might change the packet considerably, so Jool will have
- *   to recompute the checksum completely, and we shouldn't assign a correct checksum to a
- *   corrupted packet.
- * - If pkt is a IPv4 zero-checksum UDP packet, then these functions will compute and assign its
- *   checksum. If there's any corruption, the destination node will have to bear it. This behavior
- *   is mandated by RFC 6146 section 3.4.
+ * That is, except for ICMP errors, whose translation is more nontrivial than usual due to their
+ * inner packets. For these cases, Jool will recompute the checksum from scratch, and we should not
+ * assign correct checksums to corrupted packets, so we need to validate them first.
  */
-int fix_checksums_ipv6(struct sk_buff *skb);
-int fix_checksums_ipv4(struct sk_buff *skb);
+int validate_icmp6_csum(struct sk_buff *skb);
+int validate_icmp4_csum(struct sk_buff *skb);
 /**
  * @}
  */

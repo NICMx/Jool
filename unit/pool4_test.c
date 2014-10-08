@@ -32,15 +32,15 @@ static bool test_get_match_aux(enum l4_protocol proto, int port_min, int port_ma
 		char *test_name)
 {
 	int a, p; /* address counter, port counter */
-	struct ipv4_tuple_address base;
+	struct ipv4_transport_addr base;
 	__u16 result;
 	bool success = true;
 
 	for (a = 0; a < ARRAY_SIZE(expected_ips); a++) {
-		base.address = expected_ips[a];
+		base.l3 = expected_ips[a];
 
 		for (p = port_min; p <= port_max; p += step) {
-			base.l4_id = p;
+			base.l4 = p;
 			success &= assert_equals_int(0, pool4_get_match(proto, &base, &result), test_name);
 			success &= assert_false(ports[a][result], test_name);
 			ports[a][result] = true;
@@ -132,24 +132,24 @@ static bool test_get_any_port_function_icmp(void)
 static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_range, int range_step,
 		int range_outside)
 {
-	struct ipv4_tuple_address tuple_addr;
+	struct ipv4_transport_addr tuple_addr;
 	int p;
 	bool success = true;
 
 	for (p = min_range; p <= max_range; p += range_step) {
 		success &= assert_equals_int(0, pool4_get_any_addr(proto, p, &tuple_addr),
 				"Matched borrow 1-result");
-		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.address,
+		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.l3,
 				"Matched borrow 1-address");
-		success &= assert_false(ports[0][tuple_addr.l4_id], "Matched borrow 1-port");
-		ports[0][tuple_addr.l4_id] = true;
+		success &= assert_false(ports[0][tuple_addr.l4], "Matched borrow 1-port");
+		ports[0][tuple_addr.l4] = true;
 
 		success &= assert_equals_int(0, pool4_get_any_addr(proto, p, &tuple_addr),
 				"Matched borrow 2-result");
-		success &= assert_equals_ipv4(&expected_ips[1], &tuple_addr.address,
+		success &= assert_equals_ipv4(&expected_ips[1], &tuple_addr.l3,
 				"Matched borrow 2-address");
-		success &= assert_false(ports[1][tuple_addr.l4_id], "Matched borrow 2-port");
-		ports[1][tuple_addr.l4_id] = true;
+		success &= assert_false(ports[1][tuple_addr.l4], "Matched borrow 2-port");
+		ports[1][tuple_addr.l4] = true;
 
 		if (!success)
 			return success;
@@ -159,17 +159,17 @@ static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_rang
 	for (p = 0; p <= range_outside; p += 1) {
 		success &= assert_equals_int(0, pool4_get_any_addr(proto, 10, &tuple_addr),
 				"Mismatched borrow 1-result");
-		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.address,
+		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.l3,
 				"Mismatched borrow 1-address");
-		success &= assert_false(ports[0][tuple_addr.l4_id], "Mismatched borrow 1-port");
-		ports[0][tuple_addr.l4_id] = true;
+		success &= assert_false(ports[0][tuple_addr.l4], "Mismatched borrow 1-port");
+		ports[0][tuple_addr.l4] = true;
 
 		success &= assert_equals_int(0, pool4_get_any_addr(proto, 10, &tuple_addr),
 				"Mismatched borrow 2-result");
-		success &= assert_equals_ipv4(&expected_ips[1], &tuple_addr.address,
+		success &= assert_equals_ipv4(&expected_ips[1], &tuple_addr.l3,
 				"Mismatched borrow 2-address");
-		success &= assert_false(ports[1][tuple_addr.l4_id], "Mismatched borrow 2-port");
-		ports[1][tuple_addr.l4_id] = true;
+		success &= assert_false(ports[1][tuple_addr.l4], "Mismatched borrow 2-port");
+		ports[1][tuple_addr.l4] = true;
 
 		if (!success)
 			return success;
@@ -202,16 +202,16 @@ static bool test_get_any_addr_function_icmp(void)
  */
 static bool test_return_function(void)
 {
-	struct ipv4_tuple_address tuple_addr;
+	struct ipv4_transport_addr tuple_addr;
 	__u16 l4_id;
 	bool success = true;
 	int addr_ctr, port_ctr;
 
 	/* Try to return the entire pool, even though we haven't borrowed anything. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		tuple_addr.address = expected_ips[addr_ctr];
+		tuple_addr.l3 = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			tuple_addr.l4_id = port_ctr;
+			tuple_addr.l4 = port_ctr;
 			success &= assert_equals_int(-EINVAL, pool4_return(L4PROTO_UDP, &tuple_addr),
 					"Returning first");
 		}
@@ -219,9 +219,9 @@ static bool test_return_function(void)
 
 	/* Borrow the entire pool. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		tuple_addr.address = expected_ips[addr_ctr];
+		tuple_addr.l3 = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			tuple_addr.l4_id = port_ctr;
+			tuple_addr.l4 = port_ctr;
 			success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
 					"Borrow everything-result");
 			success &= assert_false(ports[addr_ctr][l4_id], "Borrow everything-port");
@@ -235,8 +235,8 @@ static bool test_return_function(void)
 		return success;
 
 	/* Return something from the first address. */
-	tuple_addr.address = expected_ips[0];
-	tuple_addr.l4_id = 1000;
+	tuple_addr.l3 = expected_ips[0];
+	tuple_addr.l4 = 1000;
 	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 0-1000 1");
 
 	if (!success)
@@ -253,8 +253,8 @@ static bool test_return_function(void)
 		return success;
 
 	/* Do the same to the second address. */
-	tuple_addr.address = expected_ips[1];
-	tuple_addr.l4_id = 1000;
+	tuple_addr.l3 = expected_ips[1];
+	tuple_addr.l4 = 1000;
 	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 1-1000");
 
 	if (!success)
@@ -270,34 +270,34 @@ static bool test_return_function(void)
 		return success;
 
 	/* Return some more stuff at once. */
-	tuple_addr.address = expected_ips[0];
-	tuple_addr.l4_id = 46;
+	tuple_addr.l3 = expected_ips[0];
+	tuple_addr.l4 = 46;
 	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 0-46");
 
-	tuple_addr.l4_id = 1000;
+	tuple_addr.l4 = 1000;
 	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 0-1000 2");
 
-	tuple_addr.address = expected_ips[1];
-	tuple_addr.l4_id = 0;
+	tuple_addr.l3 = expected_ips[1];
+	tuple_addr.l4 = 0;
 	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 1-0");
 
 	if (!success)
 		return success;
 
 	/* Reborrow it. */
-	tuple_addr.address = expected_ips[0];
-	tuple_addr.l4_id = 24;
+	tuple_addr.l3 = expected_ips[0];
+	tuple_addr.l4 = 24;
 	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
 			"Borrow 0-24");
 	success &= assert_true(l4_id == 46 || l4_id == 1000, "Confirm 0-24");
 
-	tuple_addr.l4_id = 100;
+	tuple_addr.l4 = 100;
 	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
 			"Borrow 1-100");
 	success &= assert_true(l4_id == 46 || l4_id == 1000, "Confirm 1-100");
 
-	tuple_addr.address = expected_ips[1];
-	tuple_addr.l4_id = 56;
+	tuple_addr.l3 = expected_ips[1];
+	tuple_addr.l4 = 56;
 	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
 			"Reborrow 2-56");
 	success &= assert_equals_u16(0, l4_id, "Confirm 2-56");
@@ -310,9 +310,9 @@ static bool test_return_function(void)
 
 	/* Now return everything. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		tuple_addr.address = expected_ips[addr_ctr];
+		tuple_addr.l3 = expected_ips[addr_ctr];
 		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			tuple_addr.l4_id = port_ctr;
+			tuple_addr.l4 = port_ctr;
 			success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr),
 					"Returning everything");
 		}

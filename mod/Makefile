@@ -19,8 +19,6 @@ insert:
 	# enable ipv6 and ipv4 forwarding
 	sudo sysctl -w net.ipv4.conf.all.forwarding=1
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
-	# prevent martian packets from reaching the module
-	sudo sysctl -w net.ipv4.conf.all.log_martians=1
 	# insert the module
 	sudo insmod jool.ko pool4=192.0.2.2
 	dmesg | tail -15

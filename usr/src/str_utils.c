@@ -179,7 +179,7 @@ int str_to_addr6(const char *str, struct in6_addr *result)
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 5) /* [addr + null chara] + # + port */
-int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
+int str_to_addr4_port(const char *str, struct ipv4_transport_addr *addr_out)
 {
 	const char *FORMAT = "<IPv4 address>#<port> (eg. 10.20.30.40#50)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
@@ -199,7 +199,7 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 		return -EINVAL;
 	}
 
-	error = str_to_addr4(token, &addr_out->address);
+	error = str_to_addr4(token, &addr_out->l3);
 	if (error)
 		return error;
 
@@ -208,7 +208,7 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 		log_err("'%s' does not seem to contain a port (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
-	error = str_to_u16(token, &addr_out->l4_id, 0, MAX_PORT);
+	error = str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
 	if (error)
 		return error; /* Error msg already printed. */
 
@@ -217,7 +217,7 @@ int str_to_addr4_port(const char *str, struct ipv4_tuple_address *addr_out)
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 5) /* [addr + null chara] + # + port */
-int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
+int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 {
 	const char *FORMAT = "<IPv6 address>#<port> (eg. 64:ff9b::#96)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
@@ -237,7 +237,7 @@ int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 		return -EINVAL;
 	}
 
-	error = str_to_addr6(token, &addr_out->address);
+	error = str_to_addr6(token, &addr_out->l3);
 	if (error)
 		return error;
 
@@ -246,7 +246,7 @@ int str_to_addr6_port(const char *str, struct ipv6_tuple_address *addr_out)
 		log_err("'%s' does not seem to contain a port (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
-	error = str_to_u16(token, &addr_out->l4_id, 0, MAX_PORT);
+	error = str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
 	if (error)
 		return error; /* Error msg already printed. */
 

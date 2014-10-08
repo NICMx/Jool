@@ -32,18 +32,18 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 	if (params->csv_format) {
 		for (i = 0; i < entry_count; i++) {
 			printf("%s,", l4proto_to_string(params->req_payload->l4_proto));
-			print_ipv6_tuple(&entries[i].addr6, params->numeric_hostname, ",",
+			print_addr6(&entries[i].addr6, params->numeric_hostname, ",",
 					params->req_payload->l4_proto);
 			printf(",");
-			print_ipv4_tuple(&entries[i].addr4, true, ",", params->req_payload->l4_proto);
+			print_addr4(&entries[i].addr4, true, ",", params->req_payload->l4_proto);
 			printf(",%u\n", entries[i].is_static);
 		}
 	} else {
 		for (i = 0; i < entry_count; i++) {
 			printf("[%s] ", entries[i].is_static ? "Static" : "Dynamic");
-			print_ipv4_tuple(&entries[i].addr4, true, "#", params->req_payload->l4_proto);
+			print_addr4(&entries[i].addr4, true, "#", params->req_payload->l4_proto);
 			printf(" - ");
-			print_ipv6_tuple(&entries[i].addr6, params->numeric_hostname, "#",
+			print_addr6(&entries[i].addr6, params->numeric_hostname, "#",
 					params->req_payload->l4_proto);
 			printf("\n");
 		}
@@ -53,8 +53,8 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 
 	if (hdr->nlmsg_flags & NLM_F_MULTI) {
 		params->req_payload->display.iterate = true;
-		params->req_payload->display.addr4.address = *(&entries[entry_count - 1].addr4.address);
-		params->req_payload->display.addr4.l4_id = *(&entries[entry_count - 1].addr4.l4_id);
+		params->req_payload->display.addr4.l3 = *(&entries[entry_count - 1].addr4.l3);
+		params->req_payload->display.addr4.l4 = *(&entries[entry_count - 1].addr4.l4);
 	} else {
 		params->req_payload->display.iterate = false;
 	}
@@ -190,8 +190,8 @@ static int bib_add_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int bib_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_tuple_address *addr6,
-		struct ipv4_tuple_address *addr4)
+int bib_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *addr4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -213,8 +213,8 @@ static int bib_remove_response(struct nl_msg *msg, void *arg)
 }
 
 int bib_remove(bool use_tcp, bool use_udp, bool use_icmp,
-		bool addr6_set, struct ipv6_tuple_address *addr6,
-		bool addr4_set, struct ipv4_tuple_address *addr4)
+		bool addr6_set, struct ipv6_transport_addr *addr6,
+		bool addr4_set, struct ipv4_transport_addr *addr4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;

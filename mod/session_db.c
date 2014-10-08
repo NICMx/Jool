@@ -9,12 +9,6 @@
 #include "nat64/mod/rfc6052.h"
 #include "nat64/mod/send_packet.h"
 
-#include "session.c"
-
-/********************************************
- * Structures and private variables.
- ********************************************/
-
 /**
  * Session table definition.
  * Holds red-black trees, one for each indexing need (IPv4 and IPv6).
@@ -88,9 +82,88 @@ static struct sessiondb_config *config;
 
 static char* EXPIRER_NAMES[] = { "UDP", "ICMP", "TCP_EST", "TCP_TRANS", "TCP_SYN" };
 
-/********************************************
- * Private (helper) functions.
- ********************************************/
+/** Cache for struct session_entrys, for efficient allocation. */
+static struct kmem_cache *entry_cache;
+
+static void session_release(struct kref *ref)
+{
+	struct session_entry *session;
+	session = container_of(ref, struct session_entry, refcounter);
+
+	if (session->bib)
+		bib_return(session->bib);
+	kmem_cache_free(entry_cache, session);
+}
+
+static int session_init(void)
+{
+	entry_cache = kmem_cache_create("jool_session_entries", sizeof(struct session_entry),
+			0, 0, NULL);
+	if (!entry_cache) {
+		log_err("Could not allocate the Session entry cache.");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void session_destroy(void)
+{
+	kmem_cache_destroy(entry_cache);
+}
+
+int session_return(struct session_entry *session)
+{
+	return kref_put(&session->refcounter, session_release);
+}
+
+void session_get(struct session_entry *session)
+{
+	kref_get(&session->refcounter);
+}
+
+/**
+ * Creates a copy of "session".
+ *
+ * The copy will not be part of the database regardless of session's state.
+ */
+static struct session_entry *session_clone(struct session_entry *session)
+{
+	struct session_entry *result = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
+	if (!result)
+		return NULL;
+
+	memcpy(result, session, sizeof(*session));
+	kref_init(&result->refcounter);
+	INIT_LIST_HEAD(&result->expire_list_hook);
+	RB_CLEAR_NODE(&result->tree6_hook);
+	RB_CLEAR_NODE(&result->tree4_hook);
+
+	if (session->bib)
+		bib_get(session->bib);
+
+	return result;
+}
+
+struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
+		const struct ipv6_transport_addr *local6,
+		const struct ipv4_transport_addr *local4,
+		const struct ipv4_transport_addr *remote4,
+		l4_protocol l4_proto, struct bib_entry *bib)
+{
+	struct session_entry tmp = {
+			.remote6 = *remote6,
+			.local6 = *local6,
+			.local4 = *local4,
+			.remote4 = *remote4,
+			.update_time = jiffies,
+			.bib = bib,
+			.l4_proto = l4_proto,
+			.state = 0,
+			.expirer = NULL,
+	};
+	return session_clone(&tmp);
+}
 
 /**
  * One-liner to get the session table corresponding to the "l4_proto" protocol.
@@ -115,129 +188,136 @@ static int get_session_table(l4_protocol l4_proto, struct session_table **result
 	return -EINVAL;
 }
 
-/**
- * Fills "pair" with "tuple"'s contents.
- *
- * Doesn't care about spinlocks.
- */
-static void tuple_to_ipv6_pair(struct tuple *tuple, struct ipv6_pair *pair)
-{
-	pair->remote.address = tuple->src.addr.ipv6;
-	pair->remote.l4_id = tuple->src.l4_id;
-	pair->local.address = tuple->dst.addr.ipv6;
-	pair->local.l4_id = tuple->dst.l4_id;
-}
-
-/**
- * Fills "pair" with "tuple"'s contents.
- *
- * Doesn't care about spinlocks.
- */
-static void tuple_to_ipv4_pair(struct tuple *tuple, struct ipv4_pair *pair)
-{
-	pair->remote.address = tuple->src.addr.ipv4;
-	pair->remote.l4_id = tuple->src.l4_id;
-	pair->local.address = tuple->dst.addr.ipv4;
-	pair->local.l4_id = tuple->dst.l4_id;
-}
-
-/**
- * Returns a positive integer if session.ipv6 < pair.
- * Returns a negative integer if session.ipv6 > pair.
- * Returns zero if session.ipv6 == pair.
- *
- * Doesn't care about spinlocks.
- */
-static int compare_full6(const struct session_entry *session, const struct ipv6_pair *pair)
+static int compare_addr6(const struct ipv6_transport_addr *a1, const struct ipv6_transport_addr *a2)
 {
 	int gap;
 
-	gap = ipv6_addr_cmp(&pair->local.address, &session->ipv6.local.address);
-	if (gap != 0)
+	gap = ipv6_addr_cmp(&a1->l3, &a2->l3);
+	if (gap)
 		return gap;
 
-	gap = ipv6_addr_cmp(&pair->remote.address, &session->ipv6.remote.address);
-	if (gap != 0)
+	gap = a1->l4 - a2->l4;
+	return gap;
+}
+
+static int compare_session6(const struct session_entry *s1, const struct session_entry *s2)
+{
+	int gap;
+
+	gap = compare_addr6(&s1->local6, &s2->local6);
+	if (gap)
 		return gap;
 
-	gap = pair->local.l4_id - session->ipv6.local.l4_id;
-	if (gap != 0)
-		return gap;
-
-	gap = pair->remote.l4_id - session->ipv6.remote.l4_id;
+	gap = compare_addr6(&s1->remote6, &s2->remote6);
 	return gap;
 }
 
 /**
- * Returns a positive integer if session.ipv4.local < addr.
- * Returns a negative integer if session.ipv4.local > addr.
- * Returns zero if session.ipv4.local == addr.
+ * Returns > 0 if session.*6 > tuple6.*.addr6.
+ * Returns < 0 integer if session.*6 < tuple6.*.addr6.
+ * Returns 0 if session.*6 == tuple6.*.addr6.
+ *
+ * Doesn't care about spinlocks.
+ */
+static int compare_full6(const struct session_entry *session, const struct tuple *tuple6)
+{
+	int gap;
+
+	gap = compare_addr6(&session->local6, &tuple6->dst.addr6);
+	if (gap)
+		return gap;
+
+	gap = compare_addr6(&session->remote6, &tuple6->src.addr6);
+	return gap;
+}
+
+static int compare_addr4(const struct ipv4_transport_addr *a1, const struct ipv4_transport_addr *a2)
+{
+	int gap;
+
+	gap = ipv4_addr_cmp(&a1->l3, &a2->l3);
+	if (gap)
+		return gap;
+
+	gap = a1->l4 - a2->l4;
+	return gap;
+}
+
+static int compare_session4(const struct session_entry *s1, const struct session_entry *s2)
+{
+	int gap;
+
+	gap = compare_addr4(&s1->remote4, &s2->remote4);
+	if (gap)
+		return gap;
+
+	gap = compare_addr4(&s1->local4, &s2->local4);
+	return gap;
+}
+
+/**
+ * Returns > 0 if session.local4 > addr.
+ * Returns < 0 if session.local4 < addr.
+ * Returns 0 if session.local4 == addr.
  *
  * Doesn't care about spinlocks.
  */
 static int compare_local4(const struct session_entry *session,
-		const struct ipv4_tuple_address *addr)
+		const struct ipv4_transport_addr *addr)
 {
-	int gap;
-
-	gap = ipv4_addr_cmp(&addr->address, &session->ipv4.local.address);
-	if (gap != 0)
-		return gap;
-
-	gap = addr->l4_id - session->ipv4.local.l4_id;
-	return gap;
+	return compare_addr4(&session->local4, addr);
 }
 
 /**
- * Returns a positive integer if session.ipv4 < pair.
- * Returns a negative integer if session.ipv4 > pair.
- * Returns zero if session.ipv4 == pair.
+ * Returns > 0 if session.*4 > tuple4.*.addr4.
+ * Returns < 0 if session.*4 < tuple4.*.addr4.
+ * Returns 0 if session.*4 == tuple4.*.addr4.
  *
  * It excludes remote layer-4 IDs from the comparison. See sessiondb_allow() to find out why.
  *
  * Doesn't care about spinlocks.
  */
-static int compare_addrs4(const struct session_entry *session, const struct ipv4_pair *pair)
+static int compare_addrs4(const struct session_entry *session, const struct tuple *tuple4)
 {
 	int gap;
 
-	gap = compare_local4(session, &pair->local);
-	if (gap != 0)
+	gap = compare_addr4(&session->local4, &tuple4->dst.addr4);
+	if (gap)
 		return gap;
 
-	gap = ipv4_addr_cmp(&pair->remote.address, &session->ipv4.remote.address);
+	gap = ipv4_addr_cmp(&session->remote4.l3, &tuple4->src.addr4.l3);
 	return gap;
 }
 
 /**
- * Returns a positive integer if session.ipv4 < pair.
- * Returns a negative integer if session.ipv4 > pair.
- * Returns zero if session.ipv4 == pair.
+ * Returns > 0 if session.*4 > tuple4.*.addr4.
+ * Returns < 0 if session.*4 < tuple4.*.addr4.
+ * Returns 0 if session.*4 == tuple4.*.addr4.
  *
  * Doesn't care about spinlocks.
  */
-static int compare_full4(const struct session_entry *session, const struct ipv4_pair *pair)
+static int compare_full4(const struct session_entry *session, const struct tuple *tuple4)
 {
 	int gap;
 
-	gap = compare_addrs4(session, pair);
-	if (gap != 0)
+	gap = compare_addr4(&session->remote4, &tuple4->src.addr4);
+	if (gap)
 		return gap;
 
-	gap = pair->remote.l4_id - session->ipv4.remote.l4_id;
+	gap = compare_addr4(&session->local4, &tuple4->dst.addr4);
 	return gap;
 }
 
 /**
- * Returns a positive integer if session.ipv4.local < addr.
- * Returns a negative integer if session.ipv4.local > addr.
- * Returns zero if session.ipv4.local == addr.
+ * Returns > 0 if session.local4.l3 > addr.
+ * Returns < 0 if session.local4.l3 < addr.
+ * Returns 0 if session.local4.l3 == addr.
  *
  * Doesn't care about spinlocks.
  */
 static int compare_local_addr4(const struct session_entry *session, const struct in_addr *addr)
 {
-	return ipv4_addr_cmp(addr, &session->ipv4.local.address);
+	return ipv4_addr_cmp(&session->local4.l3, addr);
 }
 
 /**
@@ -281,12 +361,12 @@ static void send_probe_packet(struct session_entry *session)
 	iph->payload_len = cpu_to_be16(l4_hdr_len);
 	iph->nexthdr = NEXTHDR_TCP;
 	iph->hop_limit = 255;
-	iph->saddr = session->ipv6.local.address;
-	iph->daddr = session->ipv6.remote.address;
+	iph->saddr = session->local6.l3;
+	iph->daddr = session->remote6.l3;
 
 	th = tcp_hdr(skb);
-	th->source = cpu_to_be16(session->ipv6.local.l4_id);
-	th->dest = cpu_to_be16(session->ipv6.remote.l4_id);
+	th->source = cpu_to_be16(session->local6.l4);
+	th->dest = cpu_to_be16(session->remote6.l4);
 	th->seq = htonl(0);
 	th->ack_seq = htonl(0);
 	th->res1 = 0;
@@ -309,7 +389,7 @@ static void send_probe_packet(struct session_entry *session)
 
 	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL, NULL);
 
-	error = route_ipv6(skb);
+	error = sendpkt_route6(skb);
 	if (error)
 		goto fail;
 
@@ -420,7 +500,7 @@ static struct expire_timer *set_timer(struct session_entry *session,
 	return result;
 }
 
-void commit_timer(struct expire_timer *expirer)
+static void commit_timer(struct expire_timer *expirer)
 {
 	if (expirer)
 		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
@@ -549,10 +629,6 @@ static void cleaner_timer(unsigned long param)
 
 	log_debug("Deleted %u sessions.", s);
 }
-
-/*******************************
- * Public functions.
- *******************************/
 
 /**
  * Auxiliar for sessiondb_init(). Encapsulates initialization of an expire_timer structure.
@@ -734,8 +810,7 @@ fail:
  * Returns in "result" the session entry from the "l4_proto" table that corresponds to the "pair"
  * IPv4 addresses.
  */
-static int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
-		struct session_entry **result)
+static int get_by_ipv4(struct tuple *tuple4, l4_protocol l4_proto, struct session_entry **result)
 {
 	struct session_table *table;
 	int error;
@@ -745,7 +820,7 @@ static int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
 		return error;
 
 	spin_lock_bh(&table->lock);
-	*result = rbtree_find(pair, &table->tree4, compare_full4, struct session_entry, tree4_hook);
+	*result = rbtree_find(tuple4, &table->tree4, compare_full4, struct session_entry, tree4_hook);
 	if (*result)
 		session_get(*result);
 	spin_unlock_bh(&table->lock);
@@ -757,8 +832,7 @@ static int sessiondb_get_by_ipv4(struct ipv4_pair *pair, l4_protocol l4_proto,
  * Returns in "result" the session entry from the "l4_proto" table that corresponds to the "pair"
  * IPv6 addresses.
  */
-static int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
-		struct session_entry **result)
+static int get_by_ipv6(struct tuple *tuple6, l4_protocol l4_proto, struct session_entry **result)
 {
 	struct session_table *table;
 	int error;
@@ -768,7 +842,7 @@ static int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 		return error;
 
 	spin_lock_bh(&table->lock);
-	*result = rbtree_find(pair, &table->tree6, compare_full6, struct session_entry, tree6_hook);
+	*result = rbtree_find(tuple6, &table->tree6, compare_full6, struct session_entry, tree6_hook);
 	if (*result)
 		session_get(*result);
 	spin_unlock_bh(&table->lock);
@@ -778,59 +852,50 @@ static int sessiondb_get_by_ipv6(struct ipv6_pair *pair, l4_protocol l4_proto,
 
 int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 {
-	struct ipv6_pair pair6;
-	struct ipv4_pair pair4;
-
 	if (WARN(!tuple, "There's no session entry mapped to NULL."))
 		return -EINVAL;
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		tuple_to_ipv6_pair(tuple, &pair6);
-		return sessiondb_get_by_ipv6(&pair6, tuple->l4_proto, result);
+		return get_by_ipv6(tuple, tuple->l4_proto, result);
 	case L3PROTO_IPV4:
-		tuple_to_ipv4_pair(tuple, &pair4);
-		return sessiondb_get_by_ipv4(&pair4, tuple->l4_proto, result);
+		return get_by_ipv4(tuple, tuple->l4_proto, result);
 	}
 
 	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
 	return -EINVAL;
 }
 
-bool sessiondb_allow(struct tuple *tuple)
+bool sessiondb_allow(struct tuple *tuple4)
 {
 	struct session_table *table;
 	struct session_entry *session;
-	struct ipv4_pair tuple_pair;
 	int error;
 	bool result;
 
 	/* Sanity */
-	if (WARN(!tuple, "Cannot extract addresses from NULL."))
+	if (WARN(!tuple4, "Cannot extract addresses from NULL."))
 		return false;
-	error = get_session_table(tuple->l4_proto, &table);
+	error = get_session_table(tuple4->l4_proto, &table);
 	if (error)
 		return error;
 
 	/* Action */
-	tuple_to_ipv4_pair(tuple, &tuple_pair);
-
 	spin_lock_bh(&table->lock);
-	session = rbtree_find(&tuple_pair, &table->tree4, compare_addrs4, struct session_entry,
-			tree4_hook);
+	session = rbtree_find(tuple4, &table->tree4, compare_addrs4, struct session_entry, tree4_hook);
 	result = session ? true : false;
 	spin_unlock_bh(&table->lock);
 
 	return result;
 }
 
-static bool is_set(const struct ipv6_tuple_address *addr)
+static bool is_set(const struct ipv6_transport_addr *addr)
 {
-	return addr->address.s6_addr32[0]
-			|| addr->address.s6_addr32[1]
-			|| addr->address.s6_addr32[2]
-			|| addr->address.s6_addr32[3]
-			|| addr->l4_id;
+	return addr->l3.s6_addr32[0]
+			|| addr->l3.s6_addr32[1]
+			|| addr->l3.s6_addr32[2]
+			|| addr->l3.s6_addr32[3]
+			|| addr->l4;
 }
 
 int sessiondb_add(struct session_entry *session, enum session_timer_type timer_type)
@@ -850,14 +915,14 @@ int sessiondb_add(struct session_entry *session, enum session_timer_type timer_t
 	/* Action */
 	spin_lock_bh(&table->lock);
 
-	error = rbtree_add(session, ipv6, &table->tree6, compare_full6, struct session_entry,
+	error = rbtree_add(session, session, &table->tree6, compare_session6, struct session_entry,
 			tree6_hook);
 	if (error) {
 		spin_unlock_bh(&table->lock);
 		return -EEXIST;
 	}
 
-	rbtree_find_node(&session->ipv4, &table->tree4, compare_full4, struct session_entry,
+	rbtree_find_node(session, &table->tree4, compare_session4, struct session_entry,
 			tree4_hook, parent, node);
 	if (*node) {
 		/*
@@ -868,13 +933,13 @@ int sessiondb_add(struct session_entry *session, enum session_timer_type timer_t
 		struct session_entry *other;
 		other = rb_entry(*node, struct session_entry, tree4_hook);
 
-		if (WARN(is_set(&other->ipv6.remote), "IPv6 index worked, IPv4 index didn't."))
+		if (WARN(is_set(&other->remote6), "IPv6 index worked, IPv4 index didn't."))
 			goto index_trainwreck; /* No actually a SO; this should never happen. */
 
 		pktqueue_remove(other); /* Not sure what to make out it if this fails. */
 
 		table->count -= remove(other, table);
-		error = rbtree_add(session, ipv4, &table->tree4, compare_full4, struct session_entry,
+		error = rbtree_add(session, session, &table->tree4, compare_session4, struct session_entry,
 				tree4_hook);
 		if (WARN(error, "Just removed the conflicting session, insertion still failed."))
 			goto index_trainwreck;
@@ -942,7 +1007,7 @@ int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *,
  * Requires "table"'s spinlock to already be held.
  */
 static struct rb_node *find_next_chunk(struct session_table *table,
-		struct ipv4_tuple_address *addr, bool starting)
+		struct ipv4_transport_addr *addr, bool starting)
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
@@ -959,7 +1024,7 @@ static struct rb_node *find_next_chunk(struct session_table *table,
 	return (compare_local4(session, addr) < 0) ? parent : rb_next(parent);
 }
 
-int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_tuple_address *addr, bool starting,
+int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_transport_addr *addr, bool starting,
 		int (*func)(struct session_entry *, void *), void *arg)
 {
 	struct session_table *table;
@@ -996,49 +1061,47 @@ int sessiondb_count(l4_protocol proto, __u64 *result)
 	return 0;
 }
 
-int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
+int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 		struct session_entry **session)
 {
 	struct ipv6_prefix prefix;
-	struct in_addr ipv4_dst;
-	struct ipv4_pair pair4;
-	struct ipv6_pair pair6;
+	struct ipv4_transport_addr local4;
 	struct rb_node **node, *parent;
 	struct session_table *table;
-	struct expire_timer *expirer;
+	struct expire_timer *expirer = NULL;
 	int error;
 
-	if (WARN(!tuple, "There's no session entry mapped to NULL."))
+	if (WARN(!tuple6, "There's no session entry mapped to NULL."))
+		return -EINVAL;
+	if (WARN(tuple6->l4_proto != L4PROTO_UDP && tuple6->l4_proto != L4PROTO_ICMP,
+			"I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple6->l4_proto))
 		return -EINVAL;
 
-	tuple_to_ipv6_pair(tuple, &pair6);
-
-	error = get_session_table(tuple->l4_proto, &table);
+	error = get_session_table(tuple6->l4_proto, &table);
 	if (error)
 		return error;
 
 	/* Find it */
 	spin_lock_bh(&table->lock);
-	rbtree_find_node(&pair6, &table->tree6, compare_full6, struct session_entry, tree6_hook,
+	rbtree_find_node(tuple6, &table->tree6, compare_full6, struct session_entry, tree6_hook,
 			parent, node);
 	if (*node) {
 		*session = rb_entry(*node, struct session_entry, tree6_hook);
-		session_get(*session);
-		goto end;
+		goto success;
 	}
 	/* The entry doesn't exist, so try to create it. */
 
 	/* Translate address from IPv6 to IPv4 */
-	error = pool6_get(&tuple->dst.addr.ipv6, &prefix);
+	error = pool6_get(&tuple6->dst.addr6.l3, &prefix);
 	if (error) {
-		log_debug("Errcode %d while obtaining %pI6c's prefix.", error, &tuple->dst.addr.ipv6);
-		goto end;
+		log_debug("Errcode %d while obtaining %pI6c's prefix.", error, &tuple6->dst.addr6);
+		goto fail;
 	}
 
-	error = addr_6to4(&tuple->dst.addr.ipv6, &prefix, &ipv4_dst);
+	error = addr_6to4(&tuple6->dst.addr6.l3, &prefix, &local4.l3);
 	if (error) {
 		log_debug("Error code %d while translating the packet's address.", error);
-		goto end;
+		goto fail;
 	}
 
 	/*
@@ -1047,103 +1110,97 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple, struct bib_entry *bib,
 	 * Fortunately, ICMP errors cannot reach this code because of the requirements in the header
 	 * of section 3.5, so we can use the tuple as shortcuts for the packet's fields.
 	 */
-	pair4.local = bib->ipv4;
-	pair4.remote.address = ipv4_dst;
-	pair4.remote.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->dst.l4_id : bib->ipv4.l4_id;
-	*session = session_create(&pair4, &pair6, tuple->l4_proto, bib); /* refcounter = 1*/
+	local4.l4 = (tuple6->l4_proto != L4PROTO_ICMP) ? tuple6->dst.addr6.l4 : bib->ipv4.l4;
+	*session = session_create(&tuple6->src.addr6, &tuple6->dst.addr6, &bib->ipv4, &local4,
+			tuple6->l4_proto, bib); /* refcounter = 1*/
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		error = -ENOMEM;
-		goto end;
+		goto fail;
 	}
 
 	/* Add it to the database. */
 	rb_link_node(&(*session)->tree6_hook, parent, node);
 	rb_insert_color(&(*session)->tree6_hook, &table->tree6);
 
-	error = rbtree_add(*session, ipv4, &table->tree4, compare_full4, struct session_entry,
+	error = rbtree_add(*session, *session, &table->tree4, compare_session4, struct session_entry,
 			tree4_hook);
-	if (error) {
-		WARN(true, "The session entry could be indexed by IPv6, but not by IPv4.");
+	if (WARN(error, "The session entry could be indexed by IPv6, but not by IPv4.")) {
 		rb_erase(&(*session)->tree6_hook, &table->tree6);
 		session_return(*session);
-		goto end;
+		goto fail;
 	}
 
-	switch (tuple->l4_proto) {
+	table->count++;
+	/* Fall through. */
+
+success:
+	switch (tuple6->l4_proto) {
 	case L4PROTO_UDP:
 		expirer = &expirer_udp;
 		break;
 	case L4PROTO_ICMP:
 		expirer = &expirer_icmp;
 		break;
-	default:
-		WARN(true, "I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple->l4_proto);
-		rb_erase(&(*session)->tree4_hook, &table->tree4);
-		rb_erase(&(*session)->tree6_hook, &table->tree6);
-		session_return(*session);
-		error = -EINVAL;
-		goto end;
+	case L4PROTO_TCP:
+		/* handled in a WARN above, not gonna happen. I'm just hushing the compiler. */
+		break;
 	}
 
 	expirer = set_timer(*session, expirer);
-
-	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
-	table->count++;
+	/* We gotta do this for our caller, because it has to be done before the unlock. */
+	session_get(*session);
 
 	spin_unlock_bh(&table->lock);
 
 	commit_timer(expirer);
-
 	return 0;
 
-end:
+fail:
 	spin_unlock_bh(&table->lock);
 	return error;
 }
 
 
-int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
+int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 		struct session_entry **session)
 {
 	struct ipv6_prefix prefix;
-	struct in6_addr ipv6_src;
-	struct ipv4_pair pair4;
-	struct ipv6_pair pair6;
+	struct ipv6_transport_addr remote6;
 	struct rb_node **node, *parent;
 	struct session_table *table;
-	struct expire_timer *expirer;
+	struct expire_timer *expirer = NULL;
 	int error;
 
-	if (WARN(!tuple, "There's no session entry mapped to NULL."))
+	if (WARN(!tuple4, "There's no session entry mapped to NULL."))
+		return -EINVAL;
+	if (WARN(tuple4->l4_proto != L4PROTO_UDP && tuple4->l4_proto != L4PROTO_ICMP,
+			"I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple4->l4_proto))
 		return -EINVAL;
 
-	tuple_to_ipv4_pair(tuple, &pair4);
-
-	error = get_session_table(tuple->l4_proto, &table);
+	error = get_session_table(tuple4->l4_proto, &table);
 	if (error)
 		return error;
 
 	/* Find it */
 	spin_lock_bh(&table->lock);
-	rbtree_find_node(&pair4, &table->tree4, compare_full4, struct session_entry, tree4_hook,
+	rbtree_find_node(tuple4, &table->tree4, compare_full4, struct session_entry, tree4_hook,
 			parent, node);
 	if (*node) {
 		*session = rb_entry(*node, struct session_entry, tree4_hook);
-		session_get(*session);
-		goto end;
+		goto success;
 	}
 	/* The entry doesn't exist, so try to create it. */
 
 	/* Translate address from IPv4 to IPv6 */
 	error = pool6_peek(&prefix);
 	if (error)
-		goto end;
+		goto fail;
 
-	error = addr_4to6(&tuple->src.addr.ipv4, &prefix, &ipv6_src);
+	error = addr_4to6(&tuple4->src.addr4.l3, &prefix, &remote6.l3);
 	if (error) {
 		log_debug("Error code %d while translating the packet's address.", error);
-		goto end;
+		goto fail;
 	}
 
 	/*
@@ -1152,57 +1209,53 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple, struct bib_entry *bib,
 	 * Fortunately, ICMP errors cannot reach this code because of the requirements in the header
 	 * of section 3.5, so we can use the tuple as shortcuts for the packet's fields.
 	 */
-	pair6.remote = bib->ipv6;
-	pair6.local.address = ipv6_src;
-	pair6.local.l4_id = (tuple->l4_proto != L4PROTO_ICMP) ? tuple->src.l4_id : bib->ipv6.l4_id;
-	*session = session_create(&pair4, &pair6, tuple->l4_proto, bib); /* refcounter = 1 */
+	remote6.l4 = (tuple4->l4_proto != L4PROTO_ICMP) ? tuple4->src.addr4.l4 : bib->ipv6.l4;
+	*session = session_create(&bib->ipv6, &remote6, &tuple4->dst.addr4, &tuple4->src.addr4,
+			tuple4->l4_proto, bib); /* refcounter = 1 */
 	if (!(*session)) {
 		log_debug("Failed to allocate a session entry.");
 		error = -ENOMEM;
-		goto end;
+		goto fail;
 	}
 
 	/* Add it to the database. */
 	rb_link_node(&(*session)->tree4_hook, parent, node);
 	rb_insert_color(&(*session)->tree4_hook, &table->tree4);
 
-	error = rbtree_add(*session, ipv6, &table->tree6, compare_full6, struct session_entry,
+	error = rbtree_add(*session, *session, &table->tree6, compare_session6, struct session_entry,
 			tree6_hook);
-	if (error) {
-		WARN(true, "The session entry could be indexed by IPv4, but not by IPv6.");
+	if (WARN(error, "The session entry could be indexed by IPv4, but not by IPv6.")) {
 		rb_erase(&(*session)->tree4_hook, &table->tree4);
 		session_return(*session);
-		goto end;
+		goto fail;
 	}
 
-	switch (tuple->l4_proto) {
+	table->count++;
+	/* Fall through. */
+
+success:
+	switch (tuple4->l4_proto) {
 	case L4PROTO_UDP:
 		expirer = &expirer_udp;
 		break;
 	case L4PROTO_ICMP:
 		expirer = &expirer_icmp;
 		break;
-	default:
-		WARN(true, "I'm a ICMP & UDP function, but I'm handling protocol %u.", tuple->l4_proto);
-		rb_erase(&(*session)->tree4_hook, &table->tree4);
-		rb_erase(&(*session)->tree6_hook, &table->tree6);
-		session_return(*session);
-		error = -EINVAL;
-		goto end;
+	case L4PROTO_TCP:
+		/* handled in a WARN above, not gonna happen. I'm just hushing the compiler. */
+		break;
 	}
 
 	expirer = set_timer(*session, expirer);
-
-	session_get(*session); /* refcounter = 2 (the DB's and the one we're about to return) */
-	table->count++;
+	/* We gotta do this for our caller, because it has to be done before the unlock. */
+	session_get(*session);
 
 	spin_unlock_bh(&table->lock);
 
 	commit_timer(expirer);
-
 	return 0;
 
-end:
+fail:
 	spin_unlock_bh(&table->lock);
 	return error;
 }
@@ -1440,8 +1493,7 @@ static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *ses
 	return 0;
 }
 
-int sessiondb_tcp_state_machine(struct sk_buff *skb, struct tuple *tuple,
-		struct session_entry *session)
+int sessiondb_tcp_state_machine(struct sk_buff *skb, struct session_entry *session)
 {
 	struct expire_timer *expirer = NULL;
 	int error;
@@ -1494,18 +1546,20 @@ int sessiondb_tcp_state_machine(struct sk_buff *skb, struct tuple *tuple,
  */
 static int sessiondb_ipv6_prefix_equal(struct session_entry *session, struct ipv6_prefix *prefix)
 {
-	return ipv6_prefix_equal(&prefix->address, &session->ipv6.local.address, prefix->len);
+	return ipv6_prefix_equal(&prefix->address, &session->local6.l3, prefix->len);
 }
 
 /**
  * Used in delete_sessions_by_ipv6_prefix when is searching in the Session tree6,
  * returns zero if "session"->ipv6.local.address is equals to "prefix" or contains the "prefix".
  * Otherwise return the gap of the comparison result.
+ *
+ * TODO this looks really different from the compares above. WTF?
  */
 static int compare_local_prefix6(struct session_entry *session, struct ipv6_prefix *prefix) {
 	int gap;
 
-	gap = ipv6_addr_cmp(&prefix->address, &session->ipv6.local.address);
+	gap = ipv6_addr_cmp(&prefix->address, &session->local6.l3);
 	if (gap == 0)
 		return 0;
 

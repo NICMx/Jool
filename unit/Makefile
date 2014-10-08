@@ -45,7 +45,7 @@ obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
 
 
-MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o
+MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
 
 
 $(ITERATOR)-objs += $(MIN_REQS)
@@ -143,16 +143,26 @@ $(FILTERING)-objs += filtering_and_updating_test.o
 
 $(OUTGOING)-objs += $(MIN_REQS)
 $(OUTGOING)-objs += ../mod/bib_db.o
+$(OUTGOING)-objs += ../mod/compute_outgoing_tuple.o
+$(OUTGOING)-objs += ../mod/packet.o
+$(OUTGOING)-objs += ../mod/ipv6_hdr_iterator.o
+$(OUTGOING)-objs += ../mod/pkt_queue.o
 $(OUTGOING)-objs += ../mod/pool6.o
 $(OUTGOING)-objs += ../mod/rbtree.o
 $(OUTGOING)-objs += ../mod/rfc6052.o
+$(OUTGOING)-objs += ../mod/session_db.o
+$(OUTGOING)-objs += framework/types.o
+$(OUTGOING)-objs += framework/session.o
 $(OUTGOING)-objs += impersonator/icmp_wrapper.o
 $(OUTGOING)-objs += impersonator/pool4.o
+$(OUTGOING)-objs += impersonator/send_packet.o
 $(OUTGOING)-objs += compute_outgoing_tuple_test.o
 
 $(TRANSLATE)-objs += $(MIN_REQS)
 $(TRANSLATE)-objs += ../mod/ipv6_hdr_iterator.o
 $(TRANSLATE)-objs += ../mod/packet.o
+$(TRANSLATE)-objs += ../mod/ttp/common.o
+$(TRANSLATE)-objs += ../mod/ttp/config.o
 $(TRANSLATE)-objs += framework/skb_generator.o
 $(TRANSLATE)-objs += framework/types.o
 $(TRANSLATE)-objs += framework/validator.o
@@ -177,7 +187,11 @@ $(HAIRPINNING)-objs += ../mod/rfc6052.o
 $(HAIRPINNING)-objs += ../mod/pkt_queue.o
 $(HAIRPINNING)-objs += ../mod/rbtree.o
 $(HAIRPINNING)-objs += ../mod/session_db.o
-$(HAIRPINNING)-objs += ../mod/translate_packet.o
+$(HAIRPINNING)-objs += ../mod/ttp/4to6.o
+$(HAIRPINNING)-objs += ../mod/ttp/6to4.o
+$(HAIRPINNING)-objs += ../mod/ttp/common.o
+$(HAIRPINNING)-objs += ../mod/ttp/config.o
+$(HAIRPINNING)-objs += ../mod/ttp/core.o
 $(HAIRPINNING)-objs += framework/bib.o
 $(HAIRPINNING)-objs += framework/session.o
 $(HAIRPINNING)-objs += framework/skb_generator.o
@@ -217,10 +231,14 @@ $(CONFIG_PROTO)-objs += ../mod/rbtree.o
 $(CONFIG_PROTO)-objs += ../mod/fragment_db.o
 $(CONFIG_PROTO)-objs += ../mod/bib_db.o
 $(CONFIG_PROTO)-objs += ../mod/session_db.o
-$(CONFIG_PROTO)-objs += ../mod/translate_packet.o
+$(CONFIG_PROTO)-objs += ../mod/send_packet.o
+$(CONFIG_PROTO)-objs += ../mod/ttp/4to6.o
+$(CONFIG_PROTO)-objs += ../mod/ttp/6to4.o
+$(CONFIG_PROTO)-objs += ../mod/ttp/common.o
+$(CONFIG_PROTO)-objs += ../mod/ttp/config.o
+$(CONFIG_PROTO)-objs += ../mod/ttp/core.o
 $(CONFIG_PROTO)-objs += impersonator/icmp_wrapper.o
 $(CONFIG_PROTO)-objs += impersonator/pool4.o
-$(CONFIG_PROTO)-objs += impersonator/send_packet.o
 $(CONFIG_PROTO)-objs += impersonator/stats.o
 $(CONFIG_PROTO)-objs += config_proto_test.o
 

@@ -36,29 +36,29 @@ static struct pktqueue_config *config;
 
 
 /**
- * Returns a positive integer if node.session.ipv4 < pair.
- * Returns a negative integer if node.session.ipv4 > pair.
- * Returns zero if session.ipv4 == pair.
+ * Returns > 0 if node.session.*4 > session.*4.
+ * Returns < 0 if node.session.*4 < session.*4.
+ * Returns 0 if node.session.*4 == session.*4.
  *
  * Doesn't care about spinlocks.
  */
-static int compare_fn(const struct packet_node *node, const struct ipv4_pair *pair)
+static int compare_fn(const struct packet_node *node, struct session_entry *session)
 {
 	int gap;
 
-	gap = ipv4_addr_cmp(&pair->remote.address, &node->session->ipv4.remote.address);
-	if (gap != 0)
+	gap = ipv4_addr_cmp(&node->session->remote4.l3, &session->remote4.l3);
+	if (gap)
 		return gap;
 
-	gap = pair->remote.l4_id - node->session->ipv4.remote.l4_id;
-	if (gap != 0)
+	gap = node->session->remote4.l4 - session->remote4.l4;
+	if (gap)
 		return gap;
 
-	gap = ipv4_addr_cmp(&pair->local.address, &node->session->ipv4.local.address);
-	if (gap != 0)
+	gap = ipv4_addr_cmp(&node->session->local4.l3, &session->local4.l3);
+	if (gap)
 		return gap;
 
-	gap = pair->local.l4_id - node->session->ipv4.local.l4_id;
+	gap = node->session->local4.l4 - session->local4.l4;
 	return gap;
 }
 
@@ -98,7 +98,7 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 		goto fail;
 	}
 
-	error = rbtree_add(node, session->ipv4, &packets, compare_fn, struct packet_node, tree_hook);
+	error = rbtree_add(node, session, &packets, compare_fn, struct packet_node, tree_hook);
 	if (error)
 		goto fail;
 	packet_count++;
@@ -125,7 +125,7 @@ int pktqueue_send(struct session_entry *session)
 
 	spin_lock_bh(&packets_lock);
 
-	node = rbtree_find(&session->ipv4, &packets, compare_fn, struct packet_node, tree_hook);
+	node = rbtree_find(session, &packets, compare_fn, struct packet_node, tree_hook);
 	if (!node) {
 		spin_unlock_bh(&packets_lock);
 		log_debug("I've been asked to send a packet I don't know.");
@@ -229,7 +229,7 @@ int pktqueue_remove(struct session_entry *session)
 		return -EINVAL;
 
 	spin_lock_bh(&packets_lock);
-	node = rbtree_find(&session->ipv4, &packets, compare_fn, struct packet_node, tree_hook);
+	node = rbtree_find(session, &packets, compare_fn, struct packet_node, tree_hook);
 	if (!node) {
 		spin_unlock_bh(&packets_lock);
 		return -ENOENT;

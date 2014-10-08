@@ -24,11 +24,26 @@ But just to make things clear, this is the status of the project as of now:
 
 Jool is still <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">one feature away</a> from being 100% RFC 6146 compliant. That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
 
-Our last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.0" target="_blank">3.2.0</a>.
+Our last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.1" target="_blank">3.2.1</a>.
 
 -------------------
 
 ## News
+
+### 2014-10-08
+
+Version 3.2.1 released. The 3.2 series is now considered more mature than 3.1.
+
+The important changes are
+
+1. <a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool used to always attempt to mask packets using the first prefix of the pool</a>. This meant that Jool was unable to handle more than one prefix.
+2. The <a href="https://github.com/NICMx/NAT64/issues/109" target="_blank">memory leak in the core</a> has been purged.
+
+The less noticeable ones are
+
+1. `log_martians` <a href="https://github.com/NICMx/NAT64/issues/107" target="_blank">is no longer a step</a> in modprobing Jool (though it doesn't bite if you keep it).
+2. <a href="https://github.com/NICMx/NAT64/issues/57" target="_blank">The SNMP stat updates returned</a>. See `nstat` and `netstat -s`.
+3. Corner-case packets now get <a href="https://github.com/NICMx/NAT64/issues/108" target="_blank">checksums updated correctly</a>.
 
 ### 2014-09-01
 

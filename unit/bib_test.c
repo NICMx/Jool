@@ -12,44 +12,15 @@ MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
 MODULE_DESCRIPTION("BIB module test.");
 
 #define BIB_PRINT_KEY "BIB [%pI4#%u, %pI6c#%u]"
-#define PRINT_BIB(bib) \
-	&bib->ipv4.address, bib->ipv4.l4_id, \
-	&bib->ipv6.address, bib->ipv6.l4_id
+#define PRINT_BIB(bib) &bib->ipv4.l3, bib->ipv4.l4, &bib->ipv6.l3, bib->ipv6.l4
 
 static const char* IPV4_ADDRS[] = { "1.1.1.1", "2.2.2.2" };
 static const __u16 IPV4_PORTS[] = { 456, 9556 };
 static const char* IPV6_ADDRS[] = { "::1", "::2", "::3" };
 static const __u16 IPV6_PORTS[] = { 334, 0, 9556 };
 
-static struct ipv4_tuple_address addr4[ARRAY_SIZE(IPV4_ADDRS)];
-static struct ipv6_tuple_address addr6[ARRAY_SIZE(IPV6_ADDRS)];
-
-/********************************************
- * Auxiliar functions.
- ********************************************/
-
-static struct bib_entry *create_and_insert_bib(struct ipv4_tuple_address *ipv4,
-		struct ipv6_tuple_address *ipv6,
-		int l4proto)
-{
-	struct bib_entry *result;
-	int error;
-
-	result = bib_create(ipv4, ipv6, false, l4proto);
-	if (!result) {
-		log_err("kmalloc failed, apparently.");
-		return NULL;
-	}
-
-	error = bibdb_add(result);
-	if (error) {
-		log_err("Could not insert the BIB entry to the table; call returned %d.", error);
-		bib_kfree(result);
-		return NULL;
-	}
-
-	return result;
-}
+static struct ipv4_transport_addr addr4[ARRAY_SIZE(IPV4_ADDRS)];
+static struct ipv6_transport_addr addr6[ARRAY_SIZE(IPV6_ADDRS)];
 
 static bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry* actual,
 		char* test_name)
@@ -68,8 +39,8 @@ static bool assert_bib_entry_equals(struct bib_entry* expected, struct bib_entry
 		return false;
 	}
 
-	if (!ipv4_tuple_addr_equals(&expected->ipv4, &actual->ipv4)
-			|| !ipv6_tuple_addr_equals(&expected->ipv6, &actual->ipv6)) {
+	if (!ipv4_transport_addr_equals(&expected->ipv4, &actual->ipv4)
+			|| !ipv6_transport_addr_equals(&expected->ipv6, &actual->ipv6)) {
 		log_err("Test '%s' failed: Expected " BIB_PRINT_KEY " got " BIB_PRINT_KEY ".",
 				test_name, PRINT_BIB(expected), PRINT_BIB(actual));
 		return false;
@@ -120,21 +91,17 @@ static bool assert_bib(char* test_name, struct bib_entry* bib,
 	return true;
 }
 
-/********************************************
- * Tests.
- ********************************************/
-
 /**
  * Inserts a single entry, validates it, removes it, validates again.
  * Does not touch the session tables.
  */
 static bool simple_bib(void)
 {
-	struct ipv4_tuple_address addr = addr4[0];
+	struct ipv4_transport_addr addr = addr4[0];
 	struct bib_entry *bib;
 	bool success = true;
 
-	if (is_error(pool4_get_any_port(L4PROTO_TCP, &addr.address, &addr.l4_id)))
+	if (is_error(pool4_get_any_port(L4PROTO_TCP, &addr.l3, &addr.l4)))
 		return false;
 
 	bib = bib_create(&addr, &addr6[0], false, L4PROTO_TCP);
@@ -156,31 +123,31 @@ static bool simple_bib(void)
 }
 
 struct foreach6_summary {
-	bool visited[7];
+	u8 visited[7];
 };
 
 static int foreach6_func(struct bib_entry *entry, void *arg)
 {
 	struct foreach6_summary *summary = arg;
 
-	log_debug("Iterating through node %pI6c#%u.", &entry->ipv6.address, entry->ipv6.l4_id);
+	log_debug("Iterating through node %pI6c#%u.", &entry->ipv6.l3, entry->ipv6.l4);
 
-	if (!ipv6_addr_equals(&addr6[1].address, &entry->ipv6.address)) {
+	if (!ipv6_addr_equals(&addr6[1].l3, &entry->ipv6.l3)) {
 		log_err("The address was not the one requested.");
 		return -EINVAL;
 	}
 
-	if (entry->ipv6.l4_id < 6 || 12 < entry->ipv6.l4_id) {
+	if (entry->ipv6.l4 < 6 || 12 < entry->ipv6.l4) {
 		log_err("We didn't insert a BIB with this port to the table.");
 		return -EINVAL;
 	}
 
-	if (summary->visited[entry->ipv6.l4_id - 6]) {
+	if (summary->visited[entry->ipv6.l4 - 6]) {
 		log_err("This is not the first time we've visited this node.");
 		return -EINVAL;
 	}
 
-	summary->visited[entry->ipv6.l4_id - 6] = true;
+	summary->visited[entry->ipv6.l4 - 6] = true;
 	return 0;
 }
 
@@ -191,47 +158,37 @@ static bool test_for_each_ipv6(void)
 
 	/* Build the tree. */
 	{
-		struct bib_entry *bib;
-		struct ipv4_tuple_address a4;
-		struct ipv6_tuple_address a6;
+		struct in_addr addr4;
+		u16 port6;
+		u16 port4;
 
-		a6.address = addr6[0].address;
-		a6.l4_id = 5;
-		a4.address = addr4[0].address;
+		if (is_error(str_to_addr4(IPV4_ADDRS[0], &addr4)))
+			return false;
 
+		port6 = 5;
 		for (i = 0; i < 4; i++) {
-			a6.l4_id++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &a4.address, &a4.l4_id)))
+			port6++;
+			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
 				return false;
-
-			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
-			if (!bib)
+			if (!bib_inject_str(IPV6_ADDRS[0], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
 				return false;
 		}
 
-		a6.address = addr6[1].address;
-		a6.l4_id = 5;
-
+		port6 = 5;
 		for (i = 0; i < 7; i++) {
-			a6.l4_id++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &a4.address, &a4.l4_id)))
+			port6++;
+			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
 				return false;
-
-			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
-			if (!bib)
+			if (!bib_inject_str(IPV6_ADDRS[1], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
 				return false;
 		}
 
-		a6.address = addr6[2].address;
-		a6.l4_id = 5;
-
+		port6 = 5;
 		for (i = 0; i < 2; i++) {
-			a6.l4_id++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &a4.address, &a4.l4_id)))
+			port6++;
+			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
 				return false;
-
-			bib = create_and_insert_bib(&a4, &a6, L4PROTO_UDP);
-			if (!bib)
+			if (!bib_inject_str(IPV6_ADDRS[2], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
 				return false;
 		}
 	}
@@ -272,7 +229,7 @@ static bool test_for_each_ipv6(void)
 			summary.visited[i] = false;
 
 		success &= assert_equals_int(0,
-				for_each_bib_ipv6(&bib_udp, &addr6[1].address, foreach6_func, &summary),
+				for_each_bib_ipv6(&bib_udp, &addr6[1].l3, foreach6_func, &summary),
 				"result");
 		for (i = 0; i < 7; i++)
 			success &= assert_true(summary.visited[i], "node visited.");
@@ -301,33 +258,32 @@ static bool is_same_parity(u16 num1, u16 num2)
 	return (num1 & 0x1) == (num2 & 0x1);
 }
 
-static bool test_allocate_aux(struct tuple *tuple, struct in_addr *same_addr,
+static bool test_allocate_aux(struct tuple *tuple6, struct in_addr *same_addr,
 		struct in_addr *out_addr, bool test_port)
 {
-	struct ipv4_tuple_address result;
+	struct ipv4_transport_addr result;
 	bool success = true;
 
-	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, tuple, &result),
+	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, tuple6, &result),
 			"function result");
 
 	/* BTW: Because in_addrs are __be32s, "1.1.1.1" is the same as "0x1010101" */
-	success &= assert_true(result.address.s_addr == 0x1010101
-			|| result.address.s_addr == 0x2020202,
-			"Result address is in pool");
+	success &= assert_true(result.l3.s_addr == htonl(0x1010101)
+			|| result.l3.s_addr == htonl(0x2020202), "Result address is in pool");
 	if (same_addr)
-		success &= assert_equals_ipv4(same_addr, &result.address, "Result address was recycled");
+		success &= assert_equals_ipv4(same_addr, &result.l3, "Result address was recycled");
 	if (test_port) {
-		success &= assert_true(is_same_range(tuple->src.l4_id, result.l4_id),
+		success &= assert_true(is_same_range(tuple6->src.addr6.l4, result.l4),
 				"Result port is in the requested range");
-		success &= assert_true(is_same_parity(tuple->src.l4_id, result.l4_id),
+		success &= assert_true(is_same_parity(tuple6->src.addr6.l4, result.l4),
 				"Result port has the same parity as requested");
 	}
 
-	success &= bib_inject(&result.address, result.l4_id, &tuple->src.addr.ipv6, tuple->src.l4_id,
-			L4PROTO_UDP);
+	success &= bib_inject(&tuple6->src.addr6.l3, tuple6->src.addr6.l4, &result.l3, result.l4,
+			L4PROTO_UDP) != NULL;
 
 	if (out_addr)
-		*out_addr = result.address;
+		*out_addr = result.l3;
 
 	return success;
 }
@@ -338,7 +294,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	struct in_addr client1addr4, client2addr4, client3addr4;
 	struct tuple *sharing_client_tuple;
 	struct in_addr *non_sharing_addr;
-	struct ipv4_tuple_address result;
+	struct ipv4_transport_addr result;
 	unsigned int i = 0;
 	bool success = true;
 
@@ -355,12 +311,12 @@ static bool test_allocate_ipv4_transport_address(void)
 	 * IPv4 address. This minimizes confusion from remote IPv4 hosts.
 	 */
 
-	client1tuple.src.l4_id = 65511;
+	client1tuple.src.addr6.l4 = 65511;
 	if (!test_allocate_aux(&client1tuple, NULL, &client1addr4, true))
 		goto fail;
 
 	for (i = 65512; i < 65536; i++) {
-		client1tuple.src.l4_id = i;
+		client1tuple.src.addr6.l4 = i;
 		if (!test_allocate_aux(&client1tuple, &client1addr4, NULL, true))
 			goto fail;
 	}
@@ -371,7 +327,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	 * which should be different from client1's (again, to minimize confusion).
 	 */
 
-	client2tuple.src.l4_id = 65486;
+	client2tuple.src.addr6.l4 = 65486;
 	success &= test_allocate_aux(&client2tuple, NULL, &client2addr4, true);
 	success &= assert_true(client1addr4.s_addr != client2addr4.s_addr,
 			"the nodes are being masked with different addresses");
@@ -379,7 +335,7 @@ static bool test_allocate_ipv4_transport_address(void)
 		goto fail;
 
 	for (i = 65487; i < 65536; i++) {
-		client2tuple.src.l4_id = i;
+		client2tuple.src.addr6.l4 = i;
 		if (!test_allocate_aux(&client2tuple, &client2addr4, NULL, true))
 			goto fail;
 	}
@@ -391,7 +347,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	 */
 
 	for (i = 65486; i < 65511; i++) {
-		client1tuple.src.l4_id = i;
+		client1tuple.src.addr6.l4 = i;
 		if (!test_allocate_aux(&client1tuple, &client1addr4, NULL, true))
 			goto fail;
 	}
@@ -401,12 +357,12 @@ static bool test_allocate_ipv4_transport_address(void)
 	 * At this point, both IPv4 addresses have 50 high ports taken.
 	 * Because both IPv4 addresses are taken, client 3 will share its IPv4 address with someone.
 	 */
-	client3tuple.src.l4_id = 0;
+	client3tuple.src.addr6.l4 = 0;
 	if (!test_allocate_aux(&client3tuple, NULL, &client3addr4, true))
 		goto fail;
 
 	for (i = 1; i < 1024; i++) {
-		client3tuple.src.l4_id = i;
+		client3tuple.src.addr6.l4 = i;
 		if (!test_allocate_aux(&client3tuple, &client3addr4, NULL, true))
 			goto fail;
 	}
@@ -427,20 +383,20 @@ static bool test_allocate_ipv4_transport_address(void)
 		goto fail;
 	}
 
-	sharing_client_tuple->src.l4_id = 0;
+	sharing_client_tuple->src.addr6.l4 = 0;
 	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, sharing_client_tuple,
 			&result), "result 3");
-	success &= assert_equals_ipv4(&client3addr4, &result.address, "runnerup still gets his addr");
-	success &= assert_true(is_high(result.l4_id), "runnerup gets a high port");
-	success &= bib_inject(&result.address, result.l4_id, &sharing_client_tuple->src.addr.ipv6,
-			sharing_client_tuple->src.l4_id, L4PROTO_UDP);
+	success &= assert_equals_ipv4(&client3addr4, &result.l3, "runnerup still gets his addr");
+	success &= assert_true(is_high(result.l4), "runnerup gets a high port");
+	success &= bib_inject(&sharing_client_tuple->src.addr6.l3, sharing_client_tuple->src.addr6.l4,
+			&result.l3, result.l4, L4PROTO_UDP) != NULL;
 	if (!success)
 		goto fail;
 
 	log_debug("Client 3 now hogs up all of its address's remaining ports.");
 	/* 51 high ports were already taken, so this will stop early. */
 	for (i = 1024; i < 65485; i++) {
-		client3tuple.src.l4_id = i;
+		client3tuple.src.addr6.l4 = i;
 		if (!test_allocate_aux(&client3tuple, &client3addr4, NULL, i != 65484))
 			goto fail;
 	}
@@ -451,13 +407,13 @@ static bool test_allocate_ipv4_transport_address(void)
 	 */
 
 	log_debug("Then, the function will fall back to use the other address.");
-	client3tuple.src.l4_id = i;
+	client3tuple.src.addr6.l4 = i;
 	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, &client3tuple, &result),
 			"function result");
-	success &= assert_true(client3addr4.s_addr != result.address.s_addr,
+	success &= assert_true(client3addr4.s_addr != result.l3.s_addr,
 			"node gets a runnerup address");
-	success &= bib_inject(&result.address, result.l4_id, &client3tuple.src.addr.ipv6,
-			client3tuple.src.l4_id, L4PROTO_UDP);
+	success &= bib_inject(&client3tuple.src.addr6.l3, client3tuple.src.addr6.l4,
+			&result.l3, result.l4, L4PROTO_UDP) != NULL;
 	if (!success)
 		goto fail;
 
@@ -468,7 +424,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	 * Also, the sharing client already requested port 0, so we have to start at 1.
 	 */
 	for (i = 1; i < 65486; i++) {
-		sharing_client_tuple->src.l4_id = i;
+		sharing_client_tuple->src.addr6.l4 = i;
 		if (!test_allocate_aux(sharing_client_tuple, non_sharing_addr, NULL,  i != 65485))
 			goto fail;
 	}
@@ -487,9 +443,96 @@ fail:
 	return false;
 }
 
-/********************************************
- * Main.
- ********************************************/
+static bool test_compare_addr6(void)
+{
+	struct bib_entry *bib;
+	struct in6_addr addr6;
+	bool success = true;
+
+	bib = bib_create_str("1::1", 1111, "1.1.1.1", 1111, L4PROTO_TCP);
+	if (!bib)
+		return false;
+
+	if (str_to_addr6("2::2", &addr6) != 0)
+		goto fail;
+	success &= assert_true(compare_addr6(bib, &addr6) < 0, "< 0");
+	if (str_to_addr6("1::1", &addr6) != 0)
+		goto fail;
+	success &= assert_true(compare_addr6(bib, &addr6) == 0, "= 0");
+	if (str_to_addr6("0::0", &addr6) != 0)
+		goto fail;
+	success &= assert_true(compare_addr6(bib, &addr6) > 0, "> 0");
+
+	bib_kfree(bib);
+	return success;
+
+fail:
+	bib_kfree(bib);
+	return false;
+}
+
+static bool test_compare_full6(void)
+{
+	struct bib_entry *bib;
+	struct ipv6_transport_addr taddr6;
+	bool success = true;
+
+	bib = bib_create_str("1::1", 1111, "1.1.1.1", 1111, L4PROTO_TCP);
+	if (!bib)
+		return false;
+
+	if (str_to_addr6("2::2", &taddr6.l3) != 0)
+		goto fail;
+	taddr6.l4 = 1111;
+	success &= assert_true(compare_full6(bib, &taddr6) < 0, "<< 0");
+	if (str_to_addr6("1::1", &taddr6.l3) != 0)
+		goto fail;
+	taddr6.l4 = 1112;
+	success &= assert_true(compare_full6(bib, &taddr6) < 0, "< 0");
+	taddr6.l4 = 1111;
+	success &= assert_true(compare_full6(bib, &taddr6) == 0, "= 0");
+	taddr6.l4 = 1110;
+	success &= assert_true(compare_full6(bib, &taddr6) > 0, "> 0");
+	if (str_to_addr6("0::0", &taddr6.l3) != 0)
+		goto fail;
+	taddr6.l4 = 1111;
+	success &= assert_true(compare_full6(bib, &taddr6) > 0, ">> 0");
+
+	bib_kfree(bib);
+	return success;
+
+fail:
+	bib_kfree(bib);
+	return false;
+}
+
+static bool test_compare_addr4(void)
+{
+	struct bib_entry *bib;
+	struct in_addr addr4;
+	bool success = true;
+
+	bib = bib_create_str("1::1", 1111, "1.1.1.1", 1111, L4PROTO_TCP);
+	if (!bib)
+		return false;
+
+	if (str_to_addr4("2.2.2.2", &addr4) != 0)
+		goto fail;
+	success &= assert_true(compare_addr4(bib, &addr4) < 0, "< 0");
+	if (str_to_addr4("1.1.1.1", &addr4) != 0)
+		goto fail;
+	success &= assert_true(compare_addr4(bib, &addr4) == 0, "= 0");
+	if (str_to_addr4("0.0.0.0", &addr4) != 0)
+		goto fail;
+	success &= assert_true(compare_addr4(bib, &addr4) > 0, "> 0");
+
+	bib_kfree(bib);
+	return success;
+
+fail:
+	bib_kfree(bib);
+	return false;
+}
 
 static bool init(void)
 {
@@ -497,15 +540,15 @@ static bool init(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr4(IPV4_ADDRS[i], &addr4[i].address)))
+		if (is_error(str_to_addr4(IPV4_ADDRS[i], &addr4[i].l3)))
 			return false;
-		addr4[i].l4_id = IPV4_PORTS[i];
+		addr4[i].l4 = IPV4_PORTS[i];
 	}
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr6(IPV6_ADDRS[i], &addr6[i].address)))
+		if (is_error(str_to_addr6(IPV6_ADDRS[i], &addr6[i].l3)))
 			return false;
-		addr6[i].l4_id = IPV6_PORTS[i];
+		addr6[i].l4 = IPV6_PORTS[i];
 	}
 
 	if (is_error(pool4_init(pool4_addrs, ARRAY_SIZE(pool4_addrs))))
@@ -532,6 +575,9 @@ int init_module(void)
 	INIT_CALL_END(init(), simple_bib(), end(), "Single BIB");
 	INIT_CALL_END(init(), test_for_each_ipv6(), end(), "for-each-IPv6 function.");
 	INIT_CALL_END(init(), test_allocate_ipv4_transport_address(), end(), "Allocate function.");
+	INIT_CALL_END(init(), test_compare_addr6(), end(), "compare_addr6");
+	INIT_CALL_END(init(), test_compare_full6(), end(), "compare_full6");
+	INIT_CALL_END(init(), test_compare_addr4(), end(), "compare_addr4");
 
 	END_TESTS;
 }

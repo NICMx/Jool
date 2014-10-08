@@ -1,5 +1,6 @@
 #include "nat64/mod/fragment_db.h"
 #include "nat64/comm/constants.h"
+#include "nat64/mod/stats.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/random.h"
 
@@ -326,9 +327,16 @@ static u16 compute_fragment_first(struct sk_buff *skb)
 		return get_fragment_offset_ipv4(ip_hdr(skb)) >> 3;
 	case L3PROTO_IPV6:
 		return get_fragment_offset_ipv6(skb_frag_hdr(skb)) >> 3;
-		break;
 	}
 	return 0;
+}
+
+static u16 compute_fragment_last(u16 fragment_first, struct sk_buff *skb)
+{
+	unsigned int l3_payload_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+	return (l3_payload_len >= 8)
+			? fragment_first + ((l3_payload_len - 8) >> 3)
+			: fragment_first;
 }
 
 /**
@@ -355,11 +363,6 @@ static void clean_expired_buffers(void)
 	unsigned int b = 0;
 	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
-
-	/*
-	 * Warning: Do *not* use buffer->pkt->first_fragment here.
-	 * The fragment whose fragment offset is zero might still be in transit.
-	 */
 
 	log_debug("Deleting expired reassembly buffers...");
 
@@ -469,7 +472,7 @@ int fragdb_init(void)
  * @param[out] clone a copy of the current config will be placed here. Must be already allocated.
  * @return zero on success, nonzero on failure.
  */
-int fragmentdb_clone_config(struct fragmentation_config *clone)
+int fragdb_clone_config(struct fragmentation_config *clone)
 {
 	rcu_read_lock_bh();
 	*clone = *rcu_dereference_bh(config);
@@ -485,7 +488,7 @@ int fragmentdb_clone_config(struct fragmentation_config *clone)
  * @param[in] new configuration values.
  * @return zero on success, nonzero on failure.
  */
-int fragmentdb_set_config(enum fragmentation_type type, size_t size, void *value)
+int fragdb_set_config(enum fragmentation_type type, size_t size, void *value)
 {
 	struct fragmentation_config *tmp_config;
 	struct fragmentation_config *old_config;
@@ -530,32 +533,6 @@ int fragmentdb_set_config(enum fragmentation_type type, size_t size, void *value
 	return 0;
 }
 
-static bool skb_is_frag(struct sk_buff *skb)
-{
-	struct iphdr *hdr4;
-	struct frag_hdr *hdr_frag;
-	__u16 fragment_offset = 0;
-	bool mf = false;
-
-	switch (skb_l3_proto(skb)) {
-	case L3PROTO_IPV4:
-		hdr4 = ip_hdr(skb);
-		fragment_offset = get_fragment_offset_ipv4(hdr4);
-		mf = is_more_fragments_set_ipv4(hdr4);
-		break;
-
-	case L3PROTO_IPV6:
-		hdr_frag = skb_frag_hdr(skb);
-		if (!hdr_frag)
-			return false;
-		fragment_offset = get_fragment_offset_ipv6(hdr_frag);
-		mf = is_more_fragments_set_ipv6(hdr_frag);
-		break;
-	}
-
-	return (fragment_offset != 0) || (mf);
-}
-
 static bool is_first(struct sk_buff *skb)
 {
 	switch (skb_l3_proto(skb)) {
@@ -585,13 +562,15 @@ static struct sk_buff *skb_add_frag(struct sk_buff *main, struct sk_buff *addend
 }
 
 /**
- * Computes "skb"'s struct fragment, infers whether it is part of a larger packet, and stores it in
- * the database if it has siblings that haven't arrived yet. If they have all arrived, or if skb is
- * already whole, then it returns the resulting packet in "result".
+ * Groups "skb_in" with the rest of its fragments.
+ * If the rest of the fragments have not yet arrived, this will return VER_STOLEN and store skb_in.
+ * If all of the fragments have arrived, this will return VER_CONTINUE and the zero-offset fragment
+ * will be returned in "skb_out". The rest of the fragments can be accesed via skb_out's list
+ * (skb_out->next).
  *
  * RFC 815, section 3.
  */
-verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
+static verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 {
 	/* The fragment collector skb belongs to. */
 	struct reassembly_buffer *buffer;
@@ -606,23 +585,13 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 	/* "fragment.last" as stated by the RFC. Spans 8 bytes. */
 	u16 fragment_last = 0;
 
-	/*
-	 * This short circuit is not part of the RFC.
-	 * I added it because I really don't want to spinlock nor allocate table stuff if I don't have
-	 * to.
-	 */
-	if (!skb_is_frag(skb_in)) {
-		/* No need to interact with the database. Let the packet fly. */
-		*skb_out = skb_in;
-		return VER_CONTINUE;
-	}
+	inc_stats(skb_in, IPSTATS_MIB_REASMREQDS);
 
-	/*
-	 * Store buffer's accesor so we don't have to recalculate it all the time.
-	 * Also implementation specific, not part of the RFC.
-	 */
-	if (is_error(skb_to_key(skb_in, &key)))
+	/* Store buffer's accesor so we don't have to recalculate it all the time. */
+	if (is_error(skb_to_key(skb_in, &key))) {
+		inc_stats(skb_in, IPSTATS_MIB_REASMFAILS);
 		return VER_DROP;
+	}
 
 	spin_lock_bh(&table_lock);
 
@@ -652,7 +621,7 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 	}
 
 	fragment_first = compute_fragment_first(skb_in);
-	fragment_last = fragment_first + ((skb_l4hdr_len(skb_in) + skb_payload_len(skb_in) - 8) >> 3);
+	fragment_last = compute_fragment_last(fragment_first, skb_in);
 
 	/* Step 1 */
 	list_for_each_entry_safe(hole, hole_aux, &buffer->holes, list_hook) {
@@ -705,6 +674,7 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 		(*skb_out)->prev->next = NULL;
 		(*skb_out)->prev = NULL;
 
+		inc_stats(*skb_out, IPSTATS_MIB_REASMOKS);
 		return VER_CONTINUE;
 	}
 
@@ -715,7 +685,28 @@ verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out)
 
 fail:
 	spin_unlock_bh(&table_lock);
+	inc_stats(skb_in, IPSTATS_MIB_REASMFAILS);
 	return VER_DROP;
+}
+
+verdict fragdb_handle6(struct sk_buff *skb_in, struct sk_buff **skb_out)
+{
+	if (!is_fragmented_ipv6(skb_frag_hdr(skb_in))) {
+		*skb_out = skb_in;
+		return VER_CONTINUE;
+	}
+
+	return fragment_arrives(skb_in, skb_out);
+}
+
+verdict fragdb_handle4(struct sk_buff *skb_in, struct sk_buff **skb_out)
+{
+	if (!is_fragmented_ipv4(ip_hdr(skb_in))) {
+		*skb_out = skb_in;
+		return VER_CONTINUE;
+	}
+
+	return fragment_arrives(skb_in, skb_out);
 }
 
 /**

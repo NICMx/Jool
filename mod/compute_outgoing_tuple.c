@@ -1,118 +1,67 @@
 #include "nat64/mod/compute_outgoing_tuple.h"
-#include "nat64/mod/rfc6052.h"
-#include "nat64/mod/pool6.h"
-#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
+#include "nat64/mod/stats.h"
 
-
-/**
- * Section 3.6.1 of RFC 6146.
- */
-static verdict tuple5(struct tuple *in, struct tuple *out)
+verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct sk_buff *skb_in)
 {
-	struct bib_entry *bib;
-	struct ipv6_prefix prefix;
+	struct session_entry *session;
 	int error;
 
-	error = pool6_peek(&prefix);
-	if (error)
-		return VER_DROP;
-
-	error = bibdb_get(in, &bib);
-	if (error) {
-		/* Bogus ICMP errors might cause this, so it's not critical. */
-		log_debug("Error code %d while trying to find the packet's BIB entry.", error);
-		return VER_DROP;
-	}
-
-	switch (in->l3_proto) {
-	case L3PROTO_IPV6:
-		out->l3_proto = L3PROTO_IPV4;
-		out->l4_proto = in->l4_proto;
-		out->src.addr.ipv4 = bib->ipv4.address;
-		out->src.l4_id = bib->ipv4.l4_id;
-		if (is_error(addr_6to4(&in->dst.addr.ipv6, &prefix, &out->dst.addr.ipv4)))
-			goto fail;
-		out->dst.l4_id = in->dst.l4_id;
-		break;
-
-	case L3PROTO_IPV4:
-		out->l3_proto = L3PROTO_IPV6;
-		out->l4_proto = in->l4_proto;
-		if (is_error(addr_4to6(&in->src.addr.ipv4, &prefix, &out->src.addr.ipv6)))
-			goto fail;
-		out->src.l4_id = in->src.l4_id;
-		out->dst.addr.ipv6 = bib->ipv6.address;
-		out->dst.l4_id = bib->ipv6.l4_id;
-		break;
-	}
-
-	bib_return(bib);
-	log_tuple(out);
-	return VER_CONTINUE;
-
-fail:
-	bib_return(bib);
-	return VER_DROP;
-}
-
-/**
- * Section 3.6.2 of RFC 6146.
- */
-static verdict tuple3(struct tuple *in, struct tuple *out)
-{
-	struct bib_entry *bib;
-	struct ipv6_prefix prefix;
-	int error;
-
-	error = pool6_peek(&prefix);
-	if (error)
-		return VER_DROP;
-
-	error = bibdb_get(in, &bib);
-	if (error) {
-		/* Bogus ICMP errors might cause this, so it's not critical. */
-		log_debug("Error code %d while trying to find the packet's BIB entry.", error);
-		return VER_DROP;
-	}
-
-	switch (in->l3_proto) {
-	case L3PROTO_IPV6:
-		out->l3_proto = L3PROTO_IPV4;
-		out->l4_proto = L4PROTO_ICMP;
-		out->src.addr.ipv4 = bib->ipv4.address;
-		if (is_error(addr_6to4(&in->dst.addr.ipv6, &prefix, &out->dst.addr.ipv4)))
-			goto fail;
-		out->icmp_id = bib->ipv4.l4_id;
-		out->dst.l4_id = out->icmp_id;
-		break;
-
-	case L3PROTO_IPV4:
-		out->l3_proto = L3PROTO_IPV6;
-		out->l4_proto = L4PROTO_ICMP;
-		if (is_error(addr_4to6(&in->src.addr.ipv4, &prefix, &out->src.addr.ipv6)))
-			goto fail;
-		out->dst.addr.ipv6 = bib->ipv6.address;
-		out->icmp_id = bib->ipv6.l4_id;
-		out->dst.l4_id = out->icmp_id;
-		break;
-	}
-
-	bib_return(bib);
-	log_tuple(out);
-	return VER_CONTINUE;
-
-fail:
-	bib_return(bib);
-	return VER_DROP;
-}
-
-verdict compute_out_tuple(struct tuple *in, struct tuple *out)
-{
-	verdict result;
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	result = is_5_tuple(in) ? tuple5(in, out) : tuple3(in, out);
+	error = sessiondb_get(in, &session);
+	if (error) {
+		/*
+		 * Bogus ICMP errors might cause this because Filtering never cares for them,
+		 * so it's not critical.
+		 */
+		log_debug("Error code %d while trying to find the packet's session entry.", error);
+		inc_stats(skb_in, IPSTATS_MIB_INNOROUTES);
+		return VER_DROP;
+	}
+
+	/*
+	 * Though the end result is the same, the following section of code collides with the RFC
+	 * in a superfluous sense.
+	 *
+	 * If the IPv6 pool has multiple prefixes, algorithmically generating addresses at this point
+	 * is pointless because, in order to do that, we'd need to know which prefix was used when the
+	 * session was created. This bit of information would have to be extracted from the session.
+	 * However, the address already algorithmically generated also belongs to the session.
+	 * So why bother generating it again? Just copy it.
+	 *
+	 * Additionally, the RFC wants some information extracted from the BIB entry.
+	 * We *also* extract that information from the session because it's the same, by definition.
+	 *
+	 * And finally, the RFC wants some information extracted from the tuple.
+	 * Same deal. If you draw all the scenarios (weirdass ICMP errors included), it's always the
+	 * same as the session.
+	 *
+	 * Given all of that, I really don't understand why the RFC bothers with any of this, including
+	 * making a distinction between 3-tuples and 5-tuples. The outgoing tuple is always a copy of
+	 * the other side of the session, plain and simple. When you think about it, that last claim
+	 * makes sense even in a general sense.
+	 */
+
+	switch (in->l3_proto) {
+	case L3PROTO_IPV6:
+		out->l3_proto = L3PROTO_IPV4;
+		out->l4_proto = in->l4_proto;
+		out->src.addr4 = session->local4;
+		out->dst.addr4 = session->remote4;
+		break;
+
+	case L3PROTO_IPV4:
+		out->l3_proto = L3PROTO_IPV6;
+		out->l4_proto = in->l4_proto;
+		out->src.addr6 = session->local6;
+		out->dst.addr6 = session->remote6;
+		break;
+	}
+
+	session_return(session);
+	log_tuple(out);
 
 	log_debug("Done step 3.");
-	return result;
+	return VER_CONTINUE;
 }

@@ -9,22 +9,13 @@
  * those functions lacking argument validations.
  *
  * @author Alberto Leiva
+ * @author Daniel Hernandez
  */
 
 #include <linux/skbuff.h>
 
 /**
- * Wrapper for IP6_INC_STATS_BH().
- */
-void inc_stats_ipv6(struct sk_buff *skb, int field);
-
-/**
- * Wrapper for IP_INC_STATS_BH().
- */
-void inc_stats_ipv4(struct sk_buff *skb, int field);
-
-/**
- * Wrapper for both IP6_INC_STATS_BH() and IP_INC_STATS_BH(), useful from l3-protocol unaware code.
+ * Wrapper for both IP6_INC_STATS_BH() and IP_INC_STATS_BH().
  */
 void inc_stats(struct sk_buff *skb, int field);
 
