@@ -490,7 +490,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 
 	case ARGP_FRAG_TO:
-		error = set_general_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, 0, MAX_U32/1000, 1000);
+		error = set_general_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 
 	default:

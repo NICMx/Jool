@@ -184,6 +184,11 @@ static int validate_inner_packet6(struct ipv6hdr *hdr6, unsigned int len, int *f
 	if (error)
 		return error;
 
+	if (!is_first_fragment_ipv6(get_extension_header(hdr6, NEXTHDR_FRAGMENT))) {
+		log_debug("Inner packet is not a first fragment...");
+		return -EINVAL;
+	}
+
 	l3_hdr_len = iterator.data - (void *) hdr6;
 
 	switch (iterator.hdr_type) {
@@ -358,6 +363,11 @@ static int validate_inner_packet4(struct iphdr *hdr4, unsigned int len, int *fie
 	error = validate_ipv4_integrity(hdr4, len, true, field);
 	if (error)
 		return error;
+
+	if (!is_first_fragment_ipv4(hdr4)) {
+		log_debug("Inner packet is not a first fragment...");
+		return -EINVAL;
+	}
 
 	l3_hdr_len = 4 * hdr4->ihl;
 
