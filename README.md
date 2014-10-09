@@ -54,6 +54,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 
 ### Special Thanks (contributing users)
 
+* [airsnail](https://github.com/airsnail)
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
 * [ipclouds](https://github.com/ipclouds)
