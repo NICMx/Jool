@@ -2,12 +2,17 @@
 ccflags-y := -I$(src)/../include
 #EXTRA_CFLAGS += -DDEBUG
 
+# Note: if you want to activate the benchmark feature, you need to activate the following flag, and
+#	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
+#EXTRA_CFLAGS += -DBENCHMARK
+
 obj-m += jool.o
 
 jool-objs += types.o
 jool-objs += str_utils.o
 jool-objs += packet.o
 jool-objs += stats.o
+#jool-objs += log_time.o
 jool-objs += icmp_wrapper.o
 jool-objs += ipv6_hdr_iterator.o
 jool-objs += rfc6052.o

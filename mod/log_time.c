@@ -1,84 +1,201 @@
-#include "nat64/comm/log_time.h"
+#include "nat64/mod/log_time.h"
 
+static struct log_time_db logs_ipv6_tcp;
+static struct log_time_db logs_ipv6_udp;
+static struct log_time_db logs_ipv6_icmp;
+static struct log_time_db logs_ipv4_tcp;
+static struct log_time_db logs_ipv4_udp;
+static struct log_time_db logs_ipv4_icmp;
+
+/** Cache for struct log_node, for efficient allocation. */
+static struct kmem_cache *entry_cache;
+
+#ifndef NSEC_PER_SEC
+#define NSEC_PER_SEC 1000000000L
+#endif
 
 /**
- * Init the struct of log_time
+ * Init the struct of log_node.
  */
-void logtime_init(struct log_time *log_time)
+static int logtime_create_node(struct log_node **node)
 {
-	spin_lock_init(&log_time->lock);
-	log_time->counter = 0;
-	log_time->counter = 0;
+	struct log_node *tmp_node;
+
+	tmp_node = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
+	if (!tmp_node) {
+		log_err("Allocation of IPv6 pool node failed.");
+		return -ENOMEM;
+	}
+
+	INIT_LIST_HEAD(&tmp_node->list_hook);
+	*node = tmp_node;
+	return 0;
+}
+
+/**
+ * An spinlock must be hold.
+ */
+static void logtime_delete_node(struct log_node *node) {
+	list_del(&node->list_hook);
+	kmem_cache_free(entry_cache, node);
+}
+
+static void logtime_get_db(struct log_time_db **log_db, l3_protocol l3_proto, l4_protocol l4_proto)
+{
+	switch (l3_proto) {
+	case L3PROTO_IPV6:
+		switch (l4_proto) {
+		case L4PROTO_TCP:
+			*log_db = &logs_ipv6_tcp;
+			return;
+		case L4PROTO_UDP:
+			*log_db = &logs_ipv6_udp;
+			return;
+		case L4PROTO_ICMP:
+			*log_db = &logs_ipv6_icmp;
+			return;
+		}
+		break;
+	case L3PROTO_IPV4:
+		switch (l4_proto) {
+		case L4PROTO_TCP:
+			*log_db = &logs_ipv4_tcp;
+			return;
+		case L4PROTO_UDP:
+			*log_db = &logs_ipv4_udp;
+			return;
+		case L4PROTO_ICMP:
+			*log_db = &logs_ipv4_icmp;
+			return;
+		}
+		break;
+	}
+	*log_db = NULL;
+}
+
+static void subtract_timespec(struct timespec *start, struct timespec *end,
+		struct log_node *node)
+{
+	if (start->tv_nsec > end->tv_nsec) {
+		end->tv_nsec += NSEC_PER_SEC; /* Add one second (in ns 1,000,000,000) to the minuend. */
+		start->tv_sec += 1L; /* Add one second to the subtrahend. */
+	}
+	node->time.tv_sec = end->tv_sec - start->tv_sec;
+	node->time.tv_nsec = end->tv_nsec - start->tv_nsec;
+	log_debug("Translation time: %ld.%9ld", node->time.tv_sec, node->time.tv_nsec);
+
+}
+
+static void logtime_db_add(struct log_time_db *log_db, struct log_node *node)
+{
+	spin_lock_bh(&log_db->lock);
+	list_add_tail(&node->list_hook, &log_db->list);
+	spin_unlock_bh(&log_db->lock);
 }
 
 /**
  * Increases the counter of the structure and add to the sum delta time registered.
  */
-void logtime(struct log_time *log_time, unsigned long delta_time)
+int logtime(struct timespec *start_time, struct timespec *end_time, l3_protocol l3_proto,
+		l4_protocol l4_proto)
 {
-	spin_lock_bh(&log_time->lock);
+	struct log_time_db *log_db;
+	struct log_node *log_node;
 
-	log_time->counter++;
-	log_time->sum += delta_time;
+	if (!start_time) {
+		log_debug("There's not start_time ");
+		return -EINVAL;
+	}
 
-	spin_unlock_bh(&log_time->lock);
+	if (!end_time) {
+		log_debug("There's not end_time ");
+		return -EINVAL;
+	}
+
+	logtime_get_db(&log_db, l3_proto, l4_proto);
+	if (!log_db) {
+		log_err("Invalid L3 or L4 protocol.");
+		return -EINVAL;
+	}
+
+	if (logtime_create_node(&log_node))
+		return -ENOMEM; /* Error message already printed. */
+
+	subtract_timespec(start_time, end_time, log_node);
+	logtime_db_add(log_db, log_node);
+
+	return 0;
 }
 
-/**
- * Prints the counter of the structure.
- *
- * The printk function is used to print, make sure to
- * print a line break after used this function.
- */
-void logtime_print_counter(struct log_time *log_time)
+int logtime_iterate_and_delete(l3_protocol l3_proto, l4_protocol l4_proto,
+		int (*func)(struct log_node *, void *), void *arg)
 {
-	spin_lock_bh(&log_time->lock);
+	struct list_head *current_hook, *next_hook;
+	struct log_node *node;
+	struct log_time_db *log_db;
+	int error;
 
-	printk("%u,", log_time->counter);
+	logtime_get_db(&log_db, l3_proto, l4_proto);
+	if (!log_db) {
+		log_err("Invalid L3 or L4 protocol.");
+		return -EINVAL;
+	}
 
-	spin_unlock_bh(&log_time->lock);
+	spin_lock_bh(&log_db->lock);
+	list_for_each_safe(current_hook, next_hook, &log_db->list) {
+		node = list_entry(current_hook, struct log_node, list_hook);
+		error = func(node, arg);
+		if (error) {
+			spin_unlock_bh(&log_db->lock);
+			return error;
+		}
+		logtime_delete_node(node);
+	}
+	spin_unlock_bh(&log_db->lock);
+
+	return 0;
 }
 
-/**
- * Prints the average of the sum and multiply it by the given value,
- * useful when the time delta overflow the sum.
- *
- * The printk function is used to print, make sure to
- * print a line break after used this function.
- */
-void logtime_print_avg_multiply(struct log_time *log_time, int multiplier)
+int logtime_init(void)
 {
-	spin_lock_bh(&log_time->lock);
+	int i;
+	struct log_time_db *logs_db[] = { &logs_ipv6_tcp, &logs_ipv6_udp, &logs_ipv6_icmp,
+			&logs_ipv4_tcp, &logs_ipv4_udp, &logs_ipv4_icmp	};
 
-	printk("%lu,", (log_time->sum/log_time->counter)*multiplier);
+	for (i = 0; i < ARRAY_SIZE(logs_db); i++) {
+		spin_lock_init(&logs_db[i]->lock);
+		INIT_LIST_HEAD(&logs_db[i]->list);
+	}
 
-	spin_unlock_bh(&log_time->lock);
+	entry_cache = kmem_cache_create("jool_logtime_nodes", sizeof(struct log_node), 0, 0, NULL);
+	if (!entry_cache) {
+		log_err("Could not allocate the BIB entry cache.");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
-/**
- * Prints the average of the sum.
- *
- * The printk function is used to print, make sure to
- * print a line break after used this function.
- */
-void logtime_print_avg(struct log_time *log_time)
+static void destroy_aux(struct log_time_db *db)
 {
-	spin_lock_bh(&log_time->lock);
+	struct list_head *current_hook, *next_hook;
+	struct log_node *node;
 
-	printk("%lu,", log_time->sum/log_time->counter);
-
-	spin_unlock_bh(&log_time->lock);
+	list_for_each_safe(current_hook, next_hook, &db->list) {
+		node = list_entry(current_hook, struct log_node, list_hook);
+		logtime_delete_node(node);
+	}
 }
 
-/**
- * Resets the values ​​of the structure.
- */
-void logtime_restart(struct log_time *log_time)
+void logtime_destroy(void)
 {
-	spin_lock_bh(&log_time->lock);
+	int i;
+	struct log_time_db *logs_db[] = { &logs_ipv6_tcp, &logs_ipv6_udp, &logs_ipv6_icmp,
+			&logs_ipv4_tcp, &logs_ipv4_udp, &logs_ipv4_icmp	};
 
-	log_time->counter = 0;
-	log_time->sum = 0;
+	for (i = 0; i < ARRAY_SIZE(logs_db); i++) {
+		destroy_aux(logs_db[i]);
+	}
 
-	spin_unlock_bh(&log_time->lock);
+	kmem_cache_destroy(entry_cache);
 }

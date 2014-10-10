@@ -17,10 +17,16 @@
 #ifdef __KERNEL__
 	#include <linux/in.h>
 	#include <linux/in6.h>
+#ifdef BENCHMARK
+		#include <linux/time.h>
+#endif
 #else
 	#include <stdbool.h>
 	#include <string.h>
 	#include <arpa/inet.h>
+#ifdef BENCHMARK
+		#include <time.h>
+#endif
 #endif
 #include "nat64/comm/nat64.h"
 

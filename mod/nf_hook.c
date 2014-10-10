@@ -12,6 +12,9 @@
 #include "nat64/mod/ttp/core.h"
 #include "nat64/mod/send_packet.h"
 #include "nat64/mod/core.h"
+#ifdef BENCHMARK
+#include "nat64/mod/log_time.h"
+#endif
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -126,6 +129,11 @@ static int __init nat64_init(void)
 	error = sendpkt_init();
 	if (error)
 		goto sendpkt_failure;
+#ifdef BENCHMARK
+	error = logtime_init();
+	if (error)
+		goto log_time_failure;
+#endif
 
 	/* Hook Jool to Netfilter. */
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
@@ -137,6 +145,11 @@ static int __init nat64_init(void)
 	return error;
 
 nf_register_hooks_failure:
+#ifdef BENCHMARK
+	logtime_destroy();
+
+log_time_failure:
+#endif
 	sendpkt_destroy();
 
 sendpkt_failure:
@@ -176,6 +189,9 @@ static void __exit nat64_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	/* Deinitialize the submodules. */
+#ifdef BENCHMARK
+	logtime_destroy();
+#endif
 	sendpkt_destroy();
 	translate_packet_destroy();
 	filtering_destroy();

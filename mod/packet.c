@@ -238,6 +238,10 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	int error;
 	int field = 0;
 
+#ifdef BENCHMARK
+	getnstimeofday(&cb->start_time);
+#endif
+
 	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator, &field);
 	if (error) {
 		inc_stats(skb, field);
@@ -419,6 +423,10 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	struct iphdr *hdr4 = ip_hdr(skb);
 	int error;
 	int field = 0;
+
+#ifdef BENCHMARK
+	getnstimeofday(&cb->start_time);
+#endif
 
 	error = validate_ipv4_integrity(hdr4, skb->len, false, &field);
 	if (error) {

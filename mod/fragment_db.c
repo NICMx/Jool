@@ -671,6 +671,9 @@ static verdict fragment_arrives(struct sk_buff *skb_in, struct sk_buff **skb_out
 		buffer_destroy(&key, buffer);
 		spin_unlock_bh(&table_lock);
 
+#ifdef BENCHMARK
+		getnstimeofday(&skb_jcb(*skb_out)->start_time);
+#endif
 		(*skb_out)->prev->next = NULL;
 		(*skb_out)->prev = NULL;
 
