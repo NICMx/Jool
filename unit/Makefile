@@ -24,6 +24,7 @@ TRANSLATE = translate
 HAIRPINNING = hairpinning
 PKTQUEUE = pktqueue
 CONFIG_PROTO = config_proto
+LOGTIME = logtime
 
 
 obj-m += $(ITERATOR).o
@@ -43,6 +44,7 @@ obj-m += $(TRANSLATE).o
 obj-m += $(HAIRPINNING).o
 obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
+obj-m += $(LOGTIME).o
 
 
 MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
@@ -242,7 +244,8 @@ $(CONFIG_PROTO)-objs += impersonator/pool4.o
 $(CONFIG_PROTO)-objs += impersonator/stats.o
 $(CONFIG_PROTO)-objs += config_proto_test.o
 
-
+$(LOGTIME)-objs += $(MIN_REQS)
+$(LOGTIME)-objs += log_time_test.o
 
 
 all:
@@ -266,6 +269,7 @@ test:
 	-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
 	-sudo insmod $(PKTQUEUE).ko && sudo rmmod $(PKTQUEUE)
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
+	-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
