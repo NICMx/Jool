@@ -60,7 +60,7 @@ bool validate_frag_hdr(struct frag_hdr *hdr, u16 frag_offset, u16 mf, __u8 nexth
 	success &= assert_equals_u8(0, hdr->reserved, "Fraghdr-nexthdr");
 	success &= assert_equals_u16(frag_offset, get_fragment_offset_ipv6(hdr), "Fraghdr-frag offset");
 	success &= assert_equals_u16(mf, is_more_fragments_set_ipv6(hdr), "Fraghdr-MF");
-	success &= assert_equals_u16(1234, be32_to_cpu(hdr->identification), "Fraghdr-ID");
+	success &= assert_equals_u16(4321, be32_to_cpu(hdr->identification), "Fraghdr-ID");
 
 	return success;
 }

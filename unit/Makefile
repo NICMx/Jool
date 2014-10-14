@@ -25,6 +25,7 @@ HAIRPINNING = hairpinning
 PKTQUEUE = pktqueue
 CONFIG_PROTO = config_proto
 LOGTIME = logtime
+SEND_PKT = send_pkt
 
 
 obj-m += $(ITERATOR).o
@@ -45,6 +46,7 @@ obj-m += $(HAIRPINNING).o
 obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
 obj-m += $(LOGTIME).o
+obj-m += $(SEND_PKT).o
 
 
 MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
@@ -247,6 +249,14 @@ $(CONFIG_PROTO)-objs += config_proto_test.o
 $(LOGTIME)-objs += $(MIN_REQS)
 $(LOGTIME)-objs += log_time_test.o
 
+$(SEND_PKT)-objs += $(MIN_REQS)
+$(SEND_PKT)-objs += framework/skb_generator.o
+$(SEND_PKT)-objs += framework/types.o
+$(SEND_PKT)-objs += framework/validator.o
+$(SEND_PKT)-objs += impersonator/icmp_wrapper.o
+$(SEND_PKT)-objs += ../mod/ipv6_hdr_iterator.o
+$(SEND_PKT)-objs += ../mod/packet.o
+$(SEND_PKT)-objs += send_packet_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
@@ -270,6 +280,7 @@ test:
 	-sudo insmod $(PKTQUEUE).ko && sudo rmmod $(PKTQUEUE)
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
 	-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
+	-sudo insmod $(SEND_PKT).ko && sudo rmmod $(SEND_PKT)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
