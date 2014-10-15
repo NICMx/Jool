@@ -204,6 +204,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	session_return(dynamic_session);
 	session_return(static_session);
 	bib_kfree(dynamic_bib);
+	bib_kfree(static_bib);
 	return success;
 
 fail:
@@ -214,6 +215,8 @@ fail:
 		session_return(static_session);
 	if (dynamic_bib)
 		bib_kfree(dynamic_bib);
+	if (static_bib)
+		bib_kfree(static_bib);
 
 	return false;
 }
