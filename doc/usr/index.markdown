@@ -30,6 +30,12 @@ Our last release is version <a href="https://github.com/NICMx/NAT64/milestones/3
 
 ## News
 
+### 2014-10-17
+
+The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-general.html#plateaus) also received a buff.
+
+It has come to our attention that <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">we are also lacking an explanation of IP literals</a>, so there should be another codeless update like this in the near future.
+
 ### 2014-10-08
 
 Version 3.2.1 released. The 3.2 series is now considered more mature than 3.1.

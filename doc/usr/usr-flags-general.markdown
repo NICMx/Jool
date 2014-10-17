@@ -248,15 +248,15 @@ See <a href="http://tools.ietf.org/html/rfc6145#section-6" target="_blank">secti
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
 
-See `--boostMTU` for a discussion on _Packet too Big_ and _Fragmentation Needed_.
+When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification does not require routers to include this data.
 
-The original ICMPv4 specification does not require IPv4 routers to report offending MTUs while responding _Fragmentation Needed_ errors, which means that some old hardware is bound to not set the field, which means that emitters will see zero MTUs.
+Backwards compatibility awards IPv4 emmiters strategies to fall back when they encounter such a situation, but IPv6 has always been designed with the field present in mind. Therefore, if Jool translates a zero-MTU ICMPv4 message into a zero-MTU ICMPv6 message, chaos *might* ensue (actual results will depend mainly on the IPv6 client's implementation).
 
-In these cases, Jool will report as MTU the greatest plateau which is lower or equal than the incoming packet's Total Length field. Admittedly, this might or might not be the correct MTU, but is a very educated guess (section 5 of <a href="http://tools.ietf.org/html/rfc1191" target="_blank">RFC 1191</a>).
+To address this problem, when Jool finds itself attempting to translate a zero-MTU message, it will replace the MTU with the greatest plateau which is lower than the original packet's Total Length field. Admittedly, this might or might not be the correct MTU, but is a very educated guess. See [this example](usr-flags-plateaus.html) for more details. More in-depth information can be found in <a href="http://tools.ietf.org/html/rfc1191" target="_blank">RFC 1191</a>.
 
-Note that if `--boostMTU` is activated, the MTU will still be 1280 if the resulting plateau is less than 1280.
+Note that if `--boostMTU` is activated, the MTU will still be 1280 even if the relevant plateau is less than 1280.
 
-Also, you don't really need to sort the values while you input them. Just saying.
+Also, you don't really need to sort the values as you input them.
 
 ### \--minMTU6
 

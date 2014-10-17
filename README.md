@@ -37,6 +37,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * [Adrian González](https://github.com/Adrian2112) - bernardogzzf@gmail.com
 * Alan Villela López - avillop@gmail.com
 * [Angel Cazares](https://github.com/legionAngel) - angel.cazares@live.com
+* Armando Cifuentes González - 3ncifuentesg@gmail.com
 * [David Valenzuela](https://github.com/davidvrdz) - david.valenzuela.88@gmail.com
 * Ing. Elvia Patricia Barrón Cano - epatybarron@gmail.com
 * [Gabriel Chavez](https://github.com/chavezgu) - gabrielchavez02@gmail.com
