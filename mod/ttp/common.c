@@ -26,6 +26,7 @@ int ttpcomm_translate_inner_packet(struct tuple *out_tuple, struct pkt_parts *in
 	out_inner.l4_hdr.ptr = out_inner.l3_hdr.ptr + out_inner.l3_hdr.len;
 	out_inner.payload.len = in_inner->payload.len;
 	out_inner.payload.ptr = out_inner.l4_hdr.ptr + out_inner.l4_hdr.len;
+	out_inner.skb = NULL;
 
 	current_steps = &steps[in_inner->l3_hdr.proto][in_inner->l4_hdr.proto];
 

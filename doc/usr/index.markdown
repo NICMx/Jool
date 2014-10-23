@@ -24,7 +24,7 @@ But just to make things clear, this is the status of the project as of now:
 
 Jool is still <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">one feature away</a> from being 100% RFC 6146 compliant. That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
 
-Our last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.1" target="_blank">3.2.1</a>.
+Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.2.1" target="_blank">3.2.1</a>.
 
 -------------------
 
