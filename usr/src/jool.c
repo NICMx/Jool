@@ -28,7 +28,7 @@
 #endif
 
 
-const char *argp_program_version = "3.2.1";
+const char *argp_program_version = "3.2.2";
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
