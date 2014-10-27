@@ -5,6 +5,7 @@
 #include "nat64/mod/pool4.h"
 #include "nat64/mod/packet.h"
 #include "nat64/mod/icmp_wrapper.h"
+#include "nat64/mod/host6_node.h"
 
 /**
  * BIB table definition.
@@ -51,6 +52,13 @@ static void bib_release(struct kref *ref, bool lock)
 	error = bibdb_remove(bib, lock);
 	WARN(error, "Error code %d when trying to remove a dying BIB entry from the DB. "
 			"Maybe it should have been kfreed directly instead?", error);
+	if (!bib->host4_addr) {
+		WARN(true, "bib->host4_addr shouldn't be NULL");
+		bib_kfree(bib);
+		return;
+	}
+
+	host_addr4_return(bib->host4_addr);
 	bib_kfree(bib);
 }
 
@@ -82,6 +90,7 @@ struct bib_entry *bib_create(struct ipv4_transport_addr *addr4, struct ipv6_tran
 	kref_init(&result->refcounter);
 	RB_CLEAR_NODE(&result->tree6_hook);
 	RB_CLEAR_NODE(&result->tree4_hook);
+	result->host4_addr = NULL;
 
 	return result;
 }
@@ -195,20 +204,20 @@ struct iteration_args {
  * Evaluates "bib", and returns whether it is a perfect match to "void_args"'s tuple.
  * See allocate_ipv4_transport_address().
  */
-static int find_perfect_addr4(struct bib_entry *bib, void *void_args)
+static int find_perfect_addr4(struct in_addr *host_addr, void *void_args)
 {
 	struct iteration_args *args = void_args;
 	struct ipv4_transport_addr addr;
 	int error;
 
-	addr.l3 = bib->ipv4.l3;
+	addr.l3 = *host_addr;
 	addr.l4 = args->tuple6->src.addr6.l4;
 
 	error = pool4_get_match(args->tuple6->l4_proto, &addr, &args->result->l4);
 	if (error)
 		return 0; /* Not a satisfactory match; keep looking.*/
 
-	args->result->l3 = bib->ipv4.l3;
+	args->result->l3 = *host_addr;
 	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
 }
 
@@ -216,16 +225,16 @@ static int find_perfect_addr4(struct bib_entry *bib, void *void_args)
  * Evaluates "bib", and returns whether it is an acceptable match to "void_args"'s tuple.
  * See allocate_ipv4_transport_address().
  */
-static int find_runnerup_addr4(struct bib_entry *bib, void *void_args)
+static int find_runnerup_addr4(struct in_addr *host_addr, void *void_args)
 {
 	struct iteration_args *args = void_args;
 	int error;
 
-	error = pool4_get_any_port(args->tuple6->l4_proto, &bib->ipv4.l3, &args->result->l4);
+	error = pool4_get_any_port(args->tuple6->l4_proto, host_addr, &args->result->l4);
 	if (error)
 		return 0; /* Not a satisfactory match; keep looking.*/
 
-	args->result->l3 = bib->ipv4.l3;
+	args->result->l3 = *host_addr;
 	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
 }
 
@@ -235,6 +244,7 @@ static int find_runnerup_addr4(struct bib_entry *bib, void *void_args)
  *
  * This function's performance is critical; do not expect the entries to be visited in any
  * particular order.
+ * TODO: (dhernandez) This looks like is no longer need.
  */
 static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
 		int (*func)(struct bib_entry *, void *), void *arg)
@@ -302,7 +312,7 @@ static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
  * @param[out] result the transport address we borrowed from the pool.
  * @return true if everything went OK, false otherwise.
  */
-static int allocate_transport_address(struct bib_table *table, struct tuple *tuple6,
+static int allocate_transport_address(struct host6_node *host_node, struct tuple *tuple6,
 		struct ipv4_transport_addr *result)
 {
 	int error;
@@ -312,7 +322,7 @@ static int allocate_transport_address(struct bib_table *table, struct tuple *tup
 	};
 
 	/* First, try to find a perfect match (Same address and a compatible port or id). */
-	error = for_each_bib_ipv6(table, &tuple6->src.addr6.l3, find_perfect_addr4, &args);
+	error = host6_node_for_each_addr4(host_node, find_perfect_addr4, &args);
 	if (error > 0)
 		return 0; /* A match was found and "result" is already populated, so report success. */
 	else if (error < 0)
@@ -322,7 +332,7 @@ static int allocate_transport_address(struct bib_table *table, struct tuple *tup
 	 * Else, iteration ended with no perfect match. Find a good match instead...
 	 * (good match = same address, any port or id)
 	 */
-	error = for_each_bib_ipv6(table, &tuple6->src.addr6.l3, find_runnerup_addr4, &args);
+	error = host6_node_for_each_addr4(host_node, find_runnerup_addr4, &args);
 	if (error < 0)
 		return error;
 	else if (error > 0)
@@ -339,11 +349,17 @@ static int allocate_transport_address(struct bib_table *table, struct tuple *tup
 int bibdb_init(void)
 {
 	struct bib_table *tables[] = { &bib_udp, &bib_tcp, &bib_icmp };
-	int i;
+	int i, error;
+
+	error = host6_node_init();
+	if (error) {
+		return error;
+	}
 
 	entry_cache = kmem_cache_create("jool_bib_entries", sizeof(struct bib_entry), 0, 0, NULL);
 	if (!entry_cache) {
 		log_err("Could not allocate the BIB entry cache.");
+		host6_node_destroy();
 		return -ENOMEM;
 	}
 
@@ -377,6 +393,8 @@ void bibdb_destroy(void)
 		rbtree_clear(&tables[i]->tree6, bibdb_destroy_aux);
 
 	kmem_cache_destroy(entry_cache);
+
+	host6_node_destroy();
 }
 
 int bibdb_get(struct tuple *tuple, struct bib_entry **result)
@@ -448,6 +466,8 @@ int bibdb_get_by_ipv6(const struct ipv6_transport_addr *addr, l4_protocol l4_pro
 int bibdb_add(struct bib_entry *entry)
 {
 	struct bib_table *table;
+	struct host6_node *host6;
+	struct in6_addr addr6;
 	int error;
 
 	/* Sanity */
@@ -460,11 +480,16 @@ int bibdb_add(struct bib_entry *entry)
 	/* Index */
 	spin_lock_bh(&table->lock);
 
+	addr6 = entry->ipv6.l3;
+	error = host6_node_get_or_create(&addr6, &host6);
+	if (error)
+		goto spin_exit;
+
 	error = rbtree_add(entry, &entry->ipv6, &table->tree6, compare_full6, struct bib_entry,
 			tree6_hook);
 	if (error) {
 		log_debug("IPv6 index failed.");
-		goto spin_exit;
+		goto host6_exit;
 	}
 
 	error = rbtree_add(entry, &entry->ipv4, &table->tree4, compare_full4, struct bib_entry,
@@ -477,12 +502,19 @@ int bibdb_add(struct bib_entry *entry)
 		 */
 		rb_erase(&entry->tree6_hook, &table->tree6);
 		log_debug("IPv4 index failed.");
-		goto spin_exit;
+		goto host6_exit;
 	}
 
 	table->count++;
+
+	error = host6_node_add_or_increment_addr4(host6, entry);
+	if (error)
+		bibdb_remove(entry, false);
+
 	/* Fall through. */
 
+host6_exit:
+	host6_node_return(host6);
 spin_exit:
 	spin_unlock_bh(&table->lock);
 	return error;
@@ -611,6 +643,7 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct b
 	struct ipv4_transport_addr addr4;
 	struct rb_node **node, *parent;
 	struct bib_table *table;
+	struct host6_node *host_node;
 	int error;
 
 	/* Sanitize */
@@ -632,9 +665,16 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct b
 		goto end;
 	}
 
-	/* The entry is not in the table, so create it. */
-	error = allocate_transport_address(table, tuple6, &addr4);
+	error = host6_node_get_or_create(&tuple6->src.addr6.l3, &host_node);
 	if (error) {
+		spin_unlock_bh(&table->lock);
+		return error;
+	}
+
+	/* The entry is not in the table, so create it. */
+	error = allocate_transport_address(host_node, tuple6, &addr4);
+	if (error) {
+		host6_node_return(host_node);
 		log_debug("Error code %d while 'allocating' an address for a BIB entry.", error);
 		spin_unlock_bh(&table->lock);
 		if (tuple6->l4_proto != L4PROTO_ICMP) {
@@ -648,7 +688,7 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct b
 	if (!(*bib)) {
 		log_debug("Failed to allocate a BIB entry.");
 		error = -ENOMEM;
-		goto end;
+		goto host_end;
 	}
 
 	/* Index it by IPv6. We already have the slot, so we don't need to do another rbtree_find(). */
@@ -661,12 +701,19 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct b
 	if (WARN(error, "The BIB entry could be indexed by IPv6 but not by IPv4.")) {
 		rb_erase(&(*bib)->tree6_hook, &table->tree6);
 		bib_kfree(*bib);
-		goto end;
+		goto host_end;
 	}
 
 	table->count++;
+
+	error = host6_node_add_or_increment_addr4(host_node, *bib);
+	if (error)
+		bibdb_remove(*bib, false);
+
 	/* Fall through. */
 
+host_end:
+	host6_node_return(host_node);
 end:
 	spin_unlock_bh(&table->lock);
 	return error;

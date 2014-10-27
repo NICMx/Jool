@@ -263,8 +263,12 @@ static bool test_allocate_aux(struct tuple *tuple6, struct in_addr *same_addr,
 {
 	struct ipv4_transport_addr result;
 	bool success = true;
+	struct host6_node *host6;
 
-	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, tuple6, &result),
+	if (host6_node_get_or_create(&tuple6->src.addr6.l3, &host6))
+		return false;
+
+	success &= assert_equals_int(0, allocate_transport_address(host6, tuple6, &result),
 			"function result");
 
 	/* BTW: Because in_addrs are __be32s, "1.1.1.1" is the same as "0x1010101" */
@@ -285,6 +289,8 @@ static bool test_allocate_aux(struct tuple *tuple6, struct in_addr *same_addr,
 	if (out_addr)
 		*out_addr = result.l3;
 
+	host6_node_return(host6);
+
 	return success;
 }
 
@@ -295,6 +301,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	struct tuple *sharing_client_tuple;
 	struct in_addr *non_sharing_addr;
 	struct ipv4_transport_addr result;
+	struct host6_node *host6;
 	unsigned int i = 0;
 	bool success = true;
 
@@ -383,13 +390,19 @@ static bool test_allocate_ipv4_transport_address(void)
 		goto fail;
 	}
 
+
+	if (is_error(host6_node_get_or_create(&sharing_client_tuple->src.addr6.l3, &host6)))
+		goto fail;
+
 	sharing_client_tuple->src.addr6.l4 = 0;
-	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, sharing_client_tuple,
+	success &= assert_equals_int(0, allocate_transport_address(host6, sharing_client_tuple,
 			&result), "result 3");
 	success &= assert_equals_ipv4(&client3addr4, &result.l3, "runnerup still gets his addr");
 	success &= assert_true(is_high(result.l4), "runnerup gets a high port");
 	success &= bib_inject(&sharing_client_tuple->src.addr6.l3, sharing_client_tuple->src.addr6.l4,
 			&result.l3, result.l4, L4PROTO_UDP) != NULL;
+
+	host6_node_return(host6);
 	if (!success)
 		goto fail;
 
@@ -408,12 +421,17 @@ static bool test_allocate_ipv4_transport_address(void)
 
 	log_debug("Then, the function will fall back to use the other address.");
 	client3tuple.src.addr6.l4 = i;
-	success &= assert_equals_int(0, allocate_transport_address(&bib_udp, &client3tuple, &result),
+	if (is_error(host6_node_get_or_create(&client3tuple.src.addr6.l3, &host6)))
+		goto fail;
+
+	success &= assert_equals_int(0, allocate_transport_address(host6, &client3tuple, &result),
 			"function result");
 	success &= assert_true(client3addr4.s_addr != result.l3.s_addr,
 			"node gets a runnerup address");
 	success &= bib_inject(&client3tuple.src.addr6.l3, client3tuple.src.addr6.l4,
 			&result.l3, result.l4, L4PROTO_UDP) != NULL;
+
+	host6_node_return(host6);
 	if (!success)
 		goto fail;
 
@@ -429,13 +447,27 @@ static bool test_allocate_ipv4_transport_address(void)
 			goto fail;
 	}
 
+
 	log_debug("Now the pool is completely exhausted, so further requests cannot fall back.");
-	success &= assert_equals_int(-ESRCH, allocate_transport_address(&bib_udp, &client1tuple,
+
+	if (is_error(host6_node_get_or_create(&client1tuple.src.addr6.l3, &host6)))
+		goto fail;
+	success &= assert_equals_int(-ESRCH, allocate_transport_address(host6, &client1tuple,
 			&result), "client 1's request is denied");
-	success &= assert_equals_int(-ESRCH, allocate_transport_address(&bib_udp, &client2tuple,
+	host6_node_return(host6);
+
+	if (is_error(host6_node_get_or_create(&client2tuple.src.addr6.l3, &host6)))
+		goto fail;
+	success &= assert_equals_int(-ESRCH, allocate_transport_address(host6, &client2tuple,
 			&result), "client 2's request is denied");
-	success &= assert_equals_int(-ESRCH, allocate_transport_address(&bib_udp, &client3tuple,
+	host6_node_return(host6);
+
+	if (is_error(host6_node_get_or_create(&client3tuple.src.addr6.l3, &host6)))
+		goto fail;
+	success &= assert_equals_int(-ESRCH, allocate_transport_address(host6, &client3tuple,
 			&result), "client 3's request is denied");
+	host6_node_return(host6);
+
 	return success;
 
 fail:

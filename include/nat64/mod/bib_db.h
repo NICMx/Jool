@@ -53,6 +53,10 @@ struct bib_entry {
 	struct rb_node tree6_hook;
 	/** Appends this entry to the database's IPv4 index. */
 	struct rb_node tree4_hook;
+
+	/** A reference for the IPv4 borrowed from pool4, this is hold it just for keeping the
+	 * host6_node alive in the database.*/
+	struct host_addr4 *host4_addr;
 };
 
 /**

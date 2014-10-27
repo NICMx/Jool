@@ -23,6 +23,7 @@ jool-objs += pkt_queue.o
 jool-objs += poolnum.o
 jool-objs += pool6.o
 jool-objs += pool4.o
+jool-objs += host6_node.o
 jool-objs += bib_db.o
 jool-objs += session_db.o
 jool-objs += static_routes.o

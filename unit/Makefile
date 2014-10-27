@@ -85,6 +85,7 @@ $(BIB)-objs += $(MIN_REQS)
 # The BIB test cannot use the pool4 impersonator
 # because it needs to test exhaustion.
 $(BIB)-objs += ../mod/pool4.o
+$(BIB)-objs += ../mod/host6_node.o
 $(BIB)-objs += ../mod/poolnum.o
 $(BIB)-objs += ../mod/random.o
 $(BIB)-objs += ../mod/rbtree.o
@@ -94,6 +95,7 @@ $(BIB)-objs += impersonator/icmp_wrapper.o
 $(BIB)-objs += bib_test.o
 
 $(SESSION)-objs += $(MIN_REQS)
+$(SESSION)-objs += ../mod/host6_node.o
 $(SESSION)-objs += ../mod/bib_db.o
 $(SESSION)-objs += ../mod/ipv6_hdr_iterator.o
 $(SESSION)-objs += ../mod/packet.o
@@ -128,6 +130,7 @@ $(INCOMING)-objs += impersonator/stats.o
 $(INCOMING)-objs += determine_incoming_tuple_test.o
 
 $(FILTERING)-objs += $(MIN_REQS)
+$(FILTERING)-objs += ../mod/host6_node.o
 $(FILTERING)-objs += ../mod/bib_db.o
 $(FILTERING)-objs += ../mod/ipv6_hdr_iterator.o
 $(FILTERING)-objs += ../mod/packet.o
@@ -146,6 +149,7 @@ $(FILTERING)-objs += impersonator/stats.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
 $(OUTGOING)-objs += $(MIN_REQS)
+$(OUTGOING)-objs += ../mod/host6_node.o
 $(OUTGOING)-objs += ../mod/bib_db.o
 $(OUTGOING)-objs += ../mod/compute_outgoing_tuple.o
 $(OUTGOING)-objs += ../mod/packet.o
@@ -176,6 +180,7 @@ $(TRANSLATE)-objs += impersonator/stats.o
 $(TRANSLATE)-objs += translate_packet_test.o
 
 $(HAIRPINNING)-objs += $(MIN_REQS)
+$(HAIRPINNING)-objs += ../mod/host6_node.o
 $(HAIRPINNING)-objs += ../mod/bib_db.o
 $(HAIRPINNING)-objs += ../mod/compute_outgoing_tuple.o
 $(HAIRPINNING)-objs += ../mod/core.o
@@ -207,6 +212,7 @@ $(HAIRPINNING)-objs += impersonator/stats.o
 $(HAIRPINNING)-objs += handling_hairpinning_test.o
 
 $(PKTQUEUE)-objs += $(MIN_REQS)
+$(PKTQUEUE)-objs += ../mod/host6_node.o
 $(PKTQUEUE)-objs += ../mod/bib_db.o
 $(PKTQUEUE)-objs += ../mod/packet.o
 $(PKTQUEUE)-objs += ../mod/ipv6_hdr_iterator.o
@@ -233,6 +239,7 @@ $(CONFIG_PROTO)-objs += ../mod/rfc6052.o
 $(CONFIG_PROTO)-objs += ../mod/random.o
 $(CONFIG_PROTO)-objs += ../mod/rbtree.o
 $(CONFIG_PROTO)-objs += ../mod/fragment_db.o
+$(CONFIG_PROTO)-objs += ../mod/host6_node.o
 $(CONFIG_PROTO)-objs += ../mod/bib_db.o
 $(CONFIG_PROTO)-objs += ../mod/session_db.o
 $(CONFIG_PROTO)-objs += ../mod/send_packet.o
