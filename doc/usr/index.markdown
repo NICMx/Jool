@@ -24,11 +24,21 @@ But just to make things clear, this is the status of the project as of now:
 
 Jool is still <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">one feature away</a> from being 100% RFC 6146 compliant. That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
 
-Our last release is version <a href="https://github.com/NICMx/NAT64/milestones/3.2.1" target="_blank">3.2.1</a>.
+Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.2.2" target="_blank">3.2.2</a>.
 
 -------------------
 
 ## News
+
+### 2014-10-24
+
+An <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank">important bug</a> was discovered, and version 3.2.2 is out.
+
+### 2014-10-17
+
+The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-general.html#plateaus) also received improvements.
+
+It has come to our attention that <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">we are also lacking an explanation of IP literals</a>, so there should be another codeless update like this in the near future.
 
 ### 2014-10-08
 
