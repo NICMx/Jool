@@ -124,8 +124,9 @@ enum argp_flags {
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
 	ARGP_DF = 4005,
-	ARGP_BUILD_ID = 4006,
-	ARGP_LOWER_MTU_FAIL = 4007,
+	ARGP_BUILD_FH = 4006,
+	ARGP_BUILD_ID = 4007,
+	ARGP_LOWER_MTU_FAIL = 4008,
 	ARGP_PLATEAUS = 4010,
 	ARGP_MIN_IPV6_MTU = 4011,
 	ARGP_FRAG_TO = 4012,
@@ -220,6 +221,8 @@ static struct argp_option options[] =
 			"Set the IPv4 Type of Service." },
 	{ DF_ALWAYS_ON_OPT, ARGP_DF, BOOL_FORMAT, 0,
 			"Always set Don't Fragment?" },
+	{ BUILD_IPV6_FRAG_HDR, ARGP_BUILD_FH, BOOL_FORMAT, 0,
+			"Include IPv6 Fragment Header when IPv4 Packet DF flag is not set." },
 	{ BUILD_IPV4_ID_OPT, ARGP_BUILD_ID, BOOL_FORMAT, 0,
 			"Generate IPv4 ID?" },
 	{ LOWER_MTU_FAIL_OPT, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
@@ -489,6 +492,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_DF:
 		error = set_general_bool(args, TRANSLATE, DF_ALWAYS_ON, str);
+		break;
+	case ARGP_BUILD_FH:
+		error = set_general_bool(args, TRANSLATE, BUILD_IPV6_FH, str);
 		break;
 	case ARGP_BUILD_ID:
 		error = set_general_bool(args, TRANSLATE, BUILD_IPV4_ID, str);

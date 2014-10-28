@@ -25,6 +25,7 @@ int ttpconfig_init(void)
 	config->reset_tos = TRAN_DEF_RESET_TOS;
 	config->new_tos = TRAN_DEF_NEW_TOS;
 	config->df_always_on = TRAN_DEF_DF_ALWAYS_ON;
+	config->build_ipv6_fh = TRAN_DEF_BUILD_IPV6_FH;
 	config->build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
 	config->lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
 	config->mtu_plateau_count = ARRAY_SIZE(default_plateaus);
@@ -171,6 +172,11 @@ int ttpconfig_update(enum translate_type type, size_t size, void *value)
 		if (!expect_u8(size))
 			goto fail;
 		tmp_config->df_always_on = *((__u8 *) value);
+		break;
+	case BUILD_IPV6_FH:
+		if (!expect_u8(size))
+			goto fail;
+		tmp_config->build_ipv6_fh = *((__u8 *) value);
 		break;
 	case BUILD_IPV4_ID:
 		if (!expect_u8(size))

@@ -207,6 +207,17 @@ If this is ON, Jool will always set the Don't Fragment flags (as 1).
 
 If this is OFF, then Jool will set the DF flag only if the length of the IPv6 packet being translated is less or equal than 88 or higher than 1280 bytes. You do this to avoid black holes caused by ICMPv4 filtering or non-RFC2460-compatible IPv6 hosts.
 
+### \--genFH
+
+- Name: Generate IPv6 Fragment Header
+- Type: Boolean
+- Default: ON
+- Translation direction: IPv4 to IPv6
+
+If this is ON, Jool will always generate an "IPv6 Fragment Header" if the incoming IPv4 Packet does not set the DF flag.
+
+If this is OFF, then Jool will not generate the "IPv6 Fragment Header" whether the Flag of the incoming IPv4 Packet is set or not set, unless the incoming packet is a fragment, the "IPv6 Fragment Header" will be generated.
+
 ### \--genID
 
 - Name: Generate IPv4 identification

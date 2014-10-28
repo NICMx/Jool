@@ -11,9 +11,25 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/mod/stats.h"
 
+static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
+{
+	struct translate_config *config;
+	bool build_ipv6_fh = 0;
+
+	if (is_dont_fragment_set(in_hdr))
+		return false;
+
+	rcu_read_lock_bh();
+	config = ttpconfig_get();
+	build_ipv6_fh = config->build_ipv6_fh;
+	rcu_read_unlock_bh();
+
+	return build_ipv6_fh;
+}
+
 static int has_frag_hdr(struct iphdr *in_hdr)
 {
-	return !is_dont_fragment_set(in_hdr) ||
+	return build_ipv6_frag_hdr(in_hdr) ||
 			(is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr));
 }
 

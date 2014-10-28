@@ -18,6 +18,7 @@
 #define RESET_TOS_OPT			"setTOS"
 #define NEW_TOS_OPT				"TOS"
 #define DF_ALWAYS_ON_OPT		"setDF"
+#define BUILD_IPV6_FRAG_HDR		"genFH"
 #define BUILD_IPV4_ID_OPT		"genID"
 #define LOWER_MTU_FAIL_OPT		"boostMTU"
 #define IPV6_NEXTHOP_MTU_OPT	"nextMTU6"
