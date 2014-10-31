@@ -350,6 +350,9 @@ static int ipv4_udp_post(void *l4_hdr, u16 datagram_len, struct tuple *tuple4)
 	hdr->check = csum_tcpudp_magic(tuple4->src.addr4.l3.s_addr, tuple4->dst.addr4.l3.s_addr,
 			datagram_len, IPPROTO_UDP, csum_partial(l4_hdr, datagram_len, 0));
 
+	if (hdr->check == 0)
+		hdr->check = CSUM_MANGLED_0;
+
 	return 0;
 }
 
@@ -451,6 +454,71 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, struct tuple *, bool, bo
 failure:
 	kfree_skb(skb);
 	return error;
+}
+
+static int init_custom_payload(void *target, u16 *payload_array, u16 payload_len)
+{
+	unsigned char *payload = target;
+	u16 i;
+
+	for (i = 0; i < payload_len; i++)
+		payload[i] = payload_array[i];
+
+	return 0;
+}
+
+static int create_skb_custom_payload(
+		int (*l3_hdr_fn)(void *, u16, u8, struct tuple *, bool, bool, u16, u8),
+		int l3_hdr_type, int l3_hdr_len, bool df, bool mf, u16 frag_offset, u8 ttl,
+		int (*l4_hdr_fn)(void *, int, u16, struct tuple *),
+		int l4_hdr_type, int l4_hdr_len, int l4_total_len,
+		u16 *payload_array, u16 payload_len,
+		int (*l4_post_fn)(void *, u16, struct tuple *),
+		struct sk_buff **result, struct tuple *tuple)
+{
+	int error = 0;
+	error = create_skb(l3_hdr_fn, l3_hdr_type, l3_hdr_len, df, mf, frag_offset, ttl,
+			l4_hdr_fn,l4_hdr_type, l4_hdr_len, l4_total_len,
+			init_payload_normal, payload_len,
+			empty_post,
+			result, tuple);
+	if (error)
+		goto failure;
+
+	error = init_custom_payload(skb_transport_header(*result) + l4_hdr_len,
+			payload_array, payload_len);
+	if (error)
+		goto failure;
+
+	error = l4_post_fn(skb_transport_header(*result), l4_hdr_len + payload_len, tuple);
+	if (error)
+		goto failure;
+
+	return 0;
+
+failure:
+	kfree_skb(*result);
+	return error;
+}
+
+int create_skb6_upd_custom_payload(struct tuple *tuple6, struct sk_buff **result, u16 *payload_array,
+		u16 payload_len, u8 ttl)
+{
+	return create_skb_custom_payload(init_ipv6_hdr, ETH_P_IPV6, IPV6_HDR_LEN, true, false, 0, ttl,
+			init_udp_hdr, NEXTHDR_UDP, UDP_HDR_LEN, UDP_HDR_LEN + payload_len,
+			payload_array, payload_len,
+			ipv6_udp_post,
+			result, tuple6);
+}
+
+int create_skb4_upd_custom_payload(struct tuple *tuple4, struct sk_buff **result, u16 *payload_array,
+		u16 payload_len, u8 ttl)
+{
+	return create_skb_custom_payload(init_ipv4_hdr, ETH_P_IP, IPV4_HDR_LEN, true, false, 0, ttl,
+			init_udp_hdr, IPPROTO_UDP, UDP_HDR_LEN, UDP_HDR_LEN + payload_len,
+			payload_array, payload_len,
+			ipv4_udp_post,
+			result, tuple4);
 }
 
 int create_skb6_udp(struct tuple *tuple6, struct sk_buff **result, u16 payload_len, u8 ttl)
