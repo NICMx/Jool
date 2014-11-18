@@ -18,147 +18,24 @@
 #define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
 
 
+/* TODO (issue #41) review callers. */
 void kfree_skb_queued(struct sk_buff *skb)
 {
-	struct sk_buff *next_skb;
-	while (skb) {
-		next_skb = skb->next;
-		skb->next = skb->prev = NULL;
-		kfree_skb(skb);
-		skb = next_skb;
-	}
+	kfree_skb(skb);
 }
 
+/* TODO (issue #41) review callers. */
 int skb_aggregate_ipv4_payload_len(struct sk_buff *skb, unsigned int *len)
 {
-	struct iphdr *hdr;
-
-	do {
-		hdr = ip_hdr(skb);
-
-		if (!is_more_fragments_set_ipv4(hdr)) {
-			*len = get_fragment_offset_ipv4(hdr) + skb_l4hdr_len(skb) + skb_payload_len(skb);
-			return 0;
-		}
-
-		skb = skb->next;
-	} while (skb);
-
-	WARN(true, "I'm missing the MF=false fragment...");
-	return -EINVAL;
+	*len = skb->len - skb_l4hdr_len(skb);
+	return 0;
 }
 
+/* TODO (issue #41) review callers. */
 int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len)
 {
-	struct frag_hdr *hdr = skb_frag_hdr(skb);
-
-	if (!hdr) {
-		*len = skb_l4hdr_len(skb) + skb_payload_len(skb);
-		return 0;
-	}
-
-	do {
-		hdr = skb_frag_hdr(skb);
-
-		if (!is_more_fragments_set_ipv6(hdr)) {
-			*len = get_fragment_offset_ipv6(hdr) + skb_l4hdr_len(skb) + skb_payload_len(skb);
-			return 0;
-		}
-
-		skb = skb->next;
-	} while (skb);
-
-	WARN(true, "I'm missing the MF=false fragment...");
-	return -EINVAL;
-}
-
-int validate_lengths_tcp(unsigned int len, unsigned int l3_hdr_len, struct tcphdr *hdr)
-{
-	if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
-		log_debug("Packet is too small to contain a basic TCP header.");
-		return -EINVAL;
-	}
-
-	if (len < l3_hdr_len + tcp_hdr_len(hdr)) {
-		log_debug("Packet is too small to contain its TCP header.");
-		return -EINVAL;
-	}
-
+	*len = skb->len - skb_l4hdr_len(skb);
 	return 0;
-}
-
-int validate_lengths_udp(unsigned int len, unsigned int l3_hdr_len)
-{
-	if (len < l3_hdr_len + MIN_UDP_HDR_LEN) {
-		log_debug("Packet is too small to contain a UDP header.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int validate_lengths_icmp6(unsigned int len, unsigned int l3_hdr_len)
-{
-	if (len < l3_hdr_len + MIN_ICMP6_HDR_LEN) {
-		log_debug("Packet is too small to contain a ICMPv6 header.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int validate_lengths_icmp4(unsigned int len, unsigned int l3_hdr_len)
-{
-	if (len < l3_hdr_len + MIN_ICMP4_HDR_LEN) {
-		log_debug("Packet is too small to contain a ICMPv4 header.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator, int *field)
-{
-	enum hdr_iterator_result result;
-
-	if (len < MIN_IPV6_HDR_LEN) {
-		log_debug("Packet is too small to contain a basic IPv6 header.");
-		*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-		return -EINVAL;
-	}
-	if (!is_truncated && len != MIN_IPV6_HDR_LEN + be16_to_cpu(hdr->payload_len)) {
-		log_debug("The packet's length does not match the IPv6 header's payload length field.");
-		*field = IPSTATS_MIB_INHDRERRORS;
-		return -EINVAL;
-	}
-
-	if (is_truncated)
-		hdr_iterator_init_truncated(iterator, hdr, len);
-	else
-		hdr_iterator_init(iterator, hdr);
-	result = hdr_iterator_last(iterator);
-
-	switch (result) {
-	case HDR_ITERATOR_SUCCESS:
-		WARN(true, "Iterator reports there are headers beyond the payload.");
-		break;
-	case HDR_ITERATOR_END:
-		return 0;
-	case HDR_ITERATOR_UNSUPPORTED:
-		/* RFC 6146 section 5.1. */
-		log_debug("Packet contains an Authentication or ESP header, "
-				"which I'm not supposed to support.");
-		break;
-	case HDR_ITERATOR_OVERFLOW:
-		log_debug("IPv6 extension header analysis ran past the end of the packet. "
-				"Packet seems corrupted; ignoring.");
-		break;
-	}
-
-	/* If fall through here, indicates there is a Header Error. */
-	*field = IPSTATS_MIB_INHDRERRORS;
-	return -EINVAL;
 }
 
 bool icmp4_has_inner_packet(__u8 icmp_type)
@@ -166,87 +43,225 @@ bool icmp4_has_inner_packet(__u8 icmp_type)
 	return is_icmp4_error(icmp_type);
 }
 
-bool icmpv6_has_inner_packet(__u8 icmp6_type)
+bool icmp6_has_inner_packet(__u8 icmp6_type)
 {
 	return is_icmp6_error(icmp6_type);
 }
 
-static int validate_inner_packet6(struct ipv6hdr *hdr6, unsigned int len, int *field)
+static int init_l4(struct sk_buff *skb, u8 protocol, bool is_first_fragment)
 {
-	struct hdr_iterator iterator;
-	struct icmp6hdr *l4_hdr;
-	unsigned int l3_hdr_len;
-	int error;
+	struct jool_cb *cb = skb_jcb(skb);
+	int error = 0;
 
-	log_debug("Validating inner packet 6");
+	cb->payload = skb_transport_header(skb);
 
-	error = validate_ipv6_integrity(hdr6, len, true, &iterator, field);
-	if (error)
-		return error;
+	switch (protocol) {
+	case IPPROTO_TCP:
+		cb->l4_proto = L4PROTO_TCP;
+		if (is_first_fragment) {
+			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + sizeof(struct tcphdr)))
+				goto truncated;
+			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + tcp_hdrlen(skb)))
+				goto truncated;
+			cb->payload += tcp_hdrlen(skb);
+		}
+		break;
 
-	if (!is_first_fragment_ipv6(get_extension_header(hdr6, NEXTHDR_FRAGMENT))) {
-		log_debug("Inner packet is not a first fragment...");
+	case IPPROTO_UDP:
+		cb->l4_proto = L4PROTO_UDP;
+		if (is_first_fragment) {
+			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + sizeof(struct udphdr)))
+				goto truncated;
+			cb->payload += sizeof(struct udphdr);
+		}
+		break;
+
+	case IPPROTO_ICMP:
+	case NEXTHDR_ICMP:
+		cb->l4_proto = L4PROTO_ICMP;
+		if (is_first_fragment){
+			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + sizeof(struct icmphdr)))
+				goto truncated;
+			cb->payload += sizeof(struct icmphdr);
+		}
+		break;
+
+	default:
+		log_debug("Unsupported layer 4 protocol: %d", protocol);
+		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
+		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;
 	}
 
-	l3_hdr_len = iterator.data - (void *) hdr6;
+	return error;
 
-	switch (iterator.hdr_type) {
-	case NEXTHDR_TCP:
-		if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
+truncated:
+	log_debug("Packet is too small to contain its layer-4 header.");
+	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
+	return -EINVAL;
+}
+
+int init_l4_inner(struct sk_buff *skb, u8 protocol, unsigned int offset)
+{
+	switch (protocol) {
+	case IPPROTO_TCP:
+		if (!pskb_may_pull(skb, offset + sizeof(struct tcphdr))) {
 			log_debug("Inner packet is too small to contain a basic TCP header.");
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
 			return -EINVAL;
 		}
 		break;
-	case NEXTHDR_UDP:
-		error = validate_lengths_udp(len, l3_hdr_len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-		break;
-	case NEXTHDR_ICMP:
-		error = validate_lengths_icmp6(len, l3_hdr_len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-		l4_hdr = iterator.data;
-		if (icmpv6_has_inner_packet(l4_hdr->icmp6_type)) {
-			*field = IPSTATS_MIB_INHDRERRORS;
-			return -EINVAL; /* packet inside packet inside packet. */
-		}
 
+	case IPPROTO_UDP:
+		if (!pskb_may_pull(skb, offset + sizeof(struct udphdr))) {
+			log_debug("Inner packet is too small to contain a UDP header.");
+			return -EINVAL;
+		}
 		break;
+
+	case IPPROTO_ICMP:
+	case NEXTHDR_ICMP:
+		if (!pskb_may_pull(skb, offset + sizeof(struct icmphdr))) {
+			log_debug("Inner packet is too small to contain a ICMP header.");
+			return -EINVAL;
+		}
+		break;
+
 	default:
 		/*
 		 * Why are we validating an error packet of a packet we couldn't have translated?
 		 * Either an attack or shouldn't happen, so drop silently.
 		 */
-		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
+//		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
+/**
+ * Warning: Result is an inverted boolean. Zero means "no problem", nonzero is an error code and
+ * therefore means "no".
+ */
+static int may_pull_ipv6_hdrs(struct sk_buff *skb)
+{
+	__be16 frag_offset;
+	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
+	int offset;
+	bool result;
+
+	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr, &frag_offset);
+	if (offset == -1) {
+		log_debug("ipv6_skip_exthdr() returned -1.");
+		return -EINVAL;
+	}
+
+	result = pskb_may_pull(skb, offset);
+	if (!result) {
+		log_debug("Could not 'pull' the extension IPv6 headers out of the skb.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int iterate_till_end(struct hdr_iterator *iterator, struct frag_hdr **fhdr)
+{
+	enum hdr_iterator_result result;
+
+	*fhdr = NULL;
+	do {
+		if (iterator->hdr_type == NEXTHDR_FRAGMENT)
+			*fhdr = iterator->data;
+	} while ((result = hdr_iterator_next(iterator)) == HDR_ITERATOR_SUCCESS);
+
+	switch (result) {
+	case HDR_ITERATOR_END:
+		break;
+	case HDR_ITERATOR_UNSUPPORTED:
+		/* RFC 6146 section 5.1. */
+		log_debug("Packet contains an Auth or ESP header, which I'm not supposed to support.");
+		return -EINVAL;
+	case HDR_ITERATOR_OVERFLOW:
+		WARN(true, "Iterator overflowed despite ipv6_skip_exthdr()'s success.");
+		return -EINVAL;
+	case HDR_ITERATOR_SUCCESS:
+		WARN(true, "Iteration ended nonsensically.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int init_inner_packet6(struct sk_buff *skb)
+{
+	struct ipv6hdr *hdr6 = skb_jcb(skb)->payload;
+	struct frag_hdr *fhdr;
+	struct icmp6hdr *l4_hdr;
+	struct hdr_iterator iterator;
+	unsigned int offset = skb_l3hdr_len(skb) + sizeof(struct icmphdr);
+	int error;
+
+	log_debug("Validating inner IPv6 packet.");
+
+	if (!pskb_may_pull(skb, offset + sizeof(struct ipv6hdr)))
+		return -EINVAL;
+	if (unlikely(hdr6->version != 6))
+		return -EINVAL;
+	error = may_pull_ipv6_hdrs(skb);
+	if (error)
+		return error;
+
+	hdr_iterator_init_truncated(&iterator, hdr6, skb_headlen(skb) - offset);
+	error = iterate_till_end(&iterator, &fhdr);
+	if (error)
+		return error;
+
+	if (!is_first_fragment_ipv6(fhdr)) {
+		log_debug("Inner packet is not a first fragment...");
+		return -EINVAL;
+	}
+
+	error = init_l4_inner(skb, iterator.hdr_type, iterator.data - (void *) ipv6_hdr(skb));
+	if (error)
+		return error;
+
+	if (iterator.hdr_type == L4PROTO_ICMP) {
+		l4_hdr = iterator.data;
+		if (icmpv6_has_inner_packet(l4_hdr->icmp6_type)) {
+			log_debug("Packet inside packet inside packet.");
+			return -EINVAL; /* packet inside packet inside packet. */
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * TODO (issue #41) review stats.
+ */
 int skb_init_cb_ipv6(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
+	struct frag_hdr *fragment_hdr;
 	struct hdr_iterator iterator;
 	int error;
-	int field = 0;
 
 #ifdef BENCHMARK
 	getnstimeofday(&cb->start_time);
 #endif
 
-	error = validate_ipv6_integrity(ipv6_hdr(skb), skb->len, false, &iterator, &field);
-	if (error) {
-		inc_stats(skb, field);
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+		return -EINVAL;
+	if (skb->len != sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len))
+		return -EINVAL;
+	error = may_pull_ipv6_hdrs(skb);
+	if (error)
 		return error;
-	}
+
+	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb), skb_headlen(skb));
+	error = iterate_till_end(&iterator, &fragment_hdr);
+	if (error)
+		return error;
 
 	/*
 	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
@@ -257,182 +272,96 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	 */
 
 	cb->l3_proto = L3PROTO_IPV6;
-	cb->frag_hdr = get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
 	cb->original_skb = skb;
 	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
-	cb->payload = iterator.data;
 
-	switch (iterator.hdr_type) {
-	case NEXTHDR_TCP:
-		cb->l4_proto = L4PROTO_TCP;
-
-		if (is_first_fragment_ipv6(cb->frag_hdr)) {
-			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
-			if (error) {
-				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-				return error;
-			}
-			cb->payload += tcp_hdrlen(skb);
-		}
-		break;
-
-	case NEXTHDR_UDP:
-		cb->l4_proto = L4PROTO_UDP;
-
-		if (is_first_fragment_ipv6(cb->frag_hdr)) {
-			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
-			if (error) {
-				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-				return error;
-			}
-			cb->payload += sizeof(struct udphdr);
-		}
-		break;
-
-	case NEXTHDR_ICMP:
-		cb->l4_proto = L4PROTO_ICMP;
-
-		if (is_first_fragment_ipv6(cb->frag_hdr)) {
-			error = validate_lengths_icmp6(skb->len, skb_l3hdr_len(skb));
-			if (error) {
-				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-				return error;
-			}
-			cb->payload += sizeof(struct icmp6hdr);
-
-			if (icmpv6_has_inner_packet(icmp6_hdr(skb)->icmp6_type)) {
-				error = validate_inner_packet6(cb->payload, skb_payload_len(skb), &field);
-				if (error) {
-					inc_stats(skb, field);
-					return error;
-				}
-			}
-		}
-		break;
-
-	default:
-		log_debug("Unsupported layer 4 protocol: %d", iterator.hdr_type);
-		icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
-	}
-
-
-	return 0;
-}
-
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field)
-{
-	if (len < MIN_IPV4_HDR_LEN) {
-		log_debug("Packet is too small to contain a basic IP header.");
-		*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-		return -EINVAL;
-	}
-	if (hdr->ihl < 5) {
-		log_debug("Packet's IHL field is too small.");
-		*field = IPSTATS_MIB_INHDRERRORS;
-		return -EINVAL;
-	}
-	if (ip_fast_csum((u8 *) hdr, hdr->ihl)) {
-		log_debug("Packet's IPv4 checksum is incorrect.");
-		*field = IPSTATS_MIB_INHDRERRORS;
-		return -EINVAL;
-	}
-	if (len < 4 * hdr->ihl) {
-		log_debug("Packet is too small to contain the IP header + options.");
-		*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-		return -EINVAL;
-	}
-
-	if (is_truncated)
-		return 0;
-
-	if (len != be16_to_cpu(hdr->tot_len)) {
-		log_debug("The packet's length does not equal the IPv4 header's lengh field.");
-		*field = IPSTATS_MIB_INHDRERRORS;
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int validate_inner_packet4(struct iphdr *hdr4, unsigned int len, int *field)
-{
-	struct icmphdr *l4_hdr;
-	unsigned int l3_hdr_len;
-	int error;
-
-	log_debug("Validating inner packet 4");
-
-	error = validate_ipv4_integrity(hdr4, len, true, field);
+	error = init_l4(skb, iterator.hdr_type, is_first_fragment_ipv6(fragment_hdr));
 	if (error)
 		return error;
 
-	if (!is_first_fragment_ipv4(hdr4)) {
-		log_debug("Inner packet is not a first fragment...");
-		return -EINVAL;
+	if (cb->l4_proto == L4PROTO_ICMP && icmp6_has_inner_packet(icmp6_hdr(skb)->icmp6_type))
+		error = init_inner_packet6(skb);
+
+	return error;
+}
+
+static int init_inner_packet4(struct sk_buff *skb)
+{
+	struct iphdr *hdr4 = skb_jcb(skb)->payload;
+	struct icmphdr *l4_hdr;
+	unsigned int l3_hdr_len;
+	unsigned int offset = skb_l3hdr_len(skb) + sizeof(struct icmphdr);
+	int error;
+
+	log_debug("Validating IPv4 inner packet.");
+
+	if (!pskb_may_pull(skb, offset + sizeof(struct iphdr))) {
+		log_debug("Inner packet is too small to contain a basic IPv4 header.");
+		goto mem_err;
+	}
+	if (unlikely(hdr4->version != 4)) {
+		log_debug("Inner packet is not IPv4.");
+		goto in_err;
+	}
+	if (unlikely(hdr4->ihl < 5)) {
+		log_debug("Inner packet's IHL is bogus.");
+		goto in_err;
 	}
 
 	l3_hdr_len = 4 * hdr4->ihl;
 
-	switch (hdr4->protocol) {
-	case IPPROTO_TCP:
-		if (len < l3_hdr_len + MIN_TCP_HDR_LEN) {
-			log_debug("Inner packet is too small to contain a basic TCP header.");
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
+	if (!pskb_may_pull(skb, l3_hdr_len)) {
+		log_debug("Inner packet is too small to contain its IPv4 header.");
+		goto mem_err;
+	}
+	if (unlikely(ip_fast_csum((u8 *) hdr4, hdr4->ihl))) {
+		log_debug("Inner packet's header checksum doesn't match.");
+		goto in_err;
+	}
+	if (unlikely(ntohs(hdr4->tot_len) < l3_hdr_len)) {
+		log_debug("Inner packet's total length is bogus.");
+		goto in_err;
+	}
+	if (unlikely(!is_first_fragment_ipv4(hdr4))) {
+		log_debug("Inner packet is not a first fragment...");
+		goto in_err;
+	}
+
+	error = init_l4_inner(skb, hdr4->protocol, offset + l3_hdr_len);
+	if (error)
+		return error;
+
+	if (hdr4->protocol == IPPROTO_ICMP) {
+		l4_hdr = ((void *) hdr4) + l3_hdr_len;
+		if (unlikely(icmp4_has_inner_packet(l4_hdr->type))) {
+			log_debug("Packet inside packet inside packet.");
+//			inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
-
-		break;
-	case IPPROTO_UDP:
-		error = validate_lengths_udp(len, l3_hdr_len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-
-		break;
-	case IPPROTO_ICMP:
-		error = validate_lengths_icmp4(len, l3_hdr_len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-		l4_hdr = ((void *) hdr4) + l3_hdr_len;
-		if (icmp4_has_inner_packet(l4_hdr->type)) {
-			*field = IPSTATS_MIB_INHDRERRORS;
-			return -EINVAL; /* packet inside packet inside packet. */
-		}
-
-		break;
-	default:
-		/*
-		 * Why are we validating an error packet of a packet we couldn't have translated?
-		 * Either an attack or shouldn't happen, so drop silently.
-		 */
-		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
-		return -EINVAL;
 	}
 
 	return 0;
+
+mem_err:
+	return -EINVAL;
+
+in_err:
+//	ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
+	return -EINVAL;
 }
 
+/*
+ * TODO (issue #41) how does pskb_may_pull() move the hdr pointers when sk_buff_data_t is a ptr?
+ */
 int skb_init_cb_ipv4(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 	struct iphdr *hdr4 = ip_hdr(skb);
 	int error;
-	int field = 0;
 
 #ifdef BENCHMARK
 	getnstimeofday(&cb->start_time);
 #endif
-
-	error = validate_ipv4_integrity(hdr4, skb->len, false, &field);
-	if (error) {
-		inc_stats(skb, field);
-		return error;
-	}
 
 #ifndef UNIT_TESTING
 	if (skb && skb_rtable(skb) == NULL) {
@@ -451,67 +380,17 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 #endif
 
 	cb->l3_proto = L3PROTO_IPV4;
-	cb->frag_hdr = NULL;
 	cb->original_skb = skb;
 	skb_set_transport_header(skb, 4 * hdr4->ihl);
-	cb->payload = skb_transport_header(skb);
 
-	switch (hdr4->protocol) {
-	case IPPROTO_TCP:
-		cb->l4_proto = L4PROTO_TCP;
+	error = init_l4(skb, hdr4->protocol, is_first_fragment_ipv4(hdr4));
+	if (error)
+		return error;
 
-		if (is_first_fragment_ipv4(hdr4)) {
-			error = validate_lengths_tcp(skb->len, skb_l3hdr_len(skb), tcp_hdr(skb));
-			if (error) {
-				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-				return error;
-			}
-			cb->payload += tcp_hdrlen(skb);
-		}
-		break;
+	if (cb->l4_proto == L4PROTO_ICMP && icmp4_has_inner_packet(icmp_hdr(skb)->type))
+		error = init_inner_packet4(skb);
 
-	case IPPROTO_UDP:
-		cb->l4_proto = L4PROTO_UDP;
-
-		if (is_first_fragment_ipv4(hdr4)) {
-			error = validate_lengths_udp(skb->len, skb_l3hdr_len(skb));
-			if (error) {
-				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-				return error;
-			}
-			cb->payload += sizeof(struct udphdr);
-		}
-		break;
-
-	case IPPROTO_ICMP:
-		cb->l4_proto = L4PROTO_ICMP;
-
-		if (is_first_fragment_ipv4(hdr4)) {
-			error = validate_lengths_icmp4(skb->len, skb_l3hdr_len(skb));
-			if (error) {
-				inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-				return error;
-			}
-			cb->payload += sizeof(struct icmphdr);
-
-			if (icmp4_has_inner_packet(icmp_hdr(skb)->type)) {
-				error = validate_inner_packet4(cb->payload, skb_payload_len(skb), &field);
-				if (error) {
-					inc_stats(skb, field);
-					return error;
-				}
-			}
-		}
-		break;
-
-	default:
-		log_debug("Unsupported layer 4 protocol: %d", hdr4->protocol);
-		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
-	}
-
-	return 0;
+	return error;
 }
 
 static char *nexthdr_to_string(__u8 nexthdr)
