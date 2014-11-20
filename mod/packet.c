@@ -227,7 +227,7 @@ static int init_inner_packet6(struct sk_buff *skb)
 
 	if (iterator.hdr_type == L4PROTO_ICMP) {
 		l4_hdr = iterator.data;
-		if (icmpv6_has_inner_packet(l4_hdr->icmp6_type)) {
+		if (icmp6_has_inner_packet(l4_hdr->icmp6_type)) {
 			log_debug("Packet inside packet inside packet.");
 			return -EINVAL; /* packet inside packet inside packet. */
 		}
@@ -545,7 +545,8 @@ void skb_print(struct sk_buff *skb)
 	printk("\n");
 }
 
-int validate_icmp6_csum(struct sk_buff *skb) {
+int validate_icmp6_csum(struct sk_buff *skb)
+{
 	struct ipv6hdr *ip6_hdr;
 	struct icmp6hdr *hdr_icmp6;
 	unsigned int datagram_len;
@@ -561,7 +562,7 @@ int validate_icmp6_csum(struct sk_buff *skb) {
 	ip6_hdr = ipv6_hdr(skb);
 	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
 	csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
-			csum_partial(hdr_icmp6, datagram_len, 0));
+			skb_checksum(skb, skb_transport_offset(skb), datagram_len, 0));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
 		return -EINVAL;
@@ -570,7 +571,8 @@ int validate_icmp6_csum(struct sk_buff *skb) {
 	return 0;
 }
 
-int validate_icmp4_csum(struct sk_buff *skb) {
+int validate_icmp4_csum(struct sk_buff *skb)
+{
 	struct icmphdr *hdr;
 	__sum16 csum;
 
@@ -581,7 +583,8 @@ int validate_icmp4_csum(struct sk_buff *skb) {
 	if (!is_icmp4_error(hdr->type))
 		return 0;
 
-	csum = ip_compute_csum(hdr, skb_l4hdr_len(skb) + skb_payload_len(skb));
+	csum = csum_fold(skb_checksum(skb, skb_transport_offset(skb),
+			skb_l4hdr_len(skb) + skb_payload_len(skb), 0));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
 		return -EINVAL;

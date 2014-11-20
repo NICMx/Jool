@@ -320,7 +320,6 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 
 		skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(skb),
 				skb_transport_header(new_skb),
-				(struct frag_hdr *) (ipv6_hdr(new_skb) + 1),
 				skb_original_skb(skb));
 
 		prev_skb->next = new_skb;

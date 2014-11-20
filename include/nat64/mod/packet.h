@@ -173,16 +173,13 @@ struct jool_cb {
 	 */
 	void *payload;
 	/**
-	 * If the packet is IPv6 and has a fragment header, this points to it. Else, this holds NULL.
-	 */
-	struct frag_hdr *frag_hdr;
-	/**
 	 * If this is an incoming packet (as in, incoming to Jool), this points to the same packet.
 	 * Otherwise (which includes hairpin packets), this points to the original (incoming) packet.
 	 * Used by the ICMP wrapper because it needs to reply the original packet, not the one being
 	 * translated. Also used by the packet queue.
 	 */
 	struct sk_buff *original_skb;
+
 #ifdef BENCHMARK
 	/**
 	 * Log the time in epoch when this skb arrives to jool. For benchmark purpouse.
@@ -197,6 +194,7 @@ struct jool_cb {
  */
 static inline struct jool_cb *skb_jcb(struct sk_buff *skb)
 {
+	BUILD_BUG_ON(sizeof(struct jool_cb) > sizeof(skb->cb));
 	return (struct jool_cb *) skb->cb;
 }
 
@@ -216,14 +214,13 @@ static inline void skb_clear_cb(struct sk_buff *skb)
  * Initializes "skb"'s control buffer using the rest of the arguments.
  */
 static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
-		void *payload, struct frag_hdr *fraghdr, struct sk_buff *original_skb)
+		void *payload, struct sk_buff *original_skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 
 	cb->l3_proto = l3_proto;
 	cb->l4_proto = l4_proto;
 	cb->payload = payload;
-	cb->frag_hdr = fraghdr;
 	cb->original_skb = original_skb;
 #ifdef BENCHMARK
 	cb->start_time = skb_jcb(original_skb)->start_time;
@@ -252,14 +249,6 @@ static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
 static inline void *skb_payload(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->payload;
-}
-
-/**
- * Returns a pointer to "skb"'s fragment header, if it has one.
- */
-static inline struct frag_hdr *skb_frag_hdr(struct sk_buff *skb)
-{
-	return skb_jcb(skb)->frag_hdr;
 }
 
 /**
@@ -319,42 +308,6 @@ int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
  */
 
 /**
- * Fails if "hdr" is corrupted.
- *
- * @param len length of the buffer "hdr" belongs to.
- * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
- *		not be considered a problem (validation will still fail if the buffer does not contain
- *		enough l3 and l4 headers).
- * @param iterator this function will leave this iterator at the layer-3 payload of "hdr"'s buffer.
- */
-int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator, int *field);
-/**
- * Fails if "hdr" is corrupted.
- *
- * @param len length of the buffer "hdr" belongs to.
- * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
- *		not be considered a problem (validation will still fail if the buffer does not contain
- *		enough l3 and l4 headers).
- */
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field);
-
-/**
- * @{
- * Fails if the parameters describe an invalid respective layer-4 header.
- *
- * @param len length of the buffer the header belongs to.
- * @param l3_hdr_len length of the layer-3 headers of the buffer the header belongs to.
- */
-int validate_lengths_tcp(unsigned int len, unsigned int l3_hdr_len, struct tcphdr *hdr);
-int validate_lengths_udp(unsigned int len, unsigned int l3_hdr_len);
-int validate_lengths_icmp6(unsigned int len, unsigned int l3_hdr_len);
-int validate_lengths_icmp4(unsigned int len, unsigned int l3_hdr_len);
-/**
- * @}
- */
-
-/**
  * kfrees "skb". The point is, if "skb" is fragmented, it also kfrees the rest of the fragments.
  */
 void kfree_skb_queued(struct sk_buff *skb);
@@ -367,7 +320,7 @@ bool icmp4_has_inner_packet(__u8 icmp_type);
 /**
  * Returns "true" if "icmp6_type" is defined by RFC 4443 to contain a subpacket as payload.
  */
-bool icmpv6_has_inner_packet(__u8 icmp6_type);
+bool icmp6_has_inner_packet(__u8 icmp6_type);
 
 /**
  * Initializes "skb"'s control buffer. It also validates "skb".

@@ -63,7 +63,6 @@ int ttp46_create_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	skb_set_jcb(new_skb, L3PROTO_IPV6, in->l4_hdr.proto,
 			skb_transport_header(new_skb) + in->l4_hdr.len,
-			has_frag_hdr(in->l3_hdr.ptr) ? ((struct frag_hdr *) (ipv6_hdr(new_skb) + 1)) : NULL,
 			skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;
@@ -404,11 +403,6 @@ static int buffer4_to_parts(struct iphdr *hdr4, unsigned int len, struct pkt_par
 		int *field)
 {
 	struct icmphdr *hdr_icmp;
-	int error;
-
-	error = validate_ipv4_integrity(hdr4, len, true, field);
-	if (error)
-		return error;
 
 	parts->l3_hdr.proto = L3PROTO_IPV4;
 	parts->l3_hdr.len = 4 * hdr4->ihl;
@@ -417,31 +411,14 @@ static int buffer4_to_parts(struct iphdr *hdr4, unsigned int len, struct pkt_par
 
 	switch (hdr4->protocol) {
 	case IPPROTO_TCP:
-		error = validate_lengths_tcp(len, parts->l3_hdr.len, parts->l4_hdr.ptr);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-
 		parts->l4_hdr.proto = L4PROTO_TCP;
 		parts->l4_hdr.len = tcp_hdr_len(parts->l4_hdr.ptr);
 		break;
 	case IPPROTO_UDP:
-		error = validate_lengths_udp(len, parts->l3_hdr.len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-
 		parts->l4_hdr.proto = L4PROTO_UDP;
 		parts->l4_hdr.len = sizeof(struct udphdr);
 		break;
 	case IPPROTO_ICMP:
-		error = validate_lengths_icmp4(len, parts->l3_hdr.len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
 		hdr_icmp = parts->l4_hdr.ptr;
 		if (icmp4_has_inner_packet(hdr_icmp->type)) {
 			*field = IPSTATS_MIB_INHDRERRORS;

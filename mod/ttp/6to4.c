@@ -60,7 +60,7 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 
 	skb_set_jcb(new_skb, L3PROTO_IPV4, in->l4_hdr.proto,
 			skb_transport_header(new_skb) + in->l4_hdr.len,
-			NULL, skb_original_skb(in->skb));
+			skb_original_skb(in->skb));
 
 	new_skb->mark = in->skb->mark;
 	new_skb->protocol = htons(ETH_P_IP);
@@ -419,11 +419,8 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_p
 {
 	struct hdr_iterator iterator;
 	struct icmp6hdr *hdr_icmp;
-	int error;
 
-	error = validate_ipv6_integrity(hdr6, len, true, &iterator, field);
-	if (error)
-		return error;
+	hdr_iterator_last(&iterator);
 
 	parts->l3_hdr.proto = L3PROTO_IPV6;
 	parts->l3_hdr.len = iterator.data - (void *) hdr6;
@@ -432,33 +429,16 @@ static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_p
 
 	switch (iterator.hdr_type) {
 	case NEXTHDR_TCP:
-		error = validate_lengths_tcp(len, parts->l3_hdr.len, iterator.data);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-
 		parts->l4_hdr.proto = L4PROTO_TCP;
 		parts->l4_hdr.len = tcp_hdr_len(iterator.data);
 		break;
 	case NEXTHDR_UDP:
-		error = validate_lengths_udp(len, parts->l3_hdr.len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
-
 		parts->l4_hdr.proto = L4PROTO_UDP;
 		parts->l4_hdr.len = sizeof(struct udphdr);
 		break;
 	case NEXTHDR_ICMP:
-		error = validate_lengths_icmp6(len, parts->l3_hdr.len);
-		if (error) {
-			*field = IPSTATS_MIB_INTRUNCATEDPKTS;
-			return error;
-		}
 		hdr_icmp = parts->l4_hdr.ptr;
-		if (icmpv6_has_inner_packet(hdr_icmp->icmp6_type)) {
+		if (icmp6_has_inner_packet(hdr_icmp->icmp6_type)) {
 			*field = IPSTATS_MIB_INHDRERRORS;
 			return -EINVAL; /* packet inside packet inside packet. */
 		}

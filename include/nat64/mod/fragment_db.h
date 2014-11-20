@@ -40,7 +40,6 @@ int fragdb_set_config(enum fragmentation_type type, size_t size, void *value);
 int fragdb_clone_config(struct fragmentation_config *clone);
 
 verdict fragdb_handle6(struct sk_buff *skb_in, struct sk_buff **skb_out);
-verdict fragdb_handle4(struct sk_buff *skb_in, struct sk_buff **skb_out);
 
 void fragdb_destroy(void);
 
