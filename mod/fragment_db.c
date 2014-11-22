@@ -120,54 +120,51 @@ static unsigned int hash_function(const struct reassembly_buffer_key *key)
 /**
  * Just a one-liner for populating reassembly_buffer_keys.
  */
-static int skb_to_key(struct sk_buff *skb, struct reassembly_buffer_key *key,
-		struct frag_hdr *fragment_hdr)
+static void skb_to_key(struct sk_buff *skb, struct frag_hdr *hdr_frag,
+		struct reassembly_buffer_key *key)
 {
 	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
 
 	key->src_addr = hdr6->saddr;
 	key->dst_addr = hdr6->daddr;
-	key->identification = fragment_hdr->identification;
+	key->identification = hdr_frag->identification;
 	key->l4_proto = skb_l4_proto(skb);
-
-	return 0;
 }
 
 /**
  * Returns the reassembly buffer described by "key" from the database.
  */
-static int buffer_get(struct reassembly_buffer_key *key, struct reassembly_buffer **result)
+static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
 {
 	struct reassembly_buffer *buffer;
-	int error;
 
+	/* Does it already exist? If so, return existing buffer */
 	buffer = fragdb_table_get(&table, key);
-	if (buffer) {
-		*result = buffer;
-		return 0;
-	}
+	if (buffer)
+		return buffer;
 
+	/* Create, index */
 	buffer = kmem_cache_alloc(buffer_cache, GFP_ATOMIC);
 	if (!buffer)
-		return -ENOMEM;
-
+		return NULL;
+	buffer->skb = NULL;
+	buffer->last_skb = NULL;
 	buffer->dying_time = jiffies + get_fragment_timeout();
 
-	error = fragdb_table_put(&table, key, buffer);
-	if (error) {
+	if (is_error(fragdb_table_put(&table, key, buffer))) {
 		kmem_cache_free(buffer_cache, buffer);
-		return error;
+		return NULL;
 	}
 
+	/* Schedule for automatic deletion */
 	list_add(&buffer->list_hook, expire_list.prev);
-	if (!timer_pending(&expire_timer) || time_before(buffer->dying_time, expire_timer.expires)) {
+	if (!timer_pending(&expire_timer)) {
 		mod_timer(&expire_timer, buffer->dying_time);
-		log_debug("The buffer cleaning timer will awake in %u msecs.",
+		log_debug("The fragment cleaning timer will awake in %u msecs.",
 				jiffies_to_msecs(expire_timer.expires - jiffies));
 	}
 
-	*result = buffer;
-	return 0;
+	return buffer;
 }
 
 static void buffer_dealloc(struct reassembly_buffer *buffer)
@@ -238,7 +235,7 @@ static void clean_expired_buffers(void)
 }
 
 /**
- * Executed by the kernel every once in a while to extermine expired fragments.
+ * Executed by the kernel every once in a while to exterminate expired fragments.
  */
 static void cleaner_timer(unsigned long param)
 {
@@ -374,17 +371,49 @@ int fragdb_set_config(enum fragmentation_type type, size_t size, void *value)
 	return 0;
 }
 
-static void buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *frag,
-		struct frag_hdr *fhdr)
+#define COMM_MSG " Looks like nf_defrag_ipv6 is not sorting the fragments, " \
+		"or something's shuffling them later. Please report."
+static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *frag,
+		struct frag_hdr *hdr_frag)
 {
-	if (buffer->last_skb) {
+	if (buffer->skb) {
+		if (WARN(is_first_fragment_ipv6(hdr_frag), "Non-first fragment's offset is zero." COMM_MSG))
+			return -EINVAL;
+
 		buffer->last_skb->next = frag;
 		buffer->last_skb = frag;
 	} else {
+		if (WARN(!is_first_fragment_ipv6(hdr_frag), "First fragment's offset is nonzero." COMM_MSG))
+			return -EINVAL;
+
 		buffer->skb = frag;
 		buffer->last_skb = frag;
 	}
+
+	return 0;
 }
+#undef COMM_MSG
+
+#define COMM_MSG " I will not be able to translate; aborting.\n" \
+		"(I don't this error is going to happen... but if it does, either some future kernel " \
+		"version broke our assumptions or there is a kernel module in prerouting (pre-Jool), " \
+		"which is doing some questionable edits on the packet.)"
+/**
+ * This whole module is a hack that tries to leverage nf_defrag_ipv6's hack, but we can't do it if
+ * there are more hacks on top of it.
+ * Therefore additional validations.
+ */
+static int validate_skb(struct sk_buff *skb)
+{
+	if (WARN(skb->prev || skb->next, "Packet is listed." COMM_MSG))
+		return -EINVAL;
+
+	if (WARN(skb_shinfo(skb)->frag_list, "Packet has a fragment list." COMM_MSG))
+		return -EINVAL;
+
+	return 0;
+}
+#undef COMM_MSG
 
 /**
  * Groups "skb_in" with the rest of its fragments.
@@ -393,35 +422,55 @@ static void buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fr
  * will be returned in "skb_out". The rest of the fragments can be accesed via skb_out's list
  * (skb_shinfo(skb_out)->frag_list).
  */
-verdict fragdb_handle6(struct sk_buff *skb_in, struct sk_buff **skb_out)
+verdict fragdb_handle(struct sk_buff *skb_in, struct sk_buff **skb_out)
 {
 	/* The fragment collector skb belongs to. */
 	struct reassembly_buffer *buffer;
 	/* This is just a helper that allows us to quickly find buffer. */
 	struct reassembly_buffer_key key;
-	struct frag_hdr *fhdr = get_extension_header(ipv6_hdr(skb_in), NEXTHDR_FRAGMENT);
+	struct frag_hdr *hdr_frag = get_extension_header(ipv6_hdr(skb_in), NEXTHDR_FRAGMENT);
+	int error;
 
-	if (!is_fragmented_ipv6(fhdr)) {
+	if (!is_fragmented_ipv6(hdr_frag)) {
 		*skb_out = skb_in;
 		return VER_CONTINUE;
 	}
 
-	/* Store buffer's accesor so we don't have to recalculate it all the time. */
-	if (is_error(skb_to_key(skb_in, &key, fhdr))) {
-		inc_stats(skb_in, IPSTATS_MIB_REASMFAILS);
+	/*
+	 * Because the packet *is* fragmented, we know we're being compiled in kernel 3.12 or lower at
+	 * this point.
+	 * (Other defragmenters conceal the fragment header, effectively pretending there's no
+	 * fragmentation.)
+	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+	WARN(true, "This code is supposed to be unreachable in kernels 3.13+! Please report.");
+	return VER_DROP;
+#endif
+
+	error = validate_skb(skb_in);
+	if (error)
 		return VER_DROP;
-	}
+
+	skb_to_key(skb_in, hdr_frag, &key);
 
 	spin_lock_bh(&table_lock);
 
-	if (is_error(buffer_get(&key, &buffer))) {
-		spin_unlock_bh(&table_lock);
-		return VER_DROP;
-	}
+	buffer = buffer_get(&key);
+	if (!buffer)
+		goto lock_fail;
 
-	buffer_add_frag(buffer, skb_in, fhdr);
+	error = buffer_add_frag(buffer, skb_in, hdr_frag);
+	if (error)
+		goto lock_fail;
 
-	if (is_more_fragments_set_ipv6(fhdr)) {
+	/*
+	 * nf_defrag_ipv6 is supposed to sort the fragments, so this condition should be all we need
+	 * to figure out whether we have all the fragments.
+	 * Otherwise we'd need to keep track of holes. If you ever find yourself needing to add hole
+	 * logic, keep in mind that this module used to do that in Jool 3.2.2, so you might be able
+	 * to reuse it.
+	 */
+	if (is_more_fragments_set_ipv6(hdr_frag)) {
 		spin_unlock_bh(&table_lock);
 		return VER_STOLEN;
 	}
@@ -439,6 +488,10 @@ verdict fragdb_handle6(struct sk_buff *skb_in, struct sk_buff **skb_out)
 #endif
 
 	return VER_CONTINUE;
+
+lock_fail:
+	spin_unlock_bh(&table_lock);
+	return VER_DROP;
 }
 
 /**
