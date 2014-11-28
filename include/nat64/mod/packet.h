@@ -160,16 +160,23 @@ struct jool_cb {
 	 * Local Out chain, though that doesn't affect us ATM).
 	 * Also this saves me a switch in skb_l3_proto() :p.
 	 */
-	__u8 l3_proto;
+	__u8 l3_proto : 1,
 	/**
 	 * Protocol of the layer-4 header of the packet. To the best of my knowledge, the kernel also
 	 * uses skb->proto for this, but only on layer-4 code (of which Jool isn't).
 	 * Skbs otherwise do not store a layer-4 identifier.
 	 */
-	__u8 l4_proto;
+	l4_proto : 2,
+	/**
+	 * Is this a subpacket, contained in a ICMP error? (used by the ttp module.)
+	 */
+	is_inner : 1;
+
 	/**
 	 * Pointer to the packet's payload.
 	 * Because skbs only store pointers to headers.
+	 *
+	 * TODO (fine) we could use skb->data, though.
 	 */
 	void *payload;
 	/**
@@ -220,6 +227,7 @@ static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_pro
 
 	cb->l3_proto = l3_proto;
 	cb->l4_proto = l4_proto;
+	cb->is_inner = 0;
 	cb->payload = payload;
 	cb->original_skb = original_skb;
 #ifdef BENCHMARK
@@ -243,12 +251,22 @@ static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
 	return skb_jcb(skb)->l4_proto;
 }
 
+static inline bool skb_is_inner(struct sk_buff *skb)
+{
+	return skb_jcb(skb)->is_inner;
+}
+
 /**
  * Returns a pointer to "skb"'s layer-4 payload.
  */
 static inline void *skb_payload(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->payload;
+}
+
+static inline int skb_payload_offset(struct sk_buff *skb)
+{
+	return skb_network_offset(skb) + (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
 /**
@@ -285,27 +303,50 @@ static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
 	return skb_payload(skb) - (void *) skb_transport_header(skb);
 }
 
-/**
- * Returns the length of "skb"'s layer-4 payload.
- */
-static inline unsigned int skb_payload_len(struct sk_buff *skb)
+static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
 {
-	return skb->len - (skb_payload(skb) - (void *) skb_network_header(skb));
+	return (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
 /**
- * Returns in "len" the length of the layer-3 payload of "skb".
- *
- * If "skb" is not fragmented, this is the length of the layer-4 header plus the length of the
- * actual payload.
- * If "skb" is fragmented, this is the length of the layer-4 header plus the length of the actual
- * payloads of every fragment.
+ * Returns the length of "skb"'s layer-4 payload.
+ * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
+ * skb_shinfo(skb)->frag_list).
  */
-int skb_aggregate_ipv4_payload_len(struct sk_buff *skb, unsigned int *len);
-int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
+static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
+{
+	return ((void *) skb_tail_pointer(skb)) - skb_payload(skb);
+}
+
 /**
- * @}
+ * Returns the length of "skb"'s layer-4 payload.
+ * Includes the entire layer-4 payload (ie. ignores fragmentation).
  */
+static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
+{
+	return skb->len - skb_hdrs_len(skb);
+}
+
+/**
+ * Returns the length of "skb"'s layer-3 payload.
+ * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
+ * skb_shinfo(skb)->frag_list).
+ *
+ * TODO (issue #41) review callers.
+ */
+static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
+{
+	return skb_l4hdr_len(skb) + skb_payload_len_frag(skb);
+}
+
+/**
+ * Returns the length of "skb"'s layer-3 payload.
+ * Includes the entire layer-3 payload (ie. ignores fragmentation).
+ */
+static inline unsigned int skb_datagram_len(struct sk_buff *skb)
+{
+	return skb->len - skb_l3hdr_len(skb);
+}
 
 /**
  * kfrees "skb". The point is, if "skb" is fragmented, it also kfrees the rest of the fragments.

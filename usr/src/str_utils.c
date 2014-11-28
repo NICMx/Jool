@@ -162,7 +162,7 @@ int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_len_out)
 int str_to_addr4(const char *str, struct in_addr *result)
 {
 	if (!inet_pton(AF_INET, str, result)) {
-		log_err("Cannot parse '%s' as a IPv4 address.", str);
+		log_err("Cannot parse '%s' as an IPv4 address.", str);
 		return -EINVAL;
 	}
 	return 0;
@@ -171,7 +171,7 @@ int str_to_addr4(const char *str, struct in_addr *result)
 int str_to_addr6(const char *str, struct in6_addr *result)
 {
 	if (!inet_pton(AF_INET6, str, result)) {
-		log_err("Cannot parse '%s' as a IPv6 address.", str);
+		log_err("Cannot parse '%s' as an IPv6 address.", str);
 		return -EINVAL;
 	}
 	return 0;

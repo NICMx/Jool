@@ -11,13 +11,13 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/mod/stats.h"
 
-int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
+int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 {
 	int total_len;
 	struct sk_buff *new_skb;
 	bool is_first;
 
-	is_first = is_first_fragment_ipv6(in->l3_hdr.ptr);
+	is_first = is_first_fragment_ipv6(get_extension_header(ipv6_hdr(in), NEXTHDR_FRAGMENT));
 
 	/*
 	 * These are my assumptions to compute total_len:
@@ -31,24 +31,24 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 	 * The sub-L4 header will never change in size.
 	 * The subpayload will never change in size (unless it gets truncated later, but I don't care).
 	 */
-	total_len = sizeof(struct iphdr) + in->l4_hdr.len + in->payload.len;
-	if (is_first && in->l4_hdr.proto == L4PROTO_ICMP
-			&& is_icmp6_error(icmp6_hdr(in->skb)->icmp6_type)) {
-		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) (in->payload.ptr));
+	total_len = sizeof(struct iphdr) + skb_l3payload_len(in);
+	if (is_first && skb_l4_proto(in) == L4PROTO_ICMP
+			&& is_icmp6_error(icmp6_hdr(in)->icmp6_type)) {
+		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) skb_payload(in));
 		hdr_iterator_result result = hdr_iterator_last(&iterator);
 
 		if (WARN(result != HDR_ITERATOR_END, "Validated packet has an invalid l3 header.")) {
-			inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
+			inc_stats(in, IPSTATS_MIB_INDISCARDS);
 			return -EINVAL;
 		}
 
 		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
-		total_len += sizeof(struct iphdr) - (iterator.data - in->payload.ptr);
+		total_len += sizeof(struct iphdr) - (iterator.data - skb_payload(in));
 	}
 
 	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
 	if (!new_skb) {
-		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
+		inc_stats(in, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
 	}
 
@@ -58,11 +58,11 @@ int ttp64_create_skb(struct pkt_parts *in, struct sk_buff **out)
 	skb_reset_network_header(new_skb);
 	skb_set_transport_header(new_skb, sizeof(struct iphdr));
 
-	skb_set_jcb(new_skb, L3PROTO_IPV4, in->l4_hdr.proto,
-			skb_transport_header(new_skb) + in->l4_hdr.len,
-			skb_original_skb(in->skb));
+	skb_set_jcb(new_skb, L3PROTO_IPV4, skb_l4_proto(in),
+			skb_transport_header(new_skb) + skb_l4hdr_len(in),
+			skb_original_skb(in));
 
-	new_skb->mark = in->skb->mark;
+	new_skb->mark = in->mark;
 	new_skb->protocol = htons(ETH_P_IP);
 	new_skb->next = NULL;
 	new_skb->prev = NULL;
@@ -162,9 +162,9 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
  * also be called to translate a packet's inner packet, which severely constraints the information
  * from "in" it can use; see translate_inner_packet().
  */
-int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
-	struct ipv6hdr *ip6_hdr = in->l3_hdr.ptr;
+	struct ipv6hdr *ip6_hdr = ipv6_hdr(in);
 	struct frag_hdr *ip6_frag_hdr;
 	struct iphdr *ip4_hdr;
 	struct translate_config *config;
@@ -180,24 +180,24 @@ int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out
 	new_tos = config->new_tos;
 	rcu_read_unlock_bh();
 
-	ip4_hdr = out->l3_hdr.ptr;
+	ip4_hdr = ip_hdr(out);
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
-	if (!is_inner_pkt(in)) {
-		ip4_hdr->tot_len = cpu_to_be16(out->l3_hdr.len + out->l4_hdr.len + out->payload.len);
+	if (!skb_is_inner(in)) {
+		ip4_hdr->tot_len = cpu_to_be16(skb_l3hdr_len(out) + skb_l3payload_len(out));
 		if (ip6_hdr->hop_limit <= 1) {
-			icmp64_send(in->skb, ICMPERR_HOP_LIMIT, 0);
-			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
+			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
+			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
 	} else {
 		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len)
-				- (in->l3_hdr.len - sizeof(*ip6_hdr)) + sizeof(*ip4_hdr));
+				- (skb_l3hdr_len(in) - sizeof(*ip6_hdr)) + sizeof(*ip4_hdr));
 		ip4_hdr->ttl = ip6_hdr->hop_limit;
 	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
@@ -205,12 +205,12 @@ int ttp64_ipv4(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out
 	ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
 	ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
 
-	if (!is_inner_pkt(in)) {
+	if (!skb_is_inner(in)) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
 			log_debug("Packet's segments left field is nonzero.");
-			icmp64_send(in->skb, ICMPERR_HDR_FIELD, nonzero_location);
-			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
+			icmp64_send(in, ICMPERR_HDR_FIELD, nonzero_location);
+			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 	}
@@ -414,118 +414,59 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 	return 0;
 }
 
-static int buffer6_to_parts(struct ipv6hdr *hdr6, unsigned int len, struct pkt_parts *parts,
-		int *field)
-{
-	struct hdr_iterator iterator;
-	struct icmp6hdr *hdr_icmp;
-
-	hdr_iterator_last(&iterator);
-
-	parts->l3_hdr.proto = L3PROTO_IPV6;
-	parts->l3_hdr.len = iterator.data - (void *) hdr6;
-	parts->l3_hdr.ptr = hdr6;
-	parts->l4_hdr.ptr = iterator.data;
-
-	switch (iterator.hdr_type) {
-	case NEXTHDR_TCP:
-		parts->l4_hdr.proto = L4PROTO_TCP;
-		parts->l4_hdr.len = tcp_hdr_len(iterator.data);
-		break;
-	case NEXTHDR_UDP:
-		parts->l4_hdr.proto = L4PROTO_UDP;
-		parts->l4_hdr.len = sizeof(struct udphdr);
-		break;
-	case NEXTHDR_ICMP:
-		hdr_icmp = parts->l4_hdr.ptr;
-		if (icmp6_has_inner_packet(hdr_icmp->icmp6_type)) {
-			*field = IPSTATS_MIB_INHDRERRORS;
-			return -EINVAL; /* packet inside packet inside packet. */
-		}
-
-		parts->l4_hdr.proto = L4PROTO_ICMP;
-		parts->l4_hdr.len = sizeof(struct icmp6hdr);
-		break;
-	default:
-		/*
-		 * Why are we translating a error packet of a packet we couldn't have translated?
-		 * Either an attack or shouldn't happen, so drop silently.
-		 */
-		*field = IPSTATS_MIB_INUNKNOWNPROTOS;
-		return -EINVAL;
-	}
-
-	parts->payload.len = len - parts->l3_hdr.len - parts->l4_hdr.len;
-	parts->payload.ptr = parts->l4_hdr.ptr + parts->l4_hdr.len;
-	parts->skb = NULL;
-
-	return 0;
-}
-
-static bool is_truncated_ipv4(struct pkt_parts *parts)
+static bool is_truncated_ipv4(struct sk_buff *skb)
 {
 	struct iphdr *hdr4;
 	struct udphdr *hdr_udp;
 
-	switch (parts->l4_hdr.proto) {
+	switch (skb_l4_proto(skb)) {
 	case L4PROTO_TCP:
 	case L4PROTO_ICMP:
 		/* Calculating the checksum doesn't hurt. Not calculating it might. */
 		return false;
 	case L4PROTO_UDP:
-		hdr4 = parts->l3_hdr.ptr;
-		hdr_udp = parts->l4_hdr.ptr;
+		hdr4 = ip_hdr(skb);
+		hdr_udp = udp_hdr(skb);
 		return (ntohs(hdr4->tot_len) - (4 * hdr4->ihl)) == ntohs(hdr_udp->len);
 	}
 
 	return true; /* whatever. */
 }
 
-static bool is_csum4_computable(struct pkt_parts *parts)
+static bool is_csum4_computable(struct sk_buff *skb)
 {
-	if (!is_first_fragment_ipv4(parts->l3_hdr.ptr))
-		return false;
+	if (!is_first_fragment_ipv4(ip_hdr(skb)))
+		return false; /* Because there's no checksum to compute. */
 
-	if (!is_inner_pkt(parts))
-		return true;
+	if (!skb_is_inner(skb))
+		return true; /* Because we have access to the entire packet. This is the typical path. */
 
-	if (is_truncated_ipv4(parts))
-		return false;
+	if (is_truncated_ipv4(skb))
+		return false; /* Because we don't have access to the length field of the pseudoheader. */
 
-	if (is_fragmented_ipv4(parts->l3_hdr.ptr))
-		return false;
+	if (is_fragmented_ipv4(ip_hdr(skb)))
+		return false; /* idem. */
 
-	return true;
+	return true; /* Because, even though it's an inner packet, it's complete. */
 }
 
 /*
  * Use this when only the ICMP header changed, so all there is to do is subtract the old data from
  * the checksum and add the new one.
  */
-static int update_icmp4_csum(struct pkt_parts *in, struct pkt_parts *out)
+static int update_icmp4_csum(struct sk_buff *in, struct sk_buff *out)
 {
-	struct ipv6hdr *in_ip6 = in->l3_hdr.ptr;
-	struct icmp6hdr *in_icmp = in->l4_hdr.ptr;
-	struct icmphdr *out_icmp = out->l4_hdr.ptr;
+	struct ipv6hdr *in_ip6 = ipv6_hdr(in);
+	struct icmp6hdr *in_icmp = icmp6_hdr(in);
+	struct icmphdr *out_icmp = icmp_hdr(out);
 	struct icmp6hdr copy_hdr;
-	unsigned int len;
-	int error;
 	__wsum csum, tmp;
-
-	if (is_inner_pkt(out)) {
-		len = out->l4_hdr.len + out->payload.len;
-	} else {
-		error = skb_aggregate_ipv6_payload_len(in->skb, &len);
-		if (error) {
-			inc_stats(out->skb, IPSTATS_MIB_OUTDISCARDS);
-			return error;
-		}
-	}
 
 	csum = ~csum_unfold(in_icmp->icmp6_cksum);
 
 	/* Remove the ICMPv6 pseudo-header. */
-	tmp = ~csum_unfold(csum_ipv6_magic(&in_ip6->saddr, &in_ip6->daddr, len, NEXTHDR_ICMP, 0));
+	tmp = ~csum_unfold(csum_ipv6_magic(&in_ip6->saddr, &in_ip6->daddr, skb_datagram_len(in),
+			NEXTHDR_ICMP, 0));
 	csum = csum_sub(csum, tmp);
 
 	/*
@@ -551,44 +492,40 @@ static int update_icmp4_csum(struct pkt_parts *in, struct pkt_parts *out)
  * Use this when header and payload both changed completely, so we gotta just trash the old
  * checksum and start anew.
  */
-static int compute_icmp4_csum(struct pkt_parts *out)
+static int compute_icmp4_csum(struct sk_buff *out)
 {
-	struct icmphdr *hdr = out->l4_hdr.ptr;
-	__wsum csum;
+	struct icmphdr *hdr = icmp_hdr(out);
 
 	hdr->checksum = 0;
-	csum = csum_partial(hdr, out->l4_hdr.len, 0);
-	csum = csum_partial(out->payload.ptr, out->payload.len, csum);
-	hdr->checksum = csum_fold(csum);
+	hdr->checksum = csum_fold(skb_checksum(out, skb_transport_offset(out),
+			skb_datagram_len(out), 0));
 
 	return 0;
 }
 
-static int post_icmp4info(struct pkt_parts *in, struct pkt_parts *out)
+static int post_icmp4info(struct sk_buff *in, struct sk_buff *out)
 {
-	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
+	int error;
+
+	error = copy_payload(in, out);
+	if (error)
+		return error;
+
 	return is_csum4_computable(out) ? update_icmp4_csum(in, out) : 0;
 }
 
-static int post_icmp4error(struct tuple *tuple4, struct pkt_parts *in_outer,
-		struct pkt_parts *out_outer, int *field)
+static int post_icmp4error(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
-	struct pkt_parts in_inner;
 	int error;
 
 	log_debug("Translating the inner packet (6->4)...");
 
-	memset(&in_inner, 0, sizeof(in_inner));
-	error = buffer6_to_parts(in_outer->payload.ptr, in_outer->payload.len, &in_inner, field);
+	error = ttpcomm_translate_inner_packet(tuple4, in, out, in, out);
 	if (error)
 		return error;
 
-	error = ttpcomm_translate_inner_packet(tuple4, &in_inner, out_outer);
-	if (error)
-		return error;
-
-	if (is_csum4_computable(out_outer))
-		error = compute_icmp4_csum(out_outer);
+	if (is_csum4_computable(out))
+		error = compute_icmp4_csum(out);
 
 	return error;
 }
@@ -597,11 +534,10 @@ static int post_icmp4error(struct tuple *tuple4, struct pkt_parts *in_outer,
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
  * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4()).
  */
-int ttp64_icmp(struct tuple* tuple4, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 {
-	struct icmp6hdr *icmpv6_hdr = in->l4_hdr.ptr;
-	struct icmphdr *icmpv4_hdr = out->l4_hdr.ptr;
-	int field = 0;
+	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in);
+	struct icmphdr *icmpv4_hdr = icmp_hdr(out);
 	int error = 0;
 
 	switch (icmpv6_hdr->icmp6_type) {
@@ -624,10 +560,10 @@ int ttp64_icmp(struct tuple* tuple4, struct pkt_parts *in, struct pkt_parts *out
 	case ICMPV6_DEST_UNREACH:
 		error = icmp6_to_icmp4_dest_unreach(icmpv6_hdr, icmpv4_hdr);
 		if (error) {
-			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
+			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
 			return error;
 		}
-		error = post_icmp4error(tuple4, in, out, &field);
+		error = post_icmp4error(tuple4, in, out);
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
@@ -639,26 +575,26 @@ int ttp64_icmp(struct tuple* tuple4, struct pkt_parts *in, struct pkt_parts *out
 		icmpv4_hdr->type = ICMP_DEST_UNREACH;
 		icmpv4_hdr->code = ICMP_FRAG_NEEDED;
 		icmpv4_hdr->un.frag.__unused = htons(0);
-		error = compute_mtu4(in->skb, out->skb);
+		error = compute_mtu4(in, out);
 		if (error)
 			return error;
-		error = post_icmp4error(tuple4, in, out, &field);
+		error = post_icmp4error(tuple4, in, out);
 		break;
 
 	case ICMPV6_TIME_EXCEED:
 		icmpv4_hdr->type = ICMP_TIME_EXCEEDED;
 		icmpv4_hdr->code = icmpv6_hdr->icmp6_code;
 		icmpv4_hdr->icmp4_unused = 0;
-		error = post_icmp4error(tuple4, in, out, &field);
+		error = post_icmp4error(tuple4, in, out);
 		break;
 
 	case ICMPV6_PARAMPROB:
 		error = icmp6_to_icmp4_param_prob(icmpv6_hdr, icmpv4_hdr);
 		if (error) {
-			inc_stats(in->skb, IPSTATS_MIB_INHDRERRORS);
+			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
 			return error;
 		}
-		error = post_icmp4error(tuple4, in, out, &field);
+		error = post_icmp4error(tuple4, in, out);
 		break;
 
 	default:
@@ -670,9 +606,6 @@ int ttp64_icmp(struct tuple* tuple4, struct pkt_parts *in, struct pkt_parts *out
 		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
 		error = -EINVAL;
 	}
-
-	if (field)
-		inc_stats(in->skb, field);
 
 	return error;
 }
@@ -706,14 +639,14 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	return csum_fold(csum);
 }
 
-int ttp64_tcp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
-	struct tcphdr *tcp_in = in->l4_hdr.ptr;
-	struct tcphdr *tcp_out = out->l4_hdr.ptr;
+	struct tcphdr *tcp_in = tcp_hdr(in);
+	struct tcphdr *tcp_out = tcp_hdr(out);
 	struct tcphdr tcp_copy;
 
 	/* Header */
-	memcpy(tcp_out, tcp_in, in->l4_hdr.len);
+	memcpy(tcp_out, tcp_in, skb_l4hdr_len(in));
 	tcp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
 	tcp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 
@@ -723,20 +656,18 @@ int ttp64_tcp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 
 		tcp_out->check = 0;
 		tcp_out->check = update_csum_6to4(tcp_in->check,
-				in->l3_hdr.ptr, &tcp_copy, sizeof(tcp_copy),
-				out->l3_hdr.ptr, tcp_out, sizeof(*tcp_out));
+				ipv6_hdr(in), &tcp_copy, sizeof(tcp_copy),
+				ip_hdr(out), tcp_out, sizeof(*tcp_out));
 	}
 
 	/* Payload */
-	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
-
-	return 0;
+	return copy_payload(in, out);
 }
 
-int ttp64_udp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
+int ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
-	struct udphdr *udp_in = in->l4_hdr.ptr;
-	struct udphdr *udp_out = out->l4_hdr.ptr;
+	struct udphdr *udp_in = udp_hdr(in);
+	struct udphdr *udp_out = udp_hdr(out);
 	struct udphdr udp_copy;
 
 	/* Header */
@@ -750,14 +681,12 @@ int ttp64_udp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 
 		udp_out->check = 0;
 		udp_out->check = update_csum_6to4(udp_in->check,
-				in->l3_hdr.ptr, &udp_copy, sizeof(udp_copy),
-				out->l3_hdr.ptr, udp_out, sizeof(*udp_out));
+				ipv6_hdr(in), &udp_copy, sizeof(udp_copy),
+				ip_hdr(out), udp_out, sizeof(*udp_out));
 		if (udp_out->check == 0)
 			udp_out->check = CSUM_MANGLED_0;
 	}
 
 	/* Payload */
-	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);
-
-	return 0;
+	return copy_payload(in, out);
 }

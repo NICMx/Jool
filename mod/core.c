@@ -104,7 +104,7 @@ unsigned int core_6to4(struct sk_buff *skb)
 	if (error)
 		return NF_DROP;
 
-	result = fragdb_handle6(skb);
+	result = fragdb_handle(&skb);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
 

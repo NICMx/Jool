@@ -120,15 +120,23 @@ static unsigned int hash_function(const struct reassembly_buffer_key *key)
 /**
  * Just a one-liner for populating reassembly_buffer_keys.
  */
-static void skb_to_key(struct sk_buff *skb, struct frag_hdr *hdr_frag,
+static int skb_to_key(struct sk_buff *skb, struct frag_hdr *hdr_frag,
 		struct reassembly_buffer_key *key)
 {
 	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
+
+	if (!hdr_frag) {
+		hdr_frag = get_extension_header(hdr6, NEXTHDR_FRAGMENT);
+		if (WARN(!hdr_frag, "Stored fragment has no fragment header."))
+			return -EINVAL;
+	}
 
 	key->src_addr = hdr6->saddr;
 	key->dst_addr = hdr6->daddr;
 	key->identification = hdr_frag->identification;
 	key->l4_proto = skb_l4_proto(skb);
+
+	return 0;
 }
 
 /**
@@ -169,13 +177,7 @@ static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
 
 static void buffer_dealloc(struct reassembly_buffer *buffer)
 {
-	if (buffer->skb) {
-		/* kfree_skb_queued() assumes the list isn't circular, so uncircle it. */
-		buffer->skb->prev->next = NULL;
-		buffer->skb->prev = NULL;
-		kfree_skb_queued(buffer->skb);
-	}
-
+	kfree_skb(buffer->skb);
 	kmem_cache_free(buffer_cache, buffer);
 }
 
@@ -224,7 +226,7 @@ static void clean_expired_buffers(void)
 			return;
 		}
 
-		if (!is_error(skb_to_key(buffer->skb, &key))) {
+		if (!is_error(skb_to_key(buffer->skb, NULL, &key))) {
 			buffer_destroy(&key, buffer);
 			b++;
 		}
@@ -422,19 +424,17 @@ static int validate_skb(struct sk_buff *skb)
  * will be returned in "skb_out". The rest of the fragments can be accesed via skb_out's list
  * (skb_shinfo(skb_out)->frag_list).
  */
-verdict fragdb_handle(struct sk_buff *skb_in, struct sk_buff **skb_out)
+verdict fragdb_handle(struct sk_buff **skb)
 {
 	/* The fragment collector skb belongs to. */
 	struct reassembly_buffer *buffer;
 	/* This is just a helper that allows us to quickly find buffer. */
 	struct reassembly_buffer_key key;
-	struct frag_hdr *hdr_frag = get_extension_header(ipv6_hdr(skb_in), NEXTHDR_FRAGMENT);
+	struct frag_hdr *hdr_frag = get_extension_header(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
 	int error;
 
-	if (!is_fragmented_ipv6(hdr_frag)) {
-		*skb_out = skb_in;
+	if (!is_fragmented_ipv6(hdr_frag))
 		return VER_CONTINUE;
-	}
 
 	/*
 	 * Because the packet *is* fragmented, we know we're being compiled in kernel 3.12 or lower at
@@ -447,11 +447,13 @@ verdict fragdb_handle(struct sk_buff *skb_in, struct sk_buff **skb_out)
 	return VER_DROP;
 #endif
 
-	error = validate_skb(skb_in);
+	error = validate_skb(*skb);
 	if (error)
 		return VER_DROP;
 
-	skb_to_key(skb_in, hdr_frag, &key);
+	error = skb_to_key(*skb, hdr_frag, &key);
+	if (error)
+		return VER_DROP;
 
 	spin_lock_bh(&table_lock);
 
@@ -459,7 +461,7 @@ verdict fragdb_handle(struct sk_buff *skb_in, struct sk_buff **skb_out)
 	if (!buffer)
 		goto lock_fail;
 
-	error = buffer_add_frag(buffer, skb_in, hdr_frag);
+	error = buffer_add_frag(buffer, *skb, hdr_frag);
 	if (error)
 		goto lock_fail;
 
@@ -478,7 +480,7 @@ verdict fragdb_handle(struct sk_buff *skb_in, struct sk_buff **skb_out)
 	skb_shinfo(buffer->skb)->frag_list = buffer->skb->next;
 	buffer->skb->next = NULL;
 
-	*skb_out = buffer->skb;
+	*skb = buffer->skb;
 	buffer->skb = NULL;
 	buffer_destroy(&key, buffer);
 	spin_unlock_bh(&table_lock);

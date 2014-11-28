@@ -24,20 +24,6 @@ void kfree_skb_queued(struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-/* TODO (issue #41) review callers. */
-int skb_aggregate_ipv4_payload_len(struct sk_buff *skb, unsigned int *len)
-{
-	*len = skb->len - skb_l4hdr_len(skb);
-	return 0;
-}
-
-/* TODO (issue #41) review callers. */
-int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len)
-{
-	*len = skb->len - skb_l4hdr_len(skb);
-	return 0;
-}
-
 bool icmp4_has_inner_packet(__u8 icmp_type)
 {
 	return is_icmp4_error(icmp_type);
@@ -272,6 +258,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	 */
 
 	cb->l3_proto = L3PROTO_IPV6;
+	cb->is_inner = 0;
 	cb->original_skb = skb;
 	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
 
@@ -380,6 +367,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 #endif
 
 	cb->l3_proto = L3PROTO_IPV4;
+	cb->is_inner = 0;
 	cb->original_skb = skb;
 	skb_set_transport_header(skb, 4 * hdr4->ihl);
 
@@ -532,11 +520,11 @@ void skb_print(struct sk_buff *skb)
 	if (frag_offset == 0)
 		print_l4_hdr(skb);
 
-	pr_debug("Payload (length %u):\n", skb_payload_len(skb));
+	pr_debug("Payload (length %u):\n", skb_payload_len_frag(skb));
 	payload = skb_payload(skb);
-	if (skb_payload_len(skb))
+	if (skb_payload_len_frag(skb))
 		printk("		%u", payload[0]);
-	for (x = 1; x < skb_payload_len(skb); x++) {
+	for (x = 1; x < skb_payload_len_frag(skb); x++) {
 		if (x%12)
 			printk(", %u", payload[x]);
 		else
@@ -560,7 +548,7 @@ int validate_icmp6_csum(struct sk_buff *skb)
 		return 0;
 
 	ip6_hdr = ipv6_hdr(skb);
-	datagram_len = skb_l4hdr_len(skb) + skb_payload_len(skb);
+	datagram_len = skb_l3payload_len(skb);
 	csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
 			skb_checksum(skb, skb_transport_offset(skb), datagram_len, 0));
 	if (csum != 0) {
@@ -583,8 +571,7 @@ int validate_icmp4_csum(struct sk_buff *skb)
 	if (!is_icmp4_error(hdr->type))
 		return 0;
 
-	csum = csum_fold(skb_checksum(skb, skb_transport_offset(skb),
-			skb_l4hdr_len(skb) + skb_payload_len(skb), 0));
+	csum = csum_fold(skb_checksum(skb, skb_transport_offset(skb), skb_l3payload_len(skb), 0));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
 		return -EINVAL;
