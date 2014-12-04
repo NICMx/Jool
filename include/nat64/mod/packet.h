@@ -176,7 +176,9 @@ struct jool_cb {
 	 * Pointer to the packet's payload.
 	 * Because skbs only store pointers to headers.
 	 *
-	 * TODO (fine) we could use skb->data, though.
+	 * Sometimes the kernel seems to use skb->data for this. It would be troublesome if we did the
+	 * same, however, since functions such as icmp_send() fail early when skb->data is after the
+	 * layer-3 header.
 	 */
 	void *payload;
 	/**

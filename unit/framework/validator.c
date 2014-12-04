@@ -29,11 +29,6 @@ bool validate_cb_l4(struct sk_buff *skb, l4_protocol l4proto, int len)
 			& assert_equals_int(len, skb_l4hdr_len(skb), "cb: L4-len");
 }
 
-bool validate_cb_payload(struct sk_buff *skb, int len)
-{
-	return assert_equals_int(len, skb_payload_len(skb), "cb: payload-len");
-}
-
 bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct tuple *tuple6)
 {
 	bool success = true;

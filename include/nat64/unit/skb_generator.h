@@ -42,20 +42,6 @@ int create_skb6_icmp_info_frag(struct tuple *tuple6, struct sk_buff **result, u1
 		u16 total_l4_len, bool df, bool mf, u16 frag_offset, u8 ttl);
 /* fragmented ICMPv6 errors do not exist. */
 
-/**
- * @{
- * These ignore "payload_len".
- */
-int create_skb6frags_udp(struct tuple *tuple6, struct sk_buff **skb, u16 payload_len, u8 ttl);
-int create_skb4frags_udp(struct tuple *tuple4, struct sk_buff **skb, u16 payload_len, u8 ttl);
-int create_skb6frags_tcp(struct tuple *tuple6, struct sk_buff **skb, u16 payload_len, u8 ttl);
-int create_skb4frags_tcp(struct tuple *tuple4, struct sk_buff **skb, u16 payload_len, u8 ttl);
-int create_skb6frags_icmp(struct tuple *tuple6, struct sk_buff **skb, u16 payload_len, u8 ttl);
-int create_skb4frags_icmp(struct tuple *tuple4, struct sk_buff **skb, u16 payload_len, u8 ttl);
-/**
- * @}
- */
-
 int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool rst, bool fin);
 
 

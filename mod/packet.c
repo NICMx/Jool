@@ -1,5 +1,6 @@
 #include "nat64/mod/packet.h"
 
+#include <linux/version.h>
 #include <linux/icmp.h>
 #include <net/route.h>
 
@@ -130,12 +131,17 @@ int init_l4_inner(struct sk_buff *skb, u8 protocol, unsigned int offset)
  */
 static int may_pull_ipv6_hdrs(struct sk_buff *skb)
 {
-	__be16 frag_offset;
 	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 	int offset;
 	bool result;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
+	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
+#else
+	__be16 frag_offset;
 	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr, &frag_offset);
+#endif
+
 	if (offset == -1) {
 		log_debug("ipv6_skip_exthdr() returned -1.");
 		return -EINVAL;

@@ -35,7 +35,17 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 	log_debug("Step 5: Handling Hairpinning...");
 
 	if (skb_l4_proto(skb_in) == L4PROTO_ICMP) {
-		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
+		/*
+		 * RFC 6146 section 2 (Definition of "Hairpinning").
+		 *
+		 * Update 2014-11-21:
+		 * Actually, since ICMP errors count as UDP or TCP packets tuple-wise, maybe the RFC means
+		 * we should only filter out ICMP echoes.
+		 * Or maybe not even that, since they're going to be dropped later anyway, once Jool fails
+		 * to find the mapping.
+		 * Unfortunately, if I remove this if, Jool crashes when I hairpin a ICMP error.
+		 * TODO (warning) we need to investigate this crash further.
+		 */
 		log_debug("ICMP is not supported by hairpinning. Dropping packet...");
 		return VER_DROP;
 	}

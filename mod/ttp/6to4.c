@@ -156,11 +156,10 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
 
 /**
  * Translates in's ipv6 header into out's ipv4 header.
- * This is RFC 6145 sections 5.1 and 5.1.1, except lengths and checksum (See post_ipv4()).
+ * This is RFC 6145 sections 5.1 and 5.1.1.
  *
  * Aside from the main call (to translate a normal IPv6 packet's layer 3 header), this function can
- * also be called to translate a packet's inner packet, which severely constraints the information
- * from "in" it can use; see translate_inner_packet().
+ * also be called to translate a packet's inner packet.
  */
 int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
@@ -520,7 +519,7 @@ static int post_icmp4error(struct tuple *tuple4, struct sk_buff *in, struct sk_b
 
 	log_debug("Translating the inner packet (6->4)...");
 
-	error = ttpcomm_translate_inner_packet(tuple4, in, out, in, out);
+	error = ttpcomm_translate_inner_packet(tuple4, in, out);
 	if (error)
 		return error;
 

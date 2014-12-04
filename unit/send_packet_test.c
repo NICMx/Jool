@@ -74,8 +74,6 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 		return false;
 	if (!validate_cb_l4(skb, l4proto, is_first ? l4hdr_size : 0))
 		return false;
-	if (!validate_cb_payload(skb, payload_len))
-		return false;
 
 	if (!validate_ipv6_hdr(ipv6_hdr(skb), hdr_payload_len, NEXTHDR_FRAGMENT, tuple))
 		return false;
@@ -104,12 +102,14 @@ static bool validate_frag6(struct sk_buff *skb, bool is_first, bool is_last, u16
 	return true;
 }
 
+/*
 static void print_skbs(struct sk_buff *skb) {
 	while (skb) {
 		skb_print(skb);
 		skb = skb->next;
 	}
 }
+*/
 
 static bool validate_frags6(struct sk_buff *skb, struct tuple *tuple, int total_frags,
 		bool is_first[], bool is_last[], u16 frag_offset[], u16 payload_len[], u16 payload_offset[],

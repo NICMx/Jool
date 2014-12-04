@@ -7,7 +7,13 @@
 #include <netlink/attr.h>
 
 
-/* Assert we're compiling with libnl version >= 3.0 */
+/*
+ * Assert we're compiling with libnl version >= 3.0
+ *
+ * Note: it looks like this shouldn't be here, since it's the configure script's responsibility.
+ * However, the configure script seems to fail to detect this properly on RedHat (and maybe
+ * others).
+ */
 #if !defined(LIBNL_VER_NUM)
 	#error "Missing LIBNL dependency (need at least version 3)."
 #endif

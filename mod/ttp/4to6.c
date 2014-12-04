@@ -11,12 +11,6 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/mod/stats.h"
 
-static int has_frag_hdr(struct iphdr *in_hdr)
-{
-	return !is_dont_fragment_set(in_hdr) ||
-			(is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr));
-}
-
 int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 {
 	int l3_hdr_len;
@@ -39,13 +33,13 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 	 * The subpayload will never change in size (unless it gets truncated later, but I don't care).
 	 */
 	l3_hdr_len = sizeof(struct ipv6hdr);
-	if (has_frag_hdr(ip_hdr(in)))
+	if (will_need_frag_hdr(ip_hdr(in)))
 		l3_hdr_len += sizeof(struct frag_hdr);
 
 	total_len = l3_hdr_len + skb_l3payload_len(in);
 	if (is_first && skb_l4_proto(in) == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(in)->type)) {
 		total_len += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-		if (has_frag_hdr(skb_payload(in)))
+		if (will_need_frag_hdr(skb_payload(in)))
 			total_len += sizeof(struct frag_hdr);
 	}
 
@@ -78,7 +72,8 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
  * Returns "true" if "hdr" contains a source route option and the last address from it hasn't been
  * reached.
  *
- * Assumes the options are glued in memory after "hdr", the way sk_buffs work (when linearized).
+ * Assumes the options are glued in memory after "hdr", the way sk_buffs work (when linearized or
+ * pullable).
  */
 static bool has_unexpired_src_route(struct iphdr *hdr)
 {
@@ -127,11 +122,10 @@ static inline __be32 build_id_field(struct iphdr *ip4_hdr)
 
 /**
  * Infers a IPv6 header from "in"'s IPv4 header and "tuple". Places the result in "out"->l3_hdr.
- * This is RFC 6145 section 4.1, except Payload Length (See post_ipv6()).
+ * This is RFC 6145 section 4.1.
  *
  * Aside from the main call (to translate a normal IPv4 packet's layer 3 header), this function can
- * also be called to translate a packet's inner packet, which severely constraints the information
- * from "in" it can use; see translate_inner_packet() and its callers.
+ * also be called to translate a packet's inner packet.
  */
 int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
@@ -185,7 +179,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		return -EINVAL;
 	}
 
-	if (has_frag_hdr(ip_hdr(in))) {
+	if (will_need_frag_hdr(ip_hdr(in))) {
 		struct frag_hdr *frag_header = (struct frag_hdr *) (ip6_hdr + 1);
 
 		/* Override some fixed header fields... */
@@ -456,7 +450,6 @@ static int update_icmp6_csum(struct sk_buff *in, struct sk_buff *out)
 
 	csum = csum_add(csum, csum_partial(out_icmp, sizeof(*out_icmp), 0));
 
-	/* TODO (issue #41) this requires to backup skb->len. */
 	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
 			skb_datagram_len(out), IPPROTO_ICMPV6, csum);
 
@@ -494,7 +487,7 @@ static int post_icmp6error(struct tuple *tuple6, struct sk_buff *in, struct sk_b
 
 	log_debug("Translating the inner packet (4->6)...");
 
-	error = ttpcomm_translate_inner_packet(tuple6, out, in, in, out);
+	error = ttpcomm_translate_inner_packet(tuple6, in, out);
 	if (error)
 		return error;
 
