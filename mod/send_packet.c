@@ -242,7 +242,38 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
 	hdrfrag_new->frag_off = build_ipv6_frag_off_field(offset, mf);
 	hdrfrag_new->identification = hdrfrag_old->identification;
 }
+/**
+ * Helper function for divide.
+ * Create a fragment header to a packet if required.
+ */
+static int create_fragment_header(struct sk_buff *skb, struct ipv6hdr *first_hdr6,
+		struct frag_hdr *cb_frag_header, struct iphdr *ip4_hdr)
+{
+	struct ipv6hdr *tmp_hdr6;
+	struct frag_hdr *fragment_hdr;
 
+	tmp_hdr6 = (struct ipv6hdr *) skb_push(skb, 8);
+	memset(tmp_hdr6, 0, sizeof(*fragment_hdr));
+
+	first_hdr6 = memmove(tmp_hdr6, first_hdr6, sizeof(*first_hdr6));
+	fragment_hdr = (struct frag_hdr *) (first_hdr6 + 1);
+	memset(fragment_hdr, 0, sizeof(*fragment_hdr));
+
+	fragment_hdr->nexthdr = first_hdr6->nexthdr;
+	first_hdr6->nexthdr = NEXTHDR_FRAGMENT;
+	fragment_hdr->reserved = 0;
+	fragment_hdr->frag_off = build_ipv6_frag_off_field(get_fragment_offset_ipv4(ip4_hdr),
+			is_more_fragments_set_ipv4(ip4_hdr));
+	fragment_hdr->identification = cpu_to_be32(be16_to_cpu(ip4_hdr->id));
+
+	cb_frag_header = fragment_hdr;
+
+	first_hdr6->payload_len = htonl(ntohl(first_hdr6->payload_len) + sizeof(struct frag_hdr));
+
+	skb_reset_network_header(skb);
+
+	return 0;
+}
 
 /**
  * Fragments "frag" until all the pieces are at most "min_ipv6_mtu" bytes long.
@@ -256,14 +287,15 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
  * Sorry, this function is probably our most convoluted one, but everything in it is too
  * inter-related so I don't know how to fix it without creating thousand-argument functions.
  */
-static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
+static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu, struct iphdr *ip4_hdr)
 {
 	unsigned char *current_p;
 	struct sk_buff *new_skb;
 	struct sk_buff *prev_skb;
 	/* "last" skb involved here. Not necessarily the last skb of the list. */
 	struct sk_buff *last_skb;
-	struct ipv6hdr *first_hdr6 = ipv6_hdr(skb);
+	struct jool_cb *cb;
+	struct ipv6hdr *first_hdr6;
 	u16 hdrs_size;
 	u16 payload_max_size;
 	u16 original_fragment_offset;
@@ -271,6 +303,12 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu)
 
 	/* Prepare the helper values. */
 	min_ipv6_mtu &= 0xFFF8;
+
+	cb = skb_jcb(skb);
+	if (!cb->frag_hdr)
+		create_fragment_header(skb, ipv6_hdr(skb), cb->frag_hdr, ip4_hdr);
+
+	first_hdr6 = ipv6_hdr(skb);
 
 	hdrs_size = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
 	payload_max_size = min_ipv6_mtu - hdrs_size;
@@ -419,7 +457,7 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 		return -EINVAL;
 	}
 
-	return divide(skb_out, min_ipv6_mtu);
+	return divide(skb_out, min_ipv6_mtu, ip_hdr(skb_in));
 }
 
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)

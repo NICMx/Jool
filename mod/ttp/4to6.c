@@ -37,10 +37,12 @@ int ttp46_create_skb(struct pkt_parts *in, struct sk_buff **out)
 {
 	int l3_hdr_len;
 	int total_len;
+	int reserve;
 	struct sk_buff *new_skb;
 	bool is_first;
 
 	is_first = is_first_fragment_ipv4(in->l3_hdr.ptr);
+	reserve = LL_MAX_HEADER;
 
 	/*
 	 * These are my assumptions to compute total_len:
@@ -57,6 +59,8 @@ int ttp46_create_skb(struct pkt_parts *in, struct sk_buff **out)
 	l3_hdr_len = sizeof(struct ipv6hdr);
 	if (has_frag_hdr(in->l3_hdr.ptr))
 		l3_hdr_len += sizeof(struct frag_hdr);
+	else
+		reserve += sizeof(struct frag_hdr);
 
 	total_len = l3_hdr_len + in->l4_hdr.len + in->payload.len;
 	if (is_first && in->l4_hdr.proto == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(in->skb)->type)) {
@@ -65,13 +69,13 @@ int ttp46_create_skb(struct pkt_parts *in, struct sk_buff **out)
 			total_len += sizeof(struct frag_hdr);
 	}
 
-	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
+	new_skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
 	if (!new_skb) {
 		inc_stats(in->skb, IPSTATS_MIB_INDISCARDS);
 		return -ENOMEM;
 	}
 
-	skb_reserve(new_skb, LL_MAX_HEADER);
+	skb_reserve(new_skb, reserve);
 	skb_put(new_skb, total_len);
 	skb_reset_mac_header(new_skb);
 	skb_reset_network_header(new_skb);
