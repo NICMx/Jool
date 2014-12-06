@@ -9,8 +9,6 @@
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
 
-/* TODO (issue #41) is skb_shinfo(skb)->frag_list supposed to be backwards-traversable? */
-
 struct reassembly_buffer_key {
 	struct in6_addr src_addr;
 	struct in6_addr dst_addr;
@@ -21,8 +19,8 @@ struct reassembly_buffer_key {
 struct reassembly_buffer {
 	/** first fragment (fragment offset zero) of the packet. */
 	struct sk_buff *skb;
-	/** Quick accesor to the current last fragment of the queue. */
-	struct sk_buff *last_skb;
+	/** This points to the place the next frament should be queued. */
+	struct sk_buff **next_slot;
 	/* Jiffy at which the fragment timer will delete this buffer. */
 	unsigned long dying_time;
 
@@ -156,7 +154,7 @@ static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
 	if (!buffer)
 		return NULL;
 	buffer->skb = NULL;
-	buffer->last_skb = NULL;
+	buffer->next_slot = NULL;
 	buffer->dying_time = jiffies + get_fragment_timeout();
 
 	if (is_error(fragdb_table_put(&table, key, buffer))) {
@@ -382,14 +380,25 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
 		if (WARN(is_first_fragment_ipv6(hdr_frag), "Non-first fragment's offset is zero." COMM_MSG))
 			return -EINVAL;
 
-		buffer->last_skb->next = frag;
-		buffer->last_skb = frag;
+		/*
+		 * TODO (issue #41) we're editing the skbs, including the shared area, which means we
+		 * should probably be cloning. Do it later; I can test as it is.
+		 */
+
+		*buffer->next_slot = frag;
+		buffer->next_slot = &frag->next;
+
+		/* Why this? Dunno, both defrags do it when they support frag_list. */
+		buffer->skb->len += skb_payload_len_frag(frag);
+		buffer->skb->data_len += skb_payload_len_frag(frag);
+		buffer->skb->truesize += frag->truesize;
+
 	} else {
 		if (WARN(!is_first_fragment_ipv6(hdr_frag), "First fragment's offset is nonzero." COMM_MSG))
 			return -EINVAL;
 
 		buffer->skb = frag;
-		buffer->last_skb = frag;
+		buffer->next_slot = &skb_shinfo(frag)->frag_list;
 	}
 
 	return 0;
@@ -476,9 +485,6 @@ verdict fragdb_handle(struct sk_buff **skb)
 		spin_unlock_bh(&table_lock);
 		return VER_STOLEN;
 	}
-
-	skb_shinfo(buffer->skb)->frag_list = buffer->skb->next;
-	buffer->skb->next = NULL;
 
 	*skb = buffer->skb;
 	buffer->skb = NULL;

@@ -15,7 +15,8 @@ clean:
 
 insert:
 	# insert the dependencies
-	sudo modprobe ipv6
+	sudo modprobe nf_defrag_ipv6
+	sudo modprobe nf_defrag_ipv4
 	# enable ipv6 and ipv4 forwarding
 	sudo sysctl -w net.ipv4.conf.all.forwarding=1
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1

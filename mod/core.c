@@ -38,7 +38,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 
 	if (is_hairpin(skb_out)) {
 		result = handling_hairpinning(skb_out, &tuple_out);
-		kfree_skb_queued(skb_out);
+		kfree_skb(skb_out);
 	} else {
 		result = sendpkt_send(skb_in, skb_out);
 		/* send_pkt releases skb_out regardless of verdict. */

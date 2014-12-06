@@ -87,10 +87,6 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	node->skb = skb_original_skb(skb);
 	RB_CLEAR_NODE(&node->tree_hook);
 
-	/* Don't need to store fragments other than the first one. */
-	kfree_skb_queued(node->skb->next);
-	node->skb->next = NULL;
-
 	spin_lock_bh(&packets_lock);
 
 	if (packet_count + 1 >= max_pkts) {
@@ -138,7 +134,7 @@ int pktqueue_send(struct session_entry *session)
 	spin_unlock_bh(&packets_lock);
 
 	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
-	kfree_skb_queued(node->skb);
+	kfree_skb(node->skb);
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
@@ -172,7 +168,7 @@ static void pktqueue_destroy_aux(struct rb_node *hook)
 	node = rb_entry(hook, struct packet_node, tree_hook);
 
 	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
-	kfree_skb_queued(node->skb);
+	kfree_skb(node->skb);
 	kmem_cache_free(node_cache, node);
 }
 
@@ -238,7 +234,7 @@ int pktqueue_remove(struct session_entry *session)
 	rb_erase(&node->tree_hook, &packets);
 	packet_count--;
 	spin_unlock_bh(&packets_lock);
-	kfree_skb_queued(node->skb);
+	kfree_skb(node->skb);
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 

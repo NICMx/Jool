@@ -82,13 +82,13 @@ static struct nf_hook_ops nfho[] = {
 		.hook = hook_ipv6,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET6,
-		.priority = NF_PRI6_JOOL,
+		.priority = NF_IP6_PRI_NAT_SRC + 25,
 	},
 	{
 		.hook = hook_ipv4,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET,
-		.priority = NF_PRI4_JOOL,
+		.priority = NF_IP_PRI_NAT_SRC + 25,
 	}
 };
 

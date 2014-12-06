@@ -333,8 +333,6 @@ static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
  * Returns the length of "skb"'s layer-3 payload.
  * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
  * skb_shinfo(skb)->frag_list).
- *
- * TODO (issue #41) review callers.
  */
 static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
 {
@@ -349,21 +347,6 @@ static inline unsigned int skb_datagram_len(struct sk_buff *skb)
 {
 	return skb->len - skb_l3hdr_len(skb);
 }
-
-/**
- * kfrees "skb". The point is, if "skb" is fragmented, it also kfrees the rest of the fragments.
- */
-void kfree_skb_queued(struct sk_buff *skb);
-
-/**
- * Returns "true" if "icmp_type" is defined by RFC 792 to contain a subpacket as payload.
- */
-bool icmp4_has_inner_packet(__u8 icmp_type);
-
-/**
- * Returns "true" if "icmp6_type" is defined by RFC 4443 to contain a subpacket as payload.
- */
-bool icmp6_has_inner_packet(__u8 icmp6_type);
 
 /**
  * Initializes "skb"'s control buffer. It also validates "skb".

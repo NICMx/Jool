@@ -426,6 +426,10 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 	struct sk_buff *next_skb = out_skb;
 	struct dst_entry *dst;
 	int error = 0;
+
+	out_skb->next = skb_shinfo(out_skb)->frag_list;
+	skb_shinfo(out_skb)->frag_list = NULL;
+
 #ifdef BENCHMARK
 	struct timespec end_time;
 	getnstimeofday(&end_time);
@@ -476,6 +480,6 @@ fail:
 	 * fail to reassemble them.
 	 */
 	inc_stats(out_skb, IPSTATS_MIB_OUTDISCARDS);
-	kfree_skb_queued(next_skb);
+	kfree_skb_list(next_skb);
 	return VER_DROP;
 }

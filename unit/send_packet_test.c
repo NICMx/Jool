@@ -178,14 +178,14 @@ static bool divide_skb_test(l4_protocol l4_proto,
 	skb6->prev = NULL;
 
 	if (divide(skb6, 1280) != 0) {
-		kfree_skb_queued(skb6);
+		kfree_skb(skb6);
 		return false;
 	}
 
 	result = validate_frags6(skb6, &tuple6, total_frags6, is_first, is_last, frag6_offset,
 			payload6_len, payload_offset, total_payload, l4_proto);
 
-	kfree_skb_queued(skb6);
+	kfree_skb_list(skb6);
 	return result;
 }
 
