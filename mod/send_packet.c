@@ -421,6 +421,17 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	return divide(skb_out, min_ipv6_mtu);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+static void kfree_skb_list(struct sk_buff *segs)
+{
+	while (segs) {
+		struct sk_buff *next = segs->next;
+		kfree_skb(segs);
+		segs = next;
+	}
+}
+#endif
+
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 {
 	struct sk_buff *next_skb = out_skb;
