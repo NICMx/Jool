@@ -155,7 +155,7 @@ union request_pool4 {
 	struct {
 		/** The address the user wants to add to the pool. */
 		struct in_addr addr;
-		unsigned char masktbits;
+		unsigned char maskbits;
 	} add;
 	struct {
 		/** The address the user wants to remove from the pool. */
