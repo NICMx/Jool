@@ -239,66 +239,6 @@ static int find_runnerup_addr4(struct in_addr *host_addr, void *void_args)
 }
 
 /**
- * Runs the "func" function on every entry in "table" whose IPv6 address is "addr".
- * Aside from each entry, it always sends "args" as a parameter to "func".
- *
- * This function's performance is critical; do not expect the entries to be visited in any
- * particular order.
- * TODO: (dhernandez) This looks like is no longer need.
- */
-static int for_each_bib_ipv6(struct bib_table *table, struct in6_addr *addr,
-		int (*func)(struct bib_entry *, void *), void *arg)
-{
-	struct bib_entry *root_bib, *bib;
-	struct rb_node *node;
-	int error;
-
-	/* Sanitize */
-	if (!addr)
-		return -EINVAL;
-
-	/* Find the top-most node in the tree whose IPv6 address is addr. */
-	root_bib = rbtree_find(addr, &table->tree6, compare_addr6, struct bib_entry, tree6_hook);
-	if (!root_bib)
-		return 0; /* "Successfully" iterated through no entries. */
-
-	/*
-	 * Run "func" for every entry left of root_bib that has "addr" as address.
-	 * We can do this because all entries whose address is "addr" are glued together in the tree.
-	 */
-	bib = root_bib;
-	do {
-		node = rb_prev(&bib->tree6_hook);
-		if (!node)
-			break;
-
-		bib = rb_entry(node, struct bib_entry, tree6_hook);
-		if (compare_addr6(bib, addr) != 0)
-			break;
-
-		error = func(bib, arg);
-		if (error)
-			return error;
-	} while (true);
-
-	/* Run "func" for every entry right of (and including) root_bib that has "addr" as address. */
-	bib = root_bib;
-	do {
-		error = func(bib, arg);
-		if (error)
-			return error;
-
-		node = rb_next(&bib->tree6_hook);
-		if (!node)
-			break;
-
-		bib = rb_entry(node, struct bib_entry, tree6_hook);
-	} while (compare_addr6(bib, addr) == 0);
-
-	return 0;
-}
-
-/**
  * "Allocates" from the IPv4 pool a new transport address. Attemps to make this address as similar
  * to "tuple6"'s contents as possible.
  *

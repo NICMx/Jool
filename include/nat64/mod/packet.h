@@ -160,22 +160,27 @@ struct jool_cb {
 	 * Local Out chain, though that doesn't affect us ATM).
 	 * Also this saves me a switch in skb_l3_proto() :p.
 	 */
-	__u8 l3_proto;
+	__u8 l3_proto : 1,
 	/**
 	 * Protocol of the layer-4 header of the packet. To the best of my knowledge, the kernel also
 	 * uses skb->proto for this, but only on layer-4 code (of which Jool isn't).
 	 * Skbs otherwise do not store a layer-4 identifier.
 	 */
-	__u8 l4_proto;
+	l4_proto : 2,
+	/**
+	 * Is this a subpacket, contained in a ICMP error? (used by the ttp module.)
+	 */
+	is_inner : 1;
+
 	/**
 	 * Pointer to the packet's payload.
 	 * Because skbs only store pointers to headers.
+	 *
+	 * Sometimes the kernel seems to use skb->data for this. It would be troublesome if we did the
+	 * same, however, since functions such as icmp_send() fail early when skb->data is after the
+	 * layer-3 header.
 	 */
 	void *payload;
-	/**
-	 * If the packet is IPv6 and has a fragment header, this points to it. Else, this holds NULL.
-	 */
-	struct frag_hdr *frag_hdr;
 	/**
 	 * If this is an incoming packet (as in, incoming to Jool), this points to the same packet.
 	 * Otherwise (which includes hairpin packets), this points to the original (incoming) packet.
@@ -183,6 +188,7 @@ struct jool_cb {
 	 * translated. Also used by the packet queue.
 	 */
 	struct sk_buff *original_skb;
+
 #ifdef BENCHMARK
 	/**
 	 * Log the time in epoch when this skb arrives to jool. For benchmark purpouse.
@@ -197,6 +203,7 @@ struct jool_cb {
  */
 static inline struct jool_cb *skb_jcb(struct sk_buff *skb)
 {
+	BUILD_BUG_ON(sizeof(struct jool_cb) > sizeof(skb->cb));
 	return (struct jool_cb *) skb->cb;
 }
 
@@ -216,14 +223,14 @@ static inline void skb_clear_cb(struct sk_buff *skb)
  * Initializes "skb"'s control buffer using the rest of the arguments.
  */
 static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
-		void *payload, struct frag_hdr *fraghdr, struct sk_buff *original_skb)
+		void *payload, struct sk_buff *original_skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 
 	cb->l3_proto = l3_proto;
 	cb->l4_proto = l4_proto;
+	cb->is_inner = 0;
 	cb->payload = payload;
-	cb->frag_hdr = fraghdr;
 	cb->original_skb = original_skb;
 #ifdef BENCHMARK
 	cb->start_time = skb_jcb(original_skb)->start_time;
@@ -246,6 +253,11 @@ static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
 	return skb_jcb(skb)->l4_proto;
 }
 
+static inline bool skb_is_inner(struct sk_buff *skb)
+{
+	return skb_jcb(skb)->is_inner;
+}
+
 /**
  * Returns a pointer to "skb"'s layer-4 payload.
  */
@@ -254,12 +266,9 @@ static inline void *skb_payload(struct sk_buff *skb)
 	return skb_jcb(skb)->payload;
 }
 
-/**
- * Returns a pointer to "skb"'s fragment header, if it has one.
- */
-static inline struct frag_hdr *skb_frag_hdr(struct sk_buff *skb)
+static inline int skb_payload_offset(struct sk_buff *skb)
 {
-	return skb_jcb(skb)->frag_hdr;
+	return skb_network_offset(skb) + (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
 /**
@@ -296,78 +305,48 @@ static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
 	return skb_payload(skb) - (void *) skb_transport_header(skb);
 }
 
-/**
- * Returns the length of "skb"'s layer-4 payload.
- */
-static inline unsigned int skb_payload_len(struct sk_buff *skb)
+static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
 {
-	return skb->len - (skb_payload(skb) - (void *) skb_network_header(skb));
+	return (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
 /**
- * Returns in "len" the length of the layer-3 payload of "skb".
- *
- * If "skb" is not fragmented, this is the length of the layer-4 header plus the length of the
- * actual payload.
- * If "skb" is fragmented, this is the length of the layer-4 header plus the length of the actual
- * payloads of every fragment.
+ * Returns the length of "skb"'s layer-4 payload.
+ * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
+ * skb_shinfo(skb)->frag_list).
  */
-int skb_aggregate_ipv4_payload_len(struct sk_buff *skb, unsigned int *len);
-int skb_aggregate_ipv6_payload_len(struct sk_buff *skb, unsigned int *len);
-/**
- * @}
- */
+static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
+{
+	return ((void *) skb_tail_pointer(skb)) - skb_payload(skb);
+}
 
 /**
- * Fails if "hdr" is corrupted.
- *
- * @param len length of the buffer "hdr" belongs to.
- * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
- *		not be considered a problem (validation will still fail if the buffer does not contain
- *		enough l3 and l4 headers).
- * @param iterator this function will leave this iterator at the layer-3 payload of "hdr"'s buffer.
+ * Returns the length of "skb"'s layer-4 payload.
+ * Includes the entire layer-4 payload (ie. ignores fragmentation).
  */
-int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_truncated,
-		struct hdr_iterator *iterator, int *field);
-/**
- * Fails if "hdr" is corrupted.
- *
- * @param len length of the buffer "hdr" belongs to.
- * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
- *		not be considered a problem (validation will still fail if the buffer does not contain
- *		enough l3 and l4 headers).
- */
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field);
+static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
+{
+	return skb->len - skb_hdrs_len(skb);
+}
 
 /**
- * @{
- * Fails if the parameters describe an invalid respective layer-4 header.
- *
- * @param len length of the buffer the header belongs to.
- * @param l3_hdr_len length of the layer-3 headers of the buffer the header belongs to.
+ * Returns the length of "skb"'s layer-3 payload.
+ * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
+ * skb_shinfo(skb)->frag_list).
  */
-int validate_lengths_tcp(unsigned int len, unsigned int l3_hdr_len, struct tcphdr *hdr);
-int validate_lengths_udp(unsigned int len, unsigned int l3_hdr_len);
-int validate_lengths_icmp6(unsigned int len, unsigned int l3_hdr_len);
-int validate_lengths_icmp4(unsigned int len, unsigned int l3_hdr_len);
-/**
- * @}
- */
+static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
+{
+	return skb_l4hdr_len(skb) + skb_payload_len_frag(skb);
+}
 
 /**
- * kfrees "skb". The point is, if "skb" is fragmented, it also kfrees the rest of the fragments.
+ * Returns the length of "skb"'s layer-3 payload.
+ * Includes the entire layer-3 payload (ie. ignores fragmentation).
  */
-void kfree_skb_queued(struct sk_buff *skb);
-
-/**
- * Returns "true" if "icmp_type" is defined by RFC 792 to contain a subpacket as payload.
- */
-bool icmp4_has_inner_packet(__u8 icmp_type);
-
-/**
- * Returns "true" if "icmp6_type" is defined by RFC 4443 to contain a subpacket as payload.
- */
-bool icmpv6_has_inner_packet(__u8 icmp6_type);
+static inline unsigned int skb_datagram_len(struct sk_buff *skb)
+{
+	return skb->len - skb_l3hdr_len(skb);
+}
 
 /**
  * Initializes "skb"'s control buffer. It also validates "skb".
@@ -383,6 +362,7 @@ bool icmpv6_has_inner_packet(__u8 icmp6_type);
  * Healthy layer 4 checksums are not guaranteed, but that's not an issue since this kind of
  * corruption should be translated along (see validate_icmp6_csum()).
  */
+int skb_init_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);
 /**

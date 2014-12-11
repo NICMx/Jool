@@ -236,7 +236,7 @@ static bool test_icmp(void)
 		return false;
 	set_sent_skb(NULL);
 
-	success &= assert_equals_int(NF_STOLEN, core_6to4(skb), "Request result");
+	success &= assert_equals_int(NF_DROP, core_6to4(skb), "Request result");
 	success &= assert_null(get_sent_skb(), "Sent SKB");
 
 	return success;
@@ -317,8 +317,6 @@ static int init_test_module(void)
 	CALL_TEST(test_hairpin(L4PROTO_UDP, create_skb6_udp), "UDP");
 	CALL_TEST(test_hairpin(L4PROTO_TCP, create_skb6_tcp), "TCP");
 	CALL_TEST(test_icmp(), "ICMP");
-	CALL_TEST(test_hairpin(L4PROTO_UDP, create_skb6frags_udp), "UDP");
-	CALL_TEST(test_hairpin(L4PROTO_TCP, create_skb6frags_tcp), "TCP");
 
 	deinit();
 

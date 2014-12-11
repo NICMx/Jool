@@ -3,7 +3,14 @@
 
 /**
  * @file
- * The host6_node functions
+ * This is an additional index for BIB. Think of it as a private class of BIB.
+ *
+ * For every IPv6 node, it remembers all the IPv4 addresses currently being used to mask it,
+ * so Jool doesn't have to iterate over all the node's BIB entries whenever it needs this info.
+ *
+ * This is because Jool tries hard to always mask nodes with the same address. When this cannot
+ * be ensured, most likely the node will have lots of BIB entries, and most of them will have the
+ * same IPv4 address, so iterating over its entire BIB entry space would be very slow.
  *
  * Note: Use all this functions here to manipulate the objects described in here, all this functions
  * are intended to be thread safe.
@@ -18,7 +25,6 @@
 /**
  * A row, intended to be a Host on the IPv6 network, that keeps references of the IPv4 borrowed
  * from the pool4 (only in the layer-3 protocol).
- * TODO: (dhernandez) needs revision.
  */
 struct host6_node {
 	/** The layer-3 identifier of the host that starts the communication through Jool. */

@@ -517,21 +517,6 @@ static bool test_4to6_icmp_error(void)
 	return test_4to6(L4PROTO_TCP, create_skb4_icmp_error, create_skb6_icmp_error, 120);
 }
 
-static bool test_4to6frag_tcp(void)
-{
-	return test_4to6(L4PROTO_TCP, create_skb4frags_tcp, create_skb6frags_tcp, 100);
-}
-
-static bool test_4to6frag_udp(void)
-{
-	return test_4to6(L4PROTO_UDP, create_skb4frags_udp, create_skb6frags_udp, 100);
-}
-
-static bool test_4to6frag_icmp(void)
-{
-	return test_4to6(L4PROTO_ICMP, create_skb4frags_icmp, create_skb6frags_icmp, 100);
-}
-
 static bool test_6to4(l4_protocol l4_proto,
 		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16, u8),
 		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16, u8),
@@ -622,21 +607,6 @@ static bool test_6to4_icmp_error(void)
 	return test_6to4(L4PROTO_TCP, create_skb6_icmp_error, create_skb4_icmp_error, 80);
 }
 
-static bool test_6to4frag_tcp(void)
-{
-	return test_6to4(L4PROTO_TCP, create_skb6frags_tcp, create_skb4frags_tcp, 100);
-}
-
-static bool test_6to4frag_udp(void)
-{
-	return test_6to4(L4PROTO_UDP, create_skb6frags_udp, create_skb4frags_udp, 100);
-}
-
-static bool test_6to4frag_icmp(void)
-{
-	return test_6to4(L4PROTO_ICMP, create_skb6frags_icmp, create_skb4frags_icmp, 100);
-}
-
 int init_module(void)
 {
 	START_TESTS("Translating the Packet");
@@ -662,17 +632,11 @@ int init_module(void)
 	CALL_TEST(test_4to6_tcp(), "Full translation, 4->6 TCP");
 	CALL_TEST(test_4to6_icmp_info(), "Full translation, 4->6 ICMP info");
 	CALL_TEST(test_4to6_icmp_error(), "Full translation, 4->6 ICMP error");
-	CALL_TEST(test_4to6frag_tcp(), "Full Fragments, 4->6 TCP");
-	CALL_TEST(test_4to6frag_udp(), "Full Fragments, 4->6 UDP");
-	CALL_TEST(test_4to6frag_icmp(), "Full Fragments, 4->6 ICMP");
 
 	CALL_TEST(test_6to4_udp(), "Full translation, 6->4 UDP");
 	CALL_TEST(test_6to4_tcp(), "Full translation, 6->4 TCP");
 	CALL_TEST(test_6to4_icmp_info(), "Full translation, 6->4 ICMP info");
 	CALL_TEST(test_6to4_icmp_error(), "Full translation, 6->4 ICMP error");
-	CALL_TEST(test_6to4frag_tcp(), "Full Fragments, 6->4 TCP");
-	CALL_TEST(test_6to4frag_udp(), "Full Fragments, 6->4 UDP");
-	CALL_TEST(test_6to4frag_icmp(), "Full Fragments, 6->4 ICMP");
 
 	CALL_TEST(test_6to4_udp_custom_payload(), "zero IPv4-UDP checksums, 6->4 UDP");
 

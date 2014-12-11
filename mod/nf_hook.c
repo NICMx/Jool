@@ -21,7 +21,8 @@
 #include <linux/version.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
-
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -81,13 +82,13 @@ static struct nf_hook_ops nfho[] = {
 		.hook = hook_ipv6,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET6,
-		.priority = NF_PRI6_JOOL,
+		.priority = NF_IP6_PRI_NAT_SRC + 25,
 	},
 	{
 		.hook = hook_ipv4,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.pf = PF_INET,
-		.priority = NF_PRI4_JOOL,
+		.priority = NF_IP_PRI_NAT_SRC + 25,
 	}
 };
 
@@ -97,6 +98,9 @@ static int __init nat64_init(void)
 
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
+
+	nf_defrag_ipv6_enable();
+	nf_defrag_ipv4_enable();
 
 	/* Init Jool's submodules. */
 	error = config_init();

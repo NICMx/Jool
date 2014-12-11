@@ -76,11 +76,11 @@ static bool drop_external_connections(void)
 }
 
 /**
- * Decides whether the packet should be filtered or not. Not yet implemented.
+ * Decides whether the packet should be filtered or not.
  */
 static inline void apply_policies(void)
 {
-	/* TODO (Issue #41) decide whether resources and policy allow filtering to continue. */
+	/* No code. iptables does this for us :p. */
 }
 
 static void log_bib(struct bib_entry *bib)

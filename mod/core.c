@@ -38,7 +38,7 @@ static unsigned int core_common(struct sk_buff *skb_in)
 
 	if (is_hairpin(skb_out)) {
 		result = handling_hairpinning(skb_out, &tuple_out);
-		kfree_skb_queued(skb_out);
+		kfree_skb(skb_out);
 	} else {
 		result = sendpkt_send(skb_in, skb_out);
 		/* send_pkt releases skb_out regardless of verdict. */
@@ -48,58 +48,25 @@ static unsigned int core_common(struct sk_buff *skb_in)
 		goto end;
 
 	log_debug("Success.");
-	/* The new packet was sent, so the original one can die; drop it. */
-	result = VER_DROP;
+	/*
+	 * The new packet was sent, so the original one can die; drop it.
+	 *
+	 * NF_DROP translates into an error (see nf_hook_slow()).
+	 * Sending a replacing & translated version of the packet should not count as an error,
+	 * so we free the incoming packet ourselves and return NF_STOLEN on success.
+	 */
+	kfree_skb(skb_in);
+	result = VER_STOLEN;
 	/* Fall through. */
 
 end:
-	if (result == VER_DROP)
-		kfree_skb_queued(skb_in);
-	return NF_STOLEN;
-}
-
-/**
- * Just random paranoia.
- *
- * We can most likely trust the kernel in sending us healthy skb structures, but nobody out there
- * audits every potentially existing kernel module a random user might queue before Jool.
- *
- * If it's going to crash horribly, it better not be Jool's fault.
- */
-static int ensure_good_citizens(struct sk_buff *skb)
-{
-	if (skb->prev || skb->next) {
-		/*
-		 * Jool uses prev and next heavily (and somewhat unlike the rest of the kernel),
-		 * so if the packet is already in a list with some other purpose, crashing is inevitable.
-		 */
-		log_warn_once("Packet is listed; I'm going to ignore it.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int linearize(struct sk_buff *skb)
-{
-	int error;
-
-	error = skb_linearize(skb);
-	if (error) {
-		log_debug("Packet linearization failed with error code %u; cannot translate.", error);
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-		return error;
-	}
-
-	return 0;
+	return (unsigned int) result;
 }
 
 unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct iphdr *hdr = ip_hdr(skb);
-	struct sk_buff *skbs;
 	int error;
-	verdict result;
 
 	if (!pool4_contains(hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
@@ -107,33 +74,23 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
-	if (ensure_good_citizens(skb) != 0)
-		return NF_ACCEPT;
-	if (linearize(skb) != 0) /* Do not use hdr from now on. */
-		return NF_DROP;
-
 	error = skb_init_cb_ipv4(skb);
 	if (error)
 		return NF_DROP;
 
-	result = fragdb_handle4(skb, &skbs);
-	if (result != VER_CONTINUE)
-		return (unsigned int) result;
-
-	error = validate_icmp4_csum(skbs);
+	error = validate_icmp4_csum(skb);
 	if (error) {
-		inc_stats(skbs, IPSTATS_MIB_INHDRERRORS);
-		kfree_skb_queued(skbs);
-		return NF_STOLEN;
+		inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
+		skb_clear_cb(skb);
+		return NF_DROP;
 	}
 
-	return core_common(skbs);
+	return core_common(skb);
 }
 
 unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
-	struct sk_buff *skbs;
 	int error;
 	verdict result;
 
@@ -143,25 +100,24 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
-	if (ensure_good_citizens(skb) != 0)
-		return NF_ACCEPT;
-	if (linearize(skb) != 0) /* Do not use hdr from now on. */
+	error = skb_init_ipv6(skb);
+	if (error)
 		return NF_DROP;
+
+	result = fragdb_handle(&skb);
+	if (result != VER_CONTINUE)
+		return (unsigned int) result;
 
 	error = skb_init_cb_ipv6(skb);
 	if (error)
 		return NF_DROP;
 
-	result = fragdb_handle6(skb, &skbs);
-	if (result != VER_CONTINUE)
-		return (unsigned int) result;
-
-	error = validate_icmp6_csum(skbs);
+	error = validate_icmp6_csum(skb);
 	if (error) {
-		inc_stats(skbs, IPSTATS_MIB_INHDRERRORS);
-		kfree_skb_queued(skbs);
-		return NF_STOLEN;
+		inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
+		skb_clear_cb(skb);
+		return NF_DROP;
 	}
 
-	return core_common(skbs);
+	return core_common(skb);
 }

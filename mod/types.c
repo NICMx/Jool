@@ -81,6 +81,10 @@ bool is_icmp6_info(__u8 type)
 
 bool is_icmp6_error(__u8 type)
 {
+	/*
+	 * We do not return !is_icmp6_info(type) because unknown codes should be considered
+	 * untranslatable.
+	 */
 	return (type == ICMPV6_DEST_UNREACH)
 			|| (type == ICMPV6_PKT_TOOBIG)
 			|| (type == ICMPV6_TIME_EXCEED)

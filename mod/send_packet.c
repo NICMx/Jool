@@ -246,9 +246,9 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
  * Helper function for divide.
  * Create a fragment header to a packet if required.
  */
-static int create_fragment_header(struct sk_buff *skb, struct ipv6hdr *first_hdr6,
-		struct frag_hdr *cb_frag_header, struct iphdr *ip4_hdr)
+static void create_fragment_header(struct sk_buff *skb, struct iphdr *ip4_hdr)
 {
+	struct ipv6hdr *first_hdr6 = ipv6_hdr(skb);
 	struct ipv6hdr *tmp_hdr6;
 	struct frag_hdr *fragment_hdr;
 
@@ -266,13 +266,9 @@ static int create_fragment_header(struct sk_buff *skb, struct ipv6hdr *first_hdr
 			is_more_fragments_set_ipv4(ip4_hdr));
 	fragment_hdr->identification = cpu_to_be32(be16_to_cpu(ip4_hdr->id));
 
-	cb_frag_header = fragment_hdr;
-
 	first_hdr6->payload_len = htonl(ntohl(first_hdr6->payload_len) + sizeof(struct frag_hdr));
 
 	skb_reset_network_header(skb);
-
-	return 0;
 }
 
 /**
@@ -305,8 +301,8 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu, struct iphdr *ip4_hdr
 	min_ipv6_mtu &= 0xFFF8;
 
 	cb = skb_jcb(skb);
-	if (!cb->frag_hdr)
-		create_fragment_header(skb, ipv6_hdr(skb), cb->frag_hdr, ip4_hdr);
+	if (!get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT))
+		create_fragment_header(skb, ip4_hdr);
 
 	first_hdr6 = ipv6_hdr(skb);
 
@@ -358,7 +354,6 @@ static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu, struct iphdr *ip4_hdr
 
 		skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(skb),
 				skb_transport_header(new_skb),
-				(struct frag_hdr *) (ipv6_hdr(new_skb) + 1),
 				skb_original_skb(skb));
 
 		prev_skb->next = new_skb;
@@ -460,11 +455,26 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	return divide(skb_out, min_ipv6_mtu, ip_hdr(skb_in));
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+static void kfree_skb_list(struct sk_buff *segs)
+{
+	while (segs) {
+		struct sk_buff *next = segs->next;
+		kfree_skb(segs);
+		segs = next;
+	}
+}
+#endif
+
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 {
 	struct sk_buff *next_skb = out_skb;
 	struct dst_entry *dst;
 	int error = 0;
+
+	out_skb->next = skb_shinfo(out_skb)->frag_list;
+	skb_shinfo(out_skb)->frag_list = NULL;
+
 #ifdef BENCHMARK
 	struct timespec end_time;
 	getnstimeofday(&end_time);
@@ -515,6 +525,6 @@ fail:
 	 * fail to reassemble them.
 	 */
 	inc_stats(out_skb, IPSTATS_MIB_OUTDISCARDS);
-	kfree_skb_queued(next_skb);
+	kfree_skb_list(next_skb);
 	return VER_DROP;
 }
