@@ -134,4 +134,6 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
  */
 int pool4_count(__u64 *result);
 
+int pool4_cidr_range(struct in_addr addr, unsigned char mask);
+
 #endif /* _JOOL_MOD_POOL4_H */

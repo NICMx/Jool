@@ -220,8 +220,10 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding an address to the IPv4 pool.");
-		return respond_error(nl_hdr, pool4_register(&request->add.addr));
-
+		if (request->add.maskbits == NULL)
+			return respond_error(nl_hdr, pool4_register(&request->add.addr));
+		else
+			return respond_error(pool4_cidr_range(request->add.addr,request->add.maskbits));
 	case OP_REMOVE:
 		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
@@ -597,7 +599,7 @@ int config_init(void)
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
 #endif
-	
+
 	if (!nl_socket) {
 		log_err("Creation of netlink socket failed.");
 		return -EINVAL;
