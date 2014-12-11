@@ -55,6 +55,17 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *out);
  */
 
 /**
+ * @{
+ * Parses "str" as a '/' separated l3-address and cidr maskbits, which it then copies to "out"
+ * and to "maskbits".
+ */
+int str_to_addr4_mask(const char *str, struct ipv4_transport_addr *out, unsigned char *maskbits);
+/**
+ * @}
+ */
+
+
+/**
  * Parses "str" as a IPv6 prefix (<prefix address>/<mask>), which it then copies to "out".
  */
 int str_to_prefix(const char *str, struct ipv6_prefix *out);
@@ -70,4 +81,3 @@ void print_time_csv(__u64 millis);
 void print_time_friendly(__u64 millis);
 
 #endif /* _JOOL_COMM_STR_UTILS_H */
-

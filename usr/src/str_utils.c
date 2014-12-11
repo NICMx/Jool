@@ -254,6 +254,46 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 }
 
 #undef STR_MAX_LEN
+#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + mask */
+int str_to_addr4_mask(const char *str, struct ipv4_transport_addr *out, unsigned char *maskbits)
+{
+	const char *FORMAT = "<IPv4 address>/<mask> (eg. 10.20.30.40/24)";
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char str_copy[STR_MAX_LEN];
+	char *token;
+	int error;
+
+	if (strlen(str) + 1 > STR_MAX_LEN) {
+		printf("'%s' is too long for this poor, limited parser...", str);
+		return -EINVAL;
+	}
+	strcpy(str_copy, str);
+
+	token = strtok(str_copy, "/");
+	if (!token) {
+		printf("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_addr4(token, out);
+	if (error)
+		return error;
+
+		token = strtok(NULL, "/");
+		if (!token) {
+			printf("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
+			return -EINVAL;
+		}
+		*maskbits = atoi(token);
+		if (*maskbits > 32 || *maskbits < 1) {
+			printf("IPv4 Pool netmask bits value is invalid [%d].", *maskbits);
+			return -EINVAL;
+		}
+
+		return 0;
+}
+
+#undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3) /* [addr + null chara] + / + pref len */
 int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
