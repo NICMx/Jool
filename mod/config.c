@@ -223,10 +223,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		if (request->add.maskbits == 0)
 			return respond_error(nl_hdr, pool4_register(&request->add.addr));
 		else {
-			log_info("Maskbits request: %u",request->add.maskbits);
-			log_info("Maskbits pointer request: %u",&request->add.maskbits);
-			return -EINVAL;
-			return respond_error(nl_hdr,pool4_cidr_range(&request->add.addr,&request->add.maskbits));
+			return respond_error(nl_hdr,pool4_cidr_range(&request->add.addr,request->add.maskbits));
 		}
 
 	case OP_REMOVE:

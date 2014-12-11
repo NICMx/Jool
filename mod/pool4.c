@@ -571,27 +571,31 @@ int pool4_count(__u64 *result)
 	return 0;
 }
 
-int pool4_cidr_range(struct in_addr addr, unsigned char mask){
+int pool4_cidr_range(struct in_addr *addr, unsigned char mask){
 	struct in_addr network;
 	struct in_addr broadcast;
-	struct in_addr temp;
+	struct in_addr *temp = addr;
 	unsigned int netmask;
 	int i;
+	int error;
 
 	int maxhosts = 2<<((32-mask)-1);
 	log_info("maxhosts: %d",maxhosts);
 
 	netmask = inet_make_mask(mask);
-	network.s_addr = addr.s_addr & netmask;
+	network.s_addr = addr->s_addr & netmask;
 	broadcast.s_addr = network.s_addr | ~netmask;
 
 	log_info("IP: %pI4", addr);
-	log_info("Maskbits: %u ",mask);
+	log_info("Maskbits: %u",mask);
 	log_info("Network: %pI4", network);
 	log_info("Broadcast: %pI4", broadcast);
 	for (i=0; i<maxhosts; i++) {
-		temp.s_addr = htonl(ntohl(network.s_addr) + i);
-		log_info("usable IP: %pI4",temp);
+		(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+		log_debug("usable IP: %pI4",temp);
+		error = pool4_register(temp);
+		if (error)
+			return -EINVAL;
 	}
 	return 0;
 }
