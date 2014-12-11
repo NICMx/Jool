@@ -579,19 +579,19 @@ int pool4_cidr_range(struct in_addr addr, unsigned char mask){
 	int i;
 
 	int maxhosts = 2<<((32-mask)-1);
-	log_debug("maxhosts: %d",maxhosts);
+	log_info("maxhosts: %d",maxhosts);
 
 	netmask = inet_make_mask(mask);
 	network.s_addr = addr.s_addr & netmask;
 	broadcast.s_addr = network.s_addr | ~netmask;
 
-	log_debug("IP: %pI4", addr);
-	log_debug("Maskbits: %u ",mask);
-	log_debug("Network: %pI4", network);
-	log_debug("Broadcast: %pI4", broadcast);
+	log_info("IP: %pI4", addr);
+	log_info("Maskbits: %u ",mask);
+	log_info("Network: %pI4", network);
+	log_info("Broadcast: %pI4", broadcast);
 	for (i=0; i<maxhosts; i++) {
 		temp.s_addr = htonl(ntohl(network.s_addr) + i);
-		log_debug("usable IP: %pI4",temp);
+		log_info("usable IP: %pI4",temp);
 	}
 	return 0;
 }

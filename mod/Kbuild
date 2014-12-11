@@ -1,6 +1,6 @@
 #CC=cgcc
 ccflags-y := -I$(src)/../include
-#EXTRA_CFLAGS += -DDEBUG
+EXTRA_CFLAGS += -DDEBUG
 
 # Note: if you want to activate the benchmark feature, you need to activate the following flag, and
 #	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
