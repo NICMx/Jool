@@ -26,6 +26,7 @@ PKTQUEUE = pktqueue
 CONFIG_PROTO = config_proto
 LOGTIME = logtime
 SEND_PKT = send_pkt
+MAPPING = mapping
 
 
 obj-m += $(ITERATOR).o
@@ -47,6 +48,7 @@ obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
 obj-m += $(LOGTIME).o
 obj-m += $(SEND_PKT).o
+obj-m += $(MAPPING).o
 
 
 MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
@@ -265,6 +267,10 @@ $(SEND_PKT)-objs += ../mod/ipv6_hdr_iterator.o
 $(SEND_PKT)-objs += ../mod/packet.o
 $(SEND_PKT)-objs += send_packet_test.o
 
+$(MAPPING)-objs += $(MIN_REQS)
+$(MAPPING)-objs += ../mod/rbtree.o
+$(MAPPING)-objs += address_mapping_test.o
+
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
@@ -288,6 +294,7 @@ test:
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
 	-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
 	-sudo insmod $(SEND_PKT).ko && sudo rmmod $(SEND_PKT)
+	-sudo insmod $(MAPPING).ko && sudo rmmod $(MAPPING)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

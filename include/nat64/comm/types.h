@@ -107,6 +107,17 @@ struct ipv6_transport_addr {
 };
 
 /**
+ * TODO:(dhernandez) check if this description is correct.
+ * A member of the IPv4 pool; the network component of a IPv4 address.
+ */
+struct ipv4_prefix {
+	/** IPv4 prefix. */
+	struct in_addr address;
+	/** Number of bits from "address" which represent the network. */
+	__u8 len;
+};
+
+/**
  * A member of the IPv6 pool; the network component of a IPv6 address.
  */
 struct ipv6_prefix {
