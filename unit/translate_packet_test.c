@@ -560,6 +560,48 @@ end:
 	return result;
 }
 
+static bool test_6to4_custom_payload(l4_protocol l4_proto,
+		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16 *, u16, u8),
+		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16 *, u16, u8),
+		u16 expected_payload4_len, u16 *payload_array)
+{
+	struct sk_buff *skb6 = NULL, *skb4_expected = NULL, *skb4_actual = NULL;
+	struct tuple tuple6, tuple4;
+	bool result = false;
+
+	if (init_ipv6_tuple(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
+			|| init_ipv4_tuple(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
+			|| create_skb6_fn(&tuple6, &skb6, payload_array, 4, 32) != 0
+			|| create_skb4_fn(&tuple4, &skb4_expected, payload_array,
+					expected_payload4_len, 31) != 0)
+		goto end;
+
+	if (translating_the_packet(&tuple4, skb6, &skb4_actual) != VER_CONTINUE)
+		goto end;
+
+	result = compare_skbs(skb4_expected, skb4_actual);
+	if (!result)
+		goto end;
+
+	result = assert_equals_csum(~cpu_to_be16(0x0000), /* ~0x0000 == 0xFFFF */
+			((struct udphdr *) skb_transport_header(skb4_actual))->check, "checksum test");
+	/* Fall through. */
+
+end:
+	kfree_skb(skb6);
+	kfree_skb(skb4_expected);
+	kfree_skb(skb4_actual);
+	return result;
+}
+
+static bool test_6to4_udp_custom_payload(void)
+{
+	u16 payload_array[] = {0, 0, 118, 172};
+
+	return test_6to4_custom_payload(L4PROTO_UDP, create_skb6_upd_custom_payload,
+			create_skb4_upd_custom_payload, 4, payload_array);
+}
+
 static bool test_6to4_udp(void)
 {
 	return test_6to4(L4PROTO_UDP, create_skb6_udp, create_skb4_udp, 100);
@@ -632,7 +674,7 @@ int init_module(void)
 	CALL_TEST(test_6to4frag_udp(), "Full Fragments, 6->4 UDP");
 	CALL_TEST(test_6to4frag_icmp(), "Full Fragments, 6->4 ICMP");
 
-	/* TODO (test) still need to test zero IPv4-UDP checksums. I think that's all. */
+	CALL_TEST(test_6to4_udp_custom_payload(), "zero IPv4-UDP checksums, 6->4 UDP");
 
 	translate_packet_destroy();
 

@@ -16,6 +16,10 @@ int ipv6_tcp_post(void *l4_hdr, u16 datagram_len, struct tuple *tuple6);
 int ipv4_tcp_post(void *l4_hdr, u16 datagram_len, struct tuple *tuple4);
 int init_payload_normal(void *l4_hdr, u16 payload_len);
 
+int create_skb6_upd_custom_payload(struct tuple *tuple6, struct sk_buff **result, u16 *payload_array,
+		u16 payload_len, u8 ttl);
+int create_skb4_upd_custom_payload(struct tuple *tuple4, struct sk_buff **result, u16 *payload_array,
+		u16 payload_len, u8 ttl);
 int create_skb6_udp(struct tuple *tuple6, struct sk_buff **result, u16 payload_len, u8 ttl);
 int create_skb6_tcp(struct tuple *tuple6, struct sk_buff **result, u16 payload_len, u8 ttl);
 int create_skb6_icmp_info(struct tuple *tuple6, struct sk_buff **result, u16 payload_len, u8 ttl);
