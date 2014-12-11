@@ -588,8 +588,8 @@ int pool4_cidr_range(struct in_addr *addr, unsigned char mask){
 
 	log_info("IP: %pI4", addr);
 	log_info("Maskbits: %u",mask);
-	log_info("Network: %pI4", network);
-	log_info("Broadcast: %pI4", broadcast);
+	log_info("Network: %pI4", &network);
+	log_info("Broadcast: %pI4", &broadcast);
 	for (i=0; i<maxhosts; i++) {
 		(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
 		log_debug("usable IP: %pI4",temp);
