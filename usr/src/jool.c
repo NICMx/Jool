@@ -50,6 +50,7 @@ struct arguments {
 		struct {
 			struct in_addr addr;
 			bool addr_set;
+			unsigned char maskbits;
 		} pool4;
 
 		struct {
@@ -423,7 +424,12 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
 		if (error)
 			return error;
-		error = str_to_addr4(str, &args->db.pool4.addr);
+		if (strchr(str, '/') != 0){
+			error = str_to_addr4_mask(str, &args->db.pool4.addr, &args->db.pool4.maskbits);
+		} else {
+			error = str_to_addr4(str, &args->db.pool4.addr);
+			args->db.pool4.maskbits = NULL;
+		}
 		args->db.pool4.addr_set = true;
 		break;
 	case ARGP_PREFIX:
@@ -621,7 +627,7 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address to be added (--address).");
 				return -EINVAL;
 			}
-			return pool4_add(&args.db.pool4.addr);
+			return pool4_add(&args.db.pool4.addr, &args.db.pool4.maskbits);
 		case OP_REMOVE:
 			if (!args.db.pool4.addr_set) {
 				log_err("Please enter the address to be removed (--address).");

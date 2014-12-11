@@ -255,7 +255,7 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + mask */
-int str_to_addr4_mask(const char *str, struct ipv4_transport_addr *out, unsigned char *maskbits)
+int str_to_addr4_mask(const char *str, struct in_addr *out, unsigned char *maskbits)
 {
 	const char *FORMAT = "<IPv4 address>/<mask> (eg. 10.20.30.40/24)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */

@@ -59,7 +59,7 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *out);
  * Parses "str" as a '/' separated l3-address and cidr maskbits, which it then copies to "out"
  * and to "maskbits".
  */
-int str_to_addr4_mask(const char *str, struct ipv4_transport_addr *out, unsigned char *maskbits);
+int str_to_addr4_mask(const char *str, struct in_addr *out, unsigned char *maskbits);
 /**
  * @}
  */

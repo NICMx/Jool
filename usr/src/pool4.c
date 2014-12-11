@@ -71,7 +71,7 @@ static int pool4_add_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_add(struct in_addr *addr)
+int pool4_add(struct in_addr *addr, unsigned char *mask)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -81,6 +81,7 @@ int pool4_add(struct in_addr *addr)
 	hdr->mode = MODE_POOL4;
 	hdr->operation = OP_ADD;
 	payload->add.addr = *addr;
+	payload->add.masktbits = *mask;
 
 	return netlink_request(request, hdr->length, pool4_add_response, NULL);
 }
