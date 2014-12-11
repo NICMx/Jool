@@ -30,9 +30,6 @@ Insert the module:
 	Turn off offloads (do this for every relevant interface)
 		# sudo ethtool --offload <interface> tso off ufo off gso off gro off lro off
 
-	Prevent martian packets from reaching the module (Required by RFC 6146).
-		# sysctl -w net.ipv4.conf.all.log_martians=1
-
 	Actually insert the module:
 		$ # default IPv4 pool: 192.168.2.1-192.168.2.4
 		$ # default IPv6 pool: 64:ff9b::/96

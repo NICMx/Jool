@@ -287,14 +287,6 @@ static int __skb_init_cb_ipv6(struct sk_buff *skb)
 	if (unlikely(error))
 		goto inhdr;
 
-	/*
-	 * If you're comparing this to init_ipv4_cb(), keep in mind that ip6_route_input() is not
-	 * exported for dynamic modules to use (and linux doesn't know a route to the NAT64 prefix
-	 * anyway), so we have to test the shit out of kernel IPv6 functions which might dereference
-	 * the dst_entries of the skbs.
-	 * We already know of a bug in Linux 3.12 that does exactly that, see icmp_wrapper.c.
-	 */
-
 	cb->l3_proto = L3PROTO_IPV6;
 	cb->is_inner = 0;
 	cb->original_skb = skb;
@@ -413,22 +405,6 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 
 #ifdef BENCHMARK
 	getnstimeofday(&cb->start_time);
-#endif
-
-#ifndef UNIT_TESTING
-	if (skb && skb_rtable(skb) == NULL) {
-		/*
-		 * Some kernel functions assume that the incoming packet is already routed.
-		 * Because they seem to pop up where we least expect them, we'll just route every incoming
-		 * packet, regardless of whether we end up calling one of those functions.
-		 */
-		error = ip_route_input(skb, hdr4->daddr, hdr4->saddr, hdr4->tos, skb->dev);
-		if (error) {
-			log_debug("ip_route_input failed: %d", error);
-			inc_stats(skb, IPSTATS_MIB_INNOROUTES);
-			return error;
-		}
-	}
 #endif
 
 	cb->l3_proto = L3PROTO_IPV4;

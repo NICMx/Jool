@@ -63,6 +63,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)
 * [techmotive](https://github.com/techmotive)
+* [Tore Anderson](https://github.com/toreanderson)
 * Washam Fan
 
 ## Legal stuff

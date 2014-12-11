@@ -7,6 +7,8 @@ dst = destination
 in = incoming (Note, not "inner")
 out = outgoing (Not "outer")
 
+4to6 = translation from IPv4 to IPv6
+6to4 = translation from IPv6 to IPv4
 alloc = memory allocation
 addr = address
 aux = auxiliar function
