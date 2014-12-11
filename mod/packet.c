@@ -234,7 +234,43 @@ inhdr:
 	return error;
 }
 
-int skb_init_cb_ipv6(struct sk_buff *skb)
+int skb_init_ipv6(struct sk_buff *skb)
+{
+	struct frag_hdr *fragment_hdr;
+	struct hdr_iterator iterator;
+	int error = -EINVAL;
+
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+		goto truncated;
+
+	if (unlikely(skb->len != sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len)))
+		goto inhdr;
+	error = may_pull_ipv6_hdrs(skb);
+	if (unlikely(error))
+		goto truncated;
+
+	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb), skb_headlen(skb));
+	error = iterate_till_end(&iterator, &fragment_hdr);
+	if (unlikely(error))
+		goto inhdr;
+
+	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
+
+	if (iterator.hdr_type == NEXTHDR_ICMP && icmp6_has_inner_packet(icmp6_hdr(skb)->icmp6_type))
+		error = init_inner_packet6(skb);
+
+	return error;
+
+truncated:
+	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
+	return error;
+
+inhdr:
+	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
+	return error;
+}
+
+static int __skb_init_cb_ipv6(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 	struct frag_hdr *fragment_hdr;
@@ -245,15 +281,8 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	getnstimeofday(&cb->start_time);
 #endif
 
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		goto truncated;
-	if (unlikely(skb->len != sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len)))
-		goto inhdr;
-	error = may_pull_ipv6_hdrs(skb);
-	if (unlikely(error))
-		goto truncated;
-
-	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb), skb_headlen(skb));
+	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb),
+			skb_tail_pointer(skb) - skb_network_header(skb));
 	error = iterate_till_end(&iterator, &fragment_hdr);
 	if (unlikely(error))
 		goto inhdr;
@@ -275,15 +304,33 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	if (unlikely(error))
 		return error;
 
-	if (cb->l4_proto == L4PROTO_ICMP && icmp6_has_inner_packet(icmp6_hdr(skb)->icmp6_type))
-		error = init_inner_packet6(skb);
-
 	return error;
 
-truncated:
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
+inhdr:
+	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
 	return error;
+}
 
+int skb_init_cb_ipv6(struct sk_buff *skb)
+{
+	int error = 0;
+
+	error = __skb_init_cb_ipv6(skb);
+	if (unlikely(error))
+		return error;
+
+	/* If not a fragment, the next "while" will be omitted. */
+	skb_walk_frags(skb, skb) {
+		if (unlikely(skb_tail_pointer(skb) - skb_network_header(skb)
+				!= sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len)))
+			goto inhdr;
+
+		error = __skb_init_cb_ipv6(skb);
+		if (unlikely(error))
+			return error;
+	}
+
+	return error;
 inhdr:
 	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
 	return error;

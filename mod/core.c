@@ -100,13 +100,17 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
-	error = skb_init_cb_ipv6(skb);
+	error = skb_init_ipv6(skb);
 	if (error)
 		return NF_DROP;
 
 	result = fragdb_handle(&skb);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
+
+	error = skb_init_cb_ipv6(skb);
+	if (error)
+		return NF_DROP;
 
 	error = validate_icmp6_csum(skb);
 	if (error) {
