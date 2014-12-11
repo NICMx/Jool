@@ -3,7 +3,7 @@
 #include "nat64/comm/str_utils.h"
 
 #include <linux/slab.h>
-
+#include <linux/inetdevice.h>
 
 #define HTABLE_NAME pool4_table
 #define KEY_TYPE struct in_addr
