@@ -237,7 +237,7 @@ int pool4_register(struct in_addr *addr)
 		if (node->active) {
 			spin_unlock_bh(&pool_lock);
 			log_err("Address %pI4 already belongs to the pool.", addr);
-			return -EINVAL;
+			return -EEXIST;
 		} else {
 			node->active = true;
 			inactives_pool4_node_counter--;
@@ -594,8 +594,10 @@ int pool4_cidr_range(struct in_addr *addr, unsigned char mask){
 		(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
 		log_debug("usable IP: %pI4",temp);
 		error = pool4_register(temp);
-		if (error)
-			return -EINVAL;
+		if (error == -EEXIST)
+			continue;
+		else if (error)
+			return error;
 	}
 	return 0;
 }
