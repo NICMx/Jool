@@ -579,8 +579,10 @@ int pool4_cidr_range(struct in_addr *addr, unsigned char mask){
 	int i;
 	int error;
 
-	int maxhosts = 2<<((32-mask)-1);
-	log_info("maxhosts: %d",maxhosts);
+	int total_addresses = 2<<((32-mask)-1);
+	int usable_hosts = total_addresses-2;
+	log_info("total addresses: %d",total_addresses);
+	log_info("usable_hosts: %d",usable_hosts);
 
 	netmask = inet_make_mask(mask);
 	network.s_addr = addr->s_addr & netmask;
@@ -590,14 +592,24 @@ int pool4_cidr_range(struct in_addr *addr, unsigned char mask){
 	log_info("Maskbits: %u",mask);
 	log_info("Network: %pI4", &network);
 	log_info("Broadcast: %pI4", &broadcast);
-	for (i=0; i<maxhosts; i++) {
-		(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+	if(mask == 32) {
+		(*temp).s_addr = htonl(ntohl(network.s_addr));
 		log_debug("usable IP: %pI4",temp);
 		error = pool4_register(temp);
-		if (error == -EEXIST)
-			continue;
-		else if (error)
-			return error;
+		return error;
+	} else if (mask == 31) {
+		log_err("CIDR block inserted is unusable.");
+		return -EINVAL;
+	} else {
+		for (i=1; i<=usable_hosts; i++) {
+			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+			log_debug("usable IP: %pI4",temp);
+			error = pool4_register(temp);
+			if (error == -EEXIST)
+				continue;
+			else if (error)
+				return error;
+		}
 	}
 	return 0;
 }
