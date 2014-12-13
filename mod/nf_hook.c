@@ -160,7 +160,6 @@ static int __init nat64_init(void)
 	/* Hook Jool to Netfilter. */
 	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
 		nfho[i].owner = NULL;
-		nfho[i].priv = NULL;
 		nfho[i].priority = NF_IP_PRI_NAT_SRC + 25;
 	}
 
