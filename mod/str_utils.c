@@ -1,5 +1,5 @@
 #include "nat64/comm/str_utils.h"
-
+#include <string.h>
 #include <linux/inet.h>
 
 
