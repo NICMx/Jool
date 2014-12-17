@@ -428,7 +428,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 			error = str_to_addr4_mask(str, &args->db.pool4.addr, &args->db.pool4.maskbits);
 		} else {
 			error = str_to_addr4(str, &args->db.pool4.addr);
-			args->db.pool4.maskbits = 0;
+			args->db.pool4.maskbits = 32;
 		}
 		args->db.pool4.addr_set = true;
 		break;

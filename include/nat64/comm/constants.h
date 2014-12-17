@@ -72,7 +72,7 @@
 /* -- Config defaults -- */
 #define POOL6_DEF { "64:ff9b::/96" }
 
-#define POOL4_DEF { "192.168.2.1", "192.168.2.2", "192.168.2.3", "192.168.2.4" }
+#define POOL4_DEF { "192.168.2.1/29" }
 
 #define FILT_DEF_ADDR_DEPENDENT_FILTERING false
 #define FILT_DEF_FILTER_ICMPV6_INFO false

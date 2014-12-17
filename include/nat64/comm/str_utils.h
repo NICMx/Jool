@@ -35,4 +35,9 @@ const char *l3proto_to_string(l3_protocol proto);
  */
 const char *l4proto_to_string(l4_protocol proto);
 
+/**
+ * split_at - break string at first delimiter, return remainder
+ */
+char *split_at(char *string, int delimiter);
+
 #endif /* _JOOL_COMM_STR_UTILS_H */

@@ -134,6 +134,10 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
  */
 int pool4_count(__u64 *result);
 
+/**
+* Inserts the "addr" address range with the CIDR notation to the pool.
+* Calls pool4_register on each iteration.
+*/
 int pool4_cidr_range(struct in_addr *addr, __u8 maskbits);
 
 #endif /* _JOOL_MOD_POOL4_H */

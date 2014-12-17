@@ -38,3 +38,12 @@ const char *l4proto_to_string(l4_protocol l4_proto)
 
 	return NULL;
 }
+
+char *split_at(char *string, int delimiter)
+{
+	char *cp;
+
+	if ((cp = strchr(string, delimiter)) != 0)
+		*cp++ = 0;
+		return (cp);
+}

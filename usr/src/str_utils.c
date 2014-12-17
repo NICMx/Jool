@@ -290,6 +290,10 @@ int str_to_addr4_mask(const char *str, struct in_addr *out, unsigned char *maskb
 			return -EINVAL;
 		}
 
+		if (*maskbits < 16) {
+			printf("Warning: That's a lot of addresses. Are you sure that <mask> is not a typo?");
+		}
+
 		return 0;
 }
 

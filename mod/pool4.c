@@ -141,8 +141,10 @@ static void destroy_pool4_node(struct pool4_node *node)
 int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
+	char  *mask;
 	unsigned int i;
 	int error;
+	__u8 maskbits;
 
 	error = pool4_table_init(&pool, ipv4_addr_equals, ipv4_addr_hashcode);
 	if (error)
@@ -160,20 +162,29 @@ int pool4_init(char *addr_strs[], int addr_count)
 		addr_count = ARRAY_SIZE(defaults);
 	}
 
-	for (i = 0; i < addr_count; i++) {
-		struct in_addr addr;
+	//for (i = 0; i < addr_count; i++) {
+	struct in_addr addr;
 
-		error = str_to_addr4(addr_strs[i], &addr);
-		if (error) {
-			log_err("Address is malformed: %s.", addr_strs[i]);
-			goto fail;
-		}
-
-		log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
-		error = pool4_register(&addr);
-		if (error)
-			goto fail;
+	if ((mask = split_at(addr_strs[0], '/')) != 0) {
+		error = str_to_addr4(addr_strs[0], &addr);
+		maskbits = 32;
+	} else {
+		if (in4_pton(addr_strs[0], -1, (u8 *) &addr, '/', NULL) != 1)
+			error = -EINVAL;
+		if (kstrtouint(mask, 10, &maskbits) != 0)
+			error = -EINVAL;
 	}
+
+	if (error) {
+		log_err("Address is malformed: %s.", addr_strs[0]);
+		goto fail;
+	}
+
+	log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
+	error = pool4_cidr_range(&addr,maskbits);
+	if (error)
+		goto fail;
+	//}
 
 	last_used_addr = NULL;
 	inactives_pool4_node_counter = 0;
@@ -577,7 +588,7 @@ int pool4_cidr_range(struct in_addr *addr, __u8 maskbits)
 	struct in_addr broadcast;
 	struct in_addr *temp = addr;
 	unsigned int netmask;
-	int i;
+	unsigned int i;
 	int error;
 
 	int total_addresses = 2<<((32-maskbits)-1);
@@ -591,14 +602,22 @@ int pool4_cidr_range(struct in_addr *addr, __u8 maskbits)
 	log_info("Maskbits: %u",maskbits);
 	log_info("Network: %pI4", &network);
 	log_info("Broadcast: %pI4", &broadcast);
-	for (i=0; i<total_addresses; i++) {
-		(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+
+	if (maskbits == 32) {
+		(*temp).s_addr = htonl(ntohl(network.s_addr));
 		log_debug("usable IP: %pI4",temp);
 		error = pool4_register(temp);
-		if (error == -EEXIST)
-			continue;
-		else if (error)
-			return error;
+		return error;
+	} else {
+		for (i=0; i<total_addresses; i++) {
+			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+			log_debug("usable IP: %pI4",temp);
+			error = pool4_register(temp);
+			if (error == -EEXIST)
+				continue;
+				else if (error)
+				return error;
+			}
 	}
 
 	return 0;
