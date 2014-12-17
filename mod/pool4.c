@@ -588,7 +588,7 @@ int pool4_cidr_range(struct in_addr *addr, __u8 maskbits)
 	broadcast.s_addr = network.s_addr | ~netmask;
 
 	log_info("IP: %pI4", addr);
-	log_info("Maskbits: %u",mask);
+	log_info("Maskbits: %u",maskbits);
 	log_info("Network: %pI4", &network);
 	log_info("Broadcast: %pI4", &broadcast);
 	for (i=0; i<total_addresses; i++) {
