@@ -3,6 +3,7 @@
 #include "nat64/comm/str_utils.h"
 
 #include <linux/slab.h>
+#include <linux/inet.h>
 #include <linux/inetdevice.h>
 
 #define HTABLE_NAME pool4_table
@@ -142,7 +143,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
 	char  *mask;
-	unsigned int i;
+	//unsigned int i;
 	int error;
 	__u8 maskbits;
 
@@ -171,7 +172,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 	} else {
 		if (in4_pton(addr_strs[0], -1, (u8 *) &addr, '/', NULL) != 1)
 			error = -EINVAL;
-		if (kstrtouint(mask, 10, &maskbits) != 0)
+		if (kstrtou8(mask, 0, &maskbits) != 0)
 			error = -EINVAL;
 	}
 
