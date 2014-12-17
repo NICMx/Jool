@@ -143,6 +143,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
 	char  *mask;
+	struct in_addr addr;
 	//unsigned int i;
 	int error;
 	__u8 maskbits;
@@ -164,16 +165,14 @@ int pool4_init(char *addr_strs[], int addr_count)
 	}
 
 	//for (i = 0; i < addr_count; i++) {
-	struct in_addr addr;
-
 	if ((mask = split_at(addr_strs[0], '/')) != 0) {
-		error = str_to_addr4(addr_strs[0], &addr);
-		maskbits = 32;
-	} else {
 		if (in4_pton(addr_strs[0], -1, (u8 *) &addr, '/', NULL) != 1)
 			error = -EINVAL;
 		if (kstrtou8(mask, 0, &maskbits) != 0)
 			error = -EINVAL;
+	} else {
+			error = str_to_addr4(addr_strs[0], &addr);
+			maskbits = 32;
 	}
 
 	if (error) {
