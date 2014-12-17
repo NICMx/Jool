@@ -571,7 +571,7 @@ int pool4_count(__u64 *result)
 	return 0;
 }
 
-int pool4_cidr_range(struct in_addr *addr, unsigned char mask)
+int pool4_cidr_range(struct in_addr *addr, __u8 maskbits)
 {
 	struct in_addr network;
 	struct in_addr broadcast;
@@ -580,10 +580,10 @@ int pool4_cidr_range(struct in_addr *addr, unsigned char mask)
 	int i;
 	int error;
 
-	int total_addresses = 2<<((32-mask)-1);
+	int total_addresses = 2<<((32-maskbits)-1);
 	log_info("total addresses: %d",total_addresses);
 
-	netmask = inet_make_mask(mask);
+	netmask = inet_make_mask(maskbits);
 	network.s_addr = addr->s_addr & netmask;
 	broadcast.s_addr = network.s_addr | ~netmask;
 
