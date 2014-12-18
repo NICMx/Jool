@@ -157,7 +157,7 @@ struct jool_cb {
 	/**
 	 * Protocol of the layer-3 header of the packet.
 	 * Yes, skb->proto has the same superpowers, but it's a little unreliable (it's not set in the
-	 * Local Out chain, though that doesn't affect us ATM).
+	 * Local Out chain).
 	 * Also this saves me a switch in skb_l3_proto() :p.
 	 */
 	__u8 l3_proto : 1,
@@ -362,7 +362,6 @@ static inline unsigned int skb_datagram_len(struct sk_buff *skb)
  * Healthy layer 4 checksums are not guaranteed, but that's not an issue since this kind of
  * corruption should be translated along (see validate_icmp6_csum()).
  */
-int skb_init_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);
 /**

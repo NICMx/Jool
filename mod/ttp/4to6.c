@@ -32,7 +32,8 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 	 * As for ICMP errors:
 	 * The IPv4 header will be replaced by a IPv6 header and possibly a fragment header.
 	 * The sub-L4 header will never change in size.
-	 * The subpayload will never change in size (unless it gets truncated later, but I don't care).
+	 * The subpayload will never change in size (unless it gets truncated later, but that's send
+	 * packet's responsibility).
 	 */
 	l3_hdr_len = sizeof(struct ipv6hdr);
 	if (will_need_frag_hdr(ip_hdr(in)))

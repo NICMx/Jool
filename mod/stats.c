@@ -52,16 +52,16 @@ static void inc_stats_ipv4(struct sk_buff *skb, int field)
 static void inc_stats_full(struct sk_buff *skb, int field) {
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IPV6:
-		while (skb) {
+		do {
 			inc_stats_ipv6(skb, field);
 			skb = skb->next;
-		}
+		} while (skb);
 		break;
 	case ETH_P_IP:
-		while (skb) {
+		do {
 			inc_stats_ipv4(skb, field);
 			skb = skb->next;
-		}
+		} while (skb);
 		break;
 	}
 }
@@ -79,7 +79,7 @@ static void inc_stats_simple(struct sk_buff *skb, int field) {
 
 void inc_stats(struct sk_buff *skb, int field)
 {
-	if (WARN(!skb, "Check where we try to increment the statistics."))
+	if (unlikely(!skb))
 		return;
 
 	switch (field) {

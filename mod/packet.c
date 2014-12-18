@@ -234,11 +234,17 @@ inhdr:
 	return error;
 }
 
-int skb_init_ipv6(struct sk_buff *skb)
+static int __skb_init_cb_ipv6(struct sk_buff *skb)
 {
+	struct jool_cb *cb = skb_jcb(skb);
 	struct frag_hdr *fragment_hdr;
 	struct hdr_iterator iterator;
+	int l4hdr_offset;
 	int error = -EINVAL;
+
+#ifdef BENCHMARK
+	getnstimeofday(&cb->start_time);
+#endif
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto truncated;
@@ -249,17 +255,25 @@ int skb_init_ipv6(struct sk_buff *skb)
 	if (unlikely(error))
 		goto truncated;
 
-	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb), skb_headlen(skb));
+	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb),
+			skb_tail_pointer(skb) - skb_network_header(skb));
 	error = iterate_till_end(&iterator, &fragment_hdr);
 	if (unlikely(error))
 		goto inhdr;
 
-	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
+	cb->l3_proto = L3PROTO_IPV6;
+	cb->is_inner = 0;
+	cb->original_skb = skb;
 
-	if (iterator.hdr_type == NEXTHDR_ICMP && icmp6_has_inner_packet(icmp6_hdr(skb)->icmp6_type))
-		error = init_inner_packet6(skb);
+	l4hdr_offset = iterator.data - (void *) ipv6_hdr(skb);
+	/*
+	 * Note! skb->data is involved so this equation is delicate.
+	 * In first fragments, the pointer must end in the transport header.
+	 * In subsequent fragments, the pointer must end up in the payload.
+	 */
+	skb_set_transport_header(skb, skb_network_offset(skb) + l4hdr_offset);
 
-	return error;
+	return init_l4(skb, iterator.hdr_type, is_first_fragment_ipv6(fragment_hdr));
 
 truncated:
 	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
@@ -270,62 +284,34 @@ inhdr:
 	return error;
 }
 
-static int __skb_init_cb_ipv6(struct sk_buff *skb)
-{
-	struct jool_cb *cb = skb_jcb(skb);
-	struct frag_hdr *fragment_hdr;
-	struct hdr_iterator iterator;
-	int error = -EINVAL;
-
-#ifdef BENCHMARK
-	getnstimeofday(&cb->start_time);
-#endif
-
-	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb),
-			skb_tail_pointer(skb) - skb_network_header(skb));
-	error = iterate_till_end(&iterator, &fragment_hdr);
-	if (unlikely(error))
-		goto inhdr;
-
-	cb->l3_proto = L3PROTO_IPV6;
-	cb->is_inner = 0;
-	cb->original_skb = skb;
-	skb_set_transport_header(skb, iterator.data - (void *) skb_network_header(skb));
-
-	error = init_l4(skb, iterator.hdr_type, is_first_fragment_ipv6(fragment_hdr));
-	if (unlikely(error))
-		return error;
-
-	return error;
-
-inhdr:
-	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-	return error;
-}
-
 int skb_init_cb_ipv6(struct sk_buff *skb)
 {
-	int error = 0;
+	int error;
 
 	error = __skb_init_cb_ipv6(skb);
 	if (unlikely(error))
 		return error;
 
+	if (skb_l4_proto(skb) == NEXTHDR_ICMP && icmp6_has_inner_packet(icmp6_hdr(skb)->icmp6_type)) {
+		error = init_inner_packet6(skb);
+		if (unlikely(error))
+			return error;
+	}
+
 	/* If not a fragment, the next "while" will be omitted. */
 	skb_walk_frags(skb, skb) {
 		if (unlikely(skb_tail_pointer(skb) - skb_network_header(skb)
-				!= sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len)))
-			goto inhdr;
+				!= sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len))) {
+			inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
+			return -EINVAL;
+		}
 
 		error = __skb_init_cb_ipv6(skb);
 		if (unlikely(error))
 			return error;
 	}
 
-	return error;
-inhdr:
-	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-	return error;
+	return 0;
 }
 
 static int init_inner_packet4(struct sk_buff *skb)
@@ -397,11 +383,10 @@ inhdr:
 /*
  * TODO (issue #41) how does pskb_may_pull() move the hdr pointers when sk_buff_data_t is a ptr?
  */
-int skb_init_cb_ipv4(struct sk_buff *skb)
+int __skb_init_cb_ipv4(struct sk_buff *skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 	struct iphdr *hdr4 = ip_hdr(skb);
-	int error;
 
 #ifdef BENCHMARK
 	getnstimeofday(&cb->start_time);
@@ -410,16 +395,43 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	cb->l3_proto = L3PROTO_IPV4;
 	cb->is_inner = 0;
 	cb->original_skb = skb;
-	skb_set_transport_header(skb, 4 * hdr4->ihl);
+	/*
+	 * Note! skb->data is involved so this equation is delicate.
+	 * In first fragments, the pointer must end in the transport header.
+	 * In subsequent fragments, the pointer must end up in the payload.
+	 */
+	skb_set_transport_header(skb, skb_network_offset(skb) + 4 * hdr4->ihl);
 
-	error = init_l4(skb, hdr4->protocol, is_first_fragment_ipv4(hdr4));
+	return init_l4(skb, hdr4->protocol, is_first_fragment_ipv4(hdr4));
+}
+
+int skb_init_cb_ipv4(struct sk_buff *skb)
+{
+	int error;
+
+	error = __skb_init_cb_ipv4(skb);
 	if (unlikely(error))
 		return error;
 
-	if (cb->l4_proto == L4PROTO_ICMP && icmp4_has_inner_packet(icmp_hdr(skb)->type))
+	if (skb_l4_proto(skb) == L4PROTO_ICMP && icmp4_has_inner_packet(icmp_hdr(skb)->type)) {
 		error = init_inner_packet4(skb);
+		if (unlikely(error))
+			return error;
+	}
 
-	return error;
+	skb_walk_frags(skb, skb) {
+		if (unlikely(skb_tail_pointer(skb) - skb_network_header(skb)
+				!= ntohs(ip_hdr(skb)->tot_len))) {
+			inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
+			return -EINVAL;
+		}
+
+		error = __skb_init_cb_ipv4(skb);
+		if (unlikely(error))
+			return error;
+	}
+
+	return 0;
 }
 
 static char *nexthdr_to_string(__u8 nexthdr)

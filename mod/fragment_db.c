@@ -33,6 +33,7 @@ static struct kmem_cache *buffer_cache;
 #define HTABLE_NAME fragdb_table
 #define KEY_TYPE struct reassembly_buffer_key
 #define VALUE_TYPE struct reassembly_buffer
+#define HASH_TABLE_SIZE 256
 #include "hash_table.c"
 
 /**

@@ -29,7 +29,8 @@ int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	 * As for ICMP errors:
 	 * Any sub-L3 headers will be replaced by an IPv4 header.
 	 * The sub-L4 header will never change in size.
-	 * The subpayload will never change in size (unless it gets truncated later, but I don't care).
+	 * The subpayload will never change in size (unless it gets truncated later, but that's send
+	 * packet's responsibility).
 	 */
 	total_len = sizeof(struct iphdr) + skb_l3payload_len(in);
 	if (is_first && skb_l4_proto(in) == L4PROTO_ICMP

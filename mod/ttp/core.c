@@ -102,6 +102,10 @@ verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
 			skb_shinfo(*out_skb)->frag_list = current_out_skb;
 		else
 			prev_out_skb->next = current_out_skb;
+		(*out_skb)->len += skb_payload_len_frag(current_out_skb);
+		(*out_skb)->data_len += skb_payload_len_frag(current_out_skb);
+		(*out_skb)->truesize += current_out_skb->truesize;
+
 		prev_out_skb = current_out_skb;
 	}
 
