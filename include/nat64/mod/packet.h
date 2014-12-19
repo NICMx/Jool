@@ -323,6 +323,7 @@ static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-4 payload.
  * Includes the entire layer-4 payload (ie. ignores fragmentation).
+ * This function only makes sense when skb has fragment offset zero.
  */
 static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
 {
@@ -342,6 +343,7 @@ static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-3 payload.
  * Includes the entire layer-3 payload (ie. ignores fragmentation).
+ * This function is only compatible with skbs whose fragment offset is zero.
  */
 static inline unsigned int skb_datagram_len(struct sk_buff *skb)
 {

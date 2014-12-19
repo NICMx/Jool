@@ -59,6 +59,11 @@ int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	skb_reset_network_header(new_skb);
 	skb_set_transport_header(new_skb, sizeof(struct iphdr));
 
+	/* if this is a subsequent fragment... */
+	if (in->data == skb_payload(in))
+		/* ->data has to point to the payload because kernel logic. */
+		skb_pull(new_skb, sizeof(struct iphdr) + skb_l4hdr_len(in));
+
 	skb_set_jcb(new_skb, L3PROTO_IPV4, skb_l4_proto(in),
 			skb_transport_header(new_skb) + skb_l4hdr_len(in),
 			skb_original_skb(in));

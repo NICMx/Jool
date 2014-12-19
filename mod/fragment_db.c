@@ -393,6 +393,7 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
 		buffer->skb->len += skb_payload_len_frag(frag);
 		buffer->skb->data_len += skb_payload_len_frag(frag);
 		buffer->skb->truesize += frag->truesize;
+		skb_pull(frag, skb_l3hdr_len(frag) + skb_l4hdr_len(frag));
 
 	} else {
 		if (WARN(!is_first_fragment_ipv6(hdr_frag), "First fragment's offset is nonzero." COMM_MSG))

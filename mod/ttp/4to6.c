@@ -60,6 +60,11 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 	skb_reset_network_header(new_skb);
 	skb_set_transport_header(new_skb, l3_hdr_len);
 
+	/* if this is a subsequent fragment... */
+	if (in->data == skb_payload(in))
+		/* ->data has to point to the payload because kernel logic. */
+		skb_pull(new_skb, l3_hdr_len + skb_l4hdr_len(in));
+
 	skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(in),
 			skb_transport_header(new_skb) + skb_l4hdr_len(in),
 			skb_original_skb(in));
@@ -456,7 +461,7 @@ static int update_icmp6_csum(struct sk_buff *in, struct sk_buff *out)
 	csum = csum_add(csum, csum_partial(out_icmp, sizeof(*out_icmp), 0));
 
 	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
-			skb_datagram_len(out), IPPROTO_ICMPV6, csum);
+			skb_datagram_len(in), IPPROTO_ICMPV6, csum);
 
 	return 0;
 }

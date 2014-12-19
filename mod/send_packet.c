@@ -227,8 +227,8 @@ int sendpkt_route6(struct sk_buff *skb)
 	return 0;
 }
 
-static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
-		u16 packet_size, u16 offset, bool mf)
+static void fix_hdrs(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
+		unsigned int packet_size, __u16 offset, bool mf)
 {
 	struct frag_hdr *hdrfrag_old = (struct frag_hdr *) (hdr6_old + 1);
 	struct frag_hdr *hdrfrag_new = (struct frag_hdr *) (hdr6_new + 1);
@@ -245,11 +245,14 @@ static void set_frag_headers(struct ipv6hdr *hdr6_old, struct ipv6hdr *hdr6_new,
  * Helper function for divide.
  * Create a fragment header to a packet if required.
  */
-static void create_fragment_header(struct sk_buff *skb, struct iphdr *ip4_hdr)
+static void ensure_fragment_header(struct sk_buff *skb, struct iphdr *ip4_hdr)
 {
 	struct ipv6hdr *first_hdr6 = ipv6_hdr(skb);
 	struct ipv6hdr *tmp_hdr6;
 	struct frag_hdr *fragment_hdr;
+
+	if (first_hdr6->nexthdr == NEXTHDR_FRAGMENT)
+		return;
 
 	tmp_hdr6 = (struct ipv6hdr *) skb_push(skb, 8);
 	memset(tmp_hdr6, 0, sizeof(*fragment_hdr));
@@ -269,7 +272,7 @@ static void create_fragment_header(struct sk_buff *skb, struct iphdr *ip4_hdr)
 	skb_reset_network_header(skb);
 }
 
-static struct sk_buff *create_skb_frag(struct sk_buff *breaking_skb, u16 len)
+static struct sk_buff *create_skb_frag(struct sk_buff *breaking_skb, unsigned int len)
 {
 	struct sk_buff *result_skb;
 
@@ -307,78 +310,69 @@ static struct sk_buff *create_skb_frag(struct sk_buff *breaking_skb, u16 len)
  * - These fields from skb are properly set: network_header, head, data and tail.
  * - skb has either no extension headers (and there's reserved room for a fragment header),
  *   or a single fragment header.
- *
- * TODO all these u16, shouldn't they be unsigned ints?
+ * - skb is not paged.
  */
-static int divide(struct sk_buff *skb, __u16 min_ipv6_mtu, struct iphdr *ip4_hdr)
+static int divide(struct sk_buff *skb, unsigned int min_ipv6_mtu, struct iphdr *ip4_hdr)
 {
 	unsigned char *current_ptr;
-	struct sk_buff *new_skb;
 	struct sk_buff *prev_skb;
-	/* "last" skb involved here. Not necessarily the last skb of the list. */
-	struct sk_buff *last_skb;
 	struct ipv6hdr *first_hdr6;
-	u16 hdrs_size;
-	u16 payload_max_size;
-	u16 original_fragment_offset;
+	unsigned int hdrs_len;
+	unsigned int payload_max_len;
+	__u16 original_frag_offset;
 	bool original_mf;
 
 	/* Prepare the helper values. */
 	min_ipv6_mtu &= 0xFFF8;
 
-	if (ipv6_hdr(skb)->nexthdr != NEXTHDR_FRAGMENT)
-		create_fragment_header(skb, ip4_hdr);
+	ensure_fragment_header(skb, ip4_hdr);
 
 	first_hdr6 = ipv6_hdr(skb);
-
-	hdrs_size = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
-	payload_max_size = min_ipv6_mtu - hdrs_size;
+	hdrs_len = sizeof(struct ipv6hdr) + sizeof(struct frag_hdr);
+	payload_max_len = min_ipv6_mtu - hdrs_len;
 
 	{
 		struct frag_hdr *frag_header = (struct frag_hdr *) (first_hdr6 + 1);
 
-		original_fragment_offset = get_fragment_offset_ipv6(frag_header);
+		original_frag_offset = get_fragment_offset_ipv6(frag_header);
 		original_mf = is_more_fragments_set_ipv6(frag_header);
 	}
 
-	set_frag_headers(first_hdr6, first_hdr6, min_ipv6_mtu, original_fragment_offset, true);
+	fix_hdrs(first_hdr6, first_hdr6, min_ipv6_mtu, original_frag_offset, true);
 	prev_skb = skb;
-	last_skb = skb->next;
 
 	/* Copy frag's overweight to newly-created fragments.  */
 	current_ptr = skb_network_header(skb) + min_ipv6_mtu;
 	do {
-		bool is_last = (skb_tail_pointer(skb) - current_ptr <= payload_max_size);
-		u16 actual_payload_size = is_last
+		bool is_last = (skb_tail_pointer(skb) - current_ptr) <= payload_max_len;
+		unsigned int payload_len = is_last
 					? (skb_tail_pointer(skb) - current_ptr)
-					: (payload_max_size & 0xFFF8);
-		u16 actual_total_size = hdrs_size + actual_payload_size;
+					: (payload_max_len & 0xFFF8);
+		unsigned int total_len = hdrs_len + payload_len;
+		struct sk_buff *new_skb;
 
-		new_skb = create_skb_frag(skb, actual_total_size);
+		new_skb = create_skb_frag(skb, total_len);
 		if (!new_skb)
-			return -ENOMEM; /* TODO is someone deleting the new skbs? */
+			return -ENOMEM;
 
 		memcpy(ipv6_hdr(new_skb), first_hdr6, sizeof(*first_hdr6));
-		set_frag_headers(first_hdr6, ipv6_hdr(new_skb), actual_total_size,
-				original_fragment_offset + (current_ptr - skb->data - hdrs_size),
+		fix_hdrs(first_hdr6, ipv6_hdr(new_skb), total_len,
+				original_frag_offset + (current_ptr - skb->data - hdrs_len),
 				is_last ? original_mf : true);
-		/* TODO This looks sensitive to pages. */
-		memcpy(skb_network_header(new_skb) + hdrs_size, current_ptr, actual_payload_size);
+		memcpy(skb_network_header(new_skb) + hdrs_len, current_ptr, payload_len);
 
+		new_skb->next = prev_skb->next;
 		prev_skb->next = new_skb;
-
-		current_ptr += actual_payload_size;
 		prev_skb = new_skb;
 
-		new_skb->next = NULL;
+		current_ptr += payload_len;
 		inc_stats(skb, IPSTATS_MIB_FRAGCREATES);
 	} while (current_ptr < skb_tail_pointer(skb));
 
-	if (last_skb)
-		new_skb->next = last_skb;
-
 	/* Finally truncate the original packet and we're done. */
-	skb_put(skb, -(skb->len - min_ipv6_mtu));
+	skb_trim(skb, min_ipv6_mtu);
+	first_hdr6->payload_len = htons(min_ipv6_mtu - sizeof(struct ipv6hdr));
+
 	inc_stats(skb, IPSTATS_MIB_FRAGOKS);
 	return 0;
 }
@@ -497,20 +491,38 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 	return 0;
 }
 
-static void revert_frag_list(struct sk_buff *skb)
+/**
+ * Reverts the kernel's fragmentation hacks,
+ * queuing the fragments outside of skb_shinfo(skb_out)->frag_list.
+ */
+static void revert_frag_list(struct sk_buff *in_skb, struct sk_buff *skb_out)
 {
 	struct sk_buff *frag;
+	struct frag_hdr *hdr_frag;
 
-	skb_walk_frags(skb, frag) {
-		skb->len -= skb_payload_len_frag(frag);
-		skb->data_len -= skb_payload_len_frag(frag);
-		skb->truesize -= frag->truesize;
+	if (!skb_shinfo(skb_out)->frag_list)
+		return;
+
+	skb_walk_frags(skb_out, frag) {
+		skb_out->len -= skb_payload_len_frag(frag);
+		skb_out->data_len -= skb_payload_len_frag(frag);
+		skb_out->truesize -= frag->truesize;
+		skb_push(frag, skb_l3hdr_len(frag) + skb_l4hdr_len(frag));
 	}
 
-	skb->next = skb_shinfo(skb)->frag_list;
-	skb_shinfo(skb)->frag_list = NULL;
+	skb_out->next = skb_shinfo(skb_out)->frag_list;
+	skb_shinfo(skb_out)->frag_list = NULL;
 
-	/* TODO revert ->data. */
+	switch (skb_l3_proto(skb_out)) {
+	case L3PROTO_IPV4: /* 6 to 4 */
+		ip_hdr(skb_out)->frag_off = build_ipv4_frag_off_field(false, true, 0);
+		break;
+	case L3PROTO_IPV6: /* 4 to 6 */
+		ensure_fragment_header(skb_out, ip_hdr(in_skb));
+		hdr_frag = (struct frag_hdr *) (ipv6_hdr(skb_out) + 1);
+		hdr_frag->frag_off |= htons(IP6_MF);
+		break;
+	}
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
@@ -527,7 +539,6 @@ static void kfree_skb_list(struct sk_buff *segs)
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 {
 	struct sk_buff *next_skb = out_skb;
-	struct sk_buff *tmp;
 	struct dst_entry *dst;
 	int error = 0;
 
@@ -538,7 +549,7 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 			skb_l4_proto(out_skb));
 #endif
 
-	revert_frag_list(out_skb);
+	revert_frag_list(in_skb, out_skb);
 
 	while (next_skb) {
 		if (WARN(!next_skb->dev, "Packet has no destination device."))
@@ -554,10 +565,9 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 
 		out_skb = next_skb;
 		next_skb = out_skb->next;
-		out_skb->next = out_skb->prev = NULL;
+		out_skb->next = NULL;
 
 		log_debug("Sending skb via device '%s'...", dst->dev->name);
-		print_skb_mini(out_skb);
 
 		switch (skb_l3_proto(out_skb)) {
 		case L3PROTO_IPV6:
