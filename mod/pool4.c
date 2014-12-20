@@ -144,7 +144,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 	char *defaults[] = POOL4_DEF;
 	char  *mask;
 	struct in_addr addr;
-	//unsigned int i;
+	unsigned int i;
 	int error;
 	__u8 maskbits;
 
@@ -164,27 +164,27 @@ int pool4_init(char *addr_strs[], int addr_count)
 		addr_count = ARRAY_SIZE(defaults);
 	}
 
-	//for (i = 0; i < addr_count; i++) {
-	if ((mask = split_at(addr_strs[0], '/')) != 0) {
-		if (in4_pton(addr_strs[0], -1, (u8 *) &addr, '/', NULL) != 1)
-			error = -EINVAL;
-		if (kstrtou8(mask, 0, &maskbits) != 0)
-			error = -EINVAL;
-	} else {
-			error = str_to_addr4(addr_strs[0], &addr);
-			maskbits = 32;
-	}
+	for (i = 0; i < addr_count; i++) {
+		if (strchr(addr_strs[i], '/') != 0){
+			if (in4_pton(addr_strs[i], -1, (u8 *) &addr, '/', NULL) != 1)
+				error = -EINVAL;
+			if (kstrtou8(mask, 0, &maskbits) != 0)
+				error = -EINVAL;
+		} else {
+				error = str_to_addr4(addr_strs[i], &addr);
+				maskbits = 32;
+		}
 
-	if (error) {
-		log_err("Address is malformed: %s.", addr_strs[0]);
-		goto fail;
-	}
+		if (error) {
+			log_err("Address is malformed: %s.", addr_strs[i]);
+			goto fail;
+		}
 
-	log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
-	error = pool4_cidr_range(&addr,maskbits);
-	if (error)
-		goto fail;
-	//}
+		log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
+		error = pool4_cidr_range(&addr,maskbits);
+		if (error)
+			goto fail;
+	}
 
 	last_used_addr = NULL;
 	inactives_pool4_node_counter = 0;
