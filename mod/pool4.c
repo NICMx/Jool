@@ -142,7 +142,6 @@ static void destroy_pool4_node(struct pool4_node *node)
 int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
-	char  *mask;
 	struct in_addr addr;
 	unsigned int i;
 	int error;
@@ -165,10 +164,11 @@ int pool4_init(char *addr_strs[], int addr_count)
 	}
 
 	for (i = 0; i < addr_count; i++) {
+		const char *slash_pos;
 		if (strchr(addr_strs[i], '/') != 0){
-			if (in4_pton(addr_strs[i], -1, (u8 *) &addr, '/', NULL) != 1)
+			if (in4_pton(addr_strs[i], -1, (u8 *) &addr, '/', &slash_pos) != 1)
 				error = -EINVAL;
-			if (kstrtou8(mask, 0, &maskbits) != 0)
+			if (kstrtou8(slash_pos + 1, 0, &maskbits) != 0)
 				error = -EINVAL;
 		} else {
 				error = str_to_addr4(addr_strs[i], &addr);
