@@ -35,4 +35,4 @@ const char *l3proto_to_string(l3_protocol proto);
  */
 const char *l4proto_to_string(l4_protocol proto);
 
-/* _JOOL_COMM_STR_UTILS_H */
+#endif /* _JOOL_COMM_STR_UTILS_H */
