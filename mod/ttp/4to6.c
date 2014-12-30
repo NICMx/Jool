@@ -65,7 +65,7 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 		/* ->data has to point to the payload because kernel logic. */
 		skb_pull(new_skb, l3_hdr_len + skb_l4hdr_len(in));
 
-	skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(in),
+	skb_set_jcb(new_skb, L3PROTO_IPV6, skb_l4_proto(in), skb_is_fragment(in),
 			skb_transport_header(new_skb) + skb_l4hdr_len(in),
 			skb_original_skb(in));
 
@@ -158,11 +158,10 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
+	ip6_hdr->payload_len = htons(ntohs(ip4_hdr->tot_len) - 4 * ip4_hdr->ihl);
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
 
 	if (!skb_is_inner(in)) {
-		ip6_hdr->payload_len = htons(skb_l3hdr_len(out) - sizeof(*ip6_hdr)
-				+ skb_l3payload_len(out));
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
@@ -170,7 +169,6 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		}
 		ip6_hdr->hop_limit = ip4_hdr->ttl - 1;
 	} else {
-		ip6_hdr->payload_len = htons(ntohs(ip4_hdr->tot_len) - (4 * ip4_hdr->ihl));
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
 	}
 	ip6_hdr->saddr = tuple6->src.addr6.l3;
@@ -193,8 +191,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		struct frag_hdr *frag_header = (struct frag_hdr *) (ip6_hdr + 1);
 
 		/* Override some fixed header fields... */
-		if (skb_is_inner(in))
-			ip6_hdr->payload_len = htons(ntohs(ip6_hdr->payload_len) + sizeof(*frag_header));
+		ip6_hdr->payload_len = htons(ntohs(ip6_hdr->payload_len) + sizeof(*frag_header));
 		ip6_hdr->nexthdr = NEXTHDR_FRAGMENT;
 
 		/* ...and set the fragment header ones. */

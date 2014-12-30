@@ -170,7 +170,17 @@ struct jool_cb {
 	/**
 	 * Is this a subpacket, contained in a ICMP error? (used by the ttp module.)
 	 */
-	is_inner : 1;
+	is_inner : 1,
+	/**
+	 * This actually means "is this skb part of a fragment list?"
+	 * After the fragment database, that and "is this skb a fragment?" are the same question.
+	 *
+	 * An skb belongs to a fragment list if its frag_list (skb_shinfo(skb)->frag_list) is non-null,
+	 * or it's linked to the frag_list of some other skb.
+	 *
+	 * TODO (fine) Is there really no way to compute it on the fly?
+	 */
+	is_fragment : 1;
 
 	/**
 	 * Pointer to the packet's payload.
@@ -223,13 +233,14 @@ static inline void skb_clear_cb(struct sk_buff *skb)
  * Initializes "skb"'s control buffer using the rest of the arguments.
  */
 static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
-		void *payload, struct sk_buff *original_skb)
+		bool is_fragment, void *payload, struct sk_buff *original_skb)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 
 	cb->l3_proto = l3_proto;
 	cb->l4_proto = l4_proto;
 	cb->is_inner = 0;
+	cb->is_fragment = is_fragment;
 	cb->payload = payload;
 	cb->original_skb = original_skb;
 #ifdef BENCHMARK
@@ -256,6 +267,11 @@ static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
 static inline bool skb_is_inner(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->is_inner;
+}
+
+static inline bool skb_is_fragment(struct sk_buff *skb)
+{
+	return skb_jcb(skb)->is_fragment;
 }
 
 /**
@@ -307,7 +323,7 @@ static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
 
 static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
 {
-	return (skb_payload(skb) - (void *) skb_network_header(skb));
+	return skb_payload(skb) - (void *) skb_network_header(skb);
 }
 
 /**
@@ -317,7 +333,12 @@ static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
  */
 static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
 {
-	return ((void *) skb_tail_pointer(skb)) - skb_payload(skb);
+	if (!skb_is_fragment(skb))
+		return skb->len - skb_hdrs_len(skb);
+
+	return skb_shinfo(skb)->frag_list
+			? (skb_pagelen(skb) - skb_hdrs_len(skb))
+			: skb_pagelen(skb);
 }
 
 /**
@@ -348,6 +369,11 @@ static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
 static inline unsigned int skb_datagram_len(struct sk_buff *skb)
 {
 	return skb->len - skb_l3hdr_len(skb);
+}
+
+static inline unsigned int skb_len(struct sk_buff *skb)
+{
+	return skb_pagelen(skb) + (skb_shinfo(skb)->frag_list ? 0 : skb_hdrs_len(skb));
 }
 
 /**

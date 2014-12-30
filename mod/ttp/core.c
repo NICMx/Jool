@@ -71,10 +71,6 @@ fail:
 	return VER_DROP;
 }
 
-/*
- * TODO (issue #41) I haven't implemented IPv4 on kernels 3.13+, where the fragment list is stored
- * in frags, not frag_list.
- */
 verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
 		struct sk_buff **out_skb)
 {

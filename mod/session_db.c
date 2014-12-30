@@ -387,7 +387,7 @@ static void send_probe_packet(struct session_entry *session)
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, th + 1, NULL);
+	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, false, th + 1, NULL);
 
 	error = sendpkt_route6(skb);
 	if (error)
@@ -1553,8 +1553,6 @@ static int sessiondb_ipv6_prefix_equal(struct session_entry *session, struct ipv
  * Used in delete_sessions_by_ipv6_prefix when is searching in the Session tree6,
  * returns zero if "session"->ipv6.local.address is equals to "prefix" or contains the "prefix".
  * Otherwise return the gap of the comparison result.
- *
- * TODO this looks really different from the compares above. WTF?
  */
 static int compare_local_prefix6(struct session_entry *session, struct ipv6_prefix *prefix) {
 	int gap;

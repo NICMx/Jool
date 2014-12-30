@@ -20,7 +20,13 @@ static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT];
 
 int copy_payload(struct sk_buff *in, struct sk_buff *out)
 {
-	return skb_copy_bits(in, skb_payload_offset(in), skb_payload(out), skb_payload_len_frag(in));
+	int error;
+
+	error = skb_copy_bits(in, skb_payload_offset(in), skb_payload(out), skb_payload_len_frag(in));
+	if (error)
+		log_debug("The payload copy threw errcode %d.", error);
+
+	return error;
 }
 
 static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
@@ -41,8 +47,16 @@ static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
 
 bool will_need_frag_hdr(struct iphdr *in_hdr)
 {
-	return build_ipv6_frag_hdr(in_hdr) ||
-			(is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr));
+	/*
+	 * We completely ignore the fragment header during stateful operation
+	 * because the kernel really wants to handle it on its own.
+	 */
+	if (nat64_is_stateful())
+		return false;
+
+	return build_ipv6_frag_hdr(in_hdr)
+			|| is_more_fragments_set_ipv4(in_hdr)
+			|| get_fragment_offset_ipv4(in_hdr);
 }
 
 static int move_pointers_in(struct sk_buff *skb, __u8 protocol, unsigned int l3hdr_len)

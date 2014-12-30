@@ -64,7 +64,7 @@ int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 		/* ->data has to point to the payload because kernel logic. */
 		skb_pull(new_skb, sizeof(struct iphdr) + skb_l4hdr_len(in));
 
-	skb_set_jcb(new_skb, L3PROTO_IPV4, skb_l4_proto(in),
+	skb_set_jcb(new_skb, L3PROTO_IPV4, skb_l4_proto(in), skb_is_fragment(in),
 			skb_transport_header(new_skb) + skb_l4hdr_len(in),
 			skb_original_skb(in));
 
@@ -189,11 +189,11 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
+	ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len) + sizeof(*ip4_hdr));
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	if (!skb_is_inner(in)) {
-		ip4_hdr->tot_len = cpu_to_be16(skb_l3hdr_len(out) + skb_l3payload_len(out));
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
@@ -201,8 +201,6 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 		}
 		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
 	} else {
-		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len)
-				- (skb_l3hdr_len(in) - sizeof(*ip6_hdr)) + sizeof(*ip4_hdr));
 		ip4_hdr->ttl = ip6_hdr->hop_limit;
 	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
@@ -222,15 +220,16 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 
 	ip6_frag_hdr = get_extension_header(ip6_hdr, NEXTHDR_FRAGMENT);
 	if (ip6_frag_hdr) {
-		__u16 ipv6_fragment_offset = get_fragment_offset_ipv6(ip6_frag_hdr);
-		__u16 ipv6_m = is_more_fragments_set_ipv6(ip6_frag_hdr);
-
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);
 
-		/* No need to override tot_len, because our way already takes the frag hdr into account. */
+		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len)
+				- sizeof(*ip6_frag_hdr) + sizeof(*ip4_hdr));
 		ip4_hdr->id = generate_ipv4_id_dofrag(ip6_frag_hdr);
-		ip4_hdr->frag_off = build_ipv4_frag_off_field(0, ipv6_m, ipv6_fragment_offset);
+		ip4_hdr->frag_off = build_ipv4_frag_off_field(0,
+				is_more_fragments_set_ipv6(ip6_frag_hdr),
+				get_fragment_offset_ipv6(ip6_frag_hdr));
+
 		/*
 		 * This kinda contradicts the RFC.
 		 * But following its logic, if the last extension header says ICMPv6 it wouldn't be switched
@@ -246,6 +245,10 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	 * The kernel already drops packets if they don't allow fragmentation
 	 * and the next hop MTU is smaller than their size.
 	 */
+
+	/* Adapt to kernel hacks. */
+	if (skb_shinfo(in)->frag_list)
+		ip4_hdr->frag_off &= cpu_to_be16(~IP_MF);
 
 	return 0;
 }

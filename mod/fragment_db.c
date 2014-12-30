@@ -403,6 +403,7 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
 		buffer->next_slot = &skb_shinfo(frag)->frag_list;
 	}
 
+	skb_jcb(frag)->is_fragment = true;
 	return 0;
 }
 #undef COMM_MSG
@@ -492,6 +493,18 @@ verdict fragdb_handle(struct sk_buff **skb)
 	buffer->skb = NULL;
 	buffer_destroy(&key, buffer);
 	spin_unlock_bh(&table_lock);
+
+	if (!skb_make_writable(*skb, skb_l3hdr_len(*skb)))
+		return VER_DROP;
+	/* Why this? Dunno, both defrags do it when they support frag_list. */
+	ipv6_hdr(*skb)->payload_len = cpu_to_be16((*skb)->len - sizeof(struct ipv6hdr));
+	/*
+	 * The kernel's defrag also removes the fragment header.
+	 * That actually harms us, so we don't mirror it. Instead, we make the fragment atomic.
+	 * The rest of Jool must assume the packet might have a redundant fragment header.
+	 */
+	hdr_frag = get_extension_header(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
+	hdr_frag->frag_off &= cpu_to_be16(~IP6_MF);
 
 #ifdef BENCHMARK
 	getnstimeofday(&skb_jcb(*skb_out)->start_time);

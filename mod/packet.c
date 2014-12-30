@@ -234,7 +234,7 @@ inhdr:
 	return error;
 }
 
-static int __skb_init_cb_ipv6(struct sk_buff *skb)
+static int __skb_init_cb_ipv6(struct sk_buff *skb, bool is_fragment)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 	struct frag_hdr *fragment_hdr;
@@ -263,6 +263,7 @@ static int __skb_init_cb_ipv6(struct sk_buff *skb)
 
 	cb->l3_proto = L3PROTO_IPV6;
 	cb->is_inner = 0;
+	cb->is_fragment = is_fragment;
 	cb->original_skb = skb;
 
 	l4hdr_offset = iterator.data - (void *) ipv6_hdr(skb);
@@ -288,7 +289,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 {
 	int error;
 
-	error = __skb_init_cb_ipv6(skb);
+	error = __skb_init_cb_ipv6(skb, skb_shinfo(skb)->frag_list != NULL);
 	if (unlikely(error))
 		return error;
 
@@ -300,13 +301,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 
 	/* If not a fragment, the next "while" will be omitted. */
 	skb_walk_frags(skb, skb) {
-		if (unlikely(skb_tail_pointer(skb) - skb_network_header(skb)
-				!= sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len))) {
-			inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-			return -EINVAL;
-		}
-
-		error = __skb_init_cb_ipv6(skb);
+		error = __skb_init_cb_ipv6(skb, true);
 		if (unlikely(error))
 			return error;
 	}
@@ -383,7 +378,7 @@ inhdr:
 /*
  * TODO (issue #41) how does pskb_may_pull() move the hdr pointers when sk_buff_data_t is a ptr?
  */
-int __skb_init_cb_ipv4(struct sk_buff *skb)
+int __skb_init_cb_ipv4(struct sk_buff *skb, bool is_fragment)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 	struct iphdr *hdr4 = ip_hdr(skb);
@@ -394,6 +389,7 @@ int __skb_init_cb_ipv4(struct sk_buff *skb)
 
 	cb->l3_proto = L3PROTO_IPV4;
 	cb->is_inner = 0;
+	cb->is_fragment = is_fragment;
 	cb->original_skb = skb;
 	/*
 	 * Note! skb->data is involved so this equation is delicate.
@@ -409,7 +405,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 {
 	int error;
 
-	error = __skb_init_cb_ipv4(skb);
+	error = __skb_init_cb_ipv4(skb, skb_shinfo(skb)->frag_list != NULL);
 	if (unlikely(error))
 		return error;
 
@@ -420,13 +416,12 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	}
 
 	skb_walk_frags(skb, skb) {
-		if (unlikely(skb_tail_pointer(skb) - skb_network_header(skb)
-				!= ntohs(ip_hdr(skb)->tot_len))) {
+		if (unlikely(skb->len + 4 * ip_hdr(skb)->ihl != ntohs(ip_hdr(skb)->tot_len))) {
 			inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
 			return -EINVAL;
 		}
 
-		error = __skb_init_cb_ipv4(skb);
+		error = __skb_init_cb_ipv4(skb, true);
 		if (unlikely(error))
 			return error;
 	}
@@ -462,6 +457,89 @@ static char *protocol_to_string(__u8 protocol)
 	}
 
 	return "Don't know";
+}
+
+static void print_lengths(struct sk_buff *skb)
+{
+	pr_debug("Lengths:\n");
+	pr_debug("\t	skb->len: %u", skb->len);
+	pr_debug("\t	skb->data_len: %u\n", skb->data_len);
+	pr_debug("\t	skb_pagelen(skb): %u\n", skb_pagelen(skb));
+	pr_debug("\t	skb_len(skb): %u\n", skb_len(skb));
+	pr_debug("\t	nh-th:%u th-p:%u l3:%u l4:%u l3+l4:%u\n",
+			skb_transport_offset(skb) - skb_network_offset(skb),
+			skb_payload_offset(skb) - skb_transport_offset(skb),
+			skb_l3hdr_len(skb), skb_l4hdr_len(skb), skb_hdrs_len(skb));
+	pr_debug("\t	skb_payload_len_frag(skb): %u\n", skb_payload_len_frag(skb));
+	pr_debug("\t	skb_payload_len_pkt(skb): %u\n", skb_payload_len_pkt(skb));
+	pr_debug("\t	skb_l3payload_len(skb): %u\n", skb_l3payload_len(skb));
+	pr_debug("\t	skb_datagram_len(skb): %u\n", skb_datagram_len(skb));
+	pr_debug("\t	frag_list:%p nr_frags:%u\n",
+			skb_shinfo(skb)->frag_list, skb_shinfo(skb)->nr_frags);
+}
+
+static void print_l3_hdr(struct sk_buff *skb)
+{
+	struct ipv6hdr *hdr6;
+	struct frag_hdr *frag_header;
+	struct iphdr *hdr4;
+	struct in_addr addr4;
+	unsigned int tmp;
+
+	pr_debug("Layer 3 proto: %s", l3proto_to_string(skb_l3_proto(skb)));
+	switch (skb_l3_proto(skb)) {
+	case L3PROTO_IPV6:
+		hdr6 = ipv6_hdr(skb);
+		if (hdr6->version != 6)
+			pr_debug("		version: %u\n", hdr6->version);
+		tmp = (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4);
+		if (tmp != 0)
+		pr_debug("		traffic class: %u\n", tmp);
+		tmp = ((hdr6->flow_lbl[0] & 0xf) << 16) | (hdr6->flow_lbl[1] << 8) | hdr6->flow_lbl[0];
+		if (tmp != 0)
+			pr_debug("		flow label: %u\n", tmp);
+		pr_debug("		payload length: %u\n", be16_to_cpu(hdr6->payload_len));
+		pr_debug("		next header: %s (%u)\n", nexthdr_to_string(hdr6->nexthdr), hdr6->nexthdr);
+		if (hdr6->hop_limit < 60)
+			pr_debug("		hop limit: %u\n", hdr6->hop_limit);
+		pr_debug("		source address: %pI6c\n", &hdr6->saddr);
+		pr_debug("		destination address: %pI6c\n", &hdr6->daddr);
+
+		if (hdr6->nexthdr == NEXTHDR_FRAGMENT) {
+			frag_header = (struct frag_hdr *) (hdr6 + 1);
+			pr_debug("Fragment header:\n");
+			pr_debug("		next header: %s\n", nexthdr_to_string(frag_header->nexthdr));
+			if (frag_header->reserved != 0)
+				pr_debug("		reserved: %u\n", frag_header->reserved);
+			pr_debug("		fragment offset: %u bytes\n", get_fragment_offset_ipv6(frag_header));
+			pr_debug("		more fragments: %u\n", is_more_fragments_set_ipv6(frag_header));
+			pr_debug("		identification: %u\n", be32_to_cpu(frag_header->identification));
+		}
+		break;
+
+	case L3PROTO_IPV4:
+		hdr4 = ip_hdr(skb);
+		if (hdr4->version != 4)
+			pr_debug("		version: %u\n", hdr4->version);
+		if (hdr4->ihl != 5)
+			pr_debug("		header length: %u\n", hdr4->ihl);
+		if (hdr4->tos != 0)
+			pr_debug("		type of service: %u\n", hdr4->tos);
+		pr_debug("		total length: %u\n", be16_to_cpu(hdr4->tot_len));
+		pr_debug("		identification: %u\n", be16_to_cpu(hdr4->id));
+		pr_debug("		don't fragment: %u\n", is_dont_fragment_set(hdr4));
+		pr_debug("		more fragments: %u\n", is_more_fragments_set_ipv4(hdr4));
+		pr_debug("		fragment offset: %u bytes\n", get_fragment_offset_ipv4(hdr4));
+		if (hdr4->ttl < 60)
+			pr_debug("		time to live: %u\n", hdr4->ttl);
+		pr_debug("		protocol: %s (%u)\n", protocol_to_string(hdr4->protocol), hdr4->protocol);
+		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) hdr4->check));
+		addr4.s_addr = hdr4->saddr;
+		pr_debug("		source address: %pI4\n", &addr4);
+		addr4.s_addr = hdr4->daddr;
+		pr_debug("		destination address: %pI4\n", &addr4);
+		break;
+	}
 }
 
 static void print_l4_hdr(struct sk_buff *skb)
@@ -505,16 +583,23 @@ static void print_l4_hdr(struct sk_buff *skb)
 	}
 }
 
+static void print_payload(struct sk_buff *skb)
+{
+	unsigned int offset;
+	unsigned char *chara;
+
+	pr_debug("Payload (paged data not included):");
+	for (chara = skb_payload(skb); chara < skb_tail_pointer(skb); chara++) {
+		offset = chara - (unsigned char *) skb_payload(skb);
+		if (offset % 12 == 0)
+			printk("\n\t\t");
+		printk("%u ", *chara);
+	}
+	pr_debug("\n");
+}
+
 void skb_print(struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr6;
-	struct frag_hdr *frag_header;
-	struct iphdr *hdr4;
-	struct in_addr addr4;
-	u16 frag_offset = 0;
-	unsigned char *payload;
-	unsigned int x;
-
 	pr_debug("----------------\n");
 
 	if (!skb) {
@@ -522,68 +607,17 @@ void skb_print(struct sk_buff *skb)
 		return;
 	}
 
-	pr_debug("Layer 3 proto: %s", l3proto_to_string(skb_l3_proto(skb)));
-	switch (skb_l3_proto(skb)) {
-	case L3PROTO_IPV6:
-		hdr6 = ipv6_hdr(skb);
-		pr_debug("		version: %u\n", hdr6->version);
-		pr_debug("		traffic class: %u\n", (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4));
-		pr_debug("		flow label: %u\n", ((hdr6->flow_lbl[0] & 0xf) << 16)
-				| (hdr6->flow_lbl[1] << 8)
-				| hdr6->flow_lbl[0]);
-		pr_debug("		payload length: %u\n", be16_to_cpu(hdr6->payload_len));
-		pr_debug("		next header: %s\n", nexthdr_to_string(hdr6->nexthdr));
-		pr_debug("		hop limit: %u\n", hdr6->hop_limit);
-		pr_debug("		source address: %pI6c\n", &hdr6->saddr);
-		pr_debug("		destination address: %pI6c\n", &hdr6->daddr);
+	print_lengths(skb);
 
-		if (hdr6->nexthdr == NEXTHDR_FRAGMENT) {
-			frag_header = (struct frag_hdr *) (hdr6 + 1);
-			pr_debug("Fragment header:\n");
-			pr_debug("		next header: %s\n", nexthdr_to_string(frag_header->nexthdr));
-			pr_debug("		reserved: %u\n", frag_header->reserved);
-			pr_debug("		fragment offset: %u\n", get_fragment_offset_ipv6(frag_header));
-			pr_debug("		more fragments: %u\n", is_more_fragments_set_ipv6(frag_header));
-			pr_debug("		identification: %u\n", be32_to_cpu(frag_header->identification));
-			frag_offset = get_fragment_offset_ipv6(frag_header);
-		}
-		break;
-
-	case L3PROTO_IPV4:
-		hdr4 = ip_hdr(skb);
-		pr_debug("		version: %u\n", hdr4->version);
-		pr_debug("		header length: %u\n", hdr4->ihl);
-		pr_debug("		type of service: %u\n", hdr4->tos);
-		pr_debug("		total length: %u\n", be16_to_cpu(hdr4->tot_len));
-		pr_debug("		identification: %u\n", be16_to_cpu(hdr4->id));
-		pr_debug("		don't fragment: %u\n", is_dont_fragment_set(hdr4));
-		pr_debug("		more fragments: %u\n", is_more_fragments_set_ipv4(hdr4));
-		pr_debug("		fragment offset: %u\n", get_fragment_offset_ipv4(hdr4));
-		pr_debug("		time to live: %u\n", hdr4->ttl);
-		pr_debug("		protocol: %s\n", protocol_to_string(hdr4->protocol));
-		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) hdr4->check));
-		addr4.s_addr = hdr4->saddr;
-		pr_debug("		source address: %pI4\n", &addr4);
-		addr4.s_addr = hdr4->daddr;
-		pr_debug("		destination address: %pI4\n", &addr4);
-		frag_offset = get_fragment_offset_ipv4(hdr4);
-		break;
-	}
-
-	if (frag_offset == 0)
+	if (skb_network_header(skb))
+		print_l3_hdr(skb);
+	if (skb_transport_header(skb))
 		print_l4_hdr(skb);
+	print_payload(skb);
 
-	pr_debug("Payload (length %u):\n", skb_payload_len_frag(skb));
-	payload = skb_payload(skb);
-	if (skb_payload_len_frag(skb))
-		printk("		%u", payload[0]);
-	for (x = 1; x < skb_payload_len_frag(skb); x++) {
-		if (x%12)
-			printk(", %u", payload[x]);
-		else
-			printk("\n		%u", payload[x]);
+	skb_walk_frags(skb, skb) {
+		skb_print(skb);
 	}
-	printk("\n");
 }
 
 int validate_icmp6_csum(struct sk_buff *skb)
