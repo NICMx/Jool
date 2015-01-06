@@ -160,6 +160,7 @@ union request_pool4 {
 	struct {
 		/** The address the user wants to remove from the pool. */
 		struct in_addr addr;
+		__u8 maskbits;
 		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
 		__u8 quick;
 	} remove;
