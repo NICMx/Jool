@@ -649,10 +649,10 @@ int pool4_cidr_range_delete(struct in_addr *addr, __u8 maskbits, __u8 quick)
 			return error;
 		log_debug("deleted IP: %pI4",temp);
 		if (!quick) {
-			error = sessiondb_delete_by_ipv4(&request->remove.addr);
+			error = sessiondb_delete_by_ipv4(temp);
 			if (error)
 				return error;
-				error = bibdb_delete_by_ipv4(&request->remove.addr);
+				error = bibdb_delete_by_ipv4(temp);
 		}
 		return error;
 
