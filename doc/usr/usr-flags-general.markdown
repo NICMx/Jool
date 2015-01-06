@@ -203,9 +203,18 @@ Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 trans
 - Default: ON
 - Translation direction: IPv6 to IPv4
 
-If this is ON, Jool will always set the Don't Fragment flags (as 1).
+If the incoming packet has a fragment header:
+	the outgoing packet's DF flag will be false.
+otherwise:
+	if --setDF is true
+		the outgoing packet's DF flag will be true.
+	otherwise:
+		if packet length < 88 or packet length > 1280
+			the outgoing packet's DF flag will be true.
+		otherwise:
+			the outgoing packet's DF flag will be false.
 
-If this is OFF, then Jool will set the DF flag only if the length of the IPv6 packet being translated is less or equal than 88 or higher than 1280 bytes. You do this to avoid black holes caused by ICMPv4 filtering or non-RFC2460-compatible IPv6 hosts.
+You do this to avoid black holes caused by ICMPv4 filtering or non-RFC2460-compatible IPv6 hosts.
 
 ### \--genFH
 

@@ -11,7 +11,9 @@
 
 #define MODULE_NAME "Jool"
 
-/** TODO (fine) consider #including bool? */
+#define STATEFUL 1
+
+/** TODO (fine) #include bool? */
 static inline int nat64_is_stateful(void)
 {
 	return 1;
