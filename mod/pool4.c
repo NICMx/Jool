@@ -1,4 +1,6 @@
 #include "nat64/mod/pool4.h"
+#include "nat64/mod/bib_db.h"
+#include "nat64/mod/session_db.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
 
@@ -611,13 +613,67 @@ int pool4_cidr_range(struct in_addr *addr, __u8 maskbits)
 	} else {
 		for (i=0; i<total_addresses; i++) {
 			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
-			log_debug("usable IP: %pI4",temp);
 			error = pool4_register(temp);
 			if (error == -EEXIST)
 				continue;
-				else if (error)
+			else if (error)
 				return error;
+			log_debug("usable IP: %pI4",temp);
 			}
+	}
+
+	return 0;
+}
+
+int pool4_cidr_range_delete(struct in_addr *addr, __u8 maskbits, __u8 quick)
+{
+	struct in_addr network;
+	struct in_addr broadcast;
+	struct in_addr *temp = addr;
+	unsigned int netmask;
+	unsigned int i;
+	int error;
+
+	int total_addresses = 2<<((32-maskbits)-1);
+	netmask = inet_make_mask(maskbits);
+	network.s_addr = addr->s_addr & netmask;
+
+	log_debug("IP: %pI4", addr);
+	log_debug("Maskbits: %u",maskbits);
+	log_debug("Network: %pI4", &network);
+
+	if (maskbits == 32) {
+
+		(*temp).s_addr = htonl(ntohl(network.s_addr));
+		error = pool4_remove(temp);
+		if (error)
+			return error;
+		log_debug("deleted IP: %pI4",temp);
+		if (!quick) {
+			error = sessiondb_delete_by_ipv4(&request->remove.addr);
+			if (error)
+				return error;
+				error = bibdb_delete_by_ipv4(&request->remove.addr);
+		}
+		return error;
+
+	} else {
+
+		for (i=0; i<total_addresses; i++) {
+			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+			error = pool4_remove(temp);
+			if (error == -ENOENT)
+				continue;
+			else if (error)
+				return error;
+			log_debug("deleted IP: %pI4",temp);
+			if (!quick) {
+				error = sessiondb_delete_by_ipv4(&request->remove.addr);
+				if (error)
+					return error;
+				error = bibdb_delete_by_ipv4(&request->remove.addr);
+			}
+		}
 	}
 
 	return 0;

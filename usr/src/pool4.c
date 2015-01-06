@@ -92,7 +92,7 @@ static int pool4_remove_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_remove(struct in_addr *addr, bool quick)
+int pool4_remove(struct in_addr *addr,unsigned char *mask, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -102,6 +102,7 @@ int pool4_remove(struct in_addr *addr, bool quick)
 	hdr->mode = MODE_POOL4;
 	hdr->operation = OP_REMOVE;
 	payload->remove.addr = *addr;
+	payload->remove.maskbits = *mask;
 	payload->remove.quick = quick;
 
 	return netlink_request(request, hdr->length, pool4_remove_response, NULL);

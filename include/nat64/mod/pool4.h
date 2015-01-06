@@ -140,4 +140,11 @@ int pool4_count(__u64 *result);
 */
 int pool4_cidr_range(struct in_addr *addr, __u8 maskbits);
 
+/**
+* Deletes the "addr" address range with the CIDR notation to the pool.
+* Calls pool4_remove on each iteration.
+* If the quick flag is true deletes BIB and Session records for that addr.
+*/
+int pool4_cidr_range_delete(struct in_addr *addr, __u8 maskbits, __u8 quick);
+
 #endif /* _JOOL_MOD_POOL4_H */

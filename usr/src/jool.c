@@ -633,7 +633,7 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address to be removed (--address).");
 				return -EINVAL;
 			}
-			return pool4_remove(&args.db.pool4.addr, args.db.quick);
+			return pool4_remove(&args.db.pool4.addr, &args.db.pool4.maskbits, args.db.quick);
 		case OP_FLUSH:
 			return pool4_flush(args.db.quick);
 		default:

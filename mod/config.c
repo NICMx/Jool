@@ -221,25 +221,16 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		log_debug("Adding an address to the IPv4 pool.");
 		return respond_error(nl_hdr,pool4_cidr_range(&request->add.addr,request->add.maskbits));
-		
+
 	case OP_REMOVE:
 		if (verify_superpriv(nat64_hdr))
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing an address from the IPv4 pool.");
 
-		error = pool4_remove(&request->remove.addr);
+		error = pool4_cidr_range_delete(&request->remove.addr,request->add.maskbits,request->remove.quick);
 		if (error)
 			return respond_error(nl_hdr, error);
-
-		if (!request->remove.quick) {
-			error = sessiondb_delete_by_ipv4(&request->remove.addr);
-			if (error)
-				return respond_error(nl_hdr, error);
-			error = bibdb_delete_by_ipv4(&request->remove.addr);
-		}
-
-		return respond_error(nl_hdr, error);
 
 	case OP_FLUSH:
 		if (verify_superpriv(nat64_hdr)) {
