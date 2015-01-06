@@ -227,10 +227,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing an address from the IPv4 pool.");
-
-		error = pool4_cidr_range_delete(&request->remove.addr,request->add.maskbits,request->remove.quick);
-		if (error)
-			return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr,pool4_cidr_range_delete(&request->remove.addr,request->add.maskbits,request->remove.quick));
 
 	case OP_FLUSH:
 		if (verify_superpriv(nat64_hdr)) {
