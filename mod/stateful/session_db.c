@@ -608,7 +608,7 @@ static void cleaner_timer(unsigned long param)
 	log_debug("Deleted %u sessions.", s);
 }
 
-unsigned long get_syn_timeout(void)
+static unsigned long get_syn_timeout(void)
 {
 	return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
 }

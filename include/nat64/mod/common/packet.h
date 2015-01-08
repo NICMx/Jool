@@ -371,6 +371,9 @@ static inline unsigned int skb_datagram_len(struct sk_buff *skb)
 	return skb->len - skb_l3hdr_len(skb);
 }
 
+/**
+ * TODO some of these functions, including this one, seem to assume the NAT64 is stateful.
+ */
 static inline unsigned int skb_len(struct sk_buff *skb)
 {
 	return skb_pagelen(skb) + (skb_shinfo(skb)->frag_list ? 0 : skb_hdrs_len(skb));

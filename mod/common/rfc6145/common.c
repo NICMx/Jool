@@ -194,49 +194,63 @@ static void restore(struct sk_buff *skb, struct backup_skb *bkp)
 	cb->is_inner = 0;
 }
 
-int ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct sk_buff *in,
+verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct sk_buff *in,
 		struct sk_buff *out)
 {
 	struct backup_skb bkp_in, bkp_out;
 	struct tuple inner_tuple;
+	struct tuple *inner_tuple_ptr = NULL;
 	struct translation_steps *current_steps;
-	int error;
+	verdict result;
 
 	backup(in, &bkp_in);
 	backup(out, &bkp_out);
 
 	switch (skb_l3_proto(in)) {
 	case L3PROTO_IPV4:
-		error = move_pointers4(in, out);
+		if (move_pointers4(in, out))
+			return VER_DROP;
 		break;
 	case L3PROTO_IPV6:
-		error = move_pointers6(in, out);
+		if (move_pointers6(in, out))
+			return VER_DROP;
 		break;
 	default:
 		inc_stats(in, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
+		return VER_DROP;
 	}
-	if (error)
-		return error;
 
-	inner_tuple.src = outer_tuple->dst;
-	inner_tuple.dst = outer_tuple->src;
-	inner_tuple.l3_proto = outer_tuple->l3_proto;
-	inner_tuple.l4_proto = outer_tuple->l4_proto;
+	if (nat64_is_stateful()) {
+		inner_tuple.src = outer_tuple->dst;
+		inner_tuple.dst = outer_tuple->src;
+		inner_tuple.l3_proto = outer_tuple->l3_proto;
+		inner_tuple.l4_proto = outer_tuple->l4_proto;
+		inner_tuple_ptr = &inner_tuple;
+	}
 
 	current_steps = &steps[skb_l3_proto(in)][skb_l4_proto(in)];
 
-	error = current_steps->l3_hdr_fn(&inner_tuple, in, out);
-	if (error)
-		return error;
-	error = current_steps->l3_payload_fn(&inner_tuple, in, out);
-	if (error)
-		return error;
+	result = current_steps->l3_hdr_fn(inner_tuple_ptr, in, out);
+	if (result == VER_ACCEPT) {
+		/*
+		 * Accepting because of an inner packet doesn't make sense.
+		 * Also we couldn't have translated this inner packet.
+		 */
+		return VER_DROP;
+	}
+	if (result != VER_CONTINUE)
+		return result;
+
+	result = current_steps->l3_payload_fn(inner_tuple_ptr, in, out);
+	if (result == VER_ACCEPT)
+		return VER_DROP;
+	if (result != VER_CONTINUE)
+		return result;
 
 	restore(in, &bkp_in);
 	restore(out, &bkp_out);
 
-	return 0;
+	return VER_CONTINUE;
 }
 
 struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto)

@@ -84,11 +84,18 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	if (result != VER_CONTINUE)
 		goto end;
 
+	log_debug("Success.");
+	/* See the large comment above. */
 	kfree_skb(skb_in);
 	result = VER_STOLEN;
 	/* Fall through. */
 
 end:
+	if (result == VER_ACCEPT) {
+		log_debug("Returning the packet to the kernel.");
+		skb_clear_cb(skb_in);
+	}
+
 	return (unsigned int) result;
 }
 

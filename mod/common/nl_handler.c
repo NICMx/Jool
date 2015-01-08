@@ -25,7 +25,7 @@
 /**
  * Socket the userspace application will speak to.
  */
-struct sock *nl_socket;
+static struct sock *nl_socket;
 
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.

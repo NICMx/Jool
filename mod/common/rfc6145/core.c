@@ -9,34 +9,44 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in, struc
 		struct dst_entry *dst)
 {
 	struct translation_steps *steps = ttpcomm_get_steps(skb_l3_proto(in), skb_l4_proto(in));
+	verdict result;
 
 	*out = NULL;
 
-	if (is_error(steps->skb_create_fn(in, out)))
+	result = steps->skb_create_fn(in, out);
+	if (result != VER_CONTINUE)
 		goto fail;
-	if (is_error(steps->l3_hdr_fn(tuple, in, *out)))
+	result = steps->l3_hdr_fn(tuple, in, *out);
+	if (result != VER_CONTINUE)
 		goto fail;
 	if (skb_has_l4_hdr(in)) {
-		if (is_error(steps->l3_payload_fn(tuple, in, *out)))
+		result = steps->l3_payload_fn(tuple, in, *out);
+		if (result != VER_CONTINUE)
 			goto fail;
 	} else {
 		if (is_error(copy_payload(in, *out)))
-			goto fail;
+			goto drop;
 	}
+
+	/* TODO this is probably redundant. */
 	if (dst) {
 		skb_dst_set(*out, dst_clone(dst));
 		(*out)->dev = dst->dev;
 	} else {
 		if (is_error(steps->route_fn(*out)))
-			goto fail;
+			goto drop;
 	}
 
 	return VER_CONTINUE;
 
+drop:
+	result = VER_DROP;
+	/* Fall through. */
+
 fail:
 	kfree_skb(*out);
 	*out = NULL;
-	return VER_DROP;
+	return result;
 }
 
 verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
@@ -50,7 +60,7 @@ verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
 	/* Translate the first fragment or a complete packet. */
 	result = translate_fragment(out_tuple, in_skb, out_skb, NULL);
 	if (result != VER_CONTINUE)
-		return VER_DROP;
+		return result;
 
 	/* If not a fragment, the next "while" will be omitted. */
 	skb_walk_frags(in_skb, in_skb) {
@@ -59,7 +69,7 @@ verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
 		if (result != VER_CONTINUE) {
 			kfree_skb(*out_skb);
 			*out_skb = NULL;
-			return VER_DROP;
+			return result;
 		}
 
 		if (!prev_out_skb)
