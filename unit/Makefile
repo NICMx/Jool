@@ -29,29 +29,29 @@ SEND_PKT = send_pkt
 MAPPING = mapping
 
 
-obj-m += $(ITERATOR).o
-obj-m += $(HASHTABLE).o
-obj-m += $(RFC6052).o
-obj-m += $(PKT).o
-obj-m += $(RBTREE).o
-obj-m += $(POOLNUM).o
-obj-m += $(POOL4).o
-obj-m += $(BIB).o
-obj-m += $(SESSION).o
-obj-m += $(FRAGDB).o
-obj-m += $(INCOMING).o
-obj-m += $(FILTERING).o
-obj-m += $(OUTGOING).o
-obj-m += $(TRANSLATE).o
-obj-m += $(HAIRPINNING).o
-obj-m += $(PKTQUEUE).o
-obj-m += $(CONFIG_PROTO).o
-obj-m += $(LOGTIME).o
-obj-m += $(SEND_PKT).o
+#obj-m += $(ITERATOR).o
+#obj-m += $(HASHTABLE).o
+#obj-m += $(RFC6052).o
+#obj-m += $(PKT).o
+#obj-m += $(RBTREE).o
+#obj-m += $(POOLNUM).o
+#obj-m += $(POOL4).o
+#obj-m += $(BIB).o
+#obj-m += $(SESSION).o
+#obj-m += $(FRAGDB).o
+#obj-m += $(INCOMING).o
+#obj-m += $(FILTERING).o
+#obj-m += $(OUTGOING).o
+#obj-m += $(TRANSLATE).o
+#obj-m += $(HAIRPINNING).o
+#obj-m += $(PKTQUEUE).o
+#obj-m += $(CONFIG_PROTO).o
+#obj-m += $(LOGTIME).o
+#obj-m += $(SEND_PKT).o
 obj-m += $(MAPPING).o
 
 
-MIN_REQS = ../mod/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
+MIN_REQS = ../mod/common/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
 
 
 $(ITERATOR)-objs += $(MIN_REQS)
@@ -268,7 +268,7 @@ $(SEND_PKT)-objs += ../mod/packet.o
 $(SEND_PKT)-objs += send_packet_test.o
 
 $(MAPPING)-objs += $(MIN_REQS)
-$(MAPPING)-objs += ../mod/rbtree.o
+$(MAPPING)-objs += ../mod/common/rbtree.o
 $(MAPPING)-objs += address_mapping_test.o
 
 all:

@@ -8,13 +8,14 @@
 
 #include "nat64/comm/config.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/nl_buffer.h"
-#include "nat64/mod/stateful/pool6.h"
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib_db.h"
+#include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/session_db.h"
 #include "nat64/mod/stateful/static_routes.h"
+#include "nat64/mod/stateless/eam.h"
 #ifdef BENCHMARK
 #include "nat64/mod/log_time.h"
 #endif
@@ -398,6 +399,77 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 	}
 }
 
+#else
+
+static int eam_entry_to_userspace(struct eam_entry *entry, void *arg)
+{
+	struct nl_buffer *buffer = (struct nl_buffer *) arg;
+	struct eam_entry_usr entry_usr;
+
+	entry_usr.pref4 = entry->pref4;
+	entry_usr.pref6 = entry->pref6;
+
+	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+}
+
+static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		union request_eamt *request)
+{
+	struct nl_buffer *buffer;
+	__u64 count;
+	int error;
+
+	switch (nat64_hdr->operation) {
+	case OP_DISPLAY:
+		log_debug("Sending EAMT to userspace.");
+
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userspace.");
+			return respond_error(nl_hdr, -ENOMEM);
+		}
+
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
+		error = eamt_for_each(&request->display.prefix4, !request->display.iterate,
+				eam_entry_to_userspace, buffer);
+		if (error > 0) {
+			error = nlbuffer_close_continue(buffer);
+		} else {
+			error = nlbuffer_close(buffer);
+		}
+
+		kfree(buffer);
+		return error;
+
+	case OP_COUNT:
+		log_debug("Returning EAMT count.");
+		error = eamt_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
+
+	case OP_ADD:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Adding EAMT entry.");
+		return respond_error(nl_hdr, eamt_add(&request->add.prefix6, &request->add.prefix4));
+
+	case OP_REMOVE:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Removing EAMT entry.");
+		return respond_error(nl_hdr, eamt_remove(
+				request->remove.prefix6_set ? &request->remove.prefix6 : NULL,
+				request->remove.prefix4_set ? &request->remove.prefix4 : NULL));
+
+	default:
+		log_err("Unknown operation: %d", nat64_hdr->operation);
+		return respond_error(nl_hdr, -EINVAL);
+	}
+}
+
 #endif
 
 #ifdef BENCHMARK
@@ -443,23 +515,23 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 }
 #endif
 
-static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_general *request)
+static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		union request_global *request)
 {
-	struct response_general response = { .translate.mtu_plateaus = NULL };
+	struct global_config response = { .translate.mtu_plateaus = NULL };
 	unsigned char *buffer;
 	size_t buffer_len;
 	int error;
 
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Returning 'General' options.");
+		log_debug("Returning 'Global' options.");
 
 		error = config_clone(&response);
 		if (error)
 			goto end;
 
-		error = serialize_general_config(&response, &buffer, &buffer_len);
+		error = serialize_global_config(&response, &buffer, &buffer_len);
 		if (error)
 			goto end;
 
@@ -471,7 +543,7 @@ static int handle_general_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Updating 'General' options.");
+		log_debug("Updating 'Global' options.");
 
 		buffer = (unsigned char *) (request + 1);
 		buffer_len = nat64_hdr->length - sizeof(*nat64_hdr) - sizeof(*request);
@@ -519,13 +591,16 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return handle_bib_config(nl_hdr, nat64_hdr, request);
 	case MODE_SESSION:
 		return handle_session_config(nl_hdr, nat64_hdr, request);
+#else
+	case MODE_EAMT:
+		return handle_eamt_config(nl_hdr, nat64_hdr, request);
 #endif
 #ifdef BENCHMARK
 	case MODE_LOGTIME:
 		return handle_logtime_config(nl_hdr, nat64_hdr, request);
 #endif
-	case MODE_GENERAL:
-		return handle_general_config(nl_hdr, nat64_hdr, request);
+	case MODE_GLOBAL:
+		return handle_global_config(nl_hdr, nat64_hdr, request);
 	}
 
 	log_err("Unknown configuration mode: %d", nat64_hdr->mode);
@@ -579,7 +654,7 @@ void nlhandler_destroy(void)
 	netlink_kernel_release(nl_socket);
 }
 
-int serialize_general_config(struct response_general *config, unsigned char **buffer_out,
+int serialize_global_config(struct global_config *config, unsigned char **buffer_out,
 		size_t *buffer_len_out)
 {
 	unsigned char *buffer;
@@ -601,13 +676,13 @@ int serialize_general_config(struct response_general *config, unsigned char **bu
 		struct sessiondb_config *sconfig;
 		struct fragmentation_config *fconfig;
 
-		sconfig = &((struct response_general *) buffer)->sessiondb;
+		sconfig = &((struct global_config *) buffer)->sessiondb;
 		sconfig->ttl.udp = jiffies_to_msecs(config->sessiondb.ttl.udp);
 		sconfig->ttl.tcp_est = jiffies_to_msecs(config->sessiondb.ttl.tcp_est);
 		sconfig->ttl.tcp_trans = jiffies_to_msecs(config->sessiondb.ttl.tcp_trans);
 		sconfig->ttl.icmp = jiffies_to_msecs(config->sessiondb.ttl.icmp);
 
-		fconfig = &((struct response_general *) buffer)->fragmentation;
+		fconfig = &((struct global_config *) buffer)->fragmentation;
 		fconfig->fragment_timeout = jiffies_to_msecs(config->fragmentation.fragment_timeout);
 	}
 #endif
@@ -617,7 +692,7 @@ int serialize_general_config(struct response_general *config, unsigned char **bu
 	return 0;
 }
 
-int deserialize_general_config(void *buffer, __u16 buffer_len, struct response_general *target_out)
+int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
 {
 	struct translate_config *tconfig;
 	size_t mtus_len;

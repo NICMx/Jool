@@ -22,7 +22,11 @@
  * ID of Netlink messages Jool listens to.
  * This value was chosen at random, if I remember correctly.
  */
+#ifdef STATEFUL
 #define MSG_TYPE_JOOL (0x10 + 2)
+#else
+#define MSG_TYPE_JOOL (0x10 + 3)
+#endif
 
 /**
  * ID of messages intended to return configuration to userspace.
@@ -50,17 +54,16 @@ enum config_mode {
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
+#else
+	/** The current message is talking about the EAMT. */
+	MODE_EAMT = (1 << 1),
 #endif
 #ifdef BENCHMARK
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
 #endif
-#ifdef STATELESS
-	/** The current message is talking about the EAMT. */
-	MODE_EAMT = (1 << 6),
-#endif
-	/** The current message is talking about general configuration values. */
-	MODE_GENERAL = (1 << 0),
+	/** The current message is talking about global configuration values. */
+	MODE_GLOBAL = (1 << 0),
 };
 
 /**
@@ -135,6 +138,7 @@ struct request_hdr {
  */
 union request_pool6 {
 	struct {
+		/* TODO why doesn't this need a __u8 iterate? */
 		/* Nothing needed here ATM. */
 	} display;
 	struct {
@@ -158,6 +162,7 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
+		/* TODO why doesn't this need a __u8 iterate? */
 		/* Nothing needed there ATM. */
 	} display;
 	struct {
@@ -181,8 +186,12 @@ union request_pool4 {
  */
 union request_eamt {
 	struct {
-		/* Nothing needed here ATM. */
+		__u8 iterate;
+		struct ipv4_prefix prefix4;
 	} display;
+	struct {
+		/* Nothing needed here. */
+	} count;
 	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
@@ -277,7 +286,7 @@ struct request_session {
 /**
  * Indicators of the respective fields in the sessiondb_config structure.
  */
-enum general_type {
+enum global_type {
 #ifdef STATEFUL
 	UDP_TIMEOUT,
 	ICMP_TIMEOUT,
@@ -426,7 +435,7 @@ struct sendpkt_config {
 /**
  * A request to edit a miscellaneous configuration value.
  */
-union request_general {
+union request_global {
 	struct {
 		/* Nothing needed here. */
 	} display;
@@ -480,11 +489,23 @@ struct session_entry_usr {
 };
 
 /**
- * A copy of the entire running configuration, excluding databases.
+ * An EAMT entry, from the eyes of userspace.
  *
- * TODO change the name?
+ * It's a stripped version of "struct eam_entry" and only used when EAMT entries need to travel to
+ * userspace. For anything else, use "struct eam_entry".
+ *
+ * See "struct eam_entry" for documentation on the fields.
  */
-struct response_general {
+struct eam_entry_usr {
+	struct ipv4_prefix pref4;
+	struct ipv6_prefix pref6;
+};
+
+
+/**
+ * A copy of the entire running configuration, excluding databases.
+ */
+struct global_config {
 #ifdef STATEFUL
 	struct sessiondb_config sessiondb;
 	struct pktqueue_config pktqueue;
@@ -496,18 +517,18 @@ struct response_general {
 };
 
 /**
- * "struct general_config" has pointers, so if the userspace app wants the configuration,
+ * "struct global_config" has pointers, so if the userspace app wants the configuration,
  * the structure cannot simply be copied to userspace.
  * This translates "config" and its subobjects into a byte array which can then be transformed back
- * using "deserialize_general_config()".
+ * using "deserialize_global_config()".
  */
-int serialize_general_config(struct response_general *config, unsigned char **buffer_out,
+int serialize_global_config(struct global_config *config, unsigned char **buffer_out,
 		size_t *buffer_len_out);
 /**
  * Reverts the work of serialize_translate_config() by creating "config" out of the byte array
  * "buffer".
  */
-int deserialize_general_config(void *buffer, __u16 buffer_len, struct response_general *config);
+int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *config);
 
 
 #endif /* _JOOL_COMM_CONFIG_H */

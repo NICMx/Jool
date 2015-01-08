@@ -6,7 +6,7 @@ ccflags-y := -I$(src)/../include
 #	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
 #EXTRA_CFLAGS += -DBENCHMARK
 
-obj-m += jool-stateful.o
+obj-m += jool-stateless.o
 
 jool-common += common/rfc6145/4to6.o
 jool-common += common/rfc6145/6to4.o
@@ -20,19 +20,21 @@ jool-common += common/stats.o
 jool-common += common/icmp_wrapper.o
 jool-common += common/ipv6_hdr_iterator.o
 jool-common += common/rfc6052.o
+jool-common += common/pool6.o
 jool-common += common/nl_buffer.o
 jool-common += common/random.o
 jool-common += common/rbtree.o
 jool-common += common/config.o
 jool-common += common/nl_handler.o
 jool-common += common/route.o
+jool-common += common/core.o
 
 jool-stateless += stateless/eam.o
-jool-stateless += stateless/core.o
+jool-stateless += stateless/nf_hook.o
+jool-stateless += stateless/send_packet.o
 
 jool-stateful += stateful/pkt_queue.o
 jool-stateful += stateful/poolnum.o
-jool-stateful += stateful/pool6.o
 jool-stateful += stateful/pool4.o
 jool-stateful += stateful/host6_node.o
 jool-stateful += stateful/bib_db.o
@@ -45,7 +47,6 @@ jool-stateful += stateful/compute_outgoing_tuple.o
 jool-stateful += stateful/handling_hairpinning.o
 jool-stateful += stateful/send_packet.o
 jool-stateful += stateful/nf_hook.o
-jool-stateful += stateful/core.o
 
 jool-stateful-objs += ${jool-common} ${jool-stateful}
 jool-stateless-objs += ${jool-common} ${jool-stateless}

@@ -1,20 +1,27 @@
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
-#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/rfc6145/core.h"
+#include "nat64/mod/common/send_packet.h"
+
+#ifdef STATEFUL
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
-#include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/stateful/handling_hairpinning.h"
-#include "nat64/mod/stateful/send_packet.h"
+#endif
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+
+#ifdef STATEFUL
 
 static unsigned int core_common(struct sk_buff *skb_in)
 {
@@ -63,13 +70,39 @@ end:
 	return (unsigned int) result;
 }
 
+#else
+
+static unsigned int core_common(struct sk_buff *skb_in)
+{
+	struct sk_buff *skb_out;
+	verdict result;
+
+	result = translating_the_packet(NULL, skb_in, &skb_out);
+	if (result != VER_CONTINUE)
+		goto end;
+	result = sendpkt_send(skb_in, skb_out);
+	if (result != VER_CONTINUE)
+		goto end;
+
+	kfree_skb(skb_in);
+	result = VER_STOLEN;
+	/* Fall through. */
+
+end:
+	return (unsigned int) result;
+}
+
+#endif
+
 unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct iphdr *hdr = ip_hdr(skb);
 	int error;
 
+#ifdef STATEFUL
 	if (!pool4_contains(hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+#endif
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
@@ -104,10 +137,13 @@ unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	int error;
+
+#ifdef STATEFUL
 	verdict result;
 
 	if (!pool6_contains(&hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+#endif
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
@@ -119,9 +155,11 @@ unsigned int core_6to4(struct sk_buff *skb)
 	if (error)
 		return NF_DROP;
 
+#ifdef STATEFUL
 	result = fragdb_handle(&skb);
 	if (result != VER_CONTINUE)
 		return (unsigned int) result;
+#endif
 
 	error = validate_icmp6_csum(skb);
 	if (error) {

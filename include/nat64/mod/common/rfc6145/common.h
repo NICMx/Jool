@@ -28,9 +28,6 @@ struct translation_steps {
 	int (*route_fn)(struct sk_buff *skb);
 };
 
-int ttpcomm_init(void);
-void ttpcomm_destroy(void);
-
 struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto);
 
 int copy_payload(struct sk_buff *in, struct sk_buff *out);

@@ -1,4 +1,4 @@
-#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/comm/constants.h"
 #include "nat64/comm/str_utils.h"
 #include "nat64/mod/common/types.h"

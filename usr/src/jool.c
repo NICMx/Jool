@@ -22,7 +22,7 @@
 #include "nat64/usr/pool4.h"
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
-#include "nat64/usr/general.h"
+#include "nat64/usr/global.h"
 #ifdef BENCHMARK
 #include "nat64/usr/log_time.h"
 #endif
@@ -68,11 +68,10 @@ struct arguments {
 	} db;
 
 	struct {
-		enum general_module module;
 		__u8 type;
 		size_t size;
 		void *data;
-	} general;
+	} global;
 };
 
 /**
@@ -260,31 +259,28 @@ fail:
 	return -EINVAL;
 }
 
-static int set_general_arg(struct arguments *args, enum general_module module, __u8 type,
-		size_t size, void *value)
+static int set_global_arg(struct arguments *args, __u8 type, size_t size, void *value)
 {
-	int error = update_state(args, MODE_GENERAL, OP_UPDATE);
+	int error = update_state(args, MODE_GLOBAL, OP_UPDATE);
 	if (error)
 		return error;
 
-	if (args->general.data) {
+	if (args->global.data) {
 		log_err("You can only edit one configuration value at a time.");
 		return -EINVAL;
 	}
 
-	args->general.module = module;
-	args->general.type = type;
-	args->general.size = size;
-	args->general.data = malloc(size);
-	if (!args->general.data)
+	args->global.type = type;
+	args->global.size = size;
+	args->global.data = malloc(size);
+	if (!args->global.data)
 		return -ENOMEM;
-	memcpy(args->general.data, value, size);
+	memcpy(args->global.data, value, size);
 
 	return 0;
 }
 
-static int set_general_bool(struct arguments *args, enum general_module module, __u8 type,
-		char *value)
+static int set_global_bool(struct arguments *args, __u8 type, char *value)
 {
 	__u8 tmp;
 	int error;
@@ -293,11 +289,10 @@ static int set_general_bool(struct arguments *args, enum general_module module, 
 	if (error)
 		return error;
 
-	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_general_u8(struct arguments *args, enum general_module module, __u8 type,
-		char *value, __u8 min, __u8 max)
+static int set_global_u8(struct arguments *args, __u8 type, char *value, __u8 min, __u8 max)
 {
 	__u8 tmp;
 	int error;
@@ -306,11 +301,10 @@ static int set_general_u8(struct arguments *args, enum general_module module, __
 	if (error)
 		return error;
 
-	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_general_u16(struct arguments *args, enum general_module module, __u8 type,
-		char *value, __u16 min, __u16 max)
+static int set_global_u16(struct arguments *args, __u8 type, char *value, __u16 min, __u16 max)
 {
 	__u16 tmp;
 	int error;
@@ -319,11 +313,11 @@ static int set_general_u16(struct arguments *args, enum general_module module, _
 	if (error)
 		return error;
 
-	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_general_u64(struct arguments *args, enum general_module module, __u8 type,
-		char *value, __u64 min, __u64 max, __u64 multiplier)
+static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 min, __u64 max,
+		__u64 multiplier)
 {
 	__u64 tmp;
 	int error;
@@ -333,11 +327,10 @@ static int set_general_u64(struct arguments *args, enum general_module module, _
 		return error;
 	tmp *= multiplier;
 
-	return set_general_arg(args, module, type, sizeof(tmp), &tmp);
+	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-static int set_general_u16_array(struct arguments *args, enum general_module module, int type,
-		char *value)
+static int set_global_u16_array(struct arguments *args, int type, char *value)
 {
 	__u16* array;
 	size_t array_len;
@@ -347,7 +340,7 @@ static int set_general_u16_array(struct arguments *args, enum general_module mod
 	if (error)
 		return error;
 
-	error = set_general_arg(args, module, type, array_len * sizeof(*array), array);
+	error = set_global_arg(args, type, array_len * sizeof(*array), array);
 	free(array);
 	return error;
 }
@@ -379,7 +372,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 #endif
 	case ARGP_GENERAL:
-		error = update_state(args, MODE_GENERAL, GENERAL_OPS);
+		error = update_state(args, MODE_GLOBAL, GENERAL_OPS);
 		break;
 
 	case ARGP_DISPLAY:
@@ -457,60 +450,60 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 
 	case ARGP_DROP_ADDR:
-		error = set_general_bool(args, FILTERING, DROP_BY_ADDR, str);
+		error = set_global_bool(args, FILTERING, DROP_BY_ADDR, str);
 		break;
 	case ARGP_DROP_INFO:
-		error = set_general_bool(args, FILTERING, DROP_ICMP6_INFO, str);
+		error = set_global_bool(args, FILTERING, DROP_ICMP6_INFO, str);
 		break;
 	case ARGP_DROP_TCP:
-		error = set_general_bool(args, FILTERING, DROP_EXTERNAL_TCP, str);
+		error = set_global_bool(args, FILTERING, DROP_EXTERNAL_TCP, str);
 		break;
 	case ARGP_UDP_TO:
-		error = set_general_u64(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
+		error = set_global_u64(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_ICMP_TO:
-		error = set_general_u64(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U32/1000, 1000);
+		error = set_global_u64(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U32/1000, 1000);
 		break;
 	case ARGP_TCP_TO:
-		error = set_general_u64(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U32/1000, 1000);
+		error = set_global_u64(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U32/1000, 1000);
 		break;
 	case ARGP_TCP_TRANS_TO:
-		error = set_general_u64(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
+		error = set_global_u64(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
-		error = set_general_u64(args, PKTQUEUE, MAX_PKTS, str, 0, MAX_U64, 1);
+		error = set_global_u64(args, PKTQUEUE, MAX_PKTS, str, 0, MAX_U64, 1);
 		break;
 
 	case ARGP_RESET_TCLASS:
-		error = set_general_bool(args, TRANSLATE, RESET_TCLASS, str);
+		error = set_global_bool(args, TRANSLATE, RESET_TCLASS, str);
 		break;
 	case ARGP_RESET_TOS:
-		error = set_general_bool(args, TRANSLATE, RESET_TOS, str);
+		error = set_global_bool(args, TRANSLATE, RESET_TOS, str);
 		break;
 	case ARGP_NEW_TOS:
-		error = set_general_u8(args, TRANSLATE, NEW_TOS, str, 0, MAX_U8);
+		error = set_global_u8(args, TRANSLATE, NEW_TOS, str, 0, MAX_U8);
 		break;
 	case ARGP_DF:
-		error = set_general_bool(args, TRANSLATE, DF_ALWAYS_ON, str);
+		error = set_global_bool(args, TRANSLATE, DF_ALWAYS_ON, str);
 		break;
 	case ARGP_BUILD_FH:
-		error = set_general_bool(args, TRANSLATE, BUILD_IPV6_FH, str);
+		error = set_global_bool(args, TRANSLATE, BUILD_IPV6_FH, str);
 		break;
 	case ARGP_BUILD_ID:
-		error = set_general_bool(args, TRANSLATE, BUILD_IPV4_ID, str);
+		error = set_global_bool(args, TRANSLATE, BUILD_IPV4_ID, str);
 		break;
 	case ARGP_LOWER_MTU_FAIL:
-		error = set_general_bool(args, TRANSLATE, LOWER_MTU_FAIL, str);
+		error = set_global_bool(args, TRANSLATE, LOWER_MTU_FAIL, str);
 		break;
 	case ARGP_PLATEAUS:
-		error = set_general_u16_array(args, TRANSLATE, MTU_PLATEAUS, str);
+		error = set_global_u16_array(args, TRANSLATE, MTU_PLATEAUS, str);
 		break;
 	case ARGP_MIN_IPV6_MTU:
-		error = set_general_u16(args, SENDPKT, MIN_IPV6_MTU, str, 1280, MAX_U16);
+		error = set_global_u16(args, SENDPKT, MIN_IPV6_MTU, str, 1280, MAX_U16);
 		break;
 
 	case ARGP_FRAG_TO:
-		error = set_general_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
+		error = set_global_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 
 	default:
@@ -707,17 +700,16 @@ static int main_wrapped(int argc, char **argv)
 		break;
 #endif
 
-	case MODE_GENERAL:
+	case MODE_GLOBAL:
 		switch (args.op) {
 		case OP_DISPLAY:
-			return general_display();
+			return global_display();
 		case OP_UPDATE:
-			error = general_update(args.general.module, args.general.type, args.general.size,
-					args.general.data);
-			free(args.general.data);
+			error = global_update(args.global.type, args.global.size, args.global.data);
+			free(args.global.data);
 			return error;
 		default:
-			log_err("Unknown operation for general mode: %u.", args.op);
+			log_err("Unknown operation for global mode: %u.", args.op);
 			return -EINVAL;
 		}
 	}

@@ -1,24 +1,18 @@
-#include "nat64/comm/nat64.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/stateful/pool4.h"
-#include "nat64/mod/stateful/pkt_queue.h"
-#include "nat64/mod/stateful/bib_db.h"
-#include "nat64/mod/stateful/session_db.h"
-#include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/common/types.h"
 #ifdef BENCHMARK
-#include "nat64/mod/log_time.h"
+#include "nat64/mod/common/log_time.h"
 #endif
+#include "nat64/mod/stateless/eam.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
-#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
-#include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -28,28 +22,6 @@ static char *pool6[5];
 static int pool6_size;
 module_param_array(pool6, charp, &pool6_size, 0);
 MODULE_PARM_DESC(pool6, "The IPv6 pool's prefixes.");
-static char *pool4[5];
-static int pool4_size;
-module_param_array(pool4, charp, &pool4_size, 0);
-MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
-
-
-static char *banner = "\n"
-	"                                   ,----,                       \n"
-	"         ,--.                    ,/   .`|                 ,--,  \n"
-	"       ,--.'|   ,---,          ,`   .'**:               ,--.'|  \n"
-	"   ,--,:  :*|  '  .'*\\       ;    ;*****/  ,---.     ,--,  |#:  \n"
-	",`--.'`|  '*: /  ;****'.   .'___,/****,'  /     \\ ,---.'|  :#'  \n"
-	"|   :**:  |*|:  :*******\\  |    :*****|  /    /#' ;   :#|  |#;  \n"
-	":   |***\\ |*::  |***/\\***\\ ;    |.';**; .    '#/  |   |#: _'#|  \n"
-	"|   :*'**'; ||  :**' ;.***:`----'  |**|'    /#;   :   :#|.'##|  \n"
-	"'   '*;.****;|  |**;/  \\***\\   '   :**;|   :##\\   |   '#'##;#:  \n"
-	"|   |*| \\***|'  :**| \\  \\*,'   |   |**';   |###``.\\   \\##.'.#|  \n"
-	"'   :*|  ;*.'|  |**'  '--'     '   :**|'   ;######\\`---`:  |#'  \n"
-	"|   |*'`--'  |  :**:           ;   |.' '   |##.\\##|     '  ;#|  \n"
-	"'   :*|      |  |*,'           '---'   |   :##';##:     |  :#;  \n"
-	";   |.'      `--''                      \\   \\####/      '  ,/   \n"
-	"'---'                                    `---`--`       '--'    \n";
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -109,42 +81,26 @@ static int __init nat64_init(void)
 {
 	int i, error;
 
-	log_debug("%s", banner);
-	log_debug("Inserting the module...");
-
-	nf_defrag_ipv6_enable();
-	nf_defrag_ipv4_enable();
+	log_debug("Inserting " MODULE_NAME "...");
 
 	/* Init Jool's submodules. */
 	error = config_init();
 	if (error)
 		goto config_failure;
+	error = eamt_init();
+	if (error)
+		goto eamt_failure;
+#ifdef BENCHMARK
+	error = logtime_init();
+	if (error)
+		goto log_time_failure;
+#endif
 	error = nlhandler_init();
 	if (error)
 		goto nlhandler_failure;
 	error = pool6_init(pool6, pool6_size);
 	if (error)
 		goto pool6_failure;
-	error = pool4_init(pool4, pool4_size);
-	if (error)
-		goto pool4_failure;
-	error = pktqueue_init();
-	if (error)
-		goto pktqueue_failure;
-	error = bibdb_init();
-	if (error)
-		goto bib_failure;
-	error = sessiondb_init();
-	if (error)
-		goto session_failure;
-	error = fragdb_init();
-	if (error)
-		goto fragdb_failure;
-#ifdef BENCHMARK
-	error = logtime_init();
-	if (error)
-		goto log_time_failure;
-#endif
 
 	/* Hook Jool to Netfilter. */
 	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
@@ -161,32 +117,20 @@ static int __init nat64_init(void)
 	return error;
 
 nf_register_hooks_failure:
-#ifdef BENCHMARK
-	logtime_destroy();
-
-log_time_failure:
-#endif
-	fragdb_destroy();
-
-fragdb_failure:
-	sessiondb_destroy();
-
-session_failure:
-	bibdb_destroy();
-
-bib_failure:
-	pktqueue_destroy();
-
-pktqueue_failure:
-	pool4_destroy();
-
-pool4_failure:
 	pool6_destroy();
 
 pool6_failure:
 	nlhandler_destroy();
 
 nlhandler_failure:
+#ifdef BENCHMARK
+	logtime_destroy();
+
+log_time_failure:
+#endif
+	eamt_destroy();
+
+eamt_failure:
 	config_destroy();
 
 config_failure:
@@ -199,16 +143,12 @@ static void __exit nat64_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	/* Deinitialize the submodules. */
+	pool6_destroy();
+	nlhandler_destroy();
 #ifdef BENCHMARK
 	logtime_destroy();
 #endif
-	fragdb_destroy();
-	sessiondb_destroy();
-	bibdb_destroy();
-	pktqueue_destroy();
-	pool4_destroy();
-	pool6_destroy();
-	nlhandler_destroy();
+	eamt_destroy();
 	config_destroy();
 
 	log_info(MODULE_NAME " module removed.");

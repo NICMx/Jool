@@ -8,6 +8,8 @@
 #include "nat64/comm/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
+#include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/stats.h"
 
@@ -78,6 +80,23 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 	return 0;
 }
 
+static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
+{
+	struct ipv6_prefix prefix;
+	struct in_addr tmp;
+	int error;
+
+	error = pool6_peek(&prefix);
+	if (error)
+		return error;
+	tmp.s_addr = addr4;
+	error = addr_4to6(&tmp, &prefix, addr6);
+	if (error)
+		return error;
+
+	return 0;
+}
+
 /**
  * Returns "true" if "hdr" contains a source route option and the last address from it hasn't been
  * reached.
@@ -141,6 +160,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
 	struct iphdr *ip4_hdr = ip_hdr(in);
 	struct ipv6hdr *ip6_hdr;
+	int error;
 
 	ip6_hdr = ipv6_hdr(out);
 	ip6_hdr->version = 6;
@@ -166,8 +186,18 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 	} else {
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
 	}
-	ip6_hdr->saddr = tuple6->src.addr6.l3;
-	ip6_hdr->daddr = tuple6->dst.addr6.l3;
+
+	if (nat64_is_stateful()) {
+		ip6_hdr->saddr = tuple6->src.addr6.l3;
+		ip6_hdr->daddr = tuple6->dst.addr6.l3;
+	} else {
+		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
+		if (error)
+			return error;
+		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
+		if (error)
+			return error;
+	}
 
 	/* Isn't this supposed to be covered by filtering...? */
 	/*
@@ -217,8 +247,6 @@ static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 next
 		 * Some router does not implement RFC 1191.
 		 * Got to determine a likely path MTU.
 		 * See RFC 1191 sections 5, 7 and 7.1 to understand the logic here.
-		 *
-		 * TODO Because of the lack of a plateaus copy, there might be a race condition here.
 		 */
 		__u16 *plateaus;
 		__u16 plateau_count;
@@ -515,7 +543,9 @@ int ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out)
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple6->icmp6_id);
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = nat64_is_stateful()
+				? cpu_to_be16(tuple6->icmp6_id)
+				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		error = post_icmp6info(in, out);
 		break;
@@ -523,7 +553,9 @@ int ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out)
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = cpu_to_be16(tuple6->icmp6_id);
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = nat64_is_stateful()
+				? cpu_to_be16(tuple6->icmp6_id)
+				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
 		error = post_icmp6info(in, out);
 		break;
@@ -645,17 +677,20 @@ int ttp46_tcp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, skb_l4hdr_len(in));
+	if (nat64_is_stateful()) {
+		tcp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
+		tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
+	}
 
-	tcp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
-	tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
+	if (is_csum6_computable(out)) {
+		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
+		tcp_copy.check = 0;
 
-	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
-	tcp_copy.check = 0;
-
-	tcp_out->check = 0;
-	tcp_out->check = update_csum_4to6(tcp_in->check,
-			ip_hdr(in), &tcp_copy, sizeof(tcp_copy),
-			ipv6_hdr(out), tcp_out, sizeof(*tcp_out));
+		tcp_out->check = 0;
+		tcp_out->check = update_csum_4to6(tcp_in->check,
+				ip_hdr(in), &tcp_copy, sizeof(tcp_copy),
+				ipv6_hdr(out), tcp_out, sizeof(*tcp_out));
+	}
 
 	/* Payload */
 	return copy_payload(in, out);
@@ -668,19 +703,24 @@ int ttp46_udp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 	struct udphdr udp_copy;
 
 	/* Header */
-	udp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
-	udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
-	udp_out->len = udp_in->len;
-	if (udp_in->check != 0) {
-		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
-		udp_copy.check = 0;
+	memcpy(udp_out, udp_in, skb_l4hdr_len(in));
+	if (nat64_is_stateful()) {
+		udp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
+		udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
+	}
 
-		udp_out->check = 0;
-		udp_out->check = update_csum_4to6(udp_in->check,
-				ip_hdr(in), &udp_copy, sizeof(udp_copy),
-				ipv6_hdr(out), udp_out, sizeof(*udp_out));
-	} else {
-		handle_zero_csum(in, out);
+	if (is_csum6_computable(out)) {
+		if (udp_in->check != 0) {
+			memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+			udp_copy.check = 0;
+
+			udp_out->check = 0;
+			udp_out->check = update_csum_4to6(udp_in->check,
+					ip_hdr(in), &udp_copy, sizeof(udp_copy),
+					ipv6_hdr(out), udp_out, sizeof(*udp_out));
+		} else {
+			handle_zero_csum(in, out);
+		}
 	}
 
 	/* Payload */

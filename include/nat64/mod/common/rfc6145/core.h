@@ -18,16 +18,6 @@
 #include "nat64/mod/common/types.h"
 
 /**
- * Prepares this module for future use. Avoid calling the rest of the functions unless this has
- * already been executed once.
- */
-int translate_packet_init(void);
-/**
- * Frees any memory allocated by this module.
- */
-void translate_packet_destroy(void);
-
-/**
  * Actual translation of "in" into "out".
  */
 verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in,

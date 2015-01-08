@@ -7,7 +7,7 @@
 int config_init(void);
 void config_destroy(void);
 
-int config_clone(struct response_general *clone);
+int config_clone(struct global_config *clone);
 int config_set(__u8 type, size_t size, void *value);
 
 unsigned long config_get_ttl_udp(void);

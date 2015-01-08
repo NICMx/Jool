@@ -1,5 +1,5 @@
-#ifndef _JOOL_USR_GENERAL_H
-#define _JOOL_USR_GENERAL_H
+#ifndef _JOOL_USR_GLOBAL_H
+#define _JOOL_USR_GLOBAL_H
 
 
 #include "nat64/comm/config_proto.h"
@@ -29,8 +29,8 @@
 #define FRAG_TIMEOUT_OPT		"toFrag"
 
 
-int general_display(void);
-int general_update(enum general_module module, __u8 type, size_t size, void *data);
+int global_display(void);
+int global_update(__u8 type, size_t size, void *data);
 
 
-#endif /* _JOOL_USR_GENERAL_H */
+#endif /* _JOOL_USR_GLOBAL_H */

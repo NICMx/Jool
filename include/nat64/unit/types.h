@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_TYPES_H
 #define _JOOL_UNIT_TYPES_H
 
-#include "nat64/mod/types.h"
+#include "nat64/mod/common/types.h"
 
 
 int init_ipv4_tuple(struct tuple *tuple4, unsigned char *src_addr, __u16 src_port,

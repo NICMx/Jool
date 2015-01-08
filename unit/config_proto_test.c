@@ -20,7 +20,7 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "config_proto.c"
 
 /* functions */
-static int clone_general_config(struct response_general *response)
+static int clone_global_config(struct global_config *response)
 {
 	int error = 0;
 
@@ -121,8 +121,8 @@ static bool compare_sendpkt_config(struct sendpkt_config *expected,
 			"send_pkt: min_ipv6_mtu");
 }
 
-static bool compare_general_configs(struct response_general *expected_config,
-		struct response_general *actual_config)
+static bool compare_global_configs(struct global_config *expected_config,
+		struct global_config *actual_config)
 {
 	bool success = true;
 
@@ -149,22 +149,22 @@ static bool basic_test(void)
 	unsigned char *buffer;
 	size_t buffer_len;
 	bool success = true;
-	struct response_general config = { .translate.mtu_plateaus = NULL };
-	struct response_general response = { .translate.mtu_plateaus = NULL };
+	struct global_config config = { .translate.mtu_plateaus = NULL };
+	struct global_config response = { .translate.mtu_plateaus = NULL };
 
-	error = clone_general_config(&config);
+	error = clone_global_config(&config);
 	if (error)
 		return false;
 
-	error = serialize_general_config(&config, &buffer, &buffer_len);
+	error = serialize_global_config(&config, &buffer, &buffer_len);
 	if (error)
 		return false;
 
-	error = deserialize_general_config(buffer, buffer_len, &response);
+	error = deserialize_global_config(buffer, buffer_len, &response);
 	if (error)
 		return false;
 
-	success &= compare_general_configs(&config, &response);
+	success &= compare_global_configs(&config, &response);
 
 	kfree(buffer);
 
@@ -181,10 +181,10 @@ static bool translate_nulls_mtu(void)
 	unsigned char *buffer;
 	size_t buffer_len;
 	bool success = true;
-	struct response_general config = { .translate.mtu_plateaus = NULL };
-	struct response_general response = { .translate.mtu_plateaus = NULL };
+	struct global_config config = { .translate.mtu_plateaus = NULL };
+	struct global_config response = { .translate.mtu_plateaus = NULL };
 
-	error = clone_general_config(&config);
+	error = clone_global_config(&config);
 	if (error)
 		return false;
 
@@ -193,17 +193,17 @@ static bool translate_nulls_mtu(void)
 	config.translate.mtu_plateaus = NULL;
 	config.translate.mtu_plateau_count = 0;
 
-	error = serialize_general_config(&config, &buffer, &buffer_len);
+	error = serialize_global_config(&config, &buffer, &buffer_len);
 	if (error)
 		return false;
 
-	error = deserialize_general_config(buffer, buffer_len, &response);
+	error = deserialize_global_config(buffer, buffer_len, &response);
 	if (error)
 		return false;
 
-	success &= compare_general_configs(&config, &response);
+	success &= compare_global_configs(&config, &response);
 
-	/* the "compare_general_configs" will not evaluate the mtu_plateaus
+	/* the "compare_global_configs" will not evaluate the mtu_plateaus
 	 * because of the plateau_count = 0
 	 */
 	success &= assert_null(config.translate.mtu_plateaus, "local config mtu_plateaus");

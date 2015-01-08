@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_TEST_H
 #define _JOOL_UNIT_TEST_H
 
-#include "nat64/mod/types.h"
+#include "nat64/mod/common/types.h"
 
 
 /* TODO (test) The UNIT_TESTING macro is a hack; remove it. */

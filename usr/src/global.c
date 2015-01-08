@@ -1,4 +1,4 @@
-#include "nat64/usr/general.h"
+#include "nat64/usr/global.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
@@ -7,7 +7,7 @@
 
 static int handle_display_response(struct nl_msg *msg, void *arg)
 {
-	struct response_general *conf = nlmsg_data(nlmsg_hdr(msg));
+	struct global_config *conf = nlmsg_data(nlmsg_hdr(msg));
 	__u16 *plateaus;
 	int i;
 
@@ -61,11 +61,11 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int general_display(void)
+int global_display(void)
 {
 	struct request_hdr request = {
 		.length = sizeof(request),
-		.mode = MODE_GENERAL,
+		.mode = MODE_GLOBAL,
 		.operation = OP_DISPLAY,
 	};
 	return netlink_request(&request, request.length, handle_display_response, NULL);
@@ -77,26 +77,25 @@ static int handle_update_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int general_update(enum general_module module, __u8 type, size_t size, void *data)
+int global_update(__u8 type, size_t size, void *data)
 {
 	struct request_hdr *main_hdr;
-	union request_general *general_hdr;
+	union request_global *global_hdr;
 	void *payload;
 	size_t len;
 	int result;
 
-	len = sizeof(*main_hdr) + sizeof(*general_hdr) + size;
+	len = sizeof(*main_hdr) + sizeof(*global_hdr) + size;
 	main_hdr = malloc(len);
 	if (!main_hdr)
 		return -ENOMEM;
-	general_hdr = (union request_general *) (main_hdr + 1);
-	payload = general_hdr + 1;
+	global_hdr = (union request_global *) (main_hdr + 1);
+	payload = global_hdr + 1;
 
 	main_hdr->length = len;
-	main_hdr->mode = MODE_GENERAL;
+	main_hdr->mode = MODE_GLOBAL;
 	main_hdr->operation = OP_UPDATE;
-	general_hdr->update.module = module;
-	general_hdr->update.type = type;
+	global_hdr->update.type = type;
 	memcpy(payload, data, size);
 
 	result = netlink_request(main_hdr, len, handle_update_response, NULL);

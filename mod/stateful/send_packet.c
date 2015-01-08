@@ -1,6 +1,7 @@
-#include "nat64/mod/stateful/send_packet.h"
+#include "nat64/mod/common/send_packet.h"
 
 #include <linux/icmp.h>
+#include <linux/version.h>
 #include <net/ipv6.h>
 
 #include "nat64/mod/common/config.h"
@@ -180,6 +181,18 @@ static void move_next_to_frag_list(struct sk_buff *skb)
 	skb->next = NULL;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+void kfree_skb_list(struct sk_buff *segs)
+{
+	while (segs) {
+		struct sk_buff *next = segs->next;
+
+		kfree_skb(segs);
+		segs = next;
+	}
+}
+#endif
+
 /* TODO test the kernel doesn't join fragments when min mtu6 < nexthop mtu. */
 static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 {
@@ -204,8 +217,11 @@ static int fragment_if_too_big(struct sk_buff *skb_in, struct sk_buff *skb_out)
 
 		mtu &= 0xFFF8;
 		error = divide(skb_out, mtu, mtu - HDRS_LEN);
-		if (error) /* TODO rethink freeing? */
+		if (error) {
+			kfree_skb_list(skb_out->next);
 			return error;
+		}
+
 		move_next_to_frag_list(skb_out);
 
 		mtu -= HDRS_LEN; /* "mtu" is "l3 payload mtu" now. */
@@ -243,6 +259,7 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 			skb_l4_proto(out_skb));
 #endif
 
+	/* TODO do we really need this? LOCAL OUT obviously routes too. */
 	if (WARN(!out_skb->dev, "Packet has no destination device."))
 		goto fail;
 	dst = skb_dst(out_skb);

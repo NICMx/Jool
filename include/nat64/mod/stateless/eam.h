@@ -27,13 +27,17 @@ struct eam_entry {
 	struct rb_node tree4_hook;
 };
 
+int eamt_init(void);
+void eamt_destroy(void);
+
 /**
  *	Insert IPv6 Prefix "ip6_pref" and IPv4 Prefix "ip4_pref" to the database, return zero if the
  *	insert was successful.
  *
  *	If the "ipX_pref" contains or is part of a prefix indexed in the databases, then returns error.
  */
-int address_mapping_insert_entry(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref);
+int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref);
+int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
 
 /**
  * Look in the IPv4 address mapping table, if the IPv4 address "addr" is part of a prefix indexed
@@ -42,7 +46,7 @@ int address_mapping_insert_entry(struct ipv6_prefix *ip6_pref, struct ipv4_prefi
  *
  * otherwise return error.
  */
-int address_mapping_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
+int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
 
 /**
  * Look in the IPv6 address mapping table, if the IPv6 address "addr6" is part of a prefix indexed
@@ -51,7 +55,10 @@ int address_mapping_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *resu
  *
  * otherwise return error.
  */
-int address_mapping_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
+int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
 
+int eamt_count(__u64 *count);
+int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
+		int (*func)(struct eam_entry *, void *), void *arg);
 
 #endif /* _JOOL_MOD_ADDRESS_MAPPING_H */

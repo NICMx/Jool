@@ -1,10 +1,10 @@
 #include "nat64/mod/stateful/handling_hairpinning.h"
-#include "nat64/mod/stateful/pool4.h"
-#include "nat64/mod/stateful/filtering_and_updating.h"
-#include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/common/rfc6145/core.h"
-#include "nat64/mod/stateful/send_packet.h"
+#include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/stateful/compute_outgoing_tuple.h"
+#include "nat64/mod/stateful/filtering_and_updating.h"
+#include "nat64/mod/stateful/pool4.h"
 
 
 /**

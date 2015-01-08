@@ -8,6 +8,8 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
+#include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
 
@@ -127,6 +129,25 @@ static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
 	return iterator.hdr_type;
 }
 
+static int generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4)
+{
+	struct ipv6_prefix prefix;
+	struct in_addr tmp;
+	int error;
+
+	error = pool6_get(addr6, &prefix);
+	if (error) {
+		log_debug("Looks like an IP address doesn't have a NAT64 prefix.");
+		return error;
+	}
+	error = addr_6to4(addr6, &prefix, &tmp);
+	if (error)
+		return error;
+
+	*addr4 = tmp.s_addr;
+	return 0;
+}
+
 /**
  * Returns "true" if ip6_hdr's first routing header contains a Segments Field which is not zero.
  *
@@ -172,6 +193,7 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	struct ipv6hdr *ip6_hdr = ipv6_hdr(in);
 	struct frag_hdr *ip6_frag_hdr;
 	struct iphdr *ip4_hdr;
+	int error;
 
 	bool reset_tos, build_ipv4_id, df_always_on;
 	__u8 dont_fragment, new_tos;
@@ -198,8 +220,18 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
-	ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
-	ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
+
+	if (nat64_is_stateful()) {
+		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
+		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
+	} else {
+		error = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr);
+		if (error)
+			return error;
+		error = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr);
+		if (error)
+			return error;
+	}
 
 	if (!skb_is_inner(in)) {
 		__u32 nonzero_location;
@@ -648,8 +680,10 @@ int ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, skb_l4hdr_len(in));
-	tcp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
-	tcp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
+	if (nat64_is_stateful()) {
+		tcp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
+		tcp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
+	}
 
 	if (is_csum4_computable(out)) {
 		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
@@ -672,9 +706,11 @@ int ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	struct udphdr udp_copy;
 
 	/* Header */
-	udp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
-	udp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
-	udp_out->len = udp_in->len;
+	memcpy(udp_out, udp_in, skb_l4hdr_len(in));
+	if (nat64_is_stateful()) {
+		udp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
+		udp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
+	}
 
 	if (is_csum4_computable(out)) {
 		memcpy(&udp_copy, udp_in, sizeof(*udp_in));

@@ -5,16 +5,6 @@
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/common/rfc6145/common.h"
 
-int translate_packet_init(void)
-{
-	return ttpcomm_init();
-}
-
-void translate_packet_destroy(void)
-{
-	ttpcomm_destroy();
-}
-
 static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in, struct sk_buff **out,
 		struct dst_entry *dst)
 {

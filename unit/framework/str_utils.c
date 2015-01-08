@@ -1,6 +1,6 @@
 #include "nat64/comm/str_utils.h"
 #include <linux/inet.h>
-#include "nat64/mod/types.h"
+#include "nat64/mod/common/types.h"
 
 
 int str_to_addr6(const char *str, struct in6_addr *result)

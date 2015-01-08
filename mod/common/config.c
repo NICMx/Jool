@@ -6,7 +6,7 @@
 #include "nat64/comm/constants.h"
 #include "nat64/mod/common/types.h"
 
-static struct response_general *config;
+static struct global_config *config;
 
 int config_init(void)
 {
@@ -55,7 +55,7 @@ void config_destroy(void)
 	kfree(config);
 }
 
-int config_clone(struct response_general *clone)
+int config_clone(struct global_config *clone)
 {
 	rcu_read_lock_bh();
 	*clone = *rcu_dereference_bh(config);
@@ -75,7 +75,7 @@ static bool ensure_bytes(size_t actual, size_t expected)
 
 #ifdef STATEFUL
 
-static bool validate_timeout(void *value, unsigned int min)
+static bool assign_timeout(void *value, unsigned int min, __u64 *field)
 {
 	/*
 	 * TODO (fine) this max is somewhat arbitrary. We do have a maximum,
@@ -84,7 +84,7 @@ static bool validate_timeout(void *value, unsigned int min)
 	const __u32 MAX_U32 = 0xFFFFFFFFL;
 	__u64 value64 = *((__u64 *) value);
 
-	if (value64 < msecs_to_jiffies(1000 * min)) {
+	if (value64 < 1000 * min) {
 		log_err("The UDP timeout must be at least %u seconds.", min);
 		return false;
 	}
@@ -93,6 +93,7 @@ static bool validate_timeout(void *value, unsigned int min)
 		return false;
 	}
 
+	*field = msecs_to_jiffies(value64);
 	return true;
 }
 
@@ -160,8 +161,8 @@ static int update_plateaus(struct translate_config *config, size_t size, void *v
 
 int config_set(__u8 type, size_t size, void *value)
 {
-	struct response_general *tmp_config;
-	struct response_general *old_config;
+	struct global_config *tmp_config;
+	struct global_config *old_config;
 
 	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
 	if (!tmp_config)
@@ -180,36 +181,31 @@ int config_set(__u8 type, size_t size, void *value)
 	case UDP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!validate_timeout(value, UDP_MIN))
+		if (!assign_timeout(value, UDP_MIN, &tmp_config->sessiondb.ttl.udp))
 			goto fail;
-		/* TODO these might need a msecs to jiffies */
-		tmp_config->sessiondb.ttl.udp = *((__u64 *) value);
 		break;
 	case ICMP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!validate_timeout(value, 0))
+		if (!assign_timeout(value, 0, &tmp_config->sessiondb.ttl.icmp))
 			goto fail;
-		tmp_config->sessiondb.ttl.icmp = *((__u64 *) value);
 		break;
 	case TCP_EST_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!validate_timeout(value, TCP_EST))
+		if (!assign_timeout(value, TCP_EST, &tmp_config->sessiondb.ttl.tcp_est))
 			goto fail;
-		tmp_config->sessiondb.ttl.tcp_est = *((__u64 *) value);
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!validate_timeout(value, TCP_TRANS))
+		if (!assign_timeout(value, TCP_TRANS, &tmp_config->sessiondb.ttl.tcp_trans))
 			goto fail;
-		tmp_config->sessiondb.ttl.tcp_trans = *((__u64 *) value);
 		break;
 	case FRAGMENT_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!validate_timeout(value, FRAGMENT_MIN))
+		if (!assign_timeout(value, FRAGMENT_MIN, &tmp_config->fragmentation.fragment_timeout))
 			goto fail;
 		break;
 	case DROP_BY_ADDR:
@@ -264,7 +260,6 @@ int config_set(__u8 type, size_t size, void *value)
 		tmp_config->translate.lower_mtu_fail = *((__u8 *) value);
 		break;
 	case MTU_PLATEAUS:
-		/* TODO mighgt need to rethink plateaus freeing. */
 		if (is_error(update_plateaus(&tmp_config->translate, size, value)))
 			goto fail;
 		break;
@@ -280,7 +275,11 @@ int config_set(__u8 type, size_t size, void *value)
 
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
+
+	if (old_config->translate.mtu_plateaus != tmp_config->translate.mtu_plateaus)
+		kfree(old_config->translate.mtu_plateaus);
 	kfree(old_config);
+
 	return 0;
 
 fail:
@@ -354,7 +353,7 @@ bool config_get_reset_traffic_class(void)
 void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 		bool *df_always_on)
 {
-	struct response_general *tmp;
+	struct global_config *tmp;
 
 	rcu_read_lock_bh();
 	tmp = rcu_dereference_bh(config);
@@ -381,7 +380,7 @@ bool config_get_lower_mtu_fail(void)
  */
 void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 {
-	struct response_general *tmp;
+	struct global_config *tmp;
 
 	tmp = rcu_dereference_bh(config);
 	*plateaus = tmp->translate.mtu_plateaus;

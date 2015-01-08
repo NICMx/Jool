@@ -17,10 +17,10 @@
 #include "nat64/mod/common/types.h"
 
 /**
- * Puts "skb" on the network.
- * You need to have routed skb first (see route.h).
+ * Puts "out_skb" on the network.
+ * You need to have routed out_skb first (see route.h).
  *
- * For "skb" to be valid, setting the following fields is known to be necessary:
+ * For "out_skb" to be valid, setting the following fields is known to be necessary:
  * -> data, head, len, data_len, end, network_header and dev.
  * Also probably:
  * -> tail, transport_header and _skb_refdst.
@@ -28,7 +28,10 @@
  * more.
  *
  * Note that this function inherits from ip_local_out() and ip6_local_out() the annoying side
- * effect of freeing "skb", EVEN IF IT COULD NOT BE SENT.
+ * effect of freeing "out_skb", EVEN IF IT COULD NOT BE SENT.
+ *
+ * On stateful operation, in_skb is used to hack fragmentation neededs if necessary. On stateless
+ * operation, in_skb isn't used for anything. TODO (fine) Do something about it?
  */
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb);
 

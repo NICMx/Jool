@@ -3,13 +3,13 @@
 #include <net/ipv6.h>
 #include "nat64/comm/constants.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/stateful/pkt_queue.h"
-#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/stateful/bib_db.h"
-#include "nat64/mod/stateful/send_packet.h"
+#include "nat64/mod/stateful/pkt_queue.h"
 
 /**
  * Session table definition.
@@ -60,6 +60,7 @@ struct expire_timer {
 	/** All the sessions from the list above belong to this table (the reverse might not apply). */
 	struct session_table *table;
 
+	unsigned long (*get_timeout)(void);
 	char *name;
 };
 
@@ -441,29 +442,6 @@ static void schedule_timer(struct timer_list *timer, unsigned long next_time, ch
 			jiffies_to_msecs(timer->expires - jiffies));
 }
 
-/**
- * Returns the configured timeout for all of "expirer"'s sessions.
- *
- * Doesn't care about spinlocks.
- */
-static unsigned long get_timeout(struct expire_timer *expirer)
-{
-	if (expirer == &expirer_syn)
-		return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
-	if (expirer == &expirer_udp)
-		return config_get_ttl_udp();
-	if (expirer == &expirer_tcp_est)
-		return config_get_ttl_tcpest();
-	if (expirer == &expirer_tcp_trans)
-		return config_get_ttl_tcptrans();
-	if (expirer == &expirer_icmp)
-		return config_get_ttl_icmp();
-
-	/* TODO return error instad of panicking. */
-	BUG();
-	return 0;
-}
-
 int sessiondb_get_timeout(struct session_entry *session, unsigned long *result)
 {
 	if (!session->expirer) {
@@ -471,7 +449,7 @@ int sessiondb_get_timeout(struct session_entry *session, unsigned long *result)
 		return -EINVAL;
 	}
 
-	*result = get_timeout(session->expirer);
+	*result = session->expirer->get_timeout();
 	return 0;
 }
 
@@ -501,7 +479,7 @@ static struct expire_timer *set_timer(struct session_entry *session,
 static void commit_timer(struct expire_timer *expirer)
 {
 	if (expirer)
-		schedule_timer(&expirer->timer, jiffies + get_timeout(expirer), expirer->name);
+		schedule_timer(&expirer->timer, jiffies + expirer->get_timeout(), expirer->name);
 }
 
 /**
@@ -581,7 +559,7 @@ static void cleaner_timer(unsigned long param)
 	log_debug("Deleting expired sessions...");
 	log_debug("Cleaner name: %s", expirer->name);
 
-	timeout = get_timeout(expirer);
+	timeout = expirer->get_timeout();
 	INIT_LIST_HEAD(&probes);
 	INIT_LIST_HEAD(&tcp_timeouts);
 
@@ -607,8 +585,10 @@ static void cleaner_timer(unsigned long param)
 			!list_empty(&expirer_tcp_trans.sessions) && (expirer != &expirer_tcp_trans);
 	spin_unlock_bh(&expirer->table->lock);
 
-	if (schedule_tcp_trans)
-		schedule_timer(&expirer_tcp_trans.timer, jiffies + get_timeout(&expirer_tcp_trans), expirer_tcp_trans.name);
+	if (schedule_tcp_trans) {
+		schedule_timer(&expirer_tcp_trans.timer, jiffies + expirer_tcp_trans.get_timeout(),
+				expirer_tcp_trans.name);
+	}
 
 	if (session_update_time)
 		schedule_timer(&expirer->timer, session_update_time, expirer->name);
@@ -628,13 +608,18 @@ static void cleaner_timer(unsigned long param)
 	log_debug("Deleted %u sessions.", s);
 }
 
+unsigned long get_syn_timeout(void)
+{
+	return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
+}
+
 /**
  * Auxiliar for sessiondb_init(). Encapsulates initialization of an expire_timer structure.
  *
  * Doesn't care about spinlocks (initialization code doesn't share threads).
  */
 static void init_expire_timer(struct expire_timer *expirer, struct session_table *table,
-		char *expirer_name)
+		unsigned long (*get_timeout)(void), char *expirer_name)
 {
 	init_timer(&expirer->timer);
 	expirer->timer.function = cleaner_timer;
@@ -643,6 +628,7 @@ static void init_expire_timer(struct expire_timer *expirer, struct session_table
 
 	INIT_LIST_HEAD(&expirer->sessions);
 	expirer->table = table;
+	expirer->get_timeout = get_timeout;
 	expirer->name = expirer_name;
 }
 
@@ -664,11 +650,13 @@ int sessiondb_init(void)
 		spin_lock_init(&tables[i]->lock);
 	}
 
-	init_expire_timer(&expirer_udp, &session_table_udp, EXPIRER_NAMES[0]);
-	init_expire_timer(&expirer_icmp, &session_table_icmp, EXPIRER_NAMES[1]);
-	init_expire_timer(&expirer_tcp_est, &session_table_tcp, EXPIRER_NAMES[2]);
-	init_expire_timer(&expirer_tcp_trans, &session_table_tcp, EXPIRER_NAMES[3]);
-	init_expire_timer(&expirer_syn, &session_table_tcp, EXPIRER_NAMES[4]);
+	init_expire_timer(&expirer_udp, &session_table_udp, config_get_ttl_udp, EXPIRER_NAMES[0]);
+	init_expire_timer(&expirer_icmp, &session_table_icmp, config_get_ttl_icmp, EXPIRER_NAMES[1]);
+	init_expire_timer(&expirer_tcp_est, &session_table_tcp, config_get_ttl_tcpest,
+			EXPIRER_NAMES[2]);
+	init_expire_timer(&expirer_tcp_trans, &session_table_tcp, config_get_ttl_tcptrans,
+			EXPIRER_NAMES[3]);
+	init_expire_timer(&expirer_syn, &session_table_tcp, get_syn_timeout, EXPIRER_NAMES[4]);
 
 	return 0;
 }
