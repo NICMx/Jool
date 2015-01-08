@@ -208,9 +208,9 @@ static bool anderson_test(void)
 	success &= test("192.0.2.24", "2001:db8:cccc::8");
 	success &= test("192.0.2.31", "2001:db8:cccc::f");
 	success &= test("192.0.2.128", "2001:db8:dddd::");
-	success &= test("192.0.2.152", "2001:db8:dddd:0:18::");
-	success &= test("192.0.2.183", "2001:db8:dddd:0:37::");
-	success &= test("192.0.2.191", "2001:db8:dddd:0:3f::");
+	success &= test("192.0.2.152", "2001:db8:dddd:0:6000::");
+	success &= test("192.0.2.183", "2001:db8:dddd:0:dc00::");
+	success &= test("192.0.2.191", "2001:db8:dddd:0:fc00::");
 	success &= test("192.0.2.193", "64:ff9b::1");
 
 	return success;
@@ -222,7 +222,7 @@ static int address_mapping_test_init(void)
 	START_TESTS("Address Mapping test");
 
 	INIT_CALL_END(init(), general_test(), end(), "Test inserting address");
-	INIT_CALL_END(init(), anderson_test(), end(), "Tests from T. Anderson's 2nd draft.");
+	INIT_CALL_END(init(), anderson_test(), end(), "Tests from T. Anderson's 3rd draft.");
 
 	END_TESTS;
 }
