@@ -57,6 +57,13 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
  */
 int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
 
+/**
+ * Empties the entire database.
+ *
+ * O(n), where n is the number of entries in the entire database.
+ */
+int eamt_flush(void);
+
 int eamt_count(__u64 *count);
 int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
 		int (*func)(struct eam_entry *, void *), void *arg);

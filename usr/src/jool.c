@@ -210,6 +210,8 @@ static struct argp_option options[] =
 			"Available on add and remove operations only." },
 #else
 	{ NULL, 0, NULL, 0, "EAMT only options:", 3 },
+	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
+			"Available on display operation only."},
 	{ "eam6", ARGP_EAM_IPV6, IPV6_PREFIX_FORMAT, 0,
 			"This is the IPv6 prefix node of the entry to be added or removed. "
 			"Available on add and remove operations only." },
@@ -392,6 +394,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_SESSION:
 		error = update_state(args, MODE_SESSION, SESSION_OPS);
+		break;
+#else
+	case ARGP_EAMT:
+		error = update_state(args, MODE_EAMT, EAMT_OPS);
 		break;
 #endif
 #ifdef BENCHMARK
@@ -745,8 +751,19 @@ static int main_wrapped(int argc, char **argv)
 		case OP_COUNT:
 			return eam_count();
 		case OP_ADD:
-			return eam_add(&args.db.tables.eamt.prefix6, &args.db.tables.eamt.prefix4);
+			if (!args.db.tables.eamt.pref6_set && !args.db.tables.eamt.pref4_set) {
+				log_err("I need the IPv4 transport address and the IPv6 transport address of "
+						"the entry you want to remove.");
+				return -EINVAL;
+			}
+			return eam_add(args.db.tables.eamt.pref6_set, &args.db.tables.eamt.prefix6,
+					args.db.tables.eamt.pref4_set, &args.db.tables.eamt.prefix4);
 		case OP_REMOVE:
+			if (!args.db.tables.eamt.pref6_set && !args.db.tables.eamt.pref4_set) {
+				log_err("I need the IPv4 transport address and/or the IPv6 transport address of "
+						"the entry you want to remove.");
+				return -EINVAL;
+			}
 			return eam_remove(args.db.tables.eamt.pref6_set, &args.db.tables.eamt.prefix6,
 					args.db.tables.eamt.pref4_set, &args.db.tables.eamt.prefix4);
 		case OP_FLUSH:

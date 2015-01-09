@@ -11,6 +11,11 @@
 
 #define MAX_PORT 0xFFFF
 
+/* The maximum network length for IPv4. */
+static const __u8 IPV4_PREFIX = 32;
+/* The maximum network length for IPv6. */
+static const __u8 IPV6_PREFIX = 128;
+
 const char *l3proto_to_string(l3_protocol l3_proto)
 {
 	switch (l3_proto) {
@@ -285,9 +290,14 @@ int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
 
 	token = strtok(NULL, "/");
 	if (!token) {
+		if (!nat64_is_stateful()) {
+			prefix_out->len = IPV6_PREFIX;
+			return 0;
+		}
 		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
+
 	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
 	if (error)
 		return error; /* Error msg already printed. */
@@ -331,6 +341,10 @@ int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
 
 	token = strtok(NULL, "/");
 	if (!token) {
+		if (!nat64_is_stateful()) {
+			prefix_out->len = IPV4_PREFIX;
+			return 0;
+		}
 		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}

@@ -123,7 +123,8 @@ static int eam_add_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int eam_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
+int eam_add(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
+		struct ipv4_prefix *prefix4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -132,8 +133,10 @@ int eam_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_EAMT;
 	hdr->operation = OP_ADD;
-	payload->add.prefix6 = *ip6_pref;
-	payload->add.prefix4 = *ip4_pref;
+	payload->remove.prefix4_set = pref4_set;
+	payload->remove.prefix4 = *prefix4;
+	payload->remove.prefix6_set = pref6_set;
+	payload->remove.prefix6 = *prefix6;
 
 	return netlink_request(request, hdr->length, eam_add_response, NULL);
 }

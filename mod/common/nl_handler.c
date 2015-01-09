@@ -453,7 +453,9 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding EAMT entry.");
-		return respond_error(nl_hdr, eamt_add(&request->add.prefix6, &request->add.prefix4));
+		return respond_error(nl_hdr, eamt_add(
+				request->add.prefix6_set ? &request->add.prefix6 : NULL,
+				request->add.prefix4_set ? &request->add.prefix4 : NULL));
 
 	case OP_REMOVE:
 		if (verify_superpriv())
@@ -464,6 +466,11 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 				request->remove.prefix6_set ? &request->remove.prefix6 : NULL,
 				request->remove.prefix4_set ? &request->remove.prefix4 : NULL));
 
+	case OP_FLUSH:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		return respond_error(nl_hdr, eamt_flush());
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);

@@ -202,7 +202,9 @@ union request_eamt {
 		/* Nothing needed here. */
 	} count;
 	struct {
+		__u8 prefix6_set;
 		struct ipv6_prefix prefix6;
+		__u8 prefix4_set;
 		struct ipv4_prefix prefix4;
 	} add;
 	struct {
@@ -452,6 +454,7 @@ union request_global {
 	} update;
 };
 
+#ifdef BENCHMARK
 /**
  * A logtime node entry, from the eyes of userspace.
  *
@@ -461,6 +464,7 @@ union request_global {
 struct logtime_entry_usr {
 	struct timespec time;
 };
+#endif
 
 /**
  * A BIB entry, from the eyes of userspace.

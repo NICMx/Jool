@@ -227,6 +227,16 @@ static int compare_prefix4(struct eam_entry *entry, struct ipv4_prefix *prefix4)
 	return gap;
 }
 
+static int eam_remove(struct eam_entry *entry, struct eam_db *table)
+{
+	if (!RB_EMPTY_NODE(&entry->tree6_hook))
+		rb_erase(&entry->tree6_hook, &table->EAMT_tree6);
+	if (!RB_EMPTY_NODE(&entry->tree4_hook))
+		rb_erase(&entry->tree4_hook, &table->EAMT_tree4);
+
+	return 1;
+}
+
 int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
 {
 	int error;
@@ -290,6 +300,7 @@ static bool prefix4_equals(struct ipv4_prefix *p1, struct ipv4_prefix *p2)
 
 int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 {
+	int count;
 	struct eam_entry *eam;
 
 	spin_lock_bh(&eam_lock);
@@ -303,7 +314,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 			return -ESRCH;
 		}
 
-		if (prefix4 && prefix4_equals(prefix4, &eam->pref4)) {
+		if (prefix4 && !prefix4_equals(prefix4, &eam->pref4)) {
 			log_err("The EAM entry whose 6-prefix is %pI6c/%u is mapped to %pI4/%u, not %pI4/%u.",
 					&eam->pref6.address, eam->pref6.len,
 					&eam->pref4.address, eam->pref4.len,
@@ -312,7 +323,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 			return -EINVAL;
 		}
 
-		rb_erase(&eam->tree6_hook, &eam_table.EAMT_tree6);
+		count = eam_remove(eam, &eam_table);
 
 	} else if (prefix4) {
 		eam = rbtree_find(prefix4, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
@@ -323,15 +334,14 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 			return -ESRCH;
 		}
 
-		rb_erase(&eam->tree4_hook, &eam_table.EAMT_tree4);
-
+		count = eam_remove(eam, &eam_table);
 	} else {
 		spin_unlock_bh(&eam_lock);
 		WARN(true, "Both prefixes are NULL.");
 		return -EINVAL;
 	}
 
-	eam_table.count--;
+	eam_table.count -= count;
 	spin_unlock_bh(&eam_lock);
 	eam_kfree(eam);
 	return 0;
@@ -459,6 +469,47 @@ int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
 
 	spin_unlock_bh(&eam_lock);
 	return error;
+}
+
+int eamt_flush(void)
+{
+	struct eam_entry *root_eam, *eam;
+	struct rb_node *node;
+	int counter = 0;
+
+	log_debug("Emptying the EAM table...");
+	spin_lock_bh(&eam_lock);
+
+	node = eam_table.EAMT_tree4.rb_node;
+	if (!node)
+		goto success;
+
+	root_eam = rb_entry(node, struct eam_entry, tree4_hook);
+	if (!root_eam)
+		goto success;
+
+	node = rb_prev(&root_eam->tree4_hook);
+	while (node) {
+		eam = rb_entry(node, struct eam_entry, tree4_hook);
+		node = rb_prev(&eam->tree4_hook);
+		counter += eam_remove(eam, &eam_table);
+	}
+
+	node = rb_next(&root_eam->tree4_hook);
+	while (node) {
+		eam = rb_entry(node, struct eam_entry, tree4_hook);
+		node = rb_next(&eam->tree4_hook);
+		counter += eam_remove(eam, &eam_table);
+	}
+
+	counter += eam_remove(root_eam, &eam_table);
+	eam_table.count -= counter;
+	/* Fall through. */
+
+success:
+	spin_unlock_bh(&eam_lock);
+	log_debug("Deleted %d EAM entries.", counter);
+	return 0;
 }
 
 int eamt_init(void)
