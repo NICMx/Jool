@@ -1,0 +1,36 @@
+#CC=cgcc
+ccflags-y := -I$(src)/../../include
+EXTRA_CFLAGS += -DDEBUG
+
+# Note: if you want to activate the benchmark feature, you need to activate the following flag, and
+#	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
+#EXTRA_CFLAGS += -DBENCHMARK
+
+obj-m += jool-stateless.o
+
+jool-common += ../common/rfc6145/4to6.o
+jool-common += ../common/rfc6145/6to4.o
+jool-common += ../common/rfc6145/common.o
+jool-common += ../common/rfc6145/core.o
+jool-common += ../common/types.o
+jool-common += ../common/str_utils.o
+jool-common += ../common/packet.o
+jool-common += ../common/stats.o
+#jool-common += ../common/log_time.o
+jool-common += ../common/icmp_wrapper.o
+jool-common += ../common/ipv6_hdr_iterator.o
+jool-common += ../common/rfc6052.o
+jool-common += ../common/pool6.o
+jool-common += ../common/nl_buffer.o
+jool-common += ../common/random.o
+jool-common += ../common/rbtree.o
+jool-common += ../common/config.o
+jool-common += ../common/nl_handler.o
+jool-common += ../common/route.o
+jool-common += ../common/core.o
+
+jool-stateless += eam.o
+jool-stateless += nf_hook.o
+jool-stateless += send_packet.o
+
+jool-stateless-objs += ${jool-common} ${jool-stateless}

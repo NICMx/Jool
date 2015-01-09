@@ -8,22 +8,19 @@
  * @author Alberto Leiva
  */
 
-
-#define MODULE_NAME "Jool"
-
+#ifdef STATEFUL
+#define MODULE_NAME "Stateful Jool"
+#else
+#define MODULE_NAME "Stateless Jool"
+#endif
 
 /**
- * Please tend to use nat64_is_stateful() instead of this macro. By using the function version,
- * your compilations will be aware of the alternate mode so you will not accidentally wreck it.
- * Also the function reminds you to #include this file, whereas this macro doesn't (and if you
- * don't your code will always be stateless).
- * Also #ifdefs look hairy.
+ * Please tend to use nat64_is_stateful() instead of the STATEFUL macro.
+ * By using the function version, your compilations will be aware of the alternate mode so you will
+ * not accidentally wreck it. Also #ifdefs look hairy.
  *
- * TODO check whenever this macro is used, nat64.h is #included.
+ * TODO (fine) #include bool?
  */
-//#define STATEFUL
-
-/* TODO (fine) #include bool? */
 static inline int nat64_is_stateful(void)
 {
 #ifdef STATEFUL

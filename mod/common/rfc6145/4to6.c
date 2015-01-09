@@ -13,7 +13,7 @@
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/stats.h"
 
-int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
+verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 {
 	int l3_hdr_len;
 	int total_len;
@@ -53,7 +53,7 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 	new_skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
 	if (!new_skb) {
 		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		return -ENOMEM;
+		return VER_DROP;
 	}
 
 	skb_reserve(new_skb, reserve);
@@ -77,7 +77,7 @@ int ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 	new_skb->prev = NULL;
 
 	*out = new_skb;
-	return 0;
+	return VER_CONTINUE;
 }
 
 static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
@@ -156,7 +156,7 @@ static inline __be32 build_id_field(struct iphdr *ip4_hdr)
  * Aside from the main call (to translate a normal IPv4 packet's layer 3 header), this function can
  * also be called to translate a packet's inner packet.
  */
-int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
+verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
 	struct iphdr *ip4_hdr = ip_hdr(in);
 	struct ipv6hdr *ip6_hdr;
@@ -180,7 +180,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return -EINVAL;
+			return VER_DROP;
 		}
 		ip6_hdr->hop_limit = ip4_hdr->ttl - 1;
 	} else {
@@ -193,10 +193,11 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 	} else {
 		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
 		if (error)
-			return error;
+			return VER_DROP;
 		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
 		if (error)
-			return error;
+			return VER_DROP;
+		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
 	}
 
 	/* Isn't this supposed to be covered by filtering...? */
@@ -209,7 +210,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		log_debug("Packet has an unexpired source route.");
 		icmp64_send(in, ICMPERR_SRC_ROUTE, 0);
 		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-		return -EINVAL;
+		return VER_DROP;
 	}
 
 	if (will_need_frag_hdr(ip_hdr(in))) {
@@ -229,7 +230,7 @@ int ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		frag_header->identification = build_id_field(ip4_hdr);
 	}
 
-	return 0;
+	return VER_CONTINUE;
 }
 
 /**
@@ -512,27 +513,31 @@ static int post_icmp6info(struct sk_buff *in, struct sk_buff *out)
 	return is_csum6_computable(out) ? update_icmp6_csum(in, out) : 0;
 }
 
-static int post_icmp6error(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
+static verdict post_icmp6error(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
+	verdict result;
 	int error;
 
 	log_debug("Translating the inner packet (4->6)...");
 
-	error = ttpcomm_translate_inner_packet(tuple6, in, out);
-	if (error)
-		return error;
+	result = ttpcomm_translate_inner_packet(tuple6, in, out);
+	if (result != VER_CONTINUE)
+		return result;
 
-	if (is_csum6_computable(out))
+	if (is_csum6_computable(out)) {
 		error = compute_icmp6_csum(out);
+		if (error)
+			return VER_DROP;
+	}
 
-	return error;
+	return VER_CONTINUE;
 }
 
 /**
  * Translates in's icmp4 header and payload into out's icmp6 header and payload.
  * This is the RFC 6145 sections 4.2 and 4.3, except checksum (See post_icmp6()).
  */
-int ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out)
+verdict ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out)
 {
 	struct icmphdr *icmpv4_hdr = icmp_hdr(in);
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(out);
@@ -563,25 +568,22 @@ int ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out)
 	case ICMP_DEST_UNREACH:
 		error = icmp4_to_icmp6_dest_unreach(in, out);
 		if (error)
-			return error;
-		error = post_icmp6error(tuple6, in, out);
-		break;
+			return VER_DROP;
+		return post_icmp6error(tuple6, in, out);
 
 	case ICMP_TIME_EXCEEDED:
 		icmpv6_hdr->icmp6_type = ICMPV6_TIME_EXCEED;
 		icmpv6_hdr->icmp6_code = icmpv4_hdr->code;
 		icmpv6_hdr->icmp6_unused = 0;
-		error = post_icmp6error(tuple6, in, out);
-		break;
+		return post_icmp6error(tuple6, in, out);
 
 	case ICMP_PARAMETERPROB:
 		error = icmp4_to_icmp6_param_prob(icmpv4_hdr, icmpv6_hdr);
 		if (error) {
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return error;
+			return VER_DROP;
 		}
-		error = post_icmp6error(tuple6, in, out);
-		break;
+		return post_icmp6error(tuple6, in, out);
 
 	default:
 		/*
@@ -594,10 +596,10 @@ int ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out)
 		 */
 		log_debug("ICMPv4 messages type %u do not exist in ICMPv6.", icmpv4_hdr->type);
 		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-		return -EINVAL;
+		return VER_DROP;
 	}
 
-	return error;
+	return error ? VER_DROP : VER_CONTINUE;
 }
 
 static __sum16 update_csum_4to6(__sum16 csum16,
@@ -669,7 +671,7 @@ static void handle_zero_csum(struct sk_buff *in, struct sk_buff *out)
 			IPPROTO_UDP, csum);
 }
 
-int ttp46_tcp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
+verdict ttp46_tcp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
 	struct tcphdr *tcp_in = tcp_hdr(in);
 	struct tcphdr *tcp_out = tcp_hdr(out);
@@ -693,10 +695,10 @@ int ttp46_tcp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 	}
 
 	/* Payload */
-	return copy_payload(in, out);
+	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
 }
 
-int ttp46_udp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
+verdict ttp46_udp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
 	struct udphdr *udp_in = udp_hdr(in);
 	struct udphdr *udp_out = udp_hdr(out);
@@ -724,5 +726,5 @@ int ttp46_udp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 	}
 
 	/* Payload */
-	return copy_payload(in, out);
+	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
 }

@@ -82,7 +82,7 @@ truncated:
 	return -EINVAL;
 }
 
-int init_l4_inner(struct sk_buff *skb, u8 protocol, unsigned int offset)
+static int init_l4_inner(struct sk_buff *skb, u8 protocol, unsigned int offset)
 {
 	switch (protocol) {
 	case IPPROTO_TCP:
@@ -378,7 +378,7 @@ inhdr:
 /*
  * TODO (issue #41) how does pskb_may_pull() move the hdr pointers when sk_buff_data_t is a ptr?
  */
-int __skb_init_cb_ipv4(struct sk_buff *skb, bool is_fragment)
+static int __skb_init_cb_ipv4(struct sk_buff *skb, bool is_fragment)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 	struct iphdr *hdr4 = ip_hdr(skb);

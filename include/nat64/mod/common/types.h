@@ -63,6 +63,11 @@ typedef enum verdict {
 	 */
 	VER_DROP = NF_DROP,
 	/**
+	 * "Packet is not supposed to be NAT64'd. Return it to Netfilter so the kernel does something
+	 * else with it."
+	 */
+	VER_ACCEPT = NF_ACCEPT,
+	/**
 	 * "I need to keep the packet for a while. Do not free, access or modify it."
 	 *
 	 * The packet being stored is THE ORIGINAL PACKET.

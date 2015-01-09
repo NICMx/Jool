@@ -13,7 +13,7 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
 
-int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
+verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 {
 	int total_len;
 	struct sk_buff *new_skb;
@@ -42,7 +42,7 @@ int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 
 		if (WARN(result != HDR_ITERATOR_END, "Validated packet has an invalid l3 header.")) {
 			inc_stats(in, IPSTATS_MIB_INDISCARDS);
-			return -EINVAL;
+			return VER_DROP;
 		}
 
 		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
@@ -52,7 +52,7 @@ int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
 	if (!new_skb) {
 		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		return -ENOMEM;
+		return VER_DROP;
 	}
 
 	skb_reserve(new_skb, LL_MAX_HEADER);
@@ -76,7 +76,7 @@ int ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	new_skb->prev = NULL;
 
 	*out = new_skb;
-	return 0;
+	return VER_CONTINUE;
 }
 
 /**
@@ -129,7 +129,7 @@ static __u8 build_protocol_field(struct ipv6hdr *ip6_header)
 	return iterator.hdr_type;
 }
 
-static int generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4)
+static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct sk_buff *skb)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
@@ -137,15 +137,15 @@ static int generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4)
 
 	error = pool6_get(addr6, &prefix);
 	if (error) {
-		log_debug("Looks like an IP address doesn't have a NAT64 prefix.");
-		return error;
+		log_debug("Looks like an IP address doesn't have a NAT64 prefix (errcode %d).", error);
+		return VER_ACCEPT;
 	}
 	error = addr_6to4(addr6, &prefix, &tmp);
 	if (error)
-		return error;
+		return VER_DROP;
 
 	*addr4 = tmp.s_addr;
-	return 0;
+	return VER_CONTINUE;
 }
 
 /**
@@ -188,12 +188,12 @@ static __be16 generate_ipv4_id_dofrag(struct frag_hdr *ipv6_frag_hdr)
  * Aside from the main call (to translate a normal IPv6 packet's layer 3 header), this function can
  * also be called to translate a packet's inner packet.
  */
-int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
+verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
 	struct ipv6hdr *ip6_hdr = ipv6_hdr(in);
 	struct frag_hdr *ip6_frag_hdr;
 	struct iphdr *ip4_hdr;
-	int error;
+	verdict result;
 
 	bool reset_tos, build_ipv4_id, df_always_on;
 	__u8 dont_fragment, new_tos;
@@ -212,7 +212,7 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return -EINVAL;
+			return VER_DROP;
 		}
 		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
 	} else {
@@ -225,12 +225,13 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
 		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
 	} else {
-		error = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr);
-		if (error)
-			return error;
-		error = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr);
-		if (error)
-			return error;
+		result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
+		if (result != VER_CONTINUE)
+			return result;
+		result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
+		if (result != VER_CONTINUE)
+			return result;
+		log_debug("Result: %pI4->%pI4", &ip4_hdr->saddr, &ip4_hdr->daddr);
 	}
 
 	if (!skb_is_inner(in)) {
@@ -239,7 +240,7 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 			log_debug("Packet's segments left field is nonzero.");
 			icmp64_send(in, ICMPERR_HDR_FIELD, nonzero_location);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return -EINVAL;
+			return VER_DROP;
 		}
 	}
 
@@ -275,7 +276,7 @@ int ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	if (skb_shinfo(in)->frag_list)
 		ip4_hdr->frag_off &= cpu_to_be16(~IP_MF);
 
-	return 0;
+	return VER_CONTINUE;
 }
 
 /**
@@ -547,27 +548,31 @@ static int post_icmp4info(struct sk_buff *in, struct sk_buff *out)
 	return is_csum4_computable(out) ? update_icmp4_csum(in, out) : 0;
 }
 
-static int post_icmp4error(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
+static verdict post_icmp4error(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
+	verdict result;
 	int error;
 
 	log_debug("Translating the inner packet (6->4)...");
 
-	error = ttpcomm_translate_inner_packet(tuple4, in, out);
-	if (error)
-		return error;
+	result = ttpcomm_translate_inner_packet(tuple4, in, out);
+	if (result != VER_CONTINUE)
+		return result;
 
-	if (is_csum4_computable(out))
+	if (is_csum4_computable(out)) {
 		error = compute_icmp4_csum(out);
+		if (error)
+			return VER_DROP;
+	}
 
-	return error;
+	return VER_CONTINUE;
 }
 
 /**
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
  * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4()).
  */
-int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
+verdict ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 {
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in);
 	struct icmphdr *icmpv4_hdr = icmp_hdr(out);
@@ -577,7 +582,9 @@ int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = cpu_to_be16(tuple4->icmp4_id);
+		icmpv4_hdr->un.echo.id = nat64_is_stateful()
+				? cpu_to_be16(tuple4->icmp4_id)
+				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
 		error = post_icmp4info(in, out);
 		break;
@@ -585,7 +592,9 @@ int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 	case ICMPV6_ECHO_REPLY:
 		icmpv4_hdr->type = ICMP_ECHOREPLY;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = cpu_to_be16(tuple4->icmp4_id);
+		icmpv4_hdr->un.echo.id = nat64_is_stateful()
+				? cpu_to_be16(tuple4->icmp4_id)
+				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
 		error = post_icmp4info(in, out);
 		break;
@@ -594,10 +603,9 @@ int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 		error = icmp6_to_icmp4_dest_unreach(icmpv6_hdr, icmpv4_hdr);
 		if (error) {
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return error;
+			return VER_DROP;
 		}
-		error = post_icmp4error(tuple4, in, out);
-		break;
+		return post_icmp4error(tuple4, in, out);
 
 	case ICMPV6_PKT_TOOBIG:
 		/*
@@ -610,25 +618,22 @@ int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 		icmpv4_hdr->un.frag.__unused = htons(0);
 		error = compute_mtu4(in, out);
 		if (error)
-			return error;
-		error = post_icmp4error(tuple4, in, out);
-		break;
+			return VER_DROP;
+		return post_icmp4error(tuple4, in, out);
 
 	case ICMPV6_TIME_EXCEED:
 		icmpv4_hdr->type = ICMP_TIME_EXCEEDED;
 		icmpv4_hdr->code = icmpv6_hdr->icmp6_code;
 		icmpv4_hdr->icmp4_unused = 0;
-		error = post_icmp4error(tuple4, in, out);
-		break;
+		return post_icmp4error(tuple4, in, out);
 
 	case ICMPV6_PARAMPROB:
 		error = icmp6_to_icmp4_param_prob(icmpv6_hdr, icmpv4_hdr);
 		if (error) {
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return error;
+			return VER_DROP;
 		}
-		error = post_icmp4error(tuple4, in, out);
-		break;
+		return post_icmp4error(tuple4, in, out);
 
 	default:
 		/*
@@ -637,10 +642,15 @@ int ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 		 * Neighbor Discover messages (133 - 137).
 		 */
 		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
-		error = -EINVAL;
+		/*
+		 * We return VER_ACCEPT instead of VER_DROP because the neighbor discovery code happens
+		 * after Jool, apparently.
+		 * This message, which is likely single-hop, might actually be intended for the kernel.
+		 */
+		return VER_ACCEPT;
 	}
 
-	return error;
+	return error ? VER_DROP : VER_CONTINUE;
 }
 
 static __sum16 update_csum_6to4(__sum16 csum16,
@@ -672,7 +682,7 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	return csum_fold(csum);
 }
 
-int ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
+verdict ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
 	struct tcphdr *tcp_in = tcp_hdr(in);
 	struct tcphdr *tcp_out = tcp_hdr(out);
@@ -696,10 +706,10 @@ int ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	}
 
 	/* Payload */
-	return copy_payload(in, out);
+	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
 }
 
-int ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
+verdict ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
 	struct udphdr *udp_in = udp_hdr(in);
 	struct udphdr *udp_out = udp_hdr(out);
@@ -725,5 +735,5 @@ int ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 	}
 
 	/* Payload */
-	return copy_payload(in, out);
+	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
 }
