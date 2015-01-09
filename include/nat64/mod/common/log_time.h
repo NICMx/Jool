@@ -10,7 +10,7 @@
  * @author Daniel Hernandez
  */
 
-#include "nat64/mod/types.h"
+#include "nat64/mod/common/types.h"
 
 #include <linux/spinlock.h>
 #include <linux/time.h>

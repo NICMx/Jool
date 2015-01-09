@@ -11,6 +11,7 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	__u16 *plateaus;
 	int i;
 
+#ifdef STATEFUL
 	printf("Address dependent filtering (--%s): %s\n", DROP_BY_ADDR_OPT,
 			conf->filtering.drop_by_addr ? "ON" : "OFF");
 	printf("Filtering of ICMPv6 info messages (--%s): %s\n", DROP_ICMP6_INFO_OPT,
@@ -29,6 +30,7 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 
 	printf("Maximum number of stored packets (--%s): %llu\n", STORED_PKTS_OPT,
 			conf->pktqueue.max_pkts);
+#endif
 
 	printf("Override IPv6 traffic class (--%s): %s\n", RESET_TCLASS_OPT,
 			conf->translate.reset_traffic_class ? "ON" : "OFF");
@@ -55,8 +57,10 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	printf("Minimum IPv6 MTU (--%s): %u\n", MIN_IPV6_MTU_OPT, conf->sendpkt.min_ipv6_mtu);
+#ifdef STATEFUL
 	printf("Fragments arrival time slot (--%s): ", FRAG_TIMEOUT_OPT);
 	print_time_friendly(conf->fragmentation.fragment_timeout);
+#endif
 
 	return 0;
 }

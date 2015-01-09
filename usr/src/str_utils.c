@@ -1,6 +1,7 @@
 #include "nat64/usr/str_utils.h"
 #include "nat64/comm/constants.h"
 #include "nat64/usr/types.h"
+#include "nat64/comm/nat64.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -255,7 +256,7 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3) /* [addr + null chara] + / + pref len */
-int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
+int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
 	const char *FORMAT = "<IPv6 address>/<length> (eg. 64:ff9b::/96)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
@@ -291,12 +292,51 @@ int str_to_prefix(const char *str, struct ipv6_prefix *prefix_out)
 	if (error)
 		return error; /* Error msg already printed. */
 
+	if (!nat64_is_stateful())
+		return 0;
+
 	for (i = 0; i < valid_lengths_size; i++)
 		if (prefix_out->len == valid_lengths[i])
 			return 0;
 
 	log_err("%u is not a valid prefix length.", prefix_out->len);
 	return -EINVAL;
+}
+
+#undef STR_MAX_LEN
+#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + pref len */
+int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
+{
+	const char *FORMAT = "<IPv4 address>/<length> (eg. 192.168.1.0/24)";
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char str_copy[STR_MAX_LEN];
+	char *token;
+	int error;
+
+	if (strlen(str) + 1 > STR_MAX_LEN) {
+		log_err("'%s' is too long for this poor, limited parser...", str);
+		return -EINVAL;
+	}
+	strcpy(str_copy, str);
+
+	token = strtok(str_copy, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_addr4(token, &prefix_out->address);
+	if (error)
+		return error;
+
+	token = strtok(NULL, "/");
+	if (!token) {
+		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
+	return error; /* Error msg already printed. */
 }
 
 static void print_num_csv(__u64 num, char *separator)

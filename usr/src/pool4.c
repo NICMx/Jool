@@ -1,5 +1,5 @@
 #include "nat64/usr/pool4.h"
-#include "nat64/comm/config_proto.h"
+#include "nat64/comm/config.h"
 #include "nat64/comm/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"

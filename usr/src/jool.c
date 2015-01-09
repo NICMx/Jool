@@ -15,17 +15,16 @@
 #include <string.h>
 
 #include "nat64/comm/constants.h"
-#include "nat64/comm/config_proto.h"
+#include "nat64/comm/config.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
+#include "nat64/usr/eam.h"
 #include "nat64/usr/global.h"
-#ifdef BENCHMARK
 #include "nat64/usr/log_time.h"
-#endif
 
 
 const char *argp_program_version = "3.2.2";
@@ -63,6 +62,13 @@ struct arguments {
 				struct ipv4_transport_addr addr4;
 				bool addr4_set;
 			} bib;
+
+			struct {
+				struct ipv6_prefix prefix6;
+				bool pref6_set;
+				struct ipv4_prefix prefix4;
+				bool pref4_set;
+			} eamt;
 		} tables;
 
 	} db;
@@ -83,9 +89,8 @@ enum argp_flags {
 	ARGP_POOL4 = '4',
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
-#ifdef BENCHMARK
+	ARGP_EAMT = 'e',
 	ARGP_LOGTIME = 'l',
-#endif
 	ARGP_GENERAL = 'g',
 
 	/* Operations */
@@ -110,6 +115,10 @@ enum argp_flags {
 	ARGP_BIB_IPV6 = 2020,
 	ARGP_BIB_IPV4 = 2021,
 
+	/* EAMT */
+	ARGP_EAM_IPV6 = 2030,
+	ARGP_EAM_IPV4 = 2031,
+
 	/* General */
 	ARGP_DROP_ADDR = 3000,
 	ARGP_DROP_INFO = 3001,
@@ -132,12 +141,14 @@ enum argp_flags {
 };
 
 #define NUM_FORMAT "NUM"
-#define PREFIX_FORMAT "ADDR6/NUM"
+//#define PREFIX_FORMAT "ADDR6/NUM"
 #define IPV6_TRANSPORT_FORMAT "ADDR6#NUM"
 #define IPV4_TRANSPORT_FORMAT "ADDR4#NUM"
 #define IPV4_ADDR_FORMAT "ADDR4"
 #define BOOL_FORMAT "BOOL"
 #define NUM_ARR_FORMAT "NUM[,NUM]*"
+#define IPV6_PREFIX_FORMAT "ADDR6/NUM"
+#define IPV4_PREFIX_FORMAT "ADDR4/NUM"
 
 
 /*
@@ -147,16 +158,19 @@ enum argp_flags {
 static struct argp_option options[] =
 {
 	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 1 },
+#ifdef STATEFUL
 	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 pool." },
 	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 pool." },
 	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
 	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
+#else
+	{ "eamt", ARGP_EAMT, NULL, 0, "The command will operate on the EAM table."},
+#endif
 #ifdef BENCHMARK
 	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
 #endif
 	{ "general", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous configuration "
 			"values (default)." },
-
 	{ NULL, 0, NULL, 0, "Operations:", 2 },
 	{ "display", ARGP_DISPLAY, NULL, 0, "Print the target (default)." },
 	{ "count", ARGP_COUNT, NULL, 0, "Print the number of elements in the target." },
@@ -165,12 +179,13 @@ static struct argp_option options[] =
 	{ "remove", ARGP_REMOVE, NULL, 0, "Remove an element from the target." },
 	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
 
+#ifdef STATEFUL
 	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 3 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
 		"Available on remove and flush operations only. " },
 
 	{ NULL, 0, NULL, 0, "IPv6 Pool-only options:", 4 },
-	{ "prefix", ARGP_PREFIX, PREFIX_FORMAT, 0, "The prefix to be added or removed. "
+	{ "prefix", ARGP_PREFIX, IPV6_PREFIX_FORMAT, 0, "The prefix to be added or removed. "
 			"Available on add and remove operations only." },
 
 	{ NULL, 0, NULL, 0, "IPv4 Pool-only options:", 5 },
@@ -188,13 +203,22 @@ static struct argp_option options[] =
 
 	{ NULL, 0, NULL, 0, "BIB-only options:", 7 },
 	{ "bib6", ARGP_BIB_IPV6, IPV6_TRANSPORT_FORMAT, 0,
-			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
+			"This is the address#port of the remote IPv6 node of the entry to be added or removed. "
 			"Available on add and remove operations only." },
 	{ "bib4", ARGP_BIB_IPV4, IPV4_TRANSPORT_FORMAT, 0,
-			"This is the local IPv4 addres#port of the entry to be added or removed. "
+			"This is the local IPv4 address#port of the entry to be added or removed. "
 			"Available on add and remove operations only." },
-
-	{ NULL, 0, NULL, 0, "'General' options:", 8 },
+#else
+	{ NULL, 0, NULL, 0, "EAMT only options:", 3 },
+	{ "eam6", ARGP_EAM_IPV6, IPV6_PREFIX_FORMAT, 0,
+			"This is the IPv6 prefix node of the entry to be added or removed. "
+			"Available on add and remove operations only." },
+	{ "eam4", ARGP_EAM_IPV4, IPV4_PREFIX_FORMAT, 0,
+			"This is the IPv4 prefix of the entry to be added or removed. "
+			"Available on add and remove operations only." },
+#endif
+	{ NULL, 0, NULL, 0, "'Global' options:", 8 },
+#ifdef STATEFUL
 	{ DROP_BY_ADDR_OPT, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
 			"Use Address-Dependent Filtering?" },
 	{ DROP_ICMP6_INFO_OPT, ARGP_DROP_INFO, BOOL_FORMAT, 0,
@@ -212,6 +236,7 @@ static struct argp_option options[] =
 	{ STORED_PKTS_OPT, ARGP_STORED_PKTS, NUM_FORMAT, 0,
 			"Set the maximum number of packets Jool should bother to remember while awaiting "
 			"simultaneous open of TCP connections." },
+#endif
 	{ RESET_TCLASS_OPT, ARGP_RESET_TCLASS, BOOL_FORMAT, 0,
 			"Override IPv6 Traffic class?" },
 	{ RESET_TOS_OPT, ARGP_RESET_TOS, BOOL_FORMAT, 0,
@@ -230,9 +255,10 @@ static struct argp_option options[] =
 			"Set the MTU plateaus." },
 	{ MIN_IPV6_MTU_OPT, ARGP_MIN_IPV6_MTU, NUM_FORMAT, 0,
 			"Set the Minimum IPv6 MTU." },
+#ifdef STATEFUL
 	{ FRAG_TIMEOUT_OPT, ARGP_FRAG_TO, NUM_FORMAT, 0,
 			"Set the timeout for arrival of fragments." },
-
+#endif
 	{ NULL },
 };
 
@@ -354,6 +380,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	int error = 0;
 
 	switch (key) {
+#ifdef STATEFUL
 	case ARGP_POOL6:
 		error = update_state(args, MODE_POOL6, POOL6_OPS);
 		break;
@@ -366,6 +393,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SESSION:
 		error = update_state(args, MODE_SESSION, SESSION_OPS);
 		break;
+#endif
 #ifdef BENCHMARK
 	case ARGP_LOGTIME:
 		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
@@ -394,6 +422,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, FLUSH_MODES, OP_FLUSH);
 		break;
 
+#ifdef STATEFUL
 	case ARGP_UDP:
 		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
 		args->db.tables.udp = true;
@@ -426,7 +455,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
 		if (error)
 			return error;
-		error = str_to_prefix(str, &args->db.pool6.prefix);
+		error = str_to_ipv6_prefix(str, &args->db.pool6.prefix);
 		args->db.pool6.prefix_set = true;
 		break;
 	case ARGP_QUICK:
@@ -450,60 +479,80 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 
 	case ARGP_DROP_ADDR:
-		error = set_global_bool(args, FILTERING, DROP_BY_ADDR, str);
+		error = set_global_bool(args, DROP_BY_ADDR, str);
 		break;
 	case ARGP_DROP_INFO:
-		error = set_global_bool(args, FILTERING, DROP_ICMP6_INFO, str);
+		error = set_global_bool(args, DROP_ICMP6_INFO, str);
 		break;
 	case ARGP_DROP_TCP:
-		error = set_global_bool(args, FILTERING, DROP_EXTERNAL_TCP, str);
+		error = set_global_bool(args, DROP_EXTERNAL_TCP, str);
 		break;
 	case ARGP_UDP_TO:
-		error = set_global_u64(args, SESSIONDB, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
+		error = set_global_u64(args, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
 		break;
 	case ARGP_ICMP_TO:
-		error = set_global_u64(args, SESSIONDB, ICMP_TIMEOUT, str, 0, MAX_U32/1000, 1000);
+		error = set_global_u64(args, ICMP_TIMEOUT, str, 0, MAX_U32/1000, 1000);
 		break;
 	case ARGP_TCP_TO:
-		error = set_global_u64(args, SESSIONDB, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U32/1000, 1000);
+		error = set_global_u64(args, TCP_EST_TIMEOUT, str, TCP_EST, MAX_U32/1000, 1000);
 		break;
 	case ARGP_TCP_TRANS_TO:
-		error = set_global_u64(args, SESSIONDB, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
+		error = set_global_u64(args, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
 		break;
 	case ARGP_STORED_PKTS:
-		error = set_global_u64(args, PKTQUEUE, MAX_PKTS, str, 0, MAX_U64, 1);
-		break;
-
-	case ARGP_RESET_TCLASS:
-		error = set_global_bool(args, TRANSLATE, RESET_TCLASS, str);
-		break;
-	case ARGP_RESET_TOS:
-		error = set_global_bool(args, TRANSLATE, RESET_TOS, str);
-		break;
-	case ARGP_NEW_TOS:
-		error = set_global_u8(args, TRANSLATE, NEW_TOS, str, 0, MAX_U8);
-		break;
-	case ARGP_DF:
-		error = set_global_bool(args, TRANSLATE, DF_ALWAYS_ON, str);
-		break;
-	case ARGP_BUILD_FH:
-		error = set_global_bool(args, TRANSLATE, BUILD_IPV6_FH, str);
-		break;
-	case ARGP_BUILD_ID:
-		error = set_global_bool(args, TRANSLATE, BUILD_IPV4_ID, str);
-		break;
-	case ARGP_LOWER_MTU_FAIL:
-		error = set_global_bool(args, TRANSLATE, LOWER_MTU_FAIL, str);
-		break;
-	case ARGP_PLATEAUS:
-		error = set_global_u16_array(args, TRANSLATE, MTU_PLATEAUS, str);
-		break;
-	case ARGP_MIN_IPV6_MTU:
-		error = set_global_u16(args, SENDPKT, MIN_IPV6_MTU, str, 1280, MAX_U16);
+		error = set_global_u64(args, MAX_PKTS, str, 0, MAX_U64, 1);
 		break;
 
 	case ARGP_FRAG_TO:
-		error = set_global_u64(args, FRAGMENT, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
+		error = set_global_u64(args, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
+		break;
+#else
+	case ARGP_CSV:
+		error = update_state(args, MODE_EAMT, OP_DISPLAY);
+		args->db.tables.csv_format = true;
+		break;
+	case ARGP_EAM_IPV6:
+		error = update_state(args, MODE_EAMT, OP_ADD | OP_REMOVE);
+		if (error)
+			return error;
+		error = str_to_ipv6_prefix(str, &args->db.tables.eamt.prefix6);
+		args->db.tables.eamt.pref6_set = true;
+		break;
+	case ARGP_EAM_IPV4:
+		error = update_state(args, MODE_EAMT, OP_ADD | OP_REMOVE);
+		if (error)
+			return error;
+		error = str_to_ipv4_prefix(str, &args->db.tables.eamt.prefix4);
+		args->db.tables.eamt.pref4_set = true;
+		break;
+#endif
+
+	case ARGP_RESET_TCLASS:
+		error = set_global_bool(args, RESET_TCLASS, str);
+		break;
+	case ARGP_RESET_TOS:
+		error = set_global_bool(args, RESET_TOS, str);
+		break;
+	case ARGP_NEW_TOS:
+		error = set_global_u8(args, NEW_TOS, str, 0, MAX_U8);
+		break;
+	case ARGP_DF:
+		error = set_global_bool(args, DF_ALWAYS_ON, str);
+		break;
+	case ARGP_BUILD_FH:
+		error = set_global_bool(args, BUILD_IPV6_FH, str);
+		break;
+	case ARGP_BUILD_ID:
+		error = set_global_bool(args, BUILD_IPV4_ID, str);
+		break;
+	case ARGP_LOWER_MTU_FAIL:
+		error = set_global_bool(args, LOWER_MTU_FAIL, str);
+		break;
+	case ARGP_PLATEAUS:
+		error = set_global_u16_array(args, MTU_PLATEAUS, str);
+		break;
+	case ARGP_MIN_IPV6_MTU:
+		error = set_global_u16(args, MIN_IPV6_MTU, str, 1280, MAX_U16);
 		break;
 
 	default:
@@ -583,6 +632,7 @@ static int main_wrapped(int argc, char **argv)
 		return error;
 
 	switch (args.mode) {
+#ifdef STATEFUL
 	case MODE_POOL6:
 		switch (args.op) {
 		case OP_DISPLAY:
@@ -687,6 +737,27 @@ static int main_wrapped(int argc, char **argv)
 			return -EINVAL;
 		}
 		break;
+#else
+	case MODE_EAMT:
+		switch (args.op) {
+		case OP_DISPLAY:
+			return eam_display(args.db.tables.csv_format);
+		case OP_COUNT:
+			return eam_count();
+		case OP_ADD:
+			return eam_add(&args.db.tables.eamt.prefix6, &args.db.tables.eamt.prefix4);
+		case OP_REMOVE:
+			return eam_remove(args.db.tables.eamt.pref6_set, &args.db.tables.eamt.prefix6,
+					args.db.tables.eamt.pref4_set, &args.db.tables.eamt.prefix4);
+		case OP_FLUSH:
+			return eam_flush();
+		default:
+			log_err("Unknown operation for session mode: %u.", args.op);
+			return -EINVAL;
+		}
+		break;
+#endif
+
 #ifdef BENCHMARK
 	case MODE_LOGTIME:
 		switch (args.op) {

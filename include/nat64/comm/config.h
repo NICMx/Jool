@@ -75,9 +75,7 @@ enum config_mode {
 #define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
-#ifdef BENCHMARK
 #define LOGTIME_OPS (OP_DISPLAY)
-#endif
 #define EAMT_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define GENERAL_OPS (OP_DISPLAY | OP_UPDATE)
 /**
@@ -104,18 +102,29 @@ enum config_operation {
  * Allowed modes for the operation mentioned in the name.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
-#ifdef BENCHMARK
-#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL \
-		| MODE_EAMT | MODE_LOGTIME)
+#ifdef STATEFUL
+	#ifdef BENCHMARK
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GLOBAL \
+				| MODE_LOGTIME)
+	#else
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GLOBAL)
+	#endif
+	#define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION)
+	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
+	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
+	#define FLUSH_MODES (MODE_POOL6 | MODE_POOL4)
 #else
-#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_GENERAL \
-		| MODE_EAMT )
+	#ifdef BENCHMARK
+		#define DISPLAY_MODES (MODE_EAMT | MODE_LOGTIME)
+	#else
+		#define DISPLAY_MODES (MODE_EAMT)
+	#endif
+	#define COUNT_MODES (MODE_EAMT)
+	#define ADD_MODES (MODE_EAMT)
+	#define REMOVE_MODES (MODE_EAMT)
+	#define FLUSH_MODES (MODE_EAMT)
 #endif
-#define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION | MODE_EAMT)
-#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_EAMT)
-#define UPDATE_MODES (MODE_GENERAL)
-#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_EAMT)
-#define FLUSH_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
+#define UPDATE_MODES (MODE_GLOBAL)
 /**
  * @}
  */
@@ -207,7 +216,6 @@ union request_eamt {
 	} flush;
 };
 
-#ifdef BENCHMARK
 /**
  * Configuration for the "Log time" module.
  */
@@ -221,7 +229,6 @@ struct request_logtime {
 		} display;
 	};
 };
-#endif
 
 /**
  * Configuration for the "BIB" module.
@@ -445,7 +452,6 @@ union request_global {
 	} update;
 };
 
-#ifdef BENCHMARK
 /**
  * A logtime node entry, from the eyes of userspace.
  *
@@ -455,7 +461,6 @@ union request_global {
 struct logtime_entry_usr {
 	struct timespec time;
 };
-#endif
 
 /**
  * A BIB entry, from the eyes of userspace.
