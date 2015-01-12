@@ -202,9 +202,7 @@ union request_eamt {
 		/* Nothing needed here. */
 	} count;
 	struct {
-		__u8 prefix6_set;
 		struct ipv6_prefix prefix6;
-		__u8 prefix4_set;
 		struct ipv4_prefix prefix4;
 	} add;
 	struct {

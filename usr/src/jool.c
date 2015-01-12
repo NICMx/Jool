@@ -751,13 +751,12 @@ static int main_wrapped(int argc, char **argv)
 		case OP_COUNT:
 			return eam_count();
 		case OP_ADD:
-			if (!args.db.tables.eamt.pref6_set && !args.db.tables.eamt.pref4_set) {
+			if (!args.db.tables.eamt.pref6_set || !args.db.tables.eamt.pref4_set) {
 				log_err("I need the IPv4 transport address and the IPv6 transport address of "
-						"the entry you want to remove.");
+						"the entry you want to add.");
 				return -EINVAL;
 			}
-			return eam_add(args.db.tables.eamt.pref6_set, &args.db.tables.eamt.prefix6,
-					args.db.tables.eamt.pref4_set, &args.db.tables.eamt.prefix4);
+			return eam_add(&args.db.tables.eamt.prefix6, &args.db.tables.eamt.prefix4);
 		case OP_REMOVE:
 			if (!args.db.tables.eamt.pref6_set && !args.db.tables.eamt.pref4_set) {
 				log_err("I need the IPv4 transport address and/or the IPv6 transport address of "

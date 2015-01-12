@@ -216,6 +216,64 @@ static bool anderson_test(void)
 	return success;
 }
 
+static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6, int expected_error)
+{
+	struct ipv4_prefix prefix4;
+	struct ipv6_prefix prefix6;
+
+	if (!addr4 && !addr6) {
+		log_err("Test syntax error, addr4 and addr6 are NULL");
+	}
+
+	if (addr4) {
+		if (is_error(str_to_addr4(addr4, &prefix4.address)))
+			return false;
+		prefix4.len = len4;
+	}
+
+	if (addr6) {
+		if (is_error(str_to_addr6(addr6, &prefix6.address)))
+			return false;
+		prefix6.len = len6;
+	}
+
+	return assert_equals_int(expected_error, eamt_remove(addr6 ? &prefix6 : NULL,
+			addr4 ? &prefix4 : NULL), "removing EAM entry");
+}
+
+static bool remove_test(void)
+{
+	bool success = true;
+
+	success &= add_entry("10.0.0.0", 24, "1::", 120);
+	success &= remove_entry("10.0.0.0", 24, "1::", 120, 0);
+
+	success &= add_entry("20.0.0.0", 25, "2::", 121);
+	success &= remove_entry("30.0.0.1", 25, NULL, 0, -ESRCH);
+	success &= remove_entry("20.0.0.130", 25, NULL, 0, -ESRCH);
+	success &= remove_entry("20.0.0.120", 25, NULL, 0, 0);
+
+	success &= add_entry("30.0.0.0", 24, "3::", 120);
+	success &= remove_entry(NULL, 0, "3::1:0", 120, -ESRCH);
+	success &= remove_entry(NULL, 0, "3::0", 120, 0);
+
+	success &= add_entry("10.0.0.0", 24, "1::", 120);
+	success &= remove_entry("10.0.1.0", 24, "1::", 120, -EINVAL);
+	success &= remove_entry("10.0.0.0", 24, "1::", 120, 0);
+
+	success &= assert_equals_u64(0, eam_table.count, "Table count");
+	if (!success)
+		return false;
+
+	success &= insert_prefixes();
+	if (!success)
+		return false;
+
+	eamt_flush();
+	success &= assert_equals_u64(0, eam_table.count, "Table count 2");
+
+	return success;
+}
 
 static int address_mapping_test_init(void)
 {
@@ -223,6 +281,7 @@ static int address_mapping_test_init(void)
 
 	INIT_CALL_END(init(), general_test(), end(), "Test inserting address");
 	INIT_CALL_END(init(), anderson_test(), end(), "Tests from T. Anderson's 3rd draft.");
+	INIT_CALL_END(init(), remove_test(), end(), "Test removing address.");
 
 	END_TESTS;
 }
