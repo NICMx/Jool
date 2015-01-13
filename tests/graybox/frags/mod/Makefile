@@ -9,3 +9,10 @@ modules_install:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
+
+insert:
+	sudo insmod frags.ko
+	dmesg | tail -15
+remove:
+	sudo rmmod frags
+	dmesg | tail -15

@@ -1,7 +1,0 @@
-#CC=cgcc
-ccflags-y := -I$(src)/../../include
-#EXTRA_CFLAGS += -DDEBUG
-
-obj-m += send.o
-
-send-objs += sender.o
