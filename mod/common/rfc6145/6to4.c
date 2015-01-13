@@ -12,6 +12,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/stateless/eam.h"
 
 verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 {
@@ -135,6 +136,12 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct
 	struct in_addr tmp;
 	int error;
 
+	error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
+	if (error && error != -ESRCH)
+		return VER_DROP;
+	if (!error)
+		goto end;
+
 	error = pool6_get(addr6, &prefix);
 	if (error) {
 		log_debug("Looks like an IP address doesn't have a NAT64 prefix (errcode %d).", error);
@@ -144,6 +151,7 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct
 	if (error)
 		return VER_DROP;
 
+end:
 	*addr4 = tmp.s_addr;
 	return VER_CONTINUE;
 }

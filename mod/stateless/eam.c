@@ -369,7 +369,7 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
 			tree4_hook);
 	if (!eam) {
 		spin_unlock_bh(&eam_lock);
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	prefix4 = eam->pref4;
@@ -409,7 +409,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 			tree6_hook);
 	if (!eam) {
 		spin_unlock_bh(&eam_lock);
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	prefix4 = eam->pref4;

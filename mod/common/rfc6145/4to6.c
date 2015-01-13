@@ -12,6 +12,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/stateless/eam.h"
 
 verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 {
@@ -86,14 +87,21 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
 	struct in_addr tmp;
 	int error;
 
+	tmp.s_addr = addr4;
+	error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
+	if (error && error != -ESRCH)
+		return error;
+	if (!error)
+		goto end;
+
 	error = pool6_peek(&prefix);
 	if (error)
 		return error;
-	tmp.s_addr = addr4;
 	error = addr_4to6(&tmp, &prefix, addr6);
 	if (error)
 		return error;
 
+end:
 	return 0;
 }
 
