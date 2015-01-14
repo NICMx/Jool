@@ -388,10 +388,10 @@ static inline unsigned int skb_len(struct sk_buff *skb)
  * also validated (except inner TCP options, which are just considered payload at this point).
  * - skb isn't truncated (though inner packets might).
  * - The cb functions above can now be used on skb.
- * - The length fields in the headers can be relied upon.
+ * - The length fields in the l3 headers can be relied upon.
  *
- * Healthy layer 4 checksums are not guaranteed, but that's not an issue since this kind of
- * corruption should be translated along (see validate_icmp6_csum()).
+ * Healthy layer 4 checksums and lengths are not guaranteed, but that's not an issue since this
+ * kind of corruption should be translated along (see validate_icmp6_csum()).
  */
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);

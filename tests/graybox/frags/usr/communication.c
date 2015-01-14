@@ -27,3 +27,20 @@ int send_packet(void *pkt, __u32 pkt_len, __u8 operation)
 			handle_send_pkt_response, NULL);
 }
 
+
+static int handle_flush_op_response(struct nl_msg *msg, void *arg)
+{
+	log_debug("Database flushed.");
+	return 0;
+}
+int send_flush_op(__u8 operation)
+{
+	unsigned char request[HDR_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+
+	log_debug("Sending op to the kernel module.");
+	hdr->len = HDR_LEN;
+	hdr->operation = operation;
+
+	return netlink_request(request, HDR_LEN, handle_flush_op_response, NULL);
+}

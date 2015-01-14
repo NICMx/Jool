@@ -16,6 +16,7 @@ int handle_skb_from_user(struct sk_buff *skb);
 
 unsigned int receiver_incoming_skb4(struct sk_buff *skb);
 unsigned int receiver_incoming_skb6(struct sk_buff *skb);
+int receiver_flush_db(void);
 int receiver_init(void);
 void receiver_destroy(void);
 

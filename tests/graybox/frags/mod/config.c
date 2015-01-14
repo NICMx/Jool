@@ -199,8 +199,6 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 	log_debug(" **** Received a Netlink message. ****");
 
 	hdr = NLMSG_DATA(nl_hdr);
-
-
 	switch (hdr->operation) {
 	case OP_SENDER:
 		print_pkt(hdr + 1);
@@ -211,6 +209,10 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 		print_pkt(hdr + 1);
 		log_debug("OP_RECEIVER ");
 		error = handle_receiver_packet_order(hdr + 1, hdr->len);
+		break;
+	case OP_FLUSH_DB:
+		log_debug("OP FLUSH ");
+		error = receiver_flush_db();
 		break;
 	default:
 		log_err("Unknown operation %u", hdr->operation);

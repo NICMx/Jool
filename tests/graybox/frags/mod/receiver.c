@@ -73,11 +73,29 @@ int handle_skb_from_user(struct sk_buff *skb)
 	}
 
 	spin_lock_bh(&skb_db->lock);
-	list_add(&entry->list, &skb_db->list);
+	list_add_tail(&entry->list, &skb_db->list);
 	skb_db->counter++;
 	spin_unlock_bh(&skb_db->lock);
 
 	return 0;
+}
+
+static int dev_name_filter(char *dev_name)
+{
+	int gap;
+
+	if (!dev_name)
+		return -EINVAL;
+
+	gap = strcmp(dev_name, "vboxnet0");
+	if (!gap)
+		return 0;
+
+	gap = strcmp(dev_name, "vboxnet2");
+	if (!gap)
+		return 0;
+
+	return -EINVAL;
 }
 
 /**
@@ -88,7 +106,7 @@ int handle_skb_from_user(struct sk_buff *skb)
  */
 static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db *skb_db)
 {
-	struct list_head *current_hook, *next_hook;
+	struct list_head *current_hook;
 	struct skb_entry *tmp_skb;
 	int errors = 0;
 
@@ -98,24 +116,30 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 		return NF_ACCEPT;
 	}
 
+	/* TODO: The names of the network devices are hardcoded to my laptops network devices names,
+	 * to prevent compare non-expected packets, maybe send the name of the devices from the
+	 * user app.*/
+	/*if (dev_name_filter(skb->dev->name))
+		return NF_ACCEPT;*/
+
+
 	spin_lock_bh(&skb_db->lock);
-	list_for_each_safe(current_hook, next_hook, &skb_db->list) {
-		tmp_skb = list_entry(current_hook, struct skb_entry, list);
+	current_hook = skb_db->list.next;
+	tmp_skb = list_entry(current_hook, struct skb_entry, list);
 
-		if (!skb_has_same_address(tmp_skb->skb, skb)) {
-			continue;
-		}
+	if (!skb_has_same_address(tmp_skb->skb, skb))
+		goto nf_accept;
 
-		is_expected = skb_compare(tmp_skb->skb, skb, &errors);
-		if (is_expected) {/* we found a perfect match.*/
-			delete_skb_entry(tmp_skb);
-			skb_db->counter--;
-			skb_db->success_comparison++;
-			spin_unlock_bh(&skb_db->lock);
-			log_info("success comparison :D");
-			goto nf_drop;
-		}
-		/* else continue iterating through the list. */
+	is_expected = skb_compare(tmp_skb->skb, skb, &errors);
+	if (is_expected) {/* we found a perfect match.*/
+		delete_skb_entry(tmp_skb);
+		skb_db->counter--;
+		skb_db->success_comparison++;
+		spin_unlock_bh(&skb_db->lock);
+		log_info("************************");
+		log_info("success comparison :D");
+		log_info("************************");
+		goto nf_drop;
 	}
 
 	if (errors) {
@@ -123,13 +147,18 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 		 * skb_from_user_space was incorrectly created, anyway delete the incoming packet and
 		 * return NF_DROP;
 		 */
+		delete_skb_entry(tmp_skb);
 		skb_db->fail_comparison++;
+		skb_db->counter--;
 		spin_unlock_bh(&skb_db->lock);
+		log_info("************************");
 		log_info("Apparently the incoming skb has a twin from usrspace, or jool is translating "
 				"wrong or a skb_from_user_space was incorrectly created");
+		log_info("************************");
 		goto nf_drop;
 	}
 
+nf_accept:
 	/* If we fall through here that means the incoming packet wasn't for the receiver module, so
 	 * let it pass. */
 	spin_unlock_bh(&skb_db->lock);
@@ -176,6 +205,14 @@ static void destroy_aux(struct skb_user_db *skb_db)
 		skb_usr = list_entry(current_hook, struct skb_entry, list);
 		delete_skb_entry(skb_usr);
 	}
+}
+
+int receiver_flush_db(void)
+{
+	destroy_aux(&skb_ipv4_db);
+	destroy_aux(&skb_ipv6_db);
+
+	return 0;
 }
 
 void receiver_destroy(void)

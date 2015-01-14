@@ -13,6 +13,12 @@ static bool has_same_ipv6_address(struct ipv6hdr *expected, struct ipv6hdr *actu
 {
 	int gap;
 
+	log_debug(" ====================");
+	log_debug("Comparing Adresses:");
+	log_debug("Expected src = %pI6c, dst = %pI6c", &expected->saddr, &expected->daddr);
+	log_debug("Actual src = %pI6c, dst = %pI6c", &actual->saddr, &actual->daddr);
+	log_debug(" ====================");
+
 	gap = ipv6_addr_cmp(&expected->daddr, &actual->daddr);
 	if (gap)
 		return false;
@@ -26,11 +32,21 @@ static bool has_same_ipv6_address(struct ipv6hdr *expected, struct ipv6hdr *actu
 
 static bool has_same_ipv4_address(struct iphdr *expected, struct iphdr *actual)
 {
+	log_debug(" ====================");
+	log_debug("Comparing Addresses:");
+	log_debug("Expected = src: %pI4 , dst: %pI4",&expected->saddr, &expected->daddr);
+	log_debug("Actual = src: %pI4 , dst: %pI4",&actual->saddr, &actual->daddr);
+	log_debug("=====================");
+
 	if (expected->daddr != actual->daddr)
 		return false;
 	if (expected->saddr != actual->saddr)
 		return false;
 
+	if (actual->protocol != expected->protocol) {
+		log_debug("Has same address but different protocol, try with another one.");
+		return false;
+	}
 
 	return true;
 }
@@ -157,12 +173,15 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 	actual_ptr = (unsigned char *) skb_network_header(actual);
 	min_len = (expected->len < actual->len) ? expected->len : actual->len;
 
-	for (i = 0; i < min_len && errors < 6; i++) {
+	for (i = 0; i < min_len /*&& errors < 6*/; i++) {
 		if (expected_ptr[i] != actual_ptr[i]) {
 			log_err("Packets differ at byte %u. Expected: 0x%x; actual: 0x%x.",
 					i, expected_ptr[i], actual_ptr[i]);
 			errors++;
-		}
+		} /*else {
+			log_debug("Packets equals at byte %u. Expected: 0x%x; actual: 0x%x.",
+					i, expected_ptr[i], actual_ptr[i]);
+		}*/
 	}
 
 	*err += errors;

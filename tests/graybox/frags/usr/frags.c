@@ -49,6 +49,7 @@ static struct argp_option options[] = {
 		{"sender",	's', "FILE",	0,	"Send a packet from user space to the sender module."},
 		{"receiver",	'r', "FILE",	0,
 				"Send a packet from user space to the receiver module."},
+		{"flush", 'f', NULL, 0, "Flush all the receiver DB."},
 		{ 0 }
 
 };
@@ -59,6 +60,7 @@ struct arguments
 	enum operations op;
 	char *file_name;
 	__u8 is_file_set;
+	__u8 flush;
 };
 
 /*
@@ -101,6 +103,10 @@ static int parse_opt (int key, char *arg, struct argp_state *state)
 		arguments->is_file_set = 1;
 		break;
 
+	case 'f':
+		arguments->op = OP_FLUSH_DB;
+		arguments->flush = 1;
+		break;
 /*	case ARGP_KEY_ARG:
 		if (state->arg_num > 1) {
 			log_err("Too Many arguments.");
@@ -155,6 +161,13 @@ static int send_packet_to_kernel(struct arguments *args)
 	return error;
 }
 
+static int flush_database(struct arguments *args)
+{
+	int error;
+	error = send_flush_op(args->is_file_set);
+	return error;
+}
+
 int main(int argc, char *argv[])
 {
 	struct arguments arguments;
@@ -170,6 +183,9 @@ int main(int argc, char *argv[])
 		break;
 	case OP_RECEIVER:
 		error = send_packet_to_kernel(&arguments);
+		break;
+	case OP_FLUSH_DB:
+		error = flush_database(&arguments);
 		break;
 	default:
 		log_err("Unknown configuration operation: %u", arguments.op);

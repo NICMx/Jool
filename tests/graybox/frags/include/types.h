@@ -44,6 +44,8 @@ enum operations {
 	OP_SENDER = (1 << 0),
 	/** The userspace app wants to send a packet to the receiver module. */
 	OP_RECEIVER = (1 << 1),
+	/** .*/
+	OP_FLUSH_DB = (1 << 2),
 };
 
 struct request_hdr {
