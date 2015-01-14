@@ -46,12 +46,10 @@ static int create_packet(char *filename, void **pkt, __u32 *file_size)
 
 /* The options we understand. */
 static struct argp_option options[] = {
-		{"sender",	's', "FILE",	0,	"Send a packet from user space to the sender module."},
-		{"receiver",	'r', "FILE",	0,
-				"Send a packet from user space to the receiver module."},
+		{"sender", 's', "FILE", 0, "Send a packet from user space to the sender module."},
+		{"receiver", 'r', "FILE", 0, "Send a packet from user space to the receiver module."},
 		{"flush", 'f', NULL, 0, "Flush all the receiver DB."},
 		{ 0 }
-
 };
 
 /* Used by main to communicate with parse_opt. */
@@ -164,7 +162,7 @@ static int send_packet_to_kernel(struct arguments *args)
 static int flush_database(struct arguments *args)
 {
 	int error;
-	error = send_flush_op(args->is_file_set);
+	error = send_flush_op();
 	return error;
 }
 
