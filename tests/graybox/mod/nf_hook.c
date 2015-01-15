@@ -54,7 +54,7 @@ static struct nf_hook_ops nfho[] = {
 	}
 };
 
-static int __init frags_init(void)
+static int __init graybox_init(void)
 {
 	int i, error;
 
@@ -94,7 +94,7 @@ config_failure:
 	return error;
 }
 
-static void __exit frags_exit(void)
+static void __exit graybox_exit(void)
 {
 	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
@@ -105,5 +105,5 @@ static void __exit frags_exit(void)
 	log_info(MODULE_NAME " module removed.");
 }
 
-module_init(frags_init);
-module_exit(frags_exit);
+module_init(graybox_init);
+module_exit(graybox_exit);

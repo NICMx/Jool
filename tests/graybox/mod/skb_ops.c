@@ -173,15 +173,12 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 	actual_ptr = (unsigned char *) skb_network_header(actual);
 	min_len = (expected->len < actual->len) ? expected->len : actual->len;
 
-	for (i = 0; i < min_len /*&& errors < 6*/; i++) {
+	for (i = 0; i < min_len; i++) {
 		if (expected_ptr[i] != actual_ptr[i]) {
 			log_err("Packets differ at byte %u. Expected: 0x%x; actual: 0x%x.",
 					i, expected_ptr[i], actual_ptr[i]);
 			errors++;
-		} /*else {
-			log_debug("Packets equals at byte %u. Expected: 0x%x; actual: 0x%x.",
-					i, expected_ptr[i], actual_ptr[i]);
-		}*/
+		}
 	}
 
 	*err += errors;

@@ -10,7 +10,7 @@
 #endif
 
 
-#define MODULE_NAME "frags"
+#define MODULE_NAME "graybox"
 
 /**
  * Logging utilities, meant for standarization of error messages.

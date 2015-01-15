@@ -1,7 +1,7 @@
-EXEC = frags
+EXEC = graybox
 
 SOURCES += communication.c
-SOURCES += frags.c
+SOURCES += graybox.c
 SOURCES += netlink.c
 
 OBJS = $(SOURCES:.c=.o)

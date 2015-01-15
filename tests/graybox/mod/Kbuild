@@ -1,0 +1,11 @@
+ccflags-y := -I$(src)/../include
+EXTRA_CFLAGS += -DDEBUG
+
+obj-m += graybox.o
+
+graybox-objs += nf_hook.o
+graybox-objs += config.o
+graybox-objs += receiver.o
+graybox-objs += skb_ops.o
+graybox-objs += ipv6_hdr_iterator.o
+graybox-objs += send_packet.o

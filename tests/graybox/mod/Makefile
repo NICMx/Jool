@@ -11,8 +11,8 @@ clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 
 insert:
-	sudo insmod frags.ko
+	sudo insmod graybox.ko
 	dmesg | tail -15
 remove:
-	sudo rmmod frags
+	sudo rmmod graybox
 	dmesg | tail -15

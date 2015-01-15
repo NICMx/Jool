@@ -201,12 +201,12 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 	hdr = NLMSG_DATA(nl_hdr);
 	switch (hdr->operation) {
 	case OP_SENDER:
-		print_pkt(hdr + 1);
+		/*print_pkt(hdr + 1);*/
 		log_debug("OP_SENDER ");
 		error = handle_send_packet_order(hdr + 1, hdr->len);
 		break;
 	case OP_RECEIVER:
-		print_pkt(hdr + 1);
+		/*print_pkt(hdr + 1);*/
 		log_debug("OP_RECEIVER ");
 		error = handle_receiver_packet_order(hdr + 1, hdr->len);
 		break;
