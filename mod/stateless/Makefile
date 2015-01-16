@@ -9,6 +9,8 @@ modules_install:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@;
+	rm -f ../common/*.o
+	rm -f ../common/rfc6145/*.o
 
 # The targets below are meant for quick testing.
 # If you want to install the module, see ../INSTALL.

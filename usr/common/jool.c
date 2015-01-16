@@ -132,7 +132,6 @@ enum argp_flags {
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
 	ARGP_DF = 4005,
-	ARGP_BUILD_FH = 4006,
 	ARGP_BUILD_ID = 4007,
 	ARGP_LOWER_MTU_FAIL = 4008,
 	ARGP_PLATEAUS = 4010,
@@ -158,9 +157,9 @@ enum argp_flags {
 static struct argp_option options[] =
 {
 	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 1 },
-#ifdef STATEFUL
 	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 pool." },
 	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 pool." },
+#ifdef STATEFUL
 	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
 	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
 #else
@@ -179,7 +178,6 @@ static struct argp_option options[] =
 	{ "remove", ARGP_REMOVE, NULL, 0, "Remove an element from the target." },
 	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
 
-#ifdef STATEFUL
 	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 3 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
 		"Available on remove and flush operations only. " },
@@ -192,6 +190,7 @@ static struct argp_option options[] =
 	{ "address", ARGP_ADDRESS, IPV4_ADDR_FORMAT, 0, "Address to be added or removed. "
 			"Available on add and remove operations only." },
 
+#ifdef STATEFUL
 	{ NULL, 0, NULL, 0, "BIB & Session options:", 6 },
 	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
 	{ "tcp", ARGP_TCP, NULL, 0, "Operate on the TCP table." },
@@ -247,8 +246,6 @@ static struct argp_option options[] =
 			"Set the IPv4 Type of Service." },
 	{ DF_ALWAYS_ON_OPT, ARGP_DF, BOOL_FORMAT, 0,
 			"Always set Don't Fragment?" },
-	{ BUILD_IPV6_FRAG_HDR, ARGP_BUILD_FH, BOOL_FORMAT, 0,
-			"Include IPv6 Fragment Header when IPv4 Packet DF flag is not set." },
 	{ BUILD_IPV4_ID_OPT, ARGP_BUILD_ID, BOOL_FORMAT, 0,
 			"Generate IPv4 ID?" },
 	{ LOWER_MTU_FAIL_OPT, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
@@ -344,6 +341,7 @@ static int set_global_u16(struct arguments *args, __u8 type, char *value, __u16 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
+#ifdef STATEFUL
 static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 min, __u64 max,
 		__u64 multiplier)
 {
@@ -357,6 +355,7 @@ static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 
 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
+#endif
 
 static int set_global_u16_array(struct arguments *args, int type, char *value)
 {
@@ -382,13 +381,13 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	int error = 0;
 
 	switch (key) {
-#ifdef STATEFUL
 	case ARGP_POOL6:
 		error = update_state(args, MODE_POOL6, POOL6_OPS);
 		break;
 	case ARGP_POOL4:
 		error = update_state(args, MODE_POOL4, POOL4_OPS);
 		break;
+#ifdef STATEFUL
 	case ARGP_BIB:
 		error = update_state(args, MODE_BIB, BIB_OPS);
 		break;
@@ -545,9 +544,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_DF:
 		error = set_global_bool(args, DF_ALWAYS_ON, str);
 		break;
-	case ARGP_BUILD_FH:
-		error = set_global_bool(args, BUILD_IPV6_FH, str);
-		break;
 	case ARGP_BUILD_ID:
 		error = set_global_bool(args, BUILD_IPV4_ID, str);
 		break;
@@ -664,6 +660,12 @@ static int main_wrapped(int argc, char **argv)
 			return -EINVAL;
 		}
 		break;
+#else
+	case MODE_POOL6:
+		log_err("Not yet implemented.");
+		return -EINVAL;
+		break;
+#endif
 
 	case MODE_POOL4:
 		switch (args.op) {
@@ -691,6 +693,7 @@ static int main_wrapped(int argc, char **argv)
 		}
 		break;
 
+#ifdef STATEFUL
 	case MODE_BIB:
 		switch (args.op) {
 		case OP_DISPLAY:
@@ -744,6 +747,7 @@ static int main_wrapped(int argc, char **argv)
 		}
 		break;
 #else
+
 	case MODE_EAMT:
 		switch (args.op) {
 		case OP_DISPLAY:

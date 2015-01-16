@@ -18,6 +18,9 @@
 *.o.d
 *.c.orig
 *.h.orig
+# binaries
+jool_stateful
+jool_stateless
 
 # Packages #
 ############
@@ -59,4 +62,18 @@ Thumbs.db
 .cproject
 .project
 .settings
+
+# autoconf files
+######################
+*.in
+*.m4
+.deps
+.dirstamp
+compile
+config.status
+configure
+depcomp
+install-sh
+missing
+Makefile
 

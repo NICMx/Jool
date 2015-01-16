@@ -45,18 +45,18 @@
 #define MSG_GETCFG		0x12
 
 enum config_mode {
-#ifdef STATEFUL
 	/** The current message is talking about the IPv6 pool. */
 	MODE_POOL6 = (1 << 1),
 	/** The current message is talking about the IPv4 pool. */
 	MODE_POOL4 = (1 << 2),
+#ifdef STATEFUL
 	/** The current message is talking about the Binding Information Bases. */
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
 #else
 	/** The current message is talking about the EAMT. */
-	MODE_EAMT = (1 << 1),
+	MODE_EAMT = (1 << 6),
 #endif
 #ifdef BENCHMARK
 	/** The current message is talking about log times for benchmark. */

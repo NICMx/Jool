@@ -3,8 +3,8 @@
 
 AC_PREREQ([2.68])
 AC_INIT([Jool], [3.2.2], [jool@nic.mx])
-AC_CONFIG_SRCDIR([src/jool.c])
-AM_INIT_AUTOMAKE
+AC_CONFIG_SRCDIR([common/jool.c])
+AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
 AC_PROG_CC
@@ -22,4 +22,4 @@ AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol])
 PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1)
 
 # Spit out the makefiles.
-AC_OUTPUT(Makefile src/Makefile man/Makefile)
+AC_OUTPUT(Makefile stateless/Makefile stateful/Makefile)
