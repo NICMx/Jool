@@ -174,6 +174,16 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 	min_len = (expected->len < actual->len) ? expected->len : actual->len;
 
 	for (i = 0; i < min_len; i++) {
+		/*
+		 * Skip the fragment identifier on IPv6 packets.
+		 * This is because this value is random after translation most of the time.
+		 * TODO (test) maybe make it possible to not do this on certain tests?
+		 */
+		if (44 <= i && i <= 47
+				&& actual->protocol == ntohs(ETH_P_IPV6)
+				&& ipv6_hdr(actual)->nexthdr == NEXTHDR_FRAGMENT)
+			continue;
+
 		if (expected_ptr[i] != actual_ptr[i]) {
 			log_err("Packets differ at byte %u. Expected: 0x%x; actual: 0x%x.",
 					i, expected_ptr[i], actual_ptr[i]);

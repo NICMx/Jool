@@ -32,7 +32,6 @@ int config_init(void)
 	config->translate.reset_tos = TRAN_DEF_RESET_TOS;
 	config->translate.new_tos = TRAN_DEF_NEW_TOS;
 	config->translate.df_always_on = TRAN_DEF_DF_ALWAYS_ON;
-	config->translate.build_ipv6_fh = TRAN_DEF_BUILD_IPV6_FH;
 	config->translate.build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
 	config->translate.lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
 	config->translate.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
@@ -244,11 +243,6 @@ int config_set(__u8 type, size_t size, void *value)
 			goto fail;
 		tmp_config->translate.df_always_on = *((__u8 *) value);
 		break;
-	case BUILD_IPV6_FH:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->translate.build_ipv6_fh = *((__u8 *) value);
-		break;
 	case BUILD_IPV4_ID:
 		if (!ensure_bytes(size, 1))
 			goto fail;
@@ -362,11 +356,6 @@ void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 	*build_ipv4_id = tmp->translate.build_ipv4_id;
 	*df_always_on = tmp->translate.df_always_on;
 	rcu_read_unlock_bh();
-}
-
-bool config_get_build_ipv6_fh(void)
-{
-	return RCU_THINGY(bool, translate.build_ipv6_fh);
 }
 
 bool config_get_lower_mtu_fail(void)

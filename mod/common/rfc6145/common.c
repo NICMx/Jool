@@ -1,4 +1,3 @@
-#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/rfc6145/common.h"
@@ -64,30 +63,47 @@ int copy_payload(struct sk_buff *in, struct sk_buff *out)
 {
 	int error;
 
-	error = skb_copy_bits(in, skb_payload_offset(in), skb_payload(out), skb_payload_len_frag(in));
+	error = skb_copy_bits(in, skb_payload_offset(in), skb_payload(out), skb_payload_len_frag(out));
 	if (error)
 		log_debug("The payload copy threw errcode %d.", error);
 
 	return error;
 }
 
-static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
-{
-	return is_dont_fragment_set(in_hdr) ? false : config_get_build_ipv6_fh();
-}
-
 bool will_need_frag_hdr(struct iphdr *in_hdr)
 {
 	/*
+	 * Starting from Jool 3.3, we largely defer fragmentation to the kernel.
+	 * Jool no longer fragments packets because that implied a ridiculous amount of really
+	 * troublesome code. It not only received strange input, but also had very hard-to-explain
+	 * output requirements, and it also had to handle the RFCs' quirks.
+	 *
+	 * Unfortunately, this has an important consequence: Jool must never send atomic fragments.
+	 * This is because the kernel doesn't know them. If I send an atomic fragment and the kernel
+	 * has to fragment it, it appends another fragment header. This confuses everything.
+	 * On the other hand, RFC 6145 *wants* atomic fragments.
+	 * Read below to find out how we handle this.
+	 */
+
+	/*
 	 * We completely ignore the fragment header during stateful operation
 	 * because the kernel really wants to handle it on its own.
+	 * This introduces an unimportant mismatch with the RFC.
+	 * TODO (doc) document what it is and why it doesn't matter.
 	 */
 	if (nat64_is_stateful())
 		return false;
 
-	return build_ipv6_frag_hdr(in_hdr)
-			|| is_more_fragments_set_ipv4(in_hdr)
-			|| get_fragment_offset_ipv4(in_hdr);
+	/*
+	 * TODO (fine) RFC 6145 wants a flag here.
+	 * If the flag is false and DF is also false, the NAT64 should include a fragmentation header
+	 * regardless of fragmentation status (page 7).
+	 * I removed it on Jool 3.3 because it lead to atomic fragments.
+	 * The reason why this is not considered a problem is because experience has given the flag
+	 * a bad reputation (draft-gont-6man-deprecate-atomfrag-generation).
+	 * I've decided removing all that fragmentation code is worth not supporting that flag.
+	 */
+	return is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr);
 }
 
 static int move_pointers_in(struct sk_buff *skb, __u8 protocol, unsigned int l3hdr_len)

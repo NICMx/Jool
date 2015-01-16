@@ -49,6 +49,10 @@ verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 		total_len += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
 		if (will_need_frag_hdr(skb_payload(in)))
 			total_len += sizeof(struct frag_hdr);
+
+		/* All errors from RFC 4443 share this. */
+		if (total_len > IPV6_MIN_MTU)
+			total_len = IPV6_MIN_MTU;
 	}
 
 	new_skb = alloc_skb(reserve + total_len, GFP_ATOMIC);
@@ -181,9 +185,21 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out
 	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
-	ip6_hdr->payload_len = htons(ntohs(ip4_hdr->tot_len) - 4 * ip4_hdr->ihl);
+	if (!skb_is_inner(out)) {
+		/*
+		 * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of the
+		 * Internet seems prepared against bigger ICMPv4 errors.
+		 * ICMPv6 errors are supposed to be max 1280 bytes.
+		 * Therefore, the resulting ICMPv6 packet might have a smaller payload than the original
+		 * packet.
+		 * The RFC doesn't account for this; that's why this equation looks different.
+		 */
+		ip6_hdr->payload_len = htons(skb_l3hdr_len(out) - sizeof(*ip6_hdr) + skb_l4hdr_len(out)
+				+ skb_payload_len_frag(out));
+	} else {
+		ip6_hdr->payload_len = htons(ntohs(ip4_hdr->tot_len) - 4 * ip4_hdr->ihl);
+	}
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
-
 	if (!skb_is_inner(in)) {
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);

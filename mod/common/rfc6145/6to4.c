@@ -48,6 +48,10 @@ verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 
 		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
 		total_len += sizeof(struct iphdr) - (iterator.data - skb_payload(in));
+
+		/* RFC1812 section 4.3.2.3. I'm using a literal because the RFC does. */
+		if (total_len > 576)
+			total_len = 576;
 	}
 
 	new_skb = alloc_skb(LL_MAX_HEADER + total_len, GFP_ATOMIC);
@@ -212,7 +216,19 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
-	ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len) + sizeof(*ip4_hdr));
+	if (!skb_is_inner(out)) {
+		/*
+		 * ICMPv6 errors are supposed to be max 1280 bytes.
+		 * ICMPv4 errors are supposed to be max 576 bytes.
+		 * Therefore, the resulting ICMPv4 packet might have a smaller payload than the original
+		 * packet.
+		 * The RFC doesn't account for this; that's why this equation looks different.
+		 */
+		ip4_hdr->tot_len = htons(skb_l3hdr_len(out) + skb_l4hdr_len(out)
+				+ skb_payload_len_frag(out));
+	} else {
+		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len) + sizeof(*ip4_hdr));
+	}
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);

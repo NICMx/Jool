@@ -313,7 +313,6 @@ enum global_type {
 	RESET_TOS,
 	NEW_TOS,
 	DF_ALWAYS_ON,
-	BUILD_IPV6_FH,
 	BUILD_IPV4_ID,
 	LOWER_MTU_FAIL,
 	MTU_PLATEAUS,
@@ -396,14 +395,6 @@ struct translate_config {
 	 * Boolean.
 	 */
 	__u8 df_always_on;
-	/**
-	 * If "true", the translator will always build an "IPv6 Fragment Header" when the incoming IPv4
-	 * packet does not set the DF flag.
-	 * Otherwise, the translator will not build the "IPv6 Fragment Header" whether the IPv4 DF flag
-	 * is set or not set, unless the incoming IPv4 packet is a fragment.
-	 * Boolean.
-	 */
-	__u8 build_ipv6_fh;
 	/**
 	 * Whether translated IPv4 headers' Identification fields should be computed (Either from the
 	 * IPv6 fragment header's Identification field or deduced from the packet's length).
