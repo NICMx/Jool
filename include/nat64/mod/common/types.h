@@ -166,6 +166,7 @@ bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *a,
 bool ipv6_transport_addr_equals(const struct ipv6_transport_addr *a,
 		const struct ipv6_transport_addr *b);
 bool ipv6_prefix_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
+bool ipv4_prefix_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);
 /**
  * @}
  */

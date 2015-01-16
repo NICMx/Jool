@@ -293,11 +293,6 @@ int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
 	return 0;
 }
 
-static bool prefix4_equals(struct ipv4_prefix *p1, struct ipv4_prefix *p2)
-{
-	return p1->address.s_addr == p2->address.s_addr && p1->len == p2->len;
-}
-
 int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 {
 	int count;
@@ -314,7 +309,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 			return -ESRCH;
 		}
 
-		if (prefix4 && !prefix4_equals(prefix4, &eam->pref4)) {
+		if (prefix4 && !ipv4_prefix4_equals(prefix4, &eam->pref4)) {
 			log_err("The EAM entry whose 6-prefix is %pI6c/%u is mapped to %pI4/%u, not %pI4/%u.",
 					&eam->pref6.address, eam->pref6.len,
 					&eam->pref4.address, eam->pref4.len,

@@ -74,6 +74,20 @@ bool ipv6_prefix_equals(const struct ipv6_prefix *expected, const struct ipv6_pr
 	return true;
 }
 
+bool ipv4_prefix_equals(const struct ipv4_prefix *expected, const struct ipv4_prefix *actual)
+{
+	if (expected == actual)
+		return true;
+	if (expected == NULL || actual == NULL)
+		return false;
+	if (expected->address.s_addr != actual->address.s_addr)
+		return false;
+	if (expected->len != actual->len)
+		return false;
+
+	return true;
+}
+
 bool is_icmp6_info(__u8 type)
 {
 	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);
