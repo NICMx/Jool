@@ -407,7 +407,6 @@ struct translate_config {
 	 * be set as no less than 1280, regardless of MTU plateaus and whatnot.
 	 * See RFC 6145 section 6, second approach.
 	 * Boolean.
-	 * TODO this is not being used anywhere.
 	 */
 	__u8 lower_mtu_fail;
 	/** Length of the mtu_plateaus array. */

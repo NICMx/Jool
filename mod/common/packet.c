@@ -293,10 +293,21 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	if (unlikely(error))
 		return error;
 
-	if (skb_l4_proto(skb) == NEXTHDR_ICMP && icmp6_has_inner_packet(icmp6_hdr(skb)->icmp6_type)) {
-		error = init_inner_packet6(skb);
-		if (unlikely(error))
-			return error;
+	if (skb_l4_proto(skb) == L4PROTO_ICMP) {
+		__u8 type = icmp6_hdr(skb)->icmp6_type;
+
+		if (icmp6_has_inner_packet(type)) {
+			error = init_inner_packet6(skb);
+			if (unlikely(error))
+				return error;
+		}
+
+		if (nat64_is_stateless() && is_icmp6_info(icmp6_hdr(skb)->icmp6_type)
+				&& is_fragmented_ipv6(get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT))) {
+			log_debug("Packet is a fragmented ping. Its checksum cannot be translated, "
+					"so I'll just drop it.");
+			return -EINVAL;
+		}
 	}
 
 	/* If not a fragment, the next "while" will be omitted. */
@@ -409,10 +420,20 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	if (unlikely(error))
 		return error;
 
-	if (skb_l4_proto(skb) == L4PROTO_ICMP && icmp4_has_inner_packet(icmp_hdr(skb)->type)) {
-		error = init_inner_packet4(skb);
-		if (unlikely(error))
-			return error;
+	if (skb_l4_proto(skb) == L4PROTO_ICMP) {
+		__u8 type = icmp_hdr(skb)->type;
+
+		if (icmp4_has_inner_packet(type)) {
+			error = init_inner_packet4(skb);
+			if (unlikely(error))
+				return error;
+		}
+
+		if (nat64_is_stateless() && is_icmp4_info(type) && is_fragmented_ipv4(ip_hdr(skb))) {
+			log_debug("Packet is a fragmented ping. Its checksum cannot be translated, "
+					"so I'll just drop it.");
+			return -EINVAL;
+		}
 	}
 
 	skb_walk_frags(skb, skb) {

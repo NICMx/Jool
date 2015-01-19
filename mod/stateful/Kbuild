@@ -28,6 +28,7 @@ jool-common += ../common/rbtree.o
 jool-common += ../common/config.o
 jool-common += ../common/nl_handler.o
 jool-common += ../common/route.o
+jool-common += ../common/send_packet.o
 jool-common += ../common/core.o
 
 jool-stateful += pkt_queue.o
@@ -42,7 +43,6 @@ jool-stateful += determine_incoming_tuple.o
 jool-stateful += filtering_and_updating.o
 jool-stateful += compute_outgoing_tuple.o
 jool-stateful += handling_hairpinning.o
-jool-stateful += send_packet.o
 jool-stateful += nf_hook.o
 
 jool-stateful-objs += ${jool-common} ${jool-stateful}

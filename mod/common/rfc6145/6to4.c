@@ -12,6 +12,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/stateless/pool4.h"
 #include "nat64/mod/stateless/eam.h"
 
 verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
@@ -154,9 +155,39 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct
 	error = addr_6to4(addr6, &prefix, &tmp);
 	if (error)
 		return VER_DROP;
+	/* Fall through. */
 
 end:
 	*addr4 = tmp.s_addr;
+	return VER_CONTINUE;
+}
+
+static verdict translate_addrs_siit(struct sk_buff *in, struct sk_buff *out)
+{
+	struct ipv6hdr *ip6_hdr = ipv6_hdr(in);
+	struct iphdr *ip4_hdr = ip_hdr(out);
+	struct in_addr addr;
+	verdict result;
+	int error;
+
+	/* Src address. */
+	if (skb_l4_proto(in) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in)->icmp6_type)) {
+		addr.s_addr = ip4_hdr->saddr;
+		error = pool4_get(&addr); /* Why? RFC 6791. */
+		if (error)
+			return VER_DROP;
+	} else {
+		result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
+		if (result != VER_CONTINUE)
+			return result;
+	}
+
+	/* Dst address. */
+	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
+	if (result != VER_CONTINUE)
+		return result;
+
+	log_debug("Result: %pI4->%pI4", &ip4_hdr->saddr, &ip4_hdr->daddr);
 	return VER_CONTINUE;
 }
 
@@ -232,16 +263,8 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
-	if (!skb_is_inner(in)) {
-		if (ip6_hdr->hop_limit <= 1) {
-			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
-			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
-			return VER_DROP;
-		}
-		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
-	} else {
-		ip4_hdr->ttl = ip6_hdr->hop_limit;
-	}
+	/* The kernel already decreases the hop limit after prerouting so we don't have to do it. */
+	ip4_hdr->ttl = ip6_hdr->hop_limit;
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
 
@@ -249,13 +272,9 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
 		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
 	} else {
-		result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
+		result = translate_addrs_siit(in, out);
 		if (result != VER_CONTINUE)
 			return result;
-		result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
-		if (result != VER_CONTINUE)
-			return result;
-		log_debug("Result: %pI4->%pI4", &ip4_hdr->saddr, &ip4_hdr->daddr);
 	}
 
 	if (!skb_is_inner(in)) {
@@ -483,9 +502,14 @@ static bool is_truncated_ipv4(struct sk_buff *skb)
 		/* Calculating the checksum doesn't hurt. Not calculating it might. */
 		return false;
 	case L4PROTO_UDP:
+		/*
+		 * TODO (3.2) The new testing framework discovered this to be wrong.
+		 * I don't know since when has it been wrong, but chances are we should release a new 3.2.
+		 * The problem is also present in the 4 to 6 direction.
+		 */
 		hdr4 = ip_hdr(skb);
 		hdr_udp = udp_hdr(skb);
-		return (ntohs(hdr4->tot_len) - (4 * hdr4->ihl)) == ntohs(hdr_udp->len);
+		return (ntohs(hdr4->tot_len) - (4 * hdr4->ihl)) != ntohs(hdr_udp->len);
 	}
 
 	return true; /* whatever. */

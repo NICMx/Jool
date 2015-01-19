@@ -1,7 +1,7 @@
 #CC=cgcc
 ccflags-y := -I$(src)/../../include
-EXTRA_CFLAGS += -DDEBUG
 
+#EXTRA_CFLAGS += -DDEBUG
 # Note: if you want to activate the benchmark feature, you need to activate the following flag, and
 #	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
 #EXTRA_CFLAGS += -DBENCHMARK
@@ -27,11 +27,11 @@ jool-common += ../common/rbtree.o
 jool-common += ../common/config.o
 jool-common += ../common/nl_handler.o
 jool-common += ../common/route.o
+jool-common += ../common/send_packet.o
 jool-common += ../common/core.o
 
 jool-stateless += eam.o
 jool-stateless += nf_hook.o
 jool-stateless += pool4.o
-jool-stateless += send_packet.o
 
 jool-stateless-objs += ${jool-common} ${jool-stateless}

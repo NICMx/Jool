@@ -1,8 +1,4 @@
 #include "nat64/mod/common/send_packet.h"
-
-#include <net/ip.h>
-#include <net/ipv6.h>
-
 #include "nat64/mod/common/packet.h"
 
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
@@ -18,7 +14,8 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 			skb_l4_proto(out_skb));
 #endif
 
-	log_debug("Sending skb.");
+	/* TODO validate? */
+	log_debug("Sending skb via device '%s'.", out_skb->dev->name);
 
 	skb_clear_cb(out_skb);
 	skb_walk_frags(out_skb, skb)

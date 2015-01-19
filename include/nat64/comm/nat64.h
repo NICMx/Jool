@@ -30,4 +30,9 @@ static inline int nat64_is_stateful(void)
 #endif
 }
 
+static inline int nat64_is_stateless(void)
+{
+	return !nat64_is_stateful();
+}
+
 #endif /* _JOOL_COMM_NAT64_H */

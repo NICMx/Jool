@@ -15,4 +15,4 @@ insert:
 	dmesg | tail -15
 remove:
 	sudo rmmod graybox
-	dmesg | tail -15
+	sudo dmesg -c

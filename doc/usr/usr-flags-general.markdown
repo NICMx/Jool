@@ -254,7 +254,7 @@ When a packet is too big for a link's MTU, routers generate <a href="http://tool
 
 These ICMP errors are supposed to contain the offending MTU so the emitter can resize and resend its packets accordingly.
 
-The minimum MTU for IPv6 is 1280. The minimum MTU for IPv4 is 68. Therefore, Jool can find itself wanting to report an illegal MTU while translating a _Packet too Big_ into a _Fragmentation Needed_.
+The minimum MTU for IPv6 is 1280. The minimum MTU for IPv4 is 68. Therefore, Jool can find itself wanting to report an illegal MTU while translating a _Fragmentation Needed_ (v4) into a _Packet too Big_ (v6).
 
 - If `--boostMTU` is OFF, Jool will not attempt to fix MTU values of _Packet too Big_ ICMP errors when they are too small.
 - If `--boostMTU` is ON and an incoming _Fragmentation Needed_ reports a MTU which is smaller than 1280, Jool will report a MTU of 1280.

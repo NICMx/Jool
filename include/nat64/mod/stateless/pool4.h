@@ -10,7 +10,7 @@
  * translated ICMP message and leverage the ICMP extension [RFC5837] to
  * include the IPv6 address as an Interface IP Address Sub-Object."
  *
- * The ICMP extension is not here.
+ * The ICMP extension thing has not been implemented yet.
  *
  * @author Alberto Leiva
  */

@@ -457,9 +457,9 @@ static bool is_truncated_ipv6(struct sk_buff *skb)
 		/* Calculating the checksum doesn't hurt. Not calculating it might. */
 		return false;
 	case L4PROTO_UDP:
-		len_l3 = ntohs(ipv6_hdr(skb)->payload_len) - skb_l3hdr_len(skb);
-		len_l4 = ntohs(udp_hdr(skb)->len);
-		return len_l3 == len_l4;
+		len_l3 = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
+		len_l4 = skb_l3hdr_len(skb) + ntohs(udp_hdr(skb)->len);
+		return len_l3 != len_l4;
 	}
 
 	return true; /* whatever. */

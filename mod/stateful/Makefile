@@ -35,7 +35,8 @@ insert:
 
 	# Insert and configure Jool a little bit.
 	sudo insmod jool-stateful.ko pool4=192.0.2.2
-	sudo ../../usr/src/jool --minMTU6=1500
+	sudo ../../usr/stateful/jool_stateful -batu --bib4 192.0.2.2#2000 --bib6 2001:db8::5#2000
+	sudo ../../usr/stateful/jool_stateful -bai --bib4 192.0.2.2#1 --bib6 2001:db8::5#1
 	dmesg | tail -15
 
 remove:
