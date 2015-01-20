@@ -20,7 +20,6 @@ jool-common += ../common/stats.o
 jool-common += ../common/icmp_wrapper.o
 jool-common += ../common/ipv6_hdr_iterator.o
 jool-common += ../common/rfc6052.o
-jool-common += ../common/pool6.o
 jool-common += ../common/nl_buffer.o
 jool-common += ../common/random.o
 jool-common += ../common/rbtree.o
@@ -30,6 +29,7 @@ jool-common += ../common/route.o
 jool-common += ../common/core.o
 
 jool-stateless += eam.o
+jool-stateless += pool6.o
 jool-stateless += nf_hook.o
 jool-stateless += pool4.o
 jool-stateless += send_packet.o

@@ -9,12 +9,16 @@
 #include "nat64/comm/config.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/nl_buffer.h"
-#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib_db.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/session_db.h"
 #include "nat64/mod/stateful/static_routes.h"
+#ifdef STATEFUL
+	#include "nat64/mod/stateful/pool6.h"
+#else
+	#include "nat64/mod/stateless/pool6.h"
+#endif
 #include "nat64/mod/stateless/eam.h"
 #ifdef BENCHMARK
 #include "nat64/mod/log_time.h"
@@ -99,8 +103,6 @@ static int verify_superpriv(void)
 	return 0;
 }
 
-#ifdef STATEFUL
-
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
@@ -130,7 +132,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		kfree(buffer);
 		return error;
-
+#ifdef STATEFUL
 	case OP_COUNT:
 		log_debug("Returning IPv6 prefix count.");
 		error = pool6_count(&count);
@@ -173,12 +175,22 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			error = sessiondb_flush();
 
 		return respond_error(nl_hdr, error);
+#else
+	case OP_UPDATE:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
 
+		log_debug("Updating the IPv6 Prefix Pool");
+
+		return respond_error(nl_hdr, pool6_update(&request->update.prefix));
+#endif
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
+
+#ifdef STATEFUL
 
 static int pool4_entry_to_userspace(struct pool4_node *node, void *arg)
 {
@@ -587,9 +599,9 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	request = nat64_hdr + 1;
 
 	switch (nat64_hdr->mode) {
-#ifdef STATEFUL
 	case MODE_POOL6:
 		return handle_pool6_config(nl_hdr, nat64_hdr, request);
+#ifdef STATEFUL
 	case MODE_POOL4:
 		return handle_pool4_config(nl_hdr, nat64_hdr, request);
 	case MODE_BIB:

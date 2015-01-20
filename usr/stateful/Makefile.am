@@ -11,8 +11,8 @@ jool_stateful_SOURCES = \
 	../common/netlink.c \
 	../common/pool4.c \
 	../common/str_utils.c \
+	../common/pool6.c \
 	bib.c \
-	pool6.c \
 	session.c
 #jool_stateful_SOURCES += ../common/log_time.c
 

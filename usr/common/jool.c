@@ -512,6 +512,13 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u64(args, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 #else
+	case ARGP_PREFIX:
+		error = update_state(args, MODE_POOL6, OP_UPDATE);
+		if (error)
+			return error;
+		error = str_to_ipv6_prefix(str, &args->db.pool6.prefix);
+		args->db.pool6.prefix_set = true;
+		break;
 	case ARGP_CSV:
 		error = update_state(args, MODE_EAMT, OP_DISPLAY);
 		args->db.tables.csv_format = true;
@@ -634,11 +641,11 @@ static int main_wrapped(int argc, char **argv)
 		return error;
 
 	switch (args.mode) {
-#ifdef STATEFUL
 	case MODE_POOL6:
 		switch (args.op) {
 		case OP_DISPLAY:
 			return pool6_display();
+#ifdef STATEFUL
 		case OP_COUNT:
 			return pool6_count();
 		case OP_ADD:
@@ -655,17 +662,19 @@ static int main_wrapped(int argc, char **argv)
 			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
 		case OP_FLUSH:
 			return pool6_flush(args.db.quick);
+#else
+		case OP_UPDATE:
+			if (!args.db.pool6.prefix_set) {
+				log_err("Please enter the prefix to be added (--prefix).");
+				return -EINVAL;
+			}
+			return pool6_update(&args.db.pool6.prefix);
+#endif
 		default:
 			log_err("Unknown operation for IPv6 pool mode: %u.", args.op);
 			return -EINVAL;
 		}
 		break;
-#else
-	case MODE_POOL6:
-		log_err("Not yet implemented.");
-		return -EINVAL;
-		break;
-#endif
 
 	case MODE_POOL4:
 		switch (args.op) {

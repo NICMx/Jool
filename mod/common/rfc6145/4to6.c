@@ -8,10 +8,10 @@
 #include "nat64/comm/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
-#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/eam.h"
 
 verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
