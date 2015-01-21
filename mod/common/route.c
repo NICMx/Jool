@@ -163,3 +163,16 @@ int route6(struct sk_buff *skb)
 
 	return 0;
 }
+
+int route(struct sk_buff *skb)
+{
+	switch (skb_l3_proto(skb)) {
+	case L3PROTO_IPV6:
+		return route6(skb);
+	case L3PROTO_IPV4:
+		return route4(skb);
+	}
+
+	WARN(true, "Unsupported network protocol: %u.", skb_l3_proto(skb));
+	return -EINVAL;
+}

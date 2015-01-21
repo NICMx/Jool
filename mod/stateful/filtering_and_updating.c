@@ -443,7 +443,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 	switch (skb_l3_proto(skb)) {
 	case L3PROTO_IPV6:
 		/* ICMP errors should not be filtered or affect the tables. */
-		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(skb)->icmp6_type)) {
+		if (skb_is_icmp6_error(skb)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
 			return VER_CONTINUE;
 		}
@@ -462,7 +462,7 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 		break;
 	case L3PROTO_IPV4:
 		/* ICMP errors should not be filtered or affect the tables. */
-		if (skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(skb)->type)) {
+		if (skb_is_icmp4_error(skb)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
 			return VER_CONTINUE;
 		}

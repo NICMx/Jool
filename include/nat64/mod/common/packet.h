@@ -12,8 +12,9 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <linux/tcp.h>
+#include <linux/icmp.h>
 
-#include "nat64/comm/types.h"
+#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 
 
@@ -179,6 +180,8 @@ struct jool_cb {
 	 * or it's linked to the frag_list of some other skb.
 	 *
 	 * TODO (fine) Is there really no way to compute it on the fly?
+	 * 2015-01-21 - Well we could do "skb_shinfo(skb)->frag_list || skb->next", but then we'd be
+	 * unable to queue the packet. I don't know.
 	 */
 	is_fragment : 1;
 
@@ -269,6 +272,11 @@ static inline bool skb_is_inner(struct sk_buff *skb)
 	return skb_jcb(skb)->is_inner;
 }
 
+static inline bool skb_is_outer(struct sk_buff *skb)
+{
+	return !skb_is_inner(skb);
+}
+
 static inline bool skb_is_fragment(struct sk_buff *skb)
 {
 	return skb_jcb(skb)->is_fragment;
@@ -284,6 +292,12 @@ static inline void *skb_payload(struct sk_buff *skb)
 
 static inline int skb_payload_offset(struct sk_buff *skb)
 {
+	/*
+	 * It seems like the the network header functions are cancelling each other.
+	 * This is *NOT* reduntant!
+	 * The point is to make the offset's reference the same as the network header's
+	 * (whatever it is).
+	 */
 	return skb_network_offset(skb) + (skb_payload(skb) - (void *) skb_network_header(skb));
 }
 
@@ -306,6 +320,9 @@ static inline bool skb_has_l4_hdr(struct sk_buff *skb)
 
 /**
  * Returns the length of "skb"'s layer-3 header, including options or extension headers.
+ * Only counts bytes actually present within skb. In other words, if skb is fragmented, the
+ * headers of the other fragments are ignored.
+ * Also, it doesn't count inner l3 headers (from ICMP errors).
  */
 static inline unsigned int skb_l3hdr_len(struct sk_buff *skb)
 {
@@ -315,12 +332,21 @@ static inline unsigned int skb_l3hdr_len(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-4 header, including options.
  * Returns zero if skb has no transport header.
+ * Only counts bytes actually present within skb. In other words, if skb is fragmented, any
+ * headers in any other fragments are ignored.
+ * Also, it doesn't count inner l4 headers (from ICMP errors).
  */
 static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
 {
 	return skb_payload(skb) - (void *) skb_transport_header(skb);
 }
 
+/**
+ * Returns the length of skb's layer-3 and layer-4 headers.
+ * Only counts bytes actually present within skb. In other words, if skb is fragmented, the
+ * headers of the other fragments are ignored.
+ * Also, it doesn't count inner headers (from ICMP errors).
+ */
 static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
 {
 	return skb_payload(skb) - (void *) skb_network_header(skb);
@@ -328,23 +354,26 @@ static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
 
 /**
  * Returns the length of "skb"'s layer-4 payload.
- * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
- * skb_shinfo(skb)->frag_list).
+ * Only counts bytes actually present within skb. In other words, if skb is fragmented, the
+ * layer-4 payload of the other fragments is ignored.
  */
 static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
 {
+	/* See skb_len() for relevant comments. */
+
 	if (!skb_is_fragment(skb))
 		return skb->len - skb_hdrs_len(skb);
 
-	return skb_shinfo(skb)->frag_list
-			? (skb_pagelen(skb) - skb_hdrs_len(skb))
-			: skb_pagelen(skb);
+	return skb_pagelen(skb) - (skb_shinfo(skb)->frag_list ? skb_hdrs_len(skb) : 0);
 }
 
 /**
  * Returns the length of "skb"'s layer-4 payload.
  * Includes the entire layer-4 payload (ie. ignores fragmentation).
- * This function only makes sense when skb has fragment offset zero.
+ *
+ * This function is only compatible with "full packets"; the result is otherwise undefined.
+ * A "full packet" is either a non-fragmented packet, or a fragment whose frag_list contains all
+ * the remaining fragments.
  */
 static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
 {
@@ -353,8 +382,8 @@ static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
 
 /**
  * Returns the length of "skb"'s layer-3 payload.
- * Only includes payload present in skb as a fragment (ie. it does not include payload contained in
- * skb_shinfo(skb)->frag_list).
+ * Only counts bytes actually present within skb. In other words, if skb is fragmented, the
+ * layer-3 payload of the other fragments is ignored.
  */
 static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
 {
@@ -364,7 +393,10 @@ static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
 /**
  * Returns the length of "skb"'s layer-3 payload.
  * Includes the entire layer-3 payload (ie. ignores fragmentation).
- * This function is only compatible with skbs whose fragment offset is zero.
+ *
+ * This function is only compatible with "full packets"; the result is otherwise undefined.
+ * A "full packet" is either a non-fragmented packet, or a fragment whose frag_list contains all
+ * the remaining fragments.
  */
 static inline unsigned int skb_datagram_len(struct sk_buff *skb)
 {
@@ -372,11 +404,50 @@ static inline unsigned int skb_datagram_len(struct sk_buff *skb)
 }
 
 /**
- * TODO some of these functions, including this one, seem to assume the NAT64 is stateful.
+ * Returns the length of skb as a layer-3 packet. It includes layer 3 headers and layer 3 payload.
+ *
+ * It's supposed to replace skb->len in certain situations. This is because skb->len also counts
+ * bytes present in other fragments, and that is not always what a NAT64 wants.
  */
 static inline unsigned int skb_len(struct sk_buff *skb)
 {
+	/*
+	 * Note, we can't depend on a nat64_is_stateful() here because frag_list is the official Linux
+	 * fragment representation, therefore the absence of defrag doesn't strictly mean Jool will
+	 * never see empty frag_lists (also viceversa for robustness).
+	 */
+
+	if (!skb_is_fragment(skb)) {
+		/*
+		 * Because stateless operation doesn't enforce the presence of defrags,
+		 * stateless Jool typically does this.
+		 * skb->len is headroom + page data + frag_list.
+		 * frag_list is empty, so it doesn't harm us.
+		 */
+		return skb->len;
+	}
+
+	/*
+	 * This is what happens when defragmentation is in the way. Stateful Jool typically has to do
+	 * this.
+	 * In the first fragment, pagelen contains everything we need (l3 header to payload).
+	 * In subsequent fragments, pagelen doesn't count the headers (since data points to payload)
+	 * so we add it ourselves.
+	 *
+	 * Note that skb_pagelen() is a gargantuan inline function, so we don't want to call it twice
+	 * or something.
+	 */
 	return skb_pagelen(skb) + (skb_shinfo(skb)->frag_list ? 0 : skb_hdrs_len(skb));
+}
+
+static inline bool skb_is_icmp6_error(struct sk_buff *skb)
+{
+	return skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(skb)->icmp6_type);
+}
+
+static inline bool skb_is_icmp4_error(struct sk_buff *skb)
+{
+	return skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(skb)->type);
 }
 
 /**

@@ -5,8 +5,7 @@
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/common/rfc6145/common.h"
 
-static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in, struct sk_buff **out,
-		struct dst_entry *dst)
+static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in, struct sk_buff **out)
 {
 	struct translation_steps *steps = ttpcomm_get_steps(skb_l3_proto(in), skb_l4_proto(in));
 	verdict result;
@@ -28,15 +27,6 @@ static verdict translate_fragment(struct tuple *tuple, struct sk_buff *in, struc
 			goto drop;
 	}
 
-	/* TODO this is probably redundant. */
-	if (dst) {
-		skb_dst_set(*out, dst_clone(dst));
-		(*out)->dev = dst->dev;
-	} else {
-		if (is_error(steps->route_fn(*out)))
-			goto drop;
-	}
-
 	return VER_CONTINUE;
 
 drop:
@@ -53,19 +43,20 @@ verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
 		struct sk_buff **out_skb)
 {
 	struct sk_buff *current_out_skb, *prev_out_skb = NULL;
+	unsigned int payload_len;
 	verdict result;
 
 	log_debug("Step 4: Translating the Packet");
 
 	/* Translate the first fragment or a complete packet. */
-	result = translate_fragment(out_tuple, in_skb, out_skb, NULL);
+	result = translate_fragment(out_tuple, in_skb, out_skb);
 	if (result != VER_CONTINUE)
 		return result;
 
 	/* If not a fragment, the next "while" will be omitted. */
 	skb_walk_frags(in_skb, in_skb) {
 		log_debug("Translating a Fragment Packet");
-		result = translate_fragment(out_tuple, in_skb, &current_out_skb, skb_dst(*out_skb));
+		result = translate_fragment(out_tuple, in_skb, &current_out_skb);
 		if (result != VER_CONTINUE) {
 			kfree_skb(*out_skb);
 			*out_skb = NULL;
@@ -76,8 +67,9 @@ verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in_skb,
 			skb_shinfo(*out_skb)->frag_list = current_out_skb;
 		else
 			prev_out_skb->next = current_out_skb;
-		(*out_skb)->len += skb_payload_len_frag(current_out_skb);
-		(*out_skb)->data_len += skb_payload_len_frag(current_out_skb);
+		payload_len = skb_payload_len_frag(current_out_skb);
+		(*out_skb)->len += payload_len;
+		(*out_skb)->data_len += payload_len;
 		(*out_skb)->truesize += current_out_skb->truesize;
 
 		prev_out_skb = current_out_skb;

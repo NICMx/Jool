@@ -147,7 +147,7 @@ struct request_hdr {
  */
 union request_pool6 {
 	struct {
-		/* TODO why doesn't this need a __u8 iterate? */
+		/* TODO (3.3.1) why doesn't this need a __u8 iterate? */
 		/* Nothing needed here ATM. */
 	} display;
 	struct {
@@ -171,7 +171,7 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
-		/* TODO why doesn't this need a __u8 iterate? */
+		/* TODO (3.3.1) why doesn't this need a __u8 iterate? */
 		/* Nothing needed there ATM. */
 	} display;
 	struct {

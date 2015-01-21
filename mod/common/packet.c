@@ -182,7 +182,7 @@ static int init_inner_packet6(struct sk_buff *skb)
 	struct frag_hdr *hdr_frag;
 	struct icmp6hdr *hdr_icmp;
 	struct hdr_iterator iterator;
-	unsigned int offset = skb_l3hdr_len(skb) + sizeof(struct icmphdr);
+	unsigned int offset = skb_hdrs_len(skb);
 	int error = -EINVAL;
 
 	log_debug("Validating inner IPv6 packet.");
@@ -325,7 +325,7 @@ static int init_inner_packet4(struct sk_buff *skb)
 	struct iphdr *hdr4 = skb_jcb(skb)->payload;
 	struct icmphdr *l4_hdr;
 	unsigned int l3_hdr_len;
-	unsigned int offset = skb_l3hdr_len(skb) + sizeof(struct icmphdr);
+	unsigned int offset = skb_hdrs_len(skb);
 	int error = -EINVAL;
 
 	log_debug("Validating IPv4 inner packet.");

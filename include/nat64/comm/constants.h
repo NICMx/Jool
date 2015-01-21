@@ -59,7 +59,7 @@
  * - 0.004 seconds, which will make this minimum ~1 second.
  * - 0.001 seconds, which will make this minimum ~0.25 seconds.
  *
- * If you think this is dumb, you can always set this value to zero or whatever.
+ * If you think this is dumb, you can always assign some other value, such as zero.
  */
 #define MIN_TIMER_SLEEP (255)
 
@@ -76,8 +76,8 @@
 #define TRAN_DEF_RESET_TRAFFIC_CLASS false
 #define TRAN_DEF_RESET_TOS false
 #define TRAN_DEF_NEW_TOS 0
-#define TRAN_DEF_DF_ALWAYS_ON true
-#define TRAN_DEF_BUILD_IPV4_ID false
+#define TRAN_DEF_DF_ALWAYS_ON false
+#define TRAN_DEF_BUILD_IPV4_ID true
 #define TRAN_DEF_LOWER_MTU_FAIL true
 #define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
 #define TRAN_DEF_MIN_IPV6_MTU IPV6_MIN_MTU

@@ -9,6 +9,9 @@
  * Thing is, I hate kmallocs due to their unreliability.
  * get_random_bytes() seems to beg for a buffer, so here it is.
  *
+ * TODO (issue36) this module should probably go away when we fix #36.
+ * This is because nothing else in the code requires large amounts of random numbers at once.
+ *
  * @author Alberto Leiva
  */
 

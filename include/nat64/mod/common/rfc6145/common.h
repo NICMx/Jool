@@ -24,8 +24,6 @@ struct translation_steps {
 	 * packet described by "in".
 	 */
 	verdict (*l3_payload_fn)(struct tuple *out_tuple, struct sk_buff *in, struct sk_buff *out);
-
-	int (*route_fn)(struct sk_buff *skb);
 };
 
 struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto);

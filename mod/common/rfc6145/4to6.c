@@ -45,7 +45,7 @@ verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 		reserve += sizeof(struct frag_hdr);
 
 	total_len = l3_hdr_len + skb_l3payload_len(in);
-	if (is_first && skb_l4_proto(in) == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(in)->type)) {
+	if (is_first && skb_is_icmp4_error(in)) {
 		total_len += sizeof(struct ipv6hdr) - sizeof(struct iphdr);
 		if (will_need_frag_hdr(skb_payload(in)))
 			total_len += sizeof(struct frag_hdr);
@@ -83,6 +83,34 @@ verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out)
 
 	*out = new_skb;
 	return VER_CONTINUE;
+}
+
+static __be16 build_payload_len(struct sk_buff *in, struct sk_buff *out)
+{
+	/* See build_tot_len() for relevant comments. */
+
+	__u16 total_len;
+
+	if (!skb_is_fragment(out)) { /* Not fragment. */
+		total_len = out->len;
+		/*
+		 * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of the
+		 * Internet seems prepared against bigger ICMPv4 errors.
+		 * Thus, the resulting ICMPv6 packet might have a smaller payload than the original
+		 * packet even though IPv4 MTU < IPv6 MTU.
+		 */
+		if (skb_is_icmp6_error(out) && total_len > IPV6_MIN_MTU)
+			total_len = IPV6_MIN_MTU;
+
+	} else if (skb_shinfo(out)->frag_list) { /* First fragment. */
+		total_len = in->len - skb_hdrs_len(in) + skb_hdrs_len(out);
+
+	} else { /* Subsequent fragment. */
+		total_len = skb_hdrs_len(out) + out->len;
+
+	}
+
+	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
 }
 
 static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
@@ -185,22 +213,9 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out
 	}
 	ip6_hdr->flow_lbl[1] = 0;
 	ip6_hdr->flow_lbl[2] = 0;
-	if (!skb_is_inner(out)) {
-		/*
-		 * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of the
-		 * Internet seems prepared against bigger ICMPv4 errors.
-		 * ICMPv6 errors are supposed to be max 1280 bytes.
-		 * Therefore, the resulting ICMPv6 packet might have a smaller payload than the original
-		 * packet.
-		 * The RFC doesn't account for this; that's why this equation looks different.
-		 */
-		ip6_hdr->payload_len = htons(skb_l3hdr_len(out) - sizeof(*ip6_hdr) + skb_l4hdr_len(out)
-				+ skb_payload_len_frag(out));
-	} else {
-		ip6_hdr->payload_len = htons(ntohs(ip4_hdr->tot_len) - 4 * ip4_hdr->ihl);
-	}
+	ip6_hdr->payload_len = build_payload_len(in, out);
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
-	if (!skb_is_inner(in)) {
+	if (skb_is_outer(in)) {
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
@@ -230,7 +245,7 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out
 		return -EINVAL;
 	*/
 
-	if (!skb_is_inner(in) && has_unexpired_src_route(ip4_hdr)) {
+	if (skb_is_outer(in) && has_unexpired_src_route(ip4_hdr)) {
 		log_debug("Packet has an unexpired source route.");
 		icmp64_send(in, ICMPERR_SRC_ROUTE, 0);
 		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
@@ -241,7 +256,6 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out
 		struct frag_hdr *frag_header = (struct frag_hdr *) (ip6_hdr + 1);
 
 		/* Override some fixed header fields... */
-		ip6_hdr->payload_len = htons(ntohs(ip6_hdr->payload_len) + sizeof(*frag_header));
 		ip6_hdr->nexthdr = NEXTHDR_FRAGMENT;
 
 		/* ...and set the fragment header ones. */
@@ -457,6 +471,10 @@ static bool is_truncated_ipv6(struct sk_buff *skb)
 		/* Calculating the checksum doesn't hurt. Not calculating it might. */
 		return false;
 	case L4PROTO_UDP:
+		/*
+		 * TODO (ERROR) we're extracting the data from outer headers but we're supposed to use
+		 * the inner ones. Why is this passing the tests?
+		 */
 		len_l3 = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
 		len_l4 = skb_l3hdr_len(skb) + ntohs(udp_hdr(skb)->len);
 		return len_l3 != len_l4;
@@ -476,7 +494,7 @@ static bool is_csum6_computable(struct sk_buff *skb)
 	if (!is_first_fragment_ipv6(hdr_frag))
 		return false;
 
-	if (!skb_is_inner(skb))
+	if (skb_is_outer(skb))
 		return true;
 
 	if (is_truncated_ipv6(skb))
@@ -518,6 +536,7 @@ static int compute_icmp6_csum(struct sk_buff *out)
 	struct icmp6hdr *out_icmp = icmp6_hdr(out);
 	__wsum csum;
 
+	/* This function only gets called for ICMP error checksums, so skb_datagram_len() is fine. */
 	out_icmp->icmp6_cksum = 0;
 	csum = skb_checksum(out, skb_transport_offset(out), skb_datagram_len(out), 0);
 	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,

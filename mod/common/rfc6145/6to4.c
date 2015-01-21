@@ -37,8 +37,7 @@ verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	 * packet's responsibility).
 	 */
 	total_len = sizeof(struct iphdr) + skb_l3payload_len(in);
-	if (is_first && skb_l4_proto(in) == L4PROTO_ICMP
-			&& is_icmp6_error(icmp6_hdr(in)->icmp6_type)) {
+	if (is_first && skb_is_icmp6_error(in)) {
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) skb_payload(in));
 		hdr_iterator_result result = hdr_iterator_last(&iterator);
 
@@ -86,16 +85,57 @@ verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 }
 
 /**
+ * One-liner for creating the IPv4 header's Total Length field.
+ */
+static __be16 build_tot_len(struct sk_buff *in, struct sk_buff *out)
+{
+	/*
+	 * The RFC's equation is plain wrong, as the errata claims.
+	 * However, this still looks different than the proposed version because:
+	 *
+	 * - I don't know what all that ESP stuff is since ESP is not supposed to be translated.
+	 *   TODO (warning) perhaps there's a new RFC that adds support for ESP?
+	 * - ICMP error quirks the RFC doesn't account for:
+	 *
+	 * ICMPv6 errors are supposed to be max 1280 bytes.
+	 * ICMPv4 errors are supposed to be max 576 bytes.
+	 * Therefore, the resulting ICMP4 packet might have a smaller payload than the original packet.
+	 *
+	 * This is further complicated by the kernel's fragmentation hacks; we can't do
+	 * "result = skb_len(out)" because the first fragment's tot_len has to also cover the rest of
+	 * the fragments...
+	 *
+	 * SIGH.
+	 */
+
+	__u16 total_len;
+
+	if (!skb_is_fragment(out)) { /* Not fragment. */
+		total_len = out->len;
+		if (skb_is_icmp4_error(out) && total_len > 576)
+			total_len = 576;
+
+	} else if (skb_shinfo(out)->frag_list) { /* First fragment. */
+		/* This would also normally be "result = out->len", but out->len is incomplete. */
+		total_len = in->len - skb_hdrs_len(in) + skb_hdrs_len(out);
+
+	} else { /* Subsequent fragment. */
+		total_len = skb_hdrs_len(out) + out->len;
+
+	}
+
+	return cpu_to_be16(total_len);
+}
+
+/**
  * One-liner for creating the IPv4 header's Identification field.
  * It assumes that the packet will not contain a fragment header.
  */
-static __be16 generate_ipv4_id_nofrag(struct ipv6hdr *ip6_header)
+static __be16 generate_ipv4_id_nofrag(struct sk_buff *skb_out)
 {
-	__u16 packet_len;
 	__be16 random;
 
-	packet_len = sizeof(*ip6_header) + be16_to_cpu(ip6_header->payload_len);
-	if (88 < packet_len && packet_len <= 1280) {
+	if (skb_len(skb_out) <= 1260) {
 		get_random_bytes(&random, 2);
 		return random;
 	}
@@ -106,10 +146,9 @@ static __be16 generate_ipv4_id_nofrag(struct ipv6hdr *ip6_header)
 /**
  * One-liner for creating the IPv4 header's Dont Fragment flag.
  */
-static bool generate_df_flag(struct ipv6hdr *ip6_header)
+static bool generate_df_flag(struct sk_buff *skb_out)
 {
-	__u16 packet_len = sizeof(*ip6_header) + be16_to_cpu(ip6_header->payload_len);
-	return (88 < packet_len && packet_len <= 1280) ? false : true;
+	return skb_len(skb_out) > 1260;
 }
 
 /**
@@ -171,7 +210,7 @@ static verdict translate_addrs_siit(struct sk_buff *in, struct sk_buff *out)
 	int error;
 
 	/* Src address. */
-	if (skb_l4_proto(in) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(in)->icmp6_type)) {
+	if (skb_is_icmp6_error(in)) {
 		addr.s_addr = ip4_hdr->saddr;
 		error = pool4_get(&addr); /* Why? RFC 6791. */
 		if (error)
@@ -247,21 +286,9 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
 	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
-	if (!skb_is_inner(out)) {
-		/*
-		 * ICMPv6 errors are supposed to be max 1280 bytes.
-		 * ICMPv4 errors are supposed to be max 576 bytes.
-		 * Therefore, the resulting ICMPv4 packet might have a smaller payload than the original
-		 * packet.
-		 * The RFC doesn't account for this; that's why this equation looks different.
-		 */
-		ip4_hdr->tot_len = htons(skb_l3hdr_len(out) + skb_l4hdr_len(out)
-				+ skb_payload_len_frag(out));
-	} else {
-		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len) + sizeof(*ip4_hdr));
-	}
-	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(ip6_hdr) : 0;
-	dont_fragment = df_always_on ? 1 : generate_df_flag(ip6_hdr);
+	ip4_hdr->tot_len = build_tot_len(in, out);
+	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(out) : 0;
+	dont_fragment = df_always_on ? 1 : generate_df_flag(out);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
 	/* The kernel already decreases the hop limit after prerouting so we don't have to do it. */
 	ip4_hdr->ttl = ip6_hdr->hop_limit;
@@ -277,7 +304,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 			return result;
 	}
 
-	if (!skb_is_inner(in)) {
+	if (skb_is_outer(in)) {
 		__u32 nonzero_location;
 		if (has_nonzero_segments_left(ip6_hdr, &nonzero_location)) {
 			log_debug("Packet's segments left field is nonzero.");
@@ -292,8 +319,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);
 
-		ip4_hdr->tot_len = cpu_to_be16(be16_to_cpu(ip6_hdr->payload_len)
-				- sizeof(*ip6_frag_hdr) + sizeof(*ip4_hdr));
+		/* The logic above already includes the frag header in tot_len. */
 		ip4_hdr->id = generate_ipv4_id_dofrag(ip6_frag_hdr);
 		ip4_hdr->frag_off = build_ipv4_frag_off_field(0,
 				is_more_fragments_set_ipv6(ip6_frag_hdr),
@@ -520,7 +546,7 @@ static bool is_csum4_computable(struct sk_buff *skb)
 	if (!is_first_fragment_ipv4(ip_hdr(skb)))
 		return false; /* Because there's no checksum to compute. */
 
-	if (!skb_is_inner(skb))
+	if (skb_is_outer(skb))
 		return true; /* Because we have access to the entire packet. This is the typical path. */
 
 	if (is_truncated_ipv4(skb))
@@ -554,7 +580,7 @@ static int update_icmp4_csum(struct sk_buff *in, struct sk_buff *out)
 	/*
 	 * Remove the ICMPv6 header.
 	 * I'm working on a copy because I need to zero out its checksum.
-	 * If I did that directly on the skb, I suspect I'd need to make it writable first.
+	 * If I did that directly on the skb, I'd need to make it writable first.
 	 */
 	memcpy(&copy_hdr, in_icmp, sizeof(*in_icmp));
 	copy_hdr.icmp6_cksum = 0;
@@ -578,6 +604,7 @@ static int compute_icmp4_csum(struct sk_buff *out)
 {
 	struct icmphdr *hdr = icmp_hdr(out);
 
+	/* This function only gets called for ICMP error checksums, so skb_datagram_len() is fine. */
 	hdr->checksum = 0;
 	hdr->checksum = csum_fold(skb_checksum(out, skb_transport_offset(out),
 			skb_datagram_len(out), 0));

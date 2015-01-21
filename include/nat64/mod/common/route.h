@@ -18,4 +18,10 @@ int route4(struct sk_buff *skb);
  */
 int route6(struct sk_buff *skb);
 
+/**
+ * Protocol independent version of the previous two functions.
+ * ie. it's just a wrapper.
+ */
+int route(struct sk_buff *skb);
+
 #endif /* _JOOL_MOD_ROUTE_H */

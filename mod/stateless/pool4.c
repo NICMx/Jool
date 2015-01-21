@@ -1,24 +1,3 @@
-/*
- * TODO
- *
- *
- *In RFC 792, the "original datagram" field includes the IP
-   header plus the next eight octets of the original datagram.
-   [RFC1812] extends the "original datagram" field to contain as many
-   octets as possible without causing the ICMP message to exceed the
-   minimum IPv4 reassembly buffer size (i.e., 576 octets).
-
-In RFC
-   4443, the "original datagram" field always contained as many octets
-   as possible without causing the ICMP message to exceed the minimum
-   IPv6 MTU (i.e., 1280 octets)
-
-
-      - ICMPv6 Packet Too Big (type = 2)
-
-      - ICMPv6 Parameter Problem (type = 4)
- */
-
 #include "nat64/mod/stateless/pool4.h"
 
 #include <linux/rculist.h>

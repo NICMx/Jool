@@ -282,6 +282,8 @@ int fragdb_init(void)
 static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *frag,
 		struct frag_hdr *hdr_frag)
 {
+	unsigned int payload_len;
+
 	if (buffer->skb) {
 		if (WARN(is_first_fragment_ipv6(hdr_frag), "Non-first fragment's offset is zero." COMM_MSG))
 			return -EINVAL;
@@ -295,10 +297,11 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
 		buffer->next_slot = &frag->next;
 
 		/* Why this? Dunno, both defrags do it when they support frag_list. */
-		buffer->skb->len += skb_payload_len_frag(frag);
-		buffer->skb->data_len += skb_payload_len_frag(frag);
+		payload_len = skb_payload_len_frag(frag);
+		buffer->skb->len += payload_len;
+		buffer->skb->data_len += payload_len;
 		buffer->skb->truesize += frag->truesize;
-		skb_pull(frag, skb_l3hdr_len(frag) + skb_l4hdr_len(frag));
+		skb_pull(frag, skb_hdrs_len(frag));
 
 	} else {
 		if (WARN(!is_first_fragment_ipv6(hdr_frag), "First fragment's offset is nonzero." COMM_MSG))

@@ -1,5 +1,6 @@
 #include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/route.h"
 
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 {
@@ -14,7 +15,14 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 			skb_l4_proto(out_skb));
 #endif
 
-	/* TODO validate? */
+	if (!out_skb->dev) {
+		error = route(out_skb);
+		if (error) {
+			kfree_skb(out_skb);
+			return VER_DROP;
+		}
+	}
+
 	log_debug("Sending skb via device '%s'.", out_skb->dev->name);
 
 	skb_clear_cb(out_skb);

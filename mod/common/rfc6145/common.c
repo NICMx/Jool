@@ -3,7 +3,6 @@
 #include "nat64/mod/common/rfc6145/common.h"
 #include "nat64/mod/common/rfc6145/4to6.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
-#include "nat64/mod/common/route.h"
 #include <linux/icmp.h>
 
 struct backup_skb {
@@ -22,19 +21,16 @@ static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT] = {
 			.skb_create_fn = ttp64_create_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_tcp,
-			.route_fn = route4
 		},
 		{
 			.skb_create_fn = ttp64_create_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_udp,
-			.route_fn = route4
 		},
 		{
 			.skb_create_fn = ttp64_create_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_icmp,
-			.route_fn = route4
 		}
 	},
 	{ /* IPv4 */
@@ -42,19 +38,16 @@ static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT] = {
 			.skb_create_fn = ttp46_create_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_tcp,
-			.route_fn = route6
 		},
 		{
 			.skb_create_fn = ttp46_create_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_udp,
-			.route_fn = route6
 		},
 		{
 			.skb_create_fn = ttp46_create_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_icmp,
-			.route_fn = route6
 		}
 	}
 };
