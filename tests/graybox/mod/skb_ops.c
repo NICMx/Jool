@@ -9,6 +9,15 @@
 #include "ipv6_hdr_iterator.h"
 #include "send_packet.h"
 
+struct bytes {
+	/* The byte position to skip at skb_comparison(). */
+	__u16 *array;
+	/* The number of integers in the array. */
+	__u16 count;
+};
+
+static struct bytes *bytes_to_skip;
+
 static bool has_same_ipv6_address(struct ipv6hdr *expected, struct ipv6hdr *actual)
 {
 	int gap;
@@ -159,8 +168,9 @@ bool skb_has_same_address(struct sk_buff *expected, struct sk_buff *actual)
 
 bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 {
+	struct bytes skip_byte;
 	unsigned char *expected_ptr, *actual_ptr;
-	unsigned int i, min_len;
+	unsigned int i, min_len, skip_count;
 	int errors = 0;
 
 	log_debug("Comparing incoming packet");
@@ -173,6 +183,10 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 	actual_ptr = (unsigned char *) skb_network_header(actual);
 	min_len = (expected->len < actual->len) ? expected->len : actual->len;
 
+	rcu_read_lock_bh();
+	skip_byte = *(rcu_dereference_bh(bytes_to_skip));
+	skip_count = 0;
+
 	for (i = 0; i < min_len; i++) {
 		/*
 		 * Skip the fragment identifier on IPv6 packets.
@@ -184,6 +198,11 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 				&& ipv6_hdr(actual)->nexthdr == NEXTHDR_FRAGMENT)
 			continue;
 
+		if (skip_count < skip_byte.count && skip_byte.array[skip_count] == i) {
+			skip_count++;
+			continue;
+		}
+
 		if (expected_ptr[i] != actual_ptr[i]) {
 			log_err("Packets differ at byte %u. Expected: 0x%x; actual: 0x%x.",
 					i, expected_ptr[i], actual_ptr[i]);
@@ -193,6 +212,7 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 
 	*err += errors;
 
+	rcu_read_unlock_bh();
 	return !errors;
 }
 
@@ -201,3 +221,145 @@ void skb_free(struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+int skbops_init(void)
+{
+	bytes_to_skip = kmalloc(sizeof(struct bytes), GFP_ATOMIC);
+	if (!bytes_to_skip)
+		return -ENOMEM;
+
+	bytes_to_skip->array = NULL;
+	bytes_to_skip->count = 0;
+
+	return 0;
+}
+
+void skbops_destroy(void)
+{
+	if (bytes_to_skip->array)
+		kfree(bytes_to_skip->array);
+
+	kfree(bytes_to_skip);
+}
+
+int update_bytes_array(void *values, size_t size)
+{
+	struct bytes *tmp, *old;
+	__u16 *list = values;
+	unsigned int count = size / 2;
+	unsigned int i, j;
+
+	if (!values) {
+		log_err("Values cannot be NULL");
+		return -EINVAL;
+	}
+
+	if (count == 0) {
+		log_err("The bytes list received from userspace is empty.");
+		return -EINVAL;
+	}
+	if (size % 2 == 1) {
+		log_err("Expected an array of 16-bit integers; got an uneven number of bytes.");
+		return -EINVAL;
+	}
+
+	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp) {
+		log_err("Could not allocate struct bytes.");
+		return -ENOMEM;
+	}
+
+	old = bytes_to_skip;
+	*tmp = *bytes_to_skip;
+
+	/* Remove zeroes and duplicates. */
+	for (i = 0, j = 1; j < count; j++) {
+		if (list[j] == 0)
+			break;
+		if (list[i] != list[j]) {
+			i++;
+			list[i] = list[j];
+		}
+	}
+
+	count = i + 1;
+	size = count * sizeof(*list);
+
+	/* Update. */
+	tmp->array = kmalloc(size, GFP_KERNEL);
+	if (!tmp->array) {
+		log_err("Could not allocate the byte array list.");
+		return -ENOMEM;
+	}
+	memcpy(tmp->array, list, size);
+	tmp->count = count;
+
+	rcu_assign_pointer(bytes_to_skip, tmp);
+	synchronize_rcu_bh();
+
+	if (old->array && tmp->array != old->array)
+		kfree(old->array);
+
+	kfree(old);
+	return 0;
+}
+
+int flush_bytes_array(void)
+{
+	struct bytes *tmp, *old;
+
+	rcu_read_lock_bh();
+	if (!(rcu_dereference_bh(bytes_to_skip)->array)) {
+		log_info("Byte array list is empty nothing to flush");
+		rcu_read_unlock_bh();
+		return 0;
+	}
+	rcu_read_unlock_bh();
+
+	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp) {
+		log_err("Could not allocate struct bytes.");
+		return -ENOMEM;
+	}
+
+	old = bytes_to_skip;
+	*tmp = *bytes_to_skip;
+
+	/* Delete. */
+	tmp->array = NULL;
+	tmp->count = 0;
+
+	rcu_assign_pointer(bytes_to_skip, tmp);
+	synchronize_rcu_bh();
+
+	if (old->array)
+		kfree(old->array);
+
+	kfree(old);
+	return 0;
+}
+
+int display_bytes_array(void)
+{
+	struct bytes tmp;
+	int i;
+
+	rcu_read_lock_bh();
+	tmp = *rcu_dereference(bytes_to_skip);
+
+	if (!tmp.count) {
+		log_info("Byte array list is empty");
+		goto end;
+	}
+
+	for (i = 0; i < tmp.count; i++) {
+		if (i + 1 != tmp.count)
+			printk("%u, ", tmp.array[i]);
+		else
+			printk("%u\n", tmp.array[i]);
+	}
+	log_info("Array length: %d", tmp.count);
+
+end:
+	rcu_read_unlock_bh();
+	return 0;
+}

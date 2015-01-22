@@ -1,6 +1,7 @@
 #include "types.h"
 #include "config.h"
 #include "receiver.h"
+#include "skb_ops.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -70,6 +71,10 @@ static int __init graybox_init(void)
 	if (error)
 		goto receiver_failure;
 
+	error = skbops_init();
+	if (error)
+		goto skbops_failure;
+
 	/* Hook Jool to Netfilter. */
 	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
 		nfho[i].owner = NULL;
@@ -84,7 +89,11 @@ static int __init graybox_init(void)
 	log_info(MODULE_NAME " module inserted.");
 	return error;
 
+
 nf_register_hooks_failure:
+	skbops_destroy();
+
+skbops_failure:
 	receiver_destroy();
 
 receiver_failure:
@@ -99,6 +108,7 @@ static void __exit graybox_exit(void)
 	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
+	skbops_destroy();
 	receiver_destroy();
 	config_destroy();
 

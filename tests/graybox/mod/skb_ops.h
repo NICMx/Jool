@@ -28,4 +28,12 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err);
 void skb_free(struct sk_buff *skb);
 
 
+
+int skbops_init(void);
+
+void skbops_destroy(void);
+int update_bytes_array(void *values, size_t size);
+int flush_bytes_array(void);
+int display_bytes_array(void);
+
 #endif /* FRAGS_MOD_SKB_OPS_H */

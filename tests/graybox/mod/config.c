@@ -175,6 +175,11 @@ static int handle_receiver_packet_order(void *pkt, u32 pkt_len)
 	return error;
 }
 
+static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload_len)
+{
+	return respond_single_msg(nl_hdr_in, MSG_TYPE_GRAYBOX, payload, payload_len);
+}
+
 /**
  * Gets called by "netlink_rcv_skb" when the userspace application wants to
  * interact with us.
@@ -188,38 +193,77 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 	struct request_hdr *hdr;
 	int error;
 
-	log_debug("%u %d", nl_hdr->nlmsg_type, MSG_TYPE_FRAGS);
+	/* log_debug("%u %d", nl_hdr->nlmsg_type, MSG_TYPE_GRAYBOX);*/
 
-	if (nl_hdr->nlmsg_type != MSG_TYPE_FRAGS) {
-		log_debug("Expecting %#x, got %#x.", MSG_TYPE_FRAGS,
+	if (nl_hdr->nlmsg_type != MSG_TYPE_GRAYBOX) {
+		log_debug("Expecting %#x, got %#x.", MSG_TYPE_GRAYBOX,
 				nl_hdr->nlmsg_type);
 		return -EINVAL;
 	}
 
-	log_debug(" **** Received a Netlink message. ****");
+	log_debug(" ********* Received a Netlink message. *********");
 
 	hdr = NLMSG_DATA(nl_hdr);
-	switch (hdr->operation) {
-	case OP_SENDER:
-		/*print_pkt(hdr + 1);*/
-		log_debug("OP_SENDER ");
-		error = handle_send_packet_order(hdr + 1, hdr->len);
+	switch (hdr->mode) {
+	case MODE_RECEIVER:
+		switch (hdr->operation) {
+		case OP_DISPLAY:
+			log_debug("showing Receiver stats.");
+			error = receiver_display_stats();
+			break;
+		case OP_ADD:
+			log_debug("Adding an SKB from user space.");
+			error = handle_receiver_packet_order(hdr + 1, hdr->len);
+			break;
+		case OP_FLUSH:
+			log_debug("Flushing the skb database.");
+			error = receiver_flush_db();
+			break;
+		default:
+			log_err("Unknown operation %u", hdr->operation);
+			error = -EINVAL;
+			break;
+		}
 		break;
-	case OP_RECEIVER:
-		/*print_pkt(hdr + 1);*/
-		log_debug("OP_RECEIVER ");
-		error = handle_receiver_packet_order(hdr + 1, hdr->len);
+	case MODE_SENDER:
+		switch (hdr->operation) {
+		case OP_ADD:
+			log_debug("Sending an SKB from user space.");
+			error = handle_send_packet_order(hdr + 1, hdr->len);
+			break;
+		default:
+			log_err("Unknown operation %u", hdr->operation);
+			error = -EINVAL;
+			break;
+		}
 		break;
-	case OP_FLUSH_DB:
-		log_debug("OP FLUSH ");
-		error = receiver_flush_db();
+	case MODE_GENERAL:
+		switch (hdr->operation) {
+		case OP_DISPLAY:
+			log_debug("Showing the byte arrays.");
+
+			error = display_bytes_array();
+			break;
+		case OP_ADD:
+			log_debug("Adding byte arrays.");
+			error = update_bytes_array(hdr + 1, hdr->len);
+			break;
+		case OP_FLUSH:
+			log_debug("Flushing the byte arrays.");
+			error = flush_bytes_array();
+			break;
+		default:
+			log_err("Unknown operation %u", hdr->operation);
+			error = -EINVAL;
+			break;
+		}
 		break;
 	default:
-		log_err("Unknown operation %u", hdr->operation);
+		log_err("Unknown mode %u", hdr->mode);
 		error = -EINVAL;
 		break;
 	}
-	log_debug(" *************************************");
+	log_debug(" *********************************************** ");
 
 	return respond_error(nl_hdr, error);
 }
