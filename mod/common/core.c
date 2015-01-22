@@ -114,21 +114,10 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
-	if (WARN(skb_shared(skb), "The packet is shared!")) {
-		/*
-		 * Apparently, as of 2007, Netfilter modules can assume they are the sole owners of their
-		 * skbs.
-		 * I can sort of confirm it by noticing that if it's not the case, editing the sk_buff
-		 * structs themselves would be impossible (since they'd have to operate on a clone, and
-		 * there's no way to bounce back that clone to Netfilter).
-		 * Therefore, I think this WARN is fair.
-		 */
-		return NF_DROP;
-	}
-
-	error = skb_init_cb_ipv4(skb);
+	error = skb_init_cb_ipv4(skb); /* Reminder: This function might change pointers. */
 	if (error)
 		return NF_DROP;
+
 
 	error = validate_icmp4_csum(skb);
 	if (error) {
@@ -155,12 +144,10 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
-	if (WARN(skb_shared(skb), "The packet is shared!"))
-		return NF_DROP; /* See the corresponding comment in core_4to6(). */
-
-	error = skb_init_cb_ipv6(skb);
+	error = skb_init_cb_ipv6(skb); /* Reminder: This function might change pointers. */
 	if (error)
 		return NF_DROP;
+
 
 #ifdef STATEFUL
 	result = fragdb_handle(&skb);

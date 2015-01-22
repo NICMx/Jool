@@ -288,11 +288,6 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
 		if (WARN(is_first_fragment_ipv6(hdr_frag), "Non-first fragment's offset is zero." COMM_MSG))
 			return -EINVAL;
 
-		/*
-		 * TODO (issue #41) we're editing the skbs, including the shared area, which means we
-		 * should probably be cloning. Do it later; I can test as it is.
-		 */
-
 		*buffer->next_slot = frag;
 		buffer->next_slot = &frag->next;
 
@@ -306,6 +301,25 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
 	} else {
 		if (WARN(!is_first_fragment_ipv6(hdr_frag), "First fragment's offset is nonzero." COMM_MSG))
 			return -EINVAL;
+
+		/*
+		 * TODO (3.3.1) I'm not exactly sure pskb_expand_head() can be applied here.
+		 * I decided to leave it out of milestone 3.3.0 because it seems like such a ridiculous
+		 * corner case scenario and we have too many variables to test as it is.
+		 * I learned about pskb_expand_head() in the defrag modules.
+		 */
+		if (skb_cloned(frag)
+			/*	&& pskb_expand_head(frag, 0, 0, GFP_ATOMIC)
+				&& skb_init_cb_ipv6(skb) */
+				) {
+			/*
+			 * If this is giving you trouble, try uncommenting the conditions above.
+			 * The translation might then be successful.
+			 * YOU WILL HAVE TO TEST IT, because we haven't.
+			 */
+			log_debug("Packet is cloned, so I can't edit its shared area. Canceling translation.");
+			return -EINVAL;
+		}
 
 		buffer->skb = frag;
 		buffer->next_slot = &skb_shinfo(frag)->frag_list;
@@ -367,6 +381,8 @@ verdict fragdb_handle(struct sk_buff **skb)
 	return VER_DROP;
 #endif
 
+	log_debug("Adding fragment to database.");
+
 	error = validate_skb(*skb);
 	if (error)
 		return VER_DROP;
@@ -418,6 +434,7 @@ verdict fragdb_handle(struct sk_buff **skb)
 	getnstimeofday(&skb_jcb(*skb_out)->start_time);
 #endif
 
+	log_debug("All the fragments are now available. Resuming translation...");
 	return VER_CONTINUE;
 
 lock_fail:

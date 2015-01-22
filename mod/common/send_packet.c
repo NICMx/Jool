@@ -1,4 +1,7 @@
 #include "nat64/mod/common/send_packet.h"
+
+#include <linux/version.h>
+
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/route.h"
 
@@ -29,8 +32,12 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 	skb_walk_frags(out_skb, skb)
 		skb_clear_cb(skb);
 
-	/* TODO (issue #41) newer kernels don't have local_df. Review. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+	out_skb->ignore_df = true; /* FFS, kernel. */
+#else
 	out_skb->local_df = true; /* FFS, kernel. */
+#endif
+
 	error = dst_output(out_skb); /* Implicit kfree_skb(out_skb) goes here. */
 	if (error) {
 		log_debug("dst_output() returned errcode %d.", error);

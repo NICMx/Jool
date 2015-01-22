@@ -7,6 +7,7 @@
 #include "nat64/mod/common/log_time.h"
 #endif
 #include "nat64/mod/stateless/eam.h"
+#include "nat64/mod/stateless/pool4.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -16,12 +17,16 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
-MODULE_DESCRIPTION(MODULE_NAME " (RFC 6146)");
+MODULE_DESCRIPTION(MODULE_NAME " (RFC 6145)");
 
 static char *pool6[5];
 static int pool6_size;
 module_param_array(pool6, charp, &pool6_size, 0);
 MODULE_PARM_DESC(pool6, "The IPv6 pool's prefixes.");
+static char *pool4[5];
+static int pool4_size;
+module_param_array(pool4, charp, &pool4_size, 0);
+MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -83,6 +88,11 @@ static int __init nat64_init(void)
 
 	log_debug("Inserting " MODULE_NAME "...");
 
+	if (pool4_size == 0) {
+		log_err("Missing argument 'pool4' (modprobe jool-stateless pool4=<addrs>).");
+		return -EINVAL;
+	}
+
 	/* Init Jool's submodules. */
 	error = config_init();
 	if (error)
@@ -101,6 +111,9 @@ static int __init nat64_init(void)
 	error = pool6_init(pool6, pool6_size);
 	if (error)
 		goto pool6_failure;
+	error = pool4_init(pool4, pool4_size);
+	if (error)
+		goto pool4_failure;
 
 	/* Hook Jool to Netfilter. */
 	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
@@ -117,6 +130,9 @@ static int __init nat64_init(void)
 	return error;
 
 nf_register_hooks_failure:
+	pool4_destroy();
+
+pool4_failure:
 	pool6_destroy();
 
 pool6_failure:
@@ -143,6 +159,7 @@ static void __exit nat64_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	/* Deinitialize the submodules. */
+	pool4_destroy();
 	pool6_destroy();
 	nlhandler_destroy();
 #ifdef BENCHMARK

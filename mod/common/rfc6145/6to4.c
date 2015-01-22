@@ -529,7 +529,7 @@ static bool is_truncated_ipv4(struct sk_buff *skb)
 		return false;
 	case L4PROTO_UDP:
 		/*
-		 * TODO (3.2) The new testing framework discovered this to be wrong.
+		 * TODO (3.2) The new testing framework discovered this to be wrong. I fixed it in Jool 3.3.
 		 * I don't know since when has it been wrong, but chances are we should release a new 3.2.
 		 * The problem is also present in the 4 to 6 direction.
 		 */

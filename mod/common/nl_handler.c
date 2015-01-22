@@ -99,8 +99,6 @@ static int verify_superpriv(void)
 	return 0;
 }
 
-#ifdef STATEFUL
-
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
@@ -266,6 +264,8 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
+
+#ifdef STATEFUL
 
 static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 {
@@ -587,11 +587,11 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	request = nat64_hdr + 1;
 
 	switch (nat64_hdr->mode) {
-#ifdef STATEFUL
 	case MODE_POOL6:
 		return handle_pool6_config(nl_hdr, nat64_hdr, request);
 	case MODE_POOL4:
 		return handle_pool4_config(nl_hdr, nat64_hdr, request);
+#ifdef STATEFUL
 	case MODE_BIB:
 		return handle_bib_config(nl_hdr, nat64_hdr, request);
 	case MODE_SESSION:

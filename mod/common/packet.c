@@ -29,42 +29,90 @@ static bool icmp6_has_inner_packet(__u8 icmp6_type)
 	return is_icmp6_error(icmp6_type);
 }
 
-static int init_l4(struct sk_buff *skb, u8 protocol, bool is_first_fragment)
+/**
+ * Apparently, as of 2007, Netfilter modules can assume they are the sole owners of their
+ * skbs (http://lists.openwall.net/netdev/2007/10/14/13).
+ * I can sort of confirm it by noticing that if it's not the case, editing the sk_buff
+ * structs themselves would be overly cumbersome (since they'd have to operate on a clone,
+ * and bouncing the clone back to Netfilter is kind of outside Netfilter's design).
+ * This is relevant because we need to call pskb_may_pull(), which might eventually call
+ * pskb_expand_head(), and that panics if the packet is shared.
+ * Therefore, I think this validation (with messy WARN included) is fair.
+ */
+static int fail_if_shared(struct sk_buff *skb)
+{
+	if (WARN(skb_shared(skb), "The packet is shared!"))
+		return -EINVAL;
+
+	/*
+	 * Keep in mind... "shared" and "cloned" are different concepts.
+	 * We know the sk_buff struct is unique, but somebody else might have an active pointer towards
+	 * the data area.
+	 */
+	return 0;
+}
+
+/**
+ * "call pskb_may_pull(skb, len) then restore the pointers that maybe went kaboom."
+ */
+static bool may_pull_then_fix(struct sk_buff *skb, unsigned int len,
+		int l4_offset, unsigned int l4hdr_len)
+{
+	if (!pskb_may_pull(skb, len))
+		return false;
+
+	skb_set_transport_header(skb, l4_offset);
+	skb_jcb(skb)->payload = skb_transport_header(skb) + l4hdr_len;
+
+	return true;
+}
+
+/**
+ * "Call may_pull_then_fix(), assume we're pulling an outer layer 4 header."
+ *
+ * ("assume we're pulling an outer layer 4 header" can also be described as
+ * "assume len is 'l4_offset + l4hdr_len' and 'l4_offset = skb_l3hdr_len(skb)'".)
+ */
+static bool may_pull_l4(struct sk_buff *skb, unsigned int l4hdr_len)
+{
+	unsigned int l3hdr_len = skb_l3hdr_len(skb);
+	return may_pull_then_fix(skb, l3hdr_len + l4hdr_len, l3hdr_len, l4hdr_len);
+}
+
+/**
+ * "Call may_pull_then_fix(), the new pointers should simply be adapted from the old packet's."
+ */
+static bool may_pull_keep(struct sk_buff *skb, unsigned int len)
+{
+	return may_pull_then_fix(skb, len, skb_l3hdr_len(skb), skb_l4hdr_len(skb));
+}
+
+static int init_l4(struct sk_buff *skb, __u8 protocol, bool is_first_fragment)
 {
 	struct jool_cb *cb = skb_jcb(skb);
-	int error = 0;
-
-	cb->payload = skb_transport_header(skb);
 
 	switch (protocol) {
 	case IPPROTO_TCP:
 		cb->l4_proto = L4PROTO_TCP;
 		if (is_first_fragment) {
-			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + sizeof(struct tcphdr)))
+			if (!may_pull_l4(skb, sizeof(struct tcphdr)))
 				goto truncated;
-			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + tcp_hdrlen(skb)))
+			if (!may_pull_l4(skb, tcp_hdrlen(skb)))
 				goto truncated;
-			cb->payload += tcp_hdrlen(skb);
 		}
 		break;
 
 	case IPPROTO_UDP:
 		cb->l4_proto = L4PROTO_UDP;
-		if (is_first_fragment) {
-			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + sizeof(struct udphdr)))
-				goto truncated;
-			cb->payload += sizeof(struct udphdr);
-		}
+		if (is_first_fragment && !may_pull_l4(skb, sizeof(struct udphdr)))
+			goto truncated;
 		break;
 
 	case IPPROTO_ICMP:
 	case NEXTHDR_ICMP:
 		cb->l4_proto = L4PROTO_ICMP;
-		if (is_first_fragment){
-			if (!pskb_may_pull(skb, skb_l3hdr_len(skb) + sizeof(struct icmphdr)))
-				goto truncated;
-			cb->payload += sizeof(struct icmphdr);
-		}
+		if (is_first_fragment && !may_pull_l4(skb, sizeof(struct icmphdr)))
+			goto truncated;
 		break;
 
 	default:
@@ -74,7 +122,7 @@ static int init_l4(struct sk_buff *skb, u8 protocol, bool is_first_fragment)
 		return -EINVAL;
 	}
 
-	return error;
+	return 0;
 
 truncated:
 	log_debug("Packet is too small to contain its layer-4 header (proto %u).", protocol);
@@ -86,18 +134,18 @@ static int init_l4_inner(struct sk_buff *skb, u8 protocol, unsigned int offset)
 {
 	switch (protocol) {
 	case IPPROTO_TCP:
-		if (!pskb_may_pull(skb, offset + sizeof(struct tcphdr)))
+		if (!may_pull_keep(skb, offset + sizeof(struct tcphdr)))
 			goto truncated;
 		break;
 
 	case IPPROTO_UDP:
-		if (!pskb_may_pull(skb, offset + sizeof(struct udphdr)))
+		if (!may_pull_keep(skb, offset + sizeof(struct udphdr)))
 			goto truncated;
 		break;
 
 	case IPPROTO_ICMP:
 	case NEXTHDR_ICMP:
-		if (!pskb_may_pull(skb, offset + sizeof(struct icmphdr)))
+		if (!may_pull_keep(skb, offset + sizeof(struct icmphdr)))
 			goto truncated;
 		break;
 
@@ -123,10 +171,11 @@ truncated:
  * Warning: Result is an inverted boolean. Zero means "no problem", nonzero is an error code and
  * therefore means "no".
  */
-static int may_pull_ipv6_hdrs(struct sk_buff *skb)
+static int may_pull_ipv6_hdrs(struct sk_buff *skb, bool restore_ptrs)
 {
 	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 	int offset;
+	bool pulled;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
 	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
@@ -140,7 +189,8 @@ static int may_pull_ipv6_hdrs(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	if (!pskb_may_pull(skb, offset)) {
+	pulled = restore_ptrs ? may_pull_keep(skb, offset) : pskb_may_pull(skb, offset);
+	if (!pulled) {
 		log_debug("Could not 'pull' the extension IPv6 headers out of the skb.");
 		return -EINVAL;
 	}
@@ -178,7 +228,7 @@ static int iterate_till_end(struct hdr_iterator *iterator, struct frag_hdr **fhd
 
 static int init_inner_packet6(struct sk_buff *skb)
 {
-	struct ipv6hdr *hdr6 = skb_jcb(skb)->payload;
+	struct ipv6hdr *hdr6;
 	struct frag_hdr *hdr_frag;
 	struct icmp6hdr *hdr_icmp;
 	struct hdr_iterator iterator;
@@ -187,18 +237,20 @@ static int init_inner_packet6(struct sk_buff *skb)
 
 	log_debug("Validating inner IPv6 packet.");
 
-	if (!pskb_may_pull(skb, offset + sizeof(struct ipv6hdr))) {
+	if (!may_pull_keep(skb, offset + sizeof(struct ipv6hdr))) {
 		log_debug("Length is too small to contain a basic IPv6 header.");
 		goto truncated;
 	}
+	hdr6 = skb_jcb(skb)->payload;
 	if (unlikely(hdr6->version != 6)) {
 		log_debug("Version is not 6.");
 		goto inhdr;
 	}
-	error = may_pull_ipv6_hdrs(skb);
+	error = may_pull_ipv6_hdrs(skb, true);
 	if (unlikely(error))
 		goto truncated;
 
+	hdr6 = skb_jcb(skb)->payload;
 	hdr_iterator_init_truncated(&iterator, hdr6, skb_headlen(skb) - offset);
 	error = iterate_till_end(&iterator, &hdr_frag);
 	if (unlikely(error))
@@ -210,12 +262,13 @@ static int init_inner_packet6(struct sk_buff *skb)
 		goto inhdr;
 	}
 
-	error = init_l4_inner(skb, iterator.hdr_type, iterator.data - (void *) ipv6_hdr(skb));
+	offset = iterator.data - (void *) ipv6_hdr(skb);
+	error = init_l4_inner(skb, iterator.hdr_type, offset);
 	if (unlikely(error))
 		return error;
 
 	if (iterator.hdr_type == L4PROTO_ICMP) {
-		hdr_icmp = iterator.data;
+		hdr_icmp = ((void *) ipv6_hdr(skb)) + offset;
 		if (unlikely(icmp6_has_inner_packet(hdr_icmp->icmp6_type))) {
 			log_debug("Packet inside packet inside packet.");
 			error = -EINVAL;
@@ -236,13 +289,14 @@ inhdr:
 
 static int __skb_init_cb_ipv6(struct sk_buff *skb, bool is_fragment)
 {
-	struct jool_cb *cb = skb_jcb(skb);
+	struct jool_cb *cb;
 	struct frag_hdr *fragment_hdr;
 	struct hdr_iterator iterator;
 	int l4hdr_offset;
 	int error = -EINVAL;
 
 #ifdef BENCHMARK
+	cb = skb_jcb(skb);
 	getnstimeofday(&cb->start_time);
 #endif
 
@@ -251,7 +305,7 @@ static int __skb_init_cb_ipv6(struct sk_buff *skb, bool is_fragment)
 
 	if (unlikely(skb->len != sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len)))
 		goto inhdr;
-	error = may_pull_ipv6_hdrs(skb);
+	error = may_pull_ipv6_hdrs(skb, false);
 	if (unlikely(error))
 		goto truncated;
 
@@ -261,6 +315,7 @@ static int __skb_init_cb_ipv6(struct sk_buff *skb, bool is_fragment)
 	if (unlikely(error))
 		goto inhdr;
 
+	cb = skb_jcb(skb);
 	cb->l3_proto = L3PROTO_IPV6;
 	cb->is_inner = 0;
 	cb->is_fragment = is_fragment;
@@ -288,6 +343,15 @@ inhdr:
 int skb_init_cb_ipv6(struct sk_buff *skb)
 {
 	int error;
+
+	error = fail_if_shared(skb);
+	if (error)
+		return error;
+
+	/*
+	 * Careful in this function and subfunctions. pskb_may_pull() might change pointers,
+	 * so you generally don't want to store them.
+	 */
 
 	error = __skb_init_cb_ipv6(skb, skb_shinfo(skb)->frag_list != NULL);
 	if (unlikely(error))
@@ -322,7 +386,7 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 
 static int init_inner_packet4(struct sk_buff *skb)
 {
-	struct iphdr *hdr4 = skb_jcb(skb)->payload;
+	struct iphdr *hdr4;
 	struct icmphdr *l4_hdr;
 	unsigned int l3_hdr_len;
 	unsigned int offset = skb_hdrs_len(skb);
@@ -330,10 +394,12 @@ static int init_inner_packet4(struct sk_buff *skb)
 
 	log_debug("Validating IPv4 inner packet.");
 
-	if (!pskb_may_pull(skb, offset + sizeof(struct iphdr))) {
+	if (!may_pull_keep(skb, offset + sizeof(struct iphdr))) {
 		log_debug("Inner packet is too small to contain a basic IPv4 header.");
 		goto truncated;
 	}
+
+	hdr4 = skb_jcb(skb)->payload;
 	if (unlikely(hdr4->version != 4)) {
 		log_debug("Inner packet is not IPv4.");
 		goto inhdr;
@@ -345,10 +411,12 @@ static int init_inner_packet4(struct sk_buff *skb)
 
 	l3_hdr_len = 4 * hdr4->ihl;
 
-	if (!pskb_may_pull(skb, l3_hdr_len)) {
+	if (!may_pull_keep(skb, l3_hdr_len)) {
 		log_debug("Inner packet is too small to contain its IPv4 header.");
 		goto truncated;
 	}
+
+	hdr4 = skb_jcb(skb)->payload;
 	if (unlikely(ip_fast_csum((u8 *) hdr4, hdr4->ihl))) {
 		log_debug("Inner packet's header checksum doesn't match.");
 		goto inhdr;
@@ -366,6 +434,7 @@ static int init_inner_packet4(struct sk_buff *skb)
 	if (unlikely(error))
 		return error;
 
+	hdr4 = skb_jcb(skb)->payload;
 	if (hdr4->protocol == IPPROTO_ICMP) {
 		l4_hdr = ((void *) hdr4) + l3_hdr_len;
 		if (unlikely(icmp4_has_inner_packet(l4_hdr->type))) {
@@ -386,9 +455,6 @@ inhdr:
 	return error;
 }
 
-/*
- * TODO (issue #41) how does pskb_may_pull() move the hdr pointers when sk_buff_data_t is a ptr?
- */
 static int __skb_init_cb_ipv4(struct sk_buff *skb, bool is_fragment)
 {
 	struct jool_cb *cb = skb_jcb(skb);
@@ -415,6 +481,15 @@ static int __skb_init_cb_ipv4(struct sk_buff *skb, bool is_fragment)
 int skb_init_cb_ipv4(struct sk_buff *skb)
 {
 	int error;
+
+	error = fail_if_shared(skb);
+	if (error)
+		return error;
+
+	/*
+	 * Careful in this function and subfunctions. pskb_may_pull() might change pointers,
+	 * so you generally don't want to store them.
+	 */
 
 	error = __skb_init_cb_ipv4(skb, skb_shinfo(skb)->frag_list != NULL);
 	if (unlikely(error))
@@ -644,15 +719,13 @@ void skb_print(struct sk_buff *skb)
 int validate_icmp6_csum(struct sk_buff *skb)
 {
 	struct ipv6hdr *ip6_hdr;
-	struct icmp6hdr *hdr_icmp6;
 	unsigned int datagram_len;
 	__sum16 csum;
 
 	if (skb_l4_proto(skb) != L4PROTO_ICMP)
 		return 0;
 
-	hdr_icmp6 = icmp6_hdr(skb);
-	if (!is_icmp6_error(hdr_icmp6->icmp6_type))
+	if (!is_icmp6_error(icmp6_hdr(skb)->icmp6_type))
 		return 0;
 
 	ip6_hdr = ipv6_hdr(skb);
@@ -669,14 +742,12 @@ int validate_icmp6_csum(struct sk_buff *skb)
 
 int validate_icmp4_csum(struct sk_buff *skb)
 {
-	struct icmphdr *hdr;
 	__sum16 csum;
 
 	if (skb_l4_proto(skb) != L4PROTO_ICMP)
 		return 0;
 
-	hdr = icmp_hdr(skb);
-	if (!is_icmp4_error(hdr->type))
+	if (!is_icmp4_error(icmp_hdr(skb)->type))
 		return 0;
 
 	csum = csum_fold(skb_checksum(skb, skb_transport_offset(skb), skb_datagram_len(skb), 0));

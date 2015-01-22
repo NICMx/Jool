@@ -463,6 +463,9 @@ static inline bool skb_is_icmp4_error(struct sk_buff *skb)
  *
  * Healthy layer 4 checksums and lengths are not guaranteed, but that's not an issue since this
  * kind of corruption should be translated along (see validate_icmp6_csum()).
+ *
+ * This function can change the packet's pointers. If you eg. stored a pointer to
+ * skb_network_header(skb), you will need to assign it again (by calling skb_network_header again).
  */
 int skb_init_cb_ipv6(struct sk_buff *skb);
 int skb_init_cb_ipv4(struct sk_buff *skb);

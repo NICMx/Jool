@@ -43,6 +43,8 @@ int pool4_init(char *pref_strs[], int pref_count)
 	INIT_LIST_HEAD(&pool);
 
 	for (i = 0; i < pref_count; i++) {
+		log_debug("Inserting address or prefix to the IPv4 pool: %s.", pref_strs[i]);
+
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 		if (!entry) {
 			error = -ENOMEM;
