@@ -128,3 +128,23 @@ int pool6_flush(bool quick)
 
 	return netlink_request(&request, hdr->length, pool6_flush_response, NULL);
 }
+
+static int pool6_update_response(struct nl_msg *msg, void *arg)
+{
+	log_info("The prefix was updated successfully.");
+	return 0;
+}
+
+int pool6_update(struct ipv6_prefix *prefix)
+{
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+
+	hdr->length = sizeof(request);
+	hdr->mode = MODE_POOL6;
+	hdr->operation = OP_UPDATE;
+	payload->add.prefix = *prefix;
+
+	return netlink_request(request, hdr->length, pool6_update_response, NULL);
+}

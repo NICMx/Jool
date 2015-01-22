@@ -71,7 +71,11 @@ enum config_mode {
  * Allowed operations for the mode mentioned in the name.
  * eg. BIB_OPS = Allowed operations for BIB requests.
  */
-#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+#ifdef STATEFUL
+	#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+#else
+	#define POOL6_OPS (OP_DISPLAY | OP_UPDATE)
+#endif
 #define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
@@ -113,18 +117,19 @@ enum config_operation {
 	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
 	#define FLUSH_MODES (MODE_POOL6 | MODE_POOL4)
+	#define UPDATE_MODES (MODE_GLOBAL)
 #else
 	#ifdef BENCHMARK
-		#define DISPLAY_MODES (MODE_EAMT | MODE_LOGTIME)
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_EAMT | MODE_LOGTIME)
 	#else
-		#define DISPLAY_MODES (MODE_EAMT)
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_EAMT)
 	#endif
 	#define COUNT_MODES (MODE_EAMT)
 	#define ADD_MODES (MODE_EAMT)
 	#define REMOVE_MODES (MODE_EAMT)
 	#define FLUSH_MODES (MODE_EAMT)
+	#define UPDATE_MODES (MODE_POOL6 | MODE_GLOBAL)
 #endif
-#define UPDATE_MODES (MODE_GLOBAL)
 /**
  * @}
  */
@@ -154,6 +159,10 @@ union request_pool6 {
 		/** The prefix the user wants to add to the pool. */
 		struct ipv6_prefix prefix;
 	} add;
+	struct {
+		/** The prefix the user wants to update to the pool. */
+		struct ipv6_prefix prefix;
+	} update;
 	struct {
 		/** The prefix the user wants to remove from the pool. */
 		struct ipv6_prefix prefix;

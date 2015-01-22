@@ -1,13 +1,13 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/nl_handler.h"
-#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
 #endif
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool4.h"
+#include "nat64/mod/stateless/pool6.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,10 +19,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION(MODULE_NAME " (RFC 6145)");
 
-static char *pool6[5];
-static int pool6_size;
-module_param_array(pool6, charp, &pool6_size, 0);
-MODULE_PARM_DESC(pool6, "The IPv6 pool's prefixes.");
+static char *pool6;
+module_param(pool6, charp, 0);
+MODULE_PARM_DESC(pool6, "The IPv6 prefix.");
 static char *pool4[5];
 static int pool4_size;
 module_param_array(pool4, charp, &pool4_size, 0);
@@ -108,7 +107,7 @@ static int __init nat64_init(void)
 	error = nlhandler_init();
 	if (error)
 		goto nlhandler_failure;
-	error = pool6_init(pool6, pool6_size);
+	error = pool6_init(pool6);
 	if (error)
 		goto pool6_failure;
 	error = pool4_init(pool4, pool4_size);

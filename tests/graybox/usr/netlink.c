@@ -33,7 +33,7 @@ int netlink_request(void *request, __u16 request_len,
 		goto fail_free;
 	}
 
-	error = nl_send_simple(sk, MSG_TYPE_FRAGS, 0, request, request_len);
+	error = nl_send_simple(sk, MSG_TYPE_GRAYBOX, 0, request, request_len);
 	if (error < 0) {
 		log_err("Could not send the request (is the module really up?).\n"
 				"Netlink error message: %s (Code %d)", nl_geterror(error),

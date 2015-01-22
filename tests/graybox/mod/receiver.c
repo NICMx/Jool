@@ -15,8 +15,6 @@
 static struct skb_user_db skb_ipv4_db;
 static struct skb_user_db skb_ipv6_db;
 
-static __u8 success_comparison;
-
 struct skb_user_db {
 	/* The root of the DB. */
 	struct list_head list;
@@ -120,7 +118,7 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 	 * to prevent compare non-expected packets, maybe send the name of the devices from the
 	 * user app.*/
 	/*if (dev_name_filter(skb->dev->name))
-		return NF_ACCEPT;*/
+		return NF_ACCEPT; */
 
 
 	spin_lock_bh(&skb_db->lock);
@@ -184,14 +182,16 @@ unsigned int receiver_incoming_skb6(struct sk_buff *skb)
 int receiver_init(void)
 {
 	skb_ipv4_db.counter = 0;
+	skb_ipv4_db.fail_comparison = 0;
+	skb_ipv4_db.success_comparison = 0;
 	INIT_LIST_HEAD(&skb_ipv4_db.list);
 	spin_lock_init(&skb_ipv4_db.lock);
 
 	skb_ipv6_db.counter = 0;
+	skb_ipv6_db.fail_comparison = 0;
+	skb_ipv6_db.success_comparison = 0;
 	INIT_LIST_HEAD(&skb_ipv6_db.list);
 	spin_lock_init(&skb_ipv6_db.lock);
-
-	success_comparison = 0;
 
 	return 0;
 }
@@ -230,4 +230,15 @@ void receiver_destroy(void)
 	log_info("skb remaining in db.: %u.", skb_ipv6_db.counter);
 }
 
-
+int receiver_display_stats(void)
+{
+	log_info("***** IPv4 Stats *****");
+	log_info("Successful comparisons: %u.", skb_ipv4_db.success_comparison);
+	log_info("Failed comparisons: %u.", skb_ipv4_db.fail_comparison);
+	log_info("skb remaining in db.: %u.", skb_ipv4_db.counter);
+	log_info("***** IPv6 Stats *****");
+	log_info("Successful comparisons: %u.", skb_ipv6_db.success_comparison);
+	log_info("Failed comparisons: %u.", skb_ipv6_db.fail_comparison);
+	log_info("skb remaining in db.: %u.", skb_ipv6_db.counter);
+	return 0;
+}

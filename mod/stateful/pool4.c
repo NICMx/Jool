@@ -170,7 +170,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 		}
 
 		log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
-		error = pool4_register(&addr);
+		error = pool4_add(&addr);
 		if (error)
 			goto fail;
 	}
@@ -223,7 +223,7 @@ int pool4_flush(void)
 	return 0;
 }
 
-int pool4_register(struct in_addr *addr)
+int pool4_add(struct in_addr *addr)
 {
 	struct pool4_node *new_node, *node;
 	int error;

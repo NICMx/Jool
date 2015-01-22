@@ -9,6 +9,43 @@
 
 #define MAX_PKT_SIZE 1024
 
+const char *argp_program_version = "1.1";
+const char *argp_program_bug_address = "jool@nic.mx";
+
+/* Used by main to communicate with parse_opt. */
+struct arguments
+{
+	enum config_operation ops;
+	enum config_mode mode;
+	__u8 flush;
+
+	struct {
+		char *file_name;
+		__u8 is_file_set;
+	} pkt ;
+
+	struct {
+		__u8 type;
+		size_t size;
+		void *data;
+	} global;
+};
+
+enum argp_flags {
+	/* Modes */
+	ARGP_RECEIVER = 'r',
+	ARGP_SENDER = 's',
+	ARGP_GENERAL = 'g',
+
+	/* Operations */
+	ARGP_DISPLAY = 'd',
+	ARGP_ADD = 'a',
+	ARGP_FLUSH = 'f',
+
+	ARGP_PKT = 1000,
+	ARGP_NUM_ARRAY = 1001,
+};
+
 static int create_packet(char *filename, void **pkt, __u32 *file_size)
 {
 	FILE *file;
@@ -44,22 +81,194 @@ static int create_packet(char *filename, void **pkt, __u32 *file_size)
 	return 0;
 }
 
+static int set_global_arg(struct arguments *args, __u8 type, size_t size, void *value)
+{
+	if (args->global.data) {
+		log_err("You can only edit one configuration value at a time.");
+		return -EINVAL;
+	}
+
+	args->global.type = type;
+	args->global.size = size;
+	args->global.data = malloc(size);
+	if (!args->global.data)
+		return -ENOMEM;
+	memcpy(args->global.data, value, size);
+
+	return 0;
+}
+
+static int verify_array_order(__u16 array[], int array_len)
+{
+	int i;
+
+	if (!array) {
+		log_err("Array cannot contain NULL.");
+	}
+
+	for (i = 0; i < array_len - 1; i++) {
+		if (array[i] > array[i+1]) {
+			log_err("Insert the array in ascendent order.");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
+{
+	__u64 result;
+	char *endptr;
+
+	errno = 0;
+	result = strtoull(str, &endptr, 10);
+	if (errno != 0 || str == endptr) {
+		log_err("Cannot parse '%s' as an integer value.", str);
+		return -EINVAL;
+	}
+	if (result < min || max < result) {
+		log_err("'%s' is out of bounds (%llu-%llu).", str, min, max);
+		return -EINVAL;
+	}
+
+	*u64_out = result;
+	return 0;
+}
+
+static int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
+{
+	__u64 result;
+	int error;
+
+	error = str_to_u64(str, &result, (__u64) min, (__u64) max);
+	if (error)
+		return error; /* Error msg already printed. */
+
+	*u16_out = result;
+	return 0;
+}
+
+#define STR_MAX_LEN 2048
+static int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_len_out)
+{
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char str_copy[STR_MAX_LEN];
+	char *token;
+	__u16 *array;
+	size_t array_len;
+
+	/* Validate str and copy it to the temp buffer. */
+	if (strlen(str) + 1 > STR_MAX_LEN) {
+		log_err("'%s' is too long for this poor, limited parser...", str);
+		return -EINVAL;
+	}
+	strcpy(str_copy, str);
+
+	/* Count the number of ints in the string. */
+	array_len = 0;
+	token = strtok(str_copy, ",");
+	while (token) {
+		array_len++;
+		token = strtok(NULL, ",");
+	}
+
+	if (array_len == 0) {
+		log_err("'%s' seems to be an empty list, which is not supported.", str);
+		return -EINVAL;
+	}
+
+	/* Build the result. */
+	array = malloc(array_len * sizeof(*array));
+	if (!array) {
+		log_err("Memory allocation failed. Cannot parse the input...");
+		return -ENOMEM;
+	}
+
+	strcpy(str_copy, str);
+
+	array_len = 0;
+	token = strtok(str_copy, ",");
+	while (token) {
+		int error;
+
+		error = str_to_u16(token, &array[array_len], 0, 0xFFFF);
+		if (error) {
+			free(array);
+			return error; /* Error msg already printed. */
+		}
+
+		array_len++;
+		token = strtok(NULL, ",");
+	}
+
+	/* Finish. */
+	*array_out = array;
+	*array_len_out = array_len;
+	return 0;
+}
+
+static int set_global_u16_array(struct arguments *args, int type, char *value)
+{
+	__u16* array;
+	size_t array_len;
+	int error;
+
+	error = str_to_u16_array(value, &array, &array_len);
+	if (error)
+		return error;
+
+	error = verify_array_order(array, array_len);
+	if (error)
+		return error;
+
+	error = set_global_arg(args, type, array_len * sizeof(*array), array);
+	free(array);
+	return error;
+}
+
 /* The options we understand. */
 static struct argp_option options[] = {
-		{"sender", 's', "FILE", 0, "Send a packet from user space to the sender module."},
-		{"receiver", 'r', "FILE", 0, "Send a packet from user space to the receiver module."},
-		{"flush", 'f', NULL, 0, "Flush all the receiver DB."},
-		{ 0 }
+		{ NULL, 0, NULL, 0, "Configuration targets/modes:", 1},
+		{ "receiver", ARGP_RECEIVER, NULL, 0, "The command will operate the Receiver module."},
+		{ "sender", ARGP_SENDER, NULL, 0, "The command will operate the Sender module."},
+		{ "general", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous "
+				"configuration values (default)." },
+		{ NULL, 0, NULL, 0, "Operations:", 2 },
+		{ "display", ARGP_DISPLAY, NULL, 0, "Display an element of the target."},
+		{ "add", ARGP_ADD, NULL, 0, "Add an element to the target." },
+		{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
+		{ NULL, 0, NULL, 0, "Sender and Receiver options:", 3 },
+		{ "pkt", ARGP_PKT, "FILE", 0, "Packet that will be parse as skb."},
+		{ NULL, 0, NULL, 0, "General options:", 4 },
+		{ "numArray", ARGP_NUM_ARRAY, "NUM[,NUM]*", 0, "Set the bytes that will be skip when "
+				"compared an incoming SKB, bytes must be ascendent."},
+		{0},
 };
 
-/* Used by main to communicate with parse_opt. */
-struct arguments
+static int update_state(struct arguments *args, enum config_mode valid_modes,
+		enum config_operation valid_ops)
 {
-	enum operations op;
-	char *file_name;
-	__u8 is_file_set;
-	__u8 flush;
-};
+	enum config_mode common_modes;
+	enum config_operation common_ops;
+
+	common_modes = args->mode & valid_modes;
+	if (!common_modes || (common_modes | valid_modes) != valid_modes)
+		goto fail;
+	args->mode = common_modes;
+
+	common_ops = args->ops & valid_ops;
+	if (!common_ops || (common_ops | valid_ops) != valid_ops)
+		goto fail;
+	args->ops = common_ops;
+
+	return 0;
+
+fail:
+	log_err("Illegal combination of parameters. See `man jool`.");
+	return -EINVAL;
+}
+
 
 /*
  * ARGS_DOC. Field 3 in ARGP.
@@ -73,59 +282,77 @@ static char args_doc[] = "";
  */
 static char doc[] = "Packet Sender 'n' Receiver.\v";
 
+
+
 /* Parse a single option. */
-static int parse_opt (int key, char *arg, struct argp_state *state)
+static int parse_opt(int key, char *str, struct argp_state *state)
 {
 	/* Get the input argument from argp_parse, which we
-	know is a pointer to our arguments structure. */
-	struct arguments *arguments = state->input;
+		know is a pointer to our arguments structure. */
+	struct arguments *args = state->input;
+	int error = 0;
 
 	switch (key) {
-	case 's':
-		arguments->op = OP_SENDER;
-		if (arguments->is_file_set) {
-			log_debug("You can only send one packet at a time.");
+	case ARGP_RECEIVER:
+		error = update_state(args, MODE_RECEIVER, RECEIVER_OPS);
+		break;
+	case ARGP_SENDER:
+		error = update_state(args, MODE_SENDER, SENDER_OPS);
+		break;
+	case ARGP_GENERAL:
+		error = update_state(args, MODE_GENERAL, GENERAL_OPS);
+		break;
+	case ARGP_DISPLAY:
+		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
+		break;
+	case ARGP_ADD:
+		error = update_state(args, ADD_MODES, OP_ADD);
+		break;
+	case ARGP_FLUSH:
+		error = update_state(args, FLUSH_MODES, OP_FLUSH);
+		args->flush = 1;
+		break;
+	case ARGP_PKT:
+		error = update_state(args, MODE_RECEIVER | MODE_SENDER, OP_ADD);
+		if (error)
+			goto err;
+		if (args->pkt.is_file_set) {
+			log_err("You can only send one packet at a time.");
 			return -EINVAL;
 		}
-
-		arguments->file_name = arg;
-		arguments->is_file_set = 1;
+		args->pkt.is_file_set = 1;
+		args->pkt.file_name = str;
 		break;
-	case 'r':
-		arguments->op = OP_RECEIVER;
-		if (arguments->is_file_set) {
-			log_debug("You can only send one packet at a time.");
-			return -EINVAL;
-		}
-		arguments->file_name = arg;
-		arguments->is_file_set = 1;
+	case ARGP_NUM_ARRAY:
+		error = update_state(args, MODE_GENERAL, OP_ADD);
+		if (error)
+			goto err;
+
+		error = set_global_u16_array(args, 1/*TODO: set a type?*/, str);
 		break;
-
-	case 'f':
-		arguments->op = OP_FLUSH_DB;
-		arguments->flush = 1;
-		break;
-/*	case ARGP_KEY_ARG:
-		if (state->arg_num > 1) {
-			log_err("Too Many arguments.");
-			argp_usage (state);
-		}
-
-		break;
-
-	case ARGP_KEY_END:
-		if (state->arg_num) {
-			log_err("not enough arguments.");
-			argp_usage (state);
-		}
-
-		break;*/
 
 	default:
-		return ARGP_ERR_UNKNOWN;
+		error = ARGP_ERR_UNKNOWN;
 	}
 
-	return 0;
+err:
+	return error;
+}
+
+/**
+ * Zeroizes all of "num"'s bits, except the last one. Returns the result.
+ */
+static unsigned int zeroize_upper_bits(__u8 num)
+{
+	__u8 mask = 0x01;
+
+	do {
+		if ((num & mask) != 0)
+			return num & mask;
+		mask <<= 1;
+	} while (mask);
+
+	return num;
 }
 
 static int argument_parser(int argc, char **argv, struct arguments *arguments)
@@ -133,13 +360,16 @@ static int argument_parser(int argc, char **argv, struct arguments *arguments)
 	int error;
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
-	arguments->file_name = NULL;
-	arguments->op = 0;
-	arguments->is_file_set = 0;
+	memset(arguments, 0, sizeof(*arguments));
+	arguments->mode = 0xFF;
+	arguments->ops = 0xFF;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, arguments);
 	if (error)
 		return error;
+
+	arguments->mode = zeroize_upper_bits(arguments->mode);
+	arguments->ops = zeroize_upper_bits(arguments->ops);
 
 	return 0;
 }
@@ -150,45 +380,76 @@ static int send_packet_to_kernel(struct arguments *args)
 	__u32 pkt_len;
 	int error;
 
-	error = create_packet(args->file_name, &pkt, &pkt_len);
+	error = create_packet(args->pkt.file_name, &pkt, &pkt_len);
 	if (error)
 		return error;
 
-	error = send_packet(pkt, pkt_len, args->op);
+	error = send_packet(pkt, pkt_len, args->mode, args->ops);
 	free(pkt);
 	return error;
 }
 
 static int flush_database(struct arguments *args)
 {
+	return send_flush_op(args->mode, args->ops);
+}
+
+static int general_send_array(struct arguments *args)
+{
+	return global_update(args->global.type, args->global.size, args->global.data);
+}
+
+static int main_wrapped(int argc, char **argv)
+{
+	struct arguments args;
 	int error;
-	error = send_flush_op();
-	return error;
+	error = argument_parser(argc, argv, &args);
+	if (error)
+		return error;
+
+	switch (args.mode) {
+	case MODE_RECEIVER:
+		switch (args.ops) {
+		case OP_DISPLAY:
+			return receiver_display();
+		case OP_ADD:
+			return send_packet_to_kernel(&args);
+		case OP_FLUSH:
+			return flush_database(&args);
+		default:
+			log_err("Unknown operation for receiver mode.");
+			return -EINVAL;
+		}
+		break;
+	case MODE_SENDER:
+		switch (args.ops) {
+		case OP_ADD:
+			return send_packet_to_kernel(&args);
+		default:
+			log_err("Unknown operation for sender mode.");
+			return -EINVAL;
+		}
+		break;
+	case MODE_GENERAL:
+		switch (args.ops) {
+		case OP_DISPLAY:
+			return general_display_array();
+		case OP_ADD:
+			return general_send_array(&args);
+		case OP_FLUSH:
+			return flush_database(&args);
+		default:
+			log_err("Unknown operation for general mode.");
+			return -EINVAL;
+		}
+		break;
+	}
+
+	log_err("Unknown configuration mode: %u", args.mode);
+	return -EINVAL;
 }
 
 int main(int argc, char *argv[])
 {
-	struct arguments arguments;
-	int error;
-
-	error = argument_parser(argc, argv, &arguments);
-	if (error)
-		return -error;
-
-	switch (arguments.op) {
-	case OP_SENDER:
-		error = send_packet_to_kernel(&arguments);
-		break;
-	case OP_RECEIVER:
-		error = send_packet_to_kernel(&arguments);
-		break;
-	case OP_FLUSH_DB:
-		error = flush_database(&arguments);
-		break;
-	default:
-		log_err("Unknown configuration operation: %u", arguments.op);
-		error = -EINVAL;
-	}
-
-	return -error;
+	return -main_wrapped(argc, argv);
 }

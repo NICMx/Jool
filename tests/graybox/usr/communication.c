@@ -13,13 +13,14 @@ static int handle_send_pkt_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int send_packet(void *pkt, __u32 pkt_len, enum operations op)
+int send_packet(void *pkt, __u32 pkt_len, enum config_mode mode, enum config_operation op)
 {
 	unsigned char request[HDR_LEN + pkt_len];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 
 	log_debug("Sending packet to the kernel module.");
 	hdr->len = pkt_len;
+	hdr->mode = mode;
 	hdr->operation = op;
 	memcpy(request + HDR_LEN, pkt, pkt_len);
 
@@ -33,14 +34,68 @@ static int handle_flush_op_response(struct nl_msg *msg, void *arg)
 	log_debug("Database flushed.");
 	return 0;
 }
-int send_flush_op(void)
+
+int send_flush_op(enum config_mode mode, enum config_operation op)
 {
 	unsigned char request[HDR_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 
 	log_debug("Sending op to the kernel module.");
 	hdr->len = HDR_LEN;
-	hdr->operation = OP_FLUSH_DB;
+	hdr->mode = mode;
+	hdr->operation = op;
 
 	return netlink_request(request, HDR_LEN, handle_flush_op_response, NULL);
+}
+
+static int handle_update_response(struct nl_msg *msg, void *arg)
+{
+	log_info("Value changed successfully.");
+	return 0;
+}
+
+int global_update(__u8 type, size_t size, void *data)
+{
+	unsigned char request[HDR_LEN + size];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	/*union request_global *global_hdr;*/
+	void *payload;
+
+	payload = hdr + 1;
+
+	hdr->len = size;
+	hdr->mode = MODE_GENERAL;
+	hdr->operation = OP_ADD;
+	/*global_hdr->update.type = type;*/
+	memcpy(payload, data, size);
+
+	return netlink_request(hdr, HDR_LEN + size, handle_update_response, NULL);
+}
+
+static int handle_display_response(struct nl_msg *msg, void *arg)
+{
+	log_info("Printed in the kernel log, use dmesg to see it.");
+	return 0;
+}
+
+int general_display_array(void)
+{
+	log_info("Requesting the byte array list.");
+	struct request_hdr request = {
+		.len = sizeof(request),
+		.mode = MODE_GENERAL,
+		.operation = OP_DISPLAY,
+	};
+	return netlink_request(&request, request.len, handle_display_response, NULL);
+}
+
+int receiver_display(void)
+{
+	log_info("Requesting the Receiver stats.");
+	struct request_hdr request = {
+		.len = sizeof(request),
+		.mode = MODE_RECEIVER,
+		.operation = OP_DISPLAY,
+	};
+	return netlink_request(&request, request.len, handle_display_response, NULL);
 }

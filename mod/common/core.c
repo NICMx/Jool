@@ -6,7 +6,7 @@
 #include "nat64/mod/common/send_packet.h"
 
 #ifdef STATEFUL
-#include "nat64/mod/common/pool6.h"
+#include "nat64/mod/stateful/pool6.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"

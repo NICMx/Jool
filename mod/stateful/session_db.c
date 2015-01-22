@@ -3,11 +3,11 @@
 #include <net/ipv6.h>
 #include "nat64/comm/constants.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/send_packet.h"
+#include "nat64/mod/stateful/pool6.h"
 #include "nat64/mod/stateful/bib_db.h"
 #include "nat64/mod/stateful/pkt_queue.h"
 

@@ -11,6 +11,7 @@ jool_stateless_SOURCES = \
 	../common/netlink.c \
 	../common/pool4.c \
 	../common/str_utils.c \
+	../common/pool6.c \
 	eam.c
 #jool_stateless_SOURCES += ../common/log_time.c
 

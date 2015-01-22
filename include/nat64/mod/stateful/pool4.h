@@ -63,7 +63,7 @@ int pool4_flush(void);
  * Inserts the "addr" address (along with its 128k ports and 64k ICMP ids) to the pool.
  * These elements will then become borrowable through the pool_get* functions.
  */
-int pool4_register(struct in_addr *addr);
+int pool4_add(struct in_addr *addr);
 /**
  * Removes the "addr" address (along with its ports and IDs) from the pool.
  */

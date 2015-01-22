@@ -9,12 +9,16 @@
 #include "nat64/comm/config.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/nl_buffer.h"
-#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib_db.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/session_db.h"
 #include "nat64/mod/stateful/static_routes.h"
+#ifdef STATEFUL
+	#include "nat64/mod/stateful/pool6.h"
+#else
+	#include "nat64/mod/stateless/pool6.h"
+#endif
 #include "nat64/mod/stateless/eam.h"
 #ifdef BENCHMARK
 #include "nat64/mod/log_time.h"
@@ -128,7 +132,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		kfree(buffer);
 		return error;
-
+#ifdef STATEFUL
 	case OP_COUNT:
 		log_debug("Returning IPv6 prefix count.");
 		error = pool6_count(&count);
@@ -171,7 +175,15 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			error = sessiondb_flush();
 
 		return respond_error(nl_hdr, error);
+#else
+	case OP_UPDATE:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
 
+		log_debug("Updating the IPv6 Prefix Pool");
+
+		return respond_error(nl_hdr, pool6_update(&request->update.prefix));
+#endif
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
@@ -219,7 +231,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding an address to the IPv4 pool.");
-		return respond_error(nl_hdr, pool4_register(&request->add.addr));
+		return respond_error(nl_hdr, pool4_add(&request->add.addr));
 
 	case OP_REMOVE:
 		if (verify_superpriv())
@@ -231,7 +243,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		if (!request->remove.quick) {
+		if (nat64_is_stateful() && !request->remove.quick) {
 			error = sessiondb_delete_by_ipv4(&request->remove.addr);
 			if (error)
 				return respond_error(nl_hdr, error);
@@ -250,7 +262,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		if (!request->flush.quick) {
+		if (nat64_is_stateful() && !request->flush.quick) {
 			error = sessiondb_flush();
 			if (error)
 				return respond_error(nl_hdr, error);
