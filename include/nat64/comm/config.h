@@ -325,8 +325,6 @@ enum global_type {
 	BUILD_IPV4_ID,
 	LOWER_MTU_FAIL,
 	MTU_PLATEAUS,
-
-	MIN_IPV6_MTU,
 };
 
 /**
@@ -430,14 +428,6 @@ struct translate_config {
 	__u16 *mtu_plateaus;
 };
 
-struct sendpkt_config {
-	/**
-	 * The smallest MTU in the IPv6 side. Jool will ensure that packets traveling from 4 to 6 will
-	 * be no bigger than this amount of bytes.
-	 */
-	__u16 min_ipv6_mtu;
-};
-
 /**
  * A request to edit a miscellaneous configuration value.
  */
@@ -519,7 +509,6 @@ struct global_config {
 	struct fragmentation_config fragmentation;
 #endif
 	struct translate_config translate;
-	struct sendpkt_config sendpkt;
 };
 
 /**

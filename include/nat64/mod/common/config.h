@@ -30,6 +30,4 @@ void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count);
 
 unsigned long config_get_ttl_frag(void);
 
-unsigned int config_get_min_mtu6(void);
-
 #endif /* _JOOL_MOD_CONFIG_H */

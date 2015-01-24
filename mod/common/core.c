@@ -118,7 +118,6 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (error)
 		return NF_DROP;
 
-
 	error = validate_icmp4_csum(skb);
 	if (error) {
 		inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
@@ -147,7 +146,6 @@ unsigned int core_6to4(struct sk_buff *skb)
 	error = skb_init_cb_ipv6(skb); /* Reminder: This function might change pointers. */
 	if (error)
 		return NF_DROP;
-
 
 #ifdef STATEFUL
 	result = fragdb_handle(&skb);

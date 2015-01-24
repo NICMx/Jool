@@ -22,6 +22,7 @@ void pool4_destroy(void);
 
 int pool4_add(struct ipv4_prefix *prefix);
 int pool4_remove(struct ipv4_prefix *prefix);
+int pool4_flush(void);
 int pool4_get(struct in_addr *result);
 
 int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg);

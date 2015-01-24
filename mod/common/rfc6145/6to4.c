@@ -110,7 +110,11 @@ static __be16 build_tot_len(struct sk_buff *in, struct sk_buff *out)
 
 	__u16 total_len;
 
-	if (!skb_is_fragment(out)) { /* Not fragment. */
+	if (skb_is_inner(out)) { /* Inner packet. */
+		total_len = sizeof(struct ipv6hdr) + be16_to_cpu(ipv6_hdr(in)->payload_len)
+				- skb_hdrs_len(in) + skb_hdrs_len(out);
+
+	} else if (!skb_is_fragment(out)) { /* Not fragment. */
 		total_len = out->len;
 		if (skb_is_icmp4_error(out) && total_len > 576)
 			total_len = 576;
@@ -210,15 +214,15 @@ static verdict translate_addrs_siit(struct sk_buff *in, struct sk_buff *out)
 	int error;
 
 	/* Src address. */
-	if (skb_is_icmp6_error(in)) {
+	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
+	if (result == VER_ACCEPT && skb_is_icmp6_error(in)) {
 		addr.s_addr = ip4_hdr->saddr;
 		error = pool4_get(&addr); /* Why? RFC 6791. */
 		if (error)
 			return VER_DROP;
-	} else {
-		result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
-		if (result != VER_CONTINUE)
-			return result;
+		ip4_hdr->saddr = addr.s_addr;
+	} else if (result != VER_CONTINUE) {
+		return result;
 	}
 
 	/* Dst address. */
@@ -290,8 +294,20 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(out) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(out);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
-	/* The kernel already decreases the hop limit after prerouting so we don't have to do it. */
-	ip4_hdr->ttl = ip6_hdr->hop_limit;
+	/*
+	 * TODO (fine) instead of "is stateless?",
+	 * the condition should be more like "are we in prerouting"?
+	 */
+	if (nat64_is_stateless() && skb_is_outer(in)) {
+		if (ip6_hdr->hop_limit <= 1) {
+			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
+			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
+			return VER_DROP;
+		}
+		ip4_hdr->ttl = ip6_hdr->hop_limit - 1;
+	} else {
+		ip4_hdr->ttl = ip6_hdr->hop_limit;
+	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
 

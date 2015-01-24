@@ -265,7 +265,7 @@ static int update_state(struct arguments *args, enum config_mode valid_modes,
 	return 0;
 
 fail:
-	log_err("Illegal combination of parameters. See `man jool`.");
+	log_err("Illegal combination of parameters. See `graybox --help`.");
 	return -EINVAL;
 }
 

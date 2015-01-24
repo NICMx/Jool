@@ -91,6 +91,9 @@ static int init_l4(struct sk_buff *skb, __u8 protocol, bool is_first_fragment)
 {
 	struct jool_cb *cb = skb_jcb(skb);
 
+	/* This default value will be kept if the packet is a fragment. */
+	cb->payload = skb_transport_header(skb);
+
 	switch (protocol) {
 	case IPPROTO_TCP:
 		cb->l4_proto = L4PROTO_TCP;

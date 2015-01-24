@@ -67,15 +67,22 @@ revert:
 	return error;
 }
 
-void pool4_destroy(void)
+void __pool4_flush(bool sync)
 {
 	struct pool_entry *entry;
 
 	while (!list_empty(&pool)) {
 		entry = list_first_entry(&pool, struct pool_entry, list_hook);
-		list_del(&entry->list_hook);
+		list_del_rcu(&entry->list_hook);
+		if (sync)
+			synchronize_rcu_bh();
 		kfree(entry);
 	}
+}
+
+void pool4_destroy(void)
+{
+	__pool4_flush(false);
 }
 
 int pool4_add(struct ipv4_prefix *prefix)
@@ -98,12 +105,19 @@ int pool4_remove(struct ipv4_prefix *prefix)
 	list_for_each_entry(entry, &pool, list_hook) {
 		if (ipv4_prefix_equals(prefix, &entry->prefix)) {
 			list_del_rcu(&entry->list_hook);
+			synchronize_rcu_bh();
 			kfree(entry);
 			return 0;
 		}
 	}
 
 	return -ENOENT;
+}
+
+int pool4_flush(void)
+{
+	__pool4_flush(true);
+	return 0;
 }
 
 static unsigned int get_addr_count(struct ipv4_prefix *prefix)
@@ -164,7 +178,7 @@ int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg)
 	struct pool_entry *entry;
 	int error;
 
-	list_for_each_entry_rcu(entry, &pool, list_hook) {
+	list_for_each_entry(entry, &pool, list_hook) {
 		error = func(&entry->prefix, arg);
 		if (error)
 			return error;

@@ -91,7 +91,10 @@ static __be16 build_payload_len(struct sk_buff *in, struct sk_buff *out)
 
 	__u16 total_len;
 
-	if (!skb_is_fragment(out)) { /* Not fragment. */
+	if (skb_is_inner(out)) { /* Inner packet. */
+		total_len = be16_to_cpu(ip_hdr(in)->tot_len) - skb_hdrs_len(in) + skb_hdrs_len(out);
+
+	} else if (!skb_is_fragment(out)) { /* Not fragment. */
 		total_len = out->len;
 		/*
 		 * Though ICMPv4 errors are supposed to be max 576 bytes long, a good portion of the

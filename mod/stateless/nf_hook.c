@@ -55,24 +55,25 @@ static struct nf_hook_ops nfho[] = {
 		.hooknum = NF_INET_LOCAL_IN
 	},
 	{
-		.hook = hook_ipv4,
-		.pf = PF_INET,
-		.hooknum = NF_INET_LOCAL_IN
-	},
-	{
 		.hook = hook_ipv6,
 		.pf = PF_INET6,
-		.hooknum = NF_INET_FORWARD
-	},
-	{
-		.hook = hook_ipv4,
-		.pf = PF_INET,
 		.hooknum = NF_INET_FORWARD
 	},
 	{
 		.hook = hook_ipv6,
 		.pf = PF_INET6,
 		.hooknum = NF_INET_LOCAL_OUT
+	},
+	{
+		.hook = hook_ipv4,
+		.pf = PF_INET,
+		/*
+		 * Because the IPv4 addresses belong to the interface, the kernel doesn't send the packets
+		 * via the FORWARD path, even though the ultimate intent is to forward them.
+		 * Receiving all packets in LOCAL IN would not be a problem, however, if it wasn't because
+		 * the kernel defragments before it, so we have to capture packets even before.
+		 */
+		.hooknum = NF_INET_PRE_ROUTING
 	},
 	{
 		.hook = hook_ipv4,

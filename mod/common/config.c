@@ -43,8 +43,6 @@ int config_init(void)
 	}
 	memcpy(config->translate.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
-	config->sendpkt.min_ipv6_mtu = TRAN_DEF_MIN_IPV6_MTU;
-
 	return 0;
 }
 
@@ -257,11 +255,6 @@ int config_set(__u8 type, size_t size, void *value)
 		if (is_error(update_plateaus(&tmp_config->translate, size, value)))
 			goto fail;
 		break;
-	case MIN_IPV6_MTU:
-		if (!ensure_bytes(size, 2))
-			goto fail;
-		tmp_config->sendpkt.min_ipv6_mtu = *((__u16 *) value);
-		break;
 	default:
 		log_err("Unknown config type: %u", type);
 		goto fail;
@@ -374,9 +367,4 @@ void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 	tmp = rcu_dereference_bh(config);
 	*plateaus = tmp->translate.mtu_plateaus;
 	*count = tmp->translate.mtu_plateau_count;
-}
-
-unsigned int config_get_min_mtu6(void)
-{
-	return RCU_THINGY(unsigned long, sendpkt.min_ipv6_mtu);
 }

@@ -24,7 +24,6 @@
 #define IPV6_NEXTHOP_MTU_OPT	"nextMTU6"
 #define IPV4_NEXTHOP_MTU_OPT	"nextMTU4"
 #define MTU_PLATEAUS_OPT		"plateaus"
-#define MIN_IPV6_MTU_OPT		"minMTU6"
 
 #define FRAG_TIMEOUT_OPT		"toFrag"
 

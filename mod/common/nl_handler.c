@@ -113,7 +113,9 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		union request_pool6 *request)
 {
 	struct nl_buffer *buffer;
+#ifdef STATEFUL
 	__u64 count;
+#endif
 	int error;
 
 	switch (nat64_hdr->operation) {

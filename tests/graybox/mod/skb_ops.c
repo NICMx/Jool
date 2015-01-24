@@ -188,16 +188,6 @@ bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
 	skip_count = 0;
 
 	for (i = 0; i < min_len; i++) {
-		/*
-		 * Skip the fragment identifier on IPv6 packets.
-		 * This is because this value is random after translation most of the time.
-		 * TODO (test) maybe make it possible to not do this on certain tests?
-		 */
-		if (44 <= i && i <= 47
-				&& actual->protocol == ntohs(ETH_P_IPV6)
-				&& ipv6_hdr(actual)->nexthdr == NEXTHDR_FRAGMENT)
-			continue;
-
 		if (skip_count < skip_byte.count && skip_byte.array[skip_count] == i) {
 			skip_count++;
 			continue;

@@ -135,7 +135,6 @@ enum argp_flags {
 	ARGP_BUILD_ID = 4007,
 	ARGP_LOWER_MTU_FAIL = 4008,
 	ARGP_PLATEAUS = 4010,
-	ARGP_MIN_IPV6_MTU = 4011,
 	ARGP_FRAG_TO = 4012,
 };
 
@@ -252,8 +251,6 @@ static struct argp_option options[] =
 			"Decrease MTU failure rate?" },
 	{ MTU_PLATEAUS_OPT, ARGP_PLATEAUS, NUM_ARR_FORMAT, 0,
 			"Set the MTU plateaus." },
-	{ MIN_IPV6_MTU_OPT, ARGP_MIN_IPV6_MTU, NUM_FORMAT, 0,
-			"Set the Minimum IPv6 MTU." },
 #ifdef STATEFUL
 	{ FRAG_TIMEOUT_OPT, ARGP_FRAG_TO, NUM_FORMAT, 0,
 			"Set the timeout for arrival of fragments." },
@@ -280,7 +277,7 @@ static int update_state(struct arguments *args, enum config_mode valid_modes,
 	return 0;
 
 fail:
-	log_err("Illegal combination of parameters. See `man jool`.");
+	log_err("Illegal combination of parameters. Try `--help`.");
 	return -EINVAL;
 }
 
@@ -323,18 +320,6 @@ static int set_global_u8(struct arguments *args, __u8 type, char *value, __u8 mi
 	int error;
 
 	error = str_to_u8(value, &tmp, min, max);
-	if (error)
-		return error;
-
-	return set_global_arg(args, type, sizeof(tmp), &tmp);
-}
-
-static int set_global_u16(struct arguments *args, __u8 type, char *value, __u16 min, __u16 max)
-{
-	__u16 tmp;
-	int error;
-
-	error = str_to_u16(value, &tmp, min, max);
 	if (error)
 		return error;
 
@@ -559,9 +544,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_PLATEAUS:
 		error = set_global_u16_array(args, MTU_PLATEAUS, str);
-		break;
-	case ARGP_MIN_IPV6_MTU:
-		error = set_global_u16(args, MIN_IPV6_MTU, str, 1280, MAX_U16);
 		break;
 
 	default:
