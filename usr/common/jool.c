@@ -47,7 +47,7 @@ struct arguments {
 		} pool6;
 
 		struct {
-			struct in_addr addr;
+			struct ipv4_prefix addrs;
 			bool addr_set;
 		} pool4;
 
@@ -434,13 +434,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.tables.csv_format = true;
 		break;
 
-	case ARGP_ADDRESS:
-		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_addr4(str, &args->db.pool4.addr);
-		args->db.pool4.addr_set = true;
-		break;
 	case ARGP_PREFIX:
 		error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
 		if (error)
@@ -523,6 +516,24 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.tables.eamt.pref4_set = true;
 		break;
 #endif
+	case ARGP_ADDRESS:
+		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+		if (error)
+			return error;
+		if (strchr(str, '/') != 0){
+			error = str_to_ipv4_prefix(str, &args->db.pool4.addrs);
+			if (!error && nat64_is_stateful() && args->db.pool4.addrs.len < 16) {
+				log_debug("Warning: That's a lot of addresses. "
+						"Are you sure that /%u is not a typo?",
+						args->db.pool4.addrs.len);
+			}
+
+		} else {
+			error = str_to_addr4(str, &args->db.pool4.addrs.address);
+			args->db.pool4.addrs.len = 32;
+		}
+		args->db.pool4.addr_set = true;
+		break;
 
 	case ARGP_RESET_TCLASS:
 		error = set_global_bool(args, RESET_TCLASS, str);
@@ -669,13 +680,13 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address to be added (--address).");
 				return -EINVAL;
 			}
-			return pool4_add(&args.db.pool4.addr);
+			return pool4_add(&args.db.pool4.addrs);
 		case OP_REMOVE:
 			if (!args.db.pool4.addr_set) {
 				log_err("Please enter the address to be removed (--address).");
 				return -EINVAL;
 			}
-			return pool4_remove(&args.db.pool4.addr, args.db.quick);
+			return pool4_remove(&args.db.pool4.addrs, args.db.quick);
 		case OP_FLUSH:
 			return pool4_flush(args.db.quick);
 		default:

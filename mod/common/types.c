@@ -88,6 +88,19 @@ bool ipv4_prefix_equals(const struct ipv4_prefix *expected, const struct ipv4_pr
 	return true;
 }
 
+bool ipv4_prefix_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr)
+{
+	__u32 maskbits = (~0) << (32 - prefix->len);
+	__u32 prefixbits = be32_to_cpu(prefix->address.s_addr) & maskbits;
+	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
+	return prefixbits == addrbits;
+}
+
+bool ipv6_prefix_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr)
+{
+	return ipv6_prefix_equal(&prefix->address, addr, prefix->len);
+}
+
 bool is_icmp6_info(__u8 type)
 {
 	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);

@@ -74,4 +74,3 @@ void print_time_csv(__u64 millis);
 void print_time_friendly(__u64 millis);
 
 #endif /* _JOOL_COMM_STR_UTILS_H */
-

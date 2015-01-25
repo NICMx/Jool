@@ -71,7 +71,7 @@ static int pool4_add_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_add(struct in_addr *addr)
+int pool4_add(struct ipv4_prefix *addrs)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -80,7 +80,7 @@ int pool4_add(struct in_addr *addr)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL4;
 	hdr->operation = OP_ADD;
-	payload->add.addr = *addr;
+	payload->add.addrs = *addrs;
 
 	return netlink_request(request, hdr->length, pool4_add_response, NULL);
 }
@@ -91,7 +91,7 @@ static int pool4_remove_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_remove(struct in_addr *addr, bool quick)
+int pool4_remove(struct ipv4_prefix *addrs, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -100,7 +100,7 @@ int pool4_remove(struct in_addr *addr, bool quick)
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_POOL4;
 	hdr->operation = OP_REMOVE;
-	payload->remove.addr = *addr;
+	payload->remove.addrs = *addrs;
 	payload->remove.quick = quick;
 
 	return netlink_request(request, hdr->length, pool4_remove_response, NULL);

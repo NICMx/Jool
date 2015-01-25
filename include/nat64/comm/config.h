@@ -120,14 +120,14 @@ enum config_operation {
 	#define UPDATE_MODES (MODE_GLOBAL)
 #else
 	#ifdef BENCHMARK
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_EAMT | MODE_LOGTIME)
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_LOGTIME)
 	#else
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_EAMT)
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
 	#endif
-	#define COUNT_MODES (MODE_EAMT)
-	#define ADD_MODES (MODE_EAMT)
-	#define REMOVE_MODES (MODE_EAMT)
-	#define FLUSH_MODES (MODE_EAMT)
+	#define COUNT_MODES (MODE_POOL4 | MODE_EAMT)
+	#define ADD_MODES (MODE_POOL4 | MODE_EAMT)
+	#define REMOVE_MODES (MODE_POOL4 | MODE_EAMT)
+	#define FLUSH_MODES (MODE_POOL4 | MODE_EAMT)
 	#define UPDATE_MODES (MODE_POOL6 | MODE_GLOBAL)
 #endif
 /**
@@ -184,12 +184,12 @@ union request_pool4 {
 		/* Nothing needed there ATM. */
 	} display;
 	struct {
-		/** The address the user wants to add to the pool. */
-		struct in_addr addr;
+		/** The addresses the user wants to add to the pool. */
+		struct ipv4_prefix addrs;
 	} add;
 	struct {
-		/** The address the user wants to remove from the pool. */
-		struct in_addr addr;
+		/** The addresses the user wants to remove from the pool. */
+		struct ipv4_prefix addrs;
 		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
 		__u8 quick;
 	} remove;

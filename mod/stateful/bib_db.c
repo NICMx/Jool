@@ -678,7 +678,14 @@ static int remove_fake_usr(struct bib_entry *bib)
 	return b;
 }
 
-static void delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
+static int compare_prefix4(const struct bib_entry *bib, const struct ipv4_prefix *prefix)
+{
+	return ipv4_prefix_contains(prefix, &bib->ipv4.l3)
+			? 0
+			: ipv4_addr_cmp(&prefix->address, &bib->ipv4.l3);
+}
+
+static void delete_bibs_by_ipv4(struct bib_table *table, struct ipv4_prefix *prefix)
 {
 	struct bib_entry *root_bib, *bib;
 	struct rb_node *node;
@@ -687,7 +694,7 @@ static void delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 	spin_lock_bh(&table->lock);
 
 	/* This is very similar to the for_each function. See that it you want comments. */
-	root_bib = rbtree_find(addr, &table->tree4, compare_addr4, struct bib_entry, tree4_hook);
+	root_bib = rbtree_find(prefix, &table->tree4, compare_prefix4, struct bib_entry, tree4_hook);
 	if (!root_bib)
 		goto success;
 
@@ -696,7 +703,7 @@ static void delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 		bib = rb_entry(node, struct bib_entry, tree4_hook);
 		node = rb_prev(&bib->tree4_hook);
 
-		if (compare_addr4(bib, addr) != 0)
+		if (compare_prefix4(bib, prefix) != 0)
 			break;
 		b += remove_fake_usr(bib);
 	}
@@ -706,7 +713,7 @@ static void delete_bibs_by_ipv4(struct bib_table *table, struct in_addr *addr)
 		bib = rb_entry(node, struct bib_entry, tree4_hook);
 		node = rb_next(&bib->tree4_hook);
 
-		if (compare_addr4(bib, addr) != 0)
+		if (compare_prefix4(bib, prefix) != 0)
 			break;
 		b += remove_fake_usr(bib);
 	}
@@ -719,14 +726,14 @@ success:
 	log_debug("Deleted %d BIB entries.", b);
 }
 
-int bibdb_delete_by_ipv4(struct in_addr *addr)
+int bibdb_delete_by_prefix4(struct ipv4_prefix *prefix)
 {
-	if (WARN(!addr, "IPv4 address is NULL"))
+	if (WARN(!prefix, "IPv4 address is NULL"))
 		return -EINVAL;
 
-	delete_bibs_by_ipv4(&bib_tcp, addr);
-	delete_bibs_by_ipv4(&bib_icmp, addr);
-	delete_bibs_by_ipv4(&bib_udp, addr);
+	delete_bibs_by_ipv4(&bib_tcp, prefix);
+	delete_bibs_by_ipv4(&bib_icmp, prefix);
+	delete_bibs_by_ipv4(&bib_udp, prefix);
 
 	return 0;
 }

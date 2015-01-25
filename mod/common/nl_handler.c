@@ -160,7 +160,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, error);
 
 		if (!request->flush.quick)
-			error = sessiondb_delete_by_ipv6_prefix(&request->remove.prefix);
+			error = sessiondb_delete_by_prefix6(&request->remove.prefix);
 
 		return respond_error(nl_hdr, error);
 
@@ -233,7 +233,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding an address to the IPv4 pool.");
-		return respond_error(nl_hdr, pool4_add(&request->add.addr));
+		return respond_error(nl_hdr, pool4_add(&request->add.addrs));
 
 	case OP_REMOVE:
 		if (verify_superpriv())
@@ -241,15 +241,15 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		log_debug("Removing an address from the IPv4 pool.");
 
-		error = pool4_remove(&request->remove.addr);
+		error = pool4_remove(&request->remove.addrs);
 		if (error)
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->remove.quick) {
-			error = sessiondb_delete_by_ipv4(&request->remove.addr);
+			error = sessiondb_delete_by_prefix4(&request->remove.addrs);
 			if (error)
 				return respond_error(nl_hdr, error);
-			error = bibdb_delete_by_ipv4(&request->remove.addr);
+			error = bibdb_delete_by_prefix4(&request->remove.addrs);
 		}
 
 		return respond_error(nl_hdr, error);
@@ -658,7 +658,7 @@ int nlhandler_init(void)
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
 #endif
-	
+
 	if (!nl_socket) {
 		log_err("Creation of netlink socket failed.");
 		return -EINVAL;

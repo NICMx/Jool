@@ -3,7 +3,8 @@
 #include "nat64/comm/str_utils.h"
 
 #include <linux/slab.h>
-
+#include <linux/inet.h>
+#include <linux/inetdevice.h>
 
 #define HTABLE_NAME pool4_table
 #define KEY_TYPE struct in_addr
@@ -141,6 +142,7 @@ static void destroy_pool4_node(struct pool4_node *node)
 int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
+	struct ipv4_prefix addrs;
 	unsigned int i;
 	int error;
 
@@ -161,16 +163,24 @@ int pool4_init(char *addr_strs[], int addr_count)
 	}
 
 	for (i = 0; i < addr_count; i++) {
-		struct in_addr addr;
+		const char *slash_pos;
+		if (strchr(addr_strs[i], '/') != 0){
+			if (in4_pton(addr_strs[i], -1, (u8 *) &addrs.address, '/', &slash_pos) != 1)
+				error = -EINVAL;
+			if (kstrtou8(slash_pos + 1, 0, &addrs.len) != 0)
+				error = -EINVAL;
+		} else {
+			error = str_to_addr4(addr_strs[i], &addrs.address);
+			addrs.len = 32;
+		}
 
-		error = str_to_addr4(addr_strs[i], &addr);
 		if (error) {
 			log_err("Address is malformed: %s.", addr_strs[i]);
 			goto fail;
 		}
 
-		log_debug("Inserting address to the IPv4 pool: %pI4.", &addr);
-		error = pool4_add(&addr);
+		log_debug("Adding %pI4/%u to the IPv4 pool.", &addrs.address, addrs.len);
+		error = pool4_add(&addrs);
 		if (error)
 			goto fail;
 	}
@@ -223,7 +233,7 @@ int pool4_flush(void)
 	return 0;
 }
 
-int pool4_add(struct in_addr *addr)
+static int __pool4_add(struct in_addr *addr)
 {
 	struct pool4_node *new_node, *node;
 	int error;
@@ -237,7 +247,7 @@ int pool4_add(struct in_addr *addr)
 		if (node->active) {
 			spin_unlock_bh(&pool_lock);
 			log_err("Address %pI4 already belongs to the pool.", addr);
-			return -EINVAL;
+			return -EEXIST;
 		} else {
 			node->active = true;
 			inactives_pool4_node_counter--;
@@ -293,7 +303,7 @@ failure:
 	return error;
 }
 
-int pool4_remove(struct in_addr *addr)
+static int __pool4_remove(struct in_addr *addr)
 {
 	struct pool4_node *node;
 
@@ -568,5 +578,88 @@ int pool4_count(__u64 *result)
 	spin_lock_bh(&pool_lock);
 	*result = pool.node_count - inactives_pool4_node_counter;
 	spin_unlock_bh(&pool_lock);
+	return 0;
+}
+
+int pool4_add(struct ipv4_prefix *addrs)
+{
+	struct in_addr *addr = &addrs->address;
+	__u8 maskbits = addrs->len;
+	struct in_addr network;
+	struct in_addr *temp = addr;
+	unsigned int netmask;
+	unsigned int i;
+	int error;
+
+	int total_addresses = 1 << (32 - maskbits);
+	log_info("total addresses: %d",total_addresses);
+
+	netmask = inet_make_mask(maskbits);
+	network.s_addr = addr->s_addr & netmask;
+
+	log_info("IP: %pI4", addr);
+	log_info("Maskbits: %u",maskbits);
+	log_info("Network: %pI4", &network);
+
+	if (maskbits == 32) {
+		(*temp).s_addr = htonl(ntohl(network.s_addr));
+		log_debug("usable IP: %pI4",temp);
+		error = __pool4_add(temp);
+		return error;
+	} else {
+		for (i=0; i<total_addresses; i++) {
+			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+			error = __pool4_add(temp);
+			if (error == -EEXIST)
+				continue;
+			else if (error)
+				return error;
+			log_debug("usable IP: %pI4",temp);
+		}
+	}
+
+	return 0;
+}
+
+int pool4_remove(struct ipv4_prefix *addrs)
+{
+	struct in_addr *addr = &addrs->address;
+	__u8 maskbits = addrs->len;
+	struct in_addr network;
+	struct in_addr *temp = addr;
+	unsigned int netmask;
+	unsigned int i;
+	int error;
+
+	int total_addresses = 1 << (32 - maskbits);
+	netmask = inet_make_mask(maskbits);
+	network.s_addr = addr->s_addr & netmask;
+
+	log_debug("IP: %pI4", addr);
+	log_debug("Maskbits: %u",maskbits);
+	log_debug("Network: %pI4", &network);
+
+	if (maskbits == 32) {
+
+		(*temp).s_addr = htonl(ntohl(network.s_addr));
+		error = __pool4_remove(temp);
+		if (error)
+			return error;
+		log_debug("deleted IP: %pI4",temp);
+		return error;
+
+	} else {
+
+		for (i=0; i<total_addresses; i++) {
+			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
+			error = __pool4_remove(temp);
+			if (error == -ENOENT)
+				continue;
+			else if (error)
+				return error;
+			log_debug("deleted IP: %pI4",temp);
+		}
+	}
+
 	return 0;
 }

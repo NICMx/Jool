@@ -253,18 +253,18 @@ int sessiondb_count(l4_protocol proto, __u64 *result);
 int sessiondb_delete_by_bib(struct bib_entry *bib);
 
 /**
- * Deletes from the database the session entries whose local IPv4 addresses are "addr4".
+ * Deletes from the database the session entries whose local IPv4 addresses contain "prefix".
  *
- * O(n), where n is the number of entries in the DB whose local IPv4 addresses are "addr4".
+ * O(n), where n is the number of entries in the DB whose local IPv4 addresses contain "prefix".
  */
-int sessiondb_delete_by_ipv4(struct in_addr *addr4);
+int sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix);
 
 /**
  * Deletes from the database the session entries whose local IPv6 addresses contain "prefix".
  *
  * O(n), where n is the number of entries in the DB whose local IPv6 addresses contain "prefix".
  */
-int sessiondb_delete_by_ipv6_prefix(struct ipv6_prefix *prefix);
+int sessiondb_delete_by_prefix6(struct ipv6_prefix *prefix);
 
 /**
  * Empties the entire database.

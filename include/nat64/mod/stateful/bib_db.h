@@ -224,7 +224,7 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bi
  * Removes the fake users of all the BIB entries whose local IPv4 address is "addr4".
  * This is probably a lot faster than you think.
  */
-int bibdb_delete_by_ipv4(struct in_addr *addr);
+int bibdb_delete_by_prefix4(struct ipv4_prefix *prefix);
 /**
  * Removes all the fake users of all the BIB entries
  */

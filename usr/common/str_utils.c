@@ -260,6 +260,46 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 }
 
 #undef STR_MAX_LEN
+#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + mask */
+int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix)
+{
+	const char *FORMAT = "<IPv4 address>/<mask> (eg. 10.20.30.40/24)";
+	/* strtok corrupts the string, so we'll be using this copy instead. */
+	char str_copy[STR_MAX_LEN];
+	char *token;
+	int error;
+
+	if (strlen(str) + 1 > STR_MAX_LEN) {
+		log_err("'%s' is too long for this poor, limited parser...", str);
+		return -EINVAL;
+	}
+	strcpy(str_copy, str);
+
+	token = strtok(str_copy, "/");
+	if (!token) {
+		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
+		return -EINVAL;
+	}
+
+	error = str_to_addr4(token, &prefix->address);
+	if (error)
+		return error;
+
+		token = strtok(NULL, "/");
+		if (!token) {
+			log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
+			return -EINVAL;
+		}
+		prefix->len = atoi(token);
+		if (prefix->len > 32) {
+			log_err("IPv4 Pool netmask bits value is invalid [%d].", prefix->len);
+			return -EINVAL;
+		}
+
+		return 0;
+}
+
+#undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3) /* [addr + null chara] + / + pref len */
 int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
@@ -311,46 +351,6 @@ int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
 
 	log_err("%u is not a valid prefix length.", prefix_out->len);
 	return -EINVAL;
-}
-
-#undef STR_MAX_LEN
-#define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + pref len */
-int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
-{
-	const char *FORMAT = "<IPv4 address>/<length> (eg. 192.168.1.0/24)";
-	/* strtok corrupts the string, so we'll be using this copy instead. */
-	char str_copy[STR_MAX_LEN];
-	char *token;
-	int error;
-
-	if (strlen(str) + 1 > STR_MAX_LEN) {
-		log_err("'%s' is too long for this poor, limited parser...", str);
-		return -EINVAL;
-	}
-	strcpy(str_copy, str);
-
-	token = strtok(str_copy, "/");
-	if (!token) {
-		log_err("Cannot parse '%s' as a %s.", str, FORMAT);
-		return -EINVAL;
-	}
-
-	error = str_to_addr4(token, &prefix_out->address);
-	if (error)
-		return error;
-
-	token = strtok(NULL, "/");
-	if (!token) {
-		if (!nat64_is_stateful()) {
-			prefix_out->len = IPV4_PREFIX;
-			return 0;
-		}
-		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
-		return -EINVAL;
-	}
-
-	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
-	return error; /* Error msg already printed. */
 }
 
 static void print_num_csv(__u64 num, char *separator)
