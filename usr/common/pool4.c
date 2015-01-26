@@ -13,15 +13,15 @@
 static int pool4_display_response(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *hdr;
-	struct in_addr *addresses;
+	struct ipv4_prefix *prefix;
 	__u16 addr_count, i;
 
 	hdr = nlmsg_hdr(msg);
-	addresses = nlmsg_data(hdr);
-	addr_count = nlmsg_datalen(hdr) / sizeof(*addresses);
+	prefix = nlmsg_data(hdr);
+	addr_count = nlmsg_datalen(hdr) / sizeof(*prefix);
 
 	for (i = 0; i < addr_count; i++)
-		printf("%s\n", inet_ntoa(addresses[i]));
+		printf("%s/%u\n", inet_ntoa(prefix[i].address), prefix[i].len);
 
 	*((int *) arg) += addr_count;
 	return 0;
@@ -40,7 +40,7 @@ int pool4_display(void)
 	error = netlink_request(&request, request.length, pool4_display_response, &row_count);
 	if (!error) {
 		if (row_count > 0)
-			log_info("  (Fetched %u addresses.)", row_count);
+			log_info("  (Fetched %u prefixes.)", row_count);
 		else
 			log_info("  (empty)");
 	}
@@ -67,7 +67,7 @@ int pool4_count(void)
 
 static int pool4_add_response(struct nl_msg *msg, void *arg)
 {
-	log_info("The address was added successfully.");
+	log_info("The prefix was added successfully.");
 	return 0;
 }
 
@@ -87,7 +87,7 @@ int pool4_add(struct ipv4_prefix *addrs)
 
 static int pool4_remove_response(struct nl_msg *msg, void *arg)
 {
-	log_info("The address was removed successfully.");
+	log_info("The prefix was removed successfully.");
 	return 0;
 }
 

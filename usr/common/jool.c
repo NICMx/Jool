@@ -139,7 +139,6 @@ enum argp_flags {
 };
 
 #define NUM_FORMAT "NUM"
-//#define PREFIX_FORMAT "ADDR6/NUM"
 #define IPV6_TRANSPORT_FORMAT "ADDR6#NUM"
 #define IPV4_TRANSPORT_FORMAT "ADDR4#NUM"
 #define IPV4_ADDR_FORMAT "ADDR4"
@@ -677,13 +676,13 @@ static int main_wrapped(int argc, char **argv)
 			return pool4_count();
 		case OP_ADD:
 			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address to be added (--address).");
+				log_err("Please enter the address or prefix to be added (--address).");
 				return -EINVAL;
 			}
 			return pool4_add(&args.db.pool4.addrs);
 		case OP_REMOVE:
 			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address to be removed (--address).");
+				log_err("Please enter the address or prefix to be removed (--address).");
 				return -EINVAL;
 			}
 			return pool4_remove(&args.db.pool4.addrs, args.db.quick);

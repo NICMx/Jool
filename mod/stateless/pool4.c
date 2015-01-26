@@ -29,7 +29,7 @@ static int parse_prefix4(const char *str, struct ipv4_prefix *prefix)
 	}
 
 	if (error)
-		log_err("Address is malformed: %s.", str);
+		log_err("IPv4 address or prefix is malformed: %s.", str);
 
 	return error;
 }
@@ -89,6 +89,14 @@ int pool4_add(struct ipv4_prefix *prefix)
 {
 	struct pool_entry *entry;
 
+	list_for_each_entry(entry, &pool, list_hook) {
+		if (ipv4_prefix_intersects(&entry->prefix, prefix)) {
+			log_err("The requested entry intersects with pool entry %pI4/%u.",
+					&entry->prefix.address, entry->prefix.len);
+			return -EEXIST;
+		}
+	}
+
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
@@ -111,6 +119,7 @@ int pool4_remove(struct ipv4_prefix *prefix)
 		}
 	}
 
+	log_err("Could not find the requested entry in the IPv4 pool.");
 	return -ENOENT;
 }
 

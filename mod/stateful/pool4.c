@@ -6,6 +6,36 @@
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
 
+/**
+ * An address within the pool, along with its ports.
+ */
+struct pool4_node {
+	/** The address itself. */
+	struct in_addr addr;
+
+	struct {
+		/** The address's even UDP ports from the range 0-1023. */
+		struct poolnum low_even;
+		/** The address's odd UDP ports from the range 0-1023. */
+		struct poolnum low_odd;
+		/** The address's even UDP ports from the range 1024-65535. */
+		struct poolnum high_even;
+		/** The address's odd UDP ports from the range 1024-65535. */
+		struct poolnum high_odd;
+	} udp_ports;
+	struct {
+		/** The address's TCP ports from the range 0-1023. */
+		struct poolnum low;
+		/** The address's TCP ports from the range 1024-65535. */
+		struct poolnum high;
+	} tcp_ports;
+	/** The address's ICMP IDs. */
+	struct poolnum icmp_ids;
+
+	/** Indicates whether the node is visible to the application. */
+	bool active;
+};
+
 #define HTABLE_NAME pool4_table
 #define KEY_TYPE struct in_addr
 #define VALUE_TYPE struct pool4_node
@@ -229,8 +259,13 @@ end:
 
 int pool4_flush(void)
 {
-	pool4_for_each(deactivate_or_destroy_pool4_node, NULL);
-	return 0;
+	int error;
+
+	spin_lock_bh(&pool_lock);
+	error = pool4_table_for_each(&pool, deactivate_or_destroy_pool4_node, NULL);
+	spin_unlock_bh(&pool_lock);
+
+	return (error > 0) ? 0 : error;
 }
 
 static int __pool4_add(struct in_addr *addr)
@@ -562,12 +597,25 @@ bool pool4_contains(__be32 addr)
 	return result;
 }
 
-int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
+struct foreach_wrap {
+	int (*func)(struct ipv4_prefix *, void *);
+	void *arg;
+};
+
+static int pool4_for_each_wrapper(struct pool4_node * node, void *arg)
 {
+	struct foreach_wrap *wrapper = arg;
+	struct ipv4_prefix prefix = { .address = node->addr, .len = 32 };
+	return wrapper->func(&prefix, wrapper->arg);
+}
+
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg)
+{
+	struct foreach_wrap wrapper = { .func = func, .arg = arg };
 	int error;
 
 	spin_lock_bh(&pool_lock);
-	error = pool4_table_for_each(&pool, func, arg);
+	error = pool4_table_for_each(&pool, pool4_for_each_wrapper, &wrapper);
 	spin_unlock_bh(&pool_lock);
 
 	return error;

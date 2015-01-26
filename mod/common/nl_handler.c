@@ -192,9 +192,9 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	}
 }
 
-static int pool4_entry_to_userspace(struct pool4_node *node, void *arg)
+static int pool4_entry_to_userspace(struct ipv4_prefix *prefix, void *arg)
 {
-	return nlbuffer_write(arg, &node->addr, sizeof(node->addr));
+	return nlbuffer_write(arg, prefix, sizeof(*prefix));
 }
 
 static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,

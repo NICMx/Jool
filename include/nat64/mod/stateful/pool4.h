@@ -14,36 +14,6 @@
 #include "nat64/mod/stateful/poolnum.h"
 
 /**
- * An address within the pool, along with its ports.
- */
-struct pool4_node {
-	/** The address itself. */
-	struct in_addr addr;
-
-	struct {
-		/** The address's even UDP ports from the range 0-1023. */
-		struct poolnum low_even;
-		/** The address's odd UDP ports from the range 0-1023. */
-		struct poolnum low_odd;
-		/** The address's even UDP ports from the range 1024-65535. */
-		struct poolnum high_even;
-		/** The address's odd UDP ports from the range 1024-65535. */
-		struct poolnum high_odd;
-	} udp_ports;
-	struct {
-		/** The address's TCP ports from the range 0-1023. */
-		struct poolnum low;
-		/** The address's TCP ports from the range 1024-65535. */
-		struct poolnum high;
-	} tcp_ports;
-	/** The address's ICMP IDs. */
-	struct poolnum icmp_ids;
-
-	/** Indicates whether the node is visible to the application. */
-	bool active;
-};
-
-/**
  * Readies the rest of this module for future use.
  *
  * @param addr_strs array of strings denoting the IP addresses the pool should start with.
@@ -127,7 +97,7 @@ bool pool4_contains(__be32 addr);
 /**
  * Executes the "func" function with the "arg" argument on every address in the pool.
  */
-int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg);
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg);
 /**
  * Copies the current number of addresses in the pool to "result".
  */

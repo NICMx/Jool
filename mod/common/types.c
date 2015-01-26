@@ -96,6 +96,11 @@ bool ipv4_prefix_contains(const struct ipv4_prefix *prefix, const struct in_addr
 	return prefixbits == addrbits;
 }
 
+bool ipv4_prefix_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2)
+{
+	return ipv4_prefix_contains(p1, &p2->address) || ipv4_prefix_contains(p2, &p1->address);
+}
+
 bool ipv6_prefix_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr)
 {
 	return ipv6_prefix_equal(&prefix->address, addr, prefix->len);
