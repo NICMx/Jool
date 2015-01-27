@@ -1,4 +1,4 @@
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include <linux/inet.h>
 #include "nat64/mod/common/types.h"
 

@@ -1,4 +1,4 @@
-#include "nat64/mod/log_time.h"
+#include "nat64/mod/common/log_time.h"
 
 static struct log_time_db logs_ipv6_tcp;
 static struct log_time_db logs_ipv6_udp;

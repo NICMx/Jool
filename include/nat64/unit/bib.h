@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_BIB_H
 #define _JOOL_UNIT_BIB_H
 
-#include "nat64/mod/bib_db.h"
+#include "nat64/mod/stateful/bib_db.h"
 
 /**
  * Asserts the BIB database contains exactly the "expected_bibs" entries.

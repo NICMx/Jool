@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_LOG_TIME_H
-#define _JOOL_COMM_LOG_TIME_H
+#ifndef _JOOL_MOD_LOG_TIME_H
+#define _JOOL_MOD_LOG_TIME_H
 
 /**
  * @file

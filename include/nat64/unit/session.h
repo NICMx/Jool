@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_SESSION_H
 #define _JOOL_UNIT_SESSION_H
 
-#include "nat64/mod/session_db.h"
+#include "nat64/mod/stateful/session_db.h"
 
 
 bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessions);

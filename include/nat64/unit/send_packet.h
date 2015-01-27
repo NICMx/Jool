@@ -1,7 +1,7 @@
 #ifndef _JOOL_UNIT_SEND_PKT_H
 #define _JOOL_UNIT_SEND_PKT_H
 
-#include "nat64/mod/send_packet.h"
+#include "nat64/mod/common/send_packet.h"
 
 
 struct sk_buff *get_sent_skb(void);

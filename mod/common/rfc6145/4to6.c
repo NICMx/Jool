@@ -5,7 +5,7 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 
-#include "nat64/comm/constants.h"
+#include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/rfc6052.h"

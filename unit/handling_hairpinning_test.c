@@ -10,24 +10,24 @@
 #include "nat64/unit/send_packet.h"
 #include "nat64/unit/types.h"
 
-#include "nat64/comm/str_utils.h"
-#include "nat64/mod/pool6.h"
-#include "nat64/mod/pool4.h"
-#include "nat64/mod/pkt_queue.h"
-#include "nat64/mod/fragment_db.h"
-#include "nat64/mod/bib_db.h"
-#include "nat64/mod/session_db.h"
-#include "nat64/mod/config.h"
-#include "nat64/mod/filtering_and_updating.h"
-#include "nat64/mod/ttp/core.h"
-#include "nat64/mod/core.h"
+#include "nat64/common/str_utils.h"
+#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pkt_queue.h"
+#include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/bib_db.h"
+#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/common/config.h"
+#include "nat64/mod/stateful/filtering_and_updating.h"
+#include "nat64/mod/common/rfc6145/core.h"
+#include "nat64/mod/common/core.h"
 
 /**
  * There's a IPv6 network and the IPv4 Internet. The admin places a NAT64 in-between using the
  * following configuration.
  */
-#define NAT64_POOL4 "192.0.2.2"
-#define NAT64_POOL6 "64:ff9b::"
+#define NAT64_POOL4 "192.0.2.128"
+#define NAT64_POOL6 "3::"
 
 /*
  * The IPv6 network has a HTTP service on address 1::1. The administrator publishes the service.
@@ -244,69 +244,40 @@ static bool test_icmp(void)
 
 static void deinit(void)
 {
-	translate_packet_destroy();
-	filtering_destroy();
-	sessiondb_destroy();
-	bibdb_destroy();
-	pktqueue_destroy();
-	pool4_destroy();
-	pool6_destroy();
+	end_full();
 	fragdb_destroy();
 }
 
-static int init(void)
+static bool init(void)
 {
-	char *pool6[] = { NAT64_POOL6 "/96" };
-	char *pool4[] = { NAT64_POOL4 };
-	int error;
-
-	error = fragdb_init();
-	if (error)
-		goto failure;
-	error = pool6_init(pool6, ARRAY_SIZE(pool6));
-	if (error)
-		goto failure;
-	error = pool4_init(pool4, ARRAY_SIZE(pool4));
-	if (error)
-		goto failure;
-	error = pktqueue_init();
-	if (error)
-		goto failure;
-	error = bibdb_init();
-	if (error)
-		goto failure;
-	error = sessiondb_init();
-	if (error)
-		goto failure;
-	error = filtering_init();
-	if (error)
-		goto failure;
-	error = translate_packet_init();
-	if (error)
-		goto failure;
+	if (is_error(fragdb_init()))
+		goto fragdb_fail;
+	if (!init_full())
+		goto initfull_fail;
 
 	if (!bib_inject_str(SERVER_ADDR6, SERVER_PORT6, NAT64_POOL4, SERVER_PORT6, L4PROTO_UDP))
-		goto failure;
+		goto inject_fail;
 	if (!bib_inject_str(SERVER_ADDR6, SERVER_PORT6, NAT64_POOL4, SERVER_PORT6, L4PROTO_TCP))
-		goto failure;
+		goto inject_fail;
 	if (!bib_inject_str(SERVER_ADDR6, SERVER_PORT6, NAT64_POOL4, SERVER_PORT6, L4PROTO_ICMP))
-		goto failure;
+		goto inject_fail;
 
-	return 0;
+	return true;
 
-failure:
-	deinit();
-	return error;
+inject_fail:
+	end_full();
+initfull_fail:
+	fragdb_destroy();
+fragdb_fail:
+	return false;
 }
 
 static int init_test_module(void)
 {
-	int error;
 	START_TESTS("Handling Hairpinning");
 
-	error = init();
-	if (error)
-		return error;
+	if (!init())
+		return -EINVAL;
 
 	/*
 	 * Well, the only thing not being tested here, I think, is hairpinning not getting in the way

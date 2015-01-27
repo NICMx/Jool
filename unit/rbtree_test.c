@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 
 #include "nat64/unit/unit_test.h"
-#include "nat64/mod/rbtree.h"
+#include "nat64/mod/common/rbtree.h"
 
 
 MODULE_LICENSE("GPL");

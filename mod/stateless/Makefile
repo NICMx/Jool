@@ -17,7 +17,7 @@ clean:
 
 insert:
 	# Don't need this noise.
-	sudo dmesg -c > /dev/null
+	sudo dmesg -C
 
 	# Enable forwarding.
 	sudo sysctl -w net.ipv4.conf.all.forwarding=1

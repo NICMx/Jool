@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TYPES_MOD_H
-#define _JOOL_MOD_TYPES_MOD_H
+#ifndef _JOOL_MOD_TYPES_H
+#define _JOOL_MOD_TYPES_H
 
 /**
  * @file
@@ -8,7 +8,7 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 #include <linux/netfilter.h>
 
 /**
@@ -211,4 +211,4 @@ bool is_icmp4_error(__u8 type);
  * @}
  */
 
-#endif /* _JOOL_MOD_TYPES_MOD_H */
+#endif /* _JOOL_MOD_TYPES_H */

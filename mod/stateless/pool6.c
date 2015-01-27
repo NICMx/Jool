@@ -1,6 +1,6 @@
 #include "nat64/mod/stateless/pool6.h"
-#include "nat64/comm/constants.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/constants.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/types.h"
 
 #include <linux/inet.h>

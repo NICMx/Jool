@@ -4,8 +4,8 @@
 #include <linux/icmp.h>
 #include <net/route.h>
 
-#include "nat64/comm/constants.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/constants.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/stats.h"

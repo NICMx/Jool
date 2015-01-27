@@ -1,8 +1,8 @@
 #include <linux/module.h>
-#include "nat64/mod/packet.h"
+#include "nat64/mod/common/packet.h"
 
 #include "nat64/unit/unit_test.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/skb_generator.h"
 

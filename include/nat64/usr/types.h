@@ -1,7 +1,7 @@
 #ifndef _JOOL_USR_TYPES_H
 #define _JOOL_USR_TYPES_H
 
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 
 #define log_debug(text, ...) printf(text "\n", ##__VA_ARGS__)

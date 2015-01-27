@@ -1,6 +1,6 @@
 #include "nat64/usr/session.h"
-#include "nat64/comm/config.h"
-#include "nat64/comm/session.h"
+#include "nat64/common/config.h"
+#include "nat64/common/session.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"

@@ -1,7 +1,7 @@
 #ifndef _JOOL_USR_EAM_H
 #define _JOOL_USR_EAM_H
 
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 int eam_display(bool csv_format);
 int eam_count(void);

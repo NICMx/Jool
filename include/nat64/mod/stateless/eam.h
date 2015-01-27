@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_ADDRESS_MAPPING_H
-#define _JOOL_MOD_ADDRESS_MAPPING_H
+#ifndef _JOOL_MOD_EAM_H
+#define _JOOL_MOD_EAM_H
 
 /*
  * address_mapping.h
@@ -9,7 +9,7 @@
  */
 
 #include <linux/rbtree.h>
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 /**
  * Explicit Address Mapping definition.
@@ -68,4 +68,4 @@ int eamt_count(__u64 *count);
 int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
 		int (*func)(struct eam_entry *, void *), void *arg);
 
-#endif /* _JOOL_MOD_ADDRESS_MAPPING_H */
+#endif /* _JOOL_MOD_EAM_H */

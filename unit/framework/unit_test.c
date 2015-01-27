@@ -1,6 +1,6 @@
 #include "nat64/unit/unit_test.h"
 #include <linux/kernel.h>
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 
 #define UNIT_WARNING(test_name, expected, actual, specifier) \

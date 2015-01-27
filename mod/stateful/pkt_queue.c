@@ -1,5 +1,5 @@
 #include "nat64/mod/stateful/pkt_queue.h"
-#include "nat64/comm/constants.h"
+#include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/rbtree.h"

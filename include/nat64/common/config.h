@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_CONFIG_H
-#define _JOOL_COMM_CONFIG_H
+#ifndef _JOOL_COMMON_CONFIG_H
+#define _JOOL_COMMON_CONFIG_H
 
 /**
  * @file
@@ -15,7 +15,7 @@
  */
 
 #include <linux/types.h>
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 
 /**
@@ -526,4 +526,4 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *config);
 
 
-#endif /* _JOOL_COMM_CONFIG_H */
+#endif /* _JOOL_COMMON_CONFIG_H */

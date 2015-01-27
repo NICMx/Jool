@@ -1,5 +1,5 @@
 #include "nat64/usr/netlink.h"
-#include "nat64/comm/config.h"
+#include "nat64/common/config.h"
 #include "nat64/usr/types.h"
 #include <errno.h>
 #include <unistd.h>

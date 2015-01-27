@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TRANSLATING_THE_PACKET_H
-#define _JOOL_MOD_TRANSLATING_THE_PACKET_H
+#ifndef _JOOL_MOD_RFC6145_CORE_H
+#define _JOOL_MOD_RFC6145_CORE_H
 
 /**
  * @file
@@ -23,4 +23,4 @@
 verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in,
 		struct sk_buff **output);
 
-#endif /* _JOOL_MOD_TRANSLATING_THE_PACKET_H */
+#endif /* _JOOL_MOD_RFC6145_CORE_H */

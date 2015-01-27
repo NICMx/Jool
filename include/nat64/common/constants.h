@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_CONSTANTS_H
-#define _JOOL_COMM_CONSTANTS_H
+#ifndef _JOOL_COMMON_CONSTANTS_H
+#define _JOOL_COMMON_CONSTANTS_H
 
 /**
  * @file
@@ -98,4 +98,4 @@
 #define ICMP_BAD_LENGTH 2
 
 
-#endif /* _JOOL_COMM_CONSTANTS_H */
+#endif /* _JOOL_COMMON_CONSTANTS_H */

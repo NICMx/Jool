@@ -1,7 +1,7 @@
-#include "nat64/mod/pool4.h"
-#include "nat64/comm/constants.h"
-#include "nat64/comm/str_utils.h"
-#include "nat64/mod/types.h"
+#include "nat64/mod/stateful/pool4.h"
+#include "nat64/common/constants.h"
+#include "nat64/common/str_utils.h"
+#include "nat64/mod/common/types.h"
 
 
 static struct in_addr pool_address;
@@ -11,7 +11,7 @@ static u32 pool_current_icmp_id;
 
 int pool4_init(char *addr_strs[], int addr_count)
 {
-	char *defaults[] = POOL4_DEF;
+	char *defaults[] = { "192.0.2.128" };
 
 	if (!addr_strs)
 		addr_strs = defaults;
@@ -33,14 +33,19 @@ void pool4_destroy(void)
 	/* No code. */
 }
 
-int pool4_register(struct in_addr *address)
+int pool4_add(struct ipv4_prefix *prefix)
 {
 	return 0;
 }
 
-int pool4_remove(struct in_addr *address)
+int pool4_remove(struct ipv4_prefix *prefix)
 {
 	return 0;
+}
+
+int pool4_get(l4_protocol l4_proto, struct ipv4_transport_addr *addr)
+{
+	return ipv4_addr_equals(&addr->l3, &pool_address) ? 0 : -EINVAL;
 }
 
 static int get_next_port(l4_protocol proto, __u16 *result)
@@ -108,9 +113,21 @@ bool pool4_contains(__be32 address)
 	return pool_address.s_addr == address;
 }
 
-int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg)
 {
 	/* Meh, whatever. */
 	log_debug("Somebody asked me to iterate through the pool.");
 	return -EINVAL;
+}
+
+int pool4_flush(void)
+{
+	log_debug("Flushing the IPv4 pool.");
+	return 0;
+}
+
+int pool4_count(__u64 *result)
+{
+	*result = 1;
+	return 0;
 }

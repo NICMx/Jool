@@ -293,14 +293,19 @@ int init_module(void)
 {
 	START_TESTS("Fragment database");
 
-	if (is_error(fragdb_init()))
+	if (is_error(config_init()))
 		return -EINVAL;
+	if (is_error(fragdb_init())) {
+		config_destroy();
+		return -EINVAL;
+	}
 
 	CALL_TEST(test_no_frags(), "Unfragmented IPv6 packet arrives");
 	CALL_TEST(test_happy_path(), "Happy defragmentation.");
 	CALL_TEST(test_timer(), "Timer test.");
 
 	fragdb_destroy();
+	config_destroy();
 
 	END_TESTS;
 }

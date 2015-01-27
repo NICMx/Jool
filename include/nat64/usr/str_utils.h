@@ -10,7 +10,7 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 /** Maximum storable value on a __u8. */
 #define MAX_U8 0xFF

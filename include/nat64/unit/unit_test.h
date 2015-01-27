@@ -38,6 +38,9 @@ bool assert_not_null(void *actual, char *test_name);
 bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *test_name);
 bool assert_list_count(int expected, struct list_head *head, char *test_name);
 
+bool init_full(void);
+void end_full(void);
+
 
 /**
  * Macros to be used by the main test function.

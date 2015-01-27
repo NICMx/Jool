@@ -1,6 +1,6 @@
 #include "nat64/usr/bib.h"
-#include "nat64/comm/config.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/config.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
 #include "nat64/usr/dns.h"

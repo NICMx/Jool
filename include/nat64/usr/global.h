@@ -2,7 +2,7 @@
 #define _JOOL_USR_GLOBAL_H
 
 
-#include "nat64/comm/config.h"
+#include "nat64/common/config.h"
 
 
 #define DROP_BY_ADDR_OPT		"dropAddr"

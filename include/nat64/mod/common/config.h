@@ -1,8 +1,8 @@
 #ifndef _JOOL_MOD_CONFIG_H
 #define _JOOL_MOD_CONFIG_H
 
-#include "nat64/comm/config.h"
-#include "nat64/comm/types.h"
+#include "nat64/common/config.h"
+#include "nat64/common/types.h"
 
 int config_init(void);
 void config_destroy(void);

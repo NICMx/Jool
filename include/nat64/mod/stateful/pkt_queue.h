@@ -1,5 +1,5 @@
-#ifndef _NF_NAT64_PKT_QUEUE_H
-#define _NF_NAT64_PKT_QUEUE_H
+#ifndef _JOOL_MOD_PKT_QUEUE_H
+#define _JOOL_MOD_PKT_QUEUE_H
 
 /**
  * @file
@@ -65,4 +65,4 @@ int pktqueue_send(struct session_entry *session);
 int pktqueue_remove(struct session_entry *session);
 
 
-#endif /* _NF_NAT64_PKT_QUEUE_H */
+#endif /* _JOOL_MOD_PKT_QUEUE_H */

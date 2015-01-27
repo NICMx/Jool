@@ -17,7 +17,7 @@ clean:
 
 insert:
 	# Don't need this noise.
-	sudo dmesg -c > /dev/null
+	sudo dmesg -C
 
 	# Insert the dependencies.
 	sudo modprobe nf_defrag_ipv6

@@ -1,5 +1,5 @@
 #include "nat64/mod/common/types.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>

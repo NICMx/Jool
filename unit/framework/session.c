@@ -1,5 +1,5 @@
 #include "nat64/unit/session.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 static int count_sessions(struct session_entry *session, void *arg)
 {

@@ -1,6 +1,6 @@
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/types.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 #include <linux/if_ether.h>
 #include <linux/ipv6.h>

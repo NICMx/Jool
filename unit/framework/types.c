@@ -1,5 +1,5 @@
 #include "nat64/unit/types.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>

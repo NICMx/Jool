@@ -1,8 +1,8 @@
 #ifndef _JOOL_UNIT_SKB_GENERATOR_H
 #define _JOOL_UNIT_SKB_GENERATOR_H
 
-#include "nat64/mod/packet.h"
-#include "nat64/mod/types.h"
+#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/types.h"
 
 typedef int (*skb_creator)(struct tuple *, struct sk_buff **, u16, u8);
 typedef int (*skb_frag_creator)(struct tuple *, struct sk_buff **, u16, u16, bool, bool, u16, u8);

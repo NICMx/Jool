@@ -1,5 +1,5 @@
 #include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/comm/constants.h"
+#include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/packet.h"

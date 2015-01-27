@@ -14,8 +14,8 @@
 #include <linux/types.h>
 #include <string.h>
 
-#include "nat64/comm/constants.h"
-#include "nat64/comm/config.h"
+#include "nat64/common/constants.h"
+#include "nat64/common/config.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool6.h"

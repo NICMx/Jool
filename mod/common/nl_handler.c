@@ -6,7 +6,7 @@
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 
-#include "nat64/comm/config.h"
+#include "nat64/common/config.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/nl_buffer.h"
 #include "nat64/mod/common/types.h"

@@ -4,7 +4,8 @@
 #include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/unit_test.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
+#include "nat64/mod/stateful/pool4.h"
 #include "session_db.c"
 
 
@@ -210,27 +211,6 @@ static bool test_address_filtering(void)
 
 	return success;
 }
-static bool test_sessiondb_timeouts_aux(struct expire_timer *expirer,
-		unsigned int expirer_seconds, char *test_name)
-{
-	unsigned long mssec = msecs_to_jiffies(1000 * expirer_seconds);
-	unsigned long timeout = get_timeout(expirer);
-
-	return assert_equals_int(mssec, timeout, test_name);
-}
-
-static bool test_sessiondb_timeouts(void)
-{
-	bool success = true;
-
-	success &= test_sessiondb_timeouts_aux(&expirer_udp, UDP_DEFAULT ,"UDP_timeout");
-	success &= test_sessiondb_timeouts_aux(&expirer_icmp, ICMP_DEFAULT, "ICMP_timeout");
-	success &= test_sessiondb_timeouts_aux(&expirer_tcp_est, TCP_EST, "TCP_EST_timeout");
-	success &= test_sessiondb_timeouts_aux(&expirer_tcp_trans, TCP_TRANS,"TCP_TRANS_timeout");
-	success &= test_sessiondb_timeouts_aux(&expirer_syn, TCP_INCOMING_SYN, "TCP_SYN_timeout");
-
-	return success;
-}
 
 static bool test_compare_session4(void)
 {
@@ -308,7 +288,7 @@ static bool test_tcp_v4_init_state_handle_v6syn(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -367,7 +347,7 @@ static bool test_tcp_v6_init_state_handle_v4syn(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -396,7 +376,7 @@ static bool test_tcp_v6_init_state_handle_v6syn(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -505,7 +485,7 @@ static bool test_tcp_established_state_handle_v4rst(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -534,7 +514,7 @@ static bool test_tcp_established_state_handle_v6rst(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -563,7 +543,7 @@ static bool test_tcp_established_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -592,7 +572,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -621,7 +601,7 @@ static bool test_tcp_v4_fin_rcv_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -650,7 +630,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -679,7 +659,7 @@ static bool test_tcp_v6_fin_rcv_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -762,7 +742,7 @@ static bool test_tcp_trans_state_handle_else(void)
 	struct session_entry *session;
 	struct expire_timer *expirer;
 	struct sk_buff *skb;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	bool success = true;
 
 	/* Prepare */
@@ -799,18 +779,43 @@ static bool init(void)
 		addr6[i].l4 = IPV6_PORTS[i];
 	}
 
-	if (is_error(sessiondb_init()))
-		return false;
+	if (is_error(config_init()))
+		goto config_fail;
 	if (is_error(pktqueue_init()))
-		return false;
+		goto pktqueue_fail;
+	if (is_error(pool4_init(NULL, 0)))
+		goto pool4_fail;
+	if (is_error(pool6_init(NULL, 0)))
+		goto pool6_fail;
+	if (is_error(bibdb_init()))
+		goto bib_fail;
+	if (is_error(sessiondb_init()))
+		goto session_fail;
 
 	return true;
+
+session_fail:
+	bibdb_destroy();
+bib_fail:
+	pool6_destroy();
+pool6_fail:
+	pool4_destroy();
+pool4_fail:
+	pktqueue_destroy();
+pktqueue_fail:
+	config_destroy();
+config_fail:
+	return false;
 }
 
 static void end(void)
 {
 	sessiondb_destroy();
+	bibdb_destroy();
+	pool6_destroy();
+	pool4_destroy();
 	pktqueue_destroy();
+	config_destroy();
 }
 
 int init_module(void)
@@ -819,7 +824,6 @@ int init_module(void)
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
 	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
-	INIT_CALL_END(init(), test_sessiondb_timeouts(), end(), "Session config timeouts");
 	INIT_CALL_END(init(), test_compare_session4(), end(), "compare_session4()");
 
 	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_v6syn(), end(), "TCP-V4 INIT-V6 syn");

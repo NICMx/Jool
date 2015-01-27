@@ -1,5 +1,5 @@
-#include "nat64/mod/icmp_wrapper.h"
-#include "nat64/mod/types.h"
+#include "nat64/mod/common/icmp_wrapper.h"
+#include "nat64/mod/common/types.h"
 
 static int sent = 0;
 

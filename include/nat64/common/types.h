@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_TYPES_H
-#define _JOOL_COMM_TYPES_H
+#ifndef _JOOL_COMMON_TYPES_H
+#define _JOOL_COMMON_TYPES_H
 
 /**
  * @file
@@ -28,7 +28,7 @@
 		#include <time.h>
 #endif
 #endif
-#include "nat64/comm/nat64.h"
+#include "nat64/common/nat64.h"
 
 /**
  * Returns nonzero if "status" is an error, returns zero if "status" represents success.
@@ -126,4 +126,4 @@ struct ipv6_prefix {
 	__u8 len;
 };
 
-#endif /* _JOOL_COMM_TYPES_H */
+#endif /* _JOOL_COMMON_TYPES_H */

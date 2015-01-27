@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_NAT64_H
-#define _JOOL_COMM_NAT64_H
+#ifndef _JOOL_COMMON_NAT64_H
+#define _JOOL_COMMON_NAT64_H
 
 /**
  * @file
@@ -35,4 +35,4 @@ static inline int nat64_is_stateless(void)
 	return !nat64_is_stateful();
 }
 
-#endif /* _JOOL_COMM_NAT64_H */
+#endif /* _JOOL_COMMON_NAT64_H */

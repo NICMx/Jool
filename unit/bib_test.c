@@ -3,7 +3,7 @@
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/bib.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "bib_db.c"
 
 
@@ -125,118 +125,6 @@ static bool simple_bib(void)
 struct foreach6_summary {
 	u8 visited[7];
 };
-
-static int foreach6_func(struct bib_entry *entry, void *arg)
-{
-	struct foreach6_summary *summary = arg;
-
-	log_debug("Iterating through node %pI6c#%u.", &entry->ipv6.l3, entry->ipv6.l4);
-
-	if (!ipv6_addr_equals(&addr6[1].l3, &entry->ipv6.l3)) {
-		log_err("The address was not the one requested.");
-		return -EINVAL;
-	}
-
-	if (entry->ipv6.l4 < 6 || 12 < entry->ipv6.l4) {
-		log_err("We didn't insert a BIB with this port to the table.");
-		return -EINVAL;
-	}
-
-	if (summary->visited[entry->ipv6.l4 - 6]) {
-		log_err("This is not the first time we've visited this node.");
-		return -EINVAL;
-	}
-
-	summary->visited[entry->ipv6.l4 - 6] = true;
-	return 0;
-}
-
-static bool test_for_each_ipv6(void)
-{
-	bool success = true;
-	int i;
-
-	/* Build the tree. */
-	{
-		struct in_addr addr4;
-		u16 port6;
-		u16 port4;
-
-		if (is_error(str_to_addr4(IPV4_ADDRS[0], &addr4)))
-			return false;
-
-		port6 = 5;
-		for (i = 0; i < 4; i++) {
-			port6++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
-				return false;
-			if (!bib_inject_str(IPV6_ADDRS[0], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
-				return false;
-		}
-
-		port6 = 5;
-		for (i = 0; i < 7; i++) {
-			port6++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
-				return false;
-			if (!bib_inject_str(IPV6_ADDRS[1], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
-				return false;
-		}
-
-		port6 = 5;
-		for (i = 0; i < 2; i++) {
-			port6++;
-			if (is_error(pool4_get_any_port(L4PROTO_UDP, &addr4, &port4)))
-				return false;
-			if (!bib_inject_str(IPV6_ADDRS[2], port6, IPV4_ADDRS[0], port4, L4PROTO_UDP))
-				return false;
-		}
-	}
-
-	/* Print the tree. */
-	/*{
-		struct rb_node *node = rb_first(&bib_udp.tree6);
-
-		while (node) {
-			struct bib_entry *bib = rb_entry(node, struct bib_entry, tree6_hook);
-			struct bib_entry *child;
-
-			log_debug("bib: %pI6c - %u", &bib->ipv6.address, bib->ipv6.l4_id);
-
-			if (node->rb_left) {
-				child = rb_entry(node->rb_left, struct bib_entry, tree6_hook);
-				log_debug("	Left: %pI6c - %u", &child->ipv6.address, child->ipv6.l4_id);
-			} else {
-				log_debug("	Left: NULL");
-			}
-
-			if (node->rb_right) {
-				child = rb_entry(node->rb_right, struct bib_entry, tree6_hook);
-				log_debug("	Right: %pI6c - %u", &child->ipv6.address, child->ipv6.l4_id);
-			} else {
-				log_debug("	Right: NULL");
-			}
-
-			node = rb_next(node);
-		};
-	}*/
-
-	/* Run the for each and validate. */
-	{
-		struct foreach6_summary summary;
-
-		for (i = 0; i < ARRAY_SIZE(summary.visited); i++)
-			summary.visited[i] = false;
-
-		success &= assert_equals_int(0,
-				for_each_bib_ipv6(&bib_udp, &addr6[1].l3, foreach6_func, &summary),
-				"result");
-		for (i = 0; i < 7; i++)
-			success &= assert_true(summary.visited[i], "node visited.");
-	}
-
-	return success;
-}
 
 static bool is_low(u16 num)
 {
@@ -605,7 +493,6 @@ int init_module(void)
 	START_TESTS("BIB");
 
 	INIT_CALL_END(init(), simple_bib(), end(), "Single BIB");
-	INIT_CALL_END(init(), test_for_each_ipv6(), end(), "for-each-IPv6 function.");
 	INIT_CALL_END(init(), test_allocate_ipv4_transport_address(), end(), "Allocate function.");
 	INIT_CALL_END(init(), test_compare_addr6(), end(), "compare_addr6");
 	INIT_CALL_END(init(), test_compare_full6(), end(), "compare_full6");

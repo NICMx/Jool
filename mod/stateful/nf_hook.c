@@ -1,4 +1,4 @@
-#include "nat64/comm/nat64.h"
+#include "nat64/common/nat64.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/nl_handler.h"

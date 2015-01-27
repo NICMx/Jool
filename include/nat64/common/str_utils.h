@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_STR_UTILS_H
-#define _JOOL_COMM_STR_UTILS_H
+#ifndef _JOOL_COMMON_STR_UTILS_H
+#define _JOOL_COMMON_STR_UTILS_H
 
 /**
  * @file
@@ -8,7 +8,7 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 /**
  * Converts "str" to a IPv4 address. Stores the result in "result".
@@ -35,4 +35,4 @@ const char *l3proto_to_string(l3_protocol proto);
  */
 const char *l4proto_to_string(l4_protocol proto);
 
-#endif /* _JOOL_COMM_STR_UTILS_H */
+#endif /* _JOOL_COMMON_STR_UTILS_H */

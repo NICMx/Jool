@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TTP_6TO4_H
-#define _JOOL_MOD_TTP_6TO4_H
+#ifndef _JOOL_MOD_RFC6145_6TO4_H
+#define _JOOL_MOD_RFC6145_6TO4_H
 
 /**
  * @file
@@ -33,4 +33,4 @@ verdict ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
  */
 verdict ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out);
 
-#endif /* _JOOL_MOD_TTP_6TO4_H */
+#endif /* _JOOL_MOD_RFC6145_6TO4_H */

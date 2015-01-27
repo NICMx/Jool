@@ -9,42 +9,17 @@ MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the Packet queue module");
 MODULE_ALIAS("nat64_test_pkt_queue");
 
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "nat64/mod/filtering_and_updating.h"
-#include "nat64/mod/pkt_queue.h"
-#include "nat64/mod/fragment_db.h"
-#include "nat64/mod/ttp/core.h"
-#include "nat64/mod/send_packet.h"
-#include "config_proto.c"
+#include "nat64/mod/stateful/filtering_and_updating.h"
+#include "nat64/mod/stateful/pkt_queue.h"
+#include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/common/rfc6145/core.h"
+#include "nat64/mod/common/send_packet.h"
+#include "nl_handler.c"
 
 /* functions */
-static int clone_global_config(struct global_config *response)
-{
-	int error = 0;
-
-	error = sessiondb_clone_config(&response->sessiondb);
-	if (error)
-		return error;
-	error = pktqueue_clone_config(&response->pktqueue);
-	if (error)
-		return error;
-	error = filtering_clone_config(&response->filtering);
-	if (error)
-		return error;
-	error = translate_clone_config(&response->translate);
-	if (error)
-		return error;
-	error = fragdb_clone_config(&response->fragmentation);
-	if (error)
-		return error;
-	error = sendpkt_clone_config(&response->sendpkt);
-
-	return error;
-}
-
-/* tests */
 static bool compare_pktqueue_config(struct pktqueue_config *expected,
 		struct pktqueue_config *actual)
 {
@@ -114,13 +89,6 @@ static bool compare_translate_config(struct translate_config *expected,
 	return success;
 }
 
-static bool compare_sendpkt_config(struct sendpkt_config *expected,
-		struct sendpkt_config *actual)
-{
-	return assert_equals_u16(expected->min_ipv6_mtu, actual->min_ipv6_mtu,
-			"send_pkt: min_ipv6_mtu");
-}
-
 static bool compare_global_configs(struct global_config *expected_config,
 		struct global_config *actual_config)
 {
@@ -130,7 +98,6 @@ static bool compare_global_configs(struct global_config *expected_config,
 	success &= compare_session_config(&expected_config->sessiondb, &actual_config->sessiondb);
 	success &= compare_filtering_config(&expected_config->filtering, &actual_config->filtering);
 	success &= compare_translate_config(&expected_config->translate, &actual_config->translate);
-	success &= compare_sendpkt_config(&expected_config->sendpkt, &actual_config->sendpkt);
 
 	return success;
 }
@@ -152,7 +119,7 @@ static bool basic_test(void)
 	struct global_config config = { .translate.mtu_plateaus = NULL };
 	struct global_config response = { .translate.mtu_plateaus = NULL };
 
-	error = clone_global_config(&config);
+	error = config_clone(&config);
 	if (error)
 		return false;
 
@@ -184,12 +151,11 @@ static bool translate_nulls_mtu(void)
 	struct global_config config = { .translate.mtu_plateaus = NULL };
 	struct global_config response = { .translate.mtu_plateaus = NULL };
 
-	error = clone_global_config(&config);
+	error = config_clone(&config);
 	if (error)
 		return false;
 
 	/* lets modify our local config manually, jool's update functions wont update to null */
-	kfree(config.translate.mtu_plateaus);
 	config.translate.mtu_plateaus = NULL;
 	config.translate.mtu_plateau_count = 0;
 
@@ -216,41 +182,20 @@ static bool translate_nulls_mtu(void)
 
 static bool init(void)
 {
-	int error;
-
-	error = pktqueue_init();
-	if (error)
-		goto fail;
-	error = sessiondb_init();
-	if (error)
-		goto fail;
-	error = fragdb_init();
-	if (error)
-		goto fail;
-	error = filtering_init();
-	if (error)
-		goto fail;
-	error = translate_packet_init();
-	if (error)
-		goto fail;
-	error = sendpkt_init();
-	if (error)
-		goto fail;
+	if (is_error(fragdb_init()))
+		return false;
+	if (!init_full()) {
+		fragdb_destroy();
+		return false;
+	}
 
 	return true;
-
-fail:
-	return false;
 }
 
 static void end(void)
 {
-	sendpkt_destroy();
-	translate_packet_destroy();
-	filtering_destroy();
 	fragdb_destroy();
-	sessiondb_destroy();
-	pktqueue_destroy();
+	end_full();
 }
 
 static int configproto_test_init(void)

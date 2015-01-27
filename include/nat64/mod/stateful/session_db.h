@@ -13,8 +13,8 @@
  * @author Daniel Hernandez
  */
 
-#include "nat64/comm/types.h"
-#include "nat64/comm/session.h"
+#include "nat64/common/types.h"
+#include "nat64/common/session.h"
 #include "nat64/mod/stateful/bib_db.h"
 
 /** ---------------------------------- Session Entries -------------------------------- */

@@ -1,4 +1,4 @@
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/common/random.h"
 #include <linux/random.h>
 #include <linux/spinlock.h>

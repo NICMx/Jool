@@ -1,5 +1,5 @@
-#ifndef _JOOL_MOD_TTP_COMMON_H
-#define _JOOL_MOD_TTP_COMMON_H
+#ifndef _JOOL_MOD_RFC6145_COMMON_H
+#define _JOOL_MOD_RFC6145_COMMON_H
 
 #include <linux/ip.h>
 #include "nat64/mod/common/types.h"

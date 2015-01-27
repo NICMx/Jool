@@ -5,9 +5,9 @@
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/validator.h"
 #include "nat64/unit/types.h"
-#include "nat64/comm/str_utils.h"
-#include "nat64/comm/constants.h"
-#include "nat64/mod/ipv6_hdr_iterator.h"
+#include "nat64/common/str_utils.h"
+#include "nat64/common/constants.h"
+#include "nat64/mod/common/ipv6_hdr_iterator.h"
 
 #define GENERATE_FOR_EACH true
 #include "determine_incoming_tuple.c"

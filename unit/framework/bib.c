@@ -1,5 +1,5 @@
 #include "nat64/unit/bib.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 
 static int count_bibs(struct bib_entry *bib, void *arg)
 {

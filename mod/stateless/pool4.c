@@ -3,7 +3,7 @@
 #include <linux/rculist.h>
 #include <linux/inet.h>
 
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/random.h"
 
 struct pool_entry {

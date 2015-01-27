@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/in.h>
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 #include "nat64/mod/stateful/poolnum.h"
 
 /**

@@ -1,5 +1,5 @@
-#ifndef _JOOL_COMM_SESSION_H
-#define _JOOL_COMM_SESSION_H
+#ifndef _JOOL_COMMON_SESSION_H
+#define _JOOL_COMMON_SESSION_H
 
 /** The states from the TCP state machine; RFC 6146 section 3.5.2. */
 enum tcp_state {
@@ -27,4 +27,4 @@ enum tcp_state {
 	TRANS,
 };
 
-#endif /* _JOOL_COMM_SESSION_H */
+#endif /* _JOOL_COMMON_SESSION_H */

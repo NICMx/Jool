@@ -9,7 +9,7 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/comm/config.h"
+#include "nat64/common/config.h"
 
 /**
  * Adds a static entry to the BIB.

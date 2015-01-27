@@ -1,4 +1,4 @@
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include <linux/inet.h>
 
 int str_to_addr4(const char *str, struct in_addr *result)

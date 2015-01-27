@@ -1,7 +1,7 @@
 #ifndef _JOOL_USR_POOL4_H
 #define _JOOL_USR_POOL4_H
 
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 
 int pool4_display(void);

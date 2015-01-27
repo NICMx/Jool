@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/in6.h>
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 /**
  * Readies the rest of this module for future use.

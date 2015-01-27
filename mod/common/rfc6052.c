@@ -1,5 +1,5 @@
 #include "nat64/mod/common/rfc6052.h"
-#include "nat64/comm/types.h"
+#include "nat64/common/types.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>

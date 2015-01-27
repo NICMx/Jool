@@ -2,9 +2,9 @@
 #include <linux/inet.h>
 
 #include "nat64/unit/unit_test.h"
-#include "nat64/comm/str_utils.h"
-#include "nat64/mod/session_db.h"
-#include "nat64/mod/compute_outgoing_tuple.h"
+#include "nat64/common/str_utils.h"
+#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/unit/session.h"
 #include "nat64/unit/types.h"
 
@@ -28,7 +28,7 @@ static unsigned char *remote4 = "192.168.0.2";
  */
 static bool init(void)
 {
-	if (is_error(sessiondb_init()))
+	if (!init_full())
 		return false;
 
 	if (!session_inject_str(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
@@ -53,7 +53,7 @@ fail:
  */
 static void cleanup(void)
 {
-	sessiondb_destroy();
+	end_full();
 }
 
 static bool test_6to4(l4_protocol l4_proto)

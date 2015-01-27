@@ -9,36 +9,13 @@ MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the Packet queue module");
 MODULE_ALIAS("nat64_test_pkt_queue");
 
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
-#include "nat64/mod/icmp_wrapper.h"
+#include "nat64/mod/common/icmp_wrapper.h"
 #include "pkt_queue.c"
-
-static bool init(void)
-{
-	int error;
-
-	error = pktqueue_init();
-	if (error)
-		goto fail;
-	error = sessiondb_init();
-	if (error)
-		goto fail;
-
-	return true;
-
-fail:
-	return false;
-}
-
-static void end(void)
-{
-	sessiondb_destroy();
-	pktqueue_destroy();
-}
 
 /**
  * "asr" means add, send, remove
@@ -123,8 +100,8 @@ static int pktqueue_test_init(void)
 {
 	START_TESTS("Packet queue");
 
-	INIT_CALL_END(init(), test_pkt_queue_asr(), end(), "test_pkt_queue 1");
-	INIT_CALL_END(init(), test_pkt_queue_ars(), end(), "test_pkt_queue 2");
+	INIT_CALL_END(init_full(), test_pkt_queue_asr(), end_full(), "test_pkt_queue 1");
+	INIT_CALL_END(init_full(), test_pkt_queue_ars(), end_full(), "test_pkt_queue 2");
 
 	END_TESTS;
 }

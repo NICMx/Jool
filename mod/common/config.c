@@ -2,8 +2,8 @@
 #include <linux/ipv6.h>
 #include <linux/jiffies.h>
 #include <linux/sort.h>
-#include "nat64/comm/config.h"
-#include "nat64/comm/constants.h"
+#include "nat64/common/config.h"
+#include "nat64/common/constants.h"
 #include "nat64/mod/common/types.h"
 
 static struct global_config *config;

@@ -2,8 +2,8 @@
 #define _JOOL_UNIT_VALIDATOR_H
 
 #include <linux/icmp.h>
-#include "nat64/mod/types.h"
-#include "nat64/mod/packet.h"
+#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/packet.h"
 
 
 bool validate_fragment_count(struct sk_buff *skb, int expected_count);

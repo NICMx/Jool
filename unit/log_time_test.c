@@ -16,10 +16,10 @@ MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the log_time_module");
 MODULE_ALIAS("nat64_test_log_time");
 
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "../mod/log_time.c"
+#include "log_time.c"
 
 static bool init(void)
 {

@@ -2,13 +2,13 @@
 #include <linux/printk.h>
 
 #include "nat64/unit/unit_test.h"
-#include "nat64/comm/str_utils.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/validator.h"
 #include "nat64/unit/types.h"
-#include "ttp/core.c"
-#include "ttp/6to4.c"
-#include "ttp/4to6.c"
+#include "rfc6145/core.c"
+#include "rfc6145/6to4.c"
+#include "rfc6145/4to6.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
@@ -138,10 +138,10 @@ static bool test_function_icmp6_minimum_mtu(void)
 	bool true_variable = true;
 	bool success = true;
 
-	error = ttpconfig_update(LOWER_MTU_FAIL, sizeof(__u8), &false_variable);
+	error = config_set(LOWER_MTU_FAIL, sizeof(__u8), &false_variable);
 	if (error)
 		goto config_fail;
-	error = ttpconfig_update(MTU_PLATEAUS, sizeof(plateaus), &plateaus);
+	error = config_set(MTU_PLATEAUS, sizeof(plateaus), &plateaus);
 	if (error)
 		goto config_fail;
 
@@ -170,7 +170,7 @@ static bool test_function_icmp6_minimum_mtu(void)
 		return false;
 
 	/* Test hack 2: User wants us to try to improve the failure rate. */
-	error = ttpconfig_update(LOWER_MTU_FAIL, sizeof(__u8), &true_variable);
+	error = config_set(LOWER_MTU_FAIL, sizeof(__u8), &true_variable);
 	if (error)
 		goto config_fail;
 
@@ -223,58 +223,56 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 static bool test_function_generate_ipv4_id_nofrag(void)
 {
-	struct ipv6hdr hdr;
+	struct sk_buff *skb;
 	__be16 attempt_1, attempt_2, attempt_3;
 	bool success = true;
 
-	hdr.payload_len = cpu_to_be16(4); /* packet length is 44. */
-	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&hdr), "Length < 88 bytes");
+	skb = alloc_skb(1500, GFP_ATOMIC);
+	if (!skb)
+		return false;
 
-	hdr.payload_len = cpu_to_be16(48); /* packet length is 88. */
-	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&hdr), "Length = 88 bytes");
-
-	hdr.payload_len = cpu_to_be16(500); /* packet length is 540. */
-	attempt_1 = generate_ipv4_id_nofrag(&hdr);
-	attempt_2 = generate_ipv4_id_nofrag(&hdr);
-	attempt_3 = generate_ipv4_id_nofrag(&hdr);
+	skb_put(skb, 1000);
+	attempt_1 = generate_ipv4_id_nofrag(skb);
+	attempt_2 = generate_ipv4_id_nofrag(skb);
+	attempt_3 = generate_ipv4_id_nofrag(skb);
 	/*
 	 * At least one of the attempts should be nonzero,
 	 * otherwise the random would be sucking major ****.
 	 */
-	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "88 < Len < 1280");
+	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len < 1260");
 
-	hdr.payload_len = cpu_to_be16(1240); /* packet length is 1280. */
-	attempt_1 = generate_ipv4_id_nofrag(&hdr);
-	attempt_2 = generate_ipv4_id_nofrag(&hdr);
-	attempt_3 = generate_ipv4_id_nofrag(&hdr);
-	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1280");
+	skb_put(skb, 260);
+	attempt_1 = generate_ipv4_id_nofrag(skb);
+	attempt_2 = generate_ipv4_id_nofrag(skb);
+	attempt_3 = generate_ipv4_id_nofrag(skb);
+	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1260");
 
-	hdr.payload_len = cpu_to_be16(4000); /* packet length is 4040. */
-	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&hdr), "Len > 1280");
+	skb_put(skb, 200);
+	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(skb), "Len > 1260");
 
+	kfree_skb(skb);
 	return success;
 }
 
 static bool test_function_generate_df_flag(void)
 {
-	struct ipv6hdr hdr;
+	struct sk_buff *skb;
 	bool success = true;
 
-	hdr.payload_len = cpu_to_be16(4); /* packet length is 44. */
-	success &= assert_equals_u16(1, generate_df_flag(&hdr), "Length < 88 bytes");
+	skb = alloc_skb(1500, GFP_ATOMIC);
+	if (!skb)
+		return false;
 
-	hdr.payload_len = cpu_to_be16(48); /* packet length is 88. */
-	success &= assert_equals_u16(1, generate_df_flag(&hdr), "Length = 88 bytes");
+	skb_put(skb, 1000);
+	success &= assert_equals_u16(0, generate_df_flag(skb), "Len < 1260");
 
-	hdr.payload_len = cpu_to_be16(500); /* packet length is 540. */
-	success &= assert_equals_u16(0, generate_df_flag(&hdr), "88 < Len < 1280");
+	skb_put(skb, 260);
+	success &= assert_equals_u16(0, generate_df_flag(skb), "Len = 1260");
 
-	hdr.payload_len = cpu_to_be16(1240); /* packet length is 1280. */
-	success &= assert_equals_u16(0, generate_df_flag(&hdr), "Len = 1280");
+	skb_put(skb, 200);
+	success &= assert_equals_u16(1, generate_df_flag(skb), "Len > 1260");
 
-	hdr.payload_len = cpu_to_be16(4000); /* packet length is 4040. */
-	success &= assert_equals_u16(1, generate_df_flag(&hdr), "Len > 1280");
-
+	kfree_skb(skb);
 	return success;
 }
 
@@ -522,14 +520,21 @@ static bool test_6to4(l4_protocol l4_proto,
 		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16, u8),
 		u16 expected_payload4_len)
 {
+	bool true_var = true;
+	bool false_var = false;
 	struct sk_buff *skb6 = NULL, *skb4_expected = NULL, *skb4_actual = NULL;
 	struct tuple tuple6, tuple4;
 	bool result = false;
 
+	if (config_set(DF_ALWAYS_ON, sizeof(__u8), &true_var) != 0)
+		goto end;
+	if (config_set(BUILD_IPV4_ID, sizeof(__u8), &false_var) != 0)
+		goto end;
+
 	if (init_ipv6_tuple(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
 			|| init_ipv4_tuple(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
 			|| create_skb6_fn(&tuple6, &skb6, 100, 32) != 0
-			|| create_skb4_fn(&tuple4, &skb4_expected, expected_payload4_len, 31) != 0)
+			|| create_skb4_fn(&tuple4, &skb4_expected, expected_payload4_len, 32) != 0)
 		goto end;
 
 	if (translating_the_packet(&tuple4, skb6, &skb4_actual) != VER_CONTINUE)
@@ -558,7 +563,7 @@ static bool test_6to4_custom_payload(l4_protocol l4_proto,
 			|| init_ipv4_tuple(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
 			|| create_skb6_fn(&tuple6, &skb6, payload_array, 4, 32) != 0
 			|| create_skb4_fn(&tuple4, &skb4_expected, payload_array,
-					expected_payload4_len, 31) != 0)
+					expected_payload4_len, 32) != 0)
 		goto end;
 
 	if (translating_the_packet(&tuple4, skb6, &skb4_actual) != VER_CONTINUE)
@@ -611,8 +616,8 @@ int init_module(void)
 {
 	START_TESTS("Translating the Packet");
 
-	if (is_error(translate_packet_init()))
-		return -EINVAL;
+	if (is_error(config_init()))
+		return false;
 
 	/* Misc single function tests */
 	CALL_TEST(test_function_has_unexpired_src_route(), "Unexpired source route querier");
@@ -640,7 +645,7 @@ int init_module(void)
 
 	CALL_TEST(test_6to4_udp_custom_payload(), "zero IPv4-UDP checksums, 6->4 UDP");
 
-	translate_packet_destroy();
+	config_destroy();
 
 	END_TESTS;
 }
