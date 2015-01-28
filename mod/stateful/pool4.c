@@ -640,14 +640,14 @@ int pool4_add(struct ipv4_prefix *addrs)
 	int error;
 
 	int total_addresses = 1 << (32 - maskbits);
-	log_info("total addresses: %d",total_addresses);
+	log_debug("total addresses: %d",total_addresses);
 
 	netmask = inet_make_mask(maskbits);
 	network.s_addr = addr->s_addr & netmask;
 
-	log_info("IP: %pI4", addr);
-	log_info("Maskbits: %u",maskbits);
-	log_info("Network: %pI4", &network);
+	log_debug("IP: %pI4", addr);
+	log_debug("Maskbits: %u",maskbits);
+	log_debug("Network: %pI4", &network);
 
 	if (maskbits == 32) {
 		(*temp).s_addr = htonl(ntohl(network.s_addr));

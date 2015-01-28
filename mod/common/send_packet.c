@@ -2,8 +2,41 @@
 
 #include <linux/version.h>
 
+#include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/route.h"
+
+static unsigned int get_nexthop_mtu(struct sk_buff *skb)
+{
+#ifndef UNIT_TESTING
+	return skb_dst(skb)->dev->mtu;
+#else
+	return 1500;
+#endif
+}
+
+static int whine_if_too_big(struct sk_buff *in_skb, struct sk_buff *out_skb)
+{
+	unsigned int len;
+	unsigned int mtu;
+
+	if (skb_l3_proto(in_skb) == L3PROTO_IPV4 && !is_dont_fragment_set(ip_hdr(in_skb)))
+		return 0;
+
+	len = out_skb->len;
+	mtu = get_nexthop_mtu(out_skb);
+	if (len > mtu) {
+		/*
+		 * We don't have to worry about ICMP errors causing this because the translate code already
+		 * truncates them.
+		 */
+		log_debug("Packet is too big (len: %u, mtu: %u).", len, mtu);
+		icmp64_send(out_skb, ICMPERR_FRAG_NEEDED, mtu);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 {
@@ -27,6 +60,12 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 	}
 
 	log_debug("Sending skb via device '%s'.", out_skb->dev->name);
+
+	error = whine_if_too_big(in_skb, out_skb);
+	if (error) {
+		kfree_skb(out_skb);
+		return VER_DROP;
+	}
 
 	skb_clear_cb(out_skb);
 	skb_walk_frags(out_skb, skb)
