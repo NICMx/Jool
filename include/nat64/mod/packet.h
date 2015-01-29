@@ -336,8 +336,11 @@ int validate_ipv6_integrity(struct ipv6hdr *hdr, unsigned int len, bool is_trunc
  * @param is_truncated whether the payload of "hdr"'s buffer *might* be truncated, and this should
  *		not be considered a problem (validation will still fail if the buffer does not contain
  *		enough l3 and l4 headers).
+ * @param is_inner when the "hdr" is part of a inner packet, we don't need to validate the checksum
+ * 		field
  */
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field);
+int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field,
+		bool is_inner);
 
 /**
  * @{

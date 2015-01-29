@@ -321,7 +321,8 @@ int skb_init_cb_ipv6(struct sk_buff *skb)
 	return 0;
 }
 
-int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field)
+int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncated, int *field,
+		bool is_inner)
 {
 	if (len < MIN_IPV4_HDR_LEN) {
 		log_debug("Packet is too small to contain a basic IP header.");
@@ -333,7 +334,7 @@ int validate_ipv4_integrity(struct iphdr *hdr, unsigned int len, bool is_truncat
 		*field = IPSTATS_MIB_INHDRERRORS;
 		return -EINVAL;
 	}
-	if (ip_fast_csum((u8 *) hdr, hdr->ihl)) {
+	if (!is_inner && ip_fast_csum((u8 *) hdr, hdr->ihl)) {
 		log_debug("Packet's IPv4 checksum is incorrect.");
 		*field = IPSTATS_MIB_INHDRERRORS;
 		return -EINVAL;
@@ -364,7 +365,7 @@ static int validate_inner_packet4(struct iphdr *hdr4, unsigned int len, int *fie
 
 	log_debug("Validating inner packet 4");
 
-	error = validate_ipv4_integrity(hdr4, len, true, field);
+	error = validate_ipv4_integrity(hdr4, len, true, field, true);
 	if (error)
 		return error;
 
@@ -428,7 +429,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 	getnstimeofday(&cb->start_time);
 #endif
 
-	error = validate_ipv4_integrity(hdr4, skb->len, false, &field);
+	error = validate_ipv4_integrity(hdr4, skb->len, false, &field, false);
 	if (error) {
 		inc_stats(skb, field);
 		return error;

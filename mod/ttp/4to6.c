@@ -406,7 +406,7 @@ static int buffer4_to_parts(struct iphdr *hdr4, unsigned int len, struct pkt_par
 	struct icmphdr *hdr_icmp;
 	int error;
 
-	error = validate_ipv4_integrity(hdr4, len, true, field);
+	error = validate_ipv4_integrity(hdr4, len, true, field, true);
 	if (error)
 		return error;
 
