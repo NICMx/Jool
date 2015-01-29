@@ -306,7 +306,7 @@ static int __skb_init_cb_ipv6(struct sk_buff *skb, bool is_fragment)
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto truncated;
 
-	if (unlikely(skb->len != sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len)))
+	if (unlikely(skb->len != get_tot_len_ipv6(skb)))
 		goto inhdr;
 	error = may_pull_ipv6_hdrs(skb, false);
 	if (unlikely(error))

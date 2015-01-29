@@ -23,7 +23,7 @@ static int whine_if_too_big(struct sk_buff *in_skb, struct sk_buff *out_skb)
 	if (skb_l3_proto(in_skb) == L3PROTO_IPV4 && !is_dont_fragment_set(ip_hdr(in_skb)))
 		return 0;
 
-	len = out_skb->len;
+	len = skb_len(out_skb);
 	mtu = get_nexthop_mtu(out_skb);
 	if (len > mtu) {
 		/*

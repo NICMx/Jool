@@ -71,6 +71,16 @@ static inline __u16 get_fragment_offset_ipv4(struct iphdr *hdr)
 }
 
 /**
+ * Pretends skb's IPv6 header has a "total length" field and returns its value.
+ * This function exists because turning "payload length" into "total length" by hand takes almost a
+ * full line by itself, which forces us to break lines.
+ */
+static inline unsigned int get_tot_len_ipv6(struct sk_buff *skb)
+{
+	return sizeof(struct ipv6hdr) + be16_to_cpu(ipv6_hdr(skb)->payload_len);
+}
+
+/**
  * @{
  * Does "hdr" belong to the fragment whose fragment offset is zero?
  * A non-fragmented packet is also considered a first fragment.
