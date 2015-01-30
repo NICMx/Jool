@@ -27,6 +27,9 @@
 
 #define FRAG_TIMEOUT_OPT		"toFrag"
 
+#define ENABLE_TRANSLATION		"enable"
+#define DISABLE_TRANSLATION		"disable"
+
 
 int global_display(void);
 int global_update(__u8 type, size_t size, void *data);

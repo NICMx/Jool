@@ -779,7 +779,7 @@ static bool init(void)
 		addr6[i].l4 = IPV6_PORTS[i];
 	}
 
-	if (is_error(config_init()))
+	if (is_error(config_init(false)))
 		goto config_fail;
 	if (is_error(pktqueue_init()))
 		goto pktqueue_fail;

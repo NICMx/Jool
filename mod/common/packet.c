@@ -420,10 +420,6 @@ static int init_inner_packet4(struct sk_buff *skb)
 	}
 
 	hdr4 = skb_jcb(skb)->payload;
-	if (unlikely(ip_fast_csum((u8 *) hdr4, hdr4->ihl))) {
-		log_debug("Inner packet's header checksum doesn't match.");
-		goto inhdr;
-	}
 	if (unlikely(ntohs(hdr4->tot_len) < l3_hdr_len)) {
 		log_debug("Inner packet's total length is bogus.");
 		goto inhdr;

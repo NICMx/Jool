@@ -293,7 +293,7 @@ int init_module(void)
 {
 	START_TESTS("Fragment database");
 
-	if (is_error(config_init()))
+	if (is_error(config_init(false)))
 		return -EINVAL;
 	if (is_error(fragdb_init())) {
 		config_destroy();

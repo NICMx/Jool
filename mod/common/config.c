@@ -8,7 +8,7 @@
 
 static struct global_config *config;
 
-int config_init(void)
+int config_init(bool is_disable)
 {
 	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
 
@@ -35,6 +35,7 @@ int config_init(void)
 	config->translate.build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
 	config->translate.lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
 	config->translate.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
+	config->translate.is_disable = (__u8) is_disable;
 	config->translate.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
 	if (!config->translate.mtu_plateaus) {
 		log_err("Could not allocate memory to store the MTU plateaus.");
@@ -54,9 +55,25 @@ void config_destroy(void)
 
 int config_clone(struct global_config *clone)
 {
+	__u16 *buffer;
+	size_t mtus_len;
+
 	rcu_read_lock_bh();
 	*clone = *rcu_dereference_bh(config);
 	/* Eh. Because of the configuration mutex, we don't really need to clone the plateaus list. */
+	/* TODO: dhernandez: is the comment above correct?, I saw a possible segmentation fault (well
+	 * the kernel log said so :P) and when requesting the global config the mtu_plateus change
+	 * without updating it, and finally my virtual machine crash, the code below apparently fix it.*/
+	mtus_len = clone->translate.mtu_plateau_count * sizeof(*clone->translate.mtu_plateaus);
+	buffer = kmalloc(mtus_len, GFP_KERNEL);
+	if (!buffer) {
+		log_debug("Could not allocate the mtu plateus.");
+		return -ENOMEM;
+	}
+
+	memcpy(buffer, config->translate.mtu_plateaus, mtus_len);
+	config->translate.mtu_plateaus = buffer;
+
 	rcu_read_unlock_bh();
 	return 0;
 }
@@ -255,6 +272,12 @@ int config_set(__u8 type, size_t size, void *value)
 		if (is_error(update_plateaus(&tmp_config->translate, size, value)))
 			goto fail;
 		break;
+	case DISABLE:
+		tmp_config->translate.is_disable = (__u8) true;
+		break;
+	case ENABLE:
+		tmp_config->translate.is_disable = (__u8) false;
+		break;
 	default:
 		log_err("Unknown config type: %u", type);
 		goto fail;
@@ -367,4 +390,9 @@ void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 	tmp = rcu_dereference_bh(config);
 	*plateaus = tmp->translate.mtu_plateaus;
 	*count = tmp->translate.mtu_plateau_count;
+}
+
+bool config_get_is_disable(void)
+{
+	return RCU_THINGY(bool, translate.is_disable);
 }

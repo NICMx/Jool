@@ -136,6 +136,8 @@ enum argp_flags {
 	ARGP_LOWER_MTU_FAIL = 4008,
 	ARGP_PLATEAUS = 4010,
 	ARGP_FRAG_TO = 4012,
+	ARGP_ENABLE_TRANSLATION = 4013,
+	ARGP_DISABLE_TRANSLATION = 4014,
 };
 
 #define NUM_FORMAT "NUM"
@@ -254,6 +256,10 @@ static struct argp_option options[] =
 	{ FRAG_TIMEOUT_OPT, ARGP_FRAG_TO, NUM_FORMAT, 0,
 			"Set the timeout for arrival of fragments." },
 #endif
+	{ ENABLE_TRANSLATION, ARGP_ENABLE_TRANSLATION, NULL, 0, "Enable Jool to translate "
+			"incoming packets." },
+	{ DISABLE_TRANSLATION, ARGP_DISABLE_TRANSLATION, NULL, 0, "Disable Jool to translate "
+				"incoming packets." },
 	{ NULL },
 };
 
@@ -555,7 +561,12 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_PLATEAUS:
 		error = set_global_u16_array(args, MTU_PLATEAUS, str);
 		break;
-
+	case ARGP_ENABLE_TRANSLATION:
+		error = set_global_bool(args, ENABLE, "true");
+		break;
+	case ARGP_DISABLE_TRANSLATION:
+		error = set_global_bool(args, DISABLE, "true");
+		break;
 	default:
 		error = ARGP_ERR_UNKNOWN;
 	}

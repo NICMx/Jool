@@ -4,6 +4,7 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/common/send_packet.h"
+#include "nat64/mod/common/config.h"
 
 #ifdef STATEFUL
 #include "nat64/mod/stateful/pool6.h"
@@ -106,6 +107,9 @@ unsigned int core_4to6(struct sk_buff *skb)
 	struct iphdr *hdr = ip_hdr(skb);
 	int error;
 
+	if (config_get_is_disable())
+		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
+
 #ifdef STATEFUL
 	if (!pool4_contains(hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
@@ -135,7 +139,12 @@ unsigned int core_6to4(struct sk_buff *skb)
 
 #ifdef STATEFUL
 	verdict result;
+#endif
 
+	if (config_get_is_disable())
+			return NF_ACCEPT; /* Translation is disable; let the packet pass. */
+
+#ifdef STATEFUL
 	if (!pool6_contains(&hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 #endif

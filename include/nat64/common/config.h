@@ -325,6 +325,8 @@ enum global_type {
 	BUILD_IPV4_ID,
 	LOWER_MTU_FAIL,
 	MTU_PLATEAUS,
+	DISABLE,
+	ENABLE,
 };
 
 /**
@@ -418,6 +420,11 @@ struct translate_config {
 	__u8 lower_mtu_fail;
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
+	/**
+	 * Jool won't perform the translation of the incoming packets.
+	 * Otherwise Jool will translate the incoming packets.
+	 */
+	__u8 is_disable;
 	/**
 	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
 	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6

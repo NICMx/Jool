@@ -616,7 +616,7 @@ int init_module(void)
 {
 	START_TESTS("Translating the Packet");
 
-	if (is_error(config_init()))
+	if (is_error(config_init(false)))
 		return false;
 
 	/* Misc single function tests */

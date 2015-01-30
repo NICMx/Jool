@@ -58,6 +58,7 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	printf("Fragments arrival time slot (--%s): ", FRAG_TIMEOUT_OPT);
 	print_time_friendly(conf->fragmentation.fragment_timeout);
 #endif
+	printf("Is Jool Disable: %s\n", conf->translate.is_disable ? "True" : "False");
 
 	return 0;
 }

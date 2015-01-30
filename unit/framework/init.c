@@ -12,7 +12,7 @@ bool init_full(void)
 	char *prefixes[] = { "3::/96" };
 	int error;
 
-	error = config_init();
+	error = config_init(false);
 	if (error)
 		goto config_fail;
 	error = pool6_init(prefixes, ARRAY_SIZE(prefixes));

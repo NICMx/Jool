@@ -32,6 +32,9 @@ static char *pool4[5];
 static int pool4_size;
 module_param_array(pool4, charp, &pool4_size, 0);
 MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
+static bool disable;
+module_param(disable, bool, 0);
+MODULE_PARM_DESC(disable, "Disable the translation at the beginning of the module insertion.");
 
 
 static char *banner = "\n"
@@ -116,7 +119,7 @@ static int __init nat64_init(void)
 	nf_defrag_ipv4_enable();
 
 	/* Init Jool's submodules. */
-	error = config_init();
+	error = config_init(disable);
 	if (error)
 		goto config_failure;
 	error = nlhandler_init();
