@@ -111,8 +111,7 @@ static __be16 build_tot_len(struct sk_buff *in, struct sk_buff *out)
 	__u16 total_len;
 
 	if (skb_is_inner(out)) { /* Inner packet. */
-		total_len = sizeof(struct ipv6hdr) + be16_to_cpu(ipv6_hdr(in)->payload_len)
-				- skb_hdrs_len(in) + skb_hdrs_len(out);
+		total_len = get_tot_len_ipv6(in) - skb_hdrs_len(in) + skb_hdrs_len(out);
 
 	} else if (!skb_is_fragment(out)) { /* Not fragment. */
 		total_len = out->len;
@@ -533,47 +532,6 @@ static int icmp6_to_icmp4_param_prob(struct icmp6hdr *icmpv6_hdr, struct icmphdr
 	return 0;
 }
 
-static bool is_truncated_ipv4(struct sk_buff *skb)
-{
-	struct iphdr *hdr4;
-	struct udphdr *hdr_udp;
-
-	switch (skb_l4_proto(skb)) {
-	case L4PROTO_TCP:
-	case L4PROTO_ICMP:
-		/* Calculating the checksum doesn't hurt. Not calculating it might. */
-		return false;
-	case L4PROTO_UDP:
-		/*
-		 * TODO (3.2) The new testing framework discovered this to be wrong. I fixed it in Jool 3.3.
-		 * I don't know since when has it been wrong, but chances are we should release a new 3.2.
-		 * The problem is also present in the 4 to 6 direction.
-		 */
-		hdr4 = ip_hdr(skb);
-		hdr_udp = udp_hdr(skb);
-		return (ntohs(hdr4->tot_len) - (4 * hdr4->ihl)) != ntohs(hdr_udp->len);
-	}
-
-	return true; /* whatever. */
-}
-
-static bool is_csum4_computable(struct sk_buff *skb)
-{
-	if (!is_first_fragment_ipv4(ip_hdr(skb)))
-		return false; /* Because there's no checksum to compute. */
-
-	if (skb_is_outer(skb))
-		return true; /* Because we have access to the entire packet. This is the typical path. */
-
-	if (is_truncated_ipv4(skb))
-		return false; /* Because we don't have access to the length field of the pseudoheader. */
-
-	if (is_fragmented_ipv4(ip_hdr(skb)))
-		return false; /* idem. */
-
-	return true; /* Because, even though it's an inner packet, it's complete. */
-}
-
 /*
  * Use this when only the ICMP header changed, so all there is to do is subtract the old data from
  * the checksum and add the new one.
@@ -636,13 +594,12 @@ static int post_icmp4info(struct sk_buff *in, struct sk_buff *out)
 	if (error)
 		return error;
 
-	return is_csum4_computable(out) ? update_icmp4_csum(in, out) : 0;
+	return update_icmp4_csum(in, out);
 }
 
 static verdict post_icmp4error(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 {
 	verdict result;
-	int error;
 
 	log_debug("Translating the inner packet (6->4)...");
 
@@ -650,24 +607,20 @@ static verdict post_icmp4error(struct tuple *tuple4, struct sk_buff *in, struct 
 	if (result != VER_CONTINUE)
 		return result;
 
-	if (is_csum4_computable(out)) {
-		error = compute_icmp4_csum(out);
-		if (error)
-			return VER_DROP;
-	}
-
-	return VER_CONTINUE;
+	return compute_icmp4_csum(out) ? VER_DROP : VER_CONTINUE;
 }
 
 /**
  * Translates in's icmp6 header and payload into out's icmp4 header and payload.
- * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4()).
+ * This is the core of RFC 6145 sections 5.2 and 5.3, except checksum (See post_icmp4*()).
  */
 verdict ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out)
 {
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(in);
 	struct icmphdr *icmpv4_hdr = icmp_hdr(out);
 	int error = 0;
+
+	icmpv4_hdr->checksum = icmpv6_hdr->icmp6_cksum; /* default. */
 
 	switch (icmpv6_hdr->icmp6_type) {
 	case ICMPV6_ECHO_REQUEST:
@@ -786,15 +739,13 @@ verdict ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 		tcp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 	}
 
-	if (is_csum4_computable(out)) {
-		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
-		tcp_copy.check = 0;
+	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
+	tcp_copy.check = 0;
 
-		tcp_out->check = 0;
-		tcp_out->check = update_csum_6to4(tcp_in->check,
-				ipv6_hdr(in), &tcp_copy, sizeof(tcp_copy),
-				ip_hdr(out), tcp_out, sizeof(*tcp_out));
-	}
+	tcp_out->check = 0;
+	tcp_out->check = update_csum_6to4(tcp_in->check,
+			ipv6_hdr(in), &tcp_copy, sizeof(tcp_copy),
+			ip_hdr(out), tcp_out, sizeof(*tcp_out));
 
 	/* Payload */
 	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
@@ -813,17 +764,15 @@ verdict ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out)
 		udp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 	}
 
-	if (is_csum4_computable(out)) {
-		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
-		udp_copy.check = 0;
+	memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+	udp_copy.check = 0;
 
-		udp_out->check = 0;
-		udp_out->check = update_csum_6to4(udp_in->check,
-				ipv6_hdr(in), &udp_copy, sizeof(udp_copy),
-				ip_hdr(out), udp_out, sizeof(*udp_out));
-		if (udp_out->check == 0)
-			udp_out->check = CSUM_MANGLED_0;
-	}
+	udp_out->check = 0;
+	udp_out->check = update_csum_6to4(udp_in->check,
+			ipv6_hdr(in), &udp_copy, sizeof(udp_copy),
+			ip_hdr(out), udp_out, sizeof(*udp_out));
+	if (udp_out->check == 0)
+		udp_out->check = CSUM_MANGLED_0;
 
 	/* Payload */
 	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;

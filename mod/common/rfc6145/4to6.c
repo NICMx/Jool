@@ -463,52 +463,6 @@ static int icmp4_to_icmp6_param_prob(struct icmphdr *icmpv4_hdr, struct icmp6hdr
 	return 0;
 }
 
-static bool is_truncated_ipv6(struct sk_buff *skb)
-{
-	uint16_t len_l3;
-	uint16_t len_l4;
-
-	switch (skb_l4_proto(skb)) {
-	case L4PROTO_TCP:
-	case L4PROTO_ICMP:
-		/* Calculating the checksum doesn't hurt. Not calculating it might. */
-		return false;
-	case L4PROTO_UDP:
-		/*
-		 * TODO (ERROR) we're extracting the data from outer headers but we're supposed to use
-		 * the inner ones. Why is this passing the tests?
-		 */
-		len_l3 = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
-		len_l4 = skb_l3hdr_len(skb) + ntohs(udp_hdr(skb)->len);
-		return len_l3 != len_l4;
-	}
-
-	return true; /* whatever. */
-}
-
-/* See comments at is_csum4_computable(). */
-static bool is_csum6_computable(struct sk_buff *skb)
-{
-	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
-	struct frag_hdr *hdr_frag = (hdr6->nexthdr == NEXTHDR_FRAGMENT)
-			? ((struct frag_hdr *) (hdr6 + 1))
-			: NULL;
-
-	if (!is_first_fragment_ipv6(hdr_frag))
-		return false;
-
-	if (skb_is_outer(skb))
-		return true;
-
-	if (is_truncated_ipv6(skb))
-		return false;
-
-	if (is_fragmented_ipv6(hdr_frag))
-		return false;
-
-	return true;
-}
-
 static int update_icmp6_csum(struct sk_buff *in, struct sk_buff *out)
 {
 	struct ipv6hdr *out_ip6 = ipv6_hdr(out);
@@ -556,13 +510,12 @@ static int post_icmp6info(struct sk_buff *in, struct sk_buff *out)
 	if (error)
 		return error;
 
-	return is_csum6_computable(out) ? update_icmp6_csum(in, out) : 0;
+	return update_icmp6_csum(in, out);
 }
 
 static verdict post_icmp6error(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 {
 	verdict result;
-	int error;
 
 	log_debug("Translating the inner packet (4->6)...");
 
@@ -570,13 +523,7 @@ static verdict post_icmp6error(struct tuple *tuple6, struct sk_buff *in, struct 
 	if (result != VER_CONTINUE)
 		return result;
 
-	if (is_csum6_computable(out)) {
-		error = compute_icmp6_csum(out);
-		if (error)
-			return VER_DROP;
-	}
-
-	return VER_CONTINUE;
+	return compute_icmp6_csum(out) ? VER_DROP : VER_CONTINUE;
 }
 
 /**
@@ -588,6 +535,8 @@ verdict ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out
 	struct icmphdr *icmpv4_hdr = icmp_hdr(in);
 	struct icmp6hdr *icmpv6_hdr = icmp6_hdr(out);
 	int error = 0;
+
+	icmpv6_hdr->icmp6_cksum = icmpv4_hdr->checksum; /* default. */
 
 	/* -- First the ICMP header. -- */
 	switch (icmpv4_hdr->type) {
@@ -679,19 +628,7 @@ static void handle_zero_csum(struct sk_buff *in, struct sk_buff *out)
 {
 	struct ipv6hdr *hdr6 = ipv6_hdr(out);
 	struct udphdr *hdr_udp = udp_hdr(out);
-	unsigned int payload_len;
 	__wsum csum;
-
-	if (skb_is_inner(in) && is_fragmented_ipv4(ip_hdr(in))) {
-		/*
-		 * There's no way to compute the checksum.
-		 * Also, this should never happen because we're supposed to have translated this inner
-		 * packet, and we never assign zero UDP checksums in theory.
-		 * But just in case, don't drop the packet.
-		 */
-		hdr_udp->check = (__force __sum16) 0x1234;
-		return;
-	}
 
 	/*
 	 * Here's the deal:
@@ -706,14 +643,12 @@ static void handle_zero_csum(struct sk_buff *in, struct sk_buff *out)
 	 * - out's UDP header.
 	 * - in's payload.
 	 *
-	 * That's the second reason why we needed in as an argument.
+	 * That's the reason why we needed in as an argument.
 	 */
 
-	hdr_udp->check = 0;
 	csum = csum_partial(hdr_udp, sizeof(*hdr_udp), 0);
-	payload_len = in->len - sizeof(struct iphdr) - sizeof(*hdr_udp);
-	csum = skb_checksum(in, skb_payload_offset(in), payload_len, csum);
-	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, sizeof(*hdr_udp) + payload_len,
+	csum = skb_checksum(in, skb_payload_offset(in), skb_payload_len_pkt(in), csum);
+	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, skb_datagram_len(in),
 			IPPROTO_UDP, csum);
 }
 
@@ -730,15 +665,13 @@ verdict ttp46_tcp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
 
-	if (is_csum6_computable(out)) {
-		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
-		tcp_copy.check = 0;
+	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
+	tcp_copy.check = 0;
 
-		tcp_out->check = 0;
-		tcp_out->check = update_csum_4to6(tcp_in->check,
-				ip_hdr(in), &tcp_copy, sizeof(tcp_copy),
-				ipv6_hdr(out), tcp_out, sizeof(*tcp_out));
-	}
+	tcp_out->check = 0;
+	tcp_out->check = update_csum_4to6(tcp_in->check,
+			ip_hdr(in), &tcp_copy, sizeof(tcp_copy),
+			ipv6_hdr(out), tcp_out, sizeof(*tcp_out));
 
 	/* Payload */
 	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
@@ -757,18 +690,16 @@ verdict ttp46_udp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out)
 		udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
 
-	if (is_csum6_computable(out)) {
-		if (udp_in->check != 0) {
-			memcpy(&udp_copy, udp_in, sizeof(*udp_in));
-			udp_copy.check = 0;
+	if (udp_in->check != 0) {
+		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+		udp_copy.check = 0;
 
-			udp_out->check = 0;
-			udp_out->check = update_csum_4to6(udp_in->check,
-					ip_hdr(in), &udp_copy, sizeof(udp_copy),
-					ipv6_hdr(out), udp_out, sizeof(*udp_out));
-		} else {
-			handle_zero_csum(in, out);
-		}
+		udp_out->check = 0;
+		udp_out->check = update_csum_4to6(udp_in->check,
+				ip_hdr(in), &udp_copy, sizeof(udp_copy),
+				ipv6_hdr(out), udp_out, sizeof(*udp_out));
+	} else {
+		handle_zero_csum(in, out);
 	}
 
 	/* Payload */
