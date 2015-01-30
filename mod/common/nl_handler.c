@@ -576,7 +576,6 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 	}
 
 end:
-	kfree(response.translate.mtu_plateaus);
 	return respond_error(nl_hdr, error);
 }
 

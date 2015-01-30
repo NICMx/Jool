@@ -55,25 +55,9 @@ void config_destroy(void)
 
 int config_clone(struct global_config *clone)
 {
-	__u16 *buffer;
-	size_t mtus_len;
-
 	rcu_read_lock_bh();
 	*clone = *rcu_dereference_bh(config);
 	/* Eh. Because of the configuration mutex, we don't really need to clone the plateaus list. */
-	/* TODO: dhernandez: is the comment above correct?, I saw a possible segmentation fault (well
-	 * the kernel log said so :P) and when requesting the global config the mtu_plateus change
-	 * without updating it, and finally my virtual machine crash, the code below apparently fix it.*/
-	mtus_len = clone->translate.mtu_plateau_count * sizeof(*clone->translate.mtu_plateaus);
-	buffer = kmalloc(mtus_len, GFP_KERNEL);
-	if (!buffer) {
-		log_debug("Could not allocate the mtu plateus.");
-		return -ENOMEM;
-	}
-
-	memcpy(buffer, config->translate.mtu_plateaus, mtus_len);
-	config->translate.mtu_plateaus = buffer;
-
 	rcu_read_unlock_bh();
 	return 0;
 }
