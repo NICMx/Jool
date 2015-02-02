@@ -138,6 +138,7 @@ enum argp_flags {
 	ARGP_FRAG_TO = 4012,
 	ARGP_ENABLE_TRANSLATION = 4013,
 	ARGP_DISABLE_TRANSLATION = 4014,
+	ARGP_COMPUTE_CSUM_ZERO = 4015,
 };
 
 #define NUM_FORMAT "NUM"
@@ -255,6 +256,9 @@ static struct argp_option options[] =
 #ifdef STATEFUL
 	{ FRAG_TIMEOUT_OPT, ARGP_FRAG_TO, NUM_FORMAT, 0,
 			"Set the timeout for arrival of fragments." },
+#else
+	{ COMPUTE_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0, "Enable to compute incoming UDP "
+			"IPv4 Packets with checksum zero."},
 #endif
 	{ ENABLE_TRANSLATION, ARGP_ENABLE_TRANSLATION, NULL, 0, "Enable Jool to translate "
 			"incoming packets." },
@@ -519,6 +523,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 			return error;
 		error = str_to_ipv4_prefix(str, &args->db.tables.eamt.prefix4);
 		args->db.tables.eamt.pref4_set = true;
+		break;
+	case ARGP_COMPUTE_CSUM_ZERO:
+		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
 		break;
 #endif
 	case ARGP_ADDRESS:

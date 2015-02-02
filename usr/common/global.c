@@ -57,6 +57,9 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 #ifdef STATEFUL
 	printf("Fragments arrival time slot (--%s): ", FRAG_TIMEOUT_OPT);
 	print_time_friendly(conf->fragmentation.fragment_timeout);
+#else
+	printf("Compute incoming IPv4 UDP checksum zero (--%s): %s\n", COMPUTE_UDP_CSUM,
+			conf->translate.compute_udp_csum_zero ? "ON" : "OFF");
 #endif
 	printf("Is Jool Disable: %s\n", conf->translate.is_disable ? "True" : "False");
 

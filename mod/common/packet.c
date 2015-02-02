@@ -6,6 +6,7 @@
 
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/stats.h"
@@ -506,6 +507,27 @@ int skb_init_cb_ipv4(struct sk_buff *skb)
 		if (nat64_is_stateless() && is_icmp4_info(type) && is_fragmented_ipv4(ip_hdr(skb))) {
 			log_debug("Packet is a fragmented ping. Its checksum cannot be translated, "
 					"so I'll just drop it.");
+			return -EINVAL;
+		}
+	}
+
+	if (nat64_is_stateless() && skb_l4_proto(skb) == L4PROTO_UDP) {
+		struct iphdr *hdr4 = ip_hdr(skb);
+		struct udphdr *udp = udp_hdr(skb);
+
+		/* RFC 6145#4.5:
+		 * A stateless translator cannot compute the UDP checksum of fragmented packets, so when a
+		 * stateless translator receives the first fragment of a fragmented UDP IPv4 packet and the
+		 * checksum field is zero, the translator SHOULD drop the packet and generate a system
+		 * management event that specifies at least the IP addresses and port numbers in the packet,
+		 * Also, the translator SHOULD provide a configuration function to allow:
+		 * Dropping the packet or Calculating an IPv6 checksum and forwarding the packet.
+		 */
+		if (is_first_fragment_ipv4(hdr4) && udp->check == 0 && (is_more_fragments_set_ipv4(hdr4) ||
+				!config_get_compute_UDP_csum_zero())) {
+			log_info("Dropping IPv4 packet, UDP Packet has checksum 0:");
+			log_info("%pI4#%u->%pI4#%u", &hdr4->saddr, ntohs(udp->source),
+					&hdr4->daddr, ntohs(udp->dest));
 			return -EINVAL;
 		}
 	}

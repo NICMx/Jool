@@ -26,6 +26,8 @@ int config_init(bool is_disable)
 	config->filtering.drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
 	config->filtering.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
 	config->fragmentation.fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
+#else
+	config->translate.compute_udp_csum_zero = TRAN_DEF_COMPUTE_UDP_CSUM0;
 #endif
 
 	config->translate.reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
@@ -221,6 +223,12 @@ int config_set(__u8 type, size_t size, void *value)
 			goto fail;
 		tmp_config->filtering.drop_external_tcp = *((__u8 *) value);
 		break;
+#else
+	case COMPUTE_UDP_CSUM_ZERO:
+		if (!ensure_bytes(size, 1))
+			goto fail;
+		tmp_config->translate.compute_udp_csum_zero = *((__u8 *) value);
+		break;
 #endif
 	case RESET_TCLASS:
 		if (!ensure_bytes(size, 1))
@@ -335,6 +343,13 @@ bool config_get_drop_external_connections(void)
 unsigned long config_get_ttl_frag(void)
 {
 	return RCU_THINGY(unsigned long, fragmentation.fragment_timeout);
+}
+
+#else
+
+bool config_get_compute_UDP_csum_zero(void)
+{
+	return RCU_THINGY(bool, translate.compute_udp_csum_zero);
 }
 
 #endif

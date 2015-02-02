@@ -30,6 +30,7 @@
 #define ENABLE_TRANSLATION		"enable"
 #define DISABLE_TRANSLATION		"disable"
 
+#define COMPUTE_UDP_CSUM		"computeUDPCsumZero"
 
 int global_display(void);
 int global_update(__u8 type, size_t size, void *data);

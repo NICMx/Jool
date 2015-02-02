@@ -316,6 +316,8 @@ enum global_type {
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
 	DROP_EXTERNAL_TCP,
+#else
+	COMPUTE_UDP_CSUM_ZERO,
 #endif
 
 	RESET_TCLASS,
@@ -425,6 +427,13 @@ struct translate_config {
 	 * Otherwise Jool will translate the incoming packets.
 	 */
 	__u8 is_disable;
+#ifndef STATEFUL
+	/**
+	 * Configuration function to allow calculating an IPv6 checksum from an incoming UDP packet
+	 * that do not contain an UDP checksum (i.e., the UDP checksum field is zero).
+	 */
+	__u8 compute_udp_csum_zero;
+#endif
 	/**
 	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
 	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
