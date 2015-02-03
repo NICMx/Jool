@@ -9,7 +9,7 @@
 #include "nat64/mod/stateful/session_db.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #ifdef BENCHMARK
-#include "nat64/mod/log_time.h"
+#include "nat64/mod/common/log_time.h"
 #endif
 
 #include <linux/kernel.h>

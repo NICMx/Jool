@@ -6,7 +6,7 @@
  */
 
 #include "nat64/usr/log_time.h"
-#include "nat64/common/config_proto.h"
+#include "nat64/common/config.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"

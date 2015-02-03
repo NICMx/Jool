@@ -431,7 +431,7 @@ verdict fragdb_handle(struct sk_buff **skb)
 	hdr_frag->frag_off &= cpu_to_be16(~IP6_MF);
 
 #ifdef BENCHMARK
-	getnstimeofday(&skb_jcb(*skb_out)->start_time);
+	getnstimeofday(&skb_jcb(*skb)->start_time);
 #endif
 
 	log_debug("All the fragments are now available. Resuming translation...");

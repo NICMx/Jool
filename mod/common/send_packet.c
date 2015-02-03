@@ -5,6 +5,7 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/common/log_time.h"
 
 static unsigned int get_nexthop_mtu(struct sk_buff *skb)
 {
@@ -45,10 +46,7 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 
 	/* TODO (issue #41) remember to re-test this before releasing. */
 #ifdef BENCHMARK
-	struct timespec end_time;
-	getnstimeofday(&end_time);
-	logtime(&skb_jcb(out_skb)->start_time, &end_time, skb_l3_proto(out_skb),
-			skb_l4_proto(out_skb));
+	logtime(out_skb);
 #endif
 
 	if (!out_skb->dev) {

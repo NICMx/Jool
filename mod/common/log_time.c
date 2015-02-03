@@ -96,23 +96,15 @@ static void logtime_db_add(struct log_time_db *log_db, struct log_node *node)
 /**
  * Increases the counter of the structure and add to the sum delta time registered.
  */
-int logtime(struct timespec *start_time, struct timespec *end_time, l3_protocol l3_proto,
-		l4_protocol l4_proto)
+int logtime(struct sk_buff *skb)
 {
 	struct log_time_db *log_db;
 	struct log_node *log_node;
+	struct timespec end_time;
 
-	if (!start_time) {
-		log_debug("There's not start_time ");
-		return -EINVAL;
-	}
+	getnstimeofday(&end_time);
 
-	if (!end_time) {
-		log_debug("There's not end_time ");
-		return -EINVAL;
-	}
-
-	logtime_get_db(&log_db, l3_proto, l4_proto);
+	logtime_get_db(&log_db, skb_l3_proto(skb), skb_l4_proto(skb));
 	if (!log_db) {
 		log_err("Invalid L3 or L4 protocol.");
 		return -EINVAL;
@@ -121,7 +113,7 @@ int logtime(struct timespec *start_time, struct timespec *end_time, l3_protocol 
 	if (logtime_create_node(&log_node))
 		return -ENOMEM; /* Error message already printed. */
 
-	subtract_timespec(start_time, end_time, log_node);
+	subtract_timespec(&skb_jcb(skb)->start_time, &end_time, log_node);
 	logtime_db_add(log_db, log_node);
 
 	return 0;

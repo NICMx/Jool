@@ -21,7 +21,7 @@
 #endif
 #include "nat64/mod/stateless/eam.h"
 #ifdef BENCHMARK
-#include "nat64/mod/log_time.h"
+#include "nat64/mod/common/log_time.h"
 #endif
 
 

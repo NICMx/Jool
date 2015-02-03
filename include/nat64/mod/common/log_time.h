@@ -14,6 +14,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/time.h>
+#include "nat64/mod/common/packet.h"
 
 struct log_time_db {
 	struct list_head list;
@@ -28,8 +29,7 @@ struct log_node {
 /**
  * Increases the counter of the structure and add to the sum delta time registered.
  */
-int logtime(struct timespec *start_time, struct timespec *end_time, l3_protocol l3_proto,
-		l4_protocol l4_proto);
+int logtime(struct sk_buff *skb);
 /**
  * Iterate over a "struct log_time_db" (which is given by the l3_protocol and l4_protocol) and
  * each iteration do the "func" call and then delete the node.
