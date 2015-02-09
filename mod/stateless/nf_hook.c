@@ -91,11 +91,6 @@ static int __init nat64_init(void)
 
 	log_debug("Inserting " MODULE_NAME "...");
 
-	if (pool4_size == 0) {
-		log_err("Missing argument 'pool4' (modprobe jool-stateless pool4=<addrs>).");
-		return -EINVAL;
-	}
-
 	/* Init Jool's submodules. */
 	error = config_init(disable);
 	if (error)

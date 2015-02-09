@@ -14,6 +14,8 @@
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/handling_hairpinning.h"
+#else
+#include "nat64/mod/stateless/pool4.h"
 #endif
 
 #include <linux/kernel.h>
@@ -111,8 +113,11 @@ unsigned int core_4to6(struct sk_buff *skb)
 		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
 
 #ifdef STATEFUL
-	if (!pool4_contains(hdr->daddr))
+	if (!pool4_contains(hdr->daddr) || pool6_is_empty())
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+#else
+	if (pool4_is_empty())
+		return NF_ACCEPT;
 #endif
 
 	log_debug("===============================================");
@@ -145,8 +150,11 @@ unsigned int core_6to4(struct sk_buff *skb)
 			return NF_ACCEPT; /* Translation is disable; let the packet pass. */
 
 #ifdef STATEFUL
-	if (!pool6_contains(&hdr->daddr))
+	if (!pool6_contains(&hdr->daddr) || pool4_is_empty())
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+#else
+	if (pool4_is_empty())
+		return NF_ACCEPT;
 #endif
 
 	log_debug("===============================================");

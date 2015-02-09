@@ -102,5 +102,10 @@ int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg);
  * Copies the current number of addresses in the pool to "result".
  */
 int pool4_count(__u64 *result);
+/**
+ * Checks if the Pool is empty.
+ * return false if is not empty, otherwise return true.
+ */
+bool pool4_is_empty(void);
 
 #endif /* _JOOL_MOD_POOL4_H */

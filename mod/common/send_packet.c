@@ -44,7 +44,6 @@ verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
 	struct sk_buff *skb;
 	int error;
 
-	/* TODO (issue #41) remember to re-test this before releasing. */
 #ifdef BENCHMARK
 	logtime(out_skb);
 #endif

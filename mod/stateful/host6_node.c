@@ -203,7 +203,7 @@ end:
 	return 0;
 }
 
-int host6_node_for_each_addr4 (struct host6_node *host6,
+int host6_node_for_each_addr4(struct host6_node *host6,
 		int (*func)(struct in_addr *, void *), void *arg)
 {
 	struct list_head *current_hook, *next_hook;

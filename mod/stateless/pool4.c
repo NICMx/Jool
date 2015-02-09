@@ -203,3 +203,14 @@ int pool4_count(__u64 *result)
 	rcu_read_unlock();
 	return 0;
 }
+
+bool pool4_is_empty(void)
+{
+	__u64 result;
+	pool4_count(&result);
+
+	if (result)
+		return false;
+
+	return true;
+}

@@ -101,7 +101,7 @@ int host6_node_get_or_create(struct in6_addr *addr, struct host6_node **result);
  * 		as parameters. you can break iteration early by having this function return nonzero.
  * @param arg something you want to send func for every entry.
  */
-int host6_node_for_each_addr4 (struct host6_node *node,
+int host6_node_for_each_addr4(struct host6_node *node,
 		int (*func)(struct in_addr *, void *), void *arg);
 
 /**

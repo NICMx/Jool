@@ -74,7 +74,7 @@ enum config_mode {
 #ifdef STATEFUL
 	#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #else
-	#define POOL6_OPS (OP_DISPLAY | OP_UPDATE)
+	#define POOL6_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE | OP_UPDATE)
 #endif
 #define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
@@ -125,8 +125,8 @@ enum config_operation {
 		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
 	#endif
 	#define COUNT_MODES (MODE_POOL4 | MODE_EAMT)
-	#define ADD_MODES (MODE_POOL4 | MODE_EAMT)
-	#define REMOVE_MODES (MODE_POOL4 | MODE_EAMT)
+	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
+	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
 	#define FLUSH_MODES (MODE_POOL4 | MODE_EAMT)
 	#define UPDATE_MODES (MODE_POOL6 | MODE_GLOBAL)
 #endif
@@ -434,6 +434,12 @@ struct translate_config {
 	 */
 	__u8 compute_udp_csum_zero;
 #endif
+	/**
+	 * Used to let know to the user if Jool is performing translation of packets.
+	 * When the IPv6 Prefix is empty and the EAM table is empty too, Jool will be disable, also Jool
+	 * will be on status disable when is_disable is true.
+	 */
+	__u8 jool_status;
 	/**
 	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
 	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6

@@ -65,6 +65,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
 int eamt_flush(void);
 
 int eamt_count(__u64 *count);
+bool eamt_is_empty(void);
 int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
 		int (*func)(struct eam_entry *, void *), void *arg);
 

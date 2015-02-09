@@ -179,9 +179,11 @@ static struct argp_option options[] =
 	{ "remove", ARGP_REMOVE, NULL, 0, "Remove an element from the target." },
 	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
 
+#ifdef STATEFUL
 	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 3 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
 		"Available on remove and flush operations only. " },
+#endif
 
 	{ NULL, 0, NULL, 0, "IPv6 Pool-only options:", 4 },
 	{ "prefix", ARGP_PREFIX, IPV6_PREFIX_FORMAT, 0, "The prefix to be added or removed. "
@@ -209,7 +211,7 @@ static struct argp_option options[] =
 			"This is the local IPv4 address#port of the entry to be added or removed. "
 			"Available on add and remove operations only." },
 #else
-	{ NULL, 0, NULL, 0, "EAMT only options:", 3 },
+	{ NULL, 0, NULL, 0, "EAMT only options:", 6 },
 	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
 			"Available on display operation only."},
 	{ "eam6", ARGP_EAM_IPV6, IPV6_PREFIX_FORMAT, 0,
@@ -500,7 +502,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 #else
 	case ARGP_PREFIX:
-		error = update_state(args, MODE_POOL6, OP_UPDATE);
+		error = update_state(args, MODE_POOL6, OP_ADD | OP_UPDATE | OP_REMOVE);
 		if (error)
 			return error;
 		error = str_to_ipv6_prefix(str, &args->db.pool6.prefix);
@@ -655,9 +657,6 @@ static int main_wrapped(int argc, char **argv)
 		switch (args.op) {
 		case OP_DISPLAY:
 			return pool6_display();
-#ifdef STATEFUL
-		case OP_COUNT:
-			return pool6_count();
 		case OP_ADD:
 			if (!args.db.pool6.prefix_set) {
 				log_err("Please enter the prefix to be added (--prefix).");
@@ -670,6 +669,9 @@ static int main_wrapped(int argc, char **argv)
 				return -EINVAL;
 			}
 			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
+#ifdef STATEFUL
+		case OP_COUNT:
+			return pool6_count();
 		case OP_FLUSH:
 			return pool6_flush(args.db.quick);
 #else

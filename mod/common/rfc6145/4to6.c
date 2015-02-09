@@ -234,9 +234,13 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out
 		ip6_hdr->daddr = tuple6->dst.addr6.l3;
 	} else {
 		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
+		if (error == -ESRCH)
+			return VER_ACCEPT;
 		if (error)
 			return VER_DROP;
 		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
+		if (error == -ESRCH)
+			return VER_ACCEPT;
 		if (error)
 			return VER_DROP;
 		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);

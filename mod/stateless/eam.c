@@ -429,6 +429,17 @@ int eamt_count(__u64 *count)
 	return 0;
 }
 
+bool eamt_is_empty(void)
+{
+	__u64 count;
+	eamt_count(&count);
+
+	if (count)
+		return false;
+
+	return true;
+}
+
 /**
  * See the function of the same name from the BIB DB module for comments on this.
  */

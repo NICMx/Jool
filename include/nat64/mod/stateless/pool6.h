@@ -52,4 +52,14 @@ int pool6_update(struct ipv6_prefix *prefix);
  */
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
 
+/**
+ * Removes "prefix" from the Pool6.
+ */
+int pool6_remove(struct ipv6_prefix *prefix);
+
+/**
+ * Checks if the Pool is empty.
+ */
+bool pool6_is_empty(void);
+
 #endif /* _JOOL_MOD_POOL6_H */

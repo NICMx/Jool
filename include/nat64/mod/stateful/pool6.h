@@ -63,5 +63,9 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
  * Copies the current number of prefixes in the pool to "result".
  */
 int pool6_count(__u64 *result);
+/**
+ * Checks if the Pool is empty.
+ */
+bool pool6_is_empty(void);
 
 #endif /* _JOOL_MOD_POOL6_H */

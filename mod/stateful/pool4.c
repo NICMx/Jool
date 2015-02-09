@@ -171,7 +171,6 @@ static void destroy_pool4_node(struct pool4_node *node)
 
 int pool4_init(char *addr_strs[], int addr_count)
 {
-	char *defaults[] = POOL4_DEF;
 	struct ipv4_prefix addrs;
 	unsigned int i;
 	int error;
@@ -187,10 +186,8 @@ int pool4_init(char *addr_strs[], int addr_count)
 		return -ENOMEM;
 	}
 
-	if (!addr_strs || addr_count == 0) {
-		addr_strs = defaults;
-		addr_count = ARRAY_SIZE(defaults);
-	}
+	if (!addr_strs || addr_count == 0)
+		goto success;
 
 	for (i = 0; i < addr_count; i++) {
 		const char *slash_pos;
@@ -215,6 +212,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 			goto fail;
 	}
 
+success:
 	last_used_addr = NULL;
 	inactives_pool4_node_counter = 0;
 
@@ -710,4 +708,16 @@ int pool4_remove(struct ipv4_prefix *addrs)
 	}
 
 	return 0;
+}
+
+bool pool4_is_empty(void)
+{
+	__u64 result;
+
+	pool4_count(&result);
+
+	if (result)
+		return false;
+
+	return true;
 }

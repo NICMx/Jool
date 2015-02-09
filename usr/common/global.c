@@ -61,6 +61,7 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	printf("Compute incoming IPv4 UDP checksum zero (--%s): %s\n", COMPUTE_UDP_CSUM,
 			conf->translate.compute_udp_csum_zero ? "ON" : "OFF");
 #endif
+	printf("Jool Status: %s\n", conf->translate.jool_status ? "Enable" : "Disable");
 	printf("Is Jool Disable: %s\n", conf->translate.is_disable ? "True" : "False");
 
 	return 0;

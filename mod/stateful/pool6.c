@@ -64,13 +64,10 @@ static int validate_prefix(struct ipv6_prefix *prefix)
 
 int pool6_init(char *pref_strs[], int pref_count)
 {
-	char *defaults[] = POOL6_DEF;
 	int i;
 
-	if (!pref_strs || pref_count == 0) {
-		pref_strs = defaults;
-		pref_count = ARRAY_SIZE(defaults);
-	}
+	if (!pref_strs || pref_count == 0)
+		return 0;
 
 	pool_count = 0;
 
@@ -256,4 +253,15 @@ int pool6_count(__u64 *result)
 	*result = pool_count;
 	spin_unlock_bh(&pool_lock);
 	return 0;
+}
+
+bool pool6_is_empty(void)
+{
+	__u64 result;
+	pool6_count(&result);
+
+	if (result)
+		return false;
+
+	return true;
 }
