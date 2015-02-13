@@ -13,13 +13,22 @@ title: Documentation - Introduction to NAT64
 
 ## Overview
 
-Jool is an Open Source implementation of a Stateful NAT64 on Linux. It is intended to comply perfectly with the RFC. As of now (2014-07-30), we're one feature away from the goal:
+Jool is an Open Source implementation of [NAT64](intro-nat64.html) on Linux. Until version 3.2.x, it used to be only a stateful NAT64; starting from 3.3.0, it also supports stateless mode.
 
-1. <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">Filtering policies</a>.
+## Compliance
+
+Version 3.3 adheres (as far as we know, perfectly) to the following RFCs and proposed standards:
+
+- [RFC 6052](https://tools.ietf.org/html/rfc6052)
+- [RFC 6144](https://tools.ietf.org/html/rfc6144)
+- [RFC 6145](https://tools.ietf.org/html/rfc6145)
+- [RFC 6146](https://tools.ietf.org/html/rfc6146)
+- [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01)
+- [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02)
 
 ## Compatibility
 
-We're supposed to support Linux kernels 3.0.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 using kernel 3.2.0-63-generic-pae, we've performed a healthy amount of formal testing on Jool 3.1.5 in the following variants:
+We're supposed to support Linux kernels 3.0.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 using kernel 3.2.0-63-generic-pae, we've performed a healthy amount of formal testing on Jool 3.1.5 and 3.2.2 in the following variants:
 
 | Distribution | Kernels |
 | -------------|---------|
@@ -36,9 +45,5 @@ We're supposed to support Linux kernels 3.0.0 and up. While most of the developm
 
 Red Hat and CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
 
-## Considerations
-
-Our missing feature (see above) means that you cannot firewall your packets being translated. If you need to filter, you're better off placing another node next to the NAT64 to do the task.
-
-And that's really all you need to know to [install](mod-install.html).
+[Back to index](doc-index.html).
 

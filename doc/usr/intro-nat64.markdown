@@ -8,97 +8,114 @@ title: Documentation - Introduction to NAT64
 ## Index
 
 1. [Introduction](#introduction)
-2. [Background](#background)
-   1. [IPv4](#ipv4)
-   2. [IPv6](#ipv6)
-3. [Transition mechanisms](#transition-mechanisms)
-4. [NAT64](#nat64)
-   1. [Stateless NAT64](#stateless-nat64)
-   2. [Stateful NAT64](#stateful-nat64)
+2. [NAT64](#nat64)
+   1. [Stateless NAT64 (with EAM)](#ipv4)
+   2. [Stateless NAT64 (vanilla)](#ipv6)
+   3. [Stateful NAT64](#stateful-nat64)
 
 ## Introduction
 
-This document intends to provide a general introduction of NAT64 and its background.
-
-It's succinct on purpose. If you need more context, there's nothing wrong with the Wikipedia articles:
-
-* <a href="http://en.wikipedia.org/wiki/IPv4" target="_blank">IPv4</a>
-* <a href="http://en.wikipedia.org/wiki/IPv6" target="_blank">IPv6</a>
-* <a href="http://en.wikipedia.org/wiki/IPv4_address_exhaustion" target="_blank">IPv4 address exhaustion</a>
-* <a href="http://en.wikipedia.org/wiki/IPv6_transition_mechanisms" target="_blank">IPv6 transition mechanisms</a>
-* <a href="http://en.wikipedia.org/wiki/NAT64" target="_blank">NAT64</a>
-
-## Background
-
-### IPv4
-
-Each electronic device (node) connected to a network needs at least one identifier (address) that uniquely represents it. This address is a four bytes long integer, so in theory there's a limit of 4,294,967,296 possible nodes in the Internet.
-
-While that might or might not still be a problem, several issues have aggravated their depletion: The growth of the Internet population, the reserved address blocks and inefficient address assignment are examples of factors which have inspired the introduction of new technologies such as NAT (Network Address Translation) and IPv6.
-
-Representing addresses as average integers is annoying, so they are usually expressed in dotted decimal format (e.g. "192.0.2.1"), where each number represents one of the four bytes.
-
-### IPv6
-
-Internet Protocol version 6 (IPv6) is the latest revision of the Internet Protocol (IP). It was developed by the Internet Engineering Task Force (IETF) to deal with the long-anticipated problem of IPv4 address exhaustion, and uses 128-bit addresses, allowing 2<sup>128</sup> (or more than 7.9 x 10<sup>28</sup> times as many as IPv4) nodes to coexist at a time.
-
-IPv6 addresses are represented as eight groups of four hexadecimal digits separated by colons (for example "2001:0db8:85a3:0042:1000:8a2e:0370:7334"). If your address has zero groups, they can be obviated (2001:db8:: is the same as 2001:0db8:0000:0000:0000:0000:0000:0000).
-
-## Transition mechanisms
-
-Because a worldwide switch from IPv4 to IPv6 cannot be done in the blink of an eye, several technologies have been devised to help IPv4 networks coexist with IPv6 ones. Some transition mechanisms are
-
-* Dual stacking
-* DS-Lite
-* IPv4 tunneling
-* IVI
-* NAT64
-
-Comparing them is outside of the scope of this document. We'll just jump straight to NAT64 instead:
+This document provides a general introduction to NAT64.
 
 ## NAT64
 
-A NAT64 ("NAT six four", not "NAT sixty-four") is a node which translates network headers from IPv4 to IPv6 and vice-versa.
+NAT64 ("NAT six four", not "NAT sixty-four") is a technology meant to communicate networking nodes which only speak [IPv4](http://en.wikipedia.org/wiki/IPv4) with nodes that only speak [IPv6](http://en.wikipedia.org/wiki/IPv6).
 
-You might think that the nodes from either side of the following diagram are people literally speaking different languages, and they interact with each other by having the mediator node translate what they're saying. You might alternatively think that the middle node is fooling the IPv6 nodes into thinking that the IPv4 nodes are also IPv6, and viceversa. Either way, if either of the packets displayed is a NAT64'd version of the other one, you normally expect them to have the same payload:
+The idea is basically that of an "upgraded" [NAT](http://en.wikipedia.org/wiki/Network_address_translation); A NAT64 box not only replaces addresses and/or ports within packets, but also layer 3 headers.
 
-![Fig.1 - Headers morphing](images/intro-nat64.svg)
+Also, just like in NAT, There are two kinds of NAT64s:
 
-There are two kinds of NAT64s: Stateless and stateful.
+- A _stateless NAT64_ is the simpler form, and allows preconfigured 1-to-1 mappings between IPv4 addresses and IPv6 addresses.
+- A _stateful NAT64_ allows several IPv6 nodes to dynamically share few IPv4 addresses (useful when you're a victim of [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion)).
 
-### Stateless NAT64
+That's all, really. Keep reading for more detail and examples.
 
-A "stateless" NAT64 is one in which there is a strong algorithmic relationship between each IPv6 address and each IPv4 address (i.e. a 1-to-1 mapping is possible).
+## Stateless NAT64 (with EAM)
 
-In the simplest case, you can obtain an IPv6 address simply by appending a prefix to an IPv4 address:
+This is the easiest one to explain. Consider the following setup:
 
-	64:ff9b:: + 10.1.2.3 = 64:ff9b::10.1.2.3 = 64:ff9b::0a01:0203
+![Fig.1 - EAM sample network](images/intro/network-1eam.svg)
 
-Here's an example:
+Assuming everyone's default gateway is node _N_, how do you communicate _A_ (IPv6) with _V_ (IPv4)?
 
-![Fig.2 - Stateless example](images/intro-stateless.svg)
+- You tell _N_, "The IPv4 address of _A_ should be 198.51.100.5, and the IPv4 address of _V_ should be 2001:db8:4::5".
+- You tell _A_, "_V_'s address is 2001:db8:4::5".
+- You tell _V_, "_A_'s address is 198.51.100.5".
 
-Because such a transformation is possible, the NAT64 needs little memory (Hence the name, "stateless"). All you need to configure is the prefixes the translator is supposed to add and remove, and fix your routing in such a way that traffic meant to be translated is sent to the NAT64. Stateless NAT64s are simple, light and transparent. If you need one of these, you might want to head over to <a href="http://www.litech.org/tayga/" target="_blank">TAYGA</a>.
+The first one is accomplished by the NAT64. [The latter can be done via DNS](op-dns64.html).
 
-> A word on TAYGA:
-> 
-> TAYGA tends to confuse my readers, because it doesn't seem to behave the way I've described here, at least not by default.
-> 
-> What happens is, my explanation above tells you about _pure_ stateless NAT64, and TAYGA builds on top of that by letting you build translation tables. That is, it lets you map specific IPv6 addresses to specific IPv4 addresses, which removes the constraint that forces you to encapsulate the latter inside the former. It's not really a violation of the RFC (I guess), but watch out for it.
+This will happen:
+
+![Fig.2 - EAM flow](images/intro/flow-1eam.svg)
+
+"EAM" stands for "Explicit Address Mapping", and its latest revision (as of 2015-02-04) is defined in [this draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02). The maps are stored in a table that might look like this (not linked to the example above):
+
+| IPv4 Prefix     |     IPv6 Prefix      |
+|-----------------|----------------------|
+| 192.0.2.1/32    | 2001:db8:aaaa::5/128 |
+| 198.51.100.0/24 | 2001:db8:bbbb::/120  |
+
+Notice:
+
+- The first entry in the table tells the NAT64 "address 192.0.2.1 should be translated as 2001:db8:aaaa::5, and viceversa".
+- The second entry says "198.51.100.x should be translated as 2001:db8:bbbb::x, and viceversa" (notice the prefix lengths). As in:
+   - 198.51.100.0 <-> 2001:db8:bbbb::0
+   - 198.51.100.1 <-> 2001:db8:bbbb::1
+   - 198.51.100.2 <-> 2001:db8:bbbb::2
+   - ...
+   - 198.51.100.254 <-> 2001:db8:bbbb::fe
+   - 198.51.100.255 <-> 2001:db8:bbbb::ff
+
+The latter form can help you simplify configuration when you have lots of addresses to map.
+
+## Stateless NAT64 (vanilla)
+
+The traditional form of stateless NAT64 is more constrictive. As a consequence, we need to change the sample IPv6 network:
+
+![Fig.3 - Vanilla sample network](images/intro/network-2vanilla.svg)
+
+The idea is to simply remove a prefix while translating from IPv6 to IPv4, and append it in the other direction:
+
+![Fig.4 - Vanilla flow](images/intro/flow-2vanilla.svg)
+
+Of course, this means each node's IPv4 address has to be encoded inside its IPv6 address, which is a little annoying.
+
+While this explanation might make it seem like "EAM Stateless NAT64" and traditional Stateless NAT64 are different things, this is not the case. Implementations are expected to always try to translate an address based on the EAM table first, and if no mapping is found, fall back to use the "vanilla" prefix. The separation was done here for illustrative purposes.
 
 Stateless NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>.
 
-### Stateful NAT64
+## Stateful NAT64
 
-On the other hand, when you don't have an IPv4 address for every node you want to publish to the IPv4 side, you might be forced to use a "stateful" NAT64 instead.
+This mode is more akin to what people understand as "NAT". As such, allow me to remind you the big picture of how (stateful) NAT operates:
 
-A stateful NAT64 has a pool of IPv4 addresses to work with. When an IPv6 packet arrives, the NAT64 picks an IPv4 address to mask the IPv6 one with and remembers the mapping. When the response to the packet arrives, it looks for the mapping in its database and uses it to figure out which IPv6 node the packet corresponds to. There is a strong algorithmic relationship between the IPv4 address and the IPv6 one, but only in one direction:
+![Fig.5 - NAT sample network](images/intro/network-3nat.svg)
 
-![Fig.3 - Stateful example](images/intro-stateful.svg)
+The idea is, the left network is called "Private" because it uses [addresses unavailable in the global Internet](http://en.wikipedia.org/wiki/Private_network). In order to make up for this, _N_ mangles packet addresses so outsiders think any traffic started by the private nodes was actually started by itself:
 
-Because the NAT64 gets to decide which IPv4 address to use, several IPv6 nodes can share an IPv4 addresses.
+![Fig.6 - NAT flow](images/intro/flow-3nat.svg)
 
-Though you're better off knowing what you're doing while configuring this setup, the whole ordeal is almost completely transparent for the nodes themselves: The IPv6 nodes see the IPv4 ones as if they're just an ordinary IPv6 network with a particular prefix, while the IPv4 nodes see a normal NAT.
+As a result, for outside purposes, nodes _A_ through _E_ are "sharing" _N_'s global address (or addresses).
+
+While stateful NAT helps you economize IPv4 address, it comes with a price: _N_ has to remember which private node issued the packet to _V_, because _A_'s address cannot be found anywhere in _V_'s response. That's why it's called "stateful"; it creates address mappings dymanically and remembers them for a while. There are two things to keep ind mind here:
+
+- Each mapping requires memory.
+- _V_ cannot **start** a packet stream with _A_, again because _N_ **must** learn the mapping in the private-to-outside direction (left to right).
+
+Stateful NAT64 is pretty much the same. The only difference is that the "Private Network" is actually an IPv6 network:
+
+![Fig.7 - Stateful network](images/intro/network-4stateful.svg)
+
+And therefore,
+
+![Fig.8 - Stateful flow](images/intro/flow-4stateful.svg)
+
+Now, that's where the similarities with NAT end. You don't normally say the IPv6 network is "Private", because the whole point is that it should also be connected to the IPv6 Internet:
+
+![Fig.9 - Stateful Internet](images/intro/stateful-better.svg)
+
+In this way, _A_ through _D_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _N_).
 
 Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a>.
+
+[Back to index](doc-index.html).
 
