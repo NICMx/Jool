@@ -11,7 +11,8 @@ title: Documentation - Tutorial 2
 2. [Sample Network](#sample-network)
 3. [Jool](#jool)
 4. [Testing](#testing)
-5. [Further reading](#further-reading)
+5. [Stopping Jool](#stopping-jool)
+6. [Further reading](#further-reading)
 
 ## Introduction
 
@@ -89,6 +90,14 @@ rtt min/avg/max/mdev = 2.498/2.996/3.666/0.497 ms
 {% endhighlight %}
 
 ![Fig.16 - Translated HTTP messages](images/tut2.1-website.png)
+
+## Stopping Jool
+
+To shut down Jool, revert the modprobe using the `-r` flag:
+
+{% highlight bash %}
+user@N:~# /sbin/modprobe -r jool_stateful
+{% endhighlight %}
 
 ## Further Reading
 

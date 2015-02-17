@@ -35,4 +35,7 @@ static inline int nat64_is_stateless(void)
 	return !nat64_is_stateful();
 }
 
+#define NF_IP_PRI_JOOL (NF_IP_PRI_NAT_DST + 25)
+#define NF_IP6_PRI_JOOL (NF_IP6_PRI_NAT_DST + 25)
+
 #endif /* _JOOL_COMMON_NAT64_H */

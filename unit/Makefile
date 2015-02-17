@@ -49,7 +49,7 @@ obj-m += $(TRANSLATE).o
 obj-m += $(HAIRPINNING).o
 obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
-obj-m += $(LOGTIME).o
+#obj-m += $(LOGTIME).o
 # Note, this is compiling with -DSTATEFUL, even though is part of the stateless translator.
 # At the moment this doesn't cause any trouble, but it means we might need to refactor this
 # Makefile to make better room for stateless tests.

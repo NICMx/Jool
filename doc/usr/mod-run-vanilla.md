@@ -11,7 +11,8 @@ title: Documentation - Tutorial 2
 2. [Sample Network](#sample-network)
 3. [Jool](#jool)
 4. [Testing](#testing)
-5. [Further reading](#further-reading)
+5. [Stopping Jool](#stopping-jool)
+6. [Further reading](#further-reading)
 
 ## Introduction
 
@@ -19,11 +20,13 @@ This document explains how to run Jool in [stateless vanilla mode](intro-nat64.h
 
 Software-wise, only a [successful install of Jool’s kernel module](mod-install.html) is required. The userspace application is out of the scope of this document on purpose.
 
-In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine (Jool is not married to physical "_ethX_" interfaces). 
+In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine (Jool is not married to physical "_ethX_" interfaces).
 
 ## Sample Network
 
 ![Figure 1 - Sample Network](images/intro/network-2vanilla.svg)
+
+You don't need all the nodes shown in the diagram to follow along; you can get away with only _A_, _N_ and _V_; the rest are very similar to _A_ and _V_ and are shown for illustrative purposes only.
 
 Jool requires _N_ to be Linux. The rest can be anything you want, so long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
 
@@ -86,7 +89,7 @@ user@N:~# ethtool --offload eth1 lro off
 This is the insertion syntax:
 
 {% highlight bash %}
-user@B:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefix(es)>
+user@N:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefix(es)>
 {% endhighlight %}
 
 > **Warning!**
@@ -105,7 +108,7 @@ In simple installations you only really need to enter a single address here.
 In our sample network, that translates into
 
 {% highlight bash %}
-user@B:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=192.0.2.2
+user@N:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=192.0.2.2
 {% endhighlight %}
 
 (The pool4 prefix length defaults to /32.)
@@ -131,6 +134,14 @@ user@A:~# ping 198.51.100.5
 How about hooking up a server in _X_ and access it from _D_:
 
 TODO
+
+## Stopping Jool
+
+To shut down Jool, revert the modprobe using the `-r` flag:
+
+{% highlight bash %}
+user@N:~# /sbin/modprobe -r jool_stateless
+{% endhighlight %}
 
 ## Further reading
 

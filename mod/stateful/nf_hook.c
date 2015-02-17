@@ -78,39 +78,23 @@ static unsigned int hook_ipv6(HOOK_ARG_TYPE hook, struct sk_buff *skb,
 static struct nf_hook_ops nfho[] = {
 	{
 		.hook = hook_ipv6,
+		.owner = NULL,
 		.pf = PF_INET6,
-		.hooknum = NF_INET_LOCAL_IN
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP6_PRI_JOOL,
 	},
 	{
 		.hook = hook_ipv4,
+		.owner = NULL,
 		.pf = PF_INET,
-		.hooknum = NF_INET_LOCAL_IN
+		.hooknum = NF_INET_PRE_ROUTING,
+		.priority = NF_IP_PRI_JOOL,
 	},
-	{
-		.hook = hook_ipv6,
-		.pf = PF_INET6,
-		.hooknum = NF_INET_FORWARD
-	},
-	{
-		.hook = hook_ipv4,
-		.pf = PF_INET,
-		.hooknum = NF_INET_FORWARD
-	},
-	{
-		.hook = hook_ipv6,
-		.pf = PF_INET6,
-		.hooknum = NF_INET_LOCAL_OUT
-	},
-	{
-		.hook = hook_ipv4,
-		.pf = PF_INET,
-		.hooknum = NF_INET_LOCAL_OUT
-	}
 };
 
 static int __init nat64_init(void)
 {
-	int i, error;
+	int error;
 
 	log_debug("%s", banner);
 	log_debug("Inserting the module...");
@@ -150,11 +134,6 @@ static int __init nat64_init(void)
 #endif
 
 	/* Hook Jool to Netfilter. */
-	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
-		nfho[i].owner = NULL;
-		nfho[i].priority = NF_IP_PRI_NAT_SRC + 25;
-	}
-
 	error = nf_register_hooks(nfho, ARRAY_SIZE(nfho));
 	if (error)
 		goto nf_register_hooks_failure;

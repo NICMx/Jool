@@ -11,7 +11,8 @@ title: Documentation - Tutorial 2
 2. [Sample Network](#sample-network)
 3. [Jool](#jool)
 4. [Testing](#testing)
-5. [Further reading](#further-reading)
+5. [Stopping Jool](#stopping-jool)
+6. [Further reading](#further-reading)
 
 ## Introduction
 
@@ -100,6 +101,10 @@ user@A:~# ping 198.51.100.5
 How about hooking up a server in _X_ and access it from _D_:
 
 TODO
+
+## Stopping Jool
+
+Same as in the [previous walkthrough](mod-run-vanilla.html#stopping-jool).
 
 ## Further reading
 
