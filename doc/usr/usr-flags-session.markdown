@@ -18,7 +18,7 @@ title: Documentation - Userspace Application
 
 ## Description
 
-Sessions mostly exist so the NAT64 can decide when BIB entries should die. You can also use them to know exactly who is speaking to your IPv6 nodes. In a future release you will also be able to <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">define filtering policies based on them</a>.
+Sessions mostly exist so the NAT64 can decide when BIB entries should die. You can also use them to know exactly who is speaking to your IPv6 nodes.
 
 Each BIB entry is a mapping, which describes the IPv4 name of one of your IPv6 services. For every BIB entry, there are zero or more session entries, each of which represents an active connection currently using that mapping.
 
@@ -26,8 +26,8 @@ You can use this command to get information on each of these connections.
 
 ## Syntax
 
-	jool --session [--display] [--numeric] [--csv] <protocols>
-	jool --session --count <protocols>
+	jool_stateful --session [--display] [--numeric] [--csv] <protocols>
+	jool_stateful --session --count <protocols>
 
 ## Options
 
@@ -65,7 +65,7 @@ ipv6client.mx makes two HTTP requests and a ping to example.com.
 Fall back to display all protocols, resolve names, console format:
 
 {% highlight bash %}
-$ jool --session
+$ jool_stateful --session
 TCP:
 ---------------------------------
 (V4_FIN_V6_FIN_RCV) Expires in 2 minutes, 57 seconds
@@ -94,7 +94,7 @@ Local: 192.0.2.1#1402		64:ff9b::5db8:d877#13371
 Filter out UDP and ICMP, do not query the DNS, console format:
 
 {% highlight bash %}
-$ jool --session --display --tcp --numeric
+$ jool_stateful --session --display --tcp --numeric
 TCP:
 ---------------------------------
 (V4_FIN_V6_FIN_RCV) Expires in 2 minutes, 57 seconds
@@ -111,7 +111,7 @@ Local: 192.0.2.1#6617		64:ff9b::5db8:d877#80
 Do not resolve names, CSV format:
 
 {% highlight bash %}
-$ jool --session --display --numeric --csv > session.csv
+$ jool_stateful --session --display --numeric --csv > session.csv
 {% endhighlight %}
 
 [session.csv](obj/session.csv)
@@ -119,7 +119,7 @@ $ jool --session --display --numeric --csv > session.csv
 Just display the number of records of every table:
 
 {% highlight bash %}
-$ jool --session --count
+$ jool_stateful --session --count
 TCP: 2
 UDP: 0
 ICMP: 1

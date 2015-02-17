@@ -14,11 +14,16 @@ title: Documentation - Userspace Application
 
 Prints mostly a summary of the [userspace app flags documentation](usr-flags.html), though you can also use it to review the abbreviated form of the flags, which aren't there.
 
-`--help` is the only mode which does not require Jool's kernel module to be active.
+`--help` is the only mode which does not require the respective kernel module to be active.
 
 You might also be interested in `man jool`, which prints a better summary of the grammar.
 
 ## Syntax
 
-	jool --help
+	(jool_stateless | jool_stateful) --help
+
+## Examples
+
+	jool_stateless --help
+	jool_stateful --help
 

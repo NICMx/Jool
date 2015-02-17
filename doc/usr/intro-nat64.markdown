@@ -9,8 +9,8 @@ title: Documentation - Introduction to NAT64
 
 1. [Introduction](#introduction)
 2. [NAT64](#nat64)
-   1. [Stateless NAT64 (with EAM)](#ipv4)
-   2. [Stateless NAT64 (vanilla)](#ipv6)
+   1. [Stateless NAT64 (with EAM)](#stateless-nat64-with-eam)
+   2. [Stateless NAT64 (vanilla)](#stateless-nat64-vanilla)
    3. [Stateful NAT64](#stateful-nat64)
 
 ## Introduction
@@ -116,6 +116,4 @@ Now, that's where the similarities with NAT end. You don't normally say the IPv6
 In this way, _A_ through _D_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _N_).
 
 Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a>.
-
-[Back to index](doc-index.html).
 

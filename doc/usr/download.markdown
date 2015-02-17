@@ -5,6 +5,12 @@ title: Download
 
 # Download
 
+<!--
+	BTW: These links are absolute because we don't version track the files.
+	If they were relative, they would break when the documentation is
+	generated manually.
+-->
+
 ## 3.2.x
 
 The 3.2 series improves 3.1 by implementing Simultaneous Open. It also has provides an option to flush its pools and has several internal tweaks.

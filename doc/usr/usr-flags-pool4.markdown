@@ -20,11 +20,13 @@ Interacts with Jool's IPv4 pool. The pool dictates which packets coming from the
 
 ## Syntax
 
-	jool --pool4 [--display]
-	jool --pool4 --count
-	jool --pool4 --add --address <IPv4 address>
-	jool --pool4 --remove --address <IPv4 address> [--quick]
-	jool --pool4 --flush [--quick]
+(`$(jool)` can be either `jool_stateless` or `jool_stateful`.)
+
+	$(jool) --pool4 [--display]
+	$(jool) --pool4 --count
+	$(jool) --pool4 --add --address <IPv4 address>
+	$(jool) --pool4 --remove --address <IPv4 address> [--quick]
+	$(jool) --pool4 --flush [--quick]
 
 ## Options
 
@@ -42,21 +44,34 @@ See [`--quick`](usr-flags-quick.html).
 
 ## Examples
 
+Display the current addresses:
+
 {% highlight bash %}
-$ # Display the current addresses.
-$ jool --pool4
+$ $(jool) --pool4 --display
 192.168.2.1
 192.168.2.2
 192.168.2.3
 192.168.2.4
   (Fetched 4 addresses.)
-$ # Display only the address count.
-$ jool --pool4 --count
+{% endhighlight %}
+
+Display only the address count:
+
+{% highlight bash %}
+$ $(jool) --pool4 --count
 4
-$ # Remove a couple of default addresses.
-$ jool --pool4 --remove --address 192.168.2.2
-$ jool --pool4 --remove --address 192.168.2.3 --quick
-$ # Return one address.
-$ jool --pool4 --add --address 192.168.2.2
+{% endhighlight %}
+
+Remove a couple of default addresses:
+
+{% highlight bash %}
+# $(jool) --pool4 --remove --address 192.168.2.2
+# $(jool) --pool4 --remove --address 192.168.2.3 --quick
+{% endhighlight %}
+
+Return one address:
+
+{% highlight bash %}
+# $(jool) --pool4 --add --address 192.168.2.2
 {% endhighlight %}
 

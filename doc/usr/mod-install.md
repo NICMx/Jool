@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - Tutorial 1
 ---
 
-# [Doc](doc-index.html) > [Kernel Module](doc-index.html#kernel-module) > Installation
+# [Doc](doc-index.html) > [Kernel Module](TODO) > Installation
 
 ## Index
 
@@ -16,7 +16,7 @@ title: Documentation - Tutorial 1
 
 Jool is two things:
 
-1. A <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel module</a> you can hook up to the Linux kernel. This is the main IPv6-IPv4 translating component and all you need for basic use. This is the component this document meddles with.
+1. A <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel module</a> you can hook up to the Linux kernel. This is the main IPv6-IPv4 translating component and all you need to get started. This is the component this document meddles with.
 2. A <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> application which can be used to configure the module. It has its own [installation document](usr-install.html).
 
 When you put it that way, there is really nothing unusual about Jool's installation. But I figure some of our users might have no previous experience meddling with drivers, so this overview will serve as an introduction to at least give them an idea of what each step does.
@@ -56,21 +56,29 @@ $ apt-get install linux-headers-$(uname -r)
 
 Each kernel version combined with each different architecture requires different binaries, so providing packages for every combination would be impossibly cumbersome. For this reason, what you'll download is the source; there is no way around compiling the code yourself.
 
-On the flip side, kernel modules cannot (AFAIK) have dependencies other than your kernel headers and a good compiler, so the procedure is fairly painless.
+On the flip side, kernel modules cannot have dependencies other than your kernel headers and a good compiler, so the procedure is fairly painless.
 
 To download Jool, you have two options:
 
 * Official releases are hosted in the [Download page](download.html). These will prove less convoluted when you're installing the userspace application.
 * There's the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>. This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (in case you're wondering, we do all the risky development elsewhere).
 
-You might be used to a cute standard three-step procedure to compile and install programs: `./configure && make && make install`. Kernel modules do not follow it, but have a special one on their own.
+You might be used to a standard three-step procedure to compile and install programs: `./configure && make && make install`. Kernel modules do not follow it, but have a special one on their own.
 
-As far as the compilation goes, there is no `configure` script. But you also don't have to edit the Makefile; you jump straight to `make` and you're done. The Makefile can be found in the `mod` folder:
+As far as the compilation goes, there is no `configure` script. But you also don't have to edit the Makefile; you jump straight to `make` and you're done. The global Makefile can be found in the `mod` folder:
 
 {% highlight bash %}
 user@node:~$ unzip Jool-<version>.zip
 user@node:~$ cd Jool-<version>/mod
 user@node:~/Jool-<version>/mod$ make
+{% endhighlight %}
+
+That will compile both the stateful and the stateless binaries. If, for some reason, you don't want to compile the both of them, just say so:
+
+{% highlight bash %}
+user@node:~/Jool-<version>/mod$ make stateless
+or
+user@node:~/Jool-<version>/mod$ make stateful
 {% endhighlight %}
 
 And that's that.

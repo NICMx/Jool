@@ -45,5 +45,3 @@ We're supposed to support Linux kernels 3.0.0 and up. While most of the developm
 
 Red Hat and CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
 
-[Back to index](doc-index.html).
-

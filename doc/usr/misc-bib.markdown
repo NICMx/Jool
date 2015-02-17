@@ -5,7 +5,7 @@ title: Documentation - BIB
 
 # [Doc](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > BIB
 
-The _Binding Information Base_ (BIB) is a collection of tables in a NAT64. It is defined in <a href="http://tools.ietf.org/html/rfc6146#section-3.1" target="_blank">RFC 6146</a>. Hopefully, this document can serve as a friendly overview.
+The _Binding Information Base_ (BIB) is a collection of tables in a stateful NAT64. It is defined in <a href="http://tools.ietf.org/html/rfc6146#section-3.1" target="_blank">RFC 6146</a>. Hopefully, this document can serve as a friendly overview.
 
 Records in this database map the IPv6 transport addresses of a IPv6 node's connection to the IPv4 transport address Jool is using to mask it. For example, if the following mapping exists in your NAT64:
 

@@ -21,11 +21,13 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 
 ## Syntax
 
-	jool --pool6 [--display]
-	jool --pool6 --count
-	jool --pool6 --add --prefix <prefix>
-	jool --pool6 --remove --prefix <prefix> [--quick]
-	jool --pool6 --flush [--quick]
+(`$(jool)` can be either `jool_stateless` or `jool_stateful`.)
+
+	$(jool) --pool6 [--display]
+	$(jool) --pool6 --count
+	$(jool) --pool6 --add --prefix <prefix>
+	$(jool) --pool6 --remove --prefix <prefix> [--quick]
+	$(jool) --pool6 --flush [--quick]
 
 ## Options
 
@@ -47,19 +49,36 @@ See [`--quick`](usr-flags-quick.html).
 
 ## Examples
 
+Display the current prefixes:
+
 {% highlight bash %}
-$ # Display the current prefixes.
-$ jool --pool6
+$ $(jool) --pool6 --display
 64:ff9b::/96
   (Fetched 1 prefixes.)
-$ # Display only the prefix count.
-$ jool --pool6 --count
+{% endhighlight %}
+
+Display only the prefix count:
+
+{% highlight bash %}
+$ $(jool) --pool6 --count
 1
-$ # Remove the default prefix.
-$ jool --pool6 --remove --prefix 64:ff9b::/96
-$ # Return the default prefix.
-$ jool --pool6 --add --prefix 64:ff9b::/96
-$ # Destroy all prefixes. Do not bother cleaning up the garbage.
-$ jool --pool6 --flush --quick
+{% endhighlight %}
+
+Remove the default prefix:
+
+{% highlight bash %}
+$ $(jool) --pool6 --remove --prefix 64:ff9b::/96
+{% endhighlight %}
+
+Add a sample prefix:
+
+{% highlight bash %}
+$ $(jool) --pool6 --add --prefix 2001:db8::/64
+{% endhighlight %}
+
+Destroy all prefixes. Do not bother cleaning up the garbage:
+
+{% highlight bash %}
+$ $(jool) --pool6 --flush --quick
 {% endhighlight %}
 

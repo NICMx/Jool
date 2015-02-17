@@ -9,7 +9,7 @@ title: Jool - Home
 
 ## Introduction
 
-Jool is a [stateful NAT64](intro-nat64.html) for Linux.
+Jool is an Open Source [NAT64](intro-nat64.html) for Linux.
 
 * [Click here](doc-index.html) to start getting acquainted with the software.
 * [Click here](download.html) to download Jool.
@@ -22,9 +22,9 @@ If you want to know what the development team is currently tweaking, you should 
 
 But just to make things clear, this is the status of the project as of now:
 
-Jool is still <a href="https://github.com/NICMx/NAT64/issues/41" target="_blank">one feature away</a> from being 100% RFC 6146 compliant. That doesn't stop the IPv6-IPv4 translation mechanism from being functional, however.
+As far as we know, Jool is a fully-fledged stateless/stateful NAT64, according to [RFCs 6145, 6146 and others](intro-jool.html#compliance). We're currently working on updates (such as [FTP over NAT64](http://tools.ietf.org/html/rfc6384) and [Host-Based Edge Translation](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1)).
 
-Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.2.2" target="_blank">3.2.2</a>.
+Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.0" target="_blank">3.3.0</a>.
 
 -------------------
 

@@ -23,10 +23,10 @@ Interacts with Jool's [Binding Information Base (BIB)](misc-bib.html). If you do
 
 ## Syntax
 
-	jool --bib <protocols> [--display] [--numeric] [--csv]
-	jool --bib <protocols> --count
-	jool --bib <protocols> --add --bib4 <bib4> --bib6 <bib6>
-	jool --bib <protocols> --remove --bib4 <bib4> --bib6 <bib6>
+	jool_stateful --bib <protocols> [--display] [--numeric] [--csv]
+	jool_stateful --bib <protocols> --count
+	jool_stateful --bib <protocols> --add --bib4 <bib4> --bib6 <bib6>
+	jool_stateful --bib <protocols> --remove --bib4 <bib4> --bib6 <bib6>
 
 ## Options
 
@@ -76,9 +76,10 @@ Assumptions:
 * The name of 6::6 is "potato.mx".
 * 6::6 already spoke to a IPv4 node recently, so the database will not start empty.
 
+Display the entire database:
+
 {% highlight bash %}
-$ # Display the entire database.
-$ jool --bib --display
+$ jool_stateful --bib --display
 TCP:
 [Dynamic] 4.4.4.4#1234 - potato.mx#1234
   (Fetched 1 entries.)
@@ -86,34 +87,62 @@ UDP:
   (empty)
 ICMP:
   (empty)
-$ # Publish a couple of TCP services.
-$ jool --bib --add --tcp --bib6 6::6#6 --bib4 4.4.4.4#4
-$ jool --bib --add --tcp --bib6 6::6#66 --bib4 4.4.4.4#44
-$ # Display the TCP table.
-$ jool --bib --display --tcp
+{% endhighlight %}
+
+Publish a couple of TCP services:
+
+{% highlight bash %}
+# jool_stateful --bib --add --tcp --bib6 6::6#6 --bib4 4.4.4.4#4
+# jool_stateful --bib --add --tcp --bib6 6::6#66 --bib4 4.4.4.4#44
+{% endhighlight %}
+
+Display the TCP table:
+
+{% highlight bash %}
+$ jool_stateful --bib --display --tcp
 TCP:
 [Static] 4.4.4.4#4 - potato.mx#6
 [Static] 4.4.4.4#44 - potato.mx#66
 [Dynamic] 4.4.4.4#1234 - potato.mx#1234
   (Fetched 3 entries.)
-$ # Same, but do not query the DNS.
-$ jool --bib --display --tcp --numeric
+{% endhighlight %}
+
+Same, but do not query the DNS:
+
+{% highlight bash %}
+$ jool_stateful --bib --display --tcp --numeric
 TCP:
 [Static] 4.4.4.4#4 - 6::6#6
 [Static] 4.4.4.4#44 - 6::6#66
 [Dynamic] 4.4.4.4#1234 - 6::6#1234
   (Fetched 3 entries.)
-$ # Publish a UDP service.
-$ jool --bib --add --udp --bib6 6::6#6666 --bib4 4.4.4.4#4444
-$ # Dump the database on a CSV file (see the link below).
+{% endhighlight %}
+
+Publish a UDP service:
+
+{% highlight bash %}
+# jool_stateful --bib --add --udp --bib6 6::6#6666 --bib4 4.4.4.4#4444
+{% endhighlight %}
+
+Dump the database on a CSV file:
+
+{% highlight bash %}
 $ jool --bib --display --numeric --csv > bib.csv
-$ # Display the number of entries in the TCP and ICMP tables.
-$ jool --bib --count --tcp --icmp
-TCP: 3
-ICMP: 0
-$ # Remove the UDP entry.
-$ jool --bib --remove --udp --bib6 6::6#6666
 {% endhighlight %}
 
 [bib.csv](obj/bib.csv)
+
+Display the number of entries in the TCP and ICMP tables:
+
+{% highlight bash %}
+$ jool_stateful --bib --count --tcp --icmp
+TCP: 3
+ICMP: 0
+{% endhighlight %}
+
+Remove the UDP entry:
+
+{% highlight bash %}
+# jool_stateful --bib --remove --udp --bib6 6::6#6666
+{% endhighlight %}
 
