@@ -107,7 +107,7 @@ static int skb_to_key(struct sk_buff *skb, struct frag_hdr *hdr_frag,
 	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
 
 	if (!hdr_frag) {
-		hdr_frag = get_extension_header(hdr6, NEXTHDR_FRAGMENT);
+		hdr_frag = hdr_iterator_find(hdr6, NEXTHDR_FRAGMENT);
 		if (WARN(!hdr_frag, "Stored fragment has no fragment header."))
 			return -EINVAL;
 	}
@@ -364,7 +364,7 @@ verdict fragdb_handle(struct sk_buff **skb)
 	struct reassembly_buffer *buffer;
 	/* This is just a helper that allows us to quickly find buffer. */
 	struct reassembly_buffer_key key;
-	struct frag_hdr *hdr_frag = get_extension_header(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
+	struct frag_hdr *hdr_frag = hdr_iterator_find(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
 	int error;
 
 	if (!is_fragmented_ipv6(hdr_frag))
@@ -427,7 +427,7 @@ verdict fragdb_handle(struct sk_buff **skb)
 	 * That actually harms us, so we don't mirror it. Instead, we make the fragment atomic.
 	 * The rest of Jool must assume the packet might have a redundant fragment header.
 	 */
-	hdr_frag = get_extension_header(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
+	hdr_frag = hdr_iterator_find(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
 	hdr_frag->frag_off &= cpu_to_be16(~IP6_MF);
 
 #ifdef BENCHMARK

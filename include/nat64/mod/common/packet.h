@@ -464,15 +464,17 @@ static inline bool skb_is_icmp4_error(struct sk_buff *skb)
  * Initializes "skb"'s control buffer. It also validates "skb".
  *
  * After this function, code can assume:
- * - skb contains full l3 and l4 headers. In particular, the header continuity makes sense (eg.
- * you won't find a UDP header after a NEXTHDR_TCP). Inner l3 and l4 headers (in ICMP errors) are
- * also validated (except inner TCP options, which are just considered payload at this point).
- * - skb isn't truncated (though inner packets might).
+ * - skb contains full l3 and l4 headers (including inner ones), their order seems to make sense,
+ *   and they are all within the head room of skb.
+ * - skb's payload isn't truncated (though inner packet payload might).
  * - The cb functions above can now be used on skb.
  * - The length fields in the l3 headers can be relied upon.
  *
  * Healthy layer 4 checksums and lengths are not guaranteed, but that's not an issue since this
  * kind of corruption should be translated along (see validate_icmp6_csum()).
+ *
+ * Also, this function does not ensure "skb" is either TCP, UDP or ICMP. This is because stateless
+ * Jool must translate other protocols in a best-effort basis.
  *
  * This function can change the packet's pointers. If you eg. stored a pointer to
  * skb_network_header(skb), you will need to assign it again (by calling skb_network_header again).

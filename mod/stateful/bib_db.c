@@ -135,6 +135,8 @@ static int get_bibdb_table(l4_protocol l4_proto, struct bib_table **result)
 	case L4PROTO_ICMP:
 		*result = &bib_icmp;
 		return 0;
+	case L4PROTO_OTHER:
+		break;
 	}
 
 	WARN(true, "Unsupported transport protocol: %u.", l4_proto);

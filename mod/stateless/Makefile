@@ -25,8 +25,8 @@ insert:
 
 	# Insert and configure Jool a little bit.
 	sudo insmod jool_stateless.ko pool4=192.0.2.128/25 pool6=2001:db8:100::/40
-	dmesg | tail -15
+	dmesg
 
 remove:
 	-sudo rmmod jool_stateless.ko
-	dmesg | tail -15
+	dmesg | tail -1

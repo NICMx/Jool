@@ -21,7 +21,7 @@ verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	struct sk_buff *new_skb;
 	bool is_first;
 
-	is_first = is_first_fragment_ipv6(get_extension_header(ipv6_hdr(in), NEXTHDR_FRAGMENT));
+	is_first = is_first_fragment_ipv6(hdr_iterator_find(ipv6_hdr(in), NEXTHDR_FRAGMENT));
 
 	/*
 	 * These are my assumptions to compute total_len:
@@ -39,12 +39,7 @@ verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
 	total_len = sizeof(struct iphdr) + skb_l3payload_len(in);
 	if (is_first && skb_is_icmp6_error(in)) {
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) skb_payload(in));
-		hdr_iterator_result result = hdr_iterator_last(&iterator);
-
-		if (WARN(result != HDR_ITERATOR_END, "Validated packet has an invalid l3 header.")) {
-			inc_stats(in, IPSTATS_MIB_INDISCARDS);
-			return VER_DROP;
-		}
+		hdr_iterator_last(&iterator);
 
 		/* Add the IPv4 subheader, remove the IPv6 subheaders. */
 		total_len += sizeof(struct iphdr) - (iterator.data - skb_payload(in));
@@ -246,7 +241,7 @@ static bool has_nonzero_segments_left(struct ipv6hdr *ip6_hdr, __u32 *field_loca
 	struct ipv6_rt_hdr *rt_hdr;
 	__u32 rt_hdr_offset, segments_left_offset;
 
-	rt_hdr = get_extension_header(ip6_hdr, NEXTHDR_ROUTING);
+	rt_hdr = hdr_iterator_find(ip6_hdr, NEXTHDR_ROUTING);
 	if (!rt_hdr)
 		return false;
 
@@ -293,11 +288,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(out) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(out);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
-	/*
-	 * TODO (fine) instead of "is stateless?",
-	 * the condition should be more like "are we in prerouting"?
-	 */
-	if (nat64_is_stateless() && skb_is_outer(in)) {
+	if (skb_is_outer(in)) {
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
@@ -329,7 +320,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out
 		}
 	}
 
-	ip6_frag_hdr = get_extension_header(ip6_hdr, NEXTHDR_FRAGMENT);
+	ip6_frag_hdr = hdr_iterator_find(ip6_hdr, NEXTHDR_FRAGMENT);
 	if (ip6_frag_hdr) {
 		struct hdr_iterator iterator = HDR_ITERATOR_INIT(ip6_hdr);
 		hdr_iterator_last(&iterator);

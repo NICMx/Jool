@@ -123,6 +123,8 @@ static int move_pointers_in(struct sk_buff *skb, __u8 protocol, unsigned int l3h
 		l4hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
+		/* TODO what abour OTHER? */
+		log_debug("Unknown l4 protocol: %u", protocol);
 		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;
 	}

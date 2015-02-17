@@ -11,23 +11,46 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/stats.h"
 
+struct pkt_metadata {
+	bool has_frag_hdr;
+	/* Offset is from skb->data. Do not use if has_frag_hdr is false. */
+	unsigned int frag_offset;
+	enum l4_protocol l4_proto;
+	/* Offset is from skb->data. */
+	unsigned int l4_offset;
+	/* Offset is from skb->data. */
+	unsigned int payload_offset;
+};
 
-#define MIN_IPV6_HDR_LEN sizeof(struct ipv6hdr)
-#define MIN_IPV4_HDR_LEN sizeof(struct iphdr)
-#define MIN_TCP_HDR_LEN sizeof(struct tcphdr)
-#define MIN_UDP_HDR_LEN sizeof(struct udphdr)
-#define MIN_ICMP6_HDR_LEN sizeof(struct icmp6hdr)
-#define MIN_ICMP4_HDR_LEN sizeof(struct icmphdr)
+#define skb_hdr_ptr(skb, offset, buffer) skb_header_pointer(skb, offset, sizeof(buffer), &buffer)
 
-
-static bool icmp4_has_inner_packet(__u8 icmp_type)
+static bool has_inner_pkt4(__u8 icmp_type)
 {
 	return is_icmp4_error(icmp_type);
 }
 
-static bool icmp6_has_inner_packet(__u8 icmp6_type)
+static bool has_inner_pkt6(__u8 icmp6_type)
 {
 	return is_icmp6_error(icmp6_type);
+}
+
+static int truncated(struct sk_buff *skb, const char *what)
+{
+	log_debug("The %s seems truncated.", what);
+	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
+	return -EINVAL;
+}
+
+static int inhdr(struct sk_buff *skb, const char *msg)
+{
+	log_debug("%s", msg);
+	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
+	return -EINVAL;
+}
+
+static void *offset_to_ptr(struct sk_buff *skb, unsigned int offset)
+{
+	return ((void *) skb->data) + offset;
 }
 
 /**
@@ -54,494 +77,421 @@ static int fail_if_shared(struct sk_buff *skb)
 }
 
 /**
- * "call pskb_may_pull(skb, len) then restore the pointers that maybe went kaboom."
- */
-static bool may_pull_then_fix(struct sk_buff *skb, unsigned int len,
-		int l4_offset, unsigned int l4hdr_len)
-{
-	if (!pskb_may_pull(skb, len))
-		return false;
-
-	skb_set_transport_header(skb, l4_offset);
-	skb_jcb(skb)->payload = skb_transport_header(skb) + l4hdr_len;
-
-	return true;
-}
-
-/**
- * "Call may_pull_then_fix(), assume we're pulling an outer layer 4 header."
+ * Walks through skb's headers, collecting data and adding it to meta.
  *
- * ("assume we're pulling an outer layer 4 header" can also be described as
- * "assume len is 'l4_offset + l4hdr_len' and 'l4_offset = skb_l3hdr_len(skb)'".)
+ * @hdr6_offset number of bytes between skb->data and the IPv6 header.
+ *
+ * BTW: You might want to read summarize_skb4() first, since it's a lot simpler.
  */
-static bool may_pull_l4(struct sk_buff *skb, unsigned int l4hdr_len)
+static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct pkt_metadata *meta)
 {
-	unsigned int l3hdr_len = skb_l3hdr_len(skb);
-	return may_pull_then_fix(skb, l3hdr_len + l4hdr_len, l3hdr_len, l4hdr_len);
-}
+	union {
+		struct ipv6_opt_hdr opt;
+		struct frag_hdr frag;
+		struct tcphdr tcp;
+	} buffer;
+	union {
+		struct ipv6_opt_hdr *opt;
+		struct frag_hdr *frag;
+		struct tcphdr *tcp;
+	} ptr;
 
-/**
- * "Call may_pull_then_fix(), the new pointers should simply be adapted from the old packet's."
- */
-static bool may_pull_keep(struct sk_buff *skb, unsigned int len)
-{
-	return may_pull_then_fix(skb, len, skb_l3hdr_len(skb), skb_l4hdr_len(skb));
-}
-
-static int init_l4(struct sk_buff *skb, __u8 protocol, bool is_first_fragment)
-{
-	struct jool_cb *cb = skb_jcb(skb);
-
-	/* This default value will be kept if the packet is a fragment. */
-	cb->payload = skb_transport_header(skb);
-
-	switch (protocol) {
-	case IPPROTO_TCP:
-		cb->l4_proto = L4PROTO_TCP;
-		if (is_first_fragment) {
-			if (!may_pull_l4(skb, sizeof(struct tcphdr)))
-				goto truncated;
-			if (!may_pull_l4(skb, tcp_hdrlen(skb)))
-				goto truncated;
-		}
-		break;
-
-	case IPPROTO_UDP:
-		cb->l4_proto = L4PROTO_UDP;
-		if (is_first_fragment && !may_pull_l4(skb, sizeof(struct udphdr)))
-			goto truncated;
-		break;
-
-	case IPPROTO_ICMP:
-	case NEXTHDR_ICMP:
-		cb->l4_proto = L4PROTO_ICMP;
-		if (is_first_fragment && !may_pull_l4(skb, sizeof(struct icmphdr)))
-			goto truncated;
-		break;
-
-	default:
-		log_debug("Unsupported layer 4 protocol: %d", protocol);
-		icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
-	}
-
-	return 0;
-
-truncated:
-	log_debug("Packet is too small to contain its layer-4 header (proto %u).", protocol);
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-	return -EINVAL;
-}
-
-static int init_l4_inner(struct sk_buff *skb, u8 protocol, unsigned int offset)
-{
-	switch (protocol) {
-	case IPPROTO_TCP:
-		if (!may_pull_keep(skb, offset + sizeof(struct tcphdr)))
-			goto truncated;
-		break;
-
-	case IPPROTO_UDP:
-		if (!may_pull_keep(skb, offset + sizeof(struct udphdr)))
-			goto truncated;
-		break;
-
-	case IPPROTO_ICMP:
-	case NEXTHDR_ICMP:
-		if (!may_pull_keep(skb, offset + sizeof(struct icmphdr)))
-			goto truncated;
-		break;
-
-	default:
-		/*
-		 * Why are we validating an error packet of a packet we couldn't have translated?
-		 * Either an attack or shouldn't happen, so drop silently.
-		 */
-		log_debug("Inner packet has bogus layer 4 protocol.");
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
-	}
-
-	return 0;
-
-truncated:
-	log_debug("Inner packet is too small to contain its layer-4 header (proto %u).", protocol);
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-	return -EINVAL;
-}
-
-/**
- * Warning: Result is an inverted boolean. Zero means "no problem", nonzero is an error code and
- * therefore means "no".
- */
-static int may_pull_ipv6_hdrs(struct sk_buff *skb, bool restore_ptrs)
-{
 	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
-	int offset;
-	bool pulled;
+	unsigned int offset = hdr6_offset + sizeof(struct ipv6hdr);
+	bool is_first = true;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
-	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
-#else
-	__be16 frag_offset;
-	offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr, &frag_offset);
-#endif
+	meta->has_frag_hdr = false;
 
-	if (offset < 0) {
-		log_debug("ipv6_skip_exthdr() returned negative (%d).", offset);
-		return -EINVAL;
-	}
-
-	pulled = restore_ptrs ? may_pull_keep(skb, offset) : pskb_may_pull(skb, offset);
-	if (!pulled) {
-		log_debug("Could not 'pull' the extension IPv6 headers out of the skb.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int iterate_till_end(struct hdr_iterator *iterator, struct frag_hdr **fhdr)
-{
-	enum hdr_iterator_result result;
-
-	*fhdr = NULL;
 	do {
-		if (iterator->hdr_type == NEXTHDR_FRAGMENT)
-			*fhdr = iterator->data;
-	} while ((result = hdr_iterator_next(iterator)) == HDR_ITERATOR_SUCCESS);
+		switch (nexthdr) {
+		case NEXTHDR_TCP:
+			meta->l4_proto = L4PROTO_TCP;
+			meta->l4_offset = offset;
+			meta->payload_offset = offset;
 
-	switch (result) {
-	case HDR_ITERATOR_END:
-		break;
-	case HDR_ITERATOR_UNSUPPORTED:
-		/* RFC 6146 section 5.1. */
-		log_debug("Packet contains an Auth or ESP header, which I'm not supposed to support.");
-		return -EINVAL;
-	case HDR_ITERATOR_OVERFLOW:
-		WARN(true, "Iterator overflowed despite ipv6_skip_exthdr()'s success.");
-		return -EINVAL;
-	case HDR_ITERATOR_SUCCESS:
-		WARN(true, "Iteration ended nonsensically.");
-		return -EINVAL;
-	}
+			if (is_first) {
+				ptr.tcp = skb_hdr_ptr(skb, offset, buffer.tcp);
+				if (!ptr.tcp)
+					return truncated(skb, "TCP header");
+				meta->payload_offset += tcp_hdr_len(ptr.tcp);
+			}
 
-	return 0;
+			return 0;
+
+		case NEXTHDR_UDP:
+			meta->l4_proto = L4PROTO_UDP;
+			meta->l4_offset = offset;
+			meta->payload_offset = is_first ? (offset + sizeof(struct udphdr)) : offset;
+			return 0;
+
+		case NEXTHDR_ICMP:
+			meta->l4_proto = L4PROTO_ICMP;
+			meta->l4_offset = offset;
+			meta->payload_offset = is_first ? (offset + sizeof(struct icmp6hdr)) : offset;
+			return 0;
+
+		case NEXTHDR_FRAGMENT:
+			ptr.frag = skb_hdr_ptr(skb, offset, buffer.frag);
+			if (!ptr.frag)
+				return truncated(skb, "fragment header");
+
+			meta->has_frag_hdr = true;
+			meta->frag_offset = offset;
+			is_first = is_first_fragment_ipv6(ptr.frag);
+
+			offset += sizeof(struct frag_hdr);
+			nexthdr = ptr.frag->nexthdr;
+			break;
+
+		case NEXTHDR_HOP:
+		case NEXTHDR_ROUTING:
+		case NEXTHDR_DEST:
+			ptr.opt = skb_hdr_ptr(skb, offset, buffer.opt);
+			if (!ptr.opt)
+				return truncated(skb, "extension header");
+
+			offset += 8 + 8 * ptr.opt->hdrlen;
+			nexthdr = ptr.opt->nexthdr;
+			break;
+
+		default:
+			meta->l4_proto = L4PROTO_OTHER;
+			meta->l4_offset = offset;
+			meta->payload_offset = offset;
+			return 0;
+		}
+	} while (true);
+
+	return 0; /* whatever. */
 }
 
-static int init_inner_packet6(struct sk_buff *skb)
+static int validate_inner6(struct sk_buff *skb, struct pkt_metadata *outer_meta)
 {
-	struct ipv6hdr *hdr6;
-	struct frag_hdr *hdr_frag;
-	struct icmp6hdr *hdr_icmp;
-	struct hdr_iterator iterator;
-	unsigned int offset = skb_hdrs_len(skb);
-	int error = -EINVAL;
+	union {
+		struct ipv6hdr ip6;
+		struct frag_hdr frag;
+		struct icmp6hdr icmp;
+	} buffer;
+	union {
+		struct ipv6hdr *ip6;
+		struct frag_hdr *frag;
+		struct icmp6hdr *icmp;
+	} ptr;
 
-	log_debug("Validating inner IPv6 packet.");
+	struct pkt_metadata meta;
+	int error;
 
-	if (!may_pull_keep(skb, offset + sizeof(struct ipv6hdr))) {
-		log_debug("Length is too small to contain a basic IPv6 header.");
-		goto truncated;
-	}
-	hdr6 = skb_jcb(skb)->payload;
-	if (unlikely(hdr6->version != 6)) {
-		log_debug("Version is not 6.");
-		goto inhdr;
-	}
-	error = may_pull_ipv6_hdrs(skb, true);
-	if (unlikely(error))
-		goto truncated;
+	ptr.ip6 = skb_hdr_ptr(skb, outer_meta->payload_offset, buffer.ip6);
+	if (!ptr.ip6)
+		return truncated(skb, "inner IPv6 header");
+	if (unlikely(ptr.ip6->version != 6))
+		return inhdr(skb, "Version is not 6.");
 
-	hdr6 = skb_jcb(skb)->payload;
-	hdr_iterator_init_truncated(&iterator, hdr6, skb_headlen(skb) - offset);
-	error = iterate_till_end(&iterator, &hdr_frag);
-	if (unlikely(error))
-		goto truncated;
-
-	if (unlikely(!is_first_fragment_ipv6(hdr_frag))) {
-		log_debug("Inner packet is not a first fragment.");
-		error = -EINVAL;
-		goto inhdr;
-	}
-
-	offset = iterator.data - (void *) ipv6_hdr(skb);
-	error = init_l4_inner(skb, iterator.hdr_type, offset);
-	if (unlikely(error))
+	error = summarize_skb6(skb, outer_meta->payload_offset, &meta);
+	if (error)
 		return error;
 
-	if (iterator.hdr_type == L4PROTO_ICMP) {
-		hdr_icmp = ((void *) ipv6_hdr(skb)) + offset;
-		if (unlikely(icmp6_has_inner_packet(hdr_icmp->icmp6_type))) {
-			log_debug("Packet inside packet inside packet.");
-			error = -EINVAL;
-			goto inhdr;
+	if (meta.has_frag_hdr) {
+		ptr.frag = skb_hdr_ptr(skb, meta.frag_offset, buffer.frag);
+		if (!ptr.frag)
+			return truncated(skb, "inner fragment header");
+		if (!is_first_fragment_ipv6(ptr.frag))
+			return inhdr(skb, "Inner packet is not a first fragment.");
+	}
+
+	if (meta.l4_proto == L4PROTO_ICMP) {
+		ptr.icmp = skb_hdr_ptr(skb, meta.l4_offset, buffer.icmp);
+		if (!ptr.icmp)
+			return truncated(skb, "inner ICMPv6 header");
+		if (has_inner_pkt6(ptr.icmp->icmp6_type))
+			return inhdr(skb, "Packet inside packet inside packet.");
+	}
+
+	if (!pskb_may_pull(skb, meta.payload_offset)) {
+		log_debug("Could not 'pull' the headers out of the skb.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
+{
+	union {
+		struct icmp6hdr icmp;
+		struct frag_hdr frag;
+	} buffer;
+	union {
+		struct icmp6hdr *icmp;
+		struct frag_hdr *frag;
+	} ptr;
+	int error;
+
+	ptr.icmp = skb_hdr_ptr(skb, meta->l4_offset, buffer.icmp);
+	if (!ptr.icmp)
+		return truncated(skb, "ICMPv6 header");
+
+	if (has_inner_pkt6(ptr.icmp->icmp6_type)) {
+		error = validate_inner6(skb, meta);
+		if (error)
+			return error;
+	}
+
+	if (nat64_is_stateless() && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
+		ptr.frag = skb_hdr_ptr(skb, meta->frag_offset, buffer.frag);
+		if (!ptr.frag)
+			return truncated(skb, "fragment header");
+		if (is_fragmented_ipv6(ptr.frag)) {
+			log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
+			return -EINVAL;
 		}
 	}
 
 	return 0;
-
-truncated:
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-	return error;
-
-inhdr:
-	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-	return error;
-}
-
-static int __skb_init_cb_ipv6(struct sk_buff *skb, bool is_fragment)
-{
-	struct jool_cb *cb;
-	struct frag_hdr *fragment_hdr;
-	struct hdr_iterator iterator;
-	int l4hdr_offset;
-	int error = -EINVAL;
-
-#ifdef BENCHMARK
-	cb = skb_jcb(skb);
-	getnstimeofday(&cb->start_time);
-#endif
-
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		goto truncated;
-
-	if (unlikely(skb->len != get_tot_len_ipv6(skb)))
-		goto inhdr;
-	error = may_pull_ipv6_hdrs(skb, false);
-	if (unlikely(error))
-		goto truncated;
-
-	hdr_iterator_init_truncated(&iterator, ipv6_hdr(skb),
-			skb_tail_pointer(skb) - skb_network_header(skb));
-	error = iterate_till_end(&iterator, &fragment_hdr);
-	if (unlikely(error))
-		goto inhdr;
-
-	cb = skb_jcb(skb);
-	cb->l3_proto = L3PROTO_IPV6;
-	cb->is_inner = 0;
-	cb->is_fragment = is_fragment;
-	cb->original_skb = skb;
-
-	l4hdr_offset = iterator.data - (void *) ipv6_hdr(skb);
-	/*
-	 * Note! skb->data is involved so this equation is delicate.
-	 * In first fragments, the pointer must end in the transport header.
-	 * In subsequent fragments, the pointer must end up in the payload.
-	 */
-	skb_set_transport_header(skb, skb_network_offset(skb) + l4hdr_offset);
-
-	return init_l4(skb, iterator.hdr_type, is_first_fragment_ipv6(fragment_hdr));
-
-truncated:
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-	return error;
-
-inhdr:
-	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-	return error;
 }
 
 int skb_init_cb_ipv6(struct sk_buff *skb)
 {
+	struct pkt_metadata meta;
+	struct jool_cb *cb;
 	int error;
-
-	error = fail_if_shared(skb);
-	if (error)
-		return error;
 
 	/*
 	 * Careful in this function and subfunctions. pskb_may_pull() might change pointers,
 	 * so you generally don't want to store them.
 	 */
 
-	error = __skb_init_cb_ipv6(skb, skb_shinfo(skb)->frag_list != NULL);
-	if (unlikely(error))
+#ifdef BENCHMARK
+	getnstimeofday(&pkt->start_time);
+#endif
+
+	error = fail_if_shared(skb);
+	if (error)
 		return error;
 
-	if (skb_l4_proto(skb) == L4PROTO_ICMP) {
-		__u8 type = icmp6_hdr(skb)->icmp6_type;
+	if (skb->len != get_tot_len_ipv6(skb))
+		return inhdr(skb, "Packet size doesn't match the IPv6 header's payload length field.");
 
-		if (icmp6_has_inner_packet(type)) {
-			error = init_inner_packet6(skb);
-			if (unlikely(error))
-				return error;
-		}
+	error = summarize_skb6(skb, skb_network_offset(skb), &meta);
+	if (error)
+		return error;
 
-		if (nat64_is_stateless() && is_icmp6_info(icmp6_hdr(skb)->icmp6_type)
-				&& is_fragmented_ipv6(get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT))) {
-			log_debug("Packet is a fragmented ping. Its checksum cannot be translated, "
-					"so I'll just drop it.");
-			return -EINVAL;
-		}
-	}
-
-	/* If not a fragment, the next "while" will be omitted. */
-	skb_walk_frags(skb, skb) {
-		error = __skb_init_cb_ipv6(skb, true);
-		if (unlikely(error))
+	if (meta.l4_proto == L4PROTO_ICMP) {
+		/* Do not move this to summarize_skb6(), because it risks infinite recursion. */
+		error = handle_icmp6(skb, &meta);
+		if (error)
 			return error;
 	}
 
+	if (!pskb_may_pull(skb, meta.payload_offset)) {
+		log_debug("Could not 'pull' the headers out of the skb.");
+		return -EINVAL;
+	}
+
+	cb = skb_jcb(skb);
+	cb->l3_proto = L3PROTO_IPV6;
+	cb->l4_proto = meta.l4_proto;
+	cb->is_inner = 0;
+	cb->is_fragment = skb_shinfo(skb)->frag_list != NULL;
+	/* cb->hdr_frag = meta.has_frag_hdr ? offset_to_ptr(skb, meta.frag_offset) : NULL; */
+	skb_set_transport_header(skb, meta.l4_offset);
+	cb->payload = offset_to_ptr(skb, meta.payload_offset);
+	cb->original_skb = skb;
+
 	return 0;
 }
 
-static int init_inner_packet4(struct sk_buff *skb)
+static int validate_inner4(struct sk_buff *skb, struct pkt_metadata *meta)
+{
+	union {
+		struct iphdr ip4;
+		struct tcphdr tcp;
+	} buffer;
+	union {
+		struct iphdr *ip4;
+		struct tcphdr *tcp;
+	} ptr;
+	unsigned int ihl;
+	unsigned int offset = meta->payload_offset;
+
+	ptr.ip4 = skb_hdr_ptr(skb, offset, buffer.ip4);
+	if (!ptr.ip4)
+		return truncated(skb, "inner IPv4 header");
+
+	ihl = 4 * ptr.ip4->ihl;
+	if (ptr.ip4->version != 4)
+		return inhdr(skb, "Inner packet is not IPv4.");
+	if (ihl < 20)
+		return inhdr(skb, "Inner packet's IHL is bogus.");
+	if (ntohs(ptr.ip4->tot_len) < ihl)
+		return inhdr(skb, "Inner packet's total length is bogus.");
+	if (!is_first_fragment_ipv4(ptr.ip4))
+		return inhdr(skb, "Inner packet is not first fragment.");
+
+	offset += ptr.ip4->ihl << 2;
+
+	switch (ptr.ip4->protocol) {
+	case IPPROTO_TCP:
+		ptr.tcp = skb_hdr_ptr(skb, offset, buffer.tcp);
+		if (!ptr.tcp)
+			return truncated(skb, "inner TCP header");
+		offset += tcp_hdr_len(ptr.tcp);
+		break;
+	case IPPROTO_UDP:
+		offset += sizeof(struct udphdr);
+		break;
+	case IPPROTO_ICMP:
+		offset += sizeof(struct icmphdr);
+		break;
+	}
+
+	if (!pskb_may_pull(skb, offset)) {
+		log_debug("Could not 'pull' the headers out of the skb.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int handle_icmp4(struct sk_buff *skb, struct pkt_metadata *meta)
+{
+	struct icmphdr buffer, *ptr;
+	int error;
+
+	ptr = skb_hdr_ptr(skb, meta->l4_offset, buffer);
+	if (!ptr)
+		return truncated(skb, "ICMP header");
+
+	if (has_inner_pkt4(ptr->type)) {
+		error = validate_inner4(skb, meta);
+		if (error)
+			return error;
+	}
+
+	if (nat64_is_stateless() && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(skb))) {
+		log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int summarize_skb4(struct sk_buff *skb, struct pkt_metadata *meta)
+{
+	struct iphdr *hdr4 = ip_hdr(skb);
+	unsigned int offset = skb_network_offset(skb) + (hdr4->ihl << 2);
+
+	meta->has_frag_hdr = false;
+	meta->l4_offset = offset;
+	meta->payload_offset = offset;
+
+	switch (hdr4->protocol) {
+	case IPPROTO_TCP:
+		meta->l4_proto = L4PROTO_TCP;
+		if (is_first_fragment_ipv4(hdr4)) {
+			struct tcphdr buffer, *ptr;
+			ptr = skb_hdr_ptr(skb, offset, buffer);
+			if (!ptr)
+				return truncated(skb, "TCP header");
+			meta->payload_offset += tcp_hdr_len(ptr);
+		}
+		return 0;
+
+	case IPPROTO_UDP:
+		meta->l4_proto = L4PROTO_UDP;
+		if (is_first_fragment_ipv4(hdr4))
+			meta->payload_offset += sizeof(struct udphdr);
+		return 0;
+
+	case IPPROTO_ICMP:
+		meta->l4_proto = L4PROTO_ICMP;
+		if (is_first_fragment_ipv4(hdr4))
+			meta->payload_offset += sizeof(struct icmphdr);
+		return handle_icmp4(skb, meta);
+	}
+
+	meta->l4_proto = L4PROTO_OTHER;
+	return 0;
+}
+
+static int handle_udp4(struct sk_buff *skb, struct pkt_metadata *meta)
 {
 	struct iphdr *hdr4;
-	struct icmphdr *l4_hdr;
-	unsigned int l3_hdr_len;
-	unsigned int offset = skb_hdrs_len(skb);
-	int error = -EINVAL;
+	struct udphdr buffer, *ptr;
 
-	log_debug("Validating IPv4 inner packet.");
+	if (nat64_is_stateful())
+		return 0;
 
-	if (!may_pull_keep(skb, offset + sizeof(struct iphdr))) {
-		log_debug("Inner packet is too small to contain a basic IPv4 header.");
-		goto truncated;
-	}
+	hdr4 = ip_hdr(skb);
+	if (!is_first_fragment_ipv4(hdr4))
+		return 0;
 
-	hdr4 = skb_jcb(skb)->payload;
-	if (unlikely(hdr4->version != 4)) {
-		log_debug("Inner packet is not IPv4.");
-		goto inhdr;
-	}
-	if (unlikely(hdr4->ihl < 5)) {
-		log_debug("Inner packet's IHL is bogus.");
-		goto inhdr;
-	}
+	ptr = skb_hdr_ptr(skb, meta->l4_offset, buffer);
+	if (!ptr)
+		return truncated(skb, "UDP header (2)");
 
-	l3_hdr_len = 4 * hdr4->ihl;
-
-	if (!may_pull_keep(skb, l3_hdr_len)) {
-		log_debug("Inner packet is too small to contain its IPv4 header.");
-		goto truncated;
-	}
-
-	hdr4 = skb_jcb(skb)->payload;
-	if (unlikely(ntohs(hdr4->tot_len) < l3_hdr_len)) {
-		log_debug("Inner packet's total length is bogus.");
-		goto inhdr;
-	}
-	if (unlikely(!is_first_fragment_ipv4(hdr4))) {
-		log_debug("Inner packet is not a first fragment...");
-		goto inhdr;
-	}
-
-	error = init_l4_inner(skb, hdr4->protocol, offset + l3_hdr_len);
-	if (unlikely(error))
-		return error;
-
-	hdr4 = skb_jcb(skb)->payload;
-	if (hdr4->protocol == IPPROTO_ICMP) {
-		l4_hdr = ((void *) hdr4) + l3_hdr_len;
-		if (unlikely(icmp4_has_inner_packet(l4_hdr->type))) {
-			log_debug("Packet inside packet inside packet.");
-			error = -EINVAL;
-			goto inhdr;
-		}
+	/* RFC 6145#4.5:
+	 * A stateless translator cannot compute the UDP checksum of fragmented packets, so when a
+	 * stateless translator receives the first fragment of a fragmented UDP IPv4 packet and the
+	 * checksum field is zero, the translator SHOULD drop the packet and generate a system
+	 * management event that specifies at least the IP addresses and port numbers in the packet,
+	 * Also, the translator SHOULD provide a configuration function to allow:
+	 * Dropping the packet or Calculating an IPv6 checksum and forwarding the packet.
+	 */
+	if (ptr->check == 0 && (is_more_fragments_set_ipv4(hdr4)
+			|| !config_get_compute_UDP_csum_zero())) {
+		log_info("Dropping IPv4 packet, UDP Packet has checksum 0:");
+		log_info("%pI4#%u->%pI4#%u", &hdr4->saddr, ntohs(ptr->source),
+				&hdr4->daddr, ntohs(ptr->dest));
+		return -EINVAL;
 	}
 
 	return 0;
-
-truncated:
-	inc_stats(skb, IPSTATS_MIB_INTRUNCATEDPKTS);
-	return error;
-
-inhdr:
-	inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-	return error;
-}
-
-static int __skb_init_cb_ipv4(struct sk_buff *skb, bool is_fragment)
-{
-	struct jool_cb *cb = skb_jcb(skb);
-	struct iphdr *hdr4 = ip_hdr(skb);
-
-#ifdef BENCHMARK
-	getnstimeofday(&cb->start_time);
-#endif
-
-	cb->l3_proto = L3PROTO_IPV4;
-	cb->is_inner = 0;
-	cb->is_fragment = is_fragment;
-	cb->original_skb = skb;
-	/*
-	 * Note! skb->data is involved so this equation is delicate.
-	 * In first fragments, the pointer must end in the transport header.
-	 * In subsequent fragments, the pointer must end up in the payload.
-	 */
-	skb_set_transport_header(skb, skb_network_offset(skb) + 4 * hdr4->ihl);
-
-	return init_l4(skb, hdr4->protocol, is_first_fragment_ipv4(hdr4));
 }
 
 int skb_init_cb_ipv4(struct sk_buff *skb)
 {
+	struct pkt_metadata meta;
+	struct jool_cb *cb;
 	int error;
-
-	error = fail_if_shared(skb);
-	if (error)
-		return error;
 
 	/*
 	 * Careful in this function and subfunctions. pskb_may_pull() might change pointers,
 	 * so you generally don't want to store them.
 	 */
 
-	error = __skb_init_cb_ipv4(skb, skb_shinfo(skb)->frag_list != NULL);
-	if (unlikely(error))
+#ifdef BENCHMARK
+	getnstimeofday(&pkt->start_time);
+#endif
+
+	error = fail_if_shared(skb);
+	if (error)
 		return error;
 
-	if (skb_l4_proto(skb) == L4PROTO_ICMP) {
-		__u8 type = icmp_hdr(skb)->type;
+	error = summarize_skb4(skb, &meta);
+	if (error)
+		return error;
 
-		if (icmp4_has_inner_packet(type)) {
-			error = init_inner_packet4(skb);
-			if (unlikely(error))
-				return error;
-		}
-
-		if (nat64_is_stateless() && is_icmp4_info(type) && is_fragmented_ipv4(ip_hdr(skb))) {
-			log_debug("Packet is a fragmented ping. Its checksum cannot be translated, "
-					"so I'll just drop it.");
-			return -EINVAL;
-		}
-	}
-
-	if (nat64_is_stateless() && skb_l4_proto(skb) == L4PROTO_UDP) {
-		struct iphdr *hdr4 = ip_hdr(skb);
-		struct udphdr *udp = udp_hdr(skb);
-
-		/* RFC 6145#4.5:
-		 * A stateless translator cannot compute the UDP checksum of fragmented packets, so when a
-		 * stateless translator receives the first fragment of a fragmented UDP IPv4 packet and the
-		 * checksum field is zero, the translator SHOULD drop the packet and generate a system
-		 * management event that specifies at least the IP addresses and port numbers in the packet,
-		 * Also, the translator SHOULD provide a configuration function to allow:
-		 * Dropping the packet or Calculating an IPv6 checksum and forwarding the packet.
-		 */
-		if (is_first_fragment_ipv4(hdr4) && udp->check == 0 && (is_more_fragments_set_ipv4(hdr4) ||
-				!config_get_compute_UDP_csum_zero())) {
-			log_info("Dropping IPv4 packet, UDP Packet has checksum 0:");
-			log_info("%pI4#%u->%pI4#%u", &hdr4->saddr, ntohs(udp->source),
-					&hdr4->daddr, ntohs(udp->dest));
-			return -EINVAL;
-		}
-	}
-
-	skb_walk_frags(skb, skb) {
-		if (unlikely(skb->len + 4 * ip_hdr(skb)->ihl != ntohs(ip_hdr(skb)->tot_len))) {
-			inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-			return -EINVAL;
-		}
-
-		error = __skb_init_cb_ipv4(skb, true);
-		if (unlikely(error))
+	if (meta.l4_proto == L4PROTO_UDP) {
+		error = handle_udp4(skb, &meta);
+		if (error)
 			return error;
 	}
+
+	if (!pskb_may_pull(skb, meta.payload_offset)) {
+		log_debug("Could not 'pull' the headers out of the skb.");
+		return -EINVAL;
+	}
+
+	cb = skb_jcb(skb);
+	cb->l3_proto = L3PROTO_IPV4;
+	cb->l4_proto = meta.l4_proto;
+	cb->is_inner = 0;
+	cb->is_fragment = skb_shinfo(skb)->frag_list != NULL;
+	/* cb->hdr_frag = NULL; */
+	skb_set_transport_header(skb, meta.l4_offset);
+	cb->payload = offset_to_ptr(skb, meta.payload_offset);
+	cb->original_skb = skb;
 
 	return 0;
 }
@@ -582,15 +532,15 @@ static void print_lengths(struct sk_buff *skb)
 	pr_debug("\t	skb->len: %u", skb->len);
 	pr_debug("\t	skb->data_len: %u\n", skb->data_len);
 	pr_debug("\t	skb_pagelen(skb): %u\n", skb_pagelen(skb));
-	pr_debug("\t	skb_len(skb): %u\n", skb_len(skb));
+	pr_debug("\t	skb_len(pkt): %u\n", skb_len(skb));
 	pr_debug("\t	nh-th:%u th-p:%u l3:%u l4:%u l3+l4:%u\n",
 			skb_transport_offset(skb) - skb_network_offset(skb),
 			skb_payload_offset(skb) - skb_transport_offset(skb),
 			skb_l3hdr_len(skb), skb_l4hdr_len(skb), skb_hdrs_len(skb));
-	pr_debug("\t	skb_payload_len_frag(skb): %u\n", skb_payload_len_frag(skb));
-	pr_debug("\t	skb_payload_len_pkt(skb): %u\n", skb_payload_len_pkt(skb));
-	pr_debug("\t	skb_l3payload_len(skb): %u\n", skb_l3payload_len(skb));
-	pr_debug("\t	skb_datagram_len(skb): %u\n", skb_datagram_len(skb));
+	pr_debug("\t	skb_payload_len_frag(pkt): %u\n", skb_payload_len_frag(skb));
+	pr_debug("\t	skb_payload_len_pkt(pkt): %u\n", skb_payload_len_pkt(skb));
+	pr_debug("\t	skb_l3payload_len(pkt): %u\n", skb_l3payload_len(skb));
+	pr_debug("\t	skb_datagram_len(pkt): %u\n", skb_datagram_len(skb));
 	pr_debug("\t	frag_list:%p nr_frags:%u\n",
 			skb_shinfo(skb)->frag_list, skb_shinfo(skb)->nr_frags);
 }
@@ -697,6 +647,9 @@ static void print_l4_hdr(struct sk_buff *skb)
 		pr_debug("		checksum: %x\n", be16_to_cpu((__force __be16) icmp_header->checksum));
 		pr_debug("		un: %x", be32_to_cpu(icmp_header->un.gateway));
 		break;
+
+	case L4PROTO_OTHER:
+		break;
 	}
 }
 
@@ -731,10 +684,6 @@ void skb_print(struct sk_buff *skb)
 	if (skb_transport_header(skb))
 		print_l4_hdr(skb);
 	print_payload(skb);
-
-	skb_walk_frags(skb, skb) {
-		skb_print(skb);
-	}
 }
 
 int validate_icmp6_csum(struct sk_buff *skb)
@@ -771,7 +720,8 @@ int validate_icmp4_csum(struct sk_buff *skb)
 	if (!is_icmp4_error(icmp_hdr(skb)->type))
 		return 0;
 
-	csum = csum_fold(skb_checksum(skb, skb_transport_offset(skb), skb_datagram_len(skb), 0));
+	csum = csum_fold(skb_checksum(skb, skb_transport_offset(skb), skb_datagram_len(skb),
+			0));
 	if (csum != 0) {
 		log_debug("Checksum doesn't match.");
 		return -EINVAL;

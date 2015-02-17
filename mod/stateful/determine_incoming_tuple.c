@@ -1,5 +1,6 @@
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/mod/common/stats.h"
 
@@ -233,6 +234,8 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *in_tuple)
 				result = VER_DROP;
 			}
 			break;
+		case L4PROTO_OTHER:
+			goto unknown_proto;
 		}
 		break;
 
@@ -256,16 +259,19 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *in_tuple)
 				result = VER_DROP;
 			}
 			break;
+		case L4PROTO_OTHER:
+			goto unknown_proto;
 		}
 		break;
 	}
 
-	/*
-	 * We moved the transport-protocol-not-recognized ICMP errors to packet.c because they're
-	 * covered in validations.
-	 */
-
 	log_tuple(in_tuple);
 	log_debug("Done step 1.");
 	return result;
+
+unknown_proto:
+	log_debug("Stateful NAT64 doesn't support unknown transport protocols.");
+	icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
+	inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
+	return VER_DROP;
 }

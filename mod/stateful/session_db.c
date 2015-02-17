@@ -176,6 +176,8 @@ static int get_session_table(l4_protocol l4_proto, struct session_table **result
 	case L4PROTO_ICMP:
 		*result = &session_table_icmp;
 		return 0;
+	case L4PROTO_OTHER:
+		break;
 	}
 
 	WARN(true, "Unsupported transport protocol: %u.", l4_proto);
@@ -1019,6 +1021,7 @@ success:
 		expirer = &expirer_icmp;
 		break;
 	case L4PROTO_TCP:
+	case L4PROTO_OTHER:
 		/* handled in a WARN above, not gonna happen. I'm just hushing the compiler. */
 		break;
 	}
@@ -1118,6 +1121,7 @@ success:
 		expirer = &expirer_icmp;
 		break;
 	case L4PROTO_TCP:
+	case L4PROTO_OTHER:
 		/* handled in a WARN above, not gonna happen. I'm just hushing the compiler. */
 		break;
 	}

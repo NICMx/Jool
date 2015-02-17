@@ -509,6 +509,10 @@ verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
 			break;
 		}
 		break;
+
+	case L4PROTO_OTHER:
+		WARN(true, "Unknown layer 4 protocol (%d)...", skb_l4_proto(skb));
+		break;
 	}
 
 	log_debug("Done: Step 2.");

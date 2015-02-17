@@ -81,7 +81,13 @@ typedef enum l4_protocol {
 	 * exactly like one in NAT64.
 	 */
 	L4PROTO_ICMP = 2,
-#define L4_PROTO_COUNT 3
+	/**
+	 * Stateless Jool should try to translate other protocols in a best effort basis.
+	 * It will just copy layer 4 as is, and hope there's nothing to update.
+	 * Because of checksumming nonsense and whatnot, this might usually fail, but whatever.
+	 */
+	L4PROTO_OTHER = 3,
+#define L4_PROTO_COUNT 4
 } l4_protocol;
 
 /**

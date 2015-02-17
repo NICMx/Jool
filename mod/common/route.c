@@ -44,18 +44,18 @@ int route4(struct sk_buff *skb)
 		struct tcphdr *hdr_tcp;
 		struct icmphdr *hdr_icmp4;
 
-		switch (skb_l4_proto(skb)) {
-		case L4PROTO_TCP:
+		switch (hdr_ip->protocol) {
+		case IPPROTO_TCP:
 			hdr_tcp = tcp_hdr(skb);
 			flow.fl4_sport = hdr_tcp->source;
 			flow.fl4_dport = hdr_tcp->dest;
 			break;
-		case L4PROTO_UDP:
+		case IPPROTO_UDP:
 			hdr_udp = udp_hdr(skb);
 			flow.fl4_sport = hdr_udp->source;
 			flow.fl4_dport = hdr_udp->dest;
 			break;
-		case L4PROTO_ICMP:
+		case IPPROTO_ICMP:
 			hdr_icmp4 = icmp_hdr(skb);
 			flow.fl4_icmp_type = hdr_icmp4->type;
 			flow.fl4_icmp_code = hdr_icmp4->code;
@@ -101,13 +101,12 @@ int route6(struct sk_buff *skb)
 	struct flowi6 flow;
 	struct dst_entry *dst;
 	struct hdr_iterator iterator;
-	hdr_iterator_result iterator_result;
 
 	if (skb_dst(skb))
 		return 0;
 
 	hdr_iterator_init(&iterator, hdr_ip);
-	iterator_result = hdr_iterator_last(&iterator);
+	hdr_iterator_last(&iterator);
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow->flowi6_oif; */
@@ -115,7 +114,7 @@ int route6(struct sk_buff *skb)
 	flow.flowi6_mark = skb->mark;
 	flow.flowi6_tos = get_traffic_class(hdr_ip);
 	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi6_proto = (iterator_result == HDR_ITERATOR_END) ? iterator.hdr_type : 0;
+	flow.flowi6_proto = iterator.hdr_type;
 	flow.flowi6_flags = 0;
 	/* flow->flowi6_secid; */
 	flow.saddr = hdr_ip->saddr;
@@ -126,18 +125,18 @@ int route6(struct sk_buff *skb)
 		struct tcphdr *hdr_tcp;
 		struct icmp6hdr *hdr_icmp6;
 
-		switch (skb_l4_proto(skb)) {
-		case L4PROTO_TCP:
+		switch (iterator.hdr_type) {
+		case NEXTHDR_TCP:
 			hdr_tcp = tcp_hdr(skb);
 			flow.fl6_sport = hdr_tcp->source;
 			flow.fl6_dport = hdr_tcp->dest;
 			break;
-		case L4PROTO_UDP:
+		case NEXTHDR_UDP:
 			hdr_udp = udp_hdr(skb);
 			flow.fl6_sport = hdr_udp->source;
 			flow.fl6_dport = hdr_udp->dest;
 			break;
-		case L4PROTO_ICMP:
+		case NEXTHDR_ICMP:
 			hdr_icmp6 = icmp6_hdr(skb);
 			flow.fl6_icmp_type = hdr_icmp6->icmp6_type;
 			flow.fl6_icmp_code = hdr_icmp6->icmp6_code;
