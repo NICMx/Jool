@@ -1,20 +1,22 @@
 ---
 layout: documentation
-title: Documentation - Userspace Application
+title: Documentation - Flags > BIB
 ---
 
-# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--bib
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--bib
+
+# \--bib
 
 ## Index
 
 1. [Description](#description)
 2. [Syntax](#syntax)
 3. [Options](#options)
-   1. [&lt;protocols&gt;](#ltprotocolsgt)
-   2. [Operations](#operations)
-   3. [\--numeric](#numeric)
-   4. [\--csv](#csv)
-   5. [\--bib4, \--bib6](#bib4---bib6)
+   1. [Operations](#operations)
+   2. [`<protocols>`](#protocols)
+   3. [`--numeric`](#numeric)
+   4. [`--csv`](#csv)
+   5. [`<bib4>`, `<bib6>`](#bib4-bib6)
 4. [Examples](#examples)
 
 ## Description
@@ -25,37 +27,37 @@ Interacts with Jool's [Binding Information Base (BIB)](misc-bib.html). If you do
 
 	jool_stateful --bib <protocols> [--display] [--numeric] [--csv]
 	jool_stateful --bib <protocols> --count
-	jool_stateful --bib <protocols> --add --bib4 <bib4> --bib6 <bib6>
-	jool_stateful --bib <protocols> --remove --bib4 <bib4> --bib6 <bib6>
+	jool_stateful --bib <protocols> --add <bib4> <bib6>
+	jool_stateful --bib <protocols> --remove (<bib4> | <bib6> | <bib4> <bib6>)
 
 ## Options
-
-### &lt;protocols&gt;
-
-	<protocols> := [--tcp] [--udp] [--icmp]
-
-The command will only operate on the tables mentioned here. If you omit this entirely, Jool will fall back to operate on all three tables.
 
 ### Operations
 
 * `--display`: The BIB tables are printed in standard output. This is the default operation.
 * `--count`: The number of entries per BIB table are printed in standard output.
-* `--add`: Combines `--bib6` and `--bib4` into a BIB entry, and uploads it to Jool's tables.
-* `--remove`: Deletes from the tables the BIB entry described by `--bib6` and/or `--bib4`.
+* `--add`: Combines `<bib6>` and `<bib4>` into a BIB entry, and uploads it to Jool's tables.
+* `--remove`: Deletes from the tables the BIB entry described by `<bib6>` and/or `<bib4>`.
 
-### \--numeric
+### `<protocols>`
+
+	<protocols> := [--tcp] [--udp] [--icmp]
+
+The command will only operate on the tables mentioned here. If you omit this entirely, Jool will fall back to operate on all three tables.
+
+### `--numeric`
 
 By default, the application will attempt to resolve the name of the IPv6 node of each BIB entry. _If your nameservers aren't answering, this will slow the output down_.
 
 Use `--numeric` to turn this behavior off.
 
-### \--csv
+### `--csv`
 
 By default, the application will print the tables in a relatively console-friendly format.
 
 Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_values" target="_blank">CSV format</a>, which is spreadsheet-friendly.
 
-### \--bib4, \--bib6
+### `<bib4>`, `<bib6>`
 
 	<bib4> := <IPv4 address>#(<port> | <ICMP identifier>)
 	<bib6> := <IPv6 address>#(<port> | <ICMP identifier>)
@@ -64,7 +66,7 @@ A BIB entry is composed of a IPv6 transport address (the IPv6 node's connection 
 
 If you're adding or removing a BIB, you provide both addresses via these parameters.
 
-Note that the `--bib4` component must be a member of Jool's [IPv4 pool](usr-flags-pool4.html), so make sure you have registered it there first.
+Note that the `<bib4>` component must be a member of Jool's [IPv4 pool](usr-flags-pool4.html), so make sure you have registered it there first.
 
 Within a BIB table, every IPv4 transport address is unique. Within a BIB table, every IPv6 transport address is also unique. Therefore, If you're removing a BIB entry, you actually only need to provide one of them. You can still input both to make sure you're deleting exactly what you want to delete, though.
 
@@ -92,8 +94,8 @@ ICMP:
 Publish a couple of TCP services:
 
 {% highlight bash %}
-# jool_stateful --bib --add --tcp --bib6 6::6#6 --bib4 4.4.4.4#4
-# jool_stateful --bib --add --tcp --bib6 6::6#66 --bib4 4.4.4.4#44
+# jool_stateful --bib --add --tcp 6::6#6 4.4.4.4#4
+# jool_stateful --bib --add --tcp 6::6#66 4.4.4.4#44
 {% endhighlight %}
 
 Display the TCP table:
@@ -121,7 +123,7 @@ TCP:
 Publish a UDP service:
 
 {% highlight bash %}
-# jool_stateful --bib --add --udp --bib6 6::6#6666 --bib4 4.4.4.4#4444
+# jool_stateful --bib --add --udp 6::6#6666 4.4.4.4#4444
 {% endhighlight %}
 
 Dump the database on a CSV file:
@@ -143,6 +145,6 @@ ICMP: 0
 Remove the UDP entry:
 
 {% highlight bash %}
-# jool_stateful --bib --remove --udp --bib6 6::6#6666
+# jool_stateful --bib --remove --udp 6::6#6666
 {% endhighlight %}
 

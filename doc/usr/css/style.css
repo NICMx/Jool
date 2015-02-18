@@ -19,8 +19,7 @@ body {
 
 h1, h2 {
 	font-family: Monaco, "Lucida Console", monospace;
-	font-weight: normal;
-	color: #2e5c76;
+	/* font-weight: normal; */
 }
 
 h1, h2, h3 {
@@ -40,16 +39,17 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 h1 {
 	letter-spacing: -2px;
 	font-size: 30px;
-    color: #00619f;
+	color: #00619f;
 }
 
 h2 {
 	letter-spacing: -1px;
 	font-size: 20px;
+	color: #2e5c76;
 }
 
 h3 {
-	font-size: 1em;
+	/* font-size: 1em; */
 }
 
 p {
@@ -261,6 +261,7 @@ min-height: 800px;
 
 
 pre code {
+	font-size: 13px;
 	display: block;
 	overflow: auto;
 	padding: 6px 10px;
@@ -269,7 +270,7 @@ pre code {
 }
 
 code {
-	font-size: 13px;
+	font-size: 14px;
 	background-color: #f8f8f8;
 	border: 1px solid #ddd;
 	padding-left: 0.3em;

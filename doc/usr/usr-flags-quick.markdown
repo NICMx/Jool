@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Userspace Application
+title: Documentation - Flags > Quick
 ---
 
-# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--quick
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--quick
+
+# \--quick
 
 First, a little background information:
 

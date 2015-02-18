@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Userspace Application
+title: Documentation - Userspace Applications Installation
 ---
 
-# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > Installation
+[Documentation](doc-index.html) > [Installation](doc-index.html#installation) > Userspace Application
+
+# Userspace Applications Installation
 
 ## Introduction
 

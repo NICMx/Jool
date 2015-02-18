@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Userspace Application
+title: Documentation - Flags > IPv6 Pool
 ---
 
-# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool6
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool6
+
+# \--pool6
 
 ## Index
 
@@ -11,8 +13,7 @@ title: Documentation - Userspace Application
 2. [Syntax](#syntax)
 3. [Options](#options)
    1. [Operations](#operations)
-   2. [\--quick](#quick)
-   3. [\--prefix](#prefix)
+   2. [`--quick`](#quick)
 4. [Examples](#examples)
 
 ## Description
@@ -25,8 +26,8 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 
 	$(jool) --pool6 [--display]
 	$(jool) --pool6 --count
-	$(jool) --pool6 --add --prefix <prefix>
-	$(jool) --pool6 --remove --prefix <prefix> [--quick]
+	$(jool) --pool6 --add <IPv6 prefix>
+	$(jool) --pool6 --remove <IPv6 prefix> [--quick]
 	$(jool) --pool6 --flush [--quick]
 
 ## Options
@@ -39,13 +40,9 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 * `--remove`: Deletes from the tables the prefix `<prefix>`.
 * `--flush`: Removes all prefixes from the pool.
 
-### \--quick
+### `--quick`
 
 See [`--quick`](usr-flags-quick.html).
-
-### \--prefix
-
-	<prefix> := <prefix address>/<prefix length>
 
 ## Examples
 
@@ -67,13 +64,13 @@ $ $(jool) --pool6 --count
 Remove the default prefix:
 
 {% highlight bash %}
-$ $(jool) --pool6 --remove --prefix 64:ff9b::/96
+$ $(jool) --pool6 --remove 64:ff9b::/96
 {% endhighlight %}
 
 Add a sample prefix:
 
 {% highlight bash %}
-$ $(jool) --pool6 --add --prefix 2001:db8::/64
+$ $(jool) --pool6 --add 2001:db8::/64
 {% endhighlight %}
 
 Destroy all prefixes. Do not bother cleaning up the garbage:

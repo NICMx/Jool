@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Tutorial 2
+title: Documentation - EAM Run
 ---
 
-# [Doc](doc-index.html) > [Kernel Module](doc-index.html#kernel-module) > Runs (EAM)
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > Stateless NAT64 + EAM
+
+# EAM Run
 
 ## Index
 
@@ -71,8 +73,8 @@ Remember you might want to cross-ping _N_ vs everything before continuing.
 
 {% highlight bash %}
 user@N:~# /sbin/modprobe jool_stateless pool4=<IPv4 prefix(es)> disabled
-user@N:~# jool_stateless --eam --add --eam6=2001:db8::6/120 --eam4=198.51.100.0/24
-user@N:~# jool_stateless --eam --add --eam6=2001:db8::4/120 --eam4=192.0.2.0/24
+user@N:~# jool_stateless --eam --add 2001:db8::6/120 198.51.100.0/24
+user@N:~# jool_stateless --eam --add 2001:db8::4/120 192.0.2.0/24
 user@N:~# jool_stateless --enable
 {% endhighlight %}
 

@@ -3,6 +3,8 @@ layout: documentation
 title: Documentation - Troubleshooting/FAQ
 ---
 
+[Documentation](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > FAQ
+
 # Troubleshooting/FAQ
 
 This sums up problems we've seen users run into.

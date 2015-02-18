@@ -36,7 +36,7 @@ An <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank">important
 
 ### 2014-10-17
 
-The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-general.html#plateaus) also received improvements.
+The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-global.html#plateaus) also received improvements.
 
 It has come to our attention that <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">we are also lacking an explanation of IP literals</a>, so there should be another codeless update like this in the near future.
 
@@ -59,7 +59,7 @@ The less noticeable ones are
 
 It took it a really long time to overcome testing, but version 3.2.0 is finally released.
 
-We changed the minor version number this time, because the userspace application has a slightly different interface; the single-value configuration parameters have been joined: [`--general`](usr-flags-general.html) replaced `--filtering`, `--translate` and `--fragmentation`. The application also has three new features:
+We changed the minor version number this time, because the userspace application has a slightly different interface; the single-value configuration parameters have been joined: [`--general`](usr-flags-global.html) replaced `--filtering`, `--translate` and `--fragmentation`. The application also has three new features:
 
 1. The <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">ability to flush the pools</a>.
 2. The addition of [`--quick`](usr-flags-quick.html).
@@ -91,7 +91,7 @@ Aside from that, the userspace application has been tightened. It doesn't crash 
 
 Then we have a couple of <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">performance</a> <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">optimizations</a>. In particular (and more or less as a side effect), by aligning log priorities to those from the rest of the kernel, more care has been taken to keep the log cleaner.
 
-If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](usr-flags-general.html#minmtu6), a configuration parameter that helps you avoid fragmentation.
+If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](usr-flags-global.html#minmtu6), a configuration parameter that helps you avoid fragmentation.
 
 If people doesn't find critical bugs in this version, this appears to be the end of the 3.1.x series. We'll go back to aim for 100% RFC compliance in the next update.
 

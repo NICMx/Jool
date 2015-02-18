@@ -15,7 +15,7 @@ struct backup_skb {
 	l4_protocol l4_proto;
 };
 
-static struct translation_steps steps[L3_PROTO_COUNT][L4_PROTO_COUNT] = {
+static struct translation_steps steps[][L4_PROTO_COUNT] = {
 	{ /* IPv6 */
 		{
 			.skb_create_fn = ttp64_create_skb,

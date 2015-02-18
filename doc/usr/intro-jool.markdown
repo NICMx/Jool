@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Introduction to NAT64
+title: Documentation - Introduction to Jool
 ---
 
-# [Doc](doc-index.html) > [Introduction](doc-index.html#introduction) > Jool
+[Documentation](doc-index.html) > [Introduction](doc-index.html#introduction) > Jool
+
+# Introduction to Jool
 
 ## Index
 

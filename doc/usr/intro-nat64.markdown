@@ -3,7 +3,9 @@ layout: documentation
 title: Documentation - Introduction to NAT64
 ---
 
-# [Doc](doc-index.html) > [Introduction](doc-index.html#introduction) > NAT64
+[Documentation](doc-index.html) > [Introduction](doc-index.html#introduction) > NAT64
+
+# Introduction to NAT64
 
 ## Index
 

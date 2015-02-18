@@ -1,13 +1,11 @@
 ---
 layout: documentation
-title: Documentation - MTU Plateaus
+title: Documentation - Flags > MTU Plateaus
 ---
 
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > \--plateaus
+
 # MTU Plateaus (Example)
-
-Breadcrumb:
-
-[Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > [\--general](usr-flags-general.html) > MTU Plateaus (Example)
 
 ## Introduction
 

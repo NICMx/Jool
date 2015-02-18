@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Userspace Application
+title: Documentation - Flags > Session
 ---
 
-# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--session
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--session
+
+# \--session
 
 ## Index
 
@@ -11,9 +13,9 @@ title: Documentation - Userspace Application
 2. [Syntax](#syntax)
 3. [Options](#options)
    1. [Operations](#operations)
-   2. [&lt;protocols&gt;](#ltprotocolsgt)
-   3. [\--numeric](#numeric)
-   4. [\--csv](#csv)
+   2. [`<protocols>`](#protocols)
+   3. [`--numeric`](#numeric)
+   4. [`--csv`](#csv)
 4. [Examples](#examples)
 
 ## Description
@@ -36,19 +38,19 @@ You can use this command to get information on each of these connections.
 * `--display`: The session tables are printed in standard output. This is the default operation.
 * `--count`: The number of entries per session table are printed in standard output.
 
-### &lt;protocols&gt;
+### `<protocols>`
 
 	<protocols> := [--tcp] [--udp] [--icmp]
 
 The command will only operate on the tables mentioned here. If you omit this entirely, Jool will fall back to operate on all three tables.
 
-### \--numeric
+### `--numeric`
 
 By default, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_.
 
 Use `--numeric` to turn this behavior off.
 
-### \--csv
+### `--csv`
 
 By default, the application will print the tables in a relatively console-friendly format.
 

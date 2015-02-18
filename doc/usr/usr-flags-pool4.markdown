@@ -1,9 +1,11 @@
 ---
 layout: documentation
-title: Documentation - Userspace Application
+title: Documentation - Flags > IPv4 Pool
 ---
 
-# [Doc](doc-index.html) > [Userspace App](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool4
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool4
+
+# \--pool4
 
 ## Index
 
@@ -11,7 +13,7 @@ title: Documentation - Userspace Application
 2. [Syntax](#syntax)
 3. [Options](#options)
    1. [Operations](#operations)
-   2. [\--quick](#quick)
+   2. [`--quick`](#quick)
 4. [Examples](#examples)
 
 ## Description
@@ -24,8 +26,8 @@ Interacts with Jool's IPv4 pool. The pool dictates which packets coming from the
 
 	$(jool) --pool4 [--display]
 	$(jool) --pool4 --count
-	$(jool) --pool4 --add --address <IPv4 address>
-	$(jool) --pool4 --remove --address <IPv4 address> [--quick]
+	$(jool) --pool4 --add <IPv4 address>
+	$(jool) --pool4 --remove <IPv4 address> [--quick]
 	$(jool) --pool4 --flush [--quick]
 
 ## Options
@@ -65,13 +67,13 @@ $ $(jool) --pool4 --count
 Remove a couple of default addresses:
 
 {% highlight bash %}
-# $(jool) --pool4 --remove --address 192.168.2.2
-# $(jool) --pool4 --remove --address 192.168.2.3 --quick
+# $(jool) --pool4 --remove 192.168.2.2
+# $(jool) --pool4 --remove 192.168.2.3 --quick
 {% endhighlight %}
 
 Return one address:
 
 {% highlight bash %}
-# $(jool) --pool4 --add --address 192.168.2.2
+# $(jool) --pool4 --add 192.168.2.2
 {% endhighlight %}
 

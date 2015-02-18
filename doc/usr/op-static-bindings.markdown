@@ -3,7 +3,9 @@ layout: documentation
 title: Documentation - Static Bindings
 ---
 
-# [Doc](doc-index.html) > [Operation](doc-index.html#further-operation) > Static Bindings
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateful NAT64](mod-run-stateful.html) > Static Bindings
+
+# Static Bindings
 
 When a translation from IPv6 to IPv4 happens, very little is left of the headers of the original packet. Because of this, Jool has to remember who tried to speak with whom and on which ports, so when answers arrive, it can figure out which conversation the packet belongs to, and mangle the headers correctly. This is not a quirk of NAT64; traditional NAT lives it as well.
 

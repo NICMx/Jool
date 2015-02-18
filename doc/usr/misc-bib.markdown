@@ -3,7 +3,9 @@ layout: documentation
 title: Documentation - BIB
 ---
 
-# [Doc](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > BIB
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateful NAT64](mod-run-stateful.html) > BIB
+
+# BIB
 
 The _Binding Information Base_ (BIB) is a collection of tables in a stateful NAT64. It is defined in <a href="http://tools.ietf.org/html/rfc6146#section-3.1" target="_blank">RFC 6146</a>. Hopefully, this document can serve as a friendly overview.
 
@@ -24,5 +26,5 @@ There are two types of BIB entries:
 * Static: You create them manually, to publish a IPv6 service to the IPv4 Internet. This is analogous to <a href="http://en.wikipedia.org/wiki/Port_forwarding" target="_blank">port forwarding</a> in normal NATs.
 * Dynamic: Jool creates these on the fly. This has to be done because IPv6-started connections also need IPv4 masks (otherwise they wouldn't be able to receive answers).
 
-See the [walkthrough](op-static-bindings.html) or the [reference material](usr-flags-bib.html) for information on how to create and destroy entries manually. See [\--dropAddr](usr-flags-general.html#dropaddr) if you think dynamic entries are dangerous.
+See the [walkthrough](op-static-bindings.html) or the [reference material](usr-flags-bib.html) for information on how to create and destroy entries manually. See [\--dropAddr](usr-flags-global.html#dropaddr) if you think dynamic entries are dangerous.
 

@@ -5,12 +5,14 @@ title: Documentation - Index
 
 # Documentation
 
-Welcome to Jool's documentation site.
+Welcome to Jool's documentation index.
 
 ## Introduction
 
 1. [What is NAT64?](intro-nat64.html)
 2. [What is Jool?](intro-jool.html)
+
+See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> for deployment experiences using NAT64.
 
 ## Installation
 

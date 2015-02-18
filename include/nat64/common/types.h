@@ -62,7 +62,6 @@ typedef enum l3_protocol {
 	L3PROTO_IPV6 = 0,
 	/** RFC 791. */
 	L3PROTO_IPV4 = 1,
-#define L3_PROTO_COUNT 2
 } l3_protocol;
 
 /**
