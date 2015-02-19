@@ -32,6 +32,8 @@ jool_common += ../common/core.o
 jool_stateless += eam.o
 jool_stateless += pool6.o
 jool_stateless += nf_hook.o
+jool_stateless += pool.o
 jool_stateless += pool4.o
+jool_stateless += rfc6791.o
 
 jool_stateless-objs += ${jool_common} ${jool_stateless}

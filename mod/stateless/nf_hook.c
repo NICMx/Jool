@@ -8,6 +8,7 @@
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool4.h"
 #include "nat64/mod/stateless/pool6.h"
+#include "nat64/mod/stateless/rfc6791.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -26,6 +27,10 @@ static char *pool4[5];
 static int pool4_size;
 module_param_array(pool4, charp, &pool4_size, 0);
 MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
+static char *errorAddresses[5];
+static int errorAddresses_size;
+module_param_array(errorAddresses, charp, &errorAddresses_size, 0);
+MODULE_PARM_DESC(errorAddresses, "The RFC6791 pool's addresses.");
 static bool disable;
 module_param(disable, bool, 0);
 MODULE_PARM_DESC(disable, "Disable the translation at the beginning of the module insertion.");
@@ -112,6 +117,9 @@ static int __init nat64_init(void)
 	error = pool4_init(pool4, pool4_size);
 	if (error)
 		goto pool4_failure;
+	error = rfc6791_init(errorAddresses, errorAddresses_size);
+	if (error)
+		goto rfc6791_failure;
 
 	/* Hook Jool to Netfilter. */
 	for (i = 0; i < ARRAY_SIZE(nfho); i++) {
@@ -128,6 +136,9 @@ static int __init nat64_init(void)
 	return error;
 
 nf_register_hooks_failure:
+	rfc6791_destroy();
+
+rfc6791_failure:
 	pool4_destroy();
 
 pool4_failure:
@@ -157,6 +168,7 @@ static void __exit nat64_exit(void)
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	/* Deinitialize the submodules. */
+	rfc6791_destroy();
 	pool4_destroy();
 	pool6_destroy();
 	nlhandler_destroy();

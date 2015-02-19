@@ -16,6 +16,9 @@
 #include "nat64/mod/stateful/handling_hairpinning.h"
 #else
 #include "nat64/mod/stateless/pool4.h"
+#include "nat64/mod/stateless/pool6.h"
+#include "nat64/mod/stateless/eam.h"
+#include "nat64/mod/stateless/rfc6791.h"
 #endif
 
 #include <linux/kernel.h>
@@ -116,7 +119,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (!pool4_contains(hdr->daddr) || pool6_is_empty())
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 #else
-	if (pool4_is_empty())
+	if (!pool4_contains(hdr->daddr) || (pool6_is_empty() && eamt_is_empty()) || rfc6791_is_empty())
 		return NF_ACCEPT;
 #endif
 
@@ -150,10 +153,12 @@ unsigned int core_6to4(struct sk_buff *skb)
 			return NF_ACCEPT; /* Translation is disable; let the packet pass. */
 
 #ifdef STATEFUL
-	if (!pool6_contains(&hdr->daddr) || pool4_is_empty())
+	if ((!pool6_contains(&hdr->daddr) || pool4_is_empty()))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 #else
-	if (pool4_is_empty())
+	if (pool4_is_empty() || rfc6791_is_empty() ||
+			!((eamt_contains_ipv6(&hdr->saddr) || pool6_contains(&hdr->saddr)) &&
+			(eamt_contains_ipv6(&hdr->daddr) || pool6_contains(&hdr->daddr))))
 		return NF_ACCEPT;
 #endif
 

@@ -170,12 +170,11 @@ static int eam_flush_response(struct nl_msg *msg, void *arg)
 
 int eam_flush()
 {
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
+	struct request_hdr request = {
+			.length = sizeof(request),
+			.mode = MODE_EAMT,
+			.operation = OP_FLUSH,
+	};
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_EAMT;
-	hdr->operation = OP_FLUSH;
-
-	return netlink_request(&request, hdr->length, eam_flush_response, NULL);
+	return netlink_request(&request, request.length, eam_flush_response, NULL);
 }

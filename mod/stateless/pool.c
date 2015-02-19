@@ -1,0 +1,173 @@
+#include "nat64/mod/stateless/pool.h"
+
+#include <linux/rculist.h>
+#include <linux/inet.h>
+
+#include "nat64/common/str_utils.h"
+#include "nat64/mod/common/random.h"
+
+static int parse_prefix4(const char *str, struct ipv4_prefix *prefix)
+{
+	const char *slash_pos;
+	int error = 0;
+
+	if (strchr(str, '/') != 0) {
+		if (in4_pton(str, -1, (u8 *) &prefix->address, '/', &slash_pos) != 1)
+			error = -EINVAL;
+		if (kstrtou8(slash_pos + 1, 0, &prefix->len) != 0)
+			error = -EINVAL;
+	} else {
+		error = str_to_addr4(str, &prefix->address);
+		prefix->len = 32;
+	}
+
+	if (error)
+		log_err("IPv4 address or prefix is malformed: %s.", str);
+
+	return error;
+}
+
+int pool_init(char *pref_strs[], int pref_count, struct list_head *pool)
+{
+	struct pool_entry *entry;
+	unsigned int i;
+	int error;
+
+	INIT_LIST_HEAD(pool);
+
+	for (i = 0; i < pref_count; i++) {
+		log_debug("Inserting address or prefix to the IPv4 pool: %s.", pref_strs[i]);
+
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry) {
+			error = -ENOMEM;
+			goto revert;
+		}
+
+		error = parse_prefix4(pref_strs[i], &entry->prefix);
+		if (error) {
+			kfree(entry);
+			goto revert;
+		}
+
+		list_add_tail(&entry->list_hook, pool);
+	}
+
+	return 0;
+
+revert:
+	pool_destroy(pool);
+	return error;
+}
+
+static void __pool_flush(struct list_head *pool, bool sync)
+{
+	struct pool_entry *entry;
+
+	while (!list_empty(pool)) {
+		entry = list_first_entry(pool, struct pool_entry, list_hook);
+		list_del_rcu(&entry->list_hook);
+		if (sync)
+			synchronize_rcu_bh();
+		kfree(entry);
+	}
+}
+
+void pool_destroy(struct list_head *pool)
+{
+	__pool_flush(pool, false);
+}
+
+int pool_add(struct list_head *pool, struct ipv4_prefix *prefix)
+{
+	struct pool_entry *entry;
+
+	list_for_each_entry(entry, pool, list_hook) {
+		if (ipv4_prefix_intersects(&entry->prefix, prefix)) {
+			log_err("The requested entry intersects with pool entry %pI4/%u.",
+					&entry->prefix.address, entry->prefix.len);
+			return -EEXIST;
+		}
+	}
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+	entry->prefix = *prefix;
+
+	list_add_tail_rcu(&entry->list_hook, pool);
+	return 0;
+}
+
+int pool_remove(struct list_head *pool, struct ipv4_prefix *prefix)
+{
+	struct pool_entry *entry;
+
+	list_for_each_entry(entry, pool, list_hook) {
+		if (ipv4_prefix_equals(prefix, &entry->prefix)) {
+			list_del_rcu(&entry->list_hook);
+			synchronize_rcu_bh();
+			kfree(entry);
+			return 0;
+		}
+	}
+
+	log_err("Could not find the requested entry in the IPv4 pool.");
+	return -ENOENT;
+}
+
+int pool_flush(struct list_head *pool)
+{
+	__pool_flush(pool, true);
+	return 0;
+}
+
+static unsigned int get_addr_count(struct ipv4_prefix *prefix)
+{
+	return 1 << (32 - prefix->len);
+}
+
+unsigned int pool_get_prefix_count(struct list_head *pool)
+{
+	struct pool_entry *entry;
+	unsigned int result = 0;
+
+	list_for_each_entry_rcu(entry, pool, list_hook) {
+		result += get_addr_count(&entry->prefix);
+	}
+
+	return result;
+}
+
+int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void *), void *arg)
+{
+	struct pool_entry *entry;
+	int error;
+
+	list_for_each_entry(entry, pool, list_hook) {
+		error = func(&entry->prefix, arg);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+int pool_count(struct list_head *pool, __u64 *result)
+{
+	rcu_read_lock();
+	*result = pool_get_prefix_count(pool);
+	rcu_read_unlock();
+	return 0;
+}
+
+bool pool_is_empty(struct list_head *pool)
+{
+	__u64 result;
+	pool_count(pool, &result);
+
+	if (result)
+		return false;
+
+	return true;
+}

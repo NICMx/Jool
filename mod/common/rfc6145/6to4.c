@@ -11,8 +11,8 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/stateless/pool4.h"
 #include "nat64/mod/stateless/pool6.h"
+#include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateless/eam.h"
 
 verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out)
@@ -216,7 +216,7 @@ static verdict translate_addrs_siit(struct sk_buff *in, struct sk_buff *out)
 	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
 	if (result == VER_ACCEPT && skb_is_icmp6_error(in)) {
 		addr.s_addr = ip4_hdr->saddr;
-		error = pool4_get(&addr); /* Why? RFC 6791. */
+		error = rfc6791_get(&addr); /* Why? RFC 6791. */
 		if (error)
 			return VER_DROP;
 		ip4_hdr->saddr = addr.s_addr;
