@@ -19,6 +19,7 @@
 #else
 	#include "nat64/mod/stateless/pool4.h"
 	#include "nat64/mod/stateless/pool6.h"
+	#include "nat64/mod/stateless/rfc6791.h"
 #endif
 #include "nat64/mod/stateless/eam.h"
 #ifdef BENCHMARK
@@ -501,6 +502,74 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 	}
 }
 
+static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+		union request_pool4 *request)
+{
+	struct nl_buffer *buffer;
+	__u64 count;
+	int error;
+
+	switch (nat64_hdr->operation) {
+	case OP_DISPLAY:
+		log_debug("Sending RFC6791 pool to userspace.");
+
+		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
+		if (!buffer) {
+			log_err("Could not allocate an output buffer to userspace.");
+			return respond_error(nl_hdr, -ENOMEM);
+		}
+
+		nlbuffer_init(buffer, nl_socket, nl_hdr);
+		error = rfc6791_for_each(pool4_entry_to_userspace, buffer);
+		nlbuffer_close(buffer);
+
+		kfree(buffer);
+		return error;
+
+	case OP_COUNT:
+		log_debug("Returning IPv4 address count.");
+		error = rfc6791_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
+
+	case OP_ADD:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Adding an address to the IPv4 pool.");
+		return respond_error(nl_hdr, rfc6791_add(&request->add.addrs));
+
+	case OP_REMOVE:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Removing an address from the IPv4 pool.");
+
+		error = rfc6791_remove(&request->remove.addrs);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_error(nl_hdr, error);
+
+	case OP_FLUSH:
+		if (verify_superpriv()) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the IPv4 pool...");
+		error = rfc6791_flush();
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_error(nl_hdr, error);
+
+	default:
+		log_err("Unknown operation: %d", nat64_hdr->operation);
+		return respond_error(nl_hdr, -EINVAL);
+	}
+}
+
 #endif
 
 #ifdef BENCHMARK
@@ -624,6 +693,8 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 #else
 	case MODE_EAMT:
 		return handle_eamt_config(nl_hdr, nat64_hdr, request);
+	case MODE_RFC6791:
+		return handle_rfc6791_config(nl_hdr, nat64_hdr, request);
 #endif
 #ifdef BENCHMARK
 	case MODE_LOGTIME:
@@ -720,7 +791,7 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 
 #else
 	((struct global_config *) buffer)->translate.jool_status = !(config->translate.is_disable
-			|| (pool6_is_empty() && eamt_is_empty()) || pool4_is_empty());
+			|| (pool6_is_empty() && eamt_is_empty()) || pool4_is_empty() || rfc6791_is_empty());
 #endif
 
 	*buffer_out = buffer;
