@@ -16,10 +16,10 @@ title: Documentation - Kernel Modules Installation
 
 ## Introduction
 
-Jool is two things:
+Jool is four things:
 
-1. A <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel module</a> you can hook up to the Linux kernel. This is the main IPv6-IPv4 translating component and all you need to get started. This is the component this document meddles with.
-2. A <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> application which can be used to configure the module. It has its own [installation document](usr-install.html).
+1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to the Linux kernel. One of them is a stateless translator and the other one is a stateful translator. They are the main components and all you need to get started; this document explains how to install them.
+2. Two <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> applications which can be used to configure each module. They have their own [installation document](usr-install.html).
 
 When you put it that way, there is really nothing unusual about Jool's installation. But I figure some of our users might have no previous experience meddling with drivers, so this overview will serve as an introduction to at least give them an idea of what each step does.
 

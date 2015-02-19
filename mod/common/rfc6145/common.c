@@ -15,6 +15,11 @@ struct backup_skb {
 	l4_protocol l4_proto;
 };
 
+static verdict handle_unknown_l4(struct tuple *out_tuple, struct sk_buff *in, struct sk_buff *out)
+{
+	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
+}
+
 static struct translation_steps steps[][L4_PROTO_COUNT] = {
 	{ /* IPv6 */
 		{
@@ -31,6 +36,11 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 			.skb_create_fn = ttp64_create_skb,
 			.l3_hdr_fn = ttp64_ipv4,
 			.l3_payload_fn = ttp64_icmp,
+		},
+		{
+			.skb_create_fn = ttp64_create_skb,
+			.l3_hdr_fn = ttp64_ipv4,
+			.l3_payload_fn = handle_unknown_l4,
 		}
 	},
 	{ /* IPv4 */
@@ -48,6 +58,11 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 			.skb_create_fn = ttp46_create_skb,
 			.l3_hdr_fn = ttp46_ipv6,
 			.l3_payload_fn = ttp46_icmp,
+		},
+		{
+			.skb_create_fn = ttp46_create_skb,
+			.l3_hdr_fn = ttp46_ipv6,
+			.l3_payload_fn = handle_unknown_l4,
 		}
 	}
 };

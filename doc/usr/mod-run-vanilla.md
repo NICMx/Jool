@@ -40,27 +40,34 @@ This is nodes _A_ through _E_:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
+user@A:~# /sbin/ip link set eth0 up
 user@A:~# # Replace ".5" depending on which node you're on.
-user@A:~# ip addr add 2001::db8::198.51.100.5/120 dev eth0
-user@A:~# ip route add default via 2001::db8::198.51.100.1
+user@A:~# /sbin/ip addr add 2001:db8::198.51.100.5/120 dev eth0
+user@A:~# /sbin/ip route add default via 2001:db8::198.51.100.1
 {% endhighlight %}
 
 Nodes _V_ through _Z_:
 
 {% highlight bash %}
 user@V:~# service network-manager stop
+user@V:~# /sbin/ip link set eth0 up
 user@V:~# # Replace ".5" depending on which node you're on.
-user@V:~# ip addr add 192.0.2.5/24 dev eth0
-user@V:~# ip route add default via 192.0.2.1
+user@V:~# /sbin/ip addr add 192.0.2.5/24 dev eth0
+user@V:~# /sbin/ip route add default via 192.0.2.2
 {% endhighlight %}
 
 Node _N_:
 
 {% highlight bash %}
 user@N:~# service network-manager stop
-user@N:~# ip addr add 2001::db8::198.51.100.1/120 dev eth0
-user@N:~# ip addr add 192.0.2.1/24 dev eth1
-user@N:~# ip addr add 192.0.2.2/24 dev eth1
+user@N:~# 
+user@N:~# /sbin/ip link set eth0 up
+user@N:~# /sbin/ip addr add 2001:db8::198.51.100.1/120 dev eth0
+user@N:~# 
+user@N:~# /sbin/ip link set eth1 up
+user@N:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
+user@N:~# /sbin/ip addr add 192.0.2.2/24 dev eth1
+user@N:~# 
 user@N:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@N:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
@@ -124,18 +131,41 @@ If something doesn't work, try the [FAQ](misc-faq.html).
 Try to ping _V_ from _A_ like this:
 
 {% highlight bash %}
-user@V:~# ping6 2001:db8::192.0.2.5
+user@A:~$ ping6 2001:db8::192.0.2.5
+ping6 2001:db8::192.0.2.5
+PING 2001:db8::192.0.2.5(2001:db8::c000:205) 56 data bytes
+64 bytes from 2001:db8::c000:205: icmp_seq=1 ttl=63 time=5.49 ms
+64 bytes from 2001:db8::c000:205: icmp_seq=2 ttl=63 time=5.49 ms
+64 bytes from 2001:db8::c000:205: icmp_seq=3 ttl=63 time=7.01 ms
+64 bytes from 2001:db8::c000:205: icmp_seq=4 ttl=63 time=4.85 ms
+^C
+--- 2001:db8::192.0.2.5 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3005ms
+rtt min/avg/max/mdev = 4.850/5.711/7.010/0.796 ms
 {% endhighlight %}
 
 Then ping _A_ from _V_:
 
 {% highlight bash %}
-user@A:~# ping 198.51.100.5
+user@V:~$ ping 198.51.100.5
+PING 198.51.100.5 (198.51.100.5) 56(84) bytes of data.
+64 bytes from 198.51.100.5: icmp_seq=1 ttl=63 time=2.72 ms
+64 bytes from 198.51.100.5: icmp_seq=2 ttl=63 time=5.83 ms
+64 bytes from 198.51.100.5: icmp_seq=3 ttl=63 time=2.62 ms
+64 bytes from 198.51.100.5: icmp_seq=4 ttl=63 time=3.39 ms
+^C
+--- 198.51.100.5 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3013ms
+rtt min/avg/max/mdev = 2.629/3.645/5.837/1.300 ms
 {% endhighlight %}
 
 How about hooking up a server in _X_ and access it from _D_:
 
-TODO
+![Figure 1 - IPv6 TCP from an IPv4 node](images/run-vanilla-firefox-4to6.png)
+
+Then maybe another one in _C_ and request from _W_:
+
+![Figure 2 - IPv4 TCP from an IPv6 node](images/run-vanilla-firefox-6to4.png)
 
 ## Stopping Jool
 

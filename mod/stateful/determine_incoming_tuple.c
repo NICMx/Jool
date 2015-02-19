@@ -271,7 +271,7 @@ verdict determine_in_tuple(struct sk_buff *skb, struct tuple *in_tuple)
 
 unknown_proto:
 	log_debug("Stateful NAT64 doesn't support unknown transport protocols.");
-	icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
+	icmp64_send(skb, ICMPERR_PROTO_UNREACHABLE, 0);
 	inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 	return VER_DROP;
 }

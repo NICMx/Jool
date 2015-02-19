@@ -5,7 +5,8 @@
  * @file
  * Actual translation of packet contents from from IPv6 to IPv4.
  *
- * This is RFC 6145 sections 5.1, 5.1.1, 5.2 and 5.3.
+ * This is RFC 6145 sections 5.1, 5.1.1, 5.2 and 5.3. Not to be confused with the technology called
+ * "6to4", which is RFC 3056.
  */
 
 #include "nat64/mod/common/rfc6145/common.h"

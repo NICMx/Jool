@@ -9,31 +9,22 @@ static char *icmp_error_to_string(icmp_error_code error) {
 	switch (error) {
 	case ICMPERR_SILENT:
 		return "ICMPERR_SILENT";
-		break;
 	case ICMPERR_ADDR_UNREACHABLE:
 		return "ICMPERR_ADDR_UNREACHABLE";
-		break;
 	case ICMPERR_PORT_UNREACHABLE:
 		return "ICMPERR_PORT_UNREACHABLE";
-		break;
 	case ICMPERR_PROTO_UNREACHABLE:
 		return "ICMPERR_PROTO_UNREACHABLE";
-		break;
 	case ICMPERR_HOP_LIMIT:
 		return "ICMPERR_HOP_LIMIT";
-		break;
 	case ICMPERR_FRAG_NEEDED:
 		return "ICMPERR_FRAG_NEEDED";
-		break;
 	case ICMPERR_HDR_FIELD:
 		return "ICMPERR_HDR_FIELD";
-		break;
 	case ICMPERR_SRC_ROUTE:
 		return "ICMPERR_SRC_ROUTE";
-		break;
 	case ICMPERR_FILTER:
 		return "ICMPERR_FILTER";
-		break;
 	}
 
 	return "Unknown";
@@ -91,12 +82,9 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		code = ICMPV6_ADDR_UNREACH;
 		break;
 	case ICMPERR_PORT_UNREACHABLE:
+	case ICMPERR_PROTO_UNREACHABLE: /* See RFC6146, determine incoming tuple step. */
 		type = ICMPV6_DEST_UNREACH;
 		code = ICMPV6_PORT_UNREACH;
-		break;
-	case ICMPERR_PROTO_UNREACHABLE:
-		type = ICMPV6_PARAMPROB;
-		code = ICMPV6_UNK_NEXTHDR;
 		break;
 	case ICMPERR_HOP_LIMIT:
 		type = ICMPV6_TIME_EXCEED;

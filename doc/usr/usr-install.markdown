@@ -9,10 +9,10 @@ title: Documentation - Userspace Applications Installation
 
 ## Introduction
 
-Jool is two things:
+Jool is four things:
 
-1. A <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel module</a> you can hook up to the Linux kernel. This is the main IPv6-IPv4 translating component and all you need for basic use. It has its own [installation document](mod-install.html).
-2. A <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> application which can be used to configure the module.
+1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to the Linux kernel. One of them is a stateless translator and the other one is a stateful translator. They have their own [installation document](mod-install.html).
+2. Two <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> applications which can be used to configure each module.
 
 This document explains how to obtain the binaries of the userspace application.
 

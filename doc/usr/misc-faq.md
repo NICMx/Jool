@@ -26,16 +26,20 @@ Link addresses are used by several relevant IPv6 protocols. In particular, they 
 Check the output of `ip addr`. 
 
 <div class="highlight"><pre><code class="bash">user@N:~# /sbin/ip address
-(...)
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
 2: <strong>eth0</strong>: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
-    link/ether 08:00:27:33:65:c8 brd ff:ff:ff:ff:ff:ff
-    inet6 2001:db8::1/32 <strong>scope global</strong>
+    link/ether 08:00:27:83:d9:40 brd ff:ff:ff:ff:ff:ff
+    inet6 2001:db8:aaaa::1/64 <strong>scope global</strong> 
        valid_lft forever preferred_lft forever
-    inet6 fe80::a00:27ff:fe33:65c8/64 <strong>scope link</strong>
+    inet6 fe80::a00:27ff:fe83:d940/64 <strong>scope link</strong> 
        valid_lft forever preferred_lft forever
-3: <strong>eth1</strong>: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UNKNOWN qlen 1000
-    link/ether 08:00:27:33:65:c8 brd ff:ff:ff:ff:ff:ff
-    inet6 2001:db8::1/32 <strong>scope global</strong>
+3: <strong>eth1</strong>: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:c6:01:48 brd ff:ff:ff:ff:ff:ff
+    inet6 2001:db8:bbbb::1/64 <strong>scope global</strong> tentative 
        valid_lft forever preferred_lft forever
 </code></pre></div>
 
@@ -51,8 +55,24 @@ ip link set eth1 up
 Yes, I'm serious:
 
 <div class="highlight"><pre><code class="bash">user@N:~# /sbin/ip address
-TODO
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:83:d9:40 brd ff:ff:ff:ff:ff:ff
+    inet6 2001:db8:aaaa::1/64 scope global 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe83:d940/64 scope link 
+       valid_lft forever preferred_lft forever
+3: eth1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:c6:01:48 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::a00:27ff:fec6:148/64 <strong>scope link</strong> 
+       valid_lft forever preferred_lft forever
 </code></pre></div>
+
+(Note, you need to add the global address again)
 
 Also, for future reference, keep in mind that the correct way to flush an interface is
 

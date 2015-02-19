@@ -202,6 +202,8 @@ struct jool_cb {
 	 * Sometimes the kernel seems to use skb->data for this. It would be troublesome if we did the
 	 * same, however, since functions such as icmp_send() fail early when skb->data is after the
 	 * layer-3 header.
+	 *
+	 * Note, the payload can be paged. Do not dereference carelessly.
 	 */
 	void *payload;
 	/**

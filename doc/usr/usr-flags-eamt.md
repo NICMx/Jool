@@ -68,8 +68,6 @@ Every prefix is unique accross the table. Therefore, If you're removing an EAMT 
 
 ## Examples
 
-TODO sample output
-
 Add a handful of mappings:
 
 {% highlight bash %}
@@ -84,6 +82,12 @@ Display the new table:
 
 {% highlight bash %}
 $ jool_stateless --eamt --display
+64:ff9b::/127 - 192.0.2.192/31
+2001:db8:dddd::/64 - 192.0.2.128/26
+2001:db8:cccc::/124 - 192.0.2.16/28
+2001:db8:bbbb::b/128 - 192.0.2.2/32
+2001:db8:aaaa::/128 - 192.0.2.1/32
+  (Fetched 5 entries.)
 {% endhighlight %}
 
 Dump the database on a CSV file:
