@@ -12,11 +12,22 @@
  * @author Daniel Hernandez
  */
 
-#include <linux/skbuff.h>
+#include "nat64/mod/common/packet.h"
 
 /**
  * Wrapper for both IP6_INC_STATS_BH() and IP_INC_STATS_BH().
  */
-void inc_stats(struct sk_buff *skb, int field);
+void inc_stats(struct packet *pkt, int field);
+
+/**
+ * @{
+ * These are intended to be used when the struct packet is not yet initialized. For anything else,
+ * just use inc_stats().
+ */
+void inc_stats_skb6(struct sk_buff *skb, int field);
+void inc_stats_skb4(struct sk_buff *skb, int field);
+/**
+ * @}
+ */
 
 #endif /* _JOOL_MOD_STATS_H */

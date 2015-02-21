@@ -8,9 +8,9 @@
 #include "nat64/mod/common/types.h"
 
 
-static int inc_stats_validate(struct sk_buff *skb)
+static int validate_skb(struct sk_buff *skb)
 {
-	if (!skb)
+	if (unlikely(!skb))
 		return -EINVAL;
 	if (unlikely(!skb->dev))
 		return -EINVAL;
@@ -20,17 +20,14 @@ static int inc_stats_validate(struct sk_buff *skb)
 	return 0;
 }
 
-static void inc_stats_ipv6(struct sk_buff *skb, int field)
+static int validate_pkt(struct packet *pkt)
 {
-	struct inet6_dev *idev;
+	return likely(pkt) ? validate_skb(pkt->skb) : -EINVAL;
+}
 
-	if (is_error(inc_stats_validate(skb))) {
-		/* Maybe we can fall back to increase the stat on the other skb's dev... */
-		skb = skb_original_skb(skb);
-		if (is_error(inc_stats_validate(skb)))
-			return;
-	}
-	idev = in6_dev_get(skb->dev);
+static void inc_stats6(struct sk_buff *skb, int field)
+{
+	struct inet6_dev *idev = in6_dev_get(skb->dev);
 	if (!idev)
 		return;
 
@@ -39,60 +36,60 @@ static void inc_stats_ipv6(struct sk_buff *skb, int field)
 	in6_dev_put(idev);
 }
 
-static void inc_stats_ipv4(struct sk_buff *skb, int field)
+static void inc_stats4(struct sk_buff *skb, int field)
 {
-	if (is_error(inc_stats_validate(skb))) {
-		skb = skb_original_skb(skb);
-		if (is_error(inc_stats_validate(skb)))
-			return;
-	}
 	IP_INC_STATS_BH(dev_net(skb->dev), field);
 }
 
-static void inc_stats_full(struct sk_buff *skb, int field) {
-	switch (ntohs(skb->protocol)) {
-	case ETH_P_IPV6:
-		do {
-			inc_stats_ipv6(skb, field);
-			skb = skb->next;
-		} while (skb);
-		break;
-	case ETH_P_IP:
-		do {
-			inc_stats_ipv4(skb, field);
-			skb = skb->next;
-		} while (skb);
-		break;
-	}
-}
-
-static void inc_stats_simple(struct sk_buff *skb, int field) {
-	switch (ntohs(skb->protocol)) {
-	case ETH_P_IPV6:
-		inc_stats_ipv6(skb, field);
-		break;
-	case ETH_P_IP:
-		inc_stats_ipv4(skb, field);
-		break;
-	}
-}
-
-void inc_stats(struct sk_buff *skb, int field)
+void inc_stats_skb6(struct sk_buff *skb, int field)
 {
-	if (unlikely(!skb))
+	if (!is_error(validate_skb(skb)))
+		inc_stats6(skb, field);
+}
+
+void inc_stats_skb4(struct sk_buff *skb, int field)
+{
+	if (!is_error(validate_skb(skb)))
+		inc_stats4(skb, field);
+}
+
+static void inc_stats_pkt6(struct packet *pkt, int field)
+{
+	if (is_error(validate_pkt(pkt))) {
+		/* Maybe we can fall back to increase the stat on the other skb's dev... */
+		pkt = pkt_original_pkt(pkt);
+		if (is_error(validate_pkt(pkt)))
+			return;
+	}
+
+	inc_stats6(pkt->skb, field);
+}
+
+static void inc_stats_pkt4(struct packet *pkt, int field)
+{
+	if (is_error(validate_pkt(pkt))) {
+		pkt = pkt_original_pkt(pkt);
+		if (is_error(validate_pkt(pkt)))
+			return;
+	}
+
+	inc_stats4(pkt->skb, field);
+}
+
+/*
+ * TODO borré el switch que había puesto Daniel para incrementar para cada fragmento.
+ */
+void inc_stats(struct packet *pkt, int field)
+{
+	if (unlikely(!pkt || !pkt->skb))
 		return;
 
-	switch (field) {
-	case IPSTATS_MIB_INNOROUTES:		/* InNoRoutes */
-	case IPSTATS_MIB_INADDRERRORS:		/* InAddrErrors */
-	case IPSTATS_MIB_INDISCARDS: 		/* InDiscards */
-	case IPSTATS_MIB_OUTDISCARDS:		/* OutDiscards */
-	case IPSTATS_MIB_OUTNOROUTES:		/* OutNoRoutes */
-	case IPSTATS_MIB_FRAGCREATES:		/* FragCreates */
-		inc_stats_full(skb, field);
+	switch (ntohs(pkt->skb->protocol)) {
+	case ETH_P_IPV6:
+		inc_stats_pkt6(pkt, field);
 		break;
-	default:
-		inc_stats_simple(skb, field);
+	case ETH_P_IP:
+		inc_stats_pkt4(pkt, field);
 		break;
 	}
 }

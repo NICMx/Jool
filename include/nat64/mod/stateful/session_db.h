@@ -285,7 +285,7 @@ void set_syn_timer(struct session_entry *session);
  * This should belong to the filtering module, but it gets so intimate with the database it's
  * unfeasible.
  */
-int sessiondb_tcp_state_machine(struct sk_buff *skb, struct session_entry *session);
+int sessiondb_tcp_state_machine(struct packet *pkt, struct session_entry *session);
 
 /**
  * Returns in "result" the amount of jiffies "session" is supposed to stay in memory.

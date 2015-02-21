@@ -166,7 +166,7 @@ int bibdb_get_by_ipv6(const struct ipv6_transport_addr *addr, l4_protocol l4_pro
  *
  * It increases "result"'s refcount. Make sure you release it when you're done.
  */
-int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bib_entry **bib);
+int bibdb_get_or_create_ipv6(struct packet *pkt, struct tuple *tuple, struct bib_entry **bib);
 
 /**
  * Adds "entry" to the BIB table it belongs. Make sure you initialized "entry" using bib_create(),
@@ -218,7 +218,7 @@ int bibdb_count(l4_protocol proto, __u64 *result);
  * If it doesn't exist, it is created, added and returned.
  * IPv6 to IPv4 direction.
  */
-int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple, struct bib_entry **bib);
+int bibdb_get_or_create_ipv6(struct packet *pkt, struct tuple *tuple, struct bib_entry **bib);
 
 /**
  * Removes the fake users of all the BIB entries whose local IPv4 address is "addr4".

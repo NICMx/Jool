@@ -4,25 +4,26 @@
 #include <net/ip6_route.h>
 #include <net/route.h>
 
+#include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
 
-int route4(struct sk_buff *skb)
+int route4(struct packet *pkt)
 {
-	struct iphdr *hdr_ip = ip_hdr(skb);
+	struct iphdr *hdr_ip = pkt_ip4_hdr(pkt);
 	struct flowi4 flow;
 	struct rtable *table;
 	int error;
 
 	/* Sometimes Jool needs to route prematurely, so don't sweat this on the normal pipelines. */
-	if (skb_dst(skb))
+	if (skb_dst(pkt->skb))
 		return 0;
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
-	flow.flowi4_mark = skb->mark;
+	flow.flowi4_mark = pkt->skb->mark;
 	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr_ip->protocol;
@@ -40,25 +41,29 @@ int route4(struct sk_buff *skb)
 	flow.daddr = hdr_ip->daddr;
 
 	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmphdr *hdr_icmp4;
+		union {
+			struct tcphdr *tcp;
+			struct udphdr *udp;
+			struct icmphdr *icmp4;
+		} hdr;
 
-		switch (hdr_ip->protocol) {
-		case IPPROTO_TCP:
-			hdr_tcp = tcp_hdr(skb);
-			flow.fl4_sport = hdr_tcp->source;
-			flow.fl4_dport = hdr_tcp->dest;
+		switch (pkt_l4_proto(pkt)) {
+		case L4PROTO_TCP:
+			hdr.tcp = pkt_tcp_hdr(pkt);
+			flow.fl4_sport = hdr.tcp->source;
+			flow.fl4_dport = hdr.tcp->dest;
 			break;
-		case IPPROTO_UDP:
-			hdr_udp = udp_hdr(skb);
-			flow.fl4_sport = hdr_udp->source;
-			flow.fl4_dport = hdr_udp->dest;
+		case L4PROTO_UDP:
+			hdr.udp = pkt_udp_hdr(pkt);
+			flow.fl4_sport = hdr.udp->source;
+			flow.fl4_dport = hdr.udp->dest;
 			break;
-		case IPPROTO_ICMP:
-			hdr_icmp4 = icmp_hdr(skb);
-			flow.fl4_icmp_type = hdr_icmp4->type;
-			flow.fl4_icmp_code = hdr_icmp4->code;
+		case L4PROTO_ICMP:
+			hdr.icmp4 = pkt_icmp4_hdr(pkt);
+			flow.fl4_icmp_type = hdr.icmp4->type;
+			flow.fl4_icmp_code = hdr.icmp4->code;
+			break;
+		case L4PROTO_OTHER:
 			break;
 		}
 	}
@@ -73,36 +78,36 @@ int route4(struct sk_buff *skb)
 	if (!table || IS_ERR(table)) {
 		error = abs(PTR_ERR(table));
 		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
-		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (table->dst.error) {
 		error = abs(table->dst.error);
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
-		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
-		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 
-	skb_dst_set(skb, &table->dst);
-	skb->dev = table->dst.dev;
+	skb_dst_set(pkt->skb, &table->dst);
+	pkt->skb->dev = table->dst.dev;
 
 	return 0;
 }
 
-int route6(struct sk_buff *skb)
+int route6(struct packet *pkt)
 {
-	struct ipv6hdr *hdr_ip = ipv6_hdr(skb);
+	struct ipv6hdr *hdr_ip = pkt_ip6_hdr(pkt);
 	struct flowi6 flow;
 	struct dst_entry *dst;
 	struct hdr_iterator iterator;
 
-	if (skb_dst(skb))
+	if (skb_dst(pkt->skb))
 		return 0;
 
 	hdr_iterator_init(&iterator, hdr_ip);
@@ -111,7 +116,7 @@ int route6(struct sk_buff *skb)
 	memset(&flow, 0, sizeof(flow));
 	/* flow->flowi6_oif; */
 	/* flow->flowi6_iif; */
-	flow.flowi6_mark = skb->mark;
+	flow.flowi6_mark = pkt->skb->mark;
 	flow.flowi6_tos = get_traffic_class(hdr_ip);
 	flow.flowi6_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi6_proto = iterator.hdr_type;
@@ -121,25 +126,29 @@ int route6(struct sk_buff *skb)
 	flow.daddr = hdr_ip->daddr;
 	flow.flowlabel = get_flow_label(hdr_ip);
 	{
-		struct udphdr *hdr_udp;
-		struct tcphdr *hdr_tcp;
-		struct icmp6hdr *hdr_icmp6;
+		union {
+			struct tcphdr *tcp;
+			struct udphdr *udp;
+			struct icmp6hdr *icmp6;
+		} hdr;
 
-		switch (iterator.hdr_type) {
-		case NEXTHDR_TCP:
-			hdr_tcp = tcp_hdr(skb);
-			flow.fl6_sport = hdr_tcp->source;
-			flow.fl6_dport = hdr_tcp->dest;
+		switch (pkt_l4_proto(pkt)) {
+		case L4PROTO_TCP:
+			hdr.tcp = pkt_tcp_hdr(pkt);
+			flow.fl6_sport = hdr.tcp->source;
+			flow.fl6_dport = hdr.tcp->dest;
 			break;
-		case NEXTHDR_UDP:
-			hdr_udp = udp_hdr(skb);
-			flow.fl6_sport = hdr_udp->source;
-			flow.fl6_dport = hdr_udp->dest;
+		case L4PROTO_UDP:
+			hdr.udp = pkt_udp_hdr(pkt);
+			flow.fl6_sport = hdr.udp->source;
+			flow.fl6_dport = hdr.udp->dest;
 			break;
-		case NEXTHDR_ICMP:
-			hdr_icmp6 = icmp6_hdr(skb);
-			flow.fl6_icmp_type = hdr_icmp6->icmp6_type;
-			flow.fl6_icmp_code = hdr_icmp6->icmp6_code;
+		case L4PROTO_ICMP:
+			hdr.icmp6 = pkt_icmp6_hdr(pkt);
+			flow.fl6_icmp_type = hdr.icmp6->icmp6_type;
+			flow.fl6_icmp_code = hdr.icmp6->icmp6_code;
+			break;
+		case L4PROTO_OTHER:
 			break;
 		}
 	}
@@ -147,31 +156,31 @@ int route6(struct sk_buff *skb)
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
-		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 	if (dst->error) {
 		int error = abs(dst->error);
 		log_debug("ip6_route_output() returned error %d. Cannot route packet.", error);
-		inc_stats(skb, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 
-	skb_dst_set(skb, dst);
-	skb->dev = dst->dev;
+	skb_dst_set(pkt->skb, dst);
+	pkt->skb->dev = dst->dev;
 
 	return 0;
 }
 
-int route(struct sk_buff *skb)
+int route(struct packet *pkt)
 {
-	switch (skb_l3_proto(skb)) {
+	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
-		return route6(skb);
+		return route6(pkt);
 	case L3PROTO_IPV4:
-		return route4(skb);
+		return route4(pkt);
 	}
 
-	WARN(true, "Unsupported network protocol: %u.", skb_l3_proto(skb));
+	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(pkt));
 	return -EINVAL;
 }

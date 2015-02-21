@@ -52,7 +52,7 @@ static void log_session(struct session_entry *session)
  * Attempts to find "tuple"'s BIB entry and returns it in "bib".
  * Assumes "tuple" represents a IPv4 packet.
  */
-static int get_bib_ipv4(struct sk_buff *skb, struct tuple *tuple4, struct bib_entry **bib)
+static int get_bib_ipv4(struct packet *pkt, struct tuple *tuple4, struct bib_entry **bib)
 {
 	int error;
 
@@ -60,19 +60,19 @@ static int get_bib_ipv4(struct sk_buff *skb, struct tuple *tuple4, struct bib_en
 	if (error) {
 		if (error == -ENOENT) {
 			log_debug("There is no BIB entry for the incoming IPv4 packet.");
-			inc_stats(skb, IPSTATS_MIB_INNOROUTES);
+			inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
 		} else {
 			log_debug("Error code %d while finding a BIB entry for the incoming packet.", error);
-			inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+			inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		}
-		icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
+		icmp64_send(pkt, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
 
 	if (config_get_addr_dependent_filtering() && !sessiondb_allow(tuple4)) {
 		log_debug("Packet was blocked by address-dependent filtering.");
-		icmp64_send(skb, ICMPERR_FILTER, 0);
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		icmp64_send(pkt, ICMPERR_FILTER, 0);
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		bib_return(*bib);
 		return -EPERM;
 	}
@@ -186,31 +186,31 @@ static int create_session_ipv4(struct tuple *tuple4, struct bib_entry *bib,
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv6_simple(struct sk_buff *skb, struct tuple *tuple6)
+static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
 
-	error = bibdb_get_or_create_ipv6(skb, tuple6, &bib);
+	error = bibdb_get_or_create_ipv6(pkt, tuple6, &bib);
 	if (error) {
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-		return VER_DROP;
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
+		return VERDICT_DROP;
 	}
 	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv6(tuple6, bib, &session);
 	if (error) {
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		bib_return(bib);
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 	log_session(session);
 
 	session_return(session);
 	bib_return(bib);
 
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -222,29 +222,29 @@ static verdict ipv6_simple(struct sk_buff *skb, struct tuple *tuple6)
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv4_simple(struct sk_buff *skb, struct tuple *tuple4)
+static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4)
 {
 	int error;
 	struct bib_entry *bib;
 	struct session_entry *session;
 
-	error = get_bib_ipv4(skb, tuple4, &bib);
+	error = get_bib_ipv4(pkt, tuple4, &bib);
 	if (error)
-		return VER_DROP;
+		return VERDICT_DROP;
 	log_bib(bib);
 
 	error = sessiondb_get_or_create_ipv4(tuple4, bib, &session);
 	if (error) {
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		bib_return(bib);
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 	log_session(session);
 
 	session_return(session);
 	bib_return(bib);
 
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -252,13 +252,13 @@ static verdict ipv4_simple(struct sk_buff *skb, struct tuple *tuple4)
  * Processes IPv6 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple6)
+static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
 
-	error = bibdb_get_or_create_ipv6(skb, tuple6, &bib);
+	error = bibdb_get_or_create_ipv6(pkt, tuple6, &bib);
 	if (error)
 		return error;
 	log_bib(bib);
@@ -281,22 +281,22 @@ static int tcp_closed_v6_syn(struct sk_buff *skb, struct tuple *tuple6)
  * Processes IPv4 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple4)
+static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
-	verdict result = VER_DROP;
+	verdict result = VERDICT_DROP;
 
 	if (config_get_drop_external_connections()) {
 		log_debug("Applying policy: Dropping externally initiated TCP connections.");
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 
 	error = bibdb_get(tuple4, &bib);
 	if (error) {
 		if (error != -ENOENT)
-			return VER_DROP;
+			return VERDICT_DROP;
 		bib = NULL;
 	}
 	log_bib(bib);
@@ -309,17 +309,17 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple4)
 	session->state = V4_INIT;
 
 	if (!bib || config_get_addr_dependent_filtering()) {
-		error = pktqueue_add(session, skb);
+		error = pktqueue_add(session, pkt);
 		if (error) {
 			if (error == -E2BIG) {
 				/* Fall back to assume there's no Simultaneous Open. */
-				icmp64_send(skb, ICMPERR_PORT_UNREACHABLE, 0);
+				icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
 			}
 			goto end_session;
 		}
 
 		/* At this point, skb's original skb completely belongs to pktqueue. */
-		result = VER_STOLEN;
+		result = VERDICT_STOLEN;
 
 		error = sessiondb_add(session, SESSIONTIMER_SYN);
 		if (error) {
@@ -335,7 +335,7 @@ static verdict tcp_closed_v4_syn(struct sk_buff *skb, struct tuple *tuple4)
 			goto end_session;
 		}
 
-		result = VER_CONTINUE;
+		result = VERDICT_CONTINUE;
 	}
 
 	/* Fall through. */
@@ -354,23 +354,23 @@ end_bib:
  * Filtering and updating done during the CLOSED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static verdict tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
+static verdict tcp_closed_state_handle(struct packet *pkt, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	verdict result;
 	int error;
 
-	switch (skb_l3_proto(skb)) {
+	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
-		if (tcp_hdr(skb)->syn) {
-			result = is_error(tcp_closed_v6_syn(skb, tuple)) ? VER_DROP : VER_CONTINUE;
+		if (pkt_tcp_hdr(pkt)->syn) {
+			result = is_error(tcp_closed_v6_syn(pkt, tuple)) ? VERDICT_DROP : VERDICT_CONTINUE;
 			goto syn_out;
 		}
 		break;
 
 	case L3PROTO_IPV4:
-		if (tcp_hdr(skb)->syn) {
-			result = tcp_closed_v4_syn(skb, tuple);
+		if (pkt_tcp_hdr(pkt)->syn) {
+			result = tcp_closed_v4_syn(pkt, tuple);
 			goto syn_out;
 		}
 		break;
@@ -380,16 +380,16 @@ static verdict tcp_closed_state_handle(struct sk_buff *skb, struct tuple *tuple)
 	if (error) {
 		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. "
 				"ERRcode %d", error);
-		inc_stats(skb, IPSTATS_MIB_INNOROUTES);
-		return VER_DROP;
+		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
+		return VERDICT_DROP;
 	}
 
 	bib_return(bib);
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 
 syn_out:
-	if (result == VER_DROP)
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
+	if (result == VERDICT_DROP)
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 	return result;
 }
 
@@ -399,7 +399,7 @@ syn_out:
  *
  * This is RFC 6146 section 3.5.2.
  */
-static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
+static verdict tcp(struct packet *pkt, struct tuple *tuple)
 {
 	struct session_entry *session;
 	int error;
@@ -407,21 +407,21 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
 	error = sessiondb_get(tuple, &session);
 	if (error != 0 && error != -ENOENT) {
 		log_debug("Error code %d while trying to find a TCP session.", error);
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-		return VER_DROP;
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
+		return VERDICT_DROP;
 	}
 
 	if (error == -ENOENT)
-		return tcp_closed_state_handle(skb, tuple);
+		return tcp_closed_state_handle(pkt, tuple);
 
 	log_session(session);
-	error = sessiondb_tcp_state_machine(skb, session);
+	error = sessiondb_tcp_state_machine(pkt, session);
 	session_return(session);
 	if (error) {
-		inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-		return VER_DROP;
+		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
+		return VERDICT_DROP;
 	}
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -433,85 +433,85 @@ static verdict tcp(struct sk_buff *skb, struct tuple *tuple)
  * @param[in] tuple skb's summary.
  * @return indicator of what should happen to skb.
  */
-verdict filtering_and_updating(struct sk_buff* skb, struct tuple *in_tuple)
+verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 {
 	struct ipv6hdr *hdr_ip6;
-	verdict result = VER_CONTINUE;
+	verdict result = VERDICT_CONTINUE;
 
 	log_debug("Step 2: Filtering and Updating");
 
-	switch (skb_l3_proto(skb)) {
+	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
 		/* ICMP errors should not be filtered or affect the tables. */
-		if (skb_is_icmp6_error(skb)) {
+		if (pkt_is_icmp6_error(pkt)) {
 			log_debug("Packet is ICMPv6 error; skipping step...");
-			return VER_CONTINUE;
+			return VERDICT_CONTINUE;
 		}
 		/* Get rid of hairpinning loops and unwanted packets. */
-		hdr_ip6 = ipv6_hdr(skb);
+		hdr_ip6 = pkt_ip6_hdr(pkt);
 		if (pool6_contains(&hdr_ip6->saddr)) {
 			log_debug("Hairpinning loop. Dropping...");
-			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
-			return VER_DROP;
+			inc_stats(pkt, IPSTATS_MIB_INADDRERRORS);
+			return VERDICT_DROP;
 		}
 		if (!pool6_contains(&hdr_ip6->daddr)) {
 			log_debug("Packet was rejected by pool6; dropping...");
-			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
-			return VER_DROP;
+			inc_stats(pkt, IPSTATS_MIB_INADDRERRORS);
+			return VERDICT_DROP;
 		}
 		break;
 	case L3PROTO_IPV4:
 		/* ICMP errors should not be filtered or affect the tables. */
-		if (skb_is_icmp4_error(skb)) {
+		if (pkt_is_icmp4_error(pkt)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
-			return VER_CONTINUE;
+			return VERDICT_CONTINUE;
 		}
 		/* Get rid of unexpected packets */
-		if (!pool4_contains(ip_hdr(skb)->daddr)) {
+		if (!pool4_contains(pkt_ip4_hdr(pkt)->daddr)) {
 			log_debug("Packet was rejected by pool4; dropping...");
-			inc_stats(skb, IPSTATS_MIB_INADDRERRORS);
-			return VER_DROP;
+			inc_stats(pkt, IPSTATS_MIB_INADDRERRORS);
+			return VERDICT_DROP;
 		}
 		break;
 	}
 
 	/* Process packet, according to its protocol. */
 
-	switch (skb_l4_proto(skb)) {
+	switch (pkt_l4_proto(pkt)) {
 	case L4PROTO_UDP:
-		switch (skb_l3_proto(skb)) {
+		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV6:
-			result = ipv6_simple(skb, in_tuple);
+			result = ipv6_simple(pkt, in_tuple);
 			break;
 		case L3PROTO_IPV4:
-			result = ipv4_simple(skb, in_tuple);
+			result = ipv4_simple(pkt, in_tuple);
 			break;
 		}
 		break;
 
 	case L4PROTO_TCP:
-		result = tcp(skb, in_tuple);
+		result = tcp(pkt, in_tuple);
 		break;
 
 	case L4PROTO_ICMP:
-		switch (skb_l3_proto(skb)) {
+		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV6:
 			if (config_get_filter_icmpv6_info()) {
 				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
-				inc_stats(skb, IPSTATS_MIB_INDISCARDS);
-				return VER_DROP;
+				inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
+				return VERDICT_DROP;
 			}
 
-			result = ipv6_simple(skb, in_tuple);
+			result = ipv6_simple(pkt, in_tuple);
 			break;
 		case L3PROTO_IPV4:
-			result = ipv4_simple(skb, in_tuple);
+			result = ipv4_simple(pkt, in_tuple);
 			break;
 		}
 		break;
 
 	case L4PROTO_OTHER:
-		WARN(true, "Unknown layer 4 protocol (%d)...", skb_l4_proto(skb));
+		WARN(true, "Unknown layer 4 protocol (%d)...", pkt_l4_proto(pkt));
 		break;
 	}
 

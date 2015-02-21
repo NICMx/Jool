@@ -580,7 +580,7 @@ int bibdb_count(l4_protocol proto, u64 *result)
 	return 0;
 }
 
-int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct bib_entry **bib)
+int bibdb_get_or_create_ipv6(struct packet *pkt, struct tuple *tuple6, struct bib_entry **bib)
 {
 	struct ipv4_transport_addr addr4;
 	struct rb_node **node, *parent;
@@ -621,7 +621,7 @@ int bibdb_get_or_create_ipv6(struct sk_buff *skb, struct tuple *tuple6, struct b
 		spin_unlock_bh(&table->lock);
 		if (tuple6->l4_proto != L4PROTO_ICMP) {
 			/* I don't know why this is not supposed to happen with ICMP, but the RFC says so... */
-			icmp64_send(skb, ICMPERR_ADDR_UNREACHABLE, 0);
+			icmp64_send(pkt, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
 		return error;
 	}

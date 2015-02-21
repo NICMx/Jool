@@ -5,32 +5,23 @@
 #include "nat64/mod/common/rfc6145/core.h"
 #include "nat64/mod/common/rfc6145/common.h"
 
-static verdict translate_first(struct tuple *tuple, struct sk_buff *in, struct sk_buff **out)
+static verdict translate_first(struct tuple *tuple, struct packet *in, struct packet *out)
 {
-	struct translation_steps *steps = ttpcomm_get_steps(skb_l3_proto(in), skb_l4_proto(in));
+	struct translation_steps *steps = ttpcomm_get_steps(pkt_l3_proto(in), pkt_l4_proto(in));
 	verdict result;
 
-	*out = NULL;
-
 	result = steps->skb_create_fn(in, out);
-	if (result != VER_CONTINUE)
-		goto fail;
-	result = steps->l3_hdr_fn(tuple, in, *out);
-	if (result != VER_CONTINUE)
-		goto fail;
-	result = steps->l3_payload_fn(tuple, in, *out);
-	if (result != VER_CONTINUE)
-		goto fail;
+	if (result != VERDICT_CONTINUE)
+		return result;
+	result = steps->l3_hdr_fn(tuple, in, out);
+	if (result != VERDICT_CONTINUE)
+		return result;
+	result = steps->l3_payload_fn(tuple, in, out);
 
-	return VER_CONTINUE;
-
-fail:
-	kfree_skb(*out);
-	*out = NULL;
 	return result;
 }
 
-static verdict translate_subsequent(struct tuple *tuple, struct sk_buff *in, l3_protocol in_proto,
+static verdict translate_subsequent(struct packet *pkt_in, struct sk_buff *in,
 		struct sk_buff **out)
 {
 	struct sk_buff *result;
@@ -38,7 +29,7 @@ static verdict translate_subsequent(struct tuple *tuple, struct sk_buff *in, l3_
 	__u16 proto = 0;
 	int error;
 
-	switch (in_proto) {
+	switch (pkt_l3_proto(pkt_in)) {
 	case L3PROTO_IPV6: /* out is IPv4. */
 		hdrs_len = sizeof(struct iphdr);
 		proto = ETH_P_IP;
@@ -51,8 +42,8 @@ static verdict translate_subsequent(struct tuple *tuple, struct sk_buff *in, l3_
 
 	result = alloc_skb(LL_MAX_HEADER + hdrs_len + in->len, GFP_ATOMIC);
 	if (!result) {
-		inc_stats(in, IPSTATS_MIB_INDISCARDS);
-		return VER_DROP;
+		inc_stats(pkt_in, IPSTATS_MIB_INDISCARDS);
+		return VERDICT_DROP;
 	}
 
 	skb_reserve(result, LL_MAX_HEADER + hdrs_len);
@@ -64,19 +55,19 @@ static verdict translate_subsequent(struct tuple *tuple, struct sk_buff *in, l3_
 	if (error) {
 		kfree_skb(result);
 		log_debug("The payload copy threw errcode %d.", error);
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 
 	*out = result;
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
-verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in, struct sk_buff **out)
+
+verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struct packet *out)
 {
-	struct sk_buff *in_frag;
-	struct sk_buff *out_frag = NULL;
-	struct sk_buff *out_prev = NULL;
-	unsigned int payload_len;
+	struct sk_buff *skb_in;
+	struct sk_buff *skb_out = NULL;
+	struct sk_buff *skb_prev = NULL;
 	verdict result;
 
 	if (nat64_is_stateful())
@@ -84,35 +75,29 @@ verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in, stru
 	else
 		log_debug("Translating the Packet.");
 
-	/* Translate the first fragment or a complete packet. */
 	result = translate_first(out_tuple, in, out);
-	if (result != VER_CONTINUE)
+	if (result != VERDICT_CONTINUE)
 		return result;
 
-	/* If not a fragment, the next "while" will be omitted. */
-	skb_walk_frags(in, in_frag) {
+	skb_walk_frags(in->skb, skb_in) {
 		log_debug("Translating a Fragment Packet");
 
-		result = translate_subsequent(out_tuple, in_frag, skb_l3_proto(in), &out_frag);
-		if (result != VER_CONTINUE) {
-			kfree_skb(*out);
-			*out = NULL;
+		result = translate_subsequent(in, skb_in, &skb_out);
+		if (result != VERDICT_CONTINUE)
 			return result;
-		}
 
-		if (!out_prev)
-			skb_shinfo(*out)->frag_list = out_frag;
+		if (!skb_prev)
+			skb_shinfo(out->skb)->frag_list = skb_out;
 		else
-			out_prev->next = out_frag;
-		payload_len = skb_payload_len_frag(out_frag);
-		(*out)->len += payload_len;
-		(*out)->data_len += payload_len;
-		(*out)->truesize += out_frag->truesize;
+			skb_prev->next = skb_out;
+		out->skb->len += skb_out->len;
+		out->skb->data_len += skb_out->len;
+		out->skb->truesize += skb_out->truesize;
 
-		out_prev = out_frag;
+		skb_prev = skb_out;
 	}
 
 	if (nat64_is_stateful())
 		log_debug("Done step 4.");
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }

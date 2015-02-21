@@ -5,6 +5,21 @@
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 
+u8 l4_proto_to_nexthdr(l4_protocol proto)
+{
+	switch (proto) {
+	case L4PROTO_TCP:
+		return NEXTHDR_TCP;
+	case L4PROTO_UDP:
+		return NEXTHDR_UDP;
+	case L4PROTO_ICMP:
+		return NEXTHDR_ICMP;
+	case L4PROTO_OTHER:
+		return 0;
+	}
+
+	return 0;
+}
 
 bool ipv4_addr_equals(const struct in_addr *expected, const struct in_addr *actual)
 {

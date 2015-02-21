@@ -1,6 +1,7 @@
+#include "nat64/mod/common/rfc6145/common.h"
+#include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
-#include "nat64/mod/common/rfc6145/common.h"
 #include "nat64/mod/common/rfc6145/4to6.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
 #include <linux/icmp.h>
@@ -15,9 +16,9 @@ struct backup_skb {
 	l4_protocol l4_proto;
 };
 
-static verdict handle_unknown_l4(struct tuple *out_tuple, struct sk_buff *in, struct sk_buff *out)
+static verdict handle_unknown_l4(struct tuple *out_tuple, struct packet *in, struct packet *out)
 {
-	return copy_payload(in, out) ? VER_DROP : VER_CONTINUE;
+	return copy_payload(in, out) ? VERDICT_DROP : VERDICT_CONTINUE;
 }
 
 static struct translation_steps steps[][L4_PROTO_COUNT] = {
@@ -67,11 +68,12 @@ static struct translation_steps steps[][L4_PROTO_COUNT] = {
 	}
 };
 
-int copy_payload(struct sk_buff *in, struct sk_buff *out)
+int copy_payload(struct packet *in, struct packet *out)
 {
 	int error;
 
-	error = skb_copy_bits(in, skb_payload_offset(in), skb_payload(out), skb_payload_len_frag(out));
+	error = skb_copy_bits(in->skb, pkt_payload_offset(in), pkt_payload(out),
+			pkt_payload_len_frag(out));
 	if (error)
 		log_debug("The payload copy threw errcode %d.", error);
 
@@ -114,114 +116,106 @@ bool will_need_frag_hdr(struct iphdr *in_hdr)
 	return is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr);
 }
 
-static int move_pointers_in(struct sk_buff *skb, __u8 protocol, unsigned int l3hdr_len)
+static int move_pointers_in(struct packet *pkt, __u8 protocol, unsigned int l3hdr_len)
 {
-	struct jool_cb *cb = skb_jcb(skb);
 	unsigned int l4hdr_len;
 
-	skb_pull(skb, skb_hdrs_len(skb));
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, l3hdr_len);
+	skb_pull(pkt->skb, pkt_hdrs_len(pkt));
+	skb_reset_network_header(pkt->skb);
+	skb_set_transport_header(pkt->skb, l3hdr_len);
 
 	switch (protocol) {
 	case IPPROTO_TCP:
-		cb->l4_proto = L4PROTO_TCP;
-		l4hdr_len = tcp_hdr_len(tcp_hdr(skb));
+		pkt->l4_proto = L4PROTO_TCP;
+		l4hdr_len = tcp_hdr_len(pkt_tcp_hdr(pkt));
 		break;
 	case IPPROTO_UDP:
-		cb->l4_proto = L4PROTO_UDP;
+		pkt->l4_proto = L4PROTO_UDP;
 		l4hdr_len = sizeof(struct udphdr);
 		break;
 	case IPPROTO_ICMP:
 	case NEXTHDR_ICMP:
-		cb->l4_proto = L4PROTO_ICMP;
+		pkt->l4_proto = L4PROTO_ICMP;
 		l4hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
 		/* TODO what abour OTHER? */
 		log_debug("Unknown l4 protocol: %u", protocol);
-		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
+		inc_stats(pkt, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;
 	}
-	cb->is_inner = 1;
-	cb->payload = skb_transport_header(skb) + l4hdr_len;
+	pkt->is_inner = 1;
+	pkt->payload = skb_transport_header(pkt->skb) + l4hdr_len;
 
 	return 0;
 }
 
-static int move_pointers_out(struct sk_buff *skb_in, struct sk_buff *skb_out,
-		unsigned int l3hdr_len)
+static int move_pointers_out(struct packet *in, struct packet *out, unsigned int l3hdr_len)
 {
-	struct jool_cb *cb = skb_jcb(skb_out);
+	skb_pull(out->skb, pkt_hdrs_len(out));
+	skb_reset_network_header(out->skb);
+	skb_set_transport_header(out->skb, l3hdr_len);
 
-	skb_pull(skb_out, skb_hdrs_len(skb_out));
-	skb_reset_network_header(skb_out);
-	skb_set_transport_header(skb_out, l3hdr_len);
-
-	cb->l4_proto = skb_l4_proto(skb_in);
-	cb->is_inner = 1;
-	cb->payload = skb_transport_header(skb_out) + skb_l4hdr_len(skb_in);
+	out->l4_proto = pkt_l4_proto(in);
+	out->is_inner = 1;
+	out->payload = skb_transport_header(out->skb) + pkt_l4hdr_len(in);
 
 	return 0;
 }
 
-static int move_pointers4(struct sk_buff *skb_in, struct sk_buff *skb_out)
+static int move_pointers4(struct packet *in, struct packet *out)
 {
 	struct iphdr *hdr4;
 	unsigned int l3hdr_len;
 	int error;
 
-	hdr4 = skb_payload(skb_in);
-	error = move_pointers_in(skb_in, hdr4->protocol, 4 * hdr4->ihl);
+	hdr4 = pkt_payload(in);
+	error = move_pointers_in(in, hdr4->protocol, 4 * hdr4->ihl);
 	if (error)
 		return error;
 
 	l3hdr_len = sizeof(struct ipv6hdr);
 	if (will_need_frag_hdr(hdr4))
 		l3hdr_len += sizeof(struct frag_hdr);
-	return move_pointers_out(skb_in, skb_out, l3hdr_len);
+	return move_pointers_out(in, out, l3hdr_len);
 }
 
-static int move_pointers6(struct sk_buff *skb_in, struct sk_buff *skb_out)
+static int move_pointers6(struct packet *in, struct packet *out)
 {
-	struct ipv6hdr *hdr6;
-	struct hdr_iterator iterator;
+	struct ipv6hdr *hdr6 = pkt_payload(in);
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
 	int error;
 
-	hdr6 = skb_payload(skb_in);
-	hdr_iterator_init(&iterator, hdr6);
 	hdr_iterator_last(&iterator);
 
-	error = move_pointers_in(skb_in, iterator.hdr_type, iterator.data - (void *) hdr6);
+	error = move_pointers_in(in, iterator.hdr_type, iterator.data - (void *) hdr6);
 	if (error)
 		return error;
 
-	return move_pointers_out(skb_in, skb_out, sizeof(struct iphdr));
+	return move_pointers_out(in, out, sizeof(struct iphdr));
 }
 
-static void backup(struct sk_buff *skb, struct backup_skb *bkp)
+static void backup(struct packet *pkt, struct backup_skb *bkp)
 {
-	bkp->pulled = skb_hdrs_len(skb);
-	bkp->offset.l3 = skb_network_offset(skb);
-	bkp->offset.l4 = skb_transport_offset(skb);
-	bkp->payload = skb_payload(skb);
-	bkp->l4_proto = skb_l4_proto(skb);
+	bkp->pulled = pkt_hdrs_len(pkt);
+	bkp->offset.l3 = skb_network_offset(pkt->skb);
+	bkp->offset.l4 = skb_transport_offset(pkt->skb);
+	bkp->payload = pkt_payload(pkt);
+	bkp->l4_proto = pkt_l4_proto(pkt);
 }
 
-static void restore(struct sk_buff *skb, struct backup_skb *bkp)
+static void restore(struct packet *pkt, struct backup_skb *bkp)
 {
-	struct jool_cb *cb = skb_jcb(skb);
-
-	skb_push(skb, bkp->pulled);
-	skb_set_network_header(skb, bkp->offset.l3);
-	skb_set_transport_header(skb, bkp->offset.l4);
-	cb->payload = bkp->payload;
-	cb->l4_proto = bkp->l4_proto;
-	cb->is_inner = 0;
+	skb_push(pkt->skb, bkp->pulled);
+	skb_set_network_header(pkt->skb, bkp->offset.l3);
+	skb_set_transport_header(pkt->skb, bkp->offset.l4);
+	pkt->payload = bkp->payload;
+	pkt->l4_proto = bkp->l4_proto;
+	pkt->is_inner = 0;
 }
 
-verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct sk_buff *in,
-		struct sk_buff *out)
+verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet *in,
+		struct packet *out)
 {
 	struct backup_skb bkp_in, bkp_out;
 	struct tuple inner_tuple;
@@ -232,18 +226,18 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct sk_buff
 	backup(in, &bkp_in);
 	backup(out, &bkp_out);
 
-	switch (skb_l3_proto(in)) {
+	switch (pkt_l3_proto(in)) {
 	case L3PROTO_IPV4:
 		if (move_pointers4(in, out))
-			return VER_DROP;
+			return VERDICT_DROP;
 		break;
 	case L3PROTO_IPV6:
 		if (move_pointers6(in, out))
-			return VER_DROP;
+			return VERDICT_DROP;
 		break;
 	default:
 		inc_stats(in, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 
 	if (nat64_is_stateful()) {
@@ -254,29 +248,29 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct sk_buff
 		inner_tuple_ptr = &inner_tuple;
 	}
 
-	current_steps = &steps[skb_l3_proto(in)][skb_l4_proto(in)];
+	current_steps = &steps[pkt_l3_proto(in)][pkt_l4_proto(in)];
 
 	result = current_steps->l3_hdr_fn(inner_tuple_ptr, in, out);
-	if (result == VER_ACCEPT) {
+	if (result == VERDICT_ACCEPT) {
 		/*
 		 * Accepting because of an inner packet doesn't make sense.
 		 * Also we couldn't have translated this inner packet.
 		 */
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
-	if (result != VER_CONTINUE)
+	if (result != VERDICT_CONTINUE)
 		return result;
 
 	result = current_steps->l3_payload_fn(inner_tuple_ptr, in, out);
-	if (result == VER_ACCEPT)
-		return VER_DROP;
-	if (result != VER_CONTINUE)
+	if (result == VERDICT_ACCEPT)
+		return VERDICT_DROP;
+	if (result != VERDICT_CONTINUE)
 		return result;
 
 	restore(in, &bkp_in);
 	restore(out, &bkp_out);
 
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }
 
 struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto)

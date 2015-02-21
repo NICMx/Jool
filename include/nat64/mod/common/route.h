@@ -1,7 +1,7 @@
 #ifndef _JOOL_MOD_ROUTE_H
 #define _JOOL_MOD_ROUTE_H
 
-#include <linux/skbuff.h>
+#include "nat64/mod/common/packet.h"
 
 /**
  * One-liner for filling up a 'flowi' and then calling the kernel's IPv4 routing function.
@@ -11,17 +11,17 @@
  *
  * This function assumes "skb" isn't fragmented.
  */
-int route4(struct sk_buff *skb);
+int route4(struct packet *pkt);
 
 /**
  * Same as route_ipv4(), except for IPv6.
  */
-int route6(struct sk_buff *skb);
+int route6(struct packet *pkt);
 
 /**
  * Protocol independent version of the previous two functions.
  * ie. it's just a wrapper.
  */
-int route(struct sk_buff *skb);
+int route(struct packet *pkt);
 
 #endif /* _JOOL_MOD_ROUTE_H */

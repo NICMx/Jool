@@ -54,6 +54,8 @@ static void logtime_get_db(struct log_time_db **log_db, l3_protocol l3_proto, l4
 		case L4PROTO_ICMP:
 			*log_db = &logs_ipv6_icmp;
 			return;
+		case L4PROTO_OTHER:
+			break;
 		}
 		break;
 	case L3PROTO_IPV4:
@@ -67,6 +69,8 @@ static void logtime_get_db(struct log_time_db **log_db, l3_protocol l3_proto, l4
 		case L4PROTO_ICMP:
 			*log_db = &logs_ipv4_icmp;
 			return;
+		case L4PROTO_OTHER:
+			break;
 		}
 		break;
 	}
@@ -96,7 +100,7 @@ static void logtime_db_add(struct log_time_db *log_db, struct log_node *node)
 /**
  * Increases the counter of the structure and add to the sum delta time registered.
  */
-int logtime(struct sk_buff *skb)
+int logtime(struct packet *pkt)
 {
 	struct log_time_db *log_db;
 	struct log_node *log_node;
@@ -104,7 +108,7 @@ int logtime(struct sk_buff *skb)
 
 	getnstimeofday(&end_time);
 
-	logtime_get_db(&log_db, skb_l3_proto(skb), skb_l4_proto(skb));
+	logtime_get_db(&log_db, pkt_l3_proto(pkt), pkt_l4_proto(pkt));
 	if (!log_db) {
 		log_err("Invalid L3 or L4 protocol.");
 		return -EINVAL;
@@ -113,7 +117,7 @@ int logtime(struct sk_buff *skb)
 	if (logtime_create_node(&log_node))
 		return -ENOMEM; /* Error message already printed. */
 
-	subtract_timespec(&skb_jcb(skb)->start_time, &end_time, log_node);
+	subtract_timespec(&pkt->start_time, &end_time, log_node);
 	logtime_db_add(log_db, log_node);
 
 	return 0;

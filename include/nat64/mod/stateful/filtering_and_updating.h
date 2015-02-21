@@ -11,8 +11,8 @@
  * @author Daniel Hernandez
  */
 
-#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/packet.h"
 
-verdict filtering_and_updating(struct sk_buff *skb, struct tuple *in_tuple);
+verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple);
 
 #endif /* _JOOL_MOD_FILTERING_H */

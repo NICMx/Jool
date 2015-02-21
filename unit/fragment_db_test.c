@@ -60,9 +60,9 @@ static bool validate_fragment(struct sk_buff *skb, bool has_l4_hdr, bool has_fra
 {
 	bool success = true;
 
-	success &= assert_equals_int(has_l4_hdr, skb_has_l4_hdr(skb), "Presence of l4-header");
+	success &= assert_equals_int(has_l4_hdr, pkt_has_l4_hdr(skb), "Presence of l4-header");
 	success &= assert_equals_int(has_frag_hdr, !!get_frag_hdr(skb), "Presence of frag header");
-	success &= assert_equals_int(payload_len, skb_payload_len_frag(skb), "Payload length");
+	success &= assert_equals_int(payload_len, pkt_payload_len_frag(skb), "Payload length");
 
 	return success;
 }
@@ -113,7 +113,7 @@ static bool test_no_frags(void)
 	if (error)
 		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, fragdb_handle(&skb), "Verdict");
+	success &= assert_equals_int(VERDICT_CONTINUE, fragdb_handle(&skb), "Verdict");
 	success &= validate_packet(skb, 1);
 	success &= validate_fragment(skb, true, false, 10);
 	success &= validate_database(0);
@@ -137,14 +137,14 @@ static bool test_happy_path(void)
 	error = create_skb6_udp_frag(&tuple6, &skb, 64 - sizeof(struct udphdr), 384, true, true, 0, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_STOLEN, fragdb_handle(&skb), "1st verdict");
+	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "1st verdict");
 	success &= validate_database(1);
 
 	/* Second fragment arrives. */
 	error = create_skb6_udp_frag(&tuple6, &skb, 128, 384, true, true, 64, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_STOLEN, fragdb_handle(&skb), "2nd verdict");
+	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "2nd verdict");
 	success &= validate_database(1);
 
 	/* Third and final fragment arrives. */
@@ -152,7 +152,7 @@ static bool test_happy_path(void)
 	error = create_skb6_udp_frag(&tuple6, &skb, 192, 384, true, false, 192, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_CONTINUE, fragdb_handle(&skb), "3rd verdict");
+	success &= assert_equals_int(VERDICT_CONTINUE, fragdb_handle(&skb), "3rd verdict");
 	success &= validate_database(0);
 
 	/* Validate the packet. */
@@ -238,7 +238,7 @@ static bool test_timer(void)
 	error = create_skb6_udp_frag(&tuple1, &skb, 100, 1000, true, true, 0, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_STOLEN, fragdb_handle(&skb), "4th verdict");
+	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "4th verdict");
 
 	success &= validate_database(1);
 	success &= validate_list(&expected_keys[0], 1);
@@ -250,7 +250,7 @@ static bool test_timer(void)
 	error = create_skb6_udp_frag(&tuple2, &skb, 100, 1000, true, true, 0, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_STOLEN, fragdb_handle(&skb), "5th verdict");
+	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "5th verdict");
 
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);
@@ -262,7 +262,7 @@ static bool test_timer(void)
 	error = create_skb6_udp_frag(&tuple1, &skb, 100, 1000, true, true, 108, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VER_STOLEN, fragdb_handle(&skb), "6th verdict");
+	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "6th verdict");
 
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);

@@ -15,7 +15,6 @@
 #include <linux/icmp.h>
 
 #include "nat64/mod/common/types.h"
-#include "nat64/mod/common/ipv6_hdr_iterator.h"
 
 
 /** Returns a hack-free version of the 'Traffic class' field from the "hdr" IPv6 header. */
@@ -85,12 +84,12 @@ static inline unsigned int get_tot_len_ipv6(struct sk_buff *skb)
  * Does "hdr" belong to the fragment whose fragment offset is zero?
  * A non-fragmented packet is also considered a first fragment.
  */
-static inline bool is_first_fragment_ipv4(struct iphdr *hdr)
+static inline bool is_first_frag4(struct iphdr *hdr)
 {
 	return get_fragment_offset_ipv4(hdr) == 0;
 }
 
-static inline bool is_first_fragment_ipv6(struct frag_hdr *hdr)
+static inline bool is_first_frag6(struct frag_hdr *hdr)
 {
 	return hdr ? (get_fragment_offset_ipv6(hdr) == 0) : true;
 }
@@ -152,49 +151,33 @@ static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
 }
 
 /**
- * This structure is what Jool stores in control buffers.
- * Control buffers are reserved spaces in skbs where their current owners (ie. Jool) can store
- * whatever.
+ * We need to store packet metadata, so we encapsulate sk_buffs into this.
  *
- * I'm assuming skbs Jool receive are supposed to have clean control buffers, and therefore there's
- * no problem with the existence of this structure. Though common sense dictates any Netfilter
- * module should not have to worry about leftover CB garbage, I do not see any confirmation
- * (formal or otherwise) of this anywhere. Any objections?
- *
- * If you're planning to change this structure, keep in mind its size cannot exceed
- * sizeof(skb->cb).
+ * Do **not** use control buffers (skb->cb) for this purpose. The kernel is known to misbehave and
+ * store information there which we should not override.
  */
-struct jool_cb {
+struct packet {
+	struct sk_buff *skb;
+
 	/**
 	 * Protocol of the layer-3 header of the packet.
 	 * Yes, skb->proto has the same superpowers, but it's a little unreliable (it's not set in the
 	 * Local Out chain).
-	 * Also this saves me a switch in skb_l3_proto() :p.
+	 * Also this spares me a switch in pkt_l3_proto() :p.
 	 */
-	__u8 l3_proto : 1,
+	enum l3_protocol l3_proto;
 	/**
 	 * Protocol of the layer-4 header of the packet. To the best of my knowledge, the kernel also
 	 * uses skb->proto for this, but only on layer-4 code (of which Jool isn't).
 	 * Skbs otherwise do not store a layer-4 identifier.
 	 */
-	l4_proto : 2,
+	enum l4_protocol l4_proto;
 	/**
-	 * Is this a subpacket, contained in a ICMP error? (used by the ttp module.)
+	 * Is this a subpacket, contained in an ICMP error? (used by the ttp module.)
 	 */
-	is_inner : 1,
-	/**
-	 * This actually means "is this skb part of a fragment list?"
-	 * After the fragment database, that and "is this skb a fragment?" are the same question.
-	 *
-	 * An skb belongs to a fragment list if its frag_list (skb_shinfo(skb)->frag_list) is non-null,
-	 * or it's linked to the frag_list of some other skb.
-	 *
-	 * TODO (fine) Is there really no way to compute it on the fly?
-	 * 2015-01-21 - Well we could do "skb_shinfo(skb)->frag_list || skb->next", but then we'd be
-	 * unable to queue the packet. I don't know.
-	 */
-	is_fragment : 1;
+	bool is_inner;
 
+	struct frag_hdr *hdr_frag;
 	/**
 	 * Pointer to the packet's payload.
 	 * Because skbs only store pointers to headers.
@@ -212,97 +195,107 @@ struct jool_cb {
 	 * Used by the ICMP wrapper because it needs to reply the original packet, not the one being
 	 * translated. Also used by the packet queue.
 	 */
-	struct sk_buff *original_skb;
+	struct packet *original_pkt;
 
 #ifdef BENCHMARK
 	/**
-	 * Log the time in epoch when this skb arrives to jool. For benchmark purpouse.
+	 * Log the time in epoch when this skb arrives to jool. For benchmark purposes.
 	 */
 	struct timespec start_time;
 #endif
 };
 
 /**
- * Returns "skb"'s control buffer in Jool's format.
- * (jcb = Jool's control buffer.)
+ * Initializes "pkt" using the rest of the arguments.
  */
-static inline struct jool_cb *skb_jcb(struct sk_buff *skb)
+static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
+		l3_protocol l3_proto, l4_protocol l4_proto,
+		struct frag_hdr *hdr_frag, void *payload, struct packet *original_pkt)
 {
-	BUILD_BUG_ON(sizeof(struct jool_cb) > sizeof(skb->cb));
-	return (struct jool_cb *) skb->cb;
-}
-
-/**
- * Zeroizes "skb"'s control buffer.
- * The kernel will go nuts if you don't do this before you transfer "skb"'s ownership; most
- * citizens in the kernel assume everyone else cleans up their garbage.
- */
-static inline void skb_clear_cb(struct sk_buff *skb)
-{
-	struct jool_cb *cb;
-	cb = skb_jcb(skb);
-	memset(cb, 0, sizeof(*cb));
-}
-
-/**
- * Initializes "skb"'s control buffer using the rest of the arguments.
- */
-static inline void skb_set_jcb(struct sk_buff *skb, l3_protocol l3_proto, l4_protocol l4_proto,
-		bool is_fragment, void *payload, struct sk_buff *original_skb)
-{
-	struct jool_cb *cb = skb_jcb(skb);
-
-	cb->l3_proto = l3_proto;
-	cb->l4_proto = l4_proto;
-	cb->is_inner = 0;
-	cb->is_fragment = is_fragment;
-	cb->payload = payload;
-	cb->original_skb = original_skb;
+	pkt->skb = skb;
+	pkt->l3_proto = l3_proto;
+	pkt->l4_proto = l4_proto;
+	pkt->is_inner = 0;
+	pkt->hdr_frag = hdr_frag;
+	pkt->payload = payload;
+	pkt->original_pkt = original_pkt;
 #ifdef BENCHMARK
-	cb->start_time = skb_jcb(original_skb)->start_time;
+	pkt->start_time = original_pkt->start_time;
 #endif
 }
 
 /**
  * Returns "skb"'s layer-3 protocol in enum format.
  */
-static inline l3_protocol skb_l3_proto(struct sk_buff *skb)
+static inline l3_protocol pkt_l3_proto(const struct packet *pkt)
 {
-	return skb_jcb(skb)->l3_proto;
+	return pkt->l3_proto;
+}
+
+static inline struct iphdr *pkt_ip4_hdr(const struct packet *pkt)
+{
+	return ip_hdr(pkt->skb);
+}
+
+static inline struct ipv6hdr *pkt_ip6_hdr(const struct packet *pkt)
+{
+	return ipv6_hdr(pkt->skb);
 }
 
 /**
  * Returns "skb"'s layer-4 protocol in enum format.
  */
-static inline l4_protocol skb_l4_proto(struct sk_buff *skb)
+static inline l4_protocol pkt_l4_proto(const struct packet *pkt)
 {
-	return skb_jcb(skb)->l4_proto;
+	return pkt->l4_proto;
 }
 
-static inline bool skb_is_inner(struct sk_buff *skb)
+static inline struct udphdr *pkt_udp_hdr(const struct packet *pkt)
 {
-	return skb_jcb(skb)->is_inner;
+	return udp_hdr(pkt->skb);
 }
 
-static inline bool skb_is_outer(struct sk_buff *skb)
+static inline struct tcphdr *pkt_tcp_hdr(const struct packet *pkt)
 {
-	return !skb_is_inner(skb);
+	return tcp_hdr(pkt->skb);
 }
 
-static inline bool skb_is_fragment(struct sk_buff *skb)
+static inline struct icmphdr *pkt_icmp4_hdr(const struct packet *pkt)
 {
-	return skb_jcb(skb)->is_fragment;
+	return icmp_hdr(pkt->skb);
 }
 
-/**
- * Returns a pointer to "skb"'s layer-4 payload.
- */
-static inline void *skb_payload(struct sk_buff *skb)
+static inline struct icmp6hdr *pkt_icmp6_hdr(const struct packet *pkt)
 {
-	return skb_jcb(skb)->payload;
+	return icmp6_hdr(pkt->skb);
 }
 
-static inline int skb_payload_offset(struct sk_buff *skb)
+static inline struct frag_hdr *pkt_frag_hdr(const struct packet *pkt)
+{
+	return pkt->hdr_frag;
+}
+
+static inline void *pkt_payload(const struct packet *pkt)
+{
+	return pkt->payload;
+}
+
+static inline bool pkt_is_inner(const struct packet *pkt)
+{
+	return pkt->is_inner;
+}
+
+static inline bool pkt_is_outer(const struct packet *pkt)
+{
+	return !pkt_is_inner(pkt);
+}
+
+static inline bool pkt_is_fragment(const struct packet *pkt)
+{
+	return skb_shinfo(pkt->skb)->frag_list ? true : false;
+}
+
+static inline int pkt_payload_offset(const struct packet *pkt)
 {
 	/*
 	 * It seems like the the network header functions are cancelling each other.
@@ -310,24 +303,24 @@ static inline int skb_payload_offset(struct sk_buff *skb)
 	 * The point is to make the offset's reference the same as the network header's
 	 * (whatever it is).
 	 */
-	return skb_network_offset(skb) + (skb_payload(skb) - (void *) skb_network_header(skb));
+	return skb_network_offset(pkt->skb) + (pkt_payload(pkt) - (void *) skb_network_header(pkt->skb));
 }
 
 /**
  * Returns the packet Jool started with, which lead to the current "skb".
  */
-static inline struct sk_buff *skb_original_skb(struct sk_buff *skb)
+static inline struct packet *pkt_original_pkt(const struct packet *pkt)
 {
-	return skb_jcb(skb)->original_skb;
+	return pkt->original_pkt;
 }
 
 /**
  * Fragments other than the one with no offset do not contain a layer-4 header.
  * If this returns false, you should not try to extract a layer-4 header from "skb".
  */
-static inline bool skb_has_l4_hdr(struct sk_buff *skb)
+static inline bool pkt_has_l4_hdr(const struct packet *pkt)
 {
-	return skb_transport_header(skb) != skb_payload(skb);
+	return skb_transport_header(pkt->skb) != pkt_payload(pkt);
 }
 
 /**
@@ -336,9 +329,9 @@ static inline bool skb_has_l4_hdr(struct sk_buff *skb)
  * headers of the other fragments are ignored.
  * Also, it doesn't count inner l3 headers (from ICMP errors).
  */
-static inline unsigned int skb_l3hdr_len(struct sk_buff *skb)
+static inline unsigned int pkt_l3hdr_len(const struct packet *pkt)
 {
-	return skb_transport_header(skb) - skb_network_header(skb);
+	return skb_transport_header(pkt->skb) - skb_network_header(pkt->skb);
 }
 
 /**
@@ -348,9 +341,9 @@ static inline unsigned int skb_l3hdr_len(struct sk_buff *skb)
  * headers in any other fragments are ignored.
  * Also, it doesn't count inner l4 headers (from ICMP errors).
  */
-static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
+static inline unsigned int pkt_l4hdr_len(const struct packet *pkt)
 {
-	return skb_payload(skb) - (void *) skb_transport_header(skb);
+	return pkt_payload(pkt) - (void *) skb_transport_header(pkt->skb);
 }
 
 /**
@@ -359,9 +352,9 @@ static inline unsigned int skb_l4hdr_len(struct sk_buff *skb)
  * headers of the other fragments are ignored.
  * Also, it doesn't count inner headers (from ICMP errors).
  */
-static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
+static inline unsigned int pkt_hdrs_len(const struct packet *pkt)
 {
-	return skb_payload(skb) - (void *) skb_network_header(skb);
+	return pkt_payload(pkt) - (void *) skb_network_header(pkt->skb);
 }
 
 /**
@@ -369,14 +362,14 @@ static inline unsigned int skb_hdrs_len(struct sk_buff *skb)
  * Only counts bytes actually present within skb. In other words, if skb is fragmented, the
  * layer-4 payload of the other fragments is ignored.
  */
-static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
+static inline unsigned int pkt_payload_len_frag(const struct packet *pkt)
 {
 	/* See skb_len() for relevant comments. */
 
-	if (!skb_is_fragment(skb))
-		return skb->len - skb_hdrs_len(skb);
+	if (!pkt_is_fragment(pkt))
+		return pkt->skb->len - pkt_hdrs_len(pkt);
 
-	return skb_pagelen(skb) - (skb_shinfo(skb)->frag_list ? skb_hdrs_len(skb) : 0);
+	return skb_pagelen(pkt->skb) - (skb_shinfo(pkt->skb)->frag_list ? pkt_hdrs_len(pkt) : 0);
 }
 
 /**
@@ -387,9 +380,9 @@ static inline unsigned int skb_payload_len_frag(struct sk_buff *skb)
  * A "full packet" is either a non-fragmented packet, or a fragment whose frag_list contains all
  * the remaining fragments.
  */
-static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
+static inline unsigned int pkt_payload_len_pkt(const struct packet *pkt)
 {
-	return skb->len - skb_hdrs_len(skb);
+	return pkt->skb->len - pkt_hdrs_len(pkt);
 }
 
 /**
@@ -397,9 +390,9 @@ static inline unsigned int skb_payload_len_pkt(struct sk_buff *skb)
  * Only counts bytes actually present within skb. In other words, if skb is fragmented, the
  * layer-3 payload of the other fragments is ignored.
  */
-static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
+static inline unsigned int pkt_l3payload_len(const struct packet *pkt)
 {
-	return skb_l4hdr_len(skb) + skb_payload_len_frag(skb);
+	return pkt_l4hdr_len(pkt) + pkt_payload_len_frag(pkt);
 }
 
 /**
@@ -410,9 +403,9 @@ static inline unsigned int skb_l3payload_len(struct sk_buff *skb)
  * A "full packet" is either a non-fragmented packet, or a fragment whose frag_list contains all
  * the remaining fragments.
  */
-static inline unsigned int skb_datagram_len(struct sk_buff *skb)
+static inline unsigned int pkt_datagram_len(const struct packet *pkt)
 {
-	return skb->len - skb_l3hdr_len(skb);
+	return pkt->skb->len - pkt_l3hdr_len(pkt);
 }
 
 /**
@@ -421,7 +414,7 @@ static inline unsigned int skb_datagram_len(struct sk_buff *skb)
  * It's supposed to replace skb->len in certain situations. This is because skb->len also counts
  * bytes present in other fragments, and that is not always what a NAT64 wants.
  */
-static inline unsigned int skb_len(struct sk_buff *skb)
+static inline unsigned int pkt_len(const struct packet *pkt)
 {
 	/*
 	 * Note, we can't depend on a nat64_is_stateful() here because frag_list is the official Linux
@@ -429,14 +422,14 @@ static inline unsigned int skb_len(struct sk_buff *skb)
 	 * never see empty frag_lists (also viceversa for robustness).
 	 */
 
-	if (!skb_is_fragment(skb)) {
+	if (!pkt_is_fragment(pkt)) {
 		/*
 		 * Because stateless operation doesn't enforce the presence of defrags,
 		 * stateless Jool typically does this.
 		 * skb->len is headroom + page data + frag_list.
 		 * frag_list is empty, so it doesn't harm us.
 		 */
-		return skb->len;
+		return pkt->skb->len;
 	}
 
 	/*
@@ -449,27 +442,27 @@ static inline unsigned int skb_len(struct sk_buff *skb)
 	 * Note that skb_pagelen() is a gargantuan inline function, so we don't want to call it twice
 	 * or something.
 	 */
-	return skb_pagelen(skb) + (skb_shinfo(skb)->frag_list ? 0 : skb_hdrs_len(skb));
+	return skb_pagelen(pkt->skb) + (skb_shinfo(pkt->skb)->frag_list ? 0 : pkt_hdrs_len(pkt));
 }
 
-static inline bool skb_is_icmp6_error(struct sk_buff *skb)
+static inline bool pkt_is_icmp6_error(const struct packet *pkt)
 {
-	return skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp6_error(icmp6_hdr(skb)->icmp6_type);
+	return pkt_l4_proto(pkt) == L4PROTO_ICMP && is_icmp6_error(pkt_icmp6_hdr(pkt)->icmp6_type);
 }
 
-static inline bool skb_is_icmp4_error(struct sk_buff *skb)
+static inline bool pkt_is_icmp4_error(const struct packet *pkt)
 {
-	return skb_l4_proto(skb) == L4PROTO_ICMP && is_icmp4_error(icmp_hdr(skb)->type);
+	return pkt_l4_proto(pkt) == L4PROTO_ICMP && is_icmp4_error(pkt_icmp4_hdr(pkt)->type);
 }
 
 /**
- * Initializes "skb"'s control buffer. It also validates "skb".
+ * Ensures "skb" isn't corrupted and initializes "pkt" out of it.
  *
  * After this function, code can assume:
  * - skb contains full l3 and l4 headers (including inner ones), their order seems to make sense,
  *   and they are all within the head room of skb.
  * - skb's payload isn't truncated (though inner packet payload might).
- * - The cb functions above can now be used on skb.
+ * - The pkt_* functions above can now be used on pkt.
  * - The length fields in the l3 headers can be relied upon.
  *
  * Healthy layer 4 checksums and lengths are not guaranteed, but that's not an issue since this
@@ -481,8 +474,8 @@ static inline bool skb_is_icmp4_error(struct sk_buff *skb)
  * This function can change the packet's pointers. If you eg. stored a pointer to
  * skb_network_header(skb), you will need to assign it again (by calling skb_network_header again).
  */
-int skb_init_cb_ipv6(struct sk_buff *skb);
-int skb_init_cb_ipv4(struct sk_buff *skb);
+int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb);
+int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
 /**
  * @}
  */
@@ -490,7 +483,7 @@ int skb_init_cb_ipv4(struct sk_buff *skb);
 /**
  * Outputs "skb" in the log.
  */
-void skb_print(struct sk_buff *skb);
+void pkt_print(struct packet *pkt);
 
 /**
  * @{
@@ -505,8 +498,8 @@ void skb_print(struct sk_buff *skb);
  * inner packets. For these cases, Jool will recompute the checksum from scratch, and we should not
  * assign correct checksums to corrupted packets, so we need to validate them first.
  */
-int validate_icmp6_csum(struct sk_buff *skb);
-int validate_icmp4_csum(struct sk_buff *skb);
+int validate_icmp6_csum(struct packet *pkt);
+int validate_icmp4_csum(struct packet *pkt);
 /**
  * @}
  */

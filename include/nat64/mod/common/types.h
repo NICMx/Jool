@@ -56,17 +56,17 @@
  */
 typedef enum verdict {
 	/** "No problems thus far, processing of the packet can continue." */
-	VER_CONTINUE = -1,
+	VERDICT_CONTINUE = -1,
 	/**
 	 * "Packet is invalid and should be silently dropped."
 	 * (Or "packet is invalid and I already sent a ICMP error, so just kill it".)
 	 */
-	VER_DROP = NF_DROP,
+	VERDICT_DROP = NF_DROP,
 	/**
 	 * "Packet is not supposed to be NAT64'd. Return it to Netfilter so the kernel does something
 	 * else with it."
 	 */
-	VER_ACCEPT = NF_ACCEPT,
+	VERDICT_ACCEPT = NF_ACCEPT,
 	/**
 	 * "I need to keep the packet for a while. Do not free, access or modify it."
 	 *
@@ -75,7 +75,7 @@ typedef enum verdict {
 	 * Therefore, if your stealing/storing code doesn't include skb_original_skb(), then YOU HAVE
 	 * A KERNEL PANIC.
 	 */
-	VER_STOLEN = NF_STOLEN,
+	VERDICT_STOLEN = NF_STOLEN,
 } verdict;
 
 union transport_addr {

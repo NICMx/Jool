@@ -10,16 +10,9 @@
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
 
-struct reassembly_buffer_key {
-	struct in6_addr src_addr;
-	struct in6_addr dst_addr;
-	__be32 identification;
-	enum l4_protocol l4_proto;
-};
-
 struct reassembly_buffer {
 	/** first fragment (fragment offset zero) of the packet. */
-	struct sk_buff *skb;
+	struct packet pkt;
 	/** This points to the place the next frament should be queued. */
 	struct sk_buff **next_slot;
 	/* Jiffy at which the fragment timer will delete this buffer. */
@@ -32,7 +25,7 @@ struct reassembly_buffer {
 static struct kmem_cache *buffer_cache;
 
 #define HTABLE_NAME fragdb_table
-#define KEY_TYPE struct reassembly_buffer_key
+#define KEY_TYPE struct packet
 #define VALUE_TYPE struct reassembly_buffer
 #define HASH_TABLE_SIZE 256
 #include "../common/hash_table.c"
@@ -56,21 +49,23 @@ static LIST_HEAD(expire_list);
  * As specified above, the database is (mostly) a hash table. This is one of two functions used
  * internally by the table to search for values.
  */
-static bool equals_function(const struct reassembly_buffer_key *key1,
-		const struct reassembly_buffer_key *key2)
+static bool equals_function(const struct packet *key1, const struct packet *key2)
 {
+	struct ipv6hdr *hdr1 = pkt_ip6_hdr(key1);
+	struct ipv6hdr *hdr2 = pkt_ip6_hdr(key2);
+
 	if (key1 == key2)
 		return true;
 	if (key1 == NULL || key2 == NULL)
 		return false;
 
-	if (!ipv6_addr_equals(&key1->src_addr, &key2->src_addr))
+	if (!ipv6_addr_equals(&hdr1->saddr, &hdr2->saddr))
 		return false;
-	if (!ipv6_addr_equals(&key1->dst_addr, &key2->dst_addr))
+	if (!ipv6_addr_equals(&hdr1->daddr, &hdr2->daddr))
 		return false;
-	if (key1->identification != key2->identification)
+	if (pkt_frag_hdr(key1)->identification != pkt_frag_hdr(key2)->identification)
 		return false;
-	if (key1->l4_proto != key2->l4_proto)
+	if (pkt_l4_proto(key1) != pkt_l4_proto(key2))
 		return false;
 
 	return true;
@@ -93,54 +88,69 @@ static unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
  * As specified above, the database is a hash table. This is one of two functions used internally
  * by the table to search for values.
  */
-static unsigned int hash_function(const struct reassembly_buffer_key *key)
+static unsigned int hash_function(const struct packet *key)
 {
-	return inet6_hash_frag(key->identification, &key->src_addr, &key->dst_addr, rnd);
+	struct ipv6hdr *hdr = pkt_ip6_hdr(key);
+	return inet6_hash_frag(pkt_frag_hdr(key)->identification, &hdr->saddr, &hdr->daddr, rnd);
 }
 
-/**
- * Just a one-liner for populating reassembly_buffer_keys.
- */
-static int skb_to_key(struct sk_buff *skb, struct frag_hdr *hdr_frag,
-		struct reassembly_buffer_key *key)
-{
-	struct ipv6hdr *hdr6 = ipv6_hdr(skb);
-
-	if (!hdr_frag) {
-		hdr_frag = hdr_iterator_find(hdr6, NEXTHDR_FRAGMENT);
-		if (WARN(!hdr_frag, "Stored fragment has no fragment header."))
-			return -EINVAL;
-	}
-
-	key->src_addr = hdr6->saddr;
-	key->dst_addr = hdr6->daddr;
-	key->identification = hdr_frag->identification;
-	key->l4_proto = skb_l4_proto(skb);
-
-	return 0;
-}
-
-/**
- * Returns the reassembly buffer described by "key" from the database.
- */
-static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
+#define COMMON_MSG " Looks like nf_defrag_ipv6 is not sorting the fragments, " \
+		"or something's shuffling them later. Please report."
+static struct reassembly_buffer *add_pkt(struct packet *pkt)
 {
 	struct reassembly_buffer *buffer;
+	struct frag_hdr *hdr_frag = pkt_frag_hdr(pkt);
+	unsigned int payload_len;
 
-	/* Does it already exist? If so, return existing buffer */
-	buffer = fragdb_table_get(&table, key);
-	if (buffer)
+	/* Does it already exist? If so, add to and return existing buffer */
+	buffer = fragdb_table_get(&table, pkt);
+	if (buffer) {
+		if (WARN(is_first_frag6(hdr_frag), "Non-first fragment's offset is zero." COMMON_MSG))
+			return NULL;
+
+		*buffer->next_slot = pkt->skb;
+		buffer->next_slot = &pkt->skb->next;
+
+		/* Why this? Dunno, both defrags do it when they support frag_list. */
+		/*
+		 * Note, since we're in the middle of its sort of initialization, pkt is illegal at this
+		 * point. It looks like we should call pkt_payload_len_frag() instead of
+		 * pkt_payload_len_pkt(), but that's not the case because it represents a subsequent
+		 * fragment. Be careful with the calculation of this length.
+		 */
+		payload_len = pkt_payload_len_pkt(pkt);
+		buffer->pkt.skb->len += payload_len;
+		buffer->pkt.skb->data_len += payload_len;
+		buffer->pkt.skb->truesize += pkt->skb->truesize;
+		skb_pull(pkt->skb, pkt_hdrs_len(pkt));
+
 		return buffer;
+	}
 
-	/* Create, index */
+	if (WARN(!is_first_frag6(hdr_frag), "First fragment's offset is nonzero." COMMON_MSG))
+		return NULL;
+
+	/*
+	 * TODO (3.3.1) I'm not exactly sure pskb_expand_head() can be applied here.
+	 * I decided to leave it out of milestone 3.3.0 because it seems like such a ridiculous
+	 * corner case scenario and we have too many variables to test as it is.
+	 * I learned about pskb_expand_head() in the defrag modules.
+	 */
+	if (skb_cloned(pkt->skb)) {
+		log_debug("Packet is cloned, so I can't edit its shared area. Canceling translation.");
+		return NULL;
+	}
+
+	/* Create buffer, add the packet to it, index */
 	buffer = kmem_cache_alloc(buffer_cache, GFP_ATOMIC);
 	if (!buffer)
 		return NULL;
-	buffer->skb = NULL;
-	buffer->next_slot = NULL;
+
+	buffer->pkt = *pkt;
+	buffer->next_slot = &skb_shinfo(pkt->skb)->frag_list;
 	buffer->dying_time = jiffies + config_get_ttl_frag();
 
-	if (is_error(fragdb_table_put(&table, key, buffer))) {
+	if (is_error(fragdb_table_put(&table, pkt, buffer))) {
 		kmem_cache_free(buffer_cache, buffer);
 		return NULL;
 	}
@@ -155,32 +165,24 @@ static struct reassembly_buffer *buffer_get(struct reassembly_buffer_key *key)
 
 	return buffer;
 }
+#undef COMMON_MSG
 
 static void buffer_dealloc(struct reassembly_buffer *buffer)
 {
-	kfree_skb(buffer->skb);
+	kfree_skb(buffer->pkt.skb);
 	kmem_cache_free(buffer_cache, buffer);
 }
 
 /**
  * Removes "buffer" from the database and destroys it.
- *
- * "key" is assumed to have been constructed from "buffer"; it is not inferred internally for silly
- * performance reasons.
  */
-static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_buffer *buffer)
+static void buffer_destroy(struct reassembly_buffer *buffer, struct packet *pkt)
 {
-	bool success;
-
-	/* Remove it from the DB. */
-	success = fragdb_table_remove(&table, key, NULL);
-	if (WARN(!success, "Something is attempting to delete a buffer that wasn't stored "
-			"in the database."))
+	if (WARN(!fragdb_table_remove(&table, pkt, NULL),
+			"Something is attempting to delete a buffer that wasn't stored in the database."))
 		return;
 
 	list_del(&buffer->list_hook);
-
-	/* Deallocate it. */
 	buffer_dealloc(buffer);
 }
 
@@ -191,7 +193,6 @@ static void buffer_destroy(struct reassembly_buffer_key *key, struct reassembly_
 static void clean_expired_buffers(void)
 {
 	unsigned int b = 0;
-	struct reassembly_buffer_key key;
 	struct reassembly_buffer *buffer;
 
 	log_debug("Deleting expired reassembly buffers...");
@@ -207,10 +208,8 @@ static void clean_expired_buffers(void)
 			return;
 		}
 
-		if (!is_error(skb_to_key(buffer->skb, NULL, &key))) {
-			buffer_destroy(&key, buffer);
-			b++;
-		}
+		buffer_destroy(buffer, &buffer->pkt);
+		b++;
 	}
 
 	spin_unlock_bh(&table_lock);
@@ -277,60 +276,7 @@ int fragdb_init(void)
 	return 0;
 }
 
-#define COMM_MSG " Looks like nf_defrag_ipv6 is not sorting the fragments, " \
-		"or something's shuffling them later. Please report."
-static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *frag,
-		struct frag_hdr *hdr_frag)
-{
-	unsigned int payload_len;
-
-	if (buffer->skb) {
-		if (WARN(is_first_fragment_ipv6(hdr_frag), "Non-first fragment's offset is zero." COMM_MSG))
-			return -EINVAL;
-
-		*buffer->next_slot = frag;
-		buffer->next_slot = &frag->next;
-
-		/* Why this? Dunno, both defrags do it when they support frag_list. */
-		payload_len = skb_payload_len_frag(frag);
-		buffer->skb->len += payload_len;
-		buffer->skb->data_len += payload_len;
-		buffer->skb->truesize += frag->truesize;
-		skb_pull(frag, skb_hdrs_len(frag));
-
-	} else {
-		if (WARN(!is_first_fragment_ipv6(hdr_frag), "First fragment's offset is nonzero." COMM_MSG))
-			return -EINVAL;
-
-		/*
-		 * TODO (3.3.1) I'm not exactly sure pskb_expand_head() can be applied here.
-		 * I decided to leave it out of milestone 3.3.0 because it seems like such a ridiculous
-		 * corner case scenario and we have too many variables to test as it is.
-		 * I learned about pskb_expand_head() in the defrag modules.
-		 */
-		if (skb_cloned(frag)
-			/*	&& pskb_expand_head(frag, 0, 0, GFP_ATOMIC)
-				&& skb_init_cb_ipv6(skb) */
-				) {
-			/*
-			 * If this is giving you trouble, try uncommenting the conditions above.
-			 * The translation might then be successful.
-			 * YOU WILL HAVE TO TEST IT, because we haven't.
-			 */
-			log_debug("Packet is cloned, so I can't edit its shared area. Canceling translation.");
-			return -EINVAL;
-		}
-
-		buffer->skb = frag;
-		buffer->next_slot = &skb_shinfo(frag)->frag_list;
-	}
-
-	skb_jcb(frag)->is_fragment = true;
-	return 0;
-}
-#undef COMM_MSG
-
-#define COMM_MSG " I will not be able to translate; aborting.\n" \
+#define COMMON_MSG " I will not be able to translate; aborting.\n" \
 		"(I don't this error is going to happen... but if it does, either some future kernel " \
 		"version broke our assumptions or there is a kernel module in prerouting (pre-Jool), " \
 		"which is doing some questionable edits on the packet.)"
@@ -341,15 +287,15 @@ static int buffer_add_frag(struct reassembly_buffer *buffer, struct sk_buff *fra
  */
 static int validate_skb(struct sk_buff *skb)
 {
-	if (WARN(skb->prev || skb->next, "Packet is listed." COMM_MSG))
+	if (WARN(skb->prev || skb->next, "Packet is listed." COMMON_MSG))
 		return -EINVAL;
 
-	if (WARN(skb_shinfo(skb)->frag_list, "Packet has a fragment list." COMM_MSG))
+	if (WARN(skb_shinfo(skb)->frag_list, "Packet has a fragment list." COMMON_MSG))
 		return -EINVAL;
 
 	return 0;
 }
-#undef COMM_MSG
+#undef COMMON_MSG
 
 /**
  * Groups "skb_in" with the rest of its fragments.
@@ -358,17 +304,15 @@ static int validate_skb(struct sk_buff *skb)
  * will be returned in "skb_out". The rest of the fragments can be accesed via skb_out's list
  * (skb_shinfo(skb_out)->frag_list).
  */
-verdict fragdb_handle(struct sk_buff **skb)
+verdict fragdb_handle(struct packet *pkt)
 {
 	/* The fragment collector skb belongs to. */
 	struct reassembly_buffer *buffer;
-	/* This is just a helper that allows us to quickly find buffer. */
-	struct reassembly_buffer_key key;
-	struct frag_hdr *hdr_frag = hdr_iterator_find(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
+	struct frag_hdr *hdr_frag = pkt_frag_hdr(pkt);
 	int error;
 
 	if (!is_fragmented_ipv6(hdr_frag))
-		return VER_CONTINUE;
+		return VERDICT_CONTINUE;
 
 	/*
 	 * Because the packet *is* fragmented, we know we're being compiled in kernel 3.12 or lower at
@@ -378,68 +322,54 @@ verdict fragdb_handle(struct sk_buff **skb)
 	 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 	WARN(true, "This code is supposed to be unreachable in kernels 3.13+! Please report.");
-	return VER_DROP;
+	return VERDICT_DROP;
 #endif
 
 	log_debug("Adding fragment to database.");
 
-	error = validate_skb(*skb);
+	error = validate_skb(pkt->skb);
 	if (error)
-		return VER_DROP;
-
-	error = skb_to_key(*skb, hdr_frag, &key);
-	if (error)
-		return VER_DROP;
+		return VERDICT_DROP;
 
 	spin_lock_bh(&table_lock);
 
-	buffer = buffer_get(&key);
-	if (!buffer)
-		goto lock_fail;
-
-	error = buffer_add_frag(buffer, *skb, hdr_frag);
-	if (error)
-		goto lock_fail;
+	buffer = add_pkt(pkt);
+	if (!buffer) {
+		spin_unlock_bh(&table_lock);
+		return VERDICT_DROP;
+	}
 
 	/*
 	 * nf_defrag_ipv6 is supposed to sort the fragments, so this condition should be all we need
 	 * to figure out whether we have all the fragments.
 	 * Otherwise we'd need to keep track of holes. If you ever find yourself needing to add hole
-	 * logic, keep in mind that this module used to do that in Jool 3.2.2, so you might be able
+	 * logic, keep in mind that this module used to do that in Jool 3.2, so you might be able
 	 * to reuse it.
 	 */
 	if (is_more_fragments_set_ipv6(hdr_frag)) {
 		spin_unlock_bh(&table_lock);
-		return VER_STOLEN;
+		return VERDICT_STOLEN;
 	}
 
-	*skb = buffer->skb;
-	buffer->skb = NULL;
-	buffer_destroy(&key, buffer);
+	*pkt = buffer->pkt;
+	buffer->pkt.skb = NULL;
+	/* Note, at this point, buffer->pkt is invalid. Do not use. */
+	buffer_destroy(buffer, pkt);
 	spin_unlock_bh(&table_lock);
 
-	if (!skb_make_writable(*skb, skb_l3hdr_len(*skb)))
-		return VER_DROP;
+	if (!skb_make_writable(pkt->skb, pkt_l3hdr_len(pkt)))
+		return VERDICT_DROP;
 	/* Why this? Dunno, both defrags do it when they support frag_list. */
-	ipv6_hdr(*skb)->payload_len = cpu_to_be16((*skb)->len - sizeof(struct ipv6hdr));
+	pkt_ip6_hdr(pkt)->payload_len = cpu_to_be16(pkt->skb->len - sizeof(struct ipv6hdr));
 	/*
 	 * The kernel's defrag also removes the fragment header.
 	 * That actually harms us, so we don't mirror it. Instead, we make the fragment atomic.
 	 * The rest of Jool must assume the packet might have a redundant fragment header.
 	 */
-	hdr_frag = hdr_iterator_find(ipv6_hdr(*skb), NEXTHDR_FRAGMENT);
-	hdr_frag->frag_off &= cpu_to_be16(~IP6_MF);
-
-#ifdef BENCHMARK
-	getnstimeofday(&skb_jcb(*skb)->start_time);
-#endif
+	pkt_frag_hdr(pkt)->frag_off &= cpu_to_be16(~IP6_MF);
 
 	log_debug("All the fragments are now available. Resuming translation...");
-	return VER_CONTINUE;
-
-lock_fail:
-	spin_unlock_bh(&table_lock);
-	return VER_DROP;
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -449,6 +379,5 @@ void fragdb_destroy(void)
 {
 	del_timer_sync(&expire_timer);
 	fragdb_table_empty(&table, buffer_dealloc);
-
 	kmem_cache_destroy(buffer_cache);
 }

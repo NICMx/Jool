@@ -14,23 +14,23 @@
  * Creates in "out" a packet which other functions will fill with the IPv6 version of the IPv4
  * packet "in".
  */
-verdict ttp46_create_skb(struct sk_buff *in, struct sk_buff **out);
+verdict ttp46_create_skb(struct packet *in, struct packet *out);
 /**
  * Translates "in"'s IPv4 header into IPv6 and places the result in "out".
  */
-verdict ttp46_ipv6(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out);
+verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out);
 /**
  * Translates "in"'s ICMPv4 header and payload into ICMPv6 and payload, and places the result in
  * "out".
  */
-verdict ttp46_icmp(struct tuple* tuple6, struct sk_buff *in, struct sk_buff *out);
+verdict ttp46_icmp(struct tuple* tuple6, struct packet *in, struct packet *out);
 /**
  * Translates "in"'s TCP header and payload, and places the result in "out".
  */
-verdict ttp46_tcp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out);
+verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out);
 /**
  * Translates "in"'s UDP header and payload, and places the result in "out".
  */
-verdict ttp46_udp(struct tuple *tuple6, struct sk_buff *in, struct sk_buff *out);
+verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out);
 
 #endif /* _JOOL_MOD_RFC6145_4TO6_H */

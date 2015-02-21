@@ -316,7 +316,8 @@ static int compare_full4(const struct session_entry *session, const struct tuple
  */
 static void send_probe_packet(struct session_entry *session)
 {
-	struct sk_buff* skb;
+	struct packet pkt;
+	struct sk_buff *skb;
 	struct ipv6hdr *iph;
 	struct tcphdr *th;
 	int error;
@@ -371,13 +372,12 @@ static void send_probe_packet(struct session_entry *session)
 			csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	skb_set_jcb(skb, L3PROTO_IPV6, L4PROTO_TCP, false, th + 1, NULL);
+	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
 
-	error = route6(skb);
+	error = route6(&pkt);
 	if (error)
 		goto fail;
 
-	skb_clear_cb(skb);
 	error = ip6_local_out(skb);
 	if (error) {
 		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
@@ -1269,10 +1269,10 @@ int sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix)
  * Filtering and updating done during the V4 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *session,
+static int tcp_v4_init_state_handle(struct packet *pkt, struct session_entry *session,
 		struct expire_timer **expirer)
 {
-	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->syn) {
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		*expirer = set_timer(session, &expirer_tcp_est);
 		session->state = ESTABLISHED;
 	} /* else, the state remains unchanged. */
@@ -1284,11 +1284,11 @@ static int tcp_v4_init_state_handle(struct sk_buff *skb, struct session_entry *s
  * Filtering and updating done during the V6 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v6_init_state_handle(struct sk_buff *skb, struct session_entry *session,
+static int tcp_v6_init_state_handle(struct packet *pkt, struct session_entry *session,
 		struct expire_timer **expirer)
 {
-	if (tcp_hdr(skb)->syn) {
-		switch (skb_l3_proto(skb)) {
+	if (pkt_tcp_hdr(pkt)->syn) {
+		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			*expirer = set_timer(session, &expirer_tcp_est);
 			session->state = ESTABLISHED;
@@ -1306,11 +1306,11 @@ static int tcp_v6_init_state_handle(struct sk_buff *skb, struct session_entry *s
  * Filtering and updating done during the ESTABLISHED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_established_state_handle(struct sk_buff *skb, struct session_entry *session,
+static int tcp_established_state_handle(struct packet *pkt, struct session_entry *session,
 		struct expire_timer **expirer)
 {
-	if (tcp_hdr(skb)->fin) {
-		switch (skb_l3_proto(skb)) {
+	if (pkt_tcp_hdr(pkt)->fin) {
+		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
 			break;
@@ -1319,7 +1319,7 @@ static int tcp_established_state_handle(struct sk_buff *skb, struct session_entr
 			break;
 		}
 
-	} else if (tcp_hdr(skb)->rst) {
+	} else if (pkt_tcp_hdr(pkt)->rst) {
 		*expirer = set_timer(session, &expirer_tcp_trans);
 		session->state = TRANS;
 	} else {
@@ -1333,10 +1333,10 @@ static int tcp_established_state_handle(struct sk_buff *skb, struct session_entr
  * Filtering and updating done during the V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session,
+static int tcp_v4_fin_rcv_state_handle(struct packet *pkt, struct session_entry *session,
 		struct expire_timer **expirer)
 {
-	if (skb_l3_proto(skb) == L3PROTO_IPV6 && tcp_hdr(skb)->fin) {
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		*expirer = set_timer(session, &expirer_tcp_trans);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
@@ -1349,10 +1349,10 @@ static int tcp_v4_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry
  * Filtering and updating done during the V6 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v6_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry *session,
+static int tcp_v6_fin_rcv_state_handle(struct packet *pkt, struct session_entry *session,
 		struct expire_timer **expirer)
 {
-	if (skb_l3_proto(skb) == L3PROTO_IPV4 && tcp_hdr(skb)->fin) {
+	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		*expirer = set_timer(session, &expirer_tcp_trans);
 		session->state = V4_FIN_V6_FIN_RCV;
 	} else {
@@ -1365,7 +1365,7 @@ static int tcp_v6_fin_rcv_state_handle(struct sk_buff *skb, struct session_entry
  * Filtering and updating done during the V6 FIN + V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff *skb,
+static int tcp_v4_fin_v6_fin_rcv_state_handle(struct packet *pkt,
 		struct session_entry *session)
 {
 	return 0; /* Only the timeout can change this state. */
@@ -1375,10 +1375,10 @@ static int tcp_v4_fin_v6_fin_rcv_state_handle(struct sk_buff *skb,
  * Filtering and updating done during the TRANS state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *session,
+static int tcp_trans_state_handle(struct packet *pkt, struct session_entry *session,
 		struct expire_timer **expirer)
 {
-	if (!tcp_hdr(skb)->rst) {
+	if (!pkt_tcp_hdr(pkt)->rst) {
 		*expirer = set_timer(session, &expirer_tcp_est);
 		session->state = ESTABLISHED;
 	}
@@ -1386,7 +1386,7 @@ static int tcp_trans_state_handle(struct sk_buff *skb, struct session_entry *ses
 	return 0;
 }
 
-int sessiondb_tcp_state_machine(struct sk_buff *skb, struct session_entry *session)
+int sessiondb_tcp_state_machine(struct packet *pkt, struct session_entry *session)
 {
 	struct expire_timer *expirer = NULL;
 	int error;
@@ -1395,25 +1395,25 @@ int sessiondb_tcp_state_machine(struct sk_buff *skb, struct session_entry *sessi
 
 	switch (session->state) {
 	case V4_INIT:
-		error = tcp_v4_init_state_handle(skb, session, &expirer);
+		error = tcp_v4_init_state_handle(pkt, session, &expirer);
 		break;
 	case V6_INIT:
-		error = tcp_v6_init_state_handle(skb, session, &expirer);
+		error = tcp_v6_init_state_handle(pkt, session, &expirer);
 		break;
 	case ESTABLISHED:
-		error = tcp_established_state_handle(skb, session, &expirer);
+		error = tcp_established_state_handle(pkt, session, &expirer);
 		break;
 	case V4_FIN_RCV:
-		error = tcp_v4_fin_rcv_state_handle(skb, session, &expirer);
+		error = tcp_v4_fin_rcv_state_handle(pkt, session, &expirer);
 		break;
 	case V6_FIN_RCV:
-		error = tcp_v6_fin_rcv_state_handle(skb, session, &expirer);
+		error = tcp_v6_fin_rcv_state_handle(pkt, session, &expirer);
 		break;
 	case V4_FIN_V6_FIN_RCV:
-		error = tcp_v4_fin_v6_fin_rcv_state_handle(skb, session);
+		error = tcp_v4_fin_v6_fin_rcv_state_handle(pkt, session);
 		break;
 	case TRANS:
-		error = tcp_trans_state_handle(skb, session, &expirer);
+		error = tcp_trans_state_handle(pkt, session, &expirer);
 		break;
 	default:
 		/*

@@ -39,8 +39,8 @@
  * @author Alberto Leiva
  */
 
+#include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/session_db.h"
-#include <linux/skbuff.h>
 
 /**
  * Call during initialization for the remaining functions to work properly.
@@ -54,7 +54,7 @@ void pktqueue_destroy(void);
 /**
  * Stores packet "skb", associating it with "session".
  */
-int pktqueue_add(struct session_entry *session, struct sk_buff *skb);
+int pktqueue_add(struct session_entry *session, struct packet *pkt);
 /**
  * Sends "session"'s reply and removes it from the DB.
  */

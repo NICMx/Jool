@@ -15,23 +15,23 @@
  * Creates in "out" a packet which other functions will fill with the IPv4 version of the IPv6
  * packet "in".
  */
-verdict ttp64_create_skb(struct sk_buff *in, struct sk_buff **out);
+verdict ttp64_create_skb(struct packet *in, struct packet *out);
 /**
  * Translates "in"'s IPv6 header into IPv4 and places the result in "out".
  */
-verdict ttp64_ipv4(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out);
+verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out);
 /**
  * Translates "in"'s ICMPv6 header and payload into ICMPv4 and payload, and places the result in
  * "out".
  */
-verdict ttp64_icmp(struct tuple* tuple4, struct sk_buff *in, struct sk_buff *out);
+verdict ttp64_icmp(struct tuple* tuple4, struct packet *in, struct packet *out);
 /**
  * Translates "in"'s TCP header and payload, and places the result in "out".
  */
-verdict ttp64_tcp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out);
+verdict ttp64_tcp(struct tuple *tuple4, struct packet *in, struct packet *out);
 /**
  * Translates "in"'s UDP header and payload, and places the result in "out".
  */
-verdict ttp64_udp(struct tuple *tuple4, struct sk_buff *in, struct sk_buff *out);
+verdict ttp64_udp(struct tuple *tuple4, struct packet *in, struct packet *out);
 
 #endif /* _JOOL_MOD_RFC6145_6TO4_H */

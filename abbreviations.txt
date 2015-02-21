@@ -12,8 +12,7 @@ out = outgoing (Not "outer")
 alloc = memory allocation
 addr = address
 aux = auxiliar function
-cb = control buffer (section in skbs where we store metadata)
-	-> Except in Netlink functions, where it means "callback" (synonym for "fn").
+cb = callback (synonym for "fn")
 comm = common
 csum = checksum
 def = default

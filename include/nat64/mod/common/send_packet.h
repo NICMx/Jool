@@ -14,7 +14,15 @@
  * @author Alberto Leiva
  */
 
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
+
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/packet.h"
+
+#define NF_IP_PRI_JOOL (NF_IP_PRI_NAT_DST + 25)
+#define NF_IP6_PRI_JOOL (NF_IP6_PRI_NAT_DST + 25)
+
 
 /**
  * Puts "out_skb" on the network.
@@ -25,7 +33,7 @@
  *
  * "in_skb" is used to hack fragmentation needed ICMP errors if necessary.
  */
-verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb);
+verdict sendpkt_send(struct packet *in, struct packet *out);
 
 
 #endif /* _JOOL_MOD_SEND_PACKET_H */

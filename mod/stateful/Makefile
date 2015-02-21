@@ -34,7 +34,6 @@ insert:
 	dmesg
 
 remove:
-	-sudo ip link del nat64
 	-sudo rmmod jool_stateful.ko
 	-sudo modprobe -r nf_defrag_ipv6
 	-sudo modprobe -r nf_defrag_ipv4

@@ -11,12 +11,12 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/packet.h"
 
 /**
  * Computes the addresses of "in"'s opposite layer-3 protocol.
  * "out" is filled with these addresses.
  */
-verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct sk_buff *skb_in);
+verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pkt_in);
 
 #endif /* _JOOL_MOD_OUTGOING_H */

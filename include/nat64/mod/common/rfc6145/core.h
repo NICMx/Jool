@@ -15,12 +15,10 @@
 #include <linux/ip.h>
 #include <linux/skbuff.h>
 #include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/types.h"
 
 /**
  * Actual translation of "in" into "out".
  */
-verdict translating_the_packet(struct tuple *out_tuple, struct sk_buff *in,
-		struct sk_buff **output);
+verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struct packet *out);
 
 #endif /* _JOOL_MOD_RFC6145_CORE_H */

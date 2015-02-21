@@ -2,7 +2,7 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/stateful/session_db.h"
 
-verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct sk_buff *skb_in)
+verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pkt_in)
 {
 	struct session_entry *session;
 	int error;
@@ -16,8 +16,8 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct sk_buff *s
 		 * so it's not critical.
 		 */
 		log_debug("Error code %d while trying to find the packet's session entry.", error);
-		inc_stats(skb_in, IPSTATS_MIB_INNOROUTES);
-		return VER_DROP;
+		inc_stats(pkt_in, IPSTATS_MIB_INNOROUTES);
+		return VERDICT_DROP;
 	}
 
 	/*
@@ -63,5 +63,5 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct sk_buff *s
 	log_tuple(out);
 
 	log_debug("Done step 3.");
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }

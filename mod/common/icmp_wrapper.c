@@ -111,22 +111,18 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 	icmpv6_send(skb, type, code, info);
 }
 
-void icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
+void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 {
-	struct sk_buff *prev, *next;
-	struct jool_cb cb;
+	struct sk_buff *skb;
 
-	skb = skb_original_skb(skb);
-
-	if (!skb || !skb->dev)
+	if (unlikely(!pkt))
 		return;
-
-	/* We're going to use kernel functions, so let's clean our garbage first. */
-	prev = skb->prev;
-	next = skb->next;
-	memcpy(&cb, &skb->cb, sizeof(cb));
-	skb->prev = skb->next = NULL;
-	skb_clear_cb(skb);
+	pkt = pkt_original_pkt(pkt);
+	if (unlikely(!pkt))
+		return;
+	skb = pkt->skb;
+	if (unlikely(!skb) || !skb->dev)
+		return;
 
 	/* Send the error. */
 	switch (ntohs(skb->protocol)) {
@@ -137,9 +133,4 @@ void icmp64_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 		icmp6_send(skb, error, info);
 		break;
 	}
-
-	/* Return our garbage, to make this function side-effect free. */
-	skb->prev = prev;
-	skb->next = next;
-	memcpy(&skb->cb, &cb, sizeof(cb));
 }

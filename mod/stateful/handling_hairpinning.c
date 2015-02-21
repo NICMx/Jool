@@ -13,9 +13,9 @@
  * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
  * @return whether pkt is a hairpin packet.
  */
-bool is_hairpin(struct sk_buff *skb)
+bool is_hairpin(struct packet *pkt)
 {
-	return (skb_l3_proto(skb) == L3PROTO_IPV4) ? pool4_contains(ip_hdr(skb)->daddr) : false;
+	return (pkt_l3_proto(pkt) == L3PROTO_IPV4) ? pool4_contains(pkt_ip4_hdr(pkt)->daddr) : false;
 }
 
 /**
@@ -26,15 +26,15 @@ bool is_hairpin(struct sk_buff *skb)
  * @param tuple_in skb_in's tuple.
  * @return whether we managed to U-turn the packet successfully.
  */
-verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
+verdict handling_hairpinning(struct packet *in, struct tuple *tuple_in)
 {
-	struct sk_buff *skb_out;
+	struct packet out;
 	struct tuple tuple_out;
 	verdict result;
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	if (skb_l4_proto(skb_in) == L4PROTO_ICMP) {
+	if (pkt_l4_proto(in) == L4PROTO_ICMP) {
 		/*
 		 * RFC 6146 section 2 (Definition of "Hairpinning").
 		 *
@@ -47,22 +47,22 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 		 * TODO (warning) we need to investigate this crash further.
 		 */
 		log_debug("ICMP is not supported by hairpinning. Dropping packet...");
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 
-	result = filtering_and_updating(skb_in, tuple_in);
-	if (result != VER_CONTINUE)
+	result = filtering_and_updating(in, tuple_in);
+	if (result != VERDICT_CONTINUE)
 		return result;
-	result = compute_out_tuple(tuple_in, &tuple_out, skb_in);
-	if (result != VER_CONTINUE)
+	result = compute_out_tuple(tuple_in, &tuple_out, in);
+	if (result != VERDICT_CONTINUE)
 		return result;
-	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
-	if (result != VER_CONTINUE)
+	result = translating_the_packet(&tuple_out, in, &out);
+	if (result != VERDICT_CONTINUE)
 		return result;
-	result = sendpkt_send(skb_in, skb_out);
-	if (result != VER_CONTINUE)
+	result = sendpkt_send(in, &out);
+	if (result != VERDICT_CONTINUE)
 		return result;
 
 	log_debug("Done step 5.");
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }

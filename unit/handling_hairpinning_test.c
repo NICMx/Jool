@@ -55,18 +55,7 @@
 
 static bool send(struct sk_buff *skb_in)
 {
-	struct sk_buff *skb_tmp;
-	bool success = true;
-
-	while (skb_in) {
-		skb_tmp = skb_in->next;
-		skb_in->next = skb_in->prev = NULL;
-		skb_clear_cb(skb_in);
-		success &= assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Function result");
-		skb_in = skb_tmp;
-	}
-
-	return success;
+	return assert_equals_int(NF_STOLEN, core_6to4(skb_in), "Function result");
 }
 
 static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)

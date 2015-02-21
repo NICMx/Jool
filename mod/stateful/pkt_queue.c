@@ -16,7 +16,7 @@ struct packet_node {
 	/** The packet's session entry. */
 	struct session_entry *session;
 	/** The packet. */
-	struct sk_buff *skb;
+	struct packet *pkt;
 
 	/** Links this packet to the tree. See "packets". */
 	struct rb_node tree_hook;
@@ -60,7 +60,7 @@ static int compare_fn(const struct packet_node *node, struct session_entry *sess
 	return gap;
 }
 
-int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
+int pktqueue_add(struct session_entry *session, struct packet *pkt)
 {
 	struct packet_node *node;
 	unsigned int max_pkts;
@@ -68,7 +68,7 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 
 	if (WARN(!session, "Cannot insert a packet with a NULL session."))
 		return -EINVAL;
-	if (WARN(!skb, "Cannot insert NULL as a packet."))
+	if (WARN(!pkt, "Cannot insert NULL as a packet."))
 		return -EINVAL;
 
 	max_pkts = config_get_max_pkts();
@@ -80,7 +80,7 @@ int pktqueue_add(struct session_entry *session, struct sk_buff *skb)
 	}
 
 	node->session = session;
-	node->skb = skb_original_skb(skb);
+	node->pkt = pkt_original_pkt(pkt);
 	RB_CLEAR_NODE(&node->tree_hook);
 
 	spin_lock_bh(&packets_lock);
@@ -129,8 +129,8 @@ int pktqueue_send(struct session_entry *session)
 
 	spin_unlock_bh(&packets_lock);
 
-	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
-	kfree_skb(node->skb);
+	icmp64_send(node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
+	kfree_skb(node->pkt->skb);
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
@@ -156,8 +156,8 @@ static void pktqueue_destroy_aux(struct rb_node *hook)
 	struct packet_node *node;
 	node = rb_entry(hook, struct packet_node, tree_hook);
 
-	icmp64_send(node->skb, ICMPERR_PORT_UNREACHABLE, 0);
-	kfree_skb(node->skb);
+	icmp64_send(node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
+	kfree_skb(node->pkt->skb);
 	kmem_cache_free(node_cache, node);
 }
 
@@ -185,7 +185,7 @@ int pktqueue_remove(struct session_entry *session)
 	rb_erase(&node->tree_hook, &packets);
 	packet_count--;
 	spin_unlock_bh(&packets_lock);
-	kfree_skb(node->skb);
+	kfree_skb(node->pkt->skb);
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 

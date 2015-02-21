@@ -13,12 +13,12 @@
  * have to worry about handling fragments differently depending on kernel version.
  */
 
-#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/packet.h"
 
 
 int fragdb_init(void);
 
-verdict fragdb_handle(struct sk_buff **skb);
+verdict fragdb_handle(struct packet *pkt);
 
 void fragdb_destroy(void);
 

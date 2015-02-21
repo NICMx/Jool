@@ -5,7 +5,6 @@
 #include <linux/version.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/mutex.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
 #include <linux/ip.h>
@@ -18,25 +17,16 @@
 #include <net/netlink.h>
 
 #include "types.h"
-#include "ipv6_hdr_iterator.h"
 #include "send_packet.h"
 #include "receiver.h"
 #include "skb_ops.h"
+#include "nat64/mod/common/ipv6_hdr_iterator.h"
 
 
 /**
  * Socket the userspace application will speak to.
  */
 static struct sock *nl_socket;
-
-/**
- * A lock, used to avoid sync issues when receiving messages from userspace.
- *
- * This was already here when I joined this project, but AFAIK this is only used to protect RCU
- * updating code. -- ydahhrk
- */
-/* TODO: dhernandez I guess this might not be necessary, check function receive_from_usrspace().
-static DEFINE_MUTEX(my_mutex);*/
 
 /**
  * Use this when data_len is known to be smaller than BUFFER_SIZE.
@@ -277,9 +267,7 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 static void receive_from_userspace(struct sk_buff *skb)
 {
 	log_debug("Message arrived.");
-//	mutex_lock(&my_mutex);
 	netlink_rcv_skb(skb, &handle_netlink_message);
-//	mutex_unlock(&my_mutex);
 }
 
 int config_init(void)

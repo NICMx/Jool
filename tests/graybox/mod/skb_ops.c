@@ -6,7 +6,7 @@
 #include <net/ipv6.h>
 
 #include "types.h"
-#include "ipv6_hdr_iterator.h"
+#include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "send_packet.h"
 
 struct bytes {
@@ -67,16 +67,11 @@ static bool has_same_ipv4_address(struct iphdr *expected, struct iphdr *actual)
 static int net_hdr_size(void *pkt)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT((struct ipv6hdr *) pkt);
-	enum hdr_iterator_result result;
 	struct iphdr *hdr4 = pkt;
 
 	switch (get_l3_proto(pkt)) {
 	case 6:
-		result = hdr_iterator_last(&iterator);
-		if (result != HDR_ITERATOR_END) {
-			log_err("Invalid network header found while iterating.");
-			return -EINVAL;
-		}
+		hdr_iterator_last(&iterator);
 		return iterator.data - pkt;
 
 	case 4:

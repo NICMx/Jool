@@ -7,78 +7,74 @@
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/log_time.h"
 
-static unsigned int get_nexthop_mtu(struct sk_buff *skb)
+static unsigned int get_nexthop_mtu(struct packet *pkt)
 {
 #ifndef UNIT_TESTING
-	return skb_dst(skb)->dev->mtu;
+	return skb_dst(pkt->skb)->dev->mtu;
 #else
 	return 1500;
 #endif
 }
 
-static int whine_if_too_big(struct sk_buff *in_skb, struct sk_buff *out_skb)
+static int whine_if_too_big(struct packet *in, struct packet *out)
 {
 	unsigned int len;
 	unsigned int mtu;
 
-	if (skb_l3_proto(in_skb) == L3PROTO_IPV4 && !is_dont_fragment_set(ip_hdr(in_skb)))
+	if (pkt_l3_proto(in) == L3PROTO_IPV4 && !is_dont_fragment_set(pkt_ip4_hdr(in)))
 		return 0;
 
-	len = skb_len(out_skb);
-	mtu = get_nexthop_mtu(out_skb);
+	len = pkt_len(out);
+	mtu = get_nexthop_mtu(out);
 	if (len > mtu) {
 		/*
 		 * We don't have to worry about ICMP errors causing this because the translate code already
 		 * truncates them.
 		 */
 		log_debug("Packet is too big (len: %u, mtu: %u).", len, mtu);
-		icmp64_send(out_skb, ICMPERR_FRAG_NEEDED, mtu);
+		icmp64_send(out, ICMPERR_FRAG_NEEDED, mtu);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
+verdict sendpkt_send(struct packet *in, struct packet *out)
 {
-	struct sk_buff *skb;
 	int error;
 
 #ifdef BENCHMARK
-	logtime(out_skb);
+	logtime(out);
 #endif
 
-	if (!out_skb->dev) {
-		error = route(out_skb);
+	if (!out->skb->dev) {
+		error = route(out);
 		if (error) {
-			kfree_skb(out_skb);
-			return VER_DROP;
+			kfree_skb(out->skb);
+			return VERDICT_DROP;
 		}
 	}
 
-	log_debug("Sending skb via device '%s'.", out_skb->dev->name);
+	log_debug("Sending skb via device '%s'", out->skb->dev->name);
 
-	error = whine_if_too_big(in_skb, out_skb);
+	error = whine_if_too_big(in, out);
 	if (error) {
-		kfree_skb(out_skb);
-		return VER_DROP;
+		kfree_skb(out->skb);
+		// skb = NULL?
+		return VERDICT_DROP;
 	}
-
-	skb_clear_cb(out_skb);
-	skb_walk_frags(out_skb, skb)
-		skb_clear_cb(skb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-	out_skb->ignore_df = true; /* FFS, kernel. */
+	out->skb->ignore_df = true; /* FFS, kernel. */
 #else
-	out_skb->local_df = true; /* FFS, kernel. */
+	out->skb->local_df = true; /* FFS, kernel. */
 #endif
 
-	error = dst_output(out_skb); /* Implicit kfree_skb(out_skb) goes here. */
+	error = dst_output(out->skb); /* Implicit kfree_skb(out->skb) goes here. */
 	if (error) {
 		log_debug("dst_output() returned errcode %d.", error);
-		return VER_DROP;
+		return VERDICT_DROP;
 	}
 
-	return VER_CONTINUE;
+	return VERDICT_CONTINUE;
 }

@@ -436,10 +436,10 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, struct tuple *, bool, bo
 
 	switch (l3_hdr_type) {
 	case ETH_P_IP:
-		error = skb_init_cb_ipv4(skb);
+		error = pkt_init_ipv4(skb);
 		break;
 	case ETH_P_IPV6:
-		error = skb_init_cb_ipv6(skb);
+		error = pkt_init_ipv6(skb);
 		break;
 	default:
 		error = -EINVAL;

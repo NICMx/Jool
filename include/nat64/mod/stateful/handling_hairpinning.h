@@ -11,12 +11,11 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/packet.h"
 
 
-bool is_hairpin(struct sk_buff *skb);
-verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in);
+bool is_hairpin(struct packet *pkt);
+verdict handling_hairpinning(struct packet *pkt, struct tuple *tuple_in);
 
 
 #endif /* _JOOL_MOD_HARPINNING_H */

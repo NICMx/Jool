@@ -15,6 +15,7 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/handling_hairpinning.h"
 #else
+#include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/pool4.h"
 #endif
 
@@ -26,35 +27,35 @@
 
 #ifdef STATEFUL
 
-static unsigned int core_common(struct sk_buff *skb_in)
+static unsigned int core_common(struct packet *in)
 {
-	struct sk_buff *skb_out;
+	struct packet out;
 	struct tuple tuple_in;
 	struct tuple tuple_out;
 	verdict result;
 
-	result = determine_in_tuple(skb_in, &tuple_in);
-	if (result != VER_CONTINUE)
+	result = determine_in_tuple(in, &tuple_in);
+	if (result != VERDICT_CONTINUE)
 		goto end;
-	result = filtering_and_updating(skb_in, &tuple_in);
-	if (result != VER_CONTINUE)
+	result = filtering_and_updating(in, &tuple_in);
+	if (result != VERDICT_CONTINUE)
 		goto end;
-	result = compute_out_tuple(&tuple_in, &tuple_out, skb_in);
-	if (result != VER_CONTINUE)
+	result = compute_out_tuple(&tuple_in, &tuple_out, in);
+	if (result != VERDICT_CONTINUE)
 		goto end;
-	result = translating_the_packet(&tuple_out, skb_in, &skb_out);
-	if (result != VER_CONTINUE)
+	result = translating_the_packet(&tuple_out, in, &out);
+	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	if (is_hairpin(skb_out)) {
-		result = handling_hairpinning(skb_out, &tuple_out);
-		kfree_skb(skb_out);
+	if (is_hairpin(&out)) {
+		result = handling_hairpinning(&out, &tuple_out);
+		kfree_skb(out.skb);
 	} else {
-		result = sendpkt_send(skb_in, skb_out);
+		result = sendpkt_send(in, &out);
 		/* send_pkt releases skb_out regardless of verdict. */
 	}
 
-	if (result != VER_CONTINUE)
+	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	log_debug("Success.");
@@ -65,8 +66,8 @@ static unsigned int core_common(struct sk_buff *skb_in)
 	 * Sending a replacing & translated version of the packet should not count as an error,
 	 * so we free the incoming packet ourselves and return NF_STOLEN on success.
 	 */
-	kfree_skb(skb_in);
-	result = VER_STOLEN;
+	kfree_skb(in->skb);
+	result = VERDICT_STOLEN;
 	/* Fall through. */
 
 end:
@@ -75,107 +76,106 @@ end:
 
 #else
 
-static unsigned int core_common(struct sk_buff *skb_in)
+static unsigned int core_common(struct packet *in)
 {
-	struct sk_buff *skb_out;
+	struct packet out;
 	verdict result;
 
-	result = translating_the_packet(NULL, skb_in, &skb_out);
-	if (result != VER_CONTINUE)
+	result = translating_the_packet(NULL, in, &out);
+	if (result != VERDICT_CONTINUE)
 		goto end;
-	result = sendpkt_send(skb_in, skb_out);
-	if (result != VER_CONTINUE)
+	result = sendpkt_send(in, &out);
+	if (result != VERDICT_CONTINUE)
 		goto end;
 
 	log_debug("Success.");
 	/* See the large comment above. */
-	kfree_skb(skb_in);
-	result = VER_STOLEN;
+	kfree_skb(in->skb);
+	result = VERDICT_STOLEN;
 	/* Fall through. */
 
 end:
-	if (result == VER_ACCEPT) {
+	if (result == VERDICT_ACCEPT)
 		log_debug("Returning the packet to the kernel.");
-		skb_clear_cb(skb_in);
-	}
 
 	return (unsigned int) result;
 }
 
 #endif
 
+/**
+ * If this function returns false, Jool is disabled (either explicitly or implicitly).
+ * Jool should not mangle any packets in this situation.
+ */
+static bool validate_status(void)
+{
+	if (config_get_is_disable())
+		return false;
+	if (pool6_is_empty())
+		return false;
+	if (pool4_is_empty())
+		return false;
+	return true;
+}
+
 unsigned int core_4to6(struct sk_buff *skb)
 {
+	struct packet pkt;
 	struct iphdr *hdr = ip_hdr(skb);
 	int error;
 
-	if (config_get_is_disable())
-		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
+	if (!validate_status())
+		return NF_ACCEPT; /* Let the packet pass. */
 
-#ifdef STATEFUL
-	if (!pool4_contains(hdr->daddr) || pool6_is_empty())
+	if (nat64_is_stateful() && !pool4_contains(hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
-#else
-	if (pool4_is_empty())
-		return NF_ACCEPT;
-#endif
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
-	error = skb_init_cb_ipv4(skb); /* Reminder: This function might change pointers. */
+	error = pkt_init_ipv4(&pkt, skb); /* Reminder: This function might change pointers. */
 	if (error)
 		return NF_DROP;
 
-	error = validate_icmp4_csum(skb);
+	error = validate_icmp4_csum(&pkt);
 	if (error) {
-		inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-		skb_clear_cb(skb);
+		inc_stats(&pkt, IPSTATS_MIB_INHDRERRORS);
 		return NF_DROP;
 	}
 
-	return core_common(skb);
+	return core_common(&pkt);
 }
 
 unsigned int core_6to4(struct sk_buff *skb)
 {
+	struct packet pkt;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	int error;
 
-#ifdef STATEFUL
-	verdict result;
-#endif
+	if (!validate_status())
+		return NF_ACCEPT; /* Let the packet pass. */
 
-	if (config_get_is_disable())
-			return NF_ACCEPT; /* Translation is disable; let the packet pass. */
-
-#ifdef STATEFUL
-	if (!pool6_contains(&hdr->daddr) || pool4_is_empty())
+	if (nat64_is_stateful() && !pool6_contains(&hdr->daddr))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
-#else
-	if (pool4_is_empty())
-		return NF_ACCEPT;
-#endif
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
-	error = skb_init_cb_ipv6(skb); /* Reminder: This function might change pointers. */
+	error = pkt_init_ipv6(&pkt, skb); /* Reminder: This function might change pointers. */
 	if (error)
 		return NF_DROP;
 
-#ifdef STATEFUL
-	result = fragdb_handle(&skb);
-	if (result != VER_CONTINUE)
-		return (unsigned int) result;
-#endif
+	if (nat64_is_stateful()) {
+		verdict result = fragdb_handle(&pkt);
+		if (result != VERDICT_CONTINUE)
+			return (unsigned int) result;
+	}
 
-	error = validate_icmp6_csum(skb);
+	error = validate_icmp6_csum(&pkt);
 	if (error) {
-		inc_stats(skb, IPSTATS_MIB_INHDRERRORS);
-		skb_clear_cb(skb);
+		inc_stats(&pkt, IPSTATS_MIB_INHDRERRORS);
 		return NF_DROP;
 	}
 
-	return core_common(skb);
+	return core_common(&pkt);
 }
