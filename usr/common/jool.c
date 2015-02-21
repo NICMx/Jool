@@ -20,6 +20,7 @@
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
+#include "nat64/usr/rfc6791.h"
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
 #include "nat64/usr/eam.h"
@@ -63,12 +64,6 @@ struct arguments {
 				bool addr4_set;
 			} bib;
 
-			struct {
-				struct ipv6_prefix prefix6;
-				bool pref6_set;
-				struct ipv4_prefix prefix4;
-				bool pref4_set;
-			} eamt;
 		} tables;
 
 	} db;
@@ -90,6 +85,7 @@ enum argp_flags {
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
 	ARGP_EAMT = 'e',
+	ARGP_RFC6791 = 6791,
 	ARGP_LOGTIME = 'l',
 	ARGP_GENERAL = 'g',
 
@@ -114,10 +110,6 @@ enum argp_flags {
 	ARGP_CSV = 2022,
 	ARGP_BIB_IPV6 = 2020,
 	ARGP_BIB_IPV4 = 2021,
-
-	/* EAMT */
-	ARGP_EAM_IPV6 = 2030,
-	ARGP_EAM_IPV4 = 2031,
 
 	/* General */
 	ARGP_DROP_ADDR = 3000,
@@ -157,21 +149,29 @@ enum argp_flags {
  */
 static struct argp_option options[] =
 {
-	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 1 },
+	{ NULL, 0, NULL, 0, "Address specification: ", 1},
+	{ NULL, 0, NULL, OPTION_DOC, "Address may be specified as one IPv4 prefix/transport format "
+			"and/or one IPv6 prefix/transport format."},
+
+	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 2 },
 	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 pool." },
-	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 pool." },
+	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the "
+			"IPv4 pool." },
 #ifdef STATEFUL
 	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
 	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
 #else
 	{ "eamt", ARGP_EAMT, NULL, 0, "The command will operate on the EAM table."},
+	{ "errorAddress", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
 #endif
 #ifdef BENCHMARK
 	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
 #endif
-	{ "general", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous configuration "
+	{ "global", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous configuration "
 			"values (default)." },
-	{ NULL, 0, NULL, 0, "Operations:", 2 },
+	{ "general", 0, NULL, OPTION_ALIAS, ""},
+
+	{ NULL, 0, NULL, 0, "Operations:", 3 },
 	{ "display", ARGP_DISPLAY, NULL, 0, "Print the target (default)." },
 	{ "count", ARGP_COUNT, NULL, 0, "Print the number of elements in the target." },
 	{ "add", ARGP_ADD, NULL, 0, "Add an element to the target." },
@@ -180,21 +180,11 @@ static struct argp_option options[] =
 	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
 
 #ifdef STATEFUL
-	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 3 },
+	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 4 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
 		"Available on remove and flush operations only. " },
-#endif
 
-	{ NULL, 0, NULL, 0, "IPv6 Pool-only options:", 4 },
-	{ "prefix", ARGP_PREFIX, IPV6_PREFIX_FORMAT, 0, "The prefix to be added or removed. "
-			"Available on add and remove operations only." },
-
-	{ NULL, 0, NULL, 0, "IPv4 Pool-only options:", 5 },
-	{ "address", ARGP_ADDRESS, IPV4_ADDR_FORMAT, 0, "Address to be added or removed. "
-			"Available on add and remove operations only." },
-
-#ifdef STATEFUL
-	{ NULL, 0, NULL, 0, "BIB & Session options:", 6 },
+	{ NULL, 0, NULL, 0, "BIB & Session options:", 5 },
 	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
 	{ "tcp", ARGP_TCP, NULL, 0, "Operate on the TCP table." },
 	{ "udp", ARGP_UDP, NULL, 0, "Operate on the UDP table." },
@@ -203,25 +193,13 @@ static struct argp_option options[] =
 	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
 			"Available on display operation only."},
 
-	{ NULL, 0, NULL, 0, "BIB-only options:", 7 },
-	{ "bib6", ARGP_BIB_IPV6, IPV6_TRANSPORT_FORMAT, 0,
-			"This is the address#port of the remote IPv6 node of the entry to be added or removed. "
-			"Available on add and remove operations only." },
-	{ "bib4", ARGP_BIB_IPV4, IPV4_TRANSPORT_FORMAT, 0,
-			"This is the local IPv4 address#port of the entry to be added or removed. "
-			"Available on add and remove operations only." },
 #else
-	{ NULL, 0, NULL, 0, "EAMT only options:", 6 },
+	{ NULL, 0, NULL, 0, "EAMT only options:", 4 },
 	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
 			"Available on display operation only."},
-	{ "eam6", ARGP_EAM_IPV6, IPV6_PREFIX_FORMAT, 0,
-			"This is the IPv6 prefix node of the entry to be added or removed. "
-			"Available on add and remove operations only." },
-	{ "eam4", ARGP_EAM_IPV4, IPV4_PREFIX_FORMAT, 0,
-			"This is the IPv4 prefix of the entry to be added or removed. "
-			"Available on add and remove operations only." },
 #endif
-	{ NULL, 0, NULL, 0, "'Global' options:", 8 },
+
+	{ NULL, 0, NULL, 0, "'Global' options:", 6 },
 #ifdef STATEFUL
 	{ DROP_BY_ADDR_OPT, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
 			"Use Address-Dependent Filtering?" },
@@ -266,6 +244,21 @@ static struct argp_option options[] =
 			"incoming packets." },
 	{ DISABLE_TRANSLATION, ARGP_DISABLE_TRANSLATION, NULL, 0, "Disable Jool to translate "
 				"incoming packets." },
+
+	{ NULL, 0, NULL, 0, "Deprecated options:", 7 },
+	{ "prefix", ARGP_PREFIX, NULL, OPTION_NO_USAGE, "The prefix to be added or removed. "
+			"Available on add and remove operations only." },
+
+	{ "address", ARGP_ADDRESS, NULL, OPTION_NO_USAGE, "Address to be added or removed. "
+			"Available on add and remove operations only." },
+#ifdef STATEFUL
+	{ "bib6", ARGP_BIB_IPV6, NULL, OPTION_NO_USAGE,
+			"This is the address#port of the remote IPv6 node of the entry to be added or removed. "
+			"Available on add and remove operations only." },
+	{ "bib4", ARGP_BIB_IPV4, NULL, OPTION_NO_USAGE,
+			"This is the local IPv4 address#port of the entry to be added or removed. "
+			"Available on add and remove operations only." },
+#endif
 	{ NULL },
 };
 
@@ -368,6 +361,91 @@ static int set_global_u16_array(struct arguments *args, int type, char *value)
 	return error;
 }
 
+static int set_ipv4_prefix(struct arguments *args, char *str)
+{
+	int error;
+
+	if (args->db.pool4.addr_set) {
+		log_err("Can not set two IPv4 prefix.");
+		return -EINVAL;
+	}
+
+	if (strchr(str, '/') != 0){
+		error = str_to_ipv4_prefix(str, &args->db.pool4.addrs);
+		if (!error && nat64_is_stateful() && args->db.pool4.addrs.len < 16) {
+			log_debug("Warning: That's a lot of addresses. "
+					"Are you sure that /%u is not a typo?",
+					args->db.pool4.addrs.len);
+		}
+
+	} else {
+		error = str_to_addr4(str, &args->db.pool4.addrs.address);
+		args->db.pool4.addrs.len = 32;
+	}
+	args->db.pool4.addr_set = true;
+	return error;
+}
+
+static int set_ipv6_prefix(struct arguments *args, char *str)
+{
+	if (args->db.pool6.prefix_set) {
+		log_err("Can not set two IPv6 prefix.");
+		return -EINVAL;
+	}
+
+	args->db.pool6.prefix_set = true;
+	return str_to_ipv6_prefix(str, &args->db.pool6.prefix);
+}
+
+static int set_bib6(struct arguments *args, char *str)
+{
+	if (args->db.tables.bib.addr6_set) {
+		log_err("Can not set two BIB6.");
+		return -EINVAL;
+	}
+
+	args->db.tables.bib.addr6_set = true;
+	return str_to_addr6_port(str, &args->db.tables.bib.addr6);
+}
+
+static int set_bib4(struct arguments *args, char *str)
+{
+	if (args->db.tables.bib.addr4_set) {
+		log_err("Can not set two BIB4.");
+		return -EINVAL;
+	}
+
+	args->db.tables.bib.addr4_set = true;
+	return str_to_addr4_port(str, &args->db.tables.bib.addr4);
+}
+
+static int set_ip_args(struct arguments *args, char *str)
+{
+	int error;
+
+	if (!str)
+		return 0;
+
+	if (strlen(str) == 0)
+		return 0;
+
+	if (strchr(str, ':')) { /* This is supposed to be an IPv6 string. */
+		if (strchr(str, '#')) { /* Supposed to be a BIB entry. */
+			error = set_bib6(args, str);
+		} else { /* Just an IPv6 Prefix. */
+			error = set_ipv6_prefix(args, str);
+		}
+	} else { /* otherwise this is supposed to be an IPv4 string. */
+		if (strchr(str, '#')) { /* Supposed to be a BIB entry. */
+			error = set_bib4(args, str);
+		} else { /* Just an IPv4 Prefix */
+			error = set_ipv4_prefix(args, str);
+		}
+	}
+
+	return error;
+}
+
 /*
  * PARSER. Field 2 in ARGP.
  */
@@ -393,6 +471,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 #else
 	case ARGP_EAMT:
 		error = update_state(args, MODE_EAMT, EAMT_OPS);
+		break;
+	case ARGP_RFC6791:
+		error = update_state(args, MODE_RFC6791, RFC6791_OPS);
 		break;
 #endif
 #ifdef BENCHMARK
@@ -445,31 +526,14 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.tables.csv_format = true;
 		break;
 
-	case ARGP_PREFIX:
-		error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_ipv6_prefix(str, &args->db.pool6.prefix);
-		args->db.pool6.prefix_set = true;
-		break;
 	case ARGP_QUICK:
 		error = update_state(args, MODE_POOL6 | MODE_POOL4, OP_REMOVE | OP_FLUSH);
 		args->db.quick = true;
 		break;
 
 	case ARGP_BIB_IPV6:
-		error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_addr6_port(str, &args->db.tables.bib.addr6);
-		args->db.tables.bib.addr6_set = true;
 		break;
 	case ARGP_BIB_IPV4:
-		error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_addr4_port(str, &args->db.tables.bib.addr4);
-		args->db.tables.bib.addr4_set = true;
 		break;
 
 	case ARGP_DROP_ADDR:
@@ -501,52 +565,17 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_u64(args, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
 #else
-	case ARGP_PREFIX:
-		error = update_state(args, MODE_POOL6, OP_ADD | OP_UPDATE | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_ipv6_prefix(str, &args->db.pool6.prefix);
-		args->db.pool6.prefix_set = true;
-		break;
 	case ARGP_CSV:
 		error = update_state(args, MODE_EAMT, OP_DISPLAY);
 		args->db.tables.csv_format = true;
-		break;
-	case ARGP_EAM_IPV6:
-		error = update_state(args, MODE_EAMT, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_ipv6_prefix(str, &args->db.tables.eamt.prefix6);
-		args->db.tables.eamt.pref6_set = true;
-		break;
-	case ARGP_EAM_IPV4:
-		error = update_state(args, MODE_EAMT, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		error = str_to_ipv4_prefix(str, &args->db.tables.eamt.prefix4);
-		args->db.tables.eamt.pref4_set = true;
 		break;
 	case ARGP_COMPUTE_CSUM_ZERO:
 		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
 		break;
 #endif
+	case ARGP_PREFIX:
+		break;
 	case ARGP_ADDRESS:
-		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
-		if (error)
-			return error;
-		if (strchr(str, '/') != 0){
-			error = str_to_ipv4_prefix(str, &args->db.pool4.addrs);
-			if (!error && nat64_is_stateful() && args->db.pool4.addrs.len < 16) {
-				log_debug("Warning: That's a lot of addresses. "
-						"Are you sure that /%u is not a typo?",
-						args->db.pool4.addrs.len);
-			}
-
-		} else {
-			error = str_to_addr4(str, &args->db.pool4.addrs.address);
-			args->db.pool4.addrs.len = 32;
-		}
-		args->db.pool4.addr_set = true;
 		break;
 
 	case ARGP_RESET_TCLASS:
@@ -576,6 +605,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_DISABLE_TRANSLATION:
 		error = set_global_bool(args, DISABLE, "true");
 		break;
+	case ARGP_KEY_ARG:
+		error = set_ip_args(args, str);
+		break;
 	default:
 		error = ARGP_ERR_UNKNOWN;
 	}
@@ -587,13 +619,13 @@ static int parse_opt(int key, char *str, struct argp_state *state)
  * ARGS_DOC. Field 3 in ARGP.
  * A description of the non-option command-line arguments we accept.
  */
-static char args_doc[] = "";
+static char args_doc[] = "{address specification}";
 
 /*
  * DOC. Field 4 in ARGP.
  * Program documentation.
  */
-static char doc[] = "jool -- The Jool kernel module's configuration interface.\v";
+static char doc[] = "Jool -- The Jool kernel module's configuration interface.\v";
 
 /**
  * Zeroizes all of "num"'s bits, except the last one. Returns the result.
@@ -659,13 +691,13 @@ static int main_wrapped(int argc, char **argv)
 			return pool6_display();
 		case OP_ADD:
 			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be added (--prefix).");
+				log_err("Please enter the prefix to be added (%s).", IPV6_PREFIX_FORMAT);
 				return -EINVAL;
 			}
 			return pool6_add(&args.db.pool6.prefix);
 		case OP_REMOVE:
 			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be removed (--prefix).");
+				log_err("Please enter the prefix to be removed (%s).", IPV6_PREFIX_FORMAT);
 				return -EINVAL;
 			}
 			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
@@ -677,7 +709,7 @@ static int main_wrapped(int argc, char **argv)
 #else
 		case OP_UPDATE:
 			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be added (--prefix).");
+				log_err("Please enter the prefix to be added (%s).", IPV6_PREFIX_FORMAT);
 				return -EINVAL;
 			}
 			return pool6_update(&args.db.pool6.prefix);
@@ -696,13 +728,14 @@ static int main_wrapped(int argc, char **argv)
 			return pool4_count();
 		case OP_ADD:
 			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address or prefix to be added (--address).");
+				log_err("Please enter the address or prefix to be added (%s).", IPV4_PREFIX_FORMAT);
 				return -EINVAL;
 			}
 			return pool4_add(&args.db.pool4.addrs);
 		case OP_REMOVE:
 			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address or prefix to be removed (--address).");
+				log_err("Please enter the address or prefix to be removed (%s).",
+						IPV4_PREFIX_FORMAT);
 				return -EINVAL;
 			}
 			return pool4_remove(&args.db.pool4.addrs, args.db.quick);
@@ -726,11 +759,11 @@ static int main_wrapped(int argc, char **argv)
 		case OP_ADD:
 			error = 0;
 			if (!args.db.tables.bib.addr6_set) {
-				log_err("Missing IPv6 address#port (--bib6).");
+				log_err("Missing IPv6 address#port.");
 				error = -EINVAL;
 			}
 			if (!args.db.tables.bib.addr4_set) {
-				log_err("Missing IPv4 address#port (--bib4).");
+				log_err("Missing IPv4 address#port.");
 				error = -EINVAL;
 			}
 			if (error)
@@ -776,24 +809,51 @@ static int main_wrapped(int argc, char **argv)
 		case OP_COUNT:
 			return eam_count();
 		case OP_ADD:
-			if (!args.db.tables.eamt.pref6_set || !args.db.tables.eamt.pref4_set) {
+			if (!args.db.pool6.prefix_set || !args.db.pool4.addr_set) {
 				log_err("I need the IPv4 transport address and the IPv6 transport address of "
 						"the entry you want to add.");
 				return -EINVAL;
 			}
-			return eam_add(&args.db.tables.eamt.prefix6, &args.db.tables.eamt.prefix4);
+			return eam_add(&args.db.pool6.prefix, &args.db.pool4.addrs);
 		case OP_REMOVE:
-			if (!args.db.tables.eamt.pref6_set && !args.db.tables.eamt.pref4_set) {
+			if (!args.db.pool6.prefix_set || !args.db.pool4.addr_set) {
 				log_err("I need the IPv4 transport address and/or the IPv6 transport address of "
 						"the entry you want to remove.");
 				return -EINVAL;
 			}
-			return eam_remove(args.db.tables.eamt.pref6_set, &args.db.tables.eamt.prefix6,
-					args.db.tables.eamt.pref4_set, &args.db.tables.eamt.prefix4);
+			return eam_remove(args.db.pool6.prefix_set, &args.db.pool6.prefix,
+					args.db.pool4.addr_set, &args.db.pool4.addrs);
 		case OP_FLUSH:
 			return eam_flush();
 		default:
 			log_err("Unknown operation for session mode: %u.", args.op);
+			return -EINVAL;
+		}
+		break;
+
+	case MODE_RFC6791:
+		switch (args.op) {
+		case OP_DISPLAY:
+			return rfc6791_display();
+		case OP_COUNT:
+			return rfc6791_count();
+		case OP_ADD:
+			if (!args.db.pool4.addr_set) {
+				log_err("Please enter the address or prefix to be added (%s).", IPV4_PREFIX_FORMAT);
+				return -EINVAL;
+			}
+			return rfc6791_add(&args.db.pool4.addrs);
+		case OP_REMOVE:
+			if (!args.db.pool4.addr_set) {
+				log_err("Please enter the address or prefix to be removed (%s).",
+						IPV4_PREFIX_FORMAT);
+				return -EINVAL;
+			}
+			return rfc6791_remove(&args.db.pool4.addrs, args.db.quick);
+		case OP_FLUSH:
+			return rfc6791_flush(args.db.quick);
+		default:
+			log_err("Unknown operation for RFC6791 pool mode: %u.", args.op);
 			return -EINVAL;
 		}
 		break;

@@ -57,6 +57,8 @@ enum config_mode {
 #else
 	/** The current message is talking about the EAMT. */
 	MODE_EAMT = (1 << 6),
+	/** The current message is talking about the RFC6791. */
+	MODE_RFC6791 = (1 << 7),
 #endif
 #ifdef BENCHMARK
 	/** The current message is talking about log times for benchmark. */
@@ -77,6 +79,7 @@ enum config_mode {
 	#define POOL6_OPS (OP_DISPLAY | OP_ADD | OP_REMOVE | OP_UPDATE)
 #endif
 #define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+#define RFC6791_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
 #define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define LOGTIME_OPS (OP_DISPLAY)
@@ -120,14 +123,14 @@ enum config_operation {
 	#define UPDATE_MODES (MODE_GLOBAL)
 #else
 	#ifdef BENCHMARK
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_LOGTIME)
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_LOGTIME | MODE_RFC6791)
 	#else
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
+		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
 	#endif
-	#define COUNT_MODES (MODE_POOL4 | MODE_EAMT)
-	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
-	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT)
-	#define FLUSH_MODES (MODE_POOL4 | MODE_EAMT)
+	#define COUNT_MODES (MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
+	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
+	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
+	#define FLUSH_MODES (MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
 	#define UPDATE_MODES (MODE_POOL6 | MODE_GLOBAL)
 #endif
 /**

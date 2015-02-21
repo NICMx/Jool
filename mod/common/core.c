@@ -6,7 +6,6 @@
 #include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/common/config.h"
 
-#ifdef STATEFUL
 #include "nat64/mod/stateful/pool6.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/fragment_db.h"
@@ -14,10 +13,10 @@
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/handling_hairpinning.h"
-#else
 #include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/pool4.h"
-#endif
+#include "nat64/mod/stateless/eam.h"
+#include "nat64/mod/stateless/rfc6791.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -103,32 +102,22 @@ end:
 
 #endif
 
-/**
- * If this function returns false, Jool is disabled (either explicitly or implicitly).
- * Jool should not mangle any packets in this situation.
- */
-static bool validate_status(void)
-{
-	if (config_get_is_disable())
-		return false;
-	if (pool6_is_empty())
-		return false;
-	if (pool4_is_empty())
-		return false;
-	return true;
-}
-
 unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct packet pkt;
 	struct iphdr *hdr = ip_hdr(skb);
 	int error;
 
-	if (!validate_status())
-		return NF_ACCEPT; /* Let the packet pass. */
+	if (config_get_is_disable())
+		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
 
-	if (nat64_is_stateful() && !pool4_contains(hdr->daddr))
+#ifdef STATEFUL
+	if (!pool4_contains(hdr->daddr) || pool6_is_empty())
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+#else
+	if (!pool4_contains(hdr->daddr) || (pool6_is_empty() && eamt_is_empty()) || rfc6791_is_empty())
+		return NF_ACCEPT;
+#endif
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
@@ -152,11 +141,18 @@ unsigned int core_6to4(struct sk_buff *skb)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	int error;
 
-	if (!validate_status())
-		return NF_ACCEPT; /* Let the packet pass. */
+	if (config_get_is_disable())
+		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
 
-	if (nat64_is_stateful() && !pool6_contains(&hdr->daddr))
+#ifdef STATEFUL
+	if ((!pool6_contains(&hdr->daddr) || pool4_is_empty()))
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+#else
+	if (pool4_is_empty() || rfc6791_is_empty() ||
+			!((eamt_contains_ipv6(&hdr->saddr) || pool6_contains(&hdr->saddr)) &&
+			(eamt_contains_ipv6(&hdr->daddr) || pool6_contains(&hdr->daddr))))
+		return NF_ACCEPT;
+#endif
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);

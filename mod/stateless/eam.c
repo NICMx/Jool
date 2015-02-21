@@ -168,7 +168,7 @@ static int eam_ipv6_prefix_equal(struct eam_entry *eam, struct ipv6_prefix *pref
 	else
 		pref_len = prefix->len;
 
-	if (pref_len == 128)
+	if (pref_len == IPV6_PREFIX)
 		return false;
 
 	return ipv6_prefix_equal(&prefix->address, &eam->pref6.address, pref_len);
@@ -342,6 +342,56 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	return 0;
 }
 
+bool eamt_contains_ipv6(struct in6_addr *addr)
+{
+	struct ipv6_prefix prefix;
+	struct eam_entry *eam;
+
+	if (!addr) {
+		log_err("addr6 can't be NULL");
+		return false;
+	}
+
+	prefix.address = *addr;
+	prefix.len = IPV6_PREFIX;
+
+	spin_lock_bh(&eam_lock);
+	eam = rbtree_find(&prefix, &eam_table.EAMT_tree6, compare_prefix6, struct eam_entry,
+			tree6_hook);
+
+	if (!eam) {
+		spin_unlock_bh(&eam_lock);
+		return false;
+	}
+	spin_unlock_bh(&eam_lock);
+	return true;
+}
+
+bool eamt_contains_ipv4(struct in_addr *addr)
+{
+	struct ipv4_prefix prefix;
+	struct eam_entry *eam;
+
+	if (!addr) {
+		log_err("addr can't be NULL");
+		return false;
+	}
+
+	prefix.address = *addr;
+	prefix.len = IPV4_PREFIX;
+
+	spin_lock_bh(&eam_lock);
+	eam = rbtree_find(&prefix, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
+			tree4_hook);
+
+	if (!eam) {
+		spin_unlock_bh(&eam_lock);
+		return false;
+	}
+	spin_unlock_bh(&eam_lock);
+	return true;
+}
+
 int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
 {
 	struct ipv4_prefix prefix4;
@@ -357,7 +407,7 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
 
 	/* Find the entry. */
 	prefix4.address.s_addr = addr->s_addr;
-	prefix4.len = 32;
+	prefix4.len = IPV4_PREFIX;
 
 	spin_lock_bh(&eam_lock);
 	eam = rbtree_find(&prefix4, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
@@ -397,7 +447,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 	}
 
 	prefix6.address = *addr6;
-	prefix6.len = 128;
+	prefix6.len = IPV6_PREFIX;
 
 	spin_lock_bh(&eam_lock);
 	eam = rbtree_find(&prefix6, &eam_table.EAMT_tree6, compare_prefix6, struct eam_entry,

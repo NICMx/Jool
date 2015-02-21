@@ -98,7 +98,7 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 		return 0;
 	}
 
-	return -ENOENT;
+	return -ESRCH;
 }
 
 int pool6_peek(struct ipv6_prefix *result)
@@ -201,7 +201,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 
 bool pool6_is_empty(void)
 {
-	if (pool6)
+	if (rcu_dereference_bh(pool6))
 		return false;
 
 	return true;
