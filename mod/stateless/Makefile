@@ -24,8 +24,8 @@ insert:
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
 
 	# Insert and configure Jool a little bit.
-	sudo insmod jool_stateless.ko errorAddresses=192.0.2.128/25 pool6=2001:db8:100::/40 \
-	pool4=192.0.2.0/25
+	sudo insmod jool_stateless.ko errorAddresses=198.51.100.128/25 pool6=2001:db8::/96 \
+	pool4=198.51.100.0/25
 	dmesg
 
 remove:

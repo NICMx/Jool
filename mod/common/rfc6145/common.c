@@ -1,5 +1,6 @@
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/rfc6145/common.h"
 #include "nat64/mod/common/rfc6145/4to6.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
@@ -78,6 +79,14 @@ int copy_payload(struct sk_buff *in, struct sk_buff *out)
 	return error;
 }
 
+static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
+{
+	if (is_dont_fragment_set(in_hdr))
+		return false;
+
+	return config_get_build_ipv6_fh();
+}
+
 bool will_need_frag_hdr(struct iphdr *in_hdr)
 {
 	/*
@@ -99,19 +108,21 @@ bool will_need_frag_hdr(struct iphdr *in_hdr)
 	 * This introduces an unimportant mismatch with the RFC.
 	 * TODO (doc) document what it is and why it doesn't matter.
 	 */
-	if (nat64_is_stateful())
-		return false;
+	 /* if (nat64_is_stateful())
+		return false; */
 
 	/*
 	 * TODO (fine) RFC 6145 wants a flag here.
-	 * If the flag is false and DF is also false, the NAT64 should include a fragmentation header
+	 * If the flag is true and DF is false, the NAT64 should include a fragmentation header
 	 * regardless of fragmentation status (page 7).
 	 * I removed it on Jool 3.3 because it lead to atomic fragments.
 	 * The reason why this is not considered a problem is because experience has given the flag
 	 * a bad reputation (draft-gont-6man-deprecate-atomfrag-generation).
 	 * I've decided removing all that fragmentation code is worth not supporting that flag.
 	 */
-	return is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr);
+	/* TODO: (dhernandez): added the flag 23/02/2015 check comments. */
+	return build_ipv6_frag_hdr(in_hdr) || is_more_fragments_set_ipv4(in_hdr)
+			|| get_fragment_offset_ipv4(in_hdr);
 }
 
 static int move_pointers_in(struct sk_buff *skb, __u8 protocol, unsigned int l3hdr_len)
@@ -138,7 +149,7 @@ static int move_pointers_in(struct sk_buff *skb, __u8 protocol, unsigned int l3h
 		l4hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
-		/* TODO what abour OTHER? */
+		/* TODO what about OTHER? */
 		log_debug("Unknown l4 protocol: %u", protocol);
 		inc_stats(skb, IPSTATS_MIB_INUNKNOWNPROTOS);
 		return -EINVAL;

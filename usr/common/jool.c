@@ -124,6 +124,7 @@ enum argp_flags {
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
 	ARGP_DF = 4005,
+	ARGP_BUILD_FH = 4006,
 	ARGP_BUILD_ID = 4007,
 	ARGP_LOWER_MTU_FAIL = 4008,
 	ARGP_PLATEAUS = 4010,
@@ -131,6 +132,7 @@ enum argp_flags {
 	ARGP_ENABLE_TRANSLATION = 4013,
 	ARGP_DISABLE_TRANSLATION = 4014,
 	ARGP_COMPUTE_CSUM_ZERO = 4015,
+	ARGP_ATOMIC_FRAGMENTS = 4016,
 };
 
 #define NUM_FORMAT "NUM"
@@ -225,8 +227,12 @@ static struct argp_option options[] =
 			"Override IPv4 Type of Service?" },
 	{ NEW_TOS_OPT, ARGP_NEW_TOS, NUM_FORMAT, 0,
 			"Set the IPv4 Type of Service." },
+	{ ALLOW_ATOMIC_FRAGMENTS, ARGP_ATOMIC_FRAGMENTS, BOOL_FORMAT, 0,
+			"Allow atomic fragments?"},
 	{ DF_ALWAYS_ON_OPT, ARGP_DF, BOOL_FORMAT, 0,
 			"Always set Don't Fragment?" },
+	{ BUILD_IPV6_FRAG_HDR, ARGP_BUILD_FH, BOOL_FORMAT, 0,
+			"Include IPv6 Fragment Header when IPv4 Packet DF Flag is not set."},
 	{ BUILD_IPV4_ID_OPT, ARGP_BUILD_ID, BOOL_FORMAT, 0,
 			"Generate IPv4 ID?" },
 	{ LOWER_MTU_FAIL_OPT, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
@@ -590,6 +596,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_DF:
 		error = set_global_bool(args, DF_ALWAYS_ON, str);
 		break;
+	case ARGP_BUILD_FH:
+		error = set_global_bool(args, BUILD_IPV6_FH, str);
+		break;
 	case ARGP_BUILD_ID:
 		error = set_global_bool(args, BUILD_IPV4_ID, str);
 		break;
@@ -604,6 +613,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_DISABLE_TRANSLATION:
 		error = set_global_bool(args, DISABLE, "true");
+		break;
+	case ARGP_ATOMIC_FRAGMENTS:
+		error = set_global_bool(args, ATOMIC_FRAGMENTS, str);
 		break;
 	case ARGP_KEY_ARG:
 		error = set_ip_args(args, str);

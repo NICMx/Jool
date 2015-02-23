@@ -119,7 +119,8 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (!pool4_contains(hdr->daddr) || pool6_is_empty())
 		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
 #else
-	if (!pool4_contains(hdr->daddr) || (pool6_is_empty() && eamt_is_empty()) || rfc6791_is_empty())
+	if (!(pool4_contains(hdr->daddr) || eamt_contains_ipv4(hdr->daddr)) || pool6_is_empty()
+			|| rfc6791_is_empty())
 		return NF_ACCEPT;
 #endif
 

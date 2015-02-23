@@ -40,6 +40,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			conf->translate.new_tos);
 	printf("DF flag always on (--%s): %s\n", DF_ALWAYS_ON_OPT,
 			conf->translate.df_always_on ? "ON" : "OFF");
+	printf("Generate IPv6 Fragment Header (--%s): %s\n", BUILD_IPV6_FRAG_HDR,
+			conf->translate.build_ipv6_fh ? "ON" : "OFF");
 	printf("Generate IPv4 identification (--%s): %s\n", BUILD_IPV4_ID_OPT,
 			conf->translate.build_ipv4_id ? "ON" : "OFF");
 	printf("Decrease MTU failure rate (--%s): %s\n", LOWER_MTU_FAIL_OPT,
@@ -62,7 +64,7 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			conf->translate.compute_udp_csum_zero ? "ON" : "OFF");
 #endif
 	printf("Jool Status: %s\n", conf->translate.jool_status ? "Enable" : "Disable");
-	printf("Is Jool Disable: %s\n", conf->translate.is_disable ? "True" : "False");
+	printf("Manually disabled: %s\n", conf->translate.is_disable ? "True" : "False");
 
 	return 0;
 }

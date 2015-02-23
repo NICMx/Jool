@@ -32,6 +32,8 @@
 
 #define COMPUTE_UDP_CSUM		"computeUDPCsumZero"
 
+#define ALLOW_ATOMIC_FRAGMENTS	"atomicFragments"
+
 int global_display(void);
 int global_update(__u8 type, size_t size, void *data);
 

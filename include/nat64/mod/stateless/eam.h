@@ -65,14 +65,14 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
 int eamt_flush(void);
 
 /**
- * Returns true (0) if "addr" is in the eam database, otherwise return false (-ESRCH).
+ * Returns true if "addr" is in the eam database, otherwise return false.
  */
 bool eamt_contains_ipv6(struct in6_addr *addr);
 
 /**
- * Returns true (0) if "addr" is in the eam database, otherwise return false (-ESRCH).
+ * Returns true if "addr" is in the eam database, otherwise return false.
  */
-bool eamt_contains_ipv4(struct in_addr *addr);
+bool eamt_contains_ipv4(__be32 addr);
 
 int eamt_count(__u64 *count);
 bool eamt_is_empty(void);

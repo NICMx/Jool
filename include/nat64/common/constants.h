@@ -77,6 +77,7 @@
 #define TRAN_DEF_RESET_TOS false
 #define TRAN_DEF_NEW_TOS 0
 #define TRAN_DEF_DF_ALWAYS_ON false
+#define TRAN_DEF_BUILD_IPV6_FH false
 #define TRAN_DEF_BUILD_IPV4_ID true
 #define TRAN_DEF_LOWER_MTU_FAIL true
 #define TRAN_DEF_COMPUTE_UDP_CSUM0 true
