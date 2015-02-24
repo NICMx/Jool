@@ -37,6 +37,8 @@ const char *l4proto_to_string(l4_protocol l4_proto)
 		return "UDP";
 	case L4PROTO_ICMP:
 		return "ICMP";
+	case L4PROTO_OTHER:
+		return "unknown";
 	}
 
 	return NULL;

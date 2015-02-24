@@ -89,7 +89,7 @@ typedef enum l4_protocol {
 #define L4_PROTO_COUNT 4
 } l4_protocol;
 
-u8 l4_proto_to_nexthdr(l4_protocol proto);
+__u8 l4_proto_to_nexthdr(l4_protocol proto);
 
 /**
  * A layer-3 (IPv4) identifier attached to a layer-4 identifier (TCP port, UDP port or ICMP id).

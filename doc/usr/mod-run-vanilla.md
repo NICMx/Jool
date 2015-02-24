@@ -26,23 +26,25 @@ In case you're wondering, you can follow along these tutorials using virtual mac
 
 ## Sample Network
 
+You don't need all the nodes shown in the diagram to follow along; you can get away with only _A_, _N_ and _V_; the rest are very similar to _A_ and _V_ and are shown for illustrative purposes only.
+
 ![Figure 1 - Sample Network](images/intro/network-2vanilla.svg)
 
-You don't need all the nodes shown in the diagram to follow along; you can get away with only _A_, _N_ and _V_; the rest are very similar to _A_ and _V_ and are shown for illustrative purposes only.
+We will pretend I have address block 198.51.100.8/21 to distribute among my IPv6 nodes. I will also pretend _E_ conveniently does not need IPv4 connectivity for some reason (just to show you that you can leave nodes out of the equation to economize IPv4 addresses).
 
 Jool requires _N_ to be Linux. The rest can be anything you want, so long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
 
 For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of the instruction `service network-manager stop` is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
 
-In order to simplify things, routing will be reduced to default all unknown traffic towards _N_. Note that there is nothing martian about anyone's configuration otherwise.
+Also to simplify, routing will be reduced to default all unknown traffic towards _N_. Note that there is nothing martian about anyone's configuration otherwise.
 
 This is nodes _A_ through _E_:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
 user@A:~# /sbin/ip link set eth0 up
-user@A:~# # Replace ".5" depending on which node you're on.
-user@A:~# /sbin/ip addr add 2001:db8::198.51.100.5/120 dev eth0
+user@A:~# # Replace ".8" depending on which node you're on.
+user@A:~# /sbin/ip addr add 2001:db8::198.51.100.8/120 dev eth0
 user@A:~# /sbin/ip route add default via 2001:db8::198.51.100.1
 {% endhighlight %}
 
@@ -51,9 +53,9 @@ Nodes _V_ through _Z_:
 {% highlight bash %}
 user@V:~# service network-manager stop
 user@V:~# /sbin/ip link set eth0 up
-user@V:~# # Replace ".5" depending on which node you're on.
-user@V:~# /sbin/ip addr add 192.0.2.5/24 dev eth0
-user@V:~# /sbin/ip route add default via 192.0.2.2
+user@V:~# # Replace ".16" depending on which node you're on.
+user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
+user@V:~# /sbin/ip route add default via 192.0.2.1
 {% endhighlight %}
 
 Node _N_:
@@ -66,7 +68,6 @@ user@N:~# /sbin/ip addr add 2001:db8::198.51.100.1/120 dev eth0
 user@N:~# 
 user@N:~# /sbin/ip link set eth1 up
 user@N:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
-user@N:~# /sbin/ip addr add 192.0.2.2/24 dev eth1
 user@N:~# 
 user@N:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@N:~# sysctl -w net.ipv6.conf.all.forwarding=1
@@ -98,7 +99,8 @@ user@N:~# ethtool --offload eth1 lro off
 This is the insertion syntax:
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefix(es)>
+user@N:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefixes> \
+	errorAddresses=<IPv4 prefixes>
 {% endhighlight %}
 
 > **Warning!**
@@ -109,54 +111,64 @@ user@N:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefix(e
 
 These are the arguments:
 
-- `pool6` is the prefix the translation mechanism will be appending and removing from the addresses of the packets. You might also want to keep in mind that more or less as a consequence, Jool will not attempt to translate incoming IPv6 packets whose destination addresses do not contain this prefix.
-- As for `pool4`, Jool will _only_ attempt to translate incoming IPv4 packets whose destination addresses contain one of these (comma-separated) prefixes.  
-Keep in mind that _N_ might need to answer ARP requests for these addresses, so you also need to have added them using `ip` (see _N_'s configuration above).  
-In simple installations you only really need to enter a single address here.
+- `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets.  
+- `pool4` (short for "[main] IPv4 pool") represents the addresses the NAT64 will use to mask the IPv6 nodes. Because there is no port sharing, in stateless mode you need as many of these as IPv6 nodes which need IPv4 connectivity.  
+You can insert up to five comma-separated `pool4` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool4.html).
+- `errorAddresses` is a secondary IPv4 pool used for something [slightly more cryptic](TODO). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
+You can insert up to five comma-separated `errorAddresses` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-TODO.html).
 
 In our sample network, that translates into
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=192.0.2.2
+user@N:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=198.51.100.8/22 \ 
+	errorAddresses=198.51.100.12/22
 {% endhighlight %}
 
-(The pool4 prefix length defaults to /32.)
+These are the mappings that `modprobe` generates:
 
-TODO - pool4 en el diagrama...
+- IPv6 nodes:
+	- 2001:db8::<span class="correlate1">198.51.100.8</span> will be masked as <span class="correlate1">198.51.100.8</span>.
+	- 2001:db8::<span class="correlate2">198.51.100.9</span> will be masked as <span class="correlate2">198.51.100.9</span>.
+	- 2001:db8::<span class="correlate1">198.51.100.10</span> will be masked as <span class="correlate1">198.51.100.10</span>.
+	- 2001:db8::<span class="correlate2">198.51.100.11</span> will be masked as <span class="correlate2">198.51.100.11</span>.
+	- 198.51.100.12 is outside of 198.51.100.8/22, so _E_ has been left out of the NATting.
+- IPv4 nodes:
+	- Any IPv4 node will be masked by prepending the `pool6` prefix to its address.
+
+See below for more explicit examples.
 
 ## Testing
 
 If something doesn't work, try the [FAQ](misc-faq.html).
 
-Try to ping _V_ from _A_ like this:
+Try to ping _A_ from _V_ like this:
 
 {% highlight bash %}
-user@A:~$ ping6 2001:db8::192.0.2.5
-ping6 2001:db8::192.0.2.5
-PING 2001:db8::192.0.2.5(2001:db8::c000:205) 56 data bytes
-64 bytes from 2001:db8::c000:205: icmp_seq=1 ttl=63 time=5.49 ms
-64 bytes from 2001:db8::c000:205: icmp_seq=2 ttl=63 time=5.49 ms
-64 bytes from 2001:db8::c000:205: icmp_seq=3 ttl=63 time=7.01 ms
-64 bytes from 2001:db8::c000:205: icmp_seq=4 ttl=63 time=4.85 ms
+user@V:~$ ping 198.51.100.8
+PING 198.51.100.8 (198.51.100.8) 56(84) bytes of data.
+64 bytes from 198.51.100.8: icmp_seq=1 ttl=63 time=7.45 ms
+64 bytes from 198.51.100.8: icmp_seq=2 ttl=63 time=1.64 ms
+64 bytes from 198.51.100.8: icmp_seq=3 ttl=63 time=4.22 ms
+64 bytes from 198.51.100.8: icmp_seq=4 ttl=63 time=2.32 ms
 ^C
---- 2001:db8::192.0.2.5 ping statistics ---
-4 packets transmitted, 4 received, 0% packet loss, time 3005ms
-rtt min/avg/max/mdev = 4.850/5.711/7.010/0.796 ms
+--- 198.51.100.8 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3006ms
+rtt min/avg/max/mdev = 1.649/3.914/7.450/2.249 ms
 {% endhighlight %}
 
-Then ping _A_ from _V_:
+Then ping _V_ from _A_:
 
 {% highlight bash %}
-user@V:~$ ping 198.51.100.5
-PING 198.51.100.5 (198.51.100.5) 56(84) bytes of data.
-64 bytes from 198.51.100.5: icmp_seq=1 ttl=63 time=2.72 ms
-64 bytes from 198.51.100.5: icmp_seq=2 ttl=63 time=5.83 ms
-64 bytes from 198.51.100.5: icmp_seq=3 ttl=63 time=2.62 ms
-64 bytes from 198.51.100.5: icmp_seq=4 ttl=63 time=3.39 ms
+user@A:~$ ping6 2001:db8::192.0.2.16
+PING 2001:db8::192.0.2.16(2001:db8::c000:210) 56 data bytes
+64 bytes from 2001:db8::c000:210: icmp_seq=1 ttl=63 time=3.57 ms
+64 bytes from 2001:db8::c000:210: icmp_seq=2 ttl=63 time=10.5 ms
+64 bytes from 2001:db8::c000:210: icmp_seq=3 ttl=63 time=1.38 ms
+64 bytes from 2001:db8::c000:210: icmp_seq=4 ttl=63 time=2.63 ms
 ^C
---- 198.51.100.5 ping statistics ---
-4 packets transmitted, 4 received, 0% packet loss, time 3013ms
-rtt min/avg/max/mdev = 2.629/3.645/5.837/1.300 ms
+--- 2001:db8::192.0.2.16 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3003ms
+rtt min/avg/max/mdev = 1.384/4.529/10.522/3.546 ms
 {% endhighlight %}
 
 How about hooking up a server in _X_ and access it from _D_:
@@ -179,6 +191,7 @@ user@N:~# /sbin/modprobe -r jool_stateless
 
 Here are some logical follow-ups if you want to read more:
 
+- The [`errorAddresses` argument](TODO).
 - If you care about EAM, head to the [second run](mod-run-eam.html).
 - If you care about stateful NAT64, head to the [third run](mod-run-stateful.html).
 - The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address hack transparent to users.

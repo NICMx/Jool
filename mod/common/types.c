@@ -5,7 +5,7 @@
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 
-u8 l4_proto_to_nexthdr(l4_protocol proto)
+__u8 l4_proto_to_nexthdr(l4_protocol proto)
 {
 	switch (proto) {
 	case L4PROTO_TCP:

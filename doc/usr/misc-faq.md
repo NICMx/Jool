@@ -94,3 +94,59 @@ It looking weird aside, it doesn't cause any other catastrophes; just ping the n
 
 Jool 3.3+ handles this better and the ping should succeed.
 
+## What do I do with this error message? It's horribly ambiguous.
+
+Yes, the kernel module's response messages to userspace are very primitive. We could truly improve communication with the userspace application, but we have no control over `modprobe`'s.
+
+In any case, you will most likely have better luck reading Jool's logs. As with any other kernel component, Jool's messages are mixed along with the others and can be seen by running `dmesg`. In general, most kernels are very silent once they're done booting, so Jool's latest message should be found at the very end.
+
+{% highlight bash %}
+$ sudo modprobe jool_stateless pool6=2001:db8::/96 pool4=192.0a.2.0/24
+ERROR: could not insert module jool_stateless.ko: Invalid parameters
+$ dmesg | tail -1
+[28495.042365] Stateless Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
+192.0a.2.0/24.
+{% endhighlight %}
+
+{% highlight bash %}
+$ sudo jool_stateful --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
+TCP:
+Invalid input data or parameter (System error -7)
+$ dmesg | tail -1
+[29982.832343] Stateful Jool ERROR (add_static_route): The IPv4 address and port could not be
+reserved from the pool. Maybe the IPv4 address you provided does not belong to the pool.
+Or maybe they're being used by some other BIB entry?
+{% endhighlight %}
+
+
+## I modprobed Jool but it doesn't seem to be doing anything.
+
+Modprobing Jool without enough arguments is legal. It will assume you intend to finish configuring using the userspace app, and sit idle until you've done so.
+
+Use the userspace app's [`--global`](usr-flags-global.html#description) flag to figure out Jool's status:
+
+{% highlight bash %}
+$ jool_stateless --global
+(...)
+Status: Disabled
+{% endhighlight %}
+
+{% highlight bash %}
+$ jool_stateful --global
+(...)
+Status: Disabled
+{% endhighlight %}
+
+Stateless Jool's minimum configuration requirements are
+
+- At least one prefix in the [IPv6 pool](usr-flags-pool6.html) or one entry in the [EAM table](usr-flags-eamt.html).
+- At least one prefix in the [IPv4 pool](usr-flags-pool4.html).
+- At least one prefix in the [errorAddresses](usr-flags-TODO.html) pool.
+- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
+
+Stateful Jool's minimum configuration requirements are
+
+- At least one prefix in the [IPv6 pool](usr-flags-pool6.html).
+- At least one prefix in the [IPv4 pool](usr-flags-pool4.html).
+- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
+

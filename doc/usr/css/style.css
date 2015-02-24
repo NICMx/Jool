@@ -239,6 +239,13 @@ min-height: 800px;
 	border-top: 1px dashed #D9EBFF;
 }
 
+.correlate1 {
+	background-color: #eff;
+}
+.correlate2 {
+	background-color: #def;
+}
+
 /* Footer */
 
 #footer {

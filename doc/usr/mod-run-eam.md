@@ -7,6 +7,8 @@ title: Documentation - EAM Run
 
 # EAM Run
 
+TODO adjust the image flows.
+
 ## Index
 
 1. [Introduction](#introduction)
@@ -20,7 +22,7 @@ title: Documentation - EAM Run
 
 This document explains how to run Jool in [EAM mode](intro-nat64.html#stateless-nat64-with-eam) (which actually more than a "mode" is simply stock stateless with records on the EAM table). Follow the link for more details on what to expect.
 
-[Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) and the [userspace application](usr-install.html) for EAM.
+[Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) **and** the [userspace application](usr-install.html) for EAM.
 
 ## Sample Network
 
@@ -33,8 +35,8 @@ This is nodes _A_ through _E_:
 {% highlight bash %}
 user@A:~# service network-manager stop
 user@A:~# /sbin/ip link set eth0 up
-user@A:~# # Replace "::5" depending on which node you're on.
-user@A:~# /sbin/ip addr add 2001:db8:6::5/96 dev eth0
+user@A:~# # Replace "::8" depending on which node you're on.
+user@A:~# /sbin/ip addr add 2001:db8:6::8/96 dev eth0
 user@A:~# /sbin/ip route add default via 2001:db8:6::1
 {% endhighlight %}
 
@@ -43,8 +45,8 @@ Nodes _V_ through _Z_ have the exact same configuration from the previous docume
 {% highlight bash %}
 user@V:~# service network-manager stop
 user@V:~# /sbin/ip link set eth0 up
-user@V:~# # Replace ".5" depending on which node you're on.
-user@V:~# /sbin/ip addr add 192.0.2.5/24 dev eth0
+user@V:~# # Replace ".16" depending on which node you're on.
+user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
 user@V:~# /sbin/ip route add default via 192.0.2.1
 {% endhighlight %}
 
@@ -58,7 +60,6 @@ user@N:~# /sbin/ip addr add 2001:db8:6::1/96 dev eth0
 user@N:~# 
 user@N:~# /sbin/ip link set eth1 up
 user@N:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
-user@N:~# /sbin/ip addr add 192.0.2.2/24 dev eth1
 user@N:~# 
 user@N:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@N:~# sysctl -w net.ipv6.conf.all.forwarding=1
@@ -80,13 +81,16 @@ Remember you might want to cross-ping _N_ vs everything before continuing.
 ## Jool
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool4=192.0.2.2 disable
+user@N:~# /sbin/modprobe jool_stateless pool4=198.51.100.8/22 errorAddresses=198.51.100.12/22 \
+	disable
 user@N:~# jool_stateless --eam --add 2001:db8:6::/120 198.51.100.0/24
 user@N:~# jool_stateless --eam --add 2001:db8:4::/120 192.0.2.0/24
 user@N:~# jool_stateless --enable
 {% endhighlight %}
 
-Unlike `pool6`, it is not practical to insert the EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, using the userspace application. When the table is complete, we tell Jool it can start translating traffic (`--enable`).
+`pool4` and `errorAddresses` have the same meaning as in stock stateless mode.
+
+Unlike `pool6`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#enable---disable)).
 
 Using `disable` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or the IPv6 pool are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
 
@@ -99,34 +103,34 @@ If something doesn't work, try the [FAQ](misc-faq.html).
 Try to ping _V_ from _A_ like this:
 
 {% highlight bash %}
-user@A:~$ ping6 2001:db8:4::5
-PING 2001:db8:4::5(2001:db8:4::5) 56 data bytes
-64 bytes from 2001:db8:4::5: icmp_seq=1 ttl=63 time=1.94 ms
-64 bytes from 2001:db8:4::5: icmp_seq=2 ttl=63 time=2.16 ms
-64 bytes from 2001:db8:4::5: icmp_seq=3 ttl=63 time=5.04 ms
-64 bytes from 2001:db8:4::5: icmp_seq=4 ttl=63 time=3.64 ms
+user@A:~$ ping6 2001:db8:4::10 # Reminder: hex 10 = dec 16.
+PING 2001:db8:4::10(2001:db8:4::10) 56 data bytes
+64 bytes from 2001:db8:4::10: icmp_seq=1 ttl=63 time=2.95 ms
+64 bytes from 2001:db8:4::10: icmp_seq=2 ttl=63 time=2.79 ms
+64 bytes from 2001:db8:4::10: icmp_seq=3 ttl=63 time=4.13 ms
+64 bytes from 2001:db8:4::10: icmp_seq=4 ttl=63 time=3.60 ms
 ^C
---- 2001:db8:4::5 ping statistics ---
-4 packets transmitted, 4 received, 0% packet loss, time 3002ms
-rtt min/avg/max/mdev = 1.944/3.196/5.040/1.250 ms
+--- 2001:db8:4::10 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3003ms
+rtt min/avg/max/mdev = 2.790/3.370/4.131/0.533 ms
 {% endhighlight %}
 
 Then ping _A_ from _V_:
 
 {% highlight bash %}
-user@V:~$ ping 198.51.100.5
-PING 198.51.100.5 (198.51.100.5) 56(84) bytes of data.
-64 bytes from 198.51.100.5: icmp_seq=1 ttl=63 time=1.19 ms
-64 bytes from 198.51.100.5: icmp_seq=2 ttl=63 time=3.72 ms
-64 bytes from 198.51.100.5: icmp_seq=3 ttl=63 time=4.39 ms
-64 bytes from 198.51.100.5: icmp_seq=4 ttl=63 time=4.25 ms
+user@V:~$ ping 198.51.100.8
+PING 198.51.100.8 (198.51.100.8) 56(84) bytes of data.
+64 bytes from 198.51.100.8: icmp_seq=1 ttl=63 time=5.04 ms
+64 bytes from 198.51.100.8: icmp_seq=2 ttl=63 time=2.55 ms
+64 bytes from 198.51.100.8: icmp_seq=3 ttl=63 time=1.93 ms
+64 bytes from 198.51.100.8: icmp_seq=4 ttl=63 time=2.47 ms
 ^C
---- 198.51.100.5 ping statistics ---
-4 packets transmitted, 4 received, 0% packet loss, time 3008ms
-rtt min/avg/max/mdev = 1.197/3.393/4.394/1.292 ms
+--- 198.51.100.8 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3004ms
+rtt min/avg/max/mdev = 1.930/3.001/5.042/1.204 ms
 {% endhighlight %}
 
-How about hooking up a server in _Y_ and access it from _E_:
+How about hooking up a server in _Y_ and access it from _D_:
 
 ![Figure 1 - IPv6 TCP from an IPv4 node](images/run-eam-firefox-4to6.png)
 
