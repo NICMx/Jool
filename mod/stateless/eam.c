@@ -367,17 +367,12 @@ bool eamt_contains_ipv6(struct in6_addr *addr)
 	return true;
 }
 
-bool eamt_contains_ipv4(struct in_addr *addr)
+bool eamt_contains_ipv4(__be32 addr)
 {
 	struct ipv4_prefix prefix;
 	struct eam_entry *eam;
 
-	if (!addr) {
-		log_err("addr can't be NULL");
-		return false;
-	}
-
-	prefix.address = *addr;
+	prefix.address.s_addr = addr;
 	prefix.len = IPV4_PREFIX;
 
 	spin_lock_bh(&eam_lock);

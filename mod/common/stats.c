@@ -76,9 +76,6 @@ static void inc_stats_pkt4(struct packet *pkt, int field)
 	inc_stats4(pkt->skb, field);
 }
 
-/*
- * TODO borré el switch que había puesto Daniel para incrementar para cada fragmento.
- */
 void inc_stats(struct packet *pkt, int field)
 {
 	if (unlikely(!pkt || !pkt->skb))

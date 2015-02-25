@@ -54,7 +54,10 @@ $(jool) --atomicFragments true
 is the same as
 
 {% highlight bash %}
-$(jool) --setDF true --genFH true --genID false --boostMTU false
+$(jool) --setDF true
+$(jool) --genFH true
+$(jool) --genID false
+$(jool) --boostMTU false
 {% endhighlight %}
 
 This is the default behaviour requested by [RFC 6145](http://tools.ietf.org/html/rfc6145), and the IETF is hopefully going to deprecate it in the future. It is _not_ Jool's default and we do _not_ recommend it.
@@ -68,7 +71,10 @@ $(jool) --atomicFragments false
 is the same as
 
 {% highlight bash %}
-$(jool) --setDF false --genFH false --genID true --boostMTU true
+$(jool) --setDF false
+$(jool) --genFH false
+$(jool) --genID true
+$(jool) --boostMTU true
 {% endhighlight %}
 
 This is an alternate mode defined both by RFC 6145 and [draft-gont-6man-deprecate-atomfrag-generation](http://www.ietf.org/id/draft-gont-6man-deprecate-atomfrag-generation-01.txt). The latter mandates this behaviour and is Jool 3.3's default.

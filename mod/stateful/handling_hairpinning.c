@@ -44,7 +44,6 @@ verdict handling_hairpinning(struct packet *in, struct tuple *tuple_in)
 		 * Or maybe not even that, since they're going to be dropped later anyway, once Jool fails
 		 * to find the mapping.
 		 * Unfortunately, if I remove this if, Jool crashes when I hairpin a ICMP error.
-		 * TODO (warning) we need to investigate this crash further.
 		 */
 		log_debug("ICMP is not supported by hairpinning. Dropping packet...");
 		return VERDICT_DROP;

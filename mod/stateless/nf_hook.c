@@ -31,9 +31,9 @@ static char *errorAddresses[5];
 static int errorAddresses_size;
 module_param_array(errorAddresses, charp, &errorAddresses_size, 0);
 MODULE_PARM_DESC(errorAddresses, "The RFC6791 pool's addresses.");
-static bool disable;
-module_param(disable, bool, 0);
-MODULE_PARM_DESC(disable, "Disable the translation at the beginning of the module insertion.");
+static bool disabled;
+module_param(disabled, bool, 0);
+MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -80,7 +80,7 @@ static int __init nat64_init(void)
 	log_debug("Inserting " MODULE_NAME "...");
 
 	/* Init Jool's submodules. */
-	error = config_init(disable);
+	error = config_init(disabled);
 	if (error)
 		goto config_failure;
 	error = eamt_init();

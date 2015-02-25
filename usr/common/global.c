@@ -11,41 +11,49 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	__u16 *plateaus;
 	int i;
 
+	printf("  Status: %s\n", conf->translate.jool_status ? "Enabled" : "Disabled");
+	printf("  Manually disabled (--%s, --%s): %s\n", ENABLE_TRANSLATION, DISABLE_TRANSLATION,
+			conf->translate.is_disable ? "ON" : "OFF");
+
 #ifdef STATEFUL
-	printf("Address dependent filtering (--%s): %s\n", DROP_BY_ADDR_OPT,
-			conf->filtering.drop_by_addr ? "ON" : "OFF");
-	printf("Filtering of ICMPv6 info messages (--%s): %s\n", DROP_ICMP6_INFO_OPT,
-			conf->filtering.drop_icmp6_info ? "ON" : "OFF");
-	printf("Dropping externally initiated TCP connections (--%s): %s\n", DROP_EXTERNAL_TCP_OPT,
-			conf->filtering.drop_external_tcp ? "ON" : "OFF");
-
-	printf("UDP session lifetime (--%s): ", UDP_TIMEOUT_OPT);
-	print_time_friendly(conf->sessiondb.ttl.udp);
-	printf("TCP established session lifetime (--%s): ", TCP_EST_TIMEOUT_OPT);
-	print_time_friendly(conf->sessiondb.ttl.tcp_est);
-	printf("TCP transitory session lifetime (--%s): ", TCP_TRANS_TIMEOUT_OPT);
-	print_time_friendly(conf->sessiondb.ttl.tcp_trans);
-	printf("ICMP session lifetime (--%s): ", ICMP_TIMEOUT_OPT);
-	print_time_friendly(conf->sessiondb.ttl.icmp);
-
-	printf("Maximum number of stored packets (--%s): %llu\n", STORED_PKTS_OPT,
+	printf("  Maximum number of stored packets (--%s): %llu\n", STORED_PKTS_OPT,
 			conf->pktqueue.max_pkts);
+#else
+	printf("  Compute incoming IPv4 UDP checksum zero (--%s): %s\n", COMPUTE_UDP_CSUM,
+			conf->translate.compute_udp_csum_zero ? "ON" : "OFF");
 #endif
 
-	printf("Override IPv6 traffic class (--%s): %s\n", RESET_TCLASS_OPT,
+	printf("  Override IPv6 traffic class (--%s): %s\n", RESET_TCLASS_OPT,
 			conf->translate.reset_traffic_class ? "ON" : "OFF");
-	printf("Override IPv4 type of service (--%s): %s\n", RESET_TOS_OPT,
+	printf("  Override IPv4 type of service (--%s): %s\n", RESET_TOS_OPT,
 			conf->translate.reset_tos ? "ON" : "OFF");
-	printf("IPv4 type of service (--%s): %u\n", NEW_TOS_OPT,
-			conf->translate.new_tos);
-	printf("DF flag always on (--%s): %s\n", DF_ALWAYS_ON_OPT,
+	printf("  IPv4 type of service (--%s): %u (0x%x)\n", NEW_TOS_OPT,
+			conf->translate.new_tos, conf->translate.new_tos);
+
+	printf("  Atomic Fragments (--%s): ", ALLOW_ATOMIC_FRAGMENTS);
+	if (!conf->translate.df_always_on
+			&& !conf->translate.build_ipv6_fh
+			&& conf->translate.build_ipv4_id
+			&& conf->translate.lower_mtu_fail)
+		printf("OFF\n");
+	else if (conf->translate.df_always_on
+			&& conf->translate.build_ipv6_fh
+			&& !conf->translate.build_ipv4_id
+			&& !conf->translate.lower_mtu_fail)
+		printf("ON\n");
+	else
+		printf("Mixed\n");
+
+	printf("    DF flag always on (--%s): %s\n", DF_ALWAYS_ON_OPT,
 			conf->translate.df_always_on ? "ON" : "OFF");
-	printf("Generate IPv4 identification (--%s): %s\n", BUILD_IPV4_ID_OPT,
+	printf("    Generate IPv6 Fragment Header (--%s): %s\n", BUILD_IPV6_FRAG_HDR,
+			conf->translate.build_ipv6_fh ? "ON" : "OFF");
+	printf("    Generate IPv4 identification (--%s): %s\n", BUILD_IPV4_ID_OPT,
 			conf->translate.build_ipv4_id ? "ON" : "OFF");
-	printf("Decrease MTU failure rate (--%s): %s\n", LOWER_MTU_FAIL_OPT,
+	printf("    Decrease MTU failure rate (--%s): %s\n", LOWER_MTU_FAIL_OPT,
 			conf->translate.lower_mtu_fail ? "ON" : "OFF");
 
-	printf("MTU plateaus (--%s): ", MTU_PLATEAUS_OPT);
+	printf("  MTU plateaus (--%s): ", MTU_PLATEAUS_OPT);
 	plateaus = (__u16 *) (conf + 1);
 	for (i = 0; i < conf->translate.mtu_plateau_count; i++) {
 		if (i + 1 != conf->translate.mtu_plateau_count)
@@ -53,16 +61,32 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 		else
 			printf("%u\n", plateaus[i]);
 	}
+	printf("\n");
 
 #ifdef STATEFUL
-	printf("Fragments arrival time slot (--%s): ", FRAG_TIMEOUT_OPT);
+
+	printf("  Filtering:\n");
+	printf("    Address dependent filtering (--%s): %s\n", DROP_BY_ADDR_OPT,
+			conf->filtering.drop_by_addr ? "ON" : "OFF");
+	printf("    Filtering of ICMPv6 info messages (--%s): %s\n", DROP_ICMP6_INFO_OPT,
+			conf->filtering.drop_icmp6_info ? "ON" : "OFF");
+	printf("    Dropping externally initiated TCP connections (--%s): %s\n", DROP_EXTERNAL_TCP_OPT,
+			conf->filtering.drop_external_tcp ? "ON" : "OFF");
+	printf("\n");
+
+	printf("  Timeouts:\n");
+	printf("    UDP session lifetime (--%s): ", UDP_TIMEOUT_OPT);
+	print_time_friendly(conf->sessiondb.ttl.udp);
+	printf("    TCP established session lifetime (--%s): ", TCP_EST_TIMEOUT_OPT);
+	print_time_friendly(conf->sessiondb.ttl.tcp_est);
+	printf("    TCP transitory session lifetime (--%s): ", TCP_TRANS_TIMEOUT_OPT);
+	print_time_friendly(conf->sessiondb.ttl.tcp_trans);
+	printf("    ICMP session lifetime (--%s): ", ICMP_TIMEOUT_OPT);
+	print_time_friendly(conf->sessiondb.ttl.icmp);
+	printf("    Fragment lifetime (--%s): ", FRAG_TIMEOUT_OPT);
 	print_time_friendly(conf->fragmentation.fragment_timeout);
-#else
-	printf("Compute incoming IPv4 UDP checksum zero (--%s): %s\n", COMPUTE_UDP_CSUM,
-			conf->translate.compute_udp_csum_zero ? "ON" : "OFF");
+	printf("\n");
 #endif
-	printf("Jool Status: %s\n", conf->translate.jool_status ? "Enable" : "Disable");
-	printf("Is Jool Disable: %s\n", conf->translate.is_disable ? "True" : "False");
 
 	return 0;
 }

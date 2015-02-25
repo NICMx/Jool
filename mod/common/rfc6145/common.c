@@ -1,4 +1,5 @@
 #include "nat64/mod/common/rfc6145/common.h"
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
@@ -80,40 +81,23 @@ int copy_payload(struct packet *in, struct packet *out)
 	return error;
 }
 
+static bool build_ipv6_frag_hdr(struct iphdr *in_hdr)
+{
+	if (is_dont_fragment_set(in_hdr))
+		return false;
+
+	return config_get_build_ipv6_fh();
+}
+
 bool will_need_frag_hdr(struct iphdr *in_hdr)
 {
 	/*
-	 * Starting from Jool 3.3, we largely defer fragmentation to the kernel.
-	 * Jool no longer fragments packets because that implied a ridiculous amount of really
-	 * troublesome code. It not only received strange input, but also had very hard-to-explain
-	 * output requirements, and it also had to handle the RFCs' quirks.
-	 *
-	 * Unfortunately, this has an important consequence: Jool must never send atomic fragments.
-	 * This is because the kernel doesn't know them. If I send an atomic fragment and the kernel
-	 * has to fragment it, it appends another fragment header. This confuses everything.
-	 * On the other hand, RFC 6145 *wants* atomic fragments.
-	 * Read below to find out how we handle this.
+	 * Note, build_ipv6_frag_hdr(in_hdr) should remain disabled.
+	 * See www.jool.mx/usr-flags-atomic.html.
+	 * (if that's down, try doc/usr/usr-flags-atomic.md in Jool's source.)
 	 */
-
-	/*
-	 * We completely ignore the fragment header during stateful operation
-	 * because the kernel really wants to handle it on its own.
-	 * This introduces an unimportant mismatch with the RFC.
-	 * TODO (doc) document what it is and why it doesn't matter.
-	 */
-	if (nat64_is_stateful())
-		return false;
-
-	/*
-	 * TODO (fine) RFC 6145 wants a flag here.
-	 * If the flag is false and DF is also false, the NAT64 should include a fragmentation header
-	 * regardless of fragmentation status (page 7).
-	 * I removed it on Jool 3.3 because it lead to atomic fragments.
-	 * The reason why this is not considered a problem is because experience has given the flag
-	 * a bad reputation (draft-gont-6man-deprecate-atomfrag-generation).
-	 * I've decided removing all that fragmentation code is worth not supporting that flag.
-	 */
-	return is_more_fragments_set_ipv4(in_hdr) || get_fragment_offset_ipv4(in_hdr);
+	return build_ipv6_frag_hdr(in_hdr) || is_more_fragments_set_ipv4(in_hdr)
+			|| get_fragment_offset_ipv4(in_hdr);
 }
 
 static int move_pointers_in(struct packet *pkt, __u8 protocol, unsigned int l3hdr_len)
@@ -139,10 +123,9 @@ static int move_pointers_in(struct packet *pkt, __u8 protocol, unsigned int l3hd
 		l4hdr_len = sizeof(struct icmphdr);
 		break;
 	default:
-		/* TODO what abour OTHER? */
-		log_debug("Unknown l4 protocol: %u", protocol);
-		inc_stats(pkt, IPSTATS_MIB_INUNKNOWNPROTOS);
-		return -EINVAL;
+		pkt->l4_proto = L4PROTO_OTHER;
+		l4hdr_len = 0;
+		break;
 	}
 	pkt->is_inner = 1;
 	pkt->payload = skb_transport_header(pkt->skb) + l4hdr_len;
