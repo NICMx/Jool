@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include "nat64/mod/common/ipv6_hdr_iterator.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/unit/skb_generator.h"
 #include "nat64/unit/validator.h"
@@ -18,13 +19,35 @@ MODULE_DESCRIPTION("Fragment database test");
 
 static struct frag_hdr *get_frag_hdr(struct sk_buff *skb)
 {
-	return get_extension_header(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
+	return hdr_iterator_find(ipv6_hdr(skb), NEXTHDR_FRAGMENT);
 }
 
 static __u16 get_offset(struct sk_buff *skb)
 {
 	struct frag_hdr *hdr = get_frag_hdr(skb);
 	return hdr ? get_fragment_offset_ipv6(hdr) : 0;
+}
+
+static bool assert_fragdb_handle(struct sk_buff *skb, verdict expected)
+{
+	struct packet pkt;
+	int error = -EINVAL;
+
+	switch (ntohs(skb->protocol)) {
+	case ETH_P_IPV6:
+		error = pkt_init_ipv6(&pkt, skb);
+		break;
+	case ETH_P_IP:
+		error = pkt_init_ipv4(&pkt, skb);
+		break;
+	}
+
+	if (error) {
+		log_debug("the pkt init function returned errcode %d.", error);
+		return false;
+	}
+
+	return assert_equals_int(expected, fragdb_handle(&pkt), "verdict result");
 }
 
 static bool validate_packet(struct sk_buff *skb, int expected_frag_count)
@@ -55,14 +78,13 @@ static bool validate_packet(struct sk_buff *skb, int expected_frag_count)
 	return success;
 }
 
-static bool validate_fragment(struct sk_buff *skb, bool has_l4_hdr, bool has_frag_hdr,
-		int payload_len)
+static bool validate_fragment(struct sk_buff *skb, bool has_frag_hdr, int l3_payload_len)
 {
 	bool success = true;
 
-	success &= assert_equals_int(has_l4_hdr, pkt_has_l4_hdr(skb), "Presence of l4-header");
 	success &= assert_equals_int(has_frag_hdr, !!get_frag_hdr(skb), "Presence of frag header");
-	success &= assert_equals_int(payload_len, pkt_payload_len_frag(skb), "Payload length");
+	success &= assert_equals_int(l3_payload_len, skb_tail_pointer(skb) - skb_transport_header(skb),
+			"L3 payload length");
 
 	return success;
 }
@@ -113,9 +135,9 @@ static bool test_no_frags(void)
 	if (error)
 		return false;
 
-	success &= assert_equals_int(VERDICT_CONTINUE, fragdb_handle(&skb), "Verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_CONTINUE);
 	success &= validate_packet(skb, 1);
-	success &= validate_fragment(skb, true, false, 10);
+	success &= validate_fragment(skb, false, sizeof(struct udphdr) + 10);
 	success &= validate_database(0);
 
 	kfree_skb(skb);
@@ -124,7 +146,7 @@ static bool test_no_frags(void)
 
 static bool test_happy_path(void)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *first;
 	struct tuple tuple6;
 	int error;
 	bool success = true;
@@ -137,14 +159,16 @@ static bool test_happy_path(void)
 	error = create_skb6_udp_frag(&tuple6, &skb, 64 - sizeof(struct udphdr), 384, true, true, 0, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "1st verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_STOLEN);
 	success &= validate_database(1);
+
+	first = skb;
 
 	/* Second fragment arrives. */
 	error = create_skb6_udp_frag(&tuple6, &skb, 128, 384, true, true, 64, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "2nd verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_STOLEN);
 	success &= validate_database(1);
 
 	/* Third and final fragment arrives. */
@@ -152,32 +176,49 @@ static bool test_happy_path(void)
 	error = create_skb6_udp_frag(&tuple6, &skb, 192, 384, true, false, 192, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VERDICT_CONTINUE, fragdb_handle(&skb), "3rd verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_CONTINUE);
 	success &= validate_database(0);
 
 	/* Validate the packet. */
-	success &= validate_packet(skb, 3);
+	success &= validate_packet(first, 3);
 	if (!success)
 		return false;
 
 	/* Validate the fragments. */
 	log_debug("Validating the first fragment...");
-	success &= validate_fragment(skb, true, true, 64 - sizeof(struct udphdr));
+	success &= validate_fragment(first, true, 64);
 
 	log_debug("Validating the second fragment...");
-	success &= validate_fragment(skb_shinfo(skb)->frag_list, false, true, 128);
+	success &= validate_fragment(skb_shinfo(first)->frag_list, true, 128);
 
 	log_debug("Validating the third fragment...");
-	success &= validate_fragment(skb_shinfo(skb)->frag_list->next, false, true, 192);
+	success &= validate_fragment(skb_shinfo(first)->frag_list->next, true, 192);
 
-	kfree_skb(skb);
+	kfree_skb(first);
 	return success;
 }
 
-static bool validate_list(struct reassembly_buffer_key *expected, int expected_count)
+struct frag_summary {
+	l3_protocol l3_proto;
+	union {
+		struct {
+			struct in_addr src_addr;
+			struct in_addr dst_addr;
+			__be16 identification;
+		} ipv4;
+		struct {
+			struct in6_addr src_addr;
+			struct in6_addr dst_addr;
+			__be32 identification;
+		} ipv6;
+	};
+	enum l4_protocol l4_proto;
+};
+
+static bool validate_list(struct frag_summary *expected, int expected_count)
 {
 	struct reassembly_buffer *buffer;
-	struct sk_buff *skb;
+	struct packet *pkt;
 	struct ipv6hdr *hdr6;
 	bool success = true;
 	int c = 0;
@@ -186,15 +227,15 @@ static bool validate_list(struct reassembly_buffer_key *expected, int expected_c
 		if (!assert_true(c < expected_count, "List count"))
 			return false;
 
-		skb = buffer->skb;
+		pkt = &buffer->pkt;
 
-		success &= assert_equals_u8(L4PROTO_UDP, skb_l4_proto(skb), "proto");
+		success &= assert_equals_u8(L4PROTO_UDP, pkt_l4_proto(pkt), "proto");
 
-		hdr6 = ipv6_hdr(skb);
-		success &= assert_equals_ipv6(&expected[c].src_addr, &hdr6->saddr, "src addr6");
-		success &= assert_equals_ipv6(&expected[c].dst_addr, &hdr6->daddr, "dst addr6");
-		success &= assert_equals_be32(expected[c].identification,
-				get_frag_hdr(skb)->identification, "frag id 6");
+		hdr6 = pkt_ip6_hdr(pkt);
+		success &= assert_equals_ipv6(&expected[c].ipv6.src_addr, &hdr6->saddr, "src addr6");
+		success &= assert_equals_ipv6(&expected[c].ipv6.dst_addr, &hdr6->daddr, "dst addr6");
+		success &= assert_equals_be32(expected[c].ipv6.identification,
+				get_frag_hdr(pkt->skb)->identification, "frag id 6");
 
 		c++;
 	}
@@ -212,7 +253,7 @@ static bool test_timer(void)
 {
 	struct sk_buff *skb;
 	struct tuple tuple1, tuple2;
-	struct reassembly_buffer_key expected_keys[2];
+	struct frag_summary expected_keys[2];
 	struct reassembly_buffer *dummy_buffer;
 	bool success = true;
 	int error;
@@ -224,21 +265,21 @@ static bool test_timer(void)
 	if (error)
 		return false;
 
-	expected_keys[0].src_addr = tuple1.src.addr6.l3;
-	expected_keys[0].dst_addr = tuple1.dst.addr6.l3;
-	expected_keys[0].identification = cpu_to_be32(4321);
+	expected_keys[0].ipv6.src_addr = tuple1.src.addr6.l3;
+	expected_keys[0].ipv6.dst_addr = tuple1.dst.addr6.l3;
+	expected_keys[0].ipv6.identification = cpu_to_be32(4321);
 	expected_keys[0].l4_proto = NEXTHDR_UDP;
 
-	expected_keys[1].src_addr = tuple2.src.addr6.l3;
-	expected_keys[1].dst_addr = tuple2.dst.addr6.l3;
-	expected_keys[1].identification = cpu_to_be32(4321);
+	expected_keys[1].ipv6.src_addr = tuple2.src.addr6.l3;
+	expected_keys[1].ipv6.dst_addr = tuple2.dst.addr6.l3;
+	expected_keys[1].ipv6.identification = cpu_to_be32(4321);
 	expected_keys[1].l4_proto = NEXTHDR_UDP;
 
 	/* Fragment 1.1 arrives. */
 	error = create_skb6_udp_frag(&tuple1, &skb, 100, 1000, true, true, 0, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "4th verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_STOLEN);
 
 	success &= validate_database(1);
 	success &= validate_list(&expected_keys[0], 1);
@@ -250,7 +291,7 @@ static bool test_timer(void)
 	error = create_skb6_udp_frag(&tuple2, &skb, 100, 1000, true, true, 0, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "5th verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_STOLEN);
 
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);
@@ -262,7 +303,7 @@ static bool test_timer(void)
 	error = create_skb6_udp_frag(&tuple1, &skb, 100, 1000, true, true, 108, 32);
 	if (error)
 		return false;
-	success &= assert_equals_int(VERDICT_STOLEN, fragdb_handle(&skb), "6th verdict");
+	success &= assert_fragdb_handle(skb, VERDICT_STOLEN);
 
 	success &= validate_database(2);
 	success &= validate_list(&expected_keys[0], 2);

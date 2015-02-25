@@ -34,21 +34,12 @@ int rfc6791_flush(void)
 	return pool_flush(&pool);
 }
 
-static unsigned int get_addr_count(struct ipv4_prefix *prefix)
-{
-	return 1 << (32 - prefix->len);
-}
-
-static unsigned int rfc6791_get_prefix_count(void)
-{
-	return pool_get_prefix_count(&pool);
-}
-
 int rfc6791_get(struct in_addr *result)
 {
 	struct pool_entry *entry;
-	unsigned int count;
+	__u64 count;
 	unsigned int rand;
+	int error;
 
 	rcu_read_lock();
 
@@ -58,7 +49,13 @@ int rfc6791_get(struct in_addr *result)
 	 * expensive. Reservoir sampling requires one random per iteration, this way requires one
 	 * random period.
 	 */
-	count = rfc6791_get_prefix_count();
+	error = pool_count(&pool, &count);
+	if (error) {
+		rcu_read_unlock();
+		log_debug("pool_count failed with errcode %d.", error);
+		return error;
+	}
+
 	if (count == 0) {
 		rcu_read_unlock();
 		log_warn_once("The IPv4 RFC6791 pool is empty.");
@@ -68,7 +65,7 @@ int rfc6791_get(struct in_addr *result)
 	rand = get_random_u32() % count;
 
 	list_for_each_entry_rcu(entry, &pool, list_hook) {
-		count = get_addr_count(&entry->prefix);
+		count = prefix4_get_addr_count(&entry->prefix);
 		if (count >= rand)
 			break;
 		rand -= count;

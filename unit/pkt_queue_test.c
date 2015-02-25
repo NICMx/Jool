@@ -23,6 +23,7 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 static bool test_pkt_queue_asr(void)
 {
 	struct session_entry *session;
+	struct packet pkt;
 	struct sk_buff *skb;
 	struct tuple tuple4;
 	struct tcphdr *hdr_tcp;
@@ -36,17 +37,17 @@ static bool test_pkt_queue_asr(void)
 	if (!session)
 		return false;
 
-	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32))) {
-		session_return(session);
-		return false;
-	}
+	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32)))
+		goto fail;
+	if (is_error(pkt_init_ipv4(&pkt, skb)))
+		goto fail;
 	hdr_tcp = tcp_hdr(skb);
 	hdr_tcp->syn = true;
 	hdr_tcp->rst = false;
 	hdr_tcp->fin = false;
 
 	/* Test */
-	success &= assert_equals_int(0, pktqueue_add(session, skb), "pktqueue_add 1");
+	success &= assert_equals_int(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
 	success &= assert_equals_int(0, pktqueue_send(session), "pktqueue_send 1");
 	success &= assert_equals_int(1, icmp64_pop(), "pktqueue sent an icmp error");
 	success &= assert_equals_int(-ENOENT, pktqueue_remove(session), "pktqueue_remove 1");
@@ -55,6 +56,10 @@ static bool test_pkt_queue_asr(void)
 	session_return(session);
 	/* kfree_skb(skb); "skb" kfreed when pktqueue_send is executed */
 	return success;
+
+fail:
+	session_return(session);
+	return false;
 }
 
 /**
@@ -63,6 +68,7 @@ static bool test_pkt_queue_asr(void)
 static bool test_pkt_queue_ars(void)
 {
 	struct session_entry *session;
+	struct packet pkt;
 	struct sk_buff *skb;
 	struct tuple tuple4;
 	struct tcphdr *hdr_tcp;
@@ -76,16 +82,17 @@ static bool test_pkt_queue_ars(void)
 	if (!session)
 		return false;
 
-	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32))) {
-		session_return(session);
-		return false;
-	}
+	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32)))
+		goto fail;
+	if (is_error(pkt_init_ipv4(&pkt, skb)))
+		goto fail;
+
 	hdr_tcp = tcp_hdr(skb);
 	hdr_tcp->syn = true;
 	hdr_tcp->rst = false;
 	hdr_tcp->fin = false;
 
-	success &= assert_equals_int(0, pktqueue_add(session, skb), "pktqueue_add 1");
+	success &= assert_equals_int(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
 	success &= assert_equals_int(0, pktqueue_remove(session), "pktqueue_remove 1");
 	success &= assert_equals_int(-ENOENT, pktqueue_send(session), "pktqueue_send 1");
 	success &= assert_equals_int(0, icmp64_pop(), "pktqueue not sent an icmp error");
@@ -94,6 +101,10 @@ static bool test_pkt_queue_ars(void)
 	session_return(session);
 	/* kfree_skb(skb); "skb" kfreed when pktqueue_remove is executed */
 	return success;
+
+fail:
+	session_return(session);
+	return false;
 }
 
 static int pktqueue_test_init(void)

@@ -103,13 +103,20 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 
 int pool6_peek(struct ipv6_prefix *result)
 {
-	if (!pool6)
-		return -ESRCH;
+	struct ipv6_prefix *tmp;
+	int error;
 
 	rcu_read_lock_bh();
-	*result = *(rcu_dereference_bh(pool6));
+	tmp = rcu_dereference_bh(pool6);
+	if (tmp) {
+		*result = *tmp;
+		error = 0;
+	} else {
+		error = -ESRCH;
+	}
 	rcu_read_unlock_bh();
-	return 0;
+
+	return error;
 }
 
 bool pool6_contains(struct in6_addr *addr)
@@ -118,10 +125,25 @@ bool pool6_contains(struct in6_addr *addr)
 	return !pool6_get(addr, &result); /* 0 -> true, -ENOENT or whatever -> false. */
 }
 
+/**
+ * Remember this function must only be called with the configuration mutex locked.
+ */
+static int pool6_set(struct ipv6_prefix *new)
+{
+	struct ipv6_prefix *old_prefix = pool6;
+
+	rcu_assign_pointer(pool6, new);
+	synchronize_rcu_bh();
+
+	if (old_prefix)
+		kfree(old_prefix);
+
+	return 0;
+}
+
 int pool6_update(struct ipv6_prefix *prefix)
 {
-	struct ipv6_prefix *old_prefix, *tmp_prefix;
-	struct ipv6_prefix prefix6;
+	struct ipv6_prefix *new;
 	int error;
 
 	if (WARN(!prefix, "NULL is not a valid prefix."))
@@ -131,27 +153,12 @@ int pool6_update(struct ipv6_prefix *prefix)
 	if (error)
 		return error; /* Error msg already printed. */
 
-	pool6_peek(&prefix6);
-
-	if (ipv6_prefix_equals(&prefix6, prefix)) {
-		log_err("The prefix already belongs to the pool.");
-		return -EEXIST;
-	}
-
-	tmp_prefix = kmalloc(sizeof(*tmp_prefix), GFP_KERNEL);
-	if (!tmp_prefix)
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
 		return -ENOMEM;
+	*new = *prefix;
 
-	old_prefix = pool6;
-	*tmp_prefix = *prefix;
-
-	rcu_assign_pointer(pool6, tmp_prefix);
-	synchronize_rcu_bh();
-
-	if (old_prefix)
-		kfree(old_prefix);
-
-	return 0;
+	return pool6_set(new);
 }
 
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
@@ -168,41 +175,33 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
 
 int pool6_remove(struct ipv6_prefix *prefix)
 {
-	struct ipv6_prefix *old_prefix;
-	struct ipv6_prefix prefix6;
+	struct ipv6_prefix current_prefix;
 	int error;
 
 	if (WARN(!prefix, "NULL is not a valid prefix."))
 		return -EINVAL;
 
-	if (!pool6) {
+	error = pool6_peek(&current_prefix);
+	if (error) {
 		log_err("Pool6 is empty, nothing to be removed.");
-		return -EINVAL;
+		return error;
 	}
 
-	error = validate_prefix(prefix);
-	if (error)
-		return error; /* Error msg already printed. */
-
-	pool6_peek(&prefix6);
-
-	if (!ipv6_prefix_equals(&prefix6, prefix)) {
+	if (!ipv6_prefix_equals(&current_prefix, prefix)) {
 		log_err("The prefix doesn't belong to the pool.");
 		return -EINVAL;
 	}
 
-	old_prefix = pool6;
-
-	rcu_assign_pointer(pool6, NULL);
-	synchronize_rcu_bh();
-
-	return 0;
+	return pool6_set(NULL);
 }
 
 bool pool6_is_empty(void)
 {
-	if (rcu_dereference_bh(pool6))
-		return false;
+	bool is_empty;
 
-	return true;
+	rcu_read_lock_bh();
+	is_empty = rcu_dereference_bh(pool6) ? false : true;
+	rcu_read_unlock_bh();
+
+	return is_empty;
 }

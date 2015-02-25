@@ -176,6 +176,8 @@ bool ipv6_prefix_contains(const struct ipv6_prefix *prefix, const struct in6_add
 
 bool ipv4_prefix_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2);
 
+unsigned int prefix4_get_addr_count(struct ipv4_prefix *prefix);
+
 /**
  * The kernel has a ipv6_addr_cmp(), but not a ipv4_addr_cmp().
  * Of course, that is because in_addrs are, to most intents and purposes, 32-bit integer values.

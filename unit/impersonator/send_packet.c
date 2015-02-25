@@ -4,10 +4,10 @@
 static struct sk_buff *sent_skb = NULL;
 
 
-verdict sendpkt_send(struct sk_buff *in_skb, struct sk_buff *out_skb)
+verdict sendpkt_send(struct packet *in, struct packet *out)
 {
-	log_debug("Step 6: Pretending I'm sending packet %p...", out_skb);
-	sent_skb = out_skb;
+	log_debug("Step 6: Pretending I'm sending packet %p...", out);
+	sent_skb = out->skb;
 	log_debug("Done step 6.");
 	return VERDICT_CONTINUE;
 }

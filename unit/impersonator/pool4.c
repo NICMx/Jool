@@ -131,3 +131,8 @@ int pool4_count(__u64 *result)
 	*result = 1;
 	return 0;
 }
+
+bool pool4_is_empty(void)
+{
+	return false;
+}

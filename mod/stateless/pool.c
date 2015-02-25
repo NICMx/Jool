@@ -122,52 +122,44 @@ int pool_flush(struct list_head *pool)
 	return 0;
 }
 
-static unsigned int get_addr_count(struct ipv4_prefix *prefix)
-{
-	return 1 << (32 - prefix->len);
-}
-
-unsigned int pool_get_prefix_count(struct list_head *pool)
-{
-	struct pool_entry *entry;
-	unsigned int result = 0;
-
-	list_for_each_entry_rcu(entry, pool, list_hook) {
-		result += get_addr_count(&entry->prefix);
-	}
-
-	return result;
-}
-
 int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void *), void *arg)
 {
 	struct pool_entry *entry;
-	int error;
+	int error = 0;
 
-	list_for_each_entry(entry, pool, list_hook) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, pool, list_hook) {
 		error = func(&entry->prefix, arg);
 		if (error)
-			return error;
+			break;
 	}
+	rcu_read_unlock();
 
-	return 0;
+	return error;
 }
 
 int pool_count(struct list_head *pool, __u64 *result)
 {
+	struct pool_entry *entry;
+	unsigned int count = 0;
+
 	rcu_read_lock();
-	*result = pool_get_prefix_count(pool);
+	list_for_each_entry_rcu(entry, pool, list_hook) {
+		count += prefix4_get_addr_count(&entry->prefix);
+	}
 	rcu_read_unlock();
+
+	*result = count;
 	return 0;
 }
 
 bool pool_is_empty(struct list_head *pool)
 {
-	__u64 result;
-	pool_count(pool, &result);
+	bool result;
 
-	if (result)
-		return false;
+	rcu_read_lock();
+	result = list_empty(pool);
+	rcu_read_unlock();
 
-	return true;
+	return result;
 }

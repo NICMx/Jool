@@ -37,12 +37,16 @@ bool pool4_contains(__be32 addr)
 {
 	struct pool_entry *entry;
 	struct in_addr inaddr = { .s_addr = addr };
+	bool result = false;
 
+	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &pool, list_hook) {
 		if (ipv4_prefix_contains(&entry->prefix, &inaddr)) {
-			return true;
+			result = true;
+			break;
 		}
 	}
+	rcu_read_unlock();
 
 	return false;
 }

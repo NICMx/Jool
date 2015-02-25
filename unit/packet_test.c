@@ -99,48 +99,54 @@ static bool test_function_build_ipv4_frag_off_field(void)
 
 static bool test_inner_packet_validation4(void)
 {
-	struct sk_buff *skb = NULL;
+	struct packet pkt;
+	struct sk_buff *skb;
 	bool result = true;
 
-	/* Internally call the function to evaluate -> skb_init_cb_ipv4(skb) */
 	skb = create_skb4(100, create_skb4_icmp_error);
-	result &= assert_not_equals_ptr(NULL, skb, "validate complete inner pkt 4");
-	if (skb)
-		kfree_skb(skb);
+	if (!skb)
+		return false;
+	result &= assert_equals_int(0, pkt_init_ipv4(&pkt, skb), "validate complete inner pkt 4");
+	kfree_skb(skb);
 
 	skb = create_skb4(30, create_skb4_icmp_error);
-	result &= assert_equals_ptr(NULL, skb, "validate incomplete tcp inner pkt 4");
-	if (skb)
-		kfree_skb(skb);
+	if (!skb)
+		return false;
+	result &= assert_equals_int(-EINVAL, pkt_init_ipv4(&pkt, skb), "validate incomplete tcp inner pkt 4");
+	kfree_skb(skb);
 
 	skb = create_skb4(15, create_skb4_icmp_error);
-	result &= assert_equals_ptr(NULL, skb, "validate incomplete ipv4hdr inner pkt 4");
-	if (skb)
-		kfree_skb(skb);
+	if (!skb)
+		return false;
+	result &= assert_equals_int(-EINVAL, pkt_init_ipv4(&pkt, skb), "validate incomplete ipv4hdr inner pkt 4");
+	kfree_skb(skb);
 
 	return result;
 }
 
 static bool test_inner_packet_validation6(void)
 {
-	struct sk_buff *skb = NULL;
+	struct packet pkt;
+	struct sk_buff *skb;
 	bool result = true;
 
-	/* Internally call the function to evaluate -> skb_init_cb_ipv6(skb) */
 	skb = create_skb6(100, create_skb6_icmp_error);
-	result &= assert_not_equals_ptr(NULL, skb, "validate complete inner pkt 6");
-	if (skb)
-		kfree_skb(skb);
+	if (!skb)
+		return false;
+	result &= assert_equals_int(0, pkt_init_ipv6(&pkt, skb), "validate complete inner pkt 6");
+	kfree_skb(skb);
 
-	skb = create_skb6(50, create_skb6_icmp_error);
-	result &= assert_equals_ptr(NULL, skb, "validate incomplete tcp inner pkt 6");
-	if (skb)
-		kfree_skb(skb);
+	skb = create_skb6(50, create_skb6_icmp_error); /* 40 + 8    + 40 + 20    */
+	if (!skb)
+		return false;
+	result &= assert_equals_int(-EINVAL, pkt_init_ipv6(&pkt, skb), "validate incomplete tcp inner pkt 6");
+	kfree_skb(skb);
 
 	skb = create_skb6(30, create_skb6_icmp_error);
-	result &= assert_equals_ptr(NULL, skb, "validate incomplete ipv6hdr inner pkt 6");
-	if (skb)
-		kfree_skb(skb);
+	if (!skb)
+		return false;
+	result &= assert_equals_int(-EINVAL, pkt_init_ipv6(&pkt, skb), "validate incomplete ipv6hdr inner pkt 6");
+	kfree_skb(skb);
 
 	return result;
 }

@@ -21,6 +21,7 @@ MODULE_DESCRIPTION("Determine Incoming Tuple Test");
 
 static bool test_determine_in_tuple_ipv4(void)
 {
+	struct packet pkt;
 	struct sk_buff *skb;
 	struct tuple actual, expected;
 	bool success = true;
@@ -29,8 +30,10 @@ static bool test_determine_in_tuple_ipv4(void)
 		return false;
 	if (is_error(create_skb4_udp(&expected, &skb, 8, 32)))
 		return false;
+	if (is_error(pkt_init_ipv4(&pkt, skb)))
+		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(skb, &actual), "verdict");
+	success &= assert_equals_int(VERDICT_CONTINUE, determine_in_tuple(&pkt, &actual), "verdict");
 	success &= assert_equals_tuple(&expected, &actual, "tuple");
 
 	kfree_skb(skb);
@@ -39,6 +42,7 @@ static bool test_determine_in_tuple_ipv4(void)
 
 static bool test_determine_in_tuple_ipv6(void)
 {
+	struct packet pkt;
 	struct sk_buff *skb;
 	struct tuple actual, expected;
 	bool success = true;
@@ -47,8 +51,10 @@ static bool test_determine_in_tuple_ipv6(void)
 		return false;
 	if (is_error(create_skb6_tcp(&expected, &skb, 8, 32)))
 		return false;
+	if (is_error(pkt_init_ipv6(&pkt, skb)))
+		return false;
 
-	success &= assert_equals_int(VER_CONTINUE, determine_in_tuple(skb, &actual), "verdict");
+	success &= assert_equals_int(VERDICT_CONTINUE, determine_in_tuple(&pkt, &actual), "verdict");
 	success &= assert_equals_tuple(&expected, &actual, "tuple");
 
 	kfree_skb(skb);

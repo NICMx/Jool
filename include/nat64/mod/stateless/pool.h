@@ -27,8 +27,6 @@ int pool_remove(struct list_head *pool, struct ipv4_prefix *prefix);
 
 int pool_flush(struct list_head *pool);
 
-unsigned int pool_get_prefix_count(struct list_head *pool);
-
 int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void *), void *arg);
 
 int pool_count(struct list_head *pool, __u64 *result);

@@ -82,15 +82,15 @@ static bool test_next_function_no_subheaders(void)
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_next(&iterator), "Result 1");
+	success &= assert_equals_int(0, hdr_iterator_next(&iterator), "Result 1");
 	success &= assert_equals_ptr(payload, iterator.data, "Payload 2, data");
 	success &= assert_equals_u8(NEXTHDR_UDP, iterator.hdr_type, "Payload 2, type");
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_next(&iterator), "Result 2");
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_next(&iterator), "Result 3");
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_next(&iterator), "Result 4");
+	success &= assert_equals_int(0, hdr_iterator_next(&iterator), "Result 2");
+	success &= assert_equals_int(0, hdr_iterator_next(&iterator), "Result 3");
+	success &= assert_equals_int(0, hdr_iterator_next(&iterator), "Result 4");
 	success &= assert_equals_ptr(payload, iterator.data, "Payload 3, data");
 	success &= assert_equals_u8(NEXTHDR_UDP, iterator.hdr_type, "Payload 3, type");
 	/* Fall through. */
@@ -127,25 +127,25 @@ static bool test_next_function_subheaders(void)
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_SUCCESS, hdr_iterator_next(&iterator), "Next 1");
+	success &= assert_equals_int(EAGAIN, hdr_iterator_next(&iterator), "Next 1");
 	success &= assert_equals_ptr(hop_by_hop_hdr, iterator.data, "Hop-by-hop hdr, data");
 	success &= assert_equals_u8(NEXTHDR_HOP, iterator.hdr_type, "Hop-by-hop hdr, type");
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_SUCCESS, hdr_iterator_next(&iterator), "Next 2");
+	success &= assert_equals_int(EAGAIN, hdr_iterator_next(&iterator), "Next 2");
 	success &= assert_equals_ptr(routing_hdr, iterator.data, "Routing hdr, data");
 	success &= assert_equals_u8(NEXTHDR_ROUTING, iterator.hdr_type, "Routing hdr, type");
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_SUCCESS, hdr_iterator_next(&iterator), "Next 3");
+	success &= assert_equals_int(EAGAIN, hdr_iterator_next(&iterator), "Next 3");
 	success &= assert_equals_ptr(payload, iterator.data, "Payload 1, data");
 	success &= assert_equals_u8(NEXTHDR_UDP, iterator.hdr_type, "Payload 1, type");
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_next(&iterator), "Next 4");
+	success &= assert_equals_int(0, hdr_iterator_next(&iterator), "Next 4");
 	success &= assert_equals_ptr(payload, iterator.data, "Payload 2, data");
 	success &= assert_equals_u8(NEXTHDR_UDP, iterator.hdr_type, "Payload 2, type");
 	/* Fall through. */
@@ -182,52 +182,15 @@ static bool test_next_function_unsupported(void)
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_SUCCESS, hdr_iterator_next(&iterator), "Next 1");
+	success &= assert_equals_int(EAGAIN, hdr_iterator_next(&iterator), "Next 1");
 	success &= assert_equals_ptr(esp_hdr, iterator.data, "ESP hdr, pointer");
 	success &= assert_equals_u8(NEXTHDR_ESP, iterator.hdr_type, "ESP hdr, type");
 	if (!success)
 		goto end;
 
-	success &= assert_equals_int(HDR_ITERATOR_UNSUPPORTED, hdr_iterator_next(&iterator), "Next 2");
+	success &= assert_equals_int(0, hdr_iterator_next(&iterator), "Next 2");
 	success &= assert_equals_ptr(esp_hdr, iterator.data, "Still ESP header, pointer");
 	success &= assert_equals_u8(NEXTHDR_ESP, iterator.hdr_type, "Still ESP header, type");
-	/* Fall through. */
-
-end:
-	kfree(ip6_header);
-	return success;
-}
-
-static bool test_next_function_overflow(void)
-{
-	bool success = true;
-	struct hdr_iterator iterator;
-
-	/* Init */
-	struct ipv6hdr *ip6_header;
-	struct frag_hdr *fragment_hdr;
-	struct ipv6_opt_hdr *hop_by_hop_hdr;
-
-	ip6_header = kmalloc_packet(FRAG_HDR_LEN + OPT_HDR_LEN, NEXTHDR_FRAGMENT);
-	if (!ip6_header)
-		return false;
-	fragment_hdr = add_frag_hdr(ip6_header, sizeof(struct ipv6hdr), NEXTHDR_HOP);
-	hop_by_hop_hdr = add_opt_hdr(fragment_hdr, FRAG_HDR_LEN, NEXTHDR_ROUTING);
-
-	/* Test */
-	hdr_iterator_init(&iterator, ip6_header);
-	success &= assert_equals_ptr(fragment_hdr, iterator.data, "Frag hdr, data");
-	success &= assert_equals_u8(NEXTHDR_FRAGMENT, iterator.hdr_type, "Frag hdr, type");
-	if (!success)
-		goto end;
-
-	success &= assert_equals_int(HDR_ITERATOR_SUCCESS, hdr_iterator_next(&iterator), "Next 1");
-	success &= assert_equals_ptr(hop_by_hop_hdr, iterator.data, "Hop-by-hop hdr, data");
-	success &= assert_equals_u8(NEXTHDR_HOP, iterator.hdr_type, "Hop-by-hop hdr, type");
-	if (!success)
-		goto end;
-
-	success &= assert_equals_int(HDR_ITERATOR_OVERFLOW, hdr_iterator_next(&iterator), "Next 2");
 	/* Fall through. */
 
 end:
@@ -251,7 +214,7 @@ static bool test_last_function_no_subheaders(void)
 
 	/* Test */
 	hdr_iterator_init(&iterator, ip6_header);
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_last(&iterator), "Result");
+	hdr_iterator_last(&iterator);
 	success &= assert_equals_ptr(payload, iterator.data, "Last function, data");
 	success &= assert_equals_u8(NEXTHDR_UDP, iterator.hdr_type, "Last function, type");
 
@@ -282,7 +245,7 @@ static bool test_last_function_subheaders(void)
 
 	/* Test */
 	hdr_iterator_init(&iterator, ip6_header);
-	success &= assert_equals_int(HDR_ITERATOR_END, hdr_iterator_last(&iterator), "Result");
+	hdr_iterator_last(&iterator);
 	success &= assert_equals_ptr(payload, iterator.data, "Last function, data");
 	success &= assert_equals_u8(NEXTHDR_UDP, iterator.hdr_type, "Last function, type");
 
@@ -313,34 +276,9 @@ static bool test_last_function_unsupported(void)
 
 	/* Test */
 	hdr_iterator_init(&iterator, ip6_header);
-	success &= assert_equals_int(HDR_ITERATOR_UNSUPPORTED, hdr_iterator_last(&iterator), "Result");
+	hdr_iterator_last(&iterator);
 	success &= assert_equals_ptr(esp_hdr, iterator.data, "Last function, data");
 	success &= assert_equals_u8(NEXTHDR_ESP, iterator.hdr_type, "Last function, type");
-
-	/* End */
-	kfree(ip6_header);
-	return success;
-}
-
-static bool test_last_function_overflow(void)
-{
-	bool success = true;
-	struct hdr_iterator iterator;
-
-	/* Init */
-	struct ipv6hdr *ip6_header;
-	struct frag_hdr *fragment_hdr;
-	struct ipv6_opt_hdr *hop_by_hop_hdr;
-
-	ip6_header = kmalloc_packet(FRAG_HDR_LEN + OPT_HDR_LEN, NEXTHDR_FRAGMENT);
-	if (!ip6_header)
-		return false;
-	fragment_hdr = add_frag_hdr(ip6_header, sizeof(struct ipv6hdr), NEXTHDR_HOP);
-	hop_by_hop_hdr = add_opt_hdr(fragment_hdr, NEXTHDR_FRAGMENT, NEXTHDR_ROUTING);
-
-	/* Test */
-	hdr_iterator_init(&iterator, ip6_header);
-	success &= assert_equals_int(HDR_ITERATOR_OVERFLOW, hdr_iterator_last(&iterator), "Result");
 
 	/* End */
 	kfree(ip6_header);
@@ -361,14 +299,14 @@ static bool test_get_ext_function_no_subheaders(void)
 	payload = add_payload(ip6_header, sizeof(struct ipv6hdr));
 
 	/* Test */
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_FRAGMENT),
+	success &= assert_equals_ptr(NULL, hdr_iterator_find(ip6_header, NEXTHDR_FRAGMENT),
 			"Frag hdr");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_HOP),
+	success &= assert_equals_ptr(NULL, hdr_iterator_find(ip6_header, NEXTHDR_HOP),
 			"Hop-by-hop hdr");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_ESP),
+	success &= assert_equals_ptr(NULL, hdr_iterator_find(ip6_header, NEXTHDR_ESP),
 			"ESP hdr");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_UDP),
-			"Payload"); /* The UDP header is not an extension header. */
+	success &= assert_equals_ptr(ip6_header + 1, hdr_iterator_find(ip6_header, NEXTHDR_UDP),
+			"Payload");
 
 	/* End */
 	kfree(ip6_header);
@@ -391,18 +329,20 @@ static bool test_get_ext_function_subheaders(void)
 		return false;
 	fragment_hdr = add_frag_hdr(ip6_header, sizeof(struct ipv6hdr), NEXTHDR_HOP);
 	hop_by_hop_hdr = add_opt_hdr(fragment_hdr, FRAG_HDR_LEN, NEXTHDR_ROUTING);
-	routing_hdr = add_opt_hdr(hop_by_hop_hdr, OPT_HDR_LEN, NEXTHDR_UDP);
+	routing_hdr = add_routing_hdr(hop_by_hop_hdr, OPT_HDR_LEN, NEXTHDR_UDP);
 	payload = add_payload(routing_hdr, ROUTING_HDR_LEN);
 
 	/* Test */
-	success &= assert_equals_ptr(fragment_hdr, get_extension_header(ip6_header, NEXTHDR_FRAGMENT),
+	success &= assert_equals_ptr(fragment_hdr, hdr_iterator_find(ip6_header, NEXTHDR_FRAGMENT),
 			"Frag hdr");
-	success &= assert_equals_ptr(hop_by_hop_hdr, get_extension_header(ip6_header, NEXTHDR_HOP),
+	success &= assert_equals_ptr(hop_by_hop_hdr, hdr_iterator_find(ip6_header, NEXTHDR_HOP),
 			"Hop-by-hop hdr");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_ESP),
+	success &= assert_equals_ptr(NULL, hdr_iterator_find(ip6_header, NEXTHDR_ESP),
 			"ESP header");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_UDP),
-			"Payload"); /* The UDP header is not an extension header. */
+	success &= assert_equals_ptr(routing_hdr, hdr_iterator_find(ip6_header, NEXTHDR_ROUTING),
+			"Routing header");
+	success &= assert_equals_ptr(payload, hdr_iterator_find(ip6_header, NEXTHDR_UDP),
+			"Payload");
 
 	/* End */
 	kfree(ip6_header);
@@ -428,42 +368,14 @@ static bool test_get_ext_function_unsupported(void)
 	payload = add_payload(routing_hdr, ROUTING_HDR_LEN);
 
 	/* Test */
-	success &= assert_equals_ptr(fragment_hdr, get_extension_header(ip6_header, NEXTHDR_FRAGMENT),
+	success &= assert_equals_ptr(fragment_hdr, hdr_iterator_find(ip6_header, NEXTHDR_FRAGMENT),
 			"Frag hdr");
-	success &= assert_equals_ptr(esp_hdr, get_extension_header(ip6_header, NEXTHDR_ESP),
+	success &= assert_equals_ptr(esp_hdr, hdr_iterator_find(ip6_header, NEXTHDR_ESP),
 			"ESP header");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_ROUTING),
+	success &= assert_equals_ptr(NULL, hdr_iterator_find(ip6_header, NEXTHDR_ROUTING),
 			"Routing header"); /* The ESP header is in the way. */
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_UDP),
+	success &= assert_equals_ptr(NULL, hdr_iterator_find(ip6_header, NEXTHDR_UDP),
 			"Payload"); /* Same, but that isn't an extension header anyway. */
-
-	/* End */
-	kfree(ip6_header);
-	return success;
-}
-
-static bool test_get_ext_function_overflow(void)
-{
-	bool success = true;
-
-	/* Init */
-	struct ipv6hdr *ip6_header;
-	struct frag_hdr *fragment_hdr;
-	struct ipv6_opt_hdr *hop_by_hop_hdr;
-
-	ip6_header = kmalloc_packet(FRAG_HDR_LEN + OPT_HDR_LEN, NEXTHDR_FRAGMENT);
-	if (!ip6_header)
-		return false;
-	fragment_hdr = add_frag_hdr(ip6_header, sizeof(struct ipv6hdr), NEXTHDR_HOP);
-	hop_by_hop_hdr = add_opt_hdr(fragment_hdr, FRAG_HDR_LEN, NEXTHDR_ROUTING);
-
-	/* Test */
-	success &= assert_equals_ptr(fragment_hdr, get_extension_header(ip6_header, NEXTHDR_FRAGMENT),
-			"Frag hdr");
-	success &= assert_equals_ptr(hop_by_hop_hdr, get_extension_header(ip6_header, NEXTHDR_HOP),
-			"Hop-by-hop hdr");
-	success &= assert_equals_ptr(NULL, get_extension_header(ip6_header, NEXTHDR_UDP),
-			"Payload"); /* The UDP header is not an extension header. */
 
 	/* End */
 	kfree(ip6_header);
@@ -477,17 +389,14 @@ int init_module(void)
 	CALL_TEST(test_next_function_no_subheaders(), "next function, no subheaders");
 	CALL_TEST(test_next_function_subheaders(), "next function, subheaders");
 	CALL_TEST(test_next_function_unsupported(), "next function, unsupported headers");
-	CALL_TEST(test_next_function_overflow(), "next function, corrupted packet");
 
 	CALL_TEST(test_last_function_no_subheaders(), "last function, no subheaders");
 	CALL_TEST(test_last_function_subheaders(), "last function, subheaders");
 	CALL_TEST(test_last_function_unsupported(), "last function, unsupported headers");
-	CALL_TEST(test_last_function_overflow(), "last function, corrupted packet");
 
 	CALL_TEST(test_get_ext_function_no_subheaders(), "get ext function, no subheaders");
 	CALL_TEST(test_get_ext_function_subheaders(), "get ext function, subheaders");
 	CALL_TEST(test_get_ext_function_unsupported(), "get ext function, unsupported headers");
-	CALL_TEST(test_get_ext_function_overflow(), "get ext function, corrupted packet");
 
 	END_TESTS;
 }

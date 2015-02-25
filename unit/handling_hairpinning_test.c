@@ -132,6 +132,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 				"out's dst port");
 		break;
 	case L4PROTO_ICMP:
+	case L4PROTO_OTHER:
 		log_err("Test is not designed for protocol %d.", l4_proto);
 		success = false;
 		break;
@@ -184,6 +185,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 				"out's dst port");
 		break;
 	case L4PROTO_ICMP:
+	case L4PROTO_OTHER:
 		log_err("Test is not designed for protocol %d.", l4_proto);
 		success = false;
 		break;

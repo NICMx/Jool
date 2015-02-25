@@ -17,18 +17,6 @@ bool validate_fragment_count(struct sk_buff *skb, int expected_count)
 	return assert_equals_int(expected_count, i, "Fragment count");
 }
 
-bool validate_cb_l3(struct sk_buff *skb, l3_protocol l3proto, int len)
-{
-	return assert_equals_int(l3proto, pkt_l3_proto(skb), "cb: L3-proto")
-			& assert_equals_int(len, pkt_l3hdr_len(skb), "cb: L3-len");
-}
-
-bool validate_cb_l4(struct sk_buff *skb, l4_protocol l4proto, int len)
-{
-	return assert_equals_int(l4proto, pkt_l4_proto(skb), "cb: L4-proto")
-			& assert_equals_int(len, pkt_l4hdr_len(skb), "cb: L4-len");
-}
-
 bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct tuple *tuple6)
 {
 	bool success = true;

@@ -110,9 +110,12 @@ static int summarize_skb6(struct sk_buff *skb, unsigned int hdr6_offset, struct 
 		struct tcphdr *tcp;
 	} ptr;
 
-	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
-	unsigned int offset = hdr6_offset + sizeof(struct ipv6hdr);
+	u8 nexthdr;
+	unsigned int offset;
 	bool is_first = true;
+
+	nexthdr = ((struct ipv6hdr *) (skb_network_header(skb) + hdr6_offset))->nexthdr;
+	offset = hdr6_offset + sizeof(struct ipv6hdr);
 
 	meta->has_frag_hdr = false;
 

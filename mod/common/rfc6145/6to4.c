@@ -133,17 +133,17 @@ static __be16 generate_ipv4_id_nofrag(struct packet *skb_out)
 /**
  * One-liner for creating the IPv4 header's Dont Fragment flag.
  */
-static bool generate_df_flag(struct packet *skb_out)
+static bool generate_df_flag(struct packet *pkt_out)
 {
-	return pkt_len(skb_out) > 1260;
+	return pkt_len(pkt_out) > 1260;
 }
 
 /**
  * One-liner for creating the IPv4 header's Protocol field.
  */
-static __u8 build_protocol_field(struct packet *pkt)
+static __u8 build_protocol_field(struct ipv6hdr *hdr6)
 {
-	struct hdr_iterator iterator = HDR_ITERATOR_INIT(pkt_ip6_hdr(pkt));
+	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
 	hdr_iterator_last(&iterator);
 	return (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 }
@@ -221,7 +221,7 @@ static bool has_nonzero_segments_left(struct ipv6hdr *ip6_hdr, __u32 *field_loca
 	if (!rt_hdr)
 		return false;
 
-	if (rt_hdr->segments_left != 0)
+	if (rt_hdr->segments_left == 0)
 		return false;
 
 	offset = (void *) rt_hdr - (void *) ip6_hdr;
@@ -274,7 +274,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	} else {
 		ip4_hdr->ttl = ip6_hdr->hop_limit;
 	}
-	ip4_hdr->protocol = build_protocol_field(in);
+	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
 
 	if (nat64_is_stateful()) {

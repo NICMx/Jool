@@ -223,6 +223,7 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 static bool test_function_generate_ipv4_id_nofrag(void)
 {
+	struct packet pkt;
 	struct sk_buff *skb;
 	__be16 attempt_1, attempt_2, attempt_3;
 	bool success = true;
@@ -230,11 +231,12 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 	skb = alloc_skb(1500, GFP_ATOMIC);
 	if (!skb)
 		return false;
+	pkt.skb = skb;
 
 	skb_put(skb, 1000);
-	attempt_1 = generate_ipv4_id_nofrag(skb);
-	attempt_2 = generate_ipv4_id_nofrag(skb);
-	attempt_3 = generate_ipv4_id_nofrag(skb);
+	attempt_1 = generate_ipv4_id_nofrag(&pkt);
+	attempt_2 = generate_ipv4_id_nofrag(&pkt);
+	attempt_3 = generate_ipv4_id_nofrag(&pkt);
 	/*
 	 * At least one of the attempts should be nonzero,
 	 * otherwise the random would be sucking major ****.
@@ -242,13 +244,13 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len < 1260");
 
 	skb_put(skb, 260);
-	attempt_1 = generate_ipv4_id_nofrag(skb);
-	attempt_2 = generate_ipv4_id_nofrag(skb);
-	attempt_3 = generate_ipv4_id_nofrag(skb);
+	attempt_1 = generate_ipv4_id_nofrag(&pkt);
+	attempt_2 = generate_ipv4_id_nofrag(&pkt);
+	attempt_3 = generate_ipv4_id_nofrag(&pkt);
 	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1260");
 
 	skb_put(skb, 200);
-	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(skb), "Len > 1260");
+	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&pkt), "Len > 1260");
 
 	kfree_skb(skb);
 	return success;
@@ -256,21 +258,23 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 
 static bool test_function_generate_df_flag(void)
 {
+	struct packet pkt;
 	struct sk_buff *skb;
 	bool success = true;
 
 	skb = alloc_skb(1500, GFP_ATOMIC);
 	if (!skb)
 		return false;
+	pkt.skb = skb;
 
 	skb_put(skb, 1000);
-	success &= assert_equals_u16(0, generate_df_flag(skb), "Len < 1260");
+	success &= assert_equals_u16(0, generate_df_flag(&pkt), "Len < 1260");
 
 	skb_put(skb, 260);
-	success &= assert_equals_u16(0, generate_df_flag(skb), "Len = 1260");
+	success &= assert_equals_u16(0, generate_df_flag(&pkt), "Len = 1260");
 
 	skb_put(skb, 200);
-	success &= assert_equals_u16(1, generate_df_flag(skb), "Len > 1260");
+	success &= assert_equals_u16(1, generate_df_flag(&pkt), "Len > 1260");
 
 	kfree_skb(skb);
 	return success;
@@ -472,26 +476,28 @@ static bool test_4to6(l4_protocol l4_proto,
 		int (*create_skb6_fn)(struct tuple *, struct sk_buff **, u16, u8),
 		u16 expected_payload6_len)
 {
-	struct sk_buff *skb4 = NULL, *skb6_expected = NULL, *skb6_actual = NULL;
+	struct packet pkt4, pkt6_actual = { .skb = NULL };
+	struct sk_buff *skb4 = NULL, *skb6_expected = NULL;
 	struct tuple tuple4, tuple6;
 	bool result = false;
 
 	if (init_ipv4_tuple(&tuple4, "192.0.2.5", 1234, "192.0.2.2", 80, l4_proto) != 0
 			|| init_ipv6_tuple(&tuple6, "64::192.0.2.5", 51234, "1::1", 50080, l4_proto) != 0
 			|| create_skb4_fn(&tuple4, &skb4, 100, 32) != 0
-			|| create_skb6_fn(&tuple6, &skb6_expected, expected_payload6_len, 31) != 0)
+			|| create_skb6_fn(&tuple6, &skb6_expected, expected_payload6_len, 31) != 0
+			|| pkt_init_ipv4(&pkt4, skb4))
 		goto end;
 
-	if (translating_the_packet(&tuple6, skb4, &skb6_actual) != VER_CONTINUE)
+	if (translating_the_packet(&tuple6, &pkt4, &pkt6_actual) != VERDICT_CONTINUE)
 		goto end;
 
-	result = compare_skbs(skb6_expected, skb6_actual);
+	result = compare_skbs(skb6_expected, pkt6_actual.skb);
 	/* Fall through. */
 
 end:
 	kfree_skb(skb4);
 	kfree_skb(skb6_expected);
-	kfree_skb(skb6_actual);
+	kfree_skb(pkt6_actual.skb);
 	return result;
 }
 
@@ -522,7 +528,8 @@ static bool test_6to4(l4_protocol l4_proto,
 {
 	bool true_var = true;
 	bool false_var = false;
-	struct sk_buff *skb6 = NULL, *skb4_expected = NULL, *skb4_actual = NULL;
+	struct packet pkt6, pkt4_actual = { .skb = NULL };
+	struct sk_buff *skb6 = NULL, *skb4_expected = NULL;
 	struct tuple tuple6, tuple4;
 	bool result = false;
 
@@ -534,19 +541,20 @@ static bool test_6to4(l4_protocol l4_proto,
 	if (init_ipv6_tuple(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
 			|| init_ipv4_tuple(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
 			|| create_skb6_fn(&tuple6, &skb6, 100, 32) != 0
-			|| create_skb4_fn(&tuple4, &skb4_expected, expected_payload4_len, 32) != 0)
+			|| create_skb4_fn(&tuple4, &skb4_expected, expected_payload4_len, 31) != 0
+			|| pkt_init_ipv6(&pkt6, skb6))
 		goto end;
 
-	if (translating_the_packet(&tuple4, skb6, &skb4_actual) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, &pkt6, &pkt4_actual) != VERDICT_CONTINUE)
 		goto end;
 
-	result = compare_skbs(skb4_expected, skb4_actual);
+	result = compare_skbs(skb4_expected, pkt4_actual.skb);
 	/* Fall through. */
 
 end:
 	kfree_skb(skb6);
 	kfree_skb(skb4_expected);
-	kfree_skb(skb4_actual);
+	kfree_skb(pkt4_actual.skb);
 	return result;
 }
 
@@ -555,32 +563,33 @@ static bool test_6to4_custom_payload(l4_protocol l4_proto,
 		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16 *, u16, u8),
 		u16 expected_payload4_len, u16 *payload_array)
 {
-	struct sk_buff *skb6 = NULL, *skb4_expected = NULL, *skb4_actual = NULL;
+	struct packet pkt6, pkt4_actual = { .skb = NULL };
+	struct sk_buff *skb6 = NULL, *skb4_expected = NULL;
 	struct tuple tuple6, tuple4;
 	bool result = false;
 
 	if (init_ipv6_tuple(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
 			|| init_ipv4_tuple(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
 			|| create_skb6_fn(&tuple6, &skb6, payload_array, 4, 32) != 0
-			|| create_skb4_fn(&tuple4, &skb4_expected, payload_array,
-					expected_payload4_len, 32) != 0)
+			|| create_skb4_fn(&tuple4, &skb4_expected, payload_array, expected_payload4_len, 31) != 0
+			|| pkt_init_ipv6(&pkt6, skb6) != 0)
 		goto end;
 
-	if (translating_the_packet(&tuple4, skb6, &skb4_actual) != VER_CONTINUE)
+	if (translating_the_packet(&tuple4, &pkt6, &pkt4_actual) != VERDICT_CONTINUE)
 		goto end;
 
-	result = compare_skbs(skb4_expected, skb4_actual);
+	result = compare_skbs(skb4_expected, pkt4_actual.skb);
 	if (!result)
 		goto end;
 
 	result = assert_equals_csum(~cpu_to_be16(0x0000), /* ~0x0000 == 0xFFFF */
-			((struct udphdr *) skb_transport_header(skb4_actual))->check, "checksum test");
+			pkt_udp_hdr(&pkt4_actual)->check, "checksum test");
 	/* Fall through. */
 
 end:
 	kfree_skb(skb6);
 	kfree_skb(skb4_expected);
-	kfree_skb(skb4_actual);
+	kfree_skb(pkt4_actual.skb);
 	return result;
 }
 

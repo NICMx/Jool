@@ -434,19 +434,6 @@ static int create_skb(int (*l3_hdr_fn)(void *, u16, u8, struct tuple *, bool, bo
 	if (error)
 		goto failure;
 
-	switch (l3_hdr_type) {
-	case ETH_P_IP:
-		error = pkt_init_ipv4(skb);
-		break;
-	case ETH_P_IPV6:
-		error = pkt_init_ipv6(skb);
-		break;
-	default:
-		error = -EINVAL;
-	}
-	if (error)
-		goto failure;
-
 	*result = skb;
 
 	return 0;
