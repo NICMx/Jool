@@ -48,7 +48,7 @@ bool pool4_contains(__be32 addr)
 	}
 	rcu_read_unlock();
 
-	return false;
+	return result;
 }
 
 int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg)

@@ -34,10 +34,23 @@ int rfc6791_flush(void)
 	return pool_flush(&pool);
 }
 
+static int pool_count_wrapper(unsigned int *result)
+{
+	__u64 tmp;
+	int error;
+
+	error = pool_count(&pool, &tmp);
+	if (error)
+		return error;
+
+	*result = (unsigned int) tmp;
+	return 0;
+}
+
 int rfc6791_get(struct in_addr *result)
 {
 	struct pool_entry *entry;
-	__u64 count;
+	unsigned int count;
 	unsigned int rand;
 	int error;
 
@@ -49,7 +62,7 @@ int rfc6791_get(struct in_addr *result)
 	 * expensive. Reservoir sampling requires one random per iteration, this way requires one
 	 * random period.
 	 */
-	error = pool_count(&pool, &count);
+	error = pool_count_wrapper(&count);
 	if (error) {
 		rcu_read_unlock();
 		log_debug("pool_count failed with errcode %d.", error);
