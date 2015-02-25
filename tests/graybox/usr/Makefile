@@ -1,5 +1,6 @@
 EXEC = graybox
 
+SOURCES += device.c
 SOURCES += communication.c
 SOURCES += graybox.c
 SOURCES += netlink.c

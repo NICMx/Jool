@@ -16,6 +16,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 
+#include "device_name.h"
 #include "types.h"
 #include "send_packet.h"
 #include "receiver.h"
@@ -115,21 +116,27 @@ static void print_pkt(void *skb)
 /**
  *	Handler for the sender module.
  */
-static int handle_send_packet_order(void *pkt, u32 pkt_len)
+static int handle_send_packet_order(void *request_hdr)
 {
 	struct sk_buff *skb;
+	struct usr_skb_pkt *request = request_hdr;
 	int error;
 
-	error = skb_from_pkt(pkt, pkt_len, &skb);
+	request->pkt = (void *) (request + 1);
+	request->filename = (char *) (request->pkt + request->pkt_len);
+
+	log_debug("Sending an SKB from user space: %s", request->filename);
+
+	error = skb_from_pkt(request->pkt, request->pkt_len, &skb);
 	if (error)
 		return error;
 
-	error = skb_route(skb, pkt);
+	error = skb_route(skb, request->pkt);
 	if (error)
 		return error;
 
 	log_debug("Sending the skb...");
-	switch (get_l3_proto(pkt)) {
+	switch (get_l3_proto(request->pkt)) {
 	case 6:
 		error = ip6_local_out(skb);
 		break;
@@ -149,16 +156,20 @@ static int handle_send_packet_order(void *pkt, u32 pkt_len)
 /**
  * Handler for the receiver module.
  */
-static int handle_receiver_packet_order(void *pkt, u32 pkt_len)
+static int handle_receiver_packet_order(void *request_hdr)
 {
+	struct usr_skb_pkt *request = request_hdr;
 	struct sk_buff *skb;
 	int error;
 
-	error = skb_from_pkt(pkt, pkt_len, &skb);
+	request->pkt = (void *) (request + 1);
+	request->filename = (char *) (request->pkt + request->pkt_len);
+
+	error = skb_from_pkt(request->pkt, request->pkt_len, &skb);
 	if (error)
 		return error;
 
-	error = handle_skb_from_user(skb);
+	error = handle_skb_from_user(skb, request->filename, request->filename_len);
 	if (error)
 		kfree(skb);
 
@@ -181,6 +192,7 @@ static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload
 static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 {
 	struct request_hdr *hdr;
+	struct request_device *req_dev;
 	int error;
 
 	/* log_debug("%u %d", nl_hdr->nlmsg_type, MSG_TYPE_GRAYBOX);*/
@@ -203,7 +215,7 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 			break;
 		case OP_ADD:
 			log_debug("Adding an SKB from user space.");
-			error = handle_receiver_packet_order(hdr + 1, hdr->len);
+			error = handle_receiver_packet_order(hdr + 1);
 			break;
 		case OP_FLUSH:
 			log_debug("Flushing the skb database.");
@@ -218,8 +230,7 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 	case MODE_SENDER:
 		switch (hdr->operation) {
 		case OP_ADD:
-			log_debug("Sending an SKB from user space.");
-			error = handle_send_packet_order(hdr + 1, hdr->len);
+			error = handle_send_packet_order(hdr + 1);
 			break;
 		default:
 			log_err("Unknown operation %u", hdr->operation);
@@ -227,11 +238,36 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 			break;
 		}
 		break;
-	case MODE_GENERAL:
+	case MODE_DEVICE:
+		switch (hdr->operation) {
+		case OP_ADD:
+			req_dev = (struct request_device *) (hdr + 1);
+			log_debug("adding device name.");
+			error = dev_add((char *) (req_dev + 1), req_dev->name_len);
+			break;
+		case OP_DISPLAY:
+			log_debug("Showing device names.");
+			error = dev_display();
+			break;
+		case OP_FLUSH:
+			log_debug("Flushing device names.");
+			error = dev_flush();
+			break;
+		case OP_REMOVE:
+			req_dev = (struct request_device *) (hdr + 1);
+			log_debug("Showing device names.");
+			error = dev_remove((char *) (req_dev + 1));
+			break;
+		default:
+			log_err("Unknown operation %u", hdr->operation);
+			error = -EINVAL;
+			break;
+		}
+		break;
+	case MODE_BYTE:
 		switch (hdr->operation) {
 		case OP_DISPLAY:
 			log_debug("Showing the byte arrays.");
-
 			error = display_bytes_array();
 			break;
 		case OP_ADD:

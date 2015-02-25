@@ -2,12 +2,12 @@
 #include "config.h"
 #include "receiver.h"
 #include "skb_ops.h"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
+#include "device_name.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
@@ -67,6 +67,10 @@ static int __init graybox_init(void)
 	if (error)
 		goto config_failure;
 
+	error = dev_init();
+	if (error)
+		goto device_failure;
+
 	error = receiver_init();
 	if (error)
 		goto receiver_failure;
@@ -97,6 +101,9 @@ skbops_failure:
 	receiver_destroy();
 
 receiver_failure:
+	dev_destroy();
+
+device_failure:
 	config_destroy();
 
 config_failure:
@@ -110,6 +117,7 @@ static void __exit graybox_exit(void)
 
 	skbops_destroy();
 	receiver_destroy();
+	dev_destroy();
 	config_destroy();
 
 	log_info(MODULE_NAME " module removed.");

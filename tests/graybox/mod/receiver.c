@@ -11,6 +11,7 @@
 
 #include "types.h"
 #include "skb_ops.h"
+#include "device_name.h"
 
 static struct skb_user_db skb_ipv4_db;
 static struct skb_user_db skb_ipv6_db;
@@ -32,12 +33,15 @@ struct skb_user_db {
 struct skb_entry {
 	/* skb created from user app.*/
 	struct sk_buff *skb;
+	/* The filename from the user app. */
+	char *file_name;
 	/* A pointer in the database.*/
 	struct list_head list;
 };
 
 static void delete_skb_entry(struct skb_entry *entry)
 {
+	kfree(entry->file_name);
 	skb_free(entry->skb);
 	list_del(&entry->list);
 	kfree(entry);
@@ -47,16 +51,22 @@ static void delete_skb_entry(struct skb_entry *entry)
 /**
  * Store a packet from the user app.
  */
-int handle_skb_from_user(struct sk_buff *skb)
+int handle_skb_from_user(struct sk_buff *skb, char *usr_file_name, __u32 str_len)
 {
 	struct skb_entry *entry;
 	struct skb_user_db *skb_db;
+	char *file_name;
 
 	entry = kmalloc(sizeof(struct skb_entry), GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
+	file_name = kmalloc(str_len, GFP_ATOMIC);
+	if (!file_name)
+		return -ENOMEM;
 
+	memcpy(file_name, usr_file_name, str_len);
 	entry->skb = skb;
+	entry->file_name = file_name;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		skb_db = &skb_ipv4_db;
@@ -66,6 +76,7 @@ int handle_skb_from_user(struct sk_buff *skb)
 	}
 	else {
 		log_err("skb from user space have no protocol assigned.");
+		kfree(file_name);
 		kfree(entry);
 		return -EINVAL;
 	}
@@ -76,24 +87,6 @@ int handle_skb_from_user(struct sk_buff *skb)
 	spin_unlock_bh(&skb_db->lock);
 
 	return 0;
-}
-
-static int dev_name_filter(char *dev_name)
-{
-	int gap;
-
-	if (!dev_name)
-		return -EINVAL;
-
-	gap = strcmp(dev_name, "vboxnet0");
-	if (!gap)
-		return 0;
-
-	gap = strcmp(dev_name, "vboxnet2");
-	if (!gap)
-		return 0;
-
-	return -EINVAL;
 }
 
 /**
@@ -114,11 +107,8 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 		return NF_ACCEPT;
 	}
 
-	/* TODO: The names of the network devices are hardcoded to my laptops network devices names,
-	 * to prevent compare non-expected packets, maybe send the name of the devices from the
-	 * user app.*/
-	/*if (dev_name_filter(skb->dev->name))
-		return NF_ACCEPT; */
+	if (dev_name_filter(skb->dev->name))
+		return NF_ACCEPT;
 
 
 	spin_lock_bh(&skb_db->lock);
@@ -129,12 +119,13 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 		goto nf_accept;
 
 	is_expected = skb_compare(tmp_skb->skb, skb, &errors);
+	log_info("************************");
+	log_info("Comparing %s", tmp_skb->file_name);
 	if (is_expected) {/* we found a perfect match.*/
 		delete_skb_entry(tmp_skb);
 		skb_db->counter--;
 		skb_db->success_comparison++;
 		spin_unlock_bh(&skb_db->lock);
-		log_info("************************");
 		log_info("success comparison :D");
 		log_info("************************");
 		goto nf_drop;
@@ -142,14 +133,13 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 
 	if (errors) {
 		/* Apparently the incoming skb has a twin from usrspace, or jool is translating wrong or a
-		 * skb_from_user_space was incorrectly created, anyway delete the incoming packet and
+		 * skb_from_user_space was incorrectly created, anyway delete this incoming packet and
 		 * return NF_DROP;
 		 */
 		delete_skb_entry(tmp_skb);
 		skb_db->fail_comparison++;
 		skb_db->counter--;
 		spin_unlock_bh(&skb_db->lock);
-		log_info("************************");
 		log_info("Apparently the incoming skb has a twin from usrspace, or jool is translating "
 				"wrong or a skb_from_user_space was incorrectly created");
 		log_info("************************");

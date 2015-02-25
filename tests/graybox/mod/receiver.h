@@ -12,7 +12,7 @@
 #include <linux/skbuff.h>
 #include <linux/list.h>
 
-int handle_skb_from_user(struct sk_buff *skb);
+int handle_skb_from_user(struct sk_buff *skb, char *usr_file_name, __u32 str_len);
 
 unsigned int receiver_incoming_skb4(struct sk_buff *skb);
 unsigned int receiver_incoming_skb6(struct sk_buff *skb);

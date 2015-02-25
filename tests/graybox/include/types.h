@@ -45,6 +45,8 @@ enum config_operation{
 	OP_ADD = (1 << 1),
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 2),
+	/* The userspace app wants to remove something. */
+	OP_REMOVE = (1 << 3),
 };
 
 enum config_mode {
@@ -52,8 +54,10 @@ enum config_mode {
 	MODE_RECEIVER = (1 << 1),
 	/** The current message is talking about the sender module. */
 	MODE_SENDER = (1 << 2),
+	/** The current message is talking about the interface module. */
+	MODE_DEVICE = (1 << 3),
 	/** The current message is talking about the "byte array module". */
-	MODE_GENERAL = (1 << 0),
+	MODE_BYTE = (1 << 0),
 };
 
 /**
@@ -63,7 +67,8 @@ enum config_mode {
  */
 #define SENDER_OPS (OP_ADD)
 #define RECEIVER_OPS (OP_ADD | OP_FLUSH | OP_DISPLAY)
-#define GENERAL_OPS (OP_ADD | OP_FLUSH | OP_DISPLAY)
+#define BYTE_OPS (OP_ADD | OP_FLUSH | OP_DISPLAY)
+#define DEVICE_OPS (OP_ADD | OP_FLUSH | OP_DISPLAY)
 /**
  * @}
  */
@@ -73,9 +78,9 @@ enum config_mode {
  * Allowed modes for the operation mentioned in the name.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
-#define ADD_MODES (MODE_RECEIVER | MODE_SENDER | MODE_GENERAL)
-#define FLUSH_MODES (MODE_RECEIVER | MODE_GENERAL)
-#define DISPLAY_MODES (MODE_RECEIVER | MODE_GENERAL)
+#define ADD_MODES (MODE_RECEIVER | MODE_SENDER | MODE_BYTE | MODE_DEVICE)
+#define FLUSH_MODES (MODE_RECEIVER | MODE_BYTE | MODE_DEVICE)
+#define DISPLAY_MODES (MODE_RECEIVER | MODE_BYTE | MODE_DEVICE)
 /**
  * @}
  */
@@ -88,5 +93,16 @@ struct request_hdr {
 	__u8 operation;
 };
 
+struct usr_skb_pkt {
+	char *filename;
+	__u32 filename_len;
+	void *pkt;
+	__u32 pkt_len;
+};
+
+struct request_device {
+	char *name;
+	__u32 name_len;
+};
 
 #endif

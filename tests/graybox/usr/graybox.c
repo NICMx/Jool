@@ -6,6 +6,7 @@
 
 #include "types.h"
 #include "communication.h"
+#include "device.h"
 
 #define MAX_PKT_SIZE 1024
 
@@ -25,6 +26,11 @@ struct arguments
 	} pkt ;
 
 	struct {
+		char *name;
+		__u8 is_name_set;
+	} device;
+
+	struct {
 		__u8 type;
 		size_t size;
 		void *data;
@@ -35,7 +41,8 @@ enum argp_flags {
 	/* Modes */
 	ARGP_RECEIVER = 'r',
 	ARGP_SENDER = 's',
-	ARGP_GENERAL = 'g',
+	ARGP_BYTE = 'g',
+	ARGP_DEVICE = 'e',
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
@@ -44,6 +51,7 @@ enum argp_flags {
 
 	ARGP_PKT = 1000,
 	ARGP_NUM_ARRAY = 1001,
+	ARGP_DEVICE_NAME = 1002,
 };
 
 static int create_packet(char *filename, void **pkt, __u32 *file_size)
@@ -232,17 +240,20 @@ static struct argp_option options[] = {
 		{ NULL, 0, NULL, 0, "Configuration targets/modes:", 1},
 		{ "receiver", ARGP_RECEIVER, NULL, 0, "The command will operate the Receiver module."},
 		{ "sender", ARGP_SENDER, NULL, 0, "The command will operate the Sender module."},
-		{ "general", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous "
-				"configuration values (default)." },
+		{ "general", ARGP_BYTE, NULL, 0, "The command will operate on bytes module (default)." },
+		{ "device", ARGP_DEVICE, NULL, 0, "The command will operate on interface module. "},
 		{ NULL, 0, NULL, 0, "Operations:", 2 },
 		{ "display", ARGP_DISPLAY, NULL, 0, "Display an element of the target."},
 		{ "add", ARGP_ADD, NULL, 0, "Add an element to the target." },
 		{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
 		{ NULL, 0, NULL, 0, "Sender and Receiver options:", 3 },
 		{ "pkt", ARGP_PKT, "FILE", 0, "Packet that will be parse as skb."},
-		{ NULL, 0, NULL, 0, "General options:", 4 },
+		{ NULL, 0, NULL, 0, "Byte options:", 4 },
 		{ "numArray", ARGP_NUM_ARRAY, "NUM[,NUM]*", 0, "Set the bytes that will be skip when "
 				"compared an incoming SKB, bytes must be ascendent."},
+		{ NULL, 0, NULL, 0, "Interface options: ", 4},
+		{ "name", ARGP_DEVICE_NAME, "NAME", 0, "Set the device interface that the graybox will take "
+				"the packets"},
 		{0},
 };
 
@@ -299,8 +310,11 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SENDER:
 		error = update_state(args, MODE_SENDER, SENDER_OPS);
 		break;
-	case ARGP_GENERAL:
-		error = update_state(args, MODE_GENERAL, GENERAL_OPS);
+	case ARGP_BYTE:
+		error = update_state(args, MODE_BYTE, BYTE_OPS);
+		break;
+	case ARGP_DEVICE:
+		error = update_state(args, MODE_DEVICE, DEVICE_OPS);
 		break;
 	case ARGP_DISPLAY:
 		error = update_state(args, DISPLAY_MODES, OP_DISPLAY);
@@ -324,11 +338,19 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->pkt.file_name = str;
 		break;
 	case ARGP_NUM_ARRAY:
-		error = update_state(args, MODE_GENERAL, OP_ADD);
+		error = update_state(args, MODE_BYTE, OP_ADD);
 		if (error)
 			goto err;
 
 		error = set_global_u16_array(args, 1/*TODO: set a type?*/, str);
+		break;
+	case ARGP_DEVICE_NAME:
+		error = update_state(args, MODE_DEVICE, OP_ADD | OP_REMOVE);
+		if (error)
+			goto err;
+
+		args->device.is_name_set = 1;
+		args->device.name = str;
 		break;
 
 	default:
@@ -384,7 +406,9 @@ static int send_packet_to_kernel(struct arguments *args)
 	if (error)
 		return error;
 
-	error = send_packet(pkt, pkt_len, args->mode, args->ops);
+	/* In strlen(args->pkt.file_name), plus "1" because of the null character. */
+	error = send_packet(pkt, pkt_len, args->pkt.file_name, strlen(args->pkt.file_name) + 1,
+			args->mode, args->ops);
 	free(pkt);
 	return error;
 }
@@ -430,7 +454,28 @@ static int main_wrapped(int argc, char **argv)
 			return -EINVAL;
 		}
 		break;
-	case MODE_GENERAL:
+	case MODE_DEVICE:
+		switch (args.ops) {
+		case OP_ADD:
+			if (!args.device.is_name_set) {
+				log_err("Please set the device name, that you want to add (--name)");
+				return -EINVAL;
+			}
+			return dev_add(args.device.name, strlen(args.device.name) + 1);
+		case OP_DISPLAY:
+			return dev_display();
+		case OP_FLUSH:
+			return dev_flush();
+		case OP_REMOVE:
+			if (!args.device.is_name_set) {
+				log_err("Please set the device name, that you want to remove (--name)");
+				return -EINVAL;
+			}
+			/* plus "1" because of the null character. */
+			return dev_remove(args.device.name, strlen(args.device.name) + 1);
+		}
+		break;
+	case MODE_BYTE:
 		switch (args.ops) {
 		case OP_DISPLAY:
 			return general_display_array();

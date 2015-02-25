@@ -2,13 +2,11 @@
 #define COMMUNICATION_H_
 
 #include "types.h"
-
-#include "communication.h"
-#include "types.h"
 #include "netlink.h"
 
 
-int send_packet(void *pkt, __u32 pkt_len, enum config_mode mode, enum config_operation op);
+int send_packet(void *pkt, __u32 pkt_len, char *filename, __u32 str_len, enum config_mode mode,
+		enum config_operation op);
 
 int send_flush_op(enum config_mode mode, enum config_operation op);
 

@@ -5,6 +5,7 @@ obj-m += graybox.o
 
 graybox-objs += nf_hook.o
 graybox-objs += config.o
+graybox-objs += device_name.o
 graybox-objs += receiver.o
 graybox-objs += skb_ops.o
 graybox-objs += send_packet.o
