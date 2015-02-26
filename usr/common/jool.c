@@ -828,7 +828,7 @@ static int main_wrapped(int argc, char **argv)
 			}
 			return eam_add(&args.db.pool6.prefix, &args.db.pool4.addrs);
 		case OP_REMOVE:
-			if (!args.db.pool6.prefix_set || !args.db.pool4.addr_set) {
+			if (!args.db.pool6.prefix_set && !args.db.pool4.addr_set) {
 				log_err("I need the IPv4 transport address and/or the IPv6 transport address of "
 						"the entry you want to remove.");
 				return -EINVAL;
