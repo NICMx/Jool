@@ -495,7 +495,7 @@ static bool is_truncated_ipv4(struct pkt_parts *parts)
 	case L4PROTO_UDP:
 		hdr4 = parts->l3_hdr.ptr;
 		hdr_udp = parts->l4_hdr.ptr;
-		return (ntohs(hdr4->tot_len) - (4 * hdr4->ihl)) == ntohs(hdr_udp->len);
+		return (ntohs(hdr4->tot_len) - (4 * hdr4->ihl)) != ntohs(hdr_udp->len);
 	}
 
 	return true; /* whatever. */
@@ -763,6 +763,7 @@ int ttp64_udp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 	udp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
 	udp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 	udp_out->len = udp_in->len;
+	udp_out->check = 0;
 
 	if (is_csum4_computable(out)) {
 		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
@@ -772,9 +773,9 @@ int ttp64_udp(struct tuple *tuple4, struct pkt_parts *in, struct pkt_parts *out)
 		udp_out->check = update_csum_6to4(udp_in->check,
 				in->l3_hdr.ptr, &udp_copy, sizeof(udp_copy),
 				out->l3_hdr.ptr, udp_out, sizeof(*udp_out));
-		if (udp_out->check == 0)
-			udp_out->check = CSUM_MANGLED_0;
 	}
+	if (udp_out->check == 0)
+		udp_out->check = CSUM_MANGLED_0;
 
 	/* Payload */
 	memcpy(out->payload.ptr, in->payload.ptr, in->payload.len);

@@ -697,7 +697,7 @@ static void handle_zero_csum(struct pkt_parts *in, struct pkt_parts *out)
 	unsigned int datagram_len;
 	__wsum csum;
 
-	if (is_inner_pkt(in) && is_fragmented_ipv4(in->l3_hdr.ptr)) {
+	if (is_inner_pkt(in)) {
 		/*
 		 * There's no way to compute the checksum.
 		 * Also, this should never happen because we're supposed to have translated this inner

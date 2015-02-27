@@ -6,6 +6,8 @@
 #include "nat64/mod/send_packet.h"
 #include "nat64/mod/stats.h"
 
+#include <linux/icmp.h>
+
 
 /**
  * Checks whether "pkt" is a hairpin packet.
@@ -34,9 +36,9 @@ verdict handling_hairpinning(struct sk_buff *skb_in, struct tuple *tuple_in)
 
 	log_debug("Step 5: Handling Hairpinning...");
 
-	if (skb_l4_proto(skb_in) == L4PROTO_ICMP) {
+	if (skb_l4_proto(skb_in) == L4PROTO_ICMP && !is_icmp4_error(icmp_hdr(skb_in)->type)) {
 		/* RFC 6146 section 2 (Definition of "Hairpinning"). */
-		log_debug("ICMP is not supported by hairpinning. Dropping packet...");
+		log_debug("Pings and unknown errors are not supported by hairpinning. Dropping packet...");
 		return VER_DROP;
 	}
 
