@@ -24,4 +24,9 @@ int route6(struct packet *pkt);
  */
 int route(struct packet *pkt);
 
+/**
+ * Used when you want to send an ICMP error, indicates where the original packet came from.
+ */
+int route4_input(struct packet *pkt);
+
 #endif /* _JOOL_MOD_ROUTE_H */

@@ -184,3 +184,36 @@ int route(struct packet *pkt)
 	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(pkt));
 	return -EINVAL;
 }
+
+int route4_input(struct packet *pkt)
+{
+	struct iphdr *hdr4;
+	struct sk_buff *skb;
+	int error;
+
+	if (unlikely(!pkt)) {
+		log_err("pkt can't be empty");
+		return -EINVAL;
+	}
+
+	skb = pkt->skb;
+	if (unlikely(!skb) || !skb->dev) {
+		log_err("pkt->skb can't be empty");
+		return -EINVAL;
+	}
+
+	hdr4 = ip_hdr(skb);
+
+	/*
+	 * Some kernel functions assume that the incoming packet is already routed.
+	 * Because they seem to pop up where we least expect them, we'll just route every incoming
+	 * packet, regardless of whether we end up calling one of those functions.
+	 */
+	error = ip_route_input(skb, hdr4->daddr, hdr4->saddr, hdr4->tos, skb->dev);
+	if (error) {
+		log_debug("ip_route_input failed: %d", error);
+		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
+	}
+
+	return error;
+}

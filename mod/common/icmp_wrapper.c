@@ -1,5 +1,6 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/types.h"
+#include "nat64/mod/common/route.h"
 
 #include <linux/version.h>
 #include <net/icmp.h>
@@ -118,6 +119,7 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 {
 	struct sk_buff *skb;
+	int err;
 
 	if (unlikely(!pkt))
 		return;
@@ -131,6 +133,11 @@ void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 	/* Send the error. */
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
+		err = route4_input(pkt);
+		if (err) {
+			log_debug("Can't send an ICMPv4 Error: %d", error);
+			return;
+		}
 		icmp4_send(skb, error, info);
 		break;
 	case ETH_P_IPV6:
