@@ -105,9 +105,17 @@ bool ipv4_prefix_equals(const struct ipv4_prefix *expected, const struct ipv4_pr
 
 bool ipv4_prefix_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr)
 {
-	__u32 maskbits = (~0) << (32 - prefix->len);
-	__u32 prefixbits = be32_to_cpu(prefix->address.s_addr) & maskbits;
-	__u32 addrbits = be32_to_cpu(addr->s_addr) & maskbits;
+	__u32 maskbits;
+	__u32 prefixbits;
+	__u32 addrbits;
+
+	if (prefix->len != 0)
+		maskbits = 0xffffffff << (32 - prefix->len);
+	else
+		maskbits = 0;
+	prefixbits = be32_to_cpu(prefix->address.s_addr) & maskbits;
+	addrbits = be32_to_cpu(addr->s_addr) & maskbits;
+
 	return prefixbits == addrbits;
 }
 

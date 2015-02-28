@@ -64,8 +64,8 @@ static int get_bib_ipv4(struct packet *pkt, struct tuple *tuple4, struct bib_ent
 		} else {
 			log_debug("Error code %d while finding a BIB entry for the incoming packet.", error);
 			inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
+			icmp64_send(pkt, ICMPERR_ADDR_UNREACHABLE, 0);
 		}
-		icmp64_send(pkt, ICMPERR_ADDR_UNREACHABLE, 0);
 		return error;
 	}
 
@@ -229,7 +229,9 @@ static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4)
 	struct session_entry *session;
 
 	error = get_bib_ipv4(pkt, tuple4, &bib);
-	if (error)
+	if (error == -ENOENT)
+		return VERDICT_ACCEPT;
+	else if (error)
 		return VERDICT_DROP;
 	log_bib(bib);
 

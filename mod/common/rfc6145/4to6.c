@@ -11,6 +11,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/stateless/pool4.h"
 #include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/eam.h"
 
@@ -117,16 +118,22 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
 	if (error && error != -ESRCH)
 		return error;
 	if (!error)
-		goto end;
+		return 0;
+
+	if (!pool4_contains(addr4)) {
+		log_debug("Address %pI4 lacks an EAMT entry and is not part of the IPv4 pool.", &tmp);
+		return -ESRCH;
+	}
 
 	error = pool6_peek(&prefix);
-	if (error)
+	if (error) {
+		log_debug("Address %pI4 lacks an EAMT entry and there's no NAT64 prefix.", &tmp);
 		return error;
+	}
 	error = addr_4to6(&tmp, &prefix, addr6);
 	if (error)
 		return error;
 
-end:
 	return 0;
 }
 

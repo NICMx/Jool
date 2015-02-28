@@ -1,4 +1,5 @@
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/blacklist.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
@@ -6,16 +7,13 @@
 #include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/common/config.h"
 
-#include "nat64/mod/stateful/pool6.h"
 #include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool6.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/handling_hairpinning.h"
-#include "nat64/mod/stateless/pool6.h"
-#include "nat64/mod/stateless/pool4.h"
-#include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/rfc6791.h"
 
 #include <linux/kernel.h>
@@ -70,6 +68,9 @@ static unsigned int core_common(struct packet *in)
 	/* Fall through. */
 
 end:
+	if (result == VERDICT_ACCEPT)
+		log_debug("Returning the packet to the kernel.");
+
 	return (unsigned int) result;
 }
 
@@ -109,16 +110,18 @@ unsigned int core_4to6(struct sk_buff *skb)
 	int error;
 
 	if (config_get_is_disable())
-		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
+		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
 
-#ifdef STATEFUL
-	if (!pool4_contains(hdr->daddr) || pool6_is_empty())
-		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
-#else
-	if (!(pool4_contains(hdr->daddr) || eamt_contains_ipv4(hdr->daddr)) || pool6_is_empty()
-			|| rfc6791_is_empty())
+	if (is_blacklisted(hdr->saddr) || is_blacklisted(hdr->daddr))
 		return NF_ACCEPT;
-#endif
+
+	if (nat64_is_stateful()) {
+		if (!pool4_contains(hdr->daddr) || pool6_is_empty())
+			return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+	} else {
+		if (rfc6791_is_empty())
+			return NF_ACCEPT;
+	}
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
@@ -143,17 +146,15 @@ unsigned int core_6to4(struct sk_buff *skb)
 	int error;
 
 	if (config_get_is_disable())
-		return NF_ACCEPT; /* Translation is disable; let the packet pass. */
+		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
 
-#ifdef STATEFUL
-	if ((!pool6_contains(&hdr->daddr) || pool4_is_empty()))
-		return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
-#else
-	if (pool4_is_empty() || rfc6791_is_empty() ||
-			!((eamt_contains_ipv6(&hdr->saddr) || pool6_contains(&hdr->saddr)) &&
-			(eamt_contains_ipv6(&hdr->daddr) || pool6_contains(&hdr->daddr))))
-		return NF_ACCEPT;
-#endif
+	if (nat64_is_stateful()) {
+		if ((!pool6_contains(&hdr->daddr) || pool4_is_empty()))
+			return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
+	} else {
+		if (rfc6791_is_empty())
+			return NF_ACCEPT;
+	}
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);

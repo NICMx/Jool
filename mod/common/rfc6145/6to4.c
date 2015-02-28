@@ -11,6 +11,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/stateless/pool4.h"
 #include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateless/eam.h"
@@ -161,13 +162,22 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct
 		goto end;
 
 	error = pool6_get(addr6, &prefix);
-	if (error) {
-		log_debug("Looks like an IP address doesn't have a NAT64 prefix (errcode %d).", error);
+	if (error == -ESRCH) {
+		log_debug("Address %pI6c lacks the NAT64 prefix and an EAMT entry.", addr6);
 		return VERDICT_ACCEPT;
 	}
+	if (error)
+		return VERDICT_DROP;
+
 	error = addr_6to4(addr6, &prefix, &tmp);
 	if (error)
 		return VERDICT_DROP;
+
+	if (!pool4_contains(tmp.s_addr)) {
+		log_debug("The resulting address (%pI4) is not part of the IPv4 pool.", &tmp);
+		return VERDICT_ACCEPT;
+	}
+
 	/* Fall through. */
 
 end:
@@ -186,10 +196,9 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 	/* Src address. */
 	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
-		addr.s_addr = ip4_hdr->saddr;
 		error = rfc6791_get(&addr); /* Why? RFC 6791. */
 		if (error)
-			return VERDICT_DROP;
+			return VERDICT_ACCEPT;
 		ip4_hdr->saddr = addr.s_addr;
 	} else if (result != VERDICT_CONTINUE) {
 		return result;
