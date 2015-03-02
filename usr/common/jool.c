@@ -164,7 +164,7 @@ static struct argp_option options[] =
 	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
 #else
 	{ "eamt", ARGP_EAMT, NULL, 0, "The command will operate on the EAM table."},
-	{ "errorAddress", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
+	{ "errorAddresses", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
 #endif
 #ifdef BENCHMARK
 	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
