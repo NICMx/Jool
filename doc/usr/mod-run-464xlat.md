@@ -13,13 +13,14 @@ title: Documentation - SIIT/DC Run
 2. [Sample Network](#sample-network)
 3. [Expected Packet Flow](#expected-packet-flow)
 4. [Testing](#testing)
-5. [Further reading](#further-reading)
+5. [Closing words](#closing-words)
+6. [Further reading](#further-reading)
 
 ## Introduction
 
-Baring RFC 6384, NAT64 only translates network headers (IPv4, IPv6 and ICMP) and transport headers (UDP and TCP).
+NAT64 is not perfect. While you might see a lot of traffic getting translated quirklessly, you might eventually bump into the following rough edge:
 
-Sometimes, that is a problem. Some protocols on top of UDP and TCP have a bad habit of including IP addresses ("IP literals") along their conversations. Because NAT64 only translates lower protocols, these literals will slip past the NAT64 untranslated.
+Baring RFC 6384, NAT64 only translates network headers (IPv4, IPv6 and ICMP) and transport headers (UDP and TCP). Sometimes, this is a problem. Some protocols on top of UDP and TCP have a bad habit of including IP addresses ("IP literals") along their conversations; because NAT64 only translates lower protocols, these literals will slip past the NAT64 unmodified.
 
 For example, some IPv6-unaware website, which would normally contain this HTML:
 
@@ -31,7 +32,7 @@ Could be poorly coded like this:
 
 This address lies within the body of an HTML file, not a network or transport header. It is not viable for Jool to support translation of all existing application protocols.
 
-If you click the latter version of the link from a IPv6-only node via a NAT64, it will of course not work, because the node doesn't have an IPv4 stack with which to access `203.0.113.24`. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
+If you click the latter version of the link from an IPv6-only node via a NAT64, it will of course not work, because the node doesn't have an IPv4 stack with which to access `203.0.113.24`. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
 
 [464XLAT](https://tools.ietf.org/html/rfc6877) is a technique meant to address this limitation. It functions by appending another NAT64 into the mix, that reverses the work made by the already existing NAT64. The idea can be generalized to also provide Internet to IPv4-only services when all you have is an IPv6 address space, which is [SIIT/DC: Dual Translation Mode](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00).
 
@@ -57,7 +58,7 @@ I also removed the clouds to simplify routing in the example. The dual translati
 
 ## Expected Packet Flow
 
-This is the normal flow a IPv6-sourced packet would traverse. It's a typical stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it: Notice we've chosen 64:ff9b::/96 as _BT_'s NAT64 prefix:
+This is the normal flow an IPv6-sourced packet would traverse. It's a typical stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it: Notice we've chosen 64:ff9b::/96 as _BT_'s NAT64 prefix:
 
 ![Figure 3 - Normal Stateful Flow](images/flow/464-normal.svg)
 
@@ -65,9 +66,7 @@ The 464XLAT flow we want to achieve follows. _n6_ will use its IPv4 address to t
 
 ![Figure 4 - Literal](images/flow/464-literal.svg)
 
-_R_ will NAT64 the packet into IPv6 so it can traverse the IPv6-only chunk. In this example, nodes 192.168.0.8/29 will be masked as 2001:db8:2::/125 using the EAMT.
-
-The packet will traverse the IPv6-only chunk, just like a normal packet from 2001:db8:1::8 would:
+_R_ will NAT64 the packet into IPv6 so it can traverse the IPv6-only chunk. Address 192.168.0.8 will be translated using the EAMT entry, and 203.0.113.24 will receive the NAT64 prefix treatment.
 
 ![Figure 5 - Stateless NAT64'd packet](images/flow/464-sless.svg)
 
@@ -119,7 +118,7 @@ This is _R_:
 
 _n6_'s packet will have addresses `192.168.0.8` and `203.0.113.24`. The former will be translated using the EAMT entry (since it matches `192.168.0.8/29`) and the latter will use the pool6 prefix (because it matches `0.0.0.0/0`). We're using `0.0.0.0/0` because we're talking about the whole Internet.
 
-Notice, because of the prefix lengths of the EAMT entry, _R_'s NAT64 will not only be servicing packets from _n6_, but also from `192.168.0.9` through `192.168.0.15` as well (not pictured in the diagrams); you don't have to do this on a node-by-node basis. Also note that _R_ is an average NAT64 and you shouldn't think of this installation of Jool as anything other than that.
+Also note that _R_ is an average NAT64 and you shouldn't think of this installation of Jool as anything other than that.
 
 For completeness sake, here's _BT_'s network configuration:
 
@@ -176,6 +175,26 @@ Ping _n4_ via IPv6 from _n6_:
 - [ipv6-r.pcapng](obj/464xlat/ipv6-r.pcapng)
 - [ipv6-bt.pcapng](obj/464xlat/ipv6-bt.pcapng)
 - [ipv6-n4.pcapng](obj/464xlat/ipv6-n4.pcapng)
+
+## Closing words
+
+Though at this point you can see how you can defend yourself against IP literals and legacy IPv4-only appliances, you might want to be forewarned that at least [one application protocol](http://tools.ietf.org/html/rfc959) out there is so poorly designed it works differently depending on whether it's sitting on top of IPv6 or IPv4. Therefore, [addressing IP literals in this case is not sufficient to make it work via NAT64](https://github.com/NICMx/NAT64/issues/114).
+
+On the other hand, some network-aware protocols only partially depend on literals, and the NAT64 is not going to get in the way of the features that don't. FTP's passive mode falls in this category.
+
+Here's a list of protocols that are known to use IP literals. You might also want to see [RFC 6586](http://tools.ietf.org/html/rfc6586).
+
+ - FTP (try passive mode)
+ - Skype
+ - NFS
+ - Google Talk Client *
+ - AIM (AOL)
+ - ICQ (AOL)
+ - MSN
+ - Webex
+ - [Some games](http://tools.ietf.org/html/rfc6586#section-5.4)
+ - [Spotify](http://tools.ietf.org/html/rfc6586#section-5.5)
+ - [Poorly coded HTML](http://tools.ietf.org/html/rfc6586#section-6.1)
 
 ## Further reading
 

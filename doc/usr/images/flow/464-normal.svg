@@ -77,7 +77,7 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1028"
+     inkscape:window-height="1148"
      inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="1" />
@@ -540,14 +540,14 @@
        x="101.9276"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
        xml:space="preserve"><tspan
-         id="tspan3350"
+         id="tspan3352"
          y="995.80249"
          x="101.9276"
-         sodipodi:role="line">src: 203.0.113.24</tspan><tspan
-         id="tspan3352"
+         sodipodi:role="line">src: 64:ff9b::203.0.113.24</tspan><tspan
          y="1010.8025"
          x="101.9276"
-         sodipodi:role="line">dst: 192.168.0.8</tspan></text>
+         sodipodi:role="line"
+         id="tspan3078">dst: 2001:db8:2::8</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"

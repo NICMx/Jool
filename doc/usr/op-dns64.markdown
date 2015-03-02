@@ -28,7 +28,7 @@ Any correct DNS64 implementation is supposed to work; BIND will be used for illu
 
 We'll just build on top of the arrangement from [scenario 3](mod-runs.html#scenario-3-brains). Though note that the outermost networks have been connected and merged to their respective internets. And I removed the adresses from the diagram because they're no longer very relevant.
 
-Remember that though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (**unless Jool is monopolizing all of its node's IPv4 addresses!**).
+Remember that though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (unless Jool is monopolizing all of its node's IPv4 addresses, of course).
 
 ## Configuration
 
@@ -70,7 +70,7 @@ nat64-tutorial.mx.	240	IN	SOA	potato.mx. hostmaster.jool.mx. 2013070801 3600 900
 
 There's no need for an IPv6 node to access `example.com` via the NAT64. On the other hand, `nat64-tutorial.mx` cannot be accessed from IPv6 without one.
 
-In other words, we want the DNS64 service to return `2606:2800:220:6d:26bf:1447:1097:aa7` when asked for the AAAA record of `example.com` (which is what it normally does), and `64:ff9b::200.94.182.36` (i.e. the prefix plus the IPv4 address) when asked for the AAAA record of `nat64-tutorial.mx` (which is the whole NAT64 hack).
+In other words, we want the DNS64 service to return `2606:2800:220:6d:26bf:1447:1097:aa7` when asked for the AAAA record of `example.com` (which is what it normally does), and `64:ff9b::200.94.182.36` (i.e. the NAT64 prefix plus the IPv4 address) when asked for the AAAA record of `nat64-tutorial.mx` (which is the whole NAT64 hack).
 
 First, have a working BIND server. On Ubuntu, the only thing you have to do (assuming you don't already have one) is run
 
@@ -89,6 +89,7 @@ options {
 
 	# This is the key. Note that you can write multiple of these if you need
 	# more IPv6 prefixes.
+	# "64:ff9b::/96" has to be the same as Jool's `pool6`.
 	dns64 64:ff9b::/96 {
 		# Options per prefix (if you need them) here.
 		# More info here: https://kb.isc.org/article/AA-01031

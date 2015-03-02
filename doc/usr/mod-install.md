@@ -75,14 +75,6 @@ user@node:~$ cd Jool-<version>/mod
 user@node:~/Jool-<version>/mod$ make
 {% endhighlight %}
 
-That will compile both the stateful and the stateless binaries. If, for some reason, you don't want to compile the both of them, just say so:
-
-{% highlight bash %}
-user@node:~/Jool-<version>/mod$ make stateless
-or
-user@node:~/Jool-<version>/mod$ make stateful
-{% endhighlight %}
-
 And that's that.
 
 ## Installation
@@ -101,11 +93,11 @@ user@node:~/Jool-<version>/mod# make modules_install
 > 
 > Sorry; if your kernel _was_ compiled to require module signing, you probably know what you're doing, so I'll skip the instructions to make that work.
 
-You'll later activate the module using the `modprobe` command. Thing is, the fact that the module resides in your pool doesn't mean it has already been indexed. Use `depmod` to make `modprobe` aware of the new module:
+You'll later activate the modules using the `modprobe` command. Thing is, the fact that they reside in your pool doesn't mean they have already been indexed. Use `depmod` to make `modprobe` aware of the new modules:
 
 {% highlight bash %}
 user@node:~# /sbin/depmod
 {% endhighlight %}
 
-Done; Jool can now be started. In order to run it, head to [Basic Runs](mod-runs.html).
+Done; Jool can now be started. The logical follow-up is the [Basic Stateless Tutorial](mod-run-vanilla.html).
 

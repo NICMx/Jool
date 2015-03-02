@@ -787,10 +787,11 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 		fconfig->fragment_timeout = jiffies_to_msecs(config->fragmentation.fragment_timeout);
 	}
 	((struct global_config *) buffer)->translate.jool_status = !(config->translate.is_disable
-			|| pool4_is_empty());
+			|| pool6_is_empty() || pool4_is_empty());
 
 #else
 	((struct global_config *) buffer)->translate.jool_status = !(config->translate.is_disable
+			|| (eamt_is_empty() && (pool6_is_empty() || pool4_is_empty()))
 			|| rfc6791_is_empty());
 #endif
 

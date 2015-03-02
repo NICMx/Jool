@@ -96,11 +96,15 @@ silent_failure:
 
 void pool6_destroy(void)
 {
+	struct pool_node *node;
+
 	while (!list_empty(&pool)) {
-		struct pool_node *node = container_of(pool.next, struct pool_node, list_hook);
+		node = container_of(pool.next, struct pool_node, list_hook);
 		list_del(&node->list_hook);
 		kfree(node);
 	}
+
+	pool_count = 0;
 }
 
 int pool6_flush(void)

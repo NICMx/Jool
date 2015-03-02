@@ -111,17 +111,18 @@ user@N:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefixes
 
 These are the arguments:
 
-- `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets.  
-- `pool4` (short for "[main] IPv4 pool") represents the addresses the NAT64 will use to mask the IPv6 nodes. Because there is no port sharing, in stateless mode you need as many of these as IPv6 nodes which need IPv4 connectivity.  
-You can insert up to five comma-separated `pool4` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool4.html).
+- `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets. We also call this "the NAT64 prefix".
+- `pool4` (short for "[main] IPv4 pool") represents the addresses the NAT64 will use to mask the IPv6 nodes. In other words, if an IPv6 node's address minus the NAT64 prefix does not match an entry in this pool, its traffic will not be translated.  
+Because there is no port sharing, in stateless mode you need as many of these as IPv6 nodes which need IPv4 connectivity.  
+You can insert up to five comma-separated `pool4` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool4.html).  
 - `errorAddresses` is a secondary IPv4 pool used for something [slightly more cryptic](TODO). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
 You can insert up to five comma-separated `errorAddresses` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-TODO.html).
 
 In our sample network, that translates into
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=198.51.100.8/22 \ 
-	errorAddresses=198.51.100.12/22
+user@N:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=198.51.100.8/30 \ 
+	errorAddresses=198.51.100.12/30
 {% endhighlight %}
 
 These are the mappings that `modprobe` generates:
@@ -131,9 +132,9 @@ These are the mappings that `modprobe` generates:
 	- 2001:db8::<span class="correlate2">198.51.100.9</span> will be masked as <span class="correlate2">198.51.100.9</span>.
 	- 2001:db8::<span class="correlate1">198.51.100.10</span> will be masked as <span class="correlate1">198.51.100.10</span>.
 	- 2001:db8::<span class="correlate2">198.51.100.11</span> will be masked as <span class="correlate2">198.51.100.11</span>.
-	- 198.51.100.12 is outside of 198.51.100.8/22, so _E_ has been left out of the NATting.
+	- 198.51.100.12 is outside of 198.51.100.8/30, so _E_ has been left out of the NATting.
 - IPv4 nodes:
-	- Any IPv4 node will be masked by prepending the `pool6` prefix to its address.
+	- Any IPv4 node will be masked by prepending the `pool6` prefix to its address (pool4 does not affect these).
 
 See below for more explicit examples.
 
@@ -191,7 +192,7 @@ user@N:~# /sbin/modprobe -r jool_stateless
 
 Here are some logical follow-ups if you want to read more:
 
-- The [`errorAddresses` argument](TODO).
+- The [`errorAddresses` argument](usr-flags-TODO.html).
 - If you care about EAM, head to the [second run](mod-run-eam.html).
 - If you care about stateful NAT64, head to the [third run](mod-run-stateful.html).
 - The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address hack transparent to users.

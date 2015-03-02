@@ -25,7 +25,7 @@ user@node:~/Jool/usr$ make
 user@node:~/Jool/usr# make install
 {% endhighlight %}
 
-Done; you should now be able to type `jool --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
+Done; you should now be able to type `jool_stateless --help` or `jool_stateful --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
 
 ## If you downloaded from the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>
 
@@ -45,7 +45,7 @@ Jool/usr$ make
 Jool/usr# make install
 {% endhighlight %}
 
-Done; you should now be able to type `jool --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
+Done; you should now be able to type `jool_stateless --help` or `jool_stateful --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
 
 ## libnl-3
 
