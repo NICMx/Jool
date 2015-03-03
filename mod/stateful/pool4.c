@@ -47,7 +47,6 @@ struct pool4_node {
 static struct pool4_table pool;
 static DEFINE_SPINLOCK(pool_lock);
 static struct in_addr *last_used_addr;
-static int inactives_pool4_node_counter;
 
 /** Cache for struct pool4_nodes, for efficient allocation. */
 static struct kmem_cache *node_cache;
@@ -172,6 +171,21 @@ static void destroy_pool4_node(struct pool4_node *node)
 	kmem_cache_free(node_cache, node);
 }
 
+static bool __pool4_is_emtpy(bool locked)
+{
+	bool result;
+
+	if (locked)
+		spin_lock_bh(&pool_lock);
+
+	result = list_empty(&pool.list);
+
+	if (locked)
+		spin_unlock_bh(&pool_lock);
+
+	return result;
+}
+
 int pool4_init(char *addr_strs[], int addr_count)
 {
 	struct ipv4_prefix addrs;
@@ -217,7 +231,6 @@ int pool4_init(char *addr_strs[], int addr_count)
 
 success:
 	last_used_addr = NULL;
-	inactives_pool4_node_counter = 0;
 
 	return 0;
 
@@ -244,10 +257,8 @@ static int deactivate_or_destroy_pool4_node(struct pool4_node *node, void * arg)
 		goto end;
 	}
 	if (!pool4_is_full(node)) {
-		if (node->active) {
+		if (node->active)
 			node->active = false;
-			inactives_pool4_node_counter++;
-		}
 		error =  0;
 		goto end;
 	}
@@ -286,7 +297,6 @@ static int __pool4_add(struct in_addr *addr)
 			return -EEXIST;
 		} else {
 			node->active = true;
-			inactives_pool4_node_counter--;
 			spin_unlock_bh(&pool_lock);
 			return 0;
 		}
@@ -492,7 +502,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_transport_add
 
 	spin_lock_bh(&pool_lock);
 
-	if (pool.node_count == 0) {
+	if (__pool4_is_emtpy(false)) {
 		log_warn_once("The IPv4 pool is empty.");
 		goto failure;
 	}
@@ -625,12 +635,26 @@ int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg)
 	return error;
 }
 
+static int pool4_counter_aux(struct pool4_node *node, void *arg)
+{
+	__u64 *counter = (__u64 *) arg;
+
+	if (node->active)
+		(*counter)++;
+
+	return 0;
+}
+
 int pool4_count(__u64 *result)
 {
+	int error;
+	*result = 0;
+
 	spin_lock_bh(&pool_lock);
-	*result = pool.node_count - inactives_pool4_node_counter;
+	error = pool4_table_for_each(&pool, pool4_counter_aux, result);
 	spin_unlock_bh(&pool_lock);
-	return 0;
+
+	return error;
 }
 
 int pool4_add(struct ipv4_prefix *addrs)
@@ -718,12 +742,5 @@ int pool4_remove(struct ipv4_prefix *addrs)
 
 bool pool4_is_empty(void)
 {
-	__u64 result;
-
-	pool4_count(&result);
-
-	if (result)
-		return false;
-
-	return true;
+	return __pool4_is_emtpy(true);
 }
