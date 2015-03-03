@@ -1,11 +1,9 @@
 #CC=cgcc
-ccflags-y := -I$(src)/../../include
 
-#EXTRA_CFLAGS += -DDEBUG
+ccflags-y := -I$(src)/../../include $(JOOL_DEBUG) -DSTATEFUL
 # Note: if you want to activate the benchmark feature, you need to activate the following flag, and
-#	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
-#EXTRA_CFLAGS += -DBENCHMARK
-EXTRA_CFLAGS += -DSTATEFUL
+#	the "log_time.o" object, also you need to activate in the usr-app (usr/Makefile.am)
+#ccflags-y += -DBENCHMARK
 
 obj-m += jool_stateful.o
 

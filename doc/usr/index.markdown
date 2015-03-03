@@ -22,13 +22,34 @@ If you want to know what the development team is currently tweaking, you should 
 
 But just to make things clear, this is the status of the project as of now:
 
-As far as we know, Jool is a fully-fledged stateless/stateful NAT64, according to [RFCs 6145, 6146 and others](intro-jool.html#compliance). We're currently working on updates (such as [FTP over NAT64](http://tools.ietf.org/html/rfc6384) and [Host-Based Edge Translation](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1)).
+As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) stateless/stateful NAT64. We're currently working on [switching frameworks](https://github.com/NICMx/NAT64/issues/116#issuecomment-74343381) to address our compliance issues.
 
 Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.0" target="_blank">3.3.0</a>.
 
 -------------------
 
 ## News
+
+### 2015-03-05
+
+Jool 3.3.0 is finished.
+
+[Filtering couldn't make it into the milestone](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), but stateless NAT64 is now supported.
+
+See the updated [NAT64 introduction](intro-nat64.html) for an improved picture of the stateless paradigm. [Here's the tutorial](mod-run-vanilla.html). Also keep an eye on [464XLAT](mod-run-464xlat.html).
+
+We also refactored the userspace app somewhat; please review your scripts:
+
+- The kernel's per-interface MTU setting [replaced `--minMTU6`](file:///home/aleiva/Desktop/NAT64/doc/usr/build/misc-mtu.html).
+- `--address`, `--prefix`, `--bib4` and `--bib6` disappeared because they're considered redundant. See [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) and [`--bib`](usr-flags-bib.html).
+
+Because Stateless Jool and Stateful Jool are separate binaries, the names of the userspace app and the kernel module also changed.
+
+- Instead of `modprobe jool`, use `modprobe jool_stateful`.
+- Instead of `jool --pool4 --display`, use `jool_stateful --pool4 --display`.
+- The stateless app and module are both called `jool_stateless`.
+
+We also released Jool 3.2.3, which is [bugfixes](https://github.com/NICMx/NAT64/milestones/3.2.3) since 3.2.2. One of the bugs is a DoS vulnerability, so upgrading to at least 3.2.3 is highly recommended.
 
 ### 2014-10-24
 
@@ -91,7 +112,7 @@ Aside from that, the userspace application has been tightened. It doesn't crash 
 
 Then we have a couple of <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">performance</a> <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">optimizations</a>. In particular (and more or less as a side effect), by aligning log priorities to those from the rest of the kernel, more care has been taken to keep the log cleaner.
 
-If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](usr-flags-global.html#minmtu6), a configuration parameter that helps you avoid fragmentation.
+If you care about performance, you might want to read the <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">as-of-now</a>-missing [documentation of `--minMTU6`](misc-mtu.html), a configuration parameter that helps you avoid fragmentation.
 
 If people doesn't find critical bugs in this version, this appears to be the end of the 3.1.x series. We'll go back to aim for 100% RFC compliance in the next update.
 

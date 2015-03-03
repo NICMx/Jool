@@ -28,13 +28,13 @@ In case you're wondering, you can follow along these tutorials using virtual mac
 
 You don't need all the nodes shown in the diagram to follow along; you can get away with only _A_, _N_ and _V_; the rest are very similar to _A_ and _V_ and are shown for illustrative purposes only.
 
-![Figure 1 - Sample Network](images/intro/network-2vanilla.svg)
+![Figure 1 - Sample Network](images/network/vanilla.svg)
 
 We will pretend I have address block 198.51.100.8/21 to distribute among my IPv6 nodes. I will also pretend _E_ conveniently does not need IPv4 connectivity for some reason (just to show you that you can leave nodes out of the equation to economize IPv4 addresses).
 
 Jool requires _N_ to be Linux. The rest can be anything you want, so long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
 
-For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of the instruction `service network-manager stop` is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
+For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of `service network-manager stop` is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
 
 Also to simplify, routing will be reduced to default all unknown traffic towards _N_. Note that there is nothing martian about anyone's configuration otherwise.
 
@@ -99,7 +99,9 @@ user@N:~# ethtool --offload eth1 lro off
 This is the insertion syntax:
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool6=<IPv6 prefix> pool4=<IPv4 prefixes> \
+user@N:~# /sbin/modprobe jool_stateless \
+	pool6=<IPv6 prefix> \
+	pool4=<IPv4 prefixes> \
 	errorAddresses=<IPv4 prefixes>
 {% endhighlight %}
 
@@ -121,7 +123,9 @@ You can insert up to five comma-separated `errorAddresses` prefixes during a mod
 In our sample network, that translates into
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool6=2001:db8::/96 pool4=198.51.100.8/30 \ 
+user@N:~# /sbin/modprobe jool_stateless \
+	pool6=2001:db8::/96 \
+	pool4=198.51.100.8/30,192.0.2.0/24 \ 
 	errorAddresses=198.51.100.12/30
 {% endhighlight %}
 
@@ -193,6 +197,7 @@ user@N:~# /sbin/modprobe -r jool_stateless
 Here are some logical follow-ups if you want to read more:
 
 - The [`errorAddresses` argument](usr-flags-error-addresses.html) and its [gimmic](misc-rfc6791.html).
+- Please consider the [NAT64 MTU issues](misc-mtu.html) before releasing.
 - If you care about EAM, head to the [second run](mod-run-eam.html).
 - If you care about stateful NAT64, head to the [third run](mod-run-stateful.html).
 - The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address hack transparent to users.

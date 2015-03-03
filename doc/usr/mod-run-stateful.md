@@ -24,7 +24,7 @@ Software-wise, only a [successful install of the kernel module](mod-install.html
 
 ## Sample Network
 
-![Figure 1 - Sample Network](images/intro/network-4stateful.svg)
+![Figure 1 - Sample Network](images/network/stateful.svg)
 
 All the remarks in the first document's [Sample Network section](mod-run-vanilla.html#sample-network) apply here.
 
@@ -135,4 +135,5 @@ user@N:~# /sbin/modprobe -r jool_stateful
 1. An IPv4 "outside" node cannot start communication because it "sees" the IPv6 network as an IPv4 private network behind a NAT. To remedy this, Jool enables you to configure "port forwarding". See [here](op-static-bindings.html) if you're interested.
 2. There's a discussion on the [IPv4 pool](op-pool4.html).
 3. The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address-hack transparent to users.
+4. Please consider the [NAT64 MTU issues](misc-mtu.html) before releasing.
 

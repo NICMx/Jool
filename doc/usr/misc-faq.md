@@ -1,5 +1,5 @@
 ---
-layout: documentation
+layout: faq
 title: Documentation - Troubleshooting/FAQ
 ---
 
@@ -149,3 +149,19 @@ Stateful Jool's minimum configuration requirements are
 - At least one prefix in the [IPv4 pool](usr-flags-pool4.html).
 - You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
 
+If that's not the problem, try enabling debug.
+
+	user@node:~/Jool-<version>/mod$ make debug
+
+Reinstall and remodprobe. Jool will be a lot more verbose in `dmesg`:
+
+	$ dmesg | tail -5
+	[ 3465.639622] ===============================================
+	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8
+	[ 3465.639724] Translating the Packet.
+	[ 3465.639756] Address 192.0.2.16 lacks an EAMT entry and is not part of the IPv4 pool.
+	[ 3465.639806] Returning the packet to the kernel.
+
+If it's not printing anything despite your enabling debug, perhaps it's because your log level is too high. See [this](http://elinux.org/Debugging_by_printing#Log_Levels).
+
+The debugging messages quickly become gigabytes of log, so remember to revert this before going official.

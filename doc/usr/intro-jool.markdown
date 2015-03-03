@@ -10,8 +10,8 @@ title: Documentation - Introduction to Jool
 ## Index
 
 1. [Overview](#overview)
-2. [Compatibility](#compatibility)
-3. [Considerations](#considerations)
+2. [Compliance](#compliance)
+3. [Compatibility](#compatibility)
 
 ## Overview
 
@@ -35,7 +35,7 @@ As far as we know, this is the compliance status of Jool 3.3:
 | [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01) | Atomic Fragment Deprecation | Strictly speaking, the draft wants us to completely trash the atomic fragments concept. We do implement them -poorly- as an [alternate and utterly discouraged mode](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) | EAM | Fully compliant. |
 
-Please [let us know](https://github.com/NICMx/NAT64/issues) if you find additional compliance issues.
+Please [let us know](https://github.com/NICMx/NAT64/issues) if you find additional compliance issues or RFCs/drafts we've missed.
 
 ## Compatibility
 

@@ -22,6 +22,7 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 ## Runs
 
 1. [Stateless NAT64](mod-run-vanilla.html)
+	1. [RFC 6791](misc-rfc6791.html)
 2. [Stateless NAT64 + EAM](mod-run-eam.html)
 	1. [The EAMT](misc-eamt.html)
 3. [Stateful NAT64](mod-run-stateful.html)
@@ -38,5 +39,6 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 ## Miscellaneous
 
 1. [FAQ](misc-faq.html)
-2. [The problem with Offloading](misc-offloading.html)
+2. [MTU and Fragmentation](misc-mtu.html)
+3. [The problem with Offloading](misc-offloading.html)
 

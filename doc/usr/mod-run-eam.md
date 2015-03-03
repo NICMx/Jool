@@ -24,7 +24,7 @@ This document explains how to run Jool in [EAM mode](intro-nat64.html#stateless-
 
 ## Sample Network
 
-![Figure 1 - Sample Network](images/intro/network-1eam.svg)
+![Figure 1 - Sample Network](images/network/eam.svg)
 
 All the remarks in the previous document's [Sample Network section](mod-run-vanilla.html#sample-network) apply here.
 
@@ -141,5 +141,6 @@ Same as in the [previous walkthrough](mod-run-vanilla.html#stopping-jool).
 
 ## Further reading
 
+- Please consider the [NAT64 MTU issues](misc-mtu.html) before releasing.
 - Stateful NAT64 is [over here](mod-run-stateful.html).
 

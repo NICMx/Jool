@@ -31,7 +31,6 @@ title: Documentation - Flags > Global
 		3. [`--genID`](#genid)
 		4. [`--boostMTU`](#boostmtu)
 	13. [`--plateaus`](#plateaus)
-	14. [`--minMTU6`](#minmtu6)
 
 ## Description
 
@@ -272,29 +271,4 @@ To address this problem, when Jool finds itself attempting to translate a zero-M
 Note that if `--boostMTU` is activated, the MTU will still be 1280 even if the relevant plateau is less than 1280.
 
 Also, you don't really need to sort the values as you input them.
-
-### `--minMTU6`
-
-TODO this flag is obsolete but the idea is still absolutely vital - put it somewhere else.
-
-- Name: Minimum IPv6 MTU
-- Type: Integer
-- Default: 1280
-- Modes: Both (Stateless and Stateful)
-- Translation direction: IPv4 to IPv6
-
-All of your IPv6 networks have MTUs. You should set `--minMTU6` as the smallest of them.
-
-IPv4 routers fragment, IPv6 routers don't fragment. If Jool receives a fragmentable IPv4 packet (Don't Fragment (DF) bit off), it has to make sure it's small enough to fit into any forthcoming IPv6 links (because the translation to IPv6 turns fragmentable packets into non-fragmentable packets). Otherwise, the smaller IPv6 hop will not let the packet through.
-
-The way Jool "makes sure it's small enough" is by fragmenting the packet by itself. So, if a fragmentable IPv4 packet gets translated into a IPv6 packet whose length is higher than `--minMTU6`, Jool will fragment it prior to sending it.
-
-So again, you want `--minMTU6` to be the smallest of your IPv6 MTUs so any of these formerly fragmentable packets will manage to fit into any IPv6 networks.
-
-This value defaults to 1280 because all IPv6 networks are theoretically guaranteed to support at least 1280 bytes per packet. If all of your IPv6 networks have a higher MTU, you can raise `--minMTU6` to decrease chances of fragmentation.
-
-- The penalty of `--minMTU6` being too small is performance; you get some unwanted fragmentation.
-- The penalty of `--minMTU6` being too big is reliability; the IPv6 nodes which are behind networks with lesser MTUs will not be able to receive packets from IPv4 whose DF flag os off and which, once translated, are larger than `--minMTU6`.
-
-IPv6 packets and unfragmentable IPv4 packets don't need any of this because they imply the emitter is the one minding MTUs and packet sizes (via <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">Path MTU Discovery</a> or whatever).
 

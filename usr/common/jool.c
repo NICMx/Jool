@@ -28,7 +28,7 @@
 #include "nat64/usr/log_time.h"
 
 
-const char *argp_program_version = "3.2.2";
+const char *argp_program_version = "3.3.0";
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
