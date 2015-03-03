@@ -19,7 +19,7 @@ title: Documentation - Flags > EAMT
 
 ## Description
 
-Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-nat64.html#stateless-nat64-with-eam) for a swift overview or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for the full story.
+Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-nat64.html#stateless-nat64-with-eam) for a swift overview, our [draft summary](misc-eamt.html) for more details, or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for the full story.
 
 ## Syntax
 
@@ -50,17 +50,7 @@ Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_va
 	<prefix4> := <IPv4 address>[/<prefix length>]
 	<prefix6> := <IPv6 address>[/<prefix length>]
 
-An EAMT entry is composed of an IPv6 prefix and an IPv4 prefix. When an address is being translated, its prefix is literally replaced according to the table.
-
-For example, assume the following EAMT:
-
-| IPv4 Prefix  | IPv6 Prefix    |
-|--------------|----------------|
-| 192.0.2.0/24 | 2001:db8::/120 |
-
-If an IPv4 packet arrives including address 192.0.2.8, Jool will translate it into 2001:db8::8. If an IPv6 packet arrives including address 2001:db8::d, Jool will translate it into 192.0.2.13. Notice the suffix is always preserved, so the point is a single EAMT entry can describe the translation of an entire network.
-
-TODO describe the IVI feature?
+These are the prefixes each record is made out of. See the [general EAMT explanation](misc-eamt.html).
 
 `<prefix length>` defaults to /32 on `<prefix4>` and /128 on `<prefix6>`. Jool automatically zeroizes any suffix from either address if it exists.
 

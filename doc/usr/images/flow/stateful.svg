@@ -15,7 +15,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.48.4 r9939"
-   sodipodi:docname="flow-1eam.svg">
+   sodipodi:docname="stateful.svg">
   <defs
      id="defs4">
     <marker
@@ -54,16 +54,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="345.17331"
-     inkscape:cy="181.08778"
+     inkscape:zoom="2.234375"
+     inkscape:cx="300"
+     inkscape:cy="192"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1052"
-     inkscape:window-x="1920"
-     inkscape:window-y="0"
+     inkscape:window-height="1028"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true">
@@ -205,11 +205,13 @@
          x="500"
          y="988.36218">src: <tspan
    style="fill:#0000ff"
-   id="tspan3039">192.0.2.5</tspan></tspan><tspan
+   id="tspan3041">192.0.2.16</tspan></tspan><tspan
          sodipodi:role="line"
          x="500"
          y="1003.3622"
-         id="tspan4177">dst: 198.51.100.5</tspan></text>
+         id="tspan4177">dst: <tspan
+   style="fill:#aa8800"
+   id="tspan3049">192.0.2.2</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
@@ -220,7 +222,7 @@
          sodipodi:role="line"
          x="300"
          y="988.36218"
-         id="tspan3045">Translating...</tspan></text>
+         id="tspan3122">Unmasking...</tspan></text>
     <use
        x="0"
        y="0"
@@ -239,13 +241,15 @@
          y="988.36218"
          x="100"
          id="tspan4207"
-         sodipodi:role="line">src: 2001:db8:4::5</tspan><tspan
+         sodipodi:role="line">src: 2001:db8::<tspan
+   style="fill:#0000ff"
+   id="tspan3053">192.0.2.16</tspan></tspan><tspan
          id="tspan4209"
          y="1003.3622"
          x="100"
          sodipodi:role="line">dst: <tspan
    style="fill:#008000"
-   id="tspan3046">2001:db8:6::5</tspan></tspan></text>
+   id="tspan3045">2001:db8::8</tspan></tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text4219"
@@ -256,13 +260,15 @@
          y="860.36218"
          x="500"
          id="tspan4221"
-         sodipodi:role="line">src: 198.51.100.5</tspan><tspan
+         sodipodi:role="line">src: <tspan
+   style="fill:#aa8800"
+   id="tspan3047">192.0.2.2</tspan></tspan><tspan
          id="tspan4223"
          y="875.36218"
          x="500"
          sodipodi:role="line">dst: <tspan
    style="fill:#0000ff"
-   id="tspan3037">192.0.2.5</tspan></tspan></text>
+   id="tspan3039">192.0.2.16</tspan></tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text4225"
@@ -273,7 +279,7 @@
          y="860.36218"
          x="300"
          sodipodi:role="line"
-         id="tspan3041">Translating...</tspan></text>
+         id="tspan3130">Masking...</tspan></text>
     <use
        height="512"
        width="512"
@@ -294,11 +300,13 @@
          y="860.36218"
          id="tspan4237">src: <tspan
    style="fill:#008000"
-   id="tspan3042">2001:db8:6::5</tspan></tspan><tspan
+   id="tspan3043">2001:db8::8</tspan></tspan><tspan
          sodipodi:role="line"
          x="100"
          y="875.36218"
-         id="tspan4241">dst: 2001:db8:4::5</tspan></text>
+         id="tspan4241">dst: 2001:db8::<tspan
+   style="fill:#0000ff"
+   id="tspan3051">192.0.2.16</tspan></tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Lend)"
        d="m 100,838.36218 400,0"
@@ -340,7 +348,7 @@
          sodipodi:role="line"
          id="tspan3127"
          x="100"
-         y="752.19226">2001:db8:6::5</tspan></text>
+         y="752.19226">2001:db8::8</tspan></text>
     <g
        id="g3141"
        style="display:inline"
@@ -411,5 +419,16 @@
          id="tspan3147"
          x="304.01562"
          y="737.36218">N</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#aa8800;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
+       x="358"
+       y="752.19226"
+       id="text3117-2"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3119-6"
+         x="358"
+         y="752.19226">192.0.2.2</tspan></text>
   </g>
 </svg>

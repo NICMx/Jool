@@ -127,21 +127,20 @@ Use the userspace app's [`--global`](usr-flags-global.html#description) flag to 
 
 {% highlight bash %}
 $ jool_stateless --global
-(...)
-Status: Disabled
+  Status: Disabled
 {% endhighlight %}
 
 {% highlight bash %}
 $ jool_stateful --global
-(...)
-Status: Disabled
+  Status: Disabled
 {% endhighlight %}
 
 Stateless Jool's minimum configuration requirements are
 
-- At least one prefix in the [IPv6 pool](usr-flags-pool6.html) or one entry in the [EAM table](usr-flags-eamt.html).
-- At least one prefix in the [IPv4 pool](usr-flags-pool4.html).
-- At least one prefix in the [errorAddresses](usr-flags-TODO.html) pool.
+- A NAT64 prefix in the [IPv6 pool](usr-flags-pool6.html) (with at least one allowed entry in the [IPv4 pool](usr-flags-pool4.html))  
+**or**  
+at least one one entry in the [EAM table](usr-flags-eamt.html).
+- At least one prefix in the [errorAddresses](usr-flags-error-addresses.html) pool.
 - You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
 
 Stateful Jool's minimum configuration requirements are

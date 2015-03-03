@@ -1,6 +1,6 @@
 # [Jool](https://www.jool.mx)
 
-An implementation of [RFC6146](http://tools.ietf.org/html/rfc6146) ([stateful NAT64](https://www.jool.mx/intro-nat64.html)) for Linux.
+A [NAT64](https://www.jool.mx/intro-nat64.html) for Linux.
 
 ## Documentation
 

@@ -23,6 +23,7 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 1. [Stateless NAT64](mod-run-vanilla.html)
 2. [Stateless NAT64 + EAM](mod-run-eam.html)
+	1. [The EAMT](misc-eamt.html)
 3. [Stateful NAT64](mod-run-stateful.html)
 	1. [The IPv4 pool](op-pool4.html)
 	2. [BIB](misc-bib.html)

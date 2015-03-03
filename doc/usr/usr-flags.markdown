@@ -30,6 +30,7 @@ Common options:
 `jool_stateless`-only options:
 
 1. [`--eamt`](usr-flags-eamt.html)
+2. [`--errorAddresses`](usr-flags-error-addresses.html)
 
 `jool_stateful`-only options:
 

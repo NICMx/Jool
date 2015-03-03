@@ -25,7 +25,7 @@ Atomic fragments are known to have [security implications](https://tools.ietf.or
 
 From Jool's perspective, there are also technical drawbacks to allowing atomic fragments. The Linux kernel is particularly lacking when it comes to recognizing redundant fragment headers, so if Jool is generating one, Linux might fragment the packet in a funny way:
 
-![Figure 1 - what could possibly go wrong?]()
+[![Figure 1 - what could possibly go wrong?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
 (Jool 3.2 and below used to avoid this by not deferring fragmentation to the kernel, but this introduced other-subtler issues.)
 

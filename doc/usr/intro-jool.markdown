@@ -19,18 +19,27 @@ Jool is an Open Source implementation of [NAT64](intro-nat64.html) on Linux. Unt
 
 ## Compliance
 
-Version 3.3 adheres (as far as we know, perfectly) to the following RFCs and proposed standards:
+As far as we know, this is the compliance status of Jool 3.3:
 
-- [RFC 6052](https://tools.ietf.org/html/rfc6052)
-- [RFC 6144](https://tools.ietf.org/html/rfc6144)
-- [RFC 6145](https://tools.ietf.org/html/rfc6145)
-- [RFC 6146](https://tools.ietf.org/html/rfc6146)
-- [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01)
-- [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02)
+| RFC/draft | Reminder name | Status |
+|-----------|---------|--------|
+| [RFC 6052](https://tools.ietf.org/html/rfc6052) | IP address translation | Fully compliant. |
+| [RFC 6144](https://tools.ietf.org/html/rfc6144) | NAT64 framework | Fully compliant. |
+| [RFC 6145](https://tools.ietf.org/html/rfc6145) | Stateless NAT64 | The atomic fragment implementation is [generally broken](usr-flags-atomic.html#overview). Otherwise compliant. |
+| [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Mostly compliant.<br />(Inherits RFC 6145 compliance issues)<br />We have also been unable to implement [Filtering Policies](https://github.com/NICMx/NAT64/issues/41). |
+| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant](https://github.com/NICMx/NAT64/issues/114). |
+| [RFC 6791](https://tools.ietf.org/html/rfc6791) | ICMP quirks | In short, this RFC wants two things: A pool of IPv4 addresses and an ICMP header extension. Jool implements the former but not the latter. |
+| [RFC 6877](http://tools.ietf.org/html/rfc6384) | 464XLAT | Rather implemented as SIIT-DC; see below. |
+| [draft-ietf-v6ops-siit-dc](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00) | SIIT-DC | Fully compliant. |
+| [draft-ietf-v6ops-siit-dc-2xlat](https://tools.ietf.org/html/draft-anderson-v6ops-siit-dc-2xlat-00) | SIIT-DC Edge Translator | [Host-based mode](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1) not implemented. |
+| [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01) | Atomic Fragment Deprecation | Strictly speaking, the draft wants us to completely trash the atomic fragments concept. We do implement them -poorly- as an [alternate and utterly discouraged mode](usr-flags-atomic.html#overview). |
+| [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) | EAM | Fully compliant. |
+
+Please [let us know](https://github.com/NICMx/NAT64/issues) if you find additional compliance issues.
 
 ## Compatibility
 
-We're supposed to support Linux kernels 3.0.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 using kernel 3.2.0-63-generic-pae, we've performed a healthy amount of formal testing on Jool 3.1.5 and 3.2.2 in the following variants:
+We're supposed to support Linux kernels 3.0.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 and 14.04 using current kernels, we've performed a healthy amount of formal testing on Jool 3.1.5 and 3.2.2 in the following variants:
 
 | Distribution | Kernels |
 | -------------|---------|

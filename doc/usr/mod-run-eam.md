@@ -7,8 +7,6 @@ title: Documentation - EAM Run
 
 # EAM Run
 
-TODO adjust the image flows.
-
 ## Index
 
 1. [Introduction](#introduction)
@@ -20,7 +18,7 @@ TODO adjust the image flows.
 
 ## Introduction
 
-This document explains how to run Jool in [EAM mode](intro-nat64.html#stateless-nat64-with-eam) (which actually more than a "mode" is simply stock stateless with records on the EAM table). Follow the link for more details on what to expect.
+This document explains how to run Jool in [EAM mode](intro-nat64.html#stateless-nat64-with-eam) (which actually more than a "mode" is simply stock stateless with records on the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](misc-eamt.html) for more details on how the EAMT works.
 
 [Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) **and** the [userspace application](usr-install.html) for EAM.
 
@@ -81,20 +79,19 @@ Remember you might want to cross-ping _N_ vs everything before continuing.
 ## Jool
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless pool4=198.51.100.8/22 errorAddresses=198.51.100.12/22 \
-	disabled
+user@N:~# /sbin/modprobe jool_stateless errorAddresses=198.51.100.12/22 disabled
 user@N:~# jool_stateless --eam --add 2001:db8:6::/120 198.51.100.0/24
 user@N:~# jool_stateless --eam --add 2001:db8:4::/120 192.0.2.0/24
 user@N:~# jool_stateless --enable
 {% endhighlight %}
 
-`pool4` and `errorAddresses` have the same meaning as in stock stateless mode.
+`errorAddresses` have the same meaning as in stock stateless mode.
 
 Unlike `pool6`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#enable---disable)).
 
 Using `disabled` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or the IPv6 pool are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
 
-And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAM, and if that fails, fall back to using the prefix. Add `pool6` during the `modprobe` if you want this.
+And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAM, and if that fails, fall back to using the prefix. Add `pool6` and `pool4` during the `modprobe` if you want this.
 
 ## Testing
 

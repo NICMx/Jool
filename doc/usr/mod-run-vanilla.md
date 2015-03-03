@@ -115,8 +115,8 @@ These are the arguments:
 - `pool4` (short for "[main] IPv4 pool") represents the addresses the NAT64 will use to mask the IPv6 nodes. In other words, if an IPv6 node's address minus the NAT64 prefix does not match an entry in this pool, its traffic will not be translated.  
 Because there is no port sharing, in stateless mode you need as many of these as IPv6 nodes which need IPv4 connectivity.  
 You can insert up to five comma-separated `pool4` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool4.html).  
-- `errorAddresses` is a secondary IPv4 pool used for something [slightly more cryptic](TODO). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
-You can insert up to five comma-separated `errorAddresses` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-TODO.html).
+- `errorAddresses` is a secondary IPv4 pool used for something [slightly more cryptic](misc-rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
+You can insert up to five comma-separated `errorAddresses` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-error-addresses.html).
 
 In our sample network, that translates into
 
@@ -192,7 +192,7 @@ user@N:~# /sbin/modprobe -r jool_stateless
 
 Here are some logical follow-ups if you want to read more:
 
-- The [`errorAddresses` argument](usr-flags-TODO.html).
+- The [`errorAddresses` argument](usr-flags-error-addresses.html) and its [gimmic](misc-rfc6791.html).
 - If you care about EAM, head to the [second run](mod-run-eam.html).
 - If you care about stateful NAT64, head to the [third run](mod-run-stateful.html).
 - The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address hack transparent to users.

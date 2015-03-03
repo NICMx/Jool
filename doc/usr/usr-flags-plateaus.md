@@ -97,5 +97,5 @@ And it doesn't mean the plateaus list is hardcoded into Jool, either. If you wan
 
 For example:
 
-	$(jool) --plateaus "80000, 40000, 20000, 10000"
+	jool_stateless --plateaus "80000, 40000, 20000, 10000"
 
