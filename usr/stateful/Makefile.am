@@ -19,4 +19,5 @@ jool_stateful_SOURCES = \
 jool_stateful_LDADD = ${LIBNL3_LIBS}
 jool_stateful_CFLAGS = -Wall -O2 -I${srcdir}/../../include ${LIBNL3_CFLAGS} -DSTATEFUL
 #jool_stateful_CFLAGS += -DBENCHMARK
-jool_stateful_MANS = jool_stateful.8
+man_MANS = jool_stateful.8
+

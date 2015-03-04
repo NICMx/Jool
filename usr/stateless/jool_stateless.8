@@ -1,0 +1,224 @@
+.\" Manpage for jool's userspace app.
+.\" Report bugs to jool@nic.mx.
+
+.TH jool_stateless 8 2015-03-03 v3.3.0 "Stateless Jool's Userspace Application"
+
+.SH NAME
+jool_stateless - Interact with Stateless Jool (the kernel module).
+
+.SH DESCRIPTION
+Sends commands and requests to Stateless Jool.
+.br
+Stateless Jool is a kernel module you load into a Linux kernel. It implements stateless NAT64 (RFC 6145).
+
+.SH AVAILABILITY
+Linux is the only OS in which this program makes sense.
+.br
+Kernels 3.0.0 and up.
+
+.SH SYNTAX
+jool_stateless --pool6 (
+.br
+	[--display]
+.br
+	| --count
+.br
+.RI "	| --add " <IPv6-prefix>
+.br
+.RI "	| --remove " <IPv6-prefix>
+.br
+.RI "	| --flush
+.br
+)
+.P
+jool_stateless --pool4 (
+.br
+	[--display]
+.br
+	| --count
+.br
+.RI "	| --add " <IPv4-prefix>
+.br
+.RI "	| --remove " <IPv4-prefix>
+.br
+	| --flush
+.br
+)
+.P
+jool_stateless --errorAddresses (
+.br
+	[--display]
+.br
+	| --count
+.br
+.RI "	| --add " <IPv4-prefix>
+.br
+.RI "	| --remove " <IPv4-prefix>
+.br
+	| --flush
+.br
+)
+.P
+.RI "jool_stateless --eamt (
+.br
+	[--display] [--csv]
+.br
+	| --count
+.br
+.RI "	| --add " "<IPv4-prefix> <IPv6-prefix>"
+.br
+.RI "	| --remove [ " <IPv4-prefix> " | " <IPv6-prefix> " | " <IPv4-prefix> " " <IPv6-prefix> " ]"
+.br
+)
+.P
+.RI "jool_stateless [--global] (
+.br
+	[--display]
+.br
+.RI "	| [--update] " FLAG_KEY = FLAG_VALUE
+.br
+)
+
+
+.SH OPTIONS
+.SS Operations
+.IP --display
+Print the table as output.
+.IP --count
+Count and print the number of entries in the table.
+.IP --add
+Create a new row using the rest of the arguments.
+.IP --update
+Change a configuration value based on the rest of the arguments.
+.IP --remove
+Delete the row described by the rest of the arguments.
+.IP --flush
+Empty the table.
+
+.SS Others
+.IP <IPv6-prefix>
+.RI "IPv6 prefix to add to or remove from Jool's IPv6 pool or EAM table.
+.br
+.RI "The format is " IPV6_ADDRESS " [ / " PREFIX_LENGTH " ]."
+.br
+.RI "PREFIX_LENGTH defaults to 128."
+.br
+Exampĺe: 64:ff9b::/96
+.IP <IPv4-prefix>
+.RI "IPv4 addresses to add to or remove from Jool's IPv4 pool or EAM table."
+.br
+.RI "The format is " IPV4_ADDRESS " [ / " PREFIX_LENGTH " ]."
+.br
+.RI "PREFIX_LENGTH defaults to 32."
+.br
+Exampĺe: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
+.IP --csv
+Output the table in Comma/Character-Separated Values (.csv) format.
+
+.SS "--global's FLAG_KEYs"
+.IP --disable
+Pause translation of packets.
+.IP --enable
+Resume translation of packets.
+.IP --setTC=BOOL
+Override IPv6 traffic class?
+.IP --setTOS=BOOL
+Override IPv4 type of service?
+.IP --TOS=INT
+IPv4 type of service
+.IP --computeUDPCsumZero=BOOL
+Amend packets with zero UDP checksum?
+.IP --plateaus=INT[,INT]*
+Set the MTU plateaus.
+
+.SS "--global's FLAG_KEYs - Deprecated!"
+.IP --atomicFragments=BOOL
+Allow Atomic Fragments?
+.br
+(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
+.IP --setDF=BOOL
+DF flag always on?
+.IP --genFH=BOOL
+Generate Fragment Header when incoming DF is false?
+.br
+(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
+.IP --genID=BOOL
+Generate IPv4 identification?
+.IP --boostMTU=BOOL
+Decrease MTU failure rate?
+
+.SH EXAMPLES
+Print the IPv6 pool:
+.br
+	jool_stateless --pool6 --display
+.br
+Add prefix 1234:abcd/96 to the IPv6 pool:
+.br
+	jool_stateless --pool6 --add 1234:abcd::/96
+.br
+Remove prefix 1234:abcd/96 from the IPv6 pool:
+.br
+	jool_stateless --pool6 --remove 1234:abcd::/96
+.P
+Print the number of IPv4 addresses in the pool:
+.br
+	jool_stateless --pool4 --count
+.br
+Add address 192.168.2.10 to the IPv4 pool:
+.br
+	jool_stateless --pool4 --add 192.168.2.10
+.br
+Remove address 192.168.2.10 from the IPv4 pool:
+.br
+	jool_stateless --pool4 --remove 192.168.2.10
+.P
+Print the Explicit Address Mappings Table (EAMT):
+.br
+	jool_stateless --eamt
+.br
+Add an entry to the EAMT:
+.br
+	jool_stateless --eamt --add 2001:db8::1/120 192.0.2.0/24
+.br
+Remove an entry from the EAMT:
+.br
+	jool_stateless --eamt --remove 2001:db8::1/120
+.br
+	or
+.br
+	jool_stateless --eamt --remove 192.0.2.0/24
+.P
+Print the general configuration values:
+.br
+	jool_stateless
+.br
+Update some general configuration value:
+.br
+	jool_stateless --setTC ON
+
+.SH NOTES
+TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.
+
+.SH EXIT STATUS
+Zero on success, non-zero on failure.
+
+.SH AUTHOR
+NIC Mexico & ITESM
+
+.SH REPORTING BUGS
+Our issue tracker is https://github.com/NICMx/NAT64/issues.
+If you want to mail us instead, use jool@nic.mx.
+
+.SH COPYRIGHT
+Copyright 2015 NIC Mexico.
+.br
+License: GPLv3+ (GNU GPL version 3 or later)
+.br
+This is free software: you are free  to  change  and  redistribute  it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH SEE ALSO
+https://www.jool.mx
+.br
+https://www.jool.mx/usr-flags.html
+

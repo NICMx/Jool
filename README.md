@@ -68,7 +68,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 
 ## Legal stuff
 
-	Copyright (C) 2012  NIC-Mx - ITESM
+	Copyright (C) 2012-2015  NIC-Mx - ITESM
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by

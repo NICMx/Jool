@@ -1,15 +1,15 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2015-03-03 v3.3.0 "Jool's Userspace Application"
+.TH jool_stateful 8 2015-03-03 v3.3.0 "Stateful Jool's Userspace Application"
 
 .SH NAME
-jool - Interact with Jool (the kernel module).
+jool_stateful - Interact with Stateful Jool (the kernel module).
 
 .SH DESCRIPTION
-Sends commands and requests to Jool.
+Sends commands and requests to Stateful Jool.
 .br
-Jool is a kernel module you load into a Linux kernel. It implements stateful NAT64 (RFC 6146).
+Stateful Jool is a kernel module you load into a Linux kernel. It implements stateful NAT64 (RFC 6146).
 
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
@@ -17,47 +17,47 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.0.0 and up.
 
 .SH SYNTAX
-jool --pool6 (
+jool_stateful --pool6 (
 .br
 	[--display]
 .br
 	| --count
 .br
-.RI "	| --add --prefix " <prefix>
+.RI "	| --add " <IPv6-prefix>
 .br
-.RI "	| --remove --prefix " <prefix> " [--quick]
+.RI "	| --remove " <IPv6-prefix> " [--quick]
 .br
 .RI "	| --flush [--quick]
 .br
 )
 .P
-jool --pool4 (
+jool_stateful --pool4 (
 .br
 	[--display]
 .br
 	| --count
 .br
-.RI "	| --add --address " <IPv4-address>
+.RI "	| --add " <IPv4-prefix>
 .br
-.RI "	| --remove --address " <IPv4-address> " [--quick]
+.RI "	| --remove " <IPv4-prefix> " [--quick]
 .br
 	| --flush [--quick]
 .br
 )
 .P
-.RI "jool --bib [" <PROTOCOLS> "] (
+.RI "jool_stateful --bib [" <PROTOCOLS> "] (
 .br
 	[--display] [--numeric] [--csv]
 .br
 	| --count
 .br
-.RI "	| --add --bib4=" <bib4> " --bib6=" <bib6>
+.RI "	| --add " "<bib4> <bib6>"
 .br
-.RI "	| --remove --bib4=" <bib4> " --bib6=" <bib6>
+.RI "	| --remove [ " <bib4> " | " <bib6> " | " <bib4> " " <bib6> " ]"
 .br
 )
 .P
-.RI "jool --session [" <PROTOCOLS> "] (
+.RI "jool_stateful --session [" <PROTOCOLS> "] (
 .br
 	[--display] [--numeric] [--csv]
 .br
@@ -65,7 +65,7 @@ jool --pool4 (
 .br
 )
 .P
-.RI "jool [--general] (
+.RI "jool_stateful [--global] (
 .br
 	[--display]
 .br
@@ -75,47 +75,70 @@ jool --pool4 (
 
 
 .SH OPTIONS
+.SS Operations
+.IP --display
+Print the table as output.
+.IP --count
+Count and print the number of entries in the table.
+.IP --add
+Create a new row using the rest of the arguments.
+.IP --update
+Change a configuration value based on the rest of the arguments.
+.IP --remove
+Delete the row described by the rest of the arguments.
+.IP --flush
+Empty the table.
 
 .SS <PROTOCOLS>
 They are not mutually exclusive. If you provide no protocol, the default is all protocols. If you provide at least one protocol, the rest will be turned off.
 .IP --udp
-Apply the operation to the UDP table.
+Apply the operation on the UDP table.
 .IP --tcp
-Apply the operation to the TCP table.
+Apply the operation on the TCP table.
 .IP --icmp
-Apply the operation to the ICMP table.
+Apply the operation on the ICMP table.
 
 .SS Others
-.IP --prefix
+.IP <IPv6-prefix>
 .RI "IPv6 prefix to add to or remove from Jool's IPv6 pool.
 .br
-.RI "The format is " IPV6_ADDRESS / PREFIX_LENGTH "."
+.RI "The format is " IPV6_ADDRESS " [ / " PREFIX_LENGTH " ]."
 .br
-Exampĺe: --prefix 64:ff9b::/96
-.IP --address
-.RI "IPv4 address to add to or remove from Jool's IPv4 pool.
+.RI "PREFIX_LENGTH defaults to 128."
 .br
-Exampĺe: --address 10.20.30.40
-.IP --bib4
+Exampĺe: 64:ff9b::/96
+.IP <IPv4-prefix>
+.RI "IPv4 addresses to add to or remove from Jool's IPv4 pool."
+.br
+.RI "The format is " IPV4_ADDRESS " [ / " PREFIX_LENGTH " ]."
+.br
+.RI "PREFIX_LENGTH defaults to 32."
+.br
+Exampĺe: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
+.IP <bib4>
 .RI "IPv4 side of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV4_ADDRESS # PORT "."
 .br
-Exampĺe: --bib4 10.20.30.40#5000
-.IP --bib6
+Exampĺe: 10.20.30.40#5000
+.IP <bib6>
 .RI "IPv6 side of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV6_ADDRESS # PORT "."
 .br
-Exampĺe: --bib6 1::2#5000
+Exampĺe: 1::2#5000
 .IP --quick
-Do not cascade removal to the BIB and session tables.
+Do not remove orphaned BIB and session entries.
 .IP --numeric
 Do not try to resolve hostnames.
 .IP --csv
 Output the table in Comma/Character-Separated Values (.csv) format.
 
-.SS "--general's FLAG_KEYs"
+.SS "--global's FLAG_KEYs"
+.IP --disable
+Pause translation of packets.
+.IP --enable
+Resume translation of packets.
 .IP --dropAddr=BOOL
 Apply address-dependent filtering?
 .IP --dropInfo=BOOL
@@ -130,6 +153,8 @@ Set the TCP established session lifetime (in seconds).
 Set the TCP transitory session lifetime (in seconds).
 .IP --toICMP=INT
 Set the ICMP session lifetime (in seconds).
+.IP --toFrag=INT
+Set the timeout for arrival of fragments.
 .IP --maxStoredPkts=INT
 Set the maximum number of slots for storable packets.
 .IP --setTC=BOOL
@@ -138,69 +163,77 @@ Override IPv6 traffic class?
 Override IPv4 type of service?
 .IP --TOS=INT
 IPv4 type of service
+.IP --plateaus=INT[,INT]*
+Set the MTU plateaus.
+
+.SS "--global's FLAG_KEYs - Deprecated!"
+.IP --atomicFragments=BOOL
+Allow Atomic Fragments?
+.br
+(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
 .IP --setDF=BOOL
 DF flag always on?
+.IP --genFH=BOOL
+Generate Fragment Header when incoming DF is false?
+.br
+(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
 .IP --genID=BOOL
 Generate IPv4 identification?
 .IP --boostMTU=BOOL
 Decrease MTU failure rate?
-.IP --plateaus=INT[,INT]*
-Set the MTU plateaus.
-.IP --minMTU6=INT
-Set the minimum MTU of all the IPv6 networks.
 
 .SH EXAMPLES
 Print the IPv6 pool:
 .br
-	jool --pool6 --display
+	jool_stateful --pool6 --display
 .br
 Add prefix 1234:abcd/96 to the IPv6 pool:
 .br
-	jool --pool6 --add --prefix=1234:abcd::/96
+	jool_stateful --pool6 --add 1234:abcd::/96
 .br
 Remove prefix 1234:abcd/96 from the IPv6 pool:
 .br
-	jool --pool6 --remove --prefix=1234:abcd::/96
+	jool_stateful --pool6 --remove 1234:abcd::/96
 .P
 Print the number of IPv4 addresses in the pool:
 .br
-	jool --pool4 --count
+	jool_stateful --pool4 --count
 .br
 Add address 192.168.2.10 to the IPv4 pool:
 .br
-	jool --pool4 --add --addr=192.168.2.10
+	jool_stateful --pool4 --add 192.168.2.10
 .br
 Remove address 192.168.2.10 from the IPv4 pool:
 .br
-	jool --pool4 --remove --addr=192.168.2.10
+	jool_stateful --pool4 --remove 192.168.2.10
 .P
 Print the Binding Information Base (BIB):
 .br
-	jool --bib
+	jool_stateful --bib
 .br
 Add a binding to the BIB:
 .br
-	jool --bib --add --bib4=192.168.2.1#11 --bib6=1::1#22
+	jool_stateful --bib --add 192.168.2.1#11 1::1#22
 .br
 Remove a binding from the BIB:
 .br
-	jool --bib --remove --bib4=192.168.2.1#11
+	jool_stateful --bib --remove 192.168.2.1#11
 .br
 	or
 .br
-	jool --bib --remove --bib6=1::1#22
+	jool_stateful --bib --remove 1::1#22
 .P
 Print the session table:
 .br
-	jool --session
+	jool_stateful --session
 .P
 Print the general configuration values:
 .br
-	$ jool
+	jool_stateful
 .br
 Update some general configuration value:
 .br
-	# jool --dropAddr ON
+	jool_stateful --dropAddr ON
 
 .SH NOTES
 TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.
@@ -216,7 +249,7 @@ Our issue tracker is https://github.com/NICMx/NAT64/issues.
 If you want to mail us instead, use jool@nic.mx.
 
 .SH COPYRIGHT
-Copyright 2014 NIC Mexico.
+Copyright 2015 NIC Mexico.
 .br
 License: GPLv3+ (GNU GPL version 3 or later)
 .br

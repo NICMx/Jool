@@ -227,16 +227,6 @@ static struct argp_option options[] =
 			"Override IPv4 Type of Service?" },
 	{ NEW_TOS_OPT, ARGP_NEW_TOS, NUM_FORMAT, 0,
 			"Set the IPv4 Type of Service." },
-	{ ALLOW_ATOMIC_FRAGMENTS, ARGP_ATOMIC_FRAGMENTS, BOOL_FORMAT, 0,
-			"Allow atomic fragments?"},
-	{ DF_ALWAYS_ON_OPT, ARGP_DF, BOOL_FORMAT, 0,
-			"Always set Don't Fragment?" },
-	{ BUILD_IPV6_FRAG_HDR, ARGP_BUILD_FH, BOOL_FORMAT, 0,
-			"Include IPv6 Fragment Header when IPv4 Packet DF Flag is not set."},
-	{ BUILD_IPV4_ID_OPT, ARGP_BUILD_ID, BOOL_FORMAT, 0,
-			"Generate IPv4 ID?" },
-	{ LOWER_MTU_FAIL_OPT, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
-			"Decrease MTU failure rate?" },
 	{ MTU_PLATEAUS_OPT, ARGP_PLATEAUS, NUM_ARR_FORMAT, 0,
 			"Set the MTU plateaus." },
 #ifdef STATEFUL
@@ -252,18 +242,22 @@ static struct argp_option options[] =
 				"incoming packets." },
 
 	{ NULL, 0, NULL, 0, "Deprecated options:", 7 },
-	{ "prefix", ARGP_PREFIX, NULL, OPTION_NO_USAGE, "The prefix to be added or removed. "
-			"Available on add and remove operations only." },
+	{ ALLOW_ATOMIC_FRAGMENTS, ARGP_ATOMIC_FRAGMENTS, BOOL_FORMAT, 0,
+			"Allow atomic fragments?" },
+	{ DF_ALWAYS_ON_OPT, ARGP_DF, BOOL_FORMAT, 0,
+			"Always set Don't Fragment?" },
+	{ BUILD_IPV6_FRAG_HDR, ARGP_BUILD_FH, BOOL_FORMAT, 0,
+			"Include IPv6 Fragment Header when IPv4 Packet DF Flag is not set."},
+	{ BUILD_IPV4_ID_OPT, ARGP_BUILD_ID, BOOL_FORMAT, 0,
+			"Generate IPv4 ID?" },
+	{ LOWER_MTU_FAIL_OPT, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
+			"Decrease MTU failure rate?" },
+	{ "prefix", ARGP_PREFIX, NULL, OPTION_NO_USAGE, "Void operation." },
 
-	{ "address", ARGP_ADDRESS, NULL, OPTION_NO_USAGE, "Address to be added or removed. "
-			"Available on add and remove operations only." },
+	{ "address", ARGP_ADDRESS, NULL, OPTION_NO_USAGE, "Void operation." },
 #ifdef STATEFUL
-	{ "bib6", ARGP_BIB_IPV6, NULL, OPTION_NO_USAGE,
-			"This is the address#port of the remote IPv6 node of the entry to be added or removed. "
-			"Available on add and remove operations only." },
-	{ "bib4", ARGP_BIB_IPV4, NULL, OPTION_NO_USAGE,
-			"This is the local IPv4 address#port of the entry to be added or removed. "
-			"Available on add and remove operations only." },
+	{ "bib6", ARGP_BIB_IPV6, NULL, OPTION_NO_USAGE, "Void operation." },
+	{ "bib4", ARGP_BIB_IPV4, NULL, OPTION_NO_USAGE, "Void operation." },
 #endif
 	{ NULL },
 };
@@ -637,7 +631,7 @@ static char args_doc[] = "{address specification}";
  * DOC. Field 4 in ARGP.
  * Program documentation.
  */
-static char doc[] = "Jool -- The Jool kernel module's configuration interface.\v";
+static char doc[] = "See the manpage for prettier grammar.\v";
 
 /**
  * Zeroizes all of "num"'s bits, except the last one. Returns the result.

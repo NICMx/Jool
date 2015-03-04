@@ -25,7 +25,6 @@ Common options:
 	2. [MTU Plateaus (Example)](usr-flags-plateaus.html)
 3. [`--pool6`](usr-flags-pool6.html)
 4. [`--pool4`](usr-flags-pool4.html)
-5. [`--quick`](usr-flags-quick.html)
 
 `jool_stateless`-only options:
 
@@ -36,4 +35,5 @@ Common options:
 
 1. [`--bib`](usr-flags-bib.html)
 2. [`--session`](usr-flags-session.html)
+3. [`--quick`](usr-flags-quick.html)
 

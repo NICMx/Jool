@@ -21,7 +21,7 @@ title: Documentation - Flags > Atomic Fragments
 
 "Atomic fragments" are IPv6 packets which are not fragmented but still contain a (redundant) [Fragment Header](https://tools.ietf.org/html/rfc2460#section-4.5). They are a hack in the NAT64 specification that intends to leverage the difference between the IPv4 MTU (576) and the IPv6 MTU (1280).
 
-Atomic fragments are known to have [security implications](https://tools.ietf.org/html/rfc6946) and there is [official ongoing effort to deprecate them](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Even RFC 6145 (ie. stateless NAT64's core document) warns about [issues regarding the hack](http://tools.ietf.org/html/rfc6145#section-6).
+Atomic fragments are known to have [security implications](https://tools.ietf.org/html/rfc6946) and there is [official ongoing effort to deprecate them](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01). Even RFC 6145 (ie. stateless NAT64's core document) warns about [issues regarding the hack](http://tools.ietf.org/html/rfc6145#section-6).
 
 From Jool's perspective, there are also technical drawbacks to allowing atomic fragments. The Linux kernel is particularly lacking when it comes to recognizing redundant fragment headers, so if Jool is generating one, Linux might fragment the packet in a funny way:
 
@@ -29,7 +29,7 @@ From Jool's perspective, there are also technical drawbacks to allowing atomic f
 
 (Jool 3.2 and below used to avoid this by not deferring fragmentation to the kernel, but this introduced other-subtler issues.)
 
-As a consequence, Jool 3.3's default configuration **disables** atomic fragments. You should most likely **never** change this. The options described later in this document all have to do with atomic fragments and are now considerered **deprecated**. In fact, we intend to wipe them out as soon as (and if) [draft-gont-6man-deprecate-atomfrag-generation](http://www.ietf.org/id/draft-gont-6man-deprecate-atomfrag-generation-01.txt) is upgraded to RFC status.
+As a consequence, Jool 3.3's default configuration **disables** atomic fragments. You should most likely **never** change this. The options described later in this document all have to do with atomic fragments and are now considerered **deprecated**. In fact, we intend to wipe them out as soon as (and if) [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01) is upgraded to RFC status.
 
 Let it be known that we fully condone the deprecation of atomic fragments.
 
@@ -77,7 +77,7 @@ $(jool) --genID true
 $(jool) --boostMTU true
 {% endhighlight %}
 
-This is an alternate mode defined both by RFC 6145 and [draft-gont-6man-deprecate-atomfrag-generation](http://www.ietf.org/id/draft-gont-6man-deprecate-atomfrag-generation-01.txt). The latter mandates this behaviour and is Jool 3.3's default.
+This is an alternate mode defined both by RFC 6145 and [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01). The latter mandates this behaviour and is Jool 3.3's default.
 
 ### `--setDF`
 

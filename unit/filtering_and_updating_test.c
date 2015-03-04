@@ -247,7 +247,7 @@ static bool test_udp(void)
 		return false;
 
 	/* A IPv4 packet attempts to be translated without state */
-	success &= assert_equals_int(VERDICT_DROP, ipv4_simple(&pkt4, &tuple4), "result 1");
+	success &= assert_equals_int(VERDICT_ACCEPT, ipv4_simple(&pkt4, &tuple4), "result 1");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
@@ -299,12 +299,12 @@ static bool test_icmp(void)
 		return false;
 
 	/* A IPv4 packet attempts to be translated without state */
-	success &= assert_equals_int(VERDICT_DROP, ipv4_simple(&pkt4, &tuple4), "result");
+	success &= assert_equals_int(VERDICT_ACCEPT, ipv4_simple(&pkt4, &tuple4), "result 1");
 	success &= assert_bib_count(0, L4PROTO_ICMP);
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
 	/* IPv6 packet and gets translated correctly. */
-	success &= assert_equals_int(VERDICT_CONTINUE, ipv6_simple(&pkt6, &tuple6), "result");
+	success &= assert_equals_int(VERDICT_CONTINUE, ipv6_simple(&pkt6, &tuple6), "result 2");
 	success &= assert_bib_count(1, L4PROTO_ICMP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_ICMP, 1);
 	success &= assert_session_count(1, L4PROTO_ICMP);
@@ -313,7 +313,7 @@ static bool test_icmp(void)
 			L4PROTO_ICMP, 0);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	success &= assert_equals_int(VERDICT_CONTINUE, ipv4_simple(&pkt4, &tuple4), "result");
+	success &= assert_equals_int(VERDICT_CONTINUE, ipv4_simple(&pkt4, &tuple4), "result 3");
 	success &= assert_bib_count(1, L4PROTO_ICMP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_ICMP, 1);
 	success &= assert_session_count(1, L4PROTO_ICMP);

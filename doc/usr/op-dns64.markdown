@@ -26,9 +26,7 @@ Any correct DNS64 implementation is supposed to work; BIND will be used for illu
 
 ![Fig.1 - Setup](images/tut4-setup.svg)
 
-We'll just build on top of the arrangement from [scenario 3](mod-runs.html#scenario-3-brains). Though note that the outermost networks have been connected and merged to their respective internets. And I removed the adresses from the diagram because they're no longer very relevant.
-
-Remember that though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (unless Jool is monopolizing all of its node's IPv4 addresses, of course).
+Though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (unless Jool is monopolizing all of its node's IPv4 addresses, of course).
 
 ## Configuration
 

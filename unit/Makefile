@@ -191,6 +191,7 @@ $(TRANSLATE)-objs += impersonator/stats.o
 $(TRANSLATE)-objs += translate_packet_test.o
 
 $(HAIRPINNING)-objs += $(MIN_REQS)
+$(HAIRPINNING)-objs += ../mod/common/blacklist.o
 $(HAIRPINNING)-objs += ../mod/common/config.o
 $(HAIRPINNING)-objs += ../mod/common/core.o
 $(HAIRPINNING)-objs += ../mod/common/ipv6_hdr_iterator.o
@@ -245,6 +246,7 @@ $(PKTQUEUE)-objs += impersonator/stats.o
 $(PKTQUEUE)-objs += pkt_queue_test.o
 
 $(CONFIG_PROTO)-objs += $(MIN_REQS)
+$(CONFIG_PROTO)-objs += ../mod/common/blacklist.o
 $(CONFIG_PROTO)-objs += ../mod/common/config.o
 $(CONFIG_PROTO)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(CONFIG_PROTO)-objs += ../mod/common/nl_buffer.o

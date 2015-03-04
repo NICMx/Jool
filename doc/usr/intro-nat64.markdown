@@ -52,7 +52,7 @@ This will happen:
 
 The NAT64 is "fooling" each node into thinking the other one can speak their language.
 
-"EAM" stands for "Explicit Address Mapping", and is more versatile than simply binding arbitrary addresses to other arbitrary addresses. See our [configuration documentation](usr-flags-eamt.html) or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for more information.
+"EAM" stands for "Explicit Address Mapping", and is more versatile than simply binding arbitrary addresses to other arbitrary addresses. See the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) or [our summary of it](misc-eamt.html) for more information.
 
 ## Stateless NAT64 (vanilla)
 

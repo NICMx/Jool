@@ -82,39 +82,39 @@ And the mangling will be mirrored for the response:
 
 _n6_ doesn't know it kind of owns another IPv6 address in the 2001:db8:2::/96 network. It never sees this traffic, because _R_ always translates it towards 192.0.2.0/24.
 
-	sudo service network-manager stop
+	service network-manager stop
 
-	sudo ip link set eth0 up
-	sudo ip addr add 2001:db8:1::8/64 dev eth0
-	sudo ip addr add 192.168.0.8/24 dev eth0
+	ip link set eth0 up
+	ip addr add 2001:db8:1::8/64 dev eth0
+	ip addr add 192.168.0.8/24 dev eth0
 
-	sudo ip route add default via 2001:db8:1::1
-	sudo ip route add default via 192.168.0.1
+	ip route add default via 2001:db8:1::1
+	ip route add default via 192.168.0.1
 
 This is _R_:
 
-	sudo service network-manager stop
+	service network-manager stop
 
-	sudo ip link set eth0 up
-	sudo ip addr add 192.168.0.1/24 dev eth0
-	sudo ip addr add 2001:db8:1::1/64 dev eth0
+	ip link set eth0 up
+	ip addr add 192.168.0.1/24 dev eth0
+	ip addr add 2001:db8:1::1/64 dev eth0
 
-	sudo ip link set eth1 up
-	sudo ip addr add 2001:db8:100::1/64 dev eth1
+	ip link set eth1 up
+	ip addr add 2001:db8:100::1/64 dev eth1
 
 	# Traffic headed to the real IPv4 Internet goes via BT.
-	sudo ip route add 64:ff9b::/96 via 2001:db8:100::2
+	ip route add 64:ff9b::/96 via 2001:db8:100::2
 
 	# Enable routerness.
-	sudo sysctl -w net.ipv6.conf.all.forwarding=1
-	sudo sysctl -w net.ipv4.conf.all.forwarding=1
+	sysctl -w net.ipv6.conf.all.forwarding=1
+	sysctl -w net.ipv4.conf.all.forwarding=1
 
 	# Enable Stateless NAT64.
 	# We're masking the private network using an EAMT entry.
 	# Traffic towards the Internet (0.0.0.0/0 ie. anything) is to be appended BT's prefix.
 	# Recall that the EAMT has higher precedence than the NAT64 (pool6) prefix.
-	sudo modprobe jool_stateless pool6=64:ff9b::/96 pool4=0.0.0.0/0 errorAddresses=192.168.0.128/25
-	sudo jool_stateless --eamt --add 192.168.0.8/29 2001:db8:2::/125
+	modprobe jool_stateless pool6=64:ff9b::/96 pool4=0.0.0.0/0 errorAddresses=192.168.0.128/25
+	jool_stateless --eamt --add 192.168.0.8/29 2001:db8:2::/125
 
 _n6_'s packet will have addresses `192.168.0.8` and `203.0.113.24`. The former will be translated using the EAMT entry (since it matches `192.168.0.8/29`) and the latter will use the pool6 prefix (because it matches `0.0.0.0/0`). We're using `0.0.0.0/0` because we're talking about the whole Internet.
 
@@ -122,27 +122,27 @@ Also note that _R_ is an average NAT64 and you shouldn't think of this installat
 
 For completeness sake, here's _BT_'s network configuration:
 
-	sudo service network-manager stop
+	service network-manager stop
 
-	sudo ip link set eth0 up
-	sudo ip addr add 2001:db8:100::2/64 dev eth0
+	ip link set eth0 up
+	ip addr add 2001:db8:100::2/64 dev eth0
 	# I'm pretending the ISP gave us these two prefixes to play with.
-	sudo ip route add 2001:db8:1::/64 via 2001:db8:100::1
-	sudo ip route add 2001:db8:2::/64 via 2001:db8:100::1
+	ip route add 2001:db8:1::/64 via 2001:db8:100::1
+	ip route add 2001:db8:2::/64 via 2001:db8:100::1
 
-	sudo ip link set eth1 up
-	sudo ip addr add 203.0.113.1/24 dev eth1
-	sudo ip addr add 203.0.113.2/24 dev eth1
+	ip link set eth1 up
+	ip addr add 203.0.113.1/24 dev eth1
+	ip addr add 203.0.113.2/24 dev eth1
 
-	sudo modprobe jool_stateful pool6=64:ff9b::/96 pool4=203.0.113.2
+	modprobe jool_stateful pool6=64:ff9b::/96 pool4=203.0.113.2
 
 And _n4_ is thoroughly boring:
 
-	sudo service network-manager stop
+	service network-manager stop
 
-	sudo ip link set eth0 up
-	sudo ip addr add 203.0.113.24/24 dev eth0
-	sudo ip route add default via 203.0.113.2
+	ip link set eth0 up
+	ip addr add 203.0.113.24/24 dev eth0
+	ip route add default via 203.0.113.2
 
 ## Testing
 
@@ -187,7 +187,7 @@ Here's a list of protocols that are known to use IP literals. You might also wan
  - FTP (try passive mode)
  - Skype
  - NFS
- - Google Talk Client *
+ - Google Talk Client
  - AIM (AOL)
  - ICQ (AOL)
  - MSN

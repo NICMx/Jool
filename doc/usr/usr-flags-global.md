@@ -21,6 +21,7 @@ title: Documentation - Flags > Global
 	5. [`--toTCPest`](#totcpest)
 	6. [`--toTCPtrans`](#totcptrans)
 	7. [`--toICMP`](#toicmp)
+	8. [`--toFrag`](#tofrag)
 	8. [`--maxStoredPkts`](#maxstoredpkts)
 	9. [`--setTC`](#settc)
 	10. [`--setTOS`](#settos)
@@ -30,6 +31,7 @@ title: Documentation - Flags > Global
 		2. [`--genFH`](#genfh)
 		3. [`--genID`](#genid)
 		4. [`--boostMTU`](#boostmtu)
+	13. [`--computeUDPCsumZero`](#computeudpcsumzero)
 	13. [`--plateaus`](#plateaus)
 
 ## Description
@@ -187,6 +189,27 @@ When a ICMP session has been lying around inactive for this long, its entry will
 
 When you change this value, the lifetimes of all already existing ICMP sessions are updated.
 
+### `--toFrag`
+
+- Name: Fragment lifetime
+- Type: Integer (seconds)
+- Default: 2 seconds
+- Modes: Stateful only
+
+Stateful Jool requires fragment reassembly.
+
+In kernels 3.13 and above, `--toFrag` does nothing whatsoever.
+
+In kernels 3.12 and below, the kernel's IPv6 fragment reassembly module (`nf_defrag_ipv6`) is a little tricky. It collects the fragments, and instead of reassembling, it fetches them all to the rest of the kernel in ascending order and really quickly. Because Jool has to process all the fragments of a single packet at the same time, it has to wait until `nf_defrag_ipv6` has handed them all.
+
+`--toFrag` is the time Jool will wait for `nf_defrag_ipv6` to fetch all the fragments of a common packet. _It has nothing to do with waiting for fragments to arrive at the node_.
+
+Because `nf_defrag_ipv6` already waited for all the fragments to arrive, it should fetch them in nanoseconds. Therefore, `--toFrag`'s default value of 2 seconds is probably overly high. On the other hand, unless there is a random module dropping packets in between, all of the fragments should always arrive immediately, hence the timer should actually never run out (even if you're being attacked).
+
+Stateless Jool does not need fragment reassembly at all.
+
+This behavior changed from Jool 3.2, where `--toFrag` used to actually be the time Jool would wait for fragments to arrive at the node.
+
 ### `--maxStoredPkts`
 
 - Name: Maximum number of stored packets
@@ -253,6 +276,25 @@ See [Atomic Fragments](usr-flags-atomic.html).
 ### `--boostMTU`
 
 See [Atomic Fragments](usr-flags-atomic.html).
+
+## `--computeUDPCsumZero`
+
+- Name: Amend packets with zero UDP checksum?
+- Type: Boolean
+- Default: False
+- Modes: Stateless only
+- Translation direction: IPv4 to IPv6 (UDP only)
+
+In IPv4, it's legal for UDP packets to contain zero as checksum. This is because the whole thing about UDP is that it's unreliable, and therefore sometimes the value of checksum validation does not justify its overhead.
+
+In IPv6, zero is an invalid checksum value for UDP packets.
+
+- If `--computeUDPCsumZero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.
+- If `--computeUDPCsumZero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_INFO).
+
+This does not affect _fragmented_ zero-checksum IPv4-UDP packets. Stateless Jool does not reassemble, which means it _cannot_ compute the checskum. In these cases, the packet will be dropped regardless of `--computeUDPCsumZero`.
+
+Stateful Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it can also do so for fragmented packets.
 
 ### `--plateaus`
 

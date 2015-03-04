@@ -27,7 +27,7 @@ The 3.2 series improves 3.1 by implementing Simultaneous Open. It also has provi
 
 3.2.3 is the latest version. It is also considered the most mature version of Jool.
 
-The documentation on this site pertains the 3.3 series. You can download a snapshot of the 3.2 documentation [here](obj/doc/Jool-3.2.zip).
+The documentation on this site pertains the 3.3 series. You can download a snapshot of the 3.2 documentation [here](https://www.jool.mx/download/Jool-3.2-doc.zip).
 
 | Download | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
@@ -45,7 +45,7 @@ The 3.1 series is a fairly standard-compliant stateful NAT64. Its missing featur
 
 The latest version is 3.1.6.
 
-The documentation on this site pertains the 3.3 series. You can download a snapshot of the 3.1 documentation [here](obj/doc/Jool-3.1.zip).
+The documentation on this site pertains the 3.3 series. You can download a snapshot of the 3.1 documentation [here](https://www.jool.mx/download/Jool-3.1-doc.zip).
 
 | Download | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|

@@ -26,7 +26,7 @@ On Stateless Jool, the IPv4 pool is a whitelist that dictates whether an address
 
 On Stateful Jool, the IPv4 pool is the subset of the node's address which should be used for translation. _This might change in future versions_.
 
-Also, because the [implementation in Stateful Jool leaves a lot to be desired](https://github.com/NICMx/NAT64/issues/36), editing the pool is very slow and memory-demanding. You want to avoid managing prefix lenghts of /24 and below in this case.
+Also, because the [implementation in Stateful Jool leaves a lot to be desired](https://github.com/NICMx/NAT64/issues/117#issuecomment-66942415), editing the pool is very slow and memory-demanding. You want to avoid managing prefix lenghts of /24 and below in this case.
 
 ## Syntax
 

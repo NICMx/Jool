@@ -129,7 +129,7 @@ Publish a UDP service:
 Dump the database on a CSV file:
 
 {% highlight bash %}
-$ jool --bib --display --numeric --csv > bib.csv
+$ jool_stateful --bib --display --numeric --csv > bib.csv
 {% endhighlight %}
 
 [bib.csv](obj/bib.csv)

@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - EAMT
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateless NAT64 + EAM](mod-run-eamt.html) > EAMT
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateless NAT64 + EAM](mod-run-eam.html) > EAMT
 
 # EAMT
 

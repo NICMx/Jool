@@ -29,7 +29,7 @@ As far as we know, this is the compliance status of Jool 3.3:
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Mostly compliant.<br />(Inherits RFC 6145 compliance issues)<br />We have also been unable to implement [Filtering Policies](https://github.com/NICMx/NAT64/issues/41). |
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant](https://github.com/NICMx/NAT64/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | ICMP quirks | In short, this RFC wants two things: A pool of IPv4 addresses and an ICMP header extension. Jool implements the former but not the latter. |
-| [RFC 6877](http://tools.ietf.org/html/rfc6384) | 464XLAT | Rather implemented as SIIT-DC; see below. |
+| [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Rather implemented as SIIT-DC; see below. |
 | [draft-ietf-v6ops-siit-dc](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00) | SIIT-DC | Fully compliant. |
 | [draft-ietf-v6ops-siit-dc-2xlat](https://tools.ietf.org/html/draft-anderson-v6ops-siit-dc-2xlat-00) | SIIT-DC Edge Translator | [Host-based mode](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1) not implemented. |
 | [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01) | Atomic Fragment Deprecation | Strictly speaking, the draft wants us to completely trash the atomic fragments concept. We do implement them -poorly- as an [alternate and utterly discouraged mode](usr-flags-atomic.html#overview). |

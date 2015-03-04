@@ -112,7 +112,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (config_get_is_disable())
 		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
 
-	if (is_blacklisted(hdr->saddr) || is_blacklisted(hdr->daddr))
+	if (is_blacklisted4(hdr->saddr) || is_blacklisted4(hdr->daddr))
 		return NF_ACCEPT;
 
 	if (nat64_is_stateful()) {
@@ -147,6 +147,9 @@ unsigned int core_6to4(struct sk_buff *skb)
 
 	if (config_get_is_disable())
 		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
+
+	if (is_blacklisted6(&hdr->saddr) || is_blacklisted6(&hdr->daddr))
+		return NF_ACCEPT;
 
 	if (nat64_is_stateful()) {
 		if ((!pool6_contains(&hdr->daddr) || pool4_is_empty()))

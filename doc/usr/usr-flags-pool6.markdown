@@ -42,7 +42,7 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 
 ### `--quick`
 
-See [`--quick`](usr-flags-quick.html).
+See [`--quick`](usr-flags-quick.html). Only available on Stateful Jool.
 
 ## Examples
 
