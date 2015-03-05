@@ -19,15 +19,15 @@ So what we have here is, the IPv6 nodes can see a HTTP server by querying 1::1 o
 
 To create a mapping, you have to ask the [userspace application](usr-install.html) something in the lines of this:
 
-	$ jool_stateful --bib --add <protocols> <Ipv6 address>#<"IPv6" port> <IPv4 address>#<"IPv4" port>
+	$ jool --bib --add <protocols> <Ipv6 address>#<"IPv6" port> <IPv4 address>#<"IPv4" port>
 
 which in our example will translate into:
 
-	$ jool_stateful --bib --add --tcp 1::1#80 1.2.3.4#5678
+	$ jool --bib --add --tcp 1::1#80 1.2.3.4#5678
 
 > If it throws you an error, run `dmesg` to know the cause. Most likely you're using an IPv4 address you didn't add to the pool. Add the address like this:
 > 
-> 	$ jool_stateful --pool4 --add 1.2.3.4
+> 	$ jool --pool4 --add 1.2.3.4
 > 
 > Then retry the insertion of the mapping.
 
@@ -37,7 +37,7 @@ And have fun.
 
 Run an operationless version of the `--bib` command to display your current database:
 
-	$ jool_stateful --bib
+	$ jool --bib
 	TCP:
 	[Static] 1.2.3.4#5678 - 1::1#80
 	  (Fetched 1 entries.)
@@ -51,13 +51,13 @@ If your output shows a more populated table, it's because Jool has been translat
 Note that there are not one, but three different BIB tables. We added the entry only to the TCP BIB because we used the `--tcp` parameter.
 
 	$ # Add an entry to the UDP BIB
-	$ jool_stateful --bib --add --udp 1::1#80 1.2.3.4#5678
+	$ jool --bib --add --udp 1::1#80 1.2.3.4#5678
 	$ # Add an entry to the TCP and ICMP BIBs
-	$ jool_stateful --bib --add --udp --icmp 1::1#80 1.2.3.4#5678
+	$ jool --bib --add --udp --icmp 1::1#80 1.2.3.4#5678
 	$ # Show the three tables.
-	$ jool_stateful --bib --tcp --udp --icmp
+	$ jool --bib --tcp --udp --icmp
 	$ # Show the three BIBs, quick version.
-	$ jool_stateful --bib
+	$ jool --bib
 	$ # (We didn't include any protocols, so Jool assumed we wanted to show every table.)
 
 "Hold on!", I hear you scream. "The ICMP protocol doesn't use ports!". But it does use ICMP identifiers, which are very similar. It doesn't really make much sense to create manual ICMP mappings, though, since ICMP identifiers are often unpredictable (as opposed to destination ports).
@@ -65,11 +65,11 @@ Note that there are not one, but three different BIB tables. We added the entry 
 If you need to remove the binding, replace "add" for "remove" and specify either side of the equation (Mappings are unique on both sides):
 
 {% highlight bash %}
-$ jool_stateful --bib --remove --tcp 1::1#80
+$ jool --bib --remove --tcp 1::1#80
 or
-$ jool_stateful --bib --remove --tcp 1.2.3.4#5678
+$ jool --bib --remove --tcp 1.2.3.4#5678
 or
 $ # This won't hurt you (and will make sure you're removing exactly what you want to remove).
-$ jool_stateful --bib --remove --tcp 1::1#80 1.2.3.4#5678
+$ jool --bib --remove --tcp 1::1#80 1.2.3.4#5678
 {% endhighlight %}
 

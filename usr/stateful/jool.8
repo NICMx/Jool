@@ -1,10 +1,10 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_stateful 8 2015-03-03 v3.3.0 "Stateful Jool's Userspace Application"
+.TH jool 8 2015-03-03 v3.3.0 "Stateful Jool's Userspace Application"
 
 .SH NAME
-jool_stateful - Interact with Stateful Jool (the kernel module).
+jool - Interact with Stateful Jool (the kernel module).
 
 .SH DESCRIPTION
 Sends commands and requests to Stateful Jool.
@@ -17,7 +17,7 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.0.0 and up.
 
 .SH SYNTAX
-jool_stateful --pool6 (
+jool --pool6 (
 .br
 	[--display]
 .br
@@ -31,7 +31,7 @@ jool_stateful --pool6 (
 .br
 )
 .P
-jool_stateful --pool4 (
+jool --pool4 (
 .br
 	[--display]
 .br
@@ -45,7 +45,7 @@ jool_stateful --pool4 (
 .br
 )
 .P
-.RI "jool_stateful --bib [" <PROTOCOLS> "] (
+.RI "jool --bib [" <PROTOCOLS> "] (
 .br
 	[--display] [--numeric] [--csv]
 .br
@@ -57,7 +57,7 @@ jool_stateful --pool4 (
 .br
 )
 .P
-.RI "jool_stateful --session [" <PROTOCOLS> "] (
+.RI "jool --session [" <PROTOCOLS> "] (
 .br
 	[--display] [--numeric] [--csv]
 .br
@@ -65,7 +65,7 @@ jool_stateful --pool4 (
 .br
 )
 .P
-.RI "jool_stateful [--global] (
+.RI "jool [--global] (
 .br
 	[--display]
 .br
@@ -185,55 +185,55 @@ Decrease MTU failure rate?
 .SH EXAMPLES
 Print the IPv6 pool:
 .br
-	jool_stateful --pool6 --display
+	jool --pool6 --display
 .br
 Add prefix 1234:abcd/96 to the IPv6 pool:
 .br
-	jool_stateful --pool6 --add 1234:abcd::/96
+	jool --pool6 --add 1234:abcd::/96
 .br
 Remove prefix 1234:abcd/96 from the IPv6 pool:
 .br
-	jool_stateful --pool6 --remove 1234:abcd::/96
+	jool --pool6 --remove 1234:abcd::/96
 .P
 Print the number of IPv4 addresses in the pool:
 .br
-	jool_stateful --pool4 --count
+	jool --pool4 --count
 .br
 Add address 192.168.2.10 to the IPv4 pool:
 .br
-	jool_stateful --pool4 --add 192.168.2.10
+	jool --pool4 --add 192.168.2.10
 .br
 Remove address 192.168.2.10 from the IPv4 pool:
 .br
-	jool_stateful --pool4 --remove 192.168.2.10
+	jool --pool4 --remove 192.168.2.10
 .P
 Print the Binding Information Base (BIB):
 .br
-	jool_stateful --bib
+	jool --bib
 .br
 Add a binding to the BIB:
 .br
-	jool_stateful --bib --add 192.168.2.1#11 1::1#22
+	jool --bib --add 192.168.2.1#11 1::1#22
 .br
 Remove a binding from the BIB:
 .br
-	jool_stateful --bib --remove 192.168.2.1#11
+	jool --bib --remove 192.168.2.1#11
 .br
 	or
 .br
-	jool_stateful --bib --remove 1::1#22
+	jool --bib --remove 1::1#22
 .P
 Print the session table:
 .br
-	jool_stateful --session
+	jool --session
 .P
 Print the general configuration values:
 .br
-	jool_stateful
+	jool
 .br
 Update some general configuration value:
 .br
-	jool_stateful --dropAddr ON
+	jool --dropAddr ON
 
 .SH NOTES
 TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.

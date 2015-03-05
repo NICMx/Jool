@@ -1,10 +1,10 @@
 # Note to myself: documentation tends to call these "PROGRAMS" "targets".
-# "jool_stateful" is a "target".
+# "jool" is a "target".
 # If you want to activate the benchmark feature, you need to uncomment
 # log_time.c and -DBENCHMARK below.
 
-bin_PROGRAMS = jool_stateful
-jool_stateful_SOURCES = \
+bin_PROGRAMS = jool
+jool_SOURCES = \
 	../common/dns.c \
 	../common/global.c \
 	../common/jool.c \
@@ -14,10 +14,10 @@ jool_stateful_SOURCES = \
 	../common/pool6.c \
 	bib.c \
 	session.c
-#jool_stateful_SOURCES += ../common/log_time.c
+#jool_SOURCES += ../common/log_time.c
 
-jool_stateful_LDADD = ${LIBNL3_LIBS}
-jool_stateful_CFLAGS = -Wall -O2 -I${srcdir}/../../include ${LIBNL3_CFLAGS} -DSTATEFUL
-#jool_stateful_CFLAGS += -DBENCHMARK
-man_MANS = jool_stateful.8
+jool_LDADD = ${LIBNL3_LIBS}
+jool_CFLAGS = -Wall -O2 -I${srcdir}/../../include ${LIBNL3_CFLAGS} -DSTATEFUL
+#jool_CFLAGS += -DBENCHMARK
+man_MANS = jool.8
 

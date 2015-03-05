@@ -109,7 +109,7 @@ $ dmesg | tail -1
 {% endhighlight %}
 
 {% highlight bash %}
-$ sudo jool_stateful --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
+$ sudo jool --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
 TCP:
 Invalid input data or parameter (System error -7)
 $ dmesg | tail -1

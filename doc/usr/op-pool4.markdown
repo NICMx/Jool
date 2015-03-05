@@ -64,19 +64,19 @@ How do you make up for this? You can give Jool more addresses. You will get 64k 
 
 You can specify up to 5 addresses during module insertion:
 
-	user@J:~# modprobe jool_stateful pool4="192.0.2.2, 192.0.2.3, 192.0.2.4, 192.0.2.5, 192.0.2.6"
+	user@J:~# modprobe jool pool4="192.0.2.2, 192.0.2.3, 192.0.2.4, 192.0.2.5, 192.0.2.6"
 
 If you need more, you can add them using the [userspace application](usr-flags-pool4.html):
 
-	user@J:~# jool_stateful --pool4 --add 192.0.2.7
-	user@J:~# jool_stateful --pool4 --add 192.0.2.8
+	user@J:~# jool --pool4 --add 192.0.2.7
+	user@J:~# jool --pool4 --add 192.0.2.8
 	user@J:~# # etc.
 
 You can summarize several addresses using prefix format. The following inserts addresses 192.0.2.8 through 192.0.2.15:
 
 	user@J:~# modprobe pool4=192.0.2.8/28
 	or
-	user@J:~# jool_stateful --pool4 --add 192.0.2.8/28
+	user@J:~# jool --pool4 --add 192.0.2.8/28
 
 Keep in mind that Stateful Jool's current implementation of pool4 is [slow when it comes to adding addresses](https://github.com/NICMx/NAT64/issues/117#issuecomment-66942415). Each address also claims too much RAM (~0.5 MB without considering BIB entries, perhaps more if paging is not on your side).
 

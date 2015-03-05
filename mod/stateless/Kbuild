@@ -5,7 +5,7 @@ ccflags-y := -I$(src)/../../include $(JOOL_DEBUG)
 #	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
 #ccflags-y += -DBENCHMARK
 
-obj-m += jool_stateless.o
+obj-m += jool_siit.o
 
 jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
@@ -29,11 +29,11 @@ jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 
-jool_stateless += eam.o
-jool_stateless += pool6.o
-jool_stateless += nf_hook.o
-jool_stateless += pool.o
-jool_stateless += pool4.o
-jool_stateless += rfc6791.o
+jool_siit += eam.o
+jool_siit += pool6.o
+jool_siit += nf_hook.o
+jool_siit += pool.o
+jool_siit += pool4.o
+jool_siit += rfc6791.o
 
-jool_stateless-objs += ${jool_common} ${jool_stateless}
+jool_siit-objs += ${jool_common} ${jool_siit}

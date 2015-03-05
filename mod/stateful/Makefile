@@ -30,13 +30,13 @@ insert:
 	sudo sysctl -w net.ipv6.conf.all.forwarding=1
 
 	# Insert and configure Jool a little bit.
-	sudo insmod jool_stateful.ko pool4=192.0.2.2 pool6=64:ff9b::/96
-	sudo ../../usr/stateful/jool_stateful -batu --bib4 192.0.2.2#2000 --bib6 2001:db8::5#2000
-	sudo ../../usr/stateful/jool_stateful -bai --bib4 192.0.2.2#1 --bib6 2001:db8::5#1
+	sudo insmod jool.ko pool4=192.0.2.2 pool6=64:ff9b::/96
+	sudo ../../usr/stateful/jool -batu --bib4 192.0.2.2#2000 --bib6 2001:db8::5#2000
+	sudo ../../usr/stateful/jool -bai --bib4 192.0.2.2#1 --bib6 2001:db8::5#1
 	dmesg
 
 remove:
-	-sudo rmmod jool_stateful.ko
+	-sudo rmmod jool.ko
 	-sudo modprobe -r nf_defrag_ipv6
 	-sudo modprobe -r nf_defrag_ipv4
 	dmesg | tail -1

@@ -5,7 +5,7 @@ ccflags-y := -I$(src)/../../include $(JOOL_DEBUG) -DSTATEFUL
 #	the "log_time.o" object, also you need to activate in the usr-app (usr/Makefile.am)
 #ccflags-y += -DBENCHMARK
 
-obj-m += jool_stateful.o
+obj-m += jool.o
 
 jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
@@ -29,19 +29,19 @@ jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 
-jool_stateful += pkt_queue.o
-jool_stateful += poolnum.o
-jool_stateful += pool6.o
-jool_stateful += pool4.o
-jool_stateful += host6_node.o
-jool_stateful += bib_db.o
-jool_stateful += session_db.o
-jool_stateful += static_routes.o
-jool_stateful += fragment_db.o
-jool_stateful += determine_incoming_tuple.o
-jool_stateful += filtering_and_updating.o
-jool_stateful += compute_outgoing_tuple.o
-jool_stateful += handling_hairpinning.o
-jool_stateful += nf_hook.o
+jool += pkt_queue.o
+jool += poolnum.o
+jool += pool6.o
+jool += pool4.o
+jool += host6_node.o
+jool += bib_db.o
+jool += session_db.o
+jool += static_routes.o
+jool += fragment_db.o
+jool += determine_incoming_tuple.o
+jool += filtering_and_updating.o
+jool += compute_outgoing_tuple.o
+jool += handling_hairpinning.o
+jool += nf_hook.o
 
-jool_stateful-objs += ${jool_common} ${jool_stateful}
+jool-objs += ${jool_common} ${jool}

@@ -134,7 +134,7 @@ For completeness sake, here's _PLAT_'s network configuration:
 	ip addr add 203.0.113.1/24 dev eth1
 	ip addr add 203.0.113.2/24 dev eth1
 
-	modprobe jool_stateful pool6=64:ff9b::/96 pool4=203.0.113.2
+	modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
 
 And _n4_ is thoroughly boring:
 

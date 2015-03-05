@@ -1,10 +1,10 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_stateless 8 2015-03-03 v3.3.0 "Stateless Jool's Userspace Application"
+.TH jool_siit 8 2015-03-03 v3.3.0 "Stateless Jool's Userspace Application"
 
 .SH NAME
-jool_stateless - Interact with Stateless Jool (the kernel module).
+jool_siit - Interact with Stateless Jool (the kernel module).
 
 .SH DESCRIPTION
 Sends commands and requests to Stateless Jool.
@@ -17,7 +17,7 @@ Linux is the only OS in which this program makes sense.
 Kernels 3.0.0 and up.
 
 .SH SYNTAX
-jool_stateless --pool6 (
+jool_siit --pool6 (
 .br
 	[--display]
 .br
@@ -31,7 +31,7 @@ jool_stateless --pool6 (
 .br
 )
 .P
-jool_stateless --pool4 (
+jool_siit --pool4 (
 .br
 	[--display]
 .br
@@ -45,7 +45,7 @@ jool_stateless --pool4 (
 .br
 )
 .P
-jool_stateless --errorAddresses (
+jool_siit --errorAddresses (
 .br
 	[--display]
 .br
@@ -59,7 +59,7 @@ jool_stateless --errorAddresses (
 .br
 )
 .P
-.RI "jool_stateless --eamt (
+.RI "jool_siit --eamt (
 .br
 	[--display] [--csv]
 .br
@@ -71,7 +71,7 @@ jool_stateless --errorAddresses (
 .br
 )
 .P
-.RI "jool_stateless [--global] (
+.RI "jool_siit [--global] (
 .br
 	[--display]
 .br
@@ -150,51 +150,51 @@ Decrease MTU failure rate?
 .SH EXAMPLES
 Print the IPv6 pool:
 .br
-	jool_stateless --pool6 --display
+	jool_siit --pool6 --display
 .br
 Add prefix 1234:abcd/96 to the IPv6 pool:
 .br
-	jool_stateless --pool6 --add 1234:abcd::/96
+	jool_siit --pool6 --add 1234:abcd::/96
 .br
 Remove prefix 1234:abcd/96 from the IPv6 pool:
 .br
-	jool_stateless --pool6 --remove 1234:abcd::/96
+	jool_siit --pool6 --remove 1234:abcd::/96
 .P
 Print the number of IPv4 addresses in the pool:
 .br
-	jool_stateless --pool4 --count
+	jool_siit --pool4 --count
 .br
 Add address 192.168.2.10 to the IPv4 pool:
 .br
-	jool_stateless --pool4 --add 192.168.2.10
+	jool_siit --pool4 --add 192.168.2.10
 .br
 Remove address 192.168.2.10 from the IPv4 pool:
 .br
-	jool_stateless --pool4 --remove 192.168.2.10
+	jool_siit --pool4 --remove 192.168.2.10
 .P
 Print the Explicit Address Mappings Table (EAMT):
 .br
-	jool_stateless --eamt
+	jool_siit --eamt
 .br
 Add an entry to the EAMT:
 .br
-	jool_stateless --eamt --add 2001:db8::1/120 192.0.2.0/24
+	jool_siit --eamt --add 2001:db8::1/120 192.0.2.0/24
 .br
 Remove an entry from the EAMT:
 .br
-	jool_stateless --eamt --remove 2001:db8::1/120
+	jool_siit --eamt --remove 2001:db8::1/120
 .br
 	or
 .br
-	jool_stateless --eamt --remove 192.0.2.0/24
+	jool_siit --eamt --remove 192.0.2.0/24
 .P
 Print the general configuration values:
 .br
-	jool_stateless
+	jool_siit
 .br
 Update some general configuration value:
 .br
-	jool_stateless --setTC ON
+	jool_siit --setTC ON
 
 .SH NOTES
 TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.

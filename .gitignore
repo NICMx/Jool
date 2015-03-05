@@ -19,8 +19,8 @@
 *.c.orig
 *.h.orig
 # binaries
-jool_stateful
-jool_stateless
+jool
+jool_siit
 
 # Packages #
 ############
