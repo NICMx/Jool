@@ -11,7 +11,7 @@
 #ifdef STATEFUL
 #define MODULE_NAME "Stateful Jool"
 #else
-#define MODULE_NAME "Stateless Jool"
+#define MODULE_NAME "SIIT Jool"
 #endif
 
 /**

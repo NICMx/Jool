@@ -9,7 +9,7 @@ title: Documentation - Userspace Application Flags
 
 ## Introduction
 
-This compilation of documents explain the flags and options of Jool's userspace applications (`jool_stateless` and `jool_stateful`).
+This compilation of documents explain the flags and options of Jool's userspace applications (`jool_siit` and `jool`).
 
 See the [compilation and installation](usr-install.html) instructions if you still don't have the binaries.
 
@@ -26,12 +26,12 @@ Common options:
 3. [`--pool6`](usr-flags-pool6.html)
 4. [`--pool4`](usr-flags-pool4.html)
 
-`jool_stateless`-only options:
+`jool_siit`-only options:
 
 1. [`--eamt`](usr-flags-eamt.html)
 2. [`--errorAddresses`](usr-flags-error-addresses.html)
 
-`jool_stateful`-only options:
+`jool`-only options:
 
 1. [`--bib`](usr-flags-bib.html)
 2. [`--session`](usr-flags-session.html)

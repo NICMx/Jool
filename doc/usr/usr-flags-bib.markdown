@@ -25,10 +25,10 @@ Interacts with Jool's [Binding Information Base (BIB)](misc-bib.html). If you do
 
 ## Syntax
 
-	jool_stateful --bib <protocols> [--display] [--numeric] [--csv]
-	jool_stateful --bib <protocols> --count
-	jool_stateful --bib <protocols> --add <bib4> <bib6>
-	jool_stateful --bib <protocols> --remove (<bib4> | <bib6> | <bib4> <bib6>)
+	jool --bib <protocols> [--display] [--numeric] [--csv]
+	jool --bib <protocols> --count
+	jool --bib <protocols> --add <bib4> <bib6>
+	jool --bib <protocols> --remove (<bib4> | <bib6> | <bib4> <bib6>)
 
 ## Options
 
@@ -81,7 +81,7 @@ Assumptions:
 Display the entire database:
 
 {% highlight bash %}
-$ jool_stateful --bib --display
+$ jool --bib --display
 TCP:
 [Dynamic] 4.4.4.4#1234 - potato.mx#1234
   (Fetched 1 entries.)
@@ -94,14 +94,14 @@ ICMP:
 Publish a couple of TCP services:
 
 {% highlight bash %}
-# jool_stateful --bib --add --tcp 6::6#6 4.4.4.4#4
-# jool_stateful --bib --add --tcp 6::6#66 4.4.4.4#44
+# jool --bib --add --tcp 6::6#6 4.4.4.4#4
+# jool --bib --add --tcp 6::6#66 4.4.4.4#44
 {% endhighlight %}
 
 Display the TCP table:
 
 {% highlight bash %}
-$ jool_stateful --bib --display --tcp
+$ jool --bib --display --tcp
 TCP:
 [Static] 4.4.4.4#4 - potato.mx#6
 [Static] 4.4.4.4#44 - potato.mx#66
@@ -112,7 +112,7 @@ TCP:
 Same, but do not query the DNS:
 
 {% highlight bash %}
-$ jool_stateful --bib --display --tcp --numeric
+$ jool --bib --display --tcp --numeric
 TCP:
 [Static] 4.4.4.4#4 - 6::6#6
 [Static] 4.4.4.4#44 - 6::6#66
@@ -123,13 +123,13 @@ TCP:
 Publish a UDP service:
 
 {% highlight bash %}
-# jool_stateful --bib --add --udp 6::6#6666 4.4.4.4#4444
+# jool --bib --add --udp 6::6#6666 4.4.4.4#4444
 {% endhighlight %}
 
 Dump the database on a CSV file:
 
 {% highlight bash %}
-$ jool_stateful --bib --display --numeric --csv > bib.csv
+$ jool --bib --display --numeric --csv > bib.csv
 {% endhighlight %}
 
 [bib.csv](obj/bib.csv)
@@ -137,7 +137,7 @@ $ jool_stateful --bib --display --numeric --csv > bib.csv
 Display the number of entries in the TCP and ICMP tables:
 
 {% highlight bash %}
-$ jool_stateful --bib --count --tcp --icmp
+$ jool --bib --count --tcp --icmp
 TCP: 3
 ICMP: 0
 {% endhighlight %}
@@ -145,6 +145,6 @@ ICMP: 0
 Remove the UDP entry:
 
 {% highlight bash %}
-# jool_stateful --bib --remove --udp 6::6#6666
+# jool --bib --remove --udp 6::6#6666
 {% endhighlight %}
 

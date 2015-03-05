@@ -49,9 +49,9 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1052"
-     inkscape:window-x="1920"
-     inkscape:window-y="0"
+     inkscape:window-height="1028"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
      inkscape:window-maximized="1" />
   <metadata
      id="metadata7">
@@ -234,17 +234,6 @@
          d="m 12,227 c 0,1.38071 -1.119288,2.5 -2.5,2.5 -1.3807119,0 -2.5,-1.11929 -2.5,-2.5 0,-1.38071 1.1192881,-2.5 2.5,-2.5 1.380712,0 2.5,1.11929 2.5,2.5 z"
          transform="matrix(0.71302118,0,0,1,2.0088518,0)" />
     </g>
-    <text
-       sodipodi:linespacing="125%"
-       id="text3039"
-       y="954.36218"
-       x="329.42969"
-       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       xml:space="preserve"><tspan
-         y="954.36218"
-         x="329.42969"
-         id="tspan3041"
-         sodipodi:role="line">BT</tspan></text>
     <use
        x="0"
        y="0"
@@ -435,5 +424,17 @@
          x="247.9276"
          y="1018.8025"
          id="tspan3075">dst: 64:ff9b::203.0.113.24</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3039-9"
+       y="1053.3279"
+       x="325.92041"
+       style="font-size:11px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
+       xml:space="preserve"
+       transform="matrix(1,-0.29576974,0,1,0,0)"><tspan
+         y="1053.3279"
+         x="325.92041"
+         id="tspan3041-0"
+         sodipodi:role="line">PLAT</tspan></text>
   </g>
 </svg>

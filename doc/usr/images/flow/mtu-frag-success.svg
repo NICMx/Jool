@@ -54,7 +54,7 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
+     inkscape:zoom="2.8284272"
      inkscape:cx="223.63403"
      inkscape:cy="100.43604"
      inkscape:document-units="px"
@@ -63,9 +63,9 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1028"
-     inkscape:window-x="0"
-     inkscape:window-y="24"
+     inkscape:window-height="1052"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
      inkscape:window-maximized="1">
     <inkscape:grid
        type="xygrid"
@@ -302,13 +302,13 @@
        sodipodi:linespacing="125%"
        id="text3039"
        y="868.36218"
-       x="175.42969"
+       x="180.04688"
        style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        xml:space="preserve"><tspan
          y="868.36218"
-         x="175.42969"
+         x="180.04688"
          id="tspan3041"
-         sodipodi:role="line">BT</tspan></text>
+         sodipodi:role="line">T</tspan></text>
     <g
        transform="translate(34.00003,87.09375)"
        id="g3078">

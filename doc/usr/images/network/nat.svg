@@ -25,12 +25,12 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.8237469"
-     inkscape:cx="223.84139"
-     inkscape:cy="123.64671"
+     inkscape:zoom="1.9966906"
+     inkscape:cx="273.61124"
+     inkscape:cy="99.41912"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
-     showgrid="true"
+     showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1920"
@@ -572,18 +572,19 @@
          y="818.87781"
          x="384"
          id="tspan3878"
-         sodipodi:role="line">192.0.2.0/24</tspan></text>
+         sodipodi:role="line">203.0.113.0/24</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text3880"
-       y="952.36218"
-       x="261.42969"
-       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       xml:space="preserve"><tspan
-         y="952.36218"
-         x="261.42969"
+       y="1032.1212"
+       x="253.42969"
+       style="font-size:14px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"
+       transform="matrix(1,-0.29773295,0,1,0,0)"><tspan
+         y="1032.1212"
+         x="253.42969"
          id="tspan3882"
-         sodipodi:role="line">N</tspan></text>
+         sodipodi:role="line">NAT</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"

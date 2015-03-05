@@ -21,7 +21,7 @@ ip addr flush dev eth1
 
 Then you might have deleted the interface's <a href="http://en.wikipedia.org/wiki/Link-local_address" target="_blank">Link address</a>.
 
-Link addresses are used by several relevant IPv6 protocols. In particular, they are used by the *Neighbor Discovery Protocol*, which means if you don't have them, the NAT64 machine will have trouble finding its IPv6 neighbors.
+Link addresses are used by several relevant IPv6 protocols. In particular, they are used by the *Neighbor Discovery Protocol*, which means if you don't have them, the translating machine will have trouble finding its IPv6 neighbors.
 
 Check the output of `ip addr`. 
 
@@ -101,10 +101,10 @@ Yes, the kernel module's response messages to userspace are very primitive. We c
 In any case, you will most likely have better luck reading Jool's logs. As with any other kernel component, Jool's messages are mixed along with the others and can be seen by running `dmesg`. In general, most kernels are very silent once they're done booting, so Jool's latest message should be found at the very end.
 
 {% highlight bash %}
-$ sudo modprobe jool_stateless pool6=2001:db8::/96 pool4=192.0a.2.0/24
-ERROR: could not insert module jool_stateless.ko: Invalid parameters
+$ sudo modprobe jool_siit pool6=2001:db8::/96 pool4=192.0a.2.0/24
+ERROR: could not insert module jool_siit.ko: Invalid parameters
 $ dmesg | tail -1
-[28495.042365] Stateless Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
+[28495.042365] SIIT Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
 192.0a.2.0/24.
 {% endhighlight %}
 
@@ -126,18 +126,18 @@ Modprobing Jool without enough arguments is legal. It will assume you intend to 
 Use the userspace app's [`--global`](usr-flags-global.html#description) flag to figure out Jool's status:
 
 {% highlight bash %}
-$ jool_stateless --global
+$ jool_siit --global
   Status: Disabled
 {% endhighlight %}
 
 {% highlight bash %}
-$ jool_stateful --global
+$ jool --global
   Status: Disabled
 {% endhighlight %}
 
-Stateless Jool's minimum configuration requirements are
+SIIT Jool's minimum configuration requirements are
 
-- A NAT64 prefix in the [IPv6 pool](usr-flags-pool6.html) (with at least one allowed entry in the [IPv4 pool](usr-flags-pool4.html))  
+- A prefix in the [IPv6 pool](usr-flags-pool6.html) (with at least one allowed entry in the [IPv4 pool](usr-flags-pool4.html))  
 **or**  
 at least one one entry in the [EAM table](usr-flags-eamt.html).
 - At least one prefix in the [errorAddresses](usr-flags-error-addresses.html) pool.

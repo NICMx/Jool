@@ -3,7 +3,7 @@ layout: documentation
 title: Documentation - EAM Run
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > Stateless NAT64 + EAM
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > SIIT + EAM
 
 # EAM Run
 
@@ -18,7 +18,7 @@ title: Documentation - EAM Run
 
 ## Introduction
 
-This document explains how to run Jool in [EAM mode](intro-nat64.html#stateless-nat64-with-eam) (which actually more than a "mode" is simply stock stateless with records on the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](misc-eamt.html) for more details on how the EAMT works.
+This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records on the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](misc-eamt.html) for more details on how the EAMT works.
 
 [Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) **and** the [userspace application](usr-install.html) for EAM.
 
@@ -48,48 +48,48 @@ user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
 user@V:~# /sbin/ip route add default via 192.0.2.1
 {% endhighlight %}
 
-Node _N_:
+Node _T_:
 
 {% highlight bash %}
-user@N:~# service network-manager stop
-user@N:~# 
-user@N:~# /sbin/ip link set eth0 up
-user@N:~# /sbin/ip addr add 2001:db8:6::1/96 dev eth0
-user@N:~# 
-user@N:~# /sbin/ip link set eth1 up
-user@N:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
-user@N:~# 
-user@N:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@N:~# sysctl -w net.ipv6.conf.all.forwarding=1
-user@N:~# 
-user@N:~# ethtool --offload eth0 tso off
-user@N:~# ethtool --offload eth0 ufo off
-user@N:~# ethtool --offload eth0 gso off
-user@N:~# ethtool --offload eth0 gro off
-user@N:~# ethtool --offload eth0 lro off
-user@N:~# ethtool --offload eth1 tso off
-user@N:~# ethtool --offload eth1 ufo off
-user@N:~# ethtool --offload eth1 gso off
-user@N:~# ethtool --offload eth1 gro off
-user@N:~# ethtool --offload eth1 lro off
+user@T:~# service network-manager stop
+user@T:~# 
+user@T:~# /sbin/ip link set eth0 up
+user@T:~# /sbin/ip addr add 2001:db8:6::1/96 dev eth0
+user@T:~# 
+user@T:~# /sbin/ip link set eth1 up
+user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
+user@T:~# 
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# 
+user@T:~# ethtool --offload eth0 tso off
+user@T:~# ethtool --offload eth0 ufo off
+user@T:~# ethtool --offload eth0 gso off
+user@T:~# ethtool --offload eth0 gro off
+user@T:~# ethtool --offload eth0 lro off
+user@T:~# ethtool --offload eth1 tso off
+user@T:~# ethtool --offload eth1 ufo off
+user@T:~# ethtool --offload eth1 gso off
+user@T:~# ethtool --offload eth1 gro off
+user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-Remember you might want to cross-ping _N_ vs everything before continuing.
+Remember you might want to cross-ping _T_ vs everything before continuing.
 
 ## Jool
 
 {% highlight bash %}
-user@N:~# /sbin/modprobe jool_stateless errorAddresses=198.51.100.12/22 disabled
-user@N:~# jool_stateless --eam --add 2001:db8:6::/120 198.51.100.0/24
-user@N:~# jool_stateless --eam --add 2001:db8:4::/120 192.0.2.0/24
-user@N:~# jool_stateless --enable
+user@T:~# /sbin/modprobe jool_siit errorAddresses=198.51.100.12/22 disabled
+user@T:~# jool_siit --eam --add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit --eam --add 2001:db8:4::/120 192.0.2.0/24
+user@T:~# jool_siit --enable
 {% endhighlight %}
 
-`errorAddresses` have the same meaning as in stock stateless mode.
+`errorAddresses` have the same meaning as in stock SIIT mode.
 
-Unlike `pool6`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#enable---disable)).
+Unlike `pool6`/`pool4`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#enable---disable)).
 
-Using `disabled` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or the IPv6 pool are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
+Using `disabled` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or the 6/4 pools are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
 
 And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAM, and if that fails, fall back to using the prefix. Add `pool6` and `pool4` during the `modprobe` if you want this.
 
@@ -141,6 +141,6 @@ Same as in the [previous walkthrough](mod-run-vanilla.html#stopping-jool).
 
 ## Further reading
 
-- Please consider the [NAT64 MTU issues](misc-mtu.html) before releasing.
+- Please consider the [MTU issues](misc-mtu.html) before releasing.
 - Stateful NAT64 is [over here](mod-run-stateful.html).
 

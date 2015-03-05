@@ -9,10 +9,10 @@ Welcome to Jool's documentation index.
 
 ## Introduction
 
-1. [What is NAT64?](intro-nat64.html)
+1. [What is SIIT/NAT64?](intro-nat64.html)
 2. [What is Jool?](intro-jool.html)
 
-See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> for deployment experiences using NAT64.
+See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> for deployment experiences using Stateful NAT64.
 
 ## Installation
 
@@ -21,9 +21,9 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Runs
 
-1. [Stateless NAT64](mod-run-vanilla.html)
+1. [SIIT](mod-run-vanilla.html)
 	1. [RFC 6791](misc-rfc6791.html)
-2. [Stateless NAT64 + EAM](mod-run-eam.html)
+2. [SIIT + EAM](mod-run-eam.html)
 	1. [The EAMT](misc-eamt.html)
 3. [Stateful NAT64](mod-run-stateful.html)
 	1. [The IPv4 pool](op-pool4.html)

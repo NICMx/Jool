@@ -19,14 +19,14 @@ Prints mostly a summary of the [userspace app flags documentation](usr-flags.htm
 
 `--help` is the only mode which does not require the respective kernel module to be active.
 
-You might also be interested in `man jool_stateless`/`man jool_stateful`, which prints a better summary of the grammar.
+You might also be interested in `man jool_siit`/`man jool`, which prints a better summary of the grammar.
 
 ## Syntax
 
-	(jool_stateless | jool_stateful) --help
+	(jool_siit | jool) --help
 
 ## Examples
 
-	jool_stateless --help
-	jool_stateful --help
+	jool_siit --help
+	jool --help
 

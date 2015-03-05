@@ -11,7 +11,7 @@ title: Documentation - Userspace Applications Installation
 
 Jool is four things:
 
-1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to the Linux kernel. One of them is a stateless translator and the other one is a stateful translator. They have their own [installation document](mod-install.html).
+1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They have their own [installation document](mod-install.html).
 2. Two <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> applications which can be used to configure each module.
 
 This document explains how to obtain the binaries of the userspace application.
@@ -25,7 +25,7 @@ user@node:~/Jool/usr$ make
 user@node:~/Jool/usr# make install
 {% endhighlight %}
 
-Done; you should now be able to type `jool_stateless --help` or `jool_stateful --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
+Done; you should now be able to type `jool --help` or `jool_siit --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
 
 ## If you downloaded from the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>
 
@@ -45,7 +45,7 @@ Jool/usr$ make
 Jool/usr# make install
 {% endhighlight %}
 
-Done; you should now be able to type `jool_stateless --help` or `jool_stateful --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
+Done; you should now be able to type `jool --help` or `jool_siit --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
 
 ## libnl-3
 

@@ -25,19 +25,19 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.6503906"
-     inkscape:cx="155.84936"
-     inkscape:cy="52.446741"
+     inkscape:zoom="2.3340048"
+     inkscape:cx="302.26341"
+     inkscape:cy="69.936372"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:window-width="846"
-     inkscape:window-height="1027"
-     inkscape:window-x="1072"
-     inkscape:window-y="24"
-     inkscape:window-maximized="0" />
+     inkscape:window-width="1920"
+     inkscape:window-height="1052"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1" />
   <metadata
      id="metadata7">
     <rdf:RDF>
@@ -264,14 +264,15 @@
     <text
        sodipodi:linespacing="125%"
        id="text3039"
-       y="986.36218"
-       x="289.42969"
-       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       xml:space="preserve"><tspan
-         y="986.36218"
-         x="289.42969"
+       y="1073.4972"
+       x="285.92041"
+       style="font-size:11px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"
+       transform="matrix(1,-0.29576974,0,1,0,0)"><tspan
+         y="1073.4972"
+         x="285.92041"
          id="tspan3041"
-         sodipodi:role="line">BT</tspan></text>
+         sodipodi:role="line">PLAT</tspan></text>
     <use
        x="0"
        y="0"

@@ -19,15 +19,15 @@ title: Documentation - Flags > EAMT
 
 ## Description
 
-Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-nat64.html#stateless-nat64-with-eam) for a swift overview, our [draft summary](misc-eamt.html) for more details, or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for the full story.
+Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-nat64.html#siit-with-eam) for a swift overview, our [draft summary](misc-eamt.html) for more details, or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for the full story.
 
 ## Syntax
 
-	jool_stateless --eamt [--display] [--csv]
-	jool_stateless --eamt --count
-	jool_stateless --eamt --add <prefix4> <prefix6>
-	jool_stateless --eamt --remove (<prefix4> | <prefix6> | <prefix4> <prefix6>)
-	jool_stateless --eamt --flush
+	jool_siit --eamt [--display] [--csv]
+	jool_siit --eamt --count
+	jool_siit --eamt --add <prefix4> <prefix6>
+	jool_siit --eamt --remove (<prefix4> | <prefix6> | <prefix4> <prefix6>)
+	jool_siit --eamt --flush
 
 ## Options
 
@@ -61,17 +61,17 @@ Every prefix is unique accross the table. Therefore, If you're removing an EAMT 
 Add a handful of mappings:
 
 {% highlight bash %}
-# jool_stateless --eamt --add 192.0.2.1      2001:db8:aaaa::
-# jool_stateless --eamt --add 192.0.2.2/32   2001:db8:bbbb::b/128
-# jool_stateless --eamt --add 192.0.2.16/28  2001:db8:cccc::/124
-# jool_stateless --eamt --add 192.0.2.128/26 2001:db8:dddd::/64
-# jool_stateless --eamt --add 192.0.2.192/31 64:ff9b::/127
+# jool_siit --eamt --add 192.0.2.1      2001:db8:aaaa::
+# jool_siit --eamt --add 192.0.2.2/32   2001:db8:bbbb::b/128
+# jool_siit --eamt --add 192.0.2.16/28  2001:db8:cccc::/124
+# jool_siit --eamt --add 192.0.2.128/26 2001:db8:dddd::/64
+# jool_siit --eamt --add 192.0.2.192/31 64:ff9b::/127
 {% endhighlight %}
 
 Display the new table:
 
 {% highlight bash %}
-$ jool_stateless --eamt --display
+$ jool_siit --eamt --display
 64:ff9b::/127 - 192.0.2.192/31
 2001:db8:dddd::/64 - 192.0.2.128/26
 2001:db8:cccc::/124 - 192.0.2.16/28
@@ -83,7 +83,7 @@ $ jool_stateless --eamt --display
 Dump the database on a CSV file:
 
 {% highlight bash %}
-$ jool_stateless --eamt --display --csv > eamt.csv
+$ jool_siit --eamt --display --csv > eamt.csv
 {% endhighlight %}
 
 [eamt.csv](obj/eamt.csv)
@@ -91,19 +91,19 @@ $ jool_stateless --eamt --display --csv > eamt.csv
 Display the number of entries in the table:
 
 {% highlight bash %}
-$ jool_stateless --eamt --count
+$ jool_siit --eamt --count
 5
 {% endhighlight %}
 
 Remove the first entry:
 
 {% highlight bash %}
-# jool_stateless --eamt --remove 2001:db8:aaaa::
+# jool_siit --eamt --remove 2001:db8:aaaa::
 {% endhighlight %}
 
 Empty the table:
 
 {% highlight bash %}
-# jool_stateless --eamt --flush
+# jool_siit --eamt --flush
 {% endhighlight %}
 

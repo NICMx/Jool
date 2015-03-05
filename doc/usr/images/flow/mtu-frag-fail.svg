@@ -54,9 +54,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="212.66512"
-     inkscape:cy="208.84254"
+     inkscape:zoom="2.0000001"
+     inkscape:cx="198.69939"
+     inkscape:cy="368.94766"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -308,13 +308,13 @@
        sodipodi:linespacing="125%"
        id="text3039"
        y="676.36218"
-       x="175.42969"
+       x="180.04688"
        style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        xml:space="preserve"><tspan
          y="676.36218"
-         x="175.42969"
+         x="180.04688"
          id="tspan3041"
-         sodipodi:role="line">BT</tspan></text>
+         sodipodi:role="line">T</tspan></text>
     <g
        transform="translate(34.00003,-104.90625)"
        id="g3078">

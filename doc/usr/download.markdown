@@ -13,7 +13,7 @@ title: Download
 
 ## 3.3.x
 
-Jool 3.3 is a [fairly compliant stateless and stateful NAT64](intro-jool.html#compliance).
+Jool 3.3 is a [fairly compliant SIIT and Stateful NAT64](intro-jool.html#compliance).
 
 Version 3.3.0 is the latest version. It passes all our tests, but it's still fairly new, so 3.2.3 is considered more mature.
 

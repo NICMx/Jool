@@ -61,9 +61,9 @@
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1028"
-     inkscape:window-x="0"
-     inkscape:window-y="24"
+     inkscape:window-height="1052"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true">
@@ -205,13 +205,13 @@
          x="500"
          y="988.36218">src: <tspan
    style="fill:#0000ff"
-   id="tspan3041">192.0.2.16</tspan></tspan><tspan
+   id="tspan3041">203.0.113.16</tspan></tspan><tspan
          sodipodi:role="line"
          x="500"
          y="1003.3622"
          id="tspan4177">dst: <tspan
    style="fill:#aa8800"
-   id="tspan3049">192.0.2.2</tspan></tspan></text>
+   id="tspan3049">203.0.113.2</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
@@ -243,7 +243,7 @@
          id="tspan4207"
          sodipodi:role="line">src: 2001:db8::<tspan
    style="fill:#0000ff"
-   id="tspan3053">192.0.2.16</tspan></tspan><tspan
+   id="tspan3053">203.0.113.16</tspan></tspan><tspan
          id="tspan4209"
          y="1003.3622"
          x="100"
@@ -262,13 +262,13 @@
          id="tspan4221"
          sodipodi:role="line">src: <tspan
    style="fill:#aa8800"
-   id="tspan3047">192.0.2.2</tspan></tspan><tspan
+   id="tspan3047">203.0.113.2</tspan></tspan><tspan
          id="tspan4223"
          y="875.36218"
          x="500"
          sodipodi:role="line">dst: <tspan
    style="fill:#0000ff"
-   id="tspan3039">192.0.2.16</tspan></tspan></text>
+   id="tspan3039">203.0.113.16</tspan></tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text4225"
@@ -306,7 +306,7 @@
          y="875.36218"
          id="tspan4241">dst: 2001:db8::<tspan
    style="fill:#0000ff"
-   id="tspan3051">192.0.2.16</tspan></tspan></text>
+   id="tspan3051">203.0.113.16</tspan></tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Lend)"
        d="m 100,838.36218 400,0"
@@ -337,7 +337,7 @@
          sodipodi:role="line"
          id="tspan3119"
          x="500"
-         y="752.19226">192.0.2.5</tspan></text>
+         y="752.19226">203.0.113.16</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#008000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
@@ -411,24 +411,24 @@
     <text
        xml:space="preserve"
        style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
-       x="304.01562"
+       x="304.49689"
        y="737.36218"
        id="text3145"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
-         id="tspan3147"
-         x="304.01562"
-         y="737.36218">N</tspan></text>
+         x="304.49689"
+         y="737.36218"
+         id="tspan3048">T</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#aa8800;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
-       x="358"
+       x="366"
        y="752.19226"
        id="text3117-2"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3119-6"
-         x="358"
-         y="752.19226">192.0.2.2</tspan></text>
+         x="366"
+         y="752.19226">203.0.113.2</tspan></text>
   </g>
 </svg>

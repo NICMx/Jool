@@ -18,7 +18,7 @@ title: Documentation - Kernel Modules Installation
 
 Jool is four things:
 
-1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to the Linux kernel. One of them is a stateless translator and the other one is a stateful translator. They are the main components and all you need to get started; this document explains how to install them.
+1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They are the main components and all you need to get started; this document explains how to install them.
 2. Two <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> applications which can be used to configure each module. They have their own [installation document](usr-install.html).
 
 When you put it that way, there is really nothing unusual about Jool's installation. But I figure some of our users might have no previous experience meddling with drivers, so this overview will serve as an introduction to at least give them an idea of what each step does.
@@ -35,7 +35,7 @@ $ /bin/uname -r
 $ # OK, fine.
 {% endhighlight %}
 
-If you're just getting acquainted with NAT64, some people have an easier time picturing the ordeal when the translator has two separate network interfaces (one to interact with IPv6 networks, one for IPv4 networks). This is not a requirement; you can get away with only one interface (by dual stacking on it), and you can also have more than one per protocol. This is possible because figuring out which interface should a packet be dispatched through is routing's problem, which is already well implemented in the kernel.
+If you're just getting acquainted with IPv4/IPv6 Translation, some people have an easier time picturing the ordeal when the translator has two separate network interfaces (one to interact with IPv6 networks, one for IPv4 networks). This is not a requirement; you can get away with only one interface (by dual stacking on it), and you can also have more than one per protocol. This is possible because figuring out which interface should a packet be dispatched through is routing's problem, which is already well implemented in the kernel.
 
 Because the tutorials are first and foremost a tool to get newcomers on the right mindset, most of the deployment discussion will assume two separate interfaces (exemplified below: eth0 and eth1).
 
@@ -99,5 +99,5 @@ You'll later activate the modules using the `modprobe` command. Thing is, the fa
 user@node:~# /sbin/depmod
 {% endhighlight %}
 
-Done; Jool can now be started. The logical follow-up is the [Basic Stateless Tutorial](mod-run-vanilla.html).
+Done; Jool can now be started. The logical follow-up is the [Basic SIIT Tutorial](mod-run-vanilla.html).
 

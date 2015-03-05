@@ -52,7 +52,7 @@ More importantly, if the emitter performed <a href="http://en.wikipedia.org/wiki
 
 (Well, not completely. A number of conditions are required for the NIC to run offloading. These conditions might rarely and randomly not be met, so certain packets will occasionally not be aggregated, and as such will slip past the hole. If your transport protocol retries enough, instead of having a complete denial of service, you get an extremely - **EXTREMELY** - slow network.)
 
-When the forwarding machine is an IPv6 router (or, in Jool's case, a NAT64 translating from IPv4 to 6), this is more immediately a problem because _IPv6 routers are not supposed to fragment packets_ (they are expected to just drop the packet and return an ICMP error message). So your packet will be lost in step 3 _even if the Don't Fragment flag of the original packet was not set_.
+When the forwarding machine is an IPv6 router (or, in Jool's case, an SIIT/NAT64 translating from IPv4 to 6), this is more immediately a problem because _IPv6 routers are not supposed to fragment packets_ (they are expected to just drop the packet and return an ICMP error message). So your packet will be lost in step 3 _even if the Don't Fragment flag of the original packet was not set_.
 
 And that's it. Offloading for leaf nodes is great, offloading for routers is trouble.
 

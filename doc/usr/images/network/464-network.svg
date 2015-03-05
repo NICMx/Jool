@@ -25,18 +25,18 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.3340048"
-     inkscape:cx="306.0433"
-     inkscape:cy="49.657686"
+     inkscape:zoom="1.6503906"
+     inkscape:cx="222.28169"
+     inkscape:cy="21.808557"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1028"
-     inkscape:window-x="0"
-     inkscape:window-y="24"
+     inkscape:window-height="1052"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
      inkscape:window-maximized="1" />
   <metadata
      id="metadata7">
@@ -219,17 +219,6 @@
          d="m 12,227 c 0,1.38071 -1.119288,2.5 -2.5,2.5 -1.3807119,0 -2.5,-1.11929 -2.5,-2.5 0,-1.38071 1.1192881,-2.5 2.5,-2.5 1.380712,0 2.5,1.11929 2.5,2.5 z"
          transform="matrix(0.71302118,0,0,1,2.0088518,0)" />
     </g>
-    <text
-       sodipodi:linespacing="125%"
-       id="text3039"
-       y="1018.3622"
-       x="329.42969"
-       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       xml:space="preserve"><tspan
-         y="1018.3622"
-         x="329.42969"
-         id="tspan3041"
-         sodipodi:role="line">BT</tspan></text>
     <use
        x="0"
        y="0"
@@ -375,5 +364,28 @@
          sodipodi:role="line"
          x="434.7168"
          y="1006.3622">.24</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3039-9"
+       y="1117.3281"
+       x="325.92041"
+       style="font-size:11px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
+       xml:space="preserve"
+       transform="matrix(1,-0.29576974,0,1,0,0)"><tspan
+         y="1117.3281"
+         x="325.92041"
+         id="tspan3041-0"
+         sodipodi:role="line">PLAT</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="175.51988"
+       y="1047.9263"
+       id="text3037"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3039"
+         x="175.51988"
+         y="1047.9263">(CLAT)</tspan></text>
   </g>
 </svg>

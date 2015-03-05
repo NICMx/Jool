@@ -3,11 +3,11 @@ layout: documentation
 title: Documentation - RFC 6791
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateless NAT64](mod-run-vanilla.html) > RFC 6791
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [SIIT](mod-run-vanilla.html) > RFC 6791
 
 # RFC 6791
 
-Suppose _n4_ is trying to reach _n6_, but there is a problem (eg. the packet is too big), and _R_ sends _n4_ an ICMP error. _N_ is translating using prefix 2001:db8::/64.
+Suppose _n4_ is trying to reach _n6_, but there is a problem (eg. the packet is too big), and _R_ sends _n4_ an ICMP error. _T_ is translating using prefix 2001:db8::/64.
 
 ![Figure 1 - Network](images/network/rfc6791.svg)
 
@@ -17,11 +17,11 @@ _R_'s packet will have the following addresses:
 |---------+----------------------|
 | 4000::1 | 2001:db8::192.0.2.13 |
 
-_N_ is in trouble because the source address of the packet cannot be translated.
+_T_ is in trouble because the source address of the packet lacks the translation prefix, so an IPv4 address cannot be extracted from it.
 
 Normally, you don't have many IPv4 addresses, so it's not reasonable to grant one to every node in your IPv6 side. Due to their generally forwarding-only purpose, routers are good candidates for untranslatable addresses. On the other hand, ICMP errors are important, and a NAT64 should not drop it simply because it comes from a router.
 
-Stateful NAT64s do not have this problem because they [render every IPv6 address translatable](intro-nat64.html#stateful-nat64) (since all IPv6 nodes are sharing the NAT64's IPv4 addresses). To sort things out, a Stateless NAT64 is supposed to keep a pool of reserved addresses. Upon receiving an ICMP error with an untranslatable source, Jool should assign a random one from this pool.
+Stateful NAT64s do not have this problem because they [render every IPv6 address translatable](intro-nat64.html#stateful-nat64) (since all IPv6 nodes are sharing the NAT64's IPv4 addresses). To sort things out, an SIIT module is supposed to keep a pool of reserved addresses. Upon receiving an ICMP error with an untranslatable source, Jool should assign a random one from this pool.
 
 Please consider the following quotes from [RFC 6791](https://tools.ietf.org/html/rfc6791) while deciding the size and addresses of your RFC 6791 pool:
 
@@ -54,5 +54,5 @@ Because it is in our best interests that the examples shown in the walkthroughs 
 	source address and, therefore, erroneously present the appearance of
 	a routing loop.
 
-The [Stateless NAT64 walkthrough](mod-run-vanilla.html) shows how to set the pool during a modprobe. You can also edit it later via the [userspace application](usr-flags-error-addresses.html).
+The [SIIT walkthrough](mod-run-vanilla.html) shows how to set the pool during a modprobe. You can also edit it later via the [userspace application](usr-flags-error-addresses.html).
 

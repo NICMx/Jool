@@ -9,17 +9,17 @@ title: Documentation - Offloading
 
 ## Problem Statement
 
-There's one major difference between IPv4 and IPv6 which NAT64 alone cannot make up for.
+There's one major difference between IPv4 and IPv6 which an IP Translator alone cannot make up for.
 
 The IPv4 header "features" a flag called [_Don't Fragment_](http://en.wikipedia.org/wiki/IPv4#Packet_structure) (DF). It dictates whether the source allows routers to fragment the packet.
 
 In IPv6, packets can never be fragmented by routers. It's as if DF was always on.
 
-When there's a NAT64 in the middle, an IPv4 packet which can be fragmented becomes an IPv6 packet that must not be fragmented.
+When there's a translator in the middle, an IPv4 packet which can be fragmented becomes an IPv6 packet that must not be fragmented.
 
 So what happens if the packet is too big?
 
-(_BT_ is a NAT64. Actual packet sizes are different due to headers changes, but you get the point.)
+(Actual packet sizes are different due to headers changes, but you get the point.)
 
 ![Fig.1 - MTU flow fail](images/flow/mtu-frag-fail.svg)
 
@@ -37,11 +37,11 @@ By the way: when you want to know a link's MTU, ask Linux:
 
 ## Solution
 
-If you know the smallest MTU across all your IPv6 networks, tell _BT_ about it:
+If you know the smallest MTU across all your IPv6 networks, tell _T_ about it:
 
 ![Fig.2 - Proper Network](images/network/mtu-frag.svg)
 
-_BT_ knows it's translating, so it knows it **has** to fragment even though it's sort of an IPv6 router.
+_T_ knows it's translating, so it knows it **has** to fragment even though it's sort of an IPv6 router.
 
 Jool used to have a flag called `--minMTU6` to do this. Because deferring fragmentation to the kernel is considered better practice, you now configure it on Linux starting from Jool 3.3.
 

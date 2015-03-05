@@ -20,11 +20,11 @@ Interacts with Jool's [RFC 6791 pool](misc-rfc6791.html). The pool defines addre
 
 ## Syntax
 
-	jool_stateless --errorAddresses [--display]
-	jool_stateless --errorAddresses --count
-	jool_stateless --errorAddresses --add <IPv4 prefix>
-	jool_stateless --errorAddresses --remove <IPv4 prefix>
-	jool_stateless --errorAddresses --flush
+	jool_siit --errorAddresses [--display]
+	jool_siit --errorAddresses --count
+	jool_siit --errorAddresses --add <IPv4 prefix>
+	jool_siit --errorAddresses --remove <IPv4 prefix>
+	jool_siit --errorAddresses --flush
 
 By the way: The name `--errorAddresses` might look awkwardly long, and it doesn't have a single-chara version, but thanks to the ARGP framework, you can still shorten it. These are all synonyms:
 
@@ -50,7 +50,7 @@ Note, Jool will refuse to translate as long as this pool is empty. We decided Jo
 
 Display the current prefixes:
 
-	$ jool_stateless --errorAddresses --display
+	$ jool_siit --errorAddresses --display
 	192.0.2.0/24
 	198.51.100.0/26
 	203.0.113.16/28
@@ -60,20 +60,20 @@ This means the source address of a normally untranslatable ICMP error is going t
 
 Display only the prefix count:
 
-	$ jool_stateless --errorAddresses --count
+	$ jool_siit --errorAddresses --count
 	336
 
 (That's /24 + /26 + /28 = 256 + 64 + 16.)
 
 Remove a prefix:
 
-	$ jool_stateless --errorAddresses --remove 192.0.2.0/24
+	$ jool_siit --errorAddresses --remove 192.0.2.0/24
 
 Return it:
 
-	$ jool_stateless --errorAddresses --add 192.0.2.0/24
+	$ jool_siit --errorAddresses --add 192.0.2.0/24
 
-Destroy all prefixes. This is also an [alternate way](usr-flags-global.html#enable---disable) to manually disable Stateless Jool.
+Destroy all prefixes. This is also an [alternate way](usr-flags-global.html#enable---disable) to manually disable SIIT Jool.
 
-	$ jool_stateless --errorAddresses --flush
+	$ jool_siit --errorAddresses --flush
 

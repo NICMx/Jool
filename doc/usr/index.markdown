@@ -9,7 +9,7 @@ title: Jool - Home
 
 ## Introduction
 
-Jool is an Open Source [NAT64](intro-nat64.html) for Linux.
+Jool is an Open Source [SIIT and NAT64](intro-nat64.html) for Linux.
 
 * [Click here](doc-index.html) to start getting acquainted with the software.
 * [Click here](download.html) to download Jool.
@@ -22,7 +22,7 @@ If you want to know what the development team is currently tweaking, you should 
 
 But just to make things clear, this is the status of the project as of now:
 
-As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) stateless/stateful NAT64. We're currently working on [switching frameworks](https://github.com/NICMx/NAT64/issues/116#issuecomment-74343381) to address our compliance issues.
+As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. We're currently working on [switching frameworks](https://github.com/NICMx/NAT64/issues/116#issuecomment-74343381) to address our compliance issues.
 
 Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.0" target="_blank">3.3.0</a>.
 
@@ -34,20 +34,14 @@ Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=m
 
 Jool 3.3.0 is finished.
 
-[Filtering couldn't make it into the milestone](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), but stateless NAT64 is now supported.
+[Filtering couldn't make it into the milestone](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), but Stateless IP/ICMP Translation (SIIT) is now supported.
 
-See the updated [NAT64 introduction](intro-nat64.html) for an improved picture of the stateless paradigm. [Here's the tutorial](mod-run-vanilla.html). Also keep an eye on [464XLAT](mod-run-464xlat.html).
+See the updated [SIIT/NAT64 introduction](intro-nat64.html) for an improved picture of the SIIT paradigm. [Here's the tutorial](mod-run-vanilla.html). Also keep an eye on [464XLAT](mod-run-464xlat.html).
 
 We also refactored the userspace app somewhat; please review your scripts:
 
 - The kernel's per-interface MTU setting [replaced `--minMTU6`](file:///home/aleiva/Desktop/NAT64/doc/usr/build/misc-mtu.html).
 - `--address`, `--prefix`, `--bib4` and `--bib6` disappeared because they're considered redundant. See [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) and [`--bib`](usr-flags-bib.html).
-
-Because Stateless Jool and Stateful Jool are separate binaries, the names of the userspace app and the kernel module also changed.
-
-- Instead of `modprobe jool`, use `modprobe jool_stateful`.
-- Instead of `jool --pool4 --display`, use `jool_stateful --pool4 --display`.
-- The stateless app and module are both called `jool_stateless`.
 
 We also released Jool 3.2.3, which is [bugfixes](https://github.com/NICMx/NAT64/milestones/3.2.3) since 3.2.2. One of the bugs is a DoS vulnerability, so upgrading to at least 3.2.3 is highly recommended.
 

@@ -56,7 +56,7 @@ And the [BIB](misc-bib.html) will look like this:
 1. 2001:db8:2::10#1234 <-> 192.0.2.2#1234
 2. 2001:db8:2::11#1234 <-> 192.0.2.2#6326
 
-To what I'm getting is, all IPv6 nodes share the same IPv4 address (as opposed to stateless NAT64). This is good because you don't need one IPv4 address per IPv6 node, but at the same time you need to be aware that Jool might run out of ports.
+To what I'm getting is, all IPv6 nodes share the same IPv4 address (as opposed to SIIT). This is good because you don't need one IPv4 address per IPv6 node, but at the same time you need to be aware that Jool might run out of ports.
 
 C and D used one port each (and they even happened to be the same one), but Jool still had to use two. Each IPv6 node has 65536 ports to work with, but because they all share the same IPv4 address, as a group, they can use up to 65536 ports via the translator. The more IPv6 nodes you have, the faster J will run out of ports.
 

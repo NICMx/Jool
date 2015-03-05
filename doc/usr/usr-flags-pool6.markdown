@@ -22,7 +22,7 @@ Interacts with Jool's IPv6 pool. The pool dictates which packets coming from the
 
 ## Syntax
 
-(`$(jool)` can be either `jool_stateless` or `jool_stateful`.)
+(`$(jool)` can be either `jool_siit` or `jool`.)
 
 	$(jool) --pool6 [--display]
 	$(jool) --pool6 --count
@@ -49,7 +49,7 @@ See [`--quick`](usr-flags-quick.html). Only available on Stateful Jool.
 Display the current prefixes:
 
 {% highlight bash %}
-$ $(jool) --pool6 --display
+$ jool --pool6 --display
 64:ff9b::/96
   (Fetched 1 prefixes.)
 {% endhighlight %}
@@ -57,25 +57,25 @@ $ $(jool) --pool6 --display
 Display only the prefix count:
 
 {% highlight bash %}
-$ $(jool) --pool6 --count
+$ jool --pool6 --count
 1
 {% endhighlight %}
 
 Remove the default prefix:
 
 {% highlight bash %}
-$ $(jool) --pool6 --remove 64:ff9b::/96
+$ jool --pool6 --remove 64:ff9b::/96
 {% endhighlight %}
 
 Add a sample prefix:
 
 {% highlight bash %}
-$ $(jool) --pool6 --add 2001:db8::/64
+$ jool --pool6 --add 2001:db8::/64
 {% endhighlight %}
 
 Destroy all prefixes. Do not bother cleaning up the garbage:
 
 {% highlight bash %}
-$ $(jool) --pool6 --flush --quick
+$ jool --pool6 --flush --quick
 {% endhighlight %}
 

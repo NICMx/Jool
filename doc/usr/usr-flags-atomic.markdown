@@ -19,9 +19,9 @@ title: Documentation - Flags > Atomic Fragments
 
 ## Overview
 
-"Atomic fragments" are IPv6 packets which are not fragmented but still contain a (redundant) [Fragment Header](https://tools.ietf.org/html/rfc2460#section-4.5). They are a hack in the NAT64 specification that intends to leverage the difference between the IPv4 MTU (576) and the IPv6 MTU (1280).
+"Atomic fragments" are IPv6 packets which are not fragmented but still contain a (redundant) [Fragment Header](https://tools.ietf.org/html/rfc2460#section-4.5). They are a hack in the NAT64 specification that intends to leverage the difference between the IPv4 minimum MTU (68) and the IPv6 minimum MTU (1280).
 
-Atomic fragments are known to have [security implications](https://tools.ietf.org/html/rfc6946) and there is [official ongoing effort to deprecate them](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01). Even RFC 6145 (ie. stateless NAT64's core document) warns about [issues regarding the hack](http://tools.ietf.org/html/rfc6145#section-6).
+Atomic fragments are known to have [security implications](https://tools.ietf.org/html/rfc6946) and there is [official ongoing effort to deprecate them](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Even RFC 6145 (ie. SIIT's core document) warns about [issues regarding the hack](http://tools.ietf.org/html/rfc6145#section-6).
 
 From Jool's perspective, there are also technical drawbacks to allowing atomic fragments. The Linux kernel is particularly lacking when it comes to recognizing redundant fragment headers, so if Jool is generating one, Linux might fragment the packet in a funny way:
 
@@ -29,7 +29,7 @@ From Jool's perspective, there are also technical drawbacks to allowing atomic f
 
 (Jool 3.2 and below used to avoid this by not deferring fragmentation to the kernel, but this introduced other-subtler issues.)
 
-As a consequence, Jool 3.3's default configuration **disables** atomic fragments. You should most likely **never** change this. The options described later in this document all have to do with atomic fragments and are now considerered **deprecated**. In fact, we intend to wipe them out as soon as (and if) [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01) is upgraded to RFC status.
+As a consequence, Jool 3.3's default configuration **disables** atomic fragments. You should most likely **never** change this. The options described later in this document all have to do with atomic fragments and are now considerered **deprecated**. In fact, we intend to wipe them out as soon as (and if) [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) is upgraded to RFC status.
 
 Let it be known that we fully condone the deprecation of atomic fragments.
 
@@ -40,7 +40,7 @@ Let it be known that we fully condone the deprecation of atomic fragments.
 - Name: Allow atomic fragments?
 - Type: Boolean
 - Default: OFF
-- Modes: Both (Stateless and Stateful)
+- Modes: Both (SIIT and Stateful)
 - Translation direction: Both (IPv4 to IPv6 and IPv6 to IPv4)
 
 This is a short version of all the following flags.
@@ -77,14 +77,18 @@ $(jool) --genID true
 $(jool) --boostMTU true
 {% endhighlight %}
 
-This is an alternate mode defined both by RFC 6145 and [draft-gont-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-gont-6man-deprecate-atomfrag-generation-01). The latter mandates this behaviour and is Jool 3.3's default.
+This is an alternate mode defined both by RFC 6145 and [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). The latter mandates this behaviour and is Jool 3.3's default.
+
+Also:
+
+The separation of the four flags exists for historic reasons only; our interpretation of the RFC used to be wrong. You should probably never manage them individually. It doesn't make sense to set `--setDF` as false but `--setFH` as true, for example. The relationship between `--setDF` and `--boostMTU` is also particularly delicate; see below for details.
 
 ### `--setDF`
 
 - Name: DF flag always on
 - Type: Boolean
 - Default: OFF
-- Modes: Both (Stateless and Stateful)
+- Modes: Both (SIIT and Stateful)
 - Translation direction: IPv6 to IPv4
 
 The logic is best described in pseudocode form:
@@ -95,19 +99,21 @@ The logic is best described in pseudocode form:
 			if --setDF is true
 				the outgoing packet's DF flag will be true.
 			otherwise:
-				if outgoing packet's length > 1280
+				if outgoing packet's length > 1260
 					the outgoing packet's DF flag will be true.
 				otherwise:
 					the outgoing packet's DF flag will be false.
 
 <a href="http://tools.ietf.org/html/rfc6145#section-6" target="_blank">Section 6 of RFC 6145</a> describes the rationale.
 
+Also see [`--boostMTU`](#boostmtu) for an important gotcha.
+
 ### `--genFH`
 
 - Name: Generate IPv6 Fragment Header
 - Type: Boolean
 - Default: OFF
-- Modes: Both (Stateless and Stateful)
+- Modes: Both (SIIT and Stateful)
 - Translation direction: IPv4 to IPv6
 
 If this is ON, Jool will always generate an "IPv6 Fragment Header" if the incoming IPv4 Packet does not set the DF flag.
@@ -121,7 +127,7 @@ This is the flag that causes Linux to flip out when it needs to fragment. It's b
 - Name: Generate IPv4 identification
 - Type: Boolean
 - Default: ON
-- Modes: Both (Stateless and Stateful)
+- Modes: Both (SIIT and Stateful)
 - Translation direction: IPv6 to IPv4
 
 All IPv4 packets contain an Identification field. IPv6 packets only contain an Identification field if they have a Fragment header.
@@ -138,7 +144,7 @@ Otherwise:
 - Name: Decrease MTU failure rate
 - Type: Boolean
 - Default: ON
-- Modes: Both (Stateless and Stateful)
+- Modes: Both (SIIT and Stateful)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
 
 When a packet is too big for a link's MTU, routers generate <a href="http://tools.ietf.org/html/rfc4443#section-3.2" target="_blank">Packet too Big</a> ICMP errors on IPv6 and <a href="http://tools.ietf.org/html/rfc792" target="_blank">Fragmentation Needed</a> ICMP errors on IPv4. These error types are roughly equivalent, so Jool translates _Packet too Bigs_ into _Fragmentation Neededs_ and vice-versa.
@@ -147,8 +153,25 @@ These ICMP errors are supposed to contain the offending MTU so the emitter can r
 
 The minimum MTU for IPv6 is 1280. The minimum MTU for IPv4 is 68. Therefore, Jool can find itself wanting to report an illegal MTU while translating a _Fragmentation Needed_ (v4) into a _Packet too Big_ (v6).
 
-- If `--boostMTU` is OFF, Jool will not attempt to fix MTU values of _Packet too Big_ ICMP errors when they are too small.
-- If `--boostMTU` is ON and an incoming _Fragmentation Needed_ reports a MTU which is smaller than 1280, Jool will report a MTU of 1280.
+- If `--boostMTU` is ON, the minimum IPv6 MTU Jool will ever report is 1280.
+- If `--boostMTU` is OFF, Jool will not try to mangle MTUs.
+
+In reality, Jool still has to mangle the MTU values to account for the difference between the IPv4 header's basic length (20) and the IPv6 header's (40). An IPv6 packet can be 20 bytes larger than the IPv4 MTU because it's going to lose 20 bytes when its IPv6 header is replaced by an IPv4 header.
+
+Here's the full algorithm:
+
+		IPv6_error.MTU = IPv4_error.MTU + 20
+		if --boostMTU == true AND IPv6_error.MTU < 1280
+			IPv6_error.MTU = 1280
 
 <a href="http://tools.ietf.org/html/rfc6145#section-6" target="_blank">Section 6 of RFC 6145</a> describes the rationale.
 
+Notice, if `--setDF` and `--boostMTU` are both ON and there's an IPv4 link with MTU &lt; 1260, you have an endless loop similar to the [MTU hassle](misc-mtu.html):
+
+1. IPv6 sender transmits an IPv6 packet sized 1280.
+2. Jool translates it into an IPv4 packet sized 1260 with DF=1.
+3. IPv4 router with outbound interface with MTU &lt; 1260 generates _ICMPv6 Frag Needed_ with MTU=1000 (or whatever).
+4. Jool translates it to ICMPv6 _Packet Too Big_ with MTU=1280.
+5. Goto 1.
+
+Thanks to Tore Anderson for noticing (and mostly writing) this quirk.
