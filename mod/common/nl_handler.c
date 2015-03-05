@@ -791,8 +791,7 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 
 #else
 	((struct global_config *) buffer)->translate.jool_status = !(config->translate.is_disable
-			|| (eamt_is_empty() && (pool6_is_empty() || pool4_is_empty()))
-			|| rfc6791_is_empty());
+			|| (eamt_is_empty() && (pool6_is_empty() || pool4_is_empty())));
 #endif
 
 	*buffer_out = buffer;

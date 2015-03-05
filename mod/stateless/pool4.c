@@ -2,6 +2,8 @@
 
 #include <linux/rculist.h>
 #include <linux/inet.h>
+#include <linux/netdevice.h>
+#include <linux/inetdevice.h>
 
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/stateless/pool.h"
@@ -35,19 +37,37 @@ int pool4_flush(void)
 
 bool pool4_contains(__be32 addr)
 {
+	struct net_device *dev;
+	struct in_device *in_dev;
+	struct in_ifaddr *ifaddr;
 	struct pool_entry *entry;
 	struct in_addr inaddr = { .s_addr = addr };
+	struct in_addr net_addr;
 	bool result = false;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &pool, list_hook) {
 		if (ipv4_prefix_contains(&entry->prefix, &inaddr)) {
 			result = true;
-			break;
+			goto end;
 		}
 	}
-	rcu_read_unlock();
 
+	for_each_netdev_rcu(&init_net, dev) {
+		in_dev = rcu_dereference(dev->ip_ptr);
+		ifaddr = in_dev->ifa_list;
+		while (ifaddr) {
+			net_addr.s_addr = ifaddr->ifa_address;
+			if (ipv4_addr_cmp(&net_addr, &inaddr) == 0) {
+				result = true;
+				goto end;
+			}
+			ifaddr = ifaddr->ifa_next;
+		}
+	}
+
+end:
+	rcu_read_unlock();
 	return result;
 }
 

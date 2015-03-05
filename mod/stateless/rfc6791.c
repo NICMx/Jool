@@ -2,6 +2,8 @@
 
 #include <linux/rculist.h>
 #include <linux/inet.h>
+#include <linux/netdevice.h>
+#include <linux/inetdevice.h>
 
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/random.h"
@@ -47,6 +49,65 @@ static int pool_count_wrapper(unsigned int *result)
 	return 0;
 }
 
+static int get_host_address(struct in_addr *result)
+{
+	struct net_device *dev;
+	struct in_device *in_dev;
+	struct in_ifaddr *ifaddr;
+	unsigned int address_count, iterator_count;
+	unsigned int rand;
+
+	/* First iterate and count all the host IPv4 addresses. */
+	address_count = 0;
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
+		in_dev = rcu_dereference(dev->ip_ptr);
+		ifaddr = in_dev->ifa_list;
+		while (ifaddr) {
+			if (IN_LOOPBACK(ntohl(ifaddr->ifa_address))) {
+				ifaddr = ifaddr->ifa_next;
+				continue;
+			}
+			address_count++;
+			ifaddr = ifaddr->ifa_next;
+		}
+	}
+	rcu_read_unlock();
+
+	if (address_count == 0)
+		return -EEXIST;
+
+	rand = get_random_u32() % address_count;
+
+	/* Now get a random IPv4 address from the host. */
+	iterator_count = 0;
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
+		in_dev = rcu_dereference(dev->ip_ptr);
+		ifaddr = in_dev->ifa_list;
+		while (ifaddr) {
+			if (IN_LOOPBACK(ntohl(ifaddr->ifa_address))) {
+				ifaddr = ifaddr->ifa_next;
+				continue;
+			}
+			if (address_count == iterator_count) {
+				result->s_addr = ifaddr->ifa_address;
+				goto end;
+			}
+			iterator_count++;
+			ifaddr = ifaddr->ifa_next;
+		}
+	}
+
+	rcu_read_unlock();
+	log_err("Something goes wrong, looks like the net_device's IPv4 address was modified.");
+	return -EINVAL;
+
+end:
+	rcu_read_unlock();
+	return 0;
+}
+
 int rfc6791_get(struct in_addr *result)
 {
 	struct pool_entry *entry;
@@ -71,8 +132,8 @@ int rfc6791_get(struct in_addr *result)
 
 	if (count == 0) {
 		rcu_read_unlock();
-		log_warn_once("The IPv4 RFC6791 pool is empty.");
-		return -EEXIST;
+		error = get_host_address(result);
+		goto end;
 	}
 
 	rand = get_random_u32() % count;
@@ -87,7 +148,11 @@ int rfc6791_get(struct in_addr *result)
 	result->s_addr = htonl(ntohl(entry->prefix.address.s_addr) | rand);
 
 	rcu_read_unlock();
-	return 0;
+
+end:
+	if (error)
+		log_warn_once("The IPv4 RFC6791 pool and the Host's IPv4 address are empty.");
+	return error;
 }
 
 int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg)
