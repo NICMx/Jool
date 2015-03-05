@@ -3,9 +3,10 @@
 
 /**
  * @file
- * This is the pool of IPv4 addresses.
+ * Stateless Jool's "main" pool of IPv4 addresses. Jool will refuse to translate these addresses.
  *
- * Here are the accepted IPv4 addresses for translation.
+ * Not to be confused with stateful Jool's "pool4"; this is called "pool4" in the code for dumb
+ * historic reasons. The name we actually show the user is "blacklist".
  *
  * @author Alberto Leiva
  * @author Daniel Hdz Felix

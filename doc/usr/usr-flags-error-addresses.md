@@ -18,6 +18,8 @@ title: Documentation - Flags > Error Addresses
 
 Interacts with Jool's [RFC 6791 pool](misc-rfc6791.html). The pool defines addresses for untranslatable sources in ICMP errors.
 
+If this pool is empty, Jool will fall back to use its node's addresses for these cases.
+
 ## Syntax
 
 	jool_siit --errorAddresses [--display]
@@ -43,8 +45,7 @@ Unfortunately, this does not apply during the `modprobe`.
 For example, if all you have is a /24 prefix, expect "256" as output.
 - `--add`: Uploads `<IPv4 prefix>` to the pool.
 - `--remove`: Deletes prefix `<IPv4 prefix>` from the pool.
-- `--flush`: Removes all prefixes from the pool.  
-Note, Jool will refuse to translate as long as this pool is empty. We decided Jool should be aggressive like this because [_ICMP is **not** optional_](http://serverfault.com/questions/500448/mysterious-fragmentation-required-rejections-from-gateway-vm).
+- `--flush`: Removes all prefixes from the pool.
 
 ## Examples
 

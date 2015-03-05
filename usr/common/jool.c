@@ -85,6 +85,7 @@ enum argp_flags {
 	ARGP_BIB = 'b',
 	ARGP_SESSION = 's',
 	ARGP_EAMT = 'e',
+	ARGP_BLACKLIST = 7000,
 	ARGP_RFC6791 = 6791,
 	ARGP_LOGTIME = 'l',
 	ARGP_GENERAL = 'g',
@@ -156,14 +157,15 @@ static struct argp_option options[] =
 			"and/or one IPv6 prefix/transport format."},
 
 	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 2 },
-	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 pool." },
-	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the "
-			"IPv4 pool." },
+	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 prefix pool." },
 #ifdef STATEFUL
+	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 address pool." },
 	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
 	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
 #else
 	{ "eamt", ARGP_EAMT, NULL, 0, "The command will operate on the EAM table."},
+	{ "blacklist", ARGP_BLACKLIST, NULL, 0, "The command will operate on the IPv4 prefix "
+			"blacklist." },
 	{ "errorAddresses", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
 #endif
 #ifdef BENCHMARK
@@ -184,7 +186,7 @@ static struct argp_option options[] =
 #ifdef STATEFUL
 	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 4 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
-		"Available on remove and flush operations only. " },
+			"Available on remove and flush operations only. " },
 
 	{ NULL, 0, NULL, 0, "BIB & Session options:", 5 },
 	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
@@ -458,6 +460,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_POOL6:
 		error = update_state(args, MODE_POOL6, POOL6_OPS);
 		break;
+	case ARGP_BLACKLIST:
 	case ARGP_POOL4:
 		error = update_state(args, MODE_POOL4, POOL4_OPS);
 		break;

@@ -30,7 +30,7 @@ You don't need all the nodes shown in the diagram to follow along; you can get a
 
 ![Figure 1 - Sample Network](images/network/vanilla.svg)
 
-We will pretend I have address block 198.51.100.8/21 to distribute among my IPv6 nodes. I will also pretend _E_ conveniently does not need IPv4 connectivity for some reason (just to show you that you can leave nodes out of the equation to economize IPv4 addresses).
+We will pretend I have address block 198.51.100.8/29 to distribute among my IPv6 nodes.
 
 Jool requires _T_ to be Linux. The rest can be anything you want, so long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
 
@@ -98,43 +98,29 @@ user@T:~# ethtool --offload eth1 lro off
 
 This is the insertion syntax:
 
-{% highlight bash %}
-user@T:~# /sbin/modprobe jool_siit \
-	pool6=<IPv6 prefix> \
-	pool4=<IPv4 prefixes> \
-	errorAddresses=<IPv4 prefixes>
-{% endhighlight %}
+	user@T:~# /sbin/modprobe jool_siit \
+		[pool6=<IPv6 prefix>] \
+		[blacklist=<IPv4 prefixes>] \
+		[errorAddresses=<IPv4 prefixes>] \
+		[disabled]
 
 These are the arguments:
 
-- `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets.
-- `pool4` (short for "[main] IPv4 pool") represents the addresses Jool will use to mask the IPv6 nodes. In other words, if an IPv6 node's address minus the NAT64 prefix does not match an entry in this pool, its traffic will not be translated.  
-Because there is no port sharing, in SIIT you need as many of these as IPv6 nodes which need IPv4 connectivity.  
-You can insert up to five comma-separated `pool4` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool4.html).  
+- `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets.  
+This is optional because you might want to use the EAM table instead.
+- `blacklist` represents IPv4 addresses Jool will **not** translate _using the pool6 prefix_ (ie. this does not affect EAMT translation).  
+You can insert up to five comma-separated `blacklist` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-blacklist.html).  
 - `errorAddresses` is a secondary IPv4 pool used for something [slightly more cryptic](misc-rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
+If this pool is empty, Jool will fall back to use any of its node's IPv4 addresses.  
 You can insert up to five comma-separated `errorAddresses` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-error-addresses.html).
+- `disabled` starts Jool inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated. The EAM walkthrough exemplifies its use.  
+If not present, Jool starts translating traffic right away.
 
-In our sample network, that translates into
+The following suffices for our sample network.
 
-{% highlight bash %}
-user@T:~# /sbin/modprobe jool_siit \
-	pool6=2001:db8::/96 \
-	pool4=198.51.100.8/30,192.0.2.0/24 \ 
-	errorAddresses=198.51.100.12/30
-{% endhighlight %}
+	user@T:~# /sbin/modprobe jool_siit pool6=2001:db8::/96
 
-These are the mappings that `modprobe` generates:
-
-- IPv6 nodes:
-	- 2001:db8::<span class="correlate1">198.51.100.8</span> will be masked as <span class="correlate1">198.51.100.8</span>.
-	- 2001:db8::<span class="correlate2">198.51.100.9</span> will be masked as <span class="correlate2">198.51.100.9</span>.
-	- 2001:db8::<span class="correlate1">198.51.100.10</span> will be masked as <span class="correlate1">198.51.100.10</span>.
-	- 2001:db8::<span class="correlate2">198.51.100.11</span> will be masked as <span class="correlate2">198.51.100.11</span>.
-	- 198.51.100.12 is outside of 198.51.100.8/30, so _E_ has been left out of the NATting.
-- IPv4 nodes:
-	- Any IPv4 node will be masked by prepending the `pool6` prefix to its address (pool4 does not affect these).
-
-See below for more explicit examples.
+That means the IPv6 representation of any IPv4 address is going to be `2001:db8::<IPv4 address>`. See below for examples.
 
 ## Testing
 

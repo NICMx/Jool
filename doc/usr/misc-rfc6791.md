@@ -23,14 +23,14 @@ Normally, you don't have many IPv4 addresses, so it's not reasonable to grant on
 
 Stateful NAT64s do not have this problem because they [render every IPv6 address translatable](intro-nat64.html#stateful-nat64) (since all IPv6 nodes are sharing the NAT64's IPv4 addresses). To sort things out, an SIIT module is supposed to keep a pool of reserved addresses. Upon receiving an ICMP error with an untranslatable source, Jool should assign a random one from this pool.
 
-Please consider the following quotes from [RFC 6791](https://tools.ietf.org/html/rfc6791) while deciding the size and addresses of your RFC 6791 pool:
+Please consider the following paragraphs from [RFC 6791](https://tools.ietf.org/html/rfc6791) while deciding the size and addresses of your RFC 6791 pool:
 
 	The source address used SHOULD NOT cause the ICMP packet to be
 	discarded.  It SHOULD NOT be drawn from [RFC1918] or [RFC6598]
 	address space, because that address space is likely to be subject to
 	unicast Reverse Path Forwarding (uRPF) [RFC3704] filtering.
 
-Because it is in our best interests that the examples shown in the walkthroughs work, Jool currently does not try to ban you from using the above addresses. Please exercise caution.
+	(...)
 
 	Another consideration for source selection is that it should be
 	possible for the IPv4 recipients of the ICMP message to be able to

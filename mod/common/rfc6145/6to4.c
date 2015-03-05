@@ -173,8 +173,8 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct
 	if (error)
 		return VERDICT_DROP;
 
-	if (!pool4_contains(tmp.s_addr)) {
-		log_debug("The resulting address (%pI4) is not part of the IPv4 pool.", &tmp);
+	if (pool4_contains(tmp.s_addr)) {
+		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
 		return VERDICT_ACCEPT;
 	}
 

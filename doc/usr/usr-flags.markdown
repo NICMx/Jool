@@ -24,15 +24,16 @@ Common options:
 	1. [Atomic Fragments](usr-flags-atomic.html)
 	2. [MTU Plateaus (Example)](usr-flags-plateaus.html)
 3. [`--pool6`](usr-flags-pool6.html)
-4. [`--pool4`](usr-flags-pool4.html)
 
 `jool_siit`-only options:
 
 1. [`--eamt`](usr-flags-eamt.html)
+2. [`--blacklist`](usr-flags-blacklist.html)
 2. [`--errorAddresses`](usr-flags-error-addresses.html)
 
 `jool`-only options:
 
+4. [`--pool4`](usr-flags-pool4.html)
 1. [`--bib`](usr-flags-bib.html)
 2. [`--session`](usr-flags-session.html)
 3. [`--quick`](usr-flags-quick.html)

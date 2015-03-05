@@ -79,19 +79,19 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 ## Jool
 
 {% highlight bash %}
-user@T:~# /sbin/modprobe jool_siit errorAddresses=198.51.100.12/22 disabled
-user@T:~# jool_siit --eam --add 2001:db8:6::/120 198.51.100.0/24
-user@T:~# jool_siit --eam --add 2001:db8:4::/120 192.0.2.0/24
+user@T:~# /sbin/modprobe jool_siit disabled
+user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
 {% endhighlight %}
 
 `errorAddresses` have the same meaning as in stock SIIT mode.
 
-Unlike `pool6`/`pool4`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#enable---disable)).
+Unlike `pool6`, it is not practical to insert the entire EAM table in a single command, so we instruct Jool to start disabled. We then insert the EAM table rows, one by one, [using the userspace application](usr-flags-eamt.html). When the table is complete, we tell Jool it can start translating traffic ([`--enable`](usr-flags-global.html#enable---disable)).
 
-Using `disabled` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or the 6/4 pools are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
+Using `disabled` and `--enable` is not actually neccesary; Jool will naturally figure out that it cannot translate traffic until the EAM table and/or pool6 are populated. The reason why Jool was "forced" to remain disabled until the table was complete was so there wouldn't be a timespan where traffic was being translated inconsistently (ie. with a half-complete table).
 
-And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAM, and if that fails, fall back to using the prefix. Add `pool6` and `pool4` during the `modprobe` if you want this.
+And again, the IPv6 prefix and the EAM table are not exclusive operation modes. Jool will always try to translate an address using EAM, and if that fails, fall back to using the prefix. Add `pool6` during the `modprobe` if you want this.
 
 ## Testing
 

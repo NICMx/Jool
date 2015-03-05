@@ -120,14 +120,14 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
 	if (!error)
 		return 0;
 
-	if (!pool4_contains(addr4)) {
-		log_debug("Address %pI4 lacks an EAMT entry and is not part of the IPv4 pool.", &tmp);
+	if (pool4_contains(addr4)) {
+		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
 		return -ESRCH;
 	}
 
 	error = pool6_peek(&prefix);
 	if (error) {
-		log_debug("Address %pI4 lacks an EAMT entry and there's no NAT64 prefix.", &tmp);
+		log_debug("Address %pI4 lacks an EAMT entry and there's no pool6 prefix.", &tmp);
 		return error;
 	}
 	error = addr_4to6(&tmp, &prefix, addr6);
