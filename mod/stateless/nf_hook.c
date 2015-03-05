@@ -97,7 +97,7 @@ static int __init nat64_init(void)
 	error = pool6_init(pool6);
 	if (error)
 		goto pool6_failure;
-	error = pool4_init(pool4, pool4_size);
+	error = pool4_init(blacklist, blacklist_size);
 	if (error)
 		goto pool4_failure;
 	error = rfc6791_init(errorAddresses, errorAddresses_size);
