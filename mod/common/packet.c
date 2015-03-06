@@ -455,8 +455,8 @@ static int handle_udp4(struct sk_buff *skb, struct pkt_metadata *meta)
 	 */
 	if (ptr->check == 0 && (is_more_fragments_set_ipv4(hdr4)
 			|| !config_get_compute_UDP_csum_zero())) {
-		log_info("Dropping IPv4 packet, UDP Packet has checksum 0:");
-		log_info("%pI4#%u->%pI4#%u", &hdr4->saddr, ntohs(ptr->source),
+		log_debug("Dropping IPv4 packet, UDP Packet has checksum 0:");
+		log_debug("%pI4#%u->%pI4#%u", &hdr4->saddr, ntohs(ptr->source),
 				&hdr4->daddr, ntohs(ptr->dest));
 		return -EINVAL;
 	}
