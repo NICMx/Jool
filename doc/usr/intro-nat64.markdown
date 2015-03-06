@@ -72,7 +72,7 @@ Of course, this means each node's IPv4 address has to be encoded inside its IPv6
 
 While this explanation might make it seem like "EAM" SIIT and "traditional" SIIT are different things, this is not the case. Implementations are expected to always try to translate an address based on the EAM table first, and if no mapping is found, fall back to append or remove the prefix. The separation was done here for illustrative purposes. You can find a concrete example of how "traditional" and "EAM" SIIT can be combined to fit a use case in [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
 
-SIIT is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>. The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by <a href="http://tools.ietf.org/html/rfc6052" target="_blank">RFC 6052</a>.
+SIIT is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>. The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by <a href="http://tools.ietf.org/html/rfc6052" target="_blank">RFC 6052</a>. Whenever RFC 6052 is involved, it's usually convenient to also have a [DNS64](op-dns64.html) so users don't need to be aware of the prefix.
 
 ## Stateful NAT64
 
@@ -105,5 +105,5 @@ Now, that's where the similarities with NAT end. You don't normally say the IPv6
 
 In this way, _A_ through _D_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
 
-Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a>.
+Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a> and is most of the time coupled with [DNS64](op-dns64.html).
 

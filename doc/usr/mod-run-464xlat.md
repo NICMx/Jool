@@ -3,9 +3,9 @@ layout: documentation
 title: Documentation - SIIT/DC Run
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > 464XLAT and SIIT/DC Dual Translation Mode
+[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > 464XLAT
 
-# 464XLAT and SIIT/DC Dual Translation Mode
+# 464XLAT
 
 ## Index
 
@@ -66,7 +66,7 @@ The 464XLAT flow we want to achieve follows. _n6_ will use its IPv4 address to t
 
 ![Figure 4 - Literal](images/flow/464-literal.svg)
 
-_R_ will SIIT the packet into IPv6 so it can traverse the IPv6-only chunk. Address 192.168.0.8 will be translated using the EAMT entry, and 203.0.113.24 will receive the NAT64 prefix treatment.
+_R_ will SIIT the packet into IPv6 so it can traverse the IPv6-only chunk. Address 192.168.0.8 will be translated using the EAMT, and 203.0.113.24 will receive the `pool6` prefix treatment to mirror _PLAT_'s.
 
 ![Figure 5 - SIIT'd packet](images/flow/464-sless.svg)
 
@@ -111,12 +111,12 @@ This is _R_:
 
 	# Enable SIIT.
 	# We're masking the private network using an EAMT entry.
-	# Traffic towards the Internet (0.0.0.0/0 ie. anything) is to be appended PLAT's prefix.
-	# Recall that the EAMT has higher precedence than the NAT64 (pool6) prefix.
-	modprobe jool_siit pool6=64:ff9b::/96 pool4=0.0.0.0/0 errorAddresses=192.168.0.128/25
+	# Traffic towards the Internet is to be appended PLAT's prefix.
+	# Recall that the EAMT has higher precedence than the prefix.
+	modprobe jool_siit pool6=64:ff9b::/96
 	jool_siit --eamt --add 192.168.0.8/29 2001:db8:2::/125
 
-_n6_'s packet will have addresses `192.168.0.8` and `203.0.113.24`. The former will be translated using the EAMT entry (since it matches `192.168.0.8/29`) and the latter will use the pool6 prefix (because it matches `0.0.0.0/0`). We're using `0.0.0.0/0` because we're talking about the whole Internet.
+_n6_'s packet will have addresses `192.168.0.8` and `203.0.113.24`. The former will be translated using the EAMT entry (since it matches `192.168.0.8/29`) and the latter will use the `pool6` prefix (because it doesn't match).
 
 Also note that _R_ is an average SIIT implementation and you shouldn't think of this installation of Jool as anything other than that.
 
@@ -178,13 +178,15 @@ Ping _n4_ via IPv6 from _n6_:
 
 ## Closing words
 
-Though at this point you can see how you can defend yourself against IP literals and legacy IPv4-only appliances, you might want to be forewarned that at least [one application protocol](http://tools.ietf.org/html/rfc959) out there is so poorly designed it works differently depending on whether it's sitting on top of IPv6 or IPv4. Therefore, [addressing IP literals in this case is not sufficient to make it work via NAT64](https://github.com/NICMx/NAT64/issues/114).
+Though at this point you can see how you can defend yourself against IP literals and legacy IPv4-only appliances, you might want to be forewarned that at least [one application protocol](http://tools.ietf.org/html/rfc959) out there is so poorly designed it works differently depending on whether it's sitting on top of IPv6 or IPv4. Therefore, [addressing IP literals in this case is not sufficient to make FTP work via NAT64](https://github.com/NICMx/NAT64/issues/114).
 
 On the other hand, some network-aware protocols only partially depend on literals, and the NAT64 is not going to get in the way of the features that don't. FTP's passive mode falls in this category.
 
+You can make active FTP work by deploying a fully stateless dual translation environment such as [siit-dc-2xlat](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00). It works because both the client and server are both using IPv4 sockets, the IPv4 addresses are unchanged end-to-end, and it's fully bi-directional, so active and passive FTP on arbitrary ports work fine. In siit-dc-2xlat, the IPv6 network in the middle becomes an invisible "tunnel" through which IPv4 is transported.
+
 Here's a list of protocols that are known to use IP literals. You might also want to see [RFC 6586](http://tools.ietf.org/html/rfc6586).
 
- - FTP (try passive mode)
+ - FTP
  - Skype
  - NFS
  - Google Talk Client

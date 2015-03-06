@@ -74,7 +74,7 @@ Return it:
 
 	$ jool_siit --errorAddresses --add 192.0.2.0/24
 
-Destroy all prefixes. This is also an [alternate way](usr-flags-global.html#enable---disable) to manually disable SIIT Jool.
+Destroy all prefixes. Jool will start using its host's addresses as source.
 
 	$ jool_siit --errorAddresses --flush
 
