@@ -8,7 +8,9 @@
 
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/random.h"
+#include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateless/pool.h"
+#include "nat64/mod/common/route.h"
 
 static struct list_head pool;
 
@@ -55,31 +57,75 @@ static int pool_count_wrapper(unsigned int *result)
  *	if not result found return error.
  *	RCU locks must be hold.
  */
-static int get_host_address(struct in_addr *result, __be32 *daddr)
+static int get_host_address(struct in_addr *result, struct packet *in, struct packet *out)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifaddr;
+	struct iphdr *hdr_ip;
 	int error;
 
-	struct flowi4 fl4;
-	struct fib_result res = { 0 };
+	struct flowi4 flow;
 
-	if (!daddr) {
-		log_err("daddr cannot be NULL");
+	if (!in || !out) {
+		log_err("in or out cannot be NULL");
 		return -EINVAL;
 	}
 
-	memset(&fl4, 0, sizeof(struct flowi4));
-	fl4.daddr = *daddr;
+	memset(&flow, 0, sizeof(flow));
+	hdr_ip = ip_hdr(out->skb);
+	/* flow.flowi4_oif; */
+	/* flow.flowi4_iif; */
+	flow.flowi4_mark = in->skb->mark;
+	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
+	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
+	flow.flowi4_proto = hdr_ip->protocol;
+	/*
+	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever
+	 * create routes on Jool's behalf?
+	 * TODO (help) We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
+	 * If you change it, the corresponding attribute in route_ipv6() should probably follow.
+	 */
+	flow.flowi4_flags = 0;
+	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
+	/* flow.flowi4_secid; */
+	/* It appears this one only introduces noise. */
+	/* flow.saddr = hdr_ip->saddr; */
+	flow.daddr = hdr_ip->daddr;
 
-	error = fib_lookup(&init_net, &fl4, &res);
-	if (error) {
-		log_debug("Cannot route packet.");
-		return -ESRCH;
+	{
+		union {
+			struct tcphdr *tcp;
+			struct udphdr *udp;
+			struct icmphdr *icmp4;
+		} hdr;
+
+		switch (pkt_l4_proto(in)) {
+		case L4PROTO_TCP:
+			hdr.tcp = pkt_tcp_hdr(in);
+			flow.fl4_sport = hdr.tcp->source;
+			flow.fl4_dport = hdr.tcp->dest;
+			break;
+		case L4PROTO_UDP:
+			hdr.udp = pkt_udp_hdr(in);
+			flow.fl4_sport = hdr.udp->source;
+			flow.fl4_dport = hdr.udp->dest;
+			break;
+		case L4PROTO_ICMP:
+			hdr.icmp4 = pkt_icmp4_hdr(in);
+			flow.fl4_icmp_type = hdr.icmp4->type;
+			flow.fl4_icmp_code = hdr.icmp4->code;
+			break;
+		case L4PROTO_OTHER:
+			break;
+		}
 	}
 
-	dev = FIB_RES_DEV(res);
+	error = __route4(out, &flow);
+	if (error)
+		return error;
+
+	dev = out->skb->dev;
 	in_dev = rcu_dereference(dev->ip_ptr);
 	ifaddr = in_dev->ifa_list;
 	while (ifaddr) {
@@ -95,7 +141,7 @@ static int get_host_address(struct in_addr *result, __be32 *daddr)
 	return -EINVAL;
 }
 
-int rfc6791_get(struct in_addr *result, __be32 *daddr)
+int rfc6791_get(struct in_addr *result, struct packet *in, struct packet *out)
 {
 	struct pool_entry *entry;
 	unsigned int count;
@@ -118,7 +164,7 @@ int rfc6791_get(struct in_addr *result, __be32 *daddr)
 	}
 
 	if (count == 0) {
-		error = get_host_address(result, daddr);
+		error = get_host_address(result, in, out);
 		goto end;
 	}
 

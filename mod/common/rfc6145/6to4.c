@@ -201,7 +201,7 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 	/* Src address. */
 	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
-		error = rfc6791_get(&addr, &ip4_hdr->daddr); /* Why? RFC 6791. */
+		error = rfc6791_get(&addr, in, out); /* Why? RFC 6791. */
 		if (error)
 			return VERDICT_ACCEPT;
 		ip4_hdr->saddr = addr.s_addr;

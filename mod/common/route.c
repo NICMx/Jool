@@ -13,8 +13,6 @@ int route4(struct packet *pkt)
 {
 	struct iphdr *hdr_ip = pkt_ip4_hdr(pkt);
 	struct flowi4 flow;
-	struct rtable *table;
-	int error;
 
 	/* Sometimes Jool needs to route prematurely, so don't sweat this on the normal pipelines. */
 	if (skb_dst(pkt->skb))
@@ -68,34 +66,48 @@ int route4(struct packet *pkt)
 		}
 	}
 
+
+	return __route4(pkt, &flow);
+}
+
+int __route4(struct packet *pkt_out, struct flowi4 *flow)
+{
+	struct rtable *table;
+	int error;
+
+	if (!pkt_out || !flow) {
+		log_err("pkt_out or flow cannot be NULL");
+		return -EINVAL;
+	}
+
 	/*
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow() because those seem to
 	 * mind about XFRM (= IPsec), which is probably just troublesome overhead given that "any
 	 * protocols that protect IP header information are essentially incompatible with NAT64"
 	 * (RFC 6146).
 	 */
-	table = __ip_route_output_key(&init_net, &flow);
+	table = __ip_route_output_key(&init_net, flow);
 	if (!table || IS_ERR(table)) {
 		error = abs(PTR_ERR(table));
 		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
-		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt_out, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (table->dst.error) {
 		error = abs(table->dst.error);
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
-		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt_out, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
-		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(pkt_out, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 
-	skb_dst_set(pkt->skb, &table->dst);
-	pkt->skb->dev = table->dst.dev;
+	skb_dst_set(pkt_out->skb, &table->dst);
+	pkt_out->skb->dev = table->dst.dev;
 
 	return 0;
 }

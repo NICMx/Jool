@@ -14,6 +14,11 @@
 int route4(struct packet *pkt);
 
 /**
+ * Same as route_ipv4, except this you need to specify flow.
+ */
+int __route4(struct packet *pkt_out, struct flowi4 *flow);
+
+/**
  * Same as route_ipv4(), except for IPv6.
  */
 int route6(struct packet *pkt);
