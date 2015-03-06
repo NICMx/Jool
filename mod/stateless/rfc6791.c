@@ -4,6 +4,7 @@
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <net/ip_fib.h>
 
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/random.h"
@@ -49,58 +50,52 @@ static int pool_count_wrapper(unsigned int *result)
 	return 0;
 }
 
-static int get_host_address(struct in_addr *result)
+/**
+ *	Function to get an IPv4 address of the local machine from "daddr".
+ *	if not result found return error.
+ *	RCU locks must be hold.
+ */
+static int get_host_address(struct in_addr *result, __be32 *daddr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifaddr;
-	unsigned int address_count, iterator_count;
-	unsigned int rand;
+	int error;
 
-	/* First iterate and count all the host IPv4 addresses. */
-	address_count = 0;
-	for_each_netdev_rcu(&init_net, dev) {
-		in_dev = rcu_dereference(dev->ip_ptr);
-		ifaddr = in_dev->ifa_list;
-		while (ifaddr) {
-			if (IN_LOOPBACK(ntohl(ifaddr->ifa_address))) {
-				ifaddr = ifaddr->ifa_next;
-				continue;
-			}
-			address_count++;
-			ifaddr = ifaddr->ifa_next;
-		}
+	struct flowi4 fl4;
+	struct fib_result res = { 0 };
+
+	if (!daddr) {
+		log_err("daddr cannot be NULL");
+		return -EINVAL;
 	}
 
-	if (address_count == 0)
-		return -EEXIST;
+	memset(&fl4, 0, sizeof(struct flowi4));
+	fl4.daddr = *daddr;
 
-	rand = get_random_u32() % address_count;
-
-	/* Now get a random IPv4 address from the host. */
-	iterator_count = 0;
-	for_each_netdev_rcu(&init_net, dev) {
-		in_dev = rcu_dereference(dev->ip_ptr);
-		ifaddr = in_dev->ifa_list;
-		while (ifaddr) {
-			if (IN_LOOPBACK(ntohl(ifaddr->ifa_address))) {
-				ifaddr = ifaddr->ifa_next;
-				continue;
-			}
-			if (rand == iterator_count) {
-				result->s_addr = ifaddr->ifa_address;
-				return 0;
-			}
-			iterator_count++;
-			ifaddr = ifaddr->ifa_next;
-		}
+	error = fib_lookup(&init_net, &fl4, &res);
+	if (error) {
+		log_debug("Cannot route packet.");
+		return -ESRCH;
 	}
 
-	log_err("Something went wrong; looks like the net_device's IPv4 address was modified.");
+	dev = FIB_RES_DEV(res);
+	in_dev = rcu_dereference(dev->ip_ptr);
+	ifaddr = in_dev->ifa_list;
+	while (ifaddr) {
+		if (IN_LOOPBACK(ntohl(ifaddr->ifa_address))) {
+			ifaddr = ifaddr->ifa_next;
+			continue;
+		}
+		result->s_addr = ifaddr->ifa_address;
+		return 0;
+	}
+
+	log_err("Something went wrong; looks like packet was routed to the loopback net_device.");
 	return -EINVAL;
 }
 
-int rfc6791_get(struct in_addr *result)
+int rfc6791_get(struct in_addr *result, __be32 *daddr)
 {
 	struct pool_entry *entry;
 	unsigned int count;
@@ -123,7 +118,7 @@ int rfc6791_get(struct in_addr *result)
 	}
 
 	if (count == 0) {
-		error = get_host_address(result);
+		error = get_host_address(result, daddr);
 		goto end;
 	}
 

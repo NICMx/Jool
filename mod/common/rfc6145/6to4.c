@@ -193,21 +193,21 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 	verdict result;
 	int error;
 
+	/* Dst address. */
+	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
 	/* Src address. */
 	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
-		error = rfc6791_get(&addr); /* Why? RFC 6791. */
+		error = rfc6791_get(&addr, &ip4_hdr->daddr); /* Why? RFC 6791. */
 		if (error)
 			return VERDICT_ACCEPT;
 		ip4_hdr->saddr = addr.s_addr;
 	} else if (result != VERDICT_CONTINUE) {
 		return result;
 	}
-
-	/* Dst address. */
-	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
-	if (result != VERDICT_CONTINUE)
-		return result;
 
 	log_debug("Result: %pI4->%pI4", &ip4_hdr->saddr, &ip4_hdr->daddr);
 	return VERDICT_CONTINUE;
