@@ -7,7 +7,7 @@ title: Documentation - RFC 6791
 
 # RFC 6791
 
-Suppose _n4_ is trying to reach _n6_, but there is a problem (eg. the packet is too big), and _R_ sends _n4_ an ICMP error. _T_ is translating using prefix 2001:db8::/64.
+Suppose _n4_ is trying to reach _n6_, but there is a problem (eg. the packet is too big), and _R_ sends _n4_ an ICMP error. _T_ is translating using prefix 2001:db8::/96.
 
 ![Figure 1 - Network](images/network/rfc6791.svg)
 
