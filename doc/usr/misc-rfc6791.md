@@ -54,5 +54,5 @@ Please consider the following paragraphs from [RFC 6791](https://tools.ietf.org/
 	source address and, therefore, erroneously present the appearance of
 	a routing loop.
 
-The [SIIT walkthrough](mod-run-vanilla.html) shows how to set the pool during a modprobe. You can also edit it later via the [userspace application](usr-flags-error-addresses.html).
+The [SIIT walkthrough](mod-run-vanilla.html) shows how to set the pool during a modprobe. You can also edit it later via the [userspace application](usr-flags-pool6791.html).
 

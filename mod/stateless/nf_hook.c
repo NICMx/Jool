@@ -27,10 +27,10 @@ static char *blacklist[5];
 static int blacklist_size;
 module_param_array(blacklist, charp, &blacklist_size, 0);
 MODULE_PARM_DESC(blacklist, "IPv4 addresses that will not be translated.");
-static char *errorAddresses[5];
-static int errorAddresses_size;
-module_param_array(errorAddresses, charp, &errorAddresses_size, 0);
-MODULE_PARM_DESC(errorAddresses, "The RFC6791 pool's addresses.");
+static char *pool6791[5];
+static int pool6791_size;
+module_param_array(pool6791, charp, &pool6791_size, 0);
+MODULE_PARM_DESC(pool6791, "The RFC6791 pool's addresses.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
@@ -100,7 +100,7 @@ static int __init nat64_init(void)
 	error = pool4_init(blacklist, blacklist_size);
 	if (error)
 		goto pool4_failure;
-	error = rfc6791_init(errorAddresses, errorAddresses_size);
+	error = rfc6791_init(pool6791, pool6791_size);
 	if (error)
 		goto rfc6791_failure;
 

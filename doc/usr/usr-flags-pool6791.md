@@ -3,9 +3,9 @@ layout: documentation
 title: Documentation - Flags > Error Addresses
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--errorAddresses
+[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool6791
 
-# \--errorAddresses
+# \--pool6791
 
 ## Index
 
@@ -22,21 +22,11 @@ If this pool is empty, Jool will fall back to use its node's addresses for these
 
 ## Syntax
 
-	jool_siit --errorAddresses [--display]
-	jool_siit --errorAddresses --count
-	jool_siit --errorAddresses --add <IPv4 prefix>
-	jool_siit --errorAddresses --remove <IPv4 prefix>
-	jool_siit --errorAddresses --flush
-
-By the way: The name `--errorAddresses` might look awkwardly long, and it doesn't have a single-chara version, but thanks to the ARGP framework, you can still shorten it. These are all synonyms:
-
-- `--errorAddresses`
-- `--errorAddress`
-- `--errorAddr`
-- `--error`
-- `--err`
-
-Unfortunately, this does not apply during the `modprobe`.
+	jool_siit --pool6791 [--display]
+	jool_siit --pool6791 --count
+	jool_siit --pool6791 --add <IPv4 prefix>
+	jool_siit --pool6791 --remove <IPv4 prefix>
+	jool_siit --pool6791 --flush
 
 ## Options
 
@@ -51,7 +41,7 @@ For example, if all you have is a /24 prefix, expect "256" as output.
 
 Display the current prefixes:
 
-	$ jool_siit --errorAddresses --display
+	$ jool_siit --pool6791 --display
 	192.0.2.0/24
 	198.51.100.0/26
 	203.0.113.16/28
@@ -61,20 +51,20 @@ This means the source address of a normally untranslatable ICMP error is going t
 
 Display only the prefix count:
 
-	$ jool_siit --errorAddresses --count
+	$ jool_siit --pool6791 --count
 	336
 
 (That's /24 + /26 + /28 = 256 + 64 + 16.)
 
 Remove a prefix:
 
-	$ jool_siit --errorAddresses --remove 192.0.2.0/24
+	$ jool_siit --pool6791 --remove 192.0.2.0/24
 
 Return it:
 
-	$ jool_siit --errorAddresses --add 192.0.2.0/24
+	$ jool_siit --pool6791 --add 192.0.2.0/24
 
 Destroy all prefixes. Jool will start using its host's addresses as source.
 
-	$ jool_siit --errorAddresses --flush
+	$ jool_siit --pool6791 --flush
 

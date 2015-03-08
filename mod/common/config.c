@@ -10,49 +10,53 @@ static struct global_config *config;
 
 int config_init(bool is_disable)
 {
-	__u16 default_plateaus[] = TRAN_DEF_MTU_PLATEAUS;
+	__u16 default_plateaus[] = DEFAULT_MTU_PLATEAUS;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
+	config->jool_status = 0; /* This is never read, but whatever. */
+	config->is_disable = (__u8) is_disable;
+	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
+	config->reset_tos = DEFAULT_RESET_TOS;
+	config->new_tos = DEFAULT_NEW_TOS;
+
+	config->atomic_frags.df_always_on = DEFAULT_DF_ALWAYS_ON;
+	config->atomic_frags.build_ipv6_fh = DEFAULT_BUILD_IPV6_FH;
+	config->atomic_frags.build_ipv4_id = DEFAULT_BUILD_IPV4_ID;
+	config->atomic_frags.lower_mtu_fail = DEFAULT_LOWER_MTU_FAIL;
+
 #ifdef STATEFUL
-	config->sessiondb.ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
-	config->sessiondb.ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
-	config->sessiondb.ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
-	config->sessiondb.ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	config->pktqueue.max_pkts = PKTQ_DEF_MAX_STORED_PKTS;
-	config->filtering.drop_by_addr = FILT_DEF_ADDR_DEPENDENT_FILTERING;
-	config->filtering.drop_external_tcp = FILT_DEF_DROP_EXTERNAL_CONNECTIONS;
-	config->filtering.drop_icmp6_info = FILT_DEF_FILTER_ICMPV6_INFO;
-	config->fragmentation.fragment_timeout = msecs_to_jiffies(1000 * FRAGMENT_MIN);
+	config->ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
+	config->ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
+	config->ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	config->ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	config->ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
+	config->max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
+	config->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
+	config->drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
+	config->drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
 #else
-	config->translate.compute_udp_csum_zero = TRAN_DEF_COMPUTE_UDP_CSUM0;
+	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 #endif
 
-	config->translate.reset_traffic_class = TRAN_DEF_RESET_TRAFFIC_CLASS;
-	config->translate.reset_tos = TRAN_DEF_RESET_TOS;
-	config->translate.new_tos = TRAN_DEF_NEW_TOS;
-	config->translate.df_always_on = TRAN_DEF_DF_ALWAYS_ON;
-	config->translate.build_ipv6_fh = TRAN_DEF_BUILD_IPV6_FH;
-	config->translate.build_ipv4_id = TRAN_DEF_BUILD_IPV4_ID;
-	config->translate.lower_mtu_fail = TRAN_DEF_LOWER_MTU_FAIL;
-	config->translate.mtu_plateau_count = ARRAY_SIZE(default_plateaus);
-	config->translate.is_disable = (__u8) is_disable;
-	config->translate.mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
-	if (!config->translate.mtu_plateaus) {
+	config->mtu_plateau_count = ARRAY_SIZE(default_plateaus);
+	config->mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
+	if (!config->mtu_plateaus) {
 		log_err("Could not allocate memory to store the MTU plateaus.");
 		kfree(config);
 		return -ENOMEM;
 	}
-	memcpy(config->translate.mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
+	memcpy(config->mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
 
 	return 0;
 }
 
 void config_destroy(void)
 {
-	kfree(config->translate.mtu_plateaus);
+	kfree(config->mtu_plateaus);
 	kfree(config);
 }
 
@@ -112,7 +116,7 @@ static void be16_swap(void *a, void *b, int size)
 	*(__u16 *)b = t;
 }
 
-static int update_plateaus(struct translate_config *config, size_t size, void *value)
+static int update_plateaus(struct global_config *config, size_t size, void *value)
 {
 	__u16 *list = value;
 	unsigned int count = size / 2;
@@ -177,112 +181,117 @@ int config_set(__u8 type, size_t size, void *value)
 	case MAX_PKTS:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		tmp_config->pktqueue.max_pkts = *((__u64 *) value);
+		tmp_config->max_stored_pkts = *((__u64 *) value);
 		break;
 	case UDP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!assign_timeout(value, UDP_MIN, &tmp_config->sessiondb.ttl.udp))
+		if (!assign_timeout(value, UDP_MIN, &tmp_config->ttl.udp))
 			goto fail;
 		break;
 	case ICMP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!assign_timeout(value, 0, &tmp_config->sessiondb.ttl.icmp))
+		if (!assign_timeout(value, 0, &tmp_config->ttl.icmp))
 			goto fail;
 		break;
 	case TCP_EST_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!assign_timeout(value, TCP_EST, &tmp_config->sessiondb.ttl.tcp_est))
+		if (!assign_timeout(value, TCP_EST, &tmp_config->ttl.tcp_est))
 			goto fail;
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!assign_timeout(value, TCP_TRANS, &tmp_config->sessiondb.ttl.tcp_trans))
+		if (!assign_timeout(value, TCP_TRANS, &tmp_config->ttl.tcp_trans))
 			goto fail;
 		break;
 	case FRAGMENT_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto fail;
-		if (!assign_timeout(value, FRAGMENT_MIN, &tmp_config->fragmentation.fragment_timeout))
+		if (!assign_timeout(value, FRAGMENT_MIN, &tmp_config->ttl.frag))
 			goto fail;
 		break;
 	case DROP_BY_ADDR:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->filtering.drop_by_addr = *((__u8 *) value);
+		tmp_config->drop_by_addr = *((__u8 *) value);
 		break;
 	case DROP_ICMP6_INFO:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->filtering.drop_icmp6_info = *((__u8 *) value);
+		tmp_config->drop_icmp6_info = *((__u8 *) value);
 		break;
 	case DROP_EXTERNAL_TCP:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->filtering.drop_external_tcp = *((__u8 *) value);
+		tmp_config->drop_external_tcp = *((__u8 *) value);
 		break;
 #else
 	case COMPUTE_UDP_CSUM_ZERO:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.compute_udp_csum_zero = *((__u8 *) value);
+		tmp_config->compute_udp_csum_zero = *((__u8 *) value);
+		break;
+	case RANDOMIZE_RFC6791:
+		if (!ensure_bytes(size, 1))
+			goto fail;
+		tmp_config->randomize_error_addresses = *((__u8 *) value);
 		break;
 #endif
 	case RESET_TCLASS:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.reset_traffic_class = *((__u8 *) value);
+		tmp_config->reset_traffic_class = *((__u8 *) value);
 		break;
 	case RESET_TOS:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.reset_tos = *((__u8 *) value);
+		tmp_config->reset_tos = *((__u8 *) value);
 		break;
 	case NEW_TOS:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.new_tos = *((__u8 *) value);
+		tmp_config->new_tos = *((__u8 *) value);
 		break;
 	case DF_ALWAYS_ON:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.df_always_on = *((__u8 *) value);
+		tmp_config->atomic_frags.df_always_on = *((__u8 *) value);
 		break;
 	case BUILD_IPV6_FH:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.build_ipv6_fh = *((__u8 *) value);
+		tmp_config->atomic_frags.build_ipv6_fh = *((__u8 *) value);
 		break;
 	case BUILD_IPV4_ID:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.build_ipv4_id = *((__u8 *) value);
+		tmp_config->atomic_frags.build_ipv4_id = *((__u8 *) value);
 		break;
 	case LOWER_MTU_FAIL:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.lower_mtu_fail = *((__u8 *) value);
+		tmp_config->atomic_frags.lower_mtu_fail = *((__u8 *) value);
 		break;
 	case MTU_PLATEAUS:
-		if (is_error(update_plateaus(&tmp_config->translate, size, value)))
+		if (is_error(update_plateaus(tmp_config, size, value)))
 			goto fail;
 		break;
 	case DISABLE:
-		tmp_config->translate.is_disable = (__u8) true;
+		tmp_config->is_disable = (__u8) true;
 		break;
 	case ENABLE:
-		tmp_config->translate.is_disable = (__u8) false;
+		tmp_config->is_disable = (__u8) false;
 		break;
 	case ATOMIC_FRAGMENTS:
 		if (!ensure_bytes(size, 1))
 			goto fail;
-		tmp_config->translate.df_always_on = *((__u8 *) value);
-		tmp_config->translate.build_ipv6_fh = *((__u8 *) value);
-		tmp_config->translate.build_ipv4_id = !(*((__u8 *) value));
-		tmp_config->translate.lower_mtu_fail = !(*((__u8 *) value));
+		tmp_config->atomic_frags.df_always_on = *((__u8 *) value);
+		tmp_config->atomic_frags.build_ipv6_fh = *((__u8 *) value);
+		tmp_config->atomic_frags.build_ipv4_id = !(*((__u8 *) value));
+		tmp_config->atomic_frags.lower_mtu_fail = !(*((__u8 *) value));
 		break;
 	default:
 		log_err("Unknown config type: %u", type);
@@ -292,8 +301,8 @@ int config_set(__u8 type, size_t size, void *value)
 	rcu_assign_pointer(config, tmp_config);
 	synchronize_rcu_bh();
 
-	if (old_config->translate.mtu_plateaus != tmp_config->translate.mtu_plateaus)
-		kfree(old_config->translate.mtu_plateaus);
+	if (old_config->mtu_plateaus != tmp_config->mtu_plateaus)
+		kfree(old_config->mtu_plateaus);
 	kfree(old_config);
 
 	return 0;
@@ -316,61 +325,66 @@ fail:
 
 unsigned long config_get_ttl_udp(void)
 {
-	return RCU_THINGY(unsigned long, sessiondb.ttl.udp);
+	return RCU_THINGY(unsigned long, ttl.udp);
 }
 
 unsigned long config_get_ttl_tcpest(void)
 {
-	return RCU_THINGY(unsigned long, sessiondb.ttl.tcp_est);
+	return RCU_THINGY(unsigned long, ttl.tcp_est);
 }
 
 unsigned long config_get_ttl_tcptrans(void)
 {
-	return RCU_THINGY(unsigned long, sessiondb.ttl.tcp_trans);
+	return RCU_THINGY(unsigned long, ttl.tcp_trans);
 }
 
 unsigned long config_get_ttl_icmp(void)
 {
-	return RCU_THINGY(unsigned long, sessiondb.ttl.icmp);
-}
-
-unsigned int config_get_max_pkts(void)
-{
-	return RCU_THINGY(unsigned int, pktqueue.max_pkts);
-}
-
-bool config_get_filter_icmpv6_info(void)
-{
-	return RCU_THINGY(bool, filtering.drop_icmp6_info);
-}
-
-bool config_get_addr_dependent_filtering(void)
-{
-	return RCU_THINGY(bool, filtering.drop_by_addr);
-}
-
-bool config_get_drop_external_connections(void)
-{
-	return RCU_THINGY(bool, filtering.drop_external_tcp);
+	return RCU_THINGY(unsigned long, ttl.icmp);
 }
 
 unsigned long config_get_ttl_frag(void)
 {
-	return RCU_THINGY(unsigned long, fragmentation.fragment_timeout);
+	return RCU_THINGY(unsigned long, ttl.frag);
+}
+
+unsigned int config_get_max_pkts(void)
+{
+	return RCU_THINGY(unsigned int, max_stored_pkts);
+}
+
+bool config_get_filter_icmpv6_info(void)
+{
+	return RCU_THINGY(bool, drop_icmp6_info);
+}
+
+bool config_get_addr_dependent_filtering(void)
+{
+	return RCU_THINGY(bool, drop_by_addr);
+}
+
+bool config_get_drop_external_connections(void)
+{
+	return RCU_THINGY(bool, drop_external_tcp);
 }
 
 #else
 
 bool config_get_compute_UDP_csum_zero(void)
 {
-	return RCU_THINGY(bool, translate.compute_udp_csum_zero);
+	return RCU_THINGY(bool, compute_udp_csum_zero);
+}
+
+bool config_randomize_rfc6791_pool(void)
+{
+	return RCU_THINGY(bool, randomize_error_addresses);
 }
 
 #endif
 
 bool config_get_reset_traffic_class(void)
 {
-	return RCU_THINGY(bool, translate.reset_traffic_class);
+	return RCU_THINGY(bool, reset_traffic_class);
 }
 
 void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
@@ -380,21 +394,21 @@ void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 
 	rcu_read_lock_bh();
 	tmp = rcu_dereference_bh(config);
-	*reset_tos = tmp->translate.reset_tos;
-	*new_tos = tmp->translate.new_tos;
-	*build_ipv4_id = tmp->translate.build_ipv4_id;
-	*df_always_on = tmp->translate.df_always_on;
+	*reset_tos = tmp->reset_tos;
+	*new_tos = tmp->new_tos;
+	*build_ipv4_id = tmp->atomic_frags.build_ipv4_id;
+	*df_always_on = tmp->atomic_frags.df_always_on;
 	rcu_read_unlock_bh();
 }
 
 bool config_get_build_ipv6_fh(void)
 {
-	return RCU_THINGY(bool, translate.build_ipv6_fh);
+	return RCU_THINGY(bool, atomic_frags.build_ipv6_fh);
 }
 
 bool config_get_lower_mtu_fail(void)
 {
-	return RCU_THINGY(bool, translate.lower_mtu_fail);
+	return RCU_THINGY(bool, atomic_frags.lower_mtu_fail);
 }
 
 /**
@@ -406,11 +420,11 @@ void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 	struct global_config *tmp;
 
 	tmp = rcu_dereference_bh(config);
-	*plateaus = tmp->translate.mtu_plateaus;
-	*count = tmp->translate.mtu_plateau_count;
+	*plateaus = tmp->mtu_plateaus;
+	*count = tmp->mtu_plateau_count;
 }
 
 bool config_get_is_disable(void)
 {
-	return RCU_THINGY(bool, translate.is_disable);
+	return RCU_THINGY(bool, is_disable);
 }

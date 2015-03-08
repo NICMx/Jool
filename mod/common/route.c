@@ -9,19 +9,21 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
 
-int route4(struct packet *pkt)
+int __route4(struct packet *in, struct packet *out)
 {
-	struct iphdr *hdr_ip = pkt_ip4_hdr(pkt);
+	struct iphdr *hdr_ip = pkt_ip4_hdr(out);
 	struct flowi4 flow;
+	struct rtable *table;
+	int error;
 
 	/* Sometimes Jool needs to route prematurely, so don't sweat this on the normal pipelines. */
-	if (skb_dst(pkt->skb))
+	if (skb_dst(out->skb))
 		return 0;
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
-	flow.flowi4_mark = pkt->skb->mark;
+	flow.flowi4_mark = in->skb->mark;
 	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = hdr_ip->protocol;
@@ -45,19 +47,19 @@ int route4(struct packet *pkt)
 			struct icmphdr *icmp4;
 		} hdr;
 
-		switch (pkt_l4_proto(pkt)) {
+		switch (pkt_l4_proto(in)) {
 		case L4PROTO_TCP:
-			hdr.tcp = pkt_tcp_hdr(pkt);
+			hdr.tcp = pkt_tcp_hdr(in);
 			flow.fl4_sport = hdr.tcp->source;
 			flow.fl4_dport = hdr.tcp->dest;
 			break;
 		case L4PROTO_UDP:
-			hdr.udp = pkt_udp_hdr(pkt);
+			hdr.udp = pkt_udp_hdr(in);
 			flow.fl4_sport = hdr.udp->source;
 			flow.fl4_dport = hdr.udp->dest;
 			break;
 		case L4PROTO_ICMP:
-			hdr.icmp4 = pkt_icmp4_hdr(pkt);
+			hdr.icmp4 = pkt_icmp4_hdr(in);
 			flow.fl4_icmp_type = hdr.icmp4->type;
 			flow.fl4_icmp_code = hdr.icmp4->code;
 			break;
@@ -66,50 +68,41 @@ int route4(struct packet *pkt)
 		}
 	}
 
-
-	return __route4(pkt, &flow);
-}
-
-int __route4(struct packet *pkt_out, struct flowi4 *flow)
-{
-	struct rtable *table;
-	int error;
-
-	if (!pkt_out || !flow) {
-		log_err("pkt_out or flow cannot be NULL");
-		return -EINVAL;
-	}
-
 	/*
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow() because those seem to
 	 * mind about XFRM (= IPsec), which is probably just troublesome overhead given that "any
 	 * protocols that protect IP header information are essentially incompatible with NAT64"
 	 * (RFC 6146).
 	 */
-	table = __ip_route_output_key(&init_net, flow);
+	table = __ip_route_output_key(&init_net, &flow);
 	if (!table || IS_ERR(table)) {
 		error = abs(PTR_ERR(table));
 		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
-		inc_stats(pkt_out, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(out, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (table->dst.error) {
 		error = abs(table->dst.error);
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
-		inc_stats(pkt_out, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(out, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
-		inc_stats(pkt_out, IPSTATS_MIB_OUTNOROUTES);
+		inc_stats(out, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 
-	skb_dst_set(pkt_out->skb, &table->dst);
-	pkt_out->skb->dev = table->dst.dev;
+	skb_dst_set(out->skb, &table->dst);
+	out->skb->dev = table->dst.dev;
 
 	return 0;
+}
+
+int route4(struct packet *pkt)
+{
+	return __route4(pkt, pkt);
 }
 
 int route6(struct packet *pkt)

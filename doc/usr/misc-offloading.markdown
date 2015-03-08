@@ -54,6 +54,8 @@ More importantly, if the emitter performed <a href="http://en.wikipedia.org/wiki
 
 When the forwarding machine is an IPv6 router (or, in Jool's case, an SIIT/NAT64 translating from IPv4 to 6), this is more immediately a problem because _IPv6 routers are not supposed to fragment packets_ (they are expected to just drop the packet and return an ICMP error message). So your packet will be lost in step 3 _even if the Don't Fragment flag of the original packet was not set_.
 
+If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
+
 And that's it. Offloading for leaf nodes is great, offloading for routers is trouble.
 
 ## Practice

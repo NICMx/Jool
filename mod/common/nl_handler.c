@@ -618,7 +618,7 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_global *request)
 {
-	struct global_config response = { .translate.mtu_plateaus = NULL };
+	struct global_config response = { .mtu_plateaus = NULL };
 	unsigned char *buffer;
 	size_t buffer_len;
 	int error;
@@ -759,9 +759,11 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 		size_t *buffer_len_out)
 {
 	unsigned char *buffer;
+	struct global_config *tmp;
 	size_t mtus_len;
+	bool disabled;
 
-	mtus_len = config->translate.mtu_plateau_count * sizeof(*config->translate.mtu_plateaus);
+	mtus_len = config->mtu_plateau_count * sizeof(*config->mtu_plateaus);
 
 	buffer = kmalloc(sizeof(*config) + mtus_len, GFP_KERNEL);
 	if (!buffer) {
@@ -770,29 +772,20 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 	}
 
 	memcpy(buffer, config, sizeof(*config));
-	memcpy(buffer + sizeof(*config), config->translate.mtu_plateaus, mtus_len);
+	memcpy(buffer + sizeof(*config), config->mtu_plateaus, mtus_len);
+	tmp = (struct global_config *) buffer;
 
 #ifdef STATEFUL
-	{
-		struct sessiondb_config *sconfig;
-		struct fragmentation_config *fconfig;
-
-		sconfig = &((struct global_config *) buffer)->sessiondb;
-		sconfig->ttl.udp = jiffies_to_msecs(config->sessiondb.ttl.udp);
-		sconfig->ttl.tcp_est = jiffies_to_msecs(config->sessiondb.ttl.tcp_est);
-		sconfig->ttl.tcp_trans = jiffies_to_msecs(config->sessiondb.ttl.tcp_trans);
-		sconfig->ttl.icmp = jiffies_to_msecs(config->sessiondb.ttl.icmp);
-
-		fconfig = &((struct global_config *) buffer)->fragmentation;
-		fconfig->fragment_timeout = jiffies_to_msecs(config->fragmentation.fragment_timeout);
-	}
-	((struct global_config *) buffer)->translate.jool_status = !(config->translate.is_disable
-			|| pool6_is_empty() || pool4_is_empty());
-
+	tmp->ttl.udp = jiffies_to_msecs(config->ttl.udp);
+	tmp->ttl.tcp_est = jiffies_to_msecs(config->ttl.tcp_est);
+	tmp->ttl.tcp_trans = jiffies_to_msecs(config->ttl.tcp_trans);
+	tmp->ttl.icmp = jiffies_to_msecs(config->ttl.icmp);
+	tmp->ttl.frag = jiffies_to_msecs(config->ttl.frag);
+	disabled = config->is_disable || pool6_is_empty() || pool4_is_empty();
 #else
-	((struct global_config *) buffer)->translate.jool_status = !(config->translate.is_disable
-			|| (eamt_is_empty() && pool6_is_empty()));
+	disabled = config->is_disable || (pool6_is_empty() && eamt_is_empty());
 #endif
+	tmp->jool_status = !disabled;
 
 	*buffer_out = buffer;
 	*buffer_len_out = sizeof(*config) + mtus_len;
@@ -801,37 +794,27 @@ int serialize_global_config(struct global_config *config, unsigned char **buffer
 
 int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
 {
-	struct translate_config *tconfig;
 	size_t mtus_len;
 
 	memcpy(target_out, buffer, sizeof(*target_out));
 
-	tconfig = &target_out->translate;
-	tconfig->mtu_plateaus = NULL;
-	if (tconfig->mtu_plateau_count) {
-		mtus_len = tconfig->mtu_plateau_count * sizeof(*tconfig->mtu_plateaus);
-		tconfig->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
-		if (!tconfig->mtu_plateaus) {
+	target_out->mtu_plateaus = NULL;
+	if (target_out->mtu_plateau_count) {
+		mtus_len = target_out->mtu_plateau_count * sizeof(*target_out->mtu_plateaus);
+		target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
+		if (!target_out->mtu_plateaus) {
 			log_debug("Could not allocate the config's plateaus.");
 			return -ENOMEM;
 		}
-		memcpy(tconfig->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
+		memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 	}
 
 #ifdef STATEFUL
-	{
-		struct sessiondb_config *sconfig;
-		struct fragmentation_config *fconfig;
-
-		sconfig = &target_out->sessiondb;
-		sconfig->ttl.udp = msecs_to_jiffies(sconfig->ttl.udp);
-		sconfig->ttl.tcp_est = msecs_to_jiffies(sconfig->ttl.tcp_est);
-		sconfig->ttl.tcp_trans = msecs_to_jiffies(sconfig->ttl.tcp_trans);
-		sconfig->ttl.icmp = msecs_to_jiffies(sconfig->ttl.icmp);
-
-		fconfig = &target_out->fragmentation;
-		fconfig->fragment_timeout = msecs_to_jiffies(fconfig->fragment_timeout);
-	}
+	target_out->ttl.udp = msecs_to_jiffies(target_out->ttl.udp);
+	target_out->ttl.tcp_est = msecs_to_jiffies(target_out->ttl.tcp_est);
+	target_out->ttl.tcp_trans = msecs_to_jiffies(target_out->ttl.tcp_trans);
+	target_out->ttl.icmp = msecs_to_jiffies(target_out->ttl.icmp);
+	target_out->ttl.frag = msecs_to_jiffies(target_out->ttl.frag);
 #endif
 
 	return 0;

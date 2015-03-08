@@ -14,25 +14,26 @@ title: Documentation - Flags > Global
 3. [Examples](#examples)
 4. [Keys](#keys)
 	1. [`--enable`, `--disable`](#enable---disable)
-	1. [`--dropAddr`](#dropaddr)
-	2. [`--dropInfo`](#dropinfo)
-	3. [`--dropTCP`](#droptcp)
-	4. [`--toUDP`](#toudp)
-	5. [`--toTCPest`](#totcpest)
-	6. [`--toTCPtrans`](#totcptrans)
-	7. [`--toICMP`](#toicmp)
-	8. [`--toFrag`](#tofrag)
-	8. [`--maxStoredPkts`](#maxstoredpkts)
-	9. [`--setTC`](#settc)
-	10. [`--setTOS`](#settos)
-	11. [`--TOS`](#tos)
-	12. [`--atomicFragments`](#atomicfragments)
+	1. [`--address-dependent-filtering`](#address-dependent-filtering)
+	2. [`--drop-icmpv6-info`](#drop-icmpv6-info)
+	3. [`--drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
+	4. [`--udp-timeout`](#udp-timeout)
+	5. [`--tcp-est-timeout`](#tcp-est-timeout)
+	6. [`--tcp-trans-timeout`](#tcp-trans-timeout)
+	7. [`--icmp-timeout`](#icmp-timeout)
+	8. [`--fragment-arrival-timeout`](#fragment-arrival-timeout)
+	8. [`--maximum-simultaneous-opens`](#maximum-simultaneous-opens)
+	9. [`--zeroize-traffic-class`](#zeroize-traffic-class)
+	10. [`--override-tos`](#override-tos)
+	11. [`--tos`](#tos)
+	12. [`--allow-atomic-fragments`](#allow-atomic-fragments)
 		1. [`--setDF`](#setdf)
 		2. [`--genFH`](#genfh)
 		3. [`--genID`](#genid)
 		4. [`--boostMTU`](#boostmtu)
-	13. [`--computeUDPCsumZero`](#computeudpcsumzero)
-	13. [`--plateaus`](#plateaus)
+	13. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
+	14. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
+	13. [`--mtu-plateaus`](#mtu-plateaus)
 
 ## Description
 
@@ -52,25 +53,27 @@ Controls several of Jool's internal variables.
 
 ## Examples
 
-Display the configuration values, keys and values:
+Display the current configuration, keys and values:
 
-{% highlight bash %}
-$ jool_siit --global
-{% endhighlight %}
+	$ jool_siit --global
 
 Same thing, shorter version:
 
-{% highlight bash %}
-$ # BTW: This looks very simple, but it still requires Jool's kernel module to be active.
-$ jool
-{% endhighlight %}
+	$ # BTW: This looks very simple, but it still requires Jool's kernel module to be active.
+	$ jool_siit
+
+Pause Jool:
+
+	# jool --global --disable
 
 Turn "address dependent filtering" on:
 
-{% highlight bash %}
-$ # true, false, 1, 0, yes, no, on and off all count as valid booleans.
-# jool_siit --global --dropAddr true
-{% endhighlight %}
+	$ # true, false, 1, 0, yes, no, on and off all count as valid booleans.
+	# jool --address-dependent-filtering true
+
+Update the plateaus list:
+
+	# jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
 ## Keys
 
@@ -78,28 +81,27 @@ The following flag keys are available:
 
 ### `--enable`, `--disable`
 
-- Name: Manual Enabling and Disabling
 - Type: -
 - Default: Depends on modprobe arguments
 - Modes: Both (SIIT and Stateful)
 
-Pauses and resumes packet translation. This might be useful if you want to change more than one configuration parameter at once and you don't want packets being translated inconsistently while you run the commands.
+Resumes and pauses translation of packets, respectively. This might be useful if you want to change more than one configuration parameter at once and you don't want packets being translated inconsistently while you run the commands.
 
 (If you don't want Jool to stop while you reconfigure, don't worry about this. Use it only if it feels right.)
 
-Timeouts will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and [stored packets](#maxstoredpkts) might die while Jool is idle.
+Timeouts will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) and [fragments](#fragment-arrival-timeout) might die while Jool is idle.
 
-### `--dropAddr`
+### `--address-dependent-filtering`
 
-- Name: Address-dependent filtering
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful only
+- Deprecated name: `--dropAddr`
 
 Long story short:
 
-- `--dropAddr` ON means Jool should be an (address)-restricted-cone NAT.
-- `--dropAddr` OFF means Jool should be a full-cone NAT.
+- `--address-dependent-filtering` ON means Jool should be an (address)-restricted-cone NAT.
+- `--address-dependent-filtering` OFF means Jool should be a full-cone NAT.
 
 [Wiki](http://en.wikipedia.org/wiki/Network_address_translation#Methods_of_translation).
 
@@ -125,19 +127,19 @@ Then _n4b_ tries to chat _n6_ too:
 
 Because the BIB entry exists, _J_ knows that _n4b_ means "2001:db8::1#10" when he says "192.0.2.1#10", so the packet can technically be translated. However, because of the session tables, _J_ can also tell that _n6_ hasn't been talking to _n4b_ in the past.
 
-If `--dropAddr` is OFF, _J_ will allow _n4b_'s packet to pass. If `--dropAddr` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
+If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet to pass. If `--address-dependent-filtering` is ON, _J_ will drop _n4b_'s packet and respond with a "Communication Administratively Prohibited" ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).
 
-* If you're using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for `--dropAddr` to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn't normally start packet streams.
-* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, it makes sense for `--dropAddr` to be ON. This is because clients choose their ports at random; it is suspicious for random outsider nodes to guess these ports.
+* If you're using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn't normally start packet streams.
+* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be ON. This is because clients choose their ports at random; it is suspicious for random outsider nodes to guess these ports.
 
-`--dropAddr` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible).
+`--address-dependent-filtering` ON might break NAT traversal methods like STUN (or at least make some operation modes impossible).
 
-### `--dropInfo`
+### `--drop-icmpv6-info`
 
-- Name: Filtering of ICMPv6 info messages
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful only
+- Deprecated name: `--dropInfo`
 
 If you turn this on, pings (both requests and responses) will be blocked while being translated from ICMPv6 to ICMPv4.
 
@@ -145,154 +147,153 @@ For some reason, we're not supposed to block pings from ICMPv4 to ICMPv6, but si
 
 This rule will not affect Error ICMP messages.
 
-### `--dropTCP`
+### `--drop-externally-initiated-tcp`
 
-- Name: Dropping externally initiated TCP connections
 - Type: Boolean
 - Default: OFF
 - Modes: Stateful only
+- Deprecated name: `--dropTCP`
 
-Turn `--dropTCP` ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.
+Turn `--drop-externally-initiated-tcp` ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.
 
 Of course, this will not block IPv4 traffic if some IPv6 node first requested it.
 
-### `--toUDP`
+### `--udp-timeout`
 
-- Name: UDP session lifetime
 - Type: Integer (seconds)
 - Default: 5 minutes
 - Modes: Stateful only
+- Deprecated name: `--toUDP`
 
 When a UDP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
 When you change this value, the lifetimes of all already existing UDP sessions are updated.
 
-### `--toTCPest`
+### `--tcp-est-timeout`
 
-- Name: TCP established session lifetime
 - Type: Integer (seconds)
 - Default: 2 hours
 - Modes: Stateful only
+- Deprecated name: `--toTCPest`
 
-When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `--toTCPtrans` timeout.
+When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `--tcp-trans-timeout` timeout.
 
 When you change this value, the lifetimes of all already existing established TCP sessions are updated.
 
-### `--toTCPtrans`
+### `--tcp-trans-timeout`
 
-- Name: TCP transitory session lifetime
 - Type: Integer (seconds)
 - Default: 4 minutes
 - Modes: Stateful only
+- Deprecated name: `--toTCPtrans`
 
-When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being terminated by the endpoints, or is technically established but has remained inactive for `--toTCPest` time.
+When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being terminated by the endpoints, or is technically established but has remained inactive for `--tcp-est-timeout` time.
 
 When you change this value, the lifetimes of all already existing transitory TCP sessions are updated.
 
-### `--toICMP`
+### `--icmp-timeout`
 
-- Name: ICMP session lifetime
 - Type: Integer (seconds)
 - Default: 1 minute
 - Modes: Stateful only
+- Deprecated name: `--toICMP`
 
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
 When you change this value, the lifetimes of all already existing ICMP sessions are updated.
 
-### `--toFrag`
+### `--fragment-arrival-timeout`
 
-- Name: Fragment lifetime
 - Type: Integer (seconds)
 - Default: 2 seconds
-- Modes: Stateful only
+- Modes: NAT64 only
+- Deprecated name: `--toFrag`
 
 Stateful Jool requires fragment reassembly.
 
-In kernels 3.13 and above, `--toFrag` does nothing whatsoever.
+In kernels 3.13 and above, `--fragment-arrival-timeout` does nothing whatsoever.
 
 In kernels 3.12 and below, the kernel's IPv6 fragment reassembly module (`nf_defrag_ipv6`) is a little tricky. It collects the fragments, and instead of reassembling, it fetches them all to the rest of the kernel in ascending order and really quickly. Because Jool has to process all the fragments of a single packet at the same time, it has to wait until `nf_defrag_ipv6` has handed them all.
 
-`--toFrag` is the time Jool will wait for `nf_defrag_ipv6` to fetch all the fragments of a common packet. _It has nothing to do with waiting for fragments to arrive at the node_.
+`--fragment-arrival-timeout` is the time Jool will wait for `nf_defrag_ipv6` to fetch all the fragments of a common packet. _It has nothing to do with waiting for fragments to arrive at the node_.
 
-Because `nf_defrag_ipv6` already waited for all the fragments to arrive, it should fetch them in nanoseconds. Therefore, `--toFrag`'s default value of 2 seconds is probably overly high. On the other hand, unless there is a random module dropping packets in between, all of the fragments should always arrive immediately, hence the timer should actually never run out (even if you're being attacked).
+Because `nf_defrag_ipv6` already waited for all the fragments to arrive, it should fetch them in nanoseconds. Therefore, `--fragment-arrival-timeout`'s default value of 2 seconds is probably overly high. On the other hand, unless there is a random module dropping packets in between, all of the fragments should always arrive immediately, hence the timer should actually never run out (even if you're being attacked).
 
 SIIT Jool does not need fragment reassembly at all.
 
 This behavior changed from Jool 3.2, where `--toFrag` used to actually be the time Jool would wait for fragments to arrive at the node.
 
-### `--maxStoredPkts`
+### `--maximum-simultaneous-opens`
 
-- Name: Maximum number of stored packets
 - Type: Integer
 - Default: 10
-- Modes: Stateful only
+- Modes: NAT64 only
+- Deprecated name: `--maxStoredPkts`
 
 When an external (IPv4) node first attempts to open a connection and there's no [BIB entry](misc-bib.html) for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
 
 In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
-`--maxStoredPkts` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to answer the ICMP error message on the eleventh one.
+`--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to answer the ICMP error message on the eleventh one.
 
-### `--setTC`
+### `--zeroize-traffic-class`
 
-- Name: Override IPv6 traffic class
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and NAT64)
 - Translation direction: IPv4 to IPv6
+- Deprecated name: `--setTC`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
 
 If you leave this OFF, the TOS value will be copied directly to the Traffic Class field. If you turn this ON, Jool will always set Traffic Class as **zero** instead.
 
-### `--setTOS`
+### `--override-tos`
 
-- Name: Override IPv4 type of service
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and NAT64)
 - Translation direction: IPv6 to IPv4
+- Deprecated name: `--setTOS`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
 
-If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as [`--TOS`](#tos) instead.
+If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as [`--tos`](#tos) instead.
 
-### `--TOS`
+### `--tos`
 
-- Name: IPv4 type of service
 - Type: Integer
 - Default: 0
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and NAT64)
 - Translation direction: IPv6 to IPv4
+- Deprecated name: `--TOS`
 
-Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--setTOS`](#settos) is ON_.
+Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#override-tos) is ON_.
 
-### `--atomicFragments`
+### `--allow-atomic-fragments`
 
-See [Atomic Fragments](usr-flags-atomic.html).
+Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--setDF`
 
-See [Atomic Fragments](usr-flags-atomic.html).
+Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--genFH`
 
-See [Atomic Fragments](usr-flags-atomic.html).
+Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--genID`
 
-See [Atomic Fragments](usr-flags-atomic.html).
+Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--boostMTU`
 
-See [Atomic Fragments](usr-flags-atomic.html).
+Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 
-## `--computeUDPCsumZero`
+### `--amend-udp-checksum-zero`
 
-- Name: Amend packets with zero UDP checksum?
 - Type: Boolean
-- Default: False
+- Default: OFF
 - Modes: SIIT only
 - Translation direction: IPv4 to IPv6 (UDP only)
 
@@ -300,20 +301,34 @@ In IPv4, it's legal for UDP packets to contain zero as checksum. This is because
 
 In IPv6, zero is an invalid checksum value for UDP packets.
 
-- If `--computeUDPCsumZero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.
-- If `--computeUDPCsumZero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_INFO).
+- If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.
+- If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
 
-This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checskum. In these cases, the packet will be dropped regardless of `--computeUDPCsumZero`.
+This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checskum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
 
-Stateful Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it can also do so for fragmented packets.
+Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it can also do so for fragmented packets.
 
-### `--plateaus`
+### `--randomize-rfc6791-addresses`
 
-- Name: MTU plateaus
+- Type: Boolean
+- Default: ON
+- Modes: SIIT only
+- Translation direction: IPv6 to IPv4
+
+If an ICMPv6 error's source cannot be translated, [RFC 6791](https://tools.ietf.org/html/rfc6791) wants us to assign as source a random IPv4 address from the [RFC 6791 pool](usr-flags-pool6791.html).
+
+- If `--randomize-rfc6791-addresses` is ON, Jool will follow RFC 6791's advice, assigning a random address from the pool.
+- If `--randomize-rfc6791-addresses` is OFF, Jool will assign the `hop limit`th address from the pool.
+
+Why? [It can be argued that `hop limit`th is better](https://github.com/NICMx/NAT64/issues/130).
+
+### `--mtu-plateaus`
+
 - Type: List of Integers separated by commas (If you want whitespace, remember to quote).
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and NAT64)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
+- Deprecated name: `--plateaus`
 
 When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification does not require routers to include this data.
 
@@ -323,5 +338,5 @@ To address this problem, when Jool finds itself attempting to translate a zero-M
 
 Note that if `--boostMTU` is activated, the MTU will still be 1280 even if the relevant plateau is less than 1280.
 
-Also, you don't really need to sort the values as you input them.
+You don't really need to sort the values as you input them.
 

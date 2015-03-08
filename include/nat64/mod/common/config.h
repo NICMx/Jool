@@ -22,6 +22,8 @@ bool config_get_addr_dependent_filtering(void);
 bool config_get_drop_external_connections(void);
 
 bool config_get_compute_UDP_csum_zero(void);
+bool config_randomize_rfc6791_pool(void);
+
 bool config_get_reset_traffic_class(void);
 void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 		bool *df_always_on);

@@ -9,6 +9,74 @@ title: Documentation - Troubleshooting/FAQ
 
 This sums up problems we've seen users run into.
 
+## I modprobed Jool but it doesn't seem to be doing anything.
+
+Modprobing Jool without enough arguments is legal. It will assume you intend to finish configuring using the userspace app, and sit idle until you've done so.
+
+Use the userspace app's [`--global`](usr-flags-global.html#description) flag to figure out Jool's status:
+
+{% highlight bash %}
+$ jool_siit --global
+  Status: Disabled
+{% endhighlight %}
+
+{% highlight bash %}
+$ jool --global
+  Status: Disabled
+{% endhighlight %}
+
+SIIT Jool's minimum configuration requirements are
+
+- A prefix in the [IPv6 pool](usr-flags-pool6.html) **or** at least one entry in the [EAM table](usr-flags-eamt.html).
+- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
+
+Stateful Jool's minimum configuration requirements are
+
+- At least one prefix in the [IPv6 pool](usr-flags-pool6.html).
+- At least one prefix/address in the [IPv4 pool](usr-flags-pool4.html).
+- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
+
+If that's not the problem, try enabling debug while compiling.
+
+	user@node:~/Jool-<version>/mod$ make debug
+
+Reinstall and remodprobe. Jool will be a lot more verbose in `dmesg`:
+
+	$ dmesg | tail -5
+	[ 3465.639622] ===============================================
+	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8
+	[ 3465.639724] Translating the Packet.
+	[ 3465.639756] Address 192.0.2.16 lacks an EAMT entry and there's no pool6 prefix.
+	[ 3465.639806] Returning the packet to the kernel.
+
+If it's not printing anything despite your enabling debug, perhaps it's because your log level is too high. See [this](http://elinux.org/Debugging_by_printing#Log_Levels).
+
+The debugging messages quickly become gigabytes of log, so remember to revert this before going official.
+
+## What do I do with this error message? It's horribly ambiguous.
+
+Yes, the kernel module's response messages to userspace are very primitive. We could truly improve communication with the userspace application, but we have no control over `modprobe`'s.
+
+In any case, you will most likely have better luck reading Jool's logs. As with any other kernel component, Jool's messages are mixed along with the others and can be seen by running `dmesg`. In general, most kernels are very silent once they're done booting, so Jool's latest message should be found at the very end.
+
+{% highlight bash %}
+$ sudo modprobe jool_siit pool6=2001:db8::/96 pool4=192.0a.2.0/24
+ERROR: could not insert module jool_siit.ko: Invalid parameters
+$ dmesg | tail -1
+[28495.042365] SIIT Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
+192.0a.2.0/24.
+{% endhighlight %}
+
+{% highlight bash %}
+$ sudo jool --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
+TCP:
+Invalid input data or parameter (System error -7)
+$ dmesg | tail -1
+[29982.832343] NAT64 Jool ERROR (add_static_route): The IPv4 address and port could not be
+reserved from the pool. Maybe the IPv4 address you provided does not belong to the pool.
+Or maybe they're being used by some other BIB entry?
+{% endhighlight %}
+
 ## Jool is intermitently unable to translate traffic.
 
 Did you run something in the lines of
@@ -25,7 +93,7 @@ Link addresses are used by several relevant IPv6 protocols. In particular, they 
 
 Check the output of `ip addr`. 
 
-<div class="highlight"><pre><code class="bash">user@N:~# /sbin/ip address
+<div class="highlight"><pre><code class="bash">user@T:~$ /sbin/ip address
 1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
     inet 127.0.0.1/8 scope host lo
@@ -54,7 +122,7 @@ ip link set eth1 up
 
 Yes, I'm serious:
 
-<div class="highlight"><pre><code class="bash">user@N:~# /sbin/ip address
+<div class="highlight"><pre><code class="bash">user@T:~$ /sbin/ip address
 1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
     inet 127.0.0.1/8 scope host lo
@@ -74,7 +142,7 @@ Yes, I'm serious:
 
 (Note, you need to add the global address again)
 
-Also, for future reference, keep in mind that the correct way to flush an interface is
+Also, for future reference, keep in mind that the "correct" way to flush an interface is
 
 {% highlight bash %}
 ip addr flush dev eth1 scope global
@@ -86,6 +154,8 @@ IPv4 doesn't need link addresses.
 
 [Turn offloads off!](misc-offloading.html)
 
+If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
+
 ## I can't ping the IPv4 pool address.
 
 Actually, this is normal in Jool 3.2.x and below. The destination address of the ping packet is translatable, so Jool is stealing the packet. Unfortunately, it doesn't have a relevant BIB entry (because the ping wasn't started from IPv6), so the translation is a failure (and the packet is dropped).
@@ -94,74 +164,3 @@ It looking weird aside, it doesn't cause any other catastrophes; just ping the n
 
 Jool 3.3+ handles this better and the ping should succeed.
 
-## What do I do with this error message? It's horribly ambiguous.
-
-Yes, the kernel module's response messages to userspace are very primitive. We could truly improve communication with the userspace application, but we have no control over `modprobe`'s.
-
-In any case, you will most likely have better luck reading Jool's logs. As with any other kernel component, Jool's messages are mixed along with the others and can be seen by running `dmesg`. In general, most kernels are very silent once they're done booting, so Jool's latest message should be found at the very end.
-
-{% highlight bash %}
-$ sudo modprobe jool_siit pool6=2001:db8::/96 pool4=192.0a.2.0/24
-ERROR: could not insert module jool_siit.ko: Invalid parameters
-$ dmesg | tail -1
-[28495.042365] SIIT Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
-192.0a.2.0/24.
-{% endhighlight %}
-
-{% highlight bash %}
-$ sudo jool --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
-TCP:
-Invalid input data or parameter (System error -7)
-$ dmesg | tail -1
-[29982.832343] Stateful Jool ERROR (add_static_route): The IPv4 address and port could not be
-reserved from the pool. Maybe the IPv4 address you provided does not belong to the pool.
-Or maybe they're being used by some other BIB entry?
-{% endhighlight %}
-
-
-## I modprobed Jool but it doesn't seem to be doing anything.
-
-Modprobing Jool without enough arguments is legal. It will assume you intend to finish configuring using the userspace app, and sit idle until you've done so.
-
-Use the userspace app's [`--global`](usr-flags-global.html#description) flag to figure out Jool's status:
-
-{% highlight bash %}
-$ jool_siit --global
-  Status: Disabled
-{% endhighlight %}
-
-{% highlight bash %}
-$ jool --global
-  Status: Disabled
-{% endhighlight %}
-
-SIIT Jool's minimum configuration requirements are
-
-- A prefix in the [IPv6 pool](usr-flags-pool6.html) (with at least one allowed entry in the [IPv4 pool](usr-flags-pool4.html))  
-**or**  
-at least one one entry in the [EAM table](usr-flags-eamt.html).
-- At least one prefix in the [errorAddresses](usr-flags-error-addresses.html) pool.
-- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
-
-Stateful Jool's minimum configuration requirements are
-
-- At least one prefix in the [IPv6 pool](usr-flags-pool6.html).
-- At least one prefix in the [IPv4 pool](usr-flags-pool4.html).
-- You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
-
-If that's not the problem, try enabling debug.
-
-	user@node:~/Jool-<version>/mod$ make debug
-
-Reinstall and remodprobe. Jool will be a lot more verbose in `dmesg`:
-
-	$ dmesg | tail -5
-	[ 3465.639622] ===============================================
-	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8
-	[ 3465.639724] Translating the Packet.
-	[ 3465.639756] Address 192.0.2.16 lacks an EAMT entry and is not part of the IPv4 pool.
-	[ 3465.639806] Returning the packet to the kernel.
-
-If it's not printing anything despite your enabling debug, perhaps it's because your log level is too high. See [this](http://elinux.org/Debugging_by_printing#Log_Levels).
-
-The debugging messages quickly become gigabytes of log, so remember to revert this before going official.

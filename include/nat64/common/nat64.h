@@ -9,7 +9,7 @@
  */
 
 #ifdef STATEFUL
-#define MODULE_NAME "Stateful Jool"
+#define MODULE_NAME "NAT64 Jool"
 #else
 #define MODULE_NAME "SIIT Jool"
 #endif

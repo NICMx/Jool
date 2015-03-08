@@ -64,30 +64,27 @@
 #define MIN_TIMER_SLEEP (255)
 
 /* -- Config defaults -- */
-#define POOL6_DEF { "64:ff9b::/96" }
+#define DEFAULT_ADDR_DEPENDENT_FILTERING false
+#define DEFAULT_FILTER_ICMPV6_INFO false
+#define DEFAULT_DROP_EXTERNAL_CONNECTIONS false
+#define DEFAULT_MAX_STORED_PKTS 10
 
-#define POOL4_DEF { "192.168.2.2/32" }
-
-#define FILT_DEF_ADDR_DEPENDENT_FILTERING false
-#define FILT_DEF_FILTER_ICMPV6_INFO false
-#define FILT_DEF_DROP_EXTERNAL_CONNECTIONS false
-#define PKTQ_DEF_MAX_STORED_PKTS 10
-
-#define TRAN_DEF_RESET_TRAFFIC_CLASS false
-#define TRAN_DEF_RESET_TOS false
-#define TRAN_DEF_NEW_TOS 0
-#define TRAN_DEF_DF_ALWAYS_ON false
-#define TRAN_DEF_BUILD_IPV6_FH false
-#define TRAN_DEF_BUILD_IPV4_ID true
-#define TRAN_DEF_LOWER_MTU_FAIL true
-#define TRAN_DEF_COMPUTE_UDP_CSUM0 false
-#define TRAN_DEF_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
+#define DEFAULT_RESET_TRAFFIC_CLASS false
+#define DEFAULT_RESET_TOS false
+#define DEFAULT_NEW_TOS 0
+#define DEFAULT_DF_ALWAYS_ON false
+#define DEFAULT_BUILD_IPV6_FH false
+#define DEFAULT_BUILD_IPV4_ID true
+#define DEFAULT_LOWER_MTU_FAIL true
+#define DEFAULT_COMPUTE_UDP_CSUM0 false
+#define DEFAULT_RANDOMIZE_RFC6791 true
+#define DEFAULT_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
 
 
 /* -- IPv6 Pool -- */
 
 /**
- * The IPv6 pool's allowed prefix lengths.
+ * RFC 6052's allowed prefix lengths.
  */
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
 

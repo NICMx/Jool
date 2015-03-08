@@ -28,7 +28,7 @@ The idea is basically that of an "upgraded" [NAT](http://en.wikipedia.org/wiki/N
 - SIIT is the simpler form, and allows preconfigured 1-to-1 mappings between IPv4 addresses and IPv6 addresses.
 - A _Stateful NAT64_ (or NAT64 for short) allows several IPv6 nodes to dynamically share few IPv4 addresses (useful when you're a victim of [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion)).
 
-For historic reasons, sometimes we mess up and label SIIT as "Stateless NAT64". Because this expression does not seem to appear in any relevant standards, we consider it an imprecise term, despite the fact it makes some degree of sense. If possible, please try to suppress it.
+For historic reasons, sometimes we mess up and label SIIT as "Stateless NAT64". Because this expression does not seem to appear in any relevant standards, we consider it imprecise, despite the fact it makes some degree of sense. If possible, please try to suppress it.
 
 An SIIT implementation mangles network headers and sometimes transport checksums. A Stateful NAT64 also mangles transport identifiers.
 

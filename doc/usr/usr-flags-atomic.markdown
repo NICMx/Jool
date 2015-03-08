@@ -11,7 +11,7 @@ title: Documentation - Flags > Atomic Fragments
 
 1. [Overview](#overview)
 2. [Flags](#flags)
-	1. [`--atomicFragments`](#atomicfragments)
+	1. [`--allow-atomic-fragments`](#atomicfragments)
 	2. [`--setDF`](#setdf)
 	3. [`--genFH`](#genfh)
 	4. [`--genID`](#genid)
@@ -35,9 +35,8 @@ Let it be known that we fully condone the deprecation of atomic fragments.
 
 ## Flags
 
-### `--atomicFragments`
+### `--allow-atomic-fragments`
 
-- Name: Allow atomic fragments?
 - Type: Boolean
 - Default: OFF
 - Modes: Both (SIIT and Stateful)
@@ -48,7 +47,7 @@ This is a short version of all the following flags.
 This:
 
 {% highlight bash %}
-$(jool) --atomicFragments true
+$(jool) --allow-atomic-fragments true
 {% endhighlight %}
 
 is the same as
@@ -65,7 +64,7 @@ This is the default behaviour requested by [RFC 6145](http://tools.ietf.org/html
 Also this:
 
 {% highlight bash %}
-$(jool) --atomicFragments false
+$(jool) --allow-atomic-fragments false
 {% endhighlight %}
 
 is the same as

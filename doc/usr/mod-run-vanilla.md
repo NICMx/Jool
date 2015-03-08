@@ -101,7 +101,7 @@ This is the insertion syntax:
 	user@T:~# /sbin/modprobe jool_siit \
 		[pool6=<IPv6 prefix>] \
 		[blacklist=<IPv4 prefixes>] \
-		[errorAddresses=<IPv4 prefixes>] \
+		[pool6791=<IPv4 prefixes>] \
 		[disabled]
 
 These are the arguments:
@@ -109,10 +109,10 @@ These are the arguments:
 - `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets.  
 This is optional because you might want to use the EAM table instead.
 - `blacklist` represents IPv4 addresses Jool will **not** translate _using the pool6 prefix_ (ie. this does not affect EAMT translation).  
-You can insert up to five comma-separated `blacklist` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-blacklist.html).  
-- `errorAddresses` is a secondary IPv4 pool used for something [slightly more cryptic](misc-rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
-If this pool is empty, Jool will fall back to use any of its node's IPv4 addresses.  
-You can insert up to five comma-separated `errorAddresses` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-error-addresses.html).
+You can insert up to five comma-separated `blacklist` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-blacklist.html).
+- `pool6791` is a secondary IPv4 pool used for something [slightly more cryptic](misc-rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
+If this pool is empty, Jool will fall back to use this own node's natural source address towards the destination node.  
+You can insert up to five comma-separated `pool6791` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool6791.html).
 - `disabled` starts Jool inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated. The EAM walkthrough exemplifies its use.  
 If not present, Jool starts translating traffic right away.
 
@@ -176,7 +176,7 @@ user@T:~# /sbin/modprobe -r jool_siit
 
 Here are some logical follow-ups if you want to read more:
 
-- The [`errorAddresses` argument](usr-flags-error-addresses.html) and its [gimmic](misc-rfc6791.html).
+- The [`pool6791` argument](usr-flags-pool6791.html) and its [gimmic](misc-rfc6791.html).
 - Please consider the [MTU issues](misc-mtu.html) before releasing.
 - If you care about EAM, head to the [second run](mod-run-eam.html).
 - If you care about stateful NAT64, head to the [third run](mod-run-stateful.html).

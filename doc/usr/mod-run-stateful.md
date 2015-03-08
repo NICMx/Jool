@@ -45,10 +45,9 @@ user@V:~# service network-manager stop
 user@V:~# /sbin/ip link set eth0 up
 user@V:~# # Replace ".16" depending on which node you're on.
 user@V:~# /sbin/ip address add 203.0.113.16/24 dev eth0
-user@V:~# /sbin/ip route add default via 203.0.113.2
 {% endhighlight %}
 
-Notice we changed the default route. See below for the rationale.
+Notice these nodes do not need a default route. This is a consequence of them being in the same network as the NAT64; 203.0.113.2 will be masking the IPv6 nodes, so _V_ through _Z_ think they're talking directly with _T_.
 
 Node _T_:
 
@@ -90,14 +89,24 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 
 ## Jool
 
-{% highlight bash %}
-user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
-{% endhighlight %}
+This is the insertion syntax:
+
+	user@T:~# /sbin/modprobe jool \
+		[pool6=<IPv6 prefix>] \
+		[pool4=<IPv4 prefixes>] \
+		[disabled]
 
 - `pool6` has the same meaning as in SIIT Jool.
 - `pool4` is the subset of the node's addresses which will be used for translation (the prefix length defaults to /32).
+- `disabled` has the same meaning as in SIIT Jool.
 
-EAM and `errorAddresses` do not make sense in stateful mode, and as such are unavailable.
+EAM and `pool6791` do not make sense in stateful mode, and as such are unavailable.
+
+The result looks like this:
+
+	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
+
+Jool will listen on address `203.0.113.2` and append and remove prefix `64:ff9b::/96`.
 
 ## Testing
 
@@ -120,8 +129,6 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 ![Figure 1 - IPv4 TCP from an IPv6 node](images/run-stateful-firefox-4to6.png)
 
-TODO - regenerate the image; it's using the old network.
-
 See the further reading below to see how to enable IPv4 nodes to start communication.
 
 ## Stopping Jool
@@ -138,4 +145,5 @@ user@T:~# /sbin/modprobe -r jool
 2. There's a discussion on the [IPv4 pool](op-pool4.html).
 3. The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address-hack transparent to users.
 4. Please consider the [MTU issues](misc-mtu.html) before releasing.
+5. There's also an [alternate stateful run](mod-run-alternate.html). Perhaps it can help you see things from a better perspective.
 

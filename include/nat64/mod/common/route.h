@@ -4,27 +4,27 @@
 #include "nat64/mod/common/packet.h"
 
 /**
- * One-liner for filling up a 'flowi' and then calling the kernel's IPv4 routing function.
+ * One-liner for filling up a 'flowi' and then calling the kernel's IPv4 out-routing function.
  *
- * Routes the skb described by the arguments. Returns the 'destination entry' the kernel needs
- * to know which interface the skb should be forwarded through.
- *
- * This function assumes "skb" isn't fragmented.
+ * Routes pkt. Fills pkt->skb with the resulting device and destination.
  */
 int route4(struct packet *pkt);
 
 /**
- * Same as route_ipv4, except this you need to specify flow.
+ * Same as route4(), except the layer-4 information used for routing will be extracted from "in"
+ * instead of "out".
+ *
+ * The packet being routed is "out".
  */
-int __route4(struct packet *pkt_out, struct flowi4 *flow);
+int __route4(struct packet *in, struct packet *out);
 
 /**
- * Same as route_ipv4(), except for IPv6.
+ * Same as route4(), except for IPv6.
  */
 int route6(struct packet *pkt);
 
 /**
- * Protocol independent version of the previous two functions.
+ * Protocol independent version of route4() and route6().
  * ie. it's just a wrapper.
  */
 int route(struct packet *pkt);

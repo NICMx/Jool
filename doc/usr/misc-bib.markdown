@@ -26,5 +26,5 @@ There are two types of BIB entries:
 * Static: You create them manually, to publish a IPv6 service to the IPv4 Internet. This is analogous to <a href="http://en.wikipedia.org/wiki/Port_forwarding" target="_blank">port forwarding</a> in normal NATs.
 * Dynamic: Jool creates these on the fly. This has to be done because IPv6-started connections also need IPv4 masks (otherwise they wouldn't be able to receive answers).
 
-See the [walkthrough](op-static-bindings.html) or the [reference material](usr-flags-bib.html) for information on how to create and destroy entries manually. See [\--dropAddr](usr-flags-global.html#dropaddr) if you think dynamic entries are dangerous.
+See the [walkthrough](op-static-bindings.html) or the [reference material](usr-flags-bib.html) for information on how to create and destroy entries manually. See [`--address-dependent-filtering`](usr-flags-global.html#address-dependent-filtering) if you think dynamic entries are dangerous.
 

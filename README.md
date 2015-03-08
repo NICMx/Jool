@@ -1,6 +1,6 @@
 # [Jool](https://www.jool.mx)
 
-A [NAT64](https://www.jool.mx/intro-nat64.html) for Linux.
+An [SIIT and a NAT64](https://www.jool.mx/intro-nat64.html) for Linux.
 
 ## Documentation
 

@@ -4,35 +4,36 @@
 
 #include "nat64/common/config.h"
 
+/* Normal flags */
+#define OPTNAME_ENABLE				"enable"
+#define OPTNAME_DISABLE				"disable"
+#define OPTNAME_ZEROIZE_TC			"zeroize-traffic-class"
+#define OPTNAME_OVERRIDE_TOS		"override-tos"
+#define OPTNAME_TOS					"tos"
+#define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
 
-#define DROP_BY_ADDR_OPT		"dropAddr"
-#define DROP_ICMP6_INFO_OPT		"dropInfo"
-#define DROP_EXTERNAL_TCP_OPT	"dropTCP"
-#define UDP_TIMEOUT_OPT			"toUDP"
-#define ICMP_TIMEOUT_OPT		"toICMP"
-#define TCP_EST_TIMEOUT_OPT		"toTCPest"
-#define TCP_TRANS_TIMEOUT_OPT 	"toTCPtrans"
-#define STORED_PKTS_OPT			"maxStoredPkts"
+/* Atomic fragment flags (deprecated) */
+#define OPTNAME_ALLOW_ATOMIC_FRAGS	"allow-atomic-fragments"
+#define OPTNAME_DF_ALWAYS_ON		"setDF"
+#define OPTNAME_GENERATE_FH			"genFH"
+#define OPTNAME_GENERATE_ID4		"genID"
+#define OPTNAME_FIX_ILLEGAL_MTUS	"boostMTU"
 
-#define RESET_TCLASS_OPT		"setTC"
-#define RESET_TOS_OPT			"setTOS"
-#define NEW_TOS_OPT				"TOS"
-#define DF_ALWAYS_ON_OPT		"setDF"
-#define BUILD_IPV6_FRAG_HDR		"genFH"
-#define BUILD_IPV4_ID_OPT		"genID"
-#define LOWER_MTU_FAIL_OPT		"boostMTU"
-#define IPV6_NEXTHOP_MTU_OPT	"nextMTU6"
-#define IPV4_NEXTHOP_MTU_OPT	"nextMTU4"
-#define MTU_PLATEAUS_OPT		"plateaus"
+/* SIIT-only flags */
+#define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
+#define OPTNAME_RANDOMIZE_RFC6791	"randomize-rfc6791-addresses"
 
-#define FRAG_TIMEOUT_OPT		"toFrag"
+/* NAT64-only flags */
+#define OPTNAME_DROP_BY_ADDR		"address-dependent-filtering"
+#define OPTNAME_DROP_ICMP6_INFO		"drop-icmpv6-info"
+#define OPTNAME_DROP_EXTERNAL_TCP	"drop-externally-initiated-tcp"
+#define OPTNAME_UDP_TIMEOUT			"udp-timeout"
+#define OPTNAME_ICMP_TIMEOUT		"icmp-timeout"
+#define OPTNAME_TCPEST_TIMEOUT		"tcp-est-timeout"
+#define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
+#define OPTNAME_FRAG_TIMEOUT		"fragment-arrival-timeout"
+#define OPTNAME_MAX_SO				"maximum-simultaneous-opens"
 
-#define ENABLE_TRANSLATION		"enable"
-#define DISABLE_TRANSLATION		"disable"
-
-#define COMPUTE_UDP_CSUM		"computeUDPCsumZero"
-
-#define ALLOW_ATOMIC_FRAGMENTS	"atomicFragments"
 
 int global_display(void);
 int global_update(__u8 type, size_t size, void *data);

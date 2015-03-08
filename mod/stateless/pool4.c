@@ -45,7 +45,7 @@ bool pool4_contains(__be32 addr)
 	struct in_addr net_addr;
 	bool result = false;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	list_for_each_entry_rcu(entry, &pool, list_hook) {
 		if (ipv4_prefix_contains(&entry->prefix, &inaddr)) {
 			result = true;
@@ -67,7 +67,7 @@ bool pool4_contains(__be32 addr)
 	}
 
 end:
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return result;
 }
 

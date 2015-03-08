@@ -2,11 +2,12 @@
 
 #include <linux/rculist.h>
 #include <linux/inet.h>
+#include <linux/in_route.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <net/ip_fib.h>
 
-#include "nat64/common/str_utils.h"
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/random.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateless/pool.h"
@@ -53,75 +54,42 @@ static int pool_count_wrapper(unsigned int *result)
 }
 
 /**
- *	Function to get an IPv4 address of the local machine from "daddr".
- *	if not result found return error.
- *	RCU locks must be hold.
+ * Returns in "result" the IPv4 address an ICMP error towards "out"'s destination should be sourced
+ * with.
+ * RCU locks must be already held.
  */
-static int get_host_address(struct in_addr *result, struct packet *in, struct packet *out)
+static int get_rfc6791_address(struct packet *in, unsigned int count, struct in_addr *result)
+{
+	struct pool_entry *entry;
+	unsigned int addr_index;
+
+	addr_index = config_randomize_rfc6791_pool() ? get_random_u32() : pkt_ip6_hdr(in)->hop_limit;
+	addr_index %= count;
+
+	list_for_each_entry_rcu(entry, &pool, list_hook) {
+		count = prefix4_get_addr_count(&entry->prefix);
+		if (count >= addr_index)
+			break;
+		addr_index -= count;
+	}
+
+	result->s_addr = htonl(ntohl(entry->prefix.address.s_addr) | addr_index);
+	return 0;
+}
+
+/**
+ * Returns in "result" the IPv4 address an ICMP error towards "out"'s destination should be sourced
+ * with, assuming the RFC6791 pool is empty.
+ * RCU locks must be already held.
+ */
+static int get_host_address(struct packet *in, struct packet *out, struct in_addr *result)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifaddr;
-	struct iphdr *hdr_ip;
 	int error;
 
-	struct flowi4 flow;
-
-	if (!in || !out) {
-		log_err("in or out cannot be NULL");
-		return -EINVAL;
-	}
-
-	memset(&flow, 0, sizeof(flow));
-	hdr_ip = ip_hdr(out->skb);
-	/* flow.flowi4_oif; */
-	/* flow.flowi4_iif; */
-	flow.flowi4_mark = in->skb->mark;
-	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
-	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi4_proto = hdr_ip->protocol;
-	/*
-	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever
-	 * create routes on Jool's behalf?
-	 * TODO (help) We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
-	 * If you change it, the corresponding attribute in route_ipv6() should probably follow.
-	 */
-	flow.flowi4_flags = 0;
-	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
-	/* flow.flowi4_secid; */
-	/* It appears this one only introduces noise. */
-	/* flow.saddr = hdr_ip->saddr; */
-	flow.daddr = hdr_ip->daddr;
-
-	{
-		union {
-			struct tcphdr *tcp;
-			struct udphdr *udp;
-			struct icmphdr *icmp4;
-		} hdr;
-
-		switch (pkt_l4_proto(in)) {
-		case L4PROTO_TCP:
-			hdr.tcp = pkt_tcp_hdr(in);
-			flow.fl4_sport = hdr.tcp->source;
-			flow.fl4_dport = hdr.tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr.udp = pkt_udp_hdr(in);
-			flow.fl4_sport = hdr.udp->source;
-			flow.fl4_dport = hdr.udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr.icmp4 = pkt_icmp4_hdr(in);
-			flow.fl4_icmp_type = hdr.icmp4->type;
-			flow.fl4_icmp_code = hdr.icmp4->code;
-			break;
-		case L4PROTO_OTHER:
-			break;
-		}
-	}
-
-	error = __route4(out, &flow);
+	error = __route4(in, out);
 	if (error)
 		return error;
 
@@ -137,18 +105,17 @@ static int get_host_address(struct in_addr *result, struct packet *in, struct pa
 		return 0;
 	}
 
-	log_err("Something went wrong; looks like packet was routed to the loopback net_device.");
+	log_warn_once("The kernel routed an IPv4 packet via device %s, which doesn't have any "
+			"(non-loopback) IPv4 addresses.", dev->name);
 	return -EINVAL;
 }
 
-int rfc6791_get(struct in_addr *result, struct packet *in, struct packet *out)
+int rfc6791_get(struct packet *in, struct packet *out, struct in_addr *result)
 {
-	struct pool_entry *entry;
 	unsigned int count;
-	unsigned int rand;
 	int error;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 
 	/*
 	 * I'm counting the list elements instead of using an algorithm like reservoir sampling
@@ -158,31 +125,17 @@ int rfc6791_get(struct in_addr *result, struct packet *in, struct packet *out)
 	 */
 	error = pool_count_wrapper(&count);
 	if (error) {
-		rcu_read_unlock();
 		log_debug("pool_count failed with errcode %d.", error);
-		return error;
-	}
-
-	if (count == 0) {
-		error = get_host_address(result, in, out);
 		goto end;
 	}
 
-	rand = get_random_u32() % count;
-
-	list_for_each_entry_rcu(entry, &pool, list_hook) {
-		count = prefix4_get_addr_count(&entry->prefix);
-		if (count >= rand)
-			break;
-		rand -= count;
-	}
-
-	result->s_addr = htonl(ntohl(entry->prefix.address.s_addr) | rand);
+	error = (count != 0)
+			? get_rfc6791_address(in, count, result)
+			: get_host_address(in, out, result);
+	/* Fall through. */
 
 end:
-	rcu_read_unlock();
-	if (error)
-		log_warn_once("The IPv4 RFC6791 pool and the Host's IPv4 address are empty.");
+	rcu_read_unlock_bh();
 	return error;
 }
 

@@ -321,6 +321,7 @@ enum global_type {
 	DROP_EXTERNAL_TCP,
 #else
 	COMPUTE_UDP_CSUM_ZERO,
+	RANDOMIZE_RFC6791,
 #endif
 
 	RESET_TCLASS,
@@ -334,133 +335,6 @@ enum global_type {
 	DISABLE,
 	ENABLE,
 	ATOMIC_FRAGMENTS,
-};
-
-/**
- * Configuration of the "Session DB" module.
- *
- * Time values in this structure should be read as jiffies in the kernel, milliseconds in
- * userspace.
- */
-struct sessiondb_config {
-	struct {
-		/** Maximum time inactive UDP sessions will remain in the DB. */
-		__u64 udp;
-		/** Maximum time inactive ICMP sessions will remain in the DB. */
-		__u64 icmp;
-		/** Maximum time established TCP sessions will remain in the DB. */
-		__u64 tcp_est;
-		/** Maximum time transitory TCP sessions will remain in the DB. */
-		__u64 tcp_trans;
-	} ttl;
-};
-
-/**
- * Time interval to allow arrival of fragments, in milliseconds.
- */
-struct fragmentation_config {
-	__u64 fragment_timeout;
-};
-
-/**
- * Configuration of the "Packet Queue" module.
- */
-struct pktqueue_config {
-	__u64 max_pkts;
-};
-
-/**
- * Configuration for the "Filtering and Updating" module.
- */
-struct filtering_config {
-	/** Use Address-Dependent Filtering? (boolean) */
-	__u8 drop_by_addr;
-	/** Filter ICMPv6 Informational packets? (boolean) */
-	__u8 drop_icmp6_info;
-	/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
-	__u8 drop_external_tcp;
-};
-
-/**
- * Configuration for the "Translate the packet" module.
- */
-struct translate_config {
-	/**
-	 * "true" if the Traffic Class field of translated IPv6 headers should always be set to zero.
-	 * Otherwise it will be copied from the IPv4 header's TOS field.
-	 * Boolean.
-	 */
-	__u8 reset_traffic_class;
-	/**
-	 * "true" if the Type of Service (TOS) field of translated IPv4 headers should always be set
-	 * to "new_tos".
-	 * Otherwise it will be copied from the IPv6 header's Traffic Class field.
-	 * Boolean.
-	 */
-	__u8 reset_tos;
-	/**
-	 * If "reset_tos" is "true", this is the value the translator will always write in the TOS
-	 * field of translated IPv4 headers.
-	 * If "reset_tos" is "false", then this doesn't do anything.
-	 */
-	__u8 new_tos;
-	/**
-	 * If "true", the translator will always set translated IPv4 headers' Don't Fragment (DF)
-	 * flags as one.
-	 * Otherwise the flag will be set depending on the packet's length.
-	 * Boolean.
-	 */
-	__u8 df_always_on;
- 	/**
-	 * If "true", the translator will always build an "IPv6 Fragment Header" when the incoming IPv4
-	 * packet does not set the DF flag.
-	 * Otherwise, the translator will not build the "IPv6 Fragment Header" whether the IPv4 DF flag
-	 * is set or not set, unless the incoming IPv4 packet is a fragment.
-	 * Boolean.
-	 */
-	__u8 build_ipv6_fh;
-	/**
-	 * Whether translated IPv4 headers' Identification fields should be computed (Either from the
-	 * IPv6 fragment header's Identification field or deduced from the packet's length).
-	 * Otherwise it will always be set as zero.
-	 * Boolean.
-	 */
-	__u8 build_ipv4_id;
-	/**
-	 * "true" if the value for MTU fields of outgoing ICMPv6 fragmentation needed packets should
-	 * be set as no less than 1280, regardless of MTU plateaus and whatnot.
-	 * See RFC 6145 section 6, second approach.
-	 * Boolean.
-	 */
-	__u8 lower_mtu_fail;
-	/** Length of the mtu_plateaus array. */
-	__u16 mtu_plateau_count;
-	/**
-	 * Jool won't perform the translation of the incoming packets.
-	 * Otherwise Jool will translate the incoming packets.
-	 */
-	__u8 is_disable;
-#ifndef STATEFUL
-	/**
-	 * Configuration function to allow calculating an IPv6 checksum from an incoming UDP packet
-	 * that do not contain an UDP checksum (i.e., the UDP checksum field is zero).
-	 */
-	__u8 compute_udp_csum_zero;
-#endif
-	/**
-	 * Used to let know to the user if Jool is performing translation of packets.
-	 * When the IPv6 Prefix is empty and the EAM table is empty too, Jool will be disable, also Jool
-	 * will be on status disable when is_disable is true.
-	 */
-	__u8 jool_status;
-	/**
-	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
-	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
-	 * fragmentation needed packets.
-	 * The translator is supposed to pick the greatest plateau value that is less than the incoming
-	 * packet's Total Length field.
-	 */
-	__u16 *mtu_plateaus;
 };
 
 /**
@@ -537,13 +411,123 @@ struct eam_entry_usr {
  * A copy of the entire running configuration, excluding databases.
  */
 struct global_config {
+	/**
+	 * Is Jool actually translating?
+	 * This depends on several factors depending on stateness, and is not an actual variable Jool
+	 * stores; it is computed as it is requested.
+	 * Boolean.
+	 */
+	__u8 jool_status;
+	/**
+	 * Did the user manually instruct Jool to sit idle?
+	 * Boolean.
+	 */
+	__u8 is_disable;
+
+	/**
+	 * "true" if the Traffic Class field of translated IPv6 headers should always be zeroized.
+	 * Otherwise it will be copied from the IPv4 header's TOS field.
+	 * Boolean.
+	 */
+	__u8 reset_traffic_class;
+	/**
+	 * "true" if the Type of Service (TOS) field of translated IPv4 headers should always be set
+	 * as "new_tos".
+	 * Otherwise it will be copied from the IPv6 header's Traffic Class field.
+	 * Boolean.
+	 */
+	__u8 reset_tos;
+	/**
+	 * If "reset_tos" is "true", this is the value the translator will always write in the TOS
+	 * field of translated IPv4 headers.
+	 * If "reset_tos" is "false", then this doesn't do anything.
+	 */
+	__u8 new_tos;
+
+	struct {
+		/**
+		 * If "true", the translator will always set translated IPv4 headers' Don't Fragment (DF)
+		 * flags as one.
+		 * Otherwise the value of the flag will depend on the packet's length.
+		 * Boolean.
+		 */
+		__u8 df_always_on;
+		/**
+		 * If the incoming IPv4 packet is a fragment, Jool will include a fragment header in the
+		 * translated IPv6 packet.
+		 * If this is "true", Jool will also include a Fragment Header if DF is false.
+		 * Boolean.
+		 */
+		__u8 build_ipv6_fh;
+		/**
+		 * Whether translated IPv4 headers' Identification fields should be computed (Either from the
+		 * IPv6 fragment header's Identification field or deduced from the packet's length).
+		 * Otherwise it will always be set as zero.
+		 * Boolean.
+		 */
+		__u8 build_ipv4_id;
+		/**
+		 * "true" if the value for MTU fields of outgoing ICMPv6 fragmentation needed packets should
+		 * be set as no less than 1280, regardless of MTU plateaus and whatnot.
+		 * See RFC 6145 section 6, second approach.
+		 * Boolean.
+		 */
+		__u8 lower_mtu_fail;
+	} atomic_frags;
+
+	/**
+	 * If the translator detects the source of the incoming packet does not implement RFC 1191,
+	 * these are the plateau values used to determine a likely path MTU for outgoing ICMPv6
+	 * fragmentation needed packets.
+	 * The translator is supposed to pick the greatest plateau value that is less than the incoming
+	 * packet's Total Length field.
+	 */
+	__u16 *mtu_plateaus;
+	/** Length of the mtu_plateaus array. */
+	__u16 mtu_plateau_count;
+
 #ifdef STATEFUL
-	struct sessiondb_config sessiondb;
-	struct pktqueue_config pktqueue;
-	struct filtering_config filtering;
-	struct fragmentation_config fragmentation;
+	/**
+	 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
+	 * userspace.
+	 */
+	struct {
+		/** Maximum time inactive UDP sessions will remain in the DB. */
+		__u64 udp;
+		/** Maximum time inactive ICMP sessions will remain in the DB. */
+		__u64 icmp;
+		/** Maximum time established TCP sessions will remain in the DB. */
+		__u64 tcp_est;
+		/** Maximum time transitory TCP sessions will remain in the DB. */
+		__u64 tcp_trans;
+		/** Maximum time fragments will remain in the DB. */
+		__u64 frag;
+	} ttl;
+
+	/** Use Address-Dependent Filtering? (boolean) */
+	__u8 drop_by_addr;
+	/** Filter ICMPv6 Informational packets? (boolean) */
+	__u8 drop_icmp6_info;
+	/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
+	__u8 drop_external_tcp;
+
+	/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
+	__u64 max_stored_pkts;
+#else
+	/**
+	 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
+	 * Otherwise these packets will be dropped (because they're illegal in IPv6).
+	 * Boolean.
+	 */
+	__u8 compute_udp_csum_zero;
+	/**
+	 * Randomize choice of RFC6791 address?
+	 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
+	 * https://github.com/NICMx/NAT64/issues/130.
+	 * Boolean.
+	 */
+	__u8 randomize_error_addresses;
 #endif
-	struct translate_config translate;
 };
 
 /**

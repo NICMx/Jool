@@ -29,7 +29,7 @@ Common options:
 
 1. [`--eamt`](usr-flags-eamt.html)
 2. [`--blacklist`](usr-flags-blacklist.html)
-2. [`--errorAddresses`](usr-flags-error-addresses.html)
+2. [`--pool6791`](usr-flags-pool6791.html)
 
 `jool`-only options:
 

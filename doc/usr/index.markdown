@@ -51,7 +51,7 @@ An <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank">important
 
 ### 2014-10-17
 
-The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-global.html#plateaus) also received improvements.
+The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-global.html#mtu-plateaus) also received improvements.
 
 It has come to our attention that <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">we are also lacking an explanation of IP literals</a>, so there should be another codeless update like this in the near future.
 

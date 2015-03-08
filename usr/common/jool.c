@@ -133,6 +133,7 @@ enum argp_flags {
 	ARGP_ENABLE_TRANSLATION = 4013,
 	ARGP_DISABLE_TRANSLATION = 4014,
 	ARGP_COMPUTE_CSUM_ZERO = 4015,
+	ARGP_RANDOMIZE_RFC6791 = 4017,
 	ARGP_ATOMIC_FRAGMENTS = 4016,
 };
 
@@ -166,7 +167,7 @@ static struct argp_option options[] =
 	{ "eamt", ARGP_EAMT, NULL, 0, "The command will operate on the EAM table."},
 	{ "blacklist", ARGP_BLACKLIST, NULL, 0, "The command will operate on the IPv4 prefix "
 			"blacklist." },
-	{ "errorAddresses", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
+	{ "pool6791", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
 #endif
 #ifdef BENCHMARK
 	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
@@ -204,58 +205,70 @@ static struct argp_option options[] =
 #endif
 
 	{ NULL, 0, NULL, 0, "'Global' options:", 6 },
+	{ OPTNAME_ENABLE, ARGP_ENABLE_TRANSLATION, NULL, 0, "Resume translation of packets.\n" },
+	{ OPTNAME_DISABLE, ARGP_DISABLE_TRANSLATION, NULL, 0, "Pause translation of packets.\n" },
+	{ OPTNAME_ZEROIZE_TC, ARGP_RESET_TCLASS, BOOL_FORMAT, 0,
+			"Override IPv6 Traffic class?\n" },
+	{ "setTC", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_OVERRIDE_TOS, ARGP_RESET_TOS, BOOL_FORMAT, 0,
+			"Override IPv4 Type of Service?\n" },
+	{ "setTOS", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_TOS, ARGP_NEW_TOS, NUM_FORMAT, 0,
+			"Set the IPv4 Type of Service.\n" },
+	{ "TOS", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_MTU_PLATEAUS, ARGP_PLATEAUS, NUM_ARR_FORMAT, 0,
+			"Set the MTU plateaus.\n" },
+	{ "plateaus", 0, NULL, OPTION_ALIAS, ""},
 #ifdef STATEFUL
-	{ DROP_BY_ADDR_OPT, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
-			"Use Address-Dependent Filtering?" },
-	{ DROP_ICMP6_INFO_OPT, ARGP_DROP_INFO, BOOL_FORMAT, 0,
-			"Filter ICMPv6 Informational packets?" },
-	{ DROP_EXTERNAL_TCP_OPT, ARGP_DROP_TCP, BOOL_FORMAT, 0,
-			"Drop externally initiated TCP connections?" },
-	{ UDP_TIMEOUT_OPT, ARGP_UDP_TO, NUM_FORMAT, 0,
-			"Set the timeout for UDP sessions." },
-	{ ICMP_TIMEOUT_OPT, ARGP_ICMP_TO, NUM_FORMAT, 0,
-			"Set the timeout for ICMP sessions." },
-	{ TCP_EST_TIMEOUT_OPT, ARGP_TCP_TO, NUM_FORMAT, 0,
-			"Set the established connection idle-timeout for TCP sessions." },
-	{ TCP_TRANS_TIMEOUT_OPT, ARGP_TCP_TRANS_TO, NUM_FORMAT, 0,
-			"Set the transitory connection idle-timeout for TCP sessions." },
-	{ STORED_PKTS_OPT, ARGP_STORED_PKTS, NUM_FORMAT, 0,
-			"Set the maximum number of packets Jool should bother to remember while awaiting "
-			"simultaneous open of TCP connections." },
-#endif
-	{ RESET_TCLASS_OPT, ARGP_RESET_TCLASS, BOOL_FORMAT, 0,
-			"Override IPv6 Traffic class?" },
-	{ RESET_TOS_OPT, ARGP_RESET_TOS, BOOL_FORMAT, 0,
-			"Override IPv4 Type of Service?" },
-	{ NEW_TOS_OPT, ARGP_NEW_TOS, NUM_FORMAT, 0,
-			"Set the IPv4 Type of Service." },
-	{ MTU_PLATEAUS_OPT, ARGP_PLATEAUS, NUM_ARR_FORMAT, 0,
-			"Set the MTU plateaus." },
-#ifdef STATEFUL
-	{ FRAG_TIMEOUT_OPT, ARGP_FRAG_TO, NUM_FORMAT, 0,
-			"Set the timeout for arrival of fragments." },
+	{ OPTNAME_DROP_BY_ADDR, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
+			"Use Address-Dependent Filtering? "
+			"ON is (address)-restricted-cone NAT, OFF is full-cone NAT.\n"},
+	{ "dropAddr", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_DROP_ICMP6_INFO, ARGP_DROP_INFO, BOOL_FORMAT, 0,
+			"Filter ICMPv6 Informational packets?\n" },
+	{ "dropInfo", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_DROP_EXTERNAL_TCP, ARGP_DROP_TCP, BOOL_FORMAT, 0,
+			"Drop externally initiated TCP connections?\n" },
+	{ "dropTCP", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_UDP_TIMEOUT, ARGP_UDP_TO, NUM_FORMAT, 0,
+			"Set the timeout for UDP sessions.\n" },
+	{ "toUDP", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_ICMP_TIMEOUT, ARGP_ICMP_TO, NUM_FORMAT, 0,
+			"Set the timeout for ICMP sessions.\n" },
+	{ "toICMP", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_TCPEST_TIMEOUT, ARGP_TCP_TO, NUM_FORMAT, 0,
+			"Set the established connection idle-timeout for TCP sessions.\n" },
+	{ "toTCPest", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_TCPTRANS_TIMEOUT, ARGP_TCP_TRANS_TO, NUM_FORMAT, 0,
+			"Set the transitory connection idle-timeout for TCP sessions.\n" },
+	{ "toTCPtrans", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_FRAG_TIMEOUT, ARGP_FRAG_TO, NUM_FORMAT, 0,
+			"Set the timeout for arrival of fragments.\n" },
+	{ "toFrag", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_MAX_SO, ARGP_STORED_PKTS, NUM_FORMAT, 0,
+			"Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.\n" },
+	{ "maxStoredPkts", 0, NULL, OPTION_ALIAS, ""},
 #else
-	{ COMPUTE_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0, "Enable to compute incoming UDP "
-			"IPv4 Packets with checksum zero."},
+	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
+			"Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?\n"},
+	{ OPTNAME_RANDOMIZE_RFC6791, ARGP_RANDOMIZE_RFC6791, BOOL_FORMAT, 0,
+			"Randomize choice of RFC6791 address?\n" },
 #endif
-	{ ENABLE_TRANSLATION, ARGP_ENABLE_TRANSLATION, NULL, 0, "Enable Jool to translate "
-			"incoming packets." },
-	{ DISABLE_TRANSLATION, ARGP_DISABLE_TRANSLATION, NULL, 0, "Disable Jool to translate "
-				"incoming packets." },
 
 	{ NULL, 0, NULL, 0, "Deprecated options:", 7 },
-	{ ALLOW_ATOMIC_FRAGMENTS, ARGP_ATOMIC_FRAGMENTS, BOOL_FORMAT, 0,
-			"Allow atomic fragments?" },
-	{ DF_ALWAYS_ON_OPT, ARGP_DF, BOOL_FORMAT, 0,
-			"Always set Don't Fragment?" },
-	{ BUILD_IPV6_FRAG_HDR, ARGP_BUILD_FH, BOOL_FORMAT, 0,
-			"Include IPv6 Fragment Header when IPv4 Packet DF Flag is not set."},
-	{ BUILD_IPV4_ID_OPT, ARGP_BUILD_ID, BOOL_FORMAT, 0,
-			"Generate IPv4 ID?" },
-	{ LOWER_MTU_FAIL_OPT, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
-			"Decrease MTU failure rate?" },
-	{ "prefix", ARGP_PREFIX, NULL, OPTION_NO_USAGE, "Void operation." },
 
+	{ OPTNAME_ALLOW_ATOMIC_FRAGS, ARGP_ATOMIC_FRAGMENTS, BOOL_FORMAT, 0,
+			"Allow atomic fragments?" },
+	{ OPTNAME_DF_ALWAYS_ON, ARGP_DF, BOOL_FORMAT, 0,
+			"Always set Don't Fragment?" },
+	{ OPTNAME_GENERATE_FH, ARGP_BUILD_FH, BOOL_FORMAT, 0,
+			"Include IPv6 Fragment Header when IPv4 Packet DF Flag is not set."},
+	{ OPTNAME_GENERATE_ID4, ARGP_BUILD_ID, BOOL_FORMAT, 0,
+			"Generate IPv4 ID?" },
+	{ OPTNAME_FIX_ILLEGAL_MTUS, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
+			"Decrease MTU failure rate?" },
+
+	{ "prefix", ARGP_PREFIX, NULL, OPTION_NO_USAGE, "Void operation." },
 	{ "address", ARGP_ADDRESS, NULL, OPTION_NO_USAGE, "Void operation." },
 #ifdef STATEFUL
 	{ "bib6", ARGP_BIB_IPV6, NULL, OPTION_NO_USAGE, "Void operation." },
@@ -574,6 +587,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_COMPUTE_CSUM_ZERO:
 		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
+		break;
+	case ARGP_RANDOMIZE_RFC6791:
+		error = set_global_bool(args, RANDOMIZE_RFC6791, str);
 		break;
 #endif
 	case ARGP_PREFIX:

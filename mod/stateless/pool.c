@@ -127,13 +127,13 @@ int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void
 	struct pool_entry *entry;
 	int error = 0;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	list_for_each_entry_rcu(entry, pool, list_hook) {
 		error = func(&entry->prefix, arg);
 		if (error)
 			break;
 	}
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	return error;
 }
@@ -143,11 +143,11 @@ int pool_count(struct list_head *pool, __u64 *result)
 	struct pool_entry *entry;
 	unsigned int count = 0;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	list_for_each_entry_rcu(entry, pool, list_hook) {
 		count += prefix4_get_addr_count(&entry->prefix);
 	}
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	*result = count;
 	return 0;
@@ -157,9 +157,9 @@ bool pool_is_empty(struct list_head *pool)
 {
 	bool result;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	result = list_empty(pool);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	return result;
 }
