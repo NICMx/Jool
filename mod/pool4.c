@@ -16,7 +16,6 @@
 static struct pool4_table pool;
 static DEFINE_SPINLOCK(pool_lock);
 static struct in_addr *last_used_addr;
-static int inactives_pool4_node_counter;
 
 /** Cache for struct pool4_nodes, for efficient allocation. */
 static struct kmem_cache *node_cache;
@@ -138,6 +137,11 @@ static void destroy_pool4_node(struct pool4_node *node)
 	kmem_cache_free(node_cache, node);
 }
 
+static bool pool4_is_emtpy(void)
+{
+	return list_empty(&pool.list);
+}
+
 int pool4_init(char *addr_strs[], int addr_count)
 {
 	char *defaults[] = POOL4_DEF;
@@ -176,7 +180,6 @@ int pool4_init(char *addr_strs[], int addr_count)
 	}
 
 	last_used_addr = NULL;
-	inactives_pool4_node_counter = 0;
 
 	return 0;
 
@@ -203,10 +206,8 @@ static int deactivate_or_destroy_pool4_node(struct pool4_node *node, void * arg)
 		goto end;
 	}
 	if (!pool4_is_full(node)) {
-		if (node->active) {
+		if (node->active)
 			node->active = false;
-			inactives_pool4_node_counter++;
-		}
 		error =  0;
 		goto end;
 	}
@@ -240,7 +241,6 @@ int pool4_register(struct in_addr *addr)
 			return -EINVAL;
 		} else {
 			node->active = true;
-			inactives_pool4_node_counter--;
 			spin_unlock_bh(&pool_lock);
 			return 0;
 		}
@@ -443,7 +443,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_transport_add
 
 	spin_lock_bh(&pool_lock);
 
-	if (pool.node_count == 0) {
+	if (pool4_is_emtpy()) {
 		log_warn_once("The IPv4 pool is empty.");
 		goto failure;
 	}
@@ -563,10 +563,17 @@ int pool4_for_each(int (*func)(struct pool4_node *, void *), void * arg)
 	return error;
 }
 
+static int pool4_counter_aux(struct pool4_node *node, void *arg)
+{
+	__u64 *counter = (__u64 *) arg;
+	if (node->active)
+		(*counter)++;
+	return 0;
+}
+
 int pool4_count(__u64 *result)
 {
-	spin_lock_bh(&pool_lock);
-	*result = pool.node_count - inactives_pool4_node_counter;
-	spin_unlock_bh(&pool_lock);
-	return 0;
+	*result = 0;
+	/* Lock is hold in pool4_for_each. */
+	return pool4_for_each(pool4_counter_aux, result);
 }

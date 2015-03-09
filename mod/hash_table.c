@@ -81,7 +81,6 @@ struct HTABLE_NAME {
 	 */
 	struct hlist_head table[HASH_TABLE_SIZE];
 	struct list_head list;
-	unsigned int node_count;
 
 	/** Used to locate the slot (within the linked list) of a value. */
 	bool (*equals_function)(const KEY_TYPE *, const KEY_TYPE *);
@@ -163,7 +162,6 @@ static int INIT(struct HTABLE_NAME *table,
 	for (i = 0; i < HASH_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&table->table[i]);
 	INIT_LIST_HEAD(&table->list);
-	table->node_count = 0;
 
 	table->equals_function = equals_function;
 	table->hash_function = hash_function;
@@ -209,7 +207,6 @@ static int PUT(struct HTABLE_NAME *table, KEY_TYPE *key, VALUE_TYPE *value)
 	hash_code = table->hash_function(key) % HASH_TABLE_SIZE;
 	hlist_add_head(&key_value->hlist_hook, &table->table[hash_code]);
 	list_add_tail(&key_value->list_hook, &table->list);
-	table->node_count++;
 
 	return 0;
 }
@@ -244,7 +241,6 @@ static bool REMOVE(struct HTABLE_NAME *table, KEY_TYPE *key, void (*destructor)(
 
 	hlist_del(&key_value->hlist_hook);
 	list_del(&key_value->list_hook);
-	table->node_count--;
 
 	if (destructor)
 		destructor(key_value->value);
@@ -279,7 +275,6 @@ static void EMPTY(struct HTABLE_NAME *table, void (*destructor)(VALUE_TYPE *))
 		kfree(current_pair);
 	}
 
-	table->node_count = 0;
 }
 
 #ifdef GENERATE_PRINT
