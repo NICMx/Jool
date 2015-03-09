@@ -1,15 +1,15 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2015-03-03 v3.3.0 "Stateful Jool's Userspace Application"
+.TH jool 8 2015-03-09 v3.3.0 "NAT64 Jool's Userspace Application"
 
 .SH NAME
-jool - Interact with Stateful Jool (the kernel module).
+jool - Interact with NAT64 Jool (the kernel module).
 
 .SH DESCRIPTION
-Sends commands and requests to Stateful Jool.
+Sends commands and requests to NAT64 Jool.
 .br
-Stateful Jool is a kernel module you load into a Linux kernel. It implements stateful NAT64 (RFC 6146).
+NAT64 Jool is a kernel module you load into a Linux kernel. It implements RFC 6146.
 
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
@@ -51,9 +51,9 @@ jool --pool4 (
 .br
 	| --count
 .br
-.RI "	| --add " "<bib4> <bib6>"
+.RI "	| --add " "<IPv4-transport-address> <IPv6-transport-address>"
 .br
-.RI "	| --remove [ " <bib4> " | " <bib6> " | " <bib4> " " <bib6> " ]"
+.RI "	| --remove " "<IPv4-transport-address> <IPv6-transport-address>"
 .br
 )
 .P
@@ -102,7 +102,7 @@ Apply the operation on the ICMP table.
 .IP <IPv6-prefix>
 .RI "IPv6 prefix to add to or remove from Jool's IPv6 pool.
 .br
-.RI "The format is " IPV6_ADDRESS " [ / " PREFIX_LENGTH " ]."
+.RI "The format is " IPV6_ADDRESS "[/" PREFIX_LENGTH "]."
 .br
 .RI "PREFIX_LENGTH defaults to 128."
 .br
@@ -110,18 +110,18 @@ Exampĺe: 64:ff9b::/96
 .IP <IPv4-prefix>
 .RI "IPv4 addresses to add to or remove from Jool's IPv4 pool."
 .br
-.RI "The format is " IPV4_ADDRESS " [ / " PREFIX_LENGTH " ]."
+.RI "The format is " IPV4_ADDRESS "[/" PREFIX_LENGTH "]."
 .br
 .RI "PREFIX_LENGTH defaults to 32."
 .br
 Exampĺe: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
-.IP <bib4>
+.IP <IPv4-transport-address>
 .RI "IPv4 side of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV4_ADDRESS # PORT "."
 .br
 Exampĺe: 10.20.30.40#5000
-.IP <bib6>
+.IP <IPv6-transport-address>
 .RI "IPv6 side of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV6_ADDRESS # PORT "."
@@ -139,35 +139,41 @@ Output the table in Comma/Character-Separated Values (.csv) format.
 Pause translation of packets.
 .IP --enable
 Resume translation of packets.
-.IP --dropAddr=BOOL
-Apply address-dependent filtering?
-.IP --dropInfo=BOOL
-Filter ICMPv6 info messages?
-.IP --dropTCP=BOOL
+.IP --zeroize-traffic-class=BOOL
+Always set the IPv6 header's 'Traffic Class' field as zero?
+.br
+Otherwise copy from IPv4 header's 'TOS'.
+.IP --override-tos=BOOL
+Override the IPv4 header's 'TOS' field as --tos?
+.br
+Otherwise copy from IPv6 header's 'Traffic Class'.
+.IP --tos=INT
+Value to override TOS as (only when --override-tos is ON)
+.IP --mtu-plateaus=INT[,INT]*
+Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
+.IP --address-dependent-filtering=BOOL
+Use Address-Dependent Filtering?
+.br
+ON is (address)-restricted-cone NAT, OFF is full-cone NAT.
+.IP --drop-icmpv6-info=BOOL
+Filter ICMPv6 Informational packets?
+.IP --drop-externally-initiated-tcp=BOOL
 Drop externally initiated TCP connections?
-.IP --toUDP=INT
+.IP --udp-timeout=INT
 Set the UDP session lifetime (in seconds).
-.IP --toTCPest=INT
+.IP --tcp-est-timeout=INT
 Set the TCP established session lifetime (in seconds).
-.IP --toTCPtrans=INT
+.IP --tcp-trans-timeout=INT
 Set the TCP transitory session lifetime (in seconds).
-.IP --toICMP=INT
+.IP --icmp-timeout=INT
 Set the ICMP session lifetime (in seconds).
-.IP --toFrag=INT
+.IP --fragment-arrival-timeout=INT
 Set the timeout for arrival of fragments.
-.IP --maxStoredPkts=INT
-Set the maximum number of slots for storable packets.
-.IP --setTC=BOOL
-Override IPv6 traffic class?
-.IP --setTOS=BOOL
-Override IPv4 type of service?
-.IP --TOS=INT
-IPv4 type of service
-.IP --plateaus=INT[,INT]*
-Set the MTU plateaus.
+.IP --maximum-simultaneous-opens=INT
+Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
 
 .SS "--global's FLAG_KEYs - Deprecated!"
-.IP --atomicFragments=BOOL
+.IP --allow-atomic-fragments=BOOL
 Allow Atomic Fragments?
 .br
 (Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
@@ -187,25 +193,25 @@ Print the IPv6 pool:
 .br
 	jool --pool6 --display
 .br
-Add prefix 1234:abcd/96 to the IPv6 pool:
+Add prefix 2001:db8::/96 to the IPv6 pool:
 .br
-	jool --pool6 --add 1234:abcd::/96
+	jool --pool6 --add 2001:db8::/96
 .br
-Remove prefix 1234:abcd/96 from the IPv6 pool:
+Remove prefix 2001:db8::/96 from the IPv6 pool:
 .br
-	jool --pool6 --remove 1234:abcd::/96
+	jool --pool6 --remove 2001:db8::/96
 .P
 Print the number of IPv4 addresses in the pool:
 .br
 	jool --pool4 --count
 .br
-Add address 192.168.2.10 to the IPv4 pool:
+Add address 192.0.2.10 to the IPv4 pool:
 .br
-	jool --pool4 --add 192.168.2.10
+	jool --pool4 --add 192.0.2.10
 .br
-Remove address 192.168.2.10 from the IPv4 pool:
+Remove address 192.0.2.10 from the IPv4 pool:
 .br
-	jool --pool4 --remove 192.168.2.10
+	jool --pool4 --remove 192.0.2.10
 .P
 Print the Binding Information Base (BIB):
 .br
@@ -213,27 +219,23 @@ Print the Binding Information Base (BIB):
 .br
 Add a binding to the BIB:
 .br
-	jool --bib --add 192.168.2.1#11 1::1#22
+	jool --bib --add 192.0.2.1#11 1::1#22
 .br
 Remove a binding from the BIB:
 .br
-	jool --bib --remove 192.168.2.1#11
-.br
-	or
-.br
-	jool --bib --remove 1::1#22
+	jool --bib --remove 192.0.2.1#11 1::1#22
 .P
 Print the session table:
 .br
 	jool --session
 .P
-Print the general configuration values:
+Print the global configuration values:
 .br
 	jool
 .br
-Update some general configuration value:
+Update some global configuration value:
 .br
-	jool --dropAddr ON
+	jool --address-dependent-filtering ON
 
 .SH NOTES
 TRUE, FALSE, 1, 0, YES, NO, ON and OFF are all valid booleans. You can mix case too.
@@ -253,7 +255,7 @@ Copyright 2015 NIC Mexico.
 .br
 License: GPLv3+ (GNU GPL version 3 or later)
 .br
-This is free software: you are free  to  change  and  redistribute  it.
+This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 .SH SEE ALSO

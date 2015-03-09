@@ -208,16 +208,18 @@ static struct argp_option options[] =
 	{ OPTNAME_ENABLE, ARGP_ENABLE_TRANSLATION, NULL, 0, "Resume translation of packets.\n" },
 	{ OPTNAME_DISABLE, ARGP_DISABLE_TRANSLATION, NULL, 0, "Pause translation of packets.\n" },
 	{ OPTNAME_ZEROIZE_TC, ARGP_RESET_TCLASS, BOOL_FORMAT, 0,
-			"Override IPv6 Traffic class?\n" },
+			"Always set the IPv6 header's 'Traffic Class' field as zero? "
+			"Otherwise copy from IPv4 header's 'TOS'.\n" },
 	{ "setTC", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_OVERRIDE_TOS, ARGP_RESET_TOS, BOOL_FORMAT, 0,
-			"Override IPv4 Type of Service?\n" },
+			"Override the IPv4 header's 'TOS' field as --tos? "
+			"Otherwise copy from IPv6 header's 'Traffic Class'.\n" },
 	{ "setTOS", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_TOS, ARGP_NEW_TOS, NUM_FORMAT, 0,
-			"Set the IPv4 Type of Service.\n" },
+			"Value to override TOS as (only when --override-tos is ON).\n" },
 	{ "TOS", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_MTU_PLATEAUS, ARGP_PLATEAUS, NUM_ARR_FORMAT, 0,
-			"Set the MTU plateaus.\n" },
+			"Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.\n" },
 	{ "plateaus", 0, NULL, OPTION_ALIAS, ""},
 #ifdef STATEFUL
 	{ OPTNAME_DROP_BY_ADDR, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
@@ -231,16 +233,16 @@ static struct argp_option options[] =
 			"Drop externally initiated TCP connections?\n" },
 	{ "dropTCP", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_UDP_TIMEOUT, ARGP_UDP_TO, NUM_FORMAT, 0,
-			"Set the timeout for UDP sessions.\n" },
+			"Set the UDP session lifetime (in seconds).\n" },
 	{ "toUDP", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_ICMP_TIMEOUT, ARGP_ICMP_TO, NUM_FORMAT, 0,
 			"Set the timeout for ICMP sessions.\n" },
 	{ "toICMP", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_TCPEST_TIMEOUT, ARGP_TCP_TO, NUM_FORMAT, 0,
-			"Set the established connection idle-timeout for TCP sessions.\n" },
+			"Set the TCP established session lifetime (in seconds).\n" },
 	{ "toTCPest", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_TCPTRANS_TIMEOUT, ARGP_TCP_TRANS_TO, NUM_FORMAT, 0,
-			"Set the transitory connection idle-timeout for TCP sessions.\n" },
+			"Set the TCP transitory session lifetime (in seconds).\n" },
 	{ "toTCPtrans", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_FRAG_TIMEOUT, ARGP_FRAG_TO, NUM_FORMAT, 0,
 			"Set the timeout for arrival of fragments.\n" },
@@ -250,9 +252,11 @@ static struct argp_option options[] =
 	{ "maxStoredPkts", 0, NULL, OPTION_ALIAS, ""},
 #else
 	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
-			"Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?\n"},
+			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "
+			"Otherwise drop the packet.\n"},
 	{ OPTNAME_RANDOMIZE_RFC6791, ARGP_RANDOMIZE_RFC6791, BOOL_FORMAT, 0,
-			"Randomize choice of RFC6791 address?\n" },
+			"Randomize selection of address from the RFC6791 pool? "
+			"Otherwise choose the 'Hop Limit'th address.\n" },
 #endif
 
 	{ NULL, 0, NULL, 0, "Deprecated options:", 7 },
@@ -262,17 +266,23 @@ static struct argp_option options[] =
 	{ OPTNAME_DF_ALWAYS_ON, ARGP_DF, BOOL_FORMAT, 0,
 			"Always set Don't Fragment?" },
 	{ OPTNAME_GENERATE_FH, ARGP_BUILD_FH, BOOL_FORMAT, 0,
-			"Include IPv6 Fragment Header when IPv4 Packet DF Flag is not set."},
+			"Also include IPv6 Fragment Header when IPv4 Packet DF Flag is not set?" },
 	{ OPTNAME_GENERATE_ID4, ARGP_BUILD_ID, BOOL_FORMAT, 0,
-			"Generate IPv4 ID?" },
+			"Generate IPv4 identification?" },
 	{ OPTNAME_FIX_ILLEGAL_MTUS, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
 			"Decrease MTU failure rate?" },
 
-	{ "prefix", ARGP_PREFIX, NULL, OPTION_NO_USAGE, "Void operation." },
-	{ "address", ARGP_ADDRESS, NULL, OPTION_NO_USAGE, "Void operation." },
 #ifdef STATEFUL
-	{ "bib6", ARGP_BIB_IPV6, NULL, OPTION_NO_USAGE, "Void operation." },
-	{ "bib4", ARGP_BIB_IPV4, NULL, OPTION_NO_USAGE, "Void operation." },
+	{ "prefix", ARGP_PREFIX, IPV6_PREFIX_FORMAT, 0, "Prefix to be added to or removed from "
+			"the IPv6 pool. You no longer need to name this." },
+	{ "address", ARGP_ADDRESS, IPV4_PREFIX_FORMAT, 0, "'Address' to be added to or removed from "
+			"the IPv4 pool. You no longer need to name this." },
+	{ "bib6", ARGP_BIB_IPV6, IPV6_TRANSPORT_FORMAT, 0,
+			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
+			"You no longer need to name this." },
+	{ "bib4", ARGP_BIB_IPV4, IPV4_TRANSPORT_FORMAT, 0,
+			"This is the local IPv4 addres#port of the entry to be added or removed. "
+			"You no longer need to name this." },
 #endif
 	{ NULL },
 };
@@ -296,7 +306,7 @@ static int update_state(struct arguments *args, enum config_mode valid_modes,
 	return 0;
 
 fail:
-	log_err("Illegal combination of parameters. Try `--help`.");
+	log_err("Illegal combination of parameters. See the manpage for readable grammar.");
 	return -EINVAL;
 }
 
@@ -307,7 +317,7 @@ static int set_global_arg(struct arguments *args, __u8 type, size_t size, void *
 		return error;
 
 	if (args->global.data) {
-		log_err("You can only edit one configuration value at a time.");
+		log_err("You can only edit one global configuration value at a time.");
 		return -EINVAL;
 	}
 
@@ -380,8 +390,16 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 {
 	int error;
 
+#ifdef STATEFUL
+	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+#else
+	error = update_state(args, MODE_POOL4 | MODE_EAMT, OP_ADD | OP_REMOVE);
+#endif
+	if (error)
+		return error;
+
 	if (args->db.pool4.addr_set) {
-		log_err("Can not set two IPv4 prefix.");
+		log_err("Only one IPv4 prefix can be added or removed at a time.");
 		return -EINVAL;
 	}
 
@@ -403,8 +421,18 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 
 static int set_ipv6_prefix(struct arguments *args, char *str)
 {
+	int error;
+
+#ifdef STATEFUL
+	error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
+#else
+	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_REMOVE);
+#endif
+	if (error)
+		return error;
+
 	if (args->db.pool6.prefix_set) {
-		log_err("Can not set two IPv6 prefix.");
+		log_err("Only one IPv6 prefix can be added or removed at a time.");
 		return -EINVAL;
 	}
 
@@ -414,24 +442,52 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 
 static int set_bib6(struct arguments *args, char *str)
 {
+#ifdef STATEFUL
+
+	int error;
+
+	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
+	if (error)
+		return error;
+
 	if (args->db.tables.bib.addr6_set) {
-		log_err("Can not set two BIB6.");
+		log_err("You entered more than one IPv6 transport address. "
+				"Only one BIB entry can be added or removed at a time.");
 		return -EINVAL;
 	}
 
 	args->db.tables.bib.addr6_set = true;
 	return str_to_addr6_port(str, &args->db.tables.bib.addr6);
+
+#else
+	log_err("You entered an IPv6 transport address. SIIT doesn't have BIBs...");
+	return -EINVAL;
+#endif
 }
 
 static int set_bib4(struct arguments *args, char *str)
 {
+#ifdef STATEFUL
+
+	int error;
+
+	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
+	if (error)
+		return error;
+
 	if (args->db.tables.bib.addr4_set) {
-		log_err("Can not set two BIB4.");
+		log_err("You entered more than one IPv4 transport address. "
+				"Only one BIB entry can be added or removed at a time.");
 		return -EINVAL;
 	}
 
 	args->db.tables.bib.addr4_set = true;
 	return str_to_addr4_port(str, &args->db.tables.bib.addr4);
+
+#else
+	log_err("You entered an IPv4 transport address. SIIT doesn't have BIBs...");
+	return -EINVAL;
+#endif
 }
 
 static int set_ip_args(struct arguments *args, char *str)
@@ -548,8 +604,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 
 	case ARGP_BIB_IPV6:
+		error = set_bib6(args, str);
 		break;
 	case ARGP_BIB_IPV4:
+		error = set_bib4(args, str);
 		break;
 
 	case ARGP_DROP_ADDR:
@@ -593,8 +651,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 #endif
 	case ARGP_PREFIX:
+		error = set_ipv6_prefix(args, str);
 		break;
 	case ARGP_ADDRESS:
+		error = set_ipv4_prefix(args, str);
 		break;
 
 	case ARGP_RESET_TCLASS:
@@ -784,11 +844,11 @@ static int main_wrapped(int argc, char **argv)
 		case OP_ADD:
 			error = 0;
 			if (!args.db.tables.bib.addr6_set) {
-				log_err("Missing IPv6 address#port.");
+				log_err("Missing IPv6 transport address.");
 				error = -EINVAL;
 			}
 			if (!args.db.tables.bib.addr4_set) {
-				log_err("Missing IPv4 address#port.");
+				log_err("Missing IPv4 transport address.");
 				error = -EINVAL;
 			}
 			if (error)
@@ -799,8 +859,7 @@ static int main_wrapped(int argc, char **argv)
 
 		case OP_REMOVE:
 			if (!args.db.tables.bib.addr6_set && !args.db.tables.bib.addr4_set) {
-				log_err("I need the IPv4 transport address and/or the IPv6 transport address of "
-						"the entry you want to remove.");
+				log_err("Missing IPv4 transport address and/or IPv6 transport address.");
 				return -EINVAL;
 			}
 			return bib_remove(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
@@ -808,7 +867,7 @@ static int main_wrapped(int argc, char **argv)
 					args.db.tables.bib.addr4_set, &args.db.tables.bib.addr4);
 
 		default:
-			log_err("Unknown operation for session mode: %u.", args.op);
+			log_err("Unknown operation for BIB mode: %u.", args.op);
 			return -EINVAL;
 		}
 		break;
@@ -835,15 +894,14 @@ static int main_wrapped(int argc, char **argv)
 			return eam_count();
 		case OP_ADD:
 			if (!args.db.pool6.prefix_set || !args.db.pool4.addr_set) {
-				log_err("I need the IPv4 transport address and the IPv6 transport address of "
-						"the entry you want to add.");
+				log_err("I need the IPv4 prefix and the IPv6 prefix of the entry you want to add.");
 				return -EINVAL;
 			}
 			return eam_add(&args.db.pool6.prefix, &args.db.pool4.addrs);
 		case OP_REMOVE:
 			if (!args.db.pool6.prefix_set && !args.db.pool4.addr_set) {
-				log_err("I need the IPv4 transport address and/or the IPv6 transport address of "
-						"the entry you want to remove.");
+				log_err("I need the IPv4 prefix and/or the IPv6 prefix of the entry you want to "
+						"remove.");
 				return -EINVAL;
 			}
 			return eam_remove(args.db.pool6.prefix_set, &args.db.pool6.prefix,
@@ -851,7 +909,7 @@ static int main_wrapped(int argc, char **argv)
 		case OP_FLUSH:
 			return eam_flush();
 		default:
-			log_err("Unknown operation for session mode: %u.", args.op);
+			log_err("Unknown operation for EAMT mode: %u.", args.op);
 			return -EINVAL;
 		}
 		break;
@@ -889,7 +947,6 @@ static int main_wrapped(int argc, char **argv)
 		switch (args.op) {
 		case OP_DISPLAY:
 			return logtime_display();
-			break;
 		default:
 			log_err("Unknown operation for log time mode: %u.", args.op);
 			break;
