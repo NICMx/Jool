@@ -147,6 +147,7 @@ static struct reassembly_buffer *add_pkt(struct packet *pkt)
 		return NULL;
 
 	buffer->pkt = *pkt;
+	buffer->pkt.original_pkt = &buffer->pkt;
 	buffer->next_slot = &skb_shinfo(pkt->skb)->frag_list;
 	buffer->dying_time = jiffies + config_get_ttl_frag();
 
@@ -352,6 +353,7 @@ verdict fragdb_handle(struct packet *pkt)
 	}
 
 	*pkt = buffer->pkt;
+	pkt->original_pkt = pkt;
 	buffer->pkt.skb = NULL;
 	/* Note, at this point, buffer->pkt is invalid. Do not use. */
 	buffer_destroy(buffer, pkt);

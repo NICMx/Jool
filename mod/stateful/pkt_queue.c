@@ -81,6 +81,7 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 
 	node->session = session;
 	node->pkt = *pkt_original_pkt(pkt);
+	node->pkt.original_pkt = &node->pkt;
 	RB_CLEAR_NODE(&node->tree_hook);
 
 	spin_lock_bh(&packets_lock);
