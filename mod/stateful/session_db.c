@@ -684,64 +684,60 @@ void sessiondb_destroy(void)
 	session_destroy();
 }
 
-/**
- * Returns in "result" the session entry from the "l4_proto" table that corresponds to the "pair"
- * IPv4 addresses.
- */
-static int get_by_ipv4(struct tuple *tuple4, l4_protocol l4_proto, struct session_entry **result)
+static struct session_entry *get_by_ipv6(struct session_table *table, struct tuple *tuple)
 {
-	struct session_table *table;
-	int error;
-
-	error = get_session_table(l4_proto, &table);
-	if (error)
-		return error;
-
-	spin_lock_bh(&table->lock);
-	*result = rbtree_find(tuple4, &table->tree4, compare_full4, struct session_entry, tree4_hook);
-	if (*result)
-		session_get(*result);
-	spin_unlock_bh(&table->lock);
-
-	return (*result) ? 0 : -ENOENT;
+	return rbtree_find(tuple, &table->tree6, compare_full6, struct session_entry, tree6_hook);
 }
 
-/**
- * Returns in "result" the session entry from the "l4_proto" table that corresponds to the "pair"
- * IPv6 addresses.
- */
-static int get_by_ipv6(struct tuple *tuple6, l4_protocol l4_proto, struct session_entry **result)
+static struct session_entry *get_by_ipv4(struct session_table *table, struct tuple *tuple)
 {
-	struct session_table *table;
-	int error;
-
-	error = get_session_table(l4_proto, &table);
-	if (error)
-		return error;
-
-	spin_lock_bh(&table->lock);
-	*result = rbtree_find(tuple6, &table->tree6, compare_full6, struct session_entry, tree6_hook);
-	if (*result)
-		session_get(*result);
-	spin_unlock_bh(&table->lock);
-
-	return (*result) ? 0 : -ENOENT;
+	return rbtree_find(tuple, &table->tree4, compare_full4, struct session_entry, tree4_hook);
 }
 
 int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 {
+	struct in6_addr any = IN6ADDR_ANY_INIT;
+	struct session_table *table;
+	struct session_entry *session;
+	int error;
+
 	if (WARN(!tuple, "There's no session entry mapped to NULL."))
 		return -EINVAL;
 
+	error = get_session_table(tuple->l4_proto, &table);
+	if (error)
+		return error;
+
+	spin_lock_bh(&table->lock);
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		return get_by_ipv6(tuple, tuple->l4_proto, result);
+		session = get_by_ipv6(table, tuple);
+		break;
 	case L3PROTO_IPV4:
-		return get_by_ipv4(tuple, tuple->l4_proto, result);
+		session = get_by_ipv4(table, tuple);
+		break;
+	default:
+		WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
+		spin_unlock_bh(&table->lock);
+		return -EINVAL;
 	}
 
-	WARN(true, "Unsupported network protocol: %u.", tuple->l3_proto);
-	return -EINVAL;
+	if (session)
+		session_get(session);
+
+	spin_unlock_bh(&table->lock);
+
+	if (!session)
+		return -ENOENT;
+
+	if (ipv6_addr_equals(&session->remote6.l3, &any)) {
+		/* The session is Simultaneous Open debris. */
+		session_return(session);
+		return -ENOENT;
+	}
+
+	*result = session;
+	return 0;
 }
 
 bool sessiondb_allow(struct tuple *tuple4)

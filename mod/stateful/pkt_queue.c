@@ -88,12 +88,15 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 
 	if (packet_count + 1 >= max_pkts) {
 		error = -E2BIG;
+		log_debug("Someone is trying to force lots of IPv4-TCP connections.");
 		goto fail;
 	}
 
 	error = rbtree_add(node, session, &packets, compare_fn, struct packet_node, tree_hook);
-	if (error)
+	if (error) {
+		log_debug("Simultaneous Open is already taking place; ignoring packet.");
 		goto fail;
+	}
 	packet_count++;
 
 	spin_unlock_bh(&packets_lock);
@@ -105,7 +108,6 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 fail:
 	spin_unlock_bh(&packets_lock);
 	kmem_cache_free(node_cache, node);
-	log_debug("Someone is trying to force lots of IPv4-TCP connections.");
 	return error;
 }
 
