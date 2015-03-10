@@ -426,7 +426,8 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 #ifdef STATEFUL
 	error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
 #else
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_REMOVE);
+	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE
+			| OP_REMOVE);
 #endif
 	if (error)
 		return error;
@@ -775,6 +776,7 @@ static int main_wrapped(int argc, char **argv)
 		case OP_DISPLAY:
 			return pool6_display();
 		case OP_ADD:
+		case OP_UPDATE:
 			if (!args.db.pool6.prefix_set) {
 				log_err("Please enter the prefix to be added (%s).", IPV6_PREFIX_FORMAT);
 				return -EINVAL;
@@ -786,19 +788,10 @@ static int main_wrapped(int argc, char **argv)
 				return -EINVAL;
 			}
 			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
-#ifdef STATEFUL
 		case OP_COUNT:
 			return pool6_count();
 		case OP_FLUSH:
 			return pool6_flush(args.db.quick);
-#else
-		case OP_UPDATE:
-			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be added (%s).", IPV6_PREFIX_FORMAT);
-				return -EINVAL;
-			}
-			return pool6_update(&args.db.pool6.prefix);
-#endif
 		default:
 			log_err("Unknown operation for IPv6 pool mode: %u.", args.op);
 			return -EINVAL;

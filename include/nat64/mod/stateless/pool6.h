@@ -45,7 +45,10 @@ bool pool6_contains(struct in6_addr *addr);
 /**
  * Updates the current pool to "prefix".
  */
-int pool6_update(struct ipv6_prefix *prefix);
+int pool6_add(struct ipv6_prefix *prefix);
+
+int pool6_count(__u64 *result);
+int pool6_flush(void);
 
 /**
  * Executes the "func" function with the "arg" argument on the pool.

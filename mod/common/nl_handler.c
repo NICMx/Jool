@@ -115,9 +115,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		union request_pool6 *request)
 {
 	struct nl_buffer *buffer;
-#ifdef STATEFUL
 	__u64 count;
-#endif
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -136,7 +134,6 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 
 		kfree(buffer);
 		return error;
-#ifdef STATEFUL
 	case OP_COUNT:
 		log_debug("Returning IPv6 prefix count.");
 		error = pool6_count(&count);
@@ -145,6 +142,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	case OP_ADD:
+	case OP_UPDATE:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
@@ -161,7 +159,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		if (!request->flush.quick)
+		if (nat64_is_stateful() && !request->flush.quick)
 			error = sessiondb_delete_by_prefix6(&request->remove.prefix);
 
 		return respond_error(nl_hdr, error);
@@ -175,30 +173,11 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		if (!request->flush.quick)
+		if (nat64_is_stateful() && !request->flush.quick)
 			error = sessiondb_flush();
 
 		return respond_error(nl_hdr, error);
-#else
-	case OP_ADD:
-	case OP_UPDATE:
-		if (verify_superpriv())
-			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Updating the IPv6 Prefix Pool");
-
-		return respond_error(nl_hdr, pool6_update(&request->update.prefix));
-	case OP_REMOVE:
-		if (verify_superpriv())
-			return respond_error(nl_hdr, -EPERM);
-
-		log_debug("Removing a prefix from the IPv6 pool.");
-		error = pool6_remove(&request->remove.prefix);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
-#endif
 	default:
 		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);

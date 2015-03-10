@@ -23,66 +23,95 @@ Install the module:
 	# depmod
 
 Insert the module:
+	Configure networking.
+		# ip link set ...
+		# ip addr add ...
+		# ip route add ...
+
 	Enable ipv6 and ipv4 forwarding.
 		# sysctl -w net.ipv4.conf.all.forwarding=1
 		# sysctl -w net.ipv6.conf.all.forwarding=1
 
-	Turn off offloads (do this for every relevant interface)
-		# sudo ethtool --offload <interface> tso off ufo off gso off gro off lro off
-
-	Actually insert the module:
-		$ # default IPv4 pool: 192.168.2.1-192.168.2.4
-		$ # default IPv6 pool: 64:ff9b::/96
-		# modprobe jool
+	Turn off offloads (do this for every relevant interface).
+		# ethtool --offload <interface> tso off
+		# ethtool --offload <interface> ufo off
+		# ethtool --offload <interface> gso off
+		# ethtool --offload <interface> gro off
+		# ethtool --offload <interface> lro off
+	
+	Actually insert the module.
+		# modprobe jool_siit pool6=64:ff9b::/96
 		or
-		# modprobe jool pool4=192.168.0.1,192.168.0.2 pool6=1234:abcd::/96
+		# modprobe jool pool6=64:ff9b::/96 pool4=192.0.2.2
 
-	You might want to see your module shine.
-		$ lsmod   # See your module listed. Might want to pipe over to "grep jool".
-		$ dmesg   # Check the log. Only relevant if compiled with DEBUG (see mod/Kbuild).
+	See your module shine.
+		$ # See your module listed. Might want to pipe over to
+		$ # "grep jool".
+		$ lsmod
+		# Check the log. Better if you compiled using "make debug".
+		$ dmesg
 
 Configure the module:
 	Compile the userspace application.
 		NAT64$ cd usr
-		NAT64/usr$ ./autogen.sh # Only if you downloaded via Git. You need autoconf 2.68+.
+		NAT64/usr$ ./autogen.sh # Only if you downloaded via Git.
 		NAT64/usr$ ./configure
 		NAT64/usr$ make
 		NAT64/usr# make install
 
 	Send requests to the module using the userspace application.
 		Show help:
+			$ jool_siit --help
+			$ man jool_siit
 			$ jool --help
+			$ man jool
 
-		Print the IPv6 pool:
-			$ jool --pool6
-		Add prefix 1234:abcd/96 to the IPv6 pool:
-			# jool --pool6 --add --prefix=1234:abcd::/96
-		Remove prefix 1234:abcd/96 from the IPv6 pool:
-			# jool --pool6 --remove --prefix=1234:abcd::/96
+		Interact with the IPv6 pool:
+			$ jool --pool6 --display
+			$ jool --pool6 --count
+			# jool --pool6 --add 64:ff9b::/96
+			# jool --pool6 --remove 64:ff9b::/96
+			# jool --pool6 --flush
+			(Identical commands can be issued on `jool_siit`.)
 
-		Print the IPv4 pool:
-			$ jool --pool4
-		Add address 192.168.2.10 to the IPv4 pool:
-			# jool --pool4 --add --addr=192.168.2.10
-		Remove address 192.168.2.10 from the IPv4 pool:
-			# jool --pool4 --remove --addr=192.168.2.10
+		Interact with the IPv4 pool:
+			$ jool --pool4 --display
+			$ jool --pool4 --count
+			# jool --pool4 --add 192.0.2.0/30    # Slow!
+			# jool --pool4 --remove 192.0.2.0/30
+			# jool --pool4 --flush
 
-		Print the Binding Information Base (BIB):
-			$ jool --bib
-		Add a binding to the BIB:
-			# jool --bib --add --bib4=192.168.2.1#11 --bib6=1::1#22
-		Remove a binding from the BIB:
-			# jool --bib --remove --bib4=192.168.2.1#11
-			or
-			# jool --bib --remove --bib6=1::1#22
+		Interact with the blacklisted addresses pool:
+			$ jool_siit --blacklist --display
+			$ jool_siit --blacklist --count
+			# jool_siit --blacklist --add 192.0.2.0/30
+			# jool_siit --blacklist --remove 192.0.2.0/30
+			# jool_siit --blacklist --flush
 
-		Print the session table:
-			$ jool --session
+		Interact with the EAMT (Explicit Address Mappings Table):
+			$ jool_siit --eamt --display
+			$ jool_siit --eamt --count
+			# jool_siit --eamt --add 192.0.2.0/24 2001:db8::/120
+			# jool_siit --eamt --remove 192.0.2.0/24 2001:db8::/120
+			# jool_siit --eamt --flush
 
-		Print general configuration values:
-			$ jool
-		Change some general configuration value:
-			# jool --dropAddr ON
+		Interact with the BIB (Binding Information Base):
+			$ jool --bib --display
+			$ jool --bib --count
+			# jool --bib --add 192.0.2.1#11 2001:db8::1#22
+			# jool --bib --remove 192.0.2.1#11 2001:db8::1#22
+
+		Interact with the session table:
+			$ jool --session --display
+			$ jool --session --count
+
+		Interact with the global configuration values:
+			$ jool_siit --display
+			# jool_siit --update --amend-udp-checksum-zero true
+			$ jool --display
+			# jool --update --address-dependent-filtering false
 
 Removing the module:
+	# modprobe -r jool_siit
+	or
 	# modprobe -r jool

@@ -141,7 +141,7 @@ static int pool6_set(struct ipv6_prefix *new)
 	return 0;
 }
 
-int pool6_update(struct ipv6_prefix *prefix)
+int pool6_add(struct ipv6_prefix *prefix)
 {
 	struct ipv6_prefix *new;
 	int error;
@@ -159,6 +159,12 @@ int pool6_update(struct ipv6_prefix *prefix)
 	*new = *prefix;
 
 	return pool6_set(new);
+}
+
+int pool6_count(__u64 *result)
+{
+	*result = pool6_is_empty() ? 0 : 1;
+	return 0;
 }
 
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
@@ -192,6 +198,11 @@ int pool6_remove(struct ipv6_prefix *prefix)
 		return -EINVAL;
 	}
 
+	return pool6_set(NULL);
+}
+
+int pool6_flush(void)
+{
 	return pool6_set(NULL);
 }
 
