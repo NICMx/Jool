@@ -24,13 +24,19 @@ But just to make things clear, this is the status of the project as of now:
 
 As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. We're currently working on [switching frameworks](https://github.com/NICMx/NAT64/issues/116#issuecomment-74343381) to address our compliance issues.
 
-Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.0" target="_blank">3.3.0</a>.
+Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.1" target="_blank">3.3.1</a>.
 
 -------------------
 
 ## News
 
-### 2015-03-05
+### 2015-03-11
+
+[Important bug](https://github.com/NICMx/NAT64/issues/137) discovered!
+
+We just released Jool 3.3.1.
+
+### 2015-03-09
 
 Jool 3.3.0 is finished.
 
