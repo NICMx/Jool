@@ -623,8 +623,16 @@ struct foreach_wrap {
 
 static int pool4_for_each_wrapper(struct pool4_node * node, void *arg)
 {
-	struct foreach_wrap *wrapper = arg;
-	struct ipv4_prefix prefix = { .address = node->addr, .len = 32 };
+	struct foreach_wrap *wrapper;
+	struct ipv4_prefix prefix;
+
+	if (!node->active)
+		return 0;
+
+	wrapper = arg;
+	prefix.address = node->addr;
+	prefix.len = 32;
+
 	return wrapper->func(&prefix, wrapper->arg);
 }
 
