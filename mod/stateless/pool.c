@@ -81,9 +81,14 @@ void pool_destroy(struct list_head *pool)
 int pool_add(struct list_head *pool, struct ipv4_prefix *prefix)
 {
 	struct pool_entry *entry;
+	int error;
+
+	error = prefix4_validate(prefix);
+	if (error)
+		return error;
 
 	list_for_each_entry(entry, pool, list_hook) {
-		if (ipv4_prefix_intersects(&entry->prefix, prefix)) {
+		if (prefix4_intersects(&entry->prefix, prefix)) {
 			log_err("The requested entry intersects with pool entry %pI4/%u.",
 					&entry->prefix.address, entry->prefix.len);
 			return -EEXIST;
@@ -104,7 +109,7 @@ int pool_remove(struct list_head *pool, struct ipv4_prefix *prefix)
 	struct pool_entry *entry;
 
 	list_for_each_entry(entry, pool, list_hook) {
-		if (ipv4_prefix_equals(prefix, &entry->prefix)) {
+		if (prefix4_equals(prefix, &entry->prefix)) {
 			list_del_rcu(&entry->list_hook);
 			synchronize_rcu_bh();
 			kfree(entry);

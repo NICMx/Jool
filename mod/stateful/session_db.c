@@ -730,7 +730,7 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 	if (!session)
 		return -ENOENT;
 
-	if (ipv6_addr_equals(&session->remote6.l3, &any)) {
+	if (addr6_equals(&session->remote6.l3, &any)) {
 		/* The session is Simultaneous Open debris. */
 		session_return(session);
 		return -ENOENT;
@@ -1197,7 +1197,7 @@ success:
 static int compare_local_prefix4(const struct session_entry *session,
 		const struct ipv4_prefix *prefix)
 {
-	return (ipv4_prefix_contains(prefix, &session->local4.l3))
+	return (prefix4_contains(prefix, &session->local4.l3))
 			? 0
 			: ipv4_addr_cmp(&prefix->address, &session->local4.l3);
 }
@@ -1434,7 +1434,7 @@ int sessiondb_tcp_state_machine(struct packet *pkt, struct session_entry *sessio
  */
 static int compare_local_prefix6(struct session_entry *session, struct ipv6_prefix *prefix)
 {
-	return (ipv6_prefix_contains(prefix, &session->local6.l3))
+	return (prefix6_contains(prefix, &session->local6.l3))
 			? 0
 			: ipv6_addr_cmp(&prefix->address, &session->local6.l3);
 }

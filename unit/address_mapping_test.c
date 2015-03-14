@@ -35,8 +35,6 @@ static struct ipv6_prefix pref6[ARRAY_SIZE(IPV6_ADDRS)];
 static bool init(void)
 {
 	int error;
-
-
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
@@ -71,6 +69,7 @@ static bool insert_prefixes(void)
 	int i;
 	int error;
 	bool result = true;
+
 	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
 		log_debug("Inserting prefixes #%d", i+1);
 		error = eamt_add(&pref6[i], &pref4[i]);

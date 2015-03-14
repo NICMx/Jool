@@ -47,7 +47,7 @@ bool pool4_contains(__be32 addr)
 
 	rcu_read_lock_bh();
 	list_for_each_entry_rcu(entry, &pool, list_hook) {
-		if (ipv4_prefix_contains(&entry->prefix, &inaddr)) {
+		if (prefix4_contains(&entry->prefix, &inaddr)) {
 			result = true;
 			goto end;
 		}

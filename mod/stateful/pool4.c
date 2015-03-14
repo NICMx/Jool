@@ -198,7 +198,7 @@ int pool4_init(char *addr_strs[], int addr_count)
 	unsigned int i;
 	int error;
 
-	error = pool4_table_init(&pool, ipv4_addr_equals, ipv4_addr_hashcode);
+	error = pool4_table_init(&pool, addr4_equals, ipv4_addr_hashcode);
 	if (error)
 		return error;
 
@@ -266,7 +266,7 @@ static int deactivate_or_destroy_pool4_node(struct pool4_node *node, void *args)
 		return 0;
 	}
 
-	was_last_used = ipv4_addr_equals(last_used_addr, &node->addr);
+	was_last_used = addr4_equals(last_used_addr, &node->addr);
 	if (!pool4_table_remove(&pool, &node->addr, destroy_pool4_node))
 		return -EINVAL;
 	if (was_last_used)

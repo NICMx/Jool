@@ -46,88 +46,23 @@ static void eam_kfree(struct eam_entry *entry)
 	kmem_cache_free(entry_cache, entry);
 }
 
-static __u32 get_addr4_bit(struct in_addr *addr, unsigned int pos)
-{
-	__u32 mask = 1 << (31 - pos);
-	return be32_to_cpu(addr->s_addr) & mask;
-}
-
-static void set_addr4_bit(struct in_addr *addr, unsigned int pos, bool value)
-{
-	__u32 mask = 1 << (31 - pos);
-
-	if (value)
-		addr->s_addr |= cpu_to_be32(mask);
-	else
-		addr->s_addr &= cpu_to_be32(~mask);
-}
-
-static __u32 get_addr6_bit(struct in6_addr *addr, unsigned int pos)
-{
-	__u32 quadrant; /* As in, an IPv6 address has 4 "quadrants" of 32 bits each. */
-	__u32 mask;
-
-	/* "pos >> 5" is a more efficient version of "pos / 32". */
-	quadrant = be32_to_cpu(addr->s6_addr32[pos >> 5]);
-	/* "pos & 0x1F" is a more efficient version of "pos % 32". */
-	mask = 1 << (31 - (pos & 0x1F));
-
-	return quadrant & mask;
-}
-
-static void set_addr6_bit(struct in6_addr *addr, unsigned int pos, bool value)
-{
-	__u32 *quadrant;
-	__u32 mask;
-
-	quadrant = &addr->s6_addr32[pos >> 5];
-	mask = 1 << (31 - (pos & 0x1F));
-
-	if (value)
-		*quadrant |= cpu_to_be32(mask);
-	else
-		*quadrant &= cpu_to_be32(~mask);
-}
-
-/**
- * Get the IPv4 prefix from the IPv4 address "addr" given by the network length "len", the
- * resulting IPv4 prefix is stored in "result".
- */
-static void get_prefix4(struct in_addr *addr, __u8 len, struct ipv4_prefix *result)
-{
-	__u32 full_bits = IN_ADDR_FULL;
-
-	result->address.s_addr = addr->s_addr & htonl(full_bits << (IPV4_PREFIX - len));
-	result->len = len;
-}
-
-/**
- * Get the IPv6 prefix from the IPv6 address "addr" given by the network length "len", the
- * resulting IPv6 prefix is stored in "result".
- */
-static void get_prefix6(struct in6_addr *addr, __u8 len, struct ipv6_prefix *result)
-{
-	unsigned int i;
-
-	result->address = *addr;
-	for (i = len; i < IPV6_PREFIX; i++)
-		set_addr6_bit(&result->address, i, false);
-	result->len = len;
-}
-
 /**
  *	Verify if the IPv4 prefix and the IPv6 prefix have the same network length.
  */
-static int has_same_prefix(struct ipv6_prefix *pref6, struct ipv4_prefix *pref4)
+static int validate_prefixes(struct ipv6_prefix *pref6, struct ipv4_prefix *pref4)
 {
-	if ((pref4->len > IPV4_PREFIX) || (pref6->len > IPV6_PREFIX)) {
-		log_err("Invalid Prefix Lengths IPv6 Prefix should be less or equals than %u, "
-				"IPv4 Prefix should be less or equals than %u", IPV6_PREFIX, IPV4_PREFIX);
-		return -EINVAL;
-	}
+	int error;
+
+	error = prefix6_validate(pref6);
+	if (error)
+		return error;
+
+	error = prefix4_validate(pref4);
+	if (error)
+		return error;
 
 	if ((IPV4_PREFIX - pref4->len) > (IPV6_PREFIX - pref6->len)) {
-		log_err("IPv4 and IPv6 network lengths are different.");
+		log_err("The IPv4 suffix length must be smaller or equal than the IPv6 suffix length.");
 		return -EINVAL;
 	}
 
@@ -138,25 +73,16 @@ static struct eam_entry *eamt_create_entry(struct ipv6_prefix *ip6, struct ipv4_
 {
 	struct eam_entry *entry;
 
-	if (!ip4 || !ip6) {
-		log_err("ip6_pref or ip4_pref can't be NULL");
-		goto fail;
-	}
-
 	entry = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
 	if (!entry)
-		goto fail;
+		return NULL;
 
-	get_prefix4(&ip4->address, ip4->len, &entry->pref4);
-	get_prefix6(&ip6->address, ip6->len, &entry->pref6);
-
+	entry->pref4 = *ip4;
+	entry->pref6 = *ip6;
 	RB_CLEAR_NODE(&entry->tree4_hook);
 	RB_CLEAR_NODE(&entry->tree6_hook);
 
 	return entry;
-
-fail:
-	return NULL;
 }
 
 static int eam_ipv6_prefix_equal(struct eam_entry *eam, struct ipv6_prefix *prefix)
@@ -248,7 +174,7 @@ int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
 		return -EINVAL;
 	}
 
-	error = has_same_prefix(ip6_pref, ip4_pref);
+	error = validate_prefixes(ip6_pref, ip4_pref);
 	if (error)
 		return error;
 
@@ -309,7 +235,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 			return -ESRCH;
 		}
 
-		if (prefix4 && !ipv4_prefix_equals(prefix4, &eam->pref4)) {
+		if (prefix4 && !prefix4_equals(prefix4, &eam->pref4)) {
 			log_err("The EAM entry whose 6-prefix is %pI6c/%u is mapped to %pI4/%u, not %pI4/%u.",
 					&eam->pref6.address, eam->pref6.len,
 					&eam->pref4.address, eam->pref4.len,
@@ -422,7 +348,7 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
 	for (i = 0; i < suffix4_len; i++) {
 		unsigned int offset4 = prefix4.len + i;
 		unsigned int offset6 = prefix6.len + i;
-		set_addr6_bit(&prefix6.address, offset6, get_addr4_bit(addr, offset4));
+		addr6_set_bit(&prefix6.address, offset6, addr4_get_bit(addr, offset4));
 	}
 
 	*result = prefix6.address; /* I'm assuming the prefix address is already zero-trimmed. */
@@ -459,7 +385,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 	for (i = 0; i < IPV4_PREFIX - prefix4.len; i++) {
 		unsigned int offset4 = prefix4.len + i;
 		unsigned int offset6 = prefix6.len + i;
-		set_addr4_bit(&prefix4.address, offset4, get_addr6_bit(addr6, offset6));
+		addr4_set_bit(&prefix4.address, offset4, addr6_get_bit(addr6, offset6));
 	}
 
 	*result = prefix4.address; /* I'm assuming the prefix address is already zero-trimmed. */

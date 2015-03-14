@@ -56,7 +56,11 @@ obj-m += $(CONFIG_PROTO).o
 obj-m += $(MAPPING).o
 
 
-MIN_REQS = ../mod/common/types.o framework/str_utils.o framework/unit_test.o impersonator/stats.o
+MIN_REQS = ../mod/common/types.o \
+	../mod/common/address.o \
+	framework/str_utils.o \
+	framework/unit_test.o \
+	impersonator/stats.o
 
 
 $(ITERATOR)-objs += $(MIN_REQS)

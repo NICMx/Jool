@@ -46,7 +46,7 @@ bool is_blacklisted4(const __be32 addr32)
 	addr.s_addr = addr32;
 
 	for (i = 0; i < ARRAY_SIZE(list4); i++) {
-		if (ipv4_prefix_contains(&list4[i], &addr))
+		if (prefix4_contains(&list4[i], &addr))
 			return true;
 	}
 
@@ -58,7 +58,7 @@ bool is_blacklisted6(const struct in6_addr *addr)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(list6); i++) {
-		if (ipv6_prefix_contains(&list6[i], addr))
+		if (prefix6_contains(&list6[i], addr))
 			return true;
 	}
 

@@ -19,85 +19,50 @@ MODULE_ALIAS("nat64_test_pkt_queue");
 #include "nat64/mod/common/send_packet.h"
 #include "nl_handler.c"
 
-/* functions */
-static bool compare_pktqueue_config(struct pktqueue_config *expected,
-		struct pktqueue_config *actual)
-{
-	bool success = true;
-
-	success &= assert_equals_u64(expected->max_pkts, actual->max_pkts,
-			"pkt_queue->max_pkts equals test");
-
-	return success;
-}
-
-static bool compare_session_config(struct sessiondb_config *expected,
-		struct sessiondb_config *actual)
-{
-	bool success = true;
-
-	success &= assert_equals_u64(expected->ttl.icmp, actual->ttl.icmp, "ttl.icmp equals");
-	success &= assert_equals_u64(expected->ttl.tcp_est, actual->ttl.tcp_est, "ttl.tcp_est equals");
-	success &= assert_equals_u64(expected->ttl.tcp_trans, actual->ttl.tcp_trans,
-			"ttl.tcp_trans equals");
-	success &= assert_equals_u64(expected->ttl.udp, actual->ttl.udp, "ttl.udp equals");
-
-	return success;
-}
-
-static bool compare_filtering_config(struct filtering_config *expected,
-		struct filtering_config *actual)
-{
-	bool success = true;
-
-	success &= assert_equals_u8(expected->drop_by_addr, actual->drop_by_addr,
-			"filtering->drop_by_addr equals");
-	success &= assert_equals_u8(expected->drop_external_tcp, actual->drop_external_tcp,
-			"filtering->drop_external_tcp equals");
-	success &= assert_equals_u8(expected->drop_icmp6_info, actual->drop_icmp6_info,
-			"filtering->drop_icmp6_info equals");
-
-	return success;
-
-}
-
-static bool compare_translate_config(struct translate_config *expected,
-		struct translate_config *actual)
+static bool compare_global_configs(struct global_config *expected, struct global_config *actual)
 {
 	bool success = true;
 	__u16 plateau;
 
+	success &= assert_equals_u8(expected->is_disable, actual->is_disable, "is_disable");
 	success &= assert_equals_u8(expected->reset_traffic_class, actual->reset_traffic_class,
 			"translate: reset_traffic_class");
 	success &= assert_equals_u8(expected->reset_tos, actual->reset_tos, "translate: reset_tos");
 	success &= assert_equals_u8(expected->new_tos, actual->new_tos, "translate: new_tos");
-	success &= assert_equals_u8(expected->df_always_on, actual->df_always_on,
-			"translate: df_always_on");
-	success &= assert_equals_u8(expected->build_ipv4_id, actual->build_ipv4_id,
-			"translate: build_ipv4_id");
-	success &= assert_equals_u8(expected->lower_mtu_fail, actual->lower_mtu_fail,
-			"translate: lower_mtu_fail");
+
+	success &= assert_equals_u8(expected->atomic_frags.df_always_on,
+			actual->atomic_frags.df_always_on, "df_always_on");
+	success &= assert_equals_u8(expected->atomic_frags.build_ipv6_fh,
+			actual->atomic_frags.build_ipv6_fh, "build_ipv6_fh");
+	success &= assert_equals_u8(expected->atomic_frags.build_ipv4_id,
+			actual->atomic_frags.build_ipv4_id, "build_ipv4_id");
+	success &= assert_equals_u8(expected->atomic_frags.lower_mtu_fail,
+			actual->atomic_frags.lower_mtu_fail, "lower_mtu_fail");
+
 	success &= assert_equals_u16(expected->mtu_plateau_count, actual->mtu_plateau_count,
-			"translate: mtu_plateau_count");
+			"mtu_plateau_count");
 	if (success) {
 		for (plateau = 0; plateau < expected->mtu_plateau_count; plateau++) {
 			success &= assert_equals_u16(expected->mtu_plateaus[plateau],
-					actual->mtu_plateaus[plateau], "translate: mtu_plateu");
+					actual->mtu_plateaus[plateau], "mtu_plateaus");
 		}
 	}
 
-	return success;
-}
+	success &= assert_equals_u64(expected->ttl.udp, actual->ttl.udp, "ttl.udp");
+	success &= assert_equals_u64(expected->ttl.icmp, actual->ttl.icmp, "ttl.icmp");
+	success &= assert_equals_u64(expected->ttl.tcp_est, actual->ttl.tcp_est, "ttl.tcp_est");
+	success &= assert_equals_u64(expected->ttl.tcp_trans, actual->ttl.tcp_trans, "ttl.tcp_trans");
+	success &= assert_equals_u64(expected->ttl.frag, actual->ttl.frag, "ttl.frag");
 
-static bool compare_global_configs(struct global_config *expected_config,
-		struct global_config *actual_config)
-{
-	bool success = true;
+	success &= assert_equals_u8(expected->drop_by_addr, actual->drop_by_addr,
+			"drop_by_addr equals");
+	success &= assert_equals_u8(expected->drop_external_tcp, actual->drop_external_tcp,
+			"drop_external_tcp equals");
+	success &= assert_equals_u8(expected->drop_icmp6_info, actual->drop_icmp6_info,
+			"drop_icmp6_info equals");
 
-	success &= compare_pktqueue_config(&expected_config->pktqueue, &actual_config->pktqueue);
-	success &= compare_session_config(&expected_config->sessiondb, &actual_config->sessiondb);
-	success &= compare_filtering_config(&expected_config->filtering, &actual_config->filtering);
-	success &= compare_translate_config(&expected_config->translate, &actual_config->translate);
+	success &= assert_equals_u64(expected->max_stored_pkts, actual->max_stored_pkts,
+			"max_pkts equals test");
 
 	return success;
 }
@@ -116,8 +81,8 @@ static bool basic_test(void)
 	unsigned char *buffer;
 	size_t buffer_len;
 	bool success = true;
-	struct global_config config = { .translate.mtu_plateaus = NULL };
-	struct global_config response = { .translate.mtu_plateaus = NULL };
+	struct global_config config = { .mtu_plateaus = NULL };
+	struct global_config response = { .mtu_plateaus = NULL };
 
 	error = config_clone(&config);
 	if (error)
@@ -148,16 +113,16 @@ static bool translate_nulls_mtu(void)
 	unsigned char *buffer;
 	size_t buffer_len;
 	bool success = true;
-	struct global_config config = { .translate.mtu_plateaus = NULL };
-	struct global_config response = { .translate.mtu_plateaus = NULL };
+	struct global_config config = { .mtu_plateaus = NULL };
+	struct global_config response = { .mtu_plateaus = NULL };
 
 	error = config_clone(&config);
 	if (error)
 		return false;
 
 	/* lets modify our local config manually, jool's update functions wont update to null */
-	config.translate.mtu_plateaus = NULL;
-	config.translate.mtu_plateau_count = 0;
+	config.mtu_plateaus = NULL;
+	config.mtu_plateau_count = 0;
 
 	error = serialize_global_config(&config, &buffer, &buffer_len);
 	if (error)
@@ -172,8 +137,8 @@ static bool translate_nulls_mtu(void)
 	/* the "compare_global_configs" will not evaluate the mtu_plateaus
 	 * because of the plateau_count = 0
 	 */
-	success &= assert_null(config.translate.mtu_plateaus, "local config mtu_plateaus");
-	success &= assert_null(response.translate.mtu_plateaus, "deserialized config mtu_plateaus");
+	success &= assert_null(config.mtu_plateaus, "local config mtu_plateaus");
+	success &= assert_null(response.mtu_plateaus, "deserialized config mtu_plateaus");
 
 	kfree(buffer);
 

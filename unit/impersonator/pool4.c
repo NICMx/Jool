@@ -45,7 +45,7 @@ int pool4_remove(struct ipv4_prefix *prefix)
 
 int pool4_get(l4_protocol l4_proto, struct ipv4_transport_addr *addr)
 {
-	return ipv4_addr_equals(&addr->l3, &pool_address) ? 0 : -EINVAL;
+	return addr4_equals(&addr->l3, &pool_address) ? 0 : -EINVAL;
 }
 
 static int get_next_port(l4_protocol proto, __u16 *result)
@@ -85,7 +85,7 @@ int pool4_get_match(l4_protocol proto, struct ipv4_transport_addr *addr, __u16 *
 
 int pool4_get_any_port(l4_protocol proto, const struct in_addr *addr, __u16 *result)
 {
-	return ipv4_addr_equals(addr, &pool_address)
+	return addr4_equals(addr, &pool_address)
 			? get_next_port(proto, result)
 			: -EINVAL;
 }

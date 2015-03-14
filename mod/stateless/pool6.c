@@ -193,7 +193,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 		return error;
 	}
 
-	if (!ipv6_prefix_equals(&current_prefix, prefix)) {
+	if (!prefix6_equals(&current_prefix, prefix)) {
 		log_err("The prefix doesn't belong to the pool.");
 		return -EINVAL;
 	}

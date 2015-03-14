@@ -358,7 +358,7 @@ static bool test_tcp_closed_state_handle_6(void)
 
 static bool test_tcp_closed_state_handle_4(void)
 {
-	struct session_entry *session, *copy_ptr;
+	struct session_entry *session, *tmp;
 	struct tuple tuple4;
 	struct packet pkt;
 	struct sk_buff *skb;
@@ -374,7 +374,6 @@ static bool test_tcp_closed_state_handle_4(void)
 	if (!session)
 		return false;
 
-	copy_ptr = session;
 	if (is_error(create_skb4_tcp(&tuple4, &skb, 100, 32)))
 		return false;
 	if (is_error(pkt_init_ipv4(&pkt, skb)))
@@ -388,7 +387,7 @@ static bool test_tcp_closed_state_handle_4(void)
 	success &= assert_equals_int(VERDICT_STOLEN, tcp_closed_state_handle(&pkt, &tuple4), "V4 syn-result");
 
 	/* Validate */
-	success &= assert_equals_int(0, sessiondb_get(&tuple4, &copy_ptr), "V4 syn-session.");
+	success &= assert_equals_int(-ENOENT, sessiondb_get(&tuple4, &tmp), "V4 syn-session.");
 	success &= assert_equals_int(0, pktqueue_send(session), "V4 syn pktqueue send");
 
 	if (success)

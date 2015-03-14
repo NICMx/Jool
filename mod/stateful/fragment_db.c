@@ -59,9 +59,9 @@ static bool equals_function(const struct packet *key1, const struct packet *key2
 	if (key1 == NULL || key2 == NULL)
 		return false;
 
-	if (!ipv6_addr_equals(&hdr1->saddr, &hdr2->saddr))
+	if (!addr6_equals(&hdr1->saddr, &hdr2->saddr))
 		return false;
-	if (!ipv6_addr_equals(&hdr1->daddr, &hdr2->daddr))
+	if (!addr6_equals(&hdr1->daddr, &hdr2->daddr))
 		return false;
 	if (pkt_frag_hdr(key1)->identification != pkt_frag_hdr(key2)->identification)
 		return false;

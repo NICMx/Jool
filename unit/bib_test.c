@@ -267,10 +267,10 @@ static bool test_allocate_ipv4_transport_address(void)
 	 * Because all of them are taken, he gets the same address but a runner-up high port instead.
 	 */
 
-	if (ipv4_addr_equals(&client1addr4, &client3addr4)) {
+	if (addr4_equals(&client1addr4, &client3addr4)) {
 		sharing_client_tuple = &client1tuple;
 		non_sharing_addr = &client2addr4;
-	} else if (ipv4_addr_equals(&client2addr4, &client3addr4)) {
+	} else if (addr4_equals(&client2addr4, &client3addr4)) {
 		sharing_client_tuple = &client2tuple;
 		non_sharing_addr = &client1addr4;
 	} else {

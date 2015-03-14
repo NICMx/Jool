@@ -682,7 +682,7 @@ static int remove_fake_usr(struct bib_entry *bib)
 
 static int compare_prefix4(const struct bib_entry *bib, const struct ipv4_prefix *prefix)
 {
-	return ipv4_prefix_contains(prefix, &bib->ipv4.l3)
+	return prefix4_contains(prefix, &bib->ipv4.l3)
 			? 0
 			: ipv4_addr_cmp(&prefix->address, &bib->ipv4.l3);
 }

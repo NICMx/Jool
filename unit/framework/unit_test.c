@@ -87,7 +87,7 @@ bool assert_equals_ptr(void *expected, void *actual, char *test_name)
 
 bool assert_equals_ipv4(struct in_addr *expected, const struct in_addr *actual, char *test_name)
 {
-	if (!ipv4_addr_equals(expected, actual)) {
+	if (!addr4_equals(expected, actual)) {
 		UNIT_WARNING(test_name, expected, actual, "%pI4");
 		return false;
 	}
@@ -109,7 +109,7 @@ bool assert_equals_ipv4_str(unsigned char *expected_str, const struct in_addr *a
 
 bool assert_equals_ipv6(struct in6_addr *expected, const struct in6_addr *actual, char *test_name)
 {
-	if (!ipv6_addr_equals(expected, actual)) {
+	if (!addr6_equals(expected, actual)) {
 		UNIT_WARNING(test_name, expected, actual, "%pI6c");
 		return false;
 	}

@@ -10,6 +10,7 @@
 
 #include "nat64/common/types.h"
 #include <linux/netfilter.h>
+#include "nat64/mod/common/address.h"
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops (bad checksums,
@@ -78,11 +79,6 @@ typedef enum verdict {
 	VERDICT_STOLEN = NF_STOLEN,
 } verdict;
 
-union transport_addr {
-	struct ipv6_transport_addr addr6;
-	struct ipv4_transport_addr addr4;
-};
-
 /**
  * A tuple is sort of a summary of a packet; it is a quick accesor for several of its key elements.
  *
@@ -149,47 +145,6 @@ static inline bool is_5_tuple(struct tuple *tuple)
  * Prints "tuple" pretty in the log.
  */
 void log_tuple(struct tuple *tuple);
-
-/**
- * @{
- * Returns "true" if the first parameter is the same as the second one, even if they are pointers
- * to different places in memory.
- *
- * @param a struct you want to compare to "b".
- * @param b struct you want to compare to "a".
- * @return (*addr_1) === (*addr_2), with null checks as appropriate.
- */
-bool ipv4_addr_equals(const struct in_addr *a, const struct in_addr *b);
-bool ipv6_addr_equals(const struct in6_addr *a, const struct in6_addr *b);
-bool ipv4_transport_addr_equals(const struct ipv4_transport_addr *a,
-		const struct ipv4_transport_addr *b);
-bool ipv6_transport_addr_equals(const struct ipv6_transport_addr *a,
-		const struct ipv6_transport_addr *b);
-bool ipv6_prefix_equals(const struct ipv6_prefix *a, const struct ipv6_prefix *b);
-bool ipv4_prefix_equals(const struct ipv4_prefix *a, const struct ipv4_prefix *b);
-/**
- * @}
- */
-
-bool ipv4_prefix_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr);
-bool ipv6_prefix_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr);
-
-bool ipv4_prefix_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2);
-
-unsigned int prefix4_get_addr_count(struct ipv4_prefix *prefix);
-
-/**
- * The kernel has a ipv6_addr_cmp(), but not a ipv4_addr_cmp().
- * Of course, that is because in_addrs are, to most intents and purposes, 32-bit integer values.
- * But the absence of ipv4_addr_cmp() does makes things look asymmetric.
- * So, booya.
- *
- * @return positive if a2 is bigger, negative if a1 is bigger, zero it they're equal.
- */
-static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *a2)
-{
-	return memcmp(a1, a2, sizeof(struct in_addr));
-}
 
 /**
  * @{

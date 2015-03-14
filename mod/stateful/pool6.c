@@ -182,7 +182,7 @@ int pool6_add(struct ipv6_prefix *prefix)
 
 	spin_lock_bh(&pool_lock);
 	list_for_each_entry(node, &pool, list_hook) {
-		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+		if (prefix6_equals(&node->prefix, prefix)) {
 			spin_unlock_bh(&pool_lock);
 			log_err("The prefix already belongs to the pool.");
 			return -EEXIST;
@@ -220,7 +220,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	}
 
 	list_for_each_entry(node, &pool, list_hook) {
-		if (ipv6_prefix_equals(&node->prefix, prefix)) {
+		if (prefix6_equals(&node->prefix, prefix)) {
 			list_del(&node->list_hook);
 			kfree(node);
 			pool_count--;
