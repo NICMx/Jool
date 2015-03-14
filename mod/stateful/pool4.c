@@ -171,7 +171,13 @@ static void destroy_pool4_node(struct pool4_node *node)
 	kmem_cache_free(node_cache, node);
 }
 
-static bool __pool4_is_emtpy(bool locked)
+/**
+ * Warning: This thing isn't taking inactive nodes into account (ie. it returns "true" if pool4
+ * only has inactive nodes).
+ * TODO (issue36) At the moment this doesn't cause anything worth crying over, but remember to
+ * refactor when you address #36.
+ */
+static bool __pool4_is_empty(bool locked)
 {
 	bool result;
 
@@ -248,25 +254,25 @@ void pool4_destroy(void)
 /**
  * Assumes that pool has already been locked (pool_lock).
  */
-static int deactivate_or_destroy_pool4_node(struct pool4_node *node, void * arg)
+static int deactivate_or_destroy_pool4_node(struct pool4_node *node, void *args)
 {
-	int error = 0;
+	bool was_last_used;
 
-	if (!node) {
-		error = -EINVAL;
-		goto end;
-	}
+	if (unlikely(!node))
+		return -EINVAL;
+
 	if (!pool4_is_full(node)) {
-		if (node->active)
-			node->active = false;
-		error =  0;
-		goto end;
+		node->active = false;
+		return 0;
 	}
-	if (!pool4_table_remove(&pool, &node->addr, destroy_pool4_node))
-		error = -EINVAL;
 
-end:
-	return error;
+	was_last_used = ipv4_addr_equals(last_used_addr, &node->addr);
+	if (!pool4_table_remove(&pool, &node->addr, destroy_pool4_node))
+		return -EINVAL;
+	if (was_last_used)
+		last_used_addr = NULL;
+
+	return 0;
 }
 
 int pool4_flush(void)
@@ -363,7 +369,6 @@ static int __pool4_remove(struct in_addr *addr)
 		goto not_found;
 	if (deactivate_or_destroy_pool4_node(node, NULL))
 		goto not_found;
-
 	spin_unlock_bh(&pool_lock);
 
 	return 0;
@@ -502,7 +507,7 @@ int pool4_get_any_addr(l4_protocol proto, __u16 l4_id, struct ipv4_transport_add
 
 	spin_lock_bh(&pool_lock);
 
-	if (__pool4_is_emtpy(false)) {
+	if (__pool4_is_empty(false)) {
 		log_warn_once("The IPv4 pool is empty.");
 		goto failure;
 	}
@@ -742,5 +747,5 @@ int pool4_remove(struct ipv4_prefix *addrs)
 
 bool pool4_is_empty(void)
 {
-	return __pool4_is_emtpy(true);
+	return __pool4_is_empty(true);
 }
