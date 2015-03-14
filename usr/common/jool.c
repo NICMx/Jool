@@ -393,7 +393,7 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 #ifdef STATEFUL
 	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
 #else
-	error = update_state(args, MODE_POOL4 | MODE_EAMT, OP_ADD | OP_REMOVE);
+	error = update_state(args, MODE_POOL4 | MODE_RFC6791 | MODE_EAMT, OP_ADD | OP_REMOVE);
 #endif
 	if (error)
 		return error;

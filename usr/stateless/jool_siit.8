@@ -31,7 +31,7 @@ jool_siit --pool6 (
 .br
 )
 .P
-jool_siit --pool4 (
+jool_siit --blacklist (
 .br
 	[--display]
 .br
@@ -45,7 +45,7 @@ jool_siit --pool4 (
 .br
 )
 .P
-jool_siit --errorAddresses (
+jool_siit --pool6791 (
 .br
 	[--display]
 .br
@@ -172,17 +172,30 @@ Remove prefix 2001:db8/96 from the IPv6 pool:
 .br
 	jool_siit --pool6 --remove 2001:db8::/96
 .P
-Print the number of IPv4 addresses in the pool:
+Print the number of blacklisted addresses:
 .br
-	jool_siit --pool4 --count
+	jool_siit --blacklist --count
 .br
-Add prefix 192.0.2.0/24 to the IPv4 pool:
+Blacklist prefix 192.0.2.0/24:
 .br
-	jool_siit --pool4 --add 192.0.2.0/24
+	jool_siit --blacklist --add 192.0.2.0/24
 .br
-Remove prefix 192.0.2.0/24 from the IPv4 pool:
+Allow translation of 192.0.2.0/24:
 .br
-	jool_siit --pool4 --remove 192.0.2.0/24
+	jool_siit --blacklist --remove 192.0.2.0/24
+.P
+.P
+Print the RFC 6791 pool:
+.br
+	jool_siit --pool6791 --display
+.br
+Translate unknown router addresses as anything from 192.0.2.0/24:
+.br
+	jool_siit --pool6791 --add 192.0.2.0/24
+.br
+Revert the previous command:
+.br
+	jool_siit --pool6791 --remove 192.0.2.0/24
 .P
 Print the Explicit Address Mappings Table (EAMT):
 .br

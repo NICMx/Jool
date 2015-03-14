@@ -88,6 +88,13 @@ Configure the module:
 			# jool_siit --blacklist --remove 192.0.2.0/30
 			# jool_siit --blacklist --flush
 
+		Interact with the RFC 6791 pool:
+			$ jool_siit --pool6791 --display
+			$ jool_siit --pool6791 --count
+			# jool_siit --pool6791 --add 192.0.2.0/30
+			# jool_siit --pool6791 --remove 192.0.2.0/30
+			# jool_siit --pool6791 --flush
+
 		Interact with the EAMT (Explicit Address Mappings Table):
 			$ jool_siit --eamt --display
 			$ jool_siit --eamt --count
