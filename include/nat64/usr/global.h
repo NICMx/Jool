@@ -33,6 +33,7 @@
 #define OPTNAME_TCPTRANS_TIMEOUT	"tcp-trans-timeout"
 #define OPTNAME_FRAG_TIMEOUT		"fragment-arrival-timeout"
 #define OPTNAME_MAX_SO				"maximum-simultaneous-opens"
+#define OPTNAME_SRC_ICMP6E_BETTER	"source-icmpv6-errors-better"
 
 
 int global_display(void);

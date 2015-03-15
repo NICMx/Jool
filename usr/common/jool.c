@@ -121,6 +121,7 @@ enum argp_flags {
 	ARGP_TCP_TO = 3012,
 	ARGP_TCP_TRANS_TO = 3013,
 	ARGP_STORED_PKTS = 3014,
+	ARGP_SRC_ICMP6ERRS_BETTER = 3015,
 	ARGP_RESET_TCLASS = 4002,
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
@@ -250,6 +251,8 @@ static struct argp_option options[] =
 	{ OPTNAME_MAX_SO, ARGP_STORED_PKTS, NUM_FORMAT, 0,
 			"Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.\n" },
 	{ "maxStoredPkts", 0, NULL, OPTION_ALIAS, ""},
+	{ OPTNAME_SRC_ICMP6E_BETTER, ARGP_SRC_ICMP6ERRS_BETTER, BOOL_FORMAT, 0,
+			"Translate source addresses directly on 4-to-6 ICMP errors?\n" },
 #else
 	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
 			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "
@@ -634,6 +637,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_STORED_PKTS:
 		error = set_global_u64(args, MAX_PKTS, str, 0, MAX_U64, 1);
+		break;
+	case ARGP_SRC_ICMP6ERRS_BETTER:
+		error = set_global_bool(args, SRC_ICMP6ERRS_BETTER, str);
 		break;
 
 	case ARGP_FRAG_TO:

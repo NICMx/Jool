@@ -32,6 +32,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 #ifdef STATEFUL
 	printf("  --%s: %llu\n", OPTNAME_MAX_SO,
 			conf->max_stored_pkts);
+	printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
+			conf->src_icmp6errs_better ? "ON" : "OFF");
 #else
 	printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
 			conf->compute_udp_csum_zero ? "ON" : "OFF");

@@ -16,6 +16,7 @@ unsigned long config_get_ttl_tcptrans(void);
 unsigned long config_get_ttl_icmp(void);
 
 unsigned int config_get_max_pkts(void);
+bool config_get_src_icmp6errs_better(void);
 
 bool config_get_filter_icmpv6_info(void);
 bool config_get_addr_dependent_filtering(void);

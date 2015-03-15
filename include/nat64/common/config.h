@@ -319,6 +319,7 @@ enum global_type {
 	FRAGMENT_TIMEOUT,
 
 	MAX_PKTS,
+	SRC_ICMP6ERRS_BETTER,
 
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
@@ -517,6 +518,8 @@ struct global_config {
 
 	/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
 	__u64 max_stored_pkts;
+	/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
+	__u8 src_icmp6errs_better;
 #else
 	/**
 	 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
