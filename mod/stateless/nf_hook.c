@@ -1,13 +1,13 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/nl_handler.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
 #endif
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/pool4.h"
-#include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/rfc6791.h"
 
 #include <linux/kernel.h>
@@ -94,7 +94,7 @@ static int __init nat64_init(void)
 	error = nlhandler_init();
 	if (error)
 		goto nlhandler_failure;
-	error = pool6_init(pool6);
+	error = pool6_init(&pool6, pool6 ? 1 : 0);
 	if (error)
 		goto pool6_failure;
 	error = pool4_init(blacklist, blacklist_size);

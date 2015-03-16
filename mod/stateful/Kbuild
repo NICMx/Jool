@@ -20,6 +20,7 @@ jool_common += ../common/stats.o
 #jool_common += ../common/log_time.o
 jool_common += ../common/icmp_wrapper.o
 jool_common += ../common/ipv6_hdr_iterator.o
+jool_common += ../common/pool6.o
 jool_common += ../common/rfc6052.o
 jool_common += ../common/nl_buffer.o
 jool_common += ../common/random.o
@@ -32,7 +33,6 @@ jool_common += ../common/core.o
 
 jool += pkt_queue.o
 jool += poolnum.o
-jool += pool6.o
 jool += pool4.o
 jool += host6_node.o
 jool += bib_db.o

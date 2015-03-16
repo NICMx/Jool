@@ -8,11 +8,11 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/stateless/pool4.h"
-#include "nat64/mod/stateless/pool6.h"
 #include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateless/eam.h"
 

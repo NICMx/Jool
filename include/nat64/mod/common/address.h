@@ -10,6 +10,8 @@ union transport_addr {
 	struct ipv4_transport_addr addr4;
 };
 
+int prefix6_parse(char *str, struct ipv6_prefix *result);
+
 /**
  * @{
  * Returns "true" if the first parameter is the same as the second one, even if they are pointers

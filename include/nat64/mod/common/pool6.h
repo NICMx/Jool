@@ -16,14 +16,19 @@
 /**
  * Readies the rest of this module for future use.
  *
- * @param pref_str string denoting the prefix the pool should start with.
+ * @param pref_strs array of strings denoting the prefixes the pool should start with.
+ * @param pref_count size of the "pref_strs" array.
  * @return result status (< 0 on error).
  */
-int pool6_init(char *pref_str);
+int pool6_init(char *pref_strs[], int pref_count);
 /**
  * Frees resources allocated by the pool.
  */
 void pool6_destroy(void);
+/**
+ * Removes all prefixes from the pool.
+ */
+int pool6_flush(void);
 
 /**
  * Returns (in "prefix") the pool's prefix corresponding to "addr".
@@ -43,23 +48,22 @@ int pool6_peek(struct ipv6_prefix *result);
 bool pool6_contains(struct in6_addr *addr);
 
 /**
- * Updates the current pool to "prefix".
+ * Adds "prefix" to the pool. A copy is stored, not "prefix" itself.
  */
 int pool6_add(struct ipv6_prefix *prefix);
-
-int pool6_count(__u64 *result);
-int pool6_flush(void);
-
 /**
- * Executes the "func" function with the "arg" argument on the pool.
- */
-int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
-
-/**
- * Removes "prefix" from the Pool6.
+ * Removes "prefix" from the pool.
  */
 int pool6_remove(struct ipv6_prefix *prefix);
 
+/**
+ * Executes the "func" function with the "arg" argument on every prefix in the pool.
+ */
+int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
+/**
+ * Copies the current number of prefixes in the pool to "result".
+ */
+int pool6_count(__u64 *result);
 /**
  * Checks if the Pool is empty.
  */

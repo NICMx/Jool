@@ -9,16 +9,15 @@
 #include "nat64/common/config.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/nl_buffer.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib_db.h"
 #include "nat64/mod/stateful/session_db.h"
 #include "nat64/mod/stateful/static_routes.h"
 #ifdef STATEFUL
 	#include "nat64/mod/stateful/pool4.h"
-	#include "nat64/mod/stateful/pool6.h"
 #else
 	#include "nat64/mod/stateless/pool4.h"
-	#include "nat64/mod/stateless/pool6.h"
 	#include "nat64/mod/stateless/rfc6791.h"
 #endif
 #include "nat64/mod/stateless/eam.h"

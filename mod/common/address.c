@@ -1,6 +1,23 @@
 #include "nat64/mod/common/address.h"
 #include "nat64/mod/common/types.h"
+#include <linux/inet.h>
 #include <net/ipv6.h>
+
+int prefix6_parse(char *str, struct ipv6_prefix *result)
+{
+	const char *slash_pos;
+
+	if (in6_pton(str, -1, (u8 *) &result->address.in6_u.u6_addr8, '/', &slash_pos) != 1)
+		goto fail;
+	if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
+		goto fail;
+
+	return 0;
+
+fail:
+	log_err("IPv6 prefix is malformed: %s.", str);
+	return -EINVAL;
+}
 
 bool addr4_equals(const struct in_addr *expected, const struct in_addr *actual)
 {

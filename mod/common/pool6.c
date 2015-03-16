@@ -1,9 +1,9 @@
-#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/common/types.h"
 
-#include <linux/inet.h>
+#include <linux/rculist.h>
 #include <net/ipv6.h>
 
 
@@ -23,8 +23,6 @@ struct pool_node {
  * The list contains nodes of type pool_node.
  */
 static LIST_HEAD(pool);
-static u64 pool_count;
-static DEFINE_SPINLOCK(pool_lock);
 
 static int verify_prefix(int start, struct ipv6_prefix *prefix)
 {
@@ -64,34 +62,27 @@ static int validate_prefix(struct ipv6_prefix *prefix)
 
 int pool6_init(char *pref_strs[], int pref_count)
 {
+	struct ipv6_prefix prefix;
 	int i;
+	int error;
 
 	if (!pref_strs || pref_count == 0)
 		return 0;
 
-	pool_count = 0;
-
 	for (i = 0; i < pref_count; i++) {
-		struct ipv6_prefix pref;
-		const char *slash_pos;
-
-		if (in6_pton(pref_strs[i], -1, (u8 *) &pref.address.in6_u.u6_addr8, '/', &slash_pos) != 1)
-			goto parse_failure;
-		if (kstrtou8(slash_pos + 1, 0, &pref.len) != 0)
-			goto parse_failure;
-		log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &pref.address, pref.len);
-		if (pool6_add(&pref) != 0)
-			goto silent_failure;
+		error = prefix6_parse(pref_strs[i], &prefix);
+		if (error)
+			goto fail;
+		error = pool6_add(&prefix);
+		if (error)
+			goto fail;
 	}
+
 	return 0;
 
-parse_failure:
-	log_err("IPv6 prefix is malformed: %s.", pref_strs[i]);
-	/* Fall through. */
-
-silent_failure:
+fail:
 	pool6_destroy();
-	return -EINVAL;
+	return error;
 }
 
 void pool6_destroy(void)
@@ -99,19 +90,16 @@ void pool6_destroy(void)
 	struct pool_node *node;
 
 	while (!list_empty(&pool)) {
-		node = container_of(pool.next, struct pool_node, list_hook);
-		list_del(&node->list_hook);
+		node = list_first_entry(&pool, struct pool_node, list_hook);
+		list_del_rcu(&node->list_hook);
+		synchronize_rcu_bh();
 		kfree(node);
 	}
-
-	pool_count = 0;
 }
 
 int pool6_flush(void)
 {
-	spin_lock_bh(&pool_lock);
 	pool6_destroy();
-	spin_unlock_bh(&pool_lock);
 	return 0;
 }
 
@@ -122,23 +110,23 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
 
-	spin_lock_bh(&pool_lock);
+	rcu_read_lock_bh();
 
 	if (list_empty(&pool)) {
-		spin_unlock_bh(&pool_lock);
+		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
-	list_for_each_entry(node, &pool, list_hook) {
+	list_for_each_entry_rcu(node, &pool, list_hook) {
 		if (ipv6_prefix_equal(&node->prefix.address, addr, node->prefix.len)) {
 			*result = node->prefix;
-			spin_unlock_bh(&pool_lock);
+			rcu_read_unlock_bh();
 			return 0;
 		}
 	}
 
-	spin_unlock_bh(&pool_lock);
+	rcu_read_unlock_bh();
 	return -ENOENT;
 }
 
@@ -146,19 +134,19 @@ int pool6_peek(struct ipv6_prefix *result)
 {
 	struct pool_node *node;
 
-	spin_lock_bh(&pool_lock);
+	rcu_read_lock_bh();
 
 	if (list_empty(&pool)) {
-		spin_unlock_bh(&pool_lock);
+		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
 		return -ENOENT;
 	}
 
 	/* Just return the first one. */
-	node = container_of(pool.next, struct pool_node, list_hook);
+	node = list_entry_rcu(pool.next, struct pool_node, list_hook);
 	*result = node->prefix;
 
-	spin_unlock_bh(&pool_lock);
+	rcu_read_unlock_bh();
 	return 0;
 }
 
@@ -173,6 +161,8 @@ int pool6_add(struct ipv6_prefix *prefix)
 	struct pool_node *node;
 	int error;
 
+	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &prefix->address, prefix->len);
+
 	if (WARN(!prefix, "NULL is not a valid prefix."))
 		return -EINVAL;
 
@@ -180,10 +170,15 @@ int pool6_add(struct ipv6_prefix *prefix)
 	if (error)
 		return error; /* Error msg already printed. */
 
-	spin_lock_bh(&pool_lock);
+	/*
+	 * I'm not using list_for_each_entry_rcu() here because this is a writer (as usual,
+	 * protected by module initialization or the configuration mutex).
+	 * tomoyo_get_group() is an example of a kernel function that iterates like this
+	 * before calling list_add_tail_rcu(), so I'm assuming this is correct.
+	 */
+
 	list_for_each_entry(node, &pool, list_hook) {
 		if (prefix6_equals(&node->prefix, prefix)) {
-			spin_unlock_bh(&pool_lock);
 			log_err("The prefix already belongs to the pool.");
 			return -EEXIST;
 		}
@@ -191,16 +186,12 @@ int pool6_add(struct ipv6_prefix *prefix)
 
 	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
 	if (!node) {
-		spin_unlock_bh(&pool_lock);
 		log_err("Allocation of IPv6 pool node failed.");
 		return -ENOMEM;
 	}
 	node->prefix = *prefix;
 
-	list_add_tail(&node->list_hook, &pool);
-	pool_count++;
-	spin_unlock_bh(&pool_lock);
-
+	list_add_tail_rcu(&node->list_hook, &pool);
 	return 0;
 }
 
@@ -211,24 +202,14 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	if (WARN(!prefix, "NULL is not a valid prefix."))
 		return -EINVAL;
 
-	spin_lock_bh(&pool_lock);
-
-	if (list_empty(&pool)) {
-		spin_unlock_bh(&pool_lock);
-		log_warn_once("The IPv6 pool is empty.");
-		return -ENOENT;
-	}
-
 	list_for_each_entry(node, &pool, list_hook) {
 		if (prefix6_equals(&node->prefix, prefix)) {
-			list_del(&node->list_hook);
+			list_del_rcu(&node->list_hook);
+			synchronize_rcu_bh();
 			kfree(node);
-			pool_count--;
-			spin_unlock_bh(&pool_lock);
 			return 0;
 		}
 	}
-	spin_unlock_bh(&pool_lock);
 
 	log_err("The prefix is not part of the pool.");
 	return -ENOENT;
@@ -238,34 +219,39 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
 {
 	struct pool_node *node;
 
-	spin_lock_bh(&pool_lock);
-	list_for_each_entry(node, &pool, list_hook) {
+	rcu_read_lock_bh();
+	list_for_each_entry_rcu(node, &pool, list_hook) {
 		int error = func(&node->prefix, arg);
 		if (error) {
-			spin_unlock_bh(&pool_lock);
+			rcu_read_unlock_bh();
 			return error;
 		}
 	}
-	spin_unlock_bh(&pool_lock);
+	rcu_read_unlock_bh();
 
 	return 0;
 }
 
 int pool6_count(__u64 *result)
 {
-	spin_lock_bh(&pool_lock);
-	*result = pool_count;
-	spin_unlock_bh(&pool_lock);
+	struct pool_node *node;
+	unsigned int count = 0;
+
+	rcu_read_lock_bh();
+	list_for_each_entry_rcu(node, &pool, list_hook) {
+		count++;
+	}
+	rcu_read_unlock_bh();
+
+	*result = count;
 	return 0;
 }
 
 bool pool6_is_empty(void)
 {
-	__u64 result;
-	pool6_count(&result);
-
-	if (result)
-		return false;
-
-	return true;
+	bool result;
+	rcu_read_lock_bh();
+	result = list_empty(&pool);
+	rcu_read_unlock_bh();
+	return result;
 }

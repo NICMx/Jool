@@ -1,6 +1,7 @@
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/blacklist.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/rfc6145/core.h"
@@ -8,7 +9,6 @@
 #include "nat64/mod/common/config.h"
 
 #include "nat64/mod/stateful/pool4.h"
-#include "nat64/mod/stateful/pool6.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"

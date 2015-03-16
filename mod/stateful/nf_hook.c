@@ -2,7 +2,7 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/nl_handler.h"
-#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/pkt_queue.h"
 #include "nat64/mod/stateful/bib_db.h"
