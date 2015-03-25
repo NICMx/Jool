@@ -11,7 +11,8 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
-MODULE_DESCRIPTION("Unit tests for the Address Mapping module");
+MODULE_AUTHOR("aleiva");
+MODULE_DESCRIPTION("Unit tests for the EAMT module");
 MODULE_ALIAS("nat64_test_address_mapping");
 
 #include "nat64/common/str_utils.h"
@@ -19,44 +20,9 @@ MODULE_ALIAS("nat64_test_address_mapping");
 #include "nat64/unit/unit_test.h"
 #include "../mod/stateless/eam.c"
 
-static const char* IPV4_ADDRS[] = { "10.0.0.0", "10.0.0.12", "10.0.0.8", "10.0.0.16", "10.0.0.254",
-									"10.0.0.254", "10.0.1.0", "10.0.1.0", "10.0.0.0" };
-static const __u8 IPV4_PREFIXES[] = { 30, 30, 28, 28, 32, 32, 24, 24, 30 };
-static const char* IPV6_ADDRS[] = { "2001:db8::0", "2001:db8::4", "2001:db8::8", "2001:db8::11",
-									"2001:db8::1", "2001:db8::111", "2001:db8::100", "2001:db8::200"
-									, "2001:db8::0"};
-static const __u8 IPV6_PREFIXES[] = { 126, 126, 124, 124, 128, 128, 120, 120, 128 };
-
-static const int error_codes[] = { 0, 0, -EEXIST, 0, -EEXIST, 0, -EEXIST, 0, -EINVAL};
-
-static struct ipv4_prefix pref4[ARRAY_SIZE(IPV4_ADDRS)];
-static struct ipv6_prefix pref6[ARRAY_SIZE(IPV6_ADDRS)];
-
 static bool init(void)
 {
-	int error;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr4(IPV4_ADDRS[i], &pref4[i].address)))
-			goto fail;
-		pref4[i].len = IPV4_PREFIXES[i];
-	}
-
-	for (i = 0; i < ARRAY_SIZE(IPV6_ADDRS); i++) {
-		if (is_error(str_to_addr6(IPV6_ADDRS[i], &pref6[i].address)))
-			goto fail;
-		pref6[i].len = IPV6_PREFIXES[i];
-	}
-
-	error = eamt_init();
-	if (error)
-		goto fail;
-
-	return true;
-
-fail:
-	return false;
+	return eamt_init() ? false : true;
 }
 
 static void end(void)
@@ -64,84 +30,7 @@ static void end(void)
 	eamt_destroy();
 }
 
-static bool insert_prefixes(void)
-{
-	int i;
-	int error;
-	bool result = true;
-
-	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		log_debug("Inserting prefixes #%d", i+1);
-		error = eamt_add(&pref6[i], &pref4[i]);
-		result &= assert_equals_int(error_codes[i], error, "inserting prefix");
-	}
-
-	return result;
-}
-
-static bool translate_6to4(struct in6_addr *addr6, struct in_addr *expected,
-		struct in_addr *result)
-{
-	if (is_error(eamt_get_ipv4_by_ipv6(addr6, result)))
-		return false;
-
-	return assert_equals_ipv4(expected, result, "translate_6to4");
-}
-
-static bool translate_4to6(struct in_addr *addr, struct in6_addr *expected,
-		struct in6_addr *result)
-{
-	if (is_error(eamt_get_ipv6_by_ipv4(addr, result)))
-		return false;
-
-	return assert_equals_ipv6(expected, result, "translate_4to6");
-}
-
-static bool translate_address(void)
-{
-	int i;
-	bool result = true;
-
-	char* ADDRS_4[] = { "10.0.0.2", "10.0.0.14", "10.0.0.27", "10.0.0.254", "10.0.1.15" };
-	char* ADDRS_6[] = { "2001:db8::2", "2001:db8::6", "2001:db8::1B", "2001:db8::111",
-									"2001:db8::20F" };
-	struct in_addr expected_addr4[ARRAY_SIZE(ADDRS_4)], result_addr4[ARRAY_SIZE(ADDRS_4)];
-	struct in6_addr expected_addr6[ARRAY_SIZE(ADDRS_6)], result_addr6[ARRAY_SIZE(ADDRS_6)];
-
-	for (i = 0; i < ARRAY_SIZE(ADDRS_6); i++) {
-		if (is_error(str_to_addr6(ADDRS_6[i], &expected_addr6[i])))
-			return false;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ADDRS_4); i++) {
-		if (is_error(str_to_addr4(ADDRS_4[i], &expected_addr4[i])))
-			return false;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ADDRS_4); i++) {
-		result &= translate_4to6(&expected_addr4[i], &expected_addr6[i], &result_addr6[i]);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ADDRS_6); i++) {
-		result &= translate_6to4(&expected_addr6[i], &expected_addr4[i], &result_addr4[i]);
-	}
-
-
-	return result;
-}
-
-static bool general_test(void)
-{
-	bool result = true;
-
-	result &= insert_prefixes();
-
-	result &= translate_address();
-
-	return result;
-}
-
-static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
+static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 {
 	struct ipv4_prefix prefix4;
 	struct ipv6_prefix prefix6;
@@ -154,7 +43,36 @@ static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	prefix6.len = len6;
 
-	if (eamt_add(&prefix6, &prefix4)) {
+	return eamt_add(&prefix6, &prefix4);
+}
+
+static bool add_test(void)
+{
+	bool success = true;
+
+	/* Collision tests */
+	success &= assert_equals_int(0, __add_entry("1.0.0.4", 30, "1::c", 126), "hackless add");
+	success &= assert_equals_int(-EEXIST, __add_entry("1.0.0.4", 30, "1::c", 126), "simple collision");
+	success &= assert_equals_int(-EEXIST, __add_entry("1.0.0.6", 31, "2::c", 127), "4 is inside");
+	success &= assert_equals_int(-EEXIST, __add_entry("2.0.0.4", 31, "1::e", 127), "6 is inside");
+	success &= assert_equals_int(-EEXIST, __add_entry("1.0.0.0", 24, "2::", 120), "4 is outside");
+	success &= assert_equals_int(-EEXIST, __add_entry("2.0.0.0", 24, "1::", 120), "6 is outside");
+	success &= assert_equals_int(0, __add_entry("1.0.0.0", 30, "1::", 126), "no collision");
+
+	/* Prefix length tests*/
+	success &= assert_equals_int(-EINVAL, __add_entry("5.0.0.0", 24, "5::", 124), "bigger suffix4");
+	success &= assert_equals_int(0, __add_entry("5.0.0.0", 28, "5::", 120), "bigger suffix6");
+	success &= assert_equals_int(-EINVAL, __add_entry("6.0.0.0", 33, "6::", 128), "prefix4 too big");
+	success &= assert_equals_int(-EINVAL, __add_entry("6.0.0.0", 32, "6::", 129), "prefix6 too big");
+	success &= assert_equals_int(-EINVAL, __add_entry("7.0.0.1", 24, "7::", 120), "nonzero suffix4");
+	success &= assert_equals_int(-EINVAL, __add_entry("7.0.0.0", 24, "7::1", 120), "nonzero suffix6");
+
+	return success;
+}
+
+static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
+{
+	if (__add_entry(addr4, len4, addr6, len6)) {
 		log_err("The call to eamt_add() failed.");
 		return false;
 	}
@@ -186,6 +104,27 @@ static bool test(char *addr4_str, char *addr6_str)
 
 	success &= assert_equals_ipv6(&addr6, &result6, "IPv4 to IPv6 result");
 	success &= assert_equals_ipv4(&addr4, &result4, "IPv6 to IPv4 result");
+	return success;
+}
+
+static bool daniel_test(void)
+{
+	bool success = true;
+
+	success &= add_entry("10.0.0.0", 30, "2001:db8::0", 126);
+	success &= add_entry("10.0.0.12", 30, "2001:db8::4", 126);
+	success &= add_entry("10.0.0.16", 28, "2001:db8::20", 124);
+	success &= add_entry("10.0.0.254", 32, "2001:db8::111", 128);
+	success &= add_entry("10.0.1.0", 24, "2001:db8::200", 120);
+	if (!success)
+		return false;
+
+	success &= test("10.0.0.2", "2001:db8::2");
+	success &= test("10.0.0.14", "2001:db8::6");
+	success &= test("10.0.0.27", "2001:db8::2b");
+	success &= test("10.0.0.254", "2001:db8::111");
+	success &= test("10.0.1.15", "2001:db8::20f");
+
 	return success;
 }
 
@@ -264,11 +203,13 @@ static bool remove_test(void)
 	if (!success)
 		return false;
 
-	success &= insert_prefixes();
+	success &= add_entry("10.0.0.0", 24, "2001:db8::100", 120);
+	success &= add_entry("10.0.1.0", 24, "2001:db8::200", 120);
+	success &= add_entry("10.0.2.0", 24, "2001:db8::300", 120);
 	if (!success)
 		return false;
 
-	eamt_flush();
+	success &= assert_equals_int(0, eamt_flush(), "flush result");
 	success &= assert_equals_u64(0, eam_table.count, "Table count 2");
 
 	return success;
@@ -278,9 +219,10 @@ static int address_mapping_test_init(void)
 {
 	START_TESTS("Address Mapping test");
 
-	INIT_CALL_END(init(), general_test(), end(), "Test inserting address");
-	INIT_CALL_END(init(), anderson_test(), end(), "Tests from T. Anderson's 3rd draft.");
-	INIT_CALL_END(init(), remove_test(), end(), "Test removing address.");
+	INIT_CALL_END(init(), add_test(), end(), "add function");
+	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's translation tests");
+	INIT_CALL_END(init(), anderson_test(), end(), "Translation tests from T. Anderson's draft");
+	INIT_CALL_END(init(), remove_test(), end(), "remove function");
 
 	END_TESTS;
 }

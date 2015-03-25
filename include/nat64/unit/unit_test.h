@@ -54,9 +54,9 @@ void end_full(void);
 	log_info("Test '" test_name "': Starting...", ##__VA_ARGS__);	\
 	test_counter++;													\
 	if (test) {														\
-		log_info("Test '" test_name "': Success.", ##__VA_ARGS__);	\
+		log_info("Test '" test_name "': Success.\n", ##__VA_ARGS__);	\
 	} else {														\
-		log_info("Test '" test_name "': Failure.", ##__VA_ARGS__);	\
+		log_info("Test '" test_name "': Failure.\n", ##__VA_ARGS__);	\
 		failure_counter++;											\
 	}
 #define INIT_CALL_END(init_function, test_function, end_function, test_name)	\

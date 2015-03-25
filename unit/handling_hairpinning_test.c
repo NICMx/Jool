@@ -11,7 +11,7 @@
 #include "nat64/unit/types.h"
 
 #include "nat64/common/str_utils.h"
-#include "nat64/mod/stateful/pool6.h"
+#include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/pool4.h"
 #include "nat64/mod/stateful/pkt_queue.h"
 #include "nat64/mod/stateful/fragment_db.h"

@@ -243,11 +243,11 @@ static int compare_session4(const struct session_entry *s1, const struct session
 {
 	int gap;
 
-	gap = compare_addr4(&s1->remote4, &s2->remote4);
+	gap = compare_addr4(&s1->local4, &s2->local4);
 	if (gap)
 		return gap;
 
-	gap = compare_addr4(&s1->local4, &s2->local4);
+	gap = compare_addr4(&s1->remote4, &s2->remote4);
 	return gap;
 }
 
@@ -296,11 +296,11 @@ static int compare_full4(const struct session_entry *session, const struct tuple
 {
 	int gap;
 
-	gap = compare_addr4(&session->remote4, &tuple4->src.addr4);
+	gap = compare_addr4(&session->local4, &tuple4->dst.addr4);
 	if (gap)
 		return gap;
 
-	gap = compare_addr4(&session->local4, &tuple4->dst.addr4);
+	gap = compare_addr4(&session->remote4, &tuple4->src.addr4);
 	return gap;
 }
 

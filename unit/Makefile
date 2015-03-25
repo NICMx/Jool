@@ -109,12 +109,12 @@ $(SESSION)-objs += $(MIN_REQS)
 $(SESSION)-objs += ../mod/common/config.o
 $(SESSION)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(SESSION)-objs += ../mod/common/packet.o
+$(SESSION)-objs += ../mod/common/pool6.o
 $(SESSION)-objs += ../mod/common/rbtree.o
 $(SESSION)-objs += ../mod/common/rfc6052.o
 $(SESSION)-objs += ../mod/stateful/bib_db.o
 $(SESSION)-objs += ../mod/stateful/host6_node.o
 $(SESSION)-objs += ../mod/stateful/pkt_queue.o
-$(SESSION)-objs += ../mod/stateful/pool6.o
 $(SESSION)-objs += framework/session.o
 $(SESSION)-objs += framework/skb_generator.o
 $(SESSION)-objs += framework/types.o
@@ -146,12 +146,12 @@ $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../mod/common/config.o
 $(FILTERING)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(FILTERING)-objs += ../mod/common/packet.o
+$(FILTERING)-objs += ../mod/common/pool6.o
 $(FILTERING)-objs += ../mod/common/rbtree.o
 $(FILTERING)-objs += ../mod/common/rfc6052.o
 $(FILTERING)-objs += ../mod/stateful/bib_db.o
 $(FILTERING)-objs += ../mod/stateful/host6_node.o
 $(FILTERING)-objs += ../mod/stateful/pkt_queue.o
-$(FILTERING)-objs += ../mod/stateful/pool6.o
 $(FILTERING)-objs += ../mod/stateful/session_db.o
 $(FILTERING)-objs += framework/init.o
 $(FILTERING)-objs += framework/session.o
@@ -165,13 +165,13 @@ $(FILTERING)-objs += filtering_and_updating_test.o
 
 $(OUTGOING)-objs += $(MIN_REQS)
 $(OUTGOING)-objs += ../mod/common/config.o
+$(OUTGOING)-objs += ../mod/common/pool6.o
 $(OUTGOING)-objs += ../mod/common/rbtree.o
 $(OUTGOING)-objs += ../mod/common/rfc6052.o
 $(OUTGOING)-objs += ../mod/stateful/bib_db.o
 $(OUTGOING)-objs += ../mod/stateful/compute_outgoing_tuple.o
 $(OUTGOING)-objs += ../mod/stateful/host6_node.o
 $(OUTGOING)-objs += ../mod/stateful/pkt_queue.o
-$(OUTGOING)-objs += ../mod/stateful/pool6.o
 $(OUTGOING)-objs += ../mod/stateful/session_db.o
 $(OUTGOING)-objs += framework/init.o
 $(OUTGOING)-objs += framework/session.o
@@ -200,6 +200,7 @@ $(HAIRPINNING)-objs += ../mod/common/config.o
 $(HAIRPINNING)-objs += ../mod/common/core.o
 $(HAIRPINNING)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(HAIRPINNING)-objs += ../mod/common/packet.o
+$(HAIRPINNING)-objs += ../mod/common/pool6.o
 $(HAIRPINNING)-objs += ../mod/common/random.o
 $(HAIRPINNING)-objs += ../mod/common/rbtree.o
 $(HAIRPINNING)-objs += ../mod/common/rfc6052.o
@@ -215,7 +216,6 @@ $(HAIRPINNING)-objs += ../mod/stateful/fragment_db.o
 $(HAIRPINNING)-objs += ../mod/stateful/handling_hairpinning.o
 $(HAIRPINNING)-objs += ../mod/stateful/host6_node.o
 $(HAIRPINNING)-objs += ../mod/stateful/pkt_queue.o
-$(HAIRPINNING)-objs += ../mod/stateful/pool6.o
 $(HAIRPINNING)-objs += ../mod/stateful/session_db.o
 $(HAIRPINNING)-objs += framework/bib.o
 $(HAIRPINNING)-objs += framework/init.o
@@ -232,11 +232,11 @@ $(HAIRPINNING)-objs += handling_hairpinning_test.o
 $(PKTQUEUE)-objs += $(MIN_REQS)
 $(PKTQUEUE)-objs += ../mod/stateful/bib_db.o
 $(PKTQUEUE)-objs += ../mod/stateful/host6_node.o
-$(PKTQUEUE)-objs += ../mod/stateful/pool6.o
 $(PKTQUEUE)-objs += ../mod/stateful/session_db.o
 $(PKTQUEUE)-objs += ../mod/common/config.o
 $(PKTQUEUE)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(PKTQUEUE)-objs += ../mod/common/packet.o
+$(PKTQUEUE)-objs += ../mod/common/pool6.o
 $(PKTQUEUE)-objs += ../mod/common/rbtree.o
 $(PKTQUEUE)-objs += ../mod/common/rfc6052.o
 $(PKTQUEUE)-objs += framework/init.o
@@ -255,6 +255,7 @@ $(CONFIG_PROTO)-objs += ../mod/common/config.o
 $(CONFIG_PROTO)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(CONFIG_PROTO)-objs += ../mod/common/nl_buffer.o
 $(CONFIG_PROTO)-objs += ../mod/common/packet.o
+$(CONFIG_PROTO)-objs += ../mod/common/pool6.o
 $(CONFIG_PROTO)-objs += ../mod/common/random.o
 $(CONFIG_PROTO)-objs += ../mod/common/rbtree.o
 $(CONFIG_PROTO)-objs += ../mod/common/rfc6052.o
@@ -268,7 +269,6 @@ $(CONFIG_PROTO)-objs += ../mod/stateful/filtering_and_updating.o
 $(CONFIG_PROTO)-objs += ../mod/stateful/fragment_db.o
 $(CONFIG_PROTO)-objs += ../mod/stateful/host6_node.o
 $(CONFIG_PROTO)-objs += ../mod/stateful/pkt_queue.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/pool6.o
 $(CONFIG_PROTO)-objs += ../mod/stateful/session_db.o
 $(CONFIG_PROTO)-objs += ../mod/stateful/static_routes.o
 $(CONFIG_PROTO)-objs += framework/init.o
@@ -282,7 +282,7 @@ $(LOGTIME)-objs += log_time_test.o
 
 $(MAPPING)-objs += $(MIN_REQS)
 $(MAPPING)-objs += ../mod/common/rbtree.o
-$(MAPPING)-objs += address_mapping_test.o
+$(MAPPING)-objs += eamt_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
@@ -305,7 +305,7 @@ test:
 	-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
 	-sudo insmod $(PKTQUEUE).ko && sudo rmmod $(PKTQUEUE)
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
-	-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
+	#-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
 	-sudo insmod $(MAPPING).ko && sudo rmmod $(MAPPING)
 	dmesg | grep 'Finished.'
 modules:

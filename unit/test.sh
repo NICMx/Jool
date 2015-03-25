@@ -1,6 +1,11 @@
 #!/bin/bash
 
-TESTS=`ls *.ko`
+if [ -z $1 ]; then
+	TESTS=`ls *.ko`
+else
+	TESTS=$1.ko
+fi
+
 
 for i in $TESTS
 do
