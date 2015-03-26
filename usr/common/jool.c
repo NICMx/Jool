@@ -48,13 +48,13 @@ struct arguments {
 		} pool6;
 
 		struct {
-			struct ipv4_prefix addrs;
-			bool addr_set;
+			struct ipv4_prefix prefix;
+			bool prefix_set;
 		} pool4;
 
 		struct {
 			bool tcp, udp, icmp;
-			bool numeric_hostname;
+			bool numeric;
 			bool csv_format;
 
 			struct {
@@ -63,9 +63,7 @@ struct arguments {
 				struct ipv4_transport_addr addr4;
 				bool addr4_set;
 			} bib;
-
 		} tables;
-
 	} db;
 
 	struct {
@@ -88,7 +86,7 @@ enum argp_flags {
 	ARGP_BLACKLIST = 7000,
 	ARGP_RFC6791 = 6791,
 	ARGP_LOGTIME = 'l',
-	ARGP_GENERAL = 'g',
+	ARGP_GLOBAL = 'g',
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',
@@ -137,15 +135,13 @@ enum argp_flags {
 	ARGP_ATOMIC_FRAGMENTS = 4016,
 };
 
-#define NUM_FORMAT "NUM"
-#define IPV6_TRANSPORT_FORMAT "ADDR6#NUM"
-#define IPV4_TRANSPORT_FORMAT "ADDR4#NUM"
-#define IPV4_ADDR_FORMAT "ADDR4"
 #define BOOL_FORMAT "BOOL"
-#define NUM_ARR_FORMAT "NUM[,NUM]*"
-#define IPV6_PREFIX_FORMAT "ADDR6/NUM"
-#define IPV4_PREFIX_FORMAT "ADDR4/NUM"
-
+#define NUM_FORMAT "NUM"
+#define NUM_ARRAY_FORMAT "NUM[,NUM]*"
+#define PREFIX6_FORMAT "ADDR6/NUM"
+#define PREFIX4_FORMAT "ADDR4/NUM"
+#define TRANSPORT6_FORMAT "ADDR6#NUM"
+#define TRANSPORT4_FORMAT "ADDR4#NUM"
 
 /*
  * OPTIONS. Field 1 in ARGP.
@@ -172,7 +168,7 @@ static struct argp_option options[] =
 #ifdef BENCHMARK
 	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
 #endif
-	{ "global", ARGP_GENERAL, NULL, 0, "The command will operate on miscellaneous configuration "
+	{ "global", ARGP_GLOBAL, NULL, 0, "The command will operate on miscellaneous configuration "
 			"values (default)." },
 	{ "general", 0, NULL, OPTION_ALIAS, ""},
 
@@ -218,7 +214,7 @@ static struct argp_option options[] =
 	{ OPTNAME_TOS, ARGP_NEW_TOS, NUM_FORMAT, 0,
 			"Value to override TOS as (only when --override-tos is ON).\n" },
 	{ "TOS", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_MTU_PLATEAUS, ARGP_PLATEAUS, NUM_ARR_FORMAT, 0,
+	{ OPTNAME_MTU_PLATEAUS, ARGP_PLATEAUS, NUM_ARRAY_FORMAT, 0,
 			"Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.\n" },
 	{ "plateaus", 0, NULL, OPTION_ALIAS, ""},
 #ifdef STATEFUL
@@ -253,7 +249,7 @@ static struct argp_option options[] =
 #else
 	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
 			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "
-			"Otherwise drop the packet.\n"},
+			"Otherwise drop the packet.\n" },
 	{ OPTNAME_RANDOMIZE_RFC6791, ARGP_RANDOMIZE_RFC6791, BOOL_FORMAT, 0,
 			"Randomize selection of address from the RFC6791 pool? "
 			"Otherwise choose the 'Hop Limit'th address.\n" },
@@ -273,14 +269,14 @@ static struct argp_option options[] =
 			"Decrease MTU failure rate?" },
 
 #ifdef STATEFUL
-	{ "prefix", ARGP_PREFIX, IPV6_PREFIX_FORMAT, 0, "Prefix to be added to or removed from "
+	{ "prefix", ARGP_PREFIX, PREFIX6_FORMAT, 0, "Prefix to be added to or removed from "
 			"the IPv6 pool. You no longer need to name this." },
-	{ "address", ARGP_ADDRESS, IPV4_PREFIX_FORMAT, 0, "'Address' to be added to or removed from "
+	{ "address", ARGP_ADDRESS, PREFIX4_FORMAT, 0, "'Address' to be added to or removed from "
 			"the IPv4 pool. You no longer need to name this." },
-	{ "bib6", ARGP_BIB_IPV6, IPV6_TRANSPORT_FORMAT, 0,
+	{ "bib6", ARGP_BIB_IPV6, TRANSPORT6_FORMAT, 0,
 			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
 			"You no longer need to name this." },
-	{ "bib4", ARGP_BIB_IPV4, IPV4_TRANSPORT_FORMAT, 0,
+	{ "bib4", ARGP_BIB_IPV4, TRANSPORT4_FORMAT, 0,
 			"This is the local IPv4 addres#port of the entry to be added or removed. "
 			"You no longer need to name this." },
 #endif
@@ -292,6 +288,8 @@ static int update_state(struct arguments *args, enum config_mode valid_modes,
 {
 	enum config_mode common_modes;
 	enum config_operation common_ops;
+
+	valid_modes &= nat64_is_stateful() ? NAT64_MODES : SIIT_MODES;
 
 	common_modes = args->mode & valid_modes;
 	if (!common_modes || (common_modes | valid_modes) != valid_modes)
@@ -390,32 +388,25 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-#ifdef STATEFUL
-	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
-#else
-	error = update_state(args, MODE_POOL4 | MODE_RFC6791 | MODE_EAMT, OP_ADD | OP_REMOVE);
-#endif
+	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791 | MODE_EAMT,
+			OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
 
-	if (args->db.pool4.addr_set) {
+	if (args->db.pool4.prefix_set) {
 		log_err("Only one IPv4 prefix can be added or removed at a time.");
 		return -EINVAL;
 	}
 
-	if (strchr(str, '/') != 0){
-		error = str_to_ipv4_prefix(str, &args->db.pool4.addrs);
-		if (!error && nat64_is_stateful() && args->db.pool4.addrs.len < 16) {
-			log_debug("Warning: That's a lot of addresses. "
-					"Are you sure that /%u is not a typo?",
-					args->db.pool4.addrs.len);
-		}
+	args->db.pool4.prefix_set = true;
+	error = str_to_ipv4_prefix(str, &args->db.pool4.prefix);
 
-	} else {
-		error = str_to_addr4(str, &args->db.pool4.addrs.address);
-		args->db.pool4.addrs.len = 32;
+	if (!error && nat64_is_stateful() && args->db.pool4.prefix.len < 16) {
+		log_debug("Warning: That's a lot of addresses. "
+				"Are you sure that /%u is not a typo?",
+				args->db.pool4.prefix.len);
 	}
-	args->db.pool4.addr_set = true;
+
 	return error;
 }
 
@@ -423,12 +414,7 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-#ifdef STATEFUL
-	error = update_state(args, MODE_POOL6, OP_ADD | OP_REMOVE);
-#else
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE
-			| OP_REMOVE);
-#endif
+	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -443,9 +429,12 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 
 static int set_bib6(struct arguments *args, char *str)
 {
-#ifdef STATEFUL
-
 	int error;
+
+	if (nat64_is_stateless()) {
+		log_err("You entered an IPv6 transport address. SIIT doesn't have BIBs...");
+		return -EINVAL;
+	}
 
 	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
 	if (error)
@@ -459,18 +448,16 @@ static int set_bib6(struct arguments *args, char *str)
 
 	args->db.tables.bib.addr6_set = true;
 	return str_to_addr6_port(str, &args->db.tables.bib.addr6);
-
-#else
-	log_err("You entered an IPv6 transport address. SIIT doesn't have BIBs...");
-	return -EINVAL;
-#endif
 }
 
 static int set_bib4(struct arguments *args, char *str)
 {
-#ifdef STATEFUL
-
 	int error;
+
+	if (nat64_is_stateless()) {
+		log_err("You entered an IPv4 transport address. SIIT doesn't have BIBs...");
+		return -EINVAL;
+	}
 
 	error = update_state(args, MODE_BIB, OP_ADD | OP_REMOVE);
 	if (error)
@@ -484,11 +471,6 @@ static int set_bib4(struct arguments *args, char *str)
 
 	args->db.tables.bib.addr4_set = true;
 	return str_to_addr4_port(str, &args->db.tables.bib.addr4);
-
-#else
-	log_err("You entered an IPv4 transport address. SIIT doesn't have BIBs...");
-	return -EINVAL;
-#endif
 }
 
 static int set_ip_args(struct arguments *args, char *str)
@@ -527,35 +509,32 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	int error = 0;
 
 	switch (key) {
+	case ARGP_GLOBAL:
+		error = update_state(args, MODE_GLOBAL, GLOBAL_OPS);
+		break;
 	case ARGP_POOL6:
 		error = update_state(args, MODE_POOL6, POOL6_OPS);
 		break;
-	case ARGP_BLACKLIST:
 	case ARGP_POOL4:
 		error = update_state(args, MODE_POOL4, POOL4_OPS);
 		break;
-#ifdef STATEFUL
+	case ARGP_BLACKLIST:
+		error = update_state(args, MODE_BLACKLIST, BLACKLIST_OPS);
+		break;
+	case ARGP_RFC6791:
+		error = update_state(args, MODE_RFC6791, RFC6791_OPS);
+		break;
+	case ARGP_EAMT:
+		error = update_state(args, MODE_EAMT, EAMT_OPS);
+		break;
 	case ARGP_BIB:
 		error = update_state(args, MODE_BIB, BIB_OPS);
 		break;
 	case ARGP_SESSION:
 		error = update_state(args, MODE_SESSION, SESSION_OPS);
 		break;
-#else
-	case ARGP_EAMT:
-		error = update_state(args, MODE_EAMT, EAMT_OPS);
-		break;
-	case ARGP_RFC6791:
-		error = update_state(args, MODE_RFC6791, RFC6791_OPS);
-		break;
-#endif
-#ifdef BENCHMARK
 	case ARGP_LOGTIME:
 		error = update_state(args, MODE_LOGTIME, LOGTIME_OPS);
-		break;
-#endif
-	case ARGP_GENERAL:
-		error = update_state(args, MODE_GLOBAL, GENERAL_OPS);
 		break;
 
 	case ARGP_DISPLAY:
@@ -577,7 +556,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, FLUSH_MODES, OP_FLUSH);
 		break;
 
-#ifdef STATEFUL
 	case ARGP_UDP:
 		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
 		args->db.tables.udp = true;
@@ -592,10 +570,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_NUMERIC_HOSTNAME:
 		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
-		args->db.tables.numeric_hostname = true;
+		args->db.tables.numeric = true;
 		break;
 	case ARGP_CSV:
-		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
+		error = update_state(args, MODE_EAMT | MODE_BIB | MODE_SESSION, OP_DISPLAY);
 		args->db.tables.csv_format = true;
 		break;
 
@@ -611,6 +589,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_bib4(args, str);
 		break;
 
+#ifdef STATEFUL
 	case ARGP_DROP_ADDR:
 		error = set_global_bool(args, DROP_BY_ADDR, str);
 		break;
@@ -632,18 +611,13 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_TCP_TRANS_TO:
 		error = set_global_u64(args, TCP_TRANS_TIMEOUT, str, TCP_TRANS, MAX_U32/1000, 1000);
 		break;
-	case ARGP_STORED_PKTS:
-		error = set_global_u64(args, MAX_PKTS, str, 0, MAX_U64, 1);
-		break;
-
 	case ARGP_FRAG_TO:
 		error = set_global_u64(args, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
-#else
-	case ARGP_CSV:
-		error = update_state(args, MODE_EAMT, OP_DISPLAY);
-		args->db.tables.csv_format = true;
+	case ARGP_STORED_PKTS:
+		error = set_global_u64(args, MAX_PKTS, str, 0, MAX_U64, 1);
 		break;
+#else
 	case ARGP_COMPUTE_CSUM_ZERO:
 		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
 		break;
@@ -651,6 +625,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_global_bool(args, RANDOMIZE_RFC6791, str);
 		break;
 #endif
+
 	case ARGP_PREFIX:
 		error = set_ipv6_prefix(args, str);
 		break;
@@ -716,9 +691,9 @@ static char doc[] = "See the manpage for prettier grammar.\v";
 /**
  * Zeroizes all of "num"'s bits, except the last one. Returns the result.
  */
-static unsigned int zeroize_upper_bits(__u8 num)
+static unsigned int zeroize_upper_bits(__u16 num)
 {
-	__u8 mask = 0x01;
+	__u16 mask = 0x01;
 
 	do {
 		if ((num & mask) != 0)
@@ -739,7 +714,7 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
-	result->mode = 0xFF;
+	result->mode = 0xFFFF;
 	result->op = 0xFF;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
@@ -756,6 +731,31 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	}
 
 	return 0;
+}
+
+static bool validate_pool6(struct arguments *args)
+{
+	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
+	int valid_lengths_size = sizeof(valid_lengths) / sizeof(valid_lengths[0]);
+	int i;
+
+	if (!args->db.pool6.prefix_set) {
+		log_err("Please enter the prefix to be added or removed (%s).", PREFIX6_FORMAT);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < valid_lengths_size; i++) {
+		if (args->db.pool6.prefix.len == valid_lengths[i])
+			return 0;
+	}
+
+	log_err("RFC 6052 does not like prefix length %u.",args->db.pool6.prefix.len);
+	printf("These are valid: ");
+	for (i = 0; i < valid_lengths_size - 1; i++)
+		printf("%u, ", valid_lengths[i]);
+	printf("%u.\n", valid_lengths[i]);
+
+	return -EINVAL;
 }
 
 /*
@@ -777,17 +777,11 @@ static int main_wrapped(int argc, char **argv)
 			return pool6_display();
 		case OP_ADD:
 		case OP_UPDATE:
-			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be added (%s).", IPV6_PREFIX_FORMAT);
-				return -EINVAL;
-			}
-			return pool6_add(&args.db.pool6.prefix);
+			error = validate_pool6(&args);
+			return error ? : pool6_add(&args.db.pool6.prefix);
 		case OP_REMOVE:
-			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be removed (%s).", IPV6_PREFIX_FORMAT);
-				return -EINVAL;
-			}
-			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
+			error = validate_pool6(&args);
+			return error ? : pool6_remove(&args.db.pool6.prefix, args.db.quick);
 		case OP_COUNT:
 			return pool6_count();
 		case OP_FLUSH:
@@ -799,24 +793,24 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_POOL4:
+	case MODE_BLACKLIST:
 		switch (args.op) {
 		case OP_DISPLAY:
 			return pool4_display();
 		case OP_COUNT:
 			return pool4_count();
 		case OP_ADD:
-			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address or prefix to be added (%s).", IPV4_PREFIX_FORMAT);
+			if (!args.db.pool4.prefix_set) {
+				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_add(&args.db.pool4.addrs);
+			return pool4_add(&args.db.pool4.prefix);
 		case OP_REMOVE:
-			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address or prefix to be removed (%s).",
-						IPV4_PREFIX_FORMAT);
+			if (!args.db.pool4.prefix_set) {
+				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_remove(&args.db.pool4.addrs, args.db.quick);
+			return pool4_remove(&args.db.pool4.prefix, args.db.quick);
 		case OP_FLUSH:
 			return pool4_flush(args.db.quick);
 		default:
@@ -825,12 +819,16 @@ static int main_wrapped(int argc, char **argv)
 		}
 		break;
 
-#ifdef STATEFUL
 	case MODE_BIB:
+		if (nat64_is_stateless()) {
+			log_err("SIIT doesn't have BIBs.");
+			return -EINVAL;
+		}
+
 		switch (args.op) {
 		case OP_DISPLAY:
 			return bib_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
-					args.db.tables.numeric_hostname, args.db.tables.csv_format);
+					args.db.tables.numeric, args.db.tables.csv_format);
 		case OP_COUNT:
 			return bib_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
 
@@ -866,10 +864,15 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_SESSION:
+		if (nat64_is_stateless()) {
+			log_err("SIIT doesn't have sessions.");
+			return -EINVAL;
+		}
+
 		switch (args.op) {
 		case OP_DISPLAY:
 			return session_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
-					args.db.tables.numeric_hostname, args.db.tables.csv_format);
+					args.db.tables.numeric, args.db.tables.csv_format);
 		case OP_COUNT:
 			return session_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
 		default:
@@ -877,28 +880,32 @@ static int main_wrapped(int argc, char **argv)
 			return -EINVAL;
 		}
 		break;
-#else
 
 	case MODE_EAMT:
+		if (nat64_is_stateful()) {
+			log_err("Stateful NAT64 doesn't have EAMTs.");
+			return -EINVAL;
+		}
+
 		switch (args.op) {
 		case OP_DISPLAY:
 			return eam_display(args.db.tables.csv_format);
 		case OP_COUNT:
 			return eam_count();
 		case OP_ADD:
-			if (!args.db.pool6.prefix_set || !args.db.pool4.addr_set) {
+			if (!args.db.pool6.prefix_set || !args.db.pool4.prefix_set) {
 				log_err("I need the IPv4 prefix and the IPv6 prefix of the entry you want to add.");
 				return -EINVAL;
 			}
-			return eam_add(&args.db.pool6.prefix, &args.db.pool4.addrs);
+			return eam_add(&args.db.pool6.prefix, &args.db.pool4.prefix);
 		case OP_REMOVE:
-			if (!args.db.pool6.prefix_set && !args.db.pool4.addr_set) {
+			if (!args.db.pool6.prefix_set && !args.db.pool4.prefix_set) {
 				log_err("I need the IPv4 prefix and/or the IPv6 prefix of the entry you want to "
 						"remove.");
 				return -EINVAL;
 			}
 			return eam_remove(args.db.pool6.prefix_set, &args.db.pool6.prefix,
-					args.db.pool4.addr_set, &args.db.pool4.addrs);
+					args.db.pool4.prefix_set, &args.db.pool4.prefix);
 		case OP_FLUSH:
 			return eam_flush();
 		default:
@@ -908,24 +915,28 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_RFC6791:
+		if (nat64_is_stateful()) {
+			log_err("RFC 6791 does not apply to Stateful NAT64.");
+			return -EINVAL;
+		}
+
 		switch (args.op) {
 		case OP_DISPLAY:
 			return rfc6791_display();
 		case OP_COUNT:
 			return rfc6791_count();
 		case OP_ADD:
-			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address or prefix to be added (%s).", IPV4_PREFIX_FORMAT);
+			if (!args.db.pool4.prefix_set) {
+				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return rfc6791_add(&args.db.pool4.addrs);
+			return rfc6791_add(&args.db.pool4.prefix);
 		case OP_REMOVE:
-			if (!args.db.pool4.addr_set) {
-				log_err("Please enter the address or prefix to be removed (%s).",
-						IPV4_PREFIX_FORMAT);
+			if (!args.db.pool4.prefix_set) {
+				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return rfc6791_remove(&args.db.pool4.addrs, args.db.quick);
+			return rfc6791_remove(&args.db.pool4.prefix, args.db.quick);
 		case OP_FLUSH:
 			return rfc6791_flush(args.db.quick);
 		default:
@@ -933,10 +944,13 @@ static int main_wrapped(int argc, char **argv)
 			return -EINVAL;
 		}
 		break;
-#endif
 
-#ifdef BENCHMARK
 	case MODE_LOGTIME:
+		if (!is_logtime_enabled()) {
+			log_err("This is benchmark configuration mode despite benchmark being disabled.");
+			return -EINVAL;
+		}
+
 		switch (args.op) {
 		case OP_DISPLAY:
 			return logtime_display();
@@ -945,7 +959,6 @@ static int main_wrapped(int argc, char **argv)
 			break;
 		}
 		break;
-#endif
 
 	case MODE_GLOBAL:
 		switch (args.op) {

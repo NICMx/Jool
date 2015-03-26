@@ -12,9 +12,9 @@
 #define MAX_PORT 0xFFFF
 
 /* The maximum network length for IPv4. */
-static const __u8 IPV4_PREFIX = 32;
+static const __u8 IPV4_MAX_PREFIX = 32;
 /* The maximum network length for IPv6. */
-static const __u8 IPV6_PREFIX = 128;
+static const __u8 IPV6_MAX_PREFIX = 128;
 
 const char *l3proto_to_string(l3_protocol l3_proto)
 {
@@ -189,7 +189,7 @@ int str_to_addr6(const char *str, struct in6_addr *result)
 #define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 5) /* [addr + null chara] + # + port */
 int str_to_addr4_port(const char *str, struct ipv4_transport_addr *addr_out)
 {
-	const char *FORMAT = "<IPv4 address>#<port> (eg. 10.20.30.40#50)";
+	const char *FORMAT = "<IPv4 address>#<port> (eg. 203.0.113.8#80)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
@@ -216,18 +216,14 @@ int str_to_addr4_port(const char *str, struct ipv4_transport_addr *addr_out)
 		log_err("'%s' does not seem to contain a port (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
-	error = str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
-	if (error)
-		return error; /* Error msg already printed. */
-
-	return 0;
+	return str_to_u16(token, &addr_out->l4, 0, MAX_PORT); /* Error msg already printed. */
 }
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 5) /* [addr + null chara] + # + port */
 int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 {
-	const char *FORMAT = "<IPv6 address>#<port> (eg. 64:ff9b::#96)";
+	const char *FORMAT = "<IPv6 address>#<port> (eg. 2001:db8::1#96)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
@@ -254,18 +250,14 @@ int str_to_addr6_port(const char *str, struct ipv6_transport_addr *addr_out)
 		log_err("'%s' does not seem to contain a port (format: %s).", str, FORMAT);
 		return -EINVAL;
 	}
-	error = str_to_u16(token, &addr_out->l4, 0, MAX_PORT);
-	if (error)
-		return error; /* Error msg already printed. */
-
-	return 0;
+	return str_to_u16(token, &addr_out->l4, 0, MAX_PORT); /* Error msg already printed. */
 }
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET_ADDRSTRLEN + 1 + 2) /* [addr + null chara] + / + mask */
 int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
 {
-	const char *FORMAT = "<IPv4 address>/<mask> (eg. 192.168.1.0/24)";
+	const char *FORMAT = "<IPv4 address>[/<mask>] (eg. 192.0.2.0/24)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
@@ -289,29 +281,20 @@ int str_to_ipv4_prefix(const char *str, struct ipv4_prefix *prefix_out)
 
 	token = strtok(NULL, "/");
 	if (!token) {
-		if (nat64_is_stateless()) {
-			prefix_out->len = IPV4_PREFIX;
-			return 0;
-		}
-		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
-		return -EINVAL;
+		prefix_out->len = IPV4_MAX_PREFIX;
+		return 0;
 	}
-
-	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
-	return error; /* Error msg already printed. */
+	return str_to_u8(token, &prefix_out->len, 0, 32); /* Error msg already printed. */
 }
 
 #undef STR_MAX_LEN
 #define STR_MAX_LEN (INET6_ADDRSTRLEN + 1 + 3) /* [addr + null chara] + / + pref len */
 int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
 {
-	const char *FORMAT = "<IPv6 address>/<length> (eg. 64:ff9b::/96)";
+	const char *FORMAT = "<IPv6 address>[/<length>] (eg. 64:ff9b::/96)";
 	/* strtok corrupts the string, so we'll be using this copy instead. */
 	char str_copy[STR_MAX_LEN];
 	char *token;
-	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
-	int valid_lengths_size = sizeof(valid_lengths) / sizeof(valid_lengths[0]);
-	int i;
 	int error;
 
 	if (strlen(str) + 1 > STR_MAX_LEN) {
@@ -332,27 +315,10 @@ int str_to_ipv6_prefix(const char *str, struct ipv6_prefix *prefix_out)
 
 	token = strtok(NULL, "/");
 	if (!token) {
-		if (nat64_is_stateless()) {
-			prefix_out->len = IPV6_PREFIX;
-			return 0;
-		}
-		log_err("'%s' does not seem to contain a mask (format: %s).", str, FORMAT);
-		return -EINVAL;
-	}
-
-	error = str_to_u8(token, &prefix_out->len, 0, 0xFF);
-	if (error)
-		return error; /* Error msg already printed. */
-
-	if (nat64_is_stateless())
+		prefix_out->len = IPV6_MAX_PREFIX;
 		return 0;
-
-	for (i = 0; i < valid_lengths_size; i++)
-		if (prefix_out->len == valid_lengths[i])
-			return 0;
-
-	log_err("%u is not a valid prefix length.", prefix_out->len);
-	return -EINVAL;
+	}
+	return str_to_u8(token, &prefix_out->len, 0, 128); /* Error msg already printed. */
 }
 
 static void print_num_csv(__u64 num, char *separator)

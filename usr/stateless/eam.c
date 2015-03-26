@@ -119,7 +119,7 @@ int eam_count(void)
 
 static int eam_add_response(struct nl_msg *msg, void *arg)
 {
-	log_info("The eam entry was added successfully.");
+	log_info("The EAM entry was added successfully.");
 	return 0;
 }
 
@@ -140,7 +140,7 @@ int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 
 static int eam_remove_response(struct nl_msg *msg, void *arg)
 {
-	log_info("The eam entry was removed successfully.");
+	log_info("The EAM entry was removed successfully.");
 	return 0;
 }
 

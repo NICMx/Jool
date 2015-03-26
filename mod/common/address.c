@@ -133,6 +133,11 @@ int prefix4_validate(struct ipv4_prefix *prefix)
 {
 	__u32 suffix_mask;
 
+	if (unlikely(!prefix)) {
+		log_err("Prefix is NULL.");
+		return -EINVAL;
+	}
+
 	if (prefix->len > 32) {
 		log_err("Prefix length %u is too high.", prefix->len);
 		return -EINVAL;
@@ -150,6 +155,11 @@ int prefix4_validate(struct ipv4_prefix *prefix)
 int prefix6_validate(struct ipv6_prefix *prefix)
 {
 	unsigned int i;
+
+	if (unlikely(!prefix)) {
+		log_err("Prefix is NULL.");
+		return -EINVAL;
+	}
 
 	if (prefix->len > 128) {
 		log_err("Prefix length %u is too high.", prefix->len);

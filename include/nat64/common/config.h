@@ -22,11 +22,7 @@
  * ID of Netlink messages Jool listens to.
  * This value was chosen at random, if I remember correctly.
  */
-#ifdef STATEFUL
 #define MSG_TYPE_JOOL (0x10 + 2)
-#else
-#define MSG_TYPE_JOOL (0x10 + 3)
-#endif
 
 /**
  * ID of messages intended to return configuration to userspace.
@@ -45,27 +41,24 @@
 #define MSG_GETCFG		0x12
 
 enum config_mode {
+	/** The current message is talking about global configuration values. */
+	MODE_GLOBAL = (1 << 0),
 	/** The current message is talking about the IPv6 pool. */
 	MODE_POOL6 = (1 << 1),
 	/** The current message is talking about the IPv4 pool. */
 	MODE_POOL4 = (1 << 2),
-#ifdef STATEFUL
+	/** The current message is talking about the blacklisted addresses pool. */
+	MODE_BLACKLIST = (1 << 8),
+	/** The current message is talking about the RFC6791 pool. */
+	MODE_RFC6791 = (1 << 7),
+	/** The current message is talking about the EAMT. */
+	MODE_EAMT = (1 << 6),
 	/** The current message is talking about the Binding Information Bases. */
 	MODE_BIB = (1 << 3),
 	/** The current message is talking about the session tables. */
 	MODE_SESSION = (1 << 4),
-#else
-	/** The current message is talking about the EAMT. */
-	MODE_EAMT = (1 << 6),
-	/** The current message is talking about the RFC6791. */
-	MODE_RFC6791 = (1 << 7),
-#endif
-#ifdef BENCHMARK
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
-#endif
-	/** The current message is talking about global configuration values. */
-	MODE_GLOBAL = (1 << 0),
 };
 
 /**
@@ -73,19 +66,17 @@ enum config_mode {
  * Allowed operations for the mode mentioned in the name.
  * eg. BIB_OPS = Allowed operations for BIB requests.
  */
-#ifdef STATEFUL
-	#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
-#else
-	#define POOL6_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH \
-			| OP_UPDATE)
-#endif
-#define POOL4_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
-#define RFC6791_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
-#define BIB_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE)
+#define DATABASE_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
+
+#define GLOBAL_OPS (OP_DISPLAY | OP_UPDATE)
+#define POOL6_OPS (DATABASE_OPS)
+#define POOL4_OPS (DATABASE_OPS)
+#define BLACKLIST_OPS (DATABASE_OPS)
+#define RFC6791_OPS (DATABASE_OPS)
+#define EAMT_OPS (DATABASE_OPS)
+#define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define LOGTIME_OPS (OP_DISPLAY)
-#define EAMT_OPS (OP_DISPLAY | OP_COUNT | OP_ADD | OP_REMOVE | OP_FLUSH)
-#define GENERAL_OPS (OP_DISPLAY | OP_UPDATE)
 /**
  * @}
  */
@@ -110,33 +101,20 @@ enum config_operation {
  * Allowed modes for the operation mentioned in the name.
  * eg. DISPLAY_MODES = Allowed modes for display operations.
  */
-#ifdef STATEFUL
-	#ifdef BENCHMARK
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-				| MODE_SESSION | MODE_GLOBAL | MODE_LOGTIME)
-	#else
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-				| MODE_SESSION | MODE_GLOBAL)
-	#endif
-	#define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB | MODE_SESSION)
-	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
-	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BIB)
-	#define FLUSH_MODES (MODE_POOL6 | MODE_POOL4)
-	#define UPDATE_MODES (MODE_GLOBAL)
-#else
-	#ifdef BENCHMARK
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT \
-				| MODE_RFC6791 | MODE_GLOBAL | MODE_LOGTIME)
-	#else
-		#define DISPLAY_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT \
-				| MODE_RFC6791 | MODE_GLOBAL)
-	#endif
-	#define COUNT_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
-	#define ADD_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
-	#define REMOVE_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
-	#define FLUSH_MODES (MODE_POOL6 | MODE_POOL4 | MODE_EAMT | MODE_RFC6791)
-	#define UPDATE_MODES (MODE_POOL6 | MODE_GLOBAL)
-#endif
+#define POOL_MODES (MODE_POOL6 | MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791)
+#define TABLE_MODES (MODE_EAMT | MODE_BIB | MODE_SESSION)
+
+#define DISPLAY_MODES (MODE_GLOBAL | POOL_MODES | TABLE_MODES | MODE_LOGTIME)
+#define COUNT_MODES (POOL_MODES | TABLE_MODES)
+#define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
+#define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
+#define FLUSH_MODES (POOL_MODES | MODE_EAMT)
+#define UPDATE_MODES (MODE_GLOBAL)
+
+#define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
+		| MODE_EAMT | MODE_LOGTIME)
+#define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
+		| MODE_SESSION | MODE_LOGTIME)
 /**
  * @}
  */
@@ -354,7 +332,6 @@ union request_global {
 	} update;
 };
 
-#ifdef BENCHMARK
 /**
  * A logtime node entry, from the eyes of userspace.
  *
@@ -362,9 +339,10 @@ union request_global {
  * the skb need to be translated to IPv6 -> IPv4 or IPv4 -> IPv6.
  */
 struct logtime_entry_usr {
+#ifdef BENCHMARK
 	struct timespec time;
-};
 #endif
+};
 
 /**
  * A BIB entry, from the eyes of userspace.

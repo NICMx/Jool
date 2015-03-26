@@ -672,15 +672,23 @@ int pool4_count(__u64 *result)
 
 int pool4_add(struct ipv4_prefix *addrs)
 {
-	struct in_addr *addr = &addrs->address;
-	__u8 maskbits = addrs->len;
+	struct in_addr *addr;
+	__u8 maskbits;
 	struct in_addr network;
-	struct in_addr *temp = addr;
+	struct in_addr *temp;
 	unsigned int netmask;
 	unsigned int i;
 	int error;
+	int total_addresses;
 
-	int total_addresses = 1 << (32 - maskbits);
+	error = prefix4_validate(addrs);
+	if (error)
+		return error;
+
+	addr = &addrs->address;
+	maskbits = addrs->len;
+	temp = addr;
+	total_addresses = 1 << (32 - maskbits);
 	log_debug("total addresses: %d",total_addresses);
 
 	netmask = inet_make_mask(maskbits);

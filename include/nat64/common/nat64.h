@@ -38,4 +38,13 @@ static inline int nat64_is_stateless(void)
 #define NF_IP_PRI_JOOL (NF_IP_PRI_NAT_DST + 25)
 #define NF_IP6_PRI_JOOL (NF_IP6_PRI_NAT_DST + 25)
 
+static inline int is_logtime_enabled(void)
+{
+#ifdef BENCHMARK
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 #endif /* _JOOL_COMMON_NAT64_H */
