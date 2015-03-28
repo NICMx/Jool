@@ -107,6 +107,26 @@ static __be16 build_payload_len(struct packet *in, struct packet *out)
 	return cpu_to_be16(total_len - sizeof(struct ipv6hdr));
 }
 
+static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct packet *out)
+{
+	struct ipv6_prefix prefix6;
+	struct in_addr tmp;
+	int error;
+
+	if (config_get_src_icmp6errs_better() && pkt_is_icmp4_error(in)) {
+		/* Issue #132 behaviour. */
+		error = pool6_get(&tuple6->src.addr6.l3, &prefix6);
+		if (error)
+			return error;
+		tmp.s_addr = pkt_ip4_hdr(in)->saddr;
+		return addr_4to6(&tmp, &prefix6, &pkt_ip6_hdr(out)->saddr);
+	}
+
+	/* RFC 6146 behaviour. */
+	pkt_ip6_hdr(out)->saddr = tuple6->src.addr6.l3;
+	return 0;
+}
+
 static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
 {
 	struct ipv6_prefix prefix;
@@ -226,7 +246,9 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	}
 
 	if (nat64_is_stateful()) {
-		ip6_hdr->saddr = tuple6->src.addr6.l3;
+		error = generate_saddr6_nat64(tuple6, in, out);
+		if (error)
+			return VERDICT_DROP;
 		ip6_hdr->daddr = tuple6->dst.addr6.l3;
 	} else {
 		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);

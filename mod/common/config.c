@@ -34,6 +34,7 @@ int config_init(bool is_disable)
 	config->ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
 	config->ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 	config->max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
+	config->src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
 	config->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
 	config->drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
 	config->drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
@@ -182,6 +183,11 @@ int config_set(__u8 type, size_t size, void *value)
 		if (!ensure_bytes(size, 8))
 			goto fail;
 		tmp_config->max_stored_pkts = *((__u64 *) value);
+		break;
+	case SRC_ICMP6ERRS_BETTER:
+		if (!ensure_bytes(size, 1))
+			goto fail;
+		tmp_config->src_icmp6errs_better = *((__u8 *) value);
 		break;
 	case UDP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
@@ -351,6 +357,11 @@ unsigned long config_get_ttl_frag(void)
 unsigned int config_get_max_pkts(void)
 {
 	return RCU_THINGY(unsigned int, max_stored_pkts);
+}
+
+bool config_get_src_icmp6errs_better(void)
+{
+	return RCU_THINGY(unsigned int, src_icmp6errs_better);
 }
 
 bool config_get_filter_icmpv6_info(void)

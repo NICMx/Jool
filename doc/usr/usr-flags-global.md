@@ -23,6 +23,7 @@ title: Documentation - Flags > Global
 	7. [`--icmp-timeout`](#icmp-timeout)
 	8. [`--fragment-arrival-timeout`](#fragment-arrival-timeout)
 	8. [`--maximum-simultaneous-opens`](#maximum-simultaneous-opens)
+	8. [`--source-icmpv6-errors-better`](#source-icmpv6-errors-better)
 	9. [`--zeroize-traffic-class`](#zeroize-traffic-class)
 	10. [`--override-tos`](#override-tos)
 	11. [`--tos`](#tos)
@@ -235,6 +236,36 @@ When an external (IPv4) node first attempts to open a connection and there's no 
 In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
 `--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to answer the ICMP error message on the eleventh one.
+
+### `--source-icmpv6-errors-better`
+
+- Type: Boolean
+- Default: False
+- Modes: NAT64 only
+- Translation direction: IPv4 to IPv6 (ICMP errors only)
+
+For some reason, RFC 6146 wants the source of translated ICMPv6 errors to be the same as their inner packets' destination address. This looks really weird.
+
+For example (TODO turn this into an image):
+
+	n6 ----- j ----- R ----- n4
+
+- n6 is an IPv6 node; its address is 2001:db8::1.
+- j is a Stateful NAT64. Its IPv4 address is 192.0.2.1. 
+- R is an IPv4 router. 192.0.2.6.
+- n4 is an IPv4 node. 203.0.113.13.
+
+Say the link between R and n4 collapses.
+
+- n6 TCP-packets n4: 2001:db8::1 -> 64:ff9b::203.0.113.13.
+- j translates and forwards: 192.0.2.1 -> 203.0.113.13
+- R answers ICMPv4 error "Host unreachable". The packet's addresses are 192.0.2.6 -> 192.0.2.1. The packet contains a TCP packet whose addresses are 192.0.2.1 -> 203.0.113.13.
+- j translates into an IPv6 packet whose addresses are 64:ff9b::203.0.113.13 -> 2001:db8::1. Its inner packet reads 2001:db8::1 -> 64:ff9b::203.0.113.13.
+
+[This breaks traceroutes](https://github.com/NICMx/NAT64/issues/132). Shouldn't it have been 64:ff9b::**192.0.2.6** -> 2001:db8::1 instead?
+
+- `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
+- `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix.
 
 ### `--zeroize-traffic-class`
 
