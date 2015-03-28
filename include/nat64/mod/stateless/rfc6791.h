@@ -26,7 +26,8 @@ int rfc6791_remove(struct ipv4_prefix *prefix);
 int rfc6791_flush(void);
 int rfc6791_get(struct packet *in, struct packet *out, struct in_addr *result);
 
-int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg);
+int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset);
 int rfc6791_count(__u64 *result);
 bool rfc6791_is_empty(void);
 

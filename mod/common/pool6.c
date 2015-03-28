@@ -170,6 +170,11 @@ int pool6_add(struct ipv6_prefix *prefix)
 	if (error)
 		return error; /* Error msg already printed. */
 
+	if (nat64_is_stateless() && !list_empty(&pool)) {
+		log_err("SIIT Jool only supports one pool6 prefix at a time.");
+		return -EINVAL;
+	}
+
 	/*
 	 * I'm not using list_for_each_entry_rcu() here because this is a writer (as usual,
 	 * protected by module initialization or the configuration mutex).
@@ -215,21 +220,34 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	return -ENOENT;
 }
 
-int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg)
+/**
+ * pool6_for_each - run func() for every prefix in this pool.
+ * @func: routine you want to run on every node in the pool.
+ * @arg: additional argument that will be passed to func() on every iteration.
+ * @offset: node you want to start iteration from. Iteration will start from
+ *	the first node if you don't supply this.
+ *
+ * The nodes will be visited in the order in which they are stored.
+ */
+int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
+		struct ipv6_prefix *offset)
 {
 	struct pool_node *node;
-
+	int error = -ESRCH;
 	rcu_read_lock_bh();
+
 	list_for_each_entry_rcu(node, &pool, list_hook) {
-		int error = func(&node->prefix, arg);
-		if (error) {
-			rcu_read_unlock_bh();
-			return error;
+		if (!offset) {
+			error = func(&node->prefix, arg);
+			if (error)
+				break;
+		} else if (prefix6_equals(offset, &node->prefix)) {
+			offset = NULL;
 		}
 	}
-	rcu_read_unlock_bh();
 
-	return 0;
+	rcu_read_unlock_bh();
+	return error;
 }
 
 int pool6_count(__u64 *result)

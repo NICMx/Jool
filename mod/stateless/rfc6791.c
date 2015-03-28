@@ -139,9 +139,10 @@ end:
 	return error;
 }
 
-int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg)
+int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset)
 {
-	return pool_for_each(&pool, func, arg);
+	return pool_for_each(&pool, func, arg, offset);
 }
 
 int rfc6791_count(__u64 *result)

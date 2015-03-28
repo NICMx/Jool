@@ -235,8 +235,9 @@ int sessiondb_for_each(l4_protocol proto, int (*func)(struct session_entry *, vo
  * O(n), where n is the number of entries in the table whose local IPv4 addresses are "addr".
  * Warning: This locks the table while you're iterating. You want to quit early if the tree is big.
  */
-int sessiondb_iterate_by_ipv4(l4_protocol proto, struct ipv4_transport_addr *addr, bool starting,
-		int (*func)(struct session_entry *, void *), void *arg);
+int sessiondb_iterate_by_ipv4(l4_protocol proto,
+		int (*func)(struct session_entry *, void *), void *arg,
+		struct ipv4_transport_addr *offset);
 
 /**
  * Returns in "result" the number of sessions in the table whose l4-protocol is "proto".

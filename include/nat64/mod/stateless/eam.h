@@ -76,7 +76,7 @@ bool eamt_contains_ipv4(__be32 addr);
 
 int eamt_count(__u64 *count);
 bool eamt_is_empty(void);
-int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
-		int (*func)(struct eam_entry *, void *), void *arg);
+int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
+		struct ipv4_prefix *offset);
 
 #endif /* _JOOL_MOD_EAM_H */

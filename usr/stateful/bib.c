@@ -50,14 +50,8 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
-
-	if (hdr->nlmsg_flags & NLM_F_MULTI) {
-		params->req_payload->display.iterate = true;
-		params->req_payload->display.addr4.l3 = *(&entries[entry_count - 1].addr4.l3);
-		params->req_payload->display.addr4.l4 = *(&entries[entry_count - 1].addr4.l4);
-	} else {
-		params->req_payload->display.iterate = false;
-	}
+	params->req_payload->display.addr4_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	params->req_payload->display.addr4 = entries[entry_count - 1].addr4;
 	return 0;
 }
 
@@ -76,7 +70,7 @@ static bool display_single_table(l4_protocol l4_proto, bool numeric_hostname, bo
 	hdr->mode = MODE_BIB;
 	hdr->operation = OP_DISPLAY;
 	payload->l4_proto = l4_proto;
-	payload->display.iterate = false;
+	payload->display.addr4_set = false;
 	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
 
 	params.numeric_hostname = numeric_hostname;
@@ -86,9 +80,7 @@ static bool display_single_table(l4_protocol l4_proto, bool numeric_hostname, bo
 
 	do {
 		error = netlink_request(request, hdr->length, bib_display_response, &params);
-		if (error)
-			break;
-	} while (params.req_payload->display.iterate);
+	} while (!error && payload->display.addr4_set);
 
 	if (!csv_format && !error) {
 		if (params.row_count > 0)

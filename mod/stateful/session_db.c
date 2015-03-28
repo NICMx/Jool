@@ -881,38 +881,37 @@ int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *,
  * Requires "table"'s spinlock to already be held.
  */
 static struct rb_node *find_next_chunk(struct session_table *table,
-		struct ipv4_transport_addr *addr, bool starting)
+		struct ipv4_transport_addr *offset)
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
 
-	if (starting)
+	if (!offset)
 		return rb_first(&table->tree4);
 
-	rbtree_find_node(addr, &table->tree4, compare_local4, struct session_entry, tree4_hook, parent,
-			node);
+	rbtree_find_node(offset, &table->tree4, compare_local4, struct session_entry, tree4_hook,
+			parent, node);
 	if (*node)
 		return rb_next(*node);
 
 	session = rb_entry(parent, struct session_entry, tree4_hook);
-	return (compare_local4(session, addr) < 0) ? parent : rb_next(parent);
+	return (compare_local4(session, offset) < 0) ? parent : rb_next(parent);
 }
 
-int sessiondb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_transport_addr *addr, bool starting,
-		int (*func)(struct session_entry *, void *), void *arg)
+int sessiondb_iterate_by_ipv4(l4_protocol l4_proto,
+		int (*func)(struct session_entry *, void *), void *arg,
+		struct ipv4_transport_addr *offset)
 {
 	struct session_table *table;
 	struct rb_node *node;
 	int error;
 
-	if (WARN(!addr, "The IPv4 address is NULL."))
-		return -EINVAL;
 	error = get_session_table(l4_proto, &table);
 	if (error)
 		return error;
 
 	spin_lock_bh(&table->lock);
-	for (node = find_next_chunk(table, addr, starting); node && !error; node = rb_next(node)) {
+	for (node = find_next_chunk(table, offset); node && !error; node = rb_next(node)) {
 		error = func(rb_entry(node, struct session_entry, tree4_hook), arg);
 	}
 

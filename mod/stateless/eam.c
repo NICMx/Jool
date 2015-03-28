@@ -414,34 +414,31 @@ bool eamt_is_empty(void)
 /**
  * See the function of the same name from the BIB DB module for comments on this.
  */
-static struct rb_node *find_next_chunk(struct ipv4_prefix *prefix, bool starting)
+static struct rb_node *find_next_chunk(struct ipv4_prefix *offset)
 {
 	struct rb_node **node, *parent;
 	struct eam_entry *eam;
 
-	if (starting)
+	if (!offset)
 		return rb_first(&eam_table.EAMT_tree4);
 
-	rbtree_find_node(prefix, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry, tree4_hook,
+	rbtree_find_node(offset, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry, tree4_hook,
 			parent, node);
 	if (*node)
 		return rb_next(*node);
 
 	eam = rb_entry(parent, struct eam_entry, tree4_hook);
-	return (compare_prefix4(eam, prefix) < 0) ? parent : rb_next(parent);
+	return (compare_prefix4(eam, offset) < 0) ? parent : rb_next(parent);
 }
 
-int eamt_for_each(struct ipv4_prefix *prefix, bool starting,
-		int (*func)(struct eam_entry *, void *), void *arg)
+int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
+		struct ipv4_prefix *offset)
 {
 	struct rb_node *node;
 	int error = 0;
-
-	if (WARN(!prefix, "The IPv4 prefix is NULL."))
-		return -EINVAL;
-
 	spin_lock_bh(&eam_lock);
-	for (node = find_next_chunk(prefix, starting); node && !error; node = rb_next(node))
+
+	for (node = find_next_chunk(offset); node && !error; node = rb_next(node))
 		error = func(rb_entry(node, struct eam_entry, tree4_hook), arg);
 
 	spin_unlock_bh(&eam_lock);

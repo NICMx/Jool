@@ -127,19 +127,24 @@ int pool_flush(struct list_head *pool)
 	return 0;
 }
 
-int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void *), void *arg)
+int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset)
 {
-	struct pool_entry *entry;
-	int error = 0;
-
+	struct pool_entry *node;
+	int error = -ESRCH;
 	rcu_read_lock_bh();
-	list_for_each_entry_rcu(entry, pool, list_hook) {
-		error = func(&entry->prefix, arg);
-		if (error)
-			break;
-	}
-	rcu_read_unlock_bh();
 
+	list_for_each_entry_rcu(node, pool, list_hook) {
+		if (!offset) {
+			error = func(&node->prefix, arg);
+			if (error)
+				break;
+		} else if (prefix4_equals(offset, &node->prefix)) {
+			offset = NULL;
+		}
+	}
+
+	rcu_read_unlock_bh();
 	return error;
 }
 

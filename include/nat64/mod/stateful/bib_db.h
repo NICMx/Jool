@@ -205,8 +205,8 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
  * Similar to bibdb_for_each(), except it only runs the function for BIB entries whose IPv4
  * transport address is "addr".
  */
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_transport_addr *ipv4, bool starting,
-		int (*func)(struct bib_entry *, void *), void *arg);
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg,
+		struct ipv4_transport_addr *offset);
 /**
  * Sets in the value pointed by "result" the number of entries in the database whose protocol is
  * "l4_proto".

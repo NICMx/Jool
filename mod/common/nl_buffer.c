@@ -35,11 +35,21 @@ static int flush(struct nl_buffer *buffer, __u16 nlmsg_type, __u16	nlmsg_flags)
 	return 0;
 }
 
-void nlbuffer_init(struct nl_buffer *stream, struct sock *nl_socket, struct nlmsghdr *nl_hdr)
+struct nl_buffer *nlbuffer_create(struct sock *nl_socket, struct nlmsghdr *nl_hdr)
 {
-	stream->socket = nl_socket;
-	stream->request_hdr = nl_hdr;
-	stream->len = 0;
+	struct nl_buffer *result;
+
+	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	if (!result) {
+		log_err("Could not allocate an output buffer to userspace.");
+		return NULL;
+	}
+
+	result->socket = nl_socket;
+	result->request_hdr = nl_hdr;
+	result->len = 0;
+
+	return result;
 }
 
 int nlbuffer_write(struct nl_buffer *stream, void *payload, int payload_len)
@@ -68,12 +78,7 @@ int nlbuffer_write(struct nl_buffer *stream, void *payload, int payload_len)
 	return 0;
 }
 
-int nlbuffer_close(struct nl_buffer *stream)
+int nlbuffer_close(struct nl_buffer *stream, bool multi)
 {
-	return flush(stream, NLMSG_DONE, 0);
-}
-
-int nlbuffer_close_continue(struct nl_buffer *stream)
-{
-	return flush(stream, NLMSG_DONE, NLM_F_MULTI);
+	return flush(stream, NLMSG_DONE, multi ? NLM_F_MULTI : 0);
 }

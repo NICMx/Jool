@@ -20,7 +20,6 @@
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
-#include "nat64/usr/rfc6791.h"
 #include "nat64/usr/bib.h"
 #include "nat64/usr/session.h"
 #include "nat64/usr/eam.h"
@@ -794,25 +793,26 @@ static int main_wrapped(int argc, char **argv)
 
 	case MODE_POOL4:
 	case MODE_BLACKLIST:
+	case MODE_RFC6791:
 		switch (args.op) {
 		case OP_DISPLAY:
-			return pool4_display();
+			return pool4_display(args.mode);
 		case OP_COUNT:
-			return pool4_count();
+			return pool4_count(args.mode);
 		case OP_ADD:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_add(&args.db.pool4.prefix);
+			return pool4_add(args.mode, &args.db.pool4.prefix);
 		case OP_REMOVE:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_remove(&args.db.pool4.prefix, args.db.quick);
+			return pool4_remove(args.mode, &args.db.pool4.prefix, args.db.quick);
 		case OP_FLUSH:
-			return pool4_flush(args.db.quick);
+			return pool4_flush(args.mode, args.db.quick);
 		default:
 			log_err("Unknown operation for IPv4 pool mode: %u.", args.op);
 			return -EINVAL;
@@ -910,37 +910,6 @@ static int main_wrapped(int argc, char **argv)
 			return eam_flush();
 		default:
 			log_err("Unknown operation for EAMT mode: %u.", args.op);
-			return -EINVAL;
-		}
-		break;
-
-	case MODE_RFC6791:
-		if (nat64_is_stateful()) {
-			log_err("RFC 6791 does not apply to Stateful NAT64.");
-			return -EINVAL;
-		}
-
-		switch (args.op) {
-		case OP_DISPLAY:
-			return rfc6791_display();
-		case OP_COUNT:
-			return rfc6791_count();
-		case OP_ADD:
-			if (!args.db.pool4.prefix_set) {
-				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
-				return -EINVAL;
-			}
-			return rfc6791_add(&args.db.pool4.prefix);
-		case OP_REMOVE:
-			if (!args.db.pool4.prefix_set) {
-				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
-				return -EINVAL;
-			}
-			return rfc6791_remove(&args.db.pool4.prefix, args.db.quick);
-		case OP_FLUSH:
-			return rfc6791_flush(args.db.quick);
-		default:
-			log_err("Unknown operation for RFC6791 pool mode: %u.", args.op);
 			return -EINVAL;
 		}
 		break;

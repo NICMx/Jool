@@ -616,35 +616,51 @@ bool pool4_contains(__be32 addr)
 	return result;
 }
 
-struct foreach_wrap {
-	int (*func)(struct ipv4_prefix *, void *);
-	void *arg;
-};
-
-static int pool4_for_each_wrapper(struct pool4_node * node, void *arg)
+static int exec_function(struct pool4_table_key_value *keyval,
+		int (*func)(struct ipv4_prefix *, void *), void *arg)
 {
-	struct foreach_wrap *wrapper;
 	struct ipv4_prefix prefix;
 
-	if (!node->active)
+	if (!keyval->value->active)
 		return 0;
 
-	wrapper = arg;
-	prefix.address = node->addr;
+	prefix.address = keyval->value->addr;
 	prefix.len = 32;
-
-	return wrapper->func(&prefix, wrapper->arg);
+	return func(&prefix, arg);
 }
 
-int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg)
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset)
 {
-	struct foreach_wrap wrapper = { .func = func, .arg = arg };
-	int error;
-
+	struct pool4_table_key_value *keyval;
+	int error = 0;
 	spin_lock_bh(&pool_lock);
-	error = pool4_table_for_each(&pool, pool4_for_each_wrapper, &wrapper);
-	spin_unlock_bh(&pool_lock);
 
+	if (offset) {
+		keyval = pool4_table_get_aux(&pool, &offset->address);
+		if (!keyval) {
+			error = -ESRCH;
+			goto end;
+		}
+	} else {
+		if (list_empty(&pool.list))
+			goto end;
+		keyval = container_of(pool.list.next, struct pool4_table_key_value, list_hook);
+
+		/* list_for_each_entry_continue() skips keyval, so handle it here. */
+		error = exec_function(keyval, func, arg);
+		if (error)
+			goto end;
+	}
+
+	list_for_each_entry_continue(keyval, &pool.list, list_hook) {
+		error = exec_function(keyval, func, arg);
+		if (error)
+			break;
+	}
+
+end:
+	spin_unlock_bh(&pool_lock);
 	return error;
 }
 

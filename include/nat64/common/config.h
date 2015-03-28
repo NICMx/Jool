@@ -127,7 +127,7 @@ struct request_hdr {
 	/** Size of the message. Includes header (this one) and payload. */
 	__u32 length;
 	/** See "enum config_mode". */
-	__u8 mode;
+	__u16 mode;
 	/** See "enum config_operation". */
 	__u8 operation;
 };
@@ -137,8 +137,8 @@ struct request_hdr {
  */
 union request_pool6 {
 	struct {
-		/* TODO (3.3.1) why doesn't this need a __u8 iterate? */
-		/* Nothing needed here ATM. */
+		__u8 prefix_set;
+		struct ipv6_prefix prefix;
 	} display;
 	struct {
 		/** The prefix the user wants to add to the pool. */
@@ -165,8 +165,8 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
-		/* TODO (3.3.1) why doesn't this need a __u8 iterate? */
-		/* Nothing needed there ATM. */
+		__u8 prefix_set;
+		struct ipv4_prefix prefix;
 	} display;
 	struct {
 		/** The addresses the user wants to add to the pool. */
@@ -189,7 +189,7 @@ union request_pool4 {
  */
 union request_eamt {
 	struct {
-		__u8 iterate;
+		__u8 prefix4_set;
 		struct ipv4_prefix prefix4;
 	} display;
 	struct {
@@ -232,8 +232,7 @@ struct request_bib {
 	__u8 l4_proto;
 	union {
 		struct {
-			/** If this is false, this is the first chunk the app is requesting. (boolean) */
-			__u8 iterate;
+			__u8 addr4_set;
 			/**
 			 * Address the userspace app received in the last chunk. Iteration should contiue
 			 * from here.
@@ -270,11 +269,12 @@ struct request_session {
 	__u8 l4_proto;
 	union {
 		struct {
-			/** If this is false, this is the first chunk the app is requesting. (boolean) */
-			__u8 iterate;
+			__u8 addr4_set;
 			/**
 			 * Address the userspace app received in the last chunk. Iteration should contiue
 			 * from here.
+			 * TODO this is insufficient. Sessions are identified by both remote and local IPv4
+			 * address; addr4 is not enough.
 			 */
 			struct ipv4_transport_addr addr4;
 		} display;

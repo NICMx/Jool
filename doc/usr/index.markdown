@@ -46,8 +46,9 @@ See the updated [SIIT/NAT64 introduction](intro-nat64.html) for an improved pict
 
 We also refactored the userspace app somewhat; please review your scripts:
 
-- The kernel's per-interface MTU setting [replaced `--minMTU6`](file:///home/aleiva/Desktop/NAT64/doc/usr/build/misc-mtu.html).
-- `--address`, `--prefix`, `--bib4` and `--bib6` disappeared because they're considered redundant. See [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) and [`--bib`](usr-flags-bib.html).
+- The kernel's per-interface MTU setting [replaced `--minMTU6`](misc-mtu.html).
+- `--address`, `--prefix`, `--bib4` and `--bib6` were deprecated because they're considered redundant. See [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) and [`--bib`](usr-flags-bib.html).
+- Three global flags were also deprecated for [different reasons](usr-flags-atomic.html).
 
 We also released Jool 3.2.3, which is [bugfixes](https://github.com/NICMx/NAT64/milestones/3.2.3) since 3.2.2. One of the bugs is a DoS vulnerability, so upgrading to at least 3.2.3 is highly recommended.
 

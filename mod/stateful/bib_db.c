@@ -524,40 +524,37 @@ int bibdb_for_each(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *)
  * could have died while the previous chunk was transmitted... so the iteration should just ignore
  * it and continue with the next entry peacefully.
  */
-static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_transport_addr *addr4,
-		bool starting)
+static struct rb_node *find_next_chunk(struct bib_table *table, struct ipv4_transport_addr *offset)
 {
 	struct bib_entry *bib;
 	struct rb_node **node;
 	struct rb_node *parent;
 
-	if (starting)
+	if (!offset)
 		return rb_first(&table->tree4);
 
-	rbtree_find_node(addr4, &table->tree4, compare_full4, struct bib_entry, tree4_hook, parent,
+	rbtree_find_node(offset, &table->tree4, compare_full4, struct bib_entry, tree4_hook, parent,
 			node);
 	if (*node)
 		return rb_next(*node);
 
 	bib = rb_entry(parent, struct bib_entry, tree4_hook);
-	return (compare_full4(bib, addr4) < 0) ? parent : rb_next(parent);
+	return (compare_full4(bib, offset) < 0) ? parent : rb_next(parent);
 }
 
-int bibdb_iterate_by_ipv4(l4_protocol l4_proto, struct ipv4_transport_addr *addr, bool starting,
-		int (*func)(struct bib_entry *, void *), void *arg)
+int bibdb_iterate_by_ipv4(l4_protocol l4_proto, int (*func)(struct bib_entry *, void *), void *arg,
+		struct ipv4_transport_addr *offset)
 {
 	struct bib_table *table;
 	struct rb_node *node;
 	int error;
 
-	if (WARN(!addr, "The IPv4 address is NULL."))
-		return -EINVAL;
 	error = get_bibdb_table(l4_proto, &table);
 	if (error)
 		return error;
 
 	spin_lock_bh(&table->lock);
-	for (node = find_next_chunk(table, addr, starting); node && !error; node = rb_next(node)) {
+	for (node = find_next_chunk(table, offset); node && !error; node = rb_next(node)) {
 		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
 	}
 

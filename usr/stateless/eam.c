@@ -1,6 +1,4 @@
 #include "nat64/usr/eam.h"
-
-#include "nat64/usr/pool6.h"
 #include "nat64/common/config.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/usr/types.h"
@@ -13,7 +11,7 @@
 
 struct display_params {
 	bool csv_format;
-	int row_count;
+	unsigned int row_count;
 	union request_eamt *req_payload;
 };
 
@@ -52,14 +50,8 @@ static int eam_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
-
-	if (hdr->nlmsg_flags & NLM_F_MULTI) {
-		params->req_payload->display.iterate = true;
-		params->req_payload->display.prefix4.address = *(&entries[entry_count - 1].pref4.address);
-		params->req_payload->display.prefix4.len = *(&entries[entry_count - 1].pref4.len);
-	} else {
-		params->req_payload->display.iterate = false;
-	}
+	params->req_payload->display.prefix4_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	params->req_payload->display.prefix4 = entries[entry_count - 1].pref4;
 	return 0;
 }
 
@@ -69,14 +61,13 @@ int eam_display(bool csv_format)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
 	struct display_params params;
-	bool error;
+	int error;
 
 	hdr->length = sizeof(request);
 	hdr->mode = MODE_EAMT;
 	hdr->operation = OP_DISPLAY;
-	payload->display.iterate = false;
+	payload->display.prefix4_set = false;
 	memset(&payload->display.prefix4, 0, sizeof(payload->display.prefix4));
-
 	params.csv_format = csv_format;
 	params.row_count = 0;
 	params.req_payload = payload;
@@ -86,9 +77,7 @@ int eam_display(bool csv_format)
 
 	do {
 		error = netlink_request(request, hdr->length, eam_display_response, &params);
-		if (error)
-			break;
-	} while (params.req_payload->display.iterate);
+	} while (!error && payload->display.prefix4_set);
 
 	if (!csv_format && !error) {
 		if (params.row_count > 0)
@@ -103,7 +92,7 @@ int eam_display(bool csv_format)
 static int eam_count_response(struct nl_msg *msg, void *arg)
 {
 	__u64 *conf = nlmsg_data(nlmsg_hdr(msg));
-	printf("%llu entries in the eam table.\n", *conf);
+	printf("%llu\n", *conf);
 	return 0;
 }
 

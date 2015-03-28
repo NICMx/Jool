@@ -22,7 +22,8 @@ int pool4_remove(struct ipv4_prefix *prefix);
 int pool4_flush(void);
 bool pool4_contains(__be32 addr);
 
-int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg);
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset);
 int pool4_count(__u64 *result);
 bool pool4_is_empty(void);
 

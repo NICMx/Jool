@@ -1,5 +1,4 @@
 #include "nat64/usr/pool4.h"
-#include "nat64/common/config.h"
 #include "nat64/common/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/netlink.h"
@@ -10,37 +9,54 @@
 #define PAYLOAD_LEN sizeof(union request_pool4)
 
 
-static int pool4_display_response(struct nl_msg *msg, void *arg)
+struct display_args {
+	unsigned int row_count;
+	union request_pool4 *request;
+};
+
+static int pool4_display_response(struct nl_msg *response, void *arg)
 {
 	struct nlmsghdr *hdr;
-	struct ipv4_prefix *prefix;
-	__u16 addr_count, i;
+	struct ipv4_prefix *prefixes;
+	unsigned int prefix_count, i;
+	struct display_args *args = arg;
 
-	hdr = nlmsg_hdr(msg);
-	prefix = nlmsg_data(hdr);
-	addr_count = nlmsg_datalen(hdr) / sizeof(*prefix);
+	hdr = nlmsg_hdr(response);
+	prefixes = nlmsg_data(hdr);
+	prefix_count = nlmsg_datalen(hdr) / sizeof(*prefixes);
 
-	for (i = 0; i < addr_count; i++)
-		printf("%s/%u\n", inet_ntoa(prefix[i].address), prefix[i].len);
+	for (i = 0; i < prefix_count; i++)
+		printf("%s/%u\n", inet_ntoa(prefixes[i].address), prefixes[i].len);
 
-	*((int *) arg) += addr_count;
+	args->row_count += prefix_count;
+	args->request->display.prefix_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	args->request->display.prefix = prefixes[prefix_count - 1];
 	return 0;
 }
 
-int pool4_display(void)
+int pool4_display(enum config_mode mode)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_POOL4,
-			.operation = OP_DISPLAY,
-	};
-	int row_count = 0;
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+	struct display_args args;
 	int error;
 
-	error = netlink_request(&request, request.length, pool4_display_response, &row_count);
+	hdr->length = sizeof(request);
+	hdr->mode = mode;
+	hdr->operation = OP_DISPLAY;
+	payload->display.prefix_set = false;
+	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
+	args.row_count = 0;
+	args.request = payload;
+
+	do {
+		error = netlink_request(&request, hdr->length, pool4_display_response, &args);
+	} while (!error && args.request->display.prefix_set);
+
 	if (!error) {
-		if (row_count > 0)
-			log_info("  (Fetched %u prefixes.)", row_count);
+		if (args.row_count > 0)
+			log_info("  (Fetched %u prefixes.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}
@@ -55,11 +71,11 @@ static int pool4_count_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_count(void)
+int pool4_count(enum config_mode mode)
 {
 	struct request_hdr request = {
 			.length = sizeof(request),
-			.mode = MODE_POOL4,
+			.mode = mode,
 			.operation = OP_COUNT,
 	};
 	return netlink_request(&request, request.length, pool4_count_response, NULL);
@@ -71,14 +87,14 @@ static int pool4_add_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_add(struct ipv4_prefix *addrs)
+int pool4_add(enum config_mode mode, struct ipv4_prefix *addrs)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
 	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL4;
+	hdr->mode = mode;
 	hdr->operation = OP_ADD;
 	payload->add.addrs = *addrs;
 
@@ -91,14 +107,14 @@ static int pool4_remove_response(struct nl_msg *msg, void *arg)
 	return 0;
 }
 
-int pool4_remove(struct ipv4_prefix *addrs, bool quick)
+int pool4_remove(enum config_mode mode, struct ipv4_prefix *addrs, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
 	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL4;
+	hdr->mode = mode;
 	hdr->operation = OP_REMOVE;
 	payload->remove.addrs = *addrs;
 	payload->remove.quick = quick;
@@ -108,18 +124,18 @@ int pool4_remove(struct ipv4_prefix *addrs, bool quick)
 
 static int pool4_flush_response(struct nl_msg *msg, void *arg)
 {
-	log_info("The IPv4 pool was flushed successfully.");
+	log_info("The pool was flushed successfully.");
 	return 0;
 }
 
-int pool4_flush(bool quick)
+int pool4_flush(enum config_mode mode, bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
 	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL4;
+	hdr->mode = mode;
 	hdr->operation = OP_FLUSH;
 	payload->flush.quick = quick;
 

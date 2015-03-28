@@ -97,7 +97,8 @@ bool pool4_contains(__be32 addr);
 /**
  * Executes the "func" function with the "arg" argument on every address in the pool.
  */
-int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg);
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg,
+		struct ipv4_prefix *offset);
 /**
  * Copies the current number of addresses in the pool to "result".
  */

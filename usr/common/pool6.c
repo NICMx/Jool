@@ -10,40 +10,57 @@
 #define PAYLOAD_LEN sizeof(union request_pool6)
 
 
-static int pool6_display_response(struct nl_msg *msg, void *arg)
+struct display_args {
+	unsigned int row_count;
+	union request_pool6 *request;
+};
+
+static int pool6_display_response(struct nl_msg *response, void *arg)
 {
 	struct nlmsghdr *hdr;
 	struct ipv6_prefix *prefixes;
-	int pref_count, i;
-	char addr_str[INET6_ADDRSTRLEN];
+	unsigned int prefix_count, i;
+	char prefix_str[INET6_ADDRSTRLEN];
+	struct display_args *args = arg;
 
-	hdr = nlmsg_hdr(msg);
+	hdr = nlmsg_hdr(response);
 	prefixes = nlmsg_data(hdr);
-	pref_count = nlmsg_datalen(hdr) / sizeof(*prefixes);
+	prefix_count = nlmsg_datalen(hdr) / sizeof(*prefixes);
 
-	for (i = 0; i < pref_count; i++) {
-		inet_ntop(AF_INET6, &prefixes[i].address, addr_str, INET6_ADDRSTRLEN);
-		printf("%s/%u\n", addr_str, prefixes[i].len);
+	for (i = 0; i < prefix_count; i++) {
+		inet_ntop(AF_INET6, &prefixes[i].address, prefix_str, INET6_ADDRSTRLEN);
+		printf("%s/%u\n", prefix_str, prefixes[i].len);
 	}
 
-	*((int *) arg) += pref_count;
+	args->row_count += prefix_count;
+	args->request->display.prefix_set = hdr->nlmsg_flags & NLM_F_MULTI;
+	args->request->display.prefix = prefixes[prefix_count - 1];
 	return 0;
 }
 
 int pool6_display(void)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_POOL6,
-			.operation = OP_DISPLAY,
-	};
-	int row_count = 0;
+	unsigned char request[HDR_LEN + PAYLOAD_LEN];
+	struct request_hdr *hdr = (struct request_hdr *) request;
+	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+	struct display_args args;
 	int error;
 
-	error = netlink_request(&request, request.length, pool6_display_response, &row_count);
+	hdr->length = sizeof(request);
+	hdr->mode = MODE_POOL6;
+	hdr->operation = OP_DISPLAY;
+	payload->display.prefix_set = false;
+	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
+	args.row_count = 0;
+	args.request = payload;
+
+	do {
+		error = netlink_request(&request, hdr->length, pool6_display_response, &args);
+	} while (!error && args.request->display.prefix_set);
+
 	if (!error) {
-		if (row_count > 0)
-			log_info("  (Fetched %u prefixes.)", row_count);
+		if (args.row_count > 0)
+			log_info("  (Fetched %u prefixes.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}

@@ -4,6 +4,11 @@
 #include <errno.h>
 #include <unistd.h>
 
+/*
+ * TODO (performance) we're creating a separate nl connection for every request.
+ * Some of Jool's requests (--display commands in particular) could be grouped into a single
+ * connection.
+ */
 int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *, void *),
 		void *cb_arg)
 {
@@ -22,7 +27,7 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 		error = nl_socket_modify_cb(sk, callbacks[i], NL_CB_CUSTOM, cb, cb_arg);
 		if (error < 0) {
 			log_err("Could not register response handler. "
-					"I won't be able to parse the NAT64's response, so I won't send the request.\n"
+					"I won't be able to parse Jool's response, so I won't send the request.\n"
 					"Netlink error message: %s (Code %d)", nl_geterror(error), error);
 			goto fail_free;
 		}
@@ -30,14 +35,14 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 
 	error = nl_connect(sk, NETLINK_USERSOCK);
 	if (error < 0) {
-		log_err("Could not bind the socket to the NAT64.\n"
+		log_err("Could not bind the socket to Jool.\n"
 				"Netlink error message: %s (Code %d)", nl_geterror(error), error);
 		goto fail_free;
 	}
 
 	error = nl_send_simple(sk, MSG_TYPE_JOOL, 0, request, request_len);
 	if (error < 0) {
-		log_err("Could not send the request to the NAT64 (is it really up?).\n"
+		log_err("Could not send the request to Jool (is it really up?).\n"
 				"Netlink error message: %s (Code %d)", nl_geterror(error), error);
 		goto fail_close;
 	}

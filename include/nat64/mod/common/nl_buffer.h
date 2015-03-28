@@ -26,9 +26,9 @@ struct nl_buffer {
 };
 
 /**
- * Readies "buffer" so data can be written in it.
+ * Allocates a buffer and readies it so data can be written in it.
  */
-void nlbuffer_init(struct nl_buffer *buffer, struct sock *nl_socket, struct nlmsghdr *nl_hdr);
+struct nl_buffer *nlbuffer_create(struct sock *nl_socket, struct nlmsghdr *nl_hdr);
 /**
  * Writes "len" bytes from "data" into "buffer". Watch out for the return values.
  *
@@ -39,14 +39,9 @@ void nlbuffer_init(struct nl_buffer *buffer, struct sock *nl_socket, struct nlms
 int nlbuffer_write(struct nl_buffer *buffer, void *data, int len);
 /**
  * Turns "buffer" into a Netlink message and sends it to userspace.
- * Implies that you don't have more information to send to userspace.
+ * If multi is nonzero, the userspace app will be notified that there's remaining data that didn't
+ * fit into buffer->bytes, so it should request it somehow.
  */
-int nlbuffer_close(struct nl_buffer *buffer);
-/**
- * Turns "buffer" into a Netlink message and sends it to userspace.
- * The userspace app will be notified that there's remaining data that didn't fit into this
- * Netlink message, so it should request it somehow.
- */
-int nlbuffer_close_continue(struct nl_buffer *buffer);
+int nlbuffer_close(struct nl_buffer *buffer, bool multi);
 
 #endif /* _JOOL_MOD_OUT_STREAM_H */

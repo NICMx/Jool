@@ -59,7 +59,8 @@ int pool6_remove(struct ipv6_prefix *prefix);
 /**
  * Executes the "func" function with the "arg" argument on every prefix in the pool.
  */
-int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void * arg);
+int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
+		struct ipv6_prefix *offset);
 /**
  * Copies the current number of prefixes in the pool to "result".
  */

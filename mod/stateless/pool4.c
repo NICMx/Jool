@@ -71,9 +71,10 @@ end:
 	return result;
 }
 
-int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg)
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
+		struct ipv4_prefix *offset)
 {
-	return pool_for_each(&pool, func, arg);
+	return pool_for_each(&pool, func, arg, offset);
 }
 
 int pool4_count(__u64 *result)

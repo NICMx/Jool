@@ -18,8 +18,8 @@
 	#include "nat64/mod/stateful/pool4.h"
 #else
 	#include "nat64/mod/stateless/pool4.h"
-	#include "nat64/mod/stateless/rfc6791.h"
 #endif
+#include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateless/eam.h"
 #ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
@@ -110,29 +110,36 @@ static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 	return nlbuffer_write(buffer, prefix, sizeof(*prefix));
 }
 
-static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_pool6 *request)
+static int handle_pool6_display(struct nlmsghdr *nl_hdr, union request_pool6 *request)
 {
 	struct nl_buffer *buffer;
+	struct ipv6_prefix *prefix;
+	int error;
+
+	log_debug("Sending IPv6 pool to userspace.");
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
+	error = pool6_for_each(pool6_entry_to_userspace, buffer, prefix);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
+static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
+		union request_pool6 *request)
+{
 	__u64 count;
 	int error;
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Sending IPv6 pool to userspace.");
+		return handle_pool6_display(nl_hdr, request);
 
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userspace.");
-			return respond_error(nl_hdr, -ENOMEM);
-		}
-
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
-		error = pool6_for_each(pool6_entry_to_userspace, buffer);
-		nlbuffer_close(buffer);
-
-		kfree(buffer);
-		return error;
 	case OP_COUNT:
 		log_debug("Returning IPv6 prefix count.");
 		error = pool6_count(&count);
@@ -178,39 +185,45 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, error);
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
-static int pool4_entry_to_userspace(struct ipv4_prefix *prefix, void *arg)
+static int pool4_to_usr(struct ipv4_prefix *prefix, void *arg)
 {
 	return nlbuffer_write(arg, prefix, sizeof(*prefix));
+}
+
+static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_prefix *prefix;
+	int error;
+
+	log_debug("Sending IPv4 pool to userspace.");
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
+	error = pool4_for_each(pool4_to_usr, buffer, prefix);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
 }
 
 static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_pool4 *request)
 {
-	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Sending IPv4 pool to userspace.");
-
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userspace.");
-			return respond_error(nl_hdr, -ENOMEM);
-		}
-
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
-		error = pool4_for_each(pool4_entry_to_userspace, buffer);
-		nlbuffer_close(buffer);
-
-		kfree(buffer);
-		return error;
+		return handle_pool4_display(nl_hdr, request);
 
 	case OP_COUNT:
 		log_debug("Returning IPv4 address count.");
@@ -270,8 +283,6 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 	}
 }
 
-#ifdef STATEFUL
-
 static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
@@ -284,34 +295,40 @@ static int bib_entry_to_userspace(struct bib_entry *entry, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
+static int handle_bib_display(struct nlmsghdr *nl_hdr, struct request_bib *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_transport_addr *addr4;
+	int error;
+
+	log_debug("Sending BIB to userspace.");
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
+	error = bibdb_iterate_by_ipv4(request->l4_proto, bib_entry_to_userspace, buffer, addr4);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
 static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		struct request_bib *request)
 {
-	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
+	if (nat64_is_stateless()) {
+		log_err("SIIT doesn't have BIBs.");
+		return -EINVAL;
+	}
+
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Sending BIB to userspace.");
-
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userspace.");
-			return respond_error(nl_hdr, -ENOMEM);
-		}
-
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
-		error = bibdb_iterate_by_ipv4(request->l4_proto, &request->display.addr4,
-				!request->display.iterate, bib_entry_to_userspace, buffer);
-		if (error > 0) {
-			error = nlbuffer_close_continue(buffer);
-		} else {
-			error = nlbuffer_close(buffer);
-		}
-
-		kfree(buffer);
-		return error;
+		return handle_bib_display(nl_hdr, request);
 
 	case OP_COUNT:
 		log_debug("Returning BIB count.");
@@ -362,34 +379,40 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
+static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_session *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_transport_addr *addr4;
+	int error;
+
+	log_debug("Sending session table to userspace.");
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
+	error = sessiondb_iterate_by_ipv4(request->l4_proto, session_entry_to_userspace, buffer, addr4);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
 static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		struct request_session *request)
 {
-	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
+	if (nat64_is_stateless()) {
+		log_err("SIIT doesn't have session tables.");
+		return -EINVAL;
+	}
+
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Sending session table to userspace.");
-
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userspace.");
-			return respond_error(nl_hdr, -ENOMEM);
-		}
-
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
-		error = sessiondb_iterate_by_ipv4(request->l4_proto, &request->display.addr4,
-				!request->display.iterate, session_entry_to_userspace, buffer);
-		if (error > 0) {
-			error = nlbuffer_close_continue(buffer);
-		} else {
-			error = nlbuffer_close(buffer);
-		}
-
-		kfree(buffer);
-		return error;
+		return handle_session_display(nl_hdr, request);
 
 	case OP_COUNT:
 		log_debug("Returning session count.");
@@ -404,8 +427,6 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 	}
 }
 
-#else
-
 static int eam_entry_to_userspace(struct eam_entry *entry, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
@@ -417,34 +438,40 @@ static int eam_entry_to_userspace(struct eam_entry *entry, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
+static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_prefix *prefix4;
+	int error;
+
+	log_debug("Sending EAMT to userspace.");
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
+	error = eamt_for_each(eam_entry_to_userspace, buffer, prefix4);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
 static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_eamt *request)
 {
-	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
+	if (nat64_is_stateful()) {
+		log_err("Stateful NAT64 doesn't have an EAMT.");
+		return -EINVAL;
+	}
+
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Sending EAMT to userspace.");
-
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userspace.");
-			return respond_error(nl_hdr, -ENOMEM);
-		}
-
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
-		error = eamt_for_each(&request->display.prefix4, !request->display.iterate,
-				eam_entry_to_userspace, buffer);
-		if (error > 0) {
-			error = nlbuffer_close_continue(buffer);
-		} else {
-			error = nlbuffer_close(buffer);
-		}
-
-		kfree(buffer);
-		return error;
+		return handle_eamt_display(nl_hdr, request);
 
 	case OP_COUNT:
 		log_debug("Returning EAMT count.");
@@ -480,29 +507,40 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 	}
 }
 
+static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_prefix *prefix;
+	int error;
+
+	log_debug("Sending RFC6791 pool to userspace.");
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
+	error = rfc6791_for_each(pool4_to_usr, buffer, prefix);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
 static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_pool4 *request)
 {
-	struct nl_buffer *buffer;
 	__u64 count;
 	int error;
 
+	if (nat64_is_stateful()) {
+		log_err("RFC 6791 does not apply to Stateful NAT64.");
+		return -EINVAL;
+	}
+
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
-		log_debug("Sending RFC6791 pool to userspace.");
-
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userspace.");
-			return respond_error(nl_hdr, -ENOMEM);
-		}
-
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
-		error = rfc6791_for_each(pool4_entry_to_userspace, buffer);
-		nlbuffer_close(buffer);
-
-		kfree(buffer);
-		return error;
+		return handle_pool6791_display(nl_hdr, request);
 
 	case OP_COUNT:
 		log_debug("Returning IPv4 address count.");
@@ -548,8 +586,6 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 	}
 }
 
-#endif
-
 #ifdef BENCHMARK
 static int logtime_entry_to_userspace(struct log_node *node, void *arg)
 {
@@ -561,28 +597,26 @@ static int logtime_entry_to_userspace(struct log_node *node, void *arg)
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
 }
 
+#endif
+
 static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		struct request_logtime *request)
 {
+#ifdef BENCHMARK
 	struct nl_buffer *buffer;
 	int error;
+
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
 		log_debug("Sending logs time to userspace.");
 
-		buffer = kmalloc(sizeof(*buffer), GFP_ATOMIC);
-		if (!buffer) {
-			log_err("Could not allocate an output buffer to userpace.");
+		buffer = nlbuffer_create(nl_socket, nl_hdr);
+		if (!buffer)
 			return respond_error(nl_hdr, -ENOMEM);
-		}
 
-		nlbuffer_init(buffer, nl_socket, nl_hdr);
 		error = logtime_iterate_and_delete(request->l3_proto, request->l4_proto,
 				logtime_entry_to_userspace, buffer);
-		if (error > 0)
-			error = nlbuffer_close_continue(buffer);
-		else
-			error = nlbuffer_close(buffer);
+		error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 		kfree(buffer);
 		return error;
@@ -590,8 +624,11 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		log_err("Unknown operation: %d", nat64_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
-}
+#else
+	log_err("Benchmark was not enabled during compilation.");
+	return -EINVAL;
 #endif
+}
 
 static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
 		union request_global *request)
@@ -662,22 +699,18 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	case MODE_POOL6:
 		return handle_pool6_config(nl_hdr, nat64_hdr, request);
 	case MODE_POOL4:
+	case MODE_BLACKLIST:
 		return handle_pool4_config(nl_hdr, nat64_hdr, request);
-#ifdef STATEFUL
 	case MODE_BIB:
 		return handle_bib_config(nl_hdr, nat64_hdr, request);
 	case MODE_SESSION:
 		return handle_session_config(nl_hdr, nat64_hdr, request);
-#else
 	case MODE_EAMT:
 		return handle_eamt_config(nl_hdr, nat64_hdr, request);
 	case MODE_RFC6791:
 		return handle_rfc6791_config(nl_hdr, nat64_hdr, request);
-#endif
-#ifdef BENCHMARK
 	case MODE_LOGTIME:
 		return handle_logtime_config(nl_hdr, nat64_hdr, request);
-#endif
 	case MODE_GLOBAL:
 		return handle_global_config(nl_hdr, nat64_hdr, request);
 	}
