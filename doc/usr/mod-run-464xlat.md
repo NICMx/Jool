@@ -105,10 +105,6 @@ This is _R_:
 	# Traffic headed to the real IPv4 Internet goes via PLAT.
 	ip route add 64:ff9b::/96 via 2001:db8:100::2
 
-	# Enable routerness.
-	sysctl -w net.ipv6.conf.all.forwarding=1
-	sysctl -w net.ipv4.conf.all.forwarding=1
-
 	# Enable SIIT.
 	# We're masking the private network using an EAMT entry.
 	# Traffic towards the Internet is to be appended PLAT's prefix.

@@ -18,14 +18,7 @@ debug:
 # If you want to install the module, see ../INSTALL.
 
 insert:
-	# Don't need this noise.
 	sudo dmesg -C
-
-	# Enable forwarding.
-	sudo sysctl -w net.ipv4.conf.all.forwarding=1
-	sudo sysctl -w net.ipv6.conf.all.forwarding=1
-
-	# Insert and configure Jool a little bit.
 	sudo insmod jool_siit.ko pool6=2001:db8:100::/40
 	dmesg
 

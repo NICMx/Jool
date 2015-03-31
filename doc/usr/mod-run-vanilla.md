@@ -68,16 +68,11 @@ user@T:~# /sbin/ip addr add 2001:db8::198.51.100.1/120 dev eth0
 user@T:~# 
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
-user@T:~# 
-user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
 Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but you might want to make sure _T_ can ping everyone before continuing.
 
-The only caveat you need to keep in mind before inserting Jool (or dealing with IPv6 in general) is that enabling forwarding in Linux does **not** automatically get you rid of offloads. Offloading is a _leaf_ node feature, otherwise a bug, and therefore it's important to turn it off on all routers. [Read this document](misc-offloading.html) if you want details.
-
-Do that by means of `ethtool`:
+The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of offloads in the translating machine](misc-offloading.html). Do that by means of `ethtool`:
 
 {% highlight bash %}
 user@T:~# ethtool --offload eth0 tso off
