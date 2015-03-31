@@ -1,7 +1,6 @@
 #include "nat64/mod/common/config.h"
 #include <linux/ipv6.h>
 #include <linux/jiffies.h>
-#include <linux/sort.h>
 #include "nat64/common/config.h"
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/types.h"
@@ -63,259 +62,37 @@ void config_destroy(void)
 
 int config_clone(struct global_config *clone)
 {
+	struct global_config *tmp;
+	size_t len;
 	rcu_read_lock_bh();
-	*clone = *rcu_dereference_bh(config);
-	/* Eh. Because of the configuration mutex, we don't really need to clone the plateaus list. */
+
+	/* Clone the main structure. */
+	tmp = rcu_dereference_bh(config);
+	*clone = *tmp;
+
+	/* Clone plateaus. */
+	len = sizeof(*tmp->mtu_plateaus) * tmp->mtu_plateau_count;
+	clone->mtu_plateaus = kmalloc(len, GFP_ATOMIC);
+	if (!clone->mtu_plateaus) {
+		rcu_read_unlock_bh();
+		return -ENOMEM;
+	}
+	memcpy(clone->mtu_plateaus, tmp->mtu_plateaus, len);
+
 	rcu_read_unlock_bh();
 	return 0;
 }
 
-static bool ensure_bytes(size_t actual, size_t expected)
+int config_set(struct global_config *new)
 {
-	if (actual != expected) {
-		log_err("Expected a %zu-byte integer, got %zu bytes.", expected, actual);
-		return false;
-	}
-	return true;
-}
+	struct global_config *old = config;
 
-#ifdef STATEFUL
-
-static bool assign_timeout(void *value, unsigned int min, __u64 *field)
-{
-	/*
-	 * TODO (fine) this max is somewhat arbitrary. We do have a maximum,
-	 * but I don't recall what or why it was. I do remember it's bigger than this.
-	 */
-	const __u32 MAX_U32 = 0xFFFFFFFFL;
-	__u64 value64 = *((__u64 *) value);
-
-	if (value64 < 1000 * min) {
-		log_err("The UDP timeout must be at least %u seconds.", min);
-		return false;
-	}
-	if (value64 > MAX_U32) {
-		log_err("Expected a timeout less than %u seconds", MAX_U32 / 1000);
-		return false;
-	}
-
-	*field = msecs_to_jiffies(value64);
-	return true;
-}
-
-#endif
-
-static int be16_compare(const void *a, const void *b)
-{
-	return *(__u16 *)b - *(__u16 *)a;
-}
-
-static void be16_swap(void *a, void *b, int size)
-{
-	__u16 t = *(__u16 *)a;
-	*(__u16 *)a = *(__u16 *)b;
-	*(__u16 *)b = t;
-}
-
-static int update_plateaus(struct global_config *config, size_t size, void *value)
-{
-	__u16 *list = value;
-	unsigned int count = size / 2;
-	unsigned int i, j;
-
-	if (count == 0) {
-		log_err("The MTU list received from userspace is empty.");
-		return -EINVAL;
-	}
-	if (size % 2 == 1) {
-		log_err("Expected an array of 16-bit integers; got an uneven number of bytes.");
-		return -EINVAL;
-	}
-
-	/* Sort descending. */
-	sort(list, count, sizeof(*list), be16_compare, be16_swap);
-
-	/* Remove zeroes and duplicates. */
-	for (i = 0, j = 1; j < count; j++) {
-		if (list[j] == 0)
-			break;
-		if (list[i] != list[j]) {
-			i++;
-			list[i] = list[j];
-		}
-	}
-
-	if (list[0] == 0) {
-		log_err("The MTU list contains nothing but zeroes.");
-		return -EINVAL;
-	}
-
-	count = i + 1;
-	size = count * sizeof(*list);
-
-	/* Update. */
-	config->mtu_plateaus = kmalloc(size, GFP_KERNEL);
-	if (!config->mtu_plateaus) {
-		log_err("Could not allocate the kernel's MTU plateaus list.");
-		return -ENOMEM;
-	}
-	memcpy(config->mtu_plateaus, list, size);
-	config->mtu_plateau_count = count;
-
-	return 0;
-}
-
-int config_set(__u8 type, size_t size, void *value)
-{
-	struct global_config *tmp_config;
-	struct global_config *old_config;
-
-	tmp_config = kmalloc(sizeof(*tmp_config), GFP_KERNEL);
-	if (!tmp_config)
-		return -ENOMEM;
-
-	old_config = config;
-	*tmp_config = *old_config;
-
-	switch (type) {
-#ifdef STATEFUL
-	case MAX_PKTS:
-		if (!ensure_bytes(size, 8))
-			goto fail;
-		tmp_config->max_stored_pkts = *((__u64 *) value);
-		break;
-	case SRC_ICMP6ERRS_BETTER:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->src_icmp6errs_better = *((__u8 *) value);
-		break;
-	case UDP_TIMEOUT:
-		if (!ensure_bytes(size, 8))
-			goto fail;
-		if (!assign_timeout(value, UDP_MIN, &tmp_config->ttl.udp))
-			goto fail;
-		break;
-	case ICMP_TIMEOUT:
-		if (!ensure_bytes(size, 8))
-			goto fail;
-		if (!assign_timeout(value, 0, &tmp_config->ttl.icmp))
-			goto fail;
-		break;
-	case TCP_EST_TIMEOUT:
-		if (!ensure_bytes(size, 8))
-			goto fail;
-		if (!assign_timeout(value, TCP_EST, &tmp_config->ttl.tcp_est))
-			goto fail;
-		break;
-	case TCP_TRANS_TIMEOUT:
-		if (!ensure_bytes(size, 8))
-			goto fail;
-		if (!assign_timeout(value, TCP_TRANS, &tmp_config->ttl.tcp_trans))
-			goto fail;
-		break;
-	case FRAGMENT_TIMEOUT:
-		if (!ensure_bytes(size, 8))
-			goto fail;
-		if (!assign_timeout(value, FRAGMENT_MIN, &tmp_config->ttl.frag))
-			goto fail;
-		break;
-	case DROP_BY_ADDR:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->drop_by_addr = *((__u8 *) value);
-		break;
-	case DROP_ICMP6_INFO:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->drop_icmp6_info = *((__u8 *) value);
-		break;
-	case DROP_EXTERNAL_TCP:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->drop_external_tcp = *((__u8 *) value);
-		break;
-#else
-	case COMPUTE_UDP_CSUM_ZERO:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->compute_udp_csum_zero = *((__u8 *) value);
-		break;
-	case RANDOMIZE_RFC6791:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->randomize_error_addresses = *((__u8 *) value);
-		break;
-#endif
-	case RESET_TCLASS:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->reset_traffic_class = *((__u8 *) value);
-		break;
-	case RESET_TOS:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->reset_tos = *((__u8 *) value);
-		break;
-	case NEW_TOS:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->new_tos = *((__u8 *) value);
-		break;
-	case DF_ALWAYS_ON:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->atomic_frags.df_always_on = *((__u8 *) value);
-		break;
-	case BUILD_IPV6_FH:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->atomic_frags.build_ipv6_fh = *((__u8 *) value);
-		break;
-	case BUILD_IPV4_ID:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->atomic_frags.build_ipv4_id = *((__u8 *) value);
-		break;
-	case LOWER_MTU_FAIL:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->atomic_frags.lower_mtu_fail = *((__u8 *) value);
-		break;
-	case MTU_PLATEAUS:
-		if (is_error(update_plateaus(tmp_config, size, value)))
-			goto fail;
-		break;
-	case DISABLE:
-		tmp_config->is_disable = (__u8) true;
-		break;
-	case ENABLE:
-		tmp_config->is_disable = (__u8) false;
-		break;
-	case ATOMIC_FRAGMENTS:
-		if (!ensure_bytes(size, 1))
-			goto fail;
-		tmp_config->atomic_frags.df_always_on = *((__u8 *) value);
-		tmp_config->atomic_frags.build_ipv6_fh = *((__u8 *) value);
-		tmp_config->atomic_frags.build_ipv4_id = !(*((__u8 *) value));
-		tmp_config->atomic_frags.lower_mtu_fail = !(*((__u8 *) value));
-		break;
-	default:
-		log_err("Unknown config type: %u", type);
-		goto fail;
-	}
-
-	rcu_assign_pointer(config, tmp_config);
+	rcu_assign_pointer(config, new);
 	synchronize_rcu_bh();
 
-	if (old_config->mtu_plateaus != tmp_config->mtu_plateaus)
-		kfree(old_config->mtu_plateaus);
-	kfree(old_config);
-
+	kfree(old->mtu_plateaus);
+	kfree(old);
 	return 0;
-
-fail:
-	kfree(tmp_config);
-	return -EINVAL;
 }
 
 #define RCU_THINGY(type, field) \

@@ -52,7 +52,7 @@ Note that there are not one, but three different BIB tables. We added the entry 
 
 	$ # Add an entry to the UDP BIB
 	$ jool --bib --add --udp 1::1#80 1.2.3.4#5678
-	$ # Add an entry to the TCP and ICMP BIBs
+	$ # Add an entry to the UDP and ICMP BIBs
 	$ jool --bib --add --udp --icmp 1::1#80 1.2.3.4#5678
 	$ # Show the three tables.
 	$ jool --bib --tcp --udp --icmp

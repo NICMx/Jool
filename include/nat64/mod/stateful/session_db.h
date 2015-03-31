@@ -295,4 +295,6 @@ int sessiondb_tcp_state_machine(struct packet *pkt, struct session_entry *sessio
  */
 int sessiondb_get_timeout(struct session_entry *session, unsigned long *result);
 
+int sessiondb_update_timer(enum session_timer_type type);
+
 #endif /* _JOOL_MOD_SESSION_DB_H */

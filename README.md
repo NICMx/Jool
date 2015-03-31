@@ -19,12 +19,14 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 
 ## Authors
 
-### NIC-Mx representatives
+### NIC-Mx
 
 * Ing. Julio Cossío
 * Ing. Jorge Cano
 * Ing. [Alberto Leiva](https://github.com/ydahhrk) - aleiva@nic.mx
 * Ing. [Daniel Hernandez Felix](https://github.com/dhfelix) - dhernandez@nic.mx
+* Edgar Martín Rodríguez Bernal - edgarmrb_95@hotmail.com
+* Ing. Sergio Adrián Casas Fernández - iam@sergio-casas.com
 
 ### ITESM representatives
 

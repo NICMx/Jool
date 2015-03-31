@@ -419,16 +419,16 @@ static int remove(struct session_entry *session, struct session_table *table)
  *
  * Not holding a spinlock is desirable for performance reasons (mod_timer() syncs itself).
  */
-static void schedule_timer(struct timer_list *timer, unsigned long next_time, char *expirer_name)
+static void schedule_timer(struct expire_timer *expirer, unsigned long next_time)
 {
 	unsigned long min_next = jiffies + MIN_TIMER_SLEEP;
 
 	if (time_before(next_time, min_next))
 		next_time = min_next;
 
-	mod_timer(timer, next_time);
-	log_debug("%s timer will awake in %u msecs.", expirer_name,
-			jiffies_to_msecs(timer->expires - jiffies));
+	mod_timer(&expirer->timer, next_time);
+	log_debug("%s timer will awake in %u msecs.", expirer->name,
+			jiffies_to_msecs(expirer->timer.expires - jiffies));
 }
 
 int sessiondb_get_timeout(struct session_entry *session, unsigned long *result)
@@ -468,7 +468,7 @@ static struct expire_timer *set_timer(struct session_entry *session,
 static void commit_timer(struct expire_timer *expirer)
 {
 	if (expirer)
-		schedule_timer(&expirer->timer, jiffies + expirer->get_timeout(), expirer->name);
+		schedule_timer(expirer, jiffies + expirer->get_timeout());
 }
 
 /**
@@ -535,14 +535,22 @@ static int session_tcp_expire(struct session_entry *session, struct list_head *t
  */
 static void cleaner_timer(unsigned long param)
 {
+	/* Timer that triggered this funcion. */
 	struct expire_timer *expirer = (struct expire_timer *) param;
-	struct list_head *current_hook, *next_hook;
-	struct list_head probes, tcp_timeouts;
-	struct session_entry *session;
+	/* expirer's timeout shortcut. */
 	unsigned long timeout;
-	unsigned long session_update_time = 0;
+	/* List traversal pointers. */
+	struct session_entry *session, *tmp;
+	/* Sessions that will need spinlockless post-processing. */
+	struct list_head probes, tcp_timeouts;
+	/* Jiffy at which the next session is going to die. */
+	unsigned long death_time;
+	/* Deleted session counter. */
 	unsigned int s = 0;
-	bool schedule_tcp_trans = false;
+	/* Will we need to reactivate expirer? */
+	bool reschedule_self = false;
+	/* Will we need to activate the tcptrans expirer? */
+	bool schedule_tcptrans;
 
 	log_debug("===============================================");
 	log_debug("Deleting expired sessions...");
@@ -554,47 +562,85 @@ static void cleaner_timer(unsigned long param)
 
 	spin_lock_bh(&expirer->table->lock);
 
-	list_for_each_safe(current_hook, next_hook, &expirer->sessions) {
-		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+	list_for_each_entry_safe(session, tmp, &expirer->sessions, expire_list_hook) {
+		death_time = session->update_time + timeout;
 
-		if (time_before(jiffies, session->update_time + timeout)) {
-			/* "list" is sorted by expiration date, so stop on the first unexpired session. */
-			session_update_time = session->update_time + timeout;
+		/* "list" is sorted by expiration date, so stop on the first unexpired session. */
+		if (time_before(jiffies, death_time)) {
+			reschedule_self = true;
 			break;
 		}
 
-		if (session->l4_proto != L4PROTO_TCP)
-			s += remove(session, expirer->table);
-		else
-			s += session_tcp_expire(session, &tcp_timeouts, &probes);
+		s += (session->l4_proto != L4PROTO_TCP)
+				? remove(session, expirer->table)
+				: session_tcp_expire(session, &tcp_timeouts, &probes);
 	}
 
 	expirer->table->count -= s;
-	schedule_tcp_trans = !timer_pending(&expirer_tcp_trans.timer) &&
-			!list_empty(&expirer_tcp_trans.sessions) && (expirer != &expirer_tcp_trans);
+	schedule_tcptrans = !timer_pending(&expirer_tcp_trans.timer)
+			&& !list_empty(&expirer_tcp_trans.sessions)
+			&& (expirer != &expirer_tcp_trans);
+
 	spin_unlock_bh(&expirer->table->lock);
 
-	if (schedule_tcp_trans) {
-		schedule_timer(&expirer_tcp_trans.timer, jiffies + expirer_tcp_trans.get_timeout(),
-				expirer_tcp_trans.name);
-	}
+	if (reschedule_self)
+		schedule_timer(expirer, death_time);
+	if (schedule_tcptrans)
+		schedule_timer(&expirer_tcp_trans, jiffies + expirer_tcp_trans.get_timeout());
 
-	if (session_update_time)
-		schedule_timer(&expirer->timer, session_update_time, expirer->name);
-
-	list_for_each_safe(current_hook, next_hook, &tcp_timeouts) {
-		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+	list_for_each_entry_safe(session, tmp, &tcp_timeouts, expire_list_hook) {
 		pktqueue_send(session);
 		session_return(session);
 	}
 
-	list_for_each_safe(current_hook, next_hook, &probes) {
-		session = list_entry(current_hook, struct session_entry, expire_list_hook);
+	list_for_each_entry_safe(session, tmp, &probes, expire_list_hook) {
 		send_probe_packet(session);
 		session_return(session);
 	}
 
 	log_debug("Deleted %u sessions.", s);
+}
+
+struct expire_timer *get_expirer(enum session_timer_type type)
+{
+	switch (type) {
+	case SESSIONTIMER_UDP:
+		return &expirer_udp;
+	case SESSIONTIMER_ICMP:
+		return &expirer_icmp;
+	case SESSIONTIMER_TRANS:
+		return &expirer_tcp_trans;
+	case SESSIONTIMER_EST:
+		return &expirer_tcp_est;
+	case SESSIONTIMER_SYN:
+		return &expirer_syn;
+	}
+	return NULL;
+}
+
+int sessiondb_update_timer(enum session_timer_type type)
+{
+	struct expire_timer *expirer;
+	bool reschedule = false;
+	struct session_entry *session;
+	unsigned long death_time;
+
+	expirer = get_expirer(type);
+	if (WARN(!expirer, "type is unknown: %d", type))
+		return -EINVAL;
+
+	spin_lock_bh(&expirer->table->lock);
+	if (!list_empty(&expirer->sessions)) {
+		reschedule = true;
+		session = list_entry(expirer->sessions.next, struct session_entry, expire_list_hook);
+		death_time = session->update_time + expirer->get_timeout();
+	}
+	spin_unlock_bh(&expirer->table->lock);
+
+	if (reschedule)
+		schedule_timer(expirer, death_time);
+
+	return 0;
 }
 
 static unsigned long get_syn_timeout(void)
@@ -732,6 +778,12 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 
 	if (addr6_equals(&session->remote6.l3, &any)) {
 		/* The session is Simultaneous Open debris. */
+		/* TODO (info) this is not ideal. From Linux's perspective, ::0 is not a special address
+		 * routing-wise, so using it to mark a SO session is hardly good practice.
+		 * As a better implementation, we could maybe not store the session in the tree
+		 * (ie make it pkt_queue-only).
+		 * See https://github.com/NICMx/NAT64/issues/137#issuecomment-78140730
+		 */
 		session_return(session);
 		return -ENOENT;
 	}
@@ -776,7 +828,7 @@ int sessiondb_add(struct session_entry *session, enum session_timer_type timer_t
 {
 	struct session_table *table;
 	struct rb_node *parent, **node;
-	struct expire_timer *expirer = NULL;
+	struct expire_timer *expirer;
 	int error;
 
 	/* Sanity */
@@ -823,23 +875,10 @@ int sessiondb_add(struct session_entry *session, enum session_timer_type timer_t
 		rb_insert_color(&session->tree4_hook, &table->tree4);
 	}
 
-	switch (timer_type) {
-	case SESSIONTIMER_TRANS:
-		expirer = &expirer_tcp_trans;
-		break;
-	case SESSIONTIMER_EST:
-		expirer = &expirer_tcp_est;
-		break;
-	case SESSIONTIMER_SYN:
-		expirer = &expirer_syn;
-		break;
-	case SESSIONTIMER_UDP:
-		expirer = &expirer_udp;
-		break;
-	case SESSIONTIMER_ICMP:
-		expirer = &expirer_icmp;
-		break;
-	}
+	expirer = get_expirer(timer_type);
+	if (WARN(!expirer, "tymer_type is unknown: %d", timer_type))
+		return -EINVAL;
+
 	expirer = set_timer(session, expirer);
 
 	session_get(session); /* We have 3 indexes, but really they count as one. */
