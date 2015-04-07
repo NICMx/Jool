@@ -46,9 +46,7 @@ int pool6_display(void)
 	struct display_args args;
 	int error;
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL6;
-	hdr->operation = OP_DISPLAY;
+	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_DISPLAY);
 	payload->display.prefix_set = false;
 	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
 	args.row_count = 0;
@@ -77,11 +75,8 @@ static int pool6_count_response(struct nl_msg *msg, void *arg)
 
 int pool6_count(void)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_POOL6,
-			.operation = OP_COUNT,
-	};
+	struct request_hdr request;
+	init_request_hdr(&request, sizeof(request), MODE_POOL6, OP_COUNT);
 	return netlink_request(&request, request.length, pool6_count_response, NULL);
 }
 
@@ -97,9 +92,7 @@ int pool6_add(struct ipv6_prefix *prefix)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL6;
-	hdr->operation = OP_ADD;
+	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_ADD);
 	payload->add.prefix = *prefix;
 
 	return netlink_request(request, hdr->length, pool6_add_response, NULL);
@@ -117,9 +110,7 @@ int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL6;
-	hdr->operation = OP_REMOVE;
+	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_REMOVE);
 	payload->remove.prefix = *prefix;
 	payload->remove.quick = quick;
 
@@ -138,9 +129,7 @@ int pool6_flush(bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_POOL6;
-	hdr->operation = OP_FLUSH;
+	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_FLUSH);
 	payload->flush.quick = quick;
 
 	return netlink_request(&request, hdr->length, pool6_flush_response, NULL);

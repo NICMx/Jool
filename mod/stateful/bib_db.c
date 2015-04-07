@@ -1,6 +1,8 @@
 #include "nat64/mod/stateful/bib_db.h"
 
 #include <net/ipv6.h>
+#include "nat64/common/str_utils.h"
+#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/icmp_wrapper.h"
@@ -118,6 +120,16 @@ int bib_return(struct bib_entry *bib)
 int bib_return_lockless(struct bib_entry *bib)
 {
 	return kref_put(&bib->refcounter, bib_release_lockless);
+}
+
+static void bib_log(const struct bib_entry *bib, const char *action)
+{
+	if (config_get_bib_logging()) {
+		log_info("%s %pI6c#%u to %pI4#%u (%s)", action,
+				&bib->ipv6.l3, bib->ipv6.l4,
+				&bib->ipv4.l3, bib->ipv4.l4,
+				l4proto_to_string(bib->l4_proto));
+	}
 }
 
 /**
@@ -453,6 +465,7 @@ int bibdb_add(struct bib_entry *entry)
 	if (error)
 		bibdb_remove(entry, false);
 
+	bib_log(entry, "Mapped");
 	/* Fall through. */
 
 host6_exit:
@@ -488,6 +501,8 @@ int bibdb_remove(struct bib_entry *entry, const bool lock)
 		rb_erase(&entry->tree4_hook, &table->tree4);
 		table->count--;
 	}
+
+	bib_log(entry, "Forgot");
 
 	return 0;
 }
@@ -649,6 +664,7 @@ int bibdb_get_or_create_ipv6(struct packet *pkt, struct tuple *tuple6, struct bi
 	if (error)
 		bibdb_remove(*bib, false);
 
+	bib_log(*bib, "Mapped");
 	/* Fall through. */
 
 host_end:

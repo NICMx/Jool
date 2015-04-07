@@ -42,9 +42,7 @@ int pool4_display(enum config_mode mode)
 	struct display_args args;
 	int error;
 
-	hdr->length = sizeof(request);
-	hdr->mode = mode;
-	hdr->operation = OP_DISPLAY;
+	init_request_hdr(hdr, sizeof(request), mode, OP_DISPLAY);
 	payload->display.prefix_set = false;
 	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
 	args.row_count = 0;
@@ -73,11 +71,8 @@ static int pool4_count_response(struct nl_msg *msg, void *arg)
 
 int pool4_count(enum config_mode mode)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = mode,
-			.operation = OP_COUNT,
-	};
+	struct request_hdr request;
+	init_request_hdr(&request, sizeof(request), mode, OP_COUNT);
 	return netlink_request(&request, request.length, pool4_count_response, NULL);
 }
 
@@ -93,9 +88,7 @@ int pool4_add(enum config_mode mode, struct ipv4_prefix *addrs)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = mode;
-	hdr->operation = OP_ADD;
+	init_request_hdr(hdr, sizeof(request), mode, OP_ADD);
 	payload->add.addrs = *addrs;
 
 	return netlink_request(request, hdr->length, pool4_add_response, NULL);
@@ -113,9 +106,7 @@ int pool4_remove(enum config_mode mode, struct ipv4_prefix *addrs, bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = mode;
-	hdr->operation = OP_REMOVE;
+	init_request_hdr(hdr, sizeof(request), mode, OP_REMOVE);
 	payload->remove.addrs = *addrs;
 	payload->remove.quick = quick;
 
@@ -134,9 +125,7 @@ int pool4_flush(enum config_mode mode, bool quick)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = mode;
-	hdr->operation = OP_FLUSH;
+	init_request_hdr(hdr, sizeof(request), mode, OP_FLUSH);
 	payload->flush.quick = quick;
 
 	return netlink_request(&request, hdr->length, pool4_flush_response, NULL);

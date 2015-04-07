@@ -27,7 +27,7 @@
 #include "nat64/usr/log_time.h"
 
 
-const char *argp_program_version = "3.3.1";
+const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
@@ -119,6 +119,8 @@ enum argp_flags {
 	ARGP_TCP_TRANS_TO = 3013,
 	ARGP_STORED_PKTS = 3014,
 	ARGP_SRC_ICMP6ERRS_BETTER = 3015,
+	ARGP_BIB_LOGGING,
+	ARGP_SESSION_LOGGING,
 	ARGP_RESET_TCLASS = 4002,
 	ARGP_RESET_TOS = 4003,
 	ARGP_NEW_TOS = 4004,
@@ -228,6 +230,7 @@ static struct argp_option options[] =
 	{ OPTNAME_DROP_EXTERNAL_TCP, ARGP_DROP_TCP, BOOL_FORMAT, 0,
 			"Drop externally initiated TCP connections?\n" },
 	{ "dropTCP", 0, NULL, OPTION_ALIAS, ""},
+
 	{ OPTNAME_UDP_TIMEOUT, ARGP_UDP_TO, NUM_FORMAT, 0,
 			"Set the UDP session lifetime (in seconds).\n" },
 	{ "toUDP", 0, NULL, OPTION_ALIAS, ""},
@@ -243,11 +246,17 @@ static struct argp_option options[] =
 	{ OPTNAME_FRAG_TIMEOUT, ARGP_FRAG_TO, NUM_FORMAT, 0,
 			"Set the timeout for arrival of fragments.\n" },
 	{ "toFrag", 0, NULL, OPTION_ALIAS, ""},
+
 	{ OPTNAME_MAX_SO, ARGP_STORED_PKTS, NUM_FORMAT, 0,
 			"Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.\n" },
 	{ "maxStoredPkts", 0, NULL, OPTION_ALIAS, ""},
 	{ OPTNAME_SRC_ICMP6E_BETTER, ARGP_SRC_ICMP6ERRS_BETTER, BOOL_FORMAT, 0,
 			"Translate source addresses directly on 4-to-6 ICMP errors?\n" },
+
+	{ OPTNAME_BIB_LOGGING, ARGP_BIB_LOGGING, BOOL_FORMAT, 0,
+				"Log BIBs as they are created and destroyed?\n" },
+	{ OPTNAME_SESSION_LOGGING, ARGP_SESSION_LOGGING, BOOL_FORMAT, 0,
+				"Log sessions as they are created and destroyed?\n" },
 #else
 	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
 			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "
@@ -601,6 +610,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_DROP_TCP:
 		error = set_global_bool(args, DROP_EXTERNAL_TCP, str);
 		break;
+
 	case ARGP_UDP_TO:
 		error = set_global_u64(args, UDP_TIMEOUT, str, UDP_MIN, MAX_U32/1000, 1000);
 		break;
@@ -616,11 +626,19 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_FRAG_TO:
 		error = set_global_u64(args, FRAGMENT_TIMEOUT, str, FRAGMENT_MIN, MAX_U32/1000, 1000);
 		break;
+
 	case ARGP_STORED_PKTS:
 		error = set_global_u64(args, MAX_PKTS, str, 0, MAX_U64, 1);
 		break;
 	case ARGP_SRC_ICMP6ERRS_BETTER:
 		error = set_global_bool(args, SRC_ICMP6ERRS_BETTER, str);
+		break;
+
+	case ARGP_BIB_LOGGING:
+		error = set_global_bool(args, BIB_LOGGING, str);
+		break;
+	case ARGP_SESSION_LOGGING:
+		error = set_global_bool(args, SESSION_LOGGING, str);
 		break;
 #else
 	case ARGP_COMPUTE_CSUM_ZERO:

@@ -37,6 +37,8 @@ int config_init(bool is_disable)
 	config->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
 	config->drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
 	config->drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
+	config->bib_logging = DEFAULT_BIB_LOGGING;
+	config->session_logging = DEFAULT_SESSION_LOGGING;
 #else
 	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
@@ -138,7 +140,17 @@ unsigned int config_get_max_pkts(void)
 
 bool config_get_src_icmp6errs_better(void)
 {
-	return RCU_THINGY(unsigned int, src_icmp6errs_better);
+	return RCU_THINGY(bool, src_icmp6errs_better);
+}
+
+bool config_get_bib_logging(void)
+{
+	return RCU_THINGY(bool, bib_logging);
+}
+
+bool config_get_session_logging(void)
+{
+	return RCU_THINGY(bool, session_logging);
 }
 
 bool config_get_filter_icmpv6_info(void)

@@ -66,9 +66,7 @@ static bool display_single_table(l4_protocol l4_proto, bool numeric_hostname, bo
 	if (!csv_format)
 		printf("%s:\n", l4proto_to_string(l4_proto));
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_BIB;
-	hdr->operation = OP_DISPLAY;
+	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_DISPLAY);
 	payload->l4_proto = l4_proto;
 	payload->display.addr4_set = false;
 	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
@@ -126,9 +124,7 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 
 	printf("%s: ", count_name);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_BIB;
-	hdr->operation = OP_COUNT;
+	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
 	return netlink_request(request, hdr->length, bib_count_response, NULL);
@@ -189,9 +185,7 @@ int bib_add(bool use_tcp, bool use_udp, bool use_icmp, struct ipv6_transport_add
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_BIB;
-	hdr->operation = OP_ADD;
+	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_ADD);
 	payload->add.addr6 = *addr6;
 	payload->add.addr4 = *addr4;
 
@@ -212,9 +206,7 @@ int bib_remove(bool use_tcp, bool use_udp, bool use_icmp,
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_BIB;
-	hdr->operation = OP_REMOVE;
+	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_REMOVE);
 	payload->remove.addr6_set = addr6_set;
 	payload->remove.addr6 = *addr6;
 	payload->remove.addr4_set = addr4_set;

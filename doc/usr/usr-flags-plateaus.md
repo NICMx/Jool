@@ -93,9 +93,9 @@ It's not that bad, given that some of the protocols in the table are still in us
 
 And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run (after installing the [userspace application](usr-install.html))
 
-	$(jool) --plateaus <list>
+	$(jool) --mtu-plateaus <list>
 
 For example:
 
-	jool_siit --plateaus "80000, 40000, 20000, 10000"
+	jool_siit --mtu-plateaus "80000, 40000, 20000, 10000"
 

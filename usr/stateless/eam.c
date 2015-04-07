@@ -63,9 +63,7 @@ int eam_display(bool csv_format)
 	struct display_params params;
 	int error;
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_EAMT;
-	hdr->operation = OP_DISPLAY;
+	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_DISPLAY);
 	payload->display.prefix4_set = false;
 	memset(&payload->display.prefix4, 0, sizeof(payload->display.prefix4));
 	params.csv_format = csv_format;
@@ -98,11 +96,8 @@ static int eam_count_response(struct nl_msg *msg, void *arg)
 
 int eam_count(void)
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_EAMT,
-			.operation = OP_COUNT,
-	};
+	struct request_hdr request;
+	init_request_hdr(&request, sizeof(request), MODE_EAMT, OP_COUNT);
 	return netlink_request(&request, request.length, eam_count_response, NULL);
 }
 
@@ -118,9 +113,7 @@ int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_EAMT;
-	hdr->operation = OP_ADD;
+	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_ADD);
 	payload->add.prefix4 = *prefix4;
 	payload->add.prefix6 = *prefix6;
 
@@ -140,9 +133,7 @@ int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_EAMT;
-	hdr->operation = OP_REMOVE;
+	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_REMOVE);
 	payload->remove.prefix4_set = pref4_set;
 	payload->remove.prefix4 = *prefix4;
 	payload->remove.prefix6_set = pref6_set;
@@ -159,11 +150,7 @@ static int eam_flush_response(struct nl_msg *msg, void *arg)
 
 int eam_flush()
 {
-	struct request_hdr request = {
-			.length = sizeof(request),
-			.mode = MODE_EAMT,
-			.operation = OP_FLUSH,
-	};
-
+	struct request_hdr request;
+	init_request_hdr(&request, sizeof(request), MODE_EAMT, OP_FLUSH);
 	return netlink_request(&request, request.length, eam_flush_response, NULL);
 }

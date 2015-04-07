@@ -106,6 +106,46 @@ static int verify_superpriv(void)
 	return 0;
 }
 
+static int validate_version(struct request_hdr *hdr)
+{
+	switch (hdr->type) {
+	case 's':
+		if (nat64_is_stateful()) {
+			log_err("You're speaking to NAT64 Jool using "
+					"the SIIT Jool application.");
+			return -EINVAL;
+		}
+		break;
+	case 'n':
+		if (nat64_is_stateless()) {
+			log_err("You're speaking to SIIT Jool using "
+					"the NAT64 Jool application.");
+			return -EINVAL;
+		}
+		break;
+	default:
+		log_err("It appears you're trying to speak to Jool "
+				"using an older userspace application. "
+				"Please update your userspace application.");
+		return -EINVAL;
+	}
+
+	if (jool_version() == hdr->version)
+		return 0;
+
+	log_err("Version mismatch. The kernel module is %u.%u.%u.%u, "
+			"but the userspace application is %u.%u.%u.%u. "
+			"Please update Jool's %s.",
+			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV,
+			hdr->version >> 24, (hdr->version >> 16) & 0xFF,
+			(hdr->version >> 8) & 0xFF, hdr->version & 0xFF,
+			(jool_version() > hdr->version)
+				? "userspace application"
+				: "kernel module");
+	return -EINVAL;
+}
+
 static int pool6_entry_to_userspace(struct ipv6_prefix *prefix, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
@@ -755,6 +795,17 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 			goto einval;
 		config->src_icmp6errs_better = *((__u8 *) value);
 		break;
+	case BIB_LOGGING:
+		if (!ensure_bytes(size, 1))
+			goto einval;
+		config->bib_logging = *((__u8 *) value);
+		break;
+	case SESSION_LOGGING:
+		if (!ensure_bytes(size, 1))
+			goto einval;
+		config->session_logging = *((__u8 *) value);
+		break;
+
 	case UDP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
@@ -953,6 +1004,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 {
 	struct request_hdr *nat64_hdr;
 	void *request;
+	int error;
 
 	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);
@@ -961,6 +1013,10 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 
 	nat64_hdr = NLMSG_DATA(nl_hdr);
 	request = nat64_hdr + 1;
+
+	error = validate_version(nat64_hdr);
+	if (error)
+		return respond_error(nl_hdr, error);
 
 	switch (nat64_hdr->mode) {
 	case MODE_POOL6:

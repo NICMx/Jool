@@ -14,6 +14,17 @@
 #define MODULE_NAME "SIIT Jool"
 #endif
 
+#define JOOL_VERSION_MAJOR 3
+#define JOOL_VERSION_MINOR 3
+#define JOOL_VERSION_REV 1
+#define JOOL_VERSION_DEV 13
+
+#define STR(s) #s
+#define JOOL_VERSION_STR \
+	STR(JOOL_VERSION_MAJOR) "." \
+	STR(JOOL_VERSION_MINOR) "." \
+	STR(JOOL_VERSION_REV)
+
 /**
  * Please tend to use nat64_is_stateful() instead of the STATEFUL macro.
  * By using the function version, your compilations will be aware of the alternate mode so you will
@@ -33,6 +44,20 @@ static inline int nat64_is_stateful(void)
 static inline int nat64_is_stateless(void)
 {
 	return !nat64_is_stateful();
+}
+
+static inline unsigned int version_8to32(unsigned int major, unsigned int minor,
+		unsigned int revision, unsigned int development)
+{
+	return (major << 24) | (minor << 16) | (revision << 8) | development;
+}
+
+static inline unsigned int jool_version(void)
+{
+	return version_8to32(JOOL_VERSION_MAJOR,
+			JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV,
+			JOOL_VERSION_DEV);
 }
 
 #define NF_IP_PRI_JOOL (NF_IP_PRI_NAT_DST + 25)

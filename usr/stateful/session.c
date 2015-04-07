@@ -124,9 +124,7 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 		printf("---------------------------------\n");
 	}
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_SESSION;
-	hdr->operation = OP_DISPLAY;
+	init_request_hdr(hdr, sizeof(request), MODE_SESSION, OP_DISPLAY);
 	payload->l4_proto = l4_proto;
 	payload->display.addr4_set = false;
 	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
@@ -190,9 +188,7 @@ static bool display_single_count(char *count_name, u_int8_t l4_proto)
 
 	printf("%s: ", count_name);
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_SESSION;
-	hdr->operation = OP_COUNT;
+	init_request_hdr(hdr, sizeof(request), MODE_SESSION, OP_COUNT);
 	payload->l4_proto = l4_proto;
 
 	return netlink_request(request, hdr->length, session_count_response, NULL);

@@ -124,6 +124,10 @@ enum config_operation {
  * Indicates what the rest of the message contains.
  */
 struct request_hdr {
+	/** Translation type (SIIT or NAT64) */
+	unsigned char type;
+	/** Jool's version. */
+	__u32 version;
 	/** Size of the message. Includes header (this one) and payload. */
 	__u32 length;
 	/** See "enum config_mode". */
@@ -131,6 +135,16 @@ struct request_hdr {
 	/** See "enum config_operation". */
 	__u8 operation;
 };
+
+static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
+		enum config_mode mode, enum config_operation operation)
+{
+	hdr->type = nat64_is_stateful() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
+	hdr->version = jool_version();
+	hdr->length = length;
+	hdr->mode = mode;
+	hdr->operation = operation;
+}
 
 /**
  * Configuration for the "IPv6 Pool" module.
@@ -293,11 +307,13 @@ enum global_type {
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
 	TCP_TRANS_TIMEOUT,
-
 	FRAGMENT_TIMEOUT,
 
 	MAX_PKTS,
 	SRC_ICMP6ERRS_BETTER,
+
+	BIB_LOGGING,
+	SESSION_LOGGING,
 
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
@@ -473,6 +489,7 @@ struct global_config {
 	/**
 	 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
 	 * userspace.
+	 * The kernel module is responsible for switching units as the the values approach the border.
 	 */
 	struct {
 		/** Maximum time inactive UDP sessions will remain in the DB. */
@@ -498,6 +515,11 @@ struct global_config {
 	__u64 max_stored_pkts;
 	/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
 	__u8 src_icmp6errs_better;
+
+	/** Log BIBs as they are created and destroyed? */
+	__u8 bib_logging;
+	/** Log sessions as they are created and destroyed? */
+	__u8 session_logging;
 #else
 	/**
 	 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?

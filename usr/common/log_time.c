@@ -66,9 +66,7 @@ static bool display_single_db(l3_protocol l3_proto, l4_protocol l4_proto)
 	struct display_params params;
 	bool error;
 
-	hdr->length = sizeof(request);
-	hdr->mode = MODE_LOGTIME;
-	hdr->operation = OP_DISPLAY;
+	init_request_hdr(hdr, sizeof(request), MODE_LOGTIME, OP_DISPLAY);
 	payload->l3_proto = (__u8) l3_proto;
 	payload->l4_proto = (__u8) l4_proto;
 	payload->display.iterate = false;

@@ -67,6 +67,12 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 	printf("\n");
 
 #ifdef STATEFUL
+	printf("  Additional Logging:\n");
+	printf("  --%s: %s\n", OPTNAME_BIB_LOGGING,
+			conf->bib_logging ? "ON" : "OFF");
+	printf("  --%s: %s\n", OPTNAME_SESSION_LOGGING,
+			conf->session_logging ? "ON" : "OFF");
+	printf("\n");
 
 	printf("  Filtering:\n");
 	printf("    --%s: %s\n", OPTNAME_DROP_BY_ADDR,
@@ -96,11 +102,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 
 int global_display(void)
 {
-	struct request_hdr request = {
-		.length = sizeof(request),
-		.mode = MODE_GLOBAL,
-		.operation = OP_DISPLAY,
-	};
+	struct request_hdr request;
+	init_request_hdr(&request, sizeof(request), MODE_GLOBAL, OP_DISPLAY);
 	return netlink_request(&request, request.length, handle_display_response, NULL);
 }
 
@@ -125,9 +128,7 @@ int global_update(__u8 type, size_t size, void *data)
 	global_hdr = (union request_global *) (main_hdr + 1);
 	payload = global_hdr + 1;
 
-	main_hdr->length = len;
-	main_hdr->mode = MODE_GLOBAL;
-	main_hdr->operation = OP_UPDATE;
+	init_request_hdr(main_hdr, len, MODE_GLOBAL, OP_UPDATE);
 	global_hdr->update.type = type;
 	memcpy(payload, data, size);
 

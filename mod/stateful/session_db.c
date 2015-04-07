@@ -2,6 +2,7 @@
 
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rbtree.h"
@@ -157,6 +158,18 @@ struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
 			.expirer = NULL,
 	};
 	return session_clone(&tmp);
+}
+
+static void session_log(const struct session_entry *session, const char *action)
+{
+	if (config_get_session_logging()) {
+		log_info("%s %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u|%s", action,
+				&session->remote6.l3, session->remote6.l4,
+				&session->local6.l3, session->local6.l4,
+				&session->local4.l3, session->local4.l4,
+				&session->remote4.l3, session->remote4.l4,
+				l4proto_to_string(session->l4_proto));
+	}
 }
 
 /**
@@ -407,6 +420,8 @@ static int remove(struct session_entry *session, struct session_table *table)
 		rb_erase(&session->tree6_hook, &table->tree6);
 	if (!RB_EMPTY_NODE(&session->tree4_hook))
 		rb_erase(&session->tree4_hook, &table->tree4);
+
+	session_log(session, "Forgot session");
 
 	list_del(&session->expire_list_hook);
 	session->expirer = NULL;
@@ -885,6 +900,7 @@ int sessiondb_add(struct session_entry *session, enum session_timer_type timer_t
 	table->count++;
 	spin_unlock_bh(&table->lock);
 
+	session_log(session, "Added session");
 	commit_timer(expirer);
 
 	return 0;
@@ -1044,6 +1060,7 @@ int sessiondb_get_or_create_ipv6(struct tuple *tuple6, struct bib_entry *bib,
 	}
 
 	table->count++;
+	session_log(*session, "Added session");
 	/* Fall through. */
 
 success:
@@ -1144,6 +1161,7 @@ int sessiondb_get_or_create_ipv4(struct tuple *tuple4, struct bib_entry *bib,
 	}
 
 	table->count++;
+	session_log(*session, "Added session");
 	/* Fall through. */
 
 success:
