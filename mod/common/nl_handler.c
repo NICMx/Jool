@@ -108,6 +108,11 @@ static int verify_superpriv(void)
 
 static int validate_version(struct request_hdr *hdr)
 {
+	if (hdr->magic[0] != 'j' || hdr->magic[1] != 'o')
+		goto magic_fail;
+	if (hdr->magic[2] != 'o' || hdr->magic[3] != 'l')
+		goto magic_fail;
+
 	switch (hdr->type) {
 	case 's':
 		if (nat64_is_stateful()) {
@@ -124,10 +129,7 @@ static int validate_version(struct request_hdr *hdr)
 		}
 		break;
 	default:
-		log_err("It appears you're trying to speak to Jool "
-				"using an older userspace application. "
-				"Please update your userspace application.");
-		return -EINVAL;
+		goto magic_fail;
 	}
 
 	if (jool_version() == hdr->version)
@@ -143,6 +145,13 @@ static int validate_version(struct request_hdr *hdr)
 			(jool_version() > hdr->version)
 				? "userspace application"
 				: "kernel module");
+	return -EINVAL;
+
+magic_fail:
+	log_err("It appears you're trying to speak to Jool using some other "
+			"Netlink client or an older userspace application. "
+			"If the latter is true, please update your userspace "
+			"application.");
 	return -EINVAL;
 }
 

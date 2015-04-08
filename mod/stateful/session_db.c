@@ -162,14 +162,23 @@ struct session_entry *session_create(const struct ipv6_transport_addr *remote6,
 
 static void session_log(const struct session_entry *session, const char *action)
 {
-	if (config_get_session_logging()) {
-		log_info("%s %pI6c#%u|%pI6c#%u|%pI4#%u|%pI4#%u|%s", action,
-				&session->remote6.l3, session->remote6.l4,
-				&session->local6.l3, session->local6.l4,
-				&session->local4.l3, session->local4.l4,
-				&session->remote4.l3, session->remote4.l4,
-				l4proto_to_string(session->l4_proto));
-	}
+	struct timeval tval;
+	struct tm t;
+
+	if (!config_get_session_logging())
+		return;
+
+	do_gettimeofday(&tval);
+	time_to_tm(tval.tv_sec, 0, &t);
+	log_info("%ld/%d/%d %d:%d:%d (GMT) - %s %pI6c#%u|%pI6c#%u|"
+			"%pI4#%u|%pI4#%u|%s",
+			1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
+			t.tm_hour, t.tm_min, t.tm_sec, action,
+			&session->remote6.l3, session->remote6.l4,
+			&session->local6.l3, session->local6.l4,
+			&session->local4.l3, session->local4.l4,
+			&session->remote4.l3, session->remote4.l4,
+			l4proto_to_string(session->l4_proto));
 }
 
 /**

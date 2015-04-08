@@ -124,6 +124,8 @@ enum config_operation {
  * Indicates what the rest of the message contains.
  */
 struct request_hdr {
+	/** Protocol magic header (always "jool"). */
+	char magic[4];
 	/** Translation type (SIIT or NAT64) */
 	unsigned char type;
 	/** Jool's version. */
@@ -139,6 +141,10 @@ struct request_hdr {
 static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
 		enum config_mode mode, enum config_operation operation)
 {
+	hdr->magic[0] = 'j';
+	hdr->magic[1] = 'o';
+	hdr->magic[2] = 'o';
+	hdr->magic[3] = 'l';
 	hdr->type = nat64_is_stateful() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
 	hdr->version = jool_version();
 	hdr->length = length;

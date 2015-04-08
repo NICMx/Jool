@@ -41,6 +41,7 @@ Let it be known that we fully condone the deprecation of atomic fragments.
 - Default: OFF
 - Modes: Both (SIIT and Stateful)
 - Translation direction: Both (IPv4 to IPv6 and IPv6 to IPv4)
+- Source: [RFC 6145, mainly section 6](http://tools.ietf.org/html/rfc6145#section-6). Being deprecated at [deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
 This is a short version of all the following flags.
 

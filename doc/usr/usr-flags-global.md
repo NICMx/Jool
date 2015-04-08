@@ -24,6 +24,8 @@ title: Documentation - Flags > Global
 	8. [`--fragment-arrival-timeout`](#fragment-arrival-timeout)
 	8. [`--maximum-simultaneous-opens`](#maximum-simultaneous-opens)
 	8. [`--source-icmpv6-errors-better`](#source-icmpv6-errors-better)
+	8. [`--logging-bib`](#logging-bib)
+	8. [`--logging-session`](#logging-session)
 	9. [`--zeroize-traffic-class`](#zeroize-traffic-class)
 	10. [`--override-tos`](#override-tos)
 	11. [`--tos`](#tos)
@@ -98,6 +100,7 @@ Timeouts will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[sessio
 - Default: OFF
 - Modes: Stateful only
 - Deprecated name: `--dropAddr`
+- Source: Scattered at RFC 6146. One summary is at the end of [section 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3).
 
 Long story short:
 
@@ -141,6 +144,7 @@ If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet to pass
 - Default: OFF
 - Modes: Stateful only
 - Deprecated name: `--dropInfo`
+- Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 If you turn this on, pings (both requests and responses) will be blocked while being translated from ICMPv6 to ICMPv4.
 
@@ -154,6 +158,7 @@ This rule will not affect Error ICMP messages.
 - Default: OFF
 - Modes: Stateful only
 - Deprecated name: `--dropTCP`
+- Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 Turn `--drop-externally-initiated-tcp` ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.
 
@@ -165,6 +170,7 @@ Of course, this will not block IPv4 traffic if some IPv6 node first requested it
 - Default: 5 minutes
 - Modes: Stateful only
 - Deprecated name: `--toUDP`
+- Source: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
 
 When a UDP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
@@ -176,6 +182,7 @@ When you change this value, the lifetimes of all already existing UDP sessions a
 - Default: 2 hours
 - Modes: Stateful only
 - Deprecated name: `--toTCPest`
+- Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the `--tcp-trans-timeout` timeout.
 
@@ -187,6 +194,7 @@ When you change this value, the lifetimes of all already existing established TC
 - Default: 4 minutes
 - Modes: Stateful only
 - Deprecated name: `--toTCPtrans`
+- Source: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
 When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An "unhealthy" session is one in which the TCP handshake has not yet been completed, it is being terminated by the endpoints, or is technically established but has remained inactive for `--tcp-est-timeout` time.
 
@@ -198,6 +206,7 @@ When you change this value, the lifetimes of all already existing transitory TCP
 - Default: 1 minute
 - Modes: Stateful only
 - Deprecated name: `--toICMP`
+- Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.
 
@@ -209,6 +218,7 @@ When you change this value, the lifetimes of all already existing ICMP sessions 
 - Default: 2 seconds
 - Modes: NAT64 only
 - Deprecated name: `--toFrag`
+- Source: None (the flag addresses a [Linux quirk](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
 
 Stateful Jool requires fragment reassembly.
 
@@ -230,6 +240,7 @@ This behavior changed from Jool 3.2, where `--toFrag` used to actually be the ti
 - Default: 10
 - Modes: NAT64 only
 - Deprecated name: `--maxStoredPkts`
+- Source: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectly)
 
 When an external (IPv4) node first attempts to open a connection and there's no [BIB entry](misc-bib.html) for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
 
@@ -243,6 +254,7 @@ In the case of TCP, the situation is a little more complicated because the IPv4 
 - Default: False
 - Modes: NAT64 only
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
+- Source: [Issue 132](https://github.com/NICMx/NAT64/issues/132)
 
 For some reason, RFC 6146 wants the source of translated ICMPv6 errors to be the same as their inner packets' destination address. This looks really weird.
 
@@ -267,12 +279,79 @@ Say the link between R and n4 collapses.
 - `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
 - `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix.
 
+### `--logging-bib`
+
+- Type: Boolean
+- Default: False
+- Modes: NAT64 only
+- Translation direction: Both
+- Source: [RFC 6888, section 4](http://tools.ietf.org/html/rfc6888#section-4)
+
+Enables logging of transport address mappings as they are created and destroyed. If you are a Service Provider, your government might require you to do this.
+
+Analysis of these logs can let you know which IPv4 address and port masked your "internal" (IPv6) nodes at a certain time. Here's a sample output:
+
+	$ jool --logging-bib true
+	$ dmesg
+	[  312.493235] 2015/4/8 16:13:2 (GMT) - Mapped 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
+	[  373.724229] 2015/4/8 16:14:3 (GMT) - Mapped 2001:db8::8#46516 to 192.0.2.2#12592 (TCP)
+	[  468.675524] 2015/4/8 16:15:38 (GMT) - Forgot 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
+
+In this example,
+
+1. `2001:db8::5` used (its own) port 19945 to speak to someone using the UDP protocol. This someone thought `2001:db8::5`'s address was `192.0.2.2`, and that it was using port 8208. 
+2. Roughly a minute later, `2001:db8::8` (on port 46516) started speaking to somebody using TCP. It's being masked as `192.0.2.2`#12592. This connection has not yet ended.
+3. Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. "How much inactivity" is controlled by the timeouts - in this case, the [UDP one](#udp-timeout)). At this point, `192.0.2.2`#8208 is free from `2001:db8::5` and Jool can reassign it.
+
+So, if your government comes and says "I detected somebody named `192.0.2.2`#8208 did something illegal at 4:16 pm via UDP", you can report the culprit is `2001:db8::5`#19945 and free yourself from the blame.
+
+There are several important things to notice:
+
+- Each mapping's uniquenesss extends to the protocol. If your logging only says `Mapped 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)`, you **can't** assume `2001:db8::5`#19945 is `192.0.2.2`#8208 on TCP as well.
+- Your IPv6 nodes share IPv4 addresses! Therefore, mind the ports.
+- There's no information on _who_ was `2001:db8::5` talking to. This is a _good_ thing; it means you're honoring your client's privacy as much as you can.
+- The logging uses GMT; you might need to convert this for comfort.
+
+This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the _kernel log_, so the messages will be mixed along with anything else the kernel has to say (including Jool's error messages, for example). The log messages will have [INFO priority](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up).
+
+If logging the destination makes sense for you, see `--logging-session` (below). To comply with REQ-12 of RFC 6888 you want to set `--loging-bib` as true and `--logging-session` as false.
+
+### `--logging-session`
+
+- Type: Boolean
+- Default: False
+- Modes: NAT64 only
+- Translation direction: Both
+- Source: [RFC 6888, section 4](http://tools.ietf.org/html/rfc6888#section-4)
+
+Enables logging of every session as they are created and destroyed.
+
+The format is
+
+	<date> <time> (GMT) - <action> session <IPv6 node>|<IPv6 representation of IPv4 node>|<IPv4 representation of IPv6 node>|<IPv4 node>|Protocol
+
+Here's a sample output:
+
+	$ jool --logging-session true
+	$ dmesg
+	[ 3238.087902] 2015/4/8 17:1:47 (GMT) - Added session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
+	[ 3238.099997] 2015/4/8 17:1:47 (GMT) - Added session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
+	[ 3241.624104] 2015/4/8 17:1:51 (GMT) - Added session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
+	[ 3241.630905] 2015/4/8 17:1:51 (GMT) - Added session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
+	[ 3478.498559] 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
+	[ 3478.499758] 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
+	[ 3481.632214] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
+	[ 3481.632342] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
+
+This log is remarcably more voluptuous than [`--logging-bib`](#logging-bib), not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries (each BIB entry can have multiple sessions). Because of REQ-12 from [RFC 6888 section 4](http://tools.ietf.org/html/rfc6888#section-4), chances are you don't even want the extra information sessions grant you.
+
 ### `--zeroize-traffic-class`
 
 - Type: Boolean
 - Default: OFF
 - Modes: Both (SIIT and NAT64)
 - Translation direction: IPv4 to IPv6
+- Source: [RFC 6145, section 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
 - Deprecated name: `--setTC`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
@@ -285,6 +364,7 @@ If you leave this OFF, the TOS value will be copied directly to the Traffic Clas
 - Default: OFF
 - Modes: Both (SIIT and NAT64)
 - Translation direction: IPv6 to IPv4
+- Source: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
 - Deprecated name: `--setTOS`
 
 The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>'s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>'s Type of Service (TOS).
@@ -297,6 +377,7 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 - Default: 0
 - Modes: Both (SIIT and NAT64)
 - Translation direction: IPv6 to IPv4
+- Source: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
 - Deprecated name: `--TOS`
 
 Value to set the TOS value of the packets' IPv4 fields during IPv6-to-IPv4 translations. _This only applies when [`--override-tos`](#override-tos) is ON_.
@@ -327,6 +408,7 @@ Deprecated. See [Atomic Fragments](usr-flags-atomic.html).
 - Default: OFF
 - Modes: SIIT only
 - Translation direction: IPv4 to IPv6 (UDP only)
+- Source: [RFC 6145, section 4.5](http://tools.ietf.org/html/rfc6145#section-4.5)
 
 In IPv4, it's legal for UDP packets to contain zero as checksum. This is because the whole thing about UDP is that it's unreliable, and therefore sometimes the value of checksum validation does not justify its overhead.
 
@@ -337,7 +419,7 @@ In IPv6, zero is an invalid checksum value for UDP packets.
 
 This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checskum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
 
-Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it can also do so for fragmented packets.
+Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it will also do so for fragmented packets.
 
 ### `--randomize-rfc6791-addresses`
 
@@ -345,6 +427,7 @@ Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Beca
 - Default: ON
 - Modes: SIIT only
 - Translation direction: IPv6 to IPv4
+- Source: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
 
 If an ICMPv6 error's source cannot be translated, [RFC 6791](https://tools.ietf.org/html/rfc6791) wants us to assign as source a random IPv4 address from the [RFC 6791 pool](usr-flags-pool6791.html).
 
@@ -359,6 +442,7 @@ Why? [It can be argued that `hop limit`th is better](https://github.com/NICMx/NA
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
 - Modes: Both (SIIT and NAT64)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
+- Source: [RFC 6145, srction 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
 - Deprecated name: `--plateaus`
 
 When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification does not require routers to include this data.

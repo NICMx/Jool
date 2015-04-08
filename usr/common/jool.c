@@ -254,9 +254,9 @@ static struct argp_option options[] =
 			"Translate source addresses directly on 4-to-6 ICMP errors?\n" },
 
 	{ OPTNAME_BIB_LOGGING, ARGP_BIB_LOGGING, BOOL_FORMAT, 0,
-				"Log BIBs as they are created and destroyed?\n" },
+			"Log BIBs as they are created and destroyed?\n" },
 	{ OPTNAME_SESSION_LOGGING, ARGP_SESSION_LOGGING, BOOL_FORMAT, 0,
-				"Log sessions as they are created and destroyed?\n" },
+			"Log sessions as they are created and destroyed?\n" },
 #else
 	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
 			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "

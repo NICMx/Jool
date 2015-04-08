@@ -17,7 +17,7 @@
 #define JOOL_VERSION_MAJOR 3
 #define JOOL_VERSION_MINOR 3
 #define JOOL_VERSION_REV 1
-#define JOOL_VERSION_DEV 13
+#define JOOL_VERSION_DEV 14
 
 #define STR(s) #s
 #define JOOL_VERSION_STR \
