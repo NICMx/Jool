@@ -37,7 +37,7 @@ static struct sock *nl_socket;
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
  */
-static DEFINE_MUTEX(my_mutex);
+static DEFINE_MUTEX(config_mutex);
 
 
 /**
@@ -433,7 +433,8 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_session *request)
 {
 	struct nl_buffer *buffer;
-	struct ipv4_transport_addr *addr4;
+	struct ipv4_transport_addr *remote4 = NULL;
+	struct ipv4_transport_addr *local4 = NULL;
 	int error;
 
 	log_debug("Sending session table to userspace.");
@@ -442,8 +443,12 @@ static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_sessio
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
-	error = sessiondb_iterate_by_ipv4(request->l4_proto, session_entry_to_userspace, buffer, addr4);
+	if (request->display.connection_set) {
+		remote4 = &request->display.remote4;
+		local4 = &request->display.local4;
+	}
+	error = sessiondb_iterate_by_ipv4(request->l4_proto, session_entry_to_userspace, buffer,
+			remote4, local4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
@@ -1059,9 +1064,9 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 static void receive_from_userspace(struct sk_buff *skb)
 {
 	log_debug("Message arrived.");
-	mutex_lock(&my_mutex);
+	mutex_lock(&config_mutex);
 	netlink_rcv_skb(skb, &handle_netlink_message);
-	mutex_unlock(&my_mutex);
+	mutex_unlock(&config_mutex);
 }
 
 int nlhandler_init(void)

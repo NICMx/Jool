@@ -46,18 +46,23 @@ static inline int nat64_is_stateless(void)
 	return !nat64_is_stateful();
 }
 
-static inline unsigned int version_8to32(unsigned int major, unsigned int minor,
-		unsigned int revision, unsigned int development)
+/**
+ * Eh. These arguments are actually intended as "const u8" (which would remove
+ * the need for the "0xFF"s), but I don't want to include types in such a basic
+ * file just for this one function. I dunno.
+ */
+static inline unsigned int version_8to32(const unsigned int major,
+		const unsigned int minor, const unsigned int revision,
+		const unsigned int development)
 {
-	return (major << 24) | (minor << 16) | (revision << 8) | development;
+	return ((major & 0xFF) << 24) | ((minor & 0xFF) << 16)
+			| ((revision & 0xFF) << 8) | (development & 0xFF);
 }
 
 static inline unsigned int jool_version(void)
 {
-	return version_8to32(JOOL_VERSION_MAJOR,
-			JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV,
-			JOOL_VERSION_DEV);
+	return version_8to32(JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV);
 }
 
 #define NF_IP_PRI_JOOL (NF_IP_PRI_NAT_DST + 25)

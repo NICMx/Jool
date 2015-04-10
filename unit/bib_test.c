@@ -471,11 +471,17 @@ static bool init(void)
 		addr6[i].l4 = IPV6_PORTS[i];
 	}
 
-	if (is_error(pool4_init(pool4_addrs, ARRAY_SIZE(pool4_addrs))))
+	if (is_error(config_init(false)))
 		return false;
+
+	if (is_error(pool4_init(pool4_addrs, ARRAY_SIZE(pool4_addrs)))) {
+		config_destroy();
+		return false;
+	}
 
 	if (is_error(bibdb_init())) {
 		pool4_destroy();
+		config_destroy();
 		return false;
 	}
 
@@ -486,6 +492,7 @@ static void end(void)
 {
 	bibdb_destroy();
 	pool4_destroy();
+	config_destroy();
 }
 
 int init_module(void)

@@ -151,7 +151,7 @@ int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void
 int pool_count(struct list_head *pool, __u64 *result)
 {
 	struct pool_entry *entry;
-	unsigned int count = 0;
+	__u64 count = 0;
 
 	rcu_read_lock_bh();
 	list_for_each_entry_rcu(entry, pool, list_hook) {

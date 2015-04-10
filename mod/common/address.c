@@ -103,7 +103,7 @@ bool prefix4_equals(const struct ipv4_prefix *expected, const struct ipv4_prefix
 
 static __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
 {
-	return (prefix->len != 0) ? (0xffffffff << (32 - prefix->len)) : 0;
+	return ((__u64) 0xffffffff) << (32 - prefix->len);
 }
 
 bool prefix4_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr)
@@ -119,9 +119,9 @@ bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *
 	return prefix4_contains(p1, &p2->address) || prefix4_contains(p2, &p1->address);
 }
 
-unsigned int prefix4_get_addr_count(struct ipv4_prefix *prefix)
+__u64 prefix4_get_addr_count(struct ipv4_prefix *prefix)
 {
-	return 1 << (32 - prefix->len);
+	return ((__u64) 1) << (32 - prefix->len);
 }
 
 bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr)

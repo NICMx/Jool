@@ -129,21 +129,47 @@ static bool test_function_build_id_field(void)
 	return success;
 }
 
+static bool update_config(bool lower_mtu_fail)
+{
+	struct global_config *config;
+	int error;
+
+	config = kmalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
+		return false;
+	error = config_clone(config);
+	if (error) {
+		log_err("Errcode %d while trying to clone the config.", error);
+		return false;
+	}
+
+	config->atomic_frags.lower_mtu_fail = lower_mtu_fail;
+	/*
+	 * I'm assuming the default plateaus list has 3 elements or more.
+	 * (so I don't have to reallocate mtu_plateaus.)
+	 */
+	config->mtu_plateaus[0] = 1400;
+	config->mtu_plateaus[1] = 1200;
+	config->mtu_plateaus[2] = 600;
+	config->mtu_plateau_count = 3;
+
+	error = config_set(config);
+	if (error) {
+		log_err("Errcode %u while trying to set the config.", error);
+		return false;
+	}
+
+	return true;
+}
+
 #define min_mtu(packet, in, out, len) be32_to_cpu(icmp6_minimum_mtu(packet, in, out, len))
 static bool test_function_icmp6_minimum_mtu(void)
 {
-	__u16 plateaus[] = { 1400, 1200, 600 };
-	int i, error;
-	bool false_variable = false;
-	bool true_variable = true;
+	int i;
 	bool success = true;
 
-	error = config_set(LOWER_MTU_FAIL, sizeof(__u8), &false_variable);
-	if (error)
-		goto config_fail;
-	error = config_set(MTU_PLATEAUS, sizeof(plateaus), &plateaus);
-	if (error)
-		goto config_fail;
+	if (!update_config(false))
+		return false;
 
 	/* Test the bare minimum functionality. */
 	success &= assert_equals_u32(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
@@ -170,9 +196,8 @@ static bool test_function_icmp6_minimum_mtu(void)
 		return false;
 
 	/* Test hack 2: User wants us to try to improve the failure rate. */
-	error = config_set(LOWER_MTU_FAIL, sizeof(__u8), &true_variable);
-	if (error)
-		goto config_fail;
+	if (!update_config(true))
+		return false;
 
 	success &= assert_equals_u32(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
 	success &= assert_equals_u32(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
@@ -195,10 +220,6 @@ static bool test_function_icmp6_minimum_mtu(void)
 	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1400, 1500), "2 hacks, out/not 1280");
 
 	return success;
-
-config_fail:
-	log_err("Errcode %u while trying to update the config.", error);
-	return false;
 }
 #undef min_mtu
 
@@ -526,17 +547,28 @@ static bool test_6to4(l4_protocol l4_proto,
 		int (*create_skb4_fn)(struct tuple *, struct sk_buff **, u16, u8),
 		u16 expected_payload4_len)
 {
-	bool true_var = true;
-	bool false_var = false;
+	struct global_config *config;
 	struct packet pkt6, pkt4_actual = { .skb = NULL };
 	struct sk_buff *skb6 = NULL, *skb4_expected = NULL;
 	struct tuple tuple6, tuple4;
+	int error;
 	bool result = false;
 
-	if (config_set(DF_ALWAYS_ON, sizeof(__u8), &true_var) != 0)
+	config = kmalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
 		goto end;
-	if (config_set(BUILD_IPV4_ID, sizeof(__u8), &false_var) != 0)
+	error = config_clone(config);
+	if (error) {
+		log_err("Errcode %d while trying to clone the config.", error);
 		goto end;
+	}
+	config->atomic_frags.df_always_on = true;
+	config->atomic_frags.build_ipv4_id = false;
+	error = config_set(config);
+	if (error) {
+		log_err("Errcode %d while trying to set the config.", error);
+		goto end;
+	}
 
 	if (init_ipv6_tuple(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
 			|| init_ipv4_tuple(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0
@@ -627,6 +659,8 @@ int init_module(void)
 
 	if (is_error(config_init(false)))
 		return false;
+	if (is_error(pool6_init(NULL, 0)))
+		return false;
 
 	/* Misc single function tests */
 	CALL_TEST(test_function_has_unexpired_src_route(), "Unexpired source route querier");
@@ -654,6 +688,7 @@ int init_module(void)
 
 	CALL_TEST(test_6to4_udp_custom_payload(), "zero IPv4-UDP checksums, 6->4 UDP");
 
+	pool6_destroy();
 	config_destroy();
 
 	END_TESTS;

@@ -106,8 +106,9 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 	}
 
 	params->row_count += entry_count;
-	params->req_payload->display.addr4_set = hdr->nlmsg_flags == NLM_F_MULTI;
-	params->req_payload->display.addr4 = entries[entry_count - 1].local4;
+	params->req_payload->display.connection_set = hdr->nlmsg_flags == NLM_F_MULTI;
+	params->req_payload->display.remote4 = entries[entry_count - 1].remote4;
+	params->req_payload->display.local4 = entries[entry_count - 1].local4;
 	return 0;
 }
 
@@ -126,8 +127,9 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 
 	init_request_hdr(hdr, sizeof(request), MODE_SESSION, OP_DISPLAY);
 	payload->l4_proto = l4_proto;
-	payload->display.addr4_set = false;
-	memset(&payload->display.addr4, 0, sizeof(payload->display.addr4));
+	payload->display.connection_set = false;
+	memset(&payload->display.remote4, 0, sizeof(payload->display.remote4));
+	memset(&payload->display.local4, 0, sizeof(payload->display.local4));
 
 	params.numeric_hostname = numeric_hostname;
 	params.csv_format = csv_format;
@@ -136,7 +138,7 @@ static bool display_single_table(u_int8_t l4_proto, bool numeric_hostname, bool 
 
 	do {
 		error = netlink_request(request, hdr->length, session_display_response, &params);
-	} while (!error && params.req_payload->display.addr4_set);
+	} while (!error && params.req_payload->display.connection_set);
 
 	if (!csv_format && !error) {
 		if (params.row_count > 0)

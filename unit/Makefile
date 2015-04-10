@@ -11,6 +11,7 @@ ccflags-y += -I$(src)/../mod/stateful
 ccflags-y += -I$(src)/../mod/stateless
 
 
+ADDR = addr
 ITERATOR = iterator
 HASHTABLE = hashtable
 RFC6052 = rfc6052
@@ -32,6 +33,7 @@ LOGTIME = logtime
 MAPPING = mapping
 
 
+obj-m += $(ADDR).o
 obj-m += $(ITERATOR).o
 obj-m += $(HASHTABLE).o
 obj-m += $(RFC6052).o
@@ -63,6 +65,9 @@ MIN_REQS = ../mod/common/types.o \
 	impersonator/stats.o
 
 
+$(ADDR)-objs += $(MIN_REQS)
+$(ADDR)-objs += address_test.o
+
 $(ITERATOR)-objs += $(MIN_REQS)
 $(ITERATOR)-objs += ipv6_hdr_iterator_test.o
 
@@ -93,6 +98,7 @@ $(POOL4)-objs += ../mod/stateful/poolnum.o
 $(POOL4)-objs += pool4_test.o
 
 $(BIB)-objs += $(MIN_REQS)
+$(BIB)-objs += ../mod/common/config.o
 $(BIB)-objs += ../mod/common/random.o
 $(BIB)-objs += ../mod/common/rbtree.o
 $(BIB)-objs += ../mod/stateful/host6_node.o
@@ -185,6 +191,8 @@ $(TRANSLATE)-objs += $(MIN_REQS)
 $(TRANSLATE)-objs += ../mod/common/config.o
 $(TRANSLATE)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(TRANSLATE)-objs += ../mod/common/packet.o
+$(TRANSLATE)-objs += ../mod/common/pool6.o
+$(TRANSLATE)-objs += ../mod/common/rfc6052.o
 $(TRANSLATE)-objs += ../mod/common/rfc6145/common.o
 $(TRANSLATE)-objs += framework/skb_generator.o
 $(TRANSLATE)-objs += framework/types.o
@@ -287,6 +295,7 @@ $(MAPPING)-objs += eamt_test.o
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
 test:
+	-sudo insmod $(ADDR).ko && sudo rmmod $(ADDR)
 	-sudo insmod $(ITERATOR).ko && sudo rmmod $(ITERATOR)
 	-sudo insmod $(HASHTABLE).ko && sudo rmmod $(HASHTABLE)
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)

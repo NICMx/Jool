@@ -38,7 +38,7 @@ bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *a
 
 bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *p2);
 
-unsigned int prefix4_get_addr_count(struct ipv4_prefix *prefix);
+__u64 prefix4_get_addr_count(struct ipv4_prefix *prefix);
 
 int prefix4_validate(struct ipv4_prefix *prefix);
 int prefix6_validate(struct ipv6_prefix *prefix);

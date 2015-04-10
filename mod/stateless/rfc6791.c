@@ -40,31 +40,20 @@ int rfc6791_flush(void)
 	return pool_flush(&pool);
 }
 
-static int pool_count_wrapper(unsigned int *result)
-{
-	__u64 tmp;
-	int error;
-
-	error = pool_count(&pool, &tmp);
-	if (error)
-		return error;
-
-	*result = (unsigned int) tmp;
-	return 0;
-}
-
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s destination should be sourced
  * with.
  * RCU locks must be already held.
  */
-static int get_rfc6791_address(struct packet *in, unsigned int count, struct in_addr *result)
+static int get_rfc6791_address(struct packet *in, __u64 count, struct in_addr *result)
 {
 	struct pool_entry *entry;
 	unsigned int addr_index;
 
 	addr_index = config_randomize_rfc6791_pool() ? get_random_u32() : pkt_ip6_hdr(in)->hop_limit;
-	addr_index %= count;
+	/* unsigned int % __u64 does something weird, hence the trouble. */
+	if (count <= 0xFFFFFFFF)
+		addr_index %= (unsigned int) count;
 
 	list_for_each_entry_rcu(entry, &pool, list_hook) {
 		count = prefix4_get_addr_count(&entry->prefix);
@@ -112,7 +101,7 @@ static int get_host_address(struct packet *in, struct packet *out, struct in_add
 
 int rfc6791_get(struct packet *in, struct packet *out, struct in_addr *result)
 {
-	unsigned int count;
+	__u64 count;
 	int error;
 
 	rcu_read_lock_bh();
@@ -123,7 +112,7 @@ int rfc6791_get(struct packet *in, struct packet *out, struct in_addr *result)
 	 * expensive. Reservoir sampling requires one random per iteration, this way requires one
 	 * random period.
 	 */
-	error = pool_count_wrapper(&count);
+	error = pool_count(&pool, &count);
 	if (error) {
 		log_debug("pool_count failed with errcode %d.", error);
 		goto end;

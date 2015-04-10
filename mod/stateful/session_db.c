@@ -945,29 +945,36 @@ int sessiondb_for_each(l4_protocol l4_proto, int (*func)(struct session_entry *,
  * Requires "table"'s spinlock to already be held.
  */
 static struct rb_node *find_next_chunk(struct session_table *table,
-		struct ipv4_transport_addr *offset)
+		struct ipv4_transport_addr *offset_remote,
+		struct ipv4_transport_addr *offset_local)
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
+	struct tuple tmp;
 
-	if (!offset)
+	if (!offset_remote || !offset_local)
 		return rb_first(&table->tree4);
 
-	rbtree_find_node(offset, &table->tree4, compare_local4, struct session_entry, tree4_hook,
-			parent, node);
+	tmp.src.addr4 = *offset_remote;
+	tmp.dst.addr4 = *offset_local;
+	/* the protos are not needed. */
+	rbtree_find_node(&tmp, &table->tree4, compare_full4,
+			struct session_entry, tree4_hook, parent, node);
 	if (*node)
 		return rb_next(*node);
 
 	session = rb_entry(parent, struct session_entry, tree4_hook);
-	return (compare_local4(session, offset) < 0) ? parent : rb_next(parent);
+	return (compare_full4(session, &tmp) < 0) ? parent : rb_next(parent);
 }
 
 int sessiondb_iterate_by_ipv4(l4_protocol l4_proto,
 		int (*func)(struct session_entry *, void *), void *arg,
-		struct ipv4_transport_addr *offset)
+		struct ipv4_transport_addr *offset_remote,
+		struct ipv4_transport_addr *offset_local)
 {
 	struct session_table *table;
 	struct rb_node *node;
+	struct session_entry *session;
 	int error;
 
 	error = get_session_table(l4_proto, &table);
@@ -975,8 +982,10 @@ int sessiondb_iterate_by_ipv4(l4_protocol l4_proto,
 		return error;
 
 	spin_lock_bh(&table->lock);
-	for (node = find_next_chunk(table, offset); node && !error; node = rb_next(node)) {
-		error = func(rb_entry(node, struct session_entry, tree4_hook), arg);
+	node = find_next_chunk(table, offset_remote, offset_local);
+	for (; node && !error; node = rb_next(node)) {
+		session = rb_entry(node, struct session_entry, tree4_hook);
+		error = func(session, arg);
 	}
 
 	spin_unlock_bh(&table->lock);

@@ -303,7 +303,7 @@ In this example,
 2. Roughly a minute later, `2001:db8::8` (on port 46516) started speaking to somebody using TCP. It's being masked as `192.0.2.2`#12592. This connection has not yet ended.
 3. Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. "How much inactivity" is controlled by the timeouts - in this case, the [UDP one](#udp-timeout)). At this point, `192.0.2.2`#8208 is free from `2001:db8::5` and Jool can reassign it.
 
-So, if your government comes and says "I detected somebody named `192.0.2.2`#8208 did something illegal at 4:16 pm via UDP", you can report the culprit is `2001:db8::5`#19945 and free yourself from the blame.
+So, if your government comes and says "I detected somebody named `192.0.2.2`#8208 did something illegal at 4:14 pm via UDP", you can report the culprit is `2001:db8::5`#19945 and free yourself from the blame.
 
 There are several important things to notice:
 

@@ -237,7 +237,8 @@ int sessiondb_for_each(l4_protocol proto, int (*func)(struct session_entry *, vo
  */
 int sessiondb_iterate_by_ipv4(l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
-		struct ipv4_transport_addr *offset);
+		struct ipv4_transport_addr *offset_remote,
+		struct ipv4_transport_addr *offset_local);
 
 /**
  * Returns in "result" the number of sessions in the table whose l4-protocol is "proto".

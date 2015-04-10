@@ -113,7 +113,8 @@ bool pool4_contains(__be32 address)
 	return pool_address.s_addr == address;
 }
 
-int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg)
+int pool4_for_each(int (*func)(struct ipv4_prefix *, void *), void * arg,
+		struct ipv4_prefix *offset)
 {
 	/* Meh, whatever. */
 	log_debug("Somebody asked me to iterate through the pool.");

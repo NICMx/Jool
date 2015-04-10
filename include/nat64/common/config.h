@@ -289,14 +289,20 @@ struct request_session {
 	__u8 l4_proto;
 	union {
 		struct {
-			__u8 addr4_set;
+			/** Are remote4 and local4 set? */
+			__u8 connection_set;
 			/**
-			 * Address the userspace app received in the last chunk. Iteration should contiue
+			 * Remote node from the connection the userspace app
+			 * received in the last chunk. Iteration should continue
 			 * from here.
-			 * TODO this is insufficient. Sessions are identified by both remote and local IPv4
-			 * address; addr4 is not enough.
 			 */
-			struct ipv4_transport_addr addr4;
+			struct ipv4_transport_addr remote4;
+			/**
+			 * Remote IPv6 node's IPv4 mask, from the connection the
+			 * userspace app received in the last chunk.
+			 * Iteration should continue from here.
+			 */
+			struct ipv4_transport_addr local4;
 		} display;
 		struct {
 			/* Nothing needed here. */

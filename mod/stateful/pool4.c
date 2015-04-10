@@ -701,10 +701,19 @@ int pool4_add(struct ipv4_prefix *addrs)
 	if (error)
 		return error;
 
+	if (addrs->len <= 8) {
+		/* OK, the user is just being silly. */
+		log_err("You're inserting way too many addresses. "
+				"Please review your understanding of NAT64; "
+				"your IPv6 nodes are supposed to share 'few' "
+				"IPv4 addresses.");
+		return -EINVAL;
+	}
+
 	addr = &addrs->address;
 	maskbits = addrs->len;
 	temp = addr;
-	total_addresses = 1 << (32 - maskbits);
+	total_addresses = prefix4_get_addr_count(addrs);
 	log_debug("total addresses: %d",total_addresses);
 
 	netmask = inet_make_mask(maskbits);
@@ -741,10 +750,10 @@ int pool4_remove(struct ipv4_prefix *addrs)
 	struct in_addr network;
 	struct in_addr *temp = addr;
 	unsigned int netmask;
-	unsigned int i;
+	__u64 i;
 	int error;
 
-	int total_addresses = 1 << (32 - maskbits);
+	__u64 total_addresses = prefix4_get_addr_count(addrs);
 	netmask = inet_make_mask(maskbits);
 	network.s_addr = addr->s_addr & netmask;
 
