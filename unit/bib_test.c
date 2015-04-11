@@ -74,12 +74,12 @@ static bool assert_bib(char* test_name, struct bib_entry* bib,
 		struct bib_entry *retrieved_bib;
 		int success = true;
 
-		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
 				bibdb_get_by_ipv4(&bib->ipv4, l4_protos[i], &retrieved_bib),
 				test_name);
 		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
 
-		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
 				bibdb_get_by_ipv6(&bib->ipv6, l4_protos[i], &retrieved_bib),
 				test_name);
 		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
@@ -159,9 +159,9 @@ static bool test_allocate_aux(struct tuple *tuple6, struct in_addr *same_addr,
 	success &= assert_equals_int(0, allocate_transport_address(host6, tuple6, &result),
 			"function result");
 
-	/* BTW: Because in_addrs are __be32s, "1.1.1.1" is the same as "0x1010101" */
-	success &= assert_true(result.l3.s_addr == htonl(0x1010101)
-			|| result.l3.s_addr == htonl(0x2020202), "Result address is in pool");
+	/* BTW: Because in_addrs are __be32s, "1.1.1.1" is the same as "0x1010101U" */
+	success &= assert_true(result.l3.s_addr == htonl(0x1010101U)
+			|| result.l3.s_addr == htonl(0x2020202U), "Result address is in pool");
 	if (same_addr)
 		success &= assert_equals_ipv4(same_addr, &result.l3, "Result address was recycled");
 	if (test_port) {

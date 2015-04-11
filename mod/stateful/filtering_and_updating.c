@@ -58,7 +58,7 @@ static int get_bib_ipv4(struct packet *pkt, struct tuple *tuple4, struct bib_ent
 
 	error = bibdb_get(tuple4, bib);
 	if (error) {
-		if (error == -ENOENT) {
+		if (error == -ESRCH) {
 			log_debug("There is no BIB entry for the incoming IPv4 packet.");
 			inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
 		} else {
@@ -229,7 +229,7 @@ static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4)
 	struct session_entry *session;
 
 	error = get_bib_ipv4(pkt, tuple4, &bib);
-	if (error == -ENOENT)
+	if (error == -ESRCH)
 		return VERDICT_ACCEPT;
 	else if (error)
 		return VERDICT_DROP;
@@ -297,7 +297,7 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 
 	error = bibdb_get(tuple4, &bib);
 	if (error) {
-		if (error != -ENOENT)
+		if (error != -ESRCH)
 			return VERDICT_DROP;
 		bib = NULL;
 	}
@@ -407,13 +407,13 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple)
 	int error;
 
 	error = sessiondb_get(tuple, &session);
-	if (error != 0 && error != -ENOENT) {
+	if (error != 0 && error != -ESRCH) {
 		log_debug("Error code %d while trying to find a TCP session.", error);
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
 
-	if (error == -ENOENT)
+	if (error == -ESRCH)
 		return tcp_closed_state_handle(pkt, tuple);
 
 	log_session(session);

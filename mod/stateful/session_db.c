@@ -798,7 +798,7 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 	spin_unlock_bh(&table->lock);
 
 	if (!session)
-		return -ENOENT;
+		return -ESRCH;
 
 	if (addr6_equals(&session->remote6.l3, &any)) {
 		/* The session is Simultaneous Open debris. */
@@ -809,7 +809,7 @@ int sessiondb_get(struct tuple *tuple, struct session_entry **result)
 		 * See https://github.com/NICMx/NAT64/issues/137#issuecomment-78140730
 		 */
 		session_return(session);
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	*result = session;

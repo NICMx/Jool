@@ -397,7 +397,7 @@ int bibdb_get_by_ipv4(const struct ipv4_transport_addr *addr, l4_protocol l4_pro
 
 	spin_unlock_bh(&table->lock);
 
-	return (*result) ? 0 : -ENOENT;
+	return (*result) ? 0 : -ESRCH;
 }
 
 int bibdb_get_by_ipv6(const struct ipv6_transport_addr *addr, l4_protocol l4_proto,
@@ -422,7 +422,7 @@ int bibdb_get_by_ipv6(const struct ipv6_transport_addr *addr, l4_protocol l4_pro
 
 	spin_unlock_bh(&table->lock);
 
-	return (*result) ? 0 : -ENOENT;
+	return (*result) ? 0 : -ESRCH;
 }
 
 int bibdb_add(struct bib_entry *entry)

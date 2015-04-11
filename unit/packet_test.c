@@ -54,10 +54,10 @@ static bool test_function_is_dont_fragment_set(void)
 	success &= assert_equals_u16(0, is_dont_fragment_set(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x4000);
-	success &= assert_equals_u16(1, is_dont_fragment_set(&hdr), "All zeroes except DF");
+	success &= assert_equals_u16(IP_DF, is_dont_fragment_set(&hdr), "All zeroes except DF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	success &= assert_equals_u16(1, is_dont_fragment_set(&hdr), "All ones");
+	success &= assert_equals_u16(IP_DF, is_dont_fragment_set(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xBFFF);
 	success &= assert_equals_u16(0, is_dont_fragment_set(&hdr), "All ones except DF");
@@ -74,10 +74,10 @@ static bool test_function_is_more_fragments_set(void)
 	success &= assert_equals_u16(0, is_more_fragments_set_ipv4(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x2000);
-	success &= assert_equals_u16(1, is_more_fragments_set_ipv4(&hdr), "All zeroes except MF");
+	success &= assert_equals_u16(IP_MF, is_more_fragments_set_ipv4(&hdr), "All zeroes except MF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	success &= assert_equals_u16(1, is_more_fragments_set_ipv4(&hdr), "All ones");
+	success &= assert_equals_u16(IP_MF, is_more_fragments_set_ipv4(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xDFFF);
 	success &= assert_equals_u16(0, is_more_fragments_set_ipv4(&hdr), "All ones except MF");

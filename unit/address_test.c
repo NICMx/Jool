@@ -22,15 +22,15 @@ static bool addr_count_test(void)
 {
 	bool success = true;
 
-	success &= test_count(32, 1);
-	success &= test_count(31, 2);
-	success &= test_count(24, 0x100);
-	success &= test_count(16, 0x10000);
-	success &= test_count(8, 0x1000000);
-	success &= test_count(3, 0x20000000);
-	success &= test_count(2, 0x40000000);
-	success &= test_count(1, 0x80000000);
-	success &= test_count(0, 0x100000000);
+	success &= test_count(32, 1U);
+	success &= test_count(31, 2U);
+	success &= test_count(24, 0x100U);
+	success &= test_count(16, 0x10000U);
+	success &= test_count(8, 0x1000000U);
+	success &= test_count(3, 0x20000000U);
+	success &= test_count(2, 0x40000000U);
+	success &= test_count(1, 0x80000000U);
+	success &= test_count(0, 0x100000000U);
 
 	return success;
 }
@@ -53,25 +53,25 @@ static bool contains_test(void)
 {
 	bool success = true;
 
-	success &= test_contains(0x12345678, 32, 0x12345677, false);
-	success &= test_contains(0x12345678, 32, 0x12345678, true);
-	success &= test_contains(0x12345678, 32, 0x12345679, false);
+	success &= test_contains(0x12345678U, 32, 0x12345677U, false);
+	success &= test_contains(0x12345678U, 32, 0x12345678U, true);
+	success &= test_contains(0x12345678U, 32, 0x12345679U, false);
 
-	success &= test_contains(0x01020300, 24, 0x010202FF, false);
-	success &= test_contains(0x01020300, 24, 0x01020300, true);
-	success &= test_contains(0x01020300, 24, 0x010203FF, true);
-	success &= test_contains(0x01020300, 24, 0x01020400, false);
+	success &= test_contains(0x01020300U, 24, 0x010202FFU, false);
+	success &= test_contains(0x01020300U, 24, 0x01020300U, true);
+	success &= test_contains(0x01020300U, 24, 0x010203FFU, true);
+	success &= test_contains(0x01020300U, 24, 0x01020400U, false);
 
-	success &= test_contains(0x01020304, 30, 0x01020303, false);
-	success &= test_contains(0x01020304, 30, 0x01020304, true);
-	success &= test_contains(0x01020304, 30, 0x01020305, true);
-	success &= test_contains(0x01020304, 30, 0x01020306, true);
-	success &= test_contains(0x01020304, 30, 0x01020307, true);
-	success &= test_contains(0x01020304, 30, 0x01020308, false);
+	success &= test_contains(0x01020304U, 30, 0x01020303U, false);
+	success &= test_contains(0x01020304U, 30, 0x01020304U, true);
+	success &= test_contains(0x01020304U, 30, 0x01020305U, true);
+	success &= test_contains(0x01020304U, 30, 0x01020306U, true);
+	success &= test_contains(0x01020304U, 30, 0x01020307U, true);
+	success &= test_contains(0x01020304U, 30, 0x01020308U, false);
 
-	success &= test_contains(0x00000000, 0, 0x00000000, true);
-	success &= test_contains(0x00000000, 0, 0x12345678, true);
-	success &= test_contains(0x00000000, 0, 0xFFFFFFFF, true);
+	success &= test_contains(0x00000000U, 0, 0x00000000U, true);
+	success &= test_contains(0x00000000U, 0, 0x12345678U, true);
+	success &= test_contains(0x00000000U, 0, 0xFFFFFFFFU, true);
 
 	return success;
 }

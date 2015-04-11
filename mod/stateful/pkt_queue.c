@@ -124,7 +124,7 @@ int pktqueue_send(struct session_entry *session)
 	if (!node) {
 		spin_unlock_bh(&packets_lock);
 		log_debug("I've been asked to send a packet I don't know.");
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	rb_erase(&node->tree_hook, &packets);
@@ -182,7 +182,7 @@ int pktqueue_remove(struct session_entry *session)
 	node = rbtree_find(session, &packets, compare_fn, struct packet_node, tree_hook);
 	if (!node) {
 		spin_unlock_bh(&packets_lock);
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	rb_erase(&node->tree_hook, &packets);

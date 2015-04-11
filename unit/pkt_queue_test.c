@@ -50,7 +50,7 @@ static bool test_pkt_queue_asr(void)
 	success &= assert_equals_int(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
 	success &= assert_equals_int(0, pktqueue_send(session), "pktqueue_send 1");
 	success &= assert_equals_int(1, icmp64_pop(), "pktqueue sent an icmp error");
-	success &= assert_equals_int(-ENOENT, pktqueue_remove(session), "pktqueue_remove 1");
+	success &= assert_equals_int(-ESRCH, pktqueue_remove(session), "pktqueue_remove 1");
 
 
 	session_return(session);
@@ -94,7 +94,7 @@ static bool test_pkt_queue_ars(void)
 
 	success &= assert_equals_int(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
 	success &= assert_equals_int(0, pktqueue_remove(session), "pktqueue_remove 1");
-	success &= assert_equals_int(-ENOENT, pktqueue_send(session), "pktqueue_send 1");
+	success &= assert_equals_int(-ESRCH, pktqueue_send(session), "pktqueue_send 1");
 	success &= assert_equals_int(0, icmp64_pop(), "pktqueue not sent an icmp error");
 
 

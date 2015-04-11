@@ -103,7 +103,7 @@ bool prefix4_equals(const struct ipv4_prefix *expected, const struct ipv4_prefix
 
 static __u32 get_prefix4_mask(const struct ipv4_prefix *prefix)
 {
-	return ((__u64) 0xffffffff) << (32 - prefix->len);
+	return ((__u64) 0xffffffffU) << (32 - prefix->len);
 }
 
 bool prefix4_contains(const struct ipv4_prefix *prefix, const struct in_addr *addr)
@@ -121,7 +121,7 @@ bool prefix4_intersects(const struct ipv4_prefix *p1, const struct ipv4_prefix *
 
 __u64 prefix4_get_addr_count(struct ipv4_prefix *prefix)
 {
-	return ((__u64) 1) << (32 - prefix->len);
+	return ((__u64) 1U) << (32 - prefix->len);
 }
 
 bool prefix6_contains(const struct ipv6_prefix *prefix, const struct in6_addr *addr)
@@ -179,13 +179,13 @@ int prefix6_validate(struct ipv6_prefix *prefix)
 
 __u32 addr4_get_bit(struct in_addr *addr, unsigned int pos)
 {
-	__u32 mask = 1 << (31 - pos);
+	__u32 mask = 1U << (31 - pos);
 	return be32_to_cpu(addr->s_addr) & mask;
 }
 
 void addr4_set_bit(struct in_addr *addr, unsigned int pos, bool value)
 {
-	__u32 mask = 1 << (31 - pos);
+	__u32 mask = 1U << (31 - pos);
 
 	if (value)
 		addr->s_addr |= cpu_to_be32(mask);
@@ -200,8 +200,8 @@ __u32 addr6_get_bit(struct in6_addr *addr, unsigned int pos)
 
 	/* "pos >> 5" is a more efficient version of "pos / 32". */
 	quadrant = be32_to_cpu(addr->s6_addr32[pos >> 5]);
-	/* "pos & 0x1F" is a more efficient version of "pos % 32". */
-	mask = 1 << (31 - (pos & 0x1F));
+	/* "pos & 0x1FU" is a more efficient version of "pos % 32". */
+	mask = 1U << (31 - (pos & 0x1FU));
 
 	return quadrant & mask;
 }
@@ -212,7 +212,7 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 	__u32 mask;
 
 	quadrant = &addr->s6_addr32[pos >> 5];
-	mask = 1 << (31 - (pos & 0x1F));
+	mask = 1U << (31 - (pos & 0x1FU));
 
 	if (value)
 		*quadrant |= cpu_to_be32(mask);

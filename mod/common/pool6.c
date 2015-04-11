@@ -29,7 +29,7 @@ static int verify_prefix(int start, struct ipv6_prefix *prefix)
 	int i;
 
 	for (i = start; i < ARRAY_SIZE(prefix->address.s6_addr); i++) {
-		if (prefix->address.s6_addr[i] & 0xFF) {
+		if (prefix->address.s6_addr[i] & 0xFFU) {
 			log_err("%pI6c/%u seems to have a suffix (RFC6052 doesn't like this).",
 					&prefix->address, prefix->len);
 			return -EINVAL;
@@ -115,7 +115,7 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 	if (list_empty(&pool)) {
 		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	list_for_each_entry_rcu(node, &pool, list_hook) {
@@ -127,7 +127,7 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 	}
 
 	rcu_read_unlock_bh();
-	return -ENOENT;
+	return -ESRCH;
 }
 
 int pool6_peek(struct ipv6_prefix *result)
@@ -139,7 +139,7 @@ int pool6_peek(struct ipv6_prefix *result)
 	if (list_empty(&pool)) {
 		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
-		return -ENOENT;
+		return -ESRCH;
 	}
 
 	/* Just return the first one. */
@@ -153,7 +153,7 @@ int pool6_peek(struct ipv6_prefix *result)
 bool pool6_contains(struct in6_addr *addr)
 {
 	struct ipv6_prefix result;
-	return !pool6_get(addr, &result); /* 0 -> true, -ENOENT or whatever -> false. */
+	return !pool6_get(addr, &result); /* 0 -> true, -ESRCH or whatever -> false. */
 }
 
 int pool6_add(struct ipv6_prefix *prefix)
@@ -217,7 +217,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	}
 
 	log_err("The prefix is not part of the pool.");
-	return -ENOENT;
+	return -ESRCH;
 }
 
 /**

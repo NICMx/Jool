@@ -129,13 +129,13 @@ static bool assert_session(char* test_name, struct session_entry* session,
 		success = true;
 
 		retrieved_session = NULL;
-		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
 				sessiondb_get(&tuple4, &retrieved_session),
 				test_name);
 		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
 
 		retrieved_session = NULL;
-		success &= assert_equals_int(table_has_it[i] ? 0 : -ENOENT,
+		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
 				sessiondb_get(&tuple6, &retrieved_session),
 				test_name);
 		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);

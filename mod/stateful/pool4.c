@@ -61,10 +61,10 @@ static unsigned int ipv4_addr_hashcode(const struct in_addr *addr)
 
 	addr32 = be32_to_cpu(addr->s_addr);
 
-	result = (addr32 >> 24) & 0xFF;
-	result = 31 * result + ((addr32 >> 16) & 0xFF);
-	result = 31 * result + ((addr32 >> 8) & 0xFF);
-	result = 31 * result + (addr32 & 0xFF);
+	result = (addr32 >> 24) & 0xFFU;
+	result = 31 * result + ((addr32 >> 16) & 0xFFU);
+	result = 31 * result + ((addr32 >> 8) & 0xFFU);
+	result = 31 * result + (addr32 & 0xFFU);
 
 	return result;
 }
@@ -376,7 +376,7 @@ static int __pool4_remove(struct in_addr *addr)
 not_found:
 	spin_unlock_bh(&pool_lock);
 	log_err("The address is not part of the pool.");
-	return -ENOENT;
+	return -ESRCH;
 }
 
 int pool4_get(l4_protocol l4_proto, struct ipv4_transport_addr *addr)
@@ -775,7 +775,7 @@ int pool4_remove(struct ipv4_prefix *addrs)
 		for (i=0; i<total_addresses; i++) {
 			(*temp).s_addr = htonl(ntohl(network.s_addr) + i);
 			error = __pool4_remove(temp);
-			if (error == -ENOENT)
+			if (error == -ESRCH)
 				continue;
 			else if (error)
 				return error;

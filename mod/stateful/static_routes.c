@@ -68,7 +68,7 @@ int delete_static_route(struct request_bib *req)
 		return -EINVAL;
 	}
 
-	if (error == -ENOENT) {
+	if (error == -ESRCH) {
 		log_err("Could not find the BIB entry requested by the user.");
 		return error;
 	}
@@ -79,7 +79,7 @@ int delete_static_route(struct request_bib *req)
 		if (!ipv4_transport_addr_equals(&bib->ipv4, &req->remove.addr4)) {
 			log_err("There's no BIB entry with BOTH of the addresses you requested.");
 			bib_return(bib);
-			return -ENOENT;
+			return -ESRCH;
 		}
 	}
 

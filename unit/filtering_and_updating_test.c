@@ -387,7 +387,7 @@ static bool test_tcp_closed_state_handle_4(void)
 	success &= assert_equals_int(VERDICT_STOLEN, tcp_closed_state_handle(&pkt, &tuple4), "V4 syn-result");
 
 	/* Validate */
-	success &= assert_equals_int(-ENOENT, sessiondb_get(&tuple4, &tmp), "V4 syn-session.");
+	success &= assert_equals_int(-ESRCH, sessiondb_get(&tuple4, &tmp), "V4 syn-session.");
 	success &= assert_equals_int(0, pktqueue_send(session), "V4 syn pktqueue send");
 
 	if (success)

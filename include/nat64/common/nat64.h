@@ -48,15 +48,15 @@ static inline int nat64_is_stateless(void)
 
 /**
  * Eh. These arguments are actually intended as "const u8" (which would remove
- * the need for the "0xFF"s), but I don't want to include types in such a basic
+ * the need for the "0xFFU"s), but I don't want to include types in such a basic
  * file just for this one function. I dunno.
  */
 static inline unsigned int version_8to32(const unsigned int major,
 		const unsigned int minor, const unsigned int revision,
 		const unsigned int development)
 {
-	return ((major & 0xFF) << 24) | ((minor & 0xFF) << 16)
-			| ((revision & 0xFF) << 8) | (development & 0xFF);
+	return ((major & 0xFFU) << 24) | ((minor & 0xFFU) << 16)
+			| ((revision & 0xFFU) << 8) | (development & 0xFFU);
 }
 
 static inline unsigned int jool_version(void)

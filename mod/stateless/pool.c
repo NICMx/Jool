@@ -118,7 +118,7 @@ int pool_remove(struct list_head *pool, struct ipv4_prefix *prefix)
 	}
 
 	log_err("Could not find the requested entry in the IPv4 pool.");
-	return -ENOENT;
+	return -ESRCH;
 }
 
 int pool_flush(struct list_head *pool)

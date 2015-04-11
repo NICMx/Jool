@@ -52,7 +52,7 @@ static int get_rfc6791_address(struct packet *in, __u64 count, struct in_addr *r
 
 	addr_index = config_randomize_rfc6791_pool() ? get_random_u32() : pkt_ip6_hdr(in)->hop_limit;
 	/* unsigned int % __u64 does something weird, hence the trouble. */
-	if (count <= 0xFFFFFFFF)
+	if (count <= 0xFFFFFFFFU)
 		addr_index %= (unsigned int) count;
 
 	list_for_each_entry_rcu(entry, &pool, list_hook) {

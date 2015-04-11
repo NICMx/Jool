@@ -34,31 +34,28 @@ static inline __be32 get_flow_label(struct ipv6hdr *hdr)
 	return (*(__be32 *) hdr) & IPV6_FLOWLABEL_MASK;
 }
 
-/** Returns true if the DF flag from the "hdr" IPv4 header is set, false otherwise. */
-static inline bool is_dont_fragment_set(struct iphdr *hdr)
+/** Returns IP_DF if the DF flag from the "hdr" IPv4 header is set, 0 otherwise. */
+static inline __u16 is_dont_fragment_set(struct iphdr *hdr)
 {
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_DF) >> 14;
+	return be16_to_cpu(hdr->frag_off) & IP_DF;
 }
 
-/** Returns true if the MF flag from the "hdr" IPv6 header is set, false otherwise. */
-static inline bool is_more_fragments_set_ipv6(struct frag_hdr *hdr)
+/** Returns IP6_MF if the MF flag from the "hdr" IPv6 header is set, 0 otherwise. */
+static inline __u16 is_more_fragments_set_ipv6(struct frag_hdr *hdr)
 {
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP6_MF);
+	return be16_to_cpu(hdr->frag_off) & IP6_MF;
 }
 
-/** Returns true if the MF flag from the "hdr" IPv4 header is set, false otherwise. */
-static inline bool is_more_fragments_set_ipv4(struct iphdr *hdr)
+/** Returns IP_MF if the MF flag from the "hdr" IPv4 header is set, 0 otherwise. */
+static inline __u16 is_more_fragments_set_ipv4(struct iphdr *hdr)
 {
-	__u16 frag_off = be16_to_cpu(hdr->frag_off);
-	return (frag_off & IP_MF) >> 13;
+	return be16_to_cpu(hdr->frag_off) & IP_MF;
 }
 
 /** Returns a hack-free version of the 'Fragment offset' field from the "hdr" fragment header. */
 static inline __u16 get_fragment_offset_ipv6(struct frag_hdr *hdr)
 {
-	return be16_to_cpu(hdr->frag_off) & 0xFFF8;
+	return be16_to_cpu(hdr->frag_off) & 0xFFF8U;
 }
 
 /** Returns a hack-free version of the 'Fragment offset' field from the "hdr" IPv4 header. */
@@ -120,10 +117,9 @@ static inline bool is_fragmented_ipv6(struct frag_hdr *hdr)
  * Note that fragment offset is measured in units of eight-byte blocks. That means that you want
  * "frag_offset" to be a multiple of 8 if you want your fragmentation to work properly.
  */
-static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, bool mf)
+static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, __u16 mf)
 {
-	__u16 result = (frag_offset & 0xFFF8)
-			| (mf << 0);
+	__u16 result = (frag_offset & 0xFFF8U) | (mf ? 1U : 0U);
 	return cpu_to_be16(result);
 }
 
@@ -133,10 +129,10 @@ static inline __be16 build_ipv6_frag_off_field(__u16 frag_offset, bool mf)
  * Note that fragment offset is measured in units of eight-byte blocks. That means that you want
  * "frag_offset" to be a multiple of 8 if you want your fragmentation to work properly.
  */
-static inline __be16 build_ipv4_frag_off_field(bool df, bool mf, __u16 frag_offset)
+static inline __be16 build_ipv4_frag_off_field(bool df, __u16 mf, __u16 frag_offset)
 {
-	__u16 result = (df ? (1 << 14) : 0)
-			| (mf ? (1 << 13) : 0)
+	__u16 result = (df ? (1U << 14) : 0)
+			| (mf ? (1U << 13) : 0)
 			| (frag_offset >> 3); /* 3 bit shifts to the right == division by 8. */
 	return cpu_to_be16(result);
 }

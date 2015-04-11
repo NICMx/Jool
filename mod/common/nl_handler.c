@@ -140,8 +140,8 @@ static int validate_version(struct request_hdr *hdr)
 			"Please update Jool's %s.",
 			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
 			JOOL_VERSION_REV, JOOL_VERSION_DEV,
-			hdr->version >> 24, (hdr->version >> 16) & 0xFF,
-			(hdr->version >> 8) & 0xFF, hdr->version & 0xFF,
+			hdr->version >> 24, (hdr->version >> 16) & 0xFFU,
+			(hdr->version >> 8) & 0xFFU, hdr->version & 0xFFU,
 			(jool_version() > hdr->version)
 				? "userspace application"
 				: "kernel module");
@@ -703,7 +703,7 @@ static bool assign_timeout(void *value, unsigned int min, __u64 *field)
 	 * TODO (fine) this max is somewhat arbitrary. We do have a maximum,
 	 * but I don't recall what or why it was. I do remember it's bigger than this.
 	 */
-	const __u32 MAX_U32 = 0xFFFFFFFFL;
+	const __u32 MAX_U32 = 0xFFFFFFFFU;
 	__u64 value64 = *((__u64 *) value);
 
 	if (value64 < 1000 * min) {

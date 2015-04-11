@@ -575,7 +575,7 @@ static void print_l3_hdr(struct packet *pkt)
 		tmp = (hdr6->priority << 4) | (hdr6->flow_lbl[0] >> 4);
 		if (tmp != 0)
 		pr_debug("		traffic class: %u\n", tmp);
-		tmp = ((hdr6->flow_lbl[0] & 0xf) << 16) | (hdr6->flow_lbl[1] << 8) | hdr6->flow_lbl[0];
+		tmp = ((hdr6->flow_lbl[0] & 0xFU) << 16) | (hdr6->flow_lbl[1] << 8) | hdr6->flow_lbl[2];
 		if (tmp != 0)
 			pr_debug("		flow label: %u\n", tmp);
 		pr_debug("		payload length: %u\n", be16_to_cpu(hdr6->payload_len));

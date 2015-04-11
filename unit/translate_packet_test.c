@@ -231,12 +231,12 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 
 	hdr4.type = ICMP_PARAMETERPROB;
 	hdr4.code = ICMP_PTR_INDICATES_ERROR;
-	hdr4.icmp4_unused = cpu_to_be32(0x08000000);
+	hdr4.icmp4_unused = cpu_to_be32(0x08000000U);
 	success &= assert_equals_int(0, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 1");
 	success &= assert_equals_u8(ICMPV6_HDR_FIELD, hdr6.icmp6_code, "code");
 	success &= assert_equals_u8(7, be32_to_cpu(hdr6.icmp6_pointer), "pointer");
 
-	hdr4.icmp4_unused = cpu_to_be32(0x05000000);
+	hdr4.icmp4_unused = cpu_to_be32(0x05000000U);
 	success &= assert_equals_int(-EINVAL, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 2");
 
 	return success;
@@ -426,11 +426,11 @@ static bool test_function_generate_ipv4_id_dofrag(void)
 	success &= assert_equals_u16(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
 			"Simplest id");
 
-	fragment_hdr.identification = cpu_to_be32(0x0000abcd);
+	fragment_hdr.identification = cpu_to_be32(0x0000abcdU);
 	success &= assert_equals_u16(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
 			"No overflow");
 
-	fragment_hdr.identification = cpu_to_be32(0x12345678);
+	fragment_hdr.identification = cpu_to_be32(0x12345678U);
 	success &= assert_equals_u16(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
 			"Overflow");
 
@@ -614,7 +614,7 @@ static bool test_6to4_custom_payload(l4_protocol l4_proto,
 	if (!result)
 		goto end;
 
-	result = assert_equals_csum(~cpu_to_be16(0x0000), /* ~0x0000 == 0xFFFF */
+	result = assert_equals_csum(~cpu_to_be16(0x0000U), /* ~0x0000 == 0xFFFF */
 			pkt_udp_hdr(&pkt4_actual)->check, "checksum test");
 	/* Fall through. */
 

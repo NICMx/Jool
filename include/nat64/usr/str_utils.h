@@ -13,13 +13,13 @@
 #include "nat64/common/str_utils.h"
 
 /** Maximum storable value on a __u8. */
-#define MAX_U8 0xFF
+#define MAX_U8 0xFFU
 /** Maximum storable value on a __u16. */
-#define MAX_U16 0xFFFF
+#define MAX_U16 0xFFFFU
 /** Maximum storable value on a __u32. */
-#define MAX_U32 0xFFFFFFFF
+#define MAX_U32 0xFFFFFFFFU
 /** Maximum storable value on a __u64. */
-#define MAX_U64 0xFFFFFFFFFFFFFFFF
+#define MAX_U64 0xFFFFFFFFFFFFFFFFU
 
 /**
  * Parses "str" as a boolean value, which it then copies to "out".

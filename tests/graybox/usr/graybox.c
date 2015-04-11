@@ -200,7 +200,7 @@ static int str_to_u16_array(const char *str, __u16 **array_out, size_t *array_le
 	while (token) {
 		int error;
 
-		error = str_to_u16(token, &array[array_len], 0, 0xFFFF);
+		error = str_to_u16(token, &array[array_len], 0, 0xFFFFU);
 		if (error) {
 			free(array);
 			return error; /* Error msg already printed. */
@@ -383,8 +383,8 @@ static int argument_parser(int argc, char **argv, struct arguments *arguments)
 	struct argp argp = { options, parse_opt, args_doc, doc };
 
 	memset(arguments, 0, sizeof(*arguments));
-	arguments->mode = 0xFF;
-	arguments->ops = 0xFF;
+	arguments->mode = 0xFFU;
+	arguments->ops = 0xFFU;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, arguments);
 	if (error)
