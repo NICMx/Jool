@@ -61,6 +61,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * Eric Gamess
 * [Hidekazu Tadokoro](https://github.com/tadokoro)
 * [ipclouds](https://github.com/ipclouds)
+* [Michael Richardson](http://www.sandelman.ca/mcr)
 * [Philar Law] (https://github.com/philar)
 * [Stanislav Bogatyrev](https://github.com/realloc)
 * [tbe](https://github.com/tbe)

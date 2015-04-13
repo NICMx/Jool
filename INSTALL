@@ -114,7 +114,7 @@ Configure the module:
 			$ jool --display
 			# jool --update --address-dependent-filtering false
 
-Removing the module:
+Remove the module:
 	# modprobe -r jool_siit
 	or
 	# modprobe -r jool

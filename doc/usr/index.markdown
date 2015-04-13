@@ -18,17 +18,39 @@ Jool is an Open Source [SIIT and NAT64](intro-nat64.html) for Linux.
 
 ## Status
 
-If you want to know what the development team is currently tweaking, you should always be able to answer that by having a look at the latest milestone - <a href="https://github.com/NICMx/NAT64/milestones" target="_blank">milestone list</a>.
+As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2015-04-13:
 
-But just to make things clear, this is the status of the project as of now:
+1. [Milestone 3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0) will be a relatively sizeable internal refactor to [remove the need of a second IPv4 address from Stateful NAT64 Jool](https://github.com/NICMx/NAT64/wiki/issue67:-Linux%27s-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.), and to [optimize pool4](https://github.com/NICMx/NAT64/issues/36). (They are actually pretty much the same bug.)
+2. [Milestone 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) will be a [framework switch](https://github.com/NICMx/NAT64/issues/140). Jool might become a device driver or a userspace daemon. This will free Jool from most of its compliance problems and might make it more intuitive to configure.
+3. [Milestone 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) will add several new features.
 
-As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. We're currently working on [switching frameworks](https://github.com/NICMx/NAT64/issues/140) to address our compliance issues.
+New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.1" target="_blank">3.3.1</a>.
+Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.2" target="_blank">3.3.2</a>.
 
 -------------------
 
 ## News
+
+### 2015-04-14
+
+Version 3.3.2 released.
+
+This is the summary:
+
+- There are new configuration flags:
+	- [`--source-icmpv6-errors-better`](usr-flags-global.html#source-icmpv6-errors-better)
+	- [`--logging-bib`](usr-flags-global.html#logging-bib) and [`--logging-session`](usr-flags-global.html#logging-session)
+- The userspace app was misbehaving in several ways. While all of its bugs had workarounds, it was a pain to use.
+
+Also, unrelated to the code, we now have two mailing lists:
+
+- jool-news@nic.mx is intended to spread news. Since we currently don't have other major events, the plan is to only use it to announce new releases coming out. [Click here](https://mail-lists.nic.mx/listas/listinfo/jool-news) to start listening.
+- jool-list@nic.mx can be used for public discussion (help, proposals, whatever). I will also drop the news here so people doesn't have to subscribe to both at a time. [Click here](https://mail-lists.nic.mx/listas/listinfo/jool-list) to register.
+
+[jool@nic.mx](mailto:jool@nic.mx) can still be used to reach us developers only.
+
+We'd also like to apologize for the [certificate hiccup we had recently](https://github.com/NICMx/NAT64/issues/149). Though they are being generated, the mailing list archives are also not available yet, and this is in our admins' TODO list.
 
 ### 2015-03-11
 
