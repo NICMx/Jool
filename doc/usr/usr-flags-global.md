@@ -258,26 +258,19 @@ In the case of TCP, the situation is a little more complicated because the IPv4 
 
 For some reason, RFC 6146 wants the source of translated ICMPv6 errors to be the same as their inner packets' destination address. This looks really weird.
 
-For example (TODO turn this into an image):
+![Fig.4: Source better diagram](images/network/src-icmp6-better.svg)
 
-	n6 ----- j ----- R ----- n4
+Say the link between _R_ and _n4_ collapses.
 
-- n6 is an IPv6 node; its address is 2001:db8::1.
-- j is a Stateful NAT64. Its IPv4 address is 192.0.2.1. 
-- R is an IPv4 router. 192.0.2.6.
-- n4 is an IPv4 node. 203.0.113.13.
-
-Say the link between R and n4 collapses.
-
-- n6 TCP-packets n4: 2001:db8::1 -> 64:ff9b::203.0.113.13.
-- j translates and forwards: 192.0.2.1 -> 203.0.113.13
-- R answers ICMPv4 error "Host unreachable". The packet's addresses are 192.0.2.6 -> 192.0.2.1. The packet contains a TCP packet whose addresses are 192.0.2.1 -> 203.0.113.13.
-- j translates into an IPv6 packet whose addresses are 64:ff9b::203.0.113.13 -> 2001:db8::1. Its inner packet reads 2001:db8::1 -> 64:ff9b::203.0.113.13.
+1. _n6_ TCP-packets _n4_: 2001:db8::1 -> 64:ff9b::203.0.113.13.
+2. _T_ translates and forwards: 192.0.2.1 -> 203.0.113.13
+3. _R_ answers ICMPv4 error "Host unreachable". The error packet's addresses are 192.0.2.6 -> 192.0.2.1.
+4. _T_ translates into an IPv6 packet whose addresses are 64:ff9b::203.0.113.13 -> 2001:db8::1 (because this is the inverse of the first packet).
 
 [This breaks traceroutes](https://github.com/NICMx/NAT64/issues/132). Shouldn't it have been 64:ff9b::**192.0.2.6** -> 2001:db8::1 instead?
 
 - `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
-- `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix.
+- `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.
 
 ### `--logging-bib`
 

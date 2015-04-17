@@ -19,11 +19,13 @@
 #define JOOL_VERSION_REV 2
 #define JOOL_VERSION_DEV 0
 
-#define STR(s) #s
+/** See http://stackoverflow.com/questions/195975 */
+#define STR_VALUE(arg) #arg
+#define VALUE_TO_STR(name) STR_VALUE(name)
 #define JOOL_VERSION_STR \
-	STR(JOOL_VERSION_MAJOR) "." \
-	STR(JOOL_VERSION_MINOR) "." \
-	STR(JOOL_VERSION_REV)
+	VALUE_TO_STR(JOOL_VERSION_MAJOR) "." \
+	VALUE_TO_STR(JOOL_VERSION_MINOR) "." \
+	VALUE_TO_STR(JOOL_VERSION_REV)
 
 /**
  * Please tend to use nat64_is_stateful() instead of the STATEFUL macro.

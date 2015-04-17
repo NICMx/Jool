@@ -148,7 +148,7 @@ Also, for future reference, keep in mind that the "correct" way to flush an inte
 ip addr flush dev eth1 scope global
 {% endhighlight %}
 
-IPv4 doesn't need link addresses.
+IPv4 doesn't need link addresses that much.
 
 ## The throughput is terrible!
 
