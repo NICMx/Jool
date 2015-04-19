@@ -41,6 +41,7 @@ int config_init(bool is_disable)
 	config->session_logging = DEFAULT_SESSION_LOGGING;
 #else
 	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+	config->eam_enabled_fields = DEFAULT_EAM_ENABLED_FIELDS;
 	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 #endif
 
@@ -173,6 +174,26 @@ bool config_get_drop_external_connections(void)
 bool config_get_compute_UDP_csum_zero(void)
 {
 	return RCU_THINGY(bool, compute_udp_csum_zero);
+}
+
+static __u8 config_eam_mask(bool sixTo4, bool src, bool inner)
+{
+	if (sixTo4) {
+		if (src)
+			return inner ? EAM_ENABLED_6SRC_INNER : EAM_ENABLED_6SRC_OUTER;
+		else
+			return inner ? EAM_ENABLED_6DST_INNER : EAM_ENABLED_6DST_OUTER;
+	} else {
+		if (src)
+			return inner ? EAM_ENABLED_4SRC_INNER : EAM_ENABLED_4SRC_OUTER;
+		else
+			return inner ? EAM_ENABLED_4DST_INNER : EAM_ENABLED_4DST_OUTER;
+	}
+}
+
+bool config_eam_enabled(bool sixTo4, bool src, bool inner)
+{
+	return RCU_THINGY(__u8, eam_enabled_fields) & config_eam_mask(sixTo4, src, inner);
 }
 
 bool config_randomize_rfc6791_pool(void)

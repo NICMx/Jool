@@ -149,13 +149,13 @@ static __u8 build_protocol_field(struct ipv6hdr *hdr6)
 	return (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 }
 
-static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct packet *skb)
+static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool src, bool inner)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
 	int error;
 
-	error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
+	error = eamt_get_ipv4_by_ipv6(addr6, &tmp, src, inner);
 	if (error && error != -ESRCH)
 		return VERDICT_DROP;
 	if (!error)
@@ -194,12 +194,12 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 	int error;
 
 	/* Dst address. */
-	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
+	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, false, pkt_is_inner(in));
 	if (result != VERDICT_CONTINUE)
 		return result;
 
 	/* Src address. */
-	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
+	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, true, pkt_is_inner(in));
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
 		error = rfc6791_get(in, out, &addr);
 		if (error)

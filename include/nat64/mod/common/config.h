@@ -25,6 +25,7 @@ bool config_get_addr_dependent_filtering(void);
 bool config_get_drop_external_connections(void);
 
 bool config_get_compute_UDP_csum_zero(void);
+bool config_eam_enabled(bool sixToFour, bool src, bool inner);
 bool config_randomize_rfc6791_pool(void);
 
 bool config_get_reset_traffic_class(void);

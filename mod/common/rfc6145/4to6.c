@@ -127,14 +127,14 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 	return 0;
 }
 
-static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
+static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool src, bool inner)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
 	int error;
 
 	tmp.s_addr = addr4;
-	error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
+	error = eamt_get_ipv6_by_ipv4(&tmp, addr6, src, inner);
 	if (error && error != -ESRCH)
 		return error;
 	if (!error)
@@ -251,12 +251,12 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 			return VERDICT_DROP;
 		ip6_hdr->daddr = tuple6->dst.addr6.l3;
 	} else {
-		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
+		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr, true, pkt_is_inner(in));
 		if (error == -ESRCH)
 			return VERDICT_ACCEPT;
 		if (error)
 			return VERDICT_DROP;
-		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
+		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr, false, pkt_is_inner(in));
 		if (error == -ESRCH)
 			return VERDICT_ACCEPT;
 		if (error)

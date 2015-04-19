@@ -133,6 +133,7 @@ enum argp_flags {
 	ARGP_ENABLE_TRANSLATION = 4013,
 	ARGP_DISABLE_TRANSLATION = 4014,
 	ARGP_COMPUTE_CSUM_ZERO = 4015,
+	ARGP_EAM_ENABLED_FIELDS = 4018,
 	ARGP_RANDOMIZE_RFC6791 = 4017,
 	ARGP_ATOMIC_FRAGMENTS = 4016,
 };
@@ -261,6 +262,8 @@ static struct argp_option options[] =
 	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
 			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "
 			"Otherwise drop the packet.\n" },
+	{ OPTNAME_EAM_ENABLED_FIELDS, ARGP_EAM_ENABLED_FIELDS, NUM_FORMAT, 0,
+			"Fields to translate using EAM.\n" },
 	{ OPTNAME_RANDOMIZE_RFC6791, ARGP_RANDOMIZE_RFC6791, BOOL_FORMAT, 0,
 			"Randomize selection of address from the RFC6791 pool? "
 			"Otherwise choose the 'Hop Limit'th address.\n" },
@@ -643,6 +646,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 #else
 	case ARGP_COMPUTE_CSUM_ZERO:
 		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
+		break;
+	case ARGP_EAM_ENABLED_FIELDS:
+		error = set_global_u8(args, EAM_ENABLED_FIELDS, str, 0, MAX_U8);
 		break;
 	case ARGP_RANDOMIZE_RFC6791:
 		error = set_global_bool(args, RANDOMIZE_RFC6791, str);

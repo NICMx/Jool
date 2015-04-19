@@ -332,6 +332,7 @@ enum global_type {
 	DROP_EXTERNAL_TCP,
 #else
 	COMPUTE_UDP_CSUM_ZERO,
+	EAM_ENABLED_FIELDS,
 	RANDOMIZE_RFC6791,
 #endif
 
@@ -546,6 +547,17 @@ struct global_config {
 	 * Boolean.
 	 */
 	__u8 randomize_error_addresses;
+
+#define EAM_ENABLED_6SRC_OUTER (1 << 7)
+#define EAM_ENABLED_6DST_OUTER (1 << 6)
+#define EAM_ENABLED_4SRC_OUTER (1 << 5)
+#define EAM_ENABLED_4DST_OUTER (1 << 4)
+#define EAM_ENABLED_6SRC_INNER (1 << 3)
+#define EAM_ENABLED_6DST_INNER (1 << 2)
+#define EAM_ENABLED_4SRC_INNER (1 << 1)
+#define EAM_ENABLED_4DST_INNER (1 << 0)
+
+	__u8 eam_enabled_fields;
 #endif
 };
 
