@@ -107,8 +107,10 @@ static int session_display_response(struct nl_msg *msg, void *arg)
 
 	params->row_count += entry_count;
 	params->req_payload->display.connection_set = hdr->nlmsg_flags == NLM_F_MULTI;
-	params->req_payload->display.remote4 = entries[entry_count - 1].remote4;
-	params->req_payload->display.local4 = entries[entry_count - 1].local4;
+	if (entry_count > 0) {
+		params->req_payload->display.remote4 = entries[entry_count - 1].remote4;
+		params->req_payload->display.local4 = entries[entry_count - 1].local4;
+	}
 	return 0;
 }
 

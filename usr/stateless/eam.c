@@ -51,7 +51,8 @@ static int eam_display_response(struct nl_msg *msg, void *arg)
 
 	params->row_count += entry_count;
 	params->req_payload->display.prefix4_set = hdr->nlmsg_flags & NLM_F_MULTI;
-	params->req_payload->display.prefix4 = entries[entry_count - 1].pref4;
+	if (entry_count > 0)
+		params->req_payload->display.prefix4 = entries[entry_count - 1].pref4;
 	return 0;
 }
 

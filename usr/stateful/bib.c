@@ -51,7 +51,8 @@ static int bib_display_response(struct nl_msg *msg, void *arg)
 
 	params->row_count += entry_count;
 	params->req_payload->display.addr4_set = hdr->nlmsg_flags & NLM_F_MULTI;
-	params->req_payload->display.addr4 = entries[entry_count - 1].addr4;
+	if (entry_count > 0)
+		params->req_payload->display.addr4 = entries[entry_count - 1].addr4;
 	return 0;
 }
 

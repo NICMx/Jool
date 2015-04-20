@@ -34,7 +34,8 @@ static int pool6_display_response(struct nl_msg *response, void *arg)
 
 	args->row_count += prefix_count;
 	args->request->display.prefix_set = hdr->nlmsg_flags & NLM_F_MULTI;
-	args->request->display.prefix = prefixes[prefix_count - 1];
+	if (prefix_count > 0)
+		args->request->display.prefix = prefixes[prefix_count - 1];
 	return 0;
 }
 
