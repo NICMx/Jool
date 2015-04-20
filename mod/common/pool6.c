@@ -233,7 +233,7 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
 		struct ipv6_prefix *offset)
 {
 	struct pool_node *node;
-	int error = -ESRCH;
+	int error = 0;
 	rcu_read_lock_bh();
 
 	list_for_each_entry_rcu(node, &pool, list_hook) {
@@ -247,7 +247,7 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
 	}
 
 	rcu_read_unlock_bh();
-	return error;
+	return offset ? -ESRCH : error;
 }
 
 int pool6_count(__u64 *result)

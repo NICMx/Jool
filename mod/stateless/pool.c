@@ -131,7 +131,7 @@ int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void
 		struct ipv4_prefix *offset)
 {
 	struct pool_entry *node;
-	int error = -ESRCH;
+	int error = 0;
 	rcu_read_lock_bh();
 
 	list_for_each_entry_rcu(node, pool, list_hook) {
@@ -145,7 +145,7 @@ int pool_for_each(struct list_head *pool, int (*func)(struct ipv4_prefix *, void
 	}
 
 	rcu_read_unlock_bh();
-	return error;
+	return offset ? -ESRCH : error;
 }
 
 int pool_count(struct list_head *pool, __u64 *result)
