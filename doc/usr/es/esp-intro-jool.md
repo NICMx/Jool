@@ -1,0 +1,60 @@
+---
+layout: documentation
+title: Documentación - Introducción a Jool
+---
+
+[Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Jool
+
+# Introduction to Jool
+
+## Index
+
+1. [Descripción](#descripcion)
+2. [Cumplimiento](#cumplimiento)
+3. [Compatibilidad](#compatibilidad)
+
+## Descripción
+
+Jool es una implementación de código abierto(Open Source) de [Traducción IPv4/IPv6](esp-intro-nat64.html) en Linux. Hasta la versión  3.2.x, solía ser solo un Stateful NAT64; a partir de la versión 3.3.0, tambien soporta el modo SIIT.
+
+##Cumplimiento
+
+Hasta donde sabemos, este es el estatus de cumplimiento de Jool 3.3:
+
+| RFC/borrador | Nombre de recordatorio  | Estatus |
+|-----------|---------|--------|
+| [RFC 6052](https://tools.ietf.org/html/rfc6052) | Traducción de dirección IP | Cumple Totalmente. |
+| [RFC 6144](https://tools.ietf.org/html/rfc6144) | Marco de traducción IPv4/IPv6 | Cumple Totalmente. |
+| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | La implementación de fragmento atómica [Generalmente broken](usr-flags-atomic.html#overview). Otherwise compliant. |
+| [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Cumple la mayor parte.<br />(Hereda detalles de cumplimiento del RFC 6145)<br />Tambien hemos sido incapaces de implementar [Politicas de Filtrado](https://github.com/NICMx/NAT64/issues/41). |
+| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Sin cumplir todavia](https://github.com/NICMx/NAT64/issues/114). |
+| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | En resumen, este RFC quiere dos cosas: Un pool de direcciones IPv4 y una extensión del encabezadp ICMP. Jool implementa la primera pero no la segunda. |
+| [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC; vea abajo. |
+| [draft-ietf-v6ops-siit-dc](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00) | SIIT-DC | Cumple totalmente. |
+| [draft-ietf-v6ops-siit-dc-2xlat](https://tools.ietf.org/html/draft-anderson-v6ops-siit-dc-2xlat-00) | SIIT-DC Edge Translator | [modo basado en Host](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1) No Implementado. |
+| [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) | Deprecación de Fragmento Atómica | Estrictamente hablando, el draft quiere que desechemos completamente el cocepto de fragmentos atómicos. Los implementamos -pobremente- como un [modo alternativo y su uso lo desalentamos absolutamente](usr-flags-atomic.html#overview). |
+| [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) | EAM | Cumple totalmente. |
+
+Porfavor [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras problemas de cumplimiento adicionales o RFCs/drafts que no hayamos considerado.
+
+## Compatibilidad
+
+ Se supone que debemos soportar los kernels de Linux del 3.0.0 en adelante. Aunque la mayoria del tiempo de desarrollo ha sido utilizada experimentando en Ubuntu 12.04 y 14.04 utilizando kernels actuales, hemos realizado una saludable cantidad de pruebas formales en Jool 3.1.5 y 3.2.2 en las siguientes variantes:
+
+| Distribución | Kernels |
+| -------------|---------|
+| CentOS 7 | 3.10.0-123.el7.x86_64 |
+| Debian 7.5 | 3.2.0-4-amd64 |
+| Red Hat Enterprise Linux 7 | 3.10.0-123.4.4.el7.x86_64 |
+| SuSE Linux Enterprise Desktop 11 SP3 | 3.0.101-0.31-default |
+| Ubuntu 12.04 | 3.1.10-030110-generic, 3.2.60-030260-generic |
+| Ubuntu 12.10 | 3.3.8-030308-generic, 3.4.94-030494-generic, 3.5.7-03050733-generic |
+| Ubuntu 13.04 | 3.6.11-030611-generic, 3.7.10-030710-generic, 3.8.13-03081323-generic |
+| Ubuntu 13.10 | 3.9.11-030911-generic, 3.10.44-031044-generic, 3.11.10-03111011-generic |
+| Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
+| Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
+
+Red Hat y CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
+
+
+
