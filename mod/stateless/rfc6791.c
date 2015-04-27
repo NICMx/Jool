@@ -45,7 +45,7 @@ int rfc6791_flush(void)
  * with.
  * RCU locks must be already held.
  */
-static int get_rfc6791_address(struct packet *in, __u64 count, struct in_addr *result)
+static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
 {
 	struct pool_entry *entry;
 	unsigned int addr_index;
@@ -62,7 +62,7 @@ static int get_rfc6791_address(struct packet *in, __u64 count, struct in_addr *r
 		addr_index -= count;
 	}
 
-	result->s_addr = htonl(ntohl(entry->prefix.address.s_addr) | addr_index);
+	*result = htonl(ntohl(entry->prefix.address.s_addr) | addr_index);
 	return 0;
 }
 
@@ -71,7 +71,7 @@ static int get_rfc6791_address(struct packet *in, __u64 count, struct in_addr *r
  * with, assuming the RFC6791 pool is empty.
  * RCU locks must be already held.
  */
-static int get_host_address(struct packet *in, struct packet *out, struct in_addr *result)
+static int get_host_address(struct packet *in, struct packet *out, __be32 *result)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -90,7 +90,7 @@ static int get_host_address(struct packet *in, struct packet *out, struct in_add
 			ifaddr = ifaddr->ifa_next;
 			continue;
 		}
-		result->s_addr = ifaddr->ifa_address;
+		*result = ifaddr->ifa_address;
 		return 0;
 	}
 
@@ -99,7 +99,7 @@ static int get_host_address(struct packet *in, struct packet *out, struct in_add
 	return -EINVAL;
 }
 
-int rfc6791_get(struct packet *in, struct packet *out, struct in_addr *result)
+int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)
 {
 	__u64 count;
 	int error;

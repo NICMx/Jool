@@ -308,6 +308,7 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	pkt->l3_proto = L3PROTO_IPV6;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
+	pkt->is_hairpin = false;
 	pkt->hdr_frag = meta.has_frag_hdr ? offset_to_ptr(skb, meta.frag_offset) : NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
 	pkt->payload = offset_to_ptr(skb, meta.payload_offset);
@@ -501,6 +502,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	pkt->l3_proto = L3PROTO_IPV4;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
+	pkt->is_hairpin = false;
 	pkt->hdr_frag = NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
 	pkt->payload = offset_to_ptr(skb, meta.payload_offset);

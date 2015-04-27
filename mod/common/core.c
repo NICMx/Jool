@@ -1,25 +1,23 @@
 #include "nat64/mod/common/core.h"
-#include "nat64/mod/common/blacklist.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/stats.h"
-#include "nat64/mod/common/types.h"
-#include "nat64/mod/common/rfc6145/core.h"
-#include "nat64/mod/common/send_packet.h"
-#include "nat64/mod/common/config.h"
-
-#include "nat64/mod/stateful/pool4.h"
-#include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/mod/stateful/determine_incoming_tuple.h"
-#include "nat64/mod/stateful/filtering_and_updating.h"
-#include "nat64/mod/stateful/compute_outgoing_tuple.h"
-#include "nat64/mod/stateful/handling_hairpinning.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-
+#include "nat64/mod/common/blacklist.h"
+#include "nat64/mod/common/config.h"
+#include "nat64/mod/common/handling_hairpinning.h"
+#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/pool6.h"
+#include "nat64/mod/common/send_packet.h"
+#include "nat64/mod/common/stats.h"
+#include "nat64/mod/common/types.h"
+#include "nat64/mod/common/rfc6145/core.h"
+#include "nat64/mod/stateful/compute_outgoing_tuple.h"
+#include "nat64/mod/stateful/determine_incoming_tuple.h"
+#include "nat64/mod/stateful/filtering_and_updating.h"
+#include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/pool4.h"
 
 #ifdef STATEFUL
 
@@ -48,7 +46,7 @@ static unsigned int core_common(struct packet *in)
 		kfree_skb(out.skb);
 	} else {
 		result = sendpkt_send(in, &out);
-		/* send_pkt releases skb_out regardless of verdict. */
+		/* send_pkt releases out's skb regardless of verdict. */
 	}
 
 	if (result != VERDICT_CONTINUE)
@@ -83,7 +81,13 @@ static unsigned int core_common(struct packet *in)
 	result = translating_the_packet(NULL, in, &out);
 	if (result != VERDICT_CONTINUE)
 		goto end;
-	result = sendpkt_send(in, &out);
+	if (is_hairpin(&out)) {
+		result = handling_hairpinning(&out, NULL);
+		kfree_skb(out.skb);
+	} else {
+		result = sendpkt_send(in, &out);
+		/* send_pkt releases out.skb regardless of verdict. */
+	}
 	if (result != VERDICT_CONTINUE)
 		goto end;
 

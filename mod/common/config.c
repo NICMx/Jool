@@ -42,6 +42,7 @@ int config_init(bool is_disable)
 #else
 	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
 	config->eam_enabled_fields = DEFAULT_EAM_ENABLED_FIELDS;
+	config->eam_auto_hairpin = DEFAULT_EAM_AUTO_HAIRPIN;
 	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 #endif
 
@@ -176,24 +177,29 @@ bool config_get_compute_UDP_csum_zero(void)
 	return RCU_THINGY(bool, compute_udp_csum_zero);
 }
 
-static __u8 config_eam_mask(bool sixTo4, bool src, bool inner)
+static __u8 config_eam_mask(bool sixTo4, bool src, bool outer)
 {
 	if (sixTo4) {
 		if (src)
-			return inner ? EAM_ENABLED_6SRC_INNER : EAM_ENABLED_6SRC_OUTER;
+			return outer ? EAM_ENABLED_6SRC_OUTER : EAM_ENABLED_6SRC_INNER;
 		else
-			return inner ? EAM_ENABLED_6DST_INNER : EAM_ENABLED_6DST_OUTER;
+			return outer ? EAM_ENABLED_6DST_OUTER : EAM_ENABLED_6DST_INNER;
 	} else {
 		if (src)
-			return inner ? EAM_ENABLED_4SRC_INNER : EAM_ENABLED_4SRC_OUTER;
+			return outer ? EAM_ENABLED_4SRC_OUTER : EAM_ENABLED_4SRC_INNER;
 		else
-			return inner ? EAM_ENABLED_4DST_INNER : EAM_ENABLED_4DST_OUTER;
+			return outer ? EAM_ENABLED_4DST_OUTER : EAM_ENABLED_4DST_INNER;
 	}
 }
 
-bool config_eam_enabled(bool sixTo4, bool src, bool inner)
+bool config_eam_enabled(bool sixTo4, bool src, bool outer)
 {
-	return RCU_THINGY(__u8, eam_enabled_fields) & config_eam_mask(sixTo4, src, inner);
+	return RCU_THINGY(__u8, eam_enabled_fields) & config_eam_mask(sixTo4, src, outer);
+}
+
+bool config_eam_heuristic(void)
+{
+	return RCU_THINGY(__u8, eam_auto_hairpin);
 }
 
 bool config_randomize_rfc6791_pool(void)

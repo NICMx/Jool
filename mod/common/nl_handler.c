@@ -884,6 +884,11 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 			goto einval;
 		config->eam_enabled_fields = *((__u8 *) value);
 		break;
+	case EAM_AUTO_HAIRPIN:
+		if (!ensure_bytes(size, 1))
+			goto einval;
+		config->eam_auto_hairpin = *((__u8 *) value);
+		break;
 	case RANDOMIZE_RFC6791:
 		if (!ensure_bytes(size, 1))
 			goto einval;

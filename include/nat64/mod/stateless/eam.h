@@ -46,7 +46,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
  *
  * otherwise return error.
  */
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result, bool src, bool inner);
+int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
 
 /**
  * Look in the IPv6 address mapping table, if the IPv6 address "addr6" is part of a prefix indexed
@@ -55,7 +55,7 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result, bool sr
  *
  * otherwise return error.
  */
-int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result, bool src, bool inner);
+int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
 
 /**
  * Empties the entire database.

@@ -2,7 +2,6 @@
 
 #include <net/ipv6.h>
 
-#include "nat64/mod/common/config.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/types.h"
 
@@ -314,7 +313,7 @@ bool eamt_contains_ipv4(__be32 addr)
 	return true;
 }
 
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result, bool src, bool inner)
+int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
 {
 	struct ipv4_prefix prefix4;
 	struct ipv6_prefix prefix6;
@@ -326,9 +325,6 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result, bool sr
 		log_err("The IPv4 Address 'addr' can't be NULL");
 		return -EINVAL;
 	}
-
-	if (!config_eam_enabled(false, src, inner))
-		return -ESRCH;
 
 	/* Find the entry. */
 	prefix4.address.s_addr = addr->s_addr;
@@ -359,7 +355,7 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result, bool sr
 	return 0;
 }
 
-int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result, bool src, bool inner)
+int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 {
 	struct ipv4_prefix prefix4;
 	struct ipv6_prefix prefix6;
@@ -370,9 +366,6 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result, bool s
 		log_err("The IPv6 Address 'addr6' can't be NULL");
 		return -EINVAL;
 	}
-
-	if (!config_eam_enabled(true, src, inner))
-		return -ESRCH;
 
 	prefix6.address = *addr6;
 	prefix6.len = IPV6_PREFIX;

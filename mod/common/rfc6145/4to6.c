@@ -127,18 +127,19 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 	return 0;
 }
 
-static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool src, bool inner)
+static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool enable_eam)
 {
 	struct ipv6_prefix prefix;
-	struct in_addr tmp;
+	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
-	tmp.s_addr = addr4;
-	error = eamt_get_ipv6_by_ipv4(&tmp, addr6, src, inner);
-	if (error && error != -ESRCH)
-		return error;
-	if (!error)
-		return 0;
+	if (enable_eam) {
+		error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
+		if (error && error != -ESRCH)
+			return error;
+		if (!error)
+			return 0;
+	}
 
 	if (pool4_contains(addr4)) {
 		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
@@ -155,6 +156,39 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool src, b
 		return error;
 
 	return 0;
+}
+
+static verdict translate_addrs_siit(struct packet *in, struct packet *out)
+{
+	struct iphdr *ip4_hdr = pkt_ip4_hdr(in);
+	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(out);
+	bool outer = pkt_is_outer(in);
+	bool hairpin = pkt_is_hairpin(in);
+	bool enable_eam;
+	int error;
+
+	/*
+	 * EAM needs to be disabled on certain situations for hairpinning to work properly.
+	 * There are two ways this can be done; this implements both.
+	 * Left operand is fields-statically-disabled method.
+	 * Right operand is heuristics method.
+	 */
+	enable_eam = config_eam_enabled(false, true, outer) && (hairpin ? !outer : true);
+	error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr, enable_eam);
+	if (error == -ESRCH)
+		return VERDICT_ACCEPT;
+	if (error)
+		return VERDICT_DROP;
+
+	enable_eam = config_eam_enabled(false, false, outer) && (hairpin ? outer : true);
+	error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr, enable_eam);
+	if (error == -ESRCH)
+		return VERDICT_ACCEPT;
+	if (error)
+		return VERDICT_DROP;
+
+	log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -221,6 +255,7 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	struct iphdr *ip4_hdr = pkt_ip4_hdr(in);
 	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(out);
 	int error;
+	verdict result;
 
 	ip6_hdr->version = 6;
 	if (config_get_reset_traffic_class()) {
@@ -251,17 +286,9 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 			return VERDICT_DROP;
 		ip6_hdr->daddr = tuple6->dst.addr6.l3;
 	} else {
-		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr, true, pkt_is_inner(in));
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr, false, pkt_is_inner(in));
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
+		result = translate_addrs_siit(in, out);
+		if (result != VERDICT_CONTINUE)
+			return result;
 	}
 
 	/* Isn't this supposed to be covered by filtering...? */

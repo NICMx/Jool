@@ -333,6 +333,7 @@ enum global_type {
 #else
 	COMPUTE_UDP_CSUM_ZERO,
 	EAM_ENABLED_FIELDS,
+	EAM_AUTO_HAIRPIN,
 	RANDOMIZE_RFC6791,
 #endif
 
@@ -558,6 +559,11 @@ struct global_config {
 #define EAM_ENABLED_4DST_INNER (1 << 0)
 
 	__u8 eam_enabled_fields;
+
+	/**
+	 * Attempt to hairpin EAM-translated packets using the heuristic we're discussing in the list?
+	 */
+	__u8 eam_auto_hairpin;
 #endif
 };
 
