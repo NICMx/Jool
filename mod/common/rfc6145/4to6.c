@@ -127,7 +127,7 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 	return 0;
 }
 
-static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool enable_eam)
+static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool dst, bool enable_eam)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp = { .s_addr = addr4 };
@@ -141,7 +141,7 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool enable
 			return 0;
 	}
 
-	if (pool4_contains(addr4)) {
+	if (dst && pool4_contains(addr4)) {
 		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
 		return -ESRCH;
 	}
@@ -174,14 +174,14 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 	 * Right operand is heuristics method.
 	 */
 	enable_eam = config_eam_enabled(false, true, outer) && (hairpin ? !outer : true);
-	error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr, enable_eam);
+	error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr, false, enable_eam);
 	if (error == -ESRCH)
 		return VERDICT_ACCEPT;
 	if (error)
 		return VERDICT_DROP;
 
 	enable_eam = config_eam_enabled(false, false, outer) && (hairpin ? outer : true);
-	error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr, enable_eam);
+	error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr, true, enable_eam);
 	if (error == -ESRCH)
 		return VERDICT_ACCEPT;
 	if (error)

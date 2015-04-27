@@ -149,7 +149,7 @@ static __u8 build_protocol_field(struct ipv6hdr *hdr6)
 	return (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 }
 
-static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool enable_eam,
+static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool dst, bool enable_eam,
 		bool *was_6052)
 {
 	struct ipv6_prefix prefix;
@@ -178,7 +178,7 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool e
 	if (error)
 		return VERDICT_DROP;
 
-	if (pool4_contains(tmp.s_addr)) {
+	if (dst && pool4_contains(tmp.s_addr)) {
 		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
 		return VERDICT_ACCEPT;
 	}
@@ -204,7 +204,7 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 
 	/* Src address. */
 	enable_eam = config_eam_enabled(true, true, outer);
-	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, enable_eam, &was_6052);
+	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, false, enable_eam, &was_6052);
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
 		error = rfc6791_get(in, out, &ip4_hdr->saddr);
 		if (error)
@@ -219,7 +219,7 @@ static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 
 	/* Dst address. */
 	enable_eam = config_eam_enabled(true, false, outer);
-	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, enable_eam, &was_6052);
+	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, true, enable_eam, &was_6052);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
