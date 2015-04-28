@@ -40,7 +40,7 @@
  */
 
 #include "nat64/mod/common/packet.h"
-#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/session/entry.h"
 
 /**
  * Call during initialization for the remaining functions to work properly.

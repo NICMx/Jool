@@ -11,6 +11,7 @@ union transport_addr {
 };
 
 int prefix6_parse(char *str, struct ipv6_prefix *result);
+int prefix4_parse(char *str, struct ipv4_prefix *result);
 
 /**
  * @{

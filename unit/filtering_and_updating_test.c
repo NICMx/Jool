@@ -47,7 +47,7 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 		return false;
 	tuple_addr.l4 = port6;
 
-	success &= assert_equals_int(0, bibdb_get_by_ipv6(&tuple_addr, proto, &bib), "BIB exists");
+	success &= assert_equals_int(0, bibdb_get6(&tuple_addr, proto, &bib), "BIB exists");
 	if (!success)
 		return false;
 

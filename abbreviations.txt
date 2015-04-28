@@ -13,13 +13,13 @@ alloc = memory allocation
 addr = address
 aux = auxiliar function
 cb = callback (synonym for "fn")
-comm = common
 csum = checksum
-def = default
+comm = common
 dev = network device (within code) or developer (within documentation)
 eam = Explicit Address Mapping (https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02)
 eamt = EAM table
 err = error
+est = established session (inherited from RFC 6146.)
 fn = function ("this parameter is a pointer to a function.")
 frag = fragment
 hdr = header
@@ -35,11 +35,15 @@ pkt = packet
 pref = prefix
 proto = protocol
 ptr = pointer
-req = requirement
+req = request
+rm = remove
+	-> "remove" stands for "take out of a database".
+	   Sometimes, this also means the entry is deleted.
+	-> "delete" means to actually erase the entry.
 skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
+trans = transitory session (inherited from RFC 6146.)
 ttp = Translating the Packet (Fourth core step of the NAT64 translation algorithm; see RFC 6146)
 usr = user[space]
-ver = verdict
 x<n> (where x is anything and n is 4 or 6) = x has something to do with IPv<n>. Examples:
 	pool4 = IPv4 pool
 	addr6 = IPv6 address
@@ -51,7 +55,6 @@ When we say "payload", we mean the layer-4 payload. When we want to say layer-3 
 prefix it ("l3_payload").
 
 
-BTW: Except from line width, tab size and "kernel-doc" (100, 4 and doxygen, respectively), we're
-making an effort to follow the kernel's code conventions:
+BTW: We're making an effort to follow the kernel's code conventions:
 https://www.kernel.org/doc/Documentation/CodingStyle
 So please don't freak out when you catch glimpse of those gotos :).

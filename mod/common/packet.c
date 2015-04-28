@@ -429,6 +429,7 @@ static int summarize_skb4(struct sk_buff *skb, struct pkt_metadata *meta)
 	return 0;
 }
 
+/* TODO move this to translate. */
 static int handle_udp4(struct sk_buff *skb, struct pkt_metadata *meta)
 {
 	struct iphdr *hdr4;

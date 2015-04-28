@@ -140,7 +140,7 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
 	if (!error)
 		return 0;
 
-	if (pool4_contains(addr4)) {
+	if (blacklist_contains(addr4)) {
 		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
 		return -ESRCH;
 	}

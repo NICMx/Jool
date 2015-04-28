@@ -408,7 +408,7 @@ In IPv4, it's legal for UDP packets to contain zero as checksum. This is because
 In IPv6, zero is an invalid checksum value for UDP packets.
 
 - If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.
-- If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
+- If `--amend-udp-checksum-zero` is OFF and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
 
 This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checskum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
 
@@ -435,7 +435,7 @@ Why? [It can be argued that `hop limit`th is better](https://github.com/NICMx/NA
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
 - Modes: Both (SIIT and NAT64)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
-- Source: [RFC 6145, srction 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
+- Source: [RFC 6145, section 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
 - Deprecated name: `--plateaus`
 
 When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification does not require routers to include this data.

@@ -19,6 +19,28 @@ fail:
 	return -EINVAL;
 }
 
+int prefix4_parse(char *str, struct ipv4_prefix *result)
+{
+	const char *slash_pos;
+
+	if (strchr(str, '/') != 0){
+		if (in4_pton(str, -1, (u8 *) &result->address, '/', &slash_pos) != 1)
+			goto fail;
+		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
+			goto fail;
+	} else {
+		if (in4_pton(str, -1, (u8 *) &result->address, '\0', NULL) != 1)
+			goto fail;
+		result->len = 32;
+	}
+
+	return 0;
+
+fail:
+	log_err("IPv4 prefix or address is malformed: %s.", str);
+	return -EINVAL;
+}
+
 bool addr4_equals(const struct in_addr *expected, const struct in_addr *actual)
 {
 	if (expected == actual)

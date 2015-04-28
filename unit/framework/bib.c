@@ -23,7 +23,7 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 		struct bib_entry *actual;
 		int error;
 
-		error = bibdb_get_by_ipv6(&expected->ipv6, l4_proto, &actual);
+		error = bibdb_get6(&expected->ipv6, l4_proto, &actual);
 		if (error) {
 			log_err("Error %d while trying to find BIB entry [%pI6c#%u, %pI4#%u] in the DB.",
 					error, &expected->ipv6.l3, expected->ipv6.l4,

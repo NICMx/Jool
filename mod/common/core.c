@@ -43,7 +43,7 @@ static unsigned int core_common(struct packet *in)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	if (is_hairpin(&out)) {
+	if (is_hairpin(&tuple_out)) {
 		result = handling_hairpinning(&out, &tuple_out);
 		kfree_skb(out.skb);
 	} else {
@@ -108,16 +108,13 @@ unsigned int core_4to6(struct sk_buff *skb)
 	struct iphdr *hdr = ip_hdr(skb);
 	int error;
 
+	/* TODO this is silly. We should probably unhook Jool from Netfilter instead. */
 	if (config_get_is_disable())
 		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
 
+	/* TODO This suffers the hairpinning dilemma. You will have to move this to translate. */
 	if (is_blacklisted4(hdr->saddr) || is_blacklisted4(hdr->daddr))
 		return NF_ACCEPT;
-
-	if (nat64_is_stateful()) {
-		if (!pool4_contains(hdr->daddr) || pool6_is_empty())
-			return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
-	}
 
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
@@ -126,6 +123,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (error)
 		return NF_DROP;
 
+	/* TODO move this to translate. */
 	error = validate_icmp4_csum(&pkt);
 	if (error) {
 		inc_stats(&pkt, IPSTATS_MIB_INHDRERRORS);
@@ -146,11 +144,6 @@ unsigned int core_6to4(struct sk_buff *skb)
 
 	if (is_blacklisted6(&hdr->saddr) || is_blacklisted6(&hdr->daddr))
 		return NF_ACCEPT;
-
-	if (nat64_is_stateful()) {
-		if ((!pool6_contains(&hdr->daddr) || pool4_is_empty()))
-			return NF_ACCEPT; /* Not meant for translation; let the kernel handle it. */
-	}
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);

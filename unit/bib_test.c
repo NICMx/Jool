@@ -75,12 +75,12 @@ static bool assert_bib(char* test_name, struct bib_entry* bib,
 		int success = true;
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
-				bibdb_get_by_ipv4(&bib->ipv4, l4_protos[i], &retrieved_bib),
+				bibdb_get4(&bib->ipv4, l4_protos[i], &retrieved_bib),
 				test_name);
 		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
 
 		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
-				bibdb_get_by_ipv6(&bib->ipv6, l4_protos[i], &retrieved_bib),
+				bibdb_get6(&bib->ipv6, l4_protos[i], &retrieved_bib),
 				test_name);
 		success &= assert_bib_entry_equals(expected_bib, retrieved_bib, test_name);
 

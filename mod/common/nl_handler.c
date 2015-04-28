@@ -241,15 +241,15 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 	}
 }
 
-static int pool4_to_usr(struct ipv4_prefix *prefix, void *arg)
+static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {
-	return nlbuffer_write(arg, prefix, sizeof(*prefix));
+	return nlbuffer_write(arg, sample, sizeof(*sample));
 }
 
 static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
 	struct nl_buffer *buffer;
-	struct ipv4_prefix *prefix;
+	struct pool4_sample *offset;
 	int error;
 
 	log_debug("Sending IPv4 pool to userspace.");
@@ -258,8 +258,8 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
-	error = pool4_for_each(pool4_to_usr, buffer, prefix);
+	offset = request->display.offset_set ? &request->display.offset : NULL;
+	error = pool4_for_each(pool4_to_usr, buffer, offset);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
@@ -271,6 +271,11 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 {
 	__u64 count;
 	int error;
+
+	if (nat64_is_stateless()) {
+		log_err("SIIT doesn't have pool4.");
+		return -EINVAL;
+	}
 
 	switch (nat64_hdr->operation) {
 	case OP_DISPLAY:
@@ -301,10 +306,10 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->remove.quick) {
-			error = sessiondb_delete_by_prefix4(&request->remove.addrs);
+			error = sessiondb_delete_by_prefix4(&request->remove.addrs.prefix);
 			if (error)
 				return respond_error(nl_hdr, error);
-			error = bibdb_delete_by_prefix4(&request->remove.addrs);
+			error = bibdb_delete_by_prefix4(&request->remove.addrs.prefix);
 		}
 
 		return respond_error(nl_hdr, error);
@@ -563,10 +568,15 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 	}
 }
 
-static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
+{
+	return nlbuffer_write(arg, prefix, sizeof(*prefix));
+}
+
+static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool *request)
 {
 	struct nl_buffer *buffer;
-	struct ipv4_prefix *prefix;
+	struct ipv4_prefix *offset;
 	int error;
 
 	log_debug("Sending RFC6791 pool to userspace.");
@@ -575,8 +585,8 @@ static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4 
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
-	error = rfc6791_for_each(pool4_to_usr, buffer, prefix);
+	offset = request->display.offset_set ? &request->display.offset : NULL;
+	error = rfc6791_for_each(pool_to_usr, buffer, offset);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
@@ -584,7 +594,7 @@ static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4 
 }
 
 static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_pool4 *request)
+		union request_pool *request)
 {
 	__u64 count;
 	int error;

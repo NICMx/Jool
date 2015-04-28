@@ -16,6 +16,8 @@
 
 #include <linux/types.h>
 #include "nat64/common/types.h"
+/* TODO Common must not depend on stateful!  */
+#include "nat64/mod/stateful/pool4.h"
 
 
 /**
@@ -185,8 +187,30 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
-		__u8 prefix_set;
-		struct ipv4_prefix prefix;
+		__u8 offset_set;
+		struct pool4_sample offset;
+	} display;
+	struct {
+		/** The addresses the user wants to add to the pool. */
+		struct pool4_sample addrs;
+	} add;
+	struct {
+		/** The addresses the user wants to remove from the pool. */
+		struct pool4_sample addrs;
+		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
+		__u8 quick;
+	} remove;
+	struct {
+		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
+		__u8 quick;
+	} flush;
+};
+
+/* TODO not sure about the name of this thing. Review. */
+union request_pool {
+	struct {
+		__u8 offset_set;
+		struct ipv4_prefix offset;
 	} display;
 	struct {
 		/** The addresses the user wants to add to the pool. */
@@ -195,12 +219,9 @@ union request_pool4 {
 	struct {
 		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
-		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
-		__u8 quick;
 	} remove;
 	struct {
-		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
-		__u8 quick;
+		/* Nothing needed here. */
 	} flush;
 };
 

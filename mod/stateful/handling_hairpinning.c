@@ -13,9 +13,21 @@
  * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
  * @return whether pkt is a hairpin packet.
  */
-bool is_hairpin(struct packet *pkt)
+bool is_hairpin(struct tuple *tuple)
 {
-	return (pkt_l3_proto(pkt) == L3PROTO_IPV4) ? pool4_contains(pkt_ip4_hdr(pkt)->daddr) : false;
+	if (tuple->l3_proto == L3PROTO_IPV6)
+		return false;
+
+	/*
+	 * This collides with RFC 6146.
+	 * The RFC says "packet (...) destination address", but I'm using
+	 * "tuple destination address".
+	 * I mean you can throw tomatoes, but this makes lot more sense to me.
+	 * Otherwise Jool would hairpin ICMP errors that were actually intended
+	 * for its node. It might take a miracle for these packets to exist,
+	 * but hey, why the hell not.
+	 */
+	return pool4_contains_transport_addr(&tuple->dst.addr4);
 }
 
 /**
