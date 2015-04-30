@@ -1,13 +1,7 @@
-#include "nat64/mod/stateful/pkt_queue.h"
-#include "nat64/common/constants.h"
+#include "nat64/mod/stateful/session/pkt_queue.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/rbtree.h"
-
-#include <linux/printk.h>
-#include <linux/timer.h>
-
-
 
 /**
  * A stored packet.
@@ -31,7 +25,6 @@ static DEFINE_SPINLOCK(packets_lock);
 
 /** Cache for struct packet_nodes, for efficient allocation. */
 static struct kmem_cache *node_cache;
-
 
 /**
  * Returns > 0 if node.session.*4 > session.*4.
@@ -87,13 +80,17 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 	spin_lock_bh(&packets_lock);
 
 	if (packet_count + 1 >= max_pkts) {
-		error = -E2BIG;
+		spin_unlock_bh(&packets_lock);
 		log_debug("Someone is trying to force lots of IPv4-TCP connections.");
+		/* Fall back to assume there's no Simultaneous Open. */
+		icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
+		error = -E2BIG;
 		goto fail;
 	}
 
 	error = rbtree_add(node, session, &packets, compare_fn, struct packet_node, tree_hook);
 	if (error) {
+		spin_unlock_bh(&packets_lock);
 		log_debug("Simultaneous Open is already taking place; ignoring packet.");
 		goto fail;
 	}
@@ -106,7 +103,6 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 	return 0;
 
 fail:
-	spin_unlock_bh(&packets_lock);
 	kmem_cache_free(node_cache, node);
 	return error;
 }

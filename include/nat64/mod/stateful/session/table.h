@@ -4,17 +4,42 @@
 #include <linux/timer.h>
 #include "nat64/mod/stateful/session/entry.h"
 
+enum session_fate {
+	/**
+	 * The session's timer has to be reset.
+	 * While doing so, the session has to be considered established
+	 * (ie. the session will not die soon).
+	 */
+	FATE_TIMER_EST,
+	/**
+	 * The session's timer has to be reset.
+	 * While doing so, the session has to be considered transitory
+	 * (ie. the session will die soon).
+	 */
+	FATE_TIMER_TRANS,
+	/**
+	 * The session expired; it has to be removed from the DB right away.
+	 */
+	FATE_RM,
+	/**
+	 * No changes.
+	 */
+	FATE_PRESERVE,
+	/**
+	 * Send a probe packet, then reset timer into transitory mode.
+	 */
+	FATE_PROBE,
+};
+
+typedef enum session_fate (*fate_cb)(struct session_entry *, void *arg);
+typedef unsigned long (*timeout_cb)(void);
+
 struct session_table;
-
-typedef unsigned long (*timeout_fn)(void);
-typedef void (*expire_fn)(struct session_entry *, struct list_head *,
-		struct list_head *);
-
 struct expire_timer {
 	struct timer_list timer;
 	struct list_head sessions;
-	timeout_fn get_timeout;
-	expire_fn callback;
+	timeout_cb get_timeout;
+	fate_cb decide_fate_cb;
 	struct session_table *table;
 };
 
@@ -44,12 +69,12 @@ struct session_table {
 };
 
 void sessiontable_init(struct session_table *table,
-		timeout_fn est_timeout, expire_fn est_callback,
-		timeout_fn trans_timeout, expire_fn trans_callback);
+		timeout_cb est_timeout, fate_cb est_callback,
+		timeout_cb trans_timeout, fate_cb trans_callback);
 void sessiontable_destroy(struct session_table *table);
 
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
-		struct session_entry **result);
+		fate_cb cb, struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,
 		bool is_established);
 

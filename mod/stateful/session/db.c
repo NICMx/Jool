@@ -33,13 +33,12 @@ static struct session_table *get_table(l4_protocol l4_proto)
 	return NULL;
 }
 
-static void just_die(struct session_entry *session, struct list_head *expires,
-		struct list_head *probes)
+static enum session_fate just_die(struct session_entry *session, void *arg)
 {
-	/* TODO */
+	return FATE_RM;
 }
 
-int sessiondb_init(expire_fn tcpest_fn, expire_fn tcptrans_fn)
+int sessiondb_init(fate_cb tcpest_fn, fate_cb tcptrans_fn)
 {
 	int error;
 
@@ -48,8 +47,8 @@ int sessiondb_init(expire_fn tcpest_fn, expire_fn tcptrans_fn)
 		return error;
 
 	sessiontable_init(&session_table_udp,
-			config_get_ttl_udp,
-			just_die, NULL, NULL);
+			config_get_ttl_udp, just_die,
+			NULL, NULL);
 	sessiontable_init(&session_table_tcp,
 			config_get_ttl_tcpest, tcpest_fn,
 			config_get_ttl_tcptrans, tcptrans_fn);
@@ -72,9 +71,10 @@ void sessiondb_destroy(void)
 	session_destroy();
 }
 
-int sessiondb_get(struct tuple *tuple, struct session_entry **result)
+int sessiondb_get(struct tuple *tuple, fate_cb cb,
+		struct session_entry **result)
 {
-	return sessiontable_get(get_table(tuple->l4_proto), tuple, result);
+	return sessiontable_get(get_table(tuple->l4_proto), tuple, cb, result);
 }
 
 bool sessiondb_allow(struct tuple *tuple4)

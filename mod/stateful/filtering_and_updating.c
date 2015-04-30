@@ -1,4 +1,6 @@
 #include "nat64/mod/stateful/filtering_and_updating.h"
+
+#include "nat64/common/session.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/pool6.h"
@@ -50,120 +52,23 @@ static void log_session(struct session_entry *session)
 		log_debug("Session entry: None");
 }
 
-///**
-// * Assumes that "tuple" and "bib"'s session doesn't exist, and creates it. Returns the resulting
-// * entry in "session".
-// * Assumes that "tuple" represents a IPv6 packet.
-// */
-//static int create_session_ipv6(struct tuple *tuple6, struct bib_entry *bib,
-//		struct session_entry **session, enum session_timer_type timer_type, enum tcp_state state)
-//{
-//	struct ipv6_prefix prefix;
-//	struct in_addr ipv4_dst;
-//	struct ipv4_transport_addr addr4;
-//	int error;
-//
-//	/* Translate address from IPv6 to IPv4 */
-//	error = pool6_get(&tuple6->dst.addr6.l3, &prefix);
-//	if (error) {
-//		log_debug("Errcode %d while obtaining %pI6c's prefix.", error, &tuple6->dst.addr6.l3);
-//		return error;
-//	}
-//
-//	error = addr_6to4(&tuple6->dst.addr6.l3, &prefix, &ipv4_dst);
-//	if (error) {
-//		log_debug("Error code %d while translating the packet's address.", error);
-//		return error;
-//	}
-//
-//	/*
-//	 * Create the session entry.
-//	 *
-//	 * Fortunately, ICMP errors cannot reach this code because of the requirements in the header
-//	 * of section 3.5, so we can use the tuple as shortcuts for the packet's fields.
-//	 */
-//	addr4.l3 = ipv4_dst;
-//	addr4.l4 = (tuple6->l4_proto != L4PROTO_ICMP) ? tuple6->dst.addr6.l4 : bib->ipv4.l4;
-//
-//	*session = session_create(&tuple6->src.addr6, &tuple6->dst.addr6,
-//			&bib->ipv4, &addr4, tuple6->l4_proto, bib);
-//	if (!(*session)) {
-//		log_debug("Failed to allocate a session entry.");
-//		return -ENOMEM;
-//	}
-//	(*session)->state = state;
-//
-//	apply_policies();
-//
-//	/* Add it to the table. */
-//	error = sessiondb_add(*session, timer_type);
-//	if (error) {
-//		session_return(*session);
-//		log_debug("Error code %d while adding the session to the DB.", error);
-//		return error;
-//	}
-//
-//	return 0;
-//}
-//
-//static int create_session_ipv4(struct tuple *tuple4, struct bib_entry *bib,
-//		struct session_entry **session)
-//{
-//	struct ipv6_prefix prefix;
-//	struct in6_addr ipv6_src;
-//	struct tuple tuple6;
-//	int error;
-//
-//	error = pool6_peek(&prefix);
-//	if (error)
-//		return error;
-//
-//	error = addr_4to6(&tuple4->src.addr4.l3, &prefix, &ipv6_src);
-//	if (error) {
-//		log_debug("Error code %d while translating the packet's address.", error);
-//		return error;
-//	}
-//
-//	/*
-//	 * Fortunately, ICMP errors cannot reach this code because of the requirements in the header
-//	 * of section 3.5, so we can use the tuple as shortcuts for the packet's fields.
-//	 */
-//	if (bib)
-//		tuple6.src.addr6 = bib->ipv6;
-//	else
-//		memset(&tuple6.src.addr6, 0, sizeof(tuple6.src.addr6));
-//	tuple6.dst.addr6.l3 = ipv6_src;
-//	tuple6.dst.addr6.l4 = tuple4->src.addr4.l4;
-//
-//	*session = session_create(&tuple6.src.addr6, &tuple6.dst.addr6,
-//			&tuple4->dst.addr4, &tuple4->src.addr4, tuple4->l4_proto, bib);
-//	if (!(*session)) {
-//		log_debug("Failed to allocate a session entry.");
-//		return -ENOMEM;
-//	}
-//
-//	apply_policies();
-//
-//	return 0;
-//}
-
 static int create_bib6(struct tuple *tuple6, struct bib_entry **result)
 {
 	struct ipv4_transport_addr addr4;
 	struct bib_entry *bib;
 	int error;
 
-	error = palloc_allocate(tuple6, mark, &addr4);
+	error = palloc_allocate(&tuple6->src.addr6, /* mark, */ &addr4);
 	if (error)
 		return error;
 	bib = bibentry_create(&addr4, &tuple6->src.addr6, false,
 			tuple6->l4_proto);
 	if (!bib) {
 		log_debug("Failed to allocate a BIB entry.");
-		palloc_return(&addr4);
 		return -ENOMEM;
 	}
 
+	*result = bib;
 	return 0;
 }
 
@@ -191,8 +96,6 @@ static int get_or_create_bib6(struct tuple *tuple6, struct bib_entry **result)
 	 */
 	error = bibdb_add(bib);
 	if (error) {
-		/* TODO shouldn't this happen inside kfree? */
-		palloc_return(&bib->ipv4);
 		bibentry_kfree(bib);
 		return error;
 	}
@@ -229,7 +132,11 @@ static int create_session(struct tuple *tuple, struct bib_entry *bib,
 				: bib->ipv4.l4;
 		break;
 	case L3PROTO_IPV4:
-		remote6 = bib->ipv6;
+		if (bib)
+			remote6 = bib->ipv6;
+		else
+			/* Simultaneous Open (TCP quirk). */
+			memset(&remote6, 0, sizeof(remote6));
 		error = rfc6052_4to6(&tuple->src.addr4.l3, &local6.l3);
 		if (error)
 			return error;
@@ -252,13 +159,18 @@ static int create_session(struct tuple *tuple, struct bib_entry *bib,
 	return 0;
 }
 
+static enum session_fate update_timer(struct session_entry *session, void *arg)
+{
+	return FATE_TIMER_EST;
+}
+
 static int get_or_create_session(struct tuple *tuple, struct bib_entry *bib,
 		struct session_entry **result)
 {
 	struct session_entry *session;
 	int error;
 
-	error = sessiondb_get(tuple, result);
+	error = sessiondb_get(tuple, update_timer, result);
 	if (error != -ESRCH)
 		return error; /* entry found and misc errors.*/
 
@@ -392,26 +304,34 @@ static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
 	struct session_entry *session;
 	int error;
 
-	error = bibdb_get_or_create_ipv6(pkt, tuple6, &bib);
+	error = get_or_create_bib6(tuple6, &bib);
 	if (error)
-		return error;
+		goto simple_end;
 	log_bib(bib);
 
-	error = create_session_ipv6(tuple6, bib, &session, SESSIONTIMER_TRANS, V6_INIT);
-	if (error) {
-		bib_return(bib);
-		return error;
-	}
+	error = create_session(tuple6, bib, &session);
+	if (error)
+		goto bib_end;
+	session->state = V6_INIT;
+
+	error = sessiondb_add(session, false);
+	if (error)
+		goto session_end;
+
 	log_session(session);
+	/* Fall through. */
 
+session_end:
 	session_return(session);
-	bib_return(bib);
-
-	return 0;
+bib_end:
+	bibdb_return(bib);
+simple_end:
+	return error;
 }
 
 /**
- * Second half of the filtering and updating done during the CLOSED state of the TCP state machine.
+ * Second half of the filtering and updating done during the CLOSED state of the
+ * TCP state machine.
  * Processes IPv4 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
@@ -423,7 +343,8 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 	verdict result = VERDICT_DROP;
 
 	if (config_get_drop_external_connections()) {
-		log_debug("Applying policy: Dropping externally initiated TCP connections.");
+		log_debug("Applying policy: Dropping externally initiated TCP "
+				"connections.");
 		return VERDICT_DROP;
 	}
 
@@ -435,7 +356,7 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 	}
 	log_bib(bib);
 
-	error = create_session_ipv4(tuple4, bib, &session);
+	error = create_session(tuple4, bib, &session);
 	if (error)
 		goto end_bib;
 	log_session(session);
@@ -444,28 +365,17 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 
 	if (!bib || config_get_addr_dependent_filtering()) {
 		error = pktqueue_add(session, pkt);
-		if (error) {
-			if (error == -E2BIG) {
-				/* Fall back to assume there's no Simultaneous Open. */
-				icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
-			}
+		if (error)
 			goto end_session;
-		}
 
-		/* At this point, skb's original skb completely belongs to pktqueue. */
+		/* skb's original skb completely belongs to pktqueue now. */
 		result = VERDICT_STOLEN;
 
-		error = sessiondb_add(session, SESSIONTIMER_SYN);
-		if (error) {
-			log_debug("Error code %d while adding the session to the DB.", error);
-			pktqueue_remove(session);
-			goto end_session;
-		}
-
 	} else {
-		error = sessiondb_add(session, SESSIONTIMER_TRANS);
+		error = sessiondb_add(session, false);
 		if (error) {
-			log_debug("Error code %d while adding the session to the DB.", error);
+			log_debug("Error code %d while adding the session to "
+					"the DB.", error);
 			goto end_session;
 		}
 
@@ -480,7 +390,7 @@ end_session:
 
 end_bib:
 	if (bib)
-		bib_return(bib);
+		bibdb_return(bib);
 	return result;
 }
 
@@ -488,7 +398,7 @@ end_bib:
  * Filtering and updating done during the CLOSED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static verdict tcp_closed_state_handle(struct packet *pkt, struct tuple *tuple)
+static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple)
 {
 	struct bib_entry *bib;
 	verdict result;
@@ -497,7 +407,9 @@ static verdict tcp_closed_state_handle(struct packet *pkt, struct tuple *tuple)
 	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
 		if (pkt_tcp_hdr(pkt)->syn) {
-			result = is_error(tcp_closed_v6_syn(pkt, tuple)) ? VERDICT_DROP : VERDICT_CONTINUE;
+			result = is_error(tcp_closed_v6_syn(pkt, tuple))
+					? VERDICT_DROP
+					: VERDICT_CONTINUE;
 			goto syn_out;
 		}
 		break;
@@ -512,13 +424,13 @@ static verdict tcp_closed_state_handle(struct packet *pkt, struct tuple *tuple)
 
 	error = bibdb_get(tuple, &bib);
 	if (error) {
-		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. "
-				"ERRcode %d", error);
+		log_debug("Closed state: Packet is not SYN and there is no BIB "
+				"entry, so discarding. ERRcode %d", error);
 		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
 		return VERDICT_DROP;
 	}
 
-	bib_return(bib);
+	bibdb_return(bib);
 	return VERDICT_CONTINUE;
 
 syn_out:
@@ -531,45 +443,43 @@ syn_out:
  * Filtering and updating done during the V4 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_init_state_handle(struct packet *pkt, struct session_entry *session,
-		struct expire_timer **expirer)
+static enum session_fate tcp_v4_init_state(struct session_entry *session,
+		struct packet *pkt)
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
-		*expirer = set_timer(session, &expirer_tcp_est);
 		session->state = ESTABLISHED;
-	} /* else, the state remains unchanged. */
+		return FATE_TIMER_EST;
+	}
 
-	return 0;
+	return FATE_PRESERVE;
 }
 
 /**
  * Filtering and updating done during the V6 INIT state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v6_init_state_handle(struct packet *pkt, struct session_entry *session,
-		struct expire_timer **expirer)
+static enum session_fate tcp_v6_init_state(struct session_entry *session,
+		struct packet *pkt)
 {
 	if (pkt_tcp_hdr(pkt)->syn) {
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
-			*expirer = set_timer(session, &expirer_tcp_est);
 			session->state = ESTABLISHED;
-			break;
+			return FATE_TIMER_EST;
 		case L3PROTO_IPV6:
-			*expirer = set_timer(session, &expirer_tcp_trans);
-			break;
+			return FATE_TIMER_TRANS;
 		}
-	} /* else, the state remains unchanged */
+	}
 
-	return 0;
+	return FATE_PRESERVE;
 }
 
 /**
  * Filtering and updating done during the ESTABLISHED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_established_state_handle(struct packet *pkt, struct session_entry *session,
-		struct expire_timer **expirer)
+static enum session_fate tcp_established_state(struct session_entry *session,
+		struct packet *pkt)
 {
 	if (pkt_tcp_hdr(pkt)->fin) {
 		switch (pkt_l3_proto(pkt)) {
@@ -580,117 +490,97 @@ static int tcp_established_state_handle(struct packet *pkt, struct session_entry
 			session->state = V6_FIN_RCV;
 			break;
 		}
+		return FATE_PRESERVE;
 
 	} else if (pkt_tcp_hdr(pkt)->rst) {
-		*expirer = set_timer(session, &expirer_tcp_trans);
 		session->state = TRANS;
-	} else {
-		*expirer = set_timer(session, &expirer_tcp_est);
+		return FATE_TIMER_TRANS;
 	}
 
-	return 0;
+	return FATE_TIMER_EST;
 }
 
 /**
  * Filtering and updating done during the V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_fin_rcv_state_handle(struct packet *pkt, struct session_entry *session,
-		struct expire_timer **expirer)
+static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
+		struct packet *pkt)
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
-		*expirer = set_timer(session, &expirer_tcp_trans);
 		session->state = V4_FIN_V6_FIN_RCV;
-	} else {
-		*expirer = set_timer(session, &expirer_tcp_est);
+		return FATE_TIMER_TRANS;
 	}
-	return 0;
+
+	return FATE_TIMER_EST;
 }
 
 /**
  * Filtering and updating done during the V6 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v6_fin_rcv_state_handle(struct packet *pkt, struct session_entry *session,
-		struct expire_timer **expirer)
+static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
+		struct packet *pkt)
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
-		*expirer = set_timer(session, &expirer_tcp_trans);
 		session->state = V4_FIN_V6_FIN_RCV;
-	} else {
-		*expirer = set_timer(session, &expirer_tcp_est);
+		return FATE_TIMER_TRANS;
 	}
-	return 0;
+
+	return FATE_TIMER_EST;
 }
 
 /**
  * Filtering and updating done during the V6 FIN + V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_v4_fin_v6_fin_rcv_state_handle(struct packet *pkt,
-		struct session_entry *session)
+static enum session_fate tcp_v4_fin_v6_fin_rcv_state(void)
 {
-	return 0; /* Only the timeout can change this state. */
+	return FATE_PRESERVE; /* Only the timeout can change this state. */
 }
 
 /**
  * Filtering and updating done during the TRANS state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_trans_state_handle(struct packet *pkt, struct session_entry *session,
-		struct expire_timer **expirer)
+static enum session_fate tcp_trans_state(struct session_entry *session,
+		struct packet *pkt)
 {
 	if (!pkt_tcp_hdr(pkt)->rst) {
-		*expirer = set_timer(session, &expirer_tcp_est);
 		session->state = ESTABLISHED;
+		return FATE_TIMER_EST;
 	}
 
-	return 0;
+	return FATE_PRESERVE;
 }
 
-int sessiondb_tcp_state_machine(struct packet *pkt, struct session_entry *session)
+enum session_fate tcp_state_machine(struct session_entry *session, void *arg)
 {
-	struct expire_timer *expirer = NULL;
-	int error;
-
-	spin_lock(&session_table_tcp.lock);
-
 	switch (session->state) {
 	case V4_INIT:
-		error = tcp_v4_init_state_handle(pkt, session, &expirer);
-		break;
+		return tcp_v4_init_state(session, arg);
 	case V6_INIT:
-		error = tcp_v6_init_state_handle(pkt, session, &expirer);
-		break;
+		return tcp_v6_init_state(session, arg);
 	case ESTABLISHED:
-		error = tcp_established_state_handle(pkt, session, &expirer);
-		break;
+		return tcp_established_state(session, arg);
 	case V4_FIN_RCV:
-		error = tcp_v4_fin_rcv_state_handle(pkt, session, &expirer);
-		break;
+		return tcp_v4_fin_rcv_state(session, arg);
 	case V6_FIN_RCV:
-		error = tcp_v6_fin_rcv_state_handle(pkt, session, &expirer);
-		break;
+		return tcp_v6_fin_rcv_state(session, arg);
 	case V4_FIN_V6_FIN_RCV:
-		error = tcp_v4_fin_v6_fin_rcv_state_handle(pkt, session);
-		break;
+		return tcp_v4_fin_v6_fin_rcv_state();
 	case TRANS:
-		error = tcp_trans_state_handle(pkt, session, &expirer);
+		return tcp_trans_state(session, arg);
+	case CLOSED:
 		break;
-	default:
-		/*
-		 * Because closed sessions are not supposed to be stored,
-		 * CLOSED is known to fall through here.
-		 */
-		WARN(true, "Invalid state found: %u.", session->state);
-		error = -EINVAL;
 	}
 
-	spin_unlock(&session_table_tcp.lock);
-
-	commit_timer(expirer);
-
-	return error;
+	/*
+	 * Because closed sessions are not supposed to be stored,
+	 * CLOSED is known to fall through here.
+	 */
+	WARN(true, "Invalid state found: %u.", session->state);
+	return FATE_RM;
 }
 
 /**
@@ -704,24 +594,18 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple)
 	struct session_entry *session;
 	int error;
 
-	error = sessiondb_get(tuple, &session);
-	if (error != 0 && error != -ESRCH) {
+	error = sessiondb_get(tuple, tcp_state_machine, &session);
+	if (error == -ESRCH)
+		return tcp_closed_state(pkt, tuple);
+	if (error) {
 		log_debug("Error code %d while trying to find a TCP session.",
 				error);
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
 
-	if (error == -ESRCH)
-		return tcp_closed_state_handle(pkt, tuple);
-
 	log_session(session);
-	error = sessiondb_tcp_state_machine(pkt, session);
 	session_return(session);
-	if (error) {
-		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
-		return VERDICT_DROP;
-	}
 	return VERDICT_CONTINUE;
 }
 

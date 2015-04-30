@@ -344,7 +344,7 @@ static bool test_tcp_closed_state_handle_6(void)
 		return false;
 
 	/* Evaluate */
-	success &= assert_equals_int(VERDICT_CONTINUE, tcp_closed_state_handle(&pkt, &tuple6),
+	success &= assert_equals_int(VERDICT_CONTINUE, tcp_closed_state(&pkt, &tuple6),
 			"V6 syn-result");
 
 	/* Validate */
@@ -384,7 +384,7 @@ static bool test_tcp_closed_state_handle_4(void)
 	hdr_tcp->fin = false;
 
 	/* Evaluate */
-	success &= assert_equals_int(VERDICT_STOLEN, tcp_closed_state_handle(&pkt, &tuple4), "V4 syn-result");
+	success &= assert_equals_int(VERDICT_STOLEN, tcp_closed_state(&pkt, &tuple4), "V4 syn-result");
 
 	/* Validate */
 	success &= assert_equals_int(-ESRCH, sessiondb_get(&tuple4, &tmp), "V4 syn-session.");

@@ -31,23 +31,23 @@ obj-m += jool.o
 #jool_common += ../common/send_packet.o
 #jool_common += ../common/core.o
 
+#jool += pool4/pool4.o
 #jool += bib/entry.o
 #jool += bib/table.o
 #jool += bib/db.o
-
+jool += bib/port_allocator.o
 #jool += session/entry.o
 #jool += session/table.o
 #jool += session/db.o
+#jool += session/pkt_queue.o
 
-#jool += pkt_queue.o
-#jool += pool4.o
 #jool += host6_node.o
 #jool += bib_db.o
 #jool += session_db.o
 #jool += static_routes.o
 #jool += fragment_db.o
 #jool += determine_incoming_tuple.o
-jool += filtering_and_updating.o
+#jool += filtering_and_updating.o
 #jool += compute_outgoing_tuple.o
 #jool += handling_hairpinning.o
 #jool += nf_hook.o

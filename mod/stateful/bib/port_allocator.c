@@ -1,3 +1,12 @@
+#include "nat64/mod/stateful/bib/port_allocator.h"
+
+
+int palloc_allocate(const struct ipv6_transport_addr *addr6,
+		struct ipv4_transport_addr *result)
+{
+
+}
+
 struct iteration_args {
 	struct tuple *tuple6;
 	struct ipv4_transport_addr *result;

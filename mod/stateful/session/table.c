@@ -8,6 +8,97 @@
 void send_probe_packet(struct session_entry *session);
 
 /**
+ * Removes all of this database's references towards "session", and drops its
+ * refcount accordingly.
+ *
+ * The only thing it doesn't do is decrement count of "session"'s table! I do
+ * that outside because I always want to add up and report that number.
+ *
+ * @return number of sessions removed from the database. This is always 1,
+ *		because I have no way to know if the removal failed
+ *		(and it shouldn't be possible anyway).
+ *
+ * "table"'s spinlock must already be held.
+ *
+ * TODO return value seems pointless now too.
+ */
+static int remove(struct session_table *table, struct session_entry *session,
+		struct list_head *rms)
+{
+	if (!RB_EMPTY_NODE(&session->tree6_hook))
+		rb_erase(&session->tree6_hook, &table->tree6);
+	if (!RB_EMPTY_NODE(&session->tree4_hook))
+		rb_erase(&session->tree4_hook, &table->tree4);
+	list_del(&session->list_hook);
+	list_add(&session->list_hook, rms);
+	session->expirer = NULL;
+
+	session_log(session, "Forgot session");
+	return 1;
+}
+
+static void delete(struct list_head *sessions)
+{
+	struct session_entry *session;
+	unsigned long s = 0;
+
+	while (!list_empty(sessions)) {
+		session = list_entry(sessions->next, typeof(*session),
+				list_hook);
+		list_del(&session->list_hook);
+		session_return(session);
+		s++;
+	}
+
+	log_debug("Deleted %lu sessions.", s);
+}
+
+static void decide_fate(fate_cb cb,
+		struct session_table *table,
+		struct session_entry *session,
+		struct list_head *rms,
+		struct list_head *probes)
+{
+	enum session_fate fate;
+
+	fate = cb(session, NULL);
+	switch (fate) {
+	case FATE_TIMER_EST:
+		session->update_time = jiffies;
+		session->expirer = &table->est_timer;
+		list_del(&session->list_hook);
+		list_add_tail(&session->list_hook, &session->expirer->sessions);
+		break;
+	case FATE_PROBE:
+		list_add(&session->list_hook, probes);
+		session_get(session);
+		/*  Fall through. */
+	case FATE_TIMER_TRANS:
+		session->update_time = jiffies;
+		session->expirer = &table->trans_timer;
+		list_del(&session->list_hook);
+		list_add_tail(&session->list_hook, &session->expirer->sessions);
+		break;
+	case FATE_RM:
+		remove(table, session, rms);
+		break;
+	case FATE_PRESERVE:
+		break;
+	}
+}
+
+static void post_fate(struct list_head *rms, struct list_head *probes)
+{
+	struct session_entry *session, *tmp;
+
+	list_for_each_entry_safe(session, tmp, probes, list_hook) {
+		send_probe_packet(session);
+		session_return(session);
+	}
+	delete(rms);
+}
+
+/**
  * Called once in a while to kick off the scheduled expired sessions massacre.
  *
  * In that sense, it's a public function, so it requires spinlocks to NOT be held.
@@ -17,14 +108,13 @@ static void cleaner_timer(unsigned long param)
 	struct expire_timer *expirer = (struct expire_timer *) param;
 	unsigned long timeout;
 	struct session_entry *session, *tmp;
-	struct list_head expires, probes;
+	LIST_HEAD(rms);
+	LIST_HEAD(probes);
 
 	log_debug("===============================================");
 	log_debug("Handling expired sessions...");
 
 	timeout = expirer->get_timeout();
-	INIT_LIST_HEAD(&expires);
-	INIT_LIST_HEAD(&probes);
 
 	spin_lock_bh(&expirer->table->lock);
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
@@ -35,23 +125,17 @@ static void cleaner_timer(unsigned long param)
 		if (time_before(jiffies, session->update_time + timeout))
 			break;
 
-		expirer->callback(session, &expires, &probes);
+		decide_fate(expirer->decide_fate_cb, expirer->table, session,
+				&rms, &probes);
 	}
 	spin_unlock_bh(&expirer->table->lock);
 
-	list_for_each_entry_safe(session, tmp, &probes, list_hook) {
-		send_probe_packet(session);
-		session_return(session);
-	}
-	list_for_each_entry_safe(session, tmp, &expires, list_hook) {
-		session_return(session);
-	}
-
+	post_fate(&rms, &probes);
 	sessiontable_update_timers(expirer->table);
 }
 
 static void init_expirer(struct expire_timer *expirer,
-		timeout_fn timeout_fn, expire_fn callback_fn,
+		timeout_cb timeout_cb, fate_cb decide_fate_cb,
 		struct session_table *table)
 {
 	init_timer(&expirer->timer);
@@ -59,14 +143,14 @@ static void init_expirer(struct expire_timer *expirer,
 	expirer->timer.expires = 0;
 	expirer->timer.data = (unsigned long) expirer;
 	INIT_LIST_HEAD(&expirer->sessions);
-	expirer->get_timeout = timeout_fn;
-	expirer->callback = callback_fn;
+	expirer->get_timeout = timeout_cb;
+	expirer->decide_fate_cb = decide_fate_cb;
 	expirer->table = table;
 }
 
 void sessiontable_init(struct session_table *table,
-		timeout_fn est_timeout, expire_fn est_callback,
-		timeout_fn trans_timeout, expire_fn trans_callback)
+		timeout_cb est_timeout, fate_cb est_callback,
+		timeout_cb trans_timeout, fate_cb trans_callback)
 {
 	table->tree6 = RB_ROOT;
 	table->tree4 = RB_ROOT;
@@ -214,37 +298,6 @@ static int compare_full4(const struct session_entry *session,
 }
 
 /**
- * Removes all of this database's references towards "session", and drops its
- * refcount accordingly.
- *
- * The only thing it doesn't do is decrement count of "session"'s table! I do
- * that outside because I always want to add up and report that number.
- *
- * @return number of sessions removed from the database. This is always 1,
- *		because I have no way to know if the removal failed
- *		(and it shouldn't be possible anyway).
- *
- * "table"'s spinlock must already be held.
- *
- * TODO add the removal list as an argument?
- * TODO return value seems pointless now too.
- */
-static int remove(struct session_table *table, struct session_entry *session)
-{
-	if (!RB_EMPTY_NODE(&session->tree6_hook))
-		rb_erase(&session->tree6_hook, &table->tree6);
-	if (!RB_EMPTY_NODE(&session->tree4_hook))
-		rb_erase(&session->tree4_hook, &table->tree4);
-	list_del(&session->list_hook);
-	session->expirer = NULL;
-
-	/* TODO */
-//	session_return(session);
-	session_log(session, "Forgot session");
-	return 1;
-}
-
-/**
  * Wrapper for mod_timer().
  *
  * Not holding a spinlock is desirable for performance reasons (mod_timer()
@@ -278,11 +331,9 @@ int sessiontable_get_timeout(struct session_entry *session,
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time
  * using "ttl" and moves it from its original location to the end of "list".
  */
-static struct expire_timer *set_timer(struct session_entry *session,
+struct expire_timer *set_timer(struct session_entry *session,
 		struct expire_timer *expirer)
 {
-	struct expire_timer *result;
-
 	session->update_time = jiffies;
 	list_del(&session->list_hook);
 	list_add_tail(&session->list_hook, &expirer->sessions);
@@ -292,9 +343,7 @@ static struct expire_timer *set_timer(struct session_entry *session,
 	 * The new session is always going to expire last.
 	 * So if the timer is already set, there should be no reason to edit it.
 	 */
-	result = timer_pending(&expirer->timer) ? NULL : expirer;
-
-	return result;
+	return timer_pending(&expirer->timer) ? NULL : expirer;
 }
 
 static void commit_timer(struct expire_timer *expirer)
@@ -319,9 +368,11 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 
 /* TODO remember to not store SYN sessions. */
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
-		struct session_entry **result)
+		fate_cb cb, struct session_entry **result)
 {
 	struct session_entry *session;
+	LIST_HEAD(rms);
+	LIST_HEAD(probes);
 
 	spin_lock_bh(&table->lock);
 
@@ -338,13 +389,18 @@ int sessiontable_get(struct session_table *table, struct tuple *tuple,
 		return -EINVAL;
 	}
 
-	if (session)
+	if (session) {
 		session_get(session);
+		decide_fate(cb, table, session, &rms, &probes);
+	}
 
 	spin_unlock_bh(&table->lock);
 
 	if (!session)
 		return -ESRCH;
+
+	post_fate(&rms, &probes);
+	sessiontable_update_timers(table);
 
 	*result = session;
 	return 0;
@@ -443,6 +499,7 @@ static struct rb_node *find_next_chunk(struct session_table *table,
 	return (compare_full4(session, &tmp) < 0) ? parent : rb_next(parent);
 }
 
+/* TODO this should be called more. */
 static void reschedule(struct expire_timer *expirer)
 {
 	bool reschedule = false;
@@ -496,22 +553,6 @@ int sessiontable_count(struct session_table *table, __u64 *result)
 	return 0;
 }
 
-static void delete(struct list_head *sessions)
-{
-	struct session_entry *session;
-	unsigned long s = 0;
-
-	while (!list_empty(sessions)) {
-		session = list_entry(sessions->next, typeof(*session),
-				list_hook);
-		list_del(&session->list_hook);
-		session_return(session);
-		s++;
-	}
-
-	log_debug("Deleted %lu entries.", s);
-}
-
 struct bib_remove_args {
 	struct session_table *table;
 	const struct ipv4_transport_addr *addr4;
@@ -525,8 +566,7 @@ static int __remove_by_bib(struct session_entry *session, void *args_void)
 	if (!ipv4_transport_addr_equals(args->addr4, &session->local4))
 		return 1; /* positive = break iteration early, no error. */
 
-	remove(args->table, session);
-	list_add(&session->list_hook, &args->removed);
+	remove(args->table, session, &args->removed);
 	return 0;
 }
 
@@ -563,8 +603,7 @@ static int __remove_by_prefix4(struct session_entry *session, void *args_void)
 	if (!prefix4_contains(args->prefix, &session->local4.l3))
 		return 1; /* positive = break iteration early, no error. */
 
-	remove(args->table, session);
-	list_add(&session->list_hook, &args->removed);
+	remove(args->table, session, &args->removed);
 	return 0;
 }
 
@@ -604,8 +643,7 @@ struct flush_args {
 static int __flush(struct session_entry *session, void *args_void)
 {
 	struct prefix4_remove_args *args = args_void;
-	remove(args->table, session);
-	list_add(&session->list_hook, &args->removed);
+	remove(args->table, session, &args->removed);
 	return 0;
 }
 

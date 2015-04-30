@@ -12,10 +12,11 @@
 
 #include "nat64/mod/stateful/session/table.h"
 
-int sessiondb_init(expire_fn tcpest_fn, expire_fn tcptrans_fn);
+int sessiondb_init(fate_cb tcpest_fn, fate_cb tcptrans_fn);
 void sessiondb_destroy(void);
 
-int sessiondb_get(struct tuple *tuple, struct session_entry **result);
+int sessiondb_get(struct tuple *tuple, fate_cb cb,
+		struct session_entry **result);
 int sessiondb_add(struct session_entry *session, bool is_established);
 
 int sessiondb_foreach(l4_protocol proto,
