@@ -31,6 +31,7 @@ PKTQUEUE = pktqueue
 CONFIG_PROTO = config_proto
 LOGTIME = logtime
 MAPPING = mapping
+PALLOC = palloc4
 
 
 obj-m += $(ADDR).o
@@ -56,6 +57,7 @@ obj-m += $(CONFIG_PROTO).o
 # At the moment this doesn't cause any trouble, but it means we might need to refactor this
 # Makefile to make better room for stateless tests.
 obj-m += $(MAPPING).o
+obj-m += $(PALLOC).o
 
 
 MIN_REQS = ../mod/common/types.o \
@@ -291,6 +293,9 @@ $(LOGTIME)-objs += log_time_test.o
 $(MAPPING)-objs += $(MIN_REQS)
 $(MAPPING)-objs += ../mod/common/rbtree.o
 $(MAPPING)-objs += eamt_test.o
+
+$(PALLOC)-objs += $(MIN_REQS)
+$(PALLOC)-objs += port_allocator_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

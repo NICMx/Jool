@@ -62,6 +62,11 @@ bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
 	return assert_equals_u64(expected, actual, test_name);
 }
 
+bool assert_equals_u32be32(__u32 expected, __be32 actual, char *test_name)
+{
+	return assert_equals_u32(expected, be32_to_cpu(actual), test_name);
+}
+
 bool assert_equals_be32(__be32 expected, __be32 actual, char *test_name)
 {
 	return assert_equals_u32(ntohl(expected), ntohl(actual), test_name);

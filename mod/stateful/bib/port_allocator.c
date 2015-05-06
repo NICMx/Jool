@@ -1,100 +1,202 @@
 #include "nat64/mod/stateful/bib/port_allocator.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/bib/host6_node.h"
 
+#include <linux/crypto.h>
+#include <crypto/md5.h>
 
-int palloc_allocate(const struct ipv6_transport_addr *addr6,
-		struct ipv4_transport_addr *result)
-{
+/* TODO spinlocks */
 
-}
-
-struct iteration_args {
-	struct tuple *tuple6;
-	struct ipv4_transport_addr *result;
+struct addr4_ephemeral {
+	struct in_addr addr;
+	unsigned int min;
+	unsigned int max;
+	atomic_t next;
 };
 
+struct crypto_tfm *tfm;
+unsigned char *secret_key;
+size_t secret_key_len;
 
-/**
- * Evaluates "bib", and returns whether it is a perfect match to "void_args"'s tuple.
- * See allocate_ipv4_transport_address().
- */
-static int find_perfect_addr4(struct in_addr *host_addr, void *void_args)
+int palloc_init(void)
 {
-	struct iteration_args *args = void_args;
-	struct ipv4_transport_addr addr;
+	int key_len;
+
+	key_len = PAGE_SIZE - 2 * sizeof(struct in6_addr) - sizeof(__u16);
+	if (key_len < 1) {
+		log_err("PAGE_SIZE is too small");
+		return -EINVAL;
+	}
+
+	secret_key_len = key_len;
+	secret_key = kmalloc(secret_key_len, GFP_KERNEL);
+	if (!secret_key)
+		return -EINVAL;
+	get_random_bytes(secret_key, key_len);
+
+	return 0;
+}
+
+void palloc_destroy(void)
+{
+	kfree(secret_key);
+}
+
+union md5_result {
+	__be32 as32[4];
+	__u8 as8[16];
+};
+
+static int md5(unsigned char *input, size_t input_len, union md5_result *output)
+{
+	struct crypto_hash *tfm;
+	struct hash_desc desc;
+	struct scatterlist sg;
 	int error;
 
-	addr.l3 = *host_addr;
-	addr.l4 = args->tuple6->src.addr6.l4;
+	/*
+	 * TODO this doesn't need to be init'd and destroyed all the time.
+	 * (though that requires another spinlock, which sucks.)
+	 */
+	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC); /* TODO async? */
+	if (IS_ERR(tfm)) {
+		error = PTR_ERR(tfm);
+		log_warn_once("Failed to load transform for MD5; errcode %d",
+				error);
+		return error;
+	}
 
-	error = pool4_get_match(args->tuple6->l4_proto, &addr, &args->result->l4);
+	desc.tfm = tfm;
+	desc.flags = 0;
+	/*
+	 * TODO supposedly, something's supposed to be one page long at most.
+	 * Review.
+	 */
+	sg_init_one(&sg, input, input_len);
+	error = crypto_hash_init(&desc);
 	if (error)
-		return 0; /* Not a satisfactory match; keep looking.*/
+		goto end;
 
-	args->result->l3 = *host_addr;
-	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
+	error = crypto_hash_update(&desc, &sg, input_len);
+	if (error)
+		goto end;
+	error = crypto_hash_final(&desc, output->as8);
+	/* Fall through. */
+
+end:
+	crypto_free_hash(tfm);
+	return error;
+}
+
+static int f(const struct in6_addr *local_ip, const struct in6_addr *remote_ip,
+		__u16 remote_port, unsigned int *result)
+{
+	unsigned char *buffer;
+	size_t buffer_len;
+	unsigned int offset;
+	union md5_result hash;
+	int error;
+
+	buffer_len = sizeof(*local_ip) + sizeof(*remote_ip) +
+			sizeof(remote_port) + secret_key_len;
+	buffer = kmalloc(buffer_len, GFP_ATOMIC);
+	if (!buffer)
+		return -ENOMEM;
+	offset = 0;
+	memcpy(&buffer[offset], local_ip, sizeof(*local_ip));
+	offset += sizeof(*local_ip);
+	memcpy(&buffer[offset], remote_ip, sizeof(*remote_ip));
+	offset += sizeof(*remote_ip);
+	memcpy(&buffer[offset], &remote_port, sizeof(remote_port));
+	offset += sizeof(remote_port);
+	memcpy(&buffer[offset], secret_key, secret_key_len);
+
+	error = md5(buffer, buffer_len, &hash);
+	if (!error)
+		*result = hash.as32[3];
+
+	kfree(buffer);
+	return error;
+}
+
+static bool check_suitable_port(struct in_addr *addr, unsigned int port,
+		l4_protocol proto)
+{
+	struct ipv4_transport_addr tmp = { .l3 = *addr, .l4 = port };
+	struct bib_entry *bib;
+	int error;
+
+	/* TODO check parity? */
+	/* TODO allow bib to be NULL so we don't have to return? */
+	error = bibdb_get4(&tmp, proto, &bib);
+	bibdb_return(bib);
+
+	return !error;
 }
 
 /**
- * Evaluates "bib", and returns whether it is an acceptable match to "void_args"'s tuple.
- * See allocate_ipv4_transport_address().
+ * Algorithm 3.
  */
-static int find_runnerup_addr4(struct in_addr *host_addr, void *void_args)
+static int rfc6056(const struct tuple *tuple6,
+		struct addr4_ephemeral *ephemeral, __u16 *result)
 {
-	struct iteration_args *args = void_args;
+	unsigned int num_ephemeral;
+	unsigned int offset;
+	unsigned int count;
+	unsigned int port;
 	int error;
 
-	error = pool4_get_any_port(args->tuple6->l4_proto, host_addr, &args->result->l4);
+	num_ephemeral = ephemeral->max - ephemeral->min + 1;
+	error = f(&tuple6->src.addr6.l3, &tuple6->dst.addr6.l3,
+			tuple6->dst.addr6.l4, &offset);
 	if (error)
-		return 0; /* Not a satisfactory match; keep looking.*/
+		return error;
+	count = num_ephemeral;
 
-	args->result->l3 = *host_addr;
-	return 1; /* Found a match; break the iteration with a no-error (but still non-zero) status. */
+	do {
+		port = ephemeral->min +
+				(atomic_inc_return(&ephemeral->next) + offset) %
+				num_ephemeral;
+
+		if (check_suitable_port(&ephemeral->addr, port, tuple6->l4_proto)) {
+			*result = port;
+			return 0;
+		}
+
+		count--;
+
+	} while (count > 0);
+
+	return -ESRCH;
 }
 
-/**
- * "Allocates" from the IPv4 pool a new transport address. Attemps to make this address as similar
- * to "tuple6"'s contents as possible.
- *
- * Sorry, we're using the term "allocate" because the RFC does. A more appropriate name in this
- * context would be "borrow (from the IPv4 pool)".
- *
- * RFC6146 - Sections 3.5.1.1 and 3.5.2.3.
- *
- * @param[in] The table to iterate through.
- * @param[in] tuple6 this should contain the IPv6 source address you want the IPv4 address for.
- * @param[out] result the transport address we borrowed from the pool.
- * @return true if everything went OK, false otherwise.
- */
-static int allocate_transport_address(struct host6_node *host_node, struct tuple *tuple6,
+static int choose_port(struct ipv4_transport_addr *addr, void *arg)
+{
+
+}
+
+int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 		struct ipv4_transport_addr *result)
 {
+	struct in_addr addr4;
+	struct in_addr *offset;
 	int error;
-	struct iteration_args args = {
-			.tuple6 = tuple6,
-			.result = result
-	};
 
-	/* First, try to find a perfect match (Same address and a compatible port or id). */
-	error = host6_node_for_each_addr4(host_node, find_perfect_addr4, &args);
-	if (error > 0)
-		return 0; /* A match was found and "result" is already populated, so report success. */
-	else if (error < 0)
-		return error; /* Something failed, report.*/
+	error = bibdb_get_addr4(&tuple6->src.addr6.l3, &addr4);
+	if (error) {
+		if (error != -ESRCH)
+			return error;
+		offset = NULL;
+	} else {
+		offset = &addr4;
+	}
 
-	/*
-	 * Else, iteration ended with no perfect match. Find a good match instead...
-	 * (good match = same address, any port or id)
-	 */
-	error = host6_node_for_each_addr4(host_node, find_runnerup_addr4, &args);
-	if (error < 0)
-		return error;
-	else if (error > 0)
-		return 0;
+	error = pool4_foreach(mark, choose_port, NULL, offset);
+	return (error >= 0) ? 0 : error;
 
-	/*
-	 * There are no good matches. Just use any available IPv4 address and hope for the best.
-	 * Alternatively, this could be the first BIB entry being created, so assign any address
-	 * anyway.
-	 */
-	return pool4_get_any_addr(tuple6->l4_proto, tuple6->src.addr6.l4, result);
+//	if (client->session_count > config_session_limit())
+//		return -E2BIG;
+//
+//	result->l3 = addr4->addr;
+//	return rfc6056(tuple6, addr4, &result->l4);
 }
