@@ -95,8 +95,6 @@ $(POOLNUM)-objs += ../mod/common/random.o
 $(POOLNUM)-objs += pool_num_test.o
 
 $(POOL4)-objs += $(MIN_REQS)
-$(POOL4)-objs += ../mod/common/random.o
-$(POOL4)-objs += ../mod/stateful/poolnum.o
 $(POOL4)-objs += pool4_test.o
 
 $(BIB)-objs += $(MIN_REQS)

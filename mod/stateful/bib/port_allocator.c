@@ -1,26 +1,20 @@
 #include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/bib/db.h"
-#include "nat64/mod/stateful/bib/host6_node.h"
+#include "nat64/mod/stateful/pool4.h"
 
 #include <linux/crypto.h>
 #include <crypto/md5.h>
 
 /* TODO spinlocks */
 
-struct addr4_ephemeral {
-	struct in_addr addr;
-	unsigned int min;
-	unsigned int max;
-	atomic_t next;
-};
-
-struct crypto_tfm *tfm;
 unsigned char *secret_key;
 size_t secret_key_len;
+atomic_t next_ephemeral;
 
 int palloc_init(void)
 {
 	int key_len;
+	unsigned int tmp;
 
 	key_len = PAGE_SIZE - 2 * sizeof(struct in6_addr) - sizeof(__u16);
 	if (key_len < 1) {
@@ -33,6 +27,9 @@ int palloc_init(void)
 	if (!secret_key)
 		return -EINVAL;
 	get_random_bytes(secret_key, key_len);
+
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&next_ephemeral, tmp);
 
 	return 0;
 }
@@ -57,8 +54,9 @@ static int md5(unsigned char *input, size_t input_len, union md5_result *output)
 	/*
 	 * TODO this doesn't need to be init'd and destroyed all the time.
 	 * (though that requires another spinlock, which sucks.)
+	 * TODO "async"?
 	 */
-	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC); /* TODO async? */
+	tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
 		error = PTR_ERR(tfm);
 		log_warn_once("Failed to load transform for MD5; errcode %d",
@@ -119,84 +117,66 @@ static int f(const struct in6_addr *local_ip, const struct in6_addr *remote_ip,
 	return error;
 }
 
-static bool check_suitable_port(struct in_addr *addr, unsigned int port,
+static bool check_suitable_port(struct ipv4_transport_addr *addr,
 		l4_protocol proto)
 {
-	struct ipv4_transport_addr tmp = { .l3 = *addr, .l4 = port };
 	struct bib_entry *bib;
 	int error;
 
 	/* TODO check parity? */
 	/* TODO allow bib to be NULL so we don't have to return? */
-	error = bibdb_get4(&tmp, proto, &bib);
+	error = bibdb_get4(addr, proto, &bib);
 	bibdb_return(bib);
 
 	return !error;
 }
 
-/**
- * Algorithm 3.
- */
-static int rfc6056(const struct tuple *tuple6,
-		struct addr4_ephemeral *ephemeral, __u16 *result)
+struct iteration_args {
+	l4_protocol proto;
+	struct ipv4_transport_addr *result;
+};
+
+static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 {
-	unsigned int num_ephemeral;
+	struct iteration_args *args = void_args;
+
+	atomic_inc(&next_ephemeral);
+
+	if (check_suitable_port(addr, args->proto)) {
+		*(args->result) = *addr;
+		return 1; /* positive = break iteration, no error. */
+	}
+
+	return 0; /* Keep looking */
+}
+
+/**
+ * RFC 6056, Algorithm 3.
+ */
+int palloc_allocate(const struct tuple *tuple6, __u32 mark,
+		struct ipv4_transport_addr *result)
+{
+	struct iteration_args args;
 	unsigned int offset;
-	unsigned int count;
-	unsigned int port;
 	int error;
 
-	num_ephemeral = ephemeral->max - ephemeral->min + 1;
+	/*
+	 * TODO prevent client from having too many sessions?
+	 * Aside from a security gimmic, it would limit iteration here,
+	 * in a way.
+	 */
+
 	error = f(&tuple6->src.addr6.l3, &tuple6->dst.addr6.l3,
 			tuple6->dst.addr6.l4, &offset);
 	if (error)
 		return error;
-	count = num_ephemeral;
 
-	do {
-		port = ephemeral->min +
-				(atomic_inc_return(&ephemeral->next) + offset) %
-				num_ephemeral;
+	args.proto = tuple6->l4_proto;
+	args.result = result;
 
-		if (check_suitable_port(&ephemeral->addr, port, tuple6->l4_proto)) {
-			*result = port;
-			return 0;
-		}
-
-		count--;
-
-	} while (count > 0);
-
-	return -ESRCH;
-}
-
-static int choose_port(struct ipv4_transport_addr *addr, void *arg)
-{
-
-}
-
-int palloc_allocate(const struct tuple *tuple6, __u32 mark,
-		struct ipv4_transport_addr *result)
-{
-	struct in_addr addr4;
-	struct in_addr *offset;
-	int error;
-
-	error = bibdb_get_addr4(&tuple6->src.addr6.l3, &addr4);
-	if (error) {
-		if (error != -ESRCH)
-			return error;
-		offset = NULL;
-	} else {
-		offset = &addr4;
-	}
-
-	error = pool4_foreach(mark, choose_port, NULL, offset);
-	return (error >= 0) ? 0 : error;
-
-//	if (client->session_count > config_session_limit())
-//		return -E2BIG;
-//
-//	result->l3 = addr4->addr;
-//	return rfc6056(tuple6, addr4, &result->l4);
+	error = pool4_foreach_port(mark, choose_port, &args,
+			offset + atomic_read(&next_ephemeral));
+	if (error == 0)
+		return -ESRCH;
+	return (error > 0) ? 0 : error;
 }

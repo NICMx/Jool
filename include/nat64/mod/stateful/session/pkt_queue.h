@@ -56,10 +56,6 @@ void pktqueue_destroy(void);
  */
 int pktqueue_add(struct session_entry *session, struct packet *pkt);
 /**
- * Sends "session"'s reply and removes it from the DB.
- */
-int pktqueue_send(struct session_entry *session);
-/**
  * Removes "session"'s skb from the storage. There will be no ICMP error.
  */
 int pktqueue_remove(struct session_entry *session);

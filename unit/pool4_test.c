@@ -1,8 +1,8 @@
+#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 
 #include "nat64/unit/unit_test.h"
-#include "pool4.c"
+#include "pool4/pool4.c"
 
 
 MODULE_LICENSE("GPL");
@@ -10,360 +10,111 @@ MODULE_AUTHOR("Ramiro Nava");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("IPv4 pool module test");
 
+struct foreach_args {
+	struct ipv4_transport_addr *expected;
+	unsigned int expected_len;
+	unsigned int i;
+};
 
-#define ID_COUNT				65536
-#define PORT_LOW_RANGE_MAX		1023
-#define PORT_HIGH_RANGE_MAX		(ID_COUNT - 1)
-#define ICMP_ID_MAX				(ID_COUNT - 1)
-
-static char* expected_ips_as_str[] = { "192.168.2.1", "192.168.2.2" };
-static struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
-/**
- * This is used by the tests.
- * It's too big for the stack frame limit, and I don't feel like meddling with kmallocs,
- * so here it is.
- *
- * If true, ports[n][m] indicates that port m of the nth address has been retrieved from the
- * pool. If false, it means that the pool has it.
- */
-static bool ports[ARRAY_SIZE(expected_ips)][ID_COUNT];
-
-static bool test_get_match_aux(enum l4_protocol proto, int port_min, int port_max, int step,
-		char *test_name)
+int validate_entry(struct ipv4_transport_addr *addr, void *void_args)
 {
-	int a, p; /* address counter, port counter */
-	struct ipv4_transport_addr base;
-	__u16 result;
+	struct foreach_args *args = void_args;
 	bool success = true;
 
-	for (a = 0; a < ARRAY_SIZE(expected_ips); a++) {
-		base.l3 = expected_ips[a];
-
-		for (p = port_min; p <= port_max; p += step) {
-			base.l4 = p;
-			success &= assert_equals_int(0, pool4_get_match(proto, &base, &result), test_name);
-			success &= assert_false(ports[a][result], test_name);
-			ports[a][result] = true;
-
-			if (!success)
-				return false;
-		}
-
-		if (!assert_equals_int(-ESRCH, pool4_get_match(proto, &base, &result), test_name))
-			return false;
-	}
-
-	return true;
-}
-
-/**
- * The get_any function cannot be fully tested on its own, so the basics are here and some more
- * hacking is done in test_return_function().
- *
- * Tests to some extent that the different ranges do not interfere with each other during gets.
- */
-static bool test_get_match_function_udp(void)
-{
-	bool success = true;
-
-	success &= test_get_match_aux(L4PROTO_UDP, 0, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
-	success &= test_get_match_aux(L4PROTO_UDP, 1, PORT_LOW_RANGE_MAX, 2, "UDP-Low odd ports");
-	success &= test_get_match_aux(L4PROTO_UDP, 1024, PORT_HIGH_RANGE_MAX, 2, "UDP-High even ports");
-	success &= test_get_match_aux(L4PROTO_UDP, 1025, PORT_HIGH_RANGE_MAX, 2, "UDP-High odd ports");
-
-	return success;
-}
-
-static bool test_get_match_function_tcp(void)
-{
-	bool success = true;
-
-	success &= test_get_match_aux(L4PROTO_TCP, 0, PORT_LOW_RANGE_MAX, 1, "TCP-Low ports");
-	success &= test_get_match_aux(L4PROTO_TCP, 1024, PORT_HIGH_RANGE_MAX, 1, "TCP-High ports");
-
-	return success;
-}
-
-static bool test_get_match_function_icmp(void)
-{
-	return test_get_match_aux(L4PROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
-}
-
-static bool test_get_any_port_aux(enum l4_protocol proto, char *test_name)
-{
-	int a, p; /* address counter, port counter */
-	__u16 result;
-	bool success = true;
-
-	for (a = 0; a < ARRAY_SIZE(expected_ips); a++) {
-		for (p = 0; p < ID_COUNT; p++) {
-			success &= assert_equals_int(0, pool4_get_any_port(proto, &expected_ips[a], &result),
-					test_name);
-			success &= assert_false(ports[a][result], test_name);
-			ports[a][result] = true;
-
-			if (!success)
-				return success;
-		}
-
-		if (!assert_equals_int(-ESRCH, pool4_get_any_port(proto, &expected_ips[a], &result),
-				test_name))
-			return false;
-	}
-
-	return true;
-}
-
-static bool test_get_any_port_function_udp(void)
-{
-	return test_get_any_port_aux(L4PROTO_UDP, "UDP ports");
-}
-
-static bool test_get_any_port_function_tcp(void)
-{
-	return test_get_any_port_aux(L4PROTO_TCP, "TCP ports");
-}
-
-static bool test_get_any_port_function_icmp(void)
-{
-	return test_get_any_port_aux(L4PROTO_ICMP, "ICMP-ids");
-}
-
-static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_range, int range_step,
-		int range_outside)
-{
-	struct ipv4_transport_addr tuple_addr;
-	int p;
-	bool success = true;
-
-	for (p = min_range; p <= max_range; p += range_step) {
-		success &= assert_equals_int(0, pool4_get_any_addr(proto, p, &tuple_addr),
-				"Matched borrow 1-result");
-		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.l3,
-				"Matched borrow 1-address");
-		success &= assert_false(ports[0][tuple_addr.l4], "Matched borrow 1-port");
-		ports[0][tuple_addr.l4] = true;
-
-		success &= assert_equals_int(0, pool4_get_any_addr(proto, p, &tuple_addr),
-				"Matched borrow 2-result");
-		success &= assert_equals_ipv4(&expected_ips[1], &tuple_addr.l3,
-				"Matched borrow 2-address");
-		success &= assert_false(ports[1][tuple_addr.l4], "Matched borrow 2-port");
-		ports[1][tuple_addr.l4] = true;
-
-		if (!success)
-			return success;
-	}
-
-	/* At this point, the pool should not have low even ports, so it should lend random data. */
-	for (p = 0; p <= range_outside; p += 1) {
-		success &= assert_equals_int(0, pool4_get_any_addr(proto, 10, &tuple_addr),
-				"Mismatched borrow 1-result");
-		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.l3,
-				"Mismatched borrow 1-address");
-		success &= assert_false(ports[0][tuple_addr.l4], "Mismatched borrow 1-port");
-		ports[0][tuple_addr.l4] = true;
-
-		success &= assert_equals_int(0, pool4_get_any_addr(proto, 10, &tuple_addr),
-				"Mismatched borrow 2-result");
-		success &= assert_equals_ipv4(&expected_ips[1], &tuple_addr.l3,
-				"Mismatched borrow 2-address");
-		success &= assert_false(ports[1][tuple_addr.l4], "Mismatched borrow 2-port");
-		ports[1][tuple_addr.l4] = true;
-
-		if (!success)
-			return success;
-	}
-
-	/* The pool ran out of ports. */
-	success &= assert_equals_int(-ESRCH, pool4_get_any_addr(proto, 10, &tuple_addr),
-			"Exhausted pool");
-
-	return success;
-}
-
-static bool test_get_any_addr_function_udp(void)
-{
-	return test_get_any_addr_aux(L4PROTO_UDP, 0, 1023, 2, 65535 - 512);
-}
-
-static bool test_get_any_addr_function_tcp(void)
-{
-	return test_get_any_addr_aux(L4PROTO_TCP, 0, 1023, 1, 65535 - 1024);
-}
-
-static bool test_get_any_addr_function_icmp(void)
-{
-	return test_get_any_addr_aux(L4PROTO_ICMP, 0, 65535, 1, -1);
-}
-
-/**
- * Only UDP and its lower even range of ports is tested here.
- */
-static bool test_return_function(void)
-{
-	struct ipv4_transport_addr tuple_addr;
-	__u16 l4_id;
-	bool success = true;
-	int addr_ctr, port_ctr;
-
-	/* Try to return the entire pool, even though we haven't borrowed anything. */
-	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		tuple_addr.l3 = expected_ips[addr_ctr];
-		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			tuple_addr.l4 = port_ctr;
-			success &= assert_equals_int(-EINVAL, pool4_return(L4PROTO_UDP, &tuple_addr),
-					"Returning first");
-		}
-	}
-
-	/* Borrow the entire pool. */
-	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		tuple_addr.l3 = expected_ips[addr_ctr];
-		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			tuple_addr.l4 = port_ctr;
-			success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-					"Borrow everything-result");
-			success &= assert_false(ports[addr_ctr][l4_id], "Borrow everything-port");
-			ports[addr_ctr][l4_id] = true;
-		}
-		success &= assert_equals_int(-ESRCH, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-				"Pool should be exhausted 1");
-	}
-
+	success &= assert_true(args->i < args->expected_len, "iteration limit");
 	if (!success)
-		return success;
+		return -EINVAL;
 
-	/* Return something from the first address. */
-	tuple_addr.l3 = expected_ips[0];
-	tuple_addr.l4 = 1000;
-	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 0-1000 1");
+	success &= assert_equals_ipv4(&args->expected[args->i].l3, &addr->l3, "addr");
+	success &= assert_equals_u16(args->expected[args->i].l4, addr->l4, "port");
 
-	if (!success)
-		return success;
-
-	/* Re-borrow it, assert it's the same one. */
-	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Borrow 0-1000");
-	success &= assert_equals_u16(1000, l4_id, "Confirm 0-1000");
-	success &= assert_equals_int(-ESRCH, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Reborrow 0-1000");
-
-	if (!success)
-		return success;
-
-	/* Do the same to the second address. */
-	tuple_addr.l3 = expected_ips[1];
-	tuple_addr.l4 = 1000;
-	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 1-1000");
-
-	if (!success)
-		return success;
-
-	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Borrow 1-1000");
-	success &= assert_equals_u16(1000, l4_id, "Confirm 1-1000");
-	success &= assert_equals_int(-ESRCH, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Reborrow 1-1000");
-
-	if (!success)
-		return success;
-
-	/* Return some more stuff at once. */
-	tuple_addr.l3 = expected_ips[0];
-	tuple_addr.l4 = 46;
-	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 0-46");
-
-	tuple_addr.l4 = 1000;
-	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 0-1000 2");
-
-	tuple_addr.l3 = expected_ips[1];
-	tuple_addr.l4 = 0;
-	success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr), "Return 1-0");
-
-	if (!success)
-		return success;
-
-	/* Reborrow it. */
-	tuple_addr.l3 = expected_ips[0];
-	tuple_addr.l4 = 24;
-	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Borrow 0-24");
-	success &= assert_true(l4_id == 46 || l4_id == 1000, "Confirm 0-24");
-
-	tuple_addr.l4 = 100;
-	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Borrow 1-100");
-	success &= assert_true(l4_id == 46 || l4_id == 1000, "Confirm 1-100");
-
-	tuple_addr.l3 = expected_ips[1];
-	tuple_addr.l4 = 56;
-	success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Reborrow 2-56");
-	success &= assert_equals_u16(0, l4_id, "Confirm 2-56");
-
-	success &= assert_equals_int(-ESRCH, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
-			"Pool should be exhausted 2");
-
-	if (!success)
-		return success;
-
-	/* Now return everything. */
-	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		tuple_addr.l3 = expected_ips[addr_ctr];
-		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
-			tuple_addr.l4 = port_ctr;
-			success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr),
-					"Returning everything");
-		}
-	}
-	success &= assert_equals_int(-EINVAL, pool4_return(L4PROTO_UDP, &tuple_addr), "Return fail");
-
-	return success;
+	args->i++;
+	return success ? 0 : -EINVAL;
 }
 
-static bool init(void)
+static void init_addr(struct ipv4_transport_addr *taddr, __u32 addr, __u16 port)
 {
-	int addr_ctr, port_ctr;
+	taddr->l3.s_addr = cpu_to_be32(addr);
+	taddr->l4 = port;
+}
 
-	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
-		if (str_to_addr4(expected_ips_as_str[addr_ctr], &expected_ips[addr_ctr]) != 0) {
-			log_err("Cannot parse test address '%s'. Failing.", expected_ips_as_str[addr_ctr]);
-			return false;
-		}
-	}
+static bool test_foreach_port(void)
+{
+	struct ipv4_transport_addr expected[12];
+	struct pool4_sample sample;
+	struct foreach_args args;
+	int error;
 
-	if (pool4_init(expected_ips_as_str, ARRAY_SIZE(expected_ips_as_str)) != 0) {
-		log_err("Could not init the pool. Failing...");
+	args.expected = expected;
+	args.expected_len = ARRAY_SIZE(expected);
+
+	sample.prefix.address.s_addr = cpu_to_be32(0xc0000200);
+	sample.prefix.len = 31;
+	sample.range.min = 6;
+	sample.range.max = 7;
+	if (!assert_equals_int(0, pool4_add(&sample), "add result"))
 		return false;
-	}
+	sample.prefix.address.s_addr = cpu_to_be32(0xc0000210);
+	sample.prefix.len = 32;
+	sample.range.min = 15;
+	sample.range.max = 19;
+	if (!assert_equals_int(0, pool4_add(&sample), "add result"))
+		return false;
+	sample.prefix.address.s_addr = cpu_to_be32(0xc0000220);
+	sample.prefix.len = 30;
+	sample.range.min = 1;
+	sample.range.max = 1;
+	if (!assert_equals_int(0, pool4_add(&sample), "add result"))
+		return false;
 
-	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++)
-		for (port_ctr = 0; port_ctr < ID_COUNT; port_ctr++)
-			ports[addr_ctr][port_ctr] = false;
+	init_addr(&expected[0], 0xc0000200, 6);
+	init_addr(&expected[1], 0xc0000200, 7);
+	init_addr(&expected[2], 0xc0000201, 6);
+	init_addr(&expected[3], 0xc0000201, 7);
+	init_addr(&expected[4], 0xc0000210, 15);
+	init_addr(&expected[5], 0xc0000210, 16);
+	init_addr(&expected[6], 0xc0000210, 17);
+	init_addr(&expected[7], 0xc0000210, 18);
+	init_addr(&expected[8], 0xc0000220, 1);
+	init_addr(&expected[9], 0xc0000221, 1);
+	init_addr(&expected[10], 0xc0000222, 1);
+	init_addr(&expected[11], 0xc0000223, 1);
 
-	return true;
-}
+	args.i = 0;
+	error = pool4_foreach_port(1, validate_entry, &args, 0);
+	if (!assert_equals_int(0, error, "call 1"))
+		return false;
 
-static void destroy(void)
-{
-	pool4_destroy();
+	init_addr(&expected[0], 0xc0000221, 1);
+	init_addr(&expected[1], 0xc0000222, 1);
+	init_addr(&expected[2], 0xc0000223, 1);
+	init_addr(&expected[3], 0xc0000200, 6);
+	init_addr(&expected[4], 0xc0000200, 7);
+	init_addr(&expected[5], 0xc0000201, 6);
+	init_addr(&expected[6], 0xc0000201, 7);
+	init_addr(&expected[7], 0xc0000210, 15);
+	init_addr(&expected[8], 0xc0000210, 16);
+	init_addr(&expected[9], 0xc0000210, 17);
+	init_addr(&expected[10], 0xc0000210, 18);
+	init_addr(&expected[11], 0xc0000220, 1);
+
+	args.i = 0;
+	error = pool4_foreach_port(1, validate_entry, &args, 9);
+	return assert_equals_int(0, error, "call 2");
 }
 
 int init_module(void)
 {
+	int error;
 	START_TESTS("IPv4 Pool");
 
-	INIT_CALL_END(init(), test_get_match_function_udp(), destroy(), "Get match-UDP");
-	INIT_CALL_END(init(), test_get_match_function_tcp(), destroy(), "Get match-TCP");
-	INIT_CALL_END(init(), test_get_match_function_icmp(), destroy(), "Get match-ICMP");
-	INIT_CALL_END(init(), test_get_any_port_function_udp(), destroy(), "Get any port-UDP");
-	INIT_CALL_END(init(), test_get_any_port_function_tcp(), destroy(), "Get any port-TCP");
-	INIT_CALL_END(init(), test_get_any_port_function_icmp(), destroy(), "Get any port-ICMP");
-	INIT_CALL_END(init(), test_get_any_addr_function_udp(), destroy(), "Get any addr-UDP");
-	INIT_CALL_END(init(), test_get_any_addr_function_tcp(), destroy(), "Get any addr-TCP");
-	INIT_CALL_END(init(), test_get_any_addr_function_icmp(), destroy(), "Get any addr-ICMP");
-	INIT_CALL_END(init(), test_return_function(), destroy(), "Return function");
+	error = pool4_init(NULL, 0);
+	if (error)
+		return -EINVAL;
+
+	CALL_TEST(test_foreach_port(), "foreach port");
+
+	pool4_destroy();
 
 	END_TESTS;
 }

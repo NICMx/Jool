@@ -28,8 +28,8 @@ int bibdb_flush(void);
 
 int bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix);
 
-int bibdb_foreach(int (*func)(struct bib_entry *, void *), void *arg,
-		const l4_protocol proto,
+int bibdb_foreach(const l4_protocol proto,
+		int (*func)(struct bib_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset);
 
 #endif /* _JOOL_MOD_BIB_DB_H */

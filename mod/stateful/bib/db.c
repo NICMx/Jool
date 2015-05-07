@@ -174,8 +174,8 @@ int bibdb_add(struct bib_entry *entry)
 /**
  * Runs "func" on every BIB entry after "offset".
  */
-int bibdb_foreach(int (*func)(struct bib_entry *, void *), void *arg,
-		const l4_protocol proto,
+int bibdb_foreach(const l4_protocol proto,
+		int (*func)(struct bib_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset)
 {
 	return bibtable_foreach(get_table(proto), func, arg, offset);

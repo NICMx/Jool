@@ -20,6 +20,29 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 
+enum session_fate tcpest_expired_cb(struct session_entry *, void *arg);
+enum session_fate tcptrans_expired_cb(struct session_entry *, void *arg);
+
+int filtering_init(void)
+{
+	int error;
+
+	error = bibdb_init();
+	if (error)
+		return error;
+
+	error = sessiondb_init(tcpest_expired_cb, tcptrans_expired_cb);
+	if (error)
+		bibdb_destroy();
+
+	return error;
+}
+
+void filtering_destroy(void)
+{
+	sessiondb_destroy();
+	bibdb_destroy();
+}
 
 /**
  * Decides whether the packet should be filtered or not.
@@ -52,13 +75,14 @@ static void log_session(struct session_entry *session)
 		log_debug("Session entry: None");
 }
 
-static int create_bib6(struct tuple *tuple6, struct bib_entry **result)
+static int create_bib6(struct tuple *tuple6, __u32 mark,
+		struct bib_entry **result)
 {
 	struct ipv4_transport_addr addr4;
 	struct bib_entry *bib;
 	int error;
 
-	error = palloc_allocate(&tuple6->src.addr6, /* mark, */ &addr4);
+	error = palloc_allocate(tuple6, mark, &addr4);
 	if (error)
 		return error;
 	bib = bibentry_create(&addr4, &tuple6->src.addr6, false,
@@ -72,7 +96,8 @@ static int create_bib6(struct tuple *tuple6, struct bib_entry **result)
 	return 0;
 }
 
-static int get_or_create_bib6(struct tuple *tuple6, struct bib_entry **result)
+static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
+		struct bib_entry **result)
 {
 	struct bib_entry *bib;
 	int error;
@@ -83,7 +108,7 @@ static int get_or_create_bib6(struct tuple *tuple6, struct bib_entry **result)
 		return error; /* entry found and misc errors.*/
 
 	/* entry not found. */
-	error = create_bib6(tuple6, &bib);
+	error = create_bib6(tuple6, mark, &bib);
 	if (error)
 		return error;
 
@@ -204,7 +229,7 @@ static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6)
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib6(tuple6, &bib);
+	error = get_or_create_bib6(tuple6, pkt->skb->mark, &bib);
 	if (error) {
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
@@ -304,7 +329,7 @@ static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib6(tuple6, &bib);
+	error = get_or_create_bib6(tuple6, pkt->skb->mark, &bib);
 	if (error)
 		goto simple_end;
 	log_bib(bib);

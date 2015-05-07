@@ -315,18 +315,6 @@ static void schedule_timer(struct expire_timer *expirer, unsigned long next_time
 			jiffies_to_msecs(expirer->timer.expires - jiffies));
 }
 
-int sessiontable_get_timeout(struct session_entry *session,
-		unsigned long *result)
-{
-	if (!session->expirer) {
-		log_debug("The session entry doesn't have an expirer");
-		return -EINVAL;
-	}
-
-	*result = session->expirer->get_timeout();
-	return 0;
-}
-
 /**
  * Helper of the set_*_timer functions. Safely updates "session"->dying_time
  * using "ttl" and moves it from its original location to the end of "list".
@@ -391,7 +379,8 @@ int sessiontable_get(struct session_table *table, struct tuple *tuple,
 
 	if (session) {
 		session_get(session);
-		decide_fate(cb, table, session, &rms, &probes);
+		if (cb)
+			decide_fate(cb, table, session, &rms, &probes);
 	}
 
 	spin_unlock_bh(&table->lock);
@@ -399,6 +388,7 @@ int sessiontable_get(struct session_table *table, struct tuple *tuple,
 	if (!session)
 		return -ESRCH;
 
+	/* TODO what happens if fate is die and we're returning the session? */
 	post_fate(&rms, &probes);
 	sessiontable_update_timers(table);
 

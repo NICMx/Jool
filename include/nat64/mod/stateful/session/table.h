@@ -31,7 +31,7 @@ enum session_fate {
 	FATE_PROBE,
 };
 
-typedef enum session_fate (*fate_cb)(struct session_entry *, void *arg);
+typedef enum session_fate (*fate_cb)(struct session_entry *, void *);
 typedef unsigned long (*timeout_cb)(void);
 
 struct session_table;
@@ -92,7 +92,5 @@ int sessiontable_flush(struct session_table *table);
 
 bool sessiontable_allow(struct session_table *table, struct tuple *tuple4);
 void sessiontable_update_timers(struct session_table *table);
-int sessiontable_get_timeout(struct session_entry *session,
-		unsigned long *result);
 
 #endif /* _JOOL_MOD_SESSION_TABLE_H */

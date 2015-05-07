@@ -9,8 +9,8 @@
 #include "nat64/mod/stateful/static_routes.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/stateful/pool4.h"
-#include "nat64/mod/stateful/bib_db.h"
-#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/session/db.h"
 #include <linux/slab.h>
 
 
@@ -20,7 +20,7 @@ static int validate_bib(int error, struct bib_entry *bib)
 		log_err("%pI4#%u is already mapped to %pI6c#%u.",
 				&bib->ipv4.l3, bib->ipv4.l4,
 				&bib->ipv6.l3, bib->ipv6.l4);
-		bib_return(bib);
+		bibdb_return(bib);
 		return -EEXIST;
 	}
 
@@ -55,7 +55,7 @@ int add_static_route(struct request_bib *request)
 	if (error)
 		return error;
 
-	bib = bib_create(&request->add.addr4, &request->add.addr6, true,
+	bib = bibentry_create(&request->add.addr4, &request->add.addr6, true,
 			request->l4_proto);
 	if (!bib) {
 		log_err("Could not allocate the BIB entry.");
@@ -68,7 +68,7 @@ int add_static_route(struct request_bib *request)
 				"despite validations. This can happen if a "
 				"conflicting entry appeared while I was "
 				"trying to insert. Try again.");
-		bib_kfree(bib);
+		bibentry_kfree(bib);
 		return error;
 	}
 
@@ -110,32 +110,25 @@ int delete_static_route(struct request_bib *request)
 					&bib->ipv6.l3, bib->ipv6.l4,
 					&bib->ipv4.l3, bib->ipv4.l4,
 					&req4->l3, req4->l4);
-			bib_return(bib);
+			bibdb_return(bib);
 			return -ESRCH;
 		}
 	}
 
 	/* Remove the fake user. */
 	if (bib->is_static) {
-		bib_return(bib);
+		bibdb_return(bib);
 		bib->is_static = false;
 	}
 
 	/* Remove bib's sessions and their references. */
 	error = sessiondb_delete_by_bib(bib);
 	if (error) {
-		bib_return(bib);
+		bibdb_return(bib);
 		return error;
 	}
 
 	/* Remove our own reference. */
-	if (bib_return(bib) == 0) {
-		log_err("Looks like some packet was using the BIB entry, "
-				"so it couldn't be deleted immediately. "
-				"If the entry still exists, "
-				"you might want to try again.");
-		return -EAGAIN;
-	}
-
+	bibdb_return(bib);
 	return 0;
 }

@@ -43,6 +43,9 @@ int pool4_get_nth_port(struct in_addr *addr, __u16 n, __u16 *result);
 
 int pool4_for_each(int (*func)(struct pool4_sample *, void *), void * arg,
 		struct pool4_sample *offset);
+int pool4_foreach_port(__u32 mark,
+		int (*func)(struct ipv4_transport_addr *, void *), void *args,
+		unsigned int offset);
 int pool4_count(__u64 *result);
 bool pool4_is_empty(void);
 

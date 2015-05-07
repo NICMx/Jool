@@ -1,16 +1,12 @@
 #include "nat64/common/nat64.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/stateful/pool4.h"
-#include "nat64/mod/stateful/pkt_queue.h"
-#include "nat64/mod/stateful/bib_db.h"
-#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/fragment_db.h"
-#ifdef BENCHMARK
-#include "nat64/mod/common/log_time.h"
-#endif
+#include "nat64/mod/stateful/pool4.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -115,15 +111,9 @@ static int __init nat64_init(void)
 	error = pool4_init(pool4, pool4_size);
 	if (error)
 		goto pool4_failure;
-	error = pktqueue_init();
+	error = filtering_init();
 	if (error)
-		goto pktqueue_failure;
-	error = bibdb_init();
-	if (error)
-		goto bib_failure;
-	error = sessiondb_init();
-	if (error)
-		goto session_failure;
+		goto filtering_failure;
 	error = fragdb_init();
 	if (error)
 		goto fragdb_failure;
@@ -151,15 +141,9 @@ log_time_failure:
 	fragdb_destroy();
 
 fragdb_failure:
-	sessiondb_destroy();
+	filtering_destroy();
 
-session_failure:
-	bibdb_destroy();
-
-bib_failure:
-	pktqueue_destroy();
-
-pktqueue_failure:
+filtering_failure:
 	pool4_destroy();
 
 pool4_failure:
@@ -185,9 +169,7 @@ static void __exit nat64_exit(void)
 	logtime_destroy();
 #endif
 	fragdb_destroy();
-	sessiondb_destroy();
-	bibdb_destroy();
-	pktqueue_destroy();
+	filtering_destroy();
 	pool4_destroy();
 	pool6_destroy();
 	nlhandler_destroy();

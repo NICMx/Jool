@@ -13,8 +13,8 @@
 #include "nat64/mod/common/nl_buffer.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
-#include "nat64/mod/stateful/bib_db.h"
-#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateful/static_routes.h"
 #ifdef STATEFUL
 	#include "nat64/mod/stateful/pool4.h"
@@ -364,7 +364,7 @@ static int handle_bib_display(struct nlmsghdr *nl_hdr, struct request_bib *reque
 		return respond_error(nl_hdr, -ENOMEM);
 
 	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
-	error = bibdb_iterate_by_ipv4(request->l4_proto, bib_entry_to_userspace, buffer, addr4);
+	error = bibdb_foreach(request->l4_proto, bib_entry_to_userspace, buffer, addr4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
@@ -418,18 +418,17 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
 	struct session_entry_usr entry_usr;
 	unsigned long dying_time;
-	int error;
 
-	error = sessiondb_get_timeout(entry, &dying_time);
-	if (error)
-		return error;
-	dying_time += entry->update_time;
+	if (!entry->expirer || !entry->expirer->get_timeout)
+		return -EINVAL;
 
 	entry_usr.remote6 = entry->remote6;
 	entry_usr.local6 = entry->local6;
 	entry_usr.local4 = entry->local4;
 	entry_usr.remote4 = entry->remote4;
 	entry_usr.state = entry->state;
+
+	dying_time = entry->update_time + entry->expirer->get_timeout();
 	entry_usr.dying_time = (dying_time > jiffies) ? jiffies_to_msecs(dying_time - jiffies) : 0;
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
@@ -452,7 +451,7 @@ static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_sessio
 		remote4 = &request->display.remote4;
 		local4 = &request->display.local4;
 	}
-	error = sessiondb_iterate_by_ipv4(request->l4_proto, session_entry_to_userspace, buffer,
+	error = sessiondb_foreach(request->l4_proto, session_entry_to_userspace, buffer,
 			remote4, local4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
@@ -795,7 +794,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 {
 	struct global_config *config;
 	bool timer_needs_update = false;
-	enum session_timer_type timer_type;
 	int error;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
@@ -836,7 +834,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		if (!assign_timeout(value, UDP_MIN, &config->ttl.udp))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_UDP;
 		break;
 	case ICMP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
@@ -844,7 +841,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		if (!assign_timeout(value, 0, &config->ttl.icmp))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_ICMP;
 		break;
 	case TCP_EST_TIMEOUT:
 		if (!ensure_bytes(size, 8))
@@ -852,7 +848,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		if (!assign_timeout(value, TCP_EST, &config->ttl.tcp_est))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_EST;
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (!ensure_bytes(size, 8))
@@ -860,7 +855,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		if (!assign_timeout(value, TCP_TRANS, &config->ttl.tcp_trans))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_TRANS;
 		break;
 	case FRAGMENT_TIMEOUT:
 		if (!ensure_bytes(size, 8))
@@ -958,9 +952,9 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		goto fail;
 
 	if (timer_needs_update)
-		error = sessiondb_update_timer(timer_type);
+		sessiondb_update_timers();
 
-	return error;
+	return 0;
 
 einval:
 	error = -EINVAL;

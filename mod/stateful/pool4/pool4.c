@@ -98,7 +98,7 @@ static int add_new_node(struct pool4_sample *sample)
 	if (!node)
 		return -ENOMEM;
 	ports = create_ports(sample->range.min, sample->range.max);
-	if (ports) {
+	if (!ports) {
 		kfree(node);
 		return -ENOMEM;
 	}
@@ -376,7 +376,7 @@ int pool4_for_each(int (*func)(struct pool4_sample *, void *), void * arg,
 	struct pool4_node *node;
 	struct pool4_ports *ports;
 	struct pool4_sample sample;
-	int error;
+	int error = 0;
 
 	rcu_read_lock_bh();
 	node = rcu_dereference(node_pool);
@@ -413,8 +413,89 @@ int pool4_for_each(int (*func)(struct pool4_sample *, void *), void * arg,
 	return error;
 }
 
+static __be32 build_addr(struct ipv4_prefix *prefix, unsigned int offset)
+{
+	return cpu_to_be32(be32_to_cpu(prefix->address.s_addr) + offset);
+}
+
 /**
- * pool4_count - return in result the number of addresses in the pool.
+ * pool4_foreach_port - run @func on every pool4 transport address.
+ * @mark: identifier of the pool4 to be iterated.
+ * @func: callback to be run for every transport address in the pool.
+ * @args: additional argument to send to @func on every iteration.
+ * @offset: iteration will start from the @offset'th element.
+ *
+ * You want to break iteration early!
+ */
+int pool4_foreach_port(__u32 mark,
+		int (*func)(struct ipv4_transport_addr *, void *), void *args,
+		unsigned int offset)
+{
+	struct pool4_node *node;
+	struct pool4_ports *ports;
+	struct ipv4_transport_addr tmp;
+	unsigned int num_ports;
+	__u64 count;
+	unsigned int offset_current;
+	unsigned int i;
+	int error = 0;
+
+	rcu_read_lock_bh();
+	node = rcu_dereference(node_pool);
+
+	count = 0;
+	list_for_each_entry_rcu(ports, &node->ports, list_hook) {
+		num_ports = ports->range.max - ports->range.min + 1U;
+		count += prefix4_get_addr_count(&node->prefix) * num_ports;
+	}
+	/* TODO overflow validations elsewhere? */
+	offset %= (unsigned int)count;
+
+	log_debug("offset: %u", offset);
+
+	offset_current = offset;
+	list_for_each_entry_rcu(ports, &node->ports, list_hook) {
+		num_ports = ports->range.max - ports->range.min + 1U;
+		count = prefix4_get_addr_count(&node->prefix) * num_ports;
+
+		for (i = offset_current; i < count; i++) {
+			tmp.l3.s_addr = build_addr(&node->prefix, i / num_ports);
+			tmp.l4 = i % num_ports;
+			error = func(&tmp, args);
+			if (error)
+				goto end;
+		}
+
+		if (offset_current > 0)
+			offset_current -= count;
+	}
+
+	offset_current = offset;
+	list_for_each_entry_rcu(ports, &node->ports, list_hook) {
+		num_ports = ports->range.max - ports->range.min + 1U;
+		count = prefix4_get_addr_count(&node->prefix) * num_ports;
+
+		for (i = 0; i < count; i++) {
+			if (i >= offset_current)
+				goto end;
+
+			tmp.l3.s_addr = build_addr(&node->prefix, i / num_ports);
+			tmp.l4 = i % num_ports;
+			error = func(&tmp, args);
+			if (error)
+				goto end;
+		}
+
+		offset_current -= count;
+	}
+
+end:
+	rcu_read_unlock_bh();
+	return error;
+}
+
+/**
+ * pool4_count - return in @result the number of addresses in the pool.
  * @result: the number of addresses will be placed here.
  *
  * port counts do not affect the result.

@@ -107,36 +107,6 @@ fail:
 	return error;
 }
 
-int pktqueue_send(struct session_entry *session)
-{
-	struct packet_node *node;
-
-	if (WARN(!session, "Cannot remove a packet with a NULL session."))
-		return -EINVAL;
-
-	spin_lock_bh(&packets_lock);
-
-	node = rbtree_find(session, &packets, compare_fn, struct packet_node, tree_hook);
-	if (!node) {
-		spin_unlock_bh(&packets_lock);
-		log_debug("I've been asked to send a packet I don't know.");
-		return -ESRCH;
-	}
-
-	rb_erase(&node->tree_hook, &packets);
-	packet_count--;
-
-	spin_unlock_bh(&packets_lock);
-
-	icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
-	kfree_skb(node->pkt.skb);
-	session_return(node->session);
-	kmem_cache_free(node_cache, node);
-
-	log_debug("Pkt queue - I just sent a ICMP error.");
-	return 0;
-}
-
 int pktqueue_init(void)
 {
 	node_cache = kmem_cache_create("jool_pkt_queue", sizeof(struct packet_node), 0, 0, NULL);

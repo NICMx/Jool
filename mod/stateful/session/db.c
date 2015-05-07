@@ -3,6 +3,7 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/stateful/session/table.h"
+#include "nat64/mod/stateful/session/pkt_queue.h"
 
 /** The session table for UDP conversations. */
 static struct session_table session_table_udp;
@@ -45,6 +46,11 @@ int sessiondb_init(fate_cb tcpest_fn, fate_cb tcptrans_fn)
 	error = session_init();
 	if (error)
 		return error;
+	error = pktqueue_init();
+	if (error) {
+		session_destroy();
+		return error;
+	}
 
 	sessiontable_init(&session_table_udp,
 			config_get_ttl_udp, just_die,
@@ -68,6 +74,7 @@ void sessiondb_destroy(void)
 	sessiontable_destroy(&session_table_tcp);
 	sessiontable_destroy(&session_table_icmp);
 
+	pktqueue_destroy();
 	session_destroy();
 }
 

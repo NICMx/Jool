@@ -3,6 +3,9 @@
 
 #include "nat64/mod/common/types.h"
 
+int palloc_init(void);
+void palloc_destroy(void);
+
 int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 		struct ipv4_transport_addr *result);
 
