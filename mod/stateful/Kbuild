@@ -31,7 +31,10 @@ jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 
-jool += pool4/pool4.o
+jool += pool4/entry.o
+jool += pool4/table.o
+jool += pool4/db.o
+
 jool += bib/port_allocator.o
 jool += bib/entry.o
 jool += bib/table.o
