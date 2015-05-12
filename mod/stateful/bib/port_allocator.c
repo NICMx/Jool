@@ -1,6 +1,6 @@
 #include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/bib/db.h"
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool4/db.h"
 
 #include <linux/crypto.h>
 #include <crypto/md5.h>
@@ -174,7 +174,7 @@ int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 
-	error = pool4_foreach_port(mark, choose_port, &args,
+	error = pool4db_foreach_port(mark, choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
 	if (error == 0)
 		return -ESRCH;

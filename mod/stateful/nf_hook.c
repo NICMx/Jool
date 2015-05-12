@@ -6,7 +6,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/fragment_db.h"
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool4/db.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -108,7 +108,7 @@ static int __init nat64_init(void)
 	error = pool6_init(pool6, pool6_size);
 	if (error)
 		goto pool6_failure;
-	error = pool4_init(pool4, pool4_size);
+	error = pool4db_init(pool4, pool4_size);
 	if (error)
 		goto pool4_failure;
 	error = filtering_init();
@@ -144,7 +144,7 @@ fragdb_failure:
 	filtering_destroy();
 
 filtering_failure:
-	pool4_destroy();
+	pool4db_destroy();
 
 pool4_failure:
 	pool6_destroy();
@@ -170,7 +170,7 @@ static void __exit nat64_exit(void)
 #endif
 	fragdb_destroy();
 	filtering_destroy();
-	pool4_destroy();
+	pool4db_destroy();
 	pool6_destroy();
 	nlhandler_destroy();
 	config_destroy();

@@ -36,8 +36,6 @@ struct pool4_addr {
 	struct list_head list_hook;
 };
 
-struct pool4_addr *pool4_node_destroy(struct pool4_addr *node);
-
 struct pool4_ports *pool4_ports_create(__u16 min, __u16 max);
 
 #endif /* _JOOL_MOD_POOL4_ENTRY_H */

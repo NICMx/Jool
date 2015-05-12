@@ -8,7 +8,7 @@
 #include "nat64/mod/common/send_packet.h"
 #include "nat64/mod/common/config.h"
 
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
@@ -43,7 +43,7 @@ static unsigned int core_common(struct packet *in)
 	if (result != VERDICT_CONTINUE)
 		goto end;
 
-	if (is_hairpin(&tuple_out)) {
+	if (is_hairpin(&out, &tuple_out)) {
 		result = handling_hairpinning(&out, &tuple_out);
 		kfree_skb(out.skb);
 	} else {

@@ -4,7 +4,7 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool4/db.h"
 
 
 /**
@@ -13,7 +13,7 @@
  * @param pkt outgoing packet the NAT64 would send if it's not a hairpin.
  * @return whether pkt is a hairpin packet.
  */
-bool is_hairpin(struct tuple *tuple)
+bool is_hairpin(struct packet *pkt, struct tuple *tuple)
 {
 	if (tuple->l3_proto == L3PROTO_IPV6)
 		return false;
@@ -27,7 +27,7 @@ bool is_hairpin(struct tuple *tuple)
 	 * for its node. It might take a miracle for these packets to exist,
 	 * but hey, why the hell not.
 	 */
-	return pool4_contains_transport_addr(&tuple->dst.addr4);
+	return pool4db_contains(pkt->skb->mark, &tuple->dst.addr4);
 }
 
 /**

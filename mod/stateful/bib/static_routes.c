@@ -6,9 +6,9 @@
  * the BIB and Session tables from Userspace.
  */
 
-#include "nat64/mod/stateful/static_routes.h"
+#include "nat64/mod/stateful/bib/static_routes.h"
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/session/db.h"
 #include <linux/slab.h>
@@ -38,7 +38,7 @@ int add_static_route(struct request_bib *request)
 	struct bib_entry *bib = NULL;
 	int error;
 
-	error = pool4_contains_transport_addr(&request->add.addr4);
+	error = pool4db_contains_all(&request->add.addr4);
 	if (error) {
 		log_err("Looks like that transport address does not belong to "
 				"the IPv4 pool. Please add it there first.");

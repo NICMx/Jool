@@ -3,9 +3,8 @@
 #include <net/ipv6.h>
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/rbtree.h"
+#include "nat64/mod/common/route.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
-
-void send_probe_packet(struct session_entry *session);
 
 /**
  * Removes all of this database's references towards "session", and drops its
@@ -85,6 +84,92 @@ static void decide_fate(fate_cb cb,
 	case FATE_PRESERVE:
 		break;
 	}
+}
+
+/**
+ * Sends a probe packet to "session"'s IPv6 endpoint, to trigger a confirmation ACK if the
+ * connection is still alive.
+ *
+ * From RFC 6146 page 30.
+ *
+ * @param[in] session the established session that has been inactive for too long.
+ *
+ * Doesn't care about spinlocks, but "session" might.
+ */
+static void send_probe_packet(struct session_entry *session)
+{
+	struct packet pkt;
+	struct sk_buff *skb;
+	struct ipv6hdr *iph;
+	struct tcphdr *th;
+	int error;
+
+	unsigned int l3_hdr_len = sizeof(*iph);
+	unsigned int l4_hdr_len = sizeof(*th);
+
+	skb = alloc_skb(LL_MAX_HEADER + l3_hdr_len + l4_hdr_len, GFP_ATOMIC);
+	if (!skb) {
+		log_debug("Could now allocate a probe packet.");
+		goto fail;
+	}
+
+	skb_reserve(skb, LL_MAX_HEADER);
+	skb_put(skb, l3_hdr_len + l4_hdr_len);
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_set_transport_header(skb, l3_hdr_len);
+
+	iph = ipv6_hdr(skb);
+	iph->version = 6;
+	iph->priority = 0;
+	iph->flow_lbl[0] = 0;
+	iph->flow_lbl[1] = 0;
+	iph->flow_lbl[2] = 0;
+	iph->payload_len = cpu_to_be16(l4_hdr_len);
+	iph->nexthdr = NEXTHDR_TCP;
+	iph->hop_limit = 255;
+	iph->saddr = session->local6.l3;
+	iph->daddr = session->remote6.l3;
+
+	th = tcp_hdr(skb);
+	th->source = cpu_to_be16(session->local6.l4);
+	th->dest = cpu_to_be16(session->remote6.l4);
+	th->seq = htonl(0);
+	th->ack_seq = htonl(0);
+	th->res1 = 0;
+	th->doff = l4_hdr_len / 4;
+	th->fin = 0;
+	th->syn = 0;
+	th->rst = 0;
+	th->psh = 0;
+	th->ack = 1;
+	th->urg = 0;
+	th->ece = 0;
+	th->cwr = 0;
+	th->window = htons(8192);
+	th->check = 0;
+	th->urg_ptr = 0;
+
+	th->check = csum_ipv6_magic(&iph->saddr, &iph->daddr, l4_hdr_len, IPPROTO_TCP,
+			csum_partial(th, l4_hdr_len, 0));
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
+
+	error = route6(&pkt);
+	if (error)
+		goto fail;
+
+	error = ip6_local_out(skb);
+	if (error) {
+		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
+		goto fail;
+	}
+
+	return;
+
+fail:
+	log_debug("Looks like a TCP connection will break or remain idle forever somewhere...");
 }
 
 static void post_fate(struct list_head *rms, struct list_head *probes)
@@ -428,7 +513,7 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	int error;
 
 	error = pktqueue_remove(session);
-	if (error)
+	if (error) /* TODO ESRCH? */
 		return error;
 
 	expirer = is_established ? &table->est_timer : &table->trans_timer;
@@ -447,7 +532,6 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 		spin_unlock_bh(&table->lock);
 		return error;
 	}
-
 
 	expirer = set_timer(session, expirer);
 	session_get(session); /* Database's references. */

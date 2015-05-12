@@ -48,9 +48,15 @@ struct expire_timer {
  * Holds red-black trees, one for each indexing need (IPv4 and IPv6).
  */
 struct session_table {
-	/** Indexes the entries using their IPv6 identifiers. */
+	/**
+	 * Indexes the entries using their IPv6 identifiers.
+	 * (sorted by remote6, then local6.)
+	 */
 	struct rb_root tree6;
-	/** Indexes the entries using their IPv4 identifiers. */
+	/**
+	 * Indexes the entries using their IPv4 identifiers.
+	 * (sorted by local4, then remote4.)
+	 */
 	struct rb_root tree4;
 	/** Number of session entries in this table. */
 	u64 count;

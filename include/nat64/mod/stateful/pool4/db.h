@@ -16,18 +16,26 @@
  * the only thread calling these.
  */
 
-int pool4db_init(void);
+int pool4db_init(char *pref_strs[], int pref_count);
 void pool4db_destroy(void);
 
-int pool4db_add(const __u32 mark, const struct pool4_sample *sample);
+int pool4db_add(const __u32 mark, struct pool4_sample *sample);
 int pool4db_rm(const __u32 mark, const struct pool4_sample *sample);
+int pool4db_flush(const __u32 mark);
 
 /*
  * Read functions - Legal to use anywhere.
  */
 
+bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr);
+bool pool4db_contains_all(struct ipv4_transport_addr *addr);
+bool pool4db_is_empty(void);
+
+int pool4db_foreach_sample(const __u32 mark,
+		int (*func)(struct pool4_sample *, void *), void *arg,
+		struct pool4_sample *offset);
 int pool4db_foreach_port(const __u32 mark,
-		int (*func)(struct ipv4_transport_addr *, void *), void *args,
+		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset);
 
 #endif /* _JOOL_MOD_POOL4_DB_H */

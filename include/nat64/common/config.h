@@ -17,8 +17,7 @@
 #include <linux/types.h>
 #include "nat64/common/types.h"
 /* TODO Common must not depend on stateful!  */
-#include "nat64/mod/stateful/pool4.h"
-
+#include "nat64/mod/stateful/pool4/db.h"
 
 /**
  * ID of Netlink messages Jool listens to.
@@ -187,20 +186,28 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
+		__u32 mark;
 		__u8 offset_set;
 		struct pool4_sample offset;
 	} display;
 	struct {
+		__u32 mark;
 		/** The addresses the user wants to add to the pool. */
-		struct pool4_sample addrs;
+		struct ipv4_prefix addrs;
+		__u16 port_min;
+		__u16 port_max;
 	} add;
 	struct {
+		__u32 mark;
 		/** The addresses the user wants to remove from the pool. */
-		struct pool4_sample addrs;
+		struct ipv4_prefix addrs;
+		__u16 port_min;
+		__u16 port_max;
 		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
 		__u8 quick;
 	} remove;
 	struct {
+		__u32 mark;
 		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
 		__u8 quick;
 	} flush;

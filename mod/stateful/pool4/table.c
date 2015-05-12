@@ -5,53 +5,27 @@
 #include <linux/slab.h>
 #include <linux/rculist.h>
 
-///**
-// * pool4_init - readies the rest of this module for future use.
-// * @prefix_strs: array of strings denoting the prefixes the pool should start
-// *	with.
-// * @prefix_count: length of the "prefix_strs" array.
-// */
-//int pool4table_init(char *prefix_strs[], int prefix_count)
-//{
-//	struct pool4_sample sample;
-//	unsigned int i;
-//	int error;
-//
-//	node_pool = NULL;
-//
-//	if (!prefix_strs || prefix_count == 0)
-//		return 0;
-//
-//	/* TODO (issue36) add the ability to inject non-default ports. */
-//	for (i = 0; i < prefix_count; i++) {
-//		error = prefix4_parse(prefix_strs[i], &sample.prefix);
-//		if (error)
-//			goto fail;
-//		/* TODO (issue36) align the defaults with masquerade. */
-//		sample.range.min = 60000U;
-//		sample.range.max = 65535U;
-//		error = pool4table_add(&sample);
-//		if (error)
-//			goto fail;
-//	}
-//
-//	return 0;
-//
-//fail:
-//	pool4table_destroy();
-//	return error;
-//}
-//
-///**
-// * pool4_destroy - frees resources allocated by the pool. Reverts pool4_init().
-// */
-//void pool4table_destroy(void)
-//{
-//	struct pool4_node *tmp = node_pool;
-//	rcu_assign_pointer(node_pool, NULL);
-//	synchronize_rcu();
-//	kfree(tmp);
-//}
+struct pool4_table *pool4table_create(__u32 mark)
+{
+	struct pool4_table *result;
+
+	result = kmalloc(sizeof(*result), GFP_ATOMIC);
+	if (!result)
+		return NULL;
+
+	result->mark = mark;
+	INIT_LIST_HEAD(&result->rows);
+	return 0;
+}
+
+/**
+ * pool4_destroy - frees resources allocated by the pool. Reverts pool4_init().
+ */
+void pool4table_destroy(struct pool4_table *table)
+{
+	pool4table_flush(table);
+	kfree(table);
+}
 
 static bool range_intersect(struct port_range *r1, struct port_range *r2)
 {
@@ -113,7 +87,7 @@ int pool4table_add(struct pool4_table *table, struct pool4_sample *sample)
 	return 0;
 }
 
-static int remove_range(struct pool4_addr *addr, struct port_range *rm)
+static int remove_range(struct pool4_addr *addr, const struct port_range *rm)
 {
 	struct pool4_ports *ports;
 	struct pool4_ports *new1;
@@ -180,7 +154,7 @@ static int remove_range(struct pool4_addr *addr, struct port_range *rm)
  * Will delete from @table ports @sample->range.min through @sample->range.max.
  * If no ports remain, will purge @sample->addr as well.
  */
-int pool4table_rm(struct pool4_table *table, struct pool4_sample *sample)
+int pool4table_rm(struct pool4_table *table, const struct pool4_sample *sample)
 {
 	struct pool4_addr *addr;
 
@@ -196,7 +170,7 @@ int pool4table_rm(struct pool4_table *table, struct pool4_sample *sample)
 /**
  * pool4table_flush - clears/empties @table.
  */
-int pool4table_flush(struct pool4_table *table)
+void pool4table_flush(struct pool4_table *table)
 {
 	struct pool4_addr *addr, *tmpa;
 	struct pool4_ports *ports, *tmpp;
@@ -222,8 +196,6 @@ int pool4table_flush(struct pool4_table *table)
 		list_del(&addr->list_hook);
 		kfree(addr);
 	}
-
-	return 0;
 }
 
 ///**
@@ -276,6 +248,7 @@ static bool range_equal(struct port_range *r1, struct port_range *r2)
  *
  * If @offset is set, iteration will actually start from the sample _after_
  * @offset. This is because this assumes you already "iterated" over @offset.
+ * Iteration does not wrap at the end of the table.
  */
 int pool4table_foreach_sample(struct pool4_table *table,
 		int (*func)(struct pool4_sample *, void *), void *arg,
@@ -318,8 +291,7 @@ end:
  * @arg: additional argument to send to @func on every iteration.
  * @offset: iteration will start from the @offset'th element (inclusive).
  *
- * Iterations wraps around until the first iterated element is reached.
- * You want to break iteration early!
+ * Iterations wraps around. You want to break iteration early!
  */
 int pool4table_foreach_port(struct pool4_table *table,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
@@ -385,6 +357,32 @@ int pool4table_foreach_port(struct pool4_table *table,
 end:
 	rcu_read_unlock_bh();
 	return error;
+}
+
+bool pool4table_contains(struct pool4_table *table,
+		const struct ipv4_transport_addr *taddr)
+{
+	struct pool4_addr *addr;
+	struct pool4_ports *ports;
+	struct port_range *range;
+
+	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
+		if (!addr4_equals(&addr->addr, &taddr->l3))
+			continue;
+
+		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
+			range = &ports->range;
+			if (range->min <= taddr->l4 && taddr->l4 <= range->max)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+bool pool4table_is_empty(struct pool4_table *table)
+{
+	return list_empty(&table->rows);
 }
 
 /**

@@ -8,7 +8,7 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/bib/port_allocator.h"
-#include "nat64/mod/stateful/pool4.h"
+#include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/session/db.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
@@ -20,8 +20,32 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 
-enum session_fate tcpest_expired_cb(struct session_entry *, void *arg);
-enum session_fate tcptrans_expired_cb(struct session_entry *, void *arg);
+enum session_fate expired_cb(struct session_entry *session, void *arg)
+{
+	switch (session->state) {
+	case ESTABLISHED:
+		session->state = TRANS;
+		session->update_time = jiffies;
+		return FATE_PROBE;
+
+	case V4_INIT:
+	case V6_INIT:
+	case V4_FIN_RCV:
+	case V6_FIN_RCV:
+	case V4_FIN_V6_FIN_RCV:
+	case TRANS:
+		session->state = CLOSED;
+		return FATE_RM;
+
+	case CLOSED:
+		/* Closed sessions are not supposed to be stored, so this is an error. */
+		WARN(true, "Closed state found; removing session entry.");
+		return FATE_RM;
+	}
+
+	WARN(true, "Unknown state found (%d); removing session entry.", session->state);
+	return FATE_RM;
+}
 
 int filtering_init(void)
 {
@@ -31,7 +55,7 @@ int filtering_init(void)
 	if (error)
 		return error;
 
-	error = sessiondb_init(tcpest_expired_cb, tcptrans_expired_cb);
+	error = sessiondb_init(expired_cb, expired_cb);
 	if (error)
 		bibdb_destroy();
 
