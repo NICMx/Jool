@@ -26,7 +26,7 @@ int sessiondb_foreach(l4_protocol proto,
 int sessiondb_count(l4_protocol proto, __u64 *result);
 
 int sessiondb_delete_by_bib(struct bib_entry *bib);
-int sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix);
+void sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix);
 int sessiondb_delete_by_prefix6(struct ipv6_prefix *prefix);
 int sessiondb_flush(void);
 

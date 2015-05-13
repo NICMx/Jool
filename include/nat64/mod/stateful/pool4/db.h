@@ -19,8 +19,10 @@
 int pool4db_init(char *pref_strs[], int pref_count);
 void pool4db_destroy(void);
 
-int pool4db_add(const __u32 mark, struct pool4_sample *sample);
-int pool4db_rm(const __u32 mark, const struct pool4_sample *sample);
+int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
+		struct port_range *ports);
+int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
+		struct port_range *ports);
 int pool4db_flush(const __u32 mark);
 
 /*

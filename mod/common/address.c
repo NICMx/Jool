@@ -23,7 +23,7 @@ int prefix4_parse(char *str, struct ipv4_prefix *result)
 {
 	const char *slash_pos;
 
-	if (strchr(str, '/') != 0){
+	if (strchr(str, '/') != 0) {
 		if (in4_pton(str, -1, (u8 *) &result->address, '/', &slash_pos) != 1)
 			goto fail;
 		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
@@ -240,4 +240,10 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 		*quadrant |= cpu_to_be32(mask);
 	else
 		*quadrant &= cpu_to_be32(~mask);
+}
+
+__u64 prefix4_next(struct ipv4_prefix *prefix)
+{
+	return prefix4_get_addr_count(prefix)
+			+ (__u64) be32_to_cpu(prefix->address.s_addr);
 }

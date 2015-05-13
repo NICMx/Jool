@@ -158,6 +158,6 @@ int pktqueue_remove(struct session_entry *session)
 	session_return(node->session);
 	kmem_cache_free(node_cache, node);
 
-	log_debug("Pkt queue - I just cancelled a ICMP error.");
+	log_debug("Pkt queue - I just cancelled an ICMP error.");
 	return 0;
 }

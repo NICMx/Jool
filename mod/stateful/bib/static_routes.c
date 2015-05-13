@@ -82,14 +82,14 @@ int add_static_route(struct request_bib *request)
 
 int delete_static_route(struct request_bib *request)
 {
-	struct ipv4_transport_addr *req4 = &request->remove.addr4;
-	struct ipv6_transport_addr *req6 = &request->remove.addr6;
+	struct ipv4_transport_addr *req4 = &request->rm.addr4;
+	struct ipv6_transport_addr *req6 = &request->rm.addr6;
 	struct bib_entry *bib;
 	int error = 0;
 
-	if (request->remove.addr6_set) {
+	if (request->rm.addr6_set) {
 		error = bibdb_get6(req6, request->l4_proto, &bib);
-	} else if (request->remove.addr4_set) {
+	} else if (request->rm.addr4_set) {
 		error = bibdb_get4(req4, request->l4_proto, &bib);
 	} else {
 		log_err("You need to provide an address so I can find the "
@@ -104,7 +104,7 @@ int delete_static_route(struct request_bib *request)
 	if (error)
 		return error;
 
-	if (request->remove.addr6_set && request->remove.addr4_set) {
+	if (request->rm.addr6_set && request->rm.addr4_set) {
 		if (!ipv4_transport_addr_equals(&bib->ipv4, req4)) {
 			log_err("%pI6c#%u is mapped to %pI4#%u, not %pI4#%u.",
 					&bib->ipv6.l3, bib->ipv6.l4,

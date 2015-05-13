@@ -135,10 +135,10 @@ int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
 	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_REMOVE);
-	payload->remove.prefix4_set = pref4_set;
-	payload->remove.prefix4 = *prefix4;
-	payload->remove.prefix6_set = pref6_set;
-	payload->remove.prefix6 = *prefix6;
+	payload->rm.prefix4_set = pref4_set;
+	payload->rm.prefix4 = *prefix4;
+	payload->rm.prefix6_set = pref6_set;
+	payload->rm.prefix6 = *prefix6;
 
 	return netlink_request(request, hdr->length, eam_remove_response, NULL);
 }

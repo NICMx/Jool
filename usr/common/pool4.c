@@ -108,8 +108,8 @@ int pool4_remove(enum config_mode mode, struct ipv4_prefix *addrs, bool quick)
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, sizeof(request), mode, OP_REMOVE);
-	payload->remove.addrs = *addrs;
-	payload->remove.quick = quick;
+	payload->rm.addrs = *addrs;
+	payload->rm.quick = quick;
 
 	return netlink_request(request, hdr->length, pool4_remove_response, NULL);
 }

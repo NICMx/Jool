@@ -13,9 +13,10 @@ struct pool4_table {
 struct pool4_table *pool4table_create(__u32 mark);
 void pool4table_destroy(struct pool4_table *table);
 
-int pool4table_add(struct pool4_table *table, struct pool4_sample *sample);
-int pool4table_rm(struct pool4_table *table, const struct pool4_sample *sample);
-void pool4table_flush(struct pool4_table *table);
+int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
+		struct port_range *ports);
+int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
+		struct port_range *ports);
 
 bool pool4table_contains(struct pool4_table *table,
 		const struct ipv4_transport_addr *addr);

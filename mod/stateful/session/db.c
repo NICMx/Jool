@@ -114,16 +114,14 @@ int sessiondb_delete_by_bib(struct bib_entry *bib)
 	return sessiontable_delete_by_bib(get_table(bib->l4_proto), bib);
 }
 
-int sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix)
+void sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix)
 {
 	if (WARN(!prefix, "The IPv4 prefix is NULL"))
-		return -EINVAL;
+		return;
 
 	sessiontable_delete_by_prefix4(&session_table_tcp, prefix);
 	sessiontable_delete_by_prefix4(&session_table_icmp, prefix);
 	sessiontable_delete_by_prefix4(&session_table_udp, prefix);
-
-	return 0;
 }
 
 ///**

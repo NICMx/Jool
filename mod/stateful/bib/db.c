@@ -114,6 +114,15 @@ int bibdb_get4(const struct ipv4_transport_addr *addr, const l4_protocol proto,
 	return bibtable_get4(get_table(proto), addr, result);
 }
 
+bool bibdb_contains4(const struct ipv4_transport_addr *addr,
+		const l4_protocol proto)
+{
+	if (WARN(!addr, "addr is NULL."))
+		return -EINVAL;
+
+	return bibtable_contains4(get_table(proto), addr);
+}
+
 /**
  * Makes "result" point to the BIB entry from the "l4_proto" table whose IPv6
  * side (address and port) is "addr".
@@ -194,16 +203,14 @@ int bibdb_count(const l4_protocol proto, __u64 *result)
  * Removes the fake users of all the BIB entries whose local IPv4 address is
  * "addr4".
  */
-int bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix)
+void bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix)
 {
 	if (WARN(!prefix, "IPv4 address is NULL"))
-		return -EINVAL;
+		return;
 
 	bibtable_delete_by_prefix4(&bib_tcp, prefix);
 	bibtable_delete_by_prefix4(&bib_udp, prefix);
 	bibtable_delete_by_prefix4(&bib_icmp, prefix);
-
-	return 0;
 }
 
 /**

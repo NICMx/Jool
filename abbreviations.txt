@@ -41,6 +41,7 @@ rm = remove
 	   Sometimes, this also means the entry is deleted.
 	-> "delete" means to actually erase the entry.
 skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
+taddr = Transport address (A network layer id plus a transport layer id).
 trans = transitory session (inherited from RFC 6146.)
 ttp = Translating the Packet (Fourth core step of the NAT64 translation algorithm; see RFC 6146)
 usr = user[space]

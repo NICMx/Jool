@@ -33,6 +33,8 @@ int bibtable_get6(struct bib_table *table,
 int bibtable_get4(struct bib_table *table,
 		const struct ipv4_transport_addr *addr,
 		struct bib_entry **result);
+bool bibtable_contains4(struct bib_table *table,
+		const struct ipv4_transport_addr *addr);
 
 int bibtable_add(struct bib_table *table, struct bib_entry *entry);
 int bibtable_remove(struct bib_table *table, struct bib_entry *entry);

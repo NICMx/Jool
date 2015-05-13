@@ -29,13 +29,44 @@ static struct hlist_head *init_db(unsigned int size)
 	return result;
 }
 
-/* TODO */
-int pool4db_init(char *pref_strs[], int pref_count)
+static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 {
+	struct ipv4_prefix prefix;
+	struct port_range ports;
+	unsigned int i;
+	int error;
+
+	/* TODO (issue36) align the defaults with masquerade. */
+	ports.min = 60000U;
+	ports.max = 65535U;
+
+	for (i = 0; i < prefix_count; i++) {
+		error = prefix4_parse(prefix_strs[i], &prefix);
+		if (error)
+			return error;
+		error = pool4db_add(0, &prefix, &ports);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+int pool4db_init(char *prefix_strs[], int prefix_count)
+{
+	int error;
+
 	power = 4;
 	values = 0;
 	db = init_db(slots());
-	return db ? 0 : -ENOMEM;
+	if (!db)
+		return -ENOMEM;
+
+	error = add_prefix_strings(prefix_strs, prefix_count);
+	if (error)
+		pool4db_destroy();
+
+	return error;
 }
 
 void pool4db_destroy(void)
@@ -56,6 +87,9 @@ void pool4db_destroy(void)
 	kfree(db);
 }
 
+/**
+ * Assumes RCU has been locked, if needed.
+ */
 static struct pool4_table *find_table(const __u32 mark)
 {
 	struct pool4_table *table;
@@ -70,74 +104,66 @@ static struct pool4_table *find_table(const __u32 mark)
 	return NULL;
 }
 
-static int create_table(const __u32 mark, struct pool4_sample *sample)
+int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
+		struct port_range *ports)
 {
 	struct pool4_table *table;
 	int error;
-
-	table = pool4table_create(mark);
-	if (!table)
-		return -ENOMEM;
-	error = pool4table_add(table, sample);
-	if (error) {
-		kfree(table);
-		return error;
-	}
-
-	values++;
-	if (values > slots()) {
-		/* TODO implement this. */
-		log_warn_once("You have lots of pool4s, which can lag Jool. "
-				"Consider increasing --pool4 --capacity.");
-	}
-
-	hlist_add_head(&table->hlist_hook, &db[hash_32(mark, power)]);
-	return 0;
-}
-
-int pool4db_add(const __u32 mark, struct pool4_sample *sample)
-{
-	struct pool4_table *table;
-	int error;
-	rcu_read_lock();
 
 	table = find_table(mark);
-	error = table ? pool4table_add(table, sample)
-			: create_table(mark, sample);
+	if (!table) {
+		table = pool4table_create(mark);
+		if (!table)
+			return -ENOMEM;
 
-	rcu_read_unlock();
+		error = pool4table_add(table, prefix, ports);
+		if (error) {
+			pool4table_destroy(table);
+			return error;
+		}
+
+		values++;
+		hlist_add_head(&table->hlist_hook, &db[hash_32(mark, power)]);
+		if (values > slots()) {
+			/* TODO implement this. */
+			log_warn_once("You have lots of pool4s, which can lag "
+					"Jool. Consider increasing --pool4 "
+					"--capacity.");
+		}
+
+	} else {
+		error = pool4table_add(table, prefix, ports);
+
+	}
+
 	return error;
 }
 
-int pool4db_rm(const __u32 mark, const struct pool4_sample *sample)
+int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
+		struct port_range *ports)
 {
 	struct pool4_table *table;
 	int error;
-	rcu_read_lock();
 
 	table = find_table(mark);
-	error = table ? pool4table_rm(table, sample) : -ESRCH;
+	error = table ? pool4table_rm(table, prefix, ports) : -ESRCH;
 
-	rcu_read_unlock();
 	return error;
 }
 
 int pool4db_flush(const __u32 mark)
 {
 	struct pool4_table *table;
-	int error;
-	rcu_read_lock();
 
 	table = find_table(mark);
-	if (table) {
-		pool4table_flush(table);
-		error = 0;
-	} else {
-		error = -ESRCH;
-	}
+	if (!table)
+		return -ESRCH;
 
-	rcu_read_unlock();
-	return error;
+	hlist_del_rcu(&table->hlist_hook);
+	synchronize_rcu();
+
+	pool4table_destroy(table);
+	return 0;
 }
 
 bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr)

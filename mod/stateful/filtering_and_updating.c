@@ -126,7 +126,6 @@ static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
 	struct bib_entry *bib;
 	int error;
 
-	/* TODO get or get6? */
 	error = bibdb_get(tuple6, result);
 	if (error != -ESRCH)
 		return error; /* entry found and misc errors.*/

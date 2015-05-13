@@ -16,8 +16,6 @@
 
 #include <linux/types.h>
 #include "nat64/common/types.h"
-/* TODO Common must not depend on stateful!  */
-#include "nat64/mod/stateful/pool4/db.h"
 
 /**
  * ID of Netlink messages Jool listens to.
@@ -174,7 +172,7 @@ union request_pool6 {
 		struct ipv6_prefix prefix;
 		/* Whether the prefix's sessions should be cleared too (false) or not (true). */
 		__u8 quick;
-	} remove;
+	} rm;
 	struct {
 		/* Whether the sessions tables should also be cleared (false) or not (true). */
 		__u8 quick;
@@ -188,7 +186,11 @@ union request_pool4 {
 	struct {
 		__u32 mark;
 		__u8 offset_set;
-		struct pool4_sample offset;
+		struct {
+			struct in_addr addr;
+			__u16 port_min;
+			__u16 port_max;
+		} offset;
 	} display;
 	struct {
 		__u32 mark;
@@ -205,7 +207,7 @@ union request_pool4 {
 		__u16 port_max;
 		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
 		__u8 quick;
-	} remove;
+	} rm;
 	struct {
 		__u32 mark;
 		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
@@ -226,7 +228,7 @@ union request_pool {
 	struct {
 		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
-	} remove;
+	} rm;
 	struct {
 		/* Nothing needed here. */
 	} flush;
@@ -252,7 +254,7 @@ union request_eamt {
 		struct ipv6_prefix prefix6;
 		__u8 prefix4_set;
 		struct ipv4_prefix prefix4;
-	} remove;
+	} rm;
 	struct {
 		/* Nothing needed here ATM. */
 	} flush;
@@ -305,7 +307,7 @@ struct request_bib {
 			__u8 addr4_set;
 			/** The IPv4 transport address of the entry the user wants to remove. */
 			struct ipv4_transport_addr addr4;
-		} remove;
+		} rm;
 	};
 };
 

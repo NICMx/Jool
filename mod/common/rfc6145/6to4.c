@@ -12,7 +12,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/route.h"
-#include "nat64/mod/stateless/pool4.h"
+#include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateless/eam.h"
 

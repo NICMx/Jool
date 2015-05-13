@@ -124,6 +124,18 @@ int bibtable_get4(struct bib_table *table,
 	return (*result) ? 0 : -ESRCH;
 }
 
+bool bibtable_contains4(struct bib_table *table,
+		const struct ipv4_transport_addr *addr)
+{
+	bool result;
+
+	spin_lock_bh(&table->lock);
+	result = find_by_addr4(table, addr) ? true : false;
+	spin_unlock_bh(&table->lock);
+
+	return result;
+}
+
 static int add6(struct bib_table *table, struct bib_entry *bib)
 {
 	return rbtree_add(bib, &bib->ipv6, &table->tree6, compare_full6,
@@ -136,7 +148,6 @@ static int add4(struct bib_table *table, struct bib_entry *bib)
 			struct bib_entry, tree4_hook);
 }
 
-/* TODO I removed the host_node stuff. */
 int bibtable_add(struct bib_table *table, struct bib_entry *bib)
 {
 	int error;

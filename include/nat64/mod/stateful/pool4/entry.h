@@ -20,8 +20,7 @@ struct pool4_ports {
 };
 
 /**
- * A prefix within the pool, along with its addresses' ports.
- * TODO rename to pool4_addr?
+ * An address within the pool, along with its ports.
  */
 struct pool4_addr {
 	struct in_addr addr;

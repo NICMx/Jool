@@ -14,7 +14,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateless/eam.h"
-#include "nat64/mod/stateless/pool4.h"
+#include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"
 #include "nat64/mod/stateful/pool4/db.h"
 #include "nat64/mod/stateful/bib/db.h"
@@ -209,12 +209,12 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing a prefix from the IPv6 pool.");
-		error = pool6_remove(&request->remove.prefix);
+		error = pool6_remove(&request->rm.prefix);
 		if (error)
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->flush.quick)
-			error = sessiondb_delete_by_prefix6(&request->remove.prefix);
+			error = sessiondb_delete_by_prefix6(&request->rm.prefix);
 
 		return respond_error(nl_hdr, error);
 
@@ -246,7 +246,8 @@ static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
 	struct nl_buffer *buffer;
-	struct pool4_sample *offset;
+	struct pool4_sample offset;
+	struct pool4_sample *offset_ptr = NULL;
 	int error;
 
 	log_debug("Sending IPv4 pool to userspace.");
@@ -255,8 +256,14 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	offset = request->display.offset_set ? &request->display.offset : NULL;
-	error = pool4db_foreach_sample(request->display.mark, pool4_to_usr, buffer, offset);
+	if (request->display.offset_set) {
+		offset.addr = request->display.offset.addr;
+		offset.range.min = request->display.offset.port_min;
+		offset.range.max = request->display.offset.port_max;
+		offset_ptr = &offset;
+	}
+
+	error = pool4db_foreach_sample(request->display.mark, pool4_to_usr, buffer, &offset);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
@@ -265,63 +272,37 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 
 static int handle_pool4_add(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
-	struct pool4_sample sample;
-	__u32 base_addr;
-	__u32 i;
-	int error = 0;
+	struct port_range ports;
 
 	if (verify_superpriv())
 		return respond_error(nl_hdr, -EPERM);
-	if (request->add.addrs.len < 1) {
-		log_err("The prefix length must be at least 1.");
-		return respond_error(nl_hdr, -EINVAL);
-	}
 
-	log_debug("Adding an address to the IPv4 pool.");
+	log_debug("Adding elements to the IPv4 pool.");
 
-	base_addr = be32_to_cpu(request->add.addrs.address.s_addr);
-	sample.range.min = request->add.port_min;
-	sample.range.max = request->add.port_max;
-	for (i = 0; i < prefix4_get_addr_count(&request->add.addrs) && !error; i++) {
-		sample.addr.s_addr = cpu_to_be32(base_addr + i);
-		error = pool4db_add(request->add.mark, &sample);
-	}
-
-	return respond_error(nl_hdr, error);
+	ports.min = request->add.port_min;
+	ports.max = request->add.port_max;
+	return respond_error(nl_hdr, pool4db_add(request->add.mark,
+			&request->add.addrs, &ports));
 }
 
 static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
-	struct pool4_sample sample;
-	__u32 base_addr;
-	__u32 i;
-	int error = 0;
+	struct port_range ports;
+	int error;
 
 	if (verify_superpriv())
 		return respond_error(nl_hdr, -EPERM);
-	if (request->remove.addrs.len < 1) {
-		log_err("The prefix length must be at least 1.");
-		return respond_error(nl_hdr, -EINVAL);
-	}
 
-	log_debug("Removing an address from the IPv4 pool.");
+	log_debug("Removing elements from the IPv4 pool.");
 
-	base_addr = be32_to_cpu(request->remove.addrs.address.s_addr);
-	sample.range.min = request->remove.port_min;
-	sample.range.max = request->remove.port_max;
-	for (i = 0; i < prefix4_get_addr_count(&request->remove.addrs); i++) {
-		sample.addr.s_addr = cpu_to_be32(base_addr + i);
-		error = pool4db_rm(request->remove.mark, &sample);
-		if (error) /* TODO revert previous addresses? */
-			return respond_error(nl_hdr, error);
-	}
+	ports.min = request->rm.port_min;
+	ports.max = request->rm.port_max;
+	error = pool4db_rm(request->rm.mark, &request->rm.addrs, &ports);
 
-	if (nat64_is_stateful() && !request->remove.quick) {
+	if (nat64_is_stateful() && !request->rm.quick) {
 		/* TODO these functions need to receive the ports. */
-		error = sessiondb_delete_by_prefix4(&request->remove.addrs);
-		if (error)
-			return respond_error(nl_hdr, error);
-		error = bibdb_delete_by_prefix4(&request->remove.addrs);
+		sessiondb_delete_by_prefix4(&request->rm.addrs);
+		bibdb_delete_by_prefix4(&request->rm.addrs);
 	}
 
 	return respond_error(nl_hdr, error);
@@ -594,8 +575,8 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 
 		log_debug("Removing EAMT entry.");
 		return respond_error(nl_hdr, eamt_remove(
-				request->remove.prefix6_set ? &request->remove.prefix6 : NULL,
-				request->remove.prefix4_set ? &request->remove.prefix4 : NULL));
+				request->rm.prefix6_set ? &request->rm.prefix6 : NULL,
+				request->rm.prefix4_set ? &request->rm.prefix4 : NULL));
 
 	case OP_FLUSH:
 		if (verify_superpriv())
@@ -668,7 +649,7 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 
 		log_debug("Removing an address from the IPv4 pool.");
 
-		error = rfc6791_remove(&request->remove.addrs);
+		error = rfc6791_remove(&request->rm.addrs);
 		if (error)
 			return respond_error(nl_hdr, error);
 

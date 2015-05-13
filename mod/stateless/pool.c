@@ -4,7 +4,6 @@
 #include <linux/inet.h>
 
 #include "nat64/common/str_utils.h"
-#include "nat64/mod/common/random.h"
 
 static int parse_prefix4(const char *str, struct ipv4_prefix *prefix)
 {

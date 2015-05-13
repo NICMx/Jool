@@ -513,7 +513,7 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	int error;
 
 	error = pktqueue_remove(session);
-	if (error) /* TODO ESRCH? */
+	if (error && error != -ESRCH)
 		return error;
 
 	expirer = is_established ? &table->est_timer : &table->trans_timer;

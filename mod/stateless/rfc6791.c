@@ -8,7 +8,6 @@
 #include <net/ip_fib.h>
 
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/random.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateless/pool.h"
 #include "nat64/mod/common/route.h"
@@ -50,7 +49,11 @@ static int get_rfc6791_address(struct packet *in, __u64 count, struct in_addr *r
 	struct pool_entry *entry;
 	unsigned int addr_index;
 
-	addr_index = config_randomize_rfc6791_pool() ? get_random_u32() : pkt_ip6_hdr(in)->hop_limit;
+	if (config_randomize_rfc6791_pool())
+		get_random_bytes(&addr_index, sizeof(addr_index));
+	else
+		addr_index = pkt_ip6_hdr(in)->hop_limit;
+
 	/* unsigned int % __u64 does something weird, hence the trouble. */
 	if (count <= 0xFFFFFFFFU)
 		addr_index %= (unsigned int) count;

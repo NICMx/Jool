@@ -112,8 +112,8 @@ int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_REMOVE);
-	payload->remove.prefix = *prefix;
-	payload->remove.quick = quick;
+	payload->rm.prefix = *prefix;
+	payload->rm.quick = quick;
 
 	return netlink_request(request, hdr->length, pool6_remove_response, NULL);
 }

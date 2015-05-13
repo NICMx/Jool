@@ -23,7 +23,19 @@ struct pool4_table *pool4table_create(__u32 mark)
  */
 void pool4table_destroy(struct pool4_table *table)
 {
-	pool4table_flush(table);
+	struct pool4_addr *addr, *tmpa;
+	struct pool4_ports *ports, *tmpp;
+
+	list_for_each_entry_safe(addr, tmpa, &table->rows, list_hook) {
+		list_for_each_entry_safe(ports, tmpp, &addr->ports, list_hook) {
+			list_del(&ports->list_hook);
+			kfree(ports);
+		}
+
+		list_del(&addr->list_hook);
+		kfree(addr);
+	}
+
 	kfree(table);
 }
 
@@ -55,16 +67,10 @@ static int add_ports(struct pool4_addr *addr, struct port_range *range)
 	return 0;
 }
 
-/**
- * pool4table_add - stock add @sample to @table.
- */
-int pool4table_add(struct pool4_table *table, struct pool4_sample *sample)
+static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 {
 	struct pool4_addr *addr;
 	int error;
-
-	if (sample->range.min > sample->range.max)
-		swap(sample->range.min, sample->range.max);
 
 	list_for_each_entry(addr, &table->rows, list_hook) {
 		if (addr4_equals(&addr->addr, &sample->addr))
@@ -87,7 +93,30 @@ int pool4table_add(struct pool4_table *table, struct pool4_sample *sample)
 	return 0;
 }
 
-static int remove_range(struct pool4_addr *addr, const struct port_range *rm)
+/**
+ * pool4table_add - stock add @sample to @table.
+ */
+int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
+		struct port_range *ports)
+{
+	struct pool4_sample sample;
+	u64 tmp;
+	int error;
+
+	sample.range = *ports;
+	if (sample.range.min > sample.range.max)
+		swap(sample.range.min, sample.range.max);
+
+	foreach_addr4(sample.addr, tmp, prefix) {
+		error = add_sample(table, &sample);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 {
 	struct pool4_ports *ports;
 	struct pool4_ports *new1;
@@ -148,19 +177,13 @@ static int remove_range(struct pool4_addr *addr, const struct port_range *rm)
 	return -ESRCH;
 }
 
-/**
- * pool4table_rm - stock remove @sample from @table.
- *
- * Will delete from @table ports @sample->range.min through @sample->range.max.
- * If no ports remain, will purge @sample->addr as well.
- */
-int pool4table_rm(struct pool4_table *table, const struct pool4_sample *sample)
+static int rm_sample(struct pool4_table *table, struct pool4_sample *sample)
 {
 	struct pool4_addr *addr;
 
 	list_for_each_entry(addr, &table->rows, list_hook) {
 		if (addr4_equals(&addr->addr, &sample->addr))
-			return remove_range(addr, &sample->range);
+			return rm_range(addr, &sample->range);
 	}
 
 	log_err("%pI4 does not belong to pool4.", &sample->addr);
@@ -168,67 +191,27 @@ int pool4table_rm(struct pool4_table *table, const struct pool4_sample *sample)
 }
 
 /**
- * pool4table_flush - clears/empties @table.
+ * pool4table_rm - stock remove @sample from @table.
+ *
+ * Will delete from @table ports @sample->range.min through @sample->range.max.
+ * If no ports remain, will purge @sample->addr as well.
  */
-void pool4table_flush(struct pool4_table *table)
+int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
+		struct port_range *ports)
 {
-	struct pool4_addr *addr, *tmpa;
-	struct pool4_ports *ports, *tmpp;
-	LIST_HEAD(tmp_list);
+	struct pool4_sample sample;
+	u64 tmp;
+	int error;
 
-	/*
-	 * TODO if this is called with the table already unindexed,
-	 * this loop can be avoided.
-	 */
-	list_for_each_entry_safe(addr, tmpa, &table->rows, list_hook) {
-		list_del_rcu(&addr->list_hook);
-		list_add(&addr->list_hook, &tmp_list);
+	sample.range = *ports;
+	foreach_addr4(sample.addr, tmp, prefix) {
+		error = rm_sample(table, &sample);
+		if (error)
+			break;
 	}
 
-	synchronize_rcu();
-
-	list_for_each_entry_safe(addr, tmpa, &tmp_list, list_hook) {
-		list_for_each_entry_safe(ports, tmpp, &addr->ports, list_hook) {
-			list_del(&ports->list_hook);
-			kfree(ports);
-		}
-
-		list_del(&addr->list_hook);
-		kfree(addr);
-	}
+	return error;
 }
-
-///**
-// * pool4table_contains - is addr listed within the pool?
-// * @addr: IPv4 address *and* port that will be looked into the pool.
-// */
-//bool pool4table_contains(struct pool4_table *table,
-//		const struct ipv4_transport_addr *addr)
-//{
-//	struct pool4_node *node;
-//	struct pool4_ports *ports;
-//
-//	if (WARN(!addr, "NULL is not a valid address."))
-//		return false;
-//
-//	rcu_read_lock_bh();
-//	node = rcu_dereference(node_pool);
-//
-//	if (!node || !addr4_equals(&node->prefix.address, &addr->l3))
-//		goto not_found;
-//
-//	list_for_each_entry_rcu(ports, &node->ports, list_hook) {
-//		if (ports->range.min <= addr->l4 && addr->l4 <= ports->range.max) {
-//			rcu_read_unlock_bh();
-//			return true;
-//		}
-//	}
-//	/* Fall through. */
-//
-//not_found:
-//	rcu_read_unlock_bh();
-//	return false;
-//}
 
 /* TODO (issue36) separate TCP, UDP and ICMP ranges? */
 /* TODO (issue36) I'm not accounting for parity and range. */
@@ -359,6 +342,9 @@ end:
 	return error;
 }
 
+/**
+ * pool4table_contains - is @taddr listed within @table?
+ */
 bool pool4table_contains(struct pool4_table *table,
 		const struct ipv4_transport_addr *taddr)
 {

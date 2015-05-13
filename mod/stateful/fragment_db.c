@@ -3,7 +3,6 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/random.h"
 
 #include <linux/version.h>
 #include <linux/ip.h>
@@ -272,7 +271,7 @@ int fragdb_init(void)
 	expire_timer.expires = 0;
 	expire_timer.data = 0;
 
-	rnd = get_random_u32();
+	get_random_bytes(&rnd, sizeof(rnd));
 
 	return 0;
 }

@@ -103,15 +103,14 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 
 	bool is_expected = false;
 
-	if (list_empty(&skb_db->list)) { /* nothing to do. */
-		return NF_ACCEPT;
-	}
-
 	if (dev_name_filter(skb->dev->name))
 		return NF_ACCEPT;
 
-
 	spin_lock_bh(&skb_db->lock);
+
+	if (list_empty(&skb_db->list)) /* nothing to do. */
+		goto nf_accept;
+
 	current_hook = skb_db->list.next;
 	tmp_skb = list_entry(current_hook, struct skb_entry, list);
 
@@ -153,9 +152,6 @@ nf_accept:
 	return NF_ACCEPT;
 
 nf_drop:
-	/* TODO: If I return NF_DROP, it's not necessary to kfree the "incoming skb", right?
-	 * skb_free(skb);
-	 */
 	return NF_DROP;
 }
 

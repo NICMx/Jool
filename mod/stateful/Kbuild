@@ -23,7 +23,6 @@ jool_common += ../common/ipv6_hdr_iterator.o
 jool_common += ../common/pool6.o
 jool_common += ../common/rfc6052.o
 jool_common += ../common/nl_buffer.o
-jool_common += ../common/random.o
 jool_common += ../common/rbtree.o
 jool_common += ../common/config.o
 jool_common += ../common/nl_handler.o
