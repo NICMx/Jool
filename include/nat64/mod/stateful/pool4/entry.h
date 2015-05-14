@@ -35,6 +35,12 @@ struct pool4_addr {
 	struct list_head list_hook;
 };
 
-struct pool4_ports *pool4_ports_create(__u16 min, __u16 max);
+struct pool4_ports *pool4_ports_create(const __u16 min, const __u16 max);
+
+bool pool4_range_equals(const struct port_range *r1,
+		const struct port_range *r2);
+bool pool4_range_intersects(const struct port_range *r1,
+		const struct port_range *r2);
+unsigned int pool4_range_count(const struct port_range *range);
 
 #endif /* _JOOL_MOD_POOL4_ENTRY_H */

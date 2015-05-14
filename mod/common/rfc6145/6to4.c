@@ -553,6 +553,26 @@ static int compute_icmp4_csum(struct packet *out)
 	return 0;
 }
 
+static verdict validate_icmp6_csum(struct packet *in)
+{
+	struct ipv6hdr *hdr6;
+	unsigned int len;
+	__sum16 csum;
+
+	hdr6 = pkt_ip6_hdr(in);
+	len = pkt_datagram_len(in);
+	csum = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, len, NEXTHDR_ICMP,
+			skb_checksum(in->skb, skb_transport_offset(in->skb),
+					len, 0));
+	if (csum != 0) {
+		log_debug("Checksum doesn't match.");
+		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
+		return VERDICT_DROP;
+	}
+
+	return VERDICT_CONTINUE;
+}
+
 static int post_icmp4info(struct packet *in, struct packet *out)
 {
 	int error;
@@ -569,6 +589,10 @@ static verdict post_icmp4error(struct tuple *tuple4, struct packet *in, struct p
 	verdict result;
 
 	log_debug("Translating the inner packet (6->4)...");
+
+	result = validate_icmp6_csum(in);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	result = ttpcomm_translate_inner_packet(tuple4, in, out);
 	if (result != VERDICT_CONTINUE)

@@ -108,7 +108,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 	struct iphdr *hdr = ip_hdr(skb);
 	int error;
 
-	/* TODO this is silly. We should probably unhook Jool from Netfilter instead. */
+	/* TODO (later) this is silly. We should probably unhook Jool from Netfilter instead. */
 	if (config_get_is_disable())
 		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
 
@@ -122,13 +122,6 @@ unsigned int core_4to6(struct sk_buff *skb)
 	error = pkt_init_ipv4(&pkt, skb); /* Reminder: This function might change pointers. */
 	if (error)
 		return NF_DROP;
-
-	/* TODO move this to translate. */
-	error = validate_icmp4_csum(&pkt);
-	if (error) {
-		inc_stats(&pkt, IPSTATS_MIB_INHDRERRORS);
-		return NF_DROP;
-	}
 
 	return core_common(&pkt);
 }
@@ -156,12 +149,6 @@ unsigned int core_6to4(struct sk_buff *skb)
 		verdict result = fragdb_handle(&pkt);
 		if (result != VERDICT_CONTINUE)
 			return (unsigned int) result;
-	}
-
-	error = validate_icmp6_csum(&pkt);
-	if (error) {
-		inc_stats(&pkt, IPSTATS_MIB_INHDRERRORS);
-		return NF_DROP;
 	}
 
 	return core_common(&pkt);

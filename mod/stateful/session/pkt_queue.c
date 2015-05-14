@@ -3,6 +3,8 @@
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/rbtree.h"
 
+/* TODO this is missing the timer. */
+
 /**
  * A stored packet.
  */

@@ -21,13 +21,19 @@ MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION(MODULE_NAME " (RFC 6146)");
 
 static char *pool6[5];
-static int pool6_size;
-module_param_array(pool6, charp, &pool6_size, 0);
+static int pool6_len;
+module_param_array(pool6, charp, &pool6_len, 0);
 MODULE_PARM_DESC(pool6, "The IPv6 pool's prefixes.");
+
 static char *pool4[5];
-static int pool4_size;
-module_param_array(pool4, charp, &pool4_size, 0);
+static int pool4_len;
+module_param_array(pool4, charp, &pool4_len, 0);
 MODULE_PARM_DESC(pool4, "The IPv4 pool's addresses.");
+
+unsigned int pool4_size;
+module_param(pool4_size, uint, 0);
+MODULE_PARM_DESC(pool4_size, "Size of pool4 DB's hashtable.");
+
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
@@ -88,7 +94,8 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
-static int __init nat64_init(void)
+/* TODO (issue36) uncomment the preprocessor thingies */
+static int /* __init */ nat64_init(void)
 {
 	int error;
 
@@ -105,10 +112,10 @@ static int __init nat64_init(void)
 	error = nlhandler_init();
 	if (error)
 		goto nlhandler_failure;
-	error = pool6_init(pool6, pool6_size);
+	error = pool6_init(pool6, pool6_len);
 	if (error)
 		goto pool6_failure;
-	error = pool4db_init(pool4, pool4_size);
+	error = pool4db_init(pool4_size, pool4, pool4_len);
 	if (error)
 		goto pool4_failure;
 	error = filtering_init();
@@ -159,7 +166,7 @@ config_failure:
 	return error;
 }
 
-static void __exit nat64_exit(void)
+static void /* __exit */ nat64_exit(void)
 {
 	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));

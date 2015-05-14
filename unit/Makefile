@@ -19,6 +19,7 @@ PKT = pkt
 RBTREE = rbtree
 POOLNUM = poolnum
 POOL4 = pool4
+POOL4DB = pool4db
 BIB = bib
 SESSION = session
 FRAGDB = fragdb
@@ -42,6 +43,7 @@ obj-m += $(PKT).o
 obj-m += $(RBTREE).o
 obj-m += $(POOLNUM).o
 obj-m += $(POOL4).o
+obj-m += $(POOL4DB).o
 obj-m += $(BIB).o
 obj-m += $(SESSION).o
 obj-m += $(FRAGDB).o
@@ -96,6 +98,9 @@ $(POOLNUM)-objs += pool_num_test.o
 
 $(POOL4)-objs += $(MIN_REQS)
 $(POOL4)-objs += pool4_test.o
+
+$(POOL4DB)-objs += $(MIN_REQS)
+$(POOL4DB)-objs += pool4db_test.o
 
 $(BIB)-objs += $(MIN_REQS)
 $(BIB)-objs += ../mod/common/config.o
@@ -305,8 +310,8 @@ test:
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
 	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
 	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
-	# Warning: This test is lenghty! It might freeze your computer for a couple of seconds.
 	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
+	-sudo insmod $(POOL4DB).ko && sudo rmmod $(POOL4DB)
 	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
 	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)

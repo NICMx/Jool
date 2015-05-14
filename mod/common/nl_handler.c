@@ -214,7 +214,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->flush.quick)
-			error = sessiondb_delete_by_prefix6(&request->rm.prefix);
+			sessiondb_delete_by_prefix6(&request->rm.prefix);
 
 		return respond_error(nl_hdr, error);
 
@@ -228,7 +228,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->flush.quick)
-			error = sessiondb_flush();
+			sessiondb_flush();
 
 		return respond_error(nl_hdr, error);
 
@@ -347,10 +347,8 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->flush.quick) {
-			error = sessiondb_flush();
-			if (error)
-				return respond_error(nl_hdr, error);
-			error = bibdb_flush();
+			sessiondb_flush();
+			bibdb_flush();
 		}
 
 		return respond_error(nl_hdr, error);
@@ -594,7 +592,7 @@ static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
 	return nlbuffer_write(arg, prefix, sizeof(*prefix));
 }
 
-static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool *request)
+static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4addr *request)
 {
 	struct nl_buffer *buffer;
 	struct ipv4_prefix *offset;
@@ -615,7 +613,7 @@ static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool *
 }
 
 static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_pool *request)
+		union request_pool4addr *request)
 {
 	__u64 count;
 	int error;

@@ -24,7 +24,7 @@ void bibdb_return(struct bib_entry *bib);
 
 int bibdb_add(struct bib_entry *entry);
 int bibdb_count(const l4_protocol proto, __u64 *result);
-int bibdb_flush(void);
+void bibdb_flush(void);
 
 void bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix);
 

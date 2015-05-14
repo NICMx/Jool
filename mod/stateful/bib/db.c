@@ -108,19 +108,15 @@ int bibdb_get(const struct tuple *tuple, struct bib_entry **result)
 int bibdb_get4(const struct ipv4_transport_addr *addr, const l4_protocol proto,
 		struct bib_entry **result)
 {
-	if (WARN(!addr, "addr is NULL."))
-		return -EINVAL;
-
-	return bibtable_get4(get_table(proto), addr, result);
+	struct bib_table *table = get_table(proto);
+	return table ? bibtable_get4(table, addr, result) : -EINVAL;
 }
 
 bool bibdb_contains4(const struct ipv4_transport_addr *addr,
 		const l4_protocol proto)
 {
-	if (WARN(!addr, "addr is NULL."))
-		return -EINVAL;
-
-	return bibtable_contains4(get_table(proto), addr);
+	struct bib_table *table = get_table(proto);
+	return table ? bibtable_contains4(table, addr) : false;
 }
 
 /**
@@ -138,25 +134,26 @@ bool bibdb_contains4(const struct ipv4_transport_addr *addr,
 int bibdb_get6(const struct ipv6_transport_addr *addr, const l4_protocol proto,
 		struct bib_entry **result)
 {
-	if (WARN(!addr, "addr is NULL."))
-		return -EINVAL;
-
-	return bibtable_get6(get_table(proto), addr, result);
+	struct bib_table *table = get_table(proto);
+	return table ? bibtable_get6(table, addr, result) : -EINVAL;
 }
 
 void bibdb_return(struct bib_entry *bib)
 {
+	struct bib_table *table;
 	bool delete;
-	int error;
+
+	if (unlikely(!bib))
+		return;
 
 	delete = bibentry_return(bib);
 	if (!delete)
 		return;
 
-	error = bibtable_remove(get_table(bib->l4_proto), bib);
-	WARN(error, "Error code %d when trying to remove a dying BIB entry "
-			"from the DB. Maybe it should have been kfreed "
-			"directly instead?", error);
+	table = get_table(bib->l4_proto);
+	if (table)
+		bibtable_rm(table, bib);
+
 	bibentry_kfree(bib);
 }
 
@@ -174,10 +171,8 @@ void bibdb_return(struct bib_entry *bib)
  */
 int bibdb_add(struct bib_entry *entry)
 {
-	if (WARN(!entry, "entry is NULL."))
-		return -EINVAL;
-
-	return bibtable_add(get_table(entry->l4_proto), entry);
+	struct bib_table *table = get_table(entry->l4_proto);
+	return table ? bibtable_add(table, entry) : -EINVAL;
 }
 
 /**
@@ -187,7 +182,8 @@ int bibdb_foreach(const l4_protocol proto,
 		int (*func)(struct bib_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset)
 {
-	return bibtable_foreach(get_table(proto), func, arg, offset);
+	struct bib_table *table = get_table(proto);
+	return table ? bibtable_foreach(table, func, arg, offset) : -EINVAL;
 }
 
 /**
@@ -196,7 +192,8 @@ int bibdb_foreach(const l4_protocol proto,
  */
 int bibdb_count(const l4_protocol proto, __u64 *result)
 {
-	return bibtable_count(get_table(proto), result);
+	struct bib_table *table = get_table(proto);
+	return table ? bibtable_count(table, result) : -EINVAL;
 }
 
 /**
@@ -205,9 +202,6 @@ int bibdb_count(const l4_protocol proto, __u64 *result)
  */
 void bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix)
 {
-	if (WARN(!prefix, "IPv4 address is NULL"))
-		return;
-
 	bibtable_delete_by_prefix4(&bib_tcp, prefix);
 	bibtable_delete_by_prefix4(&bib_udp, prefix);
 	bibtable_delete_by_prefix4(&bib_icmp, prefix);
@@ -216,13 +210,11 @@ void bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix)
 /**
  * Removes all the fake users of all the BIB entries in the DB.
  */
-int bibdb_flush(void)
+void bibdb_flush(void)
 {
 	log_debug("Emptying the BIB tables...");
 
 	bibtable_flush(&bib_tcp);
 	bibtable_flush(&bib_icmp);
 	bibtable_flush(&bib_udp);
-
-	return 0;
 }

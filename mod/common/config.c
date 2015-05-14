@@ -170,7 +170,7 @@ bool config_get_drop_external_connections(void)
 
 #else
 
-bool config_get_compute_UDP_csum_zero(void)
+bool config_amend_zero_csum(void)
 {
 	return RCU_THINGY(bool, compute_udp_csum_zero);
 }

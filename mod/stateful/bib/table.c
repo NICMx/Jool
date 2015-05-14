@@ -178,30 +178,22 @@ fail:
 	return error;
 }
 
-static bool is_orphan(struct bib_entry *bib)
+void __rm(struct bib_table *table, struct bib_entry *bib)
 {
-	return RB_EMPTY_NODE(&bib->tree6_hook)
-			|| RB_EMPTY_NODE(&bib->tree4_hook);
-}
-
-void __remove(struct bib_table *table, struct bib_entry *bib)
-{
-	if (WARN(is_orphan(bib), "BIB entry does not belong to any trees."))
-		return;
-
-	rb_erase(&bib->tree6_hook, &table->tree6);
-	rb_erase(&bib->tree4_hook, &table->tree4);
+	if (!WARN(RB_EMPTY_NODE(&bib->tree6_hook), "Faulty IPv6 index"))
+		rb_erase(&bib->tree6_hook, &table->tree6);
+	if (!WARN(RB_EMPTY_NODE(&bib->tree4_hook), "Faulty IPv4 index"))
+		rb_erase(&bib->tree4_hook, &table->tree4);
 	table->count--;
 
 	bibentry_log(bib, "Forgot");
 }
 
-int bibtable_remove(struct bib_table *table, struct bib_entry *bib)
+void bibtable_rm(struct bib_table *table, struct bib_entry *bib)
 {
 	spin_lock_bh(&table->lock);
-	__remove(table, bib);
+	__rm(table, bib);
 	spin_unlock_bh(&table->lock);
-	return 0;
 }
 
 /**
@@ -287,7 +279,7 @@ static int __flush(struct bib_entry *bib, void *void_args)
 	 * Otherwise we might free entries being actively pointed by sessions.
 	 */
 	if (bib->is_static && bibentry_return(bib)) {
-		__remove(args->table, bib);
+		__rm(args->table, bib);
 		bibentry_kfree(bib);
 		args->deleted_count++;
 	}

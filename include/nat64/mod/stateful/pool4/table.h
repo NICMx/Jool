@@ -10,6 +10,10 @@ struct pool4_table {
 	struct hlist_node hlist_hook;
 };
 
+/*
+ * Write functions (Caller must prevent concurrence)
+ */
+
 struct pool4_table *pool4table_create(__u32 mark);
 void pool4table_destroy(struct pool4_table *table);
 
@@ -18,10 +22,13 @@ int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
 int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
 		struct port_range *ports);
 
+/*
+ * Read functions (Legal to use anywhere - caller must lock RCU, though)
+ */
+
 bool pool4table_contains(struct pool4_table *table,
 		const struct ipv4_transport_addr *addr);
 bool pool4table_is_empty(struct pool4_table *table);
-int pool4table_count(struct pool4_table *table, __u64 *result);
 
 int pool4table_foreach_sample(struct pool4_table *table,
 		int (*func)(struct pool4_sample *, void *), void * args,

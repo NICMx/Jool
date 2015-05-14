@@ -24,7 +24,7 @@ bool config_get_filter_icmpv6_info(void);
 bool config_get_addr_dependent_filtering(void);
 bool config_get_drop_external_connections(void);
 
-bool config_get_compute_UDP_csum_zero(void);
+bool config_amend_zero_csum(void);
 bool config_randomize_rfc6791_pool(void);
 
 bool config_get_reset_traffic_class(void);

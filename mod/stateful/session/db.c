@@ -195,13 +195,13 @@ void sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix)
 //	return 0;
 //}
 
-int sessiondb_flush(void)
+void sessiondb_flush(void)
 {
 	log_debug("Emptying the session tables...");
+
 	sessiontable_flush(&session_table_udp);
 	sessiontable_flush(&session_table_tcp);
 	sessiontable_flush(&session_table_icmp);
-	return 0;
 }
 
 void sessiondb_update_timers(void)

@@ -10,30 +10,21 @@
  * Removes all of this database's references towards "session", and drops its
  * refcount accordingly.
  *
- * The only thing it doesn't do is decrement count of "session"'s table! I do
- * that outside because I always want to add up and report that number.
- *
- * @return number of sessions removed from the database. This is always 1,
- *		because I have no way to know if the removal failed
- *		(and it shouldn't be possible anyway).
- *
  * "table"'s spinlock must already be held.
- *
- * TODO return value seems pointless now too.
  */
-static int remove(struct session_table *table, struct session_entry *session,
+static void rm(struct session_table *table, struct session_entry *session,
 		struct list_head *rms)
 {
-	if (!RB_EMPTY_NODE(&session->tree6_hook))
+	if (!WARN(RB_EMPTY_NODE(&session->tree6_hook), "Faulty IPv6 index"))
 		rb_erase(&session->tree6_hook, &table->tree6);
-	if (!RB_EMPTY_NODE(&session->tree4_hook))
+	if (!WARN(RB_EMPTY_NODE(&session->tree4_hook), "Faulty IPv4 index"))
 		rb_erase(&session->tree4_hook, &table->tree4);
+	table->count--;
 	list_del(&session->list_hook);
 	list_add(&session->list_hook, rms);
 	session->expirer = NULL;
 
 	session_log(session, "Forgot session");
-	return 1;
 }
 
 static void delete(struct list_head *sessions)
@@ -79,7 +70,7 @@ static void decide_fate(fate_cb cb,
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		break;
 	case FATE_RM:
-		remove(table, session, rms);
+		rm(table, session, rms);
 		break;
 	case FATE_PRESERVE:
 		break;
@@ -439,7 +430,6 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 			struct session_entry, tree4_hook);
 }
 
-/* TODO remember to not store SYN sessions. */
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, struct session_entry **result)
 {
@@ -640,7 +630,7 @@ static int __remove_by_bib(struct session_entry *session, void *args_void)
 	if (!ipv4_transport_addr_equals(args->addr4, &session->local4))
 		return 1; /* positive = break iteration early, no error. */
 
-	remove(args->table, session, &args->removed);
+	rm(args->table, session, &args->removed);
 	return 0;
 }
 
@@ -677,7 +667,7 @@ static int __remove_by_prefix4(struct session_entry *session, void *args_void)
 	if (!prefix4_contains(args->prefix, &session->local4.l3))
 		return 1; /* positive = break iteration early, no error. */
 
-	remove(args->table, session, &args->removed);
+	rm(args->table, session, &args->removed);
 	return 0;
 }
 
@@ -717,7 +707,7 @@ struct flush_args {
 static int __flush(struct session_entry *session, void *args_void)
 {
 	struct prefix4_remove_args *args = args_void;
-	remove(args->table, session, &args->removed);
+	rm(args->table, session, &args->removed);
 	return 0;
 }
 

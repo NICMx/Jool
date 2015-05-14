@@ -215,8 +215,7 @@ union request_pool4 {
 	} flush;
 };
 
-/* TODO not sure about the name of this thing. Review. */
-union request_pool {
+union request_pool4addr {
 	struct {
 		__u8 offset_set;
 		struct ipv4_prefix offset;

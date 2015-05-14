@@ -12,11 +12,10 @@
 #include "nat64/mod/stateful/pool4/entry.h"
 
 /*
- * Write functions - You *MUST* hold the configuration mutex or ensure you're
- * the only thread calling these.
+ * Write functions (Caller must prevent concurrence)
  */
 
-int pool4db_init(char *pref_strs[], int pref_count);
+int pool4db_init(unsigned int capacity, char *pref_strs[], int pref_count);
 void pool4db_destroy(void);
 
 int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
@@ -26,7 +25,7 @@ int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
 int pool4db_flush(const __u32 mark);
 
 /*
- * Read functions - Legal to use anywhere.
+ * Read functions (Legal to use anywhere)
  */
 
 bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr);

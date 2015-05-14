@@ -27,6 +27,12 @@ struct bib_table {
 void bibtable_init(struct bib_table *table);
 void bibtable_destroy(struct bib_table *table);
 
+int bibtable_add(struct bib_table *table, struct bib_entry *entry);
+void bibtable_rm(struct bib_table *table, struct bib_entry *entry);
+void bibtable_flush(struct bib_table *table);
+void bibtable_delete_by_prefix4(struct bib_table *table,
+		const struct ipv4_prefix *prefix);
+
 int bibtable_get6(struct bib_table *table,
 		const struct ipv6_transport_addr *addr,
 		struct bib_entry **result);
@@ -36,14 +42,7 @@ int bibtable_get4(struct bib_table *table,
 bool bibtable_contains4(struct bib_table *table,
 		const struct ipv4_transport_addr *addr);
 
-int bibtable_add(struct bib_table *table, struct bib_entry *entry);
-int bibtable_remove(struct bib_table *table, struct bib_entry *entry);
 int bibtable_count(struct bib_table *table, __u64 *result);
-void bibtable_flush(struct bib_table *table);
-
-void bibtable_delete_by_prefix4(struct bib_table *table,
-		const struct ipv4_prefix *prefix);
-
 int bibtable_foreach(struct bib_table *table,
 		int (*func)(struct bib_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset);

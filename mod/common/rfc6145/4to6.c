@@ -524,6 +524,21 @@ static int compute_icmp6_csum(struct packet *out)
 	return 0;
 }
 
+static verdict validate_icmp4_csum(struct packet *in)
+{
+	__sum16 csum;
+
+	csum = csum_fold(skb_checksum(in->skb, skb_transport_offset(in->skb),
+			pkt_datagram_len(in), 0));
+	if (csum != 0) {
+		log_debug("Checksum doesn't match.");
+		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
+		return VERDICT_DROP;
+	}
+
+	return VERDICT_CONTINUE;
+}
+
 static int post_icmp6info(struct packet *in, struct packet *out)
 {
 	int error;
@@ -540,6 +555,15 @@ static verdict post_icmp6error(struct tuple *tuple6, struct packet *in, struct p
 	verdict result;
 
 	log_debug("Translating the inner packet (4->6)...");
+
+	/*
+	 * We will later recompute the checksum from scratch, but we should not
+	 * translate a corrupted ICMPv4 error into an OK-csum ICMPv6 one,
+	 * so validate first.
+	 */
+	result = validate_icmp4_csum(in);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	result = ttpcomm_translate_inner_packet(tuple6, in, out);
 	if (result != VERDICT_CONTINUE)
@@ -640,17 +664,49 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 	return csum_fold(csum);
 }
 
+static bool can_compute_csum(struct packet *in)
+{
+	struct iphdr *hdr4;
+	struct udphdr *hdr_udp;
+
+	if (nat64_is_stateful())
+		return true;
+
+	/*
+	 * RFC 6145#4.5:
+	 * A stateless translator cannot compute the UDP checksum of
+	 * fragmented packets, so when a stateless translator receives the
+	 * first fragment of a fragmented UDP IPv4 packet and the checksum
+	 * field is zero, the translator SHOULD drop the packet and generate
+	 * a system management event that specifies at least the IP
+	 * addresses and port numbers in the packet.
+	 */
+	hdr4 = pkt_ip4_hdr(in);
+	if (is_more_fragments_set_ipv4(hdr4) || !config_amend_zero_csum()) {
+		hdr_udp = pkt_udp_hdr(in);
+		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
+				&hdr4->saddr, ntohs(hdr_udp->source),
+				&hdr4->daddr, ntohs(hdr_udp->dest));
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * Assumes that "out" is IPv6 and UDP, and computes and sets its l4-checksum.
  * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
  * IPv4 nodes.
  * This is actually required in the Determine Incoming Tuple step, but it feels more at home here.
  */
-static void handle_zero_csum(struct packet *in, struct packet *out)
+static int handle_zero_csum(struct packet *in, struct packet *out)
 {
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
 	struct udphdr *hdr_udp = pkt_udp_hdr(out);
 	__wsum csum;
+
+	if (!can_compute_csum(in))
+		return -EINVAL;
 
 	/*
 	 * Here's the deal:
@@ -672,6 +728,8 @@ static void handle_zero_csum(struct packet *in, struct packet *out)
 	csum = skb_checksum(in->skb, pkt_payload_offset(in), pkt_payload_len_pkt(in), csum);
 	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, pkt_datagram_len(in),
 			IPPROTO_UDP, csum);
+
+	return 0;
 }
 
 verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out)
@@ -721,7 +779,8 @@ verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out)
 				pkt_ip4_hdr(in), &udp_copy, sizeof(udp_copy),
 				pkt_ip6_hdr(out), udp_out, sizeof(*udp_out));
 	} else {
-		handle_zero_csum(in, out);
+		if (handle_zero_csum(in, out))
+			return VERDICT_DROP;
 	}
 
 	/* Payload */

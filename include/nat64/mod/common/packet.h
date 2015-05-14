@@ -481,23 +481,4 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
  */
 void pkt_print(struct packet *pkt);
 
-/**
- * @{
- * Drops "skb" if it is an ICMP error packet and its l4-checksum doesn't match.
- *
- * Because IP-based checksums are updatable, Jool normally doesn't have to worry if a packet has a
- * bogus layer-4 checksum. It simply translates the packet and updates the checksum with these
- * changes. If there's a problem, it will still be reflected in the checksum and the target node
- * will drop it normally.
- *
- * That is, except for ICMP errors, whose translation is more nontrivial than usual due to their
- * inner packets. For these cases, Jool will recompute the checksum from scratch, and we should not
- * assign correct checksums to corrupted packets, so we need to validate them first.
- */
-int validate_icmp6_csum(struct packet *pkt);
-int validate_icmp4_csum(struct packet *pkt);
-/**
- * @}
- */
-
 #endif /* _JOOL_MOD_PACKET_H */

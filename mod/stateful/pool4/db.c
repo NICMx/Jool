@@ -52,11 +52,32 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 	return 0;
 }
 
-int pool4db_init(char *prefix_strs[], int prefix_count)
+static int init_power(unsigned int size)
+{
+	if (size > (1U << 31)) {
+		/*
+		 * If you ever want to remove this validation for some crazy
+		 * reason... keep in mind it's preventing overflow from the for
+		 * below.
+		 */
+		log_err("Pool4's hashtable size is too large.");
+		return -EINVAL;
+	}
+
+	/* @power = smallest power of two greater or equal than @size. */
+	for (power = 1; power < size; power <<= 1)
+		/* Chomp chomp. */;
+
+	return 0;
+}
+
+int pool4db_init(unsigned int size, char *prefix_strs[], int prefix_count)
 {
 	int error;
 
-	power = 4;
+	error = init_power(size);
+	if (error)
+		return error;
 	values = 0;
 	db = init_db(slots());
 	if (!db)
@@ -125,10 +146,9 @@ int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
 		values++;
 		hlist_add_head(&table->hlist_hook, &db[hash_32(mark, power)]);
 		if (values > slots()) {
-			/* TODO implement this. */
 			log_warn_once("You have lots of pool4s, which can lag "
-					"Jool. Consider increasing --pool4 "
-					"--capacity.");
+					"Jool. Consider increasing "
+					"pool4_size.");
 		}
 
 	} else {

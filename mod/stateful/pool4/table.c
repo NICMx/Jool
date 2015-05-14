@@ -39,9 +39,19 @@ void pool4table_destroy(struct pool4_table *table)
 	kfree(table);
 }
 
-static bool range_intersect(struct port_range *r1, struct port_range *r2)
+static unsigned int count_ports(struct pool4_table *table)
 {
-	return !(r1->max < r2->min || r2->max < r1->min);
+	struct pool4_addr *addr;
+	struct pool4_ports *ports;
+	unsigned int result = 0;
+
+	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
+		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
+			result += pool4_range_count(&ports->range);
+		}
+	}
+
+	return result;
 }
 
 static int add_ports(struct pool4_addr *addr, struct port_range *range)
@@ -49,7 +59,7 @@ static int add_ports(struct pool4_addr *addr, struct port_range *range)
 	struct pool4_ports *ports;
 
 	list_for_each_entry(ports, &addr->ports, list_hook) {
-		if (!range_intersect(&ports->range, range))
+		if (!pool4_range_intersects(&ports->range, range))
 			continue;
 
 		list_del_rcu(&ports->list_hook);
@@ -93,6 +103,28 @@ static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 	return 0;
 }
 
+static int validate_overflow(struct pool4_table *table,
+		struct ipv4_prefix *prefix, struct port_range *ports)
+{
+	__u64 num_ports;
+
+	num_ports = prefix4_get_addr_count(prefix) * pool4_range_count(ports);
+	if (num_ports > UINT_MAX)
+		goto fail;
+
+	num_ports += count_ports(table);
+
+	if (num_ports > UINT_MAX)
+		goto fail;
+
+	return 0;
+
+fail:
+	log_err("Overflow. A pool4 table can contain %u ports at most.",
+			UINT_MAX);
+	return -E2BIG;
+}
+
 /**
  * pool4table_add - stock add @sample to @table.
  */
@@ -106,6 +138,10 @@ int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
 	sample.range = *ports;
 	if (sample.range.min > sample.range.max)
 		swap(sample.range.min, sample.range.max);
+
+	error = validate_overflow(table, prefix, ports);
+	if (error)
+		return error;
 
 	foreach_addr4(sample.addr, tmp, prefix) {
 		error = add_sample(table, &sample);
@@ -127,7 +163,6 @@ static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 		if (rm->min <= ports->range.min && ports->range.max <= rm->max) {
 			tmp = NULL;
 
-			/* TODO Readers can see a portless pool4_node. */
 			list_del_rcu(&ports->list_hook);
 			if (list_empty(&addr->ports)) {
 				tmp = addr;
@@ -216,11 +251,6 @@ int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
 /* TODO (issue36) separate TCP, UDP and ICMP ranges? */
 /* TODO (issue36) I'm not accounting for parity and range. */
 
-static bool range_equal(struct port_range *r1, struct port_range *r2)
-{
-	return (r1->min == r2->min) && (r1->max == r2->max);
-}
-
 /**
  * pool4table_foreach_sample - executes @func for every sample in @table.
  * @table: sample collection that will be iterated.
@@ -242,8 +272,6 @@ int pool4table_foreach_sample(struct pool4_table *table,
 	struct pool4_sample sample;
 	int error = offset ? -ESRCH : 0;
 
-	rcu_read_lock_bh();
-
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		if (offset && !addr4_equals(&addr->addr, &offset->addr))
 			continue;
@@ -254,16 +282,15 @@ int pool4table_foreach_sample(struct pool4_table *table,
 				sample.range = ports->range;
 				error = func(&sample, arg);
 				if (error)
-					goto end;
-			} else if (range_equal(&offset->range, &ports->range)) {
+					return error;
+			} else if (pool4_range_equals(&offset->range,
+					&ports->range)) {
 				offset = NULL;
 				error = 0;
 			}
 		}
 	}
 
-end:
-	rcu_read_unlock_bh();
 	return error;
 }
 
@@ -288,28 +315,22 @@ int pool4table_foreach_port(struct pool4_table *table,
 	unsigned int i;
 	int error = 0;
 
-	rcu_read_lock_bh();
-
-	num_ports = 0;
-	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
-		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			/* TODO overflow validations elsewhere? */
-			num_ports += ports->range.max - ports->range.min + 1U;
-		}
-	}
+	num_ports = count_ports(table);
+	if (num_ports == 0)
+		return 0;
 	offset %= num_ports;
 
 	offset_current = offset;
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		tmp.l3 = addr->addr;
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			num_ports = ports->range.max - ports->range.min + 1U;
+			num_ports = pool4_range_count(&ports->range);
 
 			for (i = offset_current; i < num_ports; i++) {
 				tmp.l4 = i % num_ports;
 				error = func(&tmp, arg);
 				if (error)
-					goto end;
+					return error;
 			}
 
 			if (offset_current > 0)
@@ -321,7 +342,7 @@ int pool4table_foreach_port(struct pool4_table *table,
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		tmp.l3 = addr->addr;
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			num_ports = ports->range.max - ports->range.min + 1U;
+			num_ports = pool4_range_count(&ports->range);
 
 			for (i = 0; i < num_ports; i++) {
 				if (i >= offset_current)
@@ -330,7 +351,7 @@ int pool4table_foreach_port(struct pool4_table *table,
 				tmp.l4 = i % num_ports;
 				error = func(&tmp, arg);
 				if (error)
-					goto end;
+					return error;
 			}
 
 			offset_current -= num_ports;
@@ -338,7 +359,6 @@ int pool4table_foreach_port(struct pool4_table *table,
 	}
 
 end:
-	rcu_read_unlock_bh();
 	return error;
 }
 
@@ -369,24 +389,4 @@ bool pool4table_contains(struct pool4_table *table,
 bool pool4table_is_empty(struct pool4_table *table)
 {
 	return list_empty(&table->rows);
-}
-
-/**
- * pool4table_count - return in @result the number of transport addresses in
- * @table.
- * @result: the number of addresses will be placed here.
- */
-int pool4table_count(struct pool4_table *table, __u64 *result)
-{
-	struct pool4_addr *addr;
-	struct pool4_ports *ports;
-	*result = 0;
-
-	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
-		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			*result += ports->range.max - ports->range.min + 1U;
-		}
-	}
-
-	return 0;
 }
