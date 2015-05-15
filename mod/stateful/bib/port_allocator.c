@@ -126,7 +126,7 @@ int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 	int error;
 
 	/*
-	 * TODO prevent client from having too many sessions?
+	 * TODO (later) prevent client from having too many sessions?
 	 * Aside from a security gimmic, it would limit iteration here,
 	 * in a way.
 	 */

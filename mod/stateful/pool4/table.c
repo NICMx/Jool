@@ -47,7 +47,7 @@ static unsigned int count_ports(struct pool4_table *table)
 
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			result += pool4_range_count(&ports->range);
+			result += port_range_count(&ports->range);
 		}
 	}
 
@@ -59,7 +59,7 @@ static int add_ports(struct pool4_addr *addr, struct port_range *range)
 	struct pool4_ports *ports;
 
 	list_for_each_entry(ports, &addr->ports, list_hook) {
-		if (!pool4_range_intersects(&ports->range, range))
+		if (!port_range_intersects(&ports->range, range))
 			continue;
 
 		list_del_rcu(&ports->list_hook);
@@ -108,7 +108,7 @@ static int validate_overflow(struct pool4_table *table,
 {
 	__u64 num_ports;
 
-	num_ports = prefix4_get_addr_count(prefix) * pool4_range_count(ports);
+	num_ports = prefix4_get_addr_count(prefix) * port_range_count(ports);
 	if (num_ports > UINT_MAX)
 		goto fail;
 
@@ -283,7 +283,7 @@ int pool4table_foreach_sample(struct pool4_table *table,
 				error = func(&sample, arg);
 				if (error)
 					return error;
-			} else if (pool4_range_equals(&offset->range,
+			} else if (port_range_equals(&offset->range,
 					&ports->range)) {
 				offset = NULL;
 				error = 0;
@@ -324,7 +324,7 @@ int pool4table_foreach_port(struct pool4_table *table,
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		tmp.l3 = addr->addr;
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			num_ports = pool4_range_count(&ports->range);
+			num_ports = port_range_count(&ports->range);
 
 			for (i = offset_current; i < num_ports; i++) {
 				tmp.l4 = i % num_ports;
@@ -342,7 +342,7 @@ int pool4table_foreach_port(struct pool4_table *table,
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		tmp.l3 = addr->addr;
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
-			num_ports = pool4_range_count(&ports->range);
+			num_ports = port_range_count(&ports->range);
 
 			for (i = 0; i < num_ports; i++) {
 				if (i >= offset_current)
@@ -378,7 +378,7 @@ bool pool4table_contains(struct pool4_table *table,
 
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
 			range = &ports->range;
-			if (range->min <= taddr->l4 && taddr->l4 <= range->max)
+			if (port_range_contains(range, taddr->l4))
 				return true;
 		}
 	}

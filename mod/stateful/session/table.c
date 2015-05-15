@@ -43,6 +43,45 @@ static void delete(struct list_head *sessions)
 	log_debug("Deleted %lu sessions.", s);
 }
 
+/**
+ * Spinlock must be held.
+ */
+static void force_reschedule(struct expire_timer *expirer)
+{
+	struct session_entry *first;
+	unsigned long next_time;
+	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
+
+	if (list_empty(&expirer->sessions))
+		return;
+
+	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
+	next_time = first->update_time + expirer->get_timeout();
+
+	if (time_before(next_time, min_next_time))
+		next_time = min_next_time;
+
+	mod_timer(&expirer->timer, next_time);
+	log_debug("Timer will awake in %u msecs.",
+			jiffies_to_msecs(expirer->timer.expires - jiffies));
+}
+
+/**
+ * Spinlock must be held.
+ */
+static void reschedule(struct expire_timer *expirer)
+{
+	/*
+	 * Any existing sessions will expire before the new one (because they
+	 * are sorted that way).
+	 * The timer should always trigger on the earliest session.
+	 */
+	if (timer_pending(&expirer->timer))
+		return;
+
+	force_reschedule(expirer);
+}
+
 static void decide_fate(fate_cb cb,
 		struct session_table *table,
 		struct session_entry *session,
@@ -50,6 +89,7 @@ static void decide_fate(fate_cb cb,
 		struct list_head *probes)
 {
 	enum session_fate fate;
+	struct session_entry *tmp;
 
 	fate = cb(session, NULL);
 	switch (fate) {
@@ -58,16 +98,25 @@ static void decide_fate(fate_cb cb,
 		session->expirer = &table->est_timer;
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
+		reschedule(&table->est_timer);
 		break;
 	case FATE_PROBE:
-		list_add(&session->list_hook, probes);
-		session_get(session);
+		tmp = session_clone(session);
+		if (tmp) {
+			/*
+			 * Why add a dummy session instead of the real one?
+			 * Because the real session's list hook must remain
+			 * attached to the database.
+			 */
+			list_add(&tmp->list_hook, probes);
+		}
 		/*  Fall through. */
 	case FATE_TIMER_TRANS:
 		session->update_time = jiffies;
 		session->expirer = &table->trans_timer;
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
+		reschedule(&table->trans_timer);
 		break;
 	case FATE_RM:
 		rm(table, session, rms);
@@ -171,7 +220,8 @@ static void post_fate(struct list_head *rms, struct list_head *probes)
 		send_probe_packet(session);
 		session_return(session);
 	}
-	delete(rms);
+	if (!list_empty(rms))
+		delete(rms);
 }
 
 /**
@@ -207,7 +257,6 @@ static void cleaner_timer(unsigned long param)
 	spin_unlock_bh(&expirer->table->lock);
 
 	post_fate(&rms, &probes);
-	sessiontable_update_timers(expirer->table);
 }
 
 static void init_expirer(struct expire_timer *expirer,
@@ -373,49 +422,6 @@ static int compare_full4(const struct session_entry *session,
 	return gap;
 }
 
-/**
- * Wrapper for mod_timer().
- *
- * Not holding a spinlock is desirable for performance reasons (mod_timer()
- * syncs itself).
- */
-static void schedule_timer(struct expire_timer *expirer, unsigned long next_time)
-{
-	unsigned long min_next = jiffies + MIN_TIMER_SLEEP;
-
-	if (time_before(next_time, min_next))
-		next_time = min_next;
-
-	mod_timer(&expirer->timer, next_time);
-	log_debug("Timer will awake in %u msecs.",
-			jiffies_to_msecs(expirer->timer.expires - jiffies));
-}
-
-/**
- * Helper of the set_*_timer functions. Safely updates "session"->dying_time
- * using "ttl" and moves it from its original location to the end of "list".
- */
-struct expire_timer *set_timer(struct session_entry *session,
-		struct expire_timer *expirer)
-{
-	session->update_time = jiffies;
-	list_del(&session->list_hook);
-	list_add_tail(&session->list_hook, &expirer->sessions);
-	session->expirer = expirer;
-
-	/*
-	 * The new session is always going to expire last.
-	 * So if the timer is already set, there should be no reason to edit it.
-	 */
-	return timer_pending(&expirer->timer) ? NULL : expirer;
-}
-
-static void commit_timer(struct expire_timer *expirer)
-{
-	if (expirer)
-		schedule_timer(expirer, jiffies + expirer->get_timeout());
-}
-
 static struct session_entry *get_by_ipv6(struct session_table *table,
 		struct tuple *tuple)
 {
@@ -460,12 +466,11 @@ int sessiontable_get(struct session_table *table, struct tuple *tuple,
 
 	spin_unlock_bh(&table->lock);
 
+	if (cb)
+		post_fate(&rms, &probes);
+
 	if (!session)
 		return -ESRCH;
-
-	/* TODO what happens if fate is die and we're returning the session? */
-	post_fate(&rms, &probes);
-	sessiontable_update_timers(table);
 
 	*result = session;
 	return 0;
@@ -496,6 +501,15 @@ static int add4(struct session_table *table, struct session_entry *session)
 			struct session_entry, tree4_hook);
 }
 
+static void attach_timer(struct session_entry *session,
+		struct expire_timer *expirer)
+{
+	session->update_time = jiffies;
+	list_add_tail(&session->list_hook, &expirer->sessions);
+	session->expirer = expirer;
+	reschedule(expirer);
+}
+
 int sessiontable_add(struct session_table *table, struct session_entry *session,
 		bool is_established)
 {
@@ -523,15 +537,13 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 		return error;
 	}
 
-	expirer = set_timer(session, expirer);
+	attach_timer(session, expirer);
 	session_get(session); /* Database's references. */
 	table->count++;
 
 	spin_unlock_bh(&table->lock);
 
 	session_log(session, "Added session");
-	commit_timer(expirer);
-
 	return 0;
 }
 
@@ -563,29 +575,12 @@ static struct rb_node *find_next_chunk(struct session_table *table,
 	return (compare_full4(session, &tmp) < 0) ? parent : rb_next(parent);
 }
 
-/* TODO this should be called more. */
-static void reschedule(struct expire_timer *expirer)
-{
-	bool reschedule = false;
-	struct session_entry *session;
-	unsigned long death_time;
-
-	spin_lock_bh(&expirer->table->lock);
-	if (!list_empty(&expirer->sessions)) {
-		reschedule = true;
-		session = list_entry(expirer->sessions.next, struct session_entry, list_hook);
-		death_time = session->update_time + expirer->get_timeout();
-	}
-	spin_unlock_bh(&expirer->table->lock);
-
-	if (reschedule)
-		schedule_timer(expirer, death_time);
-}
-
 void sessiontable_update_timers(struct session_table *table)
 {
-	reschedule(&table->est_timer);
-	reschedule(&table->trans_timer);
+	spin_lock_bh(&table->lock);
+	force_reschedule(&table->est_timer);
+	force_reschedule(&table->trans_timer);
+	spin_unlock_bh(&table->lock);
 }
 
 int sessiontable_foreach(struct session_table *table,
@@ -654,33 +649,33 @@ int sessiontable_delete_by_bib(struct session_table *table,
 	return error;
 }
 
-struct prefix4_remove_args {
+struct taddr4_remove_args {
 	struct session_table *table;
 	const struct ipv4_prefix *prefix;
+	const struct port_range *ports;
 	struct list_head removed;
 };
 
-static int __remove_by_prefix4(struct session_entry *session, void *args_void)
+static int __remove_taddr4s(struct session_entry *session, void *args_void)
 {
-	struct prefix4_remove_args *args = args_void;
+	struct taddr4_remove_args *args = args_void;
 
 	if (!prefix4_contains(args->prefix, &session->local4.l3))
 		return 1; /* positive = break iteration early, no error. */
+	if (!port_range_contains(args->ports, session->local4.l4))
+		return 0;
 
 	rm(args->table, session, &args->removed);
 	return 0;
 }
 
-/**
- * Deletes the sessions from the "table" table whose local IPv4 address is "addr".
- * This function is awfully similar to sessiondb_delete_by_bib(). See that for more comments.
- */
-int sessiontable_delete_by_prefix4(struct session_table *table,
-		struct ipv4_prefix *prefix)
+int sessiontable_delete_taddr4s(struct session_table *table,
+		struct ipv4_prefix *prefix, struct port_range *ports)
 {
-	struct prefix4_remove_args args = {
+	struct taddr4_remove_args args = {
 			.table = table,
 			.prefix = prefix,
+			.ports = ports,
 			.removed = LIST_HEAD_INIT(args.removed),
 	};
 	struct ipv4_transport_addr remote = {
@@ -689,11 +684,11 @@ int sessiontable_delete_by_prefix4(struct session_table *table,
 	};
 	struct ipv4_transport_addr local = {
 			.l3 = prefix->address,
-			.l4 = 0,
+			.l4 = ports->min,
 	};
 	int error;
 
-	error = sessiontable_foreach(table, __remove_by_prefix4, &args,
+	error = sessiontable_foreach(table, __remove_taddr4s, &args,
 			&remote, &local);
 	delete(&args.removed);
 	return error;
@@ -706,7 +701,7 @@ struct flush_args {
 
 static int __flush(struct session_entry *session, void *args_void)
 {
-	struct prefix4_remove_args *args = args_void;
+	struct flush_args *args = args_void;
 	rm(args->table, session, &args->removed);
 	return 0;
 }

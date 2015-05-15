@@ -1,9 +1,9 @@
 #include "nat64/mod/stateful/session/pkt_queue.h"
+
+#include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/rbtree.h"
-
-/* TODO this is missing the timer. */
 
 /**
  * A stored packet.
@@ -14,19 +14,96 @@ struct packet_node {
 	/** The packet. */
 	struct packet pkt;
 
-	/** Links this packet to the tree. See "packets". */
+	/** Links this packet to the list. See @nodes_list. */
+	struct list_head list_hook;
+	/** Links this packet to the tree. See @nodes_tree. */
 	struct rb_node tree_hook;
 };
 
+static struct list_head node_list;
 /** The same packets, sorted by IPv4 identifiers. */
-static struct rb_root packets;
+static struct rb_root node_tree;
 /** Current number of packets in the database. */
-static int packet_count = 0;
-/** Protects "packets" and "packet_count". */
-static DEFINE_SPINLOCK(packets_lock);
+static int node_count;
+/** Protects @nodes_list, @nodes_tree and @node_count. */
+static DEFINE_SPINLOCK(lock);
 
-/** Cache for struct packet_nodes, for efficient allocation. */
-static struct kmem_cache *node_cache;
+struct timer_list timer;
+
+static unsigned long get_timeout(void)
+{
+	return msecs_to_jiffies(1000 * TCP_INCOMING_SYN);
+}
+
+static void send_icmp_error(struct packet_node *node)
+{
+	icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
+	session_return(node->session);
+	kfree_skb(node->pkt.skb);
+	kfree(node);
+}
+
+static void rm(struct packet_node *node)
+{
+	list_del(&node->list_hook);
+	rb_erase(&node->tree_hook, &node_tree);
+	node_count--;
+}
+
+static void cleaner_timer(unsigned long param)
+{
+	struct packet_node *node, *tmp;
+	const unsigned long TIMEOUT = get_timeout();
+	unsigned long next_timeout;
+	LIST_HEAD(icmps);
+
+	log_debug("===============================================");
+	log_debug("Handling expired SYN sessions...");
+
+	spin_lock_bh(&lock);
+	list_for_each_entry_safe(node, tmp, &node_list, list_hook) {
+		/*
+		 * "list" is sorted by expiration date,
+		 * so stop on the first unexpired session.
+		 */
+		next_timeout = node->session->update_time + TIMEOUT;
+		if (time_before(jiffies, next_timeout)) {
+			mod_timer(&timer, next_timeout);
+			break;
+		}
+
+		rm(node);
+		list_add(&node->list_hook, &icmps);
+	}
+	spin_unlock_bh(&lock);
+
+	list_for_each_entry_safe(node, tmp, &icmps, list_hook)
+		send_icmp_error(node);
+}
+
+int pktqueue_init(void)
+{
+	INIT_LIST_HEAD(&node_list);
+	node_tree = RB_ROOT;
+	node_count = 0;
+
+	init_timer(&timer);
+	timer.function = cleaner_timer;
+	timer.expires = 0;
+	timer.data = 0;
+
+	return 0;
+}
+
+void pktqueue_destroy(void)
+{
+	struct packet_node *node, *tmp;
+
+	/* TODO (issue36) I think this might be untested. */
+	/* TODO (issue36) Also test pktqueue w/hairpinning. */
+	list_for_each_entry_safe(node, tmp, &node_list, list_hook)
+		send_icmp_error(node);
+}
 
 /**
  * Returns > 0 if node.session.*4 > session.*4.
@@ -35,7 +112,8 @@ static struct kmem_cache *node_cache;
  *
  * Doesn't care about spinlocks.
  */
-static int compare_fn(const struct packet_node *node, struct session_entry *session)
+static int compare_fn(const struct packet_node *node,
+		struct session_entry *session)
 {
 	int gap;
 
@@ -55,88 +133,67 @@ static int compare_fn(const struct packet_node *node, struct session_entry *sess
 	return gap;
 }
 
+static inline int __tree_add(struct packet_node *node)
+{
+	return rbtree_add(node, node->session, &node_tree, compare_fn,
+			struct packet_node, tree_hook);
+}
+
 int pktqueue_add(struct session_entry *session, struct packet *pkt)
 {
 	struct packet_node *node;
-	unsigned int max_pkts;
 	int error;
 
-	if (WARN(!session, "Cannot insert a packet with a NULL session."))
-		return -EINVAL;
-	if (WARN(!pkt, "Cannot insert NULL as a packet."))
-		return -EINVAL;
-
-	max_pkts = config_get_max_pkts();
-
-	node = kmem_cache_alloc(node_cache, GFP_ATOMIC);
+	node = kmalloc(sizeof(*node), GFP_ATOMIC);
 	if (!node) {
 		log_debug("Allocation of packet node failed.");
 		return -ENOMEM;
 	}
-
 	node->session = session;
 	node->pkt = *pkt_original_pkt(pkt);
 	node->pkt.original_pkt = &node->pkt;
 	RB_CLEAR_NODE(&node->tree_hook);
 
-	spin_lock_bh(&packets_lock);
+	spin_lock_bh(&lock);
 
-	if (packet_count + 1 >= max_pkts) {
-		spin_unlock_bh(&packets_lock);
-		log_debug("Someone is trying to force lots of IPv4-TCP connections.");
+	if (node_count + 1 >= config_get_max_pkts()) {
+		spin_unlock_bh(&lock);
+		log_debug("Too many IPv4-initiated TCP connections.");
 		/* Fall back to assume there's no Simultaneous Open. */
-		icmp64_send(pkt, ICMPERR_PORT_UNREACHABLE, 0);
-		error = -E2BIG;
-		goto fail;
+		icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
+		kfree(node);
+		return -E2BIG;
 	}
 
-	error = rbtree_add(node, session, &packets, compare_fn, struct packet_node, tree_hook);
+	error = __tree_add(node);
 	if (error) {
-		spin_unlock_bh(&packets_lock);
-		log_debug("Simultaneous Open is already taking place; ignoring packet.");
-		goto fail;
+		spin_unlock_bh(&lock);
+		log_debug("Simultaneous Open already exists; ignoring packet.");
+		kfree(node);
+		return error;
 	}
-	packet_count++;
+	list_add_tail(&node->list_hook, &node_list);
+	node_count++;
 
-	spin_unlock_bh(&packets_lock);
+	node = list_entry(node_list.next, typeof(*node), list_hook);
+	mod_timer(&timer, node->session->update_time + get_timeout());
 
+	spin_unlock_bh(&lock);
+
+	/*
+	 * I'm assuming caller has a reference; that's why it's legal to do this
+	 * outside of the spinlock.
+	 */
 	session_get(session);
+
 	log_debug("Pkt queue - I just stored a packet.");
 	return 0;
-
-fail:
-	kmem_cache_free(node_cache, node);
-	return error;
 }
 
-int pktqueue_init(void)
+static inline struct packet_node *__tree_find(struct session_entry *session)
 {
-	node_cache = kmem_cache_create("jool_pkt_queue", sizeof(struct packet_node), 0, 0, NULL);
-	if (!node_cache) {
-		log_err("Could not allocate the packet queue's node cache.");
-		return -ENOMEM;
-	}
-
-	packets = RB_ROOT;
-
-	return 0;
-}
-
-static void pktqueue_destroy_aux(struct rb_node *hook)
-{
-	struct packet_node *node;
-	node = rb_entry(hook, struct packet_node, tree_hook);
-
-	icmp64_send(&node->pkt, ICMPERR_PORT_UNREACHABLE, 0);
-	kfree_skb(node->pkt.skb);
-	kmem_cache_free(node_cache, node);
-}
-
-void pktqueue_destroy(void)
-{
-	rbtree_clear(&packets, pktqueue_destroy_aux);
-	packets.rb_node = NULL;
-	kmem_cache_destroy(node_cache);
+	return rbtree_find(session, &node_tree, compare_fn, struct packet_node,
+			tree_hook);
 }
 
 int pktqueue_remove(struct session_entry *session)
@@ -146,19 +203,19 @@ int pktqueue_remove(struct session_entry *session)
 	if (WARN(!session, "The packet table cannot contain NULL."))
 		return -EINVAL;
 
-	spin_lock_bh(&packets_lock);
-	node = rbtree_find(session, &packets, compare_fn, struct packet_node, tree_hook);
+	spin_lock_bh(&lock);
+	node = __tree_find(session);
 	if (!node) {
-		spin_unlock_bh(&packets_lock);
+		spin_unlock_bh(&lock);
 		return -ESRCH;
 	}
 
-	rb_erase(&node->tree_hook, &packets);
-	packet_count--;
-	spin_unlock_bh(&packets_lock);
-	kfree_skb(node->pkt.skb);
+	rm(node);
+	spin_unlock_bh(&lock);
+
 	session_return(node->session);
-	kmem_cache_free(node_cache, node);
+	kfree_skb(node->pkt.skb);
+	kfree(node);
 
 	log_debug("Pkt queue - I just cancelled an ICMP error.");
 	return 0;

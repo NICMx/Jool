@@ -136,11 +136,10 @@ static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
 		return error;
 
 	/*
-	 * TODO this could be better.
+	 * TODO (later) this could be better.
 	 * If somebody inserted a colliding BIB since we last searched,
 	 * this will fail. Instead, it should fall back to use the already
 	 * official entry.
-	 * Do it later though.
 	 */
 	error = bibdb_add(bib);
 	if (error) {

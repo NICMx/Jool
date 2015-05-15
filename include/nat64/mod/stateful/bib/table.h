@@ -30,8 +30,8 @@ void bibtable_destroy(struct bib_table *table);
 int bibtable_add(struct bib_table *table, struct bib_entry *entry);
 void bibtable_rm(struct bib_table *table, struct bib_entry *entry);
 void bibtable_flush(struct bib_table *table);
-void bibtable_delete_by_prefix4(struct bib_table *table,
-		const struct ipv4_prefix *prefix);
+void bibtable_delete_taddr4s(struct bib_table *table,
+		const struct ipv4_prefix *prefix, struct port_range *ports);
 
 int bibtable_get6(struct bib_table *table,
 		const struct ipv6_transport_addr *addr,

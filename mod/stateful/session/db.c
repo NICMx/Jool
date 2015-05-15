@@ -81,18 +81,20 @@ void sessiondb_destroy(void)
 int sessiondb_get(struct tuple *tuple, fate_cb cb,
 		struct session_entry **result)
 {
-	return sessiontable_get(get_table(tuple->l4_proto), tuple, cb, result);
+	struct session_table *table = get_table(tuple->l4_proto);
+	return table ? sessiontable_get(table, tuple, cb, result) : -EINVAL;
 }
 
 bool sessiondb_allow(struct tuple *tuple4)
 {
-	return sessiontable_allow(get_table(tuple4->l4_proto), tuple4);
+	struct session_table *table = get_table(tuple4->l4_proto);
+	return table ? sessiontable_allow(table, tuple4) : false;
 }
 
-int sessiondb_add(struct session_entry *session, bool is_established)
+int sessiondb_add(struct session_entry *session, bool is_est)
 {
-	return sessiontable_add(get_table(session->l4_proto), session,
-			is_established);
+	struct session_table *table = get_table(session->l4_proto);
+	return table ? sessiontable_add(table, session, is_est) : -EINVAL;
 }
 
 int sessiondb_foreach(l4_protocol proto,
@@ -100,28 +102,29 @@ int sessiondb_foreach(l4_protocol proto,
 		struct ipv4_transport_addr *offset_remote,
 		struct ipv4_transport_addr *offset_local)
 {
-	return sessiontable_foreach(get_table(proto), func, arg,
-			offset_remote, offset_local);
+	struct session_table *table = get_table(proto);
+	return table ? sessiontable_foreach(table, func, arg, offset_remote,
+			offset_local) : -EINVAL;
 }
 
 int sessiondb_count(l4_protocol proto, __u64 *result)
 {
-	return sessiontable_count(get_table(proto), result);
+	struct session_table *table = get_table(proto);
+	return table ? sessiontable_count(table, result) : -EINVAL;
 }
 
 int sessiondb_delete_by_bib(struct bib_entry *bib)
 {
-	return sessiontable_delete_by_bib(get_table(bib->l4_proto), bib);
+	struct session_table *table = get_table(bib->l4_proto);
+	return table ? sessiontable_delete_by_bib(table, bib) : -EINVAL;
 }
 
-void sessiondb_delete_by_prefix4(struct ipv4_prefix *prefix)
+void sessiondb_delete_taddr4s(struct ipv4_prefix *prefix,
+		struct port_range *ports)
 {
-	if (WARN(!prefix, "The IPv4 prefix is NULL"))
-		return;
-
-	sessiontable_delete_by_prefix4(&session_table_tcp, prefix);
-	sessiontable_delete_by_prefix4(&session_table_icmp, prefix);
-	sessiontable_delete_by_prefix4(&session_table_udp, prefix);
+	sessiontable_delete_taddr4s(&session_table_tcp, prefix, ports);
+	sessiontable_delete_taddr4s(&session_table_icmp, prefix, ports);
+	sessiontable_delete_taddr4s(&session_table_udp, prefix, ports);
 }
 
 ///**

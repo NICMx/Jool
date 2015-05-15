@@ -133,4 +133,16 @@ struct ipv6_prefix {
 	__u8 len;
 };
 
+struct port_range {
+	__u16 min;
+	__u16 max;
+};
+
+bool port_range_equals(const struct port_range *r1,
+		const struct port_range *r2);
+bool port_range_intersects(const struct port_range *r1,
+		const struct port_range *r2);
+bool port_range_contains(const struct port_range *range, __u16 port);
+unsigned int port_range_count(const struct port_range *range);
+
 #endif /* _JOOL_COMMON_TYPES_H */

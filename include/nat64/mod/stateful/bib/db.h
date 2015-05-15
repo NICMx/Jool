@@ -26,7 +26,8 @@ int bibdb_add(struct bib_entry *entry);
 int bibdb_count(const l4_protocol proto, __u64 *result);
 void bibdb_flush(void);
 
-void bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix);
+void bibdb_delete_taddr4s(const struct ipv4_prefix *prefix,
+		struct port_range *ports);
 
 bool bibdb_contains4(const struct ipv4_transport_addr *addr,
 		const l4_protocol proto);

@@ -21,6 +21,28 @@ __u8 l4_proto_to_nexthdr(l4_protocol proto)
 	return 0;
 }
 
+bool port_range_equals(const struct port_range *r1,
+		const struct port_range *r2)
+{
+	return (r1->min == r2->min) && (r1->max == r2->max);
+}
+
+bool port_range_intersects(const struct port_range *r1,
+		const struct port_range *r2)
+{
+	return !(r1->max < r2->min || r2->max < r1->min);
+}
+
+bool port_range_contains(const struct port_range *range, __u16 port)
+{
+	return range->min <= port && port <= range->max;
+}
+
+unsigned int port_range_count(const struct port_range *range)
+{
+	return range->max - range->min + 1U;
+}
+
 bool is_icmp6_info(__u8 type)
 {
 	return (type == ICMPV6_ECHO_REQUEST) || (type == ICMPV6_ECHO_REPLY);

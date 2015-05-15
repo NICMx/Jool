@@ -92,8 +92,8 @@ int sessiontable_count(struct session_table *table, __u64 *result);
 
 int sessiontable_delete_by_bib(struct session_table *table,
 		struct bib_entry *bib);
-int sessiontable_delete_by_prefix4(struct session_table *table,
-		struct ipv4_prefix *prefix);
+int sessiontable_delete_taddr4s(struct session_table *table,
+		struct ipv4_prefix *prefix, struct port_range *ports);
 int sessiontable_flush(struct session_table *table);
 
 bool sessiontable_allow(struct session_table *table, struct tuple *tuple4);

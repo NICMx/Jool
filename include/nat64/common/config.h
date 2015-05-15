@@ -188,23 +188,20 @@ union request_pool4 {
 		__u8 offset_set;
 		struct {
 			struct in_addr addr;
-			__u16 port_min;
-			__u16 port_max;
+			struct port_range ports;
 		} offset;
 	} display;
 	struct {
 		__u32 mark;
 		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
-		__u16 port_min;
-		__u16 port_max;
+		struct port_range ports;
 	} add;
 	struct {
 		__u32 mark;
 		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
-		__u16 port_min;
-		__u16 port_max;
+		struct port_range ports;
 		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
 		__u8 quick;
 	} rm;

@@ -200,11 +200,12 @@ int bibdb_count(const l4_protocol proto, __u64 *result)
  * Removes the fake users of all the BIB entries whose local IPv4 address is
  * "addr4".
  */
-void bibdb_delete_by_prefix4(const struct ipv4_prefix *prefix)
+void bibdb_delete_taddr4s(const struct ipv4_prefix *prefix,
+		struct port_range *ports)
 {
-	bibtable_delete_by_prefix4(&bib_tcp, prefix);
-	bibtable_delete_by_prefix4(&bib_udp, prefix);
-	bibtable_delete_by_prefix4(&bib_icmp, prefix);
+	bibtable_delete_taddr4s(&bib_tcp, prefix, ports);
+	bibtable_delete_taddr4s(&bib_udp, prefix, ports);
+	bibtable_delete_taddr4s(&bib_icmp, prefix, ports);
 }
 
 /**

@@ -1,3 +1,5 @@
+/* TODO (test) this shares a lot of code with Jool's userspace app... */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -342,7 +344,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		if (error)
 			goto err;
 
-		error = set_global_u16_array(args, 1/*TODO: set a type?*/, str);
+		error = set_global_u16_array(args, 1, str);
 		break;
 	case ARGP_DEVICE_NAME:
 		error = update_state(args, MODE_DEVICE, OP_ADD | OP_REMOVE);

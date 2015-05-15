@@ -258,8 +258,7 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 
 	if (request->display.offset_set) {
 		offset.addr = request->display.offset.addr;
-		offset.range.min = request->display.offset.port_min;
-		offset.range.max = request->display.offset.port_max;
+		offset.range = request->display.offset.ports;
 		offset_ptr = &offset;
 	}
 
@@ -272,22 +271,17 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 
 static int handle_pool4_add(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
-	struct port_range ports;
-
 	if (verify_superpriv())
 		return respond_error(nl_hdr, -EPERM);
 
 	log_debug("Adding elements to the IPv4 pool.");
 
-	ports.min = request->add.port_min;
-	ports.max = request->add.port_max;
 	return respond_error(nl_hdr, pool4db_add(request->add.mark,
-			&request->add.addrs, &ports));
+			&request->add.addrs, &request->add.ports));
 }
 
 static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
-	struct port_range ports;
 	int error;
 
 	if (verify_superpriv())
@@ -295,14 +289,12 @@ static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request
 
 	log_debug("Removing elements from the IPv4 pool.");
 
-	ports.min = request->rm.port_min;
-	ports.max = request->rm.port_max;
-	error = pool4db_rm(request->rm.mark, &request->rm.addrs, &ports);
+	error = pool4db_rm(request->rm.mark, &request->rm.addrs,
+			&request->rm.ports);
 
 	if (nat64_is_stateful() && !request->rm.quick) {
-		/* TODO these functions need to receive the ports. */
-		sessiondb_delete_by_prefix4(&request->rm.addrs);
-		bibdb_delete_by_prefix4(&request->rm.addrs);
+		sessiondb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
+		bibdb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
 	}
 
 	return respond_error(nl_hdr, error);

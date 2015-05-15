@@ -178,6 +178,9 @@ fail:
 	return error;
 }
 
+/**
+ * Spinlock must be held.
+ */
 void __rm(struct bib_table *table, struct bib_entry *bib)
 {
 	if (!WARN(RB_EMPTY_NODE(&bib->tree6_hook), "Faulty IPv6 index"))
@@ -259,14 +262,10 @@ int bibtable_count(struct bib_table *table, __u64 *result)
 	return 0;
 }
 
-/*
- * TODO I started removing NULL validations because FTS, man. Might want to
- * return them as the code approaches release.
- */
-
 struct iteration_args {
 	struct bib_table *table;
 	const struct ipv4_prefix *prefix;
+	const struct port_range *ports;
 	unsigned int deleted_count;
 };
 
@@ -291,7 +290,6 @@ void bibtable_flush(struct bib_table *table)
 {
 	struct iteration_args args = {
 		.table = table,
-		.prefix = NULL,
 		.deleted_count = 0,
 	};
 
@@ -299,31 +297,34 @@ void bibtable_flush(struct bib_table *table)
 	log_debug("Deleted %u BIB entries.", args.deleted_count);
 }
 
-static int __delete_by_prefix4(struct bib_entry *bib, void *void_args)
+static int __delete_taddr4s(struct bib_entry *bib, void *void_args)
 {
 	struct iteration_args *args = void_args;
 
 	if (prefix4_contains(args->prefix, &bib->ipv4.l3))
 		return 1; /* positive = break iteration early, not an error. */
+	if (!port_range_contains(args->ports, bib->ipv4.l4))
+		return 0;
 
 	return __flush(bib, void_args);
 }
 
-void bibtable_delete_by_prefix4(struct bib_table *table,
-		const struct ipv4_prefix *prefix)
+void bibtable_delete_taddr4s(struct bib_table *table,
+		const struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct iteration_args args = {
 		.table = table,
 		.prefix = prefix,
+		.ports = ports,
 		.deleted_count = 0,
 	};
 	struct ipv4_transport_addr offset = {
 		.l3 = prefix->address,
-		.l4 = 0,
+		.l4 = ports->min,
 	};
 
 	/* TODO this will ignore the firstest prefix. */
-	bibtable_foreach(table, __delete_by_prefix4, &args, &offset);
+	bibtable_foreach(table, __delete_taddr4s, &args, &offset);
 	log_debug("Deleted %u BIB entries.", args.deleted_count);
 }
 
