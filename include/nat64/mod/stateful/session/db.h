@@ -28,7 +28,7 @@ int sessiondb_count(l4_protocol proto, __u64 *result);
 int sessiondb_delete_by_bib(struct bib_entry *bib);
 void sessiondb_delete_taddr4s(struct ipv4_prefix *prefix,
 		struct port_range *ports);
-void sessiondb_delete_by_prefix6(struct ipv6_prefix *prefix);
+void sessiondb_delete_taddr6s(struct ipv6_prefix *prefix);
 void sessiondb_flush(void);
 
 bool sessiondb_allow(struct tuple *tuple4);

@@ -8,6 +8,7 @@
 
 bool assert_true(bool condition, char *test_name);
 bool assert_equals_int(int expected, int actual, char *test_name);
+bool assert_equals_uint(unsigned int expected, unsigned int actual, char *test_name);
 bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name);
 bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name);
 bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name);

@@ -94,8 +94,7 @@ static struct nf_hook_ops nfho[] = {
 	},
 };
 
-/* TODO (issue36) uncomment the preprocessor thingies */
-static int /* __init */ nat64_init(void)
+static int __init nat64_init(void)
 {
 	int error;
 
@@ -166,7 +165,7 @@ config_failure:
 	return error;
 }
 
-static void /* __exit */ nat64_exit(void)
+static void __exit nat64_exit(void)
 {
 	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));

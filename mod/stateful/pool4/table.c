@@ -15,7 +15,7 @@ struct pool4_table *pool4table_create(__u32 mark)
 
 	result->mark = mark;
 	INIT_LIST_HEAD(&result->rows);
-	return 0;
+	return result;
 }
 
 /**
@@ -303,7 +303,7 @@ int pool4table_foreach_sample(struct pool4_table *table,
  *
  * Iterations wraps around. You want to break iteration early!
  */
-int pool4table_foreach_port(struct pool4_table *table,
+int pool4table_foreach_tadd4(struct pool4_table *table,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {

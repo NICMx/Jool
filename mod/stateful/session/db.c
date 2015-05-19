@@ -127,76 +127,12 @@ void sessiondb_delete_taddr4s(struct ipv4_prefix *prefix,
 	sessiontable_delete_taddr4s(&session_table_udp, prefix, ports);
 }
 
-///**
-// * Used in delete_sessions_by_prefix6 when is searching in the Session tree6,
-// * returns zero if "session"->ipv6.local.address is equals to "prefix" or contains the "prefix".
-// * Otherwise return the gap of the comparison result.
-// */
-//static int compare_local_prefix6(struct session_entry *session, struct ipv6_prefix *prefix)
-//{
-//	return (prefix6_contains(prefix, &session->local6.l3))
-//			? 0
-//			: ipv6_addr_cmp(&prefix->address, &session->local6.l3);
-//}
-//
-///**
-// * Deletes the sessions from the "table" table whose local IPv6 address contains "prefix".
-// * This function is awfully similar to sessiondb_delete_by_bib(). See that for more comments.
-// */
-//static int delete_sessions_by_prefix6(struct session_table *table, struct ipv6_prefix *prefix)
-//{
-//	struct session_entry *root_session, *session;
-//	struct rb_node *node;
-//	int s = 0;
-//
-//	spin_lock_bh(&table->lock);
-//
-//	root_session = rbtree_find(prefix, &table->tree6, compare_local_prefix6, struct session_entry,
-//			tree6_hook);
-//	if (!root_session)
-//		goto success;
-//
-//	node = rb_prev(&root_session->tree6_hook);
-//	while (node) {
-//		session = rb_entry(node, struct session_entry, tree6_hook);
-//		node = rb_prev(&session->tree6_hook);
-//
-//		if (compare_local_prefix6(session, prefix) != 0)
-//			break;
-//		s += remove(session, table);
-//	}
-//
-//	node = rb_next(&root_session->tree6_hook);
-//	while (node) {
-//		session = rb_entry(node, struct session_entry, tree6_hook);
-//		node = rb_next(&session->tree6_hook);
-//
-//		if (compare_local_prefix6(session, prefix) != 0)
-//			break;
-//		s += remove(session, table);
-//	}
-//
-//	s += remove(root_session, table);
-//	table->count -= s;
-//	/* Fall through. */
-//
-//success:
-//	spin_unlock_bh(&table->lock);
-//	log_debug("Deleted %d sessions.", s);
-//	return 0;
-//}
-//
-//int sessiondb_delete_by_prefix6(struct ipv6_prefix *prefix)
-//{
-//	if (WARN(!prefix, "The IPv6 prefix is NULL"))
-//		return -EINVAL;
-//
-//	delete_sessions_by_prefix6(&session_table_tcp, prefix);
-//	delete_sessions_by_prefix6(&session_table_icmp, prefix);
-//	delete_sessions_by_prefix6(&session_table_udp, prefix);
-//
-//	return 0;
-//}
+void sessiondb_delete_taddr6s(struct ipv6_prefix *prefix)
+{
+	sessiontable_delete_taddr6s(&session_table_tcp, prefix);
+	sessiontable_delete_taddr6s(&session_table_icmp, prefix);
+	sessiontable_delete_taddr6s(&session_table_udp, prefix);
+}
 
 void sessiondb_flush(void)
 {

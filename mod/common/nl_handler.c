@@ -214,7 +214,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, error);
 
 		if (nat64_is_stateful() && !request->flush.quick)
-			sessiondb_delete_by_prefix6(&request->rm.prefix);
+			sessiondb_delete_taddr6s(&request->rm.prefix);
 
 		return respond_error(nl_hdr, error);
 
@@ -329,9 +329,8 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return handle_pool4_rm(nl_hdr, request);
 
 	case OP_FLUSH:
-		if (verify_superpriv()) {
+		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Flushing the IPv4 pool...");
 		error = pool4db_flush(request->flush.mark);

@@ -17,8 +17,6 @@ HASHTABLE = hashtable
 RFC6052 = rfc6052
 PKT = pkt
 RBTREE = rbtree
-POOLNUM = poolnum
-POOL4 = pool4
 POOL4DB = pool4db
 BIB = bib
 SESSION = session
@@ -41,8 +39,6 @@ obj-m += $(HASHTABLE).o
 obj-m += $(RFC6052).o
 obj-m += $(PKT).o
 obj-m += $(RBTREE).o
-obj-m += $(POOLNUM).o
-obj-m += $(POOL4).o
 obj-m += $(POOL4DB).o
 obj-m += $(BIB).o
 obj-m += $(SESSION).o
@@ -92,14 +88,9 @@ $(PKT)-objs += packet_test.o
 $(RBTREE)-objs += $(MIN_REQS)
 $(RBTREE)-objs += rbtree_test.o
 
-$(POOLNUM)-objs += $(MIN_REQS)
-$(POOLNUM)-objs += ../mod/common/random.o
-$(POOLNUM)-objs += pool_num_test.o
-
-$(POOL4)-objs += $(MIN_REQS)
-$(POOL4)-objs += pool4_test.o
-
 $(POOL4DB)-objs += $(MIN_REQS)
+$(POOL4DB)-objs += ../mod/stateful/pool4/table.o
+$(POOL4DB)-objs += ../mod/stateful/pool4/entry.o
 $(POOL4DB)-objs += pool4db_test.o
 
 $(BIB)-objs += $(MIN_REQS)
@@ -107,10 +98,6 @@ $(BIB)-objs += ../mod/common/config.o
 $(BIB)-objs += ../mod/common/random.o
 $(BIB)-objs += ../mod/common/rbtree.o
 $(BIB)-objs += ../mod/stateful/host6_node.o
-# The BIB test cannot use the pool4 impersonator
-# because it needs to test exhaustion.
-$(BIB)-objs += ../mod/stateful/pool4.o
-$(BIB)-objs += ../mod/stateful/poolnum.o
 $(BIB)-objs += framework/bib.o
 $(BIB)-objs += framework/types.o
 $(BIB)-objs += impersonator/icmp_wrapper.o
@@ -130,7 +117,6 @@ $(SESSION)-objs += framework/session.o
 $(SESSION)-objs += framework/skb_generator.o
 $(SESSION)-objs += framework/types.o
 $(SESSION)-objs += impersonator/icmp_wrapper.o
-$(SESSION)-objs += impersonator/pool4.o
 $(SESSION)-objs += impersonator/route.o
 $(SESSION)-objs += session_test.o
 
@@ -169,7 +155,6 @@ $(FILTERING)-objs += framework/session.o
 $(FILTERING)-objs += framework/skb_generator.o
 $(FILTERING)-objs += framework/types.o
 $(FILTERING)-objs += impersonator/icmp_wrapper.o
-$(FILTERING)-objs += impersonator/pool4.o
 $(FILTERING)-objs += impersonator/route.o
 $(FILTERING)-objs += impersonator/stats.o
 $(FILTERING)-objs += filtering_and_updating_test.o
@@ -188,7 +173,6 @@ $(OUTGOING)-objs += framework/init.o
 $(OUTGOING)-objs += framework/session.o
 $(OUTGOING)-objs += framework/types.o
 $(OUTGOING)-objs += impersonator/icmp_wrapper.o
-$(OUTGOING)-objs += impersonator/pool4.o
 $(OUTGOING)-objs += impersonator/route.o
 $(OUTGOING)-objs += compute_outgoing_tuple_test.o
 
@@ -236,7 +220,6 @@ $(HAIRPINNING)-objs += framework/session.o
 $(HAIRPINNING)-objs += framework/skb_generator.o
 $(HAIRPINNING)-objs += framework/types.o
 $(HAIRPINNING)-objs += impersonator/icmp_wrapper.o
-$(HAIRPINNING)-objs += impersonator/pool4.o
 $(HAIRPINNING)-objs += impersonator/route.o
 $(HAIRPINNING)-objs += impersonator/send_packet.o
 $(HAIRPINNING)-objs += impersonator/stats.o
@@ -257,7 +240,6 @@ $(PKTQUEUE)-objs += framework/session.o
 $(PKTQUEUE)-objs += framework/skb_generator.o
 $(PKTQUEUE)-objs += framework/types.o
 $(PKTQUEUE)-objs += impersonator/icmp_wrapper.o
-$(PKTQUEUE)-objs += impersonator/pool4.o
 $(PKTQUEUE)-objs += impersonator/route.o
 $(PKTQUEUE)-objs += impersonator/stats.o
 $(PKTQUEUE)-objs += pkt_queue_test.o
@@ -286,7 +268,6 @@ $(CONFIG_PROTO)-objs += ../mod/stateful/session_db.o
 $(CONFIG_PROTO)-objs += ../mod/stateful/static_routes.o
 $(CONFIG_PROTO)-objs += framework/init.o
 $(CONFIG_PROTO)-objs += impersonator/icmp_wrapper.o
-$(CONFIG_PROTO)-objs += impersonator/pool4.o
 $(CONFIG_PROTO)-objs += impersonator/stats.o
 $(CONFIG_PROTO)-objs += nl_handler_test.o
 
@@ -309,8 +290,6 @@ test:
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
 	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
-	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
-	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
 	-sudo insmod $(POOL4DB).ko && sudo rmmod $(POOL4DB)
 	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
 	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)

@@ -50,12 +50,13 @@ struct expire_timer {
 struct session_table {
 	/**
 	 * Indexes the entries using their IPv6 identifiers.
-	 * (sorted by remote6, then local6.)
+	 * (sorted by local6, then remote6. The taddr6 foreach needs this.)
 	 */
 	struct rb_root tree6;
 	/**
 	 * Indexes the entries using their IPv4 identifiers.
-	 * (sorted by local4, then remote4.)
+	 * (sorted by local4, then remote4. sessiontable_allow() and the BIB and
+	 * taddr4 foreachs need this.)
 	 */
 	struct rb_root tree4;
 	/** Number of session entries in this table. */
@@ -94,6 +95,8 @@ int sessiontable_delete_by_bib(struct session_table *table,
 		struct bib_entry *bib);
 int sessiontable_delete_taddr4s(struct session_table *table,
 		struct ipv4_prefix *prefix, struct port_range *ports);
+int sessiontable_delete_taddr6s(struct session_table *table,
+		struct ipv6_prefix *prefix);
 int sessiontable_flush(struct session_table *table);
 
 bool sessiontable_allow(struct session_table *table, struct tuple *tuple4);

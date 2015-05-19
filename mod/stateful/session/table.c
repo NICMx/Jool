@@ -127,12 +127,12 @@ static void decide_fate(fate_cb cb,
 }
 
 /**
- * Sends a probe packet to "session"'s IPv6 endpoint, to trigger a confirmation ACK if the
- * connection is still alive.
+ * send_probe_packet - Sends a probe packet to "session"'s IPv6 endpoint,
+ * to trigger a confirmation ACK if the connection is still alive.
  *
  * From RFC 6146 page 30.
  *
- * @param[in] session the established session that has been inactive for too long.
+ * @session: the established session that has been inactive for too long.
  *
  * Doesn't care about spinlocks, but "session" might.
  */
@@ -190,8 +190,8 @@ static void send_probe_packet(struct session_entry *session)
 	th->check = 0;
 	th->urg_ptr = 0;
 
-	th->check = csum_ipv6_magic(&iph->saddr, &iph->daddr, l4_hdr_len, IPPROTO_TCP,
-			csum_partial(th, l4_hdr_len, 0));
+	th->check = csum_ipv6_magic(&iph->saddr, &iph->daddr, l4_hdr_len,
+			IPPROTO_TCP, csum_partial(th, l4_hdr_len, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
@@ -202,14 +202,14 @@ static void send_probe_packet(struct session_entry *session)
 
 	error = ip6_local_out(skb);
 	if (error) {
-		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
+		log_debug("ip6_local_out returned errcode %d.", error);
 		goto fail;
 	}
 
 	return;
 
 fail:
-	log_debug("Looks like a TCP connection will break or remain idle forever somewhere...");
+	log_debug("A TCP connection will probably break.");
 }
 
 static void post_fate(struct list_head *rms, struct list_head *probes)
@@ -227,7 +227,8 @@ static void post_fate(struct list_head *rms, struct list_head *probes)
 /**
  * Called once in a while to kick off the scheduled expired sessions massacre.
  *
- * In that sense, it's a public function, so it requires spinlocks to NOT be held.
+ * In that sense, it's a public function, so it requires spinlocks to NOT be
+ * held.
  */
 static void cleaner_timer(unsigned long param)
 {
@@ -482,7 +483,8 @@ bool sessiontable_allow(struct session_table *table, struct tuple *tuple4)
 	bool result;
 
 	spin_lock_bh(&table->lock);
-	session = rbtree_find(tuple4, &table->tree4, compare_addrs4, struct session_entry, tree4_hook);
+	session = rbtree_find(tuple4, &table->tree4, compare_addrs4,
+			struct session_entry, tree4_hook);
 	result = session ? true : false;
 	spin_unlock_bh(&table->lock);
 
@@ -548,52 +550,51 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 }
 
 /**
- * See the function of the same name from the BIB DB module for comments on this.
- *
  * Requires "table"'s spinlock to already be held.
  */
-static struct rb_node *find_next_chunk(struct session_table *table,
+static struct rb_node *find_starting_point(struct session_table *table,
 		const struct ipv4_transport_addr *offset_remote,
-		const struct ipv4_transport_addr *offset_local)
+		const struct ipv4_transport_addr *offset_local,
+		const bool include_offset)
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
 	struct tuple tmp;
 
+	/* If there's no offset, start from the beginning. */
 	if (!offset_remote || !offset_local)
 		return rb_first(&table->tree4);
 
+	/* If offset is found, start from offset or offset's next. */
 	tmp.src.addr4 = *offset_remote;
-	tmp.dst.addr4 = *offset_local;
-	/* the protos are not needed. */
+	tmp.dst.addr4 = *offset_local; /* the protos are not needed. */
 	rbtree_find_node(&tmp, &table->tree4, compare_full4,
 			struct session_entry, tree4_hook, parent, node);
 	if (*node)
-		return rb_next(*node);
+		return include_offset ? (*node) : rb_next(*node);
 
+	/*
+	 * If offset is not found, start from offset's next anyway.
+	 * (If offset was meant to exist, it probably timed out and died while
+	 * the caller wasn't holding the spinlock; it's nothing to worry about.)
+	 */
 	session = rb_entry(parent, struct session_entry, tree4_hook);
 	return (compare_full4(session, &tmp) < 0) ? parent : rb_next(parent);
 }
 
-void sessiontable_update_timers(struct session_table *table)
-{
-	spin_lock_bh(&table->lock);
-	force_reschedule(&table->est_timer);
-	force_reschedule(&table->trans_timer);
-	spin_unlock_bh(&table->lock);
-}
-
-int sessiontable_foreach(struct session_table *table,
+int __foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset_remote,
-		const struct ipv4_transport_addr *offset_local)
+		const struct ipv4_transport_addr *offset_local,
+		const bool include_offset)
 {
 	struct rb_node *node, *next;
 	struct session_entry *session;
 	int error = 0;
 	spin_lock_bh(&table->lock);
 
-	node = find_next_chunk(table, offset_remote, offset_local);
+	node = find_starting_point(table, offset_remote, offset_local,
+			include_offset);
 	for (; node && !error; node = next) {
 		next = rb_next(node);
 		session = rb_entry(node, struct session_entry, tree4_hook);
@@ -602,6 +603,14 @@ int sessiontable_foreach(struct session_table *table,
 
 	spin_unlock_bh(&table->lock);
 	return error;
+}
+
+int sessiontable_foreach(struct session_table *table,
+		int (*func)(struct session_entry *, void *), void *arg,
+		const struct ipv4_transport_addr *offset_remote,
+		const struct ipv4_transport_addr *offset_local)
+{
+	return __foreach(table, func, arg, offset_remote, offset_local, false);
 }
 
 int sessiontable_count(struct session_table *table, __u64 *result)
@@ -618,7 +627,7 @@ struct bib_remove_args {
 	struct list_head removed;
 };
 
-static int __remove_by_bib(struct session_entry *session, void *args_void)
+static int __rm_by_bib(struct session_entry *session, void *args_void)
 {
 	struct bib_remove_args *args = args_void;
 
@@ -643,8 +652,7 @@ int sessiontable_delete_by_bib(struct session_table *table,
 	};
 	int error;
 
-	error = sessiontable_foreach(table, __remove_by_bib, &args,
-			&remote, &bib->ipv4);
+	error = __foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, true);
 	delete(&args.removed);
 	return error;
 }
@@ -656,7 +664,7 @@ struct taddr4_remove_args {
 	struct list_head removed;
 };
 
-static int __remove_taddr4s(struct session_entry *session, void *args_void)
+static int __rm_taddr4s(struct session_entry *session, void *args_void)
 {
 	struct taddr4_remove_args *args = args_void;
 
@@ -688,8 +696,75 @@ int sessiontable_delete_taddr4s(struct session_table *table,
 	};
 	int error;
 
-	error = sessiontable_foreach(table, __remove_taddr4s, &args,
-			&remote, &local);
+	error = __foreach(table, __rm_taddr4s, &args, &remote, &local, true);
+	delete(&args.removed);
+	return error;
+}
+
+/**
+ * Requires "table"'s spinlock to already be held.
+ */
+static struct rb_node *find_starting_point6(struct session_table *table,
+		const struct ipv6_transport_addr *local)
+{
+	struct rb_node **node, *parent;
+	struct session_entry *session;
+	struct tuple tmp;
+
+	memset(&tmp.src.addr6, 0, sizeof(tmp.src.addr6));
+	tmp.dst.addr6 = *local;
+	/* the protos are not needed. */
+
+	rbtree_find_node(&tmp, &table->tree6, compare_full6,
+			struct session_entry, tree6_hook, parent, node);
+	if (*node)
+		return *node;
+
+	session = rb_entry(parent, struct session_entry, tree6_hook);
+	return (compare_full6(session, &tmp) < 0) ? parent : rb_next(parent);
+}
+
+struct taddr6_remove_args {
+	struct session_table *table;
+	const struct ipv6_prefix *prefix;
+	struct list_head removed;
+};
+
+static int __rm_taddr6s(struct session_entry *session,
+		struct taddr6_remove_args *args)
+{
+	if (!prefix6_contains(args->prefix, &session->local6.l3))
+		return 1; /* positive = break iteration early, no error. */
+
+	rm(args->table, session, &args->removed);
+	return 0;
+}
+
+int sessiontable_delete_taddr6s(struct session_table *table,
+		struct ipv6_prefix *prefix)
+{
+	struct taddr6_remove_args args = {
+			.table = table,
+			.prefix = prefix,
+			.removed = LIST_HEAD_INIT(args.removed),
+	};
+	struct ipv6_transport_addr local = {
+			.l3 = prefix->address,
+			.l4 = 0,
+	};
+	struct rb_node *node, *next;
+	struct session_entry *session;
+	int error = 0;
+	spin_lock_bh(&table->lock);
+
+	node = find_starting_point6(table, &local);
+	for (; node && !error; node = next) {
+		next = rb_next(node);
+		session = rb_entry(node, struct session_entry, tree6_hook);
+		error = __rm_taddr6s(session, &args);
+	}
+
+	spin_unlock_bh(&table->lock);
 	delete(&args.removed);
 	return error;
 }
@@ -714,7 +789,15 @@ int sessiontable_flush(struct session_table *table)
 	};
 	int error;
 
-	error = sessiontable_foreach(table, __flush, &args, NULL, NULL);
+	error = __foreach(table, __flush, &args, NULL, NULL, 0);
 	delete(&args.removed);
 	return error;
+}
+
+void sessiontable_update_timers(struct session_table *table)
+{
+	spin_lock_bh(&table->lock);
+	force_reschedule(&table->est_timer);
+	force_reschedule(&table->trans_timer);
+	spin_unlock_bh(&table->lock);
 }

@@ -139,7 +139,7 @@ int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 
-	error = pool4db_foreach_port(mark, choose_port, &args,
+	error = pool4db_foreach_taddr4(mark, choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
 	if (error == 0)
 		return -ESRCH;

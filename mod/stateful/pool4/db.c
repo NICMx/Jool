@@ -1,6 +1,7 @@
 #include "nat64/mod/stateful/pool4/db.h"
 
 #include <linux/hash.h>
+#include <linux/list.h>
 #include <linux/slab.h>
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/pool4/table.h"
@@ -15,6 +16,11 @@ static int slots(void)
 	return 1 << power;
 }
 
+static struct pool4_table *table_entry(struct hlist_node *node)
+{
+	return hlist_entry(node, struct pool4_table, hlist_hook);
+}
+
 static struct hlist_head *init_db(unsigned int size)
 {
 	struct hlist_head *result;
@@ -23,7 +29,7 @@ static struct hlist_head *init_db(unsigned int size)
 	result = kmalloc(size * sizeof(*result), GFP_KERNEL);
 	if (!result)
 		return NULL;
-	for (i = 0; i < slots(); i++)
+	for (i = 0; i < size; i++)
 		INIT_HLIST_HEAD(&result[i]);
 
 	return result;
@@ -92,15 +98,15 @@ int pool4db_init(unsigned int size, char *prefix_strs[], int prefix_count)
 
 void pool4db_destroy(void)
 {
-	struct hlist_node *hnode;
+	struct hlist_node *node;
 	struct pool4_table *table;
 	unsigned int i;
 
 	for (i = 0; i < slots(); i++) {
 		while (!hlist_empty(&db[i])) {
-			hnode = db[i].first;
-			table = hlist_entry(hnode, typeof(*table), hlist_hook);
-			hlist_del(hnode);
+			node = db[i].first;
+			table = table_entry(node);
+			hlist_del(node);
 			pool4table_destroy(table);
 		}
 	}
@@ -114,10 +120,12 @@ void pool4db_destroy(void)
 static struct pool4_table *find_table(const __u32 mark)
 {
 	struct pool4_table *table;
+	struct hlist_node *node;
 	u32 hash;
 
 	hash = hash_32(mark, power);
-	hlist_for_each_entry(table, &db[hash], hlist_hook) {
+	hlist_for_each(node, &db[hash]) {
+		table = table_entry(node);
 		if (table->mark == mark)
 			return table;
 	}
@@ -132,6 +140,8 @@ int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
 	int error;
 
 	table = find_table(mark);
+	error = -EINVAL;
+
 	if (!table) {
 		table = pool4table_create(mark);
 		if (!table)
@@ -201,15 +211,15 @@ bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr)
 
 bool pool4db_contains_all(struct ipv4_transport_addr *addr)
 {
-	struct pool4_table *table;
+	struct hlist_node *node;
 	unsigned int i;
 	bool found = false;
 
 	rcu_read_lock();
 
 	for (i = 0; i < slots(); i++) {
-		hlist_for_each_entry(table, &db[i], hlist_hook) {
-			if (pool4table_contains(table, addr)) {
+		hlist_for_each(node, &db[i]) {
+			if (pool4table_contains(table_entry(node), addr)) {
 				found = true;
 				goto end;
 			}
@@ -223,15 +233,15 @@ end:
 
 bool pool4db_is_empty(void)
 {
-	struct pool4_table *table;
+	struct hlist_node *node;
 	unsigned int i;
 	bool empty = true;
 
 	rcu_read_lock();
 
 	for (i = 0; i < slots(); i++) {
-		hlist_for_each_entry(table, &db[i], hlist_hook) {
-			if (pool4table_is_empty(table)) {
+		hlist_for_each(node, &db[i]) {
+			if (pool4table_is_empty(table_entry(node))) {
 				empty = false;
 				goto end;
 			}
@@ -259,7 +269,7 @@ int pool4db_foreach_sample(const __u32 mark,
 	return error;
 }
 
-int pool4db_foreach_port(const __u32 mark,
+int pool4db_foreach_taddr4(const __u32 mark,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
@@ -268,7 +278,7 @@ int pool4db_foreach_port(const __u32 mark,
 	rcu_read_lock();
 
 	table = find_table(mark);
-	error = table ? pool4table_foreach_port(table, func, arg, offset)
+	error = table ? pool4table_foreach_tadd4(table, func, arg, offset)
 			: -ESRCH;
 
 	rcu_read_unlock();

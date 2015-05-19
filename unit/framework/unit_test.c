@@ -33,6 +33,11 @@ bool assert_equals_int(int expected, int actual, char *test_name)
 	return true;
 }
 
+bool assert_equals_uint(unsigned int expected, unsigned int actual, char *test_name)
+{
+	return assert_equals_ulong(expected, actual, test_name);
+}
+
 bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name)
 {
 	if (expected != actual) {

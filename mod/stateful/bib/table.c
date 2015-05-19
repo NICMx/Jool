@@ -181,7 +181,7 @@ fail:
 /**
  * Spinlock must be held.
  */
-void __rm(struct bib_table *table, struct bib_entry *bib)
+void rm(struct bib_table *table, struct bib_entry *bib)
 {
 	if (!WARN(RB_EMPTY_NODE(&bib->tree6_hook), "Faulty IPv6 index"))
 		rb_erase(&bib->tree6_hook, &table->tree6);
@@ -195,63 +195,63 @@ void __rm(struct bib_table *table, struct bib_entry *bib)
 void bibtable_rm(struct bib_table *table, struct bib_entry *bib)
 {
 	spin_lock_bh(&table->lock);
-	__rm(table, bib);
+	rm(table, bib);
 	spin_unlock_bh(&table->lock);
 }
 
-/**
- * Tries to find the BIB entry whose local IPv4 address is "addr".
- * If such an entry cannot be found, it returns the one right next to it if it
- * existed.
- *
- * Why?
- * When the user requests the table to be displayed, the kernel module sends it
- * in chunks because it might be too big for a single Netlink message.
- * This is the function that finds the next chunk where iteration should
- * continue. The quirk of choosing the next entry if it doesn't exist is because
- * the first entry of the next chunk could have died while the previous chunk
- * was transmitted... so the iteration should just ignore it and continue with
- * the next entry peacefully.
- */
-static struct rb_node *find_next_chunk(struct bib_table *table,
-		const struct ipv4_transport_addr *offset)
+static struct rb_node *find_starting_point(struct bib_table *table,
+		const struct ipv4_transport_addr *offset, bool include_offset)
 {
 	struct bib_entry *bib;
 	struct rb_node **node;
 	struct rb_node *parent;
 
+	/* If there's no offset, start from the beginning. */
 	if (!offset)
 		return rb_first(&table->tree4);
 
+	/* If offset is found, start from offset or offset's next. */
 	rbtree_find_node(offset, &table->tree4, compare_full4, struct bib_entry,
 			tree4_hook, parent, node);
 	if (*node)
-		return rb_next(*node);
+		return include_offset ? (*node) : rb_next(*node);
 
+	/*
+	 * If offset is not found, start from offset's next anyway.
+	 * (If offset was meant to exist, it probably timed out and died while
+	 * the caller wasn't holding the spinlock; it's nothing to worry about.)
+	 */
 	bib = rb_entry(parent, struct bib_entry, tree4_hook);
 	return (compare_full4(bib, offset) < 0) ? parent : rb_next(parent);
 }
 
 /**
- * Similar to bibdb_for_each(), except it only runs the function for BIB entries
- * whose IPv4 transport address is "addr".
- * The iteration is "safe"; it doesn't die if func() deletes the entry.
+ * The iteration is "safe"; it doesn't die if func() removes and/or deletes the
+ * entry.
  */
-int bibtable_foreach(struct bib_table *table,
+static int __foreach(struct bib_table *table,
 		int (*func)(struct bib_entry *, void *), void *arg,
-		const struct ipv4_transport_addr *offset)
+		const struct ipv4_transport_addr *offset, bool include_offset)
 {
 	struct rb_node *node, *next;
 	int error = 0;
 	spin_lock_bh(&table->lock);
 
-	for (node = find_next_chunk(table, offset); node && !error; node = next) {
+	node = find_starting_point(table, offset, include_offset);
+	for (; node && !error; node = next) {
 		next = rb_next(node);
 		error = func(rb_entry(node, struct bib_entry, tree4_hook), arg);
 	}
 
 	spin_unlock_bh(&table->lock);
 	return error;
+}
+
+int bibtable_foreach(struct bib_table *table,
+		int (*func)(struct bib_entry *, void *), void *arg,
+		const struct ipv4_transport_addr *offset)
+{
+	return __foreach(table, func, arg, offset, false);
 }
 
 int bibtable_count(struct bib_table *table, __u64 *result)
@@ -278,7 +278,7 @@ static int __flush(struct bib_entry *bib, void *void_args)
 	 * Otherwise we might free entries being actively pointed by sessions.
 	 */
 	if (bib->is_static && bibentry_return(bib)) {
-		__rm(args->table, bib);
+		rm(args->table, bib);
 		bibentry_kfree(bib);
 		args->deleted_count++;
 	}
@@ -289,11 +289,11 @@ static int __flush(struct bib_entry *bib, void *void_args)
 void bibtable_flush(struct bib_table *table)
 {
 	struct iteration_args args = {
-		.table = table,
-		.deleted_count = 0,
+			.table = table,
+			.deleted_count = 0,
 	};
 
-	bibtable_foreach(table, __flush, &args, NULL);
+	__foreach(table, __flush, &args, NULL, 0);
 	log_debug("Deleted %u BIB entries.", args.deleted_count);
 }
 
@@ -313,18 +313,17 @@ void bibtable_delete_taddr4s(struct bib_table *table,
 		const struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct iteration_args args = {
-		.table = table,
-		.prefix = prefix,
-		.ports = ports,
-		.deleted_count = 0,
+			.table = table,
+			.prefix = prefix,
+			.ports = ports,
+			.deleted_count = 0,
 	};
 	struct ipv4_transport_addr offset = {
-		.l3 = prefix->address,
-		.l4 = ports->min,
+			.l3 = prefix->address,
+			.l4 = ports->min,
 	};
 
-	/* TODO this will ignore the firstest prefix. */
-	bibtable_foreach(table, __delete_taddr4s, &args, &offset);
+	__foreach(table, __delete_taddr4s, &args, &offset, true);
 	log_debug("Deleted %u BIB entries.", args.deleted_count);
 }
 

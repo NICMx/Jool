@@ -33,7 +33,7 @@ bool pool4table_is_empty(struct pool4_table *table);
 int pool4table_foreach_sample(struct pool4_table *table,
 		int (*func)(struct pool4_sample *, void *), void * args,
 		struct pool4_sample *offset);
-int pool4table_foreach_port(struct pool4_table *table,
+int pool4table_foreach_tadd4(struct pool4_table *table,
 		int (*func)(struct ipv4_transport_addr *, void *), void *args,
 		unsigned int offset);
 
