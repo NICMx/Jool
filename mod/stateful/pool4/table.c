@@ -59,7 +59,7 @@ static int add_ports(struct pool4_addr *addr, struct port_range *range)
 	struct pool4_ports *ports;
 
 	list_for_each_entry(ports, &addr->ports, list_hook) {
-		if (!port_range_intersects(&ports->range, range))
+		if (!port_range_touches(&ports->range, range))
 			continue;
 
 		list_del_rcu(&ports->list_hook);
@@ -82,6 +82,9 @@ static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 	struct pool4_addr *addr;
 	int error;
 
+	/* log_debug("Adding sample %pI4 %u-%u", &sample->addr,
+			sample->range.min, sample->range.max); */
+
 	list_for_each_entry(addr, &table->rows, list_hook) {
 		if (addr4_equals(&addr->addr, &sample->addr))
 			return add_ports(addr, &sample->range);
@@ -99,7 +102,7 @@ static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 		return error;
 	}
 
-	list_add_rcu(&addr->list_hook, &table->rows);
+	list_add_tail_rcu(&addr->list_hook, &table->rows);
 	return 0;
 }
 
@@ -301,65 +304,68 @@ int pool4table_foreach_sample(struct pool4_table *table,
  * @arg: additional argument to send to @func on every iteration.
  * @offset: iteration will start from the @offset'th element (inclusive).
  *
- * Iterations wraps around. You want to break iteration early!
+ * Iterations wraps around and doesn't stop naturally until the @offset'th
+ * element is reached. You want @func to break iteration early!
  */
 int pool4table_foreach_tadd4(struct pool4_table *table,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
-		unsigned int offset)
+		unsigned int offset_main)
 {
 	struct pool4_addr *addr;
 	struct pool4_ports *ports;
 	struct ipv4_transport_addr tmp;
 	unsigned int num_ports;
-	unsigned int offset_current;
+	unsigned int offset;
 	unsigned int i;
 	int error = 0;
 
 	num_ports = count_ports(table);
 	if (num_ports == 0)
 		return 0;
-	offset %= num_ports;
+	offset_main %= num_ports;
 
-	offset_current = offset;
+	offset = offset_main;
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		tmp.l3 = addr->addr;
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
 			num_ports = port_range_count(&ports->range);
 
-			for (i = offset_current; i < num_ports; i++) {
-				tmp.l4 = i % num_ports;
+			if (offset > num_ports) {
+				offset -= num_ports;
+				continue;
+			}
+
+			for (i = offset; i < num_ports; i++) {
+				tmp.l4 = ports->range.min + i;
 				error = func(&tmp, arg);
 				if (error)
 					return error;
 			}
-
-			if (offset_current > 0)
-				offset_current -= num_ports;
+			offset = 0;
 		}
 	}
 
-	offset_current = offset;
+	offset = offset_main;
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		tmp.l3 = addr->addr;
 		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
 			num_ports = port_range_count(&ports->range);
 
 			for (i = 0; i < num_ports; i++) {
-				if (i >= offset_current)
-					goto end;
+				if (i >= offset)
+					return 0;
 
-				tmp.l4 = i % num_ports;
+				tmp.l4 = ports->range.min + i;
 				error = func(&tmp, arg);
 				if (error)
 					return error;
 			}
 
-			offset_current -= num_ports;
+			offset -= num_ports;
 		}
 	}
 
-end:
-	return error;
+	return 0;
 }
 
 /**

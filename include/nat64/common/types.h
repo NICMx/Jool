@@ -140,7 +140,7 @@ struct port_range {
 
 bool port_range_equals(const struct port_range *r1,
 		const struct port_range *r2);
-bool port_range_intersects(const struct port_range *r1,
+bool port_range_touches(const struct port_range *r1,
 		const struct port_range *r2);
 bool port_range_contains(const struct port_range *range, __u16 port);
 unsigned int port_range_count(const struct port_range *range);

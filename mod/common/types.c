@@ -27,10 +27,10 @@ bool port_range_equals(const struct port_range *r1,
 	return (r1->min == r2->min) && (r1->max == r2->max);
 }
 
-bool port_range_intersects(const struct port_range *r1,
+bool port_range_touches(const struct port_range *r1,
 		const struct port_range *r2)
 {
-	return !(r1->max < r2->min || r2->max < r1->min);
+	return r1->max >= (r2->min - 1) && r1->min <= (r2->max + 1);
 }
 
 bool port_range_contains(const struct port_range *range, __u16 port)
