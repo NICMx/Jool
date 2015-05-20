@@ -7,6 +7,7 @@
 /* TODO (test) The UNIT_TESTING macro is a hack; remove it. */
 
 bool assert_true(bool condition, char *test_name);
+bool assert_bool(bool expected, bool actual, char *test_name);
 bool assert_equals_int(int expected, int actual, char *test_name);
 bool assert_equals_uint(unsigned int expected, unsigned int actual, char *test_name);
 bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name);

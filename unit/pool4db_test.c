@@ -61,7 +61,7 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return assert_equals_int(0, pool4db_rm(1, prefix, &ports), "rm");
+	return assert_equals_int(0, pool4db_rm(1, &prefix, &ports), "rm");
 }
 
 static bool add_common_samples(void)
@@ -84,7 +84,8 @@ static bool add_common_samples(void)
  * init_taddr - Boilerplate code to initialize a transport address during the
  * tests.
  */
-static void init_taddr(struct ipv4_transport_addr *taddr, __u32 addr, __u16 port)
+static void init_taddr(struct ipv4_transport_addr *taddr, __u32 addr,
+		__u16 port)
 {
 	taddr->l3.s_addr = cpu_to_be32(addr);
 	taddr->l4 = port;
@@ -103,7 +104,7 @@ static int validate_taddr4(struct ipv4_transport_addr *addr, void *void_args)
 
 	/* log_debug("foreaching %pI4:%u", &addr->l3, addr->l4); */
 
-	success &= assert_true(args->i < args->expected_len, "iteration limit");
+	success &= assert_true(args->i < args->expected_len, "overflow");
 	if (!success)
 		return -EINVAL;
 
@@ -276,9 +277,10 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	bool result;
 	bool success = true;
 
-	for (i = addr_min; i < addr_max; i++) {
+	for (i = addr_min; i <= addr_max; i++) {
 		taddr.l3.s_addr = cpu_to_be32(0xc0000200U | i);
-		for (taddr.l4 = port_min; taddr.l4 < port_max; taddr.l4++) {
+		for (taddr.l4 = port_min; taddr.l4 <= port_max; taddr.l4++) {
+			/* log_debug("Testing %pI4:%u", &taddr.l3, taddr.l4); */
 			result = pool4db_contains(1, &taddr);
 			success &= assert_bool(expected, result, "contains");
 			result = pool4db_contains_all(&taddr);
@@ -289,118 +291,298 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	return success;
 }
 
-/**
- * test_flow - mainly tests rm, contains and contains_all at the same time.
- */
-static bool test_flow(void)
+bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 {
-	unsigned int i;
+	struct foreach_sample_args args;
+	int error;
+	bool success = true;
+
+	args.expected = expected;
+	args.expected_len = expected_len;
+	args.i = 0;
+
+	error = pool4db_foreach_sample(1, validate_sample, &args, NULL);
+	success &= assert_equals_int(0, error, "foreach result");
+	success &= assert_equals_uint(expected_len, args.i, "foreach count");
+	return success;
+}
+
+static bool test_add(void)
+{
+	struct pool4_sample samples[8];
 	bool success = true;
 
 	/* ---------------------------------------------------------- */
 
-	if (!add(0xc0000210U, 29, 10, 20)) /* 192.0.2.16-23 (10-20) */
+	/* Add a single small range. */
+	if (!add(0xc0000211U, 32, 10, 20)) /* 192.0.2.17 (10-20) */
 		return false;
-	if (!add(0xc0000211U, 32, 30, 40)) /* 192.0.2.17 (30-40) */
+
+	success &= assert_contains_range(16, 16, 0, 30, false);
+	success &= assert_contains_range(17, 17, 0, 9, false);
+	success &= assert_contains_range(17, 17, 10, 20, true);
+	success &= assert_contains_range(17, 17, 21, 30, false);
+	success &= assert_contains_range(18, 18, 0, 30, false);
+
+	init_sample(&samples[0], 0xc0000211U, 10, 20);
+	success &= __foreach(samples, 1);
+
+	/* ---------------------------------------------------------- */
+
+	/* Append an adjacent range (left). They should join each other. */
+	if (!add(0xc0000211U, 32, 5, 10)) /* 192.0.2.17 (5-10) */
+		return false;
+
+	success &= assert_contains_range(0, 16, 0, 30, false);
+	success &= assert_contains_range(17, 17, 0, 4, false);
+	success &= assert_contains_range(17, 17, 5, 20, true);
+	success &= assert_contains_range(17, 17, 21, 30, false);
+	success &= assert_contains_range(18, 32, 0, 30, false);
+
+	init_sample(&samples[0], 0xc0000211U, 5, 20);
+	success &= __foreach(samples, 1);
+
+	/* ---------------------------------------------------------- */
+
+	/* Append an adjacent range (right). They should join each other. */
+	if (!add(0xc0000211U, 32, 20, 25)) /* 192.0.2.17 (20-25) */
+		return false;
+
+	success &= assert_contains_range(0, 16, 0, 30, false);
+	success &= assert_contains_range(17, 17, 0, 4, false);
+	success &= assert_contains_range(17, 17, 5, 25, true);
+	success &= assert_contains_range(17, 17, 26, 30, false);
+	success &= assert_contains_range(18, 32, 0, 30, false);
+
+	init_sample(&samples[0], 0xc0000211U, 5, 25);
+	success &= __foreach(samples, 1);
+
+	/* ---------------------------------------------------------- */
+
+	/* Add intersecting ranges. They should join each other. */
+	if (!add(0xc0000210U, 32, 10, 20)) /* 192.0.2.16 (10-20) */
+		return false;
+	if (!add(0xc0000210U, 32, 5, 12)) /* 192.0.2.16 (5-12) */
+		return false;
+	if (!add(0xc0000210U, 32, 18, 25)) /* 192.0.2.16 (18-25) */
+		return false;
+
+	success &= assert_contains_range(15, 15, 0, 30, false);
+	success &= assert_contains_range(16, 17, 0, 4, false);
+	success &= assert_contains_range(16, 17, 5, 25, true);
+	success &= assert_contains_range(16, 17, 26, 30, false);
+	success &= assert_contains_range(18, 18, 0, 30, false);
+
+	init_sample(&samples[1], 0xc0000210U, 5, 25);
+	success &= __foreach(samples, 2);
+
+	/* ---------------------------------------------------------- */
+
+	/* Add a bigger range. The bigger one should replace. */
+	if (!add(0xc0000212U, 32, 10, 20)) /* 192.0.2.18 (10-20) */
+		return false;
+	if (!add(0xc0000212U, 32, 5, 25)) /* 192.0.2.18 (5-25) */
 		return false;
 
 	success &= assert_contains_range(0, 15, 0, 30, false);
-	success &= assert_contains_range(16, 23, 0, 10, false);
+	success &= assert_contains_range(16, 18, 0, 4, false);
+	success &= assert_contains_range(16, 18, 5, 25, true);
+	success &= assert_contains_range(16, 18, 26, 30, false);
+	success &= assert_contains_range(19, 32, 0, 30, false);
+
+	init_sample(&samples[2], 0xc0000212U, 5, 25);
+	success &= __foreach(samples, 3);
+
+	/* ---------------------------------------------------------- */
+
+	/* Add an already existing range. Nothing should change. */
+	if (!add(0xc0000212U, 32, 5, 25)) /* 192.0.2.18 (5-25) */
+		return false;
+
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 18, 0, 4, false);
+	success &= assert_contains_range(16, 18, 5, 25, true);
+	success &= assert_contains_range(16, 18, 26, 30, false);
+	success &= assert_contains_range(19, 32, 0, 30, false);
+
+	success &= __foreach(samples, 3);
+
+	/* ---------------------------------------------------------- */
+
+	/* Add a smaller range. Nothing should change. */
+	if (!add(0xc0000212U, 32, 5, 25)) /* 192.0.2.18 (10-20) */
+		return false;
+
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 18, 0, 4, false);
+	success &= assert_contains_range(16, 18, 5, 25, true);
+	success &= assert_contains_range(16, 18, 26, 30, false);
+	success &= assert_contains_range(19, 32, 0, 30, false);
+
+	success &= __foreach(samples, 3);
+
+	/* ---------------------------------------------------------- */
+
+	/* Fill a hole. The three ranges should become one. */
+	if (!add(0xc0000213U, 32, 5, 10)) /* 192.0.2.19 (5-10) */
+		return false;
+	if (!add(0xc0000213U, 32, 20, 25)) /* 192.0.2.19 (20-25) */
+		return false;
+	if (!add(0xc0000213U, 32, 11, 19)) /* 192.0.2.19 (11-19) */
+		return false;
+
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 19, 0, 4, false);
+	success &= assert_contains_range(16, 19, 5, 25, true);
+	success &= assert_contains_range(16, 19, 26, 30, false);
+	success &= assert_contains_range(20, 32, 0, 30, false);
+
+	init_sample(&samples[3], 0xc0000213U, 5, 25);
+	success &= __foreach(samples, 4);
+
+	/* ---------------------------------------------------------- */
+
+	/* Cover several holes with one big range. */
+	if (!add(0xc0000214U, 32, 8, 11)) /* 192.0.2.20 (8-11) */
+		return false;
+	if (!add(0xc0000214U, 32, 14, 17)) /* 192.0.2.20 (14-17) */
+		return false;
+	if (!add(0xc0000214U, 32, 20, 23)) /* 192.0.2.20 (20-23) */
+		return false;
+	if (!add(0xc0000214U, 32, 5, 25)) /* 192.0.2.20 (5-25) */
+		return false;
+
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 20, 0, 4, false);
+	success &= assert_contains_range(16, 20, 5, 25, true);
+	success &= assert_contains_range(16, 20, 26, 30, false);
+	success &= assert_contains_range(21, 32, 0, 30, false);
+
+	init_sample(&samples[4], 0xc0000214U, 5, 25);
+	success &= __foreach(samples, 5);
+
+	/* ---------------------------------------------------------- */
+
+	/*
+	 * Now add four addresses in one call.
+	 * First one intersects, so only 3 are committed.
+	 */
+	if (!add(0xc0000214U, 30, 5, 25)) /* 192.0.2.20-23 (5-25) */
+		return false;
+
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 23, 0, 4, false);
+	success &= assert_contains_range(16, 23, 5, 25, true);
+	success &= assert_contains_range(16, 23, 26, 30, false);
+	success &= assert_contains_range(24, 32, 0, 30, false);
+
+	init_sample(&samples[5], 0xc0000215U, 5, 25);
+	init_sample(&samples[6], 0xc0000216U, 5, 25);
+	init_sample(&samples[7], 0xc0000217U, 5, 25);
+	success &= __foreach(samples, 8);
+
+	return success;
+}
+
+static bool test_rm(void)
+{
+	struct pool4_sample samples[8];
+	unsigned int i;
+	bool success = true;
+
+	if (!add(0xc0000210U, 29, 5, 25)) /* 192.0.2.16-23 (5-25) */
+		return false;
+
+	/* ---------------------------------------------------------- */
+
+	/* Remove some outermost ports from multiple addresses. */
+	if (!rm(0xc0000210U, 30, 5, 9)) /* Lower of 192.0.2.16-19 (exact)*/
+		return false;
+	if (!rm(0xc0000214U, 30, 5, 9)) /* Lower of 192.0.2.20-23 (excess) */
+		return false;
+	if (!rm(0xc0000210U, 30, 21, 25)) /* Upper of 192.0.2.16-19 (exact) */
+		return false;
+	if (!rm(0xc0000214U, 30, 21, 30)) /* Upper of 192.0.2.20-23 (excess) */
+		return false;
+
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 23, 0, 9, false);
 	success &= assert_contains_range(16, 23, 10, 20, true);
-	success &= assert_contains_range(16, 23, 20, 30, false);
-	success &= assert_contains_range(24, 32, 0, 50, false);
+	success &= assert_contains_range(16, 23, 21, 30, false);
+	success &= assert_contains_range(24, 32, 0, 30, false);
+
+	for (i = 0; i < 8; i++)
+		init_sample(&samples[i], 0xc0000210U + i, 10, 20);
+	success &= __foreach(samples, 8);
 
 	/* ---------------------------------------------------------- */
 
-	/* Remove the exact existing port ranges of multiple addresses. */
-	if (!rm(0xc0000212U, 31, 10, 20)) /* 192.0.2.18-23 (10-20) */
+	/* Remove a handful of addresses completely. */
+	if (!rm(0xc0000214U, 31, 10, 20)) /* 192.0.2.20-21 (exact)*/
+		return false;
+	if (!rm(0xc0000216U, 31, 0, 30)) /* 192.0.2.22-23 (excess)*/
 		return false;
 
-	test = 0xc000020FU; /* 192.0.2.15 */
-	success &= assert_contains_range(test, 0, 30, false);
-	for (i = 0; i < 2; i++) {
-		test++; /* 192.0.2.16-17 */
-		success &= assert_contains_range(test, 0, 10, false);
-		success &= assert_contains_range(test, 10, 20, true);
-		success &= assert_contains_range(test, 20, 30, false);
-	}
-	for (i = 0; i < 2; i++) {
-		test++; /* 192.0.2.18-19 */
-		success &= assert_contains_range(test, 0, 30, false);
-	}
-	for (i = 0; i < 4; i++) {
-		test++; /* 192.0.2.20-23 */
-		success &= assert_contains_range(test, 0, 10, false);
-		success &= assert_contains_range(test, 10, 20, true);
-		success &= assert_contains_range(test, 20, 30, false);
-	}
-	test++; /* 192.0.2.24 */
-	success &= assert_contains_range(test, 0, 30, false);
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 19, 0, 9, false);
+	success &= assert_contains_range(16, 19, 10, 20, true);
+	success &= assert_contains_range(16, 19, 21, 30, false);
+	success &= assert_contains_range(20, 32, 0, 30, false);
+
+	success &= __foreach(samples, 4);
 
 	/* ---------------------------------------------------------- */
 
-	/* Remove existing port ranges of multiple addresses. */
-	if (!rm(0xc0000214U, 30, 0, 65535)) /* 192.0.2.20/30 (0-65535) */
+	/* Punch a hole in ranges from multiple addresses. */
+	if (!rm(0xc0000212U, 31, 13, 17)) /* 192.0.2.18-19 (13-17) */
 		return false;
 
-	test = 0xc000020FU; /* 192.0.2.15 */
-	success &= assert_contains_range(test, 0, 30, false);
-	for (i = 0; i < 2; i++) {
-		test++; /* 192.0.2.16-17 */
-		success &= assert_contains_range(test, 0, 10, false);
-		success &= assert_contains_range(test, 10, 20, true);
-		success &= assert_contains_range(test, 20, 30, false);
-	}
-	for (i = 0; i < 7; i++) {
-		test++; /* 192.0.2.18-24 */
-		success &= assert_contains_range(test, 0, 30, false);
-	}
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 17, 0, 9, false);
+	success &= assert_contains_range(16, 17, 10, 20, true);
+	success &= assert_contains_range(16, 17, 21, 30, false);
+	success &= assert_contains_range(18, 19, 0, 9, false);
+	success &= assert_contains_range(18, 19, 10, 12, true);
+	success &= assert_contains_range(18, 19, 13, 17, false);
+	success &= assert_contains_range(18, 19, 18, 20, true);
+	success &= assert_contains_range(18, 19, 21, 30, false);
+	success &= assert_contains_range(20, 32, 0, 30, false);
+
+	init_sample(&samples[2], 0xc0000212U, 10, 12);
+	init_sample(&samples[3], 0xc0000212U, 18, 20);
+	init_sample(&samples[4], 0xc0000213U, 10, 12);
+	init_sample(&samples[5], 0xc0000213U, 18, 20);
+	success &= __foreach(samples, 6);
 
 	/* ---------------------------------------------------------- */
 
-	/* Remove exactly a lower fraction of a port range. */
-	if (!rm(0xc0000210U, 32, 10, 13)) /* 192.0.2.16/32 (10-13) */
+	/* Remove multiple ranges from a single address at once. */
+	if (!rm(0xc0000213U, 32, 0, 30)) /* 192.0.2.19 (0-30) */
 		return false;
 
-	test = 0xc000020FU; /* 192.0.2.15 */
-	success &= assert_contains_range(test, 0, 30, false);
-	test++; /* 192.0.2.16 */
-	success &= assert_contains_range(test, 0, 13, false);
-	success &= assert_contains_range(test, 13, 20, true);
-	success &= assert_contains_range(test, 20, 30, false);
-	test++; /* 192.0.2.17 */
-	success &= assert_contains_range(test, 0, 10, false);
-	success &= assert_contains_range(test, 10, 20, true);
-	success &= assert_contains_range(test, 20, 30, false);
-	for (i = 0; i < 7; i++) {
-		test++; /* 192.0.2.18-24 */
-		success &= assert_contains_range(test, 0, 30, false);
-	}
+	success &= assert_contains_range(0, 15, 0, 30, false);
+	success &= assert_contains_range(16, 17, 0, 9, false);
+	success &= assert_contains_range(16, 17, 10, 20, true);
+	success &= assert_contains_range(16, 17, 21, 30, false);
+	success &= assert_contains_range(18, 18, 0, 9, false);
+	success &= assert_contains_range(18, 18, 10, 12, true);
+	success &= assert_contains_range(18, 18, 13, 17, false);
+	success &= assert_contains_range(18, 18, 18, 20, true);
+	success &= assert_contains_range(18, 18, 21, 30, false);
+	success &= assert_contains_range(19, 32, 0, 30, false);
+
+	success &= __foreach(samples, 4);
 
 	/* ---------------------------------------------------------- */
 
-	/* Remove exactly an upper fraction of a port range. */
-	if (!rm(0xc0000210U, 32, 17, 20)) /* 192.0.2.16/32 (17-20) */
+	/* Finally, test an empty database. */
+	if (!rm(0xc0000200U, 24, 0, 65535U)) /* 192.0.2.0-255 (0-65535) */
 		return false;
 
-	test = 0xc000020FU; /* 192.0.2.15 */
-	success &= assert_contains_range(test, 0, 30, false);
-	test++; /* 192.0.2.16 */
-	success &= assert_contains_range(test, 0, 13, false);
-	success &= assert_contains_range(test, 13, 16, true);
-	success &= assert_contains_range(test, 16, 30, false);
-	test++; /* 192.0.2.17 */
-	success &= assert_contains_range(test, 0, 10, false);
-	success &= assert_contains_range(test, 10, 20, true);
-	success &= assert_contains_range(test, 20, 30, false);
-	for (i = 0; i < 7; i++) {
-		test++; /* 192.0.2.18-24 */
-		success &= assert_contains_range(test, 0, 30, false);
-	}
+	success &= assert_contains_range(0, 32, 0, 30, false);
+	success &= __foreach(samples, 0);
 
-	/* ---------------------------------------------------------- */
-
-
+	return success;
 }
 
 bool init(void)
@@ -425,10 +607,16 @@ int init_module(void)
 {
 	START_TESTS("IPv4 Pool DB");
 
+	/*
+	 * TODO (test) This is missing a multiple-tables test.
+	 * (it always does mark = 1.)
+	 */
+
 	INIT_CALL_END(init(), test_init_power(), destroy(), "Power init");
-	INIT_CALL_END(init(), test_foreach_taddr4(), destroy(), "Taddr foreach");
-	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample foreach");
-	INIT_CALL_END(init(), test_flow(), destroy(), "Flow");
+	INIT_CALL_END(init(), test_foreach_taddr4(), destroy(), "Taddr for");
+	INIT_CALL_END(init(), test_foreach_sample(), destroy(), "Sample for");
+	INIT_CALL_END(init(), test_add(), destroy(), "Add");
+	INIT_CALL_END(init(), test_rm(), destroy(), "Rm");
 
 	END_TESTS;
 }

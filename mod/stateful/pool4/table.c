@@ -54,20 +54,48 @@ static unsigned int count_ports(struct pool4_table *table)
 	return result;
 }
 
-static int add_ports(struct pool4_addr *addr, struct port_range *range)
+static void fuse(struct port_range *first, struct port_range *second,
+		struct port_range *result)
 {
-	struct pool4_ports *ports;
+	result->min = min(first->min, second->min);
+	result->max = max(first->max, second->max);
+}
 
-	list_for_each_entry(ports, &addr->ports, list_hook) {
+static bool try_fusion(struct pool4_addr *addr, struct port_range *range)
+{
+	struct pool4_ports *ports, *tmp;
+	struct pool4_ports *fusion = NULL;
+
+	list_for_each_entry_safe(ports, tmp, &addr->ports, list_hook) {
 		if (!port_range_touches(&ports->range, range))
 			continue;
 
 		list_del_rcu(&ports->list_hook);
-		ports->range.min = min(ports->range.min, range->min);
-		ports->range.max = max(ports->range.max, range->max);
-		list_add_tail_rcu(&ports->list_hook, &addr->ports);
-		return 0;
+		synchronize_rcu();
+
+		if (fusion) {
+			fuse(&ports->range, &fusion->range, &fusion->range);
+			kfree(ports);
+		} else {
+			fuse(&ports->range, range, &ports->range);
+			fusion = ports;
+		}
 	}
+
+	if (fusion) {
+		list_add_tail_rcu(&fusion->list_hook, &addr->ports);
+		return true;
+	}
+
+	return false;
+}
+
+static int add_ports(struct pool4_addr *addr, struct port_range *range)
+{
+	struct pool4_ports *ports;
+
+	if (try_fusion(addr, range))
+		return 0;
 
 	ports = kmalloc(sizeof(*ports), GFP_KERNEL);
 	if (!ports)
@@ -157,12 +185,12 @@ int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
 
 static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 {
-	struct pool4_ports *ports;
+	struct pool4_ports *ports, *tmpp;
 	struct pool4_ports *new1;
 	struct pool4_ports *new2;
 	struct pool4_addr *tmp;
 
-	list_for_each_entry(ports, &addr->ports, list_hook) {
+	list_for_each_entry_safe(ports, tmpp, &addr->ports, list_hook) {
 		if (rm->min <= ports->range.min && ports->range.max <= rm->max) {
 			tmp = NULL;
 
@@ -175,14 +203,15 @@ static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 			synchronize_rcu();
 			kfree(ports);
 			kfree(tmp);
+			continue;
 		}
 
 		if (ports->range.min < rm->min && rm->max < ports->range.max) {
 			/* Punch a hole in old. */
-			new1 = pool4_ports_create(ports->range.min, rm->min);
+			new1 = pool4_ports_create(ports->range.min, rm->min - 1);
 			if (!new1)
 				return -ENOMEM;
-			new2 = pool4_ports_create(rm->max, ports->range.max);
+			new2 = pool4_ports_create(rm->max + 1, ports->range.max);
 			if (!new2) {
 				kfree(new1);
 				return -ENOMEM;
@@ -192,27 +221,28 @@ static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 			list_add_tail_rcu(&new1->list_hook, &addr->ports);
 			list_add_tail_rcu(&new2->list_hook, &addr->ports);
 			kfree(ports);
-			return 0;
+			continue;
 		}
+
+		if (rm->max < ports->range.min || rm->min > ports->range.max)
+			continue;
 
 		if (ports->range.min < rm->min) {
 			list_del_rcu(&ports->list_hook);
-			ports->range.max = rm->min;
+			ports->range.max = rm->min - 1;
 			list_add_tail_rcu(&ports->list_hook, &addr->ports);
-			return 0;
+			continue;
 		}
 
 		if (rm->max < ports->range.max) {
 			list_del_rcu(&ports->list_hook);
-			ports->range.min = rm->max;
+			ports->range.min = rm->max + 1;
 			list_add_tail_rcu(&ports->list_hook, &addr->ports);
-			return 0;
+			continue;
 		}
 	}
 
-	log_err("%pI4 does not contain range %u-%u...", &addr->addr, rm->min,
-			rm->max);
-	return -ESRCH;
+	return 0;
 }
 
 static int rm_sample(struct pool4_table *table, struct pool4_sample *sample)
@@ -224,8 +254,7 @@ static int rm_sample(struct pool4_table *table, struct pool4_sample *sample)
 			return rm_range(addr, &sample->range);
 	}
 
-	log_err("%pI4 does not belong to pool4.", &sample->addr);
-	return -ESRCH;
+	return 0;
 }
 
 /**

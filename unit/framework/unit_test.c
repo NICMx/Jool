@@ -17,11 +17,12 @@
 
 bool assert_true(bool condition, char *test_name)
 {
-	if (!condition) {
-		log_err("Test '%s' failed.", test_name);
-		return false;
-	}
-	return true;
+	return assert_bool(true, condition, test_name);
+}
+
+bool assert_bool(bool expected, bool actual, char *test_name)
+{
+	return assert_equals_int(expected, actual, test_name);
 }
 
 bool assert_equals_int(int expected, int actual, char *test_name)
