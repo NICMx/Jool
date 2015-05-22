@@ -52,9 +52,9 @@ static bool assert_bib_exists(unsigned char *addr6, u16 port6, unsigned char *ad
 		return false;
 
 	success &= assert_equals_ipv6_str(addr6, &bib->ipv6.l3, "IPv6 address");
-	success &= assert_equals_u16(port6, bib->ipv6.l4, "IPv6 port");
+	success &= ASSERT_UINT(port6, bib->ipv6.l4, "IPv6 port");
 	success &= assert_equals_ipv4_str(addr4, &bib->ipv4.l3, "IPv4 address");
-	success &= assert_equals_u16(port4, bib->ipv4.l4, "IPv4 port");
+	success &= ASSERT_UINT(port4, bib->ipv4.l4, "IPv4 port");
 	success &= assert_false(bib->is_static, "BIB is dynamic");
 	success &= assert_equals_int(session_count, atomic_read(&bib->refcounter.refcount) - 1, "BIB Session count");
 
@@ -101,13 +101,13 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 		return false;
 
 	success &= assert_equals_ipv6_str(remote_addr6, &session->remote6.l3, "remote addr6");
-	success &= assert_equals_u16(remote_port6, session->remote6.l4, "remote port6");
+	success &= ASSERT_UINT(remote_port6, session->remote6.l4, "remote port6");
 	success &= assert_equals_ipv6_str(local_addr6, &session->local6.l3, "local addr6");
-	success &= assert_equals_u16(local_port6, session->local6.l4, "local port6");
+	success &= ASSERT_UINT(local_port6, session->local6.l4, "local port6");
 	success &= assert_equals_ipv4_str(local_addr4, &session->local4.l3, "local addr4");
-	success &= assert_equals_u16(local_port4, session->local4.l4, "local port4");
+	success &= ASSERT_UINT(local_port4, session->local4.l4, "local port4");
 	success &= assert_equals_ipv4_str(remote_addr4, &session->remote4.l3, "remote addr4");
-	success &= assert_equals_u16(remote_port4, session->remote4.l4, "remote port4");
+	success &= ASSERT_UINT(remote_port4, session->remote4.l4, "remote port4");
 	success &= assert_not_null(session->bib, "Session's BIB");
 	success &= assert_equals_int(proto, session->l4_proto, "Session's l4 proto");
 	success &= assert_equals_int(state, session->state, "Session's state");

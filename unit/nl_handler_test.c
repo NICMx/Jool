@@ -39,11 +39,11 @@ static bool compare_global_configs(struct global_config *expected, struct global
 	success &= assert_equals_u8(expected->atomic_frags.lower_mtu_fail,
 			actual->atomic_frags.lower_mtu_fail, "lower_mtu_fail");
 
-	success &= assert_equals_u16(expected->mtu_plateau_count, actual->mtu_plateau_count,
+	success &= ASSERT_UINT(expected->mtu_plateau_count, actual->mtu_plateau_count,
 			"mtu_plateau_count");
 	if (success) {
 		for (plateau = 0; plateau < expected->mtu_plateau_count; plateau++) {
-			success &= assert_equals_u16(expected->mtu_plateaus[plateau],
+			success &= ASSERT_UINT(expected->mtu_plateaus[plateau],
 					actual->mtu_plateaus[plateau], "mtu_plateaus");
 		}
 	}

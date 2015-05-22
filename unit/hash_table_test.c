@@ -23,72 +23,79 @@ struct table_value {
 #include "hash_table.c"
 
 /* These are also kind of part of the table. */
-static bool equals_function(const struct table_key *key1, const struct table_key *key2)
+static bool equals_cb(const struct table_key *k1, const struct table_key *k2)
 {
-	if (key1 == key2)
+	if (k1 == k2)
 		return true;
-	if (key1 == NULL || key2 == NULL)
+	if (k1 == NULL || k2 == NULL)
 		return false;
 
-	return (key1->key == key2->key);
+	return (k1->key == k2->key);
 }
 
-static unsigned int hash_code_function(const struct table_key *key1)
+static unsigned int hash_code_cb(const struct table_key *key)
 {
-	return (key1 != NULL) ? key1->key : 0;
+	return (key != NULL) ? key->key : 0;
 }
 
 /**
- * For every key (from the "keys" array), extracts its corresponding value from "table", and asserts
- * it equals its corresponding expected value (from the "expected_values" array).
+ * assert_table_content - For every key (from the @keys array), extracts its
+ * corresponding value from @table, and asserts it equals its corresponding
+ * expected value (from the @expected array).
  *
- * Assumes "keys" and "expected_values" have the same length.
+ * Assumes both @keys and @expected have length 4.
  */
 static bool assert_table_content(struct test_table *table,
-		struct table_key *keys, struct table_value *expected_values,
+		struct table_key *keys, struct table_value *expected,
 		char *test_name)
 {
-	int i;
+	unsigned int i;
+	bool local;
 	bool success = true;
 
 	for (i = 0; i < 4; i++) {
-		struct table_value *current_val = test_table_get(table, &keys[i]);
+		struct table_value *value = test_table_get(table, &keys[i]);
 
-		if (expected_values[i].value == -1) {
-			success &= assert_null(current_val, test_name);
-		} else {
-			bool local = true;
-
-			local &= assert_not_null(current_val, test_name);
-			if (local)
-				local &= assert_equals_int(expected_values[i].value, current_val->value, test_name);
-
-			success &= local;
+		if (expected[i].value == -1) {
+			success &= ASSERT_PTR(NULL, value,
+					"%s - %uth value should not exist",
+					test_name, i);
+			continue;
 		}
+
+		local = ASSERT_BOOL(true, value != NULL,
+				"%s - %uth value (%d) should exist",
+				test_name, i, expected[i].value);
+		if (local)
+			local &= ASSERT_INT(expected[i].value, value->value,
+					"%s - %uth value", test_name, i);
+
+		success &= local;
 	}
 
 	return success;
 }
 
 /**
- * The functions are really interdependent, so most functions are tested in this single unit. Sorry.
+ * The functions are really interdependent, so most functions are tested in this
+ * single unit. Sorry.
  */
 static bool test(void)
 {
 	struct test_table table;
 	/*
 	 * The second value is a normal, troubleless key-value pair.
-	 * The first and third keys have the same hash code (tests the table doesn't override them or
-	 * something).
-	 * The fourth key-value shall not be inserted (tests the table doesn't go bananas attempting to
-	 * retrieve it).
+	 * The first and third keys have the same hash code (tests the table
+	 * doesn't override them or something).
+	 * The fourth key-value shall not be inserted (tests the table doesn't
+	 * go bananas retrieving it).
 	 */
 	struct table_key keys[] = { { 2 }, { 3 }, { 12 }, { 4 } };
 	struct table_value values[] = { { 6623 }, { 784 }, { 736 }, { -1 } };
 	int i;
 
 	/* Init. */
-	if (test_table_init(&table, &equals_function, &hash_code_function) < 0) {
+	if (test_table_init(&table, &equals_cb, &hash_code_cb) < 0) {
 		log_err("The init function failed.");
 		return false;
 	}
@@ -161,7 +168,7 @@ struct loop_summary {
 	int array_size;
 };
 
-static int for_each_func(struct table_value *val, void *arg)
+static int foreach_cb(struct table_value *val, void *arg)
 {
 	struct loop_summary *summary = arg;
 
@@ -189,8 +196,7 @@ static bool test_for_each_function(void)
 	struct table_key keys[] = { { 2 }, { 3 }, { 12 } };
 	struct table_value values[] = { { 6623 }, { 784 }, { 736 } };
 
-	/* Init. */
-	test_table_init(&table, &equals_function, &hash_code_function);
+	test_table_init(&table, &equals_cb, &hash_code_cb);
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
 		if (test_table_put(&table, &keys[i], &values[i]) != 0) {
 			log_err("Put operation failed on value %d.", i);
@@ -199,12 +205,15 @@ static bool test_for_each_function(void)
 		}
 	}
 
-	success &= assert_equals_int(0, test_table_for_each(&table, for_each_func, &summary), "");
-	success &= assert_equals_int(3, summary.array_size, "");
+	success &= ASSERT_INT(0, test_table_for_each(&table, foreach_cb,
+			&summary), "Foreach call result");
+	success &= ASSERT_INT(3, summary.array_size, "");
 	for (i = 0; i < ARRAY_SIZE(values); i++) {
-		success &= assert_true(summary.values[0] == values[i].value
+		success &= ASSERT_BOOL(true,
+				summary.values[0] == values[i].value
 				|| summary.values[1] == values[i].value
-				|| summary.values[2] == values[i].value, "");
+				|| summary.values[2] == values[i].value,
+				"%uth value was visited", i);
 	}
 
 	test_table_empty(&table, NULL);

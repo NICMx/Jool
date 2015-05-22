@@ -26,7 +26,7 @@ bool validate_ipv6_hdr(struct ipv6hdr *hdr, u16 payload_len, u8 nexthdr, struct 
 	success &= assert_equals_u8(0, hdr->flow_lbl[0], "IPv6hdr-flow lbl[0]");
 	success &= assert_equals_u8(0, hdr->flow_lbl[1], "IPv6hdr-flow lbl[1]");
 	success &= assert_equals_u8(0, hdr->flow_lbl[2], "IPv6hdr-flow lbl[2]");
-	success &= assert_equals_u16(payload_len, be16_to_cpu(hdr->payload_len), "IPv6hdr-payload len");
+	success &= ASSERT_UINT(payload_len, be16_to_cpu(hdr->payload_len), "IPv6hdr-payload len");
 	success &= assert_equals_u8(nexthdr, hdr->nexthdr, "IPv6hdr-nexthdr");
 	/* success &= assert_equals_u8(, hdr->hop_limit, "IPv6hdr-hop limit"); */
 	success &= assert_equals_ipv6(&tuple6->src.addr6.l3, &hdr->saddr, "IPv6hdr-src address");
@@ -41,9 +41,9 @@ bool validate_frag_hdr(struct frag_hdr *hdr, u16 frag_offset, u16 mf, __u8 nexth
 
 	success &= assert_equals_u8(nexthdr, hdr->nexthdr, "Fraghdr-nexthdr");
 	success &= assert_equals_u8(0, hdr->reserved, "Fraghdr-nexthdr");
-	success &= assert_equals_u16(frag_offset, get_fragment_offset_ipv6(hdr), "Fraghdr-frag offset");
-	success &= assert_equals_u16(mf, is_more_fragments_set_ipv6(hdr), "Fraghdr-MF");
-	success &= assert_equals_u16(4321, be32_to_cpu(hdr->identification), "Fraghdr-ID");
+	success &= ASSERT_UINT(frag_offset, get_fragment_offset_ipv6(hdr), "Fraghdr-frag offset");
+	success &= ASSERT_UINT(mf, is_more_fragments_set_ipv6(hdr), "Fraghdr-MF");
+	success &= ASSERT_UINT(4321, be32_to_cpu(hdr->identification), "Fraghdr-ID");
 
 	return success;
 }
@@ -57,11 +57,11 @@ bool validate_ipv4_hdr(struct iphdr *hdr, u16 total_len, u16 id, u16 df, u16 mf,
 	success &= assert_equals_u8(4, hdr->version, "IPv4hdr-Version");
 	success &= assert_equals_u8(5, hdr->ihl, "IPv4hdr-IHL");
 	success &= assert_equals_u8(0, hdr->tos, "IPv4hdr-TOS");
-	success &= assert_equals_u16(total_len, be16_to_cpu(hdr->tot_len), "IPv4hdr-total length");
-	success &= assert_equals_u16(id, be16_to_cpu(hdr->id), "IPv4hdr-ID");
-	success &= assert_equals_u16(df, be16_to_cpu(hdr->frag_off) & IP_DF, "IPv4hdr-DF");
-	success &= assert_equals_u16(mf, be16_to_cpu(hdr->frag_off) & IP_MF, "IPv4hdr-MF");
-	success &= assert_equals_u16(frag_off, get_fragment_offset_ipv4(hdr), "IPv4hdr-Frag offset");
+	success &= ASSERT_UINT(total_len, be16_to_cpu(hdr->tot_len), "IPv4hdr-total length");
+	success &= ASSERT_UINT(id, be16_to_cpu(hdr->id), "IPv4hdr-ID");
+	success &= ASSERT_UINT(df, be16_to_cpu(hdr->frag_off) & IP_DF, "IPv4hdr-DF");
+	success &= ASSERT_UINT(mf, be16_to_cpu(hdr->frag_off) & IP_MF, "IPv4hdr-MF");
+	success &= ASSERT_UINT(frag_off, get_fragment_offset_ipv4(hdr), "IPv4hdr-Frag offset");
 	/* success &= assert_equals_u8(, hdr->ttl, "IPv4 header - TTL"); */
 	success &= assert_equals_u8(protocol, hdr->protocol, "IPv4hdr-protocol");
 
@@ -80,18 +80,18 @@ bool validate_udp_hdr(struct udphdr *hdr, u16 payload_len, struct tuple *tuple)
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		success &= assert_equals_u16(tuple->src.addr6.l4, be16_to_cpu(hdr->source), "UDP6hdr-src");
-		success &= assert_equals_u16(tuple->dst.addr6.l4, be16_to_cpu(hdr->dest), "UDP6hdr-dst");
+		success &= ASSERT_UINT(tuple->src.addr6.l4, be16_to_cpu(hdr->source), "UDP6hdr-src");
+		success &= ASSERT_UINT(tuple->dst.addr6.l4, be16_to_cpu(hdr->dest), "UDP6hdr-dst");
 		break;
 	case L3PROTO_IPV4:
-		success &= assert_equals_u16(tuple->src.addr4.l4, be16_to_cpu(hdr->source), "UDP4hdr-src");
-		success &= assert_equals_u16(tuple->dst.addr4.l4, be16_to_cpu(hdr->dest), "UDP4hdr-dst");
+		success &= ASSERT_UINT(tuple->src.addr4.l4, be16_to_cpu(hdr->source), "UDP4hdr-src");
+		success &= ASSERT_UINT(tuple->dst.addr4.l4, be16_to_cpu(hdr->dest), "UDP4hdr-dst");
 		break;
 	default:
 		log_err("L3 proto is not IPv6 or IPv4.");
 		success = false;
 	}
-	success &= assert_equals_u16(sizeof(*hdr) + payload_len, be16_to_cpu(hdr->len), "UDPhdr-len");
+	success &= ASSERT_UINT(sizeof(*hdr) + payload_len, be16_to_cpu(hdr->len), "UDPhdr-len");
 
 	return success;
 }
@@ -102,12 +102,12 @@ bool validate_tcp_hdr(struct tcphdr *hdr, struct tuple *tuple)
 
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV6:
-		success &= assert_equals_u16(tuple->src.addr6.l4, be16_to_cpu(hdr->source), "TCP6hdr-src");
-		success &= assert_equals_u16(tuple->dst.addr6.l4, be16_to_cpu(hdr->dest), "TCP6hdr-dst");
+		success &= ASSERT_UINT(tuple->src.addr6.l4, be16_to_cpu(hdr->source), "TCP6hdr-src");
+		success &= ASSERT_UINT(tuple->dst.addr6.l4, be16_to_cpu(hdr->dest), "TCP6hdr-dst");
 		break;
 	case L3PROTO_IPV4:
-		success &= assert_equals_u16(tuple->src.addr4.l4, be16_to_cpu(hdr->source), "TCP4hdr-src");
-		success &= assert_equals_u16(tuple->dst.addr4.l4, be16_to_cpu(hdr->dest), "TCP4hdr-dst");
+		success &= ASSERT_UINT(tuple->src.addr4.l4, be16_to_cpu(hdr->source), "TCP4hdr-src");
+		success &= ASSERT_UINT(tuple->dst.addr4.l4, be16_to_cpu(hdr->dest), "TCP4hdr-dst");
 		break;
 	default:
 		log_err("L3 proto is not IPv6 or IPv4.");
@@ -115,18 +115,18 @@ bool validate_tcp_hdr(struct tcphdr *hdr, struct tuple *tuple)
 	}
 	success &= assert_equals_u32(4669, be32_to_cpu(hdr->seq), "TCPhdr-seq");
 	success &= assert_equals_u32(6576, be32_to_cpu(hdr->ack_seq), "TCPhdr-ack seq");
-	success &= assert_equals_u16(5, hdr->doff, "TCPhdr-data offset");
-	success &= assert_equals_u16(0, hdr->res1, "TCPhdr-reserved");
-	success &= assert_equals_u16(0, hdr->cwr, "TCPhdr-cwr");
-	success &= assert_equals_u16(0, hdr->ece, "TCPhdr-ece");
-	success &= assert_equals_u16(0, hdr->urg, "TCPhdr-urg");
-	success &= assert_equals_u16(0, hdr->ack, "TCPhdr-ack");
-	success &= assert_equals_u16(0, hdr->psh, "TCPhdr-psh");
-	success &= assert_equals_u16(0, hdr->rst, "TCPhdr-rst");
-	success &= assert_equals_u16(1, hdr->syn, "TCPhdr-syn");
-	success &= assert_equals_u16(0, hdr->fin, "TCPhdr-fin");
-	success &= assert_equals_u16(3233, be16_to_cpu(hdr->window), "TCPhdr-window");
-	success &= assert_equals_u16(9865, be16_to_cpu(hdr->urg_ptr), "TCPhdr-urgent ptr");
+	success &= ASSERT_UINT(5, hdr->doff, "TCPhdr-data offset");
+	success &= ASSERT_UINT(0, hdr->res1, "TCPhdr-reserved");
+	success &= ASSERT_UINT(0, hdr->cwr, "TCPhdr-cwr");
+	success &= ASSERT_UINT(0, hdr->ece, "TCPhdr-ece");
+	success &= ASSERT_UINT(0, hdr->urg, "TCPhdr-urg");
+	success &= ASSERT_UINT(0, hdr->ack, "TCPhdr-ack");
+	success &= ASSERT_UINT(0, hdr->psh, "TCPhdr-psh");
+	success &= ASSERT_UINT(0, hdr->rst, "TCPhdr-rst");
+	success &= ASSERT_UINT(1, hdr->syn, "TCPhdr-syn");
+	success &= ASSERT_UINT(0, hdr->fin, "TCPhdr-fin");
+	success &= ASSERT_UINT(3233, be16_to_cpu(hdr->window), "TCPhdr-window");
+	success &= ASSERT_UINT(9865, be16_to_cpu(hdr->urg_ptr), "TCPhdr-urgent ptr");
 
 	return success;
 }
@@ -137,7 +137,7 @@ bool validate_icmp6_hdr(struct icmp6hdr *hdr, u16 id, struct tuple *tuple6)
 
 	success &= assert_equals_u8(ICMPV6_ECHO_REQUEST, hdr->icmp6_type, "ICMP6hdr-type");
 	success &= assert_equals_u8(0, hdr->icmp6_code, "ICMP6hdr-code");
-	success &= assert_equals_u16(tuple6->src.addr6.l4, be16_to_cpu(hdr->icmp6_identifier),
+	success &= ASSERT_UINT(tuple6->src.addr6.l4, be16_to_cpu(hdr->icmp6_identifier),
 			"ICMP6hdr id");
 
 	return success;
@@ -160,7 +160,7 @@ bool validate_icmp4_hdr(struct icmphdr *hdr, u16 id, struct tuple *tuple4)
 
 	success &= assert_equals_u8(ICMP_ECHO, hdr->type, "ICMP4hdr-type");
 	success &= assert_equals_u8(0, hdr->code, "ICMP4hdr-code");
-	success &= assert_equals_u16(tuple4->src.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id");
+	success &= ASSERT_UINT(tuple4->src.addr4.l4, be16_to_cpu(hdr->un.echo.id), "ICMP4id");
 
 	return success;
 }

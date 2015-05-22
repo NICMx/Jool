@@ -289,13 +289,13 @@ static bool test_function_generate_df_flag(void)
 	pkt.skb = skb;
 
 	skb_put(skb, 1000);
-	success &= assert_equals_u16(0, generate_df_flag(&pkt), "Len < 1260");
+	success &= ASSERT_UINT(0, generate_df_flag(&pkt), "Len < 1260");
 
 	skb_put(skb, 260);
-	success &= assert_equals_u16(0, generate_df_flag(&pkt), "Len = 1260");
+	success &= ASSERT_UINT(0, generate_df_flag(&pkt), "Len = 1260");
 
 	skb_put(skb, 200);
-	success &= assert_equals_u16(1, generate_df_flag(&pkt), "Len > 1260");
+	success &= ASSERT_UINT(1, generate_df_flag(&pkt), "Len > 1260");
 
 	kfree_skb(skb);
 	return success;
@@ -423,15 +423,15 @@ static bool test_function_generate_ipv4_id_dofrag(void)
 	bool success = true;
 
 	fragment_hdr.identification = 0;
-	success &= assert_equals_u16(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
+	success &= ASSERT_UINT(0, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
 			"Simplest id");
 
 	fragment_hdr.identification = cpu_to_be32(0x0000abcdU);
-	success &= assert_equals_u16(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
+	success &= ASSERT_UINT(0xabcd, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
 			"No overflow");
 
 	fragment_hdr.identification = cpu_to_be32(0x12345678U);
-	success &= assert_equals_u16(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
+	success &= ASSERT_UINT(0x5678, be16_to_cpu(generate_ipv4_id_dofrag(&fragment_hdr)),
 			"Overflow");
 
 	return success;
@@ -441,9 +441,9 @@ static bool test_function_icmp4_minimum_mtu(void)
 {
 	bool success = true;
 
-	success &= assert_equals_u16(2, be16_to_cpu(icmp4_minimum_mtu(2, 4, 6)), "First is min");
-	success &= assert_equals_u16(8, be16_to_cpu(icmp4_minimum_mtu(10, 8, 12)), "Second is min");
-	success &= assert_equals_u16(14, be16_to_cpu(icmp4_minimum_mtu(16, 18, 14)), "Third is min");
+	success &= ASSERT_UINT(2, be16_to_cpu(icmp4_minimum_mtu(2, 4, 6)), "First is min");
+	success &= ASSERT_UINT(8, be16_to_cpu(icmp4_minimum_mtu(10, 8, 12)), "Second is min");
+	success &= ASSERT_UINT(14, be16_to_cpu(icmp4_minimum_mtu(16, 18, 14)), "Third is min");
 
 	return success;
 }

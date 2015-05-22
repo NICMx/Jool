@@ -116,18 +116,18 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	} while (skb_tmp);
 	switch (l4_proto) {
 	case L4PROTO_UDP:
-		success &= assert_equals_u16(DYNAMIC_BIB_IPV4_PORT,
+		success &= ASSERT_UINT(DYNAMIC_BIB_IPV4_PORT,
 				be16_to_cpu(udp_hdr(skb_out)->source),
 				"out's src port");
-		success &= assert_equals_u16(SERVER_PORT6,
+		success &= ASSERT_UINT(SERVER_PORT6,
 				be16_to_cpu(udp_hdr(skb_out)->dest),
 				"out's dst port");
 		break;
 	case L4PROTO_TCP:
-		success &= assert_equals_u16(DYNAMIC_BIB_IPV4_PORT,
+		success &= ASSERT_UINT(DYNAMIC_BIB_IPV4_PORT,
 				be16_to_cpu(tcp_hdr(skb_out)->source),
 				"out's src port");
-		success &= assert_equals_u16(SERVER_PORT6,
+		success &= ASSERT_UINT(SERVER_PORT6,
 				be16_to_cpu(tcp_hdr(skb_out)->dest),
 				"out's dst port");
 		break;
@@ -169,18 +169,18 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	} while (skb_tmp);
 	switch (l4_proto) {
 	case L4PROTO_UDP:
-		success &= assert_equals_u16(SERVER_PORT6,
+		success &= ASSERT_UINT(SERVER_PORT6,
 				be16_to_cpu(udp_hdr(skb_out)->source),
 				"out's src port");
-		success &= assert_equals_u16(CLIENT_PORT,
+		success &= ASSERT_UINT(CLIENT_PORT,
 				be16_to_cpu(udp_hdr(skb_out)->dest),
 				"out's dst port");
 		break;
 	case L4PROTO_TCP:
-		success &= assert_equals_u16(SERVER_PORT6,
+		success &= ASSERT_UINT(SERVER_PORT6,
 				be16_to_cpu(tcp_hdr(skb_out)->source),
 				"out's src port");
-		success &= assert_equals_u16(CLIENT_PORT,
+		success &= ASSERT_UINT(CLIENT_PORT,
 				be16_to_cpu(tcp_hdr(skb_out)->dest),
 				"out's dst port");
 		break;

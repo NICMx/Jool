@@ -1,7 +1,8 @@
 #ifndef _JOOL_UNIT_SESSION_H
 #define _JOOL_UNIT_SESSION_H
 
-#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/session/entry.h"
+#include "nat64/common/session.h"
 
 
 bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessions);
@@ -25,7 +26,7 @@ struct session_entry *session_inject_str(unsigned char *remote6_addr, u16 remote
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
 		unsigned char *remote4_addr, u16 remote4_id,
-		l4_protocol l4_proto, enum session_timer_type);
+		l4_protocol l4_proto, bool is_est);
 
 
 #endif /* _JOOL_UNIT_SESSION_H */

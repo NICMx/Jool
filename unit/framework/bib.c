@@ -12,10 +12,23 @@ bool bib_assert(l4_protocol l4_proto, struct bib_entry **expected_bibs)
 {
 	int expected_count = 0;
 	int actual_count = 0;
+	__u64 count64;
+	int error;
 
-	if (is_error(bibdb_for_each(l4_proto, count_bibs, &actual_count))) {
+	error = bibdb_count(l4_proto, &count64);
+	if (error) {
+		log_debug("bibdb_count threw errcode %d.", error);
+		return error;
+	}
+
+	if (is_error(bibdb_foreach(l4_proto, count_bibs, &actual_count, NULL))) {
 		log_err("Could not count the BIB entries in the database for some reason.");
 		return false;
+	}
+
+	if (actual_count != count64) {
+		log_debug("Count mismatch: %d %llu", actual_count, count64);
+		return -EINVAL;
 	}
 
 	while (expected_bibs && expected_bibs[expected_count]) {
@@ -55,7 +68,7 @@ static int bib_print_aux(struct bib_entry *bib, void *arg)
 int bib_print(l4_protocol l4_proto)
 {
 	log_debug("BIB:");
-	return bibdb_for_each(l4_proto, bib_print_aux, NULL);
+	return bibdb_foreach(l4_proto, bib_print_aux, NULL, NULL);
 }
 
 struct bib_entry *bib_create_str(const unsigned char *addr6_str, u16 port6,
@@ -72,7 +85,7 @@ struct bib_entry *bib_create_str(const unsigned char *addr6_str, u16 port6,
 		return NULL;
 	addr4.l4 = port4;
 
-	return bib_create(&addr4, &addr6, false, l4_proto);
+	return bibentry_create(&addr4, &addr6, false, l4_proto);
 }
 
 struct bib_entry *bib_inject_str(const unsigned char *addr6_str, u16 port6,
@@ -105,7 +118,7 @@ struct bib_entry *bib_inject(const struct in6_addr *addr6, u16 port6,
 	struct bib_entry *bib;
 	int error;
 
-	bib = bib_create(&taddr4, &taddr6, false, l4_proto);
+	bib = bibentry_create(&taddr4, &taddr6, false, l4_proto);
 	if (!bib) {
 		log_err("Could not allocate the BIB entry.");
 		return NULL;

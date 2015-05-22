@@ -61,7 +61,7 @@ static bool validate_packet(struct sk_buff *skb, int expected_frag_count)
 		return success;
 	}
 
-	success &= assert_equals_u16(0, get_offset(skb), "1st frag has offset 0");
+	success &= ASSERT_UINT(0, get_offset(skb), "1st frag has offset 0");
 	last_offset = 0;
 
 	skb = skb_shinfo(skb)->frag_list;

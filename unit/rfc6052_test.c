@@ -7,117 +7,73 @@
 #include "nat64/common/str_utils.h"
 #include "rfc6052.c"
 
-
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ramiro Nava <ramiro.nava@gmail.mx>");
+MODULE_AUTHOR("Ramiro Nava");
 MODULE_DESCRIPTION("RFC 6052 module test.");
 
-/*
- +-----------------------+------------+------------------------------+
- | Network-Specific      |    IPv4    | IPv4-embedded IPv6 address   |
- | Prefix                |   address  |                              |
- +-----------------------+------------+------------------------------+
- | 2001:db8::/32         | 192.0.2.33 | 2001:db8:c000:221::          |
- | 2001:db8:100::/40     | 192.0.2.33 | 2001:db8:1c0:2:21::          |
- | 2001:db8:122::/48     | 192.0.2.33 | 2001:db8:122:c000:2:2100::   |
- | 2001:db8:122:300::/56 | 192.0.2.33 | 2001:db8:122:3c0:0:221::     |
- | 2001:db8:122:344::/64 | 192.0.2.33 | 2001:db8:122:344:c0:2:2100:: |
- | 2001:db8:122:344::/96 | 192.0.2.33 | 2001:db8:122:344::192.0.2.33 |
- +-----------------------+------------+------------------------------+
- */
-
-static char ipv4_addr_str[INET_ADDRSTRLEN] = "192.0.2.33";
-static struct in_addr ipv4_addr;
-
-static char ipv6_addr_str[6][INET6_ADDRSTRLEN] = {
-		"2001:db8:c000:221::",
-		"2001:db8:1c0:2:21::",
-		"2001:db8:122:c000:2:2100::",
-		"2001:db8:122:3c0:0:221::",
-		"2001:db8:122:344:c0:2:2100::",
-		"2001:db8:122:344::192.0.2.33"
-};
-static struct in6_addr ipv6_addr[6];
-
-static char prefixes_str[6][INET6_ADDRSTRLEN] = {
-		"2001:db8::",
-		"2001:db8:100::",
-		"2001:db8:122::",
-		"2001:db8:122:300::",
-		"2001:db8:122:344::",
-		"2001:db8:122:344::"
-};
-static __u8 prefixes_mask[6] = { 32, 40, 48, 56, 64, 96 };
-static struct ipv6_prefix prefixes[6];
-
-static bool test_addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *expected)
+static bool test(const char *prefix6_str, const unsigned int prefix6_len,
+		const char *addr4_str, const char *addr6_str)
 {
-	struct in_addr actual;
+	struct in6_addr addr6;
+	struct ipv6_prefix prefix;
+	struct in_addr addr4;
 	bool success = true;
 
-	success &= assert_equals_int(0, addr_6to4(src, prefix, &actual), "Extract IPv4-result");
-	success &= assert_equals_ipv4(expected, &actual, "Extract IPv4-out");
-
-	return success;
-}
-
-static bool test_addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *expected)
-{
-	struct in6_addr actual;
-	bool success = true;
-
-	success &= assert_equals_int(0, addr_4to6(src, prefix, &actual), "Append IPv4-result");
-	success &= assert_equals_ipv6(expected, &actual, "Append IPv4-out.");
-
-	return success;
-}
-
-static bool init(void)
-{
-	int i;
-
-	if (str_to_addr4(ipv4_addr_str, &ipv4_addr) != 0) {
-		log_err("Could not convert '%s' to a IPv4 address. Failing...", ipv4_addr_str);
+	if (str_to_addr6(prefix6_str, &prefix.address))
 		return false;
-	}
+	prefix.len = prefix6_len;
 
-	for (i = 0; i < 6; i++) {
-		if (str_to_addr6(ipv6_addr_str[i], &ipv6_addr[i]) != 0) {
-			log_err("Could not convert '%s' to a IPv6 address. Failing...", ipv6_addr_str[i]);
-			return false;
-		}
-	}
+	/* 6 to 4 */
+	if (str_to_addr6(addr6_str, &addr6))
+		return false;
+	memset(&addr4, 0, sizeof(addr4));
 
-	for (i = 0; i < 6; i++) {
-		if (str_to_addr6(prefixes_str[i], &prefixes[i].address) != 0) {
-			log_err("Could not convert '%s' to a IPv6 address. Failing...", prefixes_str[i]);
-			return false;
-		}
-		prefixes[i].len = prefixes_mask[i];
-	}
+	success &= ASSERT_INT(0, addr_6to4(&addr6, &prefix, &addr4),
+			"result code of %pI6c - %pI6c/%u = %s",
+			&addr6, &prefix.address, prefix.len, addr4_str);
+	success &= ASSERT_ADDR4(addr4_str, &addr4, "6to4 address result");
 
-	return true;
+	/* 4 to 6 */
+	if (str_to_addr4(addr4_str, &addr4))
+		return false;
+	memset(&addr6, 0, sizeof(addr6));
+
+	success &= ASSERT_INT(0, addr_4to6(&addr4, &prefix, &addr6),
+			"result code of %pI4c + %pI6c/%u = %s",
+			&addr4, &prefix.address, prefix.len, addr6_str);
+	success &= ASSERT_ADDR6(addr6_str, &addr6, "4to6 address result");
+
+	return success;
+}
+
+/**
+ * Taken from https://tools.ietf.org/html/rfc6052#section-2.4.
+ */
+static bool test_rfc6052_table(void)
+{
+	bool success = true;
+
+	success &= test("2001:db8::", 32, "192.0.2.33",
+			"2001:db8:c000:221::");
+	success &= test("2001:db8:100::", 40, "192.0.2.33",
+			"2001:db8:1c0:2:21::");
+	success &= test("2001:db8:122::", 48, "192.0.2.33",
+			"2001:db8:122:c000:2:2100::");
+	success &= test("2001:db8:122:300::", 56, "192.0.2.33",
+			"2001:db8:122:3c0:0:221::");
+	success &= test("2001:db8:122:344::", 64, "192.0.2.33",
+			"2001:db8:122:344:c0:2:2100::");
+	success &= test("2001:db8:122:344::", 96, "192.0.2.33",
+			"2001:db8:122:344::192.0.2.33");
+
+	return success;
 }
 
 int init_module(void)
 {
-	int i;
 	START_TESTS("rfc6052.c");
 
-	if (!init())
-		return -EINVAL;
-
-	/* test the extract function. */
-	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_addr_6to4(&ipv6_addr[i], &prefixes[i], &ipv4_addr), "Extract-%pI6c",
-				&ipv6_addr[i]);
-	}
-
-	/* Test the append function. */
-	for (i = 0; i < 6; i++) {
-		CALL_TEST(test_addr_4to6(&ipv4_addr, &prefixes[i], &ipv6_addr[i]), "Append-%pI6c",
-				&ipv6_addr[i]);
-	}
+	CALL_TEST(test_rfc6052_table(), "Translation tests");
 
 	END_TESTS;
 }

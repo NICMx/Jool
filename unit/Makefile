@@ -75,6 +75,7 @@ $(HASHTABLE)-objs += $(MIN_REQS)
 $(HASHTABLE)-objs += hash_table_test.o
 
 $(RFC6052)-objs += $(MIN_REQS)
+$(RFC6052)-objs += ../mod/common/pool6.o
 $(RFC6052)-objs += rfc6052_test.o
 
 $(PKT)-objs += $(MIN_REQS)
@@ -95,12 +96,10 @@ $(POOL4DB)-objs += pool4db_test.o
 
 $(BIB)-objs += $(MIN_REQS)
 $(BIB)-objs += ../mod/common/config.o
-$(BIB)-objs += ../mod/common/random.o
 $(BIB)-objs += ../mod/common/rbtree.o
-$(BIB)-objs += ../mod/stateful/host6_node.o
+$(BIB)-objs += ../mod/stateful/bib/entry.o
+$(BIB)-objs += ../mod/stateful/bib/table.o
 $(BIB)-objs += framework/bib.o
-$(BIB)-objs += framework/types.o
-$(BIB)-objs += impersonator/icmp_wrapper.o
 $(BIB)-objs += bib_test.o
 
 $(SESSION)-objs += $(MIN_REQS)

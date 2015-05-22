@@ -70,11 +70,11 @@ static bool test_6to4(l4_protocol l4_proto)
  	success &= assert_equals_int(l4_proto, out.l4_proto, "l4 proto");
  	success &= assert_equals_ipv4_str(local4, &out.src.addr4.l3, "src addr");
  	if (l4_proto == L4PROTO_ICMP)
- 		success &= assert_equals_u16(80, out.src.addr4.l4, "src port (icmp id)");
+ 		success &= ASSERT_UINT(80, out.src.addr4.l4, "src port (icmp id)");
  	else
- 		success &= assert_equals_u16(5678, out.src.addr4.l4, "src port");
+ 		success &= ASSERT_UINT(5678, out.src.addr4.l4, "src port");
  	success &= assert_equals_ipv4_str(remote4, &out.dst.addr4.l3, "dst addr");
-	success &= assert_equals_u16(80, out.dst.addr4.l4, "dst port (icmp id)");
+	success &= ASSERT_UINT(80, out.dst.addr4.l4, "dst port (icmp id)");
  	success &= assert_equals_int(0, field, "unchanged field");
 
 	return success;
@@ -94,11 +94,11 @@ static bool test_4to6(l4_protocol l4_proto)
 	success &= assert_equals_int(l4_proto, out.l4_proto, "l4 proto");
 	success &= assert_equals_ipv6_str(local6, &out.src.addr6.l3, "src addr");
 	if (l4_proto == L4PROTO_ICMP)
-		success &= assert_equals_u16(1234, out.src.addr6.l4, "src port (icmp id)");
+		success &= ASSERT_UINT(1234, out.src.addr6.l4, "src port (icmp id)");
 	else
-		success &= assert_equals_u16(80, out.src.addr6.l4, "src port");
+		success &= ASSERT_UINT(80, out.src.addr6.l4, "src port");
 	success &= assert_equals_ipv6_str(remote6, &out.dst.addr6.l3, "dst addr");
-	success &= assert_equals_u16(1234, out.dst.addr6.l4, "dst port");
+	success &= ASSERT_UINT(1234, out.dst.addr6.l4, "dst port");
 	success &= assert_equals_int(0, field, "unchanged field");
 
 	return success;

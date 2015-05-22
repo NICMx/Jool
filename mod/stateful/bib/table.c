@@ -216,13 +216,18 @@ static struct rb_node *find_starting_point(struct bib_table *table,
 	if (*node)
 		return include_offset ? (*node) : rb_next(*node);
 
+	/* TODO this needs more tests on empty trees. */
+
+	if (!parent)
+		return NULL;
+
 	/*
 	 * If offset is not found, start from offset's next anyway.
 	 * (If offset was meant to exist, it probably timed out and died while
 	 * the caller wasn't holding the spinlock; it's nothing to worry about.)
 	 */
 	bib = rb_entry(parent, struct bib_entry, tree4_hook);
-	return (compare_full4(bib, offset) < 0) ? parent : rb_next(parent);
+	return (compare_full4(bib, offset) < 0) ? rb_next(parent) : parent;
 }
 
 /**
@@ -301,7 +306,7 @@ static int __delete_taddr4s(struct bib_entry *bib, void *void_args)
 {
 	struct iteration_args *args = void_args;
 
-	if (prefix4_contains(args->prefix, &bib->ipv4.l3))
+	if (!prefix4_contains(args->prefix, &bib->ipv4.l3))
 		return 1; /* positive = break iteration early, not an error. */
 	if (!port_range_contains(args->ports, bib->ipv4.l4))
 		return 0;

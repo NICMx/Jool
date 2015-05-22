@@ -13,24 +13,24 @@ static bool test_init_power(void)
 {
 	bool success = true;
 
-	success &= assert_equals_int(0, init_power(0), "r0");
-	success &= assert_equals_uint(1U, power, "p0");
-	success &= assert_equals_int(0, init_power(1), "r1");
-	success &= assert_equals_uint(1U, power, "p1");
-	success &= assert_equals_int(0, init_power(2), "r2");
-	success &= assert_equals_uint(2U, power, "p2");
-	success &= assert_equals_int(0, init_power(3), "r3");
-	success &= assert_equals_uint(4U, power, "p3");
-	success &= assert_equals_int(0, init_power(4), "r4");
-	success &= assert_equals_uint(4U, power, "p4");
-	success &= assert_equals_int(0, init_power(5), "r5");
-	success &= assert_equals_uint(8U, power, "p5");
-	success &= assert_equals_int(0, init_power(1234), "r1234");
-	success &= assert_equals_uint(2048U, power, "p1234");
-	success &= assert_equals_int(0, init_power(0x80000000U), "rmax");
-	success &= assert_equals_uint(0x80000000U, power, "pmax");
-	success &= assert_equals_int(-EINVAL, init_power(0x80000001U), "2big1");
-	success &= assert_equals_int(-EINVAL, init_power(0xFFFFFFFFU), "2big2");
+	success &= ASSERT_INT(0, init_power(0), "r0");
+	success &= ASSERT_UINT(1U, power, "p0");
+	success &= ASSERT_INT(0, init_power(1), "r1");
+	success &= ASSERT_UINT(1U, power, "p1");
+	success &= ASSERT_INT(0, init_power(2), "r2");
+	success &= ASSERT_UINT(2U, power, "p2");
+	success &= ASSERT_INT(0, init_power(3), "r3");
+	success &= ASSERT_UINT(4U, power, "p3");
+	success &= ASSERT_INT(0, init_power(4), "r4");
+	success &= ASSERT_UINT(4U, power, "p4");
+	success &= ASSERT_INT(0, init_power(5), "r5");
+	success &= ASSERT_UINT(8U, power, "p5");
+	success &= ASSERT_INT(0, init_power(1234), "r1234");
+	success &= ASSERT_UINT(2048U, power, "p1234");
+	success &= ASSERT_INT(0, init_power(0x80000000U), "rmax");
+	success &= ASSERT_UINT(0x80000000U, power, "pmax");
+	success &= ASSERT_INT(-EINVAL, init_power(0x80000001U), "2big1");
+	success &= ASSERT_INT(-EINVAL, init_power(0xFFFFFFFFU), "2big2");
 
 	return success;
 }
@@ -48,7 +48,9 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return assert_equals_int(0, pool4db_add(1, &prefix, &ports), "add");
+	return ASSERT_INT(0, pool4db_add(1, &prefix, &ports),
+			"add of %pI4/%u (%u-%u)",
+			&prefix.address, prefix.len, min, max);
 }
 
 static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
@@ -61,7 +63,9 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return assert_equals_int(0, pool4db_rm(1, &prefix, &ports), "rm");
+	return ASSERT_INT(0, pool4db_rm(1, &prefix, &ports),
+			"rm of %pI4/%u (%u-%u)",
+			&prefix.address, prefix.len, min, max);
 }
 
 static bool add_common_samples(void)
@@ -104,12 +108,13 @@ static int validate_taddr4(struct ipv4_transport_addr *addr, void *void_args)
 
 	/* log_debug("foreaching %pI4:%u", &addr->l3, addr->l4); */
 
-	success &= assert_true(args->i < args->expected_len, "overflow");
+	success &= ASSERT_BOOL(true, args->i < args->expected_len,
+			"overflow (%u %u)", args->i, args->expected_len);
 	if (!success)
 		return -EINVAL;
 
-	success &= assert_equals_ipv4(&args->expected[args->i].l3, &addr->l3, "addr");
-	success &= assert_equals_u16(args->expected[args->i].l4, addr->l4, "port");
+	success &= __ASSERT_ADDR4(&args->expected[args->i].l3, &addr->l3, "addr");
+	success &= ASSERT_UINT(args->expected[args->i].l4, addr->l4, "port");
 
 	args->i++;
 	return success ? 0 : -EINVAL;
@@ -173,7 +178,7 @@ static bool test_foreach_taddr4(void)
 		args.expected_len = COUNT;
 		args.i = 0;
 		error = pool4db_foreach_taddr4(1, validate_taddr4, &args, i);
-		success &= assert_equals_int(0, error, "call");
+		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
 	}
 
@@ -202,15 +207,16 @@ static int validate_sample(struct pool4_sample *sample, void *void_args)
 	/* log_debug("foreaching %pI4 %u-%u", &sample->addr, sample->range.min,
 			sample->range.max); */
 
-	success &= assert_true(args->i < args->expected_len, "iteration limit");
+	success &= ASSERT_BOOL(true, args->i < args->expected_len,
+			"overflow (%u %u)", args->i, args->expected_len);
 	if (!success)
 		return -EINVAL;
 
-	success &= assert_equals_ipv4(&args->expected[args->i].addr,
+	success &= __ASSERT_ADDR4(&args->expected[args->i].addr,
 			&sample->addr, "addr");
-	success &= assert_equals_u16(args->expected[args->i].range.min,
+	success &= ASSERT_UINT(args->expected[args->i].range.min,
 			sample->range.min, "min");
-	success &= assert_equals_u16(args->expected[args->i].range.max,
+	success &= ASSERT_UINT(args->expected[args->i].range.max,
 			sample->range.max, "max");
 
 	args->i++;
@@ -248,7 +254,7 @@ static bool test_foreach_sample(void)
 	args.expected_len = COUNT;
 	args.i = 0;
 	error = pool4db_foreach_sample(1, validate_sample, &args, NULL);
-	success &= assert_equals_int(0, error, "call");
+	success &= ASSERT_INT(0, error, "no-offset call");
 
 	for (i = 0; i < COUNT; i++) {
 		/* foreach sample skips offset. */
@@ -257,7 +263,7 @@ static bool test_foreach_sample(void)
 		args.i = 0;
 		error = pool4db_foreach_sample(1, validate_sample, &args,
 				&expected[i]);
-		success &= assert_equals_int(0, error, "call");
+		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
 	}
 
@@ -280,11 +286,14 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	for (i = addr_min; i <= addr_max; i++) {
 		taddr.l3.s_addr = cpu_to_be32(0xc0000200U | i);
 		for (taddr.l4 = port_min; taddr.l4 <= port_max; taddr.l4++) {
-			/* log_debug("Testing %pI4:%u", &taddr.l3, taddr.l4); */
 			result = pool4db_contains(1, &taddr);
-			success &= assert_bool(expected, result, "contains");
+			success &= ASSERT_BOOL(expected, result,
+					"contains %pI4#%u",
+					&taddr.l3, taddr.l4);
 			result = pool4db_contains_all(&taddr);
-			success &= assert_bool(expected, result, "all");
+			success &= ASSERT_BOOL(expected, result,
+					"contains_all %pI4#%u",
+					&taddr.l3, taddr.l4);
 		}
 	}
 
@@ -302,8 +311,8 @@ bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 	args.i = 0;
 
 	error = pool4db_foreach_sample(1, validate_sample, &args, NULL);
-	success &= assert_equals_int(0, error, "foreach result");
-	success &= assert_equals_uint(expected_len, args.i, "foreach count");
+	success &= ASSERT_INT(0, error, "foreach result");
+	success &= ASSERT_UINT(expected_len, args.i, "foreach count");
 	return success;
 }
 
