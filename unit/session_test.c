@@ -2,845 +2,422 @@
 #include <linux/printk.h>
 
 #include "nat64/unit/session.h"
-#include "nat64/unit/skb_generator.h"
 #include "nat64/unit/unit_test.h"
 #include "nat64/common/str_utils.h"
-#include "nat64/mod/stateful/pool4.h"
-#include "session_db.c"
+#include "session/db.c"
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
+MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session module test.");
 
-#define TCPTRANS_TIMEOUT msecs_to_jiffies(1000 * TCP_TRANS)
-#define TCPEST_TIMEOUT msecs_to_jiffies(1000 * TCP_EST)
+const l4_protocol PROTO = L4PROTO_UDP;
+struct session_entry *sessions4[4][4][4][4];
+struct session_entry *sessions6[4][4][4][4];
 
+/*
 #define SESSION_PRINT_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
 #define PRINT_SESSION(session) \
 	&session->remote4.l3, session->remote4.l4, \
 	&session->local4.l3, session->local4.l4, \
 	&session->local6.l3, session->local6.l4, \
 	&session->remote6.l3, session->remote6.l4
+*/
 
-static const char* IPV4_ADDRS[] = { "0.0.0.0", "1.1.1.1", "2.2.2.2" };
-static const __u16 IPV4_PORTS[] = { 0, 456, 9556 };
-static const char* IPV6_ADDRS[] = { "::1", "::2", "::3" };
-static const __u16 IPV6_PORTS[] = { 334, 0, 9556 };
+///**
+// * Same as assert_bib(), except asserting session entries on the session table.
+// */
+//static bool assert_session(char* test_name, struct session_entry* session,
+//		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
+//{
+//	struct session_entry *retrieved_session, *expected_session;
+//	struct tuple tuple6, tuple4;
+//	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
+//	bool table_has_it[3];
+//	bool success;
+//	int i;
+//
+//	table_has_it[0] = udp_table_has_it;
+//	table_has_it[1] = tcp_table_has_it;
+//	table_has_it[2] = icmp_table_has_it;
+//
+//	for (i = 0; i < 3; i++) {
+//		tuple4.dst.addr4 = session->local4;
+//		tuple4.src.addr4 = session->remote4;
+//		tuple4.l3_proto = L3PROTO_IPV4;
+//		tuple4.l4_proto = l4_protos[i];
+//
+//		tuple6.dst.addr6 = session->local6;
+//		tuple6.src.addr6 = session->remote6;
+//		tuple6.l3_proto = L3PROTO_IPV6;
+//		tuple6.l4_proto = l4_protos[i];
+//
+//		expected_session = table_has_it[i] ? session : NULL;
+//		success = true;
+//
+//		retrieved_session = NULL;
+//		success &= ASSERT_INT(table_has_it[i] ? 0 : -ESRCH,
+//				sessiondb_get(&tuple4, NULL, &retrieved_session),
+//				"%s", test_name);
+//		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
+//
+//		retrieved_session = NULL;
+//		success &= ASSERT_INT(table_has_it[i] ? 0 : -ESRCH,
+//				sessiondb_get(&tuple6, NULL, &retrieved_session),
+//				"%s", test_name);
+//		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
+//
+//		if (!success)
+//			return false;
+//	}
+//
+//	return true;
+//}
 
-static struct ipv4_transport_addr addr4[ARRAY_SIZE(IPV4_ADDRS)];
-static struct ipv6_transport_addr addr6[ARRAY_SIZE(IPV6_ADDRS)];
-
-static struct session_entry *create_session_entry(int remote_id_4, int local_id_4,
-		int local_id_6, int remote_id_6,
-		l4_protocol l4_proto)
+static bool assert4(unsigned int la, unsigned int lp,
+		unsigned int ra, unsigned int rp)
 {
-	struct session_entry* entry = session_create(&addr6[remote_id_6], &addr6[local_id_6],
-			&addr4[local_id_4], &addr4[remote_id_4],
-			l4_proto, NULL);
-	if (!entry)
-		return NULL;
+	struct session_entry *session = NULL;
+	struct tuple tuple4;
+	bool success = true;
 
-	log_debug(SESSION_PRINT_KEY, PRINT_SESSION(entry));
+	tuple4.src.addr4.l3.s_addr = cpu_to_be32(0xcb007100 | ra);
+	tuple4.src.addr4.l4 = rp;
+	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(0xc0000200 | la);
+	tuple4.dst.addr4.l4 = lp;
+	tuple4.l3_proto = L3PROTO_IPV4;
+	tuple4.l4_proto = PROTO;
 
-	return entry;
+	if (sessions4[la][lp][ra][rp]) {
+		success &= ASSERT_INT(0,
+				sessiondb_get(&tuple4, NULL, &session),
+				"get4 code - %u %u %u %u", la, lp, ra, rp);
+		success &= ASSERT_SESSION(sessions4[la][lp][ra][rp], session,
+				"get4 session");
+	} else {
+		success &= ASSERT_INT(-ESRCH,
+				sessiondb_get(&tuple4, NULL, &session),
+				"get4 code - %u %u %u %u", la, lp, ra, rp);
+	}
+
+	if (session)
+		session_return(session);
+
+	return success;
 }
 
-static struct session_entry *create_and_insert_session(int remote4_id, int local4_id, int local6_id,
-		int remote6_id)
+static bool assert6(unsigned int la, unsigned int lp,
+		unsigned int ra, unsigned int rp)
 {
-	struct session_entry *result;
-	int error;
+	struct session_entry *session = NULL;
+	struct tuple tuple6;
+	bool success = true;
 
-	result = create_session_entry(remote4_id, local4_id, local6_id, remote6_id, L4PROTO_UDP);
-	if (!result) {
-		log_err("Could not allocate a session entry.");
-		return NULL;
+	tuple6.src.addr6.l3.s6_addr32[0] = cpu_to_be32(0x20010db8);
+	tuple6.src.addr6.l3.s6_addr32[1] = 0;
+	tuple6.src.addr6.l3.s6_addr32[2] = 0;
+	tuple6.src.addr6.l3.s6_addr32[3] = cpu_to_be32(ra);
+	tuple6.src.addr6.l4 = rp;
+	tuple6.dst.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00640000);
+	tuple6.dst.addr6.l3.s6_addr32[1] = 0;
+	tuple6.dst.addr6.l3.s6_addr32[2] = 0;
+	tuple6.dst.addr6.l3.s6_addr32[3] = cpu_to_be32(la);
+	tuple6.dst.addr6.l4 = lp;
+	tuple6.l3_proto = L3PROTO_IPV6;
+	tuple6.l4_proto = PROTO;
+
+	if (sessions6[ra][rp][la][lp]) {
+		success &= ASSERT_INT(0,
+				sessiondb_get(&tuple6, NULL, &session),
+				"get6 code - %u %u %u %u", ra, rp, la, lp);
+		success &= ASSERT_SESSION(sessions6[ra][rp][la][lp], session,
+				"get6 session");
+	} else {
+		success &= ASSERT_INT(-ESRCH,
+				sessiondb_get(&tuple6, NULL, &session),
+				"get6 code - %u %u %u %u", ra, rp, la, lp);
 	}
 
-	error = sessiondb_add(result, SESSIONTIMER_UDP);
-	if (error) {
-		log_err("Could not insert the session entry to the table; call returned %d.", error);
-		return NULL;
-	}
+	if (session)
+		session_return(session);
 
-	return result;
+	return success;
 }
 
-static bool assert_session_entry_equals(struct session_entry* expected,
-		struct session_entry* actual, char* test_name)
+static bool test_db(void)
 {
-	if (expected == actual)
-		return true;
+	unsigned int la; /* local addr */
+	unsigned int lp; /* local port */
+	unsigned int ra; /* remote addr */
+	unsigned int rp; /* remote port */
+	bool success = true;
 
-	if (!expected) {
-		log_err("Test '%s' failed: Expected null, obtained " SESSION_PRINT_KEY ".",
-				test_name, PRINT_SESSION(actual));
-		return false;
-	}
-	if (!actual) {
-		log_err("Test '%s' failed: Expected " SESSION_PRINT_KEY ", got null.",
-				test_name, PRINT_SESSION(expected));
-		return false;
-	}
-
-	if (expected->l4_proto != actual->l4_proto
-			|| !ipv6_transport_addr_equals(&expected->remote6, &actual->remote6)
-			|| !ipv6_transport_addr_equals(&expected->local6, &actual->local6)
-			|| !ipv4_transport_addr_equals(&expected->local4, &actual->local4)
-			|| !ipv4_transport_addr_equals(&expected->remote4, &actual->remote4)) {
-		log_err("Test '%s' failed: Expected " SESSION_PRINT_KEY ", got " SESSION_PRINT_KEY ".",
-				test_name, PRINT_SESSION(expected), PRINT_SESSION(actual));
-		return false;
+	for (la = 0; la < 4; la++) {
+		for (lp = 0; lp < 4; lp++) {
+			for (ra = 0; ra < 4; ra++) {
+				for (rp = 0; rp < 4; rp++) {
+					success &= assert4(la, lp, ra, rp);
+					success &= assert6(la, lp, ra, rp);
+				}
+			}
+		}
 	}
 
-	return true;
+	return success;
 }
 
-/**
- * Same as assert_bib(), except asserting session entries on the session table.
- */
-static bool assert_session(char* test_name, struct session_entry* session,
-		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
+static bool insert_test_sessions(void)
 {
-	struct session_entry *retrieved_session, *expected_session;
-	struct tuple tuple6, tuple4;
-	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
-	bool table_has_it[3];
-	bool success;
-	int i;
+	struct session_entry *sessions[16];
+	unsigned int i;
 
-	table_has_it[0] = udp_table_has_it;
-	table_has_it[1] = tcp_table_has_it;
-	table_has_it[2] = icmp_table_has_it;
+	memset(sessions4, 0, sizeof(sessions4));
+	memset(sessions6, 0, sizeof(sessions6));
 
-	for (i = 0; i < 3; i++) {
-		tuple4.dst.addr4 = session->local4;
-		tuple4.src.addr4 = session->remote4;
-		tuple4.l3_proto = L3PROTO_IPV4;
-		tuple4.l4_proto = l4_protos[i];
-
-		tuple6.dst.addr6 = session->local6;
-		tuple6.src.addr6 = session->remote6;
-		tuple6.l3_proto = L3PROTO_IPV6;
-		tuple6.l4_proto = l4_protos[i];
-
-		expected_session = table_has_it[i] ? session : NULL;
-		success = true;
-
-		retrieved_session = NULL;
-		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
-				sessiondb_get(&tuple4, &retrieved_session),
-				test_name);
-		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
-
-		retrieved_session = NULL;
-		success &= assert_equals_int(table_has_it[i] ? 0 : -ESRCH,
-				sessiondb_get(&tuple6, &retrieved_session),
-				test_name);
-		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
-
-		if (!success)
+	sessions[0] = session_inject("2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, true);
+	sessions[1] = session_inject("2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, true);
+	sessions[2] = session_inject("2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, true);
+	sessions[3] = session_inject("2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, true);
+	sessions[4] = session_inject("2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, true);
+	sessions[5] = session_inject("2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, true);
+	sessions[6] = session_inject("2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, true);
+	sessions[7] = session_inject("2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, true);
+	sessions[8] = session_inject("2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, true);
+	sessions[9] = session_inject("2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, true);
+	sessions[10] = session_inject("2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO, true);
+	sessions[11] = session_inject("2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO, true);
+	sessions[12] = session_inject("2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO, true);
+	sessions[13] = session_inject("2001:db8::1", 1, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 2, PROTO, true);
+	sessions[14] = session_inject("2001:db8::1", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 1, PROTO, true);
+	sessions[15] = session_inject("2001:db8::2", 2, "64::2", 1, "192.0.2.1", 1, "203.0.113.1", 2, PROTO, true);
+	for (i = 0; i < ARRAY_SIZE(sessions); i++) {
+		if (!sessions[i]) {
+			log_debug("Allocation failed in index %u.", i);
 			return false;
+		}
 	}
 
-	return true;
+	sessions6[1][2][2][2] = sessions4[2][1][2][1] = sessions[0];
+	sessions6[1][1][2][1] = sessions4[2][2][2][2] = sessions[1];
+	sessions6[2][1][2][1] = sessions4[2][2][1][2] = sessions[2];
+	sessions6[2][2][2][2] = sessions4[2][2][1][1] = sessions[3];
+	sessions6[1][1][2][2] = sessions4[1][2][2][2] = sessions[4];
+	sessions6[2][2][1][1] = sessions4[2][1][1][1] = sessions[5];
+	sessions6[2][1][1][1] = sessions4[1][1][2][2] = sessions[6];
+	sessions6[1][1][1][1] = sessions4[2][1][2][2] = sessions[7];
+	sessions6[2][2][1][2] = sessions4[1][2][1][1] = sessions[8];
+	sessions6[1][2][1][1] = sessions4[2][2][2][1] = sessions[9];
+	sessions6[2][1][1][2] = sessions4[2][1][1][2] = sessions[10];
+	sessions6[1][2][1][2] = sessions4[1][1][2][1] = sessions[11];
+	sessions6[2][1][2][2] = sessions4[1][2][2][1] = sessions[12];
+	sessions6[1][1][1][2] = sessions4[1][2][1][2] = sessions[13];
+	sessions6[1][2][2][1] = sessions4[1][1][1][1] = sessions[14];
+	sessions6[2][2][2][1] = sessions4[1][1][1][2] = sessions[15];
+
+	return test_db();
 }
 
 static bool simple_session(void)
 {
-	struct session_entry *session;
+	struct bib_entry bib = {
+			.ipv4.l3.s_addr = cpu_to_be32(0xc0000201),
+			.ipv4.l4 = 1,
+			/*
+			 * Session doesn't enfore remote6 x local4 uniqueness;
+			 * that's BIB's responsibility.
+			 * As a result, only the IPv4 side matters in the BIB
+			 * foreach.
+			 */
+			.l4_proto = PROTO,
+	};
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+	struct port_range ports;
+	int error;
 	bool success = true;
 
-	session = create_session_entry(1, 0, 1, 0, L4PROTO_TCP);
-	if (!assert_not_null(session, "Allocation of test session entry"))
+	if (!insert_test_sessions())
 		return false;
 
-	success &= assert_equals_int(0, sessiondb_add(session, SESSIONTIMER_EST),
-			"Session insertion call");
-	success &= assert_session("Session insertion state", session, false, true, false);
-	if (!success)
-		return false;
+	/* ---------------------------------------------------------- */
 
-	return true;
-}
+	log_debug("Deleting sessions by BIB.");
+	error = sessiondb_delete_by_bib(&bib);
+	success &= ASSERT_INT(0, error, "BIB delete result");
 
-static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id,
-		int dst_port_id)
-{
-	struct tuple tuple4;
+	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
+	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
+	sessions6[1][2][2][1] = sessions4[1][1][1][1] = NULL;
+	sessions6[2][2][2][1] = sessions4[1][1][1][2] = NULL;
+	success &= test_db();
 
-	tuple4.src.addr4.l3 = addr4[src_addr_id].l3;
-	tuple4.dst.addr4.l3 = addr4[dst_addr_id].l3;
-	tuple4.src.addr4.l4 = addr4[src_port_id].l4;
-	tuple4.dst.addr4.l4 = addr4[dst_port_id].l4;
-	tuple4.l4_proto = L4PROTO_UDP;
-	tuple4.l3_proto = L3PROTO_IPV4;
+	/* ---------------------------------------------------------- */
 
-	log_tuple(&tuple4);
-	return sessiondb_allow(&tuple4);
-}
+	log_debug("Deleting again.");
+	error = sessiondb_delete_by_bib(&bib);
+	success &= ASSERT_INT(0, error, "BIB delete result");
+	success &= test_db();
 
-static bool test_address_filtering(void)
-{
-	struct session_entry *session;
-	bool success = true;
+	/* ---------------------------------------------------------- */
 
-	/* Init. */
-	session = create_and_insert_session(0, 0, 0, 0);
-	if (!session)
-		return false;
+	log_debug("Deleting by prefix6.");
+	prefix6.address.s6_addr32[0] = cpu_to_be32(0x00640000);
+	prefix6.address.s6_addr32[1] = 0;
+	prefix6.address.s6_addr32[2] = 0;
+	prefix6.address.s6_addr32[3] = cpu_to_be32(1);
+	prefix6.len = 128;
+	ports.min = 0;
+	ports.max = 5;
+	sessiondb_delete_taddr6s(&prefix6);
 
-	/* Test the packet is allowed when the tuple and session match perfectly. */
-	success &= assert_true(test_address_filtering_aux(0, 0, 0, 0), "lol1");
-	/* Test a tuple that completely mismatches the session. */
-	success &= assert_false(test_address_filtering_aux(1, 1, 1, 1), "lol2");
-	/* Now test tuples that nearly match the session. */
-	success &= assert_false(test_address_filtering_aux(0, 0, 0, 1), "lol3");
-	success &= assert_false(test_address_filtering_aux(0, 0, 1, 0), "lol4");
-	/* The remote port is the only one that doesn't matter. */
-	success &= assert_true(test_address_filtering_aux(0, 1, 0, 0), "lol5");
-	success &= assert_false(test_address_filtering_aux(1, 0, 0, 0), "lol6");
+	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
+	sessions6[1][1][1][1] = sessions4[2][1][2][2] = NULL;
+	sessions6[2][2][1][2] = sessions4[1][2][1][1] = NULL;
+	sessions6[1][2][1][1] = sessions4[2][2][2][1] = NULL;
+	sessions6[2][1][1][2] = sessions4[2][1][1][2] = NULL;
+	sessions6[1][1][1][2] = sessions4[1][2][1][2] = NULL;
+	success &= test_db();
 
-	/* Now we erase the session entry */
-	remove(session, &session_table_udp);
-	session_return(session);
-	session = NULL;
-
-	/* Repeat the "lol5" test but now the assert must be false */
-	success &= assert_false(test_address_filtering_aux(0, 1, 0, 0), "lol7");
-
+	/* ---------------------------------------------------------- */
 
 	return success;
 }
 
-static bool test_compare_session4(void)
+//static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id,
+//		int dst_port_id)
+//{
+//	struct tuple tuple4;
+//
+//	tuple4.src.addr4.l3 = addr4[src_addr_id].l3;
+//	tuple4.dst.addr4.l3 = addr4[dst_addr_id].l3;
+//	tuple4.src.addr4.l4 = addr4[src_port_id].l4;
+//	tuple4.dst.addr4.l4 = addr4[dst_port_id].l4;
+//	tuple4.l4_proto = L4PROTO_UDP;
+//	tuple4.l3_proto = L3PROTO_IPV4;
+//
+//	log_tuple(&tuple4);
+//	return sessiondb_allow(&tuple4);
+//}
+//
+//static bool test_address_filtering(void)
+//{
+//	struct session_entry *session;
+//	bool success = true;
+//
+//	/* Init. */
+//	session = create_and_insert_session(0, 0, 0, 0);
+//	if (!session)
+//		return false;
+//
+//	/* Test the packet is allowed when the tuple and session match perfectly. */
+//	success &= ASSERT_BOOL(true, test_address_filtering_aux(0, 0, 0, 0), "lol1");
+//	/* Test a tuple that completely mismatches the session. */
+//	success &= ASSERT_BOOL(false, test_address_filtering_aux(1, 1, 1, 1), "lol2");
+//	/* Now test tuples that nearly match the session. */
+//	success &= ASSERT_BOOL(false, test_address_filtering_aux(0, 0, 0, 1), "lol3");
+//	success &= ASSERT_BOOL(false, test_address_filtering_aux(0, 0, 1, 0), "lol4");
+//	/* The remote port is the only one that doesn't matter. */
+//	success &= ASSERT_BOOL(true, test_address_filtering_aux(0, 1, 0, 0), "lol5");
+//	success &= ASSERT_BOOL(false, test_address_filtering_aux(1, 0, 0, 0), "lol6");
+//
+//	/* Now we erase the session entry */
+//	rm(session, &session_table_udp);
+//	session_return(session);
+//	session = NULL;
+//
+//	/* Repeat the "lol5" test but now the assert must be false */
+//	success &= ASSERT_BOOL(false, test_address_filtering_aux(0, 1, 0, 0), "lol7");
+//
+//
+//	return success;
+//}
+//
+//static bool test_compare_session4(void)
+//{
+//	struct session_entry *s1, *s2;
+//	bool success = true;
+//
+//	/* ------------------------------------------- */
+//
+//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+//	if (!s1)
+//		return false;
+//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 34, "4.4.4.4", 44, L4PROTO_UDP);
+//	if (!s2)
+//		return false;
+//
+//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "< 0 remote");
+//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, "> 0 remote");
+//
+//	session_return(s1);
+//	session_return(s2);
+//
+//	/* ------------------------------------------- */
+//
+//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+//	if (!s1)
+//		return false;
+//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.4", 33, "4.4.4.4", 44, L4PROTO_UDP);
+//	if (!s2)
+//		return false;
+//
+//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "< 0 remote");
+//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, "> 0 remote");
+//
+//	session_return(s1);
+//	session_return(s2);
+//
+//	/* ------------------------------------------- */
+//
+//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+//	if (!s1)
+//		return false;
+//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 45, L4PROTO_UDP);
+//	if (!s2)
+//		return false;
+//
+//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "< 0 remote");
+//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, "> 0 remote");
+//
+//	session_return(s1);
+//	session_return(s2);
+//
+//	/* ------------------------------------------- */
+//
+//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
+//	if (!s1)
+//		return false;
+//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.5", 44, L4PROTO_UDP);
+//	if (!s2)
+//		return false;
+//
+//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "<< 0 remote");
+//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, ">> 0 remote");
+//
+//	session_return(s1);
+//	session_return(s2);
+//
+//	return success;
+//}
+
+enum session_fate expire_fn(struct session_entry *session, void *arg)
 {
-	struct session_entry *s1, *s2;
-	bool success = true;
-
-	{
-		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-		if (!s1)
-			return false;
-		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 34, "4.4.4.4", 44, L4PROTO_UDP);
-		if (!s2)
-			return false;
-
-		success &= assert_true(compare_session4(s1, s2) < 0, "< 0 remote");
-		success &= assert_true(compare_session4(s2, s1) > 0, "> 0 remote");
-
-		session_return(s1);
-		session_return(s2);
-	}
-
-	{
-		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-		if (!s1)
-			return false;
-		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.4", 33, "4.4.4.4", 44, L4PROTO_UDP);
-		if (!s2)
-			return false;
-
-		success &= assert_true(compare_session4(s1, s2) < 0, "< 0 remote");
-		success &= assert_true(compare_session4(s2, s1) > 0, "> 0 remote");
-
-		session_return(s1);
-		session_return(s2);
-	}
-
-	{
-		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-		if (!s1)
-			return false;
-		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 45, L4PROTO_UDP);
-		if (!s2)
-			return false;
-
-		success &= assert_true(compare_session4(s1, s2) < 0, "< 0 remote");
-		success &= assert_true(compare_session4(s2, s1) > 0, "> 0 remote");
-
-		session_return(s1);
-		session_return(s2);
-	}
-
-	{
-		s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-		if (!s1)
-			return false;
-		s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.5", 44, L4PROTO_UDP);
-		if (!s2)
-			return false;
-
-		success &= assert_true(compare_session4(s1, s2) < 0, "<< 0 remote");
-		success &= assert_true(compare_session4(s2, s1) > 0, ">> 0 remote");
-
-		session_return(s1);
-		session_return(s2);
-	}
-
-	return success;
-}
-
-/*
- * A V6 SYN packet arrives.
- */
-static bool test_tcp_v4_init_state_handle_v6syn(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V4_INIT);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v4_init_state_handle(&pkt, session, &expirer),
-			"V6 syn-result");
-	success &= assert_equals_u8(ESTABLISHED, session->state, "V6 syn-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 syn-toresult");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "V6 syn-lifetime");
-
-	kfree_skb(skb);
-	session_return(session);
-	return success;
-}
-
-/*
- * Something else arrives.
- */
-static bool test_tcp_v4_init_state_handle_else(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V4_INIT);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v4_init_state_handle(&pkt, session, &expirer), "else-result");
-	success &= assert_null(session->expirer, "null expirer");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V4 SYN packet arrives.
- */
-static bool test_tcp_v6_init_state_handle_v4syn(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V6_INIT);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v6_init_state_handle(&pkt, session, &expirer), "V4 syn-result");
-	success &= assert_equals_u8(ESTABLISHED, session->state, "V4 syn-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 syn-toresult");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "V4 syn-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V6 SYN packet arrives.
- */
-static bool test_tcp_v6_init_state_handle_v6syn(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V6_INIT);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v6_init_state_handle(&pkt, session, &expirer), "V6 syn-result");
-	success &= assert_equals_u8(V6_INIT, session->state, "V6 syn-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 syn-toresult");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 syn-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * Something else arrives.
- */
-static bool test_tcp_v6_init_state_handle_else(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V6_INIT);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v6_init_state_handle(&pkt, session, &expirer), "else-result");
-	success &= assert_equals_u8(V6_INIT, session->state, "else-state");
-	success &= assert_null(session->expirer, "null expirer");
-
-	kfree_skb(skb);
-	return success;
-}
-/*
- * A V4 FIN packet arrives.
- */
-static bool test_tcp_established_state_handle_v4fin(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			ESTABLISHED);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, false, false, true)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_established_state_handle(&pkt, session, &expirer), "result");
-	success &= assert_equals_u8(V4_FIN_RCV, session->state, "V4 fin-state");
-	success &= assert_null(session->expirer, "null expirer");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V6 FIN packet arrives.
- */
-static bool test_tcp_established_state_handle_v6fin(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			ESTABLISHED);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, false, true)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_established_state_handle(&pkt, session, &expirer), "result");
-	success &= assert_equals_u8(V6_FIN_RCV, session->state, "V6 fin-state");
-	success &= assert_null(session->expirer, "null expirer");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V4 RST packet arrives.
- */
-static bool test_tcp_established_state_handle_v4rst(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			ESTABLISHED);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_established_state_handle(&pkt, session, &expirer), "result");
-	success &= assert_equals_u8(TRANS, session->state, "V4 rst-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 rst-toresult");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V4 rst-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V6 RST packet arrives.
- */
-static bool test_tcp_established_state_handle_v6rst(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			ESTABLISHED);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_established_state_handle(&pkt, session, &expirer), "result");
-	success &= assert_equals_u8(TRANS, session->state, "V6 rst-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 rst-toresult");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 rst-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * Something else arrives.
- */
-static bool test_tcp_established_state_handle_else(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			ESTABLISHED);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_established_state_handle(&pkt, session, &expirer), "result");
-	success &= assert_equals_u8(ESTABLISHED, session->state, "else-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V6 FIN packet arrives.
- */
-static bool test_tcp_v4_fin_rcv_state_handle_v6fin(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V4_FIN_RCV);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, false, true)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(&pkt, session, &expirer), "V6 fin-result");
-	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session->state, "V6 fin-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V6 fin-toresult");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V6 fin-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * Something else arrives.
- */
-static bool test_tcp_v4_fin_rcv_state_handle_else(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V4_FIN_RCV);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v4_fin_rcv_state_handle(&pkt, session, &expirer), "else-result");
-	success &= assert_equals_u8(V4_FIN_RCV, session->state, "else-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V4 FIN packet arrives.
- */
-static bool test_tcp_v6_fin_rcv_state_handle_v4fin(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V6_FIN_RCV);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, false, false, true)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(&pkt, session, &expirer), "V4 fin-result");
-	success &= assert_equals_u8(V4_FIN_V6_FIN_RCV, session->state, "V4 fin-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "V4 fin-toresult");
-	success &= assert_equals_ulong(TCPTRANS_TIMEOUT, timeout, "V4 fin-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * Something else arrives.
- */
-static bool test_tcp_v6_fin_rcv_state_handle_else(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			V6_FIN_RCV);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_v6_fin_rcv_state_handle(&pkt, session, &expirer), "else-result");
-	success &= assert_equals_u8(V6_FIN_RCV, session->state, "else-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * A V4 RST packet arrives.
- */
-static bool test_tcp_trans_state_handle_v4rst(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			TRANS);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, false, true, false)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_trans_state_handle(&pkt, session, &expirer), "V4 rst-result");
-	success &= assert_equals_u8(TRANS, session->state, "V4 rst-state");
-	success &= assert_null(session->expirer, "null expirer");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
-* A V6 RST packet arrives.
-*/
-static bool test_tcp_trans_state_handle_v6rst(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			TRANS);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV6, false, true, false)))
-		return false;
-	if (is_error(pkt_init_ipv6(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_trans_state_handle(&pkt, session, &expirer), "V6 rst-result");
-	success &= assert_equals_u8(TRANS, session->state, "V6 rst-state");
-	success &= assert_null(session->expirer, "null expirer");
-
-	kfree_skb(skb);
-	return success;
-}
-
-/*
- * Something else arrives.
- */
-static bool test_tcp_trans_state_handle_else(void)
-{
-	struct session_entry *session;
-	struct expire_timer *expirer;
-	struct packet pkt;
-	struct sk_buff *skb;
-	unsigned long timeout = 0;
-	bool success = true;
-
-	/* Prepare */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "5.6.7.8", 5678, "8.7.6.5", 8765,
-			TRANS);
-	if (!session)
-		return false;
-	if (is_error(create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false)))
-		return false;
-	if (is_error(pkt_init_ipv4(&pkt, skb)))
-		return false;
-
-	/* Evaluate */
-	success &= assert_equals_int(0, tcp_trans_state_handle(&pkt, session, &expirer), "else-result");
-	success &= assert_equals_u8(ESTABLISHED, session->state, "else-state");
-	success &= assert_equals_int(0, sessiondb_get_timeout(session, &timeout), "else-toresult");
-	success &= assert_equals_ulong(TCPEST_TIMEOUT, timeout, "else-lifetime");
-
-	kfree_skb(skb);
-	return success;
+	return FATE_RM;
 }
 
 static bool init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr4(IPV4_ADDRS[i], &addr4[i].l3)))
-			return false;
-		addr4[i].l4 = IPV4_PORTS[i];
-	}
-
-	for (i = 0; i < ARRAY_SIZE(IPV4_ADDRS); i++) {
-		if (is_error(str_to_addr6(IPV6_ADDRS[i], &addr6[i].l3)))
-			return false;
-		addr6[i].l4 = IPV6_PORTS[i];
-	}
-
 	if (is_error(config_init(false)))
 		goto config_fail;
-	if (is_error(pktqueue_init()))
-		goto pktqueue_fail;
-	if (is_error(pool4_init(NULL, 0)))
-		goto pool4_fail;
-	if (is_error(pool6_init(NULL, 0)))
-		goto pool6_fail;
+//	if (is_error(pktqueue_init()))
+//		goto pktqueue_fail;
+//	if (is_error(pool4_init(NULL, 0)))
+//		goto pool4_fail;
+//	if (is_error(pool6_init(NULL, 0)))
+//		goto pool6_fail;
 	if (is_error(bibdb_init()))
 		goto bib_fail;
-	if (is_error(sessiondb_init()))
+	if (sessiondb_init(expire_fn, expire_fn))
 		goto session_fail;
 
 	return true;
@@ -848,12 +425,12 @@ static bool init(void)
 session_fail:
 	bibdb_destroy();
 bib_fail:
-	pool6_destroy();
-pool6_fail:
-	pool4_destroy();
-pool4_fail:
-	pktqueue_destroy();
-pktqueue_fail:
+//	pool6_destroy();
+//pool6_fail:
+//	pool4_destroy();
+//pool4_fail:
+//	pktqueue_destroy();
+//pktqueue_fail:
 	config_destroy();
 config_fail:
 	return false;
@@ -862,11 +439,11 @@ config_fail:
 static void end(void)
 {
 	sessiondb_destroy();
-	bibdb_destroy();
-	pool6_destroy();
-	pool4_destroy();
-	pktqueue_destroy();
-	config_destroy();
+//	bibdb_destroy();
+//	pool6_destroy();
+//	pool4_destroy();
+//	pktqueue_destroy();
+//	config_destroy();
 }
 
 int init_module(void)
@@ -874,26 +451,8 @@ int init_module(void)
 	START_TESTS("Session");
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
-	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
-	INIT_CALL_END(init(), test_compare_session4(), end(), "compare_session4()");
-
-	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_v6syn(), end(), "TCP-V4 INIT-V6 syn");
-	INIT_CALL_END(init(), test_tcp_v4_init_state_handle_else(), end(), "TCP-V4 INIT-else");
-	INIT_CALL_END(init(), test_tcp_v6_init_state_handle_v6syn(), end(), "TCP-V6 INIT-V6 SYN");
-	INIT_CALL_END(init(), test_tcp_v6_init_state_handle_v4syn(), end(), "TCP-V6 INIT-V4 SYN");
-	INIT_CALL_END(init(), test_tcp_v6_init_state_handle_else(), end(), "TCP-V6 INIT-else");
-	INIT_CALL_END(init(), test_tcp_established_state_handle_v4fin(), end(), "TCP-established-V4 fin");
-	INIT_CALL_END(init(), test_tcp_established_state_handle_v6fin(), end(), "TCP-established-V6 fin");
-	INIT_CALL_END(init(), test_tcp_established_state_handle_v4rst(), end(), "TCP-established-V4 rst");
-	INIT_CALL_END(init(), test_tcp_established_state_handle_v6rst(), end(), "TCP-established-V6 rst");
-	INIT_CALL_END(init(), test_tcp_established_state_handle_else(), end(), "TCP-established-else");
-	INIT_CALL_END(init(), test_tcp_v4_fin_rcv_state_handle_v6fin(), end(), "TCP-V4 FIN RCV-V6 fin");
-	INIT_CALL_END(init(), test_tcp_v4_fin_rcv_state_handle_else(), end(), "TCP-V4 FIN RCV-else");
-	INIT_CALL_END(init(), test_tcp_v6_fin_rcv_state_handle_v4fin(), end(), "TCP-V6 FIN RCV-v4fin");
-	INIT_CALL_END(init(), test_tcp_v6_fin_rcv_state_handle_else(), end(), "TCP-V6 FIN RCV-else");
-	INIT_CALL_END(init(), test_tcp_trans_state_handle_v6rst(), end(), "TCP-TRANS-V6 rst");
-	INIT_CALL_END(init(), test_tcp_trans_state_handle_v4rst(), end(), "TCP-TRANS-V4 rst");
-	INIT_CALL_END(init(), test_tcp_trans_state_handle_else(), end(), "TCP-TRANS-else");
+//	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
+//	INIT_CALL_END(init(), test_compare_session4(), end(), "compare_session4()");
 
 	END_TESTS;
 }

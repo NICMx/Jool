@@ -559,19 +559,22 @@ static struct rb_node *find_starting_point(struct session_table *table,
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
-	struct tuple tmp;
+	struct tuple offset;
 
 	/* If there's no offset, start from the beginning. */
 	if (!offset_remote || !offset_local)
 		return rb_first(&table->tree4);
 
 	/* If offset is found, start from offset or offset's next. */
-	tmp.src.addr4 = *offset_remote;
-	tmp.dst.addr4 = *offset_local; /* the protos are not needed. */
-	rbtree_find_node(&tmp, &table->tree4, compare_full4,
+	offset.src.addr4 = *offset_remote;
+	offset.dst.addr4 = *offset_local; /* the protos are not needed. */
+	rbtree_find_node(&offset, &table->tree4, compare_full4,
 			struct session_entry, tree4_hook, parent, node);
 	if (*node)
 		return include_offset ? (*node) : rb_next(*node);
+
+	if (!parent)
+		return NULL;
 
 	/*
 	 * If offset is not found, start from offset's next anyway.
@@ -579,7 +582,7 @@ static struct rb_node *find_starting_point(struct session_table *table,
 	 * the caller wasn't holding the spinlock; it's nothing to worry about.)
 	 */
 	session = rb_entry(parent, struct session_entry, tree4_hook);
-	return (compare_full4(session, &tmp) < 0) ? parent : rb_next(parent);
+	return (compare_full4(session, &offset) < 0) ? rb_next(parent) : parent;
 }
 
 int __foreach(struct session_table *table,
@@ -638,7 +641,7 @@ static int __rm_by_bib(struct session_entry *session, void *args_void)
 	return 0;
 }
 
-int sessiontable_delete_by_bib(struct session_table *table,
+void sessiontable_delete_by_bib(struct session_table *table,
 		struct bib_entry *bib)
 {
 	struct bib_remove_args args = {
@@ -650,11 +653,9 @@ int sessiontable_delete_by_bib(struct session_table *table,
 			.l3.s_addr = 0,
 			.l4 = 0,
 	};
-	int error;
 
-	error = __foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, true);
+	__foreach(table, __rm_by_bib, &args, &remote, &bib->ipv4, true);
 	delete(&args.removed);
-	return error;
 }
 
 struct taddr4_remove_args {
@@ -677,7 +678,7 @@ static int __rm_taddr4s(struct session_entry *session, void *args_void)
 	return 0;
 }
 
-int sessiontable_delete_taddr4s(struct session_table *table,
+void sessiontable_delete_taddr4s(struct session_table *table,
 		struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct taddr4_remove_args args = {
@@ -694,11 +695,9 @@ int sessiontable_delete_taddr4s(struct session_table *table,
 			.l3 = prefix->address,
 			.l4 = ports->min,
 	};
-	int error;
 
-	error = __foreach(table, __rm_taddr4s, &args, &remote, &local, true);
+	__foreach(table, __rm_taddr4s, &args, &remote, &local, true);
 	delete(&args.removed);
-	return error;
 }
 
 /**
@@ -709,19 +708,22 @@ static struct rb_node *find_starting_point6(struct session_table *table,
 {
 	struct rb_node **node, *parent;
 	struct session_entry *session;
-	struct tuple tmp;
+	struct tuple offset;
 
-	memset(&tmp.src.addr6, 0, sizeof(tmp.src.addr6));
-	tmp.dst.addr6 = *local;
+	memset(&offset.src.addr6, 0, sizeof(offset.src.addr6));
+	offset.dst.addr6 = *local;
 	/* the protos are not needed. */
 
-	rbtree_find_node(&tmp, &table->tree6, compare_full6,
+	rbtree_find_node(&offset, &table->tree6, compare_full6,
 			struct session_entry, tree6_hook, parent, node);
 	if (*node)
 		return *node;
 
+	if (!parent)
+		return NULL;
+
 	session = rb_entry(parent, struct session_entry, tree6_hook);
-	return (compare_full6(session, &tmp) < 0) ? parent : rb_next(parent);
+	return (compare_full6(session, &offset) < 0) ? rb_next(parent) : parent;
 }
 
 struct taddr6_remove_args {
@@ -740,7 +742,7 @@ static int __rm_taddr6s(struct session_entry *session,
 	return 0;
 }
 
-int sessiontable_delete_taddr6s(struct session_table *table,
+void sessiontable_delete_taddr6s(struct session_table *table,
 		struct ipv6_prefix *prefix)
 {
 	struct taddr6_remove_args args = {
@@ -766,7 +768,6 @@ int sessiontable_delete_taddr6s(struct session_table *table,
 
 	spin_unlock_bh(&table->lock);
 	delete(&args.removed);
-	return error;
 }
 
 struct flush_args {
@@ -781,17 +782,15 @@ static int __flush(struct session_entry *session, void *args_void)
 	return 0;
 }
 
-int sessiontable_flush(struct session_table *table)
+void sessiontable_flush(struct session_table *table)
 {
 	struct flush_args args = {
 			.table = table,
 			.removed = LIST_HEAD_INIT(args.removed),
 	};
-	int error;
 
-	error = __foreach(table, __flush, &args, NULL, NULL, 0);
+	__foreach(table, __flush, &args, NULL, NULL, 0);
 	delete(&args.removed);
-	return error;
 }
 
 void sessiontable_update_timers(struct session_table *table)

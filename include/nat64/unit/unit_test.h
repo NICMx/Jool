@@ -3,6 +3,7 @@
 
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/bib/entry.h"
+#include "nat64/mod/stateful/session/entry.h"
 
 /* TODO (test) The UNIT_TESTING macro is a hack; remove it. */
 
@@ -48,6 +49,9 @@ bool __ASSERT_ADDR6(const struct in6_addr *expected,
 		const struct in6_addr *actual,
 		const char *test_name);
 bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
+		char *test_name);
+bool ASSERT_SESSION(struct session_entry* expected,
+		struct session_entry* actual,
 		char *test_name);
 
 /**

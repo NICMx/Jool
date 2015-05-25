@@ -22,7 +22,7 @@ struct session_entry *session_create_str_tcp(
 		unsigned char *remote4_addr, u16 remote4_id,
 		enum tcp_state state);
 
-struct session_entry *session_inject_str(unsigned char *remote6_addr, u16 remote6_id,
+struct session_entry *session_inject(unsigned char *remote6_addr, u16 remote6_id,
 		unsigned char *local6_addr, u16 local6_id,
 		unsigned char *local4_addr, u16 local4_id,
 		unsigned char *remote4_addr, u16 remote4_id,

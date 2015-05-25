@@ -116,7 +116,11 @@ int sessiondb_count(l4_protocol proto, __u64 *result)
 int sessiondb_delete_by_bib(struct bib_entry *bib)
 {
 	struct session_table *table = get_table(bib->l4_proto);
-	return table ? sessiontable_delete_by_bib(table, bib) : -EINVAL;
+	if (!table)
+		return -EINVAL;
+
+	sessiontable_delete_by_bib(table, bib);
+	return 0;
 }
 
 void sessiondb_delete_taddr4s(struct ipv4_prefix *prefix,

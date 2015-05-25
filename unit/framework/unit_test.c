@@ -95,3 +95,44 @@ bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
 
 #undef BIB_PRINT
 #undef BIB_KEY
+
+#define SESSION_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
+#define SESSION_PRINT(session) \
+	&session->remote4.l3, session->remote4.l4, \
+	&session->local4.l3, session->local4.l4, \
+	&session->local6.l3, session->local6.l4, \
+	&session->remote6.l3, session->remote6.l4
+
+bool ASSERT_SESSION(struct session_entry *expected,
+		struct session_entry *actual,
+		char *test_name)
+{
+	if (expected == actual)
+		return true;
+	if (!expected || !actual)
+		goto fail;
+
+	if (expected->l4_proto != actual->l4_proto
+			|| !ipv6_transport_addr_equals(&expected->remote6, &actual->remote6)
+			|| !ipv6_transport_addr_equals(&expected->local6, &actual->local6)
+			|| !ipv4_transport_addr_equals(&expected->local4, &actual->local4)
+			|| !ipv4_transport_addr_equals(&expected->remote4, &actual->remote4))
+		goto fail;
+
+	return true;
+
+fail:
+	log_err("Test '%s' failed", test_name);
+	if (expected)
+		log_err("  Expected:" SESSION_KEY, SESSION_PRINT(expected));
+	else
+		log_err("  Expected:NULL");
+	if (actual)
+		log_err("  Actual:  " SESSION_KEY, SESSION_PRINT(actual));
+	else
+		log_err("  Actual:  NULL");
+	return false;
+}
+
+#undef SESSION_PRINT
+#undef SESSION_KEY

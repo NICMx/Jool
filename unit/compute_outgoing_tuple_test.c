@@ -31,13 +31,13 @@ static bool init(void)
 	if (!init_full())
 		return false;
 
-	if (!session_inject_str(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
+	if (!session_inject(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
 			L4PROTO_UDP, SESSIONTIMER_UDP))
 		goto fail;
-	if (!session_inject_str(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
+	if (!session_inject(remote6, 1234, local6, 80, local4, 5678, remote4, 80,
 			L4PROTO_TCP, SESSIONTIMER_EST))
 		goto fail;
-	if (!session_inject_str(remote6, 1234, local6, 1234, local4, 80, remote4, 80,
+	if (!session_inject(remote6, 1234, local6, 1234, local4, 80, remote4, 80,
 			L4PROTO_ICMP, SESSIONTIMER_ICMP))
 		goto fail;
 
