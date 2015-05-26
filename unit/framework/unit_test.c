@@ -62,6 +62,97 @@ bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
 			: __ASSERT_ADDR6(&expected, actual, test_name);
 }
 
+#define TUPLE_KEY "%pI4#%u -> %pI4#%u [%u]"
+#define TUPLE_PRINT(tuple) &tuple->src.addr4.l3, tuple->src.addr4.l4, \
+	&tuple->dst.addr4.l3, tuple->dst.addr4.l4, tuple->l4_proto
+
+static bool ASSERT_TUPLE4(struct tuple *expected, struct tuple *actual,
+		char *test_name)
+{
+	if (expected->l4_proto != actual->l4_proto)
+		goto fail;
+	if (ipv4_addr_cmp(&expected->src.addr4.l3, &actual->src.addr4.l3))
+		goto fail;
+	if (expected->src.addr4.l4 != actual->src.addr4.l4)
+		goto fail;
+	if (ipv4_addr_cmp(&expected->dst.addr4.l3, &actual->dst.addr4.l3))
+		goto fail;
+	if (expected->dst.addr4.l4 != actual->dst.addr4.l4)
+		goto fail;
+
+	return true;
+
+fail:
+	log_err("Test '%s' failed.", test_name);
+	if (expected)
+		log_err("  Expected:" TUPLE_KEY, TUPLE_PRINT(expected));
+	else
+		log_err("  Expected:NULL");
+	if (actual)
+		log_err("  Actual:  " TUPLE_KEY, TUPLE_PRINT(actual));
+	else
+		log_err("  Actual:  NULL");
+	return false;
+}
+
+#undef TUPLE_KEY
+#undef TUPLE_PRINT
+
+#define TUPLE_KEY "%pI6c#%u -> %pI6c#%u [%u]"
+#define TUPLE_PRINT(tuple) &tuple->src.addr6.l3, tuple->src.addr6.l4, \
+	&tuple->dst.addr6.l3, tuple->dst.addr6.l4, tuple->l4_proto
+
+static bool ASSERT_TUPLE6(struct tuple *expected, struct tuple *actual,
+		char *test_name)
+{
+	if (expected->l4_proto != actual->l4_proto)
+		goto fail;
+	if (ipv6_addr_cmp(&expected->src.addr6.l3, &actual->src.addr6.l3))
+		goto fail;
+	if (expected->src.addr6.l4 != actual->src.addr6.l4)
+		goto fail;
+	if (ipv6_addr_cmp(&expected->dst.addr6.l3, &actual->dst.addr6.l3))
+		goto fail;
+	if (expected->dst.addr6.l4 != actual->dst.addr6.l4)
+		goto fail;
+
+	return true;
+
+fail:
+	log_err("Test '%s' failed.", test_name);
+	if (expected)
+		log_err("  Expected:" TUPLE_KEY, TUPLE_PRINT(expected));
+	else
+		log_err("  Expected:NULL");
+	if (actual)
+		log_err("  Actual:  " TUPLE_KEY, TUPLE_PRINT(actual));
+	else
+		log_err("  Actual:  NULL");
+	return false;
+}
+
+#undef TUPLE_KEY
+#undef TUPLE_PRINT
+
+bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
+{
+	if (expected->l3_proto != actual->l3_proto) {
+		log_err("Test '%s' failed; Expected:%u Actual:%u", test_name,
+				expected->l3_proto, actual->l3_proto);
+		return false;
+	}
+
+	switch (expected->l3_proto) {
+	case L3PROTO_IPV4:
+		return ASSERT_TUPLE4(expected, actual, test_name);
+	case L3PROTO_IPV6:
+		return ASSERT_TUPLE6(expected, actual, test_name);
+	}
+
+	log_err("?");
+	return false;
+}
+
 #define BIB_KEY "BIB [%pI4#%u, %pI6c#%u]"
 #define BIB_PRINT(bib) &bib->ipv4.l3, bib->ipv4.l4, &bib->ipv6.l3, bib->ipv6.l4
 
@@ -112,17 +203,21 @@ bool ASSERT_SESSION(struct session_entry *expected,
 	if (!expected || !actual)
 		goto fail;
 
-	if (expected->l4_proto != actual->l4_proto
-			|| !ipv6_transport_addr_equals(&expected->remote6, &actual->remote6)
-			|| !ipv6_transport_addr_equals(&expected->local6, &actual->local6)
-			|| !ipv4_transport_addr_equals(&expected->local4, &actual->local4)
-			|| !ipv4_transport_addr_equals(&expected->remote4, &actual->remote4))
+	if (expected->l4_proto != actual->l4_proto)
+		goto fail;
+	if (!ipv6_transport_addr_equals(&expected->remote6, &actual->remote6))
+		goto fail;
+	if (!ipv6_transport_addr_equals(&expected->local6, &actual->local6))
+		goto fail;
+	if (!ipv4_transport_addr_equals(&expected->local4, &actual->local4))
+		goto fail;
+	if (!ipv4_transport_addr_equals(&expected->remote4, &actual->remote4))
 		goto fail;
 
 	return true;
 
 fail:
-	log_err("Test '%s' failed", test_name);
+	log_err("Test '%s' failed.", test_name);
 	if (expected)
 		log_err("  Expected:" SESSION_KEY, SESSION_PRINT(expected));
 	else

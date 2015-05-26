@@ -92,7 +92,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 		goto fail;
 
 	/* Send the request. */
-	if (is_error(init_ipv6_tuple(&tuple6,
+	if (is_error(init_tuple6(&tuple6,
 			CLIENT_ADDR, CLIENT_PORT,
 			SERVER_HAIRPIN_ADDR, SERVER_PORT6,
 			l4_proto)))
@@ -144,7 +144,7 @@ static bool test_hairpin(l4_protocol l4_proto, skb_creator create_skb_fn)
 	kfree_skb(skb_out);
 
 	/* Send the response. */
-	if (is_error(init_ipv6_tuple(&tuple6,
+	if (is_error(init_tuple6(&tuple6,
 			SERVER_ADDR6, SERVER_PORT6,
 			SERVER_HAIRPIN_ADDR, DYNAMIC_BIB_IPV4_PORT,
 			l4_proto)))
@@ -218,7 +218,7 @@ static bool test_icmp(void)
 	struct sk_buff *skb;
 	bool success = true;
 
-	if (is_error(init_ipv6_tuple(&tuple6,
+	if (is_error(init_tuple6(&tuple6,
 			CLIENT_ADDR, CLIENT_PORT,
 			SERVER_HAIRPIN_ADDR, SERVER_PORT6,
 			L4PROTO_ICMP)))

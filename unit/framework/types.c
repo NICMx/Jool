@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-int init_ipv4_tuple(struct tuple *tuple4, unsigned char *src_addr, u16 src_port,
+int init_tuple4(struct tuple *tuple4, unsigned char *src_addr, u16 src_port,
 		unsigned char *dst_addr, u16 dst_port, l4_protocol l4_proto)
 {
 	int error;
@@ -25,7 +25,7 @@ int init_ipv4_tuple(struct tuple *tuple4, unsigned char *src_addr, u16 src_port,
 	return 0;
 }
 
-int init_ipv6_tuple(struct tuple *tuple6, unsigned char *src_addr, u16 src_port,
+int init_tuple6(struct tuple *tuple6, unsigned char *src_addr, u16 src_port,
 		unsigned char *dst_addr, u16 dst_port, l4_protocol l4_proto)
 {
 	int error;

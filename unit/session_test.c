@@ -15,65 +15,6 @@ const l4_protocol PROTO = L4PROTO_UDP;
 struct session_entry *sessions4[4][4][4][4];
 struct session_entry *sessions6[4][4][4][4];
 
-/*
-#define SESSION_PRINT_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
-#define PRINT_SESSION(session) \
-	&session->remote4.l3, session->remote4.l4, \
-	&session->local4.l3, session->local4.l4, \
-	&session->local6.l3, session->local6.l4, \
-	&session->remote6.l3, session->remote6.l4
-*/
-
-///**
-// * Same as assert_bib(), except asserting session entries on the session table.
-// */
-//static bool assert_session(char* test_name, struct session_entry* session,
-//		bool udp_table_has_it, bool tcp_table_has_it, bool icmp_table_has_it)
-//{
-//	struct session_entry *retrieved_session, *expected_session;
-//	struct tuple tuple6, tuple4;
-//	l4_protocol l4_protos[] = { L4PROTO_UDP, L4PROTO_TCP, L4PROTO_ICMP };
-//	bool table_has_it[3];
-//	bool success;
-//	int i;
-//
-//	table_has_it[0] = udp_table_has_it;
-//	table_has_it[1] = tcp_table_has_it;
-//	table_has_it[2] = icmp_table_has_it;
-//
-//	for (i = 0; i < 3; i++) {
-//		tuple4.dst.addr4 = session->local4;
-//		tuple4.src.addr4 = session->remote4;
-//		tuple4.l3_proto = L3PROTO_IPV4;
-//		tuple4.l4_proto = l4_protos[i];
-//
-//		tuple6.dst.addr6 = session->local6;
-//		tuple6.src.addr6 = session->remote6;
-//		tuple6.l3_proto = L3PROTO_IPV6;
-//		tuple6.l4_proto = l4_protos[i];
-//
-//		expected_session = table_has_it[i] ? session : NULL;
-//		success = true;
-//
-//		retrieved_session = NULL;
-//		success &= ASSERT_INT(table_has_it[i] ? 0 : -ESRCH,
-//				sessiondb_get(&tuple4, NULL, &retrieved_session),
-//				"%s", test_name);
-//		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
-//
-//		retrieved_session = NULL;
-//		success &= ASSERT_INT(table_has_it[i] ? 0 : -ESRCH,
-//				sessiondb_get(&tuple6, NULL, &retrieved_session),
-//				"%s", test_name);
-//		success &= assert_session_entry_equals(expected_session, retrieved_session, test_name);
-//
-//		if (!success)
-//			return false;
-//	}
-//
-//	return true;
-//}
-
 static bool assert4(unsigned int la, unsigned int lp,
 		unsigned int ra, unsigned int rp)
 {
@@ -81,9 +22,9 @@ static bool assert4(unsigned int la, unsigned int lp,
 	struct tuple tuple4;
 	bool success = true;
 
-	tuple4.src.addr4.l3.s_addr = cpu_to_be32(0xcb007100 | ra);
+	tuple4.src.addr4.l3.s_addr = cpu_to_be32(0xcb007100u | ra);
 	tuple4.src.addr4.l4 = rp;
-	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(0xc0000200 | la);
+	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(0xc0000200u | la);
 	tuple4.dst.addr4.l4 = lp;
 	tuple4.l3_proto = L3PROTO_IPV4;
 	tuple4.l4_proto = PROTO;
@@ -113,12 +54,12 @@ static bool assert6(unsigned int la, unsigned int lp,
 	struct tuple tuple6;
 	bool success = true;
 
-	tuple6.src.addr6.l3.s6_addr32[0] = cpu_to_be32(0x20010db8);
+	tuple6.src.addr6.l3.s6_addr32[0] = cpu_to_be32(0x20010db8u);
 	tuple6.src.addr6.l3.s6_addr32[1] = 0;
 	tuple6.src.addr6.l3.s6_addr32[2] = 0;
 	tuple6.src.addr6.l3.s6_addr32[3] = cpu_to_be32(ra);
 	tuple6.src.addr6.l4 = rp;
-	tuple6.dst.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00640000);
+	tuple6.dst.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00640000u);
 	tuple6.dst.addr6.l3.s6_addr32[1] = 0;
 	tuple6.dst.addr6.l3.s6_addr32[2] = 0;
 	tuple6.dst.addr6.l3.s6_addr32[3] = cpu_to_be32(la);
@@ -174,16 +115,16 @@ static bool insert_test_sessions(void)
 	memset(sessions4, 0, sizeof(sessions4));
 	memset(sessions6, 0, sizeof(sessions6));
 
-	sessions[0] = session_inject("2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, true);
-	sessions[1] = session_inject("2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, true);
-	sessions[2] = session_inject("2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, true);
-	sessions[3] = session_inject("2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, true);
-	sessions[4] = session_inject("2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, true);
-	sessions[5] = session_inject("2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, true);
-	sessions[6] = session_inject("2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, true);
-	sessions[7] = session_inject("2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, true);
-	sessions[8] = session_inject("2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, true);
-	sessions[9] = session_inject("2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, true);
+	sessions[ 0] = session_inject("2001:db8::1", 2, "64::2", 2, "192.0.2.2", 1, "203.0.113.2", 1, PROTO, true);
+	sessions[ 1] = session_inject("2001:db8::1", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.2", 2, PROTO, true);
+	sessions[ 2] = session_inject("2001:db8::2", 1, "64::2", 1, "192.0.2.2", 2, "203.0.113.1", 2, PROTO, true);
+	sessions[ 3] = session_inject("2001:db8::2", 2, "64::2", 2, "192.0.2.2", 2, "203.0.113.1", 1, PROTO, true);
+	sessions[ 4] = session_inject("2001:db8::1", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 2, PROTO, true);
+	sessions[ 5] = session_inject("2001:db8::2", 2, "64::1", 1, "192.0.2.2", 1, "203.0.113.1", 1, PROTO, true);
+	sessions[ 6] = session_inject("2001:db8::2", 1, "64::1", 1, "192.0.2.1", 1, "203.0.113.2", 2, PROTO, true);
+	sessions[ 7] = session_inject("2001:db8::1", 1, "64::1", 1, "192.0.2.2", 1, "203.0.113.2", 2, PROTO, true);
+	sessions[ 8] = session_inject("2001:db8::2", 2, "64::1", 2, "192.0.2.1", 2, "203.0.113.1", 1, PROTO, true);
+	sessions[ 9] = session_inject("2001:db8::1", 2, "64::1", 1, "192.0.2.2", 2, "203.0.113.2", 1, PROTO, true);
 	sessions[10] = session_inject("2001:db8::2", 1, "64::1", 2, "192.0.2.2", 1, "203.0.113.1", 2, PROTO, true);
 	sessions[11] = session_inject("2001:db8::1", 2, "64::1", 2, "192.0.2.1", 1, "203.0.113.2", 1, PROTO, true);
 	sessions[12] = session_inject("2001:db8::2", 1, "64::2", 2, "192.0.2.1", 2, "203.0.113.2", 1, PROTO, true);
@@ -217,10 +158,20 @@ static bool insert_test_sessions(void)
 	return test_db();
 }
 
+static bool flush(void)
+{
+	log_debug("Flushing.");
+	sessiondb_flush();
+
+	memset(sessions4, 0, sizeof(sessions4));
+	memset(sessions6, 0, sizeof(sessions6));
+	return test_db();
+}
+
 static bool simple_session(void)
 {
 	struct bib_entry bib = {
-			.ipv4.l3.s_addr = cpu_to_be32(0xc0000201),
+			.ipv4.l3.s_addr = cpu_to_be32(0xc0000201u),
 			.ipv4.l4 = 1,
 			/*
 			 * Session doesn't enfore remote6 x local4 uniqueness;
@@ -261,13 +212,11 @@ static bool simple_session(void)
 	/* ---------------------------------------------------------- */
 
 	log_debug("Deleting by prefix6.");
-	prefix6.address.s6_addr32[0] = cpu_to_be32(0x00640000);
+	prefix6.address.s6_addr32[0] = cpu_to_be32(0x00640000u);
 	prefix6.address.s6_addr32[1] = 0;
 	prefix6.address.s6_addr32[2] = 0;
 	prefix6.address.s6_addr32[3] = cpu_to_be32(1);
 	prefix6.len = 128;
-	ports.min = 0;
-	ports.max = 5;
 	sessiondb_delete_taddr6s(&prefix6);
 
 	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
@@ -280,125 +229,128 @@ static bool simple_session(void)
 
 	/* ---------------------------------------------------------- */
 
+	success &= flush();
+	if (!insert_test_sessions())
+		return false;
+
+	/* ---------------------------------------------------------- */
+
+	log_debug("Deleting by taddr4s (all addresses, lower ports).");
+	prefix4.address.s_addr = cpu_to_be32(0xc0000200u);
+	prefix4.len = 30;
+	ports.min = 0;
+	ports.max = 1;
+	sessiondb_delete_taddr4s(&prefix4, &ports);
+
+	sessions6[1][2][2][2] = sessions4[2][1][2][1] = NULL;
+	sessions6[2][2][1][1] = sessions4[2][1][1][1] = NULL;
+	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
+	sessions6[1][1][1][1] = sessions4[2][1][2][2] = NULL;
+	sessions6[2][1][1][2] = sessions4[2][1][1][2] = NULL;
+	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
+	sessions6[1][2][2][1] = sessions4[1][1][1][1] = NULL;
+	sessions6[2][2][2][1] = sessions4[1][1][1][2] = NULL;
+	success &= test_db();
+
+	/* ---------------------------------------------------------- */
+
+	success &= flush();
+	if (!insert_test_sessions())
+		return false;
+
+	/* ---------------------------------------------------------- */
+
+	log_debug("Deleting by taddr4s (lower addresses, all ports).");
+	prefix4.address.s_addr = cpu_to_be32(0xc0000200u);
+	prefix4.len = 31;
+	ports.min = 0;
+	ports.max = 65535;
+	sessiondb_delete_taddr4s(&prefix4, &ports);
+
+	sessions6[1][1][2][2] = sessions4[1][2][2][2] = NULL;
+	sessions6[2][1][1][1] = sessions4[1][1][2][2] = NULL;
+	sessions6[2][2][1][2] = sessions4[1][2][1][1] = NULL;
+	sessions6[1][2][1][2] = sessions4[1][1][2][1] = NULL;
+	sessions6[2][1][2][2] = sessions4[1][2][2][1] = NULL;
+	sessions6[1][1][1][2] = sessions4[1][2][1][2] = NULL;
+	sessions6[1][2][2][1] = sessions4[1][1][1][1] = NULL;
+	sessions6[2][2][2][1] = sessions4[1][1][1][2] = NULL;
+	success &= test_db();
+
+	/* ---------------------------------------------------------- */
+
 	return success;
 }
 
-//static bool test_address_filtering_aux(int src_addr_id, int src_port_id, int dst_addr_id,
-//		int dst_port_id)
-//{
-//	struct tuple tuple4;
-//
-//	tuple4.src.addr4.l3 = addr4[src_addr_id].l3;
-//	tuple4.dst.addr4.l3 = addr4[dst_addr_id].l3;
-//	tuple4.src.addr4.l4 = addr4[src_port_id].l4;
-//	tuple4.dst.addr4.l4 = addr4[dst_port_id].l4;
-//	tuple4.l4_proto = L4PROTO_UDP;
-//	tuple4.l3_proto = L3PROTO_IPV4;
-//
-//	log_tuple(&tuple4);
-//	return sessiondb_allow(&tuple4);
-//}
-//
-//static bool test_address_filtering(void)
-//{
-//	struct session_entry *session;
-//	bool success = true;
-//
-//	/* Init. */
-//	session = create_and_insert_session(0, 0, 0, 0);
-//	if (!session)
-//		return false;
-//
-//	/* Test the packet is allowed when the tuple and session match perfectly. */
-//	success &= ASSERT_BOOL(true, test_address_filtering_aux(0, 0, 0, 0), "lol1");
-//	/* Test a tuple that completely mismatches the session. */
-//	success &= ASSERT_BOOL(false, test_address_filtering_aux(1, 1, 1, 1), "lol2");
-//	/* Now test tuples that nearly match the session. */
-//	success &= ASSERT_BOOL(false, test_address_filtering_aux(0, 0, 0, 1), "lol3");
-//	success &= ASSERT_BOOL(false, test_address_filtering_aux(0, 0, 1, 0), "lol4");
-//	/* The remote port is the only one that doesn't matter. */
-//	success &= ASSERT_BOOL(true, test_address_filtering_aux(0, 1, 0, 0), "lol5");
-//	success &= ASSERT_BOOL(false, test_address_filtering_aux(1, 0, 0, 0), "lol6");
-//
-//	/* Now we erase the session entry */
-//	rm(session, &session_table_udp);
-//	session_return(session);
-//	session = NULL;
-//
-//	/* Repeat the "lol5" test but now the assert must be false */
-//	success &= ASSERT_BOOL(false, test_address_filtering_aux(0, 1, 0, 0), "lol7");
-//
-//
-//	return success;
-//}
-//
-//static bool test_compare_session4(void)
-//{
-//	struct session_entry *s1, *s2;
-//	bool success = true;
-//
-//	/* ------------------------------------------- */
-//
-//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-//	if (!s1)
-//		return false;
-//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 34, "4.4.4.4", 44, L4PROTO_UDP);
-//	if (!s2)
-//		return false;
-//
-//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "< 0 remote");
-//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, "> 0 remote");
-//
-//	session_return(s1);
-//	session_return(s2);
-//
-//	/* ------------------------------------------- */
-//
-//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-//	if (!s1)
-//		return false;
-//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.4", 33, "4.4.4.4", 44, L4PROTO_UDP);
-//	if (!s2)
-//		return false;
-//
-//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "< 0 remote");
-//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, "> 0 remote");
-//
-//	session_return(s1);
-//	session_return(s2);
-//
-//	/* ------------------------------------------- */
-//
-//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-//	if (!s1)
-//		return false;
-//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 45, L4PROTO_UDP);
-//	if (!s2)
-//		return false;
-//
-//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "< 0 remote");
-//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, "> 0 remote");
-//
-//	session_return(s1);
-//	session_return(s2);
-//
-//	/* ------------------------------------------- */
-//
-//	s1 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.4", 44, L4PROTO_UDP);
-//	if (!s1)
-//		return false;
-//	s2 = session_create_str("1::1", 11, "2::2", 22, "3.3.3.3", 33, "4.4.4.5", 44, L4PROTO_UDP);
-//	if (!s2)
-//		return false;
-//
-//	success &= ASSERT_BOOL(true, compare_session4(s1, s2) < 0, "<< 0 remote");
-//	success &= ASSERT_BOOL(true, compare_session4(s2, s1) > 0, ">> 0 remote");
-//
-//	session_return(s1);
-//	session_return(s2);
-//
-//	return success;
-//}
+static bool test_allow_aux(__u32 local_addr, __u16 local_port,
+		__u32 remote_addr, __u16 remote_port)
+{
+	struct tuple tuple4;
+
+	tuple4.src.addr4.l3.s_addr = cpu_to_be32(remote_addr);
+	tuple4.src.addr4.l4 = remote_port;
+	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(local_addr);
+	tuple4.dst.addr4.l4 = local_port;
+	tuple4.l4_proto = L4PROTO_UDP;
+	tuple4.l3_proto = L3PROTO_IPV4;
+
+	log_tuple(&tuple4);
+	return sessiondb_allow(&tuple4);
+}
+
+static bool test_allow(void)
+{
+	struct session_entry *session;
+	bool success = true;
+
+	/* Init. */
+	session = session_inject("2001:db8::2", 20, "64::6", 60,
+			"192.0.2.1", 10, "203.0.113.2", 20, L4PROTO_UDP, true);
+	if (!session)
+		return false;
+
+	/* Test admittance when the tuple and session match perfectly. */
+	success &= ASSERT_BOOL(true,
+			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
+			"perfect match");
+	/* Test a tuple that completely mismatches the session. */
+	success &= ASSERT_BOOL(false,
+			test_allow_aux(0x12345678u, 90, 0x90876543u, 21),
+			"perfect mismatch");
+	/*
+	 * Now test tuples that nearly match the session.
+	 * (The remote port is the only one that doesn't matter.)
+	 */
+	success &= ASSERT_BOOL(true,
+			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
+			"src port mismatch");
+	success &= ASSERT_BOOL(false,
+			test_allow_aux(0xc0000201u, 10, 0x90876543u, 20),
+			"src addr mismatch");
+	success &= ASSERT_BOOL(false,
+			test_allow_aux(0xc0000201u, 90, 0xcb007102u, 20),
+			"dst port mismatch");
+	success &= ASSERT_BOOL(false,
+			test_allow_aux(0x12345678u, 10, 0xcb007102u, 20),
+			"dst addr mismatch");
+
+	sessiondb_flush();
+	session_return(session);
+	session = NULL;
+
+	/*
+	 * Now that the original session is no longer in the DB, the previously
+	 * positive tests should now fail.
+	 */
+	success &= ASSERT_BOOL(false,
+			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 20),
+			"perfect match deleted");
+	success &= ASSERT_BOOL(false,
+			test_allow_aux(0xc0000201u, 10, 0xcb007102u, 21),
+			"src port mismatch deleted");
+
+	return success;
+}
 
 enum session_fate expire_fn(struct session_entry *session, void *arg)
 {
@@ -409,12 +361,6 @@ static bool init(void)
 {
 	if (is_error(config_init(false)))
 		goto config_fail;
-//	if (is_error(pktqueue_init()))
-//		goto pktqueue_fail;
-//	if (is_error(pool4_init(NULL, 0)))
-//		goto pool4_fail;
-//	if (is_error(pool6_init(NULL, 0)))
-//		goto pool6_fail;
 	if (is_error(bibdb_init()))
 		goto bib_fail;
 	if (sessiondb_init(expire_fn, expire_fn))
@@ -425,12 +371,6 @@ static bool init(void)
 session_fail:
 	bibdb_destroy();
 bib_fail:
-//	pool6_destroy();
-//pool6_fail:
-//	pool4_destroy();
-//pool4_fail:
-//	pktqueue_destroy();
-//pktqueue_fail:
 	config_destroy();
 config_fail:
 	return false;
@@ -439,11 +379,6 @@ config_fail:
 static void end(void)
 {
 	sessiondb_destroy();
-//	bibdb_destroy();
-//	pool6_destroy();
-//	pool4_destroy();
-//	pktqueue_destroy();
-//	config_destroy();
 }
 
 int init_module(void)
@@ -451,8 +386,7 @@ int init_module(void)
 	START_TESTS("Session");
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
-//	INIT_CALL_END(init(), test_address_filtering(), end(), "Address-dependent filtering.");
-//	INIT_CALL_END(init(), test_compare_session4(), end(), "compare_session4()");
+	INIT_CALL_END(init(), test_allow(), end(), "Address-dependent filtering.");
 
 	END_TESTS;
 }

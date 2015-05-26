@@ -30,7 +30,7 @@ static bool test_pkt_queue_asr(void)
 	bool success = true;
 
 	/* Prepare */
-	if (is_error(init_ipv4_tuple(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
+	if (is_error(init_tuple4(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
 		return false;
 	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
 			V4_INIT); /* The session entry that is supposed to be created in "tcp_close_state_handle". */
@@ -75,7 +75,7 @@ static bool test_pkt_queue_ars(void)
 	bool success = true;
 
 	/* Prepare */
-	if (is_error(init_ipv4_tuple(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
+	if (is_error(init_tuple4(&tuple4, "5.6.7.8", 5678, "192.168.2.1", 8765, L4PROTO_TCP)))
 		return false;
 	session = session_create_str_tcp("1::2", 1212, "3::4", 3434, "192.168.2.1", 8765, "5.6.7.8", 5678,
 			V4_INIT); /* The session entry that is supposed to be created in "tcp_close_state_handle". */

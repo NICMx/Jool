@@ -32,6 +32,9 @@
 #define ASSERT_BE16(expected, actual, name, ...) \
 		ASSERT_PRIMITIVE(expected, be16_to_cpu(actual), "%u", name, \
 				##__VA_ARGS__)
+#define ASSERT_BE32(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, be32_to_cpu(actual), "%u", name, \
+				##__VA_ARGS__)
 
 /*
  * Ehh... there aren't macros, but they're still all caps so they're even
@@ -48,10 +51,12 @@ bool ASSERT_ADDR6(const char *expected, const struct in6_addr *actual,
 bool __ASSERT_ADDR6(const struct in6_addr *expected,
 		const struct in6_addr *actual,
 		const char *test_name);
-bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
+bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual,
 		char *test_name);
-bool ASSERT_SESSION(struct session_entry* expected,
-		struct session_entry* actual,
+bool ASSERT_BIB(struct bib_entry *expected, struct bib_entry *actual,
+		char *test_name);
+bool ASSERT_SESSION(struct session_entry *expected,
+		struct session_entry *actual,
 		char *test_name);
 
 /**

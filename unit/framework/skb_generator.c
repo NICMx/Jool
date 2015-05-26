@@ -225,7 +225,7 @@ static int init_payload_inner_ipv6(void *target, u16 payload_len)
 	if (payload_len <= 0)
 		return 0; /* Nothing to do here. */
 
-	error = init_ipv6_tuple(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_TCP);
+	error = init_tuple6(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_TCP);
 	if (error)
 		return error;
 
@@ -283,7 +283,7 @@ static int init_payload_inner_ipv4(void *target, u16 payload_len)
 	if (payload_len <= 0)
 		return 0; /* Nothing to do here. */
 
-	error = init_ipv4_tuple(&tuple4, "192.0.2.5", 1234, "192.0.2.2", 80, L4PROTO_TCP);
+	error = init_tuple4(&tuple4, "192.0.2.5", 1234, "192.0.2.2", 80, L4PROTO_TCP);
 	if (error)
 		return error;
 
@@ -691,7 +691,7 @@ int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool
 
 	switch (l3_proto) {
 	case L3PROTO_IPV4:
-		error = init_ipv4_tuple(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_TCP);
+		error = init_tuple4(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_TCP);
 		if (error)
 			return error;
 		error = create_skb4_tcp(&tuple, skb, 100, 32);
@@ -699,7 +699,7 @@ int create_tcp_packet(struct sk_buff **skb, l3_protocol l3_proto, bool syn, bool
 			return error;
 		break;
 	case L3PROTO_IPV6:
-		error = init_ipv6_tuple(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP);
+		error = init_tuple6(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_TCP);
 		if (error)
 			return error;
 		error = create_skb6_tcp(&tuple, skb, 100, 32);

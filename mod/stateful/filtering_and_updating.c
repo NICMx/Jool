@@ -222,7 +222,6 @@ static int get_or_create_session(struct tuple *tuple, struct bib_entry *bib,
 		return error; /* entry found and misc errors.*/
 
 	/* entry not found. */
-
 	error = create_session(tuple, bib, &session);
 	if (error)
 		return error;
@@ -233,6 +232,7 @@ static int get_or_create_session(struct tuple *tuple, struct bib_entry *bib,
 		return error;
 	}
 
+	*result = session;
 	return 0;
 }
 

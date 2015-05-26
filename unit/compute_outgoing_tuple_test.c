@@ -62,7 +62,7 @@ static bool test_6to4(l4_protocol l4_proto)
 	int field = 0;
 	bool success = true;
 
-	if (is_error(init_ipv6_tuple(&in, remote6, 1234, local6, 80, l4_proto)))
+	if (is_error(init_tuple6(&in, remote6, 1234, local6, 80, l4_proto)))
 		return false;
 
 	success &= assert_equals_int(VERDICT_CONTINUE, compute_out_tuple(&in, &out, NULL), "Call");
@@ -86,7 +86,7 @@ static bool test_4to6(l4_protocol l4_proto)
 	int field = 0;
 	bool success = true;
 
-	if (is_error(init_ipv4_tuple(&in, remote4, 80, local4, 5678, l4_proto)))
+	if (is_error(init_tuple4(&in, remote4, 80, local4, 5678, l4_proto)))
 		return false;
 
 	success &= assert_equals_int(VERDICT_CONTINUE, compute_out_tuple(&in, &out, NULL), "Call");

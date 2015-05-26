@@ -1,5 +1,7 @@
 #include "nat64/mod/stateful/bib/db.h"
+
 #include "nat64/mod/stateful/bib/table.h"
+#include "nat64/mod/stateful/bib/port_allocator.h"
 
 /** The BIB table for TCP connections. */
 static struct bib_table bib_tcp;
@@ -39,6 +41,11 @@ int bibdb_init(void)
 	error = bibentry_init();
 	if (error)
 		return error;
+	error = palloc_init();
+	if (error) {
+		bibentry_destroy();
+		return error;
+	}
 
 	bibtable_init(&bib_tcp);
 	bibtable_init(&bib_udp);
@@ -59,6 +66,7 @@ void bibdb_destroy(void)
 	bibtable_destroy(&bib_tcp);
 	bibtable_destroy(&bib_icmp);
 
+	palloc_destroy();
 	bibentry_destroy();
 }
 

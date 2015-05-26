@@ -47,43 +47,46 @@ static bool assert_fragdb_handle(struct sk_buff *skb, verdict expected)
 		return false;
 	}
 
-	return assert_equals_int(expected, fragdb_handle(&pkt), "verdict result");
+	return ASSERT_INT(expected, fragdb_handle(&pkt), "verdict result");
 }
 
-static bool validate_packet(struct sk_buff *skb, int expected_frag_count)
+static bool validate_packet(struct sk_buff *skb, int expected_frags)
 {
-	int actual_frag_count = 1;
+	int actual_frags = 1;
 	__u16 current_offset, last_offset;
 	bool success = true;
 
-	if (!skb) {
-		success &= assert_equals_int(0, expected_frag_count, "There are no packets.");
-		return success;
-	}
+	if (!skb)
+		return ASSERT_INT(0, expected_frags, "No packets");
 
 	success &= ASSERT_UINT(0, get_offset(skb), "1st frag has offset 0");
 	last_offset = 0;
 
 	skb = skb_shinfo(skb)->frag_list;
 	while (skb) {
-		actual_frag_count++;
+		actual_frags++;
 		current_offset = get_offset(skb);
-		success &= assert_true(last_offset < current_offset, "frags have increasing offset");
+		success &= ASSERT_BOOL(true, last_offset < current_offset,
+				"Frags have increasing offset (%u %u)",
+				last_offset, current_offset);
 
 		last_offset = current_offset;
 		skb = skb->next;
 	}
 
-	success &= assert_equals_int(expected_frag_count, actual_frag_count, "Fragment count");
+	success &= ASSERT_INT(expected_frags, actual_frags, "Fragment count");
 	return success;
 }
 
-static bool validate_fragment(struct sk_buff *skb, bool has_frag_hdr, int l3_payload_len)
+static bool validate_fragment(struct sk_buff *skb, bool has_frag_hdr,
+		int l3_payload_len)
 {
 	bool success = true;
 
-	success &= assert_equals_int(has_frag_hdr, !!get_frag_hdr(skb), "Presence of frag header");
-	success &= assert_equals_int(l3_payload_len, skb_tail_pointer(skb) - skb_transport_header(skb),
+	success &= ASSERT_BOOL(has_frag_hdr, !!get_frag_hdr(skb),
+			"Presence of frag header");
+	success &= ASSERT_INT(l3_payload_len,
+			skb_tail_pointer(skb) - skb_transport_header(skb),
 			"L3 payload length");
 
 	return success;
@@ -106,12 +109,12 @@ static bool validate_database(int expected_count)
 	list_for_each(node, &expire_list) {
 		p++;
 	}
-	success &= assert_equals_int(expected_count, p, "Packets in the list");
+	success &= ASSERT_INT(expected_count, p, "Packets in the list");
 
 	/* table */
 	p = 0;
 	fragdb_table_for_each(&table, fragdb_counter, &p);
-	success &= assert_equals_int(expected_count, p, "Packets in the hash table");
+	success &= ASSERT_INT(expected_count, p, "Packets in the hash table");
 
 	return success;
 }
@@ -128,7 +131,7 @@ static bool test_no_frags(void)
 	bool success = true;
 
 	/* Prepare */
-	error = init_ipv6_tuple(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
+	error = init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
 	if (error)
 		return false;
 	error = create_skb6_udp(&tuple6, &skb, 10, 32);
@@ -151,7 +154,7 @@ static bool test_happy_path(void)
 	int error;
 	bool success = true;
 
-	error = init_ipv6_tuple(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
+	error = init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
 	if (error)
 		return false;
 
@@ -199,20 +202,10 @@ static bool test_happy_path(void)
 }
 
 struct frag_summary {
-	l3_protocol l3_proto;
-	union {
-		struct {
-			struct in_addr src_addr;
-			struct in_addr dst_addr;
-			__be16 identification;
-		} ipv4;
-		struct {
-			struct in6_addr src_addr;
-			struct in6_addr dst_addr;
-			__be32 identification;
-		} ipv6;
-	};
-	enum l4_protocol l4_proto;
+	struct in6_addr src_addr;
+	struct in6_addr dst_addr;
+	__u32 identification;
+	l4_protocol l4_proto;
 };
 
 static bool validate_list(struct frag_summary *expected, int expected_count)
@@ -224,18 +217,22 @@ static bool validate_list(struct frag_summary *expected, int expected_count)
 	int c = 0;
 
 	list_for_each_entry(buffer, &expire_list, list_hook) {
-		if (!assert_true(c < expected_count, "List count"))
+		if (!ASSERT_BOOL(true, c < expected_count, "List count (%u %u)",
+				c, expected_count))
 			return false;
 
 		pkt = &buffer->pkt;
 
-		success &= assert_equals_u8(L4PROTO_UDP, pkt_l4_proto(pkt), "proto");
+		success &= ASSERT_UINT(L4PROTO_UDP, pkt_l4_proto(pkt), "proto");
 
 		hdr6 = pkt_ip6_hdr(pkt);
-		success &= assert_equals_ipv6(&expected[c].ipv6.src_addr, &hdr6->saddr, "src addr6");
-		success &= assert_equals_ipv6(&expected[c].ipv6.dst_addr, &hdr6->daddr, "dst addr6");
-		success &= assert_equals_be32(expected[c].ipv6.identification,
-				get_frag_hdr(pkt->skb)->identification, "frag id 6");
+		success &= __ASSERT_ADDR6(&expected[c].src_addr, &hdr6->saddr,
+				"src addr6");
+		success &= __ASSERT_ADDR6(&expected[c].dst_addr, &hdr6->daddr,
+				"dst addr6");
+		success &= ASSERT_BE32(expected[c].identification,
+				get_frag_hdr(pkt->skb)->identification,
+				"frag id 6");
 
 		c++;
 	}
@@ -258,21 +255,21 @@ static bool test_timer(void)
 	bool success = true;
 	int error;
 
-	error = init_ipv6_tuple(&tuple1, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
+	error = init_tuple6(&tuple1, "1::2", 1212, "3::4", 3434, L4PROTO_UDP);
 	if (error)
 		return false;
-	error = init_ipv6_tuple(&tuple2, "8::7", 8787, "6::5", 6565, L4PROTO_UDP);
+	error = init_tuple6(&tuple2, "8::7", 8787, "6::5", 6565, L4PROTO_UDP);
 	if (error)
 		return false;
 
-	expected_keys[0].ipv6.src_addr = tuple1.src.addr6.l3;
-	expected_keys[0].ipv6.dst_addr = tuple1.dst.addr6.l3;
-	expected_keys[0].ipv6.identification = cpu_to_be32(4321);
+	expected_keys[0].src_addr = tuple1.src.addr6.l3;
+	expected_keys[0].dst_addr = tuple1.dst.addr6.l3;
+	expected_keys[0].identification = 4321;
 	expected_keys[0].l4_proto = NEXTHDR_UDP;
 
-	expected_keys[1].ipv6.src_addr = tuple2.src.addr6.l3;
-	expected_keys[1].ipv6.dst_addr = tuple2.dst.addr6.l3;
-	expected_keys[1].ipv6.identification = cpu_to_be32(4321);
+	expected_keys[1].src_addr = tuple2.src.addr6.l3;
+	expected_keys[1].dst_addr = tuple2.dst.addr6.l3;
+	expected_keys[1].identification = 4321;
 	expected_keys[1].l4_proto = NEXTHDR_UDP;
 
 	/* Fragment 1.1 arrives. */
