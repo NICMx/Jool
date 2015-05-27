@@ -14,7 +14,7 @@ title: Descarga
 
 Jool 3.3 es un [SIIT y Stateful NAT64 bastante apegado al estandar](intro-jool.html#cumplimiento).
 
-La versión 3.3.2 es la mas actual. Y es considerada la más madura.
+La versión 3.3.2 es la más actual. Y es considerada la más madura.
 
 | Descarga | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
@@ -44,7 +44,7 @@ La serie de versiones 3.1 esta bastante apegada al estandar stateful NAT64. Sus 
 - Politicas de filtrado.
 - Apertura simultanea de Conexiones TCP.
 
- La ultima versión de esta serie de versiones es la 3.1.6.
+ La última versión de esta serie de versiones es la 3.1.6.
 
 La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede descargar una imágen de la documentación de la serie 3.1 [aquí](https://www.jool.mx/download/Jool-3.1-doc.zip) (Esta documentación está en inglés).
 

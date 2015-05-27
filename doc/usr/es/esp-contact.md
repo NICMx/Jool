@@ -5,7 +5,7 @@ title: Contacto
 
 # Contacto
 
--- jool-list@nic.mx es una lista de correo destinada a la discusión pública general y noticias. 
+-- jool-list@nic.mx es una lista de correo general para la discusión pública del proyecto y la difusión de noticias. 
  
           Sus preguntas, solicitudes y comentarios son bienvenidos.
   
@@ -15,20 +15,20 @@ title: Contacto
 
 -- jool-news@nic.mx es una lista de correos destinada a informar noticias a sus destinatarios.
 
-          Es utilizada para señalar nuevas versiones que están siendo publicadas en este sitio. 
+          Es utilizada para notificar sobre las nuevas versiones que están siendo liberadas en este sitio. 
   
 * Cualquiera puede suscribirse.
 
-Sólo el equipo de desarrollo puede enviar mails en esta lista, así que no tienes que preocuparte de recibir spam. 
+Solo el equipo de desarrollo puede enviar mails en esta lista, así que no tienes que preocuparte de recibir spam. 
 Debido a este próposito, esta lista raramente genera más de un e-mail por mes.
 
 
--- [jool@nic.mx](mailto:jool@nic.mx) es una cuenta de correo que puedes utilizar para dirigirte sólo a nosotros
-                                     los desarrolladores.
+-- [jool@nic.mx](mailto:jool@nic.mx) es una cuenta de correo que puedes utilizar para dirigirte 
+                                     solo a nosotros los desarrolladores.
     
-    Aunque podemos dar algun consejo a través de este medio, nosotros agradeceríamos que usaras la cuenta de
-    jool-list@nic.mx para este propósito, con el fin de que quedara registrado y pueda ser de beneficio para 
-    algún otro usuario en el futruo.
+    Aunque te podríamos dar algún consejo a través de este medio, nosotros agradeceremos que uses la cuenta de
+    jool-list@nic.mx para este propósito, con el fin de quedar registrado y que pueda ser de beneficio para 
+    algún otro usuario en el futuro.
   
   
 -- Nuestra lista oficial de errores es [Github corner](https://github.com/NICMx/NAT64/issues)
