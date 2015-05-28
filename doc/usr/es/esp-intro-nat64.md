@@ -20,15 +20,15 @@ title: Documentación - Introducción a NAT64
  
 ## Traducción IPv4/IPv6
  
- SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologias orientadas a comunicar nodos de red que sólo hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que sólo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
- La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; un "Traductor IPv4/IPv6" no sólo reemplaza direcciones y/o puertos en los paquetes, sino también headers de capa 3.
+ SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologias orientadas a comunicar nodos de red que solo hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
+ La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; un "Traductor IPv4/IPv6" no solo reemplaza direcciones y/o puertos en los paquetes, sino también headers de capa 3.
  
  - SIIT es la manera sencilla, y permite mapeos 1-a-1 preconfigurados entre IPv4 e IPv6.
- - UN _Stateful NAT64_ (o NAT64 simplemente) permite que varios nodos IPv6 compartan un rango pequeño de direcciones IPv4 (útil cuando eres victima de [Agotamiento de las direcciones IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4)).
+ - UN _Stateful NAT64_ (o NAT64 simplemente) permite que varios nodos IPv6 compartan un rango pequeño de direcciones IPv4 (útil cuando eres victima del [Agotamiento de las direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4)).
  
- Por razones históricas, algunas veces metemos la pata y etiquetamos a SIIT como "Stateless NAT64". Ya que esta expresión no parece estar incluida en ningun estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es possible, por favor trata de no usarla.
+ Por razones históricas, algunas veces etiquetamos a SIIT como "Stateless NAT64". Ya que esta expresión no parece estar incluida en ningun estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es possible, por favor trata de no usarla.
  
-Una implementación SIIT modifica los encabezados de red y algunas veces los checksums. Un Stateful NAT64 tambien manipula identificadores de transporte.
+Una implementación SIIT modifica los encabezados de red y algunas veces los checksums. Un Stateful NAT64 también manipula identificadores de transporte.
 
 Eso es todo en realidad. Continua leyendo para mas detalles y ejemplos.
 

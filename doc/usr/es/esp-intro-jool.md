@@ -15,7 +15,12 @@ title: Documentación - Introducción a Jool
 
 ## Descripción
 
-Jool es una implementación de código abierto(Open Source) de [Traducción IPv4/IPv6](esp-intro-nat64.html) en Linux. Hasta la versión  3.2.x, solía ser sólo un Stateful NAT64; a partir de la versión 3.3.0, también soporta el modo SIIT.
+Jool es una implementación de varios mecanismos de transición en IPv6. 
+Todos en la categoría de traducción: [Stateful NAT64, SIIT & SIIT con EAM.] (esp-intro-nat64.html)
+Jool es una aplicación de código abierto (open source) en Linux, desarrollado sobre Ubuntu, y probado en otros Linux (Debian, CentOS, RedHat, SuSE).
+
+De Jool 1.0 a Jool 3.2.3 ->  Stateful NAT64 
+De Jool 3.3.0 en delante ->  Stateful NAT64, SIIT & SIIT con EAM
 
 ##Cumplimiento
 
@@ -25,14 +30,14 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 |-----------|---------|--------|
 | [RFC 6052](https://tools.ietf.org/html/rfc6052) | Traducción de dirección IP | Cumple Totalmente. |
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | Marco de traducción IPv4/IPv6 | Cumple Totalmente. |
-| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | La implementación de fragmentos atómicos [Generalmente broken](usr-flags-atomic.html#overview). Otherwise compliant. |
-| [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Cumple la mayor parte.<br />(Hereda detalles de cumplimiento del RFC 6145)<br />Tambien hemos sido incapaces de implementar [Políticas de Filtrado](https://github.com/NICMx/NAT64/issues/41). |
-| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Sin cumplir todavía](https://github.com/NICMx/NAT64/issues/114). |
-| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | En resumen, este RFC quiere dos cosas: Un pool de direcciones IPv4 y una extensión del encabezado ICMP. Jool implementa la primera pero no la segunda. |
+| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | Cumple Totalmente. [Esta en desuso el empleo de los fragmentos atómicos](usr-flags-atomic.html#overview). . |
+| [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Por Completar.<br />(Problemas inherentes a la implementación del RFC 6145)<br />([Políticas de Filtrado])(https://github.com/NICMx/NAT64/issues/41). |
+| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Por Completar](https://github.com/NICMx/NAT64/issues/114). |
+| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | Por Implementar.<br /> (Una Pool de direcciones IPv4 y una extensión del encabezado ICMP) |
 | [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC; vea abajo. |
-| [draft-ietf-v6ops-siit-dc](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00) | SIIT-DC | Cumple totalmente. |
+| [draft-ietf-v6ops-siit-dc](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00) | SIIT-DC | Cumple Totalmente. |
 | [draft-ietf-v6ops-siit-dc-2xlat](https://tools.ietf.org/html/draft-anderson-v6ops-siit-dc-2xlat-00) | SIIT-DC Edge Translator | [Modo basado en Host.](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1) No Implementado. |
-| [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) | Deprecación de Fragmento Atómica | Estrictamente hablando, el draft quiere que se deseche el concepto de fragmentos atómicos. Los implementamos -pobremente- como un [modo alternativo y su uso lo desalentamos completamente](usr-flags-atomic.html#overview). |
+| [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) | Deprecación de los Fragmentos Atómicos | Los continuamos soportando, pero [no recomendamos su uso](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) | EAM | Cumple totalmente. |
 
 Por favor [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras problemas de cumplimiento adicionales o RFCs/drafts que no hayamos considerado.
