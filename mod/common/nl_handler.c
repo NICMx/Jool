@@ -983,6 +983,7 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 	struct global_config response = { .mtu_plateaus = NULL };
 	unsigned char *buffer;
 	size_t buffer_len;
+	bool disabled;
 	int error;
 
 	switch (nat64_hdr->operation) {
@@ -993,7 +994,13 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 		if (error)
 			goto end;
 
-		error = serialize_global_config(&response, &buffer, &buffer_len);
+#ifdef STATEFUL
+		disabled = pool6_is_empty() || pool4db_is_empty();
+#else
+		disabled = pool6_is_empty() && eamt_is_empty();
+#endif
+
+		error = serialize_global_config(&response, disabled, &buffer, &buffer_len);
 		if (error)
 			goto end;
 
@@ -1116,69 +1123,4 @@ int nlhandler_init(void)
 void nlhandler_destroy(void)
 {
 	netlink_kernel_release(nl_socket);
-}
-
-int serialize_global_config(struct global_config *config, unsigned char **buffer_out,
-		size_t *buffer_len_out)
-{
-	unsigned char *buffer;
-	struct global_config *tmp;
-	size_t mtus_len;
-	bool disabled;
-
-	mtus_len = config->mtu_plateau_count * sizeof(*config->mtu_plateaus);
-
-	buffer = kmalloc(sizeof(*config) + mtus_len, GFP_KERNEL);
-	if (!buffer) {
-		log_debug("Could not allocate the configuration structure.");
-		return -ENOMEM;
-	}
-
-	memcpy(buffer, config, sizeof(*config));
-	memcpy(buffer + sizeof(*config), config->mtu_plateaus, mtus_len);
-	tmp = (struct global_config *) buffer;
-
-#ifdef STATEFUL
-	tmp->ttl.udp = jiffies_to_msecs(config->ttl.udp);
-	tmp->ttl.tcp_est = jiffies_to_msecs(config->ttl.tcp_est);
-	tmp->ttl.tcp_trans = jiffies_to_msecs(config->ttl.tcp_trans);
-	tmp->ttl.icmp = jiffies_to_msecs(config->ttl.icmp);
-	tmp->ttl.frag = jiffies_to_msecs(config->ttl.frag);
-	disabled = config->is_disable || pool6_is_empty() || pool4db_is_empty();
-#else
-	disabled = config->is_disable || (pool6_is_empty() && eamt_is_empty());
-#endif
-	tmp->jool_status = !disabled;
-
-	*buffer_out = buffer;
-	*buffer_len_out = sizeof(*config) + mtus_len;
-	return 0;
-}
-
-int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
-{
-	size_t mtus_len;
-
-	memcpy(target_out, buffer, sizeof(*target_out));
-
-	target_out->mtu_plateaus = NULL;
-	if (target_out->mtu_plateau_count) {
-		mtus_len = target_out->mtu_plateau_count * sizeof(*target_out->mtu_plateaus);
-		target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
-		if (!target_out->mtu_plateaus) {
-			log_debug("Could not allocate the config's plateaus.");
-			return -ENOMEM;
-		}
-		memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
-	}
-
-#ifdef STATEFUL
-	target_out->ttl.udp = msecs_to_jiffies(target_out->ttl.udp);
-	target_out->ttl.tcp_est = msecs_to_jiffies(target_out->ttl.tcp_est);
-	target_out->ttl.tcp_trans = msecs_to_jiffies(target_out->ttl.tcp_trans);
-	target_out->ttl.icmp = msecs_to_jiffies(target_out->ttl.icmp);
-	target_out->ttl.frag = msecs_to_jiffies(target_out->ttl.frag);
-#endif
-
-	return 0;
 }

@@ -84,16 +84,16 @@ void log_tuple(struct tuple *tuple)
 {
 	switch (tuple->l3_proto) {
 	case L3PROTO_IPV4:
-		log_debug("tuple %s-%s %pI4#%u -> %pI4#%u",
-				l3proto_to_string(tuple->l3_proto), l4proto_to_string(tuple->l4_proto),
+		log_debug("Tuple: %pI4#%u -> %pI4#%u (%s)",
 				&tuple->src.addr4.l3, tuple->src.addr4.l4,
-				&tuple->dst.addr4.l3, tuple->dst.addr4.l4);
+				&tuple->dst.addr4.l3, tuple->dst.addr4.l4,
+				l4proto_to_string(tuple->l4_proto));
 		break;
 	case L3PROTO_IPV6:
-		log_debug("tuple %s-%s %pI6c#%u -> %pI6c#%u",
-				l3proto_to_string(tuple->l3_proto), l4proto_to_string(tuple->l4_proto),
+		log_debug("Tuple: %pI6c#%u -> %pI6c#%u (%s)",
 				&tuple->src.addr6.l3, tuple->src.addr6.l4,
-				&tuple->dst.addr6.l3, tuple->dst.addr6.l4);
+				&tuple->dst.addr6.l3, tuple->dst.addr6.l4,
+				l4proto_to_string(tuple->l4_proto));
 		break;
 	}
 }

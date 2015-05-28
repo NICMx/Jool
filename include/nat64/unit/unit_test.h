@@ -59,6 +59,9 @@ bool ASSERT_SESSION(struct session_entry *expected,
 		struct session_entry *actual,
 		char *test_name);
 
+bool init_full(void);
+void end_full(void);
+
 /**
  * Macros to be used by the main test function.
  */

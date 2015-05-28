@@ -5,9 +5,6 @@
 #include "nat64/common/session.h"
 
 
-bool session_assert(l4_protocol l4_proto, struct session_entry **expected_sessions);
-#define SESSION_ASSERT(l4_proto, ...) \
-	session_assert(l4_proto, (struct session_entry*[]) { __VA_ARGS__ , NULL })
 int session_print(l4_protocol l4_proto);
 
 struct session_entry *session_create_str(unsigned char *remote6_addr, u16 remote6_id,

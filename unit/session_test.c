@@ -31,13 +31,13 @@ static bool assert4(unsigned int la, unsigned int lp,
 
 	if (sessions4[la][lp][ra][rp]) {
 		success &= ASSERT_INT(0,
-				sessiondb_get(&tuple4, NULL, &session),
+				sessiondb_get(&tuple4, NULL, NULL, &session),
 				"get4 code - %u %u %u %u", la, lp, ra, rp);
 		success &= ASSERT_SESSION(sessions4[la][lp][ra][rp], session,
 				"get4 session");
 	} else {
 		success &= ASSERT_INT(-ESRCH,
-				sessiondb_get(&tuple4, NULL, &session),
+				sessiondb_get(&tuple4, NULL, NULL, &session),
 				"get4 code - %u %u %u %u", la, lp, ra, rp);
 	}
 
@@ -69,13 +69,13 @@ static bool assert6(unsigned int la, unsigned int lp,
 
 	if (sessions6[ra][rp][la][lp]) {
 		success &= ASSERT_INT(0,
-				sessiondb_get(&tuple6, NULL, &session),
+				sessiondb_get(&tuple6, NULL, NULL, &session),
 				"get6 code - %u %u %u %u", ra, rp, la, lp);
 		success &= ASSERT_SESSION(sessions6[ra][rp][la][lp], session,
 				"get6 session");
 	} else {
 		success &= ASSERT_INT(-ESRCH,
-				sessiondb_get(&tuple6, NULL, &session),
+				sessiondb_get(&tuple6, NULL, NULL, &session),
 				"get6 code - %u %u %u %u", ra, rp, la, lp);
 	}
 
@@ -359,26 +359,20 @@ enum session_fate expire_fn(struct session_entry *session, void *arg)
 
 static bool init(void)
 {
-	if (is_error(config_init(false)))
-		goto config_fail;
-	if (is_error(bibdb_init()))
-		goto bib_fail;
-	if (sessiondb_init(expire_fn, expire_fn))
-		goto session_fail;
+	if (config_init(false))
+		return false;
+	if (sessiondb_init(expire_fn, expire_fn)) {
+		config_destroy();
+		return false;
+	}
 
 	return true;
-
-session_fail:
-	bibdb_destroy();
-bib_fail:
-	config_destroy();
-config_fail:
-	return false;
 }
 
 static void end(void)
 {
 	sessiondb_destroy();
+	config_destroy();
 }
 
 int init_module(void)

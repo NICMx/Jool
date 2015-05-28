@@ -1,6 +1,7 @@
 #include "nat64/mod/stateful/filtering_and_updating.h"
 
 #include "nat64/common/session.h"
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/pool6.h"
@@ -55,9 +56,17 @@ int filtering_init(void)
 	if (error)
 		return error;
 
-	error = sessiondb_init(expired_cb, expired_cb);
-	if (error)
+	error = palloc_init();
+	if (error) {
 		bibdb_destroy();
+		return error;
+	}
+
+	error = sessiondb_init(expired_cb, expired_cb);
+	if (error) {
+		palloc_destroy();
+		bibdb_destroy();
+	}
 
 	return error;
 }
@@ -65,6 +74,7 @@ int filtering_init(void)
 void filtering_destroy(void)
 {
 	sessiondb_destroy();
+	palloc_destroy();
 	bibdb_destroy();
 }
 
@@ -79,9 +89,10 @@ static inline void apply_policies(void)
 static void log_bib(struct bib_entry *bib)
 {
 	if (bib)
-		log_debug("BIB entry: %pI6c#%u - %pI4#%u",
+		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
 				&bib->ipv6.l3, bib->ipv6.l4,
-				&bib->ipv4.l3, bib->ipv4.l4);
+				&bib->ipv4.l3, bib->ipv4.l4,
+				l4proto_to_string(bib->l4_proto));
 	else
 		log_debug("BIB entry: None");
 }
@@ -90,11 +101,12 @@ static void log_session(struct session_entry *session)
 {
 	if (session)
 		log_debug("Session entry: %pI6c#%u - %pI6c#%u "
-				"| %pI4#%u - %pI4#%u",
+				"| %pI4#%u - %pI4#%u (%s)",
 				&session->remote6.l3, session->remote6.l4,
 				&session->local6.l3, session->local6.l4,
 				&session->local4.l3, session->local4.l4,
-				&session->remote4.l3, session->remote4.l4);
+				&session->remote4.l3, session->remote4.l4,
+				l4proto_to_string(session->l4_proto));
 	else
 		log_debug("Session entry: None");
 }
@@ -211,13 +223,13 @@ static enum session_fate update_timer(struct session_entry *session, void *arg)
 	return FATE_TIMER_EST;
 }
 
-static int get_or_create_session(struct tuple *tuple, struct bib_entry *bib,
-		struct session_entry **result)
+static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
+		struct bib_entry *bib, struct session_entry **result)
 {
 	struct session_entry *session;
 	int error;
 
-	error = sessiondb_get(tuple, update_timer, result);
+	error = sessiondb_get(tuple, update_timer, pkt, result);
 	if (error != -ESRCH)
 		return error; /* entry found and misc errors.*/
 
@@ -258,7 +270,7 @@ static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6)
 	}
 	log_bib(bib);
 
-	error = get_or_create_session(tuple6, bib, &session);
+	error = get_or_create_session(tuple6, pkt, bib, &session);
 	if (error) {
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		bibdb_return(bib);
@@ -326,7 +338,7 @@ static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4)
 		return VERDICT_DROP;
 	log_bib(bib);
 
-	error = get_or_create_session(tuple4, bib, &session);
+	error = get_or_create_session(tuple4, pkt, bib, &session);
 	if (error) {
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		bibdb_return(bib);
@@ -641,7 +653,7 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple)
 	struct session_entry *session;
 	int error;
 
-	error = sessiondb_get(tuple, tcp_state_machine, &session);
+	error = sessiondb_get(tuple, tcp_state_machine, pkt, &session);
 	if (error == -ESRCH)
 		return tcp_closed_state(pkt, tuple);
 	if (error) {

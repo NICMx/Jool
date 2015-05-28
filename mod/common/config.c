@@ -9,7 +9,7 @@ static struct global_config *config;
 
 int config_init(bool is_disable)
 {
-	__u16 default_plateaus[] = DEFAULT_MTU_PLATEAUS;
+	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
 	if (!config)
@@ -44,14 +44,14 @@ int config_init(bool is_disable)
 	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 #endif
 
-	config->mtu_plateau_count = ARRAY_SIZE(default_plateaus);
-	config->mtu_plateaus = kmalloc(sizeof(default_plateaus), GFP_ATOMIC);
+	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
+	config->mtu_plateaus = kmalloc(sizeof(plateaus), GFP_ATOMIC);
 	if (!config->mtu_plateaus) {
 		log_err("Could not allocate memory to store the MTU plateaus.");
 		kfree(config);
 		return -ENOMEM;
 	}
-	memcpy(config->mtu_plateaus, &default_plateaus, sizeof(default_plateaus));
+	memcpy(config->mtu_plateaus, &plateaus, sizeof(plateaus));
 
 	return 0;
 }
@@ -212,8 +212,8 @@ bool config_get_lower_mtu_fail(void)
 }
 
 /**
- * You need to call rcu_read_lock_bh() before calling this function, and then rcu_read_unlock_bh()
- * when you don't need plateaus & count anymore.
+ * You need to call rcu_read_lock_bh() before calling this function,
+ * and then rcu_read_unlock_bh() when you don't need plateaus & count anymore.
  */
 void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 {
@@ -227,4 +227,67 @@ void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 bool config_get_is_disable(void)
 {
 	return RCU_THINGY(bool, is_disable);
+}
+
+int serialize_global_config(struct global_config *config, bool pools_empty,
+		unsigned char **buffer_out, size_t *buffer_len_out)
+{
+	unsigned char *buffer;
+	struct global_config *tmp;
+	size_t mtus_len;
+	bool disabled;
+
+	mtus_len = config->mtu_plateau_count * sizeof(*config->mtu_plateaus);
+
+	buffer = kmalloc(sizeof(*config) + mtus_len, GFP_KERNEL);
+	if (!buffer) {
+		log_debug("Could not allocate the configuration structure.");
+		return -ENOMEM;
+	}
+
+	memcpy(buffer, config, sizeof(*config));
+	memcpy(buffer + sizeof(*config), config->mtu_plateaus, mtus_len);
+	tmp = (struct global_config *) buffer;
+
+#ifdef STATEFUL
+	tmp->ttl.udp = jiffies_to_msecs(config->ttl.udp);
+	tmp->ttl.tcp_est = jiffies_to_msecs(config->ttl.tcp_est);
+	tmp->ttl.tcp_trans = jiffies_to_msecs(config->ttl.tcp_trans);
+	tmp->ttl.icmp = jiffies_to_msecs(config->ttl.icmp);
+	tmp->ttl.frag = jiffies_to_msecs(config->ttl.frag);
+#endif
+	disabled = config->is_disable || pools_empty;
+	tmp->jool_status = !disabled;
+
+	*buffer_out = buffer;
+	*buffer_len_out = sizeof(*config) + mtus_len;
+	return 0;
+}
+
+int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
+{
+	size_t mtus_len;
+
+	memcpy(target_out, buffer, sizeof(*target_out));
+
+	target_out->mtu_plateaus = NULL;
+	if (target_out->mtu_plateau_count) {
+		mtus_len = target_out->mtu_plateau_count * sizeof(*target_out->mtu_plateaus);
+		target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
+		if (!target_out->mtu_plateaus) {
+			log_debug("Could not allocate the config's plateaus.");
+			return -ENOMEM;
+		}
+		memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
+	}
+
+#ifdef STATEFUL
+	target_out->ttl.udp = msecs_to_jiffies(target_out->ttl.udp);
+	target_out->ttl.tcp_est = msecs_to_jiffies(target_out->ttl.tcp_est);
+	target_out->ttl.tcp_trans = msecs_to_jiffies(target_out->ttl.tcp_trans);
+	target_out->ttl.icmp = msecs_to_jiffies(target_out->ttl.icmp);
+	target_out->ttl.frag = msecs_to_jiffies(target_out->ttl.frag);
+#endif
+
+	return 0;
 }

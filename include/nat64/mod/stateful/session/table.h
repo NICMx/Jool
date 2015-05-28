@@ -2,6 +2,7 @@
 #define _JOOL_MOD_SESSION_TABLE_H
 
 #include <linux/timer.h>
+#include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/session/entry.h"
 
 enum session_fate {
@@ -81,7 +82,7 @@ void sessiontable_init(struct session_table *table,
 void sessiontable_destroy(struct session_table *table);
 
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
-		fate_cb cb, struct session_entry **result);
+		fate_cb cb, struct packet *pkt, struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,
 		bool is_established);
 

@@ -58,7 +58,7 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt);
 /**
  * Removes "session"'s skb from the storage. There will be no ICMP error.
  */
-int pktqueue_remove(struct session_entry *session);
+void pktqueue_remove(struct session_entry *session);
 
 
 #endif /* _JOOL_MOD_PKT_QUEUE_H */

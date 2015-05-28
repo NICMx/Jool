@@ -1,8 +1,5 @@
-#include <linux/module.h> /* Needed by all modules */
-#include <linux/kernel.h> /* Needed for KERN_INFO */
-#include <linux/init.h> /* Needed for the macros */
-#include <linux/printk.h> /* pr_* */
-#include <linux/ipv6.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Roberto Aceves");
@@ -13,10 +10,8 @@ MODULE_ALIAS("nat64_test_filtering");
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
 #include "nat64/unit/unit_test.h"
-#include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
 #include "filtering_and_updating.c"
-
 
 static int bib_count_fn(struct bib_entry *bib, void *arg)
 {
@@ -54,7 +49,7 @@ static bool assert_bib_exists(char *addr6, u16 port6, char *addr4, u16 port4,
 	success &= ASSERT_ADDR6(addr6, &bib->ipv6.l3, "IPv6 address");
 	success &= ASSERT_UINT(port6, bib->ipv6.l4, "IPv6 port");
 	success &= ASSERT_ADDR4(addr4, &bib->ipv4.l3, "IPv4 address");
-	success &= ASSERT_UINT(port4, bib->ipv4.l4, "IPv4 port");
+	/* The IPv4 port is unpredictable. */
 	success &= ASSERT_BOOL(false, bib->is_static, "BIB is dynamic");
 	success &= ASSERT_INT(session_count,
 			atomic_read(&bib->refcounter.refcount) - 1,
@@ -98,7 +93,7 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	if (error)
 		return false;
 
-	success &= ASSERT_INT(0, sessiondb_get(&tuple6, NULL, &session), "Session exists");
+	success &= ASSERT_INT(0, sessiondb_get(&tuple6, NULL, NULL, &session), "Session exists");
 	if (!success)
 		return false;
 
@@ -107,9 +102,10 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	success &= ASSERT_ADDR6(local_addr6, &session->local6.l3, "local addr6");
 	success &= ASSERT_UINT(local_port6, session->local6.l4, "local port6");
 	success &= ASSERT_ADDR4(local_addr4, &session->local4.l3, "local addr4");
-	success &= ASSERT_UINT(local_port4, session->local4.l4, "local port4");
+	/* Local port4 is unpredictable. */
 	success &= ASSERT_ADDR4(remote_addr4, &session->remote4.l3, "remote addr4");
-	success &= ASSERT_UINT(remote_port4, session->remote4.l4, "remote port4");
+	if (proto != L4PROTO_ICMP)
+		success &= ASSERT_UINT(remote_port4, session->remote4.l4, "remote port4");
 	success &= ASSERT_BOOL(true, session->bib != NULL, "Session's BIB");
 	success &= ASSERT_INT(proto, session->l4_proto, "Session's l4 proto");
 	success &= ASSERT_INT(state, session->state, "Session's state");
@@ -117,6 +113,35 @@ static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
 	session_return(session);
 
 	return success;
+}
+
+/**
+ * Reinitializes @tuple (which is assumed to be an IPv6 tuple) into its
+ * corresponding IPv4 tuple.
+ *
+ * It is assumed @tuple was already used in a IPv6 test. The "corresponding"
+ * IPv4 tuple is the one that holds the inverse addresses in the opposite
+ * direction.
+ *
+ * For example, if the previous packet was 1::1#22->3::3#44 and got translated
+ * into 5.5.5.5#66->7.7.7.7#77, the "original" IPv6 tuple was 1::1#22->3::3#44,
+ * and the corresponding IPv4 tuple is 7.7.7.7#77->5.5.5.5#66.
+ */
+int invert_tuple(struct tuple *tuple)
+{
+	struct session_entry *session;
+
+	if (sessiondb_get(tuple, NULL, NULL, &session)) {
+		log_err("Could not find the session from the previous test.");
+		return -EEXIST;
+	}
+
+	tuple->src.addr4 = session->remote4;
+	tuple->dst.addr4 = session->local4;
+	tuple->l3_proto = L3PROTO_IPV4;
+
+	session_return(session);
+	return 0;
 }
 
 static bool test_filtering_and_updating(void)
@@ -158,40 +183,6 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-//	/* Packets not belonging to the IPv6 pool must not be translated. */
-//	if (init_tuple6(&tuple, "1::2", 1212, "2001:db8:c0ca:1::1", 3434,
-//			L4PROTO_UDP))
-//		return false;
-//	if (create_skb6_udp(&tuple, &skb, 100, 32))
-//		return false;
-//	if (pkt_init_ipv6(&pkt, skb))
-//		return false;
-//
-//	success &= ASSERT_INT(VERDICT_DROP, filtering_and_updating(&pkt, &tuple), "Not pool6 packet");
-//	success &= assert_bib_count(0, L4PROTO_UDP);
-//	success &= assert_session_count(0, L4PROTO_UDP);
-//
-//	kfree_skb(skb);
-//	if (!success)
-//		return false;
-//
-//	/* Packets not belonging to the IPv4 must not be translated. */
-//	if (init_tuple4(&tuple, "192.168.100.44", 8765, "5.6.7.8", 5678,
-//			L4PROTO_UDP))
-//		return false;
-//	if (create_skb4_udp(&tuple, &skb, 100, 32))
-//		return false;
-//	if (pkt_init_ipv4(&pkt, skb))
-//		return false;
-//
-//	success &= ASSERT_INT(VERDICT_DROP, filtering_and_updating(&pkt, &tuple), "Not pool4 packet");
-//	success &= assert_bib_count(0, L4PROTO_UDP);
-//	success &= assert_session_count(0, L4PROTO_UDP);
-//
-//	kfree_skb(skb);
-//	if (!success)
-//		return false;
-
 	/* Other IPv6 packets should be processed normally. */
 	if (init_tuple6(&tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP))
 		return false;
@@ -209,7 +200,7 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	/* Other IPv4 packets should be processed normally. */
-	if (init_tuple4(&tuple, "0.3.0.4", 3434, "192.0.2.128", 1024, L4PROTO_UDP))
+	if (invert_tuple(&tuple))
 		return false;
 	if (create_skb4_udp(&tuple, &skb, 100, 32))
 		return false;
@@ -221,49 +212,57 @@ static bool test_filtering_and_updating(void)
 	success &= assert_session_count(1, L4PROTO_UDP);
 
 	kfree_skb(skb);
-
 	return success;
 }
 
 static bool test_udp(void)
 {
-	struct packet pkt6, pkt4;
-	struct sk_buff *skb6, *skb4;
-	struct tuple tuple6, tuple4;
+	struct packet pkt;
+	struct sk_buff *skb;
+	struct tuple tuple;
 	bool success = true;
 
-	/* Prepare the IPv6 packet. */
-	if (init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_UDP))
+	/* An IPv4 packet attempts to be translated without state. */
+	if (init_tuple4(&tuple, "0.0.0.4", 3434, "192.0.2.128", 1024, L4PROTO_UDP))
 		return false;
-	if (create_skb6_udp(&tuple6, &skb6, 16, 32))
+	if (create_skb4_udp(&tuple, &skb, 16, 32))
 		return false;
-	if (pkt_init_ipv6(&pkt6, skb6))
-		return false;
-
-	/* Prepare the IPv4 packet. */
-	if (init_tuple4(&tuple4, "0.0.0.4", 3434, "192.0.2.128", 1024, L4PROTO_UDP))
-		return false;
-	if (create_skb4_udp(&tuple4, &skb4, 16, 32))
-		return false;
-	if (pkt_init_ipv4(&pkt4, skb4))
+	if (pkt_init_ipv4(&pkt, skb))
 		return false;
 
-	/* A IPv4 packet attempts to be translated without state */
-	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&pkt4, &tuple4), "result 1");
+	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&pkt, &tuple), "result 1");
 	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_UDP);
 
+	kfree_skb(skb);
+
 	/* IPv6 packet gets translated correctly. */
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&pkt6, &tuple6), "result 2");
+	if (init_tuple6(&tuple, "1::2", 1212, "3::4", 3434, L4PROTO_UDP))
+		return false;
+	if (create_skb6_udp(&tuple, &skb, 16, 32))
+		return false;
+	if (pkt_init_ipv6(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&pkt, &tuple), "result 2");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_UDP, 1);
 	success &= assert_session_count(1, L4PROTO_UDP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
 			L4PROTO_UDP, 0);
+
+	kfree_skb(skb);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&pkt4, &tuple4), "result 3");
+	if (invert_tuple(&tuple))
+		return false;
+	if (create_skb4_udp(&tuple, &skb, 16, 32))
+		return false;
+	if (pkt_init_ipv4(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&pkt, &tuple), "result 3");
 	success &= assert_bib_count(1, L4PROTO_UDP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_UDP, 1);
 	success &= assert_session_count(1, L4PROTO_UDP);
@@ -271,51 +270,59 @@ static bool test_udp(void)
 			"192.0.2.128", 1024, "0.0.0.4", 3434,
 			L4PROTO_UDP, 0);
 
-	/* Quit */
-	kfree_skb(skb6);
-	kfree_skb(skb4);
+	kfree_skb(skb);
+
 	return success;
 }
 
 static bool test_icmp(void)
 {
-	struct packet pkt6, pkt4;
-	struct sk_buff *skb6, *skb4;
-	struct tuple tuple6, tuple4;
+	struct packet pkt;
+	struct sk_buff *skb;
+	struct tuple tuple;
 	bool success = true;
 
-	/* Prepare the IPv6 packet. */
-	if (init_tuple6(&tuple6, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP))
-		return false;
-	if (create_skb6_icmp_info(&tuple6, &skb6, 16, 32))
-		return false;
-	if (pkt_init_ipv6(&pkt6, skb6))
-		return false;
-
-	/* Prepare the IPv4 packet. */
-	if (init_tuple4(&tuple4, "0.0.0.4", 1024, "192.0.2.128", 1024, L4PROTO_ICMP))
-		return false;
-	if (create_skb4_icmp_info(&tuple4, &skb4, 16, 32))
-		return false;
-	if (pkt_init_ipv4(&pkt4, skb4))
-		return false;
-
 	/* A IPv4 packet attempts to be translated without state */
-	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&pkt4, &tuple4), "result 1");
+	if (init_tuple4(&tuple, "0.0.0.4", 1024, "192.0.2.128", 1024, L4PROTO_ICMP))
+		return false;
+	if (create_skb4_icmp_info(&tuple, &skb, 16, 32))
+		return false;
+	if (pkt_init_ipv4(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_ACCEPT, ipv4_simple(&pkt, &tuple), "result 1");
 	success &= assert_bib_count(0, L4PROTO_ICMP);
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
+	kfree_skb(skb);
+
 	/* IPv6 packet and gets translated correctly. */
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&pkt6, &tuple6), "result 2");
+	if (init_tuple6(&tuple, "1::2", 1212, "3::4", 1212, L4PROTO_ICMP))
+		return false;
+	if (create_skb6_icmp_info(&tuple, &skb, 16, 32))
+		return false;
+	if (pkt_init_ipv6(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv6_simple(&pkt, &tuple), "result 2");
 	success &= assert_bib_count(1, L4PROTO_ICMP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_ICMP, 1);
 	success &= assert_session_count(1, L4PROTO_ICMP);
 	success &= assert_session_exists("1::2", 1212, "3::4", 1212,
 			"192.0.2.128", 1024, "0.0.0.4", 1024,
 			L4PROTO_ICMP, 0);
+
+	kfree_skb(skb);
 
 	/* Now that there's state, the IPv4 packet manages to traverse. */
-	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&pkt4, &tuple4), "result 3");
+	if (invert_tuple(&tuple))
+		return false;
+	if (create_skb4_icmp_info(&tuple, &skb, 16, 32))
+		return false;
+	if (pkt_init_ipv4(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_CONTINUE, ipv4_simple(&pkt, &tuple), "result 3");
 	success &= assert_bib_count(1, L4PROTO_ICMP);
 	success &= assert_bib_exists("1::2", 1212, "192.0.2.128", 1024, L4PROTO_ICMP, 1);
 	success &= assert_session_count(1, L4PROTO_ICMP);
@@ -323,21 +330,18 @@ static bool test_icmp(void)
 			"192.0.2.128", 1024, "0.0.0.4", 1024,
 			L4PROTO_ICMP, 0);
 
-	/* Quit */
-	kfree_skb(skb6);
-	kfree_skb(skb4);
+	kfree_skb(skb);
+
 	return success;
 }
 
 static bool test_tcp_closed_state_handle_6(void)
 {
-	struct session_entry *session;
 	struct tuple tuple6;
 	struct packet pkt;
 	struct sk_buff *skb;
 	bool success = true;
 
-	/* Prepare */
 	if (init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
@@ -345,14 +349,11 @@ static bool test_tcp_closed_state_handle_6(void)
 	if (pkt_init_ipv6(&pkt, skb))
 		return false;
 
-	/* Evaluate */
 	success &= ASSERT_INT(VERDICT_CONTINUE, tcp_closed_state(&pkt, &tuple6),
 			"V6 syn-result");
-
-	/* Validate */
-	success &= ASSERT_INT(0, sessiondb_get(&tuple6, NULL, &session), "V6 syn-session.");
-	if (success)
-		success &= ASSERT_UINT(V6_INIT, session->state, "V6 syn-state");
+	success &= assert_session_exists("1::2", 1212, "3::4", 3434,
+			"192.0.2.128", 1024, "0.0.0.4", 3434,
+			L4PROTO_TCP, V6_INIT);
 
 	kfree_skb(skb);
 	return success;
@@ -360,22 +361,15 @@ static bool test_tcp_closed_state_handle_6(void)
 
 static bool test_tcp_closed_state_handle_4(void)
 {
-	struct session_entry *session, *tmp;
+	struct session_entry *session;
 	struct tuple tuple4;
 	struct packet pkt;
 	struct sk_buff *skb;
 	struct tcphdr *hdr_tcp;
 	bool success = true;
 
-	/* Prepare */
 	if (init_tuple4(&tuple4, "5.6.7.8", 5678, "192.0.2.128", 8765, L4PROTO_TCP))
 		return false;
-	/* The session entry that is supposed to be created in "tcp_close_state_handle". */
-	session = session_create_str_tcp("1::2", 1212, "3::4", 3434,
-			"192.0.2.128", 8765, "5.6.7.8", 5678, V4_INIT);
-	if (!session)
-		return false;
-
 	if (create_skb4_tcp(&tuple4, &skb, 100, 32))
 		return false;
 	if (pkt_init_ipv4(&pkt, skb))
@@ -385,17 +379,15 @@ static bool test_tcp_closed_state_handle_4(void)
 	hdr_tcp->rst = false;
 	hdr_tcp->fin = false;
 
-	/* Evaluate */
 	success &= ASSERT_INT(VERDICT_STOLEN, tcp_closed_state(&pkt, &tuple4), "V4 syn-result");
+	success &= ASSERT_INT(-ESRCH, sessiondb_get(&tuple4, NULL, NULL, &session), "V4 syn-session.");
+	/*
+	 * Well, it would be nice to test the packet was actually linked in pkt
+	 * queue, but it's not possible using the current API.
+	 * It's better to test it in graybox anyway.
+	 */
 
-	/* Validate */
-	success &= ASSERT_INT(-ESRCH, sessiondb_get(&tuple4, NULL, &tmp), "V4 syn-session.");
-	success &= ASSERT_INT(0, pktqueue_remove(session), "V4 syn pktqueue send");
-	if (success)
-		success &= ASSERT_UINT(V4_INIT, session->state, "V4 syn-state");
-
-	session_return(session);
-	/* kfree_skb(skb); "skb" kfreed when pktqueue is executed */
+	/* "skb" is kfreed when pktqueue is executed */
 	return success;
 }
 
@@ -411,12 +403,9 @@ static bool test_tcp(void)
 	struct packet pkt;
 	struct sk_buff *skb;
 
+	/* V6 SYN */
 	if (init_tuple6(&tuple6, "1::2", 1212, "3::4", 3434, L4PROTO_TCP))
 		return false;
-	if (init_tuple4(&tuple4, "0.0.0.4", 3434, "192.0.2.128", 1024, L4PROTO_TCP))
-		return false;
-
-	/* V6 SYN */
 	if (create_tcp_packet(&skb, L3PROTO_IPV6, true, false, false))
 		return false;
 	if (pkt_init_ipv6(&pkt, skb))
@@ -433,6 +422,9 @@ static bool test_tcp(void)
 	kfree_skb(skb);
 
 	/* V4 SYN */
+	tuple4 = tuple6;
+	if (invert_tuple(&tuple4))
+		return false;
 	if (create_tcp_packet(&skb, L3PROTO_IPV4, true, false, false))
 		return false;
 	if (pkt_init_ipv4(&pkt, skb))
@@ -491,7 +483,7 @@ enum session_fate expire_fn(struct session_entry *session, void *arg)
 static bool init(void)
 {
 	char *prefixes6[] = { "3::/96" };
-	char *prefixes4[] = { "192.0.2.2/32" };
+	char *prefixes4[] = { "192.0.2.128/32" };
 
 	if (config_init(false))
 		goto config_fail;
@@ -529,17 +521,17 @@ static int filtering_test_init(void)
 
 	/* General */
 	INIT_CALL_END(init(), test_filtering_and_updating(), end(), "core function");
-//
-//	/* UDP */
-//	INIT_CALL_END(init(), test_udp(), end(), "UDP");
-//
-//	/* ICMP */
-//	INIT_CALL_END(init(), test_icmp(), end(), "ICMP");
-//
-//	/* TCP */
-//	INIT_CALL_END(init(), test_tcp_closed_state_handle_6(), end(), "TCP-CLOSED-6");
-//	INIT_CALL_END(init(), test_tcp_closed_state_handle_4(), end(), "TCP-CLOSED-4");
-//	INIT_CALL_END(init(), test_tcp(), end(), "test_tcp");
+
+	/* UDP */
+	INIT_CALL_END(init(), test_udp(), end(), "UDP");
+
+	/* ICMP */
+	INIT_CALL_END(init(), test_icmp(), end(), "ICMP");
+
+	/* TCP */
+	INIT_CALL_END(init(), test_tcp_closed_state_handle_6(), end(), "TCP-CLOSED-6");
+	INIT_CALL_END(init(), test_tcp_closed_state_handle_4(), end(), "TCP-CLOSED-4");
+	INIT_CALL_END(init(), test_tcp(), end(), "test_tcp");
 
 	END_TESTS;
 }

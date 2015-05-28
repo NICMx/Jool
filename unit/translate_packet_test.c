@@ -27,14 +27,14 @@ static bool test_function_has_unexpired_src_route(void)
 	options = (unsigned char *) (hdr + 1);
 
 	hdr->ihl = 5; /* min legal value. */
-	success &= assert_false(has_unexpired_src_route(hdr), "No options");
+	success &= ASSERT_BOOL(false, has_unexpired_src_route(hdr), "No options");
 
 	hdr->ihl = 6;
 	options[0] = IPOPT_SID;
 	options[1] = 4;
 	options[2] = 0xAB;
 	options[3] = 0xCD;
-	success = assert_false(has_unexpired_src_route(hdr), "No source route option, simple");
+	success = ASSERT_BOOL(false, has_unexpired_src_route(hdr), "No source route option, simple");
 
 	hdr->ihl = 9;
 	options[0] = IPOPT_RR; /* Record route option */
@@ -52,7 +52,7 @@ static bool test_function_has_unexpired_src_route(void)
 	options[12] = IPOPT_NOOP; /* No operation option. */
 	options[13] = IPOPT_END; /* End of options list option. */
 	/* Leave the rest as garbage. */
-	success &= assert_false(has_unexpired_src_route(hdr), "No source option, multiple options");
+	success &= ASSERT_BOOL(false, has_unexpired_src_route(hdr), "No source option, multiple options");
 
 	hdr->ihl = 9;
 	options[0] = IPOPT_LSRR;
@@ -71,14 +71,14 @@ static bool test_function_has_unexpired_src_route(void)
 	options[13] = 0x33;
 	options[14] = 0x33;
 	options[15] = IPOPT_END;
-	success &= assert_false(has_unexpired_src_route(hdr), "Expired source route");
+	success &= ASSERT_BOOL(false, has_unexpired_src_route(hdr), "Expired source route");
 
 	options[2] = 4;
-	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired source route, first address");
+	success &= ASSERT_BOOL(true, has_unexpired_src_route(hdr), "Unexpired source route, first address");
 	options[2] = 8;
-	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired source route, second address");
+	success &= ASSERT_BOOL(true, has_unexpired_src_route(hdr), "Unexpired source route, second address");
 	options[2] = 12;
-	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired source route, third address");
+	success &= ASSERT_BOOL(true, has_unexpired_src_route(hdr), "Unexpired source route, third address");
 
 	hdr->ihl = 11;
 	options[0] = IPOPT_NOOP;
@@ -105,14 +105,14 @@ static bool test_function_has_unexpired_src_route(void)
 	options[21] = 4;
 	options[22] = 0xAB;
 	options[23] = 0xCD;
-	success &= assert_false(has_unexpired_src_route(hdr), "Expired source route, multiple opts");
+	success &= ASSERT_BOOL(false, has_unexpired_src_route(hdr), "Expired source route, multiple opts");
 
 	options[7] = 4;
-	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (1)");
+	success &= ASSERT_BOOL(true, has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (1)");
 	options[7] = 8;
-	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (2)");
+	success &= ASSERT_BOOL(true, has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (2)");
 	options[7] = 12;
-	success &= assert_true(has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (3)");
+	success &= ASSERT_BOOL(true, has_unexpired_src_route(hdr), "Unexpired src route, multiple opts (3)");
 
 	kfree(hdr);
 	return success;
@@ -124,7 +124,7 @@ static bool test_function_build_id_field(void)
 	bool success = true;
 
 	hdr.id = cpu_to_be16(1234);
-	success &= assert_equals_be32(cpu_to_be32(1234), build_id_field(&hdr), "Simple");
+	success &= ASSERT_BE32(1234, build_id_field(&hdr), "Simple");
 
 	return success;
 }
@@ -172,25 +172,25 @@ static bool test_function_icmp6_minimum_mtu(void)
 		return false;
 
 	/* Test the bare minimum functionality. */
-	success &= assert_equals_u32(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
-	success &= assert_equals_u32(1, min_mtu(100, 1, 100, 0), "No hacks, min is in");
-	success &= assert_equals_u32(21, min_mtu(100, 100, 1, 0), "No hacks, min is out");
+	success &= ASSERT_UINT(21, min_mtu(1, 100, 100, 0), "No hacks, min is packet");
+	success &= ASSERT_UINT(1, min_mtu(100, 1, 100, 0), "No hacks, min is in");
+	success &= ASSERT_UINT(21, min_mtu(100, 100, 1, 0), "No hacks, min is out");
 
 	if (!success)
 		return false;
 
 	/* Test hack 1: MTU is overriden if some router set is as zero. */
 	for (i = 1500; i > 1400 && success; --i)
-		success &= assert_equals_u32(1420, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= ASSERT_UINT(1420, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 1400; i > 1200 && success; --i)
-		success &= assert_equals_u32(1220, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= ASSERT_UINT(1220, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 1200; i > 600 && success; --i)
-		success &= assert_equals_u32(620, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= ASSERT_UINT(620, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 	for (i = 600; i > 0 && success; --i)
-		success &= assert_equals_u32(20, min_mtu(0, 1600, 1600, i), "Override packet MTU");
+		success &= ASSERT_UINT(20, min_mtu(0, 1600, 1600, i), "Override packet MTU");
 
-	success &= assert_equals_u32(1, min_mtu(0, 1, 100, 1000), "Override packet MTU, min is in");
-	success &= assert_equals_u32(21, min_mtu(0, 100, 1, 1000), "Override packet MTU, min is out");
+	success &= ASSERT_UINT(1, min_mtu(0, 1, 100, 1000), "Override packet MTU, min is in");
+	success &= ASSERT_UINT(21, min_mtu(0, 100, 1, 1000), "Override packet MTU, min is out");
 
 	if (!success)
 		return false;
@@ -199,25 +199,25 @@ static bool test_function_icmp6_minimum_mtu(void)
 	if (!update_config(true))
 		return false;
 
-	success &= assert_equals_u32(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
-	success &= assert_equals_u32(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
-	success &= assert_equals_u32(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
+	success &= ASSERT_UINT(1280, min_mtu(1, 2, 2, 0), "Improve rate, min is packet");
+	success &= ASSERT_UINT(1280, min_mtu(2, 1, 2, 0), "Improve rate, min is in");
+	success &= ASSERT_UINT(1280, min_mtu(2, 2, 1, 0), "Improve rate, min is out");
 
-	success &= assert_equals_u32(1420, min_mtu(1400, 1500, 1500, 0), "Fail improve rate, packet");
-	success &= assert_equals_u32(1400, min_mtu(1500, 1400, 1500, 0), "Fail improve rate, in");
-	success &= assert_equals_u32(1420, min_mtu(1500, 1500, 1400, 0), "Fail improve rate, out");
+	success &= ASSERT_UINT(1420, min_mtu(1400, 1500, 1500, 0), "Fail improve rate, packet");
+	success &= ASSERT_UINT(1400, min_mtu(1500, 1400, 1500, 0), "Fail improve rate, in");
+	success &= ASSERT_UINT(1420, min_mtu(1500, 1500, 1400, 0), "Fail improve rate, out");
 
 	if (!success)
 		return false;
 
 	/* Test both hacks at the same time. */
-	success &= assert_equals_u32(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
-	success &= assert_equals_u32(1280, min_mtu(0, 1, 100, 1000), "2 hacks, override in");
-	success &= assert_equals_u32(1280, min_mtu(0, 100, 1, 1000), "2 hacks, override out");
+	success &= ASSERT_UINT(1280, min_mtu(0, 700, 700, 1000), "2 hacks, override packet");
+	success &= ASSERT_UINT(1280, min_mtu(0, 1, 100, 1000), "2 hacks, override in");
+	success &= ASSERT_UINT(1280, min_mtu(0, 100, 1, 1000), "2 hacks, override out");
 
-	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1500, 1500), "2 hacks, packet/not 1280");
-	success &= assert_equals_u32(1400, min_mtu(0, 1400, 1500, 1500), "2 hacks, in/not 1280");
-	success &= assert_equals_u32(1420, min_mtu(0, 1500, 1400, 1500), "2 hacks, out/not 1280");
+	success &= ASSERT_UINT(1420, min_mtu(0, 1500, 1500, 1500), "2 hacks, packet/not 1280");
+	success &= ASSERT_UINT(1400, min_mtu(0, 1400, 1500, 1500), "2 hacks, in/not 1280");
+	success &= ASSERT_UINT(1420, min_mtu(0, 1500, 1400, 1500), "2 hacks, out/not 1280");
 
 	return success;
 }
@@ -232,12 +232,12 @@ static bool test_function_icmp4_to_icmp6_param_prob(void)
 	hdr4.type = ICMP_PARAMETERPROB;
 	hdr4.code = ICMP_PTR_INDICATES_ERROR;
 	hdr4.icmp4_unused = cpu_to_be32(0x08000000U);
-	success &= assert_equals_int(0, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 1");
-	success &= assert_equals_u8(ICMPV6_HDR_FIELD, hdr6.icmp6_code, "code");
-	success &= assert_equals_u8(7, be32_to_cpu(hdr6.icmp6_pointer), "pointer");
+	success &= ASSERT_INT(0, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 1");
+	success &= ASSERT_UINT(ICMPV6_HDR_FIELD, hdr6.icmp6_code, "code");
+	success &= ASSERT_UINT(7, be32_to_cpu(hdr6.icmp6_pointer), "pointer");
 
 	hdr4.icmp4_unused = cpu_to_be32(0x05000000U);
-	success &= assert_equals_int(-EINVAL, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 2");
+	success &= ASSERT_INT(-EINVAL, icmp4_to_icmp6_param_prob(&hdr4, &hdr6), "func result 2");
 
 	return success;
 }
@@ -262,16 +262,16 @@ static bool test_function_generate_ipv4_id_nofrag(void)
 	 * At least one of the attempts should be nonzero,
 	 * otherwise the random would be sucking major ****.
 	 */
-	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len < 1260");
+	success &= ASSERT_BOOL(true, (attempt_1 | attempt_2 | attempt_3) != 0, "Len < 1260");
 
 	skb_put(skb, 260);
 	attempt_1 = generate_ipv4_id_nofrag(&pkt);
 	attempt_2 = generate_ipv4_id_nofrag(&pkt);
 	attempt_3 = generate_ipv4_id_nofrag(&pkt);
-	success &= assert_not_equals_be16(0, (attempt_1 | attempt_2 | attempt_3), "Len = 1260");
+	success &= ASSERT_BOOL(true, (attempt_1 | attempt_2 | attempt_3) != 0, "Len = 1260");
 
 	skb_put(skb, 200);
-	success &= assert_equals_be16(0, generate_ipv4_id_nofrag(&pkt), "Len > 1260");
+	success &= ASSERT_BE16(0, generate_ipv4_id_nofrag(&pkt), "Len > 1260");
 
 	kfree_skb(skb);
 	return success;
@@ -323,7 +323,7 @@ static bool test_function_build_protocol_field(void)
 	/* Just ICMP. */
 	ip6_hdr->nexthdr = NEXTHDR_ICMP;
 	ip6_hdr->payload_len = cpu_to_be16(sizeof(*icmp6_hdr));
-	if (!assert_equals_u8(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Just ICMP"))
+	if (!ASSERT_UINT(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Just ICMP"))
 		goto failure;
 
 	/* Skippable headers then ICMP. */
@@ -342,13 +342,13 @@ static bool test_function_build_protocol_field(void)
 	dest_options_hdr->nexthdr = NEXTHDR_ICMP;
 	dest_options_hdr->hdrlen = 2;
 
-	if (!assert_equals_u8(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Skippable then ICMP"))
+	if (!ASSERT_UINT(IPPROTO_ICMP, build_protocol_field(ip6_hdr), "Skippable then ICMP"))
 		goto failure;
 
 	/* Skippable headers then something else */
 	dest_options_hdr->nexthdr = NEXTHDR_TCP;
 	ip6_hdr->payload_len = cpu_to_be16(8 + 16 + 24 + sizeof(struct tcphdr));
-	if (!assert_equals_u8(IPPROTO_TCP, build_protocol_field(ip6_hdr), "Skippable then TCP"))
+	if (!ASSERT_UINT(IPPROTO_TCP, build_protocol_field(ip6_hdr), "Skippable then TCP"))
 		goto failure;
 
 	kfree(ip6_hdr);
@@ -377,7 +377,7 @@ static bool test_function_has_nonzero_segments_left(void)
 
 	/* No extension headers. */
 	ip6_hdr->nexthdr = NEXTHDR_TCP;
-	success &= assert_false(has_nonzero_segments_left(ip6_hdr, &offset), "No extension headers");
+	success &= ASSERT_BOOL(false, has_nonzero_segments_left(ip6_hdr, &offset), "No extension headers");
 
 	if (!success)
 		goto end;
@@ -386,15 +386,15 @@ static bool test_function_has_nonzero_segments_left(void)
 	ip6_hdr->nexthdr = NEXTHDR_ROUTING;
 	routing_hdr = (struct ipv6_rt_hdr *) (ip6_hdr + 1);
 	routing_hdr->segments_left = 12;
-	success &= assert_true(has_nonzero_segments_left(ip6_hdr, &offset), "Nonzero left - result");
-	success &= assert_equals_u32(40 + 3, offset, "Nonzero left - offset");
+	success &= ASSERT_BOOL(true, has_nonzero_segments_left(ip6_hdr, &offset), "Nonzero left - result");
+	success &= ASSERT_UINT(40 + 3, offset, "Nonzero left - offset");
 
 	if (!success)
 		goto end;
 
 	/* Routing header with zero segments left. */
 	routing_hdr->segments_left = 0;
-	success &= assert_false(has_nonzero_segments_left(ip6_hdr, &offset), "Zero left");
+	success &= ASSERT_BOOL(false, has_nonzero_segments_left(ip6_hdr, &offset), "Zero left");
 
 	if (!success)
 		goto end;
@@ -408,8 +408,8 @@ static bool test_function_has_nonzero_segments_left(void)
 	fragment_hdr->nexthdr = NEXTHDR_ROUTING;
 	routing_hdr = (struct ipv6_rt_hdr *) (fragment_hdr + 1);
 	routing_hdr->segments_left = 24;
-	success &= assert_true(has_nonzero_segments_left(ip6_hdr, &offset), "Two headers - result");
-	success &= assert_equals_u32(40 + 8 + 3, offset, "Two headers - offset");
+	success &= ASSERT_BOOL(true, has_nonzero_segments_left(ip6_hdr, &offset), "Two headers - result");
+	success &= ASSERT_UINT(40 + 8 + 3, offset, "Two headers - offset");
 
 	/* Fall through. */
 end:
@@ -462,14 +462,14 @@ static bool compare_skbs(struct sk_buff *expected, struct sk_buff *actual)
 	unsigned int i, s, min_len;
 	int errors = 0;
 
-	if (!assert_equals_int(count_frags(expected), count_frags(actual), "Fragment count"))
+	if (!ASSERT_INT(count_frags(expected), count_frags(actual), "Fragment count"))
 		return false;
 
 	s = 0;
 	while (expected && !errors) {
 		log_debug("Reviewing packet %u.", s);
 
-		if (!assert_equals_int(expected->len, actual->len, "skb length"))
+		if (!ASSERT_INT(expected->len, actual->len, "skb length"))
 			errors++;
 
 		expected_ptr = (unsigned char *) skb_network_header(expected);
@@ -614,8 +614,7 @@ static bool test_6to4_custom_payload(l4_protocol l4_proto,
 	if (!result)
 		goto end;
 
-	result = assert_equals_csum(~cpu_to_be16(0x0000U), /* ~0x0000 == 0xFFFF */
-			pkt_udp_hdr(&pkt4_actual)->check, "checksum test");
+	result = ASSERT_BE16(0xFFFFU, pkt_udp_hdr(&pkt4_actual)->check, "checksum test");
 	/* Fall through. */
 
 end:

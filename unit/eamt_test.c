@@ -51,21 +51,21 @@ static bool add_test(void)
 	bool success = true;
 
 	/* Collision tests */
-	success &= assert_equals_int(0, __add_entry("1.0.0.4", 30, "1::c", 126), "hackless add");
-	success &= assert_equals_int(-EEXIST, __add_entry("1.0.0.4", 30, "1::c", 126), "simple collision");
-	success &= assert_equals_int(-EEXIST, __add_entry("1.0.0.6", 31, "2::c", 127), "4 is inside");
-	success &= assert_equals_int(-EEXIST, __add_entry("2.0.0.4", 31, "1::e", 127), "6 is inside");
-	success &= assert_equals_int(-EEXIST, __add_entry("1.0.0.0", 24, "2::", 120), "4 is outside");
-	success &= assert_equals_int(-EEXIST, __add_entry("2.0.0.0", 24, "1::", 120), "6 is outside");
-	success &= assert_equals_int(0, __add_entry("1.0.0.0", 30, "1::", 126), "no collision");
+	success &= ASSERT_INT(0, __add_entry("1.0.0.4", 30, "1::c", 126), "hackless add");
+	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.4", 30, "1::c", 126), "simple collision");
+	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.6", 31, "2::c", 127), "4 is inside");
+	success &= ASSERT_INT(-EEXIST, __add_entry("2.0.0.4", 31, "1::e", 127), "6 is inside");
+	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.0", 24, "2::", 120), "4 is outside");
+	success &= ASSERT_INT(-EEXIST, __add_entry("2.0.0.0", 24, "1::", 120), "6 is outside");
+	success &= ASSERT_INT(0, __add_entry("1.0.0.0", 30, "1::", 126), "no collision");
 
 	/* Prefix length tests*/
-	success &= assert_equals_int(-EINVAL, __add_entry("5.0.0.0", 24, "5::", 124), "bigger suffix4");
-	success &= assert_equals_int(0, __add_entry("5.0.0.0", 28, "5::", 120), "bigger suffix6");
-	success &= assert_equals_int(-EINVAL, __add_entry("6.0.0.0", 33, "6::", 128), "prefix4 too big");
-	success &= assert_equals_int(-EINVAL, __add_entry("6.0.0.0", 32, "6::", 129), "prefix6 too big");
-	success &= assert_equals_int(-EINVAL, __add_entry("7.0.0.1", 24, "7::", 120), "nonzero suffix4");
-	success &= assert_equals_int(-EINVAL, __add_entry("7.0.0.0", 24, "7::1", 120), "nonzero suffix6");
+	success &= ASSERT_INT(-EINVAL, __add_entry("5.0.0.0", 24, "5::", 124), "bigger suffix4");
+	success &= ASSERT_INT(0, __add_entry("5.0.0.0", 28, "5::", 120), "bigger suffix6");
+	success &= ASSERT_INT(-EINVAL, __add_entry("6.0.0.0", 33, "6::", 128), "prefix4 too big");
+	success &= ASSERT_INT(-EINVAL, __add_entry("6.0.0.0", 32, "6::", 129), "prefix6 too big");
+	success &= ASSERT_INT(-EINVAL, __add_entry("7.0.0.1", 24, "7::", 120), "nonzero suffix4");
+	success &= ASSERT_INT(-EINVAL, __add_entry("7.0.0.0", 24, "7::1", 120), "nonzero suffix6");
 
 	return success;
 }
@@ -102,8 +102,8 @@ static bool test(char *addr4_str, char *addr6_str)
 		return false;
 	}
 
-	success &= assert_equals_ipv6(&addr6, &result6, "IPv4 to IPv6 result");
-	success &= assert_equals_ipv4(&addr4, &result4, "IPv6 to IPv4 result");
+	success &= ASSERT_ADDR6(addr6_str, &result6, "IPv4 to IPv6 result");
+	success &= ASSERT_ADDR4(addr4_str, &result4, "IPv6 to IPv4 result");
 	return success;
 }
 
@@ -175,7 +175,7 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6, int exp
 		prefix6.len = len6;
 	}
 
-	return assert_equals_int(expected_error, eamt_remove(addr6 ? &prefix6 : NULL,
+	return ASSERT_INT(expected_error, eamt_remove(addr6 ? &prefix6 : NULL,
 			addr4 ? &prefix4 : NULL), "removing EAM entry");
 }
 
@@ -199,7 +199,7 @@ static bool remove_test(void)
 	success &= remove_entry("10.0.1.0", 24, "1::", 120, -EINVAL);
 	success &= remove_entry("10.0.0.0", 24, "1::", 120, 0);
 
-	success &= assert_equals_u64(0, eam_table.count, "Table count");
+	success &= ASSERT_U64(0ULL, eam_table.count, "Table count");
 	if (!success)
 		return false;
 
@@ -209,8 +209,8 @@ static bool remove_test(void)
 	if (!success)
 		return false;
 
-	success &= assert_equals_int(0, eamt_flush(), "flush result");
-	success &= assert_equals_u64(0, eam_table.count, "Table count 2");
+	success &= ASSERT_INT(0, eamt_flush(), "flush result");
+	success &= ASSERT_U64(0ULL, eam_table.count, "Table count 2");
 
 	return success;
 }

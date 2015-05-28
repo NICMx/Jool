@@ -41,11 +41,6 @@ int bibdb_init(void)
 	error = bibentry_init();
 	if (error)
 		return error;
-	error = palloc_init();
-	if (error) {
-		bibentry_destroy();
-		return error;
-	}
 
 	bibtable_init(&bib_tcp);
 	bibtable_init(&bib_udp);
@@ -66,7 +61,6 @@ void bibdb_destroy(void)
 	bibtable_destroy(&bib_tcp);
 	bibtable_destroy(&bib_icmp);
 
-	palloc_destroy();
 	bibentry_destroy();
 }
 

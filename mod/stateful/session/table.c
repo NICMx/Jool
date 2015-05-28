@@ -83,6 +83,7 @@ static void reschedule(struct expire_timer *expirer)
 }
 
 static void decide_fate(fate_cb cb,
+		struct packet *pkt,
 		struct session_table *table,
 		struct session_entry *session,
 		struct list_head *rms,
@@ -91,7 +92,7 @@ static void decide_fate(fate_cb cb,
 	enum session_fate fate;
 	struct session_entry *tmp;
 
-	fate = cb(session, NULL);
+	fate = cb(session, pkt);
 	switch (fate) {
 	case FATE_TIMER_EST:
 		session->update_time = jiffies;
@@ -252,8 +253,8 @@ static void cleaner_timer(unsigned long param)
 		if (time_before(jiffies, session->update_time + timeout))
 			break;
 
-		decide_fate(expirer->decide_fate_cb, expirer->table, session,
-				&rms, &probes);
+		decide_fate(expirer->decide_fate_cb, NULL, expirer->table,
+				session, &rms, &probes);
 	}
 	spin_unlock_bh(&expirer->table->lock);
 
@@ -438,7 +439,7 @@ static struct session_entry *get_by_ipv4(struct session_table *table,
 }
 
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
-		fate_cb cb, struct session_entry **result)
+		fate_cb cb, struct packet *pkt, struct session_entry **result)
 {
 	struct session_entry *session;
 	LIST_HEAD(rms);
@@ -462,7 +463,7 @@ int sessiontable_get(struct session_table *table, struct tuple *tuple,
 	if (session) {
 		session_get(session);
 		if (cb)
-			decide_fate(cb, table, session, &rms, &probes);
+			decide_fate(cb, pkt, table, session, &rms, &probes);
 	}
 
 	spin_unlock_bh(&table->lock);
@@ -518,10 +519,7 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	struct expire_timer *expirer;
 	int error;
 
-	error = pktqueue_remove(session);
-	if (error && error != -ESRCH)
-		return error;
-
+	pktqueue_remove(session);
 	expirer = is_established ? &table->est_timer : &table->trans_timer;
 
 	spin_lock_bh(&table->lock);

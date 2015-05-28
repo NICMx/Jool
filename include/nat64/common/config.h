@@ -581,8 +581,8 @@ struct global_config {
  * This translates "config" and its subobjects into a byte array which can then be transformed back
  * using "deserialize_global_config()".
  */
-int serialize_global_config(struct global_config *config, unsigned char **buffer_out,
-		size_t *buffer_len_out);
+int serialize_global_config(struct global_config *config, bool pools_empty,
+		unsigned char **buffer_out, size_t *buffer_len_out);
 /**
  * Reverts the work of serialize_translate_config() by creating "config" out of the byte array
  * "buffer".

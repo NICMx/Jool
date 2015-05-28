@@ -9,7 +9,7 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pk
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	error = sessiondb_get(in, NULL, &session);
+	error = sessiondb_get(in, NULL, NULL, &session);
 	if (error) {
 		/*
 		 * Bogus ICMP errors might cause this because Filtering never cares for them,

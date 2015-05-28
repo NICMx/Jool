@@ -78,11 +78,11 @@ void sessiondb_destroy(void)
 	session_destroy();
 }
 
-int sessiondb_get(struct tuple *tuple, fate_cb cb,
+int sessiondb_get(struct tuple *tuple, fate_cb cb, struct packet *pkt,
 		struct session_entry **result)
 {
 	struct session_table *table = get_table(tuple->l4_proto);
-	return table ? sessiontable_get(table, tuple, cb, result) : -EINVAL;
+	return table ? sessiontable_get(table, tuple, cb, pkt, result) : -EINVAL;
 }
 
 bool sessiondb_allow(struct tuple *tuple4)

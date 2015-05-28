@@ -1,21 +1,16 @@
-#include <linux/module.h> /* Needed by all modules */
-#include <linux/kernel.h> /* Needed for KERN_INFO */
-#include <linux/init.h> /* Needed for the macros */
-#include <linux/printk.h> /* pr_* */
-#include <linux/ipv6.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the Packet queue module");
 MODULE_ALIAS("nat64_test_pkt_queue");
 
-#include "nat64/common/str_utils.h"
-#include "nat64/unit/types.h"
-#include "nat64/unit/unit_test.h"
 #include "nat64/unit/session.h"
 #include "nat64/unit/skb_generator.h"
-#include "nat64/mod/common/icmp_wrapper.h"
-#include "pkt_queue.c"
+#include "nat64/unit/types.h"
+#include "nat64/unit/unit_test.h"
+#include "session/pkt_queue.c"
 
 /**
  * "asr" means add, send, remove
@@ -47,10 +42,10 @@ static bool test_pkt_queue_asr(void)
 	hdr_tcp->fin = false;
 
 	/* Test */
-	success &= assert_equals_int(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
-	success &= assert_equals_int(0, pktqueue_send(session), "pktqueue_send 1");
-	success &= assert_equals_int(1, icmp64_pop(), "pktqueue sent an icmp error");
-	success &= assert_equals_int(-ESRCH, pktqueue_remove(session), "pktqueue_remove 1");
+	success &= ASSERT_INT(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
+	success &= ASSERT_INT(0, pktqueue_send(session), "pktqueue_send 1");
+	success &= ASSERT_INT(1, icmp64_pop(), "pktqueue sent an icmp error");
+	success &= ASSERT_INT(-ESRCH, pktqueue_remove(session), "pktqueue_remove 1");
 
 
 	session_return(session);
@@ -92,10 +87,10 @@ static bool test_pkt_queue_ars(void)
 	hdr_tcp->rst = false;
 	hdr_tcp->fin = false;
 
-	success &= assert_equals_int(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
-	success &= assert_equals_int(0, pktqueue_remove(session), "pktqueue_remove 1");
-	success &= assert_equals_int(-ESRCH, pktqueue_send(session), "pktqueue_send 1");
-	success &= assert_equals_int(0, icmp64_pop(), "pktqueue not sent an icmp error");
+	success &= ASSERT_INT(0, pktqueue_add(session, &pkt), "pktqueue_add 1");
+	success &= ASSERT_INT(0, pktqueue_remove(session), "pktqueue_remove 1");
+	success &= ASSERT_INT(-ESRCH, pktqueue_send(session), "pktqueue_send 1");
+	success &= ASSERT_INT(0, icmp64_pop(), "pktqueue not sent an icmp error");
 
 
 	session_return(session);

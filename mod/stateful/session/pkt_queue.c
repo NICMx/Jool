@@ -99,6 +99,8 @@ void pktqueue_destroy(void)
 {
 	struct packet_node *node, *tmp;
 
+	del_timer_sync(&timer);
+
 	/* TODO (issue36) I think this might be untested. */
 	/* TODO (issue36) Also test pktqueue w/hairpinning. */
 	list_for_each_entry_safe(node, tmp, &node_list, list_hook)
@@ -113,7 +115,7 @@ void pktqueue_destroy(void)
  * Doesn't care about spinlocks.
  */
 static int compare_fn(const struct packet_node *node,
-		struct session_entry *session)
+		const struct session_entry *session)
 {
 	int gap;
 
@@ -133,7 +135,7 @@ static int compare_fn(const struct packet_node *node,
 	return gap;
 }
 
-static inline int __tree_add(struct packet_node *node)
+static int __tree_add(struct packet_node *node)
 {
 	return rbtree_add(node, node->session, &node_tree, compare_fn,
 			struct packet_node, tree_hook);
@@ -190,24 +192,24 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 	return 0;
 }
 
-static inline struct packet_node *__tree_find(struct session_entry *session)
+static struct packet_node *__tree_find(struct session_entry *session)
 {
 	return rbtree_find(session, &node_tree, compare_fn, struct packet_node,
 			tree_hook);
 }
 
-int pktqueue_remove(struct session_entry *session)
+void pktqueue_remove(struct session_entry *session)
 {
 	struct packet_node *node;
 
 	if (WARN(!session, "The packet table cannot contain NULL."))
-		return -EINVAL;
+		return;
 
 	spin_lock_bh(&lock);
 	node = __tree_find(session);
 	if (!node) {
 		spin_unlock_bh(&lock);
-		return -ESRCH;
+		return;
 	}
 
 	rm(node);
@@ -218,5 +220,4 @@ int pktqueue_remove(struct session_entry *session)
 	kfree(node);
 
 	log_debug("Pkt queue - I just cancelled an ICMP error.");
-	return 0;
 }

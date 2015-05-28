@@ -10,12 +10,13 @@
  * @author Daniel Hernandez
  */
 
+#include "nat64/mod/common/packet.h"
 #include "nat64/mod/stateful/session/table.h"
 
 int sessiondb_init(fate_cb tcpest_fn, fate_cb tcptrans_fn);
 void sessiondb_destroy(void);
 
-int sessiondb_get(struct tuple *tuple, fate_cb cb,
+int sessiondb_get(struct tuple *tuple, fate_cb cb, struct packet *pkt,
 		struct session_entry **result);
 int sessiondb_add(struct session_entry *session, bool is_established);
 
