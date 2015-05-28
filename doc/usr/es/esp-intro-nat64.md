@@ -20,7 +20,7 @@ title: Documentación - Introducción a NAT64
  
 ## Traducción IPv4/IPv6
  
- SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologias orientadas a comunicar nodos de red que solo hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
+ SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que solo hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
  La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; un "Traductor IPv4/IPv6" no solo reemplaza direcciones y/o puertos en los paquetes, sino también headers de capa 3.
  
  - SIIT es la manera sencilla, y permite mapeos 1-a-1 preconfigurados entre IPv4 e IPv6.
@@ -35,17 +35,17 @@ Eso es todo en realidad. Continua leyendo para mas detalles y ejemplos.
 ## SIIT con EAM
 
 Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
-![Fig.1 - Red de ejemplo EAM](/doc/usr/es/images/network/eam.svg)
+![Fig.1 - Red de ejemplo EAM](images/network/eam.svg)
 
 (_T_ representa "Translating box" en español "Caja de traducción".)
 
-Asumiendo que la puerta de enlace por default de todos es _T_, como comunicas _A_ (IPv6) con _V_ (IPv4)?
+Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarías _A_ (IPv6) con _V_ (IPv4)?
 
 - Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
 
-La primera es realizada por SIIT, las demas pueden ser realizadas via DNS.
+La primera es realizada por SIIT, las demás pueden ser realizadas via DNS.
 
 Esto sucederá:
 
