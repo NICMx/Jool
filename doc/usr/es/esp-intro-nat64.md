@@ -35,7 +35,7 @@ Eso es todo en realidad. Continua leyendo para mas detalles y ejemplos.
 ## SIIT con EAM
 
 Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
-![Fig.1 - Red de ejemplo EAM](images/network/eam.svg)
+![Fig.1 - Red de ejemplo EAM](/es/images/network/eam.svg)
 
 (_T_ representa "Translating box" en español "Caja de traducción".)
 
