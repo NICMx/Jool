@@ -102,12 +102,6 @@ int eam_count(void)
 	return netlink_request(&request, request.length, eam_count_response, NULL);
 }
 
-static int eam_add_response(struct nl_msg *msg, void *arg)
-{
-	log_info("The EAM entry was added successfully.");
-	return 0;
-}
-
 int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -118,13 +112,7 @@ int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	payload->add.prefix4 = *prefix4;
 	payload->add.prefix6 = *prefix6;
 
-	return netlink_request(request, hdr->length, eam_add_response, NULL);
-}
-
-static int eam_remove_response(struct nl_msg *msg, void *arg)
-{
-	log_info("The EAM entry was removed successfully.");
-	return 0;
+	return netlink_request(request, hdr->length, NULL, NULL);
 }
 
 int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
@@ -140,18 +128,12 @@ int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
 	payload->rm.prefix6_set = pref6_set;
 	payload->rm.prefix6 = *prefix6;
 
-	return netlink_request(request, hdr->length, eam_remove_response, NULL);
-}
-
-static int eam_flush_response(struct nl_msg *msg, void *arg)
-{
-	log_info("The EAM table was flushed successfully.");
-	return 0;
+	return netlink_request(request, hdr->length, NULL, NULL);
 }
 
 int eam_flush()
 {
 	struct request_hdr request;
 	init_request_hdr(&request, sizeof(request), MODE_EAMT, OP_FLUSH);
-	return netlink_request(&request, request.length, eam_flush_response, NULL);
+	return netlink_request(&request, request.length, NULL, NULL);
 }

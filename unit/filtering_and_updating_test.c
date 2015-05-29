@@ -5,7 +5,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Roberto Aceves");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Unit tests for the Filtering module");
-MODULE_ALIAS("nat64_test_filtering");
 
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"

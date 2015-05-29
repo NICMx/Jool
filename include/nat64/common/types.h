@@ -138,6 +138,12 @@ struct port_range {
 	__u16 max;
 };
 
+struct pool4_sample {
+	__u32 mark;
+	struct in_addr addr;
+	struct port_range range;
+};
+
 bool port_range_equals(const struct port_range *r1,
 		const struct port_range *r2);
 bool port_range_touches(const struct port_range *r1,

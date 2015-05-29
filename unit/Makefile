@@ -21,9 +21,7 @@ POOL4DB = pool4db
 BIB = bib
 SESSION = session
 FRAGDB = fragdb
-INCOMING = incoming
 FILTERING = filtering
-OUTGOING = outgoing
 TRANSLATE = translate
 CONFIG_PROTO = config_proto
 LOGTIME = logtime
@@ -41,16 +39,14 @@ obj-m += $(POOL4DB).o
 obj-m += $(BIB).o
 obj-m += $(SESSION).o
 obj-m += $(FRAGDB).o
-obj-m += $(INCOMING).o
 obj-m += $(FILTERING).o
-obj-m += $(OUTGOING).o
 obj-m += $(TRANSLATE).o
 obj-m += $(CONFIG_PROTO).o
-#obj-m += $(LOGTIME).o
-# Note, this is compiling with -DSTATEFUL, even though is part of the stateless
-# translator.
-# At the moment this doesn't cause any trouble, but it means we might need to
-# refactor this Makefile to make better room for stateless tests.
+##obj-m += $(LOGTIME).o
+## Note, this is compiling with -DSTATEFUL, even though is part of the stateless
+## translator.
+## At the moment this doesn't cause any trouble, but it means we might need to
+## refactor this Makefile to make better room for stateless tests.
 obj-m += $(EAMT).o
 obj-m += $(PALLOC).o
 
@@ -119,14 +115,6 @@ $(FRAGDB)-objs += framework/skb_generator.o
 $(FRAGDB)-objs += framework/types.o
 $(FRAGDB)-objs += fragment_db_test.o
 
-$(INCOMING)-objs += $(MIN_REQS)
-$(INCOMING)-objs += ../mod/common/ipv6_hdr_iterator.o
-$(INCOMING)-objs += ../mod/common/packet.o
-$(INCOMING)-objs += framework/skb_generator.o
-$(INCOMING)-objs += framework/types.o
-$(INCOMING)-objs += impersonator/icmp_wrapper.o
-$(INCOMING)-objs += determine_incoming_tuple_test.o
-
 $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../mod/common/config.o
 $(FILTERING)-objs += ../mod/common/packet.o
@@ -151,21 +139,6 @@ $(FILTERING)-objs += impersonator/icmp_wrapper.o
 $(FILTERING)-objs += impersonator/route.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 
-$(OUTGOING)-objs += $(MIN_REQS)
-$(OUTGOING)-objs += ../mod/common/config.o
-$(OUTGOING)-objs += ../mod/common/rbtree.o
-$(OUTGOING)-objs += ../mod/stateful/session/entry.o
-$(OUTGOING)-objs += ../mod/stateful/session/table.o
-$(OUTGOING)-objs += ../mod/stateful/session/db.o
-$(OUTGOING)-objs += ../mod/stateful/session/pkt_queue.o
-$(OUTGOING)-objs += ../mod/stateful/compute_outgoing_tuple.o
-$(OUTGOING)-objs += framework/session.o
-$(OUTGOING)-objs += framework/types.o
-$(OUTGOING)-objs += impersonator/bib.o
-$(OUTGOING)-objs += impersonator/icmp_wrapper.o
-$(OUTGOING)-objs += impersonator/route.o
-$(OUTGOING)-objs += compute_outgoing_tuple_test.o
-
 $(TRANSLATE)-objs += $(MIN_REQS)
 $(TRANSLATE)-objs += ../mod/common/config.o
 $(TRANSLATE)-objs += ../mod/common/ipv6_hdr_iterator.o
@@ -180,7 +153,7 @@ $(TRANSLATE)-objs += translate_packet_test.o
 
 $(CONFIG_PROTO)-objs += $(MIN_REQS)
 $(CONFIG_PROTO)-objs += ../mod/common/config.o
-$(CONFIG_PROTO)-objs += nl_handler_test.o
+$(CONFIG_PROTO)-objs += config_test.o
 
 $(LOGTIME)-objs += $(MIN_REQS)
 $(LOGTIME)-objs += log_time_test.o
@@ -206,9 +179,7 @@ test:
 	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
 	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
-	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
-	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
 	#-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)

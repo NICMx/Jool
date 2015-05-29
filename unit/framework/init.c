@@ -7,21 +7,16 @@
 
 bool init_full(void)
 {
-	char *prefixes6[] = { "3::/96" };
-	char *prefixes4[] = { "192.0.2.2/32" };
-	int error;
+	unsigned char *prefixes6[] = { "3::/96" };
+	unsigned char *prefixes4[] = { "192.0.2.2/32" };
 
-	error = config_init(false);
-	if (error)
+	if (config_init(false))
 		goto config_fail;
-	error = pool6_init(prefixes6, ARRAY_SIZE(prefixes6));
-	if (error)
+	if (pool6_init(prefixes6, ARRAY_SIZE(prefixes6)))
 		goto pool6_fail;
-	error = pool4db_init(16, prefixes4, ARRAY_SIZE(prefixes4));
-	if (error)
+	if (pool4db_init(16, prefixes4, ARRAY_SIZE(prefixes4)))
 		goto pool4_fail;
-	error = filtering_init();
-	if (error)
+	if (filtering_init())
 		goto filtering_fail;
 
 	return true;

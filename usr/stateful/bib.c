@@ -208,10 +208,10 @@ int bib_remove(bool use_tcp, bool use_udp, bool use_icmp,
 	struct request_bib *payload = (struct request_bib *) (request + HDR_LEN);
 
 	init_request_hdr(hdr, sizeof(request), MODE_BIB, OP_REMOVE);
-	payload->remove.addr6_set = addr6_set;
-	payload->remove.addr6 = *addr6;
-	payload->remove.addr4_set = addr4_set;
-	payload->remove.addr4 = *addr4;
+	payload->rm.addr6_set = addr6_set;
+	payload->rm.addr6 = *addr6;
+	payload->rm.addr4_set = addr4_set;
+	payload->rm.addr4 = *addr4;
 
 	return exec_request(use_tcp, use_udp, use_icmp, hdr, payload, bib_remove_response);
 }

@@ -107,12 +107,6 @@ int global_display(void)
 	return netlink_request(&request, request.length, handle_display_response, NULL);
 }
 
-static int handle_update_response(struct nl_msg *msg, void *arg)
-{
-	log_info("Value changed successfully.");
-	return 0;
-}
-
 int global_update(__u8 type, size_t size, void *data)
 {
 	struct request_hdr *main_hdr;
@@ -132,7 +126,7 @@ int global_update(__u8 type, size_t size, void *data)
 	global_hdr->update.type = type;
 	memcpy(payload, data, size);
 
-	result = netlink_request(main_hdr, len, handle_update_response, NULL);
+	result = netlink_request(main_hdr, len, NULL, NULL);
 	free(main_hdr);
 	return result;
 }

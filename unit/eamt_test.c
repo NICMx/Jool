@@ -13,7 +13,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
 MODULE_AUTHOR("aleiva");
 MODULE_DESCRIPTION("Unit tests for the EAMT module");
-MODULE_ALIAS("nat64_test_address_mapping");
 
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"

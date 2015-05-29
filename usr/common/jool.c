@@ -47,7 +47,9 @@ struct arguments {
 		} pool6;
 
 		struct {
+			__u32 mark;
 			struct ipv4_prefix prefix;
+			struct port_range ports;
 			bool prefix_set;
 		} pool4;
 
@@ -99,6 +101,7 @@ enum argp_flags {
 	ARGP_PREFIX = 1000,
 	ARGP_ADDRESS = 1001,
 	ARGP_QUICK = 'q',
+	ARGP_MARK = 'm',
 
 	/* BIB, session */
 	ARGP_TCP = 't',
@@ -185,7 +188,12 @@ static struct argp_option options[] =
 #ifdef STATEFUL
 	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 4 },
 	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
-			"Available on remove and flush operations only. " },
+			"Available on remove and flush operations only." },
+
+	{ NULL, 0, NULL, 0, "IPv4 Pool only options:", 4 },
+	{ "mark", ARGP_MARK, NUM_FORMAT, 0,
+			"Only packets carrying this mark will match this pool4 entry. "
+			"Available on add and remove operations only." },
 
 	{ NULL, 0, NULL, 0, "BIB & Session options:", 5 },
 	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
@@ -592,6 +600,11 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_POOL6 | MODE_POOL4, OP_REMOVE | OP_FLUSH);
 		args->db.quick = true;
 		break;
+	case ARGP_MARK:
+		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+		if (!error)
+			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
+		break;
 
 	case ARGP_BIB_IPV6:
 		error = set_bib6(args, str);
@@ -739,6 +752,8 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	memset(result, 0, sizeof(*result));
 	result->mode = 0xFFFF;
 	result->op = 0xFF;
+	result->db.pool4.ports.min = 60000U;
+	result->db.pool4.ports.max = 65535U;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
 	if (error)
@@ -828,13 +843,17 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_add(args.mode, &args.db.pool4.prefix);
+			return pool4_add(args.mode, args.db.pool4.mark,
+					&args.db.pool4.prefix,
+					&args.db.pool4.ports);
 		case OP_REMOVE:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_remove(args.mode, &args.db.pool4.prefix, args.db.quick);
+			return pool4_remove(args.mode, args.db.pool4.mark,
+					&args.db.pool4.prefix,
+					&args.db.pool4.ports, args.db.quick);
 		case OP_FLUSH:
 			return pool4_flush(args.mode, args.db.quick);
 		default:

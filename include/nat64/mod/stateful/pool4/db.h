@@ -32,8 +32,7 @@ bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr);
 bool pool4db_contains_all(struct ipv4_transport_addr *addr);
 bool pool4db_is_empty(void);
 
-int pool4db_foreach_sample(const __u32 mark,
-		int (*func)(struct pool4_sample *, void *), void *arg,
+int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
 int pool4db_foreach_taddr4(const __u32 mark,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,

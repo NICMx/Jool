@@ -6,7 +6,7 @@
 #include "bib/db.c"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alberto Leiva Popper");
+MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB module test.");
 
 const l4_protocol PROTO = L4PROTO_TCP;
@@ -92,14 +92,14 @@ static bool insert_test_bibs(void)
 	memset(bibs4, 0, sizeof(bibs4));
 	memset(bibs6, 0, sizeof(bibs6));
 
-	bibs[0] = bib_inject_str("2001:db8::2", 18, "192.0.2.3", 20, PROTO);
-	bibs[1] = bib_inject_str("2001:db8::0", 10, "192.0.2.1", 21, PROTO);
-	bibs[2] = bib_inject_str("2001:db8::0", 20, "192.0.2.2", 12, PROTO);
-	bibs[3] = bib_inject_str("2001:db8::3", 10, "192.0.2.3", 10, PROTO);
-	bibs[4] = bib_inject_str("2001:db8::3", 20, "192.0.2.2", 22, PROTO);
-	bibs[5] = bib_inject_str("2001:db8::1", 19, "192.0.2.0", 20, PROTO);
-	bibs[6] = bib_inject_str("2001:db8::2", 8, "192.0.2.0", 10, PROTO);
-	bibs[7] = bib_inject_str("2001:db8::1", 9, "192.0.2.1", 11, PROTO);
+	bibs[0] = bib_inject("2001:db8::2", 18, "192.0.2.3", 20, PROTO);
+	bibs[1] = bib_inject("2001:db8::0", 10, "192.0.2.1", 21, PROTO);
+	bibs[2] = bib_inject("2001:db8::0", 20, "192.0.2.2", 12, PROTO);
+	bibs[3] = bib_inject("2001:db8::3", 10, "192.0.2.3", 10, PROTO);
+	bibs[4] = bib_inject("2001:db8::3", 20, "192.0.2.2", 22, PROTO);
+	bibs[5] = bib_inject("2001:db8::1", 19, "192.0.2.0", 20, PROTO);
+	bibs[6] = bib_inject("2001:db8::2", 8, "192.0.2.0", 10, PROTO);
+	bibs[7] = bib_inject("2001:db8::1", 9, "192.0.2.1", 11, PROTO);
 	for (i = 0; i < ARRAY_SIZE(bibs); i++) {
 		if (!bibs[i]) {
 			log_debug("Allocation failed in index %u.", i);

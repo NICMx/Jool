@@ -3,11 +3,6 @@
 
 #include "nat64/common/types.h"
 
-struct pool4_sample {
-	struct in_addr addr;
-	struct port_range range;
-};
-
 struct pool4_ports {
 	struct port_range range;
 	/* Links this pool4_ports to its address's "ports" list. */

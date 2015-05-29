@@ -88,6 +88,19 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 	return 0;
 }
 
+int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
+{
+	__u64 result;
+	int error;
+
+	error = str_to_u64(str, &result, (__u64) min, (__u64) max);
+	if (error)
+		return error; /* Error msg already printed. */
+
+	*u32_out = result;
+	return 0;
+}
+
 int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 {
 	__u64 result;

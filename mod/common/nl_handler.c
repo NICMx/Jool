@@ -246,8 +246,7 @@ static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
 	struct nl_buffer *buffer;
-	struct pool4_sample offset;
-	struct pool4_sample *offset_ptr = NULL;
+	struct pool4_sample *offset = NULL;
 	int error;
 
 	log_debug("Sending IPv4 pool to userspace.");
@@ -256,13 +255,10 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	if (request->display.offset_set) {
-		offset.addr = request->display.offset.addr;
-		offset.range = request->display.offset.ports;
-		offset_ptr = &offset;
-	}
+	if (request->display.offset_set)
+		offset = &request->display.offset;
 
-	error = pool4db_foreach_sample(request->display.mark, pool4_to_usr, buffer, &offset);
+	error = pool4db_foreach_sample(pool4_to_usr, buffer, offset);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);

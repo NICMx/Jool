@@ -253,24 +253,43 @@ end:
 	return empty;
 }
 
-int pool4db_foreach_sample(const __u32 mark,
-		int (*func)(struct pool4_sample *, void *), void *arg,
+int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset)
 {
 	struct pool4_table *table;
-	int error;
+	struct hlist_node *node;
+	u32 hash = offset ? hash_32(offset->mark, power) : 0;
+	int error = 0;
+
 	rcu_read_lock();
 
-	table = find_table(mark);
-	error = table ? pool4table_foreach_sample(table, func, arg, offset)
-			: -ESRCH;
+	for (; hash < slots(); hash++) {
+		hlist_for_each(node, &db[hash]) {
+			table = table_entry(node);
+			if (offset) {
+				if (table->mark == offset->mark) {
+					error = pool4table_foreach_sample(table,
+							cb, arg, offset);
+					if (error)
+						goto end;
+					offset = NULL;
+				}
+			} else {
+				error = pool4table_foreach_sample(table, cb,
+						arg, NULL);
+				if (error)
+					goto end;
+			}
+		}
+	}
 
+end:
 	rcu_read_unlock();
 	return error;
 }
 
 int pool4db_foreach_taddr4(const __u32 mark,
-		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
+		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
 	struct pool4_table *table;
@@ -278,7 +297,7 @@ int pool4db_foreach_taddr4(const __u32 mark,
 	rcu_read_lock();
 
 	table = find_table(mark);
-	error = table ? pool4table_foreach_tadd4(table, func, arg, offset)
+	error = table ? pool4table_foreach_tadd4(table, cb, arg, offset)
 			: -ESRCH;
 
 	rcu_read_unlock();

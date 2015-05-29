@@ -301,7 +301,7 @@ int pool4table_foreach_sample(struct pool4_table *table,
 {
 	struct pool4_addr *addr;
 	struct pool4_ports *ports;
-	struct pool4_sample sample;
+	struct pool4_sample sample = { .mark = table->mark };
 	int error = offset ? -ESRCH : 0;
 
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {

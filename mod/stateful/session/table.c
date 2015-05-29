@@ -256,6 +256,10 @@ static void cleaner_timer(unsigned long param)
 		decide_fate(expirer->decide_fate_cb, NULL, expirer->table,
 				session, &rms, &probes);
 	}
+
+	if (!list_empty(&expirer->sessions))
+		reschedule(expirer);
+
 	spin_unlock_bh(&expirer->table->lock);
 
 	post_fate(&rms, &probes);

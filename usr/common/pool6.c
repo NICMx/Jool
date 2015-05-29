@@ -59,7 +59,7 @@ int pool6_display(void)
 
 	if (!error) {
 		if (args.row_count > 0)
-			log_info("  (Fetched %u prefixes.)", args.row_count);
+			log_info("  (Fetched %u entries.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}
@@ -81,12 +81,6 @@ int pool6_count(void)
 	return netlink_request(&request, request.length, pool6_count_response, NULL);
 }
 
-static int pool6_add_response(struct nl_msg *msg, void *arg)
-{
-	log_info("The prefix was added successfully.");
-	return 0;
-}
-
 int pool6_add(struct ipv6_prefix *prefix)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -96,13 +90,7 @@ int pool6_add(struct ipv6_prefix *prefix)
 	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_ADD);
 	payload->add.prefix = *prefix;
 
-	return netlink_request(request, hdr->length, pool6_add_response, NULL);
-}
-
-static int pool6_remove_response(struct nl_msg *msg, void *arg)
-{
-	log_info("The prefix was removed successfully.");
-	return 0;
+	return netlink_request(request, hdr->length, NULL, NULL);
 }
 
 int pool6_remove(struct ipv6_prefix *prefix, bool quick)
@@ -115,13 +103,7 @@ int pool6_remove(struct ipv6_prefix *prefix, bool quick)
 	payload->rm.prefix = *prefix;
 	payload->rm.quick = quick;
 
-	return netlink_request(request, hdr->length, pool6_remove_response, NULL);
-}
-
-static int pool6_flush_response(struct nl_msg *msg, void *arg)
-{
-	log_info("The IPv6 pool was flushed successfully.");
-	return 0;
+	return netlink_request(request, hdr->length, NULL, NULL);
 }
 
 int pool6_flush(bool quick)
@@ -133,5 +115,5 @@ int pool6_flush(bool quick)
 	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_FLUSH);
 	payload->flush.quick = quick;
 
-	return netlink_request(&request, hdr->length, pool6_flush_response, NULL);
+	return netlink_request(&request, hdr->length, NULL, NULL);
 }

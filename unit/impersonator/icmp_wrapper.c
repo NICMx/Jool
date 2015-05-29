@@ -5,7 +5,7 @@ static int sent = 0;
 
 void icmp64_send(struct packet *pkt, icmp_error_code code, __u32 info)
 {
-	log_debug("Pretending I'm sending a ICMP error.");
+	log_debug("Pretending I'm sending an ICMP error.");
 	sent++;
 }
 

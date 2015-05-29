@@ -4,7 +4,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the Packet queue module");
-MODULE_ALIAS("nat64_test_pkt_queue");
 
 #include "nat64/unit/unit_test.h"
 #include "nat64/mod/common/config.h"

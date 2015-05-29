@@ -124,7 +124,7 @@ enum config_operation {
  */
 struct request_hdr {
 	/** Protocol magic header (always "jool"). */
-	char magic[4];
+	unsigned char magic[4];
 	/** Translation type (SIIT or NAT64) */
 	unsigned char type;
 	/** Jool's version. */
@@ -184,12 +184,8 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
-		__u32 mark;
 		__u8 offset_set;
-		struct {
-			struct in_addr addr;
-			struct port_range ports;
-		} offset;
+		struct pool4_sample offset;
 	} display;
 	struct {
 		__u32 mark;

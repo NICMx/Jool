@@ -380,7 +380,7 @@ int init_module(void)
 	START_TESTS("Session");
 
 	INIT_CALL_END(init(), simple_session(), end(), "Single Session");
-	INIT_CALL_END(init(), test_allow(), end(), "Address-dependent filtering.");
+	INIT_CALL_END(init(), test_allow(), end(), "Allow function");
 
 	END_TESTS;
 }

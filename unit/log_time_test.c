@@ -14,7 +14,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the log_time_module");
-MODULE_ALIAS("nat64_test_log_time");
 
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"

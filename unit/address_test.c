@@ -4,7 +4,7 @@
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
+MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Address module test.");
 
 static bool test_count(__u8 prefix_len, __u64 expected)

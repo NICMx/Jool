@@ -236,5 +236,5 @@ void cleanup_module(void)
 }
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
+MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Hash table module test.");
