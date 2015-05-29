@@ -36,19 +36,19 @@ Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lad
 
 ### Operaciones
 
-* `--display`: Los prefijos del Pool son impresos a la salida estandar. Esta es la operación por default.
-* `--count`: El número de prefijos en el pool es impreso a la salida estandar.
-* `--add`: Carga `<prefix>`al pool.
+* `--display`: Muestra los prefijos dados de alta y activos del Pool.<br /> Operación por Omisión
+* `--count`: Muestra la cantidad de prefijos dados de alta y activos del Pool.
+* `--add`: Agrega el `<prefix>`al pool.
 * `--remove`: Borra de las tablas el prefijo `<prefix>`.
 * `--flush`: Remueve todos los prefijos del pool.
 
 ### `--quick`
 
-Ve [`--quick`](esp-usr-flags-quick.html). Solo disponible en Jool Stateful.
+Ver [`--quick`](esp-usr-flags-quick.html). Solo disponible en NAT64 Stateful.
 
 ## Ejemplos
 
-Despliega los prefijos actuales:
+Despliega los prefijos activos:
 
 {% highlight bash %}
 $ jool --pool6 --display
@@ -56,20 +56,20 @@ $ jool --pool6 --display
   (Fetched 1 prefixes.)
 {% endhighlight %}
 
-Despliega sólo la cantidad de prefijos:
+Despliega el número de prefijos activos:
 
 {% highlight bash %}
 $ jool --pool6 --count
 1
 {% endhighlight %}
 
-Remueve el prefijo por default:
+Remueve el prefijo por omisión (64:ff9b::/96):
 
 {% highlight bash %}
 $ jool --pool6 --remove 64:ff9b::/96
 {% endhighlight %}
 
-Añade un simple prefijo:
+Añade un simple prefijo (2001:db8::/64):
 
 {% highlight bash %}
 $ jool --pool6 --add 2001:db8::/64

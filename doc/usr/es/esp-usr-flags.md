@@ -13,7 +13,7 @@ Esta recopilación de documentos explican los parámetros configurables de Jool 
 
 NOTAS:
 
-Si todavía no has generado los ejecutables, ve a [instrucciones de compilación e instalación](esp-usr-install.html).
+Si todavía no has generado los ejecutables, ve a [instrucciones de compilación e instalación](esp-usr-install.html).<br />
 Las opciones de despliegue no requieren privilegios de administrador de red, <br />
 pero todos los de configuración sí. Consulte:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
 
