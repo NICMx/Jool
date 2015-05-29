@@ -8,7 +8,7 @@ Bienvenido al índice de la documentación de Jool.
 1. [Qué es SIIT/NAT64?](esp-intro-nat64.html)
 2. [Qué es Jool?](esp-intro-jool.html)
 
-Vea [RFC 6586](https://tools.ietf.org/html/rfc6586) Para experiencias de desarrollo usando Stateful NAT64.
+Vea [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de desarrollo usando NAT64 Stateful.
 
 ## Instalación
 1. [Servidor Jool](esp-mod-install.html)
@@ -19,7 +19,7 @@ Vea [RFC 6586](https://tools.ietf.org/html/rfc6586) Para experiencias de desarro
 	1. [RFC 6791](misc)
 2. [SIIT +EAM](esp-mod-run-eam.html)
 	1. [EAMT](esp-misc-eamt.html)
-3. [Stateful NAT64](esp-mod-run-stateful.html)
+3. [NAT64 Stateful](esp-mod-run-stateful.html)
 	1. [pool IPv4](esp-op-pool4.html)
     2. [BIB](esp-misc-bib.html)
     3. [Mapeos Estáticos](esp-op-static-bindings.html)
