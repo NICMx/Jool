@@ -1,19 +1,21 @@
 ---
 layout: documentation
-title: Documentación - Parámetros de la Aplicación de espacio de usuario
+title: Documentación - Parámetros de la Herramienta de Configuración
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > Parámetros
+[Documentación](esp-doc-index.html) > [Parámetros de la Herramienta de Configuración](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > Parámetros
 
 # Parámetros
 
 ## Introducción
 
-Esta recopilación de documentos explica los parámetro y opciones de la Aplicaciónes de espacio de usuario de Jool (`jool_siit` and `jool`).
+Esta recopilación de documentos explican los parámetros configurables de Jool en sus dos modalidades: SIIT (`jool_siit`) y NAT64 Stateful (`jool`).
 
-Mira las instrucciones de [compilación e instalación](esp-usr-install.html) si todavia no tienes los binarios.
+NOTAS:
 
-Si un comando cambia el comportamiento de Jool, necesita privilegios de administrador de red ([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
+    Si todavía no has generado los ejecutables, ve a [instrucciones de compilación e instalación](esp-usr-install.html) .
+
+    Las opciones de despliegue no requieren privilegios de administrador de red, pero todos los de configuración sí. Consulte:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
 
 ## Índice
 
@@ -25,13 +27,13 @@ Opciones comunes:
 	2. [MTU Plateaus (Example)](esp-usr-flags-plateaus.html)
 3. [`--pool6`](esp-usr-flags-pool6.html)
 
-opciones solo de `jool_siit:
+Opciones exclusivas de `jool_siit`:
 
 1. [`--eamt`](esp-usr-flags-eamt.html)
 2. [`--blacklist`](esp-usr-flags-blacklist.html)
 2. [`--pool6791`](esp-usr-flags-pool6791.html)
 
-`jool`-only options:
+Opciones exclusivas de `jool`:
 
 4. [`--pool4`](esp-usr-flags-pool4.html)
 1. [`--bib`](esp-usr-flags-bib.html)

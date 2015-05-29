@@ -3,11 +3,11 @@ layout: documentation
 title: Documentación - Parámetros > Ayuda
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--help
+[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--help
 
 # \--help
 
-## Índice
+## Indice
 
 1. [Descripción](#description)
 2. [Sintaxis](#sintaxis)
@@ -15,11 +15,11 @@ title: Documentación - Parámetros > Ayuda
 
 ## Descripción
 
-Imprime en su mayor parte un resumen de la [documentación de los parámetros de la aplicación de espacio de usuario](esp-usr-flags.html), aunque tambien  puedes utilizarla para repasar la forma abreviada de los parámetros, que no se encuentran ahí.
+Imprime un resumen de la [documentación de los parámetros configurables de Jool](esp-usr-flags.html), y muestra la formas abreviadas.
 
-`--help` es el único modo que no necesita el respectivo módulo de kernel activo.
+`--help` es la única opción que no necesita que Jool este activo.
 
-Quizá tambien estés interesado en `man jool_siit`/`man jool`, el cual imprime un mejor resumen de la gramática.
+Para mayor información, consulta `man jool_siit`/`man jool`.
 
 ## Sintaxis
 

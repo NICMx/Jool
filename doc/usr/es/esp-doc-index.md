@@ -1,18 +1,18 @@
 
 # Documentación
 
-Bienvenido al indice de la documentación de Jool.
+Bienvenido al índice de la documentación de Jool.
 
 ## Introducción
 
 1. [Qué es SIIT/NAT64?](esp-intro-nat64.html)
 2. [Qué es Jool?](esp-intro-jool.html)
 
-Vea [RFC 6586](https://tools.ietf.org/html/rfc6586) Para experiencias de deployment usando Stateful NAT64.
+Vea [RFC 6586](https://tools.ietf.org/html/rfc6586) Para experiencias de desarrollo usando Stateful NAT64.
 
 ## Instalación
-1. [Módulo del Kernel](esp-mod-install.html)
-2. [Aplicación modo Usuario](esp-usr-install.html)
+1. [Servidor Jool](esp-mod-install.html)
+2. [Herramienta de Configuración](esp-usr-install.html)
 
 ## Ejemplos de uso
 1. [SIIT](esp-mod-run-vanilla.html)
@@ -26,7 +26,7 @@ Vea [RFC 6586](https://tools.ietf.org/html/rfc6586) Para experiencias de deploym
 4. [DNS64](esp-op-dns64.html)
 5. [464XLAT - SIIIT/DC Modo de traducción dual](esp-mod-run-464xlat.html)
 
-## Aplicación a nivel de usuario
+## Herramienta de Configuración
 
 1. [Banderas](esp-usr-flags.html)
 
