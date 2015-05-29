@@ -36,7 +36,7 @@ Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lad
 
 ### Operaciones
 
-* `--display`: Muestra los prefijos dados de alta y activos del Pool.<br /> Operación por Omisión
+* `--display`: Muestra los prefijos dados de alta y activos del Pool. Operación por Omisión
 * `--count`: Muestra la cantidad de prefijos dados de alta y activos del Pool.
 * `--add`: Agrega el `<prefix>`al pool.
 * `--remove`: Borra de las tablas el prefijo `<prefix>`.
@@ -44,7 +44,7 @@ Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lad
 
 ### `--quick`
 
-Ver [`--quick`](esp-usr-flags-quick.html). Solo disponible en NAT64 Stateful.
+Ver [`--quick`](esp-usr-flags-quick.html). Solo disponible en `jool`.
 
 ## Ejemplos
 
@@ -75,7 +75,7 @@ Añade un simple prefijo (2001:db8::/64):
 $ jool --pool6 --add 2001:db8::/64
 {% endhighlight %}
 
-Destruye todos los prefijos. No te molestes limpiando la basura:
+Destruye todos los prefijos. Solo elimina el proceso principal:
 
 {% highlight bash %}
 $ jool --pool6 --flush --quick

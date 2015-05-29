@@ -15,7 +15,7 @@ title: Documentación - Parámetros > Ayuda
 
 ## Descripción
 
-Imprime un resumen de la [documentación de los parámetros configurables de Jool](esp-usr-flags.html), y muestra la formas abreviadas.
+Imprime un resumen de la [documentación de los parámetros elegibles de Jool](esp-usr-flags.html), y muestra la formas abreviadas.
 
 `--help` es la única opción que no necesita que Jool este activo.
 
