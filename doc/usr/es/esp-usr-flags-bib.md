@@ -48,7 +48,7 @@ El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces
 
 ### `--numeric`
 
-La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si tus nameservers no estan respondiendo, esto retardará la salida_.
+La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si tus nameservers no están respondiendo, esto retardará la salida_.
 
 Utiliza `--numeric` para desactivar este comportamiento.
 
@@ -82,8 +82,8 @@ Premisas:
 
 Despliega la base de datos entera:
 
-{% highlight bash %}
-$ jool --bib --display
+{% highlight bash %}<br />
+$ jool --bib --display<br />
 TCP:
 [Dynamic] 4.4.4.4#1234 - potato.mx#1234
   (Fetched 1 entries.)
