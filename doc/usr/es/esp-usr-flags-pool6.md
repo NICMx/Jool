@@ -3,7 +3,7 @@ layout: documentation
 title: Documentación - Parámetros > Pool IPv6
 ---
 
-[Documentation](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--pool6
+[Documentation](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--pool6
 
 # \--pool6
 
@@ -18,7 +18,7 @@ title: Documentación - Parámetros > Pool IPv6
 
 ## Descripción
 
-Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lado IPv6 son procesados; si la dirección de destino de un paquete entrante tiene uno de los prefijos IPv6, el paquete es traducido. De otra manera es entregado al kernel para ser redireccionado de alguna manera o ser entregado a las capas superiores.
+Interactua con el pool IPv6 de Jool. El pool6 dicta que paquetes viniendo del lado IPv6 son procesados; si la dirección de destino de un paquete entrante tiene uno de los prefijos IPv6, el paquete es traducido por Jool. De otra manera es entregado al kernel para ser redireccionado de alguna manera o ser entregado a las capas superiores.
 
 
 
@@ -36,11 +36,11 @@ Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lad
 
 ### Operaciones
 
-* `--display`: Muestra los prefijos dados de alta y activos del Pool. Operación por Omisión
-* `--count`: Muestra la cantidad de prefijos dados de alta y activos del Pool.
-* `--add`: Agrega el `<prefix>`al pool.
-* `--remove`: Borra de las tablas el prefijo `<prefix>`.
-* `--flush`: Remueve todos los prefijos del pool.
+* `--display`: Muestra los prefijos dados de alta y activos del pool6. Operación por Omisión
+* `--count`: Muestra la cantidad de prefijos dados de alta y activos del pool6.
+* `--add`: Agrega el `<prefix>`al pool6.
+* `--remove`: Borra de la tabla el prefijo `<prefix>`.
+* `--flush`: Remueve todos los prefijos del pool6.
 
 ### `--quick`
 
@@ -56,7 +56,7 @@ $ jool --pool6 --display
   (Fetched 1 prefixes.)
 {% endhighlight %}
 
-Despliega el número de prefijos activos:
+Muestra el número de prefijos activos:
 
 {% highlight bash %}
 $ jool --pool6 --count
@@ -75,7 +75,7 @@ Añade un simple prefijo (2001:db8::/64):
 $ jool --pool6 --add 2001:db8::/64
 {% endhighlight %}
 
-Destruye todos los prefijos. Solo elimina el proceso principal:
+Destruye todos los prefijos, y cancela el servicio hacia o desde estas direcciones:
 
 {% highlight bash %}
 $ jool --pool6 --flush --quick

@@ -9,13 +9,13 @@ title: Documentación - Parámetros de la Herramienta de Configuración
 
 ## Introducción
 
-Esta recopilación de documentos explican los parámetros configurables de Jool en sus dos modalidades: SIIT (`jool_siit`) y NAT64 Stateful (`jool`).
+Esta recopilación de documentos explican que parámetros existen para las dos modalidades: SIIT (`jool_siit`) y NAT64 Stateful (`jool`).
 
 NOTAS:
 
 Si todavía no has generado los ejecutables, ve a [instrucciones de compilación e instalación](esp-usr-install.html).<br />
-Las opciones de despliegue no requieren privilegios de administrador de red, <br />
-pero todos los de configuración sí. Consulte:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
+Las opciones de despliegue NO requieren privilegios de administrador de red, <br />
+pero todos los de configuración SÍ. Consulta:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
 
 ## Índice
 
