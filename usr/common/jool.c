@@ -492,6 +492,23 @@ static int set_bib4(struct arguments *args, char *str)
 	return str_to_addr4_port(str, &args->db.tables.bib.addr4);
 }
 
+static int set_port_range(struct arguments *args, char *str)
+{
+	int error;
+
+	if (nat64_is_stateless()) {
+		log_err("You seem to have entered a port range. "
+				"SIIT doesn't need them...");
+		return -EINVAL;
+	}
+
+	error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
+	if (error)
+		return error;
+
+	return str_to_port_range(str, &args->db.pool4.ports);
+}
+
 static int set_ip_args(struct arguments *args, char *str)
 {
 	int error;
@@ -502,18 +519,22 @@ static int set_ip_args(struct arguments *args, char *str)
 	if (strlen(str) == 0)
 		return 0;
 
-	if (strchr(str, ':')) { /* This is supposed to be an IPv6 string. */
-		if (strchr(str, '#')) { /* Supposed to be a BIB entry. */
+	if (strchr(str, ':')) { /* Token is an IPv6 thingy. */
+		if (strchr(str, '#')) { /* Token is a BIB entry. */
 			error = set_bib6(args, str);
 		} else { /* Just an IPv6 Prefix. */
 			error = set_ipv6_prefix(args, str);
 		}
-	} else { /* otherwise this is supposed to be an IPv4 string. */
-		if (strchr(str, '#')) { /* Supposed to be a BIB entry. */
+
+	} else if (strchr(str, '.')) { /* Token is an IPv4 thingy. */
+		if (strchr(str, '#')) { /* Token is a BIB entry. */
 			error = set_bib4(args, str);
 		} else { /* Just an IPv4 Prefix */
 			error = set_ipv4_prefix(args, str);
 		}
+
+	} else { /* Token is a port range. */
+		error = set_port_range(args, str);
 	}
 
 	return error;

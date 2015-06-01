@@ -681,11 +681,6 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 
 	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
-		/* ICMP errors should not be filtered or affect the tables. */
-		if (pkt_is_icmp6_error(pkt)) {
-			log_debug("Packet is ICMPv6 error; skipping step...");
-			return VERDICT_CONTINUE;
-		}
 		/* Get rid of hairpinning loops and unwanted packets. */
 		hdr_ip6 = pkt_ip6_hdr(pkt);
 		if (pool6_contains(&hdr_ip6->saddr)) {
@@ -693,21 +688,29 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 			inc_stats(pkt, IPSTATS_MIB_INADDRERRORS);
 			return VERDICT_DROP;
 		}
-		/*
-		 * The RFC wants another pool6 validation here. I removed it
-		 * because it's redundant. See core_6to4().
-		 */
+		if (!pool6_contains(&hdr_ip6->daddr)) {
+			log_debug("Packet does not belong to pool6.");
+			return VERDICT_ACCEPT;
+		}
+
+		/* ICMP errors should not be filtered or affect the tables. */
+		if (pkt_is_icmp6_error(pkt)) {
+			log_debug("Packet is ICMPv6 error; skipping step...");
+			return VERDICT_CONTINUE;
+		}
 		break;
 	case L3PROTO_IPV4:
+		/* Get rid of unexpected packets */
+		if (!pool4db_contains(pkt->skb->mark, &in_tuple->dst.addr4)) {
+			log_debug("Packet does not belong to pool4.");
+			return VERDICT_ACCEPT;
+		}
+
 		/* ICMP errors should not be filtered or affect the tables. */
 		if (pkt_is_icmp4_error(pkt)) {
 			log_debug("Packet is ICMPv4 error; skipping step...");
 			return VERDICT_CONTINUE;
 		}
-		/*
-		 * The RFC wants a pool4 validation here. I removed it because
-		 * it's redundant. See core_4to6() and is_hairpin().
-		 */
 		break;
 	}
 

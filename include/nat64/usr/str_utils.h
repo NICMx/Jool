@@ -38,7 +38,7 @@ int str_to_u64(const char *str, __u64 *out, __u64 min, __u64 max);
 /**
  * @}
  */
-
+int str_to_port_range(char *str, struct port_range *range);
 /**
  * Parses "str" as a comma-separated array of __u16s, which it then copies to "out".
  * It sets "out_len" as "out"'s length in elements (not bytes).
