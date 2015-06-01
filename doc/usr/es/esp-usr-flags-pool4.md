@@ -38,11 +38,11 @@ Debido a [fallas en la implementación actual](https://github.com/NICMx/NAT64/is
 
 ### Operaciones
 
-* `--display`: Lista los prefijos dados de alta y activos del pool4. Operación por Omisión
-* `--count`: Lista la cantidad de prefijos dados de alta y activos del pool4.
-* `--add`: Añade todas las direcciones de `<IPv4 prefix>` al pool4.
-* `--remove`: Borra del pool4 todas las direcciones de `<IPv4 prefix>`.
-* `--flush`: Remueve todas las direcciones del pool4.
+* `--display`: Lista los prefijos dados de alta y activos del pool. Operación por Omisión
+* `--count`: Lista la cantidad de prefijos dados de alta y activos del pool.
+* `--add`: Añade todas las direcciones de `<IPv4 prefix>` al pool.
+* `--remove`: Borra del pool todas las direcciones de `<IPv4 prefix>`.
+* `--flush`: Remueve todas las direcciones del pool.
 
 
 El valor por omisión de la longitud de `<IPv4 prefix>` es 32, asi que puedes añadir o remover direcciones en lugar de prefijos.

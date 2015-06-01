@@ -18,7 +18,7 @@ title: Documentación - Parámetros > Pool IPv6
 
 ## Descripción
 
-Interactua con el pool IPv6 de Jool. El pool6 dicta que paquetes viniendo del lado IPv6 son procesados; si la dirección de destino de un paquete entrante tiene uno de los prefijos IPv6, el paquete es traducido por Jool. De otra manera es entregado al kernel para ser redireccionado de alguna manera o ser entregado a las capas superiores.
+Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lado IPv6 son procesados; si la dirección de destino de un paquete entrante tiene uno de los prefijos IPv6, el paquete es traducido por Jool. De otra manera es entregado al kernel para ser redireccionado de alguna manera o ser entregado a las capas superiores.
 
 
 
@@ -36,11 +36,11 @@ Interactua con el pool IPv6 de Jool. El pool6 dicta que paquetes viniendo del la
 
 ### Operaciones
 
-* `--display`: Muestra los prefijos dados de alta y activos del pool6. Operación por Omisión
-* `--count`: Muestra la cantidad de prefijos dados de alta y activos del pool6.
-* `--add`: Agrega el `<prefix>`al pool6.
+* `--display`: Lista los prefijos dados de alta y activos del pool. Operación por Omisión
+* `--count`: Lista la cantidad de prefijos dados de alta y activos del pool.
+* `--add`: Agrega el `<prefix>`al pool.
 * `--remove`: Borra de la tabla el prefijo `<prefix>`.
-* `--flush`: Remueve todos los prefijos del pool6.
+* `--flush`: Remueve todos los prefijos del pool.
 
 ### `--quick`
 
@@ -69,7 +69,7 @@ Remueve el prefijo por omisión (64:ff9b::/96):
 $ jool --pool6 --remove 64:ff9b::/96
 {% endhighlight %}
 
-Añade un simple prefijo (2001:db8::/64):
+Añade un prefijo (2001:db8::/64):
 
 {% highlight bash %}
 $ jool --pool6 --add 2001:db8::/64
