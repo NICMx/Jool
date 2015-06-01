@@ -3,7 +3,7 @@ layout: documentation
 title: Documentación - Parámetros > Session
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--session
+[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--session
 
 # \--session
 
@@ -20,11 +20,11 @@ title: Documentación - Parámetros > Session
 
 ## Descripción
 
-Las sesiones existen mayormente para que el NAT64 decida cuando las entradas BIB deben morir. Tambien las puedes utilizar para saber exactamente quien le está hablando a tus nodos IPv6.
+Mediante el mecanismo de sesiones el NAT64 decide cuando las entradas BIB pierden validez y deben de ser eliminadas. Mediante estas puedes saber exactamente quien le está hablando a tus nodos de IPv6.
 
-Cada registro BIB es un mapeo, el cual describe el nombre IPv4 de uno de tus servicios IPv6. Para cada entrada BIB, hay cero o mas registros de session, de los cuales cada uno representa una conexión activa que actualmente esta utilizando ese mapeo. 
+Cada registro BIB es un mapeo, en el cual se guarda la relación entre un servicio en IPv4 y otro en IPv6. Para cada entrada BIB, hay cero o mas registros de sesiones. Estas representan las conexiones activas (BIBs en uso). 
 
-Puedes utilizar este comando para obtener información en cada una de estas conexiones.
+Este comando solo es informativo y con éste puedes obtener información detallada de cada una de tus conexiones.
 
 ## Sintaxis
 
@@ -35,37 +35,36 @@ Puedes utilizar este comando para obtener información en cada una de estas cone
 
 ### Operaciones
 
-* `--display`: Las tablas de sesión son impresas en la salida estandar. Esta es la operación por default.
-* `--count`: El número de registros por tabla de sesión es impreso en la salida estandar.
+* `--display`: Lista las tablas de sesión. Operación por omisión.
+* `--count`: Lista la cantidad de registros por tabla de sesión.
 
 ### `<protocols>`
 
 	<protocols> := [--tcp] [--udp] [--icmp]
 
-El comando va a operar en las tablas mencionadas aquí. Si omites esto por completo, Jool retrocederá a operar en todas sus tres tablas.
-
-
+El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces afecta a los tres protocolos.
+	
 ### `--numeric`
 
-Por default, la aplicación intentará resolver los nombres de los nodos remotos hablando en cada sesión. _Si tus nameservers no están respondiendo, esto alentara la salida_.
+La aplicación intentará resolver los nombres del nodos remotos hablando en cada sesión. _Si tus nameservers no estan respondiendo, esto retardará la salida_.
 
-Utiliza `--numeric` para deshabilitar este comportamiento.
+Utiliza `--numeric` para desactivar este comportamiento.
 
 ### `--csv`
 
-Por default, la aplicación va a imprimir las tablas en un formato relativamente amigable para la consola.
+La aplicación muestra la información en un formato amigable para la consola.
 
-Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV) el cual es amigable con una hoja de cálculo.
+Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV) para abrirse como hoja de cálculo.
 
-Ya que cada registro es impreso en una sola linea,  CSV es también mejor para utilizar el comando grep.
+En el formato CVS cada registro es impreso en una sola linea. Te recomendamos esta opción si requieres usar el comando grep para filtarar la información.
 
 ## Ejemplos
 
 ![Fig.1 - Red para ejemplo de sesión](images/usr-session.svg)
 
-ipv6client.mx efectua dos solicitudes HTTP y un ping a example.com.
+El cliente ipv6client.mx efectua dos solicitudes HTTP y un ping al servidor example.com en IPv4.
 
-Retrocede a desplegar todos los protocolos, resolver nombres, formato consola:
+Para desplegar todas las sesiones activas en los tres protocolos, resolviendo nombres y con formato consola, ejecutar el siguiente comando:
 
 {% highlight bash %}
 $ jool --session
@@ -94,7 +93,7 @@ Local: 192.0.2.1#1402		64:ff9b::5db8:d877#13371
   (Fetched 1 entries.)
 {% endhighlight %}
 
-Filtra UDP e ICMP, no hace llamadas al DNS, formato consola:
+Ahora, filtra UDP e ICMP, muéstrame las IP numéricas y formato estándar:
 
 {% highlight bash %}
 $ jool --session --display --tcp --numeric
@@ -111,7 +110,7 @@ Local: 192.0.2.1#6617		64:ff9b::5db8:d877#80
   (Fetched 2 entries.)
 {% endhighlight %}
 
-No resuelve nombres, formato CSV:
+Sin resolver nombres, guarda todo en formato CSV al archivo session.csv:
 
 {% highlight bash %}
 $ jool --session --display --numeric --csv > session.csv
@@ -119,7 +118,7 @@ $ jool --session --display --numeric --csv > session.csv
 
 [session.csv](obj/session.csv)
 
-Solo muestra el numero de registros de todas las tablas:
+Para concluir, solo muestra el número de registros de todas las tablas:
 
 {% highlight bash %}
 $ jool --session --count

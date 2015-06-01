@@ -48,7 +48,7 @@ El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces
 
 ### `--numeric`
 
-La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si tus nameservers no estan respondiendo, esto realentizará la salida_.
+La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si tus nameservers no estan respondiendo, esto retardará la salida_.
 
 Utiliza `--numeric` para desactivar este comportamiento.
 
