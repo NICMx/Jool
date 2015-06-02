@@ -158,36 +158,51 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool dst, b
 	return 0;
 }
 
+static bool disable_src_eam(struct packet *in, bool hairpin)
+{
+	struct iphdr *inner_hdr;
+
+	if (!hairpin || pkt_is_inner(in))
+		return false;
+	if (!pkt_is_icmp4_error(in))
+		return true;
+
+	inner_hdr = pkt_payload(in);
+	return pkt_ip4_hdr(in)->saddr == inner_hdr->daddr;
+}
+
+static bool disable_dst_eam(struct packet *in, bool hairpin)
+{
+	return hairpin && pkt_is_inner(in);
+}
+
 static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 {
-	struct iphdr *ip4_hdr = pkt_ip4_hdr(in);
-	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(out);
-	bool outer = pkt_is_outer(in);
-	bool hairpin = pkt_is_hairpin(in);
-	bool enable_eam;
+	struct iphdr *hdr4 = pkt_ip4_hdr(in);
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
+	bool hairpin;
 	int error;
 
-	/*
-	 * EAM needs to be disabled on certain situations for hairpinning to work properly.
-	 * There are two ways this can be done; this implements both.
-	 * Left operand is fields-statically-disabled method.
-	 * Right operand is heuristics method.
-	 */
-	enable_eam = config_eam_enabled(false, true, outer) && (hairpin ? !outer : true);
-	error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr, false, enable_eam);
+	hairpin = (config_eam_hairpin_mode() == EAM_HAIRPIN_SIMPLE)
+			|| pkt_is_hairpin(in);
+
+	/* Src address. */
+	error = generate_addr6_siit(hdr4->saddr, &hdr6->saddr, false,
+			!disable_src_eam(in, hairpin));
 	if (error == -ESRCH)
 		return VERDICT_ACCEPT;
 	if (error)
 		return VERDICT_DROP;
 
-	enable_eam = config_eam_enabled(false, false, outer) && (hairpin ? outer : true);
-	error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr, true, enable_eam);
+	/* Dst address. */
+	error = generate_addr6_siit(hdr4->daddr, &hdr6->daddr, true,
+			!disable_dst_eam(in, hairpin));
 	if (error == -ESRCH)
 		return VERDICT_ACCEPT;
 	if (error)
 		return VERDICT_DROP;
 
-	log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
+	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
 	return VERDICT_CONTINUE;
 }
 

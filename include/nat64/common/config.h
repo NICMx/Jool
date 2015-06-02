@@ -332,8 +332,7 @@ enum global_type {
 	DROP_EXTERNAL_TCP,
 #else
 	COMPUTE_UDP_CSUM_ZERO,
-	EAM_ENABLED_FIELDS,
-	EAM_AUTO_HAIRPIN,
+	EAM_HAIRPINNING_MODE,
 	RANDOMIZE_RFC6791,
 #endif
 
@@ -549,22 +548,25 @@ struct global_config {
 	 */
 	__u8 randomize_error_addresses;
 
-#define EAM_ENABLED_6SRC_OUTER (1 << 7)
-#define EAM_ENABLED_6DST_OUTER (1 << 6)
-#define EAM_ENABLED_4SRC_OUTER (1 << 5)
-#define EAM_ENABLED_4DST_OUTER (1 << 4)
-#define EAM_ENABLED_6SRC_INNER (1 << 3)
-#define EAM_ENABLED_6DST_INNER (1 << 2)
-#define EAM_ENABLED_4SRC_INNER (1 << 1)
-#define EAM_ENABLED_4DST_INNER (1 << 0)
-
-	__u8 eam_enabled_fields;
-
 	/**
-	 * Attempt to hairpin EAM-translated packets using the heuristic we're discussing in the list?
+	 * How should hairpinning be handled by EAM-translated packets.
+	 * See @eam_hairpinning_mode.
 	 */
-	__u8 eam_auto_hairpin;
+	__u8 eam_hairpin_mode;
 #endif
+};
+
+/**
+ * The modes are defined by the latest version of the EAM draft.
+ *
+ * They are exclusive, so this needn't be considered bit fields.
+ */
+enum eam_hairpinning_mode {
+	EAM_HAIRPIN_OFF = 0,
+	EAM_HAIRPIN_SIMPLE = 1,
+	EAM_HAIRPIN_INTRINSIC = 2,
+
+#define EAM_HAIRPIN_MODE_COUNT 3
 };
 
 /**

@@ -149,8 +149,8 @@ static __u8 build_protocol_field(struct ipv6hdr *hdr6)
 	return (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 }
 
-static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool dst, bool enable_eam,
-		bool *was_6052)
+static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
+		bool is_dst, bool *was_6052)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
@@ -158,13 +158,11 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool d
 
 	*was_6052 = false;
 
-	if (enable_eam) {
-		error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
-		if (error && error != -ESRCH)
-			return VERDICT_DROP;
-		if (!error)
-			goto success;
-	}
+	error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
+	if (error && error != -ESRCH)
+		return VERDICT_DROP;
+	if (!error)
+		goto success;
 
 	error = pool6_get(addr6, &prefix);
 	if (error == -ESRCH) {
@@ -178,7 +176,7 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, bool d
 	if (error)
 		return VERDICT_DROP;
 
-	if (dst && pool4_contains(tmp.s_addr)) {
+	if (is_dst && pool4_contains(tmp.s_addr)) {
 		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
 		return VERDICT_ACCEPT;
 	}
@@ -193,41 +191,49 @@ success:
 
 static verdict translate_addrs_siit(struct packet *in, struct packet *out)
 {
-	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(in);
-	struct iphdr *ip4_hdr = pkt_ip4_hdr(out);
-	bool outer = pkt_is_outer(in);
-	bool hairpin = true;
-	bool enable_eam;
-	bool was_6052;
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(in);
+	struct iphdr *hdr4 = pkt_ip4_hdr(out);
+	bool src_was_6052, dst_was_6052;
 	verdict result;
-	int error;
 
 	/* Src address. */
-	enable_eam = config_eam_enabled(true, true, outer);
-	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, false, enable_eam, &was_6052);
+	result = generate_addr4_siit(&hdr6->saddr, &hdr4->saddr, false,
+			&src_was_6052);
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
-		error = rfc6791_get(in, out, &ip4_hdr->saddr);
-		if (error)
+		if (rfc6791_get(in, out, &hdr4->saddr) != 0)
 			return VERDICT_ACCEPT;
-		/* I don't care if this is always already falsed; force it. */
-		was_6052 = false;
 	} else if (result != VERDICT_CONTINUE) {
 		return result;
 	}
 
-	hairpin &= outer ? !was_6052 : was_6052;
-
 	/* Dst address. */
-	enable_eam = config_eam_enabled(true, false, outer);
-	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, true, enable_eam, &was_6052);
+	result = generate_addr4_siit(&hdr6->daddr, &hdr4->daddr, true,
+			&dst_was_6052);
 	if (result != VERDICT_CONTINUE)
 		return result;
 
-	hairpin &= outer ? was_6052 : !was_6052;
-	if (hairpin && config_eam_heuristic())
-		out->is_hairpin = eamt_contains_ipv4(outer ? ip4_hdr->daddr : ip4_hdr->saddr);
+	/*
+	 * Mark intrinsic hairpinning if it's going to be needed.
+	 * Why here? It's the only place where we know whether RFC 6052 was
+	 * involved.
+	 * See the EAM draft.
+	 */
+	if (config_eam_hairpin_mode() == EAM_HAIRPIN_INTRINSIC) {
+		/* Condition set A */
+		if (pkt_is_outer(in) && !pkt_is_icmp6_error(in)
+				&& dst_was_6052
+				&& eamt_contains_ipv4(hdr4->daddr)) {
+			out->is_hairpin = true;
 
-	log_debug("Result: %pI4->%pI4", &ip4_hdr->saddr, &ip4_hdr->daddr);
+		/* Condition set B */
+		} else if (pkt_is_inner(in)
+				&& src_was_6052
+				&& eamt_contains_ipv4(hdr4->saddr)) {
+			out->is_hairpin = true;
+		}
+	}
+
+	log_debug("Result: %pI4->%pI4", &hdr4->saddr, &hdr4->daddr);
 	return VERDICT_CONTINUE;
 }
 

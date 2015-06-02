@@ -37,10 +37,8 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 #else
 	printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
 			conf->compute_udp_csum_zero ? "ON" : "OFF");
-	printf("  --%s: 0x%x\n", OPTNAME_EAM_ENABLED_FIELDS,
-			conf->eam_enabled_fields);
-	printf("  --%s: %s\n", OPTNAME_EAM_AUTO_HAIRPIN,
-			conf->eam_auto_hairpin ? "ON" : "OFF");
+	printf("  --%s: %u\n", OPTNAME_EAM_HAIRPIN_MODE,
+			conf->eam_hairpin_mode);
 	printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
 			conf->randomize_error_addresses ? "ON" : "OFF");
 #endif
