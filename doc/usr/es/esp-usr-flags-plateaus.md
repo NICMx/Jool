@@ -9,7 +9,7 @@ title: Documentación - Parámetros > MTU Plateaus
 
 ## Introducción
 
-Este articulo explica el propósito de el parametro `--plateaus` mediante un ejemplo.
+Este articulo explica el propósito del parametro `--plateaus` mediante un ejemplo.
 
 
 Esta es la red de ejemplo:
@@ -20,7 +20,7 @@ El número máximo de bytes por paquete (MTU) de los enlaces _n6-J_ y _J-r4_ es 
 
 El enlace _r4-n4_ es una red ARPANET, Por lo tanto, [sus paquetes pueden ser de 96-8159 bits de longitud](https://en.wikipedia.org/wiki/BBN_Report_1822)(~1007 bytes).
 
-Para propósitos ilustrativos, vamos a establecer que Jool no modificará el tamaño de los paquetes que traduce. Sin embargo, las cabeceras de IPv4 son 20 bytes mas cortas que las de IPv6, y hay otras peculiaridades también, pero no se tomaran en cuenta para fin de facilitar la comprensión.
+Aunque las cabeceras de IPv4 son 20 bytes más cortas que las de IPv6 y existen otras peculiaridades; para propósitos de facilitar la comprensión, vamos a establecer que Jool no modificará el tamaño de los paquetes que traduce. 
 
 ## Ejemplo
 
