@@ -3,20 +3,33 @@ layout: documentation
 title: Documentación - Parámetros > Quick
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--quick
+[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--quick
 
 # \--quick
 
-Primero, un poco de información fundamental:
+Terminología:
 
-* [prefijo IPv6](esp-usr-flags-pool6.html) _P_ es dueño de un [registro de sessión](esp-usr-flags-session.html) _S_ si _P_ es igual al lado de red de la dirección IPv6 local de S.
+Partiendo que
 
-* [dirección IPv4](esp-usr-flags-pool4.html) _A_ es dueño de un registro [registro BIB](esp-usr-flags-bib.html) _B_ si _A_ es igual a la dirección  IPv4 de _B_.
+* [La dirección _A_ de IPv4](esp-usr-flags-pool4.html) es dueño de un [registro BIB _B_](esp-usr-flags-bib.html)  si y solo si se cumple que _A_ es igual a la dirección  de IPv4 de _B_.
 
-Si utilizas `--remove` o `--flush` en un dueño, sus "esclavos" se vuelven obsoletos por que los paquetes relevantes ya no serán traducidos.  
+* [El prefijo _P_ de IPv6](esp-usr-flags-pool6.html) es dueño de un [registro de sessión _S_](esp-usr-flags-session.html)  si y solo si se cumple que _P_ corresponde a la dirección IPv6 local de S.
 
-* Si omites `--quick` mientras remueves a los dueños, Jool se deshará de los nuevos esclavos huerfanos. Esto ahorra memoria y mantiene eficiente la busqueda de registros durante la traducción de paquetes.
+Entonces cuando Jool está activo y configurado tenemos una serie de direcciones _A's_ asociados a BIBs _B's_ && prefijos _P's_ asociados a sesiones _S's_. <br />
+Los procesos que se establecen mediante las entradas de las BIBs y sesiones vinen a ser "esclavos" de los primeros.
 
-* Por otra parte, cuando utilizas `--quick`, Jool solo purgará a los dueños. Quizá quieras hacer estp si quieres que la operación tenga éxito rápido (quizá tengas un monto grande de esclavos), o mas probablemente planeas re-añadir al dueño en un futuro (en cuyo caso los esclavos que todavia permanecen se convertiran relevantes y usables de nuevo).
 
-Los esclavos huerfanos permanecerán inactivos en la base de datos, y eventualmente se removerán a si mismos una vez que las condiciones se cumplan (ej. sesiones huerfanas morirán una vez que su tiempo de inactivdad permitido expire).
+
+
+Si utilizas `--remove` o `--flush` en un dueño, es decir, en una dirección de IPv4 o Prejifo de IPv6, sus "esclavos" se vuelven obsoletos por que los paquetes ya no serán traducidos.
+
+
+
+* Mientras se remueve a los dueños, Jool se deshará de los nuevos esclavos huerfanos. Esto ahorra memoria y mantiene eficiente la búsqueda de registros durante la traducción de paquetes.
+
+* Sin embargo, mediante la opción de `--quick`, Jool solo purgará a los dueños. Los esclavos huerfanos permanecerán inactivos en la base de datos, y eventualmente se removerán a si mismos <br />
+  una vez que las condiciones se cumplan. Por ejemplo: las sesiones huerfanas morirán una vez que su tiempo de inactivdad permitido expire.
+
+La opción de `--quick` es recomendable si existen muchos esclavos y se requiere limpiar las tablas lo más rápido posible o si es necesario desconfigurarlo temporalmente,<br />
+en cuyo caso, al reconfigurar, los esclavos que todavia permanezcan se convertiran  en relevantes y usables de nuevo.
+
