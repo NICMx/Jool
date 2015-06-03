@@ -36,11 +36,11 @@ Pero es destacable mencionar, que hemos registrado problemas técnicos al permit
 
 [![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
-En Jool 3.2 y en versiones anteriores se evade esto NO delegando la fragmentación al kernel; pero, nos introdujo otros problemas más sutiles.
+En Jool 3.2 y en versiones anteriores se evade esto al NO delegar la fragmentación al kernel; pero, nos introdujo otros problemas más sutiles.
 
 Ahora en Jool 3.3, la configuración por omisión es  **deshabilitar** los fragmentos atómicos, lo cual te recomendamos **no** cambies.
 
-Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) y cuando se formalize, en breve, se omitirán en Jool. 
+Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) y cuando se formalize, en breve, se omitirá en Jool. 
  
 ## Parámetros
 
@@ -52,7 +52,8 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 - Default: OFF
 - Modos: Ambos (SIIT y Stateful)
 - Sentido de traducción: Ambos (IPv4 a IPv6 y IPv6 a IPv4)
-- Fuente: [RFC 6145, princpalmente la sección 6](http://tools.ietf.org/html/rfc6145#section-6). Siendo deprecado en [deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+- Fuente: [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
+          [Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
 Esta es una versión corta de todos los parámetros siguientes.
 
