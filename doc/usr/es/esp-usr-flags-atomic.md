@@ -4,7 +4,7 @@ layout: documentation
 title: Documentación - Flags > Fragmentos Atómicos
 ---
 
-[Documentation](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#Aplicacin-de-espacio-de-usuario) > [Flags](esp-usr-flags.html) > [\--global](esp-usr-flags-global.html) > Fragmentos Atómicos
+[Documentation](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#Aplicacion-de-espacio-de-usuario) > [Flags](esp-usr-flags.html) > [\--global](esp-usr-flags-global.html) > Fragmentos Atómicos
 
 # Fragmentos Atómicos
 
@@ -20,17 +20,21 @@ title: Documentación - Flags > Fragmentos Atómicos
 
 ## Introduccón
 
-Los "Fragmenos Atómicos" son paquetes IPv6 que no están fragmentados pero aun así con tienen una [Cabecera de fragmento](https://tools.ietf.org/html/rfc2460#section-4.5)(reduntante). Son un hack en la especificación NAT64 que intenta tomar ventaja de la diferencia entre el MTU minimo IPv4 (68) y el MTU minimo IPv6 (1280).
+Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; es decir, son paquetes de IPv6 que poseen un _Fragment Header_ sin que éste realmente sea un trozo de un paquete mayor. [Ver RFC. 2460 _IPv6 Specification_, sección 4.5 _Fragment Header_](https://tools.ietf.org/html/rfc2460#section-4.5)
 
-Se sabe que los fragmentos atómicos tienen [implicaciones de seguridad](https://tools.ietf.org/html/rfc6946) y hay un [esfuerzo encaminado oficial para deprecarlos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso el RFC 6145 (esto es. el documento principal de SIIT) advierte sobre [problemas con respecto al hack](http://tools.ietf.org/html/rfc6145#section-6).
+Este tráfico de fragmentos es permitido entre los saltos _Hops_ para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6. [Ver RFC. 6946] (https://tools.ietf.org/html/rfc6946). O sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4.
 
-Desde la perspectiva de Jool, también hay problemas técnicos para permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux quizá fragmente el paquete de una manera graciosa:
+Sin embargo, este mecanismo es vulnerable y _hackers_ pueden tomar ventaja de la diferencia entre el MTU mínimo de IPv4 (68) y el MTU mínimo de IPv6 (1280).
+
+Los fragmentos atómicos dan lugar a [fallas de seguridad](https://tools.ietf.org/html/rfc6946) y hay un [esfuerzo oficial para no usarlos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
+
+Desde la perspectiva de Jool, también hay problemas técnicos para permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade uno adicional
 
 [![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
 (Jool 3.2 y versiones anteriores solían evadir esto no delegando la fragmentación al kernel, pero esto introdujo otros problemas más sutiles.)
 
-Como consecuencia, la configuración por default de Jool 3.3 **deshabilita** los fragmentos atómicos. Deberías muy probablemente **nunca** cambiar esto. Las opciones descritas despues en este documento todas tienen que ver con fragmentosd atomicos y ahora son consideradas **deprecadas**. De hecho, intentamos removerlas tan pronto como (y si)[draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) es actualizado a un status de RFC.
+Como consecuencia, la configuración por default de Jool 3.3 **deshabilita** los fragmentos atómicos. Te recomendamos **no** cambiar esto. Las opciones descritas después en este documento todas tienen que ver con fragmentos atómicos y al día de hoy son consideradas **deprecadas**. De hecho, intentamos removerlas tan pronto como (y si)[draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) es actualizado a un status de RFC.
 
 Que se sepa que aceptamos completamente la deprecación de fragmentos atómicos.
 

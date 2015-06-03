@@ -18,7 +18,7 @@ Esta es la red de ejemplo:
 
 El número máximo de bytes por paquete (MTU) de los enlaces _n6-J_ y _J-r4_ es 1500.
 
-El enlace _r4-n4_ es una red ARPANET, Por lo tanto, [sus paquetes pueden ser de 96-8159 bits de longitud](https://en.wikipedia.org/wiki/BBN_Report_1822)(~1007 bytes).
+El enlace _r4-n4_ es una red ARPANET, Por lo tanto, [sus paquetes pueden ser de 96-8159 bits de longitud](https://en.wikipedia.org/wiki/BBN_Report_1822) (~1007 bytes).
 
 Aunque las cabeceras de IPv4 son 20 bytes más cortas que las de IPv6 y existen otras peculiaridades; para propósitos de facilitar la comprensión, vamos a establecer que Jool no modificará el tamaño de los paquetes que traduce. 
 
@@ -30,11 +30,11 @@ _n6_ quiere enviar un paquete IPv6 de 1500 bytes a _n4_ (100 bytes de header y 1
 
 La técnica [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery) opera bajo la suposición de que el router que no puede entregar el paquete reportará el tamaño máximo de paquete que puede transmitir. En este punto, el error ICMP contendria el número mágico "1007", y entonces _n6_ sabría que tiene que segmentar su paquete en las piezas necesarias si es que sigue interesado en la llegada de su mensaje.
 
-Desafortunadamente, la especificación del protocolo de ICMPv4 no ordena la inclusión del número; es una idea tardía. Si _r4_ es lo suficientemente antiguo, dejará el campo MTU sin asignar(esto es cero), y _n6_ sería confundido ante la perspectiva de tener que dividir sus datos en grupos de zero bytes. ICMPv6 ordena la inclusión del campo MTU, así que los nodos dependen en ello.
+Desafortunadamente, la especificación del protocolo de ICMPv4 no ordena la inclusión del número; esto es una idea tardía. Si _r4_ es lo suficientemente antiguo, dejará el campo MTU sin asignar(esto es cero), y _n6_ sería confundido ante la perspectiva de tener que dividir sus datos en grupos de cero bytes. ICMPv6 ordena la inclusión del campo MTU, así que los nodos dependen en ello.
 
 La tarea de encontrar una forma de solucionar esto recae en el NAT64 dado que es el único que tiene comprensión sobre cuál es el problema.
 
-_J_ se dará cuenta de que existe un problema por que observará que está tratando de traducir un error ICMPv4 con MTU cero a ICMPv6, donde eso es illegal. _J_ no tiene una forma de saber el MTU de la red _r4-n4_, así que tiene que adivinar. Sabe que el paquete rechazado fue de 1500 bytes de longitud, asi que revisa el parámetro `--plateaus`, cuyo valor default está basado en la siguiente tabla, y escoge el plateau más cercano inferior que rechazaría un paquete con tamaño de 1500:
+_J_ se dará cuenta de que existe un problema por que observará que está tratando de traducir un error ICMPv4 con MTU cero a ICMPv6, donde eso es illegal. _J_ no tiene una forma de saber el MTU de la red _r4-n4_, así que tiene que adivinar. Sabe que el paquete rechazado fue de 1500 bytes de longitud, asi que revisa el parámetro `--plateaus`, cuyo valor por omisión está basado en la siguiente tabla [ver RFC. 1191](https://tools.ietf.org/html/rfc1191#section-7.1), y escoge el plateau más cercano inferior que rechazaría un paquete con tamaño de 1500:
 
 	   Plateau    MTU    Comments                      Reference
 	   ------     ---    --------                      ---------
@@ -86,11 +86,11 @@ Al recibir la noticia, n6 ahora segmenta sus datos en un paquete de tamaño 1006
 
 ## Recapitulando
 
-La estrategia plateaus es la mejor alternativa existente para efecutar un **Path MTU Discovery**. Por que toma como referencia los MTUs existentes, converge rápido y deja poco espacio a fragmentar el paquete en forma excesiva (ve la [Sección 5 del RFC 1191](http://tools.ietf.org/html/rfc1191#section-5")).
+La estrategia plateaus es la mejor alternativa existente para efecutar un **Path MTU Discovery**. Por que toma como referencia los MTUs existentes, converge rápido y no permite la fragmentación excesiva del paquete. Para una compresión más profunda sobre el _PMTU Discovery_ [vea el RFC 1191](http://tools.ietf.org/html/rfc1191").
 
 Por otra parte, mirando el ejemplo podrías haber pensado "ARPANET se disolvió hace mucho tiempo!", y estarías en lo correcto. Aunque el RFC 1191 dice "los implementadores deben usar referencias actualizadas para escoger un conjunto de plateaus", nadie ha propuesto algo.
 
-Consideramos que no es tan negativo, dado que algunos de los protocolos de la tabla todavía siguen en uso. Es mas precavido, conservar algunos valores extras en la tabla versus a que nos lleguen a faltar.
+Consideramos que no es tan negativo usar la lista tal cual, dado que algunos de los protocolos de la tabla todavía siguen en uso. Es más precavido, conservar todos los valores  versus a que nos lleguen a faltar.
 
 Cabe mencionar que la lista plateaus NO está codificada directamente en Jool. Si deseas establecer tu propia lista plateaus, ejecuta (después de instalar la [Herramienta de configuración de Jool](esp-usr-install.html).
 
