@@ -172,6 +172,11 @@ struct packet {
 	 * Is this a subpacket, contained in an ICMP error? (used by the ttp module.)
 	 */
 	bool is_inner;
+	/**
+	 * Is the packet going to hairpin?
+	 * EAM only. RFC6052 hairpin doesn't need this flag.
+	 */
+	bool is_hairpin;
 
 	struct frag_hdr *hdr_frag;
 	/**
@@ -212,6 +217,7 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 	pkt->l3_proto = l3_proto;
 	pkt->l4_proto = l4_proto;
 	pkt->is_inner = 0;
+	pkt->is_hairpin = false;
 	pkt->hdr_frag = hdr_frag;
 	pkt->payload = payload;
 	pkt->original_pkt = original_pkt;
@@ -284,6 +290,11 @@ static inline bool pkt_is_inner(const struct packet *pkt)
 static inline bool pkt_is_outer(const struct packet *pkt)
 {
 	return !pkt_is_inner(pkt);
+}
+
+static inline bool pkt_is_hairpin(const struct packet *pkt)
+{
+	return pkt->is_hairpin;
 }
 
 static inline bool pkt_is_fragment(const struct packet *pkt)

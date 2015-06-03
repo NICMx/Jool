@@ -241,7 +241,7 @@ bool pool4db_is_empty(void)
 
 	for (i = 0; i < slots(); i++) {
 		hlist_for_each(node, &db[i]) {
-			if (pool4table_is_empty(table_entry(node))) {
+			if (!pool4table_is_empty(table_entry(node))) {
 				empty = false;
 				goto end;
 			}

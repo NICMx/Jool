@@ -41,6 +41,7 @@ int config_init(bool is_disable)
 	config->session_logging = DEFAULT_SESSION_LOGGING;
 #else
 	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+	config->eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
 	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 #endif
 
@@ -173,6 +174,11 @@ bool config_get_drop_external_connections(void)
 bool config_amend_zero_csum(void)
 {
 	return RCU_THINGY(bool, compute_udp_csum_zero);
+}
+
+enum eam_hairpinning_mode config_eam_hairpin_mode(void)
+{
+	return RCU_THINGY(__u8, eam_hairpin_mode);
 }
 
 bool config_randomize_rfc6791_pool(void)

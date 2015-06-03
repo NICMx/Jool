@@ -25,6 +25,7 @@ bool config_get_addr_dependent_filtering(void);
 bool config_get_drop_external_connections(void);
 
 bool config_amend_zero_csum(void);
+enum eam_hairpinning_mode config_eam_hairpin_mode(void);
 bool config_randomize_rfc6791_pool(void);
 
 bool config_get_reset_traffic_class(void);

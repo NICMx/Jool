@@ -1,10 +1,5 @@
 #include "nat64/mod/common/rfc6145/6to4.h"
 
-#include <linux/ip.h>
-#include <net/ipv6.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
-
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
@@ -149,17 +144,20 @@ static __u8 build_protocol_field(struct ipv6hdr *hdr6)
 	return (iterator.hdr_type == NEXTHDR_ICMP) ? IPPROTO_ICMP : iterator.hdr_type;
 }
 
-static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct packet *skb)
+static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
+		bool is_dst, bool *was_6052)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp;
 	int error;
 
+	*was_6052 = false;
+
 	error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
 	if (error && error != -ESRCH)
 		return VERDICT_DROP;
 	if (!error)
-		goto end;
+		goto success;
 
 	error = pool6_get(addr6, &prefix);
 	if (error == -ESRCH) {
@@ -173,43 +171,64 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4, struct
 	if (error)
 		return VERDICT_DROP;
 
-	if (blacklist_contains(tmp.s_addr)) {
+	if (is_dst && blacklist_contains(tmp.s_addr)) {
 		log_debug("The resulting address (%pI4) is blacklisted.", &tmp);
 		return VERDICT_ACCEPT;
 	}
 
+	*was_6052 = true;
 	/* Fall through. */
 
-end:
+success:
 	*addr4 = tmp.s_addr;
 	return VERDICT_CONTINUE;
 }
 
-static verdict translate_addrs_siit(struct packet *in, struct packet *out)
+static verdict translate_addrs64_siit(struct packet *in, struct packet *out)
 {
-	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(in);
-	struct iphdr *ip4_hdr = pkt_ip4_hdr(out);
-	struct in_addr addr;
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(in);
+	struct iphdr *hdr4 = pkt_ip4_hdr(out);
+	bool src_was_6052, dst_was_6052;
 	verdict result;
-	int error;
-
-	/* Dst address. */
-	result = generate_addr4_siit(&ip6_hdr->daddr, &ip4_hdr->daddr, in);
-	if (result != VERDICT_CONTINUE)
-		return result;
 
 	/* Src address. */
-	result = generate_addr4_siit(&ip6_hdr->saddr, &ip4_hdr->saddr, in);
+	result = generate_addr4_siit(&hdr6->saddr, &hdr4->saddr, false,
+			&src_was_6052);
 	if (result == VERDICT_ACCEPT && pkt_is_icmp6_error(in)) {
-		error = rfc6791_get(in, out, &addr);
-		if (error)
+		if (rfc6791_get(in, out, &hdr4->saddr) != 0)
 			return VERDICT_ACCEPT;
-		ip4_hdr->saddr = addr.s_addr;
 	} else if (result != VERDICT_CONTINUE) {
 		return result;
 	}
 
-	log_debug("Result: %pI4->%pI4", &ip4_hdr->saddr, &ip4_hdr->daddr);
+	/* Dst address. */
+	result = generate_addr4_siit(&hdr6->daddr, &hdr4->daddr, true,
+			&dst_was_6052);
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	/*
+	 * Mark intrinsic hairpinning if it's going to be needed.
+	 * Why here? It's the only place where we know whether RFC 6052 was
+	 * involved.
+	 * See the EAM draft.
+	 */
+	if (config_eam_hairpin_mode() == EAM_HAIRPIN_INTRINSIC) {
+		/* Condition set A */
+		if (pkt_is_outer(in) && !pkt_is_icmp6_error(in)
+				&& dst_was_6052
+				&& eamt_contains_ipv4(hdr4->daddr)) {
+			out->is_hairpin = true;
+
+		/* Condition set B */
+		} else if (pkt_is_inner(in)
+				&& src_was_6052
+				&& eamt_contains_ipv4(hdr4->saddr)) {
+			out->is_hairpin = true;
+		}
+	}
+
+	log_debug("Result: %pI4->%pI4", &hdr4->saddr, &hdr4->daddr);
 	return VERDICT_CONTINUE;
 }
 
@@ -290,7 +309,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
 		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
 	} else {
-		result = translate_addrs_siit(in, out);
+		result = translate_addrs64_siit(in, out);
 		if (result != VERDICT_CONTINUE)
 			return result;
 	}

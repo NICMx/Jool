@@ -5,6 +5,22 @@
 #include <errno.h>
 
 
+#ifndef STATEFUL
+static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
+{
+	switch (mode) {
+	case EAM_HAIRPIN_OFF:
+		return "off";
+	case EAM_HAIRPIN_SIMPLE:
+		return "simple";
+	case EAM_HAIRPIN_INTRINSIC:
+		return "intrinsic";
+	}
+
+	return "unknown";
+}
+#endif
+
 static int handle_display_response(struct nl_msg *msg, void *arg)
 {
 	struct global_config *conf = nlmsg_data(nlmsg_hdr(msg));
@@ -37,6 +53,9 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 #else
 	printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
 			conf->compute_udp_csum_zero ? "ON" : "OFF");
+	printf("  --%s: %u (%s)\n", OPTNAME_EAM_HAIRPIN_MODE,
+			conf->eam_hairpin_mode,
+			int_to_hairpin_mode(conf->eam_hairpin_mode));
 	printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
 			conf->randomize_error_addresses ? "ON" : "OFF");
 #endif

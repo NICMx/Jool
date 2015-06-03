@@ -253,7 +253,7 @@ static bool test_foreach_sample(void)
 	args.expected = &expected[0];
 	args.expected_len = COUNT;
 	args.i = 0;
-	error = pool4db_foreach_sample(1, validate_sample, &args, NULL);
+	error = pool4db_foreach_sample(validate_sample, &args, NULL);
 	success &= ASSERT_INT(0, error, "no-offset call");
 
 	for (i = 0; i < COUNT; i++) {
@@ -261,7 +261,7 @@ static bool test_foreach_sample(void)
 		args.expected = &expected[i + 1];
 		args.expected_len = COUNT - i - 1;
 		args.i = 0;
-		error = pool4db_foreach_sample(1, validate_sample, &args,
+		error = pool4db_foreach_sample(validate_sample, &args,
 				&expected[i]);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
@@ -310,7 +310,7 @@ bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 	args.expected_len = expected_len;
 	args.i = 0;
 
-	error = pool4db_foreach_sample(1, validate_sample, &args, NULL);
+	error = pool4db_foreach_sample(validate_sample, &args, NULL);
 	success &= ASSERT_INT(0, error, "foreach result");
 	success &= ASSERT_UINT(expected_len, args.i, "foreach count");
 	return success;

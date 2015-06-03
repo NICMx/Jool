@@ -150,8 +150,8 @@ static bool test_filtering_and_updating(void)
 	struct tuple tuple;
 	bool success = true;
 
-	/* ICMP errors should pass happily, but not affect the tables. */
-	if (init_tuple4(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_TCP))
+	log_debug("ICMPv4 errors should succeed but not affect the tables.");
+	if (init_tuple4(&tuple, "8.7.6.5", 8765, "192.0.2.128", 65000, L4PROTO_TCP))
 		return false;
 	if (create_skb4_icmp_error(&tuple, &skb, 100, 32))
 		return false;
@@ -159,15 +159,39 @@ static bool test_filtering_and_updating(void)
 		return false;
 
 	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&pkt, &tuple), "ICMP error");
+	success &= assert_bib_count(0, L4PROTO_TCP);
+	success &= assert_bib_count(0, L4PROTO_UDP);
 	success &= assert_bib_count(0, L4PROTO_ICMP);
+	success &= assert_session_count(0, L4PROTO_TCP);
+	success &= assert_session_count(0, L4PROTO_UDP);
 	success &= assert_session_count(0, L4PROTO_ICMP);
 
 	kfree_skb(skb);
 	if (!success)
 		return false;
 
-	/* This step should get rid of hairpinning loops. */
-	if (init_tuple6(&tuple, "64:ff9b::1:2", 1212, "64:ff9b::3:4", 3434, L4PROTO_UDP))
+	log_debug("ICMPv6 errors should succeed but not affect the tables.");
+	if (init_tuple6(&tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_TCP))
+		return false;
+	if (create_skb6_icmp_error(&tuple, &skb, 100, 32))
+		return false;
+	if (pkt_init_ipv6(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_CONTINUE, filtering_and_updating(&pkt, &tuple), "ICMP error");
+	success &= assert_bib_count(0, L4PROTO_TCP);
+	success &= assert_bib_count(0, L4PROTO_UDP);
+	success &= assert_bib_count(0, L4PROTO_ICMP);
+	success &= assert_session_count(0, L4PROTO_TCP);
+	success &= assert_session_count(0, L4PROTO_UDP);
+	success &= assert_session_count(0, L4PROTO_ICMP);
+
+	kfree_skb(skb);
+	if (!success)
+		return false;
+
+	log_debug("Hairpinning loops should be dropped.");
+	if (init_tuple6(&tuple, "3::1:2", 1212, "3::3:4", 3434, L4PROTO_UDP))
 		return false;
 	if (create_skb6_udp(&tuple, &skb, 100, 32))
 		return false;
@@ -182,7 +206,40 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	/* Other IPv6 packets should be processed normally. */
+	log_debug("Packets not headed to pool6 must not be translated.");
+	if (init_tuple6(&tuple, "1::2", 1212, "4::1", 3434, L4PROTO_UDP))
+		return false;
+	if (create_skb6_udp(&tuple, &skb, 100, 32))
+		return false;
+	if (pkt_init_ipv6(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_ACCEPT, filtering_and_updating(&pkt, &tuple), "Not pool6 packet");
+	success &= assert_bib_count(0, L4PROTO_UDP);
+	success &= assert_session_count(0, L4PROTO_UDP);
+
+	kfree_skb(skb);
+	if (!success)
+		return false;
+
+	log_debug("Packets not headed to pool4 must not be translated.");
+	if (init_tuple4(&tuple, "8.7.6.5", 8765, "5.6.7.8", 5678, L4PROTO_UDP))
+		return false;
+	if (create_skb4_udp(&tuple, &skb, 100, 32))
+		return false;
+	if (pkt_init_ipv4(&pkt, skb))
+		return false;
+
+	success &= ASSERT_INT(VERDICT_ACCEPT, filtering_and_updating(&pkt, &tuple), "Not pool4 packet");
+	success &= assert_bib_count(0, L4PROTO_UDP);
+	success &= assert_session_count(0, L4PROTO_UDP);
+
+	kfree_skb(skb);
+	if (!success)
+		return false;
+
+	log_debug("Other IPv6 packets should survive validations.");
+	/*  */
 	if (init_tuple6(&tuple, "1::2", 1212, "3::3:4", 3434, L4PROTO_UDP))
 		return false;
 	if (create_skb6_udp(&tuple, &skb, 100, 32))
@@ -198,7 +255,7 @@ static bool test_filtering_and_updating(void)
 	if (!success)
 		return false;
 
-	/* Other IPv4 packets should be processed normally. */
+	log_debug("Other IPv4 packets should survive validations.");
 	if (invert_tuple(&tuple))
 		return false;
 	if (create_skb4_udp(&tuple, &skb, 100, 32))

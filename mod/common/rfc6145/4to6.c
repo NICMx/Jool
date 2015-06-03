@@ -1,10 +1,5 @@
 #include "nat64/mod/common/rfc6145/4to6.h"
 
-#include <linux/ip.h>
-#include <net/ipv6.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
-
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
@@ -127,20 +122,21 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 	return 0;
 }
 
-static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
+static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool dst, bool enable_eam)
 {
 	struct ipv6_prefix prefix;
-	struct in_addr tmp;
+	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
-	tmp.s_addr = addr4;
-	error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
-	if (error && error != -ESRCH)
-		return error;
-	if (!error)
-		return 0;
+	if (enable_eam) {
+		error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
+		if (error && error != -ESRCH)
+			return error;
+		if (!error)
+			return 0;
+	}
 
-	if (blacklist_contains(addr4)) {
+	if (dst && blacklist_contains(addr4)) {
 		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
 		return -ESRCH;
 	}
@@ -155,6 +151,54 @@ static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
 		return error;
 
 	return 0;
+}
+
+static bool disable_src_eam(struct packet *in, bool hairpin)
+{
+	struct iphdr *inner_hdr;
+
+	if (!hairpin || pkt_is_inner(in))
+		return false;
+	if (!pkt_is_icmp4_error(in))
+		return true;
+
+	inner_hdr = pkt_payload(in);
+	return pkt_ip4_hdr(in)->saddr == inner_hdr->daddr;
+}
+
+static bool disable_dst_eam(struct packet *in, bool hairpin)
+{
+	return hairpin && pkt_is_inner(in);
+}
+
+static verdict translate_addrs46_siit(struct packet *in, struct packet *out)
+{
+	struct iphdr *hdr4 = pkt_ip4_hdr(in);
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
+	bool hairpin;
+	int error;
+
+	hairpin = (config_eam_hairpin_mode() == EAM_HAIRPIN_SIMPLE)
+			|| pkt_is_hairpin(in);
+
+	/* Src address. */
+	error = generate_addr6_siit(hdr4->saddr, &hdr6->saddr, false,
+			!disable_src_eam(in, hairpin));
+	if (error == -ESRCH)
+		return VERDICT_ACCEPT;
+	if (error)
+		return VERDICT_DROP;
+
+	/* Dst address. */
+	error = generate_addr6_siit(hdr4->daddr, &hdr6->daddr, true,
+			!disable_dst_eam(in, hairpin));
+	if (error == -ESRCH)
+		return VERDICT_ACCEPT;
+	if (error)
+		return VERDICT_DROP;
+
+	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -221,6 +265,7 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	struct iphdr *ip4_hdr = pkt_ip4_hdr(in);
 	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(out);
 	int error;
+	verdict result;
 
 	ip6_hdr->version = 6;
 	if (config_get_reset_traffic_class()) {
@@ -251,17 +296,9 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 			return VERDICT_DROP;
 		ip6_hdr->daddr = tuple6->dst.addr6.l3;
 	} else {
-		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
+		result = translate_addrs46_siit(in, out);
+		if (result != VERDICT_CONTINUE)
+			return result;
 	}
 
 	/* Isn't this supposed to be covered by filtering...? */

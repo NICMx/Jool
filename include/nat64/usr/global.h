@@ -21,6 +21,7 @@
 
 /* SIIT-only flags */
 #define OPTNAME_AMEND_UDP_CSUM		"amend-udp-checksum-zero"
+#define OPTNAME_EAM_HAIRPIN_MODE	"eam-hairpin-mode"
 #define OPTNAME_RANDOMIZE_RFC6791	"randomize-rfc6791-addresses"
 
 /* NAT64-only flags */
