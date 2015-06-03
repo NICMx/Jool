@@ -199,14 +199,14 @@ int pool4db_flush(const __u32 mark)
 bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr)
 {
 	struct pool4_table *table;
-	int error;
+	bool result;
 	rcu_read_lock();
 
 	table = find_table(mark);
-	error = table ? pool4table_contains(table, addr) : -ESRCH;
+	result = table ? pool4table_contains(table, addr) : false;
 
 	rcu_read_unlock();
-	return error;
+	return result;
 }
 
 bool pool4db_contains_all(struct ipv4_transport_addr *addr)

@@ -169,7 +169,7 @@ struct packet {
 	 */
 	enum l4_protocol l4_proto;
 	/**
-	 * Is this a subpacket, contained in an ICMP error? (used by the ttp module.)
+	 * Is this a subpacket, contained in an ICMP error? (used by the RFC6145 code.)
 	 */
 	bool is_inner;
 	/**

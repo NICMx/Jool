@@ -696,12 +696,7 @@ verdict ttp64_icmp(struct tuple* tuple4, struct packet *in, struct packet *out)
 		 * Neighbor Discover messages (133 - 137).
 		 */
 		log_debug("ICMPv6 messages type %u do not exist in ICMPv4.", icmpv6_hdr->icmp6_type);
-		/*
-		 * We return VER_ACCEPT instead of VER_DROP because the neighbor discovery code happens
-		 * after Jool, apparently.
-		 * This message, which is likely single-hop, might actually be intended for the kernel.
-		 */
-		return VERDICT_ACCEPT;
+		return VERDICT_DROP;
 	}
 
 	return error ? VERDICT_DROP : VERDICT_CONTINUE;

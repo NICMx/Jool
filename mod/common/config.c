@@ -230,7 +230,7 @@ void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count)
 	*count = tmp->mtu_plateau_count;
 }
 
-bool config_get_is_disable(void)
+bool config_is_xlat_disabled(void)
 {
 	return RCU_THINGY(bool, is_disable);
 }

@@ -109,6 +109,20 @@ static verdict ipv4_icmp_err(struct packet *pkt, struct tuple *tuple4)
 	return VERDICT_CONTINUE;
 }
 
+static verdict ipv4_icmp(struct packet *pkt, struct tuple *tuple4)
+{
+	__u8 type = pkt_icmp4_hdr(pkt)->type;
+
+	if (is_icmp4_info(type))
+		return ipv4_icmp_info(pkt, tuple4);
+
+	if (is_icmp4_error(type))
+		return ipv4_icmp_err(pkt, tuple4);
+
+	log_debug("Unknown ICMPv4 type: %u", type);
+	return VERDICT_ACCEPT;
+}
+
 static verdict ipv6_udp(struct packet *pkt, struct tuple *tuple6)
 {
 	tuple6->src.addr6.l3 = pkt_ip6_hdr(pkt)->saddr;
@@ -197,6 +211,27 @@ static verdict ipv6_icmp_err(struct packet *pkt, struct tuple *tuple6)
  * @}
  */
 
+static verdict ipv6_icmp(struct packet *pkt, struct tuple *tuple6)
+{
+	__u8 type = pkt_icmp6_hdr(pkt)->icmp6_type;
+
+	if (is_icmp6_info(type))
+		return ipv6_icmp_info(pkt, tuple6);
+
+	if (is_icmp6_error(type))
+		return ipv6_icmp_err(pkt, tuple6);
+
+	log_debug("Unknown ICMPv6 type: %u.", type);
+	/*
+	 * We return VERDICT_ACCEPT instead of _DROP because the neighbor
+	 * discovery code happens after Jool, apparently (even though it's
+	 * layer 2 man, wtf).
+	 * This message, which is likely single-hop, might actually be intended
+	 * for the kernel.
+	 */
+	return VERDICT_ACCEPT;
+}
+
 /**
  * Extracts relevant data from "skb" and stores it in the "tuple" tuple.
  *
@@ -206,8 +241,6 @@ static verdict ipv6_icmp_err(struct packet *pkt, struct tuple *tuple6)
  */
 verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
 {
-	struct icmphdr *icmp4;
-	struct icmp6hdr *icmp6;
 	verdict result = VERDICT_CONTINUE;
 
 	log_debug("Step 1: Determining the Incoming Tuple");
@@ -222,16 +255,7 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
 			result = ipv4_tcp(pkt, in_tuple);
 			break;
 		case L4PROTO_ICMP:
-			icmp4 = pkt_icmp4_hdr(pkt);
-			if (is_icmp4_info(icmp4->type)) {
-				result = ipv4_icmp_info(pkt, in_tuple);
-			} else if (is_icmp4_error(icmp4->type)) {
-				result = ipv4_icmp_err(pkt, in_tuple);
-			} else {
-				log_debug("Unknown ICMPv4 type: %u. Dropping packet...", icmp4->type);
-				inc_stats(pkt, IPSTATS_MIB_INHDRERRORS);
-				result = VERDICT_DROP;
-			}
+			result = ipv4_icmp(pkt, in_tuple);
 			break;
 		case L4PROTO_OTHER:
 			goto unknown_proto;
@@ -247,16 +271,7 @@ verdict determine_in_tuple(struct packet *pkt, struct tuple *in_tuple)
 			result = ipv6_tcp(pkt, in_tuple);
 			break;
 		case L4PROTO_ICMP:
-			icmp6 = pkt_icmp6_hdr(pkt);
-			if (is_icmp6_info(icmp6->icmp6_type)) {
-				result = ipv6_icmp_info(pkt, in_tuple);
-			} else if (is_icmp6_error(icmp6->icmp6_type)) {
-				result = ipv6_icmp_err(pkt, in_tuple);
-			} else {
-				log_debug("Unknown ICMPv6 type: %u. Dropping packet...", icmp6->icmp6_type);
-				inc_stats(pkt, IPSTATS_MIB_INHDRERRORS);
-				result = VERDICT_DROP;
-			}
+			result = ipv6_icmp(pkt, in_tuple);
 			break;
 		case L4PROTO_OTHER:
 			goto unknown_proto;

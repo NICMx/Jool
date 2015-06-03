@@ -50,6 +50,7 @@ x<n> (where x is anything and n is 4 or 6) = x has something to do with IPv<n>. 
 	addr6 = IPv6 address
 	In particular, the "tuple<n>" names intend to remind you of the correct type of addresses
 	you're supposed to extract from their tuples' inner unions. 
+xlat = translation
 
 
 When we say "payload", we mean the layer-4 payload. When we want to say layer-3 payload, we should

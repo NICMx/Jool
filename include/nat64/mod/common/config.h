@@ -34,7 +34,7 @@ void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 bool config_get_build_ipv6_fh(void);
 bool config_get_lower_mtu_fail(void);
 void config_get_mtu_plateaus(__u16 **plateaus, __u16 *count);
-bool config_get_is_disable(void);
+bool config_is_xlat_disabled(void);
 
 unsigned long config_get_ttl_frag(void);
 

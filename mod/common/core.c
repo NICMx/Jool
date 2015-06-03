@@ -101,11 +101,10 @@ unsigned int core_4to6(struct sk_buff *skb)
 {
 	struct packet pkt;
 	struct iphdr *hdr = ip_hdr(skb);
-	int error;
 
 	/* TODO (later) this is silly. We should probably unhook Jool from Netfilter instead. */
-	if (config_get_is_disable())
-		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
+	if (config_is_xlat_disabled())
+		return NF_ACCEPT;
 
 	/* TODO This suffers the hairpinning dilemma. You will have to move this to translate. */
 	if (is_blacklisted4(hdr->saddr) || is_blacklisted4(hdr->daddr))
@@ -114,8 +113,8 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
-	error = pkt_init_ipv4(&pkt, skb); /* Reminder: This function might change pointers. */
-	if (error)
+	/* Reminder: This function might change pointers. */
+	if (pkt_init_ipv4(&pkt, skb) != 0)
 		return NF_DROP;
 
 	return core_common(&pkt);
@@ -125,10 +124,9 @@ unsigned int core_6to4(struct sk_buff *skb)
 {
 	struct packet pkt;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
-	int error;
 
-	if (config_get_is_disable())
-		return NF_ACCEPT; /* Translation is disabled; let the packet pass. */
+	if (config_is_xlat_disabled())
+		return NF_ACCEPT;
 
 	if (is_blacklisted6(&hdr->saddr) || is_blacklisted6(&hdr->daddr))
 		return NF_ACCEPT;
@@ -136,8 +134,8 @@ unsigned int core_6to4(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
 
-	error = pkt_init_ipv6(&pkt, skb); /* Reminder: This function might change pointers. */
-	if (error)
+	/* Reminder: This function might change pointers. */
+	if (pkt_init_ipv6(&pkt, skb) != 0)
 		return NF_DROP;
 
 	if (nat64_is_stateful()) {
