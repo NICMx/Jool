@@ -20,35 +20,31 @@ title: Documentación - Flags > Fragmentos Atómicos
 
 ## Introduccón
 
-Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; es decir, son paquetes de IPv6 que poseen un _Fragment Header_ sin que éste realmente sea un trozo de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
+Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un trozo de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
 
 Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280, para introducir fragmentos y generar problemas. Algunas referencias son:
 
-[RFC. 5927, 2010](https://tools.ietf.org/html/rfc5927)
-[Security Implications of Predictable Fragment Identification Values, 2012] (http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)
-[RFC. 6946, 2013] (https://tools.ietf.org/html/rfc6946). 
+[RFC. 5927, 2010](https://tools.ietf.org/html/rfc5927)<br />
+[Security Implications of Predictable Fragment Identification Values, 2012] (http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
+[RFC. 6946, 2013] (https://tools.ietf.org/html/rfc6946)<br />
 
 La IETF está tratando de normar el [desuso de los fragmentos atómicos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
 
-DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos son soportados.
+DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados.
 
-Pero es destacable mencionar, que se han registrado problemas técnicos para permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade uno adicional.
+Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade uno adicional.
 
 [![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
-En Jool 3.2 y en versiones anteriores se evade esto NO delegando la fragmentación al kernel, pero esto nos introdujo otros problemas más sutiles.
+En Jool 3.2 y en versiones anteriores se evade esto NO delegando la fragmentación al kernel; pero, nos introdujo otros problemas más sutiles.
 
 Ahora en Jool 3.3, la configuración por omisión es  **deshabilitar** los fragmentos atómicos, lo cual te recomendamos **no** cambies.
 
-Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) y en el momento que se formalize, en breve, se omitirán en Jool. 
-
- y al día de hoy son consideradas **en desuso**. De hecho, intentamos removerlas tan pronto como (y si)[draft-ietf-6man-deprecate-atomfrag-generation](
-
-Que se sepa que aceptamos completamente la deprecación de fragmentos atómicos.
-
+Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) y cuando se formalize, en breve, se omitirán en Jool. 
+ 
 ## Parámetros
 
-	Las opciones descritas tienen que ver con fragmentos atómicos
+	Las opciones descritas a continuación tienen que ver con fragmentos atómicos
 
 ### `--allow-atomic-fragments`
 
