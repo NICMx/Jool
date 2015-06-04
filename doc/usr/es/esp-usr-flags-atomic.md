@@ -24,9 +24,9 @@ Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; 
 
 Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280, para introducir fragmentos y generar problemas. Algunas referencias son:
 
-[RFC. 5927, 2010](https://tools.ietf.org/html/rfc5927)<br />
-[Security Implications of Predictable Fragment Identification Values, 2012] (http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
-[RFC. 6946, 2013] (https://tools.ietf.org/html/rfc6946)<br />
+[2010, RFC. 5927](https://tools.ietf.org/html/rfc5927)<br />
+[2012, Security Implications of Predictable Fragment Identification Values] (http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
+[2013, RFC. 6946] (https://tools.ietf.org/html/rfc6946)<br />
 
 La IETF está tratando de normar el [desuso de los fragmentos atómicos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
 
@@ -48,22 +48,24 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 
 ### `--allow-atomic-fragments`
 
+#### Permite el tránsito de los fragmentos atómicos
+
 - Tipo: Booleano
 - Default: OFF
 - Modos: Ambos (SIIT y Stateful)
 - Sentido de traducción: Ambos (IPv4 a IPv6 y IPv6 a IPv4)
-- Fuente: [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
-          [Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+- Fuente: [2011, RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
+          [2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
-Esta es una versión corta de todos los parámetros siguientes.
+Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados.
 
-Esto:
+Para HABILITARLO:
 
 {% highlight bash %}
 $(jool) --allow-atomic-fragments true
 {% endhighlight %}
 
-es lo mismo que
+Y que es equivalente a:
 
 {% highlight bash %}
 $(jool) --setDF true
@@ -72,16 +74,15 @@ $(jool) --genID false
 $(jool) --boostMTU false
 {% endhighlight %}
 
-Este es el comportamiento por default requerido por el [RFC 6145](http://tools.ietf.org/html/rfc6145), y la IETF con suerte lo va a deprecar en el futuro. _No_ es el default de Jool y no lo recomendamos.
+Este es el comportamiento mandatorio según el RFC 6145, pero que está siendo verificado en el Draft Deprecate Atomfrag Generation.
 
-
-También esto
+Para DESHABILITARLO:
 
 {% highlight bash %}
 $(jool) --allow-atomic-fragments false
 {% endhighlight %}
 
-es lo mismo que
+Y que es equivalente a:
 
 {% highlight bash %}
 $(jool) --setDF false
@@ -90,11 +91,11 @@ $(jool) --genID true
 $(jool) --boostMTU true
 {% endhighlight %}
 
-Este es un modo alternativo definido por ambosd el RFC 6145 y el [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). El último demanda este comportamiento y es el comportamiento por default de Jool 3.3.
+Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.
 
-Tambien:
+NOTA:
 
-La separación de los cuatro parámetros existe solo por razones históricas; nuestra interpretación del RFC solía estar equivocada. Nunca deberias de manejarlos individualmente. No tiene sentido asignar el valor false a `--setDF` y asignar true a `--setFH`, por ejemplo. La relación entre  `--setDF` y `--boostMTU` es tambien particularmente delicada; ve abajo para mas detalles.
+La separación de los cuatro parámetros existe solo por razones históricas; nuestra interpretación del RFC solía estar equivocada. Nunca deberias de manejarlos individualmente. No tiene sentido asignar el valor false a `--setDF` y asignar true a `--genFH`, por ejemplo. La relación entre  `--setDF` y `--boostMTU` es tambien particularmente delicada; ve abajo para mas detalles.
 
 
 ### `--setDF`
