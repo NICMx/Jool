@@ -1,18 +1,12 @@
 #include "nat64/mod/common/nl_handler.h"
 
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sort.h>
 #include <linux/version.h>
-#include <net/netlink.h>
-#include <net/net_namespace.h>
-
-#include "nat64/common/config.h"
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/nl_buffer.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/types.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"
@@ -23,8 +17,6 @@
 #ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
 #endif
-
-
 
 /**
  * Socket the userspace application will speak to.
@@ -296,7 +288,7 @@ static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request
 	return respond_error(nl_hdr, error);
 }
 
-static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_pool4 *request)
 {
 //	__u64 count;
@@ -307,10 +299,11 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_pool4_display(nl_hdr, request);
 
+	/* TODO */
 //	case OP_COUNT:
 //		log_debug("Returning IPv4 address count.");
 //		error = pool4_count(&count);
@@ -341,7 +334,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat6
 		return respond_error(nl_hdr, error);
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -378,7 +371,7 @@ static int handle_bib_display(struct nlmsghdr *nl_hdr, struct request_bib *reque
 	return error;
 }
 
-static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		struct request_bib *request)
 {
 	__u64 count;
@@ -389,7 +382,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_bib_display(nl_hdr, request);
 
@@ -415,7 +408,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -466,7 +459,7 @@ static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_sessio
 	return error;
 }
 
-static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		struct request_session *request)
 {
 	__u64 count;
@@ -477,7 +470,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_session_display(nl_hdr, request);
 
@@ -489,7 +482,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -525,7 +518,7 @@ static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *requ
 	return error;
 }
 
-static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_eamt *request)
 {
 	__u64 count;
@@ -536,7 +529,7 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_eamt_display(nl_hdr, request);
 
@@ -569,7 +562,7 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 
 		return respond_error(nl_hdr, eamt_flush());
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -585,8 +578,6 @@ static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4a
 	struct ipv4_prefix *offset;
 	int error;
 
-	log_debug("Sending RFC6791 pool to userspace.");
-
 	buffer = nlbuffer_create(nl_socket, nl_hdr);
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
@@ -599,7 +590,7 @@ static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4a
 	return error;
 }
 
-static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_pool4addr *request)
 {
 	__u64 count;
@@ -610,12 +601,13 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
+		log_debug("Sending RFC6791 pool to userspace.");
 		return handle_pool6791_display(nl_hdr, request);
 
 	case OP_COUNT:
-		log_debug("Returning IPv4 address count.");
+		log_debug("Returning address count in the RFC6791 pool.");
 		error = rfc6791_count(&count);
 		if (error)
 			return respond_error(nl_hdr, error);
@@ -625,14 +617,14 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Adding an address to the IPv4 pool.");
+		log_debug("Adding an address to the RFC6791 pool.");
 		return respond_error(nl_hdr, rfc6791_add(&request->add.addrs));
 
 	case OP_REMOVE:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Removing an address from the IPv4 pool.");
+		log_debug("Removing an address from the RFC6791 pool.");
 
 		error = rfc6791_remove(&request->rm.addrs);
 		if (error)
@@ -645,7 +637,7 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 			return respond_error(nl_hdr, -EPERM);
 		}
 
-		log_debug("Flushing the IPv4 pool...");
+		log_debug("Flushing the RFC6791 pool...");
 		error = rfc6791_flush();
 		if (error)
 			return respond_error(nl_hdr, error);
@@ -653,7 +645,85 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return respond_error(nl_hdr, error);
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
+		return respond_error(nl_hdr, -EINVAL);
+	}
+}
+
+static int handle_blacklist_display(struct nlmsghdr *nl_hdr, union request_pool4addr *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_prefix *offset;
+	int error;
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	offset = request->display.offset_set ? &request->display.offset : NULL;
+	error = blacklist_for_each(pool_to_usr, buffer, offset);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
+static int handle_blacklist_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
+		union request_pool4addr *request)
+{
+	__u64 count;
+	int error;
+
+	if (nat64_is_stateful()) {
+		log_err("Blacklist does not apply to Stateful NAT64.");
+		return -EINVAL;
+	}
+
+	switch (jool_hdr->operation) {
+	case OP_DISPLAY:
+		log_debug("Sending Blacklist pool to userspace.");
+		return handle_blacklist_display(nl_hdr, request);
+
+	case OP_COUNT:
+		log_debug("Returning address count in the Blacklist pool.");
+		error = blacklist_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
+
+	case OP_ADD:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Adding an address to the Blacklist pool.");
+		return respond_error(nl_hdr, blacklist_add(&request->add.addrs));
+
+	case OP_REMOVE:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Removing an address from the Blacklist pool.");
+
+		error = blacklist_remove(&request->rm.addrs);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_error(nl_hdr, error);
+
+	case OP_FLUSH:
+		if (verify_superpriv()) {
+			return respond_error(nl_hdr, -EPERM);
+		}
+
+		log_debug("Flushing the Blacklist pool...");
+		error = blacklist_flush();
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_error(nl_hdr, error);
+
+	default:
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -671,14 +741,14 @@ static int logtime_entry_to_userspace(struct log_node *node, void *arg)
 
 #endif
 
-static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		struct request_logtime *request)
 {
 #ifdef BENCHMARK
 	struct nl_buffer *buffer;
 	int error;
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		log_debug("Sending logs time to userspace.");
 
@@ -693,7 +763,7 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		kfree(buffer);
 		return error;
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 #else
@@ -978,7 +1048,7 @@ fail:
 	return error;
 }
 
-static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_global *request)
 {
 	struct global_config response = { .mtu_plateaus = NULL };
@@ -987,7 +1057,7 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 	bool disabled;
 	int error;
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		log_debug("Returning 'Global' options.");
 
@@ -1016,13 +1086,13 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 		log_debug("Updating 'Global' options.");
 
 		buffer = (unsigned char *) (request + 1);
-		buffer_len = nat64_hdr->length - sizeof(*nat64_hdr) - sizeof(*request);
+		buffer_len = jool_hdr->length - sizeof(*jool_hdr) - sizeof(*request);
 
 		error = handle_global_update(request->update.type, buffer_len, buffer);
 		break;
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		error = -EINVAL;
 	}
 
@@ -1039,7 +1109,7 @@ end:
  */
 static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hdr)
 {
-	struct request_hdr *nat64_hdr;
+	struct request_hdr *jool_hdr;
 	void *request;
 	int error;
 
@@ -1048,34 +1118,35 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return -EINVAL;
 	}
 
-	nat64_hdr = NLMSG_DATA(nl_hdr);
-	request = nat64_hdr + 1;
+	jool_hdr = NLMSG_DATA(nl_hdr);
+	request = jool_hdr + 1;
 
-	error = validate_version(nat64_hdr);
+	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
 
-	switch (nat64_hdr->mode) {
+	switch (jool_hdr->mode) {
 	case MODE_POOL6:
-		return handle_pool6_config(nl_hdr, nat64_hdr, request);
+		return handle_pool6_config(nl_hdr, jool_hdr, request);
 	case MODE_POOL4:
-	case MODE_BLACKLIST:
-		return handle_pool4_config(nl_hdr, nat64_hdr, request);
+		return handle_pool4_config(nl_hdr, jool_hdr, request);
 	case MODE_BIB:
-		return handle_bib_config(nl_hdr, nat64_hdr, request);
+		return handle_bib_config(nl_hdr, jool_hdr, request);
 	case MODE_SESSION:
-		return handle_session_config(nl_hdr, nat64_hdr, request);
+		return handle_session_config(nl_hdr, jool_hdr, request);
 	case MODE_EAMT:
-		return handle_eamt_config(nl_hdr, nat64_hdr, request);
+		return handle_eamt_config(nl_hdr, jool_hdr, request);
 	case MODE_RFC6791:
-		return handle_rfc6791_config(nl_hdr, nat64_hdr, request);
+		return handle_rfc6791_config(nl_hdr, jool_hdr, request);
+	case MODE_BLACKLIST:
+		return handle_blacklist_config(nl_hdr, jool_hdr, request);
 	case MODE_LOGTIME:
-		return handle_logtime_config(nl_hdr, nat64_hdr, request);
+		return handle_logtime_config(nl_hdr, jool_hdr, request);
 	case MODE_GLOBAL:
-		return handle_global_config(nl_hdr, nat64_hdr, request);
+		return handle_global_config(nl_hdr, jool_hdr, request);
 	}
 
-	log_err("Unknown configuration mode: %d", nat64_hdr->mode);
+	log_err("Unknown configuration mode: %d", jool_hdr->mode);
 	return respond_error(nl_hdr, -EINVAL);
 }
 
