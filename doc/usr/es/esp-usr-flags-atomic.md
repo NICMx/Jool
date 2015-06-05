@@ -20,7 +20,7 @@ title: Documentación - Flags > Fragmentos Atómicos
 
 ## Introduccón
 
-Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un trozo de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
+Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un segmento de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
 
 Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280, para introducir fragmentos y generar problemas. Algunas referencias son:
 
@@ -48,14 +48,14 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 
 ### `--allow-atomic-fragments`
 
-#### Permite el tránsito de los fragmentos atómicos
+#####         Permite el tránsito de los fragmentos atómicos
 
 - Tipo: Booleano
 - Default: OFF
 - Modos: Ambos (SIIT y Stateful)
 - Sentido de traducción: Ambos (IPv4 a IPv6 y IPv6 a IPv4)
 - Fuente: [2011, RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
-          [2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+                [2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
 Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados.
 
@@ -91,7 +91,7 @@ $(jool) --genID true
 $(jool) --boostMTU true
 {% endhighlight %}
 
-Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.
+[Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.]
 
 NOTAS:
 
