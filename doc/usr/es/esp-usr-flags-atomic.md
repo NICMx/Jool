@@ -32,7 +32,7 @@ La IETF está tratando de normar el [desuso de los fragmentos atómicos](https:/
 
 DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados.
 
-Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade uno adicional.
+Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade otro adicional.
 
 [![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
@@ -72,7 +72,7 @@ $(jool) --genID false
 $(jool) --boostMTU false
 {% endhighlight %}
 
-Según lo establece el [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6) este sería el comportamiento mandatorio,  pero está siendo verificado en el Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+Según lo establece el [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6) este sería el comportamiento mandatorio,  pero está siendo verificado por la IETF, ver Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
 Para DESHABILITARLO, sencillamente ejecute:
 
@@ -93,9 +93,8 @@ $(jool) --boostMTU true
 
 NOTAS:
 
-La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.
- 
-La relación entre  `--setDF` y `--boostMTU` es también particularmente delicada; ve abajo para más detalles.
+(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.
+(2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
 
 
 ### `--setDF`
@@ -109,19 +108,23 @@ La relación entre  `--setDF` y `--boostMTU` es también particularmente delicad
 La lógica descrita en forma de pseudocódigo es:
           
 	SI el paquete entrante TIENE UNA CABECERA DE FRAGMENTO:        #PAQ. ENTRANTE en IPv6 TIENE CABECERA DE FRAGMENTO 
-		El parámetro DF del paquete saliente será falso.              #AVISA PAQ. SALIENTE en IPv4 fue FRAGMENTADO
+		El parámetro DF del paquete saliente será falso.              #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO
 	De otra forma:                                                 #PAQ. ENTRANTE en IPv6 NO TIENE CABECERA DE FRAGMENTO 
 		si --setDF es true                                             #LA BANDERA "NO FRAGMENTES" ESTÁ ENCENDIDA
-            El parámetro DF del paquete saliente será verdadero.          #AVISA PAQ. SALIENTE en IPv4 NO será FRAGMENTADO (Va Entero)
+            El parámetro DF del paquete saliente será verdadero.          #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO (Va Entero)
 		De otra forma:                                                 #LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA (Es Fragmentable)
             Si la longitud del paquete saliente es > 1260                 #PAQ. SALIENTE en IPv4 > 1260 (Rebasa el Mínimo MTU en IPv6)          
 					El parámetro DF del paquete saliente será verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO fue FRAGMENTADO (Va Entero, todavía)
 				De otra forma:                                               #PAQ. SALIENTE en IPv4 <= 1260 (Menor al Mínimo MTU en IPv6)
 					El parámetro DF del paquete saliente será falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO (1ER Fragmento)
 
-Para mayor información, revisar [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
+NOTAS:
 
-También ve [`--boostMTU`](#boostmtu) para una mejor comprensión.
+(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.
+(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.
+(3) Y para mayor información, revisar la [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
+
+
 
 
 ### `--genFH`
