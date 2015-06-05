@@ -93,7 +93,7 @@ $(jool) --boostMTU true
 
 NOTAS:
 
-(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.
+(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
 (2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
 
 
@@ -114,14 +114,14 @@ La lógica descrita en forma de pseudocódigo es:
             El parámetro DF del paquete saliente será verdadero.          #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO (Va Entero)
 		De otra forma:                                                 #LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA (Es Fragmentable)
             Si la longitud del paquete saliente es > 1260                 #PAQ. SALIENTE en IPv4 > 1260 (Rebasa el Mínimo MTU en IPv6)          
-					El parámetro DF del paquete saliente será verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO fue FRAGMENTADO (Va Entero, todavía)
+					El parámetro DF del paquete saliente será verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO (Es Fragmentable pero NO va Fragmentado)
 				De otra forma:                                               #PAQ. SALIENTE en IPv4 <= 1260 (Menor al Mínimo MTU en IPv6)
 					El parámetro DF del paquete saliente será falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO (1ER Fragmento)
 
 NOTAS:
 
-(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.
-(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.
+(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
+(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.<br />
 (3) Y para mayor información, revisar la [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
 
 
