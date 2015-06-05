@@ -25,8 +25,8 @@ Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; 
 Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280, para introducir fragmentos y generar problemas. Algunas referencias son:
 
 [2010, RFC. 5927](https://tools.ietf.org/html/rfc5927)<br />
-[2012, Security Implications of Predictable Fragment Identification Values] (http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
-[2013, RFC. 6946] (https://tools.ietf.org/html/rfc6946)<br />
+[2012, Security Implications of Predictable Fragment Identification Values](http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
+[2013, RFC. 6946](https://tools.ietf.org/html/rfc6946)<br />
 
 La IETF está tratando de normar el [desuso de los fragmentos atómicos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
 
@@ -55,7 +55,7 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 - Modos: Ambos (SIIT y Stateful)
 - Sentido de traducción: Ambos (IPv4 a IPv6 y IPv6 a IPv4)
 - Fuente: [2011, RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
-                [2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+               [2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
 Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados.
 
@@ -95,9 +95,7 @@ $(jool) --boostMTU true
 
 NOTAS:
 
-La separación de los cuatro parámetros existe por razones históricas en la implementación,
- mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y
- que los otros casos conviene que sean descartados. 
+La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otros casos conviene que sean descartados. 
  
 La relación entre  `--setDF` y `--boostMTU` es también particularmente delicada; ve abajo para más detalles.
 
