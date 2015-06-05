@@ -93,9 +93,13 @@ $(jool) --boostMTU true
 
 Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.
 
-NOTA:
+NOTAS:
 
-La separación de los cuatro parámetros existe solo por razones históricas; nuestra interpretación del RFC solía estar equivocada. Nunca deberias de manejarlos individualmente. No tiene sentido asignar el valor false a `--setDF` y asignar true a `--genFH`, por ejemplo. La relación entre  `--setDF` y `--boostMTU` es tambien particularmente delicada; ve abajo para mas detalles.
+La separación de los cuatro parámetros existe por razones históricas en la implementación,
+ mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y
+ que los otros casos conviene que sean descartados. 
+ 
+La relación entre  `--setDF` y `--boostMTU` es también particularmente delicada; ve abajo para más detalles.
 
 
 ### `--setDF`
