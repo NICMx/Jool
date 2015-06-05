@@ -36,9 +36,9 @@ Pero es destacable mencionar, que hemos registrado problemas técnicos al permit
 
 [![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
-En Jool 3.2 y en versiones anteriores se evade esto al NO delegar la fragmentación al kernel; pero, nos introdujo otros problemas más sutiles.
+En **Jool 3.2 y en versiones anteriores** se evade esto al NO delegar la fragmentación al kernel; pero, el hacelo así nos introdujo otros problemas más sutiles.
 
-Ahora en Jool 3.3, la configuración por omisión es  **deshabilitar** los fragmentos atómicos, lo cual te recomendamos **no** cambies.
+Ahora en **Jool 3.3**, la configuración por omisión es  deshabilitar los fragmentos atómicos, lo cual **te recomendamos no cambies**.
 
 Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) y cuando se formalize, en breve, se omitirá en Jool. 
  
@@ -47,15 +47,15 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 	Las opciones descritas a continuación tienen que ver con fragmentos atómicos
 
 ### `--allow-atomic-fragments`
-
-#####         Permite el tránsito de los fragmentos atómicos
-
+	
+- Nombre: PERMITE LOS FRAGMENTOS ATÓMICOS
 - Tipo: Booleano
-- Default: OFF
-- Modos: Ambos (SIIT y Stateful)
-- Sentido de traducción: Ambos (IPv4 a IPv6 y IPv6 a IPv4)
+- Default: APAGADO (0)
+- Modos: SIIT & Stateful
+- Sentido de traducción: IPv4 -> IPv6 & IPv6 -> IPv4
+
 - Fuente: [2011, RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
-               [2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+<tab />[2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
 Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados.
 
@@ -91,7 +91,7 @@ $(jool) --genID true
 $(jool) --boostMTU true
 {% endhighlight %}
 
-[Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.]
+**Reafirmando: Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.**
 
 NOTAS:
 
@@ -102,27 +102,27 @@ La relación entre  `--setDF` y `--boostMTU` es también particularmente delicad
 
 ### `--setDF`
 
-- Nombre: Parámetro DF siempre encendido
+- Nombre: NO FRAGMENTES
 - Tipo: Booleano
-- Default: OFF
-- Modos: Ambos (SIIT y Stateful)
-- Sentido de traducción: IPv6 a IPv4
+- Default: APAGADO (0)
+- Modos: SIIT & Stateful
+- Sentido de traducción: IPv6 -> IPv4
 
-La lógica es mejor desceita en forma de pseudocódigo:
+La lógica descrita en forma de pseudocódigo es:
           
-        Si el paquete entrante tiene una cabecera de fragmento:  
-		    El parámetro DF del paquete saliente será falso.
-		De otra forma:
-		   si --setDF es true
-            El parámetro DF del paquete saliente será verdadero.
+        SI el paquete entrante TIENE UNA CABECERA DE FRAGMENTO:        #PAQ. ENTRANTE TIENE CABECERA DE FRAGMENTO 
+		    El parámetro DF del paquete saliente será falso.              #AVISA PAQ. SALIENTE VA FRAGMENTADO
+		De otra forma:                                                 #PAQ. ENTRANTE NO TIENE CABECERA DE FRAGMENTO 
+		   si --setDF es true                                             #LA BANDERA "NO FRAGMENTES" ESTÁ ENCENDIDA
+            El parámetro DF del paquete saliente será verdadero.             #AVISA PAQ. SALIENTE NO VA FRAGMENTADO
 			
-			De otra forma:
-                Si la longitud del paquete saliente es > 1260
-					El parámetro DF del paquete saliente será verdadero.
-				De otra forma:
-					El parámetro DF del paquete saliente será falso.
+			De otra forma:                                                #LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA
+                Si la longitud del paquete saliente es > 1260                #PAQ. SALIENTE > 1260          
+					El parámetro DF del paquete saliente será verdadero.        #AVISA PAQ. SALIENTE NO VA FRAGMENTADO
+				De otra forma:                                               #PAQ. SALIENTE <= 1260
+					El parámetro DF del paquete saliente será falso.            #AVISA PAQ. SALIENTE VA FRAGMENTADO
 
-La [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6) describe los fundamentos lógicos.
+Para mayor información, revisar [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
 
 También ve [`--boostMTU`](#boostmtu) para una mejor comprensión.
 
