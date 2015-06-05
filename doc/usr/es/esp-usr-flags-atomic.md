@@ -127,9 +127,9 @@ NOTAS:
 ### `--genFH`
 
 - Nombre: GENERAR CABECERA DE FRAGMENTO IPV6
-	- Tipo: Booleano
+- Tipo: Booleano
 - Valor por Omisión: APAGADO (0)
-	- Modos: SIIT && Stateful
+- Modos: SIIT && Stateful
 - Sentido de traducción: IPv4 -> IPv6
 
 La lógica descrita en forma de pseudocódigo es:
@@ -143,7 +143,7 @@ La lógica descrita en forma de pseudocódigo es:
 			Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO
 		
 NOTA:
-(1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".
+(1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".<br />
 (2)Este es el parámetro que causa que Linux se comporte erróneamente cuando necesita fragmentar. No funciona bien, así que actívalo bajo tu propio riesgo.
 
 
