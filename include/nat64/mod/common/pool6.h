@@ -28,7 +28,7 @@ void pool6_destroy(void);
 /**
  * Removes all prefixes from the pool.
  */
-int pool6_flush(void);
+void pool6_flush(void);
 
 /**
  * Returns (in "prefix") the pool's prefix corresponding to "addr".

@@ -215,14 +215,12 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Flushing the IPv6 pool...");
-		error = pool6_flush();
-		if (error)
-			return respond_error(nl_hdr, error);
+		pool6_flush();
 
 		if (nat64_is_stateful() && !request->flush.quick)
 			sessiondb_flush();
 
-		return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr, 0);
 
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
@@ -291,8 +289,7 @@ static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request
 static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_pool4 *request)
 {
-//	__u64 count;
-	int error;
+	struct response_pool4_count counters;
 
 	if (nat64_is_stateless()) {
 		log_err("SIIT doesn't have pool4.");
@@ -303,13 +300,11 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 	case OP_DISPLAY:
 		return handle_pool4_display(nl_hdr, request);
 
-	/* TODO */
-//	case OP_COUNT:
-//		log_debug("Returning IPv4 address count.");
-//		error = pool4_count(&count);
-//		if (error)
-//			return respond_error(nl_hdr, error);
-//		return respond_setcfg(nl_hdr, &count, sizeof(count));
+	case OP_COUNT:
+		log_debug("Returning IPv4 pool counters.");
+		pool4db_count(&counters.tables, &counters.samples,
+				&counters.taddrs);
+		return respond_setcfg(nl_hdr, &counters, sizeof(counters));
 
 	case OP_ADD:
 		return handle_pool4_add(nl_hdr, request);
@@ -322,16 +317,14 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Flushing the IPv4 pool...");
-		error = pool4db_flush(request->flush.mark);
-		if (error)
-			return respond_error(nl_hdr, error);
+		pool4db_flush();
 
 		if (nat64_is_stateful() && !request->flush.quick) {
 			sessiondb_flush();
 			bibdb_flush();
 		}
 
-		return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr, 0);
 
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
@@ -572,7 +565,7 @@ static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
 	return nlbuffer_write(arg, prefix, sizeof(*prefix));
 }
 
-static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4addr *request)
+static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool *request)
 {
 	struct nl_buffer *buffer;
 	struct ipv4_prefix *offset;
@@ -591,7 +584,7 @@ static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4a
 }
 
 static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
-		union request_pool4addr *request)
+		union request_pool *request)
 {
 	__u64 count;
 	int error;
@@ -650,7 +643,7 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 	}
 }
 
-static int handle_blacklist_display(struct nlmsghdr *nl_hdr, union request_pool4addr *request)
+static int handle_blacklist_display(struct nlmsghdr *nl_hdr, union request_pool *request)
 {
 	struct nl_buffer *buffer;
 	struct ipv4_prefix *offset;
@@ -669,7 +662,7 @@ static int handle_blacklist_display(struct nlmsghdr *nl_hdr, union request_pool4
 }
 
 static int handle_blacklist_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
-		union request_pool4addr *request)
+		union request_pool *request)
 {
 	__u64 count;
 	int error;

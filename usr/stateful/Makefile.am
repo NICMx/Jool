@@ -9,10 +9,10 @@ jool_SOURCES = \
 	../common/global.c \
 	../common/jool.c \
 	../common/netlink.c \
-	../common/pool4.c \
-	../common/str_utils.c \
 	../common/pool6.c \
+	../common/str_utils.c \
 	bib.c \
+	pool4.c \
 	session.c
 #jool_SOURCES += ../common/log_time.c
 

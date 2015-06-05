@@ -22,7 +22,7 @@ int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
 		struct port_range *ports);
 int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
 		struct port_range *ports);
-int pool4db_flush(const __u32 mark);
+void pool4db_flush(void);
 
 /*
  * Read functions (Legal to use anywhere)
@@ -31,6 +31,7 @@ int pool4db_flush(const __u32 mark);
 bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr);
 bool pool4db_contains_all(struct ipv4_transport_addr *addr);
 bool pool4db_is_empty(void);
+void pool4db_count(__u32 *tables, __u64 *samples, __u64 *taddrs);
 
 int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);

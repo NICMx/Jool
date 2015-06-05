@@ -14,21 +14,21 @@ static bool test_init_power(void)
 	bool success = true;
 
 	success &= ASSERT_INT(0, init_power(0), "r0");
-	success &= ASSERT_UINT(1U, power, "p0");
+	success &= ASSERT_UINT(1U, slots(), "p0");
 	success &= ASSERT_INT(0, init_power(1), "r1");
-	success &= ASSERT_UINT(1U, power, "p1");
+	success &= ASSERT_UINT(1U, slots(), "p1");
 	success &= ASSERT_INT(0, init_power(2), "r2");
-	success &= ASSERT_UINT(2U, power, "p2");
+	success &= ASSERT_UINT(2U, slots(), "p2");
 	success &= ASSERT_INT(0, init_power(3), "r3");
-	success &= ASSERT_UINT(4U, power, "p3");
+	success &= ASSERT_UINT(4U, slots(), "p3");
 	success &= ASSERT_INT(0, init_power(4), "r4");
-	success &= ASSERT_UINT(4U, power, "p4");
+	success &= ASSERT_UINT(4U, slots(), "p4");
 	success &= ASSERT_INT(0, init_power(5), "r5");
-	success &= ASSERT_UINT(8U, power, "p5");
+	success &= ASSERT_UINT(8U, slots(), "p5");
 	success &= ASSERT_INT(0, init_power(1234), "r1234");
-	success &= ASSERT_UINT(2048U, power, "p1234");
+	success &= ASSERT_UINT(2048U, slots(), "p1234");
 	success &= ASSERT_INT(0, init_power(0x80000000U), "rmax");
-	success &= ASSERT_UINT(0x80000000U, power, "pmax");
+	success &= ASSERT_UINT(0x80000000U, slots(), "pmax");
 	success &= ASSERT_INT(-EINVAL, init_power(0x80000001U), "2big1");
 	success &= ASSERT_INT(-EINVAL, init_power(0xFFFFFFFFU), "2big2");
 

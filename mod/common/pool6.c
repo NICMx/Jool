@@ -97,10 +97,9 @@ void pool6_destroy(void)
 	}
 }
 
-int pool6_flush(void)
+void pool6_flush(void)
 {
 	pool6_destroy();
-	return 0;
 }
 
 int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)

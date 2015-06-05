@@ -60,6 +60,9 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 
 static int init_power(unsigned int size)
 {
+	if (size == 0)
+		size = 16;
+
 	if (size > (1U << 31)) {
 		/*
 		 * If you ever want to remove this validation for some crazy
@@ -70,8 +73,8 @@ static int init_power(unsigned int size)
 		return -EINVAL;
 	}
 
-	/* @power = smallest power of two greater or equal than @size. */
-	for (power = 1; power < size; power <<= 1)
+	/* 2^@power = smallest power of two greater or equal than @size. */
+	for (power = 1; slots() < size; power <<= 1)
 		/* Chomp chomp. */;
 
 	return 0;
@@ -98,19 +101,7 @@ int pool4db_init(unsigned int size, char *prefix_strs[], int prefix_count)
 
 void pool4db_destroy(void)
 {
-	struct hlist_node *node;
-	struct pool4_table *table;
-	unsigned int i;
-
-	for (i = 0; i < slots(); i++) {
-		while (!hlist_empty(&db[i])) {
-			node = db[i].first;
-			table = table_entry(node);
-			hlist_del(node);
-			pool4table_destroy(table);
-		}
-	}
-
+	pool4db_flush();
 	kfree(db);
 }
 
@@ -169,6 +160,15 @@ int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
 	return error;
 }
 
+static void __rm(struct pool4_table *table)
+{
+	hlist_del_rcu(&table->hlist_hook);
+	synchronize_rcu();
+
+	pool4table_destroy(table);
+	values--;
+}
+
 int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
@@ -176,24 +176,35 @@ int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
 	int error;
 
 	table = find_table(mark);
-	error = table ? pool4table_rm(table, prefix, ports) : -ESRCH;
-
-	return error;
-}
-
-int pool4db_flush(const __u32 mark)
-{
-	struct pool4_table *table;
-
-	table = find_table(mark);
 	if (!table)
 		return -ESRCH;
 
-	hlist_del_rcu(&table->hlist_hook);
-	synchronize_rcu();
+	error = pool4table_rm(table, prefix, ports);
+	if (error)
+		return error;
 
-	pool4table_destroy(table);
+	if (list_empty(&table->rows))
+		__rm(table);
+
 	return 0;
+}
+
+void pool4db_flush(void)
+{
+	struct hlist_node *node;
+	struct pool4_table *table;
+	unsigned int i;
+
+	for (i = 0; i < slots(); i++) {
+		while (!hlist_empty(&db[i])) {
+			node = db[i].first;
+			table = table_entry(node);
+			hlist_del(node);
+			pool4table_destroy(table);
+		}
+	}
+
+	values = 0;
 }
 
 bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr)
@@ -251,6 +262,28 @@ bool pool4db_is_empty(void)
 end:
 	rcu_read_unlock();
 	return empty;
+}
+
+void pool4db_count(__u32 *tables, __u64 *samples, __u64 *taddrs)
+{
+	struct hlist_node *node;
+	unsigned int i;
+
+	(*tables) = 0;
+	(*samples) = 0;
+	(*taddrs) = 0;
+
+	for (i = 0; i < slots(); i++) {
+		hlist_for_each(node, &db[i]) {
+			(*tables)++;
+			rcu_read_lock();
+			pool4table_count(table_entry(node), samples, taddrs);
+			rcu_read_unlock();
+		}
+	}
+
+	WARN((*tables) != values, "Computed table count doesn't match stored "
+			"table count.");
 }
 
 int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,

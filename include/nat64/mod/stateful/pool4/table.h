@@ -29,6 +29,7 @@ int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
 bool pool4table_contains(struct pool4_table *table,
 		const struct ipv4_transport_addr *addr);
 bool pool4table_is_empty(struct pool4_table *table);
+void pool4table_count(struct pool4_table *table, __u64 *samples, __u64 *taddrs);
 
 int pool4table_foreach_sample(struct pool4_table *table,
 		int (*func)(struct pool4_sample *, void *), void * args,

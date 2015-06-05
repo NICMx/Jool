@@ -18,6 +18,7 @@
 #include "nat64/common/config.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
+#include "nat64/usr/pool.h"
 #include "nat64/usr/pool6.h"
 #include "nat64/usr/pool4.h"
 #include "nat64/usr/bib.h"
@@ -861,19 +862,22 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_POOL4:
-	case MODE_BLACKLIST:
-	case MODE_RFC6791:
+		if (nat64_is_stateless()) {
+			log_err("SIIT doesn't have pool4.");
+			return -EINVAL;
+		}
+
 		switch (args.op) {
 		case OP_DISPLAY:
-			return pool4_display(args.mode);
+			return pool4_display();
 		case OP_COUNT:
-			return pool4_count(args.mode);
+			return pool4_count();
 		case OP_ADD:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_add(args.mode, args.db.pool4.mark,
+			return pool4_add(args.db.pool4.mark,
 					&args.db.pool4.prefix,
 					&args.db.pool4.ports);
 		case OP_REMOVE:
@@ -881,11 +885,11 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool4_remove(args.mode, args.db.pool4.mark,
+			return pool4_rm(args.db.pool4.mark,
 					&args.db.pool4.prefix,
 					&args.db.pool4.ports, args.db.quick);
 		case OP_FLUSH:
-			return pool4_flush(args.mode, args.db.quick);
+			return pool4_flush(args.db.quick);
 		default:
 			log_err("Unknown operation for IPv4 pool mode: %u.", args.op);
 			return -EINVAL;
@@ -983,6 +987,38 @@ static int main_wrapped(int argc, char **argv)
 			return eam_flush();
 		default:
 			log_err("Unknown operation for EAMT mode: %u.", args.op);
+			return -EINVAL;
+		}
+		break;
+
+	case MODE_RFC6791:
+	case MODE_BLACKLIST:
+		if (nat64_is_stateful()) {
+			log_err("blacklist/RFC6791 don't apply to Stateful NAT64.");
+			return -EINVAL;
+		}
+
+		switch (args.op) {
+		case OP_DISPLAY:
+			return pool_display(args.mode);
+		case OP_COUNT:
+			return pool_count(args.mode);
+		case OP_ADD:
+			if (!args.db.pool4.prefix_set) {
+				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
+				return -EINVAL;
+			}
+			return pool_add(args.mode, &args.db.pool4.prefix);
+		case OP_REMOVE:
+			if (!args.db.pool4.prefix_set) {
+				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
+				return -EINVAL;
+			}
+			return pool_rm(args.mode, &args.db.pool4.prefix);
+		case OP_FLUSH:
+			return pool_flush(args.mode);
+		default:
+			log_err("Unknown operation for blacklist or rfc6791 mode: %u.", args.op);
 			return -EINVAL;
 		}
 		break;

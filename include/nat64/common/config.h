@@ -202,13 +202,12 @@ union request_pool4 {
 		__u8 quick;
 	} rm;
 	struct {
-		__u32 mark;
 		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
 		__u8 quick;
 	} flush;
 };
 
-union request_pool4addr {
+union request_pool {
 	struct {
 		__u8 offset_set;
 		struct ipv4_prefix offset;
@@ -382,6 +381,12 @@ union request_global {
 		__u8 type;
 		/* The value is given in a variable-sized payload so it's not here. */
 	} update;
+};
+
+struct response_pool4_count {
+	__u32 tables;
+	__u64 samples;
+	__u64 taddrs;
 };
 
 /**

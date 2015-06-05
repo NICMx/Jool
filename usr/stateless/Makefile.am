@@ -9,10 +9,10 @@ jool_siit_SOURCES = \
 	../common/global.c \
 	../common/jool.c \
 	../common/netlink.c \
-	../common/pool4.c \
-	../common/str_utils.c \
 	../common/pool6.c \
-	eam.c
+	../common/str_utils.c \
+	eam.c \
+	pool.c
 #jool_siit_SOURCES += ../common/log_time.c
 
 jool_siit_LDADD = ${LIBNL3_LIBS}

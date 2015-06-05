@@ -425,3 +425,16 @@ bool pool4table_is_empty(struct pool4_table *table)
 {
 	return list_empty(&table->rows);
 }
+
+void pool4table_count(struct pool4_table *table, __u64 *samples, __u64 *taddrs)
+{
+	struct pool4_addr *addr;
+	struct pool4_ports *ports;
+
+	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
+		(*samples)++;
+		list_for_each_entry_rcu(ports, &addr->ports, list_hook) {
+			(*taddrs) += port_range_count(&ports->range);
+		}
+	}
+}
