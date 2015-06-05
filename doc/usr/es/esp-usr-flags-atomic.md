@@ -50,42 +50,40 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 	
 - Nombre: PERMITE LOS FRAGMENTOS ATÓMICOS
 - Tipo: Booleano
-- Default: APAGADO (0)
+- Valor por Omisión: APAGADO (0)
 - Modos: SIIT & Stateful
-- Sentido de traducción: IPv4 -> IPv6 & IPv6 -> IPv4
+- Sentido de traducción: IPv4 -> IPv6 && IPv6 -> IPv4
 
-- Fuente: [2011, RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6). <br />
-<tab />[2014, Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
-Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados.
+	Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados, llamados _atómicos_.
 
-Para HABILITARLO:
+Para HABILITARLO, sencillamente ejecute:
 
 {% highlight bash %}
 $(jool) --allow-atomic-fragments true
 {% endhighlight %}
 
-Y que es equivalente a:
+Y esto es equivalente a:
 
 {% highlight bash %}
-$(jool) --setDF true
+$(jool) --setDF true      #NO FRAGMENTES
 $(jool) --genFH true
 $(jool) --genID false
 $(jool) --boostMTU false
 {% endhighlight %}
 
-Este es el comportamiento mandatorio según el RFC 6145, pero que está siendo verificado en el Draft Deprecate Atomfrag Generation.
+Según lo establece el [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6) este sería el comportamiento mandatorio,  pero está siendo verificado en el Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
 
-Para DESHABILITARLO:
+Para DESHABILITARLO, sencillamente ejecute:
 
 {% highlight bash %}
 $(jool) --allow-atomic-fragments false
 {% endhighlight %}
 
-Y que es equivalente a:
+Y esto es equivalente a:
 
 {% highlight bash %}
-$(jool) --setDF false
+$(jool) --setDF false    #FRAGMENTABLE
 $(jool) --genFH false
 $(jool) --genID true
 $(jool) --boostMTU true
@@ -95,7 +93,7 @@ $(jool) --boostMTU true
 
 NOTAS:
 
-La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otros casos conviene que sean descartados. 
+La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.
  
 La relación entre  `--setDF` y `--boostMTU` es también particularmente delicada; ve abajo para más detalles.
 
@@ -104,23 +102,22 @@ La relación entre  `--setDF` y `--boostMTU` es también particularmente delicad
 
 - Nombre: NO FRAGMENTES
 - Tipo: Booleano
-- Default: APAGADO (0)
+- Valor por Omisión: APAGADO (0)
 - Modos: SIIT & Stateful
 - Sentido de traducción: IPv6 -> IPv4
 
 La lógica descrita en forma de pseudocódigo es:
           
-        SI el paquete entrante TIENE UNA CABECERA DE FRAGMENTO:        #PAQ. ENTRANTE TIENE CABECERA DE FRAGMENTO 
-		    El parámetro DF del paquete saliente será falso.              #AVISA PAQ. SALIENTE VA FRAGMENTADO
-		De otra forma:                                                 #PAQ. ENTRANTE NO TIENE CABECERA DE FRAGMENTO 
-		   si --setDF es true                                             #LA BANDERA "NO FRAGMENTES" ESTÁ ENCENDIDA
-            El parámetro DF del paquete saliente será verdadero.             #AVISA PAQ. SALIENTE NO VA FRAGMENTADO
-			
-			De otra forma:                                                #LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA
-                Si la longitud del paquete saliente es > 1260                #PAQ. SALIENTE > 1260          
-					El parámetro DF del paquete saliente será verdadero.        #AVISA PAQ. SALIENTE NO VA FRAGMENTADO
-				De otra forma:                                               #PAQ. SALIENTE <= 1260
-					El parámetro DF del paquete saliente será falso.            #AVISA PAQ. SALIENTE VA FRAGMENTADO
+	SI el paquete entrante TIENE UNA CABECERA DE FRAGMENTO:        #PAQ. ENTRANTE en IPv6 TIENE CABECERA DE FRAGMENTO 
+		El parámetro DF del paquete saliente será falso.              #AVISA PAQ. SALIENTE en IPv4 fue FRAGMENTADO
+	De otra forma:                                                 #PAQ. ENTRANTE en IPv6 NO TIENE CABECERA DE FRAGMENTO 
+		si --setDF es true                                             #LA BANDERA "NO FRAGMENTES" ESTÁ ENCENDIDA
+            El parámetro DF del paquete saliente será verdadero.          #AVISA PAQ. SALIENTE en IPv4 NO será FRAGMENTADO (Va Entero)
+		De otra forma:                                                 #LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA (Es Fragmentable)
+            Si la longitud del paquete saliente es > 1260                 #PAQ. SALIENTE en IPv4 > 1260 (Rebasa el Mínimo MTU en IPv6)          
+					El parámetro DF del paquete saliente será verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO fue FRAGMENTADO (Va Entero, todavía)
+				De otra forma:                                               #PAQ. SALIENTE en IPv4 <= 1260 (Menor al Mínimo MTU en IPv6)
+					El parámetro DF del paquete saliente será falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO (1ER Fragmento)
 
 Para mayor información, revisar [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
 
@@ -131,7 +128,7 @@ También ve [`--boostMTU`](#boostmtu) para una mejor comprensión.
 
 - Nombre: Generar Cabecera de Fragmento IPv6.
 - Tipo: Booleano
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: Both (SIIT and Stateful)
 - Sentido de traducción: IPv4 ta IPv6
 
@@ -146,7 +143,7 @@ Este es el parámetro que causa que Linux se vuelva loco cuando necesita fragmen
 
 - Nombre: Generar identificación IPv4
 - Tipo: Booleano
-- Default: ON
+- Valor por Omisión: ON
 - Modos: Ambos (SIIT y Stateful)
 - Sentido de traducción: IPv6 a IPv4
 
@@ -163,7 +160,7 @@ Por otra parte:
 
 - Nombre: Decrease MTU failure rate
 - Tipo: Booleano
-- Default: ON
+- Valor por Omisión: ON
 - Modes: Ambos (SIIT y Stateful)
 - Dirección de traducción: IPv4 to IPv6 (solo errores ICMP)
 
