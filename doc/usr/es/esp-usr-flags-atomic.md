@@ -20,7 +20,7 @@ title: Documentación - Flags > Fragmentos Atómicos
 
 ## Introduccón
 
-Los "Fragmenos Atómicos" son por decirlo de otra manera "fragmentos aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un segmento de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
+Los "Fragmenos Atómicos" son por decirlo de otra manera "Fragmentos Aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un segmento de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar que entre redes IPv6 el MTU es fijo y es de 1500 bytes; pero en IPv4, el MTU ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
 
 Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280, para introducir fragmentos y generar problemas. Algunas referencias son:
 
@@ -51,7 +51,7 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 - Tipo: Booleano
 - Valor por Omisión: APAGADO(0)
 - Modos: SIIT && Stateful
-- Sentido de traducción: IPv4 -> IPv6 && IPv6 -> IPv4
+- Sentido de traducción: IPv4 **->** IPv6 && IPv6 **->** IPv4
 
 
 	Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados, llamados _atómicos_.
@@ -90,10 +90,10 @@ $(jool) --boostMTU verdadero
 
 **Reafirmando: Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.**
 
-NOTAS:
 
-(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
-(2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
+NOTAS:
+	(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
+	(2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
 
 
 ### `--setDF`
@@ -102,7 +102,7 @@ NOTAS:
 - Tipo: Booleano
 - Valor por Omisión: APAGADO(0)
 - Modos: SIIT && Stateful
-- Sentido de traducción: IPv6 -> IPv4
+- Sentido de traducción: IPv6 **->** IPv4
 
 La lógica descrita en forma de pseudocódigo es:
           
@@ -118,10 +118,9 @@ La lógica descrita en forma de pseudocódigo es:
 				El parámetro DF del paquete saliente será Falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO (Primer Fragmento)
 
 NOTAS:
-
-(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
-(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.<br />
-(3) Y para mayor información, revisar la [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
+	(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
+	(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.<br />
+	(3) Y para mayor información, revisar la [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
 
 
 ### `--genFH`
@@ -130,7 +129,7 @@ NOTAS:
 - Tipo: Booleano
 - Valor por Omisión: APAGADO (0)
 - Modos: SIIT && Stateful
-- Sentido de traducción: IPv4 -> IPv6
+- Sentido de traducción: IPv4 **->** IPv6
 
 La lógica descrita en forma de pseudocódigo es:
 
@@ -142,9 +141,9 @@ La lógica descrita en forma de pseudocódigo es:
 		De otra forma:                                                    #SI PAQ. ENTRANTE en IPv4 NO es un FRAGMENTO
 			Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO
 		
-NOTA:
-(1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".<br />
-(2)Este es el parámetro que causa que Linux se comporte erróneamente cuando necesita fragmentar. No funciona bien, así que actívalo bajo tu propio riesgo.
+NOTAS:
+	(1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".<br />
+	(2)Este es el parámetro que causa que Linux se comporte erróneamente cuando necesita fragmentar. No funciona bien, así que actívalo bajo tu propio riesgo.
 
 
 ### `--genID`
@@ -153,7 +152,7 @@ NOTA:
 - Tipo: Booleano
 - Valor por Omisión: ENCENDIDO (1)
 - Modos: SIIT && Stateful
-- Sentido de traducción: *IPv6 -> IPv4*
+- Sentido de traducción: IPv6 **->** IPv4
 
 Los paquetes IPv6 solo disponen de un campo de identificación  si tienen una cabecera de fragmento, sin embargo todos los paquetes de IPv4 deben de llevar un campo de identificación. Esta bandera sirve para establecer qué hacer en los otros casos.
 
