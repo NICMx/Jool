@@ -170,7 +170,7 @@ La lógica descrita en forma de pseudocódigo es:
 			
 ### `--boostMTU`
 
-- Nombre: ***PROMUEVE MTU***
+- Nombre: ***PROMUEVE MTU IPv6***
 - Tipo: ***Booleano***
 - Valor por Omisión: ***Encendido (1)***
 - Modes: ***SIIT && Stateful***
@@ -180,19 +180,21 @@ Como se mencionó en la introducción, decíamos que cuando un paquete es muy gr
 
 Estos errores ICMP se supone deben contener el MTU infractor para que el emisor pueda reajustar el tamaño de sus paquetes. Dado que el MTU mínimo para IPv4 es 68 bytes y el de IPv6 es 1280, Jool puede encontrarse queriendo reportar un MTU illegal en IPv6 al traducir un _Fragmentation Needed_ (v4) en un _Packet too Big_ (v6). Con `--boostMTU` se trata de evitar este tipo de falla.
 
-Jool requiere hacer un pequeño ajuste al comparar por la diferencia entre la longitud básica del header IPv4(20 bytes) y la del header IPv6(40 bytes). Un paquete en IPv6 puede ser 20 bytes más grande que el MTU de IPv4 por que va a perder 20 bytes cuando su cabecera IPv6 sea reemplazada por una de IPv4.
+Jool requiere hacer un pequeño ajuste al comparar los MTUs, por la diferencia entre la longitud básica del header IPv4(20 bytes) y la del header IPv6(40 bytes). Un paquete en IPv6 puede ser 20 bytes más grande que el MTU de IPv4 por que va a perder 20 bytes cuando su cabecera IPv6 sea reemplazada por una de IPv4.
 
-La lógica descrita en forma de pseudocódigo es:
+La validación descrita en forma de pseudocódigo es:
 
 	IPv6_error.MTU = IPv4_error.MTU + 20
 	SI (--boostMTU == 1 && IPv6_error.MTU < 1280):   		#SI LA BANDERA "PROMUEVE MTU" ESTÁ ENCENDIDA && LONGITUD DEL PAQ. ENTRANTE ES MENOR A LA LONG. MÍNIMA PERMITIDA EN IPV6?
 		MTU de IPv6 = 1280                                     #ASIGNA A MTU de IPV6 SU VALOR MÍNIMO
 	
-En cualquier otro caso, con `--boostMTU` deshabilitado y/o IPv6_error.MTU >= 1280 , Jool no lo modificará. 
+En cualquier otro caso, con `--boostMTU` deshabilitado y/o IPv6_error.MTU >= 1280 , Jool no alterará este campo. 
 
 La [sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6) describe los fundamentos básicos.
 
-Toma en cuenta que, si `--setDF` y `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU < 1260, tienes un bucle infinito similar al [MTu hassle](esp-misc-mtu.html):
+**AVISO:**
+
+Si `--setDF` && `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU < 1260, tienes un bucle infinito similar al [MTU hassle](esp-misc-mtu.html):
 
 1. El emisor IPv6 transmite un paquete de tamaño 1280.
 2. Jool lo traduce en un paquete IPv4 de tamaño 1260 con DF=1
@@ -200,4 +202,4 @@ Toma en cuenta que, si `--setDF` y `--boostMTU` están ambos en ENCENDIDO (1) y 
 4. Jool lo traduce a ICMPv6 _Packet Too Big_ con MTU=1280.
 5. Ve al punto 1.
 
-Extendemos un agradecimiento a Tore Anderson por darse cuenta de (y sobre todo por escribir) acerca de esta peculiaridad. 
+Extendemos un agradecimiento a Tore Anderson por darse cuenta de ello y reportar esta peculiaridad. 
