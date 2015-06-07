@@ -50,11 +50,10 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 - Nombre: PERMITE LOS FRAGMENTOS ATÓMICOS
 - Tipo: Booleano
 - Valor por Omisión: APAGADO(0)
-- Modos: SIIT && Stateful
-- Sentido de traducción: IPv4 **->** IPv6 && IPv6 **->** IPv4
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv4 -> IPv6 && IPv6 -> IPv4***
 
-
-	Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados, llamados _atómicos_.
+Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados, llamados _atómicos_.
 
 Para HABILITARLO, sencillamente ejecute:
 
@@ -92,7 +91,7 @@ $(jool) --boostMTU verdadero
 
 
 NOTAS:<br />
-(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
+(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto que no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
 (2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
 
 
@@ -101,8 +100,8 @@ NOTAS:<br />
 - Nombre: NO FRAGMENTES
 - Tipo: Booleano
 - Valor por Omisión: APAGADO(0)
-- Modos: SIIT && Stateful
-- Sentido de traducción: **IPv6 -> IPv4**
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv6 -> IPv4***
 
 La lógica descrita en forma de pseudocódigo es:
           
@@ -128,8 +127,8 @@ NOTAS:<br />
 - Nombre: GENERA CABECERA DE FRAGMENTO IPV6
 - Tipo: Booleano
 - Valor por Omisión: APAGADO (0)
-- Modos: SIIT && Stateful
-- Sentido de traducción: IPv4 **->** IPv6
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv4 -> IPv6***
 
 La lógica descrita en forma de pseudocódigo es:
 
@@ -151,8 +150,8 @@ NOTAS:<br />
 - Nombre: GENERA IDENTIFICACIÓN IPV4
 - Tipo: Booleano
 - Valor por Omisión: ENCENDIDO (1)
-- Modos: SIIT && Stateful
-- Sentido de traducción: IPv6 **->** IPv4
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv6 -> IPv4***
 
 Los paquetes IPv6 solo disponen de un campo de identificación  si tienen una cabecera de fragmento, sin embargo todos los paquetes de IPv4 deben de llevar un campo de identificación. Esta bandera sirve para establecer qué hacer en los otros casos.
 
