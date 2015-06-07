@@ -126,7 +126,7 @@ NOTAS:
 
 ### `--genFH`
 
-- Nombre: GENERAR CABECERA DE FRAGMENTO IPV6
+- Nombre: GENERA CABECERA DE FRAGMENTO IPV6
 - Tipo: Booleano
 - Valor por Omisión: APAGADO (0)
 - Modos: SIIT && Stateful
@@ -139,7 +139,7 @@ La lógica descrita en forma de pseudocódigo es:
 	Si (--genFH == 0):                                                 #SI NO GENERA CABECERA en IPv6?
 		Si (paquete entrante es un fragmento):                            #SI PAQ. ENTRANTE en IPv4 es un FRAGMENTO?
 			Jool generará una cabecera de fragmento IPv6.                    #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO
-		De otra forma:                                                    #SI PAQ. ENTRANTE en IPv4 NO es un FRAGMENTO?
+		De otra forma:                                                    #SI PAQ. ENTRANTE en IPv4 NO es un FRAGMENTO
 			Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO
 		
 NOTA:
@@ -149,21 +149,30 @@ NOTA:
 
 ### `--genID`
 
-- Nombre: GENERAR IDENTIFICACIÓN IPV4
+- Nombre: GENERA IDENTIFICACIÓN IPV4
 - Tipo: Booleano
 - Valor por Omisión: ENCENDIDO (1)
 - Modos: SIIT && Stateful
-- Sentido de traducción: IPv6 -> IPv4
+- Sentido de traducción: *IPv6 -> IPv4*
 
-Todos los paquetes IPv4 contienen un campo de identificación. Los paquetes IPv6 solo contienen un campo de identificación  si tienen una cabecera de fragmento. 
+Los paquetes IPv6 solo disponen de un campo de identificación  si tienen una cabecera de fragmento, sin embargo todos los paquetes de IPv4 deben de llevar un campo de identificación. Esta bandera sirve para establecer qué hacer en los otros casos.
 
-Si el paquete IPv6 entrante tiene una cabecera de fragmento, el campo de identificación de la [cabecera IPv4](http://en.wikipedia.org/wiki/IPv4#Header) _siempre_ es copiado desde los bits de orden mas bajo del valor del valor de identificación de la cabecera de fragmento IPv6. 
+La lógica descrita en forma de pseudocódigo es:
 
-Por otra parte:
+	SI (el paquete entrante tiene una cabecera de fragmento):      #SI PAQ. ENTRANTE en IPv6 TIENE CABECERA DE FRAGMENTO?
+		Copia los bits de orden más bajo del campo de                 #TRANSFIERE EL NO. IDENTIFICADOR de IPV6 a IPV4 
+		identificación de la cabecera de fragmento en 
+		IPv6 al de IPv4
+	De otra forma:                                                 #SI PAQ. ENTRANTE en IPv6 NO TIENE CABECERA DE FRAGMENTO?
+		SI (--genID == 0):                                            #SI LA BANDERA "GENERA IDENTIFICACIÓN IPV4" ESTÁ APAGADA?
+            Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = 0
+			de la cabecera de fragmento de IPv4 = 0
+		De otra forma:                                                #SI LA BANDERA "GENERA IDENTIFICACIÓN IPV4" ESTÁ ENCENDIDA?
+            Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = Número Aleatorio
+			de la cabecera de fragmento de IPv4 = 
+			Número Aleatorio
 
-- If `--genID` is APAGADO (0), the IPv4 header's Identification fields are set to zero.
-- If `--genID` is ENCENDIDO (1), the IPv4 headers' Identification fields are set randomly.
-
+			
 ### `--boostMTU`
 
 - Nombre: DECREASE MTU FAILURE RATE
