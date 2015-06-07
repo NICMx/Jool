@@ -91,9 +91,9 @@ $(jool) --boostMTU verdadero
 **Reafirmando: Jool 3.3 opera de esta última forma; es decir, _NO_ deja pasar los fragmentos atómicos.**
 
 
-NOTAS:
-	(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
-	(2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
+NOTAS:<br />
+(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
+(2) La relación entre `--setDF` y `--boostMTU` es delicada. Consulta abajo para más detalles.
 
 
 ### `--setDF`
@@ -102,7 +102,7 @@ NOTAS:
 - Tipo: Booleano
 - Valor por Omisión: APAGADO(0)
 - Modos: SIIT && Stateful
-- Sentido de traducción: IPv6 **->** IPv4
+- Sentido de traducción: **IPv6 -> IPv4**
 
 La lógica descrita en forma de pseudocódigo es:
           
@@ -117,10 +117,10 @@ La lógica descrita en forma de pseudocódigo es:
 			De otra forma:                                               #SI PAQ. SALIENTE en IPv4 <= 1260? (Menor al Mínimo MTU en IPv6)
 				El parámetro DF del paquete saliente será Falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO (Primer Fragmento)
 
-NOTAS:
-	(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
-	(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.<br />
-	(3) Y para mayor información, revisar la [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
+NOTAS:<br />
+(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
+(2) Ver [`--boostMTU`](#boostmtu) para una mejor comprensión.<br />
+(3) Y para mayor información, revisar la [Sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6).
 
 
 ### `--genFH`
@@ -141,9 +141,9 @@ La lógica descrita en forma de pseudocódigo es:
 		De otra forma:                                                    #SI PAQ. ENTRANTE en IPv4 NO es un FRAGMENTO
 			Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO
 		
-NOTAS:
-	(1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".<br />
-	(2)Este es el parámetro que causa que Linux se comporte erróneamente cuando necesita fragmentar. No funciona bien, así que actívalo bajo tu propio riesgo.
+NOTAS:<br />
+(1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".<br />
+(2)Este es el parámetro que causa que Linux se comporte erróneamente cuando necesita fragmentar. No funciona bien, así que actívalo bajo tu propio riesgo.
 
 
 ### `--genID`
