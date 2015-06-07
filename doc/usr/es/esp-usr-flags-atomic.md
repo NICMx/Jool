@@ -20,9 +20,9 @@ title: Documentación - Flags > Fragmentos Atómicos
 
 ## Introducción
 
-Los "Fragmenos Atómicos" son por decirlo de otra manera "Fragmentos Aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un segmento de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar, que hasta el día de hoy entre redes Ethernet en IPv6 se suele emplear su valor máximo que es de 1500, pero en IPv4 el máximo ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, por regla, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para más información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
+Los "Fragmenos Atómicos" son por decirlo de otra manera "Fragmentos Aislados"; es decir, son paquetes de IPv6 que poseen un _fragment header_ sin que éste realmente sea un segmento de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, _hops_, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por _hosts_ que han recibido un mensaje de error del tipo ICMPv6 "Packet too Big" para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar, que hasta el día de hoy entre redes Ethernet en IPv6 se suele emplear su valor máximo que es de 1500 bytes, pero en IPv4 el máximo ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, por regla, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para más información sobre las cabeceras de fragmento, [ver RFC. 2460, sección 4.5, 1998](https://tools.ietf.org/html/rfc2460#section-4.5). 
 
-Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280, para introducir fragmentos y generar problemas. Algunas referencias son:
+Sin embargo, esta implementación es vulnerable a infiltraciones, y algún _hacker_ puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280 bytes, para introducir fragmentos y generar problemas. Algunas referencias sobre este tema son:
 
 [2010, RFC. 5927](https://tools.ietf.org/html/rfc5927)<br />
 [2012, Security Implications of Predictable Fragment Identification Values](http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
@@ -30,9 +30,7 @@ Sin embargo, su implementación es vulnerable a infiltraciones, y algún _hacker
 
 La IETF está tratando de normar el [desuso de los fragmentos atómicos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
 
-DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados.
-
-Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade otro adicional.
+DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados. Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade otro adicional.
 
 [![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
@@ -172,30 +170,25 @@ La lógica descrita en forma de pseudocódigo es:
 			
 ### `--boostMTU`
 
-- Nombre: ***PROMUEVE BAJA la RAZÓN de FALLA del MTU***
+- Nombre: ***PROMUEVE MTU***
 - Tipo: ***Booleano***
 - Valor por Omisión: ***Encendido (1)***
 - Modes: ***SIIT && Stateful***
 - Dirección de traducción: ***IPv4 -> IPv6 (aplica en: msg. de error de ICMP)***
 
-Cuando un paquete es muy grande para el MTU de un enlace, los routers generan mensajes ICMP de error - [Packet too Big](http://tools.ietf.org/html/rfc4443#section-3.2)- en IPv6 y -[Fragmentation Needed](http://tools.ietf.org/html/rfc792)- en IPv4. Estos tipos de error son aproximadamente equivalentes, así que Jool traduce _Packet too Bigs_ en _Fragmentation Neededs_ y vice-versa.
+Como se mencionó en la introducción, decíamos que cuando un paquete es muy grande para el MTU de un enlace, los routers en IPv4 generan mensajes ICMP de error -[Fragmentation Needed](http://tools.ietf.org/html/rfc792)- en IPv4 que son traducidos en  -[Packet too Big](http://tools.ietf.org/html/rfc4443#section-3.2)- en IPv6.
 
-Estos errores ICMP se supone deben contener el MTU infractor para que el emisor pueda reajustar el tamaño de sus paquetes correspondientemente.
+Estos errores ICMP se supone deben contener el MTU infractor para que el emisor pueda reajustar el tamaño de sus paquetes. Dado que el MTU mínimo para IPv4 es 68 bytes y el de IPv6 es 1280, Jool puede encontrarse queriendo reportar un MTU illegal en IPv6 al traducir un _Fragmentation Needed_ (v4) en un _Packet too Big_ (v6). Con `--boostMTU` se trata de evitar este tipo de falla.
 
-El MTU minimo para IPv6 es 1280. El MTU minimo para IPv4 es 68. Por lo tanto, Jool puede encontrarse queriendo reportar un MTU illegal mientras esta traduciendo un _Fragmentation Needed_ (v4) en un _Packet too Big_ (v6).
+Jool requiere hacer un pequeño ajuste al comparar por la diferencia entre la longitud básica del header IPv4(20 bytes) y la del header IPv6(40 bytes). Un paquete en IPv6 puede ser 20 bytes más grande que el MTU de IPv4 por que va a perder 20 bytes cuando su cabecera IPv6 sea reemplazada por una de IPv4.
 
-- Si `--boostMTU` esta en ENCENDIDO (1), el único MTU IPv6 que Jool reportará es 1280.
-- Si `--boostMTU` está en APAGADO (0), Jool no tratará de modificar MTUs.
+La lógica descrita en forma de pseudocódigo es:
 
-
-En realidad, Jool aun tiene que modificar los valores MTU para tener en cuenta la diferencia entre la longitud básica del header IPv4(20) y la del header IPv6(40). Un paquete IPv6 puede ser 20 bytes mas grande que el MTU IPv4 por que va a perder 20 bytes cuando su cabecera IPv6 sea reemplazada por una IPv4.
-
-
-Aquí está el algoritmo completo:
-
-		IPv6_error.MTU = IPv4_error.MTU + 20
-		if --boostMTU == verdadero AND IPv6_error.MTU < 1280
-			IPv6_error.MTU = 1280
+	IPv6_error.MTU = IPv4_error.MTU + 20
+	SI (--boostMTU == 1 && IPv6_error.MTU < 1280):   		#SI LA BANDERA "PROMUEVE MTU" ESTÁ ENCENDIDA && LONGITUD DEL PAQ. ENTRANTE ES MENOR A LA LONG. MÍNIMA PERMITIDA EN IPV6?
+		MTU de IPv6 = 1280                                     #ASIGNA A MTU de IPV6 SU VALOR MÍNIMO
+	
+En cualquier otro caso, con `--boostMTU` deshabilitado y/o IPv6_error.MTU >= 1280 , Jool no lo modificará. 
 
 La [sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6) describe los fundamentos básicos.
 
