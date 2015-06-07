@@ -47,11 +47,11 @@ Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://too
 		
 ### `--allow-atomic-fragments`
 	
-- Nombre: PERMITE LOS FRAGMENTOS ATÓMICOS
-- Tipo: Booleano
-- Valor por Omisión: APAGADO(0)
+- Nombre: ***PERMITE LOS FRAGMENTOS ATÓMICOS***
+- Tipo: ****Booleano****
+- Valor por Omisión: ***Apagado(0)***
 - Modos: ***SIIT & Stateful***
-- Sentido de traducción: ***IPv4 -> IPv6 && IPv6 -> IPv4***
+- Sentido de traducción: ***IPv4 -> IPv6 & IPv6 -> IPv4***
 
 Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados, llamados _atómicos_.
 
@@ -97,9 +97,9 @@ NOTAS:<br />
 
 ### `--setDF`
 
-- Nombre: NO FRAGMENTES
-- Tipo: Booleano
-- Valor por Omisión: APAGADO(0)
+- Nombre: ***NO FRAGMENTES***
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Apagado(0)***
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv6 -> IPv4***
 
@@ -124,9 +124,9 @@ NOTAS:<br />
 
 ### `--genFH`
 
-- Nombre: GENERA CABECERA DE FRAGMENTO IPV6
-- Tipo: Booleano
-- Valor por Omisión: APAGADO (0)
+- Nombre: ***GENERA CABECERA DE FRAGMENTO IPV6***
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Apagado (0)***
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv4 -> IPv6***
 
@@ -147,9 +147,9 @@ NOTAS:<br />
 
 ### `--genID`
 
-- Nombre: GENERA IDENTIFICACIÓN IPV4
-- Tipo: Booleano
-- Valor por Omisión: ENCENDIDO (1)
+- Nombre: ***GENERA IDENTIFICACIÓN IPV4***
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Encendido (1)***
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv6 -> IPv4***
 
