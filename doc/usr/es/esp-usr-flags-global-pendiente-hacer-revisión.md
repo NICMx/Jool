@@ -40,9 +40,9 @@ title: Documentación - Parámetros > Global
 
 ## Descripción
 
-Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando todas las tablas(Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de estas últimas son seleccionables directamente.
+Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando todas las tablas(Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de éstas son seleccionables directamente.
 
-`--global` es el modo por omisión de Jool, asi que de hecho, no requieres ingresar ese parámetro.
+`--global` es el modo por omisión de Jool. Asi que de hecho, no requieres ingresar ese parámetro.
 
 ## Sintaxis
 
@@ -53,7 +53,7 @@ Bajo esta opción se agrupan todas las variables configurables de Jool exceptuan
 
 ## Ejemplos
 
-Para **desplegar la configuración actual** (llaves & valores):
+Para ***Desplegar la configuración actual*** (llaves & valores):
 
 	$ jool_siit --global
 
@@ -61,16 +61,16 @@ Lo mismo, en versión mas corta:
 
 	$ jool_siit
 
-Para **pausar Jool**:
+Para **Pausar Jool**:
 
 	# jool --global --disable
 
-Para **encender "address dependent filtering"**:
+Para **Encender "address dependent filtering"**:
 
 	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off}
 	$ jool --address-dependent-filtering true
 
-Para **actualizar la lista plateaus**:
+Para **Actualizar la lista plateaus**:
 
 	# jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
@@ -83,11 +83,11 @@ Para **actualizar la lista plateaus**:
 - Valor por Omisión: Depends on modprobe arguments???
 - Modos: ***SIIT & Stateful***
 
-Reanuda y pausa la traducción de paquetes, respectivamente. 
+REANUDA Y PAUSA LA TRADUCCIÓN DE PAQUETES, RESPECTIVAMENTE. 
 
-Esto puede ser muy útil si quieres cambiar más de un parámetro de configuración y no quieres que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos. Si no quieres que Jool se detenga mientras estas reconfigurando, no te preocupes, utilizalo solo si sientes que te es útil.
+Esto puede ser muy útil si requieres cambiar más de un parámetro de configuración y no deseas que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos. Si prefieres que Jool no se detenga mientras estas reconfigurando, no te preocupes. Utilízalo solo si sientes que te es útil.
 
-**Los timeouts no seran pausados** para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados pudan ser desechados mientras Jool está inactivo.
+Mientras Jool está inactivo, *los timeouts no serán pausados** para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados puedan ser desechados.
 
 ### `--address-dependent-filtering`
 
