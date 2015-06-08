@@ -14,8 +14,7 @@ Esta recopilación de documentos explican que parámetros existen para las dos m
 NOTAS:
 
 Si todavía no has generado los ejecutables, ve a [instrucciones de compilación e instalación](esp-usr-install.html).<br />
-Las opciones de despliegue NO requieren privilegios de administrador de red, <br />
-pero todos los de configuración SÍ. Consulta:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
+Las opciones de despliegue NO requieren privilegios de administrador de red, pero todos los de configuración SÍ. Consulta:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
 
 ## Índice
 

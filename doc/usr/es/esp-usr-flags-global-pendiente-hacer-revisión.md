@@ -3,7 +3,7 @@ layout: documentation
 title: Documentación - Parámetros > Global
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--global
+[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--global
 
 # \--global
 
@@ -12,7 +12,7 @@ title: Documentación - Parámetros > Global
 1. [Descripción](#descripcion)
 2. [Sintaxis](#sintaxis)
 3. [Ejemplos](#ejemplos)
-4. [Llaves](#llaves)
+4. [Llaves](#keys)
 	1. [`--enable`, `--disable`](#enable---disable)
 	1. [`--address-dependent-filtering`](#address-dependent-filtering)
 	2. [`--drop-icmpv6-info`](#drop-icmpv6-info)
@@ -40,12 +40,9 @@ title: Documentación - Parámetros > Global
 
 ## Descripción
 
-Controla muchas de las variables internas de Jool.
+Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando todas las tablas(Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de estas últimas son seleccionables directamente.
 
-* Emite un comando `--global` vacío para desplegar los valores actuales de las opciones de Jool.
-* Ingresa una llave y un valor para editar la variable de la llave.
-
-`--global` es el modo default de configuración, asi que de hecho nunca necesitas ingresar ese parámetro.
+`--global` es el modo por omisión de Jool, asi que de hecho, no requieres ingresar ese parámetro.
 
 ## Sintaxis
 
