@@ -53,48 +53,46 @@ Bajo esta opción se agrupan todas las variables configurables de Jool exceptuan
 
 ## Ejemplos
 
-Desplegar la configuración actual, llaves y valores:
+Para **desplegar la configuración actual** (llaves & valores):
 
 	$ jool_siit --global
 
 Lo mismo, en versión mas corta:
 
-	$ # BTW: This looks very simple, but it still requires Jool's kernel module to be active.
 	$ jool_siit
 
-Pausar Jool:
+Para **pausar Jool**:
 
 	# jool --global --disable
 
-Encender "address dependent filtering":
+Para **encender "address dependent filtering"**:
 
-	$ # true, false, 1, 0, yes, no, on and off todos cuentan como booleanos válidos.
-	# jool --address-dependent-filtering true
+	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off}
+	$ jool --address-dependent-filtering true
 
-Actualizar la lista plateaus:
+Para **actualizar la lista plateaus**:
 
 	# jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
 ## Llaves
 
-Las proximas llaves de parámetro estan disponibles:
-
 ### `--enable`, `--disable`
 
-- Tipo: -
-- Default: Depends on modprobe arguments
-- Modos: Ambos (SIIT y Stateful)
+- Nombre: ***HABILITA & DESHABILITA JOOL***
+- Tipo: ***No Aplica***
+- Valor por Omisión: Depends on modprobe arguments???
+- Modos: ***SIIT & Stateful***
 
-Reanuda y pausa la traducción de paquetes, respectivamente. Esto puede ser útil si quieres cambiar más de un parámetro de configuración de una y no quieres que los paquetes estén siendo traducidos inconsistentemente mientras ejecutas los comandos.
+Reanuda y pausa la traducción de paquetes, respectivamente. 
 
-(Si no quieres que Jool se detenga mientras estas reconfigurando, no te preocupes por esto. Utilizalo solo si sientes que es correcto.)
+Esto puede ser muy útil si quieres cambiar más de un parámetro de configuración y no quieres que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos. Si no quieres que Jool se detenga mientras estas reconfigurando, no te preocupes, utilizalo solo si sientes que te es útil.
 
-Los timeouts _no_ seran pausados. En otras palabras, los registros [BIB](esp-usr-flags-bib.html)/[session](esp-usr-flags-session.html) y [paquetes](maximum-simultaneous-opens) almacenados y [fragmentos](#fragment-arrival-timeout) pudieran ser desechados mientras Jool está inactivo.
+**Los timeouts no seran pausados** para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados pudan ser desechados mientras Jool está inactivo.
 
 ### `--address-dependent-filtering`
 
 - Tipo: Booleano
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: Stateful only
 - Nombre deprecado: `--dropAddr`
 - Fuente: Disperso en el RFC 6146. Está un resumen al final de la [sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3).
@@ -142,7 +140,7 @@ Si `--address-dependent-filtering` está deshabilitado, _J_ permitirá al paquet
 ### `--drop-icmpv6-info`
 
 - Tipo: Booleano
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: sólo Stateful
 - Nombre deprecado: `--dropInfo`
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
@@ -157,7 +155,7 @@ Esta regla no afectara los mensajes de Error ICMP.
 ### `--drop-externally-initiated-tcp`
 
 - Tipo: Booleano
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: solo Stateful
 - Nombre deprecado: `--dropTCP`
 - Fuente: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
@@ -169,7 +167,7 @@ Por supuesto, esto **NO** bloqueará el tráfico IPv4 si algun nodo IPv6 lo soli
 ### `--udp-timeout`
 
 - Tipo: Integer (seconds)
-- Default: 5 minutos
+- Valor por Omisión: 5 minutos
 - Modos: sólo Stateful
 - Nombre deprecado: `--toUDP`
 - Fuente: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
@@ -181,7 +179,7 @@ Cuando cambias este valor, los tiempos de vida de todas las sesiones UDP ya exis
 ### `--tcp-est-timeout`
 
 - Tipo: Integer (seconds)
-- Default: 2 horas
+- Valor por Omisión: 2 horas
 - Modos: solo Stateful
 - Nombre deprecado: `--toTCPest`
 - Fuente: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
@@ -194,7 +192,7 @@ Cuando cambias este valor, los tiempos de vida de sesiones TCP ya establecidas s
 ### `--tcp-trans-timeout`
 
 - Tipo: Integer (seconds)
-- Default: 4 minutos
+- Valor por Omisión: 4 minutos
 - Modos: solo Stateful
 - Nombre Deprecado: `--toTCPtrans`
 - Fuente: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
@@ -206,7 +204,7 @@ Cuando cambias este valor, los tiempos de vida de sesiones TCP transitorias exis
 ### `--icmp-timeout`
 
 - Tipo: Integer (seconds)
-- Default: 1 minuto
+- Valor por Omisión: 1 minuto
 - Modos: Stateful only
 - Nombre deprecadp: `--toICMP`
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
@@ -218,7 +216,7 @@ Cuando cambias este valor, los tiempos de vida de todas las sesiones ICMP son ac
 ### `--fragment-arrival-timeout`
 
 - Tipo: Integer (seconds)
-- Default: 2 seconds
+- Valor por Omisión: 2 seconds
 - Modos: NAT64 only
 - Nombre deprecado: `--toFrag`
 - Fuente: Ninguns (el parámetro denota un  [capricho de Linux](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
@@ -232,7 +230,7 @@ En kernels 3.12 y mas antiguos, el modulo de reensamble de fragmentos IPv6 (`nf_
 
 `--fragment-arrival-timeout` es el tiempo que Jool esperará para que `nf_defrag_ipv6` ingrese todos los fragmentos de un paquete común. _No tiene nada que ver con esperar a que los fragmentosd lleguen al nodo_.
 
-Como `nf_defrag_ipv6` ya ha esperado a que todos los fragmentos lleguen, deberia entregarlos en nanosegundos. Debido a esto, el valor por default de  
+Como `nf_defrag_ipv6` ya ha esperado a que todos los fragmentos lleguen, deberia entregarlos en nanosegundos. Debido a esto, el valor por omisión de  
 `--fragment-arrival-timeout` de 2 segunos es probablemente alto. Por otra parte, a menos de que haya un módulo desconocido desechando los paquetes en medio, todos los fragmentos deberían llegar inmediatamente, por lo tanto el temporizador nunca deberia de acabarse (incluso si estas siendo atacado).
 
 Jool SIIT no necesita reensamblado de paquetes para nada.
@@ -243,7 +241,7 @@ Este comportamiento cambio desde Jool 3.2, donde `--toFrag` solía ser de hecho 
 ### `--maximum-simultaneous-opens`
 
 - Tipo: Integer
-- Default: 10
+- Valor por Omisión: 10
 - Modos: Sólo NAT64
 - Deprecated name: `--maxStoredPkts`
 - Fuente: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectamente)
@@ -252,13 +250,13 @@ Cuando un nodo (IPv4) externo intenta primero abrir una conexión y no hay ningu
 
 En el caso de TCP, la situación es un poco más complicada por que el nodo IPv4 puede estar intentando una [Apertura Simultanea de conecciones TCP](https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094). Para saber realmente que está pasando, Jool tiene que almacenar el paquete por 6 segundos.
 
-`--maximum-simultaneous-opens` es el numero máximo de paquetes que Jool va almacenar al mismo tiempo.  El default indica que puedes tener hasta 10 aperturas simultáneas, simultaneamente; Jool retrocederá a responder con un error ICMP en la número 11.
+`--maximum-simultaneous-opens` es el numero máximo de paquetes que Jool va almacenar al mismo tiempo.  El valor por omisión indica que puedes tener hasta 10 aperturas simultáneas, simultaneamente; Jool retrocederá a responder con un error ICMP en la número 11.
 
 
 ### `--source-icmpv6-errors-better`
 
 - Tipo: Boolean
-- Default: False
+- Valor por Omisión: False
 - Modos: NAT64 only
 - Sentido de traducción: IPv4 to IPv6 (sólo errores ICMP)
 - Fuente: [Issue 132](https://github.com/NICMx/NAT64/issues/132)
@@ -292,7 +290,7 @@ Digamos que el enlace entre R y n4 colapsa.
 ### `--logging-bib`
 
 - Tipo: Boolean
-- Default: False
+- Valor por Omisión: False
 - Modos: NAT64 only
 - Sentido de traducción: Ambos
 - Fuente: [RFC 6888, section 4](http://tools.ietf.org/html/rfc6888#section-4)
@@ -327,7 +325,7 @@ Hay muchas cosas importantes las cuales se tienen que tener en cuenta:
 
 - El registro utiliza GMT; quizá necesites convertir esto para efectos de comodidad.
 
-Esto es falso por defecto por que genera enormes cantidades de registros mientras está activo (recuerda que necesitas infraestructura para mantenerlos). Toma en cuenta que los mapeos son vertidos en el _log del kernel_, asi que los mensajes serán mezclados junto con cualquier cosa que el kernel tenga que decir (incluyendo los mensajes de error de Jool, por ejemplo). Los mensajes de registro tendran [prioridad INFO](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up). 
+Esto es falso por defecto por que genera enormes cantidades de registros mientras está activo (recuerda que necesitas infraestructura para mantenerlos). Toma en cuenta que los mapeos son vertidos en el _log del kernel_, asi que los mensajes serán mezclados junto con cualquier cosa que el kernel tenga que decir (incluyendo los mensajes de error de Jool, por ejemplo). Los mensajes de registro tendran [prioridad INFO](http://stackoverflow.com/questions/16390004/change-Valor por Omisión-console-loglevel-during-boot-up). 
 
 Si loggear el destino tiene sentido para ti, ve `--logging-session` (abajo). Para cubrir con el REQ-12 del RFC 6888 quieres asingar el valor _true_ a `--loging-bib` y el valor _false_ a `--logging-session`.
 
@@ -335,7 +333,7 @@ Si loggear el destino tiene sentido para ti, ve `--logging-session` (abajo). Par
 ### `--logging-session`
 
 - Tipo: Boolean
-- Default: False
+- Valor por Omisión: False
 - Modos: sólo NAT64.
 - Sentido de traducción: Ambos.
 - Fuente: [RFC 6888, sección 4](http://tools.ietf.org/html/rfc6888#section-4)
@@ -365,7 +363,7 @@ Este registro es remarcablemente mas voluptuoso que [`--logging-bib`](#logging-b
 ### `--zeroize-traffic-class`
 
 - Tipo: Boolean
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: Ambos (SIIT y NAT64)
 - Sentido de traducción: IPv4 to IPv6
 - Fuente: [RFC 6145, sección 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
@@ -379,7 +377,7 @@ Si dejas esto desactivado, el valor del campo Tipo de Servicio será copiado dir
 ### `--override-tos`
 
 - Tipo: Boolean
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: Ambos (SIIT y NAT64)
 - Sentido de traducción: IPv6 a IPv4
 - Fuente: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
@@ -395,7 +393,7 @@ Si dejas esto desactivado, el valor del campo Clase de Tráfico será copiado di
 ### `--tos`
 
 - Tipo: Integer
-- Default: 0
+- Valor por Omisión: 0
 - Modos: Both (SIIT and NAT64)
 - Sentido de traducción: IPv6 to IPv4
 - Fuente: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
@@ -427,7 +425,7 @@ Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 ### `--amend-udp-checksum-zero`
 
 - Tipo: Boolean
-- Default: OFF
+- Valor por Omisión: OFF
 - Modos: SIIT only
 - Sentido de traducción: IPv4 a IPv6 (Sólo UDP)
 - Fuente: [RFC 6145, sección 4.5](http://tools.ietf.org/html/rfc6145#section-4.5)
@@ -448,7 +446,7 @@ El Stateful NAT64 de Jool _siempre_ procesa los checksums con valor cero de los 
 ### `--randomize-rfc6791-addresses`
 
 - Tipo: Boolean
-- Default: ON
+- Valor por Omisión: ON
 - Modos: SIIT only
 - Sentido de traducción: IPv6 a IPv4
 - Fuente: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
@@ -464,7 +462,7 @@ Porque? se podria decir que [`hop limit`th es mejor](https://github.com/NICMx/NA
 ### `--mtu-plateaus`
 
 - Tipo: List of Integers separated by commas (If you want whitespace, remember to quote).
-- Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
+- Valor por Omisión: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
 - Modos: Both (SIIT and NAT64)
 - Sentido de traducción: IPv4 a IPv6 (solo errores ICMP)
 - Fuente: [RFC 6145, sección 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
