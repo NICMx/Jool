@@ -129,7 +129,7 @@ NOTAS:<br />
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv4 -> IPv6***
 
-En IPv4 no hay diferencia a nivel de encabezados entre un paquete fregmentado y otro que no lo es. Esto se establece mediante el campo de _Identification_ y el valor del _Fragment Offset_. Los segmentos de un mismo paquete son identificados con un mismo número y en el _Fragment Offset_ se guarda apartir de que número de dato se está trasmitiendo. Pero, en IPv6 si existe diferencia entre el primer segmento y el resto. En IPv6, sólo el 1er paq. incluye la cabecera a nivel 3 (ICMP, UDP, TCP) y en el resto se omite; es decir, ya no se repite como en IPv4.
+En IPv4 no hay diferencia a nivel de encabezados entre un paquete fregmentado y otro que no lo es. Esto se establece mediante el campo de _Identification_ y el valor del _Fragment Offset_. Los segmentos de un mismo paquete son identificados con **un mismo número** y en el _Fragment Offset_ se guarda **a partir de que número de dato se está trasmitiendo**. Pero, en IPv6 si existe diferencia entre el primer segmento y el resto. En IPv6, sólo el 1er paq. incluye la cabecera a nivel 3 (ICMP, UDP, TCP) y en el resto se omite; es decir, ya no se repite como en IPv4.
 
 A través de esta bandera se puede prever que en la transición de IPv4 a IPv6 se incluya o no una cabecera de fragmento.
 
@@ -156,7 +156,7 @@ NOTAS:<br />
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv6 -> IPv4***
 
-Los paquetes IPv6 solo disponen de un campo de identificación  si son un fragmento; es decir, si tienen una cabecera de fragmento. Sin embargo, todos los paquetes de IPv4 deben de llevar un campo de identificación. Esta bandera sirve para especificarle a Jool qué hacer cuando vaya a traducir un fragmento de IPv6 a Ipv4.
+Los paquetes IPv6 solo disponen de un campo de identificación  si son un fragmento; es decir, si tienen una cabecera de fragmento. Sin embargo, todos los paquetes de IPv4 deben de llevar un campo de identificación. Esta bandera sirve para especificarle a Jool qué hacer cuando vaya a traducir un fragmento de IPv6 a IPv4.
 
 La lógica descrita en forma de pseudocódigo es:
 
@@ -204,7 +204,7 @@ Si `--setDF` && `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 
 
 1. El emisor IPv6 transmite un paquete de tamaño 1280.
 2. Jool lo traduce en un paquete IPv4 de tamaño 1260 con DF=1
-3. Un router IPv4 con interfaz de salida con MTU < 1260 genera _ICMPv6 Frag Needed_ con MTU=1000 (o lo que sea).
+3. Un router IPv4 con interfaz de salida con MTU < 1260 genera _ICMPv6 Frag Needed_ con MTU=1006 (o algún otro).
 4. Jool lo traduce a ICMPv6 _Packet Too Big_ con MTU=1280.
 5. Ve al punto 1.
 
