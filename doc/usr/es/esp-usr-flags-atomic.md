@@ -101,18 +101,20 @@ NOTAS:<br />
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv6 -> IPv4***
 
+Mediante esta bandera se puede establecer si el mensaje es candidato a ser fragmentado o no, en su tránsito de IPv6 a IPv4.
+
 La lógica descrita en forma de pseudocódigo es:
           
 	SI (el paquete entrante tiene una cabecera de fragmento):      #SI PAQ. ENTRANTE en IPv6 TIENE CABECERA DE FRAGMENTO?
 		El parámetro DF del paquete saliente en será Falso.           #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO
 	De otra forma:                                                 #SI PAQ. ENTRANTE en IPv6 NO TIENE CABECERA DE FRAGMENTO?
 		SI (--setDF == 1):                                            #SI LA BANDERA "NO FRAGMENTES" ESTÁ ENCENDIDA?
-            El parámetro DF del paquete saliente será Verdadero.         #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO (Va Entero)
+            El parámetro DF del paquete saliente será Verdadero.         #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO <-> Va Entero
 		De otra forma:                                                #SI LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA? (Es Fragmentable)
             SI (la longitud del paquete saliente es > 1260):             #SI PAQ. SALIENTE en IPv4 > 1260? (Rebasa el Mínimo MTU en IPv6)          
-				El parámetro DF del paquete saliente será Verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO (Es Fragmentable pero NO va Fragmentado)
-			De otra forma:                                               #SI PAQ. SALIENTE en IPv4 <= 1260? (Menor al Mínimo MTU en IPv6)
-				El parámetro DF del paquete saliente será Falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO (Primer Fragmento)
+				El parámetro DF del paquete saliente será Verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO <-> Es Fragmentable pero NO va Fragmentado
+			De otra forma:                                               #SI PAQ. SALIENTE en IPv4 <= 1260? <-> Menor al Mínimo MTU en IPv6
+				El parámetro DF del paquete saliente será Falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO <-> Primer Fragmento
 
 NOTAS:<br />
 (1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
@@ -127,15 +129,19 @@ NOTAS:<br />
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv4 -> IPv6***
 
-La lógica descrita en forma de pseudocódigo es:
+En IPv4 no hay diferencia a nivel de encabezados entre un paquete fregmentado y otro que no lo es. La diferencia se determina mediante el campo de _Identification_ y el valor del _Fragment Offset_. Los segmentos de un mismo paquete son identificados con el mismo número y el _Fragment Offset_ es diferente de 0,y en el _Payload_ solo van parte de los datos. Pero, en IPv6 si existe diferencia entre el primer segmento y el resto. En IPv6, sólo el 1er paq. incluye la cabecera a nivel 3 (ICMP, UDP, TCP) y en el resto se omite; es decir, ya no se repite como en IPv4.
+
+A través de esta bandera se puede prever que en la transición de IPv4 a IPv6 se incluya o no una cabecera de fragmento.
+
+La validación descrita en forma de pseudocódigo es:
 
 	Si (--genFH == 1 && el paquete entrante tiene ** DF inactivo**):   #SI GENERA CABECERA en IPv6 && PAQ. ENTRANTE FRAGMENTABLE?
-		Jool generará una cabecera de fragmento IPv6.                     #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO
+		Jool generará una cabecera de fragmento IPv6.                     #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO <-> 2o Fragmento en delante
 	Si (--genFH == 0):                                                 #SI NO GENERA CABECERA en IPv6?
 		Si (paquete entrante es un fragmento):                            #SI PAQ. ENTRANTE en IPv4 es un FRAGMENTO?
-			Jool generará una cabecera de fragmento IPv6.                    #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO
+			Jool generará una cabecera de fragmento IPv6.                    #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO <-> 1er Fragmento
 		De otra forma:                                                    #SI PAQ. ENTRANTE en IPv4 NO es un FRAGMENTO
-			Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO
+			Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO <-> Paq. Completo
 		
 NOTAS:<br />
 (1)Cuando `--genFH` está apagado **no importa** si el parámetro DF del paquete entrante nos dice que el paquete "no está fragmentado" o si "es fragmentable".<br />
@@ -163,7 +169,7 @@ La lógica descrita en forma de pseudocódigo es:
             Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = 0
 			de la cabecera de fragmento de IPv4 = 0
 		De otra forma:                                                #SI LA BANDERA "GENERA IDENTIFICACIÓN IPV4" ESTÁ ENCENDIDA?
-            Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = Número Aleatorio
+            Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = Número Aleatorio <-> 1er Fragmento
 			de la cabecera de fragmento de IPv4 = 
 			Número Aleatorio
 
@@ -194,7 +200,7 @@ La [sección 6 del RFC 6145](http://tools.ietf.org/html/rfc6145#section-6) descr
 
 **AVISO:**
 
-Si `--setDF` && `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU < 1260, tienes un bucle infinito similar al [MTU hassle](esp-misc-mtu.html):
+Si `--setDF` && `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU < 1260, se llega a establecer un bucle infinito similar al [MTU hassle](esp-misc-mtu.html):
 
 1. El emisor IPv6 transmite un paquete de tamaño 1280.
 2. Jool lo traduce en un paquete IPv4 de tamaño 1260 con DF=1
