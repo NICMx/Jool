@@ -292,6 +292,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(out) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(out);
 	ip4_hdr->frag_off = build_ipv4_frag_off_field(dont_fragment, 0, 0);
+	/* TODO Still need to not decrease on SIIT hairpinning. */
 	if (pkt_is_outer(in)) {
 		if (ip6_hdr->hop_limit <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);

@@ -174,6 +174,43 @@ int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
 	if (error)
 		return error;
 
+	/*
+	 * The reason why we store each address separately, instead of the
+	 * single prefix is iteration order.
+	 *
+	 * In order to achieve address preservation (ie. always *try* to mask an
+	 * IPv6 node with the same IPv4 address or addresses),
+	 * pool4table_foreach_taddr4() (which is the key function used during
+	 * port allocations) needs to group transport addresses by address. This
+	 * is so port allocations will *try* to use up all of an address's ports
+	 * before falling back to testing ports on the next one.
+	 * ("address preservation" is an expression I probably made up.)
+	 *
+	 * If we store prefixes instead of addresses, we run into the following
+	 * problem:
+	 *
+	 * Consider these two (would be) pool4 entries:
+	 * 	mark:0	prefix:192.0.2.0/31	ports:100-200
+	 * 	mark:0	prefix:192.0.2.0/32	ports:400-500
+	 *
+	 * Assuming iteration starts from the beginning, the natural iteration
+	 * order of port allocation would be
+	 *
+	 * 1. 192.0.2.0 100-200
+	 * 2. 192.0.2.1 100-200
+	 * 3. 192.0.2.0 400-500
+	 *
+	 * To attempt address preservation, it should be
+	 *
+	 * 1. 192.0.2.0 100-200
+	 * 2. 192.0.2.0 400-500
+	 * 3. 192.0.2.1 100-200
+	 *
+	 * I though about this a little, and felt that overcoming this while
+	 * storing prefixes instead of addresses seems to be a lot more trouble
+	 * than it's worth, especially considering it's unlikely for pool4 to
+	 * consist of many addresses.
+	 */
 	foreach_addr4(sample.addr, tmp, prefix) {
 		error = add_sample(table, &sample);
 		if (error)
@@ -336,7 +373,7 @@ int pool4table_foreach_sample(struct pool4_table *table,
  * Iterations wraps around and doesn't stop naturally until the @offset'th
  * element is reached. You want @func to break iteration early!
  */
-int pool4table_foreach_tadd4(struct pool4_table *table,
+int pool4table_foreach_taddr4(struct pool4_table *table,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset_main)
 {

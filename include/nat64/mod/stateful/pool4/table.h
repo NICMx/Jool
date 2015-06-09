@@ -34,7 +34,7 @@ void pool4table_count(struct pool4_table *table, __u64 *samples, __u64 *taddrs);
 int pool4table_foreach_sample(struct pool4_table *table,
 		int (*func)(struct pool4_sample *, void *), void * args,
 		struct pool4_sample *offset);
-int pool4table_foreach_tadd4(struct pool4_table *table,
+int pool4table_foreach_taddr4(struct pool4_table *table,
 		int (*func)(struct ipv4_transport_addr *, void *), void *args,
 		unsigned int offset);
 

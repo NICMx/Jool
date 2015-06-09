@@ -86,11 +86,25 @@ int pool4_count(void)
 	return netlink_request(&request, request.length, pool4_count_response, NULL);
 }
 
-int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports)
+int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
+		bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool4 *payload = (union request_pool4 *) (request + HDR_LEN);
+
+	if (addrs->len < 24 && !force) {
+		printf("Warning: You're adding lots of addresses, which "
+				"might defeat the whole point of NAT64 over "
+				"SIIT.\n");
+		printf("Also, and more or less as a consequence, addresses are "
+				"stored in a linked list. Having too many "
+				"addresses in pool4 sharing a mark is slow.\n");
+		printf("Consider using SIIT instead.\n");
+		printf("Will cancel the operation. Use --force to override "
+				"this.\n");
+		return -E2BIG;
+	}
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_ADD);
 	payload->add.mark = mark;

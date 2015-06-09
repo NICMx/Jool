@@ -330,7 +330,7 @@ int pool4db_foreach_taddr4(const __u32 mark,
 	rcu_read_lock();
 
 	table = find_table(mark);
-	error = table ? pool4table_foreach_tadd4(table, cb, arg, offset)
+	error = table ? pool4table_foreach_taddr4(table, cb, arg, offset)
 			: -ESRCH;
 
 	rcu_read_unlock();

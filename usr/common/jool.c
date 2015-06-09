@@ -52,6 +52,7 @@ struct arguments {
 			struct ipv4_prefix prefix;
 			struct port_range ports;
 			bool prefix_set;
+			bool force;
 		} pool4;
 
 		struct {
@@ -103,6 +104,7 @@ enum argp_flags {
 	ARGP_ADDRESS = 1001,
 	ARGP_QUICK = 'q',
 	ARGP_MARK = 'm',
+	ARGP_FORCE = 1002,
 
 	/* BIB, session */
 	ARGP_TCP = 't',
@@ -196,6 +198,7 @@ static struct argp_option options[] =
 	{ "mark", ARGP_MARK, NUM_FORMAT, 0,
 			"Only packets carrying this mark will match this pool4 entry. "
 			"Available on add and remove operations only." },
+	{ "force", ARGP_FORCE, NULL, 0, "Ignore warnings." },
 
 	{ NULL, 0, NULL, 0, "BIB & Session options:", 5 },
 	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
@@ -273,8 +276,7 @@ static struct argp_option options[] =
 			"Otherwise drop the packet.\n" },
 	{ OPTNAME_EAM_HAIRPIN_MODE, ARGP_EAM_HAIRPIN_MODE, NUM_FORMAT, 0,
 			"Defines how EAM+hairpinning is handled.\n"
-			/* TODO test how this looks. */
-			"0 = Disable; 1 = Simple; 2 = Intrinsic." },
+			"(0 = Disabled; 1 = Simple; 2 = Intrinsic)" },
 	{ OPTNAME_RANDOMIZE_RFC6791, ARGP_RANDOMIZE_RFC6791, BOOL_FORMAT, 0,
 			"Randomize selection of address from the RFC6791 pool? "
 			"Otherwise choose the 'Hop Limit'th address.\n" },
@@ -424,15 +426,7 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 	}
 
 	args->db.pool4.prefix_set = true;
-	error = str_to_ipv4_prefix(str, &args->db.pool4.prefix);
-
-	if (!error && nat64_is_stateful() && args->db.pool4.prefix.len < 16) {
-		log_debug("Warning: That's a lot of addresses. "
-				"Are you sure that /%u is not a typo?",
-				args->db.pool4.prefix.len);
-	}
-
-	return error;
+	return str_to_ipv4_prefix(str, &args->db.pool4.prefix);
 }
 
 static int set_ipv6_prefix(struct arguments *args, char *str)
@@ -631,6 +625,10 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = update_state(args, MODE_POOL4, OP_ADD | OP_REMOVE);
 		if (!error)
 			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
+		break;
+	case ARGP_FORCE:
+		error = update_state(args, MODE_POOL4, OP_ADD);
+		args->db.pool4.force = true;
 		break;
 
 	case ARGP_BIB_IPV6:
@@ -879,7 +877,8 @@ static int main_wrapped(int argc, char **argv)
 			}
 			return pool4_add(args.db.pool4.mark,
 					&args.db.pool4.prefix,
-					&args.db.pool4.ports);
+					&args.db.pool4.ports,
+					args.db.pool4.force);
 		case OP_REMOVE:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);

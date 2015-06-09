@@ -6,7 +6,8 @@
 
 int pool4_display(void);
 int pool4_count(void);
-int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports);
+int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
+		bool force);
 int pool4_rm(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
 		bool quick);
 int pool4_flush(bool quick);
