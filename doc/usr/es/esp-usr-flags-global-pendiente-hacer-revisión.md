@@ -40,7 +40,7 @@ title: Documentación - Parámetros > Global
 
 ## Descripción
 
-Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando todas las tablas(Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de éstas son seleccionables directamente.
+Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando las tablas(Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de éstas son seleccionables directamente.
 
 `--global` es el modo por omisión de Jool. Asi que de hecho, no requieres ingresar ese parámetro.
 
@@ -67,7 +67,7 @@ Para **Pausar Jool**:
 
 Para **Encender "address dependent filtering"**:
 
-	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off}
+	$ # Valores válidos: {true, ***Apagado(0)***, 1, 0, yes, no, on, APAGADO (0)}
 	$ jool --address-dependent-filtering true
 
 Para **Actualizar la lista plateaus**:
@@ -91,10 +91,13 @@ Mientras Jool está inactivo, *los timeouts no serán pausados** para que las en
 
 ### `--address-dependent-filtering`
 
-- Tipo: Booleano
-- Valor por Omisión: OFF
-- Modos: Stateful only
-- Nombre deprecado: `--dropAddr`
+- Nombre: ***FILTRA DEPENDIENDO DEL DIRECCIONAMIENTO***
+- Tipo: ***Booleano***
+- Valor por Omisión: ***APAGADO (0)***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--dropAddr`***
+
+
 - Fuente: Disperso en el RFC 6146. Está un resumen al final de la [sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3).
 
 Larga historia corta:
@@ -139,10 +142,10 @@ Si `--address-dependent-filtering` está deshabilitado, _J_ permitirá al paquet
 
 ### `--drop-icmpv6-info`
 
-- Tipo: Booleano
-- Valor por Omisión: OFF
-- Modos: sólo Stateful
-- Nombre deprecado: `--dropInfo`
+- Tipo: ***Booleano***
+- Valor por Omisión: ***APAGADO (0)***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--dropInfo`***
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 Si activas esto, pings (ambas solicitudes y respuestas) serán bloqueados mientras esten siendo traducidos de ICMPv6 a ICMPv4.
@@ -154,10 +157,10 @@ Esta regla no afectara los mensajes de Error ICMP.
 
 ### `--drop-externally-initiated-tcp`
 
-- Tipo: Booleano
-- Valor por Omisión: OFF
-- Modos: solo Stateful
-- Nombre deprecado: `--dropTCP`
+- Tipo: ***Booleano***
+- Valor por Omisión: ***APAGADO (0)***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--dropTCP`***
 - Fuente: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 Enciende `--drop-externally-initiated-tcp` para demoler cualquier intento de iniciar comunicación TCP con nodos IPv6 por parte de nodos IPv4.
@@ -166,10 +169,10 @@ Por supuesto, esto **NO** bloqueará el tráfico IPv4 si algun nodo IPv6 lo soli
 
 ### `--udp-timeout`
 
-- Tipo: Integer (seconds)
-- Valor por Omisión: 5 minutos
-- Modos: sólo Stateful
-- Nombre deprecado: `--toUDP`
+- Tipo: ***Entero (segundos)***
+- Valor por Omisión: ***300seg = 5 min***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--toUDP`***
 - Fuente: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
 
 Cuando una sesión UDP ha estado inactiva por el periodo de tiempo especificado aqui, su registro será removido de la base de datos automáticamente.
@@ -178,10 +181,10 @@ Cuando cambias este valor, los tiempos de vida de todas las sesiones UDP ya exis
 
 ### `--tcp-est-timeout`
 
-- Tipo: Integer (seconds)
-- Valor por Omisión: 2 horas
-- Modos: solo Stateful
-- Nombre deprecado: `--toTCPest`
+- Tipo: ***Entero (segundos)***
+- Valor por Omisión: ***7200seg = 2 hr***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--toTCPest`***
 - Fuente: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 Cuando una conexión TCP ha permanecido inactiva por el periodo de tiempo especificado aquí, su existencia será cuestionada. Jool enviará un paquete de sondeo a uno de los puntos y eliminará la sesión si una respuesta no es recibida antes de  el `--tcp-trans-timeout` timeout.
@@ -191,10 +194,10 @@ Cuando cambias este valor, los tiempos de vida de sesiones TCP ya establecidas s
 
 ### `--tcp-trans-timeout`
 
-- Tipo: Integer (seconds)
-- Valor por Omisión: 4 minutos
-- Modos: solo Stateful
-- Nombre Deprecado: `--toTCPtrans`
+- Tipo: ***Entero (segundos)***
+- Valor por Omisión: ***2400seg = 4 min***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--toTCPtrans`***
 - Fuente: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
 Cuando una sesión TCP insalubre ha estado inactiva durante el periodo de tiempo especificado aquí, su registro será removido de la base de datos automáticamnete. Una seisión "insalubre" es una en la que el handshake TCP no ha sido completado, esta siendo terminada por los puntos, o está técnicamente establecida pero ha permanecido inactica por el tiempo indicado en `--tcp-est-timeout`.
@@ -203,10 +206,10 @@ Cuando cambias este valor, los tiempos de vida de sesiones TCP transitorias exis
 
 ### `--icmp-timeout`
 
-- Tipo: Integer (seconds)
-- Valor por Omisión: 1 minuto
-- Modos: Stateful only
-- Nombre deprecadp: `--toICMP`
+- Tipo: ***Entero (segundos)***
+- Valor por Omisión: ***60seg = 1 min***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--toICMP`***
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 Cuando una sesión ICMP ha estado inactiva por el periodo de tiempo especificado aquí, su registro será removida de la base de datos automáticamente.
@@ -215,10 +218,10 @@ Cuando cambias este valor, los tiempos de vida de todas las sesiones ICMP son ac
 
 ### `--fragment-arrival-timeout`
 
-- Tipo: Integer (seconds)
-- Valor por Omisión: 2 seconds
-- Modos: NAT64 only
-- Nombre deprecado: `--toFrag`
+- Tipo: ***Entero (segundos)***
+- Valor por Omisión: ***2 seg***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--toFrag`***
 - Fuente: Ninguns (el parámetro denota un  [capricho de Linux](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
 
 Jool Stateful requiere un reensamble de fragmentos.
@@ -240,10 +243,10 @@ Este comportamiento cambio desde Jool 3.2, donde `--toFrag` solía ser de hecho 
 
 ### `--maximum-simultaneous-opens`
 
-- Tipo: Integer
-- Valor por Omisión: 10
-- Modos: Sólo NAT64
-- Deprecated name: `--maxStoredPkts`
+- Tipo: ***Integer***
+- Valor por Omisión: ***10***
+- Modos: ***Stateful***
+- Nombre anterior: ***`--maxStoredPkts`***
 - Fuente: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectamente)
 
 Cuando un nodo (IPv4) externo intenta primero abrir una conexión y no hay ningun [registro BIB](misc-bib.html) para el, Jool normalmente contesta con un mensaje de error ICMP - Address Unreachable (type 3, code 1), ya que no puede saber a cual nodo IPv6 se está dirigiendo el paquete. 
@@ -255,10 +258,10 @@ En el caso de TCP, la situación es un poco más complicada por que el nodo IPv4
 
 ### `--source-icmpv6-errors-better`
 
-- Tipo: Boolean
-- Valor por Omisión: False
-- Modos: NAT64 only
-- Sentido de traducción: IPv4 to IPv6 (sólo errores ICMP)
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Apagado(0)***
+- Modos: ***Stateful***
+- Sentido de traducción: ***IPv4 -> IPv6 (sólo errores ICMP)***
 - Fuente: [Issue 132](https://github.com/NICMx/NAT64/issues/132)
 
 Por alguna razón, el RFC 6146 quiere que el origen de los errores ICMPv6 sea igual que la dirección de destino de sus paquetes internos. Esto luce muy extraño.
@@ -289,10 +292,10 @@ Digamos que el enlace entre R y n4 colapsa.
 
 ### `--logging-bib`
 
-- Tipo: Boolean
-- Valor por Omisión: False
-- Modos: NAT64 only
-- Sentido de traducción: Ambos
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Apagado(0)***
+- Modos: ***Stateful***
+- Sentido de traducción: ***IPv4 -> IPv6 & IPv6 -> IPv4***
 - Fuente: [RFC 6888, section 4](http://tools.ietf.org/html/rfc6888#section-4)
 
 Habilita el registro de la creación y destrucción de mapeos de direcciones. Si eres un proveedor de servicios, tu gobierno quizá te solicite que hagas esto.
@@ -332,10 +335,10 @@ Si loggear el destino tiene sentido para ti, ve `--logging-session` (abajo). Par
 
 ### `--logging-session`
 
-- Tipo: Boolean
-- Valor por Omisión: False
-- Modos: sólo NAT64.
-- Sentido de traducción: Ambos.
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Apagado(0)***
+- Modos: ***Stateful***
+- Sentido de traducción: ***IPv4 -> IPv6 & IPv6 -> IPv4***
 - Fuente: [RFC 6888, sección 4](http://tools.ietf.org/html/rfc6888#section-4)
 
 Habilita el registro de todas las sesiones mientras son creadas y destruidas.
@@ -362,12 +365,12 @@ Este registro es remarcablemente mas voluptuoso que [`--logging-bib`](#logging-b
 
 ### `--zeroize-traffic-class`
 
-- Tipo: Boolean
-- Valor por Omisión: OFF
-- Modos: Ambos (SIIT y NAT64)
-- Sentido de traducción: IPv4 to IPv6
+- Tipo: ***Booleano***
+- Valor por Omisión: ***APAGADO (0)***
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv4 -> IPv6***
 - Fuente: [RFC 6145, sección 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
-- Nombre deprecado: `--setTC`
+- Nombre anterior: `--setTC`
 
 El campo Clase de Tráfico de la [Cabecera IPv6](http://es.wikipedia.org/wiki/IPv6#Cabecera_fija) es muy similar al campo [Tipo de servicio](http://en.wikipedia.org/wiki/IPv4#Header) (Type of Service TOS) por sus siglas en inglés.
 
@@ -376,28 +379,29 @@ Si dejas esto desactivado, el valor del campo Tipo de Servicio será copiado dir
 
 ### `--override-tos`
 
-- Tipo: Boolean
-- Valor por Omisión: OFF
-- Modos: Ambos (SIIT y NAT64)
-- Sentido de traducción: IPv6 a IPv4
+- Tipo: ***Booleano***
+- Valor por Omisión: ***APAGADO (0)***
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv6-> IPv4***
 - Fuente: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
-- Deprecated name: `--setTOS`
+- Nombre anterior: `--setTOS`
 
 
 
 El campo Clase de Tráfico de la [Cabecera IPv6](http://es.wikipedia.org/wiki/IPv6#Cabecera_fija) es muy similar al campo [Tipo de servicio](http://en.wikipedia.org/wiki/IPv4#Header) (Type of Service TOS) por sus siglas en inglés.
 
-Si dejas esto desactivado, el valor del campo Clase de Tráfico será copiado directamente al campo Tipo de Servicio durante las traducciones de IPv6 a IPv4. Si lo activas, Jool le asignará al campo Tipo de Servicio el valor indicado en el parámetro [`--tos`](#tos). 
+Si dejas esto desactivado, el valor del campo Clase de Tráfico será copiado directamente al campo Tipo de Servicio durante las traducciones de ***IPv6-> IPv4***. Si lo activas, Jool le asignará al campo Tipo de Servicio el valor indicado en el parámetro [`--tos`](#tos). 
 
 
 ### `--tos`
 
-- Tipo: Integer
-- Valor por Omisión: 0
-- Modos: Both (SIIT and NAT64)
-- Sentido de traducción: IPv6 to IPv4
+- Tipo: ***Integer***
+- Valor por Omisión: ***Apagado(0)***
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv6-> IPv4***
+- Nombre anterior: ***`--TOS`***
+
 - Fuente: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
-- Nombre deprecado: `--TOS`
 
 Valor que se va a asignar al campo Tipo de Servicio de los paquetes IPv4 durante la traducción de IPv6-a-IPv4. _Esto solo aplica cuando [`--override-tos`](#override-tos) está activo.
 
@@ -424,10 +428,10 @@ Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 
 ### `--amend-udp-checksum-zero`
 
-- Tipo: Boolean
-- Valor por Omisión: OFF
-- Modos: SIIT only
-- Sentido de traducción: IPv4 a IPv6 (Sólo UDP)
+- Tipo: ***Booleano***
+- Valor por Omisión: ***APAGADO (0)***
+- Modos: ***SIIT***
+- Sentido de traducción: ***IPv4-> IPv6 (Solo UDP)***
 - Fuente: [RFC 6145, sección 4.5](http://tools.ietf.org/html/rfc6145#section-4.5)
 
 En IPv4, es legal para los paquetes UDP contener zero como checksum. Esto es por que la cuestion completa sobre UDP es que es poco confiable, y por lo tanto algunas veces el valor de validacion del checksum no justifica su costo.
@@ -445,10 +449,10 @@ El Stateful NAT64 de Jool _siempre_ procesa los checksums con valor cero de los 
 
 ### `--randomize-rfc6791-addresses`
 
-- Tipo: Boolean
-- Valor por Omisión: ON
-- Modos: SIIT only
-- Sentido de traducción: IPv6 a IPv4
+- Tipo: ***Booleano***
+- Valor por Omisión: ***Encendido(1)***
+- Modos: ***SIIT***
+- Sentido de traducción: ***IPv6-> IPv4***
 - Fuente: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
 
 Si el origen de un error ICMPv6 no puede ser traducido, el [RFC 6791](https://tools.ietf.org/html/rfc6791) quiere que asignemos una dirección IPv4 del [pool RFC 6791](usr-flags-pool6791.html)
@@ -461,12 +465,13 @@ Porque? se podria decir que [`hop limit`th es mejor](https://github.com/NICMx/NA
 
 ### `--mtu-plateaus`
 
-- Tipo: List of Integers separated by commas (If you want whitespace, remember to quote).
-- Valor por Omisión: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
-- Modos: Both (SIIT and NAT64)
-- Sentido de traducción: IPv4 a IPv6 (solo errores ICMP)
+- Tipo: ***List of Integers separated by commas (If you want whitespace, remember to quote)***
+- Valor por Omisión: ***65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68***
+- Modos: ***SIIT & Stateful***
+- Sentido de traducción: ***IPv4-> IPv6 (Solo Errores de ICMP)***
+- Nombre anterior: ***`--plateaus`***
+
 - Fuente: [RFC 6145, sección 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
-- Nombre deprecado: `--plateaus`
 
 Cuando un paquete no debe de ser fragmentado y no encaja en un enlace por el que se supone debe pasar, el router del problema se supone debe de responder con un mensaje de error indicando _Fragmentation Needed_. Idealmente, este mensaje de error contendría el MTY del link para que el emisor original estuviera consciente del tamaño ideal del paquete y evite la fragmentación. Sin embargo, la especificación ICMPv4 no requiere que los routers incluyan esta información.
 
