@@ -40,7 +40,7 @@ title: Documentación - Parámetros > Global
 
 ## Descripción
 
-Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando las tablas(Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de éstas son seleccionables directamente.
+Bajo esta opción se agrupan todas las variables configurables de Jool exceptuando las tablas (Pool4, Pool6, Pool6791, BIB, Session, EAMT y blacklist), porque cada una de éstas son seleccionables directamente.
 
 `--global` es el modo por omisión de Jool. Asi que de hecho, no requieres ingresar ese parámetro.
 
@@ -53,7 +53,7 @@ Bajo esta opción se agrupan todas las variables configurables de Jool exceptuan
 
 ## Ejemplos
 
-Para ***Desplegar la configuración actual*** (llaves & valores):
+*Para desplegar la configuración actual (llaves & valores):
 
 	$ jool_siit --global
 
@@ -61,16 +61,16 @@ Lo mismo, en versión mas corta:
 
 	$ jool_siit
 
-Para **Pausar Jool**:
+*Para Pausar Jool:
 
 	# jool --global --disable
 
-Para **Encender "address dependent filtering"**:
+*Para Encender "address dependent filtering":
 
 	$ # Valores válidos: {true, ***Apagado(0)***, 1, 0, yes, no, on, APAGADO (0)}
 	$ jool --address-dependent-filtering true
 
-Para **Actualizar la lista plateaus**:
+*Para **Actualizar la lista plateaus**:
 
 	# jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
@@ -145,7 +145,7 @@ Si `--address-dependent-filtering` está deshabilitado, _J_ permitirá al paquet
 - Tipo: ***Booleano***
 - Valor por Omisión: ***APAGADO (0)***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--dropInfo`***
+- Nombre anterior: ``--dropInfo``
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 Si activas esto, pings (ambas solicitudes y respuestas) serán bloqueados mientras esten siendo traducidos de ICMPv6 a ICMPv4.
@@ -160,7 +160,7 @@ Esta regla no afectara los mensajes de Error ICMP.
 - Tipo: ***Booleano***
 - Valor por Omisión: ***APAGADO (0)***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--dropTCP`***
+- Nombre anterior: `--dropTCP`
 - Fuente: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 Enciende `--drop-externally-initiated-tcp` para demoler cualquier intento de iniciar comunicación TCP con nodos IPv6 por parte de nodos IPv4.
@@ -172,7 +172,7 @@ Por supuesto, esto **NO** bloqueará el tráfico IPv4 si algun nodo IPv6 lo soli
 - Tipo: ***Entero (segundos)***
 - Valor por Omisión: ***300seg = 5 min***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--toUDP`***
+- Nombre anterior: `--toUDP`
 - Fuente: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
 
 Cuando una sesión UDP ha estado inactiva por el periodo de tiempo especificado aqui, su registro será removido de la base de datos automáticamente.
@@ -184,7 +184,7 @@ Cuando cambias este valor, los tiempos de vida de todas las sesiones UDP ya exis
 - Tipo: ***Entero (segundos)***
 - Valor por Omisión: ***7200seg = 2 hr***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--toTCPest`***
+- Nombre anterior: `--toTCPest`
 - Fuente: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
 Cuando una conexión TCP ha permanecido inactiva por el periodo de tiempo especificado aquí, su existencia será cuestionada. Jool enviará un paquete de sondeo a uno de los puntos y eliminará la sesión si una respuesta no es recibida antes de  el `--tcp-trans-timeout` timeout.
@@ -197,7 +197,7 @@ Cuando cambias este valor, los tiempos de vida de sesiones TCP ya establecidas s
 - Tipo: ***Entero (segundos)***
 - Valor por Omisión: ***2400seg = 4 min***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--toTCPtrans`***
+- Nombre anterior: `--toTCPtrans`
 - Fuente: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
 Cuando una sesión TCP insalubre ha estado inactiva durante el periodo de tiempo especificado aquí, su registro será removido de la base de datos automáticamnete. Una seisión "insalubre" es una en la que el handshake TCP no ha sido completado, esta siendo terminada por los puntos, o está técnicamente establecida pero ha permanecido inactica por el tiempo indicado en `--tcp-est-timeout`.
@@ -209,7 +209,7 @@ Cuando cambias este valor, los tiempos de vida de sesiones TCP transitorias exis
 - Tipo: ***Entero (segundos)***
 - Valor por Omisión: ***60seg = 1 min***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--toICMP`***
+- Nombre anterior: `--toICMP`
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
 Cuando una sesión ICMP ha estado inactiva por el periodo de tiempo especificado aquí, su registro será removida de la base de datos automáticamente.
@@ -221,7 +221,7 @@ Cuando cambias este valor, los tiempos de vida de todas las sesiones ICMP son ac
 - Tipo: ***Entero (segundos)***
 - Valor por Omisión: ***2 seg***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--toFrag`***
+- Nombre anterior: `--toFrag`
 - Fuente: Ninguns (el parámetro denota un  [capricho de Linux](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
 
 Jool Stateful requiere un reensamble de fragmentos.
@@ -246,7 +246,7 @@ Este comportamiento cambio desde Jool 3.2, donde `--toFrag` solía ser de hecho 
 - Tipo: ***Integer***
 - Valor por Omisión: ***10***
 - Modos: ***Stateful***
-- Nombre anterior: ***`--maxStoredPkts`***
+- Nombre anterior: `--maxStoredPkts`
 - Fuente: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectamente)
 
 Cuando un nodo (IPv4) externo intenta primero abrir una conexión y no hay ningun [registro BIB](misc-bib.html) para el, Jool normalmente contesta con un mensaje de error ICMP - Address Unreachable (type 3, code 1), ya que no puede saber a cual nodo IPv6 se está dirigiendo el paquete. 
@@ -369,8 +369,9 @@ Este registro es remarcablemente mas voluptuoso que [`--logging-bib`](#logging-b
 - Valor por Omisión: ***APAGADO (0)***
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv4 -> IPv6***
-- Fuente: [RFC 6145, sección 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
 - Nombre anterior: `--setTC`
+- Fuente: [RFC 6145, sección 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
+
 
 El campo Clase de Tráfico de la [Cabecera IPv6](http://es.wikipedia.org/wiki/IPv6#Cabecera_fija) es muy similar al campo [Tipo de servicio](http://en.wikipedia.org/wiki/IPv4#Header) (Type of Service TOS) por sus siglas en inglés.
 
@@ -399,7 +400,7 @@ Si dejas esto desactivado, el valor del campo Clase de Tráfico será copiado di
 - Valor por Omisión: ***Apagado(0)***
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv6-> IPv4***
-- Nombre anterior: ***`--TOS`***
+- Nombre anterior: `--TOS`
 
 - Fuente: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
 
@@ -408,23 +409,23 @@ Valor que se va a asignar al campo Tipo de Servicio de los paquetes IPv4 durante
 
 ### `--allow-atomic-fragments`
 
-Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 
 ### `--setDF`
 
-Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 
 ### `--genFH`
 
-Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 
 ### `--genID`
 
-Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 
 ### `--boostMTU`
 
-Deprecado. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
 
 ### `--amend-udp-checksum-zero`
 
@@ -469,7 +470,7 @@ Porque? se podria decir que [`hop limit`th es mejor](https://github.com/NICMx/NA
 - Valor por Omisión: ***65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68***
 - Modos: ***SIIT & Stateful***
 - Sentido de traducción: ***IPv4-> IPv6 (Solo Errores de ICMP)***
-- Nombre anterior: ***`--plateaus`***
+- Nombre anterior: `--plateaus`
 
 - Fuente: [RFC 6145, sección 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
 
