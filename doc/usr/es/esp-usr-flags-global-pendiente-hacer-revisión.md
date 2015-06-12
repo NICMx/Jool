@@ -13,7 +13,7 @@ title: Documentación - Parámetros > Global
 2. [Sintaxis](#sintaxis)
 3. [Ejemplos](#ejemplos)
 4. [Llaves](#keys)
-	1. [`--enable`, `--disable`](#enable---disable)
+	1. [`--enable` | `--disable`](#enable---disable)
 	1. [`--address-dependent-filtering`](#address-dependent-filtering)
 	2. [`--drop-icmpv6-info`](#drop-icmpv6-info)
 	3. [`--drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
@@ -67,7 +67,7 @@ Lo mismo, en versión mas corta:
 
 * Para Encender "Address Dependent Filtering":
 
-	$ # Valores válidos: {true, ***Apagado(0)***, 1, 0, yes, no, on, APAGADO (0)}
+	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off}
 	$ jool --address-dependent-filtering true
 
 * Para Actualizar la Lista Plateaus:
@@ -76,7 +76,7 @@ Lo mismo, en versión mas corta:
 
 ## Llaves
 
-### `--enable`, `--disable`
+### `--enable`|`--disable`
 
 - Nombre: ***HABILITA & DESHABILITA JOOL***
 - Tipo: ***No Aplica***
@@ -85,7 +85,7 @@ Lo mismo, en versión mas corta:
 
 REANUDA Y PAUSA LA TRADUCCIÓN DE PAQUETES, RESPECTIVAMENTE. 
 
-Esto puede ser muy útil si requieres cambiar más de un parámetro de configuración y no deseas que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos. Si prefieres que Jool no se detenga mientras estas reconfigurando, no te preocupes. Utilízalo solo si sientes que te es útil.
+Esto puede ser muy útil si requieres cambiar más de un parámetro de configuración y no deseas que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos; pero, si prefieres que Jool no se detenga mientras estas reconfigurando, usa disable.
 
 Mientras Jool está inactivo, *los timeouts no serán pausados** para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados puedan ser desechados.
 
@@ -97,16 +97,19 @@ Mientras Jool está inactivo, *los timeouts no serán pausados** para que las en
 - Valor por Omisión: ***APAGADO (0)***
 
 - Nombre anterior: `--dropAddr`
-- Fuente: Disperso en el RFC 6146. Está un resumen al final de la [sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3).
+- Fuente: [Ver RFC 6146, sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3)
 
-Larga historia corta:
-
-- `--address-dependent-filtering` Encendido significa que Jool debe ser un NAT de cono restringido por dirección.
-- `--address-dependent-filtering` Apagado significa que Jool debe ser un NAT de cono completo.
- 
+EN RESUMEN:
+	--address-dependent-filtering` OFF significa que Jool debe ser un NAT de cono completo.
+	--address-dependent-filtering` ON significa que Jool debe ser un NAT de cono restringido.
+	
+Referencias:
 [Wiki](http://en.wikipedia.org/wiki/Network_address_translation#Methods_of_translation).
+[Voipex](http://voipex.blogspot.mx/2006/04/que-es-nat-tipos-de-nat-que-es-stun.html).
+[Think Like A Computer](http://think-like-a-computer.com/2011/09/16/types-of-nat/).
+[voipforo](http://www.voipforo.com/diccionario/N.php).
 
-Larga historia larga:
+BREVE EXPLICACIÓN:
 
 Supon que _n6_ está hablando con _n4a_ mediante el NAT64:
 
