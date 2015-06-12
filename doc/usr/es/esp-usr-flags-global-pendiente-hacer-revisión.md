@@ -47,17 +47,17 @@ Bajo esta opción se agrupan todas las variables configurables de Jool exceptuan
 ## Sintaxis
 
 	jool_siit [--global]
-	jool_siit [--global] <flag key> <new value>
+	jool_siit [--global] <llave> <valor>
 	jool [--global]
-	jool [--global] <flag key> <new value>
+	jool [--global] <llave> <valor>
 
 ## Ejemplos
 
-* Para Desplegar la Configuración Actual (llaves & valores):
+* Para Desplegar la Configuración Actual:
 
 	$ jool_siit --global
 
-Lo mismo, en versión mas corta:
+O simplemente:
 
 	$ jool_siit
 
@@ -65,7 +65,7 @@ Lo mismo, en versión mas corta:
 
 	$ jool --global --disable
 
-* Para Encender "Address Dependent Filtering":
+* Para Encender Filtra Dependiendo del Direccionamiento:
 
 	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off}
 	$ jool --address-dependent-filtering true
@@ -99,14 +99,14 @@ Mientras Jool está inactivo, *los timeouts no serán pausados** para que las en
 - Nombre anterior: `--dropAddr`
 - Fuente: [Ver RFC 6146, sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3)
 
-EN RESUMEN:
-	--address-dependent-filtering` OFF significa que Jool debe ser un NAT de cono completo.
+EN RESUMEN:<br />
+	--address-dependent-filtering` OFF significa que Jool debe ser un NAT de cono completo.<br />
 	--address-dependent-filtering` ON significa que Jool debe ser un NAT de cono restringido.
 	
-Referencias:
-[Wiki](http://en.wikipedia.org/wiki/Network_address_translation#Methods_of_translation).
-[Voipex](http://voipex.blogspot.mx/2006/04/que-es-nat-tipos-de-nat-que-es-stun.html).
-[Think Like A Computer](http://think-like-a-computer.com/2011/09/16/types-of-nat/).
+Referencias:<br />
+[Wiki](http://en.wikipedia.org/wiki/Network_address_translation#Methods_of_translation).<br />
+[Voipex](http://voipex.blogspot.mx/2006/04/que-es-nat-tipos-de-nat-que-es-stun.html).<br />
+[Think Like A Computer](http://think-like-a-computer.com/2011/09/16/types-of-nat/).<br />
 [voipforo](http://www.voipforo.com/diccionario/N.php).
 
 BREVE EXPLICACIÓN:
