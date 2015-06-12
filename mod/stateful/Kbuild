@@ -11,7 +11,6 @@ jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
 jool_common += ../common/rfc6145/common.o
 jool_common += ../common/rfc6145/core.o
-jool_common += ../common/blacklist.o
 jool_common += ../common/address.o
 jool_common += ../common/types.o
 jool_common += ../common/str_utils.o

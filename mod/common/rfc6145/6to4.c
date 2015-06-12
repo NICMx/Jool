@@ -180,6 +180,11 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
 	/* Fall through. */
 
 success:
+	if (addr4_is_scope_subnet(tmp.s_addr)) {
+		log_debug("The resulting address (%pI4) is reserved.", &tmp);
+		return VERDICT_DROP;
+	}
+
 	*addr4 = tmp.s_addr;
 	return VERDICT_CONTINUE;
 }

@@ -122,35 +122,41 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 	return 0;
 }
 
-static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6, bool dst, bool enable_eam)
+static verdict generate_addr6_siit(__be32 addr4, struct in6_addr *addr6,
+		bool dst, bool enable_eam)
 {
 	struct ipv6_prefix prefix;
 	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
+	if (addr4_is_scope_subnet(addr4)) {
+		log_debug("Address %pI4 is not supposed to be xlat'd.", &tmp);
+		return VERDICT_ACCEPT;
+	}
+
 	if (enable_eam) {
 		error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
-		if (error && error != -ESRCH)
-			return error;
 		if (!error)
-			return 0;
+			return VERDICT_CONTINUE;
+		if (error != -ESRCH)
+			return VERDICT_DROP;
 	}
 
 	if (dst && blacklist_contains(addr4)) {
-		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
-		return -ESRCH;
+		log_debug("Address %pI4 lacks an EAMT entry and is "
+				"blacklisted.", &tmp);
+		return VERDICT_ACCEPT;
 	}
 
-	error = pool6_peek(&prefix);
-	if (error) {
-		log_debug("Address %pI4 lacks an EAMT entry and there's no pool6 prefix.", &tmp);
-		return error;
+	if (pool6_peek(&prefix) != 0) {
+		log_debug("Address %pI4 lacks an EAMT entry and there's no "
+				"pool6 prefix.", &tmp);
+		return VERDICT_ACCEPT;
 	}
-	error = addr_4to6(&tmp, &prefix, addr6);
-	if (error)
-		return error;
+	if (addr_4to6(&tmp, &prefix, addr6) != 0)
+		return VERDICT_DROP;
 
-	return 0;
+	return VERDICT_CONTINUE;
 }
 
 static bool disable_src_eam(struct packet *in, bool hairpin)
@@ -176,26 +182,22 @@ static verdict translate_addrs46_siit(struct packet *in, struct packet *out)
 	struct iphdr *hdr4 = pkt_ip4_hdr(in);
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
 	bool hairpin;
-	int error;
+	verdict result;
 
 	hairpin = (config_eam_hairpin_mode() == EAM_HAIRPIN_SIMPLE)
 			|| pkt_is_hairpin(in);
 
 	/* Src address. */
-	error = generate_addr6_siit(hdr4->saddr, &hdr6->saddr, false,
+	result = generate_addr6_siit(hdr4->saddr, &hdr6->saddr, false,
 			!disable_src_eam(in, hairpin));
-	if (error == -ESRCH)
-		return VERDICT_ACCEPT;
-	if (error)
-		return VERDICT_DROP;
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	/* Dst address. */
-	error = generate_addr6_siit(hdr4->daddr, &hdr6->daddr, true,
+	result = generate_addr6_siit(hdr4->daddr, &hdr6->daddr, true,
 			!disable_dst_eam(in, hairpin));
-	if (error == -ESRCH)
-		return VERDICT_ACCEPT;
-	if (error)
-		return VERDICT_DROP;
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
 	return VERDICT_CONTINUE;

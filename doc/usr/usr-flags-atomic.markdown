@@ -11,7 +11,7 @@ title: Documentation - Flags > Atomic Fragments
 
 1. [Overview](#overview)
 2. [Flags](#flags)
-	1. [`--allow-atomic-fragments`](#atomicfragments)
+	1. [`--allow-atomic-fragments`](#allow-atomic-fragments)
 	2. [`--setDF`](#setdf)
 	3. [`--genFH`](#genfh)
 	4. [`--genID`](#genid)

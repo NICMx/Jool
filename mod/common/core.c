@@ -1,6 +1,5 @@
 #include "nat64/mod/common/core.h"
 
-#include "nat64/mod/common/blacklist.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/handling_hairpinning.h"
 #include "nat64/mod/common/rfc6145/core.h"
@@ -106,10 +105,6 @@ unsigned int core_4to6(struct sk_buff *skb)
 	if (config_is_xlat_disabled())
 		return NF_ACCEPT;
 
-	/* TODO This suffers the hairpinning dilemma. You will have to move this to translate. */
-	if (is_blacklisted4(hdr->saddr) || is_blacklisted4(hdr->daddr))
-		return NF_ACCEPT;
-
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
@@ -126,9 +121,6 @@ unsigned int core_6to4(struct sk_buff *skb)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 
 	if (config_is_xlat_disabled())
-		return NF_ACCEPT;
-
-	if (is_blacklisted6(&hdr->saddr) || is_blacklisted6(&hdr->daddr))
 		return NF_ACCEPT;
 
 	log_debug("===============================================");

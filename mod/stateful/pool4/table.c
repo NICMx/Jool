@@ -113,6 +113,13 @@ static int add_sample(struct pool4_table *table, struct pool4_sample *sample)
 	/* log_debug("Adding sample %pI4 %u-%u", &sample->addr,
 			sample->range.min, sample->range.max); */
 
+	if (addr4_is_scope_subnet(sample->addr.s_addr)) {
+		log_err("The scope of address %pI4 is too low (look up "
+				"'Reserved IP addresses'. Quitting.",
+				&sample->addr);
+		return -EINVAL;
+	}
+
 	list_for_each_entry(addr, &table->rows, list_hook) {
 		if (addr4_equals(&addr->addr, &sample->addr))
 			return add_ports(addr, &sample->range);

@@ -247,3 +247,25 @@ __u64 prefix4_next(struct ipv4_prefix *prefix)
 	return prefix4_get_addr_count(prefix)
 			+ (__u64) be32_to_cpu(prefix->address.s_addr);
 }
+
+static inline bool ipv4_is_broadcast(const __be32 addr)
+{
+	return addr == htonl(0xffffffffu);
+}
+
+/**
+ * addr4_has_scope_subnet - returns true if @addr has low scope ("this" subnet
+ * or lower), and therefore should not be translated under any circumstances.
+ */
+bool addr4_is_scope_subnet(const __be32 addr)
+{
+	/*
+	 * I'm assuming private and doc networks do not belong to this category,
+	 * to facilitate testing.
+	 * (particularly users following the tutorials verbatim.)
+	 */
+	return ipv4_is_zeronet(addr)
+			|| ipv4_is_loopback(addr)
+			|| ipv4_is_linklocal_169(addr)
+			|| ipv4_is_broadcast(addr);
+}

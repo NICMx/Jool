@@ -76,4 +76,6 @@ static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *
 	return memcmp(a1, a2, sizeof(struct in_addr));
 }
 
+bool addr4_is_scope_subnet(const __be32 addr);
+
 #endif /* _JOOL_MOD_ADDRESS_H */
