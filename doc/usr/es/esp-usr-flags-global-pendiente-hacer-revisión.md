@@ -63,7 +63,7 @@ Lo mismo, en versión mas corta:
 
 * Para Pausar Jool:
 
-	# jool --global --disable
+	$ jool --global --disable
 
 * Para Encender "Address Dependent Filtering":
 
@@ -72,7 +72,7 @@ Lo mismo, en versión mas corta:
 
 * Para Actualizar la Lista Plateaus:
 
-	# jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
+	$ jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
 ## Llaves
 
@@ -82,7 +82,7 @@ Lo mismo, en versión mas corta:
 
 - Tipo: ***No Aplica***
 - Modos: ***SIIT & Stateful***
-- Valor por Omisión: Depends on modprobe arguments
+- Valor por Omisión: ***Depends on modprobe arguments***
 
 REANUDA Y PAUSA LA TRADUCCIÓN DE PAQUETES, RESPECTIVAMENTE. 
 
