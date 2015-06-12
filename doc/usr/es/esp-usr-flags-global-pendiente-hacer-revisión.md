@@ -79,7 +79,6 @@ Lo mismo, en versión mas corta:
 ### `--enable`, `--disable`
 
 - Nombre: ***HABILITA & DESHABILITA JOOL***
-
 - Tipo: ***No Aplica***
 - Modos: ***SIIT & Stateful***
 - Valor por Omisión: ***Depends on modprobe arguments***
@@ -93,7 +92,6 @@ Mientras Jool está inactivo, *los timeouts no serán pausados** para que las en
 ### `--address-dependent-filtering`
 
 - Nombre: ***FILTRA DEPENDIENDO DEL DIRECCIONAMIENTO***
-
 - Tipo: ***Booleano***
 - Modos: ***Stateful***
 - Valor por Omisión: ***APAGADO (0)***
