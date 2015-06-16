@@ -9,7 +9,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
-MODULE_DESCRIPTION("Session module test.");
+MODULE_DESCRIPTION("Session DB module test.");
 
 const l4_protocol PROTO = L4PROTO_UDP;
 struct session_entry *sessions4[4][4][4][4];

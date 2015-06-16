@@ -151,13 +151,15 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
 	struct in_addr tmp;
 	int error;
 
+	/* TODO is R = B already implemented? */
+
 	*was_6052 = false;
 
 	error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
-	if (error && error != -ESRCH)
-		return VERDICT_DROP;
 	if (!error)
 		goto success;
+	if (error != -ESRCH)
+		return VERDICT_DROP;
 
 	error = pool6_get(addr6, &prefix);
 	if (error == -ESRCH) {

@@ -11,10 +11,11 @@ MODULE_DESCRIPTION("IPv4 pool DB module test");
 
 static bool test_init_power(void)
 {
+	unsigned int initial_power = power;
 	bool success = true;
 
 	success &= ASSERT_INT(0, init_power(0), "r0");
-	success &= ASSERT_UINT(1U, slots(), "p0");
+	success &= ASSERT_UINT(16U, slots(), "p0"); /* Because default. */
 	success &= ASSERT_INT(0, init_power(1), "r1");
 	success &= ASSERT_UINT(1U, slots(), "p1");
 	success &= ASSERT_INT(0, init_power(2), "r2");
@@ -32,6 +33,7 @@ static bool test_init_power(void)
 	success &= ASSERT_INT(-EINVAL, init_power(0x80000001U), "2big1");
 	success &= ASSERT_INT(-EINVAL, init_power(0xFFFFFFFFU), "2big2");
 
+	power = initial_power;
 	return success;
 }
 

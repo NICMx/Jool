@@ -78,19 +78,16 @@ int __route4(struct packet *in, struct packet *out)
 	if (!table || IS_ERR(table)) {
 		error = abs(PTR_ERR(table));
 		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
-		inc_stats(out, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (table->dst.error) {
 		error = abs(table->dst.error);
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
-		inc_stats(out, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 	if (!table->dst.dev) {
 		dst_release(&table->dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
-		inc_stats(out, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 
@@ -161,13 +158,11 @@ int route6(struct packet *pkt)
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
-		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -EINVAL;
 	}
 	if (dst->error) {
 		int error = abs(dst->error);
 		log_debug("ip6_route_output() returned error %d. Cannot route packet.", error);
-		inc_stats(pkt, IPSTATS_MIB_OUTNOROUTES);
 		return -error;
 	}
 

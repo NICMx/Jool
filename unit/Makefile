@@ -18,8 +18,10 @@ RFC6052 = rfc6052
 PKT = pkt
 RBTREE = rbtree
 POOL4DB = pool4db
-BIB = bib
-SESSION = session
+BIBTABLE = bibtable
+BIBDB = bibdb
+SESSIONTABLE = sessiontable
+SESSIONDB = sessiondb
 FRAGDB = fragdb
 FILTERING = filtering
 TRANSLATE = translate
@@ -36,17 +38,19 @@ obj-m += $(RFC6052).o
 obj-m += $(PKT).o
 obj-m += $(RBTREE).o
 obj-m += $(POOL4DB).o
-obj-m += $(BIB).o
-obj-m += $(SESSION).o
+obj-m += $(BIBTABLE).o
+obj-m += $(BIBDB).o
+obj-m += $(SESSIONTABLE).o
+obj-m += $(SESSIONDB).o
 obj-m += $(FRAGDB).o
 obj-m += $(FILTERING).o
 obj-m += $(TRANSLATE).o
 obj-m += $(CONFIG_PROTO).o
-##obj-m += $(LOGTIME).o
-## Note, this is compiling with -DSTATEFUL, even though is part of the stateless
-## translator.
-## At the moment this doesn't cause any trouble, but it means we might need to
-## refactor this Makefile to make better room for stateless tests.
+#obj-m += $(LOGTIME).o
+# Note, this is compiling with -DSTATEFUL, even though is part of the stateless
+# translator.
+# At the moment this doesn't cause any trouble, but it means we might need to
+# refactor this Makefile to make better room for stateless tests.
 obj-m += $(EAMT).o
 obj-m += $(PALLOC).o
 
@@ -87,25 +91,41 @@ $(POOL4DB)-objs += ../mod/stateful/pool4/table.o
 $(POOL4DB)-objs += ../mod/stateful/pool4/entry.o
 $(POOL4DB)-objs += pool4db_test.o
 
-$(BIB)-objs += $(MIN_REQS)
-$(BIB)-objs += ../mod/common/config.o
-$(BIB)-objs += ../mod/common/rbtree.o
-$(BIB)-objs += ../mod/stateful/bib/entry.o
-$(BIB)-objs += ../mod/stateful/bib/table.o
-$(BIB)-objs += framework/bib.o
-$(BIB)-objs += bib_test.o
+$(BIBTABLE)-objs += $(MIN_REQS)
+$(BIBTABLE)-objs += ../mod/common/config.o
+$(BIBTABLE)-objs += ../mod/common/rbtree.o
+$(BIBTABLE)-objs += ../mod/stateful/bib/entry.o
+$(BIBTABLE)-objs += bibtable_test.o
 
-$(SESSION)-objs += $(MIN_REQS)
-$(SESSION)-objs += ../mod/common/config.o
-$(SESSION)-objs += ../mod/common/rbtree.o
-$(SESSION)-objs += ../mod/stateful/session/entry.o
-$(SESSION)-objs += ../mod/stateful/session/table.o
-$(SESSION)-objs += ../mod/stateful/session/pkt_queue.o
-$(SESSION)-objs += framework/session.o
-$(SESSION)-objs += impersonator/bib.o
-$(SESSION)-objs += impersonator/icmp_wrapper.o
-$(SESSION)-objs += impersonator/route.o
-$(SESSION)-objs += session_test.o
+$(BIBDB)-objs += $(MIN_REQS)
+$(BIBDB)-objs += ../mod/common/config.o
+$(BIBDB)-objs += ../mod/common/rbtree.o
+$(BIBDB)-objs += ../mod/stateful/bib/entry.o
+$(BIBDB)-objs += ../mod/stateful/bib/table.o
+$(BIBDB)-objs += framework/bib.o
+$(BIBDB)-objs += bibdb_test.o
+
+$(SESSIONTABLE)-objs += $(MIN_REQS)
+$(SESSIONTABLE)-objs += ../mod/common/config.o
+$(SESSIONTABLE)-objs += ../mod/common/rbtree.o
+$(SESSIONTABLE)-objs += ../mod/stateful/session/entry.o
+$(SESSIONTABLE)-objs += ../mod/stateful/session/pkt_queue.o
+$(SESSIONTABLE)-objs += impersonator/bib.o
+$(SESSIONTABLE)-objs += impersonator/icmp_wrapper.o
+$(SESSIONTABLE)-objs += impersonator/route.o
+$(SESSIONTABLE)-objs += sessiontable_test.o
+
+$(SESSIONDB)-objs += $(MIN_REQS)
+$(SESSIONDB)-objs += ../mod/common/config.o
+$(SESSIONDB)-objs += ../mod/common/rbtree.o
+$(SESSIONDB)-objs += ../mod/stateful/session/entry.o
+$(SESSIONDB)-objs += ../mod/stateful/session/table.o
+$(SESSIONDB)-objs += ../mod/stateful/session/pkt_queue.o
+$(SESSIONDB)-objs += framework/session.o
+$(SESSIONDB)-objs += impersonator/bib.o
+$(SESSIONDB)-objs += impersonator/icmp_wrapper.o
+$(SESSIONDB)-objs += impersonator/route.o
+$(SESSIONDB)-objs += sessiondb_test.o
 
 $(FRAGDB)-objs += $(MIN_REQS)
 $(FRAGDB)-objs += ../mod/common/config.o
@@ -176,8 +196,8 @@ test:
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
 	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
 	-sudo insmod $(POOL4DB).ko && sudo rmmod $(POOL4DB)
-	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
-	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
+	-sudo insmod $(BIBDB).ko && sudo rmmod $(BIBDB)
+	-sudo insmod $(SESSIONDB).ko && sudo rmmod $(SESSIONDB)
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)

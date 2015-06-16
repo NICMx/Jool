@@ -216,8 +216,6 @@ static struct rb_node *find_starting_point(struct bib_table *table,
 	if (*node)
 		return include_offset ? (*node) : rb_next(*node);
 
-	/* TODO this needs more tests on empty trees. */
-
 	if (!parent)
 		return NULL;
 

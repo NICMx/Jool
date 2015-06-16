@@ -51,7 +51,7 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 		error = route(out);
 		if (error) {
 			kfree_skb(out->skb);
-			return VERDICT_DROP;
+			return VERDICT_ACCEPT;
 		}
 	}
 

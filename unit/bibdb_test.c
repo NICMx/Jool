@@ -7,7 +7,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
-MODULE_DESCRIPTION("BIB module test.");
+MODULE_DESCRIPTION("BIB DB module test.");
 
 const l4_protocol PROTO = L4PROTO_TCP;
 struct bib_entry *bibs4[4][25];

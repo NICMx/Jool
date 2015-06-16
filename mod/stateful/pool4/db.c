@@ -11,7 +11,7 @@ struct hlist_head *db;
 unsigned int power;
 unsigned int values;
 
-static int slots(void)
+static unsigned int slots(void)
 {
 	return 1 << power;
 }
@@ -74,7 +74,7 @@ static int init_power(unsigned int size)
 	}
 
 	/* 2^@power = smallest power of two greater or equal than @size. */
-	for (power = 1; slots() < size; power <<= 1)
+	for (power = 0; slots() < size; power++)
 		/* Chomp chomp. */;
 
 	return 0;
