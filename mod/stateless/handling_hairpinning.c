@@ -6,7 +6,7 @@
 
 bool is_hairpin(struct packet *pkt, struct tuple *tuple)
 {
-	return pkt_is_hairpin(pkt);
+	return pkt_is_intrinsic_hairpin(pkt);
 }
 
 verdict handling_hairpinning(struct packet *in, struct tuple *tuple)

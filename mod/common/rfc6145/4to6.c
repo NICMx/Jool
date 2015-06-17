@@ -185,7 +185,7 @@ static verdict translate_addrs46_siit(struct packet *in, struct packet *out)
 	verdict result;
 
 	hairpin = (config_eam_hairpin_mode() == EAM_HAIRPIN_SIMPLE)
-			|| pkt_is_hairpin(in);
+			|| pkt_is_intrinsic_hairpin(in);
 
 	/* Src address. */
 	result = generate_addr6_siit(hdr4->saddr, &hdr6->saddr, false,
@@ -281,7 +281,7 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	ip6_hdr->flow_lbl[2] = 0;
 	ip6_hdr->payload_len = build_payload_len(in, out);
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
-	if (pkt_is_outer(in)) {
+	if (pkt_is_outer(in) && !pkt_is_intrinsic_hairpin(in)) {
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);

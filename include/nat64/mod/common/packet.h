@@ -174,7 +174,8 @@ struct packet {
 	bool is_inner;
 	/**
 	 * Is the packet going to hairpin?
-	 * EAM only. RFC6052 hairpin doesn't need this flag.
+	 * Intrinsic EAM hairpinning only. RFC6052 hairpin and Simple EAM
+	 * hairpin don't need any flags.
 	 */
 	bool is_hairpin;
 
@@ -292,7 +293,7 @@ static inline bool pkt_is_outer(const struct packet *pkt)
 	return !pkt_is_inner(pkt);
 }
 
-static inline bool pkt_is_hairpin(const struct packet *pkt)
+static inline bool pkt_is_intrinsic_hairpin(const struct packet *pkt)
 {
 	return pkt->is_hairpin;
 }
