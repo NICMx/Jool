@@ -23,7 +23,7 @@ struct dst_entry *route_ipv4(struct iphdr *hdr)
 	flow.flowi4_flags = 0;
 	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
 	/* flow.flowi4_secid; */
-	flow.saddr = hdr->saddr;
+	/* flow.saddr = hdr->saddr; */
 	flow.daddr = hdr->daddr;
 
 	table = __ip_route_output_key(&init_net, &flow);
@@ -70,7 +70,7 @@ struct dst_entry *route_ipv6(struct ipv6hdr *hdr_ip)
 	flow.flowi6_proto = hdr_ip->nexthdr;
 	flow.flowi6_flags = 0;
 	/* flow->flowi6_secid; */
-	flow.saddr = hdr_ip->saddr;
+	/* flow.saddr = hdr_ip->saddr; */
 	flow.daddr = hdr_ip->daddr;
 	flow.flowlabel = get_flow_label(hdr_ip);
 

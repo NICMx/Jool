@@ -260,3 +260,30 @@ struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_p
 {
 	return &steps[l3_proto][l4_proto];
 }
+
+/**
+ * handle_partial_csum - set up @out_skb so the layer 4 checksum will be
+ * computed from scratch by the OS or by the NIC.
+ * @csum_offset: The checksum field's offset within its header.
+ *
+ * When the incoming skb's ip_summed field is NONE, UNNECESSARY or COMPLETE,
+ * the checksum is defined, in the sense that its correctness consistently
+ * dictates whether the packet is corrupted or not. In these cases, Jool is
+ * supposed to update the checksum with the translation changes and forget
+ * about it. The incoming packet's corruption will still be reflected in the
+ * outgoing packet's checksum.
+ *
+ * On the other hand, when the incoming skb's ip_summed field is PARTIAL,
+ * the existing checksum is pretty much guaranteed garbage. Jool can't update
+ * it, and there's no reason to recompute it since the hardware or the OS are
+ * supposed to do it later (and likely faster) anyway. Jool still has to fill
+ * in a handful of fields for them to be able to do this, however.
+ *
+ * The latter situation (PARTIAL) is the one this function handles.
+ */
+void handle_partial_csum(struct sk_buff *out_skb, unsigned int csum_offset)
+{
+	out_skb->ip_summed = CHECKSUM_PARTIAL;
+	out_skb->csum_start = skb_transport_offset(out_skb);
+	out_skb->csum_offset = out_skb->csum_start + csum_offset;
+}

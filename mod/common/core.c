@@ -96,7 +96,7 @@ end:
 
 #endif
 
-unsigned int core_4to6(struct sk_buff *skb)
+unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct packet pkt;
 	struct iphdr *hdr = ip_hdr(skb);
@@ -108,6 +108,22 @@ unsigned int core_4to6(struct sk_buff *skb)
 	log_debug("===============================================");
 	log_debug("Catching IPv4 packet: %pI4->%pI4", &hdr->saddr, &hdr->daddr);
 
+#ifdef CONFIG_NET_NS
+	/*
+	 * Only intercept packets in the global namespace to prevent fake
+	 * hairpinning issues (we don't want the global namespace to translate
+	 * a packet, then have another namespace catch it an translate it back
+	 * again).
+	 * This is a half-assed hackfix, but issue #140 should clean it nicely
+	 * (because Jool would attach itself to an interface, and the interface
+	 * itself would be attached to a namespace).
+	 */
+	if (dev && dev->nd_net != &init_net) {
+		log_debug("Wrong namespace! Ignoring packet.");
+		return NF_ACCEPT;
+	}
+#endif
+
 	/* Reminder: This function might change pointers. */
 	if (pkt_init_ipv4(&pkt, skb) != 0)
 		return NF_DROP;
@@ -115,7 +131,7 @@ unsigned int core_4to6(struct sk_buff *skb)
 	return core_common(&pkt);
 }
 
-unsigned int core_6to4(struct sk_buff *skb)
+unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct packet pkt;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -125,6 +141,14 @@ unsigned int core_6to4(struct sk_buff *skb)
 
 	log_debug("===============================================");
 	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
+
+#ifdef CONFIG_NET_NS
+	/* Same hack as above. */
+	if (dev && dev->nd_net != &init_net) {
+		log_debug("Wrong namespace! Ignoring packet.");
+		return NF_ACCEPT;
+	}
+#endif
 
 	/* Reminder: This function might change pointers. */
 	if (pkt_init_ipv6(&pkt, skb) != 0)

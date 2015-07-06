@@ -29,6 +29,7 @@ l3 = layer 3 (network; IPv4 or IPv6.)
 l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)
 len = length
 mod = kernel module
+NIC = Network Interface Card
 nf = Netfilter (http://www.netfilter.org/)
 nl = Netlink (http://en.wikipedia.org/wiki/Netlink)
 pkt = packet

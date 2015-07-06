@@ -559,6 +559,7 @@ static int compute_icmp6_csum(struct packet *out)
 	csum = skb_checksum(out->skb, skb_transport_offset(out->skb), pkt_datagram_len(out), 0);
 	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
 			pkt_datagram_len(out), IPPROTO_ICMPV6, csum);
+	out->skb->ip_summed = CHECKSUM_NONE;
 
 	return 0;
 }
@@ -566,6 +567,9 @@ static int compute_icmp6_csum(struct packet *out)
 static verdict validate_icmp4_csum(struct packet *in)
 {
 	__sum16 csum;
+
+	if (in->skb->ip_summed != CHECKSUM_NONE)
+		return VERDICT_CONTINUE;
 
 	csum = csum_fold(skb_checksum(in->skb, skb_transport_offset(in->skb),
 			pkt_datagram_len(in), 0));
@@ -784,13 +788,18 @@ verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out)
 		tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
 
-	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
-	tcp_copy.check = 0;
+	/* Header.checksum */
+	if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
+		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
+		tcp_copy.check = 0;
 
-	tcp_out->check = 0;
-	tcp_out->check = update_csum_4to6(tcp_in->check,
-			pkt_ip4_hdr(in), &tcp_copy, sizeof(tcp_copy),
-			pkt_ip6_hdr(out), tcp_out, sizeof(*tcp_out));
+		tcp_out->check = 0;
+		tcp_out->check = update_csum_4to6(tcp_in->check,
+				pkt_ip4_hdr(in), &tcp_copy, sizeof(tcp_copy),
+				pkt_ip6_hdr(out), tcp_out, sizeof(*tcp_out));
+	} else {
+		handle_partial_csum(out->skb, offsetof(struct tcphdr, check));
+	}
 
 	/* Payload */
 	return copy_payload(in, out) ? VERDICT_DROP : VERDICT_CONTINUE;
@@ -809,15 +818,21 @@ verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out)
 		udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
 
+	/* Header.checksum */
 	if (udp_in->check != 0) {
-		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
-		udp_copy.check = 0;
+		if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
+			memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+			udp_copy.check = 0;
 
-		udp_out->check = 0;
-		udp_out->check = update_csum_4to6(udp_in->check,
-				pkt_ip4_hdr(in), &udp_copy, sizeof(udp_copy),
-				pkt_ip6_hdr(out), udp_out, sizeof(*udp_out));
+			udp_out->check = 0;
+			udp_out->check = update_csum_4to6(udp_in->check,
+					pkt_ip4_hdr(in), &udp_copy, sizeof(udp_copy),
+					pkt_ip6_hdr(out), udp_out, sizeof(*udp_out));
+		} else {
+			handle_partial_csum(out->skb, offsetof(struct udphdr, check));
+		}
 	} else {
+		/* TODO (performance) handling this as partial might work just as well, or better. */
 		if (handle_zero_csum(in, out))
 			return VERDICT_DROP;
 	}
