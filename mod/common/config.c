@@ -26,24 +26,22 @@ int config_init(bool is_disable)
 	config->atomic_frags.build_ipv4_id = DEFAULT_BUILD_IPV4_ID;
 	config->atomic_frags.lower_mtu_fail = DEFAULT_LOWER_MTU_FAIL;
 
-#ifdef STATEFUL
-	config->ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
-	config->ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
-	config->ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
-	config->ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	config->ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
-	config->max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
-	config->src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
-	config->drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	config->drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
-	config->drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
-	config->bib_logging = DEFAULT_BIB_LOGGING;
-	config->session_logging = DEFAULT_SESSION_LOGGING;
-#else
-	config->compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
-	config->eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-	config->randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
-#endif
+	config->nat64.ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
+	config->nat64.ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
+	config->nat64.ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	config->nat64.ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	config->nat64.ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
+	config->nat64.max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
+	config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
+	config->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
+	config->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
+	config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
+	config->nat64.bib_logging = DEFAULT_BIB_LOGGING;
+	config->nat64.session_logging = DEFAULT_SESSION_LOGGING;
+
+	config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+	config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
+	config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 
 	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
 	config->mtu_plateaus = kmalloc(sizeof(plateaus), GFP_ATOMIC);
@@ -107,86 +105,80 @@ int config_set(struct global_config *new)
 		result; \
 	})
 
-#ifdef STATEFUL
-
 unsigned long config_get_ttl_udp(void)
 {
-	return RCU_THINGY(unsigned long, ttl.udp);
+	return RCU_THINGY(unsigned long, nat64.ttl.udp);
 }
 
 unsigned long config_get_ttl_tcpest(void)
 {
-	return RCU_THINGY(unsigned long, ttl.tcp_est);
+	return RCU_THINGY(unsigned long, nat64.ttl.tcp_est);
 }
 
 unsigned long config_get_ttl_tcptrans(void)
 {
-	return RCU_THINGY(unsigned long, ttl.tcp_trans);
+	return RCU_THINGY(unsigned long, nat64.ttl.tcp_trans);
 }
 
 unsigned long config_get_ttl_icmp(void)
 {
-	return RCU_THINGY(unsigned long, ttl.icmp);
+	return RCU_THINGY(unsigned long, nat64.ttl.icmp);
 }
 
 unsigned long config_get_ttl_frag(void)
 {
-	return RCU_THINGY(unsigned long, ttl.frag);
+	return RCU_THINGY(unsigned long, nat64.ttl.frag);
 }
 
 unsigned int config_get_max_pkts(void)
 {
-	return RCU_THINGY(unsigned int, max_stored_pkts);
+	return RCU_THINGY(unsigned int, nat64.max_stored_pkts);
 }
 
 bool config_get_src_icmp6errs_better(void)
 {
-	return RCU_THINGY(bool, src_icmp6errs_better);
+	return RCU_THINGY(bool, nat64.src_icmp6errs_better);
 }
 
 bool config_get_bib_logging(void)
 {
-	return RCU_THINGY(bool, bib_logging);
+	return RCU_THINGY(bool, nat64.bib_logging);
 }
 
 bool config_get_session_logging(void)
 {
-	return RCU_THINGY(bool, session_logging);
+	return RCU_THINGY(bool, nat64.session_logging);
 }
 
 bool config_get_filter_icmpv6_info(void)
 {
-	return RCU_THINGY(bool, drop_icmp6_info);
+	return RCU_THINGY(bool, nat64.drop_icmp6_info);
 }
 
 bool config_get_addr_dependent_filtering(void)
 {
-	return RCU_THINGY(bool, drop_by_addr);
+	return RCU_THINGY(bool, nat64.drop_by_addr);
 }
 
 bool config_get_drop_external_connections(void)
 {
-	return RCU_THINGY(bool, drop_external_tcp);
+	return RCU_THINGY(bool, nat64.drop_external_tcp);
 }
-
-#else
 
 bool config_amend_zero_csum(void)
 {
-	return RCU_THINGY(bool, compute_udp_csum_zero);
+	return RCU_THINGY(bool, siit.compute_udp_csum_zero);
 }
 
 enum eam_hairpinning_mode config_eam_hairpin_mode(void)
 {
-	return RCU_THINGY(__u8, eam_hairpin_mode);
+	return RCU_THINGY(__u8, siit.eam_hairpin_mode);
 }
 
 bool config_randomize_rfc6791_pool(void)
 {
-	return RCU_THINGY(bool, randomize_error_addresses);
+	return RCU_THINGY(bool, siit.randomize_error_addresses);
 }
-
-#endif
 
 bool config_get_reset_traffic_class(void)
 {
@@ -255,13 +247,12 @@ int serialize_global_config(struct global_config *config, bool pools_empty,
 	memcpy(buffer + sizeof(*config), config->mtu_plateaus, mtus_len);
 	tmp = (struct global_config *) buffer;
 
-#ifdef STATEFUL
-	tmp->ttl.udp = jiffies_to_msecs(config->ttl.udp);
-	tmp->ttl.tcp_est = jiffies_to_msecs(config->ttl.tcp_est);
-	tmp->ttl.tcp_trans = jiffies_to_msecs(config->ttl.tcp_trans);
-	tmp->ttl.icmp = jiffies_to_msecs(config->ttl.icmp);
-	tmp->ttl.frag = jiffies_to_msecs(config->ttl.frag);
-#endif
+	tmp->nat64.ttl.udp = jiffies_to_msecs(config->nat64.ttl.udp);
+	tmp->nat64.ttl.tcp_est = jiffies_to_msecs(config->nat64.ttl.tcp_est);
+	tmp->nat64.ttl.tcp_trans = jiffies_to_msecs(config->nat64.ttl.tcp_trans);
+	tmp->nat64.ttl.icmp = jiffies_to_msecs(config->nat64.ttl.icmp);
+	tmp->nat64.ttl.frag = jiffies_to_msecs(config->nat64.ttl.frag);
+
 	disabled = config->is_disable || pools_empty;
 	tmp->jool_status = !disabled;
 
@@ -287,13 +278,11 @@ int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_conf
 		memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
 	}
 
-#ifdef STATEFUL
-	target_out->ttl.udp = msecs_to_jiffies(target_out->ttl.udp);
-	target_out->ttl.tcp_est = msecs_to_jiffies(target_out->ttl.tcp_est);
-	target_out->ttl.tcp_trans = msecs_to_jiffies(target_out->ttl.tcp_trans);
-	target_out->ttl.icmp = msecs_to_jiffies(target_out->ttl.icmp);
-	target_out->ttl.frag = msecs_to_jiffies(target_out->ttl.frag);
-#endif
+	target_out->nat64.ttl.udp = msecs_to_jiffies(target_out->nat64.ttl.udp);
+	target_out->nat64.ttl.tcp_est = msecs_to_jiffies(target_out->nat64.ttl.tcp_est);
+	target_out->nat64.ttl.tcp_trans = msecs_to_jiffies(target_out->nat64.ttl.tcp_trans);
+	target_out->nat64.ttl.icmp = msecs_to_jiffies(target_out->nat64.ttl.icmp);
+	target_out->nat64.ttl.frag = msecs_to_jiffies(target_out->nat64.ttl.frag);
 
 	return 0;
 }

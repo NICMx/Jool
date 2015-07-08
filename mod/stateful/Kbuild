@@ -1,6 +1,6 @@
 #CC=cgcc
 
-ccflags-y := -I$(src)/../../include $(JOOL_DEBUG) -DSTATEFUL
+ccflags-y := -I$(src)/../../include $(JOOL_DEBUG)
 # Note: if you want to activate the benchmark feature, you need to activate the following flag, and
 #	the "log_time.o" object, also you need to activate in the usr-app (usr/Makefile.am)
 #ccflags-y += -DBENCHMARK
@@ -43,11 +43,13 @@ jool += session/table.o
 jool += session/db.o
 jool += session/pkt_queue.o
 
+jool += xlat.o
 jool += fragment_db.o
 jool += determine_incoming_tuple.o
 jool += filtering_and_updating.o
 jool += compute_outgoing_tuple.o
 jool += handling_hairpinning.o
 jool += nf_hook.o
+jool += impersonator.o
 
 jool-objs += ${jool} ${jool_common}

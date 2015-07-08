@@ -1,3 +1,4 @@
+#include "nat64/mod/common/nf_hook.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/nl_handler.h"
@@ -13,12 +14,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/netfilter_ipv4.h>
-#include <linux/netfilter_ipv6.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
-MODULE_DESCRIPTION(MODULE_NAME " (RFC 6145)");
+MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 6145)");
 
 static char *pool6;
 module_param(pool6, charp, 0);
@@ -77,7 +76,7 @@ static int __init nat64_init(void)
 {
 	int error;
 
-	log_debug("Inserting " MODULE_NAME "...");
+	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
 	error = config_init(disabled);
@@ -110,7 +109,7 @@ static int __init nat64_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_info(MODULE_NAME " module inserted.");
+	log_info("%s module inserted.", xlat_get_name());
 	return error;
 
 nf_register_hooks_failure:
@@ -156,7 +155,7 @@ static void __exit nat64_exit(void)
 	eamt_destroy();
 	config_destroy();
 
-	log_info(MODULE_NAME " module removed.");
+	log_info("%s module removed.", xlat_get_name());
 }
 
 module_init(nat64_init);

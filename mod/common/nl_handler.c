@@ -104,14 +104,14 @@ static int validate_version(struct request_hdr *hdr)
 
 	switch (hdr->type) {
 	case 's':
-		if (nat64_is_stateful()) {
+		if (xlat_is_nat64()) {
 			log_err("You're speaking to NAT64 Jool using "
 					"the SIIT Jool application.");
 			return -EINVAL;
 		}
 		break;
 	case 'n':
-		if (nat64_is_stateless()) {
+		if (xlat_is_siit()) {
 			log_err("You're speaking to SIIT Jool using "
 					"the NAT64 Jool application.");
 			return -EINVAL;
@@ -121,17 +121,17 @@ static int validate_version(struct request_hdr *hdr)
 		goto magic_fail;
 	}
 
-	if (jool_version() == hdr->version)
+	if (xlat_version() == hdr->version)
 		return 0;
 
 	log_err("Version mismatch. The kernel module is %u.%u.%u.%u, "
 			"but the userspace application is %u.%u.%u.%u. "
 			"Please update Jool's %s.",
-			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
-			JOOL_VERSION_REV, JOOL_VERSION_DEV,
+			XLAT_VERSION_MAJOR, XLAT_VERSION_MINOR,
+			XLAT_VERSION_REV, XLAT_VERSION_DEV,
 			hdr->version >> 24, (hdr->version >> 16) & 0xFFU,
 			(hdr->version >> 8) & 0xFFU, hdr->version & 0xFFU,
-			(jool_version() > hdr->version)
+			(xlat_version() > hdr->version)
 				? "userspace application"
 				: "kernel module");
 	return -EINVAL;
@@ -205,7 +205,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		if (nat64_is_stateful() && !request->flush.quick)
+		if (xlat_is_nat64() && !request->flush.quick)
 			sessiondb_delete_taddr6s(&request->rm.prefix);
 
 		return respond_error(nl_hdr, error);
@@ -217,7 +217,7 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 		log_debug("Flushing the IPv6 pool...");
 		pool6_flush();
 
-		if (nat64_is_stateful() && !request->flush.quick)
+		if (xlat_is_nat64() && !request->flush.quick)
 			sessiondb_flush();
 
 		return respond_error(nl_hdr, 0);
@@ -278,7 +278,7 @@ static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request
 	error = pool4db_rm(request->rm.mark, &request->rm.addrs,
 			&request->rm.ports);
 
-	if (nat64_is_stateful() && !request->rm.quick) {
+	if (xlat_is_nat64() && !request->rm.quick) {
 		sessiondb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
 		bibdb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
 	}
@@ -291,7 +291,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 {
 	struct response_pool4_count counters;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have pool4.");
 		return -EINVAL;
 	}
@@ -319,7 +319,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 		log_debug("Flushing the IPv4 pool...");
 		pool4db_flush();
 
-		if (nat64_is_stateful() && !request->flush.quick) {
+		if (xlat_is_nat64() && !request->flush.quick) {
 			sessiondb_flush();
 			bibdb_flush();
 		}
@@ -370,7 +370,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_h
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
 	}
@@ -458,7 +458,7 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have session tables.");
 		return -EINVAL;
 	}
@@ -517,7 +517,7 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
 		return -EINVAL;
 	}
@@ -589,7 +589,7 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		log_err("RFC 6791 does not apply to Stateful NAT64.");
 		return -EINVAL;
 	}
@@ -667,7 +667,7 @@ static int handle_blacklist_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		log_err("Blacklist does not apply to Stateful NAT64.");
 		return -EINVAL;
 	}
@@ -774,8 +774,6 @@ static bool ensure_bytes(size_t actual, size_t expected)
 	return true;
 }
 
-#ifdef STATEFUL
-
 static bool assign_timeout(void *value, unsigned int min, __u64 *field)
 {
 	/*
@@ -797,8 +795,6 @@ static bool assign_timeout(void *value, unsigned int min, __u64 *field)
 	*field = msecs_to_jiffies(value64);
 	return true;
 }
-
-#endif
 
 static int be16_compare(const void *a, const void *b)
 {
@@ -876,94 +872,93 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		goto fail;
 
 	switch (type) {
-#ifdef STATEFUL
 	case MAX_PKTS:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		config->max_stored_pkts = *((__u64 *) value);
+		config->nat64.max_stored_pkts = *((__u64 *) value);
 		break;
 	case SRC_ICMP6ERRS_BETTER:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->src_icmp6errs_better = *((__u8 *) value);
+		config->nat64.src_icmp6errs_better = *((__u8 *) value);
 		break;
 	case BIB_LOGGING:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->bib_logging = *((__u8 *) value);
+		config->nat64.bib_logging = *((__u8 *) value);
 		break;
 	case SESSION_LOGGING:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->session_logging = *((__u8 *) value);
+		config->nat64.session_logging = *((__u8 *) value);
 		break;
 
 	case UDP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, UDP_MIN, &config->ttl.udp))
+		if (!assign_timeout(value, UDP_MIN, &config->nat64.ttl.udp))
 			goto einval;
 		timer_needs_update = true;
 		break;
 	case ICMP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, 0, &config->ttl.icmp))
+		if (!assign_timeout(value, 0, &config->nat64.ttl.icmp))
 			goto einval;
 		timer_needs_update = true;
 		break;
 	case TCP_EST_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, TCP_EST, &config->ttl.tcp_est))
+		if (!assign_timeout(value, TCP_EST, &config->nat64.ttl.tcp_est))
 			goto einval;
 		timer_needs_update = true;
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, TCP_TRANS, &config->ttl.tcp_trans))
+		if (!assign_timeout(value, TCP_TRANS, &config->nat64.ttl.tcp_trans))
 			goto einval;
 		timer_needs_update = true;
 		break;
 	case FRAGMENT_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, FRAGMENT_MIN, &config->ttl.frag))
+		if (!assign_timeout(value, FRAGMENT_MIN, &config->nat64.ttl.frag))
 			goto einval;
 		break;
 	case DROP_BY_ADDR:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->drop_by_addr = *((__u8 *) value);
+		config->nat64.drop_by_addr = *((__u8 *) value);
 		break;
 	case DROP_ICMP6_INFO:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->drop_icmp6_info = *((__u8 *) value);
+		config->nat64.drop_icmp6_info = *((__u8 *) value);
 		break;
 	case DROP_EXTERNAL_TCP:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->drop_external_tcp = *((__u8 *) value);
+		config->nat64.drop_external_tcp = *((__u8 *) value);
 		break;
-#else
+
 	case COMPUTE_UDP_CSUM_ZERO:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->compute_udp_csum_zero = *((__u8 *) value);
+		config->siit.compute_udp_csum_zero = *((__u8 *) value);
 		break;
 	case EAM_HAIRPINNING_MODE:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->eam_hairpin_mode = *((__u8 *) value);
+		config->siit.eam_hairpin_mode = *((__u8 *) value);
 		break;
 	case RANDOMIZE_RFC6791:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->randomize_error_addresses = *((__u8 *) value);
+		config->siit.randomize_error_addresses = *((__u8 *) value);
 		break;
-#endif
+
 	case RESET_TCLASS:
 		if (!ensure_bytes(size, 1))
 			goto einval;
@@ -1058,12 +1053,9 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *joo
 		if (error)
 			goto end;
 
-#ifdef STATEFUL
-		disabled = pool6_is_empty() || pool4db_is_empty();
-#else
-		disabled = pool6_is_empty() && eamt_is_empty();
-#endif
-
+		disabled = xlat_is_nat64()
+				? (pool6_is_empty() || pool4db_is_empty())
+				: (pool6_is_empty() && eamt_is_empty());
 		error = serialize_global_config(&response, disabled, &buffer, &buffer_len);
 		if (error)
 			goto end;

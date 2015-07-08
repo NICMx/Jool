@@ -254,7 +254,7 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
 			return error;
 	}
 
-	if (nat64_is_stateless() && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
+	if (xlat_is_siit() && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
 		ptr.frag = skb_hdr_ptr(skb, meta->frag_offset, buffer.frag);
 		if (!ptr.frag)
 			return truncated6(skb, "fragment header");
@@ -384,7 +384,7 @@ static int handle_icmp4(struct sk_buff *skb, struct pkt_metadata *meta)
 			return error;
 	}
 
-	if (nat64_is_stateless() && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(skb))) {
+	if (xlat_is_siit() && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(skb))) {
 		log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
 		return -EINVAL;
 	}

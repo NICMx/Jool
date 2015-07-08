@@ -1,6 +1,5 @@
 #include "nat64/usr/str_utils.h"
 #include "nat64/common/constants.h"
-#include "nat64/common/nat64.h"
 #include "nat64/usr/types.h"
 #include <string.h>
 #include <stdlib.h>

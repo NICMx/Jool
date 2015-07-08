@@ -169,7 +169,7 @@ int pool6_add(struct ipv6_prefix *prefix)
 	if (error)
 		return error; /* Error msg already printed. */
 
-	if (nat64_is_stateless() && !list_empty(&pool)) {
+	if (xlat_is_siit() && !list_empty(&pool)) {
 		log_err("SIIT Jool only supports one pool6 prefix at a time.");
 		return -EINVAL;
 	}

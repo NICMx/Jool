@@ -7,9 +7,8 @@
 #include "nat64/mod/stateful/determine_incoming_tuple.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
 #include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/common/send_packet.h"
 
-
-#ifdef STATEFUL
 
 static unsigned int core_common(struct packet *in)
 {
@@ -18,15 +17,17 @@ static unsigned int core_common(struct packet *in)
 	struct tuple tuple_out;
 	verdict result;
 
-	result = determine_in_tuple(in, &tuple_in);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	result = filtering_and_updating(in, &tuple_in);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	result = compute_out_tuple(&tuple_in, &tuple_out, in);
-	if (result != VERDICT_CONTINUE)
-		goto end;
+	if (xlat_is_nat64()) {
+		result = determine_in_tuple(in, &tuple_in);
+		if (result != VERDICT_CONTINUE)
+			goto end;
+		result = filtering_and_updating(in, &tuple_in);
+		if (result != VERDICT_CONTINUE)
+			goto end;
+		result = compute_out_tuple(&tuple_in, &tuple_out, in);
+		if (result != VERDICT_CONTINUE)
+			goto end;
+	}
 	result = translating_the_packet(&tuple_out, in, &out);
 	if (result != VERDICT_CONTINUE)
 		goto end;
@@ -47,8 +48,9 @@ static unsigned int core_common(struct packet *in)
 	 * The new packet was sent, so the original one can die; drop it.
 	 *
 	 * NF_DROP translates into an error (see nf_hook_slow()).
-	 * Sending a replacing & translated version of the packet should not count as an error,
-	 * so we free the incoming packet ourselves and return NF_STOLEN on success.
+	 * Sending a replacing & translated version of the packet should not
+	 * count as an error, so we free the incoming packet ourselves and
+	 * return NF_STOLEN on success.
 	 */
 	kfree_skb(in->skb);
 	result = VERDICT_STOLEN;
@@ -61,47 +63,15 @@ end:
 	return (unsigned int) result;
 }
 
-#else
-
-static unsigned int core_common(struct packet *in)
-{
-	struct packet out;
-	verdict result;
-
-	result = translating_the_packet(NULL, in, &out);
-	if (result != VERDICT_CONTINUE)
-		goto end;
-	if (is_hairpin(&out, NULL)) {
-		result = handling_hairpinning(&out, NULL);
-		kfree_skb(out.skb);
-	} else {
-		result = sendpkt_send(in, &out);
-		/* send_pkt releases out.skb regardless of verdict. */
-	}
-	if (result != VERDICT_CONTINUE)
-		goto end;
-
-	log_debug("Success.");
-	/* See the large comment above. */
-	kfree_skb(in->skb);
-	result = VERDICT_STOLEN;
-	/* Fall through. */
-
-end:
-	if (result == VERDICT_ACCEPT)
-		log_debug("Returning the packet to the kernel.");
-
-	return (unsigned int) result;
-}
-
-#endif
-
 unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct packet pkt;
 	struct iphdr *hdr = ip_hdr(skb);
 
-	/* TODO (later) this is silly. We should probably unhook Jool from Netfilter instead. */
+	/*
+	 * TODO (later) this is silly. We should probably unhook Jool from
+	 * Netfilter instead.
+	 */
 	if (config_is_xlat_disabled())
 		return NF_ACCEPT;
 
@@ -140,7 +110,8 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 		return NF_ACCEPT;
 
 	log_debug("===============================================");
-	log_debug("Catching IPv6 packet: %pI6c->%pI6c", &hdr->saddr, &hdr->daddr);
+	log_debug("Catching IPv6 packet: %pI6c->%pI6c",
+			&hdr->saddr, &hdr->daddr);
 
 #ifdef CONFIG_NET_NS
 	/* Same hack as above. */
@@ -154,7 +125,7 @@ unsigned int core_6to4(struct sk_buff *skb, const struct net_device *dev)
 	if (pkt_init_ipv6(&pkt, skb) != 0)
 		return NF_DROP;
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		verdict result = fragdb_handle(&pkt);
 		if (result != VERDICT_CONTINUE)
 			return (unsigned int) result;

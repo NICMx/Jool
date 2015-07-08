@@ -2,7 +2,7 @@ MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -DDEBUG
 EXTRA_CFLAGS += -DUNIT_TESTING
-EXTRA_CFLAGS += -DSTATEFUL
+EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
 ccflags-y := -I$(src)/../include
@@ -46,11 +46,7 @@ obj-m += $(FRAGDB).o
 obj-m += $(FILTERING).o
 obj-m += $(TRANSLATE).o
 obj-m += $(CONFIG_PROTO).o
-#obj-m += $(LOGTIME).o
-# Note, this is compiling with -DSTATEFUL, even though is part of the stateless
-# translator.
-# At the moment this doesn't cause any trouble, but it means we might need to
-# refactor this Makefile to make better room for stateless tests.
+obj-m += $(LOGTIME).o
 obj-m += $(EAMT).o
 obj-m += $(PALLOC).o
 
@@ -59,7 +55,8 @@ MIN_REQS = ../mod/common/types.o \
 	../mod/common/address.o \
 	framework/str_utils.o \
 	framework/unit_test.o \
-	impersonator/stats.o
+	impersonator/stats.o \
+	impersonator/xlat.o
 
 
 $(ADDR)-objs += $(MIN_REQS)
@@ -166,6 +163,7 @@ $(TRANSLATE)-objs += ../mod/common/packet.o
 $(TRANSLATE)-objs += ../mod/common/pool6.o
 $(TRANSLATE)-objs += ../mod/common/rfc6052.o
 $(TRANSLATE)-objs += ../mod/common/rfc6145/common.o
+$(TRANSLATE)-objs += ../mod/stateful/impersonator.o
 $(TRANSLATE)-objs += framework/skb_generator.o
 $(TRANSLATE)-objs += framework/types.o
 $(TRANSLATE)-objs += impersonator/icmp_wrapper.o

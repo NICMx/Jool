@@ -223,7 +223,7 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 		return VERDICT_DROP;
 	}
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		inner_tuple.src = outer_tuple->dst;
 		inner_tuple.dst = outer_tuple->src;
 		inner_tuple.l3_proto = outer_tuple->l3_proto;

@@ -1,4 +1,5 @@
-#include "nat64/common/nat64.h"
+#include "nat64/mod/common/nf_hook.h"
+#include "nat64/common/xlat.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/log_time.h"
@@ -11,14 +12,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/netfilter_ipv4.h>
-#include <linux/netfilter_ipv6.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
-MODULE_DESCRIPTION(MODULE_NAME " (RFC 6146)");
+MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
 
 static char *pool6[5];
 static int pool6_len;
@@ -99,7 +98,7 @@ static int __init nat64_init(void)
 	int error;
 
 	log_debug("%s", banner);
-	log_debug("Inserting the module...");
+	log_debug("Inserting %s...", xlat_get_name());
 
 	nf_defrag_ipv6_enable();
 	nf_defrag_ipv4_enable();
@@ -135,7 +134,7 @@ static int __init nat64_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_info(MODULE_NAME " module inserted.");
+	log_info("%s module inserted.", xlat_get_name());
 	return error;
 
 nf_register_hooks_failure:
@@ -181,7 +180,7 @@ static void __exit nat64_exit(void)
 	nlhandler_destroy();
 	config_destroy();
 
-	log_info(MODULE_NAME " module removed.");
+	log_info("%s module removed.", xlat_get_name());
 }
 
 module_init(nat64_init);

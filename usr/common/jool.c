@@ -26,9 +26,10 @@
 #include "nat64/usr/eam.h"
 #include "nat64/usr/global.h"
 #include "nat64/usr/log_time.h"
+#include "nat64/usr/argp/options.h"
 
 
-const char *argp_program_version = JOOL_VERSION_STR;
+const char *argp_program_version = XLAT_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**
@@ -76,247 +77,13 @@ struct arguments {
 	} global;
 };
 
-/**
- * The flags the user can write as program parameters.
- */
-enum argp_flags {
-	/* Modes */
-	ARGP_POOL6 = '6',
-	ARGP_POOL4 = '4',
-	ARGP_BIB = 'b',
-	ARGP_SESSION = 's',
-	ARGP_EAMT = 'e',
-	ARGP_BLACKLIST = 7000,
-	ARGP_RFC6791 = 6791,
-	ARGP_LOGTIME = 'l',
-	ARGP_GLOBAL = 'g',
-
-	/* Operations */
-	ARGP_DISPLAY = 'd',
-	ARGP_COUNT = 'c',
-	ARGP_ADD = 'a',
-	ARGP_UPDATE = 5000,
-	ARGP_REMOVE = 'r',
-	ARGP_FLUSH = 'f',
-
-	/* Pools */
-	ARGP_PREFIX = 1000,
-	ARGP_ADDRESS = 1001,
-	ARGP_QUICK = 'q',
-	ARGP_MARK = 'm',
-	ARGP_FORCE = 1002,
-
-	/* BIB, session */
-	ARGP_TCP = 't',
-	ARGP_UDP = 'u',
-	ARGP_ICMP = 'i',
-	ARGP_NUMERIC_HOSTNAME = 'n',
-	ARGP_CSV = 2022,
-	ARGP_BIB_IPV6 = 2020,
-	ARGP_BIB_IPV4 = 2021,
-
-	/* General */
-	ARGP_DROP_ADDR = 3000,
-	ARGP_DROP_INFO = 3001,
-	ARGP_DROP_TCP = 3002,
-	ARGP_UDP_TO = 3010,
-	ARGP_ICMP_TO = 3011,
-	ARGP_TCP_TO = 3012,
-	ARGP_TCP_TRANS_TO = 3013,
-	ARGP_STORED_PKTS = 3014,
-	ARGP_SRC_ICMP6ERRS_BETTER = 3015,
-	ARGP_BIB_LOGGING,
-	ARGP_SESSION_LOGGING,
-	ARGP_RESET_TCLASS = 4002,
-	ARGP_RESET_TOS = 4003,
-	ARGP_NEW_TOS = 4004,
-	ARGP_DF = 4005,
-	ARGP_BUILD_FH = 4006,
-	ARGP_BUILD_ID = 4007,
-	ARGP_LOWER_MTU_FAIL = 4008,
-	ARGP_PLATEAUS = 4010,
-	ARGP_FRAG_TO = 4012,
-	ARGP_ENABLE_TRANSLATION = 4013,
-	ARGP_DISABLE_TRANSLATION = 4014,
-	ARGP_COMPUTE_CSUM_ZERO = 4015,
-	ARGP_EAM_HAIRPIN_MODE = 4018,
-	ARGP_RANDOMIZE_RFC6791 = 4017,
-	ARGP_ATOMIC_FRAGMENTS = 4016,
-};
-
-#define BOOL_FORMAT "BOOL"
-#define NUM_FORMAT "NUM"
-#define NUM_ARRAY_FORMAT "NUM[,NUM]*"
-#define PREFIX6_FORMAT "ADDR6/NUM"
-#define PREFIX4_FORMAT "ADDR4/NUM"
-#define TRANSPORT6_FORMAT "ADDR6#NUM"
-#define TRANSPORT4_FORMAT "ADDR4#NUM"
-
-/*
- * OPTIONS. Field 1 in ARGP.
- * Order of fields: { NAME, KEY, ARG, FLAGS, DOC }.
- */
-static struct argp_option options[] =
-{
-	{ NULL, 0, NULL, 0, "Address specification: ", 1},
-	{ NULL, 0, NULL, OPTION_DOC, "Address may be specified as one IPv4 prefix/transport format "
-			"and/or one IPv6 prefix/transport format."},
-
-	{ NULL, 0, NULL, 0, "Configuration targets/modes:", 2 },
-	{ "pool6", ARGP_POOL6, NULL, 0, "The command will operate on the IPv6 prefix pool." },
-#ifdef STATEFUL
-	{ "pool4", ARGP_POOL4, NULL, 0, "The command will operate on the IPv4 address pool." },
-	{ "bib", ARGP_BIB, NULL, 0, "The command will operate on the BIBs." },
-	{ "session", ARGP_SESSION, NULL, 0, "The command will operate on the session tables." },
-#else
-	{ "eamt", ARGP_EAMT, NULL, 0, "The command will operate on the EAM table."},
-	{ "blacklist", ARGP_BLACKLIST, NULL, 0, "The command will operate on the IPv4 prefix "
-			"blacklist." },
-	{ "pool6791", ARGP_RFC6791, NULL, 0, "The command will operate on the RFC6791 pool."},
-#endif
-#ifdef BENCHMARK
-	{ "logTime", ARGP_LOGTIME, NULL, 0, "The command will operate on the logs times database."},
-#endif
-	{ "global", ARGP_GLOBAL, NULL, 0, "The command will operate on miscellaneous configuration "
-			"values (default)." },
-	{ "general", 0, NULL, OPTION_ALIAS, ""},
-
-	{ NULL, 0, NULL, 0, "Operations:", 3 },
-	{ "display", ARGP_DISPLAY, NULL, 0, "Print the target (default)." },
-	{ "count", ARGP_COUNT, NULL, 0, "Print the number of elements in the target." },
-	{ "add", ARGP_ADD, NULL, 0, "Add an element to the target." },
-	{ "update", ARGP_UPDATE, NULL, 0, "Change something in the target." },
-	{ "remove", ARGP_REMOVE, NULL, 0, "Remove an element from the target." },
-	{ "flush", ARGP_FLUSH, NULL, 0, "Clear the target." },
-
-#ifdef STATEFUL
-	{ NULL, 0, NULL, 0, "IPv4 and IPv6 Pool options:", 4 },
-	{ "quick", ARGP_QUICK, NULL, 0, "Do not clean the BIB and/or session tables after removing. "
-			"Available on remove and flush operations only." },
-
-	{ NULL, 0, NULL, 0, "IPv4 Pool only options:", 4 },
-	{ "mark", ARGP_MARK, NUM_FORMAT, 0,
-			"Only packets carrying this mark will match this pool4 entry. "
-			"Available on add and remove operations only." },
-	{ "force", ARGP_FORCE, NULL, 0, "Ignore warnings." },
-
-	{ NULL, 0, NULL, 0, "BIB & Session options:", 5 },
-	{ "icmp", ARGP_ICMP, NULL, 0, "Operate on the ICMP table." },
-	{ "tcp", ARGP_TCP, NULL, 0, "Operate on the TCP table." },
-	{ "udp", ARGP_UDP, NULL, 0, "Operate on the UDP table." },
-	{ "numeric", ARGP_NUMERIC_HOSTNAME, NULL, 0, "Don't resolve names. "
-			"Available on display operation only." },
-	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
-			"Available on display operation only."},
-
-#else
-	{ NULL, 0, NULL, 0, "EAMT only options:", 4 },
-	{ "csv", ARGP_CSV, NULL, 0, "Print in CSV format. "
-			"Available on display operation only."},
-#endif
-
-	{ NULL, 0, NULL, 0, "'Global' options:", 6 },
-	{ OPTNAME_ENABLE, ARGP_ENABLE_TRANSLATION, NULL, 0, "Resume translation of packets.\n" },
-	{ OPTNAME_DISABLE, ARGP_DISABLE_TRANSLATION, NULL, 0, "Pause translation of packets.\n" },
-	{ OPTNAME_ZEROIZE_TC, ARGP_RESET_TCLASS, BOOL_FORMAT, 0,
-			"Always set the IPv6 header's 'Traffic Class' field as zero? "
-			"Otherwise copy from IPv4 header's 'TOS'.\n" },
-	{ "setTC", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_OVERRIDE_TOS, ARGP_RESET_TOS, BOOL_FORMAT, 0,
-			"Override the IPv4 header's 'TOS' field as --tos? "
-			"Otherwise copy from IPv6 header's 'Traffic Class'.\n" },
-	{ "setTOS", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_TOS, ARGP_NEW_TOS, NUM_FORMAT, 0,
-			"Value to override TOS as (only when --override-tos is ON).\n" },
-	{ "TOS", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_MTU_PLATEAUS, ARGP_PLATEAUS, NUM_ARRAY_FORMAT, 0,
-			"Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.\n" },
-	{ "plateaus", 0, NULL, OPTION_ALIAS, ""},
-#ifdef STATEFUL
-	{ OPTNAME_DROP_BY_ADDR, ARGP_DROP_ADDR, BOOL_FORMAT, 0,
-			"Use Address-Dependent Filtering? "
-			"ON is (address)-restricted-cone NAT, OFF is full-cone NAT.\n"},
-	{ "dropAddr", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_DROP_ICMP6_INFO, ARGP_DROP_INFO, BOOL_FORMAT, 0,
-			"Filter ICMPv6 Informational packets?\n" },
-	{ "dropInfo", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_DROP_EXTERNAL_TCP, ARGP_DROP_TCP, BOOL_FORMAT, 0,
-			"Drop externally initiated TCP connections?\n" },
-	{ "dropTCP", 0, NULL, OPTION_ALIAS, ""},
-
-	{ OPTNAME_UDP_TIMEOUT, ARGP_UDP_TO, NUM_FORMAT, 0,
-			"Set the UDP session lifetime (in seconds).\n" },
-	{ "toUDP", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_ICMP_TIMEOUT, ARGP_ICMP_TO, NUM_FORMAT, 0,
-			"Set the timeout for ICMP sessions.\n" },
-	{ "toICMP", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_TCPEST_TIMEOUT, ARGP_TCP_TO, NUM_FORMAT, 0,
-			"Set the TCP established session lifetime (in seconds).\n" },
-	{ "toTCPest", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_TCPTRANS_TIMEOUT, ARGP_TCP_TRANS_TO, NUM_FORMAT, 0,
-			"Set the TCP transitory session lifetime (in seconds).\n" },
-	{ "toTCPtrans", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_FRAG_TIMEOUT, ARGP_FRAG_TO, NUM_FORMAT, 0,
-			"Set the timeout for arrival of fragments.\n" },
-	{ "toFrag", 0, NULL, OPTION_ALIAS, ""},
-
-	{ OPTNAME_MAX_SO, ARGP_STORED_PKTS, NUM_FORMAT, 0,
-			"Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.\n" },
-	{ "maxStoredPkts", 0, NULL, OPTION_ALIAS, ""},
-	{ OPTNAME_SRC_ICMP6E_BETTER, ARGP_SRC_ICMP6ERRS_BETTER, BOOL_FORMAT, 0,
-			"Translate source addresses directly on 4-to-6 ICMP errors?\n" },
-
-	{ OPTNAME_BIB_LOGGING, ARGP_BIB_LOGGING, BOOL_FORMAT, 0,
-			"Log BIBs as they are created and destroyed?\n" },
-	{ OPTNAME_SESSION_LOGGING, ARGP_SESSION_LOGGING, BOOL_FORMAT, 0,
-			"Log sessions as they are created and destroyed?\n" },
-#else
-	{ OPTNAME_AMEND_UDP_CSUM, ARGP_COMPUTE_CSUM_ZERO, BOOL_FORMAT, 0,
-			"Compute the UDP checksum of IPv4-UDP packets whose value is zero? "
-			"Otherwise drop the packet.\n" },
-	{ OPTNAME_EAM_HAIRPIN_MODE, ARGP_EAM_HAIRPIN_MODE, NUM_FORMAT, 0,
-			"Defines how EAM+hairpinning is handled.\n"
-			"(0 = Disabled; 1 = Simple; 2 = Intrinsic)" },
-	{ OPTNAME_RANDOMIZE_RFC6791, ARGP_RANDOMIZE_RFC6791, BOOL_FORMAT, 0,
-			"Randomize selection of address from the RFC6791 pool? "
-			"Otherwise choose the 'Hop Limit'th address.\n" },
-#endif
-
-	{ NULL, 0, NULL, 0, "Deprecated options:", 7 },
-
-	{ OPTNAME_ALLOW_ATOMIC_FRAGS, ARGP_ATOMIC_FRAGMENTS, BOOL_FORMAT, 0,
-			"Allow atomic fragments?" },
-	{ OPTNAME_DF_ALWAYS_ON, ARGP_DF, BOOL_FORMAT, 0,
-			"Always set Don't Fragment?" },
-	{ OPTNAME_GENERATE_FH, ARGP_BUILD_FH, BOOL_FORMAT, 0,
-			"Also include IPv6 Fragment Header when IPv4 Packet DF Flag is not set?" },
-	{ OPTNAME_GENERATE_ID4, ARGP_BUILD_ID, BOOL_FORMAT, 0,
-			"Generate IPv4 identification?" },
-	{ OPTNAME_FIX_ILLEGAL_MTUS, ARGP_LOWER_MTU_FAIL, BOOL_FORMAT, 0,
-			"Decrease MTU failure rate?" },
-
-#ifdef STATEFUL
-	{ "prefix", ARGP_PREFIX, PREFIX6_FORMAT, 0, "Prefix to be added to or removed from "
-			"the IPv6 pool. You no longer need to name this." },
-	{ "address", ARGP_ADDRESS, PREFIX4_FORMAT, 0, "'Address' to be added to or removed from "
-			"the IPv4 pool. You no longer need to name this." },
-	{ "bib6", ARGP_BIB_IPV6, TRANSPORT6_FORMAT, 0,
-			"This is the addres#port of the remote IPv6 node of the entry to be added or removed. "
-			"You no longer need to name this." },
-	{ "bib4", ARGP_BIB_IPV4, TRANSPORT4_FORMAT, 0,
-			"This is the local IPv4 addres#port of the entry to be added or removed. "
-			"You no longer need to name this." },
-#endif
-	{ NULL },
-};
-
 static int update_state(struct arguments *args, enum config_mode valid_modes,
 		enum config_operation valid_ops)
 {
 	enum config_mode common_modes;
 	enum config_operation common_ops;
 
-	valid_modes &= nat64_is_stateful() ? NAT64_MODES : SIIT_MODES;
+	valid_modes &= xlat_is_nat64() ? NAT64_MODES : SIIT_MODES;
 
 	common_modes = args->mode & valid_modes;
 	if (!common_modes || (common_modes | valid_modes) != valid_modes)
@@ -380,7 +147,6 @@ static int set_global_u8(struct arguments *args, __u8 type, char *value, __u8 mi
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
 
-#ifdef STATEFUL
 static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 min, __u64 max,
 		__u64 multiplier)
 {
@@ -394,7 +160,6 @@ static int set_global_u64(struct arguments *args, __u8 type, char *value, __u64 
 
 	return set_global_arg(args, type, sizeof(tmp), &tmp);
 }
-#endif
 
 static int set_global_u16_array(struct arguments *args, int type, char *value)
 {
@@ -450,7 +215,7 @@ static int set_bib6(struct arguments *args, char *str)
 {
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("You entered an IPv6 transport address. SIIT doesn't have BIBs...");
 		return -EINVAL;
 	}
@@ -473,7 +238,7 @@ static int set_bib4(struct arguments *args, char *str)
 {
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("You entered an IPv4 transport address. SIIT doesn't have BIBs...");
 		return -EINVAL;
 	}
@@ -496,7 +261,7 @@ static int set_port_range(struct arguments *args, char *str)
 {
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("You seem to have entered a port range. "
 				"SIIT doesn't need them...");
 		return -EINVAL;
@@ -638,7 +403,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_bib4(args, str);
 		break;
 
-#ifdef STATEFUL
 	case ARGP_DROP_ADDR:
 		error = set_global_bool(args, DROP_BY_ADDR, str);
 		break;
@@ -678,7 +442,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SESSION_LOGGING:
 		error = set_global_bool(args, SESSION_LOGGING, str);
 		break;
-#else
+
 	case ARGP_COMPUTE_CSUM_ZERO:
 		error = set_global_bool(args, COMPUTE_UDP_CSUM_ZERO, str);
 		break;
@@ -689,7 +453,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_RANDOMIZE_RFC6791:
 		error = set_global_bool(args, RANDOMIZE_RFC6791, str);
 		break;
-#endif
 
 	case ARGP_PREFIX:
 		error = set_ipv6_prefix(args, str);
@@ -776,7 +539,7 @@ static unsigned int zeroize_upper_bits(__u16 num)
 static int parse_args(int argc, char **argv, struct arguments *result)
 {
 	int error;
-	struct argp argp = { options, parse_opt, args_doc, doc };
+	struct argp argp = { build_options(), parse_opt, args_doc, doc };
 
 	memset(result, 0, sizeof(*result));
 	result->mode = 0xFFFF;
@@ -860,7 +623,7 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_POOL4:
-		if (nat64_is_stateless()) {
+		if (xlat_is_siit()) {
 			log_err("SIIT doesn't have pool4.");
 			return -EINVAL;
 		}
@@ -896,7 +659,7 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_BIB:
-		if (nat64_is_stateless()) {
+		if (xlat_is_siit()) {
 			log_err("SIIT doesn't have BIBs.");
 			return -EINVAL;
 		}
@@ -940,7 +703,7 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_SESSION:
-		if (nat64_is_stateless()) {
+		if (xlat_is_siit()) {
 			log_err("SIIT doesn't have sessions.");
 			return -EINVAL;
 		}
@@ -958,7 +721,7 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_EAMT:
-		if (nat64_is_stateful()) {
+		if (xlat_is_nat64()) {
 			log_err("Stateful NAT64 doesn't have EAMTs.");
 			return -EINVAL;
 		}
@@ -992,7 +755,7 @@ static int main_wrapped(int argc, char **argv)
 
 	case MODE_RFC6791:
 	case MODE_BLACKLIST:
-		if (nat64_is_stateful()) {
+		if (xlat_is_nat64()) {
 			log_err("blacklist/RFC6791 don't apply to Stateful NAT64.");
 			return -EINVAL;
 		}

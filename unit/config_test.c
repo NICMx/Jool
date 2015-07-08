@@ -14,25 +14,35 @@ static bool compare_global_configs(struct global_config *expected,
 	bool success = true;
 	__u16 i;
 
-	success &= ASSERT_UINT(expected->is_disable, actual->is_disable,
+	success &= ASSERT_UINT(expected->is_disable,
+			actual->is_disable,
 			"is_disable");
 	success &= ASSERT_UINT(expected->reset_traffic_class,
-			actual->reset_traffic_class, "reset_traffic_class");
-	success &= ASSERT_UINT(expected->reset_tos, actual->reset_tos,
+			actual->reset_traffic_class,
+			"reset_traffic_class");
+	success &= ASSERT_UINT(expected->reset_tos,
+			actual->reset_tos,
 			"reset_tos");
-	success &= ASSERT_UINT(expected->new_tos, actual->new_tos, "new_tos");
+	success &= ASSERT_UINT(expected->new_tos,
+			actual->new_tos,
+			"new_tos");
 
 	success &= ASSERT_UINT(expected->atomic_frags.df_always_on,
-			actual->atomic_frags.df_always_on, "df_always_on");
+			actual->atomic_frags.df_always_on,
+			"df_always_on");
 	success &= ASSERT_UINT(expected->atomic_frags.build_ipv6_fh,
-			actual->atomic_frags.build_ipv6_fh, "build_ipv6_fh");
+			actual->atomic_frags.build_ipv6_fh,
+			"build_ipv6_fh");
 	success &= ASSERT_UINT(expected->atomic_frags.build_ipv4_id,
-			actual->atomic_frags.build_ipv4_id, "build_ipv4_id");
+			actual->atomic_frags.build_ipv4_id,
+			"build_ipv4_id");
 	success &= ASSERT_UINT(expected->atomic_frags.lower_mtu_fail,
-			actual->atomic_frags.lower_mtu_fail, "lower_mtu_fail");
+			actual->atomic_frags.lower_mtu_fail,
+			"lower_mtu_fail");
 
 	success &= ASSERT_UINT(expected->mtu_plateau_count,
-			actual->mtu_plateau_count, "mtu_plateau_count");
+			actual->mtu_plateau_count,
+			"mtu_plateau_count");
 	if (success) {
 		for (i = 0; i < expected->mtu_plateau_count; i++) {
 			success &= ASSERT_UINT(expected->mtu_plateaus[i],
@@ -41,23 +51,35 @@ static bool compare_global_configs(struct global_config *expected,
 		}
 	}
 
-	success &= ASSERT_U64(expected->ttl.udp, actual->ttl.udp, "ttl.udp");
-	success &= ASSERT_U64(expected->ttl.icmp, actual->ttl.icmp, "ttl.icmp");
-	success &= ASSERT_U64(expected->ttl.tcp_est, actual->ttl.tcp_est,
+	success &= ASSERT_U64(expected->nat64.ttl.udp,
+			actual->nat64.ttl.udp,
+			"ttl.udp");
+	success &= ASSERT_U64(expected->nat64.ttl.icmp,
+			actual->nat64.ttl.icmp,
+			"ttl.icmp");
+	success &= ASSERT_U64(expected->nat64.ttl.tcp_est,
+			actual->nat64.ttl.tcp_est,
 			"ttl.tcp_est");
-	success &= ASSERT_U64(expected->ttl.tcp_trans, actual->ttl.tcp_trans,
+	success &= ASSERT_U64(expected->nat64.ttl.tcp_trans,
+			actual->nat64.ttl.tcp_trans,
 			"ttl.tcp_trans");
-	success &= ASSERT_U64(expected->ttl.frag, actual->ttl.frag, "ttl.frag");
+	success &= ASSERT_U64(expected->nat64.ttl.frag,
+			actual->nat64.ttl.frag,
+			"ttl.frag");
 
-	success &= ASSERT_UINT(expected->drop_by_addr, actual->drop_by_addr,
+	success &= ASSERT_UINT(expected->nat64.drop_by_addr,
+			actual->nat64.drop_by_addr,
 			"drop_by_addr equals");
-	success &= ASSERT_UINT(expected->drop_external_tcp,
-			actual->drop_external_tcp, "drop_external_tcp equals");
-	success &= ASSERT_UINT(expected->drop_icmp6_info,
-			actual->drop_icmp6_info, "drop_icmp6_info equals");
+	success &= ASSERT_UINT(expected->nat64.drop_external_tcp,
+			actual->nat64.drop_external_tcp,
+			"drop_external_tcp equals");
+	success &= ASSERT_UINT(expected->nat64.drop_icmp6_info,
+			actual->nat64.drop_icmp6_info,
+			"drop_icmp6_info equals");
 
-	success &= ASSERT_U64(expected->max_stored_pkts,
-			actual->max_stored_pkts, "max_pkts equals test");
+	success &= ASSERT_U64(expected->nat64.max_stored_pkts,
+			actual->nat64.max_stored_pkts,
+			"max_pkts equals test");
 
 	return success;
 }

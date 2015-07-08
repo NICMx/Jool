@@ -292,7 +292,7 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
 	}
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		error = generate_saddr6_nat64(tuple6, in, out);
 		if (error)
 			return VERDICT_DROP;
@@ -632,7 +632,7 @@ verdict ttp46_icmp(struct tuple* tuple6, struct packet *in, struct packet *out)
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = nat64_is_stateful()
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
 				? cpu_to_be16(tuple6->icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
@@ -642,7 +642,7 @@ verdict ttp46_icmp(struct tuple* tuple6, struct packet *in, struct packet *out)
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = nat64_is_stateful()
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
 				? cpu_to_be16(tuple6->icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
@@ -712,7 +712,7 @@ static bool can_compute_csum(struct packet *in)
 	struct iphdr *hdr4;
 	struct udphdr *hdr_udp;
 
-	if (nat64_is_stateful())
+	if (xlat_is_nat64())
 		return true;
 
 	/*
@@ -783,7 +783,7 @@ verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		tcp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
 		tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
@@ -813,7 +813,7 @@ verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		udp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
 		udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}

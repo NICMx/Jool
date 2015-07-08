@@ -425,7 +425,7 @@ static inline unsigned int pkt_datagram_len(const struct packet *pkt)
 static inline unsigned int pkt_len(const struct packet *pkt)
 {
 	/*
-	 * Note, we can't depend on a nat64_is_stateful() here because frag_list is the official Linux
+	 * Note, we can't depend on a xlat_is_nat64() here because frag_list is the official Linux
 	 * fragment representation, therefore the absence of defrag doesn't strictly mean Jool will
 	 * never see empty frag_lists (also viceversa for robustness).
 	 */

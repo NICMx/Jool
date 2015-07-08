@@ -5,7 +5,6 @@
 #include <errno.h>
 
 
-#ifndef STATEFUL
 static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 {
 	switch (mode) {
@@ -19,7 +18,6 @@ static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 
 	return "unknown";
 }
-#endif
 
 static int handle_display_response(struct nl_msg *msg, void *arg)
 {
@@ -45,20 +43,21 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 		printf("      %u\n", plateaus[i]);
 	}
 
-#ifdef STATEFUL
-	printf("  --%s: %llu\n", OPTNAME_MAX_SO,
-			conf->max_stored_pkts);
-	printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
-			conf->src_icmp6errs_better ? "ON" : "OFF");
-#else
-	printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
-			conf->compute_udp_csum_zero ? "ON" : "OFF");
-	printf("  --%s: %u (%s)\n", OPTNAME_EAM_HAIRPIN_MODE,
-			conf->eam_hairpin_mode,
-			int_to_hairpin_mode(conf->eam_hairpin_mode));
-	printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
-			conf->randomize_error_addresses ? "ON" : "OFF");
-#endif
+	if (xlat_is_nat64()) {
+		printf("  --%s: %llu\n", OPTNAME_MAX_SO,
+				conf->nat64.max_stored_pkts);
+		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
+				conf->nat64.src_icmp6errs_better ? "ON" : "OFF");
+	} else {
+		printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
+				conf->siit.compute_udp_csum_zero ? "ON" : "OFF");
+		printf("  --%s: %u (%s)\n", OPTNAME_EAM_HAIRPIN_MODE,
+				conf->siit.eam_hairpin_mode,
+				int_to_hairpin_mode(conf->siit.eam_hairpin_mode));
+		printf("  --%s: %s\n", OPTNAME_RANDOMIZE_RFC6791,
+				conf->siit.randomize_error_addresses ? "ON" : "OFF");
+	}
+
 	printf("\n");
 
 	printf("  --%s: ", OPTNAME_ALLOW_ATOMIC_FRAGS);
@@ -85,36 +84,36 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 			conf->atomic_frags.lower_mtu_fail ? "ON" : "OFF");
 	printf("\n");
 
-#ifdef STATEFUL
-	printf("  Additional Logging:\n");
-	printf("  --%s: %s\n", OPTNAME_BIB_LOGGING,
-			conf->bib_logging ? "ON" : "OFF");
-	printf("  --%s: %s\n", OPTNAME_SESSION_LOGGING,
-			conf->session_logging ? "ON" : "OFF");
-	printf("\n");
+	if (xlat_is_nat64()) {
+		printf("  Additional Logging:\n");
+		printf("  --%s: %s\n", OPTNAME_BIB_LOGGING,
+				conf->nat64.bib_logging ? "ON" : "OFF");
+		printf("  --%s: %s\n", OPTNAME_SESSION_LOGGING,
+				conf->nat64.session_logging ? "ON" : "OFF");
+		printf("\n");
 
-	printf("  Filtering:\n");
-	printf("    --%s: %s\n", OPTNAME_DROP_BY_ADDR,
-			conf->drop_by_addr ? "ON" : "OFF");
-	printf("    --%s: %s\n", OPTNAME_DROP_ICMP6_INFO,
-			conf->drop_icmp6_info ? "ON" : "OFF");
-	printf("    --%s: %s\n",
-			OPTNAME_DROP_EXTERNAL_TCP, conf->drop_external_tcp ? "ON" : "OFF");
-	printf("\n");
+		printf("  Filtering:\n");
+		printf("    --%s: %s\n", OPTNAME_DROP_BY_ADDR,
+				conf->nat64.drop_by_addr ? "ON" : "OFF");
+		printf("    --%s: %s\n", OPTNAME_DROP_ICMP6_INFO,
+				conf->nat64.drop_icmp6_info ? "ON" : "OFF");
+		printf("    --%s: %s\n", OPTNAME_DROP_EXTERNAL_TCP,
+				conf->nat64.drop_external_tcp ? "ON" : "OFF");
+		printf("\n");
 
-	printf("  Timeouts:\n");
-	printf("    --%s: ", OPTNAME_UDP_TIMEOUT);
-	print_time_friendly(conf->ttl.udp);
-	printf("    --%s: ", OPTNAME_TCPEST_TIMEOUT);
-	print_time_friendly(conf->ttl.tcp_est);
-	printf("    --%s: ", OPTNAME_TCPTRANS_TIMEOUT);
-	print_time_friendly(conf->ttl.tcp_trans);
-	printf("    --%s: ", OPTNAME_ICMP_TIMEOUT);
-	print_time_friendly(conf->ttl.icmp);
-	printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
-	print_time_friendly(conf->ttl.frag);
-	printf("\n");
-#endif
+		printf("  Timeouts:\n");
+		printf("    --%s: ", OPTNAME_UDP_TIMEOUT);
+		print_time_friendly(conf->nat64.ttl.udp);
+		printf("    --%s: ", OPTNAME_TCPEST_TIMEOUT);
+		print_time_friendly(conf->nat64.ttl.tcp_est);
+		printf("    --%s: ", OPTNAME_TCPTRANS_TIMEOUT);
+		print_time_friendly(conf->nat64.ttl.tcp_trans);
+		printf("    --%s: ", OPTNAME_ICMP_TIMEOUT);
+		print_time_friendly(conf->nat64.ttl.icmp);
+		printf("    --%s: ", OPTNAME_FRAG_TIMEOUT);
+		print_time_friendly(conf->nat64.ttl.frag);
+		printf("\n");
+	}
 
 	return 0;
 }

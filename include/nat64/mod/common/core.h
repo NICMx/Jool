@@ -11,7 +11,8 @@
  * @author Alberto Leiva
  */
 
-#include "nat64/mod/common/send_packet.h"
+#include <linux/skbuff.h>
+#include <linux/netdevice.h>
 
 /**
  * Assumes "skb" is a IPv6 packet, checks whether it should be NAT64'd and either translates and

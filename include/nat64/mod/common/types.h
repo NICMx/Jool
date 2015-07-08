@@ -10,6 +10,7 @@
 
 #include "nat64/common/types.h"
 #include <linux/netfilter.h>
+#include "nat64/common/xlat.h"
 #include "nat64/mod/common/address.h"
 
 /**
@@ -29,7 +30,7 @@
 		static unsigned long __last_log; \
 		\
 		if (!__logged || __last_log < jiffies - msecs_to_jiffies(60 * 1000)) { \
-			pr_warn(MODULE_NAME " WARNING (%s): " text "\n", __func__, ##__VA_ARGS__); \
+			pr_warn("%s WARNING (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__); \
 			__logged = true; \
 			__last_log = jiffies; \
 		} \
@@ -40,7 +41,7 @@
  * processing user requests.
  * I the code found a **programming** error, use WARN() or its variations instead.
  */
-#define log_err(text, ...) pr_err(MODULE_NAME " ERROR (%s): " text "\n", __func__, ##__VA_ARGS__)
+#define log_err(text, ...) pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__)
 /**
  * This is intended to be equivalent to WARN(), except it's silent if you're unit testing.
  * Do this when you're testing errors being caught correctly and don't want dumped stacks on the

@@ -22,13 +22,11 @@
 #endif
 #else
 	#include <stdbool.h>
-	#include <string.h>
 	#include <arpa/inet.h>
 #ifdef BENCHMARK
 		#include <time.h>
 #endif
 #endif
-#include "nat64/common/nat64.h"
 
 /**
  * Returns nonzero if "status" is an error, returns zero if "status" represents success.

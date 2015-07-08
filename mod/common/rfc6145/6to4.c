@@ -310,7 +310,7 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
 		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
 	} else {
@@ -645,7 +645,7 @@ verdict ttp64_icmp(struct tuple* tuple4, struct packet *in, struct packet *out)
 	case ICMPV6_ECHO_REQUEST:
 		icmpv4_hdr->type = ICMP_ECHO;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = nat64_is_stateful()
+		icmpv4_hdr->un.echo.id = xlat_is_nat64()
 				? cpu_to_be16(tuple4->icmp4_id)
 				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
@@ -655,7 +655,7 @@ verdict ttp64_icmp(struct tuple* tuple4, struct packet *in, struct packet *out)
 	case ICMPV6_ECHO_REPLY:
 		icmpv4_hdr->type = ICMP_ECHOREPLY;
 		icmpv4_hdr->code = 0;
-		icmpv4_hdr->un.echo.id = nat64_is_stateful()
+		icmpv4_hdr->un.echo.id = xlat_is_nat64()
 				? cpu_to_be16(tuple4->icmp4_id)
 				: icmpv6_hdr->icmp6_identifier;
 		icmpv4_hdr->un.echo.sequence = icmpv6_hdr->icmp6_dataun.u_echo.sequence;
@@ -748,7 +748,7 @@ verdict ttp64_tcp(struct tuple *tuple4, struct packet *in, struct packet *out)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		tcp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
 		tcp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 	}
@@ -779,7 +779,7 @@ verdict ttp64_udp(struct tuple *tuple4, struct packet *in, struct packet *out)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		udp_out->source = cpu_to_be16(tuple4->src.addr4.l4);
 		udp_out->dest = cpu_to_be16(tuple4->dst.addr4.l4);
 	}

@@ -14,8 +14,8 @@
  * @author Alberto Leiva
  */
 
-#include <linux/types.h>
 #include "nat64/common/types.h"
+#include "nat64/common/xlat.h"
 
 /**
  * ID of Netlink messages Jool listens to.
@@ -144,8 +144,8 @@ static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
 	hdr->magic[1] = 'o';
 	hdr->magic[2] = 'o';
 	hdr->magic[3] = 'l';
-	hdr->type = nat64_is_stateful() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
-	hdr->version = jool_version();
+	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
+	hdr->version = xlat_version();
 	hdr->length = length;
 	hdr->mode = mode;
 	hdr->operation = operation;
@@ -335,7 +335,7 @@ struct request_session {
  * Indicators of the respective fields in the sessiondb_config structure.
  */
 enum global_type {
-#ifdef STATEFUL
+	/* NAT64 */
 	UDP_TIMEOUT,
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
@@ -351,12 +351,13 @@ enum global_type {
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
 	DROP_EXTERNAL_TCP,
-#else
+
+	/* SIIT */
 	COMPUTE_UDP_CSUM_ZERO,
 	EAM_HAIRPINNING_MODE,
 	RANDOMIZE_RFC6791,
-#endif
 
+	/* Common */
 	RESET_TCLASS,
 	RESET_TOS,
 	NEW_TOS,
@@ -525,62 +526,63 @@ struct global_config {
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 
-#ifdef STATEFUL
-	/**
-	 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
-	 * userspace.
-	 * The kernel module is responsible for switching units as the the values approach the border.
-	 */
 	struct {
-		/** Maximum time inactive UDP sessions will remain in the DB. */
-		__u64 udp;
-		/** Maximum time inactive ICMP sessions will remain in the DB. */
-		__u64 icmp;
-		/** Maximum time established TCP sessions will remain in the DB. */
-		__u64 tcp_est;
-		/** Maximum time transitory TCP sessions will remain in the DB. */
-		__u64 tcp_trans;
-		/** Maximum time fragments will remain in the DB. */
-		__u64 frag;
-	} ttl;
+		/**
+		 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
+		 * userspace.
+		 * The kernel module is responsible for switching units as the the values approach the border.
+		 */
+		struct {
+			/** Maximum time inactive UDP sessions will remain in the DB. */
+			__u64 udp;
+			/** Maximum time inactive ICMP sessions will remain in the DB. */
+			__u64 icmp;
+			/** Maximum time established TCP sessions will remain in the DB. */
+			__u64 tcp_est;
+			/** Maximum time transitory TCP sessions will remain in the DB. */
+			__u64 tcp_trans;
+			/** Maximum time fragments will remain in the DB. */
+			__u64 frag;
+		} ttl;
 
-	/** Use Address-Dependent Filtering? (boolean) */
-	__u8 drop_by_addr;
-	/** Filter ICMPv6 Informational packets? (boolean) */
-	__u8 drop_icmp6_info;
-	/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
-	__u8 drop_external_tcp;
+		/** Use Address-Dependent Filtering? (boolean) */
+		__u8 drop_by_addr;
+		/** Filter ICMPv6 Informational packets? (boolean) */
+		__u8 drop_icmp6_info;
+		/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
+		__u8 drop_external_tcp;
 
-	/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
-	__u64 max_stored_pkts;
-	/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
-	__u8 src_icmp6errs_better;
+		/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
+		__u64 max_stored_pkts;
+		/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
+		__u8 src_icmp6errs_better;
 
-	/** Log BIBs as they are created and destroyed? */
-	__u8 bib_logging;
-	/** Log sessions as they are created and destroyed? */
-	__u8 session_logging;
-#else
-	/**
-	 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
-	 * Otherwise these packets will be dropped (because they're illegal in IPv6).
-	 * Boolean.
-	 */
-	__u8 compute_udp_csum_zero;
-	/**
-	 * Randomize choice of RFC6791 address?
-	 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
-	 * https://github.com/NICMx/NAT64/issues/130.
-	 * Boolean.
-	 */
-	__u8 randomize_error_addresses;
+		/** Log BIBs as they are created and destroyed? */
+		__u8 bib_logging;
+		/** Log sessions as they are created and destroyed? */
+		__u8 session_logging;
+	} nat64;
 
-	/**
-	 * How should hairpinning be handled by EAM-translated packets.
-	 * See @eam_hairpinning_mode.
-	 */
-	__u8 eam_hairpin_mode;
-#endif
+	struct {
+		/**
+		 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
+		 * Otherwise these packets will be dropped (because they're illegal in IPv6).
+		 * Boolean.
+		 */
+		__u8 compute_udp_csum_zero;
+		/**
+		 * Randomize choice of RFC6791 address?
+		 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
+		 * https://github.com/NICMx/NAT64/issues/130.
+		 * Boolean.
+		 */
+		__u8 randomize_error_addresses;
+		/**
+		 * How should hairpinning be handled by EAM-translated packets.
+		 * See @eam_hairpinning_mode.
+		 */
+		__u8 eam_hairpin_mode;
+	} siit;
 };
 
 /**
