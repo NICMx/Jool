@@ -1168,16 +1168,22 @@ int nlhandler_init(void)
 	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
 #endif
 
-	if (!nl_socket) {
-		log_err("Creation of netlink socket failed.");
-		return -EINVAL;
+	if (nl_socket) {
+		log_debug("Netlink socket created.");
+	} else {
+		log_err("Creation of netlink socket failed.\n"
+				"(This usually happens because you already "
+				"have a Jool instance running.)\n"
+				"I will ignore this error. However, you will "
+				"not be able to configure Jool via the "
+				"userspace application.");
 	}
-	log_debug("Netlink socket created.");
 
 	return 0;
 }
 
 void nlhandler_destroy(void)
 {
-	netlink_kernel_release(nl_socket);
+	if (nl_socket)
+		netlink_kernel_release(nl_socket);
 }

@@ -12,8 +12,8 @@ struct bib_table table;
 #define TEST_BIB_COUNT 5
 struct bib_entry *entries[TEST_BIB_COUNT];
 
-static bool inject(unsigned int index, unsigned char *addr4, u16 port4,
-		unsigned char *addr6, u16 port6)
+static bool inject(unsigned int index, char *addr4, u16 port4,
+		char *addr6, u16 port6)
 {
 	struct ipv4_transport_addr taddr4;
 	struct ipv6_transport_addr taddr6;

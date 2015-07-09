@@ -77,10 +77,10 @@ static bool assert_session_count(int expected, l4_protocol proto)
 	return success;
 }
 
-static bool assert_session_exists(unsigned char *remote_addr6, u16 remote_port6,
-		unsigned char *local_addr6, u16 local_port6,
-		unsigned char *local_addr4, u16 local_port4,
-		unsigned char *remote_addr4, u16 remote_port4,
+static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
+		char *local_addr6, u16 local_port6,
+		char *local_addr4, u16 local_port4,
+		char *remote_addr4, u16 remote_port4,
 		l4_protocol proto, u_int8_t state)
 {
 	struct session_entry *session;

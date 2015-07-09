@@ -16,8 +16,7 @@ int bib_print(l4_protocol l4_proto)
 	return bibdb_foreach(l4_proto, bib_print_aux, NULL, NULL);
 }
 
-struct bib_entry *bib_inject(unsigned char *addr6, u16 port6,
-		unsigned char *addr4, u16 port4,
+struct bib_entry *bib_inject(char *addr6, u16 port6, char *addr4, u16 port4,
 		l4_protocol proto)
 {
 	struct ipv4_transport_addr taddr4;

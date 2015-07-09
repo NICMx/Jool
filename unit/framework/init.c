@@ -7,8 +7,8 @@
 
 bool init_full(void)
 {
-	unsigned char *prefixes6[] = { "3::/96" };
-	unsigned char *prefixes4[] = { "192.0.2.2/32" };
+	char *prefixes6[] = { "3::/96" };
+	char *prefixes4[] = { "192.0.2.2/32" };
 
 	if (config_init(false))
 		goto config_fail;

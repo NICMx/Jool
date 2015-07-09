@@ -124,9 +124,9 @@ enum config_operation {
  */
 struct request_hdr {
 	/** Protocol magic header (always "jool"). */
-	unsigned char magic[4];
+	char magic[4];
 	/** Translation type (SIIT or NAT64) */
-	unsigned char type;
+	char type;
 	/** Jool's version. */
 	__u32 version;
 	/** Size of the message. Includes header (this one) and payload. */
