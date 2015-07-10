@@ -183,7 +183,7 @@ static const struct argp_option quick_opt = {
 static const struct argp_option mark_opt = {
 		.name = "mark",
 		.key = ARGP_MARK,
-		.arg = NULL,
+		.arg = NUM_FORMAT,
 		.flags = 0,
 		.doc = "Only packets carrying this mark will match this pool4 "
 				"entry. Available on add and remove operations "
