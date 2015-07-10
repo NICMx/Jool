@@ -721,9 +721,10 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 
 	/*
 	 * Regarding the pseudoheaders:
-	 * The length is pretty hard to obtain if there's fragmentation, and whatever it is,
-	 * it's not going to change. Therefore, instead of computing it only to cancel it out with
-	 * itself later, simply sum (and substract) zero.
+	 * The length is pretty hard to obtain if there's TCP and fragmentation,
+	 * and whatever it is, it's not going to change. Therefore, instead of
+	 * computing it only to cancel it out with itself later, simply sum
+	 * (and substract) zero.
 	 * Do the same with proto since we're feeling hackish.
 	 */
 
@@ -738,6 +739,22 @@ static __sum16 update_csum_6to4(__sum16 csum16,
 	csum = csum_add(csum, csum_partial(out_l4_hdr, out_l4_hdr_len, 0));
 
 	return csum_fold(csum);
+}
+
+static __sum16 update_csum_6to4_partial(__sum16 csum16, struct ipv6hdr *in_ip6,
+		struct iphdr *out_ip4)
+{
+	__wsum csum, pseudohdr_csum;
+
+	csum = csum_unfold(csum16);
+
+	pseudohdr_csum = ~csum_unfold(csum_ipv6_magic(&in_ip6->saddr, &in_ip6->daddr, 0, 0, 0));
+	csum = csum_sub(csum, pseudohdr_csum);
+
+	pseudohdr_csum = csum_tcpudp_nofold(out_ip4->saddr, out_ip4->daddr, 0, 0, 0);
+	csum = csum_add(csum, pseudohdr_csum);
+
+	return ~csum_fold(csum);
 }
 
 verdict ttp64_tcp(struct tuple *tuple4, struct packet *in, struct packet *out)
@@ -764,7 +781,9 @@ verdict ttp64_tcp(struct tuple *tuple4, struct packet *in, struct packet *out)
 				pkt_ip4_hdr(out), tcp_out, sizeof(*tcp_out));
 		out->skb->ip_summed = CHECKSUM_NONE;
 	} else {
-		handle_partial_csum(out->skb, offsetof(struct tcphdr, check));
+		tcp_out->check = update_csum_6to4_partial(tcp_in->check,
+				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
 	/* Payload */
@@ -797,7 +816,9 @@ verdict ttp64_udp(struct tuple *tuple4, struct packet *in, struct packet *out)
 			udp_out->check = CSUM_MANGLED_0;
 		out->skb->ip_summed = CHECKSUM_NONE;
 	} else {
-		handle_partial_csum(out->skb, offsetof(struct udphdr, check));
+		udp_out->check = update_csum_6to4_partial(udp_in->check,
+				pkt_ip6_hdr(in), pkt_ip4_hdr(out));
+		partialize_skb(out->skb, offsetof(struct udphdr, check));
 	}
 
 	/* Payload */

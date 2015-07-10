@@ -707,6 +707,22 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 	return csum_fold(csum);
 }
 
+static __sum16 update_csum_4to6_partial(__sum16 csum16, struct iphdr *in_ip4,
+		struct ipv6hdr *out_ip6)
+{
+	__wsum csum, pseudohdr_csum;
+
+	csum = csum_unfold(csum16);
+
+	pseudohdr_csum = csum_tcpudp_nofold(in_ip4->saddr, in_ip4->daddr, 0, 0, 0);
+	csum = csum_sub(csum, pseudohdr_csum);
+
+	pseudohdr_csum = ~csum_unfold(csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr, 0, 0, 0));
+	csum = csum_add(csum, pseudohdr_csum);
+
+	return ~csum_fold(csum);
+}
+
 static bool can_compute_csum(struct packet *in)
 {
 	struct iphdr *hdr4;
@@ -798,7 +814,9 @@ verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out)
 				pkt_ip4_hdr(in), &tcp_copy, sizeof(tcp_copy),
 				pkt_ip6_hdr(out), tcp_out, sizeof(*tcp_out));
 	} else {
-		handle_partial_csum(out->skb, offsetof(struct tcphdr, check));
+		tcp_out->check = update_csum_4to6_partial(tcp_in->check,
+				pkt_ip4_hdr(in), pkt_ip6_hdr(out));
+		partialize_skb(out->skb, offsetof(struct tcphdr, check));
 	}
 
 	/* Payload */
@@ -829,7 +847,9 @@ verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out)
 					pkt_ip4_hdr(in), &udp_copy, sizeof(udp_copy),
 					pkt_ip6_hdr(out), udp_out, sizeof(*udp_out));
 		} else {
-			handle_partial_csum(out->skb, offsetof(struct udphdr, check));
+			udp_out->check = update_csum_4to6_partial(udp_in->check,
+					pkt_ip4_hdr(in), pkt_ip6_hdr(out));
+			partialize_skb(out->skb, offsetof(struct udphdr, check));
 		}
 	} else {
 		/* TODO (performance) handling this as partial might work just as well, or better. */
