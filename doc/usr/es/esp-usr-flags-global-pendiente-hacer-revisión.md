@@ -70,7 +70,7 @@ O simplemente:
 	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off} <br />
 	$ jool --address-dependent-filtering true
 
-* Para Actualizar la Lista Plateaus:
+* Para ACTUALIZAR ***la Lista Plateaus:***
 
 	$ jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
 
@@ -95,12 +95,11 @@ Mientras Jool está inactivo, *los timeouts no serán pausados** para que las en
 - Tipo: ***Booleano***
 - Modos: ***Stateful***
 - Valor por Omisión: ***APAGADO (0)***
-
 - Nombre anterior: `--dropAddr`
 - Fuente: [Ver RFC 6146, sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3)
 
 EN RESUMEN:<br />
-	--address-dependent-filtering` OFF significa que Jool debe ser un NAT de cono completo.<br />
+	--address-dependent-filtering` OFF significa que Jool debe ser un NAT de cono completo.
 	--address-dependent-filtering` ON significa que Jool debe ser un NAT de cono restringido.
 	
 Referencias:<br />
@@ -131,15 +130,13 @@ Luego _n4b_ trata de conversar con _n6_ también:
 
 Ya que el registro BIB existe, _J_ sabe que _n4b_ significa  "2001:db8::1#10" cuando el dice "192.0.2.1#10", asi que el paquete puede ser técnicamente traducido. Sin embargo, debido a las tablas de sesión, _J_ tambien puede decir que _n6_ no ha estado conversando con _n4b_ en el pasado.
 
-Si `--address-dependent-filtering` está deshabilitado, _J_ permitirá al paquete de _n4b_ pasar. Si `--address-dependent-filtering` está encendido, _J_ desechará el paquete de _n4b_ y responderá con un error ICMP con el mensaje "Communication Administratively Prohibited". Esto demuele efectivamente cualquier intento de comunicación iniciado desde IPv4, aun si hay registros BIB (estáticos u otros).
+Si `--address-dependent-filtering` está deshabilitado, _J_ permitirá al paquete de _n4b_ pasar. Si `--address-dependent-filtering` está encendido, _J_ desechará el paquete de _n4b_ y responderá con un error ICMP con el mensaje "Communication Administratively Prohibited". Esto restringe efectivamente cualquier intento de comunicación iniciado desde IPv4, aún si hay registros BIB (estáticos u otros).
 
-* Si estas utilizando el NAT64 para publicar un servicio que solo soporta IPv6 a la internet IPv4, tiene sentido que `--address-dependent-filtering` esté deshabilitado. Esto es por que se espera que los clientes se enteren del servicio IPv6 por su cuenta, y el servidor normalmente no inicia los flujos de paquetes. 
+* Si estas utilizando el NAT64 para publicar un servicio que solo soporta IPv6 a la internet IPv4, tiene sentido que `--address-dependent-filtering` esté deshabilitado. Esto es por que se espera que los clientes se enteren del servicio IPv6 por su cuenta, y el servidor de IPv4 normalmente no inicia los flujos de paquetes. 
 
-* Si estás utilizando NAT64 para permitir a los nodos IPv6 navegar en la Internet IPv4, tiene sentido que `--address-dependent-filtering` esté encendido. Esto es por que los clientes eligen sus puertos de manera aleatoria; se sospecha que nodos aleatorios externos pudieran adivinar estos puertos.
+* Si estás utilizando NAT64 para permitir a los nodos IPv6 navegar en la Internet IPv4, tiene sentido que `--address-dependent-filtering` esté encendido. Dado que los Nodos Clientes de IPv6 eligen sus puertos de manera aleatoria, este mecanismo nos sirve para descartar el acceso a nodos aleatorios externos que pretendan adivinar estos puertos.
 
-* If you're using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, it makes sense for `--address-dependent-filtering` to be ON. This is because clients choose their ports at random; it is suspicious for random outsider nodes to guess these ports.
-
-`--address-dependent-filtering` Encendido podria impedir metodos de recorrido de NAT como STUN (o por lo menos hacer imposibles algunos modos de opreación).
+`--address-dependent-filtering` Encendido podria impedir metodos de recorrido de NAT como STUN, o por lo menos, hacer imposibles algunos modos de opreación.
 
 ### `--drop-icmpv6-info`
 
