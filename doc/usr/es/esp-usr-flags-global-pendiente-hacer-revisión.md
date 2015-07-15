@@ -61,13 +61,13 @@ O simplemente:
 
 	$ jool_siit
 
-* Para Pausar Jool:
+* Para PAUSAR ***Jool***:
 
 	$ jool --global --disable
 
-* Para Encender Filtra Dependiendo del Direccionamiento:
+* Para ENCENDER ***Filtra Dependiendo del Direccionamiento***:
 
-	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off}
+	$ # Valores válidos: {true, false, 1, 0, yes, no, on, off} <br />
 	$ jool --address-dependent-filtering true
 
 * Para Actualizar la Lista Plateaus:
