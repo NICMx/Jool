@@ -132,7 +132,7 @@ Ya que el registro BIB existe, _J_ sabe que _n4b_ significa  "2001:db8::1#10" cu
 
 Si `--address-dependent-filtering` está Deshabilitado, _J_ permitirá al paquete de _n4b_ pasar. Si `--address-dependent-filtering` está encendido, _J_ desechará el paquete de _n4b_ y responderá con un error ICMP con el mensaje "Communication Administratively Prohibited". Esto restringe efectivamente cualquier intento de comunicación iniciado desde IPv4, aún si hay registros BIB (estáticos u otros).
 
-* Cuando el NAT64 es utilizado para publicar un servicio que solo soporta IPv6 a la internet IPv4, tiene sentido que `--address-dependent-filtering` esté deshabilitado. Esto es por que se espera que los clientes se enteren del servicio IPv6 por su cuenta, ya que el servidor de IPv4 normalmente no inicia la conversación. 
+* Cuando el NAT64 es utilizado para publicar un servicio que solo es soportado bajo IPv6 a la internet IPv4, tiene sentido que `--address-dependent-filtering` esté deshabilitado. Esto es por que se espera que los clientes se enteren del servicio IPv6 por su cuenta, ya que el servidor normalmente no inicia la conversación, sino responde las consultas. 
 
 * Cuando el NAT64 es utilizado para permitir a los nodos IPv6 navegar sobre la Internet en IPv4, tiene sentido que `--address-dependent-filtering` esté encendido. Dado que los Nodos Clientes de IPv6 eligen sus puertos de manera aleatoria, este mecanismo nos sirve para descartar el acceso a nodos aleatorios externos que pretendan adivinar estos puertos.
 
