@@ -99,7 +99,7 @@ Mientras Jool está inactivo, *los timeouts no serán pausados** para que las en
 - Fuente: [Ver RFC 6146, sección 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3)
 
 EN RESUMEN:<br />
-	--address-dependent-filtering `OFF` significa que Jool debe ser un NAT de cono completo.
+	--address-dependent-filtering `OFF` significa que Jool debe ser un NAT de cono completo.<br />
 	--address-dependent-filtering `ON` significa que Jool debe ser un NAT de cono restringido.
 	
 Referencias:<br />
@@ -110,7 +110,7 @@ Referencias:<br />
 
 BREVE EXPLICACIÓN:
 
-Supon que _n6_ está hablando con _n4a_ mediante el NAT64:
+Partiendo que _n6_ está hablando con _n4a_ mediante el NAT64:
 
 ![Fig.1: Legal chat](images/usr-dropaddr-1.svg)
 
@@ -132,9 +132,9 @@ Ya que el registro BIB existe, _J_ sabe que _n4b_ significa  "2001:db8::1#10" cu
 
 Si `--address-dependent-filtering` está Deshabilitado, _J_ permitirá al paquete de _n4b_ pasar. Si `--address-dependent-filtering` está encendido, _J_ desechará el paquete de _n4b_ y responderá con un error ICMP con el mensaje "Communication Administratively Prohibited". Esto restringe efectivamente cualquier intento de comunicación iniciado desde IPv4, aún si hay registros BIB (estáticos u otros).
 
-* Si estas utilizando el NAT64 para publicar un servicio que solo soporta IPv6 a la internet IPv4, tiene sentido que `--address-dependent-filtering` esté deshabilitado. Esto es por que se espera que los clientes se enteren del servicio IPv6 por su cuenta, y el servidor de IPv4 normalmente no inicia los flujos de paquetes. 
+* Cuando el NAT64 es utilizado para publicar un servicio que solo soporta IPv6 a la internet IPv4, tiene sentido que `--address-dependent-filtering` esté deshabilitado. Esto es por que se espera que los clientes se enteren del servicio IPv6 por su cuenta, ya que el servidor de IPv4 normalmente no inicia la conversación. 
 
-* Si estás utilizando NAT64 para permitir a los nodos IPv6 navegar en la Internet IPv4, tiene sentido que `--address-dependent-filtering` esté encendido. Dado que los Nodos Clientes de IPv6 eligen sus puertos de manera aleatoria, este mecanismo nos sirve para descartar el acceso a nodos aleatorios externos que pretendan adivinar estos puertos.
+* Cuando el NAT64 es utilizado para permitir a los nodos IPv6 navegar sobre la Internet en IPv4, tiene sentido que `--address-dependent-filtering` esté encendido. Dado que los Nodos Clientes de IPv6 eligen sus puertos de manera aleatoria, este mecanismo nos sirve para descartar el acceso a nodos aleatorios externos que pretendan adivinar estos puertos.
 
 Si `--address-dependent-filtering` está Encendido, podria impedir metodos de recorrido de NAT como STUN, o por lo menos, hacer imposibles algunos modos de opreación.
 
