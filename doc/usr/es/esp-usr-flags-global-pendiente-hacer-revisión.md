@@ -81,7 +81,7 @@ O simplemente:
 - Nombre: ***HABILITA & DESHABILITA JOOL***
 - Tipo: ***No Aplica***
 - Modos: ***SIIT & Stateful***
-- Valor por Omisión: ***Conforme a la bandera empleada a la hora de insertar JOOL ***
+- Valor por Omisión: *** Conforme a la bandera empleada al insertar JOOL ***
 
 REANUDA Y PAUSA LA TRADUCCIÓN DE PAQUETES, RESPECTIVAMENTE. 
 
@@ -147,9 +147,9 @@ Si `--address-dependent-filtering` está Encendido, podria impedir metodos de re
 - Nombre anterior: `--dropInfo`
 - Fuente: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
-Si activas esta bandera, los mensajes del tipo echo y echo replay generados a través del comando ping serán bloqueados mientras estén siendo traducidos de ICMPv6 a ICMPv4.
+Si activas esta bandera, los mensajes del tipo echo y echo reply generados a través del comando ping serán bloqueados mientras estén siendo traducidos de ICMPv6 a ICMPv4.
 
-Por alguna razón, no se supone que debamos bloquear pings de ICMPv4 a ICMPv6, pero como se necesitan ambas una solicitud y una respuesta para un eco exitoso, el resultado de salida parece ser el mismo.
+No se supone que debamos bloquear pings de ICMPv4 a ICMPv6, pero como se necesitan ambas, una solicitud y una respuesta, para un eco exitoso, el resultado de salida parece ser el mismo.
 
 Esta regla no afecta los mensajes de Error ICMP.
 
