@@ -24,9 +24,9 @@ La versión 3.3.2 es la más actual. Y es considerada la más madura.
 
 ## 3.2.x
 
-La serie de versiones 3.2 mejora la  3.1  implementando _Apertura simultanea de Conexiones TCP_. También proporciona una opción para vaciar sus pools y tiene muchos ajustes internos.
+La serie de versiones 3.2 mejora la  3.1  implementando _Apertura simultanea de Conexiones TCP_. Además, se incluyó una opción para limpiar sus pools y se realizaron muchos ajustes internos.
 
-3.2.3 es la última versión the esta serie de versiones.
+3.2.3 es la última versión de esta serie de versiones.
 
 La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede descargar una imágen de la documentación de la serie 3.2 [aquí](https://www.jool.mx/download/Jool-3.2-doc.zip) (Esta documentación está en inglés).
 

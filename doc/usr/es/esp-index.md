@@ -18,7 +18,7 @@ Jool es un [SIIT y NAT64](intro-nat64.html) para Linux.
 
 ## Estatus
 
-Nuestra meta actual es que Jool sea un SIIT y un Stateful NAT64 [apegado a los estándares de la IEEE](intro-jool.html#cumplimiento). Nuestro agenda al 2015-04-13:
+Nuestra meta actual es que Jool sea un SIIT y un Stateful NAT64 [apegado a los estándares de la IEEE](intro-jool.html#cumplimiento). Nuestro agenda al 2015-04-13 es:
 
 1. La [Versión 3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0) será una refactorización para [remover de Jool  Stateful NAT64 la necesidad de una segunda dirección IPv4](https://github.com/NICMx/NAT64/wiki/issue67:-Linux%27s-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.), y [optimizar el pool4](https://github.com/NICMx/NAT64/issues/36). (De hecho, son practicamente el mismo bug.)
 
@@ -42,16 +42,15 @@ Versión 3.3.2 liberada.
 
 Este es el resumen:
 
-- Hay nuevos parámetros de configuración:
+- Hay tres nuevos parámetros de configuración:
 	- [`--source-icmpv6-errors-better`](esp-usr-flags-global.html#source-icmpv6-errors-better)
 	- [`--logging-bib`](esp-usr-flags-global.html#logging-bib) y [`--logging-session`](esp-usr-flags-global.html#logging-session)
-- La aplicación de espacio de usuario se estaba comportando fuera de lugar de muchas maneras. Aunque todos sus bugs tenian manera de solucionarse, era dificil de utilizarse.
+- Correcciones a la aplicación de espacio de usuario.
 
-También, ahora tenemos dos listas de correo, sin relación al código:
+Se dieron de alta dos listas de correo:
 
-- jool-news@nic.mx esta orientado a emitir noticias. Ya que no tenemos otros eventos relevantes, el plan es solo usarlo para anunciar el surgimiento de nuevas liberaciones. Ház [click aquí](https://mail-lists.nic.mx/listas/listinfo/jool-news) para empezar a recibirlas.
-
-- jool-list@nic.mx puede ser utilizado para discusión píblica (ayuda, propuestas, lo que sea). Tambien voy a dejar noticias aquí para que las personas no tengan que suscribirse a ambas al mismo tiempo. Haz [click aquí](https://mail-lists.nic.mx/listas/listinfo/jool-list) para registrarte.
+- jool-news@nic.mx para emitir noticias. Exclusivo para anunciar las nuevas liberaciones. Ház [click aquí](https://mail-lists.nic.mx/listas/listinfo/jool-news) para empezar a recibirlas.
+- jool-list@nic.mx para discusión pública (ayuda, propuestas, etc.) y noticias. Haz [click aquí](https://mail-lists.nic.mx/listas/listinfo/jool-list) para registrarte.
 
 [jool@nic.mx](mailto:jool@nic.mx) aun puede ser utilizado para accesar a los desrrolladores.
 
@@ -60,7 +59,7 @@ También nos gustaria disculparnos por el [inconveniente que tuvimos recientemen
 
 ### 2015-03-11
 
-[Importante problema](https://github.com/NICMx/NAT64/issues/137) descubierto!
+[Error importante ](https://github.com/NICMx/NAT64/issues/137) descubierto!
 
 Nosotros precsiamente ya liberamos Jool 3.3.1 para resolver éste.
 
@@ -68,11 +67,11 @@ Nosotros precsiamente ya liberamos Jool 3.3.1 para resolver éste.
 
 Se ha concluido Jool 3.3.0.
 
-[Filtering couldn't make it into the milestone](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), but Stateless IP/ICMP Translation (SIIT) is now supported.
+[Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless IP/ICMP (SIIT) son ahora soportadas.
 
-See the updated [SIIT/NAT64 introduction](intro-nat64.html) for an improved picture of the SIIT paradigm. [Here's the tutorial](mod-run-vanilla.html). Also keep an eye on [464XLAT](mod-run-464xlat.html).
+Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo paradigma. [Aqui encontras el tutorial](mod-run-vanilla.html). También, echa un vistazo a [464XLAT](mod-run-464xlat.html).
 
-We also refactored the userspace app somewhat; please review your scripts:
+Se reorganizó la herramienta de configuración de Jool, por favor actualiza tus scripts:
 
 - The kernel's per-interface MTU setting [replaced `--minMTU6`](misc-mtu.html).
 - `--address`, `--prefix`, `--bib4` and `--bib6` were deprecated because they're considered redundant. See [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) and [`--bib`](usr-flags-bib.html).

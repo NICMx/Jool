@@ -1,3 +1,7 @@
+---
+layout: documentation
+title: Documentación - Indice
+---
 
 # Documentación
 
