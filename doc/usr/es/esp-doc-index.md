@@ -1,6 +1,6 @@
 ---
 layout: documentation
-title: Documentación - Indice
+title: Documentación - Índice
 ---
 
 # Documentación

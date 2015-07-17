@@ -45,7 +45,7 @@ Este es el resumen:
 - Hay tres nuevos parámetros de configuración:
 	- [`--source-icmpv6-errors-better`](esp-usr-flags-global.html#source-icmpv6-errors-better)
 	- [`--logging-bib`](esp-usr-flags-global.html#logging-bib) y [`--logging-session`](esp-usr-flags-global.html#logging-session)
-- Correcciones a la aplicación de espacio de usuario.
+- Correcciones a la Herramienta de Configuración de Jool.
 
 Se dieron de alta dos listas de correo:
 
@@ -61,7 +61,7 @@ También nos gustaria disculparnos por el [inconveniente que tuvimos recientemen
 
 [Error importante ](https://github.com/NICMx/NAT64/issues/137) descubierto!
 
-Nosotros precsiamente ya liberamos Jool 3.3.1 para resolver éste.
+Precisamente, ya liberamos Jool 3.3.1 para resolver éste.
 
 ### 2015-03-09
 
@@ -69,40 +69,40 @@ Se ha concluido Jool 3.3.0.
 
 [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless IP/ICMP (SIIT) son ahora soportadas.
 
-Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo paradigma. [Aqui encontras el tutorial](mod-run-vanilla.html). También, echa un vistazo a [464XLAT](mod-run-464xlat.html).
+Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo paradigma. [Aqui encontras el tutorial](mod-run-vanilla.html). Para una mejor comprensión, lee sobre [464XLAT](mod-run-464xlat.html).
 
 Se reorganizó la herramienta de configuración de Jool, por favor actualiza tus scripts:
 
-- The kernel's per-interface MTU setting [replaced `--minMTU6`](misc-mtu.html).
-- `--address`, `--prefix`, `--bib4` and `--bib6` were deprecated because they're considered redundant. See [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) and [`--bib`](usr-flags-bib.html).
-- Three global flags were also deprecated for [different reasons](usr-flags-atomic.html).
+- El MTU es seleccionado desde el kernel [replazando a `--minMTU6`](misc-mtu.html).
+- `--address`, `--prefix`, `--bib4` y `--bib6` fueron omitidos por ser considerados redundantes. Ver [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) y [`--bib`](usr-flags-bib.html).
+- Tres banderas globales fueron omitidas por  [diferentes razones](usr-flags-atomic.html).
 
-We also released Jool 3.2.3, which is [bugfixes](https://github.com/NICMx/NAT64/milestones/3.2.3) since 3.2.2. One of the bugs is a DoS vulnerability, so upgrading to at least 3.2.3 is highly recommended.
+También se liberó la actualización de Jool 3.2.3, para corregir [los errores encontrados](https://github.com/NICMx/NAT64/milestones/3.2.3) desde la versión 3.2.2. Uno de los principales errores es sobre la vulnerabilidad de DoS. Actualizar es altamente recomendada.
 
 ### 2014-10-24
 
-An <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank">important bug</a> was discovered, and version 3.2.2 is out.
+Un <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank"> error importante</a> fue descubierto, y la version 3.2.2 tiene problemas.
 
 ### 2014-10-17
 
-The documentation of `--plateaus` proved to be lacking, so there's now a [full article](usr-flags-plateaus.html) dedicated to it. The [original definition](usr-flags-global.html#mtu-plateaus) also received improvements.
+La documentación provista sobre `--plateaus` ha sido [mejorada](usr-flags-plateaus.html). Su [definición](usr-flags-global.html#mtu-plateaus) también ha sido mejorada.
 
-It has come to our attention that <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">we are also lacking an explanation of IP literals</a>, so there should be another codeless update like this in the near future.
+Ha llamado nuestra atención que <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">nosotros tampoco hemos incluido una explicación acerca de las IP literals</a>, esto quedará dentro de la próxima actualización.
 
 ### 2014-10-08
 
-Version 3.2.1 released. The 3.2 series is now considered more mature than 3.1.
+Version 3.2.1 liberada. La serie 3.2 es ahora considerada mas madura que la 3.1.
 
-The important changes are
+Los cambios importantes son
 
-1. <a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool used to always attempt to mask packets using the first prefix of the pool</a>. This meant that Jool was unable to handle more than one prefix.
-2. The <a href="https://github.com/NICMx/NAT64/issues/109" target="_blank">memory leak in the core</a> has been purged.
+1. <a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool siempre intentará enmascarar los paquetes usando el primer prefijo de la pool</a>. Esto significa que Jool no es capaz de manejar mas que un solo prefijo.
+2. La <a href="https://github.com/NICMx/NAT64/issues/109" target="_blank">pérdida de memoria en el kernel</a> ha sido corregida.
 
-The less noticeable ones are
+Los cambios menos relevantes son
 
-1. `log_martians` <a href="https://github.com/NICMx/NAT64/issues/107" target="_blank">is no longer a step</a> in modprobing Jool (though it doesn't bite if you keep it).
-2. <a href="https://github.com/NICMx/NAT64/issues/57" target="_blank">The SNMP stat updates returned</a>. See `nstat` and `netstat -s`.
-3. Corner-case packets now get <a href="https://github.com/NICMx/NAT64/issues/108" target="_blank">checksums updated correctly</a>.
+1. `log_martians` <a href="https://github.com/NICMx/NAT64/issues/107" target="_blank">no es incluido como un paso </a> al insertar Jool (aunque no afecta si usted lo mantiene).
+2. <a href="https://github.com/NICMx/NAT64/issues/57" target="_blank"> La actualización del estado de SNMP es regresado</a>. Ver `nstat` y `netstat -s`.
+3. En los paquetes Corner-case el <a href="https://github.com/NICMx/NAT64/issues/108" target="_blank">checksum es actualizado correctamente</a>.
 
 ### 2014-09-01
 
