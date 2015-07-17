@@ -13,7 +13,7 @@ title: Contacto
 
    (Actualmente existe un problema de "exceso" de seguridad que está siendo corregido)
 
--- jool-news@nic.mx es una lista de correos destinada a informar noticias a sus destinatarios.
+-- jool-news@nic.mx es una lista de correos para informar solo noticias.
 
           Es utilizada para notificar sobre las nuevas versiones que están siendo liberadas en este sitio. 
   
