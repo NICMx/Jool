@@ -166,9 +166,9 @@ Website ha sido liberado. *!Este website!*
 
 y con este viene un nueva actualización 3.1.2, que:
 
-1. <a href="https://github.com/NICMx/NAT64/issues/76" target="_blank">estandariza el procedimiento de compilación e instalación en la Herramienta de Configuración de Jool</a>.
-2. <a href="https://github.com/NICMx/NAT64/issues/77" target="_blank">hace más explicto el manejo de sufijos de prefijos</a>.
-3. <a href="https://github.com/NICMx/NAT64/issues/78" target="_blank">no se inhibe cuando el comando modprobe recibe argumentos inválidos </a>.
+1. <a href="https://github.com/NICMx/NAT64/issues/76" target="_blank">Estandariza el procedimiento de compilación e instalación en la Herramienta de Configuración de Jool</a>.
+2. <a href="https://github.com/NICMx/NAT64/issues/77" target="_blank">Hace más explicto el manejo de sufijos de prefijos</a>.
+3. <a href="https://github.com/NICMx/NAT64/issues/78" target="_blank">No se inhibe cuando el comando modprobe recibe argumentos inválidos </a>.
 
 ### 2014-02-21
 
@@ -185,7 +185,7 @@ La version 3.1.0 ha sido liberada. ¡Jool finalmente maneja fragmentación!
 
 Otras correcciones importantes:
 
-* Se realizacon importantes optimizaciones en ambas base de datos: BIB y session. El módulo debería de escalar mucho más elegantemente cuando los clientes se encuentren demandando mas tráfico.
+* Se realizaron importantes optimizaciones en ambas base de datos: BIB y session. El módulo debería de escalar mucho más elegantemente cuando los clientes se encuentren demandando mas tráfico.
 * Jool no requiere más una dirección IPv4 por separado.
 * El pánico del kernel cuando se removia el módulo ha sido arreglado.
 * Y [más cosas]https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
