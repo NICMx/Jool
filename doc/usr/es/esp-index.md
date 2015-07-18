@@ -188,5 +188,5 @@ Otras correcciones importantes:
 * Se realizaron importantes optimizaciones en ambas base de datos: BIB y session. El módulo debería de escalar mucho más elegantemente cuando los clientes se encuentren demandando mas tráfico.
 * Jool no requiere más una dirección IPv4 por separado.
 * El pánico del kernel cuando se removia el módulo ha sido arreglado.
-* Y [más cosas]https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
+* Y [más cosas] (https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
 
