@@ -111,7 +111,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 	return fail(__func__);
 }
 
-int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
+int eamt_for_each(int (*func)(struct eamt_entry *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return fail(__func__);

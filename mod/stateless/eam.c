@@ -1,402 +1,440 @@
 #include "nat64/mod/stateless/eam.h"
-
-#include <net/ipv6.h>
-
-#include "nat64/mod/common/rbtree.h"
+#include "nat64/mod/common/rtrie.h"
 #include "nat64/mod/common/types.h"
 
 /**
  * @author Daniel Hdz Felix
  * @author Alberto Leiva
- *
- * TODO (performance) This data structure doesn't receive updates constantly so RCU should perform
- * much better than the spinlock.
- * Also review the tree... a hash table might be better.
  */
 
-struct eam_db {
-	/** Indexes the entries using their IPv6 identifiers. */
-	struct rb_root EAMT_tree6;
-	/** Indexes the entries using their IPv4 identifiers. */
-	struct rb_root EAMT_tree4;
-	/* Number of entries in this table. */
+#define ADDR6_BITS 128
+#define ADDR4_BITS 32
+
+struct rtrie_inode6 {
+	struct ipv6_prefix prefix6;
+	struct rtrie_node tree6_hook;
+};
+
+struct rtrie_inode4 {
+	struct ipv4_prefix prefix4;
+	struct rtrie_node tree4_hook;
+};
+
+struct eamt_entry {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
+	struct rtrie_node tree6_hook;
+	struct rtrie_node tree4_hook;
+};
+
+struct eam_table {
+	struct rtrie_node *tree6;
+	struct rtrie_node *tree4;
 	u64 count;
 };
 
-static struct eam_db eam_table;
+static struct eam_table eamt;
+/** Lock to sync access. This protects both the trees and the entries. */
+static DEFINE_SPINLOCK(eamt_lock);
 
-/* The maximum network length for IPv4. */
-static const __u8 IPV4_PREFIX = 32;
-/* The maximum network length for IPv6. */
-static const __u8 IPV6_PREFIX = 128;
-
-/* Use to put all the 32 bits on, to make some operations at bit level.*/
-static const __u32 IN_ADDR_FULL = INADDR_BROADCAST;
-
-/**
- * Lock to sync access. This protects both the trees and the entries.
- */
-static DEFINE_SPINLOCK(eam_lock);
-
-/** Cache for struct eam_entries, for efficient allocation. */
-static struct kmem_cache *entry_cache;
-
-static void eam_kfree(struct eam_entry *entry)
+static struct eamt_entry *eamt_entry_create(struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4)
 {
-	kmem_cache_free(entry_cache, entry);
-}
+	struct eamt_entry *entry;
 
-/**
- *	Verify if the IPv4 prefix and the IPv6 prefix have the same network length.
- */
-static int validate_prefixes(struct ipv6_prefix *pref6, struct ipv4_prefix *pref4)
-{
-	int error;
-
-	error = prefix6_validate(pref6);
-	if (error)
-		return error;
-
-	error = prefix4_validate(pref4);
-	if (error)
-		return error;
-
-	if ((IPV4_PREFIX - pref4->len) > (IPV6_PREFIX - pref6->len)) {
-		log_err("The IPv4 suffix length must be smaller or equal than the IPv6 suffix length.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static struct eam_entry *eamt_create_entry(struct ipv6_prefix *ip6, struct ipv4_prefix *ip4)
-{
-	struct eam_entry *entry;
-
-	entry = kmem_cache_alloc(entry_cache, GFP_ATOMIC);
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return NULL;
 
-	entry->pref4 = *ip4;
-	entry->pref6 = *ip6;
-	RB_CLEAR_NODE(&entry->tree4_hook);
-	RB_CLEAR_NODE(&entry->tree6_hook);
+	entry->prefix4 = *prefix4;
+	entry->prefix6 = *prefix6;
+	rtrie_node_init(&entry->tree4_hook, true);
+	rtrie_node_init(&entry->tree6_hook, true);
 
 	return entry;
 }
 
-static int eam_ipv6_prefix_equal(struct eam_entry *eam, struct ipv6_prefix *prefix)
+static struct rtrie_inode6 *inode6_create(struct ipv6_prefix *prefix6)
 {
-	__u8 pref_len;
+	struct rtrie_inode6 *entry;
 
-	if (prefix->len > eam->pref6.len)
-		pref_len = eam->pref6.len;
-	else
-		pref_len = prefix->len;
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	if (!entry)
+		return NULL;
 
-	if (pref_len == IPV6_PREFIX)
-		return false;
+	entry->prefix6 = *prefix6;
+	rtrie_node_init(&entry->tree6_hook, false);
 
-	return ipv6_prefix_equal(&prefix->address, &eam->pref6.address, pref_len);
+	return entry;
 }
+
+//static struct rtrie_inode4 *inode4_create(struct ipv4_prefix *prefix4)
+//{
+//	struct rtrie_inode4 *entry;
+//
+//	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+//	if (!entry)
+//		return NULL;
+//
+//	entry->prefix4 = *prefix4;
+//	rtrie_node_init(&entry->tree4_hook, false);
+//
+//	return entry;
+//}
+
+static struct eamt_entry *get_entry6(struct rtrie_node *node)
+{
+	return container_of(node, struct eamt_entry, tree6_hook);
+}
+
+//static struct eamt_entry *get_entry4(struct rtrie_node *node)
+//{
+//	return container_of(node, struct eamt_entry, tree4_hook);
+//}
+
+static struct rtrie_inode6 *get_inode6(struct rtrie_node *node)
+{
+	return container_of(node, struct rtrie_inode6, tree6_hook);
+}
+
+//static struct rtrie_inode4 *get_inode4(struct rtrie_node *node)
+//{
+//	return container_of(node, struct rtrie_inode4, tree6_hook);
+//}
+
+static struct ipv6_prefix *get_prefix6(struct rtrie_node *node)
+{
+	return node->is_leaf
+			? &get_entry6(node)->prefix6
+			: &get_inode6(node)->prefix6;
+}
+
+//static struct ipv4_prefix *get_prefix4(struct rtrie_node *node)
+//{
+//	return node->is_leaf
+//			? &get_entry4(node)->prefix4
+//			: &get_inode4(node)->prefix4;
+//}
 
 /**
- * Returns zero if "eam"->pref6.address is equals to "prefix6" or contains the "prefix6".
- * Otherwise return the gap of the comparison result.
+ * validate_prefixes - check @prefix6 and @prefix4 can be joined together to
+ * form a (standalone) legal EAM entry.
  */
-static int compare_prefix6(struct eam_entry *entry, struct ipv6_prefix *prefix6)
-{
-	int gap;
-
-	gap = ipv6_addr_cmp(&prefix6->address, &entry->pref6.address);
-	if (gap == 0)
-		return 0;
-
-	if (eam_ipv6_prefix_equal(entry, prefix6))
-		return 0;
-
-	return gap;
-}
-
-static bool eam_ipv4_prefix_equal(struct eam_entry *eam, struct ipv4_prefix *prefix4)
-{
-	__u8 pref_len;
-	__u32 full_bits = IN_ADDR_FULL;
-
-	if (prefix4->len > eam->pref4.len)
-		pref_len = eam->pref4.len;
-	else
-		pref_len = prefix4->len;
-
-	if ((!pref_len) || ((eam->pref4.address.s_addr ^ prefix4->address.s_addr) &
-			htonl((full_bits) << (IPV4_PREFIX - pref_len))))
-		return false;
-
-	return true;
-}
-
-/**
- * Returns zero if "eam"->pref4.address is equals to "prefix4" or contains the "prefix4".
- * Otherwise return the gap of the comparison result.
- */
-static int compare_prefix4(struct eam_entry *entry, struct ipv4_prefix *prefix4)
-{
-	int gap;
-
-	gap = ipv4_addr_cmp(&prefix4->address, &entry->pref4.address);
-	if (gap == 0)
-		return 0;
-
-	if (eam_ipv4_prefix_equal(entry, prefix4))
-		return 0;
-
-	return gap;
-}
-
-static int eam_remove(struct eam_entry *entry, struct eam_db *table)
-{
-	if (!RB_EMPTY_NODE(&entry->tree6_hook))
-		rb_erase(&entry->tree6_hook, &table->EAMT_tree6);
-	if (!RB_EMPTY_NODE(&entry->tree4_hook))
-		rb_erase(&entry->tree4_hook, &table->EAMT_tree4);
-
-	return 1;
-}
-
-int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
+static int validate_prefixes(struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4)
 {
 	int error;
-	struct eam_entry *eam;
-	struct rb_node **node, *parent;
 
-	if (!ip6_pref || !ip4_pref) {
-		log_err("ip6_prefix or ipv4 can't be NULL");
-		return -EINVAL;
-	}
-
-	error = validate_prefixes(ip6_pref, ip4_pref);
+	error = prefix6_validate(prefix6);
 	if (error)
 		return error;
 
-	log_debug("Inserting address mapping to the db: %pI6c/%u - %pI4/%u", &ip6_pref->address,
-			ip6_pref->len, &ip4_pref->address, ip4_pref->len);
+	error = prefix4_validate(prefix4);
+	if (error)
+		return error;
 
-	spin_lock_bh(&eam_lock);
-	rbtree_find_node(ip6_pref, &eam_table.EAMT_tree6, compare_prefix6, struct eam_entry, tree6_hook,
-			parent, node);
-	if (*node) {
-		spin_unlock_bh(&eam_lock);
-		log_debug("IPv6 Prefix %pI6c/%u already exist in the database.", &ip6_pref->address, ip6_pref->len);
+	if ((ADDR4_BITS - prefix4->len) > (ADDR6_BITS - prefix6->len)) {
+		log_err("The IPv4 suffix length must be smaller or equal than "
+				"the IPv6 suffix length.");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static unsigned int match6(struct ipv6_prefix *prefix, struct in6_addr *addr)
+{
+	unsigned int result = 0;
+	unsigned int i;
+	unsigned int bit1;
+	unsigned int bit2;
+
+	for (i = 0; i < ARRAY_SIZE(addr->s6_addr16); i++) {
+		if (prefix->address.s6_addr16[i] == addr->s6_addr16[i]) {
+			result += 16;
+		} else {
+			for (i = 0; i < 16; i++) {
+				bit1 = !!addr6_get_bit(&prefix->address, result);
+				bit2 = !!addr6_get_bit(addr, result);
+
+				if (bit1 != bit2)
+					break;
+
+				result++;
+			}
+
+			break;
+		}
+	}
+
+	return result;
+}
+
+static struct rtrie_node *find_longest_common_prefix6(struct in6_addr *addr)
+{
+	struct rtrie_node *node;
+	unsigned int node_match;
+	unsigned int left_match;
+	unsigned int right_match;
+
+	node = eamt.tree6;
+	if (!node)
+		return NULL;
+
+	node_match = match6(get_prefix6(node), addr);
+	if (!node_match)
+		return NULL;
+
+	while (!node->is_leaf) {
+		left_match = match6(get_prefix6(node->left), addr);
+		right_match = match6(get_prefix6(node->right), addr);
+
+		if (node_match == left_match && node_match == right_match) {
+			return node;
+		} else if (left_match > right_match) {
+			node = node->left;
+			node_match = left_match;
+		} else if (left_match < right_match) {
+			node = node->right;
+			node_match = right_match;
+		} else {
+			/* TODO improve error msg. */
+			WARN(true, "Inconsistent rtrie!");
+			return NULL;
+		}
+	}
+
+	return node;
+}
+
+/**
+ * This function assumes all involved prefixes lack suffix (as they're always
+ * supposed to).
+ */
+static int get_common_prefix(struct rtrie_node *node, struct eamt_entry *entry,
+		struct ipv6_prefix *result)
+{
+	struct ipv6_prefix *prefix1, *prefix2;
+	__be16 chunk1, chunk2;
+	unsigned int bit1, bit2;
+	unsigned int i;
+	unsigned int min_len;
+	int comparison = 0;
+
+	prefix1 = get_prefix6(node);
+	prefix2 = &entry->prefix6;
+	memset(result, 0, sizeof(*result));
+
+	for (i = 0; i < ARRAY_SIZE(prefix1->address.s6_addr16); i++) {
+		chunk1 = prefix1->address.s6_addr16[i];
+		chunk2 = prefix2->address.s6_addr16[i];
+
+		if (chunk1 == chunk2) {
+			result->address.s6_addr16[i] = chunk1;
+			result->len += 16;
+		} else {
+			comparison = be16_to_cpu(chunk2) - be16_to_cpu(chunk1);
+
+			for (i = 0; i < 16; i++) {
+				bit1 = !!addr6_get_bit(&prefix1->address, result->len);
+				bit2 = !!addr6_get_bit(&prefix2->address, result->len);
+
+				if (bit1 != bit2)
+					break;
+
+				addr6_set_bit(&result->address, result->len, bit1);
+				result->len++;
+			}
+
+			break;
+		}
+	}
+
+	min_len = min(prefix1->len, prefix2->len);
+	if (result->len > min_len)
+		result->len = min_len;
+
+	return (comparison == 0) ? (prefix2->len - prefix1->len) : comparison;
+}
+
+static int __add6(struct rtrie_node *node, struct eamt_entry *new_eamt)
+{
+	struct rtrie_inode6 *new_inode;
+	struct ipv6_prefix new_prefix;
+	int comparison;
+
+	comparison = get_common_prefix(node, new_eamt, &new_prefix);
+	new_inode = inode6_create(&new_prefix);
+	if (!new_inode)
+		return -ENOMEM;
+
+	if (comparison > 0) {
+		rtrie_add_right(&eamt.tree6, node, &new_inode->tree6_hook,
+				&new_eamt->tree6_hook);
+	} else if (comparison < 0) {
+		rtrie_add_left(&eamt.tree6, node, &new_inode->tree6_hook,
+				&new_eamt->tree6_hook);
+	} else {
+		/* TODO improve error msg. */
+		log_err("The IPv6 prefix is already mapped.");
+		kfree(new_inode);
 		return -EEXIST;
 	}
 
-	/* The eam_entry is not on the table, so create it. */
-	eam = eamt_create_entry(ip6_pref, ip4_pref);
-	if (!eam) {
-		spin_unlock_bh(&eam_lock);
-		return -ENOMEM;
-	}
-
-	/* Index it by IPv6. We already have the slot, so we don't need to do another rbtree_find(). */
-	rb_link_node(&eam->tree6_hook, parent, node);
-	rb_insert_color(&eam->tree6_hook, &eam_table.EAMT_tree6);
-
-	/* Index it by IPv4. */
-	error = rbtree_add(eam, &eam->pref4, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
-			tree4_hook);
-	if (error) {
-		rb_erase(&eam->tree6_hook, &eam_table.EAMT_tree6);
-		spin_unlock_bh(&eam_lock);
-		log_err("IPv4 Prefix %pI4/%u could not be added to the database. Maybe an entry with the "
-				"same IPv4 Prefix and different IPv6 Prefix already exists?", &eam->pref4.address,
-				eam->pref4.len);
-		eam_kfree(eam);
-		return error;
-	}
-
-	eam_table.count++;
-	spin_unlock_bh(&eam_lock);
 	return 0;
+}
+
+int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
+{
+	struct rtrie_node *node;
+	struct eamt_entry *new;
+	int error = 0;
+
+	error = validate_prefixes(prefix6, prefix4);
+	if (error)
+		return error;
+
+	new = eamt_entry_create(prefix6, prefix4);
+	if (!new)
+		return -ENOMEM;
+
+	spin_lock_bh(&eamt_lock);
+
+	/* TODO test first bit doesn't match root. */
+	node = find_longest_common_prefix6(&prefix6->address);
+	if (node) {
+		log_debug("fusionando con %pI6c/%u",
+				&get_prefix6(node)->address,
+				get_prefix6(node)->len);
+
+		error = __add6(node, new);
+		if (error) {
+			kfree(new);
+			goto end;
+		}
+	} else if (eamt.tree6) {
+		error = __add6(eamt.tree6, new);
+		if (error) {
+			kfree(new);
+			goto end;
+		}
+	} else {
+		eamt.tree6 = &new->tree6_hook;
+	}
+
+	eamt.count++;
+
+end:
+	spin_unlock_bh(&eamt_lock);
+	return error;
+}
+
+/**
+ * Returns the longest prefix leaf node that matches @addr.
+ */
+static struct rtrie_node *find_addr6(struct in6_addr *addr)
+{
+	struct rtrie_node *node;
+
+	node = eamt.tree6;
+	if (!node || !prefix6_contains(get_prefix6(node), addr))
+		return NULL;
+
+	while (node && !node->is_leaf) {
+		if (prefix6_contains(get_prefix6(node->left), addr)) {
+			node = node->left;
+			continue;
+		}
+
+		if (prefix6_contains(get_prefix6(node->right), addr)) {
+			node = node->right;
+			continue;
+		}
+
+		return NULL;
+	}
+
+	return node;
 }
 
 int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 {
-	int count;
-	struct eam_entry *eam;
+	struct rtrie_node *node;
 
-	spin_lock_bh(&eam_lock);
+	spin_lock_bh(&eamt_lock);
 
-	if (prefix6) {
-		eam = rbtree_find(prefix6, &eam_table.EAMT_tree6, compare_prefix6, struct eam_entry,
-				tree6_hook);
-		if (!eam) {
-			spin_unlock_bh(&eam_lock);
-			log_err("There is no EAM entry for prefix %pI6c/%u.", &prefix6->address, prefix6->len);
-			return -ESRCH;
-		}
-
-		if (prefix4 && !prefix4_equals(prefix4, &eam->pref4)) {
-			log_err("The EAM entry whose 6-prefix is %pI6c/%u is mapped to %pI4/%u, not %pI4/%u.",
-					&eam->pref6.address, eam->pref6.len,
-					&eam->pref4.address, eam->pref4.len,
-					&prefix4->address, prefix4->len);
-			spin_unlock_bh(&eam_lock);
-			return -EINVAL;
-		}
-
-		count = eam_remove(eam, &eam_table);
-
-	} else if (prefix4) {
-		eam = rbtree_find(prefix4, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
-				tree4_hook);
-		if (!eam) {
-			spin_unlock_bh(&eam_lock);
-			log_err("There is no EAM entry for prefix %pI4/%u.", &prefix4->address, prefix4->len);
-			return -ESRCH;
-		}
-
-		count = eam_remove(eam, &eam_table);
-	} else {
-		spin_unlock_bh(&eam_lock);
-		WARN(true, "Both prefixes are NULL.");
-		return -EINVAL;
+	node = find_addr6(&prefix6->address);
+	if (!node || !prefix6_equals(get_prefix6(node), prefix6)) {
+		spin_unlock_bh(&eamt_lock);
+		return -ESRCH;
 	}
 
-	eam_table.count -= count;
-	spin_unlock_bh(&eam_lock);
-	eam_kfree(eam);
+	rtrie_rm(&eamt.tree6, node);
+	eamt.count--;
+
+	spin_unlock_bh(&eamt_lock);
+
+	if (node->parent)
+		kfree(get_inode6(node->parent));
+	kfree(get_entry6(node));
+
 	return 0;
 }
 
 bool eamt_contains_ipv6(struct in6_addr *addr)
 {
-	struct ipv6_prefix prefix;
-	struct eam_entry *eam;
+	struct rtrie_node *node;
+	bool result;
 
-	if (!addr) {
-		log_err("addr6 can't be NULL");
-		return false;
-	}
+	spin_lock_bh(&eamt_lock);
 
-	prefix.address = *addr;
-	prefix.len = IPV6_PREFIX;
+	node = find_addr6(addr);
+	result = !!node;
 
-	spin_lock_bh(&eam_lock);
-	eam = rbtree_find(&prefix, &eam_table.EAMT_tree6, compare_prefix6, struct eam_entry,
-			tree6_hook);
+	spin_unlock_bh(&eamt_lock);
 
-	if (!eam) {
-		spin_unlock_bh(&eam_lock);
-		return false;
-	}
-	spin_unlock_bh(&eam_lock);
-	return true;
-}
-
-bool eamt_contains_ipv4(__be32 addr)
-{
-	struct ipv4_prefix prefix;
-	struct eam_entry *eam;
-
-	prefix.address.s_addr = addr;
-	prefix.len = IPV4_PREFIX;
-
-	spin_lock_bh(&eam_lock);
-	eam = rbtree_find(&prefix, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
-			tree4_hook);
-
-	if (!eam) {
-		spin_unlock_bh(&eam_lock);
-		return false;
-	}
-	spin_unlock_bh(&eam_lock);
-	return true;
-}
-
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
-{
-	struct ipv4_prefix prefix4;
-	struct ipv6_prefix prefix6;
-	struct eam_entry *eam;
-	unsigned int suffix4_len;
-	unsigned int i;
-
-	if (!addr) {
-		log_err("The IPv4 Address 'addr' can't be NULL");
-		return -EINVAL;
-	}
-
-	/* Find the entry. */
-	prefix4.address.s_addr = addr->s_addr;
-	prefix4.len = IPV4_PREFIX;
-
-	spin_lock_bh(&eam_lock);
-	eam = rbtree_find(&prefix4, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry,
-			tree4_hook);
-	if (!eam) {
-		spin_unlock_bh(&eam_lock);
-		return -ESRCH;
-	}
-
-	prefix4 = eam->pref4;
-	prefix6 = eam->pref6;
-	spin_unlock_bh(&eam_lock);
-
-	/* Translate the address. */
-	suffix4_len = IPV4_PREFIX - prefix4.len;
-
-	for (i = 0; i < suffix4_len; i++) {
-		unsigned int offset4 = prefix4.len + i;
-		unsigned int offset6 = prefix6.len + i;
-		addr6_set_bit(&prefix6.address, offset6, addr4_get_bit(addr, offset4));
-	}
-
-	*result = prefix6.address; /* I'm assuming the prefix address is already zero-trimmed. */
-	return 0;
+	return result;
 }
 
 int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 {
+	struct rtrie_node *node;
+	struct eamt_entry *eam;
 	struct ipv4_prefix prefix4;
 	struct ipv6_prefix prefix6;
-	struct eam_entry *eam;
 	unsigned int i;
 
-	if (!addr6) {
-		log_err("The IPv6 Address 'addr6' can't be NULL");
-		return -EINVAL;
-	}
+	spin_lock_bh(&eamt_lock);
 
-	prefix6.address = *addr6;
-	prefix6.len = IPV6_PREFIX;
-
-	spin_lock_bh(&eam_lock);
-	eam = rbtree_find(&prefix6, &eam_table.EAMT_tree6, compare_prefix6, struct eam_entry,
-			tree6_hook);
-	if (!eam) {
-		spin_unlock_bh(&eam_lock);
+	node = find_addr6(addr6);
+	if (!node) {
+		spin_unlock_bh(&eamt_lock);
 		return -ESRCH;
 	}
 
-	prefix4 = eam->pref4;
-	prefix6 = eam->pref6;
-	spin_unlock_bh(&eam_lock);
+	eam = get_entry6(node);
+	prefix4 = eam->prefix4;
+	prefix6 = eam->prefix6;
 
-	for (i = 0; i < IPV4_PREFIX - prefix4.len; i++) {
+	spin_unlock_bh(&eamt_lock);
+
+	for (i = 0; i < ADDR4_BITS - prefix4.len; i++) {
 		unsigned int offset4 = prefix4.len + i;
 		unsigned int offset6 = prefix6.len + i;
-		addr4_set_bit(&prefix4.address, offset4, addr6_get_bit(addr6, offset6));
+		addr4_set_bit(&prefix4.address, offset4,
+				addr6_get_bit(addr6, offset6));
 	}
 
-	*result = prefix4.address; /* I'm assuming the prefix address is already zero-trimmed. */
+	/* I'm assuming the prefix address is already zero-trimmed. */
+	*result = prefix4.address;
 	return 0;
 }
 
 int eamt_count(__u64 *count)
 {
-	spin_lock_bh(&eam_lock);
-	*count = eam_table.count;
-	spin_unlock_bh(&eam_lock);
+	spin_lock_bh(&eamt_lock);
+	*count = eamt.count;
+	spin_unlock_bh(&eamt_lock);
 	return 0;
 }
 
@@ -404,116 +442,97 @@ bool eamt_is_empty(void)
 {
 	__u64 count;
 	eamt_count(&count);
-
-	if (count)
-		return false;
-
-	return true;
+	return !count;
 }
 
-/**
- * See the function of the same name from the BIB DB module for comments on this.
- */
-static struct rb_node *find_next_chunk(struct ipv4_prefix *offset)
+///**
+// * See the function of the same name from the BIB DB module for comments on this.
+// */
+//static struct rb_node *find_next_chunk(struct ipv4_prefix *offset)
+//{
+//	struct rb_node **node, *parent;
+//	struct eam_entry *eam;
+//
+//	if (!offset)
+//		return rb_first(&eam_table.EAMT_tree4);
+//
+//	rbtree_find_node(offset, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry, tree4_hook,
+//			parent, node);
+//	if (*node)
+//		return rb_next(*node);
+//
+//	eam = rb_entry(parent, struct eam_entry, tree4_hook);
+//	return (compare_prefix4(eam, offset) < 0) ? parent : rb_next(parent);
+//}
+//
+//int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
+//		struct ipv4_prefix *offset)
+//{
+//	struct rb_node *node;
+//	int error = 0;
+//	spin_lock_bh(&eam_lock);
+//
+//	for (node = find_next_chunk(offset); node && !error; node = rb_next(node))
+//		error = func(rb_entry(node, struct eam_entry, tree4_hook), arg);
+//
+//	spin_unlock_bh(&eam_lock);
+//	return error;
+//}
+
+//static struct rtrie_node *rtrie_first(struct rtrie_node *root)
+//{
+//	struct rtrie_node *result = root;
+//
+//	while (result->left)
+//		result = result->left;
+//
+//	return result;
+//}
+
+static struct rtrie_node *rtrie_kfree(struct rtrie_node *node)
 {
-	struct rb_node **node, *parent;
-	struct eam_entry *eam;
+	struct rtrie_node *parent = node->parent;
 
-	if (!offset)
-		return rb_first(&eam_table.EAMT_tree4);
-
-	rbtree_find_node(offset, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry, tree4_hook,
-			parent, node);
-	if (*node)
-		return rb_next(*node);
-
-	eam = rb_entry(parent, struct eam_entry, tree4_hook);
-	return (compare_prefix4(eam, offset) < 0) ? parent : rb_next(parent);
-}
-
-int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
-		struct ipv4_prefix *offset)
-{
-	struct rb_node *node;
-	int error = 0;
-	spin_lock_bh(&eam_lock);
-
-	for (node = find_next_chunk(offset); node && !error; node = rb_next(node))
-		error = func(rb_entry(node, struct eam_entry, tree4_hook), arg);
-
-	spin_unlock_bh(&eam_lock);
-	return error;
-}
-
-int eamt_flush(void)
-{
-	struct eam_entry *root_eam, *eam;
-	struct rb_node *node;
-	int counter = 0;
-
-	log_debug("Emptying the EAM table...");
-	spin_lock_bh(&eam_lock);
-
-	node = eam_table.EAMT_tree4.rb_node;
-	if (!node)
-		goto success;
-
-	root_eam = rb_entry(node, struct eam_entry, tree4_hook);
-	if (!root_eam)
-		goto success;
-
-	node = rb_prev(&root_eam->tree4_hook);
-	while (node) {
-		eam = rb_entry(node, struct eam_entry, tree4_hook);
-		node = rb_prev(&eam->tree4_hook);
-		counter += eam_remove(eam, &eam_table);
+	rtrie_swap(&eamt.tree6, node, NULL);
+	if (node->is_leaf) {
+		kfree(get_entry6(node));
+	} else {
+		kfree(get_inode6(node));
 	}
 
-	node = rb_next(&root_eam->tree4_hook);
+	return parent;
+}
+
+void eamt_flush(void)
+{
+	struct rtrie_node *node;
+
+	spin_lock_bh(&eamt_lock);
+
+	node = eamt.tree6;
 	while (node) {
-		eam = rb_entry(node, struct eam_entry, tree4_hook);
-		node = rb_next(&eam->tree4_hook);
-		counter += eam_remove(eam, &eam_table);
+		if (node->left)
+			node = node->left;
+		else if (node->right)
+			node = node->right;
+		else
+			node = rtrie_kfree(node);
 	}
 
-	counter += eam_remove(root_eam, &eam_table);
-	eam_table.count -= counter;
-	/* Fall through. */
-
-success:
-	spin_unlock_bh(&eam_lock);
-	log_debug("Deleted %d EAM entries.", counter);
-	return 0;
+	eamt.tree6 = NULL;
+	spin_unlock_bh(&eamt_lock);
 }
 
 int eamt_init(void)
 {
-	entry_cache = kmem_cache_create("address_mapping_entries", sizeof(struct eam_entry), 0, 0, NULL);
-	if (!entry_cache) {
-		log_err("Could not allocate the Address mapping entry cache.");
-		return -ENOMEM;
-	}
-
-	eam_table.EAMT_tree4 = RB_ROOT;
-	eam_table.EAMT_tree6 = RB_ROOT;
-	eam_table.count = 0;
-
+	eamt.tree4 = NULL;
+	eamt.tree6 = NULL;
+	eamt.count = 0;
 	return 0;
-}
-
-static void eamt_destroy_aux(struct rb_node *node)
-{
-	eam_kfree(rb_entry(node, struct eam_entry, tree6_hook));
 }
 
 void eamt_destroy(void)
 {
 	log_debug("Emptying the Address Mapping table...");
-	/*
-	 * The values need to be released only in one of the trees
-	 * because both of them point to the same values.
-	 */
-	rbtree_clear(&eam_table.EAMT_tree6, eamt_destroy_aux);
-
-	kmem_cache_destroy(entry_cache);
+	eamt_flush();
 }

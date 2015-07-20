@@ -24,6 +24,7 @@ fn = function ("this parameter is a pointer to a function.")
 frag = fragment
 hdr = header
 init = initialize
+inode = internal node (https://en.wikipedia.org/wiki/Tree_%28data_structure%29)
 l2 = layer 2 (link)
 l3 = layer 3 (network; IPv4 or IPv6.)
 l4 = layer 4 (transport; TCP, UDP. Also ICMP and ICMPv6 for convenience.)
@@ -41,6 +42,7 @@ rm = remove
 	-> "remove" stands for "take out of a database".
 	   Sometimes, this also means the entry is deleted.
 	-> "delete" means to actually erase the entry.
+rtrie = radix trie (https://en.wikipedia.org/wiki/Radix_trie)
 skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
 taddr = Transport address (A network layer id plus a transport layer id).
 trans = transitory session (inherited from RFC 6146.)

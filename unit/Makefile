@@ -31,24 +31,24 @@ EAMT = eamt
 PALLOC = palloc4
 
 
-obj-m += $(ADDR).o
-obj-m += $(ITERATOR).o
-obj-m += $(HASHTABLE).o
-obj-m += $(RFC6052).o
-obj-m += $(PKT).o
-obj-m += $(RBTREE).o
-obj-m += $(POOL4DB).o
-obj-m += $(BIBTABLE).o
-obj-m += $(BIBDB).o
-obj-m += $(SESSIONTABLE).o
-obj-m += $(SESSIONDB).o
-obj-m += $(FRAGDB).o
-obj-m += $(FILTERING).o
-obj-m += $(TRANSLATE).o
-obj-m += $(CONFIG_PROTO).o
-obj-m += $(LOGTIME).o
+#obj-m += $(ADDR).o
+#obj-m += $(ITERATOR).o
+#obj-m += $(HASHTABLE).o
+#obj-m += $(RFC6052).o
+#obj-m += $(PKT).o
+#obj-m += $(RBTREE).o
+#obj-m += $(POOL4DB).o
+#obj-m += $(BIBTABLE).o
+#obj-m += $(BIBDB).o
+#obj-m += $(SESSIONTABLE).o
+#obj-m += $(SESSIONDB).o
+#obj-m += $(FRAGDB).o
+#obj-m += $(FILTERING).o
+#obj-m += $(TRANSLATE).o
+#obj-m += $(CONFIG_PROTO).o
+#obj-m += $(LOGTIME).o
 obj-m += $(EAMT).o
-obj-m += $(PALLOC).o
+#obj-m += $(PALLOC).o
 
 
 MIN_REQS = ../mod/common/types.o \
@@ -177,7 +177,7 @@ $(LOGTIME)-objs += $(MIN_REQS)
 $(LOGTIME)-objs += log_time_test.o
 
 $(EAMT)-objs += $(MIN_REQS)
-$(EAMT)-objs += ../mod/common/rbtree.o
+$(EAMT)-objs += ../mod/common/rtrie.o
 $(EAMT)-objs += eamt_test.o
 
 $(PALLOC)-objs += $(MIN_REQS)

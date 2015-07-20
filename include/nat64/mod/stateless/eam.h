@@ -16,16 +16,16 @@
  * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4 Prefix to an IPv6 Prefix
  * and vice versa.
  */
-struct eam_entry {
-	/** The prefix address for the IPv4 network. */
-	struct ipv4_prefix pref4;
-	/** The prefix address for the IPv6 network. */
-	struct ipv6_prefix pref6;
-	/** Appends this entry to the database's IPv6 index. */
-	struct rb_node tree6_hook;
-	/** Appends this entry to the database's IPv4 index. */
-	struct rb_node tree4_hook;
-};
+//struct eam_entry {
+//	/** The prefix address for the IPv4 network. */
+//	struct ipv4_prefix pref4;
+//	/** The prefix address for the IPv6 network. */
+//	struct ipv6_prefix pref6;
+//	/** Appends this entry to the database's IPv6 index. */
+//	struct rb_node tree6_hook;
+//	/** Appends this entry to the database's IPv4 index. */
+//	struct rb_node tree4_hook;
+//};
 
 int eamt_init(void);
 void eamt_destroy(void);
@@ -46,7 +46,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
  *
  * otherwise return error.
  */
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
+//int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
 
 /**
  * Look in the IPv6 address mapping table, if the IPv6 address "addr6" is part of a prefix indexed
@@ -62,7 +62,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
  *
  * O(n), where n is the number of entries in the entire database.
  */
-int eamt_flush(void);
+void eamt_flush(void);
 
 /**
  * Returns true if "addr" is in the eam database, otherwise return false.
@@ -76,7 +76,7 @@ bool eamt_contains_ipv4(__be32 addr);
 
 int eamt_count(__u64 *count);
 bool eamt_is_empty(void);
-int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
-		struct ipv4_prefix *offset);
+//int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
+//		struct ipv4_prefix *offset);
 
 #endif /* _JOOL_MOD_EAM_H */
