@@ -24,42 +24,6 @@ static bool init(void)
 	return eamt_init() ? false : true;
 }
 
-static void print_node(struct rtrie_node *node, unsigned int level)
-{
-	struct eamt_entry *entry;
-	struct rtrie_inode6 *inode6;
-	unsigned int i;
-
-	if (!node)
-		return;
-
-	for (i = 0; i < level; i++)
-		printk("| ");
-
-	if (node->is_leaf) {
-		entry = get_entry6(node);
-		printk("(EAMT)  %pI6c/%u", &entry->prefix6.address, entry->prefix6.len);
-	} else {
-		inode6 = get_inode6(node);
-		printk("(INODE) %pI6c/%u", &inode6->prefix6.address, inode6->prefix6.len);
-	}
-
-	printk("\n");
-
-	print_node(node->left, level + 1);
-	print_node(node->right, level + 1);
-}
-
-static void print_rtrie(struct rtrie_node *root)
-{
-	printk(KERN_DEBUG "Printing trie!\n");
-	if (root) {
-		print_node(root, 0);
-	} else {
-		printk("  (empty)\n");
-	}
-}
-
 static void end(void)
 {
 	eamt_destroy();
@@ -84,7 +48,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 	if (error) {
 		log_err("Errcode %d; I'm not going to print the tree.", error);
 	} else {
-		print_rtrie(eamt.tree6);
+		rtrie_print(eamt.tree6);
 	}
 
 	return error;
@@ -157,6 +121,21 @@ static bool test(char *addr4_str, char *addr6_str)
 	return success;
 }
 
+static bool test_fail6(char *addr6_str, int error)
+{
+	struct in6_addr addr6;
+	struct in_addr addr4;
+	bool success;
+
+	log_debug("Testing %s spews %d...", addr6_str, error);
+
+	if (str_to_addr6(addr6_str, &addr6))
+		return false;
+
+	success = ASSERT_INT(error, eamt_get_ipv4_by_ipv6(&addr6, &addr4), "code");
+	return success;
+}
+
 static bool daniel_test(void)
 {
 	bool success = true;
@@ -174,6 +153,9 @@ static bool daniel_test(void)
 	success &= test("10.0.0.27", "2001:db8::2b");
 	success &= test("10.0.0.254", "2001:db8::111");
 	success &= test("10.0.1.15", "2001:db8::20f");
+
+	success &= test_fail6("2001:db8::8", -ESRCH);
+	success &= test_fail6("8000::", -ESRCH);
 
 	return success;
 }
@@ -233,7 +215,7 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6, int exp
 	success = ASSERT_INT(expected_error, eamt_remove(addr6 ? &prefix6 : NULL,
 			addr4 ? &prefix4 : NULL), "removing EAM entry");
 
-	print_rtrie(eamt.tree6);
+	rtrie_print(eamt.tree6);
 
 	return success;
 }
