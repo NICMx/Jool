@@ -14,7 +14,7 @@
    height="384"
    id="svg2"
    version="1.1"
-   inkscape:version="0.48.4 r9939"
+   inkscape:version="0.91 r13725"
    sodipodi:docname="vanilla.svg">
   <defs
      id="defs4">
@@ -56,14 +56,14 @@
      inkscape:pageshadow="2"
      inkscape:zoom="2.234375"
      inkscape:cx="300"
-     inkscape:cy="192"
+     inkscape:cy="243.6616"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:window-width="1920"
-     inkscape:window-height="1028"
-     inkscape:window-x="0"
-     inkscape:window-y="24"
+     inkscape:window-width="1600"
+     inkscape:window-height="838"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true">
@@ -161,7 +161,7 @@
          style="fill:none;stroke:#000000;stroke-width:1.02233195;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;display:inline" />
       <path
          transform="matrix(0.71302118,0,0,1,2.0088518,0)"
-         d="m 12,227 c 0,1.38071 -1.119288,2.5 -2.5,2.5 -1.3807119,0 -2.5,-1.11929 -2.5,-2.5 0,-1.38071 1.1192881,-2.5 2.5,-2.5 1.380712,0 2.5,1.11929 2.5,2.5 z"
+         d="M 12,227 A 2.5,2.5 0 0 1 9.5,229.5 2.5,2.5 0 0 1 7,227 2.5,2.5 0 0 1 9.5,224.5 2.5,2.5 0 0 1 12,227 Z"
          sodipodi:ry="2.5"
          sodipodi:rx="2.5"
          sodipodi:cy="227"
@@ -195,7 +195,7 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="500"
        y="988.36218"
        id="text4173"
@@ -203,7 +203,7 @@
          sodipodi:role="line"
          id="tspan4175"
          x="500"
-         y="988.36218">src: <tspan
+         y="988.36218">fuente: <tspan
    style="fill:#0000ff"
    id="tspan3053">192.0.2.16</tspan></tspan><tspan
          sodipodi:role="line"
@@ -214,7 +214,7 @@
    id="tspan3059">198.51.100.8</tspan></tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="300"
        y="988.36218"
        id="text4197"
@@ -222,11 +222,11 @@
          sodipodi:role="line"
          x="300"
          y="988.36218"
-         id="tspan3120">Appending</tspan><tspan
+         id="tspan3561">Añadiendo</tspan><tspan
          sodipodi:role="line"
          x="300"
          y="1003.3622"
-         id="tspan3122">prefix...</tspan></text>
+         id="tspan3122">prefijo...</tspan></text>
     <use
        x="0"
        y="0"
@@ -240,12 +240,12 @@
        id="text4205"
        y="988.36218"
        x="100"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          y="988.36218"
          x="100"
          id="tspan4207"
-         sodipodi:role="line">src: 2001:db8::<tspan
+         sodipodi:role="line">fuente: 2001:db8::<tspan
    style="fill:#0000ff"
    id="tspan3055">192.0.2.16</tspan></tspan><tspan
          id="tspan4209"
@@ -259,12 +259,12 @@
        id="text4219"
        y="860.36218"
        x="500"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          y="860.36218"
          x="500"
          id="tspan4221"
-         sodipodi:role="line">src: <tspan
+         sodipodi:role="line">fuente: <tspan
    style="fill:#008000"
    id="tspan3047">198.51.100.8</tspan></tspan><tspan
          id="tspan4223"
@@ -278,16 +278,16 @@
        id="text4225"
        y="860.36218"
        x="300"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          id="tspan4229"
          y="860.36218"
          x="300"
-         sodipodi:role="line">Removing</tspan><tspan
+         sodipodi:role="line">Removiendo</tspan><tspan
          y="875.36218"
          x="300"
          sodipodi:role="line"
-         id="tspan3130">prefix...</tspan></text>
+         id="tspan3130">prefijo...</tspan></text>
     <use
        height="512"
        width="512"
@@ -298,7 +298,7 @@
        x="0" />
     <text
        xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="100"
        y="860.36218"
        id="text4233"
@@ -306,7 +306,7 @@
          sodipodi:role="line"
          x="100"
          y="860.36218"
-         id="tspan4237">src: 2001:db8::<tspan
+         id="tspan4237">fuente: 2001:db8::<tspan
    style="fill:#008000"
    id="tspan3045">198.51.100.8</tspan></tspan><tspan
          sodipodi:role="line"
