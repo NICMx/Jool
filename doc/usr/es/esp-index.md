@@ -103,7 +103,7 @@ Los cambios menos relevantes son
 2. <a href="https://github.com/NICMx/NAT64/issues/57" target="_blank"> La actualización del estado de SNMP es regresado</a>. Ver `nstat` y `netstat -s`.
 3. El <a href="https://github.com/NICMx/NAT64/issues/108" target="_blank">checksum es actualizado correctamente en los paquetes de Error de ICMP truncados</a>.
 
-NOTA: Cuando un error de ICMP es demasiado grande, no se fragmenta; se trunca. Esto es, porque ya que es un mensaje de error, entonces no es necesario que todo el mensaje llegue.
+NOTA: Cuando un error de ICMP es demasiado grande, no se fragmenta; se trunca. Esto se debe a que, puesto que es un mensaje de error entonces no es necesario que todo el mensaje llegue.
 
 ### 2014-09-01
 
