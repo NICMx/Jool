@@ -9,7 +9,7 @@ title: Jool - Home
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](intro-nat64.html) para Linux.
+Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux.
 
 * [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](esp-download.html) para descargar Jool.
