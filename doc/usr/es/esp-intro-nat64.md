@@ -5,7 +5,7 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-# Introducción a los Mecanismos de Transición de IPv6 soportados por Jool
+# Mecanismos de Transición de IPv6 soportados por Jool
 
 ## Indice
 
