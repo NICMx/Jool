@@ -1,11 +1,11 @@
 ---
 layout: documentation
-title: Documentación - Introducción a NAT64
+title: Documentación - Introducción a los Mecanismos de Transición
 ---
 
-[Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > NAT64
+[Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-# Introducción a Traducción IPv4/IPv6
+# Introducción a los Mecanismos de Transición de IPv6 soportados por Jool
 
 ## Indice
 
@@ -16,7 +16,7 @@ title: Documentación - Introducción a NAT64
     3. [Stateful NAT64](#stateful-nat64)
     
 ## Introducción
- Este documento proporciona una introducción general a SIIT y NAT64.
+ Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
  
 ## Traducción IPv4/IPv6
  
@@ -32,7 +32,7 @@ Una implementación SIIT modifica los encabezados de red y algunas veces los che
 
 Eso es todo en realidad. Continua leyendo para mas detalles y ejemplos.
 
-## SIIT con EAM
+### SIIT con EAM
 
 Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
 ![Fig.1 - Red de ejemplo EAM](images/network/eam.svg)
@@ -55,7 +55,7 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro pue
 
 "EAM" representa por sus siglas en inglés "Explicit Address Mapping", y es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias. Vea el [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) o [nuestro resumen de él](esp-misc-eamt.html) para más información.
 
-## SIIT (tradicional)
+### SIIT (tradicional)
 
 El modo tradicional de SIIT es más constrictivo. Como consecuencia, necesitamos cambiar la red de ejemplo IPv6:
 
@@ -71,7 +71,7 @@ Aunque esta explicación pudiera hacer parecer que  SIIT "EAM" y SIIT "tradicion
 
 SIIT esta definido en el [RFC 6145](http://tools.ietf.org/html/rfc6145). El hack de mapeo de direcciones tiene más maneras de adjuntar la dirección IPv4 que no se muestran aquí, y está completamente definido por el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
-## Stateful NAT64
+### Stateful NAT64
 
 Este modo es el más parecido a lo que la gente entiende como "NAT". Recordemos, un Stateful NAT opera de la siguiente manera:
 
