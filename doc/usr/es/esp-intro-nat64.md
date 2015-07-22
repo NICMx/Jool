@@ -11,9 +11,9 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 1. [Introducción](#introduccion)
 2. [Traducción IPv4/IPv6](#traudccion-ipv4ipv6)
-	1. [SIIT con EAM](#siit-con-eam)
-    2. [SIIT tradicional](#siit-tradicional)
-    3. [Stateful NAT64](#stateful-nat64)
+	1. [`SIIT con EAM`](#siit-con-eam)
+    2. [`SIIT tradicional`](#siit-tradicional)
+    3. [`Stateful NAT64`](#stateful-nat64)
     
 ## Introducción
  Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
