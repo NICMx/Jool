@@ -11,7 +11,7 @@ title: Documentación - Instalación de los módulos de kernel
 
 1. [Introducción](#introduccion)
 2. [Requerimientos](#requerimientos)
-	1. [`Kernels válidos`](#kernels-soportados)
+	1. [`Kernels Válidos`](#kernels-soportados)
 	2. [`Encabezados del Kernel`](#encabezado-kernel)
 	3. [`Interfaces de Red`](#interfaces)
 3. [Compilación](#compilacion)
@@ -24,11 +24,11 @@ Jool tiene cuatro componentes:
 1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo). Uno es la implementación SIIT y el otro es el Stateful NAT64. Para ser habilitados necesitan ser insertados en el kernel, y este documento explica cómo realizar esto.
 2. Dos Herramientas de Configuración, una para SIIT y la otra para NAT64. Ambas son aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario). Éstas tienen su propio [documento de instalación](esp-usr-install.html).
 
-Su forma de instalación es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son una extensión al kernel, les servirá de gran utilidad.
+Su forma de instalación es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les servirá de gran utilidad.
 
 ## Requerimientos
 
-### `Kernel válido`
+### `Kernels Válidos`
 
 Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux [haz click aquí](esp-intro-jool.html#compatibilidad). Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!
 
@@ -51,7 +51,7 @@ $ apt-get install linux-headers-$(uname -r)
 
 ### `Interfaces de Red`
 
-Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 o IPv4. Es posible usar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán ***dos interfaces de red separadas: una para IPv6 y otra para IPv4***. Y de esta manera identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar si las interfaces de red disponibles ejecue el comando ip link `show`. Por ejemplo:
+Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 o IPv4. Es posible usar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán ***dos interfaces de red separadas: una para IPv6 y otra para IPv4***. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar si las interfaces de red están disponibles ejecue el comando ip link `show`. Por ejemplo:
 
 {% highlight bash %}
 $ /sbin/ip link show
@@ -69,9 +69,9 @@ Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos o
 * Las versiones oficiales en nuestro sitio Web. Éstas se encuentran en la siguiente [Página de Descarga](esp-download.html).
 * Las versiones en desarrollo en nuestro repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
 
-Si eliges la segunda opción te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, están en constante cambio y no hay garantía.
+Si eliges la segunda opción te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía.
 
-Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho, entonces solo ejecutar `make` y listo.
+Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho, entonces solo ejecuta `make` y listo.
 
 En resumen, para compilar ambos módulos SIIT y NAT64, puedes encontrar el archivo Makefile global en la carpeta `mod`
 
@@ -95,11 +95,11 @@ user@node:~/Jool-<version>/mod# make modules_install
 > 
 > A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
 > 
-> Si tu kernel NO fue configurado para _solicitar_ esta característica (los kernels de muchas distribuciones no lo hacen), no tendras problema. Sólo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: "Can't read private key"; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
+> Si tu kernel NO fue configurado para _solicitar_ esta característica (los kernels de muchas distribuciones no lo hacen), no tendrás problema. Sólo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: "Can't read private key"; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
 > 
 > Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aqui.
 
-  Nota que el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás ejecutar el comando `depmod` para que se indexen los nuevos módulos:
+  Nota que, el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás ejecutar el comando `depmod` para que se indexen los nuevos módulos:
 
 {% highlight bash %}
 user@node:~# /sbin/depmod
