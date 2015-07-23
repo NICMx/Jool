@@ -14,29 +14,29 @@ title: Documentación - Parámetros > Global
 3. [Ejemplos](#ejemplos)
 4. [Llaves](#keys)
 	1. [`--enable` | `--disable`](#enable---disable)
-	1. [`--address-dependent-filtering`](#address-dependent-filtering)
-	2. [`--drop-icmpv6-info`](#drop-icmpv6-info)
-	3. [`--drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
-	4. [`--udp-timeout`](#udp-timeout)
-	5. [`--tcp-est-timeout`](#tcp-est-timeout)
-	6. [`--tcp-trans-timeout`](#tcp-trans-timeout)
-	7. [`--icmp-timeout`](#icmp-timeout)
-	8. [`--fragment-arrival-timeout`](#fragment-arrival-timeout)
-	8. [`--maximum-simultaneous-opens`](#maximum-simultaneous-opens)
-	8. [`--source-icmpv6-errors-better`](#source-icmpv6-errors-better)
-	8. [`--logging-bib`](#logging-bib)
-	8. [`--logging-session`](#logging-session)
-	9. [`--zeroize-traffic-class`](#zeroize-traffic-class)
-	10. [`--override-tos`](#override-tos)
-	11. [`--tos`](#tos)
-	12. [`--allow-atomic-fragments`](#allow-atomic-fragments)
+	2. [`--address-dependent-filtering`](#address-dependent-filtering)
+	3. [`--drop-icmpv6-info`](#drop-icmpv6-info)
+	4. [`--drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
+	5. [`--udp-timeout`](#udp-timeout)
+	6. [`--tcp-est-timeout`](#tcp-est-timeout)
+	7. [`--tcp-trans-timeout`](#tcp-trans-timeout)
+	8. [`--icmp-timeout`](#icmp-timeout)
+	9. [`--fragment-arrival-timeout`](#fragment-arrival-timeout)
+	10. [`--maximum-simultaneous-opens`](#maximum-simultaneous-opens)
+	11. [`--source-icmpv6-errors-better`](#source-icmpv6-errors-better)
+	12. [`--logging-bib`](#logging-bib)
+	13. [`--logging-session`](#logging-session)
+	14. [`--zeroize-traffic-class`](#zeroize-traffic-class)
+	15. [`--override-tos`](#override-tos)
+	16. [`--tos`](#tos)
+	17. [`--allow-atomic-fragments`](#allow-atomic-fragments)
 		1. [`--setDF`](#setdf)
 		2. [`--genFH`](#genfh)
 		3. [`--genID`](#genid)
 		4. [`--boostMTU`](#boostmtu)
-	13. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
-	14. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
-	13. [`--mtu-plateaus`](#mtu-plateaus)
+	18. [`--amend-udp-checksum-zero`](#amend-udp-checksum-zero)
+	19. [`--randomize-rfc6791-addresses`](#randomize-rfc6791-addresses)
+	20. [`--mtu-plateaus`](#mtu-plateaus)
 
 ## Descripción
 
@@ -87,7 +87,7 @@ REANUDA Y PAUSA LA TRADUCCIÓN DE PAQUETES, RESPECTIVAMENTE.
 
 Esto puede ser muy útil si requieres cambiar más de un parámetro de configuración y no deseas que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos; pero, si prefieres que Jool no se detenga mientras estas reconfigurando, usa disable.
 
-Mientras Jool está inactivo, *los timeouts no serán pausados** para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados puedan ser desechados.
+Mientras Jool está inactivo, *los timeouts no serán pausados* para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados puedan ser desechados.
 
 ### `--address-dependent-filtering`
 

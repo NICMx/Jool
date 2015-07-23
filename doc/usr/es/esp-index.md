@@ -9,7 +9,7 @@ title: Jool - Home
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux.
+Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en Raspbian.
 
 * [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](esp-download.html) para descargar Jool.
@@ -183,12 +183,12 @@ Esta contiene dos correcciones:
 
 ### 2014-01-15
 
-La version 3.1.0 ha sido liberada. ¡Jool finalmente maneja fragmentación!
+La version 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
 
 Otras correcciones importantes:
 
-* Se realizaron importantes optimizaciones en ambas base de datos: BIB y session. El módulo debería de escalar mucho más elegantemente cuando los clientes se encuentren demandando mas tráfico.
-* Jool no requiere más una dirección IPv4 por separado.
-* El pánico del kernel cuando se removia el módulo ha sido arreglado.
-* Y [más cosas] (https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
+* Se realizaron optimizaciones relevantes en ambas base de datos: BIB y session. El módulo deberá escalar mucho más elegantemente cuando los clientes se encuentren demandando más tráfico.
+* Jool ya no requiere de otra dirección IPv4 por separado.
+* El pánico del kernel cuando se removia el módulo ha sido suprimido.
+* [Y además] (https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
 
