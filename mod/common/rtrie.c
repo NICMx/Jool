@@ -1,14 +1,10 @@
 #include "nat64/mod/common/rtrie.h"
-#include <linux/types.h> /* TODO this can be removed. */
+#include "nat64/mod/common/types.h" /* TODO this can be removed. */
 #include <linux/slab.h>
 
 static bool has_children(struct rtrie_node *node)
 {
-	/*
-	 * As currently implemented, a fully-initialized node never has only
-	 * one child.
-	 */
-	return node->left;
+	return node->left || node->right;
 }
 
 static bool is_leaf(struct rtrie_node *node)
@@ -108,8 +104,8 @@ static bool rtree_node_equals(struct rtrie_node *n1, struct rtrie_node *n2)
 }
 
 /**
- * Returns the node from @root's trie which best matches @string, whether leaf
- * or inode.
+ * find_longest_common_prefix - Returns the node from @root's trie which best
+ * matches @string, whether leaf or inode.
  *
  * TODO test first bit doesn't match root
  * TODO test adding duplicate nodes
@@ -122,31 +118,66 @@ static struct rtrie_node *find_longest_common_prefix(struct rtrie_node *root,
 	unsigned int left_match;
 	unsigned int right_match;
 
+	if (!node)
+		return NULL;
+
 	node_match = match(&node->string, str);
 	if (!node_match)
 		return NULL;
 
 	while (has_children(node)) {
+		if (!node->left) {
+			right_match = match(&node->right->string, str);
+			if (right_match == node_match)
+				break;
+			if (unlikely(right_match < node_match))
+				goto fault;
+			node = node->right;
+			node_match = right_match;
+			continue;
+		}
+
+		if (!node->right) {
+			left_match = match(&node->left->string, str);
+			if (left_match == node_match)
+				break;
+			if (unlikely(left_match < node_match))
+				goto fault;
+			node = node->left;
+			node_match = left_match;
+			continue;
+		}
+
 		left_match = match(&node->left->string, str);
 		right_match = match(&node->right->string, str);
 
-		if (node_match == left_match && node_match == right_match) {
-			break;
-		} else if (left_match > right_match) {
+		if (unlikely(right_match < node_match))
+			goto fault;
+		if (unlikely(left_match < node_match))
+			goto fault;
+
+		if (left_match > right_match) {
 			node = node->left;
 			node_match = left_match;
-		} else if (left_match < right_match) {
+			continue;
+		}
+
+		if (right_match > left_match) {
 			node = node->right;
 			node_match = right_match;
-		} else {
-			/* TODO improve error msg. */
-			WARN(true, "Inconsistent rtrie!");
-			return NULL;
+			continue;
 		}
+
+		break;
 	}
 
 	*common_bits = node_match;
 	return node;
+
+fault:
+	/* TODO maybe remove this? */
+	WARN(true, "Inconsistent trie!");
+	return NULL;
 }
 
 static void rtrie_swap(struct rtrie_node **root, struct rtrie_node *old,
@@ -182,16 +213,16 @@ int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
 	if (!leaf)
 		return -ENOMEM;
 
-	if (!*root) {
-		*root = leaf;
-		return 0;
-	}
-
 	sibling = find_longest_common_prefix(*root, &leaf->string, &common_bits);
 	if (!sibling) {
 		sibling = *root;
+		if (!sibling) {
+			*root = leaf;
+			return 0;
+		}
 		common_bits = 0;
 	}
+
 	if (is_leaf(sibling) && rtree_node_equals(sibling, leaf)) {
 		kfree(leaf);
 		return -EEXIST;
@@ -212,34 +243,57 @@ int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
 	return 0;
 }
 
-void *rtrie_get(struct rtrie_node *root, struct rtrie_string *key)
+static struct rtrie_node *find_leaf(struct rtrie_node *root,
+		struct rtrie_string *key)
 {
 	struct rtrie_node *node;
 	unsigned int common_bits;
 
 	node = find_longest_common_prefix(root, key, &common_bits);
-
 	if (!node)
 		return NULL;
-	if (has_children(node))
-		return NULL; /* inodes aren't user entries. */
 
-	return node + 1;
+	if (is_leaf(node)) {
+		log_debug("leaf.");
+		return node;
+	} else {
+		log_debug("inode.");
+		return NULL;
+	}
+
+//	return is_leaf(node) ? node : NULL;
+}
+
+void *rtrie_get(struct rtrie_node *root, struct rtrie_string *key)
+{
+	struct rtrie_node *node = find_leaf(root, key);
+	return node ? (node + 1) : NULL;
 }
 
 int rtrie_rm(struct rtrie_node **root, struct rtrie_string *key)
 {
-	/* TODO implement */
-	/*
 	struct rtrie_node *grandparent;
 	struct rtrie_node *parent;
 	struct rtrie_node *sibling;
+	struct rtrie_node *node;
+
+	node = find_leaf(*root, key);
+	if (!node) {
+		log_debug("--- not found.");
+		return -ESRCH;
+	}
+
+	if (match(&node->string, key) != key->len) {
+		log_debug("--- length is different: %u %u.",
+				match(&node->string, key), key->len);
+		return -ESRCH;
+	}
 
 	if (!node->parent) {
 		*root = NULL;
-		return;
+		kfree(node);
+		return 0;
 	}
-	*/
 
 	/*
 	 * Starting point:
@@ -262,7 +316,6 @@ int rtrie_rm(struct rtrie_node **root, struct rtrie_string *key)
 	 *    |
 	 *    +---- sibling
 	 */
-	/*
 	parent = node->parent;
 	sibling = (parent->left == node) ? parent->right : parent->left;
 	grandparent = parent->parent;
@@ -276,11 +329,16 @@ int rtrie_rm(struct rtrie_node **root, struct rtrie_string *key)
 	} else {
 		*root = sibling;
 	}
-	*/
+	sibling->parent = grandparent;
+
+	kfree(parent);
+	kfree(node);
+
 	return 0;
 }
 
-static struct rtrie_node *__flush(struct rtrie_node **root, struct rtrie_node *node)
+static struct rtrie_node *__flush(struct rtrie_node **root,
+		struct rtrie_node *node)
 {
 	struct rtrie_node *parent = node->parent;
 	rtrie_swap(root, node, NULL);
@@ -323,6 +381,8 @@ static void print_node(struct rtrie_node *node, unsigned int level)
 		for (j = 0; j < remainder; j++)
 			printk("%u", (node->string.bytes[i] >> (7u - j)) & 1u);
 	}
+
+	printk(" (/%u)", node->string.len);
 
 	printk("\n");
 

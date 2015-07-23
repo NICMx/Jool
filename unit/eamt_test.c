@@ -224,9 +224,10 @@ static bool remove_test(void)
 {
 	bool success = true;
 
-	success &= add_entry("10.0.0.0", 24, "1::", 120);
-	success &= remove_entry("10.0.0.0", 24, "1::", 120, 0);
+	/* trie is empty */
+	success &= remove_entry("10.0.0.0", 24, "1::", 120, -ESRCH);
 
+	/* trie is one node high */
 //	success &= add_entry("20.0.0.0", 25, "2::", 121);
 //	success &= remove_entry("30.0.0.1", 25, NULL, 0, -ESRCH);
 //	success &= remove_entry("20.0.0.130", 25, NULL, 0, -ESRCH);
@@ -236,22 +237,39 @@ static bool remove_test(void)
 	success &= remove_entry(NULL, 0, "3::1:0", 120, -ESRCH);
 	success &= remove_entry(NULL, 0, "3::0", 120, 0);
 
-	success &= add_entry("10.0.0.0", 24, "1::", 120);
-//	success &= remove_entry("10.0.1.0", 24, "1::", 120, -EINVAL);
-	success &= remove_entry("10.0.0.0", 24, "1::", 120, 0);
-
 	success &= ASSERT_U64(0ULL, eamt.count, "Table count");
 	if (!success)
 		return false;
 
-//	success &= add_entry("10.0.0.0", 24, "2001:db8::100", 120);
-//	success &= add_entry("10.0.1.0", 24, "2001:db8::200", 120);
-//	success &= add_entry("10.0.2.0", 24, "2001:db8::300", 120);
-//	if (!success)
-//		return false;
-//
-//	eamt_flush();
-//	success &= ASSERT_U64(0ULL, eamt.count, "Table count 2");
+	/* trie is two nodes high */
+	success &= add_entry("10.0.0.0", 32, "1::00", 120);
+	success &= add_entry("10.0.0.0", 32, "1::10", 124);
+	success &= add_entry("10.0.0.0", 32, "1::20", 124);
+
+	success &= remove_entry(NULL, 0, "1::", 128, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 121, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 119, -ESRCH);
+	success &= remove_entry(NULL, 0, "0::", 0, -ESRCH);
+
+	success &= remove_entry(NULL, 0, "1::10", 124, 0);
+	eamt_flush();
+
+	success &= add_entry("10.0.0.0", 32, "1::00", 120);
+	success &= add_entry("10.0.0.0", 32, "1::10", 124);
+	success &= add_entry("10.0.0.0", 32, "1::20", 124);
+
+	success &= remove_entry(NULL, 0, "1::20", 124, 0);
+	eamt_flush();
+
+	success &= add_entry("10.0.0.0", 32, "1::00", 120);
+	success &= add_entry("10.0.0.0", 32, "1::10", 124);
+	success &= add_entry("10.0.0.0", 32, "1::20", 124);
+
+	success &= remove_entry(NULL, 0, "1::00", 120, 0);
+	eamt_flush();
+
+	/* trie is three or more nodes high */
+
 
 	return success;
 }
@@ -261,6 +279,7 @@ static int address_mapping_test_init(void)
 	START_TESTS("Address Mapping test");
 
 	INIT_CALL_END(init(), add_test(), end(), "add function");
+	/* TODO looks like this is missing empty trie gets. */
 	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's translation tests");
 	INIT_CALL_END(init(), anderson_test(), end(), "Translation tests from T. Anderson's draft");
 	INIT_CALL_END(init(), remove_test(), end(), "remove function");
