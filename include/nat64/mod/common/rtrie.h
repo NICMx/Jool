@@ -9,12 +9,17 @@ struct rtrie_string {
 	__u8 len;
 };
 
+enum rtrie_color {
+	COLOR_BLACK,
+	COLOR_WHITE,
+};
+
 struct rtrie_node {
-	struct rtrie_node *parent;
 	struct rtrie_node *left;
 	struct rtrie_node *right;
+	enum rtrie_color color;
 
-	struct rtrie_string string;
+	struct rtrie_string key;
 
 	/* The value hangs off end. */
 };
