@@ -1,11 +1,11 @@
 ---
 layout: documentation
-title: Documentación - Instalación de los módulos de kernel
+title: Documentación - Instalación del Servidor Jool
 ---
 
-[Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Módulos de kernel
+[Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Servidor Jool
 
-# Instalación de los módulos de kernel
+# Instalación del Servidor Jool
 
 ## Indice
 
@@ -19,12 +19,16 @@ title: Documentación - Instalación de los módulos de kernel
 
 ## Introducción
 
-Jool tiene cuatro componentes:
+Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
-1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo). Uno es la implementación SIIT y el otro es el Stateful NAT64. Para ser habilitados necesitan ser insertados en el kernel, y este documento explica cómo realizar esto.
-2. Dos Herramientas de Configuración, una para SIIT y la otra para NAT64. Ambas son aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario). Éstas tienen su propio [documento de instalación](esp-usr-install.html).
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa SIIT y SIIT-EAM y el otro donde se implementa el Stateful NAT64. 
+2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para SIIT y la otra para Stateful NAT64.
 
-Su forma de instalación es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les servirá de gran utilidad.
+En este documento nos enfocaremos a los primero dos módulos, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para poder estar activos necesitan ser insertados en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
+
+Las aplicaciones en el espacio de usuario son para configuración. Para conocer cómo instalarlas presione [aquí](esp-usr-install.html).
+
+La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
 
 ## Requerimientos
 

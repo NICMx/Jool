@@ -1,53 +1,37 @@
 ---
 layout: documentation
-title: Documentación - Instalación de las Aplicaciónes Modo Usuario
+title: Documentación - Instalación de la Herramienta de Configuración de Jool
 ---
 
-[Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Aplicaciones en espacio de usuario
+[Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Herramienta de Configuración de Jool
 
-# Instalación de las aplicaciones en espacio de usuario
+# Instalación de la Herramienta de Configuración de Jool
+
+## Indice
+
+1. [Introducción](#introduccion)
+2. [Requerimiento](#requerimiento)
+	1. [`Libnl-3`](#libnl-3)
+	2. [`Autoconf`](#autoconf)
+3. [Compilación e Instalación](#compilacion_instalacion)
+	1. [`De la Web Oficial`] (#web_oficial)
+	2. [`Del Repositorio GIT`] (#github)
+4. [Validación] (#validacion)
 
 ## Introducción
 
-Jool es cuatro cosas:
+Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
-1. Dos [modulos de kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo) que se pueden añadir a Linux. Uno de ellos es la implementación SIIT y el otro es un Stateful NAT64. Estos tienen su propio [documento de instalación](esp-mod-install.html).
-2. Dos aplicaciones en [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario) que pueden ser utilizadas para configurar cada uno de los modulos.
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64 y el otro donde se implementa SIIT y SIIT-EAM. 
+2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para SIIT y la otra para Stateful NAT64.
 
-Este documento explica como obtener los binarios de las aplicaciones en espacio de usuario.
+En este documento abordaremos a las aplicaciones en el espacio de usuario, jool y jool-siit, llamados de igual forma que sus correspondientes módulos del kernel.
 
-## Si descargas la [Liberación oficial](esp-download.html)
+Si desea ver detalles de los requisitos e instalación de los módulos accese [aquí](esp-mod-install.html).
 
-{% highlight bash %}
-user@node:~/Jool$ cd usr
-user@node:~/Jool/usr$ ./configure # Se necesita libnl-3 para ejecutar esto; ver abajo.
-user@node:~/Jool/usr$ make
-user@node:~/Jool/usr# make install
-{% endhighlight %}
+## Requerimientos
 
-Listo; ahora debes de ser capaz de escribir `jool --help` o `jool_siit --help` conseguir alguna salida. Ve a [Banderas](esp-usr-flags.html) para una documentación mas detallada.
-
-## Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64)
-
-El repositorio no mantiene un seguimiento del script de configuración, asi que lo tienes que generar por tu cuenta. Se necesita autoconf 2.68 o una versión superior a esa.
-
-{% highlight bash %}
-user@node:~# apt-get install autoconf
-{% endhighlight %}
-
-Despues solo agregale al procedimiento normal de instalación una llamada a `autogen.sh`:
-
-{% highlight bash %}
-Jool$ cd usr
-Jool/usr$ ./autogen.sh # Se necesita autoconf 2.68 o una versión superior para ejecutar esto.
-Jool/usr$ ./configure # Se necesita libnl-3 para ejecutar esto; ver abajo.
-Jool/usr$ make
-Jool/usr# make install
-{% endhighlight %}
-
-Listo; ahora debes de ser capaz de escribir `jool --help` o `jool_siit --help` conseguir alguna salida. Ve a [Banderas](esp-usr-flags.html) para una documentación mas detallada.
-
-## libnl-3
+### `Libnl-3`
 
 [Este](http://www.carisma.slowglass.com/~tgr/libnl/) es el sitio oficial de libnl-3 a partir de 2014-07-31, en caso de que quieras compilar la biblioteca por tu cuenta.
 
@@ -56,3 +40,51 @@ Aunque si tu distribución la contiene o se puede instalar mediante las herramie
 {% highlight bash %}
 user@node:~# apt-get install libnl-3-dev
 {% endhighlight %}
+
+### `Autoconf`
+
+NOTA: Se necesita autoconf ver. 2.68 o superior.
+
+Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración.
+
+Para instalarlo solo requeries ejecutar lo siguiente:
+
+{% highlight bash %}
+user@node:~# apt-get install autoconf
+{% endhighlight %}
+
+## Compilación e Instalación
+
+### `De la Web Oficial`
+
+Si descargas la [Liberación oficial](esp-download.html)
+
+{% highlight bash %}
+user@node:~/Jool$ cd usr
+user@node:~/Jool/usr$ ./configure # Requiere libnl-3
+user@node:~/Jool/usr$ make
+user@node:~/Jool/usr# make install
+{% endhighlight %}
+
+¡LISTO!
+
+### `Del Repositorio GIT`
+
+Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), ejecuta los siguientes comandos:
+
+{% highlight bash %}
+Jool$ cd usr
+Jool/usr$ ./autogen.sh # Requiere autoconf 2.68 o +;
+Jool/usr$ ./configure  # Requiere libnl-3
+Jool/usr$ make
+Jool/usr# make install
+{% endhighlight %}
+
+¡LISTO! 
+
+## Validación
+
+Ahora debes de ser capaz de escribir `jool --help` o `jool_siit --help` conseguir alguna salida. 
+
+Ve a [Banderas](esp-usr-flags.html) para una documentación mas detallada.
+

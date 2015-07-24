@@ -3,7 +3,7 @@ layout: documentation
 title: Documentación - Parámetros > Global
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--global
+[Documentación](esp-doc-index.html) > [Herramienta de Configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--global
 
 # \--global
 
