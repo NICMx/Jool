@@ -16,7 +16,7 @@ Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de
 
 ## Instalación
 1. [Servidor Jool](esp-mod-install.html)
-2. [Herramientas de Configuración](esp-usr-install.html)
+2. [Herramienta de Configuración](esp-usr-install.html)
 
 ## Ejemplos de uso
 1. [SIIT](esp-mod-run-vanilla.html)
