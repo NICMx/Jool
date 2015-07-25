@@ -87,7 +87,7 @@ user@node:~/Jool-<version>/mod$ make    #Makefile general
 
 ## Instalación
 
-El proceso de instalación consiste en copiar *los binarios generados* a *tu pool de módulos del sistema*, mediante el comando:
+El proceso de instalación consiste en copiar **los binarios generados**  a  **tu pool de módulos del sistema**, mediante el comando:
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
@@ -105,7 +105,7 @@ user@node:~# /sbin/depmod
 > 
 > A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
 > 
-> Si tu kernel NO fue configurado para _solicitar_ esta característica (los kernels de muchas distribuciones no lo hacen), no tendrás problema. Sólo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: "Can't read private key"; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
+> Si tu kernel NO fue configurado para _solicitar_ esta característica no tendrás problema. Los kernels de muchas distribuciones no lo hacen. Solo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: "Can't read private key"; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
 > 
 > Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aqui.
 
