@@ -21,14 +21,14 @@ title: Documentación - Instalación del Servidor Jool
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
-1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64 y el otro donde se implementa SIIT y SIIT-EAM. 
-2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para Stateful NAT64 y la otra para SIIT y SIIT-EAM.
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`.
+2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario),  una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
 
-En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio, llamados jool y jool-siit. Para poder estar activos necesitan ser insertados en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
-
-Las aplicaciones en el espacio de usuario son para configuración, la explicación de cómo instalarlas se encuentra en esta [otra página](esp-usr-install.html).
+En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para poder estar activos necesitan ser insertados en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
 
 La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
+
+Las aplicaciones en el espacio de usuario son para configuración, la explicación de cómo instalarlas se encuentra en esta [otra página](esp-usr-install.html).
 
 ## Requerimientos
 

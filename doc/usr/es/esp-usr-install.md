@@ -10,7 +10,7 @@ title: Documentación - Instalación de la Herramienta de Configuración de Jool
 ## Indice
 
 1. [Introducción](#introduccion)
-2. [Requerimiento](#requerimiento)
+2. [Requerimientos](#requerimientos)
 	1. [`Libnl-3`](#libnl-3)
 	2. [`Autoconf`](#autoconf)
 3. [Compilación e Instalación](#compilacion_instalacion)
@@ -22,8 +22,8 @@ title: Documentación - Instalación de la Herramienta de Configuración de Jool
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
-1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64 y el otro donde se implementa SIIT y SIIT-EAM. 
-2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para SIIT y la otra para Stateful NAT64.
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`,. 
+2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: jool y jool-siit respectivamente.
 
 En este documento abordaremos a las aplicaciones en el espacio de usuario, jool y jool-siit, llamados de igual forma que sus correspondientes módulos del kernel.
 
