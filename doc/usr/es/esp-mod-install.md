@@ -22,7 +22,7 @@ title: Documentación - Instalación del Servidor Jool
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
 1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`.
-2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario),  una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
+2. Dos aplicaciones en el [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario),  una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
 
 En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para activar la traducción de paquetes se requiere insertar los módulos en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
 
@@ -55,7 +55,7 @@ $ apt-get install linux-headers-$(uname -r)
 
 ### `Interfaces de Red`
 
-Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán ***dos interfaces de red separadas: una para IPv6 y otra para IPv4***. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecue lo siguiente:
+Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán [`dos interfaces de red separadas: una para IPv6 y otra para IPv4`]. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecue lo siguiente:
 
 {% highlight bash %}
 $ /sbin/ip link show
@@ -87,7 +87,7 @@ user@node:~/Jool-<version>/mod$ make    #Makefile general
 
 ## Instalación
 
-El proceso de instalación consiste en copiar **los binarios generados**  a  **tu pool de módulos del sistema**, mediante el comando:
+El proceso de instalación consiste en copiar [`los binarios generados`]  a  [`tu pool de módulos del sistema`], mediante el comando:
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
