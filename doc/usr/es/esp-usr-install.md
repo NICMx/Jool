@@ -43,7 +43,7 @@ user@node:~# apt-get install libnl-3-dev
 
 ### `Autoconf`
 
-NOTA: Se necesita autoconf ver. 2.68 o superior.
+> **NOTA: Se necesita autoconf ver. 2.68 o superior.**
 
 Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración.
 

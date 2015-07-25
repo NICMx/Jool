@@ -24,7 +24,7 @@ Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`.
 2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario),  una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
 
-En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para poder estar activos necesitan ser insertados en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
+En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para activar la traducción de paquetes se requiere insertar los módulos en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
 
 La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
 
@@ -93,6 +93,14 @@ El proceso de instalación consiste en copiar *los binarios generados* a *tu poo
 user@node:~/Jool-<version>/mod# make modules_install
 {% endhighlight %}
 
+Nota que, el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás ejecutar el comando `depmod` para que se indexen los nuevos módulos:
+
+{% highlight bash %}
+user@node:~# /sbin/depmod
+{% endhighlight %}
+
+¡LISTO! Jool puede ser inicializado ahora. 
+
 > **Advertencia!**
 > 
 > A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
@@ -101,12 +109,4 @@ user@node:~/Jool-<version>/mod# make modules_install
 > 
 > Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aqui.
 
-  Nota que, el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás ejecutar el comando `depmod` para que se indexen los nuevos módulos:
-
-{% highlight bash %}
-user@node:~# /sbin/depmod
-{% endhighlight %}
-
-¡LISTO! Jool puede ser inicializado ahora. 
-
-Te adelanto, los módulos serán activados usando el comando 'modprobe', aprende cómo hacerlo consultando el [Ejemplo Básico de SIIT](esp-mod-run-vanilla.html).
+Te adelanto, los módulos serán activados usando el comando 'modprobe', aprende cómo hacerlo consultando el [ejemplo ásico de SIIT](esp-mod-run-vanilla.html).
