@@ -21,12 +21,12 @@ title: Documentación - Instalación del Servidor Jool
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
-1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa SIIT y SIIT-EAM y el otro donde se implementa el Stateful NAT64. 
-2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para SIIT y la otra para Stateful NAT64.
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64 y el otro donde se implementa SIIT y SIIT-EAM. 
+2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para Stateful NAT64 y la otra para SIIT y SIIT-EAM.
 
-En este documento nos enfocaremos a los primero dos módulos, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para poder estar activos necesitan ser insertados en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
+En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio, llamados jool y jool-siit. Para poder estar activos necesitan ser insertados en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
 
-Las aplicaciones en el espacio de usuario son para configuración. Para conocer cómo instalarlas presione [aquí](esp-usr-install.html).
+Las aplicaciones en el espacio de usuario son para configuración, la explicación de cómo instalarlas se encuentra en esta [otra página](esp-usr-install.html).
 
 La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
 
@@ -38,7 +38,7 @@ Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para
 
 NOTA: No recomendamos usar el kernel 3.12 porque [el sistema se inhibe cuando se invoca la función icmpv6_send](https://github.com/NICMx/NAT64/issues/90).
 
-Para validar la versión de tu kernel, usa el comando `uname -r`. Por ejemplo:
+Para validar la versión de tu kernel, usa el siguiente comando:
 
 {% highlight bash %}
 $ /bin/uname -r
@@ -47,7 +47,7 @@ $ /bin/uname -r
 
 ### `Encabezados del Kernel`
 
-Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta el comando `apt-get install linux-headers-$(uname -r)`.
+Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta lo siguiente:
 
 {% highlight bash %}
 $ apt-get install linux-headers-$(uname -r)
@@ -55,7 +55,7 @@ $ apt-get install linux-headers-$(uname -r)
 
 ### `Interfaces de Red`
 
-Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 o IPv4. Es posible usar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán ***dos interfaces de red separadas: una para IPv6 y otra para IPv4***. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar si las interfaces de red están disponibles ejecue el comando ip link `show`. Por ejemplo:
+Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán ***dos interfaces de red separadas: una para IPv6 y otra para IPv4***. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecue lo siguiente:
 
 {% highlight bash %}
 $ /sbin/ip link show
@@ -70,26 +70,24 @@ $ /sbin/ip link show
 
 Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos opciones:
 
-* Las versiones oficiales en nuestro sitio Web. Éstas se encuentran en la siguiente [Página de Descarga](esp-download.html).
-* Las versiones en desarrollo en nuestro repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
+* Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la siguiente [Página de Descarga](esp-download.html).
+* Las versiones en desarrollo en nuestro Repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
 
 Si eliges la segunda opción te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía.
 
-Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho, entonces solo ejecuta `make` y listo.
-
-En resumen, para compilar ambos módulos SIIT y NAT64, puedes encontrar el archivo Makefile global en la carpeta `mod`
+Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho. Entonces para compilar ambos módulos SIIT y NAT64 realiza los siguientes pasos:
 
 {% highlight bash %}
 user@node:~$ unzip Jool-<version>.zip
 user@node:~$ cd Jool-<version>/mod
-user@node:~/Jool-<version>/mod$ make
+user@node:~/Jool-<version>/mod$ make    #Makefile general
 {% endhighlight %}
 
 ***Y eso es todo.***
 
 ## Instalación
 
-El proceso de instalación consiste en copiar *los binarios generados* a *tu pool de módulos del sistema*, mediante el comando `make modules_install`:
+El proceso de instalación consiste en copiar *los binarios generados* a *tu pool de módulos del sistema*, mediante el comando:
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
