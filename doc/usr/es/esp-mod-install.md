@@ -70,7 +70,7 @@ $ /sbin/ip link show
 
 Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos opciones:
 
-* Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la siguiente [Página de Descarga](esp-download.html).
+* Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la [Página de Descarga](esp-download.html).
 * Las versiones en desarrollo en nuestro Repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
 
 Si eliges la segunda opción te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía.
@@ -93,7 +93,7 @@ El proceso de instalación consiste en copiar *los binarios generados* a *tu poo
 user@node:~/Jool-<version>/mod# make modules_install
 {% endhighlight %}
 
-Nota que, el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás ejecutar el comando `depmod` para que se indexen los nuevos módulos:
+Nota que, el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás  indexar los nuevos módulos mediante el comando:
 
 {% highlight bash %}
 user@node:~# /sbin/depmod
@@ -109,4 +109,4 @@ user@node:~# /sbin/depmod
 > 
 > Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aqui.
 
-Te adelanto, los módulos serán activados usando el comando 'modprobe', aprende cómo hacerlo consultando el [ejemplo ásico de SIIT](esp-mod-run-vanilla.html).
+Te adelanto, los módulos serán activados usando el comando 'modprobe', aprende cómo hacerlo consultando el [ejemplo básico de SIIT](esp-mod-run-vanilla.html).
