@@ -55,7 +55,7 @@ $ apt-get install linux-headers-$(uname -r)
 
 ### `Interfaces de Red`
 
-Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán [`dos interfaces de red separadas: una para IPv6 y otra para IPv4`]. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecue lo siguiente:
+Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán `dos interfaces de red separadas: una para IPv6 y otra para IPv4`. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecue lo siguiente:
 
 {% highlight bash %}
 $ /sbin/ip link show
@@ -87,7 +87,7 @@ user@node:~/Jool-<version>/mod$ make    #Makefile general
 
 ## Instalación
 
-El proceso de instalación consiste en copiar [`los binarios generados`]  a  [`tu pool de módulos del sistema`], mediante el comando:
+El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`, mediante el comando:
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
