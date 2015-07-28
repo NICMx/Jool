@@ -14,7 +14,7 @@
    height="256"
    id="svg2"
    version="1.1"
-   inkscape:version="0.48.4 r9939"
+   inkscape:version="0.91 r13725"
    sodipodi:docname="mtu-frag-success.svg">
   <defs
      id="defs4">
@@ -55,17 +55,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.8284272"
-     inkscape:cx="223.63403"
-     inkscape:cy="100.43604"
+     inkscape:cx="-71.499758"
+     inkscape:cy="86.293905"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:window-width="1920"
-     inkscape:window-height="1052"
-     inkscape:window-x="1920"
-     inkscape:window-y="0"
+     inkscape:window-width="1600"
+     inkscape:window-height="838"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1">
     <inkscape:grid
        type="xygrid"
@@ -209,7 +209,7 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        x="101.9276"
        y="977.80249"
        id="text4233"
@@ -217,7 +217,7 @@
          sodipodi:role="line"
          x="101.9276"
          y="977.80249"
-         id="tspan4241">src: n4</tspan><tspan
+         id="tspan4241">fuente: n4</tspan><tspan
          sodipodi:role="line"
          x="101.9276"
          y="992.80249"
@@ -225,11 +225,11 @@
          sodipodi:role="line"
          x="101.9276"
          y="1007.8025"
-         id="tspan3122">can fragment</tspan><tspan
+         id="tspan3122">puede fragmentar</tspan><tspan
          sodipodi:role="line"
          x="101.9276"
          y="1022.8025"
-         id="tspan3153">length: 1400</tspan></text>
+         id="tspan3153">longitud: 1400</tspan></text>
     <g
        transform="translate(150.57229,638.15207)"
        style="display:inline"
@@ -289,7 +289,7 @@
          style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;display:inline" />
       <path
          transform="matrix(0.71302118,0,0,1,2.0088518,0)"
-         d="m 12,227 c 0,1.38071 -1.119288,2.5 -2.5,2.5 -1.3807119,0 -2.5,-1.11929 -2.5,-2.5 0,-1.38071 1.1192881,-2.5 2.5,-2.5 1.380712,0 2.5,1.11929 2.5,2.5 z"
+         d="M 12,227 A 2.5,2.5 0 0 1 9.5,229.5 2.5,2.5 0 0 1 7,227 2.5,2.5 0 0 1 9.5,224.5 2.5,2.5 0 0 1 12,227 Z"
          sodipodi:ry="2.5"
          sodipodi:rx="2.5"
          sodipodi:cy="227"
@@ -326,7 +326,7 @@
          sodipodi:cy="235.21933"
          sodipodi:rx="48.57143"
          sodipodi:ry="48.57143"
-         d="m 122.85714,235.21933 c 0,26.82526 -21.74617,48.57143 -48.571427,48.57143 -26.82526,0 -48.57143,-21.74617 -48.57143,-48.57143 0,-26.82526 21.74617,-48.57143 48.57143,-48.57143 26.825257,0 48.571427,21.74617 48.571427,48.57143 z"
+         d="m 122.85714,235.21933 a 48.57143,48.57143 0 0 1 -48.571427,48.57143 48.57143,48.57143 0 0 1 -48.57143,-48.57143 48.57143,48.57143 0 0 1 48.57143,-48.57143 48.57143,48.57143 0 0 1 48.571427,48.57143 z"
          transform="matrix(0.48595445,0,0,0.29851852,260.00403,694.04082)" />
       <path
          style="fill:none;stroke:#ffffff;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -396,12 +396,12 @@
        id="text3145"
        y="977.80249"
        x="277.92761"
-       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;display:inline;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          id="tspan3147"
          y="977.80249"
          x="277.92761"
-         sodipodi:role="line">src: n4</tspan><tspan
+         sodipodi:role="line">fuente: n4</tspan><tspan
          id="tspan3149"
          y="992.80249"
          x="277.92761"
@@ -409,11 +409,11 @@
          id="tspan3151"
          y="1007.8025"
          x="277.92761"
-         sodipodi:role="line">length 1: 1300</tspan><tspan
+         sodipodi:role="line">longitud 1: 1300</tspan><tspan
          y="1022.8025"
          x="277.92761"
          sodipodi:role="line"
-         id="tspan3155">length 2: 100</tspan></text>
+         id="tspan4793">longitud 2: 100</tspan></text>
     <use
        x="0"
        y="0"
