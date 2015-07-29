@@ -14,7 +14,7 @@ Configuración de Jool
 2. [Requerimientos](#requerimientos)
 	1. [`Libnl-3`](#libnl-3)
 	2. [`Autoconf`](#autoconf)
-3. [Compilación e Instalación](#compilacion_instalacion)
+3. [Crea Makefiles, Compila e Instala](#crea_compila_instala)
 	1. [`De la Web Oficial`] (#web_oficial)
 	2. [`Del Repositorio GIT`] (#github)
 4. [Validación] (#validacion)
@@ -49,7 +49,7 @@ Si tu distribución reconoce a `libnl-3-dev` como un producto instalable:
 user@node:~$apt-cache show libnl-3-dev
 {% endhighlight %}
 
-Entonces, instalala ejecutando el siguiente comando con permisos de administrador:
+Entonces, instala la libería ejecutando el siguiente comando con permisos de administrador:
 
 {% highlight bash %}
 user@node:~#apt-get install libnl-3-dev
@@ -65,33 +65,29 @@ Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario ins
 user@node:~#apt-get install autoconf
 {% endhighlight %}
 
-## Compilación e Instalación
+## Crea Makefiles, Compila e Instala
+
+		NOTA: Asumiendo que ya se instaló el Servidor Jool 
 
 ### `De la Web Oficial`
 
-Si descargas Jool de la [Web Oficial](esp-download.html), ejecuta los siguientes comandos:
-
-NOTA: Observa que para ejecutar exitosamente el `make install` necesitarás el acceso de administrador.
-
 {% highlight bash %}
-user@node:~/Jool$ cd usr
-user@node:~/Jool/usr$ ./configure
-user@node:~/Jool/usr$ make
-user@node:~/Jool/usr# make install
+user@node:~/Desktop/Jool-<version>$ cd usr
+user@node:~/Desktop/Jool-<version>$ ./configure
+user@node:~/Desktop/Jool-<version>$ make
+user@node:~/Desktop/Jool-<version>$ #Con acceso de administrador instala
+user@node:~/Jool/usr# make install 
 {% endhighlight %}
 
 ### `Del Repositorio GIT`
 
-Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), ejecuta los siguientes comandos:
-
-NOTA: Observa que para ejecutar exitosamente el `make install` necesitarás el acceso de administrador.
- 
 {% highlight bash %}
-Jool$ cd usr
-Jool/usr$ ./autogen.sh
-Jool/usr$ ./configure
-Jool/usr$ make
-Jool/usr# make install
+user@node:~/Desktop/NAT64-<version>$ cd usr
+user@node:~/Desktop/NAT64-<version>/usr$ ./autogen.sh
+user@node:~/Desktop/NAT64-<version>/usr$ ./configure
+user@node:~/Desktop/NAT64-<version>/usr$ make
+user@node:~/Desktop/NAT64-<version>/usr$ #Con acceso de administrador instala
+user@node:~/Desktop/NAT64-<version>/usr# make install
 {% endhighlight %}
 
 ## Validación

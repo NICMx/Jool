@@ -30,7 +30,7 @@ En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea,
 
 La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
 
-Las aplicaciones en el espacio de usuario son para configuración, la explicación de cómo instalarlas se encuentra en esta [otra página](esp-usr-install.html).
+Las aplicaciones en el espacio de usuario son para configuración de Jool, la explicación de cómo instalarlas se encuentra en una [página aparte](esp-usr-install.html).
 
 ## Requerimientos
 
