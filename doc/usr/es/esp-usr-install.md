@@ -5,7 +5,8 @@ title: Documentación - Instalación de la Herramienta de Configuración de Jool
 
 [Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Herramienta de Configuración de Jool
 
-# Instalación de la Herramienta de Configuración de Jool
+# Instalación de la Herramienta de
+Configuración de Jool
 
 ## Indice
 
@@ -40,50 +41,58 @@ Para ver detalles de los requisitos e instalación de los módulos de kernel [ac
 
 Jool emplea [NETLINK] (http://www.carisma.slowglass.com/~tgr/libnl/) para comunicar sus procesos de espacio de usuario con los de kernel, y viceversa.  
 
-Si tu distribución la contiene o se puede instalar mediante las herramientas que esta proporciona, deberias relmente aprovechar esta característica en lugar de compilar la biblioteca. En el caso de Ubuntu, la puedes instalar de la siguiente manera:
+De preferencia no bajes y compiles en forma manual la libería para evitarte problemas de ubicación y acceso a la misma.
+
+Si tu distribución reconoce a `libnl-3-dev` como un producto instalable:
 
 {% highlight bash %}
-user@node:~#sudo apt-get install libnl-3-dev
+user@node:~$apt-cache show libnl-3-dev
+{% endhighlight %}
+
+Entonces, instalala ejecutando el siguiente comando con permisos de administrador:
+
+{% highlight bash %}
+user@node:~#apt-get install libnl-3-dev
 {% endhighlight %}
 
 ### `Autoconf`
 
 > **NOTA: Se necesita autoconf ver. 2.68 o superior.**
 
-Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles. Para hacerlo requeries ejecutar lo siguiente:
+Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles. Para llevarlo a cabo la instalación hazlo con permisos de administrador:
 
 {% highlight bash %}
-user@node:~#sudo  apt-get install autoconf
+user@node:~#apt-get install autoconf
 {% endhighlight %}
 
 ## Compilación e Instalación
 
 ### `De la Web Oficial`
 
-Si descargas Jool de la [Web Oficial](esp-download.html)
+Si descargas Jool de la [Web Oficial](esp-download.html), ejecuta los siguientes comandos:
+
+NOTA: Observa que para ejecutar exitosamente el `make install` necesitarás el acceso de administrador.
 
 {% highlight bash %}
 user@node:~/Jool$ cd usr
-user@node:~/Jool/usr$ ./configure # Requiere libnl-3
+user@node:~/Jool/usr$ ./configure
 user@node:~/Jool/usr$ make
 user@node:~/Jool/usr# make install
 {% endhighlight %}
-
-¡LISTO!
 
 ### `Del Repositorio GIT`
 
 Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), ejecuta los siguientes comandos:
 
+NOTA: Observa que para ejecutar exitosamente el `make install` necesitarás el acceso de administrador.
+ 
 {% highlight bash %}
 Jool$ cd usr
-Jool/usr$ ./autogen.sh # Requiere autoconf 2.68 o +;
-Jool/usr$ ./configure  # Requiere libnl-3
+Jool/usr$ ./autogen.sh
+Jool/usr$ ./configure
 Jool/usr$ make
 Jool/usr# make install
 {% endhighlight %}
-
-¡LISTO! 
 
 ## Validación
 
@@ -116,4 +125,3 @@ user@node:~/Jool/usr/stateless$ ./jool_siit --usage
 {% endhighlight %}
 
 Para TODAS las demás opciones se requiere habilitar previamente el servicio de traducción de paquetes como tal, es decir, haber insertado Jool en el Kernel, ya sea la modalidad stateless o stateful. Para aprender sobre ello, consulte la página de [Banderas](esp-usr-flags.html).
-

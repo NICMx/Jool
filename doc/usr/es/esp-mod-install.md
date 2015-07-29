@@ -42,15 +42,14 @@ Para validar la versión de tu kernel, usa el siguiente comando:
 
 {% highlight bash %}
 $ /bin/uname -r
-3.5.0-45-generic
 {% endhighlight %}
 
 ### `Encabezados del Kernel`
 
-Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta lo siguiente:
+Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta con permisos de administrador lo siguiente:
 
 {% highlight bash %}
-$ apt-get install linux-headers-$(uname -r)
+# apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
 
 ### `Interfaces de Red`
@@ -75,19 +74,19 @@ Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos o
 
 Si eliges la segunda opción te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía.
 
-Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho. Entonces para compilar ambos módulos SIIT y NAT64 realiza los siguientes pasos:
+Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho. Entonces, para compilar ambos módulos SIIT y NAT64 solo ejecuta:
 
 {% highlight bash %}
 user@node:~$ unzip Jool-<version>.zip
 user@node:~$ cd Jool-<version>/mod
-user@node:~/Jool-<version>/mod$ make    #Makefile general
+user@node:~/Jool-<version>/mod$ make
 {% endhighlight %}
-
-***Y eso es todo.***
 
 ## Instalación
 
 El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`, mediante el comando:
+
+NOTA: Observa que para ejecutar exitosamente el `make modules_install` necesitarás el acceso de administrador.
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
