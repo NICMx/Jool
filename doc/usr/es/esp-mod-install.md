@@ -76,18 +76,21 @@ Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos o
 
 Existen algunas pequeñas variantes al bajarlo de un portal u otro, no tan solo de nombre, sino de contenido.
 
-Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no vienen con un script `configure`, para generar el Makefile, sino ya está hecho, por lo que solo se requiere ejecutar los últimos dos.
+Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no vienen con un script `configure`, para generar el Makefile, sino ya está hecho, por lo que solo se requiere ejecutar los últimos dos pasos.
 
 ### `De la Web Oficial`
 
 Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la [página de Descarga](esp-download.html). Sigue estos pasos:
 
 1) Elige la versión
+
 2) Elige el formato (zip, sha, md5)
+
 3) Descarga el archivo comprimido
+
 4) Descomprime
 
-		NOTA: Asumiendo que fue en formato ZIP, está en Downloads y  lo quieres colocar en Desktop.
+		NOTA: Asumiendo que fue en formato ZIP, está en Downloads y lo quieres colocar en Desktop.
 
 {% highlight bash %}
 user@node:$ cd Downloads
@@ -114,8 +117,11 @@ user@node:~/Jool-<version>/mod# make modules_install
 Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía. Sigue estos pasos:
 
 1) Elige la rama "master"
+
 2) Selecciona el icono `Download ZIP`
+
 3) Descarga
+
 4) Descomprime
 
 			NOTA: Asumiendo que está en Downloads y lo quieres colocar en Desktop.
@@ -142,7 +148,7 @@ user@node:~/NAT64-<version>/mod# make modules_install
 
 ## Actualiza
 
-El hecho de que residan en la pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás indexar los nuevos módulos mediante el comando:
+El hecho de que residan en la pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás indexar los nuevos módulos. Ejecuta aqui también con permisos de administrador el comando:
 
 {% highlight bash %}
 user@node:~# depmod
