@@ -5,8 +5,7 @@ title: Documentación - Instalación de la Herramienta de Configuración de Jool
 
 [Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Herramienta de Configuración de Jool
 
-# Instalación de la Herramienta de
-Configuración de Jool
+# Instalación del Configurador de Jool
 
 ## Indice
 
@@ -14,7 +13,7 @@ Configuración de Jool
 2. [Requerimientos](#requerimientos)
 	1. [`Libnl-3`](#libnl-3)
 	2. [`Autoconf`](#autoconf)
-3. [Crea Makefiles, Compila e Instala](#crea_compila_instala)
+3. [Genera, Compila e Instala](#crea_compila_instala)
 	1. [`De la Web Oficial`] (#web_oficial)
 	2. [`Del Repositorio GIT`] (#github)
 4. [Validación] (#validacion)
@@ -65,10 +64,10 @@ Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario ins
 user@node:~#apt-get install autoconf
 {% endhighlight %}
 
-## Crea Makefiles, Compila e Instala
+## Genera, Compila e Instala
 
-		NOTA: Asumiendo que ya se instaló el Servidor Jool 
-
+Asumiendo que previamente ya se instaló el Servidor Jool, solo pasate a la carpeta USR, genera los archivos MAKEFILES, conforme GNU, compila todo e instala.
+		
 ### `De la Web Oficial`
 
 {% highlight bash %}
