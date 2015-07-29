@@ -14,8 +14,10 @@ title: Documentación - Instalación del Servidor Jool
 	1. [`Kernels Válidos`](#kernels-soportados)
 	2. [`Encabezados del Kernel`](#encabezado-kernel)
 	3. [`Interfaces de Red`](#interfaces)
-3. [Compilación](#compilacion)
-4. [Instalación](#instalacion)
+3. [Baja, Compila e Instala](#baja-compila-instala)
+	1. [`De la Web Oficial`] (#web_oficial)
+	2. [`Del Repositorio GIT`] (#github)
+4. [Actualiza] (#actualiza)
 
 ## Introducción
 
@@ -54,10 +56,10 @@ Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente 
 
 ### `Interfaces de Red`
 
-Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán `dos interfaces de red separadas: una para IPv6 y otra para IPv4`. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecue lo siguiente:
+Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán `dos interfaces de red separadas: una para IPv6 y otra para IPv4`. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecuta lo siguiente:
 
 {% highlight bash %}
-$ /sbin/ip link show
+$ ip link show
 (...)
 2: eth0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN qlen 1000
     link/ether 08:00:27:3d:24:77 brd ff:ff:ff:ff:ff:ff
@@ -65,37 +67,85 @@ $ /sbin/ip link show
     link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff
 {% endhighlight %}
 
-## Compilación
+## Baja, Compila e Instala
 
 Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos opciones:
 
 * Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la [Página de Descarga](esp-download.html).
 * Las versiones en desarrollo en nuestro Repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
 
-Si eliges la segunda opción te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía.
+Existen algunas pequeñas variantes al bajarlo de un portal u otro, no tan solo de nombre, sino de contenido.
 
-Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no tienen un script `configure`, para generar el Makefile, sino ya está hecho. Entonces, para compilar ambos módulos SIIT y NAT64 solo ejecuta:
+Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no vienen con un script `configure`, para generar el Makefile, sino ya está hecho, por lo que solo se requiere ejecutar los últimos dos.
+
+### `De la Web Oficial`
+
+Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la [página de Descarga](esp-download.html). Sigue estos pasos:
+
+1) Elige la versión
+2) Elige el formato (zip, sha, md5)
+3) Descarga el archivo comprimido
+4) Descomprime
+
+		NOTA: Asumiendo que fue en formato ZIP, está en Downloads y  lo quieres colocar en Desktop.
 
 {% highlight bash %}
-user@node:~$ unzip Jool-<version>.zip
-user@node:~$ cd Jool-<version>/mod
-user@node:~/Jool-<version>/mod$ make
+user@node:$ cd Downloads
+user@node:~/Downloads$ unzip Jool-<version>.zip -d ../Desktop
+{% endhighlight %}
+ 
+5) Compila ambos módulos SIIT y NAT64
+
+{% highlight bash %}
+user@node:~$ cd ../Desktop/Jool-<version>/mod
+user@node:~/Desktop/Jool-<version>/mod$ make
 {% endhighlight %}
 
-## Instalación
+6) Instala
 
-El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`, mediante el comando:
-
-NOTA: Observa que para ejecutar exitosamente el `make modules_install` necesitarás el acceso de administrador.
+El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`. Empleando permisos de administrador ejecuta:
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
 {% endhighlight %}
 
-Nota que, el hecho de que residan en tu pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás  indexar los nuevos módulos mediante el comando:
+### `Del Repositorio GIT`
+
+Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía. Sigue estos pasos:
+
+1) Elige la rama "master"
+2) Selecciona el icono `Download ZIP`
+3) Descarga
+4) Descomprime
+
+			NOTA: Asumiendo que está en Downloads y lo quieres colocar en Desktop.
 
 {% highlight bash %}
-user@node:~# /sbin/depmod
+user@node:$ cd Downloads
+user@node:~/Downloads$ unzip NAT64-<version>.zip -d ../Desktop
+{% endhighlight %}
+ 
+5) Compila ambos módulos SIIT y NAT64
+
+{% highlight bash %}
+user@node:~$ cd ../Desktop/NAT64-<version>/mod
+user@node:~/Desktop/NAT64-<version>/mod$ make
+{% endhighlight %}
+
+6) Instala
+
+El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`. Empleando permisos de administrador ejecuta:
+
+{% highlight bash %}
+user@node:~/NAT64-<version>/mod# make modules_install
+{% endhighlight %}
+
+## Actualiza
+
+El hecho de que residan en la pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás indexar los nuevos módulos mediante el comando:
+
+{% highlight bash %}
+user@node:~# depmod
 {% endhighlight %}
 
 ¡LISTO! Jool puede ser inicializado ahora. 
