@@ -106,10 +106,14 @@ user@node:~/Jool/usr/stateful$ ./jool --v
 
 ### `Ayuda`
 
-Para desplegar la ayuda en linea sobre los parámetros configurables y desplegables de Jool puedes usar las opciones `-?` o `-help`, de la siguiente manera:
+Para desplegar la ayuda en linea sobre los parámetros configurables y desplegables de Jool puedes usar las opciones `-?` o `--help`, de la siguiente manera:
 
 {% highlight bash %}
 user@node:~/Jool/usr/stateful$ ./jool -?
+{% endhighlight %}
+
+{% highlight bash %}
+user@node:~/Jool/usr/stateless$ ./jool_siit --help
 {% endhighlight %}
 
 ### `Uso`
