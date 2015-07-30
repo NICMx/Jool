@@ -18,22 +18,22 @@ title: Documentación - EAM Ejemplo de uso
 
 ## Introducción
 
-Este documentao explica como ejecutar Jool en [modo EAM](esp-intro-nat64.html#siit-con-eam) (el cual de hecho mas que un "modo" es simplemente proveer a SIIT con registros en la tabla EAM). Ingresa al enlace para obtener más detalles sobre que esperar de éste tutorial. Tambien mira [el resume del EAMT draft](esp-misc-eamt.html) para obtener mas detalles de como funciona EAMT.
+Este documento explica cómo ejecutar Jool en [modo EAM](esp-intro-nat64.html#siit-con-eam). Ingresa al enlace para obtener más detalles sobre que esperar de éste tutorial. También mira [el resume del EAMT draft](esp-misc-eamt.html) para obtener más detalles de cómo funciona EAMT. SIIT-EAM mas que un "modo" es simplemente proveer a SIIT con registros en la tabla EAM.
 
-El[Modo Stock](esp-mod-run-vanilla.html) es mas rapido de configurar y nos gustaria a alentarte a que lo aprendas antes,  particularmente por que no voy a desarrollar aqui los pasos que ambos modos tienen en común. En cuanto al software, necesitas una instalación exitosa de ambos el [modulo de kernel](esp-mod-install.html) **y** la [aplicación de espacio de usuario](esp-usr-install.html) para EAM.
+El [Modo Stock](esp-mod-run-vanilla.html) es más rapido de configurar y nos gustaría alentarte a que lo aprendas antes,  particularmente por que no voy a desarrollar aqui los pasos que ambos modos tienen en común. En cuanto al software, necesitas una instalación exitosa de ambos el [modulo de kernel](esp-mod-install.html) **y** el [configurador](esp-usr-install.html) para EAM.
 
 ## Red de ejemplo
 
 ![Figure 1 - Red de ejemplo](images/network/eam.svg)
 
-Todas las observaciones en la [Sección Red de ejemplo](esp-mod-run-vanilla.html#red-de-ejemplo) del documento previo aplican aquí.
+Todas las observaciones en la [Sección Red de Ejemplo](esp-mod-run-vanilla.html#red-de-ejemplo) del documento previo aplican aquí.
 
 Esto es nodos desde _A_ hasta _E_:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
 user@A:~# /sbin/ip link set eth0 up
-user@A:~# # Replace "::8" dependiendo en que nodo estes.
+user@A:~# # Replace "::8" dependiendo en que nodo estés.
 user@A:~# /sbin/ip addr add 2001:db8:6::8/96 dev eth0
 user@A:~# /sbin/ip route add default via 2001:db8:6::1
 {% endhighlight %}
@@ -43,7 +43,7 @@ Nodos desde _V_ hasta _Z_ tienen exactamente la misma configuración del documen
 {% highlight bash %}
 user@V:~# service network-manager stop
 user@V:~# /sbin/ip link set eth0 up
-user@V:~# # Replace ".16" dependiendo en que nodo estes.
+user@V:~# # Replace ".16" dependiendo en que nodo estés.
 user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
 user@V:~# /sbin/ip route add default via 192.0.2.1
 {% endhighlight %}
@@ -85,17 +85,15 @@ user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
 {% endhighlight %}
 
-A diferencia de `pool6`, no es practico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [aplicación de espacio de usuario](esp-usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico[`--enable`](esp-usr-flags-global.html#enable---disable)).
+A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [Herramienta de Configuración](esp-usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico[`--enable`](esp-usr-flags-global.html#enable---disable)).
 
-De hecho utilizar `disabled` y `--enable` no es necesario; Jool va a deducir naturalmente que no puede traducir tráfico hasta que la tabla EAM y/o pool6 sean llenados. La razpon por la cual Jool fue "forzado" a permanecer deshabilitado hasta que la tabla estuviera completa fue para que no hubiera un periodo de tiempo donde el tráfico estuviera siendo traducido inconsistentemente(ej. con una tabla medio-completa).
+De hecho utilizar `disabled` y `--enable` no es necesario; Jool va a deducir naturalmente que no puede traducir tráfico hasta que la tabla EAM y/o pool6 sean llenados. La razón por la cual Jool fue "forzado" a permanecer deshabilitado hasta que la tabla estuviera completa fue para que no hubiera un periodo de tiempo donde el tráfico estuviera siendo traducido inconsistentemente debido a una tabla incompleta.
 
-Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos. Jool siempre va a tratar de traducir una dirección utilizando EAM, y si eso falla, retrocederá a utilizar el prefijo. Agrega `pool6` durante el `modprobe` si quieres esto.
+Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos. Jool siempre va a tratar de traducir una dirección utilizando EAM, y si eso falla, retrocederá a utilizar el prefijo. Si quieres esto, agrega `pool6` durante el `modprobe`.
 
 ## Pruebas
 
-Si algo no funciona, intenta con el [FAQ](esp-misc-faq.html).
-
-Intenta hacer ping a _V_ desde _A_ de esta manera:
+Haz ping a _V_ desde _A_ de esta manera:
 
 {% highlight bash %}
 user@A:~$ ping6 2001:db8:4::10 # Reminder: hex 10 = dec 16.
@@ -132,6 +130,8 @@ Que te parecería agregar un servidor en _Y_ y accesarlo desde _D_:
 Luegp quizá otro en _B_ y hacer una solicitud desde _X_:
 
 ![Figure 2 - IPv4 TCP from an IPv6 node](images/run-eam-firefox-6to4.png)
+
+Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
 
 ## Deteniendo Jool
 
