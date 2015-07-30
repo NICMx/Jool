@@ -20,7 +20,7 @@ title: Documentación - EAMT
 
 La tabla EAMT (_Explicit Address Mappings Table_) por sus siglas en inglés, es una colección de registros en un servidor SIIT y en ella se guarda la relación de cómo las diferentes direcciones deben de ser traducidas. 
 
-Lo que distingue este tipo de mapeo con los otros mecanismos es, en que la dirección IPv4 no está contenida ni correlacionada con la dirección IPv6 a usar.
+Lo que distingue este tipo de mapeo con los otros mecanismos es, en que la dirección IPv4 no forma parte de la dirección IPv6 a usar.
 
 Esta metodología es muy reciente, propuesta por el consultor en sistemas [Tore Andersson] (http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) a inicios del año en curso, 2015. Para conocer el draft-anderson-v6ops-siit-eam, consulta su revisión más reciente que es la [ver. 03](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-03).
 
@@ -85,6 +85,8 @@ En el mecanisimo de transición SIIT-EAM se emplea y se mantiene la tabla de dir
 En dicha tabla existen duplas con prefijos de IPv4 e IPv6 válidos.
 
 El prefijo es remplazado a nivel de bits.
+
+La dirección IPv4 no forma parte de la dirección IPv6 a usar.
 
 Los registros son bidireccionales.
 
