@@ -7,7 +7,7 @@ title: Documentación - Introducción a Jool
 
 # Introducción a Jool
 
-## Indice
+## Índice
 
 1. [Descripción](#descripcion)
 2. [Cumplimiento](#cumplimiento)

@@ -7,7 +7,7 @@ title: Documentación - Instalación de la Herramienta de Configuración de Jool
 
 # Instalación del Configurador de Jool
 
-## Indice
+## Índice
 
 1. [Introducción](#introduccion)
 2. [Requerimientos](#requerimientos)

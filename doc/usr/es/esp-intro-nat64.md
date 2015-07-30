@@ -7,7 +7,7 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 # Mecanismos de Transición de IPv6 soportados por Jool
 
-## Indice
+## Índice
 
 1. [Introducción](#introduccion)
 2. [Traducción IPv4/IPv6](#traudccion-ipv4ipv6)

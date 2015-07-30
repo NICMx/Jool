@@ -7,7 +7,7 @@ title: Documentación - Instalación del Servidor Jool
 
 # Instalación del Servidor Jool
 
-## Indice
+## Índice
 
 1. [Introducción](#introduccion)
 2. [Requerimientos](#requerimientos)

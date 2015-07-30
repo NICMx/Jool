@@ -7,7 +7,7 @@ title: Documentación - Parámetros > Global
 
 # \--global
 
-## Index
+## Índice
 
 1. [Descripción](#descripcion)
 2. [Sintaxis](#sintaxis)
