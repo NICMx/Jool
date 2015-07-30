@@ -1,13 +1,6 @@
-/*
- * address_mapping_test.c
- *
- *  Created on: Dic 2, 2014
- *      Author: dhernandez
- */
-
-#include <linux/module.h> /* Needed by all modules */
-#include <linux/kernel.h> /* Needed for KERN_INFO */
-#include <linux/init.h> /* Needed for the macros */
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
@@ -45,11 +38,13 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 
 	log_debug("\nInserting %s/%u", addr6, len6);
 	error = eamt_add(&prefix6, &prefix4);
+	/*
 	if (error) {
 		log_err("Errcode %d; I'm not going to print the tree.", error);
 	} else {
 		rtrie_print(eamt.tree6);
 	}
+	*/
 
 	return error;
 }
@@ -61,7 +56,7 @@ static bool add_test(void)
 	/* Collision tests */
 	success &= ASSERT_INT(0, __add_entry("1.0.0.4", 30, "1::c", 126), "hackless add");
 	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.4", 30, "1::c", 126), "full collision");
-//	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.4", 30, "1::", 126), "4 collides");
+	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.4", 30, "1::", 126), "4 collides");
 	success &= ASSERT_INT(-EEXIST, __add_entry("1.0.0.0", 30, "1::c", 126), "6 collides");
 
 	success &= ASSERT_INT(0, __add_entry("1.0.0.6", 31, "2::a", 127), "4 inside - other address");
@@ -94,46 +89,51 @@ static bool add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 	return true;
 }
 
-static bool test(char *addr4_str, char *addr6_str)
-{
-	struct in_addr addr4, result4;
-	struct in6_addr addr6 /*, result6 */;
-	int /* error1, */ error2;
-	bool success = true;
-
-	log_debug("Testing %s <-> %s...", addr4_str, addr6_str);
-
-	if (str_to_addr4(addr4_str, &addr4))
-		return false;
-	if (str_to_addr6(addr6_str, &addr6))
-		return false;
-
-//	error1 = eamt_get_ipv6_by_ipv4(&addr4, &result6);
-	error2 = eamt_get_ipv4_by_ipv6(&addr6, &result4);
-	if (/* error1 || */ error2) {
-		/* log_err("The call to eamt_get_ipv6_by_ipv4() spew errcode %d.", error1); */
-		log_err("The call to eamt_get_ipv4_by_ipv6() spew errcode %d.", error2);
-		return false;
-	}
-
-//	success &= ASSERT_ADDR6(addr6_str, &result6, "IPv4 to IPv6 result");
-	success &= ASSERT_ADDR4(addr4_str, &result4, "IPv6 to IPv4 result");
-	return success;
-}
-
-static bool test_fail6(char *addr6_str, int error)
+static bool test_6to4(char *addr6_str, char *addr4_str)
 {
 	struct in6_addr addr6;
 	struct in_addr addr4;
-	bool success;
+	bool success = true;
 
-	log_debug("Testing %s spews %d...", addr6_str, error);
+	log_debug("Testing %s -> %s...", addr6_str, addr4_str);
 
 	if (str_to_addr6(addr6_str, &addr6))
 		return false;
 
-	success = ASSERT_INT(error, eamt_get_ipv4_by_ipv6(&addr6, &addr4), "code");
+	if (addr4_str) {
+		success &= ASSERT_INT(0, eamt_get_ipv4_by_ipv6(&addr6, &addr4), "errcode");
+		success &= ASSERT_ADDR4(addr4_str, &addr4, "resulting address");
+	} else {
+		success &= ASSERT_INT(-ESRCH, eamt_get_ipv4_by_ipv6(&addr6, &addr4), "errcode");
+	}
+
 	return success;
+}
+
+static bool test_4to6(char *addr4_str, char *addr6_str)
+{
+	struct in_addr addr4;
+	struct in6_addr addr6;
+	bool success = true;
+
+	log_debug("Testing %s -> %s...", addr4_str, addr6_str);
+
+	if (str_to_addr4(addr4_str, &addr4))
+		return false;
+
+	if (addr6_str) {
+		success &= ASSERT_INT(0, eamt_get_ipv6_by_ipv4(&addr4, &addr6), "errcode");
+		success &= ASSERT_ADDR6(addr6_str, &addr6, "resulting address");
+	} else {
+		success &= ASSERT_INT(-ESRCH, eamt_get_ipv6_by_ipv4(&addr4, &addr6), "errcode");
+	}
+
+	return success;
+}
+
+static bool test(char *addr4, char *addr6)
+{
+	return test_6to4(addr6, addr4) && test_4to6(addr4, addr6);
 }
 
 static bool daniel_test(void)
@@ -154,8 +154,8 @@ static bool daniel_test(void)
 	success &= test("10.0.0.254", "2001:db8::111");
 	success &= test("10.0.1.15", "2001:db8::20f");
 
-	success &= test_fail6("2001:db8::8", -ESRCH);
-	success &= test_fail6("8000::", -ESRCH);
+	success &= test_6to4("2001:db8::8", NULL);
+	success &= test_6to4("8000::", NULL);
 
 	return success;
 }
@@ -186,11 +186,13 @@ static bool anderson_test(void)
 	return success;
 }
 
-static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6, int expected_error)
+static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
+		int expected_error)
 {
 	struct ipv4_prefix prefix4;
 	struct ipv6_prefix prefix6;
 	bool success;
+	int error;
 
 	log_debug("----------------");
 	log_debug("Removing entry %s/%u %s/%u", addr6, len6, addr4, len4);
@@ -212,10 +214,70 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6, int exp
 		prefix6.len = len6;
 	}
 
-	success = ASSERT_INT(expected_error, eamt_remove(addr6 ? &prefix6 : NULL,
-			addr4 ? &prefix4 : NULL), "removing EAM entry");
+	error = eamt_remove(addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
+	success = ASSERT_INT(expected_error, error, "removing EAM entry");
 
-	rtrie_print(eamt.tree6);
+	/* rtrie_print(eamt.tree6); */
+
+	return success;
+}
+
+static bool create_two_story_trie(void)
+{
+	bool success = true;
+
+	success &= add_entry("1.0.0.0", 32, "1::00", 120);
+	success &= add_entry("2.0.0.0", 32, "1::10", 124);
+	success &= add_entry("3.0.0.0", 32, "1::20", 124);
+
+	success &= remove_entry(NULL, 0, "1::", 128, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 121, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 119, -ESRCH);
+	success &= remove_entry(NULL, 0, "0::", 0, -ESRCH);
+
+	success &= test("1.0.0.0", "1::00");
+	success &= test("2.0.0.0", "1::10");
+	success &= test("3.0.0.0", "1::20");
+
+	return success;
+}
+
+static bool create_four_story_trie(void)
+{
+	bool success = true;
+
+	success &= add_entry("1.0.0.0", 32, "1::", 16);
+	success &= add_entry("2.0.0.0", 32, "1:1::", 32);
+	success &= add_entry("3.0.0.0", 32, "1:2::", 32);
+	success &= add_entry("4.0.0.0", 32, "1:1:1::", 48);
+	success &= add_entry("5.0.0.0", 32, "1:1:2::", 48);
+	success &= add_entry("6.0.0.0", 32, "1:2:1::", 48);
+	success &= add_entry("7.0.0.0", 32, "1:2:1:1::", 64);
+
+	success &= remove_entry(NULL, 0, "1::", 0, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 15, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 17, -ESRCH);
+	success &= remove_entry(NULL, 0, "1::", 128, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2::", 0, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2::", 31, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2::", 33, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2::", 128, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:1:2::", 0, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:1:2::", 47, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:1:2::", 49, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:1:2::", 128, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2:1:1::", 0, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2:1:1::", 63, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2:1:1::", 65, -ESRCH);
+	success &= remove_entry(NULL, 0, "1:2:1:1::", 128, -ESRCH);
+
+	success &= test("1.0.0.0", "1::");
+	success &= test("2.0.0.0", "1:1::");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test("7.0.0.0", "1:2:1:1::");
 
 	return success;
 }
@@ -228,48 +290,126 @@ static bool remove_test(void)
 	success &= remove_entry("10.0.0.0", 24, "1::", 120, -ESRCH);
 
 	/* trie is one node high */
-//	success &= add_entry("20.0.0.0", 25, "2::", 121);
-//	success &= remove_entry("30.0.0.1", 25, NULL, 0, -ESRCH);
-//	success &= remove_entry("20.0.0.130", 25, NULL, 0, -ESRCH);
-//	success &= remove_entry("20.0.0.120", 25, NULL, 0, 0);
+	success &= add_entry("20.0.0.0", 25, "2::", 121);
+	success &= remove_entry("30.0.0.1", 25, NULL, 0, -ESRCH);
+	success &= remove_entry("20.0.0.130", 25, NULL, 0, -ESRCH);
+	success &= remove_entry("20.0.0.120", 25, NULL, 0, 0);
 
 	success &= add_entry("30.0.0.0", 24, "3::", 120);
+	success &= test("30.0.0.0", "3::");
 	success &= remove_entry(NULL, 0, "3::1:0", 120, -ESRCH);
+	success &= test("30.0.0.0", "3::");
 	success &= remove_entry(NULL, 0, "3::0", 120, 0);
+	success &= test_6to4("3::", NULL);
+	success &= test_4to6("30.0.0.0", NULL);
 
 	success &= ASSERT_U64(0ULL, eamt.count, "Table count");
 	if (!success)
 		return false;
 
 	/* trie is two nodes high */
-	success &= add_entry("10.0.0.0", 32, "1::00", 120);
-	success &= add_entry("10.0.0.0", 32, "1::10", 124);
-	success &= add_entry("10.0.0.0", 32, "1::20", 124);
-
-	success &= remove_entry(NULL, 0, "1::", 128, -ESRCH);
-	success &= remove_entry(NULL, 0, "1::", 121, -ESRCH);
-	success &= remove_entry(NULL, 0, "1::", 119, -ESRCH);
-	success &= remove_entry(NULL, 0, "0::", 0, -ESRCH);
-
+	success &= create_two_story_trie();
 	success &= remove_entry(NULL, 0, "1::10", 124, 0);
+	success &= test("1.0.0.0", "1::00");
+	success &= test_6to4("1::10", "1.0.0.0");
+	success &= test_4to6("2.0.0.0", NULL);
+	success &= test("3.0.0.0", "1::20");
 	eamt_flush();
 
-	success &= add_entry("10.0.0.0", 32, "1::00", 120);
-	success &= add_entry("10.0.0.0", 32, "1::10", 124);
-	success &= add_entry("10.0.0.0", 32, "1::20", 124);
-
+	success &= create_two_story_trie();
 	success &= remove_entry(NULL, 0, "1::20", 124, 0);
+	success &= test("1.0.0.0", "1::00");
+	success &= test("2.0.0.0", "1::10");
+	success &= test_6to4("1::20", "1.0.0.0");
+	success &= test_4to6("3.0.0.0", NULL);
 	eamt_flush();
 
-	success &= add_entry("10.0.0.0", 32, "1::00", 120);
-	success &= add_entry("10.0.0.0", 32, "1::10", 124);
-	success &= add_entry("10.0.0.0", 32, "1::20", 124);
-
+	success &= create_two_story_trie();
 	success &= remove_entry(NULL, 0, "1::00", 120, 0);
+	success &= test_6to4("1::00", NULL);
+	success &= test_4to6("1.0.0.0", NULL);
+	success &= test("2.0.0.0", "1::10");
+	success &= test("3.0.0.0", "1::20");
 	eamt_flush();
 
 	/* trie is three or more nodes high */
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1::", 16, 0);
+	success &= test_6to4("1::", NULL);
+	success &= test_4to6("1.0.0.0", NULL);
+	success &= test("2.0.0.0", "1:1::");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test("7.0.0.0", "1:2:1:1::");
+	eamt_flush();
 
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1:1::", 32, 0);
+	success &= test("1.0.0.0", "1::");
+	success &= test_6to4("1:1::", "1.0.0.0");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test("7.0.0.0", "1:2:1:1::");
+	eamt_flush();
+
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1:2::", 32, 0);
+	success &= test("1.0.0.0", "1::");
+	success &= test("2.0.0.0", "1:1::");
+	success &= test_6to4("1:2::", "1.0.0.0");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test("7.0.0.0", "1:2:1:1::");
+	eamt_flush();
+
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1:1:1::", 48, 0);
+	success &= test("1.0.0.0", "1::");
+	success &= test("2.0.0.0", "1:1::");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test_6to4("1:1:1::", "2.0.0.0");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test("7.0.0.0", "1:2:1:1::");
+	eamt_flush();
+
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1:1:2::", 48, 0);
+	success &= test("1.0.0.0", "1::");
+	success &= test("2.0.0.0", "1:1::");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test_6to4("1:1:2::", "2.0.0.0");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test("7.0.0.0", "1:2:1:1::");
+	eamt_flush();
+
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1:2:1::", 48, 0);
+	success &= test("1.0.0.0", "1::");
+	success &= test("2.0.0.0", "1:1::");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test_6to4("1:2:1::", "3.0.0.0");
+	success &= test("7.0.0.0", "1:2:1:1::");
+	eamt_flush();
+
+	success &= create_four_story_trie();
+	success &= remove_entry(NULL, 0, "1:2:1:1::", 64, 0);
+	success &= test("1.0.0.0", "1::");
+	success &= test("2.0.0.0", "1:1::");
+	success &= test("3.0.0.0", "1:2::");
+	success &= test("4.0.0.0", "1:1:1::");
+	success &= test("5.0.0.0", "1:1:2::");
+	success &= test("6.0.0.0", "1:2:1::");
+	success &= test_6to4("1:2:1:1::", "6.0.0.0");
+	eamt_flush();
 
 	return success;
 }
@@ -280,8 +420,8 @@ static int address_mapping_test_init(void)
 
 	INIT_CALL_END(init(), add_test(), end(), "add function");
 	/* TODO looks like this is missing empty trie gets. */
-	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's translation tests");
-	INIT_CALL_END(init(), anderson_test(), end(), "Translation tests from T. Anderson's draft");
+	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's xlat tests");
+	INIT_CALL_END(init(), anderson_test(), end(), "Tore's xlat tests");
 	INIT_CALL_END(init(), remove_test(), end(), "remove function");
 
 	END_TESTS;

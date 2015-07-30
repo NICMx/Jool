@@ -11,22 +11,6 @@
 #include <linux/rbtree.h>
 #include "nat64/common/types.h"
 
-/**
- * Explicit Address Mapping definition.
- * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4 Prefix to an IPv6 Prefix
- * and vice versa.
- */
-//struct eam_entry {
-//	/** The prefix address for the IPv4 network. */
-//	struct ipv4_prefix pref4;
-//	/** The prefix address for the IPv6 network. */
-//	struct ipv6_prefix pref6;
-//	/** Appends this entry to the database's IPv6 index. */
-//	struct rb_node tree6_hook;
-//	/** Appends this entry to the database's IPv4 index. */
-//	struct rb_node tree4_hook;
-//};
-
 int eamt_init(void);
 void eamt_destroy(void);
 
@@ -46,7 +30,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
  *
  * otherwise return error.
  */
-//int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
+int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
 
 /**
  * Look in the IPv6 address mapping table, if the IPv6 address "addr6" is part of a prefix indexed

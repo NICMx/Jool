@@ -1,5 +1,4 @@
 #include "nat64/mod/common/rtrie.h"
-#include "nat64/mod/common/types.h" /* TODO this can be removed. */
 #include <linux/slab.h>
 
 static __u8 bits_to_bytes(__u8 bits)
@@ -289,17 +288,17 @@ static int add_full_collision(struct rtrie_node *parent, struct rtrie_node *new)
 		smallest_prefix = new;
 		higher_prefix1 = parent->left;
 		higher_prefix2 = parent->right;
-		inode_prefix.len = match_ln;
+		inode_prefix.len = match_lr;
 	} else if (match_ln > match_lr && match_ln > match_rn) {
 		smallest_prefix = parent->right;
 		higher_prefix1 = new;
 		higher_prefix2 = parent->left;
-		inode_prefix.len = match_lr;
+		inode_prefix.len = match_ln;
 	} else if (match_rn > match_lr && match_rn > match_ln) {
 		smallest_prefix = parent->left;
 		higher_prefix1 = new;
 		higher_prefix2 = parent->right;
-		inode_prefix.len = match_lr;
+		inode_prefix.len = match_rn;
 	} else {
 		/* TODO improve error msg. */
 		WARN(true, "Inconsistent bwrtrie.");
@@ -492,6 +491,17 @@ void rtrie_flush(struct rtrie_node **root)
 	*root = NULL;
 }
 
+static char *color2str(enum rtrie_color color)
+{
+	switch (color) {
+	case COLOR_WHITE:
+		return "w";
+	case COLOR_BLACK:
+		return "b";
+	}
+	return "u";
+}
+
 static void print_node(struct rtrie_node *node, char *side, unsigned int level)
 {
 	unsigned int i, j;
@@ -503,6 +513,8 @@ static void print_node(struct rtrie_node *node, char *side, unsigned int level)
 	for (i = 0; i < level; i++)
 		printk("| ");
 
+	printk("(%s) ", color2str(node->color));
+
 	for (i = 0; i < (node->key.len >> 3); i++)
 		printk("%02x", node->key.bytes[i]);
 	remainder = node->key.len & 7u;
@@ -511,6 +523,8 @@ static void print_node(struct rtrie_node *node, char *side, unsigned int level)
 		for (j = 0; j < remainder; j++)
 			printk("%u", (node->key.bytes[i] >> (7u - j)) & 1u);
 	}
+
+	printk(" (/%u)", node->key.len);
 
 	printk("\n");
 
