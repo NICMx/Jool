@@ -42,7 +42,7 @@ Un registro EAMT está compuesto en pares, un prefijo IPv4 y un prefijo IPv6. Cu
 
 Este es el caso más sencillo, porque no tiene prefijo. El registro literalmente dice: "La dirección `192.0.2.1` debe de ser siempre traducida como `2001:db8:aaaa::5`, y a la inversa".
 
-Ya sea que la dirección sea origen, destino o caiga dentro del paquete interno de un error ICMP, no importa.
+Ya sea que la dirección sea origen, destino o esté dentro del paquete interno de un error ICMP, no importa.
 
 La representación IPv6 de `192.0.2.1` es `2001:db8:aaaa::5`, y la representación IPv4 de `2001:db8:aaaa::5` es `192.0.2.1`.
 
@@ -59,9 +59,9 @@ Como en:
 - `198.51.100.254` <-> `2001:db8:bbbb::fe`
 - `198.51.100.255` <-> `2001:db8:bbbb::ff`
 
-Esta forma puede ayudarte a simplificar la configuración cuando tienes muchas direcciones para traducir; el sufijo siempre es preservado, la ventaja es que un solo registro EAMT puede describir la traducción de una red entera.
+Esta forma puede ayudarte a simplificar la configuración cuando tienes muchas direcciones a traducir; el sufijo siempre es preservado. La ventaja, que es evidente, es que un solo registro EAMT puede describir la traducción de una red entera.
 
-También, un sólo registro EAMT con /16 será mucho más eficiente que los 65536 registros atómicos equivalentes.
+Por mencionar otro ejemplo, un registro EAMT con /16 será mucho más eficiente que los 65536 registros atómicos equivalentes.
 
 ### Registro 03
 
@@ -94,6 +94,6 @@ Los paquetes que empleen dichas direcciones se tratarán como tales, es decir, c
 
 Si Jool no encuentra una coincidencia en la tabla para una dirección, intenta traducir basado en el prefijo [`pool6`](usr-flags-pool6.html). 
 
-Si eso también falla, el paquete es devuelto al kernel. Se asume que el paquete no debe de ser traducido.
+Si eso también falla, el paquete es devuelto al kernel. Se asume que el paquete no debe ser traducido.
 
 Ve la [demostración](esp-mod-run-eam.html) o el [material de referencia](esp-usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.
