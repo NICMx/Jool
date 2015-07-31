@@ -1,6 +1,6 @@
 ---
 layout: documentation
-title: Documentación - SIIT: Ejemplo básico 
+title: Documentación - SIIT - Ejemplo básico 
 ---
 
 [Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > SIIT
@@ -84,7 +84,7 @@ user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
-Hasta aqui no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
+Hasta aqui, no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
 La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) es que al habilitar forwarding en Linux no te libera automáticamente de offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](esp-misc-offloading.html) si quieres conocer más detalles sobre esta problemática.
 
@@ -103,13 +103,13 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-		NOTA: Si señala que no puede cambiar alguno de los parámetros, considera que es posible que ya este apagado.
+		NOTA: Si no puedes cambiar alguno de los parámetros, considera que es posible que ya este apagado.
 		      Ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
 
 ## Jool
 
 Esta es la sintaxis para insertar Jool SIIT en el kernel:
--Requieres permiso de administración
+(Requieres permiso de administración)
 
 	user@T:~# modprobe jool_siit \
 		[pool6=<IPv6 prefix>] \
@@ -119,20 +119,20 @@ Esta es la sintaxis para insertar Jool SIIT en el kernel:
 
 Los parámetros válidos son:
 
-- `pool6` (abreviación de "IPv6 pool") es el prefijo que el mecanismo de traducción estará adjuntando y removiendo de las direcciones de los paquetes. Este puede ser opcional porque quizá planees usar EAM.
+- `pool6` (abreviación de "Pool de IPv6") es el prefijo que el mecanismo de traducción estará adjuntando y removiendo de las direcciones de los paquetes. Este podría ser opcional, porque quizá estas planeando usar EAM.
 
 - `blacklist` representa direcciones IPv4 que Jool **no** va a traducir usando el prefijo pool6, por lo que esto no afecta en la traducción EAM. Puedes insertar hasta cinco prefijos separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-blacklist.html).
 
-- `pool6791` es un pool IPv4 secundario que se utiliza cuando [no hay una conexión directa entre uno o varios nodos y el traductor](esp-misc-rfc6791.html). Si este pool está vacío, Jool enviar la dirección propia de su nodo hacia el nodo de destino. Puedes insertar hasta cinco prefijos `pool6791` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-pool6791.html).
+- `pool6791` es un pool IPv4 secundario que se utiliza cuando [no hay una conexión directa entre uno o varios nodos y el traductor](esp-misc-rfc6791.html). Si este pool está vacío, Jool enviará la dirección propia de su nodo hacia el nodo destino. Puedes insertar hasta cinco prefijos `pool6791` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-pool6791.html).
 
 - `disabled` inicia Jool en modo inactivo. Si estás utilizando el configurador, puedes usar esta opción para asegurarte de que has terminado de configurar antes de que tu tráfico empiece a ser traducido.
 Si no está presente, Jool empieza a traducir el tráfico de inmediato.
 
 Lo siguiente es sufciente para nuestra red de ejemplo.
 
-	user@T:~# /sbin/modprobe jool_siit pool6=2001:db8::/96
+	user@T:~# modprobe jool_siit pool6=2001:db8::/96
 
-Eso significa que: La representación IPv6 de cualquier dirección IPv4 va a ser `2001:db8::<IPv4 address>`.
+Eso significa que: "La representación IPv6 de cualquier dirección IPv4 va a ser `2001:db8::<IPv4 address>`."
 
 ## Pruebas
 
@@ -189,7 +189,7 @@ Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
 Para detener Jool, revierte el modprobe usando solamente el parámetro `-r`:
 
 {% highlight bash %}
-user@T:~# /sbin/modprobe -r jool_siit
+user@T:~# modprobe -r jool_siit
 {% endhighlight %}
 
 ## Lecturas adicionales
