@@ -18,39 +18,36 @@ title: Documentación - SIIT: Ejemplo básico
 4. [Pruebas](#pruebas)
 	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
 	2. [`Conectividad de IPv6 a IPv4`] (#ping6to4)
-	3. [`Conectividad a un Servidor HTML en IPv4`] (#WebServer-ipv4)
-	4. [`Conectividad a un Servidor HTML en IPv6`] (#WebServer-ipv6)
+	3. [`Conectividad a un Web Server en IPv4`] (#WebServer-ipv4)
+	4. [`Conectividad a un Web Server en IPv6`] (#WebServer-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en [modo SIIT](esp-intro-nat64.html#siit-tradicional). Ingresa al enlace para obtener más detalles sobre qué esperar de éste tutorial.
+Este documento explica cómo ejecutar Jool en modo SIIT. Si no tienes nociones de este tipo de traducción ingresa a [SIIT Tradicional](esp-intro-nat64.html#siit-tradicional).
 
 En cuanto a software, solo se necesita una [instalación exitosa del Servidor Jool](esp-mod-install.html). El configurador queda fuera del rango del proposito de éste documento.
 
-Para la implementación de las pruebas se puedes usar máquinas virtuales o tipos alternos de interfaces dado que Jool no esté casado con interfaces fisicas "_ethX_".
+Para la implementación de las pruebas, puedes usar alternativamente máquinas virtuales u otro tipo de interfaces, dado que Jool no está ligado al uso exclusivo de interfaces físicas del tipo "_ethX_".
 
 ## Red de ejemplo
 
-No necesitas todos los nodos que se muestran en el diagrama para dar seguimiento; puedes lograrlo con sólo _A_, _T_ y _V_; el resto son muy similares a _A_ y _V_ y son mostrados para propósitos ilustrativos.
-
 ![Figura 1 - Red de ejemplo](images/network/vanilla.svg)
 
+No es necesario que des de alta todos los nodos que se muestran en el diagrama; puedes lograrlo con solo 3 nodos: _A_, _T_ y _V_. El resto son muy similares a _A_ y _V_ y son mostrados para propósitos ilustrativos.
 
 Considera que tienes un bloque de direcciones 198.51.100.8/29 para distribuirlo entre tus nodos IPv6.
 
-Jool requiere que _T_ tenga instalado Linux. El resto de los Nodos puede tener cualquier otro sistema operativo, siempre y cuando manejen TCP/IP. También, se tiene la libertad de configurar la red utilizando el administrador que se prefiera.
+Jool requiere que _T_ tenga instalado Linux. El resto de los nodos puede tener cualquier otro sistema operativo, siempre y cuando manejen TCP/IP.
 
-Sin embargo para efectos de simplicidad, los ejemplos en la parte de abajo asumen que todos los nodos tienen instalado Linux y que todo esta siendo configurado estáticamente usando el bien-conocido comando `ip`. 
+Sin embargo para efectos de simplicidad, los ejemplos aqui mencionados asumen que todos los nodos tienen instalado Linux y que todo esta siendo configurado estáticamente usando el bien-conocido comando `ip`. Y además, todo el tráfico será redirigido por defecto hacia _T_.
 
-Dependiendo de tu distribución de linux, la forma de cómo deshabilitar el administrador de red puede variar. Esto se requiere hacer para tomar control sobre las direcciones y rutas de tus interfaces, de otra forma los comandos `ip` pudieran no tener efecto.
-
-También para simplificar, todo el tráfico será redirigido por defecto hacia _T_.
+Dependiendo de tu distribución de linux, la forma de cómo deshabilitar el administrador de red puede variar. Esto se requiere, para que tomes control sobre las direcciones y rutas de tus interfaces; de otra forma, los comandos `ip` pudieran no tener efecto.
 
 ### `Configuración de Nodos en IPv6`
 
-Para los nodos de _A_ a _E_, ejecutar la siguiente secuencia de comandos con permisos de administrador:
+Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
@@ -63,36 +60,33 @@ user@A:~# ip route add default via 2001:db8::198.51.100.1
 
 ### `Configuración de Nodos en IPv4`
 
-Para los nodos de _V_ a _Z_, ejecutar la siguiente secuencia de comandos con permisos de administrador:
+Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
 {% highlight bash %}
 user@V:~# service network-manager stop
-user@V:~# /sbin/ip link set eth0 up
+user@V:~# ip link set eth0 up
 user@V:~# # Replace ".16" depending on which node you're on.
-user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
-user@V:~# /sbin/ip route add default via 192.0.2.1
+user@V:~# ip addr add 192.0.2.16/24 dev eth0
+user@V:~# ip route add default via 192.0.2.1
 {% endhighlight %}
 
 ### `Configuración del Nodo Traductor`
 
-Para Nodo _T_, ejecutar la siguiente secuencia de comandos con permisos de administrador:
+Para Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
 {% highlight bash %}
 user@T:~# service network-manager stop
-user@T:~# 
-user@T:~# /sbin/ip link set eth0 up
-user@T:~# /sbin/ip addr add 2001:db8::198.51.100.1/120 dev eth0
-user@T:~# 
-user@T:~# /sbin/ip link set eth1 up
-user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
-user@T:~# 
+user@T:~# ip link set eth0 up
+user@T:~# ip addr add 2001:db8::198.51.100.1/120 dev eth0
+user@T:~# ip link set eth1 up
+user@T:~# ip addr add 192.0.2.1/24 dev eth1
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
-Hasta aqui no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja, por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
+Hasta aqui no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
-La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) es que el habilitar forwarding en Linux no te libera automáticamente de offloads. Offloading es una característica de los nodos terminales, y para los que no lo son es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](esp-misc-offloading.html) si quieres conocer los detalles.
+La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) es que al habilitar forwarding en Linux no te libera automáticamente de offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](esp-misc-offloading.html) si quieres conocer más detalles sobre esta problemática.
 
 Hazlo por medio de `ethtool`:
 
@@ -109,13 +103,15 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-		NOTA: Si señala que no puede cambiar alguno de los parámetros, considera que es posible que ya este apagado; ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
+		NOTA: Si señala que no puede cambiar alguno de los parámetros, considera que es posible que ya este apagado.
+		      Ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
 
 ## Jool
 
-Esta es la sintaxis para insertar Jool en el kernel:
+Esta es la sintaxis para insertar Jool SIIT en el kernel:
+-Requieres permiso de administración
 
-	user@T:~# /sbin/modprobe jool_siit \
+	user@T:~# modprobe jool_siit \
 		[pool6=<IPv6 prefix>] \
 		[blacklist=<IPv4 prefixes>] \
 		[pool6791=<IPv4 prefixes>] \
@@ -123,13 +119,12 @@ Esta es la sintaxis para insertar Jool en el kernel:
 
 Los parámetros válidos son:
 
-- `pool6` (abreviación de "IPv6 pool") es el prefijo que el mecanismo de traducción estará adjuntando y removiendo de las direcciones de los paquetes.  
-Esto es opcional por que quizá quieras usar la tabla EAM.
-- `blacklist` representa direcciones IPv4 que Jool **no** va a traducir usando el prefijo pool6 (ie. esto no afecta la traducción EAMT).  
-Puedes insertar hasta cinco prefijos `blacklist` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-blacklist.html).
-- `pool6791` es un pool IPv4 secundario que se utiliza para algo[un poco mas crítico](esp-misc-rfc6791.html). Quizá prefieras leer esta explicación _después_ de que hayas asimilado los fundamentos de este recorrido.  
-Si este pool está vacío, Jool retrocederá a enviar la dirección propia de su nodo hacia el nodo de destino.  
-Puedes insertar hasta cinco prefijos `pool6791` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-pool6791.html).
+- `pool6` (abreviación de "IPv6 pool") es el prefijo que el mecanismo de traducción estará adjuntando y removiendo de las direcciones de los paquetes. Este puede ser opcional porque quizá planees usar EAM.
+
+- `blacklist` representa direcciones IPv4 que Jool **no** va a traducir usando el prefijo pool6, por lo que esto no afecta en la traducción EAM. Puedes insertar hasta cinco prefijos separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-blacklist.html).
+
+- `pool6791` es un pool IPv4 secundario que se utiliza cuando [no hay una conexión directa entre uno o varios nodos y el traductor](esp-misc-rfc6791.html). Si este pool está vacío, Jool enviar la dirección propia de su nodo hacia el nodo de destino. Puedes insertar hasta cinco prefijos `pool6791` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-pool6791.html).
+
 - `disabled` inicia Jool en modo inactivo. Si estás utilizando el configurador, puedes usar esta opción para asegurarte de que has terminado de configurar antes de que tu tráfico empiece a ser traducido.
 Si no está presente, Jool empieza a traducir el tráfico de inmediato.
 
@@ -137,7 +132,7 @@ Lo siguiente es sufciente para nuestra red de ejemplo.
 
 	user@T:~# /sbin/modprobe jool_siit pool6=2001:db8::/96
 
-Eso significa que la representación IPv6 de cualquier dirección IPv4 va a ser `2001:db8::<IPv4 address>`. Ver ejemplos abajo.
+Eso significa que: La representación IPv6 de cualquier dirección IPv4 va a ser `2001:db8::<IPv4 address>`.
 
 ## Pruebas
 
@@ -175,13 +170,13 @@ PING 2001:db8::192.0.2.16(2001:db8::c000:210) 56 data bytes
 rtt min/avg/max/mdev = 1.384/4.529/10.522/3.546 ms
 {% endhighlight %}
 
-### `Conectividad a un Servidor HTML en IPv4`
+### `Conectividad a un Web Server en IPv4`
 
 Agrega un servidor en _X_ y accesalo desde _D_:
 
 ![Figura 1 - IPv4 TCP from an IPv6 node](images/run-vanilla-firefox-4to6.png)
 
-### `Conectividad a un Servidor HTML en IPv6`
+### `Conectividad a un Web Server en IPv6`
 
 Agrega un servidor en _C_ y haz una solicitud desde _W_:
 
