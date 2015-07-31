@@ -1,11 +1,11 @@
 ---
 layout: documentation
-title: Documentación - EAM Ejemplo de uso
+title: Documentación - SIIT-EAM: Ejemplo de uso
 ---
 
 [Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > SIIT + EAM
 
-# EAM Ejemplo de uso
+# EAM: Ejemplo de Uso
 
 ## Índice
 
@@ -18,9 +18,9 @@ title: Documentación - EAM Ejemplo de uso
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en [modo EAM](esp-intro-nat64.html#siit-con-eam). Ingresa al enlace para obtener más detalles sobre que esperar de éste tutorial. También mira [el resume del EAMT draft](esp-misc-eamt.html) para obtener más detalles de cómo funciona EAMT. SIIT-EAM mas que un "modo" es simplemente proveer a SIIT con registros en la tabla EAM.
+Este documento explica cómo ejecutar Jool en [modo EAM](esp-intro-nat64.html#siit-con-eam). Ingresa al enlace para obtener más detalles sobre qué esperar de éste tutorial. También mira [el resume del EAMT draft](esp-misc-eamt.html) para obtener más detalles de cómo funciona EAMT. SIIT-EAM mas que un "modo" es simplemente proveer a SIIT con registros en la tabla EAM.
 
-El [Modo Stock](esp-mod-run-vanilla.html) es más rapido de configurar y nos gustaría alentarte a que lo aprendas antes,  particularmente por que no voy a desarrollar aqui los pasos que ambos modos tienen en común. En cuanto al software, necesitas una instalación exitosa de ambos el [modulo de kernel](esp-mod-install.html) **y** el [configurador](esp-usr-install.html) para EAM.
+El [Modo Stock](esp-mod-run-vanilla.html) es más rapido de configurar y nos gustaría alentarte a que lo aprendas antes,  particularmente por que no voy a desarrollar aqui los pasos que ambos modos tienen en común. En cuanto al software, necesitas una instalación exitosa de ambos del [Servidor Jool](esp-mod-install.html) **y** el [configurador](esp-usr-install.html) para EAM.
 
 ## Red de ejemplo
 

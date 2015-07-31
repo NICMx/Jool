@@ -1,11 +1,11 @@
 ---
 layout: documentation
-title: Documentación - Stateful NAT64 Ejemplo de uso
+title: Documentación - Stateful NAT64: Ejemplo de uso
 ---
 
 [Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplosdeuso) > Stateful NAT64
 
-# Stateful Ejemplo de uso
+# Stateful NAT64: Ejemplo de Uso
 
 ## Índice
 
