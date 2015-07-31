@@ -72,7 +72,7 @@ enum config_mode {
 #define POOL4_OPS (DATABASE_OPS)
 #define BLACKLIST_OPS (DATABASE_OPS)
 #define RFC6791_OPS (DATABASE_OPS)
-#define EAMT_OPS (DATABASE_OPS)
+#define EAMT_OPS (DATABASE_OPS | OP_TEST)
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define LOGTIME_OPS (OP_DISPLAY)
@@ -93,6 +93,8 @@ enum config_operation {
 	OP_REMOVE = (1 << 4),
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
+	/* The user is a tester and s/he wants Jool's answer regarding a query. */
+	OP_TEST = (1 << 6),
 };
 
 /**
@@ -109,6 +111,7 @@ enum config_operation {
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT)
 #define UPDATE_MODES (MODE_GLOBAL)
+#define TEST_MODES (MODE_EAMT)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
 		| MODE_EAMT | MODE_LOGTIME)
@@ -236,6 +239,13 @@ union request_eamt {
 	struct {
 		/* Nothing needed here. */
 	} count;
+	struct {
+		__u8 addr_is_ipv6;
+		union {
+			struct in6_addr addr6;
+			struct in_addr addr4;
+		} addr;
+	} test;
 	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
@@ -434,18 +444,14 @@ struct session_entry_usr {
 };
 
 /**
- * An EAMT entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct eam_entry" and only used when EAMT entries need to travel to
- * userspace. For anything else, use "struct eam_entry".
- *
- * See "struct eam_entry" for documentation on the fields.
+ * Explicit Address Mapping definition.
+ * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4
+ * Prefix to an IPv6 Prefix and vice versa.
  */
-struct eam_entry_usr {
-	struct ipv4_prefix pref4;
-	struct ipv6_prefix pref6;
+struct eamt_entry {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
 };
-
 
 /**
  * A copy of the entire running configuration, excluding databases.

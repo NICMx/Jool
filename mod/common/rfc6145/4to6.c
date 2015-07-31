@@ -135,7 +135,7 @@ static verdict generate_addr6_siit(__be32 addr4, struct in6_addr *addr6,
 	}
 
 	if (enable_eam) {
-		error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
+		error = eamt_xlat_4to6(&tmp, addr6);
 		if (!error)
 			return VERDICT_CONTINUE;
 		if (error != -ESRCH)

@@ -90,23 +90,23 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	return fail(__func__);
 }
 
-int eamt_flush(void)
+void eamt_flush(void)
 {
-	return fail(__func__);
+	fail(__func__);
 }
 
-bool eamt_contains_ipv4(__be32 addr)
+bool eamt_contains4(__be32 addr)
 {
 	fail(__func__);
 	return false;
 }
 
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result)
+int eamt_xlat_4to6(struct in_addr *addr, struct in6_addr *result)
 {
 	return fail(__func__);
 }
 
-int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
+int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result)
 {
 	return fail(__func__);
 }

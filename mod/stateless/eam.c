@@ -10,16 +10,6 @@
 #define ADDR6_BITS 128
 #define ADDR4_BITS 32
 
-/**
- * Explicit Address Mapping definition.
- * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4
- * Prefix to an IPv6 Prefix and vice versa.
- */
-struct eamt_entry {
-	struct ipv6_prefix prefix6;
-	struct ipv4_prefix prefix4;
-};
-
 struct eam_table {
 	struct rtrie_node *tree6;
 	struct rtrie_node *tree4;
@@ -123,7 +113,7 @@ end:
 	return error;
 }
 
-static struct eamt_entry *__get_exact6(struct ipv6_prefix *prefix)
+static struct eamt_entry *get_exact6(struct ipv6_prefix *prefix)
 {
 	struct rtrie_string key;
 	struct eamt_entry *result;
@@ -138,7 +128,7 @@ static struct eamt_entry *__get_exact6(struct ipv6_prefix *prefix)
 	return (result->prefix6.len == prefix->len) ? result : NULL;
 }
 
-static struct eamt_entry *__get_exact4(struct ipv4_prefix *prefix)
+static struct eamt_entry *get_exact4(struct ipv4_prefix *prefix)
 {
 	struct rtrie_string key;
 	struct eamt_entry *result;
@@ -200,19 +190,19 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 		return -EINVAL;
 
 	if (!prefix4) {
-		eam6 = __get_exact6(prefix6);
+		eam6 = get_exact6(prefix6);
 		return eam6 ? __rm(prefix6, &eam6->prefix4) : -ESRCH;
 	}
 
 	if (!prefix6) {
-		eam4 = __get_exact4(prefix4);
+		eam4 = get_exact4(prefix4);
 		return eam4 ? __rm(&eam4->prefix6, prefix4) : -ESRCH;
 	}
 
-	eam6 = __get_exact6(prefix6);
+	eam6 = get_exact6(prefix6);
 	if (!eam6)
 		return -ESRCH;
-	eam4 = __get_exact4(prefix4);
+	eam4 = get_exact4(prefix4);
 	if (!eam4)
 		return -ESRCH;
 
@@ -239,7 +229,7 @@ static struct eamt_entry *find_addr4(struct in_addr *addr)
 	return rtrie_get(eamt.tree4, &key);
 }
 
-bool eamt_contains_ipv6(struct in6_addr *addr)
+bool eamt_contains6(struct in6_addr *addr)
 {
 	struct eamt_entry *node;
 	bool result;
@@ -254,7 +244,7 @@ bool eamt_contains_ipv6(struct in6_addr *addr)
 	return result;
 }
 
-bool eamt_contains_ipv4(__u32 addr)
+bool eamt_contains4(__u32 addr)
 {
 	struct eamt_entry *node;
 	struct in_addr tmp = { .s_addr = addr };
@@ -270,7 +260,7 @@ bool eamt_contains_ipv4(__u32 addr)
 	return result;
 }
 
-int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
+int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result)
 {
 	struct eamt_entry *eam;
 	struct ipv4_prefix prefix4;
@@ -301,7 +291,7 @@ int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result)
 	return 0;
 }
 
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr4, struct in6_addr *result)
+int eamt_xlat_4to6(struct in_addr *addr4, struct in6_addr *result)
 {
 	struct ipv4_prefix prefix4;
 	struct ipv6_prefix prefix6;
@@ -357,49 +347,12 @@ bool eamt_is_empty(void)
 	return !count;
 }
 
-///**
-// * See the function of the same name from the BIB DB module for comments on this.
-// */
-//static struct rb_node *find_next_chunk(struct ipv4_prefix *offset)
-//{
-//	struct rb_node **node, *parent;
-//	struct eam_entry *eam;
-//
-//	if (!offset)
-//		return rb_first(&eam_table.EAMT_tree4);
-//
-//	rbtree_find_node(offset, &eam_table.EAMT_tree4, compare_prefix4, struct eam_entry, tree4_hook,
-//			parent, node);
-//	if (*node)
-//		return rb_next(*node);
-//
-//	eam = rb_entry(parent, struct eam_entry, tree4_hook);
-//	return (compare_prefix4(eam, offset) < 0) ? parent : rb_next(parent);
-//}
-//
-//int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
-//		struct ipv4_prefix *offset)
-//{
-//	struct rb_node *node;
-//	int error = 0;
-//	spin_lock_bh(&eam_lock);
-//
-//	for (node = find_next_chunk(offset); node && !error; node = rb_next(node))
-//		error = func(rb_entry(node, struct eam_entry, tree4_hook), arg);
-//
-//	spin_unlock_bh(&eam_lock);
-//	return error;
-//}
-
-//static struct rtrie_node *rtrie_first(struct rtrie_node *root)
-//{
-//	struct rtrie_node *result = root;
-//
-//	while (result->left)
-//		result = result->left;
-//
-//	return result;
-//}
+int eamt_for_each(int (*func)(struct eamt_entry *, void *), void *arg,
+		struct ipv4_prefix *offset)
+{
+	log_err("Not implemented yet.");
+	return -EINVAL;
+}
 
 void eamt_flush(void)
 {

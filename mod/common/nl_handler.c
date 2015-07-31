@@ -480,15 +480,10 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 	}
 }
 
-static int eam_entry_to_userspace(struct eam_entry *entry, void *arg)
+static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
-	struct eam_entry_usr entry_usr;
-
-	entry_usr.pref4 = entry->pref4;
-	entry_usr.pref6 = entry->pref6;
-
-	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+	return nlbuffer_write(buffer, entry, sizeof(*entry));
 }
 
 static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *request)
@@ -509,6 +504,28 @@ static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *requ
 
 	kfree(buffer);
 	return error;
+}
+
+static int handle_eamt_test(struct nlmsghdr *nl_hdr, union request_eamt *request)
+{
+	struct in6_addr addr6;
+	struct in_addr addr4;
+	int error;
+
+	log_debug("Translating address for the user.");
+	if (request->test.addr_is_ipv6) {
+		error = eamt_xlat_6to4(&request->test.addr.addr6, &addr4);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_setcfg(nl_hdr, &addr4, sizeof(addr4));
+	} else {
+		error = eamt_xlat_4to6(&request->test.addr.addr4, &addr6);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_setcfg(nl_hdr, &addr6, sizeof(addr6));
+	}
 }
 
 static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
@@ -533,6 +550,9 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
+	case OP_TEST:
+		return handle_eamt_test(nl_hdr, request);
+
 	case OP_ADD:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
@@ -553,7 +573,9 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		return respond_error(nl_hdr, eamt_flush());
+		eamt_flush();
+		return respond_error(nl_hdr, 0);
+
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);

@@ -9,6 +9,7 @@
  */
 
 #include <linux/rbtree.h>
+#include "nat64/common/config.h"
 #include "nat64/common/types.h"
 
 int eamt_init(void);
@@ -30,7 +31,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
  *
  * otherwise return error.
  */
-int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
+int eamt_xlat_4to6(struct in_addr *addr, struct in6_addr *result);
 
 /**
  * Look in the IPv6 address mapping table, if the IPv6 address "addr6" is part of a prefix indexed
@@ -39,7 +40,7 @@ int eamt_get_ipv6_by_ipv4(struct in_addr *addr, struct in6_addr *result);
  *
  * otherwise return error.
  */
-int eamt_get_ipv4_by_ipv6(struct in6_addr *addr6, struct in_addr *result);
+int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result);
 
 /**
  * Empties the entire database.
@@ -51,16 +52,16 @@ void eamt_flush(void);
 /**
  * Returns true if "addr" is in the eam database, otherwise return false.
  */
-bool eamt_contains_ipv6(struct in6_addr *addr);
+bool eamt_contains6(struct in6_addr *addr);
 
 /**
  * Returns true if "addr" is in the eam database, otherwise return false.
  */
-bool eamt_contains_ipv4(__be32 addr);
+bool eamt_contains4(__be32 addr);
 
 int eamt_count(__u64 *count);
 bool eamt_is_empty(void);
-//int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
-//		struct ipv4_prefix *offset);
+int eamt_for_each(int (*func)(struct eamt_entry *, void *), void *arg,
+		struct ipv4_prefix *offset);
 
 #endif /* _JOOL_MOD_EAM_H */

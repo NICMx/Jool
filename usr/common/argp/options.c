@@ -128,6 +128,15 @@ static const struct argp_option count_opt = {
 		.group = 0,
 };
 
+static const struct argp_option test_opt = {
+		.name = "test",
+		.key = ARGP_TEST,
+		.arg = NULL,
+		.flags = 0,
+		.doc = ":>",
+		.group = 0,
+};
+
 static const struct argp_option add_opt = {
 		.name = "add",
 		.key = ARGP_ADD,
@@ -641,6 +650,7 @@ static const struct argp_option *options_siit[] = {
 	&operations_hdr_opt,
 	&display_opt,
 	&count_opt,
+	&test_opt,
 	&add_opt,
 	&update_opt,
 	&rm_opt,

@@ -101,10 +101,10 @@ static bool test_6to4(char *addr6_str, char *addr4_str)
 		return false;
 
 	if (addr4_str) {
-		success &= ASSERT_INT(0, eamt_get_ipv4_by_ipv6(&addr6, &addr4), "errcode");
+		success &= ASSERT_INT(0, eamt_xlat_6to4(&addr6, &addr4), "errcode");
 		success &= ASSERT_ADDR4(addr4_str, &addr4, "resulting address");
 	} else {
-		success &= ASSERT_INT(-ESRCH, eamt_get_ipv4_by_ipv6(&addr6, &addr4), "errcode");
+		success &= ASSERT_INT(-ESRCH, eamt_xlat_6to4(&addr6, &addr4), "errcode");
 	}
 
 	return success;
@@ -122,10 +122,10 @@ static bool test_4to6(char *addr4_str, char *addr6_str)
 		return false;
 
 	if (addr6_str) {
-		success &= ASSERT_INT(0, eamt_get_ipv6_by_ipv4(&addr4, &addr6), "errcode");
+		success &= ASSERT_INT(0, eamt_xlat_4to6(&addr4, &addr6), "errcode");
 		success &= ASSERT_ADDR6(addr6_str, &addr6, "resulting address");
 	} else {
-		success &= ASSERT_INT(-ESRCH, eamt_get_ipv6_by_ipv4(&addr4, &addr6), "errcode");
+		success &= ASSERT_INT(-ESRCH, eamt_xlat_4to6(&addr4, &addr6), "errcode");
 	}
 
 	return success;

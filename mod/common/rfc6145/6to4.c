@@ -153,7 +153,7 @@ static verdict generate_addr4_siit(struct in6_addr *addr6, __be32 *addr4,
 
 	*was_6052 = false;
 
-	error = eamt_get_ipv4_by_ipv6(addr6, &tmp);
+	error = eamt_xlat_6to4(addr6, &tmp);
 	if (!error)
 		goto success;
 	if (error != -ESRCH)
@@ -222,13 +222,13 @@ static verdict translate_addrs64_siit(struct packet *in, struct packet *out)
 		/* Condition set A */
 		if (pkt_is_outer(in) && !pkt_is_icmp6_error(in)
 				&& dst_was_6052
-				&& eamt_contains_ipv4(hdr4->daddr)) {
+				&& eamt_contains4(hdr4->daddr)) {
 			out->is_hairpin = true;
 
 		/* Condition set B */
 		} else if (pkt_is_inner(in)
 				&& src_was_6052
-				&& eamt_contains_ipv4(hdr4->saddr)) {
+				&& eamt_contains4(hdr4->saddr)) {
 			out->is_hairpin = true;
 		}
 	}

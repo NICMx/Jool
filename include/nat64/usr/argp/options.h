@@ -24,6 +24,7 @@ enum argp_flags {
 	/* Operations */
 	ARGP_DISPLAY = 'd',
 	ARGP_COUNT = 'c',
+	ARGP_TEST = 5001,
 	ARGP_ADD = 'a',
 	ARGP_UPDATE = 5000,
 	ARGP_REMOVE = 'r',

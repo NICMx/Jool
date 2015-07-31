@@ -181,7 +181,7 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 	int error;
 
 	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791 | MODE_EAMT,
-			OP_ADD | OP_REMOVE);
+			OP_TEST | OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -198,7 +198,7 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE | OP_REMOVE);
+	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_TEST | OP_ADD | OP_UPDATE | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -347,6 +347,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_COUNT:
 		error = update_state(args, COUNT_MODES, OP_COUNT);
+		break;
+	case ARGP_TEST:
+		error = update_state(args, TEST_MODES, OP_TEST);
 		break;
 	case ARGP_ADD:
 		error = update_state(args, ADD_MODES, OP_ADD);
@@ -731,6 +734,9 @@ static int main_wrapped(int argc, char **argv)
 			return eam_display(args.db.tables.csv_format);
 		case OP_COUNT:
 			return eam_count();
+		case OP_TEST:
+			return eam_test(args.db.pool6.prefix_set, &args.db.pool6.prefix.address,
+					args.db.pool4.prefix_set, &args.db.pool4.prefix.address);
 		case OP_ADD:
 			if (!args.db.pool6.prefix_set || !args.db.pool4.prefix_set) {
 				log_err("I need the IPv4 prefix and the IPv6 prefix of the entry you want to add.");
