@@ -199,5 +199,5 @@ Si quieres profundizar te recomedamos leer:
 - El [argumento `pool6791`](esp-usr-flags-pool6791.html) y su [uso](esp-misc-rfc6791.html).
 - Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
 - Si te interesa EAM, dirigete al [segundo ejemplo](esp-mod-run-eam.html).
-- Si te interesa stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
+- Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
 - El [documento de DNS64](esp-op-dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.

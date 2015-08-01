@@ -16,25 +16,31 @@ title: Documentación - SIIT-EAM - Ejemplo de uso
 	1. [`Configuración de Nodo Traductor`] (#nodo-jool)
 3. [Jool](#jool)
 4. [Pruebas](#pruebas)
+	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
+	2. [`Conectividad de IPv6 a IPv4`] (#ping6to4)
+	3. [`Conectividad a un Web Server en IPv4`] (#WebServer-ipv4)
+	4. [`Conectividad a un Web Server en IPv6`] (#WebServer-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](esp-intro-nat64.html#siit-con-eam). Más que un "modo" es simplemente proveer a SIIT con registros en la tabla de Direcciones de Mapeo Explícito. Obtenen más detalles sobre [ésta](esp-misc-eamt.html). 
+Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](esp-intro-nat64.html#siit-con-eam). 
 
-Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos del [Servidor Jool](esp-mod-install.html) **y** del [Configurador para siit](esp-usr-install.html).
+Más que un "modo" es simplemente proveer a SIIT con registros en la tabla de Direcciones de Mapeo Explícito. Obtenen más detalles sobre [ésta](esp-misc-eamt.html). 
+
+Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: del [Servidor Jool](esp-mod-install.html) **y** del [Configurador para SIIT](esp-usr-install.html).
 
 ## Red de ejemplo
 
 ![Figure 1 - Red de ejemplo](images/network/eam.svg)
 
-Aquí también son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](esp-mod-run-vanilla.html#red-de-ejemplo). Resumiéndolas tenemos que:
+Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](esp-mod-run-vanilla.html#red-de-ejemplo). Resumiéndolas, tenemos que:
 
-- Al menos se necesitan tres nodos: _A_, _V_ y _T_.
-- Considera que tienes el bloque de direcciones 198.51.100.8/29 para distribuirlo entre tus nodos IPv6.
+- Al menos necesitarás tres nodos: _A_, _V_ y _T_.
+- Usa el bloque de direcciones 198.51.100.8/29 para referenciar a tus nodos de IPv6 sobre IPv4.
 - Jool requiere Linux, los otros Nodos no necesariamente.
-- Para este tutorial, consideraremos que: a)todos están en Linux, b)su configuración de red será hará manualmente.
+- Para este tutorial, consideraremos que: a)todos están en Linux, b)su configuración de red se hará manualmente.
 
 ### `Configuración de Nodos en IPv6`
 
@@ -83,6 +89,7 @@ user@T:~# ethtool --offload eth1 gso off
 user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
+
 Hasta aqui, no hemos convertido a _T_ en un traductor todavia; pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
 ## Jool
@@ -101,7 +108,7 @@ user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
 {% endhighlight %}
 
-A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [Herramienta de Configuración](esp-usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico[`--enable`](esp-usr-flags-global.html#enable---disable)).
+A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [Herramienta de Configuración](esp-usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico[`--enable`](esp-usr-flags-global.html#enable---disable).
 
 De hecho utilizar `disabled` y `--enable` no es necesario; Jool va a deducir naturalmente que no puede traducir tráfico hasta que la tabla EAM y/o pool6 sean llenados. La razón por la cual Jool fue "forzado" a permanecer deshabilitado hasta que la tabla estuviera completa fue para que no hubiera un periodo de tiempo donde el tráfico estuviera siendo traducido inconsistentemente debido a una tabla incompleta.
 
@@ -168,4 +175,4 @@ user@T:~# modprobe -r jool_siit
 ## Lecturas adicionales
 
 - Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
-- Si te interesa stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
+- Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
