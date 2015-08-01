@@ -72,7 +72,7 @@ user@V:~# ip route add default via 192.0.2.1
 
 ### `Configuración del Nodo Traductor`
 
-Para Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
 {% highlight bash %}
 user@T:~# service network-manager stop
@@ -108,7 +108,7 @@ user@T:~# ethtool --offload eth1 lro off
 
 ## Jool
 
-Esta es la sintaxis para insertar Jool SIIT en el kernel:
+Esta es la sintaxis para insertar Jool SIIT en el kernel:<br />
 (Requieres permiso de administración)
 
 	user@T:~# modprobe jool_siit \
