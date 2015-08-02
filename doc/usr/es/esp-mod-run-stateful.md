@@ -167,7 +167,7 @@ user@T:~# /sbin/modprobe -r jool
 ## Lecturas adicionales
 
 1. Un nodo IPv4 externo no puede iniciar la comunicación por que el ve a la red IPv6 como una red privada IPv4 que está atrás de un NAT. Para remediar esto, Jool te permite configurar el "redireccionamiento de puertos"(port forwarding). Ingresa [aqui](esp-op-static-bindings.html) si estás interesado.
-2. Más sobre la [pool IPv4](op-pool4.html).
+2. Aprende más sobre la [pool IPv4](op-pool4.html).
 3. El [documento de DNS64](esp-op-dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
 4. Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
 5. Hay [otra manera de correr el Stateful NAT64](esp-mod-run-alternate.html). Quizá te ayude a ver las cosas desde una perspectiva más amplia.
