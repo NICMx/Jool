@@ -13,7 +13,7 @@ title: Documentación - SIIT - Ejemplo básico
 2. [Red de ejemplo](#red-de-ejemplo)
 	1. [`Configuración de Nodos en IPv6`] (#nodos-ipv6)
 	2. [`Configuración de Nodos en IPv4`] (#nodos-ipv4)
-	1. [`Configuración de Nodo Traductor`] (#nodo-jool)
+	3. [`Configuración de Nodo Traductor`] (#nodo-jool)
 3. [Jool](#jool)
 4. [Pruebas](#pruebas)
 	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
@@ -76,10 +76,13 @@ Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de adm
 
 {% highlight bash %}
 user@T:~# service network-manager stop
+user@T:~# 
 user@T:~# ip link set eth0 up
 user@T:~# ip addr add 2001:db8::198.51.100.1/120 dev eth0
+user@T:~# 
 user@T:~# ip link set eth1 up
 user@T:~# ip addr add 192.0.2.1/24 dev eth1
+user@T:~# 
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
@@ -174,13 +177,13 @@ rtt min/avg/max/mdev = 1.384/4.529/10.522/3.546 ms
 
 Agrega un servidor en _X_ y accesalo desde _D_:
 
-![Figura 1 - IPv4 TCP from an IPv6 node](images/run-vanilla-firefox-4to6.png)
+![Figura 1 - IPv4 TCP desde un nodo IPv6](images/run-vanilla-firefox-4to6.png)
 
 ### `Conectividad a un Web Server en IPv6`
 
 Agrega un servidor en _C_ y haz una solicitud desde _W_:
 
-![Figure 2 - IPv6 TCP from an IPv4 node](images/run-vanilla-firefox-6to4.png)
+![Figure 2 - IPv6 TCP desde un nodo IPv4](images/run-vanilla-firefox-6to4.png)
 
 Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
 
@@ -196,8 +199,8 @@ user@T:~# modprobe -r jool_siit
 
 Si quieres profundizar te recomedamos leer:
 
-- El [argumento `pool6791`](esp-usr-flags-pool6791.html) y su [uso](esp-misc-rfc6791.html).
-- Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
-- Si te interesa EAM, dirigete al [segundo ejemplo](esp-mod-run-eam.html).
-- Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
-- El [documento de DNS64](esp-op-dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
+1. El [argumento `pool6791`](esp-usr-flags-pool6791.html) y su [uso](esp-misc-rfc6791.html).
+2. Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
+3. Si te interesa EAM, dirigete al [segundo ejemplo](esp-mod-run-eam.html).
+4. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
+5. El [documento de DNS64](esp-op-dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.

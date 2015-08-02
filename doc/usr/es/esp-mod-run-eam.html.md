@@ -13,7 +13,7 @@ title: Documentación - SIIT-EAM - Ejemplo de uso
 2. [Red de ejemplo](#red-de-ejemplo)
 	1. [`Configuración de Nodos en IPv6`] (#nodos-ipv6)
 	2. [`Configuración de Nodos en IPv4`] (#nodos-ipv4)
-	1. [`Configuración de Nodo Traductor`] (#nodo-jool)
+	3. [`Configuración de Nodo Traductor`] (#nodo-jool)
 3. [Jool](#jool)
 4. [Pruebas](#pruebas)
 	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
@@ -33,14 +33,14 @@ Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: d
 
 ## Red de ejemplo
 
-![Figure 1 - Red de ejemplo](images/network/eam.svg)
+![Figura 1 - Red de ejemplo](images/network/eam.svg)
 
 Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](esp-mod-run-vanilla.html#red-de-ejemplo). Resumiéndolas, tenemos que:
 
 - Al menos necesitarás tres nodos: _A_, _V_ y _T_.
 - Usa el bloque de direcciones 198.51.100.8/29 para referenciar a tus nodos de IPv6 sobre IPv4.
 - Jool requiere Linux, los otros Nodos no necesariamente.
-- Para este tutorial, consideraremos que: a)todos están en Linux, b)su configuración de red se hará manualmente.
+- Para este tutorial, consideraremos que: a)todos están en Linux, b)la configuración de red se hará manualmente, c) todo el tráfico será redirigido por defecto hacia _T_.
 
 ### `Configuración de Nodos en IPv6`
 
@@ -72,12 +72,16 @@ Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de adm
 
 {% highlight bash %}
 user@T:~# service network-manager stop
+user@T:~# 
 user@T:~# /sbin/ip link set eth0 up
 user@T:~# /sbin/ip addr add 2001:db8:6::1/96 dev eth0
+user@T:~# 
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
+user@T:~# 
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# 
 user@T:~# ethtool --offload eth0 tso off
 user@T:~# ethtool --offload eth0 ufo off
 user@T:~# ethtool --offload eth0 gso off
@@ -116,9 +120,9 @@ Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos
 
 ## Pruebas
 
-### `Conectividad de IPv4 a IPv6`
+### `Conectividad de IPv6 a IPv4`
 
-Haz un ping a _A_ desde _V_ de esta forma:
+Haz un ping a _V_ desde _A_:
 
 {% highlight bash %}
 user@A:~$ ping6 2001:db8:4::10 # Reminder: hex 10 = dec 16.
@@ -133,9 +137,9 @@ PING 2001:db8:4::10(2001:db8:4::10) 56 data bytes
 rtt min/avg/max/mdev = 2.790/3.370/4.131/0.533 ms
 {% endhighlight %}
 
-### `Conectividad de IPv6 a IPv4`
+### `Conectividad de IPv4 a IPv6`
 
-Haz un ping a _V_ desde _A_:
+Haz un ping a _A_ desde _V_ de esta forma:
 
 {% highlight bash %}
 user@V:~$ ping 198.51.100.8
@@ -150,17 +154,17 @@ PING 198.51.100.8 (198.51.100.8) 56(84) bytes of data.
 rtt min/avg/max/mdev = 1.930/3.001/5.042/1.204 ms
 {% endhighlight %}
 
-## `Conectividad a un Web Server en IPv4`
+### `Conectividad a un Web Server en IPv4`
 
-Agrega un servidor en _X_ y accesalo desde _D_:
+Agrega un servidor en _Y_ y accesalo desde _D_:
 
-![Figura 1 - IPv4 TCP from an IPv4 node](images/run-eam-firefox-4to6.png)
+![Figura 1 - IPv4 TCP desde un nodo IPv6](images/run-eam-firefox-4to6.png)
 
 ### `Conectividad a un Web Server en IPv6`
 
-Agrega un servidor en _C_ y haz una solicitud desde _W_:
+Agrega un servidor en _B_ y haz una solicitud desde _X_:
 
-![Figura 2 - IPv6 TCP from an IPv4 node](images/run-vanilla-firefox-6to4.png)
+![Figura 2 - IPv6 TCP desde un nodo IPv4](images/run-vanilla-firefox-6to4.png)
 
 Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
 
@@ -174,5 +178,5 @@ user@T:~# modprobe -r jool_siit
 
 ## Lecturas adicionales
 
-- Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
-- Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
+1. Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
+2. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
