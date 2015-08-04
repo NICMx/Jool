@@ -31,6 +31,9 @@ int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
 int rtrie_rm(struct rtrie_node **root, struct rtrie_string *key);
 void rtrie_flush(struct rtrie_node **root);
 
+int rtrie_foreach(struct rtrie_node *root,
+		int (*cb)(void *, void *), void *arg,
+		struct rtrie_string *offset, struct rtrie_node **stack);
 void rtrie_print(struct rtrie_node *root);
 
 #endif /* _JOOL_MOD_RTRIE_H */

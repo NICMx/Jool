@@ -20,6 +20,9 @@ static struct eam_table eamt;
 /** Lock to sync access. This protects both the trees and the entries. */
 static DEFINE_SPINLOCK(eamt_lock);
 
+/* Helper container for rtrie_foreach(). */
+static struct rtrie_node *stack[128];
+
 /**
  * validate_prefixes - check @prefix6 and @prefix4 can be joined together to
  * form a (standalone) legal EAM entry.
@@ -347,11 +350,23 @@ bool eamt_is_empty(void)
 	return !count;
 }
 
-int eamt_for_each(int (*func)(struct eamt_entry *, void *), void *arg,
+struct foreach_args {
+	int (*cb)(struct eamt_entry *, void *);
+	void *arg;
+};
+
+static int foreach_cb(void *eam, void *arg)
+{
+	struct foreach_args *args = arg;
+	return args->cb(eam, args->arg);
+}
+
+int eamt_foreach(int (*cb)(struct eamt_entry *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
-	log_err("Not implemented yet.");
-	return -EINVAL;
+	struct foreach_args args = { .cb = cb, .arg = arg };
+	memset(stack, 0, sizeof(stack));
+	return rtrie_foreach(eamt.tree6, foreach_cb, &args, NULL, stack);
 }
 
 void eamt_flush(void)
@@ -359,6 +374,7 @@ void eamt_flush(void)
 	spin_lock_bh(&eamt_lock);
 	rtrie_flush(&eamt.tree6);
 	rtrie_flush(&eamt.tree4);
+	eamt.count = 0;
 	spin_unlock_bh(&eamt_lock);
 }
 

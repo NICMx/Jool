@@ -499,7 +499,7 @@ static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *requ
 		return respond_error(nl_hdr, -ENOMEM);
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
-	error = eamt_for_each(eam_entry_to_userspace, buffer, prefix4);
+	error = eamt_foreach(eam_entry_to_userspace, buffer, prefix4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);

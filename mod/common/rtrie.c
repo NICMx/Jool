@@ -491,6 +491,75 @@ void rtrie_flush(struct rtrie_node **root)
 	*root = NULL;
 }
 
+/**
+ * stack *must* be already zeroized.
+ */
+int rtrie_foreach(struct rtrie_node *root,
+		int (*cb)(void *, void *), void *arg,
+		struct rtrie_string *offset, struct rtrie_node **stack)
+{
+	struct rtrie_node *node = root;
+	unsigned int stack_pos = 0;
+	int error;
+
+	while (node) {
+		if (node != stack[stack_pos]) {
+			stack[stack_pos] = node;
+			if (node->color == COLOR_WHITE) {
+				error = cb(node + 1, arg);
+				if (error)
+					return error;
+			}
+		}
+
+		if (node->left) {
+			if (node->right) {
+				if (node->right == stack[stack_pos + 1]) {
+					/* goto parent. */
+					stack_pos--;
+					node = stack[stack_pos];
+				} else if (node->left == stack[stack_pos + 1]) {
+					/* goto right. */
+					stack_pos++;
+					node = node->right;
+				} else {
+					/* goto left. */
+					stack_pos++;
+					node = node->left;
+				}
+			} else {
+				if (node->left == stack[stack_pos + 1]) {
+					/* goto parent. */
+					stack_pos--;
+					node = stack[stack_pos];
+				} else {
+					/* goto left. */
+					stack_pos++;
+					node = node->left;
+				}
+			}
+		} else {
+			if (node->right) {
+				if (node->right == stack[stack_pos + 1]) {
+					/* goto parent. */
+					stack_pos--;
+					node = stack[stack_pos];
+				} else {
+					/* goto right. */
+					stack_pos++;
+					node = node->right;
+				}
+			} else {
+				/* goto parent. */
+				stack_pos--;
+				node = stack[stack_pos];
+			}
+		}
+	}
+
+	return 0;
+}
+
 static char *color2str(enum rtrie_color color)
 {
 	switch (color) {
