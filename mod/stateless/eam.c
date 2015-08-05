@@ -17,11 +17,6 @@ struct eam_table {
 };
 
 static struct eam_table eamt;
-/** Lock to sync access. This protects both the trees and the entries. */
-static DEFINE_SPINLOCK(eamt_lock);
-
-/* Helper container for rtrie_foreach(). */
-static struct rtrie_node *stack[128];
 
 /**
  * validate_prefixes - check @prefix6 and @prefix4 can be joined together to
@@ -61,7 +56,7 @@ static bool eamt_entry_equals(const struct eamt_entry *eam1,
 
 static void __revert_add6(struct ipv6_prefix *prefix6)
 {
-	struct rtrie_string key;
+	struct rtrie_key key;
 	int error;
 
 	key.bytes = (__u8 *) &prefix6->address;
@@ -74,16 +69,26 @@ static void __revert_add6(struct ipv6_prefix *prefix6)
 
 static int eamt_add6(struct eamt_entry *eam)
 {
-	return rtrie_add(&eamt.tree6, eam, sizeof(*eam),
+	int error;
+
+	error = rtrie_add(&eamt.tree6, eam, sizeof(*eam),
 			offsetof(typeof(*eam), prefix6.address),
 			eam->prefix6.len);
+	rtrie_print("IPv6 trie after add", eamt.tree6);
+
+	return error;
 }
 
 static int eamt_add4(struct eamt_entry *eam)
 {
-	return rtrie_add(&eamt.tree4, eam, sizeof(*eam),
+	int error;
+
+	error = rtrie_add(&eamt.tree4, eam, sizeof(*eam),
 			offsetof(typeof(*eam), prefix4.address),
 			eam->prefix4.len);
+	rtrie_print("IPv4 trie after add", eamt.tree4);
+
+	return error;
 }
 
 int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
@@ -98,27 +103,22 @@ int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	new.prefix6 = *prefix6;
 	new.prefix4 = *prefix4;
 
-	spin_lock_bh(&eamt_lock);
-
 	error = eamt_add6(&new);
 	if (error)
-		goto end;
+		return error;
 	error = eamt_add4(&new);
 	if (error) {
 		__revert_add6(prefix6);
-		goto end;
+		return error;
 	}
 
 	eamt.count++;
-
-end:
-	spin_unlock_bh(&eamt_lock);
-	return error;
+	return 0;
 }
 
 static struct eamt_entry *get_exact6(struct ipv6_prefix *prefix)
 {
-	struct rtrie_string key;
+	struct rtrie_key key;
 	struct eamt_entry *result;
 
 	key.bytes = (__u8 *) &prefix->address;
@@ -133,7 +133,7 @@ static struct eamt_entry *get_exact6(struct ipv6_prefix *prefix)
 
 static struct eamt_entry *get_exact4(struct ipv4_prefix *prefix)
 {
-	struct rtrie_string key;
+	struct rtrie_key key;
 	struct eamt_entry *result;
 
 	key.bytes = (__u8 *) &prefix->address;
@@ -149,8 +149,8 @@ static struct eamt_entry *get_exact4(struct ipv4_prefix *prefix)
 static int __rm(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 {
 	struct ipv4_prefix tmp;
-	struct rtrie_string key6;
-	struct rtrie_string key4;
+	struct rtrie_key key6;
+	struct rtrie_key key4;
 	int error;
 
 	/*
@@ -175,6 +175,8 @@ static int __rm(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 		goto corrupted;
 
 	eamt.count--;
+	rtrie_print("IPv6 trie after remove", eamt.tree6);
+	rtrie_print("IPv4 trie after remove", eamt.tree4);
 	return 0;
 
 corrupted:
@@ -214,7 +216,7 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 
 static struct eamt_entry *find_addr6(struct in6_addr *addr6)
 {
-	struct rtrie_string key;
+	struct rtrie_key key;
 
 	key.bytes = (__u8 *) addr6;
 	key.len = 8 * sizeof(*addr6);
@@ -224,7 +226,7 @@ static struct eamt_entry *find_addr6(struct in6_addr *addr6)
 
 static struct eamt_entry *find_addr4(struct in_addr *addr)
 {
-	struct rtrie_string key;
+	struct rtrie_key key;
 
 	key.bytes = (__u8 *) addr;
 	key.len = 8 * sizeof(*addr);
@@ -234,33 +236,13 @@ static struct eamt_entry *find_addr4(struct in_addr *addr)
 
 bool eamt_contains6(struct in6_addr *addr)
 {
-	struct eamt_entry *node;
-	bool result;
-
-	spin_lock_bh(&eamt_lock);
-
-	node = find_addr6(addr);
-	result = !!node;
-
-	spin_unlock_bh(&eamt_lock);
-
-	return result;
+	return !!find_addr6(addr);
 }
 
 bool eamt_contains4(__u32 addr)
 {
-	struct eamt_entry *node;
 	struct in_addr tmp = { .s_addr = addr };
-	bool result;
-
-	spin_lock_bh(&eamt_lock);
-
-	node = find_addr4(&tmp);
-	result = !!node;
-
-	spin_unlock_bh(&eamt_lock);
-
-	return result;
+	return !!find_addr4(&tmp);
 }
 
 int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result)
@@ -270,18 +252,16 @@ int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result)
 	struct ipv6_prefix prefix6;
 	unsigned int i;
 
-	spin_lock_bh(&eamt_lock);
-
+	/* Find the entry. */
 	eam = find_addr6(addr6);
-	if (!eam) {
-		spin_unlock_bh(&eamt_lock);
+	if (!eam)
 		return -ESRCH;
-	}
 	prefix4 = eam->prefix4;
 	prefix6 = eam->prefix6;
 
-	spin_unlock_bh(&eamt_lock);
+//	spin_unlock_bh(&eamt_lock);
 
+	/* Translate the address. */
 	for (i = 0; i < ADDR4_BITS - prefix4.len; i++) {
 		unsigned int offset4 = prefix4.len + i;
 		unsigned int offset6 = prefix6.len + i;
@@ -308,17 +288,13 @@ int eamt_xlat_4to6(struct in_addr *addr4, struct in6_addr *result)
 	}
 
 	/* Find the entry. */
-	spin_lock_bh(&eamt_lock);
-
 	eam = find_addr4(addr4);
-	if (!eam) {
-		spin_unlock_bh(&eamt_lock);
+	if (!eam)
 		return -ESRCH;
-	}
 	prefix4 = eam->prefix4;
 	prefix6 = eam->prefix6;
 
-	spin_unlock_bh(&eamt_lock);
+//	spin_unlock_bh(&eamt_lock);
 
 	/* Translate the address. */
 	suffix4_len = ADDR4_BITS - prefix4.len;
@@ -337,9 +313,7 @@ int eamt_xlat_4to6(struct in_addr *addr4, struct in6_addr *result)
 
 int eamt_count(__u64 *count)
 {
-	spin_lock_bh(&eamt_lock);
 	*count = eamt.count;
-	spin_unlock_bh(&eamt_lock);
 	return 0;
 }
 
@@ -365,17 +339,26 @@ int eamt_foreach(int (*cb)(struct eamt_entry *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	struct foreach_args args = { .cb = cb, .arg = arg };
-	memset(stack, 0, sizeof(stack));
-	return rtrie_foreach(eamt.tree6, foreach_cb, &args, NULL, stack);
+	struct rtrie_key offset_key;
+	struct rtrie_key *offset_key_ptr = NULL;
+
+	args.cb = cb;
+	args.arg = arg;
+
+	if (offset) {
+		offset_key.bytes = (__u8 *) &offset->address;
+		offset_key.len = offset->len;
+		offset_key_ptr = &offset_key;
+	}
+
+	return rtrie_foreach(eamt.tree6, foreach_cb, &args, offset_key_ptr);
 }
 
 void eamt_flush(void)
 {
-	spin_lock_bh(&eamt_lock);
 	rtrie_flush(&eamt.tree6);
 	rtrie_flush(&eamt.tree4);
 	eamt.count = 0;
-	spin_unlock_bh(&eamt_lock);
 }
 
 int eamt_init(void)

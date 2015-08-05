@@ -184,7 +184,7 @@ int eam_remove(bool pref6_set, struct ipv6_prefix *prefix6, bool pref4_set,
 	return netlink_request(request, hdr->length, NULL, NULL);
 }
 
-int eam_flush()
+int eam_flush(void)
 {
 	struct request_hdr request;
 	init_request_hdr(&request, sizeof(request), MODE_EAMT, OP_FLUSH);

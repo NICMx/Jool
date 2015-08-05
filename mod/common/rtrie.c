@@ -1,4 +1,5 @@
 #include "nat64/mod/common/rtrie.h"
+#include "nat64/mod/common/types.h" /* TODO delete this. */
 #include <linux/slab.h>
 
 static __u8 bits_to_bytes(__u8 bits)
@@ -6,7 +7,7 @@ static __u8 bits_to_bytes(__u8 bits)
 	return (bits != 0) ? (((bits - 1) >> 3) + 1) : 0;
 }
 
-static struct rtrie_node *create_inode(struct rtrie_string *key,
+static struct rtrie_node *create_inode(struct rtrie_key *key,
 		struct rtrie_node *left_child,
 		struct rtrie_node *right_child)
 {
@@ -20,8 +21,9 @@ static struct rtrie_node *create_inode(struct rtrie_string *key,
 
 	inode->left = left_child;
 	inode->right = right_child;
+	inode->parent = NULL;
 	inode->color = COLOR_BLACK;
-	/* This means a black node cannot be upgraded into a white one. */
+	INIT_LIST_HEAD(&inode->list_hook);
 	inode->key.bytes = (__u8 *) (inode + 1);
 	inode->key.len = key->len;
 	memcpy(inode->key.bytes, key->bytes, value_bytes);
@@ -40,7 +42,9 @@ static struct rtrie_node *create_leaf(void *content, size_t content_len,
 
 	leaf->left = NULL;
 	leaf->right = NULL;
+	leaf->parent = NULL;
 	leaf->color = COLOR_WHITE;
+	INIT_LIST_HEAD(&leaf->list_hook);
 	leaf->key.bytes = ((__u8 *) (leaf + 1)) + key_offset;
 	leaf->key.len = key_len;
 	memcpy(leaf + 1, content, content_len);
@@ -53,22 +57,19 @@ static unsigned int get_bit(__u8 byte, unsigned int pos)
 	return (byte >> (7 - pos)) & 1;
 }
 
-/**
- * match - Returns the number of prefix bits @str1 and @str have in common.
- */
-static unsigned int match(struct rtrie_string *str1, struct rtrie_string *str2)
+static unsigned int __key_match(struct rtrie_key *key1, struct rtrie_key *key2,
+		unsigned int bits)
 {
 	unsigned int result = 0;
 	unsigned int y, i; /* b[y]te counter, b[i]t counter. */
-	unsigned int bytes, bits;
+	unsigned int bytes;
 	unsigned int bit1, bit2;
 
-	bits = min(str1->len, str2->len);
 	bytes = bits >> 3; /* >> 3 = / 8*/
 	bits &= 7; /* & 7 = % 8 */
 
 	for (y = 0; y < bytes; y++) {
-		if (str1->bytes[y] != str2->bytes[y]) {
+		if (key1->bytes[y] != key2->bytes[y]) {
 			bits = 8;
 			break;
 		}
@@ -76,8 +77,8 @@ static unsigned int match(struct rtrie_string *str1, struct rtrie_string *str2)
 	}
 
 	for (i = 0; i < bits; i++) {
-		bit1 = get_bit(str1->bytes[y], i);
-		bit2 = get_bit(str2->bytes[y], i);
+		bit1 = get_bit(key1->bytes[y], i);
+		bit2 = get_bit(key2->bytes[y], i);
 
 		if (bit1 != bit2)
 			break;
@@ -88,65 +89,55 @@ static unsigned int match(struct rtrie_string *str1, struct rtrie_string *str2)
 	return result;
 }
 
-static bool contains(struct rtrie_string *str1, struct rtrie_string *str2)
+/**
+ * match - Returns the number of prefix bits @key1 and @key2 have in common.
+ */
+static unsigned int key_match(struct rtrie_key *key1, struct rtrie_key *key2)
 {
-	return (match(str1, str2) >= str1->len);
+	return __key_match(key1, key2, min(key1->len, key2->len));
 }
 
-static bool key_equals(struct rtrie_string *str1, struct rtrie_string *str2)
+/**
+ * Returns true if @key1 is a prefix of @key2, false otherwise.
+ *
+ * The name can go both ways so it might be confusing. Think of it like this:
+ * If @key1 is 2001:db8::/32 and @key2 is 2001:db8:1::/64, then @key1 contains
+ * @key2.
+ */
+static bool key_contains(struct rtrie_key *key1, struct rtrie_key *key2)
 {
-	return (str1->len == str2->len)
-			? (match(str1, str2) == str1->len)
+	return (key2->len >= key1->len)
+			? (__key_match(key1, key2, key1->len) == key1->len)
+			: false;
+}
+
+static bool key_equals(struct rtrie_key *key1, struct rtrie_key *key2)
+{
+	return (key1->len == key2->len)
+			? (__key_match(key1, key2, key1->len) == key1->len)
 			: false;
 }
 
 /**
  * find_longest_common_prefix - Returns the node from @root's trie which best
- * matches @string, whether leaf or inode.
+ * matches @key.
+ *
+ * @root: trie you want to search.
+ * @key: the string you want the best match for.
+ * @force_white: if true, the resulting node will be the best white match.
+ *	If false, the result will be the best match, regardless of color.
  *
  * TODO test first bit doesn't match root
  * TODO test adding duplicate nodes
  */
 static struct rtrie_node *find_longest_common_prefix(struct rtrie_node *root,
-		struct rtrie_string *str)
-{
-	struct rtrie_node *node;
-
-	node = root;
-	if (!node || !contains(&node->key, str))
-		return NULL;
-
-	do {
-		if (node->left && contains(&node->left->key, str)) {
-			node = node->left;
-			continue;
-		}
-
-		if (node->right && contains(&node->right->key, str)) {
-			node = node->right;
-			continue;
-		}
-
-		return node;
-	} while (true);
-
-	return NULL; /* <-- Shuts up Eclipse. */
-}
-
-/**
- * find_white - Returns the *white* node from @root's trie which best matches
- * @string.
- *
- * TODO fuse with the previous function?
- */
-static struct rtrie_node *find_white(struct rtrie_node *root,
-		struct rtrie_string *str)
+		struct rtrie_key *key, bool force_white)
 {
 	struct rtrie_node *node;
 	struct rtrie_node *last_white;
 
 	node = root;
-	if (!node || !contains(&node->key, str))
+	if (!node || !key_contains(&node->key, key))
 		return NULL;
 
 	last_white = NULL;
@@ -154,95 +145,73 @@ static struct rtrie_node *find_white(struct rtrie_node *root,
 		if (node->color == COLOR_WHITE)
 			last_white = node;
 
-		if (node->left && contains(&node->left->key, str)) {
+		if (node->left && key_contains(&node->left->key, key)) {
 			node = node->left;
 			continue;
 		}
 
-		if (node->right && contains(&node->right->key, str)) {
+		if (node->right && key_contains(&node->right->key, key)) {
 			node = node->right;
 			continue;
 		}
 
-		return last_white;
+		return force_white ? last_white : node;
 	} while (true);
 
 	return NULL; /* <-- Shuts up Eclipse. */
 }
 
-/**
- * @node must not be NULL.
- */
-struct rtrie_node *get_parent(struct rtrie_node *root,
-		struct rtrie_node *child)
-{
-	struct rtrie_node *node;
-
-	node = root;
-	if (!node || node == child || !contains(&node->key, &child->key))
-		return NULL;
-
-	do {
-		if (node->left == child || node->right == child)
-			return node;
-
-		if (node->left && contains(&node->left->key, &child->key)) {
-			node = node->left;
-			continue;
-		}
-
-		if (node->right && contains(&node->right->key, &child->key)) {
-			node = node->right;
-			continue;
-		}
-
-		break;
-	} while (true);
-
-	return NULL;
-}
-
-struct rtrie_node **get_parent_ptr(struct rtrie_node **root,
-		struct rtrie_node *parent,
+static struct rtrie_node **get_parent_ptr(struct rtrie_node **root,
 		struct rtrie_node *node)
 {
+	struct rtrie_node *parent = node->parent;
+
 	if (!parent)
 		return root;
+
 	return (parent->left == node) ? &parent->left : &parent->right;
 }
 
 static void swap_nodes(struct rtrie_node **root, struct rtrie_node *old,
 		struct rtrie_node *new)
 {
-	struct rtrie_node *parent;
 	struct rtrie_node **parent_ptr;
 
 	new->left = old->left;
 	new->right = old->right;
+	new->parent = old->parent;
 
-	parent = get_parent(*root, old);
-	parent_ptr = get_parent_ptr(root, parent, old);
+	parent_ptr = get_parent_ptr(root, old);
 	(*parent_ptr) = new;
+
+	list_add(&new->list_hook, &old->list_hook);
+	list_del(&old->list_hook);
 
 	kfree(old);
 }
 
 static int add_to_root(struct rtrie_node **root, struct rtrie_node *new)
 {
+	struct rtrie_node *root2 = *root;
 	struct rtrie_node *inode;
-	struct rtrie_string key;
+	struct rtrie_key key;
 
-	if (!*root) {
+	if (!root2) {
 		*root = new;
 		return 0;
 	}
 
 	key.bytes = new->key.bytes;
-	key.len = match(&(*root)->key, &new->key);
+	key.len = key_match(&root2->key, &new->key);
 
-	inode = create_inode(&key, *root, new);
+	inode = create_inode(&key, root2, new);
 	if (!inode)
 		return -ENOMEM;
+
+	root2->parent = inode;
+	new->parent = inode;
+	list_add(&inode->list_hook, &root2->list_hook);
+	list_add(&new->list_hook, &root2->list_hook);
 
 	*root = inode;
 	return 0;
@@ -278,11 +247,11 @@ static int add_full_collision(struct rtrie_node *parent, struct rtrie_node *new)
 	struct rtrie_node *higher_prefix1;
 	struct rtrie_node *higher_prefix2;
 	struct rtrie_node *inode;
-	struct rtrie_string inode_prefix;
+	struct rtrie_key inode_prefix;
 
-	unsigned int match_lr = match(&parent->left->key, &parent->right->key);
-	unsigned int match_ln = match(&parent->left->key, &new->key);
-	unsigned int match_rn = match(&parent->right->key, &new->key);
+	unsigned int match_lr = key_match(&parent->left->key, &parent->right->key);
+	unsigned int match_ln = key_match(&parent->left->key, &new->key);
+	unsigned int match_rn = key_match(&parent->right->key, &new->key);
 
 	if (match_lr > match_ln && match_lr > match_rn) {
 		smallest_prefix = new;
@@ -315,6 +284,13 @@ static int add_full_collision(struct rtrie_node *parent, struct rtrie_node *new)
 	parent->left = smallest_prefix;
 	parent->right = inode;
 
+	smallest_prefix->parent = parent;
+	inode->parent = parent;
+	higher_prefix1->parent = inode;
+	higher_prefix2->parent = inode;
+	list_add(&inode->list_hook, &parent->list_hook);
+	list_add(&new->list_hook, &parent->list_hook);
+
 	return 0;
 }
 
@@ -330,7 +306,7 @@ int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
 	if (!new)
 		return -ENOMEM;
 
-	parent = find_longest_common_prefix(*root, &new->key);
+	parent = find_longest_common_prefix(*root, &new->key, false);
 	if (!parent)
 		return add_to_root(root, new);
 
@@ -345,45 +321,59 @@ int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
 
 	if (!parent->left) {
 		parent->left = new;
-		return 0;
+		goto simple_success;
 	}
 	if (!parent->right) {
 		parent->right = new;
-		return 0;
+		goto simple_success;
 	}
 
-	contains_left = contains(&new->key, &parent->left->key);
-	contains_right = contains(&new->key, &parent->right->key);
+	contains_left = key_contains(&new->key, &parent->left->key);
+	contains_right = key_contains(&new->key, &parent->right->key);
 
 	if (contains_left && contains_right) {
 		if (parent->color == COLOR_BLACK) {
 			swap_nodes(root, parent, new);
 			return 0;
 		}
+
 		new->left = parent->left;
 		new->right = parent->right;
 		parent->left = NULL;
 		parent->right = new;
-		return 0;
+
+		new->left->parent = new;
+		new->right->parent = new;
+		goto simple_success;
 	}
 
 	if (contains_left) {
 		new->left = parent->left;
 		parent->left = new;
-		return 0;
+
+		new->left->parent = new;
+		goto simple_success;
 	}
+
 	if (contains_right) {
 		new->right = parent->right;
 		parent->right = new;
-		return 0;
+
+		new->right->parent = new;
+		goto simple_success;
 	}
 
 	return add_full_collision(parent, new);
+
+simple_success:
+	new->parent = parent;
+	list_add(&new->list_hook, &parent->list_hook);
+	return 0;
 }
 
-void *rtrie_get(struct rtrie_node *root, struct rtrie_string *key)
+void *rtrie_get(struct rtrie_node *root, struct rtrie_key *key)
 {
-	struct rtrie_node *node = find_white(root, key);
+	struct rtrie_node *node = find_longest_common_prefix(root, key, true);
 	return node ? (node + 1) : NULL;
 }
 
@@ -400,22 +390,27 @@ static int prune_if_black(struct rtrie_node **root, struct rtrie_node *node)
 		 * At this point, node cannot have two children,
 		 * so it's going down.
 		 */
-		parent = get_parent(*root, node);
-		parent_ptr = get_parent_ptr(root, parent, node);
+		parent = node->parent;
+		parent_ptr = get_parent_ptr(root, node);
 
 		if (node->left) {
 			(*parent_ptr) = node->left;
+			node->left->parent = parent;
+			list_del(&node->list_hook);
 			kfree(node);
 			return 0;
 		}
 
 		if (node->right) {
 			(*parent_ptr) = node->right;
+			node->right->parent = parent;
+			list_del(&node->list_hook);
 			kfree(node);
 			return 0;
 		}
 
 		(*parent_ptr) = NULL;
+		list_del(&node->list_hook);
 		kfree(node);
 		node = parent;
 	}
@@ -423,137 +418,104 @@ static int prune_if_black(struct rtrie_node **root, struct rtrie_node *node)
 	return 0;
 }
 
-int rtrie_rm(struct rtrie_node **root, struct rtrie_string *key)
+int rtrie_rm(struct rtrie_node **root, struct rtrie_key *key)
 {
 	struct rtrie_node *parent;
 	struct rtrie_node **parent_ptr;
 	struct rtrie_node *node;
 
-	node = find_white(*root, key);
-	if (!node)
-		return -ESRCH;
-	if (match(&node->key, key) != key->len)
+	node = find_longest_common_prefix(*root, key, true);
+	if (!node || !key_equals(&node->key, key))
 		return -ESRCH;
 
 	if (node->left && node->right) {
+		/* TODO This is not thread-safe; gonna need to swap nodes. */
 		node->color = COLOR_BLACK;
 		return 0;
 	}
 
-	parent = get_parent(*root, node);
-	parent_ptr = get_parent_ptr(root, parent, node);
+	parent = node->parent;
+	parent_ptr = get_parent_ptr(root, node);
 
 	if (node->left) {
 		(*parent_ptr) = node->left;
+		node->left->parent = parent;
+		list_del(&node->list_hook);
 		kfree(node);
 		return 0;
 	}
 
 	if (node->right) {
 		(*parent_ptr) = node->right;
+		node->right->parent = parent;
 		kfree(node);
+		list_del(&node->list_hook);
 		return 0;
 	}
 
 	(*parent_ptr) = NULL;
+	list_del(&node->list_hook);
 	kfree(node);
 
 	return prune_if_black(root, parent);
 }
 
-struct rtrie_node *__flush(struct rtrie_node **root,
-		struct rtrie_node *node)
-{
-	struct rtrie_node *parent;
-	struct rtrie_node **parent_ptr;
-
-	parent = get_parent(*root, node);
-	parent_ptr = get_parent_ptr(root, parent, node);
-	(*parent_ptr) = NULL;
-
-	kfree(node);
-	return parent;
-}
-
 void rtrie_flush(struct rtrie_node **root)
 {
-	struct rtrie_node *node = *root;
+	struct list_head *list;
+	struct rtrie_node *node;
+	struct rtrie_node *tmp;
+	unsigned int i = 0;
 
-	while (node) {
-		if (node->left)
-			node = node->left;
-		else if (node->right)
-			node = node->right;
-		else
-			node = __flush(root, node);
+	rtrie_print("Flushing trie", *root);
+
+	if (!*root) {
+		log_debug("Deleted 0 nodes.");
+		return;
 	}
 
+	list = &(*root)->list_hook;
+	list_for_each_entry_safe(node, tmp, list, list_hook) {
+		list_del(&node->list_hook);
+		kfree(node);
+		i++;
+	}
+
+	kfree(*root);
 	*root = NULL;
+	log_debug("Deleted %u nodes.", i + 1);
 }
 
 /**
- * stack *must* be already zeroized.
+ * TODO (performance) find offset using a normal trie find.
  */
 int rtrie_foreach(struct rtrie_node *root,
 		int (*cb)(void *, void *), void *arg,
-		struct rtrie_string *offset, struct rtrie_node **stack)
+		struct rtrie_key *offset)
 {
-	struct rtrie_node *node = root;
-	unsigned int stack_pos = 0;
+	struct rtrie_node *node;
 	int error;
 
-	while (node) {
-		if (node != stack[stack_pos]) {
-			stack[stack_pos] = node;
-			if (node->color == COLOR_WHITE) {
-				error = cb(node + 1, arg);
-				if (error)
-					return error;
-			}
-		}
+	if (!root)
+		return 0;
 
-		if (node->left) {
-			if (node->right) {
-				if (node->right == stack[stack_pos + 1]) {
-					/* goto parent. */
-					stack_pos--;
-					node = stack[stack_pos];
-				} else if (node->left == stack[stack_pos + 1]) {
-					/* goto right. */
-					stack_pos++;
-					node = node->right;
-				} else {
-					/* goto left. */
-					stack_pos++;
-					node = node->left;
-				}
-			} else {
-				if (node->left == stack[stack_pos + 1]) {
-					/* goto parent. */
-					stack_pos--;
-					node = stack[stack_pos];
-				} else {
-					/* goto left. */
-					stack_pos++;
-					node = node->left;
-				}
-			}
+	if (offset) {
+		if (key_equals(offset, &root->key))
+			offset = NULL;
+	} else {
+		error = cb(root + 1, arg);
+		if (error)
+			return error;
+	}
+
+	list_for_each_entry(node, &root->list_hook, list_hook) {
+		if (offset) {
+			if (key_equals(offset, &node->key))
+				offset = NULL;
 		} else {
-			if (node->right) {
-				if (node->right == stack[stack_pos + 1]) {
-					/* goto parent. */
-					stack_pos--;
-					node = stack[stack_pos];
-				} else {
-					/* goto right. */
-					stack_pos++;
-					node = node->right;
-				}
-			} else {
-				/* goto parent. */
-				stack_pos--;
-				node = stack[stack_pos];
-			}
+			error = cb(node + 1, arg);
+			if (error)
+				return error;
 		}
 	}
 
@@ -601,12 +563,14 @@ static void print_node(struct rtrie_node *node, char *side, unsigned int level)
 	print_node(node->right, "right", level + 1);
 }
 
-void rtrie_print(struct rtrie_node *root)
+void rtrie_print(char *prefix, struct rtrie_node *root)
 {
-	printk(KERN_DEBUG "Printing trie!\n");
+	printk(KERN_DEBUG "%s:\n", prefix);
+	printk("-----------------------\n");
 	if (root) {
 		print_node(root, "root", 0);
 	} else {
 		printk("  (empty)\n");
 	}
+	printk("-----------------------\n");
 }
