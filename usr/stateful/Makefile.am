@@ -18,7 +18,7 @@ jool_SOURCES = \
 	../common/target/session.c \
 	../common/target/global.c \
 	xlat.c
-#jool_SOURCES += ../common/log_time.c
+#jool_SOURCES += ../common/target/log_time.c
 
 jool_LDADD = ${LIBNL3_LIBS}
 jool_CFLAGS = -Wall -O2 -I${srcdir}/../../include ${LIBNL3_CFLAGS}
