@@ -214,12 +214,12 @@ int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	return eamt_entry_equals(eam6, eam4) ? __rm(prefix6, prefix4) : -ESRCH;
 }
 
-static struct eamt_entry *find_addr6(struct in6_addr *addr6)
+static struct eamt_entry *find_addr6(struct in6_addr *addr)
 {
 	struct rtrie_key key;
 
-	key.bytes = (__u8 *) addr6;
-	key.len = 8 * sizeof(*addr6);
+	key.bytes = (__u8 *) addr;
+	key.len = 8 * sizeof(*addr);
 
 	return rtrie_get(eamt.tree6, &key);
 }

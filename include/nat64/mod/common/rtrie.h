@@ -1,6 +1,13 @@
 #ifndef _JOOL_MOD_RTRIE_H
 #define _JOOL_MOD_RTRIE_H
 
+/**
+ * @file
+ * A Radix Trie.
+ * Why don't we use the kernel's radix trie instead?
+ * Because it's only good for keys long-sized; we need 128-bit keys.
+ */
+
 #include <linux/types.h>
 
 struct rtrie_key {
@@ -54,7 +61,11 @@ struct rtrie_node {
 	/* The value hangs off end. RCU-friendly. */
 };
 
+/* Safe-to-use-anywhere functions */
+
 void *rtrie_get(struct rtrie_node *root, struct rtrie_key *key);
+
+/* Lock-before-using functions */
 
 int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
 		size_t key_offset, __u8 key_len);
@@ -64,6 +75,9 @@ void rtrie_flush(struct rtrie_node **root);
 int rtrie_foreach(struct rtrie_node *root,
 		int (*cb)(void *, void *), void *arg,
 		struct rtrie_key *offset);
+
+/* Whatever-as-long-as-you're-just-testing functions */
+
 void rtrie_print(char *prefix, struct rtrie_node *root);
 
 #endif /* _JOOL_MOD_RTRIE_H */

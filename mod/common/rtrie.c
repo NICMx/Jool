@@ -201,6 +201,14 @@ static int add_to_root(struct rtrie_node **root, struct rtrie_node *new)
 		return 0;
 	}
 
+	if (key_contains(&new->key, &root2->key)) {
+		new->left = root2;
+		root2->parent = new;
+		list_add(&new->list_hook, &root2->list_hook);
+		*root = new;
+		return 0;
+	}
+
 	key.bytes = new->key.bytes;
 	key.len = key_match(&root2->key, &new->key);
 
@@ -502,7 +510,7 @@ int rtrie_foreach(struct rtrie_node *root,
 	if (offset) {
 		if (key_equals(offset, &root->key))
 			offset = NULL;
-	} else {
+	} else if (root->color == COLOR_WHITE) {
 		error = cb(root + 1, arg);
 		if (error)
 			return error;
@@ -512,7 +520,7 @@ int rtrie_foreach(struct rtrie_node *root,
 		if (offset) {
 			if (key_equals(offset, &node->key))
 				offset = NULL;
-		} else {
+		} else if (node->color == COLOR_WHITE) {
 			error = cb(node + 1, arg);
 			if (error)
 				return error;
