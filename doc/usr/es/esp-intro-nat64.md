@@ -23,19 +23,16 @@ title: Documentación - Introducción a los Mecanismos de Transición
  SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que solo hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
  La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; un "Traductor IPv4/IPv6" no solo reemplaza direcciones y/o puertos en los paquetes, sino también encabezados de capa 3.
  
- - *SIIT*, es la manera sencilla, permitiendo mapeos 1-a-1 preconfigurados entre IPv4 e IPv6. Ver RFC 6145
- - *Stateful NAT64*, o simplemente NAT64,  permite que varios nodos IPv6 compartan un rango pequeño de direcciones IPv4. Útil cuando se dispone de un [número restringido de direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4)).
+ - **SIIT**, es la manera sencilla, permitiendo mapeos 1-a-1 preconfigurados entre IPv4 e IPv6.
+ - **Stateful NAT64**, o simplemente NAT64,  permite que varios nodos IPv6 compartan un rango pequeño de direcciones IPv4. Útil cuando se dispone de un [número restringido de direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4)).
  
 Por razones históricas, algunas veces etiquetamos a SIIT como "Stateless NAT64". Ya que esta expresión no parece estar incluida en ningún estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es possible, por favor trata de no usarla.
  
 En una implementación SIIT se modifican los encabezados de red y algunas veces los checksums. En un Stateful NAT64 también se manipulan los identificadores de transporte.
 
-El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765] (https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [RFC 6145, 2011] (https://tools.ietf.org/html/rfc6145), [RFC6791, 2012] (https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días] (https://tools.ietf.org/id/siit). De éstos, ya están incluidos en Jool [draft-ietf-v6ops-siit-dc, 2015] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-01), [draft-ietf-v6ops-siit-dc-2xlat, 2015] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-01) y [draft-anderson-v6ops-siit-eam, 2015] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01).
+El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765] (https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [RFC 6145, 2011] (https://tools.ietf.org/html/rfc6145), [RFC6791, 2012] (https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días] (https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool [draft-ietf-v6ops-siit-dc, 2015] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-01), [draft-ietf-v6ops-siit-dc-2xlat, 2015] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-01) y [draft-anderson-v6ops-siit-eam, 2015] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01).
 
-
- 
-
-Eso es todo en realidad. Continua leyendo para mas detalles y ejemplos.
+La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**] (http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea] (http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 [RFC 6146] (https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto Trilogy, el Dr. Marcelo Bagnulo Braun de la Universidad Carlos III y otros dos colabores del proyecto. Para conocer más trabajos elaborados por la IETF acerca de: [Nat64] (https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc)
 
 ### `SIIT con EAM`
 
