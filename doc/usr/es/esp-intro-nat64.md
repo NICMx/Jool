@@ -5,7 +5,7 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-# <small> Mecanismos de Transición de IPv6 soportados por Jool </small>
+# <font size="5"> Mecanismos de Transición de IPv6 soportados por Jool </font>
 
 ## Índice
 
@@ -66,17 +66,17 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro pue
 
 ### `SIIT (tradicional)`
 
-El modo tradicional de SIIT es más constrictivo. Como consecuencia, necesitamos cambiar la red de ejemplo IPv6:
+Su modo básico es más complejo, dado que las direcciones no son remplazadas completamente por otras, sino una parte será contenida en su dirección asociada al otro protocolo. En nuestra red de ejemplo, ahora tendremos las siguientes direcciones:
 
 ![Fig.3 - Red Vanilla de ejemplo](images/network/vanilla.svg)
 
-La idea es simplemente remover un prefijo durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido:
+La idea es simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido:
 
 ![Fig.4 - Flujo Vanilla](images/flow/vanilla.svg)
 
-Por supuesto,esto significa que la dirección IPv4 de cada nodo tiene que ser codificada dentro de su dirección IPv6, lo cual es un poco engorroso.
+Por supuesto, esto significa que la dirección IPv4 de cada nodo tiene que ser codificada dentro de su dirección IPv6, lo cual es un poco engorroso.
 
-Aunque esta explicación pudiera hacer parecer que  SIIT "EAM" y SIIT "tradicional" son cosas diferentes, este no es el caso. Se espera que las implementaciones siempre intenten mapear una dirección basadas en la tabla EAM primero, y si no es encontrado ningún mapeo, retrocedan y adjunten o remuevan el prefijo. La separación fue hecha aqui para propositos ilustrativos. Se puede encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados para cumplir un caso de uso. [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
+Aunque esta explicación pudiera hacer parecer que  SIIT "EAM" y SIIT "tradicional" son cosas diferentes, este no es el caso. Se espera que las implementaciones siempre intenten mapear una dirección basadas en la tabla EAM primero, y si no es encontrado ningún mapeo, retrocedan y adjunten o remuevan el prefijo. La separación fue hecha aquí para propositos didácticos. Se puede encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados para cumplir un caso de uso. [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
 
 SIIT esta definido en el [RFC 6145](http://tools.ietf.org/html/rfc6145). El hack de mapeo de direcciones tiene más maneras de adjuntar la dirección IPv4 que no se muestran aquí, y está completamente definido por el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
