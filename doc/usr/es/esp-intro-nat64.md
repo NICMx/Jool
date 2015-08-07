@@ -5,8 +5,7 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-# Mecanismos de Transición de IPv6 <br />
-         soportados por Jool
+# <small> Mecanismos de Transición de IPv6 soportados por Jool </small>
 
 ## Índice
 
@@ -44,13 +43,14 @@ Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarías _A_ (IPv6) con _V_ (IPv4)?
 
-En SIIT con EAM tú defines las reglas del juego, o sea:
-a) Una dirección alterna en IPv4 para cada uno de tus nodos en IPv6
+En SIIT con EAM tú defines las reglas del juego, o sea:<br />
+a) Una dirección alterna en IPv4 para cada uno de tus nodos en IPv6<br />
 b) Una dirección alterna en IPv6 para cada uno de tus nodos en IPv4
 
 Para nuestro ejemplo, bastaría con establecer lo siguiente:
 
-- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
+- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
+  y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
 
@@ -62,7 +62,7 @@ Veamos:
 
 El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro puede hablar el mismo lenguaje.
 
-"EAM" representa por sus siglas en inglés "Explicit Address Mapping", y es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias. Vea el [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-03) o [nuestro resumen de él](esp-misc-eamt.html) para más información.
+"EAM" significa por sus siglas en inglés "Explicit Address Mapping", mapeo de direcciones explícitas. Es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias, vea el [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-03) o [nuestro resumen de él](esp-misc-eamt.html) para más información.
 
 ### `SIIT (tradicional)`
 
