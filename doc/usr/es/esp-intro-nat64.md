@@ -5,8 +5,8 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-# Mecanismos de Transición de IPv6 
-#        soportados por Jool
+# Mecanismos de Transición de IPv6 <br />
+         soportados por Jool
 
 ## Índice
 
@@ -19,9 +19,9 @@ title: Documentación - Introducción a los Mecanismos de Transición
 ## Introducción
  Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
  
-El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765] (https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)] (https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)] (https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días] (https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-01), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-01) y el [(draft-anderson-v6ops-siit-eam, 2015)] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01).
+El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765] (https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)] (https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)] (https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días] (https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-01), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-01) y el [(draft-anderson-v6ops-siit-eam, 2015)] (https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-03).
 
-La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**] (http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea] (http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146] (https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el Dr. Marcelo Bagnulo Braun de la Universidad Carlos III y otros dos colaboradores del proyecto. Para conocer más trabajos elaborados por la IETF acerca de NAT64 presiona [aquí] (https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc).
+La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**] (http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea] (http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146] (https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el Dr. Marcelo Bagnulo Braun de la Universidad Carlos III y otros dos colaboradores del proyecto. Para conocer más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF] (https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker] (https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
 
 ## Ejemplos de Traducción IPv4/IPv6
  
@@ -44,19 +44,25 @@ Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarías _A_ (IPv6) con _V_ (IPv4)?
 
+En SIIT con EAM tú defines las reglas del juego, o sea:
+a) Una dirección alterna en IPv4 para cada uno de tus nodos en IPv6
+b) Una dirección alterna en IPv6 para cada uno de tus nodos en IPv4
+
+Para nuestro ejemplo, bastaría con establecer lo siguiente:
+
 - Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
 
-La primera es realizada por SIIT, las demás pueden ser realizadas vía DNS.
+La primera es resuelta por SIIT, las demás pueden ser realizadas vía DNS.
 
-Por ejemplo:
+Veamos:
 
 ![Fig.2 - Flujo EAM](images/flow/eam.svg)
 
 El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro puede hablar el mismo lenguaje.
 
-"EAM" representa por sus siglas en inglés "Explicit Address Mapping", y es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias. Vea el [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) o [nuestro resumen de él](esp-misc-eamt.html) para más información.
+"EAM" representa por sus siglas en inglés "Explicit Address Mapping", y es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias. Vea el [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-03) o [nuestro resumen de él](esp-misc-eamt.html) para más información.
 
 ### `SIIT (tradicional)`
 
