@@ -5,8 +5,7 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-Mecanismos de Transición de IPv6 soportados por Jool
-====
+## Mecanismos de Transición de IPv6 soportados por Jool
 
 ## Índice
 
@@ -38,7 +37,7 @@ En una implementación SIIT siempre se modifican los encabezados de red y en alg
 ### `SIIT con EAM`
 
 
-Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
+Esta parte es la más fácil de explicar. Considera la siguiente configuración:
 
 ![Fig.1 - Red de ejemplo EAM](images/network/eam.svg)
 
@@ -46,7 +45,7 @@ Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarías _A_ (IPv6) con _V_ (IPv4)?
 
-En SIIT con EAM tú defines las reglas del juego, o sea:<br />
+En SIIT con EAM, **tú defines las reglas del juego**; es decir, necesitarías especificar:<br />
 a) Una dirección alterna en IPv4 para cada uno de tus nodos en IPv6<br />
 b) Una dirección alterna en IPv6 para cada uno de tus nodos en IPv4
 
@@ -74,7 +73,7 @@ El modo básico es más complejo. Las direcciones no son remplazadas completamen
 
 ![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.svg)
 
-La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido:
+La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido. Como lo puedes apreciar en la siguiente figura:
 
 ![Fig.4 - Flujo Vanilla](images/flow/vanilla.svg)
 
