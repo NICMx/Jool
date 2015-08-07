@@ -4,8 +4,9 @@ title: Documentación - Introducción a los Mecanismos de Transición
 ---
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
-
-## Mecanismos de Transición de IPv6 soportados por Jool
+====
+Mecanismos de Transición de IPv6 soportados por Jool
+====
 
 ## Índice
 
@@ -115,6 +116,8 @@ Aqui es donde podría terminar la similitud con NAT, dado que en la red IPv6 la 
 ![Fig.9 - Internet Stateful NAT64](images/network/full.svg)
 
 De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_).
+
+Para conocer el resto de los escenarios posibles consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2). Aquí también se incluyen los de ** SIIT **
 
 Stateful NAT64 esta definido por el [RFC 6146](http://tools.ietf.org/html/rfc6146). Para su operación soportando direccionamiento por nombre, se requiere también habilitar un [DNS64](esp-op-dns64.html).
 
