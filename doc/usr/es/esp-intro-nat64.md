@@ -71,7 +71,7 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro pue
 
 El modo básico es más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. En nuestra red de ejemplo, ahora usaremos las siguientes direcciones:
 
-![Fig.3 - Red Vanilla de ejemplo](images/network/vanilla.svg)
+![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.svg)
 
 La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido:
 
@@ -87,7 +87,7 @@ SIIT esta definido en el [RFC 6145](http://tools.ietf.org/html/rfc6145). El hack
 
 Este modo es el más parecido a lo que la gente entiende como "NAT". Recordemos, un Stateful NAT opera de la siguiente manera:
 
-![Fig.5 - Red NAT de ejemplo](images/network/nat.svg)
+![Fig.5 - Red de ejemplo NAT](images/network/nat.svg)
 
 Note que, la red de la izquierda es llamada "Privada" por que usa [Direcciones no disponibles en la Internet Global](http://es.wikipedia.org/wiki/Red_privada).  _NAT_ modifica las direcciones de los paquetes para que los nodos externos piensen que el tráfico proveniente de los nodos internos fue en realidad iniciado por el _NAT_:
 
@@ -102,7 +102,7 @@ Aunque Stateful NAT ayuda a reducir el empleo de direcciones globales en Interne
 
 Stateful NAT64 es muy similar. La única diferencia es que la "Red Privada" es de hecho una red IPv6:
 
-![Fig.7 - Red Stateful](images/network/stateful.svg)
+![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.svg)
 
 (_T_ representa "Translating box".)
 
@@ -112,7 +112,7 @@ Y por lo tanto,
 
 Aqui es donde podría terminar la similitud con NAT, dado que en la red IPv6 la capacidad de identificación de los nodos es sumamente enorme, la intención es que cada dispositivo cuente con una dirección pública de IPv6. Una posible conectividad sería:
 
-![Fig.9 - Internet Stateful](images/network/full.svg)
+![Fig.9 - Internet Stateful NAT64](images/network/full.svg)
 
 De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_).
 
