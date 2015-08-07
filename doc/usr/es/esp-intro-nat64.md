@@ -5,7 +5,7 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 [Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
 
-# <font size="5"> Mecanismos de Transición de IPv6 soportados por Jool </font>
+## Mecanismos de Transición de IPv6 soportados por Jool
 
 ## Índice
 
@@ -36,7 +36,9 @@ En una implementación SIIT siempre se modifican los encabezados de red y en alg
 
 ### `SIIT con EAM`
 
+
 Esta parte es la mas fácil de explicar. Considera la siguiente configuración:
+
 ![Fig.1 - Red de ejemplo EAM](images/network/eam.svg)
 
 (_T_ representa "Translating box". En español "Caja de traducción".)
@@ -66,11 +68,12 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro pue
 
 ### `SIIT (tradicional)`
 
-Su modo básico es más complejo, dado que las direcciones no son remplazadas completamente por otras, sino una parte será contenida en su dirección asociada al otro protocolo. En nuestra red de ejemplo, ahora tendremos las siguientes direcciones:
+
+El modo básico es más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. En nuestra red de ejemplo, ahora usaremos las siguientes direcciones:
 
 ![Fig.3 - Red Vanilla de ejemplo](images/network/vanilla.svg)
 
-La idea es simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido:
+La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido:
 
 ![Fig.4 - Flujo Vanilla](images/flow/vanilla.svg)
 
