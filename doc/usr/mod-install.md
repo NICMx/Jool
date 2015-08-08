@@ -11,8 +11,9 @@ title: Documentation - Kernel Modules Installation
 
 1. [Introduction](#introduction)
 2. [Requirements](#requirements)
-3. [Compilation](#compilation)
-4. [Installation](#installation)
+3. [Installation](#installation)
+   1. [DKMS](#dkms)
+   2. [Kbuild](#kbuild)
 
 ## Introduction
 
@@ -54,7 +55,7 @@ Finally, you need your kernel headers. If you're using apt-get, just run this:
 $ apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
 
-## Compilation
+## Installation
 
 Each kernel version combined with each different architecture requires different binaries, so providing packages for every combination would be impossibly cumbersome. For this reason, what you'll download is the source; there is no way around compiling the code yourself.
 
@@ -65,9 +66,29 @@ To download Jool, you have two options:
 * Official releases are hosted in the [Download page](download.html). These will prove less convoluted when you're installing the userspace application.
 * There's the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>. This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (in case you're wondering, we do all the risky development elsewhere).
 
-You might be used to a standard three-step procedure to compile and install programs: `./configure && make && make install`. Kernel modules do not follow it, but have a special one on their own.
+You might be used to a standard three-step procedure to compile and install programs: `./configure && make && make install`. Kernel modules do not follow it, but have a special one on their own called Kbuild.
 
-As far as the compilation goes, there is no `configure` script. But you also don't have to edit the Makefile; you jump straight to `make` and you're done. The global Makefile can be found in the `mod` folder:
+If your distribution supports the Dynamic Kernel Module Support (DKMS) framework, this can be used in order to compile and build the Jool kernel modules. If however your distribution does not support DKMS, or its use is undesired for some reason, the Jool kernel modules can be built and installed manually by using the Kbuild system directly.
+
+Regardless of which method you use to install the kernel modules, after a successfull installation you will be able to start Jool using `modprobe jool` or `modprobe jool_siit`. The logical next step after that would be to read the [Basic SIIT Tutorial](mod-run-vanilla.html).
+
+### DKMS
+
+The DKMS framework provides a convenient wrapper around the standard kernel Kbuild system. A single DKMS command will perform all the steps necessary in order to use third-party kernel modules such as Jool. It will also ensure that everything is done all over again whenever necessary (such as after a kernel upgrade). DKMS can also be used to create packages for deb/rpm-based distributions containing pre-built Jool kernel modules.
+
+In order to install the Jool kernel modules using DKMS, you need to run `dkms install /path/to/Jool-sourcedir`, like so:
+
+{% highlight bash %}
+user@node:~# apt-get install dkms
+user@node:~$ unzip Jool-<version>.zip
+user@node:~# dkms install Jool-<version>
+{% endhighlight %}
+
+DKMS will now have compiled, installed and indexed the Jool kernel modules; Jool is now ready for use.
+
+### Kbuild
+
+Kbuild is the Linux kernel's standard system for compiling and installing kernel modules. Jool comes with native Kbuild support. As far as the compilation goes, there is no `configure` script. But you also don't have to edit the Makefile; you jump straight to `make` and you're done. The global Makefile can be found in the `mod` folder:
 
 {% highlight bash %}
 user@node:~$ unzip Jool-<version>.zip
@@ -75,11 +96,7 @@ user@node:~$ cd Jool-<version>/mod
 user@node:~/Jool-<version>/mod$ make
 {% endhighlight %}
 
-And that's that.
-
-## Installation
-
-You copy the binaries generated to your system's module pool by running the `modules_install` target:
+The Jool kernel modules are now compiled for your current kernel. Next, copy them to your system's module pool by running the `modules_install` target:
 
 {% highlight bash %}
 user@node:~/Jool-<version>/mod# make modules_install
@@ -98,6 +115,3 @@ You'll later activate the modules using the `modprobe` command. Thing is, the fa
 {% highlight bash %}
 user@node:~# /sbin/depmod
 {% endhighlight %}
-
-Done; Jool can now be started. The logical follow-up is the [Basic SIIT Tutorial](mod-run-vanilla.html).
-

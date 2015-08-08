@@ -14,13 +14,19 @@ Install the requirements:
 		# apt-get install libnl-3-dev
 		(Site: http://www.carisma.slowglass.com/~tgr/libnl)
 
-Compile the module:
-	NAT64$ cd mod
-	NAT64/mod$ make
+Installing the modules using Dynamic Kernel Module Support (DKMS):
+	1. Ensure the DKMS framework is installed:
+		# apt-get install dkms
+	2. Add Jool to the DKMS framework (builds and installs the modules):
+		# dkms install /path/to/NAT64
 
-Install the module:
-	NAT64/mod# make modules_install
-	# depmod
+Alternatively, manually install the modules using Kbuild directly:
+	1. Compile the modules:
+		NAT64$ cd mod
+		NAT64/mod$ make
+	2. Install the modules:
+		NAT64/mod# make modules_install
+		# depmod
 
 Insert the module:
 	Configure networking.
