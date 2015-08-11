@@ -79,9 +79,9 @@ La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y 
 
 Por supuesto, esto significa que la dirección IPv4 de cada nodo tiene que ser codificada dentro de su dirección IPv6, lo cual es un poco engorroso.
 
-Aunque esta explicación pudiera hacer parecer que  SIIT "EAM" y SIIT "tradicional" son cosas diferentes, este no es el caso. Se espera que las implementaciones siempre intenten mapear una dirección basadas en la tabla EAM primero, y si no es encontrado ningún mapeo, retrocedan y adjunten o remuevan el prefijo. La separación fue hecha aquí para propositos didácticos. Se puede encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados para cumplir un caso de uso. [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
+Aunque con esta explicación podría parecer que  SIIT "EAM" y SIIT "tradicional" son cosas diferentes, pero no es así. Se espera que las implementaciones siempre intenten mapear una dirección basadas en la tabla EAM primero, y si no es encontrado ningún mapeo, retrocedan y adjunten o remuevan el prefijo. La separación fue hecha aquí para propositos didácticos. Se puede encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados para cumplir un caso de uso. [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
 
-SIIT esta definido en el [RFC 6145](http://tools.ietf.org/html/rfc6145). El hack de mapeo de direcciones tiene más maneras de adjuntar la dirección IPv4 que no se muestran aquí, y está completamente definido por el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+Hay otras maneras de adjuntar la dirección IPv4 que no se muestran aquí, y está completamente definido por el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
 
@@ -118,6 +118,6 @@ De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a
 
 Para conocer el resto de los escenarios posibles consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2). Allí también conocerás los de **SIIT**.
 
-Stateful NAT64 esta definido por el [RFC 6146](http://tools.ietf.org/html/rfc6146). Para su operación soportando direccionamiento por nombre, se requiere también habilitar un [DNS64](esp-op-dns64.html).
+Para que soporte direccionamiento por nombre se requiere, aqui también, habilitar el [DNS64](esp-op-dns64.html).
 
 
