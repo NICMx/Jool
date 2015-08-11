@@ -140,6 +140,11 @@ static bool daniel_test(void)
 {
 	bool success = true;
 
+	success &= test_6to4("::", NULL);
+	success &= test_6to4("ffff::ffff", NULL);
+	success &= test_4to6("0.0.0.0", NULL);
+	success &= test_4to6("255.255.255.255", NULL);
+
 	success &= add_entry("10.0.0.0", 30, "2001:db8::0", 126);
 	success &= add_entry("10.0.0.12", 30, "2001:db8::4", 126);
 	success &= add_entry("10.0.0.16", 28, "2001:db8::20", 124);
@@ -156,6 +161,10 @@ static bool daniel_test(void)
 
 	success &= test_6to4("2001:db8::8", NULL);
 	success &= test_6to4("8000::", NULL);
+
+	/* "test first bit doesn't match root". */
+	success &= test_6to4("8000::", NULL);
+	success &= test_4to6("128.0.0.0", NULL);
 
 	return success;
 }
@@ -419,7 +428,6 @@ static int address_mapping_test_init(void)
 	START_TESTS("Address Mapping test");
 
 	INIT_CALL_END(init(), add_test(), end(), "add function");
-	/* TODO looks like this is missing empty trie gets. */
 	INIT_CALL_END(init(), daniel_test(), end(), "Daniel's xlat tests");
 	INIT_CALL_END(init(), anderson_test(), end(), "Tore's xlat tests");
 	INIT_CALL_END(init(), remove_test(), end(), "remove function");

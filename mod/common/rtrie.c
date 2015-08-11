@@ -126,9 +126,6 @@ static bool key_equals(struct rtrie_key *key1, struct rtrie_key *key2)
  * @key: the string you want the best match for.
  * @force_white: if true, the resulting node will be the best white match.
  *	If false, the result will be the best match, regardless of color.
- *
- * TODO test first bit doesn't match root
- * TODO test adding duplicate nodes
  */
 static struct rtrie_node *find_longest_common_prefix(struct rtrie_node *root,
 		struct rtrie_key *key, bool force_white)
@@ -277,8 +274,8 @@ static int add_full_collision(struct rtrie_node *parent, struct rtrie_node *new)
 		higher_prefix2 = parent->right;
 		inode_prefix.len = match_rn;
 	} else {
-		/* TODO improve error msg. */
-		WARN(true, "Inconsistent bwrtrie.");
+		WARN(true, "Inconsistent bwrtrie! (%u %u %u)",
+				match_lr, match_ln, match_rn);
 		return -EINVAL;
 	}
 	inode_prefix.bytes = higher_prefix1->key.bytes;
