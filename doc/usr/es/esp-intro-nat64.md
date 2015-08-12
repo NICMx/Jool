@@ -29,12 +29,12 @@ La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Tri
  
  - **SIIT**, es la manera sencilla, permitiendo MAPEOS 1-a-1 preconfigurados entre IPv4 e IPv6.<br />
  Es decir, que en SIIT tú establecerás lo siguiente:<br />
- a) Para cada uno de tus nodos en IPv6 existirá una dirección alterna en IPv4 <br />
- b) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6 
+ a) Para cada uno de tus nodos en IPv6 existirá una dirección alterna en IPv4.<br />
+ b) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6.
 
  - **Stateful NAT64**, o simplemente NAT64,  permite que VARIOS NODOS IPv6 compartan UN RANGO PEQUEÑO de direcciones IPv4.<br />
  Es decir, que en NAT64 tú establecerás lo siguiente:<br />
- a) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6, pero esa nueva dirección estará formada de un prefijo de IPv6 + dir. en IPv4 <br />
+ a) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6, pero esa nueva dirección estará formada de un prefijo de IPv6 + dir. en IPv4.<br />
  b) Los nodos en IPv6 será identificados por una o varias IP válidas en _T_ (Jool), aparentando ser una subred o intranet de IPv4.
  
 NAT64 es definitivamente útil cuando se dispone de un [número restringido de direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
@@ -56,10 +56,10 @@ Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarí
 
 Para nuestro ejemplo, bastaría con establecer lo siguiente:
 
-- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
-  y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
+- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
+                   y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16".
 
 La primera es resuelta por SIIT, las demás pueden ser realizadas vía DNS.
 
@@ -80,21 +80,20 @@ El modo básico es un poco más complejo. Las direcciones no son remplazadas com
 
 Para nuestro ejemplo, bastaría con establecer lo siguiente:
 
-- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
-  y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
-- Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
+- Le dices a _A_, "la dirección de _V_ es 2001:db8:192.0.2.16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
-
+- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
+                   y la dirección IPv6 de _V_ debe de ser 2001:db8:192.0.2.16".
 
 La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido. Como lo puedes apreciar en la siguiente figura:
 
 ![Fig.4 - Flujo Vanilla](images/flow/vanilla.svg)
 
-Por supuesto, esto significa que la dirección IPv4 de cada nodo tiene que ser codificada dentro de su dirección IPv6, lo cual es un poco engorroso.
+Por supuesto, esto significa que la dirección IPv4 de cada nodo en IPv6 tiene que ser codificada dentro de su dirección, lo cual es un poco engorroso.
 
 Aunque con esta explicación podría parecer que  SIIT "EAM" y SIIT "tradicional" son cosas diferentes, pero no es así. Se espera que las implementaciones siempre intenten mapear una dirección basadas en la tabla EAM primero, y si no es encontrado ningún mapeo, retrocedan y adjunten o remuevan el prefijo. La separación fue hecha aquí para propositos didácticos. Se puede encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados para cumplir un caso de uso. [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
 
-Hay otras maneras de adjuntar la dirección IPv4 que no se muestran aquí, y está completamente definido por el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de nuestro rango de 128 bits y esto está definido en el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
 
