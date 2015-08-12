@@ -27,8 +27,17 @@ La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Tri
  SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que únicamente hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
  La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; es decir que, un "Traductor IPv4/IPv6" no solo reemplaza direcciones y/o puertos en los paquetes, sino también encabezados de capa 3.
  
- - **SIIT**, es la manera sencilla, permitiendo mapeos 1-a-1 preconfigurados entre IPv4 e IPv6.
- - **Stateful NAT64**, o simplemente NAT64,  permite que varios nodos IPv6 compartan un rango pequeño de direcciones IPv4. Útil cuando se dispone de un [número restringido de direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
+ - **SIIT**, es la manera sencilla, permitiendo MAPEOS 1-a-1 preconfigurados entre IPv4 e IPv6.<br />
+ Es decir, que en SIIT tú establecerás lo siguiente:<br />
+ a) Para cada uno de tus nodos en IPv6 existirá una dirección alterna en IPv4 <br />
+ b) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6 
+
+ - **Stateful NAT64**, o simplemente NAT64,  permite que VARIOS NODOS IPv6 compartan UN RANGO PEQUEÑO de direcciones IPv4.<br />
+ Es decir, que en NAT64 tú establecerás lo siguiente:<br />
+ a) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6, pero esa nueva dirección estará formada de un prefijo de IPv6 + dir. en IPv4 <br />
+ b) Los nodos en IPv6 será identificados por una o varias IP válidas en _T_ (Jool), aparentando ser una subred o intranet de IPv4.
+ 
+NAT64 es definitivamente útil cuando se dispone de un [número restringido de direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
  
 Por razones históricas, algunas veces etiquetamos a SIIT como "Stateless NAT64". Ya que esta expresión no parece estar incluida en ningún estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es possible, por favor trata de no usarla.
  
@@ -44,10 +53,6 @@ Esta parte es la más fácil de explicar. Considera la siguiente configuración:
 (_T_ representa "Translating box". En español "Caja de traducción".)
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarías _A_ (IPv6) con _V_ (IPv4)?
-
-En SIIT con EAM, **tú defines las reglas del juego**; es decir, necesitarías especificar:<br />
-a) Una dirección alterna en IPv4 para cada uno de tus nodos en IPv6<br />
-b) Una dirección alterna en IPv6 para cada uno de tus nodos en IPv4
 
 Para nuestro ejemplo, bastaría con establecer lo siguiente:
 
@@ -69,9 +74,17 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro pue
 ### `SIIT (tradicional)`
 
 
-El modo básico es más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. En nuestra red de ejemplo, ahora usaremos las siguientes direcciones:
+El modo básico es un poco más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. En nuestra red de ejemplo, ahora usaremos las siguientes direcciones:
 
 ![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.svg)
+
+Para nuestro ejemplo, bastaría con establecer lo siguiente:
+
+- Le dices a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
+  y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16 ".
+- Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
+- Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
+
 
 La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido. Como lo puedes apreciar en la siguiente figura:
 
@@ -84,6 +97,7 @@ Aunque con esta explicación podría parecer que  SIIT "EAM" y SIIT "tradicional
 Hay otras maneras de adjuntar la dirección IPv4 que no se muestran aquí, y está completamente definido por el [RFC 6052](http://tools.ietf.org/html/rfc6052). Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
+
 
 Este modo es el más parecido a lo que la gente entiende como "NAT". Recordemos, un Stateful NAT opera de la siguiente manera:
 
