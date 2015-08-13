@@ -98,7 +98,9 @@ Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en di
 ### `Stateful NAT64`
 
 
-Este modo es el más parecido a lo que la gente entiende como [NAT] (https://tools.ietf.org/html/rfc2663#section-3). Recordemos, un Stateful NAT opera de la siguiente manera:
+Este modo es el más parecido a lo que la gente entiende como **NAT*. Ver [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).
+
+Recordemos, un Stateful NAT opera de la siguiente manera:
 
 ![Fig.5 - Red de ejemplo NAT](images/network/nat.svg)
 
