@@ -54,7 +54,7 @@ Esta parte es la más fácil de explicar. Considera la siguiente configuración:
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó comunicarías _A_ (IPv6) con _V_ (IPv4)?
 
-Para lograr la comunicación entre _A y _V_ bastaría con establecer lo siguiente:
+Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:4::16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
@@ -78,7 +78,7 @@ El modo básico es un poco más complejo. Las direcciones no son remplazadas com
 
 ![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.svg)
 
-Para lograr la comunicación entre _A y _V_ bastaría con establecer lo siguiente:
+Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:192.0.2.16".
 - Le dices a _V_, "la dirección de _A_ es 198.51.100.8 ".
@@ -121,7 +121,7 @@ Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes 
 
 ![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.svg)
 
-Para lograr la comunicación entre _A y _V_ bastaría con establecer lo siguiente:
+Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
 - Le dices a _A_, "la dirección de _V_ es 2001:db8:203.0.113.16".
 - Le dices a _V_, "la dirección de _A_ es 203.0.113.2 (_T_)".
@@ -132,7 +132,7 @@ La idea es, enmascarar _A_ y remover el prefijo a _V_ durante el mapeo de IPv6 a
 
 ![Fig.8 - Flujo Stateful](images/flow/stateful.svg)
 
-NAT64 maneja otros escenarios, y he aquí donde termina la similitud con NAT. Dado que en la red IPv6, la capacidad de identificación de los nodos es sumamente enorme, la intención es que cada dispositivo cuente con una dirección pública de IPv6, por lo que una posible conectividad sería:
+NAT64 maneja otros escenarios y es aquí donde termina la similitud con NAT. Debido a que en IPv6 la capacidad de identificación de los nodos es sumamente enorme, se contempla que cada dispositivo cuente con una dirección pública de IPv6. En otras palabras se prevé o se planea que TODOS los dispositivos en IPv6  tenga acceso a Internet. Considerando esto, una conectividad posible sería:
 
 ![Fig.9 - Internet Stateful NAT64](images/network/full.svg)
 
