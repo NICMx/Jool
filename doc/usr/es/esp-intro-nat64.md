@@ -98,7 +98,7 @@ Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en di
 ### `Stateful NAT64`
 
 
-Este modo es el más parecido a lo que la gente entiende como **NAT**. Recordemos, un Stateful NAT opera de la siguiente manera:
+Este modo es el más parecido a lo que la gente entiende como **NAT**, por sus siglas en inglés de _IP Network Address Translator_. Recordemos, un NAT opera de la siguiente manera:
 
 ![Fig.5 - Red de ejemplo NAT](images/network/nat.svg)
 
@@ -108,14 +108,16 @@ Note que, la red de la izquierda es llamada "Privada" por que usa [Direcciones n
 
 Es decir que para propósitos externos, los nodos desde _A_ hasta _E_ están "compartiendo" la misma dirección global de _NAT_ (o grupo de direcciones).
 
-Aunque Stateful NAT ayuda a reducir el empleo de direcciones globales en Internet de IPv4, esto tiene un precio: _NAT_ tiene que recordar cual nodo privado emitió el paquete a _V_, porque la dirección de _A_ fue suprimida dentro de la respuesta de _V_. Por eso, es que es  llamado ***stateful***, dado que crea mapeos de direcciones y los recuerda por un tiempo. Dos cosas que hay que tomar en cuenta es:
+Aunque NAT ayuda a reducir el empleo de direcciones globales en Internet de IPv4, esto tiene un precio: _NAT_ tiene que recordar cual nodo privado emitió el paquete a _V_, porque la dirección de _A_ fue suprimida dentro de la respuesta de _V_. Por eso, es que es  llamado ***stateful***, porque guarda el estado de las sesiones, pues crea mapeos de direcciones y los recuerda por un tiempo. 
+
+Dos cosas que hay que tomar en cuenta es:
 
 - Cada mapeo require memoria.
 - _V_ no puede **iniciar** la comunicación con _A_, porque primeramente el _NAT_ **debe** aprender el mapeo en el sentido de la Red_Privada-a-Red_Externa (de izquierda a derecha).
 
 >  Si quieres saber NAT y sus diferentes tipos, consulta los siguientes documentos: [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).
 
-**Stateful NAT64** es muy similar a un NAT-PT. La única diferencia es que la "Red Privada" es de hecho una red IPv6:
+**Stateful NAT64** es muy similar a un NAT-PT (_Protocol Translation_) Ver [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).). La única diferencia es que la "Red Privada" es de hecho una red IPv6:
 
 ![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.svg)
 
