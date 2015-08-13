@@ -210,7 +210,7 @@
          sodipodi:role="line"
          x="500"
          y="1003.3622"
-         id="tspan4177">dst: <tspan
+         id="tspan4177">dest: <tspan
    style="fill:#aa8800"
    id="tspan3069">203.0.113.2</tspan></tspan></text>
     <text
@@ -248,7 +248,7 @@
          id="tspan4209"
          y="1003.3622"
          x="100"
-         sodipodi:role="line">dst: <tspan
+         sodipodi:role="line">dest: <tspan
    style="fill:#008000"
    id="tspan3065">192.168.0.8</tspan></tspan></text>
     <text
@@ -267,7 +267,7 @@
          id="tspan4223"
          y="875.36218"
          x="500"
-         sodipodi:role="line">dst: <tspan
+         sodipodi:role="line">dest: <tspan
    style="fill:#0000ff"
    id="tspan3055">203.0.113.16</tspan></tspan></text>
     <text
@@ -305,7 +305,7 @@
          sodipodi:role="line"
          x="100"
          y="875.36218"
-         id="tspan4241">dst: <tspan
+         id="tspan4241">dest: <tspan
    style="fill:#0000ff"
    id="tspan3059">203.0.113.16</tspan></tspan></text>
     <path

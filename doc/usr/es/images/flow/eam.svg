@@ -209,7 +209,7 @@
          sodipodi:role="line"
          x="500"
          y="1003.3622"
-         id="tspan4177">dst: 198.51.100.8</tspan></text>
+         id="tspan4177">dest: 198.51.100.8</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
@@ -243,7 +243,7 @@
          id="tspan4209"
          y="1003.3622"
          x="100"
-         sodipodi:role="line">dst: <tspan
+         sodipodi:role="line">dest: <tspan
    style="fill:#008000"
    id="tspan3046">2001:db8:6::8</tspan></tspan></text>
     <text
@@ -260,7 +260,7 @@
          id="tspan4223"
          y="875.36218"
          x="500"
-         sodipodi:role="line">dst: <tspan
+         sodipodi:role="line">dest: <tspan
    style="fill:#0000ff"
    id="tspan3037">192.0.2.16</tspan></tspan></text>
     <text
@@ -298,7 +298,7 @@
          sodipodi:role="line"
          x="100"
          y="875.36218"
-         id="tspan4241">dst: 2001:db8:4::16</tspan></text>
+         id="tspan4241">dest: 2001:db8:4::16</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Lend)"
        d="m 100,838.36218 400,0"
@@ -411,5 +411,16 @@
          id="tspan3147"
          x="304.49689"
          y="737.36218">T</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="500"
+       y="988.36218"
+       id="text3392"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3394"
+         x="500"
+         y="988.36218"></tspan></text>
   </g>
 </svg>

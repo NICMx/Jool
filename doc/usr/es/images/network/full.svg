@@ -14,7 +14,7 @@
    height="256"
    id="svg2"
    version="1.1"
-   inkscape:version="0.48.4 r9939"
+   inkscape:version="0.91 r13725"
    sodipodi:docname="full.svg">
   <defs
      id="defs4" />
@@ -33,10 +33,10 @@
      showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:window-width="1920"
-     inkscape:window-height="1028"
-     inkscape:window-x="0"
-     inkscape:window-y="24"
+     inkscape:window-width="1600"
+     inkscape:window-height="838"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1" />
   <metadata
      id="metadata7">
@@ -155,7 +155,7 @@
          style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;display:inline" />
       <path
          transform="matrix(0.71302118,0,0,1,2.0088518,0)"
-         d="m 12,227 c 0,1.38071 -1.119288,2.5 -2.5,2.5 -1.3807119,0 -2.5,-1.11929 -2.5,-2.5 0,-1.38071 1.1192881,-2.5 2.5,-2.5 1.380712,0 2.5,1.11929 2.5,2.5 z"
+         d="M 12,227 A 2.5,2.5 0 0 1 9.5,229.5 2.5,2.5 0 0 1 7,227 2.5,2.5 0 0 1 9.5,224.5 2.5,2.5 0 0 1 12,227 Z"
          sodipodi:ry="2.5"
          sodipodi:rx="2.5"
          sodipodi:cy="227"
@@ -215,7 +215,7 @@
          style="fill:#008080;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
       <path
          transform="matrix(0.48595445,0,0,0.29851852,260.00403,694.04082)"
-         d="m 122.85714,235.21933 c 0,26.82526 -21.74617,48.57143 -48.571427,48.57143 -26.82526,0 -48.57143,-21.74617 -48.57143,-48.57143 0,-26.82526 21.74617,-48.57143 48.57143,-48.57143 26.825257,0 48.571427,21.74617 48.571427,48.57143 z"
+         d="m 122.85714,235.21933 a 48.57143,48.57143 0 0 1 -48.571427,48.57143 48.57143,48.57143 0 0 1 -48.57143,-48.57143 48.57143,48.57143 0 0 1 48.57143,-48.57143 48.57143,48.57143 0 0 1 48.571427,48.57143 z"
          sodipodi:ry="48.57143"
          sodipodi:rx="48.57143"
          sodipodi:cy="235.21933"
@@ -342,7 +342,7 @@
          y="917.36218">E</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
        x="217.22841"
        y="1018.7802"
        id="text3028"
@@ -350,28 +350,28 @@
          sodipodi:role="line"
          id="tspan3030"
          x="217.22841"
-         y="1018.7802">&lt;Your (IPv6) network(s)&gt;</tspan></text>
+         y="1018.7802">&lt;Tus redes (IPv6)&gt;</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text3032"
        y="1020.1923"
        x="7.2284088"
-       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          y="1020.1923"
          x="7.2284088"
          id="tspan3034"
-         sodipodi:role="line">&lt;More IPv6 infrastructure&gt;</tspan></text>
+         sodipodi:role="line">&lt;Otra infraestructura en IPv6&gt;</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text3036"
        y="1020.1923"
        x="465.22839"
-       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
        xml:space="preserve"><tspan
          y="1020.1923"
          x="465.22839"
          id="tspan3038"
-         sodipodi:role="line">&lt;IPv4 Internet&gt;</tspan></text>
+         sodipodi:role="line">&lt;Internet IPv4&gt;</tspan></text>
   </g>
 </svg>

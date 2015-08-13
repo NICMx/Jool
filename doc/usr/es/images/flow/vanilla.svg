@@ -56,7 +56,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="2.234375"
      inkscape:cx="300"
-     inkscape:cy="243.6616"
+     inkscape:cy="207.8574"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -209,7 +209,7 @@
          sodipodi:role="line"
          x="500"
          y="1003.3622"
-         id="tspan4177">dst: <tspan
+         id="tspan4177">dest: <tspan
    style="fill:#008000"
    id="tspan3059">198.51.100.8</tspan></tspan></text>
     <text
@@ -251,7 +251,7 @@
          id="tspan4209"
          y="1003.3622"
          x="100"
-         sodipodi:role="line">dst: 2001:db8::<tspan
+         sodipodi:role="line">dest: 2001:db8::<tspan
    style="fill:#008000"
    id="tspan3057">198.51.100.8</tspan></tspan></text>
     <text
@@ -270,7 +270,7 @@
          id="tspan4223"
          y="875.36218"
          x="500"
-         sodipodi:role="line">dst: <tspan
+         sodipodi:role="line">dest: <tspan
    style="fill:#0000ff"
    id="tspan3051">192.0.2.16</tspan></tspan></text>
     <text
@@ -312,7 +312,7 @@
          sodipodi:role="line"
          x="100"
          y="875.36218"
-         id="tspan4241">dst: 2001:db8::<tspan
+         id="tspan4241">dest: 2001:db8::<tspan
    style="fill:#0000ff"
    id="tspan3049">192.0.2.16</tspan></tspan></text>
     <path

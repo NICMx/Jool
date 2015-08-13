@@ -42,7 +42,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="2.7402344"
      inkscape:cx="256"
-     inkscape:cy="125.19458"
+     inkscape:cy="95.999997"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -423,7 +423,7 @@
          sodipodi:role="line"
          x="413.92761"
          y="1018.8025"
-         id="tspan3075">dst: 203.0.113.24</tspan></text>
+         id="tspan3075">dest: 203.0.113.24</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text3039-9"

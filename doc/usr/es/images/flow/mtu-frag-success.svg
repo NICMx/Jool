@@ -55,7 +55,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.8284272"
-     inkscape:cx="-71.499758"
+     inkscape:cx="186.73186"
      inkscape:cy="86.293905"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -221,7 +221,7 @@
          sodipodi:role="line"
          x="101.9276"
          y="992.80249"
-         id="tspan3075">dst: n6</tspan><tspan
+         id="tspan3075">dest: n6</tspan><tspan
          sodipodi:role="line"
          x="101.9276"
          y="1007.8025"
@@ -405,7 +405,7 @@
          id="tspan3149"
          y="992.80249"
          x="277.92761"
-         sodipodi:role="line">dst: n6</tspan><tspan
+         sodipodi:role="line">dest: n6</tspan><tspan
          id="tspan3151"
          y="1007.8025"
          x="277.92761"

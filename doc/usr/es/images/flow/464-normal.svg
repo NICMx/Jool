@@ -70,7 +70,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="2.4357639"
      inkscape:cx="288"
-     inkscape:cy="274.95367"
+     inkscape:cy="209.26586"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -451,7 +451,7 @@
          sodipodi:role="line"
          x="101.9276"
          y="910.80249"
-         id="tspan3075">dst: 64:ff9b::203.0.113.24</tspan></text>
+         id="tspan3075">dest: 64:ff9b::203.0.113.24</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text4459"
@@ -466,7 +466,7 @@
          id="tspan4463"
          y="910.80249"
          x="293.92761"
-         sodipodi:role="line">dst: 64:ff9b::203.0.113.24</tspan></text>
+         sodipodi:role="line">dest: 64:ff9b::203.0.113.24</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;display:inline;fill:#000000;fill-opacity:1;stroke:none"
@@ -481,7 +481,7 @@
          sodipodi:role="line"
          x="493.92761"
          y="910.80249"
-         id="tspan4479">dst: 203.0.113.24</tspan></text>
+         id="tspan4479">dest: 203.0.113.24</tspan></text>
     <use
        x="0"
        y="0"
