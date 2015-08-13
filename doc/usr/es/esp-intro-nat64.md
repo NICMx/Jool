@@ -115,7 +115,8 @@ Dos cosas que hay que tomar en cuenta es:
 - Cada mapeo require memoria.
 - _V_ no puede **iniciar** la comunicación con _A_, porque primeramente el _NAT_ **debe** aprender el mapeo en el sentido de la Red_Privada-a-Red_Externa (de izquierda a derecha).
 
-		Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes documentos: [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).
+		Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes documentos:
+		[RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).
 
 **Stateful NAT64** es muy similar a un NAT-PT (_Protocol Translation_). La única diferencia es que la "Red Privada" es de hecho una red IPv6:
 
@@ -136,10 +137,11 @@ NAT64 maneja otros escenarios, y he aquí donde termina la similitud con NAT. Da
 
 ![Fig.9 - Internet Stateful NAT64](images/network/full.svg)
 
-De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_).
+De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_.
 
 Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2).
 
-> Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](esp-op-dns64.html).
+> NOTA IMPORTANTE:
+>      Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](esp-op-dns64.html).
 
 
