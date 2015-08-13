@@ -14,6 +14,10 @@
 #define MODULE_NAME "SIIT Jool"
 #endif
 
+/**
+ * These defines are read in from dkms.conf. If you change their syntax or
+ * relocate them, please make sure to also update dkms.conf accordingly.
+ */
 #define JOOL_VERSION_MAJOR 3
 #define JOOL_VERSION_MINOR 3
 #define JOOL_VERSION_REV 2
