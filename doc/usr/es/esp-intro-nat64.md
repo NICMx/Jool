@@ -115,9 +115,9 @@ Dos cosas que hay que tomar en cuenta es:
 - Cada mapeo require memoria.
 - _V_ no puede **iniciar** la comunicación con _A_, porque primeramente el _NAT_ **debe** aprender el mapeo en el sentido de la Red_Privada-a-Red_Externa (de izquierda a derecha).
 
->  Si quieres saber NAT y sus diferentes tipos, consulta los siguientes documentos: [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).
+		Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes documentos: [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).
 
-**Stateful NAT64** es muy similar a un NAT-PT (_Protocol Translation_) Ver [RFC 2663](https://tools.ietf.org/html/rfc2663#section-3), [RFC 2766](https://tools.ietf.org/html/rfc2766) y [RFC 3022](https://tools.ietf.org/html/rfc3022).). La única diferencia es que la "Red Privada" es de hecho una red IPv6:
+**Stateful NAT64** es muy similar a un NAT-PT (_Protocol Translation_). La única diferencia es que la "Red Privada" es de hecho una red IPv6:
 
 ![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.svg)
 
