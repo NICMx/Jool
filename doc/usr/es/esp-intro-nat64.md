@@ -98,7 +98,7 @@ Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en di
 ### `Stateful NAT64`
 
 
-Este modo es el más parecido a lo que la gente entiende como "[NAT]" (https://tools.ietf.org/html/rfc2663#section-3). Recordemos, un Stateful NAT opera de la siguiente manera:
+Este modo es el más parecido a lo que la gente entiende como [NAT] (https://tools.ietf.org/html/rfc2663#section-3). Recordemos, un Stateful NAT opera de la siguiente manera:
 
 ![Fig.5 - Red de ejemplo NAT](images/network/nat.svg)
 
@@ -128,14 +128,14 @@ La idea es, enmascarar _A_ y remover el prefijo a _V_ durante el mapeo de IPv6 a
 
 ![Fig.8 - Flujo Stateful](images/flow/stateful.svg)
 
-Aqui es donde podría terminar la similitud con NAT, dado que en la red IPv6 la capacidad de identificación de los nodos es sumamente enorme, la intención es que cada dispositivo cuente con una dirección pública de IPv6. Una posible conectividad sería:
+NAT64 maneja otros escenarios, y he aquí donde termina la similitud con NAT. Dado que en la red IPv6, la capacidad de identificación de los nodos es sumamente enorme, la intención es que cada dispositivo cuente con una dirección pública de IPv6, por lo que una posible conectividad sería:
 
 ![Fig.9 - Internet Stateful NAT64](images/network/full.svg)
 
 De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_).
 
-Para conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2).
+Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2).
 
-Para que soporte direccionamiento por nombre se requiere, aqui también, habilitar el [DNS64](esp-op-dns64.html).
+> Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](esp-op-dns64.html).
 
 
