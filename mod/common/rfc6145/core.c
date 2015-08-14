@@ -15,9 +15,15 @@ static verdict translate_first(struct tuple *tuple, struct packet *in, struct pa
 		return result;
 	result = steps->l3_hdr_fn(tuple, in, out);
 	if (result != VERDICT_CONTINUE)
-		return result;
+		goto revert;
 	result = steps->l3_payload_fn(tuple, in, out);
+	if (result != VERDICT_CONTINUE)
+		goto revert;
 
+	return result;
+
+revert:
+	kfree_skb(out->skb);
 	return result;
 }
 
@@ -83,8 +89,10 @@ verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struc
 		log_debug("Translating a Fragment Packet");
 
 		result = translate_subsequent(in, skb_in, &skb_out);
-		if (result != VERDICT_CONTINUE)
+		if (result != VERDICT_CONTINUE) {
+			kfree_skb(out->skb);
 			return result;
+		}
 
 		if (!skb_prev)
 			skb_shinfo(out->skb)->frag_list = skb_out;
