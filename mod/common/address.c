@@ -23,7 +23,7 @@ int prefix4_parse(char *str, struct ipv4_prefix *result)
 {
 	const char *slash_pos;
 
-	if (strchr(str, '/') != 0) {
+	if (strchr(str, '/') != NULL) {
 		if (in4_pton(str, -1, (u8 *) &result->address, '/', &slash_pos) != 1)
 			goto fail;
 		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)

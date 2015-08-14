@@ -36,7 +36,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 		return false;
 	prefix6.len = len6;
 
-	log_debug("\nInserting %s/%u", addr6, len6);
+	log_debug("\nInserting %s/%u | %s/%u", addr6, len6, addr4, len4);
 	error = eamt_add(&prefix6, &prefix4);
 	/*
 	if (error) {
@@ -223,7 +223,7 @@ static bool remove_entry(char *addr4, __u8 len4, char *addr6, __u8 len6,
 		prefix6.len = len6;
 	}
 
-	error = eamt_remove(addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
+	error = eamt_rm(addr6 ? &prefix6 : NULL, addr4 ? &prefix4 : NULL);
 	success = ASSERT_INT(expected_error, error, "removing EAM entry");
 
 	/* rtrie_print(eamt.tree6); */

@@ -85,7 +85,7 @@ int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
 	return fail(__func__);
 }
 
-int eamt_remove(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
+int eamt_rm(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 {
 	return fail(__func__);
 }
@@ -111,7 +111,7 @@ int eamt_xlat_6to4(struct in6_addr *addr6, struct in_addr *result)
 	return fail(__func__);
 }
 
-int eamt_for_each(int (*func)(struct eamt_entry *, void *), void *arg,
+int eamt_foreach(int (*cb)(struct eamt_entry *, void *), void *arg,
 		struct ipv4_prefix *offset)
 {
 	return fail(__func__);

@@ -565,7 +565,7 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing EAMT entry.");
-		return respond_error(nl_hdr, eamt_remove(
+		return respond_error(nl_hdr, eamt_rm(
 				request->rm.prefix6_set ? &request->rm.prefix6 : NULL,
 				request->rm.prefix4_set ? &request->rm.prefix4 : NULL));
 

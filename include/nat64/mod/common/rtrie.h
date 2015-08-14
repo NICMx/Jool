@@ -4,11 +4,13 @@
 /**
  * @file
  * A Radix Trie.
+ *
  * Why don't we use the kernel's radix trie instead?
  * Because it's only good for keys long-sized; we need 128-bit keys.
  */
 
 #include <linux/types.h>
+#include <linux/mutex.h>
 
 struct rtrie_key {
 	__u8 *bytes;
@@ -27,13 +29,14 @@ enum rtrie_color {
  * RCU-friendly fields can be dereferenced in RCU-protected areas happily,
  * and of course MUST NOT BE EDITED while the node is in the trie.
  *
- * RCU-unfriendly fields must not be touched outside the config lock's domain.
+ * RCU-unfriendly fields must not be touched outside the domain of the trie's
+ * lock.
  */
 struct rtrie_node {
 	/** RCU-friendly. */
-	struct rtrie_node *left;
+	struct rtrie_node __rcu *left;
 	/** RCU-friendly. */
-	struct rtrie_node *right;
+	struct rtrie_node __rcu *right;
 	/** NOT RCU-friendly. */
 	struct rtrie_node *parent;
 
@@ -61,23 +64,49 @@ struct rtrie_node {
 	/* The value hangs off end. RCU-friendly. */
 };
 
+struct rtrie {
+	/** The tree. */
+	struct rtrie_node __rcu *root;
+	/** @root's nodes chained to ease foreaching. */
+	struct list_head list;
+	/** Size of the values being stored (in bytes). */
+	size_t value_size;
+	/**
+	 * Protects the update code.
+	 * Only protects the trie operations from themselves. Additional
+	 * locking might be required, depending on the caller.
+	 */
+	struct mutex lock;
+};
+
+/**
+ * OMG WHY IS THIS A MACRO!!1!!1oneone
+ * Because mutex_init declares a static struct.
+ * Also see the mutex semantics at linux/mutex.h.
+ */
+#define rtrie_init(trie, size)			\
+	do {					\
+		(trie)->root = NULL;		\
+		INIT_LIST_HEAD(&(trie)->list);	\
+		(trie)->value_size = size;	\
+		mutex_init(&(trie)->lock);	\
+	} while (0)
+void rtrie_destroy(struct rtrie *trie);
+
 /* Safe-to-use-anywhere functions */
 
-void *rtrie_get(struct rtrie_node *root, struct rtrie_key *key);
+int rtrie_get(struct rtrie *trie, struct rtrie_key *key, void *result);
+bool rtrie_contains(struct rtrie *trie, struct rtrie_key *key);
+bool rtrie_is_empty(struct rtrie *trie);
+void rtrie_print(char *prefix, struct rtrie *trie);
 
-/* Lock-before-using functions */
+/* Lock-before-using functions. */
 
-int rtrie_add(struct rtrie_node **root, void *content, size_t content_len,
-		size_t key_offset, __u8 key_len);
-int rtrie_rm(struct rtrie_node **root, struct rtrie_key *key);
-void rtrie_flush(struct rtrie_node **root);
-
-int rtrie_foreach(struct rtrie_node *root,
+int rtrie_add(struct rtrie *trie, void *value, size_t key_offset, __u8 key_len);
+int rtrie_rm(struct rtrie *trie, struct rtrie_key *key);
+void rtrie_flush(struct rtrie *trie);
+int rtrie_foreach(struct rtrie *trie,
 		int (*cb)(void *, void *), void *arg,
 		struct rtrie_key *offset);
-
-/* Whatever-as-long-as-you're-just-testing functions */
-
-void rtrie_print(char *prefix, struct rtrie_node *root);
 
 #endif /* _JOOL_MOD_RTRIE_H */
