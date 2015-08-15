@@ -99,7 +99,8 @@ Puedes encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden s
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de nuestro rango de 128 bits según se establece en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-> Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+:warning:
+Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
 
@@ -146,5 +147,5 @@ De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a
 
 Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2).
 
-> NOTA IMPORTANTE:
->      Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](esp-op-dns64.html).
+:warning:
+Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](esp-op-dns64.html).
