@@ -134,7 +134,7 @@ Si no está presente, Jool empieza a traducir el tráfico de inmediato.
 Lo siguiente es sufciente para nuestra red de ejemplo.
 
 	user@T:~# modprobe jool_siit pool6=2001:db8::/96
-
+/play tada
 Eso significa que: "La representación IPv6 de cualquier dirección IPv4 va a ser `2001:db8::<IPv4 address>`."
 
 ## Pruebas

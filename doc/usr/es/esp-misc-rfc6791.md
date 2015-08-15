@@ -7,6 +7,23 @@ title: Documentación - RFC 6791
 
 # RFC 6791
 
+## Índice
+
+1. [Introducción](#introduccion)
+2. [Definición del Problema](#definicion)
+3. [Ejemplo] (#ejemplo)
+4. [Notas Adicionales] (#notas-adicionales)
+
+## Introducción
+
+Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por Xing Li y Congxiao Bao del Centro CERNET de la Universidad de Tsinghua y Dan Wing de Cisco.
+
+## Definición del Problema
+
+A stateless IPv4/IPv6 translator may receive ICMPv6 packets containing non-IPv4-translatable addresses as the source.  These packets should be passed across the translator as ICMP packets directed to the IPv4 destination.  This document presents recommendations for source address translation in ICMPv6 headers to handle such cases.
+
+## Ejemplo
+
 Suponga que _n4_ esta tratando de llegar a _n6_, pero hay un problema (ej. el paquete es muy grande), y _R_ envía un error ICMP a _n4_. _T_ está traduciendo usando el prefijo 2001:db8::/96.
 
 ![Figura 1 - Red](images/network/rfc6791.svg)
@@ -21,7 +38,7 @@ _T_ está en problemas por que la dirección de origen del paquete no tiene el p
 
 Normalmente, no se tienen muchas direcciones IPv4, asi que no es razonable garantizarle una a cada uno de los nodos en el lado IPv6. Debido a su único propósito(casi siempre) de redireccionamiento, los routers son buenos candidatos para direcciones intraducibles. Por otro lado, los errores ICMP son importantes, y un NAT64 no deberia desecharlo simplemente por que viene de un router.
 
-Un Stateful NAT64 generalmente no tiene este problema por que [render every IPv6 address translatable](esp-intro-nat64.html#stateful-nat64) (ya que todos los nodos IPv6 comparten las direcciones IPv4 del NAT64). Para hacer claras las cosas, un modulo SIIT debe de mantener un pool de direcciónes reservadas. Al recibir un error ICMP con un origen que no se puede traducir, Jool deberia asignar un aleatorio de los que contiene en su pool.
+## Notas Adicionales
 
 Por favor considere los siguientes parrafos del [RFC 6791](https://tools.ietf.org/html/rfc6791) mientras decide el tamaño y las direcciones de su RFC 6791 pool:
 
@@ -52,5 +69,9 @@ Por favor considere los siguientes parrafos del [RFC 6791](https://tools.ietf.or
 	pool. La selección aleatoria reduce la probabilidad de que dos mensajes ICMP
     sucitados por la misma Traza De Ruta puedan especificar la misma dirección
     de origen y, por consiguiente, erroneamente dar la apariencia de un bucle de ruteo.
+	
+
+Un Stateful NAT64 generalmente no tiene este problema por que [render every IPv6 address translatable](esp-intro-nat64.html#stateful-nat64) (ya que todos los nodos IPv6 comparten las direcciones IPv4 del NAT64). Para hacer claras las cosas, un modulo SIIT debe de mantener un pool de direcciónes reservadas. Al recibir un error ICMP con un origen que no se puede traducir, Jool deberia asignar un aleatorio de los que contiene en su pool.
+
 
 El [Ejemplo de SIIT](esp-mod-run-vanilla.html) muestra como configurar el pool durante un modprobe. Tambien lo puedes editar despues mediante la [Aplicación de espacio de usuario](esp-usr-flags-pool6791.html).
