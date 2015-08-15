@@ -91,11 +91,13 @@ La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y 
 
 Por supuesto, esto significa que la dirección IPv4 de cada nodo en IPv6 tiene que ser codificada dentro de su dirección, lo cual es un poco engorroso.
 
-Podría parecerte que  SIIT "EAM" y SIIT "tradicional" son cosas diferentes, pero no es así. Se espera que las implementaciones siempre intenten mapear una dirección basadas en la tabla EAM primero, y si no es encontrado ningún mapeo, se retrocede y se añade o se remueve el prefijo. En realidad, la separación fue hecha aquí para propositos didácticos. Puedes encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados eficientemente para cumplir un caso de uso en la siguiente propuesta: [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-01).
+Podría parecerte que  SIIT con "EAM" y SIIT "tradicional" son cosas diferentes, pero pueden trabajar a la par. En implementaciones de este tipo, primeramente se intentará mapear las direcciones IP consultando la tabla EAM (según SIIT con EAM), y si NO están registradas, se retrocede y se añade o se remueve el prefijo (según SIIT). La separación fue hecha aquí para propositos didácticos. 
+
+Puedes encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados eficientemente para cumplir un caso de uso en la siguiente propuesta de solución para Centros de Datos: [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-02).
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de nuestro rango de 128 bits según se establece en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-> Siempre que el RFC 6052 esté involucrado, es muy conveniente tener también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+> Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](esp-op-dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
 
