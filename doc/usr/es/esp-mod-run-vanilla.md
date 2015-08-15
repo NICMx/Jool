@@ -27,7 +27,7 @@ title: Documentación - SIIT - Ejemplo básico
 
 Este documento explica cómo ejecutar Jool en modo SIIT. Si no tienes nociones de este tipo de traducción ingresa a [SIIT Tradicional](esp-intro-nat64.html#siit-tradicional).
 
-En cuanto a software, solo se necesita una [instalación exitosa del Servidor Jool](esp-mod-install.html). El configurador queda fuera del rango del proposito de éste documento.
+En cuanto a software, solo se necesita una [instalación exitosa del Servidor Jool](esp-mod-install.html). El configurador queda fuera del alcance de esta página.
 
 Para la implementación de las pruebas, puedes usar alternativamente máquinas virtuales u otro tipo de interfaces, dado que Jool no está ligado al uso exclusivo de interfaces físicas del tipo "_ethX_".
 
