@@ -397,10 +397,12 @@ static void send_probe_packet(struct session_entry *session)
 	pkt_fill(&pkt, skb, L3PROTO_IPV6, L4PROTO_TCP, NULL, th + 1, NULL);
 
 	error = route6(&pkt);
-	if (error)
+	if (error) {
+		kfree_skb(skb);
 		goto fail;
+	}
 
-	error = ip6_local_out(skb);
+	error = ip6_local_out(skb); /* Implicit kfree_skb(skb) goes here. */
 	if (error) {
 		log_debug("The kernel's packet dispatch function returned errcode %d.", error);
 		goto fail;
