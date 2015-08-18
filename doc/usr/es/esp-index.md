@@ -35,6 +35,17 @@ Nuestra versión más reciente es la [3.3.2](https://github.com/NICMx/NAT64/issu
 
 ## Noticias
 
+### 2015-08-17
+
+Versión 3.3.3 liberada.
+
+[Error crítico corregido!](https://github.com/NICMx/NAT64/issues/166)
+
+Además en esta versión:
+
+1. [Se añadió el soporte para el framework DKMS!] (https://github.com/NICMx/NAT64/pull/165)
+2. Se corrigieron los errores [#150] (https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) de despliege de las tablas (bib, sessions y pools) cuando están vacías en la Herramienta de Configuración de Jool.
+
 ### 2015-04-14
 
 Versión 3.3.2 liberada.
@@ -58,7 +69,7 @@ También nos gustaria disculparnos por el [inconveniente que tuvimos recientemen
 
 ### 2015-03-11
 
-[Error importante ](https://github.com/NICMx/NAT64/issues/137) descubierto!
+[Error importante descubierto!](https://github.com/NICMx/NAT64/issues/137)
 
 Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.
 
@@ -92,12 +103,12 @@ Ha llamado nuestra atención que <a href="https://github.com/NICMx/NAT64/issues/
 
 Version 3.2.1 liberada. La serie 3.2 es considerada más madura que la 3.1.
 
-Los cambios importantes son
+Los cambios importantes son:
 
 1. <a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool siempre intentará enmascarar los paquetes usando el primer prefijo de la pool</a>. Esto significa que Jool no es capaz de manejar mas que un solo prefijo.
 2. La <a href="https://github.com/NICMx/NAT64/issues/109" target="_blank">pérdida de memoria en el kernel</a> ha sido corregida.
 
-Los cambios menos relevantes son
+Los cambios menos relevantes son:
 
 1. `log_martians` <a href="https://github.com/NICMx/NAT64/issues/107" target="_blank">no es incluido como un paso </a> al insertar Jool (aunque no afecta si usted lo mantiene).
 2. <a href="https://github.com/NICMx/NAT64/issues/57" target="_blank"> La actualización del estado de SNMP es regresado</a>. Ver `nstat` y `netstat -s`.
