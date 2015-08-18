@@ -689,7 +689,7 @@ static const struct argp_option *options_nat64[] = {
 	&global_opt,
 	&global_alias_opt,
 #ifdef BENCHMARK
-	benchmark_opt,
+	&benchmark_opt,
 #endif
 
 	&operations_hdr_opt,
