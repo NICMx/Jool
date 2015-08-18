@@ -4,9 +4,7 @@
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
-#ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
-#endif
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"

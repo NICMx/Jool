@@ -2,17 +2,20 @@ MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 
 all:
-	make -C ${KERNEL_DIR} M=$$PWD;
+	make -C ${KERNEL_DIR} M=$$PWD JOOL_FLAGS="${JOOL_FLAGS}"
 modules:
-	make -C ${KERNEL_DIR} M=$$PWD $@;
+	make -C ${KERNEL_DIR} M=$$PWD $@
 modules_install:
-	make -C ${KERNEL_DIR} M=$$PWD $@;
+	make -C ${KERNEL_DIR} M=$$PWD $@
 clean:
-	make -C ${KERNEL_DIR} M=$$PWD $@;
+	make -C ${KERNEL_DIR} M=$$PWD $@
 	rm -f ../common/*.o
 	rm -f ../common/rfc6145/*.o
+	rm -f ../stateful/bib/*.o
+	rm -f ../stateful/pool4/*.o
+	rm -f ../stateful/session/*.o
 debug:
-	make -C ${KERNEL_DIR} M=$$PWD JOOL_DEBUG=-DDEBUG;
+	make all JOOL_FLAGS+=-DDEBUG
 
 # The targets below are meant for quick testing.
 # If you want to install the module, see ../INSTALL.

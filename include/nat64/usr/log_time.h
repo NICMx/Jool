@@ -1,3 +1,4 @@
+#ifdef BENCHMARK
 #ifndef _JOOL_USR_LOG_TIME_H
 #define _JOOL_USR_LOG_TIME_H
 /*
@@ -12,3 +13,4 @@
 int logtime_display();
 
 #endif /* _JOOL_USR_LOG_TIME_H */
+#endif /* BENCHMARK */

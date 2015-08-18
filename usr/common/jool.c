@@ -792,11 +792,7 @@ static int main_wrapped(int argc, char **argv)
 		break;
 
 	case MODE_LOGTIME:
-		if (!is_logtime_enabled()) {
-			log_err("This is benchmark configuration mode despite benchmark being disabled.");
-			return -EINVAL;
-		}
-
+#ifdef BENCHMARK
 		switch (args.op) {
 		case OP_DISPLAY:
 			return logtime_display();
@@ -805,6 +801,10 @@ static int main_wrapped(int argc, char **argv)
 			break;
 		}
 		break;
+#else
+		log_err("This is benchmark configuration mode despite benchmark being disabled.");
+		return -EINVAL;
+#endif
 
 	case MODE_GLOBAL:
 		switch (args.op) {

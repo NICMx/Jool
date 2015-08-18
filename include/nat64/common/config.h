@@ -16,6 +16,13 @@
 
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
+#ifdef BENCHMARK
+	#ifdef __KERNEL__
+		#include <linux/time.h>
+	#else
+		#include <time.h>
+	#endif
+#endif
 
 /**
  * ID of Netlink messages Jool listens to.
@@ -400,6 +407,8 @@ struct response_pool4_count {
 	__u64 taddrs;
 };
 
+#ifdef BENCHMARK
+
 /**
  * A logtime node entry, from the eyes of userspace.
  *
@@ -407,10 +416,10 @@ struct response_pool4_count {
  * the skb need to be translated to IPv6 -> IPv4 or IPv4 -> IPv6.
  */
 struct logtime_entry_usr {
-#ifdef BENCHMARK
 	struct timespec time;
-#endif
 };
+
+#endif
 
 /**
  * A BIB entry, from the eyes of userspace.

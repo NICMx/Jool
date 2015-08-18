@@ -1,9 +1,6 @@
 #CC=cgcc
 
-ccflags-y := -I$(src)/../../include $(JOOL_DEBUG)
-# Note: if you want to activate the benchmark feature, you need to activate the following flag, and
-#	the "log_time.o" object, also you need to activate in the usr-app (usr/src/Makefile.am)
-#ccflags-y += -DBENCHMARK
+ccflags-y := -I$(src)/../../include $(JOOL_FLAGS)
 
 obj-m += jool_siit.o
 
@@ -16,7 +13,7 @@ jool_common += ../common/types.o
 jool_common += ../common/str_utils.o
 jool_common += ../common/packet.o
 jool_common += ../common/stats.o
-#jool_common += ../common/log_time.o
+jool_common += ../common/log_time.o
 jool_common += ../common/icmp_wrapper.o
 jool_common += ../common/ipv6_hdr_iterator.o
 jool_common += ../common/pool6.o

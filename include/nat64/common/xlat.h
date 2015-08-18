@@ -44,13 +44,4 @@ static inline bool xlat_is_nat64(void)
 
 const char *xlat_get_name(void);
 
-static inline int is_logtime_enabled(void)
-{
-#ifdef BENCHMARK
-	return 1;
-#else
-	return 0;
-#endif
-}
-
 #endif /* _JOOL_COMMON_XLAT_H */

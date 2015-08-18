@@ -5,6 +5,7 @@
 #include <linux/version.h>
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/nl_buffer.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateless/eam.h"
@@ -14,9 +15,6 @@
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/bib/static_routes.h"
 #include "nat64/mod/stateful/session/db.h"
-#ifdef BENCHMARK
-#include "nat64/mod/common/log_time.h"
-#endif
 
 /**
  * Socket the userspace application will speak to.

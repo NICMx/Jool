@@ -1,3 +1,5 @@
+#ifdef BENCHMARK
+
 /*
  * log_time.c
  *
@@ -110,3 +112,5 @@ int logtime_display()
 	return (tcp_ip6_error || udp_ip6_error || icmp_ip6_error || tcp_ip4_error || udp_ip4_error
 			|| icmp_ip4_error ) ? -EINVAL : 0;
 }
+
+#endif /* BENCHMARK */
