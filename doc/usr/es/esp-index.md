@@ -29,7 +29,7 @@ Nuestra meta actual es que Jool sea un SIIT y un Stateful NAT64 [apegado a los e
 
 Es posible que existan versiones intermedias dependiendo de los problemas reportados. Sus sugerencias puede persuadirnos para cambiar prioridades. Si tienes alguna recomedación que darnos, presiona [aquí](esp-contact.html).
 
-Nuestra versión más reciente es la [3.3.2](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.2).
+Nuestra versión más reciente es la [3.3.3](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.3).
 
 -------------------
 
@@ -44,7 +44,7 @@ Versión 3.3.3 liberada.
 Además en esta versión:
 
 1. [Se añadió el soporte para el framework DKMS!] (https://github.com/NICMx/NAT64/pull/165)
-2. Se corrigieron los errores [#150] (https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) de despliege de las tablas (bib, sessions y pools) cuando están vacías en la Herramienta de Configuración de Jool.
+2. Se corrigieron los errores [#150] (https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) en el despliege de las tablas (bib, sessions y pools) cuando están vacías al usar la Herramienta de Configuración de Jool.
 
 ### 2015-04-14
 
