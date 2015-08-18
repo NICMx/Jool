@@ -44,7 +44,7 @@ Versión 3.3.3 liberada.
 Además en esta versión:
 
 1. [Se añadió el soporte para el framework DKMS!] (https://github.com/NICMx/NAT64/pull/165)
-2. Se corrigieron los errores [#150] (https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) en el despliege de las tablas (bib, sessions y pools) cuando están vacías al usar la Herramienta de Configuración de Jool.
+2. Se corrigieron los errores [#150] (https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) al usar la Herramienta de Configuración de Jool en el despliege de las tablas (bib, sessions y pools) cuando están vacías.
 
 ### 2015-04-14
 
