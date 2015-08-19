@@ -59,7 +59,6 @@ user@T:~# /sbin/ip address add 2001:db8::1/96 dev eth0
 user@T:~# 
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
-user@T:~# /sbin/ip address add 203.0.113.2/24 dev eth1
 user@T:~# 
 user@T:~# ethtool --offload eth0 tso off
 user@T:~# ethtool --offload eth0 ufo off
@@ -73,14 +72,7 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-Stateful mode is special in that the NAT64 needs at least two separate IPv4 addresses:
-
-- One or more addresses used for local traffic (ie. to and from _T_). In the configuration above, this is 203.0.113.1.
-- One or more addresses used for NAT64 translation. Linux needs to be aware of these because it needs to ARP reply them. This one is 203.0.113.2.
-
-The need for this separation _is a Jool quirk_ and we're still researching ways to remove it.
-
-The translation addresses need less priority so _T_ doesn't use them for local traffic by accident. One way to achieve this is to simply add the NAT64 addresses after the node addresses.
+> Note: In previous versions of Jool, _T_ used to need two or more IPv4 addresses. This is no longer the case.
 
 Remember you might want to cross-ping _T_ vs everything before continuing.
 
@@ -101,9 +93,9 @@ EAM and `pool6791` do not make sense in stateful mode, and as such are unavailab
 
 The result looks like this:
 
-	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
+	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.1
 
-Jool will listen on address `203.0.113.2` and append and remove prefix `64:ff9b::/96`.
+Jool will listen on address `203.0.113.1` and append and remove prefix `64:ff9b::/96`.
 
 ## Testing
 

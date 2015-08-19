@@ -36,46 +36,15 @@ Stateful Jool's minimum configuration requirements are
 - At least one prefix/address in the [IPv4 pool](usr-flags-pool4.html).
 - You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
 
-If that's not the problem, try enabling debug while compiling.
-
-	user@node:~/Jool-<version>/mod$ make debug
-
-Reinstall and remodprobe. Jool will be a lot more verbose in `dmesg`:
-
-	$ dmesg | tail -5
-	[ 3465.639622] ===============================================
-	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8
-	[ 3465.639724] Translating the Packet.
-	[ 3465.639756] Address 192.0.2.16 lacks an EAMT entry and there's no pool6 prefix.
-	[ 3465.639806] Returning the packet to the kernel.
-
-If it's not printing anything despite your enabling debug, perhaps it's because your log level is too high. See [this](http://elinux.org/Debugging_by_printing#Log_Levels).
-
-The debugging messages quickly become gigabytes of log, so remember to revert this before going official.
+If that's not the problem, try the [logs](logging.html).
 
 ## What do I do with this error message? It's horribly ambiguous.
 
-Yes, the kernel module's response messages to userspace are very primitive. We could truly improve communication with the userspace application, but we have no control over `modprobe`'s.
+This happens if your text terminal is not listening to kernel messages of error severity.
 
-In any case, you will most likely have better luck reading Jool's logs. As with any other kernel component, Jool's messages are mixed along with the others and can be seen by running `dmesg`. In general, most kernels are very silent once they're done booting, so Jool's latest message should be found at the very end.
+The jist of it is, if a problem with the incoming configuration is detected in kernelspace, Jool doesn't send the friendly version of the error message to the userspace application [because it's lazy](https://github.com/NICMx/NAT64/issues/169). Instead, it writes it in the kernel logs. The userspace application is then stuck with a generic Unix error code, and that's what it reports to the user.
 
-{% highlight bash %}
-$ sudo modprobe jool_siit pool6=2001:db8::/96 pool4=192.0a.2.0/24
-ERROR: could not insert module jool_siit.ko: Invalid parameters
-$ dmesg | tail -1
-[28495.042365] SIIT Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
-192.0a.2.0/24.
-{% endhighlight %}
-
-{% highlight bash %}
-$ sudo jool --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
-TCP:
-Invalid input data or parameter (System error -7)
-$ dmesg | tail -1
-[29982.832343] NAT64 Jool ERROR (add_static_route): The IPv4 address and port could not be
-reserved from the pool. Maybe the IPv4 address you provided does not belong to the pool.
-Or maybe they're being used by some other BIB entry?
-{% endhighlight %}
+[Run `dmesg` or one of its variats to query the kernel logs](logging.html), as shown in the [issue report](https://github.com/NICMx/NAT64/issues/169).
 
 ## Jool is intermitently unable to translate traffic.
 
@@ -111,7 +80,7 @@ Check the output of `ip addr`.
        valid_lft forever preferred_lft forever
 </code></pre></div>
 
-The former interface is correctly configured; it has both a "scope global" address (used for typical traffic) and a "scope link" address (used for internal management). Interface _eth1_ lacks a link address, and is therefore a headache inducer.
+Interface _eth0_ is correctly configured; it has both a "scope global" address (used for typical traffic) and a "scope link" address (used for internal management). Interface _eth1_ lacks a link address, and is therefore a headache inducer.
 
 The easiest way to restore scope link addresses, we have found, is to just reset the interface:
 

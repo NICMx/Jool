@@ -103,7 +103,7 @@ Now, that's where the similarities with NAT end. You don't normally say the IPv6
 
 ![Fig.9 - Stateful Internet](images/network/full.svg)
 
-In this way, _A_ through _D_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
+In this way, _A_ through _E_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
 
 Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a> and is most of the time coupled with [DNS64](op-dns64.html).
 

@@ -43,7 +43,18 @@ The prefix replacement is done at bit level. The third entry exemplifies this: A
 - `203.0.113.12` <-> `2001:db8:cccc::4`
 - `203.0.113.15` <-> `2001:db8:cccc::7`
 
-EAMT records cannot intersect. If Jool doesn't find a match in the table for an address, it tries to translate based on the [`pool6`](usr-flags-pool6.html) prefix. If that also fails, the packet is returned to the kernel (ie. it is assumed it wasn't meant to be translated).
+It is legal for EAMT records to overlap. The translator is supposed to always pick the longest match prefix when this is the case. Here's a new sample table:
+
+| IPv4 Prefix     |     IPv6 Prefix      |
+|-----------------|----------------------|
+| 192.0.2.0/24    | 2001:db8:aaaa::/120  |
+| 192.0.2.8/29    | 2001:db8:bbbb::/125  |
+
+Address `192.0.2.9` matches `192.0.2.8/29` better than `192.0.2.0/24`, so it will get translated as `2001:db8:bbbb::1`, not `2001:db8:aaaa::8`.
+
+Notice this creates assymetry. `2001:db8:aaaa::9` gets translated as `192.0.2.9`, which in turn gets translated as `2001:db8:bbbb::1`. Depending on your use case, this can break communication. See [`--allow-overlapping-eams`](usr-flags-global.html#allow-overlapping-eams) if you don't want overlapping EAMT entries and want to shield yourself from them.
+
+If Jool doesn't find a match in the table for an address, it tries to translate based on the [`pool6`](usr-flags-pool6.html) prefix. If that also fails, the packet is returned to the kernel (ie. it is assumed it wasn't meant to be translated).
 
 See the [walkthrough](mod-run-eam.html) or the [reference material](usr-flags-eamt.html) for information on how to create and destroy entries manually.
 
