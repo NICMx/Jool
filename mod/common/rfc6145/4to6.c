@@ -222,6 +222,26 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(out);
 	int error;
 
+	/* Translate the address first because of issue #167. */
+	if (nat64_is_stateful()) {
+		error = generate_saddr6_nat64(tuple6, in, out);
+		if (error)
+			return VERDICT_DROP;
+		ip6_hdr->daddr = tuple6->dst.addr6.l3;
+	} else {
+		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
+		if (error == -ESRCH)
+			return VERDICT_ACCEPT;
+		if (error)
+			return VERDICT_DROP;
+		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
+		if (error == -ESRCH)
+			return VERDICT_ACCEPT;
+		if (error)
+			return VERDICT_DROP;
+		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
+	}
+
 	ip6_hdr->version = 6;
 	if (config_get_reset_traffic_class()) {
 		ip6_hdr->priority = 0;
@@ -243,25 +263,6 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 		ip6_hdr->hop_limit = ip4_hdr->ttl - 1;
 	} else {
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
-	}
-
-	if (nat64_is_stateful()) {
-		error = generate_saddr6_nat64(tuple6, in, out);
-		if (error)
-			return VERDICT_DROP;
-		ip6_hdr->daddr = tuple6->dst.addr6.l3;
-	} else {
-		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
 	}
 
 	/* Isn't this supposed to be covered by filtering...? */
