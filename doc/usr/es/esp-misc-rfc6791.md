@@ -20,7 +20,16 @@ Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Pr
 
 ## Definición del Problema
 
-A stateless IPv4/IPv6 translator may receive ICMPv6 packets containing non-IPv4-translatable addresses as the source.  These packets should be passed across the translator as ICMP packets directed to the IPv4 destination.  This document presents recommendations for source address translation in ICMPv6 headers to handle such cases.
+Un traductor Stateless IPv4/IPv6 podría recibir paquetes de ICMPv6 que contengan direcciones **no-traducibles** a IPv4 como dirección fuente. Es decir: a) que no siga la norma establecida en el [RFC 6052, cap2.] (https://tools.ietf.org/html/rfc6052#section-2), b) ni que esté dado de alta en la table EAM, ver [draft EAM, sección 3.2] (http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01#section-3.2).
+
+De ser asi, implica que ocurrieron dos condiciones:
+
+1. Existe al menos un ruteador entre el Nodo en IPv6 y el Traductor (Jool) antes de llegar al Nodo en IPv4.
+2. El paquete es del tipo ICMPv4 Error Message "Packet too Big".
+
+En dichas excepciones, los paquetes aún deben pasar a través del traductor como paquetes de ICMP a la dirección destino de IPv4 para que éste pueda ajustar el MTU y reenviar el paquete.
+ 
+En este RFC 6791 se establecen una serie de recomendaciones para manejar la traducción en dichos casos.
 
 ## Ejemplo
 
