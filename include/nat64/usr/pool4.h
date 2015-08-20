@@ -4,7 +4,7 @@
 #include "nat64/common/config.h"
 
 
-int pool4_display(void);
+int pool4_display(bool csv);
 int pool4_count(void);
 int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
 		bool force);

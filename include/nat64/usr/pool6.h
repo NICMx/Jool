@@ -4,7 +4,7 @@
 #include "nat64/common/types.h"
 
 
-int pool6_display(void);
+int pool6_display(bool csv);
 int pool6_count(void);
 int pool6_add(struct ipv6_prefix *prefix);
 int pool6_update(struct ipv6_prefix *prefix);

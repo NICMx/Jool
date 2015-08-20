@@ -80,7 +80,8 @@ int rfc6791_count(__u64 *result)
 }
 
 
-int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref)
+int eamt_add(struct ipv6_prefix *ip6_pref, struct ipv4_prefix *ip4_pref,
+		bool force)
 {
 	return fail(__func__);
 }

@@ -38,7 +38,7 @@
 #define OPTNAME_SESSION_LOGGING		"logging-session"
 
 
-int global_display(void);
+int global_display(bool csv);
 int global_update(__u8 type, size_t size, void *data);
 
 

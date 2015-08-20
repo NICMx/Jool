@@ -13,6 +13,7 @@
 struct display_args {
 	unsigned int row_count;
 	union request_pool6 *request;
+	bool csv;
 };
 
 static int pool6_display_response(struct nl_msg *response, void *arg)
@@ -27,6 +28,9 @@ static int pool6_display_response(struct nl_msg *response, void *arg)
 	prefixes = nlmsg_data(hdr);
 	prefix_count = nlmsg_datalen(hdr) / sizeof(*prefixes);
 
+	if (args->row_count == 0 && args->csv)
+		printf("Prefix\n");
+
 	for (i = 0; i < prefix_count; i++) {
 		inet_ntop(AF_INET6, &prefixes[i].address, prefix_str, INET6_ADDRSTRLEN);
 		printf("%s/%u\n", prefix_str, prefixes[i].len);
@@ -39,7 +43,7 @@ static int pool6_display_response(struct nl_msg *response, void *arg)
 	return 0;
 }
 
-int pool6_display(void)
+int pool6_display(bool csv)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -52,19 +56,22 @@ int pool6_display(void)
 	memset(&payload->display.prefix, 0, sizeof(payload->display.prefix));
 	args.row_count = 0;
 	args.request = payload;
+	args.csv = csv;
 
 	do {
 		error = netlink_request(&request, hdr->length, pool6_display_response, &args);
-	} while (!error && args.request->display.prefix_set);
+		if (error)
+			return error;
+	} while (args.request->display.prefix_set);
 
-	if (!error) {
+	if (!csv) {
 		if (args.row_count > 0)
 			log_info("  (Fetched %u entries.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}
 
-	return error;
+	return 0;
 }
 
 static int pool6_count_response(struct nl_msg *msg, void *arg)

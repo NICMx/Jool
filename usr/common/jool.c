@@ -58,7 +58,6 @@ struct arguments {
 		struct {
 			bool tcp, udp, icmp;
 			bool numeric;
-			bool csv_format;
 
 			struct {
 				struct ipv6_transport_addr addr6;
@@ -74,6 +73,8 @@ struct arguments {
 		size_t size;
 		void *data;
 	} global;
+
+	bool csv_format;
 };
 
 static int update_state(struct arguments *args, enum config_mode valid_modes,
@@ -380,8 +381,12 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		args->db.tables.numeric = true;
 		break;
 	case ARGP_CSV:
-		error = update_state(args, MODE_EAMT | MODE_BIB | MODE_SESSION, OP_DISPLAY);
-		args->db.tables.csv_format = true;
+		error = update_state(args, MODE_GLOBAL
+				| MODE_POOL6 | MODE_POOL4
+				| MODE_BLACKLIST | MODE_RFC6791
+				| MODE_EAMT | MODE_BIB | MODE_SESSION,
+				OP_DISPLAY);
+		args->csv_format = true;
 		break;
 
 	case ARGP_QUICK:
@@ -606,7 +611,7 @@ static int main_wrapped(int argc, char **argv)
 	case MODE_POOL6:
 		switch (args.op) {
 		case OP_DISPLAY:
-			return pool6_display();
+			return pool6_display(args.csv_format);
 		case OP_ADD:
 		case OP_UPDATE:
 			error = validate_pool6(&args);
@@ -632,7 +637,7 @@ static int main_wrapped(int argc, char **argv)
 
 		switch (args.op) {
 		case OP_DISPLAY:
-			return pool4_display();
+			return pool4_display(args.csv_format);
 		case OP_COUNT:
 			return pool4_count();
 		case OP_ADD:
@@ -669,7 +674,7 @@ static int main_wrapped(int argc, char **argv)
 		switch (args.op) {
 		case OP_DISPLAY:
 			return bib_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
-					args.db.tables.numeric, args.db.tables.csv_format);
+					args.db.tables.numeric, args.csv_format);
 		case OP_COUNT:
 			return bib_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
 
@@ -713,7 +718,7 @@ static int main_wrapped(int argc, char **argv)
 		switch (args.op) {
 		case OP_DISPLAY:
 			return session_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
-					args.db.tables.numeric, args.db.tables.csv_format);
+					args.db.tables.numeric, args.csv_format);
 		case OP_COUNT:
 			return session_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
 		default:
@@ -730,7 +735,7 @@ static int main_wrapped(int argc, char **argv)
 
 		switch (args.op) {
 		case OP_DISPLAY:
-			return eam_display(args.db.tables.csv_format);
+			return eam_display(args.csv_format);
 		case OP_COUNT:
 			return eam_count();
 		case OP_TEST:
@@ -767,7 +772,7 @@ static int main_wrapped(int argc, char **argv)
 
 		switch (args.op) {
 		case OP_DISPLAY:
-			return pool_display(args.mode);
+			return pool_display(args.mode, args.csv_format);
 		case OP_COUNT:
 			return pool_count(args.mode);
 		case OP_ADD:
@@ -808,7 +813,7 @@ static int main_wrapped(int argc, char **argv)
 	case MODE_GLOBAL:
 		switch (args.op) {
 		case OP_DISPLAY:
-			return global_display();
+			return global_display(args.csv_format);
 		case OP_UPDATE:
 			error = global_update(args.global.type, args.global.size, args.global.data);
 			free(args.global.data);

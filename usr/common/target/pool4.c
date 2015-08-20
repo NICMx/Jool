@@ -12,6 +12,7 @@
 struct display_args {
 	unsigned int row_count;
 	union request_pool4 *request;
+	bool csv;
 };
 
 static int pool4_display_response(struct nl_msg *response, void *arg)
@@ -25,11 +26,20 @@ static int pool4_display_response(struct nl_msg *response, void *arg)
 	samples = nlmsg_data(hdr);
 	sample_count = nlmsg_datalen(hdr) / sizeof(*samples);
 
+	if (args->row_count == 0 && args->csv)
+		printf("Mark,Address,Min port,Max port\n");
+
 	for (i = 0; i < sample_count; i++) {
-		printf("%u\t%s\t%u-%u\n", samples[i].mark,
-				inet_ntoa(samples[i].addr),
-				samples[i].range.min,
-				samples[i].range.max);
+		if (args->csv)
+			printf("%u,%s,%u,%u\n", samples[i].mark,
+					inet_ntoa(samples[i].addr),
+					samples[i].range.min,
+					samples[i].range.max);
+		else
+			printf("%u\t%s\t%u-%u\n", samples[i].mark,
+					inet_ntoa(samples[i].addr),
+					samples[i].range.min,
+					samples[i].range.max);
 	}
 
 	args->row_count += sample_count;
@@ -40,7 +50,7 @@ static int pool4_display_response(struct nl_msg *response, void *arg)
 	return 0;
 }
 
-int pool4_display(void)
+int pool4_display(bool csv)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -53,19 +63,22 @@ int pool4_display(void)
 	memset(&payload->display.offset, 0, sizeof(payload->display.offset));
 	args.row_count = 0;
 	args.request = payload;
+	args.csv = csv;
 
 	do {
 		error = netlink_request(&request, hdr->length, pool4_display_response, &args);
-	} while (!error && args.request->display.offset_set);
+		if (error)
+			return error;
+	} while (args.request->display.offset_set);
 
-	if (!error) {
+	if (!csv) {
 		if (args.row_count > 0)
 			log_info("  (Fetched %u entries.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}
 
-	return error;
+	return 0;
 }
 
 static int pool4_count_response(struct nl_msg *msg, void *arg)
