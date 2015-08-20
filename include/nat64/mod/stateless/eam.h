@@ -20,7 +20,8 @@ bool eamt_is_empty(void);
 
 /* Do-not-use-when-you-can't-sleep-functions */
 
-int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
+int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
+		bool force);
 int eamt_rm(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4);
 void eamt_flush(void);
 

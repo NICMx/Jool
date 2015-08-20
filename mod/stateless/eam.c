@@ -26,6 +26,13 @@ struct eam_table {
 
 static struct eam_table eamt;
 
+static bool eamt_entry_equals(const struct eamt_entry *eam1,
+		const struct eamt_entry *eam2)
+{
+	return prefix6_equals(&eam1->prefix6, &eam2->prefix6)
+			&& prefix4_equals(&eam1->prefix4, &eam2->prefix4);
+}
+
 /**
  * validate_prefixes - check @prefix6 and @prefix4 can be joined together to
  * form a (standalone) legal EAM entry.
@@ -52,11 +59,42 @@ static int validate_prefixes(struct ipv6_prefix *prefix6,
 	return 0;
 }
 
-static bool eamt_entry_equals(const struct eamt_entry *eam1,
-		const struct eamt_entry *eam2)
+int validate_overlapping(struct ipv6_prefix *prefix6,
+		struct ipv4_prefix *prefix4)
 {
-	return prefix6_equals(&eam1->prefix6, &eam2->prefix6)
-			&& prefix4_equals(&eam1->prefix4, &eam2->prefix4);
+	struct eamt_entry old;
+	struct rtrie_key key6 = PREFIX_TO_KEY(prefix6);
+	struct rtrie_key key4 = PREFIX_TO_KEY(prefix4);
+	int error;
+
+	key6.len = 128;
+	key4.len = 32;
+
+	error = rtrie_get(&eamt.trie6, &key6, &old);
+	if (!error) {
+		pr_err("Prefix %pI6c/%u overlaps with EAMT entry "
+				"[%pI6c/%u|%pI4/%u]. ",
+				&prefix6->address, prefix6->len,
+				&old.prefix6.address, old.prefix6.len,
+				&old.prefix4.address, old.prefix4.len);
+		goto exists;
+	}
+
+	error = rtrie_get(&eamt.trie4, &key4, &old);
+	if (!error) {
+		pr_err("Prefix %pI4/%u overlaps with EAMT entry "
+				"[%pI6c/%u|%pI4/%u]. ",
+				&prefix4->address, prefix4->len,
+				&old.prefix6.address, old.prefix6.len,
+				&old.prefix4.address, old.prefix4.len);
+		goto exists;
+	}
+
+	return 0;
+
+exists:
+	pr_cont("Use --force to override this validation.\n");
+	return -EEXIST;
 }
 
 static void __revert_add6(struct ipv6_prefix *prefix6)
@@ -76,6 +114,10 @@ static int eamt_add6(struct eamt_entry *eam)
 	error = rtrie_add(&eamt.trie6, eam,
 			offsetof(typeof(*eam), prefix6.address),
 			eam->prefix6.len);
+	if (error == -EEXIST) {
+		log_err("Prefix %pI6c/%u already exists.",
+				&eam->prefix6.address, eam->prefix6.len);
+	}
 	rtrie_print("IPv6 trie after add", &eamt.trie6);
 
 	return error;
@@ -88,12 +130,17 @@ static int eamt_add4(struct eamt_entry *eam)
 	error = rtrie_add(&eamt.trie4, eam,
 			offsetof(typeof(*eam), prefix4.address),
 			eam->prefix4.len);
+	if (error == -EEXIST) {
+		log_err("Prefix %pI4/%u already exists.",
+				&eam->prefix4.address, eam->prefix4.len);
+	}
 	rtrie_print("IPv4 trie after add", &eamt.trie4);
 
 	return error;
 }
 
-int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
+int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4,
+		bool force)
 {
 	struct eamt_entry new;
 	int error;
@@ -101,6 +148,12 @@ int eamt_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	error = validate_prefixes(prefix6, prefix4);
 	if (error)
 		return error;
+
+	if (!force) {
+		error = validate_overlapping(prefix6, prefix4);
+		if (error)
+			return error;
+	}
 
 	new.prefix6 = *prefix6;
 	new.prefix4 = *prefix4;

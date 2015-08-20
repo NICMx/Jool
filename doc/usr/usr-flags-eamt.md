@@ -25,7 +25,7 @@ Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introducti
 
 	jool_siit --eamt [--display] [--csv]
 	jool_siit --eamt --count
-	jool_siit --eamt --add <prefix4> <prefix6>
+	jool_siit --eamt --add <prefix4> <prefix6> [--force]
 	jool_siit --eamt --remove (<prefix4> | <prefix6> | <prefix4> <prefix6>)
 	jool_siit --eamt --flush
 
@@ -55,6 +55,23 @@ These are the prefixes each record is made out of. See the [general EAMT explana
 `<prefix length>` defaults to /32 on `<prefix4>` and /128 on `<prefix6>`. Jool automatically zeroizes any suffix from either address if it exists.
 
 Every prefix is unique accross the table. Therefore, If you're removing an EAMT entry, you actually only need to provide one of them. You can still input both to make sure you're deleting exactly what you want to delete, though.
+
+### `--force`
+
+By default, EAMT entries are not allowed to overlap. You can use `--force` while `--add`ing to override this property. When overlapping EAMT entries exist, Jool picks based on longest match prefix.
+
+For example:
+
+| IPv4 Prefix     |     IPv6 Prefix      |
+|-----------------|----------------------|
+| 192.0.2.0/24    | 2001:db8:aaaa::/120  |
+| 192.0.2.8/29    | 2001:db8:bbbb::/125  |
+
+Address `192.0.2.9` matches `192.0.2.8/29` better than `192.0.2.0/24`, so it will get translated as `2001:db8:bbbb::1`, not `2001:db8:aaaa::8`.
+
+Notice this creates assymetry. `2001:db8:aaaa::9` gets translated as `192.0.2.9`, which in turn gets translated as `2001:db8:bbbb::1`. Depending on your use case, this can break communication.
+
+Overlapping EAMT entries exist to help EAM coexist with [IVI](http://www.rfc-editor.org/rfc/rfc6219.txt). Other use cases might arise in the future.
 
 ## Examples
 

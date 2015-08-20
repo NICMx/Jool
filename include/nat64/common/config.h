@@ -256,6 +256,7 @@ union request_eamt {
 	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
+		__u8 force;
 	} add;
 	struct {
 		__u8 prefix6_set;

@@ -655,7 +655,10 @@ static const struct argp_option *options_siit[] = {
 	&update_opt,
 	&rm_opt,
 	&flush_opt,
+
+	&db_hdr_opt,
 	&csv_opt,
+	&force_opt,
 
 	&globals_hdr_opt,
 	&enable_opt,

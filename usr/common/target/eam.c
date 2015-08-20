@@ -155,7 +155,7 @@ int eam_test(bool addr6_set, struct in6_addr *addr6,
 			&payload->test.addr_is_ipv6);
 }
 
-int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
+int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
@@ -164,6 +164,7 @@ int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_ADD);
 	payload->add.prefix4 = *prefix4;
 	payload->add.prefix6 = *prefix6;
+	payload->add.force = force;
 
 	return netlink_request(request, hdr->length, NULL, NULL);
 }

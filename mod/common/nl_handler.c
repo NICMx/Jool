@@ -556,7 +556,8 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding EAMT entry.");
-		return respond_error(nl_hdr, eamt_add(&request->add.prefix6, &request->add.prefix4));
+		return respond_error(nl_hdr, eamt_add(&request->add.prefix6,
+				&request->add.prefix4, request->add.force));
 
 	case OP_REMOVE:
 		if (verify_superpriv())

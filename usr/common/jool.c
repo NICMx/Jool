@@ -40,8 +40,8 @@ struct arguments {
 	enum config_operation op;
 
 	struct {
-		/* This is actually only common to the pools; the tables don't use it. */
 		bool quick;
+		bool force;
 
 		struct {
 			struct ipv6_prefix prefix;
@@ -53,7 +53,6 @@ struct arguments {
 			struct ipv4_prefix prefix;
 			struct port_range ports;
 			bool prefix_set;
-			bool force;
 		} pool4;
 
 		struct {
@@ -395,8 +394,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
 		break;
 	case ARGP_FORCE:
-		error = update_state(args, MODE_POOL4, OP_ADD);
-		args->db.pool4.force = true;
+		error = update_state(args, MODE_POOL4 | MODE_EAMT, OP_ADD);
+		args->db.force = true;
 		break;
 
 	case ARGP_BIB_IPV6:
@@ -644,7 +643,7 @@ static int main_wrapped(int argc, char **argv)
 			return pool4_add(args.db.pool4.mark,
 					&args.db.pool4.prefix,
 					&args.db.pool4.ports,
-					args.db.pool4.force);
+					args.db.force);
 		case OP_REMOVE:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);
@@ -742,7 +741,7 @@ static int main_wrapped(int argc, char **argv)
 				log_err("I need the IPv4 prefix and the IPv6 prefix of the entry you want to add.");
 				return -EINVAL;
 			}
-			return eam_add(&args.db.pool6.prefix, &args.db.pool4.prefix);
+			return eam_add(&args.db.pool6.prefix, &args.db.pool4.prefix, args.db.force);
 		case OP_REMOVE:
 			if (!args.db.pool6.prefix_set && !args.db.pool4.prefix_set) {
 				log_err("I need the IPv4 prefix and/or the IPv6 prefix of the entry you want to "
