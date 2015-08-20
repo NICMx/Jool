@@ -4,7 +4,7 @@ static struct ipv4_prefix list4[] = {
 		{ .address.s_addr = cpu_to_be32(0x00000000), .len = 8 }, /* 0.0.0.0/8 */
 		{ .address.s_addr = cpu_to_be32(0x7f000000), .len = 8 }, /* 127.0.0.0/8 */
 		{ .address.s_addr = cpu_to_be32(0xa9fe0000), .len = 16 }, /* 169.254.0.0/16 */
-		{ .address.s_addr = cpu_to_be32(0xe0000000), .len = 24 }, /* 224.0.0.0/24 */
+		{ .address.s_addr = cpu_to_be32(0xe0000000), .len = 4 }, /* 224.0.0.0/4 */
 		{ .address.s_addr = cpu_to_be32(0xffffffff), .len = 32 }, /* 255.255.255.255 */
 };
 
