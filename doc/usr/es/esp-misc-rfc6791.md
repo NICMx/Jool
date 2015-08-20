@@ -9,6 +9,7 @@ title: Documentación - RFC 6791
 
 ## Índice
 
+
 1. [Introducción](#introduccion)
 2. [Definición del Problema](#definicion)
 3. [Ejemplo] (#ejemplo)
@@ -16,24 +17,31 @@ title: Documentación - RFC 6791
 
 ## Introducción
 
-Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por Xing Li y Congxiao Bao del Centro CERNET de la Universidad de Tsinghua y Dan Wing de Cisco.
+
+Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por [Xing Li] (http://www.researchgate.net/profile/Xing_Li7) y [Congxiao Bao] (http://www.arkko.com/tools/allstats/congxiaobao.html) del Centro CERNET de la Universidad de Tsinghua y [Dan Wing] (https://www.linkedin.com/profile/view?id=2606930&authType=name&authToken=oIy6)  de Cisco (https://www.ciscolive.com/online/connect/speakerDetail.ww?PERSON_ID=69812EB76A23BD5B510E823E51292E72&tclass=popup).
+
+En este se establece la forma de cómo proveer de direcciones válidas en IPv4 a los HOPs de IPv6 en el caso de que alguno de ellos requiera reportar algún error de ICMP.
 
 ## Definición del Problema
 
-Un traductor Stateless IPv4/IPv6 podría recibir paquetes de ICMPv6 que contengan direcciones **no-traducibles** a IPv4 como dirección fuente. Es decir: a) que no siga la norma establecida en el [RFC 6052, cap2.] (https://tools.ietf.org/html/rfc6052#section-2), b) ni que esté dado de alta en la table EAM, ver [draft EAM, sección 3.2] (http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01#section-3.2).
 
-De ser asi, implica que ocurrieron dos condiciones:
+Un traductor Stateless IPv4/IPv6 podría recibir paquetes de IPv6 que contengan direcciones **no-traducibles** a IPv4 como dirección fuente, provenientes de los enlaces entre redes. 
+
+Se entiende por **no-traducibles** cuando se cumple estas dos condiciones:
+a) Que no siga la norma establecida en el [RFC 6052, cap2.] (https://tools.ietf.org/html/rfc6052#section-2), <br />
+b) Ni que esté dado de alta en la table EAM, ver [draft EAM, sección 3.2] (http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01#section-3.2).
+
+Si esto sucede, entonces implica que dos condiciones ocurrieron:
 
 1. Existe al menos un ruteador entre el Nodo en IPv6 y el Traductor (Jool) antes de llegar al Nodo en IPv4.
-2. El paquete es del tipo ICMPv4 Error Message "Packet too Big".
+2. El paquete es del tipo ICMPv4 Error Message.
 
-En dichas excepciones, los paquetes aún deben pasar a través del traductor como paquetes de ICMP a la dirección destino de IPv4 para que éste pueda ajustar el MTU y reenviar el paquete.
- 
-En este RFC 6791 se establecen una serie de recomendaciones para manejar la traducción en dichos casos.
+En dichas excepciones, los paquetes deben pasar a través de _T_ a la dirección destino de IPv4 para que éste pueda tomar la acción correspondiente.
 
 ## Ejemplo
 
-Suponga que _n4_ esta tratando de llegar a _n6_, pero hay un problema (ej. el paquete es muy grande), y _R_ envía un error ICMP a _n4_. _T_ está traduciendo usando el prefijo 2001:db8::/96.
+
+Suponga que _n4_ enviá un paquete a _n6_, pero hay un problema, el mensaje es muy grande), y _R_ envía un error ICMP a _n4_. _T_ está traduciendo usando el prefijo 2001:db8::/96.
 
 ![Figura 1 - Red](images/network/rfc6791.svg)
 
@@ -48,6 +56,7 @@ _T_ está en problemas por que la dirección de origen del paquete no tiene el p
 Normalmente, no se tienen muchas direcciones IPv4, asi que no es razonable garantizarle una a cada uno de los nodos en el lado IPv6. Debido a su único propósito(casi siempre) de redireccionamiento, los routers son buenos candidatos para direcciones intraducibles. Por otro lado, los errores ICMP son importantes, y un NAT64 no deberia desecharlo simplemente por que viene de un router.
 
 ## Notas Adicionales
+
 
 Por favor considere los siguientes parrafos del [RFC 6791](https://tools.ietf.org/html/rfc6791) mientras decide el tamaño y las direcciones de su RFC 6791 pool:
 
