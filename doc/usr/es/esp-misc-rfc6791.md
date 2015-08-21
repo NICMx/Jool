@@ -18,7 +18,7 @@ title: Documentación - RFC 6791
 ## Introducción
 
 
-Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por [Xing Li] (http://www.researchgate.net/profile/Xing_Li7) y [Congxiao Bao] (http://www.arkko.com/tools/allstats/congxiaobao.html) del Centro CERNET de la Universidad de Tsinghua y [Dan Wing] (https://www.linkedin.com/profile/view?id=2606930&authType=name&authToken=oIy6)  de Cisco (https://www.ciscolive.com/online/connect/speakerDetail.ww?PERSON_ID=69812EB76A23BD5B510E823E51292E72&tclass=popup).
+Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por [Xing Li] (http://www.researchgate.net/profile/Xing_Li7) y [Congxiao Bao] (http://www.arkko.com/tools/allstats/congxiaobao.html) del Centro CERNET de la Universidad de Tsinghua y [Dan Wing] (https://www.linkedin.com/profile/view?id=2606930&authType=name&authToken=oIy6)  de [Cisco] (https://www.ciscolive.com/online/connect/speakerDetail.ww?PERSON_ID=69812EB76A23BD5B510E823E51292E72&tclass=popup).
 
 En este se establece la forma de cómo proveer de direcciones válidas en IPv4 a los HOPs de IPv6 en el caso de que alguno de ellos requiera reportar algún error de ICMP.
 
@@ -27,7 +27,7 @@ En este se establece la forma de cómo proveer de direcciones válidas en IPv4 a
 
 Un traductor Stateless IPv4/IPv6 podría recibir paquetes de IPv6 que contengan direcciones **no-traducibles** a IPv4 como dirección fuente, provenientes de los enlaces entre redes. 
 
-Se entiende por **no-traducibles** cuando se cumple estas dos condiciones:
+Se entiende por **no-traducibles** cuando se cumple estas dos condiciones: <br />
 a) Que no siga la norma establecida en el [RFC 6052, cap2.] (https://tools.ietf.org/html/rfc6052#section-2), <br />
 b) Ni que esté dado de alta en la table EAM, ver [draft EAM, sección 3.2] (http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01#section-3.2).
 
@@ -41,7 +41,7 @@ En dichas excepciones, los paquetes deben pasar a través de _T_ a la dirección
 ## Ejemplo
 
 
-Suponga que _n4_ enviá un paquete a _n6_, pero hay un problema, el mensaje es muy grande), y _R_ envía un error ICMP a _n4_. _T_ está traduciendo usando el prefijo 2001:db8::/96.
+Suponga que _n4_ enviá un paquete a _n6_, pero hay un problema, el mensaje es muy grande, entonces _R_ envíará un paquete de error ICMP a _n4_. Tome en consideración que _T_ está traduciendo usando el prefijo 2001:db8::/96.
 
 ![Figura 1 - Red](images/network/rfc6791.svg)
 
