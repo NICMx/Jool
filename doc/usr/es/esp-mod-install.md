@@ -73,7 +73,7 @@ $ ip link show
 Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros. Para instalarla ejecuta con permisos de administrador:
 
 {% highlight bash %}
-# apt-get install ethtool)
+# apt-get install ethtool
 {% endhighlight %}
 
 ## Baja, Compila e Instala
@@ -167,7 +167,7 @@ Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** q
 
 :thumbsup: ¡LISTO! Jool puede ser inicializado ahora. 
 
-:warning:
+:warning: A D V E R T E N C I A
 > 
 > A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
 > 
