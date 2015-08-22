@@ -52,7 +52,7 @@ $ /bin/uname -r
 Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta con permisos de administrador lo siguiente:
 
 {% highlight bash %}
-# apt-get install linux-headers-$(uname -r)
+user@node# apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
 
 ### `Interfaces de Red`
@@ -73,7 +73,7 @@ $ ip link show
 Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros. Para instalarla ejecuta con permisos de administrador:
 
 {% highlight bash %}
-# apt-get install ethtool
+user@node# apt-get install ethtool
 {% endhighlight %}
 
 ## Baja, Compila e Instala
@@ -163,7 +163,7 @@ El hecho de que residan en la pool no significa que ya hayan sido indizados, ent
 user@node:~# depmod
 {% endhighlight %}
 
-Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** que usará *modprobe* para cargar los módulos.
+Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** que usará *modprobe* para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](esp-mod-run-vanilla.html).
 
 :thumbsup: ¡LISTO! Jool puede ser inicializado ahora. 
 
@@ -173,6 +173,4 @@ Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** q
 > 
 > Si tu kernel NO fue configurado para _solicitar_ esta característica no tendrás problema. Los kernels de muchas distribuciones no lo hacen. Solo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: "Can't read private key"; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
 > 
-> Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aqui.
-
-Te adelanto, los módulos serán activados usando el comando 'modprobe', aprende cómo hacerlo consultando el [ejemplo básico de SIIT](esp-mod-run-vanilla.html).
+> Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aquí.
