@@ -14,7 +14,8 @@ title: Documentación - Instalación del Servidor Jool
 	1. [`Kernels Válidos`](#kernels-soportados)
 	2. [`Encabezados del Kernel`](#encabezado-kernel)
 	3. [`Interfaces de Red`](#interfaces)
-3. [Baja, Compila e Instala](#baja-compila-instala)
+	4. [`Ethtool`] (#ethtool)
+	3. [Baja, Compila e Instala](#baja-compila-instala)
 	1. [`De la Web Oficial`] (#web_oficial)
 	2. [`Del Repositorio GIT`] (#github)
 4. [Genera Archivo de Dependencias] (#genera-make)
@@ -65,6 +66,14 @@ $ ip link show
     link/ether 08:00:27:3d:24:77 brd ff:ff:ff:ff:ff:ff
 3: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN qlen 1000
     link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff
+{% endhighlight %}
+
+### `Ethtool`
+
+Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros. Para instalarla ejecuta con permisos de administrador:
+
+{% highlight bash %}
+# apt-get install ethtool)
 {% endhighlight %}
 
 ## Baja, Compila e Instala
@@ -153,6 +162,8 @@ El hecho de que residan en la pool no significa que ya hayan sido indizados, ent
 {% highlight bash %}
 user@node:~# depmod
 {% endhighlight %}
+
+Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** que usará *modprobe* para cargar los módulos.
 
 ¡LISTO! Jool puede ser inicializado ahora. 
 
