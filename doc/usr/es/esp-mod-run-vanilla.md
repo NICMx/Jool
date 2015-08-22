@@ -82,14 +82,11 @@ user@T:~# ip addr add 2001:db8::198.51.100.1/120 dev eth0
 user@T:~# 
 user@T:~# ip link set eth1 up
 user@T:~# ip addr add 192.0.2.1/24 dev eth1
-user@T:~# 
-user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
-user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
 Hasta aqui, no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
-La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) es que al habilitar forwarding en Linux no te libera automáticamente de offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](esp-misc-offloading.html) si quieres conocer más detalles sobre esta problemática.
+La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](esp-misc-offloading.html) si quieres conocer más detalles sobre esta problemática.
 
 Hazlo por medio de `ethtool`:
 

@@ -17,7 +17,7 @@ title: Documentación - Instalación del Servidor Jool
 3. [Baja, Compila e Instala](#baja-compila-instala)
 	1. [`De la Web Oficial`] (#web_oficial)
 	2. [`Del Repositorio GIT`] (#github)
-4. [Actualiza] (#actualiza)
+4. [Genera Archivo de Dependencias] (#genera-make)
 
 ## Introducción
 
@@ -146,7 +146,7 @@ El proceso de instalación consiste en copiar `los binarios generados`  a  `tu p
 user@node:~/NAT64-<version>/mod# make modules_install
 {% endhighlight %}
 
-## Actualiza
+## Genera Archivo de Dependencias
 
 El hecho de que residan en la pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás indexar los nuevos módulos. Ejecuta aqui también con permisos de administrador el comando:
 
