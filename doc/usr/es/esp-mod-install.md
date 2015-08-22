@@ -99,7 +99,7 @@ Si buscas la versión más estable o versiónes anteriores de Jool, entonces des
 
 4) Descomprime
 
-		NOTA: Asumiendo que fue en formato ZIP, está en Downloads y lo quieres colocar en Desktop.
+:small_orange_diamond:  Asumiendo que lo bajastes en formato ZIP, en la carpeta de _Downloads_ y lo quieres colocar en _Desktop_.
 
 {% highlight bash %}
 user@node:$ cd Downloads
@@ -133,7 +133,7 @@ Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), t
 
 4) Descomprime
 
-			NOTA: Asumiendo que está en Downloads y lo quieres colocar en Desktop.
+:small_orange_diamond: Asumiendo que se descargó en _Downloads_ y lo quieres colocar en _Desktop_.
 
 {% highlight bash %}
 user@node:$ cd Downloads
@@ -163,7 +163,7 @@ El hecho de que residan en la pool no significa que ya hayan sido indizados, ent
 user@node:~# depmod
 {% endhighlight %}
 
-Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** que usará *modprobe* para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](esp-mod-run-vanilla.html).
+Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](esp-mod-run-vanilla.html).
 
 :thumbsup: ¡LISTO! Jool puede ser inicializado ahora. 
 
