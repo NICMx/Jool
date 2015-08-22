@@ -15,7 +15,7 @@ title: Documentación - Instalación del Servidor Jool
 	2. [`Encabezados del Kernel`](#encabezado-kernel)
 	3. [`Interfaces de Red`](#interfaces)
 	4. [`Ethtool`] (#ethtool)
-	3. [Baja, Compila e Instala](#baja-compila-instala)
+3. [Baja, Compila e Instala](#baja-compila-instala)
 	1. [`De la Web Oficial`] (#web_oficial)
 	2. [`Del Repositorio GIT`] (#github)
 4. [Genera Archivo de Dependencias] (#genera-make)
@@ -165,9 +165,9 @@ user@node:~# depmod
 
 Mediante el comando *depmod* se genera el archivo de dependencias **Makefile** que usará *modprobe* para cargar los módulos.
 
-¡LISTO! Jool puede ser inicializado ahora. 
+:thumbsup: ¡LISTO! Jool puede ser inicializado ahora. 
 
-> **Advertencia!**
+:warning:
 > 
 > A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
 > 
