@@ -99,7 +99,7 @@ Si buscas la versión más estable o versiónes anteriores de Jool, entonces des
 
 4) Descomprime
 
-:small_orange_diamond:  Asumiendo que lo bajastes en formato ZIP, en la carpeta de _Downloads_ y lo quieres colocar en _Desktop_.
+:small_orange_diamond:  Asumiendo que lo bajastes en formato ZIP, en la carpeta de _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
 
 {% highlight bash %}
 user@node:$ cd Downloads
@@ -133,7 +133,7 @@ Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), t
 
 4) Descomprime
 
-:small_orange_diamond: Asumiendo que se descargó en _Downloads_ y lo quieres colocar en _Desktop_.
+:small_orange_diamond: Asumiendo que se descargó en _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
 
 {% highlight bash %}
 user@node:$ cd Downloads
