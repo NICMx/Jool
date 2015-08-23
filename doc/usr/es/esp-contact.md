@@ -3,7 +3,7 @@ layout: contact
 title: Contacto
 ---
 
-# Contactanos
+# Contáctanos
 
 Ponte en contacto con nosotros mediante:
 
@@ -17,7 +17,7 @@ Actualmente, existe un problema de "exceso" de seguridad que está siendo correg
 
 ## Lista de Noticias
 	
--- jool-news@nic.mx es una lista de correos para informar **solo noticias**.
+-- jool-news@nic.mx es una lista de correos para informar solo noticias.
 
 :mailbox_with_mail: Es utilizada para notificar sobre las nuevas versiones que están siendo liberadas en este sitio. Suscribete [aquí](https://mail-lists.nic.mx/listas/listinfo/jool-news).
 
@@ -26,11 +26,11 @@ Debido a este próposito, esta lista raramente genera más de un e-mail por mes.
 
 ## Lista Oficial de Errores
   
--- [Github corner](https://github.com/NICMx/NAT64/issues) es nuestra **lista oficial de errores**.
+-- [Github corner](https://github.com/NICMx/NAT64/issues) es nuestra lista oficial de errores.
 
 :pencil: Este también es un buen lugar para solicitar nuevas características.
 
-## Mail Directo a los Desarrolladores
+## Mail a los Desarrolladores
 
 -- [jool@nic.mx](mailto:jool@nic.mx) es una cuenta de correo que puedes utilizar para dirigirte 
                                      solo a nosotros los desarrolladores.
