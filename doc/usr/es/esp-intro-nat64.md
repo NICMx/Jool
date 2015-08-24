@@ -50,7 +50,7 @@ En una implementación SIIT siempre se modifican los encabezados de red y en algu
 
 Esta parte es la más fácil de explicar. Considera la siguiente configuración:
 
-![Fig.1 - Red de ejemplo EAM](images/network/eam.svg)
+![Fig.1 - Red de ejemplo EAM](https://github.com/NICMx/NAT64/blob/es/doc/usr/es/images/network/eam.svg "Fig.1 - Red de ejemplo EAM")
 
 (_T_ representa "Translating box". En español "Caja de traducción".)
 
@@ -67,7 +67,7 @@ La primera es resuelta por SIIT, las demás pueden ser realizadas vía DNS.
 
 Veamos:
 
-![Fig.2 - Flujo EAM](images/flow/eam.svg)
+![Fig.2 - Flujo EAM](https://github.com/NICMx/NAT64/blob/es/doc/usr/es/images/flow/eam.svg)
 
 El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro puede hablar el mismo lenguaje.
 
