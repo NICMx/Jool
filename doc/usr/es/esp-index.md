@@ -40,7 +40,7 @@ Nuestra versión más reciente es la [3.3.3](https://github.com/NICMx/NAT64/issu
 
 Versión 3.3.3 liberada.
 
-[Error crítico #166 corregido](https://github.com/NICMx/NAT64/issues/166) :exclamation:
+[Error crítico #166 corregido](https://github.com/NICMx/NAT64/issues/166):heavy_exclamation_mark:
 
 Además en esta versión:
 
@@ -70,7 +70,7 @@ Se dieron de alta dos listas de correo:
 
 ### 2015-03-11
 
-[Error importante #137 descubierto](https://github.com/NICMx/NAT64/issues/137) :exclamation:
+[Error importante #137 descubierto](https://github.com/NICMx/NAT64/issues/137):heavy_exclamation_mark:
 
 Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.
 
@@ -78,7 +78,7 @@ Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.
 
 Se ha concluido Jool 3.3.0.
 
-[Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless para IP/ICMP (SIIT) son ahora soportadas.
+:small_red_circle: [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless para IP/ICMP (SIIT) son ahora soportadas.
 
 Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo paradigma. [Aqui encontras un tutorial](mod-run-vanilla.html). Para su mejor comprensión, ve a [464XLAT](mod-run-464xlat.html).
 
@@ -92,13 +92,13 @@ También se liberó la actualización de Jool 3.2.3, para corregir [los errores 
 
 ### 2014-10-24
 
-Un <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank"> error importante</a> fue descubierto, y la version 3.2.2 queda ya desactualizada.
+El <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank"> error importante #112 </a> fue descubierto, y la version 3.2.2 queda ya desactualizada.
 
 ### 2014-10-17
 
 La documentación provista sobre `--plateaus` ha sido [mejorada](usr-flags-plateaus.html). Su [definición](usr-flags-global.html#mtu-plateaus) también.
 
-Ha llamado nuestra atención que <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">no hemos incluido una explicación acerca de las IP literals</a>, esto quedará dentro de la próxima actualización.
+:small_red_triangle_down: Ha llamado nuestra atención que <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">no hemos incluido una explicación acerca de las IP literals</a>, esto quedará dentro de la próxima actualización.
 
 ### 2014-10-08
 
@@ -106,7 +106,7 @@ Version 3.2.1 liberada. La serie 3.2 es considerada más madura que la 3.1.
 
 Los cambios importantes son:
 
-1. <a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool siempre intentará enmascarar los paquetes usando el primer prefijo de la pool</a>. Esto significa que Jool no es capaz de manejar mas que un solo prefijo.
+1. <a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool siempre intentará enmascarar los paquetes usando el primer prefijo de la pool</a>. Esto significa que Jool no era capaz de manejar mas que un solo prefijo.
 2. La <a href="https://github.com/NICMx/NAT64/issues/109" target="_blank">pérdida de memoria en el kernel</a> ha sido corregida.
 
 Los cambios menos relevantes son:
@@ -119,21 +119,21 @@ NOTA: Cuando un error de ICMP es demasiado grande, no se fragmenta; se trunca. E
 
 ### 2014-09-01
 
-Nos tomo más tiempo del planeado para la realización de las pruebas, pero finalmente la version 3.2.0 es liberada.
+Nos tomo más tiempo del planeado la realización de las pruebas, pero finalmente la version 3.2.0 es liberada.
 
-Note que se cambio el número de versión menor, porque la Herrmienta de Configuración del Jool es ligeramente diferente. Los parámetros de configuración de un sólo valor han sido juntados: [`--general`](usr-flags-global.html) remplaza a `--filtering`, `--translate` y `--fragmentation`. La aplicación tiene además tres nuevas caracteristicas:
+Note que se cambio el número de versión menor, porque la Herrmienta de Configuración del Jool es ligeramente diferente. Los parámetros de configuración de un sólo valor han sido juntados en la opción de [`--general`](usr-flags-global.html) y ésta remplaza a `--filtering`, `--translate` y `--fragmentation`. La aplicación tiene además tres nuevas caracteristicas:
 
 1. La <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">capacidad de limpiar las pools</a>.
 2. Se añadió la opción de [`--quick`](usr-flags-quick.html).
 3. Se añadió la opción de `--svg`, en [BIB](usr-flags-bib.html#csv) y [session](usr-flags-session.html#csv).
 
-El segundo cambio más importante es el <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Soportar varias conexiones de TCP simultaneas</a>. La atención a este tipo de eventos es ahora menos complicada.
+El segundo cambio más importante es el <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Soportar varias conexiones de TCP simultáneas</a>. La atención a este tipo de eventos es ahora menos complicada.
 
 Una <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">pequeña confusión</a> saco a luz que el path a la libnl <a href="https://github.com/NICMx/NAT64/commit/6455ffd898bae996ce3cab37b2fb6a3459ae096b" target="_blank">había sido codificada en el script de configuración</a>. Si usted ha tenido problemas para compilar la Herramienta de Configuración de Jool, entonces pruebe esta nueva versión.
 
-Lo menos relevante incluye un <a href="https://github.com/NICMx/NAT64/issues/100" target="_blank">complemento al viejo caso #65</a>, más <a href="https://github.com/NICMx/NAT64/issues/56" target="_blank">documentación del código</a> :). La documentación para los usuarios se ha actualizado significativamente, para ver los cambios vaya <a href="https://github.com/NICMx/NAT64/commit/752ed2584534e6bf6bd481d7f4d4ababb6424efe" target="_blank">aquí</a>.
+Lo menos relevante incluye un <a href="https://github.com/NICMx/NAT64/issues/100" target="_blank">complemento al viejo caso #65</a>, más <a href="https://github.com/NICMx/NAT64/issues/56" target="_blank">documentación del código</a> :smiley:. La documentación para los usuarios se ha actualizado significativamente, para ver los cambios vaya <a href="https://github.com/NICMx/NAT64/commit/752ed2584534e6bf6bd481d7f4d4ababb6424efe" target="_blank">aquí</a>.
 
-No se completaron los cambios para la nueva implementación del <a href="https://github.com/NICMx/NAT64/issues/104" target="_blank">mecanismo de fragmentación</a>. Esto fue uno de los principales motivos para el retrazo de esta versión. Al parecer se requiere conciliar el desfragmentador del kernel y el RFC para poder implementar las políticas de filtrado. Sigue siendo un caso activo.
+:small_red_triangle_down: No se completaron los cambios para la nueva implementación del <a href="https://github.com/NICMx/NAT64/issues/104" target="_blank">mecanismo de fragmentación</a>. Esto fue uno de los principales motivos para el retrazo de esta versión. Al parecer se requiere conciliar el desfragmentador del kernel y el RFC para poder implementar las políticas de filtrado. Sigue siendo un caso activo.
 
 También se liberó el 3.1.6, el cual contiene pequeñas correciones al 3.1.5. Esto se hizo en consideración a los usuarios que por alguna razón requerian continuar usando la serie 3.1.x.
 
@@ -163,7 +163,7 @@ La version 3.1.4 ha sido liberada, y corrige:
 2. La Herramienta de Configuración del Jool ahora <a href="https://github.com/NICMx/NAT64/issues/86" target="_blank">resuelve nombres</a>.
 3. <a href="https://github.com/NICMx/NAT64/issues/87" target="_blank">Se añade el soporte</a> para Linux 3.13+.
 
-<a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">No recomendamos el uso de Jool en el kernel 3.12</a>.
+:x: <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">No recomendamos el uso de Jool en el kernel 3.12</a>.
 
 ### 2014-03-26
 
@@ -176,7 +176,7 @@ La version 3.1.3 ha sido liberada, y corrige:
 
 ### 2014-03-04
 
-Website ha sido liberado. *!Este website!*
+:bell: Website ha sido liberado. *!Este website!*
 
 y con este viene un nueva actualización 3.1.2, que:
 
@@ -195,7 +195,7 @@ Esta contiene dos correcciones:
 
 ### 2014-01-15
 
-La version 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
+:large_orange_diamond: La version 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
 
 Otras correcciones importantes:
 
