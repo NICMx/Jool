@@ -14,7 +14,7 @@ Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre U
 * [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](esp-download.html) para descargar Jool.
 
-:star2: Agradecemos a Namsep por su aportación hecha sobre Raspbian.
+:star2:Agradecemos a Namsep por su aportación hecha sobre Raspbian.
 -------------------
 
 ## Estatus
@@ -78,7 +78,7 @@ Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.
 
 Se ha concluido Jool 3.3.0.
 
-:small_red_circle: [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless para IP/ICMP (SIIT) son ahora soportadas.
+:small_red_triangle_down: [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless para IP/ICMP (SIIT) son ahora soportadas.
 
 Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo paradigma. [Aqui encontras un tutorial](mod-run-vanilla.html). Para su mejor comprensión, ve a [464XLAT](mod-run-464xlat.html).
 
@@ -195,7 +195,7 @@ Esta contiene dos correcciones:
 
 ### 2014-01-15
 
-:large_orange_diamond: La version 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
+:small_orange_diamond: La version 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
 
 Otras correcciones importantes:
 
