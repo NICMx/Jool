@@ -15,7 +15,7 @@ title: Documentación - Introducción a Jool
 
 ## Descripción
 
-Jool es una implementación de varios mecanismos de transición en IPv6. Todos en la categoría de traducción: [Stateful NAT64, SIIT y SIIT con EAM.] (esp-intro-nat64.html) Jool es una aplicación de código abierto (open source) en Linux, desarrollado sobre Ubuntu, y probado en otros Linux (Debian, CentOS, RedHat, SuSE).
+Jool es una implementación de varios mecanismos de transición en IPv6. Todos en la categoría de traducción: [Stateful NAT64, SIIT y SIIT con EAM.] (esp-intro-nat64.html) Jool es una aplicación de código abierto (open source) en Linux, desarrollado sobre Ubuntu, y probado en otros Linux (Debian, CentOS, Raspbian, RedHat, SuSE).
 
 De Jool 1.0 a Jool 3.2.3 ->  Stateful NAT64<br /> 
 De Jool 3.3.0 en delante ->  Stateful NAT64, SIIT y SIIT con EAM
@@ -38,7 +38,7 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | [draft-ietf-6man-deprecate-atomfrag-generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) | Deprecación de los Fragmentos Atómicos | Los continuamos soportando, pero [no recomendamos su uso](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) | EAM | Cumple totalmente. |
 
-Por favor [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras problemas de cumplimiento adicionales o RFCs/drafts que no hayamos considerado.
+:email: Por favor, [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras problemas de cumplimiento adicionales o RFCs/drafts que no hayamos considerado.
 
 ## Compatibilidad
 
@@ -61,4 +61,4 @@ Por favor [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras pr
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-Red Hat y CentOS muestran un warning debido a un error entre el kernel de base usado en Red Hat y el de Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">Estamos buscando aun cómo eliminarlo</a>, pero este mensaje no es crítico porque no nos ha ocasionado problemas durante las pruebas.
+:small_red_triangle_down: Red Hat y CentOS muestran un warning debido a un error entre el kernel de base usado en Red Hat y el de Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">Estamos buscando aun cómo eliminarlo</a>, pero este mensaje no es crítico porque no nos ha ocasionado problemas durante las pruebas.
