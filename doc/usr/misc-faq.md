@@ -36,7 +36,7 @@ Stateful Jool's minimum configuration requirements are
 - At least one prefix/address in the [IPv4 pool](usr-flags-pool4.html).
 - You must have not [manually disabled](usr-flags-global.html#enable---disable) it.
 
-If that's not the problem, try the [logs](logging.html).
+If that doesn't seem to be the problem, try the [logs](logging.html).
 
 ## What do I do with this error message? It's horribly ambiguous.
 

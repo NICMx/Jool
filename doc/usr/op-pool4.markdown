@@ -5,86 +5,41 @@ title: Documentation - Stateful IPv4 Pool
 
 [Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateful NAT64](mod-run-stateful.html) > IPv4 Pool
 
-# Stateful IPv4 Pool
+# IPv4 Transport Address Pool
 
-![Fig.1 - Network from Scenario 3](images/tut2.3-network.svg)
+If you're familiar with iptables and masquerade, all you probably need to know is that the following:
 
-Here's a theoretical packet that might travel from C to E:
+	jool --pool4 --add 192.0.2.1 5000-6000
+	# TODO - the Jool command doesn't include TCP...
 
-	Source: Address 2001:db8:2::10, port 1234 (random)
-	Destination: Address 64::192.0.2.10, port 80 (i.e. trying to reach a website)
+Is spiritually equivalent to
 
-Regarding the source port field: It is well known that a port is a two-byte value, which means that you can run out of them. This is normally not an issue, since 65536 per node is at least a fairly reasonable amount.
+	ip addr add 192.0.2.1 dev (...)
+	iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 5000-6000
 
-The above packet might be translated by J into something like this:
+-----------------------------
 
-	Source: 192.0.2.2#1234
-	Destination: 192.0.2.10#80
+Just like a NAT, a Stateful NAT64 allows an indeterminate amount of clients to share a few IPv4 addresses by strategically distributing their traffic accross its own transport address domain.
 
-And Jool will memorize that 2001:db8:2::10#1234 is related to 192.0.2.2#1234. E will answer
+We call this "transport address domain" the "IPv4 pool". ("pool4" for short.)
 
-	Source: 192.0.2.10#80
-	Destination: 192.0.2.2#1234
+To illustrate:
 
-And by virtue of its memory, Jool will know it has to translate that into
+![TODO](images/flow/pool4-simple1.svg)
 
-	Source: 64::192.0.2.10#80
-	Destination: 2001:db8:2::10#1234
+In Jool, we write transport addresses in the form `<IP address>#<port>` (as opposed to `<IP address>:<port>`). The packet above has source IP address `2001:db8::8`, source port (TCP or UDP) 5123, destination address `64:ff9b::192.0.2.24`, and destination port 80.
 
-But what if D generates the following packet?
+Assuming pool4 holds transport addresses 203.0.113.1#5000 through 203.0.113.1#6000, one possible translation of the packet is this:
 
-	Source: 2001:db8:2::11#1234
-	Destination: 64::192.0.2.10#80
+![TODO](images/flow/pool4-simple2.svg)
 
-Jool cannot translate it into
+Another one, equally valid, is this:
 
-	Source: 192.0.2.2#1234
-	Destination: 192.0.2.10#80
+![TODO](images/flow/pool4-simple3.svg)
 
-Because it will then have two contradictory mappings. Which one will it use when E's answer shows its face?
+NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, [recommendations exist to drive NAT64s as unpredictable as possible](https://tools.ietf.org/html/draft-ietf-sunset4-nat64-port-allocation-01).
 
-1. 2001:db8:2::10#1234 <-> **192.0.2.2#1234**
-2. 2001:db8:2::11#1234 <-> **192.0.2.2#1234**
+What you need to be aware of is that your NAT64 machine needs to reserve transport addresses for translation purposes. If _T_ tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, evil things will happen. [iptables's NAT also suffers from this quirk](https://github.com/NICMx/NAT64/wiki/issue67:-Linux's-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.).
 
-The solution is to mask not only addresses, but ports as well. Instead of generating the aforementioned packet, Jool will generate this:
-
-	Source: 192.0.2.2#6326
-	Destination: 192.0.2.10#80
-
-And the [BIB](misc-bib.html) will look like this:
-
-1. 2001:db8:2::10#1234 <-> 192.0.2.2#1234
-2. 2001:db8:2::11#1234 <-> 192.0.2.2#6326
-
-To what I'm getting is, all IPv6 nodes share the same IPv4 address (as opposed to SIIT). This is good because you don't need one IPv4 address per IPv6 node, but at the same time you need to be aware that Jool might run out of ports.
-
-C and D used one port each (and they even happened to be the same one), but Jool still had to use two. Each IPv6 node has 65536 ports to work with, but because they all share the same IPv4 address, as a group, they can use up to 65536 ports via the translator. The more IPv6 nodes you have, the faster J will run out of ports.
-
-How do you make up for this? You can give Jool more addresses. You will get 64k fresh ports for each IPv4 address you throw in. If the IPv4 side is indeed an ISP, do remember that it will be the one who'll provide the addresses.
-
-You can specify up to 5 addresses during module insertion:
-
-	user@J:~# modprobe jool pool4="192.0.2.2, 192.0.2.3, 192.0.2.4, 192.0.2.5, 192.0.2.6"
-
-If you need more, you can add them using the [userspace application](usr-flags-pool4.html):
-
-	user@J:~# jool --pool4 --add 192.0.2.7
-	user@J:~# jool --pool4 --add 192.0.2.8
-	user@J:~# # etc.
-
-You can summarize several addresses using prefix format. The following inserts addresses 192.0.2.8 through 192.0.2.15:
-
-	user@J:~# modprobe pool4=192.0.2.8/28
-	or
-	user@J:~# jool --pool4 --add 192.0.2.8/28
-
-Keep in mind that Stateful Jool's current implementation of pool4 is [slow when it comes to adding addresses](https://github.com/NICMx/NAT64/issues/117#issuecomment-66942415). Each address also claims too much RAM (~0.5 MB without considering BIB entries, perhaps more if paging is not on your side).
-
-And remember that Linux might have to answer ARP requests for them:
-
-	user@J:~# /sbin/ip address add 192.0.2.2/24 dev eth1
-	user@J:~# /sbin/ip address add 192.0.2.3/24 dev eth1
-	user@J:~# /sbin/ip address add 192.0.2.4/24 dev eth1
-	user@J:~# /sbin/ip address add 192.0.2.5/24 dev eth1
-	user@J:~# # etc.
+Linux's ephemeral port range defaults to 32768-61000. Therefore, Jool's port range for any given address defaults to 61001-65535. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of [`--pool4 --add` userspace application commands](usr-flags-pool4.html).
 
