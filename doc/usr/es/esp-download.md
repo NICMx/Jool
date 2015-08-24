@@ -16,7 +16,7 @@ title: Descarga
 
 ## 3.3.x
 
-Jool 3.3 es un [SIIT y Stateful NAT64 bastante apegado al estandar](intro-jool.html#cumplimiento).
+Jool 3.3 es un [SIIT y Stateful NAT64 bastante apegado al estándar](intro-jool.html#cumplimiento).
 
 La versión 3.3.3 es la más actual, y es considerada la más madura.
 
@@ -29,7 +29,7 @@ La versión 3.3.3 es la más actual, y es considerada la más madura.
 
 ## 3.2.x
 
-La serie de versiones 3.2 mejora la  3.1  implementando _Apertura simultanea de Conexiones TCP_. Además, se incluyó una opción para limpiar sus pools y se realizaron muchos otros ajustes internos.
+La serie de versiones 3.2 mejora la  3.1  implementando _Apertura simultánea de Conexiones TCP_. Además, se incluyó una opción para limpiar sus pools y se realizaron muchos otros ajustes internos.
 
 3.2.3 es la última actualización de esta serie de versiones.
 
@@ -44,10 +44,10 @@ La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede 
 
 ## 3.1.x
 
-La serie de versiones 3.1 esta bastante apegada al estandar stateful NAT64. Sus carácteristicas faltantes son:
+La serie de versiones 3.1 esta bastante apegada al estándar stateful NAT64. Sus carácteristicas faltantes son:
 
-- Politicas de filtrado.
-- Apertura simultanea de Conexiones TCP.
+- Políticas de filtrado.
+- Apertura simultánea de Conexiones TCP.
 
 La última actualización de esta serie de versiones es la 3.1.6.
 

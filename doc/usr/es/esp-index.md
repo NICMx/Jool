@@ -9,11 +9,12 @@ title: Jool - Home
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en Raspbian.
+Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en [Raspbian] (http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html).
 
 * [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](esp-download.html) para descargar Jool.
 
+:start2: Agradecemos a Namsep por su aportación hecha sobre Raspbian.
 -------------------
 
 ## Estatus
@@ -39,7 +40,7 @@ Nuestra versión más reciente es la [3.3.3](https://github.com/NICMx/NAT64/issu
 
 Versión 3.3.3 liberada.
 
-[Error crítico corregido!](https://github.com/NICMx/NAT64/issues/166)
+[Error crítico #166 corregido](https://github.com/NICMx/NAT64/issues/166) :exclamation:
 
 Además en esta versión:
 
