@@ -14,7 +14,7 @@ Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre U
 * [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](esp-download.html) para descargar Jool.
 
-:start2: Agradecemos a Namsep por su aportación hecha sobre Raspbian.
+:star2: Agradecemos a Namsep por su aportación hecha sobre Raspbian.
 -------------------
 
 ## Estatus
@@ -63,14 +63,14 @@ Se dieron de alta dos listas de correo:
 - jool-news@nic.mx para emitir noticias. Exclusivo para anunciar las nuevas liberaciones. Ház [click aquí](https://mail-lists.nic.mx/listas/listinfo/jool-news) para empezar a recibirlas.
 - jool-list@nic.mx para discusión pública (ayuda, propuestas, etc.) y noticias. Haz [click aquí](https://mail-lists.nic.mx/listas/listinfo/jool-list) para registrarte.
 
-[jool@nic.mx](mailto:jool@nic.mx) aun puede ser utilizado para accesar a los desrrolladores.
+[jool@nic.mx](mailto:jool@nic.mx) aún puede ser utilizado para accesar a los desrrolladores.
 
-También nos gustaria disculparnos por el [inconveniente que tuvimos recientemente con el certificado](https://github.com/NICMx/NAT64/issues/149). Aunque estan siendo generados, los archivos de la lista de correos no estan disponibles todavia, y esto está en la lista de pendientes de nuestros administradores.
+:small_red_triangle_down: También nos gustaria disculparnos por el [inconveniente que tuvimos recientemente con el certificado](https://github.com/NICMx/NAT64/issues/149). Aunque están siendo generados, los archivos de la lista de correos no están disponibles todavia, y esto está en la lista de pendientes de nuestros administradores.
 
 
 ### 2015-03-11
 
-[Error importante descubierto!](https://github.com/NICMx/NAT64/issues/137)
+[Error importante #137 descubierto](https://github.com/NICMx/NAT64/issues/137) :exclamation:
 
 Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.
 
@@ -180,7 +180,7 @@ Website ha sido liberado. *!Este website!*
 
 y con este viene un nueva actualización 3.1.2, que:
 
-1. <a href="https://github.com/NICMx/NAT64/issues/76" target="_blank">Estandariza el procedimiento de compilación e instalación en la Herramienta de Configuración de Jool</a>.
+1. <a href="https://github.com/NICMx/NAT64/issues/76" target="_blank">estándariza el procedimiento de compilación e instalación en la Herramienta de Configuración de Jool</a>.
 2. <a href="https://github.com/NICMx/NAT64/issues/77" target="_blank">Hace más explicto el manejo de sufijos de prefijos</a>.
 3. <a href="https://github.com/NICMx/NAT64/issues/78" target="_blank">No se inhibe cuando el comando modprobe recibe argumentos inválidos </a>.
 
