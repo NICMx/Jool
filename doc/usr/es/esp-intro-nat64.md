@@ -50,7 +50,7 @@ En una implementación SIIT siempre se modifican los encabezados de red y en algu
 
 Esta parte es la más fácil de explicar. Considera la siguiente configuración:
 
-![alt text](https://github.com/NICMx/NAT64/blob/es/doc/usr/es/images/network/eam.svg "Fig.1 - Red de ejemplo EAM")
+![Fig.1 - Red de ejemplo EAM](https://github.com/NICMx/NAT64/blob/es/doc/usr/es/images/network/eam.png "Fig.1 - Red de ejemplo EAM")
 
 (_T_ representa "Translating box". En español "Caja de traducción".)
 
