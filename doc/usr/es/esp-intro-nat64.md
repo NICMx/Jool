@@ -80,7 +80,7 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro puede
 
 El modo básico es un poco más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. Considera la siguiente configuración:
 
-![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.svg)
+![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.png "Fig.3 - Red de ejemplo Vanilla")
 
 Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
@@ -91,7 +91,7 @@ Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente
 
 La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido. Como lo puedes apreciar en la siguiente figura:
 
-![Fig.4 - Flujo Vanilla](images/flow/vanilla.svg)
+![Fig.4 - Flujo Vanilla](images/flow/vanilla.png "Fig.4 - Flujo Vanilla")
 
 Por supuesto, esto significa que la dirección IPv4 de cada nodo en IPv6 tiene que ser codificada dentro de su dirección, lo cual es un poco engorroso.
 
@@ -109,11 +109,11 @@ Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en dife
 
 Este modo es el más parecido a lo que la gente entiende como **NAT**, por sus siglas en inglés de _IP Network Address Translator_. Recordemos, un NAT opera de la siguiente manera:
 
-![Fig.5 - Red de ejemplo NAT](images/network/nat.svg)
+![Fig.5 - Red de ejemplo NAT](images/network/nat.png "Fig.5 - Red de ejemplo NAT")
 
 Note que, la red de la izquierda es llamada "Privada" por que usa [Direcciones no disponibles en la Internet Global](http://es.wikipedia.org/wiki/Red_privada).  _NAT_ modifica las direcciones de los paquetes para que los nodos externos piensen que el tráfico proveniente de los nodos internos fue en realidad iniciado por el _NAT_:
 
-![Fig.6 - Flujo NAT](images/flow/nat.svg)
+![Fig.6 - Flujo NAT](images/flow/nat.png "Fig.6 - Flujo NAT")
 
 Es decir que para propósitos externos, los nodos desde _A_ hasta _E_ están "compartiendo" la misma dirección global de _NAT_ (o grupo de direcciones).
 
@@ -128,7 +128,7 @@ Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes d
 
 **Stateful NAT64** es muy similar a un NAT-PT (_Protocol Translation_). La única diferencia es que la "Red Privada" es de hecho una red IPv6:
 
-![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.svg)
+![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.png "Fig.7 - Red de ejemplo Stateful NAT64")
 
 Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
@@ -139,11 +139,11 @@ Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente
 
 La idea es, enmascarar _A_ y remover el prefijo a _V_ durante el mapeo de IPv6 a IPv4, y adjuntar el prefijo en _V_ y quitar la máscara a _A_ cuando va de IPV4 a IPv6. Como lo puedes apreciar en la siguiente figura:
 
-![Fig.8 - Flujo Stateful](images/flow/stateful.svg)
+![Fig.8 - Flujo Stateful](images/flow/stateful.png "Fig.8 - Flujo Stateful")
 
 NAT64 maneja otros escenarios y es aquí donde termina la similitud con NAT. Debido a que en IPv6 la capacidad de identificación de los nodos es sumamente enorme, se contempla que cada dispositivo cuente con una dirección pública de IPv6. En otras palabras se prevé o planea que TODOS los dispositivos en IPv6  tenga acceso a Internet. Considerando esto, una conectividad posible sería:
 
-![Fig.9 - Internet Stateful NAT64](images/network/full.svg)
+![Fig.9 - Internet Stateful NAT64](images/network/full.png Fig.9 - Internet Stateful NAT64)
 
 De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_.
 
