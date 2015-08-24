@@ -14,7 +14,7 @@ Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre U
 * [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](esp-download.html) para descargar Jool.
 
-Agradecemos a Namsep por su aportación hecha sobre Raspbian.
+:star:Agradecemos a Namsep por su aportación hecha sobre Raspbian.
 
 -------------------
 
