@@ -42,6 +42,7 @@ struct arguments {
 	struct {
 		bool quick;
 		bool force;
+		bool tcp, udp, icmp;
 
 		struct {
 			struct ipv6_prefix prefix;
@@ -56,7 +57,6 @@ struct arguments {
 		} pool4;
 
 		struct {
-			bool tcp, udp, icmp;
 			bool numeric;
 
 			struct {
@@ -365,16 +365,19 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 
 	case ARGP_UDP:
-		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
-		args->db.tables.udp = true;
+		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
+				POOL4_OPS | BIB_OPS | SESSION_OPS);
+		args->db.udp = true;
 		break;
 	case ARGP_TCP:
-		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
-		args->db.tables.tcp = true;
+		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
+				POOL4_OPS | BIB_OPS | SESSION_OPS);
+		args->db.tcp = true;
 		break;
 	case ARGP_ICMP:
-		error = update_state(args, MODE_BIB | MODE_SESSION, BIB_OPS | SESSION_OPS);
-		args->db.tables.icmp = true;
+		error = update_state(args, MODE_POOL4 | MODE_BIB | MODE_SESSION,
+				POOL4_OPS | BIB_OPS | SESSION_OPS);
+		args->db.icmp = true;
 		break;
 	case ARGP_NUMERIC_HOSTNAME:
 		error = update_state(args, MODE_BIB | MODE_SESSION, OP_DISPLAY);
@@ -551,7 +554,7 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	memset(result, 0, sizeof(*result));
 	result->mode = 0xFFFF;
 	result->op = 0xFF;
-	result->db.pool4.ports.min = 60000U;
+	result->db.pool4.ports.min = 60001U;
 	result->db.pool4.ports.max = 65535U;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
@@ -561,10 +564,10 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	result->mode = zeroize_upper_bits(result->mode);
 	result->op = zeroize_upper_bits(result->op);
 
-	if (!result->db.tables.tcp && !result->db.tables.udp && !result->db.tables.icmp) {
-		result->db.tables.tcp = true;
-		result->db.tables.udp = true;
-		result->db.tables.icmp = true;
+	if (!result->db.tcp && !result->db.udp && !result->db.icmp) {
+		result->db.tcp = true;
+		result->db.udp = true;
+		result->db.icmp = true;
 	}
 
 	return 0;
@@ -646,6 +649,7 @@ static int main_wrapped(int argc, char **argv)
 				return -EINVAL;
 			}
 			return pool4_add(args.db.pool4.mark,
+					args.db.tcp, args.db.udp, args.db.icmp,
 					&args.db.pool4.prefix,
 					&args.db.pool4.ports,
 					args.db.force);
@@ -655,8 +659,10 @@ static int main_wrapped(int argc, char **argv)
 				return -EINVAL;
 			}
 			return pool4_rm(args.db.pool4.mark,
+					args.db.tcp, args.db.udp, args.db.icmp,
 					&args.db.pool4.prefix,
-					&args.db.pool4.ports, args.db.quick);
+					&args.db.pool4.ports,
+					args.db.quick);
 		case OP_FLUSH:
 			return pool4_flush(args.db.quick);
 		default:
@@ -673,10 +679,10 @@ static int main_wrapped(int argc, char **argv)
 
 		switch (args.op) {
 		case OP_DISPLAY:
-			return bib_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
+			return bib_display(args.db.tcp, args.db.udp, args.db.icmp,
 					args.db.tables.numeric, args.csv_format);
 		case OP_COUNT:
-			return bib_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
+			return bib_count(args.db.tcp, args.db.udp, args.db.icmp);
 
 		case OP_ADD:
 			error = 0;
@@ -691,7 +697,7 @@ static int main_wrapped(int argc, char **argv)
 			if (error)
 				return error;
 
-			return bib_add(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
+			return bib_add(args.db.tcp, args.db.udp, args.db.icmp,
 					&args.db.tables.bib.addr6, &args.db.tables.bib.addr4);
 
 		case OP_REMOVE:
@@ -699,7 +705,7 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Missing IPv4 transport address and/or IPv6 transport address.");
 				return -EINVAL;
 			}
-			return bib_remove(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
+			return bib_remove(args.db.tcp, args.db.udp, args.db.icmp,
 					args.db.tables.bib.addr6_set, &args.db.tables.bib.addr6,
 					args.db.tables.bib.addr4_set, &args.db.tables.bib.addr4);
 
@@ -717,10 +723,10 @@ static int main_wrapped(int argc, char **argv)
 
 		switch (args.op) {
 		case OP_DISPLAY:
-			return session_display(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp,
+			return session_display(args.db.tcp, args.db.udp, args.db.icmp,
 					args.db.tables.numeric, args.csv_format);
 		case OP_COUNT:
-			return session_count(args.db.tables.tcp, args.db.tables.udp, args.db.tables.icmp);
+			return session_count(args.db.tcp, args.db.udp, args.db.icmp);
 		default:
 			log_err("Unknown operation for session mode: %u.", args.op);
 			return -EINVAL;

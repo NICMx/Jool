@@ -248,11 +248,6 @@ __u64 prefix4_next(struct ipv4_prefix *prefix)
 			+ (__u64) be32_to_cpu(prefix->address.s_addr);
 }
 
-static inline bool ipv4_is_broadcast(const __be32 addr)
-{
-	return addr == htonl(0xffffffffu);
-}
-
 /**
  * addr4_has_scope_subnet - returns true if @addr has low scope ("this" subnet
  * or lower), and therefore should not be translated under any circumstances.
@@ -267,5 +262,6 @@ bool addr4_is_scope_subnet(const __be32 addr)
 	return ipv4_is_zeronet(addr)
 			|| ipv4_is_loopback(addr)
 			|| ipv4_is_linklocal_169(addr)
-			|| ipv4_is_broadcast(addr);
+			|| ipv4_is_multicast(addr)
+			|| ipv4_is_lbcast(addr);
 }

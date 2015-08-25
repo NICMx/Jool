@@ -9,10 +9,9 @@ title: Documentation - Stateful IPv4 Pool
 
 If you're familiar with iptables and masquerade, all you probably need to know is that the following:
 
-	jool --pool4 --add 192.0.2.1 5000-6000
-	# TODO - the Jool command doesn't include TCP...
+	jool --pool4 --add --tcp 192.0.2.1 5000-6000
 
-Is spiritually equivalent to
+is spiritually equivalent to
 
 	ip addr add 192.0.2.1 dev (...)
 	iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 5000-6000

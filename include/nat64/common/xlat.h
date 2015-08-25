@@ -9,7 +9,7 @@
 #define XLAT_VERSION_MAJOR 3
 #define XLAT_VERSION_MINOR 3
 #define XLAT_VERSION_REV 2
-#define XLAT_VERSION_DEV 10
+#define XLAT_VERSION_DEV 11
 
 /** See http://stackoverflow.com/questions/195975 */
 #define STR_VALUE(arg) #arg

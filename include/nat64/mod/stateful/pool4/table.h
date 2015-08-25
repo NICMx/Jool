@@ -5,6 +5,7 @@
 
 struct pool4_table {
 	__u32 mark;
+	enum l4_protocol proto;
 	struct list_head rows;
 
 	struct hlist_node hlist_hook;
@@ -14,7 +15,7 @@ struct pool4_table {
  * Write functions (Caller must prevent concurrence)
  */
 
-struct pool4_table *pool4table_create(__u32 mark);
+struct pool4_table *pool4table_create(__u32 mark, enum l4_protocol proto);
 void pool4table_destroy(struct pool4_table *table);
 
 int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,

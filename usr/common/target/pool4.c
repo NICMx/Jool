@@ -27,16 +27,18 @@ static int pool4_display_response(struct nl_msg *response, void *arg)
 	sample_count = nlmsg_datalen(hdr) / sizeof(*samples);
 
 	if (args->row_count == 0 && args->csv)
-		printf("Mark,Address,Min port,Max port\n");
+		printf("Mark,Protocol,Address,Min port,Max port\n");
 
 	for (i = 0; i < sample_count; i++) {
 		if (args->csv)
-			printf("%u,%s,%u,%u\n", samples[i].mark,
+			printf("%u,%s,%s,%u,%u\n", samples[i].mark,
+					l4proto_to_string(samples[i].proto),
 					inet_ntoa(samples[i].addr),
 					samples[i].range.min,
 					samples[i].range.max);
 		else
-			printf("%u\t%s\t%u-%u\n", samples[i].mark,
+			printf("%u\t%s\t%s\t%u-%u\n", samples[i].mark,
+					l4proto_to_string(samples[i].proto),
 					inet_ntoa(samples[i].addr),
 					samples[i].range.min,
 					samples[i].range.max);
@@ -99,7 +101,8 @@ int pool4_count(void)
 	return netlink_request(&request, request.length, pool4_count_response, NULL);
 }
 
-int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
+static int __add(__u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *addrs, struct port_range *ports,
 		bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -121,13 +124,33 @@ int pool4_add(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_ADD);
 	payload->add.mark = mark;
+	payload->add.proto = proto;
 	payload->add.addrs = *addrs;
 	payload->add.ports = *ports;
 
 	return netlink_request(request, hdr->length, NULL, NULL);
 }
 
-int pool4_rm(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
+int pool4_add(__u32 mark, bool tcp, bool udp, bool icmp,
+		struct ipv4_prefix *addrs, struct port_range *ports,
+		bool force)
+{
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (tcp)
+		tcp_error = __add(mark, L4PROTO_TCP, addrs, ports, force);
+	if (udp)
+		udp_error = __add(mark, L4PROTO_UDP, addrs, ports, force);
+	if (icmp)
+		icmp_error = __add(mark, L4PROTO_ICMP, addrs, ports, force);
+
+	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
+}
+
+static int __rm(__u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *addrs, struct port_range *ports,
 		bool quick)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
@@ -136,11 +159,30 @@ int pool4_rm(__u32 mark, struct ipv4_prefix *addrs, struct port_range *ports,
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL4, OP_REMOVE);
 	payload->rm.mark = mark;
+	payload->rm.proto = proto;
 	payload->rm.addrs = *addrs;
 	payload->rm.ports = *ports;
 	payload->rm.quick = quick;
 
 	return netlink_request(request, hdr->length, NULL, NULL);
+}
+
+int pool4_rm(__u32 mark, bool tcp, bool udp, bool icmp,
+		struct ipv4_prefix *addrs, struct port_range *ports,
+		bool quick)
+{
+	int tcp_error = 0;
+	int udp_error = 0;
+	int icmp_error = 0;
+
+	if (tcp)
+		tcp_error = __rm(mark, L4PROTO_TCP, addrs, ports, quick);
+	if (udp)
+		udp_error = __rm(mark, L4PROTO_UDP, addrs, ports, quick);
+	if (icmp)
+		icmp_error = __rm(mark, L4PROTO_ICMP, addrs, ports, quick);
+
+	return (tcp_error | udp_error | icmp_error) ? -EINVAL : 0;
 }
 
 int pool4_flush(bool quick)

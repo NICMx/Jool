@@ -27,7 +27,8 @@ bool is_hairpin(struct packet *pkt, struct tuple *tuple)
 	 * for its node. It might take a miracle for these packets to exist,
 	 * but hey, why the hell not.
 	 */
-	return pool4db_contains(pkt->skb->mark, &tuple->dst.addr4);
+	return pool4db_contains(pkt->skb->mark, tuple->l4_proto,
+			&tuple->dst.addr4);
 }
 
 /**

@@ -132,6 +132,7 @@ struct port_range {
 
 struct pool4_sample {
 	__u32 mark;
+	__u8 proto;
 	struct in_addr addr;
 	struct port_range range;
 };

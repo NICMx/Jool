@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <linux/rculist.h>
 
-struct pool4_table *pool4table_create(__u32 mark)
+struct pool4_table *pool4table_create(__u32 mark, enum l4_protocol proto)
 {
 	struct pool4_table *result;
 
@@ -14,6 +14,7 @@ struct pool4_table *pool4table_create(__u32 mark)
 		return NULL;
 
 	result->mark = mark;
+	result->proto = proto;
 	INIT_LIST_HEAD(&result->rows);
 	return result;
 }
@@ -177,6 +178,13 @@ int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
 	if (sample.range.min > sample.range.max)
 		swap(sample.range.min, sample.range.max);
 
+	if (table->proto == L4PROTO_TCP || table->proto == L4PROTO_UDP) {
+		if (sample.range.min == 0) {
+			log_err("Zero is not a valid pool4 port.");
+			return -EINVAL;
+		}
+	}
+
 	error = validate_overflow(table, prefix, ports);
 	if (error)
 		return error;
@@ -324,7 +332,6 @@ int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
 	return error;
 }
 
-/* TODO (issue36) separate TCP, UDP and ICMP ranges? */
 /* TODO (issue36) I'm not accounting for parity and range. */
 
 /**
@@ -345,8 +352,11 @@ int pool4table_foreach_sample(struct pool4_table *table,
 {
 	struct pool4_addr *addr;
 	struct pool4_ports *ports;
-	struct pool4_sample sample = { .mark = table->mark };
+	struct pool4_sample sample;
 	int error = offset ? -ESRCH : 0;
+
+	sample.mark = table->mark;
+	sample.proto = table->proto;
 
 	list_for_each_entry_rcu(addr, &table->rows, list_hook) {
 		if (offset && !addr4_equals(&addr->addr, &offset->addr))

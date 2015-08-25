@@ -23,56 +23,70 @@ The IPv4 pool is the subset of the node's transport addresses which should be us
 
 ## Syntax
 
-	jool --pool4 [--display]
+	jool --pool4 [--display] [--csv]
 	jool --pool4 --count
-	jool --pool4 --add [--mark <mark>] <IPv4 prefix> [<port range>]
-	jool --pool4 --remove [--mark <mark>] <IPv4 prefix> [<port range>] [--quick]
+	jool --pool4 --add [--mark <mark>] [--tcp] [--udp] [--icmp] <IPv4 prefix> [<port range>] [--force]
+	jool --pool4 --remove [--mark <mark>] [--tcp] [--udp] [--icmp] <IPv4 prefix> [<port range>] [--quick]
 	jool --pool4 --flush [--quick]
 
 ## Arguments
 
 Operations:
 
-* `--display`: The pool's addresses are printed in standard output. This is the default operation.
-* `--count`: The number of addresses in the pool is printed in standard output.
-* `--add`: Uploads addresses to the pool.
-* `--remove`: Deletes transport addresses from the pool.
-* `--flush`: Removes all transport addresses from the pool.
+* `--display`: The pool's records are printed in standard output. This is the default operation.
+* `--count`: Prints the number of tables, samples and transport addresses in standard output.
+* `--add`: Uploads entries to the pool.
+* `--remove`: Deletes entries from the pool.
+* `--flush`: Removes all entries from the pool.
 
 Others:
 
 | Name | Default | Description |
+| `--csv` | (absent) | If present, print the table in CSV format. |
 | [`--mark`](https://github.com/NICMx/NAT64/issues/115) | 0 | Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. |
+| `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
+| `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |
+| `--icmp` | * | If present, the record being added or removed represents "ICMP transport addresses" (Addresses and ICMP identifiers, not ports). |
 | `<IPv4 prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
-| `<port range>` | 60001-65535 | Subset from the addresses which should be reserved for translation. |
-| [`--quick`](usr-flags-quick.html) | | If present, do not cascade removal to BIB entries. |
+| `<port range>` | 60001-65535 | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
+| `--force` | (absent) | If present, add the elements to the pool even if they're too many. |
+| [`--quick`](usr-flags-quick.html) | (absent) | If present, do not cascade removal to BIB entries. |
+
+\* `--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
 
 ## Examples
 
 Display the current addreses:
 
-	$ jool --pool4 --display
+	$ jool --pool4 --display 
 	  (empty)
 
 Add several entries:
 
 	# jool --pool4 --add 192.0.2.1
-	# jool --pool4 --add 192.0.2.2 7000-7999
-	# jool --pool4 --add --mark 1 192.0.2.2 8000-8999
-	# jool --pool4 --add 192.0.2.4/31
 	$ jool --pool4 --display
-	0	192.0.2.1	60001-65535
-	0	192.0.2.2	7000-7999
-	0	192.0.2.4	60001-65535
-	0	192.0.2.5	60001-65535
-	1	192.0.2.2	8000-8999
-	  (Fetched 5 entries.)
+	0	ICMP	192.0.2.1	60001-65535
+	0	UDP	192.0.2.1	60001-65535
+	0	TCP	192.0.2.1	60001-65535
+	  (Fetched 3 entries.)
+	# jool --pool4 --add          --tcp 192.0.2.2 7000-7999
+	# jool --pool4 --add --mark 1 --tcp 192.0.2.2 8000-8999
+	# jool --pool4 --add          --tcp 192.0.2.4/31
+	$ jool --pool4 --display
+	0	ICMP	192.0.2.1	60001-65535
+	0	UDP	192.0.2.1	60001-65535
+	0	TCP	192.0.2.1	60001-65535
+	0	TCP	192.0.2.2	7000-7999
+	0	TCP	192.0.2.4	60001-65535
+	0	TCP	192.0.2.5	60001-65535
+	1	TCP	192.0.2.2	8000-8999
+	  (Fetched 7 entries.)
 
 Remove some entries:
 
 	# jool --pool4 --remove --mark 0 192.0.2.0/24 0-65535
 	$ jool --pool4 --display
-	1	192.0.2.2	8000-8999
+	1	TCP	192.0.2.2	8000-8999
 	  (Fetched 1 entries.)
 
 Clear the table:

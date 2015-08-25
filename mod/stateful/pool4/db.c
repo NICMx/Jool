@@ -43,14 +43,23 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 	int error;
 
 	/* TODO (issue36) align the defaults with masquerade. */
-	ports.min = 60000U;
 	ports.max = 65535U;
 
 	for (i = 0; i < prefix_count; i++) {
 		error = prefix4_parse(prefix_strs[i], &prefix);
 		if (error)
 			return error;
-		error = pool4db_add(0, &prefix, &ports);
+
+		ports.min = 60001U;
+		error = pool4db_add(0, L4PROTO_TCP, &prefix, &ports);
+		if (error)
+			return error;
+		error = pool4db_add(0, L4PROTO_UDP, &prefix, &ports);
+		if (error)
+			return error;
+
+		ports.min = 0U;
+		error = pool4db_add(0, L4PROTO_ICMP, &prefix, &ports);
 		if (error)
 			return error;
 	}
@@ -108,7 +117,7 @@ void pool4db_destroy(void)
 /**
  * Assumes RCU has been locked, if needed.
  */
-static struct pool4_table *find_table(const __u32 mark)
+static struct pool4_table *find_table(const __u32 mark, enum l4_protocol proto)
 {
 	struct pool4_table *table;
 	struct hlist_node *node;
@@ -117,24 +126,24 @@ static struct pool4_table *find_table(const __u32 mark)
 	hash = hash_32(mark, power);
 	hlist_for_each(node, &db[hash]) {
 		table = table_entry(node);
-		if (table->mark == mark)
+		if (table->mark == mark && table->proto == proto)
 			return table;
 	}
 
 	return NULL;
 }
 
-int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
-		struct port_range *ports)
+int pool4db_add(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct pool4_table *table;
 	int error;
 
-	table = find_table(mark);
+	table = find_table(mark, proto);
 	error = -EINVAL;
 
 	if (!table) {
-		table = pool4table_create(mark);
+		table = pool4table_create(mark, proto);
 		if (!table)
 			return -ENOMEM;
 
@@ -169,13 +178,13 @@ static void __rm(struct pool4_table *table)
 	values--;
 }
 
-int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
-		struct port_range *ports)
+int pool4db_rm(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	struct pool4_table *table;
 	int error;
 
-	table = find_table(mark);
+	table = find_table(mark, proto);
 	if (!table)
 		return -ESRCH;
 
@@ -207,21 +216,24 @@ void pool4db_flush(void)
 	values = 0;
 }
 
-bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr)
+bool pool4db_contains(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_transport_addr *addr)
 {
 	struct pool4_table *table;
 	bool result;
 	rcu_read_lock();
 
-	table = find_table(mark);
+	table = find_table(mark, proto);
 	result = table ? pool4table_contains(table, addr) : false;
 
 	rcu_read_unlock();
 	return result;
 }
 
-bool pool4db_contains_all(struct ipv4_transport_addr *addr)
+bool pool4db_contains_all(enum l4_protocol proto,
+		struct ipv4_transport_addr *addr)
 {
+	struct pool4_table *table;
 	struct hlist_node *node;
 	unsigned int i;
 	bool found = false;
@@ -230,7 +242,11 @@ bool pool4db_contains_all(struct ipv4_transport_addr *addr)
 
 	for (i = 0; i < slots(); i++) {
 		hlist_for_each(node, &db[i]) {
-			if (pool4table_contains(table_entry(node), addr)) {
+			table = table_entry(node);
+			if (table->proto != proto)
+				continue;
+
+			if (pool4table_contains(table, addr)) {
 				found = true;
 				goto end;
 			}
@@ -321,7 +337,7 @@ end:
 	return error;
 }
 
-int pool4db_foreach_taddr4(const __u32 mark,
+int pool4db_foreach_taddr4(const __u32 mark, enum l4_protocol proto,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
@@ -329,7 +345,7 @@ int pool4db_foreach_taddr4(const __u32 mark,
 	int error;
 	rcu_read_lock();
 
-	table = find_table(mark);
+	table = find_table(mark, proto);
 	error = table ? pool4table_foreach_taddr4(table, cb, arg, offset)
 			: -ESRCH;
 

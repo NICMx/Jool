@@ -18,24 +18,26 @@
 int pool4db_init(unsigned int capacity, char *pref_strs[], int pref_count);
 void pool4db_destroy(void);
 
-int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
-		struct port_range *ports);
-int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
-		struct port_range *ports);
+int pool4db_add(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports);
+int pool4db_rm(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports);
 void pool4db_flush(void);
 
 /*
  * Read functions (Legal to use anywhere)
  */
 
-bool pool4db_contains(const __u32 mark, struct ipv4_transport_addr *addr);
-bool pool4db_contains_all(struct ipv4_transport_addr *addr);
+bool pool4db_contains(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_transport_addr *addr);
+bool pool4db_contains_all(enum l4_protocol proto,
+		struct ipv4_transport_addr *addr);
 bool pool4db_is_empty(void);
 void pool4db_count(__u32 *tables, __u64 *samples, __u64 *taddrs);
 
 int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
-int pool4db_foreach_taddr4(const __u32 mark,
+int pool4db_foreach_taddr4(const __u32 mark, enum l4_protocol proto,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset);
 

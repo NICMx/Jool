@@ -199,12 +199,14 @@ union request_pool4 {
 	} display;
 	struct {
 		__u32 mark;
+		__u8 proto;
 		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
 		struct port_range ports;
 	} add;
 	struct {
 		__u32 mark;
+		__u8 proto;
 		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
 		struct port_range ports;

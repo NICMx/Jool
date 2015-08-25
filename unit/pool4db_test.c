@@ -273,7 +273,7 @@ static bool test_foreach_sample(void)
 }
 
 /**
- * assert_contains_range - "assert 192.0.2.@addr_min - 192.0.2.@add_max on
+ * assert_contains_range - "assert 192.0.2.@addr_min - 192.0.2.@addr_max on
  * ports @port_min through @port_max belong to the pool (@expected true) or not
  * (@expected false)."
  */

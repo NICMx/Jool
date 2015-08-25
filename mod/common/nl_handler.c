@@ -261,7 +261,8 @@ static int handle_pool4_add(struct nlmsghdr *nl_hdr, union request_pool4 *reques
 	log_debug("Adding elements to the IPv4 pool.");
 
 	return respond_error(nl_hdr, pool4db_add(request->add.mark,
-			&request->add.addrs, &request->add.ports));
+			request->add.proto, &request->add.addrs,
+			&request->add.ports));
 }
 
 static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request)
@@ -273,8 +274,8 @@ static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request
 
 	log_debug("Removing elements from the IPv4 pool.");
 
-	error = pool4db_rm(request->rm.mark, &request->rm.addrs,
-			&request->rm.ports);
+	error = pool4db_rm(request->rm.mark, request->rm.proto,
+			&request->rm.addrs, &request->rm.ports);
 
 	if (xlat_is_nat64() && !request->rm.quick) {
 		sessiondb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
