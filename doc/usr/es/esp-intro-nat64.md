@@ -143,7 +143,7 @@ La idea es, enmascarar _A_ y remover el prefijo a _V_ durante el mapeo de IPv6 a
 
 NAT64 maneja otros escenarios y es aquí donde termina la similitud con NAT. Debido a que en IPv6 la capacidad de identificación de los nodos es sumamente enorme, se contempla que cada dispositivo cuente con una dirección pública de IPv6. En otras palabras se prevé o planea que TODOS los dispositivos en IPv6  tenga acceso a Internet. Considerando esto, una conectividad posible sería:
 
-![Fig.9 - Internet Stateful NAT64](images/network/full.png Fig.9 - Internet Stateful NAT64)
+![Fig.9 - Internet Stateful NAT64](images/network/full.png "Fig.9 - Internet Stateful NAT64")
 
 De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_.
 
