@@ -50,7 +50,7 @@ static bool add(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return ASSERT_INT(0, pool4db_add(1, &prefix, &ports),
+	return ASSERT_INT(0, pool4db_add(1, L4PROTO_TCP, &prefix, &ports),
 			"add of %pI4/%u (%u-%u)",
 			&prefix.address, prefix.len, min, max);
 }
@@ -65,7 +65,7 @@ static bool rm(__u32 addr, __u8 prefix_len, __u16 min, __u16 max)
 	ports.min = min;
 	ports.max = max;
 
-	return ASSERT_INT(0, pool4db_rm(1, &prefix, &ports),
+	return ASSERT_INT(0, pool4db_rm(1, L4PROTO_TCP, &prefix, &ports),
 			"rm of %pI4/%u (%u-%u)",
 			&prefix.address, prefix.len, min, max);
 }
@@ -179,7 +179,8 @@ static bool test_foreach_taddr4(void)
 		args.expected = &expected[i % COUNT];
 		args.expected_len = COUNT;
 		args.i = 0;
-		error = pool4db_foreach_taddr4(1, validate_taddr4, &args, i);
+		error = pool4db_foreach_taddr4(1, L4PROTO_TCP, validate_taddr4,
+				&args, i);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
 	}
@@ -288,11 +289,11 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	for (i = addr_min; i <= addr_max; i++) {
 		taddr.l3.s_addr = cpu_to_be32(0xc0000200U | i);
 		for (taddr.l4 = port_min; taddr.l4 <= port_max; taddr.l4++) {
-			result = pool4db_contains(1, &taddr);
+			result = pool4db_contains(1, L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
 					"contains %pI4#%u",
 					&taddr.l3, taddr.l4);
-			result = pool4db_contains_all(&taddr);
+			result = pool4db_contains_all(L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
 					"contains_all %pI4#%u",
 					&taddr.l3, taddr.l4);

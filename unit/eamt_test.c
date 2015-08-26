@@ -37,7 +37,7 @@ static int __add_entry(char *addr4, __u8 len4, char *addr6, __u8 len6)
 	prefix6.len = len6;
 
 	log_debug("\nInserting %s/%u | %s/%u", addr6, len6, addr4, len4);
-	error = eamt_add(&prefix6, &prefix4);
+	error = eamt_add(&prefix6, &prefix4, true);
 	/*
 	if (error) {
 		log_err("Errcode %d; I'm not going to print the tree.", error);

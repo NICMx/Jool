@@ -30,7 +30,7 @@ insert:
 
 	# Insert and configure Jool a little bit.
 	sudo insmod jool.ko pool6=64:ff9b::/96
-	sudo ../../usr/stateful/jool -4a 192.0.2.2 0-3000
+	sudo ../../usr/stateful/jool -4a 192.0.2.2 1-3000
 	sudo ../../usr/stateful/jool -batu 192.0.2.2#2000 2001:db8::5#2000
 	sudo ../../usr/stateful/jool -bai 192.0.2.2#1 2001:db8::5#1
 	dmesg
