@@ -1,0 +1,95 @@
+---
+layout: documentation
+title: Documentación - RFC 6791
+---
+
+[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > [SIIT](esp-mod-run-vanilla.html) > RFC 6791
+
+# RFC 6791
+
+## Índice
+
+
+1. [Introducción](#introduccion)
+2. [Definición del Problema](#definicion)
+3. [Ejemplo] (#ejemplo)
+4. [Notas Adicionales] (#notas-adicionales)
+
+## Introducción
+
+
+Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por [Xing Li] (http://www.researchgate.net/profile/Xing_Li7) y [Congxiao Bao] (http://www.arkko.com/tools/allstats/congxiaobao.html) del Centro CERNET de la Universidad de Tsinghua y [Dan Wing] (https://www.linkedin.com/profile/view?id=2606930&authType=name&authToken=oIy6)  de [Cisco] (https://www.ciscolive.com/online/connect/speakerDetail.ww?PERSON_ID=69812EB76A23BD5B510E823E51292E72&tclass=popup).
+
+En este se establece la forma de cómo proveer de direcciones válidas en IPv4 a los HOPs de IPv6 en el caso de que alguno de ellos requiera reportar algún error de ICMP.
+
+## Definición del Problema
+
+
+Un traductor Stateless IPv4/IPv6 podría recibir paquetes de IPv6 que contengan direcciones **no-traducibles** a IPv4 como dirección fuente, provenientes de los enlaces entre redes. 
+
+Se entiende por **no-traducibles** cuando se cumple estas dos condiciones: <br />
+a) Que no siga la norma establecida en el [RFC 6052, cap2.] (https://tools.ietf.org/html/rfc6052#section-2), <br />
+b) Ni que esté dado de alta en la table EAM, ver [draft EAM, sección 3.2] (http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01#section-3.2).
+
+Si esto sucede, entonces implica que dos condiciones ocurrieron:
+
+1. Existe al menos un ruteador entre el Nodo en IPv6 y el Traductor (Jool) antes de llegar al Nodo en IPv4.
+2. El paquete es del tipo ICMPv4 Error Message.
+
+En dichas excepciones, los paquetes deben pasar a través de _T_ a la dirección destino de IPv4 para que éste pueda tomar la acción correspondiente.
+
+## Ejemplo
+
+
+Suponga que _n4_ enviá un paquete a _n6_, pero hay un problema, el mensaje es muy grande, entonces _R_ envíará un paquete de error ICMP a _n4_. Tome en consideración que _T_ está traduciendo usando el prefijo 2001:db8::/96.
+
+![Figura 1 - Red](images/network/rfc6791.svg)
+
+El paquete de _R_ tendrá las siguientes direcciones:
+
+| Origen  | Destino              |
+|---------+----------------------|
+| 4000::1 | 2001:db8::192.0.2.13 |
+
+_T_ está en problemas por que la dirección de origen del paquete no tiene el prefijo de traducción, asi que no puede ser extraia una dirección IPv4 de el.
+
+Normalmente, no se tienen muchas direcciones IPv4, asi que no es razonable garantizarle una a cada uno de los nodos en el lado IPv6. Debido a su único propósito(casi siempre) de redireccionamiento, los routers son buenos candidatos para direcciones intraducibles. Por otro lado, los errores ICMP son importantes, y un NAT64 no deberia desecharlo simplemente por que viene de un router.
+
+## Notas Adicionales
+
+
+Por favor considere los siguientes parrafos del [RFC 6791](https://tools.ietf.org/html/rfc6791) mientras decide el tamaño y las direcciones de su RFC 6791 pool:
+
+	La dirección de origen utilizada NO DEBE causar que le paquete ICMP
+	sea descartado. NO DEBE ser tomada del espacio de direcciones de
+    [RFC1918] o de [RFC6598], ya que ese espacio de direcciones es probable
+    a estar sujeto al filtrado unicast Reverse Path Forwarding (uRPF) [RFC3704].
+
+	(...)
+
+	Otra consideración para la seleccion del origen es que debe ser
+	posible para los contenedores IPv4 del mensaje ICMP ser capaces de
+	distinguir entre la diferentes posibles fuentes de los mensajes ICMPv6
+	(por ejemplo, soportar una herramienta de diagnostico de traza de ruta
+	que proporcione algo de visibilidad a nivel d red limitada a través del traductor
+    IPv4/Pv6). Esta consideración implica que un traductor IPv4/IPv6
+	necesita tener un pool de direcciones IPv4 para mapear la direccion de origen 
+    de paquetes ICMPv6 generados desde origenes diferentes, o para incluir
+    la información de la dirección de origen IPv6 para mapear la dirección de origen 
+	por otros medios.  Actualmente, el TRACEROUTE y el MTR [MTR] son los únicos
+	consumidores de mensajes ICMPv6 traducidos que se  translated ICMPv6 messages that care about the
+	ICMPv6 source address.
+	
+	(...)
+
+	Si un pool de direcciones publicas IPv4 está configurado en el traductor,
+	Se RECOMIENDA seleccionar aleatoriamente la dirección de origen IPv4 del
+	pool. La selección aleatoria reduce la probabilidad de que dos mensajes ICMP
+    sucitados por la misma Traza De Ruta puedan especificar la misma dirección
+    de origen y, por consiguiente, erroneamente dar la apariencia de un bucle de ruteo.
+	
+
+Un Stateful NAT64 generalmente no tiene este problema por que [render every IPv6 address translatable](esp-intro-nat64.html#stateful-nat64) (ya que todos los nodos IPv6 comparten las direcciones IPv4 del NAT64). Para hacer claras las cosas, un modulo SIIT debe de mantener un pool de direcciónes reservadas. Al recibir un error ICMP con un origen que no se puede traducir, Jool deberia asignar un aleatorio de los que contiene en su pool.
+
+
+El [Ejemplo de SIIT](esp-mod-run-vanilla.html) muestra como configurar el pool durante un modprobe. Tambien lo puedes editar despues mediante la [Aplicación de espacio de usuario](esp-usr-flags-pool6791.html).

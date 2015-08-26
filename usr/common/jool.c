@@ -29,7 +29,7 @@
 #include "nat64/usr/argp/options.h"
 
 
-const char *argp_program_version = XLAT_VERSION_STR;
+const char *argp_program_version = JOOL_VERSION_STR;
 const char *argp_program_bug_address = "jool@nic.mx";
 
 /**

@@ -125,8 +125,8 @@ static int validate_version(struct request_hdr *hdr)
 	log_err("Version mismatch. The kernel module is %u.%u.%u.%u, "
 			"but the userspace application is %u.%u.%u.%u. "
 			"Please update Jool's %s.",
-			XLAT_VERSION_MAJOR, XLAT_VERSION_MINOR,
-			XLAT_VERSION_REV, XLAT_VERSION_DEV,
+			JOOL_VERSION_MAJOR, JOOL_VERSION_MINOR,
+			JOOL_VERSION_REV, JOOL_VERSION_DEV,
 			hdr->version >> 24, (hdr->version >> 16) & 0xFFU,
 			(hdr->version >> 8) & 0xFFU, hdr->version & 0xFFU,
 			(xlat_version() > hdr->version)

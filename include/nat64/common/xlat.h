@@ -6,25 +6,29 @@
 	#include <stdbool.h>
 #endif
 
-#define XLAT_VERSION_MAJOR 3
-#define XLAT_VERSION_MINOR 3
-#define XLAT_VERSION_REV 2
-#define XLAT_VERSION_DEV 11
+/**
+ * These defines are read in from dkms.conf. If you change their syntax or
+ * relocate them, please make sure to also update dkms.conf accordingly.
+ */
+#define JOOL_VERSION_MAJOR 3
+#define JOOL_VERSION_MINOR 3
+#define JOOL_VERSION_REV 2
+#define JOOL_VERSION_DEV 11
 
 /** See http://stackoverflow.com/questions/195975 */
 #define STR_VALUE(arg) #arg
 #define VALUE_TO_STR(name) STR_VALUE(name)
-#define XLAT_VERSION_STR \
-	VALUE_TO_STR(XLAT_VERSION_MAJOR) "." \
-	VALUE_TO_STR(XLAT_VERSION_MINOR) "." \
-	VALUE_TO_STR(XLAT_VERSION_REV)
+#define JOOL_VERSION_STR \
+	VALUE_TO_STR(JOOL_VERSION_MAJOR) "." \
+	VALUE_TO_STR(JOOL_VERSION_MINOR) "." \
+	VALUE_TO_STR(JOOL_VERSION_REV)
 
 static inline unsigned int xlat_version(void)
 {
-	return (XLAT_VERSION_MAJOR << 24)
-			| (XLAT_VERSION_MINOR << 16)
-			| (XLAT_VERSION_REV << 8)
-			| XLAT_VERSION_DEV;
+	return (JOOL_VERSION_MAJOR << 24)
+			| (JOOL_VERSION_MINOR << 16)
+			| (JOOL_VERSION_REV << 8)
+			| JOOL_VERSION_DEV;
 }
 
 /**

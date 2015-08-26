@@ -77,3 +77,6 @@ install-sh
 missing
 Makefile
 
+# DKMS version cache
+######################
+dkms.package_version.conf
