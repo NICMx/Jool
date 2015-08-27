@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > Quick
+language: en
+layout: default
+category: Documentation
+title: --quick
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--quick
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--quick
 
 # \--quick
 

@@ -1,6 +1,8 @@
 ---
-layout: index
-title: Jool - Home
+language: es
+layout: default
+category: Home
+title: Home
 ---
 
 # Página Principal
@@ -9,10 +11,10 @@ title: Jool - Home
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](esp-intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en [Raspbian] (http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html).
+Jool es un [SIIT y NAT64](intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en [Raspbian] (http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html).
 
-* [Haz click aquí](esp-doc-index.html) para empezar a familiarizarte con el software.
-* [Haz click aquí](esp-download.html) para descargar Jool.
+* [Haz click aquí](documentation.html) para empezar a familiarizarte con el software.
+* [Haz click aquí](download.html) para descargar Jool.
 
 :sparkles: Agradecemos a Namsep por su aportación hecha sobre Raspbian.
 
@@ -29,7 +31,7 @@ Nuestra meta actual es que Jool sea un SIIT y un Stateful NAT64 [apegado a los e
 3. La [Versión 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) añadirá muchas caracteristicas nuevas.
 
 
-Es posible que existan versiones intermedias dependiendo de los problemas reportados. Sus sugerencias puede persuadirnos para cambiar prioridades. Si tienes alguna recomedación que darnos, presiona [aquí](esp-contact.html).
+Es posible que existan versiones intermedias dependiendo de los problemas reportados. Sus sugerencias puede persuadirnos para cambiar prioridades. Si tienes alguna recomedación que darnos, presiona [aquí](contact.html).
 
 Nuestra versión más reciente es la [3.3.3](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.3).
 
@@ -55,8 +57,8 @@ Versión 3.3.2 liberada.
 Este es el resumen:
 
 - Hay tres nuevos parámetros de configuración:
-	- [`--source-icmpv6-errors-better`](esp-usr-flags-global.html#source-icmpv6-errors-better)
-	- [`--logging-bib`](esp-usr-flags-global.html#logging-bib) y [`--logging-session`](esp-usr-flags-global.html#logging-session)
+	- [`--source-icmpv6-errors-better`](usr-flags-global.html#source-icmpv6-errors-better)
+	- [`--logging-bib`](usr-flags-global.html#logging-bib) y [`--logging-session`](usr-flags-global.html#logging-session)
 - Correcciones a la Herramienta de Configuración de Jool.
 
 Se dieron de alta dos listas de correo:
@@ -85,7 +87,7 @@ Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo pa
 
 Se reorganizó la herramienta de configuración de Jool, por favor actualiza tus scripts:
 
-- El MTU es seleccionado desde el kernel [replazando a `--minMTU6`](misc-mtu.html).
+- El MTU es seleccionado desde el kernel [replazando a `--minMTU6`](mtu.html).
 - `--address`, `--prefix`, `--bib4` y `--bib6` fueron omitidos por ser considerados redundantes. Ver [`--pool6`](usr-flags-pool6.html), [`--pool4`](usr-flags-pool4.html) y [`--bib`](usr-flags-bib.html).
 - Tres banderas globales fueron omitidas por  [diferentes razones](usr-flags-atomic.html).
 
@@ -146,13 +148,13 @@ Si está familiarizado con los <a href="https://help.github.com/articles/github-
 
 La version 3.1.5 fue liberada.
 
-La más importante corrección fue al <a href="https://github.com/NICMx/NAT64/issues/92" target="__blank">caso #92</a>. Errores incorrectos de ICMP confunden a los nodos de IPv4, lo cual baja la confibilidad en el tráfico de 4-a-6.
+La más importante corrección fue al <a href="https://github.com/NICMx/NAT64/issues/92" target="_blank">caso #92</a>. Errores incorrectos de ICMP confunden a los nodos de IPv4, lo cual baja la confibilidad en el tráfico de 4-a-6.
 
-Aparte de esto, la Herramienta de Configuración de Jool ha sido ajustada para que no se inhiba más cuando <a href="https://github.com/NICMx/NAT64/issues/88" target="__blank">las tablas de sesiones y BIB son grandes</a>, y <a href="https://github.com/NICMx/NAT64/issues/65" target="__blank"> para dar de baja las sesiones cuando las BIBs son borradas</a>.
+Aparte de esto, la Herramienta de Configuración de Jool ha sido ajustada para que no se inhiba más cuando <a href="https://github.com/NICMx/NAT64/issues/88" target="_blank">las tablas de sesiones y BIB son grandes</a>, y <a href="https://github.com/NICMx/NAT64/issues/65" target="_blank"> para dar de baja las sesiones cuando las BIBs son borradas</a>.
 
-Entonces, se tuvieron un par de problemas de <a href="https://github.com/NICMx/NAT64/issues/60" target="__blank">performance y optimización</a>. Colateralmente, para alinear la prioridad de debugeo versus el resto del kernel, se puso mayor cuidado de que información será registrada en el Log del Sistema para mantenerlo lo más limpio posible.
+Entonces, se tuvieron un par de problemas de <a href="https://github.com/NICMx/NAT64/issues/60" target="_blank">performance y optimización</a>. Colateralmente, para alinear la prioridad de debugeo versus el resto del kernel, se puso mayor cuidado de que información será registrada en el Log del Sistema para mantenerlo lo más limpio posible.
 
-Si te interesa cuidar el performance, lee <a href="https://github.com/NICMx/NAT64/issues/91" target="__blank">este artículo</a> y la [documentación de `--minMTU6`](misc-mtu.html). Este parámetro de configuración te ayudará a evitar la fragmentación.
+Si te interesa cuidar el performance, lee <a href="https://github.com/NICMx/NAT64/issues/91" target="_blank">este artículo</a> y la [documentación de `--minMTU6`](mtu.html). Este parámetro de configuración te ayudará a evitar la fragmentación.
 
 Si nadie encuentra algún error crítico en esta versión, esta actualización será la última de la serie 3.1.x. Estaremos trabajando para cumplir al 100% el RFC en la próxima actualización.
 

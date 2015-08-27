@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - SIIT/DC Run
+language: en
+layout: default
+category: Documentation
+title: 464XLAT
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > 464XLAT
+[Documentation](documentation.html) > [Runs](documentation.html#runs) > 464XLAT
 
 # 464XLAT
 
@@ -40,7 +42,7 @@ This document is a dumbed-down summary of both of these techniques, collapsed in
 
 ## Sample Network
 
-![Figure 1 - 464 Needed](images/network/464-needed.svg)
+![Figure 1 - 464 Needed](../images/network/464-needed.svg)
 
 The red box would be your domain. _n6_ stands for "IPv6 node" and _R_ is "router". Say your ISP gives you only IPv6 addresses, but it also grants you access to IPv4 via a stateful NAT64 (_PLAT_; "Provider-side Translator"). _n4_ is a random IPv4 Internet node.
 
@@ -52,7 +54,7 @@ In broad terms, the solution is to provide _n6_ with a "fake" IPv4 stack whose p
 
 There are rather several ways to do this. Unfortunately, one of them ([making _n6_ the CLAT](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1)) is rather embarrassingly not yet implemented by Jool. One that does work is to make _R_ the CLAT. The network would look like this:
 
-![Figure 2 - 464XLAT'd Network](images/network/464-network.svg)
+![Figure 2 - 464XLAT'd Network](../images/network/464-network.svg)
 
 I also removed the clouds to simplify routing in the example. The dual translation idea has really nothing to do with routing, so this is unimportant.
 
@@ -60,23 +62,23 @@ I also removed the clouds to simplify routing in the example. The dual translati
 
 This is the normal flow an IPv6-sourced packet would traverse. It's a typical stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it: Notice we've chosen 64:ff9b::/96 as _PLAT_'s NAT64 prefix:
 
-![Figure 3 - Normal Stateful Flow](images/flow/464-normal.svg)
+![Figure 3 - Normal Stateful Flow](../images/flow/464-normal-en.svg)
 
 The 464XLAT flow we want to achieve follows. _n6_ will use its IPv4 address to try to query the literal (or whatever IPv4 Internet address):
 
-![Figure 4 - Literal](images/flow/464-literal.svg)
+![Figure 4 - Literal](../images/flow/464-literal-en.svg)
 
 _R_ will SIIT the packet into IPv6 so it can traverse the IPv6-only chunk. Address 192.168.0.8 will be translated using the EAMT, and 203.0.113.24 will receive the `pool6` prefix treatment to mirror _PLAT_'s.
 
-![Figure 5 - SIIT'd packet](images/flow/464-sless.svg)
+![Figure 5 - SIIT'd packet](../images/flow/464-sless-en.svg)
 
 _PLAT_ will do its magic and send the packet to the IPv4 Internet:
 
-![Figure 6 - Stateful NAT64'd packet](images/flow/464-sful.svg)
+![Figure 6 - Stateful NAT64'd packet](../images/flow/464-sful-en.svg)
 
 And the mangling will be mirrored for the response:
 
-![Figure 7 - Mirror](images/flow/464-mirror.svg)
+![Figure 7 - Mirror](../images/flow/464-mirror-en.svg)
 
 ## Configuration
 

@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > IPv4 Pool
+language: en
+layout: default
+category: Documentation
+title: --blacklist
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--blacklist
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--blacklist
 
 # \--blacklist
 

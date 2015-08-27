@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - EAM Run
+language: en
+layout: default
+category: Documentation
+title: EAM Run
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > SIIT + EAM
+[Documentation](documentation.html) > [Runs](documentation.html#runs) > SIIT + EAM
 
 # EAM Run
 
@@ -18,13 +20,13 @@ title: Documentation - EAM Run
 
 ## Introduction
 
-This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records on the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](misc-eamt.html) for more details on how the EAMT works.
+This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records on the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](eamt.html) for more details on how the EAMT works.
 
 [Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) **and** the [userspace application](usr-install.html) for EAM.
 
 ## Sample Network
 
-![Figure 1 - Sample Network](images/network/eam.svg)
+![Figure 1 - Sample Network](../images/network/eam.svg)
 
 All the remarks in the previous document's [Sample Network section](mod-run-vanilla.html#sample-network) apply here.
 
@@ -90,7 +92,7 @@ And again, the IPv6 prefix and the EAM table are not exclusive operation modes. 
 
 ## Testing
 
-If something doesn't work, try the [FAQ](misc-faq.html).
+If something doesn't work, try the [FAQ](faq.html).
 
 Try to ping _V_ from _A_ like this:
 
@@ -124,11 +126,11 @@ rtt min/avg/max/mdev = 1.930/3.001/5.042/1.204 ms
 
 How about hooking up a server in _Y_ and access it from _D_:
 
-![Figure 1 - IPv6 TCP from an IPv4 node](images/run-eam-firefox-4to6.png)
+![Figure 1 - IPv6 TCP from an IPv4 node](../images/run-eam-firefox-4to6.png)
 
 Then maybe another one in _B_ and request from _X_:
 
-![Figure 2 - IPv4 TCP from an IPv6 node](images/run-eam-firefox-6to4.png)
+![Figure 2 - IPv4 TCP from an IPv6 node](../images/run-eam-firefox-6to4.png)
 
 ## Stopping Jool
 
@@ -136,6 +138,6 @@ Same as in the [previous walkthrough](mod-run-vanilla.html#stopping-jool).
 
 ## Further reading
 
-- Please consider the [MTU issues](misc-mtu.html) before releasing.
+- Please consider the [MTU issues](mtu.html) before releasing.
 - Stateful NAT64 is [over here](mod-run-stateful.html).
 

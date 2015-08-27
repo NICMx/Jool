@@ -1,5 +1,7 @@
 ---
-layout: download
+language: es
+layout: default
+category: Download
 title: Descarga
 ---
 

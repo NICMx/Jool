@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > IPv6 Pool
+language: en
+layout: default
+category: Documentation
+title: --pool6
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool6
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--pool6
 
 # \--pool6
 

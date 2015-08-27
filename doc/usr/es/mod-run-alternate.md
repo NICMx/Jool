@@ -1,15 +1,17 @@
 ---
-layout: documentation
-title: Documentación - Ejecución Alterna de Stateful
+language: es
+layout: default
+category: Documentation
+title: Ejecución Alterna de Stateful
 ---
 
-[Doc](esp-doc-index.html) > [Otros](esp-doc-index.html#otros) > Interfáz Única
+[Doc](documentation.html) > [Otros](documentation.html#otros) > Interfáz Única
 
 #Interfáz Única
 
 Esta sección está aquí is here solo para decirte que si quieres que tu SIIT o NAT64 brinden servicio a ambos protocolos en la misma interfáz, aun estás cubierto. Jool puede ver paquetes viniendo desde cualquier interfaz y puede enviar paquetes mediante cualquier interfaz. (aunque ignora, el loopback).
 
-![Fig.1 - Single interface NAT64](images/network/alternate.svg)
+![Fig.1 - Single interface NAT64](../images/network/alternate.svg)
 
 Esta es la misma configuración que en el [Ejemplo de uso de Stateful NAT64](mod-run-stateful.html), excepto por el hecho de que todo mundo ahora esta compartiendo el mismo cable, y tambien removí los nodos reduntantes por que entiendes el punto.
 

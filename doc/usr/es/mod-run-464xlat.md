@@ -1,9 +1,13 @@
 ---
-layout: documentation
-title: Documentación - SIIT/DC Run
+language: es
+layout: default
+category: Documentation
+title: 464XLAT
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > 464XLAT
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > 464XLAT
+
+TODO - Pendiente hacer revisión
 
 # 464XLAT
 
@@ -43,7 +47,7 @@ Este documento es un resumen simplificado de ambas técnicas, colapsado en una i
 
 ## Red de ejemplo
 
-![Figure 1 - 464 Needed](images/network/464-needed.svg)
+![Figure 1 - 464 Needed](../images/network/464-needed.svg)
 
 La caja roja seria tu dominio. _n6_ respresenta un "nodo IPv6" y _R_ es un "router". Digamos que tu proveedor de internet solo te proporciona direcciones IPv6, pero tambien te garantiza acceso a IPv4 mediante un stateful NAT64(_PLAT_; Traductor del lado del proveedor o "Provider-side Translator" por sus siglas en inglés). _n4_ nodo de Internet IPv4 aleatorio.
 
@@ -57,7 +61,7 @@ otras palabras, un servicio SIIT (en terminos 464XLAT llamado "_CLAT_"; Traducto
 
 Hay muchas maneras de hacer esto. Desafortunadamente, una de ellas ([volver _n6_ el CLAT](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1)) todavia no se encuentra implementada en Jool. Una que funcion es hacer que _R_ sea el CLAT. La red luciría como esto: 
 
-![Figure 2 - 464XLAT'd Network](images/network/464-network.svg)
+![Figure 2 - 464XLAT'd Network](../images/network/464-network.svg)
 
 Tambien removi las nubes para simplificar el ruteo en el ejemplo. La idea de la traduccion realmente no tiene nada que ver con el ruteo, asi que esto no es importante.
 
@@ -66,25 +70,25 @@ Tambien removi las nubes para simplificar el ruteo en el ejemplo. La idea de la 
 
 Este es el flujo normal que un paquete de origen IPv6 atravesaría. Es un flujo sateful NAT64 típico y la traducción dual presentada en esta configuración no interferirá con el: Toma en curnta que hemos elejido 64:ff9b::/96 como prefijo NAT64 del _PLAT_:
 
-![Figure 3 - Normal Stateful Flow](images/flow/464-normal.svg)
+![Figure 3 - Normal Stateful Flow](../images/flow/464-normal-es.svg)
 
 El flujo 464XLAT que queremos lograr es el siguiente. _n6_ utilizará su dirección IPv4 para intentar consultar el valor literal (o cualquier dirección de internet IPv4):
 
-![Figure 4 - Literal](images/flow/464-literal.svg)
+![Figure 4 - Literal](../images/flow/464-literal-es.svg)
 
 _R_ 
 
 _R_ will SIIT the packet into IPv6 so it can traverse the IPv6-only chunk. Address 192.168.0.8 will be translated using the EAMT, and 203.0.113.24 will receive the `pool6` prefix treatment to mirror _PLAT_'s.
 
-![Figure 5 - SIIT'd packet](images/flow/464-sless.svg)
+![Figure 5 - SIIT'd packet](../images/flow/464-sless-es.svg)
 
 _PLAT_ hará su magia y mandará el paquete a la internet IPv4:
 
-![Figure 6 - Stateful NAT64'd packet](images/flow/464-sful.svg)
+![Figure 6 - Stateful NAT64'd packet](../images/flow/464-sful-es.svg)
 
 Y la modificación será espejeada para la respuesta:
 
-![Figure 7 - Mirror](images/flow/464-mirror.svg)
+![Figure 7 - Mirror](../images/flow/464-mirror-es.svg)
 
 ## Configuración
 

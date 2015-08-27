@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > BIB
+language: en
+layout: default
+category: Documentation
+title: --bib
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--bib
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--bib
 
 # \--bib
 
@@ -21,7 +23,7 @@ title: Documentation - Flags > BIB
 
 ## Description
 
-Interacts with Jool's [Binding Information Base (BIB)](misc-bib.html). If you don't know what that is, please follow the link before continuing.
+Interacts with Jool's [Binding Information Base (BIB)](bib.html). If you don't know what that is, please follow the link before continuing.
 
 ## Syntax
 

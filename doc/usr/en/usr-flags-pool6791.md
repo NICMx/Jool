@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > Error Addresses
+language: en
+layout: default
+category: Documentation
+title: --pool6791
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool6791
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--pool6791
 
 # \--pool6791
 
@@ -16,7 +18,7 @@ title: Documentation - Flags > Error Addresses
 
 ## Description
 
-Interacts with Jool's [RFC 6791 pool](misc-rfc6791.html). The pool defines addresses for untranslatable sources in ICMP errors.
+Interacts with Jool's [RFC 6791 pool](rfc6791.html). The pool defines addresses for untranslatable sources in ICMP errors.
 
 If this pool is empty, Jool will fall back to use its node's addresses for these cases.
 

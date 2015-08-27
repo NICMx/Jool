@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > MTU Plateaus
+language: en
+layout: default
+category: Documentation
+title: --plateaus
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > \--plateaus
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > \--plateaus
 
 # MTU Plateaus (Example)
 
@@ -13,7 +15,7 @@ This article explains the purpose of the `--plateaus` flag by example.
 
 This is the sample network:
 
-![Fig.1 - Network](images/plateaus-network.svg)
+![Fig.1 - Network](../images/plateaus-network.svg)
 
 The maximum bytes per packet (MTU) of links _n6-J_ and _J-r4_ is 1500.
 
@@ -27,7 +29,7 @@ Here it goes:
 
 _n6_ wants to write a 1500-byte IPv6 packet to _n4_ (Think 100 bytes of headers and 1400 bytes of data payload). _J_ converts it to a 1500-byte IPv4 packet and sends it to _r4_. _r4_ cannot forward it because it's too big for the 1007-byte limit of the _r4-n4_ network, so it returns a ICMP error to _n6_.
 
-![Fig.2 - Attempt 1](images/plateaus-attempt1.svg)
+![Fig.2 - Attempt 1](../images/plateaus-attempt1.svg)
 
 <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">Path MTU discovery</a> operates under the assumption that the router who could not forward the packet will report the maximum packet size it can transmit. At this point, the ICMP error would contain the magic number "1007", and so _n6_ would know that he has to slice his packet into according pieces if he's still interested in the arrival of his message.
 
@@ -75,13 +77,13 @@ So _J_ suspects the _r4-n4_ network is a IEEE 802.3. It translates the zero-MTU 
 
 _n6_ slices its message and now tries to send one 1492 long packet (100 bytes of headers and 1392 bytes of data payload), and one 108-byte packet (100 header, 8 payload). _J_ translates it, and then again _r4_ says "no dice" (because a 1492 packet still doesn't fit in a 1007-MTU network).
 
-![Fig.3 - Attempt 2](images/plateaus-attempt2.svg)
+![Fig.3 - Attempt 2](../images/plateaus-attempt2.svg)
 
 _J_ again realizes it's trying to translate a zero MTU ICMP error, so it again tries to report the first plateau which would object to the rejected packet. This time, the next plateau of 1492 is 1006, so _J_ guesses _r4-n4_ is a SLIP or an ARPANET. As you can see, the guess was correct this time.
 
 Upon receiving the news, n6 now slices its data into a 1006 (100 + 906) packet and a 594 (100 + 494) packet. This time, the translated versions fit and arrive at their destination.
 
-![Fig.4 - Attempt 3](images/plateaus-attempt3.svg)
+![Fig.4 - Attempt 3](../images/plateaus-attempt3.svg)
 
 ## Wrapping up
 

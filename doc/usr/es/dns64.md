@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - DNS64
+language: es
+layout: default
+category: Documentation
+title: DNS64
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > DNS64
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > DNS64
 
 # Tutorial DNS64
 
@@ -24,7 +26,7 @@ Cualquier implementación correcta de DNS64 se supone debería funcionar; BIND s
 
 ## Red
 
-![Fig.1 - Setup](images/tut4-setup.svg)
+![Fig.1 - Setup](../images/tut4-setup.svg)
 
 Aunque Jool y el DNS64 son ilustrados como nodos separados, no hay nada que te prevenga de unirlos en una sola máquina (a menos de que Jool esté monopolizando todas las direcciones IPv4 de sus nodos, por supuesto).
 
@@ -141,6 +143,6 @@ nat64-tutorial.mx.	86040	IN	AAAA	64:ff9b::c85e:b624
 
 Si monitoreas el trafico, deberias ver paqueter hacia `example.com` en R, y paquetes hacia `nat64-tutorial.mx` mediante S:
 
-![Fig.2 - Arrows](images/tut4-arrows.svg)
+![Fig.2 - Arrows](../images/tut4-arrows.svg)
 
 Final Feliz!

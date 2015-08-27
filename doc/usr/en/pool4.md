@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Stateful IPv4 Pool
+language: en
+layout: default
+category: Documentation
+title: IPv4 Transport Address Pool
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [Stateful NAT64](mod-run-stateful.html) > IPv4 Pool
+[Documentation](documentation.html) > [Runs](documentation.html#runs) > [Stateful NAT64](mod-run-stateful.html) > IPv4 Pool
 
 # IPv4 Transport Address Pool
 
@@ -24,17 +26,17 @@ We call this "transport address domain" the "IPv4 pool". ("pool4" for short.)
 
 To illustrate:
 
-![TODO](images/flow/pool4-simple1.svg)
+![TODO](../images/flow/pool4-simple1-en.svg)
 
 In Jool, we write transport addresses in the form `<IP address>#<port>` (as opposed to `<IP address>:<port>`). The packet above has source IP address `2001:db8::8`, source port (TCP or UDP) 5123, destination address `64:ff9b::192.0.2.24`, and destination port 80.
 
 Assuming pool4 holds transport addresses 203.0.113.1#5000 through 203.0.113.1#6000, one possible translation of the packet is this:
 
-![TODO](images/flow/pool4-simple2.svg)
+![TODO](../images/flow/pool4-simple2-en.svg)
 
 Another one, equally valid, is this:
 
-![TODO](images/flow/pool4-simple3.svg)
+![TODO](../images/flow/pool4-simple3-en.svg)
 
 NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, [recommendations exist to drive NAT64s as unpredictable as possible](https://tools.ietf.org/html/draft-ietf-sunset4-nat64-port-allocation-01).
 

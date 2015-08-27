@@ -1,5 +1,7 @@
 ---
-layout: about
+language: en
+layout: default
+category: About
 title: About
 ---
 

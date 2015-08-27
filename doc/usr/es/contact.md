@@ -1,5 +1,7 @@
 ---
-layout: contact
+language: es
+layout: default
+category: Contact
 title: Contacto
 ---
 

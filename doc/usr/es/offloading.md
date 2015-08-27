@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Offloading
+language: es
+layout: default
+category: Documentation
+title: Offloading
 ---
 
-[Documentación](esp-doc-index.html) > [Otros](esp-doc-index.html#otros) > Offloading
+[Documentación](documentation.html) > [Otros](documentation.html#otros) > Offloading
 
 # Offload
 
@@ -22,7 +24,7 @@ Offloading is a technique meant to optimize network throughput. Born from the ob
 
 Aquí tenemos un ejemplo visual. Así es como los paquetes son procesados normalmente (sin offloading):
 
-![Fig.1 - No offload](images/offload-none.svg)
+![Fig.1 - No offload](../images/offload-none.svg)
 
 (Por el momento, asume que la capa de Internet soporta IPv4.)
 
@@ -40,7 +42,7 @@ Y el azul contiene unos paquetes más largos:
 
 Hay muchas manetas de implementar offloading. Abajo se encuentra ilustrada una versión simplificada de lo que una NIC(interfáz de red) quizá podria hacer, en lugar de lo de arriba:
 
-![Fig.2 - Offload done right](images/offload-right.svg)
+![Fig.2 - Offload done right](../images/offload-right.svg)
 
 Simplemente poner, muchos paquetes continuos 
 
@@ -51,7 +53,7 @@ Y si, ahora estamos lidiando con piezas de datos más pesadas, pero a decir verd
 
 Esto esta excelente, pero empiezas a tener problemas en caso de que el sistema tenga que redireccionar los datos (en lugar de comsumirlos). Digamos el hardware tiene una [Unidad de Transmisión Máxima (MTU)](http://es.wikipedia.org/wiki/Unidad_m%C3%A1xima_de_transferencia) de 1500; esto es lo que pasa:
 
-![Fig.3 - Offload on a router](images/offload-router.svg)
+![Fig.3 - Offload on a router](../images/offload-router.svg)
 
 En el paso 1 sucede la agregación, lo que hace le paso 2 muy rápido, pero como el paquete ensamblado del flujo de datos azul es muy grande para la interfaz de salida (tamaño 1800 > max 1500), el paquete se fragmenta en el paso 3, lo cual es ineficiente.
 

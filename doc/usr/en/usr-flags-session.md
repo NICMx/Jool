@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > Session
+language: en
+layout: default
+category: Documentation
+title: --session
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--session
+[Documentation](documentation.html) > [Userspace Application](documentation#userspace-application) > [Flags](usr-flags.html) > \--session
 
 # \--session
 
@@ -60,7 +62,7 @@ Because every record is printed in a single line, CSV is also better for greppin
 
 ## Examples
 
-![Fig.1 - Session sample network](images/usr-session.svg)
+![Fig.1 - Session sample network](../images/usr-session.svg)
 
 ipv6client.mx makes two HTTP requests and a ping to example.com.
 

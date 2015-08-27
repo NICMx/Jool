@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Pool IPv4
+language: es
+layout: default
+category: Documentation
+title: --pool4
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Flags](esp-usr-flags.html) > \--pool4
+[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Flags](usr-flags.html) > \--pool4
 
 # \--pool4
 
@@ -49,7 +51,7 @@ El valor por omisión de la longitud de `<IPv4 prefix>` es 32, asi que puedes a�
 
 ### \--quick
 
-Ve [`--quick`](esp-usr-flags-quick.html).
+Ve [`--quick`](usr-flags-quick.html).
 
 ## Ejemplos
 

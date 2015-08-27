@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Pool IPv4
+language: es
+layout: default
+category: Documentation
+title: --blacklist
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--blacklist
+[Documentación](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--blacklist
 
 # \--blacklist
 
@@ -18,7 +20,7 @@ title: Documentación - Parámetros > Pool IPv4
 
 Interactua con el pool de direcciones que se encuentran en la lista negra de Jool.
 
-El pool dicta que direcciones pueden ser traducidas utilizando el prefijo [pool6](usr-flags-pool6.html). Toma en cuenta que [EAM](esp-usr-flags-eamt.html) tiene mas prioridad que el prefijo, asi que no tienes que agregar un registro a este pool para cada registro EAM que necesitas.
+El pool dicta que direcciones pueden ser traducidas utilizando el prefijo [pool6](usr-flags-pool6.html). Toma en cuenta que [EAM](usr-flags-eamt.html) tiene mas prioridad que el prefijo, asi que no tienes que agregar un registro a este pool para cada registro EAM que necesitas.
 
 Hay algunas direcciones que Jool se reusará a traducir, independientemente de `blacklist`. Estas incluyen
 

@@ -1,9 +1,11 @@
 ---
-layout: documentation
+language: es
+layout: default
+category: Documentation
 title: Documentación - Introducción a los Mecanismos de Transición
 ---
 
-[Documentación](esp-doc-index.html) > [Introducción](esp-doc-index.html#introduccion) > Mecanismos de Transición
+[Documentación](documentation.html) > [Introducción](documentation.html#introduccion) > Mecanismos de Transición
 
 ## Mecanismos de Transición de IPv6 soportados por Jool
 
@@ -73,7 +75,7 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro puede
 
 "EAM" significa por sus siglas en inglés "Explicit Address Mapping", mapeo de direcciones explícitas. Es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias.
 
-:bulb: Revisa [nuestro resumen](esp-misc-eamt.html) o repasa sus especificaciones en el [draft EAM](http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01).
+:bulb: Revisa [nuestro resumen](eamt.html) o repasa sus especificaciones en el [draft EAM](http://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01).
 
 ### `SIIT (tradicional)`
 
@@ -101,7 +103,7 @@ Puedes encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden s
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de nuestro rango de 128 bits según se establece en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-:warning: Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](esp-op-dns64.html) para que <br />
+:warning: Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](dns64.html) para que <br />
           los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
@@ -149,4 +151,4 @@ De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a
 
 Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2).
 
-:warning: Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](esp-op-dns64.html).
+:warning: Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).

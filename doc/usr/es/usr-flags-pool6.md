@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Pool IPv6
+language: es
+layout: default
+category: Documentation
+title: --pool6
 ---
 
-[Documentation](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--pool6
+[Documentation](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--pool6
 
 # \--pool6
 
@@ -44,7 +46,7 @@ Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lad
 
 ### `--quick`
 
-Ver [`--quick`](esp-usr-flags-quick.html). Solo disponible en `jool`.
+Ver [`--quick`](usr-flags-quick.html). Solo disponible en `jool`.
 
 ## Ejemplos
 

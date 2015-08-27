@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Kernel Modules Installation
+language: en
+layout: default
+category: Documentation
+title: Kernel Modules Installation
 ---
 
-[Documentation](doc-index.html) > [Installation](doc-index.html#installation) > Kernel module
+[Documentation](documentation.html) > [Installation](documentation.html#installation) > Kernel module
 
 # Kernel Modules Installation
 

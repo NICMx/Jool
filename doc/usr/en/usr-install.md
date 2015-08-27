@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Userspace Applications Installation
+language: en
+layout: default
+category: Documentation
+title: Userspace Applications Installation
 ---
 
-[Documentation](doc-index.html) > [Installation](doc-index.html#installation) > Userspace Application
+[Documentation](documentation.html) > [Installation](documentation.html#installation) > Userspace Application
 
 # Userspace Applications Installation
 

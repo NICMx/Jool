@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - BIB
+language: es
+layout: default
+category: Documentation
+title: BIB
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > [Stateful NAT64](esp-mod-run-stateful.html) > BIB
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [Stateful NAT64](mod-run-stateful.html) > BIB
 
 # BIB
 
@@ -28,5 +30,5 @@ Hay dos tipos de registros BIB:
 * Estáticos: Los creas manualmente, para publicar un servicio IPv6 hacia la Internet IPv4. Ésto es análogo al [redireccionamiento de puertos](http://es.wikipedia.org/wiki/Redirecci%C3%B3n_de_puertos) href="http://en.wikipedia.org/wiki/Port_forwarding" en NATs normales.
 * Dinámicos: Jool crea estos al vuelo. Esto se tiene que hacer por que las conecciones IPv6 iniciadas también necesitan máscaras IPv4(de otra manera no serían capaces de recibir respuestas).
 
-Ve la [introducción](esp-op-static-bindings.html) o el [material de referencia](esp-usr-flags-bib.html) para obtener información de cómo crear y destruir registros manualmente. Ve [`--address-dependent-filtering`](esp-usr-flags-global.html#filtrado-dependiente-de-direccion) si crees que los registros dinámicos son peligrosos.
+Ve la [introducción](static-bindings.html) o el [material de referencia](usr-flags-bib.html) para obtener información de cómo crear y destruir registros manualmente. Ve [`--address-dependent-filtering`](usr-flags-global.html#filtrado-dependiente-de-direccion) si crees que los registros dinámicos son peligrosos.
 

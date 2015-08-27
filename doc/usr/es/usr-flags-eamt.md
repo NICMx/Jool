@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > EAMT
+language: es
+layout: default
+category: Documentation
+title: --eamt
 ---
 
-[Documentation](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--eamt
+[Documentation](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--eamt
 
 # \--eamt
 
@@ -19,7 +21,7 @@ title: Documentación - Parámetros > EAMT
 
 ## Descripción
 
-Interactua con la Tabla de mapeo de direcciones explícitas de Jool (EAMT) por sus siglas en inglés. Ve [la introducción](esp-intro-nat64.html#siit-with-eam) para una que tengas visión general rápida, nuestro [resumen de drafts](esp-misc-eamt.html) para mas detalles, o el [draft EAM](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) para la historia completa.
+Interactua con la Tabla de mapeo de direcciones explícitas de Jool (EAMT) por sus siglas en inglés. Ve [la introducción](intro-nat64.html#siit-with-eam) para una que tengas visión general rápida, nuestro [resumen de drafts](eamt.html) para mas detalles, o el [draft EAM](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) para la historia completa.
 
 ## Sintaxis
 
@@ -51,7 +53,7 @@ Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV)
 	<prefix4> := <IPv4 address>[/<prefix length>]
 	<prefix6> := <IPv6 address>[/<prefix length>]
 
-Estos son los prefijos de los cuales esta hecho cada registro, Ve la [explicación general EAMT](esp-misc-eamt.html)
+Estos son los prefijos de los cuales esta hecho cada registro, Ve la [explicación general EAMT](eamt.html)
 
 `<prefix length>` es por default /32 en `<prefix4>` y /128 en `<prefix6>`. Jool pone en cero cualquier sufijo de cualquiera de las direcciones si existe.  
 

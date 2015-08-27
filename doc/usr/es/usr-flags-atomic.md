@@ -1,10 +1,11 @@
-
 ---
-layout: documentation
-title: Documentación - Flags > Fragmentos Atómicos
+language: es
+layout: default
+category: Documentation
+title: Fragmentos Atómicos
 ---
 
-[Documentation](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#Aplicacion-de-espacio-de-usuario) > [Flags](esp-usr-flags.html) > [\--global](esp-usr-flags-global.html) > Fragmentos Atómicos
+[Documentation](documentation.html) > [Herramienta de configuración de Jool](documentation.html#Aplicacion-de-espacio-de-usuario) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > Fragmentos Atómicos
 
 # Fragmentos Atómicos
 
@@ -32,7 +33,7 @@ La IETF está tratando de normar el [desuso de los fragmentos atómicos](https:/
 
 DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados. Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade otro adicional.
 
-[![Figure 1 - que podría salir mal?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
+[![Figure 1 - que podría salir mal?](../images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
 En **Jool 3.2 y en versiones anteriores** se evade esto al NO delegar la fragmentación al kernel; pero, el hacelo así nos introdujo otros problemas más sutiles.
 
@@ -200,7 +201,7 @@ Para mayor información vea la [sección 6 del RFC 6145](http://tools.ietf.org/h
 
 **AVISO:**
 
-Si `--setDF` && `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU < 1260, se llega a establecer un bucle infinito similar al [MTU hassle](esp-misc-mtu.html):
+Si `--setDF` && `--boostMTU` están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU < 1260, se llega a establecer un bucle infinito similar al [MTU hassle](mtu.html):
 
 1. El emisor IPv6 transmite un paquete de tamaño 1280.
 2. Jool lo traduce en un paquete IPv4 de tamaño 1260 con DF=1

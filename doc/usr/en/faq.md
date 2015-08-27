@@ -1,9 +1,11 @@
 ---
-layout: faq
-title: Documentation - Troubleshooting/FAQ
+language: en
+layout: default
+category: FAQ
+title: FAQ
 ---
 
-[Documentation](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > FAQ
+[Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > FAQ
 
 # Troubleshooting/FAQ
 
@@ -121,7 +123,7 @@ IPv4 doesn't need link addresses that much.
 
 ## The throughput is terrible!
 
-[Turn offloads off!](misc-offloading.html)
+[Turn offloads off!](offloading.html)
 
 If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
 

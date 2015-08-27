@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Offloading
+language: en
+layout: default
+category: Documentation
+title: MTU and Fragmentation
 ---
 
-[Documentation](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > MTU and Fragmentation
+[Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > MTU and Fragmentation
 
 # MTU and Fragmentation
 
@@ -21,7 +23,7 @@ So what happens if the packet is too big?
 
 (Actual packet sizes are different due to headers changes, but you get the point.)
 
-![Fig.1 - MTU flow fail](images/flow/mtu-frag-fail.svg)
+![Fig.1 - MTU flow fail](../images/flow/mtu-frag-fail-en.svg)
 
 It's implementation defined. If _n4_ is smart, it will try to decrease the lenght of the packet. If it's not, the packet will never reach _n6_.
 
@@ -39,7 +41,7 @@ By the way: when you want to know a link's MTU, ask Linux:
 
 If you know the smallest MTU across all your IPv6 networks, tell _T_ about it:
 
-![Fig.2 - Proper Network](images/network/mtu-frag.svg)
+![Fig.2 - Proper Network](../images/network/mtu-frag.svg)
 
 _T_ knows it's translating, so it knows it **has** to fragment even though it's sort of an IPv6 router.
 
@@ -49,7 +51,7 @@ Jool used to have a flag called `--minMTU6` to do this. Because deferring fragme
 
 And voilà:
 
-![Fig.3 - MTU flow succeeds](images/flow/mtu-frag-success.svg)
+![Fig.3 - MTU flow succeeds](../images/flow/mtu-frag-success-en.svg)
 
 If you don't know the minimum MTU of your IPv6 networks, assign 1280. Every IPv6 node must be able to handle at least 1280 bytes per packet by standard.
 

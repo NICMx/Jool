@@ -1,13 +1,15 @@
-----
-layout: documentation
-title: Documentación - Pool IPv4 Stateful
+---
+language: es
+layout: default
+category: Documentation
+title: Pool IPv4 Stateful
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > [NAT64 Stateful](esp-mod-run-stateful.html) > Pool IPv4
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [NAT64 Stateful](mod-run-stateful.html) > Pool IPv4
 
 # Pool IPv4 Stateful
 
-![Fig.1 - Red del Caso 3](images/tut2.3-network.svg)
+![Fig.1 - Red del Caso 3](../images/tut2.3-network.svg)
 
 Aquí hay un paquete teorético que podría viajar desde C hasta E:
 
@@ -51,7 +53,7 @@ La solucion enmascarar no solo direcciones, sino puertos también. En lugar de g
 	Origen: 192.0.2.2#6326
 	Destino: 192.0.2.10#80
 
-Y el [BIB](esp-misc-bib.html) lucirá como esto:
+Y el [BIB](bib.html) lucirá como esto:
 
 1. 2001:db8:2::10#1234 <-> 192.0.2.2#1234
 2. 2001:db8:2::11#1234 <-> 192.0.2.2#6326
@@ -66,7 +68,7 @@ Puedes especificar hasta 5 direcciones durante la inserción del módulo:
 
 	user@J:~# modprobe jool pool4="192.0.2.2, 192.0.2.3, 192.0.2.4, 192.0.2.5, 192.0.2.6"
 
-Si necesitas mas, las puedes agregar utilizando la [aplicación de espacio de usuario](esp-usr-flags-pool4.html):
+Si necesitas mas, las puedes agregar utilizando la [aplicación de espacio de usuario](usr-flags-pool4.html):
 
 	user@J:~# jool --pool4 --add 192.0.2.7
 	user@J:~# jool --pool4 --add 192.0.2.8

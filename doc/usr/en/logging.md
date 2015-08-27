@@ -1,6 +1,8 @@
 ---
-layout: documentation
-title: Documentation - Logging
+language: en
+layout: default
+category: Documentation
+title: Logging
 ---
 
 # Logging

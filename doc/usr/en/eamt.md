@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - EAMT
+language: en
+layout: default
+category: Documentation
+title: EAMT
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > [SIIT + EAM](mod-run-eam.html) > EAMT
+[Documentation](documentation.html) > [Runs](documentation.html#runs) > [SIIT + EAM](mod-run-eam.html) > EAMT
 
 # EAMT
 

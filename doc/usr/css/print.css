@@ -1,11 +1,10 @@
 /* Remove unwanted elements */
-#header, #footer, #sidebar_navigation
-{
-display: none;
+#header, #footer, #sidebar_navigation, #language_selector {
+	display: none;
 }
 
 .worklogo img {
 	margin: 0 auto;
 	display:block;
-	width: 50%;
+	width: 30%;
 }

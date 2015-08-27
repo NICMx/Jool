@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > EAMT
+language: en
+layout: default
+category: Documentation
+title: --eamt
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--eamt
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--eamt
 
 # \--eamt
 
@@ -19,7 +21,7 @@ title: Documentation - Flags > EAMT
 
 ## Description
 
-Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-nat64.html#siit-with-eam) for a swift overview, our [draft summary](misc-eamt.html) for more details, or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for the full story.
+Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introduction](intro-nat64.html#siit-with-eam) for a swift overview, our [draft summary](eamt.html) for more details, or the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) for the full story.
 
 ## Syntax
 
@@ -50,7 +52,7 @@ Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_va
 	<prefix4> := <IPv4 address>[/<prefix length>]
 	<prefix6> := <IPv6 address>[/<prefix length>]
 
-These are the prefixes each record is made out of. See the [general EAMT explanation](misc-eamt.html).
+These are the prefixes each record is made out of. See the [general EAMT explanation](eamt.html).
 
 `<prefix length>` defaults to /32 on `<prefix4>` and /128 on `<prefix6>`. Jool automatically zeroizes any suffix from either address if it exists.
 

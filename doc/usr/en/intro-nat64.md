@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Introduction to NAT64
+language: en
+layout: default
+category: Documentation
+title: Introduction to IPv4/IPv6 Translation
 ---
 
-[Documentation](doc-index.html) > [Introduction](doc-index.html#introduction) > NAT64
+[Documentation](documentation.html) > [Introduction](documentation.html#introduction) > NAT64
 
 # Introduction to IPv4/IPv6 Translation
 
@@ -38,7 +40,7 @@ That's all, really. Keep reading for more detail and examples.
 
 This is the easiest one to explain. Consider the following setup:
 
-![Fig.1 - EAM sample network](images/network/eam.svg)
+![Fig.1 - EAM sample network](../images/network/eam.svg)
 
 (_T_ stands for "Translating box".)
 
@@ -52,37 +54,37 @@ The first one is accomplished by SIIT. The latter can be done via DNS.
 
 This will happen:
 
-![Fig.2 - EAM flow](images/flow/eam.svg)
+![Fig.2 - EAM flow](../images/flow/eam-en.svg)
 
 The translator is "fooling" each node into thinking the other one can speak their language.
 
-"EAM" stands for "Explicit Address Mapping", and is more versatile than simply binding arbitrary addresses to other arbitrary addresses. See the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) or [our summary of it](misc-eamt.html) for more information.
+"EAM" stands for "Explicit Address Mapping", and is more versatile than simply binding arbitrary addresses to other arbitrary addresses. See the [EAM draft](https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02) or [our summary of it](eamt.html) for more information.
 
 ## SIIT (traditional)
 
 The basic form of SIIT is more constrictive. As a consequence, we need to change the sample IPv6 network:
 
-![Fig.3 - Vanilla sample network](images/network/vanilla.svg)
+![Fig.3 - Vanilla sample network](../images/network/vanilla.svg)
 
 The idea is to simply remove a prefix while translating from IPv6 to IPv4, and append it in the other direction:
 
-![Fig.4 - Vanilla flow](images/flow/vanilla.svg)
+![Fig.4 - Vanilla flow](../images/flow/vanilla-en.svg)
 
 Of course, this means each node's IPv4 address has to be encoded inside its IPv6 address, which is a little annoying.
 
 While this explanation might make it seem like "EAM" SIIT and "traditional" SIIT are different things, this is not the case. Implementations are expected to always try to translate an address based on the EAM table first, and if no mapping is found, fall back to append or remove the prefix. The separation was done here for illustrative purposes. You can find a concrete example of how "traditional" and "EAM" SIIT can be combined to fit a use case in [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
 
-SIIT is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>. The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by <a href="http://tools.ietf.org/html/rfc6052" target="_blank">RFC 6052</a>. Whenever RFC 6052 is involved, it's usually convenient to also have a [DNS64](op-dns64.html) so users don't need to be aware of the prefix.
+SIIT is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>. The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by <a href="http://tools.ietf.org/html/rfc6052" target="_blank">RFC 6052</a>. Whenever RFC 6052 is involved, it's usually convenient to also have a [DNS64](dns64.html) so users don't need to be aware of the prefix.
 
 ## Stateful NAT64
 
 This mode is more akin to what people understand as "NAT". As such, allow me to remind you the big picture of how (stateful) NAT operates:
 
-![Fig.5 - NAT sample network](images/network/nat.svg)
+![Fig.5 - NAT sample network](../images/network/nat-en.svg)
 
 The idea is, the left network is called "Private" because it uses [addresses unavailable in the global Internet](http://en.wikipedia.org/wiki/Private_network). In order to make up for this, _NAT_ mangles packet addresses so outsiders think any traffic started by the private nodes was actually started by itself:
 
-![Fig.6 - NAT flow](images/flow/nat.svg)
+![Fig.6 - NAT flow](../images/flow/nat-en.svg)
 
 As a result, for outside purposes, nodes _A_ through _E_ are "sharing" _NAT_'s global address (or addresses).
 
@@ -93,17 +95,17 @@ While stateful NAT helps you economize IPv4 address, it comes with a price: _NAT
 
 Stateful NAT64 is pretty much the same. The only difference is that the "Private Network" is actually an IPv6 network:
 
-![Fig.7 - Stateful network](images/network/stateful.svg)
+![Fig.7 - Stateful network](../images/network/stateful.svg)
 
 And therefore,
 
-![Fig.8 - Stateful flow](images/flow/stateful.svg)
+![Fig.8 - Stateful flow](../images/flow/stateful-en.svg)
 
 Now, that's where the similarities with NAT end. You don't normally say the IPv6 network is "Private", because the whole point is that it should also be connected to the IPv6 Internet:
 
-![Fig.9 - Stateful Internet](images/network/full.svg)
+![Fig.9 - Stateful Internet](../images/network/full-en.svg)
 
 In this way, _A_ through _E_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
 
-Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a> and is most of the time coupled with [DNS64](op-dns64.html).
+Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a> and is most of the time coupled with [DNS64](dns64.html).
 

@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > Global
+language: en
+layout: default
+category: Documentation
+title: --global
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--global
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--global
 
 # \--global
 
@@ -113,9 +115,9 @@ Long story long:
 
 Suppose _n6_ is talking with _n4a_ via the NAT64:
 
-![Fig.1: Legal chat](images/usr-dropaddr-1.svg)
+![Fig.1: Legal chat](../images/usr-dropaddr-1.svg)
 
-The relevant [BIB entry](misc-bib.html) is
+The relevant [BIB entry](bib.html) is
 
 | IPv6 transport address | IPv4 transport address | Protocol |
 |------------------------|------------------------|----------|
@@ -123,11 +125,11 @@ The relevant [BIB entry](misc-bib.html) is
 
 _n4b_ realizes the existence of _n6_'s service, perhaps because _n4a_ tells him about it:
 
-![Fig.2: n4b finds about n6](images/usr-dropaddr-2.svg)
+![Fig.2: n4b finds about n6](../images/usr-dropaddr-2.svg)
 
 Then _n4b_ tries to chat _n6_ too:
 
-![Fig.3: suspicious query](images/usr-dropaddr-3.svg)
+![Fig.3: suspicious query](../images/usr-dropaddr-3.svg)
 
 Because the BIB entry exists, _J_ knows that _n4b_ means "2001:db8::1#10" when he says "192.0.2.1#10", so the packet can technically be translated. However, because of the session tables, _J_ can also tell that _n6_ hasn't been talking to _n4b_ in the past.
 
@@ -242,7 +244,7 @@ This behavior changed from Jool 3.2, where `--toFrag` used to actually be the ti
 - Deprecated name: `--maxStoredPkts`
 - Source: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectly)
 
-When an external (IPv4) node first attempts to open a connection and there's no [BIB entry](misc-bib.html) for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
+When an external (IPv4) node first attempts to open a connection and there's no [BIB entry](bib.html) for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
 
 In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
@@ -258,7 +260,7 @@ In the case of TCP, the situation is a little more complicated because the IPv4 
 
 For some reason, RFC 6146 wants the source of translated ICMPv6 errors to be the same as their inner packets' destination address. This looks really weird.
 
-![Fig.4: Source better diagram](images/network/src-icmp6-better.svg)
+![Fig.4: Source better diagram](../images/network/src-icmp6-better.svg)
 
 Say the link between _R_ and _n4_ collapses.
 

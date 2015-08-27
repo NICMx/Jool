@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - EAMT
+language: es
+layout: default
+category: Documentation
+title: EAMT
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > [SIIT + EAM](esp-mod-run-eam.html) > EAMT
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [SIIT + EAM](mod-run-eam.html) > EAMT
 
 # EAMT
 
@@ -96,4 +98,4 @@ Si Jool no encuentra una coincidencia en la tabla para una dirección, intenta t
 
 Si eso también falla, el paquete es devuelto al kernel. Se asume que el paquete no debe ser traducido.
 
-Ve la [demostración](esp-mod-run-eam.html) o el [material de referencia](esp-usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.
+Ve la [demostración](mod-run-eam.html) o el [material de referencia](usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.

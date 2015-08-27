@@ -1,11 +1,15 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Global
+language: es
+layout: default
+category: Documentation
+title: --global
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de Configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--global
+[Documentación](documentation.html) > [Herramienta de Configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--global
 
 # \--global
+
+TODO pendiente hacer revisión
 
 ## Índice
 
@@ -87,7 +91,7 @@ REANUDA Y PAUSA LA TRADUCCIÓN DE PAQUETES, RESPECTIVAMENTE.
 
 Esto puede ser muy útil si requieres cambiar más de un parámetro de configuración y no deseas que los paquetes sean traducidos inconsistentemente mientras ejecutas los comandos; pero, si prefieres que Jool no se detenga mientras estas reconfigurando, usa disable.
 
-Mientras Jool está inactivo, *los timeouts no serán pausados* para que las entradas ya registradas en [BIB](esp-usr-flags-bib.html) y [session](esp-usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados puedan ser desechados.
+Mientras Jool está inactivo, *los timeouts no serán pausados* para que las entradas ya registradas en [BIB](usr-flags-bib.html) y [session](usr-flags-session.html) puedan estarse actualizando y al llegar a su término de duración los [paquetes](maximum-simultaneous-opens) y [fragmentos](#fragment-arrival-timeout) almacenados puedan ser desechados.
 
 ### `--address-dependent-filtering`
 
@@ -112,9 +116,9 @@ BREVE EXPLICACIÓN:
 
 Partiendo que _n6_ está hablando con _n4a_ mediante el NAT64:
 
-![Fig.1: Legal chat](images/usr-dropaddr-1.svg)
+![Fig.1: Legal chat](../images/usr-dropaddr-1.svg)
 
-El [registro BIB](esp-misc-bib.html) es
+El [registro BIB](bib.html) es
 
 | IPv6 transport address | IPv4 transport address | Protocol |
 |------------------------|------------------------|----------|
@@ -122,11 +126,11 @@ El [registro BIB](esp-misc-bib.html) es
 
 _n4b_ se da cuenta del servicio de _n6_, quizá por que _n4a_ le dice sobre el:
 
-![Fig.2: n4b finds about n6](images/usr-dropaddr-2.svg)
+![Fig.2: n4b finds about n6](../images/usr-dropaddr-2.svg)
 
 Luego _n4b_ trata de conversar con _n6_ también:
 
-![Fig.3: suspicious query](images/usr-dropaddr-3.svg)
+![Fig.3: suspicious query](../images/usr-dropaddr-3.svg)
 
 Ya que el registro BIB existe, _J_ sabe que _n4b_ significa  "2001:db8::1#10" cuando el dice "192.0.2.1#10", asi que el paquete puede ser técnicamente traducido. Sin embargo, debido a las tablas de sesión, _J_ tambien puede decir que _n6_ no ha estado conversando con _n4b_ en el pasado.
 
@@ -248,7 +252,7 @@ Este comportamiento cambio desde Jool 3.2, donde `--toFrag` solía ser de hecho 
 - Nombre anterior: `--maxStoredPkts`
 - Fuente: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectamente)
 
-Cuando un nodo (IPv4) externo intenta primero abrir una conexión y no hay ningun [registro BIB](misc-bib.html) para el, Jool normalmente contesta con un mensaje de error ICMP - Address Unreachable (type 3, code 1), ya que no puede saber a cual nodo IPv6 se está dirigiendo el paquete. 
+Cuando un nodo (IPv4) externo intenta primero abrir una conexión y no hay ningun [registro BIB](bib.html) para el, Jool normalmente contesta con un mensaje de error ICMP - Address Unreachable (type 3, code 1), ya que no puede saber a cual nodo IPv6 se está dirigiendo el paquete. 
 
 En el caso de TCP, la situación es un poco más complicada por que el nodo IPv4 puede estar intentando una [Apertura Simultanea de conecciones TCP](https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094). Para saber realmente que está pasando, Jool tiene que almacenar el paquete por 6 segundos.
 
@@ -407,23 +411,23 @@ Valor que se va a asignar al campo Tipo de Servicio de los paquetes IPv4 durante
 
 ### `--allow-atomic-fragments`
 
-En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--setDF`
 
-En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--genFH`
 
-En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--genID`
 
-En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--boostMTU`
 
-En desuso. Ve [Atomic Fragments](esp-usr-flags-atomic.html).
+En desuso. Ve [Atomic Fragments](usr-flags-atomic.html).
 
 ### `--amend-udp-checksum-zero`
 
@@ -475,7 +479,7 @@ Cuando un paquete no debe de ser fragmentado y no encaja en un enlace por el que
 
 La compatibilidad con versiones anteriores le otorga a las estrategias de los emisóres IPv4 la capacidad de retroceder cuando encuentren tal situación, pero IPv6 siempre fue diseñado con el campo en mente. Entonces, so Jool traduce un mensaje ICMPv6 con valor cero en el campo MTU, *podria* suceder un caos (los resultados dependeran principalmente de la implementación IPv6 del cliente).
 
-Para solucionar este problema, cuando Jool se encuentra intentando traducir un mensaje con valor cero en el campo MTU, reemplazara el MTU con el plateau mas grande el cual es mas bajo que la longitud total del campo del paquete original. Hay que reconocer, que esto podria o no ser el MTU correcto, pero es una suposición muy educada. Ve [este ejemplo](esp-usr-flags-plateaus.html) para obtener más detalles. Información más profunda puede ser encontrada en el [RFC 1191](http://tools.ietf.org/html/rfc1191).
+Para solucionar este problema, cuando Jool se encuentra intentando traducir un mensaje con valor cero en el campo MTU, reemplazara el MTU con el plateau mas grande el cual es mas bajo que la longitud total del campo del paquete original. Hay que reconocer, que esto podria o no ser el MTU correcto, pero es una suposición muy educada. Ve [este ejemplo](usr-flags-plateaus.html) para obtener más detalles. Información más profunda puede ser encontrada en el [RFC 1191](http://tools.ietf.org/html/rfc1191).
 
 Toma en cuenta que si `--boostMTU` está activado, el MTU será todavía 1280 incluso si el plateau relevante es menos que 1280.
 

@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Instalación de la Herramienta de Configuración de Jool
+language: es
+layout: default
+category: Documentation
+title: Instalación de la Herramienta de Configuración de Jool
 ---
 
-[Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Herramienta de Configuración de Jool
+[Documentación](documentation.html) > [Instalación](documentation.html#instalacion) > Herramienta de Configuración de Jool
 
 # Instalación del Configurador de Jool
 
@@ -30,7 +32,7 @@ Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
 En este documento abordaremos a las aplicaciones en el espacio de usuario.
 
-Para ver detalles de los requisitos e instalación de los módulos de kernel [accese aquí](esp-mod-install.html).
+Para ver detalles de los requisitos e instalación de los módulos de kernel [accese aquí](mod-install.html).
 
 ## Requerimientos
 
@@ -123,4 +125,4 @@ Para desplegar en forma resumida cuáles son las combinaciones válidas de los p
 user@node:~/Jool/usr/stateless$ ./jool_siit --usage
 {% endhighlight %}
 
-Para TODAS las demás opciones se requiere habilitar previamente el servicio de traducción de paquetes como tal, es decir, haber insertado Jool en el Kernel, ya sea la modalidad stateless o stateful. Para aprender sobre ello, consulte la página de [Banderas](esp-usr-flags.html).
+Para TODAS las demás opciones se requiere habilitar previamente el servicio de traducción de paquetes como tal, es decir, haber insertado Jool en el Kernel, ya sea la modalidad stateless o stateful. Para aprender sobre ello, consulte la página de [Banderas](usr-flags.html).

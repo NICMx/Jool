@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - SIIT-EAM - Ejemplo de uso
+language: es
+layout: default
+category: Documentation
+title: SIIT-EAM - Ejemplo de uso
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > SIIT + EAM
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > SIIT + EAM
 
 # EAM: Ejemplo de Uso
 
@@ -25,17 +27,17 @@ title: Documentación - SIIT-EAM - Ejemplo de uso
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](esp-intro-nat64.html#siit-con-eam). 
+Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](intro-nat64.html#siit-con-eam). 
 
-Más que un "modo" es simplemente proveer a SIIT con registros en la tabla de Direcciones de Mapeo Explícito. Obtenen más detalles sobre [ésta](esp-misc-eamt.html). 
+Más que un "modo" es simplemente proveer a SIIT con registros en la tabla de Direcciones de Mapeo Explícito. Obtenen más detalles sobre [ésta](eamt.html). 
 
-Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: del [Servidor Jool](esp-mod-install.html) **y** del [Configurador para SIIT](esp-usr-install.html).
+Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: del [Servidor Jool](mod-install.html) **y** del [Configurador para SIIT](usr-install.html).
 
 ## Red de ejemplo
 
-![Figura 1 - Red de ejemplo](images/network/eam.svg)
+![Figura 1 - Red de ejemplo](../images/network/eam.svg)
 
-Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](esp-mod-run-vanilla.html#red-de-ejemplo). Resumiéndolas, tenemos que:
+Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](mod-run-vanilla.html#red-de-ejemplo). Resumiéndolas, tenemos que:
 
 - Al menos necesitarás tres nodos: _A_, _V_ y _T_.
 - Usa el bloque de direcciones 198.51.100.8/29 para referenciar a tus nodos de IPv6 sobre IPv4.
@@ -109,7 +111,7 @@ user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
 {% endhighlight %}
 
-A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [Herramienta de Configuración](esp-usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico[`--enable`](esp-usr-flags-global.html#enable---disable).
+A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [Herramienta de Configuración](usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico[`--enable`](usr-flags-global.html#enable---disable).
 
 De hecho utilizar `disabled` y `--enable` no es necesario; Jool va a deducir naturalmente que no puede traducir tráfico hasta que la tabla EAM y/o pool6 sean llenados. La razón por la cual Jool fue "forzado" a permanecer deshabilitado hasta que la tabla estuviera completa fue para que no hubiera un periodo de tiempo donde el tráfico estuviera siendo traducido inconsistentemente debido a una tabla incompleta.
 
@@ -155,15 +157,15 @@ rtt min/avg/max/mdev = 1.930/3.001/5.042/1.204 ms
 
 Agrega un servidor en _Y_ y accesalo desde _D_:
 
-![Figura 1 - IPv4 TCP desde un nodo IPv6](images/run-eam-firefox-4to6.png)
+![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-eam-firefox-4to6.png)
 
 ### `Conectividad a un Web Server en IPv6`
 
 Agrega un servidor en _B_ y haz una solicitud desde _X_:
 
-![Figura 2 - IPv6 TCP desde un nodo IPv4](images/run-vanilla-firefox-6to4.png)
+![Figura 2 - IPv6 TCP desde un nodo IPv4](../images/run-vanilla-firefox-6to4.png)
 
-Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
+Si algo no funciona, consulta el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
@@ -175,5 +177,5 @@ user@T:~# modprobe -r jool_siit
 
 ## Lecturas adicionales
 
-1. Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
-2. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
+1. Por favor, lee acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
+2. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](mod-run-stateful.html).

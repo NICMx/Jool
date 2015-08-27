@@ -1,11 +1,13 @@
 ---
-layout: documentation
-title: Documentation - Stateful NAT64 Run
+language: en
+layout: default
+category: Documentation
+title: Stateful NAT64 Run
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > Stateful NAT64
+[Documentation](documentation.html) > [Runs](documentation.html#runs) > Stateful NAT64
 
-# Stateful Run
+# Stateful NAT64 Run
 
 ## Index
 
@@ -24,7 +26,7 @@ Software-wise, only a [successful install of the kernel module](mod-install.html
 
 ## Sample Network
 
-![Figure 1 - Sample Network](images/network/stateful.svg)
+![Figure 1 - Sample Network](../images/network/stateful.svg)
 
 All the remarks in the first document's [Sample Network section](mod-run-vanilla.html#sample-network) apply here.
 
@@ -99,7 +101,7 @@ Jool will listen on address `203.0.113.1` and append and remove prefix `64:ff9b:
 
 ## Testing
 
-If something doesn't work, try the [FAQ](misc-faq.html).
+If something doesn't work, try the [FAQ](faq.html).
 
 Test by sending requests from the IPv6 network:
 
@@ -116,7 +118,7 @@ PING 64:ff9b::192.0.2.16(64:ff9b::c000:210) 56 data bytes
 rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 {% endhighlight %}
 
-![Figure 1 - IPv4 TCP from an IPv6 node](images/run-stateful-firefox-4to6.png)
+![Figure 1 - IPv4 TCP from an IPv6 node](../images/run-stateful-firefox-4to6.png)
 
 See the further reading below to see how to enable IPv4 nodes to start communication.
 
@@ -130,9 +132,9 @@ user@T:~# /sbin/modprobe -r jool
 
 ## Further Reading
 
-1. An IPv4 "outside" node cannot start communication because it "sees" the IPv6 network as an IPv4 private network behind a NAT. To remedy this, Jool enables you to configure "port forwarding". See [here](op-static-bindings.html) if you're interested.
-2. There's a discussion on the [IPv4 pool](op-pool4.html).
-3. The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address-hack transparent to users.
-4. Please consider the [MTU issues](misc-mtu.html) before releasing.
+1. An IPv4 "outside" node cannot start communication because it "sees" the IPv6 network as an IPv4 private network behind a NAT. To remedy this, Jool enables you to configure "port forwarding". See [here](static-bindings.html) if you're interested.
+2. There's a discussion on the [IPv4 pool](pool4.html).
+3. The [DNS64 document](dns64.html) will tell you how to make the prefix-address-hack transparent to users.
+4. Please consider the [MTU issues](mtu.html) before releasing.
 5. There's also an [alternate stateful run](mod-run-alternate.html). Perhaps it can help you see things from a better perspective.
 

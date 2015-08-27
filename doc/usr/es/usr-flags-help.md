@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Ayuda
+language: es
+layout: default
+category: Documentation
+title: --help
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--help
+[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--help
 
 # \--help
 
@@ -15,7 +17,7 @@ title: Documentación - Parámetros > Ayuda
 
 ## Descripción
 
-Imprime un resumen de la [documentación de los parámetros elegibles de Jool](esp-usr-flags.html), y muestra la formas abreviadas.
+Imprime un resumen de la [documentación de los parámetros elegibles de Jool](usr-flags.html), y muestra la formas abreviadas.
 
 `--help` es la única opción que no necesita que Jool este activo.
 

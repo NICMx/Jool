@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - SIIT - Ejemplo básico 
+language: es
+layout: default
+category: Documentation
+title: SIIT - Ejemplo básico
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplos-de-uso) > SIIT
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > SIIT
 
 # SIIT: Ejemplo de Uso
 
@@ -25,15 +27,15 @@ title: Documentación - SIIT - Ejemplo básico
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en modo SIIT. Si no tienes nociones de este tipo de traducción ingresa a [SIIT Tradicional](esp-intro-nat64.html#siit-tradicional).
+Este documento explica cómo ejecutar Jool en modo SIIT. Si no tienes nociones de este tipo de traducción ingresa a [SIIT Tradicional](intro-nat64.html#siit-tradicional).
 
-En cuanto a software, solo se necesita una [instalación exitosa del Servidor Jool](esp-mod-install.html). El configurador queda fuera del alcance de esta página.
+En cuanto a software, solo se necesita una [instalación exitosa del Servidor Jool](mod-install.html). El configurador queda fuera del alcance de esta página.
 
 Para la implementación de las pruebas, puedes usar alternativamente máquinas virtuales u otro tipo de interfaces, dado que Jool no está ligado al uso exclusivo de interfaces físicas del tipo "_ethX_".
 
 ## Red de ejemplo
 
-![Figura 1 - Red de ejemplo](images/network/vanilla.svg)
+![Figura 1 - Red de ejemplo](../images/network/vanilla.svg)
 
 No es necesario que des de alta todos los nodos que se muestran en el diagrama; puedes lograrlo con solo 3 nodos: _A_, _T_ y _V_. El resto son muy similares a _A_ y _V_ y son mostrados para propósitos ilustrativos.
 
@@ -86,7 +88,7 @@ user@T:~# ip addr add 192.0.2.1/24 dev eth1
 
 Hasta aqui, no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
-La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](esp-misc-offloading.html) si quieres conocer más detalles sobre esta problemática.
+La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](offloading.html) si quieres conocer más detalles sobre esta problemática.
 
 Hazlo por medio de `ethtool`:
 
@@ -121,9 +123,9 @@ Los parámetros válidos son:
 
 - `pool6` (abreviación de "Pool de IPv6") es el prefijo que el mecanismo de traducción estará adjuntando y removiendo de las direcciones de los paquetes. Este podría ser opcional, porque quizá estas planeando usar EAM.
 
-- `blacklist` representa direcciones IPv4 que Jool **no** va a traducir usando el prefijo pool6, por lo que esto no afecta en la traducción EAM. Puedes insertar hasta cinco prefijos separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-blacklist.html).
+- `blacklist` representa direcciones IPv4 que Jool **no** va a traducir usando el prefijo pool6, por lo que esto no afecta en la traducción EAM. Puedes insertar hasta cinco prefijos separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](usr-flags-blacklist.html).
 
-- `pool6791` es un pool IPv4 secundario que se utiliza cuando [no hay una conexión directa entre uno o varios nodos y el traductor](esp-misc-rfc6791.html). Si este pool está vacío, Jool enviará la dirección propia de su nodo hacia el nodo destino. Puedes insertar hasta cinco prefijos `pool6791` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](esp-usr-flags-pool6791.html).
+- `pool6791` es un pool IPv4 secundario que se utiliza cuando [no hay una conexión directa entre uno o varios nodos y el traductor](rfc6791.html). Si este pool está vacío, Jool enviará la dirección propia de su nodo hacia el nodo destino. Puedes insertar hasta cinco prefijos `pool6791` separados por coma durante un modprobe. Si necesitas más, utiliza la [Herramienta de Configuración de Jool](usr-flags-pool6791.html).
 
 - `disabled` inicia Jool en modo inactivo. Si estás utilizando el configurador, puedes usar esta opción para asegurarte de que has terminado de configurar antes de que tu tráfico empiece a ser traducido.
 Si no está presente, Jool empieza a traducir el tráfico de inmediato.
@@ -174,15 +176,15 @@ rtt min/avg/max/mdev = 1.384/4.529/10.522/3.546 ms
 
 Agrega un servidor en _X_ y accesalo desde _D_:
 
-![Figura 1 - IPv4 TCP desde un nodo IPv6](images/run-vanilla-firefox-4to6.png)
+![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-vanilla-firefox-4to6.png)
 
 ### `Conectividad a un Web Server en IPv6`
 
 Agrega un servidor en _C_ y haz una solicitud desde _W_:
 
-![Figure 2 - IPv6 TCP desde un nodo IPv4](images/run-vanilla-firefox-6to4.png)
+![Figure 2 - IPv6 TCP desde un nodo IPv4](../images/run-vanilla-firefox-6to4.png)
 
-Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
+Si algo no funciona, consulta el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
@@ -196,8 +198,8 @@ user@T:~# modprobe -r jool_siit
 
 Si quieres profundizar te recomedamos leer:
 
-1. El [argumento `pool6791`](esp-usr-flags-pool6791.html) y su [uso](esp-misc-rfc6791.html).
-2. Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
-3. Si te interesa EAM, dirigete al [segundo ejemplo](esp-mod-run-eam.html).
-4. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](esp-mod-run-stateful.html).
-5. El [documento de DNS64](esp-op-dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
+1. El [argumento `pool6791`](usr-flags-pool6791.html) y su [uso](rfc6791.html).
+2. Por favor, lee acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
+3. Si te interesa EAM, dirigete al [segundo ejemplo](mod-run-eam.html).
+4. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](mod-run-stateful.html).
+5. El [documento de DNS64](dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.

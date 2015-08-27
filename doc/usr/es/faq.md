@@ -1,9 +1,11 @@
 ---
-layout: faq
-title: Documentación - FAQ/Solución de problemas
+language: es
+layout: default
+category: FAQ
+title: FAQ/Solución de problemas
 ---
 
-[Documentación](esp-doc-index.html) > [Otros](doc-index.html#miscellaneous) > FAQ/Solución de problemas
+[Documentación](documentation.html) > [Otros](documentation.html#miscellaneous) > FAQ/Solución de problemas
 
 # FAQ/Solución de problemas
 
@@ -14,7 +16,7 @@ Esto resume problemas en los cuales hemos visto que los usuarios se meten.
 
 Instalar el módulo del Jool sin argumentos suficientes es legal. Asumirá que intentas terminar de configurar utilizando la Aplicación de espacio de usuario, y se mantendra inactivo hasta que lo hayas hecho.
 
-Utiliza el parámetro [`--global`](esp-usr-flags-global.html#description) para saber el estado en el que se encuentra Jool:
+Utiliza el parámetro [`--global`](usr-flags-global.html#description) para saber el estado en el que se encuentra Jool:
 
 {% highlight bash %}
 $ jool_siit --global
@@ -28,14 +30,14 @@ $ jool --global
 
 Los requerimientos minimos de configuracion del SIIT de Jool son:
 
-- Un prefijo en el [pool IPv6](esp-usr-flags-pool6.html) **o** por lo menos un registro en la [tabla EAM](esp-usr-flags-eamt.html).
-- No debes de haberlo [deshabilitado manualmente](esp-usr-flags-global.html#enable---disable).
+- Un prefijo en el [pool IPv6](usr-flags-pool6.html) **o** por lo menos un registro en la [tabla EAM](usr-flags-eamt.html).
+- No debes de haberlo [deshabilitado manualmente](usr-flags-global.html#enable---disable).
 
 Los requerimientos minimos de configuración de Stateful Jool son:
 
-- Por lo menos un prefijo en el [pool IPv6](esp-usr-flags-pool6.html).
-- Por lo menosd un(a) prefijo/dirección en el [pool IPv4](esp-usr-flags-pool4.html).
-- No debes de haberlo [deshabilitado manualmente](esp-usr-flags-global.html#enable---disable).
+- Por lo menos un prefijo en el [pool IPv6](usr-flags-pool6.html).
+- Por lo menosd un(a) prefijo/dirección en el [pool IPv4](usr-flags-pool4.html).
+- No debes de haberlo [deshabilitado manualmente](usr-flags-global.html#enable---disable).
 
 
 Si ese no es el problema, intenta habilitar la depuración mientras compilas.
@@ -158,7 +160,7 @@ IPv4 no necesita direcciones de enlace.
 
 ## El rendimiento es terrible!
 
-[deshabilita los offloads!](esp-misc-offloading.html)
+[deshabilita los offloads!](offloading.html)
 
 Si estas ejecutando Jool en una máquina virtual huesped, algo importante que debes mantener en mente es que quizá prefieras o tambien tengas que deshabilitar los offloads en el enlace ascendente de la [máquina virtual](http://en.wikipedia.org/wiki/Hypervisor)
 

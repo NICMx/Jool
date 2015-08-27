@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > Help
+language: en
+layout: default
+category: Documentation
+title: --help
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--help
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--help
 
 # \--help
 

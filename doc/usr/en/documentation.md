@@ -1,6 +1,8 @@
 ---
-layout: documentation
-title: Documentation - Index
+language: en
+layout: default
+category: Documentation
+title: Documentation Index
 ---
 
 # Documentation
@@ -22,14 +24,14 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 ## Runs
 
 1. [SIIT](mod-run-vanilla.html)
-	1. [RFC 6791](misc-rfc6791.html)
+	1. [RFC 6791](rfc6791.html)
 2. [SIIT + EAM](mod-run-eam.html)
-	1. [The EAMT](misc-eamt.html)
+	1. [The EAMT](eamt.html)
 3. [Stateful NAT64](mod-run-stateful.html)
-	1. [The IPv4 Transport Address Pool](op-pool4.html)
-	2. [BIB](misc-bib.html)
-		- [Static Bindings](op-static-bindings.html)
-4. [DNS64](op-dns64.html)
+	1. [The IPv4 Transport Address Pool](pool4.html)
+	2. [BIB](bib.html)
+		- [Static Bindings](static-bindings.html)
+4. [DNS64](dns64.html)
 5. [464XLAT - SIIT/DC Dual Translation Mode](mod-run-464xlat.html)
 
 ## Userspace Application
@@ -38,9 +40,9 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Miscellaneous
 
-1. [FAQ](misc-faq.html)
+1. [FAQ](faq.html)
 2. [Logging](logging.html)
-2. [MTU and Fragmentation](misc-mtu.html)
-3. [The problem with Offloading](misc-offloading.html)
+2. [MTU and Fragmentation](mtu.html)
+3. [The problem with Offloading](offloading.html)
 4. [Single Interface](mod-run-alternate.html)
 

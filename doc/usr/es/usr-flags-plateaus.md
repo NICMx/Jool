@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > MTU Plateaus
+language: es
+layout: default
+category: Documentation
+title: --plateaus
 ---
 
-[Documentation](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > [\--global](esp-usr-flags-global.html) > \--plateaus
+[Documentation](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > [\--global](usr-flags-global.html) > \--plateaus
 
 # MTU Plateaus (Ejemplo)
 
@@ -14,7 +16,7 @@ Este articulo explica el propósito del parametro `--plateaus` mediante un ejemp
 
 Esta es la red de ejemplo:
 
-![Fig.1 - Red](images/plateaus-network.svg)
+![Fig.1 - Red](../images/plateaus-network.svg)
 
 El número máximo de bytes por paquete (MTU) de los enlaces _n6-J_ y _J-r4_ es 1500.
 
@@ -26,7 +28,7 @@ Aunque las cabeceras de IPv4 son 20 bytes más cortas que las de IPv6 y existen 
 
 _n6_ quiere enviar un paquete IPv6 de 1500 bytes a _n4_ (100 bytes de header y 1400 bytes de datos). _J_ lo convierte a un paquete IPv4 de 1500 bytes y lo envía a _r4_. _r4_ no puede retransmitirlo a _n4_ por que es muy grande para su límite establecido de 1007 bytes, asi que devuelve un error de ICMP a _n6_.
 
-![Fig.2 - Intento 1](images/plateaus-attempt1.svg)
+![Fig.2 - Intento 1](../images/plateaus-attempt1.svg)
 
 La técnica [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery) opera bajo la suposición de que el router que no puede entregar el paquete reportará el tamaño máximo de paquete que puede transmitir. En este punto, el error ICMP contendria el número mágico "1007", y entonces _n6_ sabría que tiene que segmentar su paquete en las piezas necesarias si es que sigue interesado en la llegada de su mensaje.
 
@@ -75,14 +77,14 @@ Asi que _J_ sospecha que la red _r4-n4_ es un paquete con formato IEEE 802.3, y 
 
 _n6_ segmenta su mensaje y ahora envia dos paquetes, uno de 1492 de longitud (100 bytes de cabecera y 1392 de datos), y otro de 108 bytes(100 de cabecera, y 8 de datos). _J_ los traduce, y luego otra vez _r4_ dice "solicitud rechazada", por que el primer paquete de 1492 bytes sigue sin encajar en una red con un MTU de 1007.
 
-![Fig.3 - Intento 2](images/plateaus-attempt2.svg)
+![Fig.3 - Intento 2](../images/plateaus-attempt2.svg)
 
 _J_ otra vez se da cuenta de que esta tratando de traducir un error ICMP con MTU 0, asi que otra vez reportar el primer plateau el cual objetaría al paquete rechazado. Esta vez, el siguiente plateau de 1492 is 1006, asi que _J_ supone que _r4-n4_ es un paquete SLIP o ARPANET. Como puedes ver, esta vez la suposición es correcta.
 
 Al recibir la noticia, n6 ahora segmenta sus datos en un paquete de tamaño 1006 (100 + 906) y otro de 594 (100 + 494). Esta vez, los paquetes traducidos de IPv6 cumplen con el requerimiento de longitud establecida por _r4_ y llegan a _n4_.
 
 
-![Fig.4 - Intento 3](images/plateaus-attempt3.svg)
+![Fig.4 - Intento 3](../images/plateaus-attempt3.svg)
 
 ## Recapitulando
 
@@ -92,7 +94,7 @@ Por otra parte, mirando el ejemplo podrías haber pensado "ARPANET se disolvió 
 
 Consideramos que no es tan negativo usar la lista tal cual, dado que algunos de los protocolos de la tabla todavía siguen en uso. Es más precavido, conservar todos los valores  versus a que nos lleguen a faltar.
 
-Cabe mencionar que la lista plateaus NO está codificada directamente en Jool. Si deseas establecer tu propia lista plateaus, ejecuta (después de instalar la [Herramienta de configuración de Jool](esp-usr-install.html).
+Cabe mencionar que la lista plateaus NO está codificada directamente en Jool. Si deseas establecer tu propia lista plateaus, ejecuta (después de instalar la [Herramienta de configuración de Jool](usr-install.html).
 
 	$(jool) --mtu-plateaus <list>
 

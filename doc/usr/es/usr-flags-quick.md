@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Quick
+language: es
+layout: default
+category: Documentation
+title: --quick
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--quick
+[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--quick
 
 # \--quick
 
@@ -11,9 +13,9 @@ Terminología:
 
 	Partiendo que
 
-	* La [dirección _A_ de IPv4](esp-usr-flags-pool4.html) es dueño de un [registro BIB _B_](esp-usr-flags-bib.html)  si y solo si _A_ es igual a la dirección  de IPv4 de _B_.
+	* La [dirección _A_ de IPv4](usr-flags-pool4.html) es dueño de un [registro BIB _B_](usr-flags-bib.html)  si y solo si _A_ es igual a la dirección  de IPv4 de _B_.
 
-	* El [prefijo _P_ de IPv6](esp-usr-flags-pool6.html) es dueño de un [registro de sessión _S_](esp-usr-flags-session.html)  si y solo si _P_ corresponde a la dirección IPv6 local de S.
+	* El [prefijo _P_ de IPv6](usr-flags-pool6.html) es dueño de un [registro de sessión _S_](usr-flags-session.html)  si y solo si _P_ corresponde a la dirección IPv6 local de S.
 
 	Entonces cuando Jool está activo y configurado tenemos una serie de direcciones _A's_ asociados a BIBs _B's_ && prefijos _P's_ asociados a sesiones _S's_. Los procesos que se establecen mediante las entradas de las BIBs y sesiones vinen a ser "esclavos" de los primeros.
 

@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Offloading
+language: en
+layout: default
+category: Documentation
+title: Offloading
 ---
 
-[Documentation](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > Offloading
+[Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Offloading
 
 # Offload
 
@@ -18,7 +20,7 @@ Offloading is a technique meant to optimize network throughput. Born from the ob
 
 Here's an example for the visual-oriented. This is how packets are normally processed (no offloading):
 
-![Fig.1 - No offload](images/offload-none.svg)
+![Fig.1 - No offload](../images/offload-none.svg)
 
 (For the moment, assume the Internet layer holds IPv4.)
 
@@ -36,7 +38,7 @@ And the blue one has somewhat larger packets:
 
 There are several ways to implement offloading. Pictured below is a simplified version of what a NIC could perhaps do, rather than the above:
 
-![Fig.2 - Offload done right](images/offload-right.svg)
+![Fig.2 - Offload done right](../images/offload-right.svg)
 
 Simply put, several contiguous packets are merged together into an equivalent, larger one. The card could for example do this by merging IP fragments or even TCP segments (even if TCP sits two layers above). It doesn't matter as long as the change can be seen as completely transparent as far as the transfer of data is concerned.
 
@@ -44,7 +46,7 @@ And yes, we're now dealing with heavier pieces of data, but truth be told, most 
 
 This is all fine and dandy, but you start running into trouble when the system is supposed to forward the data (rather than just consuming it). Say the hardware has a <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit" target="_blank">Maximum Transmission Unit (MTU)</a> of 1500; this is what happens:
 
-![Fig.3 - Offload on a router](images/offload-router.svg)
+![Fig.3 - Offload on a router](../images/offload-router.svg)
 
 In step 1 the aggregation happens, which makes step 2 very fast, but then because the assembled packet of the blue stream is too big for the outgoing interface (size 1800 > max 1500), the packet gets fragmented in step 3, which is inefficient.
 

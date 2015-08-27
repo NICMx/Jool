@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > BIB
+language: es
+layout: default
+category: Documentation
+title: --bib
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--bib
+[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--bib
 
 # \--bib
 
@@ -21,7 +23,7 @@ title: Documentación - Parámetros > BIB
 
 ## Descripción
 
-Interactua con el [Binding Information Base (BIB)](misc-bib.html) de Jool. Si no sabes que es, por favor sigue el enlace antes de continuar.
+Interactua con el [Binding Information Base (BIB)](bib.html) de Jool. Si no sabes que es, por favor sigue el enlace antes de continuar.
 
 
 ## Sintaxis
@@ -67,7 +69,7 @@ Un registro BIB está compuesto de una dirección de transporte IPv6 (los identi
 
 Si estas agregando o removiendo un BIB, puedes proveer ambas direcciones mediante estos parámetros.
 
-Toma en cuenta que el componente `<bib4>` debe ser un miembro del [pool IPv4](esp-usr-flags-pool4.html) de Jool, así que asegurate de que lo has registrado ahí primero.
+Toma en cuenta que el componente `<bib4>` debe ser un miembro del [pool IPv4](usr-flags-pool4.html) de Jool, así que asegurate de que lo has registrado ahí primero.
 
 Dentro de una tabla BIB, toda dirección de transporte IPv4 es única. Dentro de una tabla BIB, toda dirección IPv6 también es única. Por lo tanto, si estas removiendo un registro BIB, sólo necesitas proveer uno de ellos. Aun puedes ingresar ambos para asegurarte de que estas eliminando exactamente lo que deseas.
 

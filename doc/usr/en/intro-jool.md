@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Introduction to Jool
+language: en
+layout: default
+category: Documentation
+title: Introduction to Jool
 ---
 
-[Documentation](doc-index.html) > [Introduction](doc-index.html#introduction) > Jool
+[Documentation](documentation.html) > [Introduction](documentation.html#introduction) > Jool
 
 # Introduction to Jool
 

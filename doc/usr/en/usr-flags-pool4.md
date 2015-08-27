@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > IPv4 Pool
+language: en
+layout: default
+category: Documentation
+title: --pool4
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > \--pool4
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--pool4
 
 # \--pool4
 
@@ -17,7 +19,7 @@ title: Documentation - Flags > IPv4 Pool
 
 ## Description
 
-Interacts with NAT64 Jool's [IPv4 transport address pool](op-pool4.html).
+Interacts with NAT64 Jool's [IPv4 transport address pool](pool4.html).
 
 The IPv4 pool is the subset of the node's transport addresses which should be used to mask connections sourced from IPv6 nodes.
 

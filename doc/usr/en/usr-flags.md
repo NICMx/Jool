@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Userspace Application Flags
+language: en
+layout: default
+category: Documentation
+title: Userspace Application Flags
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > Flags
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > Flags
 
 # Flags
 

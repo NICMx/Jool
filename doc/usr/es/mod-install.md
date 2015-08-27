@@ -1,11 +1,13 @@
 ---
-layout: documentation
-title: Documentación - Instalación del Servidor Jool
+language: es
+layout: default
+category: Documentation
+title: Instalación de los Módulos de Kernel
 ---
 
-[Documentación](esp-doc-index.html) > [Instalación](esp-doc-index.html#instalacion) > Servidor Jool
+[Documentación](documentation.html) > [Instalación](documentation.html#instalacion) > Servidor Jool
 
-# Instalación del Servidor Jool
+# Instalación de los Módulos de Kernel
 
 ## Índice
 
@@ -31,13 +33,13 @@ En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea,
 
 La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
 
-Las aplicaciones en el espacio de usuario son para configuración de Jool, la explicación de cómo instalarlas se encuentra en una [página aparte](esp-usr-install.html).
+Las aplicaciones en el espacio de usuario son para configuración de Jool, la explicación de cómo instalarlas se encuentra en una [página aparte](usr-install.html).
 
 ## Requerimientos
 
 ### `Kernels Válidos`
 
-Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux [haz click aquí](esp-intro-jool.html#compatibilidad). Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!
+Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux [haz click aquí](intro-jool.html#compatibilidad). Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!
 
 NOTA: No recomendamos usar el kernel 3.12 porque [el sistema se inhibe cuando se invoca la función icmpv6_send](https://github.com/NICMx/NAT64/issues/90).
 
@@ -80,7 +82,7 @@ user@node# apt-get install ethtool
 
 Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos opciones:
 
-* Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la [Página de Descarga](esp-download.html).
+* Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la [Página de Descarga](download.html).
 * Las versiones en desarrollo en nuestro Repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
 
 Existen algunas pequeñas variantes al bajarlo de un portal u otro, no tan solo de nombre, sino de contenido.
@@ -89,7 +91,7 @@ Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compil
 
 ### `De la Web Oficial`
 
-Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la [página de Descarga](esp-download.html). Sigue estos pasos:
+Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la [página de Descarga](download.html). Sigue estos pasos:
 
 1) Elige la versión
 
@@ -163,7 +165,7 @@ El hecho de que residan en la pool no significa que ya hayan sido indizados, ent
 user@node:~# depmod
 {% endhighlight %}
 
-Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](esp-mod-run-vanilla.html).
+Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](mod-run-vanilla.html).
 
 :thumbsup: ¡LISTO! Jool puede ser inicializado ahora. 
 

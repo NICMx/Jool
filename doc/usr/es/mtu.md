@@ -1,11 +1,15 @@
 ---
-layout: documentation
-title: Documentación - Offloading
+language: es
+layout: default
+category: Documentation
+title: MTU y Fragmentación
 ---
 
-[Documentación](esp-doc-index.html) > [Otros](esp-doc-index.html#otros) > MTU y Fragmentación
+[Documentación](documentation.html) > [Otros](documentation.html#otros) > MTU y Fragmentación
 
 # MTU y Fragmentación
+
+TODO - Pendiente hacer revisión
 
 ## Enunciación del problema
 
@@ -21,7 +25,7 @@ Asi que, que pasa si el paquete es muy grande?
 
 (Los tamaños actuales de los paquetes son diferentes debido a cambios en los headers, pero entiendes el punto.)
 
-![Fig.1 - flujo MTU fallido](images/flow/mtu-frag-fail.svg)
+![Fig.1 - flujo MTU fallido](../images/flow/mtu-frag-fail-es.svg)
 
 Esta definido por implementación. Si _n4_ es inteligente, tratará de decrementar la longitud del paquete. Si no, el paquete nunca llegará a _n6_.
 
@@ -43,7 +47,7 @@ Por cierto: cuando quieras saber el MTU de un link, preguntale a Linux:
 
 Si conoces el MTU más pequeño a lo largo de todas tus redes IPv6, dile a _T_ sobre el:
 
-![Fig.2 - Proper Network](images/network/mtu-frag.svg)
+![Fig.2 - Proper Network](../images/network/mtu-frag.svg)
 
 _T_ sabe que está traduciendo, asi que sabe que **tiene** que fragmentar aunque es una especie de router IPv6.
 
@@ -53,7 +57,7 @@ Jool solia tener un parámetro llamado `--minMTU6` para hacer esto. Ya que confi
 
 Y voilà:
 
-![Fig.3 - MTU flow succeeds](images/flow/mtu-frag-success.svg)
+![Fig.3 - MTU flow succeeds](../images/flow/mtu-frag-success-es.svg)
 
 Si no sabes el MTU mínimo de tus redes IPv6, asigna 1280. Todo nodo IPv6 debe de ser capáz de manejar por lo menos 1280 bytes por paquete de forma estandarizada.
 

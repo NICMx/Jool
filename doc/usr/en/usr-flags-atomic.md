@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentation - Flags > Atomic Fragments
+language: en
+layout: default
+category: Documentation
+title: Atomic Fragments
 ---
 
-[Documentation](doc-index.html) > [Userspace Application](doc-index.html#userspace-application) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > Atomic Fragments
+[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > Atomic Fragments
 
 # Atomic Fragments
 
@@ -25,7 +27,7 @@ Atomic fragments are known to have [security implications](https://tools.ietf.or
 
 From Jool's perspective, there are also technical drawbacks to allowing atomic fragments. The Linux kernel is particularly lacking when it comes to recognizing redundant fragment headers, so if Jool is generating one, Linux might fragment the packet in a funny way:
 
-[![Figure 1 - what could possibly go wrong?](images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
+[![Figure 1 - what could possibly go wrong?](../images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
 
 (Jool 3.2 and below used to avoid this by not deferring fragmentation to the kernel, but this introduced other-subtler issues.)
 
@@ -166,7 +168,7 @@ Here's the full algorithm:
 
 <a href="http://tools.ietf.org/html/rfc6145#section-6" target="_blank">Section 6 of RFC 6145</a> describes the rationale.
 
-Notice, if `--setDF` and `--boostMTU` are both ON and there's an IPv4 link with MTU &lt; 1260, you have an endless loop similar to the [MTU hassle](misc-mtu.html):
+Notice, if `--setDF` and `--boostMTU` are both ON and there's an IPv4 link with MTU &lt; 1260, you have an endless loop similar to the [MTU hassle](mtu.html):
 
 1. IPv6 sender transmits an IPv6 packet sized 1280.
 2. Jool translates it into an IPv4 packet sized 1260 with DF=1.

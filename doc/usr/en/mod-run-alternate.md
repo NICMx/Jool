@@ -1,15 +1,17 @@
 ---
-layout: documentation
-title: Documentation - Alternate Stateful Run
+language: en
+layout: default
+category: Documentation
+title: Alternate Stateful Run
 ---
 
-[Doc](doc-index.html) > [Miscellaneous](doc-index.html#miscellaneous) > Single Interface
+[Doc](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Single Interface
 
 # Single Interface
 
 This nugget is here only to tell you that if you want your SIIT or NAT64 to service both protocols on the same interface, you're still covered. Jool can see packets coming from any interface, and can send packets via any interface. (It ignores loopback, though.)
 
-![Fig.1 - Single interface NAT64](images/network/alternate.svg)
+![Fig.1 - Single interface NAT64](../images/network/alternate.svg)
 
 This is the same setup as in the [Stateful NAT64 Run](mod-run-stateful.html), except from the fact that everyone is now sharing the same cord, and also I removed the redundant nodes because you get the point.
 

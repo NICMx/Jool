@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Stateful NAT64 - Ejemplo de uso
+language: es
+layout: default
+category: Documentation
+title: Stateful NAT64 - Ejemplo de uso
 ---
 
-[Documentación](esp-doc-index.html) > [Ejemplos de uso](esp-doc-index.html#ejemplosdeuso) > Stateful NAT64
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplosdeuso) > Stateful NAT64
 
 # Stateful NAT64: Ejemplo de Uso
 
@@ -24,15 +26,15 @@ title: Documentación - Stateful NAT64 - Ejemplo de uso
 
 ## Introducción
 
-Este documento explica como ejecutar Jool en modo Stateful NAT64. Si no tienes nociones de este tipo de traducción ingresa a [Stateful NAT64](esp-intro-nat64.html#stateful-nat64).
+Este documento explica como ejecutar Jool en modo Stateful NAT64. Si no tienes nociones de este tipo de traducción ingresa a [Stateful NAT64](intro-nat64.html#stateful-nat64).
 
-Similar a los modos anteriores, solo necesitas una instalación exitosa de del [Servidor Jool](esp-mod-install.html). El Configurador no se necesita en esta ejecución básica.
+Similar a los modos anteriores, solo necesitas una instalación exitosa de del [Servidor Jool](mod-install.html). El Configurador no se necesita en esta ejecución básica.
 
 ## Red de ejemplo
 
-![Figura 1 - Red de ejemplo](images/network/stateful.svg)
+![Figura 1 - Red de ejemplo](../images/network/stateful.svg)
 
-Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](esp-mod-run-vanilla.html#red-de-ejemplo) exceptuando dos: el del uso de direcciones en el segmento 198.51.100.8/29 y el default gateway. Resumiéndolas, tenemos que:
+Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](mod-run-vanilla.html#red-de-ejemplo) exceptuando dos: el del uso de direcciones en el segmento 198.51.100.8/29 y el default gateway. Resumiéndolas, tenemos que:
 
 - Al menos necesitarás tres nodos: _A_, _V_ y _T_.
 - Jool requiere Linux, los otros Nodos no necesariamente.
@@ -147,11 +149,11 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 Agrega un servidor en _Z_ y accesalo desde _A_:
 
-![Figura 1 - IPv4 TCP desde un nodo IPv6](images/run-stateful-firefox-4to6.png)
+![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-stateful-firefox-4to6.png)
 
 Para saber cómo permitir que los Nodos IPv4 inicien comunicación consulta la sección de lecturas adicionales.
 
-Si algo no funciona, consulta el [FAQ](esp-misc-faq.html).
+Si algo no funciona, consulta el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
@@ -163,8 +165,8 @@ user@T:~# /sbin/modprobe -r jool
 
 ## Lecturas adicionales
 
-1. Un nodo IPv4 externo no puede iniciar la comunicación por que el ve a la red IPv6 como una red privada IPv4 que está atrás de un NAT. Para remediar esto, Jool te permite configurar el "redireccionamiento de puertos"(port forwarding). Ingresa [aqui](esp-op-static-bindings.html) si estás interesado.
-2. Aprende más sobre la [pool IPv4](op-pool4.html).
-3. El [documento de DNS64](esp-op-dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
-4. Por favor, lee acerca de [problemas con MTUs](esp-misc-mtu.html) antes de seleccionar alguno.
-5. Hay [otra manera de correr el Stateful NAT64](esp-mod-run-alternate.html). Quizá te ayude a ver las cosas desde una perspectiva más amplia.
+1. Un nodo IPv4 externo no puede iniciar la comunicación por que el ve a la red IPv6 como una red privada IPv4 que está atrás de un NAT. Para remediar esto, Jool te permite configurar el "redireccionamiento de puertos"(port forwarding). Ingresa [aqui](static-bindings.html) si estás interesado.
+2. Aprende más sobre la [pool IPv4](pool4.html).
+3. El [documento de DNS64](dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
+4. Por favor, lee acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
+5. Hay [otra manera de correr el Stateful NAT64](mod-run-alternate.html). Quizá te ayude a ver las cosas desde una perspectiva más amplia.

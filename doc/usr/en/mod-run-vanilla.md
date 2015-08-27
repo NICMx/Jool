@@ -1,11 +1,13 @@
 ---
-layout: documentation
-title: Documentation - Basic SIIT Run
+language: en
+layout: default
+category: Documentation
+title: Basic SIIT Run
 ---
 
-[Documentation](doc-index.html) > [Runs](doc-index.html#runs) > SIIT
+[Documentation](documentation.html) > [Runs](documentation.html#runs) > SIIT
 
-# SIIT Run
+# Basic SIIT Run
 
 ## Index
 
@@ -28,7 +30,7 @@ In case you're wondering, you can follow along these tutorials using virtual mac
 
 You don't need all the nodes shown in the diagram to follow along; you can get away with only _A_, _T_ and _V_; the rest are very similar to _A_ and _V_ and are shown for illustrative purposes only.
 
-![Figure 1 - Sample Network](images/network/vanilla.svg)
+![Figure 1 - Sample Network](../images/network/vanilla.svg)
 
 We will pretend I have address block 198.51.100.8/29 to distribute among my IPv6 nodes.
 
@@ -72,7 +74,7 @@ user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 
 Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but you might want to make sure _T_ can ping everyone before continuing.
 
-The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of offloads in the translating machine](misc-offloading.html). Do that by means of `ethtool`:
+The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of offloads in the translating machine](offloading.html). Do that by means of `ethtool`:
 
 {% highlight bash %}
 user@T:~# ethtool --offload eth0 tso off
@@ -105,7 +107,7 @@ These are the arguments:
 This is optional because you might want to use the EAM table instead.
 - `blacklist` represents IPv4 addresses Jool will **not** translate _using the pool6 prefix_ (ie. this does not affect EAMT translation).  
 You can insert up to five comma-separated `blacklist` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-blacklist.html).
-- `pool6791` is a secondary IPv4 pool used for something [slightly more cryptic](misc-rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
+- `pool6791` is a secondary IPv4 pool used for something [slightly more cryptic](rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
 If this pool is empty, Jool will fall back to use this own node's natural source address towards the destination node.  
 You can insert up to five comma-separated `pool6791` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool6791.html).
 - `disabled` starts Jool inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated. The EAM walkthrough exemplifies its use.  
@@ -119,7 +121,7 @@ That means the IPv6 representation of any IPv4 address is going to be `2001:db8:
 
 ## Testing
 
-If something doesn't work, try the [FAQ](misc-faq.html).
+If something doesn't work, try the [FAQ](faq.html).
 
 Try to ping _A_ from _V_ like this:
 
@@ -153,11 +155,11 @@ rtt min/avg/max/mdev = 1.384/4.529/10.522/3.546 ms
 
 How about hooking up a server in _X_ and access it from _D_:
 
-![Figure 1 - IPv6 TCP from an IPv4 node](images/run-vanilla-firefox-4to6.png)
+![Figure 1 - IPv6 TCP from an IPv4 node](../images/run-vanilla-firefox-4to6.png)
 
 Then maybe another one in _C_ and request from _W_:
 
-![Figure 2 - IPv4 TCP from an IPv6 node](images/run-vanilla-firefox-6to4.png)
+![Figure 2 - IPv4 TCP from an IPv6 node](../images/run-vanilla-firefox-6to4.png)
 
 ## Stopping Jool
 
@@ -171,9 +173,9 @@ user@T:~# /sbin/modprobe -r jool_siit
 
 Here are some logical follow-ups if you want to read more:
 
-- The [`pool6791` argument](usr-flags-pool6791.html) and its [gimmic](misc-rfc6791.html).
-- Please consider the [MTU issues](misc-mtu.html) before releasing.
+- The [`pool6791` argument](usr-flags-pool6791.html) and its [gimmic](rfc6791.html).
+- Please consider the [MTU issues](mtu.html) before releasing.
 - If you care about EAM, head to the [second run](mod-run-eam.html).
 - If you care about stateful NAT64, head to the [third run](mod-run-stateful.html).
-- The [DNS64 document](op-dns64.html) will tell you how to make the prefix-address hack transparent to users.
+- The [DNS64 document](dns64.html) will tell you how to make the prefix-address hack transparent to users.
 

@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Session
+language: es
+layout: default
+category: Documentation
+title: --session
 ---
 
-[Documentación](esp-doc-index.html) > [Herramienta de configuración de Jool](esp-doc-index.html#aplicacion-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--session
+[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--session
 
 # \--session
 
@@ -60,7 +62,7 @@ En el formato CVS cada registro es impreso en una sola linea. Te recomendamos es
 
 ## Ejemplos
 
-![Fig.1 - Red para ejemplo de sesión](images/usr-session.svg)
+![Fig.1 - Red para ejemplo de sesión](../images/usr-session.svg)
 
 El cliente ipv6client.mx efectua dos solicitudes HTTP y un ping al servidor example.com en IPv4.
 

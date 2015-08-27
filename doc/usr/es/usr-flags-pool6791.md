@@ -1,9 +1,11 @@
 ---
-layout: documentation
-title: Documentación - Parámetros > Direcciones de error
+language: es
+layout: default
+category: Documentation
+title: --pool6791
 ---
 
-[Documentación](esp-doc-index.html) > [Aplicación de espacio de usuario](esp-doc-index.html#aplicacin-de-espacio-de-usuario) > [Parámetros](esp-usr-flags.html) > \--pool6791
+[Documentación](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--pool6791
 
 # \--pool6791
 
@@ -16,7 +18,7 @@ title: Documentación - Parámetros > Direcciones de error
 
 ## Descripción
 
-Interactua con el [pool RFC 6791](misc-rfc6791.html) de Jool. El pool define direcciones para origenes en errores ICMP intraducibles.
+Interactua con el [pool RFC 6791](rfc6791.html) de Jool. El pool define direcciones para origenes en errores ICMP intraducibles.
 
 Si el pool está vacio, Jool retrocederá a utilizar las direcciones de su nodo para estos casos.
 
