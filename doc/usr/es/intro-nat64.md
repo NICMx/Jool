@@ -97,7 +97,7 @@ La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y 
 
 Por supuesto, esto significa que la dirección IPv4 de cada nodo en IPv6 tiene que ser codificada dentro de su dirección, lo cual es un poco engorroso.
 
-Podría parecerte que  SIIT con "EAM" y SIIT "tradicional" son cosas diferentes, pero pueden trabajar a la par. En implementaciones de este tipo, primeramente se intentará mapear las direcciones IP consultando la tabla EAM (según SIIT con EAM), y si NO están registradas, se retrocede y se añade o se remueve el prefijo (según SIIT).
+Podría parecerte que SIIT con "EAM" y SIIT "tradicional" son cosas diferentes, pero pueden trabajar a la par. En implementaciones de este tipo, primeramente se intentará mapear las direcciones IP consultando la tabla EAM (según SIIT con EAM), y si NO están registradas, se retrocede y se añade o se remueve el prefijo (según SIIT).
 
 Puedes encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden ser combinados eficientemente para cumplir un caso de uso en la siguiente propuesta de solución para Centros de Datos: [draft-v6ops-siit-dc]({{ site.draft-siit-dc }}).
 
