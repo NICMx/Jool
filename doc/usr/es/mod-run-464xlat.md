@@ -40,7 +40,7 @@ Esta dirección está dentro del cuerpo de un archivo HTML, no de una cabecera d
 Si le das click a la segunda versión del enlace mostrado en la parte de arriba desde un nodo que solo soporta IPv6 y tratas de utilizar el NAT64, es obvio que no funcionará, por que el nodo no tiene una pila IPv4 con cual accesar a `203.0.113.24`.  `www.jool.mx` funciona bien por que el DNS64 adjunta el frefijo NAT64 una vez que el nodo pregunta por el dominio; por otra parte, si todo lo que el nodo tiene es `203.0.113.24`, realmente no puede decir que esta hablando mediante un NAT64, mucho menos saber que prefijo deberia ser añadido.
 
 
-[464XLAT](https://tools.ietf.org/html/rfc6877) es una técnica orientada a solucionar esta limitante. Funciona agregando un SIIT a la ecuación, que revierte el trabajo hecho por el Stateful NAT64. La idea puede ser generalizada para tambien proveer Internet a servicios que solo soportan IPv4 cuando todo lo que tienes es un espacio de direcciones IPv6, la cual es un [Modo de traducción dual SIIT/DC](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00)
+[464XLAT](https://tools.ietf.org/html/rfc6877) es una técnica orientada a solucionar esta limitante. Funciona agregando un SIIT a la ecuación, que revierte el trabajo hecho por el Stateful NAT64. La idea puede ser generalizada para tambien proveer Internet a servicios que solo soportan IPv4 cuando todo lo que tienes es un espacio de direcciones IPv6, la cual es un [Modo de traducción dual SIIT/DC]({{ site.draft-siit-dc-2xlat }})
 
 Este documento es un resumen simplificado de ambas técnicas, colapsado en una introducción que usa Jool.
 
@@ -59,7 +59,7 @@ En terminos amplios, la solución es proporcionar a _n6_ una pila IPv4 "falsa" c
 otras palabras, un servicio SIIT (en terminos 464XLAT llamado "_CLAT_"; Traductod del lado del cliente o "Customer-side Translator" por sus siglas en inglés) estará, de cierta forma, deshaciendo el trabajo del _PLAT_.  
 
 
-Hay muchas maneras de hacer esto. Desafortunadamente, una de ellas ([volver _n6_ el CLAT](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00#section-3.1)) todavia no se encuentra implementada en Jool. Una que funcion es hacer que _R_ sea el CLAT. La red luciría como esto: 
+Hay muchas maneras de hacer esto. Desafortunadamente, una de ellas ([volver _n6_ el CLAT]({{ site.draft-siit-dc-2xlat }}#section-3.1)) todavia no se encuentra implementada en Jool. Una que funcion es hacer que _R_ sea el CLAT. La red luciría como esto: 
 
 ![Figure 2 - 464XLAT'd Network](../images/network/464-network.svg)
 
@@ -200,7 +200,7 @@ Por otra parte, algunos protocolos solo dependen parcialmente de valores literal
 
 On the other hand, some network-aware protocols only partially depend on literals, and the NAT64 is not going to get in the way of the features that don't. FTP's passive mode falls in this category.
 
-You can make active FTP work by deploying a fully stateless dual translation environment such as [siit-dc-2xlat](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00). It works because both the client and server are both using IPv4 sockets, the IPv4 addresses are unchanged end-to-end, and it's fully bi-directional, so active and passive FTP on arbitrary ports work fine. In siit-dc-2xlat, the IPv6 network in the middle becomes an invisible "tunnel" through which IPv4 is transported.
+You can make active FTP work by deploying a fully stateless dual translation environment such as [siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}). It works because both the client and server are both using IPv4 sockets, the IPv4 addresses are unchanged end-to-end, and it's fully bi-directional, so active and passive FTP on arbitrary ports work fine. In siit-dc-2xlat, the IPv6 network in the middle becomes an invisible "tunnel" through which IPv4 is transported.
 
 Here's a list of protocols that are known to use IP literals. You might also want to see [RFC 6586](http://tools.ietf.org/html/rfc6586).
 
@@ -219,4 +219,4 @@ Here's a list of protocols that are known to use IP literals. You might also wan
 ## Lecturas adicionales
 
 - [464XLAT](https://tools.ietf.org/html/rfc6877)
-- [SIIT/DC: Dual Translation Mode](https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-00)
+- [SIIT/DC: Dual Translation Mode]({{ site.draft-siit-dc-2xlat }})

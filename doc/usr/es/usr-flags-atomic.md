@@ -29,7 +29,7 @@ Sin embargo, esta implementación es vulnerable a infiltraciones, y algún _hack
 [2012, Security Implications of Predictable Fragment Identification Values](http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf)<br />
 [2013, RFC. 6946](https://tools.ietf.org/html/rfc6946)<br />
 
-La IETF está tratando de normar el [desuso de los fragmentos atómicos](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
+La IETF está tratando de normar el [desuso de los fragmentos atómicos]({{ site.draft-deprecate-atomfrag-generation }}). Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos [problemas de seguridad](http://tools.ietf.org/html/rfc6145#section-6).
 
 DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados. Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade otro adicional.
 
@@ -39,7 +39,7 @@ En **Jool 3.2 y en versiones anteriores** se evade esto al NO delegar la fragmen
 
 Ahora en **Jool 3.3**, la configuración por omisión es  deshabilitar los fragmentos atómicos, lo cual **te recomendamos no cambies**.
 
-Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00) y cuando se formalize, en breve, se omitirá en Jool. 
+Estamos totalmente de acuerdo con la [iniciativa de su desuso, 2014]({{ site.draft-deprecate-atomfrag-generation }}) y cuando se formalize, en breve, se omitirá en Jool. 
  
 ## Parámetros
 
@@ -69,7 +69,7 @@ $(jool) --genID falso
 $(jool) --boostMTU falso
 {% endhighlight %}
 
-Según lo establece el [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6) este sería el comportamiento mandatorio,  pero está siendo verificado por la IETF, ver Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).
+Según lo establece el [RFC 6145, sección 6](http://tools.ietf.org/html/rfc6145#section-6) este sería el comportamiento mandatorio,  pero está siendo verificado por la IETF, ver Draft Deprecate Atomfrag Generation]({{ site.draft-deprecate-atomfrag-generation }}).
 
 Para DESHABILITARLO, sencillamente ejecute:
 

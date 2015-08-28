@@ -38,7 +38,7 @@ Another one, equally valid, is this:
 
 ![TODO](../images/flow/pool4-simple3-en.svg)
 
-NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, [recommendations exist to drive NAT64s as unpredictable as possible](https://tools.ietf.org/html/draft-ietf-sunset4-nat64-port-allocation-01).
+NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, [recommendations exist to drive NAT64s as unpredictable as possible]({{ site.draft-nat64-port-allocation }}).
 
 What you need to be aware of is that your NAT64 machine needs to reserve transport addresses for translation purposes. If _T_ tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, evil things will happen. [iptables's NAT also suffers from this quirk](https://github.com/NICMx/NAT64/wiki/issue67:-Linux's-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.).
 
