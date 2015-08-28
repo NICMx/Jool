@@ -51,5 +51,6 @@ jool += compute_outgoing_tuple.o
 jool += handling_hairpinning.o
 jool += nf_hook.o
 jool += impersonator.o
+jool += json_parser.o
 
 jool-objs += ${jool} ${jool_common}

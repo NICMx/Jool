@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <regex.h>
 
 
 #define MAX_PORT 0xFFFF
@@ -97,12 +98,24 @@ int str_to_bool(const char *str, __u8 *bool_out)
 int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 {
 	unsigned long long int result;
-	int error;
+	int error = 0;
+
+        regex_t integer_regex;
+    	if(regcomp(&integer_regex,"^[0-9]*",0)) {
+    		log_err("str_to_u64: integer_regex didn't compile.");
+    	}
+
+        if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
+    	  		log_err("Cannot parse '%s' as an integer value.", str);
+    	  		error = 1;
+    	}
+
+
+  	if (error)
+  	  return error;
 
 	error = str_to_ull(str, NULL, min, max, &result);
-	if (error)
-		return error; /* Error msg already printed. */
-
+	
 	*u8_out = result;
 	return 0;
 }
@@ -110,11 +123,23 @@ int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 {
 	unsigned long long int result;
-	int error;
+	int error = 0;
+          
+        regex_t integer_regex;
+    	if(regcomp(&integer_regex,"^[0-9]*",0)) {
+    		log_err("str_to_u64: integer_regex didn't compile.");
+    	}
 
-	error = str_to_ull(str, NULL, min, max, &result);
-	if (error)
-		return error; /* Error msg already printed. */
+        if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
+    	  		log_err("Cannot parse '%s' as an integer value.", str);
+    	  		error = 1;
+    	}
+
+        if (error)
+	return error;
+
+	str_to_ull(str, NULL, min, max, &result);
+	
 
 	*u16_out = result;
 	return 0;
@@ -123,11 +148,22 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
 {
 	unsigned long long int result;
-	int error;
+	int error=0;
 
-	error = str_to_ull(str, NULL, min, max, &result);
-	if (error)
-		return error; /* Error msg already printed. */
+         regex_t integer_regex;
+     	if(regcomp(&integer_regex,"^[0-9]*",0)) {
+     		log_err("str_to_u64: integer_regex didn't compile.");
+     	}
+
+         if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
+     	  		log_err("Cannot parse '%s' as an integer value.", str);
+     	  		error = 1;
+     	}
+
+        if (error)
+	 return error;
+
+	 str_to_ull(str, NULL, min, max, &result);
 
 	*u32_out = result;
 	return 0;
@@ -136,11 +172,24 @@ int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
 int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 {
 	unsigned long long int result;
-	int error;
+	int error=0;
+
+         regex_t integer_regex;
+	if(regcomp(&integer_regex,"^[0-9]*",0)) {
+		log_err("str_to_u64: integer_regex didn't compile.");
+	}        
+
+    if(str == NULL || regexec(&integer_regex,str,0,NULL,0) == REG_NOMATCH)	{
+	  		log_err("Cannot parse '%s' as an integer value.", str);
+	  		error = 1;
+	}
+         
+        if (error)
+	 return error;
+
 
 	error = str_to_ull(str, NULL, min, max, &result);
-	if (error)
-		return error;
+	
 
 	*u64_out = result;
 	return 0;

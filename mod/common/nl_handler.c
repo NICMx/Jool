@@ -6,6 +6,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/nl_buffer.h"
+#include "nat64/mod/common/json_parser.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateless/eam.h"
 #include "nat64/mod/stateless/blacklist4.h"
@@ -22,6 +23,8 @@
  * Socket the userspace application will speak to.
  */
 static struct sock *nl_socket;
+
+
 
 /**
  * A lock, used to avoid sync issues when receiving messages from userspace.
@@ -1085,6 +1088,8 @@ end:
 	return respond_error(nl_hdr, error);
 }
 
+
+
 /**
  * Gets called by "netlink_rcv_skb" when the userspace application wants to interact with us.
  *
@@ -1095,24 +1100,26 @@ end:
 static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hdr)
 {
 	struct request_hdr *jool_hdr;
-	void *request;
-	int error;
+		void *request;
+		int error;
 
-	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL) {
+
+    if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL && nl_hdr->nlmsg_type != MSG_TYPE_JOOL_DONE) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);
 		return -EINVAL;
 	}
 
 	jool_hdr = NLMSG_DATA(nl_hdr);
 	request = jool_hdr + 1;
-
 	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
 
+
+
 	switch (jool_hdr->mode) {
 	case MODE_POOL6:
-		return handle_pool6_config(nl_hdr, jool_hdr, request);
+		return handle_pool6_config(nl_hdr, jool_hdr, request) ;
 	case MODE_POOL4:
 		return handle_pool4_config(nl_hdr, jool_hdr, request);
 	case MODE_BIB:
@@ -1129,6 +1136,8 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return handle_logtime_config(nl_hdr, jool_hdr, request);
 	case MODE_GLOBAL:
 		return handle_global_config(nl_hdr, jool_hdr, request);
+	case MODE_PARSE_FILE:
+		return handle_json_file_config(nl_hdr, jool_hdr, request) ;
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);
@@ -1142,10 +1151,13 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
  */
 static void receive_from_userspace(struct sk_buff *skb)
 {
-	log_debug("Message arrived.");
+	int error;
+
+
 	mutex_lock(&config_mutex);
-	netlink_rcv_skb(skb, &handle_netlink_message);
+	error = netlink_rcv_skb(skb, &handle_netlink_message);
 	mutex_unlock(&config_mutex);
+
 }
 
 int nlhandler_init(void)

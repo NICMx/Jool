@@ -9,6 +9,7 @@ jool_siit_SOURCES = \
 	../common/jool.c \
 	../common/netlink.c \
 	../common/str_utils.c \
+	../common/cJSON.c \
 	../common/argp/options.c \
 	../common/target/pool6.c \
 	../common/target/pool4.c \
@@ -17,7 +18,8 @@ jool_siit_SOURCES = \
 	../common/target/bib.c \
 	../common/target/session.c \
 	../common/target/global.c \
-	xlat.c
+	xlat.c \
+	JsonReader.c
 #jool_siit_SOURCES += ../common/log_time.c
 
 jool_siit_LDADD = ${LIBNL3_LIBS}

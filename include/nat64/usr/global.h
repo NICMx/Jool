@@ -8,6 +8,7 @@
 #define OPTNAME_DISABLE			"disable"
 #define OPTNAME_ZEROIZE_TC		"zeroize-traffic-class"
 #define OPTNAME_OVERRIDE_TOS		"override-tos"
+#define OPTNAME_PARSE_FILE              "parse-file"
 #define OPTNAME_TOS			"tos"
 #define OPTNAME_MTU_PLATEAUS		"mtu-plateaus"
 

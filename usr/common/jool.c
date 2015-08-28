@@ -16,6 +16,7 @@
 
 #include "nat64/common/constants.h"
 #include "nat64/common/config.h"
+#include "nat64/common/JsonReader.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool.h"
@@ -27,6 +28,8 @@
 #include "nat64/usr/global.h"
 #include "nat64/usr/log_time.h"
 #include "nat64/usr/argp/options.h"
+#include "nat64/usr/netlink.h"
+
 
 
 const char *argp_program_version = XLAT_VERSION_STR;
@@ -75,6 +78,10 @@ struct arguments {
 		size_t size;
 		void *data;
 	} global;
+
+        struct {
+		char *filename;
+	} parse_file;
 };
 
 static int update_state(struct arguments *args, enum config_mode valid_modes,
@@ -497,6 +504,20 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_KEY_ARG:
 		error = set_ip_args(args, str);
 		break;
+        case ARGP_PARSE_FILE:
+	    error = update_state(args, MODE_PARSE_FILE, OP_UPDATE);
+
+	    args->parse_file.filename =  malloc(sizeof(char)*strlen(str));
+
+	    if(!args->parse_file.filename) {
+	    	error = -ENOMEM;
+	        log_err("Unable to allocate memory!.");
+	        break;
+	    }
+
+	    strcpy(args->parse_file.filename,str);
+	    break;
+
 	default:
 		error = ARGP_ERR_UNKNOWN;
 	}
@@ -538,6 +559,7 @@ static unsigned int zeroize_upper_bits(__u16 num)
  */
 static int parse_args(int argc, char **argv, struct arguments *result)
 {
+
 	int error;
 	struct argp argp = { build_options(), parse_opt, args_doc, doc };
 
@@ -548,11 +570,14 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	result->db.pool4.ports.max = 65535U;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
+
+
 	if (error)
 		return error;
 
 	result->mode = zeroize_upper_bits(result->mode);
 	result->op = zeroize_upper_bits(result->op);
+
 
 	if (!result->db.tables.tcp && !result->db.tables.udp && !result->db.tables.icmp) {
 		result->db.tables.tcp = true;
@@ -812,13 +837,22 @@ static int main_wrapped(int argc, char **argv)
 			log_err("Unknown operation for global mode: %u.", args.op);
 			return -EINVAL;
 		}
+		break;
+
+	case MODE_PARSE_FILE:
+
+		return parse_file(args.parse_file.filename);
+
+		break;
 	}
 
 	log_err("Unknown configuration mode: %u", args.mode);
 	return -EINVAL;
 }
 
+
 int main(int argc, char **argv)
 {
 	return -main_wrapped(argc, argv);
+	return 0;
 }

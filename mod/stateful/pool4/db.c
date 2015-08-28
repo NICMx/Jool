@@ -7,6 +7,7 @@
 #include "nat64/mod/stateful/pool4/table.h"
 
 struct hlist_head *db;
+//struct hlist_head * config_db;
 /** Defines the number of slots in the table (2^power). */
 unsigned int power;
 unsigned int values;
@@ -336,3 +337,38 @@ int pool4db_foreach_taddr4(const __u32 mark,
 	rcu_read_unlock();
 	return error;
 }
+/*
+int pool4db_config_init(unsigned int size)
+{
+	struct hlist_head *result;
+		unsigned int i;
+
+		result = kmalloc(size * sizeof(*result), GFP_KERNEL);
+		if (!result)
+			return NULL;
+
+		for (i = 0; i < size; i++)
+			INIT_HLIST_HEAD(&result[i]);
+
+		config_db = result;
+
+		return 0;
+}
+
+
+int pool4db_config_add(const __u32 mark, struct ipv4_prefix *prefix,
+		struct port_range *ports)
+{
+
+}
+
+
+int pool4db_config_commit()
+{
+
+}*/
+
+
+
+
+

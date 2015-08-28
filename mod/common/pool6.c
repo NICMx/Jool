@@ -199,6 +199,12 @@ int pool6_add(struct ipv6_prefix *prefix)
 	return 0;
 }
 
+int pool6_replace(struct ipv6_prefix *prefix)
+{
+	pool6_flush();
+	return pool6_add(prefix);
+}
+
 int pool6_remove(struct ipv6_prefix *prefix)
 {
 	struct pool_node *node;

@@ -51,6 +51,11 @@ bool pool6_contains(struct in6_addr *addr);
  * Adds "prefix" to the pool. A copy is stored, not "prefix" itself.
  */
 int pool6_add(struct ipv6_prefix *prefix);
+
+/**
+ * Replace the prefix in the pool.
+ */
+int pool6_replace(struct ipv6_prefix *prefix);
 /**
  * Removes "prefix" from the pool.
  */

@@ -21,8 +21,8 @@
  * ID of Netlink messages Jool listens to.
  * This value was chosen at random, if I remember correctly.
  */
-#define MSG_TYPE_JOOL (0x10 + 2)
-
+#define MSG_TYPE_JOOL (0x20 + 2)
+#define MSG_TYPE_JOOL_DONE (0x20+4)
 /**
  * ID of messages intended to return configuration to userspace.
  * ("set config" is intended to be read from the kernel's perspective).
@@ -58,6 +58,8 @@ enum config_mode {
 	MODE_SESSION = (1 << 4),
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
+        /** The current message is talking about the JSON configuration file */
+	MODE_PARSE_FILE = (1 << 9)
 };
 
 /**
@@ -94,6 +96,58 @@ enum config_operation {
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
 };
+struct global_bits_struct
+{
+   __u32 manually_enabled : 1,
+   address_dependent_filtering : 1,
+   drop_icmpv6_info : 1,
+   drop_externally_initiated_tcp : 1,
+   udp_timeout: 1,
+   tcp_est_timeout : 1,
+   tcp_trans_timeout : 1,
+   icmp_timeout : 1,
+   fragment_arrival_timeout : 1,
+   maximum_simultaneous_opens : 1,
+   source_icmpv6_errors_better : 1,
+   logging_bib : 1,
+   logging_session : 1,
+   zeroize_traffic_class : 1,
+   override_tos : 1,
+   tos : 1,
+   mtu_plateaus : 1,
+   amend_udp_checksum_zero,
+   randomize_rfc6791_addresses:1;
+};
+
+union global_bits {
+	struct global_bits_struct as_fields;
+	__u32 as_int;
+};
+
+
+
+enum parse_section {
+	SEC_GLOBAL = 1,
+	SEC_POOL6 = 2,
+	SEC_POOL4 = 4,
+	SEC_BIB = 8,
+	SEC_DONE = 16,
+	SEC_EAMT = 32,
+	SEC_BLACKLIST = 64,
+	SEC_POOL6791 = 128,
+	SEC_INIT = 256
+};
+
+
+enum parse_entries_size{
+
+	POOL4_ENTRY_SIZE = 16,
+	BIB_ENTRY_SIZE = 25,
+	EAMT_ENTRY_SIZE = 22,
+	BLACKLIST_ENTRY_SIZE = 5,
+	POOL6791_ENTRY_SIZE = 5
+};
+
 
 /**
  * @{
@@ -108,12 +162,12 @@ enum config_operation {
 #define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT)
-#define UPDATE_MODES (MODE_GLOBAL)
+#define UPDATE_MODES (MODE_GLOBAL | MODE_PARSE_FILE)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_LOGTIME)
+		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_LOGTIME)
+		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE)
 /**
  * @}
  */
@@ -179,6 +233,14 @@ union request_pool6 {
 	} flush;
 };
 
+struct request_pool4_add{
+	__u32 mark;
+	/** The addresses the user wants to add to the pool. */
+	struct ipv4_prefix addrs;
+	struct port_range ports;
+};
+
+
 /**
  * Configuration for the "IPv4 Pool" module.
  */
@@ -187,12 +249,7 @@ union request_pool4 {
 		__u8 offset_set;
 		struct pool4_sample offset;
 	} display;
-	struct {
-		__u32 mark;
-		/** The addresses the user wants to add to the pool. */
-		struct ipv4_prefix addrs;
-		struct port_range ports;
-	} add;
+    struct request_pool4_add add;
 	struct {
 		__u32 mark;
 		/** The addresses the user wants to remove from the pool. */
@@ -265,6 +322,15 @@ struct request_logtime {
 	};
 };
 
+struct request_bib_add{
+	        __u8 l4_proto;
+			/** The IPv6 transport address of the entry the user wants to add. */
+			struct ipv6_transport_addr addr6;
+			/** The IPv4 transport address of the entry the user wants to add. */
+			struct ipv4_transport_addr addr4;
+};
+
+
 /**
  * Configuration for the "BIB" module.
  */
@@ -288,7 +354,7 @@ struct request_bib {
 			struct ipv6_transport_addr addr6;
 			/** The IPv4 transport address of the entry the user wants to add. */
 			struct ipv4_transport_addr addr4;
-		} add;
+        } add;
 		struct {
 			/* Is the value if "addr6" set? (boolean) */
 			__u8 addr6_set;
