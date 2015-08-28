@@ -2,6 +2,7 @@
 
 #include <crypto/md5.h>
 #include <linux/crypto.h>
+#include "nat64/common/str_utils.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 
@@ -81,11 +82,15 @@ static int f(const struct in6_addr *local_ip, const struct in6_addr *remote_ip,
 	spin_lock_bh(&tfm_lock);
 
 	error = crypto_hash_init(&desc);
-	if (error)
+	if (error) {
+		log_debug("crypto_hash_init() failed. Errcode: %d", error);
 		goto unlock;
+	}
 	error = crypto_hash_digest(&desc, sg, len, md5_result.as8);
-	if (error)
+	if (error) {
+		log_debug("crypto_hash_digest() failed. Errcode: %d", error);
 		goto unlock;
+	}
 
 	*result = md5_result.as32[3];
 	/* Fall through. */
@@ -106,7 +111,6 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 
 	atomic_inc(&next_ephemeral);
 
-	/* TODO (issue36) check parity? */
 	if (!bibdb_contains4(addr, args->proto)) {
 		*(args->result) = *addr;
 		return 1; /* positive = break iteration, no error. */
@@ -142,7 +146,27 @@ int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 	error = pool4db_foreach_taddr4(mark, tuple6->l4_proto,
 			choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
-	if (error == 0)
+
+	if (error == 1)
+		return 0;
+	if (error == -ESRCH) {
+		/*
+		 * Assume the user doesn't need this mark/protocol.
+		 * From our point of view, this is completely normal.
+		 */
+		log_debug("There are no pool4 entries for %s packets with mark "
+				"%u.", l4proto_to_string(tuple6->l4_proto),
+				mark);
 		return -ESRCH;
-	return (error > 0) ? 0 : error;
+	}
+	if (error == 0) {
+		log_warn_once("pool4 is exhausted! There are no transport "
+				"addresses left for %s packets with mark %u.",
+				l4proto_to_string(tuple6->l4_proto), mark);
+		return -ESRCH;
+	}
+
+	WARN(true, "Programming error! pool4db_foreach_taddr4()'s result (%d) "
+			"is unknown!", error);
+	return -EINVAL;
 }

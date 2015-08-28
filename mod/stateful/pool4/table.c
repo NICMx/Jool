@@ -332,8 +332,6 @@ int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
 	return error;
 }
 
-/* TODO (issue36) I'm not accounting for parity and range. */
-
 /**
  * pool4table_foreach_sample - executes @func for every sample in @table.
  * @table: sample collection that will be iterated.

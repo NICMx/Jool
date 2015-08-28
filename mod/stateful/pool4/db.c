@@ -42,9 +42,7 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 	unsigned int i;
 	int error;
 
-	/* TODO (issue36) align the defaults with masquerade. */
 	ports.max = 65535U;
-
 	for (i = 0; i < prefix_count; i++) {
 		error = prefix4_parse(prefix_strs[i], &prefix);
 		if (error)
@@ -192,7 +190,7 @@ int pool4db_rm(const __u32 mark, enum l4_protocol proto,
 	if (error)
 		return error;
 
-	if (list_empty(&table->rows))
+	if (pool4table_is_empty(table))
 		__rm(table);
 
 	return 0;
@@ -337,6 +335,15 @@ end:
 	return error;
 }
 
+/**
+ * As a contract, this function will return:
+ *
+ * - ESRCH if there's no pool4 entry mapped to mark and proto.
+ * - 0 if there's at least one pool4 entry mapped to mark and proto, and
+ *   eaach of their transport addresses were iterated.
+ * - If cb decides to stop iteration early, it will do so by returning nonzero,
+ *   and that will in turn become the result of this function.
+ */
 int pool4db_foreach_taddr4(const __u32 mark, enum l4_protocol proto,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
