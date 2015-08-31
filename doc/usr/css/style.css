@@ -399,3 +399,24 @@ hr {
 	width:100%; 
 	height:100%;
 }
+
+/* Code */
+
+.distro-menu {
+	margin-left: 600px;
+}
+
+.distro-selector {
+	background-color: #00619F;
+	color: white;
+	font-size: 80%;
+	font-weight: bold;
+	padding: 1px 1em;
+	border-radius: 5px 5px 0px 0px;
+	cursor: pointer;
+}
+
+.distro-selector:hover, .distro-selector.selected {
+	background-color: #0090C0;
+}
+

@@ -51,11 +51,21 @@ $ /sbin/ip link show
     link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff
 {% endhighlight %}
 
-Finally, you need your kernel headers. If you're using apt-get, just run this:
+Finally, you need the dependencies. Pick whichever works for you...
+
+{% include distro-start %}
 
 {% highlight bash %}
-$ apt-get install linux-headers-$(uname -r)
+# apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
+
+{% highlight bash %}
+# yum install kernel-devel
+# yum install kernel-headers
+# yum install gcc
+{% endhighlight %}
+
+{% include distro-end %}
 
 ## Installation
 

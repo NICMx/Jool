@@ -33,9 +33,17 @@ Done; you should now be able to type `jool --help` or `jool_siit --help` and get
 
 The repository does not keep track of the configuration script, so you have to generate it yourself. You need autoconf 2.68 or superior to do that.
 
+{% include distro-start %}
+
 {% highlight bash %}
 user@node:~# apt-get install autoconf
 {% endhighlight %}
+
+{% highlight bash %}
+user@node:~# yum install automake
+{% endhighlight %}
+
+{% include distro-end %}
 
 Then just add a call to `autogen.sh` to the normal installation procedure:
 
@@ -55,7 +63,14 @@ Done; you should now be able to type `jool --help` or `jool_siit --help` and get
 
 If your distribution package-manages it though, <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">you might really want to exploit the feature rather than compiling the framework</a>:
 
+{% include distro-start %}
+
 {% highlight bash %}
 user@node:~# apt-get install libnl-3-dev
 {% endhighlight %}
 
+{% highlight bash %}
+user@node:~# yum install libnl3*
+{% endhighlight %}
+
+{% include distro-end %}
