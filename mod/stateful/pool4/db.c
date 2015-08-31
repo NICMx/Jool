@@ -48,7 +48,7 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 		if (error)
 			return error;
 
-		ports.min = 60001U;
+		ports.min = 61001U;
 		error = pool4db_add(0, L4PROTO_TCP, &prefix, &ports);
 		if (error)
 			return error;
@@ -214,22 +214,7 @@ void pool4db_flush(void)
 	values = 0;
 }
 
-bool pool4db_contains(const __u32 mark, enum l4_protocol proto,
-		struct ipv4_transport_addr *addr)
-{
-	struct pool4_table *table;
-	bool result;
-	rcu_read_lock();
-
-	table = find_table(mark, proto);
-	result = table ? pool4table_contains(table, addr) : false;
-
-	rcu_read_unlock();
-	return result;
-}
-
-bool pool4db_contains_all(enum l4_protocol proto,
-		struct ipv4_transport_addr *addr)
+bool pool4db_contains(enum l4_protocol proto, struct ipv4_transport_addr *addr)
 {
 	struct pool4_table *table;
 	struct hlist_node *node;

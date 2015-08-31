@@ -28,10 +28,7 @@ void pool4db_flush(void);
  * Read functions (Legal to use anywhere)
  */
 
-bool pool4db_contains(const __u32 mark, enum l4_protocol proto,
-		struct ipv4_transport_addr *addr);
-bool pool4db_contains_all(enum l4_protocol proto,
-		struct ipv4_transport_addr *addr);
+bool pool4db_contains(enum l4_protocol proto, struct ipv4_transport_addr *addr);
 bool pool4db_is_empty(void);
 void pool4db_count(__u32 *tables, __u64 *samples, __u64 *taddrs);
 

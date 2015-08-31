@@ -701,7 +701,7 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(pkt->skb->mark, in_tuple->l4_proto,
+		if (!pool4db_contains(in_tuple->l4_proto,
 				&in_tuple->dst.addr4)) {
 			log_debug("Packet does not belong to pool4.");
 			return VERDICT_ACCEPT;

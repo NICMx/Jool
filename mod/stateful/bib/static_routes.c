@@ -38,7 +38,7 @@ int add_static_route(struct request_bib *request)
 	struct bib_entry *bib = NULL;
 	int error;
 
-	if (!pool4db_contains_all(request->l4_proto, &request->add.addr4)) {
+	if (!pool4db_contains(request->l4_proto, &request->add.addr4)) {
 		log_err("The transport address (%pI4#%u) does not belong to "
 				"the IPv4 pool. Please add it there first.",
 				&request->add.addr4.l3, request->add.addr4.l4);

@@ -289,11 +289,11 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	for (i = addr_min; i <= addr_max; i++) {
 		taddr.l3.s_addr = cpu_to_be32(0xc0000200U | i);
 		for (taddr.l4 = port_min; taddr.l4 <= port_max; taddr.l4++) {
-			result = pool4db_contains(1, L4PROTO_TCP, &taddr);
+			result = pool4db_contains(L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
 					"contains %pI4#%u",
 					&taddr.l3, taddr.l4);
-			result = pool4db_contains_all(L4PROTO_TCP, &taddr);
+			result = pool4db_contains(L4PROTO_TCP, &taddr);
 			success &= ASSERT_BOOL(expected, result,
 					"contains_all %pI4#%u",
 					&taddr.l3, taddr.l4);
