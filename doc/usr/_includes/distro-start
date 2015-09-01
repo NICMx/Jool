@@ -1,5 +1,0 @@
-<div>
-<div class="distro-menu">
-	<span class="distro-selector" onclick="showCode(this);">Ubuntu</span>
-	<span class="distro-selector" onclick="showCode(this);">CentOS</span>
-</div>

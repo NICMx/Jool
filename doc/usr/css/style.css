@@ -400,23 +400,26 @@ hr {
 	height:100%;
 }
 
-/* Code */
+/* Distro-specific code */
 
 .distro-menu {
-	margin-left: 600px;
+	text-align: right;
+	margin-right: 1em;
+	margin-bottom: -1px;
 }
 
 .distro-selector {
-	background-color: #00619F;
-	color: white;
+	background-color: #DDD;
 	font-size: 80%;
 	font-weight: bold;
 	padding: 1px 1em;
+	border: 1px solid #DDD;
+	border-bottom-style: none;
 	border-radius: 5px 5px 0px 0px;
 	cursor: pointer;
 }
 
 .distro-selector:hover, .distro-selector.selected {
-	background-color: #0090C0;
+	background-color: #F8F8F8;
 }
 

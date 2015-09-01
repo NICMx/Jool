@@ -53,19 +53,48 @@ $ /sbin/ip link show
 
 Finally, you need the dependencies. Pick whichever works for you...
 
-{% include distro-start %}
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch Linux</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Raspberry Pi</span>
+</div>
 
+<!-- Ubuntu -->
 {% highlight bash %}
 # apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
 
+<!-- Debian -->
+{% highlight bash %}
+# apt-get install build-essential
+# apt-get install linux-headers-$(uname -r)
+{% endhighlight %}
+
+<!-- CentOS -->
 {% highlight bash %}
 # yum install kernel-devel
 # yum install kernel-headers
 # yum install gcc
 {% endhighlight %}
 
-{% include distro-end %}
+<!-- Arch Linux -->
+{% highlight bash %}
+# pacman -S base-devel
+{% endhighlight %}
+
+<!-- openSUSE -->
+{% highlight bash %}
+# zypper install gcc make
+# zypper install kernel-source
+{% endhighlight %}
+
+<!-- Raspberry Pi -->
+{% highlight bash %}
+$ # see https://github.com/NICMx/NAT64/issues/158
+{% endhighlight %}
 
 ## Installation
 
