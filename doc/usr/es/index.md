@@ -11,12 +11,10 @@ title: Home
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en [Raspbian] (http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html).
+Jool es un [SIIT y NAT64](intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en [Raspbian](http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html).
 
 * [Haz click aquí](documentation.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](download.html) para descargar Jool.
-
-![sparkles](../images/sparkles.png) Agradecemos a Namsep por su aportación hecha sobre Raspbian.
 
 -------------------
 
@@ -47,8 +45,8 @@ Versión 3.3.3 liberada.
 
 Además en esta versión:
 
-1. [Se añadió el soporte para el framework DKMS!] (https://github.com/NICMx/NAT64/pull/165)
-2. Se corrigieron los errores [#150] (https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) al usar la Herramienta de Configuración de Jool en el despliege de las tablas (bib, sessions y pools) cuando están vacías.
+1. [Se añadió el soporte para el framework DKMS!](https://github.com/NICMx/NAT64/pull/165)
+2. Se corrigieron los errores [#150](https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) al usar la Herramienta de Configuración de Jool en el despliege de las tablas (bib, sessions y pools) cuando están vacías.
 
 ### 2015-04-14
 
@@ -205,5 +203,5 @@ Otras correcciones importantes:
 * Se realizaron optimizaciones relevantes en ambas base de datos: BIB y session. El módulo deberá escalar mucho más elegantemente cuando los clientes se encuentren demandando más tráfico.
 * Jool ya no requiere de otra dirección IPv4 por separado.
 * El pánico del kernel cuando se removia el módulo ha sido suprimido.
-* [Y además] (https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
+* [Y además](https://github.com/NICMx/NAT64/issues?milestone=11&state=closed).
 

@@ -20,11 +20,11 @@ title: Documentación - Introducción a los Mecanismos de Transición
 ## Introducción
  Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
  
-El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765] (https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)] (https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)] (https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días] (https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)] ({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)] ({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)] ({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson] (http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
+El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765](https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)](https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)](https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días](https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)]({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)]({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)]({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson](http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
 
-La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**] (http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea] (http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146] (https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el [Dr. Marcelo Bagnulo Braun] (http://www.it.uc3m.es/marcelo/) de la Universidad Carlos III y otros dos colaboradores del proyecto. 
+La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**](http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea](http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146](https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el [Dr. Marcelo Bagnulo Braun](http://www.it.uc3m.es/marcelo/) de la Universidad Carlos III y otros dos colaboradores del proyecto. 
 
-:bulb: Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF] (https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker] (https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
+![bulb](../images/bulb.png) Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
 
 ## Ejemplos de Traducción IPv4/IPv6
  
@@ -52,7 +52,7 @@ En una implementación SIIT siempre se modifican los encabezados de red y en alg
 
 Esta parte es la más fácil de explicar. Considera la siguiente configuración:
 
-![Fig.1 - Red de ejemplo EAM](images/network/eam.png "Fig.1 - Red de ejemplo EAM")
+![Fig.1 - Red de ejemplo EAM](../images/network/eam.svg "Fig.1 - Red de ejemplo EAM")
 
 (_T_ representa "Translating box". En español "Caja de traducción".)
 
@@ -69,20 +69,20 @@ La primera es resuelta por SIIT, las demás pueden ser realizadas vía DNS.
 
 Veamos:
 
-![Fig.2 - Flujo EAM](images/flow/eam.png "Fig.2 - Flujo EAM")
+![Fig.2 - Flujo EAM](../images/flow/eam-es.svg "Fig.2 - Flujo EAM")
 
 El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro puede hablar el mismo lenguaje.
 
 "EAM" significa por sus siglas en inglés "Explicit Address Mapping", mapeo de direcciones explícitas. Es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias.
 
-:bulb: Revisa [nuestro resumen](eamt.html) o repasa sus especificaciones en el [draft EAM]({{ site.draft-siit-eam }}).
+![bulb](../images/bulb.png) Revisa [nuestro resumen](eamt.html) o repasa sus especificaciones en el [draft EAM]({{ site.draft-siit-eam }}).
 
 ### `SIIT (tradicional)`
 
 
 El modo básico es un poco más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. Considera la siguiente configuración:
 
-![Fig.3 - Red de ejemplo Vanilla](images/network/vanilla.png "Fig.3 - Red de ejemplo Vanilla")
+![Fig.3 - Red de ejemplo Vanilla](../images/network/vanilla.svg "Fig.3 - Red de ejemplo Vanilla")
 
 Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
@@ -93,7 +93,7 @@ Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguien
 
 La idea es, simplemente remover _el prefijo_ durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido. Como lo puedes apreciar en la siguiente figura:
 
-![Fig.4 - Flujo Vanilla](images/flow/vanilla.png "Fig.4 - Flujo Vanilla")
+![Fig.4 - Flujo Vanilla](../images/flow/vanilla-es.svg "Fig.4 - Flujo Vanilla")
 
 Por supuesto, esto significa que la dirección IPv4 de cada nodo en IPv6 tiene que ser codificada dentro de su dirección, lo cual es un poco engorroso.
 
@@ -103,7 +103,7 @@ Puedes encontrar un ejemplo concreto de como SIIT "tradicional" y "EAM" pueden s
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de nuestro rango de 128 bits según se establece en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-:warning: Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](dns64.html) para que <br />
+![warning](../images/warning.png) Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](dns64.html) para que <br />
           los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### `Stateful NAT64`
@@ -111,11 +111,11 @@ Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en di
 
 Este modo es el más parecido a lo que la gente entiende como **NAT**, por sus siglas en inglés de _IP Network Address Translator_. Recordemos, un NAT opera de la siguiente manera:
 
-![Fig.5 - Red de ejemplo NAT](images/network/nat.png "Fig.5 - Red de ejemplo NAT")
+![Fig.5 - Red de ejemplo NAT](../images/network/nat-es.svg "Fig.5 - Red de ejemplo NAT")
 
 Note que, la red de la izquierda es llamada "Privada" por que usa [Direcciones no disponibles en la Internet Global](http://es.wikipedia.org/wiki/Red_privada).  _NAT_ modifica las direcciones de los paquetes para que los nodos externos piensen que el tráfico proveniente de los nodos internos fue en realidad iniciado por el _NAT_:
 
-![Fig.6 - Flujo NAT](images/flow/nat.png "Fig.6 - Flujo NAT")
+![Fig.6 - Flujo NAT](../images/flow/nat-es.svg "Fig.6 - Flujo NAT")
 
 Es decir que para propósitos externos, los nodos desde _A_ hasta _E_ están "compartiendo" la misma dirección global de _NAT_ (o grupo de direcciones).
 
@@ -130,7 +130,7 @@ Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes 
 
 **Stateful NAT64** es muy similar a un NAT-PT (_Protocol Translation_). La única diferencia es que la "Red Privada" es de hecho una red IPv6:
 
-![Fig.7 - Red de ejemplo Stateful NAT64](images/network/stateful.png "Fig.7 - Red de ejemplo Stateful NAT64")
+![Fig.7 - Red de ejemplo Stateful NAT64](../images/network/stateful.svg "Fig.7 - Red de ejemplo Stateful NAT64")
 
 Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
 
@@ -141,14 +141,14 @@ Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguien
 
 La idea es, enmascarar _A_ y remover el prefijo a _V_ durante el mapeo de IPv6 a IPv4, y adjuntar el prefijo en _V_ y quitar la máscara a _A_ cuando va de IPV4 a IPv6. Como lo puedes apreciar en la siguiente figura:
 
-![Fig.8 - Flujo Stateful](images/flow/stateful.png "Fig.8 - Flujo Stateful")
+![Fig.8 - Flujo Stateful](../images/flow/stateful-es.svg "Fig.8 - Flujo Stateful")
 
 NAT64 maneja otros escenarios y es aquí donde termina la similitud con NAT. Debido a que en IPv6 la capacidad de identificación de los nodos es sumamente enorme, se contempla que cada dispositivo cuente con una dirección pública de IPv6. En otras palabras se prevé o planea que TODOS los dispositivos en IPv6  tenga acceso a Internet. Considerando esto, una conectividad posible sería:
 
-![Fig.9 - Internet Stateful NAT64](images/network/full.png "Fig.9 - Internet Stateful NAT64")
+![Fig.9 - Internet Stateful NAT64](../images/network/full-es.svg "Fig.9 - Internet Stateful NAT64")
 
 De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador _R_, y a la IPv4 mediante _T_.
 
-Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2] (https://tools.ietf.org/html/rfc6144#section-2).
+Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2](https://tools.ietf.org/html/rfc6144#section-2).
 
-:warning: Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
+![warning](../images/warning.png) Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
