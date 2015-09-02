@@ -42,7 +42,6 @@ int rfc6791_flush(void)
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s destination should be sourced
  * with.
- * RCU locks must be already held.
  */
 static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
 {
@@ -58,12 +57,14 @@ static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
 	if (count <= 0xFFFFFFFFU)
 		addr_index %= (unsigned int) count;
 
-	list_for_each_entry_rcu(entry, &pool, list_hook) {
+	rcu_read_lock_bh();
+	list_for_each_entry_rcu_bh(entry, &pool, list_hook) {
 		count = prefix4_get_addr_count(&entry->prefix);
 		if (count >= addr_index)
 			break;
 		addr_index -= count;
 	}
+	rcu_read_unlock_bh();
 
 	*result = htonl(ntohl(entry->prefix.address.s_addr) | addr_index);
 	return 0;
@@ -72,7 +73,6 @@ static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
 /**
  * Returns in "result" the IPv4 address an ICMP error towards "out"'s destination should be sourced
  * with, assuming the RFC6791 pool is empty.
- * RCU locks must be already held.
  */
 static int get_host_address(struct packet *in, struct packet *out, __be32 *result)
 {
@@ -86,6 +86,8 @@ static int get_host_address(struct packet *in, struct packet *out, __be32 *resul
 		return error;
 
 	dev = out->skb->dev;
+
+	rcu_read_lock();
 	in_dev = rcu_dereference(dev->ip_ptr);
 	ifaddr = in_dev->ifa_list;
 	while (ifaddr) {
@@ -94,8 +96,10 @@ static int get_host_address(struct packet *in, struct packet *out, __be32 *resul
 			continue;
 		}
 		*result = ifaddr->ifa_address;
+		rcu_read_unlock();
 		return 0;
 	}
+	rcu_read_unlock();
 
 	log_warn_once("The kernel routed an IPv4 packet via device %s, which doesn't have any "
 			"(non-loopback) IPv4 addresses.", dev->name);
@@ -107,8 +111,6 @@ int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)
 	__u64 count;
 	int error;
 
-	rcu_read_lock_bh();
-
 	/*
 	 * I'm counting the list elements instead of using an algorithm like reservoir sampling
 	 * (http://stackoverflow.com/questions/54059) because the random function can be really
@@ -118,17 +120,12 @@ int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)
 	error = pool_count(&pool, &count);
 	if (error) {
 		log_debug("pool_count failed with errcode %d.", error);
-		goto end;
+		return error;
 	}
 
-	error = (count != 0)
+	return (count != 0)
 			? get_rfc6791_address(in, count, result)
 			: get_host_address(in, out, result);
-	/* Fall through. */
-
-end:
-	rcu_read_unlock_bh();
-	return error;
 }
 
 int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,

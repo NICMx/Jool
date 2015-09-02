@@ -43,32 +43,32 @@ bool blacklist_contains(__be32 addr)
 	struct pool_entry *entry;
 	struct in_addr inaddr = { .s_addr = addr };
 	struct in_addr net_addr;
-	bool result = false;
 
 	rcu_read_lock_bh();
-	list_for_each_entry_rcu(entry, &pool, list_hook) {
+	list_for_each_entry_rcu_bh(entry, &pool, list_hook) {
 		if (prefix4_contains(&entry->prefix, &inaddr)) {
-			result = true;
-			goto end;
+			rcu_read_unlock_bh();
+			return true;
 		}
 	}
+	rcu_read_unlock_bh();
 
+	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
 		in_dev = rcu_dereference(dev->ip_ptr);
 		ifaddr = in_dev->ifa_list;
 		while (ifaddr) {
 			net_addr.s_addr = ifaddr->ifa_address;
 			if (ipv4_addr_cmp(&net_addr, &inaddr) == 0) {
-				result = true;
-				goto end;
+				rcu_read_unlock();
+				return true;
 			}
 			ifaddr = ifaddr->ifa_next;
 		}
 	}
+	rcu_read_unlock();
 
-end:
-	rcu_read_unlock_bh();
-	return result;
+	return false;
 }
 
 int blacklist_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,

@@ -9,7 +9,7 @@ struct pool4_table *pool4table_create(__u32 mark, enum l4_protocol proto)
 {
 	struct pool4_table *result;
 
-	result = kmalloc(sizeof(*result), GFP_ATOMIC);
+	result = kmalloc(sizeof(*result), GFP_KERNEL);
 	if (!result)
 		return NULL;
 
@@ -72,7 +72,7 @@ static bool try_fusion(struct pool4_addr *addr, struct port_range *range)
 			continue;
 
 		list_del_rcu(&ports->list_hook);
-		synchronize_rcu();
+		synchronize_rcu_bh();
 
 		if (fusion) {
 			fuse(&ports->range, &fusion->range, &fusion->range);
@@ -252,7 +252,7 @@ static int rm_range(struct pool4_addr *addr, const struct port_range *rm)
 				list_del_rcu(&addr->list_hook);
 			}
 
-			synchronize_rcu();
+			synchronize_rcu_bh();
 			kfree(ports);
 			kfree(tmp);
 			continue;

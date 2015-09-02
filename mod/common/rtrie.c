@@ -311,7 +311,7 @@ static int add_full_collision(struct rtrie *trie, struct rtrie_node *parent,
 
 	rcu_assign_pointer(parent->left, NULL);
 	rcu_assign_pointer(parent->right, NULL);
-	synchronize_rcu();
+	synchronize_rcu_bh();
 	rcu_assign_pointer(parent->left, smallest_prefix);
 	rcu_assign_pointer(parent->right, inode);
 
@@ -375,7 +375,7 @@ static int __rtrie_add(struct rtrie *trie, void *value, size_t key_offset,
 		RCU_INIT_POINTER(new->right, right);
 		rcu_assign_pointer(parent->left, NULL);
 		rcu_assign_pointer(parent->right, NULL);
-		synchronize_rcu();
+		synchronize_rcu_bh();
 		rcu_assign_pointer(parent->right, new);
 
 		left->parent = new;
@@ -482,7 +482,7 @@ static int __rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 		parent_ptr = get_parent_ptr(trie, node);
 
 		rcu_assign_pointer(*parent_ptr, new);
-		synchronize_rcu();
+		synchronize_rcu_bh();
 
 		deref_updater(trie, new->left)->parent = new;
 		deref_updater(trie, new->right)->parent = new;
@@ -503,7 +503,7 @@ static int __rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 
 		if (node->left) {
 			rcu_assign_pointer(*parent_ptr, node->left);
-			synchronize_rcu();
+			synchronize_rcu_bh();
 			deref_updater(trie, node->left)->parent = parent;
 			list_del(&node->list_hook);
 			kfree(node);
@@ -512,7 +512,7 @@ static int __rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 
 		if (node->right) {
 			rcu_assign_pointer(*parent_ptr, node->right);
-			synchronize_rcu();
+			synchronize_rcu_bh();
 			deref_updater(trie, node->right)->parent = parent;
 			list_del(&node->list_hook);
 			kfree(node);
@@ -520,7 +520,7 @@ static int __rtrie_rm(struct rtrie *trie, struct rtrie_key *key)
 		}
 
 		rcu_assign_pointer(*parent_ptr, NULL);
-		synchronize_rcu();
+		synchronize_rcu_bh();
 		list_del(&node->list_hook);
 		kfree(node);
 
@@ -561,7 +561,7 @@ void rtrie_flush(struct rtrie *trie)
 	list_replace_init(&trie->list, &tmp_list);
 	mutex_unlock(&trie->lock);
 
-	synchronize_rcu();
+	synchronize_rcu_bh();
 
 	list_for_each_entry_safe(node, tmp_node, &tmp_list, list_hook) {
 		list_del(&node->list_hook);
@@ -661,7 +661,7 @@ void rtrie_print(char *prefix, struct rtrie *trie)
 
 	printk("root: %p %p %p\n", &trie->list, trie->list.prev, trie->list.next);
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 
 	root = deref_reader(trie->root);
 	if (root) {
@@ -670,7 +670,7 @@ void rtrie_print(char *prefix, struct rtrie *trie)
 		printk("  (empty)\n");
 	}
 
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	printk("-----------------------\n");
 }
