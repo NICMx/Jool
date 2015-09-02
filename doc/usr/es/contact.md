@@ -13,7 +13,7 @@ Ponte en contacto con nosotros mediante:
 
 -- jool-list@nic.mx es una lista de correo general para la discusión pública del proyecto y la difusión de noticias. 
   
-:email: Sus preguntas, solicitudes y comentarios son bienvenidos. Registrate [aquí](https://mail-lists.nic.mx/listas/listinfo/jool-list).
+![email](../images/email.png) Sus preguntas, solicitudes y comentarios son bienvenidos. Registrate [aquí](https://mail-lists.nic.mx/listas/listinfo/jool-list).
 
 Actualmente, existe un problema de "exceso" de seguridad que está siendo corregido.
 
@@ -21,7 +21,7 @@ Actualmente, existe un problema de "exceso" de seguridad que está siendo correg
 	
 -- jool-news@nic.mx es una lista de correos para informar solo noticias.
 
-:mailbox_with_mail: Es utilizada para notificar sobre las nuevas versiones que están siendo liberadas en este sitio. Suscribete [aquí](https://mail-lists.nic.mx/listas/listinfo/jool-news).
+![mailbox_with_mail](../images/mailbox_with_mail.png) Es utilizada para notificar sobre las nuevas versiones que están siendo liberadas en este sitio. Suscribete [aquí](https://mail-lists.nic.mx/listas/listinfo/jool-news).
 
 Solo el equipo de desarrollo puede enviar mails en esta lista, así que no tienes que preocuparte de recibir *spam*. <br />
 Debido a este próposito, esta lista raramente genera más de un e-mail por mes.
@@ -30,7 +30,7 @@ Debido a este próposito, esta lista raramente genera más de un e-mail por mes.
   
 -- [Github corner](https://github.com/NICMx/NAT64/issues) es nuestra lista oficial de errores.
 
-:pencil: Este también es un buen lugar para solicitar nuevas características.
+![pencil](../images/pencil.png) Este también es un buen lugar para solicitar nuevas características.
 
 ## Mail a los Desarrolladores
 

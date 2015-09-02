@@ -13,7 +13,7 @@ title: Descarga
 -->
 
 * Las versión resaltada en **negritas** es la última actualización y es la más recomendable a instalar.
-* Las versiones no resaltadas son versiones estables pero anteriores. Éstas se podrían requerir en caso de que alguna opción, en la más nueva, falle. [¡Los reportes son bienvenidos!] (https://github.com/NICMx/NAT64/issues).
+* Las versiones no resaltadas son versiones estables pero anteriores. Éstas se podrían requerir en caso de que alguna opción, en la más nueva, falle. [¡Los reportes son bienvenidos!](https://github.com/NICMx/NAT64/issues).
 * Las versiones tachadas no son recomedables, pues son muy antiguas o tienen errores críticos ya bien identificados.
 
 ## 3.3.x
