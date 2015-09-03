@@ -11,13 +11,13 @@ title: Documentación - Introducción a los Mecanismos de Transición
 
 ## Índice
 
-1. [Introducción](#introduccion)
-2. [Ejemplos de Traducción IPv4/IPv6](#traduccion-ipv4ipv6)
+1. [Introduccion](#introduccion)
+2. [Ejemplos de Traduccion](#ejemplos-de-traduccion)
 	1. [`SIIT con EAM`](#siit-con-eam)
     2. [`SIIT tradicional`](#siit-tradicional)
     3. [`Stateful NAT64`](#stateful-nat64)
     
-## Introducción
+## Introduccion
  Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
  
 El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765](https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)](https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)](https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días](https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)]({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)]({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)]({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson](http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
@@ -26,7 +26,7 @@ La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Tri
 
 ![bulb](../images/bulb.png) Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
 
-## Ejemplos de Traducción IPv4/IPv6
+## Ejemplos de Traduccion
  
  SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que únicamente hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
  La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; es decir que, un "Traductor IPv4/IPv6" no solo reemplaza direcciones y/o puertos en los paquetes, sino también encabezados de capa 3.

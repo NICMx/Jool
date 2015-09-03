@@ -11,14 +11,14 @@ title: EAMT
 
 ## Índice
 
-1. [Definición](#definicion)
-2. [Ejemplos] (#ejemplos)
-	1. [`Registro 01`] (#registro-01)
-	2. [`Registro 02`] (#registro-02)
-	3. [`Registro 03`] (#registro-03)
-3. [Resumen y Notas Adicionales] (#resumen-notas-adicionales)
+1. [Definicion](#definicion)
+2. [Ejemplos](#ejemplos)
+	1. [`Registro 01`](#registro-01)
+	2. [`Registro 02`](#registro-02)
+	3. [`Registro 03`](#registro-03)
+3. [Resumen y Notas Adicionales](#resumen-y-notas-adicionales)
 	
-## Definición
+## Definicion
 
 La tabla EAMT (_Explicit Address Mappings Table_) por sus siglas en inglés, es una colección de registros en un servidor SIIT y en ella se guarda la relación de cómo las diferentes direcciones deben de ser traducidas. 
 
@@ -36,7 +36,7 @@ Aquí se encuentra un ejemplo de una tabla EAMT:
 
 Un registro EAMT está compuesto en pares, un prefijo IPv4 y un prefijo IPv6. Cuando una dirección esta siendo traducida, su prefijo es literalmente reemplazado de acuerdo a la tabla.
 
-			NOTA IMPORTANTE: En la implementación de Jool, todos los registros son bidireccionales.
+		NOTA IMPORTANTE: En la implementación de Jool, todos los registros son bidireccionales.
 
 ### Registro 01
 

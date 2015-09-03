@@ -11,21 +11,21 @@ title: SIIT-EAM - Ejemplo de uso
 
 ## Índice
 
-1. [Introducción](#introduccion)
+1. [Introduccion](#introduccion)
 2. [Red de ejemplo](#red-de-ejemplo)
-	1. [`Configuración de Nodos en IPv6`] (#nodos-ipv6)
-	2. [`Configuración de Nodos en IPv4`] (#nodos-ipv4)
-	3. [`Configuración de Nodo Traductor`] (#nodo-jool)
+	1. [`Configuracion de Nodos en IPv6`](#configuracion-de-nodos-en-ipv6)
+	2. [`Configuracion de Nodos en IPv4`](#configuracion-de-nodos-en-ipv4)
+	3. [`Configuracion del Nodo Traductor`](#configuracion-del-nodo-traductor)
 3. [Jool](#jool)
 4. [Pruebas](#pruebas)
-	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
-	2. [`Conectividad de IPv6 a IPv4`] (#ping6to4)
-	3. [`Conectividad a un Web Server en IPv4`] (#WebServer-ipv4)
-	4. [`Conectividad a un Web Server en IPv6`] (#WebServer-ipv6)
+	1. [`Conectividad de IPv6 a IPv4`](#conectividad-de-ipv6-a-ipv4)
+	2. [`Conectividad de IPv4 a IPv6`](#conectividad-de-ipv4-a-ipv6)
+	3. [`Conectividad a un Web Server en IPv4`](#conectividad-a-un-web-server-en-ipv4)
+	4. [`Conectividad a un Web Server en IPv6`](#conectividad-a-un-web-server-en-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
-## Introducción
+## Introduccion
 
 Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](intro-nat64.html#siit-con-eam). 
 
@@ -44,7 +44,7 @@ Aquí también, son válidas y aplican las observaciones mencionadas de la [secc
 - Jool requiere Linux, los otros Nodos no necesariamente.
 - Para este tutorial, consideraremos que: a)todos están en Linux, b)la configuración de red se hará manualmente, c) todo el tráfico será redirigido por defecto hacia _T_.
 
-### `Configuración de Nodos en IPv6`
+### `Configuracion de Nodos en IPv6`
 
 Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -56,7 +56,7 @@ user@A:~# /sbin/ip addr add 2001:db8:6::8/96 dev eth0
 user@A:~# /sbin/ip route add default via 2001:db8:6::1
 {% endhighlight %}
 
-### `Configuración de Nodos en IPv4`
+### `Configuracion de Nodos en IPv4`
 
 Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -68,7 +68,7 @@ user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
 user@V:~# /sbin/ip route add default via 192.0.2.1
 {% endhighlight %}
 
-### `Configuración del Nodo Traductor`
+### `Configuracion del Nodo Traductor`
 
 Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 

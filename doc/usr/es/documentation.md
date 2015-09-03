@@ -5,18 +5,18 @@ category: Download
 title: Documentación - Índice
 ---
 
-# Documentación
+# Documentacion
 
 Bienvenido al índice de la documentación de Jool.
 
-## Introducción
+## Introduccion
 
 1. [Qué es SIIT/NAT64?](intro-nat64.html)
 2. [Qué es Jool?](intro-jool.html)
 
 Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de desarrollo usando NAT64 Stateful.
 
-## Instalación
+## Instalacion
 1. [Servidor Jool](mod-install.html)
 2. [Herramienta de Configuración](usr-install.html)
 
@@ -32,7 +32,7 @@ Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de
 4. [DNS64](dns64.html)
 5. [464XLAT - SIIIT/DC Modo de traducción dual](mod-run-464xlat.html)
 
-## Herramienta de Configuración
+## Herramienta de Configuracion
 
 1. [Banderas](usr-flags.html)
 

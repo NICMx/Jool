@@ -2,27 +2,27 @@
 language: es
 layout: default
 category: Documentation
-title: Instalación de los Módulos de Kernel
+title: Instalación del Servidor Jool
 ---
 
 [Documentación](documentation.html) > [Instalación](documentation.html#instalacion) > Servidor Jool
 
-# Instalación de los Módulos de Kernel
+# Instalación del Servidor Jool
 
 ## Índice
 
-1. [Introducción](#introduccion)
+1. [Introduccion](#introduccion)
 2. [Requerimientos](#requerimientos)
-	1. [`Kernels Válidos`](#kernels-soportados)
-	2. [`Encabezados del Kernel`](#encabezado-kernel)
-	3. [`Interfaces de Red`](#interfaces)
-	4. [`Ethtool`] (#ethtool)
-3. [Baja, Compila e Instala](#baja-compila-instala)
-	1. [`De la Web Oficial`] (#web_oficial)
-	2. [`Del Repositorio GIT`] (#github)
-4. [Genera Archivo de Dependencias] (#genera-make)
+	1. [`Kernels Validos`](#kernels-validos)
+	2. [`Encabezados del Kernel`](#encabezados-del-kernel)
+	3. [`Interfaces de Red`](#interfaces-de-red)
+	4. [`Ethtool`](#ethtool)
+3. [Baja Compila e Instala](#baja-compila-e-instala)
+	1. [`De la Web Oficial`](#de-la-web-oficial)
+	2. [`Del Repositorio GIT`](#del-repositorio-git)
+4. [Genera Archivo de Dependencias](#genera-archivo-de-dependencias)
 
-## Introducción
+## Introduccion
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
@@ -37,13 +37,13 @@ Las aplicaciones en el espacio de usuario son para configuración de Jool, la ex
 
 ## Requerimientos
 
-### `Kernels Válidos`
+### `Kernels Validos`
 
 Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux [haz click aquí](intro-jool.html#compatibilidad). Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!
 
 NOTA: No recomendamos usar el kernel 3.12 porque [el sistema se inhibe cuando se invoca la función icmpv6_send](https://github.com/NICMx/NAT64/issues/90).
 
-Para validar la versión de tu kernel, usa el siguiente comando:
+Para verificar la versión de tu kernel, usa el siguiente comando:
 
 {% highlight bash %}
 $ /bin/uname -r
@@ -101,7 +101,7 @@ Si buscas la versión más estable o versiónes anteriores de Jool, entonces des
 
 4) Descomprime
 
-:small_orange_diamond:  Asumiendo que lo bajastes en formato ZIP, en la carpeta de _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
+![small_orange_diamond](../images/small_orange_diamond.png) Asumiendo que lo bajastes en formato ZIP, en la carpeta de _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
 
 {% highlight bash %}
 user@node:$ cd Downloads
@@ -135,7 +135,7 @@ Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), t
 
 4) Descomprime
 
-:small_orange_diamond: Asumiendo que se descargó en _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
+![small_orange_diamond](../images/small_orange_diamond.png) Asumiendo que se descargó en _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
 
 {% highlight bash %}
 user@node:$ cd Downloads
@@ -167,9 +167,9 @@ user@node:~# depmod
 
 Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](mod-run-vanilla.html).
 
-:thumbsup: ¡LISTO! Jool puede ser inicializado ahora. 
+![thumbsup](../images/thumbsup.png) ¡LISTO! Jool puede ser inicializado ahora. 
 
-:warning: A D V E R T E N C I A
+![warning](../images/warning.png) A D V E R T E N C I A
 > 
 > A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
 > 

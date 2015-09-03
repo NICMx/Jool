@@ -11,19 +11,19 @@ title: Instalación de la Herramienta de Configuración de Jool
 
 ## Índice
 
-1. [Introducción](#introduccion)
+1. [Introduccion](#introduccion)
 2. [Requerimientos](#requerimientos)
 	1. [`Libnl-3`](#libnl-3)
 	2. [`Autoconf`](#autoconf)
-3. [Genera, Compila e Instala](#crea_compila_instala)
-	1. [`De la Web Oficial`] (#web_oficial)
-	2. [`Del Repositorio GIT`] (#github)
-4. [Validación] (#validacion)
-	1. [Versión] (#version)
-	2. [Ayuda] (#ayuda)
-	3. [Uso] (#uso)
+3. [Genera Compila e Instala](#genera-compila-e-instala)
+	1. [`De la Web Oficial`](#de-la-web-oficial)
+	2. [`Del Repositorio GIT`](#del-repositorio-git)
+4. [Validacion](#validacion)
+	1. [Version](#version)
+	2. [Ayuda](#ayuda)
+	3. [Uso](#uso)
 
-## Introducción
+## Introduccion
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
@@ -38,7 +38,7 @@ Para ver detalles de los requisitos e instalación de los módulos de kernel [ac
 
 ### `Libnl-3`
 
-> **NOTA: Libnl, libnl-1.x, 2.x no son compatibles. Se necesita Libnl-3 ver. 3.1 o superior.**
+> **NOTA:** Libnl, libnl-1.x, 2.x no son compatibles. Se necesita Libnl-3 ver. 3.1 o superior.
 
 Jool emplea [NETLINK] (http://www.carisma.slowglass.com/~tgr/libnl/) para comunicar sus procesos de espacio de usuario con los de kernel, y viceversa.  
 
@@ -58,7 +58,7 @@ user@node:~#apt-get install libnl-3-dev
 
 ### `Autoconf`
 
-> **NOTA: Se necesita autoconf ver. 2.68 o superior.**
+> **NOTA:** Se necesita autoconf ver. 2.68 o superior.
 
 Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles. Para llevarlo a cabo la instalación hazlo con permisos de administrador:
 
@@ -91,11 +91,11 @@ user@node:~/Desktop/NAT64-<version>/usr$ #Con acceso de administrador instala
 user@node:~/Desktop/NAT64-<version>/usr# make install
 {% endhighlight %}
 
-## Validación
+## Validacion
 
 Ahora, podemos ejecutar varias acciones como: validar que versión de Jool compilamos y consultar la ayuda en línea.
 
-### `Versión`
+### `Version`
 
 Para desplegar la versión de Jool ejecuta:
 

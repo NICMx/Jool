@@ -11,21 +11,21 @@ title: SIIT - Ejemplo básico
 
 ## Índice
 
-1. [Introducción](#introduccion)
+1. [Introduccion](#introduccion)
 2. [Red de ejemplo](#red-de-ejemplo)
-	1. [`Configuración de Nodos en IPv6`] (#nodos-ipv6)
-	2. [`Configuración de Nodos en IPv4`] (#nodos-ipv4)
-	3. [`Configuración de Nodo Traductor`] (#nodo-jool)
+	1. [`Configuracion de Nodos en IPv6`](#configuracion-de-nodos-en-ipv6)
+	2. [`Configuracion de Nodos en IPv4`](#configuracion-de-nodos-en-ipv4)
+	3. [`Configuracion del Nodo Traductor`](#configuracion-del-nodo-traductor)
 3. [Jool](#jool)
 4. [Pruebas](#pruebas)
-	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
-	2. [`Conectividad de IPv6 a IPv4`] (#ping6to4)
-	3. [`Conectividad a un Web Server en IPv4`] (#WebServer-ipv4)
-	4. [`Conectividad a un Web Server en IPv6`] (#WebServer-ipv6)
+	1. [`Conectividad de IPv4 a IPv6`](#conectividad-de-ipv4-a-ipv6)
+	2. [`Conectividad de IPv6 a IPv4`](#conectividad-de-ipv6-a-ipv4)
+	3. [`Conectividad a un Web Server en IPv4`](#conectividad-a-un-web-server-en-ipv4)
+	4. [`Conectividad a un Web Server en IPv6`](#conectividad-a-un-web-server-en-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
-## Introducción
+## Introduccion
 
 Este documento explica cómo ejecutar Jool en modo SIIT. Si no tienes nociones de este tipo de traducción ingresa a [SIIT Tradicional](intro-nat64.html#siit-tradicional).
 
@@ -35,7 +35,7 @@ Para la implementación de las pruebas, puedes usar alternativamente máquinas v
 
 ## Red de ejemplo
 
-![Figura 1 - Red de ejemplo](../images/network/vanilla.svg)
+![Figura 1 - Red de ejemplo Vanilla](../images/network/vanilla.svg "Figura 1 - Red de ejemplo Vanilla")
 
 No es necesario que des de alta todos los nodos que se muestran en el diagrama; puedes lograrlo con solo 3 nodos: _A_, _T_ y _V_. El resto son muy similares a _A_ y _V_ y son mostrados para propósitos ilustrativos.
 
@@ -47,7 +47,7 @@ Sin embargo para efectos de simplicidad, los ejemplos aqui mencionados asumen qu
 
 Dependiendo de tu distribución de linux, la forma de cómo deshabilitar el administrador de red puede variar. Esto se requiere, para que tomes control sobre las direcciones y rutas de tus interfaces; de otra forma, los comandos `ip` pudieran no tener efecto.
 
-### `Configuración de Nodos en IPv6`
+### `Configuracion de Nodos en IPv6`
 
 Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -60,7 +60,7 @@ user@A:~# ip route add default via 2001:db8::198.51.100.1
 {% endhighlight %}
 
 
-### `Configuración de Nodos en IPv4`
+### `Configuracion de Nodos en IPv4`
 
 Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -72,7 +72,7 @@ user@V:~# ip addr add 192.0.2.16/24 dev eth0
 user@V:~# ip route add default via 192.0.2.1
 {% endhighlight %}
 
-### `Configuración del Nodo Traductor`
+### `Configuracion del Nodo Traductor`
 
 Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -88,7 +88,7 @@ user@T:~# ip addr add 192.0.2.1/24 dev eth1
 
 Hasta aqui, no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
-La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](offloading.html) si quieres conocer más detalles sobre esta problemática.
+La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los "offloads". "Offloading" es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](offloading.html) si quieres conocer más detalles sobre esta problemática.
 
 Hazlo por medio de `ethtool`:
 
@@ -105,8 +105,8 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-		NOTA: Si no puedes cambiar alguno de los parámetros, considera que es posible que ya este apagado.
-		      Ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
+	NOTA: Si no puedes cambiar alguno de los parámetros, considera que es posible que ya este apagado.
+		     Ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
 
 ## Jool
 
