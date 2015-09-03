@@ -22,7 +22,7 @@ struct pool_node {
  * It can be a linked list because we're assuming we won't be holding too many prefixes.
  * The list contains nodes of type pool_node.
  */
-static LIST_HEAD(pool);
+static struct list_head * pool = NULL ;
 
 static int verify_prefix(int start, struct ipv6_prefix *prefix)
 {
@@ -66,6 +66,16 @@ int pool6_init(char *pref_strs[], int pref_count)
 	int i;
 	int error;
 
+	pool = kmalloc(sizeof(*pool), GFP_ATOMIC);
+
+	if(!pool)
+	{
+		log_err("Allocation of pool6 database failed.");
+		return 1;
+	}
+
+	INIT_LIST_HEAD(pool);
+
 	if (!pref_strs || pref_count == 0)
 		return 0;
 
@@ -89,12 +99,15 @@ void pool6_destroy(void)
 {
 	struct pool_node *node;
 
-	while (!list_empty(&pool)) {
-		node = list_first_entry(&pool, struct pool_node, list_hook);
+	while (!list_empty(pool)) {
+		node = list_first_entry(pool, struct pool_node, list_hook);
 		list_del_rcu(&node->list_hook);
 		synchronize_rcu_bh();
 		kfree(node);
 	}
+
+	kfree(pool);
+	pool = NULL;
 }
 
 void pool6_flush(void)
@@ -111,13 +124,13 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 
 	rcu_read_lock_bh();
 
-	if (list_empty(&pool)) {
+	if (list_empty(pool)) {
 		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
 		return -ESRCH;
 	}
 
-	list_for_each_entry_rcu(node, &pool, list_hook) {
+	list_for_each_entry_rcu(node, pool, list_hook) {
 		if (ipv6_prefix_equal(&node->prefix.address, addr, node->prefix.len)) {
 			*result = node->prefix;
 			rcu_read_unlock_bh();
@@ -135,14 +148,14 @@ int pool6_peek(struct ipv6_prefix *result)
 
 	rcu_read_lock_bh();
 
-	if (list_empty(&pool)) {
+	if (list_empty(pool)) {
 		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
 		return -ESRCH;
 	}
 
 	/* Just return the first one. */
-	node = list_entry_rcu(pool.next, struct pool_node, list_hook);
+	node = list_entry_rcu(pool->next, struct pool_node, list_hook);
 	*result = node->prefix;
 
 	rcu_read_unlock_bh();
@@ -155,54 +168,54 @@ bool pool6_contains(struct in6_addr *addr)
 	return !pool6_get(addr, &result); /* 0 -> true, -ESRCH or whatever -> false. */
 }
 
-int pool6_add(struct ipv6_prefix *prefix)
+int generic_add(struct ipv6_prefix * prefix, struct list_head * db)
 {
 	struct pool_node *node;
-	int error;
+	int error = 0;
 
-	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &prefix->address, prefix->len);
+	 if (WARN(!prefix, "NULL is not a valid prefix."))
+			return -EINVAL;
 
-	if (WARN(!prefix, "NULL is not a valid prefix."))
-		return -EINVAL;
+		error = validate_prefix(prefix);
+		if (error)
+			return error; /* Error msg already printed. */
 
-	error = validate_prefix(prefix);
-	if (error)
-		return error; /* Error msg already printed. */
-
-	if (xlat_is_siit() && !list_empty(&pool)) {
-		log_err("SIIT Jool only supports one pool6 prefix at a time.");
-		return -EINVAL;
-	}
-
-	/*
-	 * I'm not using list_for_each_entry_rcu() here because this is a writer (as usual,
-	 * protected by module initialization or the configuration mutex).
-	 * tomoyo_get_group() is an example of a kernel function that iterates like this
-	 * before calling list_add_tail_rcu(), so I'm assuming this is correct.
-	 */
-
-	list_for_each_entry(node, &pool, list_hook) {
-		if (prefix6_equals(&node->prefix, prefix)) {
-			log_err("The prefix already belongs to the pool.");
-			return -EEXIST;
+		if (xlat_is_siit() && !list_empty(db)) {
+			log_err("SIIT Jool only supports one pool6 prefix at a time.");
+			return -EINVAL;
 		}
-	}
 
-	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
-	if (!node) {
-		log_err("Allocation of IPv6 pool node failed.");
-		return -ENOMEM;
-	}
-	node->prefix = *prefix;
+		/*
+		 * I'm not using list_for_each_entry_rcu() here because this is a writer (as usual,
+		 * protected by module initialization or the configuration mutex).
+		 * tomoyo_get_group() is an example of a kernel function that iterates like this
+		 * before calling list_add_tail_rcu(), so I'm assuming this is correct.
+		 */
 
-	list_add_tail_rcu(&node->list_hook, &pool);
-	return 0;
+		list_for_each_entry(node, db, list_hook) {
+			if (prefix6_equals(&node->prefix, prefix)) {
+				log_err("The prefix already belongs to the pool.");
+				return -EEXIST;
+			}
+		}
+
+		node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
+		if (!node) {
+			log_err("Allocation of IPv6 pool node failed.");
+			return -ENOMEM;
+		}
+		node->prefix = *prefix;
+
+		list_add_tail_rcu(&node->list_hook, db);
+
+		return 0;
 }
 
-int pool6_replace(struct ipv6_prefix *prefix)
+int pool6_add(struct ipv6_prefix *prefix)
 {
-	pool6_flush();
-	return pool6_add(prefix);
+	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &prefix->address, prefix->len);
+
+	return generic_add(prefix,pool);
 }
 
 int pool6_remove(struct ipv6_prefix *prefix)
@@ -212,7 +225,7 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	if (WARN(!prefix, "NULL is not a valid prefix."))
 		return -EINVAL;
 
-	list_for_each_entry(node, &pool, list_hook) {
+	list_for_each_entry(node, pool, list_hook) {
 		if (prefix6_equals(&node->prefix, prefix)) {
 			list_del_rcu(&node->list_hook);
 			synchronize_rcu_bh();
@@ -241,7 +254,7 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
 	int error = 0;
 	rcu_read_lock_bh();
 
-	list_for_each_entry_rcu(node, &pool, list_hook) {
+	list_for_each_entry_rcu(node, pool, list_hook) {
 		if (!offset) {
 			error = func(&node->prefix, arg);
 			if (error)
@@ -261,7 +274,7 @@ int pool6_count(__u64 *result)
 	unsigned int count = 0;
 
 	rcu_read_lock_bh();
-	list_for_each_entry_rcu(node, &pool, list_hook) {
+	list_for_each_entry_rcu(node, pool, list_hook) {
 		count++;
 	}
 	rcu_read_unlock_bh();
@@ -274,7 +287,68 @@ bool pool6_is_empty(void)
 {
 	bool result;
 	rcu_read_lock_bh();
-	result = list_empty(&pool);
+	result = list_empty(pool);
 	rcu_read_unlock_bh();
 	return result;
 }
+
+static struct list_head * pool6_config_init_db(void)
+{
+	struct list_head * config_db = NULL;
+
+	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
+
+	if(!config_db)
+	{
+		log_err("Allocation of pool6 configuration database failed.");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(config_db);
+
+	return config_db;
+}
+static int pool6_config_add(struct list_head * db, struct ipv6_prefix * entry)
+{
+	return generic_add(entry,db);
+}
+
+static int pool6_switch_database(struct list_head * db)
+{
+	if(!db)
+	{
+		 log_err("Error while switching blacklist database, null pointer received.");
+		 return 1;
+	}
+
+	pool6_destroy();
+
+	pool = db;
+
+	return 0;
+}
+
+int pool6_replace(struct ipv6_prefix *prefix)
+{
+	struct list_head * config_db = pool6_config_init_db();
+
+	if(!config_db)
+	{
+		return -ENOMEM;
+	}
+
+	if(pool6_config_add(config_db,prefix))
+	{
+		log_err("An error occurred while trying to add the pool6 prefix to the config database!.") ;
+		return 1;
+	}
+
+	if(pool6_switch_database(config_db))
+	{
+		log_err("An error occurred while replacing the pool6 datbase with the config database!.") ;
+		return 1;
+	}
+
+	return 0;
+}
+

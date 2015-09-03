@@ -23,33 +23,37 @@ static void end_configuration(void);
 
 
 static __u8 initialized = 0;
-static union global_bits * configured_parameters;
-static struct global_config * global;
+static union global_bits * configured_parameters = NULL;
 
-static struct ipv6_prefix * pool6_entry;
+static __u8 global_configured = 0;
+static struct global_config * global = NULL;
+
+static __u8 pool6_address_received = 0;
+static __u8 pool6_len_received = 0;
+static struct ipv6_prefix * pool6_entry = NULL;
 
 static __u16 mtu_plateaus_entries_num = 0;
 static __u16 mtu_plateaus_entries_received = 0;
-static __u16 * plateaus_entries_buffer;
+static __u16 * plateaus_entries_buffer = NULL;
 
 static __u16 eamt_entries_num = 0;
 static __u16 eamt_entries_received = 0;
-static __u8 * eamt_entries_buffer;
+static __u8 * eamt_entries_buffer = NULL;
 
 static __u16 blacklist_entries_num = 0;
 static __u16 blacklist_entries_received = 0;
-static struct ipv4_prefix * blacklist_entries_buffer;
+static struct ipv4_prefix * blacklist_entries_buffer = NULL;
 
 static __u16 pool6791_entries_num = 0;
 static __u16 pool6791_entries_received = 0;
-static struct ipv4_prefix * pool6791_entries_buffer;
+static struct ipv4_prefix * pool6791_entries_buffer = NULL;
 
 
 static int init_configuration(void)
 {
 	int error = 0;
 
-	free_members();
+	free_members_on_error();
 	error = init_members();
 	if(error)
 	{
@@ -62,8 +66,13 @@ static int init_configuration(void)
 }
 static int init_members(void)
 {
+	global_configured = 0;
+
 	mtu_plateaus_entries_num = 0;
 	mtu_plateaus_entries_received = 0;
+
+	pool6_address_received = 0;
+	pool6_len_received = 0;
 
 	eamt_entries_num = 0;
 	eamt_entries_received = 0;
@@ -71,9 +80,10 @@ static int init_members(void)
 	pool6791_entries_num = 0;
 	pool6791_entries_received = 0;
 
+	blacklist_entries_num = 0;
+	blacklist_entries_received = 0;
 
-	if(global)
-		kfree(global);
+
 
 	global = kmalloc(sizeof(*global), GFP_ATOMIC) ;
 
@@ -83,11 +93,10 @@ static int init_members(void)
 		return -ENOMEM;
 	}
 
+	global->mtu_plateaus = NULL;
+
 	config_clone(global);
 
-
-	if(configured_parameters)
-		kfree(configured_parameters);
 
 	configured_parameters = kmalloc(sizeof(*configured_parameters),GFP_ATOMIC) ;
 
@@ -116,47 +125,91 @@ static int init_members(void)
 static void free_members_on_error(void)
 {
 	if(configured_parameters)
-	kfree(configured_parameters);
+	{
+	  kfree(configured_parameters);
+	  configured_parameters = NULL;
+	}
 
 	if(global)
-	kfree(global);
+	{
+		if(global->mtu_plateaus)
+		{
+			kfree(global->mtu_plateaus);
+			global->mtu_plateaus = NULL;
+		}
+		kfree(global);
+		global = NULL;
+	}
 
 	if(pool6_entry)
-	kfree(pool6_entry);
+	{
+		kfree(pool6_entry);
+		pool6_entry = NULL;
+	}
 
 	if(plateaus_entries_buffer)
-	kfree(plateaus_entries_buffer) ;
+	{
+		kfree(plateaus_entries_buffer) ;
+		plateaus_entries_buffer = NULL;
+	}
 
 	if(eamt_entries_buffer)
-	kfree(eamt_entries_buffer);
+	{
+		kfree(eamt_entries_buffer);
+		eamt_entries_buffer = NULL;
+	}
 
 	if(blacklist_entries_buffer)
-	kfree(blacklist_entries_buffer);
+	{
+		kfree(blacklist_entries_buffer);
+		blacklist_entries_buffer = NULL;
+	}
 
 	if(pool6791_entries_buffer)
-	kfree(pool6791_entries_buffer) ;
+	{
+		kfree(pool6791_entries_buffer) ;
+		pool6791_entries_buffer = NULL;
+	}
 }
 static void free_members(void)
 {
 	if(configured_parameters)
-	kfree(configured_parameters);
+	{
+		kfree(configured_parameters);
+		configured_parameters = NULL;
+	}
 
 	global = NULL;
 
 	if(pool6_entry)
-	kfree(pool6_entry);
+	{
+		kfree(pool6_entry);
+		pool6_entry = NULL;
+	}
 
 	if(plateaus_entries_buffer)
-	kfree(plateaus_entries_buffer) ;
+	{
+		kfree(plateaus_entries_buffer) ;
+		plateaus_entries_buffer = NULL;
+	}
 
 	if(eamt_entries_buffer)
-	kfree(eamt_entries_buffer);
+	{
+		kfree(eamt_entries_buffer);
+		eamt_entries_buffer = NULL;
+	}
 
 	if(blacklist_entries_buffer)
-	kfree(blacklist_entries_buffer);
+	{
+		kfree(blacklist_entries_buffer);
+		blacklist_entries_buffer = NULL;
+	}
 
 	if(pool6791_entries_buffer)
-	kfree(pool6791_entries_buffer) ;
+	{
+		kfree(pool6791_entries_buffer) ;
+		pool6791_entries_buffer = NULL;
+	}
 }
 static void end_configuration(void)
 {
@@ -172,24 +225,39 @@ int handle_json_file_config(struct nlmsghdr *nl_hdr,struct request_hdr *jool_hdr
 	__u16 request_type =  *((__u16 *) request);
 	__u32 length = jool_hdr->length - (sizeof(struct request_hdr))-2;
 
-	log_info("the length is: %d", length);
-	log_info("SEC_DONE: %d", SEC_DONE);
-	log_info("SEC_BLACKLIST: %d", SEC_BLACKLIST) ;
-	log_info("request_type: %d", request_type);
+
+
+	if (request_type == SEC_INIT) {
+		log_info("initializing configuration.");
+
+		if(init_configuration()) {
+			free_members_on_error();
+			initialized = 0;
+			return -EINVAL;
+		}
+	}
+
+
+	if(request_type == SEC_DONE) {
+		if(save_configuration()) {
+			free_members_on_error();
+			initialized = 0;
+			return -EINVAL;
+		}
+
+		end_configuration();
+		return 0;
+	}
+
+	if (!request) {
+		log_err("NULL request received!.");
+		free_members_on_error();
+		initialized = 0;
+		return -EINVAL;
+	}
 
 	request = request + 2;
 
-	if(!request)
-	{
-		log_err("NULL request!!");
-	}
-
-
-	if(request_type == SEC_INIT)
-	{
-		log_info("entered init!!");
-		return init_configuration();
-	}
 		if(initialized)
 		{
 			switch(request_type)
@@ -219,21 +287,11 @@ int handle_json_file_config(struct nlmsghdr *nl_hdr,struct request_hdr *jool_hdr
 					log_info("entered pool6791!!");
 					error = handle_pool6791_config(request,length);
 				break;
-
-				case SEC_DONE:
-					log_info("entered done!!");
-					error = save_configuration();
-					if(error)
-					{
-						log_err("An error has occurred while saving configuration!");
-					}
-					end_configuration();
-				break;
 			}
 			if(error)
 			{
 				free_members_on_error();
-				return -EINVAL;
+				initialized = 0;
 			}
 
 		}
@@ -254,15 +312,17 @@ static int handle_global_config(__u8*request, __u32 length)
 	{
 		case 2:
 		log_info("handling plateaus entry");
-		handle_mtu_plateaus_entry(request,length);
+		return handle_mtu_plateaus_entry(request,length);
 		break;
 
 		case 13:
 		log_info("handling global parameters");
-		handle_global_parameters(request,length);
+		global_configured = 1;
+		return handle_global_parameters(request,length);
 		break;
 
 		default:log_err("Unrecognized configuration request for Global section.");
+		return -EINVAL;
 		break;
 	}
 
@@ -392,9 +452,11 @@ static int handle_pool6_config(__u8*request, __u32 length)
 	switch(length)
 	{
 		case 16:memcpy((__u8*)&pool6_entry->address,request,16);
+		pool6_address_received =1;
 		break;
 
 		case 1:memcpy(&pool6_entry->len,request,1);
+		pool6_len_received = 1;
 		break;
 
 		default: log_err("Unrecognized configuration request for Pool6 section.");
@@ -587,72 +649,129 @@ static int save_configuration(void)
 	struct ipv4_transport_addr addr;
 
 	log_info("saving configuration!") ;
-	blacklist_db = blacklist_config_init_db();
-	pool6791_db = rfc6791_config_init_db();
-
-		if(global->mtu_plateaus)
-			kfree(global->mtu_plateaus);
-
-		log_info("mtu_plateaus_entries_received: %d",mtu_plateaus_entries_received) ;
-		log_info("mtu_plateaus_allocated: %d",sizeof(*global->mtu_plateaus)*mtu_plateaus_entries_received);
-
-		global->mtu_plateaus = kmalloc(sizeof(*global->mtu_plateaus)*mtu_plateaus_entries_received,GFP_ATOMIC);
 
 
-		for(i=0; i < mtu_plateaus_entries_received; i++)
+
+		if(global_configured)
 		{
-			global->mtu_plateaus[i] = plateaus_entries_buffer[i];
-		}
+			global->mtu_plateaus = kmalloc(sizeof(*global->mtu_plateaus)*mtu_plateaus_entries_received,GFP_ATOMIC);
 
-		global->mtu_plateau_count = mtu_plateaus_entries_received;
+			if(!global->mtu_plateaus)
+			{
+				log_erro("Memory for saving mtu_plateaus items could not be allocated!.");
+				return -ENOMEM;
+			}
 
-		log_info("global plateau count: %d",global->mtu_plateau_count) ;
+			for(i=0; i < mtu_plateaus_entries_received; i++)
+			{
+				global->mtu_plateaus[i] = plateaus_entries_buffer[i];
+			}
 
-		error = config_set(global);
+			global->mtu_plateau_count = mtu_plateaus_entries_received;
 
-		if(error)
-		{
-			log_err("An error ocurred while saving Global configuration!.");
-			return error;
-		}
-
-		error  = pool6_replace(pool6_entry);
-
-		if(error)
-		{
-			log_err("An error occured while saving Pool6 configuration!.") ;
-			return error;
-		}
-
-
-		for(i = 0; i < eamt_entries_received; i++)
-		{
+			log_info("global plateau count: %d",global->mtu_plateau_count) ;
 
 		}
 
-		for(i=0; i < blacklist_entries_received; i++)
+		if(pool6_address_received && pool6_len_received)
 		{
-			error = blacklist_config_add(blacklist_db, &blacklist_entries_buffer[i]) ;
+			error  = pool6_replace(pool6_entry);
+
 			if(error)
 			{
-				log_err("An error ocurred while adding a blacklist entry to the database!.");
+				log_err("An error occured while saving Pool6 configuration!.") ;
 				return error;
 			}
 		}
 
-		blacklist_switch_database(blacklist_db) ;
 
-		for(i=0; i < pool6791_entries_received;i++)
+		if(eamt_entries_received > 0)
 		{
-			error = rfc6791_config_add(pool6791_db, &pool6791_entries_buffer[i]) ;
+			//Initialize database.
+
+			for(i = 0; i < eamt_entries_received; i++)
+			{
+				//Add entries to database.
+			}
+
+		}
+
+
+		if(blacklist_entries_received > 0)
+		{
+
+			blacklist_db = blacklist_config_init_db();
+			if(!blacklist_db)
+			{
+				log_err("An error occurred while initializing blacklist configuration database!.");
+				return 1;
+			}
+
+			for(i=0; i < blacklist_entries_received; i++)
+			{
+				error = blacklist_config_add(blacklist_db, &blacklist_entries_buffer[i]) ;
+				if(error) {
+					log_err("An error occurred while adding a blacklist entry to the database!.");
+					return error;
+				}
+			}
+
+		}
+
+
+
+		if(pool6791_entries_received > 0)
+		{
+			pool6791_db = rfc6791_config_init_db();
+			if(!pool6791_db)
+			{
+				log_err("An error occurred while initializing pool6791 configuration database!.");
+				return 1;
+			}
+
+			for(i=0; i < pool6791_entries_received;i++)
+			{
+				error = rfc6791_config_add(pool6791_db, &pool6791_entries_buffer[i]) ;
+				if(error)
+				{
+					log_err("An error occurred while adding a pool6791 entry to the database!.");
+					return error;
+				}
+			}
+
+		}
+
+
+		if(global_configured)
+		{
+			error  = config_set(global);
 			if(error)
 			{
-				log_err("An error ocurred while adding a pool6791 entry to the database!.");
+				log_err("An error occurred while saving Global configuration!.");
 				return error;
 			}
 		}
 
-		rfc6791_switch_database(pool6791_db) ;
+		if(blacklist_entries_received > 0)
+		{
+
+			error = blacklist_switch_database(blacklist_db) ;
+			if(error)
+			{
+				log_err("An error occurred while saving Blacklist configuration!.");
+				return error;
+			}
+		}
+
+		if(pool6791_entries_received > 0)
+		{
+			error = rfc6791_switch_database(pool6791_db) ;
+			if(error)
+			{
+				log_err("An error occurred while saving Pool6791 configuration!.");
+				return error;
+			}
+		}
 
 		return 0;
 }

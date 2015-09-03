@@ -31,15 +31,22 @@ static int print_pool6791();
 
 static union global_bits * configured_parameters;
 static __u16 num_items_mtu_plateaus=0;
+
+static __u8 send_global = 0;
 static struct global_config * global;
+
+static __u8 send_pool6 = 0;
 static struct ipv6_prefix * pool6_entry;
 
+static __u8 send_eamt = 0;
 static __u16 eamt_items_num = 0;
 static __u8 * eamt_buffer;
 
+static __u8 send_blacklist = 0;
 static __u16 blacklist_items_num = 0;
 static __u8 * blacklist_buffer;
 
+static __u8 send_pool6791 = 0;
 static __u16 pool6791_items_num = 0;
 static __u8 * pool6791_buffer;
 
@@ -104,10 +111,10 @@ static int do_parsing(char * buffer) {
 		}
 		log_info("parsing file...");
 		error = parse_siit_json(json_structure);
-		log_info("file parsed!!.");
 
 		if(!error)
 		{
+			log_info("file parsed!!.");
 			#ifdef DEBUG
 			error = print_config();
 			if(error)
@@ -122,8 +129,15 @@ static int do_parsing(char * buffer) {
 			if(error)
 			{
 				log_err("Something went wrong while trying to send the buffers to the kernel!.");
+				return 1;
 			}
+
+			return 0;
 		}
+
+
+		log_info("file parsed with errors!!.");
+		return 1;
 
 	} else {
 		log_err("Something went wrong while trying to parse the file!. ->  %s",
@@ -142,22 +156,44 @@ static int parse_siit_json(cJSON * json_structure)
 			cJSON_GetObjectItem(json_structure, "Global");
 	error = parse_siit_global(global);
 
+	if(error)
+	{
+		return error;
+	}
+
 	cJSON * pool6_json =
 			cJSON_GetObjectItem(json_structure, "Pool6");
+
 	error = parse_siit_pool6(pool6_json);
+
+	if(error)
+	{
+		return error;
+	}
 
 	cJSON * eamt_json =
 			cJSON_GetObjectItem(json_structure, "EAMT");
 	error = parse_siit_eamt(eamt_json);
 
+	if(error)
+	{
+		return error;
+	}
+
 	cJSON * blacklist_json =
 			cJSON_GetObjectItem(json_structure, "Blacklist");
 	error = parse_siit_blacklist(blacklist_json);
+
+	if(error)
+	{
+		return error;
+	}
 
 	cJSON * pool6791_json =
 			cJSON_GetObjectItem(json_structure, "Pool6791");
 
 	error = parse_siit_pool6791(pool6791_json);
+
 
 	return error;
 }
@@ -177,6 +213,7 @@ static int parse_siit_global(cJSON * global_json)
 
 		if (global_json) {
 
+			send_global = 1;
 			global = (struct global_config *) malloc(sizeof(struct global_config));
 			read_value = cJSON_GetObjectItem(global_json, "manually-enabled") ;
 			configured_parameters->as_fields.manually_enabled = 0;
@@ -189,7 +226,7 @@ static int parse_siit_global(cJSON * global_json)
 			  if(error) {
 			   log_err("manually-enabled, not valid!. Global: %s",
 					   read_value->valuestring) ;
-			   return error;
+			   return 1;
 			  }
 			  configured_parameters->as_fields.manually_enabled = 1;
 			   global->is_disable = !bool_value;
@@ -207,7 +244,7 @@ static int parse_siit_global(cJSON * global_json)
 				if (error) {
 				 log_err("drop-icmpv6-info , not valid!. Global: %s",
 						 read_value->valuestring);
-					 return error;
+				 return 1;
 				 }
 				configured_parameters->as_fields.drop_icmpv6_info = 1;
 				global->nat64.drop_icmp6_info = bool_value;
@@ -226,7 +263,7 @@ static int parse_siit_global(cJSON * global_json)
 			   if (error) {
 			   log_err("zeroize-traffic-class , not valid!. Global: %s",
 			   	     	             		      read_value->valuestring);
-			   	 return error;
+			   return 1;
 			   }
 			   configured_parameters->as_fields.zeroize_traffic_class = 1;
 			   global->reset_traffic_class = bool_value;
@@ -245,7 +282,7 @@ static int parse_siit_global(cJSON * global_json)
 			   if (error) {
 			    log_err("override-tos , not valid!. Global: %s",
 			   	  	     	             		      read_value->valuestring);
-			   	  	 return error;
+			    return 1;
 			   }
 			  configured_parameters->as_fields.override_tos = 1;
 			  global->reset_tos = bool_value;
@@ -263,7 +300,7 @@ static int parse_siit_global(cJSON * global_json)
 
 			   if (error) {
 			    log_err("tos , not valid!. Global: %s",read_value->valuestring);
-			   	 return error;
+			    return 1;
 			   }
 
 			   global->new_tos = u8_value;
@@ -279,7 +316,7 @@ static int parse_siit_global(cJSON * global_json)
 
 			   if (error) {
 			    log_err("amend-udp-checksum-zero , not valid!. Global: %s",read_value->valuestring);
-			   	 return error;
+			     return 1;
 			   }
 
 			   global->siit.compute_udp_csum_zero = u8_value;
@@ -295,7 +332,7 @@ static int parse_siit_global(cJSON * global_json)
 
 			   if (error) {
 			    log_err("randomize-rfc6791-addresses , not valid!. Global: %s",read_value->valuestring);
-			   	 return error;
+			    return 1;
 			   }
 
 			   global->siit.randomize_error_addresses = u8_value;
@@ -338,7 +375,7 @@ static int parse_siit_global(cJSON * global_json)
 						log_err("mtu-plateaus, not valid!. Global: %s",
 	        				read_value->valuestring) ;
 
-						return error;
+						 return 1;
 					}
 					global->mtu_plateaus[i] = value;
 					mtu_item = mtu_item->next;
@@ -349,7 +386,7 @@ static int parse_siit_global(cJSON * global_json)
 
 	     }
 
-	  return error;
+	  return 0;
 }
 static int parse_siit_pool6(cJSON * pool6_json)
 {
@@ -357,6 +394,7 @@ static int parse_siit_pool6(cJSON * pool6_json)
 	  //ver cual va a ser el valor por default si es que habra alguno.
 	  struct ipv6_prefix pool6_value;
 	  if (pool6_json) {
+	    send_pool6 = 1;
 	    pool6_entry = malloc(sizeof(struct ipv6_prefix));
 
 	    error = str_to_ipv6_prefix(pool6_json->valuestring,&pool6_value);
@@ -368,11 +406,12 @@ static int parse_siit_pool6(cJSON * pool6_json)
 	    else
 	    {
 	    	log_err("Pool6 value not valid!.: %s",pool6_json->valuestring);
+	    	return 1;
 	    }
 
 	  }
 
-	  return error;
+	  return 0;
 
 }
 static int parse_siit_eamt(cJSON * eamt_json)
@@ -382,6 +421,7 @@ static int parse_siit_eamt(cJSON * eamt_json)
 	eamt_items_num = 0;
 	if(eamt_json)
 	{
+		send_eamt = 1;
 		cJSON * item = eamt_json->child;
 
 		while(item)
@@ -405,9 +445,8 @@ static int parse_siit_eamt(cJSON * eamt_json)
 
 			if(!ipv6_prefix_item)
 			{
-				error = 1;
 				log_err("EAMT item #%d does not contain an ipv6_prefix.",(i+1));
-				break;
+				return 1;
 			}
 
 
@@ -415,9 +454,8 @@ static int parse_siit_eamt(cJSON * eamt_json)
 
 			if(!ipv4_prefix_item)
 			{
-				error = 1;
 				log_err("EAMT item #%d does not contain an ipv4_prefix.",(i+1));
-				break;
+				return 1;
 			}
 
 
@@ -425,19 +463,18 @@ static int parse_siit_eamt(cJSON * eamt_json)
 
 			if(error)
 			{
-				log_err("Ipv6 Prefix, not valid!. EAMT item: %s",
-									item->string);
-				break;
+				log_err("Ipv6 Prefix, not valid!. EAMT item: #%d",(i+1)) ;
+				return 1;
 			}
 
 
-			error = str_to_ipv4_prefix(ipv4_prefix_item->valuestring,&ipv4_value);
+			error = str_to_ipv4_prefix(ipv4_prefix_item->valuestring,&ipv4_value) ;
 
 			if(error)
 			{
-				log_err("Ipv4 Prefix, not valid!. EAMT item: %s",
-							item->string);
-								break;
+				log_err("Ipv4 Prefix, not valid!. EAMT item: #%d",(i+1)) ;
+
+				return 1;
 			}
 
 			memcpy(&eamt_buffer[i*22],(__u8*)(&ipv6_value.address),16);
@@ -445,9 +482,11 @@ static int parse_siit_eamt(cJSON * eamt_json)
 
 			memcpy(&eamt_buffer[(i*22)+17],(__u8*)(&ipv4_value.address),4);
 			memcpy(&eamt_buffer[(i*22)+21],(&ipv4_value.len),1);
+
+			item = item->next;
 		}
 	}
-	return error;
+	return 0;
 }
 static int parse_siit_blacklist(cJSON * blacklist_json)
 {
@@ -455,6 +494,7 @@ static int parse_siit_blacklist(cJSON * blacklist_json)
 	int i = 0;
 	if(blacklist_json)
 	{
+		send_blacklist = 1;
 		cJSON * item = blacklist_json->child;
 
 		while(item)
@@ -471,14 +511,16 @@ static int parse_siit_blacklist(cJSON * blacklist_json)
 
 		for(i=0; i < blacklist_items_num; i++)
 		{
+
 			error = str_to_ipv4_prefix(item->valuestring,
 							&ipv4_value) ;
+
 			if(error)
 			{
 				log_err("Ipv4 Prefix, not valid!. "
-					"Blacklist item: %s", item->string) ;
+					"Blacklist item: %s", item->valuestring) ;
 
-				break;
+				return 1;
 			}
 
 		memcpy(&blacklist_buffer[i*5] ,(__u8*)&ipv4_value.address,4);
@@ -488,7 +530,7 @@ static int parse_siit_blacklist(cJSON * blacklist_json)
 			item = item->next;
 		}
 	}
-	return error;
+	return 0;
 }
 static int parse_siit_pool6791(cJSON * pool6791_json)
 {
@@ -496,6 +538,7 @@ static int parse_siit_pool6791(cJSON * pool6791_json)
 	int i = 0;
 	if(pool6791_json)
 	{
+		send_pool6791 = 1;
 		cJSON * item = pool6791_json->child;
 
 		while(item)
@@ -510,14 +553,15 @@ static int parse_siit_pool6791(cJSON * pool6791_json)
 
 		for(i=0; i < pool6791_items_num;i++)
 		{
+
 			error = str_to_ipv4_prefix(item->valuestring,
 							&ipv4_value) ;
 			if(error)
 			{
 				log_err("Ipv4 Prefix, not valid!. "
-					"Pool6791 item: %s", item->string) ;
+					"Pool6791 item: %s", item->valuestring) ;
 
-				break;
+				 return 1;
 			}
 
 		 memcpy(&pool6791_buffer[i*5] ,(__u8*)&ipv4_value.address,4);
@@ -527,7 +571,7 @@ static int parse_siit_pool6791(cJSON * pool6791_json)
 		}
 
 	}
-	return error;
+	return 0;
 }
 
 
@@ -539,26 +583,31 @@ static int send_buffers()
 
 	   error = send_multipart_request_buffer(0,0,SEC_INIT) ;
 
+	   if(send_global)
 	   error = send_global_buffer();
 
 	   if(error)
 	   goto error_happened;
 
+	   if(send_pool6)
 	   error = send_pool6_buffer();
 
 	   if(error)
 	   goto error_happened;
 
+	   if(send_eamt)
 	   error = send_eamt_buffer();
 
 	   if(error)
 	   goto error_happened;
 
+	   if(send_blacklist)
 	   error = send_blacklist_buffer();
 
 	   if(error)
 	   goto error_happened;
 
+	   if(send_pool6791)
 	   error = send_pool6791_buffer();
 
 	   if(error)
@@ -566,9 +615,11 @@ static int send_buffers()
 
 
 	error = send_multipart_request_buffer(0,0,SEC_DONE) ;
-	   if(error)
+
+		if(error)
 		goto error_happened;
-	  netlink_request_multipart_done();
+
+	   netlink_request_multipart_done();
 
 	 return 0;
 
@@ -754,7 +805,7 @@ static int send_eamt_buffer()
 		error = send_multipart_request_buffer(eamt_kernel_buffer,buffer_size,SEC_EAMT) ;
 		if(error) {
 			log_err("Something went wrong while sending eamt entries to the kernel!.");
-			break;
+			return error;
 		}
 	}
 
@@ -815,7 +866,7 @@ static int send_blacklist_buffer()
 		if(error)
 		{
 			log_err("Something went wrong while sending blacklist entries to the kernel!.");
-			break;
+			return -1;
 		}
 	}
 
@@ -872,7 +923,7 @@ static int send_pool6791_buffer()
 		if(error)
 		{
 			log_err("Something went wrong while sending a Pool6791 entries to the kernel!.");
-			break;
+			return error;
 		}
 	}
 	return error;

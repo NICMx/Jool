@@ -1104,17 +1104,19 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		int error;
 
 
+
     if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL && nl_hdr->nlmsg_type != MSG_TYPE_JOOL_DONE) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);
 		return -EINVAL;
 	}
+
+
 
 	jool_hdr = NLMSG_DATA(nl_hdr);
 	request = jool_hdr + 1;
 	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
-
 
 
 	switch (jool_hdr->mode) {
@@ -1152,7 +1154,6 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 static void receive_from_userspace(struct sk_buff *skb)
 {
 	int error;
-
 
 	mutex_lock(&config_mutex);
 	error = netlink_rcv_skb(skb, &handle_netlink_message);

@@ -117,7 +117,7 @@ int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 	error = str_to_ull(str, NULL, min, max, &result);
 	
 	*u8_out = result;
-	return 0;
+	return error;
 }
 
 int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
@@ -138,11 +138,11 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
         if (error)
 	return error;
 
-	str_to_ull(str, NULL, min, max, &result);
+	error = str_to_ull(str, NULL, min, max, &result);
 	
 
 	*u16_out = result;
-	return 0;
+	return error;
 }
 
 int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
@@ -163,10 +163,10 @@ int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
         if (error)
 	 return error;
 
-	 str_to_ull(str, NULL, min, max, &result);
+	 error = str_to_ull(str, NULL, min, max, &result);
 
 	*u32_out = result;
-	return 0;
+	return error;
 }
 
 int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
@@ -192,7 +192,7 @@ int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 	
 
 	*u64_out = result;
-	return 0;
+	return error;
 }
 
 int str_to_port_range(char *str, struct port_range *range)

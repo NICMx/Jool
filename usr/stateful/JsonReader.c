@@ -40,7 +40,7 @@ static __u16 bib_entries_num = 0;
 static __u8 * bib_buffer;
 
 
-extern int parse_file(char * fileName) {
+int parse_file(char * fileName) {
 	FILE * file = fopen(fileName, "rb");
 
 	long length;
@@ -98,6 +98,7 @@ static int do_parsing(char * buffer) {
 
 		if(!error)
 		{
+
 			#ifdef DEBUG
 			error = print_config();
 			if(error)
@@ -112,6 +113,7 @@ static int do_parsing(char * buffer) {
 			{
 				log_err("Something went wrong while trying to send the buffers to the kernel!.") ;
 			}
+
 		}
 
 	} else {
@@ -594,7 +596,7 @@ if (pool4_json) {
 		 error = str_to_u32(mark->valuestring, &mark_value,0,3000);
 
 		 if (error) {
-			log_err("mark, not valid!. Pool4 item: %s", item->string);
+			log_err("mark, not valid!. Pool4 item: %d", (i+1) );
 			break;
 		 }
 
@@ -607,19 +609,26 @@ if (pool4_json) {
 		error = str_to_port_range(port_range->valuestring, &port_range_value);
 
 		if (error) {
-			log_err("port_range, not valid!. Pool4 item: %s", item->string);
+			log_err("port_range, not valid!. Pool4 item #%d", (i+1) );
 			break;
 	    }
 		 memcpy(&pool4_buffer[(i*16)+6],&port_range_value.min,2);
 		 memcpy(&pool4_buffer[(i*16)+8],&port_range_value.max,2);
 	 }
 
+
+	if(!prefix)
+	{
+		log_err("Pool4 item #%d does not contain a prefix element.",(i+1));
+		return 1;
+	}
+
 	pool4_buffer[(i*16)+10] = 1;
 
 	 error = str_to_ipv4_prefix(prefix->valuestring, &prefix_value);
 
      if(error) {
-          log_err("prefix, not valid!. Pool4 item %s", item->string) ;
+          log_err("prefix, not valid!. Pool4 item #%d", (i+1)) ;
           break;
      }
 
@@ -649,7 +658,7 @@ bib_entries_num = 0;
 		num_items++;
 	}
 	bib_entries_num = num_items;
-	bib_buffer = malloc(sizeof(__u8)*25*bib_entries_num);
+	bib_buffer = malloc(sizeof(__u8)*BIB_ENTRY_SIZE*bib_entries_num);
 
 	item = bib_json->child;
 	int i;
@@ -667,7 +676,7 @@ bib_entries_num = 0;
 		protocol = cJSON_GetObjectItem(item, "protocol");
 		if (strcmp(protocol->valuestring, "TCP") != 0 &&
 				strcmp(protocol->valuestring, "UDP") != 0) {
-			log_err("Protocol not valid!. BIB item: %s", item->string);
+			log_err("Protocol not valid!. BIB item: %d", (i+1) );
 			error = 1;
 			break;
 		}
@@ -680,21 +689,35 @@ bib_entries_num = 0;
 
 
 		address_ipv4 = cJSON_GetObjectItem(item, "address_ipv4");
+
+		if(!address_ipv4)
+		{
+			log_err("BIB item #%d does not contain an address_ipv4 element.",(i+1)) ;
+			return 1;
+		}
+
 		address_ipv6 = cJSON_GetObjectItem(item, "address_ipv6");
+
+		if(!address_ipv6)
+		{
+			log_err("BIB item #%d does not contain an address_ipv4 element.", (i+1)) ;
+			return 1;
+		}
+
 
 		error = str_to_addr4_port(address_ipv4->valuestring, &ipv4_addr);
 
 		if (error) {
-			log_err("Address IPv4, not valid!. BIB item: %s",
-					item->string);
+			log_err("Address IPv4, not valid!. BIB item #%d",
+					(i+1) );
 			break;
 		}
 
 		error = str_to_addr6_port(address_ipv6->valuestring, &ipv6_addr);
 
 		if (error) {
-			log_err("Address IPv6, not valid!. BIB item: %s",
-					item->string);
+			log_err("Address IPv6, not valid!. BIB item #%d ",
+					(i+1) );
 			break;
 		}
 
@@ -720,6 +743,7 @@ static int send_buffers()
    int error = 0;
 
    netlink_init_multipart_connection(0,0) ;
+   error = send_multipart_request_buffer(0,0,SEC_INIT) ;
 
    error = send_global_buffer();
 
@@ -739,11 +763,16 @@ static int send_buffers()
    	       goto error_happened;
 
 
-   netlink_request_multipart_done(MODE_PARSE_FILE,SEC_DONE);
+       error = send_multipart_request_buffer(0,0,SEC_DONE) ;
+      	   if(error)
+ 		goto error_happened;
+ 	  netlink_request_multipart_done();
 
-   error_happened:
+ 	 return 0;
 
-   return error;
+ 	   error_happened:
+ 	   netlink_request_multipart_close();
+ 	   return error;
 
 }
 static int send_global_buffer()
@@ -975,20 +1004,18 @@ static int send_pool4_buffer()
 {
    int error = 0;
 
-   __u8 magic_number_size = 2;
    __u32 page_size = getpagesize();
    __u8 entry_size = POOL4_ENTRY_SIZE;
 
-   __u32 buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr));
-   __u32 entries_per_message =  (buffer_size-(magic_number_size*3))/ entry_size;
-
-
+   __u32 buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr))-100;
+   __u32 entries_per_message =  (buffer_size-2)/ entry_size;
 
    __u16 i;
    __u8 kernel_buffer[buffer_size];
    __u8 * kernel_buffer_pointer;
 
    error = send_multipart_request_buffer((__u8*)&pool4_entries_num,2,SEC_POOL4) ;
+
    if(error)
    {
    	log_err("error while sending the pool4 entries number to the kernel!.");
@@ -1001,7 +1028,7 @@ static int send_pool4_buffer()
    {
 	   kernel_buffer_pointer = kernel_buffer;
 
-	   kernel_buffer_pointer += (magic_number_size *2);
+	   kernel_buffer_pointer += 2;
 
 	   for(i=0; (i < entries_per_message) && (real_index < pool4_entries_num);i++)
 	   {
@@ -1020,7 +1047,7 @@ static int send_pool4_buffer()
 
 	   items_sent_in_message = real_index - items_sent;
 
-	   memcpy(kernel_buffer+magic_number_size,(__u8*)&items_sent_in_message,2);
+	   memcpy(kernel_buffer,(__u8*)&items_sent_in_message,2);
 	   	items_sent = real_index;
 
 	   error = send_multipart_request_buffer(kernel_buffer,buffer_size,SEC_POOL4) ;
@@ -1041,12 +1068,12 @@ static int send_bib_buffer()
    int page_size = getpagesize();
    int entry_size = BIB_ENTRY_SIZE;
 
-   int buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr)-100);
+   int buffer_size = (page_size-sizeof(struct request_hdr)-sizeof(struct nlmsghdr))-100;
    int entries_per_message =  (buffer_size-2)/ entry_size;
 
     int i;
    __u8 kernel_buffer[buffer_size];
-   __u8 *kernel_buffer_pointer;
+   __u8 *kernel_buffer_pointer=kernel_buffer;
 
    error = send_multipart_request_buffer((__u8*)&bib_entries_num,2,SEC_BIB) ;
    if(error)
@@ -1060,10 +1087,12 @@ static int send_bib_buffer()
    __u16 real_index = 0;
    while(items_sent < bib_entries_num)
    {
+	   kernel_buffer_pointer = kernel_buffer;
+	   kernel_buffer_pointer += 2;
+
 	   for(i=0; (i < entries_per_message) && (real_index < bib_entries_num);i++)
 	   {
-		   kernel_buffer[0] = bib_buffer[real_index*entry_size];
-
+		   kernel_buffer_pointer[0] = bib_buffer[i*entry_size];
 		   memcpy(&kernel_buffer_pointer[1],&bib_buffer[i*entry_size+1],4)  ;
 		   memcpy(&kernel_buffer_pointer[5],&bib_buffer[i*entry_size+5],2)  ;
 		   memcpy(&kernel_buffer_pointer[7],&bib_buffer[i*entry_size+7],16) ;
@@ -1083,7 +1112,7 @@ static int send_bib_buffer()
 	   if(error)
 	   {
 		   log_err("Something went wrong while sending a bib entry to the kernel!.");
-		   break;
+		  return error;
 	   }
    }
 
@@ -1101,6 +1130,7 @@ static int send_multipart_request_buffer(__u8*buffer,
 	buffer_to_send[0] = section_pointer[0];
 	buffer_to_send[1] = section_pointer[1];
 
+	if(request_len > 0)
 	memcpy(&buffer_to_send[2],buffer,request_len);
 
 	return netlink_request_multipart

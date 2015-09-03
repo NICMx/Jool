@@ -505,9 +505,11 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		error = set_ip_args(args, str);
 		break;
         case ARGP_PARSE_FILE:
+
 	    error = update_state(args, MODE_PARSE_FILE, OP_UPDATE);
 
-	    args->parse_file.filename =  malloc(sizeof(char)*strlen(str));
+	    args->parse_file.filename =  malloc(sizeof(char)*(strlen(str)+1));
+
 
 	    if(!args->parse_file.filename) {
 	    	error = -ENOMEM;
@@ -561,7 +563,9 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 {
 
 	int error;
+
 	struct argp argp = { build_options(), parse_opt, args_doc, doc };
+
 
 	memset(result, 0, sizeof(*result));
 	result->mode = 0xFFFF;
@@ -569,7 +573,9 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	result->db.pool4.ports.min = 60000U;
 	result->db.pool4.ports.max = 65535U;
 
+
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);
+
 
 
 	if (error)
@@ -618,10 +624,12 @@ static bool validate_pool6(struct arguments *args)
  */
 static int main_wrapped(int argc, char **argv)
 {
+
 	struct arguments args;
 	int error;
 
 	error = parse_args(argc, argv, &args);
+
 	if (error)
 		return error;
 
@@ -853,6 +861,7 @@ static int main_wrapped(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+
 	return -main_wrapped(argc, argv);
 	return 0;
 }

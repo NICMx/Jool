@@ -8,7 +8,7 @@
 #include "nat64/common/str_utils.h"
 #include "nat64/mod/stateless/pool.h"
 
-static struct list_head * pool;
+static struct list_head * pool = NULL;
 
 int blacklist_init(char *pref_strs[], int pref_count)
 {
@@ -95,10 +95,19 @@ bool blacklist_is_empty(void)
 	return pool_is_empty(pool);
 }
 
+
 struct list_head * blacklist_config_init_db(void)
 {
-	struct list_head * config_db;
+	struct list_head * config_db = NULL;
+
 	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
+
+	if(!config_db)
+	{
+		log_err("Allocation of blacklist configuration database failed.");
+		return NULL;
+	}
+
 	INIT_LIST_HEAD(config_db);
 
 	return config_db;

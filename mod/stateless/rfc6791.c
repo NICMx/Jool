@@ -12,7 +12,7 @@
 #include "nat64/mod/stateless/pool.h"
 #include "nat64/mod/common/route.h"
 
-static struct list_head * pool;
+static struct list_head * pool = NULL;
 
 int rfc6791_init(char *pref_strs[], int pref_count)
 {
@@ -154,9 +154,15 @@ bool rfc6791_is_empty(void)
 
 struct list_head * rfc6791_config_init_db(void)
 {
-	struct list_head * config_db;
+	struct list_head * config_db = NULL;
 
 	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
+
+	if(!config_db)
+	{
+		log_err("Allocation of rfc6791 configuration database failed.");
+		return NULL;
+	}
 
 	INIT_LIST_HEAD(config_db);
 

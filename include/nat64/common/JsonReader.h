@@ -24,7 +24,7 @@
 
 
 
-//extern int parse_file(char * fileName);
+int parse_file(char * fileName);
 
 
 

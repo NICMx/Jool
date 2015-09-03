@@ -761,6 +761,7 @@ static const struct argp_option *options_nat64[] = {
 struct argp_option *__build_options(const struct argp_option **template,
 		size_t template_size)
 {
+
 	struct argp_option *result;
 	unsigned int size = sizeof(*result);
 	unsigned int count = template_size / sizeof(*template);
@@ -775,11 +776,13 @@ struct argp_option *__build_options(const struct argp_option **template,
 	/* Argp requirement. */
 	memset(&result[count], 0, size);
 
+
 	return result;
 }
 
 struct argp_option *build_options(void)
 {
+
 	return xlat_is_siit()
 			? __build_options(options_siit, sizeof(options_siit))
 			: __build_options(options_nat64, sizeof(options_nat64));

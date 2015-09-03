@@ -166,14 +166,6 @@ int netlink_request_multipart_done()
 	nl_close(sk);
 	nl_socket_free(sk);
 	return 0;
-
-//fail_close:
-//	nl_close(sk);
-//	/* Fall through. */
-//
-//fail_free:
-//	nl_socket_free(sk);
-//	return -EINVAL;
 }
 
 void netlink_request_multipart_close(void)

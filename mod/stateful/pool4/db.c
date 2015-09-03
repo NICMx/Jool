@@ -7,7 +7,7 @@
 #include "nat64/mod/stateful/pool4/table.h"
 
 struct hlist_head *db;
-//struct hlist_head * config_db;
+
 /** Defines the number of slots in the table (2^power). */
 unsigned int power;
 unsigned int values;
@@ -17,7 +17,7 @@ static unsigned int slots(void)
 	return 1 << power;
 }
 
-static struct pool4_table *table_entry(struct hlist_node *node)
+static struct pool4_table * table_entry(struct hlist_node *node)
 {
 	return hlist_entry(node, struct pool4_table, hlist_hook);
 }
@@ -125,40 +125,46 @@ static struct pool4_table *find_table(const __u32 mark)
 	return NULL;
 }
 
+int pool4db_generic_add(const __u32 mark, struct ipv4_prefix *prefix,
+		struct port_range *ports,struct hlist_head * database)
+{
+	struct pool4_table *table;
+		int error;
+
+		table = find_table(mark);
+		error = -EINVAL;
+
+		if (!table) {
+			table = pool4table_create(mark);
+			if (!table)
+				return -ENOMEM;
+
+			error = pool4table_add(table, prefix, ports);
+			if (error) {
+				pool4table_destroy(table);
+				return error;
+			}
+
+			values++;
+			hlist_add_head(&table->hlist_hook, &database[hash_32(mark, power)]);
+			if (values > slots()) {
+				log_warn_once("You have lots of pool4s, which can lag "
+						"Jool. Consider increasing "
+						"pool4_size.");
+			}
+
+		} else {
+			error = pool4table_add(table, prefix, ports);
+
+		}
+
+		return error;
+}
+
 int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
-	struct pool4_table *table;
-	int error;
-
-	table = find_table(mark);
-	error = -EINVAL;
-
-	if (!table) {
-		table = pool4table_create(mark);
-		if (!table)
-			return -ENOMEM;
-
-		error = pool4table_add(table, prefix, ports);
-		if (error) {
-			pool4table_destroy(table);
-			return error;
-		}
-
-		values++;
-		hlist_add_head(&table->hlist_hook, &db[hash_32(mark, power)]);
-		if (values > slots()) {
-			log_warn_once("You have lots of pool4s, which can lag "
-					"Jool. Consider increasing "
-					"pool4_size.");
-		}
-
-	} else {
-		error = pool4table_add(table, prefix, ports);
-
-	}
-
-	return error;
+	return pool4db_generic_add(mark, prefix,ports, db) ;
 }
 
 static void __rm(struct pool4_table *table)
@@ -337,36 +343,43 @@ int pool4db_foreach_taddr4(const __u32 mark,
 	rcu_read_unlock();
 	return error;
 }
-/*
-int pool4db_config_init(unsigned int size)
+
+struct hlist_head * pool4db_config_init_db(void)
 {
-	struct hlist_head *result;
-		unsigned int i;
+	struct hlist_head * config_db = NULL;
 
-		result = kmalloc(size * sizeof(*result), GFP_KERNEL);
-		if (!result)
-			return NULL;
+	config_db = init_db(slots());
 
-		for (i = 0; i < size; i++)
-			INIT_HLIST_HEAD(&result[i]);
+	if(!config_db)
+	{
+		log_err("Allocation of pool4 configuration database failed.");
+		return NULL;
+	}
 
-		config_db = result;
-
-		return 0;
+	return config_db;
 }
 
 
-int pool4db_config_add(const __u32 mark, struct ipv4_prefix *prefix,
+int pool4db_config_add(struct hlist_head * config_db,const __u32 mark, struct ipv4_prefix *prefix,
 		struct port_range *ports)
 {
-
+	return pool4db_generic_add(mark, prefix,ports, config_db) ;
 }
 
 
-int pool4db_config_commit()
+int pool4db_switch_database(struct hlist_head * config_db)
 {
+	if(!config_db)
+	{
+		log_err("Error while switching pool4 database, null pointer received.");
+		return 1;
+	}
+	pool4db_destroy();
+	db = config_db;
 
-}*/
+	return 0;
+
+}
 
 
 

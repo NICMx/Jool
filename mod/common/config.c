@@ -88,11 +88,18 @@ int config_set(struct global_config *new)
 {
 	struct global_config *old = config;
 
+	if(!new)
+	{
+		log_err("Error while switching Global database, null pointer received.");
+		return 1;
+	}
+
 	rcu_assign_pointer(config, new);
 	synchronize_rcu_bh();
 
 	kfree(old->mtu_plateaus);
 	kfree(old);
+
 	return 0;
 }
 
