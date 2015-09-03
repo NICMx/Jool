@@ -22,7 +22,6 @@ int pool4db_add(const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports);
 int pool4db_rm(const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports);
-/* TODO update callers */
 int pool4db_flush(void);
 
 /*

@@ -15,7 +15,7 @@ int blacklist_init(char *pref_strs[], int pref_count);
 void blacklist_destroy(void);
 
 int blacklist_add(struct ipv4_prefix *prefix);
-int blacklist_remove(struct ipv4_prefix *prefix);
+int blacklist_rm(struct ipv4_prefix *prefix);
 int blacklist_flush(void);
 bool blacklist_contains(__be32 addr);
 

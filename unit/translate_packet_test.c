@@ -153,11 +153,7 @@ static bool update_config(bool lower_mtu_fail)
 	config->mtu_plateaus[2] = 600;
 	config->mtu_plateau_count = 3;
 
-	error = config_set(config);
-	if (error) {
-		log_err("Errcode %u while trying to set the config.", error);
-		return false;
-	}
+	config_replace(config);
 
 	return true;
 }
@@ -564,11 +560,8 @@ static bool test_6to4(l4_protocol l4_proto,
 	}
 	config->atomic_frags.df_always_on = true;
 	config->atomic_frags.build_ipv4_id = false;
-	error = config_set(config);
-	if (error) {
-		log_err("Errcode %d while trying to set the config.", error);
-		goto end;
-	}
+
+	config_replace(config);
 
 	if (init_tuple6(&tuple6, "1::1", 50080, "64::192.0.2.5", 51234, L4PROTO_UDP) != 0
 			|| init_tuple4(&tuple4, "192.0.2.2", 80, "192.0.2.5", 1234, L4PROTO_UDP) != 0

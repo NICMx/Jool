@@ -7,9 +7,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Session table module test.");
 
-struct session_table table;
+static struct session_table table;
 #define TEST_SESSION_COUNT 9
-struct session_entry *entries[TEST_SESSION_COUNT];
+static struct session_entry *entries[TEST_SESSION_COUNT];
 
 static bool inject(unsigned int index, __u32 local4addr, __u16 local4id,
 		__u32 remote4addr, __u16 remote4id)

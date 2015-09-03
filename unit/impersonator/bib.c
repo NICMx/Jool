@@ -1,4 +1,5 @@
 #include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/pool4/db.h"
 
 /*
  * In current BIB impersonator users, BIB is optional.
@@ -26,7 +27,7 @@ bool bibdb_contains4(const struct ipv4_transport_addr *addr,
 	BUG();
 }
 
-int pool4db_foreach_taddr4(const __u32 mark,
+int pool4db_foreach_taddr4(const __u32 mark, enum l4_protocol proto,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {

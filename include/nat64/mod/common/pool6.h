@@ -28,7 +28,6 @@ void pool6_destroy(void);
 /**
  * Removes all prefixes from the pool.
  */
-/* TODO update callers. */
 int pool6_flush(void);
 
 /**

@@ -8,7 +8,7 @@ int config_init(bool is_disable);
 void config_destroy(void);
 
 int config_clone(struct global_config *clone);
-int config_set(struct global_config *new);
+void config_replace(struct global_config *new);
 
 unsigned long config_get_ttl_udp(void);
 unsigned long config_get_ttl_tcpest(void);

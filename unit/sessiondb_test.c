@@ -11,9 +11,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva Popper");
 MODULE_DESCRIPTION("Session DB module test.");
 
-const l4_protocol PROTO = L4PROTO_UDP;
-struct session_entry *sessions4[4][4][4][4];
-struct session_entry *sessions6[4][4][4][4];
+static const l4_protocol PROTO = L4PROTO_UDP;
+static struct session_entry *sessions4[4][4][4][4];
+static struct session_entry *sessions6[4][4][4][4];
 
 static bool assert4(unsigned int la, unsigned int lp,
 		unsigned int ra, unsigned int rp)
@@ -352,7 +352,7 @@ static bool test_allow(void)
 	return success;
 }
 
-enum session_fate expire_fn(struct session_entry *session, void *arg)
+static enum session_fate expire_fn(struct session_entry *session, void *arg)
 {
 	return FATE_RM;
 }

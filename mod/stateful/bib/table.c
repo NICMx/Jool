@@ -181,7 +181,7 @@ fail:
 /**
  * Spinlock must be held.
  */
-void rm(struct bib_table *table, struct bib_entry *bib)
+static void rm(struct bib_table *table, struct bib_entry *bib)
 {
 	if (!WARN(RB_EMPTY_NODE(&bib->tree6_hook), "Faulty IPv6 index"))
 		rb_erase(&bib->tree6_hook, &table->tree6);

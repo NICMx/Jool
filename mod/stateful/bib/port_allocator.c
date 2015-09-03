@@ -7,12 +7,12 @@
 #include "nat64/mod/stateful/pool4/db.h"
 
 /* TODO (later) RFC 6056 wants us to change this from time to time. */
-unsigned char *secret_key;
-size_t secret_key_len;
-atomic_t next_ephemeral;
+static unsigned char *secret_key;
+static size_t secret_key_len;
+static atomic_t next_ephemeral;
 
-struct crypto_hash *tfm;
-DEFINE_SPINLOCK(tfm_lock);
+static struct crypto_hash *tfm;
+static DEFINE_SPINLOCK(tfm_lock);
 
 int palloc_init(void)
 {

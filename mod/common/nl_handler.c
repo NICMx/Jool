@@ -213,12 +213,12 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Flushing the IPv6 pool...");
-		pool6_flush();
+		error = pool6_flush();
 
 		if (xlat_is_nat64() && !request->flush.quick)
 			sessiondb_flush();
 
-		return respond_error(nl_hdr, 0);
+		return respond_error(nl_hdr, error);
 
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
@@ -285,6 +285,29 @@ static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request
 	return respond_error(nl_hdr, error);
 }
 
+static int handle_pool4_flush(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+{
+	int error;
+
+	if (verify_superpriv())
+		return respond_error(nl_hdr, -EPERM);
+
+	log_debug("Flushing the IPv4 pool...");
+	error = pool4db_flush();
+
+	/*
+	 * Well, pool4db_flush only errors on memory allocation failures,
+	 * so I guess clearing BIB and session even if pool4db_flush fails
+	 * is a good idea.
+	 */
+	if (xlat_is_nat64() && !request->flush.quick) {
+		sessiondb_flush();
+		bibdb_flush();
+	}
+
+	return respond_error(nl_hdr, error);
+}
+
 static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_pool4 *request)
 {
@@ -312,18 +335,7 @@ static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 		return handle_pool4_rm(nl_hdr, request);
 
 	case OP_FLUSH:
-		if (verify_superpriv())
-			return respond_error(nl_hdr, -EPERM);
-
-		log_debug("Flushing the IPv4 pool...");
-		pool4db_flush();
-
-		if (xlat_is_nat64() && !request->flush.quick) {
-			sessiondb_flush();
-			bibdb_flush();
-		}
-
-		return respond_error(nl_hdr, 0);
+		return handle_pool4_flush(nl_hdr, request);
 
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
@@ -640,24 +652,14 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing an address from the RFC6791 pool.");
-
-		error = rfc6791_remove(&request->rm.addrs);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr, rfc6791_rm(&request->rm.addrs));
 
 	case OP_FLUSH:
-		if (verify_superpriv()) {
+		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Flushing the RFC6791 pool...");
-		error = rfc6791_flush();
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr, rfc6791_flush());
 
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
@@ -718,24 +720,14 @@ static int handle_blacklist_config(struct nlmsghdr *nl_hdr, struct request_hdr *
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing an address from the Blacklist pool.");
-
-		error = blacklist_remove(&request->rm.addrs);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr, blacklist_rm(&request->rm.addrs));
 
 	case OP_FLUSH:
-		if (verify_superpriv()) {
+		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
-		}
 
 		log_debug("Flushing the Blacklist pool...");
-		error = blacklist_flush();
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
+		return respond_error(nl_hdr, blacklist_flush());
 
 	default:
 		log_err("Unknown operation: %d", jool_hdr->operation);
@@ -1039,9 +1031,7 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		goto einval;
 	}
 
-	error = config_set(config);
-	if (error)
-		goto fail;
+	config_replace(config);
 
 	if (timer_needs_update)
 		sessiondb_update_timers();

@@ -83,6 +83,10 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 	return 0;
 }
 
+/*
+ * This NEEDS to be called during initialization because @power needs to stay
+ * put after that.
+ */
 RCUTAG_INIT
 static int init_power(unsigned int size)
 {
@@ -106,7 +110,7 @@ static int init_power(unsigned int size)
 	return 0;
 }
 
-RCUTAG_INIT
+RCUTAG_INIT /* Inherits INIT from init_power(). */
 int pool4db_init(unsigned int size, char *prefix_strs[], int prefix_count)
 {
 	struct hlist_head *tmp;
@@ -146,12 +150,26 @@ static void __destroy(struct hlist_head *db)
 	kfree(db);
 }
 
-RCUTAG_INIT
+RCUTAG_USR
+static void pool4db_replace(struct hlist_head *new, unsigned int count)
+{
+	struct hlist_head *old;
+
+	mutex_lock(&lock);
+	old = rcu_dereference_protected(db, lockdep_is_held(&lock));
+	rcu_assign_pointer(db, new);
+	tables = count;
+	mutex_unlock(&lock);
+
+	synchronize_rcu_bh();
+
+	__destroy(old);
+}
+
+RCUTAG_USR
 void pool4db_destroy(void)
 {
-	mutex_lock(&lock);
-	__destroy(rcu_dereference_protected(db, lockdep_is_held(&lock)));
-	mutex_unlock(&lock);
+	pool4db_replace(NULL, 0);
 }
 
 RCUTAG_PKT /* Assumes locking (whether RCU or mutex) has already been done. */
@@ -261,22 +279,13 @@ end:
 RCUTAG_USR
 int pool4db_flush(void)
 {
-	struct hlist_head *new_db;
-	struct hlist_head *old_db;
+	struct hlist_head *new;
 
-	new_db = init_db(slots());
-	if (!new_db)
+	new = init_db(slots());
+	if (!new)
 		return -ENOMEM;
 
-	mutex_lock(&lock);
-	old_db = rcu_dereference_protected(db, lockdep_is_held(&lock));
-	rcu_assign_pointer(db, new_db);
-	tables = 0;
-	mutex_unlock(&lock);
-
-	synchronize_rcu_bh();
-
-	__destroy(old_db);
+	pool4db_replace(new, 0);
 	return 0;
 }
 

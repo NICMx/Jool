@@ -28,7 +28,7 @@ static int node_count;
 /** Protects @nodes_list, @nodes_tree and @node_count. */
 static DEFINE_SPINLOCK(lock);
 
-struct timer_list timer;
+static struct timer_list timer;
 
 static unsigned long get_timeout(void)
 {

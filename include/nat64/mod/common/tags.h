@@ -20,7 +20,7 @@
 #define RCUTAG_FREE
 
 /**
- * Tagged function is a RCU reader.
+ * Tagged function is an RCU reader.
  *
  * - Usable during packet processing.
  * - GFP_KERNEL is not allowed.
@@ -43,6 +43,12 @@
 /**
  * Marked function always runs in isolation. These also don't have to worry
  * about concurrence.
+ * (They still might use some concurrence API functions to prevent sparse's
+ * nagging.)
+ *
+ * I get the feeling people is going to raise eyebrows at this so try to upgrade
+ * __INITs into _USRs (even if they always run in isolation) as much as
+ * possible.
  *
  * - Must be called during module load/unload only.
  * - GFP_KERNEL is allowed.

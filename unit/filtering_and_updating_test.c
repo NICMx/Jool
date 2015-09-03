@@ -126,7 +126,7 @@ static bool assert_session_exists(char *remote_addr6, u16 remote_port6,
  * into 5.5.5.5#66->7.7.7.7#77, the "original" IPv6 tuple was 1::1#22->3::3#44,
  * and the corresponding IPv4 tuple is 7.7.7.7#77->5.5.5.5#66.
  */
-int invert_tuple(struct tuple *tuple)
+static int invert_tuple(struct tuple *tuple)
 {
 	struct session_entry *session;
 
@@ -529,11 +529,6 @@ static bool test_tcp(void)
 	kfree_skb(skb);
 
 	return success;
-}
-
-enum session_fate expire_fn(struct session_entry *session, void *arg)
-{
-	return FATE_RM;
 }
 
 static bool init(void)

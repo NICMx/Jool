@@ -1,8 +1,14 @@
 #include "nat64/common/types.h"
 #include "nat64/common/config.h"
 #include "nat64/mod/common/packet.h"
-#include "nat64/mod/stateful/bib/entry.h"
-#include "nat64/mod/stateful/session/entry.h"
+#include "nat64/mod/stateful/compute_outgoing_tuple.h"
+#include "nat64/mod/stateful/determine_incoming_tuple.h"
+#include "nat64/mod/stateful/filtering_and_updating.h"
+#include "nat64/mod/stateful/fragment_db.h"
+#include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/bib/static_routes.h"
+#include "nat64/mod/stateful/session/db.h"
 
 /**
  * @file
@@ -36,21 +42,21 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pk
 	return VERDICT_DROP;
 }
 
-int pool4db_add(const __u32 mark, struct ipv4_prefix *prefix,
-		struct port_range *ports)
+int pool4db_add(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	return fail(__func__);
 }
 
-int pool4db_rm(const __u32 mark, struct ipv4_prefix *prefix,
-		struct port_range *ports)
+int pool4db_rm(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports)
 {
 	return fail(__func__);
 }
 
-void pool4db_flush(void)
+int pool4db_flush(void)
 {
-	fail(__func__);
+	return fail(__func__);
 }
 
 int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,

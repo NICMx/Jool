@@ -1,6 +1,8 @@
 #include "nat64/common/types.h"
 #include "nat64/mod/common/packet.h"
+#include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
+#include "nat64/mod/stateless/rfc6791.h"
 
 /**
  * @file
@@ -21,7 +23,7 @@ int blacklist_add(struct ipv4_prefix *prefix)
 	return fail(__func__);
 }
 
-int blacklist_remove(struct ipv4_prefix *prefix)
+int blacklist_rm(struct ipv4_prefix *prefix)
 {
 	return fail(__func__);
 }
@@ -53,7 +55,7 @@ int rfc6791_add(struct ipv4_prefix *prefix)
 	return fail(__func__);
 }
 
-int rfc6791_remove(struct ipv4_prefix *prefix)
+int rfc6791_rm(struct ipv4_prefix *prefix)
 {
 	return fail(__func__);
 }

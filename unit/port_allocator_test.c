@@ -62,7 +62,7 @@ static bool test_md5(void)
 			&& ASSERT_BE32(0xb6a824a9u, result, "hash");
 }
 
-bool init(void)
+static bool init(void)
 {
 	return !palloc_init();
 }

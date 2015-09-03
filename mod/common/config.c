@@ -3,64 +3,73 @@
 #include <linux/jiffies.h>
 #include "nat64/common/config.h"
 #include "nat64/common/constants.h"
+#include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
 
-static struct global_config *config;
+static struct global_config __rcu *config;
+static DEFINE_MUTEX(lock);
 
+RCUTAG_USR
 int config_init(bool is_disable)
 {
+	struct global_config *cfg;
 	__u16 plateaus[] = DEFAULT_MTU_PLATEAUS;
 
-	config = kmalloc(sizeof(*config), GFP_KERNEL);
-	if (!config)
+	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
 		return -ENOMEM;
 
-	config->jool_status = 0; /* This is never read, but whatever. */
-	config->is_disable = (__u8) is_disable;
-	config->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
-	config->reset_tos = DEFAULT_RESET_TOS;
-	config->new_tos = DEFAULT_NEW_TOS;
+	cfg->jool_status = 0; /* This is never read, but whatever. */
+	cfg->is_disable = (__u8) is_disable;
+	cfg->reset_traffic_class = DEFAULT_RESET_TRAFFIC_CLASS;
+	cfg->reset_tos = DEFAULT_RESET_TOS;
+	cfg->new_tos = DEFAULT_NEW_TOS;
 
-	config->atomic_frags.df_always_on = DEFAULT_DF_ALWAYS_ON;
-	config->atomic_frags.build_ipv6_fh = DEFAULT_BUILD_IPV6_FH;
-	config->atomic_frags.build_ipv4_id = DEFAULT_BUILD_IPV4_ID;
-	config->atomic_frags.lower_mtu_fail = DEFAULT_LOWER_MTU_FAIL;
+	cfg->atomic_frags.df_always_on = DEFAULT_DF_ALWAYS_ON;
+	cfg->atomic_frags.build_ipv6_fh = DEFAULT_BUILD_IPV6_FH;
+	cfg->atomic_frags.build_ipv4_id = DEFAULT_BUILD_IPV4_ID;
+	cfg->atomic_frags.lower_mtu_fail = DEFAULT_LOWER_MTU_FAIL;
 
-	config->nat64.ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
-	config->nat64.ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
-	config->nat64.ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
-	config->nat64.ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
-	config->nat64.ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
-	config->nat64.max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
-	config->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
-	config->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
-	config->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
-	config->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
-	config->nat64.bib_logging = DEFAULT_BIB_LOGGING;
-	config->nat64.session_logging = DEFAULT_SESSION_LOGGING;
+	cfg->nat64.ttl.udp = msecs_to_jiffies(1000 * UDP_DEFAULT);
+	cfg->nat64.ttl.icmp = msecs_to_jiffies(1000 * ICMP_DEFAULT);
+	cfg->nat64.ttl.tcp_est = msecs_to_jiffies(1000 * TCP_EST);
+	cfg->nat64.ttl.tcp_trans = msecs_to_jiffies(1000 * TCP_TRANS);
+	cfg->nat64.ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
+	cfg->nat64.max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
+	cfg->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
+	cfg->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
+	cfg->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
+	cfg->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
+	cfg->nat64.bib_logging = DEFAULT_BIB_LOGGING;
+	cfg->nat64.session_logging = DEFAULT_SESSION_LOGGING;
 
-	config->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
-	config->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
-	config->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
+	cfg->siit.compute_udp_csum_zero = DEFAULT_COMPUTE_UDP_CSUM0;
+	cfg->siit.eam_hairpin_mode = DEFAULT_EAM_HAIRPIN_MODE;
+	cfg->siit.randomize_error_addresses = DEFAULT_RANDOMIZE_RFC6791;
 
-	config->mtu_plateau_count = ARRAY_SIZE(plateaus);
-	config->mtu_plateaus = kmalloc(sizeof(plateaus), GFP_ATOMIC);
-	if (!config->mtu_plateaus) {
+	cfg->mtu_plateau_count = ARRAY_SIZE(plateaus);
+	cfg->mtu_plateaus = kmalloc(sizeof(plateaus), GFP_ATOMIC);
+	if (!cfg->mtu_plateaus) {
 		log_err("Could not allocate memory to store the MTU plateaus.");
-		kfree(config);
+		kfree(cfg);
 		return -ENOMEM;
 	}
-	memcpy(config->mtu_plateaus, &plateaus, sizeof(plateaus));
+	memcpy(cfg->mtu_plateaus, &plateaus, sizeof(plateaus));
+
+	mutex_lock(&lock);
+	rcu_assign_pointer(config, cfg);
+	mutex_unlock(&lock);
 
 	return 0;
 }
 
+RCUTAG_USR
 void config_destroy(void)
 {
-	kfree(config->mtu_plateaus);
-	kfree(config);
+	config_replace(NULL);
 }
 
+RCUTAG_PKT
 int config_clone(struct global_config *clone)
 {
 	struct global_config *tmp;
@@ -84,16 +93,20 @@ int config_clone(struct global_config *clone)
 	return 0;
 }
 
-int config_set(struct global_config *new)
+RCUTAG_USR
+void config_replace(struct global_config *new)
 {
-	struct global_config *old = config;
+	struct global_config *old;
 
+	mutex_lock(&lock);
+	old = rcu_dereference_protected(config, lockdep_is_held(&lock));
 	rcu_assign_pointer(config, new);
+	mutex_unlock(&lock);
+
 	synchronize_rcu_bh();
 
 	kfree(old->mtu_plateaus);
 	kfree(old);
-	return 0;
 }
 
 #define RCU_THINGY(type, field) \
@@ -227,6 +240,7 @@ bool config_is_xlat_disabled(void)
 	return RCU_THINGY(bool, is_disable);
 }
 
+RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to _FREE. */
 int serialize_global_config(struct global_config *config, bool pools_empty,
 		unsigned char **buffer_out, size_t *buffer_len_out)
 {
@@ -261,6 +275,7 @@ int serialize_global_config(struct global_config *config, bool pools_empty,
 	return 0;
 }
 
+/* TODO this is not being used anywhere. Review after merging #164. */
 int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
 {
 	size_t mtus_len;

@@ -122,9 +122,10 @@ static int validate_taddr4(struct ipv4_transport_addr *addr, void *void_args)
 	return success ? 0 : -EINVAL;
 }
 
+#define COUNT 16
+
 static bool test_foreach_taddr4(void)
 {
-	const unsigned int COUNT = 16;
 	struct ipv4_transport_addr expected[2 * COUNT];
 	unsigned int i = 0;
 	struct foreach_taddr4_args args;
@@ -188,6 +189,8 @@ static bool test_foreach_taddr4(void)
 	return success;
 }
 
+#undef COUNT
+
 static void init_sample(struct pool4_sample *sample, __u32 addr, __u16 min,
 		__u16 max)
 {
@@ -226,9 +229,10 @@ static int validate_sample(struct pool4_sample *sample, void *void_args)
 	return success ? 0 : -EINVAL;
 }
 
+#define COUNT 9
+
 static bool test_foreach_sample(void)
 {
-	const unsigned int COUNT = 9;
 	struct pool4_sample expected[COUNT];
 	unsigned int i = 0;
 	struct foreach_sample_args args;
@@ -273,6 +277,8 @@ static bool test_foreach_sample(void)
 	return success;
 }
 
+#undef COUNT
+
 /**
  * assert_contains_range - "assert 192.0.2.@addr_min - 192.0.2.@addr_max on
  * ports @port_min through @port_max belong to the pool (@expected true) or not
@@ -303,7 +309,7 @@ static bool assert_contains_range(__u32 addr_min, __u32 addr_max,
 	return success;
 }
 
-bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
+static bool __foreach(struct pool4_sample *expected, unsigned int expected_len)
 {
 	struct foreach_sample_args args;
 	int error;
@@ -597,7 +603,7 @@ static bool test_rm(void)
 	return success;
 }
 
-bool init(void)
+static bool init(void)
 {
 	int error;
 
@@ -610,7 +616,7 @@ bool init(void)
 	return true;
 }
 
-void destroy(void)
+static void destroy(void)
 {
 	pool4db_destroy();
 }

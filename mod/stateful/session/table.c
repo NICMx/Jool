@@ -587,7 +587,7 @@ static struct rb_node *find_starting_point(struct session_table *table,
 	return (compare_full4(session, &offset) < 0) ? rb_next(parent) : parent;
 }
 
-int __foreach(struct session_table *table,
+static int __foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,
 		const struct ipv4_transport_addr *offset_remote,
 		const struct ipv4_transport_addr *offset_local,

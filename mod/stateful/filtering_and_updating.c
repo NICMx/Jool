@@ -21,7 +21,7 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 
-enum session_fate expired_cb(struct session_entry *session, void *arg)
+static enum session_fate expired_cb(struct session_entry *session, void *arg)
 {
 	switch (session->state) {
 	case ESTABLISHED:
@@ -613,7 +613,8 @@ static enum session_fate tcp_trans_state(struct session_entry *session,
 	return FATE_PRESERVE;
 }
 
-enum session_fate tcp_state_machine(struct session_entry *session, void *arg)
+static enum session_fate tcp_state_machine(struct session_entry *session,
+		void *arg)
 {
 	switch (session->state) {
 	case V4_INIT:

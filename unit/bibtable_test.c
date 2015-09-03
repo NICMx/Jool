@@ -8,9 +8,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB table module test.");
 
-struct bib_table table;
+static struct bib_table table;
 #define TEST_BIB_COUNT 5
-struct bib_entry *entries[TEST_BIB_COUNT];
+static struct bib_entry *entries[TEST_BIB_COUNT];
 
 static bool inject(unsigned int index, char *addr4, u16 port4,
 		char *addr6, u16 port6)

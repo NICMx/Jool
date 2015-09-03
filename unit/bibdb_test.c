@@ -9,9 +9,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("BIB DB module test.");
 
-const l4_protocol PROTO = L4PROTO_TCP;
-struct bib_entry *bibs4[4][25];
-struct bib_entry *bibs6[4][25];
+static const l4_protocol PROTO = L4PROTO_TCP;
+static struct bib_entry *bibs4[4][25];
+static struct bib_entry *bibs6[4][25];
 
 static bool assert4(unsigned int addr_id, unsigned int port)
 {

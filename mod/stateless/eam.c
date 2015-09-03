@@ -59,7 +59,7 @@ static int validate_prefixes(struct ipv6_prefix *prefix6,
 	return 0;
 }
 
-int validate_overlapping(struct ipv6_prefix *prefix6,
+static int validate_overlapping(struct ipv6_prefix *prefix6,
 		struct ipv4_prefix *prefix4)
 {
 	struct eamt_entry old;
