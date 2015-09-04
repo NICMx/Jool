@@ -9,6 +9,9 @@ AM_INIT_AUTOMAKE([subdir-objects])
 # Checks for programs.
 AC_PROG_CC
 
+# It's been added because automake requires it, since automake 1.14 it is no longer required.
+AM_PROG_CC_C_O
+
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h stdlib.h string.h unistd.h])
 
