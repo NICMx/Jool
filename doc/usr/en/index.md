@@ -33,6 +33,15 @@ Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=m
 
 ## News
 
+### 2015-08-17
+
+[Critical bug detected!](https://github.com/NICMx/NAT64/issues/166)
+
+In addition, version 3.3.3 contains the following:
+
+1. [Added support for the DKMS framework!](https://github.com/NICMx/NAT64/pull/165)
+2. Userspace application quirks fixed: [#150](https://github.com/NICMx/NAT64/issues/150), [#151](https://github.com/NICMx/NAT64/issues/151).
+
 ### 2015-04-14
 
 Version 3.3.2 released.

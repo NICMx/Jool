@@ -269,6 +269,18 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	int error;
 	verdict result;
 
+	/* Translate the address first because of issue #167. */
+	if (xlat_is_nat64()) {
+		error = generate_saddr6_nat64(tuple6, in, out);
+		if (error)
+			return VERDICT_DROP;
+		ip6_hdr->daddr = tuple6->dst.addr6.l3;
+	} else {
+		result = translate_addrs46_siit(in, out);
+		if (result != VERDICT_CONTINUE)
+			return result;
+	}
+
 	ip6_hdr->version = 6;
 	if (config_get_reset_traffic_class()) {
 		ip6_hdr->priority = 0;
@@ -290,17 +302,6 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 		ip6_hdr->hop_limit = ip4_hdr->ttl - 1;
 	} else {
 		ip6_hdr->hop_limit = ip4_hdr->ttl;
-	}
-
-	if (xlat_is_nat64()) {
-		error = generate_saddr6_nat64(tuple6, in, out);
-		if (error)
-			return VERDICT_DROP;
-		ip6_hdr->daddr = tuple6->dst.addr6.l3;
-	} else {
-		result = translate_addrs46_siit(in, out);
-		if (result != VERDICT_CONTINUE)
-			return result;
 	}
 
 	/* Isn't this supposed to be covered by filtering...? */

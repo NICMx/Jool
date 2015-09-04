@@ -288,6 +288,16 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	bool reset_tos, build_ipv4_id, df_always_on;
 	__u8 dont_fragment, new_tos;
 
+	/* Translate the address first because of issue #167. */
+	if (xlat_is_nat64()) {
+		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
+		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
+	} else {
+		result = translate_addrs64_siit(in, out);
+		if (result != VERDICT_CONTINUE)
+			return result;
+	}
+
 	config_get_hdr4_config(&reset_tos, &new_tos, &build_ipv4_id, &df_always_on);
 
 	ip4_hdr->version = 4;
@@ -309,15 +319,6 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	}
 	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
-
-	if (xlat_is_nat64()) {
-		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
-		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
-	} else {
-		result = translate_addrs64_siit(in, out);
-		if (result != VERDICT_CONTINUE)
-			return result;
-	}
 
 	if (pkt_is_outer(in)) {
 		__u32 nonzero_location;
