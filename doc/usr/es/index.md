@@ -93,7 +93,7 @@ También se liberó la actualización de Jool 3.2.3, para corregir [los errores 
 
 ### 2014-10-24
 
-El <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank"> error importante #112 </a> fue descubierto, y la version 3.2.2 queda ya desactualizada.
+El <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank"> error importante #112 </a> fue descubierto, y la versión 3.2.2 queda ya desactualizada.
 
 ### 2014-10-17
 
@@ -103,7 +103,7 @@ La documentación provista sobre `--plateaus` ha sido [mejorada](usr-flags-plate
 
 ### 2014-10-08
 
-Version 3.2.1 liberada. La serie 3.2 es considerada más madura que la 3.1.
+versión 3.2.1 liberada. La serie 3.2 es considerada más madura que la 3.1.
 
 Los cambios importantes son:
 
@@ -120,7 +120,7 @@ NOTA: Cuando un error de ICMP es demasiado grande, no se fragmenta; se trunca. E
 
 ### 2014-09-01
 
-Nos tomo más tiempo del planeado la realización de las pruebas, pero finalmente la version 3.2.0 es liberada.
+Nos tomo más tiempo del planeado la realización de las pruebas, pero finalmente la versión 3.2.0 es liberada.
 
 Note que se cambio el número de versión menor, porque la Herrmienta de Configuración del Jool es ligeramente diferente. Los parámetros de configuración de un sólo valor han sido juntados en la opción de [`--general`](usr-flags-global.html) y ésta remplaza a `--filtering`, `--translate` y `--fragmentation`. La aplicación tiene además tres nuevas caracteristicas:
 
@@ -140,11 +140,11 @@ También se liberó el 3.1.6, el cual contiene pequeñas correciones al 3.1.5. E
 
 ### 2014-06-26
 
-Si está familiarizado con los <a href="https://help.github.com/articles/github-flavored-markdown" target="_blank">Markdown</a> y los Github's diffs, puedes encontrar los cambios en la documentación de la version 3.1.5 <a href="https://github.com/NICMx/NAT64/commit/5295b05cf2c380055c3356d48ef56b74c0b828bb" target="_blank">aquí</a>, <a href="https://github.com/NICMx/NAT64/commit/2732f520b6616955fb81db778eab9da0f1db210c" target="_blank">aquí</a> y <a href="https://github.com/NICMx/NAT64/commit/54fc02dd5f5a22c44ac2d6be092306c34abd30ee" target="_blank">aquí</a>.
+Si está familiarizado con los <a href="https://help.github.com/articles/github-flavored-markdown" target="_blank">Markdown</a> y los Github's diffs, puedes encontrar los cambios en la documentación de la versión 3.1.5 <a href="https://github.com/NICMx/NAT64/commit/5295b05cf2c380055c3356d48ef56b74c0b828bb" target="_blank">aquí</a>, <a href="https://github.com/NICMx/NAT64/commit/2732f520b6616955fb81db778eab9da0f1db210c" target="_blank">aquí</a> y <a href="https://github.com/NICMx/NAT64/commit/54fc02dd5f5a22c44ac2d6be092306c34abd30ee" target="_blank">aquí</a>.
 
 ### 2014-06-18
 
-La version 3.1.5 fue liberada.
+La versión 3.1.5 fue liberada.
 
 La más importante corrección fue al <a href="https://github.com/NICMx/NAT64/issues/92" target="_blank">caso #92</a>. Errores incorrectos de ICMP confunden a los nodos de IPv4, lo cual baja la confibilidad en el tráfico de 4-a-6.
 
@@ -158,7 +158,7 @@ Si nadie encuentra algún error crítico en esta versión, esta actualización s
 
 ### 2014-04-25
 
-La version 3.1.4 ha sido liberada, y corrige:
+La versión 3.1.4 ha sido liberada, y corrige:
 
 1. Dos problemas de inhibición del equipo <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">caso#90</a> y <a href="https://github.com/NICMx/NAT64/issues/84" target="_blank">caso#84</a>.
 2. La Herramienta de Configuración del Jool ahora <a href="https://github.com/NICMx/NAT64/issues/86" target="_blank">resuelve nombres</a>.
@@ -168,7 +168,7 @@ La version 3.1.4 ha sido liberada, y corrige:
 
 ### 2014-03-26
 
-La version 3.1.3 ha sido liberada, y corrige:
+La versión 3.1.3 ha sido liberada, y corrige:
 
 1. El uso de una <a href="https://github.com/NICMx/NAT64/issues/81" target="_blank">incorrecta validación</a> no permite la configuración de Jool en ciertos sistemas.
 2. Un <a href="https://github.com/NICMx/NAT64/issues/79" target="_blank">error</a> que provoca que Jool no envíe ciertos errores de ICMP.
@@ -187,7 +187,7 @@ y con este viene un nueva actualización 3.1.2, que:
 
 ### 2014-02-21
 
-La version 3.1.1 ha sido liberada.
+La versión 3.1.1 ha sido liberada.
 
 Esta contiene dos correcciones:
 
@@ -196,7 +196,7 @@ Esta contiene dos correcciones:
 
 ### 2014-01-15
 
-![small_orange_diamond](../images/small_orange_diamond.png) La version 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
+![small_orange_diamond](../images/small_orange_diamond.png) La versión 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!
 
 Otras correcciones importantes:
 

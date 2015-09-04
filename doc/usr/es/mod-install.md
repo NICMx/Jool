@@ -5,24 +5,24 @@ category: Documentation
 title: Instalación del Servidor Jool
 ---
 
-[Documentación](documentation.html) > [Instalación](documentation.html#instalacion) > Servidor Jool
+[Documentación](documentation.html) > [Instalación](documentation.html#instalacin) > Servidor Jool
 
 # Instalación del Servidor Jool
 
 ## Índice
 
-1. [Introduccion](#introduccion)
-2. [Requerimientos](#requerimientos)
-	1. [`Kernels Validos`](#kernels-validos)
-	2. [`Encabezados del Kernel`](#encabezados-del-kernel)
-	3. [`Interfaces de Red`](#interfaces-de-red)
-	4. [`Ethtool`](#ethtool)
-3. [Baja Compila e Instala](#baja-compila-e-instala)
-	1. [`De la Web Oficial`](#de-la-web-oficial)
-	2. [`Del Repositorio GIT`](#del-repositorio-git)
+1. [Introducción](#introduccin)
+2. [Requerimientos](#requerimientos)<br />
+	a) [Kernels Válidos](#kernels-vlidos)<br />
+	b) [Encabezados del Kernel](#encabezados-del-kernel)<br />
+	c) [Interfaces de Red](#interfaces-de-red)<br />
+	d) [Ethtool](#ethtool)
+3. [Baja, Compila e Instala](#baja-compila-e-instala)<br />
+	a) [De la Web Oficial](#de-la-web-oficial)<br />
+	b) [Del Repositorio GIT](#del-repositorio-git)
 4. [Genera Archivo de Dependencias](#genera-archivo-de-dependencias)
 
-## Introduccion
+## Introducción
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
@@ -37,7 +37,7 @@ Las aplicaciones en el espacio de usuario son para configuración de Jool, la ex
 
 ## Requerimientos
 
-### `Kernels Validos`
+### Kernels Válidos
 
 Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux [haz click aquí](intro-jool.html#compatibilidad). Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!
 
@@ -49,7 +49,7 @@ Para verificar la versión de tu kernel, usa el siguiente comando:
 $ /bin/uname -r
 {% endhighlight %}
 
-### `Encabezados del Kernel`
+### Encabezados del Kernel
 
 Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta con permisos de administrador lo siguiente:
 
@@ -57,7 +57,7 @@ Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente 
 user@node# apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
 
-### `Interfaces de Red`
+### Interfaces de Red
 
 Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán `dos interfaces de red separadas: una para IPv6 y otra para IPv4`. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecuta lo siguiente:
 
@@ -70,7 +70,7 @@ $ ip link show
     link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff
 {% endhighlight %}
 
-### `Ethtool`
+### Ethtool
 
 Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros. Para instalarla ejecuta con permisos de administrador:
 
@@ -89,7 +89,7 @@ Existen algunas pequeñas variantes al bajarlo de un portal u otro, no tan solo 
 
 Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no vienen con un script `configure`, para generar el Makefile, sino ya está hecho, por lo que solo se requiere ejecutar los últimos dos pasos.
 
-### `De la Web Oficial`
+### De la Web Oficial
 
 Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la [página de Descarga](download.html). Sigue estos pasos:
 
@@ -123,7 +123,7 @@ El proceso de instalación consiste en copiar `los binarios generados`  a  `tu p
 user@node:~/Jool-<version>/mod# make modules_install
 {% endhighlight %}
 
-### `Del Repositorio GIT`
+### Del Repositorio GIT
 
 Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía. Sigue estos pasos:
 
@@ -165,14 +165,12 @@ El hecho de que residan en la pool no significa que ya hayan sido indizados, ent
 user@node:~# depmod
 {% endhighlight %}
 
-Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando el [ejemplo básico de SIIT](mod-run-vanilla.html).
+Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando [el ejemplo básico de SIIT](mod-run-vanilla.html).
 
-![thumbsup](../images/thumbsup.png) ¡LISTO! Jool puede ser inicializado ahora. 
+![thumbsup](../images/thumbsup.png) Jool puede ser inicializado ahora. 
 
-![warning](../images/warning.png) A D V E R T E N C I A
-> 
-> A partir del kernel 3.7 en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
-> 
-> Si tu kernel NO fue configurado para _solicitar_ esta característica no tendrás problema. Los kernels de muchas distribuciones no lo hacen. Solo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: "Can't read private key"; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
-> 
-> Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. Lo omitiremos aquí.
+> **ADVERTENCIA :**<br />
+>
+> A partir del **kernel 3.7** en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
+> Si tu kernel NO fue configurado para _solicitar_ esta característica no tendrás problema. Los kernels de muchas distribuciones no lo hacen. Solo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: **"Can't read private key"**; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
+> Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. **Nota:** Lo omitiremos aquí.

@@ -11,14 +11,14 @@ title: EAMT
 
 ## Índice
 
-1. [Definicion](#definicion)
-2. [Ejemplos](#ejemplos)
-	1. [`Registro 01`](#registro-01)
-	2. [`Registro 02`](#registro-02)
-	3. [`Registro 03`](#registro-03)
+1. [Definición](#definicin)
+2. [Ejemplos](#ejemplos)<br />
+	a) [Registro 01](#registro-01)<br />
+	b) [Registro 02](#registro-02)<br />
+	c) [Registro 03](#registro-03)
 3. [Resumen y Notas Adicionales](#resumen-y-notas-adicionales)
 	
-## Definicion
+## Definición
 
 La tabla EAMT (_Explicit Address Mappings Table_) por sus siglas en inglés, es una colección de registros en un servidor SIIT y en ella se guarda la relación de cómo las diferentes direcciones deben de ser traducidas. 
 
@@ -78,24 +78,16 @@ La dirección `203.0.113.8` se convierte en `2001:db8:cccc::`, no en `2001:db8:c
 - `203.0.113.14` <-> `2001:db8:cccc::6`
 - `203.0.113.15` <-> `2001:db8:cccc::7`
 
-## Resumen y Notas Adicionales
+## Resumen y Notas Adicionales:
 
-En el mecanisimo de transición SIIT-EAM se emplea y se mantiene la tabla de direcciones de mapeo explicito.
-
-En dicha tabla existen duplas con prefijos de IPv4 e IPv6 válidos.
-
-El prefijo es remplazado a nivel de bits.
-
-La dirección IPv4 no forma parte de la dirección IPv6 a usar.
-
-Los registros son bidireccionales.
-
-Los registros EAMT no se pueden intersectar. 
-
-Los paquetes que empleen dichas direcciones se tratarán como tales, es decir, con ese tipo de traducción.
-
-Si Jool no encuentra una coincidencia en la tabla para una dirección, intenta traducir basado en el prefijo [`pool6`](usr-flags-pool6.html). 
-
-Si eso también falla, el paquete es devuelto al kernel. Se asume que el paquete no debe ser traducido.
+* En el mecanisimo de transición SIIT-EAM se emplea y se mantiene la tabla de direcciones de mapeo explicito.
+* En dicha tabla existen duplas con prefijos de IPv4 e IPv6 válidos.
+* El prefijo es remplazado a nivel de bits.
+* La dirección IPv4 no forma parte de la dirección IPv6 a usar.
+* Los registros son bidireccionales.
+* Los registros EAMT no se pueden intersectar. 
+* Los paquetes que empleen dichas direcciones se tratarán como tales, es decir, con ese tipo de traducción.
+* Si Jool no encuentra una coincidencia en la tabla para una dirección, intenta traducir basado en el prefijo [`pool6`](usr-flags-pool6.html). 
+* Si eso también falla, el paquete es devuelto al kernel. Se asume que el paquete no debe ser traducido.
 
 Ve la [demostración](mod-run-eam.html) o el [material de referencia](usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.

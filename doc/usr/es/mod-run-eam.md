@@ -11,21 +11,21 @@ title: SIIT-EAM - Ejemplo de uso
 
 ## Índice
 
-1. [Introduccion](#introduccion)
-2. [Red de ejemplo](#red-de-ejemplo)
-	1. [`Configuracion de Nodos en IPv6`](#configuracion-de-nodos-en-ipv6)
-	2. [`Configuracion de Nodos en IPv4`](#configuracion-de-nodos-en-ipv4)
-	3. [`Configuracion del Nodo Traductor`](#configuracion-del-nodo-traductor)
+1. [Introducción](#introduccin)
+2. [Red de ejemplo](#red-de-ejemplo)<br />
+	a) [Configuración de Nodos en IPv6](#configuracin-de-nodos-en-ipv6)<br />
+	b) [Configuración de Nodos en IPv4](#configuracin-de-nodos-en-ipv4)<br />
+	c) [Configuración del Nodo Traductor](#configuracin-del-nodo-traductor)
 3. [Jool](#jool)
-4. [Pruebas](#pruebas)
-	1. [`Conectividad de IPv6 a IPv4`](#conectividad-de-ipv6-a-ipv4)
-	2. [`Conectividad de IPv4 a IPv6`](#conectividad-de-ipv4-a-ipv6)
-	3. [`Conectividad a un Web Server en IPv4`](#conectividad-a-un-web-server-en-ipv4)
-	4. [`Conectividad a un Web Server en IPv6`](#conectividad-a-un-web-server-en-ipv6)
+4. [Pruebas](#pruebas)<br />
+	a) [Conectividad de IPv6 a IPv4](#conectividad-de-ipv6-a-ipv4)<br />
+	b) [Conectividad de IPv4 a IPv6](#conectividad-de-ipv4-a-ipv6)<br />
+	c) [Conectividad a un Web Server en IPv4](#conectividad-a-un-web-server-en-ipv4)<br />
+	d) [Conectividad a un Web Server en IPv6](#conectividad-a-un-web-server-en-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
-## Introduccion
+## Introducción
 
 Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](intro-nat64.html#siit-con-eam). 
 
@@ -44,7 +44,7 @@ Aquí también, son válidas y aplican las observaciones mencionadas de la [secc
 - Jool requiere Linux, los otros Nodos no necesariamente.
 - Para este tutorial, consideraremos que: a)todos están en Linux, b)la configuración de red se hará manualmente, c) todo el tráfico será redirigido por defecto hacia _T_.
 
-### `Configuracion de Nodos en IPv6`
+### Configuración de Nodos en IPv6
 
 Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -56,7 +56,7 @@ user@A:~# /sbin/ip addr add 2001:db8:6::8/96 dev eth0
 user@A:~# /sbin/ip route add default via 2001:db8:6::1
 {% endhighlight %}
 
-### `Configuracion de Nodos en IPv4`
+### Configuración de Nodos en IPv4
 
 Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -68,7 +68,7 @@ user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
 user@V:~# /sbin/ip route add default via 192.0.2.1
 {% endhighlight %}
 
-### `Configuracion del Nodo Traductor`
+### Configuración del Nodo Traductor
 
 Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -93,7 +93,7 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-Hasta aqui, no hemos convertido a _T_ en un traductor todavia; pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
+Hasta aquí, no hemos convertido a _T_ en un traductor todavía; pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
 ## Jool
 
@@ -119,7 +119,7 @@ Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos
 
 ## Pruebas
 
-### `Conectividad de IPv6 a IPv4`
+### Conectividad de IPv6 a IPv4
 
 Haz un ping a _V_ desde _A_:
 
@@ -136,7 +136,7 @@ PING 2001:db8:4::10(2001:db8:4::10) 56 data bytes
 rtt min/avg/max/mdev = 2.790/3.370/4.131/0.533 ms
 {% endhighlight %}
 
-### `Conectividad de IPv4 a IPv6`
+### Conectividad de IPv4 a IPv6
 
 Haz un ping a _A_ desde _V_ de esta forma:
 
@@ -153,13 +153,13 @@ PING 198.51.100.8 (198.51.100.8) 56(84) bytes of data.
 rtt min/avg/max/mdev = 1.930/3.001/5.042/1.204 ms
 {% endhighlight %}
 
-### `Conectividad a un Web Server en IPv4`
+### Conectividad a un Web Server en IPv4
 
 Agrega un servidor en _Y_ y accesalo desde _D_:
 
 ![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-eam-firefox-4to6.png)
 
-### `Conectividad a un Web Server en IPv6`
+### Conectividad a un Web Server en IPv6
 
 Agrega un servidor en _B_ y haz una solicitud desde _X_:
 
@@ -169,7 +169,7 @@ Si algo no funciona, consulta el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
-Para detener Jool, de igual manera:
+Para detener Jool, emplea de nuevo el comando modprobe usando el parámetro `-r`:
 
 {% highlight bash %}
 user@T:~# modprobe -r jool_siit

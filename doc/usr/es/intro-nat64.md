@@ -5,19 +5,19 @@ category: Documentation
 title: Documentación - Introducción a los Mecanismos de Transición
 ---
 
-[Documentación](documentation.html) > [Introducción](documentation.html#introduccion) > Mecanismos de Transición
+[Documentación](documentation.html) > [Introducción](documentation.html#introduccin) > Mecanismos de Transición
 
 ## Mecanismos de Transición de IPv6 soportados por Jool
 
 ## Índice
 
-1. [Introduccion](#introduccion)
-2. [Ejemplos de Traduccion](#ejemplos-de-traduccion)
-	1. [`SIIT con EAM`](#siit-con-eam)
-    2. [`SIIT tradicional`](#siit-tradicional)
-    3. [`Stateful NAT64`](#stateful-nat64)
+1. [Introducción](#introduccin)
+2. [Ejemplos de Traducción](#ejemplos-de-traduccin)<br />
+	a) [SIIT con EAM](#siit-con-eam)<br />
+    b) [SIIT tradicional](#siit-tradicional)<br />
+    c) [Stateful NAT64](#stateful-nat64)
     
-## Introduccion
+## Introducción
  Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
  
 El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765](https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)](https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)](https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días](https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)]({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)]({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)]({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson](http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
@@ -26,7 +26,7 @@ La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Tri
 
 ![bulb](../images/bulb.png) Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
 
-## Ejemplos de Traduccion
+## Ejemplos de Traducción
  
  SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que únicamente hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
  La idea es básicamente la de un [NAT](http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red) mejorado; es decir que, un "Traductor IPv4/IPv6" no solo reemplaza direcciones y/o puertos en los paquetes, sino también encabezados de capa 3.
@@ -47,7 +47,7 @@ Por razones históricas, algunas veces etiquetamos a SIIT como "Stateless NAT64"
  
 En una implementación SIIT siempre se modifican los encabezados de red y en algunas veces los checksums. En un Stateful NAT64 también se manipulan los identificadores de transporte.
 
-### `SIIT con EAM`
+### SIIT con EAM
 
 
 Esta parte es la más fácil de explicar. Considera la siguiente configuración:
@@ -77,7 +77,7 @@ El traductor esta "engañando" a ambos nodos haciéndoles pensar que el otro pue
 
 ![bulb](../images/bulb.png) Revisa [nuestro resumen](eamt.html) o repasa sus especificaciones en el [draft EAM]({{ site.draft-siit-eam }}).
 
-### `SIIT (tradicional)`
+### SIIT (tradicional)
 
 
 El modo básico es un poco más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. Considera la siguiente configuración:
@@ -106,7 +106,7 @@ Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en di
 ![warning](../images/warning.png) Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un [DNS64](dns64.html) para que <br />
           los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
-### `Stateful NAT64`
+### Stateful NAT64
 
 
 Este modo es el más parecido a lo que la gente entiende como **NAT**, por sus siglas en inglés de _IP Network Address Translator_. Recordemos, un NAT opera de la siguiente manera:

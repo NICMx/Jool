@@ -5,19 +5,19 @@ category: Documentation
 title: Introducción a Jool
 ---
 
-[Documentación](documentation.html) > [Introducción](documentation.html#introduccion) > Jool
+[Documentación](documentation.html) > [Introducción](documentation.html#introduccin) > Jool
 
 # Introducción a Jool
 
 ## Índice
 
-1. [Descripcion](#descripcion)
+1. [Descripción](#descripcin)
 2. [Cumplimiento](#cumplimiento)
 3. [Compatibilidad](#compatibilidad)
 
-## Descripcion
+## Descripción
 
-Jool es una implementación de varios mecanismos de transición en IPv6. Todos en la categoría de traducción: [Stateful NAT64, SIIT y SIIT con EAM.] (intro-nat64.html) Jool es una aplicación de código abierto (open source) en Linux, desarrollado sobre Ubuntu, y probado en otros Linux (Debian, CentOS, Raspbian, RedHat, SuSE).
+Jool es una implementación de varios mecanismos de transición en IPv6. Todos en la categoría de traducción: [Stateful NAT64, SIIT y SIIT con EAM.](intro-nat64.html) Jool es una aplicación de código abierto (open source) en Linux, desarrollado sobre Ubuntu, y probado en otros Linux (Debian, CentOS, Raspbian, RedHat, SuSE).
 
 De Jool 1.0 a Jool 3.2.3 ->  Stateful NAT64<br /> 
 De Jool 3.3.0 en delante ->  Stateful NAT64, SIIT y SIIT con EAM

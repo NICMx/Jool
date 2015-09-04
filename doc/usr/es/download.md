@@ -13,7 +13,7 @@ title: Descarga
 -->
 
 * Las versión resaltada en **negritas** es la última actualización y es la más recomendable a instalar.
-* Las versiones no resaltadas son versiones estables pero anteriores. Éstas se podrían requerir en caso de que alguna opción, en la más nueva, falle. [¡Los reportes son bienvenidos!](https://github.com/NICMx/NAT64/issues).
+* Las versiones no resaltadas son versiones estables pero anteriores. Éstas se podrían requerir en caso de que alguna opción, en la más nueva, falle. [¡Los reportes son bienvenidos!](https://github.com/NICMx/NAT64/issues)
 * Las versiones tachadas no son recomedables, pues son muy antiguas o tienen errores críticos ya bien identificados.
 
 ## 3.3.x
@@ -35,7 +35,7 @@ La serie de versiones 3.2 mejora la  3.1  implementando _Apertura simultánea de
 
 3.2.3 es la última actualización de esta serie de versiones.
 
-La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede descargar una imágen de la documentación de la serie 3.2 [aquí](https://www.jool.mx/download/Jool-3.2-doc.zip) (Esta documentación está en inglés).
+La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede descargar una imágen de la documentación de la serie 3.2 [aquí](https://www.jool.mx/download/Jool-3.2-doc.zip) (**Nota:** está en inglés).
 
 | Descarga | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
@@ -53,7 +53,7 @@ La serie de versiones 3.1 esta bastante apegada al estándar stateful NAT64. Sus
 
 La última actualización de esta serie de versiones es la 3.1.6.
 
-La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede descargar una imágen de la documentación de la serie 3.1 [aquí](https://www.jool.mx/download/Jool-3.1-doc.zip) (Esta documentación está en inglés).
+La documentación en este sitio pertenece a la serie de versiones 3.3. Se puede descargar una imágen de la documentación de la serie 3.1 [aquí](https://www.jool.mx/download/Jool-3.1-doc.zip) (**Nota:** está en inglés).
 
 | Download | SHA512 | MD5| Git commit |
 |----------|--------|----|------------|
