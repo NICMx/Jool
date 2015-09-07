@@ -21,6 +21,8 @@
 # binaries
 jool
 jool_siit
+# documentation
+_site
 
 # Packages #
 ############
