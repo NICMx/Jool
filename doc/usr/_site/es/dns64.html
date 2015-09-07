@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>DNS64</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentación</a> &gt; <a href="documentation.html#ejemplos-de-uso">Ejemplos de uso</a> &gt; DNS64</p>
+
+<h1 id="tutorial-dns64">Tutorial DNS64</h1>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#introduccion">Introducción</a></li>
+  <li><a href="#red">Red</a></li>
+  <li><a href="#configuracion">Configuración</a>
+    <ol>
+      <li><a href="#bind">BIND</a></li>
+      <li><a href="#todo-lo-demas">Todo lo demás</a></li>
+    </ol>
+  </li>
+  <li><a href="#resultado">Resultado</a></li>
+</ol>
+
+<h2 id="introduccin">Introducción</h2>
+
+<p>Este documento se enfoca en DNS64, la última llave para tener una instalación de NAT64 completamente coherente.</p>
+
+<p>Cualquier implementación correcta de DNS64 se supone debería funcionar; BIND será utilizado para efecto de ilustrar. Espero que estes familiarizado con DNS y que tengas una idea por lo menos de como luce la configuración de BIND.</p>
+
+<h2 id="red">Red</h2>
+
+<p><img src="../images/tut4-setup.svg" alt="Fig.1 - Setup" /></p>
+
+<p>Aunque Jool y el DNS64 son ilustrados como nodos separados, no hay nada que te prevenga de unirlos en una sola máquina (a menos de que Jool esté monopolizando todas las direcciones IPv4 de sus nodos, por supuesto).</p>
+
+<h2 id="configuracin">Configuración</h2>
+
+<h3 id="bind">BIND</h3>
+
+<p>Primero, voy a dejar en claro lo que queremos lograr.</p>
+
+<p><code>example.com</code> es un dominio que esta disponible ambas la Internet IPv4 y la IPv6, y por lo tanto tiene ambos tipos de registros:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>dig example.com A
+<span class="o">(</span>...<span class="o">)</span>
+<span class="p">;;</span> ANSWER SECTION:
+example.com.		66029	IN	A	93.184.216.119
+<span class="o">(</span>...<span class="o">)</span>
+
+<span class="nv">$ </span>dig example.com AAAA
+<span class="o">(</span>...<span class="o">)</span>
+<span class="p">;;</span> ANSWER SECTION:
+example.com.		86040	IN	AAAA	2606:2800:220:6d:26bf:1447:1097:aa7
+<span class="o">(</span>...<span class="o">)</span></code></pre></div>
+
+<p><code>nat64-tutorial.mx</code> es un ejemplo de un dominio disponible solo desde IPv4:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>dig nat64-tutorial.mx A
+<span class="o">(</span>...<span class="o">)</span>
+<span class="p">;;</span> ANSWER SECTION:
+nat64-tutorial.mx.	66029	IN	A	200.94.182.36
+<span class="o">(</span>...<span class="o">)</span>
+
+<span class="nv">$ </span>dig nat64-tutorial.mx AAAA
+<span class="o">(</span>...<span class="o">)</span>
+<span class="p">;;</span> AUTHORITY SECTION:
+nat64-tutorial.mx.	240	IN	SOA	potato.mx. hostmaster.jool.mx. <span class="m">2013070801</span> <span class="m">3600</span> <span class="m">900</span> <span class="m">604800</span> 1800
+<span class="o">(</span>...<span class="o">)</span></code></pre></div>
+
+<p>No hay necesidad de que un nodo IPv6 accese <code>example.com</code> mediante el NAT64. Por otra parte, <code>nat64-tutorial.mx</code> no puede ser accesado desde IPv6 si uno.</p>
+
+<p>En otras palabras, queremos que el servicio de DNS64 devuelva <code>2606:2800:220:6d:26bf:1447:1097:aa7</code> cuando le sea solicitado el registro AAAA de <code>example.com</code> (que es lo que normalmente hace), y <code>64:ff9b::200.94.182.36</code> (ej. el prefijo NAT64 mas la direccion IPv4) cuando le sea solicitado el registro AAAA de <code>nat64-tutorial.mx</code> (el cual es el hack NAT64 completo).</p>
+
+<p>Primero, ten funcionando un servidor BIND. En Ubuntu, lo único que teines que hacer (assumiendo que todavia no tienes uno) es ejecutar</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@B:~# apt-get install bind9</code></pre></div>
+
+<p>La configuración mas básica es muy minimalista.</p>
+
+<p>The most basic configuration is very minimalistic. Para activar DNS64, la sección de opciones del archivo named.conf (en mi caso, <code>/etc/bind/named.conf.options</code>) es la única que debe ser actualizada:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">options <span class="o">{</span>
+	<span class="o">(</span>...<span class="o">)</span>
+
+	<span class="c"># Listening on IPv6 is off by default.</span>
+	listen-on-v6 <span class="o">{</span> any<span class="p">;</span> <span class="o">}</span><span class="p">;</span>
+
+	<span class="c"># This is the key. Note that you can write multiple of these if you need</span>
+	<span class="c"># more IPv6 prefixes.</span>
+	<span class="c"># &quot;64:ff9b::/96&quot; has to be the same as Jool&#39;s `pool6`.</span>
+	dns64 64:ff9b::/96 <span class="o">{</span>
+		<span class="c"># Options per prefix (if you need them) here.</span>
+		<span class="c"># More info here: https://kb.isc.org/article/AA-01031</span>
+	<span class="o">}</span><span class="p">;</span>
+<span class="o">}</span><span class="p">;</span></code></pre></div>
+
+<p>Y recuerda recargar.</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@B:~# sudo service bind9 restart</code></pre></div>
+
+<p>Eso es todo!</p>
+
+<h3 id="todo-lo-dems">Todo lo demás</h3>
+
+<p>Las redes mas externas cambiaron, y eso deberia ser reflejado probablemente en las tablas de ruteo de todos:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@J:~# /sbin/ip -6 route del 2001:db8:1::/64
+user@J:~# /sbin/ip -6 route add default via 2001:db8:2::1 dev eth0</code></pre></div>
+
+<p>(Instrucciones similares deberían ser replicadas en los routers y los nodos)</p>
+
+<p>Jool o J no necesita estar consciente del DNS64 por que los nombres de dominio son completamente transparentes a NAT64, asi que no necesitas hacer nadamas en J.</p>
+
+<p>En cuanto a los nodos hoja, cualquier nodo IPv6 que necesita acceder solo a contenido IPv4 <em>debe</em> utilizar el DNS64 como su servidor de nombres por default (a menos de que quieras especificarlo manualmente en tus comandos dig, supongo).</p>
+
+<h2 id="resultado">Resultado</h2>
+
+<p>Desde uno de esos nodos IPv6:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>dig example.com AAAA
+<span class="o">(</span>...<span class="o">)</span>
+<span class="p">;;</span> ANSWER SECTION:
+example.com.		86040	IN	AAAA	2606:2800:220:6d:26bf:1447:1097:aa7
+<span class="o">(</span>...<span class="o">)</span>
+
+<span class="nv">$ </span>dig nat64-tutorial.mx AAAA
+<span class="o">(</span>...<span class="o">)</span>
+<span class="p">;;</span> AUTHORITY SECTION:
+nat64-tutorial.mx.	86040	IN	AAAA	64:ff9b::c85e:b624
+<span class="o">(</span>...<span class="o">)</span></code></pre></div>
+
+<p>Si monitoreas el trafico, deberias ver paqueter hacia <code>example.com</code> en R, y paquetes hacia <code>nat64-tutorial.mx</code> mediante S:</p>
+
+<p><img src="../images/tut4-arrows.svg" alt="Fig.2 - Arrows" /></p>
+
+<p>Final Feliz!</p>
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/dns64.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

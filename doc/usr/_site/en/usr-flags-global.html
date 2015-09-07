@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>--global</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Home</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentation</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Download</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Report a Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">About</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contact</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentation</a> &gt; <a href="documentation.html#userspace-application">Userspace Application</a> &gt; <a href="usr-flags.html">Flags</a> &gt; --global</p>
+
+<h1 id="global">--global</h1>
+
+<h2 id="index">Index</h2>
+
+<ol>
+  <li><a href="#description">Description</a></li>
+  <li><a href="#syntax">Syntax</a></li>
+  <li><a href="#examples">Examples</a></li>
+  <li><a href="#keys">Keys</a>
+    <ol>
+      <li><a href="#enable---disable"><code>--enable</code>, <code>--disable</code></a></li>
+      <li><a href="#address-dependent-filtering"><code>--address-dependent-filtering</code></a></li>
+      <li><a href="#drop-icmpv6-info"><code>--drop-icmpv6-info</code></a></li>
+      <li><a href="#drop-externally-initiated-tcp"><code>--drop-externally-initiated-tcp</code></a></li>
+      <li><a href="#udp-timeout"><code>--udp-timeout</code></a></li>
+      <li><a href="#tcp-est-timeout"><code>--tcp-est-timeout</code></a></li>
+      <li><a href="#tcp-trans-timeout"><code>--tcp-trans-timeout</code></a></li>
+      <li><a href="#icmp-timeout"><code>--icmp-timeout</code></a></li>
+      <li><a href="#fragment-arrival-timeout"><code>--fragment-arrival-timeout</code></a></li>
+      <li><a href="#maximum-simultaneous-opens"><code>--maximum-simultaneous-opens</code></a></li>
+      <li><a href="#source-icmpv6-errors-better"><code>--source-icmpv6-errors-better</code></a></li>
+      <li><a href="#logging-bib"><code>--logging-bib</code></a></li>
+      <li><a href="#logging-session"><code>--logging-session</code></a></li>
+      <li><a href="#zeroize-traffic-class"><code>--zeroize-traffic-class</code></a></li>
+      <li><a href="#override-tos"><code>--override-tos</code></a></li>
+      <li><a href="#tos"><code>--tos</code></a></li>
+      <li><a href="#allow-atomic-fragments"><code>--allow-atomic-fragments</code></a>
+        <ol>
+          <li><a href="#setdf"><code>--setDF</code></a></li>
+          <li><a href="#genfh"><code>--genFH</code></a></li>
+          <li><a href="#genid"><code>--genID</code></a></li>
+          <li><a href="#boostmtu"><code>--boostMTU</code></a></li>
+        </ol>
+      </li>
+      <li><a href="#amend-udp-checksum-zero"><code>--amend-udp-checksum-zero</code></a></li>
+      <li><a href="#randomize-rfc6791-addresses"><code>--randomize-rfc6791-addresses</code></a></li>
+      <li><a href="#mtu-plateaus"><code>--mtu-plateaus</code></a></li>
+    </ol>
+  </li>
+</ol>
+
+<h2 id="description">Description</h2>
+
+<p>Controls several of Jool’s internal variables.</p>
+
+<ul>
+  <li>Issue an empty <code>--global</code> command to display the current values of all of Jool’s options.</li>
+  <li>Enter a key and a value to edit the key’s variable.</li>
+</ul>
+
+<p><code>--global</code> is the default configuration mode, so you never actually need to input that one flag.</p>
+
+<h2 id="syntax">Syntax</h2>
+
+<pre><code>jool_siit [--global]
+jool_siit [--global] &lt;flag key&gt; &lt;new value&gt;
+jool [--global]
+jool [--global] &lt;flag key&gt; &lt;new value&gt;
+</code></pre>
+
+<h2 id="examples">Examples</h2>
+
+<p>Display the current configuration, keys and values:</p>
+
+<pre><code>$ jool_siit --global
+</code></pre>
+
+<p>Same thing, shorter version:</p>
+
+<pre><code>$ # BTW: This looks very simple, but it still requires Jool's kernel module to be active.
+$ jool_siit
+</code></pre>
+
+<p>Pause Jool:</p>
+
+<pre><code># jool --global --disable
+</code></pre>
+
+<p>Turn “address dependent filtering” on:</p>
+
+<pre><code>$ # true, false, 1, 0, yes, no, on and off all count as valid booleans.
+# jool --address-dependent-filtering true
+</code></pre>
+
+<p>Update the plateaus list:</p>
+
+<pre><code># jool_siit --mtu-plateaus "6000, 5000, 4000, 3000, 2000, 1000"
+</code></pre>
+
+<h2 id="keys">Keys</h2>
+
+<p>The following flag keys are available:</p>
+
+<h3 id="enable---disable"><code>--enable</code>, <code>--disable</code></h3>
+
+<ul>
+  <li>Type: -</li>
+  <li>Default: Depends on modprobe arguments</li>
+  <li>Modes: Both (SIIT and Stateful)</li>
+</ul>
+
+<p>Resumes and pauses translation of packets, respectively. This might be useful if you want to change more than one configuration parameter at once and you don’t want packets being translated inconsistently while you run the commands.</p>
+
+<p>(If you don’t want Jool to stop while you reconfigure, don’t worry about this. Use it only if it feels right.)</p>
+
+<p>Timeouts will <em>not</em> be paused. In other words, <a href="usr-flags-bib.html">BIB</a>/<a href="usr-flags-session.html">session</a> entries and stored <a href="#maximum-simultaneous-opens">packets</a> and <a href="#fragment-arrival-timeout">fragments</a> might die while Jool is idle.</p>
+
+<h3 id="address-dependent-filtering"><code>--address-dependent-filtering</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: OFF</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--dropAddr</code></li>
+  <li>Source: Scattered at RFC 6146. One summary is at the end of <a href="http://tools.ietf.org/html/rfc6146#section-1.2.3">section 1.2.3</a>.</li>
+</ul>
+
+<p>Long story short:</p>
+
+<ul>
+  <li><code>--address-dependent-filtering</code> ON means Jool should be an (address)-restricted-cone NAT.</li>
+  <li><code>--address-dependent-filtering</code> OFF means Jool should be a full-cone NAT.</li>
+</ul>
+
+<p><a href="http://en.wikipedia.org/wiki/Network_address_translation#Methods_of_translation">Wiki</a>.</p>
+
+<p>Long story long:</p>
+
+<p>Suppose <em>n6</em> is talking with <em>n4a</em> via the NAT64:</p>
+
+<p><img src="../images/usr-dropaddr-1.svg" alt="Fig.1: Legal chat" /></p>
+
+<p>The relevant <a href="bib.html">BIB entry</a> is</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>IPv6 transport address</th>
+      <th>IPv4 transport address</th>
+      <th>Protocol</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2001:db8::1#10</td>
+      <td>192.0.2.1#10</td>
+      <td>TCP</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><em>n4b</em> realizes the existence of <em>n6</em>’s service, perhaps because <em>n4a</em> tells him about it:</p>
+
+<p><img src="../images/usr-dropaddr-2.svg" alt="Fig.2: n4b finds about n6" /></p>
+
+<p>Then <em>n4b</em> tries to chat <em>n6</em> too:</p>
+
+<p><img src="../images/usr-dropaddr-3.svg" alt="Fig.3: suspicious query" /></p>
+
+<p>Because the BIB entry exists, <em>J</em> knows that <em>n4b</em> means “2001:db8::1#10” when he says “192.0.2.1#10”, so the packet can technically be translated. However, because of the session tables, <em>J</em> can also tell that <em>n6</em> hasn’t been talking to <em>n4b</em> in the past.</p>
+
+<p>If <code>--address-dependent-filtering</code> is OFF, <em>J</em> will allow <em>n4b</em>’s packet to pass. If <code>--address-dependent-filtering</code> is ON, <em>J</em> will drop <em>n4b</em>’s packet and respond with a “Communication Administratively Prohibited” ICMP error. This effectively wrecks any IPv4-started communication attempts, even if there are BIB entries (static or otherwise).</p>
+
+<ul>
+  <li>If you’re using the NAT64 to publish a IPv6-only service to the IPv4 Internet, it makes sense for <code>--address-dependent-filtering</code> to be OFF. This is because clients are expected to find out about the IPv6 service on their own, and the server doesn’t normally start packet streams.</li>
+  <li>If you’re using the NAT64 to allow IPv6 nodes to browse the IPv4 Internet, it makes sense for <code>--address-dependent-filtering</code> to be ON. This is because clients choose their ports at random; it is suspicious for random outsider nodes to guess these ports.</li>
+</ul>
+
+<p><code>--address-dependent-filtering</code> ON might break NAT traversal methods like STUN (or at least make some operation modes impossible).</p>
+
+<h3 id="drop-icmpv6-info"><code>--drop-icmpv6-info</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: OFF</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--dropInfo</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-3.5.3">RFC 6146, section 3.5.3</a></li>
+</ul>
+
+<p>If you turn this on, pings (both requests and responses) will be blocked while being translated from ICMPv6 to ICMPv4.</p>
+
+<p>For some reason, we’re not supposed to block pings from ICMPv4 to ICMPv6, but since you need both a request and a response for a successful echo, the outcome seems to be the same.</p>
+
+<p>This rule will not affect Error ICMP messages.</p>
+
+<h3 id="drop-externally-initiated-tcp"><code>--drop-externally-initiated-tcp</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: OFF</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--dropTCP</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-3.5.2.2">RFC 6146, section 3.5.2.2</a></li>
+</ul>
+
+<p>Turn <code>--drop-externally-initiated-tcp</code> ON to wreck any attempts of IPv4 nodes to initiate TCP communication to IPv6 nodes.</p>
+
+<p>Of course, this will not block IPv4 traffic if some IPv6 node first requested it.</p>
+
+<h3 id="udp-timeout"><code>--udp-timeout</code></h3>
+
+<ul>
+  <li>Type: Integer (seconds)</li>
+  <li>Default: 5 minutes</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--toUDP</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-3.5.1">RFC 6146, section 3.5.1</a></li>
+</ul>
+
+<p>When a UDP session has been lying around inactive for this long, its entry will be removed from the database automatically.</p>
+
+<p>When you change this value, the lifetimes of all already existing UDP sessions are updated.</p>
+
+<h3 id="tcp-est-timeout"><code>--tcp-est-timeout</code></h3>
+
+<ul>
+  <li>Type: Integer (seconds)</li>
+  <li>Default: 2 hours</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--toTCPest</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-3.5.2.2">RFC 6146, section 3.5.2.2</a></li>
+</ul>
+
+<p>When an established TCP connection has remained inactive for this long, its existence will be questioned. Jool will send a probe packet to one of the endpoints and kill the session if a response is not received before the <code>--tcp-trans-timeout</code> timeout.</p>
+
+<p>When you change this value, the lifetimes of all already existing established TCP sessions are updated.</p>
+
+<h3 id="tcp-trans-timeout"><code>--tcp-trans-timeout</code></h3>
+
+<ul>
+  <li>Type: Integer (seconds)</li>
+  <li>Default: 4 minutes</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--toTCPtrans</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-3.5.2">RFC 6146, derivatives of section 3.5.2</a></li>
+</ul>
+
+<p>When an unhealthy TCP session has been lying around inactive for this long, its entry will be removed from the database automatically. An “unhealthy” session is one in which the TCP handshake has not yet been completed, it is being terminated by the endpoints, or is technically established but has remained inactive for <code>--tcp-est-timeout</code> time.</p>
+
+<p>When you change this value, the lifetimes of all already existing transitory TCP sessions are updated.</p>
+
+<h3 id="icmp-timeout"><code>--icmp-timeout</code></h3>
+
+<ul>
+  <li>Type: Integer (seconds)</li>
+  <li>Default: 1 minute</li>
+  <li>Modes: Stateful only</li>
+  <li>Deprecated name: <code>--toICMP</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-3.5.3">RFC 6146, section 3.5.3</a></li>
+</ul>
+
+<p>When a ICMP session has been lying around inactive for this long, its entry will be removed from the database automatically.</p>
+
+<p>When you change this value, the lifetimes of all already existing ICMP sessions are updated.</p>
+
+<h3 id="fragment-arrival-timeout"><code>--fragment-arrival-timeout</code></h3>
+
+<ul>
+  <li>Type: Integer (seconds)</li>
+  <li>Default: 2 seconds</li>
+  <li>Modes: NAT64 only</li>
+  <li>Deprecated name: <code>--toFrag</code></li>
+  <li>Source: None (the flag addresses a <a href="https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-">Linux quirk</a>).</li>
+</ul>
+
+<p>Stateful Jool requires fragment reassembly.</p>
+
+<p>In kernels 3.13 and above, <code>--fragment-arrival-timeout</code> does nothing whatsoever.</p>
+
+<p>In kernels 3.12 and below, the kernel’s IPv6 fragment reassembly module (<code>nf_defrag_ipv6</code>) is a little tricky. It collects the fragments, and instead of reassembling, it fetches them all to the rest of the kernel in ascending order and really quickly. Because Jool has to process all the fragments of a single packet at the same time, it has to wait until <code>nf_defrag_ipv6</code> has handed them all.</p>
+
+<p><code>--fragment-arrival-timeout</code> is the time Jool will wait for <code>nf_defrag_ipv6</code> to fetch all the fragments of a common packet. <em>It has nothing to do with waiting for fragments to arrive at the node</em>.</p>
+
+<p>Because <code>nf_defrag_ipv6</code> already waited for all the fragments to arrive, it should fetch them in nanoseconds. Therefore, <code>--fragment-arrival-timeout</code>’s default value of 2 seconds is probably overly high. On the other hand, unless there is a random module dropping packets in between, all of the fragments should always arrive immediately, hence the timer should actually never run out (even if you’re being attacked).</p>
+
+<p>SIIT Jool does not need fragment reassembly at all.</p>
+
+<p>This behavior changed from Jool 3.2, where <code>--toFrag</code> used to actually be the time Jool would wait for fragments to arrive at the node.</p>
+
+<h3 id="maximum-simultaneous-opens"><code>--maximum-simultaneous-opens</code></h3>
+
+<ul>
+  <li>Type: Integer</li>
+  <li>Default: 10</li>
+  <li>Modes: NAT64 only</li>
+  <li>Deprecated name: <code>--maxStoredPkts</code></li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6146#section-5.3">RFC 6146, section 5.3</a> (indirectly)</li>
+</ul>
+
+<p>When an external (IPv4) node first attempts to open a connection and there’s no <a href="bib.html">BIB entry</a> for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.</p>
+
+<p>In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what’s going on, Jool has to store the packet for 6 seconds.</p>
+
+<p><code>--maximum-simultaneous-opens</code> is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 “simultaneous” simultaneous opens; Jool will fall back to answer the ICMP error message on the eleventh one.</p>
+
+<h3 id="source-icmpv6-errors-better"><code>--source-icmpv6-errors-better</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: False</li>
+  <li>Modes: NAT64 only</li>
+  <li>Translation direction: IPv4 to IPv6 (ICMP errors only)</li>
+  <li>Source: <a href="https://github.com/NICMx/NAT64/issues/132">Issue 132</a></li>
+</ul>
+
+<p>For some reason, RFC 6146 wants the source of translated ICMPv6 errors to be the same as their inner packets’ destination address. This looks really weird.</p>
+
+<p><img src="../images/network/src-icmp6-better.svg" alt="Fig.4: Source better diagram" /></p>
+
+<p>Say the link between <em>R</em> and <em>n4</em> collapses.</p>
+
+<ol>
+  <li><em>n6</em> TCP-packets <em>n4</em>: 2001:db8::1 -&gt; 64:ff9b::203.0.113.13.</li>
+  <li><em>T</em> translates and forwards: 192.0.2.1 -&gt; 203.0.113.13</li>
+  <li><em>R</em> answers ICMPv4 error “Host unreachable”. The error packet’s addresses are 192.0.2.6 -&gt; 192.0.2.1.</li>
+  <li><em>T</em> translates into an IPv6 packet whose addresses are 64:ff9b::203.0.113.13 -&gt; 2001:db8::1 (because this is the inverse of the first packet).</li>
+</ol>
+
+<p><a href="https://github.com/NICMx/NAT64/issues/132">This breaks traceroutes</a>. Shouldn’t it have been 64:ff9b::<strong>192.0.2.6</strong> -&gt; 2001:db8::1 instead?</p>
+
+<ul>
+  <li><code>--source-icmpv6-errors-better</code> OFF will make Jool obey RFC 6146 (and break traceroutes).</li>
+  <li><code>--source-icmpv6-errors-better</code> ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.</li>
+</ul>
+
+<h3 id="logging-bib"><code>--logging-bib</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: False</li>
+  <li>Modes: NAT64 only</li>
+  <li>Translation direction: Both</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6888#section-4">RFC 6888, section 4</a></li>
+</ul>
+
+<p>Enables logging of transport address mappings as they are created and destroyed. If you are a Service Provider, your government might require you to do this.</p>
+
+<p>Analysis of these logs can let you know which IPv4 address and port masked your “internal” (IPv6) nodes at a certain time. Here’s a sample output:</p>
+
+<pre><code>$ jool --logging-bib true
+$ dmesg
+[  312.493235] 2015/4/8 16:13:2 (GMT) - Mapped 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
+[  373.724229] 2015/4/8 16:14:3 (GMT) - Mapped 2001:db8::8#46516 to 192.0.2.2#12592 (TCP)
+[  468.675524] 2015/4/8 16:15:38 (GMT) - Forgot 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)
+</code></pre>
+
+<p>In this example,</p>
+
+<ol>
+  <li><code>2001:db8::5</code> used (its own) port 19945 to speak to someone using the UDP protocol. This someone thought <code>2001:db8::5</code>’s address was <code>192.0.2.2</code>, and that it was using port 8208.</li>
+  <li>Roughly a minute later, <code>2001:db8::8</code> (on port 46516) started speaking to somebody using TCP. It’s being masked as <code>192.0.2.2</code>#12592. This connection has not yet ended.</li>
+  <li>Some time later, Jool forgot the UDP mapping (because of inactivity, not because the last packet happened at 16:15:38. “How much inactivity” is controlled by the timeouts - in this case, the <a href="#udp-timeout">UDP one</a>). At this point, <code>192.0.2.2</code>#8208 is free from <code>2001:db8::5</code> and Jool can reassign it.</li>
+</ol>
+
+<p>So, if your government comes and says “I detected somebody named <code>192.0.2.2</code>#8208 did something illegal at 4:14 pm via UDP”, you can report the culprit is <code>2001:db8::5</code>#19945 and free yourself from the blame.</p>
+
+<p>There are several important things to notice:</p>
+
+<ul>
+  <li>Each mapping’s uniquenesss extends to the protocol. If your logging only says <code>Mapped 2001:db8::5#19945 to 192.0.2.2#8208 (UDP)</code>, you <strong>can’t</strong> assume <code>2001:db8::5</code>#19945 is <code>192.0.2.2</code>#8208 on TCP as well.</li>
+  <li>Your IPv6 nodes share IPv4 addresses! Therefore, mind the ports.</li>
+  <li>There’s no information on <em>who</em> was <code>2001:db8::5</code> talking to. This is a <em>good</em> thing; it means you’re honoring your client’s privacy as much as you can.</li>
+  <li>The logging uses GMT; you might need to convert this for comfort.</li>
+</ul>
+
+<p>This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the <em>kernel log</em>, so the messages will be mixed along with anything else the kernel has to say (including Jool’s error messages, for example). The log messages will have <a href="http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up">INFO priority</a>.</p>
+
+<p>If logging the destination makes sense for you, see <code>--logging-session</code> (below). To comply with REQ-12 of RFC 6888 you want to set <code>--loging-bib</code> as true and <code>--logging-session</code> as false.</p>
+
+<h3 id="logging-session"><code>--logging-session</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: False</li>
+  <li>Modes: NAT64 only</li>
+  <li>Translation direction: Both</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6888#section-4">RFC 6888, section 4</a></li>
+</ul>
+
+<p>Enables logging of every session as they are created and destroyed.</p>
+
+<p>The format is</p>
+
+<pre><code>&lt;date&gt; &lt;time&gt; (GMT) - &lt;action&gt; session &lt;IPv6 node&gt;|&lt;IPv6 representation of IPv4 node&gt;|&lt;IPv4 representation of IPv6 node&gt;|&lt;IPv4 node&gt;|Protocol
+</code></pre>
+
+<p>Here’s a sample output:</p>
+
+<pre><code>$ jool --logging-session true
+$ dmesg
+[ 3238.087902] 2015/4/8 17:1:47 (GMT) - Added session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
+[ 3238.099997] 2015/4/8 17:1:47 (GMT) - Added session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
+[ 3241.624104] 2015/4/8 17:1:51 (GMT) - Added session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
+[ 3241.630905] 2015/4/8 17:1:51 (GMT) - Added session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
+[ 3478.498559] 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47073|64:ff9b::c000:205#80|192.0.2.2#63527|192.0.2.5#80|TCP
+[ 3478.499758] 2015/4/8 17:5:48 (GMT) - Forgot session 1::5#47074|64:ff9b::c000:205#80|192.0.2.2#42527|192.0.2.5#80|TCP
+[ 3481.632214] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33160|64:ff9b::c000:205#8080|192.0.2.2#15496|192.0.2.5#8080|TCP
+[ 3481.632342] 2015/4/8 17:5:51 (GMT) - Forgot session 1::5#33161|64:ff9b::c000:205#8080|192.0.2.2#7060|192.0.2.5#8080|TCP
+</code></pre>
+
+<p>This log is remarcably more voluptuous than <a href="#logging-bib"><code>--logging-bib</code></a>, not only because each message is longer, but because sessions are generated and destroyed more often than BIB entries (each BIB entry can have multiple sessions). Because of REQ-12 from <a href="http://tools.ietf.org/html/rfc6888#section-4">RFC 6888 section 4</a>, chances are you don’t even want the extra information sessions grant you.</p>
+
+<h3 id="zeroize-traffic-class"><code>--zeroize-traffic-class</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: OFF</li>
+  <li>Modes: Both (SIIT and NAT64)</li>
+  <li>Translation direction: IPv4 to IPv6</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6145#section-4.1">RFC 6145, section 4.1</a></li>
+  <li>Deprecated name: <code>--setTC</code></li>
+</ul>
+
+<p>The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>’s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>’s Type of Service (TOS).</p>
+
+<p>If you leave this OFF, the TOS value will be copied directly to the Traffic Class field. If you turn this ON, Jool will always set Traffic Class as <strong>zero</strong> instead.</p>
+
+<h3 id="override-tos"><code>--override-tos</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: OFF</li>
+  <li>Modes: Both (SIIT and NAT64)</li>
+  <li>Translation direction: IPv6 to IPv4</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6145#section-5.1">RFC 6145, section 5.1</a></li>
+  <li>Deprecated name: <code>--setTOS</code></li>
+</ul>
+
+<p>The <a href="http://en.wikipedia.org/wiki/IPv6_packet#Fixed_header" target="_blank">IPv6 header</a>’s Traffic Class field is very similar to <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4</a>’s Type of Service (TOS).</p>
+
+<p>If you leave this OFF, the Traffic Class value will be copied directly to the TOS field during IPv6-to-IPv4 translations. If you turn this ON, Jool will always set TOS as <a href="#tos"><code>--tos</code></a> instead.</p>
+
+<h3 id="tos"><code>--tos</code></h3>
+
+<ul>
+  <li>Type: Integer</li>
+  <li>Default: 0</li>
+  <li>Modes: Both (SIIT and NAT64)</li>
+  <li>Translation direction: IPv6 to IPv4</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6145#section-5.1">RFC 6145, section 5.1</a></li>
+  <li>Deprecated name: <code>--TOS</code></li>
+</ul>
+
+<p>Value to set the TOS value of the packets’ IPv4 fields during IPv6-to-IPv4 translations. <em>This only applies when <a href="#override-tos"><code>--override-tos</code></a> is ON</em>.</p>
+
+<h3 id="allow-atomic-fragments"><code>--allow-atomic-fragments</code></h3>
+
+<p>Deprecated. See <a href="usr-flags-atomic.html">Atomic Fragments</a>.</p>
+
+<h3 id="setdf"><code>--setDF</code></h3>
+
+<p>Deprecated. See <a href="usr-flags-atomic.html">Atomic Fragments</a>.</p>
+
+<h3 id="genfh"><code>--genFH</code></h3>
+
+<p>Deprecated. See <a href="usr-flags-atomic.html">Atomic Fragments</a>.</p>
+
+<h3 id="genid"><code>--genID</code></h3>
+
+<p>Deprecated. See <a href="usr-flags-atomic.html">Atomic Fragments</a>.</p>
+
+<h3 id="boostmtu"><code>--boostMTU</code></h3>
+
+<p>Deprecated. See <a href="usr-flags-atomic.html">Atomic Fragments</a>.</p>
+
+<h3 id="amend-udp-checksum-zero"><code>--amend-udp-checksum-zero</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: OFF</li>
+  <li>Modes: SIIT only</li>
+  <li>Translation direction: IPv4 to IPv6 (UDP only)</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6145#section-4.5">RFC 6145, section 4.5</a></li>
+</ul>
+
+<p>In IPv4, it’s legal for UDP packets to contain zero as checksum. This is because the whole thing about UDP is that it’s unreliable, and therefore sometimes the value of checksum validation does not justify its overhead.</p>
+
+<p>In IPv6, zero is an invalid checksum value for UDP packets.</p>
+
+<ul>
+  <li>If <code>--amend-udp-checksum-zero</code> is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.</li>
+  <li>If <code>--amend-udp-checksum-zero</code> is OFF and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with <a href="http://elinux.org/Debugging_by_printing#Log_Levels">Log Level</a> KERN_DEBUG).</li>
+</ul>
+
+<p>This does not affect <em>fragmented</em> zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it <em>cannot</em> compute the checskum. In these cases, the packet will be dropped regardless of <code>--amend-udp-checksum-zero</code>.</p>
+
+<p>Stateful NAT64 Jool <em>always</em> computes zero-checksums from IPv4-UDP packets. Because it reassembles, it will also do so for fragmented packets.</p>
+
+<h3 id="randomize-rfc6791-addresses"><code>--randomize-rfc6791-addresses</code></h3>
+
+<ul>
+  <li>Type: Boolean</li>
+  <li>Default: ON</li>
+  <li>Modes: SIIT only</li>
+  <li>Translation direction: IPv6 to IPv4</li>
+  <li>Source: <a href="https://github.com/NICMx/NAT64/issues/130">Issue 130</a></li>
+</ul>
+
+<p>If an ICMPv6 error’s source cannot be translated, <a href="https://tools.ietf.org/html/rfc6791">RFC 6791</a> wants us to assign as source a random IPv4 address from the <a href="usr-flags-pool6791.html">RFC 6791 pool</a>.</p>
+
+<ul>
+  <li>If <code>--randomize-rfc6791-addresses</code> is ON, Jool will follow RFC 6791’s advice, assigning a random address from the pool.</li>
+  <li>If <code>--randomize-rfc6791-addresses</code> is OFF, Jool will assign the <code>hop limit</code>th address from the pool.</li>
+</ul>
+
+<p>Why? <a href="https://github.com/NICMx/NAT64/issues/130">It can be argued that <code>hop limit</code>th is better</a>.</p>
+
+<h3 id="mtu-plateaus"><code>--mtu-plateaus</code></h3>
+
+<ul>
+  <li>Type: List of Integers separated by commas (If you want whitespace, remember to quote).</li>
+  <li>Default: “65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68”</li>
+  <li>Modes: Both (SIIT and NAT64)</li>
+  <li>Translation direction: IPv4 to IPv6 (ICMP errors only)</li>
+  <li>Source: <a href="http://tools.ietf.org/html/rfc6145#section-4.2">RFC 6145, section 4.2</a></li>
+  <li>Deprecated name: <code>--plateaus</code></li>
+</ul>
+
+<p>When a packet should not be fragmented and doesn’t fit into a link it’s supposed to traverse, the troubled router is supposed to respond an error message indicating <em>Fragmentation Needed</em>. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification does not require routers to include this data.</p>
+
+<p>Backwards compatibility awards IPv4 emmiters strategies to fall back when they encounter such a situation, but IPv6 has always been designed with the field present in mind. Therefore, if Jool translates a zero-MTU ICMPv4 message into a zero-MTU ICMPv6 message, chaos <em>might</em> ensue (actual results will depend mainly on the IPv6 client’s implementation).</p>
+
+<p>To address this problem, when Jool finds itself attempting to translate a zero-MTU message, it will replace the MTU with the greatest plateau which is lower than the original packet’s Total Length field. Admittedly, this might or might not be the correct MTU, but is a very educated guess. See <a href="usr-flags-plateaus.html">this example</a> for more details. More in-depth information can be found in <a href="http://tools.ietf.org/html/rfc1191" target="_blank">RFC 1191</a>.</p>
+
+<p>Note that if <code>--boostMTU</code> is activated, the MTU will still be 1280 even if the relevant plateau is less than 1280.</p>
+
+<p>You don’t really need to sort the values as you input them.</p>
+
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<span class="selected">en</span>
+				
+				|
+				
+					<a href="../es/usr-flags-global.html">es</a>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

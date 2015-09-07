@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>--pool6</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentation</a> &gt; <a href="documentation.html#aplicacion-de-espacio-de-usuario">Herramienta de configuración de Jool</a> &gt; <a href="usr-flags.html">Parámetros</a> &gt; --pool6</p>
+
+<h1 id="pool6">--pool6</h1>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#descripcin">Descripción</a></li>
+  <li><a href="#sintaxis">Sintaxis</a></li>
+  <li><a href="#opciones">Opciones</a>
+    <ol>
+      <li><a href="#operaciones">Operaciones</a></li>
+      <li><a href="#quick"><code>--quick</code></a></li>
+    </ol>
+  </li>
+  <li><a href="#ejemplos">Ejemplos</a></li>
+</ol>
+
+<h2 id="descripcin">Descripción</h2>
+
+<p>Interactua con el pool IPv6 de Jool. El pool dicta que paquetes viniendo del lado IPv6 son procesados; si la dirección de destino de un paquete entrante tiene uno de los prefijos IPv6, el paquete es traducido por Jool. De otra manera es entregado al kernel para ser redireccionado de alguna manera o ser entregado a las capas superiores.</p>
+
+<h2 id="sintaxis">Sintaxis</h2>
+
+<p>(<code>$(jool)</code> puede ser <code>jool_siit</code> o <code>jool</code>.)</p>
+
+<pre><code>$(jool) --pool6 [--display]
+$(jool) --pool6 --count
+$(jool) --pool6 --add &lt;IPv6 prefix&gt;
+$(jool) --pool6 --remove &lt;IPv6 prefix&gt; [--quick]
+$(jool) --pool6 --flush [--quick]
+</code></pre>
+
+<h2 id="opciones">Opciones</h2>
+
+<h3 id="operaciones">Operaciones</h3>
+
+<ul>
+  <li><code>--display</code>: Lista los prefijos dados de alta y activos del pool. Operación por Omisión</li>
+  <li><code>--count</code>: Lista la cantidad de prefijos dados de alta y activos del pool.</li>
+  <li><code>--add</code>: Agrega el <code>&lt;prefix&gt;</code>al pool.</li>
+  <li><code>--remove</code>: Borra de la tabla el prefijo <code>&lt;prefix&gt;</code>.</li>
+  <li><code>--flush</code>: Remueve todos los prefijos del pool.</li>
+</ul>
+
+<h3 id="quick"><code>--quick</code></h3>
+
+<p>Ver <a href="usr-flags-quick.html"><code>--quick</code></a>. Solo disponible en <code>jool</code>.</p>
+
+<h2 id="ejemplos">Ejemplos</h2>
+
+<p>Despliega los prefijos activos:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool --pool6 --display
+64:ff9b::/96
+  <span class="o">(</span>Fetched <span class="m">1</span> prefixes.<span class="o">)</span></code></pre></div>
+
+<p>Muestra el número de prefijos activos:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool --pool6 --count
+1</code></pre></div>
+
+<p>Remueve el prefijo por omisión (64:ff9b::/96):</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool --pool6 --remove 64:ff9b::/96</code></pre></div>
+
+<p>Añade un prefijo (2001:db8::/64):</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool --pool6 --add 2001:db8::/64</code></pre></div>
+
+<p>Destruye todos los prefijos, y cancela el servicio hacia o desde estas direcciones:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool --pool6 --flush --quick</code></pre></div>
+
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/usr-flags-pool6.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

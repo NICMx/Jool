@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>Home</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_selected">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<h1 id="pgina-principal">Página Principal</h1>
+
+<hr />
+
+<h2 id="introduccin">Introducción</h2>
+
+<p>Jool es un <a href="intro-nat64.html">SIIT y NAT64</a> para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en <a href="http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html">Raspbian</a>.</p>
+
+<ul>
+  <li><a href="documentation.html">Haz click aquí</a> para empezar a familiarizarte con el software.</li>
+  <li><a href="download.html">Haz click aquí</a> para descargar Jool.</li>
+</ul>
+
+<hr />
+
+<h2 id="estatus">Estatus</h2>
+
+<p>Nuestra meta actual es que Jool sea un SIIT y un Stateful NAT64 <a href="intro-jool.html#cumplimiento">apegado a los estándares de la IEEE</a>. Nuestro agenda al 2015-04-13 es:</p>
+
+<ol>
+  <li>
+    <p>La <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0">Versión 3.4.0</a> será una refactorización para <a href="https://github.com/NICMx/NAT64/wiki/issue67:-Linux%27s-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.">remover de Jool  Stateful NAT64 la necesidad de una segunda dirección IPv4</a>, y <a href="https://github.com/NICMx/NAT64/issues/36">optimizar el pool4</a>. (De hecho, son practicamente el mismo bug.)</p>
+  </li>
+  <li>
+    <p>La <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0">Versión 4.0.0</a> implicará una <a href="https://github.com/NICMx/NAT64/issues/140">una reprogramación completa </a>. Se está evaluando las alternativas de programarlo como un pseudo device o servicio (daemon) en el userspace. Se estima que esto lo hará más protable y simple de configurar, pero con algo de demérito en su performance.</p>
+  </li>
+  <li>
+    <p>La <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0">Versión 4.1.0</a> añadirá muchas caracteristicas nuevas.</p>
+  </li>
+</ol>
+
+<p>Es posible que existan versiones intermedias dependiendo de los problemas reportados. Sus sugerencias puede persuadirnos para cambiar prioridades. Si tienes alguna recomedación que darnos, presiona <a href="contact.html">aquí</a>.</p>
+
+<p>Nuestra versión más reciente es la <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.3">3.3.3</a>.</p>
+
+<hr />
+
+<h2 id="noticias">Noticias</h2>
+
+<h3 id="section">2015-08-17</h3>
+
+<p>Versión 3.3.3 liberada.</p>
+
+<p><a href="https://github.com/NICMx/NAT64/issues/166">Error crítico #166 corregido</a> <img src="../images/heavy_exclamation_mark.png" alt="heavy_exclamation_mark" /></p>
+
+<p>Además en esta versión:</p>
+
+<ol>
+  <li><a href="https://github.com/NICMx/NAT64/pull/165">Se añadió el soporte para el framework DKMS!</a></li>
+  <li>Se corrigieron los errores <a href="https://github.com/NICMx/NAT64/issues/150">#150</a> y [#151] (https://github.com/NICMx/NAT64/issues/151) al usar la Herramienta de Configuración de Jool en el despliege de las tablas (bib, sessions y pools) cuando están vacías.</li>
+</ol>
+
+<h3 id="section-1">2015-04-14</h3>
+
+<p>Versión 3.3.2 liberada.</p>
+
+<p>Este es el resumen:</p>
+
+<ul>
+  <li>Hay tres nuevos parámetros de configuración:
+    <ul>
+      <li><a href="usr-flags-global.html#source-icmpv6-errors-better"><code>--source-icmpv6-errors-better</code></a></li>
+      <li><a href="usr-flags-global.html#logging-bib"><code>--logging-bib</code></a> y <a href="usr-flags-global.html#logging-session"><code>--logging-session</code></a></li>
+    </ul>
+  </li>
+  <li>Correcciones a la Herramienta de Configuración de Jool.</li>
+</ul>
+
+<p>Se dieron de alta dos listas de correo:</p>
+
+<ul>
+  <li>jool-news@nic.mx para emitir noticias. Exclusivo para anunciar las nuevas liberaciones. Ház <a href="https://mail-lists.nic.mx/listas/listinfo/jool-news">click aquí</a> para empezar a recibirlas.</li>
+  <li>jool-list@nic.mx para discusión pública (ayuda, propuestas, etc.) y noticias. Haz <a href="https://mail-lists.nic.mx/listas/listinfo/jool-list">click aquí</a> para registrarte.</li>
+</ul>
+
+<p><a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#106;&#111;&#111;&#108;&#064;&#110;&#105;&#099;&#046;&#109;&#120;">&#106;&#111;&#111;&#108;&#064;&#110;&#105;&#099;&#046;&#109;&#120;</a> aún puede ser utilizado para accesar a los desrrolladores.</p>
+
+<p><img src="../images/small_red_triangle_down.png" alt="small_red_triangle_down" /> También nos gustaria disculparnos por el <a href="https://github.com/NICMx/NAT64/issues/149">inconveniente que tuvimos recientemente con el certificado</a>. Aunque están siendo generados, los archivos de la lista de correos no están disponibles todavia, y esto está en la lista de pendientes de nuestros administradores.</p>
+
+<h3 id="section-2">2015-03-11</h3>
+
+<p><a href="https://github.com/NICMx/NAT64/issues/137">Error importante #137 descubierto</a> <img src="../images/heavy_exclamation_mark.png" alt="heavy_exclamation_mark" /></p>
+
+<p>Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.</p>
+
+<h3 id="section-3">2015-03-09</h3>
+
+<p>Se ha concluido Jool 3.3.0.</p>
+
+<p><img src="../images/small_red_triangle_down.png" alt="small_red_triangle_down" /> <a href="https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510">Las polítcas de Filtrado aún no son soportadas en esta versión</a>, pero las traducciones tipo Stateless para IP/ICMP (SIIT) son ahora soportadas.</p>
+
+<p>Lee la <a href="intro-nat64.html">introducción a SIIT/NAT64</a> para conocer este nuevo paradigma. <a href="mod-run-vanilla.html">Aqui encontras un tutorial</a>. Para su mejor comprensión, ve a <a href="mod-run-464xlat.html">464XLAT</a>.</p>
+
+<p>Se reorganizó la herramienta de configuración de Jool, por favor actualiza tus scripts:</p>
+
+<ul>
+  <li>El MTU es seleccionado desde el kernel <a href="mtu.html">replazando a <code>--minMTU6</code></a>.</li>
+  <li><code>--address</code>, <code>--prefix</code>, <code>--bib4</code> y <code>--bib6</code> fueron omitidos por ser considerados redundantes. Ver <a href="usr-flags-pool6.html"><code>--pool6</code></a>, <a href="usr-flags-pool4.html"><code>--pool4</code></a> y <a href="usr-flags-bib.html"><code>--bib</code></a>.</li>
+  <li>Tres banderas globales fueron omitidas por  <a href="usr-flags-atomic.html">diferentes razones</a>.</li>
+</ul>
+
+<p>También se liberó la actualización de Jool 3.2.3, para corregir <a href="https://github.com/NICMx/NAT64/milestones/3.2.3">los errores encontrados</a> desde la versión 3.2.2. Uno de los principales errores es sobre la vulnerabilidad de DoS. Actualizar es altamente recomendada.</p>
+
+<h3 id="section-4">2014-10-24</h3>
+
+<p>El <a href="https://github.com/NICMx/NAT64/issues/112" target="_blank"> error importante #112 </a> fue descubierto, y la versión 3.2.2 queda ya desactualizada.</p>
+
+<h3 id="section-5">2014-10-17</h3>
+
+<p>La documentación provista sobre <code>--plateaus</code> ha sido <a href="usr-flags-plateaus.html">mejorada</a>. Su <a href="usr-flags-global.html#mtu-plateaus">definición</a> también.</p>
+
+<p><img src="../images/small_red_triangle_down.png" alt="small_red_triangle_down" /> Ha llamado nuestra atención que <a href="https://github.com/NICMx/NAT64/issues/111" target="_blank">no hemos incluido una explicación acerca de las IP literals</a>, esto quedará dentro de la próxima actualización.</p>
+
+<h3 id="section-6">2014-10-08</h3>
+
+<p>versión 3.2.1 liberada. La serie 3.2 es considerada más madura que la 3.1.</p>
+
+<p>Los cambios importantes son:</p>
+
+<ol>
+  <li><a href="https://github.com/NICMx/NAT64/issues/106" target="_blank">Jool siempre intentará enmascarar los paquetes usando el primer prefijo de la pool</a>. Esto significa que Jool no era capaz de manejar mas que un solo prefijo.</li>
+  <li>La <a href="https://github.com/NICMx/NAT64/issues/109" target="_blank">pérdida de memoria en el kernel</a> ha sido corregida.</li>
+</ol>
+
+<p>Los cambios menos relevantes son:</p>
+
+<ol>
+  <li><code>log_martians</code> <a href="https://github.com/NICMx/NAT64/issues/107" target="_blank">no es incluido como un paso </a> al insertar Jool (aunque no afecta si usted lo mantiene).</li>
+  <li><a href="https://github.com/NICMx/NAT64/issues/57" target="_blank"> La actualización del estado de SNMP es regresado</a>. Ver <code>nstat</code> y <code>netstat -s</code>.</li>
+  <li>El <a href="https://github.com/NICMx/NAT64/issues/108" target="_blank">checksum es actualizado correctamente en los paquetes de Error de ICMP truncados</a>.</li>
+</ol>
+
+<p>NOTA: Cuando un error de ICMP es demasiado grande, no se fragmenta; se trunca. Esto se debe a que, puesto que es un mensaje de error entonces no es necesario que todo el mensaje llegue.</p>
+
+<h3 id="section-7">2014-09-01</h3>
+
+<p>Nos tomo más tiempo del planeado la realización de las pruebas, pero finalmente la versión 3.2.0 es liberada.</p>
+
+<p>Note que se cambio el número de versión menor, porque la Herrmienta de Configuración del Jool es ligeramente diferente. Los parámetros de configuración de un sólo valor han sido juntados en la opción de <a href="usr-flags-global.html"><code>--general</code></a> y ésta remplaza a <code>--filtering</code>, <code>--translate</code> y <code>--fragmentation</code>. La aplicación tiene además tres nuevas caracteristicas:</p>
+
+<ol>
+  <li>La <a href="https://github.com/NICMx/NAT64/pull/97" target="_blank">capacidad de limpiar las pools</a>.</li>
+  <li>Se añadió la opción de <a href="usr-flags-quick.html"><code>--quick</code></a>.</li>
+  <li>Se añadió la opción de <code>--svg</code>, en <a href="usr-flags-bib.html#csv">BIB</a> y <a href="usr-flags-session.html#csv">session</a>.</li>
+</ol>
+
+<p>El segundo cambio más importante es el <a href="https://github.com/NICMx/NAT64/issues/58" target="_blank">Soportar varias conexiones de TCP simultáneas</a>. La atención a este tipo de eventos es ahora menos complicada.</p>
+
+<p>Una <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">pequeña confusión</a> saco a luz que el path a la libnl <a href="https://github.com/NICMx/NAT64/commit/6455ffd898bae996ce3cab37b2fb6a3459ae096b" target="_blank">había sido codificada en el script de configuración</a>. Si usted ha tenido problemas para compilar la Herramienta de Configuración de Jool, entonces pruebe esta nueva versión.</p>
+
+<p>Lo menos relevante incluye un <a href="https://github.com/NICMx/NAT64/issues/100" target="_blank">complemento al viejo caso #65</a>, más <a href="https://github.com/NICMx/NAT64/issues/56" target="_blank">documentación del código</a> <img src="../images/smiley.png" alt="smiley" />. La documentación para los usuarios se ha actualizado significativamente, para ver los cambios vaya <a href="https://github.com/NICMx/NAT64/commit/752ed2584534e6bf6bd481d7f4d4ababb6424efe" target="_blank">aquí</a>.</p>
+
+<p><img src="../images/small_red_triangle_down.png" alt="small_red_triangle_down" /> No se completaron los cambios para la nueva implementación del <a href="https://github.com/NICMx/NAT64/issues/104" target="_blank">mecanismo de fragmentación</a>. Esto fue uno de los principales motivos para el retrazo de esta versión. Al parecer se requiere conciliar el desfragmentador del kernel y el RFC para poder implementar las políticas de filtrado. Sigue siendo un caso activo.</p>
+
+<p>También se liberó el 3.1.6, el cual contiene pequeñas correciones al 3.1.5. Esto se hizo en consideración a los usuarios que por alguna razón requerian continuar usando la serie 3.1.x.</p>
+
+<h3 id="section-8">2014-06-26</h3>
+
+<p>Si está familiarizado con los <a href="https://help.github.com/articles/github-flavored-markdown" target="_blank">Markdown</a> y los Github’s diffs, puedes encontrar los cambios en la documentación de la versión 3.1.5 <a href="https://github.com/NICMx/NAT64/commit/5295b05cf2c380055c3356d48ef56b74c0b828bb" target="_blank">aquí</a>, <a href="https://github.com/NICMx/NAT64/commit/2732f520b6616955fb81db778eab9da0f1db210c" target="_blank">aquí</a> y <a href="https://github.com/NICMx/NAT64/commit/54fc02dd5f5a22c44ac2d6be092306c34abd30ee" target="_blank">aquí</a>.</p>
+
+<h3 id="section-9">2014-06-18</h3>
+
+<p>La versión 3.1.5 fue liberada.</p>
+
+<p>La más importante corrección fue al <a href="https://github.com/NICMx/NAT64/issues/92" target="_blank">caso #92</a>. Errores incorrectos de ICMP confunden a los nodos de IPv4, lo cual baja la confibilidad en el tráfico de 4-a-6.</p>
+
+<p>Aparte de esto, la Herramienta de Configuración de Jool ha sido ajustada para que no se inhiba más cuando <a href="https://github.com/NICMx/NAT64/issues/88" target="_blank">las tablas de sesiones y BIB son grandes</a>, y <a href="https://github.com/NICMx/NAT64/issues/65" target="_blank"> para dar de baja las sesiones cuando las BIBs son borradas</a>.</p>
+
+<p>Entonces, se tuvieron un par de problemas de <a href="https://github.com/NICMx/NAT64/issues/60" target="_blank">performance y optimización</a>. Colateralmente, para alinear la prioridad de debugeo versus el resto del kernel, se puso mayor cuidado de que información será registrada en el Log del Sistema para mantenerlo lo más limpio posible.</p>
+
+<p>Si te interesa cuidar el performance, lee <a href="https://github.com/NICMx/NAT64/issues/91" target="_blank">este artículo</a> y la <a href="mtu.html">documentación de <code>--minMTU6</code></a>. Este parámetro de configuración te ayudará a evitar la fragmentación.</p>
+
+<p>Si nadie encuentra algún error crítico en esta versión, esta actualización será la última de la serie 3.1.x. Estaremos trabajando para cumplir al 100% el RFC en la próxima actualización.</p>
+
+<h3 id="section-10">2014-04-25</h3>
+
+<p>La versión 3.1.4 ha sido liberada, y corrige:</p>
+
+<ol>
+  <li>Dos problemas de inhibición del equipo <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">caso#90</a> y <a href="https://github.com/NICMx/NAT64/issues/84" target="_blank">caso#84</a>.</li>
+  <li>La Herramienta de Configuración del Jool ahora <a href="https://github.com/NICMx/NAT64/issues/86" target="_blank">resuelve nombres</a>.</li>
+  <li><a href="https://github.com/NICMx/NAT64/issues/87" target="_blank">Se añade el soporte</a> para Linux 3.13+.</li>
+</ol>
+
+<p><img src="../images/x.png" alt="x" /> <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">No recomendamos el uso de Jool en el kernel 3.12</a>.</p>
+
+<h3 id="section-11">2014-03-26</h3>
+
+<p>La versión 3.1.3 ha sido liberada, y corrige:</p>
+
+<ol>
+  <li>El uso de una <a href="https://github.com/NICMx/NAT64/issues/81" target="_blank">incorrecta validación</a> no permite la configuración de Jool en ciertos sistemas.</li>
+  <li>Un <a href="https://github.com/NICMx/NAT64/issues/79" target="_blank">error</a> que provoca que Jool no envíe ciertos errores de ICMP.</li>
+  <li>Una <a href="https://github.com/NICMx/NAT64/issues/83" target="_blank">pérdida de memoria</a> en un caso de paquetes fragmentados.</li>
+  <li>Se realizó una ligera optimización en el algoritmo de traducción del paquete al <a href="https://github.com/NICMx/NAT64/issues/69" target="_blank">replazar algunos spinlocks con RCUs</a>.</li>
+</ol>
+
+<h3 id="section-12">2014-03-04</h3>
+
+<p><img src="../images/bell.png" alt="bell" /> Website ha sido liberado. <em>!Este website!</em></p>
+
+<p>y con este viene un nueva actualización 3.1.2, que:</p>
+
+<ol>
+  <li><a href="https://github.com/NICMx/NAT64/issues/76" target="_blank">Estándariza el procedimiento de compilación e instalación en la Herramienta de Configuración de Jool</a>.</li>
+  <li><a href="https://github.com/NICMx/NAT64/issues/77" target="_blank">Hace más explicto el manejo de sufijos de prefijos</a>.</li>
+  <li><a href="https://github.com/NICMx/NAT64/issues/78" target="_blank">No se inhibe cuando el comando modprobe recibe argumentos inválidos </a>.</li>
+</ol>
+
+<h3 id="section-13">2014-02-21</h3>
+
+<p>La versión 3.1.1 ha sido liberada.</p>
+
+<p>Esta contiene dos correcciones:</p>
+
+<ol>
+  <li><a href="https://github.com/NICMx/NAT64/issues/75" target="_blank">Se añadió el solicitar permisos de administrador para efectuar los cambios a parámetros en la Herramienta de Configuración del Jool.</a></li>
+  <li><a href="https://github.com/NICMx/NAT64/issues/72" target="_blank">Se corrigieron problemas de compatibilidad en los kernels ~3.1 .</a></li>
+</ol>
+
+<h3 id="section-14">2014-01-15</h3>
+
+<p><img src="../images/small_orange_diamond.png" alt="small_orange_diamond" /> La versión 3.1.0 ha sido liberada. ¡Jool, finalmente, maneja fragmentación!</p>
+
+<p>Otras correcciones importantes:</p>
+
+<ul>
+  <li>Se realizaron optimizaciones relevantes en ambas base de datos: BIB y session. El módulo deberá escalar mucho más elegantemente cuando los clientes se encuentren demandando más tráfico.</li>
+  <li>Jool ya no requiere de otra dirección IPv4 por separado.</li>
+  <li>El pánico del kernel cuando se removia el módulo ha sido suprimido.</li>
+  <li><a href="https://github.com/NICMx/NAT64/issues?milestone=11&amp;state=closed">Y además</a>.</li>
+</ul>
+
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/index.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>Kernel Modules Installation</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Home</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentation</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Download</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Report a Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">About</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contact</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentation</a> &gt; <a href="documentation.html#installation">Installation</a> &gt; Kernel module</p>
+
+<h1 id="kernel-modules-installation">Kernel Modules Installation</h1>
+
+<h2 id="index">Index</h2>
+
+<ol>
+  <li><a href="#introduction">Introduction</a></li>
+  <li><a href="#requirements">Requirements</a></li>
+  <li><a href="#installation">Installation</a>
+    <ol>
+      <li><a href="#dkms">DKMS</a></li>
+      <li><a href="#kbuild">Kbuild</a></li>
+    </ol>
+  </li>
+</ol>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>Jool is four things:</p>
+
+<ol>
+  <li>Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They are the main components and all you need to get started; this document explains how to install them.</li>
+  <li>Two <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> applications which can be used to configure each module. They have their own <a href="usr-install.html">installation document</a>.</li>
+</ol>
+
+<p>When you put it that way, there is really nothing unusual about Jool’s installation. But I figure some of our users might have no previous experience meddling with drivers, so this overview will serve as an introduction to at least give them an idea of what each step does.</p>
+
+<h2 id="requirements">Requirements</h2>
+
+<p>First off, the computer that will be translating traffic needs a kernel (again, Linux) whose version is 3.0 to 3.15. Higher versions are probably fine, but we haven’t tested them. We do not recommend using Linux 3.12 because of the reasons outlined <a href="https://github.com/NICMx/NAT64/issues/90" target="_blank">here</a>.</p>
+
+<p>Use the <code>uname -r</code> command to know your kernel version.</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>/bin/uname -r
+3.5.0-45-generic
+<span class="nv">$ </span><span class="c"># OK, fine.</span></code></pre></div>
+
+<p>If you’re just getting acquainted with IPv4/IPv6 Translation, some people have an easier time picturing the ordeal when the translator has two separate network interfaces (one to interact with IPv6 networks, one for IPv4 networks). This is not a requirement; you can get away with only one interface (by dual stacking on it), and you can also have more than one per protocol. This is possible because figuring out which interface should a packet be dispatched through is routing’s problem, which is already well implemented in the kernel.</p>
+
+<p>Because the tutorials are first and foremost a tool to get newcomers on the right mindset, most of the deployment discussion will assume two separate interfaces (exemplified below: eth0 and eth1).</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>/sbin/ip link show
+<span class="o">(</span>...<span class="o">)</span>
+2: eth0: &lt;BROADCAST,MULTICAST&gt; mtu <span class="m">1500</span> qdisc noop state DOWN qlen 1000
+    link/ether 08:00:27:3d:24:77 brd ff:ff:ff:ff:ff:ff
+3: eth1: &lt;BROADCAST,MULTICAST&gt; mtu <span class="m">1500</span> qdisc noop state DOWN qlen 1000
+    link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff</code></pre></div>
+
+<p>Finally, you need your kernel headers. If you’re using apt-get, just run this:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>apt-get install linux-headers-<span class="k">$(</span>uname -r<span class="k">)</span></code></pre></div>
+
+<h2 id="installation">Installation</h2>
+
+<p>Each kernel version combined with each different architecture requires different binaries, so providing packages for every combination would be impossibly cumbersome. For this reason, what you’ll download is the source; there is no way around compiling the code yourself.</p>
+
+<p>On the flip side, kernel modules cannot have dependencies other than your kernel headers and a good compiler, so the procedure is fairly painless.</p>
+
+<p>To download Jool, you have two options:</p>
+
+<ul>
+  <li>Official releases are hosted in the <a href="download.html">Download page</a>. These will prove less convoluted when you’re installing the userspace application.</li>
+  <li>There’s the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>. This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (in case you’re wondering, we do all the risky development elsewhere).</li>
+</ul>
+
+<p>You might be used to a standard three-step procedure to compile and install programs: <code>./configure &amp;&amp; make &amp;&amp; make install</code>. Kernel modules do not follow it, but have a special one on their own called Kbuild.</p>
+
+<p>If your distribution supports the Dynamic Kernel Module Support (DKMS) framework, this can be used in order to compile and build the Jool kernel modules. If however your distribution does not support DKMS, or its use is undesired for some reason, the Jool kernel modules can be built and installed manually by using the Kbuild system directly.</p>
+
+<p>Regardless of which method you use to install the kernel modules, after a successfull installation you will be able to start Jool using <code>modprobe jool</code> or <code>modprobe jool_siit</code>. The logical next step after that would be to read the <a href="mod-run-vanilla.html">Basic SIIT Tutorial</a>.</p>
+
+<h3 id="dkms">DKMS</h3>
+
+<p>The DKMS framework provides a convenient wrapper around the standard kernel Kbuild system. A single DKMS command will perform all the steps necessary in order to use third-party kernel modules such as Jool. It will also ensure that everything is done all over again whenever necessary (such as after a kernel upgrade). DKMS can also be used to create packages for deb/rpm-based distributions containing pre-built Jool kernel modules.</p>
+
+<p>In order to install the Jool kernel modules using DKMS, you need to run <code>dkms install /path/to/Jool-sourcedir</code>, like so:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~# apt-get install dkms
+user@node:~<span class="nv">$ </span>unzip Jool-&lt;version&gt;.zip
+user@node:~# dkms install Jool-&lt;version&gt;</code></pre></div>
+
+<p>DKMS will now have compiled, installed and indexed the Jool kernel modules; Jool is now ready for use.</p>
+
+<h3 id="kbuild">Kbuild</h3>
+
+<p>Kbuild is the Linux kernel’s standard system for compiling and installing kernel modules. Jool comes with native Kbuild support. As far as the compilation goes, there is no <code>configure</code> script. But you also don’t have to edit the Makefile; you jump straight to <code>make</code> and you’re done. The global Makefile can be found in the <code>mod</code> folder:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~<span class="nv">$ </span>unzip Jool-&lt;version&gt;.zip
+user@node:~<span class="nv">$ </span><span class="nb">cd </span>Jool-&lt;version&gt;/mod
+user@node:~/Jool-&lt;version&gt;/mod<span class="nv">$ </span>make</code></pre></div>
+
+<p>The Jool kernel modules are now compiled for your current kernel. Next, copy them to your system’s module pool by running the <code>modules_install</code> target:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~/Jool-&lt;version&gt;/mod# make modules_install</code></pre></div>
+
+<blockquote>
+  <p><strong>Warning!</strong></p>
+
+  <p>Kernels 3.7 and up want you to sign your kernel modules to make sure you’re loading them in a responsible manner.</p>
+
+  <p>But if your kernel was not configured to <em>require</em> this feature (the kernels of many distros don’t), you won’t have much of an issue here. The output of <code>make modules_install</code> will output “Can’t read private key”; this looks like an error, but is actually a warning, <a href="https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942" target="_blank">so you can continue the installation peacefully</a>.</p>
+
+  <p>Sorry; if your kernel <em>was</em> compiled to require module signing, you probably know what you’re doing, so I’ll skip the instructions to make that work.</p>
+</blockquote>
+
+<p>You’ll later activate the modules using the <code>modprobe</code> command. Thing is, the fact that they reside in your pool doesn’t mean they have already been indexed. Use <code>depmod</code> to make <code>modprobe</code> aware of the new modules:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~# /sbin/depmod</code></pre></div>
+
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<span class="selected">en</span>
+				
+				|
+				
+					<a href="../es/mod-install.html">es</a>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

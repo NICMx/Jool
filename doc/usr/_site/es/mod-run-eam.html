@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>SIIT-EAM - Ejemplo de uso</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentación</a> &gt; <a href="documentation.html#ejemplos-de-uso">Ejemplos de uso</a> &gt; SIIT + EAM</p>
+
+<h1 id="eam-ejemplo-de-uso">EAM: Ejemplo de Uso</h1>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#introduccin">Introducción</a></li>
+  <li><a href="#red-de-ejemplo">Red de ejemplo</a><br />
+ a) <a href="#configuracin-de-nodos-en-ipv6">Configuración de Nodos en IPv6</a><br />
+ b) <a href="#configuracin-de-nodos-en-ipv4">Configuración de Nodos en IPv4</a><br />
+ c) <a href="#configuracin-del-nodo-traductor">Configuración del Nodo Traductor</a></li>
+  <li><a href="#jool">Jool</a></li>
+  <li><a href="#pruebas">Pruebas</a><br />
+ a) <a href="#conectividad-de-ipv6-a-ipv4">Conectividad de IPv6 a IPv4</a><br />
+ b) <a href="#conectividad-de-ipv4-a-ipv6">Conectividad de IPv4 a IPv6</a><br />
+ c) <a href="#conectividad-a-un-web-server-en-ipv4">Conectividad a un Web Server en IPv4</a><br />
+ d) <a href="#conectividad-a-un-web-server-en-ipv6">Conectividad a un Web Server en IPv6</a></li>
+  <li><a href="#deteniendo-jool">Deteniendo Jool</a></li>
+  <li><a href="#lecturas-adicionales">Lecturas adicionales</a></li>
+</ol>
+
+<h2 id="introduccin">Introducción</h2>
+
+<p>Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a <a href="intro-nat64.html#siit-con-eam">SIIT-EAM </a>.</p>
+
+<p>Más que un “modo” es simplemente proveer a SIIT con registros en la tabla de Direcciones de Mapeo Explícito. Obtenen más detalles sobre <a href="eamt.html">ésta</a>.</p>
+
+<p>Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: del <a href="mod-install.html">Servidor Jool</a> <strong>y</strong> del <a href="usr-install.html">Configurador para SIIT</a>.</p>
+
+<h2 id="red-de-ejemplo">Red de ejemplo</h2>
+
+<p><img src="../images/network/eam.svg" alt="Figura 1 - Red de ejemplo" /></p>
+
+<p>Aquí también, son válidas y aplican las observaciones mencionadas de la <a href="mod-run-vanilla.html#red-de-ejemplo">sección Red de Ejemplo para SIIT</a>. Resumiéndolas, tenemos que:</p>
+
+<ul>
+  <li>Al menos necesitarás tres nodos: <em>A</em>, <em>V</em> y <em>T</em>.</li>
+  <li>Usa el bloque de direcciones 198.51.100.8/29 para referenciar a tus nodos de IPv6 sobre IPv4.</li>
+  <li>Jool requiere Linux, los otros Nodos no necesariamente.</li>
+  <li>Para este tutorial, consideraremos que: a)todos están en Linux, b)la configuración de red se hará manualmente, c) todo el tráfico será redirigido por defecto hacia <em>T</em>.</li>
+</ul>
+
+<h3 id="configuracin-de-nodos-en-ipv6">Configuración de Nodos en IPv6</h3>
+
+<p>Para los nodos de <em>A</em> a <em>E</em>, ejecuta la siguiente secuencia de comandos con permisos de administrador:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@A:~# service network-manager stop
+user@A:~# /sbin/ip link <span class="nb">set </span>eth0 up
+user@A:~# <span class="c"># Replace &quot;::8&quot; dependiendo en que nodo estés.</span>
+user@A:~# /sbin/ip addr add 2001:db8:6::8/96 dev eth0
+user@A:~# /sbin/ip route add default via 2001:db8:6::1</code></pre></div>
+
+<h3 id="configuracin-de-nodos-en-ipv4">Configuración de Nodos en IPv4</h3>
+
+<p>Para los nodos de <em>V</em> a <em>Z</em>, ejecuta la siguiente secuencia de comandos con permisos de administrador:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@V:~# service network-manager stop
+user@V:~# /sbin/ip link <span class="nb">set </span>eth0 up
+user@V:~# <span class="c"># Replace &quot;.16&quot; dependiendo en que nodo estés.</span>
+user@V:~# /sbin/ip addr add 192.0.2.16/24 dev eth0
+user@V:~# /sbin/ip route add default via 192.0.2.1</code></pre></div>
+
+<h3 id="configuracin-del-nodo-traductor">Configuración del Nodo Traductor</h3>
+
+<p>Para el Nodo <em>T</em>, ejecuta la siguiente secuencia de comandos con permisos de administrador:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@T:~# service network-manager stop
+user@T:~# 
+user@T:~# /sbin/ip link <span class="nb">set </span>eth0 up
+user@T:~# /sbin/ip addr add 2001:db8:6::1/96 dev eth0
+user@T:~# 
+user@T:~# /sbin/ip link <span class="nb">set </span>eth1 up
+user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
+user@T:~# 
+user@T:~# ethtool --offload eth0 tso off
+user@T:~# ethtool --offload eth0 ufo off
+user@T:~# ethtool --offload eth0 gso off
+user@T:~# ethtool --offload eth0 gro off
+user@T:~# ethtool --offload eth0 lro off
+user@T:~# ethtool --offload eth1 tso off
+user@T:~# ethtool --offload eth1 ufo off
+user@T:~# ethtool --offload eth1 gso off
+user@T:~# ethtool --offload eth1 gro off
+user@T:~# ethtool --offload eth1 lro off</code></pre></div>
+
+<p>Hasta aquí, no hemos convertido a <em>T</em> en un traductor todavía; pero, quizá quieras asegurarte de que <em>T</em> puede comunicarse con todos los nodos antes de continuar.</p>
+
+<h2 id="jool">Jool</h2>
+
+<p>Recuerda, la sintaxis para insertar Jool SIIT en el kernel es:<br />
+(Requieres permiso de administración)</p>
+
+<pre><code>user@T:~# modprobe jool_siit [pool6=&lt;IPv6 prefix&gt;] [blacklist=&lt;IPv4 prefixes&gt;] [pool6791=&lt;IPv4 prefixes&gt;] [disabled]
+</code></pre>
+
+<p>Para configurar nuestra red de ejemplo, ejecuta como administrador:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@T:~# /sbin/modprobe jool_siit disabled
+user@T:~# jool_siit --eamt --add 2001:db8:6::/120 198.51.100.0/24
+user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
+user@T:~# jool_siit --enable</code></pre></div>
+
+<p>A diferencia de <code>pool6</code>, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la <a href="usr-flags-eamt.html">Herramienta de Configuración</a>. Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico mediante la opción de <a href="usr-flags-global.html#enable---disable"><code>--enable</code></a>.</p>
+
+<p>De hecho utilizar <code>disabled</code> y <code>--enable</code> no es necesario; Jool va a deducir naturalmente que no puede traducir tráfico hasta que la tabla EAM y/o pool6 sean llenados. La razón por la cual Jool fue “forzado” a permanecer deshabilitado hasta que la tabla estuviera completa fue para que no hubiera un periodo de tiempo donde el tráfico estuviera siendo traducido inconsistentemente debido a una tabla incompleta.</p>
+
+<p>Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos. Jool siempre va a tratar de traducir una dirección utilizando EAM, y si eso falla, retrocederá a utilizar el prefijo. Si quieres esto, agrega <code>pool6</code> durante el <code>modprobe</code>.</p>
+
+<h2 id="pruebas">Pruebas</h2>
+
+<h3 id="conectividad-de-ipv6-a-ipv4">Conectividad de IPv6 a IPv4</h3>
+
+<p>Haz un ping a <em>V</em> desde <em>A</em>:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@A:~<span class="nv">$ </span>ping6 2001:db8:4::10 <span class="c"># Reminder: hex 10 = dec 16.</span>
+PING 2001:db8:4::10<span class="o">(</span>2001:db8:4::10<span class="o">)</span> <span class="m">56</span> data bytes
+<span class="m">64</span> bytes from 2001:db8:4::10: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>2.95 ms
+<span class="m">64</span> bytes from 2001:db8:4::10: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>2.79 ms
+<span class="m">64</span> bytes from 2001:db8:4::10: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">3</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>4.13 ms
+<span class="m">64</span> bytes from 2001:db8:4::10: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">4</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>3.60 ms
+^C
+--- 2001:db8:4::10 ping statistics ---
+<span class="m">4</span> packets transmitted, <span class="m">4</span> received, 0% packet loss, <span class="nb">time </span>3003ms
+rtt min/avg/max/mdev <span class="o">=</span> 2.790/3.370/4.131/0.533 ms</code></pre></div>
+
+<h3 id="conectividad-de-ipv4-a-ipv6">Conectividad de IPv4 a IPv6</h3>
+
+<p>Haz un ping a <em>A</em> desde <em>V</em> de esta forma:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@V:~<span class="nv">$ </span>ping 198.51.100.8
+PING 198.51.100.8 <span class="o">(</span>198.51.100.8<span class="o">)</span> 56<span class="o">(</span>84<span class="o">)</span> bytes of data.
+<span class="m">64</span> bytes from 198.51.100.8: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>5.04 ms
+<span class="m">64</span> bytes from 198.51.100.8: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>2.55 ms
+<span class="m">64</span> bytes from 198.51.100.8: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">3</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>1.93 ms
+<span class="m">64</span> bytes from 198.51.100.8: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">4</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">63</span> <span class="nb">time</span><span class="o">=</span>2.47 ms
+^C
+--- 198.51.100.8 ping statistics ---
+<span class="m">4</span> packets transmitted, <span class="m">4</span> received, 0% packet loss, <span class="nb">time </span>3004ms
+rtt min/avg/max/mdev <span class="o">=</span> 1.930/3.001/5.042/1.204 ms</code></pre></div>
+
+<h3 id="conectividad-a-un-web-server-en-ipv4">Conectividad a un Web Server en IPv4</h3>
+
+<p>Agrega un servidor en <em>Y</em> y accesalo desde <em>D</em>:</p>
+
+<p><img src="../images/run-eam-firefox-4to6.png" alt="Figura 1 - IPv4 TCP desde un nodo IPv6" /></p>
+
+<h3 id="conectividad-a-un-web-server-en-ipv6">Conectividad a un Web Server en IPv6</h3>
+
+<p>Agrega un servidor en <em>B</em> y haz una solicitud desde <em>X</em>:</p>
+
+<p><img src="../images/run-vanilla-firefox-6to4.png" alt="Figura 2 - IPv6 TCP desde un nodo IPv4" /></p>
+
+<p>Si algo no funciona, consulta el <a href="faq.html">FAQ</a>.</p>
+
+<h2 id="deteniendo-jool">Deteniendo Jool</h2>
+
+<p>Para detener Jool, emplea de nuevo el comando modprobe usando el parámetro <code>-r</code>:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@T:~# modprobe -r jool_siit</code></pre></div>
+
+<h2 id="lecturas-adicionales">Lecturas adicionales</h2>
+
+<ol>
+  <li>Por favor, lee acerca de <a href="mtu.html">problemas con MTUs</a> antes de seleccionar alguno.</li>
+  <li>Si te interesa Stateful NAT64, dirigete al <a href="mod-run-stateful.html">tercer ejemplo</a>.</li>
+</ol>
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/mod-run-eam.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

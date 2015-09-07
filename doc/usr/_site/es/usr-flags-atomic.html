@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>Fragmentos Atómicos</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentation</a> &gt; <a href="documentation.html#Aplicacion-de-espacio-de-usuario">Herramienta de configuración de Jool</a> &gt; <a href="usr-flags.html">Flags</a> &gt; <a href="usr-flags-global.html">--global</a> &gt; Fragmentos Atómicos</p>
+
+<h1 id="fragmentos-atmicos">Fragmentos Atómicos</h1>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#overview">Introducción</a></li>
+  <li><a href="#flags">Parámetros</a>
+    <ol>
+      <li><a href="#atomicfragments"><code>--allow-atomic-fragments</code></a></li>
+      <li><a href="#setdf"><code>--setDF</code></a></li>
+      <li><a href="#genfh"><code>--genFH</code></a></li>
+      <li><a href="#genid"><code>--genID</code></a></li>
+      <li><a href="#boostmtu"><code>--boostMTU</code></a></li>
+    </ol>
+  </li>
+</ol>
+
+<h2 id="introduccin">Introducción</h2>
+
+<p>Los “Fragmenos Atómicos” son por decirlo de otra manera “Fragmentos Aislados”; es decir, son paquetes de IPv6 que poseen un <em>fragment header</em> sin que éste realmente sea un segmento de un paquete mayor. Este tráfico de fragmentos es permitido entre los saltos, <em>hops</em>, para el envío de información entre IPv6 e IPv4. Por lo general, estos paquetes son enviados por <em>hosts</em> que han recibido un mensaje de error del tipo ICMPv6 “Packet too Big” para advertir que el próximo equipo, ya sea ruteador, hub, etc., soporta un MTU inferior al mínimo en IPv6, o sea que, el Next-Hop MTU es menor a 1280 bytes. Hay que recordar, que hasta el día de hoy entre redes Ethernet en IPv6 se suele emplear su valor máximo que es de 1500 bytes, pero en IPv4 el máximo ha variado con el tiempo y depende del medio y del protocolo por el cual se esté comunicando. En IPv6, por regla, el nodo origen es quien tiene la obligación de fragmentar el paquete y no los equipos que enlazan la red, cosa que si es permitido en IPv4. Para más información sobre las cabeceras de fragmento, <a href="https://tools.ietf.org/html/rfc2460#section-4.5">ver RFC. 2460, sección 4.5, 1998</a>.</p>
+
+<p>Sin embargo, esta implementación es vulnerable a infiltraciones, y algún <em>hacker</em> puede tomar ventaja de la diferencia entre el MTU mínimo de IPv4, que es de 68 bytes, y el de IPv6, que es de 1280 bytes, para introducir fragmentos y generar problemas. Algunas referencias sobre este tema son:</p>
+
+<p><a href="https://tools.ietf.org/html/rfc5927">2010, RFC. 5927</a><br />
+<a href="http://www.si6networks.com/presentations/IETF83/fgont-ietf83-6man-predictable-fragment-id.pdf">2012, Security Implications of Predictable Fragment Identification Values</a><br />
+<a href="https://tools.ietf.org/html/rfc6946">2013, RFC. 6946</a><br /></p>
+
+<p>La IETF está tratando de normar el <a href="https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00">desuso de los fragmentos atómicos</a>. Incluso en el RFC 6145, que es el documento principal de SIIT, advierte sobre dichos <a href="http://tools.ietf.org/html/rfc6145#section-6">problemas de seguridad</a>.</p>
+
+<p>DESDE la perspectiva de Jool, como no se ha oficializado su desuso, estos aún siguen siendo soportados. Pero es destacable mencionar, que hemos registrado problemas técnicos al permitir los fragmentos atómicos. El kernel de Linux es particularmente deficiente cuando se trata de cabeceras de fragmento, asi que si Jool está generando uno, Linux añade otro adicional.</p>
+
+<p><a href="obj/atomic-double-frag.pcapng"><img src="../images/atomic-double-frag.png" alt="Figure 1 - que podría salir mal?" /></a></p>
+
+<p>En <strong>Jool 3.2 y en versiones anteriores</strong> se evade esto al NO delegar la fragmentación al kernel; pero, el hacelo así nos introdujo otros problemas más sutiles.</p>
+
+<p>Ahora en <strong>Jool 3.3</strong>, la configuración por omisión es  deshabilitar los fragmentos atómicos, lo cual <strong>te recomendamos no cambies</strong>.</p>
+
+<p>Estamos totalmente de acuerdo con la <a href="https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00">iniciativa de su desuso, 2014</a> y cuando se formalize, en breve, se omitirá en Jool.</p>
+
+<h2 id="parmetros">Parámetros</h2>
+
+<h3 id="allow-atomic-fragments"><code>--allow-atomic-fragments</code></h3>
+
+<ul>
+  <li>Nombre: <strong><em>PERMITE LOS FRAGMENTOS ATÓMICOS</em></strong></li>
+  <li>Tipo: <strong><em>Booleano</em></strong></li>
+  <li>Valor por Omisión: <strong><em>Apagado(0)</em></strong></li>
+  <li>Modos: <strong><em>SIIT &amp; Stateful</em></strong></li>
+  <li>Sentido de traducción: <strong><em>IPv4 -&gt; IPv6 &amp; IPv6 -&gt; IPv4</em></strong></li>
+</ul>
+
+<p>Esta bandera sumariza la acción de las otras cuatro banderas (setDF, genFH, genID y boostMTU) con el propósito de habilitar o deshabilitar la recepción y traducción de los fragmentos aislados, llamados <em>atómicos</em>.</p>
+
+<p>Para HABILITARLO, sencillamente ejecute:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="k">$(</span>jool<span class="k">)</span> --allow-atomic-fragments verdadero</code></pre></div>
+
+<p>Y esto es equivalente a:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="k">$(</span>jool<span class="k">)</span> --setDF verdadero      <span class="c">#NO FRAGMENTES</span>
+<span class="k">$(</span>jool<span class="k">)</span> --genFH verdadero      <span class="c">#GENERA CABECERA DE FRAGMENTO</span>
+<span class="k">$(</span>jool<span class="k">)</span> --genID falso
+<span class="k">$(</span>jool<span class="k">)</span> --boostMTU falso</code></pre></div>
+
+<p>Según lo establece el <a href="http://tools.ietf.org/html/rfc6145#section-6">RFC 6145, sección 6</a> este sería el comportamiento mandatorio,  pero está siendo verificado por la IETF, ver Draft Deprecate Atomfrag Generation](https://tools.ietf.org/html/draft-ietf-6man-deprecate-atomfrag-generation-00).</p>
+
+<p>Para DESHABILITARLO, sencillamente ejecute:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="k">$(</span>jool<span class="k">)</span> --allow-atomic-fragments falso</code></pre></div>
+
+<p>Y esto es equivalente a:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="k">$(</span>jool<span class="k">)</span> --setDF falso    <span class="c">#FRAGMENTABLE</span>
+<span class="k">$(</span>jool<span class="k">)</span> --genFH falso    <span class="c">#NO INCLUYAS CABECERA DE FRAGMENTO</span>
+<span class="k">$(</span>jool<span class="k">)</span> --genID verdadero
+<span class="k">$(</span>jool<span class="k">)</span> --boostMTU verdadero</code></pre></div>
+
+<p><strong>Reafirmando: Jool 3.3 opera de esta última forma; es decir, <em>NO</em> deja pasar los fragmentos atómicos.</strong></p>
+
+<p>NOTAS:<br />
+(1) La separación de los cuatro parámetros existe por razones históricas en la implementación, mas en el avance del proyecto se ha visto que no tiene sentido manejarlos individualmente y que los otras posibilidades conviene que sean descartadas.<br />
+(2) La relación entre <code>--setDF</code> y <code>--boostMTU</code> es delicada. Consulta abajo para más detalles.</p>
+
+<h3 id="setdf"><code>--setDF</code></h3>
+
+<ul>
+  <li>Nombre: <strong><em>NO FRAGMENTES</em></strong></li>
+  <li>Tipo: <strong><em>Booleano</em></strong></li>
+  <li>Valor por Omisión: <strong><em>Apagado(0)</em></strong></li>
+  <li>Modos: <strong><em>SIIT &amp; Stateful</em></strong></li>
+  <li>Sentido de traducción: <strong><em>IPv6 -&gt; IPv4</em></strong></li>
+</ul>
+
+<p>Mediante esta bandera se puede establecer si el mensaje es candidato a ser fragmentado o no, en su tránsito de IPv6 a IPv4.</p>
+
+<p>La lógica descrita en forma de pseudocódigo es:</p>
+
+<pre><code>SI (el paquete entrante tiene una cabecera de fragmento):      #SI PAQ. ENTRANTE en IPv6 TIENE CABECERA DE FRAGMENTO?
+	El parámetro DF del paquete saliente en será Falso.           #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO
+De otra forma:                                                 #SI PAQ. ENTRANTE en IPv6 NO TIENE CABECERA DE FRAGMENTO?
+	SI (--setDF == 1):                                            #SI LA BANDERA "NO FRAGMENTES" ESTÁ ENCENDIDA?
+        El parámetro DF del paquete saliente será Verdadero.         #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO &lt;&gt; Va Entero
+	De otra forma:                                                #SI LA BANDERA "NO FRAGMENTES" ESTÁ APAGADA? (Es Fragmentable)
+        SI (la longitud del paquete saliente es &gt; 1260):             #SI PAQ. SALIENTE en IPv4 &gt; 1260? (Rebasa el Mínimo MTU en IPv6)          
+			El parámetro DF del paquete saliente será Verdadero.        #AVISA PAQ. SALIENTE en IPv4 NO está FRAGMENTADO &lt;&gt; Es Fragmentable pero NO va Fragmentado
+		De otra forma:                                               #SI PAQ. SALIENTE en IPv4 &lt;= 1260? &lt;&gt; Menor al Mínimo MTU en IPv6
+			El parámetro DF del paquete saliente será Falso.            #AVISA PAQ. SALIENTE en IPv4 es un FRAGMENTO &lt;&gt; Primer Fragmento
+</code></pre>
+
+<p>NOTAS:<br />
+(1) El valor mínimo de MTU en IPv6 es igual a 1280 bytes, si a este valor le quitamos el tamaño del encabezado en IPv6, que es 40, y le sumamos el de IPv4, que es 20, nos da 1260 bytes.<br />
+(2) Para una mejor comprensión, ver <a href="#boostmtu"><code>--boostMTU</code></a> y revisar la <a href="http://tools.ietf.org/html/rfc6145#section-6">Sección 6 del RFC 6145</a>.</p>
+
+<h3 id="genfh"><code>--genFH</code></h3>
+
+<ul>
+  <li>Nombre: <strong><em>GENERA CABECERA DE FRAGMENTO IPV6</em></strong></li>
+  <li>Tipo: <strong><em>Booleano</em></strong></li>
+  <li>Valor por Omisión: <strong><em>Apagado (0)</em></strong></li>
+  <li>Modos: <strong><em>SIIT &amp; Stateful</em></strong></li>
+  <li>Sentido de traducción: <strong><em>IPv4 -&gt; IPv6</em></strong></li>
+</ul>
+
+<p>En IPv4 no hay diferencia a nivel de encabezados entre un paquete fregmentado y otro que no lo es. Esto se establece mediante el campo de <em>Identification</em> y el valor del <em>Fragment Offset</em>. Los segmentos de un mismo paquete son identificados con <strong>un mismo número</strong> y en el <em>Fragment Offset</em> se guarda <strong>a partir de que número de dato se está trasmitiendo</strong>. Pero, en IPv6 si existe diferencia entre el primer segmento y el resto. En IPv6, sólo el 1er paq. incluye la cabecera a nivel 3 (ICMP, UDP, TCP) y en el resto se omite; es decir, ya no se repite como en IPv4.</p>
+
+<p>A través de esta bandera se puede prever que en la transición de IPv4 a IPv6 se incluya o no una cabecera de fragmento.</p>
+
+<p>La validación descrita en forma de pseudocódigo es:</p>
+
+<pre><code>Si (--genFH == 1 &amp;&amp; el paquete entrante tiene ** DF inactivo**):   #SI GENERA CABECERA en IPv6 &amp;&amp; PAQ. ENTRANTE FRAGMENTABLE?
+	Jool generará una cabecera de fragmento IPv6.                     #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO &lt;&gt; 2o Fragmento en delante
+Si (--genFH == 0):                                                 #SI NO GENERA CABECERA en IPv6?
+	Si (paquete entrante es un fragmento):                            #SI PAQ. ENTRANTE en IPv4 es un FRAGMENTO?
+		Jool generará una cabecera de fragmento IPv6.                    #AGREGA en PAQ. SALIENTE de IPv6 CABECERA DE FRAGMENTO &lt;&gt; 1er Fragmento
+	De otra forma:                                                    #SI PAQ. ENTRANTE en IPv4 NO es un FRAGMENTO
+		Jool NO generará una cabecera de fragmento IPv6.                 #PAQ. SALIENTE de IPv6 NO tiene CABECERA DE FRAGMENTO &lt;&gt; Paq. Completo
+</code></pre>
+
+<p>NOTAS:<br />
+(1)Cuando <code>--genFH</code> está apagado <strong>no importa</strong> si el parámetro DF del paquete entrante nos dice que el paquete “no está fragmentado” o si “es fragmentable”.<br />
+(2)Este es el parámetro que causa que Linux se comporte erróneamente cuando necesita fragmentar. No funciona bien, así que actívalo bajo tu propio riesgo.</p>
+
+<h3 id="genid"><code>--genID</code></h3>
+
+<ul>
+  <li>Nombre: <strong><em>GENERA IDENTIFICACIÓN IPV4</em></strong></li>
+  <li>Tipo: <strong><em>Booleano</em></strong></li>
+  <li>Valor por Omisión: <strong><em>Encendido (1)</em></strong></li>
+  <li>Modos: <strong><em>SIIT &amp; Stateful</em></strong></li>
+  <li>Sentido de traducción: <strong><em>IPv6 -&gt; IPv4</em></strong></li>
+</ul>
+
+<p>Los paquetes IPv6 solo disponen de un campo de identificación  si son un fragmento; es decir, si tienen una cabecera de fragmento. Sin embargo, todos los paquetes de IPv4 deben de llevar un campo de identificación. Esta bandera sirve para especificarle a Jool qué hacer cuando vaya a traducir un fragmento de IPv6 a IPv4.</p>
+
+<p>La lógica descrita en forma de pseudocódigo es:</p>
+
+<pre><code>SI (el paquete entrante tiene una cabecera de fragmento):      #SI PAQ. ENTRANTE en IPv6 TIENE CABECERA DE FRAGMENTO?
+	Copia los bits de orden más bajo del campo de                 #TRANSFIERE EL NO. IDENTIFICADOR de IPV6 a IPV4 
+	identificación de la cabecera de fragmento en 
+	IPv6 al de IPv4
+De otra forma:                                                 #SI PAQ. ENTRANTE en IPv6 NO TIENE CABECERA DE FRAGMENTO?
+	SI (--genID == 0):                                            #SI LA BANDERA "GENERA IDENTIFICACIÓN IPV4" ESTÁ APAGADA?
+        Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = 0
+		de la cabecera de fragmento de IPv4 = 0
+	De otra forma:                                                #SI LA BANDERA "GENERA IDENTIFICACIÓN IPV4" ESTÁ ENCENDIDA?
+        Selecciona el el campo de identificación                     #NO. IDENTIFICADOR de IPV4 = Número Aleatorio &lt;&gt; 1er Fragmento
+		de la cabecera de fragmento de IPv4 = 
+		Número Aleatorio
+</code></pre>
+
+<h3 id="boostmtu"><code>--boostMTU</code></h3>
+
+<ul>
+  <li>Nombre: <strong><em>PROMUEVE MTU IPv6</em></strong></li>
+  <li>Tipo: <strong><em>Booleano</em></strong></li>
+  <li>Valor por Omisión: <strong><em>Encendido (1)</em></strong></li>
+  <li>Modes: <strong><em>SIIT &amp;&amp; Stateful</em></strong></li>
+  <li>Dirección de traducción: <strong><em>IPv4 -&gt; IPv6 (aplica en: msg. de error de ICMP)</em></strong></li>
+</ul>
+
+<p>Como se mencionó en la introducción, decíamos que cuando un paquete es muy grande para el MTU de un enlace, los routers en IPv4 generan mensajes ICMP de error -<a href="http://tools.ietf.org/html/rfc792">Fragmentation Needed</a>- en IPv4 que pudieran ser traducidos como  -<a href="http://tools.ietf.org/html/rfc4443#section-3.2">Packet too Big</a>- en IPv6.</p>
+
+<p>Estos errores ICMP se supone deben contener el MTU infractor para que el emisor pueda reajustar el tamaño de sus paquetes. Dado que el MTU mínimo para IPv4 es 68 bytes y el de IPv6 es 1280, Jool puede encontrarse queriendo reportar un MTU illegal en IPv6 al traducir un <em>Fragmentation Needed</em> (v4) en un <em>Packet too Big</em> (v6). Con <code>--boostMTU</code> se trata de evitar este tipo de falla.</p>
+
+<p>Jool requiere hacer un pequeño ajuste al comparar los MTUs, por la diferencia entre la longitud básica del header IPv4(20 bytes) y la del header IPv6(40 bytes). Un paquete en IPv6 puede ser 20 bytes más grande que el MTU de IPv4 por que va a perder 20 bytes cuando su cabecera IPv6 sea reemplazada por una de IPv4.</p>
+
+<p>La validación descrita en forma de pseudocódigo es:</p>
+
+<pre><code>IPv6_error.MTU = IPv4_error.MTU + 20
+SI (--boostMTU == 1 &amp;&amp; IPv6_error.MTU &lt; 1280):   		#SI LA BANDERA "PROMUEVE MTU" ESTÁ ENCENDIDA &amp;&amp; LONGITUD DEL PAQ. ENTRANTE ES MENOR A LA LONG. MÍNIMA PERMITIDA EN IPV6?
+	MTU de IPv6 = 1280                                     #ASIGNA A MTU de IPV6 SU VALOR MÍNIMO
+</code></pre>
+
+<p>En cualquier otro caso, con <code>--boostMTU</code> deshabilitado y/o IPv6_error.MTU &gt;= 1280 , Jool no alterará este campo.</p>
+
+<p>Para mayor información vea la <a href="http://tools.ietf.org/html/rfc6145#section-6">sección 6 del RFC 6145</a>. Alli se describen los fundamentos básicos.</p>
+
+<p><strong>AVISO:</strong></p>
+
+<p>Si <code>--setDF</code> &amp;&amp; <code>--boostMTU</code> están ambos en ENCENDIDO (1) y hay un enlace IPv4 con MTU &lt; 1260, se llega a establecer un bucle infinito similar al <a href="mtu.html">MTU hassle</a>:</p>
+
+<ol>
+  <li>El emisor IPv6 transmite un paquete de tamaño 1280.</li>
+  <li>Jool lo traduce en un paquete IPv4 de tamaño 1260 con DF=1</li>
+  <li>Un router IPv4 con interfaz de salida con MTU &lt; 1260 genera <em>ICMPv6 Frag Needed</em> con MTU=1006 (o algún otro).</li>
+  <li>Jool lo traduce a ICMPv6 <em>Packet Too Big</em> con MTU=1280.</li>
+  <li>Ve al punto 1.</li>
+</ol>
+
+<p>Extendemos un agradecimiento a Tore Anderson por darse cuenta de ello y reportar esta peculiaridad.</p>
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/usr-flags-atomic.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

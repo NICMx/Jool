@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>FAQ</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Home</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="documentation.html">Documentation</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Download</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Report a Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">About</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contact</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentation</a> &gt; <a href="documentation.html#miscellaneous">Miscellaneous</a> &gt; FAQ</p>
+
+<h1 id="troubleshootingfaq">Troubleshooting/FAQ</h1>
+
+<p>This sums up problems we’ve seen users run into.</p>
+
+<h2 id="i-modprobed-jool-but-it-doesnt-seem-to-be-doing-anything">I modprobed Jool but it doesn’t seem to be doing anything.</h2>
+
+<p>Modprobing Jool without enough arguments is legal. It will assume you intend to finish configuring using the userspace app, and sit idle until you’ve done so.</p>
+
+<p>Use the userspace app’s <a href="usr-flags-global.html#description"><code>--global</code></a> flag to figure out Jool’s status:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool_siit --global
+  Status: Disabled</code></pre></div>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>jool --global
+  Status: Disabled</code></pre></div>
+
+<p>SIIT Jool’s minimum configuration requirements are</p>
+
+<ul>
+  <li>A prefix in the <a href="usr-flags-pool6.html">IPv6 pool</a> <strong>or</strong> at least one entry in the <a href="usr-flags-eamt.html">EAM table</a>.</li>
+  <li>You must have not <a href="usr-flags-global.html#enable---disable">manually disabled</a> it.</li>
+</ul>
+
+<p>Stateful Jool’s minimum configuration requirements are</p>
+
+<ul>
+  <li>At least one prefix in the <a href="usr-flags-pool6.html">IPv6 pool</a>.</li>
+  <li>At least one prefix/address in the <a href="usr-flags-pool4.html">IPv4 pool</a>.</li>
+  <li>You must have not <a href="usr-flags-global.html#enable---disable">manually disabled</a> it.</li>
+</ul>
+
+<p>If that doesn’t seem to be the problem, try the <a href="logging.html">logs</a>.</p>
+
+<h2 id="what-do-i-do-with-this-error-message-its-horribly-ambiguous">What do I do with this error message? It’s horribly ambiguous.</h2>
+
+<p>This happens if your text terminal is not listening to kernel messages of error severity.</p>
+
+<p>The jist of it is, if a problem with the incoming configuration is detected in kernelspace, Jool doesn’t send the friendly version of the error message to the userspace application <a href="https://github.com/NICMx/NAT64/issues/169">because it’s lazy</a>. Instead, it writes it in the kernel logs. The userspace application is then stuck with a generic Unix error code, and that’s what it reports to the user.</p>
+
+<p><a href="logging.html">Run <code>dmesg</code> or one of its variats to query the kernel logs</a>, as shown in the <a href="https://github.com/NICMx/NAT64/issues/169">issue report</a>.</p>
+
+<h2 id="jool-is-intermitently-unable-to-translate-traffic">Jool is intermitently unable to translate traffic.</h2>
+
+<p>Did you run something in the lines of</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">ip addr flush dev eth1</code></pre></div>
+
+<p>?</p>
+
+<p>Then you might have deleted the interface’s <a href="http://en.wikipedia.org/wiki/Link-local_address" target="_blank">Link address</a>.</p>
+
+<p>Link addresses are used by several relevant IPv6 protocols. In particular, they are used by the <em>Neighbor Discovery Protocol</em>, which means if you don’t have them, the translating machine will have trouble finding its IPv6 neighbors.</p>
+
+<p>Check the output of <code>ip addr</code>.</p>
+
+<div class="highlight"><pre><code class="bash">user@T:~$ /sbin/ip address
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: <strong>eth0</strong>: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:83:d9:40 brd ff:ff:ff:ff:ff:ff
+    inet6 2001:db8:aaaa::1/64 <strong>scope global</strong> 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe83:d940/64 <strong>scope link</strong> 
+       valid_lft forever preferred_lft forever
+3: <strong>eth1</strong>: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:c6:01:48 brd ff:ff:ff:ff:ff:ff
+    inet6 2001:db8:bbbb::1/64 <strong>scope global</strong> tentative 
+       valid_lft forever preferred_lft forever
+</code></pre></div>
+
+<p>Interface <em>eth0</em> is correctly configured; it has both a “scope global” address (used for typical traffic) and a “scope link” address (used for internal management). Interface <em>eth1</em> lacks a link address, and is therefore a headache inducer.</p>
+
+<p>The easiest way to restore scope link addresses, we have found, is to just reset the interface:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">ip link <span class="nb">set </span>eth1 down
+ip link <span class="nb">set </span>eth1 up</code></pre></div>
+
+<p>Yes, I’m serious:</p>
+
+<div class="highlight"><pre><code class="bash">user@T:~$ /sbin/ip address
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:83:d9:40 brd ff:ff:ff:ff:ff:ff
+    inet6 2001:db8:aaaa::1/64 scope global 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe83:d940/64 scope link 
+       valid_lft forever preferred_lft forever
+3: eth1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 08:00:27:c6:01:48 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::a00:27ff:fec6:148/64 <strong>scope link</strong> 
+       valid_lft forever preferred_lft forever
+</code></pre></div>
+
+<p>(Note, you need to add the global address again)</p>
+
+<p>Also, for future reference, keep in mind that the “correct” way to flush an interface is</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">ip addr flush dev eth1 scope global</code></pre></div>
+
+<p>IPv4 doesn’t need link addresses that much.</p>
+
+<h2 id="the-throughput-is-terrible">The throughput is terrible!</h2>
+
+<p><a href="offloading.html">Turn offloads off!</a></p>
+
+<p>If you’re running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the <a href="http://en.wikipedia.org/wiki/Hypervisor">VM host</a>’s uplink interface.</p>
+
+<h2 id="i-cant-ping-the-ipv4-pool-address">I can’t ping the IPv4 pool address.</h2>
+
+<p>Actually, this is normal in Jool 3.2.x and below. The destination address of the ping packet is translatable, so Jool is stealing the packet. Unfortunately, it doesn’t have a relevant BIB entry (because the ping wasn’t started from IPv6), so the translation is a failure (and the packet is dropped).</p>
+
+<p>It looking weird aside, it doesn’t cause any other catastrophes; just ping the node address.</p>
+
+<p>Jool 3.3+ handles this better and the ping should succeed.</p>
+
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<span class="selected">en</span>
+				
+				|
+				
+					<a href="../es/faq.html">es</a>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

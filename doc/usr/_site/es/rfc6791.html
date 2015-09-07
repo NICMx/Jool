@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>RFC 6791</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentación</a> &gt; <a href="documentation.html#ejemplos-de-uso">Ejemplos de uso</a> &gt; <a href="mod-run-vanilla.html">SIIT</a> &gt; RFC 6791</p>
+
+<h1 id="rfc-6791">RFC 6791</h1>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#introduccin">Introducción</a></li>
+  <li><a href="#definicin-del-problema">Definición del Problema</a></li>
+  <li><a href="#ejemplo">Ejemplo</a></li>
+  <li><a href="#notas-adicionales">Notas Adicionales</a></li>
+</ol>
+
+<h2 id="introduccin">Introducción</h2>
+
+<p>Este estandar fue propuesto en Nov 2011 y aprobado como tal un año después. Presentado por <a href="http://www.researchgate.net/profile/Xing_Li7">Xing Li</a> y <a href="http://www.arkko.com/tools/allstats/congxiaobao.html">Congxiao Bao</a> del Centro CERNET de la Universidad de Tsinghua y <a href="https://www.linkedin.com/profile/view?id=2606930&amp;authType=name&amp;authToken=oIy6">Dan Wing</a>  de <a href="https://www.ciscolive.com/online/connect/speakerDetail.ww?PERSON_ID=69812EB76A23BD5B510E823E51292E72&amp;tclass=popup">Cisco</a>.</p>
+
+<p>En este se establece la forma de cómo proveer de direcciones válidas en IPv4 a los HOPs de IPv6 en el caso de que alguno de ellos requiera reportar algún error de ICMP.</p>
+
+<h2 id="definicin-del-problema">Definición del Problema</h2>
+
+<p>Un traductor Stateless IPv4/IPv6 podría recibir paquetes de IPv6 que contengan direcciones <strong>no-traducibles</strong> a IPv4 como dirección fuente, provenientes de los enlaces entre redes.</p>
+
+<p>Se entiende por <strong>no-traducibles</strong> cuando se cumple estas dos condiciones: <br />
+a) Que no siga la norma establecida en el <a href="https://tools.ietf.org/html/rfc6052#section-2">RFC 6052, cap2.</a>, <br />
+b) Ni que esté dado de alta en la table EAM, ver <a href="https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01#section-3.2">draft EAM, sección 3.2</a>.</p>
+
+<p>Si esto sucede, entonces implica que dos condiciones ocurrieron:</p>
+
+<ol>
+  <li>Existe al menos un ruteador entre el Nodo en IPv6 y el Traductor (Jool) antes de llegar al Nodo en IPv4.</li>
+  <li>El paquete es del tipo ICMPv4 Error Message.</li>
+</ol>
+
+<p>En dichas excepciones, los paquetes deben pasar a través de <em>T</em> a la dirección destino de IPv4 para que éste pueda tomar la acción correspondiente.</p>
+
+<h2 id="ejemplo">Ejemplo</h2>
+
+<p>Suponga que <em>n4</em> enviá un paquete a <em>n6</em>, pero hay un problema, el mensaje es muy grande, entonces <em>R</em> envíará un paquete de error ICMP a <em>n4</em>. Tome en consideración que <em>T</em> está traduciendo usando el prefijo 2001:db8::/96.</p>
+
+<p><img src="../images/network/rfc6791.svg" alt="Figura 1 - Red" /></p>
+
+<p>El paquete de <em>R</em> tendrá las siguientes direcciones:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Origen</th>
+      <th>Destino</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>4000::1</td>
+      <td>2001:db8::192.0.2.13</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><em>T</em> está en problemas por que la dirección de origen del paquete no tiene el prefijo de traducción, asi que no puede ser extraia una dirección IPv4 de el.</p>
+
+<p>Normalmente, no se tienen muchas direcciones IPv4, asi que no es razonable garantizarle una a cada uno de los nodos en el lado IPv6. Debido a su único propósito(casi siempre) de redireccionamiento, los routers son buenos candidatos para direcciones intraducibles. Por otro lado, los errores ICMP son importantes, y un NAT64 no deberia desecharlo simplemente por que viene de un router.</p>
+
+<h2 id="notas-adicionales">Notas Adicionales</h2>
+
+<p>Por favor considere los siguientes parrafos del <a href="https://tools.ietf.org/html/rfc6791">RFC 6791</a> mientras decide el tamaño y las direcciones de su RFC 6791 pool:</p>
+
+<pre><code>La dirección de origen utilizada NO DEBE causar que le paquete ICMP
+sea descartado. NO DEBE ser tomada del espacio de direcciones de
+[RFC1918] o de [RFC6598], ya que ese espacio de direcciones es probable
+a estar sujeto al filtrado unicast Reverse Path Forwarding (uRPF) [RFC3704].
+
+(...)
+
+Otra consideración para la seleccion del origen es que debe ser
+posible para los contenedores IPv4 del mensaje ICMP ser capaces de
+distinguir entre la diferentes posibles fuentes de los mensajes ICMPv6
+(por ejemplo, soportar una herramienta de diagnostico de traza de ruta
+que proporcione algo de visibilidad a nivel d red limitada a través del traductor
+IPv4/Pv6). Esta consideración implica que un traductor IPv4/IPv6
+necesita tener un pool de direcciones IPv4 para mapear la direccion de origen 
+de paquetes ICMPv6 generados desde origenes diferentes, o para incluir
+la información de la dirección de origen IPv6 para mapear la dirección de origen 
+por otros medios.  Actualmente, el TRACEROUTE y el MTR [MTR] son los únicos
+consumidores de mensajes ICMPv6 traducidos que se  translated ICMPv6 messages that care about the
+ICMPv6 source address.
+
+(...)
+
+Si un pool de direcciones publicas IPv4 está configurado en el traductor,
+Se RECOMIENDA seleccionar aleatoriamente la dirección de origen IPv4 del
+pool. La selección aleatoria reduce la probabilidad de que dos mensajes ICMP
+sucitados por la misma Traza De Ruta puedan especificar la misma dirección
+de origen y, por consiguiente, erroneamente dar la apariencia de un bucle de ruteo.
+</code></pre>
+
+<p>Un Stateful NAT64 generalmente no tiene este problema por que <a href="intro-nat64.html#stateful-nat64">render every IPv6 address translatable</a> (ya que todos los nodos IPv6 comparten las direcciones IPv4 del NAT64). Para hacer claras las cosas, un modulo SIIT debe de mantener un pool de direcciónes reservadas. Al recibir un error ICMP con un origen que no se puede traducir, Jool deberia asignar un aleatorio de los que contiene en su pool.</p>
+
+<p>El <a href="mod-run-vanilla.html">Ejemplo de SIIT</a> muestra como configurar el pool durante un modprobe. Tambien lo puedes editar despues mediante la <a href="usr-flags-pool6791.html">Aplicación de espacio de usuario</a>.</p>
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/rfc6791.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

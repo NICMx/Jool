@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>Documentación - Introducción a los Mecanismos de Transición</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentación</a> &gt; <a href="documentation.html#introduccin">Introducción</a> &gt; Mecanismos de Transición</p>
+
+<h2 id="mecanismos-de-transicin-de-ipv6-soportados-por-jool">Mecanismos de Transición de IPv6 soportados por Jool</h2>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#introduccin">Introducción</a></li>
+  <li><a href="#ejemplos-de-traduccin">Ejemplos de Traducción</a><br />
+ a) <a href="#siit-con-eam">SIIT con EAM</a><br />
+ b) <a href="#siit-tradicional">SIIT tradicional</a><br />
+ c) <a href="#stateful-nat64">Stateful NAT64</a></li>
+</ol>
+
+<h2 id="introduccin">Introducción</h2>
+<p>Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.</p>
+
+<p>El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el <a href="https://tools.ietf.org/html/rfc2765">RFC 2765</a>. Este ha sido actualizado en varias ocasiones: <a href="https://tools.ietf.org/html/rfc6145">(RFC 6145, 2011)</a>, <a href="https://tools.ietf.org/html/rfc6791">(RFC6791, 2012)</a> e inclusive <a href="https://tools.ietf.org/id/siit?maxhits=100&amp;key=date&amp;dir=desc">hasta nuestros días</a>. De éstos, ya están incluidos en Jool el <a href="https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-02">(draft-ietf-v6ops-siit-dc, 2015)</a>, el <a href="https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-2xlat-01">(draft-ietf-v6ops-siit-dc-2xlat, 2015)</a> y el <a href="https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01">(draft-anderson-v6ops-siit-eam, 2015)</a>. Estas tres adiciones a SIIT han sido propuestas y promovidas por <a href="http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants">Tore Anderson</a> de la compañía Redpill Linpro en Noruega.</p>
+
+<p>La metodología del Stateful NAT64 fue uno de los resultados del <a href="http://trilogy-project.org/trilogy-and-the-ietf.html"><strong>Proyecto Trilogy</strong></a>, organizado por <a href="http://europa.eu/rapid/press-release_IP-11-1294_es.htm">la Unión Europea</a>, con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el <a href="https://tools.ietf.org/html/rfc6146">RFC 6146</a> fue publicado en el 2011 por el mismo coordinador del projecto, el <a href="http://www.it.uc3m.es/marcelo/">Dr. Marcelo Bagnulo Braun</a> de la Universidad Carlos III y otros dos colaboradores del proyecto.</p>
+
+<p><img src="../images/bulb.png" alt="bulb" /> Conoce más trabajos elaborados por la IETF acerca de NAT64 en <a href="https://tools.ietf.org/id/nat64?maxhits=100&amp;key=date&amp;dir=desc">TOOLS IETF</a> y en <a href="https://datatracker.ietf.org/doc/search/?name=nat64&amp;sort=&amp;rfcs=on&amp;activedrafts=on">Datatracker</a>.</p>
+
+<h2 id="ejemplos-de-traduccin">Ejemplos de Traducción</h2>
+
+<p>SIIT (<em>Stateless IP/ICMP Translation</em>) y NAT64 (“NAT seis cuatro”, no “NAT sesenta y cuatro”) son tecnologías orientadas a comunicar nodos de red que únicamente hablan <a href="http://es.wikipedia.org/wiki/IPv4">IPv4</a> con nodos que solo hablan <a href="http://es.wikipedia.org/wiki/IPv6">IPv6</a>.
+ La idea es básicamente la de un <a href="http://es.wikipedia.org/wiki/Traducci%C3%B3n_de_direcciones_de_red">NAT</a> mejorado; es decir que, un “Traductor IPv4/IPv6” no solo reemplaza direcciones y/o puertos en los paquetes, sino también encabezados de capa 3.</p>
+
+<ul>
+  <li>
+    <p><strong>SIIT</strong>, es la manera sencilla, permitiendo MAPEOS 1-a-1 preconfigurados entre IPv4 e IPv6.<br />
+ Es decir, que en SIIT tú establecerás lo siguiente:<br />
+ a) Para cada uno de tus nodos en IPv6 existirá una dirección alterna en IPv4.<br />
+ b) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6.</p>
+  </li>
+  <li>
+    <p><strong>Stateful NAT64</strong>, o simplemente NAT64,  permite que VARIOS NODOS IPv6 compartan UN RANGO PEQUEÑO de direcciones IPv4.<br />
+ Es decir, que en NAT64 tú establecerás lo siguiente:<br />
+ a) Para cada uno de tus nodos en IPv4 existirá una dirección alterna en IPv6, pero esa nueva dirección estará formada de un prefijo de IPv6 + dir. en IPv4.<br />
+ b) Los nodos en IPv6 será identificados por una o varias IP válidas en <em>T</em> (Jool), aparentando ser una “Red Privada de IPv4” (red local).</p>
+  </li>
+</ul>
+
+<p>NAT64 es definitivamente útil cuando se dispone de un <a href="http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4">número restringido de direcciones de IPv4</a>.</p>
+
+<p>Por razones históricas, algunas veces etiquetamos a SIIT como “Stateless NAT64”. Ya que esta expresión no parece estar incluida en ningún estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es possible, por favor trata de no usarla.</p>
+
+<p>En una implementación SIIT siempre se modifican los encabezados de red y en algunas veces los checksums. En un Stateful NAT64 también se manipulan los identificadores de transporte.</p>
+
+<h3 id="siit-con-eam">SIIT con EAM</h3>
+
+<p>Esta parte es la más fácil de explicar. Considera la siguiente configuración:</p>
+
+<p><img src="../images/network/eam.svg" alt="Fig.1 - Red de ejemplo EAM" title="Fig.1 - Red de ejemplo EAM" /></p>
+
+<p>(<em>T</em> representa “Translating box”. En español “Caja de traducción”.)</p>
+
+<p>Asumiendo que la puerta de enlace por default de todos es <em>T</em>, comó comunicarías <em>A</em> (IPv6) con <em>V</em> (IPv4)?</p>
+
+<p>Para lograr la comunicación entre <em>A</em> y <em>V</em> bastaría con establecer lo siguiente:</p>
+
+<ul>
+  <li>Le dices a <em>A</em>, “la dirección de <em>V</em> es 2001:db8:4::16”.</li>
+  <li>Le dices a <em>V</em>, “la dirección de <em>A</em> es 198.51.100.8 “.</li>
+  <li>Le dices a <em>T</em>, “La dirección IPv4 de <em>A</em> debe de ser 198.51.100.8, <br />
+                 y la dirección IPv6 de <em>V</em> debe de ser 2001:db8:4::16”.</li>
+</ul>
+
+<p>La primera es resuelta por SIIT, las demás pueden ser realizadas vía DNS.</p>
+
+<p>Veamos:</p>
+
+<p><img src="../images/flow/eam-es.svg" alt="Fig.2 - Flujo EAM" title="Fig.2 - Flujo EAM" /></p>
+
+<p>El traductor esta “engañando” a ambos nodos haciéndoles pensar que el otro puede hablar el mismo lenguaje.</p>
+
+<p>“EAM” significa por sus siglas en inglés “Explicit Address Mapping”, mapeo de direcciones explícitas. Es más versátil que un simple mapeo de direcciones aribtrarias a otras direcciones arbitrarias.</p>
+
+<p><img src="../images/bulb.png" alt="bulb" /> Revisa <a href="eamt.html">nuestro resumen</a> o repasa sus especificaciones en el <a href="https://tools.ietf.org/html/draft-ietf-v6ops-siit-eam-01">draft EAM</a>.</p>
+
+<h3 id="siit-tradicional">SIIT (tradicional)</h3>
+
+<p>El modo básico es un poco más complejo. Las direcciones no son remplazadas completamente por otras, sino una parte será usada en su dirección asociada con el otro protocolo. Considera la siguiente configuración:</p>
+
+<p><img src="../images/network/vanilla.svg" alt="Fig.3 - Red de ejemplo Vanilla" title="Fig.3 - Red de ejemplo Vanilla" /></p>
+
+<p>Para lograr la comunicación entre <em>A</em> y <em>V</em> bastaría con establecer lo siguiente:</p>
+
+<ul>
+  <li>Le dices a <em>A</em>, “la dirección de <em>V</em> es 2001:db8:192.0.2.16”.</li>
+  <li>Le dices a <em>V</em>, “la dirección de <em>A</em> es 198.51.100.8 “.</li>
+  <li>Le dices a <em>T</em>, “La dirección IPv4 de <em>A</em> debe de ser 198.51.100.8, <br />
+                 y la dirección IPv6 de <em>V</em> debe de ser 2001:db8:192.0.2.16”.</li>
+</ul>
+
+<p>La idea es, simplemente remover <em>el prefijo</em> durante el mapeo de IPv6 a IPv4, y adjuntarlo en el otro sentido. Como lo puedes apreciar en la siguiente figura:</p>
+
+<p><img src="../images/flow/vanilla-es.svg" alt="Fig.4 - Flujo Vanilla" title="Fig.4 - Flujo Vanilla" /></p>
+
+<p>Por supuesto, esto significa que la dirección IPv4 de cada nodo en IPv6 tiene que ser codificada dentro de su dirección, lo cual es un poco engorroso.</p>
+
+<p>Podría parecerte que SIIT con “EAM” y SIIT “tradicional” son cosas diferentes, pero pueden trabajar a la par. En implementaciones de este tipo, primeramente se intentará mapear las direcciones IP consultando la tabla EAM (según SIIT con EAM), y si NO están registradas, se retrocede y se añade o se remueve el prefijo (según SIIT).</p>
+
+<p>Puedes encontrar un ejemplo concreto de como SIIT “tradicional” y “EAM” pueden ser combinados eficientemente para cumplir un caso de uso en la siguiente propuesta de solución para Centros de Datos: <a href="https://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-02">draft-v6ops-siit-dc</a>.</p>
+
+<p>Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de nuestro rango de 128 bits según se establece en el <a href="http://tools.ietf.org/html/rfc6052">RFC 6052</a>.</p>
+
+<p><img src="../images/warning.png" alt="warning" /> Siempre que el RFC 6052 esté involucrado, es muy conveniente dar de alta también un <a href="dns64.html">DNS64</a> para que <br />
+          los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.</p>
+
+<h3 id="stateful-nat64">Stateful NAT64</h3>
+
+<p>Este modo es el más parecido a lo que la gente entiende como <strong>NAT</strong>, por sus siglas en inglés de <em>IP Network Address Translator</em>. Recordemos, un NAT opera de la siguiente manera:</p>
+
+<p><img src="../images/network/nat-es.svg" alt="Fig.5 - Red de ejemplo NAT" title="Fig.5 - Red de ejemplo NAT" /></p>
+
+<p>Note que, la red de la izquierda es llamada “Privada” por que usa <a href="http://es.wikipedia.org/wiki/Red_privada">Direcciones no disponibles en la Internet Global</a>.  <em>NAT</em> modifica las direcciones de los paquetes para que los nodos externos piensen que el tráfico proveniente de los nodos internos fue en realidad iniciado por el <em>NAT</em>:</p>
+
+<p><img src="../images/flow/nat-es.svg" alt="Fig.6 - Flujo NAT" title="Fig.6 - Flujo NAT" /></p>
+
+<p>Es decir que para propósitos externos, los nodos desde <em>A</em> hasta <em>E</em> están “compartiendo” la misma dirección global de <em>NAT</em> (o grupo de direcciones).</p>
+
+<p>Aunque NAT ayuda a reducir el empleo de direcciones globales en Internet de IPv4, esto tiene un precio: <em>NAT</em> tiene que recordar cual nodo privado emitió el paquete a <em>V</em>, porque la dirección de <em>A</em> fue suprimida dentro de la respuesta de <em>V</em>. Por eso, es que es  llamado <strong><em>stateful</em></strong>, porque guarda el estado de las sesiones, pues crea mapeos de direcciones y los recuerda por un tiempo.</p>
+
+<p>Dos cosas que hay que tomar en cuenta es:</p>
+
+<ul>
+  <li>Cada mapeo require memoria.</li>
+  <li><em>V</em> no puede <strong>iniciar</strong> la comunicación con <em>A</em>, porque primeramente el <em>NAT</em> <strong>debe</strong> aprender el mapeo en el sentido de la Red_Privada-a-Red_Externa (de izquierda a derecha).</li>
+</ul>
+
+<p>Si quieres saber más sobre NAT y sus diferentes tipos, consulta los siguientes documentos: <a href="https://tools.ietf.org/html/rfc2663#section-3">RFC 2663</a>, <a href="https://tools.ietf.org/html/rfc2766">RFC 2766</a> y <a href="https://tools.ietf.org/html/rfc3022">RFC 3022</a>.</p>
+
+<p><strong>Stateful NAT64</strong> es muy similar a un NAT-PT (<em>Protocol Translation</em>). La única diferencia es que la “Red Privada” es de hecho una red IPv6:</p>
+
+<p><img src="../images/network/stateful.svg" alt="Fig.7 - Red de ejemplo Stateful NAT64" title="Fig.7 - Red de ejemplo Stateful NAT64" /></p>
+
+<p>Para lograr la comunicación entre <em>A</em> y <em>V</em> bastaría con establecer lo siguiente:</p>
+
+<ul>
+  <li>Le dices a <em>A</em>, “la dirección de <em>V</em> es 2001:db8:203.0.113.16”.</li>
+  <li>Le dices a <em>V</em>, “la dirección de <em>A</em> es 203.0.113.2 (<em>T</em>)”.</li>
+  <li>Le dices a <em>T</em>, “La dirección IPv4 de <em>A</em> debe de ser  203.0.113.2 (<em>T</em>), <br />
+                 y la dirección IPv6 de <em>V</em> debe de ser 2001:db8:203.0.113.16”.</li>
+</ul>
+
+<p>La idea es, enmascarar <em>A</em> y remover el prefijo a <em>V</em> durante el mapeo de IPv6 a IPv4, y adjuntar el prefijo en <em>V</em> y quitar la máscara a <em>A</em> cuando va de IPV4 a IPv6. Como lo puedes apreciar en la siguiente figura:</p>
+
+<p><img src="../images/flow/stateful-es.svg" alt="Fig.8 - Flujo Stateful" title="Fig.8 - Flujo Stateful" /></p>
+
+<p>NAT64 maneja otros escenarios y es aquí donde termina la similitud con NAT. Debido a que en IPv6 la capacidad de identificación de los nodos es sumamente enorme, se contempla que cada dispositivo cuente con una dirección pública de IPv6. En otras palabras se prevé o planea que TODOS los dispositivos en IPv6  tenga acceso a Internet. Considerando esto, una conectividad posible sería:</p>
+
+<p><img src="../images/network/full-es.svg" alt="Fig.9 - Internet Stateful NAT64" title="Fig.9 - Internet Stateful NAT64" /></p>
+
+<p>De esta manera, los nodos <em>A</em> hasta <em>E</em> son solo de <em>IPv6</em>, pero tienen acceso a ambas Internets. A la IPv6 mediante un ruteador <em>R</em>, y a la IPv4 mediante <em>T</em>.</p>
+
+<p>Si gustas conocer el resto de los <strong>escenarios posibles en Stateful NAT64 y SIIT</strong> consulta el <a href="https://tools.ietf.org/html/rfc6144#section-2">RFC 6144, cap. 2</a>.</p>
+
+<p><img src="../images/warning.png" alt="warning" /> Para soportar direccionamiento por nombre se requiere habilitar el <a href="dns64.html">DNS64</a>.</p>
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/intro-nat64.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

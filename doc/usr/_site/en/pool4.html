@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>IPv4 Transport Address Pool</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Home</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentation</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Download</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Report a Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">About</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contact</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentation</a> &gt; <a href="documentation.html#runs">Runs</a> &gt; <a href="mod-run-stateful.html">Stateful NAT64</a> &gt; IPv4 Pool</p>
+
+<h1 id="ipv4-transport-address-pool">IPv4 Transport Address Pool</h1>
+
+<p>If you’re familiar with iptables and masquerade, all you probably need to know is that the following:</p>
+
+<pre><code>jool --pool4 --add --tcp 192.0.2.1 5000-6000
+</code></pre>
+
+<p>is spiritually equivalent to</p>
+
+<pre><code>ip addr add 192.0.2.1 dev (...)
+iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 5000-6000
+</code></pre>
+
+<hr />
+
+<p>Just like a NAT, a Stateful NAT64 allows an indeterminate amount of clients to share a few IPv4 addresses by strategically distributing their traffic accross its own transport address domain.</p>
+
+<p>We call this “transport address domain” the “IPv4 pool”. (“pool4” for short.)</p>
+
+<p>To illustrate:</p>
+
+<p><img src="../images/flow/pool4-simple1-en.svg" alt="TODO" /></p>
+
+<p>In Jool, we write transport addresses in the form <code>&lt;IP address&gt;#&lt;port&gt;</code> (as opposed to <code>&lt;IP address&gt;:&lt;port&gt;</code>). The packet above has source IP address <code>2001:db8::8</code>, source port (TCP or UDP) 5123, destination address <code>64:ff9b::192.0.2.24</code>, and destination port 80.</p>
+
+<p>Assuming pool4 holds transport addresses 203.0.113.1#5000 through 203.0.113.1#6000, one possible translation of the packet is this:</p>
+
+<p><img src="../images/flow/pool4-simple2-en.svg" alt="TODO" /></p>
+
+<p>Another one, equally valid, is this:</p>
+
+<p><img src="../images/flow/pool4-simple3-en.svg" alt="TODO" /></p>
+
+<p>NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, <a href="https://tools.ietf.org/html/draft-ietf-sunset4-nat64-port-allocation-01">recommendations exist to drive NAT64s as unpredictable as possible</a>.</p>
+
+<p>What you need to be aware of is that your NAT64 machine needs to reserve transport addresses for translation purposes. If <em>T</em> tries to open a connection from transport address <code>192.0.2.1#5000</code> and at the same time a translation yields source transport address <code>192.0.2.1#5000</code>, evil things will happen. <a href="https://github.com/NICMx/NAT64/wiki/issue67:-Linux's-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.">iptables’s NAT also suffers from this quirk</a>.</p>
+
+<p>Linux’s ephemeral port range defaults to 32768-61000. Therefore, Jool’s port range for any given address defaults to 61001-65535. You can change the former by tweaking sysctl <code>sys.net.ipv4.ip_local_port_range</code>, and the latter by means of <a href="usr-flags-pool4.html"><code>--pool4 --add</code> userspace application commands</a>.</p>
+
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<span class="selected">en</span>
+				
+				|
+				
+					<a href="../es/pool4.html">es</a>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>

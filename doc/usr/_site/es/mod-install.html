@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+	<title>Instalación del Servidor Jool</title>
+	<link href="../css/style.css" rel="stylesheet" type="text/css" media="screen" />
+	<link href="../css/print.css" rel="stylesheet" type="text/css" media="print" />
+</head>
+
+<body>
+	<div id="page">
+		<div id="contentwrapper">
+			<div id="sidebar_navigation" class="sidebar">
+				<div class="left_sidebar_menu">
+					<div class="left_sidebar_menu_button">
+						<a href="index.html">Inicio</a>
+					</div>
+					<div class="left_sidebar_menu_selected">
+						<a href="documentation.html">Documentación</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="download.html">Descargar</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="faq.html">FAQ</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+							Reportar un Bug
+						</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="about.html">Acerca de ...</a>
+					</div>
+					<div class="left_sidebar_menu_button">
+						<a href="contact.html">Contacto</a>
+					</div>
+				</div>
+			</div>
+			<div id="content">
+				<div class="worklogo">
+					<a href="index.html"><img src="../images/jool.png" alt="logo-jool" /></a>
+				</div>
+				<div class="workarea">
+					<div class="content_text">
+
+<p><a href="documentation.html">Documentación</a> &gt; <a href="documentation.html#instalacin">Instalación</a> &gt; Servidor Jool</p>
+
+<h1 id="instalacin-del-servidor-jool">Instalación del Servidor Jool</h1>
+
+<h2 id="ndice">Índice</h2>
+
+<ol>
+  <li><a href="#introduccin">Introducción</a></li>
+  <li><a href="#requerimientos">Requerimientos</a><br />
+ a) <a href="#kernels-vlidos">Kernels Válidos</a><br />
+ b) <a href="#encabezados-del-kernel">Encabezados del Kernel</a><br />
+ c) <a href="#interfaces-de-red">Interfaces de Red</a><br />
+ d) <a href="#ethtool">Ethtool</a></li>
+  <li><a href="#baja-compila-e-instala">Baja, Compila e Instala</a><br />
+ a) <a href="#de-la-web-oficial">De la Web Oficial</a><br />
+ b) <a href="#del-repositorio-git">Del Repositorio GIT</a></li>
+  <li><a href="#genera-archivo-de-dependencias">Genera Archivo de Dependencias</a></li>
+</ol>
+
+<h2 id="introduccin">Introducción</h2>
+
+<p>Jool tiene cuatro componentes, es decir, cuatro ejecutables:</p>
+
+<ol>
+  <li>Dos <a href="https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo">Módulos de Kernel</a>, uno donde se implementa el Stateful NAT64, nombrado como <code>jool</code>, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como <code>jool-siit</code>.</li>
+  <li>Dos aplicaciones en el <a href="http://es.wikipedia.org/wiki/Espacio_de_usuario">Espacio de Usuario</a>,  una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: <code>jool y jool-siit</code> respectivamente.</li>
+</ol>
+
+<p>En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para activar la traducción de paquetes se requiere insertar los módulos en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.</p>
+
+<p>La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.</p>
+
+<p>Las aplicaciones en el espacio de usuario son para configuración de Jool, la explicación de cómo instalarlas se encuentra en una <a href="usr-install.html">página aparte</a>.</p>
+
+<h2 id="requerimientos">Requerimientos</h2>
+
+<h3 id="kernels-vlidos">Kernels Válidos</h3>
+
+<p>Jool fue desarrollado sobre ambiente linux y lenguaje de programación “C”. Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux <a href="intro-jool.html#compatibilidad">haz click aquí</a>. Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!</p>
+
+<p>NOTA: No recomendamos usar el kernel 3.12 porque <a href="https://github.com/NICMx/NAT64/issues/90">el sistema se inhibe cuando se invoca la función icmpv6_send</a>.</p>
+
+<p>Para verificar la versión de tu kernel, usa el siguiente comando:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>/bin/uname -r</code></pre></div>
+
+<h3 id="encabezados-del-kernel">Encabezados del Kernel</h3>
+
+<p>Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta con permisos de administrador lo siguiente:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node# apt-get install linux-headers-<span class="k">$(</span>uname -r<span class="k">)</span></code></pre></div>
+
+<h3 id="interfaces-de-red">Interfaces de Red</h3>
+
+<p>Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán <code>dos interfaces de red separadas: una para IPv6 y otra para IPv4</code>. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecuta lo siguiente:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span>ip link show
+<span class="o">(</span>...<span class="o">)</span>
+2: eth0: &lt;BROADCAST,MULTICAST&gt; mtu <span class="m">1500</span> qdisc noop state DOWN qlen 1000
+    link/ether 08:00:27:3d:24:77 brd ff:ff:ff:ff:ff:ff
+3: eth1: &lt;BROADCAST,MULTICAST&gt; mtu <span class="m">1500</span> qdisc noop state DOWN qlen 1000
+    link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff</code></pre></div>
+
+<h3 id="ethtool">Ethtool</h3>
+
+<p>Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros. Para instalarla ejecuta con permisos de administrador:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node# apt-get install ethtool</code></pre></div>
+
+<h2 id="baja-compila-e-instala">Baja, Compila e Instala</h2>
+
+<p>Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos opciones:</p>
+
+<ul>
+  <li>Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la <a href="download.html">Página de Descarga</a>.</li>
+  <li>Las versiones en desarrollo en nuestro Repositorio de GitHub. Éstas se encuentran en <a href="https://github.com/NICMx/NAT64">Proyecto NAT64</a>.</li>
+</ul>
+
+<p>Existen algunas pequeñas variantes al bajarlo de un portal u otro, no tan solo de nombre, sino de contenido.</p>
+
+<p>Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: <code>./configure &amp;&amp; make &amp;&amp; make install</code>. Los módulos de kernel no vienen con un script <code>configure</code>, para generar el Makefile, sino ya está hecho, por lo que solo se requiere ejecutar los últimos dos pasos.</p>
+
+<h3 id="de-la-web-oficial">De la Web Oficial</h3>
+
+<p>Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la <a href="download.html">página de Descarga</a>. Sigue estos pasos:</p>
+
+<p>1) Elige la versión</p>
+
+<p>2) Elige el formato (zip, sha, md5)</p>
+
+<p>3) Descarga el archivo comprimido</p>
+
+<p>4) Descomprime</p>
+
+<p><img src="../images/small_orange_diamond.png" alt="small_orange_diamond" /> Asumiendo que lo bajastes en formato ZIP, en la carpeta de <em>Downloads</em> y lo quieres colocar en <em>Desktop</em>, ejecuta los siguientes comandos:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:<span class="nv">$ </span><span class="nb">cd </span>Downloads
+user@node:~/Downloads<span class="nv">$ </span>unzip Jool-&lt;version&gt;.zip -d ../Desktop</code></pre></div>
+
+<p>5) Compila ambos módulos SIIT y NAT64</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~<span class="nv">$ </span><span class="nb">cd</span> ../Desktop/Jool-&lt;version&gt;/mod
+user@node:~/Desktop/Jool-&lt;version&gt;/mod<span class="nv">$ </span>make</code></pre></div>
+
+<p>6) Instala</p>
+
+<p>El proceso de instalación consiste en copiar <code>los binarios generados</code>  a  <code>tu pool de módulos del sistema</code>. Empleando permisos de administrador ejecuta:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~/Jool-&lt;version&gt;/mod# make modules_install</code></pre></div>
+
+<h3 id="del-repositorio-git">Del Repositorio GIT</h3>
+
+<p>Si descargas Jool del <a href="https://github.com/NICMx/NAT64">Repositorio de Github</a>, te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía. Sigue estos pasos:</p>
+
+<p>1) Elige la rama “master”</p>
+
+<p>2) Selecciona el icono <code>Download ZIP</code></p>
+
+<p>3) Descarga</p>
+
+<p>4) Descomprime</p>
+
+<p><img src="../images/small_orange_diamond.png" alt="small_orange_diamond" /> Asumiendo que se descargó en <em>Downloads</em> y lo quieres colocar en <em>Desktop</em>, ejecuta los siguientes comandos:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:<span class="nv">$ </span><span class="nb">cd </span>Downloads
+user@node:~/Downloads<span class="nv">$ </span>unzip NAT64-&lt;version&gt;.zip -d ../Desktop</code></pre></div>
+
+<p>5) Compila ambos módulos SIIT y NAT64</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~<span class="nv">$ </span><span class="nb">cd</span> ../Desktop/NAT64-&lt;version&gt;/mod
+user@node:~/Desktop/NAT64-&lt;version&gt;/mod<span class="nv">$ </span>make</code></pre></div>
+
+<p>6) Instala</p>
+
+<p>El proceso de instalación consiste en copiar <code>los binarios generados</code>  a  <code>tu pool de módulos del sistema</code>. Empleando permisos de administrador ejecuta:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~/NAT64-&lt;version&gt;/mod# make modules_install</code></pre></div>
+
+<h2 id="genera-archivo-de-dependencias">Genera Archivo de Dependencias</h2>
+
+<p>El hecho de que residan en la pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás indexar los nuevos módulos. Ejecuta aqui también con permisos de administrador el comando:</p>
+
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">user@node:~# depmod</code></pre></div>
+
+<p>Mediante el comando <strong>depmod</strong> se genera el archivo de dependencias <em>Makefile</em> que usará <strong>modprobe</strong> para cargar los módulos, aprende cómo hacerlo consultando <a href="mod-run-vanilla.html">el ejemplo básico de SIIT</a>.</p>
+
+<p><img src="../images/thumbsup.png" alt="thumbsup" /> Jool puede ser inicializado ahora.</p>
+
+<blockquote>
+  <p><strong>ADVERTENCIA :</strong><br /></p>
+
+  <p>A partir del <strong>kernel 3.7</strong> en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
+Si tu kernel NO fue configurado para <em>solicitar</em> esta característica no tendrás problema. Los kernels de muchas distribuciones no lo hacen. Solo ten en cuenta que cuando corras el comando <code>make modules_install</code>, se mostrará el siguiente mensaje: <strong>“Can’t read private key”</strong>; esto puede parecer un error, pero de hecho es una advertencia, <a href="https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942">así que puedes continuar la instalación</a>.
+Si tu kernel <em>fue</em> compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. <strong>Nota:</strong> Lo omitiremos aquí.</p>
+</blockquote>
+
+
+					</div>
+				</div>
+			</div>
+			<div id="language_selector">
+				
+					<a href="../en/mod-install.html">en</a>
+				
+				|
+				
+					<span class="selected">es</span>
+				
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+	</div>
+
+	<div id="footer">
+		<div class="logo-tec"><a href="http://www.itesm.mx"><img src="../images/logo-tec.png" alt="logo-tec" /></a></div>
+		<div class="logo-nic"><a href="http://www.nicmexico.mx/"><img src="../images/logo-nic.png" alt="logo-nic" /></a></div>
+		<p class="legal">&copy;Jool 2015</p>
+	</div>
+
+	<script>
+	  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	  ga('create', 'UA-44741331-2', 'jool.mx');
+	  ga('send', 'pageview');
+
+	</script>
+</body>
+</html>
