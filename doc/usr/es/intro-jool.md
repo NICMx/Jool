@@ -17,7 +17,7 @@ title: Introducción a Jool
 
 ## Descripción
 
-Jool es una implementación de varios mecanismos de transición en IPv6. Todos en la categoría de traducción: [Stateful NAT64, SIIT y SIIT con EAM.](intro-nat64.html) Jool es una aplicación de código abierto (open source) en Linux, desarrollado sobre Ubuntu, y probado en otros Linux (Debian, CentOS, Raspbian, RedHat, SuSE).
+Jool es una implementación de código abierto de dos mecanismos de transición a IPv6: [SIIT y Stateful NAT64](intro-nat64.html).
 
 De Jool 1.0 a Jool 3.2.3 ->  Stateful NAT64<br /> 
 De Jool 3.3.0 en delante ->  Stateful NAT64, SIIT y SIIT con EAM
@@ -30,14 +30,14 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 |-----------|---------|--------|
 | [RFC 6052](https://tools.ietf.org/html/rfc6052) | Traducción de dirección IP | Cumple Totalmente. |
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | Marco de traducción IPv4/IPv6 | Cumple Totalmente. |
-| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | Cumple Totalmente. [Esta en desuso el empleo de los fragmentos atómicos](usr-flags-atomic.html#overview). . |
-| [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Por Completar.<br />(Problemas por la implementación del RFC 6145)<br />[(Políticas de Filtrado)](https://github.com/NICMx/NAT64/issues/41). |
+| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | Cumple, pero [la implementación de fragmentos atómicos está descuidada](usr-flags-atomic.html#overview). |
+| [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Falta implementar [Políticas de Filtrado](https://github.com/NICMx/NAT64/issues/41). |
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Por Completar](https://github.com/NICMx/NAT64/issues/114). |
-| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | Por Implementar.<br /> (Unificar Pool de direcciones en IPv4)<br /> (Extensión del encabezado de ICMP) |
-| [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC; vea abajo. |
+| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | El RFC quiere dos cosas: [pool6791](usr-flags-pool6791.html) (implementado) y extensión de encabezado de ICMP (no implementado). |
+| [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC; ver abajo. |
 | [draft-ietf-v6ops-siit-dc]({{ site.draft-siit-dc }}) | SIIT-DC | Cumple Totalmente. |
-| [draft-ietf-v6ops-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC Edge Translator | [Modo basado en Host.]({{ site.draft-siit-dc-2xlat }}#section-3.1) No Implementado. |
-| [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Deprecación de los Fragmentos Atómicos | Los continuamos soportando, pero [no recomendamos su uso](usr-flags-atomic.html#overview). |
+| [draft-ietf-v6ops-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC Edge Translator | [Modo basado en Host]({{ site.draft-siit-dc-2xlat }}#section-3.1) No Implementado. |
+| [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Deprecación de los Fragmentos Atómicos | Jool contiene código que maneja fragmentos atómicos, pero [va de salida](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Cumple totalmente. |
 
 ![email](../images/email.png) Por favor, [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras problemas de cumplimiento adicionales o RFCs/drafts que no hayamos considerado.
@@ -63,4 +63,5 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-![small_red_triangle_down](../images/small_red_triangle_down.png) Red Hat y CentOS muestran un warning debido a un error entre el kernel de base usado en Red Hat y el de Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">Estamos buscando aún cómo eliminarlo</a>, pero este mensaje no es crítico porque no nos ha ocasionado problemas durante las pruebas.
+![small_red_triangle_down](../images/small_red_triangle_down.png) Compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">Todavía estamos buscando maneras de solucionarlos</a>, pero no han causado problemas en pruebas.
+

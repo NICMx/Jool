@@ -11,7 +11,7 @@ title: Home
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](intro-nat64.html) para Linux. Desarrollado sobre Ubuntu. Probado en Debian, CentOS, SuSE, RedHat y recientemente en [Raspbian](http://namsep.blogspot.nl/2015/07/raspberry-pi-debian-nat64-dns64-joolmx.html).
+Jool es un [SIIT y NAT64](intro-nat64.html) de código abierto para Linux.
 
 * [Haz click aquí](documentation.html) para empezar a familiarizarte con el software.
 * [Haz click aquí](download.html) para descargar Jool.
@@ -20,18 +20,14 @@ Jool es un [SIIT y NAT64](intro-nat64.html) para Linux. Desarrollado sobre Ubunt
 
 ## Estatus
 
-Nuestra meta actual es que Jool sea un SIIT y un Stateful NAT64 [apegado a los estándares de la IEEE](intro-jool.html#cumplimiento). Nuestro agenda al 2015-04-13 es:
+Nuestra meta actual es terminar de alinear a Jool a los [requerimientos de la IETF](intro-jool.html#cumplimiento). Nuestro agenda al 2015-09-04 es:
 
-1. La [Versión 3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0) será una refactorización para [remover de Jool  Stateful NAT64 la necesidad de una segunda dirección IPv4](https://github.com/NICMx/NAT64/wiki/issue67:-Linux%27s-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.), y [optimizar el pool4](https://github.com/NICMx/NAT64/issues/36). (De hecho, son practicamente el mismo bug.)
+1. La [Versión 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) va a ser una [migración de framework](https://github.com/NICMx/NAT64/issues/140). Se está considerando convertir a Jool en un device driver o en un daemon. Se estima que esto lo hará más conforme a los RFCs relevantes y más intuitivo de configurar.
+2. La [Versión 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) añadirá funcionalidad nueva.
 
-2. La [Versión 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) implicará una [una reprogramación completa ](https://github.com/NICMx/NAT64/issues/140). Se está evaluando las alternativas de programarlo como un pseudo device o servicio (daemon) en el userspace. Se estima que esto lo hará más protable y simple de configurar, pero con algo de demérito en su performance.
+Es posible que existan versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues). Retroalimentación de usuarios puede persuadirnos a modificar prioridades. Si tienes alguna recomedación que darnos, presiona [aquí](contact.html).
 
-3. La [Versión 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) añadirá muchas caracteristicas nuevas.
-
-
-Es posible que existan versiones intermedias dependiendo de los problemas reportados. Sus sugerencias puede persuadirnos para cambiar prioridades. Si tienes alguna recomedación que darnos, presiona [aquí](contact.html).
-
-Nuestra versión más reciente es la [3.3.3](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.3).
+Nuestra versión más reciente es la [3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
 
 -------------------
 
@@ -46,7 +42,7 @@ Versión 3.3.3 liberada.
 Además en esta versión:
 
 1. [Se añadió el soporte para el framework DKMS!](https://github.com/NICMx/NAT64/pull/165)
-2. Se corrigieron los errores [#150](https://github.com/NICMx/NAT64/issues/150) y [#151] (https://github.com/NICMx/NAT64/issues/151) al usar la Herramienta de Configuración de Jool en el despliege de las tablas (bib, sessions y pools) cuando están vacías.
+2. Se corrigieron los errores [#150](https://github.com/NICMx/NAT64/issues/150) y [#151](https://github.com/NICMx/NAT64/issues/151).
 
 ### 2015-04-14
 
@@ -66,22 +62,22 @@ Se dieron de alta dos listas de correo:
 
 [jool@nic.mx](mailto:jool@nic.mx) aún puede ser utilizado para accesar a los desrrolladores.
 
-![small_red_triangle_down](../images/small_red_triangle_down.png) También nos gustaria disculparnos por el [inconveniente que tuvimos recientemente con el certificado](https://github.com/NICMx/NAT64/issues/149). Aunque están siendo generados, los archivos de la lista de correos no están disponibles todavia, y esto está en la lista de pendientes de nuestros administradores.
+![small_red_triangle_down](../images/small_red_triangle_down.png) También nos gustaria disculparnos por el [inconveniente que tuvimos recientemente con el certificado del sitio](https://github.com/NICMx/NAT64/issues/149). Aunque están siendo generados, los archivos de la lista de correos no están disponibles todavia, y esto está en la lista de pendientes de nuestros administradores.
 
 
 ### 2015-03-11
 
 [Error importante #137 descubierto](https://github.com/NICMx/NAT64/issues/137) ![heavy_exclamation_mark](../images/heavy_exclamation_mark.png)
 
-Precisamente, ya liberamos Jool 3.3.1 para resolver dicho problema.
+Ya liberamos Jool 3.3.1, que resuelve dicho problema.
 
 ### 2015-03-09
 
 Se ha concluido Jool 3.3.0.
 
-![small_red_triangle_down](../images/small_red_triangle_down.png) [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero las traducciones tipo Stateless para IP/ICMP (SIIT) son ahora soportadas.
+![small_red_triangle_down](../images/small_red_triangle_down.png) [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero la traducción Stateless (SIIT) es ahora parte del proyecto.
 
-Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este nuevo paradigma. [Aqui encontras un tutorial](mod-run-vanilla.html). Para su mejor comprensión, ve a [464XLAT](mod-run-464xlat.html).
+Lee la [introducción a SIIT/NAT64](intro-nat64.html) para conocer este paradigma. [Aqui encontrás un tutorial](mod-run-vanilla.html). También manténgase [464XLAT](mod-run-464xlat.html) en la mira.
 
 Se reorganizó la herramienta de configuración de Jool, por favor actualiza tus scripts:
 

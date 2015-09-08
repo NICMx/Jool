@@ -9,12 +9,12 @@ title: FAQ/Solución de problemas
 
 # FAQ/Solución de problemas
 
-Esto resume problemas en los cuales hemos visto que los usuarios se meten.
+Esto resume problemas con los cuales algunos usuarios se han topado.
 
 
 ## Instalé el módulo de Jool pero no parece estar haciendo nada.
 
-Instalar el módulo del Jool sin argumentos suficientes es legal. Asumirá que intentas terminar de configurar utilizando la Aplicación de espacio de usuario, y se mantendra inactivo hasta que lo hayas hecho.
+Instalar el módulo del Jool sin argumentos suficientes es legal. Asumirá que intentas terminar de configurar utilizando la Aplicación de espacio de usuario, y se mantendrá inactivo hasta que lo hayas hecho.
 
 Utiliza el parámetro [`--global`](usr-flags-global.html#description) para saber el estado en el que se encuentra Jool:
 
@@ -28,60 +28,27 @@ $ jool --global
   Status: Disabled
 {% endhighlight %}
 
-Los requerimientos minimos de configuracion del SIIT de Jool son:
+Los requerimientos mínimos de configuración de SIIT Jool son:
 
 - Un prefijo en el [pool IPv6](usr-flags-pool6.html) **o** por lo menos un registro en la [tabla EAM](usr-flags-eamt.html).
 - No debes de haberlo [deshabilitado manualmente](usr-flags-global.html#enable---disable).
 
-Los requerimientos minimos de configuración de Stateful Jool son:
+Los requerimientos mínimos de configuración de NAT64 Jool son:
 
-- Por lo menos un prefijo en el [pool IPv6](usr-flags-pool6.html).
-- Por lo menosd un(a) prefijo/dirección en el [pool IPv4](usr-flags-pool4.html).
+- Por lo menos un prefijo en [pool6](usr-flags-pool6.html).
+- Por lo menos un(a) prefijo/dirección en [pool4](usr-flags-pool4.html).
 - No debes de haberlo [deshabilitado manualmente](usr-flags-global.html#enable---disable).
 
 
-Si ese no es el problema, intenta habilitar la depuración mientras compilas.
+Si eso no parece ser el problema, trata ver los [logs](#logging.html).
 
-	user@node:~/Jool-<version>/mod$ make debug
+## ¿Qué hago con este mensaje de error? Es horriblemente ambiguo.
 
-Reinstalalo. Jool sera mas descriptivo en `dmesg`:
+Esto sucede si tu terminal no está escuchando mensajes del kernel de severidad "error".
 
-	$ dmesg | tail -5
-	[ 3465.639622] ===============================================
-	[ 3465.639655] Catching IPv4 packet: 192.0.2.16->198.51.100.8
-	[ 3465.639724] Translating the Packet.
-	[ 3465.639756] Address 192.0.2.16 lacks an EAMT entry and there's no pool6 prefix.
-	[ 3465.639806] Returning the packet to the kernel.
+El chiste es que, si se le pide algo a Jool mediante la aplicación de usuario y hay un problema, Jool no regresa la versión amigable del error a la aplicación ([reporte](https://github.com/NICMx/NAT64/issues/169)); en lugar de eso la imprime en los logs. Lo único que recibe la aplicación es un código genérico de Unix, y eso es lo que reporta al usuario.
 
-Si no esta imprimiendo nada a pesar de que estas habilitando la depuración, quizá es por que tu nivel de lo es muy alto. Ve [esto](http://elinux.org/Debugging_by_printing#Log_Levels).
-
-Los mensajes de depuración se vuelven rápidamente gigabytes de log, asi que recuerda revertor esto antes de ponerlo en producción.
-
-
-## Que hacer con este mensaje de error? Está horriblemente ambigüo.
-
-Así es, los mensajes de respuesta del modulo del kernel hacia el espacio de usuario son muy primitivos. Podriamos mejorar realmente la comunicación con la Aplicación de espacio de usuario, pero no tenemos control sobre la comunicación de `modprobe`.
-
-De cualquier forma, tendras mejor suerte leyendo los logs de Jool. Como con cualquier otro componente del kernel, los mensajes de Jool estan mezclados junto con otros y se pueden ver ejecutando `dmesg` En general, la mayor parte de los kernels son muy silenciosos una vez que han terminado la fase de arranque, asi que el mensaje mas reciente de Jool deberia encontrarse hasta el final.
-
-
-{% highlight bash %}
-$ sudo modprobe jool_siit pool6=2001:db8::/96 pool4=192.0a.2.0/24
-ERROR: could not insert module jool_siit.ko: Invalid parameters
-$ dmesg | tail -1
-[28495.042365] SIIT Jool ERROR (parse_prefix4): IPv4 address or prefix is malformed:
-192.0a.2.0/24.
-{% endhighlight %}
-
-{% highlight bash %}
-$ sudo jool --bib --add --tcp 2001:db8::1#2000 192.0.2.5#2000
-TCP:
-Invalid input data or parameter (System error -7)
-$ dmesg | tail -1
-[29982.832343] NAT64 Jool ERROR (add_static_route): The IPv4 address and port could not be
-reserved from the pool. Maybe the IPv4 address you provided does not belong to the pool.
-Or maybe they're being used by some other BIB entry?
-{% endhighlight %}
+[Corre `dmesg` o una de sus variantes para consultar los logs](#logging.html), como se muestra en el [reporte](https://github.com/NICMx/NAT64/issues/169).
 
 ## Jool es intermitentemente incapaz de traducir tráfico.
 
@@ -93,9 +60,9 @@ ip addr flush dev eth1
 
 ?
 
-Entonces quizá hayas eliminado las [direcciones de enlace](http://es.wikipedia.org/wiki/Direcci%C3%B3n_de_Enlace-Local) de la interfáz.
+Entonces quizá hayas eliminado las [direcciones de enlace](http://es.wikipedia.org/wiki/Direcci%C3%B3n_de_Enlace-Local) de la interfaz.
 
-Las direcciónes de enlace son utilizadas por muchos portocolos IPv6 relevantes. En particular, son utilizadas por el *Protocolo de Descubrimiento de Vecinos*, lo que significa que si no las tienes, la máquina de traducción tendrá problemas para encontrar a sus vecinos IPv6.
+Las direcciones de enlace son utilizadas por muchos protocolos de IPv6 relevantes. En particular, son utilizadas por el *Protocolo de Descubrimiento de Vecinos*, lo que significa que si no las tienes, la máquina de traducción tendrá problemas para encontrar a sus vecinos IPv6.
 
 Observa la salida de `ip addr`.
 
@@ -117,7 +84,7 @@ Observa la salida de `ip addr`.
        valid_lft forever preferred_lft forever
 </code></pre></div>
 
-La primera interfaz está correctamente configurada; tiene ambas una dirección de "alcance global" (utilizada para un tráfico típico) y una direccion de "alcance de enlace"(utilizada para administración interna). La interfáz _eth1_ carece de una dirección de enlace, y como resultado tiende a inducir dolores de cabeza.  
+La interfaz _eth0_ está correctamente configurada; tiene tanto una dirección de "alcance global" (utilizada para un tráfico típico) y una dirección de "alcance de enlace" (utilizada para administración interna). La interfaz _eth1_ carece de una dirección de enlace, y como resultado tiende a inducir dolores de cabeza.
 
 La manera más facil de restaurar las "direcciones de "alcance de enlace", que hemos encontrado, es reiniciar la interfaz:
 
@@ -126,7 +93,7 @@ ip link set eth1 down
 ip link set eth1 up
 {% endhighlight %}
 
-Si, hablo encerio:
+Si, hablo en serio:
 
 <div class="highlight"><pre><code class="bash">user@T:~$ /sbin/ip address
 1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 16436 qdisc noqueue state UNKNOWN 
@@ -146,28 +113,29 @@ Si, hablo encerio:
        valid_lft forever preferred_lft forever
 </code></pre></div>
 
-(Toma en cuenta que, necesitas agregar la dirección global de nuevo)
+(Toma en cuenta que necesitas agregar la dirección global de nuevo.)
 
-Tambien, como referencia futura, ten en mente que la manera "correcta" de vaciar una interfaz es
+Como referencia futura, ten en mente que la manera "correcta" de vaciar una interfaz es
 
 
 {% highlight bash %}
 ip addr flush dev eth1 scope global
 {% endhighlight %}
 
-IPv4 no necesita direcciones de enlace.
+IPv4 es menos problemático con direcciones de enlace.
 
 
 ## El rendimiento es terrible!
 
-[deshabilita los offloads!](offloading.html)
+[Deshabilita offloads!](offloading.html)
 
-Si estas ejecutando Jool en una máquina virtual huesped, algo importante que debes mantener en mente es que quizá prefieras o tambien tengas que deshabilitar los offloads en el enlace ascendente de la [máquina virtual](http://en.wikipedia.org/wiki/Hypervisor)
+Si estás ejecutando Jool en una máquina virtual huésped, algo importante que debes considerar es que quizá tengas que deshabilitar los offloads en el enlace ascendente de la [máquina virtual](http://en.wikipedia.org/wiki/Hypervisor).
 
 ## No puedo hacer ping a la dirección IPv4 del pool.
 
-De hecho, esto es normal en Jool 3.2.x y versiones anteriores. La dirección de destino del paquete ping es traducible, asi que Jool se esta robando el paquete. Desafortunadamente, no tiene ningun registro relevante en el BIB (por que el ping no fue iniciado desde IPv6), asi que la traducción falla( y el paquete es desechado).
+En realidad, esto es normal en Jool 3.2.x y versiones anteriores. La dirección destino del ping es traducible, de modo que Jool se está robando el paquete. Desafortunadamente, no tiene ningún registro relevante en la BIB (porque el ping no fue iniciado desde IPv6), así que la traducción falla (y el paquete es desechado).
 
-Dejando de lado este aspecto extraño, no causa ninguna otra catastrofe; solo haz ping a la dirección del nodo.
+Simplemente trata pingueando a la dirección del nodo.
 
-Jool 3.3+ maneja mejor esto asi que el ping deberia de ser exitoso.
+Jool 3.3+ maneja mejor esto, de modo que el ping debería ser exitoso.
+

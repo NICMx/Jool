@@ -8,7 +8,6 @@ title: Contact
 # Contact
 
 - jool-list@nic.mx is a mail list intended for general public discussion and news. Questions, requests and comments welcomed.  
-  A misplaced security gimmic currently prevents the archives from being public, but they are actually being built and will become available as soon as the TODO reaches one of our admins.  
   You can register to this list [here](https://mail-lists.nic.mx/listas/listinfo/jool-list).
 - jool-news@nic.mx is a mail list intended to inform news to its recipients. At this point, it is only used to signal new releases being published at this site.  
   Anyone can listen, but only the dev team can place mails here, so you don't have to worry about spam.  
