@@ -96,33 +96,29 @@ enum config_operation {
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
 };
-struct global_bits_struct
+struct global_bits
 {
-   __u32 manually_enabled : 1,
-   address_dependent_filtering : 1,
-   drop_icmpv6_info : 1,
-   drop_externally_initiated_tcp : 1,
-   udp_timeout: 1,
-   tcp_est_timeout : 1,
-   tcp_trans_timeout : 1,
-   icmp_timeout : 1,
-   fragment_arrival_timeout : 1,
-   maximum_simultaneous_opens : 1,
-   source_icmpv6_errors_better : 1,
-   logging_bib : 1,
-   logging_session : 1,
-   zeroize_traffic_class : 1,
-   override_tos : 1,
-   tos : 1,
-   mtu_plateaus : 1,
-   amend_udp_checksum_zero,
-   randomize_rfc6791_addresses:1;
+   __u8 manually_enabled;
+   __u8 address_dependent_filtering;
+   __u8 drop_icmpv6_info;
+   __u8 drop_externally_initiated_tcp;
+   __u8 udp_timeout;
+   __u8 tcp_est_timeout;
+   __u8 tcp_trans_timeout;
+   __u8 icmp_timeout;
+   __u8 fragment_arrival_timeout;
+   __u8 maximum_simultaneous_opens;
+   __u8 source_icmpv6_errors_better;
+   __u8 logging_bib;
+   __u8 logging_session;
+   __u8 zeroize_traffic_class;
+   __u8 override_tos;
+   __u8 tos;
+   __u8 mtu_plateaus;
+   __u8 amend_udp_checksum_zero;
+   __u8 randomize_rfc6791_addresses;
 };
 
-union global_bits {
-	struct global_bits_struct as_fields;
-	__u32 as_int;
-};
 
 
 

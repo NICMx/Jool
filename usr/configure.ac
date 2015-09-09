@@ -9,6 +9,8 @@ AM_INIT_AUTOMAKE([subdir-objects])
 # Checks for programs.
 AC_PROG_CC
 
+AM_PROG_CC_C_O
+
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h stdlib.h string.h unistd.h])
 

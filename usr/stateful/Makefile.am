@@ -10,6 +10,7 @@ jool_SOURCES = \
 	../common/netlink.c \
 	../common/str_utils.c \
 	../common/cJSON.c \
+	../common/JsonReaderCommon.c \
 	../common/argp/options.c \
 	../common/target/pool6.c \
 	../common/target/pool4.c \
