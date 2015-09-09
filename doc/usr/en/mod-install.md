@@ -38,7 +38,7 @@ $ /bin/uname -r
 $ # OK, fine.
 {% endhighlight %}
 
-If you're just getting acquainted with IPv4/IPv6 Translation, some people have an easier time picturing the ordeal when the translator has two separate network interfaces (one to interact with IPv6 networks, one for IPv4 networks). This is not a requirement; you can get away with only one interface (by dual stacking on it), and you can also have more than one per protocol. This is possible because figuring out which interface should a packet be dispatched through is routing's problem, which is already well implemented in the kernel.
+If you're just getting acquainted with IPv4/IPv6 Translation, some people have an easier time picturing the ordeal when the translator has two separate network interfaces (one to interact with IPv6 networks, one for IPv4 networks). This is not a requirement; you can get away with only one interface (by [dual stacking](mod-run-alternate.html) on it), and you can also have more than one per protocol. This is possible because figuring out which interface should a packet be dispatched through is routing's problem, which is already well implemented in the kernel.
 
 Because the tutorials are first and foremost a tool to get newcomers on the right mindset, most of the deployment discussion will assume two separate interfaces (exemplified below: eth0 and eth1).
 

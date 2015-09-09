@@ -14,8 +14,8 @@
    height="448"
    id="svg2"
    version="1.1"
-   inkscape:version="0.91 r13725"
-   sodipodi:docname="mtu-frag-fail.svg">
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="mtu-frag-fail-es.svg">
   <defs
      id="defs4">
     <marker
@@ -55,17 +55,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.0000001"
-     inkscape:cx="214.51804"
-     inkscape:cy="368.94766"
+     inkscape:cx="216.51804"
+     inkscape:cy="231.44767"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
      showguides="false"
      inkscape:guide-bbox="true"
-     inkscape:window-width="1600"
-     inkscape:window-height="838"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
+     inkscape:window-width="1920"
+     inkscape:window-height="1028"
+     inkscape:window-x="0"
+     inkscape:window-y="24"
      inkscape:window-maximized="1">
     <inkscape:grid
        type="xygrid"
@@ -97,7 +97,7 @@
      style="display:inline">
     <path
        style="fill:#fff6d5;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-opacity:1;stroke-dashoffset:0"
-       d="m 70,925.36218 165,0 c 7.43379,0 15,4.56621 15,12 l 0,23 c 0,7.43379 -7.56621,12 -15,12 l -165,0 c -7.433792,0 -15,-4.56621 -15,-12 l 0,-23 c 0,-7.43379 7.566208,-12 15,-12 z"
+       d="m 30,925.36218 405,0 c 7.43379,0 15,4.56621 15,12 l 0,23 c 0,7.43379 -7.56621,12 -15,12 l -405,0 c -7.433792,0 -15,-4.56621 -15,-12 l 0,-23 c 0,-7.43379 7.566208,-12 15,-12 z"
        id="rect5061"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="sssssssss" />
@@ -295,7 +295,7 @@
          style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;display:inline" />
       <path
          transform="matrix(0.71302118,0,0,1,2.0088518,0)"
-         d="M 12,227 A 2.5,2.5 0 0 1 9.5,229.5 2.5,2.5 0 0 1 7,227 2.5,2.5 0 0 1 9.5,224.5 2.5,2.5 0 0 1 12,227 Z"
+         d="m 12,227 c 0,1.38071 -1.119288,2.5 -2.5,2.5 -1.3807119,0 -2.5,-1.11929 -2.5,-2.5 0,-1.38071 1.1192881,-2.5 2.5,-2.5 1.380712,0 2.5,1.11929 2.5,2.5 z"
          sodipodi:ry="2.5"
          sodipodi:rx="2.5"
          sodipodi:cy="227"
@@ -332,7 +332,7 @@
          sodipodi:cy="235.21933"
          sodipodi:rx="48.57143"
          sodipodi:ry="48.57143"
-         d="m 122.85714,235.21933 a 48.57143,48.57143 0 0 1 -48.571427,48.57143 48.57143,48.57143 0 0 1 -48.57143,-48.57143 48.57143,48.57143 0 0 1 48.57143,-48.57143 48.57143,48.57143 0 0 1 48.571427,48.57143 z"
+         d="m 122.85714,235.21933 c 0,26.82526 -21.74617,48.57143 -48.571427,48.57143 -26.82526,0 -48.57143,-21.74617 -48.57143,-48.57143 0,-26.82526 21.74617,-48.57143 48.57143,-48.57143 26.825257,0 48.571427,21.74617 48.571427,48.57143 z"
          transform="matrix(0.48595445,0,0,0.29851852,260.00403,694.04082)" />
       <path
          style="fill:none;stroke:#ffffff;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -500,19 +500,19 @@
          sodipodi:role="line">n4</tspan></text>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:12px;line-height:125%;font-family:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
-       x="153.52982"
+       style="font-size:12px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="233.52982"
        y="943.98566"
        id="text5051"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
-         id="tspan5053"
-         x="153.52982"
-         y="943.98566">¿Sobre que medio estás?</tspan><tspan
+         x="233.52982"
+         y="943.98566"
+         id="tspan3073">¿Por qué me estás diciendo que necesitas permiso para fragmentar?</tspan><tspan
          sodipodi:role="line"
-         x="153.52982"
+         x="233.52982"
          y="958.98566"
-         id="tspan5055">¡Permitiré la fragmentación!</tspan></text>
+         id="tspan5055">¡Yo permití fragmentación!</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"

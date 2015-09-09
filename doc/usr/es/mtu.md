@@ -9,33 +9,27 @@ title: MTU y Fragmentación
 
 # MTU y Fragmentación
 
-TODO - Pendiente hacer revisión
-
 ## Enunciación del problema
 
-Hay una diferencia principal entre IPv4 e IPv6 la cual un traductor IP no puede compensar.
+Hay una diferencia entre IPv4 e IPv6 por la cual un traductor IP no puede compensar.
 
-La cabecera de un paquete IPv4 con tiene un "parámetro" llamado **No Fragmentar** o en inglés [_Don't fragment_](http://en.wikipedia.org/wiki/IPv4#Packet_structure)(DF). Determina si la fuente le permite a los routers fragmentar el paquete.
+La cabecera IPv4 contiene un parámetro llamado [_Don't fragment_](http://en.wikipedia.org/wiki/IPv4#Packet_structure) (DF/No Fragmentar), que determina si el nodo fuente desea permitir a routers fragmentar en caso de que el paquete alcance un enlace por el cual no puede pasar debido a su tamaño.
 
-En IPv6, los paquetes nunca pueden ser fragmentados por los routers. Es como si el parámetro **No Fragmentar** siempre estuviera encendido.
+En IPv6, los paquetes nunca pueden ser fragmentados por routers. Es como si DF siempre estuviera encendido.
 
-Cuando hay un traductor en el medio, un paquete IPv4 el cual puede ser fragmentado se convierte en un paquete IPv6 que no debe de ser fragmentado.
+Por lo tanto, cuando hay un traductor enmedio, un paquete IPv4 que puede ser fragmentado siempre se convierte en un paquete IPv6 que no debe ser fragmentado.
 
-Asi que, que pasa si el paquete es muy grande?
+¿Qué pasa si el paquete es muy grande?
 
-(Los tamaños actuales de los paquetes son diferentes debido a cambios en los headers, pero entiendes el punto.)
+(En realidad, los tamaños reales de los paquetes cambian debido a encabezados reemplazados, pero este detalle no afecta al ejemplo.)
 
-![Fig.1 - flujo MTU fallido](../images/flow/mtu-frag-fail-es.svg)
+![Fig.1 - flujo MTU fallido](../images/flow/mtu-frag-fail-es.svg "Fig.1 - flujo MTU fallido")
 
-Esta definido por implementación. Si _n4_ es inteligente, tratará de decrementar la longitud del paquete. Si no, el paquete nunca llegará a _n6_.
+El resultado es definido por implementación. Si _n4_ es inteligente, tratará de reducir el tamaño del paquete paquete. Si no, el paquete nunca llegará a _n6_.
 
-Implementaciones apropiadas de hecho utilizan [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery) y por lo tanto jamas desactivan el parámetro de **No Fragmentar**. 
+En la vida real, una implementación puesta al día no enfrenta este problema dado que utiliza [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery), y por lo tanto jamás desactiva DF. Sin embargo, software terco o legado no es demasiado difícil de encontrar.
 
-It's implementation defined. If _n4_ is smart, it will try to decrease the lenght of the packet. If it's not, the packet will never reach _n6_.
-
-Proper implementations today actually use [Path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery) and therefore never unset the DF flag. Still, stubborn or legacy code is not unheard of.
-
-Por cierto: cuando quieras saber el MTU de un link, preguntale a Linux:
+Por cierto: El comando `ip` puede ser usado para conocer el MTU de un enlace:
 
 <div class="highlight"><pre><code class="bash">$ ip link
 (...)
@@ -45,20 +39,19 @@ Por cierto: cuando quieras saber el MTU de un link, preguntale a Linux:
 
 ## Solución
 
-Si conoces el MTU más pequeño a lo largo de todas tus redes IPv6, dile a _T_ sobre el:
+Si el MTU más pequeño a lo largo de todas las redes IPv6 es conocido, una solución es informárselo a _T_:
 
-![Fig.2 - Proper Network](../images/network/mtu-frag.svg)
+{% highlight bash %}
+user@T:~/# ip link set dev eth0 mtu 1300
+{% endhighlight %}
 
-_T_ sabe que está traduciendo, asi que sabe que **tiene** que fragmentar aunque es una especie de router IPv6.
+![Fig.2 - Reducido el MTU de T-R](../images/network/mtu-frag.svg "Fig.2 - Reducido el MTU de T-R")
 
-Jool solia tener un parámetro llamado `--minMTU6` para hacer esto. Ya que confiar la fragmentación al kernel es considerada una mejor práctica, ahora lo configuras en Linux desde la versión de Jool 3.3.
-
-	ip link set dev eth0 mtu 1300
+_T_ sabe que está traduciendo, de modo que sabe que **tiene** que fragmentar a pesar de ser un pseudo-router de IPv6.
 
 Y voilà:
 
 ![Fig.3 - MTU flow succeeds](../images/flow/mtu-frag-success-es.svg)
 
-Si no sabes el MTU mínimo de tus redes IPv6, asigna 1280. Todo nodo IPv6 debe de ser capáz de manejar por lo menos 1280 bytes por paquete de forma estandarizada.
-
+Si el MTU mínimo de las redes IPv6 no es conocido, es buena idea asignar 1280. Por estándar, todo nodo IPv6 debe ser capaz de manejar por lo menos 1280 bytes por paquete.
 

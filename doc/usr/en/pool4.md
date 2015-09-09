@@ -30,7 +30,7 @@ To illustrate:
 
 In Jool, we write transport addresses in the form `<IP address>#<port>` (as opposed to `<IP address>:<port>`). The packet above has source IP address `2001:db8::8`, source port (TCP or UDP) 5123, destination address `64:ff9b::192.0.2.24`, and destination port 80.
 
-Assuming pool4 holds transport addresses 203.0.113.1#5000 through 203.0.113.1#6000, one possible translation of the packet is this:
+Assuming pool4 holds transport addresses 192.0.2.1#5000 through 192.0.2.1#6000, one possible translation of the packet is this:
 
 ![Fig. 2 - T's translation - version 1](../images/flow/pool4-simple2-en.svg "Fig. 2 - T's translation - version 1")
 

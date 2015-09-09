@@ -30,7 +30,7 @@ Para ilustrar:
 
 En Jool, escribimos las direcciones de transporte en la forma `<dirección de IPv4>#<puerto>` (en lugar de "`<dirección de IPv4>:<puerto>`"). El paquete mostrado arriba tiene dirección fuente `2001:db8::8`, puerto fuente 5123, dirección destino `64:ff9b::192.0.2.24`, y puerto destino 80.
 
-Asumiendo que pool4 contiene las direcciones `203.0.113.1#5000` hasta la `203.0.113.1#6000`, una posible traducción del paquete es
+Asumiendo que pool4 contiene las direcciones `192.0.2.1#5000` hasta la `192.0.2.1#6000`, una posible traducción del paquete es
 
 ![Fig. 2 - paquete traducido, versión 1](../images/flow/pool4-simple2-en.svg "Fig. 2 - paquete traducido, versión 1")
 
@@ -38,7 +38,7 @@ Otra, igualmente válida, es
 
 ![Fig. 3 - paquete traducido, versión 2](../images/flow/pool4-simple3-en.svg "Fig. 3 - paquete traducido, versión 2")
 
-Los NAT64s no se preocupan mucho por conservar puertos fuente durante traducciones. De hecho, por seguridad, [existen recomendaciones para que tiendan a ser impredecibles]({{ site.draft-nat64-port-allocation }}).
+Los NAT64s no se preocupan por conservar puertos fuente durante traducciones. De hecho, por seguridad, [existen recomendaciones para que tiendan a ser impredecibles]({{ site.draft-nat64-port-allocation }}).
 
 Al definir las direcciones y puertos que van a entrar en pool4, es necesario considerar que no deben colisionar con otros servicios o clientes que puedan estar en el mismo nodo traductor. Si _T_ trata de abrir una coneción desde la dirección de transporte `192.0.2.1#5000`, y a la vez una traducción resulta en la misma dirección de transporte, la información transmitida en las dos conexiones se va a mezclar.
 

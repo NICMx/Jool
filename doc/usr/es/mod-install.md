@@ -12,38 +12,39 @@ title: Instalación del Servidor Jool
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Requerimientos](#requerimientos)<br />
-	a) [Kernels Válidos](#kernels-vlidos)<br />
-	b) [Encabezados del Kernel](#encabezados-del-kernel)<br />
-	c) [Interfaces de Red](#interfaces-de-red)<br />
-	d) [Ethtool](#ethtool)
-3. [Baja, Compila e Instala](#baja-compila-e-instala)<br />
-	a) [De la Web Oficial](#de-la-web-oficial)<br />
-	b) [Del Repositorio GIT](#del-repositorio-git)
-4. [Genera Archivo de Dependencias](#genera-archivo-de-dependencias)
+2. [Requerimientos](#requerimientos)
+	1. [Kernels Válidos](#kernels-vlidos)
+	2. [Encabezados del Kernel](#encabezados-del-kernel)
+	3. [Interfaces de Red](#interfaces-de-red)
+	4. [DKMS](#dkms)
+	5. [Ethtool](#ethtool)
+3. [Obtención del Código](#obtencin-del-cdigo)
+3. [Compilación e Instalación](#compilacin-e-instalacin)
+	1. [DKMS](#instalacin-mediante-dkms)
+	2. [Kbuild](#instalacin-mediante-kbuild)
 
 ## Introducción
 
-Jool tiene cuatro componentes, es decir, cuatro ejecutables:
+Jool es cuatro binarios:
 
-1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`.
-2. Dos aplicaciones en el [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario),  una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo) que se ligan a Linux. Uno de ellos (`jool`) implementa Stateful NAT64, el otro (`jool_siit`) implementa SIIT.  
+Son los encargados de traducir paquetes.
+2. Una aplicación de [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario) por módulo.  
+Sirven para configurar a sus respectivos módulos.
 
-En este documento nos enfocaremos a los primeros dos módulos del kernel, o sea, a las aplicaciones principales para habilitar uno u otro servicio. Para activar la traducción de paquetes se requiere insertar los módulos en el kernel. Continúe leyendo este documento, si quiere conocer cuáles son los requisitos y su procedmiento.
-
-La instalación de los Módulos del Kernel es convencional, pero para los usuarios que no tienen experiencia previa en instalar aplicaciones que son extensiones al kernel, les podrá ser de gran utilidad.
-
-Las aplicaciones en el espacio de usuario son para configuración de Jool, la explicación de cómo instalarlas se encuentra en una [página aparte](usr-install.html).
+Este documento se enfocará en la instalación de los módulos del kernel. La instalación de las aplicaciones de usuario tienen su [propio procedimiento](usr-install.html).
 
 ## Requerimientos
 
+Debido a la variedad de kernels que existen, no es factible distribuir binarios de módulos de kernel, de modo que es necesario que se compilen localmente.
+
+(En segmentos de código venideros, `$` indica que el comando no requiere privilegios; `#` indica necesidad de permisos.)
+
 ### Kernels Válidos
 
-Jool fue desarrollado sobre ambiente linux y lenguaje de programación "C". Para conocer la lista actualizada de kernels soportados y probados en las diferentes distribuciones de Linux [haz click aquí](intro-jool.html#compatibilidad). Es factible que no vaya a haber problema alguno, al compilar Jool en versiones más recientes de kernel. ¡Ánimo, prueba y compartenos tu experiencia!
+Jool soporta kernels de Linux a partir de la versión 3.0, y ha sido probado en varios [incrementos](intro-jool.html#compatibilidad).
 
-NOTA: No recomendamos usar el kernel 3.12 porque [el sistema se inhibe cuando se invoca la función icmpv6_send](https://github.com/NICMx/NAT64/issues/90).
-
-Para verificar la versión de tu kernel, usa el siguiente comando:
+El siguiente comando puede ser usado para consultar la versión del kernel actual:
 
 {% highlight bash %}
 $ /bin/uname -r
@@ -51,15 +52,17 @@ $ /bin/uname -r
 
 ### Encabezados del Kernel
 
-Para que Jool se compile y lige sin problemas es necesario que tu equipo cuente con los encabezados de kernel para la versión en la que te dispones a trabajar. Para ello, ejecuta con permisos de administrador lo siguiente:
+Son dependencia de cualquier módulo y le indican a Jool los parámetros bajo los cuales fue compilado Linux. La mayoría de las distribuciones hostean estos archivos en sus repositorios. Ejecutar con permisos de administrador lo siguiente:
 
 {% highlight bash %}
-user@node# apt-get install linux-headers-$(uname -r)
+# apt-get install linux-headers-$(uname -r)
 {% endhighlight %}
 
 ### Interfaces de Red
 
-Jool requiere al menos de una interfaz de red para poder comunicarse con los nodos via IPv6 e IPv4. Esto es posible, al habilitar una sola interfaz de red, con doble pila y varios protocolos, pues el kernel lo permite; sin embargo, por consideración a las personas que están incursionando en este tipo de aplicaciones se usarán `dos interfaces de red separadas: una para IPv6 y otra para IPv4`. Y de esta manera, poder identificar más facilmente los paquetes al usar las aplicaciones de debugeo como WireShark y otros. Entonces, para validar cuáles y cuántas interfaces de red están disponibles ejecuta lo siguiente:
+[Es posible traducir paquetes a través de una sola interfaz de red](mod-run-alternate.html), pero es más intuitivo comprender SIIT y NAT64 cuando se tienen dos: Una para IPv4 y otra para IPv6.
+
+Por lo tanto, si se están utilizando estos documentos con fines educativos, se recomienda tener al menos dos interfaces:
 
 {% highlight bash %}
 $ ip link show
@@ -70,107 +73,63 @@ $ ip link show
     link/ether 08:00:27:ca:18:c8 brd ff:ff:ff:ff:ff:ff
 {% endhighlight %}
 
+### DKMS
+
+DKMS es un framework que se encarga de administrar módulos. Es opcional pero recomendado (la razón se discute abajo, en la sección [Compilación e Instalación](#compilacin-e-instalacin)).
+
+{% highlight bash %}
+# apt-get install dkms
+{% endhighlight %}
+
 ### Ethtool
 
-Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros. Para instalarla ejecuta con permisos de administrador:
+Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros.
 
 {% highlight bash %}
-user@node# apt-get install ethtool
+# apt-get install ethtool
 {% endhighlight %}
 
-## Baja, Compila e Instala
+## Obtención del código
 
-Por simplicidad, solo se distribuyen los fuentes. Para descargar Jool, hay dos opciones:
+Existen dos opciones:
 
-* Las versiones oficiales de Jool en nuestro Sitio Web. Éstas se encuentran en la [Página de Descarga](download.html).
-* Las versiones en desarrollo en nuestro Repositorio de GitHub. Éstas se encuentran en [Proyecto NAT64](https://github.com/NICMx/NAT64). 
+* Releases oficiales en la [página de descarga](download.html).  
+Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
+* Está el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
 
-Existen algunas pequeñas variantes al bajarlo de un portal u otro, no tan solo de nombre, sino de contenido.
+## Compilación e Instalación
 
-Quizá estes acostumbrado a un procedimiento estándar de tres pasos para compilar e instalar programas: `./configure && make && make install`. Los módulos de kernel no vienen con un script `configure`, para generar el Makefile, sino ya está hecho, por lo que solo se requiere ejecutar los últimos dos pasos.
+Existen dos medios para instalar a Jool: Kbuild y DKMS.
 
-### De la Web Oficial
+Kbuild es un modo básico que simplemente se dedica a compilar e instalar el módulo para la versión actual del kernel. El Dynamic Kernel Module Support (DKMS) framework [añade la posibilidad de que el módulo se adapte a actualizaciones de Linux](https://en.wikipedia.org/wiki/Dynamic_Kernel_Module_Support) (un módulo instalado con Kbuild requiere recompilación y reinstalación cada vez que se actualiza Linux).
 
-Si buscas la versión más estable o versiónes anteriores de Jool, entonces descárgalo desde este mismo portal, dirigiendote a la [página de Descarga](download.html). Sigue estos pasos:
+Para todo propósito es recomendado preferir DKMS.
 
-1) Elige la versión
+### Instalación mediante DKMS
 
-2) Elige el formato (zip, sha, md5)
-
-3) Descarga el archivo comprimido
-
-4) Descomprime
-
-![small_orange_diamond](../images/small_orange_diamond.png) Asumiendo que lo bajastes en formato ZIP, en la carpeta de _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
+<!-- TODO Incluye alternativa de Github. -->
 
 {% highlight bash %}
-user@node:$ cd Downloads
-user@node:~/Downloads$ unzip Jool-<version>.zip -d ../Desktop
+$ unzip Jool-<version>.zip
+# dkms install Jool-<version>
 {% endhighlight %}
- 
-5) Compila ambos módulos SIIT y NAT64
+
+### Instalación mediante Kbuild
 
 {% highlight bash %}
-user@node:~$ cd ../Desktop/Jool-<version>/mod
-user@node:~/Desktop/Jool-<version>/mod$ make
+$ unzip Jool-<version>.zip
+$ cd Jool-<version>/mod
+$ make                  # compila
+# make modules_install  # instala
+# depmod                # indexa
 {% endhighlight %}
 
-6) Instala
+> **Nota**
+> 
+> Por razones de seguridad, kernels 3.7 en adelante buscan que módulos instalados estén firmados.
+> 
+> Si el kernel no fue configurado para _requerir_ esta característica, `make modules_install` imprimirá el mensaje "Can't read private key", lo cual es una advertencia, no un error. La instalación puede proseguir sin cambios.
+> 
+> Si el kernel _fue_ compilado para solicitar firmado de módulos, más burocracia (omitida aquí) es requerida.
 
-El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`. Empleando permisos de administrador ejecuta:
-
-{% highlight bash %}
-user@node:~/Jool-<version>/mod# make modules_install
-{% endhighlight %}
-
-### Del Repositorio GIT
-
-Si descargas Jool del [Repositorio de Github](https://github.com/NICMx/NAT64), te sugerimos acceder el último commit de la rama principal, porque las otras ramas son para desarrollo, y están en constante cambio y no hay garantía. Sigue estos pasos:
-
-1) Elige la rama "master"
-
-2) Selecciona el icono `Download ZIP`
-
-3) Descarga
-
-4) Descomprime
-
-![small_orange_diamond](../images/small_orange_diamond.png) Asumiendo que se descargó en _Downloads_ y lo quieres colocar en _Desktop_, ejecuta los siguientes comandos:
-
-{% highlight bash %}
-user@node:$ cd Downloads
-user@node:~/Downloads$ unzip NAT64-<version>.zip -d ../Desktop
-{% endhighlight %}
- 
-5) Compila ambos módulos SIIT y NAT64
-
-{% highlight bash %}
-user@node:~$ cd ../Desktop/NAT64-<version>/mod
-user@node:~/Desktop/NAT64-<version>/mod$ make
-{% endhighlight %}
-
-6) Instala
-
-El proceso de instalación consiste en copiar `los binarios generados`  a  `tu pool de módulos del sistema`. Empleando permisos de administrador ejecuta:
-
-{% highlight bash %}
-user@node:~/NAT64-<version>/mod# make modules_install
-{% endhighlight %}
-
-## Genera Archivo de Dependencias
-
-El hecho de que residan en la pool no significa que ya hayan sido indizados, entonces, para finalizar, también necesitarás indexar los nuevos módulos. Ejecuta aqui también con permisos de administrador el comando:
-
-{% highlight bash %}
-user@node:~# depmod
-{% endhighlight %}
-
-Mediante el comando **depmod** se genera el archivo de dependencias *Makefile* que usará **modprobe** para cargar los módulos, aprende cómo hacerlo consultando [el ejemplo básico de SIIT](mod-run-vanilla.html).
-
-![thumbsup](../images/thumbsup.png) Jool puede ser inicializado ahora. 
-
-> **ADVERTENCIA :**<br />
->
-> A partir del **kernel 3.7** en Ubuntu puedes autentificar tus módulos, lo cual es una buena práctica. Te recomendamos, firmar tus modulos de kernel para asegurarte de que los estás agregando de manera responsable.
-> Si tu kernel NO fue configurado para _solicitar_ esta característica no tendrás problema. Los kernels de muchas distribuciones no lo hacen. Solo ten en cuenta que cuando corras el comando `make modules_install`, se mostrará el siguiente mensaje: **"Can't read private key"**; esto puede parecer un error, pero de hecho es una advertencia, [así que puedes continuar la instalación](https://github.com/NICMx/NAT64/issues/94#issuecomment-45248942).
-> Si tu kernel _fue_ compilado para solicitar el firmado de módulos, probablemente ya sepas como llevarlo a cabo. **Nota:** Lo omitiremos aquí.
