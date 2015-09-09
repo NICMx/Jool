@@ -80,22 +80,20 @@ user@B:~# apt-get install bind9
 
 The most basic configuration is very minimalistic. In order to turn on DNS64, the options section from the named.conf file (in my case, `/etc/bind/named.conf.options`) is the only one in which statements must be updated:
 
-{% highlight bash %}
-options {
-	(...)
+	options {
+		(...)
 
-	# Listening on IPv6 is off by default.
-	listen-on-v6 { any; };
+		# Listening on IPv6 is off by default.
+		listen-on-v6 { any; };
 
-	# This is the key. Note that you can write multiple of these if you need
-	# more IPv6 prefixes.
-	# "64:ff9b::/96" has to be the same as Jool's `pool6`.
-	dns64 64:ff9b::/96 {
-		# Options per prefix (if you need them) here.
-		# More info here: https://kb.isc.org/article/AA-01031
+		# This is the key. Note that you can write multiple of these if you need
+		# more IPv6 prefixes.
+		# "64:ff9b::/96" has to be the same as Jool's `pool6`.
+		dns64 64:ff9b::/96 {
+			# Options per prefix (if you need them) here.
+			# More info here: https://kb.isc.org/article/AA-01031
+		};
 	};
-};
-{% endhighlight %}
 
 And remember to reload.
 

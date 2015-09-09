@@ -20,23 +20,23 @@ title: DNS64
 
 ## Introducción
 
-Este documento se enfoca en DNS64, la última llave para tener una instalación de NAT64 completamente coherente.
+Este documento se enfoca en DNS64, el último componente para tener una instalación de NAT64 completamente coherente.
 
-Cualquier implementación correcta de DNS64 se supone debería funcionar; BIND será utilizado para efecto de ilustrar. Espero que estes familiarizado con DNS y que tengas una idea por lo menos de como luce la configuración de BIND.
+Cualquier implementación correcta de DNS64 debe funcionar; BIND será utilizado para ilustrar la idea. Este tutorial asume familiarización con DNS y archivos de configuración de BIND.
 
 ## Red
 
 ![Fig.1 - Setup](../images/tut4-setup.svg)
 
-Aunque Jool y el DNS64 son ilustrados como nodos separados, no hay nada que te prevenga de unirlos en una sola máquina (a menos de que Jool esté monopolizando todas las direcciones IPv4 de sus nodos, por supuesto).
+Aunque Jool y el DNS64 son ilustrados como nodos separados, nada (además de [colisión de puertos](pool4.html#notas)) previene unirlos en una sola máquina.
 
 ## Configuración
 
 ### BIND
 
-Primero, voy a dejar en claro lo que queremos lograr.
+Primero voy a explicar lo que deseamos lograr.
 
-`example.com` es un dominio que esta disponible ambas la Internet IPv4 y la IPv6, y por lo tanto tiene ambos tipos de registros:
+`example.com` es un dominio que esta disponible tanto en IPv4 como en IPv6, y por lo tanto tiene ambos tipos de registros:
 
 {% highlight bash %}
 $ dig example.com A
@@ -68,37 +68,32 @@ nat64-tutorial.mx.	240	IN	SOA	potato.mx. hostmaster.jool.mx. 2013070801 3600 900
 (...)
 {% endhighlight %}
 
-No hay necesidad de que un nodo IPv6 accese `example.com` mediante el NAT64. Por otra parte, `nat64-tutorial.mx` no puede ser accesado desde IPv6 si uno.
+No hay necesidad de que un nodo de IPv6 acceda a `example.com` mediante un NAT64. En contraste, no tiene manera de acceder a `nat64-tutorial.mx` sin un traductor.
 
-En otras palabras, queremos que el servicio de DNS64 devuelva `2606:2800:220:6d:26bf:1447:1097:aa7` cuando le sea solicitado el registro AAAA de `example.com` (que es lo que normalmente hace), y `64:ff9b::200.94.182.36` (ej. el prefijo NAT64 mas la direccion IPv4) cuando le sea solicitado el registro AAAA de `nat64-tutorial.mx` (el cual es el hack NAT64 completo).  
+En otras palabras, queremos que el servicio de DNS devuelva `2606:2800:220:6d:26bf:1447:1097:aa7` cuando le sea solicitado el registro AAAA de `example.com` (que es lo que normalmente hace), y `64:ff9b::200.94.182.36` (ej. el prefijo de traducción mas la direccion IPv4) cuando le sea solicitado el registro AAAA de `nat64-tutorial.mx`.
 
-
-Primero, ten funcionando un servidor BIND. En Ubuntu, lo único que teines que hacer (assumiendo que todavia no tienes uno) es ejecutar
+Lo primero es tener un servidor BIND instalado. En Ubuntu, lo único que tengo que hacer para llegar a esto es
 
 {% highlight bash %}
 user@B:~# apt-get install bind9
 {% endhighlight %}
 
-La configuración mas básica es muy minimalista. 
+La configuración mas básica es muy minimalista. Para activar DNS64, la sección de opciones del archivo `named.conf` (en mi caso, `/etc/bind/named.conf.options`) es la única que debe ser actualizada:
 
-The most basic configuration is very minimalistic. Para activar DNS64, la sección de opciones del archivo named.conf (en mi caso, `/etc/bind/named.conf.options`) es la única que debe ser actualizada:
+	options {
+		(...)
 
-{% highlight bash %}
-options {
-	(...)
+		# Escuchar por IPv6 está desactivado por defecto.
+		listen-on-v6 { any; };
 
-	# Listening on IPv6 is off by default.
-	listen-on-v6 { any; };
-
-	# This is the key. Note that you can write multiple of these if you need
-	# more IPv6 prefixes.
-	# "64:ff9b::/96" has to be the same as Jool's `pool6`.
-	dns64 64:ff9b::/96 {
-		# Options per prefix (if you need them) here.
-		# More info here: https://kb.isc.org/article/AA-01031
+		# Esto es la llave. Nótese que es posible tener varios de estos si se necesitan
+		# múltiples prefijos de traducción.
+		# "64:ff9b::/96" tiene que ser lo mismo que Jool conoce como "pool6".
+		dns64 64:ff9b::/96 {
+			# Opciones por prefijo (si se necesitan) aquí.
+			# Más información aquí: https://kb.isc.org/article/AA-01031
+		};
 	};
-};
-{% endhighlight %}
 
 Y recuerda recargar.
 
@@ -106,26 +101,26 @@ Y recuerda recargar.
 user@B:~# sudo service bind9 restart
 {% endhighlight %}
 
-Eso es todo!
+Eso es toda la configuración que requiere el nodo que va a servir DNS.
 
 ### Todo lo demás
 
-Las redes mas externas cambiaron, y eso deberia ser reflejado probablemente en las tablas de ruteo de todos:
+Las redes mas externas cambiaron, y eso probablemente debe ser reflejado  en las tablas de ruteo de todos:
 
 {% highlight bash %}
 user@J:~# /sbin/ip -6 route del 2001:db8:1::/64
 user@J:~# /sbin/ip -6 route add default via 2001:db8:2::1 dev eth0
 {% endhighlight %}
 
-(Instrucciones similares deberían ser replicadas en los routers y los nodos)
+(Instrucciones similares deberían ser replicadas en los routers y los nodos.)
 
-Jool o J no necesita estar consciente del DNS64 por que los nombres de dominio son completamente transparentes a NAT64, asi que no necesitas hacer nadamas en J. 
+_J_ no necesita configuración adicional porque DNS es completamente transparente para NAT64.
 
-En cuanto a los nodos hoja, cualquier nodo IPv6 que necesita acceder solo a contenido IPv4 _debe_ utilizar el DNS64 como su servidor de nombres por default (a menos de que quieras especificarlo manualmente en tus comandos dig, supongo).
+En cuanto a los nodos hoja, cualquier nodo IPv6 que necesita acceder a contenido IPv4 _debe_ utilizar el DNS64 como su servidor de nombres por defecto (a menos de que quieras especificarlo manualmente en tus comandos dig, supongo).
 
 ## Resultado
 
-Desde uno de esos nodos IPv6:
+Desde uno de los nodos IPv6:
 
 {% highlight bash %}
 $ dig example.com AAAA
@@ -141,7 +136,7 @@ nat64-tutorial.mx.	86040	IN	AAAA	64:ff9b::c85e:b624
 (...)
 {% endhighlight %}
 
-Si monitoreas el trafico, deberias ver paqueter hacia `example.com` en R, y paquetes hacia `nat64-tutorial.mx` mediante S:
+Si se monitorea el tráfico se debería observar que paquetes hacia `example.com` se van a través de _R_, y paquetes hacia `nat64-tutorial.mx` mediante _J_/_S_:
 
 ![Fig.2 - Arrows](../images/tut4-arrows.svg)
 

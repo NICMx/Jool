@@ -25,14 +25,12 @@ This document provides a general introduction to SIIT and NAT64.
 
 SIIT (_Stateless IP/ICMP Translation_) and NAT64 ("NAT six four", not "NAT sixty-four") are technologies meant to communicate networking nodes which only speak [IPv4](http://en.wikipedia.org/wiki/IPv4) with nodes that only speak [IPv6](http://en.wikipedia.org/wiki/IPv6).
 
-The idea is basically that of an "upgraded" [NAT](http://en.wikipedia.org/wiki/Network_address_translation); an "IPv4/IPv6 translator" not only replaces addresses and/or ports within packets, but also layer 3 headers.
+- SIIT mangles packets, simply replacing IPv4 headers with IPv6 headers and viceversa.
+- _Stateful NAT64_ (or "NAT64" for short) is a combination between an SIIT and a (theoretical) IPv6 NAT; the point is to mask several IPv6 nodes behind a few IPv4 addresses.
 
-- SIIT is the simpler form, and allows preconfigured 1-to-1 mappings between IPv4 addresses and IPv6 addresses.
-- A _Stateful NAT64_ (or NAT64 for short) allows several IPv6 nodes to dynamically share few IPv4 addresses (useful when you're a victim of [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion)).
+In their basic forms, SIIT only helps communicating nodes speaking different protocols, while NAT64 also helps with [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion) (at the cost of being more computationally expensive).
 
 For historic reasons, sometimes we mess up and label SIIT as "Stateless NAT64". Because this expression does not seem to appear in any relevant standards, we consider it imprecise, despite the fact it makes some degree of sense. If possible, please try to suppress it.
-
-An SIIT implementation mangles network headers and sometimes transport checksums. A Stateful NAT64 also mangles transport identifiers.
 
 That's all, really. Keep reading for more detail and examples.
 
@@ -49,8 +47,6 @@ Assuming everyone's default gateway is _T_, how do you communicate _A_ (IPv6) wi
 - You tell _T_, "The IPv4 address of _A_ should be 198.51.100.8, and the IPv6 address of _V_ should be 2001:db8:4::16".
 - You tell _A_, "_V_'s address is 2001:db8:4::16".
 - You tell _V_, "_A_'s address is 198.51.100.8".
-
-The first one is accomplished by SIIT. The latter can be done via DNS.
 
 This will happen:
 

@@ -24,15 +24,15 @@ Jool uses four levels in the severity spectrum (see `dmesg --help`):
 
 Debug messages are normally compiled out of Jool's binaries because they are lots and can slow things down. If you are testing or troubleshooting however, they can be of help.
 
-If you want Jool to print debug messages, go back to the kernel module's compilation step and run `make debug` instead of just `make`. Reinstall and remodprobe as you usually do, and you should see a lot of mumbling as a result of network traffic translation, which should give you ideas as to what might be wrong:
+If you want Jool to print debug messages, go back to the kernel module's compilation step and include the `-DDEBUG` flag. After reinstalling and remodprobing normally, you should see a lot of mumbling as a result of network traffic translation, which should give you ideas as to what might be wrong:
 
 	$ cd Jool/mod
-	$ make debug
+	$ make JOOL_FLAGS=-DDEBUG -- This is the key --
 	$ sudo make modules_install
 	$ sudo depmod
 	$
 	$ sudo modprobe -r jool_siit
-	$ sudo modprobe jool_siit
+	$ sudo modprobe jool_siit pool6=...
 	$
 	$ dmesg | tail -5
 	[ 3465.639622] ===============================================

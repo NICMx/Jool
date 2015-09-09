@@ -11,17 +11,17 @@ title: SIIT - Ejemplo básico
 
 ## Índice
 
-1. [Introducción](#introduccion)
-2. [Red de ejemplo](#red-de-ejemplo)
-	1. [`Configuración de Nodos en IPv6`] (#nodos-ipv6)
-	2. [`Configuración de Nodos en IPv4`] (#nodos-ipv4)
-	3. [`Configuración de Nodo Traductor`] (#nodo-jool)
+1. [Introducción](#introduccin)
+2. [Red de ejemplo](#red-de-ejemplo)<br />
+	a) [Configuración de Nodos en IPv6](#configuracin-de-nodos-en-ipv6)<br />
+	b) [Configuración de Nodos en IPv4](#configuracin-de-nodos-en-ipv4)<br />
+	c) [Configuración del Nodo Traductor](#configuracin-del-nodo-traductor)
 3. [Jool](#jool)
-4. [Pruebas](#pruebas)
-	1. [`Conectividad de IPv4 a IPv6`] (#ping4to6)
-	2. [`Conectividad de IPv6 a IPv4`] (#ping6to4)
-	3. [`Conectividad a un Web Server en IPv4`] (#WebServer-ipv4)
-	4. [`Conectividad a un Web Server en IPv6`] (#WebServer-ipv6)
+4. [Pruebas](#pruebas)<br />
+	a) [Conectividad de IPv4 a IPv6](#conectividad-de-ipv4-a-ipv6)<br />
+	b) [Conectividad de IPv6 a IPv4](#conectividad-de-ipv6-a-ipv4)<br />
+	c) [Conectividad a un Web Server en IPv4](#conectividad-a-un-web-server-en-ipv4)<br />
+	d) [Conectividad a un Web Server en IPv6](#conectividad-a-un-web-server-en-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
@@ -35,7 +35,7 @@ Para la implementación de las pruebas, puedes usar alternativamente máquinas v
 
 ## Red de ejemplo
 
-![Figura 1 - Red de ejemplo](../images/network/vanilla.svg)
+![Figura 1 - Red de ejemplo Vanilla](../images/network/vanilla.svg "Figura 1 - Red de ejemplo Vanilla")
 
 No es necesario que des de alta todos los nodos que se muestran en el diagrama; puedes lograrlo con solo 3 nodos: _A_, _T_ y _V_. El resto son muy similares a _A_ y _V_ y son mostrados para propósitos ilustrativos.
 
@@ -43,11 +43,11 @@ Considera que tienes un bloque de direcciones 198.51.100.8/29 para distribuirlo 
 
 Jool requiere que _T_ tenga instalado Linux. El resto de los nodos puede tener cualquier otro sistema operativo, siempre y cuando manejen TCP/IP.
 
-Sin embargo para efectos de simplicidad, los ejemplos aqui mencionados asumen que todos los nodos tienen instalado Linux y que todo esta siendo configurado estáticamente usando el bien-conocido comando `ip`. Y además, todo el tráfico será redirigido por defecto hacia _T_.
+Sin embargo para efectos de simplicidad, los ejemplos aquí mencionados asumen que todos los nodos tienen instalado Linux y que todo esta siendo configurado estáticamente usando el bien-conocido comando `ip`. Y además, todo el tráfico será redirigido por defecto hacia _T_.
 
 Dependiendo de tu distribución de linux, la forma de cómo deshabilitar el administrador de red puede variar. Esto se requiere, para que tomes control sobre las direcciones y rutas de tus interfaces; de otra forma, los comandos `ip` pudieran no tener efecto.
 
-### `Configuración de Nodos en IPv6`
+### Configuración de Nodos en IPv6
 
 Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -60,7 +60,7 @@ user@A:~# ip route add default via 2001:db8::198.51.100.1
 {% endhighlight %}
 
 
-### `Configuración de Nodos en IPv4`
+### Configuración de Nodos en IPv4
 
 Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -72,7 +72,7 @@ user@V:~# ip addr add 192.0.2.16/24 dev eth0
 user@V:~# ip route add default via 192.0.2.1
 {% endhighlight %}
 
-### `Configuración del Nodo Traductor`
+### Configuración del Nodo Traductor
 
 Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
 
@@ -86,9 +86,9 @@ user@T:~# ip link set eth1 up
 user@T:~# ip addr add 192.0.2.1/24 dev eth1
 {% endhighlight %}
 
-Hasta aqui, no hemos convertido a _T_ en un traductor todavia, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
+Hasta aquí, no hemos convertido a _T_ en un traductor todavía, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
-La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los offloads. Offloading es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](offloading.html) si quieres conocer más detalles sobre esta problemática.
+La única precaución que debes tener en mente antes de activar Jool (o lidiar con IPv6 en general) son los "offloads". "Offloading" es una característica de los nodos terminales, y para los que no lo son esto es un problema, por lo cual es importante apagarlos en todos los ruteadores. [Lee este documento](offloading.html) si quieres conocer más detalles sobre esta problemática.
 
 Hazlo por medio de `ethtool`:
 
@@ -105,8 +105,8 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-		NOTA: Si no puedes cambiar alguno de los parámetros, considera que es posible que ya este apagado.
-		      Ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
+	NOTA: Si no puedes cambiar alguno de los parámetros, considera que es posible que ya este apagado.
+		     Ejecuta `sudo ethtool --show-offload [interface]` para averiguarlo.
 
 ## Jool
 
@@ -138,7 +138,7 @@ Eso significa que: "La representación IPv6 de cualquier dirección IPv4 va a se
 
 ## Pruebas
 
-### `Conectividad de IPv4 a IPv6`
+### Conectividad de IPv4 a IPv6
 
 Haz un ping a _A_ desde _V_ de esta forma:
 
@@ -155,7 +155,7 @@ PING 198.51.100.8 (198.51.100.8) 56(84) bytes of data.
 rtt min/avg/max/mdev = 1.649/3.914/7.450/2.249 ms
 {% endhighlight %}
 
-### `Conectividad de IPv6 a IPv4`
+### Conectividad de IPv6 a IPv4
 
 Haz un ping a _V_ desde _A_:
 
@@ -172,13 +172,13 @@ PING 2001:db8::192.0.2.16(2001:db8::c000:210) 56 data bytes
 rtt min/avg/max/mdev = 1.384/4.529/10.522/3.546 ms
 {% endhighlight %}
 
-### `Conectividad a un Web Server en IPv4`
+### Conectividad a un Web Server en IPv4
 
 Agrega un servidor en _X_ y accesalo desde _D_:
 
 ![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-vanilla-firefox-4to6.png)
 
-### `Conectividad a un Web Server en IPv6`
+### Conectividad a un Web Server en IPv6
 
 Agrega un servidor en _C_ y haz una solicitud desde _W_:
 
@@ -188,7 +188,7 @@ Si algo no funciona, consulta el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
-Para detener Jool, revierte el modprobe usando solamente el parámetro `-r`:
+Para detener Jool, emplea de nuevo el comando modprobe usando el parámetro `-r`:
 
 {% highlight bash %}
 user@T:~# modprobe -r jool_siit

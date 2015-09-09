@@ -5,23 +5,23 @@ category: Documentation
 title: Instalación de la Herramienta de Configuración de Jool
 ---
 
-[Documentación](documentation.html) > [Instalación](documentation.html#instalacion) > Herramienta de Configuración de Jool
+[Documentación](documentation.html) > [Instalación](documentation.html#instalacin) > Herramienta de Configuración de Jool
 
 # Instalación del Configurador de Jool
 
 ## Índice
 
-1. [Introducción](#introduccion)
-2. [Requerimientos](#requerimientos)
-	1. [`Libnl-3`](#libnl-3)
-	2. [`Autoconf`](#autoconf)
-3. [Genera, Compila e Instala](#crea_compila_instala)
-	1. [`De la Web Oficial`] (#web_oficial)
-	2. [`Del Repositorio GIT`] (#github)
-4. [Validación] (#validacion)
-	1. [Versión] (#version)
-	2. [Ayuda] (#ayuda)
-	3. [Uso] (#uso)
+1. [Introducción](#introduccin)
+2. [Requerimientos](#requerimientos)<br />
+	a) [Libnl-3](#libnl-3)<br />
+	b) [Autoconf](#autoconf)
+3. [Genera, Compila e Instala](#genera-compila-e-instala)<br />
+	a) [De la Web Oficial](#de-la-web-oficial)<br />
+	b) [Del Repositorio GIT](#del-repositorio-git)
+4. [Validación](#validacin)<br />
+	a) [Versión](#versin)<br />
+	b) [Ayuda](#ayuda)<br />
+	c) [Uso](#uso)
 
 ## Introducción
 
@@ -36,9 +36,9 @@ Para ver detalles de los requisitos e instalación de los módulos de kernel [ac
 
 ## Requerimientos
 
-### `Libnl-3`
+### Libnl-3
 
-> **NOTA: Libnl, libnl-1.x, 2.x no son compatibles. Se necesita Libnl-3 ver. 3.1 o superior.**
+> **NOTA:** Libnl, libnl-1.x, 2.x no son compatibles. Se necesita Libnl-3 ver. 3.1 o superior.
 
 Jool emplea [NETLINK] (http://www.carisma.slowglass.com/~tgr/libnl/) para comunicar sus procesos de espacio de usuario con los de kernel, y viceversa.  
 
@@ -56,9 +56,9 @@ Entonces, instala la libería ejecutando el siguiente comando con permisos de ad
 user@node:~#apt-get install libnl-3-dev
 {% endhighlight %}
 
-### `Autoconf`
+### Autoconf
 
-> **NOTA: Se necesita autoconf ver. 2.68 o superior.**
+> **NOTA:** Se necesita autoconf ver. 2.68 o superior.
 
 Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles. Para llevarlo a cabo la instalación hazlo con permisos de administrador:
 
@@ -70,7 +70,7 @@ user@node:~#apt-get install autoconf
 
 Asumiendo que previamente ya se instaló el Servidor Jool, solo pasate a la carpeta USR, genera los archivos MAKEFILES, conforme GNU, compila todo e instala.
 		
-### `De la Web Oficial`
+### De la Web Oficial
 
 {% highlight bash %}
 user@node:~/Desktop/Jool-<version>$ cd usr
@@ -80,7 +80,7 @@ user@node:~/Desktop/Jool-<version>$ #Con acceso de administrador instala
 user@node:~/Jool/usr# make install 
 {% endhighlight %}
 
-### `Del Repositorio GIT`
+### Del Repositorio GIT
 
 {% highlight bash %}
 user@node:~/Desktop/NAT64-<version>$ cd usr
@@ -95,7 +95,7 @@ user@node:~/Desktop/NAT64-<version>/usr# make install
 
 Ahora, podemos ejecutar varias acciones como: validar que versión de Jool compilamos y consultar la ayuda en línea.
 
-### `Versión`
+### Versión
 
 Para desplegar la versión de Jool ejecuta:
 
@@ -105,7 +105,7 @@ user@node:~/Jool/usr/stateful$ ./jool --v
 {% endhighlight %}
 
 
-### `Ayuda`
+### Ayuda
 
 Para desplegar la ayuda en linea sobre los parámetros configurables y desplegables de Jool puedes usar las opciones `-?` o `--help`, de la siguiente manera:
 
@@ -117,7 +117,7 @@ user@node:~/Jool/usr/stateful$ ./jool -?
 user@node:~/Jool/usr/stateless$ ./jool_siit --help
 {% endhighlight %}
 
-### `Uso`
+### Uso
 
 Para desplegar en forma resumida cuáles son las combinaciones válidas de los parámetros configurables y desplegables de Jool es con:
 
