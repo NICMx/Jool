@@ -9,6 +9,18 @@ title: Pool IPv4 Stateful
 
 # Pool de direcciones IPv4
 
+## Índice
+
+1. [Introducción](#introduccin)
+2. [Explicación rápida](#explicacin-rpida)
+3. [Explicación elaborada](#explicacin-elaborada)
+
+## Introducción
+
+Este documento sirve como una introducción a `pool4` de NAT64 Jool.
+
+## Explicación rápida
+
 Si estás familiarizado/a con iptables y masquerade, probablemente todo lo que necesitas saber es que
 
 	jool --pool4 --add --tcp 192.0.2.1 5000-6000
@@ -18,7 +30,7 @@ Es espiritualmente equivalente a
 	ip addr add 192.0.2.1 dev (...)
 	iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 5000-6000
 
------------------------------
+## Explicación elaborada
 
 Al igual que NAT, Stateful NAT64 permite a un número indeterminado de clientes compartir un número limitado de direcciones IPv4 distribuyendo estratégicamente su tráfico a través de sus propias direcciones de transporte disponibles.
 

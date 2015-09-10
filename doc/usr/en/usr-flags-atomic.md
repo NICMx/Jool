@@ -21,7 +21,7 @@ title: Atomic Fragments
 
 ## Overview
 
-"Atomic fragments" are IPv6 packets which are not fragmented but still contain a (redundant) [Fragment Header](https://tools.ietf.org/html/rfc2460#section-4.5). They are a hack in the NAT64 specification that intends to leverage the difference between the IPv4 minimum MTU (68) and the IPv6 minimum MTU (1280).
+"Atomic fragments" are IPv6 packets which are not fragmented but still contain a (redundant) [Fragment Header](https://tools.ietf.org/html/rfc2460#section-4.5). They are a hack in the IP/ICMP Translation specification that intends to leverage the difference between the IPv4 minimum MTU (68) and the IPv6 minimum MTU (1280).
 
 Atomic fragments are known to have [security implications](https://tools.ietf.org/html/rfc6946) and there is [official ongoing effort to deprecate them]({{ site.draft-deprecate-atomfrag-generation }}). Even RFC 6145 (ie. SIIT's core document) warns about [issues regarding the hack](http://tools.ietf.org/html/rfc6145#section-6).
 
@@ -118,9 +118,19 @@ Also see [`--boostMTU`](#boostmtu) for an important gotcha.
 - Modes: Both (SIIT and Stateful)
 - Translation direction: IPv4 to IPv6
 
-If this is ON, Jool will always generate an "IPv6 Fragment Header" if the incoming IPv4 Packet does not set the DF flag.
+In pseudocode form:
 
-If this is OFF, then Jool will not generate the "IPv6 Fragment Header" whether the Flag of the incoming IPv4 Packet is set or not set, unless the incoming packet is a fragment, the "IPv6 Fragment Header" will be generated.
+	If the incoming IPv4 packet is a fragment:
+		The outgoing IPv6 packet will be a fragment.
+		(And will therefore include a Fragment Header.)
+	Else:
+		If the DF flag is ON:
+			The outgoing packet will not include a Fragment Header.
+		Else:
+			If --genFH is ON:
+				The outgoing packet will include a Fragment Header.
+			Else:
+				The outgoing packet will not include a Fragment Header.
 
 This is the flag that causes Linux to flip out when it needs to fragment. It's broken, so activate at your own risk.
 
@@ -132,14 +142,19 @@ This is the flag that causes Linux to flip out when it needs to fragment. It's b
 - Modes: Both (SIIT and Stateful)
 - Translation direction: IPv6 to IPv4
 
-All IPv4 packets contain an Identification field. IPv6 packets only contain an Identification field if they have a Fragment header.
+IPv6 packets only contain an fragment identifier field if they contain a Fragment Header. All IPv4 packets contain a fragment identifier field.
 
-If the incoming IPv6 packet has a fragment header, the <a href="http://en.wikipedia.org/wiki/IPv4#Header" target="_blank">IPv4 header</a>'s Identification field is _always_ copied from the low-order bits of the IPv6 fragment header's Identification value.
+This flag dictates how this value should be set when a packet lacking identifier is being translated to IPv4.
 
-Otherwise:
+In pseudocode form:
 
-- If `--genID` is OFF, the IPv4 header's Identification fields are set to zero.
-- If `--genID` is ON, the IPv4 headers' Identification fields are set randomly.
+	If the incoming packet has a Fragment Header:
+		The fragment identifier is copied.
+	Else:
+		If --genID is ON:
+			The fragment identifier will be set randomly.
+		Else:
+			The fragment identifier will be zero.
 
 ### `--boostMTU`
 
@@ -176,4 +191,3 @@ Notice, if `--setDF` and `--boostMTU` are both ON and there's an IPv4 link with 
 4. Jool translates it to ICMPv6 _Packet Too Big_ with MTU=1280.
 5. Goto 1.
 
-Thanks to Tore Anderson for noticing (and mostly writing) this quirk.

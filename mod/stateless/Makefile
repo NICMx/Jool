@@ -7,6 +7,8 @@ modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 modules_install:
 	make -C ${KERNEL_DIR} M=$$PWD $@
+install: modules_install
+	depmod
 clean:
 	make -C ${KERNEL_DIR} M=$$PWD $@
 	rm -f ../common/*.o

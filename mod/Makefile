@@ -1,5 +1,5 @@
 PROJECTS = stateless stateful
-OTHER_TARGETS = modules modules_install clean debug
+OTHER_TARGETS = modules modules_install install clean debug
 
 
 all: $(PROJECTS)

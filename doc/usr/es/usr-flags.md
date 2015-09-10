@@ -11,12 +11,14 @@ title: Documentación - Parámetros de la Herramienta de Configuración
 
 ## Introducción
 
-Esta recopilación de documentos explican que parámetros existen para las dos modalidades: SIIT (`jool_siit`) y NAT64 Stateful (`jool`).
+Esta recopilación de documentos explica los parámetros para las aplicaciones de espacio de usuario:
 
-NOTAS:
+1. La aplicación `jool` sirve para configurar al módulo `jool` (Stateful NAT64).
+2. La aplicación `jool_siit` sirve para configurar al módulo `jool_siit` (SIIT).
 
-Si todavía no has generado los ejecutables, ve a [instrucciones de compilación e instalación](usr-install.html).<br />
-** Las opciones de despliegue no requieren privilegios de administrador de red, ni que la parte server este insertada, pero todos los de configuración SÍ.** Consulta:([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)).
+Instrucciones para instalar estos binarios se pueden encontrar [aquí](usr-install.html).
+
+![!](../images/heavy_exclamation_mark.png) Opciones que modifiquen el comportamiento del traductor requieren privilegios de administrador de red ([CAP_NET_ADMIN](http://linux.die.net/man/7/capabilities)). Opciones de consulta pueden correrse libremente.
 
 ## Índice
 
@@ -24,8 +26,8 @@ Opciones comunes:
 
 1. [`--help`](usr-flags-help.html)
 2. [`--global`](usr-flags-global.html)
-	1. [Atomic Fragments](usr-flags-atomic.html)
-	2. [MTU Plateaus (Example)](usr-flags-plateaus.html)
+	1. [Fragmentos atómicos](usr-flags-atomic.html)
+	2. [MTU Plateaus (Ejemplo)](usr-flags-plateaus.html)
 3. [`--pool6`](usr-flags-pool6.html)
 
 Opciones exclusivas de `jool_siit`:

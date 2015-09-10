@@ -14,14 +14,15 @@ title: Instalación del Servidor Jool
 1. [Introducción](#introduccin)
 2. [Requerimientos](#requerimientos)
 	1. [Kernels Válidos](#kernels-vlidos)
+	2. [Paquetes básicos de compilación](#paquetes-bsicos-de-compilacin)
 	2. [Encabezados del Kernel](#encabezados-del-kernel)
 	3. [Interfaces de Red](#interfaces-de-red)
 	4. [DKMS](#dkms)
 	5. [Ethtool](#ethtool)
-3. [Obtención del Código](#obtencin-del-cdigo)
+3. [Obtención del código](#obtencin-del-cdigo)
 3. [Compilación e Instalación](#compilacin-e-instalacin)
-	1. [DKMS](#instalacin-mediante-dkms)
-	2. [Kbuild](#instalacin-mediante-kbuild)
+	1. [Instalación mediante DKMS](#instalacin-mediante-dkms)
+	2. [Instalación mediante Kbuild](#instalacin-mediante-kbuild)
 
 ## Introducción
 
@@ -50,12 +51,67 @@ El siguiente comando puede ser usado para consultar la versión del kernel actua
 $ /bin/uname -r
 {% endhighlight %}
 
+### Paquetes básicos de compilación
+
+Varias distribuciones ya los incluyen; omitir este paso en esos casos.
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Debian</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">Arch Linux</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+</div>
+
+<!-- Debian -->
+{% highlight bash %}
+# apt-get install build-essential
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+# yum install gcc
+{% endhighlight %}
+
+<!-- Arch Linux -->
+{% highlight bash %}
+# pacman -S base-devel
+{% endhighlight %}
+
+<!-- openSUSE -->
+{% highlight bash %}
+# zypper install gcc make
+{% endhighlight %}
+
 ### Encabezados del Kernel
 
-Son dependencia de cualquier módulo y le indican a Jool los parámetros bajo los cuales fue compilado Linux. La mayoría de las distribuciones hostean estos archivos en sus repositorios. Ejecutar con permisos de administrador lo siguiente:
+Son dependencia de cualquier módulo y le indican a Jool los parámetros bajo los cuales fue compilado Linux. La mayoría de las distribuciones hostean estos archivos en sus repositorios.
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu/Debian</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+	<span class="distro-selector" onclick="showDistro(this);">openSUSE</span>
+	<span class="distro-selector" onclick="showDistro(this);">Raspberry Pi</span>
+</div>
+
+<!-- Ubuntu/Debian -->
 {% highlight bash %}
 # apt-get install linux-headers-$(uname -r)
+{% endhighlight %}
+
+<!-- CentOS -->
+{% highlight bash %}
+# yum install kernel-devel
+# yum install kernel-headers
+{% endhighlight %}
+
+<!-- openSUSE -->
+{% highlight bash %}
+# zypper install kernel-source
+{% endhighlight %}
+
+<!-- Raspberry Pi -->
+{% highlight bash %}
+$ # Ver https://github.com/NICMx/NAT64/issues/158
 {% endhighlight %}
 
 ### Interfaces de Red
@@ -93,9 +149,9 @@ Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pue
 
 Existen dos opciones:
 
-* Releases oficiales en la [página de descarga](download.html).  
+1. Releases oficiales en la [página de descarga](download.html).  
 Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
-* Está el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+2. Está el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
 Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
 
 ## Compilación e Instalación
@@ -108,28 +164,47 @@ Para todo propósito es recomendado preferir DKMS.
 
 ### Instalación mediante DKMS
 
-<!-- TODO Incluye alternativa de Github. -->
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Versión oficial</span>
+	<span class="distro-selector" onclick="showDistro(this);">Versión de Github</span>
+</div>
 
 {% highlight bash %}
-$ unzip Jool-<version>.zip
-# dkms install Jool-<version>
+$ unzip Jool-<versión>.zip
+# dkms install Jool-<versión>
+{% endhighlight %}
+
+{% highlight bash %}
+$ unzip NAT64-master.zip
+# dkms install NAT64-master
 {% endhighlight %}
 
 ### Instalación mediante Kbuild
 
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Versión oficial</span>
+	<span class="distro-selector" onclick="showDistro(this);">Versión de Github</span>
+</div>
+
 {% highlight bash %}
-$ unzip Jool-<version>.zip
-$ cd Jool-<version>/mod
-$ make                  # compila
-# make modules_install  # instala
-# depmod                # indexa
+$ unzip Jool-<versión>.zip
+$ cd Jool-<versión>/mod
+$ make
+# make install
+{% endhighlight %}
+
+{% highlight bash %}
+$ unzip NAT64-master.zip
+$ cd NAT64-master/mod
+$ make
+# make install
 {% endhighlight %}
 
 > **Nota**
 > 
 > Por razones de seguridad, kernels 3.7 en adelante buscan que módulos instalados estén firmados.
 > 
-> Si el kernel no fue configurado para _requerir_ esta característica, `make modules_install` imprimirá el mensaje "Can't read private key", lo cual es una advertencia, no un error. La instalación puede proseguir sin cambios.
+> Si el kernel no fue configurado para _requerir_ esta característica, `make install` imprimirá el mensaje "Can't read private key", lo cual es una advertencia, no un error. La instalación puede proseguir sin cambios.
 > 
 > Si el kernel _fue_ compilado para solicitar firmado de módulos, más burocracia (omitida aquí) es requerida.
 

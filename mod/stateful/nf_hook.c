@@ -134,7 +134,7 @@ static int __init nat64_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_info("%s module inserted.", xlat_get_name());
+	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return error;
 
 nf_register_hooks_failure:
@@ -180,7 +180,7 @@ static void __exit nat64_exit(void)
 	nlhandler_destroy();
 	config_destroy();
 
-	log_info("%s module removed.", xlat_get_name());
+	log_info("%s v" JOOL_VERSION_STR "module removed.", xlat_get_name());
 }
 
 module_init(nat64_init);
