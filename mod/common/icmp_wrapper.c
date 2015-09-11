@@ -135,7 +135,7 @@ void icmp64_send(struct packet *pkt, icmp_error_code error, __u32 info)
 	case ETH_P_IP:
 		err = route4_input(pkt);
 		if (err) {
-			log_debug("Can't send an ICMPv4 Error: %d", error);
+			log_debug("Can't send an ICMPv4 Error: %d", err);
 			return;
 		}
 		icmp4_send(skb, error, info);

@@ -32,7 +32,17 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 		 * truncates them.
 		 */
 		log_debug("Packet is too big (len: %u, mtu: %u).", len, mtu);
+
+		switch (pkt_l3_proto(out)) {
+		case L3PROTO_IPV6:
+			mtu -= 20;
+			break;
+		case L3PROTO_IPV4:
+			mtu += 20;
+			break;
+		}
 		icmp64_send(out, ICMPERR_FRAG_NEEDED, mtu);
+
 		return -EINVAL;
 	}
 
