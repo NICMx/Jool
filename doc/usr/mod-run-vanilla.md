@@ -72,7 +72,20 @@ user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 
 Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but you might want to make sure _T_ can ping everyone before continuing.
 
-The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of offloads in the translating machine](misc-offloading.html). Do that by means of `ethtool`:
+Next, enable forwarding on _T_.
+
+{% highlight bash %}
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+{% endhighlight %}
+
+> If you omit these sysctls in kernels 3.5 and below, everything will seem to work, but Linux will drop some important ICMP traffic. Omitting the syscls in kernels 3.6 and above doesn't actually yield known adverse consequences.
+> 
+> Whether this inconsistency is a bug in older or newer kernels [is a rather philosophical topic](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174).
+> 
+> On the other hand, Jool 4.0 will almost certainly require forwarding, so you might as well start preparing your scripts.
+
+Often you also need to [get rid of offloads in the translating machine](misc-offloading.html) by means of `ethtool`:
 
 {% highlight bash %}
 user@T:~# ethtool --offload eth0 tso off
@@ -87,7 +100,7 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-(If it complains it cannot change something, keep in mind it can already be off; run `sudo ethtool --show-offload [interface]` to figure it out.)
+> If you need to turn offloads off and forego some of the above instructions, you will perceive extremey low performance.
 
 ## Jool
 

@@ -22,6 +22,8 @@ _A_ and _V_ are configured exactly as in their stateful run counterparts, so I'l
 	user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth0
 	user@T:~# /sbin/ip address add 203.0.113.2/24 dev eth0
 	user@T:~# 
+	user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+	user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 	user@T:~# ethtool --offload eth0 tso off
 	user@T:~# ethtool --offload eth0 ufo off
 	user@T:~# ethtool --offload eth0 gso off

@@ -26,11 +26,23 @@ As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.2" target="_blank">3.3.2</a>.
+Our latest release is version [3.3.4](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.4).
 
 -------------------
 
 ## News
+
+### 2015-09-21
+
+Version 3.3.4 released.
+
+The most important fix is (theoretically) a [Path MTU Discovery breaker](https://github.com/NICMx/NAT64/issues/170). There's also the [now automatic blacklisting of IPv4 multicast](https://github.com/NICMx/NAT64/issues/168) and the [better handling of the IPv6 header's hop limit](https://github.com/NICMx/NAT64/issues/167).
+
+Also, it has been noticed [SIIT Jool installations in kernels 3.5 and below need IPv4 forwarding active](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). In other words, add
+
+	sudo sysctl -w net.ipv4.conf.all.forwarding=1
+
+to the modprobe procedure.
 
 ### 2015-08-17
 

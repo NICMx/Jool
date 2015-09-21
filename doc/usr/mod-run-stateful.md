@@ -61,6 +61,8 @@ user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
 user@T:~# /sbin/ip address add 203.0.113.2/24 dev eth1
 user@T:~# 
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 user@T:~# ethtool --offload eth0 tso off
 user@T:~# ethtool --offload eth0 ufo off
 user@T:~# ethtool --offload eth0 gso off
