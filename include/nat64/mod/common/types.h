@@ -47,7 +47,7 @@
 #define log_err(text, ...) pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__); \
 						 { \
 						   char error_message[512]; \
-						   sprintf(error_message,"%s ERROR (%s): " text "\n",xlat_get_name(),__func__,##__VA_ARGS__); \
+						   sprintf(error_message, text "\n",##__VA_ARGS__); \
 						   error_pool_add_message(error_message); \
 						 }
 /**

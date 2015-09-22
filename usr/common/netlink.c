@@ -8,8 +8,8 @@
 
 static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr, void *arg)
 {
-	log_err("Error message: %s", ((char*)nlerr)+sizeof(*nlerr)) ;
-	log_err("%s (System error %d)", nl_geterror(nlerr->error), nlerr->error);
+	fprintf(stderr,"Error: %s", ((char*)nlerr)+sizeof(*nlerr));
+	fprintf(stderr,"(Error code: %d)\n", nlerr->error);
 	return 0;
 }
 
