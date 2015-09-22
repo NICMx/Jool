@@ -79,19 +79,21 @@ static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 	__u8 *payload = NULL;
 	char * error_msg = NULL;
 
+	error_struct.error = error;
+	error_struct.msg.nlmsg_len = 0;
+
 	if (error_pool_get_message(&error_msg)) {
-	    pr_err("could not get error message from pool.");
-		return -1;
+		pr_err("could not get error message from pool.");
+		goto respond_error_on_failure;
 	}
 
-	error_struct.error = error;
 	error_struct.msg.nlmsg_len = (__u32)strlen(error_msg);
 
 	payload = kmalloc(sizeof(error_struct)+strlen(error_msg)+1,GFP_ATOMIC);
 
 	if (!payload) {
 		pr_err("could not allocate memory for error payload!.");
-		return -ENOMEM;
+		goto respond_error_on_failure;
 	}
 
 	memcpy(payload,(__u8*)&error_struct, sizeof(error_struct));
@@ -99,13 +101,14 @@ static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 
 	error = respond_single_msg(nl_hdr_in,NLMSG_ERROR,payload, sizeof(error_struct)+strlen(error_msg)+1);
 
-	if (error_msg)
-		kfree(error_msg) ;
-
-	if (payload)
-		kfree(payload);
+	kfree(error_msg) ;
+	kfree(payload);
 
 	return error;
+
+respond_error_on_failure:
+	return respond_single_msg(nl_hdr_in,NLMSG_ERROR,&error_struct,sizeof(error_struct));
+
 
 }
 
