@@ -2,7 +2,7 @@
 language: es
 layout: default
 category: Home
-title: Home
+title: Inicio
 ---
 
 # Página Principal

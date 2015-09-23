@@ -40,15 +40,15 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Deprecación de los Fragmentos Atómicos | Jool contiene código que maneja fragmentos atómicos, pero [va de salida](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Cumple totalmente. |
 
-![email](../images/email.png) Por favor, [haznos saber](https://github.com/NICMx/NAT64/issues) si encuentras problemas de cumplimiento adicionales o RFCs/drafts que no hayamos considerado.
+![email](../images/email.png) Favor de comunicarse mediante el [Bug Tracker](https://github.com/NICMx/NAT64/issues) si encuentra algún problema de cumplimiento adicional o RFCs/drafts que no se hayan considerado.
 
 ## Compatibilidad
 
- Soportamos los kernels de Linux del 3.0 en adelante para Jool 3.1.x y 3.2.x
+ Existe el soporte a los kernels de Linux del 3.0 en adelante para Jool 3.1.x y 3.2.x
  
- Soportamos los kernels de Linux del 3.2 en adelante para Jool 3.3.x
+ Existe el soporte a los kernels de Linux del 3.2 en adelante para Jool 3.3.x
  
- El desarrollo se ha hecho usando las distribuciones LTS de Ubuntu 12.04 y 14.04, pero hemos realizado una saludable cantidad de pruebas formales en Jool 3.1.5, 3.1.6, 3.2.0, 3.2.1, 3.2.2 y 3.3.2 en las siguientes variantes:
+ El desarrollo se ha hecho usando las distribuciones LTS de Ubuntu 12.04 y 14.04, y se han realizado una saludable cantidad de pruebas formales en Jool 3.1.5, 3.1.6, 3.2.0, 3.2.1, 3.2.2 y 3.3.2 en las siguientes variantes:
 
 | Distribución | Kernels |
 | -------------|---------|
@@ -63,5 +63,4 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-![small_red_triangle_down](../images/small_red_triangle_down.png) Compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">Todavía estamos buscando maneras de solucionarlos</a>, pero no han causado problemas en pruebas.
-
+![small_red_triangle_down](../images/small_red_triangle_down.png) La compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">. Esto no ha causado problemas en las pruebas</a>, sin embargo se está en búsqueda de quitarlos.

@@ -2,14 +2,14 @@
 language: es
 layout: default
 category: Download
-title: Descarga
+title: Descargar
 ---
 
-# Descarga
+# Descargar
 
 <!--
 	Por cierto: Estos links son absolutos por que no rastreamos las versiones de los archivos.
-	 Si fueran relativos,se quebrantarian cuando la documentación sea generada manualmente.
+	 Si fueran relativos,se quebrantarian cuando la documentación fuera generada manualmente.
 -->
 
 * La versión resaltada en **negritas** es la más recomendada.
@@ -18,7 +18,7 @@ title: Descarga
 
 ## 3.4.x
 
-Jool 3.4 es una completa re-escritura de pool4, que agrega rangos de puertos y marcas y mejora el desempeño.
+Jool 3.4 es una completa re-escritura de pool4, que agrega rangos de puertos y marcas, y mejora el desempeño.
 
 La versión 3.4.0 es la más actual.
 
@@ -37,7 +37,7 @@ La documentación en este sitio corresponde a la serie 3.4. Se puede descargar u
 | Descarga | SHA512 | MD5| Commit de Git |
 |----------|--------|----|------------|
 | **[3.3.4](https://www.jool.mx/download/Jool-3.3.4.zip)** | [SHA512](https://www.jool.mx/download/Jool-3.3.4.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.4.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.4) |
-| [3.3.3](https://www.jool.mx/download/Jool-3.3.3.zip) | [SHA512](https://www.jool.mx/download/Jool-3.3.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.3) |
+| <del>[3.3.3](https://www.jool.mx/download/Jool-3.3.3.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.3) |
 | <del>[3.3.2](https://www.jool.mx/download/Jool-3.3.2.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.2.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.2.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.2) |
 | <del>[3.3.1](https://www.jool.mx/download/Jool-3.3.1.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.1.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.1.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.1) |
 | <del>[3.3.0](https://www.jool.mx/download/Jool-3.3.0.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.0.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.0.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.0) |
