@@ -28,6 +28,7 @@ There are some addresses Jool will refuse to translate, regardless of `blacklist
 - Software addresses (0.0.0.0/8).
 - Host addresses (127.0.0.0/8).
 - Link-local addresses (169.254.0.0/16).
+- Multicast addresses (224.0.0.0/4).
 - Limited broadcast (255.255.255.255/32).
 
 ## Syntax

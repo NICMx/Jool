@@ -4,19 +4,18 @@
 #include "nat64/mod/common/packet.h"
 
 /**
- * One-liner for filling up a 'flowi' and then calling the kernel's IPv4 out-routing function.
+ * Routes @in's outgoing packet.
  *
- * Routes pkt. Fills pkt->skb with the resulting device and destination.
+ * One-liner for filling up a 'flowi' and then calling the kernel's IPv4
+ * out-routing function.
  */
-int route4(struct packet *pkt);
+int __route4(struct packet *in, __be32 daddr, __u8 tos, __u8 proto);
 
 /**
- * Same as route4(), except the layer-4 information used for routing will be extracted from "in"
- * instead of "out".
- *
- * The packet being routed is "out".
+ * Use this function instead of __route4() when you know the rest of the
+ * args can be extracted safely from @out (ie. they have been initialized).
  */
-int __route4(struct packet *in, struct packet *out);
+int route4(struct packet *in, struct packet *out);
 
 /**
  * Same as route4(), except for IPv6.

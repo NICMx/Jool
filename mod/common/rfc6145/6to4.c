@@ -196,7 +196,7 @@ static verdict translate_addrs64_siit(struct packet *in, struct packet *out)
 	bool src_was_6052, dst_was_6052;
 	verdict result;
 
-	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO ROUTE DST FIRST!) */
+	/* Dst address. (SRC DEPENDS CON DST, SO WE NEED TO XLAT DST FIRST!) */
 	result = generate_addr4_siit(&hdr6->daddr, &hdr4->daddr, true,
 			&dst_was_6052);
 	if (result != VERDICT_CONTINUE)
@@ -288,7 +288,16 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	bool reset_tos, build_ipv4_id, df_always_on;
 	__u8 dont_fragment, new_tos;
 
-	/* Translate the address first because of issue #167. */
+	config_get_hdr4_config(&reset_tos, &new_tos, &build_ipv4_id, &df_always_on);
+
+	/*
+	 * translate_addrs64_siit->rfc6791_get->get_host_address needs tos
+	 * and protocol, so translate them first.
+	 */
+	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
+	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
+
+	/* Translate the address before TTL because of issue #167. */
 	if (xlat_is_nat64()) {
 		ip4_hdr->saddr = tuple4->src.addr4.l3.s_addr;
 		ip4_hdr->daddr = tuple4->dst.addr4.l3.s_addr;
@@ -298,11 +307,8 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 			return result;
 	}
 
-	config_get_hdr4_config(&reset_tos, &new_tos, &build_ipv4_id, &df_always_on);
-
 	ip4_hdr->version = 4;
 	ip4_hdr->ihl = 5;
-	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
 	ip4_hdr->tot_len = build_tot_len(in, out);
 	ip4_hdr->id = build_ipv4_id ? generate_ipv4_id_nofrag(out) : 0;
 	dont_fragment = df_always_on ? 1 : generate_df_flag(out);
@@ -317,7 +323,6 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	} else {
 		ip4_hdr->ttl = ip6_hdr->hop_limit;
 	}
-	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
 	/* ip4_hdr->check is set later; please scroll down. */
 
 	if (pkt_is_outer(in)) {
@@ -379,7 +384,7 @@ static int compute_mtu4(struct packet *in, struct packet *out)
 	struct icmp6hdr *in_icmp = pkt_icmp6_hdr(in);
 	int error;
 
-	error = route4(out);
+	error = route4(in, out);
 	if (error)
 		return error;
 

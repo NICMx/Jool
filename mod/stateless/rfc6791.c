@@ -87,35 +87,28 @@ static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
 static int get_host_address(struct packet *in, struct packet *out,
 		__be32 *result)
 {
-	struct net_device *dev;
-	struct in_device *in_dev;
-	struct in_ifaddr *ifaddr;
+	__be32 saddr;
+	__be32 daddr;
 	int error;
 
-	error = __route4(in, out);
+	/* TODO what happens if the packet hairpins? */
+	/* TODO you sure secondary addresses do jack? */
+
+	error = route4(in, out);
 	if (error)
 		return error;
 
-	dev = out->skb->dev;
+	daddr = pkt_ip4_hdr(out)->daddr;
+	saddr = inet_select_addr(out->skb->dev, daddr, RT_SCOPE_LINK);
 
-	rcu_read_lock();
-	in_dev = rcu_dereference(dev->ip_ptr);
-	ifaddr = in_dev->ifa_list;
-	while (ifaddr) {
-		if (IN_LOOPBACK(ntohl(ifaddr->ifa_address))) {
-			ifaddr = ifaddr->ifa_next;
-			continue;
-		}
-		*result = ifaddr->ifa_address;
-		rcu_read_unlock();
-		return 0;
+	if (!saddr) {
+		log_warn_once("Can't find a sufficiently scoped primary source "
+				"address to reach %pI4.", &daddr);
+		return -EINVAL;
 	}
-	rcu_read_unlock();
 
-	log_warn_once("The kernel routed an IPv4 packet via device %s, which "
-			"doesn't have any (non-loopback) IPv4 addresses.",
-			dev->name);
-	return -EINVAL;
+	*result = saddr;
+	return 0;
 }
 
 int rfc6791_get(struct packet *in, struct packet *out, __be32 *result)

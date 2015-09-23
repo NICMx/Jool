@@ -412,7 +412,7 @@ end:
  *
  * - ESRCH if there's no pool4 entry mapped to mark and proto.
  * - 0 if there's at least one pool4 entry mapped to mark and proto, and
- *   eaach of their transport addresses were iterated.
+ *   each of their transport addresses were iterated.
  * - If cb decides to stop iteration early, it will do so by returning nonzero,
  *   and that will in turn become the result of this function.
  */

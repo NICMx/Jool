@@ -9,70 +9,73 @@
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
 
-int __route4(struct packet *in, struct packet *out)
+/**
+ * This function is a little delicate. Since it's routing the outgoing packet,
+ * you'd think it'd receive the outgoing packet as parameter.
+ *
+ * Ideally, Jool routes in the very last step - in the send_packet module.
+ * Sometimes however, code needs to know in advance the device the packet is
+ * going to be fetched through, which means it needs to route prematurely.
+ * To make matters worse, sometimes it's so early the outgoing packet hasn't
+ * even been allocated yet.
+ *
+ * Therefore, even though it's routing the outgoing IPv4 packet, this function
+ * receives the INCOMING IPv6 one as argument.
+ *
+ * Also:
+ * Callers of this function need to mind hairpinning. What happens if @daddr
+ * belongs to the translator?
+ */
+int __route4(struct packet *in, __be32 daddr, __u8 tos, __u8 proto)
 {
-	struct iphdr *hdr_ip = pkt_ip4_hdr(out);
 	struct flowi4 flow;
 	struct rtable *table;
 	int error;
 
-	/* Sometimes Jool needs to route prematurely, so don't sweat this on the normal pipelines. */
-	if (skb_dst(out->skb))
+	/*
+	 * Sometimes Jool needs to route prematurely,
+	 * so don't sweat this on the normal pipelines.
+	 */
+	if (in->dst)
 		return 0;
+
+	/**
+	 * The flowi's XFRM fields don't matter because "any protocols that
+	 * protect IP header information are essentially incompatible with
+	 * NAT64" (RFC 6146).
+	 */
 
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
 	flow.flowi4_mark = in->skb->mark;
-	flow.flowi4_tos = RT_TOS(hdr_ip->tos);
+	flow.flowi4_tos = tos;
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
-	flow.flowi4_proto = hdr_ip->protocol;
+	flow.flowi4_proto = proto;
 	/*
-	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS. Does the kernel ever
-	 * create routes on Jool's behalf?
-	 * TODO (help) We should probably set FLOWI_FLAG_ANYSRC (for virtual-interfaceless support).
-	 * If you change it, the corresponding attribute in route_ipv6() should probably follow.
+	 * TODO (help) Don't know if we should set FLOWI_FLAG_PRECOW_METRICS.
+	 * Does the kernel ever create routes on Jool's behalf?
+	 * TODO (help) We should probably set FLOWI_FLAG_ANYSRC (for
+	 * virtual-interfaceless support). If you change it, the corresponding
+	 * attribute in route6() should probably follow.
 	 */
 	flow.flowi4_flags = 0;
 	/* Only used by XFRM ATM (kernel/Documentation/networking/secid.txt). */
 	/* flow.flowi4_secid; */
-	/* It appears this one only introduces noise. */
-	/* flow.saddr = hdr_ip->saddr; */
-	flow.daddr = hdr_ip->daddr;
-
-	{
-		union {
-			struct tcphdr *tcp;
-			struct udphdr *udp;
-			struct icmphdr *icmp4;
-		} hdr;
-
-		switch (pkt_l4_proto(in)) {
-		case L4PROTO_TCP:
-			hdr.tcp = pkt_tcp_hdr(in);
-			flow.fl4_sport = hdr.tcp->source;
-			flow.fl4_dport = hdr.tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr.udp = pkt_udp_hdr(in);
-			flow.fl4_sport = hdr.udp->source;
-			flow.fl4_dport = hdr.udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr.icmp4 = pkt_icmp4_hdr(in);
-			flow.fl4_icmp_type = hdr.icmp4->type;
-			flow.fl4_icmp_code = hdr.icmp4->code;
-			break;
-		case L4PROTO_OTHER:
-			break;
-		}
-	}
+	/* It appears this one only introduces harmful noise. */
+	/* flow.saddr = saddr; */
+	flow.daddr = daddr;
 
 	/*
-	 * I'm using neither ip_route_output_key() nor ip_route_output_flow() because those seem to
-	 * mind about XFRM (= IPsec), which is probably just troublesome overhead given that "any
-	 * protocols that protect IP header information are essentially incompatible with NAT64"
-	 * (RFC 6146).
+	 * I'm no longer setting fl4_sport, fl4_dport, fl4_icmp_type nor
+	 * fl4_icmp_code because 1) not all callers of this function have set
+	 * the respective fields yet, and 2) I can't find any users of them
+	 * aside from XFRM code.
+	 */
+
+	/*
+	 * I'm using neither ip_route_output_key() nor ip_route_output_flow()
+	 * because they only add XFRM overhead.
 	 */
 	table = __ip_route_output_key(&init_net, &flow);
 	if (!table || IS_ERR(table)) {
@@ -91,17 +94,20 @@ int __route4(struct packet *in, struct packet *out)
 		return -EINVAL;
 	}
 
-	skb_dst_set(out->skb, &table->dst);
-	out->skb->dev = table->dst.dev;
-
+	in->dst = &table->dst;
 	return 0;
 }
 
-int route4(struct packet *pkt)
+int route4(struct packet *in, struct packet *out)
 {
-	return __route4(pkt, pkt);
+	struct iphdr *hdr4 = pkt_ip4_hdr(out);
+	return __route4(in, hdr4->daddr, hdr4->tos, hdr4->protocol);
 }
 
+/**
+ * Unlike route4(), this function doesn't currently have any weird callers.
+ * Therefore, @pkt is the outgoing IPv6 packet.
+ */
 int route6(struct packet *pkt)
 {
 	struct ipv6hdr *hdr_ip = pkt_ip6_hdr(pkt);

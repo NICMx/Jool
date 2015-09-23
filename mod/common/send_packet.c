@@ -70,7 +70,6 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	error = whine_if_too_big(in, out);
 	if (error) {
 		kfree_skb(out->skb);
-		// skb = NULL?
 		return VERDICT_DROP;
 	}
 

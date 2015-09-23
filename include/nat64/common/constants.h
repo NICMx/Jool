@@ -94,6 +94,12 @@
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
 
 
+/* -- IPv4 pool -- */
+/* TODO reference this more. */
+#define DEFAULT_POOL4_MIN_PORT 61001
+#define DEFAULT_POOL4_MAX_PORT 65535
+
+
 /* -- ICMP constants missing from icmp.h and icmpv6.h. -- */
 
 /** Code 0 for ICMP messages of type ICMP_PARAMETERPROB. */
