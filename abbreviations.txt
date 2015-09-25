@@ -15,6 +15,7 @@ aux = auxiliar function
 cb = callback (synonym for "fn")
 csum = checksum
 comm = common
+daddr = destination address
 dev = network device (within code) or developer (within documentation)
 eam = Explicit Address Mapping (https://tools.ietf.org/html/draft-anderson-v6ops-siit-eam-02)
 eamt = EAM table
@@ -43,6 +44,7 @@ rm = remove
 	   Sometimes, this also means the entry is deleted.
 	-> "delete" means to actually erase the entry.
 rtrie = radix trie (https://en.wikipedia.org/wiki/Radix_trie)
+saddr = source address
 skb = socket buffer (To all intents and purposes, a packet. Inherited from the kernel)
 taddr = Transport address (A network layer id plus a transport layer id).
 trans = transitory session (inherited from RFC 6146.)

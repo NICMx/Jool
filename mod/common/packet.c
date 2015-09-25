@@ -305,6 +305,7 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	}
 
 	pkt->skb = skb;
+	pkt->dst = NULL;
 	pkt->l3_proto = L3PROTO_IPV6;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
@@ -458,6 +459,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	}
 
 	pkt->skb = skb;
+	pkt->dst = NULL;
 	pkt->l3_proto = L3PROTO_IPV4;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;

@@ -1066,7 +1066,7 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *joo
 			goto end;
 
 		disabled = xlat_is_nat64()
-				? (pool6_is_empty() || pool4db_is_empty())
+				? pool6_is_empty()
 				: (pool6_is_empty() && eamt_is_empty());
 		error = serialize_global_config(&response, disabled, &buffer, &buffer_len);
 		if (error)

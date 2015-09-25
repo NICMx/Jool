@@ -162,7 +162,7 @@ int pool6_flush(void)
 }
 
 RCUTAG_PKT
-int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
+int pool6_get(const struct in6_addr *addr, struct ipv6_prefix *result)
 {
 	struct list_head *list;
 	struct list_head *node;

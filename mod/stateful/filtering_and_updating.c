@@ -111,14 +111,14 @@ static void log_session(struct session_entry *session)
 		log_debug("Session entry: None");
 }
 
-static int create_bib6(struct tuple *tuple6, __u32 mark,
+static int create_bib6(struct packet *in_pkt, struct tuple *tuple6,
 		struct bib_entry **result)
 {
 	struct ipv4_transport_addr addr4;
 	struct bib_entry *bib;
 	int error;
 
-	error = palloc_allocate(tuple6, mark, &addr4);
+	error = palloc_allocate(in_pkt, tuple6, &addr4);
 	if (error)
 		return error;
 	bib = bibentry_create(&addr4, &tuple6->src.addr6, false,
@@ -132,7 +132,7 @@ static int create_bib6(struct tuple *tuple6, __u32 mark,
 	return 0;
 }
 
-static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
+static int get_or_create_bib6(struct packet *in_pkt, struct tuple *tuple6,
 		struct bib_entry **result)
 {
 	struct bib_entry *bib;
@@ -143,7 +143,7 @@ static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
 		return error; /* entry found and misc errors.*/
 
 	/* entry not found. */
-	error = create_bib6(tuple6, mark, &bib);
+	error = create_bib6(in_pkt, tuple6, &bib);
 	if (error)
 		return error;
 
@@ -263,7 +263,7 @@ static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6)
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib6(tuple6, pkt->skb->mark, &bib);
+	error = get_or_create_bib6(pkt, tuple6, &bib);
 	if (error) {
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
@@ -363,7 +363,7 @@ static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
 	struct session_entry *session;
 	int error;
 
-	error = get_or_create_bib6(tuple6, pkt->skb->mark, &bib);
+	error = get_or_create_bib6(pkt, tuple6, &bib);
 	if (error)
 		goto simple_end;
 	log_bib(bib);

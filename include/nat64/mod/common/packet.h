@@ -225,6 +225,7 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 		struct frag_hdr *hdr_frag, void *payload, struct packet *original_pkt)
 {
 	pkt->skb = skb;
+	pkt->dst = NULL;
 	pkt->l3_proto = l3_proto;
 	pkt->l4_proto = l4_proto;
 	pkt->is_inner = 0;

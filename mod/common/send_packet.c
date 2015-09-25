@@ -49,6 +49,19 @@ static int whine_if_too_big(struct packet *in, struct packet *out)
 	return 0;
 }
 
+static int route(struct packet *in, struct packet *out)
+{
+	switch (pkt_l3_proto(out)) {
+	case L3PROTO_IPV6:
+		return route6(out);
+	case L3PROTO_IPV4:
+		return route4(in, out);
+	}
+
+	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(out));
+	return -EINVAL;
+}
+
 verdict sendpkt_send(struct packet *in, struct packet *out)
 {
 	int error;
@@ -57,11 +70,21 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	logtime(out);
 #endif
 
+	/* TODO this is too complicated. */
 	if (!out->skb->dev) {
-		error = route(out);
-		if (error) {
-			kfree_skb(out->skb);
-			return VERDICT_ACCEPT;
+		if (in->dst) {
+			skb_dst_set(out->skb, in->dst);
+			out->skb->dev = in->dst->dev;
+		} else {
+			error = route(in, out);
+			if (error) {
+				kfree_skb(out->skb);
+				return VERDICT_ACCEPT;
+			}
+			if (in->dst) {
+				skb_dst_set(out->skb, in->dst);
+				out->skb->dev = in->dst->dev;
+			}
 		}
 	}
 

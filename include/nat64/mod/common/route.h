@@ -23,12 +23,6 @@ int route4(struct packet *in, struct packet *out);
 int route6(struct packet *pkt);
 
 /**
- * Protocol independent version of route4() and route6().
- * ie. it's just a wrapper.
- */
-int route(struct packet *pkt);
-
-/**
  * Used when you want to send an ICMP error, indicates where the original packet came from.
  */
 int route4_input(struct packet *pkt);

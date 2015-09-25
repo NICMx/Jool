@@ -14,9 +14,9 @@ struct packet_node {
 	/** The packet. */
 	struct packet pkt;
 
-	/** Links this packet to the list. See @nodes_list. */
+	/** Links this packet to the list. See @node_list. */
 	struct list_head list_hook;
-	/** Links this packet to the tree. See @nodes_tree. */
+	/** Links this packet to the tree. See @node_tree. */
 	struct rb_node tree_hook;
 };
 

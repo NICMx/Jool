@@ -37,7 +37,7 @@ int pool6_flush(void);
  * - you don't have to return it, and
  * - this function can also be described as a way to infer "addr"'s actual network prefix.
  */
-int pool6_get(struct in6_addr *addr, struct ipv6_prefix *prefix);
+int pool6_get(const struct in6_addr *addr, struct ipv6_prefix *prefix);
 /**
  * Returns (in "result") any prefix from the pool.
  */

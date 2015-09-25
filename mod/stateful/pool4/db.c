@@ -4,10 +4,12 @@
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
+#include "nat64/common/constants.h"
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/pool4/table.h"
+#include "nat64/mod/stateful/pool4/empty.h"
 
 /** Note, this is an array (size 2^@power). */
 static struct hlist_head __rcu *db;
@@ -60,21 +62,24 @@ static int add_prefix_strings(char *prefix_strs[], int prefix_count)
 	unsigned int i;
 	int error;
 
-	ports.max = 65535U;
+	/*
+	 * We're not using DEFAULT_POOL4_* here because those are defaults for
+	 * empty pool4 (otherwise it looks confusing from userspace).
+	 */
+	ports.min = 0;
+	ports.max = 65535;
+
 	for (i = 0; i < prefix_count; i++) {
 		error = prefix4_parse(prefix_strs[i], &prefix);
 		if (error)
 			return error;
 
-		ports.min = 61001U;
 		error = pool4db_add(0, L4PROTO_TCP, &prefix, &ports);
 		if (error)
 			return error;
 		error = pool4db_add(0, L4PROTO_UDP, &prefix, &ports);
 		if (error)
 			return error;
-
-		ports.min = 0U;
 		error = pool4db_add(0, L4PROTO_ICMP, &prefix, &ports);
 		if (error)
 			return error;
@@ -300,6 +305,11 @@ bool pool4db_contains(enum l4_protocol proto, struct ipv4_transport_addr *addr)
 
 	rcu_read_lock_bh();
 
+	if (pool4db_is_empty()) {
+		found = pool4empty_contains(addr);
+		goto end;
+	}
+
 	database = rcu_dereference_bh(db);
 	for (i = 0; i < slots(); i++) {
 		hlist_for_each_rcu_bh(node, &database[i]) {
@@ -410,24 +420,32 @@ end:
 /**
  * As a contract, this function will return:
  *
- * - ESRCH if there's no pool4 entry mapped to mark and proto.
- * - 0 if there's at least one pool4 entry mapped to mark and proto, and
- *   each of their transport addresses were iterated.
- * - If cb decides to stop iteration early, it will do so by returning nonzero,
- *   and that will in turn become the result of this function.
+ * - As usual, negative integers as errors (in particular, -ESRCH if there's at
+ *   least one element in the pool and there's no pool4 entry mapped to @in's
+ *   mark and proto).
+ * - If cb decides to stop iteration early, it will do so by returning nonzero
+ *   (preferably positive), and that will in turn become the result of this
+ *   function.
+ * - 0 if iteration ended with no interruptions.
  */
 RCUTAG_PKT
-int pool4db_foreach_taddr4(const __u32 mark, enum l4_protocol proto,
+int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
 	struct pool4_table *table;
 	int error;
+
 	rcu_read_lock_bh();
 
-	table = find_table(rcu_dereference_bh(db), mark, proto);
-	error = table ? pool4table_foreach_taddr4(table, cb, arg, offset)
-			: -ESRCH;
+	if (pool4db_is_empty()) {
+		error = pool4empty_foreach_taddr4(in, tuple6, cb, arg, offset);
+	} else {
+		table = find_table(rcu_dereference_bh(db), in->skb->mark,
+				tuple6->l4_proto);
+		error = table ? pool4table_foreach_taddr4(table, cb, arg, offset)
+				: -ESRCH;
+	}
 
 	rcu_read_unlock_bh();
 	return error;

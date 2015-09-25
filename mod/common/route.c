@@ -94,6 +94,7 @@ int __route4(struct packet *in, __be32 daddr, __u8 tos, __u8 proto)
 		return -EINVAL;
 	}
 
+	log_debug("Packet routed via device '%s'.", table->dst.dev->name);
 	in->dst = &table->dst;
 	return 0;
 }
@@ -172,23 +173,11 @@ int route6(struct packet *pkt)
 		return -error;
 	}
 
+	log_debug("Packet routed via device '%s'.", dst->dev->name);
 	skb_dst_set(pkt->skb, dst);
 	pkt->skb->dev = dst->dev;
 
 	return 0;
-}
-
-int route(struct packet *pkt)
-{
-	switch (pkt_l3_proto(pkt)) {
-	case L3PROTO_IPV6:
-		return route6(pkt);
-	case L3PROTO_IPV4:
-		return route4(pkt);
-	}
-
-	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(pkt));
-	return -EINVAL;
 }
 
 int route4_input(struct packet *pkt)

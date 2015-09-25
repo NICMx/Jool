@@ -554,7 +554,7 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	memset(result, 0, sizeof(*result));
 	result->mode = 0xFFFF;
 	result->op = 0xFF;
-	result->db.pool4.ports.min = 61001U;
+	result->db.pool4.ports.min = 0;
 	result->db.pool4.ports.max = 65535U;
 
 	error = argp_parse(&argp, argc, argv, 0, NULL, result);

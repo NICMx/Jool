@@ -179,10 +179,8 @@ int pool4table_add(struct pool4_table *table, struct ipv4_prefix *prefix,
 		swap(sample.range.min, sample.range.max);
 
 	if (table->proto == L4PROTO_TCP || table->proto == L4PROTO_UDP) {
-		if (sample.range.min == 0) {
-			log_err("Zero is not a valid pool4 port.");
-			return -EINVAL;
-		}
+		if (sample.range.min == 0)
+			sample.range.min = 1;
 	}
 
 	error = validate_overflow(table, prefix, ports);

@@ -10,7 +10,8 @@ union ipv4_address {
 	__u8 as8[4];
 };
 
-int addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
+int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
+		struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
 
@@ -117,7 +118,7 @@ int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *
 	return 0;
 }
 
-int rfc6052_6to4(struct in6_addr *addr6, struct in_addr *result)
+int rfc6052_6to4(const struct in6_addr *addr6, struct in_addr *result)
 {
 	struct ipv6_prefix prefix;
 	int error;

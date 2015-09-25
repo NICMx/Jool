@@ -28,6 +28,7 @@ jool_common += ../common/core.o
 
 jool += pool4/entry.o
 jool += pool4/table.o
+jool += pool4/empty.o
 jool += pool4/db.o
 
 jool += bib/port_allocator.o

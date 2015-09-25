@@ -122,7 +122,7 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
 /**
  * RFC 6056, Algorithm 3.
  */
-int palloc_allocate(const struct tuple *tuple6, __u32 mark,
+int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
 		struct ipv4_transport_addr *result)
 {
 	struct iteration_args args;
@@ -143,8 +143,7 @@ int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 
-	error = pool4db_foreach_taddr4(mark, tuple6->l4_proto,
-			choose_port, &args,
+	error = pool4db_foreach_taddr4(in_pkt, tuple6, choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
 
 	if (error == 1)
@@ -156,17 +155,16 @@ int palloc_allocate(const struct tuple *tuple6, __u32 mark,
 		 */
 		log_debug("There are no pool4 entries for %s packets with mark "
 				"%u.", l4proto_to_string(tuple6->l4_proto),
-				mark);
+				in_pkt->skb->mark);
 		return -ESRCH;
 	}
 	if (error == 0) {
 		log_warn_once("pool4 is exhausted! There are no transport "
 				"addresses left for %s packets with mark %u.",
-				l4proto_to_string(tuple6->l4_proto), mark);
+				l4proto_to_string(tuple6->l4_proto),
+				in_pkt->skb->mark);
 		return -ESRCH;
 	}
 
-	WARN(true, "Programming error! pool4db_foreach_taddr4()'s result (%d) "
-			"is unknown!", error);
-	return -EINVAL;
+	return error;
 }
