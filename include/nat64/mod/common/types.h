@@ -10,8 +10,11 @@
 
 #include "nat64/common/types.h"
 #include <linux/netfilter.h>
+#include <linux/kernel.h>
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/address.h"
+#include "nat64/mod/common/error_pool.h"
+
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops (bad checksums,
@@ -41,7 +44,12 @@
  * processing user requests.
  * I the code found a **programming** error, use WARN() or its variations instead.
  */
-#define log_err(text, ...) pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__)
+#define log_err(text, ...) pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__); \
+						 { \
+						   char error_message[512]; \
+						   sprintf(error_message, text "\n",##__VA_ARGS__); \
+						   error_pool_add_message(error_message); \
+						 }
 /**
  * This is intended to be equivalent to WARN(), except it's silent if you're unit testing.
  * Do this when you're testing errors being caught correctly and don't want dumped stacks on the
