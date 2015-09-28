@@ -20,9 +20,11 @@ title: 464XLAT
 
 ## Introduction
 
-NAT64 is not perfect. While you might see a lot of traffic getting translated quirklessly, you might eventually bump into the following rough edge:
+This document is a summary of [RFC 6877](https://tools.ietf.org/html/rfc6877), collapsed into a walkthrough that uses Jool.
 
-Barring RFC 6384, NAT64 only translates network headers (IPv4, IPv6 and ICMP) and transport headers (UDP and TCP). Sometimes, this is a problem. Some protocols on top of UDP and TCP have a bad habit of including IP addresses ("IP literals") along their conversations; because NAT64 only translates lower protocols, these literals will slip past the NAT64 unmodified.
+## Problem Statement
+
+Barring [RFC 6384](https://tools.ietf.org/html/rfc6384), NAT64 only translates network (IPv4, IPv6 and ICMP) and transport headers (UDP and TCP). Unfortunately, some protocols on top of UDP and TCP have a bad habit of including IP addresses ("IP literals") along their conversations. Because NAT64 only translates lower protocols, these addresses will slip past the NAT64 unmodified.
 
 For example, some IPv6-unaware website, which would normally contain this HTML:
 
@@ -32,35 +34,31 @@ Could be poorly coded like this:
 
 	<a href="203.0.113.24/index.html">Link to something.</a>
 
-This address lies within the body of an HTML file, not a network or transport header. It is not viable for Jool to support translation of all existing application protocols.
+This address lies within the body of an HTML file, not a network or transport header. It is not viable for a NAT64 to support translation of all existing application protocols.
 
-If you click the latter version of the link from an IPv6-only node via a NAT64, it will of course not work, because the node doesn't have an IPv4 stack with which to access `203.0.113.24`. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
+Clicking the latter version of the link from an IPv6-only node via a NAT64 will result in failure, because the node doesn't have an IPv4 stack with which to access `203.0.113.24`. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
 
-[464XLAT](https://tools.ietf.org/html/rfc6877) is a technique meant to address this limitation. It functions by appending an SIIT into the mix, that reverses the work made by the Stateful NAT64. The idea can be generalized to also provide Internet to IPv4-only services when all you have is an IPv6 address space, which is [SIIT/DC: Dual Translation Mode]({{ site.draft-siit-dc-2xlat }}).
-
-This document is a dumbed-down summary of both of these techniques, collapsed into a walkthrough that uses Jool.
+[464XLAT](https://tools.ietf.org/html/rfc6877) is a technique meant to address this limitation. It appends an SIIT to the path, which mirrors the NAT64's work, which grants a controlled amount of clients a fallback IPv4 stack to access IP literals with.
 
 ## Sample Network
 
-![Figure 1 - 464 Needed](../images/network/464-needed.svg)
+![Fig.1 - 464 Needed](../images/network/464-needed.svg "Fig.1 - 464 Needed")
 
-The red box would be your domain. _n6_ stands for "IPv6 node" and _R_ is "router". Say your ISP gives you only IPv6 addresses, but it also grants you access to IPv4 via a stateful NAT64 (_PLAT_; "Provider-side Translator"). _n4_ is a random IPv4 Internet node.
+The red box would be your domain. _n6_ stands for "IPv6 node" and _R_ is "router". Say your ISP gives you only IPv6 addresses, but it also grants you access to IPv4 via a Stateful NAT64 (_PLAT_; "Provider-side Translator"). _n4_ is a random IPv4 Internet node.
 
 Say your user from _n6_ clicks a link towards `203.0.113.24`. _n6_ does not have an IPv4 stack, so the request has nowhere to go. The situation could be amended by manually appending the NAT64 prefix to the address, but the user doesn't know that. Of course, a DNS64 would be the ideal and transparent solution, but unfortunately the site provided an address and not a domain name, so _n6_ is not querying the DNS.
 
-Alternatively, _n6_ might want to provide a legacy service (or client) which is unfortunately tied to IPv4. Because _n6_ only has global IPv6 addresses, it appears it cannot do so.
-
 In broad terms, the solution is to provide _n6_ with a "fake" IPv4 stack whose packets will be translated into IPv6 before reaching _PLAT_. In other words, an SIIT service (in 464XLAT terms called "_CLAT_"; "Customer-side Translator") will be sort of undoing _PLAT_'s work.
 
-There are rather several ways to do this. Unfortunately, one of them ([making _n6_ the CLAT]({{ site.draft-siit-dc-2xlat }}#section-3.1)) is rather embarrassingly not yet implemented by Jool. One that does work is to make _R_ the CLAT. The network would look like this:
+There are rather several ways to do this. Unfortunately, one of them ([making _n6_ itself the CLAT]({{ site.draft-siit-dc-2xlat }}#section-3.1)) is rather embarrassingly not yet implemented by Jool. One that does work is to make _R_ the CLAT. The network would look like this:
 
-![Figure 2 - 464XLAT'd Network](../images/network/464-network.svg)
+![Fig.2 - 464XLAT'd Network](../images/network/464-network.svg "Fig.2 - 464XLAT'd Network")
 
 I also removed the clouds to simplify routing in the example. The dual translation idea has really nothing to do with routing, so this is unimportant.
 
 ## Expected Packet Flow
 
-This is the normal flow an IPv6-sourced packet would traverse. It's a typical stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it: Notice we've chosen 64:ff9b::/96 as _PLAT_'s NAT64 prefix:
+This is the normal flow an IPv6-sourced packet would traverse. It is a typical Stateful NAT64 flow and the Dual Translation presented in this configuration will not interfere with it: Notice we've chosen 64:ff9b::/96 as _PLAT_'s NAT64 prefix:
 
 ![Figure 3 - Normal Stateful Flow](../images/flow/464-normal-en.svg)
 

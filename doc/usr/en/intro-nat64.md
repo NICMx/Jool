@@ -5,7 +5,7 @@ category: Documentation
 title: Introduction to IPv4/IPv6 Translation
 ---
 
-[Documentation](documentation.html) > [Introduction](documentation.html#introduction) > NAT64
+[Documentation](documentation.html) > [Introduction](documentation.html#introduction) > IPv4/IPv6 Translation
 
 # Introduction to IPv4/IPv6 Translation
 
@@ -21,11 +21,13 @@ title: Introduction to IPv4/IPv6 Translation
 
 This document provides a general introduction to SIIT and NAT64.
 
+It only focuses on what, exactly, IPv4/IPv6 translators do. If you're more interested in down-to-earth setups which apply these ideas, try [Architectures](documentation.html#architectures).
+
 ## IPv4/IPv6 Translation
 
 SIIT (_Stateless IP/ICMP Translation_) and NAT64 ("NAT six four", not "NAT sixty-four") are technologies meant to communicate networking nodes which only speak [IPv4](http://en.wikipedia.org/wiki/IPv4) with nodes that only speak [IPv6](http://en.wikipedia.org/wiki/IPv6).
 
-- SIIT mangles packets, simply replacing IPv4 headers with IPv6 headers and viceversa.
+- SIIT mangles packets, simply replacing IPv4 headers and IPv6 headers.
 - _Stateful NAT64_ (or "NAT64" for short) is a combination between an SIIT and a (theoretical) IPv6 NAT; the point is to mask several IPv6 nodes behind a few IPv4 addresses.
 
 In their basic forms, SIIT only helps communicating nodes speaking different protocols, while NAT64 also helps with [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion) (at the cost of being more computationally expensive).
@@ -68,9 +70,9 @@ The idea is to simply remove a prefix while translating from IPv6 to IPv4, and a
 
 Of course, this means each node's IPv4 address has to be encoded inside its IPv6 address, which is a little annoying.
 
-While this explanation might make it seem like "EAM" SIIT and "traditional" SIIT are different things, this is not the case. Implementations are expected to always try to translate an address based on the EAM table first, and if no mapping is found, fall back to append or remove the prefix. The separation was done here for illustrative purposes. You can find a concrete example of how "traditional" and "EAM" SIIT can be combined to fit a use case in [draft-v6ops-siit-dc](http://tools.ietf.org/html/draft-ietf-v6ops-siit-dc-00).
+While this explanation might make it seem like "EAM" SIIT and "traditional" SIIT are different things, this is not the case. Implementations are expected to always try to translate an address based on the EAM table first, and if no mapping is found, fall back to append or remove the prefix. The separation was done here for illustrative purposes only.
 
-SIIT is defined by <a href="http://tools.ietf.org/html/rfc6145" target="_blank">RFC 6145</a>. The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by <a href="http://tools.ietf.org/html/rfc6052" target="_blank">RFC 6052</a>. Whenever RFC 6052 is involved, it's usually convenient to also have a [DNS64](dns64.html) so users don't need to be aware of the prefix.
+SIIT is defined by [RFC 6145](http://tools.ietf.org/html/rfc6145). The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by [RFC 6052](http://tools.ietf.org/html/rfc6052). Whenever RFC 6052 is involved, it's usually convenient to also have a [DNS64](dns64.html) so users don't need to be aware of the prefix.
 
 ## Stateful NAT64
 
@@ -84,7 +86,7 @@ The idea is, the left network is called "Private" because it uses [addresses una
 
 As a result, for outside purposes, nodes _A_ through _E_ are "sharing" _NAT_'s global address (or addresses).
 
-While stateful NAT helps you economize IPv4 address, it comes with a price: _NAT_ has to remember which private node issued the packet to _V_, because _A_'s address cannot be found anywhere in _V_'s response. That's why it's called "stateful"; it creates address mappings dymanically and remembers them for a while. There are two things to keep ind mind here:
+While stateful NAT helps you economize IPv4 address, it comes with a price: the _NAT_ machine has to remember which private node issued the packet to _V_, because _A_'s address cannot be found anywhere in _V_'s response. That's why it's called "stateful"; it creates address mappings dymanically and remembers them for a while. There are two things to keep ind mind here:
 
 - Each mapping requires memory.
 - _V_ cannot **start** a packet stream with _A_, again because _NAT_ **must** learn the mapping in the private-to-outside direction first (left to right).
@@ -103,5 +105,4 @@ Now, that's where the similarities with NAT end. You don't normally say the IPv6
 
 In this way, _A_ through _E_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
 
-Stateful NAT64 is defined by <a href="http://tools.ietf.org/html/rfc6146" target="_blank">RFC 6146</a> and is most of the time coupled with [DNS64](dns64.html).
-
+Stateful NAT64 is defined by [RFC 6146](http://tools.ietf.org/html/rfc6146) and is most of the time coupled with [DNS64](dns64.html).
