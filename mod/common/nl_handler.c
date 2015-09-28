@@ -74,32 +74,34 @@ static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload
  */
 static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 {
-	struct nlmsgerr error_struct = { abs(error), *nl_hdr_in };
+	struct nlmsgerr error_struct;
 
 	__u8 *payload = NULL;
 	char * error_msg = NULL;
 
-	error_struct.error = error;
+	error_struct.error = abs(error);
+	error_struct.msg = *nl_hdr_in;
 	error_struct.msg.nlmsg_len = 0;
 
 	if (error_pool_get_message(&error_msg)) {
-		pr_err("could not get error message from pool.");
+		pr_err("could not get error message from pool.\n");
 		goto respond_error_on_failure;
 	}
 
-	error_struct.msg.nlmsg_len = (__u32)strlen(error_msg);
+	error_struct.msg.nlmsg_len = sizeof(error_struct) + strlen(error_msg) + 1;
 
-	payload = kmalloc(sizeof(error_struct)+strlen(error_msg)+1,GFP_ATOMIC);
+	payload = kmalloc(error_struct.msg.nlmsg_len, GFP_ATOMIC);
 
 	if (!payload) {
-		pr_err("could not allocate memory for error payload!.");
+		pr_err("could not allocate memory for error payload!\n");
+		kfree(error_msg);
 		goto respond_error_on_failure;
 	}
 
 	memcpy(payload,(__u8*)&error_struct, sizeof(error_struct));
 	memcpy(payload+(sizeof(error_struct)),(__u8*)error_msg, strlen(error_msg)+1);
 
-	error = respond_single_msg(nl_hdr_in,NLMSG_ERROR,payload, sizeof(error_struct)+strlen(error_msg)+1);
+	error = respond_single_msg(nl_hdr_in,NLMSG_ERROR,payload, error_struct.msg.nlmsg_len);
 
 	kfree(error_msg) ;
 	kfree(payload);
@@ -108,8 +110,6 @@ static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 
 respond_error_on_failure:
 	return respond_single_msg(nl_hdr_in,NLMSG_ERROR,&error_struct,sizeof(error_struct));
-
-
 }
 
 /*
@@ -1156,40 +1156,36 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 
 	error = validate_version(jool_hdr);
 	if (error)
-		respond_error(nl_hdr,error);
+		return respond_error(nl_hdr, error);
 
-
-
-	if(!error) {
-		switch (jool_hdr->mode) {
-		case MODE_POOL6:
-			return handle_pool6_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_POOL4:
-			return handle_pool4_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_BIB:
-			return handle_bib_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_SESSION:
-			return handle_session_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_EAMT:
-			return handle_eamt_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_RFC6791:
-			return handle_rfc6791_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_BLACKLIST:
-			return handle_blacklist_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_LOGTIME:
-			return handle_logtime_config(nl_hdr, jool_hdr, request);
-			break;
-		case MODE_GLOBAL:
-			return handle_global_config(nl_hdr, jool_hdr, request);
-			break;
-		}
+	switch (jool_hdr->mode) {
+	case MODE_POOL6:
+		return handle_pool6_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_POOL4:
+		return handle_pool4_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_BIB:
+		return handle_bib_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_SESSION:
+		return handle_session_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_EAMT:
+		return handle_eamt_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_RFC6791:
+		return handle_rfc6791_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_BLACKLIST:
+		return handle_blacklist_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_LOGTIME:
+		return handle_logtime_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_GLOBAL:
+		return handle_global_config(nl_hdr, jool_hdr, request);
+		break;
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);
@@ -1251,6 +1247,7 @@ int nlhandler_init(void)
 
 void nlhandler_destroy(void)
 {
+	error_pool_destroy();
 	if (nl_socket)
 		netlink_kernel_release(nl_socket);
 }

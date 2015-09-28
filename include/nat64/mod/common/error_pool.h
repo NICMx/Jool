@@ -4,6 +4,8 @@
 #include <linux/list.h>
 
 void error_pool_init(void);
+void error_pool_destroy(void);
+
 void error_pool_activate(void);
 int error_pool_add_message(char * msg);
 int error_pool_has_errors(void);
