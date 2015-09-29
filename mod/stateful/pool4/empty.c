@@ -4,6 +4,7 @@
 #include <linux/netdevice.h>
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
 
@@ -21,7 +22,7 @@ bool pool4empty_contains(const struct ipv4_transport_addr *addr)
 
 	rcu_read_lock();
 
-	for_each_netdev_rcu(&init_net, dev) {
+	for_each_netdev_rcu(joolns_get(), dev) {
 		in_dev = __in_dev_get_rcu(dev);
 		if (!in_dev)
 			continue;

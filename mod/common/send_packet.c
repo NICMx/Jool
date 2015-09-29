@@ -57,12 +57,13 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	logtime(out);
 #endif
 
-	if (!skb_dst(out->skb) && !route(out)) {
+	if (!route(out)) {
 		kfree_skb(out->skb);
 		return VERDICT_ACCEPT;
 	}
 
-	log_debug("Sending skb via device '%s'", out->skb->dev->name);
+	out->skb->dev = skb_dst(out->skb)->dev;
+	log_debug("Sending skb via device '%s'.", out->skb->dev->name);
 
 	error = whine_if_too_big(in, out);
 	if (error) {

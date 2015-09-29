@@ -7,6 +7,7 @@
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/log_time.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl_buffer.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/error_pool.h"
@@ -1219,14 +1220,14 @@ int nlhandler_init(void)
 	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
+	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
+	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
 #else
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
+	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, &nl_cfg);
 #endif
 
 	if (nl_socket) {

@@ -5,6 +5,7 @@
 #include <net/route.h>
 
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/packet.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/types.h"
@@ -68,7 +69,7 @@ struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow()
 	 * because they only add XFRM overhead.
 	 */
-	table = __ip_route_output_key(&init_net, &flow);
+	table = __ip_route_output_key(joolns_get(), &flow);
 	if (!table || IS_ERR(table)) {
 		log_debug("__ip_route_output_key() returned %ld. Cannot route packet.", PTR_ERR(table));
 		return NULL;
@@ -160,7 +161,7 @@ struct dst_entry *route6(struct packet *pkt)
 		}
 	}
 
-	dst = ip6_route_output(&init_net, NULL, &flow);
+	dst = ip6_route_output(joolns_get(), NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
 		return NULL;
@@ -172,7 +173,7 @@ struct dst_entry *route6(struct packet *pkt)
 
 	log_debug("Packet routed via device '%s'.", dst->dev->name);
 	skb_dst_set(pkt->skb, dst);
-	return 0;
+	return dst;
 }
 
 struct dst_entry *route(struct packet *pkt)

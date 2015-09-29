@@ -26,6 +26,7 @@ jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
+jool_common += ../common/namespace.o
 
 jool += pool4/entry.o
 jool += pool4/table.o

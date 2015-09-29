@@ -3,6 +3,7 @@
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
 #include "nat64/mod/common/log_time.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
@@ -104,6 +105,9 @@ static int __init nat64_init(void)
 	nf_defrag_ipv4_enable();
 
 	/* Init Jool's submodules. */
+	error = joolns_init();
+	if (error)
+		goto joolns_failure;
 	error = config_init(disabled);
 	if (error)
 		goto config_failure;
@@ -161,6 +165,9 @@ nlhandler_failure:
 	config_destroy();
 
 config_failure:
+	joolns_destroy();
+
+joolns_failure:
 	return error;
 }
 
@@ -179,8 +186,9 @@ static void __exit nat64_exit(void)
 	pool6_destroy();
 	nlhandler_destroy();
 	config_destroy();
+	joolns_destroy();
 
-	log_info("%s v" JOOL_VERSION_STR "module removed.", xlat_get_name());
+	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }
 
 module_init(nat64_init);

@@ -6,6 +6,7 @@
 #include <linux/inetdevice.h>
 
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/rcu.h"
 #include "nat64/mod/stateless/pool.h"
 
@@ -44,7 +45,7 @@ static bool interface_contains(struct in_addr *addr)
 	struct in_addr net_addr;
 
 	rcu_read_lock();
-	for_each_netdev_rcu(&init_net, dev) {
+	for_each_netdev_rcu(joolns_get(), dev) {
 		in_dev = rcu_dereference(dev->ip_ptr);
 		ifaddr = in_dev->ifa_list;
 		while (ifaddr) {

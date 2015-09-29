@@ -1,6 +1,7 @@
 #include "nat64/mod/common/nf_hook.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
@@ -77,6 +78,9 @@ static int __init nat64_init(void)
 	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
+	error = joolns_init();
+	if (error)
+		goto joolns_failure;
 	error = config_init(disabled);
 	if (error)
 		goto config_failure;
@@ -134,6 +138,9 @@ eamt_failure:
 	config_destroy();
 
 config_failure:
+	joolns_destroy();
+
+joolns_failure:
 	return error;
 }
 
@@ -152,6 +159,7 @@ static void __exit nat64_exit(void)
 #endif
 	eamt_destroy();
 	config_destroy();
+	joolns_destroy();
 
 	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }
