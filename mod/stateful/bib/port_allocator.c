@@ -123,7 +123,7 @@ static int choose_port(struct ipv4_transport_addr *addr, void *void_args)
  * RFC 6056, Algorithm 3.
  */
 int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
-		struct ipv4_transport_addr *result)
+		struct in_addr *daddr, struct ipv4_transport_addr *result)
 {
 	struct iteration_args args;
 	unsigned int offset;
@@ -143,7 +143,8 @@ int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 
-	error = pool4db_foreach_taddr4(in_pkt, tuple6, choose_port, &args,
+	error = pool4db_foreach_taddr4(in_pkt, tuple6, daddr,
+			choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
 
 	if (error == 1)

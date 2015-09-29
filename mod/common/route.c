@@ -10,34 +10,25 @@
 #include "nat64/mod/common/types.h"
 
 /**
- * This function is a little delicate. Since it's routing the outgoing packet,
- * you'd think it'd receive the outgoing packet as parameter.
- *
- * Ideally, Jool routes in the very last step - in the send_packet module.
- * Sometimes however, code needs to know in advance the device the packet is
- * going to be fetched through, which means it needs to route prematurely.
- * To make matters worse, sometimes it's so early the outgoing packet hasn't
- * even been allocated yet.
- *
- * Therefore, even though it's routing the outgoing IPv4 packet, this function
- * receives the INCOMING IPv6 one as argument.
- *
- * Also:
  * Callers of this function need to mind hairpinning. What happens if @daddr
  * belongs to the translator?
  */
-int __route4(struct packet *in, __be32 daddr, __u8 tos, __u8 proto)
+struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
+		struct packet *pkt)
 {
 	struct flowi4 flow;
 	struct rtable *table;
-	int error;
+	struct dst_entry *dst;
 
 	/*
 	 * Sometimes Jool needs to route prematurely,
 	 * so don't sweat this on the normal pipelines.
 	 */
-	if (in->dst)
-		return 0;
+	if (pkt) {
+		dst = skb_dst(pkt->skb);
+		if (dst)
+			return dst;
+	}
 
 	/**
 	 * The flowi's XFRM fields don't matter because "any protocols that
@@ -48,7 +39,7 @@ int __route4(struct packet *in, __be32 daddr, __u8 tos, __u8 proto)
 	memset(&flow, 0, sizeof(flow));
 	/* flow.flowi4_oif; */
 	/* flow.flowi4_iif; */
-	flow.flowi4_mark = in->skb->mark;
+	flow.flowi4_mark = mark;
 	flow.flowi4_tos = tos;
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;
 	flow.flowi4_proto = proto;
@@ -79,45 +70,52 @@ int __route4(struct packet *in, __be32 daddr, __u8 tos, __u8 proto)
 	 */
 	table = __ip_route_output_key(&init_net, &flow);
 	if (!table || IS_ERR(table)) {
-		error = abs(PTR_ERR(table));
-		log_debug("__ip_route_output_key() returned %d. Cannot route packet.", error);
-		return -error;
+		log_debug("__ip_route_output_key() returned %ld. Cannot route packet.", PTR_ERR(table));
+		return NULL;
 	}
-	if (table->dst.error) {
-		error = abs(table->dst.error);
-		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", error);
-		return -error;
+	dst = &table->dst;
+	if (dst->error) {
+		/* TODO isn't this missing a dst_release()? */
+		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", dst->error);
+		return NULL;
 	}
-	if (!table->dst.dev) {
-		dst_release(&table->dst);
+	if (!dst->dev) {
+		dst_release(dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
-		return -EINVAL;
+		return NULL;
 	}
 
-	log_debug("Packet routed via device '%s'.", table->dst.dev->name);
-	in->dst = &table->dst;
-	return 0;
+	log_debug("Packet routed via device '%s'.", dst->dev->name);
+
+	if (pkt) {
+		skb_dst_set(pkt->skb, dst);
+		/* TODO quizá se usa debido a route_input + hairpinning? */
+		/* pkt->skb->dev = dst->dev; */
+	}
+
+	return dst;
 }
 
-int route4(struct packet *in, struct packet *out)
+struct dst_entry *route4(struct packet *out)
 {
-	struct iphdr *hdr4 = pkt_ip4_hdr(out);
-	return __route4(in, hdr4->daddr, hdr4->tos, hdr4->protocol);
+	struct iphdr *hdr = pkt_ip4_hdr(out);
+	return __route4(hdr->daddr, hdr->tos, hdr->protocol, out->skb->mark, out);
 }
 
 /**
  * Unlike route4(), this function doesn't currently have any weird callers.
  * Therefore, @pkt is the outgoing IPv6 packet.
  */
-int route6(struct packet *pkt)
+struct dst_entry *route6(struct packet *pkt)
 {
 	struct ipv6hdr *hdr_ip = pkt_ip6_hdr(pkt);
 	struct flowi6 flow;
 	struct dst_entry *dst;
 	struct hdr_iterator iterator;
 
-	if (skb_dst(pkt->skb))
-		return 0;
+	dst = skb_dst(pkt->skb);
+	if (dst)
+		return dst;
 
 	hdr_iterator_init(&iterator, hdr_ip);
 	hdr_iterator_last(&iterator);
@@ -165,19 +163,29 @@ int route6(struct packet *pkt)
 	dst = ip6_route_output(&init_net, NULL, &flow);
 	if (!dst) {
 		log_debug("ip6_route_output() returned NULL. Cannot route packet.");
-		return -EINVAL;
+		return NULL;
 	}
 	if (dst->error) {
-		int error = abs(dst->error);
-		log_debug("ip6_route_output() returned error %d. Cannot route packet.", error);
-		return -error;
+		log_debug("ip6_route_output() returned error %d. Cannot route packet.", dst->error);
+		return NULL;
 	}
 
 	log_debug("Packet routed via device '%s'.", dst->dev->name);
 	skb_dst_set(pkt->skb, dst);
-	pkt->skb->dev = dst->dev;
-
 	return 0;
+}
+
+struct dst_entry *route(struct packet *pkt)
+{
+	switch (pkt_l3_proto(pkt)) {
+	case L3PROTO_IPV6:
+		return route6(pkt);
+	case L3PROTO_IPV4:
+		return route4(pkt);
+	}
+
+	WARN(true, "Unsupported network protocol: %u.", pkt_l3_proto(pkt));
+	return NULL;
 }
 
 int route4_input(struct packet *pkt)

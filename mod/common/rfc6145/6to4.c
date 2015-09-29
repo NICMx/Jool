@@ -67,6 +67,19 @@ verdict ttp64_create_skb(struct packet *in, struct packet *out)
 	return VERDICT_CONTINUE;
 }
 
+static __u8 __xlat_tos(bool reset_tos, __u8 new_tos, struct ipv6hdr *hdr)
+{
+	return reset_tos ? new_tos : get_traffic_class(hdr);
+}
+
+__u8 ttp64_xlat_tos(struct ipv6hdr *hdr)
+{
+	bool reset_tos;
+	__u8 new_tos;
+	config_get_hdr4_config(&reset_tos, &new_tos, NULL, NULL);
+	return __xlat_tos(reset_tos, new_tos, hdr);
+}
+
 /**
  * One-liner for creating the IPv4 header's Total Length field.
  */
@@ -137,7 +150,7 @@ static bool generate_df_flag(struct packet *pkt_out)
 /**
  * One-liner for creating the IPv4 header's Protocol field.
  */
-static __u8 build_protocol_field(struct ipv6hdr *hdr6)
+__u8 ttp64_xlat_proto(struct ipv6hdr *hdr6)
 {
 	struct hdr_iterator iterator = HDR_ITERATOR_INIT(hdr6);
 	hdr_iterator_last(&iterator);
@@ -286,16 +299,17 @@ verdict ttp64_ipv4(struct tuple *tuple4, struct packet *in, struct packet *out)
 	verdict result;
 
 	bool reset_tos, build_ipv4_id, df_always_on;
-	__u8 dont_fragment, new_tos;
+	__u8 new_tos, dont_fragment;
 
-	config_get_hdr4_config(&reset_tos, &new_tos, &build_ipv4_id, &df_always_on);
+	config_get_hdr4_config(&reset_tos, &new_tos, &build_ipv4_id,
+			&df_always_on);
 
 	/*
 	 * translate_addrs64_siit->rfc6791_get->get_host_address needs tos
 	 * and protocol, so translate them first.
 	 */
-	ip4_hdr->tos = reset_tos ? new_tos : get_traffic_class(ip6_hdr);
-	ip4_hdr->protocol = build_protocol_field(ip6_hdr);
+	ip4_hdr->tos = __xlat_tos(reset_tos, new_tos, ip6_hdr);
+	ip4_hdr->protocol = ttp64_xlat_proto(ip6_hdr);
 
 	/* Translate the address before TTL because of issue #167. */
 	if (xlat_is_nat64()) {
@@ -382,19 +396,15 @@ static int compute_mtu4(struct packet *in, struct packet *out)
 #ifndef UNIT_TESTING
 	struct dst_entry *out_dst;
 	struct icmp6hdr *in_icmp = pkt_icmp6_hdr(in);
-	int error;
 
-	error = route4(in, out);
-	if (error)
-		return error;
-
-	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
-
+	out_dst = route4(out);
+	if (!out_dst)
+		return -EINVAL;
 	if (!in->skb->dev)
 		return -EINVAL;
-	log_debug("In dev MTU: %u", in->skb->dev->mtu);
 
-	out_dst = skb_dst(out->skb);
+	log_debug("Packet MTU: %u", be32_to_cpu(in_icmp->icmp6_mtu));
+	log_debug("In dev MTU: %u", in->skb->dev->mtu);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
 	out_icmp->un.frag.mtu = icmp4_minimum_mtu(be32_to_cpu(in_icmp->icmp6_mtu) - 20,

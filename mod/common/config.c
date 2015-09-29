@@ -207,8 +207,10 @@ void config_get_hdr4_config(bool *reset_tos, __u8 *new_tos, bool *build_ipv4_id,
 	tmp = rcu_dereference_bh(config);
 	*reset_tos = tmp->reset_tos;
 	*new_tos = tmp->new_tos;
-	*build_ipv4_id = tmp->atomic_frags.build_ipv4_id;
-	*df_always_on = tmp->atomic_frags.df_always_on;
+	if (build_ipv4_id)
+		*build_ipv4_id = tmp->atomic_frags.build_ipv4_id;
+	if (df_always_on)
+		*df_always_on = tmp->atomic_frags.df_always_on;
 	rcu_read_unlock_bh();
 }
 

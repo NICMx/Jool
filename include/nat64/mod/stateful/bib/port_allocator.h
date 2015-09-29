@@ -8,6 +8,6 @@ int palloc_init(void);
 void palloc_destroy(void);
 
 int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
-		struct ipv4_transport_addr *result);
+		struct in_addr *daddr, struct ipv4_transport_addr *result);
 
 #endif /* _JOOL_MOD_BIB_PORT_ALLOCATOR_H */

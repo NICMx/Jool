@@ -80,6 +80,8 @@ void filtering_destroy(void)
 
 /**
  * Decides whether the packet should be filtered or not.
+ *
+ * TODO NOBODY IS CALLING THIS.
  */
 static inline void apply_policies(void)
 {
@@ -111,17 +113,27 @@ static void log_session(struct session_entry *session)
 		log_debug("Session entry: None");
 }
 
+static int xlat_addr64(struct tuple *tuple6, struct in_addr *addr)
+{
+	return rfc6052_6to4(&tuple6->dst.addr6.l3, addr);
+}
+
 static int create_bib6(struct packet *in_pkt, struct tuple *tuple6,
 		struct bib_entry **result)
 {
-	struct ipv4_transport_addr addr4;
+	struct ipv4_transport_addr saddr;
+	struct in_addr daddr;
 	struct bib_entry *bib;
 	int error;
 
-	error = palloc_allocate(in_pkt, tuple6, &addr4);
+	error = xlat_addr64(tuple6, &daddr);
 	if (error)
 		return error;
-	bib = bibentry_create(&addr4, &tuple6->src.addr6, false,
+	error = palloc_allocate(in_pkt, tuple6, &daddr, &saddr);
+	if (error)
+		return error;
+
+	bib = bibentry_create(&saddr, &tuple6->src.addr6, false,
 			tuple6->l4_proto);
 	if (!bib) {
 		log_debug("Failed to allocate a BIB entry.");
@@ -183,7 +195,7 @@ static int create_session(struct tuple *tuple, struct bib_entry *bib,
 		remote6 = tuple->src.addr6;
 		local6 = tuple->dst.addr6;
 		local4 = bib->ipv4;
-		error = rfc6052_6to4(&tuple->dst.addr6.l3, &remote4.l3);
+		error = xlat_addr64(tuple, &remote4.l3);
 		if (error)
 			return error;
 		remote4.l4 = (tuple->l4_proto != L4PROTO_ICMP)

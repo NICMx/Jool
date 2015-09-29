@@ -51,11 +51,13 @@ verdict handling_hairpinning(struct packet *in, struct tuple *tuple_in)
 		 * RFC 6146 section 2 (Definition of "Hairpinning").
 		 *
 		 * Update 2014-11-21:
-		 * Actually, since ICMP errors count as UDP or TCP packets tuple-wise, maybe the RFC means
-		 * we should only filter out ICMP echoes.
-		 * Or maybe not even that, since they're going to be dropped later anyway, once Jool fails
-		 * to find the mapping.
-		 * Unfortunately, if I remove this if, Jool crashes when I hairpin a ICMP error.
+		 * Actually, since ICMP errors count as UDP or TCP packets
+		 * tuple-wise, maybe the RFC means we should only filter out
+		 * ICMP echoes.
+		 * Or maybe not even that, since they're going to be dropped
+		 * later anyway, once Jool fails to find the mapping.
+		 * Unfortunately, if I remove this if, Jool crashes when I
+		 * hairpin a ICMP error.
 		 */
 		log_debug("ICMP is not supported by hairpinning. Dropping packet...");
 		return VERDICT_DROP;

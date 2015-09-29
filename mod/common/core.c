@@ -37,7 +37,7 @@ static unsigned int core_common(struct packet *in)
 		kfree_skb(out.skb);
 	} else {
 		result = sendpkt_send(in, &out);
-		/* send_pkt releases out's skb regardless of verdict. */
+		/* sendpkt_send() releases out's skb regardless of verdict. */
 	}
 
 	if (result != VERDICT_CONTINUE)

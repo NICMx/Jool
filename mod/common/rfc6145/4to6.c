@@ -397,24 +397,19 @@ static int compute_mtu6(struct packet *in, struct packet *out)
 	struct dst_entry *out_dst;
 	struct iphdr *hdr4;
 	struct icmphdr *in_icmp = pkt_icmp4_hdr(in);
-	int error;
 
-	error = route6(out);
-	if (error)
-		return error;
-
-	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
-
+	out_dst = route6(out);
+	if (!out_dst)
+		return -EINVAL;
 	if (!in->skb->dev)
 		return -EINVAL;
-	log_debug("In dev MTU: %u", in->skb->dev->mtu);
 
-	out_dst = skb_dst(out->skb);
+	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
+	log_debug("In dev MTU: %u", in->skb->dev->mtu);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
 	/* We want the length of the packet that couldn't get through, not the truncated one. */
 	hdr4 = pkt_payload(in);
-
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu),
 			out_dst->dev->mtu,
 			in->skb->dev->mtu,

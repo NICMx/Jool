@@ -87,19 +87,19 @@ static int get_rfc6791_address(struct packet *in, __u64 count, __be32 *result)
 static int get_host_address(struct packet *in, struct packet *out,
 		__be32 *result)
 {
+	struct dst_entry *dst;
 	__be32 saddr;
 	__be32 daddr;
-	int error;
 
 	/* TODO what happens if the packet hairpins? */
 	/* TODO you sure secondary addresses do jack? */
 
-	error = route4(in, out);
-	if (error)
-		return error;
+	dst = route4(out);
+	if (!dst)
+		return -EINVAL;
 
 	daddr = pkt_ip4_hdr(out)->daddr;
-	saddr = inet_select_addr(out->skb->dev, daddr, RT_SCOPE_LINK);
+	saddr = inet_select_addr(dst->dev, daddr, RT_SCOPE_LINK);
 
 	if (!saddr) {
 		log_warn_once("Can't find a sufficiently scoped primary source "

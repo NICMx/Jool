@@ -5,7 +5,7 @@
 #include "nat64/mod/common/types.h"
 
 bool pool4empty_contains(const struct ipv4_transport_addr *addr);
-int pool4empty_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
+int pool4empty_foreach_taddr4(struct packet *in, struct in_addr *daddr,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset);
 

@@ -34,4 +34,7 @@ verdict ttp64_tcp(struct tuple *tuple4, struct packet *in, struct packet *out);
  */
 verdict ttp64_udp(struct tuple *tuple4, struct packet *in, struct packet *out);
 
+__u8 ttp64_xlat_tos(struct ipv6hdr *hdr);
+__u8 ttp64_xlat_proto(struct ipv6hdr *hdr);
+
 #endif /* _JOOL_MOD_RFC6145_6TO4_H */

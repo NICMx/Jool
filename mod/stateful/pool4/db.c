@@ -427,9 +427,17 @@ end:
  *   (preferably positive), and that will in turn become the result of this
  *   function.
  * - 0 if iteration ended with no interruptions.
+ *
+ * This function might need to route, hence it has lots of noisy arguments.
+ *
+ * @in_pkt: The incoming IPv6 packet.
+ * @tuple6: @in_pkt's tuple.
+ * @daddr: The address of the IPv4 node the translated packet is headed to.
+ * @result: resulting address and port allocation will be placed here.
  */
 RCUTAG_PKT
 int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
+		struct in_addr *daddr,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
@@ -439,7 +447,7 @@ int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
 	rcu_read_lock_bh();
 
 	if (pool4db_is_empty()) {
-		error = pool4empty_foreach_taddr4(in, tuple6, cb, arg, offset);
+		error = pool4empty_foreach_taddr4(in, daddr, cb, arg, offset);
 	} else {
 		table = find_table(rcu_dereference_bh(db), in->skb->mark,
 				tuple6->l4_proto);

@@ -95,7 +95,6 @@
 
 
 /* -- IPv4 pool -- */
-/* TODO reference this more. */
 #define DEFAULT_POOL4_MIN_PORT 61001
 #define DEFAULT_POOL4_MAX_PORT 65535
 

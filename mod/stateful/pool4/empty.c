@@ -4,6 +4,8 @@
 #include <linux/netdevice.h>
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/ipv6_hdr_iterator.h"
+#include "nat64/mod/common/route.h"
+#include "nat64/mod/common/rfc6145/6to4.h"
 
 bool pool4empty_contains(const struct ipv4_transport_addr *addr)
 {
@@ -39,26 +41,13 @@ out:
 	return found;
 }
 
-/* TODO address */
-#include "nat64/mod/common/rfc6052.h"
-#include "nat64/mod/common/route.h"
-
-static int ____route4(struct packet *in, const struct tuple *tuple6,
-		struct in_addr *daddr)
+static struct dst_entry *____route4(struct packet *in, struct in_addr *daddr)
 {
-	struct ipv6hdr *hdr6 = pkt_ip6_hdr(in);
-	__u8 tos;
-	__u8 proto;
-	struct hdr_iterator iterator;
+	struct ipv6hdr *hdr = pkt_ip6_hdr(in);
+	__u8 tos = ttp64_xlat_tos(hdr);
+	__u8 proto = ttp64_xlat_proto(hdr);
 
-	/* TODO differs from 6to4.c behaviour. */
-	tos = RT_TOS(get_traffic_class(hdr6));
-	/* TODO differs from 6to4.c behaviour. */
-	hdr_iterator_init(&iterator, hdr6);
-	hdr_iterator_last(&iterator);
-	proto = iterator.hdr_type;
-
-	return __route4(in, daddr->s_addr, tos, proto);
+	return __route4(daddr->s_addr, tos, proto, in->skb->mark, NULL);
 }
 
 /**
@@ -110,8 +99,8 @@ static int pick_addr(struct dst_entry *dst, struct in_addr *daddr,
 	return error;
 }
 
-static int select_port(struct in_addr *saddr,
-		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
+static int foreach_port(struct in_addr *addr,
+		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
 	const unsigned int MIN = DEFAULT_POOL4_MIN_PORT;
@@ -120,16 +109,16 @@ static int select_port(struct in_addr *saddr,
 	int error;
 
 	offset = MIN + (offset % (MAX - MIN + 1));
-	tmp.l3 = *saddr;
+	tmp.l3 = *addr;
 
 	for (tmp.l4 = offset; tmp.l4 <= MAX; tmp.l4++) {
-		error = func(&tmp, arg);
+		error = cb(&tmp, arg);
 		if (error)
 			return error;
 	}
 
 	for (tmp.l4 = DEFAULT_POOL4_MIN_PORT; tmp.l4 < offset; tmp.l4++) {
-		error = func(&tmp, arg);
+		error = cb(&tmp, arg);
 		if (error)
 			return error;
 	}
@@ -137,30 +126,32 @@ static int select_port(struct in_addr *saddr,
 	return 0;
 }
 
-int pool4empty_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
-		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
+int pool4empty_foreach_taddr4(struct packet *in, struct in_addr *daddr,
+		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
 {
 	struct in_addr saddr;
-	struct in_addr daddr;
+	struct dst_entry *dst;
 	int error;
 
+	dst = ____route4(in, daddr);
+	if (!dst)
+		return -EINVAL;
+
+	error = pick_addr(dst, daddr, &saddr);
+	if (error)
+		goto end;
+
+	error = foreach_port(&saddr, cb, arg, offset);
+	/* Fall through. */
+
+end:
 	/*
-	 * TODO duplicate code.
-	 * What I want is the same translation we'll later use to create the
-	 * session.
+	 * The outgoing packet hasn't been allocated yet, so we don't have
+	 * a placeholder for this. We will therefore have to regenerate it
+	 * later.
+	 * Life sucks :-).
 	 */
-	error = rfc6052_6to4(&tuple6->dst.addr6.l3, &daddr);
-	if (error)
-		return error;
-
-	error = ____route4(in, tuple6, &daddr);
-	if (error)
-		return error;
-
-	error = pick_addr(in->dst, &daddr, &saddr);
-	if (error)
-		return error;
-
-	return select_port(&saddr, func, arg, offset);
+	dst_release(dst);
+	return error;
 }

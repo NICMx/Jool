@@ -154,16 +154,6 @@ static inline unsigned int tcp_hdr_len(struct tcphdr *hdr)
  */
 struct packet {
 	struct sk_buff *skb;
-	/**
-	 * This is the destination struct of the *outgoing* packet, which might
-	 * or might not be @skb.
-	 * Why do we store it here? because we don't want to route twice.
-	 * Sometimes code needs to route prematurely, to the point the outgoing
-	 * packet might have not been allocated yet.
-	 *
-	 * TODO still need to deallocate and copy this around.
-	 */
-	struct dst_entry *dst;
 
 	/**
 	 * Protocol of the layer-3 header of the packet.
@@ -225,7 +215,6 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 		struct frag_hdr *hdr_frag, void *payload, struct packet *original_pkt)
 {
 	pkt->skb = skb;
-	pkt->dst = NULL;
 	pkt->l3_proto = l3_proto;
 	pkt->l4_proto = l4_proto;
 	pkt->is_inner = 0;
