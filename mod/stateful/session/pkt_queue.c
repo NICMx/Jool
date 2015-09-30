@@ -146,6 +146,10 @@ int pktqueue_add(struct session_entry *session, struct packet *pkt)
 	struct packet_node *node;
 	int error;
 
+	/* Note: this if assumes ICMP errors don't reach this code. */
+	if (session->l4_proto != L4PROTO_TCP)
+		return 0;
+
 	node = kmalloc(sizeof(*node), GFP_ATOMIC);
 	if (!node) {
 		log_debug("Allocation of packet node failed.");
@@ -202,7 +206,8 @@ void pktqueue_remove(struct session_entry *session)
 {
 	struct packet_node *node;
 
-	if (WARN(!session, "The packet table cannot contain NULL."))
+	/* Note: this if assumes ICMP errors don't reach this code. */
+	if (session->l4_proto != L4PROTO_TCP)
 		return;
 
 	spin_lock_bh(&lock);

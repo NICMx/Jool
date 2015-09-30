@@ -402,7 +402,7 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
 		break;
 	case ARGP_FORCE:
-		error = update_state(args, MODE_POOL4 | MODE_EAMT, OP_ADD);
+		error = update_state(args, MODE_POOL6 | MODE_POOL4 | MODE_EAMT, OP_ADD);
 		args->db.force = true;
 		break;
 
@@ -573,31 +573,6 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	return 0;
 }
 
-static bool validate_pool6(struct arguments *args)
-{
-	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
-	int valid_lengths_size = sizeof(valid_lengths) / sizeof(valid_lengths[0]);
-	int i;
-
-	if (!args->db.pool6.prefix_set) {
-		log_err("Please enter the prefix to be added or removed (%s).", PREFIX6_FORMAT);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < valid_lengths_size; i++) {
-		if (args->db.pool6.prefix.len == valid_lengths[i])
-			return 0;
-	}
-
-	log_err("RFC 6052 does not like prefix length %u.",args->db.pool6.prefix.len);
-	printf("These are valid: ");
-	for (i = 0; i < valid_lengths_size - 1; i++)
-		printf("%u, ", valid_lengths[i]);
-	printf("%u.\n", valid_lengths[i]);
-
-	return -EINVAL;
-}
-
 /*
  * The main function.
  */
@@ -617,11 +592,17 @@ static int main_wrapped(int argc, char **argv)
 			return pool6_display(args.csv_format);
 		case OP_ADD:
 		case OP_UPDATE:
-			error = validate_pool6(&args);
-			return error ? : pool6_add(&args.db.pool6.prefix);
+			if (!args.db.pool6.prefix_set) {
+				log_err("Please enter the prefix to be added (%s).", PREFIX6_FORMAT);
+				return -EINVAL;
+			}
+			return pool6_add(&args.db.pool6.prefix, args.db.force);
 		case OP_REMOVE:
-			error = validate_pool6(&args);
-			return error ? : pool6_remove(&args.db.pool6.prefix, args.db.quick);
+			if (!args.db.pool6.prefix_set) {
+				log_err("Please enter the prefix to be removed (%s).", PREFIX6_FORMAT);
+				return -EINVAL;
+			}
+			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
 		case OP_COUNT:
 			return pool6_count();
 		case OP_FLUSH:

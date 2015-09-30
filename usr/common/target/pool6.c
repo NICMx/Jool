@@ -88,11 +88,22 @@ int pool6_count(void)
 	return netlink_request(&request, request.length, pool6_count_response, NULL);
 }
 
-int pool6_add(struct ipv6_prefix *prefix)
+static bool get_ubit(struct ipv6_prefix *prefix)
+{
+	return prefix->address.s6_addr[8];
+}
+
+int pool6_add(struct ipv6_prefix *prefix, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];
 	struct request_hdr *hdr = (struct request_hdr *) request;
 	union request_pool6 *payload = (union request_pool6 *) (request + HDR_LEN);
+
+	if (!force && get_ubit(prefix)) {
+		log_err("Warning: The u-bit is nonzero; see https://github.com/NICMx/NAT64/issues/174.");
+		log_err("Cancelling operation. Use --force to override this warning.");
+		return -EINVAL;
+	}
 
 	init_request_hdr(hdr, sizeof(request), MODE_POOL6, OP_ADD);
 	payload->add.prefix = *prefix;
