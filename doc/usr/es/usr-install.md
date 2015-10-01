@@ -2,26 +2,25 @@
 language: es
 layout: default
 category: Documentation
-title: Instalación de la Herramienta de Configuración de Jool
+title: Aplicaciones en el Espacio de Usuario
 ---
 
-[Documentación](documentation.html) > [Instalación](documentation.html#instalacin) > Herramienta de Configuración de Jool
+[Documentación](documentation.html) > [Instalación](documentation.html#instalacin) > Aplicaciones en el Espacio de Usuario
 
-# Instalación del Configurador de Jool
+# Instalación de las Aplicaciones de Configuración
 
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Requerimientos](#requerimientos)<br />
-	a) [Libnl-3](#libnl-3)<br />
-	b) [Autoconf](#autoconf)
-3. [Genera, Compila e Instala](#genera-compila-e-instala)<br />
-	a) [De la Web Oficial](#de-la-web-oficial)<br />
-	b) [Del Repositorio GIT](#del-repositorio-git)
-4. [Validación](#validacin)<br />
-	a) [Versión](#versin)<br />
-	b) [Ayuda](#ayuda)<br />
-	c) [Uso](#uso)
+2. [Requerimientos](#requerimientos)
+	1. [Libnl-3](#libnl-3)
+	2. [Autoconf](#autoconf)
+3. [Obtención del código](#obtencin-del-cdigo)
+4. [Compilación e Instalación](#compilacin-e-instalacin)
+5. [Validación](#validacin)
+	1. [Versión](#versin)
+	2. [Ayuda](#ayuda)
+	3. [Uso](#uso)
 
 ## Introducción
 
@@ -30,65 +29,77 @@ Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`. 
 2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
 
-En este documento abordaremos a las aplicaciones en el espacio de usuario.
+Este documento es sobre las aplicaciones de configuración que se ejecutan en el espacio de usuario.
 
 Para ver detalles de los requisitos e instalación de los módulos de kernel [accese aquí](mod-install.html).
 
 ## Requerimientos
 
+![small_orange_diamond](../images/small_orange_diamond.png) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos
+
 ### Libnl-3
 
 > **NOTA:** Libnl, libnl-1.x, 2.x no son compatibles. Se necesita Libnl-3 ver. 3.1 o superior.
 
-Jool emplea [NETLINK] (http://www.carisma.slowglass.com/~tgr/libnl/) para comunicar sus procesos de espacio de usuario con los de kernel, y viceversa.  
+Jool emplea [NETLINK](http://www.carisma.slowglass.com/~tgr/libnl/) para comunicar sus procesos de espacio de usuario con los de kernel, y viceversa.  
 
-De preferencia no bajes y compiles en forma manual la libería para evitarte problemas de ubicación y acceso a la misma.
+De preferencia no baje ni compile en forma manual la libería para evitarse problemas de ubicación y acceso a la misma.
 
-Si tu distribución reconoce a `libnl-3-dev` como un producto instalable:
+Si su distribución reconoce a `libnl-3-dev` como un producto instalable:
 
 {% highlight bash %}
-user@node:~$apt-cache show libnl-3-dev
+$apt-cache show libnl-3-dev
 {% endhighlight %}
 
-Entonces, instala la libería ejecutando el siguiente comando con permisos de administrador:
+Entonces, instala la libería ejecutando el siguiente comando:
 
 {% highlight bash %}
-user@node:~#apt-get install libnl-3-dev
+#apt-get install libnl-3-dev
 {% endhighlight %}
 
 ### Autoconf
 
 > **NOTA:** Se necesita autoconf ver. 2.68 o superior.
 
-Si descargas Jool del Repositorio de Desarrollo de NICMx, te será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles. Para llevarlo a cabo la instalación hazlo con permisos de administrador:
+Si descarga Jool del Repositorio de Desarrollo de NICMx, será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles.
 
 {% highlight bash %}
-user@node:~#apt-get install autoconf
+#apt-get install autoconf
 {% endhighlight %}
 
-## Genera, Compila e Instala
+## Obtención del código
 
-Asumiendo que previamente ya se instaló el Servidor Jool, solo pasate a la carpeta USR, genera los archivos MAKEFILES, conforme GNU, compila todo e instala.
-		
-### De la Web Oficial
+Existen dos opciones:
+
+1. Releases oficiales en la [página de descarga](download.html).  
+Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
+2. Release en desarrollo que están en el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
+
+## Compilación e Instalación
+
+Para la aplicacion de usuario se emplea Kbuild. Kbuild es un modo básico que simplemente se dedica a compilar e instalar el módulo para la versión actual del kernel.
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Versión oficial</span>
+	<span class="distro-selector" onclick="showDistro(this);">Versión de Github</span>
+</div>
 
 {% highlight bash %}
-user@node:~/Desktop/Jool-<version>$ cd usr
-user@node:~/Desktop/Jool-<version>$ ./configure
-user@node:~/Desktop/Jool-<version>$ make
-user@node:~/Desktop/Jool-<version>$ #Con acceso de administrador instala
-user@node:~/Jool/usr# make install 
+$ unzip Jool-<versión>.zip
+$ cd Jool-<versión>/usr
+$ ./configure
+$ make
+# make install
 {% endhighlight %}
 
-### Del Repositorio GIT
-
 {% highlight bash %}
-user@node:~/Desktop/NAT64-<version>$ cd usr
-user@node:~/Desktop/NAT64-<version>/usr$ ./autogen.sh
-user@node:~/Desktop/NAT64-<version>/usr$ ./configure
-user@node:~/Desktop/NAT64-<version>/usr$ make
-user@node:~/Desktop/NAT64-<version>/usr$ #Con acceso de administrador instala
-user@node:~/Desktop/NAT64-<version>/usr# make install
+$ unzip NAT64-master.zip
+$ cd NAT64-master/usr
+$ ./autogen.sh
+$ ./configure
+$ make
+# make install
 {% endhighlight %}
 
 ## Validación
