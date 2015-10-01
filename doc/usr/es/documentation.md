@@ -17,8 +17,8 @@ Bienvenido al índice de la documentación de Jool.
 Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de despliegue usando Stateful NAT64.
 
 ## Instalación
-1. [Módulo del kernel](mod-install.html)
-2. [Herramienta de Configuración](usr-install.html)
+1. [Módulos del kernel](mod-install.html)
+2. [Aplicaciones en el espacio de usuario](usr-install.html)
 
 ## Ejemplos de uso
 1. [SIIT](mod-run-vanilla.html)

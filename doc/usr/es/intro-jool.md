@@ -63,4 +63,4 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-![small_red_triangle_down](../images/small_red_triangle_down.png) La compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">. Esto no ha causado problemas en las pruebas</a>, sin embargo se está en búsqueda de quitarlos.
+![small_red_triangle](../images/small_red_triangle.png) La compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">. Esto no ha causado problemas en las pruebas</a>, sin embargo se está en búsqueda de quitarlos.

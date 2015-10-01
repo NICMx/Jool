@@ -13,7 +13,8 @@ title: Descargar
 -->
 
 * La versión resaltada en **negritas** es la más recomendada.
-* Las versiones no resaltadas son a las cuales se recomienda retroceder si la recomendada falla. [¡Reportes de bugs son bienvenidos!](https://github.com/NICMx/NAT64/issues)
+* Las versiones no resaltadas son a las cuales se puede retroceder, si la más actualizada falla. <br />
+		[¡Reportes de bugs son bienvenidos!](https://github.com/NICMx/NAT64/issues)
 * Las versiones <del>tachadas</del> no son recomendadas debido a su antiguedad o defectos críticos conocidos.
 
 ## 3.4.x
@@ -24,7 +25,7 @@ La versión 3.4.0 es la más actual.
 
 | Descarga | SHA512 | MD5| Commit de Git |
 |----------|--------|----|------------|
-| [3.4.0](https://www.jool.mx/download/Jool-3.4.0.zip) | [SHA512](https://www.jool.mx/download/Jool-3.4.0.sha) | [MD5](https://www.jool.mx/download/Jool-3.4.0.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.4.0) |
+| **[3.4.0](https://www.jool.mx/download/Jool-3.4.0.zip)** | [SHA512](https://www.jool.mx/download/Jool-3.4.0.sha) | [MD5](https://www.jool.mx/download/Jool-3.4.0.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.4.0) |
 
 ## 3.3.x
 
@@ -36,7 +37,7 @@ La documentación en este sitio corresponde a la serie 3.4. Se puede descargar u
 
 | Descarga | SHA512 | MD5| Commit de Git |
 |----------|--------|----|------------|
-| **[3.3.4](https://www.jool.mx/download/Jool-3.3.4.zip)** | [SHA512](https://www.jool.mx/download/Jool-3.3.4.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.4.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.4) |
+| [3.3.4](https://www.jool.mx/download/Jool-3.3.4.zip) | [SHA512](https://www.jool.mx/download/Jool-3.3.4.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.4.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.4) |
 | <del>[3.3.3](https://www.jool.mx/download/Jool-3.3.3.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.3) |
 | <del>[3.3.2](https://www.jool.mx/download/Jool-3.3.2.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.2.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.2.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.2) |
 | <del>[3.3.1](https://www.jool.mx/download/Jool-3.3.1.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.1.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.1.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.1) |

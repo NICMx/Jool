@@ -2,12 +2,12 @@
 language: es
 layout: default
 category: Documentation
-title: Instalación del Servidor Jool
+title: Instalación de los Módulos del Kernel
 ---
 
-[Documentación](documentation.html) > [Instalación](documentation.html#instalacin) > Servidor Jool
+[Documentación](documentation.html) > [Instalación](documentation.html#instalacin) > Módulos del Kernel
 
-# Instalación del Servidor Jool
+# Instalación de los Módulos del Kernel
 
 ## Índice
 
@@ -20,7 +20,7 @@ title: Instalación del Servidor Jool
 	4. [DKMS](#dkms)
 	5. [Ethtool](#ethtool)
 3. [Obtención del código](#obtencin-del-cdigo)
-3. [Compilación e Instalación](#compilacin-e-instalacin)
+4. [Compilación e Instalación](#compilacin-e-instalacin)
 	1. [Instalación mediante DKMS](#instalacin-mediante-dkms)
 	2. [Instalación mediante Kbuild](#instalacin-mediante-kbuild)
 
@@ -30,16 +30,16 @@ Jool es cuatro binarios:
 
 1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo) que se ligan a Linux. Uno de ellos (`jool`) implementa Stateful NAT64, el otro (`jool_siit`) implementa SIIT.  
 Son los encargados de traducir paquetes.
-2. Una aplicación de [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario) por módulo.  
-Sirven para configurar a sus respectivos módulos.
+2. Una aplicación de [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario) por módulo de kernel. Nombrados de igual manera: `jool` y `jool_siit`
+Sirven para configurar a los respectivos módulos del kernel.
 
-Este documento se enfocará en la instalación de los módulos del kernel. La instalación de las aplicaciones de usuario tienen su [propio procedimiento](usr-install.html).
+Este documento se enfocará en la instalación de los módulos del kernel. La instalación de las aplicaciones de configuración tienen su [propio procedimiento](usr-install.html).
 
 ## Requerimientos
 
 Debido a la variedad de kernels que existen, no es factible distribuir binarios de módulos de kernel, de modo que es necesario que se compilen localmente.
 
-(En segmentos de código venideros, `$` indica que el comando no requiere privilegios; `#` indica necesidad de permisos.)
+![small_orange_diamond](../images/small_orange_diamond.png) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos
 
 ### Kernels Válidos
 
@@ -131,7 +131,7 @@ $ ip link show
 
 ### DKMS
 
-DKMS es un framework que se encarga de administrar módulos. Es opcional pero recomendado (la razón se discute abajo, en la sección [Compilación e Instalación](#compilacin-e-instalacin)).
+DKMS es un framework que se encarga de administrar módulos. Este es opcional pero recomendable, la razón se discute abajo en la sección [Compilación e Instalación](#compilacin-e-instalacin).
 
 {% highlight bash %}
 # apt-get install dkms
@@ -151,7 +151,7 @@ Existen dos opciones:
 
 1. Releases oficiales en la [página de descarga](download.html).  
 Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
-2. Está el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+2. Release en desarrollo que están en el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
 Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
 
 ## Compilación e Instalación
@@ -160,7 +160,7 @@ Existen dos medios para instalar a Jool: Kbuild y DKMS.
 
 Kbuild es un modo básico que simplemente se dedica a compilar e instalar el módulo para la versión actual del kernel. El Dynamic Kernel Module Support (DKMS) framework [añade la posibilidad de que el módulo se adapte a actualizaciones de Linux](https://en.wikipedia.org/wiki/Dynamic_Kernel_Module_Support) (un módulo instalado con Kbuild requiere recompilación y reinstalación cada vez que se actualiza Linux).
 
-Para todo propósito es recomendado preferir DKMS.
+Para todo propósito, ya sea para un ambiente de producción o prueba, es recomendadable preferir DKMS versus Kbuild.
 
 ### Instalación mediante DKMS
 
@@ -200,11 +200,11 @@ $ make
 # make install
 {% endhighlight %}
 
-> **Nota**
+> **Notas:**
 > 
-> Por razones de seguridad, kernels 3.7 en adelante buscan que módulos instalados estén firmados.
+> Por razones de seguridad, desde el kernel 3.7 existe la opción y es una buena práctica de que los módulos instalados sean firmados.
 > 
-> Si el kernel no fue configurado para _requerir_ esta característica, `make install` imprimirá el mensaje "Can't read private key", lo cual es una advertencia, no un error. La instalación puede proseguir sin cambios.
+> Si el kernel no fue configurado para _requerir_ esta característica, `make install` imprimirá el mensaje "Can't read private key", lo cual es una advertencia, no un error, y la instalación proseguirá sin cambios.
 > 
-> Si el kernel _fue_ compilado para solicitar firmado de módulos, más burocracia (omitida aquí) es requerida.
+> Si acaso el kernel _fue_ compilado para solicitar firmado de módulos, se requerirá comandos adicionales que será omitidos aquí.
 

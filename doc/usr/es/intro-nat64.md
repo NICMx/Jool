@@ -12,10 +12,10 @@ title: Introducción a los Mecanismos de Transición
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Ejemplos de Traducción](#ejemplos-de-traduccin)<br />
-	a) [SIIT con EAM](#siit-con-eam)<br />
-    b) [SIIT tradicional](#siit-tradicional)<br />
-    c) [Stateful NAT64](#stateful-nat64)
+2. [Ejemplos de Traducción](#ejemplos-de-traduccin)
+	1. [SIIT con EAM](#siit-con-eam)
+    2. [SIIT tradicional](#siit-tradicional)
+    3. [Stateful NAT64](#stateful-nat64)
 3. [Nota Histórica](#nota-histrica)
     
 ## Introducción
@@ -57,7 +57,7 @@ El traductor esta "engañando" a ambos nodos, haciéndoles pensar que el otro pu
 
 "EAM" es abreviación de "Explicit Address Mapping" (Mapeo Explícito de Direcciones), y es más versátil que simples asociaciones entre diferentes direcciones arbitrarias.
 
-![bulb](../images/bulb.png) Más detalles sobre EAM pueden encontrarse en el [borrador]({{ site.draft-siit-eam }}) o [nuestro resumen de él](eamt.html).
+![bulb](../images/bulb.png) Más detalles sobre EAM pueden encontrarse en este [resumen](eamt.html) o en el [documento de la IETF]({{ site.draft-siit-eam }}).
 
 ### SIIT (tradicional)
 
@@ -84,7 +84,7 @@ Puedes encontrar un ejemplo concreto de cómo SIIT "tradicional" y SIIT "EAM" pu
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de la dirección de IPv6. Puede encontrarse más información en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-![bulb](../images/bulb.png) Siempre que el RFC 6052 esté involucrado, es conveniente dar de alta también un [DNS64](dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+![warning](../images/warning.png) Siempre que el RFC 6052 esté involucrado, es conveniente dar de alta también un [DNS64](dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### Stateful NAT64
 
@@ -146,4 +146,4 @@ Sobre el orígen y desarrollo de estas metodologías:
 
 * El algoritmo de Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**](http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea](http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146](https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el [Dr. Marcelo Bagnulo Braun](http://www.it.uc3m.es/marcelo/) de la Universidad Carlos III y otros dos colaboradores del proyecto. 
 
-![bulb](../images/bulb.png) Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
+* Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
