@@ -130,9 +130,12 @@ static struct reassembly_buffer *add_pkt(struct packet *pkt)
 		return NULL;
 
 	/*
-	 * TODO (3.3.1) I'm not exactly sure pskb_expand_head() can be applied here.
-	 * I decided to leave it out of milestone 3.3.0 because it seems like such a ridiculous
-	 * corner case scenario and we have too many variables to test as it is.
+	 * TODO (fine) Maybe pskb_expand_head() can be used here as fallback.
+	 * I decided to leave this as is for the moment because it's such an
+	 * obnoxious ridiculous corner case scenario and it will probably never
+	 * cause any problems.
+	 * Until somebody complains, I think I should probably work on more
+	 * pressing stuff.
 	 * I learned about pskb_expand_head() in the defrag modules.
 	 */
 	if (skb_cloned(pkt->skb)) {

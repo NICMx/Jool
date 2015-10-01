@@ -81,7 +81,7 @@ void filtering_destroy(void)
 /**
  * Decides whether the packet should be filtered or not.
  *
- * TODO NOBODY IS CALLING THIS.
+ * TODO (fine) Nobody is calling this...
  */
 static inline void apply_policies(void)
 {
@@ -160,7 +160,7 @@ static int get_or_create_bib6(struct packet *in_pkt, struct tuple *tuple6,
 		return error;
 
 	/*
-	 * TODO (later) this could be better.
+	 * TODO (fine) this could be better.
 	 * If somebody inserted a colliding BIB since we last searched,
 	 * this will fail. Instead, it should fall back to use the already
 	 * official entry.

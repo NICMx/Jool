@@ -13,6 +13,9 @@
 /**
  * Callers of this function need to mind hairpinning. What happens if @daddr
  * belongs to the translator?
+ *
+ * The @pkt can be NULL. If this happens, make sure the resulting dst is
+ * dst_release()d.
  */
 struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
 		struct packet *pkt)
@@ -76,13 +79,13 @@ struct dst_entry *__route4(__be32 daddr, __u8 tos, __u8 proto, __u32 mark,
 	}
 	dst = &table->dst;
 	if (dst->error) {
-		/* TODO isn't this missing a dst_release()? */
 		log_debug("__ip_route_output_key() returned error %d. Cannot route packet.", dst->error);
+		dst_release(dst);
 		return NULL;
 	}
 	if (!dst->dev) {
-		dst_release(dst);
 		log_debug("I found a dst entry with no dev. I don't know what to do; failing...");
+		dst_release(dst);
 		return NULL;
 	}
 
@@ -168,6 +171,7 @@ struct dst_entry *route6(struct packet *pkt)
 	}
 	if (dst->error) {
 		log_debug("ip6_route_output() returned error %d. Cannot route packet.", dst->error);
+		dst_release(dst);
 		return NULL;
 	}
 

@@ -1,5 +1,3 @@
-/* TODO (warning) read the erratas more (6145 and 6146). */
-
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/rfc6145/core.h"

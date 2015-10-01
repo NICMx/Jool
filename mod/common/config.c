@@ -277,7 +277,7 @@ int serialize_global_config(struct global_config *config, bool pools_empty,
 	return 0;
 }
 
-/* TODO this is not being used anywhere. Review after merging #164. */
+/* TODO (issue164) this is not being used anywhere. Review after merging #164. */
 int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
 {
 	size_t mtus_len;

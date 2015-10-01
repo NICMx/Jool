@@ -10,4 +10,4 @@ const char *xlat_get_name(void)
 	return "NAT64 Jool";
 }
 
-/* TODO this is redundant... */
+/* TODO (fine) this is redundant... */

@@ -92,7 +92,6 @@ static int get_host_address(struct packet *in, struct packet *out,
 	__be32 daddr;
 
 	/* TODO what happens if the packet hairpins? */
-	/* TODO you sure secondary addresses do jack? */
 
 	dst = route4(out);
 	if (!dst)

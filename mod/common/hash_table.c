@@ -12,7 +12,7 @@
  * performance concerns, especially considering that the kernel now has a more interesting
  * version/implementation.)
  *
- * TODO (later) Reimplement the fragment database's hash table and remove this module.
+ * TODO (fine) Reimplement the fragment database's hash table and remove this module.
  *
  * Because C does not support templates or generics, you have to set a number of macros and then
  * include this file. These are the macros:

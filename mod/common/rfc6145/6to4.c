@@ -90,7 +90,7 @@ static __be16 build_tot_len(struct packet *in, struct packet *out)
 	 * However, this still looks different than the proposed version because:
 	 *
 	 * - I don't know what all that ESP stuff is since ESP is not supposed to be translated.
-	 *   TODO (warning) perhaps there's a new RFC that adds support for ESP?
+	 *   TODO (warning) actually, 6145bis defines semantics for ESP.
 	 * - ICMP error quirks the RFC doesn't account for:
 	 *
 	 * ICMPv6 errors are supposed to be max 1280 bytes.

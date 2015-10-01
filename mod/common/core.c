@@ -79,7 +79,7 @@ unsigned int core_4to6(struct sk_buff *skb, const struct net_device *dev)
 	struct iphdr *hdr = ip_hdr(skb);
 
 	/*
-	 * TODO (later) The first if is silly.
+	 * TODO (fine) The first if is silly.
 	 * We should probably unhook Jool from Netfilter instead.
 	 */
 	if (config_is_xlat_disabled())

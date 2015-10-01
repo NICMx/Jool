@@ -6,7 +6,7 @@
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 
-/* TODO (later) RFC 6056 wants us to change this from time to time. */
+/* TODO (issue175) RFC 6056 wants us to change this from time to time. */
 static unsigned char *secret_key;
 static size_t secret_key_len;
 static atomic_t next_ephemeral;
@@ -128,12 +128,6 @@ int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
 	struct iteration_args args;
 	unsigned int offset;
 	int error;
-
-	/*
-	 * TODO (later) prevent client from having too many sessions?
-	 * Aside from a security gimmic, it would limit iteration here,
-	 * in a way.
-	 */
 
 	error = f(&tuple6->src.addr6.l3, &tuple6->dst.addr6.l3,
 			tuple6->dst.addr6.l4, &offset);
