@@ -76,21 +76,21 @@ int error_pool_add_message(char * msg)
 	return 0;
 }
 
-int error_pool_get_message(char ** out_message)
+int error_pool_get_message(char **out_message, unsigned int *msg_len)
 {
-	struct error_node * node;
-	char * buffer_pointer;
+	struct error_node *node;
+	char *buffer_pointer;
 
 	if (!activated)
-		return 0;
+		return -EINVAL;
 
-	(*out_message) = kmalloc(msg_size+1,GFP_ATOMIC);
+	*out_message = kmalloc(msg_size + 1, GFP_KERNEL);
 	if (!(*out_message)) {
-		pr_err("Could not allocate memory to return the error pool message!") ;
+		pr_err("Could not allocate the error pool message!") ;
 		return -ENOMEM;
 	}
 
-	buffer_pointer = (*out_message);
+	buffer_pointer = *out_message;
 	while (!list_empty(&db)) {
 		node = list_first_entry(&db,struct error_node,prev_next);
 
@@ -99,9 +99,11 @@ int error_pool_get_message(char ** out_message)
 		list_del(&(node->prev_next));
 		kfree(node->msg);
 		kfree(node);
-	}
+	};
+	buffer_pointer[0] = '\0';
 
-	pr_debug("returning message: %s\n",(*out_message));
+	*msg_len = msg_size;
+	msg_size = 0;
 	return 0;
 }
 

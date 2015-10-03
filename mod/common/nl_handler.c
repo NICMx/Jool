@@ -70,47 +70,49 @@ static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload
 }
 
 /**
- * @note "ACK messages also use the message type NLMSG_ERROR and payload format but the error code
- * is set to 0." (http://www.infradead.org/~tgr/libnl/doc/core.html#core_msg_ack).
+ * @note "ACK messages also use the message type NLMSG_ERROR and payload format
+ * but the error code is set to 0."
+ * (http://www.infradead.org/~tgr/libnl/doc/core.html#core_msg_ack)
  */
 static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 {
-	struct nlmsgerr error_struct;
-
+	struct nlmsgerr hdr_out;
 	__u8 *payload = NULL;
-	char * error_msg = NULL;
+	char *error_msg;
+	unsigned int error_msg_len;
 
-	error_struct.error = abs(error);
-	error_struct.msg = *nl_hdr_in;
-	error_struct.msg.nlmsg_len = 0;
+	hdr_out.error = abs(error);
+	hdr_out.msg = *nl_hdr_in;
+	hdr_out.msg.nlmsg_len = 0;
 
-	if (error_pool_get_message(&error_msg)) {
+	if (error_pool_get_message(&error_msg, &error_msg_len)) {
 		pr_err("could not get error message from pool.\n");
 		goto respond_error_on_failure;
 	}
 
-	error_struct.msg.nlmsg_len = sizeof(error_struct) + strlen(error_msg) + 1;
+	hdr_out.msg.nlmsg_len = sizeof(hdr_out) + error_msg_len + 1;
 
-	payload = kmalloc(error_struct.msg.nlmsg_len, GFP_ATOMIC);
-
+	payload = kmalloc(hdr_out.msg.nlmsg_len, GFP_KERNEL);
 	if (!payload) {
 		pr_err("could not allocate memory for error payload!\n");
 		kfree(error_msg);
 		goto respond_error_on_failure;
 	}
 
-	memcpy(payload,(__u8*)&error_struct, sizeof(error_struct));
-	memcpy(payload+(sizeof(error_struct)),(__u8*)error_msg, strlen(error_msg)+1);
+	memcpy(payload, (__u8*)&hdr_out, sizeof(hdr_out));
+	memcpy(payload + sizeof(hdr_out), (__u8*)error_msg, error_msg_len + 1);
 
-	error = respond_single_msg(nl_hdr_in,NLMSG_ERROR,payload, error_struct.msg.nlmsg_len);
+	error = respond_single_msg(nl_hdr_in, NLMSG_ERROR, payload,
+			hdr_out.msg.nlmsg_len);
 
-	kfree(error_msg) ;
+	kfree(error_msg);
 	kfree(payload);
 
 	return error;
 
 respond_error_on_failure:
-	return respond_single_msg(nl_hdr_in,NLMSG_ERROR,&error_struct,sizeof(error_struct));
+	return respond_single_msg(nl_hdr_in, NLMSG_ERROR, &hdr_out,
+			sizeof(hdr_out));
 }
 
 /*

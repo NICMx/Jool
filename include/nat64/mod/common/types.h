@@ -40,16 +40,20 @@
 	} while (0)
 /**
  * "Your configuration cannot be applied, user."
- * log_warn_once() signals errors while processing packets. log_err() signals errors while
- * processing user requests.
- * I the code found a **programming** error, use WARN() or its variations instead.
+ * log_warn_once() signals errors while processing packets. log_err() signals
+ * errors while processing user requests.
+ * I the code found a **programming** error, use WARN() or its variations
+ * instead.
  */
-#define log_err(text, ...) pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__); \
-						 { \
-						   char error_message[512]; \
-						   sprintf(error_message, text "\n",##__VA_ARGS__); \
-						   error_pool_add_message(error_message); \
-						 }
+#define log_err(text, ...) \
+	do { \
+		char __error_message[512]; \
+		pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, \
+				##__VA_ARGS__); \
+		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
+		error_pool_add_message(__error_message); \
+	} while (0)
+
 /**
  * This is intended to be equivalent to WARN(), except it's silent if you're unit testing.
  * Do this when you're testing errors being caught correctly and don't want dumped stacks on the

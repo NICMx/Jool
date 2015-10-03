@@ -548,7 +548,7 @@ void rtrie_flush(struct rtrie *trie)
 	struct list_head tmp_list;
 	unsigned int i = 0;
 
-	rtrie_print("Flushing trie", trie);
+	/* rtrie_print("Flushing trie", trie); */
 
 	mutex_lock(&trie->lock);
 
@@ -571,7 +571,7 @@ void rtrie_flush(struct rtrie *trie)
 
 end:
 	log_debug("Deleted %u nodes.", i);
-	rtrie_print("Trie after", trie);
+	/* rtrie_print("Trie after", trie); */
 }
 
 /**

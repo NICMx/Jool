@@ -55,6 +55,7 @@ MIN_REQS = ../mod/common/types.o \
 	../mod/common/address.o \
 	framework/str_utils.o \
 	framework/unit_test.o \
+	impersonator/error_pool.o \
 	impersonator/stats.o \
 	impersonator/xlat.o
 
@@ -153,6 +154,7 @@ $(FILTERING)-objs += framework/bib.o
 $(FILTERING)-objs += framework/skb_generator.o
 $(FILTERING)-objs += framework/types.o
 $(FILTERING)-objs += impersonator/icmp_wrapper.o
+$(FILTERING)-objs += impersonator/pool4_empty.o
 $(FILTERING)-objs += impersonator/route.o
 $(FILTERING)-objs += filtering_and_updating_test.o
 

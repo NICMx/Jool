@@ -118,7 +118,7 @@ static int eamt_add6(struct eamt_entry *eam)
 		log_err("Prefix %pI6c/%u already exists.",
 				&eam->prefix6.address, eam->prefix6.len);
 	}
-	rtrie_print("IPv6 trie after add", &eamt.trie6);
+	/* rtrie_print("IPv6 trie after add", &eamt.trie6); */
 
 	return error;
 }
@@ -134,7 +134,7 @@ static int eamt_add4(struct eamt_entry *eam)
 		log_err("Prefix %pI4/%u already exists.",
 				&eam->prefix4.address, eam->prefix4.len);
 	}
-	rtrie_print("IPv4 trie after add", &eamt.trie4);
+	/* rtrie_print("IPv4 trie after add", &eamt.trie4); */
 
 	return error;
 }
@@ -189,7 +189,7 @@ static int get_exact4(struct ipv4_prefix *prefix, struct eamt_entry *eam)
 	int error;
 
 	error = rtrie_get(&eamt.trie4, &key, eam);
-	if (!error)
+	if (error)
 		return error;
 
 	return (eam->prefix4.len == prefix->len) ? 0 : -ESRCH;
@@ -209,8 +209,8 @@ static int __rm(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4)
 		goto corrupted;
 
 	eamt.count--;
-	rtrie_print("IPv6 trie after remove", &eamt.trie6);
-	rtrie_print("IPv4 trie after remove", &eamt.trie4);
+	/* rtrie_print("IPv6 trie after remove", &eamt.trie6); */
+	/* rtrie_print("IPv4 trie after remove", &eamt.trie4); */
 	return 0;
 
 corrupted:
