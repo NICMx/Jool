@@ -8,19 +8,10 @@
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/rfc6145/6to4.h"
 
-bool pool4empty_contains(const struct ipv4_transport_addr *addr)
+static bool contains_addr(const struct in_addr *addr)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
-	bool found = false;
-
-	if (addr->l4 < DEFAULT_POOL4_MIN_PORT)
-		return false;
-	/* I sure hope this gets compiled out :p */
-	if (DEFAULT_POOL4_MAX_PORT < addr->l4)
-		return false;
-
-	rcu_read_lock();
 
 	for_each_netdev_rcu(joolns_get(), dev) {
 		in_dev = __in_dev_get_rcu(dev);
@@ -30,15 +21,28 @@ bool pool4empty_contains(const struct ipv4_transport_addr *addr)
 		for_primary_ifa(in_dev) {
 			if (ifa->ifa_scope != RT_SCOPE_UNIVERSE)
 				continue;
-			if (ifa->ifa_address == addr->l3.s_addr) {
-				found = true;
-				goto out;
-			}
+			if (ifa->ifa_address == addr->s_addr)
+				return true;
 		} endfor_ifa(in_dev);
 	}
 
-out:
+	return false;
+}
+
+bool pool4empty_contains(const struct ipv4_transport_addr *addr)
+{
+	bool found;
+
+	if (addr->l4 < DEFAULT_POOL4_MIN_PORT)
+		return false;
+	/* I sure hope this gets compiled out :p */
+	if (DEFAULT_POOL4_MAX_PORT < addr->l4)
+		return false;
+
+	rcu_read_lock();
+	found = contains_addr(&addr->l3);
 	rcu_read_unlock();
+
 	return found;
 }
 
@@ -55,6 +59,7 @@ static struct dst_entry *____route4(struct packet *in, struct in_addr *daddr)
  * Normally picks the first primary global address of @dst's interface.
  * If there's a primary global address that matches @daddr however, it takes
  * precedence.
+ * If everything fails, attempts to use a host address.
  */
 static int __pick_addr(struct dst_entry *dst, struct in_addr *daddr,
 		struct in_addr *result)
@@ -79,13 +84,18 @@ static int __pick_addr(struct dst_entry *dst, struct in_addr *daddr,
 			saddr = ifa->ifa_local;
 	} endfor_ifa(in_dev);
 
-	if (!saddr) {
-		log_debug("Huh? IPv4 device doesn't have an IPv4 address.");
-		return -ESRCH;
+	if (saddr) {
+		result->s_addr = saddr;
+		return 0; /* This is the typical happy path. */
 	}
 
-	result->s_addr = saddr;
-	return 0;
+	if (contains_addr(daddr)) {
+		*result = *daddr;
+		return 0;
+	}
+
+	log_debug("Couldn't find a good source address candidate.");
+	return -ESRCH;
 }
 
 static int pick_addr(struct dst_entry *dst, struct in_addr *daddr,
@@ -106,19 +116,22 @@ static int foreach_port(struct in_addr *addr,
 {
 	const unsigned int MIN = DEFAULT_POOL4_MIN_PORT;
 	const unsigned int MAX = DEFAULT_POOL4_MAX_PORT;
+	unsigned int i;
 	struct ipv4_transport_addr tmp;
 	int error;
 
 	offset = MIN + (offset % (MAX - MIN + 1));
 	tmp.l3 = *addr;
 
-	for (tmp.l4 = offset; tmp.l4 <= MAX; tmp.l4++) {
+	for (i = offset; i <= MAX; i++) {
+		tmp.l4 = i;
 		error = cb(&tmp, arg);
 		if (error)
 			return error;
 	}
 
-	for (tmp.l4 = DEFAULT_POOL4_MIN_PORT; tmp.l4 < offset; tmp.l4++) {
+	for (i = DEFAULT_POOL4_MIN_PORT; i < offset; i++) {
+		tmp.l4 = i;
 		error = cb(&tmp, arg);
 		if (error)
 			return error;

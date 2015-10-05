@@ -70,11 +70,9 @@ int handle_skb_from_user(struct sk_buff *skb, char *usr_file_name, __u32 str_len
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		skb_db = &skb_ipv4_db;
-	}
-	else if (skb->protocol == htons(ETH_P_IPV6)) {
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		skb_db = &skb_ipv6_db;
-	}
-	else {
+	} else {
 		log_err("skb from user space have no protocol assigned.");
 		kfree(file_name);
 		kfree(entry);
@@ -90,18 +88,17 @@ int handle_skb_from_user(struct sk_buff *skb, char *usr_file_name, __u32 str_len
 }
 
 /**
- * Compare an incoming packet from the network against the packets that we store in the database.
- * First checks if the source and destination address are the same, if so, compare the entire
- * packet, else, compare to the next packet in the database until we found same addresses or
- * until all iterations ends.
+ * Compare an incoming packet from the network against the packets that we store
+ * in the database.
+ * First checks if the source and destination address are the same, if so,
+ * compare the entire packet, else, compare to the next packet in the database
+ * until we found same addresses or until all iterations ends.
  */
-static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db *skb_db)
+static unsigned int compare_incoming_skb(struct sk_buff *skb,
+		struct skb_user_db *skb_db)
 {
 	struct list_head *current_hook;
 	struct skb_entry *tmp_skb;
-	int errors = 0;
-
-	bool is_expected = false;
 
 	if (dev_name_filter(skb->dev->name))
 		return NF_ACCEPT;
@@ -117,42 +114,30 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb, struct skb_user_db
 	if (!skb_has_same_address(tmp_skb->skb, skb))
 		goto nf_accept;
 
-	is_expected = skb_compare(tmp_skb->skb, skb, &errors);
-	log_info("************************");
-	log_info("Comparing %s", tmp_skb->file_name);
-	if (is_expected) {/* we found a perfect match.*/
-		delete_skb_entry(tmp_skb);
-		skb_db->counter--;
+	log_info("Comparing skb to %s.", tmp_skb->file_name);
+
+	if (skb_compare(tmp_skb->skb, skb)) {
 		skb_db->success_comparison++;
-		spin_unlock_bh(&skb_db->lock);
-		log_info("success comparison :D");
-		log_info("************************");
-		goto nf_drop;
+		log_info("No differences.");
+	} else {
+		skb_db->fail_comparison++;
+		log_info("Failure.");
 	}
 
-	if (errors) {
-		/* Apparently the incoming skb has a twin from usrspace, or jool is translating wrong or a
-		 * skb_from_user_space was incorrectly created, anyway delete this incoming packet and
-		 * return NF_DROP;
-		 */
-		delete_skb_entry(tmp_skb);
-		skb_db->fail_comparison++;
-		skb_db->counter--;
-		spin_unlock_bh(&skb_db->lock);
-		log_info("Apparently the incoming skb has a twin from usrspace, or jool is translating "
-				"wrong or a skb_from_user_space was incorrectly created");
-		log_info("************************");
-		goto nf_drop;
-	}
+	delete_skb_entry(tmp_skb);
+	skb_db->counter--;
+
+	spin_unlock_bh(&skb_db->lock);
+	log_info("");
+	return NF_DROP;
 
 nf_accept:
-	/* If we fall through here that means the incoming packet wasn't for the receiver module, so
-	 * let it pass. */
+	/*
+	 * If we fall through here that means the incoming packet wasn't for the
+	 * receiver module, so let it pass.
+	 */
 	spin_unlock_bh(&skb_db->lock);
 	return NF_ACCEPT;
-
-nf_drop:
-	return NF_DROP;
 }
 
 unsigned int receiver_incoming_skb4(struct sk_buff *skb)
@@ -206,25 +191,18 @@ void receiver_destroy(void)
 	destroy_aux(&skb_ipv4_db);
 	destroy_aux(&skb_ipv6_db);
 
-	log_info("***** IPv4 Stats *****");
-	log_info("Successful comparisons: %u.", skb_ipv4_db.success_comparison);
-	log_info("Failed comparisons: %u.", skb_ipv4_db.fail_comparison);
-	log_info("skb remaining in db.: %u.", skb_ipv4_db.counter);
-	log_info("***** IPv6 Stats *****");
-	log_info("Successful comparisons: %u.", skb_ipv6_db.success_comparison);
-	log_info("Failed comparisons: %u.", skb_ipv6_db.fail_comparison);
-	log_info("skb remaining in db.: %u.", skb_ipv6_db.counter);
+	receiver_display_stats();
 }
 
 int receiver_display_stats(void)
 {
-	log_info("***** IPv4 Stats *****");
-	log_info("Successful comparisons: %u.", skb_ipv4_db.success_comparison);
-	log_info("Failed comparisons: %u.", skb_ipv4_db.fail_comparison);
-	log_info("skb remaining in db.: %u.", skb_ipv4_db.counter);
-	log_info("***** IPv6 Stats *****");
-	log_info("Successful comparisons: %u.", skb_ipv6_db.success_comparison);
-	log_info("Failed comparisons: %u.", skb_ipv6_db.fail_comparison);
-	log_info("skb remaining in db.: %u.", skb_ipv6_db.counter);
+	log_info("IPv4 Stats");
+	log_info("    Successes: %u", skb_ipv4_db.success_comparison);
+	log_info("    Failures:  %u", skb_ipv4_db.fail_comparison);
+	log_info("    Not found: %u", skb_ipv4_db.counter);
+	log_info("IPv6 Stats");
+	log_info("    Successes: %u", skb_ipv6_db.success_comparison);
+	log_info("    Failures:  %u", skb_ipv6_db.fail_comparison);
+	log_info("    Not found: %u", skb_ipv6_db.counter);
 	return 0;
 }

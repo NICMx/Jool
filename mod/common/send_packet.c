@@ -63,7 +63,7 @@ verdict sendpkt_send(struct packet *in, struct packet *out)
 	}
 
 	out->skb->dev = skb_dst(out->skb)->dev;
-	log_debug("Sending skb via device '%s'.", out->skb->dev->name);
+	log_debug("Sending skb.");
 
 	error = whine_if_too_big(in, out);
 	if (error) {

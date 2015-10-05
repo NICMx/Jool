@@ -14,12 +14,8 @@ MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION(MODULE_NAME " (GRAYBOX_TESTS_FOR_JOOL)");
 
 static char *banner = "\n"
-	" =============================================================  \n"
-	" =============================================================  \n"
-	" =============== Graybox tests for Jool (NAT64) ==============  \n"
-	" ================= Packet Sender and Receiver ================  \n"
-	" =============================================================  \n"
-	" =============================================================  \n";
+	" =============== Graybox tests for Jool (NAT64) ==============\n"
+	" ================= Packet Sender and Receiver ================\n";
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
@@ -90,7 +86,7 @@ static int __init graybox_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_info(MODULE_NAME " module inserted.");
+	log_info(MODULE_NAME " module inserted.\n");
 	return error;
 
 
@@ -112,7 +108,6 @@ config_failure:
 
 static void __exit graybox_exit(void)
 {
-	/* Release the hook. */
 	nf_unregister_hooks(nfho, ARRAY_SIZE(nfho));
 
 	skbops_destroy();

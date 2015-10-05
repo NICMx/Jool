@@ -101,8 +101,6 @@ void pktqueue_destroy(void)
 
 	del_timer_sync(&timer);
 
-	/* TODO I think this might be untested. */
-	/* TODO Also test pktqueue w/hairpinning. */
 	list_for_each_entry_safe(node, tmp, &node_list, list_hook)
 		send_icmp_error(node);
 }

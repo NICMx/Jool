@@ -125,7 +125,7 @@ static int handle_send_packet_order(void *request_hdr)
 	request->pkt = (void *) (request + 1);
 	request->filename = (char *) (request->pkt + request->pkt_len);
 
-	log_debug("Sending an SKB from user space: %s", request->filename);
+	log_debug("Sending skb %s.", request->filename);
 
 	error = skb_from_pkt(request->pkt, request->pkt_len, &skb);
 	if (error)
@@ -135,7 +135,6 @@ static int handle_send_packet_order(void *request_hdr)
 	if (error)
 		return error;
 
-	log_debug("Sending the skb...");
 	switch (get_l3_proto(request->pkt)) {
 	case 6:
 		error = ip6_local_out(skb);
@@ -203,8 +202,6 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 		return -EINVAL;
 	}
 
-	log_debug(" ********* Received a Netlink message. *********");
-
 	hdr = NLMSG_DATA(nl_hdr);
 	switch (hdr->mode) {
 	case MODE_RECEIVER:
@@ -214,7 +211,7 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 			error = receiver_display_stats();
 			break;
 		case OP_ADD:
-			log_debug("Adding an SKB from user space.");
+			log_debug("Storing an skb in the database.");
 			error = handle_receiver_packet_order(hdr + 1);
 			break;
 		case OP_FLUSH:
@@ -289,8 +286,8 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 		error = -EINVAL;
 		break;
 	}
-	log_debug(" *********************************************** ");
 
+	log_info("");
 	return respond_error(nl_hdr, error);
 }
 
@@ -302,7 +299,6 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
  */
 static void receive_from_userspace(struct sk_buff *skb)
 {
-	log_debug("Message arrived.");
 	netlink_rcv_skb(skb, &handle_netlink_message);
 }
 
