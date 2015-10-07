@@ -341,7 +341,9 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
  * Returns the smallest out of the three first parameters. It also handles some quirks. See comments
  * inside for more info.
  */
-static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 nexthop4_mtu,
+static __be32 icmp6_minimum_mtu(unsigned int packet_mtu,
+		unsigned int nexthop6_mtu,
+		unsigned int nexthop4_mtu,
 		__u16 tot_len_field)
 {
 	__u32 result;
@@ -397,22 +399,26 @@ static int compute_mtu6(struct packet *in, struct packet *out)
 	struct dst_entry *out_dst;
 	struct iphdr *hdr4;
 	struct icmphdr *in_icmp = pkt_icmp4_hdr(in);
+	unsigned int in_mtu;
 
 	out_dst = route6(out);
 	if (!out_dst)
 		return -EINVAL;
-	if (!in->skb->dev)
-		return -EINVAL;
+	/*
+	 * 0xfffffff is intended for hairpinning (there's no IPv4 device on
+	 * hairpinning).
+	 */
+	in_mtu = in->skb->dev ? in->skb->dev->mtu : 0xfffffff;
 
 	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
-	log_debug("In dev MTU: %u", in->skb->dev->mtu);
+	log_debug("In dev MTU: %u", in_mtu);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
 	/* We want the length of the packet that couldn't get through, not the truncated one. */
 	hdr4 = pkt_payload(in);
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu),
 			out_dst->dev->mtu,
-			in->skb->dev->mtu,
+			in_mtu,
 			be16_to_cpu(hdr4->tot_len));
 	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
 

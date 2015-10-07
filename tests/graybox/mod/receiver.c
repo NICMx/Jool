@@ -108,6 +108,8 @@ static unsigned int compare_incoming_skb(struct sk_buff *skb,
 	if (list_empty(&skb_db->list)) /* nothing to do. */
 		goto nf_accept;
 
+	log_info("Received packet.");
+
 	current_hook = skb_db->list.next;
 	tmp_skb = list_entry(current_hook, struct skb_entry, list);
 
@@ -136,6 +138,7 @@ nf_accept:
 	 * If we fall through here that means the incoming packet wasn't for the
 	 * receiver module, so let it pass.
 	 */
+	log_info("Returning packet to the kernel.\n");
 	spin_unlock_bh(&skb_db->lock);
 	return NF_ACCEPT;
 }

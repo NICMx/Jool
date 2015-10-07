@@ -164,6 +164,8 @@ static int handle_receiver_packet_order(void *request_hdr)
 	request->pkt = (void *) (request + 1);
 	request->filename = (char *) (request->pkt + request->pkt_len);
 
+	log_debug("Storing skb %s.", request->filename);
+
 	error = skb_from_pkt(request->pkt, request->pkt_len, &skb);
 	if (error)
 		return error;
@@ -211,7 +213,6 @@ static int handle_netlink_message(struct sk_buff *skb, struct nlmsghdr *nl_hdr)
 			error = receiver_display_stats();
 			break;
 		case OP_ADD:
-			log_debug("Storing an skb in the database.");
 			error = handle_receiver_packet_order(hdr + 1);
 			break;
 		case OP_FLUSH:
