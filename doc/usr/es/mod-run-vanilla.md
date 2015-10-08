@@ -29,7 +29,7 @@ title: SIIT - Ejemplo básico
 
 Este documento explica cómo ejecutar Jool en modo SIIT. Si no tiene nociones de este tipo de traducción ingrese a [SIIT Tradicional](intro-nat64.html#siit-tradicional).
 
-En cuanto a software, solamente se necesita una [instalación exitosa del módulo del kernel](mod-install.html). La aplicación de configuración queda fuera del alcance de esta página.
+En cuanto a software, solamente se necesita una [instalación exitosa del módulo del kernel para SIIT](mod-install.html). La aplicación de configuración no es empleada aqui.
 
 Para la implementación de las pruebas, puede usar alternativamente máquinas virtuales u otro tipo de interfaces, dado que Jool no está ligado al uso exclusivo de interfaces físicas del tipo "_ethX_".
 
@@ -74,7 +74,7 @@ user@V:~# ip route add default via 192.0.2.1
 
 ### Configuración del Nodo Traductor
 
-Para el Nodo _T_, ejecute la siguiente secuencia de comandos con permisos de administrador:
+Para el Nodo _T_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@T:~# service network-manager stop
@@ -86,7 +86,7 @@ user@T:~# ip link set eth1 up
 user@T:~# ip addr add 192.0.2.1/24 dev eth1
 {% endhighlight %}
 
-Hasta aquí _T_ no es un traductor todavía, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero  antes de continuar, se puede validar la comunicacion entre todos los nodos.
+Hasta aquí _T_ no es un traductor todavía, pues el servicio está dado de baja; por lo cual, los nodos desde _A_ hasta _E_ no pueden interactuar todavía con los nodos _V_ hasta _Z_. Pero antes de continuar, se puede validar la comunicacion entre todos los nodos.
 
 El siguiente paso es habilitar las banderas de forwarding de IPv4 e IPv6.
 
@@ -194,7 +194,7 @@ Agrege un servidor en _C_ y haga una solicitud desde _W_:
 
 ![Figure 2 - IPv6 TCP desde un nodo IPv4](../images/run-vanilla-firefox-6to4.png)
 
-Si algo no funciona, consulta el [FAQ](faq.html).
+Si algo no funciona, consulte el [FAQ](faq.html).
 
 ## Deteniendo Jool
 

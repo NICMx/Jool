@@ -7,12 +7,12 @@ title: Introducción a los Mecanismos de Transición
 
 [Documentación](documentation.html) > [Introducción](documentation.html#introduccin) > Mecanismos de Transición
 
-## Introducción a Traducción IP/ICMP
+## Introducción a la Traducción IPv4/IPv6
 
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Ejemplos de Traducción](#ejemplos-de-traduccin)
+2. [Traducción IPv4/IPv6](#ipv4iv6-traduccin)
 	1. [SIIT con EAM](#siit-con-eam)
     2. [SIIT tradicional](#siit-tradicional)
     3. [Stateful NAT64](#stateful-nat64)
@@ -20,19 +20,23 @@ title: Introducción a los Mecanismos de Transición
     
 ## Introducción
 
-Este documento proporciona un ejemplo ilustrativo de cada uno de los tres mecanismos de traducción implementados en Jool.
+Este documento proporciona una introducción general a SIIT y NAT64.
  
-## Ejemplos de Traducción
+## Traducción IPv4/IPv6
  
 SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que únicamente hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
 
- - **SIIT** modifica paquetes, simplemente reemplazando encabezados de IPv4 por encabezados de IPv6 y viceversa.
- - **Stateful NAT64**, o simplemente NAT64, es una combinación entre un SIIT y un (teórico) NAT de IPv6; la idea es enmascarar cualquier número de nodos de IPv6 detrás de unas pocas direcciones de IPv4.
+Ambos son básicamente una "actualización" de [NAT](http://en.wikipedia.org/wiki/Network_address_translation). Un "Traductor IPv4/IPv6" no solamente remplaza direcciones y/o puertos dentro de los paquetes, sino también los encabezados de las 3 capas.
 
-SIIT solamente comunica nodos. NAT64 requiere más recursos, pero ayuda adicionalmente con el problema del [agotamiento de las direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
- 
+- **SIIT** es la forma más simple, y permite mapeos preconfigurados 1-a-1 entre direcciones IPv4 e IPv6.
+- **Stateful NAT64**, NAT64 para abreviar, pemite que varios nodos IPv6 dinámicamente compartan unas pocas direcciones IPv4. Esto le será muy útil si es víctima del [agotamiento de las direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
+
 Por razones históricas, algunas veces etiquetamos erróneamente a SIIT como "Stateless NAT64". Ya que esta expresión no está incluida en ningún estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es posible, por favor trate de evitarla.
- 
+
+Una implementación SIIT segmenta los encabezados de red y en ocasiones los checksums de transporte. En un Stateful NAT64 también manipula los identificadores de transporte.
+
+Esto es realmente todo. Continue leyendo para más detalles y ejemplos.
+  
 ### SIIT con EAM
 
 
@@ -44,10 +48,12 @@ Esta es la modalidad más sencilla de explicar. Considere la siguiente configura
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó se podría comunicar _A_ (IPv6) con _V_ (IPv4)?
 
-1. Se le indica a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
+- Se le indica a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
                    y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16".
-2. Se le indica a _A_, "la dirección de _V_ es 2001:db8:4::16".
-3. Se le indica a _V_, "la dirección de _A_ es 198.51.100.8 ".
+- Se le indica a _A_, "la dirección de _V_ es 2001:db8:4::16".
+- Se le indica a _V_, "la dirección de _A_ es 198.51.100.8 ".
+
+La primera es traducida por SIIT, las otras pueden ser hechas vía DNS.
 
 Esto es lo que va a suceder:
 
