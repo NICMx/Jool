@@ -14,9 +14,9 @@ struct pool4_node {
 	struct in_addr addr;
 
 	struct {
-		/** The address's even UDP ports from the range 0-1023. */
+		/** The address's even UDP ports from the range 1-1023. */
 		struct poolnum low_even;
-		/** The address's odd UDP ports from the range 0-1023. */
+		/** The address's odd UDP ports from the range 1-1023. */
 		struct poolnum low_odd;
 		/** The address's even UDP ports from the range 1024-65535. */
 		struct poolnum high_even;
@@ -24,7 +24,7 @@ struct pool4_node {
 		struct poolnum high_odd;
 	} udp_ports;
 	struct {
-		/** The address's TCP ports from the range 0-1023. */
+		/** The address's TCP ports from the range 1-1023. */
 		struct poolnum low;
 		/** The address's TCP ports from the range 1024-65535. */
 		struct poolnum high;
@@ -318,7 +318,7 @@ static int __pool4_add(struct in_addr *addr)
 
 	new_node->addr = *addr;
 	new_node->active = true;
-	error = poolnum_init(&new_node->udp_ports.low_even, 0, 1022, 2);
+	error = poolnum_init(&new_node->udp_ports.low_even, 2, 1022, 2);
 	if (error)
 		goto failure;
 	error = poolnum_init(&new_node->udp_ports.low_odd, 1, 1023, 2);
@@ -330,7 +330,7 @@ static int __pool4_add(struct in_addr *addr)
 	error = poolnum_init(&new_node->udp_ports.high_odd, 1025, 65535, 2);
 	if (error)
 		goto failure;
-	error = poolnum_init(&new_node->tcp_ports.low, 0, 1023, 1);
+	error = poolnum_init(&new_node->tcp_ports.low, 1, 1023, 1);
 	if (error)
 		goto failure;
 	error = poolnum_init(&new_node->tcp_ports.high, 1024, 65535, 1);

@@ -40,33 +40,12 @@ int __route4(struct packet *in, struct packet *out)
 	/* flow.saddr = hdr_ip->saddr; */
 	flow.daddr = hdr_ip->daddr;
 
-	{
-		union {
-			struct tcphdr *tcp;
-			struct udphdr *udp;
-			struct icmphdr *icmp4;
-		} hdr;
-
-		switch (pkt_l4_proto(in)) {
-		case L4PROTO_TCP:
-			hdr.tcp = pkt_tcp_hdr(in);
-			flow.fl4_sport = hdr.tcp->source;
-			flow.fl4_dport = hdr.tcp->dest;
-			break;
-		case L4PROTO_UDP:
-			hdr.udp = pkt_udp_hdr(in);
-			flow.fl4_sport = hdr.udp->source;
-			flow.fl4_dport = hdr.udp->dest;
-			break;
-		case L4PROTO_ICMP:
-			hdr.icmp4 = pkt_icmp4_hdr(in);
-			flow.fl4_icmp_type = hdr.icmp4->type;
-			flow.fl4_icmp_code = hdr.icmp4->code;
-			break;
-		case L4PROTO_OTHER:
-			break;
-		}
-	}
+	/*
+	 * I'm no longer setting fl4_sport, fl4_dport, fl4_icmp_type nor
+	 * fl4_icmp_code because 1) not all callers of this function have set
+	 * the respective fields yet, and 2) I can't find any users of them
+	 * aside from XFRM code.
+	 */
 
 	/*
 	 * I'm using neither ip_route_output_key() nor ip_route_output_flow() because those seem to

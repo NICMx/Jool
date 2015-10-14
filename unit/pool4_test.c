@@ -11,10 +11,10 @@ MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("IPv4 pool module test");
 
 
-#define ID_COUNT				65536
+#define ID_COUNT			65536
 #define PORT_LOW_RANGE_MAX		1023
 #define PORT_HIGH_RANGE_MAX		(ID_COUNT - 1)
-#define ICMP_ID_MAX				(ID_COUNT - 1)
+#define ICMP_ID_MAX			(ID_COUNT - 1)
 
 static char* expected_ips_as_str[] = { "192.168.2.1", "192.168.2.2" };
 static struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
@@ -27,6 +27,13 @@ static struct in_addr expected_ips[ARRAY_SIZE(expected_ips_as_str)];
  * pool. If false, it means that the pool has it.
  */
 static bool ports[ARRAY_SIZE(expected_ips)][ID_COUNT];
+
+static void prohibit_zero(void)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(expected_ips); i++)
+			ports[i][0] = true;
+}
 
 static bool test_get_match_aux(enum l4_protocol proto, int port_min, int port_max, int step,
 		char *test_name)
@@ -66,7 +73,9 @@ static bool test_get_match_function_udp(void)
 {
 	bool success = true;
 
-	success &= test_get_match_aux(L4PROTO_UDP, 0, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
+	prohibit_zero();
+
+	success &= test_get_match_aux(L4PROTO_UDP, 2, PORT_LOW_RANGE_MAX, 2, "UDP-Low even ports");
 	success &= test_get_match_aux(L4PROTO_UDP, 1, PORT_LOW_RANGE_MAX, 2, "UDP-Low odd ports");
 	success &= test_get_match_aux(L4PROTO_UDP, 1024, PORT_HIGH_RANGE_MAX, 2, "UDP-High even ports");
 	success &= test_get_match_aux(L4PROTO_UDP, 1025, PORT_HIGH_RANGE_MAX, 2, "UDP-High odd ports");
@@ -78,7 +87,9 @@ static bool test_get_match_function_tcp(void)
 {
 	bool success = true;
 
-	success &= test_get_match_aux(L4PROTO_TCP, 0, PORT_LOW_RANGE_MAX, 1, "TCP-Low ports");
+	prohibit_zero();
+
+	success &= test_get_match_aux(L4PROTO_TCP, 1, PORT_LOW_RANGE_MAX, 1, "TCP-Low ports");
 	success &= test_get_match_aux(L4PROTO_TCP, 1024, PORT_HIGH_RANGE_MAX, 1, "TCP-High ports");
 
 	return success;
@@ -89,14 +100,15 @@ static bool test_get_match_function_icmp(void)
 	return test_get_match_aux(L4PROTO_ICMP, 0, ICMP_ID_MAX, 1, "ICMP-ids");
 }
 
-static bool test_get_any_port_aux(enum l4_protocol proto, char *test_name)
+static bool test_get_any_port_aux(enum l4_protocol proto, int id_count,
+		char *test_name)
 {
 	int a, p; /* address counter, port counter */
 	__u16 result;
 	bool success = true;
 
 	for (a = 0; a < ARRAY_SIZE(expected_ips); a++) {
-		for (p = 0; p < ID_COUNT; p++) {
+		for (p = 0; p < id_count; p++) {
 			success &= assert_equals_int(0, pool4_get_any_port(proto, &expected_ips[a], &result),
 					test_name);
 			success &= assert_false(ports[a][result], test_name);
@@ -116,17 +128,19 @@ static bool test_get_any_port_aux(enum l4_protocol proto, char *test_name)
 
 static bool test_get_any_port_function_udp(void)
 {
-	return test_get_any_port_aux(L4PROTO_UDP, "UDP ports");
+	prohibit_zero();
+	return test_get_any_port_aux(L4PROTO_UDP, ID_COUNT - 1, "UDP ports");
 }
 
 static bool test_get_any_port_function_tcp(void)
 {
-	return test_get_any_port_aux(L4PROTO_TCP, "TCP ports");
+	prohibit_zero();
+	return test_get_any_port_aux(L4PROTO_TCP, ID_COUNT - 1, "TCP ports");
 }
 
 static bool test_get_any_port_function_icmp(void)
 {
-	return test_get_any_port_aux(L4PROTO_ICMP, "ICMP-ids");
+	return test_get_any_port_aux(L4PROTO_ICMP, ID_COUNT, "ICMP-ids");
 }
 
 static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_range, int range_step,
@@ -156,7 +170,7 @@ static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_rang
 	}
 
 	/* At this point, the pool should not have low even ports, so it should lend random data. */
-	for (p = 0; p <= range_outside; p += 1) {
+	for (p = 0; p < range_outside; p += 1) {
 		success &= assert_equals_int(0, pool4_get_any_addr(proto, 10, &tuple_addr),
 				"Mismatched borrow 1-result");
 		success &= assert_equals_ipv4(&expected_ips[0], &tuple_addr.l3,
@@ -184,12 +198,18 @@ static bool test_get_any_addr_aux(l4_protocol proto, int min_range, int max_rang
 
 static bool test_get_any_addr_function_udp(void)
 {
-	return test_get_any_addr_aux(L4PROTO_UDP, 0, 1023, 2, 65535 - 512);
+	prohibit_zero();
+	/*
+	 * -1 stands for zero. 511 is the number of even numbers between
+	 * (and including) 2 and 1023.
+	 */
+	return test_get_any_addr_aux(L4PROTO_UDP, 2, 1023, 2, 65536 - 1 - 511);
 }
 
 static bool test_get_any_addr_function_tcp(void)
 {
-	return test_get_any_addr_aux(L4PROTO_TCP, 0, 1023, 1, 65535 - 1024);
+	prohibit_zero();
+	return test_get_any_addr_aux(L4PROTO_TCP, 1, 1023, 1, 65536 -1 - 1023);
 }
 
 static bool test_get_any_addr_function_icmp(void)
@@ -220,7 +240,7 @@ static bool test_return_function(void)
 	/* Borrow the entire pool. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		tuple_addr.l3 = expected_ips[addr_ctr];
-		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
+		for (port_ctr = 2; port_ctr < 1024; port_ctr += 2) {
 			tuple_addr.l4 = port_ctr;
 			success &= assert_equals_int(0, pool4_get_match(L4PROTO_UDP, &tuple_addr, &l4_id),
 					"Borrow everything-result");
@@ -311,7 +331,7 @@ static bool test_return_function(void)
 	/* Now return everything. */
 	for (addr_ctr = 0; addr_ctr < ARRAY_SIZE(expected_ips); addr_ctr++) {
 		tuple_addr.l3 = expected_ips[addr_ctr];
-		for (port_ctr = 0; port_ctr < 1024; port_ctr += 2) {
+		for (port_ctr = 2; port_ctr < 1024; port_ctr += 2) {
 			tuple_addr.l4 = port_ctr;
 			success &= assert_equals_int(0, pool4_return(L4PROTO_UDP, &tuple_addr),
 					"Returning everything");

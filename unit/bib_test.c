@@ -252,11 +252,11 @@ static bool test_allocate_ipv4_transport_address(void)
 	 * At this point, both IPv4 addresses have 50 high ports taken.
 	 * Because both IPv4 addresses are taken, client 3 will share its IPv4 address with someone.
 	 */
-	client3tuple.src.addr6.l4 = 0;
+	client3tuple.src.addr6.l4 = 1;
 	if (!test_allocate_aux(&client3tuple, NULL, &client3addr4, true))
 		goto fail;
 
-	for (i = 1; i < 1024; i++) {
+	for (i = 2; i < 1024; i++) {
 		client3tuple.src.addr6.l4 = i;
 		if (!test_allocate_aux(&client3tuple, &client3addr4, NULL, true))
 			goto fail;
@@ -282,7 +282,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	if (is_error(host6_node_get_or_create(&sharing_client_tuple->src.addr6.l3, &host6)))
 		goto fail;
 
-	sharing_client_tuple->src.addr6.l4 = 0;
+	sharing_client_tuple->src.addr6.l4 = 1;
 	success &= assert_equals_int(0, allocate_transport_address(host6, sharing_client_tuple,
 			&result), "result 3");
 	success &= assert_equals_ipv4(&client3addr4, &result.l3, "runnerup still gets his addr");
@@ -303,7 +303,7 @@ static bool test_allocate_ipv4_transport_address(void)
 	}
 
 	/*
-	 * At this point, client's address has 50 + 1024 + 1 + 64461 = 65536 ports taken.
+	 * At this point, client's address has 50 + 1023 + 1 + 64461 = 65535 ports taken.
 	 * ie. It no longer has any ports.
 	 */
 
@@ -327,9 +327,9 @@ static bool test_allocate_ipv4_transport_address(void)
 			"all remaining ports.");
 	/*
 	 * 51 high ports ports were already taken, so this will stop early.
-	 * Also, the sharing client already requested port 0, so we have to start at 1.
+	 * Also, the sharing client already requested port 1, so we have to start at 2.
 	 */
-	for (i = 1; i < 65486; i++) {
+	for (i = 2; i < 65486; i++) {
 		sharing_client_tuple->src.addr6.l4 = i;
 		if (!test_allocate_aux(sharing_client_tuple, non_sharing_addr, NULL,  i != 65485))
 			goto fail;

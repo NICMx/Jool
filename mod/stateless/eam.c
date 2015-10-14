@@ -445,44 +445,24 @@ int eamt_for_each(int (*func)(struct eam_entry *, void *), void *arg,
 	return error;
 }
 
+static void eamt_destroy_aux(struct rb_node *node)
+{
+	eam_kfree(rb_entry(node, struct eam_entry, tree6_hook));
+}
+
 int eamt_flush(void)
 {
-	struct eam_entry *root_eam, *eam;
-	struct rb_node *node;
-	int counter = 0;
-
 	log_debug("Emptying the EAM table...");
+
 	spin_lock_bh(&eam_lock);
 
-	node = eam_table.EAMT_tree4.rb_node;
-	if (!node)
-		goto success;
+	rbtree_clear(&eam_table.EAMT_tree6, eamt_destroy_aux);
+	eam_table.EAMT_tree4 = RB_ROOT;
+	eam_table.EAMT_tree6 = RB_ROOT;
+	eam_table.count = 0;
 
-	root_eam = rb_entry(node, struct eam_entry, tree4_hook);
-	if (!root_eam)
-		goto success;
-
-	node = rb_prev(&root_eam->tree4_hook);
-	while (node) {
-		eam = rb_entry(node, struct eam_entry, tree4_hook);
-		node = rb_prev(&eam->tree4_hook);
-		counter += eam_remove(eam, &eam_table);
-	}
-
-	node = rb_next(&root_eam->tree4_hook);
-	while (node) {
-		eam = rb_entry(node, struct eam_entry, tree4_hook);
-		node = rb_next(&eam->tree4_hook);
-		counter += eam_remove(eam, &eam_table);
-	}
-
-	counter += eam_remove(root_eam, &eam_table);
-	eam_table.count -= counter;
-	/* Fall through. */
-
-success:
 	spin_unlock_bh(&eam_lock);
-	log_debug("Deleted %d EAM entries.", counter);
+
 	return 0;
 }
 
@@ -499,11 +479,6 @@ int eamt_init(void)
 	eam_table.count = 0;
 
 	return 0;
-}
-
-static void eamt_destroy_aux(struct rb_node *node)
-{
-	eam_kfree(rb_entry(node, struct eam_entry, tree6_hook));
 }
 
 void eamt_destroy(void)
