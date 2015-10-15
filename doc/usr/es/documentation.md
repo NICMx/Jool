@@ -17,8 +17,8 @@ Bienvenido al índice de la documentación de Jool.
 Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de despliegue usando Stateful NAT64.
 
 ## Instalación
-1. [Módulo del kernel](mod-install.html)
-2. [Herramienta de Configuración](usr-install.html)
+1. [Módulos del kernel](mod-install.html)
+2. [Aplicaciones en el espacio de usuario](usr-install.html)
 
 ## Ejemplos de uso
 1. [SIIT](mod-run-vanilla.html)
@@ -32,12 +32,13 @@ Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de
 4. [DNS64](dns64.html)
 5. [464XLAT - SIIIT/DC Modo de traducción dual](mod-run-464xlat.html)
 
-## Herramienta de Configuración
+## Aplicación en el Espacio de Usuario
 
 1. [Banderas](usr-flags.html)
 
 ## Otros
 1. [FAQ](faq.html)
-2. [MTU y Fragmentación](mtu.html)
-3. [El problema con Offloading](offloading.html)
-4. [Interfaz Única](mod-run-alternate.html)
+2. [Logging](logging.html)
+3. [MTU y Fragmentación](mtu.html)
+4. [El problema con Offloading](offloading.html)
+5. [Interfaz Única](mod-run-alternate.html)

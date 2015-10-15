@@ -12,26 +12,26 @@ title: SIIT-EAM - Ejemplo de uso
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Red de ejemplo](#red-de-ejemplo)<br />
-	a) [Configuración de Nodos en IPv6](#configuracin-de-nodos-en-ipv6)<br />
-	b) [Configuración de Nodos en IPv4](#configuracin-de-nodos-en-ipv4)<br />
-	c) [Configuración del Nodo Traductor](#configuracin-del-nodo-traductor)
+2. [Red de ejemplo](#red-de-ejemplo)
+	1. [Configuración de Nodos en IPv6](#configuracin-de-nodos-en-ipv6)
+	2. [Configuración de Nodos en IPv4](#configuracin-de-nodos-en-ipv4)
+	3. [Configuración del Nodo Traductor](#configuracin-del-nodo-traductor)
 3. [Jool](#jool)
-4. [Pruebas](#pruebas)<br />
-	a) [Conectividad de IPv6 a IPv4](#conectividad-de-ipv6-a-ipv4)<br />
-	b) [Conectividad de IPv4 a IPv6](#conectividad-de-ipv4-a-ipv6)<br />
-	c) [Conectividad a un Web Server en IPv4](#conectividad-a-un-web-server-en-ipv4)<br />
-	d) [Conectividad a un Web Server en IPv6](#conectividad-a-un-web-server-en-ipv6)
+4. [Pruebas](#pruebas)
+	1. [Conectividad de IPv6 a IPv4](#conectividad-de-ipv6-a-ipv4)
+	2. [Conectividad de IPv4 a IPv6](#conectividad-de-ipv4-a-ipv6)
+	3. [Conectividad a un Web Server en IPv4](#conectividad-a-un-web-server-en-ipv4)
+	4. [Conectividad a un Web Server en IPv6](#conectividad-a-un-web-server-en-ipv6)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en modo EAM. Si no tienes nociones de este tipo de traducción ingresa a [SIIT-EAM ](intro-nat64.html#siit-con-eam). 
+Este documento explica cómo ejecutar Jool en modo EAM. Si desconoce sobre este tipo de traducción ingrese a [SIIT-EAM ](intro-nat64.html#siit-con-eam). 
 
-Más que un "modo" es simplemente proveer a SIIT con registros en la tabla de Direcciones de Mapeo Explícito. Obtenen más detalles sobre [ésta](eamt.html). 
+Más que un "modo" es simplemente registrar direcciones de Mapeo Explícito en SIIT, que serán agregadas en la tabla EAM. Para más detalles vea [EAMT](eamt.html). 
 
-Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: del [Servidor Jool](mod-install.html) **y** del [Configurador para SIIT](usr-install.html).
+Similar al SIIT Tradicional, solo necesita una instalación exitosa de ambos: del [Módulo del Kernel](mod-install.html) **y** del [Configurador](usr-install.html) para SIIT.
 
 ## Red de ejemplo
 
@@ -39,14 +39,14 @@ Similar al SIIT Tradicional, solo necesitas una instalación exitosa de ambos: d
 
 Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](mod-run-vanilla.html#red-de-ejemplo). Resumiéndolas, tenemos que:
 
-- Al menos necesitarás tres nodos: _A_, _V_ y _T_.
-- Usa el bloque de direcciones 198.51.100.8/29 para referenciar a tus nodos de IPv6 sobre IPv4.
+- Al menos necesitará tres nodos: _A_, _V_ y _T_.
+- Use el bloque de direcciones 198.51.100.8/29 para referenciar a sus nodos de IPv6 sobre IPv4.
 - Jool requiere Linux, los otros Nodos no necesariamente.
-- Para este tutorial, consideraremos que: a)todos están en Linux, b)la configuración de red se hará manualmente, c) todo el tráfico será redirigido por defecto hacia _T_.
+- Para este tutorial, consideraremos que: a) todos están en Linux, b) la configuración de red se hará manualmente, c) todo el tráfico será redirigido por defecto hacia _T_.
 
 ### Configuración de Nodos en IPv6
 
-Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para los nodos de _A_ a _E_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
@@ -58,7 +58,7 @@ user@A:~# /sbin/ip route add default via 2001:db8:6::1
 
 ### Configuración de Nodos en IPv4
 
-Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para los nodos de _V_ a _Z_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@V:~# service network-manager stop
@@ -70,7 +70,7 @@ user@V:~# /sbin/ip route add default via 192.0.2.1
 
 ### Configuración del Nodo Traductor
 
-Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para el Nodo _T_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@T:~# service network-manager stop
@@ -81,6 +81,8 @@ user@T:~#
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 user@T:~# 
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 user@T:~# ethtool --offload eth0 tso off
 user@T:~# ethtool --offload eth0 ufo off
 user@T:~# ethtool --offload eth0 gso off
@@ -93,16 +95,15 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-Hasta aquí, no hemos convertido a _T_ en un traductor todavía; pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
+Hasta aquí _T_ no es un traductor todavía; pero, quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
 ## Jool
 
-Recuerda, la sintaxis para insertar Jool SIIT en el kernel es:<br />
-(Requieres permiso de administración)
+Recuerde, la sintaxis para insertar Jool SIIT en el kernel es:<br />
 
 	user@T:~# modprobe jool_siit [pool6=<IPv6 prefix>] [blacklist=<IPv4 prefixes>] [pool6791=<IPv4 prefixes>] [disabled]
 	
-Para configurar nuestra red de ejemplo, ejecuta como administrador:
+Para configurar nuestra red de ejemplo:
 
 {% highlight bash %}
 user@T:~# /sbin/modprobe jool_siit disabled
@@ -111,17 +112,17 @@ user@T:~# jool_siit --eamt --add 2001:db8:4::/120 192.0.2.0/24
 user@T:~# jool_siit --enable
 {% endhighlight %}
 
-A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruimos a Jool para que inicie deshabilitado. Luego insertamos los registros de la tabla EAM, uno por uno, utilizando la [Herramienta de Configuración](usr-flags-eamt.html). Cuando la tabla está completa, le decimos a Jool que puede empezar a traducir trafico mediante la opción de [`--enable`](usr-flags-global.html#enable---disable).
+A diferencia de `pool6`, no es práctico insertar la tabla EAM completa en un solo comando, asi que instruya a Jool para que inicie deshabilitado. Luego inserte los registros de la tabla EAM, uno por uno, utilizando la [Aplicación de Configuración](usr-flags-eamt.html). Cuando la tabla está completa, diga a Jool que puede empezar a traducir trafico mediante la opción de [`--enable`](usr-flags-global.html#enable---disable).
 
 De hecho utilizar `disabled` y `--enable` no es necesario; Jool va a deducir naturalmente que no puede traducir tráfico hasta que la tabla EAM y/o pool6 sean llenados. La razón por la cual Jool fue "forzado" a permanecer deshabilitado hasta que la tabla estuviera completa fue para que no hubiera un periodo de tiempo donde el tráfico estuviera siendo traducido inconsistentemente debido a una tabla incompleta.
 
-Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos. Jool siempre va a tratar de traducir una dirección utilizando EAM, y si eso falla, retrocederá a utilizar el prefijo. Si quieres esto, agrega `pool6` durante el `modprobe`.
+Y de nuevo, el prefijo IPv6 y la tabla EAM no son modos de operación exclusivos. Jool siempre va a tratar de traducir una dirección utilizando EAM, y si eso falla, retrocederá a utilizar el prefijo. Si desea esto, agrega `pool6` durante el `modprobe`.
 
 ## Pruebas
 
 ### Conectividad de IPv6 a IPv4
 
-Haz un ping a _V_ desde _A_:
+Realice un ping a _V_ desde _A_:
 
 {% highlight bash %}
 user@A:~$ ping6 2001:db8:4::10 # Reminder: hex 10 = dec 16.
@@ -138,7 +139,7 @@ rtt min/avg/max/mdev = 2.790/3.370/4.131/0.533 ms
 
 ### Conectividad de IPv4 a IPv6
 
-Haz un ping a _A_ desde _V_ de esta forma:
+Haga un ping a _A_ desde _V_ de esta forma:
 
 {% highlight bash %}
 user@V:~$ ping 198.51.100.8
@@ -155,17 +156,17 @@ rtt min/avg/max/mdev = 1.930/3.001/5.042/1.204 ms
 
 ### Conectividad a un Web Server en IPv4
 
-Agrega un servidor en _Y_ y accesalo desde _D_:
+Agrege un servidor en _Y_ y acceselo desde _D_:
 
 ![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-eam-firefox-4to6.png)
 
 ### Conectividad a un Web Server en IPv6
 
-Agrega un servidor en _B_ y haz una solicitud desde _X_:
+Agrege un servidor en _B_ y haga una solicitud desde _X_:
 
 ![Figura 2 - IPv6 TCP desde un nodo IPv4](../images/run-vanilla-firefox-6to4.png)
 
-Si algo no funciona, consulta el [FAQ](faq.html).
+Si algo no funciona, consulte el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
@@ -177,5 +178,5 @@ user@T:~# modprobe -r jool_siit
 
 ## Lecturas adicionales
 
-1. Por favor, lee acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
-2. Si te interesa Stateful NAT64, dirigete al [tercer ejemplo](mod-run-stateful.html).
+1. Por favor, lea acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
+2. Si le interesa Stateful NAT64, dirigase al [tercer ejemplo](mod-run-stateful.html).

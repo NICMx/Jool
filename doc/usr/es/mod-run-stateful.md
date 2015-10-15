@@ -12,23 +12,23 @@ title: Stateful NAT64 - Ejemplo de uso
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Red de ejemplo](#red-de-ejemplo)<br />
-	a) [Configuración de Nodos en IPv6](#configuracin-de-nodos-en-ipv6)<br />
-	b) [Configuración de Nodos en IPv4](#configuracin-de-nodos-en-ipv4)<br />
-	c) [Configuración del Nodo Traductor](#configuracin-del-nodo-traductor)
+2. [Red de ejemplo](#red-de-ejemplo)
+	1. [Configuración de Nodos en IPv6](#configuracin-de-nodos-en-ipv6)
+	2. [Configuración de Nodos en IPv4](#configuracin-de-nodos-en-ipv4)
+	3. [Configuración del Nodo Traductor](#configuracin-del-nodo-traductor)
 3. [Jool](#jool)
-4. [Pruebas](#pruebas)<br />
-	a) [Conectividad de IPv6 a IPv4](#conectividad-de-ipv6-a-ipv4)<br />
-	b) [Conectividad a un Web Server en IPv4](#conectividad-a-un-web-server-en-ipv4)
+4. [Pruebas](#pruebas)
+	1. [Conectividad de IPv6 a IPv4](#conectividad-de-ipv6-a-ipv4)<br />
+	2. [Conectividad a un Web Server en IPv4](#conectividad-a-un-web-server-en-ipv4)
 5. [Deteniendo Jool](#deteniendo-jool)
 6. [Lecturas adicionales](#lecturas-adicionales)
 
 
 ## Introducción
 
-Este documento explica como ejecutar Jool en modo Stateful NAT64. Si no tienes nociones de este tipo de traducción ingresa a [Stateful NAT64](intro-nat64.html#stateful-nat64).
+Este documento explica como ejecutar Jool en modo Stateful NAT64. Si no tiene nociones de este tipo de traducción ingresa a [Stateful NAT64](intro-nat64.html#stateful-nat64).
 
-Similar a los modos anteriores, solo necesitas una instalación exitosa de del [Servidor Jool](mod-install.html). El Configurador no se necesita en esta ejecución básica.
+Similar a los modos anteriores, solo necesita una [instalación exitosa del módulo del kernel para SIIT](mod-install.html). El configurador no es requerido en esta ejecución básica.
 
 ## Red de ejemplo
 
@@ -36,13 +36,13 @@ Similar a los modos anteriores, solo necesitas una instalación exitosa de del [
 
 Aquí también, son válidas y aplican las observaciones mencionadas de la [sección Red de Ejemplo para SIIT](mod-run-vanilla.html#red-de-ejemplo) exceptuando dos: el del uso de direcciones en el segmento 198.51.100.8/29 y el default gateway. Resumiéndolas, tenemos que:
 
-- Al menos necesitarás tres nodos: _A_, _V_ y _T_.
+- Al menos necesitará tres nodos: _A_, _V_ y _T_.
 - Jool requiere Linux, los otros Nodos no necesariamente.
-- Para este tutorial, consideraremos que: a)todos están en Linux, b)su configuración de red se hará manualmente.
+- Para este tutorial, consideraremos que: a) todos están en Linux, b) su configuración de red se hará manualmente.
 
 ### Configuración de Nodos en IPv6
 
-Para los nodos de _A_ a _E_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para los nodos de _A_ a _E_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@A:~# service network-manager stop
@@ -54,7 +54,7 @@ user@A:~# /sbin/ip route add default via 2001:db8::1
 
 ### Configuración de Nodos en IPv4
 
-Para los nodos de _V_ a _Z_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para los nodos de _V_ a _Z_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@V:~# service network-manager stop
@@ -63,11 +63,11 @@ user@V:~# # Replace ".16" depending on which node you're on.
 user@V:~# /sbin/ip address add 203.0.113.16/24 dev eth0
 {% endhighlight %}
 
-Estos nodos no necesitan una ruta por defecto. Esto es consecuencia de que se encuentran en la misma red junto con el NAT64. Como la dirección 203.0.113.2 estará enmascarando los nodos IPv6, asi que desde _V_ hasta _Z_ piensan que están hablando directamente con _T_.
+Estos nodos no necesitan una ruta por defecto dado que se encuentran en la misma red que el NAT64. Como la dirección 203.0.113.2 estará enmascarando los nodos IPv6, asi que desde _V_ hasta _Z_ piensan que están hablando directamente con _T_.
 
 ### Configuración del Nodo Traductor
 
-Para el Nodo _T_, ejecuta la siguiente secuencia de comandos con permisos de administrador:
+Para el Nodo _T_, ejecute la siguiente secuencia de comandos:
 
 {% highlight bash %}
 user@T:~# service network-manager stop
@@ -79,6 +79,8 @@ user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
 user@T:~# /sbin/ip address add 203.0.113.2/24 dev eth1
 user@T:~# 
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 user@T:~# ethtool --offload eth0 tso off
 user@T:~# ethtool --offload eth0 ufo off
 user@T:~# ethtool --offload eth0 gso off
@@ -93,19 +95,18 @@ user@T:~# ethtool --offload eth1 lro off
 
 En modo Stateful es especial en el sentido de que el NAT64 necesita por lo menos dos direcciones IPv4 separadas:
 
-- Una o más direcciones utilizadas para el trafico local (ej. hacia y desde _T_). En la configuración de arriba, esta es  203.0.113.1.
-- Una o más direcciones utilizadas para la traducción NAT64. Linux necesita estar consciente de éstas por que necesita enviarles una respuesta ARP. En nuestro ejemplo es 203.0.113.2.
+- Una o más direcciones utilizadas para el trafico local (por ej. hacia y desde _T_). En la configuración de arriba, se emplea 203.0.113.1.
+- Una o más direcciones utilizadas para la traducción NAT64. Linux necesita estar consciente de éstas por que necesitará enviarles una respuesta ARP. En nuestro ejemplo, la dirección para traducir es la 203.0.113.2.
 
-La necesidad de esta separación es una _peculiaridad de Jool_ y estamos investigando como eliminarla.
+La necesidad de esta separación es una _peculiaridad de Jool_ y se esta investigando como eliminarla.
 
 Las direcciones de traducción requieren menos prioridad que las del tráfico local para que _T_ no las use por accidente. Una manera de lograr esto, es simplemente añadiendo las direcciones NAT64 después de las direcciones de nodo.
 
-Recuerda que quizá quieras asegurarte de que _T_ puede comunicarse con todos los nodos antes de continuar.
+Recuerde que quizá quiera asegurarse de que _T_ puede comunicarse con todos los nodos antes de continuar.
 
 ## Jool
 
 Esta es la sintaxis para insertar Jool Stateful NAT64 en el kernel:<br />
-(Requieres permiso de administración)
 
 	user@T:~# /sbin/modprobe jool \
 		[pool6=<IPv6 prefix>] \
@@ -114,23 +115,23 @@ Esta es la sintaxis para insertar Jool Stateful NAT64 en el kernel:<br />
 
 - `pool6` es el prefijo que el mecanismo de traducción estará adjuntando y removiendo de las direcciones de los paquetes.
 
-- `pool4` es el subconjunto de direcciones de los nodos que seran utilizadas para la traducción (la longitud del prefijo es /32 por defecto).
+- `pool4` es el subconjunto de direcciones de los nodos que serán utilizadas para la traducción (la longitud del prefijo es /32 por defecto).
 
 - `disabled`  inicia Jool en modo inactivo.
 
-`EAM` y `pool6791` no tienen sentido en modo stateful, y como tal no estan disponibles.
+`EAM` y `pool6791` no aplican en el modo stateful, y como tal no están disponibles.
 
 Para nuestra red de ejemplo:
 
 	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.2
 
-Jool escuchará en la dirección `203.0.113.2` y para los paquetes en IPv4 agrega y remueve el prefijo `64:ff9b::/96`.
+Jool escuchará en la dirección `203.0.113.2` y para los paquetes en IPv4 se agrega y se remueve el prefijo `64:ff9b::/96`.
 
 ## Pruebas
 
 ### Conectividad de IPv6 a IPv4
 
-Haz un ping a _V_ desde _C_:
+Haga un ping a _V_ desde _C_:
 
 {% highlight bash %}
 user@C:~$ ping6 64:ff9b::203.0.113.16
@@ -147,17 +148,17 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 ### Conectividad a un Web Server en IPv4
 
-Agrega un servidor en _Z_ y accesalo desde _A_:
+Agrege un servidor en _Z_ y acceselo desde _A_:
 
 ![Figura 1 - IPv4 TCP desde un nodo IPv6](../images/run-stateful-firefox-4to6.png)
 
-Para saber cómo permitir que los Nodos IPv4 inicien comunicación consulta la sección de lecturas adicionales.
+Para saber cómo permitir que los Nodos IPv4 inicien comunicación consulte la sección de lecturas adicionales.
 
-Si algo no funciona, consulta el [FAQ](faq.html).
+Si algo no funciona, consulte el [FAQ](faq.html).
 
 ## Deteniendo Jool
 
-Para detener Jool, emplea de nuevo el comando modprobe usando el parámetro `-r`:
+Para detener Jool, emplee de nuevo el comando modprobe usando el parámetro `-r`:
 
 {% highlight bash %}
 user@T:~# /sbin/modprobe -r jool
@@ -165,8 +166,8 @@ user@T:~# /sbin/modprobe -r jool
 
 ## Lecturas adicionales
 
-1. Un nodo IPv4 externo no puede iniciar la comunicación por que el ve a la red IPv6 como una red privada IPv4 que está atrás de un NAT. Para remediar esto, Jool te permite configurar el "redireccionamiento de puertos" (port forwarding). Ingresa [aqui](static-bindings.html) si estás interesado.
+1. Un nodo IPv4 externo no puede iniciar la comunicación por que el ve a la red IPv6 como una red privada IPv4 que está atrás de un NAT. Para remediar esto, Jool le permite configurar el "redireccionamiento de puertos" (port forwarding). Ingrese [aqui](static-bindings.html) si está interesado.
 2. Aprende más sobre la [pool IPv4](pool4.html).
-3. El [documento de DNS64](dns64.html) te dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
-4. Por favor, lee acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
-5. Hay [otra manera de correr el Stateful NAT64](mod-run-alternate.html). Quizá te ayude a ver las cosas desde una perspectiva más amplia.
+3. El [documento de DNS64](dns64.html) le dirá como configurar un DNS64 para hacer transparente el uso de dirección-prefijo a los usuarios.
+4. Por favor, lea acerca de [problemas con MTUs](mtu.html) antes de seleccionar alguno.
+5. Hay [otra manera de correr el Stateful NAT64](mod-run-alternate.html). Quizá le ayude a ver las cosas desde una perspectiva más amplia.

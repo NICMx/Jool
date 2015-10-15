@@ -2,43 +2,41 @@
 language: es
 layout: default
 category: Documentation
-title: Documentación - Introducción a los Mecanismos de Transición
+title: Introducción a los Mecanismos de Transición
 ---
 
 [Documentación](documentation.html) > [Introducción](documentation.html#introduccin) > Mecanismos de Transición
 
-## Introducción a Traducción IP/ICMP
+## Introducción a la Traducción IPv4/IPv6
 
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Ejemplos de Traducción](#ejemplos-de-traduccin)<br />
-	a) [SIIT con EAM](#siit-con-eam)<br />
-    b) [SIIT tradicional](#siit-tradicional)<br />
-    c) [Stateful NAT64](#stateful-nat64)
+2. [Traducción IPv4/IPv6](#ipv4iv6-traduccin)
+	1. [SIIT con EAM](#siit-con-eam)
+    2. [SIIT tradicional](#siit-tradicional)
+    3. [Stateful NAT64](#stateful-nat64)
+3. [Nota Histórica](#nota-histrica)
     
 ## Introducción
- Este documento proporciona una introducción general a los tres mecanismos de traducción implementados en Jool.
+
+Este documento proporciona una introducción general a SIIT y NAT64.
  
-TODO Paty - esta sección no es una introducción en lo absoluto; es solo historia... (y siento que va a ahuyentar a los lectores)
-
-El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765](https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)](https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)](https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días](https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)]({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)]({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)]({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson](http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
-
-La metodología del Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**](http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea](http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146](https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el [Dr. Marcelo Bagnulo Braun](http://www.it.uc3m.es/marcelo/) de la Universidad Carlos III y otros dos colaboradores del proyecto. 
-
-![bulb](../images/bulb.png) Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
-
-## Ejemplos de Traducción
+## Traducción IPv4/IPv6
  
 SIIT (_Stateless IP/ICMP Translation_) y NAT64 ("NAT seis cuatro", no "NAT sesenta y cuatro") son tecnologías orientadas a comunicar nodos de red que únicamente hablan [IPv4](http://es.wikipedia.org/wiki/IPv4) con nodos que solo hablan [IPv6](http://es.wikipedia.org/wiki/IPv6).
 
- - **SIIT** modifica paquetes, simplemente reemplazando encabezados de IPv4 por encabezados de IPv6 y viceversa.
- - **Stateful NAT64**, o simplemente NAT64, es una combinación entre un SIIT y un (teórico) NAT de IPv6; la idea es enmascarar cualquier número de nodos de IPv6 detrás de unas pocas direcciones de IPv4.
+Ambos son básicamente una "actualización" de [NAT](http://en.wikipedia.org/wiki/Network_address_translation). Un "Traductor IPv4/IPv6" no solamente remplaza direcciones y/o puertos dentro de los paquetes, sino también los encabezados de las 3 capas.
 
-SIIT solamente comunica nodos. NAT64 requiere más recursos, pero ayuda adicionalmente con el problema del [agotamiento de las direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
- 
+- **SIIT** es la forma más simple, y permite mapeos preconfigurados 1-a-1 entre direcciones IPv4 e IPv6.
+- **Stateful NAT64**, NAT64 para abreviar, pemite que varios nodos IPv6 dinámicamente compartan unas pocas direcciones IPv4. Esto le será muy útil si es víctima del [agotamiento de las direcciones de IPv4](http://es.wikipedia.org/wiki/Agotamiento_de_las_direcciones_IPv4).
+
 Por razones históricas, algunas veces etiquetamos erróneamente a SIIT como "Stateless NAT64". Ya que esta expresión no está incluida en ningún estándar relevante, la consideramos imprecisa, a pesar de que tiene cierto grado de sentido. Si es posible, por favor trate de evitarla.
- 
+
+Una implementación SIIT segmenta los encabezados de red y en ocasiones los checksums de transporte. En un Stateful NAT64 también manipula los identificadores de transporte.
+
+Esto es realmente todo. Continue leyendo para más detalles y ejemplos.
+  
 ### SIIT con EAM
 
 
@@ -50,10 +48,12 @@ Esta es la modalidad más sencilla de explicar. Considere la siguiente configura
 
 Asumiendo que la puerta de enlace por default de todos es _T_, comó se podría comunicar _A_ (IPv6) con _V_ (IPv4)?
 
-1. Se le indica a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
+- Se le indica a _T_, "La dirección IPv4 de _A_ debe de ser 198.51.100.8, <br />
                    y la dirección IPv6 de _V_ debe de ser 2001:db8:4::16".
-2. Se le indica a _A_, "la dirección de _V_ es 2001:db8:4::16".
-3. Se le indica a _V_, "la dirección de _A_ es 198.51.100.8 ".
+- Se le indica a _A_, "la dirección de _V_ es 2001:db8:4::16".
+- Se le indica a _V_, "la dirección de _A_ es 198.51.100.8 ".
+
+La primera es traducida por SIIT, las otras pueden ser hechas vía DNS.
 
 Esto es lo que va a suceder:
 
@@ -63,7 +63,7 @@ El traductor esta "engañando" a ambos nodos, haciéndoles pensar que el otro pu
 
 "EAM" es abreviación de "Explicit Address Mapping" (Mapeo Explícito de Direcciones), y es más versátil que simples asociaciones entre diferentes direcciones arbitrarias.
 
-![bulb](../images/bulb.png) Más detalles sobre EAM pueden encontrarse en el [borrador]({{ site.draft-siit-eam }}) o [nuestro resumen de él](eamt.html).
+![bulb](../images/bulb.png) Más detalles sobre EAM pueden encontrarse en este [resumen](eamt.html) o en el [documento de la IETF]({{ site.draft-siit-eam }}).
 
 ### SIIT (tradicional)
 
@@ -90,7 +90,7 @@ Puedes encontrar un ejemplo concreto de cómo SIIT "tradicional" y SIIT "EAM" pu
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de la dirección de IPv6. Puede encontrarse más información en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-![bulb](../images/bulb.png) Siempre que el RFC 6052 esté involucrado, es conveniente dar de alta también un [DNS64](dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+![warning](../images/warning.png) Siempre que el RFC 6052 esté involucrado, es conveniente dar de alta también un [DNS64](dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### Stateful NAT64
 
@@ -143,3 +143,13 @@ De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a
 Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2](https://tools.ietf.org/html/rfc6144#section-2).
 
 ![warning](../images/warning.png) Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
+
+## Nota Histórica
+
+Sobre el orígen y desarrollo de estas metodologías:
+
+* El algoritmo para SIIT fue definido formalmente a inicios del 2000 por Erik Nordmark de SUN Microsystems en el [RFC 2765](https://tools.ietf.org/html/rfc2765). Este ha sido actualizado en varias ocasiones: [(RFC 6145, 2011)](https://tools.ietf.org/html/rfc6145), [(RFC6791, 2012)](https://tools.ietf.org/html/rfc6791) e inclusive [hasta nuestros días](https://tools.ietf.org/id/siit?maxhits=100&key=date&dir=desc). De éstos, ya están incluidos en Jool el [(draft-ietf-v6ops-siit-dc, 2015)]({{ site.draft-siit-dc }}), el [(draft-ietf-v6ops-siit-dc-2xlat, 2015)]({{ site.draft-siit-dc-2xlat }}) y el [(draft-anderson-v6ops-siit-eam, 2015)]({{ site.draft-siit-eam }}). Estas tres adiciones a SIIT han sido propuestas y promovidas por [Tore Anderson](http://www.redpill-linpro.com/tore-anderson#overlay-context=about-us/our-consultants) de la compañía Redpill Linpro en Noruega.
+
+* El algoritmo de Stateful NAT64 fue uno de los resultados del [**Proyecto Trilogy**](http://trilogy-project.org/trilogy-and-the-ietf.html), organizado por [la Unión Europea](http://europa.eu/rapid/press-release_IP-11-1294_es.htm), con una inversión aprox. de 9 millones de Euros, por un período de 3 años (2008 al 2010) donde participaron 5 Universidades, 4 compañías de telecomunicación y 2 centros de investigación. El estándar para el NAT64 que es el [RFC 6146](https://tools.ietf.org/html/rfc6146) fue publicado en el 2011 por el mismo coordinador del projecto, el [Dr. Marcelo Bagnulo Braun](http://www.it.uc3m.es/marcelo/) de la Universidad Carlos III y otros dos colaboradores del proyecto. 
+
+* Conoce más trabajos elaborados por la IETF acerca de NAT64 en [TOOLS IETF](https://tools.ietf.org/id/nat64?maxhits=100&key=date&dir=desc) y en [Datatracker](https://datatracker.ietf.org/doc/search/?name=nat64&sort=&rfcs=on&activedrafts=on).
