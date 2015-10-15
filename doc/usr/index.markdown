@@ -26,11 +26,21 @@ As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.3.4](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.4).
+Our latest release is version [3.3.5](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.3.5).
 
 -------------------
 
 ## News
+
+### 2015-10-15
+
+Version 3.3.5 released.
+
+Three bugfixes:
+
+1. A connection could be masked using port zero (NAT64 Jool).
+2. Incorrect routing when pool6791 was empty (SIIT Jool).
+3. Memory leak on `--eamt --flush` (SIIT Jool).
 
 ### 2015-09-21
 
