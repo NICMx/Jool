@@ -75,7 +75,7 @@ int pool4_display(bool csv)
 
 	if (!csv) {
 		if (args.row_count > 0)
-			log_info("  (Fetched %u entries.)", args.row_count);
+			log_info("  (Fetched %u samples.)", args.row_count);
 		else
 			log_info("  (empty)");
 	}

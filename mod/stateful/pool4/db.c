@@ -396,7 +396,7 @@ int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
 		hlist_for_each_rcu_bh(node, &database[hash]) {
 			table = table_entry(node);
 			if (offset) {
-				if (table->mark == offset->mark) {
+				if (table->mark == offset->mark && table->proto == offset->proto) {
 					error = pool4table_foreach_sample(table,
 							cb, arg, offset);
 					if (error)
