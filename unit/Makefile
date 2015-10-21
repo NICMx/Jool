@@ -87,6 +87,7 @@ $(RBTREE)-objs += rbtree_test.o
 $(POOL4DB)-objs += $(MIN_REQS)
 $(POOL4DB)-objs += ../mod/stateful/pool4/table.o
 $(POOL4DB)-objs += ../mod/stateful/pool4/entry.o
+$(POOL4DB)-objs += impersonator/pool4_empty.o
 $(POOL4DB)-objs += pool4db_test.o
 
 $(BIBTABLE)-objs += $(MIN_REQS)

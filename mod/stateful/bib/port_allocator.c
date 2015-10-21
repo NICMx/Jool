@@ -137,7 +137,7 @@ int palloc_allocate(struct packet *in_pkt, const struct tuple *tuple6,
 	args.proto = tuple6->l4_proto;
 	args.result = result;
 
-	error = pool4db_foreach_taddr4(in_pkt, tuple6, daddr,
+	error = pool4db_foreach_taddr4(in_pkt, tuple6->l4_proto, daddr,
 			choose_port, &args,
 			offset + atomic_read(&next_ephemeral));
 

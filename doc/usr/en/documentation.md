@@ -18,31 +18,61 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Installation
 
-1. [Kernel module](mod-install.html)
-2. [Userspace application](usr-install.html)
+1. [Kernel modules](mod-install.html)
+2. [Userspace applications](usr-install.html)
 
 ## Runs
 
 1. [SIIT](mod-run-vanilla.html)
-	1. [RFC 6791](rfc6791.html)
 2. [SIIT + EAM](mod-run-eam.html)
-	1. [The EAMT](eamt.html)
 3. [Stateful NAT64](mod-run-stateful.html)
-	1. [The IPv4 Transport Address Pool](pool4.html)
-	2. [BIB](bib.html)
-		- [Static Bindings](static-bindings.html)
 4. [DNS64](dns64.html)
-5. [464XLAT - SIIT/DC Dual Translation Mode](mod-run-464xlat.html)
 
-## Userspace Application
+## SIIT in Detail
 
-1. [Flags](usr-flags.html)
+1. [The EAMT](eamt.html)
+2. [RFC 6791](rfc6791.html)
+
+## NAT64 in Detail
+
+1. [The IPv4 Transport Address Pool](pool4.html)
+2. [BIB](bib.html) (and [Static Bindings](static-bindings.html))
+
+## Kernel Module Arguments
+
+1. [`jool_siit`](modprobe-siit.html)
+2. [`jool`](modprobe-nat64.html)
+
+## Userspace Application Arguments
+
+1. Common arguments
+	1. [`--help`](usr-flags-help.html)
+	2. [`--global`](usr-flags-global.html)
+	3. [`--pool6`](usr-flags-pool6.html)
+2. `jool_siit`-only arguments
+	1. [`--eamt`](usr-flags-eamt.html)
+	2. [`--blacklist`](usr-flags-blacklist.html)
+	3. [`--pool6791`](usr-flags-pool6791.html)
+3. `jool`-only arguments
+	1. [`--pool4`](usr-flags-pool4.html)
+	2. [`--bib`](usr-flags-bib.html)
+	3. [`--session`](usr-flags-session.html)
+
+## Defined Architectures
+
+1. [464XLAT](464xlat.html)
+2. [SIIT-DC](siit-dc.html)
+3. [SIIT-DC: Dual Translation Mode](siit-dc-2xlat.html)
+
+## Other Sample Runs
+
+1. [Host-Based Edge Translation]()
+2. [Single Interface](mod-run-alternate.html)
 
 ## Miscellaneous
 
 1. [FAQ](faq.html)
 2. [Logging](logging.html)
-2. [MTU and Fragmentation](mtu.html)
-3. [The problem with Offloading](offloading.html)
-4. [Single Interface](mod-run-alternate.html)
+3. [MTU and Fragmentation](mtu.html)
+4. [The problem with Offloading](offloading.html)
 

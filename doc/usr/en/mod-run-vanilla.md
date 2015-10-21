@@ -20,7 +20,7 @@ title: Basic SIIT Run
 
 ## Introduction
 
-This document explains how to run Jool in [SIIT mode](intro-nat64.html#siit-traditional). Follow the link for more details on what to expect.
+This document explains how to run Jool in [stock SIIT mode](intro-nat64.html#siit-traditional). Follow the link for more details on what to expect.
 
 Software-wise, only a [successful install of Jool’s kernel module](mod-install.html) is required. The userspace application is out of the scope of this document on purpose.
 
@@ -74,17 +74,24 @@ user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 
 Because we haven't turned _T_ into a translator yet, nodes _A_ through _E_ still cannot interact with _V_ through _Z_, but you might want to make sure _T_ can ping everyone before continuing.
 
-The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of offloads in the translating machine](offloading.html). Do that by means of `ethtool`:
+Next, enable forwarding on _T_.
 
 {% highlight bash %}
-user@T:~# ethtool --offload eth0 tso off
-user@T:~# ethtool --offload eth0 ufo off
-user@T:~# ethtool --offload eth0 gso off
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+{% endhighlight %}
+
+> ![Note!](../images/bulb.svg) These sysctls make sense conceptually, but Jool doesn't actually depend on them, currently.
+> 
+> What happens is, if you omit them in kernels 3.5 and below, everything will seem to work, but Linux will drop some important ICMP traffic. Skipping them in kernels 3.6 and above doesn’t actually yield known adverse consequences.
+> 
+> Whether this inconsistency is a bug in older or newer kernels [is a rather philosophical topic](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). On the other hand, Jool 4.0 will almost certainly require forwarding, so you might as well start preparing your scripts.
+
+The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of receive offloads in the translating machine](offloading.html). Do that by means of `ethtool`:
+
+{% highlight bash %}
 user@T:~# ethtool --offload eth0 gro off
 user@T:~# ethtool --offload eth0 lro off
-user@T:~# ethtool --offload eth1 tso off
-user@T:~# ethtool --offload eth1 ufo off
-user@T:~# ethtool --offload eth1 gso off
 user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
@@ -96,24 +103,12 @@ user@T:~# ethtool --offload eth1 lro off
 This is the insertion syntax:
 
 	user@T:~# /sbin/modprobe jool_siit \
-		[pool6=<IPv6 prefix>] \
-		[blacklist=<IPv4 prefixes>] \
-		[pool6791=<IPv4 prefixes>] \
-		[disabled]
+			[pool6=<IPv6 prefix>] \
+			[blacklist=<IPv4 prefixes>] \
+			[pool6791=<IPv4 prefixes>] \
+			[disabled]
 
-These are the arguments:
-
-- `pool6` (short for "IPv6 pool") is the prefix the translation mechanism will be appending and removing from the addresses of the packets.  
-This is optional because you might want to use the EAM table instead.
-- `blacklist` represents IPv4 addresses Jool will **not** translate _using the pool6 prefix_ (ie. this does not affect EAMT translation).  
-You can insert up to five comma-separated `blacklist` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-blacklist.html).
-- `pool6791` is a secondary IPv4 pool used for something [slightly more cryptic](rfc6791.html). You might rather want to read its explanation _after_ you've nailed the basics from this walkthrough.  
-If this pool is empty, Jool will fall back to use this own node's natural source address towards the destination node.  
-You can insert up to five comma-separated `pool6791` prefixes during a modprobe. If you need more, use the [userspace application](usr-flags-pool6791.html).
-- `disabled` starts Jool inactive. If you're using the userspace application, you can use it to ensure you're done configuring before your traffic starts getting translated. The EAM walkthrough exemplifies its use.  
-If not present, Jool starts translating traffic right away.
-
-The following suffices for our sample network.
+See [Kernel Module Options](modprobe-siit.html) for a description of each argument. The following suffices for our sample network:
 
 	user@T:~# /sbin/modprobe jool_siit pool6=2001:db8::/96
 

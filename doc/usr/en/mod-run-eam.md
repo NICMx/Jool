@@ -20,7 +20,7 @@ title: EAM Run
 
 ## Introduction
 
-This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records on the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](eamt.html) for more details on how the EAMT works.
+This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records in the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](eamt.html) for more details on how the EAMT works.
 
 [Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) **and** the [userspace application](usr-install.html) for EAM.
 
@@ -61,14 +61,11 @@ user@T:~#
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip addr add 192.0.2.1/24 dev eth1
 user@T:~# 
-user@T:~# ethtool --offload eth0 tso off
-user@T:~# ethtool --offload eth0 ufo off
-user@T:~# ethtool --offload eth0 gso off
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# 
 user@T:~# ethtool --offload eth0 gro off
 user@T:~# ethtool --offload eth0 lro off
-user@T:~# ethtool --offload eth1 tso off
-user@T:~# ethtool --offload eth1 ufo off
-user@T:~# ethtool --offload eth1 gso off
 user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
@@ -134,7 +131,11 @@ Then maybe another one in _B_ and request from _X_:
 
 ## Stopping Jool
 
-Same as in the [previous walkthrough](mod-run-vanilla.html#stopping-jool).
+Same as in the previous walkthrough.
+
+{% highlight bash %}
+user@T:~# /sbin/modprobe -r jool_siit
+{% endhighlight %}
 
 ## Further reading
 

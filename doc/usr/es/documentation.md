@@ -30,7 +30,7 @@ Consulta el [RFC 6586](https://tools.ietf.org/html/rfc6586) para experiencias de
 	2. [BIB](bib.html)
 	3. [Mapeos Estáticos](static-bindings.html)
 4. [DNS64](dns64.html)
-5. [464XLAT - SIIIT/DC Modo de traducción dual](mod-run-464xlat.html)
+5. [464XLAT - SIIIT/DC Modo de traducción dual](464xlat.html)
 
 ## Aplicación en el Espacio de Usuario
 

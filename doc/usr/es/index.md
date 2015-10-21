@@ -79,7 +79,7 @@ Se ha concluido Jool 3.3.0.
 
 ![small_red_triangle](../images/small_red_triangle.png) [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero la traducción Stateless (SIIT) es ahora parte del proyecto.
 
-Los siguientes recursos están disponibles: [introducción a SIIT/NAT64](intro-nat64.html), [tutorial - SIIT](mod-run-vanilla.html) y [tutorial - SIIT/DC](mod-run-464xlat.html).
+Los siguientes recursos están disponibles: [introducción a SIIT/NAT64](intro-nat64.html), [tutorial - SIIT](mod-run-vanilla.html) y [tutorial - SIIT/DC](464xlat.html).
 
 Se reorganizó el programa de configuración de Jool, por favor **actualice sus scripts**:
 

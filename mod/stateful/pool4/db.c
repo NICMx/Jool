@@ -436,7 +436,7 @@ end:
  * @result: resulting address and port allocation will be placed here.
  */
 RCUTAG_PKT
-int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
+int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
 		struct in_addr *daddr,
 		int (*cb)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)
@@ -450,7 +450,7 @@ int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
 		error = pool4empty_foreach_taddr4(in, daddr, cb, arg, offset);
 	} else {
 		table = find_table(rcu_dereference_bh(db), in->skb->mark,
-				tuple6->l4_proto);
+				l4_proto);
 		error = table ? pool4table_foreach_taddr4(table, cb, arg, offset)
 				: -ESRCH;
 	}

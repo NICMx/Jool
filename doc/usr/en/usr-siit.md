@@ -21,4 +21,22 @@ If a command changes the behavior of Jool, it requires network admin privileges 
 
 Common options:
 
+1. [`--help`](usr-flags-help.html)
+2. [`--global`](usr-flags-global.html)
+	1. [Atomic Fragments](usr-flags-atomic.html)
+	2. [MTU Plateaus (Example)](usr-flags-plateaus.html)
+3. [`--pool6`](usr-flags-pool6.html)
+
+`jool_siit`-only options:
+
+1. [`--eamt`](usr-flags-eamt.html)
+2. [`--blacklist`](usr-flags-blacklist.html)
+2. [`--pool6791`](usr-flags-pool6791.html)
+
+`jool`-only options:
+
+4. [`--pool4`](usr-flags-pool4.html)
+1. [`--bib`](usr-flags-bib.html)
+2. [`--session`](usr-flags-session.html)
+3. [`--quick`](usr-flags-quick.html)
 

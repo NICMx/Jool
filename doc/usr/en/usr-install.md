@@ -9,6 +9,13 @@ title: Userspace Applications Installation
 
 # Userspace Applications Installation
 
+## Index
+
+1. [Introduction](#introduction)
+2. [Requirements](#requirements)
+3. [Downloading the Code](#downloading-the-code)
+3. [Compilation and Installation](#compilation-and-installation)
+
 ## Introduction
 
 Jool is four things:
@@ -18,20 +25,9 @@ Jool is four things:
 
 This document explains how to obtain the binaries of the userspace application.
 
-## If you downloaded the [official release](download.html)
+## Requirements
 
-{% highlight bash %}
-user@node:~/Jool$ cd usr
-user@node:~/Jool/usr$ ./configure # You need libnl-3 to run this; see below.
-user@node:~/Jool/usr$ make
-user@node:~/Jool/usr# make install
-{% endhighlight %}
-
-Done; you should now be able to type `jool --help` or `jool_siit --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
-
-## If you downloaded from the <a href="https://github.com/NICMx/NAT64" target="_blank">Github repository</a>
-
-The repository does not keep track of the configuration script, so you have to generate it yourself. You need autoconf 2.68 or superior to do that.
+### libnl-3
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
@@ -39,30 +35,16 @@ The repository does not keep track of the configuration script, so you have to g
 </div>
 
 {% highlight bash %}
-user@node:~# apt-get install autoconf
+# apt-get install libnl-3-dev
 {% endhighlight %}
 
 {% highlight bash %}
-user@node:~# yum install automake
+# yum install libnl3*
 {% endhighlight %}
 
-Then just add a call to `autogen.sh` to the normal installation procedure:
+### Autoconf
 
-{% highlight bash %}
-Jool$ cd usr
-Jool/usr$ ./autogen.sh # You need autoconf 2.68 or superior to run this.
-Jool/usr$ ./configure # You need libnl-3 to run this; see below.
-Jool/usr$ make
-Jool/usr# make install
-{% endhighlight %}
-
-Done; you should now be able to type `jool --help` or `jool_siit --help` and get some garbage. Go to [Flags](usr-flags.html) for more verbose documentation.
-
-## libnl-3
-
-<a href="http://www.carisma.slowglass.com/~tgr/libnl/" target="_blank">This</a> is libnl-3's official website is as of 2014-07-31, in case you want to compile it yourself.
-
-If your distribution package-manages it though, <a href="https://github.com/NICMx/NAT64/issues/103" target="_blank">you might really want to exploit the feature rather than compiling the framework</a>:
+You only need this if you plan on downloading the Github version of Jool.
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
@@ -70,10 +52,46 @@ If your distribution package-manages it though, <a href="https://github.com/NICM
 </div>
 
 {% highlight bash %}
-user@node:~# apt-get install libnl-3-dev
+# apt-get install autoconf
 {% endhighlight %}
 
 {% highlight bash %}
-user@node:~# yum install libnl3*
+# yum install automake
 {% endhighlight %}
+
+## Downloading the Code
+
+Pick either:
+
+1. The Official Releases' [Download page](download.html).
+2. The [Git repository](https://github.com/NICMx/NAT64) (Hit the "Download ZIP" button).
+
+> ![Note!](../images/bulb.svg) The Git repository is named "NAT64" for historic reasons only. You're actually downloading both the SIIT and the NAT64.
+
+## Compilation and Installation
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Official release</span>
+	<span class="distro-selector" onclick="showDistro(this);">Git version</span>
+</div>
+
+{% highlight bash %}
+$ unzip Jool-<version>.zip
+$ cd Jool-<version>/usr
+$
+$ ./configure
+$ make
+# make install
+{% endhighlight %}
+
+{% highlight bash %}
+$ unzip master.zip
+$ cd NAT64-master/usr
+$ ./autogen.sh
+$ ./configure
+$ make
+# make install
+{% endhighlight %}
+
+> ![Note!](../images/bulb.svg) If you only want to compile the SIIT binary, you can speed things up by running the make commands in the `mod/stateless` folder. Similarly, if you only want the NAT64, do so in `mod/stateful`.
 

@@ -15,7 +15,7 @@ title: SIIT-DC
 
 This document is a summary of the _SIIT-DC: Dual Translation Mode_ (SIIT-DC-DTM) architecture, and a small walkthrough that builds it using Jool.
 
-SIIT-DC-DTM is an optional improvement over [SIIT-DC](mod-run-siit-dc.html) which adds a mirror translator to inherit the benefits of [464XLAT](mod-run-464xlat.html).
+SIIT-DC-DTM is an optional improvement over [SIIT-DC](siit-dc.html) which adds a mirror translator to inherit the benefits of [464XLAT](464xlat.html).
 
 ## Sample Network
 
@@ -27,7 +27,7 @@ It's the same as SIIT-DC, except an isolated IPv4 island amidst the IPv6-only Da
 
 You need this if SIIT-DC doesn't suffice because some application in the Data Centre either doesn't support NAT (i.e., the lack of end-to-end transparency of IP addresses) or doesn't support IPv6 at all.
 
-This will be the expected packet flow (in addition to the ones in the [SIIT-DC tutorial](mod-run-siit-dc.html)):
+This will be the expected packet flow (in addition to the ones in the [SIIT-DC tutorial](siit-dc.html)):
 
 ![Fig.2 - Packet Flow](../images/flow/siit-dc-2xlat.svg "Fig.2 - Packet Flow")
 
@@ -35,7 +35,7 @@ This will be the expected packet flow (in addition to the ones in the [SIIT-DC t
 
 ![Fig.3 - Collapsed Network](../images/network/siit-dc-2xlat-collapsed.svg "Fig.3 - Collapsed Network")
 
-Start from the [SIIT-DC configuration](mod-run-siit-dc.html#configuration) and add:
+Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add:
 
 {% highlight bash %}
 # ip addr add 198.51.100.2/24 dev eth0

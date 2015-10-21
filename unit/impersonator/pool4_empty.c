@@ -2,8 +2,6 @@
 
 bool pool4empty_contains(const struct ipv4_transport_addr *addr)
 {
-	log_err("This function was called! The unit test is broken.");
-	BUG();
 	return false;
 }
 

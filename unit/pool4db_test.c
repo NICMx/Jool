@@ -9,6 +9,14 @@ MODULE_AUTHOR("Ramiro Nava");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("IPv4 pool DB module test");
 
+/*
+ * These two are just parameter noise a function needs.
+ * They're here because they won't fit in the stack and I don't want to
+ * allocate.
+ */
+static struct sk_buff skb = { .mark = 1 };
+static struct packet pkt = { .skb = &skb };
+
 static bool test_init_power(void)
 {
 	unsigned int initial_power = power;
@@ -180,8 +188,8 @@ static bool test_foreach_taddr4(void)
 		args.expected = &expected[i % COUNT];
 		args.expected_len = COUNT;
 		args.i = 0;
-		error = pool4db_foreach_taddr4(1, L4PROTO_TCP, validate_taddr4,
-				&args, i);
+		error = pool4db_foreach_taddr4(&pkt, L4PROTO_TCP, NULL,
+				validate_taddr4, &args, i);
 		success &= ASSERT_INT(0, error, "call %u", i);
 		/* log_debug("--------------"); */
 	}

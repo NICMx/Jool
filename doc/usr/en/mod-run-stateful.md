@@ -62,19 +62,16 @@ user@T:~#
 user@T:~# /sbin/ip link set eth1 up
 user@T:~# /sbin/ip address add 203.0.113.1/24 dev eth1
 user@T:~# 
-user@T:~# ethtool --offload eth0 tso off
-user@T:~# ethtool --offload eth0 ufo off
-user@T:~# ethtool --offload eth0 gso off
+user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
+user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
+user@T:~# 
 user@T:~# ethtool --offload eth0 gro off
 user@T:~# ethtool --offload eth0 lro off
-user@T:~# ethtool --offload eth1 tso off
-user@T:~# ethtool --offload eth1 ufo off
-user@T:~# ethtool --offload eth1 gso off
 user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-> Note: In previous versions of Jool, _T_ used to need two or more IPv4 addresses. This is no longer the case.
+> ![Note!](../images/bulb.svg) In previous versions of Jool, _T_ used to need two or more IPv4 addresses. Because pool4 now stores port ranges, this is no longer the case.
 
 Remember you might want to cross-ping _T_ vs everything before continuing.
 
@@ -83,21 +80,21 @@ Remember you might want to cross-ping _T_ vs everything before continuing.
 This is the insertion syntax:
 
 	user@T:~# /sbin/modprobe jool \
-		[pool6=<IPv6 prefix>] \
-		[pool4=<IPv4 prefixes>] \
-		[disabled]
+			[pool6=<IPv6 prefix>] \
+			[pool4=<IPv4 prefixes>] \
+			[disabled]
 
-- `pool6` has the same meaning as in SIIT Jool.
-- `pool4` is the subset of the node's addresses which will be used for translation (the prefix length defaults to /32).
-- `disabled` has the same meaning as in SIIT Jool.
-
-EAM and `pool6791` do not make sense in stateful mode, and as such are unavailable.
+See [Kernel Module Options](mod-flags.html#nat64-jool) for a description of each argument.
 
 The result looks like this:
 
-	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96 pool4=203.0.113.1
+	user@T:~# /sbin/modprobe jool pool6=64:ff9b::/96
 
-Jool will listen on address `203.0.113.1` and append and remove prefix `64:ff9b::/96`.
+Jool will append and remove prefix `64:ff9b::/96`.
+
+> ![Note!](../images/bulb.svg) In previous versions of Jool, `pool4` used to be mandatory. This is no longer the case.
+
+> ![Note!](../images/bulb.svg) Because we skipped the `pool4` argument, Jool will fall back to mask packets using the upper ports of `203.0.113.1`. Unless you're See [pool4](pool4.html) for details on how to fine-tune this.
 
 ## Testing
 
@@ -120,7 +117,9 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 ![Figure 1 - IPv4 TCP from an IPv6 node](../images/run-stateful-firefox-4to6.png)
 
-See the further reading below to see how to enable IPv4 nodes to start communication.
+> ![Note!](../images/bulb.svg) Obviously, users should not need to be aware of IP addresses, much less know they need to append a prefix whenever they need to speak to IPv4. The [DNS64 document](dns64.html) will tell you how to make the prefix-address-hack transparent to users.
+
+> ![Note!](../images/bulb.svg) Because a NAT64 is stateful, only IPv6-started tests can be run at this point. See [port forwarding](static-bindings.html) if 4-to-6 translation is relevant for you.
 
 ## Stopping Jool
 
@@ -132,9 +131,6 @@ user@T:~# /sbin/modprobe -r jool
 
 ## Further Reading
 
-1. An IPv4 "outside" node cannot start communication because it "sees" the IPv6 network as an IPv4 private network behind a NAT. To remedy this, Jool enables you to configure "port forwarding". See [here](static-bindings.html) if you're interested.
-2. There's a discussion on the [IPv4 pool](pool4.html).
-3. The [DNS64 document](dns64.html) will tell you how to make the prefix-address-hack transparent to users.
-4. Please consider the [MTU issues](mtu.html) before releasing.
-5. There's also an [alternate stateful run](mod-run-alternate.html). Perhaps it can help you see things from a better perspective.
+1. Please consider the [MTU issues](mtu.html) before releasing.
+2. There's also an [alternate stateful run](mod-run-alternate.html). Perhaps it can help you see things from a better perspective.
 

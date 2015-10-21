@@ -36,7 +36,7 @@ void pool4db_count(__u32 *tables, __u64 *samples, __u64 *taddrs);
 
 int pool4db_foreach_sample(int (*cb)(struct pool4_sample *, void *), void *arg,
 		struct pool4_sample *offset);
-int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
+int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
 		struct in_addr *daddr,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset);

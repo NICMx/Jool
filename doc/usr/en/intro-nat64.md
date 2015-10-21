@@ -21,7 +21,7 @@ title: Introduction to IPv4/IPv6 Translation
 
 This document provides a general introduction to SIIT and NAT64.
 
-It only focuses on what, exactly, IPv4/IPv6 translators do. If you're more interested in down-to-earth setups which apply these ideas, try [Architectures](documentation.html#architectures).
+It only focuses on what, exactly, IPv4/IPv6 translators do. If you're more interested in down-to-earth setups which apply these ideas, try [Defined Architectures](documentation.html#defined-architectures).
 
 ## IPv4/IPv6 Translation
 

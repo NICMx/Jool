@@ -34,7 +34,7 @@ is spiritually equivalent to
 
 Just like a NAT, a Stateful NAT64 allows an indeterminate amount of clients to share a few IPv4 addresses by strategically distributing their traffic accross its own transport address domain.
 
-We call this "transport address domain" the "IPv4 pool" ("pool4" for short), and it's one of the two mandatory requirements for NAT64 translation (the other being pool6). Without elements in pool4, there's nothing to mask packets with.
+We call this "transport address domain" the "IPv4 pool" ("pool4" for short).
 
 To illustrate:
 
@@ -50,9 +50,13 @@ Another one, equally valid, is this:
 
 ![Fig. 3 - T's translation - version 2](../images/flow/pool4-simple3-en.svg "Fig. 3 - T's translation - version 2")
 
-NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, [recommendations exist to drive NAT64s as unpredictable as possible]({{ site.draft-nat64-port-allocation }}).
+NAT64s are not overly concerned with retaining source ports. In fact, for security reasons, [recommendations exist to drive NAT64s as unpredictable as possible in this regard]({{ site.draft-nat64-port-allocation }}).
 
 When defining the addresses and ports that will belong to your pool4, you need to be aware that they must not collide with other services or clients within the same machine. If _T_ tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, Jool will end up combining the the information transmitted in both connections.
 
-Linux's ephemeral port range defaults to 32768-61000. Therefore, Jool's port range for any given address defaults to 61001-65535. [You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `--pool4 --add` userspace application commands](usr-flags-pool4.html#notes).
+If you have no elements in pool4 whatsoever, Jool will fall back to mask packets using the primary global addresses configured in its node's interfaces. Because Linux's ephemeral port range defaults to 32768-61000, Jool will only attempt to mask packets using ports 61001-65535 in this case.
+
+On the other hand, if you insert elements to pool4 and do not specify port ranges, Jool will assume it can use the entire port domain of the addresses (1-65535). This is done for backwards compatibility reasons.
+
+[You can change Linux's ephemeral port range by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and pool4's port range by means of `--pool4 --add` userspace application commands](usr-flags-pool4.html#notes).
 
