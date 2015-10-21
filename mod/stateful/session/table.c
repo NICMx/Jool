@@ -4,6 +4,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 /**
@@ -550,6 +551,11 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	spin_unlock_bh(&table->lock);
 
 	session_log(session, "Added session");
+
+	//function to add session for synchronization.
+	error = joold_add_session_element(session);
+
+
 	return 0;
 }
 

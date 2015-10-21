@@ -25,6 +25,9 @@ jool_common += ../common/nl_handler.o
 jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
+jool_common += ../common/nl/nl_core.o
+jool_common += ../common/nl/nl_receiver.o
+jool_common += ../common/nl/nl_sender.o
 
 jool += pool4/entry.o
 jool += pool4/table.o
@@ -48,5 +51,6 @@ jool += compute_outgoing_tuple.o
 jool += handling_hairpinning.o
 jool += nf_hook.o
 jool += impersonator.o
+jool += joold.o
 
 jool-objs += ${jool} ${jool_common}

@@ -35,4 +35,6 @@ void sessiondb_flush(void);
 bool sessiondb_allow(struct tuple *tuple4);
 void sessiondb_update_timers(void);
 
+bool sessiondb_is_session_established(struct session_entry *session);
+
 #endif /* _JOOL_MOD_SESSION_DB_H */

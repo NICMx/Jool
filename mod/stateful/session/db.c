@@ -97,6 +97,12 @@ int sessiondb_add(struct session_entry *session, bool is_est)
 	return table ? sessiontable_add(table, session, is_est) : -EINVAL;
 }
 
+bool sessiondb_is_session_established(struct session_entry *session)
+{
+	struct session_table *table = get_table(session->l4_proto);
+	return session->expirer == &table->est_timer ? true : false;
+}
+
 int sessiondb_foreach(l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
 		struct ipv4_transport_addr *offset_remote,

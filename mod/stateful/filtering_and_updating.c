@@ -7,6 +7,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/pool4/db.h"
@@ -25,6 +26,7 @@ static enum session_fate expired_cb(struct session_entry *session, void *arg)
 {
 	switch (session->state) {
 	case ESTABLISHED:
+		joold_add_session_element(session);
 		session->state = TRANS;
 		session->update_time = jiffies;
 		return FATE_PROBE;
@@ -35,6 +37,7 @@ static enum session_fate expired_cb(struct session_entry *session, void *arg)
 	case V6_FIN_RCV:
 	case V4_FIN_V6_FIN_RCV:
 	case TRANS:
+		joold_add_session_element(session);
 		session->state = CLOSED;
 		return FATE_RM;
 
@@ -243,6 +246,8 @@ static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
 		session_return(session);
 		return error;
 	}
+
+	//Add function call, to add session to queue.
 
 	*result = session;
 	return 0;

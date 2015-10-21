@@ -6,11 +6,13 @@
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/stateful/filtering_and_updating.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/fragment_db.h"
 #include "nat64/mod/stateful/pool4/db.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+
 #include <linux/version.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
@@ -36,6 +38,18 @@ MODULE_PARM_DESC(pool4_size, "Size of pool4 DB's hashtable.");
 static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
+
+static int sender_sock_family = 22;
+module_param(sender_sock_family,int,0);
+MODULE_PARM_DESC(sender_sock_family,"Family of the multicasting socket which will send session data to userspace.");
+
+static int receiver_sock_family = NETLINK_USERSOCK;
+module_param(receiver_sock_family,int,0);
+MODULE_PARM_DESC(receiver_sock_family,"Family of the socket which will receive data from userspace.");
+
+static int synch_period = 500;
+module_param(synch_period,int,0);
+MODULE_PARM_DESC(synch_timer_period,"Period of synchronization with other JOOL instances in miliseconds.");
 
 
 static char *banner = "\n"
@@ -107,7 +121,7 @@ static int __init nat64_init(void)
 	error = config_init(disabled);
 	if (error)
 		goto config_failure;
-	error = nlhandler_init();
+	error = nlhandler_init(receiver_sock_family);
 	if (error)
 		goto nlhandler_failure;
 	error = pool6_init(pool6, pool6_len);
@@ -122,6 +136,9 @@ static int __init nat64_init(void)
 	error = fragdb_init();
 	if (error)
 		goto fragdb_failure;
+	error = joold_init(sender_sock_family, synch_period);
+	if (error)
+		goto joold_failure;
 #ifdef BENCHMARK
 	error = logtime_init();
 	if (error)
@@ -159,6 +176,9 @@ pool6_failure:
 
 nlhandler_failure:
 	config_destroy();
+
+joold_failure:
+	joold_destroy();
 
 config_failure:
 	return error;

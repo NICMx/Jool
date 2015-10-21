@@ -65,6 +65,8 @@ enum config_mode {
 	MODE_SESSION = (1 << 4),
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
+	/** The current message is talking about synchronization entries.*/
+	MODE_JOOLD = (1 << 10)
 };
 
 /**
