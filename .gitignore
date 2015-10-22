@@ -21,6 +21,7 @@
 # binaries
 jool
 jool_siit
+joold
 # documentation
 _site
 
@@ -56,8 +57,7 @@ Thumbs.db
 
 # gedit temporal files
 ######################
-*.c~
-*.h~
+*~
 
 # eclipse files
 ######################

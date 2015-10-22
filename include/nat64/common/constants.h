@@ -102,4 +102,9 @@
 #define ICMP_BAD_LENGTH 2
 
 
+/* -- Netlink -- */
+
+#define NETLINK_MULTICAST_FAMILY 22
+
+
 #endif /* _JOOL_COMMON_CONSTANTS_H */

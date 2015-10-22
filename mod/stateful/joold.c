@@ -16,8 +16,10 @@ static struct request_hdr header_struct;
 
 static DEFINE_SPINLOCK(lock);
 
+/*
 static int session_list_elem_num = 0;
 static int elements_limit = 20;
+ */
 
 static struct timer_list updater_timer;
 
@@ -49,17 +51,13 @@ static int send_msg(void *payload, int payload_len)
 	nl_hdr_out = nlmsg_put(skb_out,
 			0, /* src_pid (0 = kernel) */
 			0, /* seq */
-			NLMSG_DONE, /* type */
+			0, /* type */
 			payload_len, /* payload len */
 			0); /* flags */
-
-	NETLINK_CB(skb_out).dst_group = JOOLD_MULTICAST_GROUP;
-
 	memcpy((__u8*)nlmsg_data(nl_hdr_out),(__u8*)payload, payload_len);
 
-
-	error = netlink_broadcast(sender_sk, skb_out,1,JOOLD_MULTICAST_GROUP,GFP_KERNEL);
-	if (error < 0) {
+	error = nlmsg_multicast(sender_sk, skb_out, 0, JOOLD_MULTICAST_GROUP, GFP_KERNEL);
+	if (error) {
 		log_err("Error code %d while returning response to the user.", error);
 		return error;
 	}
@@ -72,6 +70,16 @@ static int send_msg(void *payload, int payload_len)
 
 static int joold_send_to_userspace(void) {
 
+	char payload[3];
+
+	payload[0] = 'g';
+	payload[1] = 'h';
+	payload[2] = '\0';
+	log_debug("sending thingo.");
+
+	return send_msg(payload, 2);
+
+	/*
 	struct session_element *s_element;
 	__u8 * payload_pointer;
 	__u16 total_size;
@@ -115,6 +123,7 @@ static int joold_send_to_userspace(void) {
 
 
 	return 0;
+	 */
 }
 
 
@@ -149,6 +158,8 @@ int joold_init(int sender_sock_family, int synch_period) {
 
 	error = mod_timer(&updater_timer, jiffies + msecs_to_jiffies(500));
 
+	if (error)
+		return error;
 
 	error = nl_sender_init(sender_sock_family, JOOLD_MULTICAST_GROUP);
 
@@ -167,16 +178,16 @@ int joold_init(int sender_sock_family, int synch_period) {
 	return 0;
 }
 
-void joold_destroy(void) {
-
-	if (sender_sk) {
-		sender_sk = NULL;
-	}
+void joold_destroy(void)
+{
+	del_timer_sync(&updater_timer);
+	netlink_kernel_release(sender_sk);
 }
 
 
 int joold_add_session_element(struct session_entry *entry) {
 
+	/*
 	int error = 0;
 	struct session_element *entry_copy;
 
@@ -214,9 +225,12 @@ int joold_add_session_element(struct session_entry *entry) {
 		spin_unlock_bh(&lock);
 
 	return error;
+	*/
+	return 0;
 
 }
 
+/*
 static int update_session(struct list_head * session_elements) {
 
 	struct session_element * s_element;
@@ -268,8 +282,10 @@ static int update_session(struct list_head * session_elements) {
 
 	return 0;
 }
+ */
 
 int joold_sync_entires(__u8 * data, __u32 size) {
+	/*
 	__u32 index = 0;
 
 	struct list_head * session_elements = kmalloc(sizeof(struct hlist_head),
@@ -298,6 +314,7 @@ int joold_sync_entires(__u8 * data, __u32 size) {
 	update_session(session_elements);
 
 	spin_unlock_bh(&lock);
+	 */
 
 	return 0;
 }

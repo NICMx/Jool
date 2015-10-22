@@ -1,4 +1,5 @@
 #include "nat64/mod/common/nf_hook.h"
+#include "nat64/common/constants.h"
 #include "nat64/common/xlat.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
@@ -39,7 +40,7 @@ static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
-static int sender_sock_family = 22;
+static int sender_sock_family = NETLINK_MULTICAST_FAMILY;
 module_param(sender_sock_family,int,0);
 MODULE_PARM_DESC(sender_sock_family,"Family of the multicasting socket which will send session data to userspace.");
 
@@ -160,6 +161,9 @@ nf_register_hooks_failure:
 
 log_time_failure:
 #endif
+	joold_destroy();
+
+joold_failure:
 	fragdb_destroy();
 
 fragdb_failure:
@@ -177,9 +181,6 @@ pool6_failure:
 nlhandler_failure:
 	config_destroy();
 
-joold_failure:
-	joold_destroy();
-
 config_failure:
 	return error;
 }
@@ -193,6 +194,7 @@ static void __exit nat64_exit(void)
 #ifdef BENCHMARK
 	logtime_destroy();
 #endif
+	joold_destroy();
 	fragdb_destroy();
 	filtering_destroy();
 	pool4db_destroy();
