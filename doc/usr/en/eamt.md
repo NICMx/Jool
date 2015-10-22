@@ -23,7 +23,7 @@ An EAMT entry is composed of an IPv4 prefix and an IPv6 prefix. When an address 
 
 The first record shown is the simplest case. Because there is no suffix, the record literally says "Address `192.0.2.1` should always be translated as `2001:db8:aaaa::5`, and vice versa". Whether the address is source, destination, or lies within the inner packet of an ICMP error, doesn't matter. The IPv6 representation of `192.0.2.1` is `2001:db8:aaaa::5`, and the IPv4 representation of `2001:db8:aaaa::5` is `192.0.2.1`. Period.
 
-The second entry is more interesting. Because there is a full byte of suffix, the record is saying "`198.51.100.x` should be translated as `2001:db8:bbbb::x`, and vice versa. _x_ is any number between 0-255."
+The second entry is more interesting. Because there is a full byte of suffix, the record is saying "`198.51.100.x` should be translated as `2001:db8:bbbb::x`, and vice versa. _x_ is any number whose decimal representation lies between 0 and 255."
 
 As in:
 

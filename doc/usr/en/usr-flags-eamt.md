@@ -105,7 +105,7 @@ Dump the database on a CSV file:
 $ jool_siit --eamt --display --csv > eamt.csv
 {% endhighlight %}
 
-[eamt.csv](obj/eamt.csv)
+[eamt.csv](../obj/eamt.csv)
 
 Display the number of entries in the table:
 

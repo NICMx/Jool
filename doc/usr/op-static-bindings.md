@@ -1,5 +1,5 @@
 ---
 layout: redirect
-redirect_link: en/static-bindings.html
+redirect_link: en/bib.html
 ---
 

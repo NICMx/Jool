@@ -31,12 +31,12 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 ## SIIT in Detail
 
 1. [The EAMT](eamt.html)
-2. [RFC 6791](rfc6791.html)
+2. [Untranslatable IPv6 addresses](rfc6791.html)
 
 ## NAT64 in Detail
 
 1. [The IPv4 Transport Address Pool](pool4.html)
-2. [BIB](bib.html) (and [Static Bindings](static-bindings.html))
+2. [BIB](bib.html)
 
 ## Kernel Module Arguments
 

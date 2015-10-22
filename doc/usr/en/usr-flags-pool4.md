@@ -24,6 +24,8 @@ Interacts with NAT64 Jool's [IPv4 transport address pool](pool4.html).
 
 The IPv4 pool is the subset of the node's transport addresses which should be used to mask connections sourced from IPv6 nodes.
 
+If pool4 is empty, Jool will try to mask packets using its own node's assigned IPv4 addresses, and their default unused port ranges. See [Notes](#notes).
+
 ## Syntax
 
 	jool --pool4 [--display] [--csv]
@@ -44,14 +46,14 @@ Operations:
 
 Others:
 
-| Name | Default | Description |
+| **Name** | **Default** | **Description** |
 | `--csv` | (absent) | If present, print the table in CSV format. |
 | `--mark` | 0 | Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#mark). |
 | `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
 | `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |
 | `--icmp` | * | If present, the record being added or removed represents "ICMP transport addresses" (Addresses and ICMP identifiers, not ports). |
 | `<IPv4 prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
-| `<port range>` | 60001-65535 | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
+| `<port range>` | 1-65535 for TCP/UDP, 0-65535 for ICMP | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
 | `--quick` | (absent) | If present, do not cascade removal to [BIB entries](bib.html).<br />`--quick` present is faster, `--quick` absent leaves a cleaner (and therefore more efficient) BIB database.<br />Leftover BIB entries will still be removed from the database and freed after they expire naturally.<br />See [this](usr-flags-quick.html) for a more verbose explanation. |
 
@@ -68,20 +70,20 @@ Add several entries:
 
 	# jool --pool4 --add 192.0.2.1
 	$ jool --pool4 --display
-	0	ICMP	192.0.2.1	60001-65535
-	0	UDP	192.0.2.1	60001-65535
-	0	TCP	192.0.2.1	60001-65535
+	0	ICMP	192.0.2.1	0-65535
+	0	UDP	192.0.2.1	1-65535
+	0	TCP	192.0.2.1	1-65535
 	  (Fetched 3 entries.)
 	# jool --pool4 --add          --tcp 192.0.2.2 7000-7999
 	# jool --pool4 --add --mark 1 --tcp 192.0.2.2 8000-8999
 	# jool --pool4 --add          --tcp 192.0.2.4/31
 	$ jool --pool4 --display
-	0	ICMP	192.0.2.1	60001-65535
-	0	UDP	192.0.2.1	60001-65535
-	0	TCP	192.0.2.1	60001-65535
+	0	ICMP	192.0.2.1	0-65535
+	0	UDP	192.0.2.1	1-65535
+	0	TCP	192.0.2.1	1-65535
 	0	TCP	192.0.2.2	7000-7999
-	0	TCP	192.0.2.4	60001-65535
-	0	TCP	192.0.2.5	60001-65535
+	0	TCP	192.0.2.4	1-65535
+	0	TCP	192.0.2.5	1-65535
 	1	TCP	192.0.2.2	8000-8999
 	  (Fetched 7 entries.)
 
@@ -100,7 +102,7 @@ Clear the table:
 
 ## Notes
 
-You need to be aware that your NAT64 machine needs to reserve transport addresses for translation purposes. If something within it tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, evil things will happen. [iptables's NAT also suffers from this quirk](https://github.com/NICMx/NAT64/wiki/issue67:-Linux's-MASQUERADING-does-not-care-about-the-source-natting-overriding-existing-connections.).
+You need to be aware that your NAT64 machine needs to reserve transport addresses for translation purposes. If something within it tries to open a connection from transport address `192.0.2.1#5000` and at the same time a translation yields source transport address `192.0.2.1#5000`, evil things will happen.
 
 In other words, you don't want pool4's domain to intersect with other port ranges (just like you don't want other port ranges intersecting with other port ranges).
 
@@ -109,20 +111,33 @@ You already know the ports owned by any servers parked in your NAT64, if any. Th
 	$ sysctl net.ipv4.ip_local_port_range 
 	net.ipv4.ip_local_port_range = 32768	61000
 
-Linux's ephemeral port range defaults to 32768-61000. Therefore, Jool's port range for any given address defaults to 61001-65535. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `--pool4 --add` and `--pool4 --remove`.
+Linux's ephemeral port range defaults to 32768-61000. Therefore, Jool falls back to use ports 61001-65535 (of whatever primary global addresses its node is wearing) when pool4 is empty. You can change the former by tweaking sysctl `sys.net.ipv4.ip_local_port_range`, and the latter by means of `--pool4 --add` and `--pool4 --remove`.
 
-So, for example, if you want to assign more ports to Jool, you have to substract them from elsewhere. The ephemeral range is a good candidate:
+Say your NAT64's machine has address 192.0.2.1 and pool4 is empty.
 
 	$ jool --pool4 --display
-	0	192.0.2.1	60001-65535
-	  (Fetched 1 entries.)
+	  (empty)
+
+This means Jool is using ports and ICMP ids 61001-65535 of address 192.0.2.1. Let's add them explicitely:
+
+	# jool --pool4 --add 192.0.2.1 61001-65535
+	# jool --pool4 --display
+	0	ICMP	192.0.2.1	61001-65535
+	0	UDP	192.0.2.1	61001-65535
+	0	TCP	192.0.2.1	61001-65535
+	  (Fetched 3 samples.)
+
+So, for example, if you only have this one address, but want to reserve more ports for translation, you have to substract them from elsewhere. The ephemeral range is a good candidate:
+
 	# sysctl -w net.ipv4.ip_local_port_range="32768 40000"
-	# jool --pool4 --add 192.0.2.1 40001-60000
+	# jool --pool4 --add 192.0.2.1 40001-61000
 	$ sysctl net.ipv4.ip_local_port_range 
 	net.ipv4.ip_local_port_range = 32768	40000
 	$ jool --pool4 --display
-	0	192.0.2.1	40001-65535
-	  (Fetched 1 entries.)
+	0	ICMP	192.0.2.1	40001-65535
+	0	UDP	192.0.2.1	40001-65535
+	0	TCP	192.0.2.1	40001-65535
+	  (Fetched 3 samples.)
 
 ## `--mark`
 

@@ -45,7 +45,7 @@ There are some addresses Jool will refuse to translate, regardless of `blacklist
 * `--count`: The number of _addresses_ (not prefixes) in the pool is printed in standard output.  
 For example, if all you have is a /30 prefix, expect "4" as output.
 * `--add`: Uploads `<IPv4 prefix>` to the pool.
-* `--remove`: Deletes from the tables the address `<IPv4 prefix>`.
+* `--remove`: Deletes `<IPv4 prefix>` from the pool.
 * `--flush`: Removes all addresses/prefixes from the pool.
 
 ## Examples

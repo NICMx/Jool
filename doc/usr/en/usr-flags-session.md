@@ -118,7 +118,7 @@ Do not resolve names, CSV format:
 $ jool --session --display --numeric --csv > session.csv
 {% endhighlight %}
 
-[session.csv](obj/session.csv)
+[session.csv](../obj/session.csv)
 
 Just display the number of records of every table:
 

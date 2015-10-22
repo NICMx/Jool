@@ -64,7 +64,6 @@ Display the current configuration, keys and values:
 
 Same thing, shorter version:
 
-	$ # BTW: This looks very simple, but it still requires Jool's kernel module to be active.
 	$ jool_siit
 
 Pause Jool:
@@ -88,7 +87,7 @@ The following flag keys are available:
 
 - Type: -
 - Default: Depends on modprobe arguments
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and Stateful NAT64)
 
 Resumes and pauses translation of packets, respectively. This might be useful if you want to change more than one configuration parameter at once and you don't want packets being translated inconsistently while you run the commands.
 
@@ -100,7 +99,7 @@ Timeouts will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[sessio
 
 - Type: Boolean
 - Default: OFF
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--dropAddr`
 - Source: Scattered at RFC 6146. One summary is at the end of [section 1.2.3](http://tools.ietf.org/html/rfc6146#section-1.2.3).
 
@@ -144,7 +143,7 @@ If `--address-dependent-filtering` is OFF, _J_ will allow _n4b_'s packet to pass
 
 - Type: Boolean
 - Default: OFF
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--dropInfo`
 - Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
@@ -158,7 +157,7 @@ This rule will not affect Error ICMP messages.
 
 - Type: Boolean
 - Default: OFF
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--dropTCP`
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
@@ -170,7 +169,7 @@ Of course, this will not block IPv4 traffic if some IPv6 node first requested it
 
 - Type: Integer (seconds)
 - Default: 5 minutes
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--toUDP`
 - Source: [RFC 6146, section 3.5.1](http://tools.ietf.org/html/rfc6146#section-3.5.1)
 
@@ -182,7 +181,7 @@ When you change this value, the lifetimes of all already existing UDP sessions a
 
 - Type: Integer (seconds)
 - Default: 2 hours
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--toTCPest`
 - Source: [RFC 6146, section 3.5.2.2](http://tools.ietf.org/html/rfc6146#section-3.5.2.2)
 
@@ -194,7 +193,7 @@ When you change this value, the lifetimes of all already existing established TC
 
 - Type: Integer (seconds)
 - Default: 4 minutes
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--toTCPtrans`
 - Source: [RFC 6146, derivatives of section 3.5.2](http://tools.ietf.org/html/rfc6146#section-3.5.2)
 
@@ -206,7 +205,7 @@ When you change this value, the lifetimes of all already existing transitory TCP
 
 - Type: Integer (seconds)
 - Default: 1 minute
-- Modes: Stateful only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--toICMP`
 - Source: [RFC 6146, section 3.5.3](http://tools.ietf.org/html/rfc6146#section-3.5.3)
 
@@ -218,7 +217,7 @@ When you change this value, the lifetimes of all already existing ICMP sessions 
 
 - Type: Integer (seconds)
 - Default: 2 seconds
-- Modes: NAT64 only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--toFrag`
 - Source: None (the flag addresses a [Linux quirk](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
 
@@ -240,7 +239,7 @@ This behavior changed from Jool 3.2, where `--toFrag` used to actually be the ti
 
 - Type: Integer
 - Default: 10
-- Modes: NAT64 only
+- Modes: Stateful NAT64 only
 - Deprecated name: `--maxStoredPkts`
 - Source: [RFC 6146, section 5.3](http://tools.ietf.org/html/rfc6146#section-5.3) (indirectly)
 
@@ -248,13 +247,13 @@ When an external (IPv4) node first attempts to open a connection and there's no 
 
 In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
-`--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to answer the ICMP error message on the eleventh one.
+`--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to immediately answer the ICMP error message on the eleventh one.
 
 ### `--source-icmpv6-errors-better`
 
 - Type: Boolean
 - Default: False
-- Modes: NAT64 only
+- Modes: Stateful NAT64 only
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
 - Source: [Issue 132](https://github.com/NICMx/NAT64/issues/132)
 
@@ -274,11 +273,13 @@ Say the link between _R_ and _n4_ collapses.
 - `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
 - `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.
 
+Despite the default, we recommend that you turn this value on.
+
 ### `--logging-bib`
 
 - Type: Boolean
 - Default: False
-- Modes: NAT64 only
+- Modes: Stateful NAT64 only
 - Translation direction: Both
 - Source: [RFC 6888, section 4](http://tools.ietf.org/html/rfc6888#section-4)
 
@@ -315,7 +316,7 @@ If logging the destination makes sense for you, see `--logging-session` (below).
 
 - Type: Boolean
 - Default: False
-- Modes: NAT64 only
+- Modes: Stateful NAT64 only
 - Translation direction: Both
 - Source: [RFC 6888, section 4](http://tools.ietf.org/html/rfc6888#section-4)
 
@@ -344,7 +345,7 @@ This log is remarcably more voluptuous than [`--logging-bib`](#logging-bib), not
 
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and NAT64)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6
 - Source: [RFC 6145, section 4.1](http://tools.ietf.org/html/rfc6145#section-4.1)
 - Deprecated name: `--setTC`
@@ -357,7 +358,7 @@ If you leave this OFF, the TOS value will be copied directly to the Traffic Clas
 
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and NAT64)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
 - Source: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
 - Deprecated name: `--setTOS`
@@ -370,7 +371,7 @@ If you leave this OFF, the Traffic Class value will be copied directly to the TO
 
 - Type: Integer
 - Default: 0
-- Modes: Both (SIIT and NAT64)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
 - Source: [RFC 6145, section 5.1](http://tools.ietf.org/html/rfc6145#section-5.1)
 - Deprecated name: `--TOS`
@@ -412,7 +413,7 @@ In IPv6, zero is an invalid checksum value for UDP packets.
 - If `--amend-udp-checksum-zero` is ON and a zero-checksum IPv4-UDP packet arrives, Jool will compute its checksum before translating it. Note, this might be computationally expensive.
 - If `--amend-udp-checksum-zero` is OFF and a zero-checksum IPv4-UDP packet arrives, Jool will unceremoniously drop the packet and log its addresses (with [Log Level](http://elinux.org/Debugging_by_printing#Log_Levels) KERN_DEBUG).
 
-This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checskum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
+This does not affect _fragmented_ zero-checksum IPv4-UDP packets. SIIT Jool does not reassemble, which means it _cannot_ compute the checksum. In these cases, the packet will be dropped regardless of `--amend-udp-checksum-zero`.
 
 Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Because it reassembles, it will also do so for fragmented packets.
 
@@ -435,7 +436,7 @@ Why? [It can be argued that `hop limit`th is better](https://github.com/NICMx/NA
 
 - Type: List of Integers separated by commas (If you want whitespace, remember to quote).
 - Default: "65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68"
-- Modes: Both (SIIT and NAT64)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
 - Source: [RFC 6145, section 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
 - Deprecated name: `--plateaus`

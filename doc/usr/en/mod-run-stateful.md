@@ -119,7 +119,7 @@ rtt min/avg/max/mdev = 1.136/6.528/15.603/5.438 ms
 
 > ![Note!](../images/bulb.svg) Obviously, users should not need to be aware of IP addresses, much less know they need to append a prefix whenever they need to speak to IPv4. The [DNS64 document](dns64.html) will tell you how to make the prefix-address-hack transparent to users.
 
-> ![Note!](../images/bulb.svg) Because a NAT64 is stateful, only IPv6-started tests can be run at this point. See [port forwarding](static-bindings.html) if 4-to-6 translation is relevant for you.
+> ![Note!](../images/bulb.svg) Because a NAT64 is stateful, only IPv6-started tests can be run at this point. See [port forwarding](bib.html) if 4-to-6 translation is relevant for you.
 
 ## Stopping Jool
 

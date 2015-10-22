@@ -27,11 +27,11 @@ Atomic fragments are known to have [security implications](https://tools.ietf.or
 
 From Jool's perspective, there are also technical drawbacks to allowing atomic fragments. The Linux kernel is particularly lacking when it comes to recognizing redundant fragment headers, so if Jool is generating one, Linux might fragment the packet in a funny way:
 
-[![Figure 1 - what could possibly go wrong?](../images/atomic-double-frag.png)](obj/atomic-double-frag.pcapng)
+[![Figure 1 - what could possibly go wrong?](../images/atomic-double-frag.png)](../obj/atomic-double-frag.pcapng)
 
 (Jool 3.2 and below used to avoid this by not deferring fragmentation to the kernel, but this introduced other-subtler issues.)
 
-As a consequence, Jool 3.3's default configuration **disables** atomic fragments. You should most likely **never** change this. The options described later in this document all have to do with atomic fragments and are now considerered **deprecated**. In fact, we intend to wipe them out as soon as (and if) [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) is upgraded to RFC status.
+As a consequence, Jool 3.4's default configuration **disables** atomic fragments. You should most likely **never** change this. The options described later in this document all have to do with atomic fragments and are now considerered **deprecated**. In fact, we intend to wipe them out as soon as (and if) [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) is upgraded to RFC status.
 
 Let it be known that we fully condone the deprecation of atomic fragments.
 
@@ -41,7 +41,7 @@ Let it be known that we fully condone the deprecation of atomic fragments.
 
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: Both (IPv4 to IPv6 and IPv6 to IPv4)
 - Source: [RFC 6145, mainly section 6](http://tools.ietf.org/html/rfc6145#section-6). Being deprecated at [deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}).
 
@@ -79,7 +79,7 @@ $(jool) --genID true
 $(jool) --boostMTU true
 {% endhighlight %}
 
-This is an alternate mode defined both by RFC 6145 and [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}). The latter mandates this behaviour and is Jool 3.3's default.
+This is an alternate mode defined both by RFC 6145 and [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}). The latter mandates this behaviour and is Jool 3.4's default.
 
 Also:
 
@@ -90,7 +90,7 @@ The separation of the four flags exists for historic reasons only; our interpret
 - Name: DF flag always on
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
 
 The logic is best described in pseudocode form:
@@ -115,7 +115,7 @@ Also see [`--boostMTU`](#boostmtu) for an important gotcha.
 - Name: Generate IPv6 Fragment Header
 - Type: Boolean
 - Default: OFF
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv4 to IPv6
 
 In pseudocode form:
@@ -139,7 +139,7 @@ This is the flag that causes Linux to flip out when it needs to fragment. It's b
 - Name: Generate IPv4 identification
 - Type: Boolean
 - Default: ON
-- Modes: Both (SIIT and Stateful)
+- Modes: Both (SIIT and Stateful NAT64)
 - Translation direction: IPv6 to IPv4
 
 IPv6 packets only contain an fragment identifier field if they contain a Fragment Header. All IPv4 packets contain a fragment identifier field.

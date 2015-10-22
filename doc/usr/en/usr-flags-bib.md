@@ -38,7 +38,7 @@ Interacts with Jool's [Binding Information Base (BIB)](bib.html). If you don't k
 
 * `--display`: The BIB tables are printed in standard output. This is the default operation.
 * `--count`: The number of entries per BIB table are printed in standard output.
-* `--add`: Combines `<bib6>` and `<bib4>` into a BIB entry, and uploads it to Jool's tables.
+* `--add`: Combines `<bib6>` and `<bib4>` into a static BIB entry, and uploads it to Jool's tables.
 * `--remove`: Deletes from the tables the BIB entry described by `<bib6>` and/or `<bib4>`.
 
 ### `<protocols>`
@@ -134,7 +134,7 @@ Dump the database on a CSV file:
 $ jool --bib --display --numeric --csv > bib.csv
 {% endhighlight %}
 
-[bib.csv](obj/bib.csv)
+[bib.csv](../obj/bib.csv)
 
 Display the number of entries in the TCP and ICMP tables:
 

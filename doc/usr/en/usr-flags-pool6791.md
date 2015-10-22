@@ -36,7 +36,7 @@ If this pool is empty, Jool will fall back to use its node's addresses for these
 - `--count`: The number of _addresses_ (not prefixes) in the pool is printed in standard output.  
 For example, if all you have is a /24 prefix, expect "256" as output.
 - `--add`: Uploads `<IPv4 prefix>` to the pool.
-- `--remove`: Deletes prefix `<IPv4 prefix>` from the pool.
+- `--remove`: Deletes `<IPv4 prefix>` from the pool.
 - `--flush`: Removes all prefixes from the pool.
 
 ## Examples

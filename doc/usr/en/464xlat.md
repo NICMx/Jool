@@ -152,10 +152,10 @@ Ping _n4_ via IPv4 from _n6_:
 	1 packets transmitted, 1 received, 0% packet loss, time 0ms
 	rtt min/avg/max/mdev = 4.130/4.130/4.130/0.000 ms
 
-- [ipv4-n6.pcapng](obj/464xlat/ipv4-n6.pcapng)
-- [ipv4-r.pcapng](obj/464xlat/ipv4-r.pcapng)
-- [ipv4-plat.pcapng](obj/464xlat/ipv4-plat.pcapng)
-- [ipv4-n4.pcapng](obj/464xlat/ipv4-n4.pcapng)
+- [ipv4-n6.pcapng](../obj/464xlat/ipv4-n6.pcapng)
+- [ipv4-r.pcapng](../obj/464xlat/ipv4-r.pcapng)
+- [ipv4-plat.pcapng](../obj/464xlat/ipv4-plat.pcapng)
+- [ipv4-n4.pcapng](../obj/464xlat/ipv4-n4.pcapng)
 
 Ping _n4_ via IPv6 from _n6_:
 
@@ -167,10 +167,10 @@ Ping _n4_ via IPv6 from _n6_:
 	1 packets transmitted, 1 received, 0% packet loss, time 0ms
 	rtt min/avg/max/mdev = 14.053/14.053/14.053/0.000 ms
 
-- [ipv6-n6.pcapng](obj/464xlat/ipv6-n6.pcapng)
-- [ipv6-r.pcapng](obj/464xlat/ipv6-r.pcapng)
-- [ipv6-plat.pcapng](obj/464xlat/ipv6-plat.pcapng)
-- [ipv6-n4.pcapng](obj/464xlat/ipv6-n4.pcapng)
+- [ipv6-n6.pcapng](../obj/464xlat/ipv6-n6.pcapng)
+- [ipv6-r.pcapng](../obj/464xlat/ipv6-r.pcapng)
+- [ipv6-plat.pcapng](../obj/464xlat/ipv6-plat.pcapng)
+- [ipv6-n4.pcapng](../obj/464xlat/ipv6-n4.pcapng)
 
 ## Closing words
 

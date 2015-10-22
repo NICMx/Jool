@@ -127,11 +127,3 @@ IPv4 doesn't need link addresses that much.
 
 If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
 
-## I can't ping the IPv4 pool address.
-
-Actually, this is normal in Jool 3.2.x and below. The destination address of the ping packet is translatable, so Jool is stealing the packet. Unfortunately, it doesn't have a relevant BIB entry (because the ping wasn't started from IPv6), so the translation is a failure (and the packet is dropped).
-
-It looking weird aside, it doesn't cause any other catastrophes; just ping the node address.
-
-Jool 3.3+ handles this better and the ping should succeed.
-

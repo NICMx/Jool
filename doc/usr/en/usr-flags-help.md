@@ -17,7 +17,7 @@ title: --help
 
 ## Description
 
-Prints mostly a summary of the [userspace app flags documentation](usr-flags.html), though you can also use it to review the abbreviated form of the flags, which aren't there.
+Prints mostly a summary of the [userspace app flags documentation](documentation.html#userspace-application-arguments), though you can also use it to review the abbreviated form of the flags, which aren't there.
 
 `--help` is the only mode which does not require the respective kernel module to be active.
 
