@@ -5,20 +5,26 @@ category: Documentation
 title: Offloading
 ---
 
-[Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Offloading
+[Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Offloads
 
-# Offload
+# Offloads
 
 ## Index
 
-1. [Theory](#theory)
-2. [Practice](#practice)
+1. [Introduction](#introduction)
+2. [Receive Offloads - What are they?](#receive-offloads---what-are-they)
+3. [Receive Offloads - The Problem](#receive-offloads---the-problem)
+4. [Getting Rid of Receive Offloads](#getting-rid-of-receive-offloads)
 
-## Theory
+## Introduction
 
-Offloading is a technique meant to optimize network throughput. Born from the observation that a single large packet is significantly faster to process than several small ones, the idea is to combine several of them from a common stream on reception, and then pretend, to the eyes of the rest of the system, that the new packet was the one received from the cord all along.
+This document explains receive offloads, their relationship with Jool and the means to get rid of them.
 
-Here's an example for the visual-oriented. This is how packets are normally processed (no offloading):
+## Receive Offloads - What are they?
+
+Offloading is a technique meant to optimize network throughput. Born from the observation that a single large packet is significantly faster to process than several small ones, the idea is to combine several packets from a common stream on reception, and then pretend (to the eyes of the rest of the system) that the merged packet was the one received from the cord all along.
+
+Here's an example. This is how packets are normally processed (no offloading):
 
 ![Fig.1 - No offload](../images/offload-none.svg)
 
@@ -40,57 +46,44 @@ There are several ways to implement offloading. Pictured below is a simplified v
 
 ![Fig.2 - Offload done right](../images/offload-right.svg)
 
-Simply put, several contiguous packets are merged together into an equivalent, larger one. The card could for example do this by merging IP fragments or even TCP segments (even if TCP sits two layers above). It doesn't matter as long as the change can be seen as completely transparent as far as the transfer of data is concerned.
+Simply put, several contiguous packets are merged together into an equivalent, larger one. The card could for example do this by merging IP fragments or even TCP segments (even if TCP sits two layers above). It doesn't matter as long as the change is transparent for data transfer purposes.
 
-And yes, we're now dealing with heavier pieces of data, but truth be told, most of the Internet and Transport layers' activity lies in the first few bytes of each packet (i.e. headers). So we mostly get to process n packets for the price of one.
+And yes, we're now dealing with heavier data chunks, but truth be told, most of the Internet and Transport layers' activity lies in the first few bytes of each packet (i.e. headers). So we mostly get to process several packets for the price of one.
 
-This is all fine and dandy, but you start running into trouble when the system is supposed to forward the data (rather than just consuming it). Say the hardware has a <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit" target="_blank">Maximum Transmission Unit (MTU)</a> of 1500; this is what happens:
+## Receive Offloads - The Problem
+
+A machine that is supposed to forward the data (rather than consume it) tends to break the assumption "It doesn't matter as long as the change is transparent for data transfer purposes."
+
+Say the hardware has a [Maximum Transmission Unit (MTU)](https://en.wikipedia.org/wiki/Maximum_transmission_unit) of 1500; this is what happens:
 
 ![Fig.3 - Offload on a router](../images/offload-router.svg)
 
-In step 1 the aggregation happens, which makes step 2 very fast, but then because the assembled packet of the blue stream is too big for the outgoing interface (size 1800 > max 1500), the packet gets fragmented in step 3, which is inefficient.
+Aggregation happens in step 1, which makes step 2 very fast, but then the assembled packet of the blue stream is too big for the outgoing interface (size 1800 > max 1500). Depending on the IPv4 header's DF flag, this can lead to either refragmentation (which is slow) or a packet drop (and because the source is setting DF, this can easily become a black hole).
 
-More importantly, if the emitter performed <a href="http://en.wikipedia.org/wiki/Path_MTU_Discovery" target="_blank">path MTU discovery</a>, then the optimum MTU computed will be lost in step 1 (because it is not stored in the packet; it is indicated by its size, which step 1 mangles). Because the packet's Don't Fragment flag is going to be ON, then the packet will be eventually and irremediably dropped as soon as it reaches a lower MTU. Hence, we just created a black hole.
+(In practice, a number of conditions are required for the NIC to run offloading. These conditions might rarely and randomly not be met, so certain packets will occasionally not be aggregated, and as such will slip past the hole. If your transport protocol retries enough, instead of having a complete denial of service, you get an extremely - **EXTREMELY** - slow network.)
 
-(Well, not completely. A number of conditions are required for the NIC to run offloading. These conditions might rarely and randomly not be met, so certain packets will occasionally not be aggregated, and as such will slip past the hole. If your transport protocol retries enough, instead of having a complete denial of service, you get an extremely - **EXTREMELY** - slow network.)
-
-When the forwarding machine is an IPv6 router (or, in Jool's case, an SIIT/NAT64 translating from IPv4 to 6), this is more immediately a problem because _IPv6 routers are not supposed to fragment packets_ (they are expected to just drop the packet and return an ICMP error message). So your packet will be lost in step 3 _even if the Don't Fragment flag of the original packet was not set_.
+Linux gets away with this (not asking you to tweak receive offloads when you turn your machine into a router) by having a number of hacks in the packet forwarding pipeline that deal with resegmentation. Jool attempts to do this too, but offloading is a dirty enough hack that we're not done coding this workaround yet. For this reason, you really do need to stop offloads if your system supports them and you want to run Jool.
 
 If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
 
-And that's it. Offloading for leaf nodes is great, offloading for routers is trouble.
+## Getting Rid of Receive Offloads
 
-## Practice
-
-So, if you want to run Jool, you want to turn off offloading. This is how we start doing it (your mileage might vary):
+[`ethtool`](https://www.kernel.org/pub/software/network/ethtool/) seems to be the de facto interface tweaking tool.
 
 {% highlight bash %}
 $ sudo apt-get install ethtool
 {% endhighlight %}
 
-Then apply this to every relevant interface:
+Apply this to every interface where you expect to see translation-needing packets:
 
 {% highlight bash %}
-$ sudo ethtool --offload [your interface here] gro off
-{% endhighlight %}
-
-"gro" is "Generic Receive Offload". Perhaps it's simply because our kernels don't support them, but we currently don't know for sure why we don't also have to turn off lro (Large receive offload), gso (Generic segmentation offload) and perhaps others (see `man ethtool`). If you're not sure, I'd say playing safe would equal getting rid of every variant you see:
-
-{% highlight bash %}
-$ sudo ethtool --offload [your interface here] tso off
-$ sudo ethtool --offload [your interface here] ufo off
-$ sudo ethtool --offload [your interface here] gso off
-$ sudo ethtool --offload [your interface here] gro off
 $ sudo ethtool --offload [your interface here] lro off
+$ sudo ethtool --offload [your interface here] gro off
 {% endhighlight %}
 
-(If you can shed more light into the subject, please let us know - [jool@nic.mx](mailto:jool@nic.mx).)
-
-Sometimes ethtool claims it cannot change some of the variants, but keep in mind this is usually because it is not supported and hence it wasn't on in the first place. Have a look at your configuration using
+`ethtool` sometimes claims it cannot tweak some of the variants, but keep in mind this is usually because it is not supported and hence it wasn't on in the first place. Have a look at your configuration using
 
 {% highlight bash %}
-$ sudo ethtool --show-offload [your interface here]
+$ sudo ethtool --show-offload [your interface here] | grep receive-offload
 {% endhighlight %}
-
-Cheers!
 

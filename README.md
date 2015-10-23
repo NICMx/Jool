@@ -17,16 +17,18 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * `/unit` : Unit tests.
 * `/usr` : The userspace application's implementation code.
 
-## Authors
+## Credits
 
 ### NIC-Mx
 
-* Ing. Julio Cossío
-* Ing. Jorge Cano
-* Ing. [Alberto Leiva](https://github.com/ydahhrk) - aleiva@nic.mx
-* Ing. [Daniel Hernandez Felix](https://github.com/dhfelix) - dhernandez@nic.mx
-* Edgar Martín Rodríguez Bernal - edgarmrb_95@hotmail.com
+* Ing. Jorge Cano Puente
 * Ing. Sergio Adrián Casas Fernández - iam@sergio-casas.com
+* Ing. Julio Cesar Cossio de Robles
+* Ing. [Daniel Hernández Félix](https://github.com/dhfelix) - dhernandez@nic.mx
+* Ing. [Alberto Leiva Popper](https://github.com/ydahhrk) - aleiva@nic.mx
+* Ing. Cristóbal Alfonso de León Benítez - cristobal.alfonso14@gmail.com
+* Ing. Roberto Olivas Alarcón - roaguns@gmail.com
+* Edgar Martín Rodríguez Bernal - edgarmrb_95@hotmail.com
 
 ### ITESM representatives
 

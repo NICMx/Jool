@@ -2,7 +2,7 @@
 language: en
 layout: default
 category: Documentation
-title: SIIT-DC
+title: SIIT-DC Dual Translation Mode
 ---
 
 [Documentation](documentation.html) > [Architectures](documentation.html#architectures) > SIIT-DC: Dual Translation Mode
@@ -10,6 +10,10 @@ title: SIIT-DC
 # SIIT-DC: Dual Translation Mode
 
 ## Index
+
+1. [Introduction](#introduction)
+2. [Sample Network](#sample-network)
+3. [Configuration](#configuration)
 
 ## Introduction
 
@@ -21,11 +25,11 @@ SIIT-DC-DTM is an optional improvement over [SIIT-DC](siit-dc.html) which adds a
 
 This is the sample architecture from [draft-siit-dc-2xlat section 3.2]({{ site.draft-siit-dc-2xlat }}#section-3.2):
 
-![Fig.1 - Network Overview](../images/network/siit-dc-2xlat-overview.svg "Fig.1 - Network Overview")
+![Fig.1 - Network Overview](../images/network/siit-dc-2xlat.svg "Fig.1 - Network Overview")
 
 It's the same as SIIT-DC, except an isolated IPv4 island amidst the IPv6-only Data Centre has been added. _ER_ will revert the translation done by _BR_ so these nodes can seemingly natively communicate with the IPv4 Internet.
 
-You need this if SIIT-DC doesn't suffice because some application in the Data Centre either doesn't support NAT (i.e., the lack of end-to-end transparency of IP addresses) or doesn't support IPv6 at all.
+You need this if SIIT-DC doesn't suffice because some application in the Data Centre either doesn't support NAT (i.e., the lack of end-to-end transparency of IP addresses) or gets a flu whenever IPv6 is around.
 
 This will be the expected packet flow (in addition to the ones in the [SIIT-DC tutorial](siit-dc.html)):
 
@@ -33,18 +37,18 @@ This will be the expected packet flow (in addition to the ones in the [SIIT-DC t
 
 ## Configuration
 
-![Fig.3 - Collapsed Network](../images/network/siit-dc-2xlat-collapsed.svg "Fig.3 - Collapsed Network")
-
-Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add:
+Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add the following SIIT Jool setup to _ER_:
 
 {% highlight bash %}
-# ip addr add 198.51.100.2/24 dev eth0
-# ip addr add 2001:db8:3333::2
-# ip route add default via 2001:db8:3333::1
-# 
-# modprobe jool_siit pool6=2001:db8:46::/96
-# jool_siit --eamt --add 192.0.2.1 2001:db8:12:34::1
+modprobe jool_siit pool6=2001:db8:46::/96
+jool_siit --eamt --add 198.51.100.0/24 2001:db8:3333::464:0/120
 {% endhighlight %}
 
-If you also want to grant the IPv4 nodes an IPv6 address anyway try instead:
+And the new server record on _BR_:
+
+{% highlight bash %}
+jool_siit --eamt --add 192.0.2.2 2001:db8:3333::464:1
+{% endhighlight %}
+
+Of course, also make sure `2001:db8:3333::464:0/120` is routed towards _ER_'s IPv6 interface.
 

@@ -66,7 +66,7 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Other Sample Runs
 
-1. [Host-Based Edge Translation]()
+1. [Host-Based Edge Translation](host-based-edge-translation.html)
 2. [Single Interface](mod-run-alternate.html)
 
 ## Miscellaneous
@@ -74,5 +74,5 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 1. [FAQ](faq.html)
 2. [Logging](logging.html)
 3. [MTU and Fragmentation](mtu.html)
-4. [The problem with Offloading](offloading.html)
+4. [Offloads](offloading.html)
 
