@@ -30,7 +30,7 @@ SIIT (_Stateless IP/ICMP Translation_) and NAT64 ("NAT six four", not "NAT sixty
 - SIIT mangles packets, simply replacing IPv4 headers and IPv6 headers.
 - _Stateful NAT64_ (or "NAT64" for short) is a combination between an SIIT and a (theoretical) IPv6 NAT; the point is to mask several IPv6 nodes behind a few IPv4 addresses.
 
-In their basic forms, SIIT only helps communicating nodes speaking different protocols, while NAT64 also helps with [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion) (at the cost of being more computationally expensive).
+In their basic forms, SIIT only helps communicating nodes speaking different protocols, while NAT64 also helps with [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion) (at the cost of being more computationally expensive and generally hindering end-to-end transparency).
 
 For historic reasons, sometimes we mess up and label SIIT as "Stateless NAT64". Because this expression does not seem to appear in any relevant standards, we consider it imprecise, despite the fact it makes some degree of sense. If possible, please try to suppress it.
 

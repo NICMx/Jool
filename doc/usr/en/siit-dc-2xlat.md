@@ -31,13 +31,13 @@ It's the same as SIIT-DC, except an isolated IPv4 island amidst the IPv6-only Da
 
 You need this if SIIT-DC doesn't suffice because some application in the Data Centre either doesn't support NAT (i.e., the lack of end-to-end transparency of IP addresses) or gets a flu whenever IPv6 is around.
 
-This will be the expected packet flow (in addition to the ones in the [SIIT-DC tutorial](siit-dc.html)):
+This will be the expected packet flow (in addition to the ones in the [SIIT-DC Architecture](siit-dc.html)):
 
 ![Fig.2 - Packet Flow](../images/flow/siit-dc-2xlat.svg "Fig.2 - Packet Flow")
 
 ## Configuration
 
-Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add the following SIIT Jool setup to _ER_:
+Start from the [SIIT-DC configuration](siit-dc.html#configuration) and add the following SIIT Jool setup on _ER_:
 
 {% highlight bash %}
 modprobe jool_siit pool6=2001:db8:46::/96

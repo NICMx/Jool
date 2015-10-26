@@ -96,9 +96,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.4140625"
-     inkscape:cx="194.89968"
-     inkscape:cy="85.436893"
+     inkscape:zoom="1.707"
+     inkscape:cx="177.76435"
+     inkscape:cy="100.22893"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -221,21 +221,17 @@
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        x="132.12109"
-       y="925.19232"
+       y="929.19232"
        id="text4177"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan4179"
          x="132.12109"
-         y="925.19232">2001:db8::1</tspan><tspan
+         y="929.19232">2001:db8::1</tspan><tspan
          sodipodi:role="line"
          x="132.12109"
-         y="940.19232"
-         id="tspan3135">203.0.113.1</tspan><tspan
-         sodipodi:role="line"
-         x="132.12109"
-         y="955.19232"
-         id="tspan3028">203.0.113.2</tspan></text>
+         y="944.19232"
+         id="tspan3028">203.0.113.1</tspan></text>
     <use
        x="0"
        y="0"
@@ -289,11 +285,11 @@
     <text
        sodipodi:linespacing="125%"
        id="text4269"
-       y="966.04382"
+       y="956.04382"
        x="132.14062"
        style="font-size:10px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        xml:space="preserve"><tspan
-         y="966.04382"
+         y="956.04382"
          x="132.14062"
          sodipodi:role="line"
          id="tspan4271">(eth0)</tspan></text>

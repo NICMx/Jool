@@ -27,11 +27,11 @@ This is the sample architecture from [draft-siit-dc section 3]({{ site.draft-sii
 
 ![Fig.1 - Network Overview](../images/network/siit-dc.svg "Fig.1 - Network Overview")
 
-_n6_ is a random IPv6 node. _s6_ is one of your Data Center servers (IPv6). _n4_ is a random IPv4 node. _BR_ ("Border Relay") is a SIIT.
+_n6_ is a random IPv6 node. _s6_ is one of your Data Centre servers (IPv6). _n4_ is a random IPv4 node. _BR_ ("Border Relay") is an SIIT.
 
-`2001:db8:46::/96` is routed to _BR_'s Data Center-facing interface, and similarly, `192.0.2.1/32` (or covering aggregate) is routed to _BR_'s IPv4 Internet-facing interface. This is done using standard IP routing techniques.
+`2001:db8:46::/96` is routed to _BR_'s Data Centre-facing interface, and similarly, `192.0.2.1/32` (or covering aggregate) is routed to _BR_'s IPv4 Internet-facing interface. This is done using standard IP routing techniques.
 
-The jist of it is _n6_ can use _s6_'s IPv6-only service using normal IPv6 connectivity, while _n4_ can use it via _BR_.
+The jist of SIIT-DC is _n6_ can use _s6_'s IPv6-only service using normal IPv6 connectivity, while _n4_ can use it via _BR_.
 
 This will be the expected packet flow for _n6_:
 
