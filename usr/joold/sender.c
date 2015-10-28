@@ -20,11 +20,12 @@ int send_payload(void * payload, size_t size) {
 		n = sendto(sockfd, payload, size, MSG_DONTWAIT,
 		            dst_addr->ai_addr, sizeof(*dst_addr->ai_addr));
 		printf("message has been sent.");
+		fflush(stdout);
 
 		if (n<0) {
-		perror("sendto error:: ");
-		        close(sockfd);
-		        return -1;
+			perror("sendto error:: ");
+			close(sockfd);
+			return -1;
 		}
 
 		if (n<0) {
@@ -67,29 +68,13 @@ int sender_init(char * multicast_address, char * multicast_port)
 
 void *sender_start(void *args) {
 
-	 char * message = "hello!.";
-
 	for	(;;) {
-
-		//sleep(2);
-
 
 		if (get_updated_entries()) {
 			fprintf(stderr,"An error occurred while sending synchronization data!!\n");
 			fflush(stdout);
 		}
 
-			/*n = sendto(sockfd, message, strlen(message), MSG_DONTWAIT,
-				            dst_addr->ai_addr, sizeof(*dst_addr->ai_addr));
-				printf("message has been sent.\n");
-
-				if (n<0) {
-				perror("sendto error::\n");
-				        close(sockfd);
-				        return -1;
-				}
-
-				fflush(stdout);*/
 	}
 
 	return 0;

@@ -785,6 +785,7 @@ static int handle_joold_request(struct nlmsghdr *nl_hdr, struct request_hdr *joo
 			__u8* request_data)
 {
 
+	log_debug("jool header length: %ul", jool_hdr->length);
 	joold_sync_entires(request_data, jool_hdr->length) ;
 	return 0;
 }
@@ -1129,9 +1130,11 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	jool_hdr = NLMSG_DATA(nl_hdr);
 	request = jool_hdr + 1;
 
+
 	error = validate_version(jool_hdr);
-	if (error)
+	if (error) {
 		return respond_error(nl_hdr, error);
+	}
 
 	switch (jool_hdr->mode) {
 	case MODE_POOL6:

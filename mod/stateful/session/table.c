@@ -101,6 +101,8 @@ static void decide_fate(fate_cb cb,
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		reschedule(&table->est_timer);
+
+		//joold_add_session_element(session);
 		break;
 	case FATE_PROBE:
 		tmp = session_clone(session);
@@ -119,6 +121,8 @@ static void decide_fate(fate_cb cb,
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		reschedule(&table->trans_timer);
+
+		//joold_add_session_element(session) ;
 		break;
 	case FATE_RM:
 		rm(table, session, rms);
@@ -521,7 +525,7 @@ static void attach_timer(struct session_entry *session,
 }
 
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		bool is_established)
+		bool is_established, bool is_synchronized)
 {
 	struct expire_timer *expirer;
 	int error;
@@ -553,6 +557,7 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	session_log(session, "Added session");
 
 	//function to add session for synchronization.
+	if (!is_synchronized)
 	error = joold_add_session_element(session);
 
 

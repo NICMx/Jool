@@ -22,22 +22,18 @@
 #include <net/tcp.h>
 #include <net/icmp.h>
 
-static enum session_fate expired_cb(struct session_entry *session, void *arg)
-{
+static enum session_fate expired_cb(struct session_entry *session, void *arg) {
 	switch (session->state) {
 	case ESTABLISHED:
-		joold_add_session_element(session);
 		session->state = TRANS;
 		session->update_time = jiffies;
 		return FATE_PROBE;
-
 	case V4_INIT:
 	case V6_INIT:
 	case V4_FIN_RCV:
 	case V6_FIN_RCV:
 	case V4_FIN_V6_FIN_RCV:
 	case TRANS:
-		joold_add_session_element(session);
 		session->state = CLOSED;
 		return FATE_RM;
 
@@ -47,12 +43,12 @@ static enum session_fate expired_cb(struct session_entry *session, void *arg)
 		return FATE_RM;
 	}
 
-	WARN(true, "Unknown state found (%d); removing session entry.", session->state);
+	WARN(true, "Unknown state found (%d); removing session entry.",
+			session->state);
 	return FATE_RM;
 }
 
-int filtering_init(void)
-{
+int filtering_init(void) {
 	int error;
 
 	error = bibdb_init();
@@ -74,8 +70,7 @@ int filtering_init(void)
 	return error;
 }
 
-void filtering_destroy(void)
-{
+void filtering_destroy(void) {
 	sessiondb_destroy();
 	palloc_destroy();
 	bibdb_destroy();
@@ -84,30 +79,25 @@ void filtering_destroy(void)
 /**
  * Decides whether the packet should be filtered or not.
  */
-static inline void apply_policies(void)
-{
+static inline void apply_policies(void) {
 	/* No code. iptables does this for us :p. */
 }
 
-static void log_bib(struct bib_entry *bib)
-{
+static void log_bib(struct bib_entry *bib) {
 	if (bib)
-		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)",
-				&bib->ipv6.l3, bib->ipv6.l4,
-				&bib->ipv4.l3, bib->ipv4.l4,
+		log_debug("BIB entry: %pI6c#%u - %pI4#%u (%s)", &bib->ipv6.l3,
+				bib->ipv6.l4, &bib->ipv4.l3, bib->ipv4.l4,
 				l4proto_to_string(bib->l4_proto));
 	else
 		log_debug("BIB entry: None");
 }
 
-static void log_session(struct session_entry *session)
-{
+static void log_session(struct session_entry *session) {
 	if (session)
-		log_debug("Session entry: %pI6c#%u - %pI6c#%u "
-				"| %pI4#%u - %pI4#%u (%s)",
-				&session->remote6.l3, session->remote6.l4,
-				&session->local6.l3, session->local6.l4,
-				&session->local4.l3, session->local4.l4,
+		log_debug(
+				"Session entry: %pI6c#%u - %pI6c#%u " "| %pI4#%u - %pI4#%u (%s)",
+				&session->remote6.l3, session->remote6.l4, &session->local6.l3,
+				session->local6.l4, &session->local4.l3, session->local4.l4,
 				&session->remote4.l3, session->remote4.l4,
 				l4proto_to_string(session->l4_proto));
 	else
@@ -115,8 +105,7 @@ static void log_session(struct session_entry *session)
 }
 
 static int create_bib6(struct tuple *tuple6, __u32 mark,
-		struct bib_entry **result)
-{
+		struct bib_entry **result) {
 	struct ipv4_transport_addr addr4;
 	struct bib_entry *bib;
 	int error;
@@ -124,8 +113,7 @@ static int create_bib6(struct tuple *tuple6, __u32 mark,
 	error = palloc_allocate(tuple6, mark, &addr4);
 	if (error)
 		return error;
-	bib = bibentry_create(&addr4, &tuple6->src.addr6, false,
-			tuple6->l4_proto);
+	bib = bibentry_create(&addr4, &tuple6->src.addr6, false, tuple6->l4_proto);
 	if (!bib) {
 		log_debug("Failed to allocate a BIB entry.");
 		return -ENOMEM;
@@ -136,8 +124,7 @@ static int create_bib6(struct tuple *tuple6, __u32 mark,
 }
 
 static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
-		struct bib_entry **result)
-{
+		struct bib_entry **result) {
 	struct bib_entry *bib;
 	int error;
 
@@ -167,8 +154,7 @@ static int get_or_create_bib6(struct tuple *tuple6, __u32 mark,
 }
 
 static int create_session(struct tuple *tuple, struct bib_entry *bib,
-		struct session_entry **result)
-{
+		struct session_entry **result) {
 	struct session_entry *session;
 	struct ipv6_transport_addr remote6;
 	struct ipv6_transport_addr local6;
@@ -189,9 +175,9 @@ static int create_session(struct tuple *tuple, struct bib_entry *bib,
 		error = rfc6052_6to4(&tuple->dst.addr6.l3, &remote4.l3);
 		if (error)
 			return error;
-		remote4.l4 = (tuple->l4_proto != L4PROTO_ICMP)
-				? tuple->dst.addr6.l4
-				: bib->ipv4.l4;
+		remote4.l4 =
+				(tuple->l4_proto != L4PROTO_ICMP) ?
+						tuple->dst.addr6.l4 : bib->ipv4.l4;
 		break;
 	case L3PROTO_IPV4:
 		if (bib)
@@ -202,9 +188,9 @@ static int create_session(struct tuple *tuple, struct bib_entry *bib,
 		error = rfc6052_4to6(&tuple->src.addr4.l3, &local6.l3);
 		if (error)
 			return error;
-		local6.l4 = (tuple->l4_proto != L4PROTO_ICMP)
-				? tuple->src.addr4.l4
-				: bib->ipv6.l4;
+		local6.l4 =
+				(tuple->l4_proto != L4PROTO_ICMP) ?
+						tuple->src.addr4.l4 : bib->ipv6.l4;
 		local4 = tuple->dst.addr4;
 		remote4 = tuple->src.addr4;
 		break;
@@ -221,14 +207,12 @@ static int create_session(struct tuple *tuple, struct bib_entry *bib,
 	return 0;
 }
 
-static enum session_fate update_timer(struct session_entry *session, void *arg)
-{
+static enum session_fate update_timer(struct session_entry *session, void *arg) {
 	return FATE_TIMER_EST;
 }
 
 static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
-		struct bib_entry *bib, struct session_entry **result)
-{
+		struct bib_entry *bib, struct session_entry **result) {
 	struct session_entry *session;
 	int error;
 
@@ -241,7 +225,7 @@ static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
 	if (error)
 		return error;
 
-	error = sessiondb_add(session, true);
+	error = sessiondb_add(session, true, false);
 	if (error) {
 		session_return(session);
 		return error;
@@ -262,8 +246,7 @@ static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
  * @pkt: tuple's packet. This is actually only used for error reporting.
  * @tuple: summary of the packet Jool is currently translating.
  */
-static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6)
-{
+static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6) {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
@@ -294,8 +277,7 @@ static verdict ipv6_simple(struct packet *pkt, struct tuple *tuple6)
  * Assumes "tuple" represents a IPv4 packet.
  */
 static int get_bib4(struct packet *pkt, struct tuple *tuple4,
-		struct bib_entry **bib)
-{
+		struct bib_entry **bib) {
 	int error;
 
 	error = bibdb_get(tuple4, bib);
@@ -330,8 +312,7 @@ static int get_bib4(struct packet *pkt, struct tuple *tuple4,
  * @param[in] tuple summary of the packet Jool is currently translating.
  * @return VER_CONTINUE if everything went OK, VER_DROP otherwise.
  */
-static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4)
-{
+static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4) {
 	int error;
 	struct bib_entry *bib;
 	struct session_entry *session;
@@ -362,8 +343,7 @@ static verdict ipv4_simple(struct packet *pkt, struct tuple *tuple4)
  * Processes IPv6 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
-{
+static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6) {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
@@ -378,19 +358,16 @@ static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
 		goto bib_end;
 	session->state = V6_INIT;
 
-	error = sessiondb_add(session, false);
+	error = sessiondb_add(session, false, false);
 	if (error)
 		goto session_end;
 
 	log_session(session);
 	/* Fall through. */
 
-session_end:
-	session_return(session);
-bib_end:
-	bibdb_return(bib);
-simple_end:
-	return error;
+	session_end: session_return(session);
+	bib_end: bibdb_return(bib);
+	simple_end: return error;
 }
 
 /**
@@ -399,16 +376,15 @@ simple_end:
  * Processes IPv4 SYN packets when there's no state.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
-{
+static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4) {
 	struct bib_entry *bib;
 	struct session_entry *session;
 	int error;
 	verdict result = VERDICT_DROP;
 
 	if (config_get_drop_external_connections()) {
-		log_debug("Applying policy: Dropping externally initiated TCP "
-				"connections.");
+		log_debug(
+				"Applying policy: Dropping externally initiated TCP " "connections.");
 		return VERDICT_DROP;
 	}
 
@@ -436,10 +412,10 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 		result = VERDICT_STOLEN;
 
 	} else {
-		error = sessiondb_add(session, false);
+		error = sessiondb_add(session, false, false);
 		if (error) {
-			log_debug("Error code %d while adding the session to "
-					"the DB.", error);
+			log_debug("Error code %d while adding the session to " "the DB.",
+					error);
 			goto end_session;
 		}
 
@@ -448,12 +424,10 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 
 	/* Fall through. */
 
-end_session:
-	session_return(session);
+	end_session: session_return(session);
 	/* Fall through. */
 
-end_bib:
-	if (bib)
+	end_bib: if (bib)
 		bibdb_return(bib);
 	return result;
 }
@@ -462,8 +436,7 @@ end_bib:
  * Filtering and updating done during the CLOSED state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple)
-{
+static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple) {
 	struct bib_entry *bib;
 	verdict result;
 	int error;
@@ -471,9 +444,9 @@ static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple)
 	switch (pkt_l3_proto(pkt)) {
 	case L3PROTO_IPV6:
 		if (pkt_tcp_hdr(pkt)->syn) {
-			result = is_error(tcp_closed_v6_syn(pkt, tuple))
-					? VERDICT_DROP
-					: VERDICT_CONTINUE;
+			result =
+					is_error(tcp_closed_v6_syn(pkt, tuple)) ?
+							VERDICT_DROP : VERDICT_CONTINUE;
 			goto syn_out;
 		}
 		break;
@@ -488,8 +461,9 @@ static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple)
 
 	error = bibdb_get(tuple, &bib);
 	if (error) {
-		log_debug("Closed state: Packet is not SYN and there is no BIB "
-				"entry, so discarding. ERRcode %d", error);
+		log_debug(
+				"Closed state: Packet is not SYN and there is no BIB " "entry, so discarding. ERRcode %d",
+				error);
 		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
 		return VERDICT_DROP;
 	}
@@ -497,8 +471,7 @@ static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple)
 	bibdb_return(bib);
 	return VERDICT_CONTINUE;
 
-syn_out:
-	if (result == VERDICT_DROP)
+	syn_out: if (result == VERDICT_DROP)
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 	return result;
 }
@@ -508,8 +481,7 @@ syn_out:
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v4_init_state(struct session_entry *session,
-		struct packet *pkt)
-{
+		struct packet *pkt) {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		session->state = ESTABLISHED;
 		return FATE_TIMER_EST;
@@ -523,8 +495,7 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v6_init_state(struct session_entry *session,
-		struct packet *pkt)
-{
+		struct packet *pkt) {
 	if (pkt_tcp_hdr(pkt)->syn) {
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
@@ -543,8 +514,7 @@ static enum session_fate tcp_v6_init_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_established_state(struct session_entry *session,
-		struct packet *pkt)
-{
+		struct packet *pkt) {
 	if (pkt_tcp_hdr(pkt)->fin) {
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
@@ -569,8 +539,7 @@ static enum session_fate tcp_established_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
-		struct packet *pkt)
-{
+		struct packet *pkt) {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
 		return FATE_TIMER_TRANS;
@@ -584,8 +553,7 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
-		struct packet *pkt)
-{
+		struct packet *pkt) {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
 		return FATE_TIMER_TRANS;
@@ -598,8 +566,7 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
  * Filtering and updating done during the V6 FIN + V4 FIN RCV state of the TCP state machine.
  * Part of RFC 6146 section 3.5.2.2.
  */
-static enum session_fate tcp_v4_fin_v6_fin_rcv_state(void)
-{
+static enum session_fate tcp_v4_fin_v6_fin_rcv_state(void) {
 	return FATE_PRESERVE; /* Only the timeout can change this state. */
 }
 
@@ -608,8 +575,7 @@ static enum session_fate tcp_v4_fin_v6_fin_rcv_state(void)
  * Part of RFC 6146 section 3.5.2.2.
  */
 static enum session_fate tcp_trans_state(struct session_entry *session,
-		struct packet *pkt)
-{
+		struct packet *pkt) {
 	if (!pkt_tcp_hdr(pkt)->rst) {
 		session->state = ESTABLISHED;
 		return FATE_TIMER_EST;
@@ -619,19 +585,30 @@ static enum session_fate tcp_trans_state(struct session_entry *session,
 }
 
 static enum session_fate tcp_state_machine(struct session_entry *session,
-		void *arg)
-{
+		void *arg) {
+	enum session_fate sfate;
+
 	switch (session->state) {
 	case V4_INIT:
-		return tcp_v4_init_state(session, arg);
+		sfate = tcp_v4_init_state(session, arg);
+		joold_add_session_element(session);
+		return sfate;
 	case V6_INIT:
-		return tcp_v6_init_state(session, arg);
+		sfate = tcp_v6_init_state(session, arg);
+		joold_add_session_element(session);
+		return sfate;
 	case ESTABLISHED:
-		return tcp_established_state(session, arg);
+		sfate = tcp_established_state(session, arg);
+		joold_add_session_element(session);
+		return sfate;
 	case V4_FIN_RCV:
-		return tcp_v4_fin_rcv_state(session, arg);
+		sfate = tcp_v4_fin_rcv_state(session, arg);
+		joold_add_session_element(session);
+		return sfate;
 	case V6_FIN_RCV:
-		return tcp_v6_fin_rcv_state(session, arg);
+		sfate = tcp_v6_fin_rcv_state(session, arg);
+		joold_add_session_element(session);
+		return sfate;
 	case V4_FIN_V6_FIN_RCV:
 		return tcp_v4_fin_v6_fin_rcv_state();
 	case TRANS:
@@ -654,8 +631,7 @@ static enum session_fate tcp_state_machine(struct session_entry *session,
  *
  * This is RFC 6146 section 3.5.2.
  */
-static verdict tcp(struct packet *pkt, struct tuple *tuple)
-{
+static verdict tcp(struct packet *pkt, struct tuple *tuple) {
 	struct session_entry *session;
 	int error;
 
@@ -663,8 +639,7 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple)
 	if (error == -ESRCH)
 		return tcp_closed_state(pkt, tuple);
 	if (error) {
-		log_debug("Error code %d while trying to find a TCP session.",
-				error);
+		log_debug("Error code %d while trying to find a TCP session.", error);
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
@@ -678,8 +653,7 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple)
  * filtering_and_updating - Main F&U routine. Decides if "skb" should be
  * processed, updating binding and session information.
  */
-verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
-{
+verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple) {
 	struct ipv6hdr *hdr_ip6;
 	verdict result = VERDICT_CONTINUE;
 
@@ -707,8 +681,7 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(in_tuple->l4_proto,
-				&in_tuple->dst.addr4)) {
+		if (!pool4db_contains(in_tuple->l4_proto, &in_tuple->dst.addr4)) {
 			log_debug("Packet does not belong to pool4.");
 			return VERDICT_ACCEPT;
 		}
@@ -741,8 +714,8 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV6:
 			if (config_get_filter_icmpv6_info()) {
-				log_debug("Packet is ICMPv6 info (ping); "
-						"dropping due to policy.");
+				log_debug(
+						"Packet is ICMPv6 info (ping); " "dropping due to policy.");
 				inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 				return VERDICT_DROP;
 			}

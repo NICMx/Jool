@@ -16,10 +16,10 @@ static struct request_hdr header_struct;
 
 static DEFINE_SPINLOCK(lock);
 
-/*
+
 static int session_list_elem_num = 0;
 static int elements_limit = 20;
- */
+
 
 static struct timer_list updater_timer;
 
@@ -27,20 +27,21 @@ static struct timer_list updater_timer;
 static struct list_head session_elements;
 
 struct session_element {
+	char entry_magic[5];
 	struct session_entry s_entry;
 	bool is_established;
 	bool delete;
 	struct list_head nextprev;
 };
 
-static int send_msg(void *payload, int payload_len)
+static int send_msg(void *payload, __u16 payload_len)
 {
 	struct sk_buff *skb_out;
 	struct nlmsghdr *nl_hdr_out;
 
 	int error = 0;
 
-	log_debug("Sending multicast message!.");
+	log_debug("Sending multicast message!");
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
@@ -54,7 +55,9 @@ static int send_msg(void *payload, int payload_len)
 			0, /* type */
 			payload_len, /* payload len */
 			0); /* flags */
+
 	memcpy((__u8*)nlmsg_data(nl_hdr_out),(__u8*)payload, payload_len);
+
 
 	error = nlmsg_multicast(sender_sk, skb_out, 0, JOOLD_MULTICAST_GROUP, GFP_KERNEL);
 	if (error) {
@@ -62,7 +65,7 @@ static int send_msg(void *payload, int payload_len)
 		return error;
 	}
 
-	log_debug("Multicast message sent!.");
+	log_debug("Multicast message sent!");
 
 	return error;
 }
@@ -70,16 +73,7 @@ static int send_msg(void *payload, int payload_len)
 
 static int joold_send_to_userspace(void) {
 
-	char payload[3];
 
-	payload[0] = 'g';
-	payload[1] = 'h';
-	payload[2] = '\0';
-	log_debug("sending thingo.");
-
-	return send_msg(payload, 2);
-
-	/*
 	struct session_element *s_element;
 	__u8 * payload_pointer;
 	__u16 total_size;
@@ -90,7 +84,7 @@ static int joold_send_to_userspace(void) {
 	payload = kmalloc(total_size,GFP_ATOMIC);
 
 		if (!payload) {
-			log_err("Couldn't allocate memory for entries payload!.");
+			log_err("Couldn't allocate memory for entries payload!");
 			return -ENOMEM;
 		}
 
@@ -105,8 +99,10 @@ static int joold_send_to_userspace(void) {
 
 		s_element = list_first_entry(&session_elements,struct session_element,nextprev);
 
-		memcpy(payload_pointer, (__u8 *) &s_element,
-				sizeof(struct session_element));
+		log_debug("magic of the session element to be sent-> %s", s_element->entry_magic);
+
+		memcpy(payload_pointer, (__u8 *)s_element,
+				sizeof(*s_element));
 
 		list_del(&(s_element->nextprev));
 
@@ -123,27 +119,21 @@ static int joold_send_to_userspace(void) {
 
 
 	return 0;
-	 */
 }
 
 
 static void send_to_userspace_timeout(unsigned long parameter) {
 
-
-
 	spin_lock_bh(&lock);
-		log_debug("executing timer's function!!");
 		if (joold_send_to_userspace()) {
-			log_err("An error occurred while sending session entries to userspace!.");
+			log_err("An error occurred while sending session entries to userspace!");
 		}
 
 	spin_unlock_bh(&lock);
 
 	 if (mod_timer(&updater_timer, jiffies + msecs_to_jiffies(500))) {
-		 log_err("Something went wrong while reinitializing the updater timer!.");
+		 log_err("Something went wrong while reinitializing the updater timer!");
 	 }
-
-	 log_debug("timer's function executed!!");
 }
 
 int joold_init(int sender_sock_family, int synch_period) {
@@ -151,12 +141,13 @@ int joold_init(int sender_sock_family, int synch_period) {
 	int error;
 
 	init_request_hdr(&header_struct, 0, 0, 0);
+	header_struct.mode = MODE_JOOLD;
 	INIT_LIST_HEAD(&session_elements);
 
 
 	setup_timer(&updater_timer, send_to_userspace_timeout,0);
 
-	error = mod_timer(&updater_timer, jiffies + msecs_to_jiffies(500));
+	error = mod_timer(&updater_timer, jiffies + msecs_to_jiffies(synch_period));
 
 	if (error)
 		return error;
@@ -185,9 +176,9 @@ void joold_destroy(void)
 }
 
 
+
 int joold_add_session_element(struct session_entry *entry) {
 
-	/*
 	int error = 0;
 	struct session_element *entry_copy;
 
@@ -195,14 +186,20 @@ int joold_add_session_element(struct session_entry *entry) {
 
 		entry_copy = kmalloc(sizeof(struct session_element), GFP_ATOMIC);
 
+		entry_copy->entry_magic[0] = 'j';
+		entry_copy->entry_magic[1] = 'o';
+		entry_copy->entry_magic[2] = 'o';
+		entry_copy->entry_magic[3] = 'l';
+		entry_copy->entry_magic[4] = '\0';
+
+
 		if (!entry_copy) {
 			log_err("Couldn't allocate memory for session element.");
 			return -ENOMEM;
 		}
 
 
-
-		memcpy(&entry_copy->s_entry, entry, sizeof(struct session_entry));
+		memcpy((__u8*)&entry_copy->s_entry, (__u8*)entry, sizeof(*entry));
 
 		entry_copy->is_established = sessiondb_is_session_established(entry);
 
@@ -225,54 +222,76 @@ int joold_add_session_element(struct session_entry *entry) {
 		spin_unlock_bh(&lock);
 
 	return error;
-	*/
-	return 0;
 
 }
 
-/*
-static int update_session(struct list_head * session_elements) {
+
+static int update_session(struct list_head * synch_session_elements) {
 
 	struct session_element * s_element;
 	struct session_entry *s_entry;
 	struct session_entry *s_entry_aux;
 	struct tuple tuple_aux;
 	struct bib_entry *b_entry;
+	__u8 bib_created = 0;
 
-	while (!list_empty(session_elements)) {
+	while (!list_empty(synch_session_elements)) {
 
-		s_element = list_first_entry(session_elements,struct session_element,nextprev);
+		s_element = list_first_entry(synch_session_elements,struct session_element,nextprev);
+
+		log_debug("magic session element number %s", s_element->entry_magic) ;
 
 		s_entry = kmalloc(sizeof(struct session_entry), GFP_ATOMIC) ;
 
 		memcpy((__u8 *) s_entry, (__u8 *) &s_element->s_entry,
 				sizeof(struct session_entry));
 
+
 		tuple_aux.dst.addr6 = s_entry->local6;
 		tuple_aux.src.addr6 = s_entry->remote6;
 		tuple_aux.l4_proto = s_entry->l4_proto;
+		tuple_aux.l3_proto = L3PROTO_IPV6;
 
-		b_entry = bibentry_create(&s_entry->local4, &s_entry->remote6, false,
-				s_entry->l4_proto);
+
 
 		if (sessiondb_get(&tuple_aux, 0, 0, &s_entry_aux)) {
 
-			sessiondb_add(s_entry, s_element->is_established);
+			log_debug("couldn't get session entry!");
+
+			if (bibdb_get(&tuple_aux,&b_entry)) {
+
+				b_entry = bibentry_create(&s_entry->local4, &s_entry->remote6, false,
+									s_entry->l4_proto);
+				bib_created = 1;
+
+			} else {
+				bib_created = 0;
+			}
+
+
+			memcpy((__u8*)&s_entry->bib,(__u8*)&(b_entry), sizeof(b_entry));
+			s_entry->update_time = s_element->s_entry.update_time;
+			sessiondb_add(s_entry, s_element->is_established, true);
+
+			if (bib_created)
+			kfree(b_entry);
+			else
+			bibdb_return(b_entry);
 
 		} else {
 
-			memcpy((__u8*)&s_entry_aux->local4, (__u8*)&s_entry->local4,sizeof(s_entry->local4));
-			memcpy((__u8*)&s_entry_aux->local6, (__u8*)&s_entry->local6,sizeof(s_entry->local6));
-			memcpy((__u8*)&s_entry_aux->remote4, (__u8*)&s_entry->remote4,sizeof(s_entry->remote4));
-			memcpy((__u8*)&s_entry_aux->remote6, (__u8*)&s_entry->remote6, sizeof(s_entry->remote6));
+			log_debug("got session entry!");
+
 			s_entry_aux->update_time = s_entry->update_time;
+			s_entry_aux->state = s_entry->state;
+
+			if (sessiondb_set_session_timer(s_entry_aux, s_element->is_established)) {
+				log_err("Could not set session's timer!");
+			}
+
 			session_return(s_entry_aux);
 
 			kfree(s_entry);
-		}
-
-		if (bibdb_add(b_entry)) {
-			kfree(b_entry);
 		}
 
 		list_del(&(s_element->nextprev));
@@ -282,39 +301,42 @@ static int update_session(struct list_head * session_elements) {
 
 	return 0;
 }
- */
+
 
 int joold_sync_entires(__u8 * data, __u32 size) {
-	/*
+
 	__u32 index = 0;
 
-	struct list_head * session_elements = kmalloc(sizeof(struct hlist_head),
+	struct list_head * synch_session_elements = kmalloc(sizeof(struct hlist_head),
 			GFP_ATOMIC);
 	struct session_element * s_element;
 
-	INIT_LIST_HEAD(session_elements);
+	log_debug("synching entries... received size %u",size);
+
+
+	INIT_LIST_HEAD(synch_session_elements);
 
 	if (size % sizeof(struct session_element) != 0) {
-		log_err(
-				"Inconsistent data detected while synchronizing BIB and SESSION ");
+		log_err("Inconsistent data detected while synchronizing BIB and SESSION ");
 		return -1;
 	}
+
 
 	while (index < size) {
 
 		s_element = kmalloc(sizeof(struct session_element), GFP_ATOMIC);
-		memcpy(s_element, data, sizeof(struct session_element));
-		list_add(&s_element->nextprev, session_elements);
+		memcpy((__u8*)s_element, data, sizeof(struct session_element));
+		list_add(&s_element->nextprev, synch_session_elements);
 		index += sizeof(struct session_element);
 
 	}
 
 	spin_lock_bh(&lock);
 
-	update_session(session_elements);
+	update_session(synch_session_elements);
 
 	spin_unlock_bh(&lock);
-	 */
+
 
 	return 0;
 }
