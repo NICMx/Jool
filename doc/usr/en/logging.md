@@ -5,6 +5,8 @@ category: Documentation
 title: Logging
 ---
 
+[Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Logging
+
 # Logging
 
 If Jool has something to say, it will do so in the kernel logs (just like any other kernel component). Typical ways to find this include

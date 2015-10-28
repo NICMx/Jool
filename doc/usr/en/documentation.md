@@ -18,8 +18,8 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Installation
 
-1. [Kernel modules](mod-install.html)
-2. [Userspace applications](usr-install.html)
+1. [Kernel modules](install-mod.html)
+2. [Userspace applications](install-usr.html)
 
 ## Runs
 
@@ -67,12 +67,12 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 ## Other Sample Runs
 
 1. [Single Interface](mod-run-alternate.html)
-2. [Host-Based Translation](host-based-translation.html)
+2. [Node-Based Translation](node-based-translation.html)
 
 ## Miscellaneous
 
 1. [FAQ](faq.html)
 2. [Logging](logging.html)
 3. [MTU and Fragmentation](mtu.html)
-4. [Offloads](offloading.html)
+4. [Offloads](offloads.html)
 

@@ -5,7 +5,7 @@ category: Documentation
 title: --bib
 ---
 
-[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--bib
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--bib
 
 # \--bib
 

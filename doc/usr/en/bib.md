@@ -5,7 +5,7 @@ category: Documentation
 title: BIB
 ---
 
-[Documentation](documentation.html) > [Runs](documentation.html#runs) > [Stateful NAT64](mod-run-stateful.html) > BIB
+[Documentation](documentation.html) > [NAT64 in Detail](documentation.html#nat64-in-detail) > BIB
 
 # BIB
 

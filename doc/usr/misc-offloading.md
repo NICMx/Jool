@@ -1,5 +1,5 @@
 ---
 layout: redirect
-redirect_link: en/offloading.html
+redirect_link: en/offloads.html
 ---
 

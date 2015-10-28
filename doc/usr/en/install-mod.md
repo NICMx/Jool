@@ -5,7 +5,7 @@ category: Documentation
 title: Kernel Modules Installation
 ---
 
-[Documentation](documentation.html) > [Installation](documentation.html#installation) > Kernel module
+[Documentation](documentation.html) > [Installation](documentation.html#installation) > Kernel modules
 
 # Kernel Modules Installation
 
@@ -23,7 +23,7 @@ title: Kernel Modules Installation
 Jool is four binaries:
 
 1. Two [kernel modules](https://en.wikipedia.org/wiki/Loadable_kernel_module) you can hook up to Linux. One of them is the SIIT implementation and the other is the Stateful NAT64. They are the translating components and all you need to get started; this document explains how to install them.
-2. Two [userspace](https://en.wikipedia.org/wiki/User_space) applications which can be used to configure each module. They have their own [installation document](usr-install.html).
+2. Two [userspace](https://en.wikipedia.org/wiki/User_space) applications which can be used to configure each module. They have their own [installation document](install-usr.html).
 
 ## Requirements
 

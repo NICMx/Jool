@@ -5,7 +5,7 @@ category: Documentation
 title: IPv4 Transport Address Pool
 ---
 
-[Documentation](documentation.html) > [Runs](documentation.html#runs) > [Stateful NAT64](mod-run-stateful.html) > IPv4 Pool
+[Documentation](documentation.html) > [NAT64 in Detail](documentation.html#nat64-in-detail) > The IPv4 Transport Address Pool
 
 # IPv4 Transport Address Pool
 

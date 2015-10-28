@@ -1,5 +1,5 @@
 ---
 layout: redirect
-redirect_link: en/usr-flags.html
+redirect_link: en/documentation.html#userspace-application-arguments
 ---
 

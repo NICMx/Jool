@@ -5,7 +5,7 @@ category: Documentation
 title: Kernel Module Arguments
 ---
 
-[Documentation](documentation.html) > [Arguments](documentation.html#arguments) > `jool_siit` Kernel Module Arguments
+[Documentation](documentation.html) > [Kernel Module Arguments](documentation.html#kernel-module-arguments) > `jool_siit`
 
 # SIIT Jool's Kernel Module Arguments
 

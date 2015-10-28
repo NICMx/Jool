@@ -22,7 +22,7 @@ title: Stateful NAT64 Run
 
 This document explains how to run Jool in [Stateful NAT64 mode](intro-nat64.html#stateful-nat64).
 
-Software-wise, only a [successful install of the kernel module](mod-install.html) is required. The userspace application is not needed in this basic run.
+Software-wise, only a [successful install of the kernel module](install-mod.html) is required. The userspace application is not needed in this basic run.
 
 ## Sample Network
 

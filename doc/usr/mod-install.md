@@ -1,5 +1,5 @@
 ---
 layout: redirect
-redirect_link: en/mod-install.html
+redirect_link: en/install-mod.html
 ---
 

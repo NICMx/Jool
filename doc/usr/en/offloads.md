@@ -2,7 +2,7 @@
 language: en
 layout: default
 category: Documentation
-title: Offloading
+title: Offloads
 ---
 
 [Documentation](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Offloads

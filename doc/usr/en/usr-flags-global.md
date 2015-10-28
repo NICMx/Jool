@@ -5,7 +5,7 @@ category: Documentation
 title: --global
 ---
 
-[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--global
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--global
 
 # \--global
 

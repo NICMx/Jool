@@ -1,5 +1,5 @@
 ---
 layout: redirect
-redirect_link: en/usr-install.html
+redirect_link: en/install-usr.html
 ---
 

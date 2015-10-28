@@ -5,7 +5,7 @@ category: Documentation
 title: 464XLAT
 ---
 
-[Documentation](documentation.html) > [Runs](documentation.html#runs) > 464XLAT
+[Documentation](documentation.html) > [Architectures](documentation.html#architectures) > 464XLAT
 
 # 464XLAT
 

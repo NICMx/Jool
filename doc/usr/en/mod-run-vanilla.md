@@ -22,7 +22,7 @@ title: Basic SIIT Run
 
 This document explains how to run Jool in [stock SIIT mode](intro-nat64.html#siit-traditional). Follow the link for more details on what to expect.
 
-Software-wise, only a [successful install of Jool’s kernel module](mod-install.html) is required. The userspace application is out of the scope of this document on purpose.
+Software-wise, only a [successful install of Jool’s kernel module](install-mod.html) is required. The userspace application is out of the scope of this document on purpose.
 
 In case you're wondering, you can follow along these tutorials using virtual machines or alternate interface types just fine (Jool is not married to physical "_ethX_" interfaces).
 
@@ -87,7 +87,7 @@ user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 > 
 > Whether this inconsistency is a bug in older or newer kernels [is a rather philosophical topic](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). On the other hand, Jool 4.0 will almost certainly require forwarding, so you might as well start preparing your scripts.
 
-The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of receive offloads in the translating machine](offloading.html). Do that by means of `ethtool`:
+The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of receive offloads in the translating machine](offloads.html). Do that by means of `ethtool`:
 
 {% highlight bash %}
 user@T:~# ethtool --offload eth0 gro off

@@ -5,7 +5,7 @@ category: Documentation
 title: Alternate Stateful Run
 ---
 
-[Doc](documentation.html) > [Miscellaneous](documentation.html#miscellaneous) > Single Interface
+[Documentation](documentation.html) > [Other Sample Runs](documentation.html#other-sample-runs) > Single Interface
 
 # Single Interface
 

@@ -5,7 +5,7 @@ category: Documentation
 title: Kernel Module Arguments
 ---
 
-[Documentation](documentation.html) > [Arguments](documentation.html#arguments) > Kernel Module options
+[Documentation](documentation.html) > [Kernel Module Arguments](documentation.html#kernel-module-arguments) > `jool`
 
 # NAT64 Jool's Kernel Module Arguments
 

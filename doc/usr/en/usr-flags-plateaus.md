@@ -5,7 +5,7 @@ category: Documentation
 title: --plateaus
 ---
 
-[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > \--plateaus
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > [\--global](usr-flags-global.html) > \--plateaus
 
 # MTU Plateaus (Example)
 
@@ -93,7 +93,7 @@ On the other hand, that argument tends to fall on its butt on the grounds that t
 
 It's not that bad, given that some of the protocols in the table are still in use, and having a few redundant plateaus is better than having a few missing ones.
 
-And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run (after installing the [userspace application](usr-install.html))
+And it doesn't mean the plateaus list is hardcoded into Jool, either. If you want to change your plateaus list, run (after installing the [userspace application](install-usr.html))
 
 	$(jool) --mtu-plateaus <list>
 

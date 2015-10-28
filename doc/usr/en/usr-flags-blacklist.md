@@ -5,7 +5,7 @@ category: Documentation
 title: --blacklist
 ---
 
-[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--blacklist
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--blacklist
 
 # \--blacklist
 

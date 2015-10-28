@@ -5,7 +5,7 @@ category: Documentation
 title: --session
 ---
 
-[Documentation](documentation.html) > [Userspace Application](documentation#userspace-application) > [Flags](usr-flags.html) > \--session
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--session
 
 # \--session
 

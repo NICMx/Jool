@@ -5,7 +5,7 @@ category: Documentation
 title: --pool6
 ---
 
-[Documentation](documentation.html) > [Userspace Application](documentation.html#userspace-application) > [Flags](usr-flags.html) > \--pool6
+[Documentation](documentation.html) > [Userspace Application Arguments](documentation.html#userspace-application-arguments) > \--pool6
 
 # \--pool6
 

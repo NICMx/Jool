@@ -123,7 +123,7 @@ IPv4 doesn't need link addresses that much.
 
 ## The throughput is terrible!
 
-[Turn offloads off!](offloading.html)
+[Turn offloads off!](offloads.html)
 
 If you're running Jool in a guest virtual machine, something important to keep in mind is that you might rather or also have to disable offloads in the [VM host](http://en.wikipedia.org/wiki/Hypervisor)'s uplink interface.
 

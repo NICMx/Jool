@@ -5,7 +5,7 @@ category: Documentation
 title: Userspace Applications Installation
 ---
 
-[Documentation](documentation.html) > [Installation](documentation.html#installation) > Userspace Application
+[Documentation](documentation.html) > [Installation](documentation.html#installation) > Userspace Applications
 
 # Userspace Applications Installation
 
@@ -20,7 +20,7 @@ title: Userspace Applications Installation
 
 Jool is four things:
 
-1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They have their own [installation document](mod-install.html).
+1. Two <a href="https://en.wikipedia.org/wiki/Loadable_kernel_module" target="_blank">kernel modules</a> you can hook up to Linux. One of them is the SIIT implementation and the other one is the Stateful NAT64. They have their own [installation document](install-mod.html).
 2. Two <a href="https://en.wikipedia.org/wiki/User_space" target="_blank">userspace</a> applications which can be used to configure each module.
 
 This document explains how to obtain the binaries of the userspace application.

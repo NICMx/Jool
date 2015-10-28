@@ -5,7 +5,7 @@ category: Documentation
 title: Introduction to Jool
 ---
 
-[Documentation](documentation.html) > [Introduction](documentation.html#introduction) > Jool
+[Documentation](documentation.html) > [Introduction](documentation.html#introduction) > What is Jool?
 
 # Introduction to Jool
 
@@ -27,13 +27,13 @@ As far as we know, this is the compliance status of Jool 3.3:
 |-----------|---------|--------|
 | [RFC 6052](https://tools.ietf.org/html/rfc6052) | IP address translation | Fully compliant. |
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | IPv4/IPv6 Translation Framework | Fully compliant. |
-| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | The atomic fragment implementation is [generally broken](usr-flags-atomic.html#overview). Otherwise compliant. |
+| [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | The atomic fragment implementation is generally broken (see _Atomic Fragment Deprecation_ below). Otherwise compliant. |
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Mostly compliant.<br />(Inherits RFC 6145 compliance issues) |
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant](https://github.com/NICMx/NAT64/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | ICMP quirks | In short, this RFC wants two things: A pool of IPv4 addresses and an ICMP header extension. Jool implements the former but not the latter. |
-| [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Rather implemented as SIIT-DC; see below. |
+| [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Rather implemented as SIIT-DC-DTM; see below. |
 | [draft-ietf-v6ops-siit-dc]({{ site.draft-siit-dc }}) | SIIT-DC | Fully compliant. |
-| [draft-ietf-v6ops-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC Edge Translator | Fully compliant. |
+| [draft-ietf-v6ops-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC: Dual Translation Mode | Fully compliant. |
 | [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Atomic Fragment Deprecation | Strictly speaking, the draft wants us to completely trash the atomic fragments concept. We do implement them -poorly- as an [alternate and utterly discouraged mode](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Fully compliant. |
 

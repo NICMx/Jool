@@ -22,7 +22,7 @@ title: EAM Run
 
 This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records in the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](eamt.html) for more details on how the EAMT works.
 
-[Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](mod-install.html) **and** the [userspace application](usr-install.html) for EAM.
+[Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](install-mod.html) **and** the [userspace application](install-usr.html) for EAM.
 
 ## Sample Network
 
