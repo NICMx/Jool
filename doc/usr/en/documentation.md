@@ -66,8 +66,8 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Other Sample Runs
 
-1. [Host-Based Edge Translation](host-based-edge-translation.html)
-2. [Single Interface](mod-run-alternate.html)
+1. [Single Interface](mod-run-alternate.html)
+2. [Host-Based Translation](host-based-translation.html)
 
 ## Miscellaneous
 
