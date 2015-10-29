@@ -17,56 +17,56 @@ title: Aplicaciones en el Espacio de Usuario
 	2. [Autoconf](#autoconf)
 3. [Obtención del código](#obtencin-del-cdigo)
 4. [Compilación e Instalación](#compilacin-e-instalacin)
-5. [Validación](#validacin)
-	1. [Versión](#versin)
-	2. [Ayuda](#ayuda)
-	3. [Uso](#uso)
+5. [Validación de la instalación](#validacin-de-la-instalacin)
 
 ## Introducción
 
 Jool tiene cuatro componentes, es decir, cuatro ejecutables:
 
-1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo), uno donde se implementa el Stateful NAT64, nombrado como `jool`, y el otro donde se implementa SIIT y SIIT-EAM, nombrado como `jool-siit`. 
-2. Dos aplicaciones en el [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), una para Stateful NAT64 y la otra para SIIT y SIIT-EAM, nombrados de igual manera: `jool y jool-siit` respectivamente.
+1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo). Uno de ellos (`jool_siit`) implementa SIIT y el otro (`jool`) implementa NAT64.
+2. Dos aplicaciones de [espacio de usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario), igualmente nombradas `jool` y `jool_siit`, que sirven para configurar a sus respectivos módulos.
 
-Este documento es sobre las aplicaciones de configuración que se ejecutan en el espacio de usuario.
-
-Para ver detalles de los requisitos e instalación de los módulos de kernel [accese aquí](mod-install.html).
+Este documento explica cómo instalar las aplicaciones de espacio de usuario. Para instalar a los módulos del kernel [ver aquí](install-mod.html).
 
 ## Requerimientos
 
-![small_orange_diamond](../images/small_orange_diamond.png) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos
+> ![Nota](../images/bulb.svg) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos.
 
-### Libnl-3
+### libnl-3
 
-> **NOTA:** Libnl, libnl-1.x, 2.x no son compatibles. Se necesita Libnl-3 ver. 3.1 o superior.
+libnl, libnl-1.x y 2.x no son compatibles. Se necesita "libnl-3" versión 3.1 o superior.
 
-Jool emplea [NETLINK](http://www.carisma.slowglass.com/~tgr/libnl/) para comunicar sus procesos de espacio de usuario con los de kernel, y viceversa.  
-
-De preferencia no baje ni compile en forma manual la libería para evitarse problemas de ubicación y acceso a la misma.
-
-Si su distribución reconoce a `libnl-3-dev` como un producto instalable:
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+</div>
 
 {% highlight bash %}
-$apt-cache show libnl-3-dev
+# apt-get install libnl-3-dev
 {% endhighlight %}
 
-Entonces, instala la libería ejecutando el siguiente comando:
-
 {% highlight bash %}
-#apt-get install libnl-3-dev
+# yum install libnl3*
 {% endhighlight %}
 
 ### Autoconf
 
-> **NOTA:** Se necesita autoconf ver. 2.68 o superior.
+Se necesita autoconf versión 2.68 o superior.
 
-Si descarga Jool del Repositorio de Desarrollo de NICMx, será necesario instalar la aplicación de autoconf para que se pueda generar de manera automática el script de configuración y los makefiles.
+Esta dependencia solamente es necesaria si se baja Jool desde el repositorio de Git.
+
+<div class="distro-menu">
+	<span class="distro-selector" onclick="showDistro(this);">Ubuntu</span>
+	<span class="distro-selector" onclick="showDistro(this);">CentOS</span>
+</div>
 
 {% highlight bash %}
-#apt-get install autoconf
+# apt-get install autoconf
 {% endhighlight %}
 
+{% highlight bash %}
+# yum install automake
+{% endhighlight %}
 ## Obtención del código
 
 Existen dos opciones:
@@ -78,23 +78,22 @@ Tiene la ventaja de que el último commit del branch master puede tener correcci
 
 ## Compilación e Instalación
 
-Para la aplicacion de usuario se emplea Kbuild. Kbuild es un modo básico que simplemente se dedica a compilar e instalar el módulo para la versión actual del kernel.
-
 <div class="distro-menu">
-	<span class="distro-selector" onclick="showDistro(this);">Versión oficial</span>
-	<span class="distro-selector" onclick="showDistro(this);">Versión de Github</span>
+	<span class="distro-selector" onclick="showDistro(this);">Official release</span>
+	<span class="distro-selector" onclick="showDistro(this);">Git version</span>
 </div>
 
 {% highlight bash %}
-$ unzip Jool-<versión>.zip
-$ cd Jool-<versión>/usr
+$ unzip Jool-<version>.zip
+$ cd Jool-<version>/usr
+$
 $ ./configure
 $ make
 # make install
 {% endhighlight %}
 
 {% highlight bash %}
-$ unzip NAT64-master.zip
+$ unzip master.zip
 $ cd NAT64-master/usr
 $ ./autogen.sh
 $ ./configure
@@ -102,38 +101,28 @@ $ make
 # make install
 {% endhighlight %}
 
-## Validación
+> ![Nota](../images/bulb.svg) Si solamente se desea compilar el binario SIIT, es posible agilizar la compilación corriendo los comandos `make` en la carpeta `mod/stateless`. De igual manera, si solamente se desea el NAT64, puede hacerse en `mod/stateful`.
 
-Ahora, podemos ejecutar varias acciones como: validar que versión de Jool compilamos y consultar la ayuda en línea.
-
-### Versión
-
-Para desplegar la versión de Jool ejecuta:
+## Validación de la instalación
 
 {% highlight bash %}
-user@node:~/Jool/usr/$ cd stateful
-user@node:~/Jool/usr/stateful$ ./jool --v
+$ jool --version
+$ jool_siit --version
 {% endhighlight %}
 
-
-### Ayuda
-
-Para desplegar la ayuda en linea sobre los parámetros configurables y desplegables de Jool puedes usar las opciones `-?` o `--help`, de la siguiente manera:
+Para desplegar la ayuda sobre los parámetros configurables y desplegables de Jool se pueden usar las opciones `-?` o `--help`, de la siguiente manera:
 
 {% highlight bash %}
-user@node:~/Jool/usr/stateful$ ./jool -?
+$ jool --help
+$ jool_siit --help
 {% endhighlight %}
+
+Alternativamente, los manuales imprimen la misma información en un formato alternativo:
 
 {% highlight bash %}
-user@node:~/Jool/usr/stateless$ ./jool_siit --help
+$ man jool
+$ man jool_siit
 {% endhighlight %}
 
-### Uso
+[Otras opciones](documentation.html#aplicacin-de-espacio-de-usuario) interactúan con el respectivo módulo, de modo que requieren que se encuentre insertado.
 
-Para desplegar en forma resumida cuáles son las combinaciones válidas de los parámetros configurables y desplegables de Jool es con:
-
-{% highlight bash %}
-user@node:~/Jool/usr/stateless$ ./jool_siit --usage
-{% endhighlight %}
-
-Para TODAS las demás opciones se requiere habilitar previamente el servicio de traducción de paquetes como tal, es decir, haber insertado Jool en el Kernel, ya sea la modalidad stateless o stateful. Para aprender sobre ello, consulte la página de [Banderas](usr-flags.html).
