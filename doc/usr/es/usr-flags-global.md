@@ -17,7 +17,7 @@ TODO pendiente hacer revisión
 2. [Sintaxis](#sintaxis)
 3. [Ejemplos](#ejemplos)
 4. [Llaves](#keys)
-	1. [`--enable` | `--disable`](#enable---disable)
+	1. [`--enable`, `--disable`](#enable---disable)
 	2. [`--address-dependent-filtering`](#address-dependent-filtering)
 	3. [`--drop-icmpv6-info`](#drop-icmpv6-info)
 	4. [`--drop-externally-initiated-tcp`](#drop-externally-initiated-tcp)
@@ -80,7 +80,7 @@ O simplemente:
 
 ## Llaves
 
-### `--enable`|`--disable`
+### `--enable`, `--disable`
 
 - Nombre: ***HABILITA & DESHABILITA JOOL***
 - Tipo: ***No Aplica***

@@ -2,7 +2,7 @@
 language: en
 layout: default
 category: Documentation
-title: Node-Based Edge Relay
+title: Node-Based Translation
 ---
 
 [Documentation](documentation.html) > [Other Sample Runs](documentation.html#other-sample-runs) > Node-Based Translation
@@ -80,8 +80,6 @@ The following commands assume _App_'s packet is `192.0.2.1 -> 203.0.113.2` and t
 	# ip netns exec joolns ip -4 address add 192.0.2.2/24 dev to_world
 
 ### 4: Set up IP addressing and routing in the global namespace
-
-The IPv6 CLAT address is stolen from the /32 on eth0, so we'll need proxy-nd.
 
 	# echo 1 > /proc/sys/net/ipv6/conf/eth0/proxy_ndp
 	# ip -6 neigh add proxy 2001:db8:1::3 dev eth0

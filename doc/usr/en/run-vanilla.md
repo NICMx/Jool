@@ -166,11 +166,5 @@ user@T:~# /sbin/modprobe -r jool_siit
 
 ## Further reading
 
-Here are some logical follow-ups if you want to read more:
-
-- The [`pool6791` argument](usr-flags-pool6791.html) and its [gimmic](rfc6791.html).
-- Please consider the [MTU issues](mtu.html) before releasing.
-- If you care about EAM, head to the [second run](run-eam.html).
-- If you care about stateful NAT64, head to the [third run](run-nat64.html).
-- The [DNS64 document](dns64.html) will tell you how to make the prefix-address hack transparent to users.
+More complex setups might require you to consider the [MTU notes](mtu.html).
 

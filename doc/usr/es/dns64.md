@@ -36,7 +36,7 @@ Aunque Jool y el DNS64 son ilustrados como nodos separados, nada (además de [co
 
 Primero voy a explicar lo que deseamos lograr.
 
-`example.com` es un dominio que esta disponible tanto en IPv4 como en IPv6, y por lo tanto tiene ambos tipos de registros:
+`example.com` es un dominio que está disponible tanto en IPv4 como en IPv6, y por lo tanto tiene ambos tipos de registros:
 
 {% highlight bash %}
 $ dig example.com A
@@ -68,9 +68,9 @@ nat64-tutorial.mx.	240	IN	SOA	potato.mx. hostmaster.jool.mx. 2013070801 3600 900
 (...)
 {% endhighlight %}
 
-No hay necesidad de que un nodo de IPv6 acceda a `example.com` mediante un NAT64. En contraste, no tiene manera de acceder a `nat64-tutorial.mx` sin un traductor.
+No hay necesidad de que un nodo de IPv6 acceda a `example.com` mediante un NAT64. En contraste, necesita un traductor para acceder a `nat64-tutorial.mx`.
 
-En otras palabras, queremos que el servicio de DNS devuelva `2606:2800:220:6d:26bf:1447:1097:aa7` cuando le sea solicitado el registro AAAA de `example.com` (que es lo que normalmente hace), y `64:ff9b::200.94.182.36` (ej. el prefijo de traducción mas la direccion IPv4) cuando le sea solicitado el registro AAAA de `nat64-tutorial.mx`.
+En otras palabras, queremos que el servicio de DNS devuelva `2606:2800:220:6d:26bf:1447:1097:aa7` cuando le sea solicitado el registro AAAA de `example.com` (que es lo que normalmente hace), y `64:ff9b::200.94.182.36` (ie. el prefijo de traducción más la dirección IPv4) cuando le sea solicitado el registro AAAA de `nat64-tutorial.mx`.
 
 Lo primero es tener un servidor BIND instalado. En Ubuntu, lo único que tengo que hacer para llegar a esto es
 
@@ -114,7 +114,7 @@ user@J:~# /sbin/ip -6 route add default via 2001:db8:2::1 dev eth0
 
 (Instrucciones similares deberían ser replicadas en los routers y los nodos.)
 
-_J_ no necesita configuración adicional porque DNS es completamente transparente para NAT64.
+_J_ no necesita configuración adicional porque DNS64 es completamente transparente para NAT64.
 
 En cuanto a los nodos hoja, cualquier nodo IPv6 que necesita acceder a contenido IPv4 _debe_ utilizar el DNS64 como su servidor de nombres por defecto (a menos de que quieras especificarlo manualmente en tus comandos dig, supongo).
 

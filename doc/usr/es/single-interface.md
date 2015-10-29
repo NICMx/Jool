@@ -13,7 +13,7 @@ Esta sección está aquí is here solo para decirte que si quieres que tu SIIT o
 
 ![Fig.1 - Single interface NAT64](../images/network/alternate.svg)
 
-Esta es la misma configuración que en el [Ejemplo de uso de Stateful NAT64](mod-run-stateful.html), excepto por el hecho de que todo mundo ahora esta compartiendo el mismo cable, y tambien removí los nodos reduntantes por que entiendes el punto.
+Esta es la misma configuración que en el [Ejemplo de uso de Stateful NAT64](run-nat64.html), excepto por el hecho de que todo mundo ahora esta compartiendo el mismo cable, y tambien removí los nodos reduntantes por que entiendes el punto.
 
 _A_ y  _V_ son configurados exactamente como en sus contrapartes del ejemplo Stateful, asi que voy a brincarme sus comandos. Lo único que es diferente es _T_ ahora teniendo todas sus direcciones en la misma interfáz:
 

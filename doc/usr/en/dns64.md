@@ -28,7 +28,7 @@ Any correct DNS64 implementation is supposed to work; BIND will be used for illu
 
 ![Fig.1 - Setup](../images/tut4-setup.svg)
 
-Though Jool and the DNS64 are portrayed as separate nodes, there's nothing preventing you from joining them in a single machine (unless Jool's pool4 is monopolizing all of its node's IPv4 transport addresses, of course).
+Though Jool and the DNS64 are portrayed as separate nodes, there's nothing (aside from [port collision](pool4.html)) preventing you from joining them in a single machine.
 
 ## Configuration
 

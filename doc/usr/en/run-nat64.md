@@ -94,7 +94,7 @@ Jool will append and remove prefix `64:ff9b::/96`.
 
 > ![Note!](../images/bulb.svg) In previous versions of Jool, `pool4` used to be mandatory. This is no longer the case.
 
-> ![Note!](../images/bulb.svg) Because we skipped the `pool4` argument, Jool will fall back to mask packets using the upper ports of `203.0.113.1`. Unless you're See [pool4](pool4.html) for details on how to fine-tune this.
+> ![Note!](../images/bulb.svg) Because we skipped the `pool4` argument, Jool will fall back to mask packets using the upper ports of `203.0.113.1`. Unless you have few IPv6 clients, this is probably not what you want. See [pool4](pool4.html) for details on how to fine-tune this.
 
 ## Testing
 
@@ -131,6 +131,5 @@ user@T:~# /sbin/modprobe -r jool
 
 ## Further Reading
 
-1. Please consider the [MTU issues](mtu.html) before releasing.
-2. There's also an [alternate stateful run](single-interface.html). Perhaps it can help you see things from a better perspective.
+More complex setups might require you to consider the [MTU notes](mtu.html).
 

@@ -127,7 +127,7 @@ IPv4 es menos problemático con direcciones de enlace.
 
 ## El rendimiento es terrible!
 
-[Deshabilita offloads!](offloading.html)
+[Deshabilita offloads!](offloads.html)
 
 Si estás ejecutando Jool en una máquina virtual huésped, algo importante que debes considerar es que quizá tengas que deshabilitar los offloads en el enlace ascendente de la [máquina virtual](http://en.wikipedia.org/wiki/Hypervisor).
 

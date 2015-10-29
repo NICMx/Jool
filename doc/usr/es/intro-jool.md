@@ -40,7 +40,7 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Deprecación de los Fragmentos Atómicos | Jool contiene código que maneja fragmentos atómicos, pero [va de salida](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Cumple totalmente. |
 
-![email](../images/email.png) Favor de comunicarse mediante el [Bug Tracker](https://github.com/NICMx/NAT64/issues) si encuentra algún problema de cumplimiento adicional o RFCs/drafts que no se hayan considerado.
+![E-mail](../images/email.svg) Favor de comunicarse mediante el [Bug Tracker](https://github.com/NICMx/NAT64/issues) si encuentra algún problema de cumplimiento adicional o RFCs/drafts que no se hayan considerado.
 
 ## Compatibilidad
 
@@ -63,4 +63,4 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-![small_red_triangle](../images/small_red_triangle.png) La compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">. Esto no ha causado problemas en las pruebas</a>, sin embargo se está en búsqueda de quitarlos.
+![triangle](../images/triangle.svg) La compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">. Esto no ha causado problemas en las pruebas</a>, sin embargo se está en búsqueda de quitarlos.

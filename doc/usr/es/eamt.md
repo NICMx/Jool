@@ -5,7 +5,7 @@ category: Documentation
 title: EAMT
 ---
 
-[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [SIIT + EAM](mod-run-eam.html) > EAMT
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [SIIT + EAM](run-eam.html) > EAMT
 
 # EAMT
 
@@ -75,5 +75,5 @@ La dirección `203.0.113.8` se convierte en `2001:db8:cccc::`, no en `2001:db8:c
 ## Notas Adicionales
 
 * El mecanismo de traducción EAMT tiene más prioridad que [`pool6`](usr-flags-pool6.html). En otras palabras, Jool trata de traducir toda dirección usando la EAMT, y si no es posible, lo intenta usando pool6.
-* Ver la [demostración](mod-run-eam.html) o el [material de referencia](usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.
+* Ver la [demostración](run-eam.html) o el [material de referencia](usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.
 

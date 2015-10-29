@@ -13,12 +13,6 @@ title: Instalación de los Módulos del Kernel
 
 1. [Introducción](#introduccin)
 2. [Requerimientos](#requerimientos)
-	1. [Kernels Válidos](#kernels-vlidos)
-	2. [Paquetes básicos de compilación](#paquetes-bsicos-de-compilacin)
-	2. [Encabezados del Kernel](#encabezados-del-kernel)
-	3. [Interfaces de Red](#interfaces-de-red)
-	4. [DKMS](#dkms)
-	5. [Ethtool](#ethtool)
 3. [Obtención del código](#obtencin-del-cdigo)
 4. [Compilación e Instalación](#compilacin-e-instalacin)
 	1. [Instalación mediante DKMS](#instalacin-mediante-dkms)
@@ -30,16 +24,16 @@ Jool es cuatro binarios:
 
 1. Dos [Módulos de Kernel](https://es.wikipedia.org/wiki/M%C3%B3dulo_de_n%C3%BAcleo) que se ligan a Linux. Uno de ellos (`jool`) implementa Stateful NAT64, el otro (`jool_siit`) implementa SIIT.  
 Son los encargados de traducir paquetes.
-2. Una aplicación de [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario) por módulo de kernel. Nombrados de igual manera: `jool` y `jool_siit`
+2. Una aplicación de [Espacio de Usuario](http://es.wikipedia.org/wiki/Espacio_de_usuario) por módulo de kernel. Nombrados de igual manera: `jool` y `jool_siit`.
 Sirven para configurar a los respectivos módulos del kernel.
 
-Este documento se enfocará en la instalación de los módulos del kernel. La instalación de las aplicaciones de configuración tienen su [propio procedimiento](usr-install.html).
+Este documento se enfocará en la instalación de los módulos del kernel. La instalación de las aplicaciones de configuración tienen su [propio procedimiento](install-usr.html).
 
 ## Requerimientos
 
 Debido a la variedad de kernels que existen, no es factible distribuir binarios de módulos de kernel, de modo que es necesario que se compilen localmente.
 
-![small_orange_diamond](../images/small_orange_diamond.png) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos
+![Nota](../images/bulb.svg) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos
 
 ### Kernels Válidos
 
@@ -116,7 +110,7 @@ $ # Ver https://github.com/NICMx/NAT64/issues/158
 
 ### Interfaces de Red
 
-[Es posible traducir paquetes a través de una sola interfaz de red](mod-run-alternate.html), pero es más intuitivo comprender SIIT y NAT64 cuando se tienen dos: Una para IPv4 y otra para IPv6.
+[Es posible traducir paquetes a través de una sola interfaz de red](single-interface.html), pero es más intuitivo comprender SIIT y NAT64 cuando se tienen dos: Una para IPv4 y otra para IPv6.
 
 Por lo tanto, si se están utilizando estos documentos con fines educativos, se recomienda tener al menos dos interfaces:
 
@@ -131,18 +125,10 @@ $ ip link show
 
 ### DKMS
 
-DKMS es un framework que se encarga de administrar módulos. Este es opcional pero recomendable, la razón se discute abajo en la sección [Compilación e Instalación](#compilacin-e-instalacin).
+DKMS es un framework que se encarga de administrar módulos. Es opcional pero recomendado (la razón se discute abajo en la sección [Compilación e Instalación](#compilacin-e-instalacin)).
 
 {% highlight bash %}
 # apt-get install dkms
-{% endhighlight %}
-
-### Ethtool
-
-Ethtool es una utilería para configurar las tarjetas  Ethernet, con ella se pueden visualizar y modificar sus parámetros.
-
-{% highlight bash %}
-# apt-get install ethtool
 {% endhighlight %}
 
 ## Obtención del código
@@ -151,16 +137,18 @@ Existen dos opciones:
 
 1. Releases oficiales en la [página de descarga](download.html).  
 Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
-2. Release en desarrollo que están en el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+2. El [repositorio de GitHub](https://github.com/NICMx/NAT64).  
 Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
+
+> ![Nota](../images/bulb.svg) El repositorio de Github se llama "NAT64" solamente por razones históricas; también contiene al SIIT.
 
 ## Compilación e Instalación
 
-Existen dos medios para instalar a Jool: Kbuild y DKMS.
+Existen dos opciones para hacer esto: Kbuild y DKMS.
 
-Kbuild es un modo básico que simplemente se dedica a compilar e instalar el módulo para la versión actual del kernel. El Dynamic Kernel Module Support (DKMS) framework [añade la posibilidad de que el módulo se adapte a actualizaciones de Linux](https://en.wikipedia.org/wiki/Dynamic_Kernel_Module_Support) (un módulo instalado con Kbuild requiere recompilación y reinstalación cada vez que se actualiza Linux).
+Kbuild es la infraestructura básica para construir módulos. En general, cualquier instalación de Linux que soporta módulos ya lo contiene.
 
-Para todo propósito, ya sea para un ambiente de producción o prueba, es recomendadable preferir DKMS versus Kbuild.
+Por otro lado, DKMS se recomienda dado que es considerablemente más robusto. Permite crear paquetes para distribuciones basadas en deb/rpm, se ocupa de recompilar binarios cada vez que el kernel se actualiza y tiene un mecanismo de desinstalación bien documentado.
 
 ### Instalación mediante DKMS
 
@@ -175,11 +163,13 @@ $ unzip Jool-<versión>.zip
 {% endhighlight %}
 
 {% highlight bash %}
-$ unzip NAT64-master.zip
+$ unzip master.zip
 # dkms install NAT64-master
 {% endhighlight %}
 
 ### Instalación mediante Kbuild
+
+> ![Advertencia](../images/warning.svg) Favor de considerar: Binarios de módulos dependen en la versión del kernel. Los binarios que se van a generar aquí van a quedar obsoletos la próxima vez que se actualice Linux. Si se insiste en usar Kbuild, es necesario recompilar y reinstalar Jool cada vez que esto sucede.
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Versión oficial</span>
@@ -194,17 +184,17 @@ $ make
 {% endhighlight %}
 
 {% highlight bash %}
-$ unzip NAT64-master.zip
+$ unzip master.zip
 $ cd NAT64-master/mod
 $ make
 # make install
 {% endhighlight %}
 
-> **Notas:**
+> ![Advertencia](../images/warning.svg) Por razones de seguridad, desde el kernel 3.7 existe la opción de firmar módulos.
 > 
-> Por razones de seguridad, desde el kernel 3.7 existe la opción y es una buena práctica de que los módulos instalados sean firmados.
+> Si el kernel no fue configurado para _requerir_ esta característica, `make install` imprimirá el mensaje "Can't read private key". Esto es una advertencia, no un error, y la instalación puede proseguir sin complicaciones.
 > 
-> Si el kernel no fue configurado para _requerir_ esta característica, `make install` imprimirá el mensaje "Can't read private key", lo cual es una advertencia, no un error, y la instalación proseguirá sin cambios.
-> 
-> Si acaso el kernel _fue_ compilado para solicitar firmado de módulos, se requerirá comandos adicionales que será omitidos aquí.
+> Por otro lado, si el kernel _fue_ compilado para solicitar firmado de módulos, se requerirá comandos adicionales que serán omitidos aquí.
+
+> ![Nota](../images/bulb.svg) Si solamente se desea compilar el binario SIIT, es posible agilizar la compilación corriendo los comandos `make` en la carpeta `mod/stateless`. De igual manera, si solamente se desea el NAT64, puede hacerse en `mod/stateful`.
 

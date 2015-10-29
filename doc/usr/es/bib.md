@@ -5,7 +5,7 @@ category: Documentation
 title: BIB
 ---
 
-[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [Stateful NAT64](mod-run-stateful.html) > BIB
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [Stateful NAT64](run-nat64.html) > BIB
 
 # BIB
 
@@ -64,6 +64,6 @@ Entonces los nodos IPv4 pueden encontrar el servicio TCP publicado en 6::6 por e
 
 Si quieres aprender sobre:
 
-1. Cómo crear y destruir registros manualmente, ve a [mapeo estático](static-bindings.html) o consulta [usando la opción BIB](usr-flags-bib.html).
+1. Cómo crear y destruir registros manualmente, consulta [usando la opción BIB](usr-flags-bib.html).
 2. Cómo restringir el uso de los registros dinámicos, ve a [`--address-dependent-filtering`](usr-flags-global.html#address-dependent-filtering).
 

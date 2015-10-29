@@ -14,7 +14,7 @@ Welcome to Jool's documentation index.
 1. [What is SIIT/NAT64?](intro-nat64.html)
 2. [What is Jool?](intro-jool.html)
 
-See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> for deployment experiences using Stateful NAT64.
+See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences using Stateful NAT64.
 
 ## Installation
 
@@ -48,6 +48,8 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 1. Common arguments
 	1. [`--help`](usr-flags-help.html)
 	2. [`--global`](usr-flags-global.html)
+		1. [`--plateaus`](usr-flags-plateaus.html)
+		2. [`--allow-atomic-fragments`](usr-flags-atomic.html)
 	3. [`--pool6`](usr-flags-pool6.html)
 2. `jool_siit`-only arguments
 	1. [`--eamt`](usr-flags-eamt.html)
@@ -57,6 +59,7 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 	1. [`--pool4`](usr-flags-pool4.html)
 	2. [`--bib`](usr-flags-bib.html)
 	3. [`--session`](usr-flags-session.html)
+	4. [`--quick`](usr-flags-quick.html)
 
 ## Defined Architectures
 

@@ -139,6 +139,5 @@ user@T:~# /sbin/modprobe -r jool_siit
 
 ## Further reading
 
-- Please consider the [MTU issues](mtu.html) before releasing.
-- Stateful NAT64 is [over here](run-nat64.html).
+More complex setups might require you to consider the [MTU notes](mtu.html).
 

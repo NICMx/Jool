@@ -63,7 +63,7 @@ El traductor esta "engañando" a ambos nodos, haciéndoles pensar que el otro pu
 
 "EAM" es abreviación de "Explicit Address Mapping" (Mapeo Explícito de Direcciones), y es más versátil que simples asociaciones entre diferentes direcciones arbitrarias.
 
-![bulb](../images/bulb.png) Más detalles sobre EAM pueden encontrarse en este [resumen](eamt.html) o en el [documento de la IETF]({{ site.draft-siit-eam }}).
+![Nota](../images/bulb.svg) Más detalles sobre EAM pueden encontrarse en este [resumen](eamt.html) o en el [documento de la IETF]({{ site.draft-siit-eam }}).
 
 ### SIIT (tradicional)
 
@@ -90,7 +90,7 @@ Puedes encontrar un ejemplo concreto de cómo SIIT "tradicional" y SIIT "EAM" pu
 
 Dependiendo de la longitud del prefijo, la dirección IPv4 se incorporará en diferentes posiciones dentro de la dirección de IPv6. Puede encontrarse más información en el [RFC 6052](http://tools.ietf.org/html/rfc6052).
 
-![warning](../images/warning.png) Siempre que el RFC 6052 esté involucrado, es conveniente dar de alta también un [DNS64](dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
+![warning](../images/warning.svg) Siempre que el RFC 6052 esté involucrado, es conveniente dar de alta también un [DNS64](dns64.html) para que los usuarios no necesiten estar al tanto del prefijo, y resuelva por nombre.
 
 ### Stateful NAT64
 
@@ -142,7 +142,7 @@ De esta manera, los nodos _A_ hasta _E_ son solo de _IPv6_, pero tienen acceso a
 
 Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2](https://tools.ietf.org/html/rfc6144#section-2).
 
-![warning](../images/warning.png) Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
+![warning](../images/warning.svg) Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
 
 ## Nota Histórica
 

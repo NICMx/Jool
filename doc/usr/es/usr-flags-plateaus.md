@@ -94,7 +94,7 @@ Por otra parte, mirando el ejemplo podrías haber pensado "ARPANET se disolvió 
 
 Consideramos que no es tan negativo usar la lista tal cual, dado que algunos de los protocolos de la tabla todavía siguen en uso. Es más precavido, conservar todos los valores  versus a que nos lleguen a faltar.
 
-Cabe mencionar que la lista plateaus NO está codificada directamente en Jool. Si deseas establecer tu propia lista plateaus, ejecuta (después de instalar la [Herramienta de configuración de Jool](usr-install.html).
+Cabe mencionar que la lista plateaus NO está codificada directamente en Jool. Si deseas establecer tu propia lista plateaus, ejecuta (después de instalar la [Herramienta de configuración de Jool](install-usr.html).
 
 	$(jool) --mtu-plateaus <list>
 
