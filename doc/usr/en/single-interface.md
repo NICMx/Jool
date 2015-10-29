@@ -13,7 +13,7 @@ This nugget is here only to tell you that if you want your SIIT or NAT64 to serv
 
 ![Fig.1 - Single interface NAT64](../images/network/alternate.svg)
 
-This is the same setup as in the [Stateful NAT64 Run](mod-run-stateful.html), except from the fact that everyone is now sharing the same cord, and also I removed the redundant nodes because you get the point.
+This is the same setup as in the [Stateful NAT64 Run](run-nat64.html), except from the fact that everyone is now sharing the same cord, and also I removed the redundant nodes because you get the point.
 
 _A_ and _V_ are configured exactly as in their stateful run counterparts, so I'll skip their commands. All that's different is _T_ now having all of its addresses on the same interface:
 

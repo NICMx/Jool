@@ -22,13 +22,13 @@ title: EAM Run
 
 This document explains how to run Jool in [EAM mode](intro-nat64.html#siit-with-eam) (which actually more than a "mode" is simply stock SIIT with records in the EAM table). Follow the link for more details on what to expect. See also [the EAMT draft summary](eamt.html) for more details on how the EAMT works.
 
-[Stock mode](mod-run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](install-mod.html) **and** the [userspace application](install-usr.html) for EAM.
+[Stock mode](run-vanilla.html) is faster to configure and you're encouraged to learn it before, particularly because I will not ellaborate here on the steps which both modes have in common. Software-wise, you need a successful installation of both the [kernel module](install-mod.html) **and** the [userspace application](install-usr.html) for EAM.
 
 ## Sample Network
 
 ![Figure 1 - Sample Network](../images/network/eam.svg)
 
-All the remarks in the previous document's [Sample Network section](mod-run-vanilla.html#sample-network) apply here.
+All the remarks in the previous document's [Sample Network section](run-vanilla.html#sample-network) apply here.
 
 This is nodes _A_ through _E_:
 
@@ -140,5 +140,5 @@ user@T:~# /sbin/modprobe -r jool_siit
 ## Further reading
 
 - Please consider the [MTU issues](mtu.html) before releasing.
-- Stateful NAT64 is [over here](mod-run-stateful.html).
+- Stateful NAT64 is [over here](run-nat64.html).
 

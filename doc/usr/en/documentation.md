@@ -23,9 +23,9 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Runs
 
-1. [SIIT](mod-run-vanilla.html)
-2. [SIIT + EAM](mod-run-eam.html)
-3. [Stateful NAT64](mod-run-stateful.html)
+1. [SIIT](run-vanilla.html)
+2. [SIIT + EAM](run-eam.html)
+3. [Stateful NAT64](run-nat64.html)
 4. [DNS64](dns64.html)
 
 ## SIIT in Detail
@@ -66,7 +66,7 @@ See <a href="https://tools.ietf.org/html/rfc6586" target="_blank">RFC 6586</a> f
 
 ## Other Sample Runs
 
-1. [Single Interface](mod-run-alternate.html)
+1. [Single Interface](single-interface.html)
 2. [Node-Based Translation](node-based-translation.html)
 
 ## Miscellaneous

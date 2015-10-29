@@ -106,7 +106,7 @@ $ # See https://github.com/NICMx/NAT64/issues/158
 
 ### Network interfaces
 
-[Translating packets using only one interface is possible](mod-run-alternate.html), but two (one for IPv4, one for IPv6) is more intuitive.
+[Translating packets using only one interface is possible](single-interface.html), but two (one for IPv4, one for IPv6) is more intuitive.
 
 Therefore, if you're using these documents for educational purposes, two interfaces are recommended:
 

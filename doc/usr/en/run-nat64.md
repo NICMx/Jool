@@ -28,7 +28,7 @@ Software-wise, only a [successful install of the kernel module](install-mod.html
 
 ![Figure 1 - Sample Network](../images/network/stateful.svg)
 
-All the remarks in the first document's [Sample Network section](mod-run-vanilla.html#sample-network) apply here.
+All the remarks in the first document's [Sample Network section](run-vanilla.html#sample-network) apply here.
 
 Nodes _A_ through _E_:
 
@@ -132,5 +132,5 @@ user@T:~# /sbin/modprobe -r jool
 ## Further Reading
 
 1. Please consider the [MTU issues](mtu.html) before releasing.
-2. There's also an [alternate stateful run](mod-run-alternate.html). Perhaps it can help you see things from a better perspective.
+2. There's also an [alternate stateful run](single-interface.html). Perhaps it can help you see things from a better perspective.
 

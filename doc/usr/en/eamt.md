@@ -47,5 +47,5 @@ The prefix replacement is done at bit level. The third entry exemplifies this: A
 
 If Jool doesn't find a match in the table for an address, it tries to translate based on the [`pool6`](usr-flags-pool6.html) prefix. If that also fails, the packet is returned to the kernel (ie. it is assumed it wasn't meant to be translated).
 
-See the [walkthrough](mod-run-eam.html) or the [reference material](usr-flags-eamt.html) for information on how to create and destroy entries manually.
+See the [walkthrough](run-eam.html) or the [reference material](usr-flags-eamt.html) for information on how to create and destroy entries manually.
 
