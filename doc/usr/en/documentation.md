@@ -11,7 +11,7 @@ Welcome to Jool's documentation index.
 
 ## Introduction
 
-1. [What is SIIT/NAT64?](intro-nat64.html)
+1. [What is SIIT/NAT64?](intro-xlat.html)
 2. [What is Jool?](intro-jool.html)
 
 See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences using Stateful NAT64.
@@ -63,8 +63,8 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 
 ## Defined Architectures
 
-1. [464XLAT](464xlat.html)
-2. [SIIT-DC](siit-dc.html)
+1. [SIIT-DC](siit-dc.html)
+2. [464XLAT](464xlat.html)
 3. [SIIT-DC: Dual Translation Mode](siit-dc-2xlat.html)
 
 ## Other Sample Runs

@@ -27,7 +27,7 @@ title: SIIT-EAM - Ejemplo de uso
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en modo SIIT+EAM. Una introducción a este mecanismo de traducción de direcciones puede encontrarse [aquí](intro-nat64.html#siit-con-eam).
+Este documento explica cómo ejecutar Jool en modo SIIT+EAM. Una introducción a este mecanismo de traducción de direcciones puede encontrarse [aquí](intro-xlat.html#siit-con-eam).
 
 A diferencia del [tutorial anterior](run-vanilla.html), este documento tiene como prerequisito una instalación de tanto el [módulo del kernel](install-mod.html) como de la [aplicación de espacio de usuario](install-usr.html).
 

@@ -11,7 +11,7 @@ title: Home
 
 ## Introduction
 
-Jool is an Open Source [SIIT and NAT64](intro-nat64.html) for Linux.
+Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 * [Click here](documentation.html) to start getting acquainted with the software.
 * [Click here](download.html) to download Jool.
@@ -74,7 +74,7 @@ Jool 3.3.0 is finished.
 
 [Filtering couldn't make it into the milestone](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), but Stateless IP/ICMP Translation (SIIT) is now supported.
 
-See the updated [SIIT/NAT64 introduction](intro-nat64.html) for an improved picture of the SIIT paradigm. [Here's the tutorial](run-vanilla.html). Also keep an eye on [464XLAT](464xlat.html).
+See the updated [SIIT/NAT64 introduction](intro-xlat.html) for an improved picture of the SIIT paradigm. [Here's the tutorial](run-vanilla.html). Also keep an eye on [464XLAT](464xlat.html).
 
 We also refactored the userspace app somewhat; please review your scripts:
 

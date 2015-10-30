@@ -16,7 +16,6 @@ title: 464XLAT
 3. [Expected Packet Flow](#expected-packet-flow)
 4. [Testing](#testing)
 5. [Closing words](#closing-words)
-6. [Further reading](#further-reading)
 
 ## Introduction
 
@@ -36,7 +35,7 @@ Could be poorly coded like this:
 
 This address lies within the body of an HTML file, not a network or transport header. It is not viable for a NAT64 to support translation of all existing application protocols.
 
-Clicking the latter version of the link from an IPv6-only node via a NAT64 will result in failure, because the node doesn't have an IPv4 stack with which to access `203.0.113.24`. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
+Clicking the latter version of the link from an IPv6-only node via a NAT64 will result in failure, because the node doesn't have an IPv4 stack which to access `203.0.113.24` with. `www.jool.mx` works fine because the DNS64 appends the NAT64 prefix once the node asks about it; on the other hand, if all the node has is `203.0.113.24`, it can't really tell it's talking via a NAT64, much less know which prefix should be appended.
 
 [464XLAT](https://tools.ietf.org/html/rfc6877) is a technique meant to address this limitation. It appends an SIIT to the path, which mirrors the NAT64's work, which grants a controlled amount of clients a fallback IPv4 stack to access IP literals with.
 
@@ -50,7 +49,7 @@ Say your user from _n6_ clicks a link towards `203.0.113.24`. _n6_ does not have
 
 In broad terms, the solution is to provide _n6_ with a "fake" IPv4 stack whose packets will be translated into IPv6 before reaching _PLAT_. In other words, an SIIT service (in 464XLAT terms called "_CLAT_"; "Customer-side Translator") will be sort of undoing _PLAT_'s work.
 
-There are rather several ways to do this. Unfortunately, one of them ([making _n6_ itself the CLAT]({{ site.draft-siit-dc-2xlat }}#section-3.1)) is rather embarrassingly not yet implemented by Jool. One that does work is to make _R_ the CLAT. The network would look like this:
+If _n6_ is an lone case and you want to isolate the mirror hack as much as possible, [_n6_ itself can be the CLAT](node-based-translation.html). If you want to provide this feature to several nodes however, _R_ is a better candidate:
 
 ![Fig.2 - 464XLAT'd Network](../images/network/464-network.svg "Fig.2 - 464XLAT'd Network")
 
@@ -193,9 +192,4 @@ Here's a list of protocols that are known to use IP literals. You might also wan
  - [Some games](http://tools.ietf.org/html/rfc6586#section-5.4)
  - [Spotify](http://tools.ietf.org/html/rfc6586#section-5.5)
  - [Poorly coded HTML](http://tools.ietf.org/html/rfc6586#section-6.1)
-
-## Further reading
-
-- [464XLAT](https://tools.ietf.org/html/rfc6877)
-- [SIIT/DC: Dual Translation Mode]({{ site.draft-siit-dc-2xlat }})
 

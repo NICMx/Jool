@@ -5,9 +5,9 @@ category: Documentation
 title: Pool IPv4 Stateful
 ---
 
-[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [Stateful NAT64](run-nat64.html) > Pool de direcciones IPv4
+[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [Stateful NAT64](run-nat64.html) > Pool de direcciones de transporte IPv4
 
-# Pool de direcciones IPv4
+# Pool de direcciones de transporte IPv4
 
 ## Índice
 
@@ -21,11 +21,11 @@ Este documento sirve como una introducción a `pool4` de NAT64 Jool.
 
 ## Explicación rápida
 
-Si estás familiarizado/a con iptables y masquerade, probablemente todo lo que necesitas saber es que
+Esto:
 
 	jool --pool4 --add --tcp 192.0.2.1 5000-6000
 
-Es espiritualmente equivalente a
+es espiritualmente equivalente a
 
 	ip addr add 192.0.2.1 dev (...)
 	iptables -t nat -A POSTROUTING -p TCP -j MASQUERADE --to-ports 5000-6000
@@ -52,7 +52,11 @@ Otra, igualmente válida, es
 
 Los NAT64s no se preocupan por conservar puertos fuente durante traducciones. De hecho, por seguridad, [existen recomendaciones para que tiendan a ser impredecibles]({{ site.draft-nat64-port-allocation }}).
 
-Al definir las direcciones y puertos que van a entrar en pool4, es necesario considerar que no deben colisionar con otros servicios o clientes que puedan estar en el mismo nodo traductor. Si _T_ trata de abrir una coneción desde la dirección de transporte `192.0.2.1#5000`, y a la vez una traducción resulta en la misma dirección de transporte, la información transmitida en las dos conexiones se va a mezclar.
+Al definir las direcciones y puertos que van a entrar en pool4, es necesario considerar que no deben colisionar con otros servicios o clientes que puedan estar en el mismo nodo traductor. Si _T_ trata de abrir una conexión desde la dirección de transporte `192.0.2.1#5000`, y a la vez una traducción resulta en la misma dirección de transporte, la información transmitida en las dos conexiones se va a mezclar.
 
-Por defecto, el rango de puertos efímeros en Linux es 32768-61000. Por lo tanto, el rango de puertos en Jool para cualquier dirección es (por defecto) 61001-65535. [Es posible modificar el primero a través del sysctl `sys.net.ipv4.ip_local_port_range`, y el segundo mediante comandos `--pool4 --add` de la aplicación de usuario](usr-flags-pool4.html#notas).
+Si no hay elementos en pool4, Jool va a intentar enmascarar paquetes usando la primera dirección global configurada en las interfaces de su nodo. Dado que el rango de puertos efímeros en Linux es 32768-61000 por defecto, Jool solamente va a intentar usar los puertos 61001-65535 en este caso.
+
+Por otro lado, si se insertan elementos en pool4 sin espeficiar un rango de puertos, Jool va a asumir que el dominio completo de puertos de la dirección (1-65535) le pertenecen. Esto se hace por compatibilidad con versiones anteriores de Jool.
+
+[Es posible modificar los puertos efímeros de Linux usando el sysctl `sys.net.ipv4.ip_local_port_range`, y los puertos de cada entrada de pool4 a través de `--pool4`](usr-flags-pool4.html#notas).
 

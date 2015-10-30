@@ -45,7 +45,7 @@ Comma-separated arguments can contain up to 5 entries. If you need more, use the
 - Userspace Application Counterpart: [`--pool6`](usr-flags-pool6.html)
 - Default: -
 
-The RFC 6052 translation prefix. It defines the IPv6 representation of the addresses of the IPv4 nodes. See the [NAT64 introduction](intro-nat64.html#stateful-nat64).
+The RFC 6052 translation prefix. It defines the IPv6 representation of the addresses of the IPv4 nodes. See the [NAT64 introduction](intro-xlat.html#stateful-nat64).
 
 If this is not present, Jool cannot translate. Therefore, you can use the default to pause translation, just like [`disabled`](#disabled).
 

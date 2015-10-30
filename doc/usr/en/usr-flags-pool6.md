@@ -20,7 +20,7 @@ title: --pool6
 
 ## Description
 
-Interacts with Jool's IPv6 pool. This "pool" contains the [RFC 6052](https://tools.ietf.org/html/rfc6052) prefix, which is the basic translation prefix to be added or removed from IPv4 addresses in [vanilla SIIT](intro-nat64.html#siit-traditional) and [Stateful NAT64](intro-nat64.html#stateful-nat64).
+Interacts with Jool's IPv6 pool. This "pool" contains the [RFC 6052](https://tools.ietf.org/html/rfc6052) prefix, which is the basic translation prefix to be added or removed from IPv4 addresses in [vanilla SIIT](intro-xlat.html#siit-traditional) and [Stateful NAT64](intro-xlat.html#stateful-nat64).
 
 Even though we (and the RFC) call it a "pool", it doesn't really make sense for it to contain more than one prefix because there's currently no way to map them to interfaces or [pool4](pool4.html) entries. This might change in the future. NAT64 Jool allows you to inject more than one prefix to the pool, but only for backwards compatibility reasons (the translating code always uses the first prefix only). SIIT Jool does not allow you to input more than one prefix.
 

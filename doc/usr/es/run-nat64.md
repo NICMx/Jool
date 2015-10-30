@@ -26,7 +26,7 @@ title: Stateful NAT64 - Ejemplo de uso
 
 ## Introducción
 
-Este documento explica cómo ejecutar Jool en modo NAT64. Si no tiene nociones de este tipo de traducción consulte [el resumen](intro-nat64.html#stateful-nat64).
+Este documento explica cómo ejecutar Jool en modo NAT64. Si no tiene nociones de este tipo de traducción consulte [el resumen](intro-xlat.html#stateful-nat64).
 
 Solo es necesaria una [instalación exitosa del módulo del kernel](install-mod.html). El configurador no es requerido en esta ejecución básica.
 

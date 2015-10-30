@@ -20,7 +20,7 @@ title: Basic SIIT Run
 
 ## Introduction
 
-This document explains how to run Jool in [stock SIIT mode](intro-nat64.html#siit-traditional). Follow the link for more details on what to expect.
+This document explains how to run Jool in [stock SIIT mode](intro-xlat.html#siit-traditional). Follow the link for more details on what to expect.
 
 Software-wise, only a [successful install of Jool’s kernel module](install-mod.html) is required. The userspace application is out of the scope of this document on purpose.
 

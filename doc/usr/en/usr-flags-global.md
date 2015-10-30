@@ -93,7 +93,7 @@ Resumes and pauses translation of packets, respectively. This might be useful if
 
 (If you don't want Jool to stop while you reconfigure, don't worry about this. Use it only if it feels right.)
 
-Timeouts will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) and [fragments](#fragment-arrival-timeout) might die while Jool is idle.
+Timers will _not_ be paused. In other words, [BIB](usr-flags-bib.html)/[session](usr-flags-session.html) entries and stored [packets](#maximum-simultaneous-opens) and [fragments](#fragment-arrival-timeout) might die while Jool is idle.
 
 ### `--address-dependent-filtering`
 
@@ -107,8 +107,6 @@ Long story short:
 
 - `--address-dependent-filtering` ON means Jool should be an (address)-restricted-cone NAT.
 - `--address-dependent-filtering` OFF means Jool should be a full-cone NAT.
-
-[Wiki](http://en.wikipedia.org/wiki/Network_address_translation#Methods_of_translation).
 
 Long story long:
 
@@ -308,7 +306,7 @@ There are several important things to notice:
 - There's no information on _who_ was `2001:db8::5` talking to. This is a _good_ thing; it means you're honoring your client's privacy as much as you can.
 - The logging uses GMT; you might need to convert this for comfort.
 
-This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the _kernel log_, so the messages will be mixed along with anything else the kernel has to say (including Jool's error messages, for example). The log messages will have [INFO priority](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up).
+This defaults to false because it generates humongous amounts of logs while active (remember you need infrastructure to maintain them). Notice the maps are dumped into the _kernel log_, so the messages will be mixed along with anything else the kernel has to say ([including Jool's error messages, for example](logging.html)). The log messages will have [INFO priority](http://stackoverflow.com/questions/16390004/change-default-console-loglevel-during-boot-up).
 
 If logging the destination makes sense for you, see `--logging-session` (below). To comply with REQ-12 of RFC 6888 you want to set `--loging-bib` as true and `--logging-session` as false.
 
@@ -441,7 +439,7 @@ Why? [It can be argued that `hop limit`th is better](https://github.com/NICMx/NA
 - Source: [RFC 6145, section 4.2](http://tools.ietf.org/html/rfc6145#section-4.2)
 - Deprecated name: `--plateaus`
 
-When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification does not require routers to include this data.
+When a packet should not be fragmented and doesn't fit into a link it's supposed to traverse, the troubled router is supposed to respond an error message indicating _Fragmentation Needed_. Ideally, this error message would contain the MTU of the link so the original emitter would be aware of the ideal packet size and avoid fragmentation. However, the original ICMPv4 specification did not require routers to include this information, so old ware might tend to omit it.
 
 Backwards compatibility awards IPv4 emmiters strategies to fall back when they encounter such a situation, but IPv6 has always been designed with the field present in mind. Therefore, if Jool translates a zero-MTU ICMPv4 message into a zero-MTU ICMPv6 message, chaos *might* ensue (actual results will depend mainly on the IPv6 client's implementation).
 

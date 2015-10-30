@@ -22,9 +22,9 @@ title: BIB
 
 ## Qué es la BIB?
 
-El _Binding Information Base_ (BIB) es una colección de tablas en el *Stateful NAT64*. Aunque este concepto nace con los NATs y está definido en el [RFC 2263, 1999](https://tools.ietf.org/html/rfc2663). 
+El _Binding Information Base_ (BIB) es una colección de tablas en un *Stateful NAT64*, y está definida formalmente en [la Sección 3.1 del RFC 6146](http://tools.ietf.org/html/rfc6146#section-3.1).
 
-La podríamos llamar Base de Datos de Asociaciones o Enlaces porque en ella se guardará por pares la asociación (dirección IPv6, puerto IPv6) con  (dirección IPv4, puerto IPv4) si es una paquete de UDP o TCP. A esas duplas se le llaman [direcciones de transporte](http://tools.ietf.org/html/rfc6146#section-1.2). Cuando es un paquete de ICMP, se guardan los pares (dirección IPv6, identificador IPv6) con  (dirección IPv4, identificador IPv4). Para conocer todos los detalles sobre la BIB lee [la Sección 3.1, del RFC 6146 ](http://tools.ietf.org/html/rfc6146#section-3.1).
+La podríamos llamar Base de Datos de Asociaciones o Enlaces porque en ella se guardará por pares la asociación (dirección IPv6, puerto IPv6) con  (dirección IPv4, puerto IPv4) si es una paquete de UDP o TCP. A esas duplas se le llaman [direcciones de transporte](http://tools.ietf.org/html/rfc6146#section-1.2). Cuando es un paquete de ICMP, se guardan los pares (dirección IPv6, identificador IPv6) con  (dirección IPv4, identificador IPv4).
 
 Dicho de otra manera, podemos decir que los registros en esta base de datos mapean las _direcciones de transporte_ de la conexión de un nodo IPv6 a la _dirección de transporte_ que Jool está usando para enmascarar éste en IPv4 en los protocolos UDP y TCP. Y mapeará la dupla (IP, identificador) de la conexión de un nodo IPv6 a la dupla (IP, identificador)  que Jool está usando para enmascarar éste en IPv4 si es un mensaje de ICMP.
 

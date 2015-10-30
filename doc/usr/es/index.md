@@ -11,7 +11,7 @@ title: Inicio
 
 ## Introducción
 
-Jool es un [SIIT y NAT64](intro-nat64.html) de código abierto para Linux.
+Jool es un [SIIT y NAT64](intro-xlat.html) de código abierto para Linux.
 
 * Para familiarizase con el software vaya a [documentación](documentation.html).
 * Para descargar Jool presione [descargas](download.html).
@@ -79,7 +79,7 @@ Se ha concluido Jool 3.3.0.
 
 ![triangle](../images/triangle.svg) [Las polítcas de Filtrado aún no son soportadas en esta versión](https://github.com/NICMx/NAT64/issues/41#issuecomment-76861510), pero la traducción Stateless (SIIT) es ahora parte del proyecto.
 
-Los siguientes recursos están disponibles: [introducción a SIIT/NAT64](intro-nat64.html), [tutorial - SIIT](run-vanilla.html) y [tutorial - SIIT/DC](464xlat.html).
+Los siguientes recursos están disponibles: [introducción a SIIT/NAT64](intro-xlat.html), [tutorial - SIIT](run-vanilla.html) y [tutorial - SIIT/DC](464xlat.html).
 
 Se reorganizó el programa de configuración de Jool, por favor **actualice sus scripts**:
 

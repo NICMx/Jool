@@ -21,7 +21,7 @@ title: --eamt
 
 ## Descripción
 
-Interactua con la Tabla de mapeo de direcciones explícitas de Jool (EAMT) por sus siglas en inglés. Ve [la introducción](intro-nat64.html#siit-with-eam) para una que tengas visión general rápida, nuestro [resumen de drafts](eamt.html) para mas detalles, o el [draft EAM]({{ site.draft-siit-eam }}) para la historia completa.
+Interactua con la Tabla de mapeo de direcciones explícitas de Jool (EAMT) por sus siglas en inglés. Ve [la introducción](intro-xlat.html#siit-with-eam) para una que tengas visión general rápida, nuestro [resumen de drafts](eamt.html) para mas detalles, o el [draft EAM]({{ site.draft-siit-eam }}) para la historia completa.
 
 ## Sintaxis
 

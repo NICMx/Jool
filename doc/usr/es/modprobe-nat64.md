@@ -45,7 +45,7 @@ Argumentos que consistan en elementos separados por comas pueden contener hasta 
 - Contraparte de la aplicación de espacio de usuario: [`--pool6`](usr-flags-pool6.html)
 - Valor por defecto: -
 
-El prefijo de traducción del RFC 6052. Define la representación IPv6 de las direcciones de los nodos de IPv4; ver la [introducción a NAT64](intro-nat64.html#stateful-nat64).
+El prefijo de traducción del RFC 6052. Define la representación IPv6 de las direcciones de los nodos de IPv4; ver la [introducción a NAT64](intro-xlat.html#stateful-nat64).
 
 Jool no puede traducir si este valor no está presente. Por lo tanto, es posible usar el valor por defecto para pausar la traducción, similar a [`disabled`](#disabled).
 

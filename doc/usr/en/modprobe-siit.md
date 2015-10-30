@@ -48,7 +48,7 @@ Comma-separated arguments can contain up to 5 entries. If you need more, use the
 - Userspace Application Counterpart: [`--pool6`](usr-flags-pool6.html)
 - Default: -
 
-The RFC 6052 translation prefix. It's the base prefix Jool will be appending and removing from the packets as described in the [stock SIIT introduction](intro-nat64.html#siit-traditional).
+The RFC 6052 translation prefix. It's the base prefix Jool will be appending and removing from the packets as described in the [stock SIIT introduction](intro-xlat.html#siit-traditional).
 
 As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.
 

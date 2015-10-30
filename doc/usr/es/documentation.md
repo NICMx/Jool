@@ -11,7 +11,7 @@ Bienvenido/a al índice de la documentación de Jool.
 
 ## Introducción
 
-1. [¿Qué es SIIT/NAT64?](intro-nat64.html)
+1. [¿Qué es SIIT/NAT64?](intro-xlat.html)
 2. [¿Qué es Jool?](intro-jool.html)
 
 Ver el [RFC 6586](https://tools.ietf.org/html/rfc6586) para encontrar experiencias de despliegue usando Stateful NAT64.

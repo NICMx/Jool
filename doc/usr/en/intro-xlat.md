@@ -74,6 +74,8 @@ While this explanation might make it seem like "EAM" SIIT and "traditional" SIIT
 
 SIIT is defined by [RFC 6145](http://tools.ietf.org/html/rfc6145). The address translation hack has more ways to embed the IPv4 address not shown here, and is fully defined by [RFC 6052](http://tools.ietf.org/html/rfc6052). Whenever RFC 6052 is involved, it's usually convenient to also have a [DNS64](dns64.html) so users don't need to be aware of the prefix.
 
+[SIIT-DC](siit-dc.html) is an architecture that uses both SIIT "modes" in concert to achieve a scalable IPv4/IPv6 coexistence setup for Data Centres.
+
 ## Stateful NAT64
 
 This mode is more akin to what people understand as "NAT". As such, allow me to remind you the big picture of how (stateful) NAT operates:

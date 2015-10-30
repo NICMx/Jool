@@ -27,7 +27,7 @@ title: SIIT - Ejemplo básico
 
 ## Introducción
 
-Este documento explica cómo ejecutar a Jool en modo SIIT. Se puede encontrar una explicación de este tipo de traducción [aquí](intro-nat64.html#siit-tradicional).
+Este documento explica cómo ejecutar a Jool en modo SIIT. Se puede encontrar una explicación de este tipo de traducción [aquí](intro-xlat.html#siit-tradicional).
 
 Solamente se necesita una instalación exitosa del [módulo del kernel](install-mod.html) para seguir este documento. La aplicación de espacio de usuario no es aún necesaria.
 

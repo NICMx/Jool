@@ -14,10 +14,11 @@ title: Introduction to Jool
 1. [Overview](#overview)
 2. [Compliance](#compliance)
 3. [Compatibility](#compatibility)
+4. [Design](#design)
 
 ## Overview
 
-Jool is an Open Source implementation of [IPv4/IPv6 Translation](intro-nat64.html) on Linux. Until version 3.2.x, it used to be only a Stateful NAT64; starting from 3.3.0, it also supports SIIT mode.
+Jool is an Open Source implementation of [IPv4/IPv6 Translation](intro-xlat.html) on Linux. Until version 3.2.x, it used to be only a Stateful NAT64; starting from 3.3.0, it also supports SIIT mode.
 
 ## Compliance
 
@@ -57,4 +58,16 @@ We're supposed to support Linux kernels 3.0.0 and up. While most of the developm
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
 Red Hat and CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
+
+## Design
+
+Jool is a Netfilter module that hooks itself to the prerouting chain (See [Netfilter Architecture](http://www.netfilter.org/documentation/HOWTO//netfilter-hacking-HOWTO-3.html)). Because Netfilter isn't comfortable with packets changing layer-3 protocols, it has its own forwarding pipeline, which only translating packets traverse.
+
+![Fig.1 - Jool within Netfilter](../images/netfilter.svg)
+
+Jool only intercepts packets belonging to the same namespace it was created in. Because the namespace code is still very young, only one Jool instance in one namespace can exist at any one time.
+
+> ![Note](../images/bulb.svg) Notice all filtering iptables modules skip Jool. For this reason, if you need to filter, you need to insert Jool in a namespace so iptables can do its job during FORWARD.
+> 
+> ![Fig.2 - Jool and Filtering](../images/netfilter-filter.svg)
 

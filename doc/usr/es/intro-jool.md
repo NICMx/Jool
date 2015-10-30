@@ -14,10 +14,11 @@ title: Introducción a Jool
 1. [Descripción](#descripcin)
 2. [Cumplimiento](#cumplimiento)
 3. [Compatibilidad](#compatibilidad)
+4. [Diseño](#diseo)
 
 ## Descripción
 
-Jool es una implementación de código abierto de dos mecanismos de transición a IPv6: [SIIT y Stateful NAT64](intro-nat64.html).
+Jool es una implementación de código abierto de dos mecanismos de transición a IPv6: [SIIT y Stateful NAT64](intro-xlat.html).
 
 De Jool 1.0 a Jool 3.2.3 ->  Stateful NAT64<br /> 
 De Jool 3.3.0 en delante ->  Stateful NAT64, SIIT y SIIT con EAM
@@ -64,3 +65,16 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
 ![triangle](../images/triangle.svg) La compilación en Red Hat y CentOS muestran warnings debido a diferencias entre el API de los kernels de Red Hat y Debian. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">. Esto no ha causado problemas en las pruebas</a>, sin embargo se está en búsqueda de quitarlos.
+
+## Diseño
+
+Jool es un módulo de Netfilter que se engancha a la cadena PREROUTING (Ver [Arquitectura de Netfilter](http://www.netfilter.org/documentation/HOWTO//netfilter-hacking-HOWTO-3.html)). Debido a que Netfilter no está preparado para que paquetes cambien de protocolo entre PREROUTING y durante FORWARD, tiene su propio camino:
+
+![Figura 1 - Jool dentro de Netfilter](../images/netfilter.svg)
+
+Jool solamente intercepta paquetes que pertenecen al mismo namespace en el cual fue creado. Dado que este código está en fases iniciales, solo una instancia de Jool en un solo namespace puede existir al mismo tiempo actualmente.
+
+> ![Nota](../images/bulb.svg) Todo el filtrado de iptables está fuera del camino que atraviesan paquetes siendo traducidos. Si se necesita filtrar, es necesario insertar a Jool en un namespace para que iptables pueda hacer su trabajo durante FORWARD.
+> 
+> ![Figura 2 - Jool y filtrado](../images/netfilter-filter.svg)
+

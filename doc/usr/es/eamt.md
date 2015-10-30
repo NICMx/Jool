@@ -20,9 +20,9 @@ title: EAMT
 
 ## Definición
 
-La EAMT (_Explicit Address Mappings Table_) es una colección de registros en un servidor SIIT que dictan cómo diferentes direcciones deben ser traducidas.
+La EAMT (_Explicit Address Mappings Table_) es una colección de registros en un SIIT que dictan cómo diferentes direcciones deben ser traducidas.
 
-Un registro EAMT está compuesto en pares, un prefijo IPv4 y un prefijo IPv6. Cuando una dirección esta siendo traducida, su prefijo es literalmente reemplazado de acuerdo a la tabla. En la implementación de Jool, todos los registros son bidireccionales.
+Un registro EAMT está compuesto por dos prefijos, uno IPv4 y uno IPv6. Cuando una dirección esta siendo traducida, su prefijo es literalmente reemplazado de acuerdo a la tabla. En la implementación de Jool, todos los registros son bidireccionales.
 
 ## Ejemplos
 
@@ -55,7 +55,7 @@ Desglosado queda de la siguiente manera:
 
 Esta forma puede ayudar a simplificar la configuración cuando se tienen muchas direcciones a traducir; el sufijo siempre es preservado. El punto es que un solo registro EAM puede describir la traducción de una red entera.
 
-La forma también es más eficiente; un registro EAMT con longitud /16 es mucho más transitable que los 65536 registros atómicos equivalentes.
+La forma también es más eficiente; un registro EAMT con longitud /16 es mucho más ligero que los 65536 registros atómicos equivalentes.
 
 ### Registro 03
 
@@ -75,5 +75,5 @@ La dirección `203.0.113.8` se convierte en `2001:db8:cccc::`, no en `2001:db8:c
 ## Notas Adicionales
 
 * El mecanismo de traducción EAMT tiene más prioridad que [`pool6`](usr-flags-pool6.html). En otras palabras, Jool trata de traducir toda dirección usando la EAMT, y si no es posible, lo intenta usando pool6.
-* Ver la [demostración](run-eam.html) o el [material de referencia](usr-flags-eamt.html) para obtener información de cómo crear y destruir registros manualmente.
+* Ver la [demostración](run-eam.html) o el [material de referencia](usr-flags-eamt.html) para obtener información de cómo crear y destruir registros EAM manualmente.
 

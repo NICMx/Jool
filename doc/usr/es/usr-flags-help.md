@@ -17,11 +17,11 @@ title: --help
 
 ## Descripción
 
-Imprime un resumen de la [documentación de los parámetros elegibles de Jool](usr-flags.html), y muestra la formas abreviadas.
+Imprime un resumen de la [documentación de los parámetros de la aplicación de espacio de usuario](usr-flags.html).
 
-`--help` es la única opción que no necesita que Jool este activo.
+`--help` es la única opción que no necesita que Jool se encuentre activo.
 
-Para mayor información, consulta `man jool_siit`/`man jool`.
+`man jool_siit` y `man jool` imprimen información similar. `--help` tiene la ventaja de que contiene las versiones abreviadas, y `man` tiene una mejor representación de la gramática.
 
 ## Sintaxis
 

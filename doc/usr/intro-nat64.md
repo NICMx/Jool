@@ -1,5 +1,5 @@
 ---
 layout: redirect
-redirect_link: en/intro-nat64.html
+redirect_link: en/intro-xlat.html
 ---
 
