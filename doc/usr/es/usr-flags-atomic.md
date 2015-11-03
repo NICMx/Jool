@@ -5,7 +5,7 @@ category: Documentation
 title: Fragmentos Atómicos
 ---
 
-[Documentation](documentation.html) > [Herramienta de configuración de Jool](documentation.html#Aplicacion-de-espacio-de-usuario) > [Flags](usr-flags.html) > [\--global](usr-flags-global.html) > Fragmentos Atómicos
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--allow-atomic-fragments`
 
 # Fragmentos Atómicos
 

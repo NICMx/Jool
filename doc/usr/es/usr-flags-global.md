@@ -5,16 +5,16 @@ category: Documentation
 title: --global
 ---
 
-[Documentación](documentation.html) > [Herramienta de Configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--global
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--global`
 
 # \--global
 
 ## Índice
 
-1. [Descripción](#descripcion)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Ejemplos](#ejemplos)
-4. [Llaves](#keys)
+4. [Llaves](#llaves)
 	1. [`--enable`, `--disable`](#enable---disable)
 	2. [`--address-dependent-filtering`](#address-dependent-filtering)
 	3. [`--drop-icmpv6-info`](#drop-icmpv6-info)
@@ -252,7 +252,7 @@ Jool SIIT no necesita reensamblaje de paquetes.
 
 Cuando un nodo (IPv4) externo intenta abrir una conexión y no hay ningún [registro BIB](bib.html) para él, Jool normalmente contesta con un mensaje de error ICMP - Dirección inalcanzable (tipo 3, código 1), ya que no puede saber a cual nodo IPv6 se está dirigiendo el paquete. 
 
-En el caso de TCP, la situación es un poco más complicada porque el nodo IPv4 puede estar intentando una [Apertura Simultanea de conexiones TCP](https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094). Para saber realmente qué está pasando, Jool tiene que almacenar el paquete por 6 segundos.
+En el caso de TCP, la situación es un poco más complicada porque el nodo IPv4 puede estar intentando una [Apertura Simultánea de conexiones TCP](https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094). Para saber realmente qué está pasando, Jool tiene que almacenar el paquete por 6 segundos.
 
 `--maximum-simultaneous-opens` es el numero máximo de paquetes que Jool va almacenar al mismo tiempo. El valor por omisión indica que se pueden tener hasta 10 aperturas simultáneas, "simultaneamente"; si otra apertura simultanea llega a ocurrir, Jool tendrá que ignorarla respondiendo el error ICMP.
 
@@ -444,7 +444,7 @@ NAT64 Jool _siempre_ procesa los checksums con valor cero de los paquetes UDP IP
 - Sentido de traducción: ***IPv6-> IPv4***
 - Fuente: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
 
-Si el origen de un error ICMPv6 no puede ser traducido, el [RFC 6791](https://tools.ietf.org/html/rfc6791) dicta que se le asigne una dirección IPv4 de [pool6791](usr-flags-pool6791.html).
+Si el origen de un error ICMPv6 no puede ser traducido, el [RFC 6791](https://tools.ietf.org/html/rfc6791) dicta que se le asigne una dirección IPv4 de [pool6791](rfc6791.html).
 
 - Si `--randomize-rfc6791-addresses` está activo, Jool seguirá la sugerencia del RFC 6791, asignando una dirección aleatoria de pool6791.
 - Si `--randomize-rfc6791-addresses` está inactivo, Jool asignará la dirección número _hop limit_ de pool6791 (donde _hop limit_ es un campo de la [cabecera IPv6](http://es.wikipedia.org/wiki/IPv6#Cabecera_fija) del paquete).

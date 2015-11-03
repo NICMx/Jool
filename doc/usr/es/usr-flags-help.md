@@ -5,19 +5,19 @@ category: Documentation
 title: --help
 ---
 
-[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--help
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--help`
 
 # \--help
 
 ## Indice
 
-1. [Descripción](#description)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Ejemplos](#ejemplos)
 
 ## Descripción
 
-Imprime un resumen de la [documentación de los parámetros de la aplicación de espacio de usuario](usr-flags.html).
+Imprime un resumen de la [documentación de los parámetros de la aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario).
 
 `--help` es la única opción que no necesita que Jool se encuentre activo.
 

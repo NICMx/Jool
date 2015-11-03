@@ -5,15 +5,15 @@ category: Documentation
 title: --eamt
 ---
 
-[Documentation](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--eamt
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--eamt`
 
 # \--eamt
 
 ## Índice
 
-1. [Descripción](#description)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Options](#options)
+3. [Options](#opciones)
    2. [Operaciones](#operaciones)
    4. [`--csv`](#csv)
    5. [`<prefix4>`, `<prefix6>`](#prefix4-prefix6)
@@ -21,7 +21,7 @@ title: --eamt
 
 ## Descripción
 
-Interactúa con la EAMT (_Tabla de mapeos explícitos de direcciones_). Ver [la introducción](intro-xlat.html#siit-with-eam) para una visión general rápida, el [resumen del draft](eamt.html) para más detalles, o el [draft]({{ site.draft-siit-eam }}) para todos los detalles.
+Interactúa con la EAMT (_Tabla de mapeos explícitos de direcciones_). Ver [la introducción](intro-xlat.html#siit-con-eam) para una visión general rápida, el [resumen del draft](eamt.html) para más detalles, o el [draft]({{ site.draft-siit-eam }}) para todos los detalles.
 
 ## Sintaxis
 
@@ -92,7 +92,7 @@ Escribir la tabla en un archivo csv:
 $ jool_siit --eamt --display --csv > eamt.csv
 {% endhighlight %}
 
-[eamt.csv](obj/eamt.csv)
+[eamt.csv](../obj/eamt.csv)
 
 Desplegar el número de registros en la tabla:
 

@@ -5,7 +5,7 @@ category: Documentation
 title: MTU y Fragmentación
 ---
 
-[Documentación](documentation.html) > [Otros](documentation.html#otros) > MTU y Fragmentación
+[Documentación](documentation.html) > [Misceláneos](documentation.html#miscelneos) > MTU y Fragmentación
 
 # MTU y Fragmentación
 

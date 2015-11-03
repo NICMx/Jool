@@ -139,6 +139,8 @@ So, for example, if you only have this one address, but want to reserve more por
 	0	TCP	192.0.2.1	40001-65535
 	  (Fetched 3 samples.)
 
+> ![Warning](../images/warning.svg) Jool is incapable of ensuring pool4 does not intersect with other port ranges; this validation is the operator's responsibility.
+
 ## `--mark`
 
 Mark allows you to assign different IPv4 transport address ranges to different IPv6 clients.
@@ -147,15 +149,15 @@ Pool4 entries carrying mark _n_ will only affect packets marked _n_. You can mar
 
 For example:
 
-![TODO diagram](../images/network/pool4-mark.svg)
+![Fig. 1 - Mark diagram](../images/network/pool4-mark.svg)
 
 	$ # Packets from network 2001:db8:1::/64 will be masked using ports 10000-19999.
-	$ jool --pool4 --add 192.0.2.1 10000-19999 --mark 10
-	$ ip6tables -t mangle -I PREROUTING -s 2001:db8:1::/64 -j MARK --set-mark 10
+	# jool --pool4 --add 192.0.2.1 10000-19999 --mark 10
+	# ip6tables -t mangle -I PREROUTING -s 2001:db8:1::/64 -j MARK --set-mark 10
 	$
 	$ # Packets from network 2001:db8:2::/64 will be masked using ports 20000-29999.
-	$ jool --pool4 --add 192.0.2.1 20000-29999 --mark 20
-	$ ip6tables -t mangle -I PREROUTING -s 2001:db8:2::/64 -j MARK --set-mark 20
+	# jool --pool4 --add 192.0.2.1 20000-29999 --mark 20
+	# ip6tables -t mangle -I PREROUTING -s 2001:db8:2::/64 -j MARK --set-mark 20
 
 Recognizing or narrowing down the IPv6 clients behind IPv4 transport addresses helps you create [IPv4-based ACLs](https://github.com/NICMx/NAT64/issues/115) and preventing groups of clients from hogging up IPv4 transport addresses (therefore DOSing the NAT64 for other clients).
 

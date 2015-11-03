@@ -5,7 +5,7 @@ category: Documentation
 title: EAMT
 ---
 
-[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [SIIT + EAM](run-eam.html) > EAMT
+[Documentación](documentation.html) > [SIIT en detalle](documentation.html#siit-en-detalle) > EAMT
 
 # EAMT
 

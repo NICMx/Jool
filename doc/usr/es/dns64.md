@@ -11,11 +11,11 @@ title: DNS64
 
 ## Índice
 
-1. [Introducción](#introduccion)
+1. [Introducción](#introduccin)
 2. [Red](#red)
-3. [Configuración](#configuracion)
+3. [Configuración](#configuracin)
    1. [BIND](#bind)
-   2. [Todo lo demás](#todo-lo-demas)
+   2. [Todo lo demás](#todo-lo-dems)
 4. [Resultado](#resultado)
 
 ## Introducción

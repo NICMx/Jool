@@ -33,11 +33,11 @@ Este documento se enfocará en la instalación de los módulos del kernel. La in
 
 Debido a la variedad de kernels que existen, no es factible distribuir binarios de módulos de kernel, de modo que es necesario que se compilen localmente.
 
-![Nota](../images/bulb.svg) En segmentos de código venideros:`$` indica que el comando no requiere privilegios  `#` indica necesidad de permisos
+![Nota](../images/bulb.svg) En segmentos de código venideros:`$` indica que el comando no requiere privilegios `#` indica necesidad de permisos
 
 ### Kernels Válidos
 
-Jool soporta kernels de Linux a partir de la versión 3.0, y ha sido probado en varios [incrementos](intro-jool.html#compatibilidad).
+Jool soporta kernels de Linux versiones 3.2 en adelante, y ha sido probado en varios [incrementos](intro-jool.html#compatibilidad).
 
 El siguiente comando puede ser usado para consultar la versión del kernel actual:
 

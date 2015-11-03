@@ -5,17 +5,17 @@ category: Documentation
 title: --bib
 ---
 
-[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--bib
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--bib`
 
 # \--bib
 
 ## Índice
 
-1. [Descripción](#descripcion)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Opciones](#opciones)
    1. [Operaciones](#operaciones)
-   2. [`<protocols>`](#protocolos)
+   2. [`<protocolos>`](#protocolos)
    3. [`--numeric`](#numeric)
    4. [`--csv`](#csv)
    5. [`<bib4>`, `<bib6>`](#bib4-bib6)
@@ -28,10 +28,10 @@ Interactúa con el [Binding Information Base (BIB)](bib.html) de Jool.
 
 ## Sintaxis
 
-	jool --bib <protocols> [--display] [--numeric] [--csv]
-	jool --bib <protocols> --count
-	jool --bib <protocols> --add <bib4> <bib6>
-	jool --bib <protocols> --remove (<bib4> | <bib6> | <bib4> <bib6>)
+	jool --bib <protocolos> [--display] [--numeric] [--csv]
+	jool --bib <protocolos> --count
+	jool --bib <protocolos> --add <bib4> <bib6>
+	jool --bib <protocolos> --remove (<bib4> | <bib6> | <bib4> <bib6>)
 
 ## Opciones
 
@@ -42,9 +42,9 @@ Interactúa con el [Binding Information Base (BIB)](bib.html) de Jool.
 * `--add`: Combina `<bib6>` y `<bib4>` en un registro BIB estático, y lo añade a las tablas de Jool.
 * `--remove`: Borra el registro descrito por `<bib6>` and/or `<bib4>` de las tablas BIB.
 
-### `<protocols>`
+### `<protocolos>`
 
-	<protocols> := [--tcp] [--udp] [--icmp]
+	<protocolos> := [--tcp] [--udp] [--icmp]
 
 El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces afecta a los tres protocolos.
 
@@ -134,7 +134,7 @@ Guardar la base de datos en un archivo CSV:
 $ jool --bib --display --numeric --csv > bib.csv
 {% endhighlight %}
 
-[bib.csv](obj/bib.csv)
+[bib.csv](../obj/bib.csv)
 
 Mostrar cuántos registros hay en las tablas TCP e ICMP:
 

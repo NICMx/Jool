@@ -5,13 +5,13 @@ category: Documentation
 title: --pool6791
 ---
 
-[Documentación](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--pool6791
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--pool6791`
 
 # \--pool6791
 
 ## Índice
 
-1. [Descripción](#descripcion)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)

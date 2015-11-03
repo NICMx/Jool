@@ -49,7 +49,6 @@ Ver el [RFC 6586](https://tools.ietf.org/html/rfc6586) para encontrar experienci
 	1. [`--help`](usr-flags-help.html)
 	2. [`--global`](usr-flags-global.html)
 		1. [`--plateaus`](usr-flags-plateaus.html)
-		2. [`--allow-atomic-fragments`](usr-flags-atomic.html)
 	3. [`--pool6`](usr-flags-pool6.html)
 2. Argumentos exclusivos de `jool_siit`
 	1. [`--eamt`](usr-flags-eamt.html)

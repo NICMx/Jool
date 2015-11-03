@@ -48,7 +48,7 @@ Argumentos que consistan en elementos separados por comas pueden contener hasta 
 - Contraparte de la aplicación de espacio de usuario: [`--pool6`](usr-flags-pool6.html)
 - Valor por defecto: Vacío
 
-El prefijo de traducción del RFC 6052. Es el prefijo que Jool va a estar agregando y removiendo de los paquetes de acuerdo a lo descrito en la [introducción a SIIT básico](intro-xlat.html#siit-traditional).
+El prefijo de traducción del RFC 6052. Es el prefijo que Jool va a estar agregando y removiendo de los paquetes de acuerdo a lo descrito en la [introducción a SIIT básico](intro-xlat.html#siit-tradicional).
 
 La longitud del prefijo debe ser 32, 40, 48, 56, 64 o 96 (de acuerdo al RFC 6052).
 

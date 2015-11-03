@@ -5,11 +5,11 @@ category: FAQ
 title: FAQ/Solución de problemas
 ---
 
-[Documentación](documentation.html) > [Otros](documentation.html#miscellaneous) > FAQ/Solución de problemas
+[Documentación](documentation.html) > [Misceláneos](documentation.html#miscelneos) > FAQ/Solución de problemas
 
 # FAQ/Solución de problemas
 
-Esto resume problemas con los cuales algunos usuarios se han topado.
+Esto resume problemas con los cuales algunos usuarios se han encontrado.
 
 
 ## Inserté a Jool pero no parece estar haciendo nada.
@@ -38,7 +38,7 @@ Los requerimientos mínimos de configuración de NAT64 Jool son:
 - Por lo menos un prefijo en [pool6](usr-flags-pool6.html).
 - No debe estar [manualmente deshabilitado](usr-flags-global.html#enable---disable).
 
-Si eso no parece ser el problema, los [logs](#logging.html) pueden tener algo que decir.
+Si eso no parece ser el problema, los [logs](logging.html) pueden tener algo que decir.
 
 
 ## Jool es intermitentemente incapaz de traducir tráfico.

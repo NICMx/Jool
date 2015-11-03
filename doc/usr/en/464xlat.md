@@ -12,6 +12,7 @@ title: 464XLAT
 ## Index
 
 1. [Introduction](#introduction)
+2. [Problem Statement](#problem-statement)
 2. [Sample Network](#sample-network)
 3. [Expected Packet Flow](#expected-packet-flow)
 4. [Testing](#testing)
@@ -19,7 +20,7 @@ title: 464XLAT
 
 ## Introduction
 
-This document is a summary of [RFC 6877](https://tools.ietf.org/html/rfc6877), collapsed into a walkthrough that uses Jool.
+This document is a summary of the 464XLAT architecture ([RFC 6877](https://tools.ietf.org/html/rfc6877)), collapsed into a walkthrough that uses Jool.
 
 ## Problem Statement
 
@@ -49,7 +50,7 @@ Say your user from _n6_ clicks a link towards `203.0.113.24`. _n6_ does not have
 
 In broad terms, the solution is to provide _n6_ with a "fake" IPv4 stack whose packets will be translated into IPv6 before reaching _PLAT_. In other words, an SIIT service (in 464XLAT terms called "_CLAT_"; "Customer-side Translator") will be sort of undoing _PLAT_'s work.
 
-If _n6_ is an lone case and you want to isolate the mirror hack as much as possible, [_n6_ itself can be the CLAT](node-based-translation.html). If you want to provide this feature to several nodes however, _R_ is a better candidate:
+If _n6_ is a lone case and you want to isolate the mirror hack as much as possible, [_n6_ itself can be the CLAT](node-based-translation.html). If you want to provide this feature to several nodes however, _R_ is a better candidate:
 
 ![Fig.2 - 464XLAT'd Network](../images/network/464-network.svg "Fig.2 - 464XLAT'd Network")
 
@@ -175,13 +176,13 @@ Ping _n4_ via IPv6 from _n6_:
 
 Though at this point you can see how you can defend yourself against IP literals and legacy IPv4-only appliances, you might want to be forewarned that at least [one application protocol](http://tools.ietf.org/html/rfc959) out there is so poorly designed it works differently depending on whether it's sitting on top of IPv6 or IPv4. Therefore, [addressing IP literals in this case is not sufficient to make FTP work via NAT64](https://github.com/NICMx/NAT64/issues/114).
 
-On the other hand, some network-aware protocols only partially depend on literals, and the NAT64 is not going to get in the way of the features that don't. FTP's passive mode falls in this category.
+On the other hand, some network-aware protocols only partially depend on literals, and the NAT64 is not going to get in the way of the features that don't. FTP's "extended passive" mode falls in this category.
 
 You can make active FTP work by deploying a fully stateless dual translation environment such as [siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}). It works because both the client and server are both using IPv4 sockets, the IPv4 addresses are unchanged end-to-end, and it's fully bi-directional, so active and passive FTP on arbitrary ports work fine. In siit-dc-2xlat, the IPv6 network in the middle becomes an invisible "tunnel" through which IPv4 is transported.
 
 Here's a list of protocols that are known to use IP literals. You might also want to see [RFC 6586](http://tools.ietf.org/html/rfc6586).
 
- - FTP
+ - FTP (active and passive modes)
  - Skype
  - NFS
  - Google Talk Client

@@ -11,8 +11,8 @@ title: --quick
 
 First, a little background information:
 
-* [IPv6 prefix](usr-flags-pool6.html) _P_ owns [session entry](usr-flags-session.html) _S_ if _P_ equals the network side of _S_'s local IPv6 address.
-* [IPv4 address](usr-flags-pool4.html) _A_ owns [BIB entry](usr-flags-bib.html) _B_ if _A_ equals _B_'s IPv4 address.
+* [IPv6 prefix](usr-flags-pool6.html) _P_ owns [session entry](usr-flags-session.html) _S_ if _P_ is the prefix of _S_'s "local" IPv6 address.
+* [pool4 entry](pool4.html) _A_ owns [BIB entry](bib.html) _B_ if _A_ contains _B_'s IPv4 transport address.
 
 If you `--remove` or `--flush` an owner, its "slaves" become obsolete because the relevant packets are no longer going to be translated.
 

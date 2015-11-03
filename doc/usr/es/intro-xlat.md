@@ -12,7 +12,7 @@ title: Introducción a los Mecanismos de Transición
 ## Índice
 
 1. [Introducción](#introduccin)
-2. [Traducción IPv4/IPv6](#ipv4iv6-traduccin)
+2. [Traducción IPv4/IPv6](#traduccin-ipv4ipv6)
 	1. [SIIT con EAM](#siit-con-eam)
     2. [SIIT tradicional](#siit-tradicional)
     3. [Stateful NAT64](#stateful-nat64)

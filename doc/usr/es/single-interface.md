@@ -5,7 +5,7 @@ category: Documentation
 title: Ejecución Alterna de Stateful
 ---
 
-[Doc](documentation.html) > [Otros](documentation.html#otros) > Interfaz Única
+[Documentación](documentation.html) > [Otros ejemplos de uso](documentation.html#otros-ejemplos-de-uso) > Interfaz Única
 
 # Interfaz Única
 

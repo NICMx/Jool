@@ -5,7 +5,7 @@ category: Documentation
 title: Pool IPv4 Stateful
 ---
 
-[Documentación](documentation.html) > [Ejemplos de uso](documentation.html#ejemplos-de-uso) > [Stateful NAT64](run-nat64.html) > Pool de direcciones de transporte IPv4
+[Documentación](documentation.html) > [NAT64 en detalle](documentation.html#nat64-en-detalle) > Pool de direcciones de transporte IPv4
 
 # Pool de direcciones de transporte IPv4
 

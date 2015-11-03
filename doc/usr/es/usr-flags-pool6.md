@@ -5,7 +5,7 @@ category: Documentation
 title: --pool6
 ---
 
-[Documentation](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--pool6
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--pool6`
 
 # \--pool6
 

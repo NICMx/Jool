@@ -5,13 +5,13 @@ category: Documentation
 title: --blacklist
 ---
 
-[Documentación](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--blacklist
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--blacklist`
 
 # \--blacklist
 
 ## Índice
 
-1. [Descripción](#descripcion)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)

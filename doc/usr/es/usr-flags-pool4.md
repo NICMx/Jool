@@ -5,13 +5,13 @@ category: Documentation
 title: --pool4
 ---
 
-[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Flags](usr-flags.html) > \--pool4
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--pool4`
 
 # \--pool4
 
 ## Índice
 
-1. [Descripción](#descripcion)
+1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Argumentos](#argumentos)
 4. [Ejemplos](#ejemplos)
@@ -110,6 +110,76 @@ $ jool --pool4 --display
 
 ## Notas
 
-TODO
+Es necesario considerar que es necesario reservar los puertos de la máquina de un NAT64 para propósitos de traducción. Si sucede que algún proceso local trata de abrir un puerto en la dirección de transporte 192.0.2.1#5000 y al mismo tiempo una traducción se enmascara usando 192.0.2.1#5000, Jool va a terminar combinando la información de los dos flujos de datos.
+
+En otras palabras, no es deseable que el dominio de puertos de pool4 intersecte con otros rangos de puertos (al igual que no se desea que rangos de puertos colisionen con otros rangos de puertos).
+
+Un administrador ya conoce los puertos de los servicios que pueden estar estacionados en el NAT64. El otro rango que necesita considerarse es el [efímero](https://en.wikipedia.org/wiki/Ephemeral_port):
+
+{% highlight bash %}
+$ sysctl net.ipv4.ip_local_port_range 
+net.ipv4.ip_local_port_range = 32768	61000
+{% endhighlight %}
+
+El rango efímero de Linux es (por defecto) 32768-61000. Por lo tanto, Jool usa 61001-65535 (de las direcciones primarias de su nodo) cuando pool4 está vacía. El primero se puede modificar mediante `sysctl -w`, y el segundo mediante `--pool4 --add` y `--pool4 --remove`.
+
+Por ejemplo, supongamos que la máquina de Jool tiene la dirección 192.0.2.1 y pool4 está vacía.
+
+{% highlight bash %}
+$ jool --pool4 --display
+  (empty)
+{% endhighlight %}
+
+Esto significa que Jool está usando los puertos 61001-65535 de la dirección 192.0.2.1. Es posible agregarlos explícitamente de la siguiente manera:
+
+{% highlight bash %}
+# jool --pool4 --add 192.0.2.1 61001-65535
+# jool --pool4 --display
+0	ICMP	192.0.2.1	61001-65535
+0	UDP	192.0.2.1	61001-65535
+0	TCP	192.0.2.1	61001-65535
+  (Fetched 3 samples.)
+{% endhighlight %}
+
+Si solo se tiene esta dirección, pero se desean reservar más puertos para traducción, es necesario robarlos de otros rangos. El efímero es un buen candidato:
+
+{% highlight bash %}
+# sysctl -w net.ipv4.ip_local_port_range="32768 40000"
+# jool --pool4 --add 192.0.2.1 40001-61000
+$ sysctl net.ipv4.ip_local_port_range 
+net.ipv4.ip_local_port_range = 32768	40000
+$ jool --pool4 --display
+0	ICMP	192.0.2.1	40001-65535
+0	UDP	192.0.2.1	40001-65535
+0	TCP	192.0.2.1	40001-65535
+  (Fetched 3 samples.)
+{% endhighlight %}
+
+> ![Advertencia](../images/warning.svg) Jool no es capaz de confirmar que pool4 no intersecte con otros rangos de puertos; esta validación cae a responsabilidad del operador.
 
 ## `--mark`
+
+Todos los paquetes en Linux cargan un valor numérico (llamado "marca") que puede ser definido por el operador. Jool utiliza este valor para asignar diferentes entradas de pool4 a diferentes clientes de IPv6.
+
+Entradas de pool4 que contengan la marca _n_ solamente van a servir paquetes que contengan la marca _n_. Mediante matching de iptables durante prerouting, es posible basar la marca en diversos parámetros.
+
+Por ejemplo:
+
+![Fig. 1 - Diagrama para marcas](../images/network/pool4-mark.svg)
+
+Paquetes de la red 2001:db8:1::/64 van a ser enmascarados usando solo los puertos 10000-19999:
+
+{% highlight bash %}
+# jool --pool4 --add 192.0.2.1 10000-19999 --mark 10
+# ip6tables -t mangle -I PREROUTING -s 2001:db8:1::/64 -j MARK --set-mark 10
+{% endhighlight %}
+
+y paquetes de la red 2001:db8:2::/64 van a ser enmascarados usando solo los puertos 20000-29999:
+
+{% highlight bash %}
+# jool --pool4 --add 192.0.2.1 20000-29999 --mark 20
+# ip6tables -t mangle -I PREROUTING -s 2001:db8:2::/64 -j MARK --set-mark 20
+{% endhighlight %}
+
+Reconocer a clientes de IPv6 detrás de entradas pool4 específicas ayuda a crear ACLs y también prevenir que grupos de clientes causen ataques DoS malgastando todos los puertos de pool4.
+

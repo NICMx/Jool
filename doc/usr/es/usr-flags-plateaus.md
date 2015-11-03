@@ -5,7 +5,7 @@ category: Documentation
 title: --plateaus
 ---
 
-[Documentation](documentation.html) > [Aplicación de espacio de usuario](documentation.html#aplicacin-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > [\--global](usr-flags-global.html) > \--plateaus
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--plateaus`
 
 # MTU Plateaus (Ejemplo)
 

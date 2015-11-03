@@ -11,7 +11,7 @@ title: Traducción local
 
 ## Índice
 
-1. [Introducción](#introduccion)
+1. [Introducción](#introduccin)
 2. [Diseño](#diseo)
 3. [Configuración](#configuracin)
 

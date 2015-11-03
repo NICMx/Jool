@@ -5,6 +5,8 @@ category: Documentation
 title: Logging
 ---
 
+[Documentación](documentation.html) > [Misceláneos](documentation.html#miscelneos) > Logging
+
 # Logging
 
 Si Jool tiene algo que decir, lo hará en las bitácoras del kernel, al igual que cualquier otro componente del kernel. Por lo general, estos registros se pueden consultar de las siguientes maneras:

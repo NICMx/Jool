@@ -5,7 +5,7 @@ category: Documentation
 title: --session
 ---
 
-[Documentación](documentation.html) > [Herramienta de configuración de Jool](documentation.html#aplicacion-de-espacio-de-usuario) > [Parámetros](usr-flags.html) > \--session
+[Documentación](documentation.html) > [Aplicación de Espacio de Usuario](documentation.html#aplicacin-de-espacio-de-usuario) > `--session`
 
 # \--session
 
@@ -15,7 +15,7 @@ title: --session
 2. [Sintaxis](#sintaxis)
 3. [Opciones](#opciones)
    1. [Operaciones](#operaciones)
-   2. [`<protocols>`](#protocols)
+   2. [`<protocolos>`](#protocolos)
    3. [`--numeric`](#numeric)
    4. [`--csv`](#csv)
 4. [Ejemplos](#ejemplos)
@@ -52,8 +52,8 @@ Las tablas de sesiones se populan automáticamente y no tiene sentido modificarl
 
 ## Sintaxis
 
-	jool --session [--display] [--numeric] [--csv] <protocols>
-	jool --session --count <protocols>
+	jool --session [--display] [--numeric] [--csv] <protocolos>
+	jool --session --count <protocolos>
 
 ## Opciones
 
@@ -62,9 +62,9 @@ Las tablas de sesiones se populan automáticamente y no tiene sentido modificarl
 * `--display`: Imprime las tablas de sesión en salida estándar. Esta es la operación por omisión.
 * `--count`: Lista la cantidad de registros por tabla de sesión.
 
-### `<protocols>`
+### `<protocolos>`
 
-	<protocols> := [--tcp] [--udp] [--icmp]
+	<protocolos> := [--tcp] [--udp] [--icmp]
 
 El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces afecta a los tres protocolos.
 
@@ -138,7 +138,7 @@ Sin resolver nombres, guardar todo en formato CSV en el archivo session.csv:
 $ jool --session --display --numeric --csv > session.csv
 {% endhighlight %}
 
-[session.csv](obj/session.csv)
+[session.csv](../obj/session.csv)
 
 Mostrar el número de registros de todas las tablas:
 

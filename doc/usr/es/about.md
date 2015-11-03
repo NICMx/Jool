@@ -10,10 +10,7 @@ title: Acerca de ...
 
 Jool es un [Traductor IPv4/IPv6](intro-xlat.html) de código abierto. Nació como un Stateful NAT64 pero ha sido ampliado para soportar también SIIT.
 
-Jool es financiado y desarrollado por [NIC Mexico](http://nicmexico.mx/) en colaboración con el [ITESM](http://www.itesm.mx/).
-
-![Mail](../images/email.svg) Mensajes a: [jool@nic.mx](mailto:jool@nic.mx).
+Jool es financiado y desarrollado por [NIC Mexico](http://nicmexico.mx/) y en colaboración con el [ITESM](http://www.itesm.mx/).
 
 El código y la documentación han sido liberados bajo la licencia GPLv3.
-
 

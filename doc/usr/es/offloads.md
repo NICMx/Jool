@@ -5,7 +5,7 @@ category: Documentation
 title: Offloads
 ---
 
-[Documentación](documentation.html) > [Otros](documentation.html#otros) > Offloads
+[Documentación](documentation.html) > [Misceláneos](documentation.html#miscelneos) > Offloads
 
 # Offloads
 
