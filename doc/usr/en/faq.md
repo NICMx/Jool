@@ -40,14 +40,6 @@ Stateful Jool's minimum configuration requirements are
 
 If that doesn't seem to be the problem, try the [logs](logging.html).
 
-## What do I do with this error message? It's horribly ambiguous.
-
-This happens if your text terminal is not listening to kernel messages of error severity.
-
-The jist of it is, if a problem with the incoming configuration is detected in kernelspace, Jool doesn't send the friendly version of the error message to the userspace application [because it's lazy](https://github.com/NICMx/NAT64/issues/169). Instead, it writes it in the kernel logs. The userspace application is then stuck with a generic Unix error code, and that's what it reports to the user.
-
-[Run `dmesg` or one of its variats to query the kernel logs](logging.html), as shown in the [issue report](https://github.com/NICMx/NAT64/issues/169).
-
 ## Jool is intermitently unable to translate traffic.
 
 Did you run something in the lines of

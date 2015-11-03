@@ -23,7 +23,7 @@ title: --bib
 
 ## Description
 
-Interacts with Jool's [Binding Information Base (BIB)](bib.html). If you don't know what that is, please follow the link before continuing.
+Interacts with Jool's [Binding Information Base (BIB)](bib.html).
 
 ## Syntax
 

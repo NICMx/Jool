@@ -54,7 +54,7 @@ Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_va
 
 These are the prefixes each record is made out of. See the [general EAMT explanation](eamt.html).
 
-`<prefix length>` defaults to /32 on `<prefix4>` and /128 on `<prefix6>`. Jool automatically zeroizes any suffix from either address if it exists.
+`<prefix length>` defaults to /32 on `<prefix4>` and /128 on `<prefix6>`.
 
 Every prefix is unique accross the table. Therefore, If you're removing an EAMT entry, you actually only need to provide one of them. You can still input both to make sure you're deleting exactly what you want to delete, though.
 

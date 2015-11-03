@@ -78,26 +78,30 @@ SIIT is defined by [RFC 6145](http://tools.ietf.org/html/rfc6145). The address t
 
 ## Stateful NAT64
 
-This mode is more akin to what people understand as "NAT". As such, allow me to remind you the big picture of how (stateful) NAT operates:
+This mode is more akin to what people understand as "NAT" (though, more specifically, it's [NAPT](https://tools.ietf.org/html/rfc2663#section-4.1.2)). As such, allow me to remind you the big picture of how (stateful) NAT operates:
 
 ![Fig.5 - NAT sample network](../images/network/nat-en.svg)
 
-The idea is, the left network is called "Private" because it uses [addresses unavailable in the global Internet](http://en.wikipedia.org/wiki/Private_network). In order to make up for this, _NAT_ mangles packet addresses so outsiders think any traffic started by the private nodes was actually started by itself:
+The left network is called "Private" because it uses [addresses unavailable in the global Internet](http://en.wikipedia.org/wiki/Private_network). To make up for this, _NAT_ mangles packet addresses so outsiders think any traffic started by the private nodes was actually started by itself:
 
 ![Fig.6 - NAT flow](../images/flow/nat-en.svg)
 
 As a result, for outside purposes, nodes _A_ through _E_ are "sharing" _NAT_'s global address (or addresses).
 
-While stateful NAT helps you economize IPv4 address, it comes with a price: the _NAT_ machine has to remember which private node issued the packet to _V_, because _A_'s address cannot be found anywhere in _V_'s response. That's why it's called "stateful"; it creates address mappings dymanically and remembers them for a while. There are two things to keep ind mind here:
+The price of being able to condense the addresses of several nodes into the ones from a single one is state. The address of the hidden node is completely deleted from the packet, therefore _NAT_ has to remember it so it can tell who the answer should be forwarded to.
 
-- Each mapping requires memory.
-- _V_ cannot **start** a packet stream with _A_, again because _NAT_ **must** learn the mapping in the private-to-outside direction first (left to right).
+These are two drawbacks that should be considered:
+
+- The mappings/masks are limited by availability (transport addresses) and/or memory. In other words, _NAT_ is a potential DoS attack victim.
+- _V_ cannot **start** a packet stream to _A_, because _NAT_ cannot infer a destination from a packet that hasn't been previously masked (and therefore, can't be remembered). NAT assumes most communication will be started from the private network.
 
 Stateful NAT64 is pretty much the same. The only difference is that the "Private Network" is actually an IPv6 network:
 
 ![Fig.7 - Stateful network](../images/network/stateful.svg)
 
-And therefore,
+- Tell _A_: "_V_'s address is 64:ff9b::203.0.113.16".
+- Tell _T_: "Use your address to mask _A_" and "Pretend the IPv4 Internet is a network named 64:ff9b::/96".
+- _V_ thinks it's talking to _T_, so you don't tell it anything.
 
 ![Fig.8 - Stateful flow](../images/flow/stateful-en.svg)
 

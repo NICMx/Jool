@@ -47,7 +47,7 @@ Operations:
 Others:
 
 | **Name** | **Default** | **Description** |
-| `--csv` | (absent) | If present, print the table in CSV format. |
+| `--csv` | (absent) | If present, print the table in [CSV format](https://en.wikipedia.org/wiki/Comma-separated_values). |
 | `--mark` | 0 | Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#mark). |
 | `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
 | `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |

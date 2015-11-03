@@ -18,9 +18,9 @@ title: --pool6791
 
 ## Descripción
 
-Interactua con el [pool RFC 6791](rfc6791.html) de Jool. El pool define direcciones para origenes en errores ICMP intraducibles.
+Interactúa con el [pool del RFC 6791](rfc6791.html) de Jool. El pool define direcciones para orígenes en errores ICMP intraducibles.
 
-Si el pool está vacio, Jool retrocederá a utilizar las direcciones de su nodo para estos casos.
+Si el pool está vacío, Jool retrocederá a utilizar las direcciones de su nodo para estos casos.
 
 
 ## Sintaxis
@@ -33,8 +33,8 @@ Si el pool está vacio, Jool retrocederá a utilizar las direcciones de su nodo 
 
 ## Opciones
 
-- `--display`: Los prefijos del pool son impresos en la salida estandar. Esta es la operación por default.
-- `--count`: El número de _direcciones_ (no prefijos) en el pool es impreso en la salida estandar.  
+- `--display`: Los prefijos del pool son impresos en salida estándar. Esta es la operación por defecto.
+- `--count`: El número de _direcciones_ (no prefijos) en el pool es impreso en salida estándar.  
 Por ejemplo, si todo lo que tienes es un prefijo /24, espera "256" como salida.
 - `--add`: Carga `<IPv4 prefix>` al pool.
 - `--remove`: Borra el prefijo `<IPv4 prefix>` del pool.
@@ -42,7 +42,7 @@ Por ejemplo, si todo lo que tienes es un prefijo /24, espera "256" como salida.
 
 ## Ejemplos
 
-Despliega los prefijos actuales:
+Desplegar los prefijos actuales:
 
 	$ jool_siit --pool6791 --display
 	192.0.2.0/24
@@ -50,23 +50,24 @@ Despliega los prefijos actuales:
 	203.0.113.16/28
 	  (Fetched 3 prefixes.)
 
-Esto significa que la direccion de origen de un normalmente intraducible error ICMP va a ser cualquiera dentro de los siguientes rangos: 192.0.2.0-192.0.2.255, 198.51.100.0-198.51.100.64, o 203.0.113.16-203.0.113.31.
+Esto significa que la dirección de origen de un error ICMP intraducible va a ser cualquiera de los siguientes rangos: 192.0.2.0-192.0.2.255, 198.51.100.0-198.51.100.64, o 203.0.113.16-203.0.113.31.
 
-Despliega solo el conteo de prefijos:
+Desplegar solo el conteo de prefijos:
 
 	$ jool_siit --pool6791 --count
 	336
 
 (Eso es /24 + /26 + /28 = 256 + 64 + 16.)
 
-Remueve un prefijo:
+Remover un prefijo:
 
 	$ jool_siit --pool6791 --remove 192.0.2.0/24
 
-Devuelvelo:
+Devolverlo:
 
 	$ jool_siit --pool6791 --add 192.0.2.0/24
 
-Destruye todos los prefijos. Jool empezará a utilizar las direcciones de su host como origen.
+Destruir todos los prefijos. Jool empezará a utilizar las direcciones de su host como origen.
 
 	$ jool_siit --pool6791 --flush
+

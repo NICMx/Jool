@@ -2,103 +2,88 @@
 language: es
 layout: default
 category: Documentation
-title: Offloading
+title: Offloads
 ---
 
-[Documentación](documentation.html) > [Otros](documentation.html#otros) > Offloading
+[Documentación](documentation.html) > [Otros](documentation.html#otros) > Offloads
 
-# Offload
+# Offloads
 
 ## Índice
 
-1. [Teoría](#teoria)
-2. [Práctica](#practica)
+1. Introducción
+2. Offloads de recepción - ¿Qué son?
+3. Offloads de recepción - El problema
+4. Cómo deshacerse de Receive Offloads
 
-## Teoría
+## Introducción
 
-Offloading es una técnica orientada a optimizar el rendimiento de la red. Nació de la observación de que un solo paquete grande es significantemente más rapido de procesar que muchos pequeños, la idea es combinar muchos de ellos 
+Este documento explica offloads de recepción, su relación con Jool y la manera de quitarlos.
 
+## Offloads de recepción - ¿Qué son?
 
-Offloading is a technique meant to optimize network throughput. Born from the observation that a single large packet is significantly faster to process than several small ones, the idea is to combine several of them from a common stream on reception, and then pretend, to the eyes of the rest of the system, that the new packet was the one received from the cord all along.
+Offloading es una técnica orientada a optimizar el rendimiento de redes que nació de la observación de que un solo paquete grande es significantemente más rapido de procesar que muchos pequeños. La idea es combinar varios paquetes de un mismo stream durante la recepción y pretender, a los ojos del resto del sistema, que el paquete resultante es el que se recibió.
 
+Aquí hay un ejemplo. Así es como los paquetes son procesados normalmente (sin offloading):
 
-Aquí tenemos un ejemplo visual. Así es como los paquetes son procesados normalmente (sin offloading):
+![Fig.1 - Sin offloading](../images/offload-none.svg)
 
-![Fig.1 - No offload](../images/offload-none.svg)
+(Por el momento, el protocolo de capa de red es IPv4.)
 
-(Por el momento, asume que la capa de Internet soporta IPv4.)
-
-Hay dos streams aquí. El amarillo consiste de tres paquetes muy pequeños:
+Hay dos streams aquí. El amarillo consiste de tres paquetes pequeños:
 
 1. 1st packet: bytes 0 through 9.
 2. 2nd packet: bytes 10 to 29.
 3. 3rd packet: bytes 30 to 39.
 
-Y el azul contiene unos paquetes más largos:
+Y el azul contiene unos paquetes más grandes:
 
 1. bytes 0 to 599
 2. bytes 600 to 1199
 3. bytes 1200 to 1799
 
-Hay muchas manetas de implementar offloading. Abajo se encuentra ilustrada una versión simplificada de lo que una NIC(interfáz de red) quizá podria hacer, en lugar de lo de arriba:
+Hay varias manetas de implementar receive offloads. Abajo se encuentra ilustrada una versión simplificada de lo que una NIC (interfaz de red) podría intentar, en lugar de lo de arriba:
 
-![Fig.2 - Offload done right](../images/offload-right.svg)
+![Fig.2 - Offloads realizados correctamente](../images/offload-right.svg)
 
-Simplemente poner, muchos paquetes continuos 
+Puesto simplemente, muchos paquetes continuos son unidos en uno equivalente. La tarjeta podría por ejemplo hacer esto uniendo fragmentos IP o incluso segmentos TCP (aunque TCP se encuentre dos capas arriba). No importa mientras el cambio sea completamente transparente en lo que a transferencia de datos se refiere.
 
-Puesto simplemente, muchos paquetes continuos son unidos en uno equivalente y mas grande. La tarjeta podria por ejemplo hacer esto uniendo fragmentos IP o incluso segmentos TCP (aunque TCP se encuentre 2 capas arriba). No importa mientras el cambio sea completamente transparente por lo menos en lo que a transferencia de datos se refiere. 
+Y sí; ahora estamos lidiando con piezas de datos más pesadas, pero a decir verdad, la mayor parte de la acitivdad de las capas de Internet y Transporte recae en los primeros bytes de cada paquete (ie. los encabezados). En general, offloading logra que se procesen n paquetes al precio de uno.
 
-Y si, ahora estamos lidiando con piezas de datos más pesadas, pero a decir verdad, la mayor parte de la acitivdad de las capas de Internet y Transporte recae en los primeros bytes de cada paquete (ej. los encabezados). Asi que mayormente conseguimos procesar n paquetes por el precio de uno.
+## Offloads de recepción - El problema
 
+Una máquina que tiene que reenviar la información en lugar de consumirla tiende a romper la suposición "No importa mientras el cambio sea completamente transparente en lo que a transferencia de datos se refiere".
 
-Esto esta excelente, pero empiezas a tener problemas en caso de que el sistema tenga que redireccionar los datos (en lugar de comsumirlos). Digamos el hardware tiene una [Unidad de Transmisión Máxima (MTU)](http://es.wikipedia.org/wiki/Unidad_m%C3%A1xima_de_transferencia) de 1500; esto es lo que pasa:
+Por ejemplo, si el hardware tiene una [Unidad de Transmisión Máxima (MTU)](http://es.wikipedia.org/wiki/Unidad_m%C3%A1xima_de_transferencia) de 1500, esto es lo que pasa:
 
 ![Fig.3 - Offload on a router](../images/offload-router.svg)
 
-En el paso 1 sucede la agregación, lo que hace le paso 2 muy rápido, pero como el paquete ensamblado del flujo de datos azul es muy grande para la interfaz de salida (tamaño 1800 > max 1500), el paquete se fragmenta en el paso 3, lo cual es ineficiente.
+En el paso 1 sucede agregación, que hace que el paso 2 sea muy rápido, pero el paquete ensamblado del flujo azul es demasiado grande para la interfaz de salida (tamaño 1800 > max 1500). Dependiendo de la bandera DF, esto va a resultar en fragmentación (lo cual es lento) o un tirado de paquetes (y como el origen está encendiendo DF, esto fácilmente se va a pervertir en un hoyo negro).
 
-Mas importante, si el emisor realizó un [path MTU discovery](http://en.wikipedia.org/wiki/Path_MTU_Discovery), entonces el MTU óptimo computado se perderá en el paso 1 (por que no esta almanecado en el paquete; es indicado por su tamaño, el cual es modificado por el paso1). Por que el parámetro "Don't Fragment" del paquete estará encendido, entonces el paquete eventualmente e irremediablemente sera desechado tan pronto llegue a un MTU menor. Por lo tanto, hemos creado un hoyo negro.
+(En la práctica, un número de condiciones se requieren cumplir para que la NIC efectúe offloading. En ocasiones raras y aleatorias estas condiciones pueden no cumplirse, de modo que ciertos paquetes ocasionalmente no serán agregados y esquivarán el hoyo. Si el protocolo de transporte reintenta lo suficiente, en lugar de tener una denegación de servicio completa, el resultado es una red extremadamente - **EXTREMAMENTE** - lenta.)
 
-(Bueno, no completamente. Un cierto numero de condiciones son requeridas por la Interfaz de red(NIC) para ejecutar el offloading. Puede que en algunas ocasiones raras y aleatorias estas condiciones no se cumplan, asi que ciertos paquetes ocasionalmente no serán agregados, y asi evitan el hoyo. Si tu protocolo de transporte reintenta suficientemente, en lugar de tener una denegación de servicio completa, tienes una red extrema - **EXTREMAMENTE** - lenta.)
+Linux se sale con la suya (no pidiendo al administrador apagar offloads) teniendo unos cuantos hacks en la lógica de forwardeo de paquetes que se encargan de resegmentar. Jool también intenta hacer esto, pero offloading es un hack tan intrusivo que no hemos terminado de limpiarlo aún. Por esta razón, es necesario apagar offloads si el sistema los soporta y se desea utilizar a Jool.
 
-Cuando la maquina de redireccionamiento es un router IPv6 (o, en el caso de Jool, un SIIT/NAT64 traduciendo de IPv4 a 6), esto es un problema mas inmediato por que los _routers IPv6 no estan pensados para fragmentar paquetes_  (se espera que solo desechen el paquete y devuelvan un mensaje de error ICMP). Así que tu paquete se perdera en el paso 3 _incluso si el parámetro "Don't Fragment" del paquete original no fue indicado_.
-
-Si estas ejecutando Jool en una maquina virtual huesped, algo importante que debes mantener en mente es que quizá prefieras o tambien tengas que deshabilitar los offloads en el enlace de subida del [Host de la maquina virtual](http://es.wikipedia.org/wiki/Hipervisor).
-
-Y eso es todo. Offloading para nodos finales es gandioso, para los routers es un problema.
-
+Si Jool se está ejecutando en una máquina virtual huésped, puede ser necesario deshabilitar offloads también en la máquina host.
 
 ## Práctica
 
-Así que, si quieres ejecutar Jool, debes de desactivar el offloading. Así es como comenzamos a hacerlo (el alcance puede variar):
+[`ethtool`](https://www.kernel.org/pub/software/network/ethtool/) parece ser la herramienta de configuración de interfaces generalmente utilizada.
 
 {% highlight bash %}
 $ sudo apt-get install ethtool
 {% endhighlight %}
 
-Luego aplica esto a toda interfáz relevante:
+Es necesario aplicar lo siguiente a todas las interfaces en donde se esperan recibir paquetes necesitados de traducción:
 
 {% highlight bash %}
-$ sudo ethtool --offload [your interface here] gro off
+$ sudo ethtool --offload [nombre de la interfaz aquí] lro off
+$ sudo ethtool --offload [nombre de la interfaz aquí] gro off
 {% endhighlight %}
 
-"gro" es por sus siglas en inglés "Generic Receive Offload". Actualmente no sabemos con certeza por que no tenemos que desactivar lro (Large receive offload), gso (Generic segmentation offload) y quizá otros (vea `man ethtool`). Si no estás seguro, yo diria que debes ir a lo seguro y deshacerte de todas las variantes que veas:
-
+Algunas veces ethtool indica que no es posible cambiar algunas de las variantes, y es usualmente porque no está soportada y por lo tanto no estaba encendida en primer lugar. El siguiente comando puede ser usado para observar la configuración actual.
 
 {% highlight bash %}
-$ sudo ethtool --offload [your interface here] tso off
-$ sudo ethtool --offload [your interface here] ufo off
-$ sudo ethtool --offload [your interface here] gso off
-$ sudo ethtool --offload [your interface here] gro off
-$ sudo ethtool --offload [your interface here] lro off
+$ sudo ethtool --show-offload [nombre de la interfaz aquí] | grep receive-offload
 {% endhighlight %}
 
-(Si puedes iluminarnos mas en cuanto a este tema, por favor notificanos - [jool@nic.mx](mailto:jool@nic.mx).)
-
-Algunas veces ethtool asegura que no puede cambiar algunas de las variantes, pero ten en cuenta que es usualmente por que no esta soportado y por lo tanto no estaba en un principio. Verifica tu configuración utilizando
-
-{% highlight bash %}
-$ sudo ethtool --show-offload [your interface here]
-{% endhighlight %}
-
-Suerte!

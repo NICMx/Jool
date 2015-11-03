@@ -194,7 +194,7 @@ $ make
 > 
 > Si el kernel no fue configurado para _requerir_ esta característica, `make install` imprimirá el mensaje "Can't read private key". Esto es una advertencia, no un error, y la instalación puede proseguir sin complicaciones.
 > 
-> Por otro lado, si el kernel _fue_ compilado para solicitar firmado de módulos, se requerirá comandos adicionales que serán omitidos aquí.
+> Por otro lado, si el kernel fue compilado para solicitar firmado de módulos, se requerirá comandos adicionales que serán omitidos aquí.
 
 > ![Nota](../images/bulb.svg) Si solamente se desea compilar el binario SIIT, es posible agilizar la compilación corriendo los comandos `make` en la carpeta `mod/stateless`. De igual manera, si solamente se desea el NAT64, puede hacerse en `mod/stateful`.
 

@@ -23,7 +23,7 @@ title: --bib
 
 ## Descripción
 
-Interactua con el [Binding Information Base (BIB)](bib.html) de Jool. Si no sabes que es, por favor sigue el enlace antes de continuar.
+Interactúa con el [Binding Information Base (BIB)](bib.html) de Jool.
 
 
 ## Sintaxis
@@ -38,8 +38,8 @@ Interactua con el [Binding Information Base (BIB)](bib.html) de Jool. Si no sabe
 ### Operaciones
 
 * `--display`: Lista las tablas BIB. Operación por omisión.
-* `--count`: Lista el número de registros BIB.
-* `--add`: Combina `<bib6>` y `<bib4>` en un registro BIB, y lo añade a las tablas de Jool.
+* `--count`: Lista el número de registros BIB en las tablas.
+* `--add`: Combina `<bib6>` y `<bib4>` en un registro BIB estático, y lo añade a las tablas de Jool.
 * `--remove`: Borra el registro descrito por `<bib6>` and/or `<bib4>` de las tablas BIB.
 
 ### `<protocols>`
@@ -50,15 +50,16 @@ El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces
 
 ### `--numeric`
 
-La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si tus nameservers no están respondiendo, esto retardará la salida_.
+La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si los nameservers no están respondiendo, la salida se retrasará_.
 
-Utiliza `--numeric` para desactivar este comportamiento.
+`--numeric` desactiva la resolución de nombres.
 
 ### `--csv`
 
-La aplicación muestra la información en un formato amigable para la consola.
+Por defecto, la aplicación imprime las tablas en un formato relativamente amigable para la consola.
 
-Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV) para abrirse como hoja de cálculo.
+`--csv` se puede usar para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV), que es amigable con software de hojas de cálculo.
+
 
 ### `<bib4>`, `<bib6>`
 
@@ -67,25 +68,22 @@ Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV)
 
 Un registro BIB está compuesto de una dirección de transporte IPv6 (los identificadores de conexión de los nodos IPv6) y una dirección de transporte IPv4 (los identificadores de conexión que Jool está utilizando para enmascarar los de IPv6).
 
-Si estas agregando o removiendo un BIB, puedes proveer ambas direcciones mediante estos parámetros.
+Estos parámetros definen la respectiva dirección de transporte al insertar o remover entradas. El componente `<bib4>` debe ser un miembro de [pool4](usr-flags-pool4.html) (de modo que es necesario registrarlo ahí antes de colocarlo en BIB).
 
-Toma en cuenta que el componente `<bib4>` debe ser un miembro del [pool IPv4](usr-flags-pool4.html) de Jool, así que asegurate de que lo has registrado ahí primero.
-
-Dentro de una tabla BIB, toda dirección de transporte IPv4 es única. Dentro de una tabla BIB, toda dirección IPv6 también es única. Por lo tanto, si estas removiendo un registro BIB, sólo necesitas proveer uno de ellos. Aun puedes ingresar ambos para asegurarte de que estas eliminando exactamente lo que deseas.
-
+Toda dirección de transporte única a lo largo de la base de datos, por lo que solamente es mandatario especificar de ellas al remover. Sin embargo, es legal introducirlos ambos en el comando para garantizar que se está removiendo lo que se espera.
 
 ## Ejemplos
 
 Premisas:
 
-* 4.4.4.4 pertenece al pool IPv4.
+* 4.4.4.4 pertenece a pool4.
 * El nombre de 6::6 es "potato.mx".
-* 6::6 ya le habló a un nodo IPv4 recientemente, así que la base de datos no está vacía.
+* 6::6 se encuentra interactuando con un nodo de IPv4, de modo que la base de datos no está vacía.
 
-Despliega la base de datos entera:
+Desplegar la base de datos:
 
-{% highlight bash %}<br />
-$ jool --bib --display<br />
+{% highlight bash %}
+$ jool --bib --display
 TCP:
 [Dynamic] 4.4.4.4#1234 - potato.mx#1234
   (Fetched 1 entries.)
@@ -95,14 +93,14 @@ ICMP:
   (empty)
 {% endhighlight %}
 
-Habilita la recepción en un par de servicios TCP:
+Habilitar la recepción en un par de servicios TCP:
 
 {% highlight bash %}
 # jool --bib --add --tcp 6::6#6 4.4.4.4#4
 # jool --bib --add --tcp 6::6#66 4.4.4.4#44
 {% endhighlight %}
 
-Lista la tabla TCP:
+Listar la tabla TCP:
 
 {% highlight bash %}
 $ jool --bib --display --tcp
@@ -113,7 +111,7 @@ TCP:
   (Fetched 3 entries.)
 {% endhighlight %}
 
-Igual, pero no llama al DNS:
+Listar la tabla TCP, no interactuar con el DNS:
 
 {% highlight bash %}
 $ jool --bib --display --tcp --numeric
@@ -124,13 +122,13 @@ TCP:
   (Fetched 3 entries.)
 {% endhighlight %}
 
-Publica un servicio UDP:
+Publicar un servicio UDP:
 
 {% highlight bash %}
 # jool --bib --add --udp 6::6#6666 4.4.4.4#4444
 {% endhighlight %}
 
-Guarda la base de datos en un archivo CSV:
+Guardar la base de datos en un archivo CSV:
 
 {% highlight bash %}
 $ jool --bib --display --numeric --csv > bib.csv
@@ -138,7 +136,7 @@ $ jool --bib --display --numeric --csv > bib.csv
 
 [bib.csv](obj/bib.csv)
 
-Muestra cuantos registros hay en las tablas TCP e ICMP:
+Mostrar cuántos registros hay en las tablas TCP e ICMP:
 
 {% highlight bash %}
 $ jool --bib --count --tcp --icmp
@@ -146,8 +144,9 @@ TCP: 3
 ICMP: 0
 {% endhighlight %}
 
-Cancela el registro del servicio UDP:
+Remover la máscara de un servicio UDP:
 
 {% highlight bash %}
 # jool --bib --remove --udp 6::6#6666
 {% endhighlight %}
+

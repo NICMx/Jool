@@ -21,7 +21,7 @@ title: --eamt
 
 ## Descripción
 
-Interactua con la Tabla de mapeo de direcciones explícitas de Jool (EAMT) por sus siglas en inglés. Ve [la introducción](intro-xlat.html#siit-with-eam) para una que tengas visión general rápida, nuestro [resumen de drafts](eamt.html) para mas detalles, o el [draft EAM]({{ site.draft-siit-eam }}) para la historia completa.
+Interactúa con la EAMT (_Tabla de mapeos explícitos de direcciones_). Ver [la introducción](intro-xlat.html#siit-with-eam) para una visión general rápida, el [resumen del draft](eamt.html) para más detalles, o el [draft]({{ site.draft-siit-eam }}) para todos los detalles.
 
 ## Sintaxis
 
@@ -35,17 +35,17 @@ Interactua con la Tabla de mapeo de direcciones explícitas de Jool (EAMT) por s
 
 ### Operaciones
 
-* `--display`: La tabla EAMT es impresa en la salida estandar. Esta es la operación por default.
-* `--count`: El número de registros en la tabla EAMT es impreso a la salida estandar.
+* `--display`: La tabla EAMT es impresa en salida estándar. Esta es la operación por defecto.
+* `--count`: El número de registros en la tabla EAMT es impreso en salida estándar.
 * `--add`: Combina `<prefix4>` y `<prefix6>` en un registro EAM, y lo carga a la tabla de Jool.
 * `--remove`: Borra de la tabla el registro EAM descrito por `<prefix4>` y/o `<prefix6>`. 
 * `--flush`: Remueve todos los registros de la tabla.
 
 ### `--csv`
 
-Por default, la aplicación va a imprimir las tablas en un formato relativamente amigable para la consola.
+Por defecto, la aplicación imprime las tablas en un formato relativamente amigable para la consola.
 
-Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV) el cual es amigable con una hoja de cálculo.
+`--csv` se puede usar para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV), que es amigable con software de hojas de cálculo.
 
 
 ### `<prefix4>`, `<prefix6>`
@@ -53,17 +53,17 @@ Utiliza `--csv` para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV)
 	<prefix4> := <IPv4 address>[/<prefix length>]
 	<prefix6> := <IPv6 address>[/<prefix length>]
 
-Estos son los prefijos de los cuales esta hecho cada registro, Ve la [explicación general EAMT](eamt.html)
+Estos son los prefijos con los cuales está conformado cada registro (ver la [explicación general de EAMT](eamt.html)).
 
-`<prefix length>` es por default /32 en `<prefix4>` y /128 en `<prefix6>`. Jool pone en cero cualquier sufijo de cualquiera de las direcciones si existe.  
+Por defecto, `<prefix length>` es /32 en `<prefix4>` y /128 en `<prefix6>`.
 
-Todo prefijo es único a lo largo de la tabla. Por lo tanto, si estas removiendo un registro EAMT, solo necesitas proveer uno de ellos. Aun asi puedes ingresar ambos para asegurarte de que estas eliminando exactamente lo que quieres.
+Todo prefijo es único a lo largo de la tabla, por lo que solamente es necesario especificar uno de ellos cuando se desea remover. Sin embargo, es legal introducirlos ambos en el comando para garantizar que se está removiendo lo que se espera.
 
 
 
 ## Ejemplos
 
-Agrega un puñado de mapeos:
+Agregar un puñado de mapeos:
 
 {% highlight bash %}
 
@@ -74,7 +74,7 @@ Agrega un puñado de mapeos:
 # jool_siit --eamt --add 192.0.2.192/31 64:ff9b::/127
 {% endhighlight %}
 
-Despliega la nueva tabla:
+Desplegar la nueva tabla:
 
 {% highlight bash %}
 $ jool_siit --eamt --display
@@ -86,7 +86,7 @@ $ jool_siit --eamt --display
   (Fetched 5 entries.)
 {% endhighlight %}
 
-Ingresa la base de datos en un archivo csv:
+Escribir la tabla en un archivo csv:
 
 {% highlight bash %}
 $ jool_siit --eamt --display --csv > eamt.csv
@@ -94,20 +94,20 @@ $ jool_siit --eamt --display --csv > eamt.csv
 
 [eamt.csv](obj/eamt.csv)
 
-Despliega el numero de registros en la tabla:
+Desplegar el número de registros en la tabla:
 
 {% highlight bash %}
 $ jool_siit --eamt --count
 5
 {% endhighlight %}
 
-Remueve el primer registro:
+Remover el primer registro:
 
 {% highlight bash %}
 # jool_siit --eamt --remove 2001:db8:aaaa::
 {% endhighlight %}
 
-Vacia la tabla:
+Vaciar la tabla:
 
 {% highlight bash %}
 # jool_siit --eamt --flush
