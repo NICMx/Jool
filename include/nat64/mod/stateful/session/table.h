@@ -101,6 +101,7 @@ void sessiontable_delete_taddr6s(struct session_table *table,
 void sessiontable_flush(struct session_table *table);
 
 bool sessiontable_allow(struct session_table *table, struct tuple *tuple4);
+void sessiontable_reschedule(struct expire_timer *expirer);
 void sessiontable_update_timers(struct session_table *table);
 
 #endif /* _JOOL_MOD_SESSION_TABLE_H */

@@ -45,12 +45,12 @@ int set_updated_entries(void *data) {
 		return -1;
 	}
 
-	log_info("received magic is -> %s",magic);
-	log_info("received s_element magic -> %s", (received_data+1));
+	free(magic);
+	magic = NULL;
 
 	error = nl_connect(sender_sk, NETLINK_USERSOCK);
 	error = nl_send_simple(sender_sk, MSG_TYPE_JOOL, 0, received_data,
-			received_data->length);
+			received_data->length+sizeof(*received_data));
 	if (error < 0) {
 		log_err(
 				"Could not send the request to Jool (is it really up?).\n" "Netlink error message: %s (Code %d)",

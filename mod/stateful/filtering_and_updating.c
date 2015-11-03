@@ -591,23 +591,18 @@ static enum session_fate tcp_state_machine(struct session_entry *session,
 	switch (session->state) {
 	case V4_INIT:
 		sfate = tcp_v4_init_state(session, arg);
-		joold_add_session_element(session);
 		return sfate;
 	case V6_INIT:
 		sfate = tcp_v6_init_state(session, arg);
-		joold_add_session_element(session);
 		return sfate;
 	case ESTABLISHED:
 		sfate = tcp_established_state(session, arg);
-		joold_add_session_element(session);
 		return sfate;
 	case V4_FIN_RCV:
 		sfate = tcp_v4_fin_rcv_state(session, arg);
-		joold_add_session_element(session);
 		return sfate;
 	case V6_FIN_RCV:
 		sfate = tcp_v6_fin_rcv_state(session, arg);
-		joold_add_session_element(session);
 		return sfate;
 	case V4_FIN_V6_FIN_RCV:
 		return tcp_v4_fin_v6_fin_rcv_state();

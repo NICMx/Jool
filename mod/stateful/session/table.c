@@ -83,6 +83,11 @@ static void reschedule(struct expire_timer *expirer)
 	force_reschedule(expirer);
 }
 
+void sessiontable_reschedule(struct expire_timer *expirer)
+{
+	reschedule(expirer);
+}
+
 static void decide_fate(fate_cb cb,
 		struct packet *pkt,
 		struct session_table *table,
@@ -102,7 +107,7 @@ static void decide_fate(fate_cb cb,
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		reschedule(&table->est_timer);
 
-		//joold_add_session_element(session);
+		joold_add_session_element(session);
 		break;
 	case FATE_PROBE:
 		tmp = session_clone(session);
@@ -122,7 +127,7 @@ static void decide_fate(fate_cb cb,
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		reschedule(&table->trans_timer);
 
-		//joold_add_session_element(session) ;
+		joold_add_session_element(session) ;
 		break;
 	case FATE_RM:
 		rm(table, session, rms);
@@ -253,12 +258,15 @@ static void cleaner_timer(unsigned long param)
 
 	spin_lock_bh(&expirer->table->lock);
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
+		log_info("executing foreach loop!");
 		/*
 		 * "list" is sorted by expiration date,
 		 * so stop on the first unexpired session.
 		 */
 		if (time_before(jiffies, session->update_time + timeout))
 			break;
+
+		log_info("executing fate function!");
 
 		decide_fate(expirer->decide_fate_cb, NULL, expirer->table,
 				session, &rms, &probes);

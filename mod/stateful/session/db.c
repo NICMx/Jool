@@ -106,13 +106,32 @@ bool sessiondb_is_session_established(struct session_entry *session)
 int sessiondb_set_session_timer(struct session_entry *session, bool is_established)
 {
 	struct session_table *table = get_table(session->l4_proto);
+	__u8 changed = 0;
 	if (!table)
 		return -EINVAL;
 
-	if (is_established)
-		session->expirer = &table->est_timer;
-	else
-		session->expirer = &table->trans_timer;
+	if (is_established) {
+		log_info("assinging est timer!");
+		if (&session->expirer != &table->est_timer) {
+			changed = 1;
+			session->expirer = &table->est_timer;
+		}
+
+	} else {
+		log_info("assinging trans timer!");
+		if (&session->expirer != &table->est_timer) {
+			changed = 1;
+			session->expirer = &table->trans_timer;
+		}
+	}
+
+	if (changed) {
+		list_del(&session->list_hook);
+		list_add_tail(&session->list_hook, &session->expirer->sessions);
+		sessiontable_reschedule(session->expirer);
+	}
+
+	sessiontable_reschedule(session->expirer);
 
 	return 0;
 }
