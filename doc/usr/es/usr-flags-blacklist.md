@@ -13,7 +13,9 @@ title: --blacklist
 
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Opciones](#opciones)
+3. [Argumentos](#argumentos)
+   1. [Operaciones](#operaciones)
+   2. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)
 
 ## Descripción
@@ -33,20 +35,29 @@ Hay algunas direcciones que Jool se reusará a traducir, independientemente de `
 
 ## Sintaxis
 
-	jool_siit --blacklist [--display]
-	jool_siit --blacklist --count
-	jool_siit --blacklist --add <IPv4 prefix>
-	jool_siit --blacklist --remove <IPv4 prefix>
-	jool_siit --blacklist --flush
+	jool_siit --blacklist (
+		[--display] [--csv]
+		| --count
+		| --add <prefijo-IPv4>
+		| --remove <prefijo-IPv4>
+		| --flush
+	)
 
-## Opciones
+## Argumentos
+
+### Operaciones
 
 * `--display`: Los prefijos de las direcciones de blacklist son impresos en salida estándar. Esta es la operación por defecto.
 * `--count`: El número de _direcciones_ (no prefijos) en el pool es impreso en salida estándar.  
   Por ejemplo, si todo lo que tienes es un prefijo /30, espera "4" como resultado.
-* `--add`: Carga `<IPv4 prefix>` al pool.
-* `--remove`: Borra la dirección `<IPv4 prefix>` del pool.
+* `--add`: Carga `<prefijo-IPv4>` al pool.
+* `--remove`: Borra la dirección `<prefijo-IPv4>` del pool.
 * `--flush`: Remueve todas las direcciones/prefijos del pool.
+
+### Opciones
+
+| **Bandera** | **Descripción** |
+| `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
 
 ## Ejemplos
 

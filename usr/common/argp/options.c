@@ -29,7 +29,7 @@ static const struct argp_option pool4_opt = {
 		.key = ARGP_POOL4,
 		.arg = NULL,
 		.flags = 0,
-		.doc = "The command will operate on the IPv4 address pool.",
+		.doc = "The command will operate on the IPv4 transport address pool.",
 		.group = 0,
 };
 

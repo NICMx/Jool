@@ -1,10 +1,10 @@
 # [Jool](https://www.jool.mx)
 
-An [SIIT and a NAT64](https://www.jool.mx/intro-nat64.html) for Linux.
+An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
 
 ## Documentation
 
-[See here](https://jool.mx/doc-index.html).
+[See here](https://www.jool.mx/en/documentation.html).
 
 Please send improvements, complaints and fixes to jool@nic.mx.
 Alternatively, you might want to upload bugs and pull requests to the [issue tracker](https://github.com/NICMx/NAT64/issues).

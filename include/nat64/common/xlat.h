@@ -11,9 +11,9 @@
  * relocate them, please make sure to also update dkms.conf accordingly.
  */
 #define JOOL_VERSION_MAJOR 3
-#define JOOL_VERSION_MINOR 3
-#define JOOL_VERSION_REV 2
-#define JOOL_VERSION_DEV 12
+#define JOOL_VERSION_MINOR 4
+#define JOOL_VERSION_REV 0
+#define JOOL_VERSION_DEV 0
 
 /** See http://stackoverflow.com/questions/195975 */
 #define STR_VALUE(arg) #arg

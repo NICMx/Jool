@@ -13,7 +13,9 @@ title: --pool6791
 
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Opciones](#opciones)
+3. [Argumentos](#argumentos)
+   1. [Operaciones](#operaciones)
+   2. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)
 
 ## Descripción
@@ -25,20 +27,29 @@ Si el pool está vacío, Jool retrocederá a utilizar las direcciones de su nodo
 
 ## Sintaxis
 
-	jool_siit --pool6791 [--display]
-	jool_siit --pool6791 --count
-	jool_siit --pool6791 --add <IPv4 prefix>
-	jool_siit --pool6791 --remove <IPv4 prefix>
-	jool_siit --pool6791 --flush
+	jool_siit --blacklist (
+		[--display] [--csv]
+		| --count
+		| --add <prefijo-IPv4>
+		| --remove <prefijo-IPv4>
+		| --flush
+	)
 
-## Opciones
+## Argumentos
+
+### Operaciones
 
 - `--display`: Los prefijos del pool son impresos en salida estándar. Esta es la operación por defecto.
 - `--count`: El número de _direcciones_ (no prefijos) en el pool es impreso en salida estándar.  
 Por ejemplo, si todo lo que tienes es un prefijo /24, espera "256" como salida.
-- `--add`: Carga `<IPv4 prefix>` al pool.
-- `--remove`: Borra el prefijo `<IPv4 prefix>` del pool.
+- `--add`: Carga `<prefijo-IPv4>` al pool.
+- `--remove`: Borra el prefijo `<prefijo-IPv4>` del pool.
 - `--flush`: Remueve todos los prefijos del pool.
+
+### Opciones
+
+| **Bandera** | **Descripción** |
+| `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
 
 ## Ejemplos
 

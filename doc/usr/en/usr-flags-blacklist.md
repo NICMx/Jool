@@ -13,7 +13,9 @@ title: --blacklist
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-3. [Options](#options)
+3. [Arguments](#arguments)
+	1. [Operations](#operations)
+	2. [Options](#options)
 4. [Examples](#examples)
 
 ## Description
@@ -33,20 +35,29 @@ There are some addresses Jool will refuse to translate, regardless of `blacklist
 
 ## Syntax
 
-	jool_siit --blacklist [--display]
-	jool_siit --blacklist --count
-	jool_siit --blacklist --add <IPv4 prefix>
-	jool_siit --blacklist --remove <IPv4 prefix>
-	jool_siit --blacklist --flush
+	jool_siit --blacklist (
+		[--display] [--csv]
+		| --count
+		| --add <IPv4-prefix>
+		| --remove <IPv4-prefix>
+		| --flush
+	)
 
-## Options
+## Arguments
+
+### Operations
 
 * `--display`: The pool's addresses/prefixes are printed in standard output. This is the default operation.
 * `--count`: The number of _addresses_ (not prefixes) in the pool is printed in standard output.  
 For example, if all you have is a /30 prefix, expect "4" as output.
-* `--add`: Uploads `<IPv4 prefix>` to the pool.
-* `--remove`: Deletes `<IPv4 prefix>` from the pool.
+* `--add`: Uploads `<IPv4-prefix>` to the pool.
+* `--remove`: Deletes `<IPv4-prefix>` from the pool.
 * `--flush`: Removes all addresses/prefixes from the pool.
+
+### Options
+
+| **Flag** | **Description** |
+| `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
 
 ## Examples
 

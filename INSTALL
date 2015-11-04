@@ -1,9 +1,9 @@
 ***********************************************************************
 
 	Before you continue, perhaps you want to have a look at
-	https://www.jool.mx/doc-index.html, where you should find a
+	https://www.jool.mx/en/documentation.html, where you should find a
 	newcomer-friendlier version of this file.
-	Alternatively, see doc/README.md and doc/usr/doc-index.markdown.
+	Alternatively, see doc/README.md and doc/usr/en/documentation.md.
 
 ***********************************************************************
 
@@ -25,8 +25,7 @@ Alternatively, manually install the modules using Kbuild directly:
 		NAT64$ cd mod
 		NAT64/mod$ make
 	2. Install the modules:
-		NAT64/mod# make modules_install
-		# depmod
+		NAT64/mod# make install
 
 Insert the module:
 	Configure networking.
@@ -36,23 +35,19 @@ Insert the module:
 		# sysctl -w net.ipv4.conf.all.forwarding=1
 		# sysctl -w net.ipv6.conf.all.forwarding=1
 
-	Turn off offloads (do this for every relevant interface).
-		# ethtool --offload <interface> tso off
-		# ethtool --offload <interface> ufo off
-		# ethtool --offload <interface> gso off
+	Turn offloads off (do this for every relevant interface).
 		# ethtool --offload <interface> gro off
 		# ethtool --offload <interface> lro off
 	
 	Actually insert the module.
 		# modprobe jool_siit pool6=64:ff9b::/96
 		or
-		# modprobe jool pool6=64:ff9b::/96 pool4=192.0.2.2
+		# modprobe jool pool6=64:ff9b::/96
 
 	See your module shine.
-		$ # See your module listed. Might want to pipe over to
-		$ # "grep jool".
-		$ lsmod
-		# Check the log. Better if you compiled using "make debug".
+		$ # See your module listed.
+		$ lsmod | grep jool
+		$ # Check the log.
 		$ dmesg
 
 Configure the module:
@@ -81,7 +76,7 @@ Configure the module:
 		Interact with the IPv4 pool:
 			$ jool --pool4 --display
 			$ jool --pool4 --count
-			# jool --pool4 --add 192.0.2.0/30    # Slow!
+			# jool --pool4 --add 192.0.2.0/30
 			# jool --pool4 --remove 192.0.2.0/30
 			# jool --pool4 --flush
 
@@ -126,3 +121,4 @@ Remove the module:
 	# modprobe -r jool_siit
 	or
 	# modprobe -r jool
+

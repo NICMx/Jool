@@ -13,9 +13,9 @@ title: --pool6
 
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Opciones](#opciones)
+3. [Argumentos](#argumentos)
    1. [Operaciones](#operaciones)
-   2. [`--quick`](#quick)
+   2. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)
 
 ## Descripción
@@ -28,27 +28,42 @@ Si el pool está vacío, Jool no va a poder traducir direcciones basado en el RF
 
 ## Sintaxis
 
-(`$(jool)` puede ser `jool_siit` o `jool`.)
+SIIT Jool:
 
-	$(jool) --pool6 [--display]
-	$(jool) --pool6 --count
-	$(jool) --pool6 --add <IPv6 prefix>
-	$(jool) --pool6 --remove <IPv6 prefix> [--quick]
-	$(jool) --pool6 --flush [--quick]
+	jool_siit --pool6 (
+		[--display] [--csv]
+		| --count
+		| --add <prefijo-IPv6> [--force]
+		| --remove <prefijo-IPv6>
+		| --flush
+	)
 
-## Opciones
+NAT64 Jool:
+
+	jool --pool6 (
+		[--display] [--csv]
+		| --count
+		| --add <prefijo-IPv6> [--force]
+		| --remove <prefijo-IPv6> [--quick]
+		| --flush [--quick]
+	)
+
+## Argumentos
 
 ### Operaciones
 
 * `--display`: Lista los prefijos dados de alta y activos del pool. Esta es la operación por omisión.
 * `--count`: Lista la cantidad de prefijos dados de alta y activos en el pool.
-* `--add`: Agrega el prefijo `<prefix>` al pool.
-* `--remove`: Borra de la tabla el prefijo `<prefix>`.
+* `--add`: Agrega el prefijo `<prefijo-IPv6>` al pool.
+* `--remove`: Borra de la tabla el prefijo `<prefijo-IPv6>`.
 * `--flush`: Remueve todos los prefijos del pool.
 
-### `--quick`
+### Opciones
 
-Ver [`--quick`](usr-flags-quick.html). Solo disponible en `jool`.
+| **Bandera** | **Descripción** |
+| `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
+| `--force` | Dar de alta el prefijo incluso si u-bit no es cero. Ver el [issue relevante](https://github.com/NICMx/NAT64/issues/174). |
+| `--quick` | Ver [`--quick`](usr-flags-quick.html). |
 
 ## Ejemplos
 

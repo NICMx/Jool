@@ -19,7 +19,7 @@ title: Descargar
 
 ## 3.4.x
 
-Jool 3.4 es una completa re-escritura de pool4, que agrega rangos de puertos y marcas, y mejora el desempeño.
+Jool 3.4 es un [SIIT y NAT64 apegado al estándar](intro-jool.html#cumplimiento).
 
 La versión 3.4.0 es la más actual.
 
@@ -29,16 +29,17 @@ La versión 3.4.0 es la más actual.
 
 ## 3.3.x
 
-Jool 3.3 es un [SIIT y Stateful NAT64 razonablemente apegado al estándar](intro-jool.html#cumplimiento).
+Jool 3.3 es un SIIT y Stateful NAT64 razonablemente apegado al estándar.
 
-La versión 3.3.4 es la más actual, y es considerada la más madura.
+La versión 3.3.5 es la más actual, y es considerada la más madura.
 
 La documentación en este sitio corresponde a la serie 3.4. Se puede descargar una imagen de la documentación de la serie 3.3 [aquí](https://www.jool.mx/download/Jool-3.3-doc.zip) (**Nota:** está en inglés).
 
 | Descarga | SHA512 | MD5| Commit de Git |
 |----------|--------|----|------------|
+| **[3.3.5](https://www.jool.mx/download/Jool-3.3.5.zip)** | [SHA512](https://www.jool.mx/download/Jool-3.3.5.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.5.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.5) |
 | [3.3.4](https://www.jool.mx/download/Jool-3.3.4.zip) | [SHA512](https://www.jool.mx/download/Jool-3.3.4.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.4.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.4) |
-| <del>[3.3.3](https://www.jool.mx/download/Jool-3.3.3.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.3) |
+| [3.3.3](https://www.jool.mx/download/Jool-3.3.3.zip) | [SHA512](https://www.jool.mx/download/Jool-3.3.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.3) |
 | <del>[3.3.2](https://www.jool.mx/download/Jool-3.3.2.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.2.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.2.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.2) |
 | <del>[3.3.1](https://www.jool.mx/download/Jool-3.3.1.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.1.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.1.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.1) |
 | <del>[3.3.0](https://www.jool.mx/download/Jool-3.3.0.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.3.0.sha) | [MD5](https://www.jool.mx/download/Jool-3.3.0.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.3.0) |
@@ -53,7 +54,7 @@ La documentación en este sitio corresponde a la serie 3.4. Se puede descargar u
 
 | Descarga | SHA512 | MD5| Commit de Git |
 |----------|--------|----|------------|
-| [3.2.3](https://www.jool.mx/download/Jool-3.2.3.zip) | [SHA512](https://www.jool.mx/download/Jool-3.2.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.2.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.2.3) |
+| <del>[3.2.3](https://www.jool.mx/download/Jool-3.2.3.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.2.3.sha) | [MD5](https://www.jool.mx/download/Jool-3.2.3.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.2.3) |
 | <del>[3.2.2](https://www.jool.mx/download/Jool-3.2.2.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.2.2.sha) | [MD5](https://www.jool.mx/download/Jool-3.2.2.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.2.2) |
 | <del>[3.2.1](https://www.jool.mx/download/Jool-3.2.1.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.2.1.sha) | [MD5](https://www.jool.mx/download/Jool-3.2.1.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.2.1) |
 | <del>[3.2.0](https://www.jool.mx/download/Jool-3.2.0.zip)</del> | [SHA512](https://www.jool.mx/download/Jool-3.2.0.sha) | [MD5](https://www.jool.mx/download/Jool-3.2.0.md5) | [Enlace](https://github.com/NICMx/NAT64/tree/v3.2.0) |

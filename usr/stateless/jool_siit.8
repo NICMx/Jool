@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool_siit 8 2015-04-13 v3.3.2 "SIIT Jool's Userspace Application"
+.TH jool_siit 8 2015-11-04 v3.4.0 "SIIT Jool's Userspace Application"
 
 .SH NAME
 jool_siit - Interact with SIIT Jool (the kernel module).
@@ -14,16 +14,16 @@ SIIT Jool is a kernel module you load into a Linux kernel. It implements RFC 614
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
 .br
-Kernels 3.0.0 and up.
+Kernels 3.2.0 and up.
 
 .SH SYNTAX
 jool_siit --pool6 (
 .br
-	[--display]
+	[--display] [--csv]
 .br
 	| --count
 .br
-.RI "	| --add " <IPv6-prefix>
+.RI "	| --add " <IPv6-prefix> " [--force]"
 .br
 .RI "	| --remove " <IPv6-prefix>
 .br
@@ -33,7 +33,7 @@ jool_siit --pool6 (
 .P
 jool_siit --blacklist (
 .br
-	[--display]
+	[--display] [--csv]
 .br
 	| --count
 .br
@@ -47,7 +47,7 @@ jool_siit --blacklist (
 .P
 jool_siit --pool6791 (
 .br
-	[--display]
+	[--display] [--csv]
 .br
 	| --count
 .br
@@ -65,7 +65,7 @@ jool_siit --pool6791 (
 .br
 	| --count
 .br
-.RI "	| --add " "<IPv4-prefix> <IPv6-prefix>"
+.RI "	| --add " "<IPv4-prefix> <IPv6-prefix>" " [--force]"
 .br
 .RI "	| --remove " "<IPv4-prefix> <IPv6-prefix>"
 .br
@@ -75,7 +75,7 @@ jool_siit --pool6791 (
 .P
 .RI "jool_siit [--global] (
 .br
-	[--display]
+	[--display] [--csv]
 .br
 .RI "	| [--update] " FLAG_KEY = FLAG_VALUE
 .br
@@ -107,7 +107,7 @@ Empty the table.
 .br
 Exampĺe: 64:ff9b::/96
 .IP <IPv4-prefix>
-.RI "IPv4 addresses to add to or remove from Jool's IPv4 pool or EAM table."
+.RI "IPv4 addresses to add to or remove from the pool or EAM table."
 .br
 .RI "The format is " IPV4_ADDRESS "[/" PREFIX_LENGTH "]."
 .br
@@ -147,13 +147,13 @@ Set the list of plateaus for ICMPv4 Fragmentation Neededs with MTU unset.
 .IP --allow-atomic-fragments=BOOL
 Allow Atomic Fragments?
 .br
-(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
+(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
 .IP --setDF=BOOL
 Always set Don't Fragment?
 .IP --genFH=BOOL
 Also include IPv6 Fragment Header when IPv4 Packet DF Flag is not set?
 .br
-(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
+(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
 .IP --genID=BOOL
 Generate IPv4 identification?
 .IP --boostMTU=BOOL
@@ -241,5 +241,4 @@ There is NO WARRANTY, to the extent permitted by law.
 .SH SEE ALSO
 https://www.jool.mx
 .br
-https://www.jool.mx/usr-flags.html
-
+https://www.jool.mx/en/documentation.html#userspace-application-arguments

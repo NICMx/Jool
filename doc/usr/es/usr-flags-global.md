@@ -48,10 +48,8 @@ Es el modo por omisión de configuración de Jool, por lo que en realidad nunca 
 
 ## Sintaxis
 
-	jool_siit [--global]
-	jool_siit [--global] <llave> <valor>
-	jool [--global]
-	jool [--global] <llave> <valor>
+	(jool_siit | jool) [--global] [--display] [--csv]
+	(jool_siit | jool) [--global] [--update] <llave> <valor>
 
 ## Ejemplos
 

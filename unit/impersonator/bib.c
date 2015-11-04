@@ -27,7 +27,7 @@ bool bibdb_contains4(const struct ipv4_transport_addr *addr,
 	BUG();
 }
 
-int pool4db_foreach_taddr4(struct packet *in, const struct tuple *tuple6,
+int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
 		struct in_addr *daddr,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset)

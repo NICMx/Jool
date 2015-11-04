@@ -14,6 +14,8 @@ title: --pool4
 1. [Description](#description)
 2. [Syntax](#syntax)
 3. [Arguments](#arguments)
+   1. [Operations](#operations)
+   2. [Options](#options)
 4. [Examples](#examples)
 5. [Notes](#notes)
 6. [`--mark`](#mark)
@@ -28,15 +30,19 @@ If pool4 is empty, Jool will try to mask packets using its own node's assigned I
 
 ## Syntax
 
-	jool --pool4 [--display] [--csv]
-	jool --pool4 --count
-	jool --pool4 --add [--mark <mark>] [--tcp] [--udp] [--icmp] <IPv4 prefix> [<port range>] [--force]
-	jool --pool4 --remove [--mark <mark>] [--tcp] [--udp] [--icmp] <IPv4 prefix> [<port range>] [--quick]
-	jool --pool4 --flush [--quick]
+	jool --pool4 (
+		[--display] [--csv]
+		| --count
+		| --add <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--force]
+		| --remove <PROTOCOLS> <IPv4-prefix> <port-range> [--mark <mark>] [--quick]
+		| --flush [--quick]
+	)
+
+	<PROTOCOLS> := [--tcp] [--udp] [--icmp]
 
 ## Arguments
 
-Operations:
+### Operations
 
 * `--display`: The pool's records are printed in standard output. This is the default operation.
 * `--count`: Prints the number of tables, samples and transport addresses in standard output.
@@ -44,16 +50,16 @@ Operations:
 * `--remove`: Deletes entries from the pool.
 * `--flush`: Removes all entries from the pool.
 
-Others:
+### Options
 
-| **Name** | **Default** | **Description** |
-| `--csv` | (absent) | If present, print the table in [CSV format](https://en.wikipedia.org/wiki/Comma-separated_values). |
+| **Flag** | **Default** | **Description** |
+| `--csv` | (absent) | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
 | `--mark` | 0 | Packets carrying mark _n_ will only be translated using pool4 records with mark _n_. See [below](#mark). |
 | `--tcp` | * | If present, the record being added or removed represents TCP transport addresses. |
 | `--udp` | * | If present, the record being added or removed represents UDP transport addresses. |
 | `--icmp` | * | If present, the record being added or removed represents "ICMP transport addresses" (Addresses and ICMP identifiers, not ports). |
-| `<IPv4 prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
-| `<port range>` | 1-65535 for TCP/UDP, 0-65535 for ICMP | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
+| `<IPv4-prefix>` | - | Group of addresses you're adding or removing to/from the pool. The length defaults to 32, so you typically add and remove addresses instead of prefixes. |
+| `<port-range>` | 1-65535 for TCP/UDP, 0-65535 for ICMP | Subset layer 4 identifiers (or ICMP ids) from the addresses which should be reserved for translation. |
 | `--force` | (absent) | If present, add the elements to the pool even if they're too many.<br />(Will print a warning and quit otherwise.) |
 | `--quick` | (absent) | If present, do not cascade removal to [BIB entries](bib.html).<br />`--quick` present is faster, `--quick` absent leaves a cleaner (and therefore more efficient) BIB database.<br />Leftover BIB entries will still be removed from the database and freed after they expire naturally.<br />See [this](usr-flags-quick.html) for a more verbose explanation. |
 

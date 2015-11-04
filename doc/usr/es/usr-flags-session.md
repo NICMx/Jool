@@ -13,11 +13,9 @@ title: --session
 
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Opciones](#opciones)
+3. [Argumentos](#argumentos)
    1. [Operaciones](#operaciones)
-   2. [`<protocolos>`](#protocolos)
-   3. [`--numeric`](#numeric)
-   4. [`--csv`](#csv)
+   2. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)
 
 ## Descripción
@@ -52,33 +50,28 @@ Las tablas de sesiones se populan automáticamente y no tiene sentido modificarl
 
 ## Sintaxis
 
-	jool --session [--display] [--numeric] [--csv] <protocolos>
-	jool --session --count <protocolos>
+	jool --session [--tcp] [--udp] [--icmp] (
+		[--display] [--numeric] [--csv]
+		| --count
+	)
 
-## Opciones
+## Argumentos
 
 ### Operaciones
 
 * `--display`: Imprime las tablas de sesión en salida estándar. Esta es la operación por omisión.
 * `--count`: Lista la cantidad de registros por tabla de sesión.
 
-### `<protocolos>`
+### Opciones
 
-	<protocolos> := [--tcp] [--udp] [--icmp]
+| **Bandera** | **Descripción** |
+| `--tcp` | Si está presente, el comando aplica sobre la tabla de TCP. |
+| `--udp` | Si está presente, el comando aplica sobre la tabla de UDP. |
+| `--icmp` | Si está presente, el comando aplica sobre la tabla de ICMP. |
+| `--numeric` | La aplicación intentará resolver el nombre del nodo IPv6 de cada sesión. _Si los nameservers no están respondiendo, la salida se retrasará_.<br />`--numeric` desactiva la resolución de nombres.
+| `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
 
-El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces afecta a los tres protocolos.
-
-### `--numeric`
-
-La aplicación intentará resolver el nombre del nodo IPv6 de cada sesión. _Si los nameservers no están respondiendo, la salida se retrasará_.
-
-`--numeric` desactiva la resolución de nombres.
-
-### `--csv`
-
-Por defecto, la aplicación imprime las tablas en un formato relativamente amigable para la consola.
-
-`--csv` se puede usar para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV), que es amigable con software de hojas de cálculo.
+\* `--tcp`, `--udp` e `--icmp` no son mutuamente excluyentes. Si ninguna de las tres está presente, el comando aplica a los tres protocolos.
 
 ## Ejemplos
 

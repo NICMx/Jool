@@ -20,18 +20,53 @@ Jool is an Open Source [SIIT and NAT64](intro-xlat.html) for Linux.
 
 ## Status
 
-As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2015-08-19:
+As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT and Stateful NAT64. This is the roadmap as of 2015-11-04:
 
-2. [Milestone 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) will be a [framework switch](https://github.com/NICMx/NAT64/issues/140). Jool might become a device driver or a userspace daemon. This will free Jool from most of its compliance problems and might make it more intuitive to configure.
+2. [Milestone 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) will be a [framework revision](https://github.com/NICMx/NAT64/issues/140). Jool will probably be able to become a device driver, and this might make it more intuitive to configure.
 3. [Milestone 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) will add several new features.
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version <a href="https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0" target="_blank">3.4.0</a>.
+Our latest release is version [3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
 
 -------------------
 
 ## News
+
+### 2015-11-04
+
+Version 3.4.0 released. This is a fat one.
+
+1. Refactors to pool4 add [mark-dependent sourcing](usr-flags-pool4.html#mark) and [port ranges](usr-flags-pool4.html#examples) (which in turn removes [the need for a second IPv4 address](run-nat64.html#sample-network)), and fixes the [excessive memory usage](https://github.com/NICMx/NAT64/issues/36).
+2. The EAMT now implements [Hairpinning](https://github.com/NICMx/NAT64/issues/162) and [overlapping entries](https://github.com/NICMx/NAT64/issues/160), which are newer updates to the EAM draft.
+3. Minimal namespace features, which allow Host-Based Edge Translation (now called [Node-Based Translation](node-based-translation.html)) and (subjectively) [better filtering](https://github.com/NICMx/NAT64/issues/41).
+4. The userspace application now [prints the friendlier error messages](https://github.com/NICMx/NAT64/issues/169) that used to be dumped in the kernel log only.
+5. Removed reliance on dead code deletion, [which used to prevent compilation on some systems](https://github.com/NICMx/NAT64/issues/152).
+6. [Two](https://github.com/NICMx/NAT64/issues/174) [bugfixes](https://github.com/NICMx/NAT64/issues/173).
+7. Spanish documentation.
+8. `--csv` can now be used on [all configuration targets](https://github.com/NICMx/NAT64/issues/164#issuecomment-126093571).
+
+### 2015-10-15
+
+Version 3.3.5 released.
+
+Three bugfixes:
+
+1. A connection could be masked using port zero (NAT64 Jool).
+2. Incorrect routing when pool6791 was empty (SIIT Jool).
+3. Memory leak on `--eamt --flush` (SIIT Jool).
+
+### 2015-09-21
+
+Version 3.3.4 released.
+
+The most important fix is (theoretically) a [Path MTU Discovery breaker](https://github.com/NICMx/NAT64/issues/170). There's also the [now automatic blacklisting of IPv4 multicast](https://github.com/NICMx/NAT64/issues/168) and the [better handling of the IPv6 header's hop limit](https://github.com/NICMx/NAT64/issues/167).
+
+Also, it has been noticed [SIIT Jool installations in kernels 3.5 and below need IPv4 forwarding active](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). In other words, add
+
+	sudo sysctl -w net.ipv4.conf.all.forwarding=1
+
+to the modprobe procedure.
 
 ### 2015-08-17
 

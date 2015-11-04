@@ -13,12 +13,9 @@ title: --bib
 
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Opciones](#opciones)
+3. [Argumentos](#argumentos)
    1. [Operaciones](#operaciones)
-   2. [`<protocolos>`](#protocolos)
-   3. [`--numeric`](#numeric)
-   4. [`--csv`](#csv)
-   5. [`<bib4>`, `<bib6>`](#bib4-bib6)
+   2. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)
 
 ## Descripción
@@ -28,49 +25,34 @@ Interactúa con el [Binding Information Base (BIB)](bib.html) de Jool.
 
 ## Sintaxis
 
-	jool --bib <protocolos> [--display] [--numeric] [--csv]
-	jool --bib <protocolos> --count
-	jool --bib <protocolos> --add <bib4> <bib6>
-	jool --bib <protocolos> --remove (<bib4> | <bib6> | <bib4> <bib6>)
+	jool --bib [--tcp] [--udp] [--icmp] (
+		[--display] [--numeric] [--csv]
+		| --count
+		| --add <dirección-de-transporte-IPv4> <dirección-de-transporte-IPv6>
+		| --remove <dirección-de-transporte-IPv4> <dirección-de-transporte-IPv6>
+	)
 
-## Opciones
+## Argumentos
 
 ### Operaciones
 
 * `--display`: Lista las tablas BIB. Operación por omisión.
 * `--count`: Lista el número de registros BIB en las tablas.
-* `--add`: Combina `<bib6>` y `<bib4>` en un registro BIB estático, y lo añade a las tablas de Jool.
-* `--remove`: Borra el registro descrito por `<bib6>` and/or `<bib4>` de las tablas BIB.
+* `--add`: Combina `<dirección-de-transporte-IPv4>` e `<dirección-de-transporte-IPv6>` en un registro BIB estático, y lo añade a las tablas de Jool.  
+La dirección de transporte IPv4 debe ser un miembro de [pool4](pool4.html) (de modo que es necesario registrarlo ahí primero).
+* `--remove`: Borra el registro descrito por `<dirección-de-transporte-IPv4>` y/o `<dirección-de-transporte-IPv6>` de las tablas BIB.  
+Toda dirección de transporte es única a lo largo de una tabla, de modo que solamente es mandatario especificar una de ellas al remover. Sin embargo, es legal introducirlas ambas en el comando para confirmar que se está removiendo lo que se espera.
 
-### `<protocolos>`
+### Opciones
 
-	<protocolos> := [--tcp] [--udp] [--icmp]
+| **Bandera** | **Descripción** |
+| `--tcp` | Si está presente, el comando aplica sobre la tabla BIB de TCP. |
+| `--udp` | Si está presente, el comando aplica sobre la tabla BIB de UDP. |
+| `--icmp` | Si está presente, el comando aplica sobre la tabla BIB de ICMP. |
+| `--numeric` | La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si los nameservers no están respondiendo, la salida se retrasará_.<br />`--numeric` desactiva la resolución de nombres. |
+| `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
 
-El comando aplica sobre la(s) tabla(s) específica(s). Si no se indica, entonces afecta a los tres protocolos.
-
-### `--numeric`
-
-La aplicación intentará resolver el nombre del nodo IPv6 de cada registro BIB. _Si los nameservers no están respondiendo, la salida se retrasará_.
-
-`--numeric` desactiva la resolución de nombres.
-
-### `--csv`
-
-Por defecto, la aplicación imprime las tablas en un formato relativamente amigable para la consola.
-
-`--csv` se puede usar para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV), que es amigable con software de hojas de cálculo.
-
-
-### `<bib4>`, `<bib6>`
-
-	<bib4> := <dirección IPv4>#(<puerto> | <identificador ICMP>)
-	<bib6> := <dirección IPv6>#(<puerto> | <identificador ICMP>)
-
-Un registro BIB está compuesto de una dirección de transporte IPv6 (los identificadores de conexión de los nodos IPv6) y una dirección de transporte IPv4 (los identificadores de conexión que Jool está utilizando para enmascarar los de IPv6).
-
-Estos parámetros definen la respectiva dirección de transporte al insertar o remover entradas. El componente `<bib4>` debe ser un miembro de [pool4](usr-flags-pool4.html) (de modo que es necesario registrarlo ahí antes de colocarlo en BIB).
-
-Toda dirección de transporte única a lo largo de la base de datos, por lo que solamente es mandatario especificar de ellas al remover. Sin embargo, es legal introducirlos ambos en el comando para garantizar que se está removiendo lo que se espera.
+\* `--tcp`, `--udp` e `--icmp` no son mutuamente excluyentes. Si ninguna de las tres está presente, el comando aplica a los tres protocolos.
 
 ## Ejemplos
 

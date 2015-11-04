@@ -13,12 +13,9 @@ title: --bib
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-3. [Options](#options)
+3. [Arguments](#arguments)
    1. [Operations](#operations)
-   2. [`<protocols>`](#protocols)
-   3. [`--numeric`](#numeric)
-   4. [`--csv`](#csv)
-   5. [`<bib4>`, `<bib6>`](#bib4-bib6)
+   2. [Options](#options)
 4. [Examples](#examples)
 
 ## Description
@@ -27,50 +24,34 @@ Interacts with Jool's [Binding Information Base (BIB)](bib.html).
 
 ## Syntax
 
-	jool --bib <protocols> [--display] [--numeric] [--csv]
-	jool --bib <protocols> --count
-	jool --bib <protocols> --add <bib4> <bib6>
-	jool --bib <protocols> --remove (<bib4> | <bib6> | <bib4> <bib6>)
+	jool --bib [--tcp] [--udp] [--icmp] (
+		[--display] [--numeric] [--csv]
+		| --count
+		| --add <IPv4-transport-address> <IPv6-transport-address>
+		| --remove <IPv4-transport-address> <IPv6-transport-address>
+	)
 
-## Options
+## Arguments
 
 ### Operations
 
 * `--display`: The BIB tables are printed in standard output. This is the default operation.
 * `--count`: The number of entries per BIB table are printed in standard output.
-* `--add`: Combines `<bib6>` and `<bib4>` into a static BIB entry, and uploads it to Jool's tables.
-* `--remove`: Deletes from the tables the BIB entry described by `<bib6>` and/or `<bib4>`.
+* `--add`: Combines `<IPv4-transport-address>` and `<IPv6-transport-address>` into a static BIB entry, and uploads it to Jool's tables.  
+Note that the `<IPv4-transport-address>` component must be a member of Jool's [IPv4 pool](usr-flags-pool4.html), so make sure you have registered it there first.
+* `--remove`: Deletes from the tables the BIB entry described by `<IPv4-transport-address>` and/or `<IPv6-transport-address>`.  
+Within a BIB table, every IPv4 transport address is unique. Within a BIB table, every IPv6 transport address is also unique. Therefore, If you're removing a BIB entry, you actually only need to provide one transport address. You can still input both to make sure you're deleting exactly what you want to delete, though.
 
-### `<protocols>`
+### Options
 
-	<protocols> := [--tcp] [--udp] [--icmp]
+| **Flag** | **Description** |
+| `--tcp` | If present, the command operates on the TCP table. |
+| `--udp` | If present, the command operates on the UDP table. |
+| `--icmp` | If present, the command operates on the ICMP table. |
+| `--numeric` | By default, the application will attempt to resolve the name of the IPv6 node of each BIB entry. _If your nameservers aren't answering, this will slow the output down_.<br />Use `--numeric` to turn this behavior off. |
+| `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
 
-The command will only operate on the tables mentioned here. If you omit this entirely, Jool will fall back to operate on all three tables.
-
-### `--numeric`
-
-By default, the application will attempt to resolve the name of the IPv6 node of each BIB entry. _If your nameservers aren't answering, this will slow the output down_.
-
-Use `--numeric` to turn this behavior off.
-
-### `--csv`
-
-By default, the application will print the tables in a relatively console-friendly format.
-
-Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_values" target="_blank">CSV format</a>, which is spreadsheet-friendly.
-
-### `<bib4>`, `<bib6>`
-
-	<bib4> := <IPv4 address>#(<port> | <ICMP identifier>)
-	<bib6> := <IPv6 address>#(<port> | <ICMP identifier>)
-
-A BIB entry is composed of a IPv6 transport address (the IPv6 node's connection identifiers) and a IPv4 transport address (the connection identifiers Jool is using to mask the IPv6 ones).
-
-If you're adding or removing a BIB, you provide both addresses via these parameters.
-
-Note that the `<bib4>` component must be a member of Jool's [IPv4 pool](usr-flags-pool4.html), so make sure you have registered it there first.
-
-Within a BIB table, every IPv4 transport address is unique. Within a BIB table, every IPv6 transport address is also unique. Therefore, If you're removing a BIB entry, you actually only need to provide one of them. You can still input both to make sure you're deleting exactly what you want to delete, though.
+`--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
 
 ## Examples
 

@@ -13,10 +13,10 @@ title: --eamt
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-3. [Options](#options)
+3. [Arguments](#arguments)
    2. [Operations](#operations)
-   4. [`--csv`](#csv)
-   5. [`<prefix4>`, `<prefix6>`](#prefix4-prefix6)
+   4. [Options](#options)
+4. [Overlapping EAM Entries](#overlapping-eam-entries)
 4. [Examples](#examples)
 
 ## Description
@@ -25,40 +25,31 @@ Interacts with Jool's Explicit Address Mapping Table (EAMT). See [the introducti
 
 ## Syntax
 
-	jool_siit --eamt [--display] [--csv]
-	jool_siit --eamt --count
-	jool_siit --eamt --add <prefix4> <prefix6> [--force]
-	jool_siit --eamt --remove (<prefix4> | <prefix6> | <prefix4> <prefix6>)
-	jool_siit --eamt --flush
+	jool_siit --eamt (
+		[--display] [--csv]
+		| --count
+		| --add <IPv4-prefix> <IPv6-prefix> [--force]
+		| --remove <IPv4-prefix> <IPv6-prefix>
+		| --flush
+	)
 
-## Options
+## Arguments
 
 ### Operations
 
 * `--display`: The EAMT is printed in standard output. This is the default operation.
 * `--count`: The number of entries in the EAMT are printed in standard output.
-* `--add`: Combines `<prefix4>` and `<prefix6>` into an EAM entry, and uploads it to Jool's table.
-* `--remove`: Deletes from the table the EAM entry described by `<prefix4>` and/or `<prefix6>`.
+* `--add`: Combines `<IPv4-prefix>` and `<IPv6-prefix>` into an EAM entry, and uploads it to Jool's table.
+* `--remove`: Deletes from the table the EAM entry described by `<IPv4-prefix>` and/or `<IPv6-prefix>`.
 * `--flush`: Removes all entries from the table.
 
-### `--csv`
+### Options
 
-By default, the application will print the tables in a relatively console-friendly format.
+| **Flag** | **Description** |
+| `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
+| `--force` | Upload the entry even if overlapping occurs (See the next section). |
 
-Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_values" target="_blank">CSV format</a>, which is spreadsheet-friendly.
-
-### `<prefix4>`, `<prefix6>`
-
-	<prefix4> := <IPv4 address>[/<prefix length>]
-	<prefix6> := <IPv6 address>[/<prefix length>]
-
-These are the prefixes each record is made out of. See the [general EAMT explanation](eamt.html).
-
-`<prefix length>` defaults to /32 on `<prefix4>` and /128 on `<prefix6>`.
-
-Every prefix is unique accross the table. Therefore, If you're removing an EAMT entry, you actually only need to provide one of them. You can still input both to make sure you're deleting exactly what you want to delete, though.
-
-### `--force`
+## Overlapping EAM entries
 
 By default, EAMT entries are not allowed to overlap. You can use `--force` while `--add`ing to override this property. When overlapping EAMT entries exist, Jool picks based on longest match prefix.
 
@@ -69,7 +60,7 @@ For example:
 | 192.0.2.0/24    | 2001:db8:aaaa::/120  |
 | 192.0.2.8/29    | 2001:db8:bbbb::/125  |
 
-Address `192.0.2.9` matches `192.0.2.8/29` better than `192.0.2.0/24`, so it will get translated as `2001:db8:bbbb::1`, not `2001:db8:aaaa::8`.
+Address `192.0.2.9` matches `192.0.2.8/29` better than `192.0.2.0/24`, so it will get translated as `2001:db8:bbbb::1`, not `2001:db8:aaaa::9`.
 
 Notice this creates assymetry. `2001:db8:aaaa::9` gets translated as `192.0.2.9`, which in turn gets translated as `2001:db8:bbbb::1`. Depending on your use case, this can break communication.
 

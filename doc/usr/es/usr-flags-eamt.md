@@ -13,10 +13,10 @@ title: --eamt
 
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
-3. [Options](#opciones)
-   2. [Operaciones](#operaciones)
-   4. [`--csv`](#csv)
-   5. [`<prefix4>`, `<prefix6>`](#prefix4-prefix6)
+3. [Argumentos](#argumentos)
+   1. [Operaciones](#operaciones)
+   2. [Opciones](#opciones)
+4. [Entradas EAM superpuestas](#entradas-eam-superpuestas)
 4. [Ejemplos](#ejemplos)
 
 ## Descripción
@@ -25,41 +25,47 @@ Interactúa con la EAMT (_Tabla de mapeos explícitos de direcciones_). Ver [la 
 
 ## Sintaxis
 
-	jool_siit --eamt [--display] [--csv]
-	jool_siit --eamt --count
-	jool_siit --eamt --add <prefix4> <prefix6>
-	jool_siit --eamt --remove (<prefix4> | <prefix6> | <prefix4> <prefix6>)
-	jool_siit --eamt --flush
+	jool_siit --eamt (
+		[--display] [--csv]
+		| --count
+		| --add <prefijo-IPv4> <prefijo-IPv6> [--force]
+		| --remove <prefijo-IPv4> <prefijo-IPv6>
+		| --flush
+	)
 
-## Opciones
+## Argumentos
 
 ### Operaciones
 
 * `--display`: La tabla EAMT es impresa en salida estándar. Esta es la operación por defecto.
 * `--count`: El número de registros en la tabla EAMT es impreso en salida estándar.
-* `--add`: Combina `<prefix4>` y `<prefix6>` en un registro EAM, y lo carga a la tabla de Jool.
-* `--remove`: Borra de la tabla el registro EAM descrito por `<prefix4>` y/o `<prefix6>`. 
+* `--add`: Combina `<prefijo-IPv4>` y `<prefijo-IPv6>` en un registro EAM, y lo carga a la tabla de Jool.
+* `--remove`: Borra de la tabla el registro EAM descrito por `<prefijo-IPv4>` y/o `<prefijo-IPv6>`.  
+Todo prefijo es único a lo largo de la tabla, por lo que solamente es necesario especificar uno de ellos cuando se desea remover. Sin embargo, es legal introducirlos ambos en el comando para garantizar que se está removiendo lo que se espera.
 * `--flush`: Remueve todos los registros de la tabla.
 
-### `--csv`
+### Opciones
 
-Por defecto, la aplicación imprime las tablas en un formato relativamente amigable para la consola.
+| **Bandera** | **Descripción** |
+| `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
+| `--force` | Dar de alta la entrada aún si ocurre superposición (ver la siguiente sección). |
 
-`--csv` se puede usar para imprimir en [formato CSV](http://es.wikipedia.org/wiki/CSV), que es amigable con software de hojas de cálculo.
+## Entradas EAM superpuestas
 
+Normalmente las entradas EAM no pueden colisionar entre sí. Es posible usar `--force` durante un `--add` para anular esta propiedad. Cuando existen entradas EAM que se superponen, Jool elige basado en prefijo común más largo.
 
-### `<prefix4>`, `<prefix6>`
+Por ejemplo:
 
-	<prefix4> := <IPv4 address>[/<prefix length>]
-	<prefix6> := <IPv6 address>[/<prefix length>]
+| Prefijo IPv4    | Prefijo IPv6         |
+|-----------------|----------------------|
+| 192.0.2.0/24    | 2001:db8:aaaa::/120  |
+| 192.0.2.8/29    | 2001:db8:bbbb::/125  |
 
-Estos son los prefijos con los cuales está conformado cada registro (ver la [explicación general de EAMT](eamt.html)).
+La dirección `192.0.2.9` encaja `192.0.2.8/29` mejor que `192.0.2.0/24`, de modo que será traducida como `2001:db8:bbbb::1`, no `2001:db8:aaaa::9`.
 
-Por defecto, `<prefix length>` es /32 en `<prefix4>` y /128 en `<prefix6>`.
+Nótese que esto crea asimetría. `2001:db8:aaaa::9` se traduce como `192.0.2.9`, lo cual se traduce como `2001:db8:bbbb::1`. Dependiendo del caso de uso, esto puede romer comunicación.
 
-Todo prefijo es único a lo largo de la tabla, por lo que solamente es necesario especificar uno de ellos cuando se desea remover. Sin embargo, es legal introducirlos ambos en el comando para garantizar que se está removiendo lo que se espera.
-
-
+Entradas EAM superpuestas existen para ayudar a que EAM coexista con [IVI](http://www.rfc-editor.org/rfc/rfc6219.txt). Otros usos pueden emerger en el futuro.
 
 ## Ejemplos
 

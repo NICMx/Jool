@@ -20,20 +20,51 @@ Jool es un [SIIT y NAT64](intro-xlat.html) de código abierto para Linux.
 
 ## Estatus
 
-El objetivo actual es terminar de alinear a Jool a los [requerimientos de la IETF](intro-jool.html#cumplimiento). 
+Hasta donde sabemos, Jool es un SIIT y un NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2015-11-04:
 
-La agenda al 2015-09-04 es:
-
-1. La [Versión 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) va a ser una [migración de framework](https://github.com/NICMx/NAT64/issues/140). Se está considerando convertir a Jool en un device driver o en un daemon, y se estima que esto permitirá el cumplir en su totalidad a los RFCs más relevantes, y que a su vez, lo hará más intuitivo de configurar.
+1. La [Versión 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) va a ser una [revisión de framework](https://github.com/NICMx/NAT64/issues/140). Jool probablemente va a poder convertirse en un device driver, lo cual puede hacerlo más simple y versátil de configurar.
 2. La [Versión 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) añadirá funcionalidad nueva.
 
-Es probable que se generen versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues). La retroalimentación de los usuarios puede modificar la agenda. Para proporcionar alguna recomedación o reportar algún error vaya a [contactos](contact.html).
+A veces generamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues).
 
 La versión más reciente es la [3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
 
 -------------------
 
 ## Noticias
+
+### 2015-11-04
+
+La versión 3.4.0 fue liberada. Estos son los cambios:
+
+1. Refactorizaciones a pool4 agregan [asignación de fuente basado en marca](usr-flags-pool4.html#mark) y [rangos de puertos](usr-flags-pool4.html#ejemplos) ([lo cual a su vez remueve la necesidad de una segunda dirección de IPv4](run-nat64.html#red-de-ejemplo)), y corrige el [uso excesivo de memoria](https://github.com/NICMx/NAT64/issues/36).
+2. La EAMT ahora implementa [Hairpinning](https://github.com/NICMx/NAT64/issues/162) y [entradas superpuestas](https://github.com/NICMx/NAT64/issues/160), que son nuevas adiciones al draft de EAM.
+3. Mínimo soporte de namespaces, que permite [Traducción local](node-based-translation.html) y (subjetivamente) [mejor filtrado](https://github.com/NICMx/NAT64/issues/41).
+4. La aplicación de espacio de usuario ahora [imprime la versión amigable de los mensajes de error](https://github.com/NICMx/NAT64/issues/169) que solían solamente arrojarse al log del kernel.
+5. Se quitó la dependencia de supresión de código muerto, [que solía prevenir compilación en algunos sistemas](https://github.com/NICMx/NAT64/issues/152).
+6. [Dos](https://github.com/NICMx/NAT64/issues/174) [errores](https://github.com/NICMx/NAT64/issues/173) corregidos.
+7. ¡Documentación en español!
+8. `--csv` ahora puede ser usado [en todos los modos de configuración](https://github.com/NICMx/NAT64/issues/164#issuecomment-126093571).
+
+### 2015-10-15
+
+La versión 3.3.5 fue liberada. Se corrigieron tres errores:
+
+1. El puerto cero solía poder usarse para enmascarar paquetes (NAT64 Jool).
+2. Enrutamiento incorrecto cuando pool6791 estaba vacío (SIIT Jool).
+3. Derramo de memoria durante `--eamt --flush` (SIIT Jool).
+
+### 2015-09-21
+
+La versión 3.3.4 fue liberada.
+
+La corrección más importante (teóricamente) es un [problema que solía interferir con Path MTU Discovery](https://github.com/NICMx/NAT64/issues/170). Jool ahora también se encarga de [ignorar multicast automáticamente](https://github.com/NICMx/NAT64/issues/168) y [trabajar mejor el campo _hop limit_](https://github.com/NICMx/NAT64/issues/167) (de la cabecera de IPv6).
+
+También se ha notado que SIIT Jool necesita [forwarding IPv4 activo en kernels 3.5 e inferiores](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). En otras palabras, agregar
+
+	sudo sysctl -w net.ipv4.conf.all.forwarding=1
+
+al procedimiento de modprobe en estos casos.
 
 ### 2015-08-17
 

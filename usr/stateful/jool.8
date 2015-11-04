@@ -1,7 +1,7 @@
 .\" Manpage for jool's userspace app.
 .\" Report bugs to jool@nic.mx.
 
-.TH jool 8 2015-04-13 v3.3.2 "NAT64 Jool's Userspace Application"
+.TH jool 8 2015-11-04 v3.4.0 "NAT64 Jool's Userspace Application"
 
 .SH NAME
 jool - Interact with NAT64 Jool (the kernel module).
@@ -14,18 +14,18 @@ NAT64 Jool is a kernel module you load into a Linux kernel. It implements RFC 61
 .SH AVAILABILITY
 Linux is the only OS in which this program makes sense.
 .br
-Kernels 3.0.0 and up.
+Kernels 3.2.0 and up.
 
 .SH SYNTAX
 jool --pool6 (
 .br
-	[--display]
+	[--display] [--csv]
 .br
 	| --count
 .br
-.RI "	| --add " <IPv6-prefix>
+.RI "	| --add " <IPv6-prefix> " [--force]"
 .br
-.RI "	| --remove " <IPv6-prefix> " [--quick]
+.RI "	| --remove " <IPv6-prefix> " [--quick]"
 .br
 .RI "	| --flush [--quick]
 .br
@@ -33,13 +33,13 @@ jool --pool6 (
 .P
 jool --pool4 (
 .br
-	[--display]
+	[--display] [--csv]
 .br
 	| --count
 .br
-.RI "	| --add " <IPv4-prefix>
+.RI "	| --add [" <PROTOCOLS> "] " "<IPv4-prefix> <port-range>" " [--mark " <mark> "] [--force]"
 .br
-.RI "	| --remove " <IPv4-prefix> " [--quick]
+.RI "	| --remove [" <PROTOCOLS> "] " "<IPv4-prefix> <port-range>" " [--mark " <mark> "] [--quick]"
 .br
 	| --flush [--quick]
 .br
@@ -115,14 +115,24 @@ Exampĺe: 64:ff9b::/96
 .RI "PREFIX_LENGTH defaults to 32."
 .br
 Exampĺe: 1.2.3.4/30 (Means 1.2.3.4, 1.2.3.5, 1.2.3.6 and 1.2.3.7)
+.IP <port-range>
+.RI "Range of ports (or ICMP ids) of the " <IPv4-prefix> " addresses which are being added or removed from Jool's IPv4 pool."
+.br
+.RI "The format is " LOWER "[-" UPPER "]."
+.br
+.RI "If you omit the upper port, you're only inserting port " LOWER "."
+.br
+If you omit this argument entirely, Jool will insert or remove all existing ports/ids.
+.br
+Exampĺe: 61001-65535
 .IP <IPv4-transport-address>
-.RI "IPv4 side of the BIB entry being added or removed.
+.RI "IPv4 field of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV4_ADDRESS # PORT "."
 .br
 Exampĺe: 10.20.30.40#5000
 .IP <IPv6-transport-address>
-.RI "IPv6 side of the BIB entry being added or removed.
+.RI "IPv6 field of the BIB entry being added or removed.
 .br
 .RI "The format is " IPV6_ADDRESS # PORT "."
 .br
@@ -182,13 +192,13 @@ Log sessions as they are created and destroyed?
 .IP --allow-atomic-fragments=BOOL
 Allow Atomic Fragments?
 .br
-(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
+(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
 .IP --setDF=BOOL
 DF flag always on?
 .IP --genFH=BOOL
 Generate Fragment Header when incoming DF is false?
 .br
-(Warning - dangerous. See www.jool.mx/usr-flags-atomic.html)
+(Warning - dangerous. See www.jool.mx/en/usr-flags-atomic.html)
 .IP --genID=BOOL
 Generate IPv4 identification?
 .IP --boostMTU=BOOL
@@ -267,5 +277,4 @@ There is NO WARRANTY, to the extent permitted by law.
 .SH SEE ALSO
 https://www.jool.mx
 .br
-https://www.jool.mx/usr-flags.html
-
+https://www.jool.mx/en/documentation.html#userspace-application-arguments

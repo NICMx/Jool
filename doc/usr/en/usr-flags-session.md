@@ -13,11 +13,9 @@ title: --session
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-3. [Options](#options)
+3. [Arguments](#arguments)
    1. [Operations](#operations)
-   2. [`<protocols>`](#protocols)
-   3. [`--numeric`](#numeric)
-   4. [`--csv`](#csv)
+   2. [Options](#options)
 4. [Examples](#examples)
 
 ## Description
@@ -30,35 +28,28 @@ You can use this command to get information on each of these connections.
 
 ## Syntax
 
-	jool --session [--display] [--numeric] [--csv] <protocols>
-	jool --session --count <protocols>
+	jool --session [--tcp] [--udp] [--icmp] (
+		[--display] [--numeric] [--csv]
+		| --count
+	)
 
-## Options
+## Arguments
 
 ### Operations
 
 * `--display`: The session tables are printed in standard output. This is the default operation.
 * `--count`: The number of entries per session table are printed in standard output.
 
-### `<protocols>`
+### Options
 
-	<protocols> := [--tcp] [--udp] [--icmp]
+| **Flag** | **Description** |
+| `--tcp` | If present, the command operates on the TCP table. |
+| `--udp` | If present, the command operates on the UDP table. |
+| `--icmp` | If present, the command operates on the ICMP table. |
+| `--numeric` | By default, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_.<br />Use `--numeric` to turn this behavior off. |
+| `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file.<br />Because every record is printed in a single line, CSV is also better for grepping. |
 
-The command will only operate on the tables mentioned here. If you omit this entirely, Jool will fall back to operate on all three tables.
-
-### `--numeric`
-
-By default, the application will attempt to resolve the names of the remote nodes talking in each session. _If your nameservers aren't answering, this will slow the output down_.
-
-Use `--numeric` to turn this behavior off.
-
-### `--csv`
-
-By default, the application will print the tables in a relatively console-friendly format.
-
-Use `--csv` to print in <a href="http://en.wikipedia.org/wiki/Comma-separated_values" target="_blank">CSV format</a>, which is spreadsheet-friendly.
-
-Because every record is printed in a single line, CSV is also better for grepping.
+`--tcp`, `--udp` and `--icmp` are not mutually exclusive. If neither of them are present, the records are added or removed to/from all three protocols.
 
 ## Examples
 

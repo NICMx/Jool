@@ -14,6 +14,8 @@ title: --pool4
 1. [Descripción](#descripcin)
 2. [Sintaxis](#sintaxis)
 3. [Argumentos](#argumentos)
+   1. [Operaciones](#operaciones)
+   2. [Opciones](#opciones)
 4. [Ejemplos](#ejemplos)
 5. [Notas](#notas)
 6. [`--mark`](#mark)
@@ -28,15 +30,19 @@ Si pool4 está vacío, Jool tratará de enmascarar paquetes usando las direccion
 
 ## Sintaxis
 
-	jool --pool4 [--display] [--csv]
-	jool --pool4 --count
-	jool --pool4 --add [--mark <mark>] [--tcp] [--udp] [--icmp] <IPv4 prefix> [<port range>] [--force]
-	jool --pool4 --remove [--mark <mark>] [--tcp] [--udp] [--icmp] <IPv4 prefix> [<port range>] [--quick]
-	jool --pool4 --flush [--quick]
+	jool --pool4 (
+		[--display] [--csv]
+		| --count
+		| --add <PROTOCOLOS> <prefijo-IPv4> <rango-de-puertos> [--mark <mark>] [--force]
+		| --remove <PROTOCOLOS> <prefijo-IPv4> <rango-de-puertos> [--mark <mark>] [--quick]
+		| --flush [--quick]
+	)
+
+	<PROTOCOLOS> := [--tcp] [--udp] [--icmp]
 
 ## Argumentos
 
-Operaciones:
+### Operaciones
 
 * `--display`: Lista el contenido de pool4 en salida estándar. Esta es la operación por defecto.
 * `--count`: Lista el número de tablas (grupos de muestras que comparten marca y protocolo), marcas (renglones) y direcciones de transporte contenidas en el pool.
@@ -44,20 +50,20 @@ Operaciones:
 * `--remove`: Elimina de pool4 las direcciones de transporte que satisfacen los parámetros.
 * `--flush`: Vacía pool4.
 
-Otros:
+### Opciones
 
-| **Name** | **Default** | **Description** |
-| `--csv` | (ausente) | Si está presente, la tabla se imprimirá en [formato CSV](https://es.wikipedia.org/wiki/CSV). |
+| **Bandera** | **Valor por defecto** | **Descripción** |
+| `--csv` | (ausente) | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
 | `--mark` | 0 | Paquetes que contengan la marca _n_ solamente van a ser traducidos utilizando registros de pool4 que contengan la marca _n_. Ver [abajo](#mark). |
 | `--tcp` | * | Si está presente, los puertos representan al protocolo TCP. |
 | `--udp` | * | Si está presente, los puertos representan al protocolo UDP. |
 | `--icmp` | * | Si está presente, los "puertos" representan identificadores de ICMP. |
-| `<IPv4 prefix>` | - | Dirección o grupo de direcciones siendo agregados a pool4. La longitud por defecto es 32. |
-| `<port range>` | 1-65535 para TCP/UDP, 0-65535 para ICMP | Subconjunto de de puertos (o identificadores ICMP) de la dirección que deben ser reservados para traducción. |
+| `<prefijo-IPv4>` | - | Dirección o grupo de direcciones siendo agregados a pool4. La longitud por defecto es 32. |
+| `<rango-de-puertos>` | 1-65535 para TCP/UDP, 0-65535 para ICMP | Subconjunto de de puertos (o identificadores ICMP) de la dirección que deben ser reservados para traducción. |
 | `--force` | (ausente) | Si está presente, agregar los elementos al pool incluso si son demasiados.<br />(Si no se incluye, imprimirá una advertencia y cancelará la operación.) |
 | `--quick` | (ausente) | Si está presente, no se borrarán las entradas BIB que correspondan al registro pool4 siendo removido.<br />`--quick` es más rápido, no `--quick` deja la base de datos más limpia (y por lo tanto más eficiente).<br />Entradas BIB sobrantes van a ser de todos modos removidas de la base de datos una vez expiren naturalmente.<br />[Aquí](usr-flags-quick.html) hay una explicación más elaborada. |
 
-\* `--tcp`, `--udp` e `--icmp` no son mútuamente excluyentes. Si ninguna de las tres está presente, los registros se dan de alta a los tres protocolos.
+\* `--tcp`, `--udp` e `--icmp` no son mutuamente excluyentes. Si ninguna de las tres está presente, el comando aplica a los tres protocolos.
 
 ## Ejemplos
 

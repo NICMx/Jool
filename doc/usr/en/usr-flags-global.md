@@ -51,10 +51,8 @@ Controls several of Jool's internal variables.
 
 ## Syntax
 
-	jool_siit [--global]
-	jool_siit [--global] <flag key> <new value>
-	jool [--global]
-	jool [--global] <flag key> <new value>
+	(jool_siit | jool) [--global] [--display] [--csv]
+	(jool_siit | jool) [--global] [--update] <flag key> <new value>
 
 ## Examples
 

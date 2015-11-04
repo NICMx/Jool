@@ -13,9 +13,9 @@ title: --pool6
 
 1. [Description](#description)
 2. [Syntax](#syntax)
-3. [Options](#options)
+3. [Arguments](#arguments)
    1. [Operations](#operations)
-   2. [`--quick`](#quick)
+   2. [Options](#options)
 4. [Examples](#examples)
 
 ## Description
@@ -28,29 +28,44 @@ If the pool is empty, Jool will be unable to address-translate via RFC 6052 (but
 
 ## Syntax
 
-(`$(jool)` can be either `jool_siit` or `jool`.)
+SIIT Jool:
 
-	$(jool) --pool6 [--display]
-	$(jool) --pool6 --count
-	$(jool) --pool6 --add <IPv6 prefix> [--force]
-	$(jool) --pool6 --remove <IPv6 prefix> [--quick]
-	$(jool) --pool6 --flush [--quick]
+	jool_siit --pool6 (
+		[--display] [--csv]
+		| --count
+		| --add <IPv6-prefix> [--force]
+		| --remove <IPv6-prefix>
+		| --flush
+	)
 
-## Options
+NAT64 Jool:
+
+	jool --pool6 (
+		[--display] [--csv]
+		| --count
+		| --add <IPv6-prefix> [--force]
+		| --remove <IPv6-prefix> [--quick]
+		| --flush [--quick]
+	)
+
+## Arguments
 
 ### Operations
 
 * `--display`: The pool's prefixes are printed in standard output. This is the default operation.
 * `--count`: The number of prefixes in the pool is printed in standard output.
-* `--add`: Uploads `<prefix>` to the pool.  
+* `--add`: Uploads `<IPv6-prefix>` to the pool.  
   As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.  
-  In addition, u-bit (the ninth byte of the prefix) must be zero. This constraint [isn't too useful](https://github.com/NICMx/NAT64/issues/174), so you can overcome it by using `--force`.
-* `--remove`: Deletes the prefix `<prefix>` from the pool.
+  In addition, u-bit (the ninth byte of the prefix) must be zero. This constraint [isn't too useful](https://github.com/NICMx/NAT64/issues/174), so you can overcome it using `--force`.
+* `--remove`: Deletes the prefix `<IPv6-prefix>` from the pool.
 * `--flush`: Removes all prefixes from the pool.
 
-### `--quick`
+### Options
 
-See [`--quick`](usr-flags-quick.html). Only available on Stateful Jool.
+| **Flag** | **Description** |
+| `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
+| `--force` | Upload the prefix even if u-bit is nonzero. See the [relevant issue](https://github.com/NICMx/NAT64/issues/174). |
+| `--quick` | See [`--quick`](usr-flags-quick.html). |
 
 ## Examples
 
@@ -69,7 +84,7 @@ $ jool --pool6 --count
 1
 {% endhighlight %}
 
-Remove the default prefix:
+Remove the [Well-Known Prefix](https://tools.ietf.org/html/rfc6052#section-2.1):
 
 {% highlight bash %}
 $ jool --pool6 --remove 64:ff9b::/96
