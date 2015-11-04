@@ -14,9 +14,15 @@
  * @author Alberto Leiva
  */
 
-#include <linux/types.h>
 #include "nat64/common/types.h"
-
+#include "nat64/common/xlat.h"
+#ifdef BENCHMARK
+	#ifdef __KERNEL__
+		#include <linux/time.h>
+	#else
+		#include <time.h>
+	#endif
+#endif
 
 /**
  * ID of Netlink messages Jool listens to.
@@ -73,7 +79,7 @@ enum config_mode {
 #define POOL4_OPS (DATABASE_OPS)
 #define BLACKLIST_OPS (DATABASE_OPS)
 #define RFC6791_OPS (DATABASE_OPS)
-#define EAMT_OPS (DATABASE_OPS)
+#define EAMT_OPS (DATABASE_OPS | OP_TEST)
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define LOGTIME_OPS (OP_DISPLAY)
@@ -94,6 +100,8 @@ enum config_operation {
 	OP_REMOVE = (1 << 4),
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
+	/* The user is a tester and s/he wants Jool's answer regarding a query. */
+	OP_TEST = (1 << 6),
 };
 
 /**
@@ -110,6 +118,7 @@ enum config_operation {
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT)
 #define UPDATE_MODES (MODE_GLOBAL)
+#define TEST_MODES (MODE_EAMT)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
 		| MODE_EAMT | MODE_LOGTIME)
@@ -127,7 +136,7 @@ struct request_hdr {
 	/** Protocol magic header (always "jool"). */
 	char magic[4];
 	/** Translation type (SIIT or NAT64) */
-	unsigned char type;
+	char type;
 	/** Jool's version. */
 	__u32 version;
 	/** Size of the message. Includes header (this one) and payload. */
@@ -145,8 +154,8 @@ static inline void init_request_hdr(struct request_hdr *hdr, __u32 length,
 	hdr->magic[1] = 'o';
 	hdr->magic[2] = 'o';
 	hdr->magic[3] = 'l';
-	hdr->type = nat64_is_stateful() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
-	hdr->version = jool_version();
+	hdr->type = xlat_is_nat64() ? 'n' : 's'; /* 'n'at64 or 's'iit. */
+	hdr->version = xlat_version();
 	hdr->length = length;
 	hdr->mode = mode;
 	hdr->operation = operation;
@@ -173,7 +182,7 @@ union request_pool6 {
 		struct ipv6_prefix prefix;
 		/* Whether the prefix's sessions should be cleared too (false) or not (true). */
 		__u8 quick;
-	} remove;
+	} rm;
 	struct {
 		/* Whether the sessions tables should also be cleared (false) or not (true). */
 		__u8 quick;
@@ -185,8 +194,35 @@ union request_pool6 {
  */
 union request_pool4 {
 	struct {
-		__u8 prefix_set;
-		struct ipv4_prefix prefix;
+		__u8 offset_set;
+		struct pool4_sample offset;
+	} display;
+	struct {
+		__u32 mark;
+		__u8 proto;
+		/** The addresses the user wants to add to the pool. */
+		struct ipv4_prefix addrs;
+		struct port_range ports;
+	} add;
+	struct {
+		__u32 mark;
+		__u8 proto;
+		/** The addresses the user wants to remove from the pool. */
+		struct ipv4_prefix addrs;
+		struct port_range ports;
+		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
+		__u8 quick;
+	} rm;
+	struct {
+		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
+		__u8 quick;
+	} flush;
+};
+
+union request_pool {
+	struct {
+		__u8 offset_set;
+		struct ipv4_prefix offset;
 	} display;
 	struct {
 		/** The addresses the user wants to add to the pool. */
@@ -195,12 +231,9 @@ union request_pool4 {
 	struct {
 		/** The addresses the user wants to remove from the pool. */
 		struct ipv4_prefix addrs;
-		/* Whether the address's BIB entries and sessions should be cleared too (false) or not (true). */
-		__u8 quick;
-	} remove;
+	} rm;
 	struct {
-		/* Whether the BIB and the sessions tables should also be cleared (false) or not (true). */
-		__u8 quick;
+		/* Nothing needed here. */
 	} flush;
 };
 
@@ -216,15 +249,23 @@ union request_eamt {
 		/* Nothing needed here. */
 	} count;
 	struct {
+		__u8 addr_is_ipv6;
+		union {
+			struct in6_addr addr6;
+			struct in_addr addr4;
+		} addr;
+	} test;
+	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
+		__u8 force;
 	} add;
 	struct {
 		__u8 prefix6_set;
 		struct ipv6_prefix prefix6;
 		__u8 prefix4_set;
 		struct ipv4_prefix prefix4;
-	} remove;
+	} rm;
 	struct {
 		/* Nothing needed here ATM. */
 	} flush;
@@ -277,7 +318,7 @@ struct request_bib {
 			__u8 addr4_set;
 			/** The IPv4 transport address of the entry the user wants to remove. */
 			struct ipv4_transport_addr addr4;
-		} remove;
+		} rm;
 	};
 };
 
@@ -314,7 +355,7 @@ struct request_session {
  * Indicators of the respective fields in the sessiondb_config structure.
  */
 enum global_type {
-#ifdef STATEFUL
+	/* NAT64 */
 	UDP_TIMEOUT,
 	ICMP_TIMEOUT,
 	TCP_EST_TIMEOUT,
@@ -330,11 +371,13 @@ enum global_type {
 	DROP_BY_ADDR,
 	DROP_ICMP6_INFO,
 	DROP_EXTERNAL_TCP,
-#else
-	COMPUTE_UDP_CSUM_ZERO,
-	RANDOMIZE_RFC6791,
-#endif
 
+	/* SIIT */
+	COMPUTE_UDP_CSUM_ZERO,
+	EAM_HAIRPINNING_MODE,
+	RANDOMIZE_RFC6791,
+
+	/* Common */
 	RESET_TCLASS,
 	RESET_TOS,
 	NEW_TOS,
@@ -361,6 +404,14 @@ union request_global {
 	} update;
 };
 
+struct response_pool4_count {
+	__u32 tables;
+	__u64 samples;
+	__u64 taddrs;
+};
+
+#ifdef BENCHMARK
+
 /**
  * A logtime node entry, from the eyes of userspace.
  *
@@ -368,10 +419,10 @@ union request_global {
  * the skb need to be translated to IPv6 -> IPv4 or IPv4 -> IPv6.
  */
 struct logtime_entry_usr {
-#ifdef BENCHMARK
 	struct timespec time;
-#endif
 };
+
+#endif
 
 /**
  * A BIB entry, from the eyes of userspace.
@@ -405,18 +456,14 @@ struct session_entry_usr {
 };
 
 /**
- * An EAMT entry, from the eyes of userspace.
- *
- * It's a stripped version of "struct eam_entry" and only used when EAMT entries need to travel to
- * userspace. For anything else, use "struct eam_entry".
- *
- * See "struct eam_entry" for documentation on the fields.
+ * Explicit Address Mapping definition.
+ * Intended to be a row in the Explicit Address Mapping Table, bind an IPv4
+ * Prefix to an IPv6 Prefix and vice versa.
  */
-struct eam_entry_usr {
-	struct ipv4_prefix pref4;
-	struct ipv6_prefix pref6;
+struct eamt_entry {
+	struct ipv6_prefix prefix6;
+	struct ipv4_prefix prefix4;
 };
-
 
 /**
  * A copy of the entire running configuration, excluding databases.
@@ -497,56 +544,76 @@ struct global_config {
 	/** Length of the mtu_plateaus array. */
 	__u16 mtu_plateau_count;
 
-#ifdef STATEFUL
-	/**
-	 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
-	 * userspace.
-	 * The kernel module is responsible for switching units as the the values approach the border.
-	 */
 	struct {
-		/** Maximum time inactive UDP sessions will remain in the DB. */
-		__u64 udp;
-		/** Maximum time inactive ICMP sessions will remain in the DB. */
-		__u64 icmp;
-		/** Maximum time established TCP sessions will remain in the DB. */
-		__u64 tcp_est;
-		/** Maximum time transitory TCP sessions will remain in the DB. */
-		__u64 tcp_trans;
-		/** Maximum time fragments will remain in the DB. */
-		__u64 frag;
-	} ttl;
+		/**
+		 * Time values in this structure should be read as jiffies in the kernel, milliseconds in
+		 * userspace.
+		 * The kernel module is responsible for switching units as the the values approach the border.
+		 */
+		struct {
+			/** Maximum time inactive UDP sessions will remain in the DB. */
+			__u64 udp;
+			/** Maximum time inactive ICMP sessions will remain in the DB. */
+			__u64 icmp;
+			/** Maximum time established TCP sessions will remain in the DB. */
+			__u64 tcp_est;
+			/** Maximum time transitory TCP sessions will remain in the DB. */
+			__u64 tcp_trans;
+			/** Maximum time fragments will remain in the DB. */
+			__u64 frag;
+		} ttl;
 
-	/** Use Address-Dependent Filtering? (boolean) */
-	__u8 drop_by_addr;
-	/** Filter ICMPv6 Informational packets? (boolean) */
-	__u8 drop_icmp6_info;
-	/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
-	__u8 drop_external_tcp;
+		/** Use Address-Dependent Filtering? (boolean) */
+		__u8 drop_by_addr;
+		/** Filter ICMPv6 Informational packets? (boolean) */
+		__u8 drop_icmp6_info;
+		/** Drop externally initiated TCP connections? (IPv4 initiated) (boolean) */
+		__u8 drop_external_tcp;
 
-	/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
-	__u64 max_stored_pkts;
-	/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
-	__u8 src_icmp6errs_better;
+		/** Maximum number of simultaneous TCP connections Jool wil tolerate. */
+		__u64 max_stored_pkts;
+		/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
+		__u8 src_icmp6errs_better;
 
-	/** Log BIBs as they are created and destroyed? */
-	__u8 bib_logging;
-	/** Log sessions as they are created and destroyed? */
-	__u8 session_logging;
-#else
-	/**
-	 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
-	 * Otherwise these packets will be dropped (because they're illegal in IPv6).
-	 * Boolean.
-	 */
-	__u8 compute_udp_csum_zero;
-	/**
-	 * Randomize choice of RFC6791 address?
-	 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
-	 * https://github.com/NICMx/NAT64/issues/130.
-	 * Boolean.
-	 */
-	__u8 randomize_error_addresses;
-#endif
+		/** Log BIBs as they are created and destroyed? */
+		__u8 bib_logging;
+		/** Log sessions as they are created and destroyed? */
+		__u8 session_logging;
+	} nat64;
+
+	struct {
+		/**
+		 * Amend the UDP checksum of incoming IPv4-UDP packets when it's zero?
+		 * Otherwise these packets will be dropped (because they're illegal in IPv6).
+		 * Boolean.
+		 */
+		__u8 compute_udp_csum_zero;
+		/**
+		 * Randomize choice of RFC6791 address?
+		 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
+		 * https://github.com/NICMx/NAT64/issues/130.
+		 * Boolean.
+		 */
+		__u8 randomize_error_addresses;
+		/**
+		 * How should hairpinning be handled by EAM-translated packets.
+		 * See @eam_hairpinning_mode.
+		 */
+		__u8 eam_hairpin_mode;
+	} siit;
+};
+
+/**
+ * The modes are defined by the latest version of the EAM draft.
+ *
+ * They are exclusive, so this needn't be considered bit fields.
+ */
+enum eam_hairpinning_mode {
+	EAM_HAIRPIN_OFF = 0,
+	EAM_HAIRPIN_SIMPLE = 1,
+	EAM_HAIRPIN_INTRINSIC = 2,
+
+#define EAM_HAIRPIN_MODE_COUNT 3
 };
 
 /**
@@ -555,8 +622,8 @@ struct global_config {
  * This translates "config" and its subobjects into a byte array which can then be transformed back
  * using "deserialize_global_config()".
  */
-int serialize_global_config(struct global_config *config, unsigned char **buffer_out,
-		size_t *buffer_len_out);
+int serialize_global_config(struct global_config *config, bool pools_empty,
+		unsigned char **buffer_out, size_t *buffer_len_out);
 /**
  * Reverts the work of serialize_translate_config() by creating "config" out of the byte array
  * "buffer".

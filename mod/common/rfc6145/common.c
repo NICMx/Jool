@@ -223,7 +223,7 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 		return VERDICT_DROP;
 	}
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		inner_tuple.src = outer_tuple->dst;
 		inner_tuple.dst = outer_tuple->src;
 		inner_tuple.l3_proto = outer_tuple->l3_proto;
@@ -259,4 +259,36 @@ verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet 
 struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto)
 {
 	return &steps[l3_proto][l4_proto];
+}
+
+/**
+ * partialize_skb - set up @out_skb so the layer 4 checksum will be computed
+ * from almost-scratch by the OS or by the NIC later.
+ * @csum_offset: The checksum field's offset within its header.
+ *
+ * When the incoming skb's ip_summed field is NONE, UNNECESSARY or COMPLETE,
+ * the checksum is defined, in the sense that its correctness consistently
+ * dictates whether the packet is corrupted or not. In these cases, Jool is
+ * supposed to update the checksum with the translation changes (pseudoheader
+ * and transport header) and forget about it. The incoming packet's corruption
+ * will still be reflected in the outgoing packet's checksum.
+ *
+ * On the other hand, when the incoming skb's ip_summed field is PARTIAL,
+ * the existing checksum only covers the pseudoheader (which Jool replaces).
+ * In these cases, fully updating the checksum is wrong because it doesn't
+ * already cover the transport header, and fully computing it again is wasted
+ * time because this work can be deferred to the NIC (which'll likely do it
+ * faster).
+ *
+ * The correct thing to do is convert the partial (pseudoheader-only) checksum
+ * into a translated-partial (pseudoheader-only) checksum, and set up some skb
+ * fields so the NIC can do its thing.
+ *
+ * This functions handles the skb fields setting part.
+ */
+void partialize_skb(struct sk_buff *out_skb, unsigned int csum_offset)
+{
+	out_skb->ip_summed = CHECKSUM_PARTIAL;
+	out_skb->csum_start = skb_transport_header(out_skb) - out_skb->head;
+	out_skb->csum_offset = csum_offset;
 }

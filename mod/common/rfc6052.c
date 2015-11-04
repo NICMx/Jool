@@ -1,16 +1,17 @@
 #include "nat64/mod/common/rfc6052.h"
-#include "nat64/common/types.h"
 
 #include <linux/module.h>
 #include <linux/printk.h>
-
+#include "nat64/common/types.h"
+#include "nat64/mod/common/pool6.h"
 
 union ipv4_address {
 	__be32 as32;
 	__u8 as8[4];
 };
 
-int addr_6to4(struct in6_addr *src, struct ipv6_prefix *prefix, struct in_addr *dst)
+int addr_6to4(const struct in6_addr *src, struct ipv6_prefix *prefix,
+		struct in_addr *dst)
 {
 	union ipv4_address dst_aux;
 
@@ -116,3 +117,28 @@ int addr_4to6(struct in_addr *src, struct ipv6_prefix *prefix, struct in6_addr *
 
 	return 0;
 }
+
+int rfc6052_6to4(const struct in6_addr *addr6, struct in_addr *result)
+{
+	struct ipv6_prefix prefix;
+	int error;
+
+	error = pool6_get(addr6, &prefix);
+	if (error)
+		return error;
+
+	return addr_6to4(addr6, &prefix, result);
+}
+
+int rfc6052_4to6(struct in_addr *addr4, struct in6_addr *result)
+{
+	struct ipv6_prefix prefix;
+	int error;
+
+	error = pool6_peek(&prefix);
+	if (error)
+		return error;
+
+	return addr_4to6(addr4, &prefix, result);
+}
+

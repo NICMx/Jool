@@ -81,6 +81,7 @@
 #define DEFAULT_BUILD_IPV4_ID true
 #define DEFAULT_LOWER_MTU_FAIL true
 #define DEFAULT_COMPUTE_UDP_CSUM0 false
+#define DEFAULT_EAM_HAIRPIN_MODE EAM_HAIRPIN_INTRINSIC
 #define DEFAULT_RANDOMIZE_RFC6791 true
 #define DEFAULT_MTU_PLATEAUS { 65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296, 68 }
 
@@ -91,6 +92,11 @@
  * RFC 6052's allowed prefix lengths.
  */
 #define POOL6_PREFIX_LENGTHS { 32, 40, 48, 56, 64, 96 }
+
+
+/* -- IPv4 pool -- */
+#define DEFAULT_POOL4_MIN_PORT 61001
+#define DEFAULT_POOL4_MAX_PORT 65535
 
 
 /* -- ICMP constants missing from icmp.h and icmpv6.h. -- */

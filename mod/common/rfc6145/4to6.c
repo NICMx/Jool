@@ -1,10 +1,5 @@
 #include "nat64/mod/common/rfc6145/4to6.h"
 
-#include <linux/ip.h>
-#include <net/ipv6.h>
-#include <linux/icmp.h>
-#include <linux/icmpv6.h>
-
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/icmp_wrapper.h"
@@ -12,7 +7,7 @@
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/stats.h"
-#include "nat64/mod/stateless/pool4.h"
+#include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/eam.h"
 
 verdict ttp46_create_skb(struct packet *in, struct packet *out)
@@ -127,34 +122,85 @@ static int generate_saddr6_nat64(struct tuple *tuple6, struct packet *in, struct
 	return 0;
 }
 
-static int generate_addr6_siit(__be32 addr4, struct in6_addr *addr6)
+static verdict generate_addr6_siit(__be32 addr4, struct in6_addr *addr6,
+		bool dst, bool enable_eam)
 {
 	struct ipv6_prefix prefix;
-	struct in_addr tmp;
+	struct in_addr tmp = { .s_addr = addr4 };
 	int error;
 
-	tmp.s_addr = addr4;
-	error = eamt_get_ipv6_by_ipv4(&tmp, addr6);
-	if (error && error != -ESRCH)
-		return error;
-	if (!error)
-		return 0;
-
-	if (pool4_contains(addr4)) {
-		log_debug("Address %pI4 lacks an EAMT entry and is blacklisted.", &tmp);
-		return -ESRCH;
+	if (addr4_is_scope_subnet(addr4)) {
+		log_debug("Address %pI4 is not supposed to be xlat'd.", &tmp);
+		return VERDICT_ACCEPT;
 	}
 
-	error = pool6_peek(&prefix);
-	if (error) {
-		log_debug("Address %pI4 lacks an EAMT entry and there's no pool6 prefix.", &tmp);
-		return error;
+	if (enable_eam) {
+		error = eamt_xlat_4to6(&tmp, addr6);
+		if (!error)
+			return VERDICT_CONTINUE;
+		if (error != -ESRCH)
+			return VERDICT_DROP;
 	}
-	error = addr_4to6(&tmp, &prefix, addr6);
-	if (error)
-		return error;
 
-	return 0;
+	if (dst && blacklist_contains(addr4)) {
+		log_debug("Address %pI4 lacks an EAMT entry and is "
+				"blacklisted.", &tmp);
+		return VERDICT_ACCEPT;
+	}
+
+	if (pool6_peek(&prefix) != 0) {
+		log_debug("Address %pI4 lacks an EAMT entry and there's no "
+				"pool6 prefix.", &tmp);
+		return VERDICT_ACCEPT;
+	}
+	if (addr_4to6(&tmp, &prefix, addr6) != 0)
+		return VERDICT_DROP;
+
+	return VERDICT_CONTINUE;
+}
+
+static bool disable_src_eam(struct packet *in, bool hairpin)
+{
+	struct iphdr *inner_hdr;
+
+	if (!hairpin || pkt_is_inner(in))
+		return false;
+	if (!pkt_is_icmp4_error(in))
+		return true;
+
+	inner_hdr = pkt_payload(in);
+	return pkt_ip4_hdr(in)->saddr == inner_hdr->daddr;
+}
+
+static bool disable_dst_eam(struct packet *in, bool hairpin)
+{
+	return hairpin && pkt_is_inner(in);
+}
+
+static verdict translate_addrs46_siit(struct packet *in, struct packet *out)
+{
+	struct iphdr *hdr4 = pkt_ip4_hdr(in);
+	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
+	bool hairpin;
+	verdict result;
+
+	hairpin = (config_eam_hairpin_mode() == EAM_HAIRPIN_SIMPLE)
+			|| pkt_is_intrinsic_hairpin(in);
+
+	/* Src address. */
+	result = generate_addr6_siit(hdr4->saddr, &hdr6->saddr, false,
+			!disable_src_eam(in, hairpin));
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	/* Dst address. */
+	result = generate_addr6_siit(hdr4->daddr, &hdr6->daddr, true,
+			!disable_dst_eam(in, hairpin));
+	if (result != VERDICT_CONTINUE)
+		return result;
+
+	log_debug("Result: %pI6c->%pI6c", &hdr6->saddr, &hdr6->daddr);
+	return VERDICT_CONTINUE;
 }
 
 /**
@@ -221,25 +267,18 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	struct iphdr *ip4_hdr = pkt_ip4_hdr(in);
 	struct ipv6hdr *ip6_hdr = pkt_ip6_hdr(out);
 	int error;
+	verdict result;
 
 	/* Translate the address first because of issue #167. */
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		error = generate_saddr6_nat64(tuple6, in, out);
 		if (error)
 			return VERDICT_DROP;
 		ip6_hdr->daddr = tuple6->dst.addr6.l3;
 	} else {
-		error = generate_addr6_siit(ip4_hdr->saddr, &ip6_hdr->saddr);
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		error = generate_addr6_siit(ip4_hdr->daddr, &ip6_hdr->daddr);
-		if (error == -ESRCH)
-			return VERDICT_ACCEPT;
-		if (error)
-			return VERDICT_DROP;
-		log_debug("Result: %pI6c->%pI6c", &ip6_hdr->saddr, &ip6_hdr->daddr);
+		result = translate_addrs46_siit(in, out);
+		if (result != VERDICT_CONTINUE)
+			return result;
 	}
 
 	ip6_hdr->version = 6;
@@ -254,7 +293,7 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
 	ip6_hdr->flow_lbl[2] = 0;
 	ip6_hdr->payload_len = build_payload_len(in, out);
 	ip6_hdr->nexthdr = (ip4_hdr->protocol == IPPROTO_ICMP) ? NEXTHDR_ICMP : ip4_hdr->protocol;
-	if (pkt_is_outer(in)) {
+	if (pkt_is_outer(in) && !pkt_is_intrinsic_hairpin(in)) {
 		if (ip4_hdr->ttl <= 1) {
 			icmp64_send(in, ICMPERR_HOP_LIMIT, 0);
 			inc_stats(in, IPSTATS_MIB_INHDRERRORS);
@@ -302,7 +341,9 @@ verdict ttp46_ipv6(struct tuple *tuple6, struct packet *in, struct packet *out)
  * Returns the smallest out of the three first parameters. It also handles some quirks. See comments
  * inside for more info.
  */
-static __be32 icmp6_minimum_mtu(__u16 packet_mtu, __u16 nexthop6_mtu, __u16 nexthop4_mtu,
+static __be32 icmp6_minimum_mtu(unsigned int packet_mtu,
+		unsigned int nexthop6_mtu,
+		unsigned int nexthop4_mtu,
 		__u16 tot_len_field)
 {
 	__u32 result;
@@ -358,27 +399,26 @@ static int compute_mtu6(struct packet *in, struct packet *out)
 	struct dst_entry *out_dst;
 	struct iphdr *hdr4;
 	struct icmphdr *in_icmp = pkt_icmp4_hdr(in);
-	int error;
+	unsigned int in_mtu;
 
-	error = route6(out);
-	if (error)
-		return error;
+	out_dst = route6(out);
+	if (!out_dst)
+		return -EINVAL;
+	/*
+	 * 0xfffffff is intended for hairpinning (there's no IPv4 device on
+	 * hairpinning).
+	 */
+	in_mtu = in->skb->dev ? in->skb->dev->mtu : 0xfffffff;
 
 	log_debug("Packet MTU: %u", be16_to_cpu(in_icmp->un.frag.mtu));
-
-	if (!in->skb->dev)
-		return -EINVAL;
-	log_debug("In dev MTU: %u", in->skb->dev->mtu);
-
-	out_dst = skb_dst(out->skb);
+	log_debug("In dev MTU: %u", in_mtu);
 	log_debug("Out dev MTU: %u", out_dst->dev->mtu);
 
 	/* We want the length of the packet that couldn't get through, not the truncated one. */
 	hdr4 = pkt_payload(in);
-
 	out_icmp->icmp6_mtu = icmp6_minimum_mtu(be16_to_cpu(in_icmp->un.frag.mtu),
 			out_dst->dev->mtu,
-			in->skb->dev->mtu,
+			in_mtu,
 			be16_to_cpu(hdr4->tot_len));
 	log_debug("Resulting MTU: %u", be32_to_cpu(out_icmp->icmp6_mtu));
 
@@ -521,8 +561,27 @@ static int compute_icmp6_csum(struct packet *out)
 	csum = skb_checksum(out->skb, skb_transport_offset(out->skb), pkt_datagram_len(out), 0);
 	out_icmp->icmp6_cksum = csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr,
 			pkt_datagram_len(out), IPPROTO_ICMPV6, csum);
+	out->skb->ip_summed = CHECKSUM_NONE;
 
 	return 0;
+}
+
+static verdict validate_icmp4_csum(struct packet *in)
+{
+	__sum16 csum;
+
+	if (in->skb->ip_summed != CHECKSUM_NONE)
+		return VERDICT_CONTINUE;
+
+	csum = csum_fold(skb_checksum(in->skb, skb_transport_offset(in->skb),
+			pkt_datagram_len(in), 0));
+	if (csum != 0) {
+		log_debug("Checksum doesn't match.");
+		inc_stats(in, IPSTATS_MIB_INHDRERRORS);
+		return VERDICT_DROP;
+	}
+
+	return VERDICT_CONTINUE;
 }
 
 static int post_icmp6info(struct packet *in, struct packet *out)
@@ -541,6 +600,15 @@ static verdict post_icmp6error(struct tuple *tuple6, struct packet *in, struct p
 	verdict result;
 
 	log_debug("Translating the inner packet (4->6)...");
+
+	/*
+	 * We will later recompute the checksum from scratch, but we should not
+	 * translate a corrupted ICMPv4 error into an OK-csum ICMPv6 one,
+	 * so validate first.
+	 */
+	result = validate_icmp4_csum(in);
+	if (result != VERDICT_CONTINUE)
+		return result;
 
 	result = ttpcomm_translate_inner_packet(tuple6, in, out);
 	if (result != VERDICT_CONTINUE)
@@ -566,7 +634,7 @@ verdict ttp46_icmp(struct tuple* tuple6, struct packet *in, struct packet *out)
 	case ICMP_ECHO:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REQUEST;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = nat64_is_stateful()
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
 				? cpu_to_be16(tuple6->icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
@@ -576,7 +644,7 @@ verdict ttp46_icmp(struct tuple* tuple6, struct packet *in, struct packet *out)
 	case ICMP_ECHOREPLY:
 		icmpv6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
 		icmpv6_hdr->icmp6_code = 0;
-		icmpv6_hdr->icmp6_dataun.u_echo.identifier = nat64_is_stateful()
+		icmpv6_hdr->icmp6_dataun.u_echo.identifier = xlat_is_nat64()
 				? cpu_to_be16(tuple6->icmp6_id)
 				: icmpv4_hdr->un.echo.id;
 		icmpv6_hdr->icmp6_dataun.u_echo.sequence = icmpv4_hdr->un.echo.sequence;
@@ -641,17 +709,65 @@ static __sum16 update_csum_4to6(__sum16 csum16,
 	return csum_fold(csum);
 }
 
+static __sum16 update_csum_4to6_partial(__sum16 csum16, struct iphdr *in_ip4,
+		struct ipv6hdr *out_ip6)
+{
+	__wsum csum, pseudohdr_csum;
+
+	csum = csum_unfold(csum16);
+
+	pseudohdr_csum = csum_tcpudp_nofold(in_ip4->saddr, in_ip4->daddr, 0, 0, 0);
+	csum = csum_sub(csum, pseudohdr_csum);
+
+	pseudohdr_csum = ~csum_unfold(csum_ipv6_magic(&out_ip6->saddr, &out_ip6->daddr, 0, 0, 0));
+	csum = csum_add(csum, pseudohdr_csum);
+
+	return ~csum_fold(csum);
+}
+
+static bool can_compute_csum(struct packet *in)
+{
+	struct iphdr *hdr4;
+	struct udphdr *hdr_udp;
+
+	if (xlat_is_nat64())
+		return true;
+
+	/*
+	 * RFC 6145#4.5:
+	 * A stateless translator cannot compute the UDP checksum of
+	 * fragmented packets, so when a stateless translator receives the
+	 * first fragment of a fragmented UDP IPv4 packet and the checksum
+	 * field is zero, the translator SHOULD drop the packet and generate
+	 * a system management event that specifies at least the IP
+	 * addresses and port numbers in the packet.
+	 */
+	hdr4 = pkt_ip4_hdr(in);
+	if (is_more_fragments_set_ipv4(hdr4) || !config_amend_zero_csum()) {
+		hdr_udp = pkt_udp_hdr(in);
+		log_debug("Dropping zero-checksum UDP packet: %pI4#%u->%pI4#%u",
+				&hdr4->saddr, ntohs(hdr_udp->source),
+				&hdr4->daddr, ntohs(hdr_udp->dest));
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * Assumes that "out" is IPv6 and UDP, and computes and sets its l4-checksum.
  * This has to be done because the field is mandatory only in IPv6, so Jool has to make up for lazy
  * IPv4 nodes.
  * This is actually required in the Determine Incoming Tuple step, but it feels more at home here.
  */
-static void handle_zero_csum(struct packet *in, struct packet *out)
+static int handle_zero_csum(struct packet *in, struct packet *out)
 {
 	struct ipv6hdr *hdr6 = pkt_ip6_hdr(out);
 	struct udphdr *hdr_udp = pkt_udp_hdr(out);
 	__wsum csum;
+
+	if (!can_compute_csum(in))
+		return -EINVAL;
 
 	/*
 	 * Here's the deal:
@@ -673,6 +789,8 @@ static void handle_zero_csum(struct packet *in, struct packet *out)
 	csum = skb_checksum(in->skb, pkt_payload_offset(in), pkt_payload_len_pkt(in), csum);
 	hdr_udp->check = csum_ipv6_magic(&hdr6->saddr, &hdr6->daddr, pkt_datagram_len(in),
 			IPPROTO_UDP, csum);
+
+	return 0;
 }
 
 verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out)
@@ -683,18 +801,25 @@ verdict ttp46_tcp(struct tuple *tuple6, struct packet *in, struct packet *out)
 
 	/* Header */
 	memcpy(tcp_out, tcp_in, pkt_l4hdr_len(in));
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		tcp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
 		tcp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
 
-	memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
-	tcp_copy.check = 0;
+	/* Header.checksum */
+	if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
+		memcpy(&tcp_copy, tcp_in, sizeof(*tcp_in));
+		tcp_copy.check = 0;
 
-	tcp_out->check = 0;
-	tcp_out->check = update_csum_4to6(tcp_in->check,
-			pkt_ip4_hdr(in), &tcp_copy, sizeof(tcp_copy),
-			pkt_ip6_hdr(out), tcp_out, sizeof(*tcp_out));
+		tcp_out->check = 0;
+		tcp_out->check = update_csum_4to6(tcp_in->check,
+				pkt_ip4_hdr(in), &tcp_copy, sizeof(tcp_copy),
+				pkt_ip6_hdr(out), tcp_out, sizeof(*tcp_out));
+	} else {
+		tcp_out->check = update_csum_4to6_partial(tcp_in->check,
+				pkt_ip4_hdr(in), pkt_ip6_hdr(out));
+		partialize_skb(out->skb, offsetof(struct tcphdr, check));
+	}
 
 	/* Payload */
 	return copy_payload(in, out) ? VERDICT_DROP : VERDICT_CONTINUE;
@@ -708,21 +833,30 @@ verdict ttp46_udp(struct tuple *tuple6, struct packet *in, struct packet *out)
 
 	/* Header */
 	memcpy(udp_out, udp_in, pkt_l4hdr_len(in));
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		udp_out->source = cpu_to_be16(tuple6->src.addr6.l4);
 		udp_out->dest = cpu_to_be16(tuple6->dst.addr6.l4);
 	}
 
+	/* Header.checksum */
 	if (udp_in->check != 0) {
-		memcpy(&udp_copy, udp_in, sizeof(*udp_in));
-		udp_copy.check = 0;
+		if (in->skb->ip_summed != CHECKSUM_PARTIAL) {
+			memcpy(&udp_copy, udp_in, sizeof(*udp_in));
+			udp_copy.check = 0;
 
-		udp_out->check = 0;
-		udp_out->check = update_csum_4to6(udp_in->check,
-				pkt_ip4_hdr(in), &udp_copy, sizeof(udp_copy),
-				pkt_ip6_hdr(out), udp_out, sizeof(*udp_out));
+			udp_out->check = 0;
+			udp_out->check = update_csum_4to6(udp_in->check,
+					pkt_ip4_hdr(in), &udp_copy, sizeof(udp_copy),
+					pkt_ip6_hdr(out), udp_out, sizeof(*udp_out));
+		} else {
+			udp_out->check = update_csum_4to6_partial(udp_in->check,
+					pkt_ip4_hdr(in), pkt_ip6_hdr(out));
+			partialize_skb(out->skb, offsetof(struct udphdr, check));
+		}
 	} else {
-		handle_zero_csum(in, out);
+		/* TODO (performance) handling this as partial might work just as well, or better. */
+		if (handle_zero_csum(in, out))
+			return VERDICT_DROP;
 	}
 
 	/* Payload */

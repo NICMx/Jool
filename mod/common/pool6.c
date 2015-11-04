@@ -1,6 +1,8 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/common/constants.h"
 #include "nat64/common/str_utils.h"
+#include "nat64/mod/common/rcu.h"
+#include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
 
 #include <linux/rculist.h>
@@ -10,7 +12,7 @@
 /**
  * A prefix within the pool.
  */
-struct pool_node {
+struct pool_entry {
 	/** The address itself. */
 	struct ipv6_prefix prefix;
 	/** The thing that connects this object to the "pool" list. */
@@ -20,10 +22,19 @@ struct pool_node {
 /**
  * The global container of the entire pool.
  * It can be a linked list because we're assuming we won't be holding too many prefixes.
- * The list contains nodes of type pool_node.
+ * The list contains nodes of type pool_entry.
  */
-static LIST_HEAD(pool);
+static struct list_head __rcu *pool;
 
+static DEFINE_MUTEX(lock);
+
+RCUTAG_FREE
+static struct pool_entry *get_entry(struct list_head *node)
+{
+	return list_entry(node, struct pool_entry, list_hook);
+}
+
+RCUTAG_FREE
 static int verify_prefix(int start, struct ipv6_prefix *prefix)
 {
 	int i;
@@ -39,6 +50,7 @@ static int verify_prefix(int start, struct ipv6_prefix *prefix)
 	return 0;
 }
 
+RCUTAG_FREE
 static int validate_prefix(struct ipv6_prefix *prefix)
 {
 	switch (prefix->len) {
@@ -60,11 +72,34 @@ static int validate_prefix(struct ipv6_prefix *prefix)
 	}
 }
 
+RCUTAG_USR /* Only because of GFP_KERNEL. Can be easily upgraded to FREE. */
+static struct list_head *create_pool(void)
+{
+	struct list_head *result;
+
+	result = kmalloc(sizeof(*result), GFP_KERNEL);
+	if (!result)
+		return NULL;
+	INIT_LIST_HEAD(result);
+
+	return result;
+}
+
+RCUTAG_USR
 int pool6_init(char *pref_strs[], int pref_count)
 {
+	struct list_head *tmp;
 	struct ipv6_prefix prefix;
 	int i;
 	int error;
+
+	tmp = create_pool();
+	if (!tmp)
+		return -ENOMEM;
+
+	mutex_lock(&lock);
+	rcu_assign_pointer(pool, tmp);
+	mutex_unlock(&lock);
 
 	if (!pref_strs || pref_count == 0)
 		return 0;
@@ -85,42 +120,71 @@ fail:
 	return error;
 }
 
-void pool6_destroy(void)
+RCUTAG_USR
+static void pool6_replace(struct list_head *new)
 {
-	struct pool_node *node;
+	struct list_head *old_pool;
+	struct list_head *node;
+	struct list_head *tmp;
 
-	while (!list_empty(&pool)) {
-		node = list_first_entry(&pool, struct pool_node, list_hook);
-		list_del_rcu(&node->list_hook);
-		synchronize_rcu_bh();
-		kfree(node);
+	mutex_lock(&lock);
+	old_pool = rcu_dereference_protected(pool, lockdep_is_held(&lock));
+	rcu_assign_pointer(pool, new);
+	mutex_unlock(&lock);
+
+	synchronize_rcu_bh();
+
+	list_for_each_safe(node, tmp, old_pool) {
+		list_del(node);
+		kfree(get_entry(node));
 	}
+
+	kfree(old_pool);
 }
 
+RCUTAG_USR
+void pool6_destroy(void)
+{
+	pool6_replace(NULL);
+}
+
+RCUTAG_USR
 int pool6_flush(void)
 {
-	pool6_destroy();
+	struct list_head *new;
+
+	new = create_pool();
+	if (!new)
+		return -ENOMEM;
+
+	pool6_replace(new);
 	return 0;
 }
 
-int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
+RCUTAG_PKT
+int pool6_get(const struct in6_addr *addr, struct ipv6_prefix *result)
 {
-	struct pool_node *node;
+	struct list_head *list;
+	struct list_head *node;
+	struct pool_entry *entry;
 
 	if (WARN(!addr, "NULL is not a valid address."))
 		return -EINVAL;
 
 	rcu_read_lock_bh();
 
-	if (list_empty(&pool)) {
+	list = rcu_dereference_bh(pool);
+
+	if (list_empty(list)) {
 		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
 		return -ESRCH;
 	}
 
-	list_for_each_entry_rcu(node, &pool, list_hook) {
-		if (ipv6_prefix_equal(&node->prefix.address, addr, node->prefix.len)) {
-			*result = node->prefix;
+	list_for_each_rcu_bh(node, list) {
+		entry = get_entry(node);
+		if (ipv6_prefix_equal(&entry->prefix.address, addr, entry->prefix.len)) {
+			*result = entry->prefix;
 			rcu_read_unlock_bh();
 			return 0;
 		}
@@ -130,92 +194,107 @@ int pool6_get(struct in6_addr *addr, struct ipv6_prefix *result)
 	return -ESRCH;
 }
 
+RCUTAG_PKT
 int pool6_peek(struct ipv6_prefix *result)
 {
-	struct pool_node *node;
+	struct list_head *list;
+	struct pool_entry *entry;
 
 	rcu_read_lock_bh();
 
-	if (list_empty(&pool)) {
+	list = rcu_dereference_bh(pool);
+
+	if (list_empty(list)) {
 		rcu_read_unlock_bh();
 		log_warn_once("The IPv6 pool is empty.");
 		return -ESRCH;
 	}
 
 	/* Just return the first one. */
-	node = list_entry_rcu(pool.next, struct pool_node, list_hook);
-	*result = node->prefix;
+	entry = get_entry(rcu_dereference_bh(list_next_rcu(list)));
+	*result = entry->prefix;
 
 	rcu_read_unlock_bh();
 	return 0;
 }
 
+RCUTAG_PKT
 bool pool6_contains(struct in6_addr *addr)
 {
 	struct ipv6_prefix result;
 	return !pool6_get(addr, &result); /* 0 -> true, -ESRCH or whatever -> false. */
 }
 
+RCUTAG_USR
 int pool6_add(struct ipv6_prefix *prefix)
 {
-	struct pool_node *node;
+	struct list_head *list;
+	struct list_head *node;
+	struct pool_entry *entry;
 	int error;
 
-	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &prefix->address, prefix->len);
-
-	if (WARN(!prefix, "NULL is not a valid prefix."))
-		return -EINVAL;
+	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.",
+			&prefix->address, prefix->len);
 
 	error = validate_prefix(prefix);
 	if (error)
 		return error; /* Error msg already printed. */
 
-	if (nat64_is_stateless() && !list_empty(&pool)) {
+	mutex_lock(&lock);
+	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
+
+	if (xlat_is_siit() && !list_empty(list)) {
 		log_err("SIIT Jool only supports one pool6 prefix at a time.");
-		return -EINVAL;
+		error = -EINVAL;
+		goto end;
 	}
 
-	/*
-	 * I'm not using list_for_each_entry_rcu() here because this is a writer (as usual,
-	 * protected by module initialization or the configuration mutex).
-	 * tomoyo_get_group() is an example of a kernel function that iterates like this
-	 * before calling list_add_tail_rcu(), so I'm assuming this is correct.
-	 */
-
-	list_for_each_entry(node, &pool, list_hook) {
-		if (prefix6_equals(&node->prefix, prefix)) {
+	list_for_each(node, list) {
+		entry = get_entry(node);
+		if (prefix6_equals(&entry->prefix, prefix)) {
 			log_err("The prefix already belongs to the pool.");
-			return -EEXIST;
+			error = -EEXIST;
+			goto end;
 		}
 	}
 
-	node = kmalloc(sizeof(struct pool_node), GFP_ATOMIC);
-	if (!node) {
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
 		log_err("Allocation of IPv6 pool node failed.");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto end;
 	}
-	node->prefix = *prefix;
+	entry->prefix = *prefix;
 
-	list_add_tail_rcu(&node->list_hook, &pool);
-	return 0;
+	list_add_tail_rcu(&entry->list_hook, list);
+
+end:
+	mutex_unlock(&lock);
+	return error;
 }
 
+RCUTAG_USR
 int pool6_remove(struct ipv6_prefix *prefix)
 {
-	struct pool_node *node;
+	struct list_head *list;
+	struct list_head *node;
+	struct pool_entry *entry;
 
-	if (WARN(!prefix, "NULL is not a valid prefix."))
-		return -EINVAL;
+	mutex_lock(&lock);
+	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
 
-	list_for_each_entry(node, &pool, list_hook) {
-		if (prefix6_equals(&node->prefix, prefix)) {
-			list_del_rcu(&node->list_hook);
+	list_for_each(node, list) {
+		entry = get_entry(node);
+		if (prefix6_equals(&entry->prefix, prefix)) {
+			list_del_rcu(&entry->list_hook);
+			mutex_unlock(&lock);
 			synchronize_rcu_bh();
-			kfree(node);
+			kfree(entry);
 			return 0;
 		}
 	}
 
+	mutex_unlock(&lock);
 	log_err("The prefix is not part of the pool.");
 	return -ESRCH;
 }
@@ -229,19 +308,25 @@ int pool6_remove(struct ipv6_prefix *prefix)
  *
  * The nodes will be visited in the order in which they are stored.
  */
+RCUTAG_PKT
 int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
 		struct ipv6_prefix *offset)
 {
-	struct pool_node *node;
+	struct list_head *list;
+	struct list_head *node;
+	struct pool_entry *entry;
 	int error = 0;
-	rcu_read_lock_bh();
 
-	list_for_each_entry_rcu(node, &pool, list_hook) {
+	rcu_read_lock_bh();
+	list = rcu_dereference_bh(pool);
+
+	list_for_each_rcu_bh(node, list) {
+		entry = get_entry(node);
 		if (!offset) {
-			error = func(&node->prefix, arg);
+			error = func(&entry->prefix, arg);
 			if (error)
 				break;
-		} else if (prefix6_equals(offset, &node->prefix)) {
+		} else if (prefix6_equals(offset, &entry->prefix)) {
 			offset = NULL;
 		}
 	}
@@ -250,26 +335,32 @@ int pool6_for_each(int (*func)(struct ipv6_prefix *, void *), void *arg,
 	return offset ? -ESRCH : error;
 }
 
+RCUTAG_PKT
 int pool6_count(__u64 *result)
 {
-	struct pool_node *node;
+	struct list_head *list;
+	struct list_head *node;
 	unsigned int count = 0;
 
 	rcu_read_lock_bh();
-	list_for_each_entry_rcu(node, &pool, list_hook) {
+
+	list = rcu_dereference_bh(pool);
+	list_for_each_rcu_bh(node, list) {
 		count++;
 	}
+
 	rcu_read_unlock_bh();
 
 	*result = count;
 	return 0;
 }
 
+RCUTAG_PKT
 bool pool6_is_empty(void)
 {
 	bool result;
 	rcu_read_lock_bh();
-	result = list_empty(&pool);
+	result = list_empty(rcu_dereference_bh(pool));
 	rcu_read_unlock_bh();
 	return result;
 }

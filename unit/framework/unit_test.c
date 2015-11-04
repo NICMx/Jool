@@ -1,239 +1,233 @@
 #include "nat64/unit/unit_test.h"
+
 #include <linux/kernel.h>
+#include <net/ipv6.h>
 #include "nat64/common/str_utils.h"
 
-
-#define UNIT_WARNING(test_name, expected, actual, specifier) \
-		log_err("Test '%s' failed. Expected: " specifier ". Actual: " specifier ".", \
-				test_name, \
-				expected, \
-				actual);
-#define UNIT_WARNING_NOT(test_name, expected, actual, specifier) \
-		log_err("Test '%s' failed. Expected: not " specifier ". Actual: " specifier ".", \
-				test_name, \
-				expected, \
-				actual);
-
-
-bool assert_true(bool condition, char *test_name)
+bool __ASSERT_ADDR4(const struct in_addr *expected,
+		const struct in_addr *actual,
+		const char *test_name)
 {
-	if (!condition) {
-		log_err("Test '%s' failed.", test_name);
+	if (expected == actual)
+		return true;
+
+	if (!expected || !actual || expected->s_addr != actual->s_addr) {
+		log_err("Test '%s' failed. Expected:%pI4 Actual:%pI4",
+				test_name, expected, actual);
 		return false;
 	}
+
 	return true;
 }
 
-bool assert_equals_int(int expected, int actual, char *test_name)
-{
-	if (expected != actual) {
-		UNIT_WARNING(test_name, expected, actual, "%d");
-		return false;
-	}
-	return true;
-}
-
-bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name)
-{
-	if (expected != actual) {
-		UNIT_WARNING(test_name, expected, actual, "%lu");
-		return false;
-	}
-	return true;
-}
-
-bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name)
-{
-	return assert_equals_u64(expected, actual, test_name);
-}
-
-bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name)
-{
-	return assert_equals_u64(expected, actual, test_name);
-}
-
-bool assert_equals_be16(__be16 expected, __be16 actual, char *test_name)
-{
-	return assert_equals_u16(ntohs(expected), ntohs(actual), test_name);
-}
-
-bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name)
-{
-	return assert_equals_u64(expected, actual, test_name);
-}
-
-bool assert_equals_be32(__be32 expected, __be32 actual, char *test_name)
-{
-	return assert_equals_u32(ntohl(expected), ntohl(actual), test_name);
-}
-
-bool assert_equals_u64(__u64 expected, __u64 actual, char *test_name)
-{
-	if (expected != actual) {
-		UNIT_WARNING(test_name, expected, actual, "%llu");
-		return false;
-	}
-	return true;
-}
-
-bool assert_equals_ptr(void *expected, void *actual, char *test_name)
-{
-	if (expected != actual) {
-		UNIT_WARNING(test_name, expected, actual, "%p");
-		return false;
-	}
-	return true;
-}
-
-bool assert_equals_ipv4(struct in_addr *expected, const struct in_addr *actual, char *test_name)
-{
-	if (!addr4_equals(expected, actual)) {
-		UNIT_WARNING(test_name, expected, actual, "%pI4");
-		return false;
-	}
-	return true;
-}
-
-bool assert_equals_ipv4_str(unsigned char *expected_str, const struct in_addr *actual,
-		char *test_name)
+bool ASSERT_ADDR4(const char *expected_str, const struct in_addr *actual,
+		const char *test_name)
 {
 	struct in_addr expected;
 
-	if (str_to_addr4(expected_str, &expected) != 0) {
-		log_err("Could not parse '%s' as a valid IPv4 address.", expected_str);
-		return false;
-	}
+	if (!expected_str)
+		return __ASSERT_ADDR4(NULL, actual, test_name);
 
-	return assert_equals_ipv4(&expected, actual, test_name);
+	return str_to_addr4(expected_str, &expected)
+			? false
+			: __ASSERT_ADDR4(&expected, actual, test_name);
 }
 
-bool assert_equals_ipv6(struct in6_addr *expected, const struct in6_addr *actual, char *test_name)
+bool __ASSERT_ADDR6(const struct in6_addr *expected,
+		const struct in6_addr *actual,
+		const char *test_name)
 {
-	if (!addr6_equals(expected, actual)) {
-		UNIT_WARNING(test_name, expected, actual, "%pI6c");
+	if (expected == actual)
+		return true;
+
+	if (!expected || !actual || ipv6_addr_cmp(expected, actual)) {
+		log_err("Test '%s' failed. Expected:%pI6c Actual:%pI6c",
+				test_name, expected, actual);
 		return false;
 	}
+
 	return true;
 }
 
-bool assert_equals_ipv6_str(unsigned char *expected_str, const struct in6_addr *actual,
-		char *test_name)
+bool ASSERT_ADDR6(const char *expected_str, const struct in6_addr *actual,
+		const char *test_name)
 {
 	struct in6_addr expected;
 
-	if (str_to_addr6(expected_str, &expected) != 0) {
-		log_err("Could not parse '%s' as a valid IPv6 address.", expected_str);
-		return false;
-	}
+	if (!expected_str)
+		return __ASSERT_ADDR6(NULL, actual, test_name);
 
-	return assert_equals_ipv6(&expected, actual, test_name);
+	return str_to_addr6(expected_str, &expected)
+			? false
+			: __ASSERT_ADDR6(&expected, actual, test_name);
 }
 
-bool assert_equals_csum(__sum16 expected, __sum16 actual, char *test_name)
-{
-	if (expected != actual) {
-		UNIT_WARNING(test_name, expected, actual, "%x");
-		return false;
-	}
-	return true;
-}
+#define TUPLE_KEY "%pI4#%u -> %pI4#%u [%u]"
+#define TUPLE_PRINT(tuple) &tuple->src.addr4.l3, tuple->src.addr4.l4, \
+	&tuple->dst.addr4.l3, tuple->dst.addr4.l4, tuple->l4_proto
 
-bool assert_range(unsigned int expected_min, unsigned int expected_max, unsigned int actual,
+static bool ASSERT_TUPLE4(struct tuple *expected, struct tuple *actual,
 		char *test_name)
 {
-	if (actual < expected_min || expected_max < actual) {
-		UNIT_WARNING(test_name, (expected_min + expected_max) / 2, actual, "%d");
+	if (expected->l4_proto != actual->l4_proto)
+		goto fail;
+	if (ipv4_addr_cmp(&expected->src.addr4.l3, &actual->src.addr4.l3))
+		goto fail;
+	if (expected->src.addr4.l4 != actual->src.addr4.l4)
+		goto fail;
+	if (ipv4_addr_cmp(&expected->dst.addr4.l3, &actual->dst.addr4.l3))
+		goto fail;
+	if (expected->dst.addr4.l4 != actual->dst.addr4.l4)
+		goto fail;
+
+	return true;
+
+fail:
+	log_err("Test '%s' failed.", test_name);
+	if (expected)
+		log_err("  Expected:" TUPLE_KEY, TUPLE_PRINT(expected));
+	else
+		log_err("  Expected:NULL");
+	if (actual)
+		log_err("  Actual:  " TUPLE_KEY, TUPLE_PRINT(actual));
+	else
+		log_err("  Actual:  NULL");
+	return false;
+}
+
+#undef TUPLE_KEY
+#undef TUPLE_PRINT
+
+#define TUPLE_KEY "%pI6c#%u -> %pI6c#%u [%u]"
+#define TUPLE_PRINT(tuple) &tuple->src.addr6.l3, tuple->src.addr6.l4, \
+	&tuple->dst.addr6.l3, tuple->dst.addr6.l4, tuple->l4_proto
+
+static bool ASSERT_TUPLE6(struct tuple *expected, struct tuple *actual,
+		char *test_name)
+{
+	if (expected->l4_proto != actual->l4_proto)
+		goto fail;
+	if (ipv6_addr_cmp(&expected->src.addr6.l3, &actual->src.addr6.l3))
+		goto fail;
+	if (expected->src.addr6.l4 != actual->src.addr6.l4)
+		goto fail;
+	if (ipv6_addr_cmp(&expected->dst.addr6.l3, &actual->dst.addr6.l3))
+		goto fail;
+	if (expected->dst.addr6.l4 != actual->dst.addr6.l4)
+		goto fail;
+
+	return true;
+
+fail:
+	log_err("Test '%s' failed.", test_name);
+	if (expected)
+		log_err("  Expected:" TUPLE_KEY, TUPLE_PRINT(expected));
+	else
+		log_err("  Expected:NULL");
+	if (actual)
+		log_err("  Actual:  " TUPLE_KEY, TUPLE_PRINT(actual));
+	else
+		log_err("  Actual:  NULL");
+	return false;
+}
+
+#undef TUPLE_KEY
+#undef TUPLE_PRINT
+
+bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual, char *test_name)
+{
+	if (expected->l3_proto != actual->l3_proto) {
+		log_err("Test '%s' failed; Expected:%u Actual:%u", test_name,
+				expected->l3_proto, actual->l3_proto);
 		return false;
 	}
 
-	return true;
-}
-
-bool assert_null(void *actual, char *test_name)
-{
-	return assert_equals_ptr(NULL, actual, test_name);
-}
-
-bool assert_false(bool condition, char *test_name)
-{
-	if (condition) {
-		log_err("Test '%s' failed.", test_name);
-		return false;
-	}
-	return true;
-}
-
-bool assert_not_equals_int(int expected, int actual, char *test_name)
-{
-	if (expected == actual) {
-		UNIT_WARNING_NOT(test_name, expected, actual, "%d");
-		return false;
-	}
-	return true;
-}
-
-bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name)
-{
-	if (expected == actual) {
-		UNIT_WARNING_NOT(test_name, expected, actual, "%u");
-		return false;
-	}
-	return true;
-}
-
-bool assert_not_equals_be16(__be16 expected, __be16 actual, char *test_name)
-{
-	return assert_not_equals_u16(ntohs(expected), ntohs(actual), test_name);
-}
-
-bool assert_not_equals_ptr(void *expected, void *actual, char *test_name)
-{
-	if (expected == actual) {
-		UNIT_WARNING_NOT(test_name, expected, actual, "%p");
-		return false;
-	}
-	return true;
-}
-
-bool assert_not_null(void *actual, char *test_name)
-{
-	return assert_not_equals_ptr(NULL, actual, test_name);
-}
-
-bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *test_name)
-{
-	bool success = true;
-
-	log_debug("%s", test_name);
 	switch (expected->l3_proto) {
 	case L3PROTO_IPV4:
-		success &= assert_equals_ipv4(&expected->src.addr4.l3, &actual->src.addr4.l3, "Src addr");
-		success &= assert_equals_u16(expected->src.addr4.l4, actual->src.addr4.l4, "src l4_id");
-		success &= assert_equals_ipv4(&expected->dst.addr4.l3, &actual->dst.addr4.l3, "Dst addr");
-		success &= assert_equals_u16(expected->dst.addr4.l4, actual->dst.addr4.l4, "dst l4_id");
-		break;
+		return ASSERT_TUPLE4(expected, actual, test_name);
 	case L3PROTO_IPV6:
-		success &= assert_equals_ipv6(&expected->src.addr6.l3, &actual->src.addr6.l3, "Src addr");
-		success &= assert_equals_u16(expected->src.addr6.l4, actual->src.addr6.l4, "src l4_id");
-		success &= assert_equals_ipv6(&expected->dst.addr6.l3, &actual->dst.addr6.l3, "Dst addr");
-		success &= assert_equals_u16(expected->dst.addr6.l4, actual->dst.addr6.l4, "dst l4_id");
-		break;
+		return ASSERT_TUPLE6(expected, actual, test_name);
 	}
 
-	success &= assert_equals_u8(expected->l3_proto, actual->l3_proto, "l3_proto");
-	success &= assert_equals_u8(expected->l4_proto, actual->l4_proto, "l4_proto");
-
-	return success;
+	log_err("?");
+	return false;
 }
 
-bool assert_list_count(int expected, struct list_head *head, char *test_name)
+#define BIB_KEY "BIB [%pI4#%u, %pI6c#%u]"
+#define BIB_PRINT(bib) &bib->ipv4.l3, bib->ipv4.l4, &bib->ipv6.l3, bib->ipv6.l4
+
+bool ASSERT_BIB(struct bib_entry* expected, struct bib_entry* actual,
+		char *test_name)
 {
-	struct list_head *node;
-	int count = 0;
+	if (expected == actual)
+		return true;
 
-	list_for_each(node, head) {
-		count++;
+	if (!expected) {
+		log_err("Test '%s' failed: Expected:NULL Actual:" BIB_KEY,
+				test_name, BIB_PRINT(actual));
+		return false;
+	}
+	if (!actual) {
+		log_err("Test '%s' failed: Expected:" BIB_KEY " Actual:NULL",
+				test_name, BIB_PRINT(expected));
+		return false;
 	}
 
-	return assert_equals_int(expected, count, test_name);
+	if (!ipv4_transport_addr_equals(&expected->ipv4, &actual->ipv4)
+			|| !ipv6_transport_addr_equals(&expected->ipv6, &actual->ipv6)) {
+		log_err("Test '%s' failed: Expected:" BIB_KEY
+				" Actual:" BIB_KEY, test_name,
+				BIB_PRINT(expected), BIB_PRINT(actual));
+		return false;
+	}
+
+	return true;
 }
+
+#undef BIB_PRINT
+#undef BIB_KEY
+
+#define SESSION_KEY "session [%pI4#%u, %pI4#%u, %pI6c#%u, %pI6c#%u]"
+#define SESSION_PRINT(session) \
+	&session->remote4.l3, session->remote4.l4, \
+	&session->local4.l3, session->local4.l4, \
+	&session->local6.l3, session->local6.l4, \
+	&session->remote6.l3, session->remote6.l4
+
+bool ASSERT_SESSION(struct session_entry *expected,
+		struct session_entry *actual,
+		char *test_name)
+{
+	if (expected == actual)
+		return true;
+	if (!expected || !actual)
+		goto fail;
+
+	if (expected->l4_proto != actual->l4_proto)
+		goto fail;
+	if (!ipv6_transport_addr_equals(&expected->remote6, &actual->remote6))
+		goto fail;
+	if (!ipv6_transport_addr_equals(&expected->local6, &actual->local6))
+		goto fail;
+	if (!ipv4_transport_addr_equals(&expected->local4, &actual->local4))
+		goto fail;
+	if (!ipv4_transport_addr_equals(&expected->remote4, &actual->remote4))
+		goto fail;
+
+	return true;
+
+fail:
+	log_err("Test '%s' failed.", test_name);
+	if (expected)
+		log_err("  Expected:" SESSION_KEY, SESSION_PRINT(expected));
+	else
+		log_err("  Expected:NULL");
+	if (actual)
+		log_err("  Actual:  " SESSION_KEY, SESSION_PRINT(actual));
+	else
+		log_err("  Actual:  NULL");
+	return false;
+}
+
+#undef SESSION_PRINT
+#undef SESSION_KEY

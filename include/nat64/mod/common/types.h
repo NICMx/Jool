@@ -10,7 +10,11 @@
 
 #include "nat64/common/types.h"
 #include <linux/netfilter.h>
+#include <linux/kernel.h>
+#include "nat64/common/xlat.h"
 #include "nat64/mod/common/address.h"
+#include "nat64/mod/common/error_pool.h"
+
 
 /**
  * Messages to help us walk through a run. Also covers normal packet drops (bad checksums,
@@ -29,18 +33,27 @@
 		static unsigned long __last_log; \
 		\
 		if (!__logged || __last_log < jiffies - msecs_to_jiffies(60 * 1000)) { \
-			pr_warn(MODULE_NAME " WARNING (%s): " text "\n", __func__, ##__VA_ARGS__); \
+			pr_warn("%s WARNING (%s): " text "\n", xlat_get_name(), __func__, ##__VA_ARGS__); \
 			__logged = true; \
 			__last_log = jiffies; \
 		} \
 	} while (0)
 /**
  * "Your configuration cannot be applied, user."
- * log_warn_once() signals errors while processing packets. log_err() signals errors while
- * processing user requests.
- * I the code found a **programming** error, use WARN() or its variations instead.
+ * log_warn_once() signals errors while processing packets. log_err() signals
+ * errors while processing user requests.
+ * I the code found a **programming** error, use WARN() or its variations
+ * instead.
  */
-#define log_err(text, ...) pr_err(MODULE_NAME " ERROR (%s): " text "\n", __func__, ##__VA_ARGS__)
+#define log_err(text, ...) \
+	do { \
+		char __error_message[512]; \
+		pr_err("%s ERROR (%s): " text "\n", xlat_get_name(), __func__, \
+				##__VA_ARGS__); \
+		sprintf(__error_message, text "\n", ##__VA_ARGS__); \
+		error_pool_add_message(__error_message); \
+	} while (0)
+
 /**
  * This is intended to be equivalent to WARN(), except it's silent if you're unit testing.
  * Do this when you're testing errors being caught correctly and don't want dumped stacks on the

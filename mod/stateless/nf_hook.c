@@ -1,24 +1,22 @@
+#include "nat64/mod/common/nf_hook.h"
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/core.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl_handler.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/types.h"
-#ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
-#endif
 #include "nat64/mod/stateless/eam.h"
-#include "nat64/mod/stateless/pool4.h"
+#include "nat64/mod/stateless/blacklist4.h"
 #include "nat64/mod/stateless/rfc6791.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/netfilter_ipv4.h>
-#include <linux/netfilter_ipv6.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
-MODULE_DESCRIPTION(MODULE_NAME " (RFC 6145)");
+MODULE_DESCRIPTION("Stateless IP/ICMP Translation (RFC 6145)");
 
 static char *pool6;
 module_param(pool6, charp, 0);
@@ -46,14 +44,14 @@ static unsigned int hook_ipv4(HOOK_ARG_TYPE hook, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
-	return core_4to6(skb);
+	return core_4to6(skb, in);
 }
 
 static unsigned int hook_ipv6(HOOK_ARG_TYPE hook, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
-	return core_6to4(skb);
+	return core_6to4(skb, in);
 }
 
 static struct nf_hook_ops nfho[] = {
@@ -77,9 +75,12 @@ static int __init nat64_init(void)
 {
 	int error;
 
-	log_debug("Inserting " MODULE_NAME "...");
+	log_debug("Inserting %s...", xlat_get_name());
 
 	/* Init Jool's submodules. */
+	error = joolns_init();
+	if (error)
+		goto joolns_failure;
 	error = config_init(disabled);
 	if (error)
 		goto config_failure;
@@ -97,9 +98,9 @@ static int __init nat64_init(void)
 	error = pool6_init(&pool6, pool6 ? 1 : 0);
 	if (error)
 		goto pool6_failure;
-	error = pool4_init(blacklist, blacklist_size);
+	error = blacklist_init(blacklist, blacklist_size);
 	if (error)
-		goto pool4_failure;
+		goto blacklist_failure;
 	error = rfc6791_init(pool6791, pool6791_size);
 	if (error)
 		goto rfc6791_failure;
@@ -110,16 +111,16 @@ static int __init nat64_init(void)
 		goto nf_register_hooks_failure;
 
 	/* Yay */
-	log_info(MODULE_NAME " module inserted.");
+	log_info("%s v" JOOL_VERSION_STR " module inserted.", xlat_get_name());
 	return error;
 
 nf_register_hooks_failure:
 	rfc6791_destroy();
 
 rfc6791_failure:
-	pool4_destroy();
+	blacklist_destroy();
 
-pool4_failure:
+blacklist_failure:
 	pool6_destroy();
 
 pool6_failure:
@@ -137,6 +138,9 @@ eamt_failure:
 	config_destroy();
 
 config_failure:
+	joolns_destroy();
+
+joolns_failure:
 	return error;
 }
 
@@ -147,7 +151,7 @@ static void __exit nat64_exit(void)
 
 	/* Deinitialize the submodules. */
 	rfc6791_destroy();
-	pool4_destroy();
+	blacklist_destroy();
 	pool6_destroy();
 	nlhandler_destroy();
 #ifdef BENCHMARK
@@ -155,8 +159,9 @@ static void __exit nat64_exit(void)
 #endif
 	eamt_destroy();
 	config_destroy();
+	joolns_destroy();
 
-	log_info(MODULE_NAME " module removed.");
+	log_info("%s v" JOOL_VERSION_STR " module removed.", xlat_get_name());
 }
 
 module_init(nat64_init);

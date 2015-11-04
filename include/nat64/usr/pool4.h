@@ -4,11 +4,15 @@
 #include "nat64/common/config.h"
 
 
-int pool4_display(enum config_mode mode);
-int pool4_count(enum config_mode mode);
-int pool4_add(enum config_mode mode, struct ipv4_prefix *addrs);
-int pool4_remove(enum config_mode mode, struct ipv4_prefix *addrs, bool quick);
-int pool4_flush(enum config_mode mode, bool quick);
+int pool4_display(bool csv);
+int pool4_count(void);
+int pool4_add(__u32 mark, bool tcp, bool udp, bool icmp,
+		struct ipv4_prefix *addrs, struct port_range *ports,
+		bool force);
+int pool4_rm(__u32 mark, bool tcp, bool udp, bool icmp,
+		struct ipv4_prefix *addrs, struct port_range *ports,
+		bool quick);
+int pool4_flush(bool quick);
 
 
 #endif /* _JOOL_USR_POOL4_H */

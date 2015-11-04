@@ -4,7 +4,7 @@
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alberto Leiva Popper <aleiva@nic.mx>");
+MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Address module test.");
 
 static bool test_count(__u8 prefix_len, __u64 expected)
@@ -14,8 +14,8 @@ static bool test_count(__u8 prefix_len, __u64 expected)
 	get_random_bytes(&prefix.address, sizeof(prefix.address));
 	prefix.len = prefix_len;
 
-	return assert_equals_u64(expected, prefix4_get_addr_count(&prefix),
-			"count");
+	return ASSERT_U64(expected, prefix4_get_addr_count(&prefix),
+			"Address count of /%u", prefix_len);
 }
 
 static bool addr_count_test(void)
@@ -45,8 +45,9 @@ static bool test_contains(__u32 prefix_addr, __u8 prefix_len, __u32 addr,
 	prefix.len = prefix_len;
 	inaddr.s_addr = cpu_to_be32(addr);
 
-	return assert_equals_int(expected, prefix4_contains(&prefix, &inaddr),
-			"contains");
+	return ASSERT_BOOL(expected, prefix4_contains(&prefix, &inaddr),
+			"%pI4/%u contains %pI4",
+			&prefix.address, prefix.len, &inaddr);
 }
 
 static bool contains_test(void)

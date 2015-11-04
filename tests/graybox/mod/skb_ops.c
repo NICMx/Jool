@@ -22,11 +22,9 @@ static bool has_same_ipv6_address(struct ipv6hdr *expected, struct ipv6hdr *actu
 {
 	int gap;
 
-	log_debug(" ====================");
-	log_debug("Comparing Adresses:");
-	log_debug("Expected src = %pI6c, dst = %pI6c", &expected->saddr, &expected->daddr);
-	log_debug("Actual src = %pI6c, dst = %pI6c", &actual->saddr, &actual->daddr);
-	log_debug(" ====================");
+	log_debug("Comparing addresses:");
+	log_debug("  Expected: %pI6c -> %pI6c", &expected->saddr, &expected->daddr);
+	log_debug("  Actual: %pI6c -> %pI6c", &actual->saddr, &actual->daddr);
 
 	gap = ipv6_addr_cmp(&expected->daddr, &actual->daddr);
 	if (gap)
@@ -41,11 +39,9 @@ static bool has_same_ipv6_address(struct ipv6hdr *expected, struct ipv6hdr *actu
 
 static bool has_same_ipv4_address(struct iphdr *expected, struct iphdr *actual)
 {
-	log_debug(" ====================");
-	log_debug("Comparing Addresses:");
-	log_debug("Expected = src: %pI4 , dst: %pI4",&expected->saddr, &expected->daddr);
-	log_debug("Actual = src: %pI4 , dst: %pI4",&actual->saddr, &actual->daddr);
-	log_debug("=====================");
+	log_debug("Comparing addresses:");
+	log_debug("  Expected: %pI4 -> %pI4", &expected->saddr, &expected->daddr);
+	log_debug("  Actual: %pI4 -> %pI4", &actual->saddr, &actual->daddr);
 
 	if (expected->daddr != actual->daddr)
 		return false;
@@ -85,7 +81,6 @@ static int net_hdr_size(void *pkt)
 
 int skb_from_pkt(void *pkt, u32 pkt_len, struct sk_buff **skb)
 {
-	log_debug("Creating the skb from userspace...");
 	*skb = alloc_skb(LL_MAX_HEADER + pkt_len, GFP_ATOMIC);
 	if (!*skb) {
 		log_err("Could not allocate a skb.");
@@ -123,7 +118,6 @@ int skb_route(struct sk_buff *skb, void *pkt)
 {
 	struct dst_entry *dst;
 
-	log_debug("Routing packet...");
 	switch (get_l3_proto(pkt)) {
 	case 6:
 		dst = route_ipv6(pkt);
@@ -161,41 +155,48 @@ bool skb_has_same_address(struct sk_buff *expected, struct sk_buff *actual)
 	return false;
 }
 
-bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err)
+static void print_error_table_hdr(int errors)
 {
-	struct bytes skip_byte;
+	if (!errors)
+		log_info("    Value\tExpected    Actual");
+}
+
+bool skb_compare(struct sk_buff *expected, struct sk_buff *actual)
+{
+	struct bytes *skip_byte;
 	unsigned char *expected_ptr, *actual_ptr;
 	unsigned int i, min_len, skip_count;
 	int errors = 0;
 
-	log_debug("Comparing incoming packet");
 	if (expected->len != actual->len) {
-		log_err("skb length is different, expected %d. actual %d.", expected->len, actual->len);
+		print_error_table_hdr(errors);
+		log_info("    Length\t%d\t    %d", expected->len, actual->len);
 		errors++;
 	}
 
-	expected_ptr = (unsigned char *) skb_network_header(expected);
-	actual_ptr = (unsigned char *) skb_network_header(actual);
+	expected_ptr = skb_network_header(expected);
+	actual_ptr = skb_network_header(actual);
 	min_len = (expected->len < actual->len) ? expected->len : actual->len;
 
 	rcu_read_lock_bh();
-	skip_byte = *(rcu_dereference_bh(bytes_to_skip));
+	skip_byte = rcu_dereference_bh(bytes_to_skip);
 	skip_count = 0;
 
 	for (i = 0; i < min_len; i++) {
-		if (skip_count < skip_byte.count && skip_byte.array[skip_count] == i) {
+		if (skip_count < skip_byte->count && skip_byte->array[skip_count] == i) {
 			skip_count++;
 			continue;
 		}
 
 		if (expected_ptr[i] != actual_ptr[i]) {
-			log_err("Packets differ at byte %u. Expected: 0x%x; actual: 0x%x.",
-					i, expected_ptr[i], actual_ptr[i]);
+			print_error_table_hdr(errors);
+			log_info("    byte %u\t0x%x\t    0x%x", i,
+					expected_ptr[i], actual_ptr[i]);
 			errors++;
+			if (errors >= 8)
+				break;
 		}
 	}
-
-	*err += errors;
 
 	rcu_read_unlock_bh();
 	return !errors;

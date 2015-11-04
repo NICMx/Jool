@@ -14,7 +14,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dhernandez");
 MODULE_DESCRIPTION("Unit tests for the log_time_module");
-MODULE_ALIAS("nat64_test_log_time");
 
 #include "nat64/common/str_utils.h"
 #include "nat64/unit/types.h"
@@ -57,8 +56,8 @@ static bool simple_substraction(void)
 	end.tv_nsec = 0L;
 
 	subtract_timespec(&start, &end, node);
-	result &= assert_equals_u64(0, node->time.tv_sec, "node tv_sec");
-	result &= assert_equals_u64(1, node->time.tv_nsec, "node tv_nsec");
+	result &= ASSERT_U64(0ULL, node->time.tv_sec, "node tv_sec");
+	result &= ASSERT_U64(1ULL, node->time.tv_nsec, "node tv_nsec");
 
 	logtime_delete_node(node);
 	return result;

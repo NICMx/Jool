@@ -29,6 +29,7 @@ struct translation_steps {
 
 struct translation_steps *ttpcomm_get_steps(enum l3_protocol l3_proto, enum l4_protocol l4_proto);
 
+void partialize_skb(struct sk_buff *skb, unsigned int csum_offset);
 int copy_payload(struct packet *in, struct packet *out);
 bool will_need_frag_hdr(struct iphdr *in_hdr);
 verdict ttpcomm_translate_inner_packet(struct tuple *outer_tuple, struct packet *in,

@@ -2,45 +2,65 @@
 #define _JOOL_UNIT_TEST_H
 
 #include "nat64/mod/common/types.h"
-
+#include "nat64/mod/stateful/bib/entry.h"
+#include "nat64/mod/stateful/session/entry.h"
 
 /* TODO (test) The UNIT_TESTING macro is a hack; remove it. */
 
-bool assert_true(bool condition, char *test_name);
-bool assert_equals_int(int expected, int actual, char *test_name);
-bool assert_equals_ulong(unsigned long expected, unsigned long actual, char *test_name);
-bool assert_equals_u8(__u8 expected, __u8 actual, char *test_name);
-bool assert_equals_u16(__u16 expected, __u16 actual, char *test_name);
-bool assert_equals_be16(__be16 expected, __be16 actual, char *test_name);
-bool assert_equals_u32(__u32 expected, __u32 actual, char *test_name);
-bool assert_equals_be32(__be32 expected, __be32 actual, char *test_name);
-bool assert_equals_u64(__u64 expected, __u64 actual, char *test_name);
-bool assert_equals_ptr(void *expected, void *actual, char *test_name);
-bool assert_equals_ipv4(struct in_addr *expected, const struct in_addr *actual, char *test_name);
-bool assert_equals_ipv4_str(unsigned char *expected_str, const struct in_addr *actual,
-		char *test_name);
-bool assert_equals_ipv6(struct in6_addr *expected, const struct in6_addr *actual,
-		char *test_name);
-bool assert_equals_ipv6_str(unsigned char *expected_str, const struct in6_addr *actual,
-		char *test_name);
-bool assert_equals_csum(__sum16 expected, __sum16 actual, char *test_name);
-bool assert_range(unsigned int expected_min, unsigned int expected_max, unsigned int actual,
-		char *test_name);
-bool assert_null(void *actual, char *test_name);
+#define ASSERT_PRIMITIVE(expected, actual, specifier, name, ...) ({	\
+		/* don't want these to be evaluated multiple times. */	\
+		typeof(expected) __expected = expected;			\
+		typeof(expected) __actual = actual;			\
+		if (__expected != __actual)				\
+			log_err("Test '" name "' failed. Expected:"	\
+				specifier " Actual:" specifier,		\
+				##__VA_ARGS__, __expected, __actual);	\
+		__expected == __actual;					\
+	})
 
-bool assert_false(bool condition, char *test_name);
-bool assert_not_equals_int(int expected, int actual, char *test_name);
-bool assert_not_equals_u16(__u16 expected, __u16 actual, char *test_name);
-bool assert_not_equals_be16(__be16 expected, __be16 actual, char *test_name);
-bool assert_not_equals_ptr(void *expected, void *actual, char *test_name);
-bool assert_not_null(void *actual, char *test_name);
+/* https://www.kernel.org/doc/Documentation/printk-formats.txt */
+#define ASSERT_UINT(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, actual, "%u", name, ##__VA_ARGS__)
+#define ASSERT_INT(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, actual, "%d", name, ##__VA_ARGS__)
+#define ASSERT_BOOL(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, actual, "%u", name, ##__VA_ARGS__)
+#define ASSERT_U64(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, actual, "%llu", name, ##__VA_ARGS__)
+#define ASSERT_PTR(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, actual, "%p", name, ##__VA_ARGS__)
+#define ASSERT_BE16(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, be16_to_cpu(actual), "%u", name, \
+				##__VA_ARGS__)
+#define ASSERT_BE32(expected, actual, name, ...) \
+		ASSERT_PRIMITIVE(expected, be32_to_cpu(actual), "%u", name, \
+				##__VA_ARGS__)
 
-bool assert_equals_tuple(struct tuple *expected, struct tuple *actual, char *test_name);
-bool assert_list_count(int expected, struct list_head *head, char *test_name);
+/*
+ * Ehh... there aren't macros, but they're still all caps so they're even
+ * easier to recognize.
+ */
+
+bool ASSERT_ADDR4(const char *expected, const struct in_addr *actual,
+		const char *test_name);
+bool __ASSERT_ADDR4(const struct in_addr *expected,
+		const struct in_addr *actual,
+		const char *test_name);
+bool ASSERT_ADDR6(const char *expected, const struct in6_addr *actual,
+		const char *test_name);
+bool __ASSERT_ADDR6(const struct in6_addr *expected,
+		const struct in6_addr *actual,
+		const char *test_name);
+bool ASSERT_TUPLE(struct tuple *expected, struct tuple *actual,
+		char *test_name);
+bool ASSERT_BIB(struct bib_entry *expected, struct bib_entry *actual,
+		char *test_name);
+bool ASSERT_SESSION(struct session_entry *expected,
+		struct session_entry *actual,
+		char *test_name);
 
 bool init_full(void);
 void end_full(void);
-
 
 /**
  * Macros to be used by the main test function.

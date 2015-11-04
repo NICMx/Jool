@@ -1,3 +1,4 @@
+#ifdef BENCHMARK
 #include "nat64/mod/common/log_time.h"
 
 static struct log_time_db logs_ipv6_tcp;
@@ -195,3 +196,5 @@ void logtime_destroy(void)
 
 	kmem_cache_destroy(entry_cache);
 }
+
+#endif /* BENCHMARK */

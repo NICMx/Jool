@@ -23,7 +23,7 @@ int skb_route(struct sk_buff *skb, void *pkt);
 
 bool skb_has_same_address(struct sk_buff *expected, struct sk_buff *actual);
 
-bool skb_compare(struct sk_buff *expected, struct sk_buff *actual, int *err);
+bool skb_compare(struct sk_buff *expected, struct sk_buff *actual);
 
 void skb_free(struct sk_buff *skb);
 

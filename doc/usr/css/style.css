@@ -37,6 +37,7 @@ h1 a:hover, h2 a:hover, h3 a:hover {
 }
 
 h1 {
+	margin-top: 1em;
 	letter-spacing: -2px;
 	font-size: 30px;
 	color: #00619f;
@@ -72,10 +73,6 @@ blockquote {
 	margin-left: 3em;
 	margin-right: 3em;
 	margin-bottom: 10px;
-}
-
-blockquote strong {
-	color: #800;
 }
 
 #page a {
@@ -126,7 +123,7 @@ blockquote strong {
 #page {
 	width: auto;
 	margin: 0 auto;
-	
+	margin-top: 60px;
 }
 
 /* Sidebars */
@@ -137,8 +134,6 @@ blockquote strong {
 	margin-top: 152px;
 	padding-top: 20px;
 }
-
-
 
 .sidebar ul {
 	margin: 0;
@@ -160,16 +155,30 @@ blockquote strong {
 
 .sidebar h2 {
 	height: 40px;
-	margin: 0;
+	margin: 1em 0px 0px 1em;
 	letter-spacing: normal;
-	font-size: 1.4em;
+	font-size: 1.2em;
+	font-family: Monaco,"Lucida Console",monospace;
+	font-weight: normal;
+}
+
+#language_selector {
+	float: left;
+	margin-top: 154px;
+	margin-left: 20px;
+	background: #F5F5F5;
+	border-radius: 5px 5px 0px 0px;
+	padding: 0px 10px 0px 10px;
+}
+
+#language_selector .selected {
+	font-weight: bold;
 }
 
 /* sidebar_navigation */
 
 #sidebar_navigation {
-padding-bottom: 15px;
-
+	padding-bottom: 15px;
 }
 
 #sidebar_navigation li li {
@@ -188,6 +197,7 @@ padding-bottom: 15px;
 }
 
 #content {
+	float: left;
 	width: 842px;
 	background: -moz-linear-gradient(top, #ffffff 0%, #ebebeb 100%);
 	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ffffff), color-stop(100%,#ebebeb));
@@ -198,12 +208,12 @@ padding-bottom: 15px;
 	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#ebebeb',GradientType=0 );
 	border: 2px solid #ebebeb;
 	-webkit-border-radius: 0px 10px 10px 10px;
-	border-radius: 0px 10px 10px 10px;
+	border-radius: 10px;
 	margin: 0 auto;
 }
 
 .workarea {
-min-height: 800px;
+	min-height: 800px;
 }
 
 .content_text {
@@ -385,3 +395,27 @@ hr {
 	width:100%; 
 	height:100%;
 }
+
+/* Distro-specific code */
+
+.distro-menu {
+	text-align: right;
+	margin-right: 1em;
+	margin-bottom: -1px;
+}
+
+.distro-selector {
+	background-color: #DDD;
+	font-size: 80%;
+	font-weight: bold;
+	padding: 1px 1em;
+	border: 1px solid #DDD;
+	border-bottom-style: none;
+	border-radius: 5px 5px 0px 0px;
+	cursor: pointer;
+}
+
+.distro-selector:hover, .distro-selector.selected {
+	background-color: #F8F8F8;
+}
+

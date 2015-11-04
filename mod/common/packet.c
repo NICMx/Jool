@@ -254,7 +254,7 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
 			return error;
 	}
 
-	if (nat64_is_stateless() && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
+	if (xlat_is_siit() && meta->has_frag_hdr && is_icmp6_info(ptr.icmp->icmp6_type)) {
 		ptr.frag = skb_hdr_ptr(skb, meta->frag_offset, buffer.frag);
 		if (!ptr.frag)
 			return truncated6(skb, "fragment header");
@@ -267,14 +267,18 @@ static int handle_icmp6(struct sk_buff *skb, struct pkt_metadata *meta)
 	return 0;
 }
 
+/**
+ * As a contract, pkt_destroy() doesn't need to be called if this fails.
+ * (Just like other init functions.)
+ */
 int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 {
 	struct pkt_metadata meta;
 	int error;
 
 	/*
-	 * Careful in this function and subfunctions. pskb_may_pull() might change pointers,
-	 * so you generally don't want to store them.
+	 * Careful in this function and subfunctions. pskb_may_pull() might
+	 * change pointers, so you generally don't want to store them.
 	 */
 
 #ifdef BENCHMARK
@@ -308,6 +312,7 @@ int pkt_init_ipv6(struct packet *pkt, struct sk_buff *skb)
 	pkt->l3_proto = L3PROTO_IPV6;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
+	pkt->is_hairpin = false;
 	pkt->hdr_frag = meta.has_frag_hdr ? offset_to_ptr(skb, meta.frag_offset) : NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
 	pkt->payload = offset_to_ptr(skb, meta.payload_offset);
@@ -383,7 +388,7 @@ static int handle_icmp4(struct sk_buff *skb, struct pkt_metadata *meta)
 			return error;
 	}
 
-	if (nat64_is_stateless() && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(skb))) {
+	if (xlat_is_siit() && is_icmp4_info(ptr->type) && is_fragmented_ipv4(ip_hdr(skb))) {
 		log_debug("Packet is a fragmented ping; its checksum cannot be translated.");
 		return -EINVAL;
 	}
@@ -429,49 +434,18 @@ static int summarize_skb4(struct sk_buff *skb, struct pkt_metadata *meta)
 	return 0;
 }
 
-static int handle_udp4(struct sk_buff *skb, struct pkt_metadata *meta)
-{
-	struct iphdr *hdr4;
-	struct udphdr buffer, *ptr;
-
-	if (nat64_is_stateful())
-		return 0;
-
-	hdr4 = ip_hdr(skb);
-	if (!is_first_frag4(hdr4))
-		return 0;
-
-	ptr = skb_hdr_ptr(skb, meta->l4_offset, buffer);
-	if (!ptr)
-		return truncated4(skb, "UDP header (2)");
-
-	/* RFC 6145#4.5:
-	 * A stateless translator cannot compute the UDP checksum of fragmented packets, so when a
-	 * stateless translator receives the first fragment of a fragmented UDP IPv4 packet and the
-	 * checksum field is zero, the translator SHOULD drop the packet and generate a system
-	 * management event that specifies at least the IP addresses and port numbers in the packet,
-	 * Also, the translator SHOULD provide a configuration function to allow:
-	 * Dropping the packet or Calculating an IPv6 checksum and forwarding the packet.
-	 */
-	if (ptr->check == 0 && (is_more_fragments_set_ipv4(hdr4)
-			|| !config_get_compute_UDP_csum_zero())) {
-		log_debug("Dropping IPv4 packet, UDP Packet has checksum 0:");
-		log_debug("%pI4#%u->%pI4#%u", &hdr4->saddr, ntohs(ptr->source),
-				&hdr4->daddr, ntohs(ptr->dest));
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
+/**
+ * As a contract, pkt_destroy() doesn't need to be called if this fails.
+ * (Just like other init functions.)
+ */
 int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 {
 	struct pkt_metadata meta;
 	int error;
 
 	/*
-	 * Careful in this function and subfunctions. pskb_may_pull() might change pointers,
-	 * so you generally don't want to store them.
+	 * Careful in this function and subfunctions. pskb_may_pull() might
+	 * change pointers, so you generally don't want to store them.
 	 */
 
 #ifdef BENCHMARK
@@ -486,12 +460,6 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	if (error)
 		return error;
 
-	if (meta.l4_proto == L4PROTO_UDP) {
-		error = handle_udp4(skb, &meta);
-		if (error)
-			return error;
-	}
-
 	if (!pskb_may_pull(skb, meta.payload_offset)) {
 		log_debug("Could not 'pull' the headers out of the skb.");
 		return -EINVAL;
@@ -501,6 +469,7 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb)
 	pkt->l3_proto = L3PROTO_IPV4;
 	pkt->l4_proto = meta.l4_proto;
 	pkt->is_inner = 0;
+	pkt->is_hairpin = false;
 	pkt->hdr_frag = NULL;
 	skb_set_transport_header(skb, meta.l4_offset);
 	pkt->payload = offset_to_ptr(skb, meta.payload_offset);
@@ -697,48 +666,4 @@ void pkt_print(struct packet *pkt)
 	if (skb_transport_header(pkt->skb))
 		print_l4_hdr(pkt);
 	print_payload(pkt);
-}
-
-int validate_icmp6_csum(struct packet *pkt)
-{
-	struct ipv6hdr *ip6_hdr;
-	unsigned int datagram_len;
-	__sum16 csum;
-
-	if (pkt_l4_proto(pkt) != L4PROTO_ICMP)
-		return 0;
-
-	if (!is_icmp6_error(pkt_icmp6_hdr(pkt)->icmp6_type))
-		return 0;
-
-	ip6_hdr = pkt_ip6_hdr(pkt);
-	datagram_len = pkt_datagram_len(pkt);
-	csum = csum_ipv6_magic(&ip6_hdr->saddr, &ip6_hdr->daddr, datagram_len, NEXTHDR_ICMP,
-			skb_checksum(pkt->skb, skb_transport_offset(pkt->skb), datagram_len, 0));
-	if (csum != 0) {
-		log_debug("Checksum doesn't match.");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int validate_icmp4_csum(struct packet *pkt)
-{
-	__sum16 csum;
-
-	if (pkt_l4_proto(pkt) != L4PROTO_ICMP)
-		return 0;
-
-	if (!is_icmp4_error(pkt_icmp4_hdr(pkt)->type))
-		return 0;
-
-	csum = csum_fold(skb_checksum(pkt->skb, skb_transport_offset(pkt->skb), pkt_datagram_len(pkt),
-			0));
-	if (csum != 0) {
-		log_debug("Checksum doesn't match.");
-		return -EINVAL;
-	}
-
-	return 0;
 }

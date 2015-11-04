@@ -11,6 +11,7 @@ union transport_addr {
 };
 
 int prefix6_parse(char *str, struct ipv6_prefix *result);
+int prefix4_parse(char *str, struct ipv4_prefix *result);
 
 /**
  * @{
@@ -49,6 +50,20 @@ __u32 addr6_get_bit(struct in6_addr *addr, unsigned int pos);
 void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value);
 
 /**
+ * foreach_addr4 - iterate over prefix's addresses.
+ * @addr: struct in_addr cursor.
+ * @cursor: temporary u64 needed to handle overflow.
+ * @prefix: pointer to the address collection you want to iterate.
+ */
+#define foreach_addr4(addr, cursor, prefix)				\
+	for (cursor = be32_to_cpu((prefix)->address.s_addr),		\
+		addr = (prefix)->address;				\
+	    cursor < prefix4_next(prefix);				\
+	    cursor++, (addr).s_addr = cpu_to_be32(cursor))
+
+__u64 prefix4_next(struct ipv4_prefix *prefix);
+
+/**
  * The kernel has a ipv6_addr_cmp(), but not a ipv4_addr_cmp().
  * Of course, that is because in_addrs are, to most intents and purposes, 32-bit integer values.
  * But the absence of ipv4_addr_cmp() does makes things look asymmetric.
@@ -60,5 +75,7 @@ static inline int ipv4_addr_cmp(const struct in_addr *a1, const struct in_addr *
 {
 	return memcmp(a1, a2, sizeof(struct in_addr));
 }
+
+bool addr4_is_scope_subnet(const __be32 addr);
 
 #endif /* _JOOL_MOD_ADDRESS_H */

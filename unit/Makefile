@@ -2,7 +2,7 @@ MODULES_DIR := /lib/modules/$(shell uname -r)
 KERNEL_DIR := ${MODULES_DIR}/build
 EXTRA_CFLAGS += -DDEBUG
 EXTRA_CFLAGS += -DUNIT_TESTING
-EXTRA_CFLAGS += -DSTATEFUL
+EXTRA_CFLAGS += -DBENCHMARK
 
 #CC=cgcc
 ccflags-y := -I$(src)/../include
@@ -17,20 +17,18 @@ HASHTABLE = hashtable
 RFC6052 = rfc6052
 PKT = pkt
 RBTREE = rbtree
-POOLNUM = poolnum
-POOL4 = pool4
-BIB = bib
-SESSION = session
+POOL4DB = pool4db
+BIBTABLE = bibtable
+BIBDB = bibdb
+SESSIONTABLE = sessiontable
+SESSIONDB = sessiondb
 FRAGDB = fragdb
-INCOMING = incoming
 FILTERING = filtering
-OUTGOING = outgoing
 TRANSLATE = translate
-HAIRPINNING = hairpinning
-PKTQUEUE = pktqueue
 CONFIG_PROTO = config_proto
 LOGTIME = logtime
-MAPPING = mapping
+EAMT = eamt
+PALLOC = palloc4
 
 
 obj-m += $(ADDR).o
@@ -39,30 +37,27 @@ obj-m += $(HASHTABLE).o
 obj-m += $(RFC6052).o
 obj-m += $(PKT).o
 obj-m += $(RBTREE).o
-obj-m += $(POOLNUM).o
-obj-m += $(POOL4).o
-obj-m += $(BIB).o
-obj-m += $(SESSION).o
+obj-m += $(POOL4DB).o
+obj-m += $(BIBTABLE).o
+obj-m += $(BIBDB).o
+obj-m += $(SESSIONTABLE).o
+obj-m += $(SESSIONDB).o
 obj-m += $(FRAGDB).o
-obj-m += $(INCOMING).o
 obj-m += $(FILTERING).o
-obj-m += $(OUTGOING).o
 obj-m += $(TRANSLATE).o
-obj-m += $(HAIRPINNING).o
-obj-m += $(PKTQUEUE).o
 obj-m += $(CONFIG_PROTO).o
-#obj-m += $(LOGTIME).o
-# Note, this is compiling with -DSTATEFUL, even though is part of the stateless translator.
-# At the moment this doesn't cause any trouble, but it means we might need to refactor this
-# Makefile to make better room for stateless tests.
-obj-m += $(MAPPING).o
+obj-m += $(LOGTIME).o
+obj-m += $(EAMT).o
+obj-m += $(PALLOC).o
 
 
 MIN_REQS = ../mod/common/types.o \
 	../mod/common/address.o \
 	framework/str_utils.o \
 	framework/unit_test.o \
-	impersonator/stats.o
+	impersonator/error_pool.o \
+	impersonator/stats.o \
+	impersonator/xlat.o
 
 
 $(ADDR)-objs += $(MIN_REQS)
@@ -75,6 +70,7 @@ $(HASHTABLE)-objs += $(MIN_REQS)
 $(HASHTABLE)-objs += hash_table_test.o
 
 $(RFC6052)-objs += $(MIN_REQS)
+$(RFC6052)-objs += ../mod/common/pool6.o
 $(RFC6052)-objs += rfc6052_test.o
 
 $(PKT)-objs += $(MIN_REQS)
@@ -88,104 +84,80 @@ $(PKT)-objs += packet_test.o
 $(RBTREE)-objs += $(MIN_REQS)
 $(RBTREE)-objs += rbtree_test.o
 
-$(POOLNUM)-objs += $(MIN_REQS)
-$(POOLNUM)-objs += ../mod/common/random.o
-$(POOLNUM)-objs += pool_num_test.o
+$(POOL4DB)-objs += $(MIN_REQS)
+$(POOL4DB)-objs += ../mod/stateful/pool4/table.o
+$(POOL4DB)-objs += ../mod/stateful/pool4/entry.o
+$(POOL4DB)-objs += impersonator/pool4_empty.o
+$(POOL4DB)-objs += pool4db_test.o
 
-$(POOL4)-objs += $(MIN_REQS)
-$(POOL4)-objs += ../mod/common/random.o
-$(POOL4)-objs += ../mod/stateful/poolnum.o
-$(POOL4)-objs += pool4_test.o
+$(BIBTABLE)-objs += $(MIN_REQS)
+$(BIBTABLE)-objs += ../mod/common/config.o
+$(BIBTABLE)-objs += ../mod/common/rbtree.o
+$(BIBTABLE)-objs += ../mod/stateful/bib/entry.o
+$(BIBTABLE)-objs += bibtable_test.o
 
-$(BIB)-objs += $(MIN_REQS)
-$(BIB)-objs += ../mod/common/config.o
-$(BIB)-objs += ../mod/common/random.o
-$(BIB)-objs += ../mod/common/rbtree.o
-$(BIB)-objs += ../mod/stateful/host6_node.o
-# The BIB test cannot use the pool4 impersonator
-# because it needs to test exhaustion.
-$(BIB)-objs += ../mod/stateful/pool4.o
-$(BIB)-objs += ../mod/stateful/poolnum.o
-$(BIB)-objs += framework/bib.o
-$(BIB)-objs += framework/types.o
-$(BIB)-objs += impersonator/icmp_wrapper.o
-$(BIB)-objs += bib_test.o
+$(BIBDB)-objs += $(MIN_REQS)
+$(BIBDB)-objs += ../mod/common/config.o
+$(BIBDB)-objs += ../mod/common/rbtree.o
+$(BIBDB)-objs += ../mod/stateful/bib/entry.o
+$(BIBDB)-objs += ../mod/stateful/bib/table.o
+$(BIBDB)-objs += framework/bib.o
+$(BIBDB)-objs += bibdb_test.o
 
-$(SESSION)-objs += $(MIN_REQS)
-$(SESSION)-objs += ../mod/common/config.o
-$(SESSION)-objs += ../mod/common/ipv6_hdr_iterator.o
-$(SESSION)-objs += ../mod/common/packet.o
-$(SESSION)-objs += ../mod/common/pool6.o
-$(SESSION)-objs += ../mod/common/rbtree.o
-$(SESSION)-objs += ../mod/common/rfc6052.o
-$(SESSION)-objs += ../mod/stateful/bib_db.o
-$(SESSION)-objs += ../mod/stateful/host6_node.o
-$(SESSION)-objs += ../mod/stateful/pkt_queue.o
-$(SESSION)-objs += framework/session.o
-$(SESSION)-objs += framework/skb_generator.o
-$(SESSION)-objs += framework/types.o
-$(SESSION)-objs += impersonator/icmp_wrapper.o
-$(SESSION)-objs += impersonator/pool4.o
-$(SESSION)-objs += impersonator/route.o
-$(SESSION)-objs += session_test.o
+$(SESSIONTABLE)-objs += $(MIN_REQS)
+$(SESSIONTABLE)-objs += ../mod/common/config.o
+$(SESSIONTABLE)-objs += ../mod/common/rbtree.o
+$(SESSIONTABLE)-objs += ../mod/stateful/session/entry.o
+$(SESSIONTABLE)-objs += ../mod/stateful/session/pkt_queue.o
+$(SESSIONTABLE)-objs += impersonator/bib.o
+$(SESSIONTABLE)-objs += impersonator/icmp_wrapper.o
+$(SESSIONTABLE)-objs += impersonator/route.o
+$(SESSIONTABLE)-objs += sessiontable_test.o
+
+$(SESSIONDB)-objs += $(MIN_REQS)
+$(SESSIONDB)-objs += ../mod/common/config.o
+$(SESSIONDB)-objs += ../mod/common/rbtree.o
+$(SESSIONDB)-objs += ../mod/stateful/session/entry.o
+$(SESSIONDB)-objs += ../mod/stateful/session/table.o
+$(SESSIONDB)-objs += ../mod/stateful/session/pkt_queue.o
+$(SESSIONDB)-objs += framework/session.o
+$(SESSIONDB)-objs += impersonator/bib.o
+$(SESSIONDB)-objs += impersonator/icmp_wrapper.o
+$(SESSIONDB)-objs += impersonator/route.o
+$(SESSIONDB)-objs += sessiondb_test.o
 
 $(FRAGDB)-objs += $(MIN_REQS)
 $(FRAGDB)-objs += ../mod/common/config.o
 $(FRAGDB)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(FRAGDB)-objs += ../mod/common/packet.o
-$(FRAGDB)-objs += ../mod/common/random.o
 $(FRAGDB)-objs += framework/skb_generator.o
 $(FRAGDB)-objs += framework/types.o
-$(FRAGDB)-objs += impersonator/icmp_wrapper.o
 $(FRAGDB)-objs += fragment_db_test.o
-
-$(INCOMING)-objs += $(MIN_REQS)
-$(INCOMING)-objs += ../mod/common/ipv6_hdr_iterator.o
-$(INCOMING)-objs += ../mod/common/packet.o
-$(INCOMING)-objs += framework/skb_generator.o
-$(INCOMING)-objs += framework/types.o
-$(INCOMING)-objs += impersonator/icmp_wrapper.o
-$(INCOMING)-objs += impersonator/stats.o
-$(INCOMING)-objs += determine_incoming_tuple_test.o
 
 $(FILTERING)-objs += $(MIN_REQS)
 $(FILTERING)-objs += ../mod/common/config.o
-$(FILTERING)-objs += ../mod/common/ipv6_hdr_iterator.o
 $(FILTERING)-objs += ../mod/common/packet.o
 $(FILTERING)-objs += ../mod/common/pool6.o
 $(FILTERING)-objs += ../mod/common/rbtree.o
 $(FILTERING)-objs += ../mod/common/rfc6052.o
-$(FILTERING)-objs += ../mod/stateful/bib_db.o
-$(FILTERING)-objs += ../mod/stateful/host6_node.o
-$(FILTERING)-objs += ../mod/stateful/pkt_queue.o
-$(FILTERING)-objs += ../mod/stateful/session_db.o
-$(FILTERING)-objs += framework/init.o
-$(FILTERING)-objs += framework/session.o
+$(FILTERING)-objs += ../mod/stateful/pool4/entry.o
+$(FILTERING)-objs += ../mod/stateful/pool4/table.o
+$(FILTERING)-objs += ../mod/stateful/pool4/db.o
+$(FILTERING)-objs += ../mod/stateful/bib/entry.o
+$(FILTERING)-objs += ../mod/stateful/bib/table.o
+$(FILTERING)-objs += ../mod/stateful/bib/db.o
+$(FILTERING)-objs += ../mod/stateful/bib/port_allocator.o
+$(FILTERING)-objs += ../mod/stateful/session/entry.o
+$(FILTERING)-objs += ../mod/stateful/session/table.o
+$(FILTERING)-objs += ../mod/stateful/session/db.o
+$(FILTERING)-objs += ../mod/stateful/session/pkt_queue.o
+$(FILTERING)-objs += framework/bib.o
 $(FILTERING)-objs += framework/skb_generator.o
 $(FILTERING)-objs += framework/types.o
 $(FILTERING)-objs += impersonator/icmp_wrapper.o
-$(FILTERING)-objs += impersonator/pool4.o
+$(FILTERING)-objs += impersonator/pool4_empty.o
 $(FILTERING)-objs += impersonator/route.o
-$(FILTERING)-objs += impersonator/stats.o
 $(FILTERING)-objs += filtering_and_updating_test.o
-
-$(OUTGOING)-objs += $(MIN_REQS)
-$(OUTGOING)-objs += ../mod/common/config.o
-$(OUTGOING)-objs += ../mod/common/pool6.o
-$(OUTGOING)-objs += ../mod/common/rbtree.o
-$(OUTGOING)-objs += ../mod/common/rfc6052.o
-$(OUTGOING)-objs += ../mod/stateful/bib_db.o
-$(OUTGOING)-objs += ../mod/stateful/compute_outgoing_tuple.o
-$(OUTGOING)-objs += ../mod/stateful/host6_node.o
-$(OUTGOING)-objs += ../mod/stateful/pkt_queue.o
-$(OUTGOING)-objs += ../mod/stateful/session_db.o
-$(OUTGOING)-objs += framework/init.o
-$(OUTGOING)-objs += framework/session.o
-$(OUTGOING)-objs += framework/types.o
-$(OUTGOING)-objs += impersonator/icmp_wrapper.o
-$(OUTGOING)-objs += impersonator/pool4.o
-$(OUTGOING)-objs += impersonator/route.o
-$(OUTGOING)-objs += compute_outgoing_tuple_test.o
 
 $(TRANSLATE)-objs += $(MIN_REQS)
 $(TRANSLATE)-objs += ../mod/common/config.o
@@ -194,103 +166,26 @@ $(TRANSLATE)-objs += ../mod/common/packet.o
 $(TRANSLATE)-objs += ../mod/common/pool6.o
 $(TRANSLATE)-objs += ../mod/common/rfc6052.o
 $(TRANSLATE)-objs += ../mod/common/rfc6145/common.o
+$(TRANSLATE)-objs += ../mod/stateful/impersonator.o
 $(TRANSLATE)-objs += framework/skb_generator.o
 $(TRANSLATE)-objs += framework/types.o
-$(TRANSLATE)-objs += framework/validator.o
 $(TRANSLATE)-objs += impersonator/icmp_wrapper.o
-$(TRANSLATE)-objs += impersonator/send_packet.o
-$(TRANSLATE)-objs += impersonator/stats.o
 $(TRANSLATE)-objs += translate_packet_test.o
 
-$(HAIRPINNING)-objs += $(MIN_REQS)
-$(HAIRPINNING)-objs += ../mod/common/blacklist.o
-$(HAIRPINNING)-objs += ../mod/common/config.o
-$(HAIRPINNING)-objs += ../mod/common/core.o
-$(HAIRPINNING)-objs += ../mod/common/ipv6_hdr_iterator.o
-$(HAIRPINNING)-objs += ../mod/common/packet.o
-$(HAIRPINNING)-objs += ../mod/common/pool6.o
-$(HAIRPINNING)-objs += ../mod/common/random.o
-$(HAIRPINNING)-objs += ../mod/common/rbtree.o
-$(HAIRPINNING)-objs += ../mod/common/rfc6052.o
-$(HAIRPINNING)-objs += ../mod/common/rfc6145/4to6.o
-$(HAIRPINNING)-objs += ../mod/common/rfc6145/6to4.o
-$(HAIRPINNING)-objs += ../mod/common/rfc6145/common.o
-$(HAIRPINNING)-objs += ../mod/common/rfc6145/core.o
-$(HAIRPINNING)-objs += ../mod/stateful/bib_db.o
-$(HAIRPINNING)-objs += ../mod/stateful/compute_outgoing_tuple.o
-$(HAIRPINNING)-objs += ../mod/stateful/determine_incoming_tuple.o
-$(HAIRPINNING)-objs += ../mod/stateful/filtering_and_updating.o
-$(HAIRPINNING)-objs += ../mod/stateful/fragment_db.o
-$(HAIRPINNING)-objs += ../mod/stateful/handling_hairpinning.o
-$(HAIRPINNING)-objs += ../mod/stateful/host6_node.o
-$(HAIRPINNING)-objs += ../mod/stateful/pkt_queue.o
-$(HAIRPINNING)-objs += ../mod/stateful/session_db.o
-$(HAIRPINNING)-objs += framework/bib.o
-$(HAIRPINNING)-objs += framework/init.o
-$(HAIRPINNING)-objs += framework/session.o
-$(HAIRPINNING)-objs += framework/skb_generator.o
-$(HAIRPINNING)-objs += framework/types.o
-$(HAIRPINNING)-objs += impersonator/icmp_wrapper.o
-$(HAIRPINNING)-objs += impersonator/pool4.o
-$(HAIRPINNING)-objs += impersonator/route.o
-$(HAIRPINNING)-objs += impersonator/send_packet.o
-$(HAIRPINNING)-objs += impersonator/stats.o
-$(HAIRPINNING)-objs += handling_hairpinning_test.o
-
-$(PKTQUEUE)-objs += $(MIN_REQS)
-$(PKTQUEUE)-objs += ../mod/stateful/bib_db.o
-$(PKTQUEUE)-objs += ../mod/stateful/host6_node.o
-$(PKTQUEUE)-objs += ../mod/stateful/session_db.o
-$(PKTQUEUE)-objs += ../mod/common/config.o
-$(PKTQUEUE)-objs += ../mod/common/ipv6_hdr_iterator.o
-$(PKTQUEUE)-objs += ../mod/common/packet.o
-$(PKTQUEUE)-objs += ../mod/common/pool6.o
-$(PKTQUEUE)-objs += ../mod/common/rbtree.o
-$(PKTQUEUE)-objs += ../mod/common/rfc6052.o
-$(PKTQUEUE)-objs += framework/init.o
-$(PKTQUEUE)-objs += framework/session.o
-$(PKTQUEUE)-objs += framework/skb_generator.o
-$(PKTQUEUE)-objs += framework/types.o
-$(PKTQUEUE)-objs += impersonator/icmp_wrapper.o
-$(PKTQUEUE)-objs += impersonator/pool4.o
-$(PKTQUEUE)-objs += impersonator/route.o
-$(PKTQUEUE)-objs += impersonator/stats.o
-$(PKTQUEUE)-objs += pkt_queue_test.o
-
 $(CONFIG_PROTO)-objs += $(MIN_REQS)
-$(CONFIG_PROTO)-objs += ../mod/common/blacklist.o
 $(CONFIG_PROTO)-objs += ../mod/common/config.o
-$(CONFIG_PROTO)-objs += ../mod/common/ipv6_hdr_iterator.o
-$(CONFIG_PROTO)-objs += ../mod/common/nl_buffer.o
-$(CONFIG_PROTO)-objs += ../mod/common/packet.o
-$(CONFIG_PROTO)-objs += ../mod/common/pool6.o
-$(CONFIG_PROTO)-objs += ../mod/common/random.o
-$(CONFIG_PROTO)-objs += ../mod/common/rbtree.o
-$(CONFIG_PROTO)-objs += ../mod/common/rfc6052.o
-$(CONFIG_PROTO)-objs += ../mod/common/rfc6145/4to6.o
-$(CONFIG_PROTO)-objs += ../mod/common/rfc6145/6to4.o
-$(CONFIG_PROTO)-objs += ../mod/common/rfc6145/common.o
-$(CONFIG_PROTO)-objs += ../mod/common/rfc6145/core.o
-$(CONFIG_PROTO)-objs += ../mod/common/route.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/bib_db.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/filtering_and_updating.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/fragment_db.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/host6_node.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/pkt_queue.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/session_db.o
-$(CONFIG_PROTO)-objs += ../mod/stateful/static_routes.o
-$(CONFIG_PROTO)-objs += framework/init.o
-$(CONFIG_PROTO)-objs += impersonator/icmp_wrapper.o
-$(CONFIG_PROTO)-objs += impersonator/pool4.o
-$(CONFIG_PROTO)-objs += impersonator/stats.o
-$(CONFIG_PROTO)-objs += nl_handler_test.o
+$(CONFIG_PROTO)-objs += config_test.o
 
 $(LOGTIME)-objs += $(MIN_REQS)
 $(LOGTIME)-objs += log_time_test.o
 
-$(MAPPING)-objs += $(MIN_REQS)
-$(MAPPING)-objs += ../mod/common/rbtree.o
-$(MAPPING)-objs += eamt_test.o
+$(EAMT)-objs += $(MIN_REQS)
+$(EAMT)-objs += ../mod/common/rtrie.o
+$(EAMT)-objs += eamt_test.o
+
+$(PALLOC)-objs += $(MIN_REQS)
+$(PALLOC)-objs += impersonator/bib.o
+$(PALLOC)-objs += port_allocator_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;
@@ -301,21 +196,15 @@ test:
 	-sudo insmod $(RFC6052).ko && sudo rmmod $(RFC6052)
 	-sudo insmod $(PKT).ko && sudo rmmod $(PKT)
 	-sudo insmod $(RBTREE).ko && sudo rmmod $(RBTREE)
-	-sudo insmod $(POOLNUM).ko && sudo rmmod $(POOLNUM)
-	# Warning: This test is lenghty! It might freeze your computer for a couple of seconds.
-	-sudo insmod $(POOL4).ko && sudo rmmod $(POOL4)
-	-sudo insmod $(BIB).ko && sudo rmmod $(BIB)
-	-sudo insmod $(SESSION).ko && sudo rmmod $(SESSION)
+	-sudo insmod $(POOL4DB).ko && sudo rmmod $(POOL4DB)
+	-sudo insmod $(BIBDB).ko && sudo rmmod $(BIBDB)
+	-sudo insmod $(SESSIONDB).ko && sudo rmmod $(SESSIONDB)
 	-sudo insmod $(FRAGDB).ko && sudo rmmod $(FRAGDB)
-	-sudo insmod $(INCOMING).ko && sudo rmmod $(INCOMING)
 	-sudo insmod $(FILTERING).ko && sudo rmmod $(FILTERING)
-	-sudo insmod $(OUTGOING).ko && sudo rmmod $(OUTGOING)
 	-sudo insmod $(TRANSLATE).ko && sudo rmmod $(TRANSLATE)
-	-sudo insmod $(HAIRPINNING).ko && sudo rmmod $(HAIRPINNING)
-	-sudo insmod $(PKTQUEUE).ko && sudo rmmod $(PKTQUEUE)
 	-sudo insmod $(CONFIG_PROTO).ko && sudo rmmod $(CONFIG_PROTO)
 	#-sudo insmod $(LOGTIME).ko && sudo rmmod $(LOGTIME)
-	-sudo insmod $(MAPPING).ko && sudo rmmod $(MAPPING)
+	-sudo insmod $(EAMT).ko && sudo rmmod $(EAMT)
 	dmesg | grep 'Finished.'
 modules:
 	make -C ${KERNEL_DIR} M=$$PWD $@;

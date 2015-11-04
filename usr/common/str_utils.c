@@ -1,6 +1,5 @@
 #include "nat64/usr/str_utils.h"
 #include "nat64/common/constants.h"
-#include "nat64/common/nat64.h"
 #include "nat64/usr/types.h"
 #include <string.h>
 #include <stdlib.h>
@@ -44,30 +43,63 @@ const char *l4proto_to_string(l4_protocol l4_proto)
 	return NULL;
 }
 
+static int str_to_ull(const char *str, char **endptr,
+		const unsigned long long int min,
+		const unsigned long long int max,
+		unsigned long long int *result)
+{
+	unsigned long long int parsed;
+
+	if (*str < '0' || '9' < *str) {
+		log_err("'%s' is not a number.", str);
+		return -EINVAL;
+	}
+
+	errno = 0;
+	parsed = strtoull(str, endptr, 10);
+	if (errno) {
+		log_err("Parsing of '%s' threw error code %d.", str, errno);
+		return errno;
+	}
+
+	if (parsed < min || max < parsed) {
+		log_err("'%s' is out of bounds (%llu-%llu).", str, min, max);
+		return -EINVAL;
+	}
+
+	*result = parsed;
+	return 0;
+}
+
 int str_to_bool(const char *str, __u8 *bool_out)
 {
-	if (strcasecmp(str, "true") == 0 || strcasecmp(str, "1") == 0
-			|| strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0) {
+	if (strcasecmp(str, "true") == 0
+			|| strcasecmp(str, "1") == 0
+			|| strcasecmp(str, "yes") == 0
+			|| strcasecmp(str, "on") == 0) {
 		*bool_out = true;
 		return 0;
 	}
 
-	if (strcasecmp(str, "false") == 0 || strcasecmp(str, "0") == 0
-			|| strcasecmp(str, "no") == 0 || strcasecmp(str, "off") == 0) {
+	if (strcasecmp(str, "false") == 0
+			|| strcasecmp(str, "0") == 0
+			|| strcasecmp(str, "no") == 0
+			|| strcasecmp(str, "off") == 0) {
 		*bool_out = false;
 		return 0;
 	}
 
-	log_err("Cannot parse '%s' as a boolean (true|false|1|0|yes|no|on|off).", str);
+	log_err("Cannot parse '%s' as a bool (true|false|1|0|yes|no|on|off).",
+			str);
 	return -EINVAL;
 }
 
 int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 {
-	__u64 result;
+	unsigned long long int result;
 	int error;
 
-	error = str_to_u64(str, &result, (__u64) min, (__u64) max);
+	error = str_to_ull(str, NULL, min, max, &result);
 	if (error)
 		return error; /* Error msg already printed. */
 
@@ -77,10 +109,10 @@ int str_to_u8(const char *str, __u8 *u8_out, __u8 min, __u8 max)
 
 int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 {
-	__u64 result;
+	unsigned long long int result;
 	int error;
 
-	error = str_to_u64(str, &result, (__u64) min, (__u64) max);
+	error = str_to_ull(str, NULL, min, max, &result);
 	if (error)
 		return error; /* Error msg already printed. */
 
@@ -88,24 +120,52 @@ int str_to_u16(const char *str, __u16 *u16_out, __u16 min, __u16 max)
 	return 0;
 }
 
+int str_to_u32(const char *str, __u32 *u32_out, __u32 min, __u32 max)
+{
+	unsigned long long int result;
+	int error;
+
+	error = str_to_ull(str, NULL, min, max, &result);
+	if (error)
+		return error; /* Error msg already printed. */
+
+	*u32_out = result;
+	return 0;
+}
+
 int str_to_u64(const char *str, __u64 *u64_out, __u64 min, __u64 max)
 {
-	__u64 result;
-	char *endptr;
+	unsigned long long int result;
+	int error;
 
-	errno = 0;
-	result = strtoull(str, &endptr, 10);
-	if (errno != 0 || str == endptr) {
-		log_err("Cannot parse '%s' as an integer value.", str);
-		return -EINVAL;
-	}
-	if (result < min || max < result) {
-		log_err("'%s' is out of bounds (%llu-%llu).", str, min, max);
-		return -EINVAL;
-	}
+	error = str_to_ull(str, NULL, min, max, &result);
+	if (error)
+		return error;
 
 	*u64_out = result;
 	return 0;
+}
+
+int str_to_port_range(char *str, struct port_range *range)
+{
+	unsigned long long int tmp;
+	char *endptr = NULL;
+	int error;
+
+	error = str_to_ull(str, &endptr, 0, 65535, &tmp);
+	if (error)
+		return error;
+	range->min = tmp;
+
+	if (*endptr != '-') {
+		range->max = range->min;
+		return 0;
+	}
+
+	error = str_to_ull(endptr + 1, NULL, 0, 65535, &tmp);
+	if (!error)
+		range->max = tmp;
+	return error;
 }
 
 #define STR_MAX_LEN 2048

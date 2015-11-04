@@ -1,20 +1,20 @@
 #include "nat64/mod/common/route.h"
 #include "nat64/mod/common/types.h"
 
-int route4(struct packet *pkt)
+struct dst_entry *route4(struct packet *pkt)
 {
-	log_debug("I'm pretending I'm sending an IPv4 packet.");
-	return 0;
+	log_debug("Pretending I'm routing an IPv4 packet.");
+	return NULL;
 }
 
-int route6(struct packet *pkt)
+struct dst_entry *route6(struct packet *pkt)
 {
-	log_debug("I'm pretending I'm sending an IPv6 packet.");
-	return 0;
+	log_debug("Pretending I'm routing an IPv6 packet.");
+	return NULL;
 }
 
-int route(struct packet *pkt)
+struct dst_entry *route(struct packet *pkt)
 {
-	log_debug("I'm pretending I'm sending a packet.");
-	return 0;
+	log_debug("Pretending I'm routing a packet.");
+	return NULL;
 }

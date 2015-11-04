@@ -1,9 +1,6 @@
 #CC=cgcc
 
-ccflags-y := -I$(src)/../../include $(JOOL_DEBUG) -DSTATEFUL
-# Note: if you want to activate the benchmark feature, you need to activate the following flag, and
-#	the "log_time.o" object, also you need to activate in the usr-app (usr/Makefile.am)
-#ccflags-y += -DBENCHMARK
+ccflags-y := -I$(src)/../../include $(JOOL_FLAGS)
 
 obj-m += jool.o
 
@@ -11,38 +8,48 @@ jool_common += ../common/rfc6145/4to6.o
 jool_common += ../common/rfc6145/6to4.o
 jool_common += ../common/rfc6145/common.o
 jool_common += ../common/rfc6145/core.o
-jool_common += ../common/blacklist.o
 jool_common += ../common/address.o
 jool_common += ../common/types.o
 jool_common += ../common/str_utils.o
 jool_common += ../common/packet.o
 jool_common += ../common/stats.o
-#jool_common += ../common/log_time.o
+jool_common += ../common/log_time.o
 jool_common += ../common/icmp_wrapper.o
 jool_common += ../common/ipv6_hdr_iterator.o
 jool_common += ../common/pool6.o
 jool_common += ../common/rfc6052.o
 jool_common += ../common/nl_buffer.o
-jool_common += ../common/random.o
 jool_common += ../common/rbtree.o
 jool_common += ../common/config.o
 jool_common += ../common/nl_handler.o
 jool_common += ../common/route.o
 jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
+jool_common += ../common/error_pool.o
+jool_common += ../common/namespace.o
 
-jool += pkt_queue.o
-jool += poolnum.o
-jool += pool4.o
-jool += host6_node.o
-jool += bib_db.o
-jool += session_db.o
-jool += static_routes.o
+jool += pool4/entry.o
+jool += pool4/table.o
+jool += pool4/empty.o
+jool += pool4/db.o
+
+jool += bib/port_allocator.o
+jool += bib/entry.o
+jool += bib/table.o
+jool += bib/db.o
+jool += bib/static_routes.o
+jool += session/entry.o
+jool += session/table.o
+jool += session/db.o
+jool += session/pkt_queue.o
+
+jool += xlat.o
 jool += fragment_db.o
 jool += determine_incoming_tuple.o
 jool += filtering_and_updating.o
 jool += compute_outgoing_tuple.o
 jool += handling_hairpinning.o
 jool += nf_hook.o
+jool += impersonator.o
 
-jool-objs += ${jool_common} ${jool}
+jool-objs += ${jool} ${jool_common}

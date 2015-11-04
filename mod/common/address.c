@@ -19,6 +19,28 @@ fail:
 	return -EINVAL;
 }
 
+int prefix4_parse(char *str, struct ipv4_prefix *result)
+{
+	const char *slash_pos;
+
+	if (strchr(str, '/') != NULL) {
+		if (in4_pton(str, -1, (u8 *) &result->address, '/', &slash_pos) != 1)
+			goto fail;
+		if (kstrtou8(slash_pos + 1, 0, &result->len) != 0)
+			goto fail;
+	} else {
+		if (in4_pton(str, -1, (u8 *) &result->address, '\0', NULL) != 1)
+			goto fail;
+		result->len = 32;
+	}
+
+	return 0;
+
+fail:
+	log_err("IPv4 prefix or address is malformed: %s.", str);
+	return -EINVAL;
+}
+
 bool addr4_equals(const struct in_addr *expected, const struct in_addr *actual)
 {
 	if (expected == actual)
@@ -218,4 +240,28 @@ void addr6_set_bit(struct in6_addr *addr, unsigned int pos, bool value)
 		*quadrant |= cpu_to_be32(mask);
 	else
 		*quadrant &= cpu_to_be32(~mask);
+}
+
+__u64 prefix4_next(struct ipv4_prefix *prefix)
+{
+	return prefix4_get_addr_count(prefix)
+			+ (__u64) be32_to_cpu(prefix->address.s_addr);
+}
+
+/**
+ * addr4_has_scope_subnet - returns true if @addr has low scope ("this" subnet
+ * or lower), and therefore should not be translated under any circumstances.
+ */
+bool addr4_is_scope_subnet(const __be32 addr)
+{
+	/*
+	 * I'm assuming private and doc networks do not belong to this category,
+	 * to facilitate testing.
+	 * (particularly users following the tutorials verbatim.)
+	 */
+	return ipv4_is_zeronet(addr)
+			|| ipv4_is_loopback(addr)
+			|| ipv4_is_linklocal_169(addr)
+			|| ipv4_is_multicast(addr)
+			|| ipv4_is_lbcast(addr);
 }

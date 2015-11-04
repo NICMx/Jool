@@ -33,11 +33,12 @@ int str_to_bool(const char *str, __u8 *out);
  */
 int str_to_u8(const char *str, __u8 *out, __u8 min, __u8 max);
 int str_to_u16(const char *str, __u16 *out, __u16 min, __u16 max);
+int str_to_u32(const char *str, __u32 *out, __u32 min, __u32 max);
 int str_to_u64(const char *str, __u64 *out, __u64 min, __u64 max);
 /**
  * @}
  */
-
+int str_to_port_range(char *str, struct port_range *range);
 /**
  * Parses "str" as a comma-separated array of __u16s, which it then copies to "out".
  * It sets "out_len" as "out"'s length in elements (not bytes).

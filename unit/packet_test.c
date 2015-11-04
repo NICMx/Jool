@@ -10,9 +10,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alberto Leiva");
 MODULE_DESCRIPTION("Packet test");
 
-static struct in6_addr dummies6[2];
-static struct in_addr dummies4[2];
-
 /**
  * Note that the tuple being sent to skb_create_fn() lacks protocols.
  */
@@ -21,12 +18,12 @@ static struct sk_buff *create_skb4(u16 payload_len, skb_creator skb_create_fn)
 	struct sk_buff *skb;
 	struct tuple tuple4;
 
-	tuple4.src.addr4.l3 = dummies4[0];
+	tuple4.src.addr4.l3.s_addr = cpu_to_be32(0x01010101);
 	tuple4.src.addr4.l4 = 5644;
-	tuple4.dst.addr4.l3 = dummies4[1];
+	tuple4.dst.addr4.l3.s_addr = cpu_to_be32(0x02020202);
 	tuple4.dst.addr4.l4 = 6721;
 
-	return (is_error(skb_create_fn(&tuple4, &skb, payload_len, 32))) ? NULL : skb;
+	return skb_create_fn(&tuple4, &skb, payload_len, 32) ? NULL : skb;
 }
 
 /**
@@ -37,50 +34,56 @@ static struct sk_buff *create_skb6(u16 payload_len, skb_creator skb_create_fn)
 	struct sk_buff *skb;
 	struct tuple tuple6;
 
-	tuple6.src.addr6.l3 = dummies6[0];
+	tuple6.src.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00010000);
+	tuple6.src.addr6.l3.s6_addr32[1] = 0;
+	tuple6.src.addr6.l3.s6_addr32[2] = 0;
+	tuple6.src.addr6.l3.s6_addr32[3] = cpu_to_be32(0x00000001);
 	tuple6.src.addr6.l4 = 5644;
-	tuple6.dst.addr6.l3 = dummies6[1];
+	tuple6.dst.addr6.l3.s6_addr32[0] = cpu_to_be32(0x00020000);
+	tuple6.dst.addr6.l3.s6_addr32[1] = 0;
+	tuple6.dst.addr6.l3.s6_addr32[2] = 0;
+	tuple6.dst.addr6.l3.s6_addr32[3] = cpu_to_be32(0x00000002);
 	tuple6.dst.addr6.l4 = 6721;
 
-	return (is_error(skb_create_fn(&tuple6, &skb, payload_len, 32))) ? NULL : skb;
+	return skb_create_fn(&tuple6, &skb, payload_len, 32) ? NULL : skb;
 }
 
-static bool test_function_is_dont_fragment_set(void)
+static bool test_function_is_df_set(void)
 {
 	struct iphdr hdr;
 	bool success = true;
 
 	hdr.frag_off = cpu_to_be16(0x0000);
-	success &= assert_equals_u16(0, is_dont_fragment_set(&hdr), "All zeroes");
+	success &= ASSERT_UINT(0, is_dont_fragment_set(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x4000);
-	success &= assert_equals_u16(IP_DF, is_dont_fragment_set(&hdr), "All zeroes except DF");
+	success &= ASSERT_UINT(IP_DF, is_dont_fragment_set(&hdr), "All zeroes except DF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	success &= assert_equals_u16(IP_DF, is_dont_fragment_set(&hdr), "All ones");
+	success &= ASSERT_UINT(IP_DF, is_dont_fragment_set(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xBFFF);
-	success &= assert_equals_u16(0, is_dont_fragment_set(&hdr), "All ones except DF");
+	success &= ASSERT_UINT(0, is_dont_fragment_set(&hdr), "All ones except DF");
 
 	return success;
 }
 
-static bool test_function_is_more_fragments_set(void)
+static bool test_function_is_mf_set(void)
 {
 	struct iphdr hdr;
 	bool success = true;
 
 	hdr.frag_off = cpu_to_be16(0x0000);
-	success &= assert_equals_u16(0, is_more_fragments_set_ipv4(&hdr), "All zeroes");
+	success &= ASSERT_UINT(0, is_more_fragments_set_ipv4(&hdr), "All zeroes");
 
 	hdr.frag_off = cpu_to_be16(0x2000);
-	success &= assert_equals_u16(IP_MF, is_more_fragments_set_ipv4(&hdr), "All zeroes except MF");
+	success &= ASSERT_UINT(IP_MF, is_more_fragments_set_ipv4(&hdr), "All zeroes except MF");
 
 	hdr.frag_off = cpu_to_be16(0xFFFF);
-	success &= assert_equals_u16(IP_MF, is_more_fragments_set_ipv4(&hdr), "All ones");
+	success &= ASSERT_UINT(IP_MF, is_more_fragments_set_ipv4(&hdr), "All ones");
 
 	hdr.frag_off = cpu_to_be16(0xDFFF);
-	success &= assert_equals_u16(0, is_more_fragments_set_ipv4(&hdr), "All ones except MF");
+	success &= ASSERT_UINT(0, is_more_fragments_set_ipv4(&hdr), "All ones except MF");
 
 	return success;
 }
@@ -89,15 +92,13 @@ static bool test_function_build_ipv4_frag_off_field(void)
 {
 	bool success = true;
 
-	success &= assert_equals_u16(0x400F, be16_to_cpu(build_ipv4_frag_off_field(1, 0, 120)),
-			"Simple 1");
-	success &= assert_equals_u16(0x202B, be16_to_cpu(build_ipv4_frag_off_field(0, 1, 344)),
-			"Simple 2");
+	success &= ASSERT_BE16(0x400F, build_ipv4_frag_off_field(1, 0, 120), "Simple 1");
+	success &= ASSERT_BE16(0x202B, build_ipv4_frag_off_field(0, 1, 344), "Simple 2");
 
 	return success;
 }
 
-static bool test_inner_packet_validation4(void)
+static bool test_inner_validation4(void)
 {
 	struct packet pkt;
 	struct sk_buff *skb;
@@ -106,25 +107,25 @@ static bool test_inner_packet_validation4(void)
 	skb = create_skb4(100, create_skb4_icmp_error);
 	if (!skb)
 		return false;
-	result &= assert_equals_int(0, pkt_init_ipv4(&pkt, skb), "validate complete inner pkt 4");
+	result &= ASSERT_INT(0, pkt_init_ipv4(&pkt, skb), "complete inner pkt");
 	kfree_skb(skb);
 
 	skb = create_skb4(30, create_skb4_icmp_error);
 	if (!skb)
 		return false;
-	result &= assert_equals_int(-EINVAL, pkt_init_ipv4(&pkt, skb), "validate incomplete tcp inner pkt 4");
+	result &= ASSERT_INT(-EINVAL, pkt_init_ipv4(&pkt, skb), "incomplete inner tcp");
 	kfree_skb(skb);
 
 	skb = create_skb4(15, create_skb4_icmp_error);
 	if (!skb)
 		return false;
-	result &= assert_equals_int(-EINVAL, pkt_init_ipv4(&pkt, skb), "validate incomplete ipv4hdr inner pkt 4");
+	result &= ASSERT_INT(-EINVAL, pkt_init_ipv4(&pkt, skb), "incomplete inner ipv4");
 	kfree_skb(skb);
 
 	return result;
 }
 
-static bool test_inner_packet_validation6(void)
+static bool test_inner_validation6(void)
 {
 	struct packet pkt;
 	struct sk_buff *skb;
@@ -133,19 +134,19 @@ static bool test_inner_packet_validation6(void)
 	skb = create_skb6(100, create_skb6_icmp_error);
 	if (!skb)
 		return false;
-	result &= assert_equals_int(0, pkt_init_ipv6(&pkt, skb), "validate complete inner pkt 6");
+	result &= ASSERT_INT(0, pkt_init_ipv6(&pkt, skb), "complete inner pkt 6");
 	kfree_skb(skb);
 
-	skb = create_skb6(50, create_skb6_icmp_error); /* 40 + 8    + 40 + 20    */
+	skb = create_skb6(50, create_skb6_icmp_error); /* 40 + 8 + 40 + 20 */
 	if (!skb)
 		return false;
-	result &= assert_equals_int(-EINVAL, pkt_init_ipv6(&pkt, skb), "validate incomplete tcp inner pkt 6");
+	result &= ASSERT_INT(-EINVAL, pkt_init_ipv6(&pkt, skb), "incomplete inner tcp");
 	kfree_skb(skb);
 
 	skb = create_skb6(30, create_skb6_icmp_error);
 	if (!skb)
 		return false;
-	result &= assert_equals_int(-EINVAL, pkt_init_ipv6(&pkt, skb), "validate incomplete ipv6hdr inner pkt 6");
+	result &= ASSERT_INT(-EINVAL, pkt_init_ipv6(&pkt, skb), "incomplete inner ipv6hdr");
 	kfree_skb(skb);
 
 	return result;
@@ -154,21 +155,13 @@ static bool test_inner_packet_validation6(void)
 int init_module(void)
 {
 	START_TESTS("Packet");
-	if (str_to_addr6("1::1", &dummies6[0]) != 0)
-		return -EINVAL;
-	if (str_to_addr6("2::2", &dummies6[1]) != 0)
-		return -EINVAL;
-	if (str_to_addr4("1.1.1.1", &dummies4[0]) != 0)
-		return -EINVAL;
-	if (str_to_addr4("2.2.2.2", &dummies4[1]) != 0)
-		return -EINVAL;
 
-	CALL_TEST(test_function_is_dont_fragment_set(), "Dont fragment getter");
-	CALL_TEST(test_function_is_more_fragments_set(), "More fragments getter");
+	CALL_TEST(test_function_is_df_set(), "DF getter");
+	CALL_TEST(test_function_is_mf_set(), "MF getter");
 	CALL_TEST(test_function_build_ipv4_frag_off_field(), "Generate frag offset + flags function");
 
-	CALL_TEST(test_inner_packet_validation4(), "Inner packet IPv4 Validation");
-	CALL_TEST(test_inner_packet_validation6(), "Inner packet IPv6 Validation");
+	CALL_TEST(test_inner_validation4(), "Inner IPv4 pkt validation");
+	CALL_TEST(test_inner_validation6(), "Inner IPv6 pkt validation");
 
 	END_TESTS;
 }

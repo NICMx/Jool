@@ -1,5 +1,3 @@
-/* TODO (warning) read the erratas more (6145 and 6146). */
-
 #include "nat64/mod/common/icmp_wrapper.h"
 #include "nat64/mod/common/stats.h"
 #include "nat64/mod/common/rfc6145/core.h"
@@ -76,7 +74,7 @@ verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struc
 	struct sk_buff *skb_prev = NULL;
 	verdict result;
 
-	if (nat64_is_stateful())
+	if (xlat_is_nat64())
 		log_debug("Step 4: Translating the Packet");
 	else
 		log_debug("Translating the Packet.");
@@ -105,7 +103,7 @@ verdict translating_the_packet(struct tuple *out_tuple, struct packet *in, struc
 		skb_prev = skb_out;
 	}
 
-	if (nat64_is_stateful())
+	if (xlat_is_nat64())
 		log_debug("Done step 4.");
 	return VERDICT_CONTINUE;
 }

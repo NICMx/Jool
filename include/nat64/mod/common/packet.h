@@ -169,9 +169,15 @@ struct packet {
 	 */
 	enum l4_protocol l4_proto;
 	/**
-	 * Is this a subpacket, contained in an ICMP error? (used by the ttp module.)
+	 * Is this a subpacket, contained in an ICMP error? (used by the RFC6145 code.)
 	 */
 	bool is_inner;
+	/**
+	 * Is the packet going to hairpin?
+	 * Intrinsic EAM hairpinning only. RFC6052 hairpin and Simple EAM
+	 * hairpin don't need any flags.
+	 */
+	bool is_hairpin;
 
 	struct frag_hdr *hdr_frag;
 	/**
@@ -212,6 +218,7 @@ static inline void pkt_fill(struct packet *pkt, struct sk_buff *skb,
 	pkt->l3_proto = l3_proto;
 	pkt->l4_proto = l4_proto;
 	pkt->is_inner = 0;
+	pkt->is_hairpin = false;
 	pkt->hdr_frag = hdr_frag;
 	pkt->payload = payload;
 	pkt->original_pkt = original_pkt;
@@ -284,6 +291,11 @@ static inline bool pkt_is_inner(const struct packet *pkt)
 static inline bool pkt_is_outer(const struct packet *pkt)
 {
 	return !pkt_is_inner(pkt);
+}
+
+static inline bool pkt_is_intrinsic_hairpin(const struct packet *pkt)
+{
+	return pkt->is_hairpin;
 }
 
 static inline bool pkt_is_fragment(const struct packet *pkt)
@@ -413,7 +425,7 @@ static inline unsigned int pkt_datagram_len(const struct packet *pkt)
 static inline unsigned int pkt_len(const struct packet *pkt)
 {
 	/*
-	 * Note, we can't depend on a nat64_is_stateful() here because frag_list is the official Linux
+	 * Note, we can't depend on a xlat_is_nat64() here because frag_list is the official Linux
 	 * fragment representation, therefore the absence of defrag doesn't strictly mean Jool will
 	 * never see empty frag_lists (also viceversa for robustness).
 	 */
@@ -480,24 +492,5 @@ int pkt_init_ipv4(struct packet *pkt, struct sk_buff *skb);
  * Outputs "skb" in the log.
  */
 void pkt_print(struct packet *pkt);
-
-/**
- * @{
- * Drops "skb" if it is an ICMP error packet and its l4-checksum doesn't match.
- *
- * Because IP-based checksums are updatable, Jool normally doesn't have to worry if a packet has a
- * bogus layer-4 checksum. It simply translates the packet and updates the checksum with these
- * changes. If there's a problem, it will still be reflected in the checksum and the target node
- * will drop it normally.
- *
- * That is, except for ICMP errors, whose translation is more nontrivial than usual due to their
- * inner packets. For these cases, Jool will recompute the checksum from scratch, and we should not
- * assign correct checksums to corrupted packets, so we need to validate them first.
- */
-int validate_icmp6_csum(struct packet *pkt);
-int validate_icmp4_csum(struct packet *pkt);
-/**
- * @}
- */
 
 #endif /* _JOOL_MOD_PACKET_H */

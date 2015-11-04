@@ -22,9 +22,9 @@ int rfc6791_init(char *pref_strs[], int pref_count);
 void rfc6791_destroy(void);
 
 int rfc6791_add(struct ipv4_prefix *prefix);
-int rfc6791_remove(struct ipv4_prefix *prefix);
+int rfc6791_rm(struct ipv4_prefix *prefix);
 int rfc6791_flush(void);
-int rfc6791_get(struct packet *in, struct packet *out, struct in_addr *result);
+int rfc6791_get(struct packet *in, struct packet *out, __be32 *result);
 
 int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
 		struct ipv4_prefix *offset);

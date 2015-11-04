@@ -1,3 +1,4 @@
+#ifdef BENCHMARK
 #ifndef _JOOL_MOD_LOG_TIME_H
 #define _JOOL_MOD_LOG_TIME_H
 
@@ -39,3 +40,4 @@ void logtime_destroy(void);
 
 
 #endif /* _JOOL_MOD_LOG_TIME_H */
+#endif /* BENCHMARK */

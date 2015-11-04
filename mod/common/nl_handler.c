@@ -1,33 +1,23 @@
 #include "nat64/mod/common/nl_handler.h"
 
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sort.h>
 #include <linux/version.h>
-#include <net/netlink.h>
-#include <net/net_namespace.h>
-
-#include "nat64/common/config.h"
 #include "nat64/common/constants.h"
+#include "nat64/mod/common/types.h"
 #include "nat64/mod/common/config.h"
+#include "nat64/mod/common/log_time.h"
+#include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl_buffer.h"
 #include "nat64/mod/common/pool6.h"
-#include "nat64/mod/common/types.h"
-#include "nat64/mod/stateful/bib_db.h"
-#include "nat64/mod/stateful/session_db.h"
-#include "nat64/mod/stateful/static_routes.h"
-#ifdef STATEFUL
-	#include "nat64/mod/stateful/pool4.h"
-#else
-	#include "nat64/mod/stateless/pool4.h"
-#endif
-#include "nat64/mod/stateless/rfc6791.h"
+#include "nat64/mod/common/error_pool.h"
 #include "nat64/mod/stateless/eam.h"
-#ifdef BENCHMARK
-#include "nat64/mod/common/log_time.h"
-#endif
-
-
+#include "nat64/mod/stateless/blacklist4.h"
+#include "nat64/mod/stateless/rfc6791.h"
+#include "nat64/mod/stateful/pool4/db.h"
+#include "nat64/mod/stateful/bib/db.h"
+#include "nat64/mod/stateful/bib/static_routes.h"
+#include "nat64/mod/stateful/session/db.h"
 
 /**
  * Socket the userspace application will speak to.
@@ -52,7 +42,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
-		log_err("Failed to allocate a response skb to the user.");
+		pr_err("Failed to allocate a response skb to the user.");
 		return -ENOMEM;
 	}
 
@@ -67,7 +57,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	res = nlmsg_unicast(nl_socket, skb_out, nl_hdr_in->nlmsg_pid);
 	if (res < 0) {
-		log_err("Error code %d while returning response to the user.", res);
+		pr_err("Error code %d while returning response to the user.", res);
 		return res;
 	}
 
@@ -80,13 +70,49 @@ static int respond_setcfg(struct nlmsghdr *nl_hdr_in, void *payload, int payload
 }
 
 /**
- * @note "ACK messages also use the message type NLMSG_ERROR and payload format but the error code
- * is set to 0." (http://www.infradead.org/~tgr/libnl/doc/core.html#core_msg_ack).
+ * @note "ACK messages also use the message type NLMSG_ERROR and payload format
+ * but the error code is set to 0."
+ * (http://www.infradead.org/~tgr/libnl/doc/core.html#core_msg_ack)
  */
 static int respond_error(struct nlmsghdr *nl_hdr_in, int error)
 {
-	struct nlmsgerr payload = { abs(error), *nl_hdr_in };
-	return respond_single_msg(nl_hdr_in, NLMSG_ERROR, &payload, sizeof(payload));
+	struct nlmsgerr hdr_out;
+	__u8 *payload = NULL;
+	char *error_msg;
+	unsigned int error_msg_len;
+
+	hdr_out.error = abs(error);
+	hdr_out.msg = *nl_hdr_in;
+	hdr_out.msg.nlmsg_len = 0;
+
+	if (error_pool_get_message(&error_msg, &error_msg_len)) {
+		pr_err("could not get error message from pool.\n");
+		goto respond_error_on_failure;
+	}
+
+	hdr_out.msg.nlmsg_len = sizeof(hdr_out) + error_msg_len + 1;
+
+	payload = kmalloc(hdr_out.msg.nlmsg_len, GFP_KERNEL);
+	if (!payload) {
+		pr_err("could not allocate memory for error payload!\n");
+		kfree(error_msg);
+		goto respond_error_on_failure;
+	}
+
+	memcpy(payload, (__u8*)&hdr_out, sizeof(hdr_out));
+	memcpy(payload + sizeof(hdr_out), (__u8*)error_msg, error_msg_len + 1);
+
+	error = respond_single_msg(nl_hdr_in, NLMSG_ERROR, payload,
+			hdr_out.msg.nlmsg_len);
+
+	kfree(error_msg);
+	kfree(payload);
+
+	return error;
+
+respond_error_on_failure:
+	return respond_single_msg(nl_hdr_in, NLMSG_ERROR, &hdr_out,
+			sizeof(hdr_out));
 }
 
 /*
@@ -115,14 +141,14 @@ static int validate_version(struct request_hdr *hdr)
 
 	switch (hdr->type) {
 	case 's':
-		if (nat64_is_stateful()) {
+		if (xlat_is_nat64()) {
 			log_err("You're speaking to NAT64 Jool using "
 					"the SIIT Jool application.");
 			return -EINVAL;
 		}
 		break;
 	case 'n':
-		if (nat64_is_stateless()) {
+		if (xlat_is_siit()) {
 			log_err("You're speaking to SIIT Jool using "
 					"the NAT64 Jool application.");
 			return -EINVAL;
@@ -132,7 +158,7 @@ static int validate_version(struct request_hdr *hdr)
 		goto magic_fail;
 	}
 
-	if (jool_version() == hdr->version)
+	if (xlat_version() == hdr->version)
 		return 0;
 
 	log_err("Version mismatch. The kernel module is %u.%u.%u.%u, "
@@ -142,7 +168,7 @@ static int validate_version(struct request_hdr *hdr)
 			JOOL_VERSION_REV, JOOL_VERSION_DEV,
 			hdr->version >> 24, (hdr->version >> 16) & 0xFFU,
 			(hdr->version >> 8) & 0xFFU, hdr->version & 0xFFU,
-			(jool_version() > hdr->version)
+			(xlat_version() > hdr->version)
 				? "userspace application"
 				: "kernel module");
 	return -EINVAL;
@@ -212,12 +238,12 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing a prefix from the IPv6 pool.");
-		error = pool6_remove(&request->remove.prefix);
+		error = pool6_remove(&request->rm.prefix);
 		if (error)
 			return respond_error(nl_hdr, error);
 
-		if (nat64_is_stateful() && !request->flush.quick)
-			error = sessiondb_delete_by_prefix6(&request->remove.prefix);
+		if (xlat_is_nat64() && !request->flush.quick)
+			sessiondb_delete_taddr6s(&request->rm.prefix);
 
 		return respond_error(nl_hdr, error);
 
@@ -227,11 +253,9 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 
 		log_debug("Flushing the IPv6 pool...");
 		error = pool6_flush();
-		if (error)
-			return respond_error(nl_hdr, error);
 
-		if (nat64_is_stateful() && !request->flush.quick)
-			error = sessiondb_flush();
+		if (xlat_is_nat64() && !request->flush.quick)
+			sessiondb_flush();
 
 		return respond_error(nl_hdr, error);
 
@@ -241,15 +265,15 @@ static int handle_pool6_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool
 	}
 }
 
-static int pool4_to_usr(struct ipv4_prefix *prefix, void *arg)
+static int pool4_to_usr(struct pool4_sample *sample, void *arg)
 {
-	return nlbuffer_write(arg, prefix, sizeof(*prefix));
+	return nlbuffer_write(arg, sample, sizeof(*sample));
 }
 
 static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
 	struct nl_buffer *buffer;
-	struct ipv4_prefix *prefix;
+	struct pool4_sample *offset = NULL;
 	int error;
 
 	log_debug("Sending IPv4 pool to userspace.");
@@ -258,78 +282,102 @@ static int handle_pool4_display(struct nlmsghdr *nl_hdr, union request_pool4 *re
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
-	error = pool4_for_each(pool4_to_usr, buffer, prefix);
+	if (request->display.offset_set)
+		offset = &request->display.offset;
+
+	error = pool4db_foreach_sample(pool4_to_usr, buffer, offset);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
 	return error;
 }
 
-static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_pool4 *request)
+static int handle_pool4_add(struct nlmsghdr *nl_hdr, union request_pool4 *request)
 {
-	__u64 count;
+	if (verify_superpriv())
+		return respond_error(nl_hdr, -EPERM);
+
+	log_debug("Adding elements to the IPv4 pool.");
+
+	return respond_error(nl_hdr, pool4db_add(request->add.mark,
+			request->add.proto, &request->add.addrs,
+			&request->add.ports));
+}
+
+static int handle_pool4_rm(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+{
 	int error;
 
-	switch (nat64_hdr->operation) {
+	if (verify_superpriv())
+		return respond_error(nl_hdr, -EPERM);
+
+	log_debug("Removing elements from the IPv4 pool.");
+
+	error = pool4db_rm(request->rm.mark, request->rm.proto,
+			&request->rm.addrs, &request->rm.ports);
+
+	if (xlat_is_nat64() && !request->rm.quick) {
+		sessiondb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
+		bibdb_delete_taddr4s(&request->rm.addrs, &request->rm.ports);
+	}
+
+	return respond_error(nl_hdr, error);
+}
+
+static int handle_pool4_flush(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+{
+	int error;
+
+	if (verify_superpriv())
+		return respond_error(nl_hdr, -EPERM);
+
+	log_debug("Flushing the IPv4 pool...");
+	error = pool4db_flush();
+
+	/*
+	 * Well, pool4db_flush only errors on memory allocation failures,
+	 * so I guess clearing BIB and session even if pool4db_flush fails
+	 * is a good idea.
+	 */
+	if (xlat_is_nat64() && !request->flush.quick) {
+		sessiondb_flush();
+		bibdb_flush();
+	}
+
+	return respond_error(nl_hdr, error);
+}
+
+static int handle_pool4_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
+		union request_pool4 *request)
+{
+	struct response_pool4_count counters;
+
+	if (xlat_is_siit()) {
+		log_err("SIIT doesn't have pool4.");
+		return -EINVAL;
+	}
+
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_pool4_display(nl_hdr, request);
 
 	case OP_COUNT:
-		log_debug("Returning IPv4 address count.");
-		error = pool4_count(&count);
-		if (error)
-			return respond_error(nl_hdr, error);
-		return respond_setcfg(nl_hdr, &count, sizeof(count));
+		log_debug("Returning IPv4 pool counters.");
+		pool4db_count(&counters.tables, &counters.samples,
+				&counters.taddrs);
+		return respond_setcfg(nl_hdr, &counters, sizeof(counters));
 
 	case OP_ADD:
-		if (verify_superpriv())
-			return respond_error(nl_hdr, -EPERM);
-
-		log_debug("Adding an address to the IPv4 pool.");
-		return respond_error(nl_hdr, pool4_add(&request->add.addrs));
+		return handle_pool4_add(nl_hdr, request);
 
 	case OP_REMOVE:
-		if (verify_superpriv())
-			return respond_error(nl_hdr, -EPERM);
-
-		log_debug("Removing an address from the IPv4 pool.");
-
-		error = pool4_remove(&request->remove.addrs);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		if (nat64_is_stateful() && !request->remove.quick) {
-			error = sessiondb_delete_by_prefix4(&request->remove.addrs);
-			if (error)
-				return respond_error(nl_hdr, error);
-			error = bibdb_delete_by_prefix4(&request->remove.addrs);
-		}
-
-		return respond_error(nl_hdr, error);
+		return handle_pool4_rm(nl_hdr, request);
 
 	case OP_FLUSH:
-		if (verify_superpriv()) {
-			return respond_error(nl_hdr, -EPERM);
-		}
-
-		log_debug("Flushing the IPv4 pool...");
-		error = pool4_flush();
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		if (nat64_is_stateful() && !request->flush.quick) {
-			error = sessiondb_flush();
-			if (error)
-				return respond_error(nl_hdr, error);
-			error = bibdb_flush();
-		}
-
-		return respond_error(nl_hdr, error);
+		return handle_pool4_flush(nl_hdr, request);
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -359,25 +407,25 @@ static int handle_bib_display(struct nlmsghdr *nl_hdr, struct request_bib *reque
 		return respond_error(nl_hdr, -ENOMEM);
 
 	addr4 = request->display.addr4_set ? &request->display.addr4 : NULL;
-	error = bibdb_iterate_by_ipv4(request->l4_proto, bib_entry_to_userspace, buffer, addr4);
+	error = bibdb_foreach(request->l4_proto, bib_entry_to_userspace, buffer, addr4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
 	return error;
 }
 
-static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		struct request_bib *request)
 {
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have BIBs.");
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_bib_display(nl_hdr, request);
 
@@ -403,7 +451,7 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_
 		return respond_error(nl_hdr, delete_static_route(request));
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -413,18 +461,17 @@ static int session_entry_to_userspace(struct session_entry *entry, void *arg)
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
 	struct session_entry_usr entry_usr;
 	unsigned long dying_time;
-	int error;
 
-	error = sessiondb_get_timeout(entry, &dying_time);
-	if (error)
-		return error;
-	dying_time += entry->update_time;
+	if (!entry->expirer || !entry->expirer->get_timeout)
+		return -EINVAL;
 
 	entry_usr.remote6 = entry->remote6;
 	entry_usr.local6 = entry->local6;
 	entry_usr.local4 = entry->local4;
 	entry_usr.remote4 = entry->remote4;
 	entry_usr.state = entry->state;
+
+	dying_time = entry->update_time + entry->expirer->get_timeout();
 	entry_usr.dying_time = (dying_time > jiffies) ? jiffies_to_msecs(dying_time - jiffies) : 0;
 
 	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
@@ -447,7 +494,7 @@ static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_sessio
 		remote4 = &request->display.remote4;
 		local4 = &request->display.local4;
 	}
-	error = sessiondb_iterate_by_ipv4(request->l4_proto, session_entry_to_userspace, buffer,
+	error = sessiondb_foreach(request->l4_proto, session_entry_to_userspace, buffer,
 			remote4, local4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
@@ -455,18 +502,18 @@ static int handle_session_display(struct nlmsghdr *nl_hdr, struct request_sessio
 	return error;
 }
 
-static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		struct request_session *request)
 {
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateless()) {
+	if (xlat_is_siit()) {
 		log_err("SIIT doesn't have session tables.");
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_session_display(nl_hdr, request);
 
@@ -478,20 +525,15 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
-static int eam_entry_to_userspace(struct eam_entry *entry, void *arg)
+static int eam_entry_to_userspace(struct eamt_entry *entry, void *arg)
 {
 	struct nl_buffer *buffer = (struct nl_buffer *) arg;
-	struct eam_entry_usr entry_usr;
-
-	entry_usr.pref4 = entry->pref4;
-	entry_usr.pref6 = entry->pref6;
-
-	return nlbuffer_write(buffer, &entry_usr, sizeof(entry_usr));
+	return nlbuffer_write(buffer, entry, sizeof(*entry));
 }
 
 static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *request)
@@ -507,25 +549,47 @@ static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *requ
 		return respond_error(nl_hdr, -ENOMEM);
 
 	prefix4 = request->display.prefix4_set ? &request->display.prefix4 : NULL;
-	error = eamt_for_each(eam_entry_to_userspace, buffer, prefix4);
+	error = eamt_foreach(eam_entry_to_userspace, buffer, prefix4);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
 	return error;
 }
 
-static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_eamt_test(struct nlmsghdr *nl_hdr, union request_eamt *request)
+{
+	struct in6_addr addr6;
+	struct in_addr addr4;
+	int error;
+
+	log_debug("Translating address for the user.");
+	if (request->test.addr_is_ipv6) {
+		error = eamt_xlat_6to4(&request->test.addr.addr6, &addr4);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_setcfg(nl_hdr, &addr4, sizeof(addr4));
+	} else {
+		error = eamt_xlat_4to6(&request->test.addr.addr4, &addr6);
+		if (error)
+			return respond_error(nl_hdr, error);
+
+		return respond_setcfg(nl_hdr, &addr6, sizeof(addr6));
+	}
+}
+
+static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_eamt *request)
 {
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		log_err("Stateful NAT64 doesn't have an EAMT.");
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		return handle_eamt_display(nl_hdr, request);
 
@@ -536,70 +600,80 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
 
+	case OP_TEST:
+		return handle_eamt_test(nl_hdr, request);
+
 	case OP_ADD:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding EAMT entry.");
-		return respond_error(nl_hdr, eamt_add(&request->add.prefix6, &request->add.prefix4));
+		return respond_error(nl_hdr, eamt_add(&request->add.prefix6,
+				&request->add.prefix4, request->add.force));
 
 	case OP_REMOVE:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Removing EAMT entry.");
-		return respond_error(nl_hdr, eamt_remove(
-				request->remove.prefix6_set ? &request->remove.prefix6 : NULL,
-				request->remove.prefix4_set ? &request->remove.prefix4 : NULL));
+		return respond_error(nl_hdr, eamt_rm(
+				request->rm.prefix6_set ? &request->rm.prefix6 : NULL,
+				request->rm.prefix4_set ? &request->rm.prefix4 : NULL));
 
 	case OP_FLUSH:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		return respond_error(nl_hdr, eamt_flush());
+		eamt_flush();
+		return respond_error(nl_hdr, 0);
+
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
 
-static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool4 *request)
+static int pool_to_usr(struct ipv4_prefix *prefix, void *arg)
+{
+	return nlbuffer_write(arg, prefix, sizeof(*prefix));
+}
+
+static int handle_pool6791_display(struct nlmsghdr *nl_hdr, union request_pool *request)
 {
 	struct nl_buffer *buffer;
-	struct ipv4_prefix *prefix;
+	struct ipv4_prefix *offset;
 	int error;
-
-	log_debug("Sending RFC6791 pool to userspace.");
 
 	buffer = nlbuffer_create(nl_socket, nl_hdr);
 	if (!buffer)
 		return respond_error(nl_hdr, -ENOMEM);
 
-	prefix = request->display.prefix_set ? &request->display.prefix : NULL;
-	error = rfc6791_for_each(pool4_to_usr, buffer, prefix);
+	offset = request->display.offset_set ? &request->display.offset : NULL;
+	error = rfc6791_for_each(pool_to_usr, buffer, offset);
 	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
 
 	kfree(buffer);
 	return error;
 }
 
-static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
-		union request_pool4 *request)
+static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
+		union request_pool *request)
 {
 	__u64 count;
 	int error;
 
-	if (nat64_is_stateful()) {
+	if (xlat_is_nat64()) {
 		log_err("RFC 6791 does not apply to Stateful NAT64.");
 		return -EINVAL;
 	}
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
+		log_debug("Sending RFC6791 pool to userspace.");
 		return handle_pool6791_display(nl_hdr, request);
 
 	case OP_COUNT:
-		log_debug("Returning IPv4 address count.");
+		log_debug("Returning address count in the RFC6791 pool.");
 		error = rfc6791_count(&count);
 		if (error)
 			return respond_error(nl_hdr, error);
@@ -609,35 +683,93 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Adding an address to the IPv4 pool.");
+		log_debug("Adding an address to the RFC6791 pool.");
 		return respond_error(nl_hdr, rfc6791_add(&request->add.addrs));
 
 	case OP_REMOVE:
 		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
 
-		log_debug("Removing an address from the IPv4 pool.");
-
-		error = rfc6791_remove(&request->remove.addrs);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
+		log_debug("Removing an address from the RFC6791 pool.");
+		return respond_error(nl_hdr, rfc6791_rm(&request->rm.addrs));
 
 	case OP_FLUSH:
-		if (verify_superpriv()) {
+		if (verify_superpriv())
 			return respond_error(nl_hdr, -EPERM);
-		}
 
-		log_debug("Flushing the IPv4 pool...");
-		error = rfc6791_flush();
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_error(nl_hdr, error);
+		log_debug("Flushing the RFC6791 pool...");
+		return respond_error(nl_hdr, rfc6791_flush());
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
+		return respond_error(nl_hdr, -EINVAL);
+	}
+}
+
+static int handle_blacklist_display(struct nlmsghdr *nl_hdr, union request_pool *request)
+{
+	struct nl_buffer *buffer;
+	struct ipv4_prefix *offset;
+	int error;
+
+	buffer = nlbuffer_create(nl_socket, nl_hdr);
+	if (!buffer)
+		return respond_error(nl_hdr, -ENOMEM);
+
+	offset = request->display.offset_set ? &request->display.offset : NULL;
+	error = blacklist_for_each(pool_to_usr, buffer, offset);
+	error = (error >= 0) ? nlbuffer_close(buffer, error) : respond_error(nl_hdr, error);
+
+	kfree(buffer);
+	return error;
+}
+
+static int handle_blacklist_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
+		union request_pool *request)
+{
+	__u64 count;
+	int error;
+
+	if (xlat_is_nat64()) {
+		log_err("Blacklist does not apply to Stateful NAT64.");
+		return -EINVAL;
+	}
+
+	switch (jool_hdr->operation) {
+	case OP_DISPLAY:
+		log_debug("Sending Blacklist pool to userspace.");
+		return handle_blacklist_display(nl_hdr, request);
+
+	case OP_COUNT:
+		log_debug("Returning address count in the Blacklist pool.");
+		error = blacklist_count(&count);
+		if (error)
+			return respond_error(nl_hdr, error);
+		return respond_setcfg(nl_hdr, &count, sizeof(count));
+
+	case OP_ADD:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Adding an address to the Blacklist pool.");
+		return respond_error(nl_hdr, blacklist_add(&request->add.addrs));
+
+	case OP_REMOVE:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Removing an address from the Blacklist pool.");
+		return respond_error(nl_hdr, blacklist_rm(&request->rm.addrs));
+
+	case OP_FLUSH:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
+		log_debug("Flushing the Blacklist pool...");
+		return respond_error(nl_hdr, blacklist_flush());
+
+	default:
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 }
@@ -655,14 +787,14 @@ static int logtime_entry_to_userspace(struct log_node *node, void *arg)
 
 #endif
 
-static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		struct request_logtime *request)
 {
 #ifdef BENCHMARK
 	struct nl_buffer *buffer;
 	int error;
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		log_debug("Sending logs time to userspace.");
 
@@ -677,7 +809,7 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *na
 		kfree(buffer);
 		return error;
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		return respond_error(nl_hdr, -EINVAL);
 	}
 #else
@@ -694,8 +826,6 @@ static bool ensure_bytes(size_t actual, size_t expected)
 	}
 	return true;
 }
-
-#ifdef STATEFUL
 
 static bool assign_timeout(void *value, unsigned int min, __u64 *field)
 {
@@ -718,8 +848,6 @@ static bool assign_timeout(void *value, unsigned int min, __u64 *field)
 	*field = msecs_to_jiffies(value64);
 	return true;
 }
-
-#endif
 
 static int be16_compare(const void *a, const void *b)
 {
@@ -785,7 +913,6 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 {
 	struct global_config *config;
 	bool timer_needs_update = false;
-	enum session_timer_type timer_type;
 	int error;
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
@@ -798,93 +925,93 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		goto fail;
 
 	switch (type) {
-#ifdef STATEFUL
 	case MAX_PKTS:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		config->max_stored_pkts = *((__u64 *) value);
+		config->nat64.max_stored_pkts = *((__u64 *) value);
 		break;
 	case SRC_ICMP6ERRS_BETTER:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->src_icmp6errs_better = *((__u8 *) value);
+		config->nat64.src_icmp6errs_better = *((__u8 *) value);
 		break;
 	case BIB_LOGGING:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->bib_logging = *((__u8 *) value);
+		config->nat64.bib_logging = *((__u8 *) value);
 		break;
 	case SESSION_LOGGING:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->session_logging = *((__u8 *) value);
+		config->nat64.session_logging = *((__u8 *) value);
 		break;
 
 	case UDP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, UDP_MIN, &config->ttl.udp))
+		if (!assign_timeout(value, UDP_MIN, &config->nat64.ttl.udp))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_UDP;
 		break;
 	case ICMP_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, 0, &config->ttl.icmp))
+		if (!assign_timeout(value, 0, &config->nat64.ttl.icmp))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_ICMP;
 		break;
 	case TCP_EST_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, TCP_EST, &config->ttl.tcp_est))
+		if (!assign_timeout(value, TCP_EST, &config->nat64.ttl.tcp_est))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_EST;
 		break;
 	case TCP_TRANS_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, TCP_TRANS, &config->ttl.tcp_trans))
+		if (!assign_timeout(value, TCP_TRANS, &config->nat64.ttl.tcp_trans))
 			goto einval;
 		timer_needs_update = true;
-		timer_type = SESSIONTIMER_TRANS;
 		break;
 	case FRAGMENT_TIMEOUT:
 		if (!ensure_bytes(size, 8))
 			goto einval;
-		if (!assign_timeout(value, FRAGMENT_MIN, &config->ttl.frag))
+		if (!assign_timeout(value, FRAGMENT_MIN, &config->nat64.ttl.frag))
 			goto einval;
 		break;
 	case DROP_BY_ADDR:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->drop_by_addr = *((__u8 *) value);
+		config->nat64.drop_by_addr = *((__u8 *) value);
 		break;
 	case DROP_ICMP6_INFO:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->drop_icmp6_info = *((__u8 *) value);
+		config->nat64.drop_icmp6_info = *((__u8 *) value);
 		break;
 	case DROP_EXTERNAL_TCP:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->drop_external_tcp = *((__u8 *) value);
+		config->nat64.drop_external_tcp = *((__u8 *) value);
 		break;
-#else
+
 	case COMPUTE_UDP_CSUM_ZERO:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->compute_udp_csum_zero = *((__u8 *) value);
+		config->siit.compute_udp_csum_zero = *((__u8 *) value);
+		break;
+	case EAM_HAIRPINNING_MODE:
+		if (!ensure_bytes(size, 1))
+			goto einval;
+		config->siit.eam_hairpin_mode = *((__u8 *) value);
 		break;
 	case RANDOMIZE_RFC6791:
 		if (!ensure_bytes(size, 1))
 			goto einval;
-		config->randomize_error_addresses = *((__u8 *) value);
+		config->siit.randomize_error_addresses = *((__u8 *) value);
 		break;
-#endif
+
 	case RESET_TCLASS:
 		if (!ensure_bytes(size, 1))
 			goto einval;
@@ -943,14 +1070,12 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 		goto einval;
 	}
 
-	error = config_set(config);
-	if (error)
-		goto fail;
+	config_replace(config);
 
 	if (timer_needs_update)
-		error = sessiondb_update_timer(timer_type);
+		sessiondb_update_timers();
 
-	return error;
+	return 0;
 
 einval:
 	error = -EINVAL;
@@ -962,15 +1087,16 @@ fail:
 	return error;
 }
 
-static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat64_hdr,
+static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_global *request)
 {
 	struct global_config response = { .mtu_plateaus = NULL };
 	unsigned char *buffer;
 	size_t buffer_len;
+	bool disabled;
 	int error;
 
-	switch (nat64_hdr->operation) {
+	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
 		log_debug("Returning 'Global' options.");
 
@@ -978,7 +1104,10 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 		if (error)
 			goto end;
 
-		error = serialize_global_config(&response, &buffer, &buffer_len);
+		disabled = xlat_is_nat64()
+				? pool6_is_empty()
+				: (pool6_is_empty() && eamt_is_empty());
+		error = serialize_global_config(&response, disabled, &buffer, &buffer_len);
 		if (error)
 			goto end;
 
@@ -993,13 +1122,13 @@ static int handle_global_config(struct nlmsghdr *nl_hdr, struct request_hdr *nat
 		log_debug("Updating 'Global' options.");
 
 		buffer = (unsigned char *) (request + 1);
-		buffer_len = nat64_hdr->length - sizeof(*nat64_hdr) - sizeof(*request);
+		buffer_len = jool_hdr->length - sizeof(*jool_hdr) - sizeof(*request);
 
 		error = handle_global_update(request->update.type, buffer_len, buffer);
 		break;
 
 	default:
-		log_err("Unknown operation: %d", nat64_hdr->operation);
+		log_err("Unknown operation: %d", jool_hdr->operation);
 		error = -EINVAL;
 	}
 
@@ -1016,7 +1145,7 @@ end:
  */
 static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hdr)
 {
-	struct request_hdr *nat64_hdr;
+	struct request_hdr *jool_hdr;
 	void *request;
 	int error;
 
@@ -1025,35 +1154,46 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return -EINVAL;
 	}
 
-	nat64_hdr = NLMSG_DATA(nl_hdr);
-	request = nat64_hdr + 1;
+	jool_hdr = NLMSG_DATA(nl_hdr);
+	request = jool_hdr + 1;
 
-	error = validate_version(nat64_hdr);
+	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
 
-	switch (nat64_hdr->mode) {
+	switch (jool_hdr->mode) {
 	case MODE_POOL6:
-		return handle_pool6_config(nl_hdr, nat64_hdr, request);
+		return handle_pool6_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_POOL4:
-	case MODE_BLACKLIST:
-		return handle_pool4_config(nl_hdr, nat64_hdr, request);
+		return handle_pool4_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_BIB:
-		return handle_bib_config(nl_hdr, nat64_hdr, request);
+		return handle_bib_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_SESSION:
-		return handle_session_config(nl_hdr, nat64_hdr, request);
+		return handle_session_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_EAMT:
-		return handle_eamt_config(nl_hdr, nat64_hdr, request);
+		return handle_eamt_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_RFC6791:
-		return handle_rfc6791_config(nl_hdr, nat64_hdr, request);
+		return handle_rfc6791_config(nl_hdr, jool_hdr, request);
+		break;
+	case MODE_BLACKLIST:
+		return handle_blacklist_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_LOGTIME:
-		return handle_logtime_config(nl_hdr, nat64_hdr, request);
+		return handle_logtime_config(nl_hdr, jool_hdr, request);
+		break;
 	case MODE_GLOBAL:
-		return handle_global_config(nl_hdr, nat64_hdr, request);
+		return handle_global_config(nl_hdr, jool_hdr, request);
+		break;
 	}
 
-	log_err("Unknown configuration mode: %d", nat64_hdr->mode);
+	log_err("Unknown configuration mode: %d", jool_hdr->mode);
 	return respond_error(nl_hdr, -EINVAL);
+
 }
 
 /**
@@ -1063,9 +1203,12 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
  */
 static void receive_from_userspace(struct sk_buff *skb)
 {
-	log_debug("Message arrived.");
 	mutex_lock(&config_mutex);
+	error_pool_activate();
+
 	netlink_rcv_skb(skb, &handle_netlink_message);
+	error_pool_deactivate();
+
 	mutex_unlock(&config_mutex);
 }
 
@@ -1079,91 +1222,35 @@ int nlhandler_init(void)
 	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, 0, receive_from_userspace,
+	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, 0, receive_from_userspace,
 			NULL, THIS_MODULE);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
+	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
 #else
 	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(&init_net, NETLINK_USERSOCK, &nl_cfg);
+	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, &nl_cfg);
 #endif
 
-	if (!nl_socket) {
-		log_err("Creation of netlink socket failed.");
-		return -EINVAL;
+	if (nl_socket) {
+		log_debug("Netlink socket created.");
+	} else {
+		log_err("Creation of netlink socket failed.\n"
+				"(This usually happens because you already "
+				"have a Jool instance running.)\n"
+				"I will ignore this error. However, you will "
+				"not be able to configure Jool via the "
+				"userspace application.");
 	}
-	log_debug("Netlink socket created.");
+
+	error_pool_init();
 
 	return 0;
 }
 
 void nlhandler_destroy(void)
 {
-	netlink_kernel_release(nl_socket);
-}
-
-int serialize_global_config(struct global_config *config, unsigned char **buffer_out,
-		size_t *buffer_len_out)
-{
-	unsigned char *buffer;
-	struct global_config *tmp;
-	size_t mtus_len;
-	bool disabled;
-
-	mtus_len = config->mtu_plateau_count * sizeof(*config->mtu_plateaus);
-
-	buffer = kmalloc(sizeof(*config) + mtus_len, GFP_KERNEL);
-	if (!buffer) {
-		log_debug("Could not allocate the configuration structure.");
-		return -ENOMEM;
-	}
-
-	memcpy(buffer, config, sizeof(*config));
-	memcpy(buffer + sizeof(*config), config->mtu_plateaus, mtus_len);
-	tmp = (struct global_config *) buffer;
-
-#ifdef STATEFUL
-	tmp->ttl.udp = jiffies_to_msecs(config->ttl.udp);
-	tmp->ttl.tcp_est = jiffies_to_msecs(config->ttl.tcp_est);
-	tmp->ttl.tcp_trans = jiffies_to_msecs(config->ttl.tcp_trans);
-	tmp->ttl.icmp = jiffies_to_msecs(config->ttl.icmp);
-	tmp->ttl.frag = jiffies_to_msecs(config->ttl.frag);
-	disabled = config->is_disable || pool6_is_empty() || pool4_is_empty();
-#else
-	disabled = config->is_disable || (pool6_is_empty() && eamt_is_empty());
-#endif
-	tmp->jool_status = !disabled;
-
-	*buffer_out = buffer;
-	*buffer_len_out = sizeof(*config) + mtus_len;
-	return 0;
-}
-
-int deserialize_global_config(void *buffer, __u16 buffer_len, struct global_config *target_out)
-{
-	size_t mtus_len;
-
-	memcpy(target_out, buffer, sizeof(*target_out));
-
-	target_out->mtu_plateaus = NULL;
-	if (target_out->mtu_plateau_count) {
-		mtus_len = target_out->mtu_plateau_count * sizeof(*target_out->mtu_plateaus);
-		target_out->mtu_plateaus = kmalloc(mtus_len, GFP_ATOMIC);
-		if (!target_out->mtu_plateaus) {
-			log_debug("Could not allocate the config's plateaus.");
-			return -ENOMEM;
-		}
-		memcpy(target_out->mtu_plateaus, buffer + sizeof(*target_out), mtus_len);
-	}
-
-#ifdef STATEFUL
-	target_out->ttl.udp = msecs_to_jiffies(target_out->ttl.udp);
-	target_out->ttl.tcp_est = msecs_to_jiffies(target_out->ttl.tcp_est);
-	target_out->ttl.tcp_trans = msecs_to_jiffies(target_out->ttl.tcp_trans);
-	target_out->ttl.icmp = msecs_to_jiffies(target_out->ttl.icmp);
-	target_out->ttl.frag = msecs_to_jiffies(target_out->ttl.frag);
-#endif
-
-	return 0;
+	error_pool_destroy();
+	if (nl_socket)
+		netlink_kernel_release(nl_socket);
 }

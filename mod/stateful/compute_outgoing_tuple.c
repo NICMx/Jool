@@ -1,6 +1,5 @@
 #include "nat64/mod/stateful/compute_outgoing_tuple.h"
-#include "nat64/mod/common/stats.h"
-#include "nat64/mod/stateful/session_db.h"
+#include "nat64/mod/stateful/session/db.h"
 
 verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pkt_in)
 {
@@ -9,15 +8,14 @@ verdict compute_out_tuple(struct tuple *in, struct tuple *out, struct packet *pk
 
 	log_debug("Step 3: Computing the Outgoing Tuple");
 
-	error = sessiondb_get(in, &session);
+	error = sessiondb_get(in, NULL, NULL, &session);
 	if (error) {
 		/*
 		 * Bogus ICMP errors might cause this because Filtering never cares for them,
 		 * so it's not critical.
 		 */
 		log_debug("Error code %d while trying to find the packet's session entry.", error);
-		inc_stats(pkt_in, IPSTATS_MIB_INNOROUTES);
-		return VERDICT_DROP;
+		return VERDICT_ACCEPT;
 	}
 
 	/*
