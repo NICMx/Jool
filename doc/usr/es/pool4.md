@@ -2,7 +2,7 @@
 language: es
 layout: default
 category: Documentation
-title: Pool IPv4 Stateful
+title: Pool de direcciones de transporte IPv4
 ---
 
 [Documentación](documentation.html) > [NAT64 en detalle](documentation.html#nat64-en-detalle) > Pool de direcciones de transporte IPv4

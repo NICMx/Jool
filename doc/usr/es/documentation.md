@@ -31,7 +31,7 @@ Ver el [RFC 6586](https://tools.ietf.org/html/rfc6586) para encontrar experienci
 ## SIIT en detalle
 
 1. [La EAMT](eamt.html)
-2. [Direcciones de IPv6 intraducibles](rfc6791.html)
+2. [Direcciones de IPv6 intraducibles](pool6791.html)
 
 ## NAT64 en detalle
 
@@ -62,8 +62,8 @@ Ver el [RFC 6586](https://tools.ietf.org/html/rfc6586) para encontrar experienci
 
 ## Arquitecturas definidas
 
-1. [464XLAT](464xlat.html)
-2. [SIIT-DC](siit-dc.html)
+1. [SIIT-DC](siit-dc.html)
+2. [464XLAT](464xlat.html)
 3. [SIIT-DC: Modo de traducción dual](siit-dc-2xlat.html)
 
 ## Otro ejemplos de uso

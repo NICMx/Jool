@@ -33,7 +33,7 @@ Because The are so many different Linux versions out there, distributing the mod
 
 ### Valid kernels
 
-Jool supports kernels starting from Linux 3.0. Use `uname -r` to know your kernel version.
+Jool supports kernels starting from Linux 3.2. Use `uname -r` to know your kernel version.
 
 {% highlight bash %}
 $ /bin/uname -r
@@ -167,7 +167,7 @@ $ unzip master.zip
 
 ### Installation via Kbuild
 
-> ![!](../images/warning.svg) Keep in mind: Module binaries **depend** on kernel version. The binaries generated here will become obsolete when you update your kernel. If you insist on using Kbuild, you need to recompile/reinstall Jool whenever this happens.
+> ![!](../images/warning.svg) Keep in mind: Module binaries **depend** on kernel version. The binaries generated here will become obsolete when you update your kernel. If you insist on using Kbuild, you need to recompile/reinstall Jool yourself whenever this happens.
 
 <div class="distro-menu">
 	<span class="distro-selector" onclick="showDistro(this);">Official release</span>

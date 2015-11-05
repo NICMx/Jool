@@ -114,7 +114,7 @@ user@J:~# /sbin/ip -6 route add default via 2001:db8:2::1 dev eth0
 
 (Similar instructions should be echoed in the routers and the nodes)
 
-Jool or J don't need to be aware of the DNS64 because domain names are completely transparent to NAT64, so you don't need to do anything else in J. 
+Jool and _J_ don't need to be aware of the DNS64 because domain names are completely transparent to NAT64, so you don't need to do anything else in _J_. 
 
 As for the leaf nodes, any IPv6 node which needs to access IPv4-only content _should_ use the DNS64 as its default name server (unless you want to specify it manually in your dig commands, I guess).
 

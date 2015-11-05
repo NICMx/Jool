@@ -27,11 +27,11 @@ title: SIIT - Ejemplo básico
 
 ## Introducción
 
-Este documento explica cómo ejecutar a Jool en modo SIIT. Se puede encontrar una explicación de este tipo de traducción [aquí](intro-xlat.html#siit-tradicional).
+Este documento explica cómo ejecutar a Jool en modo SIIT básico. Se puede encontrar una explicación de este tipo de traducción [aquí](intro-xlat.html#siit-tradicional).
 
 Solamente se necesita una instalación exitosa del [módulo del kernel](install-mod.html) para seguir este documento. La aplicación de espacio de usuario no es aún necesaria.
 
-> ![Note](../images/bulb.svg) Jool no está condicionado a usar interfaces físicas de tipo _ethX_; puede usar alternativamente otros tipos de interfaces, incluyendo las que desembocan en máquinas virtuales.
+> ![Note](../images/bulb.svg) Jool no está condicionado a usar interfaces físicas de tipo _ethX_; puede usar alternativamente otros tipos de interfaces, incluyendo las que desembocan en (o pertenecen a) máquinas virtuales.
 
 ## Red de ejemplo
 
@@ -76,7 +76,7 @@ user@V:~# ip route add default via 192.0.2.1
 
 ### Configuración del Nodo Traductor
 
-Para el Nodo _T_, ejecute la siguiente secuencia de comandos:
+Ejecute la siguiente secuencia de comandos en _T_:
 
 {% highlight bash %}
 user@T:~# service network-manager stop
@@ -88,20 +88,22 @@ user@T:~# ip link set eth1 up
 user@T:~# ip addr add 192.0.2.1/24 dev eth1
 {% endhighlight %}
 
-Los nodos _A_-_E_ no pueden todavía interactuar con _V_-_Z_ porque _T_ no es un traductor aún. Antes de continuar, se recomienda validar la comunicacion entre nodos adyacentes utilizando `ping` y `ping6`.
+Los nodos _A_-_E_ no pueden todavía interactuar con _V_-_Z_ porque _T_ no es un traductor aún. Se recomienda validar la comunicacion entre nodos adyacentes utilizando `ping` y `ping6` antes de continuar.
 
-El siguiente paso es informar a Linux que se desea utilizar los stacks de red con propósitos de forwarding (ie. _T_ cumple funciones de router):
+El siguiente paso es informar a Linux que se desea utilizar los stacks de red con propósitos de forwarding (ie. _T_ cumple funciones de enrutador):
 
 {% highlight bash %}
 user@T:~# sysctl -w net.ipv4.conf.all.forwarding=1
 user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 {% endhighlight %}
 
-> **Notas:**<br />
-> - Si se deja desactivadas estas banderas en los **kernels 3.5 o más bajos**, parecerá que todo funciona pero Linux eliminará tráfico importante de ICMP. En los kernels superiores no hay consecuencias adversas conocidas.<br />
-> - Por otro lado, considere que Jool 4.0 muy probable va a requerir la habilitación de forwarding, de modo que si lo adiciona ahora ya no requerirá añadirlo después.
+> ![Nota](../images/bulb.svg) Estos sysctls tienen sentido conceptualmente, pero Jool en realidad no depende de ellos actualmente.
+> 
+> Lo que pasa es que si se dejan desactivados, kernels 3.5 e inferiores van a tirar cierto tráfico de ICMP importante. Este problema no existe en Linux 3.6 en adelante.
+> 
+> [No se sabe si el comportamiento correcto es el de Linux antiguo o el del nuevo](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). Por otro lado, Jool 4.0 probablemente va a requerir forwarding, de modo que se recomienda incluir los sysctls aunque no sean todavía necesarios.
 
-También se requiere asegurar que offloads de recepción estén apagados:
+También se requiere asegurar que [offloads de recepción estén apagados](offloads.html) en todas las interfaces de _T_ relevantes.
 
 {% highlight bash %}
 user@T:~# ethtool --offload eth0 gro off
@@ -110,11 +112,8 @@ user@T:~# ethtool --offload eth1 gro off
 user@T:~# ethtool --offload eth1 lro off
 {% endhighlight %}
 
-> **Notas:**<br />
-> - Si offloads de recepción están encendidos se experimentará un rendimiento muy bajo.<br />
-> - Si no es posible cambiar alguno de los parámetros, probablemente es porque ya está apagado.<br />
-> Más detalles [aquí](offloads.html).
-			 
+Si no es posible cambiar alguno de los parámetros, probablemente es porque [ya está apagado](offloads.html#cmo-deshacerse-de-offloads-de-recepcin).
+
 ## Jool
 
 Esta es la sintaxis para insertar a Jool SIIT en el kernel:
@@ -183,7 +182,7 @@ Agregar un servidor en en _C_ y accesarlo desde _W_:
 
 ## Deteniendo a Jool
 
-El comando `modprobe` también se puede usar para remover a Jool del kernel usando el parámetro `-r`:
+`modprobe` también es capaz de quitar módulos. Usar `-r` para indicarlo:
 
 {% highlight bash %}
 user@T:~# modprobe -r jool_siit

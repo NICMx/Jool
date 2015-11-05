@@ -68,7 +68,7 @@ Direcciones de IPv4 a excluir de traducción basada en [`pool6`](#pool6).
 - Contraparte de la aplicación de espacio de usuario: [`--pool6791`](usr-flags-pool6791.html)
 - Valor por defecto: Vacío
 
-Direcciones con las cuales originar errores ICMPv6 que no tengan fuente traducible. Ver el [resumen del RFC 6791](rfc6791.html).
+Direcciones con las cuales originar errores ICMPv6 que no tengan fuente traducible. Ver el [resumen del RFC 6791](pool6791.html).
 
 Cuando la pool está vacía, Jool utiliza las direcciones de su propio nodo como fuente.
 

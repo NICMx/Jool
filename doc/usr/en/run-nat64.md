@@ -49,7 +49,7 @@ user@V:~# # Replace ".16" depending on which node you're on.
 user@V:~# /sbin/ip address add 203.0.113.16/24 dev eth0
 {% endhighlight %}
 
-Notice these nodes do not need a default route. This is a consequence of them being in the same network as the NAT64; 203.0.113.2 will be masking the IPv6 nodes, so _V_ through _Z_ think they're talking directly with _T_.
+Notice these nodes do not need a default route. This is a consequence of them being in the same network as the NAT64; _T_ will be masking the IPv6 nodes, so _V_ through _Z_ think they're talking directly to it.
 
 Node _T_:
 

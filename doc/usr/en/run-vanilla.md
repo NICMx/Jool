@@ -34,9 +34,9 @@ You don't need all the nodes shown in the diagram to follow along; you can get a
 
 We will pretend I have address block 198.51.100.8/29 to distribute among my IPv6 nodes.
 
-Jool requires _T_ to be Linux. The rest can be anything you want, so long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
+Jool requires _T_ to be Linux. The rest can be anything you want, as long as it implements the network protocol it's connected to. Also, you are free to configure the networks using any manager you want.
 
-For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of `service network-manager stop` is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
+For the sake of simplicity however, the examples below assume every node is Linux and everything is being configured statically using the well-known `ip` command (and friends). Depending on your distro, your mileage might vary on how to get the network manager out of the way (assuming that's what you want). Just to clarify, the point of `service network-manager stop` below is to claim control over your interface addresses and routes (otherwise the `ip` commands might be ineffectual).
 
 Also to simplify, routing will be reduced to default all unknown traffic towards _T_. Note that there is nothing martian about anyone's configuration otherwise.
 

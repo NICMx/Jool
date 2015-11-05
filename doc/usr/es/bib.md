@@ -66,7 +66,7 @@ Nuevamente cabe mencionar que esto no nos dice con quién está interactuando 20
 
 02 es similar al 01, con la excepción de que el puerto de la máscara es diferente al original. Como se menciona en [pool4](pool4.html), un NAT64 no se interesa en preservar puertos, de modo que es más natural ver registros como este que como el anterior.
 
-El registro enuncia que existe un socket en el puerto 40000 de la dirección 2001:db8::2, y que al menos un nodo de IPv4 cree que es 50000 en la dirección 198.51.100.10.
+El registro enuncia que existe (o existió recientemente) un socket en el puerto 40000 de la dirección 2001:db8::2, y que al menos un nodo de IPv4 cree que es 50000 en la dirección 198.51.100.10.
 
 ### Registro 03
 

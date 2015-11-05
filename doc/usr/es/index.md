@@ -13,19 +13,19 @@ title: Inicio
 
 Jool es un [SIIT y NAT64](intro-xlat.html) de código abierto para Linux.
 
-* Para familiarizase con el software vaya a [documentación](documentation.html).
-* Para descargar Jool presione [descargas](download.html).
+* [Aquí](documentation.html) hay documentación.
+* [Aquí](download.html) está la página de descargas.
 
 -------------------
 
 ## Estatus
 
-Hasta donde sabemos, Jool es un SIIT y un NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2015-11-04:
+Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2015-11-04:
 
-1. La [Versión 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) va a ser una [revisión de framework](https://github.com/NICMx/NAT64/issues/140). Jool probablemente va a poder convertirse en un device driver, lo cual puede hacerlo más simple y versátil de configurar.
-2. La [Versión 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) añadirá funcionalidad nueva.
+1. [La versión 4.0.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.0.0) va a ser una [revisión de framework](https://github.com/NICMx/NAT64/issues/140). Jool probablemente va a poder convertirse en un device driver, lo cual puede hacerlo más intuitivo y versátil de configurar.
+2. [La versión 4.1.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A4.1.0) añadirá funcionalidad nueva.
 
-A veces generamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues).
+A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues).
 
 La versión más reciente es la [3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
 
@@ -35,7 +35,7 @@ La versión más reciente es la [3.4.0](https://github.com/NICMx/NAT64/issues?q=
 
 ### 2015-11-04
 
-La versión 3.4.0 fue liberada. Estos son los cambios:
+Jool 3.4.0 fue liberado. Estos son los cambios:
 
 1. Refactorizaciones a pool4 agregan [asignación de fuente basado en marca](usr-flags-pool4.html#mark) y [rangos de puertos](usr-flags-pool4.html#ejemplos) ([lo cual a su vez remueve la necesidad de una segunda dirección de IPv4](run-nat64.html#red-de-ejemplo)), y corrige el [uso excesivo de memoria](https://github.com/NICMx/NAT64/issues/36).
 2. La EAMT ahora implementa [Hairpinning](https://github.com/NICMx/NAT64/issues/162) y [entradas superpuestas](https://github.com/NICMx/NAT64/issues/160), que son nuevas adiciones al draft de EAM.
@@ -45,6 +45,8 @@ La versión 3.4.0 fue liberada. Estos son los cambios:
 6. [Dos](https://github.com/NICMx/NAT64/issues/174) [errores](https://github.com/NICMx/NAT64/issues/173) corregidos.
 7. ¡Documentación en español!
 8. `--csv` ahora puede ser usado [en todos los modos de configuración](https://github.com/NICMx/NAT64/issues/164#issuecomment-126093571).
+
+> ![Advertencia](../images/warning.svg) Si desea actualizar Jool, tenga en mente que pool4 no es completamente compatible con su versión anterior. En Jool 3.3, cualquier paquete solía ser enmascarado usando cualquier entrada de pool4 disponible. En Jool 3.4, cada entrada de pool4 solamente enmascara paquetes que contengan una marca en específico (que es cero, por defecto). Ver [`--mark`](usr-flags-pool4.html#mark) para encontrar más detalles.
 
 ### 2015-10-15
 

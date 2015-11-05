@@ -38,7 +38,7 @@ Notas:
 
 1. Solamente _A_, _V_ y _T_ son necesarios.
 2. Para simplificar, se asumirá que todos los nodos son Linux. En realidad, solamente _T_ necesita serlo.
-3. Se configurará la red estáticamente y mediante el comando `ip`. Nada de esto es mandatario.
+3. Por simplicidad, se configurará la red estáticamente, mediante el comando `ip`, y (para que la red 203.0.113.0/24 sea alcanzable) tráfico desconocido de la red IPv6 se enrutará hacia _T_. Todo esto puede realizarse de otras maneras si se desea.
 
 ### Configuración de Nodos en IPv6
 
@@ -103,7 +103,7 @@ Ver [argumentos de `jool`](modprobe-nat64.html) para encontrar una descripción 
 
 Jool va a agregar y remover el prefijo `64:ff9b::/96`.
 
-> ![Nota](../images/bulb.svg) No se utilizó el argumento `pool4`, de modo que Jool va a enmascarar paquetes usando los puertos superiores de la dirección 203.0.113.1. A menos de que se tengan pocos clientes de IPv6, esto probablemente no es lo que se desea. Ver [`pool4`](pool4.html) para detalles sobre cómo afinar esto.
+> ![Nota](../images/bulb.svg) No se utilizó el argumento `pool4`, de modo que Jool va a enmascarar paquetes usando los puertos superiores de la dirección 203.0.113.1. A menos que se tengan pocos clientes de IPv6, esto probablemente no es lo que se desea. Ver [`pool4`](pool4.html) para detalles sobre cómo afinar esto.
 
 ## Pruebas
 

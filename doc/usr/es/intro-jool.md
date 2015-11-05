@@ -31,7 +31,7 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | Cumple, pero [la implementación de fragmentos atómicos está descuidada](usr-flags-atomic.html#overview). |
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Cumple Totalmente. |
 | [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Por Completar](https://github.com/NICMx/NAT64/issues/114). |
-| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | El RFC quiere dos cosas: [pool6791](rfc6791.html) (implementado) y extensión de encabezado de ICMP (no implementado). |
+| [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | El RFC quiere dos cosas: [pool6791](pool6791.html) (implementado) y extensión de encabezado de ICMP (no implementado). |
 | [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC-DCM; ver abajo. |
 | [draft-ietf-v6ops-siit-dc]({{ site.draft-siit-dc }}) | SIIT-DC | Cumple Totalmente. |
 | [draft-ietf-v6ops-siit-dc-2xlat]({{ site.draft-siit-dc-2xlat }}) | SIIT-DC Edge Translator | Cumple Totalmente. |

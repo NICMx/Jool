@@ -68,7 +68,7 @@ IPv4 addresses to exclude from [`pool6`](#pool6)-based translation.
 - Userspace Application Counterpart: [`--pool6791`](usr-flags-pool6791.html)
 - Default: None
 
-Addresses to source untranslatably-sourced ICMPv6 errors with. See the [RFC 6791 summary](rfc6791.html).
+Addresses to source untranslatably-sourced ICMPv6 errors with. See the [RFC 6791 summary](pool6791.html).
 
 Defaults to the Jool machine's natural source IPv4 address.
 

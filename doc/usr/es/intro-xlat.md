@@ -53,7 +53,7 @@ Asumiendo que la puerta de enlace por default de todos es _T_, comó se podría 
 - Se le indica a _A_, "la dirección de _V_ es 2001:db8:4::16".
 - Se le indica a _V_, "la dirección de _A_ es 198.51.100.8 ".
 
-El primer punto puede lograrse mediante SIIT. Los otros pueden ser hechos vía DNS.
+El primer punto puede lograrse mediante SIIT. Los otros pueden lograrse a través de DNS.
 
 Esto es lo que va a suceder:
 
@@ -61,9 +61,7 @@ Esto es lo que va a suceder:
 
 El traductor esta "engañando" a ambos nodos, haciéndoles pensar que el otro puede hablar su mismo protocolo.
 
-"EAM" es abreviación de "Explicit Address Mapping" (Mapeo Explícito de Direcciones), y es más versátil que simples asociaciones entre diferentes direcciones arbitrarias.
-
-![Nota](../images/bulb.svg) Más detalles sobre EAM pueden encontrarse en este [resumen](eamt.html) o en el [documento de la IETF]({{ site.draft-siit-eam }}).
+> ![Nota](../images/bulb.svg) "EAM" es abreviación de "Explicit Address Mapping" (Mapeo Explícito de Direcciones), y es más versátil que simples asociaciones entre diferentes direcciones arbitrarias. Más detalles sobre EAM pueden encontrarse en este [resumen](eamt.html) o en el [documento de la IETF]({{ site.draft-siit-eam }}).
 
 ### SIIT (tradicional)
 
@@ -72,7 +70,7 @@ El modo básico es más constrictivo. Por lo tanto, es necesario modificar la re
 
 ![Fig.3 - Red de ejemplo Vanilla](../images/network/vanilla.svg "Fig.3 - Red de ejemplo Vanilla")
 
-Para lograr la comunicación entre _A_ y _V_ bastaría con establecer lo siguiente:
+Para lograr la comunicación entre _A_ y _V_ basta establecer lo siguiente:
 
 - Se le indica a _T_, "Tu prefijo de traducción es 2001:db8::/96".
 - Se le indica a _A_, "la dirección de _V_ es 2001:db8::192.0.2.16".

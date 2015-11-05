@@ -29,7 +29,7 @@ title: SIIT-EAM - Ejemplo de uso
 
 Este documento explica cómo ejecutar Jool en modo SIIT+EAM. Una introducción a este mecanismo de traducción de direcciones puede encontrarse [aquí](intro-xlat.html#siit-con-eam).
 
-A diferencia del [tutorial anterior](run-vanilla.html), este documento tiene como prerequisito una instalación de tanto el [módulo del kernel](install-mod.html) como de la [aplicación de espacio de usuario](install-usr.html).
+A diferencia del [tutorial anterior](run-vanilla.html), este documento tiene como prerequisito una instalación tanto del [módulo del kernel](install-mod.html) como de la [aplicación de espacio de usuario](install-usr.html).
 
 ## Red de ejemplo
 
@@ -156,7 +156,7 @@ Levantar un servidor en _B_ y accesarlo desde _X_:
 
 ## Deteniendo a Jool
 
-Para detener Jool, emplea de nuevo el comando modprobe usando el parámetro `-r`:
+De nuevo, `modprobe` también puede usarse para quitar a Jool del kernel:
 
 {% highlight bash %}
 user@T:~# modprobe -r jool_siit

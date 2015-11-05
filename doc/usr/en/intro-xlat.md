@@ -42,7 +42,7 @@ This is the easiest one to explain. Consider the following setup:
 
 ![Fig.1 - EAM sample network](../images/network/eam.svg)
 
-(_T_ stands for "Translating box".)
+(_T_ stands for "Translator".)
 
 Assuming everyone's default gateway is _T_, how do you communicate _A_ (IPv6) with _V_ (IPv4)?
 
@@ -99,9 +99,11 @@ Stateful NAT64 is pretty much the same. The only difference is that the "Private
 
 ![Fig.7 - Stateful network](../images/network/stateful.svg)
 
-- Tell _A_: "_V_'s address is 64:ff9b::203.0.113.16".
-- Tell _T_: "Use your address to mask _A_" and "Pretend the IPv4 Internet is a network named 64:ff9b::/96".
-- _V_ thinks it's talking to _T_, so you don't tell it anything.
+This is what you tell to each node:
+
+- _A_ needs to think _V_'s address is 64:ff9b::203.0.113.16.
+- T needs a function that will use its own addresses to mask _A_, and also pretend that the IPv4 Internet is a network named 64:ff9b::/96.
+- _V_ thinks it's talking to _T_, so it doesn't need any unusual tweaking.
 
 ![Fig.8 - Stateful flow](../images/flow/stateful-en.svg)
 

@@ -43,8 +43,10 @@ Version 3.4.0 released. This is a fat one.
 4. The userspace application now [prints the friendlier error messages](https://github.com/NICMx/NAT64/issues/169) that used to be dumped in the kernel log only.
 5. Removed reliance on dead code deletion, [which used to prevent compilation on some systems](https://github.com/NICMx/NAT64/issues/152).
 6. [Two](https://github.com/NICMx/NAT64/issues/174) [bugfixes](https://github.com/NICMx/NAT64/issues/173).
-7. Spanish documentation.
+7. [A spanish version of this site](../es/index.html).
 8. `--csv` can now be used on [all configuration targets](https://github.com/NICMx/NAT64/issues/164#issuecomment-126093571).
+
+> ![Warning](../images/warning.svg) If you want to upgrade, please keep in mind pool4 is not completely backwards-compatible. In Jool 3.3, any packet would be masked using any available pool4 entry. In Jool 3.4, every pool4 entry only masks packets wielding specific marks (which defaults to zero). See [`--mark`](usr-flags-pool4.html#mark) for more details.
 
 ### 2015-10-15
 

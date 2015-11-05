@@ -32,7 +32,7 @@ is spiritually equivalent to
 
 ## Long version
 
-Just like a NAT, a Stateful NAT64 allows an indeterminate amount of clients to share a few IPv4 addresses by strategically distributing their traffic accross its own transport address domain.
+Just like a NAPT, a Stateful NAT64 allows an indeterminate amount of clients to share a few IPv4 addresses by strategically distributing their traffic accross its own transport address domain.
 
 We call this "transport address domain" the "IPv4 pool" ("pool4" for short).
 

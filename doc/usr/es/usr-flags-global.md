@@ -442,7 +442,7 @@ NAT64 Jool _siempre_ procesa los checksums con valor cero de los paquetes UDP IP
 - Sentido de traducción: ***IPv6-> IPv4***
 - Fuente: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
 
-Si el origen de un error ICMPv6 no puede ser traducido, el [RFC 6791](https://tools.ietf.org/html/rfc6791) dicta que se le asigne una dirección IPv4 de [pool6791](rfc6791.html).
+Si el origen de un error ICMPv6 no puede ser traducido, el [RFC 6791](https://tools.ietf.org/html/rfc6791) dicta que se le asigne una dirección IPv4 de [pool6791](pool6791.html).
 
 - Si `--randomize-rfc6791-addresses` está activo, Jool seguirá la sugerencia del RFC 6791, asignando una dirección aleatoria de pool6791.
 - Si `--randomize-rfc6791-addresses` está inactivo, Jool asignará la dirección número _hop limit_ de pool6791 (donde _hop limit_ es un campo de la [cabecera IPv6](http://es.wikipedia.org/wiki/IPv6#Cabecera_fija) del paquete).

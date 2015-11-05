@@ -42,7 +42,7 @@ Please [let us know](https://github.com/NICMx/NAT64/issues) if you find addition
 
 ## Compatibility
 
-We're supposed to support Linux kernels 3.0.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 and 14.04 using current kernels, we've performed a healthy amount of formal testing on Jool 3.1.5 and 3.2.2 in the following variants:
+We're supposed to support Linux kernels 3.2.0 and up. While most of the development time has been spent experimenting on Ubuntu 12.04 and 14.04 using current kernels, we've performed a healthy amount of formal testing on Jool 3.1.5 and 3.2.2 in the following variants:
 
 | Distribution | Kernels |
 | -------------|---------|
@@ -70,4 +70,6 @@ Jool only intercepts packets belonging to the same namespace it was created in. 
 > ![Note](../images/bulb.svg) Notice all filtering iptables modules skip Jool. For this reason, if you need to filter, you need to insert Jool in a namespace so iptables can do its job during FORWARD.
 > 
 > ![Fig.2 - Jool and Filtering](../images/netfilter-filter.svg)
+> 
+> Alternatively, if you know what you're doing, you can [filter on mangle](https://github.com/NICMx/NAT64/issues/41#issuecomment-77951288).
 

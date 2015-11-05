@@ -31,7 +31,7 @@ See [RFC 6586](https://tools.ietf.org/html/rfc6586) for deployment experiences u
 ## SIIT in Detail
 
 1. [The EAMT](eamt.html)
-2. [Untranslatable IPv6 addresses](rfc6791.html)
+2. [Untranslatable IPv6 addresses](pool6791.html)
 
 ## NAT64 in Detail
 

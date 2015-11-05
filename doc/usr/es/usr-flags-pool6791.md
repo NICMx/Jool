@@ -20,7 +20,7 @@ title: --pool6791
 
 ## Descripción
 
-Interactúa con el [pool del RFC 6791](rfc6791.html) de Jool. El pool define direcciones para orígenes en errores ICMP intraducibles.
+Interactúa con el [pool del RFC 6791](pool6791.html) de Jool. El pool define direcciones para orígenes en errores ICMP intraducibles.
 
 Si el pool está vacío, Jool retrocederá a utilizar las direcciones de su nodo para estos casos.
 
