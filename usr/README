@@ -2,7 +2,8 @@ This folder contains the source of the userspace application of Jool.
 
 The userspace application is a client which can be used to send requests to
 Jool, which resides in the kernel. It comes with a man page, but you might want
-to read more documentation at https://www.jool.mx/en/documentation.html.
+to read more documentation at
+https://nicmx.github.io/jool-doc/en/documentation.html.
 
 If you're not using git, install using `./configure && make && make install` as
 the INSTALL file says.
@@ -16,7 +17,7 @@ If you cloned the code using git, keep in mind that we do not upload the
 autotools generated files to the repository, so you have two options:
 
 1.  Ignore this directory, download the distribution instead and compile that:
-    https://www.jool.mx/en/download.html
+    https://nicmx.github.io/jool-doc/en/download.html
 
 2.  Install the autotools, run ./autogen.sh, and then
     `./configure && make && make install` as stated above.

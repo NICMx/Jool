@@ -1,13 +1,19 @@
-# [Jool](https://www.jool.mx)
+# [Jool](https://nicmx.github.io/jool-doc)
 
-An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
+An [SIIT and a NAT64](https://nicmx.github.io/jool-doc/en/intro-xlat.html) for Linux.
 
 ## Documentation
 
-[See here](https://www.jool.mx/en/documentation.html).
+[See here](https://nicmx.github.io/jool-doc/en/documentation.html).
 
 Please send improvements, complaints and fixes to jool@nic.mx.
 Alternatively, you might want to upload bugs and pull requests to the [issue tracker](https://github.com/NICMx/NAT64/issues).
+
+> Note!
+> 
+> www.jool.mx is undergoing migration. It will take a while for the DNS to update itself, so in the meantime you can access the website using its base new name: [https://nicmx.github.io/jool-doc](https://nicmx.github.io/jool-doc)
+> 
+> www.jool.mx will point to https://nicmx.github.io/jool-doc in the near future.
 
 ## Directories
 
