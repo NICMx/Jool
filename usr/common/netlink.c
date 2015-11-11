@@ -6,11 +6,21 @@
 
 #define HDR_LEN sizeof(struct request_hdr)
 
+/*
+ * This will need to be refactored if some day we need multiple request calls
+ * in separate threads.
+ * At this point this is the best I can do because there's no other way to tell
+ * whether the error returned by nl_recvmsgs_default() is a Netlink error or a
+ * Jool error.
+ */
+bool error_handler_called = false;
+
 static int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr, void *arg)
 {
 	fprintf(stderr,"Error: %s", ((char*)nlerr)+sizeof(*nlerr));
 	fprintf(stderr,"(Error code: %d)\n", nlerr->error);
-	return 0;
+	error_handler_called = true;
+	return -abs(nlerr->error);
 }
 
 /*
@@ -68,7 +78,8 @@ int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *,
 
 	error = nl_recvmsgs_default(sk);
 	if (error < 0) {
-		log_err("%s (System error %d)", nl_geterror(error), error);
+		if (!error_handler_called)
+			log_err("Netlink error message: %s (Code %d)", nl_geterror(error), error);
 		goto fail_close;
 	}
 
