@@ -41,17 +41,25 @@ MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the modu
 #endif
 
 static unsigned int hook_ipv4(HOOK_ARG_TYPE hook, struct sk_buff *skb,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+		const struct nf_hook_state *state)
+#else
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
+#endif
 {
-	return core_4to6(skb, in);
+	return core_4to6(skb, skb->dev);
 }
 
 static unsigned int hook_ipv6(HOOK_ARG_TYPE hook, struct sk_buff *skb,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+		const struct nf_hook_state *state)
+#else
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
+#endif
 {
-	return core_6to4(skb, in);
+	return core_6to4(skb, skb->dev);
 }
 
 static struct nf_hook_ops nfho[] = {

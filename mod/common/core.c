@@ -67,7 +67,7 @@ end:
 static bool check_namespace(const struct net_device *dev)
 {
 #ifdef CONFIG_NET_NS
-	if (dev && dev->nd_net != joolns_get())
+	if (dev && dev_net(dev) != joolns_get())
 		return false;
 #endif
 	return true;
