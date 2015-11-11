@@ -27,11 +27,21 @@ Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#c
 
 A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues).
 
-La versión más reciente es la [3.4.0](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
+La versión más reciente es la [3.4.1](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
 
 -------------------
 
 ## Noticias
+
+### 2015-11-11
+
+Jool 3.4.1 fue liberado. Se corrigieron tres bugs:
+
+1. Kernel panic debido a [incorrecto manejo de namespaces](https://github.com/NICMx/NAT64/pull/185#issuecomment-155875381).
+2. Corregida [compilación para kernels 4.1 en adelante](https://github.com/NICMx/NAT64/pull/185).
+3. Las aplicaciones de espacio de usuario [solían regresar éxito en errores detectados por el módulo](https://github.com/NICMx/NAT64/issues/184).
+
+El segundo punto también afectaba a Jool 3.3, de modo que también se liberó 3.3.6.
 
 ### 2015-11-04
 
