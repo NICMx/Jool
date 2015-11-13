@@ -785,7 +785,6 @@ static int handle_joold_request(struct nlmsghdr *nl_hdr, struct request_hdr *joo
 			__u8* request_data)
 {
 
-	log_info("jool header length: %lu", jool_hdr->length);
 	joold_sync_entires(request_data, jool_hdr->length);
 	return 0;
 }
@@ -1120,8 +1119,6 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	struct request_hdr *jool_hdr;
 	void *request;
 	int error;
-
-	log_info("skb_in len %u",skb_in->len);
 
 	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);

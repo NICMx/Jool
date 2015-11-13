@@ -60,6 +60,9 @@ void *receiver_start(void *args) {
 	printf("Starting receiver.");
 	addrlen = sizeof(clientaddr);
 	for (;;) {
+
+		printf("sizeof b -> %d \n",sizeof(b));
+
 		n = recvfrom(sockfd, b, sizeof(b), 0, (struct sockaddr *) &clientaddr,
 				&addrlen);
 

@@ -484,6 +484,7 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 		struct packet *pkt) {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		session->state = ESTABLISHED;
+		joold_add_session_element(session);
 		return FATE_TIMER_EST;
 	}
 
@@ -500,6 +501,7 @@ static enum session_fate tcp_v6_init_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = ESTABLISHED;
+			joold_add_session_element(session);
 			return FATE_TIMER_EST;
 		case L3PROTO_IPV6:
 			return FATE_TIMER_TRANS;
@@ -519,9 +521,11 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
+			joold_add_session_element(session);
 			break;
 		case L3PROTO_IPV6:
 			session->state = V6_FIN_RCV;
+			joold_add_session_element(session);
 			break;
 		}
 		return FATE_PRESERVE;
@@ -542,6 +546,7 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 		struct packet *pkt) {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
+		joold_add_session_element(session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -556,6 +561,7 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 		struct packet *pkt) {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
+		joold_add_session_element(session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -578,6 +584,7 @@ static enum session_fate tcp_trans_state(struct session_entry *session,
 		struct packet *pkt) {
 	if (!pkt_tcp_hdr(pkt)->rst) {
 		session->state = ESTABLISHED;
+		joold_add_session_element(session);
 		return FATE_TIMER_EST;
 	}
 
@@ -605,9 +612,12 @@ static enum session_fate tcp_state_machine(struct session_entry *session,
 		sfate = tcp_v6_fin_rcv_state(session, arg);
 		return sfate;
 	case V4_FIN_V6_FIN_RCV:
-		return tcp_v4_fin_v6_fin_rcv_state();
+		sfate = tcp_v4_fin_v6_fin_rcv_state();
+		return sfate;
 	case TRANS:
-		return tcp_trans_state(session, arg);
+		sfate = tcp_trans_state(session, arg);
+		return sfate;
+
 	case CLOSED:
 		break;
 	}
@@ -638,6 +648,8 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple) {
 		inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 		return VERDICT_DROP;
 	}
+
+	//joold_add_session_element(session);
 
 	log_session(session);
 	session_return(session);

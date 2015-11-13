@@ -95,6 +95,7 @@ int sessiondb_add(struct session_entry *session, bool is_est, bool is_synch)
 {
 	struct session_table *table = get_table(session->l4_proto);
 	return table ? sessiontable_add(table, session, is_est, is_synch) : -EINVAL;
+	return -EINVAL;
 }
 
 bool sessiondb_is_session_established(struct session_entry *session)
@@ -112,14 +113,14 @@ int sessiondb_set_session_timer(struct session_entry *session, bool is_establish
 
 	if (is_established) {
 		log_info("assinging est timer!");
-		if (&session->expirer != &table->est_timer) {
+		if (session->expirer != &table->est_timer) {
 			changed = 1;
 			session->expirer = &table->est_timer;
 		}
 
 	} else {
 		log_info("assinging trans timer!");
-		if (&session->expirer != &table->est_timer) {
+		if (session->expirer != &table->est_timer) {
 			changed = 1;
 			session->expirer = &table->trans_timer;
 		}

@@ -85,12 +85,8 @@ static int updated_entries_callback(struct nl_msg *msg, void *arg) {
 	payload = nlmsg_data(hdr);
 
 	joold_data = (struct request_hdr*) payload;
-	char * entry_magic = joold_data;
-	entry_magic += sizeof(*joold_data);
 
 	log_info("received header string -> %s", payload/*joold_data->magic*/);
-	log_info("entry magic -> %s",entry_magic) ;
-
 	sender_callback(payload, sizeof(struct request_hdr) + joold_data->length);
 
 	return 0;

@@ -53,10 +53,12 @@ static void force_reschedule(struct expire_timer *expirer)
 	unsigned long next_time;
 	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
 
+
 	if (list_empty(&expirer->sessions))
 		return;
 
 	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
+
 	next_time = first->update_time + expirer->get_timeout();
 
 	if (time_before(next_time, min_next_time))
@@ -106,8 +108,6 @@ static void decide_fate(fate_cb cb,
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		reschedule(&table->est_timer);
-
-		joold_add_session_element(session);
 		break;
 	case FATE_PROBE:
 		tmp = session_clone(session);
@@ -126,8 +126,6 @@ static void decide_fate(fate_cb cb,
 		list_del(&session->list_hook);
 		list_add_tail(&session->list_hook, &session->expirer->sessions);
 		reschedule(&table->trans_timer);
-
-		joold_add_session_element(session) ;
 		break;
 	case FATE_RM:
 		rm(table, session, rms);
@@ -539,15 +537,19 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	int error;
 
 	pktqueue_remove(session);
+
 	expirer = is_established ? &table->est_timer : &table->trans_timer;
 
+
 	spin_lock_bh(&table->lock);
+
 
 	error = add6(table, session);
 	if (error) {
 		spin_unlock_bh(&table->lock);
 		return error;
 	}
+
 
 	error = add4(table, session);
 	if (error) {
@@ -560,11 +562,13 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	session_get(session); /* Database's references. */
 	table->count++;
 
+
 	spin_unlock_bh(&table->lock);
 
 	session_log(session, "Added session");
 
 	//function to add session for synchronization.
+
 	if (!is_synchronized)
 	error = joold_add_session_element(session);
 

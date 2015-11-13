@@ -4,6 +4,7 @@
 #include <linux/time.h>
 #include <linux/jiffies.h>
 #include "nat64/common/config.h"
+#include "nat64/common/session.h"
 #include "nat64/common/joold/joold_config.h"
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/stateful/session/entry.h"
@@ -14,7 +15,8 @@
 static struct sock *sender_sk;
 static struct request_hdr header_struct;
 
-static DEFINE_SPINLOCK( lock);
+static DEFINE_SPINLOCK( lock_send);
+static DEFINE_SPINLOCK( lock_receive);
 
 static int session_list_elem_num = 0;
 static int elements_limit = 20;
@@ -24,18 +26,54 @@ static struct timer_list updater_timer;
 static struct list_head session_elements;
 
 struct session_element {
-	char entry_magic[5];
 	struct ipv6_transport_addr remote6;
 	struct ipv6_transport_addr local6;
 	struct ipv4_transport_addr local4;
 	struct ipv4_transport_addr remote4;
 	__be64 update_time;
 	__be16 is_established;
-	__be16 l4_proto;
+	__be32 l4_proto;
 	__be16 state;
+	char entry_magic[5];
 	struct list_head nextprev;
 };
 
+static __u32 protocol_to_u32(l4_protocol protocol) {
+
+	__u32 value = 100;
+
+	switch (protocol) {
+	case L4PROTO_TCP:
+		value = 0;
+		break;
+
+	case L4PROTO_UDP:
+		value = 1;
+		break;
+
+	case L4PROTO_ICMP:
+		value = 2;
+		break;
+
+	case L4PROTO_OTHER:
+		value = 3;
+		break;
+	}
+
+	return value;
+}
+
+static l4_protocol u32_to_protocol(__u32 protocol) {
+
+	int int_value = protocol;
+
+	l4_protocol value;
+
+	value = int_value;
+
+	return value;
+
+}
 
 static int send_msg(void *payload, __u16 payload_len) {
 	struct sk_buff *skb_out;
@@ -56,8 +94,6 @@ static int send_msg(void *payload, __u16 payload_len) {
 	0, /* type */
 	payload_len, /* payload len */
 	0); /* flags */
-
-	log_info("skb_out len %lu",skb_out->len);
 
 	memcpy((__u8 *) nlmsg_data(nl_hdr_out), (__u8 *) payload, payload_len);
 
@@ -95,16 +131,11 @@ static int joold_send_to_userspace(void) {
 		header_struct.length = (sizeof(struct session_element)
 				* session_list_elem_num);
 
-		log_info("jool header length %lu", header_struct.length);
-
 		memcpy(payload, (__u8 *) &header_struct, sizeof(header_struct));
 
 		while (!list_empty(&session_elements)) {
 
 			s_element = list_first_entry(&session_elements,struct session_element,nextprev);
-
-					log_debug("magic of the session element to be sent-> %s",
-					s_element->entry_magic);
 
 			memcpy(payload_pointer, (__u8 *) s_element, sizeof(*s_element));
 
@@ -118,20 +149,18 @@ static int joold_send_to_userspace(void) {
 		session_list_elem_num = 0;
 	}
 
-
-
 	return 0;
 }
 
 static void send_to_userspace_timeout(unsigned long parameter) {
 
-	spin_lock_bh(&lock);
+	spin_lock_bh(&lock_send);
 	if (joold_send_to_userspace()) {
 		log_err(
 				"An error occurred while sending session entries to userspace!");
 	}
 
-	spin_unlock_bh(&lock);
+	spin_unlock_bh(&lock_send);
 
 	if (mod_timer(&updater_timer, jiffies + msecs_to_jiffies(500))) {
 		log_err("Something went wrong while reinitializing the updater timer!");
@@ -179,6 +208,7 @@ int joold_add_session_element(struct session_entry *entry) {
 	int error = 0;
 	struct session_element *entry_copy;
 	__u64 update_time;
+	__u32 protocol;
 
 	log_info("Adding session entry to the list of updated entries");
 
@@ -195,8 +225,10 @@ int joold_add_session_element(struct session_entry *entry) {
 	entry_copy->entry_magic[3] = 'l';
 	entry_copy->entry_magic[4] = '\0';
 
-	entry_copy->is_established = cpu_to_be16(sessiondb_is_session_established(entry));
-	entry_copy->l4_proto = cpu_to_be16(entry->l4_proto);
+	protocol = protocol_to_u32(entry->l4_proto);
+	log_info("protocol %u", protocol);
+	entry_copy->l4_proto = cpu_to_be32(protocol);
+	log_info("protocol %u", entry_copy->l4_proto);
 	entry_copy->local4 = entry->local4;
 	entry_copy->local6 = entry->local6;
 	entry_copy->remote4 = entry->remote4;
@@ -210,8 +242,7 @@ int joold_add_session_element(struct session_entry *entry) {
 	log_info("session update_time %lu", entry->update_time);
 	log_info("session copy update_time %llu", entry_copy->update_time);
 
-
-	spin_lock_bh(&lock);
+	spin_lock_bh(&lock_send);
 
 	list_add(&entry_copy->nextprev, &session_elements);
 
@@ -225,7 +256,7 @@ int joold_add_session_element(struct session_entry *entry) {
 
 	}
 
-	spin_unlock_bh(&lock);
+	spin_unlock_bh(&lock_send);
 
 	return error;
 
@@ -238,31 +269,40 @@ static int update_session(struct list_head * synch_session_elements) {
 	struct session_entry *s_entry_aux;
 	struct tuple tuple_aux;
 	struct bib_entry *b_entry;
+	int error;
 	__u8 bib_created = 0;
-	l4_protocol l4_proto;
+	l4_protocol protocol;
+	__u32 u32_proto;
 	__u16 state;
 	__u64 update_time;
+	bool is_established;
 
 	while (!list_empty(synch_session_elements)) {
 
+		error = 0;
+		bib_created = 0;
+
 		s_element = list_first_entry(synch_session_elements,struct session_element,nextprev);
 
-		l4_proto = be16_to_cpu(s_element->l4_proto);
+		u32_proto = be32_to_cpu(s_element->l4_proto);
+		protocol = u32_to_protocol(u32_proto);
 		state = be16_to_cpu(s_element->state);
 		update_time = be64_to_cpu(s_element->update_time);
 		update_time = jiffies - msecs_to_jiffies(update_time);
 
-		log_debug("magic session element number %s", s_element->entry_magic);
+		if (protocol == L4PROTO_TCP) {
+			is_established = state == ESTABLISHED;
+		} else {
+			is_established = true;
+		}
+
+		log_info("magic session element number %s", s_element->entry_magic);
 
 		s_entry = kmalloc(sizeof(struct session_entry), GFP_ATOMIC);
 
 		if (!s_entry) {
 			log_err("Could not allocate memory for session entry!");
-
-			list_del(&(s_element->nextprev));
-			kfree(s_element);
-
-			continue;
+			goto next_session;
 		}
 
 		kref_init(&s_entry->refcounter);
@@ -270,64 +310,108 @@ static int update_session(struct list_head * synch_session_elements) {
 		RB_CLEAR_NODE(&s_entry->tree6_hook);
 		RB_CLEAR_NODE(&s_entry->tree4_hook);
 
+		memcpy((void*) &s_entry->l4_proto, (void*) &protocol,
+				sizeof(l4_protocol));
+		memcpy((void*) &s_entry->local4, (void*) &s_element->local4,
+				sizeof(s_element->local4));
+		memcpy((void*) &s_entry->local6, (void*) &s_element->local6,
+				sizeof(s_element->local6));
+		memcpy((void*) &s_entry->remote4, (void*) &s_element->remote4,
+				sizeof(s_element->remote4));
+		memcpy((void*) &s_entry->remote6, (void*) &s_element->remote6,
+				sizeof(s_element->remote6));
 
-		memcpy((void*)&s_entry->l4_proto,(void*)&l4_proto,sizeof(l4_protocol));
-		memcpy((void*)&s_entry->local4,(void*)&s_element->local4,sizeof(s_element->local4));
-		memcpy((void*)&s_entry->local6,(void*)&s_element->local6,sizeof(s_element->local6));
-		memcpy((void*)&s_entry->remote4,(void*)&s_element->remote4,sizeof(s_element->remote4));
-		memcpy((void*)&s_entry->remote6,(void*)&s_element->remote6,sizeof(s_element->remote6));
 		s_entry->state = state;
 		s_entry->update_time = update_time;
+		s_entry->expirer = 0;
 
 		tuple_aux.dst.addr6 = s_entry->local6;
 		tuple_aux.src.addr6 = s_entry->remote6;
 		tuple_aux.l4_proto = s_entry->l4_proto;
 		tuple_aux.l3_proto = L3PROTO_IPV6;
 
-		if (sessiondb_get(&tuple_aux, 0, 0, &s_entry_aux)) {
+		error = sessiondb_get(&tuple_aux, 0, 0, &s_entry_aux);
 
-			log_info("creating session...");
+		if (error == -EINVAL) {
+			log_err("unexpected error!");
+			kfree(s_entry);
+			goto next_session;
+		}
 
-			if (bibdb_get(&tuple_aux, &b_entry)) {
+		if (error == -ESRCH) {
 
-				b_entry = bibentry_create(&s_entry->local4, &s_entry->remote6,
-						false, s_entry->l4_proto);
-				bibdb_add(b_entry);
+			log_info("creating session!");
 
-				bib_created = 1;
+			error = bibdb_get(&tuple_aux, &b_entry);
 
-			} else {
-				bib_created = 0;
+			if (error == -EINVAL) {
+				log_err("unexpected error!");
+				kfree(s_entry);
+				goto next_session;
 			}
 
-			memcpy((void*) &s_entry->bib, (void*) &(b_entry),
-					sizeof(b_entry));
+			if (error == -ESRCH) {
+				log_info("bib entry doesnt exist. let's create one");
 
-			sessiondb_add(s_entry, s_element->is_established, true);
+				b_entry = bibentry_create(&s_entry->local4, &s_entry->remote6,
+				false, s_entry->l4_proto);
 
+				if (!b_entry) {
+					log_err("couldn't allocate bib entry!");
+					kfree(s_entry);
+					goto next_session;
+				}
 
-			if (!bib_created)
-				bibdb_return(b_entry);
+				bib_created = 1;
+			}
+
+			//we want to copy the value of one pointer to the other, not the content of the struct it is referencing.
+			memcpy((void*) &s_entry->bib, (void*) &b_entry, sizeof(b_entry));
+			log_info("entry has been copied!");
+			log_info("let's see if we are getting an error.");
+
+			if (sessiondb_add(s_entry, is_established, true)) {
+				log_err("couldn't add session entry to the database!");
+
+				if (bib_created)
+					bibentry_kfree(b_entry);
+
+				kfree(s_entry);
+				goto next_session;
+			}
+
+			if (bib_created) {
+				error = bibdb_add(b_entry);
+
+				if (error == -EINVAL) {
+					sessiondb_delete_by_bib(b_entry);
+					log_err("couldn't add bib entry to the database!");
+					bibentry_kfree(b_entry);
+					goto next_session;
+				}
+			}
 
 		} else {
 
 			log_info("got session!!");
 
 			s_entry_aux->update_time = update_time;
-			log_info("is session established %d",s_element->is_established);
-			log_info("update time %lu",s_entry_aux->update_time);
+			log_info("is session established %d", is_established);
+			log_info("update time %lu", s_entry_aux->update_time);
 			log_info("jiffies %lu", jiffies);
 
 			s_entry_aux->state = state;
 
-				if (sessiondb_set_session_timer(s_entry_aux,s_element->is_established)) {
-					log_err("Could not set session's timer!");
-				}
+			if (sessiondb_set_session_timer(s_entry_aux, is_established)) {
+				log_err("Could not set session's timer!");
+			}
 
 			session_return(s_entry_aux);
 
 			kfree(s_entry);
 		}
+
+		next_session:
 
 		list_del(&(s_element->nextprev));
 		kfree(s_element);
@@ -340,10 +424,11 @@ static int update_session(struct list_head * synch_session_elements) {
 int joold_sync_entires(__u8 *data, __u32 size) {
 
 	__u32 index = 0;
-
-	struct list_head * synch_session_elements = kmalloc(
-			sizeof(struct hlist_head), GFP_ATOMIC);
+	struct list_head * synch_session_elements;
 	struct session_element * s_element;
+
+	synch_session_elements = kmalloc(
+			sizeof(struct hlist_head), GFP_ATOMIC);
 
 	log_debug("synching entries... received size %u", size);
 
@@ -359,7 +444,7 @@ int joold_sync_entires(__u8 *data, __u32 size) {
 
 		s_element = kmalloc(sizeof(*s_element), GFP_ATOMIC);
 
-		if(!s_element) {
+		if (!s_element) {
 			log_err("Could not allocate memory for session element!");
 			continue;
 		}
@@ -370,11 +455,11 @@ int joold_sync_entires(__u8 *data, __u32 size) {
 
 	}
 
-	spin_lock_bh(&lock);
+	spin_lock_bh(&lock_receive);
 
 	update_session(synch_session_elements);
 
-	spin_unlock_bh(&lock);
+	spin_unlock_bh(&lock_receive);
 
 	return 0;
 }
