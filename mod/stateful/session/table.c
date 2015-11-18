@@ -4,6 +4,7 @@
 #include "nat64/common/constants.h"
 #include "nat64/mod/common/rbtree.h"
 #include "nat64/mod/common/route.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/session/pkt_queue.h"
 
 /**
@@ -52,10 +53,12 @@ static void force_reschedule(struct expire_timer *expirer)
 	unsigned long next_time;
 	const unsigned long min_next_time = jiffies + MIN_TIMER_SLEEP;
 
+
 	if (list_empty(&expirer->sessions))
 		return;
 
 	first = list_entry(expirer->sessions.next, typeof(*first), list_hook);
+
 	next_time = first->update_time + expirer->get_timeout();
 
 	if (time_before(next_time, min_next_time))
@@ -80,6 +83,11 @@ static void reschedule(struct expire_timer *expirer)
 		return;
 
 	force_reschedule(expirer);
+}
+
+void sessiontable_reschedule(struct expire_timer *expirer)
+{
+	reschedule(expirer);
 }
 
 static void decide_fate(fate_cb cb,
@@ -247,12 +255,15 @@ static void cleaner_timer(unsigned long param)
 
 	spin_lock_bh(&expirer->table->lock);
 	list_for_each_entry_safe(session, tmp, &expirer->sessions, list_hook) {
+		log_info("executing foreach loop!");
 		/*
 		 * "list" is sorted by expiration date,
 		 * so stop on the first unexpired session.
 		 */
 		if (time_before(jiffies, session->update_time + timeout))
 			break;
+
+		log_info("executing fate function!");
 
 		decide_fate(expirer->decide_fate_cb, NULL, expirer->table,
 				session, &rms, &probes);
@@ -519,21 +530,25 @@ static void attach_timer(struct session_entry *session,
 }
 
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		bool is_established)
+		bool is_established, bool is_synchronized)
 {
 	struct expire_timer *expirer;
 	int error;
 
 	pktqueue_remove(session);
+
 	expirer = is_established ? &table->est_timer : &table->trans_timer;
 
+
 	spin_lock_bh(&table->lock);
+
 
 	error = add6(table, session);
 	if (error) {
 		spin_unlock_bh(&table->lock);
 		return error;
 	}
+
 
 	error = add4(table, session);
 	if (error) {
@@ -546,9 +561,17 @@ int sessiontable_add(struct session_table *table, struct session_entry *session,
 	session_get(session); /* Database's references. */
 	table->count++;
 
+
 	spin_unlock_bh(&table->lock);
 
 	session_log(session, "Added session");
+
+	//function to add session for synchronization.
+
+	if (!is_synchronized)
+	error = joold_add_session_element(session);
+
+
 	return 0;
 }
 

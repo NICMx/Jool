@@ -18,7 +18,7 @@ void sessiondb_destroy(void);
 
 int sessiondb_get(struct tuple *tuple, fate_cb cb, struct packet *pkt,
 		struct session_entry **result);
-int sessiondb_add(struct session_entry *session, bool is_established);
+int sessiondb_add(struct session_entry *session, bool is_established, bool is_synch);
 
 int sessiondb_foreach(l4_protocol proto,
 		int (*func)(struct session_entry *, void *), void *arg,
@@ -34,5 +34,8 @@ void sessiondb_flush(void);
 
 bool sessiondb_allow(struct tuple *tuple4);
 void sessiondb_update_timers(void);
+
+bool sessiondb_is_session_established(struct session_entry *session);
+int sessiondb_set_session_timer(struct session_entry *session, bool is_established);
 
 #endif /* _JOOL_MOD_SESSION_DB_H */

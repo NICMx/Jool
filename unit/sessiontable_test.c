@@ -41,7 +41,7 @@ static bool inject(unsigned int index, __u32 local4addr, __u16 local4id,
 	if (!entries[index])
 		return false;
 
-	error = sessiontable_add(&table, entries[index], true);
+	error = sessiontable_add(&table, entries[index], true,false);
 	if (error) {
 		log_err("Errcode %d on sessiontable_add.", error);
 		return false;

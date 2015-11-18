@@ -52,5 +52,5 @@ struct session_entry *session_inject(
 	if (!session)
 		return NULL;
 
-	return sessiondb_add(session, is_est) ? NULL : session;
+	return sessiondb_add(session, is_est, false) ? NULL : session;
 }

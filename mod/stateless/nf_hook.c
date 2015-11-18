@@ -33,6 +33,9 @@ static bool disabled;
 module_param(disabled, bool, 0);
 MODULE_PARM_DESC(disabled, "Disable the translation at the beginning of the module insertion.");
 
+static int sock_family = NETLINK_USERSOCK;
+module_param(sock_family, int, 0);
+MODULE_PARM_DESC(sock_family, "Family of the socket which will handle userspace requests.");
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 #define HOOK_ARG_TYPE const struct nf_hook_ops *
@@ -100,7 +103,7 @@ static int __init nat64_init(void)
 	if (error)
 		goto log_time_failure;
 #endif
-	error = nlhandler_init();
+	error = nlhandler_init(sock_family);
 	if (error)
 		goto nlhandler_failure;
 	error = pool6_init(&pool6, pool6 ? 1 : 0);

@@ -25,4 +25,4 @@ AC_CHECK_FUNCS([inet_ntoa memset strcasecmp strtol])
 PKG_CHECK_MODULES(LIBNL3, libnl-3.0 >= 3.1)
 
 # Spit out the makefiles.
-AC_OUTPUT(Makefile stateless/Makefile stateful/Makefile)
+AC_OUTPUT(Makefile stateless/Makefile stateful/Makefile joold/Makefile)

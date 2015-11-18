@@ -16,6 +16,14 @@
 
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
+/* TODO really necessary? */
+#ifdef BENCHMARK
+	#ifdef __KERNEL__
+		#include <linux/time.h>
+	#else
+		#include <time.h>
+	#endif
+#endif
 
 /**
  * ID of Netlink messages Jool listens to.
@@ -60,7 +68,9 @@ enum config_mode {
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
 	/** The current message is talking about the JSON configuration file */
-	MODE_PARSE_FILE = (1 << 9)
+	MODE_PARSE_FILE = (1 << 9),
+	/** The current message is talking about synchronization entries.*/
+	MODE_JOOLD = (1 << 10),
 };
 
 /**
@@ -224,6 +234,7 @@ union request_pool6 {
 	} flush;
 };
 
+/* TODO ? */
 struct request_pool4_add{
 	__u32 mark;
 	__u8 proto;

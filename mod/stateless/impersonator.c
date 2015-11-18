@@ -148,3 +148,9 @@ verdict fragdb_handle(struct packet *pkt)
 	fail(__func__);
 	return VERDICT_DROP;
 }
+
+int joold_sync_entires(__u8 *data, __u32 size)
+{
+	fail(__func__);
+	return -EINVAL;
+}

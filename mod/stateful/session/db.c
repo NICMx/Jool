@@ -91,10 +91,50 @@ bool sessiondb_allow(struct tuple *tuple4)
 	return table ? sessiontable_allow(table, tuple4) : false;
 }
 
-int sessiondb_add(struct session_entry *session, bool is_est)
+int sessiondb_add(struct session_entry *session, bool is_est, bool is_synch)
 {
 	struct session_table *table = get_table(session->l4_proto);
-	return table ? sessiontable_add(table, session, is_est) : -EINVAL;
+	return table ? sessiontable_add(table, session, is_est, is_synch) : -EINVAL;
+	return -EINVAL;
+}
+
+bool sessiondb_is_session_established(struct session_entry *session)
+{
+	struct session_table *table = get_table(session->l4_proto);
+	return session->expirer == &table->est_timer ? true : false;
+}
+
+int sessiondb_set_session_timer(struct session_entry *session, bool is_established)
+{
+	struct session_table *table = get_table(session->l4_proto);
+	__u8 changed = 0;
+	if (!table)
+		return -EINVAL;
+
+	if (is_established) {
+		log_info("assinging est timer!");
+		if (session->expirer != &table->est_timer) {
+			changed = 1;
+			session->expirer = &table->est_timer;
+		}
+
+	} else {
+		log_info("assinging trans timer!");
+		if (session->expirer != &table->est_timer) {
+			changed = 1;
+			session->expirer = &table->trans_timer;
+		}
+	}
+
+	if (changed) {
+		list_del(&session->list_hook);
+		list_add_tail(&session->list_hook, &session->expirer->sessions);
+		sessiontable_reschedule(session->expirer);
+	}
+
+	sessiontable_reschedule(session->expirer);
+
+	return 0;
 }
 
 int sessiondb_foreach(l4_protocol proto,

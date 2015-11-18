@@ -2,6 +2,13 @@
 #include <errno.h>
 #include "types.h"
 
+int error_handler(struct sockaddr_nl *nla, struct nlmsgerr *nlerr, void *arg) {
+
+	log_err("this is the message length: %d", nlerr->msg->nlmsg_len) ;
+
+	return 0;
+}
+
 int netlink_request(void *request, __u16 request_len,
 		int (*cb)(struct nl_msg *, void *), void *cb_arg)
 {

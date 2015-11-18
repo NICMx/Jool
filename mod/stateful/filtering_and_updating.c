@@ -7,6 +7,7 @@
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/rfc6052.h"
 #include "nat64/mod/common/stats.h"
+#include "nat64/mod/stateful/joold.h"
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/bib/port_allocator.h"
 #include "nat64/mod/stateful/pool4/db.h"
@@ -44,7 +45,8 @@ static enum session_fate expired_cb(struct session_entry *session, void *arg)
 		return FATE_RM;
 	}
 
-	WARN(true, "Unknown state found (%d); removing session entry.", session->state);
+	WARN(true, "Unknown state found (%d); removing session entry.",
+			session->state);
 	return FATE_RM;
 }
 
@@ -250,11 +252,13 @@ static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
 	if (error)
 		return error;
 
-	error = sessiondb_add(session, true);
+	error = sessiondb_add(session, true, false);
 	if (error) {
 		session_return(session);
 		return error;
 	}
+
+	// TODO Add function call, to add session to queue.
 
 	*result = session;
 	return 0;
@@ -385,7 +389,7 @@ static int tcp_closed_v6_syn(struct packet *pkt, struct tuple *tuple6)
 		goto bib_end;
 	session->state = V6_INIT;
 
-	error = sessiondb_add(session, false);
+	error = sessiondb_add(session, false, false);
 	if (error)
 		goto session_end;
 
@@ -414,8 +418,7 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 	verdict result = VERDICT_DROP;
 
 	if (config_get_drop_external_connections()) {
-		log_debug("Applying policy: Dropping externally initiated TCP "
-				"connections.");
+		log_debug("Applying policy: Dropping externally initiated TCP connections.");
 		return VERDICT_DROP;
 	}
 
@@ -443,10 +446,9 @@ static verdict tcp_closed_v4_syn(struct packet *pkt, struct tuple *tuple4)
 		result = VERDICT_STOLEN;
 
 	} else {
-		error = sessiondb_add(session, false);
+		error = sessiondb_add(session, false, false);
 		if (error) {
-			log_debug("Error code %d while adding the session to "
-					"the DB.", error);
+			log_debug("Error code %d while adding the session to the DB.", error);
 			goto end_session;
 		}
 
@@ -495,8 +497,8 @@ static verdict tcp_closed_state(struct packet *pkt, struct tuple *tuple)
 
 	error = bibdb_get(tuple, &bib);
 	if (error) {
-		log_debug("Closed state: Packet is not SYN and there is no BIB "
-				"entry, so discarding. ERRcode %d", error);
+		log_debug("Closed state: Packet is not SYN and there is no BIB entry, so discarding. ERRcode %d",
+				error);
 		inc_stats(pkt, IPSTATS_MIB_INNOROUTES);
 		return VERDICT_DROP;
 	}
@@ -519,6 +521,7 @@ static enum session_fate tcp_v4_init_state(struct session_entry *session,
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->syn) {
 		session->state = ESTABLISHED;
+		joold_add_session_element(session);
 		return FATE_TIMER_EST;
 	}
 
@@ -536,6 +539,7 @@ static enum session_fate tcp_v6_init_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = ESTABLISHED;
+			joold_add_session_element(session);
 			return FATE_TIMER_EST;
 		case L3PROTO_IPV6:
 			return FATE_TIMER_TRANS;
@@ -556,9 +560,11 @@ static enum session_fate tcp_established_state(struct session_entry *session,
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV4:
 			session->state = V4_FIN_RCV;
+			joold_add_session_element(session);
 			break;
 		case L3PROTO_IPV6:
 			session->state = V6_FIN_RCV;
+			joold_add_session_element(session);
 			break;
 		}
 		return FATE_PRESERVE;
@@ -580,6 +586,7 @@ static enum session_fate tcp_v4_fin_rcv_state(struct session_entry *session,
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV6 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
+		joold_add_session_element(session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -595,6 +602,7 @@ static enum session_fate tcp_v6_fin_rcv_state(struct session_entry *session,
 {
 	if (pkt_l3_proto(pkt) == L3PROTO_IPV4 && pkt_tcp_hdr(pkt)->fin) {
 		session->state = V4_FIN_V6_FIN_RCV;
+		joold_add_session_element(session);
 		return FATE_TIMER_TRANS;
 	}
 
@@ -619,6 +627,7 @@ static enum session_fate tcp_trans_state(struct session_entry *session,
 {
 	if (!pkt_tcp_hdr(pkt)->rst) {
 		session->state = ESTABLISHED;
+		joold_add_session_element(session);
 		return FATE_TIMER_EST;
 	}
 
@@ -676,6 +685,8 @@ static verdict tcp(struct packet *pkt, struct tuple *tuple)
 		return VERDICT_DROP;
 	}
 
+	//joold_add_session_element(session);
+
 	log_session(session);
 	session_return(session);
 	return VERDICT_CONTINUE;
@@ -714,8 +725,7 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 		break;
 	case L3PROTO_IPV4:
 		/* Get rid of unexpected packets */
-		if (!pool4db_contains(in_tuple->l4_proto,
-				&in_tuple->dst.addr4)) {
+		if (!pool4db_contains(in_tuple->l4_proto, &in_tuple->dst.addr4)) {
 			log_debug("Packet does not belong to pool4.");
 			return VERDICT_ACCEPT;
 		}
@@ -748,8 +758,7 @@ verdict filtering_and_updating(struct packet *pkt, struct tuple *in_tuple)
 		switch (pkt_l3_proto(pkt)) {
 		case L3PROTO_IPV6:
 			if (config_get_filter_icmpv6_info()) {
-				log_debug("Packet is ICMPv6 info (ping); "
-						"dropping due to policy.");
+				log_debug("Packet is ICMPv6 info (ping); dropping due to policy.");
 				inc_stats(pkt, IPSTATS_MIB_INDISCARDS);
 				return VERDICT_DROP;
 			}

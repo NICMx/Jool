@@ -84,7 +84,7 @@ void sessiontable_destroy(struct session_table *table);
 int sessiontable_get(struct session_table *table, struct tuple *tuple,
 		fate_cb cb, struct packet *pkt, struct session_entry **result);
 int sessiontable_add(struct session_table *table, struct session_entry *session,
-		bool is_established);
+		bool is_established, bool is_synchronized);
 
 int sessiontable_foreach(struct session_table *table,
 		int (*func)(struct session_entry *, void *), void *arg,
@@ -101,6 +101,7 @@ void sessiontable_delete_taddr6s(struct session_table *table,
 void sessiontable_flush(struct session_table *table);
 
 bool sessiontable_allow(struct session_table *table, struct tuple *tuple4);
+void sessiontable_reschedule(struct expire_timer *expirer);
 void sessiontable_update_timers(struct session_table *table);
 
 #endif /* _JOOL_MOD_SESSION_TABLE_H */

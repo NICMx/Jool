@@ -28,6 +28,8 @@ jool_common += ../common/send_packet.o
 jool_common += ../common/core.o
 jool_common += ../common/error_pool.o
 jool_common += ../common/namespace.o
+jool_common += ../common/nl/nl_core.o
+jool_common += ../common/nl/nl_receiver.o
 
 jool_siit += xlat.o
 jool_siit += eam.o

@@ -19,6 +19,8 @@
 #include "nat64/mod/stateful/bib/db.h"
 #include "nat64/mod/stateful/bib/static_routes.h"
 #include "nat64/mod/stateful/session/db.h"
+#include "nat64/mod/stateful/joold.h"
+#include "nat64/mod/common/nl/nl_receiver.h"
 
 /**
  * Socket the userspace application will speak to.
@@ -43,7 +45,8 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
-		pr_err("Failed to allocate a response skb to the user.");
+		/* TODO review nrelines again. */
+		pr_err("Failed to allocate a response skb to the user.\n");
 		return -ENOMEM;
 	}
 
@@ -58,7 +61,7 @@ static int respond_single_msg(struct nlmsghdr *nl_hdr_in, int type, void *payloa
 
 	res = nlmsg_unicast(nl_socket, skb_out, nl_hdr_in->nlmsg_pid);
 	if (res < 0) {
-		pr_err("Error code %d while returning response to the user.", res);
+		pr_err("Error code %d while returning response to the user.\n", res);
 		return res;
 	}
 
@@ -794,6 +797,14 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 #endif
 }
 
+static int handle_joold_request(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
+			__u8* request_data)
+{
+
+	joold_sync_entires(request_data, jool_hdr->length);
+	return 0;
+}
+
 static bool ensure_bytes(size_t actual, size_t expected)
 {
 	if (actual != expected) {
@@ -1132,6 +1143,7 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 
 	jool_hdr = NLMSG_DATA(nl_hdr);
 	request = jool_hdr + 1;
+
 	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
@@ -1157,11 +1169,12 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 		return handle_global_config(nl_hdr, jool_hdr, request);
 	case MODE_PARSE_FILE:
 		return handle_json_file_config(nl_hdr, jool_hdr, request);
+	case MODE_JOOLD:
+		return handle_joold_request(nl_hdr, jool_hdr, request);
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);
 	return respond_error(nl_hdr, -EINVAL);
-
 }
 
 /**
@@ -1180,37 +1193,15 @@ static void receive_from_userspace(struct sk_buff *skb)
 	mutex_unlock(&config_mutex);
 }
 
-int nlhandler_init(void)
+int nlhandler_init(int receiver_sock_family)
 {
-	/*
-	 * The function changed between Linux 3.5.7 and 3.6, and then again from 3.6.11 to 3.7.
-	 *
-	 * If you're reading the kernel's Git history, that appears to be the commit
-	 * a31f2d17b331db970259e875b7223d3aba7e3821 (v3.6-rc1~125^2~337) and then again in
-	 * 9f00d9776bc5beb92e8bfc884a7e96ddc5589e2e (v3.7-rc1~145^2~194).
-	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
-	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, 0, receive_from_userspace,
-			NULL, THIS_MODULE);
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
-	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, THIS_MODULE, &nl_cfg);
-#else
-	struct netlink_kernel_cfg nl_cfg = { .input  = receive_from_userspace };
-	nl_socket = netlink_kernel_create(joolns_get(), NETLINK_USERSOCK, &nl_cfg);
-#endif
+	int error;
 
-	if (nl_socket) {
-		log_debug("Netlink socket created.");
-	} else {
-		log_err("Creation of netlink socket failed.\n"
-				"(This usually happens because you already "
-				"have a Jool instance running.)\n"
-				"I will ignore this error. However, you will "
-				"not be able to configure Jool via the "
-				"userspace application.");
-	}
+	error = nl_receiver_init(receiver_sock_family,receive_from_userspace);
+	if (error)
+		return -1;
 
+	nl_socket = nl_receiver_get();
 	error_pool_init();
 
 	return 0;

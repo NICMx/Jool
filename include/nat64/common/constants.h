@@ -28,7 +28,8 @@
  * In other words, the tolerance time for established and healthy TCP sessions.
  * If a connection remains idle for longer than this, then we expect it to terminate soon.
  */
-#define TCP_EST (2 * 60 * 60)
+//#define TCP_EST (2 * 60 * 60)
+#define TCP_EST (60)
 /**
  * Transitory connection idle timeout (in seconds).
  * In other words, the timeout of TCP sessions which are expected to terminate soon.
@@ -105,6 +106,11 @@
 #define ICMP_PTR_INDICATES_ERROR 0
 /** Code 2 for ICMP messages of type ICMP_PARAMETERPROB. */
 #define ICMP_BAD_LENGTH 2
+
+
+/* -- Netlink -- */
+
+#define NETLINK_MULTICAST_FAMILY 22
 
 
 #endif /* _JOOL_COMMON_CONSTANTS_H */
