@@ -1,13 +1,19 @@
-# [Jool](https://nicmx.github.io/jool-doc)
+# [Jool](https://www.jool.mx)
 
-An [SIIT and a NAT64](https://nicmx.github.io/jool-doc/en/intro-xlat.html) for Linux.
+An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
+
+> Note!
+> 
+> Jool's website is hosted in two separate domains simultaneously.
+> 
+> - https://nicmx.github.io/jool-doc is always up-to-date, but isn't available from IPv6.
+> - https://www.jool.mx can take up to a week to see updates (and we don't bother when it's just small tweaks), but should also be available from IPv6.
 
 ## Documentation
 
-[See here](https://nicmx.github.io/jool-doc/en/documentation.html).
+[See here](https://www.jool.mx/en/documentation.html). You can also [generate the docs yourself](doc/README.md).
 
-Please send improvements, complaints and fixes to jool@nic.mx.
-Alternatively, you might want to upload bugs and pull requests to the [issue tracker](https://github.com/NICMx/NAT64/issues).
+You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 
 ## Directories
 
@@ -25,7 +31,7 @@ Alternatively, you might want to upload bugs and pull requests to the [issue tra
 * Ing. Sergio Adrián Casas Fernández - iam@sergio-casas.com
 * Ing. Julio Cesar Cossio de Robles
 * Ing. [Daniel Hernández Félix](https://github.com/dhfelix) - dhernandez@nic.mx
-* Ing. [Alberto Leiva Popper](https://github.com/ydahhrk) - aleiva@nic.mx
+* Ing. [Alberto Leiva Popper](https://github.com/ydahhrk)
 * Ing. Cristóbal Alfonso de León Benítez - cristobal.alfonso14@gmail.com
 * Ing. Roberto Olivas Alarcón - roaguns@gmail.com
 * Edgar Martín Rodríguez Bernal - edgarmrb_95@hotmail.com
