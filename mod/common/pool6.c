@@ -121,7 +121,7 @@ fail:
 }
 
 RCUTAG_USR
-static void pool6_replace(struct list_head *new)
+static void __replace(struct list_head *new)
 {
 	struct list_head *old_pool;
 	struct list_head *node;
@@ -145,7 +145,7 @@ static void pool6_replace(struct list_head *new)
 RCUTAG_USR
 void pool6_destroy(void)
 {
-	pool6_replace(NULL);
+	__replace(NULL);
 }
 
 RCUTAG_USR
@@ -157,7 +157,7 @@ int pool6_flush(void)
 	if (!new)
 		return -ENOMEM;
 
-	pool6_replace(new);
+	__replace(new);
 	return 0;
 }
 
@@ -225,52 +225,49 @@ bool pool6_contains(struct in6_addr *addr)
 	return !pool6_get(addr, &result); /* 0 -> true, -ESRCH or whatever -> false. */
 }
 
-RCUTAG_USR
-int pool6_add(struct ipv6_prefix *prefix)
+int generic_add(struct ipv6_prefix *prefix, struct list_head *db)
 {
-	struct list_head *list;
-	struct list_head *node;
 	struct pool_entry *entry;
 	int error;
 
-	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.",
-			&prefix->address, prefix->len);
+	/* TODO can we remove this? */
+	if (WARN(!prefix, "NULL is not a valid prefix."))
+		return -EINVAL;
 
 	error = validate_prefix(prefix);
 	if (error)
 		return error; /* Error msg already printed. */
 
-	mutex_lock(&lock);
-	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-
-	if (xlat_is_siit() && !list_empty(list)) {
+	if (xlat_is_siit() && !list_empty(db)) {
 		log_err("SIIT Jool only supports one pool6 prefix at a time.");
-		error = -EINVAL;
-		goto end;
+		return -EINVAL;
 	}
 
-	list_for_each(node, list) {
-		entry = get_entry(node);
+	list_for_each_entry(entry, db, list_hook) {
 		if (prefix6_equals(&entry->prefix, prefix)) {
 			log_err("The prefix already belongs to the pool.");
-			error = -EEXIST;
-			goto end;
+			return -EEXIST;
 		}
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		log_err("Allocation of IPv6 pool node failed.");
-		error = -ENOMEM;
-		goto end;
+		return -ENOMEM;
 	}
 	entry->prefix = *prefix;
 
-	list_add_tail_rcu(&entry->list_hook, list);
+	list_add_tail_rcu(&entry->list_hook, db);
 
-end:
-	mutex_unlock(&lock);
-	return error;
+	return 0;
+}
+
+/* TODO this is gonna need locking. */
+int pool6_add(struct ipv6_prefix *prefix)
+{
+	log_debug("Inserting prefix to the IPv6 pool: %pI6c/%u.", &prefix->address, prefix->len);
+
+	return generic_add(prefix,pool);
 }
 
 RCUTAG_USR
@@ -279,6 +276,10 @@ int pool6_remove(struct ipv6_prefix *prefix)
 	struct list_head *list;
 	struct list_head *node;
 	struct pool_entry *entry;
+
+	/* TODO can we remove this? */
+	if (WARN(!prefix, "NULL is not a valid prefix."))
+		return -EINVAL;
 
 	mutex_lock(&lock);
 	list = rcu_dereference_protected(pool, lockdep_is_held(&lock));
@@ -363,4 +364,57 @@ bool pool6_is_empty(void)
 	result = list_empty(rcu_dereference_bh(pool));
 	rcu_read_unlock_bh();
 	return result;
+}
+
+static struct list_head *pool6_config_init_db(void)
+{
+	struct list_head *config_db = NULL;
+
+	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
+	if (!config_db) {
+		log_err("Allocation of pool6 configuration database failed.");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(config_db);
+
+	return config_db;
+}
+
+static int pool6_config_add(struct list_head *db, struct ipv6_prefix *entry)
+{
+	return generic_add(entry, db);
+}
+
+static int pool6_switch_database(struct list_head *db)
+{
+	if (!db) {
+		 log_err("Error while switching blacklist database, null pointer received.");
+		 return 1;
+	}
+
+	pool6_destroy();
+	pool = db;
+
+	return 0;
+}
+
+int pool6_replace(struct ipv6_prefix *prefix) {
+	struct list_head *config_db = pool6_config_init_db();
+
+	if (!config_db) {
+		return -ENOMEM;
+	}
+
+	if (pool6_config_add(config_db, prefix)) {
+		log_err("An error occurred while trying to add the pool6 prefix to the config database!.") ;
+		return 1;
+	}
+
+	if (pool6_switch_database(config_db)) {
+		log_err("An error occurred while replacing the pool6 datbase with the config database!.") ;
+		return 1;
+	}
+
+	return 0;
 }

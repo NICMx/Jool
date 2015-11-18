@@ -83,3 +83,37 @@ bool blacklist_is_empty(void)
 {
 	return pool_is_empty(pool);
 }
+
+struct list_head *blacklist_config_init_db(void)
+{
+	struct list_head *config_db;
+
+	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
+	if (!config_db) {
+		log_err("Allocation of blacklist configuration database failed.");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(config_db);
+
+	return config_db;
+}
+
+int blacklist_config_add(struct list_head * db, struct ipv4_prefix * entry)
+{
+	return pool_add(db,entry);
+}
+
+int blacklist_switch_database(struct list_head * db)
+{
+	if (!db) {
+		 log_err("Error while switching blacklist database, null pointer received.");
+		 return 1;
+	}
+
+	blacklist_destroy();
+
+	pool = db;
+
+	return 0;
+}

@@ -5,6 +5,7 @@
 #include <netlink/socket.h>
 #include <netlink/msg.h>
 #include <netlink/attr.h>
+#include "nat64/common/config.h"
 
 
 /*
@@ -23,6 +24,15 @@
 
 int netlink_request(void *request, __u16 request_len, int (*cb)(struct nl_msg *, void *),
 		void *cb_arg);
+
+
+int netlink_request_multipart_done(void);
+
+int netlink_init_multipart_connection(int (*cb)(struct nl_msg *, void *),void *cb_arg);
+
+int netlink_request_multipart(void *request, __u16 request_len,	enum config_mode mode, enum config_operation operation);
+
+void netlink_request_multipart_close(void);
 
 
 #endif /* _JOOL_USR_NETLINK_H_ */

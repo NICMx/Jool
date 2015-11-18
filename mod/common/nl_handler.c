@@ -9,6 +9,7 @@
 #include "nat64/mod/common/log_time.h"
 #include "nat64/mod/common/namespace.h"
 #include "nat64/mod/common/nl_buffer.h"
+#include "nat64/mod/common/json_parser.h"
 #include "nat64/mod/common/pool6.h"
 #include "nat64/mod/common/error_pool.h"
 #include "nat64/mod/stateless/eam.h"
@@ -556,28 +557,6 @@ static int handle_eamt_display(struct nlmsghdr *nl_hdr, union request_eamt *requ
 	return error;
 }
 
-static int handle_eamt_test(struct nlmsghdr *nl_hdr, union request_eamt *request)
-{
-	struct in6_addr addr6;
-	struct in_addr addr4;
-	int error;
-
-	log_debug("Translating address for the user.");
-	if (request->test.addr_is_ipv6) {
-		error = eamt_xlat_6to4(&request->test.addr.addr6, &addr4);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_setcfg(nl_hdr, &addr4, sizeof(addr4));
-	} else {
-		error = eamt_xlat_4to6(&request->test.addr.addr4, &addr6);
-		if (error)
-			return respond_error(nl_hdr, error);
-
-		return respond_setcfg(nl_hdr, &addr6, sizeof(addr6));
-	}
-}
-
 static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 		union request_eamt *request)
 {
@@ -599,9 +578,6 @@ static int handle_eamt_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_
 		if (error)
 			return respond_error(nl_hdr, error);
 		return respond_setcfg(nl_hdr, &count, sizeof(count));
-
-	case OP_TEST:
-		return handle_eamt_test(nl_hdr, request);
 
 	case OP_ADD:
 		if (verify_superpriv())
@@ -1149,14 +1125,13 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	void *request;
 	int error;
 
-	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL) {
+	if (nl_hdr->nlmsg_type != MSG_TYPE_JOOL && nl_hdr->nlmsg_type != MSG_TYPE_JOOL_DONE) {
 		log_debug("Expecting %#x but got %#x.", MSG_TYPE_JOOL, nl_hdr->nlmsg_type);
 		return -EINVAL;
 	}
 
 	jool_hdr = NLMSG_DATA(nl_hdr);
 	request = jool_hdr + 1;
-
 	error = validate_version(jool_hdr);
 	if (error)
 		return respond_error(nl_hdr, error);
@@ -1164,31 +1139,24 @@ static int handle_netlink_message(struct sk_buff *skb_in, struct nlmsghdr *nl_hd
 	switch (jool_hdr->mode) {
 	case MODE_POOL6:
 		return handle_pool6_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_POOL4:
 		return handle_pool4_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_BIB:
 		return handle_bib_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_SESSION:
 		return handle_session_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_EAMT:
 		return handle_eamt_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_RFC6791:
 		return handle_rfc6791_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_BLACKLIST:
 		return handle_blacklist_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_LOGTIME:
 		return handle_logtime_config(nl_hdr, jool_hdr, request);
-		break;
 	case MODE_GLOBAL:
 		return handle_global_config(nl_hdr, jool_hdr, request);
-		break;
+	case MODE_PARSE_FILE:
+		return handle_json_file_config(nl_hdr, jool_hdr, request);
 	}
 
 	log_err("Unknown configuration mode: %d", jool_hdr->mode);
@@ -1207,8 +1175,8 @@ static void receive_from_userspace(struct sk_buff *skb)
 	error_pool_activate();
 
 	netlink_rcv_skb(skb, &handle_netlink_message);
-	error_pool_deactivate();
 
+	error_pool_deactivate();
 	mutex_unlock(&config_mutex);
 }
 

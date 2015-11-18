@@ -7,6 +7,8 @@ jool_SOURCES = \
 	../common/jool.c \
 	../common/netlink.c \
 	../common/str_utils.c \
+	../common/cJSON.c \
+	../common/JsonReaderCommon.c \
 	../common/argp/options.c \
 	../common/target/bib.c \
 	../common/target/eam.c \
@@ -16,9 +18,10 @@ jool_SOURCES = \
 	../common/target/pool4.c \
 	../common/target/pool6.c \
 	../common/target/session.c \
-	xlat.c
+	xlat.c \
+	JsonReader.c
 
-jool_LDADD = ${LIBNL3_LIBS}
+jool_LDADD = ${LIBNL3_LIBS} -lm
 jool_CFLAGS = -Wall -O2
 jool_CFLAGS += -I${srcdir}/../../include
 jool_CFLAGS += ${LIBNL3_CFLAGS} ${JOOL_FLAGS}

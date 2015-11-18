@@ -31,4 +31,8 @@ int rfc6791_for_each(int (*func)(struct ipv4_prefix *, void *), void *arg,
 int rfc6791_count(__u64 *result);
 bool rfc6791_is_empty(void);
 
+struct list_head * rfc6791_config_init_db(void);
+int rfc6791_config_add(struct list_head * db, struct ipv4_prefix * entry);
+int rfc6791_switch_database(struct list_head * db);
+
 #endif /* _JOOL_MOD_RFC6791_H */

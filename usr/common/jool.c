@@ -16,6 +16,8 @@
 
 #include "nat64/common/constants.h"
 #include "nat64/common/config.h"
+#include "nat64/common/JsonReader.h"
+#include "nat64/common/xlat.h"
 #include "nat64/usr/str_utils.h"
 #include "nat64/usr/types.h"
 #include "nat64/usr/pool.h"
@@ -27,6 +29,7 @@
 #include "nat64/usr/global.h"
 #include "nat64/usr/log_time.h"
 #include "nat64/usr/argp/options.h"
+#include "nat64/usr/netlink.h"
 
 
 const char *argp_program_version = JOOL_VERSION_STR;
@@ -54,9 +57,11 @@ struct arguments {
 			struct ipv4_prefix prefix;
 			struct port_range ports;
 			bool prefix_set;
+			bool force;
 		} pool4;
 
 		struct {
+			bool tcp, udp, icmp;
 			bool numeric;
 
 			struct {
@@ -73,6 +78,10 @@ struct arguments {
 		size_t size;
 		void *data;
 	} global;
+
+	struct {
+		char *filename;
+	} parse_file;
 
 	bool csv_format;
 };
@@ -181,7 +190,7 @@ static int set_ipv4_prefix(struct arguments *args, char *str)
 	int error;
 
 	error = update_state(args, MODE_POOL4 | MODE_BLACKLIST | MODE_RFC6791 | MODE_EAMT,
-			OP_TEST | OP_ADD | OP_REMOVE);
+			OP_ADD | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -198,7 +207,7 @@ static int set_ipv6_prefix(struct arguments *args, char *str)
 {
 	int error;
 
-	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_TEST | OP_ADD | OP_UPDATE | OP_REMOVE);
+	error = update_state(args, MODE_POOL6 | MODE_EAMT, OP_ADD | OP_UPDATE | OP_REMOVE);
 	if (error)
 		return error;
 
@@ -347,9 +356,6 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 		break;
 	case ARGP_COUNT:
 		error = update_state(args, COUNT_MODES, OP_COUNT);
-		break;
-	case ARGP_TEST:
-		error = update_state(args, TEST_MODES, OP_TEST);
 		break;
 	case ARGP_ADD:
 		error = update_state(args, ADD_MODES, OP_ADD);
@@ -507,6 +513,19 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_KEY_ARG:
 		error = set_ip_args(args, str);
 		break;
+	case ARGP_PARSE_FILE:
+		error = update_state(args, MODE_PARSE_FILE, OP_UPDATE);
+
+		args->parse_file.filename =  malloc(sizeof(char)*(strlen(str)+1));
+		if (!args->parse_file.filename) {
+			error = -ENOMEM;
+			log_err("Unable to allocate memory!.");
+			break;
+		}
+
+		strcpy(args->parse_file.filename,str);
+		break;
+
 	default:
 		error = ARGP_ERR_UNKNOWN;
 	}
@@ -573,6 +592,31 @@ static int parse_args(int argc, char **argv, struct arguments *result)
 	return 0;
 }
 
+static bool validate_pool6(struct arguments *args)
+{
+	__u8 valid_lengths[] = POOL6_PREFIX_LENGTHS;
+	int valid_lengths_size = sizeof(valid_lengths) / sizeof(valid_lengths[0]);
+	int i;
+
+	if (!args->db.pool6.prefix_set) {
+		log_err("Please enter the prefix to be added or removed (%s).", PREFIX6_FORMAT);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < valid_lengths_size; i++) {
+		if (args->db.pool6.prefix.len == valid_lengths[i])
+			return 0;
+	}
+
+	log_err("RFC 6052 does not like prefix length %u.",args->db.pool6.prefix.len);
+	printf("These are valid: ");
+	for (i = 0; i < valid_lengths_size - 1; i++)
+		printf("%u, ", valid_lengths[i]);
+	printf("%u.\n", valid_lengths[i]);
+
+	return -EINVAL;
+}
+
 /*
  * The main function.
  */
@@ -592,17 +636,11 @@ static int main_wrapped(int argc, char **argv)
 			return pool6_display(args.csv_format);
 		case OP_ADD:
 		case OP_UPDATE:
-			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be added (%s).", PREFIX6_FORMAT);
-				return -EINVAL;
-			}
-			return pool6_add(&args.db.pool6.prefix, args.db.force);
+			error = validate_pool6(&args);
+			return error ? : pool6_add(&args.db.pool6.prefix, args.db.force);
 		case OP_REMOVE:
-			if (!args.db.pool6.prefix_set) {
-				log_err("Please enter the prefix to be removed (%s).", PREFIX6_FORMAT);
-				return -EINVAL;
-			}
-			return pool6_remove(&args.db.pool6.prefix, args.db.quick);
+			error = validate_pool6(&args);
+			return error ? : pool6_remove(&args.db.pool6.prefix, args.db.quick);
 		case OP_COUNT:
 			return pool6_count();
 		case OP_FLUSH:
@@ -725,9 +763,6 @@ static int main_wrapped(int argc, char **argv)
 			return eam_display(args.csv_format);
 		case OP_COUNT:
 			return eam_count();
-		case OP_TEST:
-			return eam_test(args.db.pool6.prefix_set, &args.db.pool6.prefix.address,
-					args.db.pool4.prefix_set, &args.db.pool4.prefix.address);
 		case OP_ADD:
 			if (!args.db.pool6.prefix_set || !args.db.pool4.prefix_set) {
 				log_err("I need the IPv4 prefix and the IPv6 prefix of the entry you want to add.");
@@ -809,6 +844,10 @@ static int main_wrapped(int argc, char **argv)
 			log_err("Unknown operation for global mode: %u.", args.op);
 			return -EINVAL;
 		}
+		break;
+
+	case MODE_PARSE_FILE:
+		return parse_file(args.parse_file.filename);
 	}
 
 	log_err("Unknown configuration mode: %u", args.mode);

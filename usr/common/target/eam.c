@@ -102,59 +102,6 @@ int eam_count(void)
 	return netlink_request(&request, request.length, eam_count_response, NULL);
 }
 
-static int eam_test_response(struct nl_msg *msg, void *arg)
-{
-	char addr6_str[INET6_ADDRSTRLEN];
-	void *addr6;
-	char *addr4_str;
-	struct in_addr *addr4;
-	bool *is_ipv6 = arg;
-
-	if (*is_ipv6) {
-		/* IPv6 address translated into IPv4. */
-		addr4 = nlmsg_data(nlmsg_hdr(msg));
-		addr4_str = inet_ntoa(*addr4);
-		printf("%s\n", addr4_str);
-	} else {
-		/* IPv4 address translated into IPv6. */
-		addr6 = nlmsg_data(nlmsg_hdr(msg));
-		inet_ntop(AF_INET6, addr6, addr6_str, sizeof(addr6_str));
-		printf("%s\n", addr6_str);
-	}
-
-	return 0;
-}
-
-int eam_test(bool addr6_set, struct in6_addr *addr6,
-		bool addr4_set, struct in_addr *addr4)
-{
-	unsigned char request[HDR_LEN + PAYLOAD_LEN];
-	struct request_hdr *hdr = (struct request_hdr *) request;
-	union request_eamt *payload = (union request_eamt *) (request + HDR_LEN);
-
-	init_request_hdr(hdr, sizeof(request), MODE_EAMT, OP_TEST);
-
-	if (addr4_set && addr6_set) {
-		log_err("You gave me too many addresses.");
-		return -EINVAL;
-
-	} else if (addr6_set) {
-		payload->test.addr_is_ipv6 = true;
-		payload->test.addr.addr6 = *addr6;
-
-	} else if (addr4_set) {
-		payload->test.addr_is_ipv6 = false;
-		payload->test.addr.addr4 = *addr4;
-
-	} else {
-		log_err("I need an IP address as argument.");
-		return -EINVAL;
-	}
-
-	return netlink_request(request, hdr->length, eam_test_response,
-			&payload->test.addr_is_ipv6);
-}
-
 int eam_add(struct ipv6_prefix *prefix6, struct ipv4_prefix *prefix4, bool force)
 {
 	unsigned char request[HDR_LEN + PAYLOAD_LEN];

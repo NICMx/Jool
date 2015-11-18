@@ -41,4 +41,10 @@ int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
 		int (*func)(struct ipv4_transport_addr *, void *), void *arg,
 		unsigned int offset);
 
+struct hlist_head * pool4db_config_init_db(void);
+int pool4db_config_add(struct hlist_head *config_db,
+		const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports);
+int pool4db_switch_database(struct hlist_head * config_db);
+
 #endif /* _JOOL_MOD_POOL4_DB_H */

@@ -56,14 +56,14 @@ Thumbs.db
 
 # gedit temporal files
 ######################
-*.c~
-*.h~
+*~
 
 # eclipse files
 ######################
 .cproject
 .project
 .settings
+.metadata
 
 # autoconf files
 ######################

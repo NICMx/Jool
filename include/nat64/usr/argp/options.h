@@ -20,6 +20,7 @@ enum argp_flags {
 	ARGP_RFC6791 = 6791,
 	ARGP_LOGTIME = 'l',
 	ARGP_GLOBAL = 'g',
+	ARGP_PARSE_FILE = 'p',
 
 	/* Operations */
 	ARGP_DISPLAY = 'd',

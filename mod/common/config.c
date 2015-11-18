@@ -93,6 +93,7 @@ int config_clone(struct global_config *clone)
 	return 0;
 }
 
+/* TODO Roberto's code used to return error when new was null. Review callers. */
 RCUTAG_USR
 void config_replace(struct global_config *new)
 {

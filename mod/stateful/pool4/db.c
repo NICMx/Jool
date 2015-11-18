@@ -2,14 +2,12 @@
 
 #include <linux/hash.h>
 #include <linux/list.h>
-#include <linux/rculist.h>
 #include <linux/slab.h>
-#include "nat64/common/constants.h"
 #include "nat64/mod/common/rcu.h"
-#include "nat64/mod/common/tags.h"
 #include "nat64/mod/common/types.h"
-#include "nat64/mod/stateful/pool4/table.h"
+#include "nat64/mod/common/tags.h"
 #include "nat64/mod/stateful/pool4/empty.h"
+#include "nat64/mod/stateful/pool4/table.h"
 
 /** Note, this is an array (size 2^@power). */
 static struct hlist_head __rcu *db;
@@ -204,48 +202,45 @@ static struct pool4_table *find_table(struct hlist_head *database,
 	return NULL;
 }
 
-RCUTAG_USR
-int pool4db_add(const __u32 mark, enum l4_protocol proto,
+/* TODO review concurrency */
+int pool4db_generic_add(struct hlist_head *db,
+		const __u32 mark, enum l4_protocol proto,
 		struct ipv4_prefix *prefix, struct port_range *ports)
 {
-	struct hlist_head *database;
 	struct pool4_table *table;
 	int error;
 
-	mutex_lock(&lock);
+	table = find_table(db, mark, proto);
+	error = -EINVAL;
 
-	database = rcu_dereference_protected(db, lockdep_is_held(&lock));
-	table = find_table(database, mark, proto);
 	if (!table) {
 		table = pool4table_create(mark, proto);
-		if (!table) {
-			error = -ENOMEM;
-			goto end;
-		}
+		if (!table)
+			return -ENOMEM;
 
 		error = pool4table_add(table, prefix, ports);
 		if (error) {
 			pool4table_destroy(table);
-			goto end;
+			return error;
 		}
 
 		tables++;
-		hlist_add_head_rcu(&table->hlist_hook,
-				&database[hash_32(mark, power)]);
-		if (tables > slots()) {
-			log_warn_once("You have lots of pool4s, which can lag "
-					"Jool. Consider increasing "
-					"pool4_size.");
-		}
+		hlist_add_head(&table->hlist_hook, &db[hash_32(mark, power)]);
+		if (tables > slots())
+			log_warn_once("You have lots of pool4s, which can lag Jool. Consider increasing pool4_size.");
 
 	} else {
 		error = pool4table_add(table, prefix, ports);
 
 	}
 
-end:
-	mutex_unlock(&lock);
 	return error;
+}
+
+int pool4db_add(const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports)
+{
+	return pool4db_generic_add(db, mark, proto, prefix, ports);
 }
 
 RCUTAG_USR
@@ -294,6 +289,7 @@ int pool4db_flush(void)
 	return 0;
 }
 
+/* TODO Why is this not receving mark? */
 RCUTAG_PKT
 bool pool4db_contains(enum l4_protocol proto, struct ipv4_transport_addr *addr)
 {
@@ -457,4 +453,39 @@ int pool4db_foreach_taddr4(struct packet *in, enum l4_protocol l4_proto,
 
 	rcu_read_unlock_bh();
 	return error;
+}
+
+struct hlist_head *pool4db_config_init_db(void)
+{
+	struct hlist_head *config_db;
+
+	config_db = init_db(slots());
+	if (!config_db) {
+		log_err("Allocation of pool4 configuration database failed.");
+		return NULL;
+	}
+
+	return config_db;
+}
+
+
+int pool4db_config_add(struct hlist_head *config_db,
+		const __u32 mark, enum l4_protocol proto,
+		struct ipv4_prefix *prefix, struct port_range *ports)
+{
+	return pool4db_generic_add(config_db, mark, proto, prefix, ports);
+}
+
+
+int pool4db_switch_database(struct hlist_head *config_db)
+{
+	if (!config_db) {
+		log_err("Error while switching pool4 database, null pointer received.");
+		return 1;
+	}
+
+	pool4db_destroy();
+	db = config_db;
+
+	return 0;
 }

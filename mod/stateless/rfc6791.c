@@ -21,6 +21,7 @@ int rfc6791_init(char *pref_strs[], int pref_count)
 	return pool_init(&pool, pref_strs, pref_count);
 }
 
+/* TODO Roberto used to kfree pool here. */
 void rfc6791_destroy(void)
 {
 	return pool_destroy(pool);
@@ -155,4 +156,38 @@ int rfc6791_count(__u64 *result)
 bool rfc6791_is_empty(void)
 {
 	return pool_is_empty(pool);
+}
+
+struct list_head *rfc6791_config_init_db(void)
+{
+	struct list_head *config_db;
+
+	config_db = kmalloc(sizeof(*config_db), GFP_ATOMIC);
+	if (!config_db) {
+		log_err("Allocation of rfc6791 configuration database failed.");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(config_db);
+
+	return config_db;
+}
+
+int rfc6791_config_add(struct list_head *db, struct ipv4_prefix *entry)
+{
+	return pool_add(db,entry);
+}
+
+int rfc6791_switch_database(struct list_head *db)
+{
+	if (!db) {
+	   log_err("Error while switching rfc6791 database, null pointer received.");
+	   return -EINVAL;
+	}
+
+	rfc6791_destroy();
+
+	pool = db;
+
+	return 0;
 }

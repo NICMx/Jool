@@ -16,20 +16,14 @@
 
 #include "nat64/common/types.h"
 #include "nat64/common/xlat.h"
-#ifdef BENCHMARK
-	#ifdef __KERNEL__
-		#include <linux/time.h>
-	#else
-		#include <time.h>
-	#endif
-#endif
 
 /**
  * ID of Netlink messages Jool listens to.
  * This value was chosen at random, if I remember correctly.
+ * TODO you sure this is sane? 0x22 > 32.
  */
-#define MSG_TYPE_JOOL (0x10 + 2)
-
+#define MSG_TYPE_JOOL (0x20 + 2)
+#define MSG_TYPE_JOOL_DONE (0x20+4)
 /**
  * ID of messages intended to return configuration to userspace.
  * ("set config" is intended to be read from the kernel's perspective).
@@ -65,6 +59,8 @@ enum config_mode {
 	MODE_SESSION = (1 << 4),
 	/** The current message is talking about log times for benchmark. */
 	MODE_LOGTIME = (1 << 5),
+	/** The current message is talking about the JSON configuration file */
+	MODE_PARSE_FILE = (1 << 9)
 };
 
 /**
@@ -79,7 +75,7 @@ enum config_mode {
 #define POOL4_OPS (DATABASE_OPS)
 #define BLACKLIST_OPS (DATABASE_OPS)
 #define RFC6791_OPS (DATABASE_OPS)
-#define EAMT_OPS (DATABASE_OPS | OP_TEST)
+#define EAMT_OPS (DATABASE_OPS)
 #define BIB_OPS (DATABASE_OPS & ~OP_FLUSH)
 #define SESSION_OPS (OP_DISPLAY | OP_COUNT)
 #define LOGTIME_OPS (OP_DISPLAY)
@@ -100,8 +96,48 @@ enum config_operation {
 	OP_REMOVE = (1 << 4),
 	/* The userspace app wants to clear some table. */
 	OP_FLUSH = (1 << 5),
-	/* The user is a tester and s/he wants Jool's answer regarding a query. */
-	OP_TEST = (1 << 6),
+};
+
+struct global_bits {
+	__u8 manually_enabled;
+	__u8 address_dependent_filtering;
+	__u8 drop_icmpv6_info;
+	__u8 drop_externally_initiated_tcp;
+	__u8 udp_timeout;
+	__u8 tcp_est_timeout;
+	__u8 tcp_trans_timeout;
+	__u8 icmp_timeout;
+	__u8 fragment_arrival_timeout;
+	__u8 maximum_simultaneous_opens;
+	__u8 source_icmpv6_errors_better;
+	__u8 logging_bib;
+	__u8 logging_session;
+	__u8 zeroize_traffic_class;
+	__u8 override_tos;
+	__u8 tos;
+	__u8 mtu_plateaus;
+	__u8 amend_udp_checksum_zero;
+	__u8 randomize_rfc6791_addresses;
+};
+
+enum parse_section {
+	SEC_GLOBAL = 1,
+	SEC_POOL6 = 2,
+	SEC_POOL4 = 4,
+	SEC_BIB = 8,
+	SEC_DONE = 16,
+	SEC_EAMT = 32,
+	SEC_BLACKLIST = 64,
+	SEC_POOL6791 = 128,
+	SEC_INIT = 256
+};
+
+enum parse_entries_size {
+	POOL4_ENTRY_SIZE = 16,
+	BIB_ENTRY_SIZE = 25,
+	EAMT_ENTRY_SIZE = 22,
+	BLACKLIST_ENTRY_SIZE = 5,
+	POOL6791_ENTRY_SIZE = 5
 };
 
 /**
@@ -117,13 +153,12 @@ enum config_operation {
 #define ADD_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
 #define REMOVE_MODES (POOL_MODES | MODE_EAMT | MODE_BIB)
 #define FLUSH_MODES (POOL_MODES | MODE_EAMT)
-#define UPDATE_MODES (MODE_GLOBAL)
-#define TEST_MODES (MODE_EAMT)
+#define UPDATE_MODES (MODE_GLOBAL | MODE_PARSE_FILE)
 
 #define SIIT_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_BLACKLIST | MODE_RFC6791 \
-		| MODE_EAMT | MODE_LOGTIME)
+		| MODE_EAMT | MODE_LOGTIME | MODE_PARSE_FILE)
 #define NAT64_MODES (MODE_GLOBAL | MODE_POOL6 | MODE_POOL4 | MODE_BIB \
-		| MODE_SESSION | MODE_LOGTIME)
+		| MODE_SESSION | MODE_LOGTIME | MODE_PARSE_FILE)
 /**
  * @}
  */
@@ -189,6 +224,14 @@ union request_pool6 {
 	} flush;
 };
 
+struct request_pool4_add{
+	__u32 mark;
+	__u8 proto;
+	/** The addresses the user wants to add to the pool. */
+	struct ipv4_prefix addrs;
+	struct port_range ports;
+};
+
 /**
  * Configuration for the "IPv4 Pool" module.
  */
@@ -197,13 +240,7 @@ union request_pool4 {
 		__u8 offset_set;
 		struct pool4_sample offset;
 	} display;
-	struct {
-		__u32 mark;
-		__u8 proto;
-		/** The addresses the user wants to add to the pool. */
-		struct ipv4_prefix addrs;
-		struct port_range ports;
-	} add;
+	struct request_pool4_add add;
 	struct {
 		__u32 mark;
 		__u8 proto;
@@ -249,15 +286,9 @@ union request_eamt {
 		/* Nothing needed here. */
 	} count;
 	struct {
-		__u8 addr_is_ipv6;
-		union {
-			struct in6_addr addr6;
-			struct in_addr addr4;
-		} addr;
-	} test;
-	struct {
 		struct ipv6_prefix prefix6;
 		struct ipv4_prefix prefix4;
+		/* TODO this might have been moved over to the userspace app. */
 		__u8 force;
 	} add;
 	struct {
@@ -283,6 +314,15 @@ struct request_logtime {
 			__u8 iterate;
 		} display;
 	};
+};
+
+/* TODO is this really referenced anywhere? */
+struct request_bib_add{
+	__u8 l4_proto;
+	/** The IPv6 transport address of the entry the user wants to add. */
+	struct ipv6_transport_addr addr6;
+	/** The IPv4 transport address of the entry the user wants to add. */
+	struct ipv4_transport_addr addr4;
 };
 
 /**

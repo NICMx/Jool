@@ -1,6 +1,7 @@
 #ifndef _JOOL_USR_TYPES_H
 #define _JOOL_USR_TYPES_H
 
+#include <stdio.h>
 #include "nat64/common/types.h"
 
 

@@ -78,6 +78,7 @@ static const struct argp_option pool6791_opt = {
 		.group = 0,
 };
 
+
 #ifdef BENCHMARK
 static const struct argp_option benchmark_opt = {
 		.name = "logTime",
@@ -635,6 +636,15 @@ static const struct argp_option bib4_opt = {
 		.group = 0,
 };
 
+static const struct argp_option parse_file_opt = {
+		.name = "file",
+		.key = ARGP_PARSE_FILE,
+		.arg = "STRING",
+		.flags = 0,
+		.doc = "Read the configuration from a JSON file.",
+		.group = 0,
+};
+
 static const struct argp_option *options_siit[] = {
 	&targets_hdr_opt,
 	&pool6_opt,
@@ -646,6 +656,7 @@ static const struct argp_option *options_siit[] = {
 #ifdef BENCHMARK
 	&benchmark_opt,
 #endif
+	&parse_file_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
@@ -694,6 +705,7 @@ static const struct argp_option *options_nat64[] = {
 #ifdef BENCHMARK
 	&benchmark_opt,
 #endif
+	&parse_file_opt,
 
 	&operations_hdr_opt,
 	&display_opt,
