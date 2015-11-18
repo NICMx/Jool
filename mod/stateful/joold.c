@@ -13,12 +13,12 @@
 #include "nat64/mod/common/nl/nl_sender.h"
 
 static struct sock *sender_sk;
-static struct request_hdr header_struct;
 
-static DEFINE_SPINLOCK( lock_send);
-static DEFINE_SPINLOCK( lock_receive);
+static DEFINE_SPINLOCK(lock_send);
+static DEFINE_SPINLOCK(lock_receive);
 
 static int session_list_elem_num = 0;
+/* TODO (rob) this value should be taken from config.c. */
 static int elements_limit = 20;
 
 static struct timer_list updater_timer;
@@ -31,189 +31,170 @@ struct session_element {
 	struct ipv4_transport_addr local4;
 	struct ipv4_transport_addr remote4;
 	__be64 update_time;
+	/* TODO (rob) This is wasteful. Shouldn't it be a __u8 tops? */
 	__be16 is_established;
+	/* TODO (rob) Ditto. */
 	__be32 l4_proto;
+	/* TODO (rob) Ditto. */
 	__be16 state;
 	char entry_magic[5];
 	struct list_head nextprev;
 };
 
-static __u32 protocol_to_u32(l4_protocol protocol) {
-
-	__u32 value = 100;
-
-	switch (protocol) {
-	case L4PROTO_TCP:
-		value = 0;
-		break;
-
-	case L4PROTO_UDP:
-		value = 1;
-		break;
-
-	case L4PROTO_ICMP:
-		value = 2;
-		break;
-
-	case L4PROTO_OTHER:
-		value = 3;
-		break;
-	}
-
-	return value;
-}
-
-static l4_protocol u32_to_protocol(__u32 protocol) {
-
-	int int_value = protocol;
-
-	l4_protocol value;
-
-	value = int_value;
-
-	return value;
-
-}
-
-static int send_msg(void *payload, __u16 payload_len) {
+static int send_msg(void *payload, size_t payload_len)
+{
 	struct sk_buff *skb_out;
 	struct nlmsghdr *nl_hdr_out;
-
 	int error = 0;
 
 	log_debug("Sending multicast message!");
 
 	skb_out = nlmsg_new(NLMSG_ALIGN(payload_len), GFP_ATOMIC);
 	if (!skb_out) {
-		log_err("Failed to allocate a response skb to the user.");
+		log_debug("Failed to allocate the multicast message.");
 		return -ENOMEM;
 	}
 
-	nl_hdr_out = nlmsg_put(skb_out, 0, /* src_pid (0 = kernel) */
-	0, /* seq */
-	0, /* type */
-	payload_len, /* payload len */
-	0); /* flags */
+	nl_hdr_out = nlmsg_put(skb_out,
+			0, /* src_pid (0 = kernel) */
+			0, /* seq */
+			0, /* type */
+			payload_len, /* payload len */
+			0); /* flags */
 
-	memcpy((__u8 *) nlmsg_data(nl_hdr_out), (__u8 *) payload, payload_len);
+	memcpy(nlmsg_data(nl_hdr_out), payload, payload_len);
 
 	error = nlmsg_multicast(sender_sk, skb_out, 0, JOOLD_MULTICAST_GROUP,
-			GFP_KERNEL);
+			GFP_ATOMIC);
 	if (error) {
-		log_err("Error code %d while returning response to the user.", error);
+		log_warn_once("Session multicast failed. (errcode %d)", error);
 		return error;
 	}
 
 	log_debug("Multicast message sent!");
-
-	return error;
+	return 0;
 }
 
-static int joold_send_to_userspace(void) {
-
+/*
+ * TODO (rob) this is really bad, performance-wise.
+ * The loop is the only thing that handles lock-needing varialbes, but we're
+ * locking the entire function (packet fetching included, which can be SLOW).
+ * This function should work on a "copy" of the list so we can free the
+ * spinlock early.
+ *
+ * Because they waste CPU, spinlock domains need to be MINIMAL!
+ */
+static int joold_send_to_userspace(void)
+{
+	struct request_hdr *hdr;
 	struct session_element *s_element;
-	__u8 * payload_pointer;
-	__u16 total_size;
-	__u8 * payload;
+	size_t total_size;
+	size_t payload_size;
+	void *payload;
 
-	if (session_list_elem_num > 0) {
+	if (session_list_elem_num < 1)
+		return 0;
 
-		total_size = sizeof(header_struct)
-				+ (sizeof(struct session_element) * session_list_elem_num);
-		payload = kmalloc(total_size, GFP_ATOMIC);
+	payload_size = sizeof(struct session_element) * session_list_elem_num;
+	total_size = sizeof(hdr) + payload_size;
 
-		if (!payload) {
-			log_err("Couldn't allocate memory for entries payload!");
-			return -ENOMEM;
-		}
-
-		payload_pointer = payload + sizeof(header_struct);
-		header_struct.length = (sizeof(struct session_element)
-				* session_list_elem_num);
-
-		memcpy(payload, (__u8 *) &header_struct, sizeof(header_struct));
-
-		while (!list_empty(&session_elements)) {
-
-			s_element = list_first_entry(&session_elements,struct session_element,nextprev);
-
-			memcpy(payload_pointer, (__u8 *) s_element, sizeof(*s_element));
-
-			list_del(&(s_element->nextprev));
-
-			kfree(s_element);
-			payload_pointer += sizeof(struct session_element);
-		}
-
-		send_msg(payload, total_size);
-		session_list_elem_num = 0;
+	hdr = kmalloc(total_size, GFP_ATOMIC);
+	if (!hdr) {
+		log_debug("Couldn't allocate memory for entries payload!");
+		return -ENOMEM;
 	}
+	payload = hdr + 1;
+
+	init_request_hdr(hdr, payload_size, MODE_JOOLD, 0);
+
+	while (!list_empty(&session_elements)) {
+		s_element = list_first_entry(&session_elements,
+				struct session_element, nextprev);
+
+		/*
+		 * TODO (rob) This is also copying the nextprev pointer, which
+		 * is a waste of packet space.
+		 *
+		 * Try this instead:
+		 *
+		 * struct session_element {
+		 * 	struct ipv6_transport_addr remote6;
+		 *	struct ipv6_transport_addr local6;
+		 *	struct ipv4_transport_addr local4;
+		 *	...
+		 *	__u8 state;
+		 *	char entry_magic[5];
+		 * }
+		 *
+		 * struct joold_entry {
+		 *	struct session_element element;
+		 *	struct list_head nextprev;
+		 * }
+		 *
+		 * This way you only copy the element.
+		 */
+		memcpy(payload, s_element, sizeof(*s_element));
+
+		list_del(&s_element->nextprev);
+		kfree(s_element);
+
+		payload += sizeof(struct session_element);
+	}
+
+	send_msg(hdr, total_size);
+	session_list_elem_num = 0;
 
 	return 0;
 }
 
-static void send_to_userspace_timeout(unsigned long parameter) {
-
+static void send_to_userspace_timeout(unsigned long parameter)
+{
 	spin_lock_bh(&lock_send);
-	if (joold_send_to_userspace()) {
-		log_err(
-				"An error occurred while sending session entries to userspace!");
-	}
-
+	joold_send_to_userspace();
 	spin_unlock_bh(&lock_send);
 
-	if (mod_timer(&updater_timer, jiffies + msecs_to_jiffies(500))) {
-		log_err("Something went wrong while reinitializing the updater timer!");
-	}
+	/*
+	 * TODO (rob) 500 is supposed to be user-defined.
+	 * sync_period below should be extracted from the config.c module.
+	 */
+	mod_timer(&updater_timer, jiffies + msecs_to_jiffies(500));
 }
 
-int joold_init(int sender_sock_family, int synch_period) {
-
+int joold_init(int sender_sock_family, int sync_period)
+{
 	int error;
 
-	init_request_hdr(&header_struct, 0, 0, 0);
-	header_struct.mode = MODE_JOOLD;
 	INIT_LIST_HEAD(&session_elements);
 
-	setup_timer(&updater_timer, send_to_userspace_timeout, 0);
-
-	error = mod_timer(&updater_timer, jiffies + msecs_to_jiffies(synch_period));
-
-	if (error)
-		return error;
-
 	error = nl_sender_init(sender_sock_family, JOOLD_MULTICAST_GROUP);
-
 	if (error)
 		return error;
-
 	sender_sk = nl_sender_get();
 
-	if (error) {
-		log_err("Couldn't connect the reciver socket to the kernel.");
+	setup_timer(&updater_timer, send_to_userspace_timeout, 0);
+	error = mod_timer(&updater_timer, jiffies + msecs_to_jiffies(sync_period));
+	if (error)
 		return error;
-
-	}
 
 	return 0;
 }
 
-void joold_destroy(void) {
+void joold_destroy(void)
+{
 	del_timer_sync(&updater_timer);
 	netlink_kernel_release(sender_sk);
 }
 
-int joold_add_session_element(struct session_entry *entry) {
-
+int joold_add_session_element(struct session_entry *entry)
+{
 	int error = 0;
 	struct session_element *entry_copy;
 	__u64 update_time;
 	__u32 protocol;
 
-	log_info("Adding session entry to the list of updated entries");
+	log_debug("Adding session entry to the list of updated entries");
 
 	entry_copy = kmalloc(sizeof(struct session_element), GFP_ATOMIC);
-
 	if (!entry_copy) {
 		log_err("Couldn't allocate memory for session element.");
 		return -ENOMEM;
@@ -225,10 +206,10 @@ int joold_add_session_element(struct session_entry *entry) {
 	entry_copy->entry_magic[3] = 'l';
 	entry_copy->entry_magic[4] = '\0';
 
-	protocol = protocol_to_u32(entry->l4_proto);
-	log_info("protocol %u", protocol);
+	protocol = entry->l4_proto;
+	log_debug("protocol %u", protocol);
 	entry_copy->l4_proto = cpu_to_be32(protocol);
-	log_info("protocol %u", entry_copy->l4_proto);
+	log_debug("protocol %u", entry_copy->l4_proto);
 	entry_copy->local4 = entry->local4;
 	entry_copy->local6 = entry->local6;
 	entry_copy->remote4 = entry->remote4;
@@ -237,33 +218,26 @@ int joold_add_session_element(struct session_entry *entry) {
 	update_time = jiffies_to_msecs(jiffies - entry->update_time);
 	entry_copy->update_time = cpu_to_be64(update_time);
 
-	log_info("jiffies %lu", jiffies);
-	log_info("is session established %d", entry_copy->is_established);
-	log_info("session update_time %lu", entry->update_time);
-	log_info("session copy update_time %llu", entry_copy->update_time);
+	log_debug("jiffies %lu", jiffies);
+	log_debug("is session established %d", entry_copy->is_established);
+	log_debug("session update_time %lu", entry->update_time);
+	log_debug("session copy update_time %llu", entry_copy->update_time);
 
 	spin_lock_bh(&lock_send);
 
 	list_add(&entry_copy->nextprev, &session_elements);
-
 	session_list_elem_num++;
 
-	if (elements_limit <= session_list_elem_num) {
-
-		if (joold_send_to_userspace()) {
-			error = -1;
-		}
-
-	}
+	if (elements_limit <= session_list_elem_num)
+		error = joold_send_to_userspace();
 
 	spin_unlock_bh(&lock_send);
 
 	return error;
-
 }
 
-static int update_session(struct list_head * synch_session_elements) {
-
+static int update_session(struct list_head * synch_session_elements)
+{
 	struct session_element * s_element;
 	struct session_entry *s_entry;
 	struct session_entry *s_entry_aux;
@@ -285,7 +259,7 @@ static int update_session(struct list_head * synch_session_elements) {
 		s_element = list_first_entry(synch_session_elements,struct session_element,nextprev);
 
 		u32_proto = be32_to_cpu(s_element->l4_proto);
-		protocol = u32_to_protocol(u32_proto);
+		protocol = u32_proto;
 		state = be16_to_cpu(s_element->state);
 		update_time = be64_to_cpu(s_element->update_time);
 		update_time = jiffies - msecs_to_jiffies(update_time);
@@ -421,11 +395,18 @@ static int update_session(struct list_head * synch_session_elements) {
 	return 0;
 }
 
-int joold_sync_entires(__u8 *data, __u32 size) {
-
+int joold_sync_entires(__u8 *data, __u32 size)
+{
 	__u32 index = 0;
 	struct list_head * synch_session_elements;
 	struct session_element * s_element;
+
+	/*
+	 * TODO (rob) this temporal intermediary list is redundant (and creates a
+	 * plethora of memory leaks; eg. the return -1 below).
+	 * The sessions are right there in @data; why doesn't update_session()
+	 * work directly on that?
+	 */
 
 	synch_session_elements = kmalloc(
 			sizeof(struct hlist_head), GFP_ATOMIC);

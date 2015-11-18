@@ -800,9 +800,12 @@ static int handle_logtime_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 static int handle_joold_request(struct nlmsghdr *nl_hdr, struct request_hdr *jool_hdr,
 			__u8* request_data)
 {
+	if (xlat_is_siit()) {
+		log_err("SIIT Jool doesn't need a synchronization daemon.");
+		return -EINVAL;
+	}
 
-	joold_sync_entires(request_data, jool_hdr->length);
-	return 0;
+	return joold_sync_entires(request_data, jool_hdr->length);
 }
 
 static bool ensure_bytes(size_t actual, size_t expected)
@@ -1199,7 +1202,7 @@ int nlhandler_init(int receiver_sock_family)
 
 	error = nl_receiver_init(receiver_sock_family,receive_from_userspace);
 	if (error)
-		return -1;
+		return error;
 
 	nl_socket = nl_receiver_get();
 	error_pool_init();

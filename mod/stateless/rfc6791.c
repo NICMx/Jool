@@ -21,7 +21,6 @@ int rfc6791_init(char *pref_strs[], int pref_count)
 	return pool_init(&pool, pref_strs, pref_count);
 }
 
-/* TODO Roberto used to kfree pool here. */
 void rfc6791_destroy(void)
 {
 	return pool_destroy(pool);

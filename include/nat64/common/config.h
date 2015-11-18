@@ -234,15 +234,6 @@ union request_pool6 {
 	} flush;
 };
 
-/* TODO ? */
-struct request_pool4_add{
-	__u32 mark;
-	__u8 proto;
-	/** The addresses the user wants to add to the pool. */
-	struct ipv4_prefix addrs;
-	struct port_range ports;
-};
-
 /**
  * Configuration for the "IPv4 Pool" module.
  */
@@ -251,7 +242,13 @@ union request_pool4 {
 		__u8 offset_set;
 		struct pool4_sample offset;
 	} display;
-	struct request_pool4_add add;
+	struct {
+		__u32 mark;
+		__u8 proto;
+		/** The addresses the user wants to add to the pool. */
+		struct ipv4_prefix addrs;
+		struct port_range ports;
+	} add;
 	struct {
 		__u32 mark;
 		__u8 proto;
@@ -325,15 +322,6 @@ struct request_logtime {
 			__u8 iterate;
 		} display;
 	};
-};
-
-/* TODO is this really referenced anywhere? */
-struct request_bib_add{
-	__u8 l4_proto;
-	/** The IPv6 transport address of the entry the user wants to add. */
-	struct ipv6_transport_addr addr6;
-	/** The IPv4 transport address of the entry the user wants to add. */
-	struct ipv4_transport_addr addr4;
 };
 
 /**

@@ -258,7 +258,8 @@ static int get_or_create_session(struct tuple *tuple, struct packet *pkt,
 		return error;
 	}
 
-	// TODO Add function call, to add session to queue.
+	/* TODO (rob) it seems you forgot this comment. */
+	// Add function call, to add session to queue.
 
 	*result = session;
 	return 0;

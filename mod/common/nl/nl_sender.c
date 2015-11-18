@@ -3,12 +3,12 @@
 
 static struct sock *nl_socket = NULL;
 
-
 int nl_sender_init(int sender_sock_family, unsigned int sender_sock_group)
 {
 	nl_socket = nl_create_socket(sender_sock_family, sender_sock_group,NULL);
 
 	if (!nl_socket)
+		/* TODO this (instead of callers) should probably be the one who prints the error msg. */
 		return -1;
 
 
