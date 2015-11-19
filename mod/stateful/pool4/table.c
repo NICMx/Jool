@@ -318,7 +318,7 @@ int pool4table_rm(struct pool4_table *table, struct ipv4_prefix *prefix,
 {
 	struct pool4_sample sample;
 	u64 tmp;
-	int error;
+	int error = 0;
 
 	sample.range = *ports;
 	foreach_addr4(sample.addr, tmp, prefix) {

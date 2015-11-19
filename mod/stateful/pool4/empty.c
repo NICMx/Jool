@@ -152,6 +152,8 @@ int pool4empty_foreach_taddr4(struct packet *in, struct in_addr *daddr,
 	if (!dst)
 		return -EINVAL;
 
+	/* This initialization shuts up old versions of gcc. */
+	saddr.s_addr = 0;
 	error = pick_addr(dst, daddr, &saddr);
 	if (error)
 		goto end;
