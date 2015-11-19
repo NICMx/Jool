@@ -427,6 +427,9 @@ static int handle_bib_config(struct nlmsghdr *nl_hdr, struct request_hdr *jool_h
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
 		return handle_bib_display(nl_hdr, request);
 
 	case OP_COUNT:
@@ -515,6 +518,9 @@ static int handle_session_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 
 	switch (jool_hdr->operation) {
 	case OP_DISPLAY:
+		if (verify_superpriv())
+			return respond_error(nl_hdr, -EPERM);
+
 		return handle_session_display(nl_hdr, request);
 
 	case OP_COUNT:
