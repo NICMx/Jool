@@ -19,6 +19,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("NIC-ITESM");
 MODULE_DESCRIPTION("Stateful NAT64 (RFC 6146)");
+MODULE_VERSION(JOOL_VERSION_STR);
 
 static char *pool6[5];
 static int pool6_len;
