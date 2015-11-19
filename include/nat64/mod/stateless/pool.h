@@ -18,11 +18,11 @@ struct pool_entry {
 };
 
 int pool_init(struct list_head __rcu **pool, char *pref_strs[], int pref_count);
-void pool_destroy(struct list_head __rcu *pool);
+void pool_destroy(struct list_head __rcu **pool);
 
 int pool_add(struct list_head __rcu *pool, struct ipv4_prefix *prefix);
 int pool_rm(struct list_head __rcu *pool, struct ipv4_prefix *prefix);
-int pool_flush(struct list_head __rcu *pool);
+int pool_flush(struct list_head __rcu **pool);
 
 bool pool_contains(struct list_head __rcu *pool, struct in_addr *addr);
 int pool_foreach(struct list_head __rcu *pool,

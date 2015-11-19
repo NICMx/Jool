@@ -19,7 +19,7 @@ int blacklist_init(char *pref_strs[], int pref_count)
 
 void blacklist_destroy(void)
 {
-	pool_destroy(pool);
+	pool_destroy(&pool);
 }
 
 int blacklist_add(struct ipv4_prefix *prefix)
@@ -34,7 +34,7 @@ int blacklist_rm(struct ipv4_prefix *prefix)
 
 int blacklist_flush(void)
 {
-	return pool_flush(pool);
+	return pool_flush(&pool);
 }
 
 static bool interface_contains(struct in_addr *addr)

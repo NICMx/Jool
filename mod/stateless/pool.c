@@ -107,13 +107,13 @@ revert:
 }
 
 RCUTAG_USR
-static void pool_replace(struct list_head __rcu *pool, struct list_head *new)
+static void pool_replace(struct list_head __rcu **pool, struct list_head *new)
 {
 	struct list_head *tmp;
 
 	mutex_lock(&lock);
-	tmp = rcu_dereference_protected(pool, lockdep_is_held(&lock));
-	rcu_assign_pointer(pool, new);
+	tmp = rcu_dereference_protected(*pool, lockdep_is_held(&lock));
+	rcu_assign_pointer(*pool, new);
 	mutex_unlock(&lock);
 
 	synchronize_rcu_bh();
@@ -122,7 +122,7 @@ static void pool_replace(struct list_head __rcu *pool, struct list_head *new)
 }
 
 RCUTAG_USR
-void pool_destroy(struct list_head __rcu *pool)
+void pool_destroy(struct list_head __rcu **pool)
 {
 	pool_replace(pool, NULL);
 }
@@ -195,7 +195,7 @@ int pool_rm(struct list_head __rcu *pool, struct ipv4_prefix *prefix)
 }
 
 RCUTAG_USR
-int pool_flush(struct list_head __rcu *pool)
+int pool_flush(struct list_head __rcu **pool)
 {
 	struct list_head *new;
 

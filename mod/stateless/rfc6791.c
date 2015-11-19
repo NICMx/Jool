@@ -23,7 +23,7 @@ int rfc6791_init(char *pref_strs[], int pref_count)
 
 void rfc6791_destroy(void)
 {
-	return pool_destroy(pool);
+	return pool_destroy(&pool);
 }
 
 int rfc6791_add(struct ipv4_prefix *prefix)
@@ -38,7 +38,7 @@ int rfc6791_rm(struct ipv4_prefix *prefix)
 
 int rfc6791_flush(void)
 {
-	return pool_flush(pool);
+	return pool_flush(&pool);
 }
 
 /**
