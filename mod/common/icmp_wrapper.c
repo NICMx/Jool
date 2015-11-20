@@ -112,7 +112,7 @@ static void icmp6_send(struct sk_buff *skb, icmp_error_code error, __u32 info)
 			code);
 	icmpv6_send(skb, type, code, info);
 #else
-#warning "You're compiling in kernel 3.12. See https://github.com/NICMx/NAT64/issues/90"
+#warning "You're compiling in kernel 3.12. See https://github.com/NICMx/Jool/issues/90"
 #endif
 }
 

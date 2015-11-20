@@ -6,7 +6,7 @@ An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
 > 
 > Jool's website is hosted in two separate domains simultaneously.
 > 
-> - https://nicmx.github.io/jool-doc is always up-to-date, but isn't available from IPv6.
+> - https://nicmx.github.io/Jool is always up-to-date, but isn't available from IPv6.
 > - https://www.jool.mx can take up to a week to see updates (and we don't bother when it's just small tweaks), but should also be available from IPv6.
 
 ## Documentation
@@ -17,7 +17,6 @@ You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 
 ## Directories
 
-* `/doc` : Documentation source.
 * `/include` : The entire system's header files.
 * `/mod` : The kernel module's implementation code.
 * `/unit` : Unit tests.

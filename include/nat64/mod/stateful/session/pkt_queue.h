@@ -28,7 +28,7 @@
  *
  * If a NAT64 receives a IPv4-TCP packet for which it has no state, it should not immediately reply
  * a ICMP error because the IPv4 endpoint could be attempting a "Simultaneous Open of TCP
- * Connections" (https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094). What happens is
+ * Connections" (http://tools.ietf.org/html/rfc5128#section-3.4). What happens is
  * the NAT64 stores the packet for 6 seconds; if the IPv6 version of the packet arrives, the NAT64
  * drops the original packet (the IPv4 node will eventually realize this on its own by means of the
  * handshake), otherwise a ICMP error containing the original IPv4 packet is generated (because

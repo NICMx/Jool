@@ -591,7 +591,7 @@ struct global_config {
 		/**
 		 * Randomize choice of RFC6791 address?
 		 * Otherwise it will be set depending on the incoming packet's Hop Limit. See
-		 * https://github.com/NICMx/NAT64/issues/130.
+		 * https://github.com/NICMx/Jool/issues/130.
 		 * Boolean.
 		 */
 		__u8 randomize_error_addresses;
