@@ -101,7 +101,7 @@ All kernel modules depend on them; they tell Jool the parameters Linux was compi
 
 <!-- Raspberry Pi -->
 {% highlight bash %}
-$ # See https://github.com/NICMx/NAT64/issues/158
+$ # See {{ site.repository-url }}/issues/158
 {% endhighlight %}
 
 ### Network interfaces
@@ -133,10 +133,10 @@ You have two options:
 
 1. Official releases are hosted in the [Download page](download.html).  
 These will prove less convoluted when you install the userspace application.
-2. There's the [Git repository](https://github.com/NICMx/NAT64) (Hit the "Download ZIP" button).  
+2. There's the [Git repository]({{ site.repository-url }}) (Hit the "Download ZIP" button).  
 This might have slight bugfixes not present in the latest official release, which you can access by sticking to the latest commit of the master branch (we do all the risky development elsewhere).
 
-> ![Note!](../images/bulb.svg) The Git repository is named "NAT64" for historic reasons only. You're actually downloading both the SIIT and the NAT64.
+> ![Note!](../images/bulb.svg) The name of the Git repository was recently renamed from "NAT64" to "Jool". Old "NAT64" content should redirect to "Jool" now, so this shouldn't be too confusing.
 
 ## Compilation and Installation
 
@@ -162,7 +162,7 @@ $ unzip Jool-<version>.zip
 
 {% highlight bash %}
 $ unzip master.zip
-# dkms install NAT64-master
+# dkms install Jool-master
 {% endhighlight %}
 
 ### Installation via Kbuild
@@ -183,7 +183,7 @@ $ make
 
 {% highlight bash %}
 $ unzip master.zip
-$ cd NAT64-master/mod
+$ cd Jool-master/mod
 $ make
 # make install
 {% endhighlight %}

@@ -62,7 +62,7 @@ NAT64 Jool:
 
 | **Bandera** | **Descripción** |
 | `--csv` | Imprimir la tabla en formato [CSV](https://es.wikipedia.org/wiki/CSV). La idea es redireccionar esto a un archivo .csv. |
-| `--force` | Dar de alta el prefijo incluso si u-bit no es cero. Ver el [issue relevante](https://github.com/NICMx/NAT64/issues/174). |
+| `--force` | Dar de alta el prefijo incluso si u-bit no es cero. Ver el [issue relevante]({{ site.repository-url }}/issues/174). |
 | `--quick` | Ver [`--quick`](usr-flags-quick.html). |
 
 ## Ejemplos

@@ -105,7 +105,7 @@ Son dependencia de cualquier módulo y le indican a Jool los parámetros bajo lo
 
 <!-- Raspberry Pi -->
 {% highlight bash %}
-$ # Ver https://github.com/NICMx/NAT64/issues/158
+$ # Ver {{ site.repository-url }}/issues/158
 {% endhighlight %}
 
 ### Interfaces de Red
@@ -137,10 +137,10 @@ Existen dos opciones:
 
 1. Releases oficiales en la [página de descarga](download.html).  
 Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
-2. El [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+2. El [repositorio de GitHub](https://github.com/Jool/NAT64).  
 Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
 
-> ![Nota](../images/bulb.svg) El repositorio de Github se llama "NAT64" solamente por razones históricas; también contiene al SIIT.
+> ![Nota](../images/bulb.svg) El repositorio de Github recientemente fue renombrado de "NAT64" a "Jool". El contenido "NAT64" ahora redirecciona a "Jool", de modo que esto no debería ser demasiado confuso.
 
 ## Compilación e Instalación
 
@@ -164,7 +164,7 @@ $ unzip Jool-<versión>.zip
 
 {% highlight bash %}
 $ unzip master.zip
-# dkms install NAT64-master
+# dkms install Jool-master
 {% endhighlight %}
 
 ### Instalación mediante Kbuild
@@ -185,7 +185,7 @@ $ make
 
 {% highlight bash %}
 $ unzip master.zip
-$ cd NAT64-master/mod
+$ cd Jool-master/mod
 $ make
 # make install
 {% endhighlight %}

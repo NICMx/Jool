@@ -64,7 +64,7 @@ You only need this if you plan on downloading the Github version of Jool.
 Pick either:
 
 1. The Official Releases' [Download page](download.html).
-2. The [Git repository](https://github.com/NICMx/NAT64) (Hit the "Download ZIP" button).
+2. The [Git repository]({{ site.repository-url }}) (Hit the "Download ZIP" button).
 
 > ![Note!](../images/bulb.svg) The Git repository is named "NAT64" for historic reasons only. You're actually downloading both the SIIT and the NAT64.
 
@@ -86,7 +86,7 @@ $ make
 
 {% highlight bash %}
 $ unzip master.zip
-$ cd NAT64-master/usr
+$ cd Jool-master/usr
 $ ./autogen.sh
 $ ./configure
 $ make

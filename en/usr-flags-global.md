@@ -215,7 +215,7 @@ When you change this value, the lifetimes of all already existing ICMP sessions 
 - Default: 2 seconds
 - Modes: Stateful NAT64 only
 - Deprecated name: `--toFrag`
-- Source: None (the flag addresses a [Linux quirk](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
+- Source: None (the flag addresses a [Linux quirk]({{ site.repository-url }}/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
 
 Stateful Jool requires fragment reassembly.
 
@@ -241,7 +241,7 @@ This behavior changed from Jool 3.2, where `--toFrag` used to actually be the ti
 
 When an external (IPv4) node first attempts to open a connection and there's no [BIB entry](bib.html) for it, Jool normally answers with an Address Unreachable (type 3, code 1) ICMP error message, since it cannot know which IPv6 node the packet is heading.
 
-In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
+In the case of TCP, the situation is a little more complicated because the IPv4 node might be attempting a <a href="{{ site.repository-url }}/issues/58#issuecomment-43537094" target="_blank">Simultaneous Open of TCP Connections</a>. To really know what's going on, Jool has to store the packet for 6 seconds.
 
 `--maximum-simultaneous-opens` is the maximum amount of packets Jool will store at a time. The default means that you can have up to 10 "simultaneous" simultaneous opens; Jool will fall back to immediately answer the ICMP error message on the eleventh one.
 
@@ -251,7 +251,7 @@ In the case of TCP, the situation is a little more complicated because the IPv4 
 - Default: False
 - Modes: Stateful NAT64 only
 - Translation direction: IPv4 to IPv6 (ICMP errors only)
-- Source: [Issue 132](https://github.com/NICMx/NAT64/issues/132)
+- Source: [Issue 132]({{ site.repository-url }}/issues/132)
 
 For some reason, RFC 6146 wants the source of translated ICMPv6 errors to be the same as their inner packets' destination address. This looks really weird.
 
@@ -264,7 +264,7 @@ Say the link between _R_ and _n4_ collapses.
 3. _R_ answers ICMPv4 error "Host unreachable". The error packet's addresses are 192.0.2.6 -> 192.0.2.1.
 4. _T_ translates into an IPv6 packet whose addresses are 64:ff9b::203.0.113.13 -> 2001:db8::1 (because this is the inverse of the first packet).
 
-[This breaks traceroutes](https://github.com/NICMx/NAT64/issues/132). Shouldn't it have been 64:ff9b::**192.0.2.6** -> 2001:db8::1 instead?
+[This breaks traceroutes]({{ site.repository-url }}/issues/132). Shouldn't it have been 64:ff9b::**192.0.2.6** -> 2001:db8::1 instead?
 
 - `--source-icmpv6-errors-better` OFF will make Jool obey RFC 6146 (and break traceroutes).
 - `--source-icmpv6-errors-better` ON will translate the outer source address directly, simply appending the prefix to the source address of the original (step 3) packet.
@@ -419,14 +419,14 @@ Stateful NAT64 Jool _always_ computes zero-checksums from IPv4-UDP packets. Beca
 - Default: ON
 - Modes: SIIT only
 - Translation direction: IPv6 to IPv4
-- Source: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
+- Source: [Issue 130]({{ site.repository-url }}/issues/130)
 
 If an ICMPv6 error's source cannot be translated, [RFC 6791](https://tools.ietf.org/html/rfc6791) wants us to assign as source a random IPv4 address from the [RFC 6791 pool](usr-flags-pool6791.html).
 
 - If `--randomize-rfc6791-addresses` is ON, Jool will follow RFC 6791's advice, assigning a random address from the pool.
 - If `--randomize-rfc6791-addresses` is OFF, Jool will assign the `hop limit`th address from the pool.
 
-Why? [It can be argued that `hop limit`th is better](https://github.com/NICMx/NAT64/issues/130).
+Why? [It can be argued that `hop limit`th is better]({{ site.repository-url }}/issues/130).
 
 ### `--mtu-plateaus`
 

@@ -164,7 +164,7 @@ Las redes encapsuladas son IPv4 y privadas. _CE_ ("Customer Edge") es un NAT44 e
 
 > ![Nota](../images/bulb.svg) Esto significa que los _CE_'s guardan estado, pero al menos esta propiedad está siendo separada en rincones más controlables.
 
-MAP-T está definido en el [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool no lo soporta [aún](https://github.com/NICMx/NAT64/issues/193), pero existen [otras](https://github.com/ayourtch/nat46) [implementaciones](https://github.com/cernet/MAP).
+MAP-T está definido en el [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool no lo soporta [aún]({{ site.repository-url }}/issues/193), pero existen [otras](https://github.com/ayourtch/nat46) [implementaciones](https://github.com/cernet/MAP).
 
 ## Nota Histórica
 

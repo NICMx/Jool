@@ -56,7 +56,7 @@ NAT64 Jool:
 * `--count`: The number of prefixes in the pool is printed in standard output.
 * `--add`: Uploads `<IPv6-prefix>` to the pool.  
   As per RFC 6052, the prefix length must be 32, 40, 48, 56, 64 or 96.  
-  In addition, u-bit (the ninth byte of the prefix) must be zero. This constraint [isn't too useful](https://github.com/NICMx/NAT64/issues/174), so you can overcome it using `--force`.
+  In addition, u-bit (the ninth byte of the prefix) must be zero. This constraint [isn't too useful]({{ site.repository-url }}/issues/174), so you can overcome it using `--force`.
 * `--remove`: Deletes the prefix `<IPv6-prefix>` from the pool.
 * `--flush`: Removes all prefixes from the pool.
 
@@ -64,7 +64,7 @@ NAT64 Jool:
 
 | **Flag** | **Description** |
 | `--csv` | Print the table in [_Comma/Character-Separated Values_ format](http://en.wikipedia.org/wiki/Comma-separated_values). This is intended to be redirected into a .csv file. |
-| `--force` | Upload the prefix even if u-bit is nonzero. See the [relevant issue](https://github.com/NICMx/NAT64/issues/174). |
+| `--force` | Upload the prefix even if u-bit is nonzero. See the [relevant issue]({{ site.repository-url }}/issues/174). |
 | `--quick` | See [`--quick`](usr-flags-quick.html). |
 
 ## Examples

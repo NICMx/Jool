@@ -175,7 +175,7 @@ Ping de _n6_ hacia _n4_ mediante IPv6:
 
 ## Palabras de cierre
 
-Aunque 464XLAT provee defensas contra literales IP, existe al menos un [protocolo de aplicación](http://tools.ietf.org/html/rfc959) tan pobremente diseñado que trabaja diferente dependiendo de si está trabajando sobre IPv6 o IPv4. Como resultado, [464XLAT por sí solo no es suficiente para hacerlo funcionar](https://github.com/NICMx/NAT64/issues/114).
+Aunque 464XLAT provee defensas contra literales IP, existe al menos un [protocolo de aplicación](http://tools.ietf.org/html/rfc959) tan pobremente diseñado que trabaja diferente dependiendo de si está trabajando sobre IPv6 o IPv4. Como resultado, [464XLAT por sí solo no es suficiente para hacerlo funcionar]({{ site.repository-url }}/issues/114).
 
 Por otra parte, algunos protocolos solo dependen parcialmente de valores literales, y el NAT64 no va a entrometerse cuando no los usen. El modo "pasivo extendido" de FTP cae en esta categoria.
 

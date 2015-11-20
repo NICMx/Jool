@@ -85,7 +85,7 @@ user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 > 
 > What happens is, if you omit them in kernels 3.5 and below, everything will seem to work, but Linux will drop some important ICMP traffic. Skipping them in kernels 3.6 and above doesn’t actually yield known adverse consequences.
 > 
-> Whether this inconsistency is a bug in older or newer kernels [is a rather philosophical topic](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). On the other hand, Jool 4.0 will almost certainly require forwarding, so you might as well start preparing your scripts.
+> Whether this inconsistency is a bug in older or newer kernels [is a rather philosophical topic]({{ site.repository-url }}/issues/170#issuecomment-141507174). On the other hand, Jool 4.0 will almost certainly require forwarding, so you might as well start preparing your scripts.
 
 The only caveat you need to keep in mind before inserting Jool is that you need to [get rid of receive offloads in the translating machine](offloads.html). Do that by means of `ethtool`:
 

@@ -225,7 +225,7 @@ Cuando se modifica este valor, los tiempos de vida de todas las sesiones ICMP ya
 - Tipo: ***Entero (segundos)***
 - Modos: ***NAT64***
 - Valor por Omisión: ***2 segundos***
-- Fuente: Ninguna (el parámetro es una respuesta a un [capricho de Linux](https://github.com/NICMx/NAT64/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
+- Fuente: Ninguna (el parámetro es una respuesta a un [capricho de Linux]({{ site.repository-url }}/wiki/nf_defrag_ipv4-and-nf_defrag_ipv6#nf_defrag_ipv6---kernels-312-)).
 
 NAT64 Jool requiere reensamblaje de fragmentos.
 
@@ -250,7 +250,7 @@ Jool SIIT no necesita reensamblaje de paquetes.
 
 Cuando un nodo (IPv4) externo intenta abrir una conexión y no hay ningún [registro BIB](bib.html) para él, Jool normalmente contesta con un mensaje de error ICMP - Dirección inalcanzable (tipo 3, código 1), ya que no puede saber a cual nodo IPv6 se está dirigiendo el paquete. 
 
-En el caso de TCP, la situación es un poco más complicada porque el nodo IPv4 puede estar intentando una [Apertura Simultánea de conexiones TCP](https://github.com/NICMx/NAT64/issues/58#issuecomment-43537094). Para saber realmente qué está pasando, Jool tiene que almacenar el paquete por 6 segundos.
+En el caso de TCP, la situación es un poco más complicada porque el nodo IPv4 puede estar intentando una [Apertura Simultánea de conexiones TCP]({{ site.repository-url }}/issues/58#issuecomment-43537094). Para saber realmente qué está pasando, Jool tiene que almacenar el paquete por 6 segundos.
 
 `--maximum-simultaneous-opens` es el numero máximo de paquetes que Jool va almacenar al mismo tiempo. El valor por omisión indica que se pueden tener hasta 10 aperturas simultáneas, "simultaneamente"; si otra apertura simultanea llega a ocurrir, Jool tendrá que ignorarla respondiendo el error ICMP.
 
@@ -262,7 +262,7 @@ En el caso de TCP, la situación es un poco más complicada porque el nodo IPv4 
 - Modos: ***NAT64***
 - Valor por Omisión: ***Apagado (0)***
 - Sentido de traducción: ***IPv4 -> IPv6 (solo errores ICMP)***
-- Fuente: [Issue 132](https://github.com/NICMx/NAT64/issues/132)
+- Fuente: [Issue 132]({{ site.repository-url }}/issues/132)
 
 Por alguna razón, el RFC 6146 quiere que el origen de los errores ICMPv6 sea igual que la dirección de destino de sus paquetes internos. Esto no es ideal.
 
@@ -275,7 +275,7 @@ Si el enlace entre _R_ y _n4_ colapsa, el siguiente flujo puede suceder:
 - _R_ responde el error ICMPv4 "Host inalcanzable". Las direcciones del paquete de error son 192.0.2.6 -> 192.0.2.1.
 - _T_ traduce eso a un paquete IPv6 cuyas direcciones son 64:ff9b::203.0.113.13 -> 2001:db8::1 (porque esta es la inversa del primer paquete).
 
-[Esto interrumpe rastreos de ruta](https://github.com/NICMx/NAT64/issues/132). No deberia haber sido 64:ff9b::**192.0.2.6** -> 2001:db8::1?
+[Esto interrumpe rastreos de ruta]({{ site.repository-url }}/issues/132). No debería haber sido 64:ff9b::**192.0.2.6** -> 2001:db8::1?
 
 - `--source-icmpv6-errors-better` desactivado hará que Jool obedezca al RFC 6146 (lo cual rompe rastreos de ruta).
 - `--source-icmpv6-errors-better` encendido traducirá la dirección de origen externa directamente, simplemente agregando el prefijo.
@@ -440,14 +440,14 @@ NAT64 Jool _siempre_ procesa los checksums con valor cero de los paquetes UDP IP
 - Modos: ***SIIT***
 - Valor por Omisión: ***Encendido (1)***
 - Sentido de traducción: ***IPv6-> IPv4***
-- Fuente: [Issue 130](https://github.com/NICMx/NAT64/issues/130)
+- Fuente: [Issue 130]({{ site.repository-url }}/issues/130)
 
 Si el origen de un error ICMPv6 no puede ser traducido, el [RFC 6791](https://tools.ietf.org/html/rfc6791) dicta que se le asigne una dirección IPv4 de [pool6791](pool6791.html).
 
 - Si `--randomize-rfc6791-addresses` está activo, Jool seguirá la sugerencia del RFC 6791, asignando una dirección aleatoria de pool6791.
 - Si `--randomize-rfc6791-addresses` está inactivo, Jool asignará la dirección número _hop limit_ de pool6791 (donde _hop limit_ es un campo de la [cabecera IPv6](http://es.wikipedia.org/wiki/IPv6#Cabecera_fija) del paquete).
 
-Esto existe porque se puede argumentar que ["dirección número _hop limit_" es mejor](https://github.com/NICMx/NAT64/issues/130).
+Esto existe porque se puede argumentar que ["dirección número _hop limit_" es mejor]({{ site.repository-url }}/issues/130).
 
 ### `--mtu-plateaus`
 

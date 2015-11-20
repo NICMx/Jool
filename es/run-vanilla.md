@@ -101,7 +101,7 @@ user@T:~# sysctl -w net.ipv6.conf.all.forwarding=1
 > 
 > Lo que pasa es que si se dejan desactivados, kernels 3.5 e inferiores van a tirar cierto tráfico de ICMP importante. Este problema no existe en Linux 3.6 en adelante.
 > 
-> [No se sabe si el comportamiento correcto es el de Linux antiguo o el del nuevo](https://github.com/NICMx/NAT64/issues/170#issuecomment-141507174). Por otro lado, Jool 4.0 probablemente va a requerir forwarding, de modo que se recomienda incluir los sysctls aunque no sean todavía necesarios.
+> [No se sabe si el comportamiento correcto es el de Linux antiguo o el del nuevo]({{ site.repository-url }}/issues/170#issuecomment-141507174). Por otro lado, Jool 4.0 probablemente va a requerir forwarding, de modo que se recomienda incluir los sysctls aunque no sean todavía necesarios.
 
 También se requiere asegurar que [offloads de recepción estén apagados](offloads.html) en todas las interfaces de _T_ relevantes.
 

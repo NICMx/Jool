@@ -30,7 +30,7 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | Marco de traducción IPv4/IPv6 | Cumple Totalmente. |
 | [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | Cumple, pero [la implementación de fragmentos atómicos está descuidada](usr-flags-atomic.html#overview). |
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Cumple Totalmente. |
-| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Por Completar](https://github.com/NICMx/NAT64/issues/114). |
+| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP sobre NAT64 | [Por Completar]({{ site.repository-url }}/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | Peculiaridades de ICMP | El RFC quiere dos cosas: [pool6791](pool6791.html) (implementado) y extensión de encabezado de ICMP (no implementado). |
 | [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Implementado como SIIT-DC-DCM; ver abajo. |
 | [draft-ietf-v6ops-siit-dc]({{ site.draft-siit-dc }}) | SIIT-DC | Cumple Totalmente. |
@@ -38,7 +38,7 @@ Este es el estatus actual de cumplimiento de Jool 3.3:
 | [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Deprecación de los Fragmentos Atómicos | Jool contiene código que maneja fragmentos atómicos, pero [va de salida](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Cumple totalmente. |
 
-![E-mail](../images/email.svg) Problemas de cumplimiento y nuevos estándares o funcionalidades pueden reportarse en el [Bug Tracker](https://github.com/NICMx/NAT64/issues).
+![E-mail](../images/email.svg) Problemas de cumplimiento y nuevos estándares o funcionalidades pueden reportarse en el [Bug Tracker]({{ site.repository-url }}/issues).
 
 ## Compatibilidad
 
@@ -61,7 +61,7 @@ El desarrollo se ha hecho usando las distribuciones LTS de Ubuntu 12.04 y 14.04,
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-![triangle](../images/triangle.svg) La compilación en Red Hat y CentOS muestran advertencias debido a diferencias entre el API de los kernels de Red Hat y Debian. [Esto no ha causado problemas durante pruebas](https://github.com/NICMx/NAT64/issues/105), pero se sigue investigando cómo solucionarlos.
+![triangle](../images/triangle.svg) La compilación en Red Hat y CentOS muestran advertencias debido a diferencias entre el API de los kernels de Red Hat y Debian. [Esto no ha causado problemas durante pruebas]({{ site.repository-url }}/issues/105), pero se sigue investigando cómo solucionarlos.
 
 ## Diseño
 

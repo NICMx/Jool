@@ -104,5 +104,5 @@ The following commands assume _App_'s packet is `192.0.2.1 -> 203.0.113.2` and t
 	1 packets transmitted, 1 received, 0% packet loss, time 0ms
 	rtt min/avg/max/mdev = 0.843/0.843/0.843/0.000 ms
 
-See [issue #177](https://github.com/NICMx/NAT64/issues/177#issuecomment-144648229) for the originally proposed version of these commands, which apply NBT in actual 464XLAT fashion.
+See [issue #177]({{ site.repository-url }}/issues/177#issuecomment-144648229) for the originally proposed version of these commands, which apply NBT in actual 464XLAT fashion.
 

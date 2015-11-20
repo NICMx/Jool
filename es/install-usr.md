@@ -73,7 +73,7 @@ Existen dos opciones:
 
 1. Releases oficiales en la [página de descarga](download.html).  
 Su ventaja es que hacen más sencilla la instalación de las aplicaciones de usuario.
-2. Release en desarrollo que están en el [repositorio de GitHub](https://github.com/NICMx/NAT64).  
+2. Release en desarrollo que están en el [repositorio de GitHub]({{ site.repository-url }}).  
 Tiene la ventaja de que el último commit del branch master puede tener correcciones de errores menores que aún no están presentes en el último oficial.
 
 ## Compilación e Instalación
@@ -94,7 +94,7 @@ $ make
 
 {% highlight bash %}
 $ unzip master.zip
-$ cd NAT64-master/usr
+$ cd Jool-master/usr
 $ ./autogen.sh
 $ ./configure
 $ make

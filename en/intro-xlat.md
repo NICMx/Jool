@@ -138,5 +138,5 @@ The enclosed networks are IPv4 and private. _CE_ ("Customer Edge") is a NAT44 ch
 
 > ![Note!](../images/bulb.svg) This means the _CE_'s are stateful, but at least this property is moved away from the core.
 
-MAP-T is defined by [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool does not support MAP-T [yet](https://github.com/NICMx/NAT64/issues/193), but [nat46](https://github.com/ayourtch/nat46) does.
+MAP-T is defined by [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool does not support MAP-T [yet]({{ site.repository-url }}/issues/193), but [nat46](https://github.com/ayourtch/nat46) does.
 

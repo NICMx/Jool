@@ -165,5 +165,5 @@ For example:
 	# jool --pool4 --add 192.0.2.1 20000-29999 --mark 20
 	# ip6tables -t mangle -I PREROUTING -s 2001:db8:2::/64 -j MARK --set-mark 20
 
-Recognizing or narrowing down the IPv6 clients behind IPv4 transport addresses helps you create [IPv4-based ACLs](https://github.com/NICMx/NAT64/issues/115) and preventing groups of clients from hogging up IPv4 transport addresses (therefore DOSing the NAT64 for other clients).
+Recognizing or narrowing down the IPv6 clients behind IPv4 transport addresses helps you create [IPv4-based ACLs]({{ site.repository-url }}/issues/115) and preventing groups of clients from hogging up IPv4 transport addresses (therefore DOSing the NAT64 for other clients).
 

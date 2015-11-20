@@ -27,7 +27,7 @@
 						<a href="faq.html">FAQ</a>
 					</div>
 					<div class="{% if page.category == 'ReportBug'     %}left_sidebar_menu_selected{% else %}left_sidebar_menu_button{% endif %}">
-						<a href="https://github.com/NICMx/NAT64/issues" target="_blank">
+						<a href="{{ site.repository-url }}/issues" target="_blank">
 							{% if page.language == 'en' %}Report a Bug{% else %}Reportar un Bug{% endif %}
 						</a>
 					</div>

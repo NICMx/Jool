@@ -30,7 +30,7 @@ As far as we know, this is the compliance status of Jool 3.3:
 | [RFC 6144](https://tools.ietf.org/html/rfc6144) | IPv4/IPv6 Translation Framework | Fully compliant. |
 | [RFC 6145](https://tools.ietf.org/html/rfc6145) | SIIT | The atomic fragment implementation is generally broken (see _Atomic Fragment Deprecation_ below). Otherwise compliant. |
 | [RFC 6146](https://tools.ietf.org/html/rfc6146) | Stateful NAT64 | Mostly compliant.<br />(Inherits RFC 6145 compliance issues) |
-| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant](https://github.com/NICMx/NAT64/issues/114). |
+| [RFC 6384](http://tools.ietf.org/html/rfc6384) | FTP over NAT64 | [Not yet compliant]({{ site.repository-url }}/issues/114). |
 | [RFC 6791](https://tools.ietf.org/html/rfc6791) | ICMP quirks | In short, this RFC wants two things: A pool of IPv4 addresses and an ICMP header extension. Jool implements the former but not the latter. |
 | [RFC 6877](http://tools.ietf.org/html/rfc6877) | 464XLAT | Rather implemented as SIIT-DC-DTM; see below. |
 | [draft-ietf-v6ops-siit-dc]({{ site.draft-siit-dc }}) | SIIT-DC | Fully compliant. |
@@ -38,7 +38,7 @@ As far as we know, this is the compliance status of Jool 3.3:
 | [draft-ietf-6man-deprecate-atomfrag-generation]({{ site.draft-deprecate-atomfrag-generation }}) | Atomic Fragment Deprecation | Strictly speaking, the draft wants us to completely trash the atomic fragments concept. We do implement them -poorly- as an [alternate and utterly discouraged mode](usr-flags-atomic.html#overview). |
 | [draft-anderson-v6ops-siit-eam]({{ site.draft-siit-eam }}) | EAM | Fully compliant. |
 
-Please [let us know](https://github.com/NICMx/NAT64/issues) if you find additional compliance issues or RFCs/drafts we've missed.
+Please [let us know]({{ site.repository-url }}/issues) if you find additional compliance issues or RFCs/drafts we've missed.
 
 ## Compatibility
 
@@ -57,7 +57,7 @@ We're supposed to support Linux kernels 3.2.0 and up. While most of the developm
 | Ubuntu 14.04 | 3.12.22-031222-generic, 3.13.11-03131103-generic |
 | Ubuntu 14.10 | 3.14.8-031408-generic, 3.15.1-031501-generic |
 
-Red Hat and CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="https://github.com/NICMx/NAT64/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
+Red Hat and CentOS introduce a compilation warning due to a kernel version mismatch between Red Hat-based kernels and Debian-based kernels. <a href="{{ site.repository-url }}/issues/105" target="_blank">We're still researching ways to address this warning</a>, but it hasn't caused any problems during testing.
 
 ## Design
 
@@ -71,5 +71,5 @@ Jool only intercepts packets belonging to the same namespace it was created in. 
 > 
 > ![Fig.2 - Jool and Filtering](../images/netfilter-filter.svg)
 > 
-> Alternatively, if you know what you're doing, you can [filter on mangle](https://github.com/NICMx/NAT64/issues/41#issuecomment-77951288).
+> Alternatively, if you know what you're doing, you can [filter on mangle]({{ site.repository-url }}/issues/41#issuecomment-77951288).
 

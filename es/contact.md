@@ -25,7 +25,7 @@ Solamente el equipo de desarrollo puede enviar mails en esta lista, de modo que 
 
 ## Bug Tracker
   
--- La lista ["Issues" en Github](https://github.com/NICMx/NAT64/issues) es el sistema de seguimiento de errores.
+-- La lista ["Issues" en Github]({{ site.repository-url }}/issues) es el sistema de seguimiento de errores.
 
 ![Note](../images/bulb.svg) Este también es un buen lugar para solicitar nuevas características o soporte.
 

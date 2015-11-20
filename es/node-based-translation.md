@@ -97,5 +97,5 @@ Las direcciones de enlace se usan como siguientes saltos después.
 	1 packets transmitted, 1 received, 0% packet loss, time 0ms
 	rtt min/avg/max/mdev = 0.843/0.843/0.843/0.000 ms
 
-Ver el [issue #177](https://github.com/NICMx/NAT64/issues/177#issuecomment-144648229) para ver la versión original propuesta de estos comandos, que aplican traducción local como un CLAT en 464XLAT.
+Ver el [issue #177]({{ site.repository-url }}/issues/177#issuecomment-144648229) para ver la versión original propuesta de estos comandos, que aplican traducción local como un CLAT en 464XLAT.
 
