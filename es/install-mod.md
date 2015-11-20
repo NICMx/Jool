@@ -198,3 +198,4 @@ $ make
 
 > ![Nota](../images/bulb.svg) Si solamente se desea compilar el binario SIIT, es posible agilizar la compilación corriendo los comandos `make` en la carpeta `mod/stateless`. De igual manera, si solamente se desea el NAT64, puede hacerse en `mod/stateful`.
 
+<!-- Este es un comentario de html -->
