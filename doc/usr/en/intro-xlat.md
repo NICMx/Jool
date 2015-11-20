@@ -16,6 +16,7 @@ title: Introduction to IPv4/IPv6 Translation
    1. [SIIT with EAM](#siit-with-eam)
    2. [SIIT (traditional)](#siit-traditional)
    3. [Stateful NAT64](#stateful-nat64)
+   4. [MAP-T](#map-t)
 
 ## Introduction
 
@@ -32,7 +33,7 @@ SIIT (_Stateless IP/ICMP Translation_) and NAT64 ("NAT six four", not "NAT sixty
 
 In their basic forms, SIIT only helps communicating nodes speaking different protocols, while NAT64 also helps with [IPv4 address exhaustion](http://en.wikipedia.org/wiki/IPv4_address_exhaustion) (at the cost of being more computationally expensive and generally hindering end-to-end transparency).
 
-For historic reasons, sometimes we mess up and label SIIT as "Stateless NAT64". Because this expression does not seem to appear in any relevant standards, we consider it imprecise, despite the fact it makes some degree of sense. If possible, please try to suppress it.
+Some people label SIIT as "Stateless NAT64". We don't, but we won't bite if you do.
 
 That's all, really. Keep reading for more detail and examples.
 
@@ -114,3 +115,28 @@ Now, that's where the similarities with NAT end. You don't normally say the IPv6
 In this way, _A_ through _E_ are _IPv6-only_ nodes, but they have access to both Internets (the IPv6 one via router _R_, and the IPv4 one via _T_).
 
 Stateful NAT64 is defined by [RFC 6146](http://tools.ietf.org/html/rfc6146) and is most of the time coupled with [DNS64](dns64.html).
+
+### MAP-T
+
+Instead of giving each client an address, you grant them a _portion_ of one. This takes care of optimizing address distribution, freeing the translator from this responsibility.
+
+![Fig.10 - MAP-T core](../images/network/mapt-core.svg)
+
+(BR stands for "Border Relay".)
+
+When an IPv6 node writes a packet, it makes sure to use a port from within a shortened range. Ports are then considered to make routing decisions.
+
+![Fig.11 - MAP-T core flow](../images/flow/mapt-core.svg)
+
+This means you're earning the privilege of masking several nodes behind a few addresses even though the translator is stateless.
+
+How do you grant "portions" of addresses to your clients? By doing NAT.
+
+![Fig.12 - MAP-T complete](../images/network/mapt-complete.svg)
+
+The enclosed networks are IPv4 and private. _CE_ ("Customer Edge") is a NAT44 chained to a translator. The NAT44 condenses its clients' requests into a limited source port range and the translator moves them to IPv6.
+
+> ![Note!](../images/bulb.svg) This means the _CE_'s are stateful, but at least this property is moved away from the core.
+
+MAP-T is defined by [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool does not support MAP-T [yet](https://github.com/NICMx/NAT64/issues/193), but [nat46](https://github.com/ayourtch/nat46) does.
+

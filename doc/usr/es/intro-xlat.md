@@ -13,9 +13,10 @@ title: Introducción a los Mecanismos de Transición
 
 1. [Introducción](#introduccin)
 2. [Traducción IPv4/IPv6](#traduccin-ipv4ipv6)
-	1. [SIIT con EAM](#siit-con-eam)
+    1. [SIIT con EAM](#siit-con-eam)
     2. [SIIT tradicional](#siit-tradicional)
     3. [Stateful NAT64](#stateful-nat64)
+    4. [MAP-T](#map-t)
 3. [Nota Histórica](#nota-histrica)
     
 ## Introducción
@@ -140,6 +141,30 @@ Por lo tanto, los nodos _A_ hasta _E_ solamente tienen stacks de _IPv6_, pero pu
 Si gustas conocer el resto de los **escenarios posibles en Stateful NAT64 y SIIT** consulta el [RFC 6144, cap. 2](https://tools.ietf.org/html/rfc6144#section-2).
 
 ![Nota](../images/bulb.svg) Para soportar direccionamiento por nombre se requiere habilitar el [DNS64](dns64.html).
+
+### MAP-T
+
+En lugar de darle a cada cliente una dirección, se les da un _pedazo_ de una. Esto se ocupa del tema de optimizar la distribución de direcciones, liberando al traductor de esta responsabilidad.
+
+![Fig.10 - MAP-T general](../images/network/mapt-core.svg)
+
+(BR es "Border Relay" - el traductor.)
+
+Los nodos de IPv6 se aseguran de solamente usar puertos de un rango único disminuido. Ruteo entonces considera puertos al tomar decisiones.
+
+![Fig.11 - Flujo MAP-T general](../images/flow/mapt-core.svg)
+
+Esto logra que se enmascaren varios nodos detrás de pocas direcciones a pesar de que el traductor no está guardando estado.
+
+¿Cómo asignar rangos de puertos específicos a clientes? Mediante NAT.
+
+![Fig.12 - MAP-T completo](../images/network/mapt-complete.svg)
+
+Las redes encapsuladas son IPv4 y privadas. _CE_ ("Customer Edge") es un NAT44 encadenado a un traductor. El NAT44 condensa el tráfico de sus clientes a un rango de puertos fuente limitado y el traductor las convierte a IPv6.
+
+> ![Nota](../images/bulb.svg) Esto significa que los _CE_'s guardan estado, pero al menos esta propiedad está siendo separada en rincones más controlables.
+
+MAP-T está definido en el [RFC 7599](https://tools.ietf.org/html/rfc7599). Jool no lo soporta [aún](https://github.com/NICMx/NAT64/issues/193), pero existen [otras](https://github.com/ayourtch/nat46) [implementaciones](https://github.com/cernet/MAP).
 
 ## Nota Histórica
 

@@ -27,11 +27,21 @@ As far as we know, Jool is a [fairly compliant](intro-jool.html#compliance) SIIT
 
 New bug reports might interpolate other milestones in-between. Feedback from users can persuade us to change priorities. See [Contact](contact.html) for options on this.
 
-Our latest release is version [3.4.1](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.1).
+Our latest release is version [3.4.2](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.2).
 
 -------------------
 
 ## News
+
+### 2015-11-20
+
+Version 3.4.2 released. There are three bugfixes:
+
+1. [Bogus pointers and memory leaks](https://github.com/NICMx/NAT64/issues/192) caused by `--flush` and termination of pool6791 and blacklist (SIIT Jool).
+2. `--bib --display` and `--session --display` now [require network admin privileges](https://github.com/NICMx/NAT64/issues/191) (NAT64 Jool).
+3. Needlessly purged some [compilation warnings](https://github.com/NICMx/NAT64/issues/188) in old gcc versions (NAT64 Jool).
+
+Careful with #2! You might need to update scripts.
 
 ### 2015-11-11
 
@@ -40,8 +50,6 @@ Version 3.4.1 released. There are three bugfixes:
 1. Kernel panic due to [incorrect namespace API handling](https://github.com/NICMx/NAT64/pull/185#issuecomment-155875381).
 2. Fixed [compilation for kernels 4.1 and above](https://github.com/NICMx/NAT64/pull/185).
 3. The userspace applications [used to return success after errors found by the module](https://github.com/NICMx/NAT64/issues/184).
-
-The second bug also affects Jool 3.3, so 3.3.6 has also been released.
 
 ### 2015-11-04
 

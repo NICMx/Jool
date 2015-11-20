@@ -1,9 +1,0 @@
-rm Makefile
-rm Makefile.in
-rm aclocal.m4
-rm compile
-rm config.status
-rm configure
-rm depcomp
-rm install-sh
-rm missing

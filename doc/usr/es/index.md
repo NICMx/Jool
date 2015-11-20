@@ -27,11 +27,21 @@ Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#c
 
 A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker](https://github.com/NICMx/NAT64/issues).
 
-La versión más reciente es la [3.4.1](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.0).
+La versión más reciente es la [3.4.2](https://github.com/NICMx/NAT64/issues?q=milestone%3A3.4.2).
 
 -------------------
 
 ## Noticias
+
+### 2015-11-20
+
+Jool 3.4.2 fue liberado. Se corrigieron tres bugs:
+
+1. [Apuntadores corruptos y derrames de memoria](https://github.com/NICMx/NAT64/issues/192) causados por el vaciado y deinicialización de pool6791 y blacklist.
+2. `--bib --display` y `--session --display` ahora [requieren privilegios de administrador de red](https://github.com/NICMx/NAT64/issues/191) (NAT64 Jool).
+3. Se limpiaron algunas [advertencias de compilación](https://github.com/NICMx/NAT64/issues/188) reportadas por versiones antiguas de gcc.
+
+Cuidado con el #2! Puede ser necesario actualizar scripts.
 
 ### 2015-11-11
 
@@ -40,8 +50,6 @@ Jool 3.4.1 fue liberado. Se corrigieron tres bugs:
 1. Kernel panic debido a [incorrecto manejo de namespaces](https://github.com/NICMx/NAT64/pull/185#issuecomment-155875381).
 2. Corregida [compilación para kernels 4.1 en adelante](https://github.com/NICMx/NAT64/pull/185).
 3. Las aplicaciones de espacio de usuario [solían regresar éxito en errores detectados por el módulo](https://github.com/NICMx/NAT64/issues/184).
-
-El segundo punto también afectaba a Jool 3.3, de modo que también se liberó 3.3.6.
 
 ### 2015-11-04
 
