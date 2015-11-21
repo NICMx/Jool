@@ -11,7 +11,7 @@ An [SIIT and a NAT64](https://www.jool.mx/en/intro-xlat.html) for Linux.
 
 ## Documentation
 
-[See here](https://www.jool.mx/en/documentation.html). You can also [generate the docs yourself](doc/README.md).
+[See here](https://www.jool.mx/en/documentation.html). You can also [generate the docs yourself](https://github.com/NICMx/Jool/tree/gh-pages).
 
 You might also want to see [contact info](https://www.jool.mx/en/contact.html).
 
