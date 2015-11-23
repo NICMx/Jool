@@ -22,8 +22,9 @@ Jool es un [SIIT y NAT64](intro-xlat.html) de código abierto para Linux.
 
 Jool es un SIIT y NAT64 [razonablemente apegado a estándares](intro-jool.html#cumplimiento). Esta es la agenda hasta el 2015-11-04:
 
-1. [La versión 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) va a ser una [revisión de framework]({{ site.repository-url }}/issues/140). Jool probablemente va a poder convertirse en un device driver, lo cual puede hacerlo más intuitivo y versátil de configurar.
-2. [La versión 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) añadirá funcionalidad nueva.
+1. [La versión 3.5.0]({{ site.repository-url }}/issues?q=milestone%3A3.5.0) añadirá funcionalidad nueva.
+2. [La versión 4.0.0]({{ site.repository-url }}/issues?q=milestone%3A4.0.0) va a ser una [refactorización interna]({{ site.repository-url }}/issues/140) que hará la configuración más versátil.
+3. [La versión 4.1.0]({{ site.repository-url }}/issues?q=milestone%3A4.1.0) añadirá funcionalidad nueva.
 
 A veces interpolamos versiones intermedias dependiendo de cómo evoluciona el [bug tracker]({{ site.repository-url }}/issues).
 

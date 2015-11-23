@@ -22,7 +22,7 @@ Jool es una implementación de código abierto de dos mecanismos de transición 
 
 ## Cumplimiento
 
-Este es el estatus actual de cumplimiento de Jool 3.3:
+Este es el estatus actual de cumplimiento de Jool 3.4:
 
 | RFC/borrador | Nombre de recordatorio  | Estatus |
 |-----------|---------|--------|

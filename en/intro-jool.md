@@ -22,7 +22,7 @@ Jool is an Open Source implementation of [IPv4/IPv6 Translation](intro-xlat.html
 
 ## Compliance
 
-As far as we know, this is the compliance status of Jool 3.3:
+As far as we know, this is the compliance status of Jool 3.4:
 
 | RFC/draft | Reminder name | Status |
 |-----------|---------|--------|
