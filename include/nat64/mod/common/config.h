@@ -38,4 +38,7 @@ bool config_is_xlat_disabled(void);
 
 unsigned long config_get_ttl_frag(void);
 
+bool config_xlat_ftp(void);
+bool config_xlat_epsv_as_pasv(void);
+
 #endif /* _JOOL_MOD_CONFIG_H */
