@@ -2,57 +2,56 @@
 
 #include "nat64/mod/common/config.h"
 #include "nat64/mod/common/alg/ftp/parser.h"
-#include "nat64/mod/common/alg/ftp/state.h"
+#include "nat64/mod/common/alg/ftp/state/db.h"
 
 /*
- * This is still an early WIP. Still not included:
+ * This is still a WIP. Still not included:
  *
- * - If the packet has the URG flag set, the urgent pointer might need to be
- *   updated if the pointed data moved.
- * - Update sequence numbers.
- * - Some multiple FTP commands per packet while actually translating.
- * - The ALGS command (Section 11).
- * - Timeouts and NOOP (Section 12).
- * - Language negotiation.
- *   I'm drifting towards "Not monitor LANG negotiation" to minimize state,
- *   but it might be even more convoluted than the monitor option:
- *
- *       Note that Section 3.1 of [RFC2640] specifies new handling for spaces
- *       and the carriage return (CR) character in pathnames.  ALGs that do
- *       not block LANG negotiation SHOULD comply with the specified rules for
- *       path handling.  Implementers should especially note that the NUL
- *       (%x00) character is used as an escape whenever a CR character occurs
- *       in a pathname.
+ * - TCP header mangling (urgent pointer and sequence numbers)
+ * - The state machine.
+ * - NOOP (Section 12) (this needs to belong to the state machine.)
  *
  *
  * I don't know why I'm supposed to worry about this:
  *
- * - if a language is negotiated, text transmitted
+ * - "if a language is negotiated, text transmitted
  *   by the client or the server MUST be assumed to be encoded in UTF-8
- *   [RFC3629] rather than be limited to 7-bit ASCII.
- *   (The ALG doesn't ever seem to care about encoding.)
+ *   [RFC3629] rather than be limited to 7-bit ASCII."
+ *   (UTF-8 contains 7-bit ASCII, so the parser doesn't have to expect different
+ *   strings.)
+*  - "Note that Section 3.1 of [RFC2640] specifies new handling for spaces
+ *   and the carriage return (CR) character in pathnames.  ALGs that do
+ *   not block LANG negotiation SHOULD comply with the specified rules for
+ *   path handling.  Implementers should especially note that the NUL
+ *   (%x00) character is used as an escape whenever a CR character occurs
+ *   in a pathname."
+ *   (I never need to parse pathnames. Not that it would be troublesome anyway,
+ *   since RFC2640.3.1 prevents them from containing CRLF.)
  *
  *
  * Stuff that needs to be present in the user documentation:
  *
- * - "set-and-forget" policy is not recommended.
+ * - "set and forget" policy is not recommended.
  * - The ALG only works when the server is listening in the default FTP port.
  *   (should this be configurable?)
- */
-
-/*
- * If the packet is fragmented, we'll just have to hope for the best.
- * SIIT can't band fragments together, so it can't even know if a subsequent
- * fragment contains FTP data or not.
- * FTP control connections always yield small packets anyway, so this shouldn't
- * be a problem in normal operation.
+ * - The ALG is _stateful_. Even in SIIT mode.
+ * - The ALG assumes the client is IPv6 and the server is IPv4.
  *
- * RFC 6384 is completely silent on the topic of fragments.
+ *
+ * Stuff that baffles me, currently:
+ *
+ * - Section 12 seems unfinished.
+ *   I think I'm going to have to replicate the NAT64 logic regarding the TCP
+ *   state machine here. Why? because SIIT doesn't have it and needs to drop
+ *   the FTP sessions after a teardown TCP handshake + TCP TRANS + data channels
+ *   expired.
+ *   Also, it seems I'm going to have to send keepalives as NOOPs (assuming no
+ *   transparent mode) or TCP probes.
+ * - The ALG is FUCKING _STATEFUL_. STATEFUL. EVEN IN SIIT MODE.
+ *   Perhaps I should move it to userspace.
  */
-static bool pkt_is_fragmented(struct packet *in)
-{
 
-}
+static DEFINE_SPINLOCK(lock);
 
 static bool pkt_dst_is_ftp(struct packet *in)
 {
@@ -66,112 +65,154 @@ static bool pkt_src_is_ftp(struct packet *in)
 			&& (pkt_tcp_hdr(in)->source == cpu_to_be16(21));
 }
 
-static void xlat_epsv_into_pasv(struct packet *in)
+static void update_ctrl_channel_timeout(struct packet *in)
 {
-	if (net_prt && net_ptr != 2)
-		refuse_to_client(522, "Network protocol not supported");
-	if (net_prt == "ALL")
-		refuse_to_client(504, "Command not implemented for that parameter");
-
-	pasv();
+	/* TODO */
 }
 
-static void xlat_227_into_229(struct packet *in)
+static enum ftpxlat_action sm64(struct packet *in, struct ftp_state *state)
 {
-	struct in_addr tmp = { .s_addr = pkt_ip4_hdr(in)->saddr };
+	struct ftp_ctrl_channel_parser parser;
+	struct ftp_client_msg token;
+	enum ftpxlat_action action = FTPXLAT_DO_NOTHING;
 
-	if (!addr4_equals(response->addr, &tmp))
-		refuse_to_client(425, "Can't open data connection");
+	ftpparser_init(&parser, in->skb);
 
-	/* 229 Entering Extended Passive Mode (|||60691|) */
-}
-
-static verdict xlat_ftp_64(struct packet *in)
-{
-	struct ftp_control_channel_parser parser;
-	char buffer[128];
-	enum ftp_client_code code;
-	int error;
-
-	error = ftpparser_init(&parser, in->skb);
-	if (error)
-		return VERDICT_DROP;
-
-	while (ftpparser_next(&parser, buffer) != -ENOENT) {
-		code = ftpparser_get_client_code(buffer);
-		switch (code) {
+	while (ftpparser_client_nextline(&parser, &token) != -ENOENT) {
+		switch (token.code) {
 		case FTP_AUTH:
-			ftpstate_client_sent_auth(in);
+			action = ftpsm_client_sent_auth(state);
 			break;
 		case FTP_EPSV:
-			if (config_xlat_epsv_as_pasv())
-				xlat_epsv_into_pasv(in);
+			action = ftpsm_client_sent_epsv(state);
 			break;
 		case FTP_EPRT:
-			xlat_eprt_into_port(in);
+			action = ftpsm_client_sent_eprt(state);
+			break;
+		case FTP_ALGS:
+			action = ftpsm_client_sent_algs(state, &token);
 			break;
 		}
 	}
 
 	ftpparser_destroy(&parser);
+
+	return action;
+}
+
+static verdict handle_action64(enum ftpxlat_action action)
+{
+	/* TODO */
 	return VERDICT_CONTINUE;
 }
 
 /* client to server */
 verdict ftp_64(struct packet *in)
 {
-	if (!config_xlat_ftp()
-			|| pkt_is_fragmented(in)
-			|| !pkt_dst_is_ftp(in)
-			|| ftpstate_is_transparent_mode(in))
-		return VERDICT_CONTINUE;
+	struct ftp_state *state;
+	enum ftpxlat_action action;
 
-	return xlat_ftp_64(in);
+	if (!config_xlat_ftp())
+		return VERDICT_CONTINUE;
+	/*
+	 * If the packet is fragmented, we'll just have to hope for the best.
+	 * SIIT can't band fragments together, so it can't even know if a
+	 * subsequent fragment contains FTP data or not.
+	 * FTP control connections always yield small packets anyway, so this
+	 * shouldn't be a problem in normal operation.
+	 *
+	 * RFC 6384 is completely silent on the topic of fragments.
+	 */
+	if (is_fragmented_ipv6(pkt_frag_hdr(in)))
+		return VERDICT_CONTINUE;
+	if (!pkt_dst_is_ftp(in)) {
+		update_ctrl_channel_timeout(in);
+		return VERDICT_CONTINUE;
+	}
+
+	spin_lock_bh(&lock);
+
+	state = ftpdb_get_or_create(in);
+	if (!state) {
+		spin_unlock_bh(&lock);
+		return VERDICT_DROP;
+	}
+
+	/* TODO the line parsing can be pushed out of the spinlock. */
+	action = ftpsm_is_transparent_mode(state)
+			? FTPXLAT_DO_NOTHING
+			: sm64(in, state);
+
+	spin_unlock_bh(&lock);
+
+	return handle_action64(action);
 }
 
-static verdict xlat_ftp_46(struct packet *in)
+static enum ftpxlat_action sm46(struct packet *in, struct ftp_state *state)
 {
-	struct ftp_control_channel_parser parser;
-	char buffer[128];
-	enum ftp_server_code code;
-	int error;
+	struct ftp_ctrl_channel_parser *parser;
+	struct ftp_server_msg token;
+	enum ftpxlat_action action = FTPXLAT_DO_NOTHING;
 
-	error = ftpparser_init(&parser, in->skb);
-	if (error)
-		return VERDICT_DROP;
+	parser = ftpparser_init(&parser, in->skb);
+	if (!parser) {
+		/*
+		 * TODO yes, you'll definitely need to move this stuff out of
+		 * the spinlock.
+		 */
+		return FTPXLAT_DO_NOTHING;
+	}
 
-	while (ftpparser_next(&parser, buffer) != -ENOENT) {
-		code = ftpparser_get_server_code(buffer);
-		switch (code) {
+	while (ftpparser_server_nextline(&parser, &token) != -ENOENT) {
+		switch (token.code) {
 		case FTP_227:
-			/*
-			 * TODO is 227 possible as a response to something
-			 * other than EPSV?
-			 */
-			if (config_xlat_epsv_as_pasv())
-				xlat_227_into_229(in);
+			action = ftpsm_server_sent_227(state);
 			break;
 		case FTP_REJECT:
-			ftpstate_server_denied(in);
+			action = ftpsm_server_denied(state);
 			break;
 		}
 	}
 
-	ftpstate_server_finished(in);
+	ftpparser_destroy(parser);
 
-	ftpparser_destroy(&parser);
+	return action;
+}
+
+static verdict handle_action46(enum ftpxlat_action action)
+{
+	/* TODO */
 	return VERDICT_CONTINUE;
 }
 
 /* server to client */
 verdict ftp_46(struct packet *in)
 {
-	if (!config_xlat_ftp()
-			|| pkt_is_fragmented(in)
-			|| !pkt_src_is_ftp(in)
-			|| ftpstate_is_transparent_mode(in))
+	struct ftp_state *state;
+	enum ftpxlat_action action;
+
+	if (!config_xlat_ftp())
 		return VERDICT_CONTINUE;
+	if (is_fragmented_ipv4(pkt_ip4_hdr(in)))
+		return VERDICT_CONTINUE;
+	if (!pkt_src_is_ftp(in)) {
+		update_ctrl_channel_timeout(in);
+		return VERDICT_CONTINUE;
+	}
 
-	return xlat_ftp_46(in);
+	spin_lock_bh(&lock);
+
+	state = ftpdb_get(in);
+	if (!state) {
+		spin_unlock_bh(&lock);
+		return VERDICT_DROP;
+	}
+
+	action = ftpsm_is_transparent_mode(state)
+			? FTPXLAT_DO_NOTHING
+			: sm46(in, state);
+
+	spin_unlock_bh(&lock);
+
+	return handle_action46(action);
 }
-
