@@ -1,7 +1,7 @@
 #include "nat64/mod/common/alg/ftp/core.h"
 
 #include "nat64/mod/common/config.h"
-#include "nat64/mod/common/alg/ftp/parser.h"
+#include "nat64/mod/common/alg/ftp/parser/ctrl_channel.h"
 #include "nat64/mod/common/alg/ftp/state/db.h"
 
 /*
@@ -76,7 +76,7 @@ static enum ftpxlat_action sm64(struct packet *in, struct ftp_state *state)
 	struct ftp_client_msg token;
 	enum ftpxlat_action action = FTPXLAT_DO_NOTHING;
 
-	ftpparser_init(&parser, in->skb);
+	ftpparser_init(&parser, in);
 
 	while (ftpparser_client_nextline(&parser, &token) != -ENOENT) {
 		switch (token.code) {
@@ -91,6 +91,12 @@ static enum ftpxlat_action sm64(struct packet *in, struct ftp_state *state)
 			break;
 		case FTP_ALGS:
 			action = ftpsm_client_sent_algs(state, &token);
+			break;
+		case FTP_CLIENT_UNRECOGNIZED:
+			/*
+			 * TODO A list of actions is probably more appropriate.
+			 */
+			action = FTPXLAT_DO_NOTHING;
 			break;
 		}
 	}
@@ -150,18 +156,11 @@ verdict ftp_64(struct packet *in)
 
 static enum ftpxlat_action sm46(struct packet *in, struct ftp_state *state)
 {
-	struct ftp_ctrl_channel_parser *parser;
+	struct ftp_ctrl_channel_parser parser;
 	struct ftp_server_msg token;
 	enum ftpxlat_action action = FTPXLAT_DO_NOTHING;
 
-	parser = ftpparser_init(&parser, in->skb);
-	if (!parser) {
-		/*
-		 * TODO yes, you'll definitely need to move this stuff out of
-		 * the spinlock.
-		 */
-		return FTPXLAT_DO_NOTHING;
-	}
+	ftpparser_init(&parser, in);
 
 	while (ftpparser_server_nextline(&parser, &token) != -ENOENT) {
 		switch (token.code) {
@@ -171,10 +170,13 @@ static enum ftpxlat_action sm46(struct packet *in, struct ftp_state *state)
 		case FTP_REJECT:
 			action = ftpsm_server_denied(state);
 			break;
+		case FTP_SERVER_UNRECOGNIZED:
+			action = FTPXLAT_DO_NOTHING;
+			break;
 		}
 	}
 
-	ftpparser_destroy(parser);
+	ftpparser_destroy(&parser);
 
 	return action;
 }

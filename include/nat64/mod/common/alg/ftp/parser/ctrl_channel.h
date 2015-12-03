@@ -1,7 +1,9 @@
 #ifndef _JOOL_MOD_ALG_FTP_PARSER_H
 #define _JOOL_MOD_ALG_FTP_PARSER_H
 
-#include <linux/skbuff.h>
+#include "nat64/common/types.h"
+#include "nat64/mod/common/packet.h"
+#include "nat64/mod/common/alg/ftp/parser/telnet.h"
 
 
 enum ftp_client_code {
@@ -9,6 +11,8 @@ enum ftp_client_code {
 	FTP_EPSV,
 	FTP_EPRT,
 	FTP_ALGS,
+	/* Something else. */
+	FTP_CLIENT_UNRECOGNIZED,
 };
 
 /** See http://tools.ietf.org/html/rfc2428#section-3 */
@@ -60,6 +64,8 @@ enum ftp_server_code {
 	FTP_227,
 	/* 4xx or 5xx. */
 	FTP_REJECT,
+	/* Something else. */
+	FTP_SERVER_UNRECOGNIZED,
 };
 
 struct ftp_server_msg {
@@ -77,16 +83,13 @@ struct ftp_token {
 };
 
 struct ftp_ctrl_channel_parser {
-	struct sk_buff *skb;
-	struct list_head options;
-
-	unsigned char buffer[128];
-	unsigned int skb_offset;
-	unsigned int buffer_offset;
+	struct packet *pkt;
+	struct list_head chunks;
+	struct telnet_chunk *current_chunk;
 };
 
 
-struct ftp_ctrl_channel_parser *ftpparser_create(struct sk_buff *skb);
+int ftpparser_init(struct ftp_ctrl_channel_parser *parser, struct packet *pkt);
 int ftpparser_server_nextline(struct ftp_ctrl_channel_parser *parser,
 		struct ftp_server_msg *token);
 int ftpparser_client_nextline(struct ftp_ctrl_channel_parser *parser,
