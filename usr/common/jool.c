@@ -445,6 +445,9 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 	case ARGP_SRC_ICMP6ERRS_BETTER:
 		error = set_global_bool(args, SRC_ICMP6ERRS_BETTER, str);
 		break;
+	case ARGP_F_ARGS:
+		error = set_global_u8(args, F_ARGS, str, 0, 0xF);
+		break;
 
 	case ARGP_BIB_LOGGING:
 		error = set_global_bool(args, BIB_LOGGING, str);

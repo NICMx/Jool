@@ -15,6 +15,18 @@ static char *print_bool(bool value)
 	return value ? "ON" : "OFF";
 }
 
+static char *print_csv_bool(bool value)
+{
+	return value ? "TRUE" : "FALSE";
+}
+
+static void print_binary(unsigned int value, unsigned int size)
+{
+	int i;
+	for (i = size - 1; i >= 0; i--)
+		printf("%u", (value >> i) & 0x1);
+}
+
 static void print_plateaus(struct global_config *conf, char *separator)
 {
 	__u16 *plateaus;
@@ -42,22 +54,21 @@ static char *int_to_hairpin_mode(enum eam_hairpinning_mode mode)
 	return "unknown";
 }
 
-static void print_allow_atomic_frags(struct global_config *conf)
+static char* print_allow_atomic_frags(struct global_config *conf)
 {
 	if (!conf->atomic_frags.df_always_on
 			&& !conf->atomic_frags.build_ipv6_fh
 			&& conf->atomic_frags.build_ipv4_id
 			&& conf->atomic_frags.lower_mtu_fail)
-		printf("OFF");
+		return "OFF";
 
-	else if (conf->atomic_frags.df_always_on
+	if (conf->atomic_frags.df_always_on
 			&& conf->atomic_frags.build_ipv6_fh
 			&& !conf->atomic_frags.build_ipv4_id
 			&& !conf->atomic_frags.lower_mtu_fail)
-		printf("ON");
+		return "ON";
 
-	else
-		printf("Mixed");
+	return "Mixed";
 }
 
 static int handle_display_response(struct nl_msg *msg, void *arg)
@@ -86,6 +97,14 @@ static int handle_display_response(struct nl_msg *msg, void *arg)
 				conf->nat64.max_stored_pkts);
 		printf("  --%s: %s\n", OPTNAME_SRC_ICMP6E_BETTER,
 				print_bool(conf->nat64.src_icmp6errs_better));
+
+		printf("  --%s: %u (0b", OPTNAME_F_ARGS, conf->nat64.f_args);
+		print_binary(conf->nat64.f_args, 4);
+		printf(")\n");
+		printf("    Src addr: %s\n", print_bool(conf->nat64.f_args & F_ARGS_SRC_ADDR));
+		printf("    Src port: %s\n", print_bool(conf->nat64.f_args & F_ARGS_SRC_PORT));
+		printf("    Dst addr: %s\n", print_bool(conf->nat64.f_args & F_ARGS_DST_ADDR));
+		printf("    Dst port: %s\n", print_bool(conf->nat64.f_args & F_ARGS_DST_PORT));
 	} else {
 		printf("  --%s: %s\n", OPTNAME_AMEND_UDP_CSUM,
 				print_bool(conf->siit.compute_udp_csum_zero));
@@ -149,93 +168,73 @@ static int handle_display_response_csv(struct nl_msg *msg, void *arg)
 {
 	struct global_config *conf = nlmsg_data(nlmsg_hdr(msg));
 
-	printf("Status,");
-	printf("Manually disabled,");
-	printf(OPTNAME_ZEROIZE_TC ",");
-	printf(OPTNAME_OVERRIDE_TOS ",");
-	printf(OPTNAME_TOS ",");
-	printf(OPTNAME_MTU_PLATEAUS ",");
+	printf("Status,%s\n", print_status(conf));
+	printf("Manually disabled,%s\n", print_csv_bool(conf->is_disable));
 
-	if (xlat_is_nat64()) {
-		printf(OPTNAME_MAX_SO ",");
-		printf(OPTNAME_SRC_ICMP6E_BETTER ",");
-	} else {
-		printf(OPTNAME_AMEND_UDP_CSUM ",");
-		printf(OPTNAME_EAM_HAIRPIN_MODE ",");
-		printf(OPTNAME_RANDOMIZE_RFC6791 ",");
-	}
-
-	printf(OPTNAME_ALLOW_ATOMIC_FRAGS ",");
-	printf(OPTNAME_DF_ALWAYS_ON ",");
-	printf(OPTNAME_GENERATE_FH ",");
-	printf(OPTNAME_GENERATE_ID4 ",");
-	printf(OPTNAME_FIX_ILLEGAL_MTUS);
-
-	if (xlat_is_nat64()) {
-		printf(",");
-
-		printf(OPTNAME_BIB_LOGGING ",");
-		printf(OPTNAME_SESSION_LOGGING ",");
-
-		printf(OPTNAME_DROP_BY_ADDR ",");
-		printf(OPTNAME_DROP_ICMP6_INFO ",");
-		printf(OPTNAME_DROP_EXTERNAL_TCP ",");
-
-		printf(OPTNAME_UDP_TIMEOUT ",");
-		printf(OPTNAME_TCPEST_TIMEOUT ",");
-		printf(OPTNAME_TCPTRANS_TIMEOUT ",");
-		printf(OPTNAME_ICMP_TIMEOUT ",");
-		printf(OPTNAME_FRAG_TIMEOUT);
-	}
-
-	printf("\n");
-
-	printf("%s,", print_status(conf));
-	printf("%s,", print_bool(conf->is_disable));
-	printf("%s,", print_bool(conf->reset_traffic_class));
-	printf("%s,", print_bool(conf->reset_tos));
-	printf("%u,", conf->new_tos);
-
+	printf("%s,%s\n", OPTNAME_ZEROIZE_TC,
+			print_csv_bool(conf->reset_traffic_class));
+	printf("%s,%s\n", OPTNAME_OVERRIDE_TOS,
+			print_csv_bool(conf->reset_tos));
+	printf("%s,%u\n", OPTNAME_TOS, conf->new_tos);
+	printf("%s,", OPTNAME_MTU_PLATEAUS);
 	printf("\"");
 	print_plateaus(conf, ",");
-	printf("\",");
+	printf("\"\n");
 
 	if (xlat_is_nat64()) {
-		printf("%llu,", conf->nat64.max_stored_pkts);
-		printf("%s,", print_bool(conf->nat64.src_icmp6errs_better));
+		printf("%s,%llu\n", OPTNAME_MAX_SO,
+				conf->nat64.max_stored_pkts);
+		printf("%s,%s\n", OPTNAME_SRC_ICMP6E_BETTER,
+				print_csv_bool(conf->nat64.src_icmp6errs_better));
+		printf("%s,%u\n", OPTNAME_F_ARGS, conf->nat64.f_args);
+
 	} else {
-		printf("%s,", print_bool(conf->siit.compute_udp_csum_zero));
-		printf("%s,", int_to_hairpin_mode(conf->siit.eam_hairpin_mode));
-		printf("%s,", print_bool(conf->siit.randomize_error_addresses));
+		printf("%s,%s\n", OPTNAME_AMEND_UDP_CSUM,
+				print_csv_bool(conf->siit.compute_udp_csum_zero));
+		printf("%s,%s\n", OPTNAME_EAM_HAIRPIN_MODE,
+				int_to_hairpin_mode(conf->siit.eam_hairpin_mode));
+		printf("%s,%s\n", OPTNAME_RANDOMIZE_RFC6791,
+				print_csv_bool(conf->siit.randomize_error_addresses));
 	}
 
-	print_allow_atomic_frags(conf);
-	printf(",");
-	printf("%s,", print_bool(conf->atomic_frags.df_always_on));
-	printf("%s,", print_bool(conf->atomic_frags.build_ipv6_fh));
-	printf("%s,", print_bool(conf->atomic_frags.build_ipv4_id));
-	printf("%s", print_bool(conf->atomic_frags.lower_mtu_fail));
+	printf("%s,%s\n", OPTNAME_ALLOW_ATOMIC_FRAGS,
+			print_allow_atomic_frags(conf));
+	printf("%s,%s\n", OPTNAME_DF_ALWAYS_ON,
+			print_csv_bool(conf->atomic_frags.df_always_on));
+	printf("%s,%s\n", OPTNAME_GENERATE_FH,
+			print_csv_bool(conf->atomic_frags.build_ipv6_fh));
+	printf("%s,%s\n", OPTNAME_GENERATE_ID4,
+			print_csv_bool(conf->atomic_frags.build_ipv4_id));
+	printf("%s,%s\n", OPTNAME_FIX_ILLEGAL_MTUS,
+			print_csv_bool(conf->atomic_frags.lower_mtu_fail));
 
 	if (xlat_is_nat64()) {
-		printf(",");
+		printf("%s,%s\n", OPTNAME_BIB_LOGGING,
+				print_csv_bool(conf->nat64.bib_logging));
+		printf("%s,%s\n", OPTNAME_SESSION_LOGGING,
+				print_csv_bool(conf->nat64.session_logging));
+		printf("%s,%u\n", OPTNAME_F_ARGS,
+				conf->nat64.f_args);
 
-		printf("%s,", print_bool(conf->nat64.bib_logging));
-		printf("%s,", print_bool(conf->nat64.session_logging));
-		printf("%s,", print_bool(conf->nat64.drop_by_addr));
-		printf("%s,", print_bool(conf->nat64.drop_icmp6_info));
-		printf("%s,", print_bool(conf->nat64.drop_external_tcp));
+		printf("%s,%s\n", OPTNAME_DROP_BY_ADDR,
+				print_csv_bool(conf->nat64.drop_by_addr));
+		printf("%s,%s\n", OPTNAME_DROP_ICMP6_INFO,
+				print_csv_bool(conf->nat64.drop_icmp6_info));
+		printf("%s,%s\n", OPTNAME_DROP_EXTERNAL_TCP,
+				print_csv_bool(conf->nat64.drop_external_tcp));
 
+		printf("%s,", OPTNAME_UDP_TIMEOUT);
 		print_time_csv(conf->nat64.ttl.udp);
-		printf(",");
+		printf("\n%s,", OPTNAME_TCPEST_TIMEOUT);
 		print_time_csv(conf->nat64.ttl.tcp_est);
-		printf(",");
+		printf("\n%s,", OPTNAME_TCPTRANS_TIMEOUT);
 		print_time_csv(conf->nat64.ttl.tcp_trans);
-		printf(",");
+		printf("\n%s,", OPTNAME_ICMP_TIMEOUT);
 		print_time_csv(conf->nat64.ttl.icmp);
-		printf(",");
+		printf("\n%s,", OPTNAME_FRAG_TIMEOUT);
 		print_time_csv(conf->nat64.ttl.frag);
+		printf("\n");
 	}
-	printf("\n");
 
 	return 0;
 }

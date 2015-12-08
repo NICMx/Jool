@@ -17,6 +17,8 @@ unsigned long config_get_ttl_icmp(void);
 
 unsigned int config_get_max_pkts(void);
 bool config_get_src_icmp6errs_better(void);
+unsigned int config_get_f_args(void);
+
 bool config_get_bib_logging(void);
 bool config_get_session_logging(void);
 

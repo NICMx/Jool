@@ -941,6 +941,11 @@ static int handle_global_update(enum global_type type, size_t size, unsigned cha
 			goto einval;
 		config->nat64.src_icmp6errs_better = *((__u8 *) value);
 		break;
+	case F_ARGS:
+		if (!ensure_bytes(size, 1))
+			goto einval;
+		config->nat64.f_args = *((__u8 *) value);
+		break;
 	case BIB_LOGGING:
 		if (!ensure_bytes(size, 1))
 			goto einval;

@@ -364,6 +364,7 @@ enum global_type {
 
 	MAX_PKTS,
 	SRC_ICMP6ERRS_BETTER,
+	F_ARGS,
 
 	BIB_LOGGING,
 	SESSION_LOGGING,
@@ -463,6 +464,13 @@ struct session_entry_usr {
 struct eamt_entry {
 	struct ipv6_prefix prefix6;
 	struct ipv4_prefix prefix4;
+};
+
+enum f_args {
+	F_ARGS_SRC_ADDR = (1 << 3),
+	F_ARGS_SRC_PORT = (1 << 2),
+	F_ARGS_DST_ADDR = (1 << 1),
+	F_ARGS_DST_PORT = (1 << 0),
 };
 
 /**
@@ -574,6 +582,12 @@ struct global_config {
 		__u64 max_stored_pkts;
 		/** True = issue #132 behaviour. False = RFC 6146 behaviour. (boolean) */
 		__u8 src_icmp6errs_better;
+		/**
+		 * Fields of the packet that will be sent to the F() function.
+		 * (RFC 6056 algorithm 3.)
+		 * See "enum f_args".
+		 */
+		__u8 f_args;
 
 		/** Log BIBs as they are created and destroyed? */
 		__u8 bib_logging;

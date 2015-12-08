@@ -183,6 +183,18 @@ Set the timeout for arrival of fragments.
 Set the maximum allowable 'simultaneous' Simultaneos Opens of TCP connections.
 .IP --source-icmpv6-errors-better=BOOL
 Translate source addresses directly on 4-to-6 ICMP errors?
+.IP --f-args=INT
+Defines the arguments that will be sent to F().
+.br
+(F() is defined by algorithm 3 of RFC 6056.)
+.br
+- First (leftmost) bit is source address.
+.br
+- Second bit is source port.
+.br
+- Third bit is destination address.
+.br
+- Fourth (rightmost) bit is destination port.
 .IP --logging-bib=BOOL
 Log BIBs as they are created and destroyed?
 .IP --logging-session=BOOL

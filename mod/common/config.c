@@ -37,6 +37,7 @@ int config_init(bool is_disable)
 	cfg->nat64.ttl.frag = msecs_to_jiffies(1000 * FRAGMENT_MIN);
 	cfg->nat64.max_stored_pkts = DEFAULT_MAX_STORED_PKTS;
 	cfg->nat64.src_icmp6errs_better = DEFAULT_SRC_ICMP6ERRS_BETTER;
+	cfg->nat64.f_args = DEFAULT_F_ARGS;
 	cfg->nat64.drop_by_addr = DEFAULT_ADDR_DEPENDENT_FILTERING;
 	cfg->nat64.drop_external_tcp = DEFAULT_DROP_EXTERNAL_CONNECTIONS;
 	cfg->nat64.drop_icmp6_info = DEFAULT_FILTER_ICMPV6_INFO;
@@ -151,6 +152,11 @@ unsigned int config_get_max_pkts(void)
 bool config_get_src_icmp6errs_better(void)
 {
 	return RCU_THINGY(bool, nat64.src_icmp6errs_better);
+}
+
+unsigned int config_get_f_args(void)
+{
+	return RCU_THINGY(unsigned int, nat64.f_args);
 }
 
 bool config_get_bib_logging(void)
