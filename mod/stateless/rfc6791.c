@@ -26,8 +26,19 @@ void rfc6791_destroy(void)
 	return pool_destroy(&pool);
 }
 
-int rfc6791_add(struct ipv4_prefix *prefix)
+int rfc6791_add(struct ipv4_prefix *prefix, bool force)
 {
+	struct ipv4_prefix subnet;
+
+	if (!force && prefix4_has_subnet_scope(prefix, &subnet)) {
+		log_err("Prefix %pI4/%u intersects with subnet scoped network %pI4/%u.",
+				&prefix->address, prefix->len,
+				&subnet.address, subnet.len);
+		log_err("This might lead to packet drops.");
+		log_err("Will cancel the operation. Use --force to ignore this validation.");
+		return -EINVAL;
+	}
+
 	return pool_add(pool, prefix);
 }
 

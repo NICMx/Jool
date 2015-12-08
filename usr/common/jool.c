@@ -402,7 +402,8 @@ static int parse_opt(int key, char *str, struct argp_state *state)
 			error = str_to_u32(str, &args->db.pool4.mark, 0, MAX_U32);
 		break;
 	case ARGP_FORCE:
-		error = update_state(args, MODE_POOL6 | MODE_POOL4 | MODE_EAMT, OP_ADD);
+		error = update_state(args, MODE_POOL6 | MODE_POOL4 | MODE_EAMT
+				| MODE_RFC6791, OP_ADD);
 		args->db.force = true;
 		break;
 
@@ -770,7 +771,7 @@ static int main_wrapped(int argc, char **argv)
 				log_err("Please enter the address or prefix to be added (%s).", PREFIX4_FORMAT);
 				return -EINVAL;
 			}
-			return pool_add(args.mode, &args.db.pool4.prefix);
+			return pool_add(args.mode, &args.db.pool4.prefix, args.db.force);
 		case OP_REMOVE:
 			if (!args.db.pool4.prefix_set) {
 				log_err("Please enter the address or prefix to be removed (%s).", PREFIX4_FORMAT);

@@ -690,7 +690,8 @@ static int handle_rfc6791_config(struct nlmsghdr *nl_hdr, struct request_hdr *jo
 			return respond_error(nl_hdr, -EPERM);
 
 		log_debug("Adding an address to the RFC6791 pool.");
-		return respond_error(nl_hdr, rfc6791_add(&request->add.addrs));
+		return respond_error(nl_hdr, rfc6791_add(&request->add.addrs,
+				request->add.force));
 
 	case OP_REMOVE:
 		if (verify_superpriv())

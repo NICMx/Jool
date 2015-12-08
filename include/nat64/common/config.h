@@ -227,6 +227,8 @@ union request_pool {
 	struct {
 		/** The addresses the user wants to add to the pool. */
 		struct ipv4_prefix addrs;
+		/** Add @addrs even if it contains subnet-scoped addresses? */
+		bool force;
 	} add;
 	struct {
 		/** The addresses the user wants to remove from the pool. */
