@@ -50,7 +50,7 @@ int blacklist_count(__u64 *result)
 	return fail(__func__);
 }
 
-int rfc6791_add(struct ipv4_prefix *prefix)
+int rfc6791_add(struct ipv4_prefix *prefix, bool force)
 {
 	return fail(__func__);
 }
