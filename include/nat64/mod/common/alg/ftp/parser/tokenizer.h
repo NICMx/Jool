@@ -1,10 +1,8 @@
-#ifndef _JOOL_MOD_ALG_FTP_PARSER_H
-#define _JOOL_MOD_ALG_FTP_PARSER_H
+#ifndef _JOOL_MOD_ALG_FTP_TOKENIZER_H
+#define _JOOL_MOD_ALG_FTP_TOKENIZER_H
 
 #include "nat64/common/types.h"
-#include "nat64/mod/common/packet.h"
-#include "nat64/mod/common/alg/ftp/parser/telnet.h"
-
+#include "nat64/mod/common/alg/ftp/parser/parser.h"
 
 enum ftp_client_code {
 	FTP_AUTH,
@@ -29,7 +27,6 @@ enum alg_argument {
 	ALGS_STATUS64,
 	ALGS_ENABLE64,
 	ALGS_DISABLE64,
-	ALGS_BAD_SYNTAX,
 };
 
 struct ftp_client_msg {
@@ -77,24 +74,7 @@ struct ftp_server_msg {
 	};
 };
 
-struct ftp_token {
-	char *name;
-	unsigned int code;
-};
+int parser_server_next(struct ftp_parser *parser, struct ftp_server_msg *msg);
+int parser_client_next(struct ftp_parser *parser, struct ftp_client_msg *msg);
 
-struct ftp_ctrl_channel_parser {
-	struct packet *pkt;
-	struct list_head chunks;
-	struct telnet_chunk *current_chunk;
-};
-
-
-int ftpparser_init(struct ftp_ctrl_channel_parser *parser, struct packet *pkt);
-int ftpparser_server_nextline(struct ftp_ctrl_channel_parser *parser,
-		struct ftp_server_msg *token);
-int ftpparser_client_nextline(struct ftp_ctrl_channel_parser *parser,
-		struct ftp_client_msg *token);
-void ftpparser_destroy(struct ftp_ctrl_channel_parser *parser);
-
-
-#endif /* _JOOL_MOD_ALG_FTP_PARSER_H */
+#endif /* _JOOL_MOD_ALG_FTP_TOKENIZER_H */

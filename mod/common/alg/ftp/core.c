@@ -76,6 +76,7 @@ static enum ftpxlat_action sm64(struct packet *in, struct ftp_state *state)
 	struct ftp_client_msg token;
 	enum ftpxlat_action action = FTPXLAT_DO_NOTHING;
 
+	/* TODO result code? */
 	ftpparser_init(&parser, in);
 
 	while (ftpparser_client_nextline(&parser, &token) != -ENOENT) {
