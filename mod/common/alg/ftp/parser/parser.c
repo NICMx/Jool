@@ -1,4 +1,6 @@
 #include "nat64/mod/common/alg/ftp/parser/parser.h"
+/* TODO rm */
+#include "nat64/mod/common/types.h"
 
 #define WILL	251
 #define DO	253
@@ -13,7 +15,7 @@ struct ftp_parser *parser_create(struct sk_buff *skb, unsigned int skb_offset)
 	if (!parser)
 		return NULL;
 
-	parser->skb = 0;
+	parser->skb = skb;
 	parser->skb_offset = skb_offset;
 
 	/* unsigned char buffer[BUFFER_LEN]; */
@@ -23,7 +25,7 @@ struct ftp_parser *parser_create(struct sk_buff *skb, unsigned int skb_offset)
 	/* int chara; */
 
 	INIT_LIST_HEAD(&parser->options);
-	return 0;
+	return parser;
 }
 
 void parser_destroy(struct ftp_parser *parser)
@@ -37,7 +39,7 @@ void parser_destroy(struct ftp_parser *parser)
  * We don't access skb bytes directly because paging and fragmentation can make
  * it complicated.
  */
-static int fetch_next_block(struct ftp_parser *parser)
+int fetch_next_block(struct ftp_parser *parser)
 {
 	struct sk_buff *skb = parser->skb;
 	unsigned int read_len;
@@ -46,7 +48,9 @@ static int fetch_next_block(struct ftp_parser *parser)
 	read_len = (parser->skb_offset + BUFFER_LEN > skb->len)
 			? (skb->len - parser->skb_offset)
 			: BUFFER_LEN;
-	error = skb_copy_bits(skb, parser->skb_offset, parser, read_len);
+	if (read_len == 0)
+		return -ENOENT;
+	error = skb_copy_bits(skb, parser->skb_offset, parser->buffer, read_len);
 	if (error)
 		return error;
 
@@ -59,11 +63,11 @@ static int fetch_next_block(struct ftp_parser *parser)
 /**
  * Simple-minded copy the next character from parser->buffer to parser->chara.
  */
-static int __fetch_next_chara(struct ftp_parser *parser, unsigned char *chara)
+int __fetch_next_chara(struct ftp_parser *parser, unsigned char *chara)
 {
 	int error;
 
-	if (parser->buffer_offset > parser->buffer_len) {
+	if (parser->buffer_offset >= parser->buffer_len) {
 		error = fetch_next_block(parser);
 		if (error)
 			return error;
@@ -74,7 +78,7 @@ static int __fetch_next_chara(struct ftp_parser *parser, unsigned char *chara)
 	return 0;
 }
 
-static int handle_option(struct ftp_parser *parser, unsigned char action)
+int handle_option(struct ftp_parser *parser, unsigned char action)
 {
 	struct telnet_option *option;
 	unsigned char code;
@@ -94,13 +98,27 @@ static int handle_option(struct ftp_parser *parser, unsigned char action)
 	return 0;
 }
 
+static bool is_printable(int chara)
+{
+	return 31 < chara && chara < 127;
+}
+
+static void report_fetched_chara(int chara)
+{
+	if (is_printable(chara)) {
+		log_debug("Fetched chara: '%c'", chara);
+	} else {
+		log_debug("Fetched chara: %d", chara);
+	}
+}
+
 /**
  * Copy the next "relevant" character from parser->buffer to parser->chara.
  *
  * "Irrelevant" characters are Telnet noise. Callers can assume this function
  * will clean the stream for them.
  */
-static int fetch_next_chara(struct ftp_parser *parser)
+int fetch_next_chara(struct ftp_parser *parser)
 {
 	unsigned char chara;
 	int error;
@@ -131,6 +149,7 @@ static int fetch_next_chara(struct ftp_parser *parser)
 	parser->chara = (parser->chara == '\r' && chara == '\n')
 			? NEWLINE
 			: chara;
+	report_fetched_chara(parser->chara);
 	return 0;
 }
 
@@ -150,6 +169,11 @@ static void word_add_chara(struct ftp_word *word, unsigned char chara)
 	word->len++;
 }
 
+static void report_word(struct ftp_word *word)
+{
+	log_debug("Fetched word: [%.9s] (length %u)", word->charas, word->len);
+}
+
 /**
  * Consumes only the next word (alphanumeric token) from @parser's stream,
  * and copies its prefix (up to ARRAY_SIZE(word->charas) bytes) to @word.
@@ -159,17 +183,22 @@ static void word_add_chara(struct ftp_word *word, unsigned char chara)
 int next_word(struct ftp_parser *parser, struct ftp_word *word)
 {
 	int error;
+
+	memset(word->charas, 0, sizeof(word->charas)); /* TODO rm? */
+	word->len = 0;
 	do {
 		error = fetch_next_chara(parser);
 		if (error)
 			return error;
 
 		if (!is_alphanumeric(parser->chara))
-			return 0;
+			break;
 
 		word_add_chara(word, parser->chara);
 	} while (true);
-	return -EINVAL;
+
+	report_word(word);
+	return 0;
 }
 
 static int line_add_chara(char *line, size_t line_len, unsigned int *pos,
@@ -183,11 +212,6 @@ static int line_add_chara(char *line, size_t line_len, unsigned int *pos,
 	line[*pos] = chara;
 	(*pos)++;
 	return 0;
-}
-
-static bool is_printable(int chara)
-{
-	return 31 < chara && chara < 127;
 }
 
 /**
@@ -241,7 +265,11 @@ int next_line(struct ftp_parser *parser, char *line, size_t line_len)
  */
 int waste_line(struct ftp_parser *parser)
 {
-	return next_line(parser, NULL, 0);
+	int error;
+	log_debug("-> Dropping the rest of the line...");
+	error = next_line(parser, NULL, 0);
+	log_debug("-> Done.");
+	return error;
 }
 
 /**
@@ -282,7 +310,8 @@ bool word_equals(struct ftp_word *word, char *expected)
 	if (word->len != strlen(expected))
 		return false;
 
-	return strncmp(word->charas, expected, word->len);
+	/* RFC 1123 section 5.3. */
+	return strncasecmp(word->charas, expected, word->len) == 0;
 }
 
 /**
@@ -290,5 +319,5 @@ bool word_equals(struct ftp_word *word, char *expected)
  */
 bool line_starts_with(char *line, char *expected)
 {
-	return strncmp(line, expected, strlen(expected));
+	return strncasecmp(line, expected, strlen(expected)) == 0;
 }

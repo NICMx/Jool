@@ -29,6 +29,7 @@ CONFIG_PROTO = config_proto
 LOGTIME = logtime
 EAMT = eamt
 PALLOC = palloc4
+FTP = ftp_parser
 
 
 obj-m += $(ADDR).o
@@ -49,6 +50,7 @@ obj-m += $(CONFIG_PROTO).o
 obj-m += $(LOGTIME).o
 obj-m += $(EAMT).o
 obj-m += $(PALLOC).o
+obj-m += $(FTP).o
 
 
 MIN_REQS = ../mod/common/types.o \
@@ -186,6 +188,13 @@ $(EAMT)-objs += eamt_test.o
 $(PALLOC)-objs += $(MIN_REQS)
 $(PALLOC)-objs += impersonator/bib.o
 $(PALLOC)-objs += port_allocator_test.o
+
+$(FTP)-objs += $(MIN_REQS)
+$(FTP)-objs += ../mod/common/alg/ftp/parser/parser.o
+$(FTP)-objs += ../mod/common/alg/ftp/parser/tokenizer.o
+$(FTP)-objs += framework/skb_generator.o
+$(FTP)-objs += framework/types.o
+$(FTP)-objs += ftp_parser_test.o
 
 all:
 	make -C ${KERNEL_DIR} M=$$PWD;

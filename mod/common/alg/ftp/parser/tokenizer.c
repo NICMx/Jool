@@ -12,18 +12,18 @@ static int parse_auth(struct ftp_parser *parser, struct ftp_client_msg *result)
 
 static int parse_algs(struct ftp_parser *parser, struct ftp_client_msg *result)
 {
-	struct ftp_word token;
+	struct ftp_word word;
 	int error;
 
-	error = next_word(parser, &token);
+	error = next_word(parser, &word);
 	if (error)
 		return error;
 
-	if (word_equals(&token, "STATUS64")) {
+	if (word_equals(&word, "STATUS64")) {
 		result->algs.arg = ALGS_STATUS64;
-	} else if (word_equals(&token, "ENABLE64")) {
+	} else if (word_equals(&word, "ENABLE64")) {
 		result->algs.arg = ALGS_ENABLE64;
-	} else if (word_equals(&token, "DISABLE64")) {
+	} else if (word_equals(&word, "DISABLE64")) {
 		result->algs.arg = ALGS_DISABLE64;
 	} else {
 		log_debug("Unknown ALGS argument.");
@@ -127,20 +127,20 @@ static int parse_client_unrecognized(struct ftp_client_msg *result)
 
 int parser_client_next(struct ftp_parser *parser, struct ftp_client_msg *result)
 {
-	struct ftp_word token;
+	struct ftp_word word;
 	int error;
 
-	error = next_word(parser, &token);
+	error = next_word(parser, &word);
 	if (error)
 		return error;
 
-	if (word_equals(&token, "AUTH")) {
+	if (word_equals(&word, "AUTH")) {
 		error = parse_auth(parser, result);
-	} else if (word_equals(&token, "ALGS")) {
+	} else if (word_equals(&word, "ALGS")) {
 		error = parse_algs(parser, result);
-	} else if (word_equals(&token, "EPRT")) {
+	} else if (word_equals(&word, "EPRT")) {
 		error = parse_eprt(parser, result);
-	} else if (word_equals(&token, "EPSV")) {
+	} else if (word_equals(&word, "EPSV")) {
 		error = parse_epsv(parser, result);
 	} else {
 		error = parse_client_unrecognized(result);
@@ -196,18 +196,18 @@ static int parse_server_unrecognized(struct ftp_server_msg *result)
 
 int parser_server_next(struct ftp_parser *parser, struct ftp_server_msg *result)
 {
-	struct ftp_word token;
+	struct ftp_word word;
 	int error;
 
-	error = next_word(parser, &token);
+	error = next_word(parser, &word);
 	if (error)
 		return error;
 
-	if (word_equals(&token, "227")) {
+	if (word_equals(&word, "227")) {
 		error = parse_227(parser, result);
-	} else if (word_equals(&token, "4")) {
+	} else if (word_equals(&word, "4")) {
 		error = parse_error(parser, result);
-	} else if (word_equals(&token, "5")) {
+	} else if (word_equals(&word, "5")) {
 		error = parse_error(parser, result);
 	} else {
 		error = parse_server_unrecognized(result);
