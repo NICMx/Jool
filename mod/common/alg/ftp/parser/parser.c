@@ -6,79 +6,63 @@
 #define DO	253
 #define IAC	255
 #define NEWLINE	-1
+#define CRLF	"\r\n"
 
-struct ftp_parser *parser_create(struct sk_buff *skb, unsigned int skb_offset)
+static struct ts_config *ts_config;
+
+int ftpparser_module_init(void)
 {
-	struct ftp_parser *parser;
+	ts_config = textsearch_prepare("kmp", CRLF, strlen(CRLF), GFP_KERNEL,
+			TS_AUTOLOAD);
+	return IS_ERR(ts_config) ? PTR_ERR(ts_config) : 0;
+}
 
-	parser = kmalloc(sizeof(*parser), GFP_ATOMIC);
-	if (!parser)
-		return NULL;
+void ftpparser_module_destroy(void)
+{
+	textsearch_destroy(ts_config);
+}
 
+void parser_init(struct ftp_parser *parser,
+		struct sk_buff *skb,
+		unsigned int offset)
+{
 	parser->skb = skb;
-	parser->skb_offset = skb_offset;
-
-	/* unsigned char buffer[BUFFER_LEN]; */
-	parser->buffer_len = 0;
-	parser->buffer_offset = 1;
-
-	/* int chara; */
-
+	memset(&parser->ts_state, 0, sizeof(parser->ts_state));
+	parser->ts_state_initialized = false;
+	parser->line = NULL;
+	parser->line_len = 0;
+	parser->line_next_offset = offset;
+	/* parser->chara = ; */
+	/* parser->chara_offset = ; */
 	INIT_LIST_HEAD(&parser->options);
-	return parser;
+}
+
+void parser_init_continue(struct ftp_parser *parser,
+		struct sk_buff *skb,
+		unsigned int offset,
+		char *unfinished_line,
+		size_t unfinished_line_len)
+{
+	parser_init(parser, skb, offset);
+	parser->line = unfinished_line;
+	parser->line_len = unfinished_line_len;
 }
 
 void parser_destroy(struct ftp_parser *parser)
 {
-	kfree(parser);
+	kfree(parser->line);
 }
 
-/**
- * Copies the next bunch of bytes from parser->skb to parser's buffer.
- *
- * We don't access skb bytes directly because paging and fragmentation can make
- * it complicated.
- */
-int fetch_next_block(struct ftp_parser *parser)
+static int __fetch_next_chara(struct ftp_parser *parser, unsigned char *chara)
 {
-	struct sk_buff *skb = parser->skb;
-	unsigned int read_len;
-	int error;
-
-	read_len = (parser->skb_offset + BUFFER_LEN > skb->len)
-			? (skb->len - parser->skb_offset)
-			: BUFFER_LEN;
-	if (read_len == 0)
-		return -ENOENT;
-	error = skb_copy_bits(skb, parser->skb_offset, parser->buffer, read_len);
-	if (error)
-		return error;
-
-	parser->skb_offset += read_len;
-	parser->buffer_len = read_len;
-	parser->buffer_offset = 0;
+	if (parser->chara_offset >= parser->line_len)
+		return -ENOENT; /* TODO this might mean something unintended. */
+	*chara = parser->line[parser->chara_offset];
+	parser->chara_offset++;
 	return 0;
 }
 
-/**
- * Simple-minded copy the next character from parser->buffer to parser->chara.
- */
-int __fetch_next_chara(struct ftp_parser *parser, unsigned char *chara)
-{
-	int error;
-
-	if (parser->buffer_offset >= parser->buffer_len) {
-		error = fetch_next_block(parser);
-		if (error)
-			return error;
-	}
-
-	*chara = parser->buffer[parser->buffer_offset];
-	parser->buffer_offset++;
-	return 0;
-}
-
-int handle_option(struct ftp_parser *parser, unsigned char action)
+static int handle_option(struct ftp_parser *parser, unsigned char action)
 {
 	struct telnet_option *option;
 	unsigned char code;
@@ -93,7 +77,7 @@ int handle_option(struct ftp_parser *parser, unsigned char action)
 
 	option->action = action;
 	option->code = code;
-	option->offset = parser->skb_offset + parser->buffer_offset;
+	option->offset = parser->line_next_offset + parser->chara_offset;
 	list_add_tail(&option->list_hook, &parser->options);
 	return 0;
 }
@@ -118,7 +102,7 @@ static void report_fetched_chara(int chara)
  * "Irrelevant" characters are Telnet noise. Callers can assume this function
  * will clean the stream for them.
  */
-int fetch_next_chara(struct ftp_parser *parser)
+static int fetch_next_chara(struct ftp_parser *parser)
 {
 	unsigned char chara;
 	int error;
@@ -153,65 +137,62 @@ int fetch_next_chara(struct ftp_parser *parser)
 	return 0;
 }
 
-static bool is_alphanumeric(unsigned char chara)
-{
-	return ('0' <= chara && chara <= '9')
-			|| ('A' <= chara && chara <= 'Z')
-			|| ('a' <= chara && chara <= 'z');
-}
-
-static void word_add_chara(struct ftp_word *word, unsigned char chara)
-{
-	if (word->len >= ARRAY_SIZE(word->charas))
-		return;
-
-	word->charas[word->len] = chara;
-	word->len++;
-}
-
-static void report_word(struct ftp_word *word)
-{
-	log_debug("Fetched word: [%.9s] (length %u)", word->charas, word->len);
-}
-
 /**
- * Consumes only the next word (alphanumeric token) from @parser's stream,
- * and copies its prefix (up to ARRAY_SIZE(word->charas) bytes) to @word.
+ * Copies the next line of text from the stream to @parser->line.
  *
- * (It is assumed further characters are irrelevant.)
+ * If the packet does not fully contain the next line, it fetches the content
+ * anyway and returns -ETRUNCATED.
+ *
+ * TODO this will fail to find the newline if there's telnet bullshit between CR and LF.
  */
-int next_word(struct ftp_parser *parser, struct ftp_word *word)
+static int fetch_next_line(struct ftp_parser *parser)
 {
+	unsigned int skb_len;
+	unsigned int total_len;
+	bool newline_found = true;
 	int error;
 
-	memset(word->charas, 0, sizeof(word->charas)); /* TODO rm? */
-	word->len = 0;
-	do {
-		error = fetch_next_chara(parser);
-		if (error)
-			return error;
+	if (parser->line_next_offset >= parser->skb->len) {
+		log_debug("Ok, no more lines.");
+		return EOP;
+	}
 
-		if (!is_alphanumeric(parser->chara))
-			break;
+	/* Find the next newline (CR LF). */
+	if (!parser->ts_state_initialized) {
+		skb_len = skb_find_text(parser->skb, parser->line_next_offset,
+				parser->skb->len, ts_config, &parser->ts_state);
+		parser->ts_state_initialized = true;
+	} else {
+		skb_len = textsearch_next(ts_config, &parser->ts_state);
+	}
 
-		word_add_chara(word, parser->chara);
-	} while (true);
+	if (skb_len == UINT_MAX) {
+		newline_found = false;
+		skb_len = parser->skb->len - parser->line_next_offset;
+	}
 
-	report_word(word);
-	return 0;
-}
+	total_len = skb_len + parser->line_len;
+	parser->line = krealloc(parser->line, total_len, GFP_ATOMIC);
+	if (!parser->line)
+		return -ENOMEM;
 
-static int line_add_chara(char *line, size_t line_len, unsigned int *pos,
-		char chara)
-{
-	if (!line)
-		return 0;
-	if ((*pos) >= line_len)
-		return -EINVAL;
+//	log_debug("skb->len: %u", parser->skb->len);
+//	log_debug("parser->line_next_offset: %u", parser->line_next_offset);
+//	log_debug("skb_len: %u", skb_len);
+//	log_debug("total_len: %u", total_len);
+//	log_debug("newline found: %d", newline_found);
 
-	line[*pos] = chara;
-	(*pos)++;
-	return 0;
+	error = skb_copy_bits(parser->skb, parser->line_next_offset,
+			parser->line + parser->line_len, skb_len);
+	if (error) {
+		log_debug("skb_copy_bits() threw errcode %d.", error);
+		return error;
+	}
+	parser->line_len = total_len;
+	parser->line_next_offset += skb_len + strlen(CRLF);
+	parser->chara_offset = 0;
+
+	return newline_found ? 0 : -ETRUNCATED;
 }
 
 /**
@@ -220,98 +201,50 @@ static int line_add_chara(char *line, size_t line_len, unsigned int *pos,
  *
  * If the line is longer than line_len, returns -EINVAL.
  */
-int next_line(struct ftp_parser *parser, char *line, size_t line_len)
+int next_line(struct ftp_parser *parser, char **line)
 {
+	char *result;
 	unsigned int pos = 0;
 	int error;
 
-	/*
-	 * Only read if we're not at the end of a line.
-	 * This prevents consecutive waste_line() calls from accidentally
-	 * skipping lines.
-	 * All FTP lines start with a token that MUST be parsed using
-	 * read_word() anyway.
-	 *
-	 * TODO multiline commands yield lines that don't start with the token.
-	 */
-	if (parser->chara == NEWLINE)
-		return line_add_chara(line, line_len, &pos, '\0');
+	/* TODO multiline commands yield lines that don't start with the token. */
 
-	do {
+	error = fetch_next_line(parser);
+	if (error)
+		return error;
+
+	/* Original string + null chara. */
+	result = kmalloc(parser->line_len + 1, GFP_ATOMIC);
+	if (!result) {
+		error = -ENOMEM;
+		goto end;
+	}
+
+	while (parser->chara_offset < parser->line_len) {
 		error = fetch_next_chara(parser);
-		if (error)
-			return error;
+		if (error) {
+			kfree(result);
+			goto end;
+		}
 
-		if (parser->chara == NEWLINE)
-			break;
-
-		/**
+		/*
 		 * This validation is mostly to prevent CR from leaking into the
 		 * line, though it IS nice that it helps line be char instead of
 		 * unsigned char.
 		 */
-		if (!is_printable(parser->chara))
-			continue;
-		error = line_add_chara(line, line_len, &pos, parser->chara);
-		if (error)
-			return error;
-	} while (true);
+		if (is_printable(parser->chara))
+			result[pos++] = parser->chara;
+	};
 
-	return line_add_chara(line, line_len, &pos, '\0');
-}
+	result[pos] = '\0';
+	*line = result;
+	/* Fall through. */
 
-/**
- * Consumes and discards what's left of the current line from @parser's stream.
- */
-int waste_line(struct ftp_parser *parser)
-{
-	int error;
-	log_debug("-> Dropping the rest of the line...");
-	error = next_line(parser, NULL, 0);
-	log_debug("-> Done.");
+end:
+	kfree(parser->line);
+	parser->line = NULL;
+	parser->line_len = 0;
 	return error;
-}
-
-/**
- * Consumes only the next word (alphanumeric token) from @parser's stream, and
- * converts it to an 8-bit unsigned integer.
- */
-int next_u8(struct ftp_parser *parser, u8 *result)
-{
-	struct ftp_word word;
-	int error;
-
-	error = next_word(parser, &word);
-	if (error)
-		return error;
-
-	return kstrtou8(word.charas, 10, result);
-}
-
-/**
- * Consumes and discards all characters until @delimiter or newline.
- */
-int waste_until(struct ftp_parser *parser, char delimiter)
-{
-	int error;
-
-	do {
-		error = fetch_next_chara(parser);
-		if (error)
-			return error;
-	} while (parser->chara != delimiter && parser->chara != NEWLINE);
-
-	return 0;
-}
-
-bool word_equals(struct ftp_word *word, char *expected)
-{
-	/* I need this because word->charas is not null-terminated. */
-	if (word->len != strlen(expected))
-		return false;
-
-	/* RFC 1123 section 5.3. */
-	return strncasecmp(word->charas, expected, word->len) == 0;
 }
 
 /**
@@ -319,5 +252,6 @@ bool word_equals(struct ftp_word *word, char *expected)
  */
 bool line_starts_with(char *line, char *expected)
 {
+	/* RFC 1123 section 5.3. */
 	return strncasecmp(line, expected, strlen(expected)) == 0;
 }

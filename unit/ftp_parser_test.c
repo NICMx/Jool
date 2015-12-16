@@ -48,17 +48,40 @@ fail:
 	return NULL;
 }
 
-static struct ftp_parser *create_parser(unsigned char *skb_payload)
+static int create_parser(struct ftp_parser *parser, unsigned char *skb_payload)
 {
 	struct sk_buff *skb;
 	unsigned int payload_offset;
 
 	skb = create_skb(skb_payload);
 	if (!skb)
-		return NULL;
+		return -ENOMEM;
 
 	payload_offset = skb_transport_offset(skb) + sizeof(struct tcphdr);
-	return parser_create(skb, payload_offset);
+	parser_init(parser, skb, payload_offset);
+
+	return 0;
+}
+
+static int create_parser_continue(struct ftp_parser *parser,
+		unsigned char *skb_payload,
+		struct ftp_parser *unfinished_parser)
+{
+	struct sk_buff *skb;
+	unsigned int payload_offset;
+
+	skb = create_skb(skb_payload);
+	if (!skb)
+		return -ENOMEM;
+
+	payload_offset = skb_transport_offset(skb) + sizeof(struct tcphdr);
+	parser_init_continue(parser, skb, payload_offset,
+			unfinished_parser->line,
+			unfinished_parser->line_len);
+	unfinished_parser->line = NULL;
+	unfinished_parser->line_len = 0;
+
+	return 0;
 }
 
 static void destroy_parser(struct ftp_parser *parser)
@@ -69,74 +92,76 @@ static void destroy_parser(struct ftp_parser *parser)
 
 bool test_auth(void)
 {
-	struct ftp_parser *parser;
+	struct ftp_parser parser;
+	struct ftp_parser parser2;
 	struct ftp_client_msg msg;
 	bool success = true;
 
-	/* TODO command codes are case-insensitive. */
-
-	parser = create_parser("AUTH\r\n");
-	if (!parser)
+	if (create_parser(&parser, "AUTH\r\n"))
 		return false;
-	success &= ASSERT_INT(0, parser_client_next(parser, &msg), "simple.result");
+	success &= ASSERT_INT(0, parser_client_next(&parser, &msg), "simple.result");
 	success &= ASSERT_INT(msg.code, FTP_AUTH, "simple.code");
-	success &= ASSERT_INT(-ENOENT, parser_client_next(parser, &msg), "simple.end");
-	destroy_parser(parser);
+	success &= ASSERT_INT(EOP, parser_client_next(&parser, &msg), "simple.end");
+	destroy_parser(&parser);
 
-	parser = create_parser("AUTH \r\n");
-	if (!parser)
+	if (create_parser(&parser, "AuTh \r\n"))
 		return false;
-	success &= ASSERT_INT(0, parser_client_next(parser, &msg), "space.result");
+	success &= ASSERT_INT(0, parser_client_next(&parser, &msg), "space.result");
 	success &= ASSERT_INT(msg.code, FTP_AUTH, "space.code");
-	success &= ASSERT_INT(-ENOENT, parser_client_next(parser, &msg), "space.end");
-	destroy_parser(parser);
+	success &= ASSERT_INT(EOP, parser_client_next(&parser, &msg), "space.end");
+	destroy_parser(&parser);
 
-	parser = create_parser("AUTH \t     \t  \r \n\r\n");
-	if (!parser)
+	if (create_parser(&parser, "auth \t     \t  \r \n\r\n"))
 		return false;
-	success &= ASSERT_INT(0, parser_client_next(parser, &msg), "whitespace.result");
+	success &= ASSERT_INT(0, parser_client_next(&parser, &msg), "whitespace.result");
 	success &= ASSERT_INT(msg.code, FTP_AUTH, "whitespace.code");
-	success &= ASSERT_INT(-ENOENT, parser_client_next(parser, &msg), "whitespace.end");
-	destroy_parser(parser);
+	success &= ASSERT_INT(EOP, parser_client_next(&parser, &msg), "whitespace.end");
+	destroy_parser(&parser);
 
-	parser = create_parser("AUTH foo bar\r\n");
-	if (!parser)
+	if (create_parser(&parser, "autH foo bar\r\n"))
 		return false;
-	success &= ASSERT_INT(0, parser_client_next(parser, &msg), "params.result");
+	success &= ASSERT_INT(0, parser_client_next(&parser, &msg), "params.result");
 	success &= ASSERT_INT(msg.code, FTP_AUTH, "params.code");
-	success &= ASSERT_INT(-ENOENT, parser_client_next(parser, &msg), "params.end");
-	destroy_parser(parser);
+	success &= ASSERT_INT(EOP, parser_client_next(&parser, &msg), "params.end");
+	destroy_parser(&parser);
 
-	parser = create_parser("AUTH");
-	if (!parser)
-		return false;
-	/*
-	 * TODO Ok, this is bad.
-	 * I hadn't realized I'm supposed to assemble TCP segments. Even the RFC
-	 * is telling me, ffs.
-	 *
-	 * That pretty much trumps the kernelspace approach. Moving the ALG to
-	 * userspace now.
-	 * Going to commit for backup purposes and redesign this mess.
-	 * Hope it works this time...
-	 */
-	success &= ASSERT_INT(-ENOENT, parser_client_next(parser, &msg), "bad-syntax.result");
-	destroy_parser(parser);
+	/* { */
 
-	parser = create_parser("AUTH   ");
-	if (!parser)
+	if (create_parser(&parser, "AUTH"))
 		return false;
-	success &= ASSERT_INT(-ENOENT, parser_client_next(parser, &msg), "bad-syntax+whitespace.result");
-	destroy_parser(parser);
+	success &= ASSERT_INT(-ETRUNCATED, parser_client_next(&parser, &msg), "truncated.result.bad");
+
+	if (create_parser_continue(&parser2, "\r\n", &parser))
+		return false;
+	success &= ASSERT_INT(0, parser_client_next(&parser2, &msg), "truncated.result.good");
+	success &= ASSERT_INT(msg.code, FTP_AUTH, "truncated.code");
+	success &= ASSERT_INT(EOP, parser_client_next(&parser2, &msg), "truncated.end");
+
+	destroy_parser(&parser);
+	destroy_parser(&parser2);
+
+	/* } */
+
+	if (create_parser(&parser, "AUTH   "))
+		return false;
+	success &= ASSERT_INT(-ETRUNCATED, parser_client_next(&parser, &msg), "bad-syntax+whitespace.result");
+	destroy_parser(&parser);
 
 	return success;
 }
 
 int init_module(void)
 {
+	int error;
 	START_TESTS("FTP parser");
 
+	error = ftpparser_module_init();
+	if (error)
+		return error;
+
 	CALL_TEST(test_auth(), "AUTH parsing test");
+
+	ftpparser_module_destroy();
 
 	END_TESTS;
 }

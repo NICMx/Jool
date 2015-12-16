@@ -1,5 +1,4 @@
 #include "nat64/mod/common/alg/ftp/parser/tokenizer.h"
-
 #include <linux/inet.h>
 #include "nat64/mod/common/types.h"
 #include "nat64/mod/common/alg/ftp/parser/parser.h"
@@ -10,46 +9,72 @@ static int parse_auth(struct ftp_parser *parser, struct ftp_client_msg *result)
 	return 0;
 }
 
-static int parse_algs(struct ftp_parser *parser, struct ftp_client_msg *result)
+static bool is_whitespace(char chara)
 {
-	struct ftp_word word;
-	int error;
+	return chara == ' ' || chara == '\t' || chara == '\r' || chara == '\n';
+}
 
-	error = next_word(parser, &word);
-	if (error)
-		return error;
+static char *skip_whitespace(char *line)
+{
+	for (; line[0] != '\0'; line++) {
+		if (!is_whitespace(line[0]))
+			return line;
+	}
 
-	if (word_equals(&word, "STATUS64")) {
+	return NULL;
+}
+
+static int parse_algs(char *line, struct ftp_client_msg *result)
+{
+	result->code = FTP_ALGS;
+
+	line = skip_whitespace(line + 5); /* "+ 5" = Skip "ALGS ". */
+	if (!line)
+		return -ENOENT;
+
+	if (line_starts_with(line, "STATUS64")) {
 		result->algs.arg = ALGS_STATUS64;
-	} else if (word_equals(&word, "ENABLE64")) {
+	} else if (line_starts_with(line, "ENABLE64")) {
 		result->algs.arg = ALGS_ENABLE64;
-	} else if (word_equals(&word, "DISABLE64")) {
+	} else if (line_starts_with(line, "DISABLE64")) {
 		result->algs.arg = ALGS_DISABLE64;
 	} else {
 		log_debug("Unknown ALGS argument.");
 		return -EINVAL;
 	}
 
-	result->code = FTP_ALGS;
 	return 0;
 }
 
-static int parse_eprt(struct ftp_parser *parser, struct ftp_client_msg *result)
+static int parse_eprt(char *line, struct ftp_client_msg *result)
 {
-	/* 4 delimiters, 1 net-prt, 45 net-addr, 5 tcp-port, 1 null chara. */
-	/* (ABCD:ABCD:ABCD:ABCD:ABCD:ABCD:192.168.158.190 -> 45) */
-	char line[4 + 1 + 45 + 5 + 1];
-	const char *end_of_addr;
+	char delimiter[2];
+	char *delimiter1;
+	char *delimiter2;
+	char *delimiter3;
 	int error;
 	int success;
 
 	result->code = FTP_EPRT;
 
-	error = next_line(parser, line, sizeof(line));
-	if (error)
-		return error;
+	line = skip_whitespace(line + 5); /* "+ 5" = Skip "ALGS ". */
+	if (!line)
+		return -ENOENT;
 
-	error = kstrtouint(&line[1], 10, &result->eprt.proto);
+	delimiter[0] = line[0];
+	delimiter[1] = '\0';
+
+	delimiter1 = strstr(line, delimiter);
+	if (!line)
+		return -ENOENT; /* TODO */
+	delimiter2 = strstr(delimiter1 + 1, delimiter);
+	if (!delimiter2)
+		return -ENOENT;
+	delimiter3 = strstr(delimiter2 + 1, delimiter);
+	if (!delimiter3)
+		return -ENOENT;
+
+	error = kstrtouint(delimiter1 + 1, 10, &result->eprt.proto);
 	if (error) {
 		log_debug("Errcode %d parsing EPRT net-prt.", error);
 		return error;
@@ -57,26 +82,28 @@ static int parse_eprt(struct ftp_parser *parser, struct ftp_client_msg *result)
 
 	switch (result->eprt.proto) {
 	case 1:
-		success = in4_pton(&line[3], -1, (u8 *) &result->eprt.addr4.l3,
-				line[0], &end_of_addr);
+		success = in4_pton(delimiter2 + 1, delimiter3 - delimiter2,
+				(u8 *)&result->eprt.addr4.l3,
+				delimiter[0], NULL);
 		if (!success) {
 			log_debug("EPRTv4 address is bogus.");
 			return -EINVAL;
 		}
-		error = kstrtou16(end_of_addr + 1, 10, &result->eprt.addr4.l4);
+		error = kstrtou16(delimiter3 + 1, 10, &result->eprt.addr4.l4);
 		if (error) {
 			log_debug("Errcode %d parsing EPRTv4 port.", error);
 			return error;
 		}
 		break;
 	case 2:
-		success = in6_pton(&line[3], -1, (u8 *) &result->eprt.addr6.l3,
-				line[0], &end_of_addr);
+		success = in6_pton(delimiter2 + 1, delimiter3 - delimiter2,
+				(u8 *)&result->eprt.addr6.l3,
+				delimiter[0], NULL);
 		if (!success) {
 			log_debug("EPRTv6 address is bogus.");
 			return -EINVAL;
 		}
-		error = kstrtou16(end_of_addr + 1, 10, &result->eprt.addr6.l4);
+		error = kstrtou16(delimiter3 + 1, 10, &result->eprt.addr6.l4);
 		if (error) {
 			log_debug("Errcode %d parsing EPRTv6 port.", error);
 			return error;
@@ -92,17 +119,13 @@ static int parse_eprt(struct ftp_parser *parser, struct ftp_client_msg *result)
 	return error;
 }
 
-static int parse_epsv(struct ftp_parser *parser, struct ftp_client_msg *result)
+static int parse_epsv(char *line, struct ftp_client_msg *result)
 {
-	/* "ALL" + null chara */
-	char line[3 + 1];
-	int error;
-
 	result->code = FTP_EPSV;
 
-	error = next_line(parser, line, sizeof(line));
-	if (error)
-		return error;
+	line = skip_whitespace(line + 5); /* "+ 5" = Skip "EPSV ". */
+	if (!line)
+		return -ENOENT;
 
 	if (line_starts_with(line, "ALL")) {
 		result->epsv.type = EPSV_ALL;
@@ -127,29 +150,30 @@ static int parse_client_unrecognized(struct ftp_client_msg *result)
 
 int parser_client_next(struct ftp_parser *parser, struct ftp_client_msg *result)
 {
-	struct ftp_word word;
+	char *line;
 	int error;
 
-	error = next_word(parser, &word);
+	error = next_line(parser, &line);
 	if (error)
 		return error;
 
-	if (word_equals(&word, "AUTH")) {
+	if (line_starts_with(line, "AUTH")) {
 		error = parse_auth(parser, result);
-	} else if (word_equals(&word, "ALGS")) {
-		error = parse_algs(parser, result);
-	} else if (word_equals(&word, "EPRT")) {
-		error = parse_eprt(parser, result);
-	} else if (word_equals(&word, "EPSV")) {
-		error = parse_epsv(parser, result);
+	} else if (line_starts_with(line, "ALGS")) {
+		error = parse_algs(line, result);
+	} else if (line_starts_with(line, "EPRT")) {
+		error = parse_eprt(line, result);
+	} else if (line_starts_with(line, "EPSV")) {
+		error = parse_epsv(line, result);
 	} else {
 		error = parse_client_unrecognized(result);
 	}
 
-	return error ? error : waste_line(parser);
+	kfree(line);
+	return error;
 }
 
-static int parse_227(struct ftp_parser *parser, struct ftp_server_msg *result)
+static int parse_227(char *line, struct ftp_server_msg *result)
 {
 	union {
 		u8 as8[4];
@@ -161,28 +185,37 @@ static int parse_227(struct ftp_parser *parser, struct ftp_server_msg *result)
 
 	result->code = FTP_227;
 
-	error = waste_until(parser, '(');
-	if (error)
-		return error;
+	line = strstr(line, "(");
+	if (!line)
+		return -ENOENT; /* TODO */
+	line++;
 
 	for (i = 0; i < 4; i++) {
-		error = next_u8(parser, &tmp.as8[i]);
+		error = kstrtou8(line, 10, &tmp.as8[i]);
 		if (error)
 			return error;
+		line = strstr(line, ",");
+		if (!line)
+			return -ENOENT;
+		line++;
 	}
 	result->epsv_227.addr.l3.s_addr = cpu_to_be32(tmp.as32);
 
 	for (i = 0; i < 2; i++) {
-		error = next_u8(parser, &tmp.as8[i]);
+		error = kstrtou8(line, 10, &tmp.as8[i]);
 		if (error)
 			return error;
+		line = strstr(line, ",");
+		if (!line)
+			return -ENOENT;
+		line++;
 	}
 	result->epsv_227.addr.l4 = cpu_to_be16(tmp.as16[0]);
 
 	return 0;
 }
 
-static int parse_error(struct ftp_parser *parser, struct ftp_server_msg *result)
+static int parse_error(struct ftp_server_msg *result)
 {
 	result->code = FTP_REJECT;
 	return 0;
@@ -196,22 +229,23 @@ static int parse_server_unrecognized(struct ftp_server_msg *result)
 
 int parser_server_next(struct ftp_parser *parser, struct ftp_server_msg *result)
 {
-	struct ftp_word word;
+	char *line;
 	int error;
 
-	error = next_word(parser, &word);
+	error = next_line(parser, &line);
 	if (error)
 		return error;
 
-	if (word_equals(&word, "227")) {
-		error = parse_227(parser, result);
-	} else if (word_equals(&word, "4")) {
-		error = parse_error(parser, result);
-	} else if (word_equals(&word, "5")) {
-		error = parse_error(parser, result);
+	if (line_starts_with(line, "227")) {
+		error = parse_227(line, result);
+	} else if (line_starts_with(line, "4")) {
+		error = parse_error(result);
+	} else if (line_starts_with(line, "5")) {
+		error = parse_error(result);
 	} else {
 		error = parse_server_unrecognized(result);
 	}
 
+	kfree(line);
 	return error;
 }
