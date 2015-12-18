@@ -1,9 +1,9 @@
 #!/bin/bash
 
 if [ -z $1 ]; then
-	TESTS=`ls *.ko`
+	TESTS=`ls -r */*.ko`
 else
-	TESTS=$1.ko
+	TESTS=$1/$1.ko
 fi
 
 
