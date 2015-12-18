@@ -1,0 +1,12 @@
+jool_compile_test.sh will try to compile both jool and jool_siit against all the Linux kernels versions 
+officially released except 2.x versions (we officially don't support them). 
+
+In order to run this script, you need to have installed git and configured with your credentials, as 
+this script will attempt to clone the torvalds/linux repository located at https://github.com/torvalds/linux.git.
+
+jool_compile.sh must receive as a parameter the directory where you have, or wish to have the Linux
+git repository cloned (the script will create the directory and clone the repository if it doesn't exist).
+
+PLEASE NOTE: This version of the script has not been tested (due to architectural restrictions, I can't
+actually perform the pull/clone in my Linux VM (internet connection is not open), so I'm just assuming
+this works based on my limited bash scripting skills).
